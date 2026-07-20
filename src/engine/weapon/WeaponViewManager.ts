@@ -12,6 +12,7 @@ import { PointLight } from "@babylonjs/core/Lights/pointLight";
 import { SceneLoader } from "@babylonjs/core/Loading/sceneLoader";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
+import "@babylonjs/core/Materials/Textures/Loaders/tgaTextureLoader"; // enable .tga glow maps
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { Matrix, Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
@@ -223,6 +224,8 @@ export class WeaponViewManager {
   private weaponRoot: TransformNode | null = null;
   private currentWeapon: MD3LoadResult | null = null;
   private muzzleSocket: TransformNode | null = null;
+  /** Additive emissive glow map for the current weapon (WO-EB1), disposed on swap. */
+  private currentGlowTexture: Texture | null = null;
   private currentWeaponDef: WeaponDef | null = null; // Entity definition for current weapon
   /**
    * The weapon id the view is currently showing or switching toward. Set by
@@ -383,6 +386,11 @@ export class WeaponViewManager {
     this.weaponLight.intensity = 1.2;
     this.weaponLight.diffuse = new Color3(1.0, 0.95, 0.9); // Slightly warm white
     this.weaponLight.groundColor = new Color3(0.3, 0.3, 0.35); // Cool fill from below
+    // Always win the weapon's limited light slots. The PBR safe cap is low, and the
+    // parked muzzle-flash point light + transient projectile lights compete for the
+    // same slots — if one of those wins over this light the gun renders black
+    // ("lights off"). A high render priority keeps this light selected every frame.
+    this.weaponLight.renderPriority = 1000;
 
     // Initialize hitscan effects system
     getHitscanEffects().init(scene);
@@ -396,6 +404,14 @@ export class WeaponViewManager {
     this.muzzleFlashLight = new PointLight("muzzleFlash", Vector3.Zero(), scene);
     this.muzzleFlashLight.intensity = 0;
     this.muzzleFlashLight.range = WeaponViewManager.MUZZLE_FLASH_RANGE;
+    // Second-priority weapon light (below weaponLight, above transient projectile
+    // lights) so the flash reliably takes the weapon's second slot when firing (#2).
+    this.muzzleFlashLight.renderPriority = 500;
+
+    // Muzzle flashes ride the live barrel: the renderer re-samples this each
+    // frame so a flash tracks the muzzle instead of hanging in world space where
+    // the gun was (obvious when strafing a fast-firing gun).
+    getHitscanEffects().setMuzzleAnchorResolver(() => this.getMuzzleWorldPosition());
 
     // Register update loop. Previous-scene observer (if any) is already
     // detached above before `this.scene` was swapped.
@@ -488,6 +504,8 @@ export class WeaponViewManager {
     // Remove previous weapon before loading new one
     this.disposeAmmoCounter();
     this.muzzleSocket = null;
+    this.currentGlowTexture?.dispose();
+    this.currentGlowTexture = null;
     if (this.currentWeapon) {
       this.currentWeapon.root.dispose();
       this.currentWeapon = null;
@@ -591,14 +609,52 @@ export class WeaponViewManager {
             }
             mesh.material = convertedMaterials.get(matId)!;
           } else {
-            // Gun-type weapons: keep PBR material for proper metallic/roughness
-            // The albedo texture looks red without PBR shading — metallic/roughness
-            // interaction is what makes it look orange/metallic on Sketchfab
-            pbr.environmentIntensity = 2.0;
-            pbr.directIntensity = 1.0;
-            pbr.backFaceCulling = false;
-            applySafeMaxSimultaneousLights(pbr); // Prevent shader overflow from projectile PointLights
-            console.log(`[WeaponViewManager] Gun: keeping PBR "${pbr.name}" (env=${pbr.environmentIntensity})`);
+            // Warsow weapon materials are multi-pass, but the IQM→GLB conversion
+            // baked every pass as an OPAQUE, scene-lit base texture. Fix them up by
+            // name (from the shipped *_glow / *_emit / *_glass tgas): the glow/emit
+            // passes are solid teal energy strips (no black/alpha), so render them
+            // SELF-LIT (emissive, unlit) so they read as glow instead of a dark
+            // scene-shaded panel; glass reads as transparent.
+            const matName = (pbr.name || "").toLowerCase();
+            const isGlow = (matName.includes("_glow") || matName.includes("_emit")) && !!pbr.albedoTexture;
+            if (isGlow) {
+              // Self-lit emissive strip, TRANSLUCENT so the barrel reads through
+              // it — a glow, not a solid teal panel. Not additive (the texture's
+              // near-white highlights blew out to white when accumulated) and
+              // teal-biased so those highlights stay teal rather than blooming
+              // white. Bloom then turns the bright parts into a soft glow.
+              const glowTex = pbr.albedoTexture;
+              const glowMat = new StandardMaterial(`${pbr.name}_emis`, this.scene!);
+              glowMat.disableLighting = true;
+              glowMat.diffuseColor = new Color3(0, 0, 0);
+              glowMat.specularColor = new Color3(0, 0, 0);
+              glowMat.emissiveTexture = glowTex;
+              glowMat.emissiveColor = new Color3(0.5, 1.0, 1.0);
+              glowMat.alpha = 0.5; // translucent glow overlay, not a full teal fill
+              glowMat.transparencyMode = 2; // ALPHABLEND
+              glowMat.backFaceCulling = false;
+              mesh.material = glowMat;
+              pbr.albedoTexture = null; // keep the texture alive on glowMat
+              pbrMaterialsToDispose.push(pbr);
+            } else if (matName.includes("_glass")) {
+              // Transparent glass housing (baked OPAQUE).
+              pbr.transparencyMode = 2; // ALPHABLEND
+              pbr.alpha = 0.35;
+              pbr.backFaceCulling = false;
+              applySafeMaxSimultaneousLights(pbr);
+              pbr.maxSimultaneousLights = 2;
+            } else {
+              // Main body / sights: keep PBR for proper metallic/roughness.
+              pbr.environmentIntensity = 2.0;
+              pbr.directIntensity = 1.0;
+              pbr.backFaceCulling = false;
+              applySafeMaxSimultaneousLights(pbr); // Prevent shader overflow from projectile PointLights
+              // ...but the safe PBR cap is 1, and the weapon needs BOTH its dedicated
+              // hemispheric weaponLight AND the always-present muzzle-flash light, or
+              // one intensity-0 light wins the slot and the gun renders black (#2).
+              pbr.maxSimultaneousLights = 2;
+              console.log(`[WeaponViewManager] Gun: keeping PBR "${pbr.name}" (env=${pbr.environmentIntensity})`);
+            }
           }
         }
 
@@ -665,7 +721,7 @@ export class WeaponViewManager {
       }
 
       // Build the on-weapon ammo counter if this model is authored for one.
-      this.setupAmmoCounter(weaponName, glbRoot, loadGen).catch(() => {});
+      this.setupAmmoCounter(weaponName, modelPath, glbRoot, loadGen).catch(() => {});
 
       return true;
     } catch (e) {
@@ -1038,6 +1094,8 @@ export class WeaponViewManager {
   public clear(): void {
     this.disposeAmmoCounter();
     this.muzzleSocket = null;
+    this.currentGlowTexture?.dispose();
+    this.currentGlowTexture = null;
     if (this.currentWeapon) {
       this.currentWeapon.root.dispose();
       this.currentWeapon = null;
@@ -1115,9 +1173,17 @@ export class WeaponViewManager {
    * has a `tag_ammo` anchor and its `.cfg` carries an `ammoCounter` directive.
    * Fire-and-forget — a missing anchor/cfg just means no counter (most weapons).
    */
-  private async setupAmmoCounter(weaponName: string, glbRoot: TransformNode, loadGen: number): Promise<void> {
+  private async setupAmmoCounter(
+    weaponName: string,
+    modelPath: string,
+    glbRoot: TransformNode,
+    loadGen: number,
+  ): Promise<void> {
     try {
-      const cfgPath = `/data/models/weapons/${weaponName}/${weaponName}.cfg`;
+      // Derive the cfg from the MODEL path, not the weapon id: Voltaic reuses the
+      // lasergun model dir, so weaponName ("voltaic") != the model directory and
+      // /data/models/weapons/voltaic/voltaic.cfg 404s — the counter never appears.
+      const cfgPath = modelPath.replace(/\.glb$/i, ".cfg");
       const res = await fetch(cfgPath);
       if (!res.ok) {
         console.log(`[AmmoCounter] no cfg for ${weaponName} (${res.status}) — skipping`);
@@ -1505,6 +1571,22 @@ export class WeaponViewManager {
     const maxIntensity = flashDef?.intensity ?? WeaponViewManager.MUZZLE_FLASH_MAX_INTENSITY;
     this.muzzleFlashIntensity = maxIntensity;
 
+    // Procedural muzzle flash (shared GPU base, skinned per weapon by style).
+    // Skip beam weapons — the Voltaic renderer draws its own muzzle corona.
+    if (flashDef && this.currentWeaponDef?.hitscanType !== "beam") {
+      const muzzle = this.getMuzzleWorldPosition();
+      if (muzzle) {
+        getHitscanEffects().fireMuzzleFlash({
+          position: muzzle,
+          color: new Color3(flashDef.color.r, flashDef.color.g, flashDef.color.b),
+          style: flashDef.style,
+          scale: flashDef.scale,
+          intensity: flashDef.intensity,
+          duration: flashDef.duration,
+        });
+      }
+    }
+
     // Show muzzle flash model
     if (this.muzzleFlashModel) {
       this.muzzleFlashModel.setEnabled(true);
@@ -1566,7 +1648,11 @@ export class WeaponViewManager {
             // Fire event only triggers muzzle flash (handled below)
             break;
           case "bolt":
-            fx.fireBolt({ origin, direction: forward, maxRange: range, color });
+            // Rail rendering is driven by the authoritative electro_rail event
+            // (WO-EB3) for both the local shooter and remote players, so the
+            // visual endpoint always equals the damage endpoint (no through-wall
+            // client-picked bolt, and no old-bolt double-draw under the rail).
+            // Fire event only triggers the muzzle flash (handled below).
             break;
         }
       } else if (this.currentWeaponDef.projectileId) {

@@ -31,6 +31,7 @@ import { WebSocket, WebSocketServer } from "ws";
 import { BotClient } from "./BotClient";
 import { type BotOptions, getNextBotName } from "./BotConfig";
 import { BotLobbyClient } from "./BotLobbyClient";
+import { BotNavCacheStore } from "./BotNavCache";
 import { BotNavGraph } from "./BotNavGraph";
 import { type BotVision, createBotVision } from "./BotVision";
 
@@ -56,6 +57,8 @@ export class BotServer {
   // Pending vision loads to avoid duplicate BSP loading
   private _visionLoading: Map<string, Promise<BotVision | null>> = new Map();
 
+  // Versioned on-disk cache for deterministic map geometry analysis.
+  private _navCacheStore: BotNavCacheStore = new BotNavCacheStore();
   constructor(port: number = 9100) {
     this._port = port;
   }
@@ -201,7 +204,8 @@ export class BotServer {
     // Check cache first
     const cached = this._visionCache.get(mapName);
     if (cached) {
-      bot.setVision(cached);
+      bot.setVision(cached.fork());
+      bot.setNavGraph(this._navGraphCache.get(mapName) ?? null);
       console.log(`[BotServer] Vision (cached) → ${bot.name} on map "${mapName}"`);
       return;
     }
@@ -221,14 +225,20 @@ export class BotServer {
         this._visionCache.set(mapName, vision);
         // Delete from loading AFTER setting cache to prevent duplicate loads
         this._visionLoading.delete(mapName);
-        bot.setVision(vision);
+        bot.setVision(vision.fork());
         console.log(`[BotServer] Vision loaded → ${bot.name} on map "${mapName}"`);
 
         // Build NavGraph from vision (if not already cached)
-        let navGraph = this._navGraphCache.get(mapName);
+        let navGraph: BotNavGraph | null = this._navGraphCache.get(mapName) ?? null;
         if (!navGraph) {
-          navGraph = new BotNavGraph(mapName);
-          navGraph.buildFromVision(vision);
+          navGraph = this._navCacheStore.load(mapName, vision.mapKnowledge.mapFingerprint);
+          console.log(`[BotServer] NavGraph cache ${this._navCacheStore.lastDiagnostic}`);
+          if (!navGraph) {
+            navGraph = new BotNavGraph(mapName);
+            navGraph.buildFromVision(vision);
+            this._navCacheStore.save(navGraph, vision.mapKnowledge.mapFingerprint);
+            console.log(`[BotServer] NavGraph cache ${this._navCacheStore.lastDiagnostic}`);
+          }
           this._navGraphCache.set(mapName, navGraph);
           console.log(`[BotServer] NavGraph built → ${navGraph.nodeCount} nodes, ${navGraph.edgeCount} edges`);
         }
@@ -237,7 +247,7 @@ export class BotServer {
         // Also set vision + navGraph for any other bots on the same map
         for (const [, otherBot] of this._bots) {
           if (otherBot !== bot && otherBot.serverInfo?.map === mapName) {
-            otherBot.setVision(vision);
+            otherBot.setVision(vision.fork());
             otherBot.setNavGraph(navGraph);
           }
         }

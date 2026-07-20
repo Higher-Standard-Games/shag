@@ -24,10 +24,13 @@ function createMinimalGameState(): BotGameState {
     armor: 50,
     isDead: false,
     isGrounded: true,
+    isSliding: false,
+    isCrouching: false,
     currentWeapon: "electrobolt",
     weapons: ["electrobolt", "rocketlauncher"],
     ammo: { electrobolt: 10, rocketlauncher: 5 },
     isReloading: false,
+    team: "",
   };
   return state;
 }
@@ -39,6 +42,8 @@ function createEnemy(): VisiblePlayer {
     position: { x: 100, y: 0, z: 200 },
     velocity: { x: 50, y: 0, z: -30 },
     isDead: false,
+    team: "",
+    relation: "enemy",
     distance: 223.6, // sqrt(100² + 200²)
   };
 }

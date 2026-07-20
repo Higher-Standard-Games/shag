@@ -68,7 +68,7 @@ export const MACHINEGUN: WeaponDef = {
     color: { r: 1.0, g: 0.9, b: 0.3 },
     intensity: 18,
     range: 30,
-    duration: 0.04,
+    duration: 0.075,
   },
 
   // Sounds

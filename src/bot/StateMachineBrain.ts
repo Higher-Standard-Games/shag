@@ -18,10 +18,17 @@ import { BotBrain, type BotInput, BotState } from "./BotBrain";
 import { type BotDifficulty, InputButtons } from "./BotConfig";
 import type { BotGameState, Vec3, VisiblePlayer } from "./BotGameState";
 import { vec3Length, vec3Normalize, vec3Subtract } from "./BotGameState";
-import type { BotNavGraph, NavPath } from "./BotNavGraph";
-import type { BotVision, VisionResult } from "./BotVision";
 import { canInitiateSlide, PHYSICS } from "./BotMovementProfile";
+import { type BotNavGraph, type NavPath, type NavStep, navEdgeKey } from "./BotNavGraph";
+import { BotSequenceRegistry, BotSequenceRuntime, type BotSequenceRuntimeTick } from "./BotSequence";
+import type { BotVision, VisionResult } from "./BotVision";
 import { getWeaponProfile, selectBestWeapon, type WeaponProfile } from "./BotWeaponProfile";
+import { ItemSlideApproachSequence } from "./sequences/ItemSlideApproachSequence";
+import { RouteCrouchslideSequence } from "./sequences/RouteCrouchslideSequence";
+import { RouteStrafeJumpSequence } from "./sequences/RouteStrafeJumpSequence";
+import { TraverseJumppadSequence } from "./sequences/TraverseJumppadSequence";
+import { TraverseTeleporterSequence } from "./sequences/TraverseTeleporterSequence";
+import { ValidatedJumpSequence } from "./sequences/ValidatedJumpSequence";
 
 // ── Constants ───────────────────────────────────────────────────────────
 
@@ -43,11 +50,32 @@ const FEELER_STEER_THRESHOLD = 0.6; // fraction below which we steer away
 
 // Path following
 const PATH_ARRIVED_THRESHOLD = 100; // Distance to consider "arrived" at a waypoint
-const PATH_RECALC_INTERVAL = 120; // Recalculate path every ~2 seconds
+type PathFollowResult =
+  | { status: "moving"; input: BotInput }
+  | { status: "complete" }
+  | { status: "blocked"; reason: string };
 
-const BOT_SLIDE_HOLD_TICKS = Math.ceil((PHYSICS.SLIDE_DURATION / 1000) * 125 * 0.75);
+const PATH_RECALC_INTERVAL = 120; // Recalculate path every ~2 seconds
+const NAV_EDGE_FAILURE_COOLDOWN_TICKS = 625;
+
 const BOT_SLIDE_COOLDOWN_TICKS = Math.ceil((PHYSICS.SLIDE_COOLDOWN / 1000) * 125);
-const BOT_SLIDE_JUMP_CANCEL_WINDOW = 10;
+const ROUTE_SLIDE_MIN_REMAINING_DISTANCE = 320;
+const ROUTE_SLIDE_LOOKAHEAD_DISTANCE = 520;
+const ROUTE_SLIDE_MAX_TURN_RADIANS = Math.PI / 4;
+const ITEM_SLIDE_MIN_DISTANCE = 260;
+const ITEM_SLIDE_MAX_DISTANCE = 760;
+const ITEM_SLIDE_MAX_VELOCITY_ERROR_RADIANS = Math.PI / 6;
+const ITEM_SLIDE_ALLY_RADIUS = 80;
+const PICKUP_FAILURE_COOLDOWN_TICKS = 625;
+
+const BOT_STRAFE_RETRY_TICKS = 30;
+const ROUTE_STRAFE_MIN_REMAINING_DISTANCE = 640;
+const ROUTE_STRAFE_ITEM_MIN_REMAINING_DISTANCE = 800;
+const ROUTE_STRAFE_LOOKAHEAD_DISTANCE = 900;
+const ROUTE_STRAFE_MAX_TURN_RADIANS = Math.PI / 6;
+const ROUTE_STRAFE_MAX_VELOCITY_ERROR_RADIANS = Math.PI / 6;
+const ROUTE_STRAFE_ALLY_LOOKAHEAD = 600;
+const ROUTE_STRAFE_ALLY_RADIUS = 80;
 
 export class StateMachineBrain extends BotBrain {
   // ── Internal state ────────────────────────────────────────────────
@@ -59,10 +87,11 @@ export class StateMachineBrain extends BotBrain {
   private _strafeDirection: number = 1; // 1 or -1
   private _strafeTimer: number = 0;
 
-  // Crouchslide timing. State ticks are authoritative server ticks.
-  private _slideUntilTick: number = 0;
+  // Crouchslide cooldown. Sequence phases use authoritative server ticks.
   private _slideCooldownUntilTick: number = 0;
 
+  private _routeStrafeCooldownUntilTick: number = 0;
+  private _routeStrafeSide: -1 | 1 = 1;
   // Charged weapon cadence (blade alt-fire: hold, then release to shoot)
   private _chargeWeaponId: string | null = null;
   private _chargeTargetId: string | null = null;
@@ -79,10 +108,24 @@ export class StateMachineBrain extends BotBrain {
   private _pathTarget: Vec3 | null = null;
   private _pathRecalcTimer: number = 0;
   private _huntPatrolTarget: Vec3 | null = null; // Separate from _pathTarget to avoid confusion
+  private readonly _sequenceRegistry = new BotSequenceRegistry();
+  private readonly _sequenceRuntime = new BotSequenceRuntime(this._sequenceRegistry);
+  private _activeSequenceStep: NavStep | null = null;
+  private _lastDecisionTick: number = 0;
+  private readonly _blockedNavEdges = new Map<string, number>();
+
+  private readonly _blockedPickupIds = new Map<number, number>();
+  private _activeItemSlideTarget: { pickupId: number; position: Vec3 } | null = null;
 
   constructor(difficulty: BotDifficulty) {
     super(difficulty);
     this._huntYaw = Math.random() * Math.PI * 2;
+    this._sequenceRegistry.register(new RouteCrouchslideSequence());
+    this._sequenceRegistry.register(new ValidatedJumpSequence());
+    this._sequenceRegistry.register(new ItemSlideApproachSequence());
+    this._sequenceRegistry.register(new TraverseTeleporterSequence());
+    this._sequenceRegistry.register(new RouteStrafeJumpSequence());
+    this._sequenceRegistry.register(new TraverseJumppadSequence());
   }
 
   // ── Main Decision Loop ────────────────────────────────────────────
@@ -90,6 +133,28 @@ export class StateMachineBrain extends BotBrain {
   // Store last vision result for use across state methods
   private _lastVision: VisionResult | null = null;
   private _lastBotVision: BotVision | null = null;
+  private _activeNavStep: NavStep["type"] | null = null;
+  private _pathBlockedReason: string | null = null;
+  private _suppressTraversalAutomation: boolean = false;
+  override getNavigationDebug(): string | null {
+    const sequence = this._sequenceRuntime.getDebug(this._lastDecisionTick);
+    if (sequence) {
+      const remaining = this._currentPath ? this._currentPath.steps.length - this._currentPath.cursor : 0;
+      return `${sequence} remaining=${remaining}`;
+    }
+    if (this._pathBlockedReason) return `blocked=${this._pathBlockedReason}`;
+    if (!this._currentPath || !this._activeNavStep) return null;
+    const remaining = this._currentPath.steps.length - this._currentPath.cursor;
+    return `step=${this._activeNavStep} remaining=${remaining}`;
+  }
+
+  isSequenceActive(): boolean {
+    return this._sequenceRuntime.isActive;
+  }
+
+  isSequenceCommitted(): boolean {
+    return this._sequenceRuntime.isCommitted(this._lastDecisionTick);
+  }
 
   decide(
     state: BotGameState,
@@ -100,12 +165,15 @@ export class StateMachineBrain extends BotBrain {
     this._stateTimer++;
     this._pathRecalcTimer++;
     this._lastVision = visionResult ?? null;
+    this._lastDecisionTick = state.tick;
     this._lastBotVision = vision ?? null;
     this._navGraph = navGraph ?? null;
 
     // Dead → just wait (BotClient handles RequestSpawn)
+    this._suppressTraversalAutomation = false;
     if (state.self.isDead) {
       this.currentState = BotState.SPAWN;
+      this._interruptSequence(state, "dead", true);
       this._currentPath = null; // Clear path on death
       this._huntPatrolTarget = null;
       // Clear vision cache on death
@@ -115,7 +183,17 @@ export class StateMachineBrain extends BotBrain {
 
     // Determine state based on priority
     const newState = this._evaluateState(state);
-    if (newState !== this.currentState) {
+    const stateChanged = newState !== this.currentState;
+    if (this._sequenceRuntime.isActive && stateChanged) {
+      this._interruptSequence(state, `state:${newState}`);
+    }
+
+    if (this._sequenceRuntime.isActive) {
+      const sequenceInput = this._tickActiveSequence(state);
+      if (sequenceInput) return sequenceInput;
+    }
+
+    if (stateChanged) {
       this.currentState = newState;
       this._stateTimer = 0;
       this._currentPath = null; // Clear path on state change
@@ -149,11 +227,23 @@ export class StateMachineBrain extends BotBrain {
     }
 
     // Apply feeler raycasts for wall avoidance (navigation states only)
-    if (vision && this.currentState !== BotState.FIGHT && this.currentState !== BotState.DODGE) {
+    if (
+      vision &&
+      !this._suppressTraversalAutomation &&
+      this.currentState !== BotState.FIGHT &&
+      this.currentState !== BotState.DODGE
+    ) {
       input = this._applyFeelers(input, state, vision);
     }
 
-    input = this._applyCrouchslide(input, state);
+    if (!this._suppressTraversalAutomation) {
+      const itemSlideInput = this._tryStartItemSlideApproach(input, state);
+      if (itemSlideInput) return itemSlideInput;
+      const routeSlideInput = this._tryStartRouteCrouchslide(input, state);
+      if (routeSlideInput) return routeSlideInput;
+      const strafeInput = this._tryStartRouteStrafeJump(input, state);
+      if (strafeInput) return strafeInput;
+    }
 
     return input;
   }
@@ -473,7 +563,7 @@ export class StateMachineBrain extends BotBrain {
 
     // Try nearest health item from BSP knowledge
     if (this._lastBotVision) {
-      const healthPos = this._lastBotVision.findNearestItem(state.self.position, "health");
+      const healthPos = this._lastBotVision.findNearestItem(state.self.position, "health", state.pickupActiveMask);
       if (healthPos) {
         return this._navigateTo(state, healthPos, true);
       }
@@ -529,7 +619,7 @@ export class StateMachineBrain extends BotBrain {
 
     // Try BSP-known item positions
     if (this._lastBotVision) {
-      const weaponPos = this._lastBotVision.findNearestItem(state.self.position, "weapon");
+      const weaponPos = this._lastBotVision.findNearestItem(state.self.position, "weapon", state.pickupActiveMask);
       if (weaponPos) {
         return this._navigateTo(state, weaponPos, false);
       }
@@ -757,17 +847,16 @@ export class StateMachineBrain extends BotBrain {
     const targetChanged = !this._pathTarget || vec3Length(vec3Subtract(target, this._pathTarget)) > 200;
 
     if (targetChanged || !this._currentPath || this._pathRecalcTimer > PATH_RECALC_INTERVAL) {
-      this._currentPath = this._navGraph.findPath(state.self.position, target);
+      this._currentPath = this._navGraph.findPath(state.self.position, target, this._getNavPathOptions(state.tick));
       this._pathTarget = target;
       this._pathRecalcTimer = 0;
     }
 
     // If path found, follow waypoints
     if (this._currentPath) {
-      const waypoint = this._navGraph.getNextWaypoint(state.self.position, this._currentPath, PATH_ARRIVED_THRESHOLD);
-      if (waypoint) {
-        return this._moveToward(state, waypoint.position, urgent);
-      }
+      const result = this._followCurrentPath(state, urgent);
+      if (result.status === "moving") return result.input;
+      if (result.status === "blocked") return this._noInput(state);
       // Path complete — clear it
       this._currentPath = null;
     }
@@ -784,9 +873,24 @@ export class StateMachineBrain extends BotBrain {
   private _navigateToItem(state: BotGameState, itemType: string, urgent: boolean): BotInput | null {
     if (!this._navGraph) return null;
 
+    const goalPickupId = this._currentPath?.nodes[this._currentPath.nodes.length - 1]?.pickupId;
+    if (
+      goalPickupId !== undefined &&
+      (state.pickupActiveMask[goalPickupId] === false || this._blockedPickupIds.has(goalPickupId))
+    ) {
+      this._currentPath = null;
+      this._pathTarget = null;
+      this._pathRecalcTimer = PATH_RECALC_INTERVAL + 1;
+    }
+
     // Only recalculate item paths periodically
     if (!this._currentPath || this._pathRecalcTimer > PATH_RECALC_INTERVAL) {
-      const itemPath = this._navGraph.findPathToItem(state.self.position, itemType);
+      const itemPath = this._navGraph.findPathToItem(
+        state.self.position,
+        itemType,
+        state.pickupActiveMask,
+        this._getNavPathOptions(state.tick),
+      );
       if (!itemPath) return null;
       this._currentPath = itemPath;
       this._pathTarget = itemPath.nodes[itemPath.nodes.length - 1]?.position ?? null;
@@ -794,15 +898,188 @@ export class StateMachineBrain extends BotBrain {
     }
 
     if (this._currentPath) {
-      const waypoint = this._navGraph.getNextWaypoint(state.self.position, this._currentPath, PATH_ARRIVED_THRESHOLD);
-      if (waypoint) {
-        return this._moveToward(state, waypoint.position, urgent);
-      }
+      const result = this._followCurrentPath(state, urgent);
+      if (result.status === "moving") return result.input;
+      if (result.status === "blocked") return this._noInput(state);
       // Arrived at item — clear path
       this._currentPath = null;
     }
 
     return null;
+  }
+
+  private _getNavPathOptions(tick: number): {
+    blockedEdgeKeys: ReadonlySet<string>;
+    blockedPickupIds: ReadonlySet<number>;
+  } {
+    for (const [key, retryTick] of this._blockedNavEdges) {
+      if (tick >= retryTick) this._blockedNavEdges.delete(key);
+    }
+    for (const [pickupId, retryTick] of this._blockedPickupIds) {
+      if (tick >= retryTick) this._blockedPickupIds.delete(pickupId);
+    }
+    return {
+      blockedEdgeKeys: new Set(this._blockedNavEdges.keys()),
+      blockedPickupIds: new Set(this._blockedPickupIds.keys()),
+    };
+  }
+
+  private _cooldownNavStep(step: NavStep, tick: number): void {
+    this._blockedNavEdges.set(navEdgeKey(step.from.id, step.to.id, step.type), tick + NAV_EDGE_FAILURE_COOLDOWN_TICKS);
+  }
+
+  private _getSequenceContext(
+    state: BotGameState,
+    step: NavStep | null = this._activeSequenceStep,
+    proposedInput: BotInput | null = null,
+    crouchslideReady: boolean = false,
+    routeStrafeReady: boolean = false,
+    routeStrafeSide: -1 | 1 = this._routeStrafeSide,
+  ) {
+    const opportunity =
+      step?.opportunityId && this._navGraph ? this._navGraph.getMovementOpportunity(step.opportunityId) : null;
+    return {
+      state,
+      vision: this._lastBotVision,
+      visionResult: this._lastVision,
+      navGraph: this._navGraph,
+      navStep: step,
+      movementOpportunity: opportunity,
+      proposedInput,
+      difficulty: this.difficulty,
+      crouchslideReady,
+      routeStrafeReady,
+      routeStrafeSide,
+      itemSlideTarget: this._activeItemSlideTarget,
+      itemSlideReady: this._activeItemSlideTarget !== null,
+    };
+  }
+
+  private _interruptSequence(state: BotGameState, reason: string, force: boolean = false): boolean {
+    const interrupted = this._sequenceRuntime.interrupt(this._getSequenceContext(state), reason, force);
+    if (interrupted) {
+      this._activeSequenceStep = null;
+      this._activeItemSlideTarget = null;
+    }
+    return interrupted;
+  }
+
+  private _tickActiveSequence(state: BotGameState): BotInput | null {
+    const result: BotSequenceRuntimeTick | null = this._sequenceRuntime.tick(this._getSequenceContext(state));
+    if (!result) return null;
+
+    this._suppressTraversalAutomation = true;
+    this._pathRecalcTimer = 0;
+    if (result.status === "running") return result.input;
+
+    const terminalItemTarget = this._activeItemSlideTarget;
+    this._activeItemSlideTarget = null;
+    if (result.sequenceId === "item_slide_approach" && terminalItemTarget) {
+      if (result.status === "succeeded") {
+        this._currentPath = null;
+      } else if (result.reason === "pickup_missed" || result.reason === "timeout") {
+        this._blockedPickupIds.set(terminalItemTarget.pickupId, state.tick + PICKUP_FAILURE_COOLDOWN_TICKS);
+        this._currentPath = null;
+      }
+      return null;
+    }
+
+    const terminalStep = this._activeSequenceStep;
+    this._activeSequenceStep = null;
+    this._activeNavStep = null;
+    if (result.status === "failed") {
+      if (terminalStep) {
+        this._pathBlockedReason = `sequence:${result.sequenceId}:${result.reason ?? "failed"}`;
+        this._cooldownNavStep(terminalStep, state.tick);
+        this._currentPath = null;
+        return this._noInput(state);
+      }
+      return null;
+    }
+    return null;
+  }
+
+  private _startNavSequence(state: BotGameState, step: NavStep, sequenceId: string): PathFollowResult | null {
+    const context = this._getSequenceContext(state, step);
+    if (!this._sequenceRuntime.start(sequenceId, context)) return null;
+
+    this._activeSequenceStep = step;
+    const input = this._tickActiveSequence(state);
+    if (this._pathBlockedReason) return { status: "blocked", reason: this._pathBlockedReason };
+    return input ? { status: "moving", input } : { status: "complete" };
+  }
+
+  /** Execute one traversal-aware step from the current A* path. */
+  private _followCurrentPath(state: BotGameState, urgent: boolean): PathFollowResult {
+    if (!this._navGraph || !this._currentPath) return { status: "complete" };
+
+    const step = this._navGraph.getNextStep(state.self.position, this._currentPath, PATH_ARRIVED_THRESHOLD);
+    if (!step) {
+      this._activeNavStep = null;
+      this._pathBlockedReason = null;
+      return { status: "complete" };
+    }
+
+    this._activeNavStep = step.type;
+    this._pathBlockedReason = null;
+    const distanceToStart = vec3Length(vec3Subtract(step.from.position, state.self.position));
+
+    if (step.type === "teleporter") {
+      const sequenceResult = this._startNavSequence(state, step, "nav_traverse_teleporter");
+      if (sequenceResult) return sequenceResult;
+      return { status: "blocked", reason: "teleporter:missing_trigger_metadata" };
+    }
+
+    if (step.type === "jumppad") {
+      const sequenceResult = this._startNavSequence(state, step, "nav_traverse_jumppad");
+      if (sequenceResult) return sequenceResult;
+      return { status: "blocked", reason: "jumppad:missing_trigger_metadata" };
+    }
+
+    if (step.type === "fall") {
+      const probe = this._lastBotVision?.probeDrop(step.from.position, step.to.position);
+      if (probe && !probe.safe) {
+        this._cooldownNavStep(step, state.tick);
+        this._pathBlockedReason = `fall:${probe.reason}`;
+        this._activeNavStep = null;
+        this._currentPath = null;
+        return { status: "blocked", reason: this._pathBlockedReason };
+      }
+
+      this._suppressTraversalAutomation = true;
+      const target = distanceToStart > 56 ? step.from.position : (probe?.landing ?? step.to.position);
+      return { status: "moving", input: this._moveTowardPrecise(state, target) };
+    }
+
+    if (step.type === "jump" && step.validated && step.opportunityId) {
+      const sequenceResult = this._startNavSequence(state, step, "nav_validated_jump");
+      if (sequenceResult) return sequenceResult;
+    }
+
+    const input = this._moveToward(state, step.to.position, urgent);
+    if (step.type === "jump" && state.self.isGrounded && distanceToStart < 180) {
+      input.buttons |= InputButtons.JUMP;
+    }
+
+    const distanceToEnd = vec3Length(vec3Subtract(step.to.position, state.self.position));
+    if (step.requiresPreciseApproach && distanceToEnd < 256) {
+      this._suppressTraversalAutomation = true;
+      return { status: "moving", input: this._makePrecise(input) };
+    }
+
+    return { status: "moving", input };
+  }
+
+  private _moveTowardPrecise(state: BotGameState, target: Vec3): BotInput {
+    return this._makePrecise(this._moveToward(state, target, false));
+  }
+
+  private _makePrecise(input: BotInput): BotInput {
+    input.buttons &= ~(InputButtons.SPRINT | InputButtons.JUMP | InputButtons.CROUCH);
+    input.buttons |= InputButtons.FORWARD;
+    input.direction.x = 0;
+    input.direction.z = 1;
+    return input;
   }
 
   /**
@@ -818,7 +1095,7 @@ export class StateMachineBrain extends BotBrain {
   private _moveToward(state: BotGameState, target: Vec3, urgent: boolean): BotInput {
     const delta = vec3Subtract(target, state.self.position);
     const distance = vec3Length(delta);
-    const targetYaw = Math.atan2(delta.x, delta.z);
+    const targetYaw = distance < 1 ? state.self.yaw : Math.atan2(delta.x, delta.z);
 
     // NEVER send zero direction — it persists on the server for 30-80ms
     // causing friction to decelerate the bot to 0 across multiple physics ticks.
@@ -853,40 +1130,88 @@ export class StateMachineBrain extends BotBrain {
 
   // ── Feeler Raycasts (Wall Avoidance) ──────────────────────────────
 
-  /**
-   * Cast 3 rays from bot position to detect nearby walls.
-   * If a wall is detected, steer the bot away from it.
-   * Runs after brain decision — adjusts heading, doesn't override state.
-   */
-  private _applyCrouchslide(input: BotInput, state: BotGameState): BotInput {
-    if (state.self.isDead) return input;
+  /** Slide only when a stable, active pickup closes a straight final walk lane. */
+  private _tryStartItemSlideApproach(input: BotInput, state: BotGameState): BotInput | null {
+    if (
+      state.self.isDead ||
+      this._sequenceRuntime.isActive ||
+      (this.currentState !== BotState.ITEM_RUN && this.currentState !== BotState.RETREAT) ||
+      !state.self.isGrounded ||
+      state.self.isSliding
+    )
+      return null;
 
-    const isActiveSlide = state.tick < this._slideUntilTick;
-    if (isActiveSlide) {
-      input.buttons |= InputButtons.CROUCH | InputButtons.FORWARD | InputButtons.SPRINT;
+    const required = InputButtons.FORWARD | InputButtons.SPRINT;
+    const disallowed =
+      InputButtons.BACK | InputButtons.CROUCH | InputButtons.JUMP | InputButtons.FIRE | InputButtons.ALT_FIRE;
+    if ((input.buttons & required) !== required || (input.buttons & disallowed) !== 0) return null;
 
-      const shouldJumpCancel =
-        this.difficulty.strafeJumpSkill >= 0.55 && state.tick >= this._slideUntilTick - BOT_SLIDE_JUMP_CANCEL_WINDOW;
-      if (shouldJumpCancel) {
-        input.buttons |= InputButtons.JUMP;
-      }
-      return input;
+    const horizontalSpeed = Math.hypot(state.self.velocity.x, state.self.velocity.z);
+    if (!canInitiateSlide(horizontalSpeed, state.tick >= this._slideCooldownUntilTick)) return null;
+
+    const path = this._currentPath;
+    const step = path?.steps[path.cursor] ?? null;
+    const target = path?.nodes[path.nodes.length - 1] ?? null;
+    if (!path || !step || !target || target.type !== "item" || target.pickupId === undefined) return null;
+    if (step.type !== "walk" || path.cursor !== path.steps.length - 1) return null;
+    if (state.pickupActiveMask[target.pickupId] !== true || this._blockedPickupIds.has(target.pickupId)) return null;
+
+    const targetDelta = vec3Subtract(target.position, state.self.position);
+    const targetDistance = Math.hypot(targetDelta.x, targetDelta.z);
+    const maximumDistance = Math.min(
+      ITEM_SLIDE_MAX_DISTANCE,
+      horizontalSpeed * PHYSICS.SLIDE_SPEED_MULT * (PHYSICS.SLIDE_DURATION / 1000) + 120,
+    );
+    if (targetDistance < ITEM_SLIDE_MIN_DISTANCE || targetDistance > maximumDistance || Math.abs(targetDelta.y) > 96)
+      return null;
+
+    const targetDirection = vec3Normalize({ x: targetDelta.x, y: 0, z: targetDelta.z });
+    if (horizontalSpeed > 0.001) {
+      const velocityDot =
+        (state.self.velocity.x * targetDirection.x + state.self.velocity.z * targetDirection.z) / horizontalSpeed;
+      if (Math.acos(Math.max(-1, Math.min(1, velocityDot))) > ITEM_SLIDE_MAX_VELOCITY_ERROR_RADIANS) return null;
     }
 
+    const allyBlocksLane = state.players.some((player) => {
+      if (player.relation !== "ally" || player.isDead) return false;
+      const relative = vec3Subtract(player.position, state.self.position);
+      const along = relative.x * targetDirection.x + relative.z * targetDirection.z;
+      const lateral = Math.abs(relative.x * targetDirection.z - relative.z * targetDirection.x);
+      return Math.abs(relative.y) <= 96 && along > 0 && along < targetDistance && lateral < ITEM_SLIDE_ALLY_RADIUS;
+    });
+    if (allyBlocksLane) return null;
+
+    this._activeItemSlideTarget = { pickupId: target.pickupId, position: { ...target.position } };
+    const context = this._getSequenceContext(state, step, input);
+    if (!this._sequenceRuntime.start("item_slide_approach", context)) {
+      this._activeItemSlideTarget = null;
+      return null;
+    }
+    this._slideCooldownUntilTick = state.tick + BOT_SLIDE_COOLDOWN_TICKS;
+    return this._tickActiveSequence(state);
+  }
+
+  /**
+   * Optional route-speed sequence that rejects unsafe geometry and preserves
+   * the state-machine fallback when authoritative slide entry is not confirmed.
+   * Runs after brain decision — adjusts heading, doesn't override state.
+   */
+  private _tryStartRouteCrouchslide(input: BotInput, state: BotGameState): BotInput | null {
+    if (state.self.isDead || this._sequenceRuntime.isActive) return null;
     const movingForward = (input.buttons & InputButtons.FORWARD) !== 0 && (input.buttons & InputButtons.BACK) === 0;
     const sprinting = (input.buttons & InputButtons.SPRINT) !== 0;
-    const attackingWithAlt = (input.buttons & InputButtons.ALT_FIRE) !== 0;
     const horizontalSpeed = Math.sqrt(state.self.velocity.x ** 2 + state.self.velocity.z ** 2);
     const cooldownExpired = state.tick >= this._slideCooldownUntilTick;
 
-    const canSlide =
-      state.self.isGrounded &&
-      movingForward &&
-      sprinting &&
-      !attackingWithAlt &&
-      canInitiateSlide(horizontalSpeed, cooldownExpired);
-
-    if (!canSlide) return input;
+    if (
+      !state.self.isGrounded ||
+      !movingForward ||
+      !sprinting ||
+      (input.buttons & (InputButtons.FIRE | InputButtons.ALT_FIRE)) !== 0 ||
+      !canInitiateSlide(horizontalSpeed, cooldownExpired)
+    ) {
+      return null;
+    }
 
     const navigationSlide =
       this.currentState === BotState.HUNT ||
@@ -895,15 +1220,123 @@ export class StateMachineBrain extends BotBrain {
       this.currentState === BotState.CHASE;
     const dodgeSlide = this.currentState === BotState.DODGE && this.difficulty.dodgeSkill >= 0.35;
 
-    if (!navigationSlide && !dodgeSlide) return input;
+    if (!navigationSlide && !dodgeSlide) return null;
 
-    this._slideUntilTick = state.tick + BOT_SLIDE_HOLD_TICKS;
+    const step = this._currentPath?.steps[this._currentPath.cursor] ?? null;
+    if (this._currentPath && !step) return null;
+    if (step) {
+      if (step.type !== "walk" || step.requiresPreciseApproach) return null;
+      const remaining = vec3Length(vec3Subtract(step.to.position, state.self.position));
+      if (remaining < ROUTE_SLIDE_MIN_REMAINING_DISTANCE) return null;
+
+      const nextStep = this._currentPath?.steps[this._currentPath.cursor + 1] ?? null;
+      if (remaining < ROUTE_SLIDE_LOOKAHEAD_DISTANCE && nextStep) {
+        if (nextStep.type !== "walk" || nextStep.requiresPreciseApproach) return null;
+        const currentDirection = vec3Normalize(vec3Subtract(step.to.position, state.self.position));
+        const nextDirection = vec3Normalize(vec3Subtract(nextStep.to.position, step.to.position));
+        const dot = Math.max(
+          -1,
+          Math.min(1, currentDirection.x * nextDirection.x + currentDirection.z * nextDirection.z),
+        );
+        if (Math.acos(dot) > ROUTE_SLIDE_MAX_TURN_RADIANS) return null;
+      }
+    }
+
+    const context = this._getSequenceContext(state, step, input, true);
+    if (!this._sequenceRuntime.start("route_crouchslide", context)) return null;
     this._slideCooldownUntilTick = state.tick + BOT_SLIDE_COOLDOWN_TICKS;
-    input.buttons |= InputButtons.CROUCH | InputButtons.FORWARD | InputButtons.SPRINT;
-    return input;
+    return this._tickActiveSequence(state);
+  }
+
+  /**
+   * Starts one speed-building hop only after the route planner has established
+   * enough straight, unoccupied walk space. Re-running this gate on every
+   * landing creates a chain without hiding route changes inside the sequence.
+   */
+  private _tryStartRouteStrafeJump(input: BotInput, state: BotGameState): BotInput | null {
+    if (
+      state.self.isDead ||
+      this._sequenceRuntime.isActive ||
+      state.tick < this._routeStrafeCooldownUntilTick ||
+      this.difficulty.strafeJumpSkill < 0.35
+    ) {
+      return null;
+    }
+
+    const navigationState =
+      this.currentState === BotState.HUNT ||
+      this.currentState === BotState.ITEM_RUN ||
+      this.currentState === BotState.RETREAT ||
+      this.currentState === BotState.CHASE;
+    if (!navigationState || !state.self.isGrounded || state.self.isSliding) return null;
+
+    const required = InputButtons.FORWARD | InputButtons.SPRINT;
+    const disallowed =
+      InputButtons.BACK |
+      InputButtons.LEFT |
+      InputButtons.RIGHT |
+      InputButtons.CROUCH |
+      InputButtons.FIRE |
+      InputButtons.ALT_FIRE;
+    if ((input.buttons & required) !== required || (input.buttons & disallowed) !== 0) return null;
+
+    const path = this._currentPath;
+    const step = path?.steps[path.cursor] ?? null;
+    if (!path || !step || step.type !== "walk" || step.requiresPreciseApproach) return null;
+
+    const routeDelta = vec3Subtract(step.to.position, state.self.position);
+    const remaining = Math.hypot(routeDelta.x, routeDelta.z);
+    const minRemaining =
+      this.currentState === BotState.ITEM_RUN && path.cursor === path.steps.length - 1
+        ? ROUTE_STRAFE_ITEM_MIN_REMAINING_DISTANCE
+        : ROUTE_STRAFE_MIN_REMAINING_DISTANCE;
+    if (remaining < minRemaining) return null;
+
+    const routeDirection = vec3Normalize({ x: routeDelta.x, y: 0, z: routeDelta.z });
+    const horizontalSpeed = Math.hypot(state.self.velocity.x, state.self.velocity.z);
+    if (horizontalSpeed > 0.001) {
+      const velocityDotRoute =
+        (state.self.velocity.x * routeDirection.x + state.self.velocity.z * routeDirection.z) / horizontalSpeed;
+      const velocityError = Math.acos(Math.max(-1, Math.min(1, velocityDotRoute)));
+      if (velocityError > ROUTE_STRAFE_MAX_VELOCITY_ERROR_RADIANS) return null;
+    }
+
+    const nextStep = path.steps[path.cursor + 1] ?? null;
+    if (remaining < ROUTE_STRAFE_LOOKAHEAD_DISTANCE && nextStep) {
+      if (nextStep.type !== "walk" || nextStep.requiresPreciseApproach) return null;
+      const nextDirection = vec3Normalize(vec3Subtract(nextStep.to.position, step.to.position));
+      const turnDot = Math.max(
+        -1,
+        Math.min(1, routeDirection.x * nextDirection.x + routeDirection.z * nextDirection.z),
+      );
+      if (Math.acos(turnDot) > ROUTE_STRAFE_MAX_TURN_RADIANS) return null;
+    }
+
+    const allyBlocksRoute = state.players.some((player) => {
+      if (player.relation !== "ally" || player.isDead) return false;
+      const relative = vec3Subtract(player.position, state.self.position);
+      if (Math.abs(relative.y) > 96) return false;
+      const along = relative.x * routeDirection.x + relative.z * routeDirection.z;
+      if (along <= 0 || along >= Math.min(remaining, ROUTE_STRAFE_ALLY_LOOKAHEAD)) return false;
+      const lateral = Math.abs(relative.x * routeDirection.z - relative.z * routeDirection.x);
+      return lateral < ROUTE_STRAFE_ALLY_RADIUS;
+    });
+    if (allyBlocksRoute) return null;
+
+    const context = this._getSequenceContext(state, step, input, false, true, this._routeStrafeSide);
+    if (!this._sequenceRuntime.start("route_strafe_jump", context)) return null;
+    this._routeStrafeSide = this._routeStrafeSide === 1 ? -1 : 1;
+    this._routeStrafeCooldownUntilTick = state.tick + BOT_STRAFE_RETRY_TICKS;
+    return this._tickActiveSequence(state);
   }
 
   private _applyFeelers(input: BotInput, state: BotGameState, vision: BotVision): BotInput {
+    /**
+     * Cast 3 rays from bot position to detect nearby walls.
+     * If a wall is detected, steer the bot away from it.
+     * Runs after brain decision and adjusts heading without overriding state.
+     */
+
     const pos = state.self.position;
     const yaw = input.yaw;
     const cw = vision.collisionWorld;

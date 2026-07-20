@@ -24,6 +24,13 @@
 
 import type { Vec3 } from "../shared/bsp/BspDataLoader";
 import { vec3Distance } from "./BotGameState";
+import {
+  BOT_MOVEMENT_ANALYZER_FINGERPRINT,
+  BotMovementAnalyzer,
+  type MovementAnalysisSummary,
+  type MovementOpportunity,
+  type MovementRejection,
+} from "./BotMovementAnalyzer";
 import type { BotVision, MapKnowledgeData } from "./BotVision";
 
 // ── Nav Types ───────────────────────────────────────────────────────
@@ -36,15 +43,49 @@ export interface NavNode {
   type: NavNodeType;
   /** BSP classname for items (e.g. 'item_health_mega', 'weapon_rocketlauncher') */
   classname?: string;
+  /** Stable PickupEntry.id used by the replicated active mask. */
+  pickupId?: number;
 }
 
 export type NavEdgeType = "walk" | "jump" | "fall" | "jumppad" | "teleporter";
+
+/** Authored trigger data required to execute and verify a non-local traversal. */
+export interface NavTriggerMetadata {
+  id: number;
+  min: Vec3;
+  max: Vec3;
+  dest: Vec3;
+  destYaw?: number;
+}
 
 export interface NavEdge {
   from: number; // NavNode id
   to: number; // NavNode id
   type: NavEdgeType;
   cost: number;
+  opportunityId?: string;
+  requiredSpeed?: number;
+  expectedTicks?: number;
+  successMargin?: number;
+  validated?: boolean;
+  trigger?: NavTriggerMetadata;
+}
+
+export interface NavStep {
+  from: NavNode;
+  to: NavNode;
+  type: NavEdgeType;
+  cost: number;
+  horizontalDistance: number;
+  heightDelta: number;
+  /** Trigger entrances, drops, and final item approaches need tighter steering. */
+  requiresPreciseApproach: boolean;
+  opportunityId?: string;
+  requiredSpeed?: number;
+  expectedTicks?: number;
+  successMargin?: number;
+  validated?: boolean;
+  trigger?: NavTriggerMetadata;
 }
 
 // ── Path Result ─────────────────────────────────────────────────────
@@ -52,10 +93,29 @@ export interface NavEdge {
 export interface NavPath {
   /** Ordered list of nodes from start to goal */
   nodes: NavNode[];
+  /** Traversal-aware transitions between each pair of nodes. */
+  steps: NavStep[];
   /** Total traversal cost */
   totalCost: number;
+  /** Mutable per-path progress; paths are owned by one bot. */
+  cursor: number;
 }
 
+export interface NavGraphStaticData {
+  nodes: NavNode[];
+  edges: NavEdge[];
+  opportunities?: MovementOpportunity[];
+  movementAnalysis?: MovementAnalysisSummary;
+}
+
+export interface NavPathOptions {
+  blockedEdgeKeys?: ReadonlySet<string>;
+  blockedPickupIds?: ReadonlySet<number>;
+}
+
+export function navEdgeKey(from: number, to: number, type: NavEdgeType): string {
+  return `${from}->${to}:${type}`;
+}
 // ── Constants ───────────────────────────────────────────────────────
 
 /** Max distance between nodes to test for edges */
@@ -88,15 +148,47 @@ const TELEPORT_COST = 32;
 /** Jump pads cost roughly their flight commitment, cheaper than walking the same distance. */
 const JUMPPAD_COST_MULT = 0.45;
 
+export const BOT_NAV_GRAPH_SCHEMA_VERSION = 3;
+export const BOT_NAV_TRIGGER_RESOLVER_VERSION = 1;
+
+/** Bump this when edge generation or movement assumptions change. */
+export const BOT_NAV_MOVEMENT_FINGERPRINT = [
+  `edge:${MAX_EDGE_DISTANCE}`,
+  `walk:${WALK_HEIGHT_MAX}`,
+  `jump:${JUMP_HEIGHT_MAX}:${JUMP_COST_MULT}`,
+  `fall:${FALL_COST_MULT}`,
+  `grid:${FLOOR_GRID_SPACING}:${FLOOR_SAMPLE_HEIGHT}:${MIN_NODE_DISTANCE}`,
+  `trigger:${BOT_NAV_TRIGGER_RESOLVER_VERSION}:${TELEPORT_COST}:${JUMPPAD_COST_MULT}`,
+  BOT_MOVEMENT_ANALYZER_FINGERPRINT,
+].join("|");
 // ── BotNavGraph ─────────────────────────────────────────────────────
+function emptyMovementAnalysis(): MovementAnalysisSummary {
+  return {
+    candidateCount: 0,
+    rolloutCount: 0,
+    acceptedCount: 0,
+    rejectedCount: 0,
+    budgetExhausted: false,
+    rejectionCounts: {},
+  };
+}
 
 export class BotNavGraph {
   private _nodes: NavNode[] = [];
+
   private _edges: NavEdge[] = [];
   private _adjacency: Map<number, NavEdge[]> = new Map();
-  private _triggerLinks: Array<{ from: number; to: number; type: "jumppad" | "teleporter" }> = [];
+  private _triggerLinks: Array<{
+    from: number;
+    to: number;
+    type: "jumppad" | "teleporter";
+    trigger: NavTriggerMetadata;
+  }> = [];
   private _mapName: string;
 
+  private _movementOpportunities: MovementOpportunity[] = [];
+  private _movementRejections: MovementRejection[] = [];
+  private _movementAnalysis: MovementAnalysisSummary = emptyMovementAnalysis();
   constructor(mapName: string) {
     this._mapName = mapName;
   }
@@ -117,7 +209,22 @@ export class BotNavGraph {
   }
 
   // ── Graph Building ──────────────────────────────────────────────
+  get mapName(): string {
+    return this._mapName;
+  }
 
+  getMovementOpportunity(id: string): MovementOpportunity | null {
+    return this._movementOpportunities.find((opportunity) => opportunity.id === id) ?? null;
+  }
+  get movementOpportunities(): ReadonlyArray<MovementOpportunity> {
+    return this._movementOpportunities;
+  }
+  get movementRejections(): ReadonlyArray<MovementRejection> {
+    return this._movementRejections;
+  }
+  get movementAnalysis(): Readonly<MovementAnalysisSummary> {
+    return this._movementAnalysis;
+  }
   /**
    * Build the waypoint graph from map knowledge + collision probing.
    * Call once per map load.
@@ -136,6 +243,9 @@ export class BotNavGraph {
     // Step 1: Extract nodes from known positions
     this._extractNodes(knowledge, vision);
 
+    this._movementOpportunities = [];
+    this._movementRejections = [];
+    this._movementAnalysis = emptyMovementAnalysis();
     // Step 2: Probe edges between nearby nodes
     this._probeEdges(vision);
 
@@ -157,6 +267,64 @@ export class BotNavGraph {
 
     console.log(`[NavGraph] Nodes: ${[...typeCounts.entries()].map(([t, c]) => `${t}=${c}`).join(", ")}`);
     console.log(`[NavGraph] Edges: ${[...edgeTypeCounts.entries()].map(([t, c]) => `${t}=${c}`).join(", ")}`);
+    console.log(
+      `[NavGraph] Movement analysis: candidates=${this._movementAnalysis.candidateCount}, ` +
+        `rollouts=${this._movementAnalysis.rolloutCount}, accepted=${this._movementAnalysis.acceptedCount}, ` +
+        `rejected=${this._movementAnalysis.rejectedCount}, budget=${this._movementAnalysis.budgetExhausted ? "exhausted" : "ok"}`,
+    );
+  }
+
+  /** Export immutable graph geometry for the versioned disk cache. */
+  exportStaticData(): NavGraphStaticData {
+    return {
+      nodes: this._nodes.map((node) => ({ ...node, position: { ...node.position } })),
+      edges: this._edges.map((edge) => ({ ...edge, trigger: this._cloneTrigger(edge.trigger) })),
+      opportunities: this._movementOpportunities.map((opportunity) => this._cloneOpportunity(opportunity)),
+      movementAnalysis: { ...this._movementAnalysis, rejectionCounts: { ...this._movementAnalysis.rejectionCounts } },
+    };
+  }
+
+  /** Restore already-validated static graph geometry without BSP probing. */
+  loadStaticData(data: NavGraphStaticData): void {
+    const nodes = data.nodes.map((node) => ({ ...node, position: { ...node.position } }));
+    const edges = data.edges.map((edge) => ({ ...edge, trigger: this._cloneTrigger(edge.trigger) }));
+    const opportunities = (data.opportunities ?? []).map((opportunity) => this._cloneOpportunity(opportunity));
+    const sourceAnalysis = data.movementAnalysis ?? emptyMovementAnalysis();
+    const movementAnalysis = {
+      ...sourceAnalysis,
+      rejectionCounts: { ...sourceAnalysis.rejectionCounts },
+    };
+    if (nodes.some((node, index) => node.id !== index)) {
+      throw new Error("Nav cache nodes must have contiguous ids");
+    }
+
+    const validEdgeTypes = new Set<NavEdgeType>(["walk", "jump", "fall", "jumppad", "teleporter"]);
+    for (const edge of edges) {
+      if (
+        !nodes[edge.from] ||
+        !nodes[edge.to] ||
+        !validEdgeTypes.has(edge.type) ||
+        !Number.isFinite(edge.cost) ||
+        edge.cost < 0 ||
+        ((edge.type === "teleporter" || edge.type === "jumppad") && !edge.trigger)
+      ) {
+        throw new Error("Nav cache contains an invalid edge");
+      }
+    }
+
+    this._nodes = nodes;
+    this._edges = edges;
+    this._triggerLinks = [];
+    this._movementOpportunities = opportunities;
+    this._movementRejections = [];
+    this._movementAnalysis = movementAnalysis;
+    this._buildAdjacency();
+  }
+
+  describePath(path: NavPath): string {
+    if (path.steps.length === 0) return `path nodes=${path.nodes.length} cost=${path.totalCost.toFixed(1)} complete`;
+    const steps = path.steps.map((step) => `${step.type}:${step.from.id}->${step.to.id}`).join(" ");
+    return `path nodes=${path.nodes.length} steps=${path.steps.length} cost=${path.totalCost.toFixed(1)} ${steps}`;
   }
 
   // ── A* Pathfinding ──────────────────────────────────────────────
@@ -165,28 +333,35 @@ export class BotNavGraph {
    * Find the shortest path between two positions.
    * Returns null if no path exists.
    */
-  findPath(from: Vec3, to: Vec3): NavPath | null {
+  findPath(from: Vec3, to: Vec3, options: NavPathOptions = {}): NavPath | null {
     const startNode = this.findNearestNode(from);
     const goalNode = this.findNearestNode(to);
     if (!startNode || !goalNode) return null;
     if (startNode.id === goalNode.id) {
-      return { nodes: [startNode], totalCost: 0 };
+      return { nodes: [startNode], steps: [], totalCost: 0, cursor: 0 };
     }
 
-    return this._astar(startNode.id, goalNode.id);
+    return this._astar(startNode.id, goalNode.id, options);
   }
 
   /**
    * Find shortest path to nearest item of a given type.
    * Searches all item nodes and returns path to the closest one.
    */
-  findPathToItem(from: Vec3, itemType: string): NavPath | null {
+  findPathToItem(
+    from: Vec3,
+    itemType: string,
+    activeMask: readonly boolean[] = [],
+    options: NavPathOptions = {},
+  ): NavPath | null {
     const startNode = this.findNearestNode(from);
     if (!startNode) return null;
 
     // Find all matching item nodes
     const targets = this._nodes.filter((n) => {
       if (n.type !== "item" || !n.classname) return false;
+      if (n.pickupId !== undefined && options.blockedPickupIds?.has(n.pickupId)) return false;
+      if (n.pickupId !== undefined && activeMask.length > n.pickupId && !activeMask[n.pickupId]) return false;
       return this._matchesItemType(n.classname, itemType);
     });
 
@@ -195,7 +370,7 @@ export class BotNavGraph {
     // Find path to each target, return cheapest
     let bestPath: NavPath | null = null;
     for (const target of targets) {
-      const path = this._astar(startNode.id, target.id);
+      const path = this._astar(startNode.id, target.id, options);
       if (path && (!bestPath || path.totalCost < bestPath.totalCost)) {
         bestPath = path;
       }
@@ -222,6 +397,22 @@ export class BotNavGraph {
     return best;
   }
 
+  /** Return the next traversal transition that has not yet been completed. */
+  getNextStep(botPos: Vec3, path: NavPath, arrivedThreshold: number = 100): NavStep | null {
+    while (path.cursor < path.steps.length) {
+      const step = path.steps[path.cursor];
+      const stepThreshold =
+        step.to.type === "item"
+          ? Math.min(arrivedThreshold, 32)
+          : step.type === "fall"
+            ? Math.min(arrivedThreshold, 48)
+            : arrivedThreshold;
+      if (vec3Distance(botPos, step.to.position) > stepThreshold) break;
+      path.cursor++;
+    }
+    return path.steps[path.cursor] ?? null;
+  }
+
   /**
    * Get the next waypoint to walk toward on a path.
    * Skips nodes the bot has already passed.
@@ -232,13 +423,8 @@ export class BotNavGraph {
    * @returns Next node to walk toward, or null if path complete
    */
   getNextWaypoint(botPos: Vec3, path: NavPath, arrivedThreshold: number = 100): NavNode | null {
-    for (const node of path.nodes) {
-      const dist = vec3Distance(botPos, node.position);
-      if (dist > arrivedThreshold) {
-        return node;
-      }
-    }
-    return null; // Arrived at destination
+    const step = this.getNextStep(botPos, path, arrivedThreshold);
+    return step?.to ?? null;
   }
 
   // ── Private: Node Extraction ────────────────────────────────────
@@ -246,7 +432,7 @@ export class BotNavGraph {
   private _extractNodes(knowledge: MapKnowledgeData, vision: BotVision): void {
     let nextId = 0;
 
-    const addNode = (position: Vec3, type: NavNodeType, classname?: string): NavNode => {
+    const addNode = (position: Vec3, type: NavNodeType, classname?: string, pickupId?: number): NavNode => {
       const existing = this._findNearbyNode(position, MIN_NODE_DISTANCE);
       if (existing) return existing;
       const node: NavNode = {
@@ -254,6 +440,7 @@ export class BotNavGraph {
         position: { ...position },
         type,
         classname,
+        pickupId,
       };
       this._nodes.push(node);
       return node;
@@ -261,7 +448,7 @@ export class BotNavGraph {
 
     // 1. Item pickup positions
     for (const item of knowledge.pickupPositions) {
-      addNode(item.position, "item", item.classname);
+      addNode(item.position, "item", item.classname, item.id);
     }
 
     // 2. Spawn points
@@ -275,7 +462,18 @@ export class BotNavGraph {
       const type = trigger.type === "push" ? "jumppad" : "teleporter";
       const source = addNode(this._triggerCenter(trigger), type, `trigger_${trigger.type}`);
       const dest = addNode(trigger.dest, type, `trigger_${trigger.type}_dest`);
-      this._triggerLinks.push({ from: source.id, to: dest.id, type });
+      this._triggerLinks.push({
+        from: source.id,
+        to: dest.id,
+        type,
+        trigger: {
+          id: trigger.id,
+          min: { ...trigger.min },
+          max: { ...trigger.max },
+          dest: { ...trigger.dest },
+          destYaw: trigger.destYaw,
+        },
+      });
     }
 
     // 4. Floor grid sampling (fills gaps)
@@ -351,6 +549,7 @@ export class BotNavGraph {
 
   private _probeEdges(vision: BotVision): void {
     const nodeCount = this._nodes.length;
+    const movementAnalyzer = new BotMovementAnalyzer(vision.collisionWorld);
 
     for (let i = 0; i < nodeCount; i++) {
       for (let j = i + 1; j < nodeCount; j++) {
@@ -373,14 +572,30 @@ export class BotNavGraph {
           continue;
         }
 
-        // Jump edge: medium height diff
+        // Medium-height jump candidates are tested in both directions.
         if (heightDiff < JUMP_HEIGHT_MAX && horizontalDist < 400) {
-          // Check if horizontal path is roughly clear
+          // Visible directions are independently simulated before acceptance.
+          // Candidate generation is bidirectional; acceptance is not assumed.
           if (vision.canSee(a.position, b.position)) {
-            const cost = dist * JUMP_COST_MULT;
-            // Bidirectional — bot can jump both ways
-            this._edges.push({ from: a.id, to: b.id, type: "jump", cost });
-            this._edges.push({ from: b.id, to: a.id, type: "jump", cost });
+            for (const [from, to] of [
+              [a, b],
+              [b, a],
+            ] as const) {
+              const result = movementAnalyzer.analyzeJump(from.id, from.position, to.id, to.position);
+              const opportunity = result.opportunity;
+              if (!opportunity) continue;
+              this._edges.push({
+                from: from.id,
+                to: to.id,
+                type: "jump",
+                cost: dist * JUMP_COST_MULT,
+                opportunityId: opportunity.id,
+                requiredSpeed: opportunity.takeoff.minSpeed,
+                expectedTicks: opportunity.expectedTicks,
+                successMargin: opportunity.successMargin,
+                validated: true,
+              });
+            }
           }
           continue;
         }
@@ -398,6 +613,9 @@ export class BotNavGraph {
         }
       }
     }
+    this._movementOpportunities = movementAnalyzer.accepted.map((opportunity) => this._cloneOpportunity(opportunity));
+    this._movementRejections = movementAnalyzer.rejected.map((rejection) => ({ ...rejection }));
+    this._movementAnalysis = movementAnalyzer.analysisSummary;
     this._addTriggerEdges();
   }
 
@@ -411,7 +629,13 @@ export class BotNavGraph {
 
       const dist = vec3Distance(from.position, to.position);
       const cost = link.type === "teleporter" ? TELEPORT_COST : Math.max(TELEPORT_COST, dist * JUMPPAD_COST_MULT);
-      this._edges.push({ from: from.id, to: to.id, type: link.type, cost });
+      this._edges.push({
+        from: from.id,
+        to: to.id,
+        type: link.type,
+        cost,
+        trigger: this._cloneTrigger(link.trigger),
+      });
     }
   }
 
@@ -429,11 +653,12 @@ export class BotNavGraph {
 
   // ── Private: A* ─────────────────────────────────────────────────
 
-  private _astar(startId: number, goalId: number): NavPath | null {
+  private _astar(startId: number, goalId: number, options: NavPathOptions = {}): NavPath | null {
     const goalNode = this._nodes[goalId];
     if (!goalNode) return null;
 
     // Open set: priority queue (simple array sorted by fScore)
+    const cameByEdge = new Map<number, NavEdge>();
     const openSet = new Set<number>([startId]);
     const cameFrom = new Map<number, number>();
 
@@ -457,17 +682,19 @@ export class BotNavGraph {
 
       if (current === goalId) {
         // Reconstruct path
-        return this._reconstructPath(cameFrom, current, gScore.get(current) ?? 0);
+        return this._reconstructPath(cameFrom, cameByEdge, current, gScore.get(current) ?? 0);
       }
 
       openSet.delete(current);
       const neighbors = this._adjacency.get(current) || [];
 
       for (const edge of neighbors) {
+        if (options.blockedEdgeKeys?.has(navEdgeKey(edge.from, edge.to, edge.type))) continue;
         const tentativeG = (gScore.get(current) ?? Infinity) + edge.cost;
         const currentG = gScore.get(edge.to) ?? Infinity;
 
         if (tentativeG < currentG) {
+          cameByEdge.set(edge.to, edge);
           cameFrom.set(edge.to, current);
           gScore.set(edge.to, tentativeG);
           fScore.set(edge.to, tentativeG + this._heuristic(this._nodes[edge.to], goalNode));
@@ -479,17 +706,51 @@ export class BotNavGraph {
     return null; // No path found
   }
 
-  private _heuristic(node: NavNode, goal: NavNode): number {
-    return vec3Distance(node.position, goal.position);
+  private _heuristic(_node: NavNode, _goal: NavNode): number {
+    // Trigger edges can be much cheaper than Euclidean distance. Dijkstra's
+    // zero heuristic remains admissible until a trigger-aware heuristic exists.
+    return 0;
   }
 
-  private _reconstructPath(cameFrom: Map<number, number>, current: number, totalCost: number): NavPath {
-    const path: NavNode[] = [this._nodes[current]];
+  private _reconstructPath(
+    cameFrom: Map<number, number>,
+    cameByEdge: Map<number, NavEdge>,
+    current: number,
+    totalCost: number,
+  ): NavPath {
+    const nodeIds: number[] = [current];
     while (cameFrom.has(current)) {
       current = cameFrom.get(current)!;
-      path.unshift(this._nodes[current]);
+      nodeIds.unshift(current);
     }
-    return { nodes: path, totalCost };
+
+    const nodes = nodeIds.map((id) => this._nodes[id]);
+    const steps: NavStep[] = [];
+    for (let index = 1; index < nodeIds.length; index++) {
+      const edge = cameByEdge.get(nodeIds[index]);
+      if (!edge) throw new Error("A* path reconstruction lost edge metadata");
+      const from = nodes[index - 1];
+      const to = nodes[index];
+      const dx = to.position.x - from.position.x;
+      const dz = to.position.z - from.position.z;
+      steps.push({
+        from,
+        to,
+        type: edge.type,
+        cost: edge.cost,
+        horizontalDistance: Math.hypot(dx, dz),
+        heightDelta: to.position.y - from.position.y,
+        opportunityId: edge.opportunityId,
+        requiredSpeed: edge.requiredSpeed,
+        expectedTicks: edge.expectedTicks,
+        successMargin: edge.successMargin,
+        validated: edge.validated,
+        trigger: this._cloneTrigger(edge.trigger),
+        requiresPreciseApproach:
+          edge.type === "teleporter" || edge.type === "jumppad" || edge.type === "fall" || to.type === "item",
+      });
+    }
+    return { nodes, steps, totalCost, cursor: 0 };
   }
 
   // ── Private: Utilities ──────────────────────────────────────────
@@ -515,6 +776,38 @@ export class BotNavGraph {
     };
   }
 
+  private _cloneTrigger(trigger: NavTriggerMetadata | undefined): NavTriggerMetadata | undefined {
+    if (!trigger) return undefined;
+    return {
+      ...trigger,
+      min: { ...trigger.min },
+      max: { ...trigger.max },
+      dest: { ...trigger.dest },
+    };
+  }
+
+  private _cloneOpportunity(opportunity: MovementOpportunity): MovementOpportunity {
+    return {
+      ...opportunity,
+      takeoff: {
+        ...opportunity.takeoff,
+
+        position: { ...opportunity.takeoff.position },
+        yawRange: [...opportunity.takeoff.yawRange],
+      },
+      landing: {
+        ...opportunity.landing,
+        position: { ...opportunity.landing.position },
+        surfaceNormal: { ...opportunity.landing.surfaceNormal },
+      },
+      inputPlan: {
+        ...opportunity.inputPlan,
+        direction: { ...opportunity.inputPlan.direction },
+      },
+      risk: { ...opportunity.risk },
+    };
+  }
+
   private _matchesItemType(classname: string, type: string): boolean {
     switch (type) {
       case "health":
@@ -523,6 +816,8 @@ export class BotNavGraph {
         return classname.includes("armor");
       case "weapon":
         return classname.startsWith("weapon_");
+      case "ammo":
+        return classname.startsWith("ammo_");
       default:
         return classname === type;
     }

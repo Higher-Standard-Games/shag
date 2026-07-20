@@ -164,7 +164,7 @@ export class DemoTrainingExtractor {
       const tacticalInput = Array.from(tacticalArr);
 
       let combatInput: number[] | null = null;
-      const nearestEnemy = gameState.players[0]; // Sorted by distance
+      const nearestEnemy = gameState.getNearestEnemy();
       if (nearestEnemy) {
         const combatArr = buildCombatInput(gameState, nearestEnemy);
         combatInput = Array.from(combatArr);

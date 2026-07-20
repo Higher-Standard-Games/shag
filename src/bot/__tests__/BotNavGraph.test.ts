@@ -1,6 +1,28 @@
 import { describe, expect, it } from "vitest";
-import { BotNavGraph } from "../BotNavGraph";
+import type { AABB, TraceResult } from "../../shared/collision/CollisionWorld";
+import { NullCollisionWorld } from "../../shared/collision/CollisionWorld";
+import type { Vec3 } from "../../shared/server/simulation/types";
+import { BotNavGraph, navEdgeKey } from "../BotNavGraph";
 import type { BotVision } from "../BotVision";
+
+class FlatFloorCollisionWorld extends NullCollisionWorld {
+  override trace(start: Vec3, end: Vec3, _bounds?: AABB): TraceResult {
+    if (start.y >= 0 && start.y < 100 && end.y <= 0 && start.y !== end.y) {
+      const fraction = start.y / (start.y - end.y);
+      return {
+        hit: true,
+        fraction,
+        hitPoint: {
+          x: start.x + (end.x - start.x) * fraction,
+          y: 0,
+          z: start.z + (end.z - start.z) * fraction,
+        },
+        normal: { x: 0, y: 1, z: 0 },
+      };
+    }
+    return { hit: false, fraction: 1 };
+  }
+}
 
 function makeVision(triggerType: "teleport" | "push"): BotVision {
   return {
@@ -28,17 +50,104 @@ function makeVision(triggerType: "teleport" | "push"): BotVision {
   } as unknown as BotVision;
 }
 
+function makeJumpVision(): BotVision {
+  return {
+    mapKnowledge: {
+      mapName: "jump-test",
+      mapFingerprint: "test-bsp",
+      spawnPoints: [{ x: 0, y: 24, z: 0 }],
+      pickupPositions: [{ id: 0, classname: "item_health_mega", position: { x: 100, y: 64, z: 0 } }],
+      triggerVolumes: [],
+    },
+    collisionWorld: new FlatFloorCollisionWorld(),
+    isPathClear: () => true,
+    canSee: () => true,
+    isInsideSolid: () => false,
+  } as unknown as BotVision;
+}
+
+function makeUnreachableJumpVision(): BotVision {
+  return {
+    mapKnowledge: {
+      mapName: "unreachable-jump-test",
+      mapFingerprint: "test-bsp",
+      spawnPoints: [{ x: 0, y: 24, z: 0 }],
+      pickupPositions: [{ id: 0, classname: "item_health_mega", position: { x: 100, y: 100, z: 0 } }],
+      triggerVolumes: [],
+    },
+    collisionWorld: new NullCollisionWorld(),
+    isPathClear: () => true,
+    canSee: () => true,
+    isInsideSolid: () => false,
+  } as unknown as BotVision;
+}
+
+describe("BotNavGraph movement analysis", () => {
+  it("only adds simulated jump edges and keeps their execution annotations", () => {
+    const graph = new BotNavGraph("jump-test");
+    graph.buildFromVision(makeJumpVision());
+
+    expect(graph.edges.filter((edge) => edge.type === "jump")).toHaveLength(2);
+    expect(graph.edges.filter((edge) => edge.type === "jump").every((edge) => edge.validated)).toBe(true);
+    expect(graph.movementOpportunities).toHaveLength(2);
+    expect(graph.movementAnalysis).toMatchObject({ candidateCount: 2, acceptedCount: 2, rejectedCount: 0 });
+  });
+
+  it("does not retain a visible jump edge with an unstandable endpoint", () => {
+    const graph = new BotNavGraph("unreachable-jump-test");
+    graph.buildFromVision(makeUnreachableJumpVision());
+
+    expect(graph.edges.filter((edge) => edge.type === "jump")).toHaveLength(0);
+    expect(graph.movementOpportunities).toHaveLength(0);
+    expect(graph.movementAnalysis).toMatchObject({
+      candidateCount: 2,
+      acceptedCount: 0,
+      rejectedCount: 2,
+      rejectionCounts: { invalid_takeoff: 2 },
+    });
+  });
+});
+
 describe("BotNavGraph trigger awareness", () => {
+  it("replans around a temporarily blocked traversal edge", () => {
+    const graph = new BotNavGraph("alternate-route-test");
+    graph.loadStaticData({
+      nodes: [
+        { id: 0, type: "spawn", position: { x: 0, y: 0, z: 0 } },
+        { id: 1, type: "floor", position: { x: 100, y: 0, z: 100 } },
+        { id: 2, type: "item", classname: "item_health_mega", position: { x: 200, y: 0, z: 0 } },
+      ],
+      edges: [
+        { from: 0, to: 2, type: "fall", cost: 10 },
+        { from: 0, to: 1, type: "walk", cost: 100 },
+        { from: 1, to: 2, type: "walk", cost: 100 },
+      ],
+    });
+
+    const direct = graph.findPath({ x: 0, y: 0, z: 0 }, { x: 200, y: 0, z: 0 });
+    expect(direct?.steps.map((step) => step.type)).toEqual(["fall"]);
+
+    const alternate = graph.findPath(
+      { x: 0, y: 0, z: 0 },
+      { x: 200, y: 0, z: 0 },
+      { blockedEdgeKeys: new Set([navEdgeKey(0, 2, "fall")]) },
+    );
+    expect(alternate?.steps.map((step) => step.type)).toEqual(["walk", "walk"]);
+  });
   it("routes through teleporter volumes", () => {
     const graph = new BotNavGraph("testmap");
     graph.buildFromVision(makeVision("teleport"));
 
     expect(graph.nodes.some((n) => n.type === "teleporter")).toBe(true);
-    expect(graph.edges.some((e) => e.type === "teleporter")).toBe(true);
+    expect(graph.edges.find((edge) => edge.type === "teleporter")).toMatchObject({
+      trigger: { id: 0, dest: { x: 3000, y: 0, z: 0 }, destYaw: 0 },
+    });
 
     const path = graph.findPath({ x: 0, y: 0, z: 0 }, { x: 3100, y: 0, z: 0 });
     expect(path).not.toBeNull();
     expect(path!.nodes.some((n) => n.type === "teleporter")).toBe(true);
+    expect(path!.steps.some((step) => step.type === "teleporter")).toBe(true);
+    expect(graph.describePath(path!)).toContain("teleporter:");
   });
 
   it("routes through jumppad volumes", () => {
@@ -46,11 +155,14 @@ describe("BotNavGraph trigger awareness", () => {
     graph.buildFromVision(makeVision("push"));
 
     expect(graph.nodes.some((n) => n.type === "jumppad")).toBe(true);
-    expect(graph.edges.some((e) => e.type === "jumppad")).toBe(true);
+    expect(graph.edges.find((edge) => edge.type === "jumppad")).toMatchObject({
+      trigger: { id: 0, dest: { x: 3000, y: 0, z: 0 } },
+    });
 
     const path = graph.findPath({ x: 0, y: 0, z: 0 }, { x: 3100, y: 0, z: 0 });
     expect(path).not.toBeNull();
     expect(path!.nodes.some((n) => n.type === "jumppad")).toBe(true);
+    expect(path!.steps.some((step) => step.type === "jumppad")).toBe(true);
   });
 
   it("rebuilds without accumulating stale trigger edges", () => {
@@ -61,4 +173,60 @@ describe("BotNavGraph trigger awareness", () => {
     graph.buildFromVision(makeVision("teleport"));
     expect(graph.edgeCount).toBe(firstEdgeCount);
   });
+});
+
+it("keeps progress after a non-local teleporter transition", () => {
+  const graph = new BotNavGraph("testmap");
+  graph.loadStaticData({
+    nodes: [
+      { id: 0, type: "spawn", position: { x: 0, y: 0, z: 0 } },
+      { id: 1, type: "teleporter", position: { x: 100, y: 0, z: 0 } },
+      { id: 2, type: "teleporter", position: { x: 3000, y: 0, z: 0 } },
+      { id: 3, type: "item", classname: "item_health_mega", position: { x: 3200, y: 0, z: 0 } },
+    ],
+    edges: [
+      { from: 0, to: 1, type: "walk", cost: 100 },
+      {
+        from: 1,
+        to: 2,
+        type: "teleporter",
+        cost: 32,
+        trigger: {
+          id: 0,
+          min: { x: 80, y: -16, z: -16 },
+          max: { x: 120, y: 16, z: 16 },
+          dest: { x: 3000, y: 0, z: 0 },
+          destYaw: 0,
+        },
+      },
+      { from: 2, to: 3, type: "walk", cost: 200 },
+    ],
+  });
+
+  const path = graph.findPath({ x: 0, y: 0, z: 0 }, { x: 3200, y: 0, z: 0 });
+  expect(path).not.toBeNull();
+  expect(graph.getNextStep({ x: 0, y: 0, z: 0 }, path!, 50)?.type).toBe("walk");
+  expect(graph.getNextStep({ x: 100, y: 0, z: 0 }, path!, 50)?.type).toBe("teleporter");
+  expect(graph.getNextStep({ x: 3000, y: 0, z: 0 }, path!, 50)?.type).toBe("walk");
+  expect(graph.getNextStep({ x: 3150, y: 0, z: 0 }, path!, 100)?.type).toBe("walk");
+  expect(graph.getNextStep({ x: 3200, y: 0, z: 0 }, path!, 50)).toBeNull();
+  expect(path!.cursor).toBe(3);
+});
+
+it("excludes temporarily blocked pickup ids from item planning", () => {
+  const graph = new BotNavGraph("blocked-pickup-test");
+  graph.loadStaticData({
+    nodes: [
+      { id: 0, type: "spawn", position: { x: 0, y: 0, z: 0 } },
+      { id: 1, type: "item", pickupId: 0, classname: "item_health", position: { x: 100, y: 0, z: 0 } },
+      { id: 2, type: "item", pickupId: 1, classname: "item_health", position: { x: 200, y: 0, z: 0 } },
+    ],
+    edges: [
+      { from: 0, to: 1, type: "walk", cost: 10 },
+      { from: 0, to: 2, type: "walk", cost: 20 },
+    ],
+  });
+
+  const path = graph.findPathToItem({ x: 0, y: 0, z: 0 }, "health", [true, true], { blockedPickupIds: new Set([0]) });
+  expect(path?.nodes[path.nodes.length - 1]?.pickupId).toBe(1);
 });

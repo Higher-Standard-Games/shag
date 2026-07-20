@@ -168,7 +168,7 @@ export function buildTacticalInput(state: BotGameState, vision: BotVision | null
   }
 
   // ── Enemy info [17-19] ──────────────────────────────────────
-  const enemy = state.players[0]; // Nearest visible player
+  const enemy = state.getNearestEnemy();
   if (enemy) {
     const dist = vec3Distance(self.position, enemy.position);
     input[17] = clamp(dist / 3000, 0, 1);
@@ -184,8 +184,8 @@ export function buildTacticalInput(state: BotGameState, vision: BotVision | null
 
   // ── Navigation context [22-23] ──────────────────────────────
   if (vision) {
-    const healthPos = vision.findNearestItem(self.position, "health");
-    const armorPos = vision.findNearestItem(self.position, "armor");
+    const healthPos = vision.findNearestItem(self.position, "health", state.pickupActiveMask);
+    const armorPos = vision.findNearestItem(self.position, "armor", state.pickupActiveMask);
     input[22] = healthPos ? clamp(vec3Distance(self.position, healthPos) / 3000, 0, 1) : 1; // 1 = no health nearby
     input[23] = armorPos ? clamp(vec3Distance(self.position, armorPos) / 3000, 0, 1) : 1; // 1 = no armor nearby
   } else {

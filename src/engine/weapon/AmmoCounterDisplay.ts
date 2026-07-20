@@ -154,6 +154,12 @@ export class AmmoCounterDisplay {
     this.texture = texture;
     this.material = mat;
     this.applyTuning();
+
+    // Canvas can't render a web font until it's loaded; if the first paint fell
+    // back to monospace, repaint once the HUD's Orbitron is ready.
+    if (typeof document !== "undefined" && document.fonts?.ready) {
+      document.fonts.ready.then(() => this.redraw()).catch(() => {});
+    }
   }
 
   /**
@@ -183,35 +189,52 @@ export class AmmoCounterDisplay {
     this.draw(formatAmmoDigits(ammo));
   }
 
-  /** Paint the digit string into the DynamicTexture as a solid LCD panel. */
+  /** Re-render the current value (e.g. after the web font finishes loading). */
+  private redraw(): void {
+    if (this.lastAmmo >= 0) this.draw(formatAmmoDigits(this.lastAmmo));
+  }
+
+  /** Paint the digit string into the DynamicTexture — transparent LCD digits. */
   private draw(digits: string): void {
     if (!this.texture) return;
     const ctx = this.texture.getContext() as CanvasRenderingContext2D;
     const { width, height } = this.texture.getSize();
+    // Transparent background: the quad overlays the gun's own display recess, so
+    // the digits sit ON that dark screen rather than on a painted opaque panel.
     ctx.clearRect(0, 0, width, height);
 
-    // Opaque dark screen so the counter reads as a physical LCD panel (not a few
-    // faint floating digits that are easy to miss on the grey gun body).
-    ctx.fillStyle = "rgba(6, 16, 10, 1)";
-    ctx.fillRect(0, 0, width, height);
-    ctx.strokeStyle = "rgba(90, 200, 130, 0.5)";
-    ctx.lineWidth = Math.max(2, height * 0.04);
-    ctx.strokeRect(ctx.lineWidth, ctx.lineWidth, width - ctx.lineWidth * 2, height - ctx.lineWidth * 2);
-
-    const fontPx = Math.round(height * 0.78);
-    ctx.font = `900 ${fontPx}px "Consolas", "Menlo", monospace`;
+    // HUD display font (Orbitron). Sized to fill the display height with room for
+    // the glow, so neither the glyphs nor the halo clip at the texture edge (the
+    // earlier 1.25x font + wide blur bled past and looked pixel-cut).
+    const fontPx = Math.round(height * 0.9);
+    ctx.font = `900 ${fontPx}px "Orbitron", "Consolas", monospace`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    const cx = width / 2;
+
+    // Yellow backlight GLOW (0 offset = an even halo around the digits, not a
+    // one-sided drop shadow) behind near-black digits — a lit-LCD look without a
+    // distracting off-segment ghost.
+    ctx.shadowColor = "rgba(255, 205, 70, 0.95)";
+    ctx.shadowBlur = Math.max(3, height * 0.09);
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+    ctx.fillStyle = "rgba(12, 12, 12, 1)";
+
+    // Fixed slots: paint each place centered in its own cell so digits never
+    // shift as the count changes (Orbitron is proportional, not monospace). Two
+    // passes per digit deepen the glow.
+    const cellW = width / MAX_DIGITS;
     const cy = height / 2;
-
-    // Dim "off-segment" ghost so blanked places still read as an LCD.
-    ctx.fillStyle = "rgba(40, 90, 55, 0.5)";
-    ctx.fillText("888", cx, cy);
-
-    // Bright active digits.
-    ctx.fillStyle = `rgba(140, 255, 175, ${Math.max(0.4, this.config.digitAlpha)})`;
-    ctx.fillText(digits, cx, cy);
+    for (let i = 0; i < digits.length && i < MAX_DIGITS; i++) {
+      const ch = digits[i];
+      if (ch === " ") continue;
+      const cx = cellW * (i + 0.5);
+      ctx.fillText(ch, cx, cy);
+      ctx.fillText(ch, cx, cy);
+    }
+    // Reset shadow so it can't bleed into a later paint on this shared context.
+    ctx.shadowColor = "transparent";
+    ctx.shadowBlur = 0;
 
     this.texture.update();
   }
@@ -230,7 +253,11 @@ export class AmmoCounterDisplay {
 // vary per weapon model, so the facing needs to be dialed in per-set). Changes
 // apply immediately — WeaponViewManager re-applies them each frame.
 Cvar.register("cg_ammocounter_scale", 1, { type: "float", min: 0.05, max: 20, description: "Ammo counter size multiplier" });
-Cvar.register("cg_ammocounter_yaw", 0, { type: "float", min: -180, max: 180, description: "Ammo counter yaw (deg)" });
+// Default 90° yaw aligns the counter with the IQM z_weapons tag_ammo axis
+// convention shared by all counter-bearing models (#3, confirmed in playtest).
+Cvar.register("cg_ammocounter_yaw", 90, { type: "float", min: -180, max: 180, description: "Ammo counter yaw (deg)" });
 Cvar.register("cg_ammocounter_pitch", 0, { type: "float", min: -180, max: 180, description: "Ammo counter pitch (deg)" });
-Cvar.register("cg_ammocounter_roll", 0, { type: "float", min: -180, max: 180, description: "Ammo counter roll (deg)" });
+// Default 180° roll (with yaw 90) seats the counter upright on the IQM
+// z_weapons tag_ammo bone (#3, confirmed in playtest).
+Cvar.register("cg_ammocounter_roll", 180, { type: "float", min: -180, max: 180, description: "Ammo counter roll (deg)" });
 Cvar.register("cg_ammocounter_fwd", 0, { type: "float", min: -10, max: 10, description: "Ammo counter forward offset" });

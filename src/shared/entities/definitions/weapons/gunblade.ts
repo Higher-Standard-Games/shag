@@ -70,7 +70,7 @@ export const GUNBLADE: WeaponDef = {
     color: { r: 1.0, g: 0.8, b: 0.3 },
     intensity: 20,
     range: 35,
-    duration: 0.06,
+    duration: 0.09,
   },
 
   // Sounds

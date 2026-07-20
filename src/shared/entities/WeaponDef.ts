@@ -36,6 +36,14 @@ export interface ViewModelDef {
 
   /** Model format: 'md3' (default) or 'glb' */
   viewModelFormat?: "md3" | "glb";
+
+  /**
+   * Optional additive self-lit glow map (e.g. an energy coil). A glow texture is
+   * black except the glowing regions, so it is applied as the material emissive:
+   * only the bright regions light up, the body stays lit normally. Path is
+   * resolved as a Babylon texture URL (supports .tga). Presentation-only.
+   */
+  glowTexture?: string;
 }
 
 /**
@@ -55,8 +63,16 @@ export interface ADSDef {
 /**
  * Muzzle flash effect configuration
  */
+/**
+ * Procedural muzzle-flash look. One shared GPU effect, skinned per weapon:
+ *   burst — hot radial star (default: machinegun, plasma, generic)
+ *   plume — fiery forward puff (shotgun, rocket, grenade)
+ *   arcs  — electric lightning rods (electrobolt, instagun)
+ */
+export type MuzzleFlashStyle = "burst" | "plume" | "arcs";
+
 export interface MuzzleFlashDef {
-  /** Light color (RGB 0-1) */
+  /** Light color (RGB 0-1) — also tints the procedural flash. */
   color: { r: number; g: number; b: number };
   /** Light intensity */
   intensity: number;
@@ -64,6 +80,10 @@ export interface MuzzleFlashDef {
   range: number;
   /** Flash duration in seconds */
   duration: number;
+  /** Procedural flash style (defaults to "burst"). */
+  style?: MuzzleFlashStyle;
+  /** Flash size multiplier (defaults to 1). */
+  scale?: number;
 }
 
 // ==================== CROSSHAIR CONFIG ====================

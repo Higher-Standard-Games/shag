@@ -20,7 +20,10 @@ import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Scene } from "@babylonjs/core/scene";
 import { mulberry32 } from "../../shared/SpreadUtils";
 import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
+import { MuzzleFlashRenderer, type MuzzleFlashSpawn } from "./muzzle/MuzzleFlashRenderer";
 import { getPointLightPool } from "./PointLightPool";
+import { RailEffectRenderer } from "./rail/RailEffectRenderer";
+import type { RailEffectSample } from "./rail/RailProfiles";
 import { VoltaicEffectRenderer, type VoltaicRemoteStartResolver } from "./voltaic/VoltaicEffectRenderer";
 import type { VoltaicImpactKind } from "./voltaic/VoltaicProfiles";
 
@@ -142,6 +145,11 @@ export class HitscanEffects {
 
   /** Procedural GPU Voltaic renderer (hero, remote, impacts, and chain arcs). */
   private voltaicRenderer: VoltaicEffectRenderer | null = null;
+  /** Procedural GPU Electrobolt rail renderer (one-shot analytic helix rails). */
+  private railRenderer: RailEffectRenderer | null = null;
+  /** Procedural GPU muzzle flashes (shared base, per-weapon style). */
+  private muzzleFlashRenderer: MuzzleFlashRenderer | null = null;
+  private muzzleAnchorResolver: (() => Vector3 | null) | null = null;
   private remoteVoltaicStartResolver: VoltaicRemoteStartResolver | null = null;
   private readonly localVoltaicEndpoint = new Vector3();
   private readonly localVoltaicNormal = new Vector3();
@@ -170,6 +178,19 @@ export class HitscanEffects {
       this.voltaicRenderer.setRemoteStartResolver(this.remoteVoltaicStartResolver);
       void this.voltaicRenderer.prewarm().catch((error) => {
         console.warn("[HitscanEffects] Voltaic shader prewarm failed; first use will retry compilation", error);
+      });
+
+      this.railRenderer?.dispose();
+      this.railRenderer = new RailEffectRenderer(scene);
+      void this.railRenderer.prewarm().catch((error) => {
+        console.warn("[HitscanEffects] Rail shader prewarm failed; first use will retry compilation", error);
+      });
+
+      this.muzzleFlashRenderer?.dispose();
+      this.muzzleFlashRenderer = new MuzzleFlashRenderer(scene);
+      this.muzzleFlashRenderer.setAnchorResolver(this.muzzleAnchorResolver);
+      void this.muzzleFlashRenderer.prewarm().catch((error) => {
+        console.warn("[HitscanEffects] Muzzle flash shader prewarm failed; first use will retry compilation", error);
       });
     }
     this.scene = scene;
@@ -565,6 +586,41 @@ export class HitscanEffects {
     return hit?.point ?? null;
   }
 
+  /**
+   * Fire a one-shot Electrobolt rail from `sample.start` (muzzle) to
+   * `sample.end` (authoritative impact). Presentation-only; the endpoint/normal
+   * come from the server `electro_rail` event so the visual can never diverge
+   * from the damage trace. `sample` fields are copied synchronously — callers
+   * may reuse scratch vectors. Leaves a scorch mark on a world contact.
+   */
+  fireRail(sample: RailEffectSample): void {
+    if (!this.scene || !this.railRenderer) return;
+    this.railRenderer.fireRail(sample);
+    if (sample.impactKind === "world" && sample.impactNormal) {
+      this.spawnWallMark(sample.end, sample.impactNormal, sample.color, 1.0);
+    }
+  }
+
+  /**
+   * Spawn a procedural muzzle flash at a world position (the gun muzzle). One
+   * shared effect skinned per weapon by `style`; `spawn` fields are copied
+   * synchronously so callers may reuse scratch vectors.
+   */
+  fireMuzzleFlash(spawn: MuzzleFlashSpawn): void {
+    if (!this.scene || !this.muzzleFlashRenderer) return;
+    this.muzzleFlashRenderer.spawn(spawn);
+  }
+
+  /**
+   * Register a resolver for the live local muzzle world position. Muzzle flashes
+   * re-track it every frame so they ride the barrel instead of floating where the
+   * gun was at fire time (matters for fast-firing guns while strafing).
+   */
+  setMuzzleAnchorResolver(resolver: (() => Vector3 | null) | null): void {
+    this.muzzleAnchorResolver = resolver;
+    this.muzzleFlashRenderer?.setAnchorResolver(resolver);
+  }
+
   // ── Update (call every frame) ────────────────────────────────────
 
   update(_deltaTime: number): void {
@@ -649,6 +705,8 @@ export class HitscanEffects {
     }
 
     this.voltaicRenderer?.update(_deltaTime);
+    this.railRenderer?.update(_deltaTime);
+    this.muzzleFlashRenderer?.update(_deltaTime);
   }
 
   /** Cleanup everything */
@@ -666,6 +724,8 @@ export class HitscanEffects {
     this.travelingPellets = [];
     this.stopLightning();
     this.voltaicRenderer?.clear();
+    this.railRenderer?.clear();
+    this.muzzleFlashRenderer?.clear();
   }
 
   // ── Private helpers ──────────────────────────────────────────────

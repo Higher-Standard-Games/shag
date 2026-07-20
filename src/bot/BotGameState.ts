@@ -59,11 +59,17 @@ export interface BotSelf {
   armor: number;
   isDead: boolean;
   isGrounded: boolean;
+  isSliding: boolean;
+  isCrouching: boolean;
   currentWeapon: string;
   weapons: string[];
   ammo: Record<string, number>;
   isReloading: boolean;
+  /** Empty in FFA; stable team id in team modes. */
+  team: string;
 }
+
+export type PlayerRelation = "ally" | "enemy";
 
 export interface VisiblePlayer {
   entityId: string;
@@ -71,7 +77,11 @@ export interface VisiblePlayer {
   position: Vec3;
   velocity: Vec3;
   isDead: boolean;
-  /** Distance from bot */
+  /** Empty in FFA. */
+  team: string;
+  /** Relationship to this bot, derived from replicated player teams. */
+  relation: PlayerRelation;
+  /** Distance from bot. */
   distance: number;
 }
 
@@ -168,16 +178,22 @@ export class BotGameState {
     armor: 0,
     isDead: false,
     isGrounded: false,
+    isSliding: false,
+    isCrouching: false,
     currentWeapon: "",
     weapons: [],
     ammo: {},
     isReloading: false,
+    team: "",
   };
 
   // Visible entities
   players: VisiblePlayer[] = [];
   pickups: VisiblePickup[] = [];
   projectiles: VisibleProjectile[] = [];
+
+  // Authoritative static-pickup availability, indexed by PickupEntry.id.
+  pickupActiveMask: readonly boolean[] = [];
 
   // Recent events (cleared each tick)
   recentDamage: BotDamageEvent[] = [];
@@ -205,6 +221,9 @@ export class BotGameState {
     this.tick = snapshot.tick;
 
     // Clear per-tick data
+    this.pickupActiveMask = [...snapshot.pickupActiveMask];
+    const selfPlayer = snapshot.players.get(this.selfPlayerId);
+    this.self.team = selfPlayer?.team || "";
     this.players = [];
     this.pickups = [];
     this.projectiles = [];
@@ -234,9 +253,14 @@ export class BotGameState {
 
       // Is this our own entity?
       if (entityId === this.selfEntityId) {
+        const movementState = entity.getComponent("movementState") as
+          | { isSliding?: boolean; isCrouching?: boolean }
+          | undefined;
         this.self.position = position;
         this.self.velocity = vel;
         this.self.isGrounded = grounded;
+        this.self.isSliding = movementState?.isSliding ?? false;
+        this.self.isCrouching = movementState?.isCrouching ?? false;
 
         // Extract rotation (yaw/pitch)
         if (transform?.rotation) {
@@ -250,20 +274,28 @@ export class BotGameState {
       const playerEntry = this._findPlayerByEntityId(snapshot, entityId);
       if (playerEntry) {
         const distance = vec3Distance(this.self.position, position);
+        const team = playerEntry.player.team || "";
+        const relation: PlayerRelation = this.self.team && team === this.self.team ? "ally" : "enemy";
         this.players.push({
           entityId,
           playerId: playerEntry.playerId,
           position,
           velocity: vel,
           isDead: false, // Will be updated from combat_state events
+          team,
+          relation,
           distance,
         });
 
-        // Track last known position
-        this.lastKnownEnemyPositions.set(playerEntry.playerId, {
-          position,
-          tick: this.tick,
-        });
+        // Allies must never enter combat memory or become fallback targets.
+        if (relation === "enemy") {
+          this.lastKnownEnemyPositions.set(playerEntry.playerId, {
+            position,
+            tick: this.tick,
+          });
+        } else {
+          this.lastKnownEnemyPositions.delete(playerEntry.playerId);
+        }
         continue;
       }
 
@@ -380,7 +412,7 @@ export class BotGameState {
             const firePos = { x: evt.originX, y: evt.originY, z: evt.originZ };
             // Find which player fired
             const firingPlayer = this.players.find((p) => p.entityId === evt.entityId);
-            if (firingPlayer) {
+            if (firingPlayer?.relation === "enemy") {
               this.lastKnownEnemyPositions.set(firingPlayer.playerId, {
                 position: firePos,
                 tick: this.tick,
@@ -411,12 +443,17 @@ export class BotGameState {
 
   /** Get the nearest alive enemy */
   getNearestEnemy(): VisiblePlayer | null {
-    return this.players.find((p) => !p.isDead) || null;
+    return this.players.find((p) => p.relation === "enemy" && !p.isDead) || null;
   }
 
   /** Get the nearest pickup within a max distance */
   getNearestPickup(maxDistance: number = Infinity): VisiblePickup | null {
     return this.pickups.find((p) => p.distance <= maxDistance) || null;
+  }
+
+  /** Get all living teammates, nearest first. */
+  getAllies(): VisiblePlayer[] {
+    return this.players.filter((p) => p.relation === "ally" && !p.isDead);
   }
 
   /** Check if the bot was recently damaged (within the last N ticks) */

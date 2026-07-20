@@ -46,6 +46,10 @@ export const ELECTROBOLT: WeaponDef = {
     modelPath: "/data/models/weapons/electrobolt/electrobolt.glb",
     viewModelFormat: "glb",
 
+    // Energy-coil glow: applied as additive emissive (WO-EB1). The GLB's baked
+    // emissive channel is empty, so the coil rendered flat/black without this.
+    glowTexture: "/data/models/weapons/electrobolt/electrobolt_glow.tga",
+
     hipOffset: { x: 0, y: -25, z: -1 },
     hipRotation: { x: 0, y: 0, z: 0 },
 
@@ -68,7 +72,9 @@ export const ELECTROBOLT: WeaponDef = {
     color: { r: 0.3, g: 0.5, b: 1.0 },
     intensity: 35,
     range: 60,
-    duration: 0.1,
+    duration: 0.12,
+    style: "arcs",
+    scale: 2.3,
   },
 
   // Sounds
