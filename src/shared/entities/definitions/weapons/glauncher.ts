@@ -77,7 +77,7 @@ export const GRENADE_LAUNCHER: WeaponDef = {
     color: { r: 0.6, g: 1.0, b: 0.3 },
     intensity: 22,
     range: 40,
-    duration: 0.07,
+    duration: 0.11,
     style: "plume",
     scale: 1.25,
   },

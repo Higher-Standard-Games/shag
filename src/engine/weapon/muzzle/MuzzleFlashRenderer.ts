@@ -15,7 +15,7 @@ const PARAMS_DIRTY = 1 << 2;
 const ALL_DIRTY = CENTER_SEED_DIRTY | COLOR_SPAWN_DIRTY | PARAMS_DIRTY;
 
 /** Base world size of a flash before the per-weapon scale multiplier. */
-const BASE_FLASH_SIZE = 7.0;
+const BASE_FLASH_SIZE = 8.5;
 
 const STYLE_TO_FLOAT: Record<MuzzleFlashStyle, number> = { burst: 0, plume: 1, arcs: 2 };
 
@@ -63,6 +63,8 @@ export class MuzzleFlashRenderer {
   private readonly viewport = new Vector2(1, 1);
   private dirtyMask = 0;
   private seedCounter = 0;
+  /** When set, live flashes re-track this position every frame (the live muzzle). */
+  private anchorResolver: (() => Vector3 | null) | null = null;
 
   constructor(scene: Scene, clock: () => number = defaultClock, capacity = 24) {
     this.scene = scene;
@@ -105,6 +107,15 @@ export class MuzzleFlashRenderer {
   private setRenderCount(count: number): void {
     this.mesh.thinInstanceCount = count;
     this.mesh.setEnabled(count > 0);
+  }
+
+  /**
+   * Set a resolver for the live muzzle world position. While set, every active
+   * flash re-tracks it each frame so flashes ride the barrel instead of freezing
+   * where the gun was at fire time. Pass null to leave flashes world-fixed.
+   */
+  setAnchorResolver(resolver: (() => Vector3 | null) | null): void {
+    this.anchorResolver = resolver;
   }
 
   private copyVector4Slot(buffer: Float32Array, from: number, to: number): void {
@@ -183,6 +194,21 @@ export class MuzzleFlashRenderer {
       this.dirtyMask = 0;
       return;
     }
+
+    // Re-anchor live flashes to the current muzzle so they ride the barrel.
+    if (this.anchorResolver) {
+      const anchor = this.anchorResolver();
+      if (anchor) {
+        for (let i = 0; i < this.slots.length; i++) {
+          const o = i * 4;
+          this.centerSeed[o] = anchor.x;
+          this.centerSeed[o + 1] = anchor.y;
+          this.centerSeed[o + 2] = anchor.z;
+        }
+        this.dirtyMask |= CENTER_SEED_DIRTY;
+      }
+    }
+
     if (this.dirtyMask & CENTER_SEED_DIRTY) this.mesh.thinInstanceBufferUpdated("iCenterSeed");
     if (this.dirtyMask & COLOR_SPAWN_DIRTY) this.mesh.thinInstanceBufferUpdated("iColorSpawn");
     if (this.dirtyMask & PARAMS_DIRTY) this.mesh.thinInstanceBufferUpdated("iParams");

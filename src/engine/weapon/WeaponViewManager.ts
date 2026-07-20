@@ -408,6 +408,11 @@ export class WeaponViewManager {
     // lights) so the flash reliably takes the weapon's second slot when firing (#2).
     this.muzzleFlashLight.renderPriority = 500;
 
+    // Muzzle flashes ride the live barrel: the renderer re-samples this each
+    // frame so a flash tracks the muzzle instead of hanging in world space where
+    // the gun was (obvious when strafing a fast-firing gun).
+    getHitscanEffects().setMuzzleAnchorResolver(() => this.getMuzzleWorldPosition());
+
     // Register update loop. Previous-scene observer (if any) is already
     // detached above before `this.scene` was swapped.
     this.updateObserver = scene.onBeforeRenderObservable.add(() => {

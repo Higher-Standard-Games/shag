@@ -74,9 +74,9 @@ export const ROCKET_LAUNCHER: WeaponDef = {
     color: { r: 1.0, g: 0.5, b: 0.1 },
     intensity: 30,
     range: 50,
-    duration: 0.08,
+    duration: 0.12,
     style: "plume",
-    scale: 1.4,
+    scale: 1.45,
   },
 
   // Sounds

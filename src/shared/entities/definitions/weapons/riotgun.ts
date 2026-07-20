@@ -74,9 +74,9 @@ export const RIOTGUN: WeaponDef = {
     color: { r: 1.0, g: 0.7, b: 0.2 },
     intensity: 25,
     range: 45,
-    duration: 0.08,
+    duration: 0.14,
     style: "plume",
-    scale: 1.35,
+    scale: 1.4,
   },
 
   // Sounds

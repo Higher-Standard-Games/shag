@@ -11,6 +11,8 @@ vi.mock("../weapon/HitscanEffects", () => ({
     init: vi.fn(),
     stopBeam: vi.fn(),
     stopLightning: vi.fn(),
+    setMuzzleAnchorResolver: vi.fn(),
+    fireMuzzleFlash: vi.fn(),
   }),
 }));
 

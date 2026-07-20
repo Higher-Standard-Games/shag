@@ -55,14 +55,14 @@ void main() {
   float scale = iParams.x;
   float duration = iParams.z;
 
-  // Fast pop, faster fall — a muzzle flash is gone almost instantly.
+  // Fast pop, then fall — a muzzle flash is brief but must still read.
   float age = max(0.0, uTime - spawn);
-  float life = pow(1.0 - clamp(age / max(duration, 0.001), 0.0, 1.0), 1.6);
+  float life = pow(1.0 - clamp(age / max(duration, 0.001), 0.0, 1.0), 1.35);
 
   // Big enough to read past the viewmodel silhouette, pixel-clamped so it does
   // not fill the screen up close.
   float pixelScale = worldPerPixel(center);
-  float radius = clamp(scale, 22.0 * pixelScale, 150.0 * pixelScale) * step(0.0001, life);
+  float radius = clamp(scale, 30.0 * pixelScale, 170.0 * pixelScale) * step(0.0001, life);
 
   vec3 cameraRight = safeNormalize(vec3(view[0][0], view[1][0], view[2][0]), vec3(1.0, 0.0, 0.0));
   vec3 cameraUp = safeNormalize(vec3(view[0][1], view[1][1], view[2][1]), vec3(0.0, 1.0, 0.0));
@@ -155,8 +155,8 @@ void main() {
     hdr = 3.0;
   }
 
-  float energy = max(vLife * (0.6 + 0.4 * clamp(vIntensity / 25.0, 0.0, 2.0)), 0.0);
-  float alpha = clamp(shape * energy, 0.0, 0.96);
+  float energy = max(vLife * (0.85 + 0.4 * clamp(vIntensity / 25.0, 0.0, 2.0)), 0.0);
+  float alpha = clamp(shape * energy, 0.0, 0.97);
   vec3 rgb = color * shape * energy * hdr * alpha;
   gl_FragColor = vec4(rgb, alpha);
 }

@@ -72,7 +72,7 @@ export const ELECTROBOLT: WeaponDef = {
     color: { r: 0.3, g: 0.5, b: 1.0 },
     intensity: 35,
     range: 60,
-    duration: 0.1,
+    duration: 0.12,
     style: "arcs",
     scale: 1.15,
   },

@@ -149,6 +149,7 @@ export class HitscanEffects {
   private railRenderer: RailEffectRenderer | null = null;
   /** Procedural GPU muzzle flashes (shared base, per-weapon style). */
   private muzzleFlashRenderer: MuzzleFlashRenderer | null = null;
+  private muzzleAnchorResolver: (() => Vector3 | null) | null = null;
   private remoteVoltaicStartResolver: VoltaicRemoteStartResolver | null = null;
   private readonly localVoltaicEndpoint = new Vector3();
   private readonly localVoltaicNormal = new Vector3();
@@ -187,6 +188,7 @@ export class HitscanEffects {
 
       this.muzzleFlashRenderer?.dispose();
       this.muzzleFlashRenderer = new MuzzleFlashRenderer(scene);
+      this.muzzleFlashRenderer.setAnchorResolver(this.muzzleAnchorResolver);
       void this.muzzleFlashRenderer.prewarm().catch((error) => {
         console.warn("[HitscanEffects] Muzzle flash shader prewarm failed; first use will retry compilation", error);
       });
@@ -607,6 +609,16 @@ export class HitscanEffects {
   fireMuzzleFlash(spawn: MuzzleFlashSpawn): void {
     if (!this.scene || !this.muzzleFlashRenderer) return;
     this.muzzleFlashRenderer.spawn(spawn);
+  }
+
+  /**
+   * Register a resolver for the live local muzzle world position. Muzzle flashes
+   * re-track it every frame so they ride the barrel instead of floating where the
+   * gun was at fire time (matters for fast-firing guns while strafing).
+   */
+  setMuzzleAnchorResolver(resolver: (() => Vector3 | null) | null): void {
+    this.muzzleAnchorResolver = resolver;
+    this.muzzleFlashRenderer?.setAnchorResolver(resolver);
   }
 
   // ── Update (call every frame) ────────────────────────────────────
