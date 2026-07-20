@@ -132,50 +132,89 @@ rendering only for static contexts (menus/lobby/diorama), never gameplay.
 
 ---
 
-## Upgrade plan (revised)
+## Recommended execution plan
 
-### Phase 0 — mechanical bump (1 session)
-1. Branch; bump `@babylonjs/core` + `@babylonjs/loaders` → `^9.17.0`; `npm i`
-   (watch `@babylonjs/havok` peer warnings; keep 1.3.11).
-2. Gates in order: `tsc` both repos (TS bump here if typings demand — isolated
-   commit) → `test:run` (134 NullEngine files are the real audit) → biome →
-   `server:tick` → headless smokes (`bsp load`, `sim replay`), including the
-   CLI's clustered-container leak test.
-3. Compile check the six `ShadersInclude` imports (thin-instance custom shaders).
+Ordering rationale: **measure first** (targets are meaningless without a
+baseline), then take the biggest win on the version we already run (WS1 —
+clustered dynamic lights needs no upgrade), then shrink the upgrade diff with
+the hygiene migrations (WS2), then bump (WS3) when the codebase is already on
+the maintained API paths, then the independent texture pipeline (WS4), and only
+then the experiments that ride on all of it (WS5–WS6). Every workstream is an
+independent branch + commit chain, individually revertible, merged via the
+fps-first ritual; nothing here blocks or mixes with the in-flight bot work.
 
-### Phase 1 — browser validation pass
-Maps (world materials/lightmaps/skybox/patches/fog) → weapons (voltaic, rail,
-muzzle styles, tracers, explosions; first-shot smoothness) → pickups v4
-(fresnel grading, edge widths, collect burst) → post pipeline (bloom/exposure/
-contrast + SSAO + RenderVars round-trip) → GLB player models/viewmodels
-(skeletons, animation groups, sockets) → post-match flow → demo record/playback.
-*(Audio dropped from the checklist — HTMLAudio only.)*
+| WS | Work | Gate to exit | Effort |
+|---|---|---|---|
+| **WS0** | **Benchmark baseline.** Record one canonical combat-heavy demo on wdm2 (kept in-repo as the perf demo). Protocol: play it via demo playback (deterministic route), capture avg FPS + p95 frame time (`showfps`/`stats` + a DevTools performance trace), on two tiers: dev dGPU + one iGPU laptop. Also capture: `EffectPreloader` warmup ms, texture VRAM (`stats`), gzip bundle size (`npm run build`). Write numbers into this doc | Baseline table filled in below | ½ session |
+| **WS1** | **Cluster the dynamic effect lights** (Migration A): pooled effect lights + pickup/charge glows into a perspective-tuned `ClusteredLightContainer`; retire `DynamicLightSafety` clamps + `PointLightPool` rationing + light-permutation warmups. Verify frozen-material interaction (open question 2) | Targets T1; visual pass (no dropped lights, no double-lighting); all gates green | 1–2 sessions |
+| **WS2** | **Hygiene migrations** (B: `SceneLoader` → module loader functions, 8 sites; C: 15 barrel imports → per-module paths). Do BEFORE the bump so the 9.x diff is pure | Targets T2; tests green; zero behavior diff | 1 session |
+| **WS3** | **Babylon 9.17 bump** (old Phase 0+1): bump core+loaders, contingent TS bump (isolated commit), full gates (`tsc` ×2 → `test:run` → biome → `server:tick` → headless smokes incl. clustered-container leak test + `ShadersInclude` compile check), then the browser validation checklist (maps → weapons → pickups v4 → post pipeline → GLB models → post-match → demo playback) | Targets T3; checklist signed off in playtest | 1–2 sessions |
+| **WS4** | **KTX2 texture pipeline** (companion doc, Rec #2): converter build step → `.ktx2` sidecars, loader preference, local transcoder wasm, `r_` fallback cvar. Independent of Babylon version — may run parallel to WS1–WS3 if a second track is wanted | Targets T4; A/B visual pass | 1–2 sessions |
+| **WS5** | **9-gated adoption evaluations** (cheap spikes, adopt only on win): outline renderer vs custom team outlines; nav-mesh improvements → handoff note to the bot workstream; inspector v2 as dev dep | Keep-or-drop decision per item, noted here | ½ session each |
+| **WS6** | **`r_webgpu` experiment**: `WebGPUEngine` + WebGL2 fallback behind the cvar; validate the four GLSL `ShaderMaterial` families under runtime GLSL→WGSL; `Q3NodeMaterialBuilder` WGSL variant if clustered lights touch those surfaces; snapshot rendering only for lobby/menu/diorama | Targets T6; default stays WebGL2 until T6 met on both hardware tiers | separate cycle |
 
-### Phase 2 — migrations A–C
-Can start **before or independent of** Phase 0 (all three are 8.56-compatible);
-A is the FPS payoff, B+C are hygiene PRs. If the upgrade lands first, do them on 9.
-
-### Phase 3 — `r_webgpu` experiment (separate cycle)
-As scoped above, with the three named work items.
-
-### Rollback
-Single-commit revert of the package bump (lockfile included). Migrations A–C
-are independent commits, individually revertible, and don't depend on 9.
+**Rollback:** WS3 is a single-commit revert (lockfile included). WS1/WS2/WS4
+are independent commit chains, individually revertible, none depend on 9.
 
 ---
 
-## Measurements to capture
-- FPS + frame-time p95 (desktop GPU + one iGPU laptop, fixed route) before/after
-  Phase 0 and after Migration A.
-- Shader-compile hitch trace around first shots pre/post Migration A;
-  `EffectPreloader` warmup time (should shrink as permutations collapse).
-- Bundle size before/after Phase 0 and after Migration C (`npm run build`).
+## Optimization targets
+
+Provisional until WS0 fills the baseline — targets are then re-stated as
+absolute numbers against it. "No feature sacrificed" guardrails apply to every
+workstream: determinism checksum unchanged, full suite green, no visual
+regression on the WS3 checklist, `r_`-cvar fallback for every behavior swap.
+
+**Baseline (WS0 — to fill):**
+
+| Metric | dGPU | iGPU |
+|---|---|---|
+| Avg FPS / p95 frame time (perf demo) | _TBD_ | _TBD_ |
+| Shader-compile events in 60 s combat (post-warmup) | _TBD_ | _TBD_ |
+| EffectPreloader warmup ms | _TBD_ | — |
+| Texture VRAM after wdm2 load | _TBD_ | — |
+| Gzip bundle (main chunk) | _TBD_ | — |
+| Map load to playable (wdm2) | _TBD_ | _TBD_ |
+
+**T1 — clustered dynamic lights (WS1):**
+- ≥ 8 simultaneous dynamic lights lighting any surface (today: 2 Standard /
+  1 PBR) at ≤ 5% frame-time cost vs baseline.
+- **Zero** light-driven shader recompile events in the 60 s combat trace after
+  warmup (the hitch class EffectPreloader exists to mask).
+- EffectPreloader warmup time −30% or better (permutation collapse).
+- `DynamicLightSafety` clamp code deleted, not bypassed.
+
+**T2 — hygiene (WS2):** main-chunk gzip strictly not larger; goal −3%+ (barrel
+removal + loader-function tree-shaking). Zero runtime behavior diff (suite +
+demo-playback screenshot compare).
+
+**T3 — 9.17 bump (WS3):** avg FPS and p95 frame time within **±2%** of
+baseline on both tiers (a major upgrade must be perf-neutral before it pays
+rent via WS5/WS6); all ~1500 tests green; `server:tick` checksum unchanged;
+bundle within +2%.
+
+**T4 — KTX2 (WS4):** texture VRAM **−60% or better** on wdm2; map load
+−20%; iGPU avg frame time −10% (bandwidth relief is the point); zero
+readability regressions in the A/B pass (UASTC override list for any trim that
+bands under ETC1S).
+
+**T6 — WebGPU (WS6, gate to ever flipping the default):** first-shot frame
+spike < 16.7 ms for every weapon (background pipeline compilation doing its
+job); JS main-thread render time −15% vs WebGL2 on the same demo; full WS3
+visual checklist passes under WebGPU on both tiers; automatic WebGL2 fallback
+verified on a non-WebGPU browser profile.
+
+**Aspirational floors once WS1+WS4 land** (sanity anchors, not gates): iGPU
+(Iris Xe class) sustained ≥ 60 FPS / p95 ≤ 16.7 ms at 1080p on the perf demo;
+dGPU ≥ 240 FPS avg for competitive play.
 
 ## Open questions
-1. TS floor for 9.17 typings (Phase 0 resolves).
-2. Frozen materials × clustered-light texture updates (Migration A test).
-3. Havok 1.3.11 × core 9.x peer expectations (`npm i` + ragdoll/toss smoke).
+1. TS floor for 9.17 typings (WS3 resolves).
+2. Frozen materials × clustered-light texture updates (WS1 first test).
+3. Havok 1.3.11 × core 9.x peer expectations (WS3 `npm i` + ragdoll/toss smoke).
 4. Exact 8.x minor that shipped clustered lighting (curiosity only — we have it).
+5. Which demo becomes the canonical perf demo (WS0) — record fresh on wdm2 with
+   bots for repeatable combat density, or reuse an existing one.
 
 ## Sources
 - npm registry: `@babylonjs/core` latest **9.17.0** (9.16.x published 2026-07)
