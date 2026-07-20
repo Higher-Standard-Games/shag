@@ -74,7 +74,7 @@ export const ELECTROBOLT: WeaponDef = {
     range: 60,
     duration: 0.12,
     style: "arcs",
-    scale: 1.15,
+    scale: 2.3,
   },
 
   // Sounds

@@ -92,6 +92,7 @@ export const PLASMAGUN: WeaponDef = {
     intensity: 20,
     range: 40,
     duration: 0.09,
+    scale: 1.4,
   },
 
   // Sounds

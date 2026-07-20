@@ -75,7 +75,7 @@ export const INSTAGUN: WeaponDef = {
     range: 70,
     duration: 0.12,
     style: "arcs",
-    scale: 1.2,
+    scale: 2.0,
   },
 
   // Sounds
