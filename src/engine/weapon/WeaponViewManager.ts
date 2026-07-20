@@ -1566,6 +1566,22 @@ export class WeaponViewManager {
     const maxIntensity = flashDef?.intensity ?? WeaponViewManager.MUZZLE_FLASH_MAX_INTENSITY;
     this.muzzleFlashIntensity = maxIntensity;
 
+    // Procedural muzzle flash (shared GPU base, skinned per weapon by style).
+    // Skip beam weapons — the Voltaic renderer draws its own muzzle corona.
+    if (flashDef && this.currentWeaponDef?.hitscanType !== "beam") {
+      const muzzle = this.getMuzzleWorldPosition();
+      if (muzzle) {
+        getHitscanEffects().fireMuzzleFlash({
+          position: muzzle,
+          color: new Color3(flashDef.color.r, flashDef.color.g, flashDef.color.b),
+          style: flashDef.style,
+          scale: flashDef.scale,
+          intensity: flashDef.intensity,
+          duration: flashDef.duration,
+        });
+      }
+    }
+
     // Show muzzle flash model
     if (this.muzzleFlashModel) {
       this.muzzleFlashModel.setEnabled(true);

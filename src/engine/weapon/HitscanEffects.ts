@@ -20,6 +20,7 @@ import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Scene } from "@babylonjs/core/scene";
 import { mulberry32 } from "../../shared/SpreadUtils";
 import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
+import { MuzzleFlashRenderer, type MuzzleFlashSpawn } from "./muzzle/MuzzleFlashRenderer";
 import { getPointLightPool } from "./PointLightPool";
 import { RailEffectRenderer } from "./rail/RailEffectRenderer";
 import type { RailEffectSample } from "./rail/RailProfiles";
@@ -146,6 +147,8 @@ export class HitscanEffects {
   private voltaicRenderer: VoltaicEffectRenderer | null = null;
   /** Procedural GPU Electrobolt rail renderer (one-shot analytic helix rails). */
   private railRenderer: RailEffectRenderer | null = null;
+  /** Procedural GPU muzzle flashes (shared base, per-weapon style). */
+  private muzzleFlashRenderer: MuzzleFlashRenderer | null = null;
   private remoteVoltaicStartResolver: VoltaicRemoteStartResolver | null = null;
   private readonly localVoltaicEndpoint = new Vector3();
   private readonly localVoltaicNormal = new Vector3();
@@ -180,6 +183,12 @@ export class HitscanEffects {
       this.railRenderer = new RailEffectRenderer(scene);
       void this.railRenderer.prewarm().catch((error) => {
         console.warn("[HitscanEffects] Rail shader prewarm failed; first use will retry compilation", error);
+      });
+
+      this.muzzleFlashRenderer?.dispose();
+      this.muzzleFlashRenderer = new MuzzleFlashRenderer(scene);
+      void this.muzzleFlashRenderer.prewarm().catch((error) => {
+        console.warn("[HitscanEffects] Muzzle flash shader prewarm failed; first use will retry compilation", error);
       });
     }
     this.scene = scene;
@@ -590,6 +599,16 @@ export class HitscanEffects {
     }
   }
 
+  /**
+   * Spawn a procedural muzzle flash at a world position (the gun muzzle). One
+   * shared effect skinned per weapon by `style`; `spawn` fields are copied
+   * synchronously so callers may reuse scratch vectors.
+   */
+  fireMuzzleFlash(spawn: MuzzleFlashSpawn): void {
+    if (!this.scene || !this.muzzleFlashRenderer) return;
+    this.muzzleFlashRenderer.spawn(spawn);
+  }
+
   // ── Update (call every frame) ────────────────────────────────────
 
   update(_deltaTime: number): void {
@@ -675,6 +694,7 @@ export class HitscanEffects {
 
     this.voltaicRenderer?.update(_deltaTime);
     this.railRenderer?.update(_deltaTime);
+    this.muzzleFlashRenderer?.update(_deltaTime);
   }
 
   /** Cleanup everything */
@@ -693,6 +713,7 @@ export class HitscanEffects {
     this.stopLightning();
     this.voltaicRenderer?.clear();
     this.railRenderer?.clear();
+    this.muzzleFlashRenderer?.clear();
   }
 
   // ── Private helpers ──────────────────────────────────────────────

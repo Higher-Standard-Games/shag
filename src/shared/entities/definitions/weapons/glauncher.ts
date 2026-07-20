@@ -78,6 +78,8 @@ export const GRENADE_LAUNCHER: WeaponDef = {
     intensity: 22,
     range: 40,
     duration: 0.07,
+    style: "plume",
+    scale: 1.25,
   },
 
   // Sounds
