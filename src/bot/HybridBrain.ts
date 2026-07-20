@@ -24,8 +24,8 @@ import { InputButtons } from "./BotConfig";
 import type { BotGameState, VisiblePlayer } from "./BotGameState";
 import { buildCombatInput, buildTacticalInput, COMBAT_INPUT_SIZE, TACTICAL_INPUT_SIZE } from "./BotInputNormalizer";
 import { canInitiateSlide } from "./BotMovementProfile";
-import { getWeaponProfile } from "./BotWeaponProfile";
 import type { BotVision, VisionResult } from "./BotVision";
+import { getWeaponProfile } from "./BotWeaponProfile";
 import { StateMachineBrain } from "./StateMachineBrain";
 import { getTF, initTF } from "./TFBackend";
 
@@ -182,6 +182,9 @@ export class HybridBrain extends BotBrain {
   get hasModels(): boolean {
     return this._tacticalModel !== null || this._combatModel !== null;
   }
+  override getNavigationDebug(): string | null {
+    return this._stateMachine.getNavigationDebug();
+  }
 
   // ── Core Decision Loop ──────────────────────────────────────────
 
@@ -197,6 +200,12 @@ export class HybridBrain extends BotBrain {
 
     // Sync our state for external queries
     this.currentState = currentState;
+
+    // Authored sequences own their complete input while active. Neural layers
+    // may score future candidates but cannot mutate an in-flight sequence.
+    if (this._stateMachine.isSequenceActive()) {
+      return baseInput;
+    }
 
     // 2. No models loaded → pure state machine (perfectly functional!)
     if (!this._tacticalModel && !this._combatModel) {
@@ -220,7 +229,7 @@ export class HybridBrain extends BotBrain {
     if (this._combatModel && currentState === BotState.FIGHT) {
       // Use vision's LOS-confirmed enemies, not raw player list
       // (state.players includes enemies behind walls)
-      const visibleEnemy = visionResult?.visibleEnemies?.[0]?.player ?? state.players[0]; // Fallback if no vision data
+      const visibleEnemy = visionResult?.visibleEnemies?.[0]?.player ?? state.getNearestEnemy();
       if (visibleEnemy) {
         const combatOutput = this._runCombat(state, visibleEnemy);
         if (combatOutput) {
@@ -329,7 +338,9 @@ export class HybridBrain extends BotBrain {
   private _applyCombat(output: Float32Array, input: BotInput, state: BotGameState): void {
     const profile = getWeaponProfile(state.self.currentWeapon);
     const baseAltFireCharge =
-      profile.hasChargedProjectile && (input.buttons & InputButtons.ALT_FIRE) !== 0 && (input.buttons & InputButtons.FIRE) === 0;
+      profile.hasChargedProjectile &&
+      (input.buttons & InputButtons.ALT_FIRE) !== 0 &&
+      (input.buttons & InputButtons.FIRE) === 0;
 
     // Fire control
     if (output[COMBAT.SHOULD_FIRE] > THRESHOLD.COMBAT_FIRE) {

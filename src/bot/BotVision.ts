@@ -15,6 +15,7 @@
 
 import type { AABB, CollisionWorld } from "../engine/network/systems/collision/CollisionWorld";
 import type { Vec3 } from "../shared/bsp/BspDataLoader";
+import type { PickupEntry } from "../shared/bsp/PickupTable";
 import { extractTriggerVolumes, type TriggerVolume } from "../shared/bsp/TriggerTable";
 import type { BotGameState, VisiblePickup, VisiblePlayer } from "./BotGameState";
 import { vec3Add, vec3Distance, vec3Length, vec3Normalize, vec3Scale, vec3Subtract } from "./BotGameState";
@@ -89,9 +90,11 @@ export interface MapKnowledgeData {
   /** Spawn point positions from BSP entities */
   spawnPoints: Vec3[];
   /** Item/weapon pickup positions from BSP entities */
-  pickupPositions: Array<{ classname: string; position: Vec3 }>;
+  pickupPositions: PickupEntry[];
   /** Map trigger volumes: teleporters and jumppads */
   triggerVolumes: TriggerVolume[];
+  /** SHA-256 of the loaded BSP bytes, used to invalidate static map caches. */
+  mapFingerprint: string;
   /** Map name */
   mapName: string;
 }
@@ -151,6 +154,27 @@ const CHASE_CONFIDENCE_THRESHOLD = 0.3;
 /** Max number of enemy tracks to maintain */
 const MAX_ENEMY_TRACKS = 8;
 
+export type DropProbeReason =
+  | "safe"
+  | "not_a_drop"
+  | "excessive_drop"
+  | "blocked"
+  | "no_landing"
+  | "landing_obstructed";
+
+export interface DropProbeResult {
+  safe: boolean;
+  reason: DropProbeReason;
+  fallDistance: number;
+  landing: Vec3 | null;
+}
+
+/** Conservative geometry cap; empirical fall-risk learning remains a later phase. */
+const MAX_GEOMETRIC_DROP = 512;
+const LANDING_PROBE_UP = 64;
+const LANDING_PROBE_DOWN = 96;
+const LANDING_HEIGHT_TOLERANCE = 48;
+
 // ── BotVision Class ─────────────────────────────────────────────────────
 
 export class BotVision {
@@ -164,14 +188,16 @@ export class BotVision {
   // Enemy memory: playerId → EnemyTrack (persists across ticks)
   private _enemyTracks: Map<string, EnemyTrack> = new Map();
 
-  constructor(collisionWorld: CollisionWorld, mapKnowledge: MapKnowledgeData) {
+  constructor(collisionWorld: CollisionWorld, mapKnowledge: MapKnowledgeData, logInitialization: boolean = true) {
     this._collisionWorld = collisionWorld;
     this._mapKnowledge = mapKnowledge;
 
-    console.log(`[BotVision] Initialized for map "${mapKnowledge.mapName}"`);
-    console.log(
-      `[BotVision] ${mapKnowledge.spawnPoints.length} spawn points, ${mapKnowledge.pickupPositions.length} pickup locations`,
-    );
+    if (logInitialization) {
+      console.log(`[BotVision] Initialized for map "${mapKnowledge.mapName}"`);
+      console.log(
+        `[BotVision] ${mapKnowledge.spawnPoints.length} spawn points, ${mapKnowledge.pickupPositions.length} pickup locations`,
+      );
+    }
   }
 
   // ── Accessors ────────────────────────────────────────────────────────
@@ -182,6 +208,14 @@ export class BotVision {
 
   get collisionWorld(): CollisionWorld {
     return this._collisionWorld;
+  }
+
+  /**
+   * Create bot-owned perception state while sharing immutable map geometry.
+   * LOS cache and enemy tracks deliberately remain private to the new bot.
+   */
+  fork(): BotVision {
+    return new BotVision(this._collisionWorld, this._mapKnowledge, false);
   }
 
   // ── Core LOS Check ──────────────────────────────────────────────────
@@ -225,10 +259,11 @@ export class BotVision {
     const audibleEnemies: VisionEnemy[] = [];
 
     // ── Check LOS to enemies (nearest first, capped) ──────────────
-    const enemyCheckCount = Math.min(state.players.length, MAX_ENEMY_LOS_CHECKS);
+    const enemies = state.players.filter((player) => player.relation === "enemy");
+    const enemyCheckCount = Math.min(enemies.length, MAX_ENEMY_LOS_CHECKS);
 
     for (let i = 0; i < enemyCheckCount && tracesPerformed < MAX_TRACES_PER_TICK; i++) {
-      const player = state.players[i];
+      const player = enemies[i];
       if (player.isDead) continue;
 
       // Check LOS cache
@@ -265,8 +300,8 @@ export class BotVision {
     }
 
     // Also add remaining players (beyond LOS check limit) as audible-only
-    for (let i = enemyCheckCount; i < state.players.length; i++) {
-      const player = state.players[i];
+    for (let i = enemyCheckCount; i < enemies.length; i++) {
+      const player = enemies[i];
       if (player.isDead) continue;
 
       const lastKnown = state.lastKnownEnemyPositions.get(player.playerId);
@@ -373,12 +408,13 @@ export class BotVision {
    * @param type - Item type filter ('health', 'armor', 'weapon', or specific classname)
    * @returns Nearest matching item position, or null
    */
-  findNearestItem(from: Vec3, type: string): Vec3 | null {
+  findNearestItem(from: Vec3, type: string, activeMask: readonly boolean[] = []): Vec3 | null {
     let bestDist = Infinity;
     let bestPos: Vec3 | null = null;
 
     for (const item of this._mapKnowledge.pickupPositions) {
       const matches = this._matchesItemType(item.classname, type);
+      if (activeMask.length > item.id && !activeMask[item.id]) continue;
       if (!matches) continue;
 
       const dist = vec3Distance(from, item.position);
@@ -418,6 +454,46 @@ export class BotVision {
     return this._collisionWorld.pointContents(point) !== 0;
   }
 
+  /**
+   * Validate a graph fall edge against the live collision world.
+   * This checks hull clearance and a real floor near the advertised landing;
+   * it does not attempt to predict fall damage or dynamic obstructions.
+   */
+  probeDrop(from: Vec3, to: Vec3, maxDrop: number = MAX_GEOMETRIC_DROP): DropProbeResult {
+    const fallDistance = from.y - to.y;
+    if (fallDistance <= 0) {
+      return { safe: false, reason: "not_a_drop", fallDistance, landing: null };
+    }
+    if (fallDistance > maxDrop) {
+      return { safe: false, reason: "excessive_drop", fallDistance, landing: null };
+    }
+
+    const hullStart = { x: from.x, y: from.y + 1, z: from.z };
+    const hullEnd = { x: to.x, y: to.y + 1, z: to.z };
+    const clearance = this._collisionWorld.trace(hullStart, hullEnd, PLAYER_BOUNDS);
+    if (clearance.hit && clearance.fraction < 0.75) {
+      return { safe: false, reason: "blocked", fallDistance, landing: null };
+    }
+
+    const landingStart = { x: to.x, y: to.y + LANDING_PROBE_UP, z: to.z };
+    const landingEnd = { x: to.x, y: to.y - LANDING_PROBE_DOWN, z: to.z };
+    const floor = this._collisionWorld.trace(landingStart, landingEnd);
+    if (!floor.hit || !floor.hitPoint) {
+      return { safe: false, reason: "no_landing", fallDistance, landing: null };
+    }
+
+    const landing = { x: floor.hitPoint.x, y: floor.hitPoint.y + 1, z: floor.hitPoint.z };
+    if (Math.abs(landing.y - to.y) > LANDING_HEIGHT_TOLERANCE) {
+      return { safe: false, reason: "no_landing", fallDistance, landing };
+    }
+
+    const standingCheck = this._collisionWorld.trace(landing, landing, PLAYER_BOUNDS);
+    if (standingCheck.hit || this.isInsideSolid({ x: landing.x, y: landing.y + EYE_HEIGHT, z: landing.z })) {
+      return { safe: false, reason: "landing_obstructed", fallDistance, landing };
+    }
+
+    return { safe: true, reason: "safe", fallDistance, landing };
+  }
   // ── Cache Management ────────────────────────────────────────────────
 
   /**
@@ -703,6 +779,8 @@ export class BotVision {
         return classname.includes("health");
       case "armor":
         return classname.includes("armor");
+      case "ammo":
+        return classname.startsWith("ammo_");
       case "weapon":
         return classname.startsWith("weapon_");
       default:
@@ -724,6 +802,7 @@ export async function createBotVision(mapName: string): Promise<BotVision | null
   const { loadBspBuffer, extractMapData } = await import("../shared/bsp/BspDataLoader");
   const { BspLoader } = await import("../engine/loader/bsp/BspLoader");
   const { createHeadlessCollisionWorld } = await import("../cli/HeadlessBSPCollisionWorld");
+  const { createHash } = await import("node:crypto");
 
   console.log(`[BotVision] Loading BSP for map: ${mapName}`);
 
@@ -745,6 +824,7 @@ export async function createBotVision(mapName: string): Promise<BotVision | null
   const mapData = extractMapData(bsp.entities);
   const triggerVolumes = extractTriggerVolumes(bsp.entities, bsp.models);
   console.log(`[BotVision] Map data: ${mapData.spawnPoints.length} spawns, ${mapData.pickupItems.length} pickups`);
+  const mapFingerprint = createHash("sha256").update(new Uint8Array(bspBuffer)).digest("hex");
   console.log(
     `[BotVision] Trigger volumes: ${triggerVolumes.filter((t) => t.type === "teleport").length} teleporters, ${triggerVolumes.filter((t) => t.type === "push").length} jumppads`,
   );
@@ -754,6 +834,7 @@ export async function createBotVision(mapName: string): Promise<BotVision | null
     mapName,
     spawnPoints: mapData.spawnPoints,
     pickupPositions: mapData.pickupItems,
+    mapFingerprint,
     triggerVolumes,
   };
 

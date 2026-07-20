@@ -41,10 +41,13 @@ function createGameState(): BotGameState {
     armor: 50,
     isDead: false,
     isGrounded: true,
+    isSliding: false,
+    isCrouching: false,
     currentWeapon: "electrobolt",
     weapons: ["electrobolt", "rocketlauncher"],
     ammo: { electrobolt: 10, rocketlauncher: 5 },
     isReloading: false,
+    team: "",
   };
   return state;
 }

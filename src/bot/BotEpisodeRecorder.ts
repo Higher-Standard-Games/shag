@@ -145,7 +145,7 @@ export class BotEpisodeRecorder {
     const tacticalInput = Array.from(tacticalArr);
 
     let combatInput: number[] | null = null;
-    const enemy = state.players[0];
+    const enemy = state.getNearestEnemy();
     if (enemy) {
       const combatArr = buildCombatInput(state, enemy);
       combatInput = Array.from(combatArr);

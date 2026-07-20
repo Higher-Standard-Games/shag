@@ -22,6 +22,7 @@ import type { BotBrain, BotInput } from "./BotBrain";
 // import { HybridBrain } from './HybridBrain';
 import { type BotDifficulty, type BotOptions, getDifficultyModelDir, resolveDifficulty } from "./BotConfig";
 import type { BotEpisodeRecorder } from "./BotEpisodeRecorder";
+import { applyFriendlyFireSafety } from "./BotFireSafety";
 import { BotGameState } from "./BotGameState";
 import type { BotVision, VisionResult } from "./BotVision";
 import { StateMachineBrain } from "./StateMachineBrain";
@@ -64,6 +65,7 @@ export class BotClient extends EventEmitter {
   private _serverInfo: ServerInfo | null = null;
   private _sequence: number = 0;
   private _tickCount: number = 0;
+  private _friendlyFireSuppressions: number = 0;
   private _lastSnapshotTick: number = 0;
 
   // Snapshot baseline for delta decompression
@@ -294,6 +296,7 @@ export class BotClient extends EventEmitter {
     this._entityId = "";
     this._sequence = 0;
     this._tickCount = 0;
+    this._friendlyFireSuppressions = 0;
     this._lastSnapshotTick = 0;
     this._isDead = false;
     this._deathTime = 0;
@@ -460,7 +463,12 @@ export class BotClient extends EventEmitter {
         this._lastVisionResult = this._vision.getVisibleState(this._gameState);
       }
 
-      const input = this._brain.decide(this._gameState, this._vision, this._lastVisionResult, this._navGraph);
+      let input = this._brain.decide(this._gameState, this._vision, this._lastVisionResult, this._navGraph);
+      const fireSafety = applyFriendlyFireSafety(input, this._gameState);
+      input = fireSafety.input;
+      if (fireSafety.suppressed) {
+        this._friendlyFireSuppressions++;
+      }
       this._lastBotInput = input;
 
       // Start 125Hz input loop if not already running
@@ -476,12 +484,18 @@ export class BotClient extends EventEmitter {
       // Periodic logging
       if (this._tickCount % 300 === 0) {
         const brain = this._brain.getState();
+        const navigationInfo = this._brain.getNavigationDebug();
         const hp = this._gameState.self.health;
-        const enemies = this._gameState.players.filter((p) => !p.isDead).length;
+        const enemies = this._gameState.players.filter((p) => p.relation === "enemy" && !p.isDead).length;
+        const allies = this._gameState.getAllies().length;
+        const activePickups = this._gameState.pickupActiveMask.filter(Boolean).length;
         const visionInfo = this._lastVisionResult
           ? ` Vis:${this._lastVisionResult.visibleEnemies.length}/${this._lastVisionResult.tracesPerformed}t`
           : " (no vision)";
-        console.log(`${this._logPrefix} [${brain}] HP:${hp} Enemies:${enemies}${visionInfo} Tick:${snapshot.tick}`);
+        const diagnosticInfo = `${visionInfo}${navigationInfo ? ` Nav:${navigationInfo}` : ""}`;
+        console.log(
+          `${this._logPrefix} [${brain}] HP:${hp} E:${enemies} A:${allies} Pickups:${activePickups}/${this._gameState.pickupActiveMask.length} FF:${this._friendlyFireSuppressions}${diagnosticInfo} Tick:${snapshot.tick}`,
+        );
       }
     } catch (err) {
       console.error(`${this._logPrefix} Snapshot processing error:`, err);

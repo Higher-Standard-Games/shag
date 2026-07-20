@@ -70,6 +70,10 @@ export abstract class BotBrain {
   getState(): BotState {
     return this.currentState;
   }
+  /** Compact traversal state for periodic bot diagnostics. */
+  getNavigationDebug(): string | null {
+    return null;
+  }
 
   /** Update difficulty settings */
   setDifficulty(difficulty: BotDifficulty): void {

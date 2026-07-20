@@ -10,6 +10,7 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { extractPickups, type PickupEntry } from "./PickupTable";
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -28,7 +29,7 @@ export interface BspMapData {
   /** Spawn point positions (Babylon coordinate space) */
   spawnPoints: Vec3[];
   /** Weapon and item pickup positions */
-  pickupItems: BspPickupItem[];
+  pickupItems: PickupEntry[];
   /** All entity classnames found in the BSP */
   entityClassnames: string[];
 }
@@ -162,7 +163,7 @@ export function extractEntityClassnames(entities: Array<{ classname: string }>):
 export function extractMapData(entities: Array<{ classname: string; properties: Record<string, string> }>): BspMapData {
   return {
     spawnPoints: extractSpawnPoints(entities),
-    pickupItems: extractPickupPositions(entities),
+    pickupItems: extractPickups(entities),
     entityClassnames: extractEntityClassnames(entities),
   };
 }
