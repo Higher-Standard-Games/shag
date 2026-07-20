@@ -303,6 +303,10 @@ export class FPSController implements ICameraController {
 
   // State
   private enabled: boolean = true;
+  /** When true (post-game), all gameplay input is ignored locally — no movement
+   *  prediction, no firing — so the fight stops on the end screen even though the
+   *  controller stays attached for the released cursor / chat. */
+  private gameplayFrozen: boolean = false;
 
   // Movement keys state
   private keys = {
@@ -614,6 +618,26 @@ export class FPSController implements ICameraController {
    * Replaces the old onKeyDown/onKeyUp switch/case blocks.
    */
   private syncKeysFromInput(): void {
+    // Post-game freeze: ignore all gameplay input locally. Without this the
+    // controller keeps predicting movement (this.keys → local physics) and firing
+    // straight from the raw InputSystem, bypassing the server input gate and the
+    // Game.sendInput command strip — so the player still walks and swings on the
+    // end screen. Look is frozen via setLookFrozen; chat + leave-lobby are UI.
+    if (this.gameplayFrozen) {
+      this.keys.forward = false;
+      this.keys.backward = false;
+      this.keys.left = false;
+      this.keys.right = false;
+      this.keys.up = false;
+      this.keys.sprint = false;
+      this.keys.crouch = false;
+      this.keys.reload = false;
+      this.keys.use = false;
+      this.keys.fire = false;
+      this.keys.aim = false;
+      return;
+    }
+
     const input = InputSystem.getInstance();
 
     // Continuous hold state
@@ -1319,6 +1343,29 @@ export class FPSController implements ICameraController {
       if (this.camera) {
         this.camera.rotation.x = framedPitch;
       }
+    }
+  }
+
+  /**
+   * Freeze/unfreeze all gameplay input (movement + firing) without detaching the
+   * controller — used on the post-game screen so the fight visibly ends. Look is
+   * handled by setLookFrozen(); this stops local movement prediction and firing
+   * that would otherwise bypass the server input gate.
+   */
+  setGameplayFrozen(frozen: boolean): void {
+    this.gameplayFrozen = frozen;
+    if (frozen) {
+      this.keys.forward = false;
+      this.keys.backward = false;
+      this.keys.left = false;
+      this.keys.right = false;
+      this.keys.up = false;
+      this.keys.sprint = false;
+      this.keys.crouch = false;
+      this.keys.reload = false;
+      this.keys.use = false;
+      this.keys.fire = false;
+      this.keys.aim = false;
     }
   }
 
