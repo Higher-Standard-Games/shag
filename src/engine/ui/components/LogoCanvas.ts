@@ -15,7 +15,7 @@ import { Engine } from "@babylonjs/core/Engines/engine";
 import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
 import { PointLight } from "@babylonjs/core/Lights/pointLight";
 import { SpotLight } from "@babylonjs/core/Lights/spotLight";
-import { SceneLoader } from "@babylonjs/core/Loading/sceneLoader";
+import { ImportMeshAsync } from "@babylonjs/core/Loading/sceneLoader";
 import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Scene } from "@babylonjs/core/scene";
@@ -197,7 +197,7 @@ export class LogoCanvas {
     // ── Load the model ──
     const modelPath = this.options.modelPath ?? "/data/washoi_opt.glb";
     try {
-      const result = await SceneLoader.ImportMeshAsync("", modelPath, "", this.scene);
+      const result = await ImportMeshAsync(modelPath, this.scene);
 
       if (result.meshes.length > 0) {
         const root = result.meshes[0];

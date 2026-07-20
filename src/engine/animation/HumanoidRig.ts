@@ -5,7 +5,9 @@
  * This class provides a standardized interface for accessing bones by role.
  */
 
-import type { Bone, Skeleton, TransformNode } from "@babylonjs/core";
+import type { Bone } from "@babylonjs/core/Bones/bone";
+import type { Skeleton } from "@babylonjs/core/Bones/skeleton";
+import type { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 
 /**
  * Standard humanoid bone names following Mixamo convention

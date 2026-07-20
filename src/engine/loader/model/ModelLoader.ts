@@ -1,7 +1,7 @@
 import type { AnimationGroup } from "@babylonjs/core/Animations/animationGroup";
 import type { Skeleton } from "@babylonjs/core/Bones/skeleton";
 import type { ShadowGenerator } from "@babylonjs/core/Lights/Shadows/shadowGenerator";
-import { SceneLoader } from "@babylonjs/core/Loading/sceneLoader";
+import { ImportMeshAsync } from "@babylonjs/core/Loading/sceneLoader";
 import { PBRMaterial } from "@babylonjs/core/Materials/PBR/pbrMaterial";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
@@ -214,13 +214,8 @@ export class ModelLoader {
         }
       }
 
-      // Load the model (GLB/GLTF/OBJ)
-      const result = await SceneLoader.ImportMeshAsync(
-        "", // Import all meshes
-        rootUrl,
-        fileName,
-        this.scene,
-      );
+      // Load the model (GLB/GLTF/OBJ) — all meshes (no meshNames filter)
+      const result = await ImportMeshAsync(fileName, this.scene, { rootUrl });
 
       if (!result.meshes || result.meshes.length === 0) {
         console.error(`No meshes found in model: ${modelPath}`);

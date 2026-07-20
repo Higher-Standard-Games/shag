@@ -5,7 +5,7 @@
  * This bridges the gap between the physics/movement systems and the animation system.
  */
 
-import { Vector3 } from "@babylonjs/core";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { createDefaultAnimationState, type PlayerAnimationState } from "./PlayerAnimationState";
 
 /**

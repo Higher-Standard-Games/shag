@@ -13,19 +13,18 @@
  *   npx vite-node src/cli/headless-game.ts --exec "map wdm11; bsp info"
  */
 
-import { runCli } from "./_runCli";
-import { formatPreflight, preflightGameAssets, resolveGameAssetDir } from "./_assetPreflight";
 import * as fs from "node:fs";
-import { fail } from "../engine/console/Command";
 import * as path from "node:path";
 import * as readline from "node:readline";
 import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Scene } from "@babylonjs/core/scene";
-
+import { fail } from "../engine/console/Command";
 // Static imports for command system
 import { registerEngineCommands } from "../engine/console/commands";
+import { formatPreflight, preflightGameAssets, resolveGameAssetDir } from "./_assetPreflight";
+import { runCli } from "./_runCli";
 
 // ============================================================================
 // Console Output Capture
@@ -607,7 +606,7 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
       // We need a fresh scene for inspection (don't pollute main scene)
       const { NullEngine } = await import("@babylonjs/core/Engines/nullEngine");
       const { Scene } = await import("@babylonjs/core/scene");
-      const { SceneLoader } = await import("@babylonjs/core/Loading/sceneLoader");
+      const { ImportAnimationsAsync, ImportMeshAsync } = await import("@babylonjs/core/Loading/sceneLoader");
       await import("@babylonjs/loaders/glTF");
 
       const inspectEngine = new NullEngine();
@@ -619,7 +618,7 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
         try {
           const modelBuf = fs.readFileSync(modelPath);
           const modelB64 = Buffer.from(new Uint8Array(modelBuf)).toString("base64");
-          await SceneLoader.ImportMeshAsync("", `data:;base64,${modelB64}`, "", inspectScene);
+          await ImportMeshAsync(`data:;base64,${modelB64}`, inspectScene, { pluginExtension: ".glb" });
           // Stop embedded animations
           for (const g of inspectScene.animationGroups) g.stop();
           inspectScene.animationGroups.slice().forEach((g) => {
@@ -637,9 +636,13 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
         try {
           const buf = fs.readFileSync(file);
           const b64 = Buffer.from(new Uint8Array(buf)).toString("base64");
-          const result = await SceneLoader.ImportAnimationsAsync("", `data:;base64,${b64}`, inspectScene, false);
+          await ImportAnimationsAsync(`data:;base64,${b64}`, inspectScene, {
+            overwriteAnimations: false,
+            pluginExtension: ".glb",
+          });
 
-          for (const group of result.animationGroups) {
+          // Old static API returned the scene — iterate the scene's groups.
+          for (const group of inspectScene.animationGroups) {
             const total = group.targetedAnimations.length;
             const positionTracks: string[] = [];
 
@@ -692,7 +695,7 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
 
       const { NullEngine } = await import("@babylonjs/core/Engines/nullEngine");
       const { Scene } = await import("@babylonjs/core/scene");
-      const { SceneLoader } = await import("@babylonjs/core/Loading/sceneLoader");
+      const { ImportMeshAsync } = await import("@babylonjs/core/Loading/sceneLoader");
       await import("@babylonjs/loaders/glTF");
 
       const inspectEngine = new NullEngine();
@@ -700,7 +703,7 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
 
       const modelBuf = fs.readFileSync(modelPath);
       const modelB64 = Buffer.from(new Uint8Array(modelBuf)).toString("base64");
-      const result = await SceneLoader.ImportMeshAsync("", `data:;base64,${modelB64}`, "", inspectScene);
+      const result = await ImportMeshAsync(`data:;base64,${modelB64}`, inspectScene, { pluginExtension: ".glb" });
 
       const lines: string[] = [`\nSkeleton Bones (${result.skeletons[0]?.bones.length ?? 0}):\n`];
       if (result.skeletons[0]) {

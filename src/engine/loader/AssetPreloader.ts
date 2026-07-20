@@ -9,9 +9,9 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Scene } from "@babylonjs/core/scene";
-import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
 import { EntityRegistry } from "../../shared/entities/EntityRegistry";
 import { EntityType } from "../../shared/entities/EntityType";
+import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
 import type { BspFile } from "./bsp/BspLoader";
 import { ModelLoader, type ModelLoadResult } from "./model/ModelLoader";
 
@@ -127,14 +127,14 @@ export class AssetPreloader {
 
         // GLB models use SceneLoader instead of PK3+MD3 ModelLoader
         if (modelPath.endsWith(".glb") || modelPath.endsWith(".gltf")) {
-          const { SceneLoader } = await import("@babylonjs/core/Loading/sceneLoader");
+          const { ImportMeshAsync } = await import("@babylonjs/core/Loading/sceneLoader");
           await import("@babylonjs/loaders/glTF");
 
           const lastSlash = modelPath.lastIndexOf("/");
           const dir = modelPath.substring(0, lastSlash + 1);
           const file = modelPath.substring(lastSlash + 1);
 
-          const glbResult = await SceneLoader.ImportMeshAsync("", dir, file, scene);
+          const glbResult = await ImportMeshAsync(file, scene, { rootUrl: dir });
           // biome-ignore lint/suspicious/noExplicitAny: Babylon loader internals
           const root = glbResult.meshes[0] as any;
           const meshes = glbResult.meshes.filter((m) => m.getTotalVertices() > 0) as Mesh[];

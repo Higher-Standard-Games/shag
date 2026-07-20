@@ -146,7 +146,16 @@ rendering only for static contexts (menus/lobby/diorama), never gameplay.
 > biome below baseline, `server:tick` checksum unchanged (`2768943778` — T3
 > determinism guardrail met), headless movement smoke ✓. TS stayed at the
 > already-installed 5.9.3 (open question 1 resolved: no TS bump needed).
-> Browser validation checklist still owed in playtest. WS1/WS2 next.
+> Browser validation checklist still owed in playtest.
+>
+> **WS2 executed** (same branch): all 14 `SceneLoader.ImportMeshAsync/
+> ImportAnimationsAsync` call sites moved to the module-level loader functions
+> (data-URL sites get explicit `pluginExtension: ".glb"`; animation call sites
+> preserve exact old semantics by reading `scene.animationGroups`, since the
+> old static API returned the scene), and all 14 bare `@babylonjs/core` barrel
+> imports replaced with per-module paths. Biome baseline ratcheted 925/586 →
+> **913/583**. Gates: tsc ×2, 1511/1511, determinism unchanged. WS1 (clustered
+> dynamic lights) next.
 
 Ordering rationale: **measure first** (targets are meaningless without a
 baseline), then take the biggest win on the version we already run (WS1 —

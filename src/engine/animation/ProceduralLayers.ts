@@ -8,7 +8,7 @@
  * - Wall jump pose
  */
 
-import { Quaternion, Vector3 } from "@babylonjs/core";
+import { Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { HumanoidBoneRole, HumanoidRig } from "./HumanoidRig";
 import type { PlayerAnimationState } from "./PlayerAnimationState";
 

@@ -9,7 +9,7 @@ import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
 import "@babylonjs/core/Culling/ray";
 import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
 import { PointLight } from "@babylonjs/core/Lights/pointLight";
-import { SceneLoader } from "@babylonjs/core/Loading/sceneLoader";
+import { ImportMeshAsync } from "@babylonjs/core/Loading/sceneLoader";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import "@babylonjs/core/Materials/Textures/Loaders/tgaTextureLoader"; // enable .tga glow maps
@@ -523,7 +523,7 @@ export class WeaponViewManager {
       const savedActiveCameras = this.scene!.activeCameras ? [...this.scene!.activeCameras] : null;
       const cameraCountBefore = this.scene!.cameras.length;
 
-      const result = await SceneLoader.ImportMeshAsync("", dir, file, this.scene!);
+      const result = await ImportMeshAsync(file, this.scene!, { rootUrl: dir });
 
       // Check if superseded during async import
       if (this._loadGeneration !== loadGen) {

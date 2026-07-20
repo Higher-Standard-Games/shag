@@ -4,7 +4,7 @@
  * Derived from CharacterController and movement systems.
  */
 
-import { Vector3 } from "@babylonjs/core";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 
 /**
  * Animation state passed from CharacterController to PlayerAnimationController
