@@ -42,7 +42,7 @@ The two structural costs that stand out:
 | Idea | Verdict |
 |---|---|
 | **Babylon 8.56 → 9.x upgrade** | ✅ **Recommended (part of #1)** — prerequisite for everything below; majors are the only place Babylon takes breaking changes, so the jump must be audited, but the payoff list is long |
-| **Clustered lighting (`ClusteredLightContainer`, new in 9.0)** | ✅ **Recommended (#1)** — removes the light clamp entirely; works on **WebGL2 and WebGPU** |
+| **Clustered lighting (`ClusteredLightContainer`)** | ✅ **Recommended (#1)** — removes the light clamp entirely; works on **WebGL2 and WebGPU**. **Deep-audit correction:** available in our installed 8.56 and already used for static map lights in `MapRenderer` — the dynamic-light migration is NOT gated on the 9 upgrade (see BabylonJS-9-upgrade.md) |
 | **KTX2/Basis GPU-compressed textures** | ✅ **Recommended (#2)** — modern replacement for the CPU TGA→RGBA8 path; pure win, fallback keeps zero feature loss |
 | **WebGPU backend (`WebGPUEngine`)** | 🔜 Staged follow-up behind a cvar once on 9.x (see below) — *the* modern alternative to WebGL, but should land after the upgrade, not with it |
 | WebGPU snapshot rendering (record+replay draw calls, up to ~10× JS-side) | ❌ for gameplay — requires a *mostly static* scene; an arena full of players, projectiles, thin-instance effect flushes and procedural pickups invalidates the snapshot constantly. Viable later for menus/lobby/diorama only |
@@ -60,11 +60,12 @@ The two structural costs that stand out:
 (`DynamicLightSafety`, `PointLightPool` rationing, EffectPreloader permutation
 warmups).
 
-**What it is:** Babylon 9.0's `ClusteredLightContainer` groups point/spot lights
-into screen-space tiles × depth slices; each pixel only evaluates lights that
-actually touch it. Officially supported on **both WebGPU and WebGL 2** ("hundreds
-or even thousands of lights running at buttery smooth frame rates" — 9.0
-announcement). Usage shape:
+**What it is:** `ClusteredLightContainer` groups point/spot lights into
+screen-space tiles × depth slices; each pixel only evaluates lights that
+actually touch it. Supported on **both WebGPU and WebGL 2** ("hundreds or even
+thousands of lights" — headlined at 9.0, but present in late 8.x: our installed
+8.56 has it, and `MapRenderer` already clusters static map lights with it).
+Usage shape:
 
 ```ts
 const cluster = new ClusteredLightContainer("clustered", [/* point/spot lights */], scene);

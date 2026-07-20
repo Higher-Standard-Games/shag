@@ -1,181 +1,187 @@
-# Babylon.js 9 Upgrade — Research & Migration Plan
+# Babylon.js 9 Upgrade — Deep Research & Migration Plan
 
-**Date:** 2026-07-21
+**Date:** 2026-07-21 (deep-audit revision — supersedes the first draft's claims)
 **Status:** Investigation + upgrade plan (no code changes yet)
-**Scope:** `@babylonjs/core` + `@babylonjs/loaders` 8.56 → 9.17.x; the features
-the jump unlocks (clustered lighting first); staged WebGPU afterwards
-**Risk:** Renderer-facing only. Gameplay, networking, and the server simulation
-do not import Babylon rendering paths; the determinism gate is expected to be
-unaffected.
+**Scope:** `@babylonjs/core` + `@babylonjs/loaders` 8.56 → 9.17.x; what the jump
+*actually* requires given our measured API surface; which modern APIs we can
+migrate into (some without upgrading at all)
+**Risk:** Renderer-facing only. The server simulation imports no Babylon
+rendering paths; the determinism gate is out of blast radius.
 **Companion doc:** [ENGINE_FPS_OPTIMIZATION.md](./ENGINE_FPS_OPTIMIZATION.md)
-(why: the two recommended optimization points that motivate this upgrade).
 
 ---
 
-## Summary
+## Key corrections from the deep audit
 
-We run Babylon **8.56.0** (`^8.44.1` in `package.json`) on a classic WebGL2
-`Engine`. Current stable is **9.17.0**; 9.0 shipped **2026-03-26**. The
-investigation below found the 8→9 jump to be unusually low-risk for us:
-
-- The **official breaking-changes doc lists no breaking changes for 9.0** (its
-  newest entry is 8.10.1). The 9.0.0 changelog section is bugfix-level. Babylon
-  9.0 was an *additive* major.
-- The one publicized 9.x breakage (9.16.x) is **UMD builds now requiring
-  ES2015** — we consume the **ESM packages** through Vite 6 with modular
-  per-path imports, so it does not apply.
-- A codebase scan for Babylon **private-API usage** (`._foo` on Babylon objects)
-  found none — only our own stash keys (`_originalBumpLevel` etc. in RenderVars)
-  and our own class fields. Nothing rides Babylon internals.
-- We never enable `useRightHandedSystem`, so the 8.10.1 right-handed camera
-  behavior change (the only scary 8.x entry) never applied to us — and we are
-  already past it on 8.56 regardless.
-
-The main work is therefore **behavioral validation** (custom shaders, NullEngine
-suites, post pipeline), not API migration.
-
----
-
-## Verified current surface
-
-| Item | Value |
-|---|---|
-| Packages | `@babylonjs/core ^8.44.1` (8.56.0 installed), `@babylonjs/loaders ^8.44.1`, `@babylonjs/havok 1.3.11` (independent versioning; wasm copied to `public/wasm/` by postinstall) |
-| Not used | `@babylonjs/gui`, `@babylonjs/materials`, `babylonjs` UMD bundles — nothing else to migrate |
-| Import breadth | **794** `@babylonjs/core` import statements over **83 unique module paths** (modular ESM style preserved → tree-shaking intact under 9) |
-| Engine | `new Engine(canvas, true, { stencil: false })` (`src/main.ts:63`), plus `NullEngine` in headless CLI + **134 test files** |
-| Toolchain | Vite 6.3, TypeScript 5.2, vitest 3.2. TS version is an audit item — Babylon 9 typings may want a newer TS; bump TS if `tsc` complains (low risk, TS minors are cheap) |
-| Handedness | Left-handed default everywhere (Q3→Babylon axis swap is done manually at load) |
-
-### Behavioral hot spots to validate (not expected to break, but owed a pass)
-
-1. **Custom GLSL `ShaderMaterial`s** — voltaic beam, electrobolt rail, muzzle
-   flash (thin-instanced batches, custom attributes `iStartSeed/iEndImpact/…`,
-   `ALPHA_PREMULTIPLIED`, `forceCompilationAsync` prewarm). Attribute/define
-   plumbing is the most version-sensitive thing we own. Unit suites cover
-   lifecycle; look is a browser pass.
-2. **NullEngine suites** (134 files / ~1500 tests) — our broadest automatic
-   safety net; any 9.x NullEngine regression shows up here immediately.
-3. **v4 procedural pickups** — `FresnelParameters` (emissive + opacity) and
-   `enableEdgesRendering()` (edge line width semantics), clone-of-prototype
-   geometry sharing.
-4. **PostProcessingManager** — `DefaultRenderingPipeline` (bloom/exposure/
-   contrast + RenderVars multipliers stash/restore).
-5. **Q3 shader parser → StandardMaterial** — alpha modes, `transparencyMode`,
-   lightmap/emissive levels, `material.freeze()` interplay.
-6. **Loaders** — MD3 is our own loader (unaffected); GLB weapons/models go
-   through `@babylonjs/loaders` (9.x added animation retargeting — additive,
-   but confirm GLB skeleton/animation groups still bind identically).
-7. **Havok** — `@babylonjs/havok` versions independently; keep 1.3.11 and
-   verify the plugin still initializes (client-side pickups/ragdoll only; the
-   server sim does not use it, so determinism is out of blast radius).
-8. **Thin instances** — buffer update paths (`thinInstanceSetBuffer` /
-   `thinInstanceBufferUpdated`) used by every effect renderer.
+1. **Clustered lighting is NOT 9.0-gated — it ships in our installed 8.56 and
+   we already use it in production paths.** `MapRenderer` (the FPS world
+   renderer) already puts static map point lights into a
+   `ClusteredLightContainer` ("allows many lights without hitting WebGL uniform
+   buffer limits", tuned `depthSlices = 4`, `horizontalTiles = 8`);
+   `StreetLampSystem` creates one lazily; the headless CLI even leak-tests the
+   container across map clears. Babylon *headlined* the feature at 9.0, but it
+   landed in late 8.x. Consequence: the biggest lighting win — clustering the
+   **dynamic** effect lights and deleting the scarcity clamps — is available
+   **today**, upgrade or not.
+2. **Babylon audio changes are irrelevant to us.** `AudioManager` is pure
+   `HTMLAudioElement` — zero `@babylonjs/core/Audio` imports. The 9.0 "audio
+   engine refinements" drop off our validation checklist.
+3. **The WGSL/WebGPU caveat is concrete, not theoretical.** We DO build
+   `NodeMaterial`s — `Q3NodeMaterialBuilder` (via `Q3ShaderMaterialFactory`)
+   generates node materials for Q3 surface shaders. Under a future WebGPU
+   engine, node materials that receive clustered lights must be created with
+   `ShaderLanguage.WGSL`. Irrelevant under WebGL2; a named work item for the
+   `r_webgpu` experiment.
 
 ---
 
-## What 9.x gives us (relevant subset)
+## Measured API surface (what the upgrade actually touches)
 
-| Feature | Relevance |
-|---|---|
-| **Clustered lighting** (`ClusteredLightContainer`, WebGL2 **and** WebGPU) | **The headline for us.** Replaces the light-scarcity system: `DynamicLightSafety` clamps materials to 2 lights (Standard) / 1 (PBR); weapon effects ration a 4-light `PointLightPool`; `EffectPreloader` pre-warms light×material shader permutations to hide recompile hitches. Clustered lighting removes the cap (hundreds of lights), removes most permutation recompiles, and turns rationing code into dead weight. FPS win + un-sacrifices a feature. WebGL2 path uses textures (no storage buffers needed); WGSL caveat applies only to node materials on WebGPU (we use none for lit surfaces). |
-| **WebGPU maturity + snapshot rendering** | Enables the staged `r_webgpu` experiment (see plan §Phase 3). Background pipeline compilation attacks the first-shot shader hitch class at the driver level. Snapshot rendering is for mostly-static scenes → menus/lobby/post-match diorama only, never gameplay. |
-| **Outline renderer** (new in 9.0) | Potential replacement/upgrade for our cel/team-outline presentation (RemotePlayerRenderer team outlines, post-match showcase styling). Evaluate after upgrade — could simplify custom outline code. |
-| **Nav mesh improvements** (9.0) | Flagging for the **bot-improvements work**: Babylon 9's nav-mesh system upgrades (pathfinding accuracy + performance) may be useful alongside/instead of parts of `BotNavGraph`. Not part of this upgrade's scope; worth a look once on 9. |
-| **SDF text rendering** | Resolution-independent text — possible future HUD/nameplate quality win. Not scoped. |
-| Frame Graph v1, OpenPBR, IBL shadows, particles, geospatial/floating origin | Not needed now. Frame graph (up to ~40% GPU memory savings) worth revisiting if our post pipeline grows. |
+`@babylonjs/core` **794** imports over **83 unique module paths**, `@babylonjs/loaders`
+**10**, `@babylonjs/havok` **1**. No `@babylonjs/gui`, no `@babylonjs/materials`, no UMD
+bundles. Census by cluster, with 9.x status:
+
+| Usage cluster (top import counts) | Our usage | 9.x status / action |
+|---|---|---|
+| Scene/math/meshes (`scene` 139, `math.vector` 116, `math.color` 63, `mesh` 49, `meshBuilder` 27, `transformNode` 25, `vertexData` 13, `abstractMesh` 12) | Everywhere | **Stable.** No known changes; covered by tsc + suites |
+| Materials (`standardMaterial` 38, `texture` 27, `shaderMaterial` 13, `effect` 7, `pbrMaterial` 7, `rawTexture` 7, `dynamicTexture` 4, `fresnelParameters` 1) | Q3 surfaces, effects, pickups v4 | **Stable.** Custom GLSL via `Effect.ShadersStore` (muzzle/rail/voltaic) is the long-standing registration path; validate visually |
+| Cameras (`freeCamera` 22, `camera` 22, `arcRotateCamera` 7) | Gameplay + diorama + tools | **Stable.** The 8.10.1 right-handed break never applied (we're left-handed) |
+| `nullEngine` 17 | 134 test files + headless CLI | **Stable** — and our broadest automatic 9.x audit |
+| Lights (`pointLight` 14, `hemisphericLight` 5, `directionalLight` 2, `spotLight` 1, `shadowGenerator` 2, **`Clustered/*` 2+2**) | Map/effect/UI lights; clustered already in `MapRenderer`/`StreetLampSystem` | **Stable**; clustered API present in 8.56 — see Migration A |
+| Loading (`sceneLoader` 10 → 8 call sites of `SceneLoader.ImportMeshAsync`/`ImportAnimationsAsync`; `@babylonjs/loaders/glTF` 8) | GLB models/animations (player models, barrels, anim tools) | **Soft-deprecated.** Class remains, but module-level `ImportMeshAsync`/`ImportAnimationsAsync`/`LoadAssetContainerAsync` are the maintained path (better tree-shaking, loader options pass-through). See Migration B |
+| Bare barrel `@babylonjs/core` imports (**15 files**, mostly `src/engine/animation/*`, `games/tower`, 2 fps client files) | Convenience imports | **Works but bloats**: barrel imports weaken per-module tree-shaking and slow dev-server transforms. See Migration C |
+| Physics v2 (`IPhysicsEnginePlugin` 6, `havokPlugin`, `physicsAggregate`, `ragdoll`, `physicsEngineComponent`, `@babylonjs/havok` wasm) | Client-side pickup toss/ragdoll only | **Stable**; `@babylonjs/havok` versions independently (keep 1.3.11, watch peer warnings) |
+| Particles (`particleSystem` 4: Debris/LocalDebris/Rain/Explosion) | Classic CPU particles | **Stable.** Node particles (9.0) optional later — not a need |
+| Node materials (`Materials/Node/*` 11 imports in `Q3NodeMaterialBuilder`) | Q3 shader → NodeMaterial path | **Stable under WebGL2.** WGSL work item under WebGPU (see corrections #3) |
+| Post (`defaultRenderingPipeline`, `ssao2RenderingPipeline`, `postProcess`, `depthRendererSceneComponent`) | Bloom/exposure/contrast, SSAO | **Stable**; visual pass owed |
+| Misc (`observable` 15, `constants` 11, `ray` 12, `edgesRenderer`, `trailMesh`, `linesMesh` 3, `skeleton` 3, `animationGroup` 3, `screenshotTools`, `tgaTextureLoader`, `engineStore`, `abstractEngine`, `physicsViewer`, `instancesVertex/Declaration` shader includes 6) | Various | **Stable.** The `ShadersInclude` imports (thin-instance support in custom shaders) are worth a compile check in Phase 0 |
+
+**Private-API exposure: none.** A scan for `._foo` access on Babylon objects
+found only our own stash keys (RenderVars originals, seed counters). Nothing
+rides Babylon internals — the classic major-version landmine is absent.
+
+### Breaking-changes evidence (8.56 → 9.17)
+
+- Official breaking-changes doc: **newest entry is 8.10.1** — nothing listed for
+  any 9.x. The 9.0.0 changelog section is bugfix-level; 9.0 was an additive major.
+- The one publicized 9.x break: **9.16.x enforces ES2015 for UMD builds** — we
+  consume ESM through Vite 6; not applicable.
+- Toolchain: TS 5.2 / Vite 6.3 / vitest 3.2. Only contingency: 9.17 typings may
+  want a newer TypeScript — resolved by an isolated TS bump in Phase 0 if `tsc`
+  objects.
+
+**Bottom line: the upgrade needs a version bump, a possible TS bump, and a
+behavioral validation pass. No API migration is *required*.** Everything below
+is opportunity, not obligation.
 
 ---
 
-## Upgrade plan
+## Migrations we can move into
+
+### Available NOW on 8.56 (no upgrade required)
+
+**A. Cluster the dynamic effect lights; delete the scarcity system.**
+Static map lights are already clustered; the *dynamic* lights (muzzle flash,
+explosion/charge glows via the 4-light `PointLightPool`, pickup glows) still
+live outside it, which is why `DynamicLightSafety` clamps every material to
+2 lights (Standard) / 1 (PBR) and why `EffectPreloader` pre-warms light×material
+shader permutations to mask recompile hitches. Migration: route pooled effect
+lights into a (second, gameplay-tuned) `ClusteredLightContainer` — perspective
+tuning, not the ortho-tuned 4-slice config MapRenderer uses — then retire the
+clamps and most permutation warmups. FPS win + restores a sacrificed feature
+(a corridor can hold rocket + muzzle + pickup glows at once).
+*Watch item:* frozen materials — verify cluster texture updates reach
+`material.freeze()`d surfaces; worst case unfreeze world materials at map load
+(cheap once per-light define churn is gone).
+
+**B. `SceneLoader` → module-level loader functions (8 call sites).**
+`SceneLoader.ImportMeshAsync/ImportAnimationsAsync` is soft-deprecated: the
+class stays, but module functions (`ImportMeshAsync(url, scene, options)`,
+`ImportAnimationsAsync`, `LoadAssetContainerAsync`) get all future improvements,
+tree-shake better, and accept loader options directly. Call sites:
+`PlayerModelManager` (2), `AnimationLoader` (1), `AnimTestCommand` (2),
+`headless-game.ts` (3), plus `FPSPickup._loadBarrels` (dynamic import). Mostly a
+mechanical signature change (single URL replaces rootUrl+filename split).
+
+**C. Kill the 15 bare `@babylonjs/core` barrel imports.**
+`src/engine/animation/*` (7), `AnimTestCommand`, `DebugCommand`,
+`CartoonHitEffect`, `DemoService`, `GameEvents`, `Game.ts`, `TowerGame`. Replace
+with per-module paths (the style the other ~780 imports already use). Bundle
+size + dev-transform win; zero behavior change; biome-friendly mechanical PR.
+
+### Gated on the 9.x upgrade
+
+| Migration | What it replaces / adds | Assessment |
+|---|---|---|
+| **Outline renderer** (9.0) | Our custom team-tint/outline presentation (RemotePlayerRenderer, showcase styling) | Evaluate after upgrade — likely simpler + batched; keep ours if look regresses |
+| **Nav mesh improvements** (9.0) | Complements `BotNavGraph` (active bot-improvements work) | Flag to the bot effort; not this upgrade's scope |
+| **SDF text** (9.0) | Future HUD/nameplate crispness | Optional, low priority |
+| **Frame Graph v1** (9.0) | Hand-rolled pipeline order; up to ~40% GPU memory savings in complex pipelines | Ours is simple (Default + SSAO2); revisit if passes grow |
+| **Inspector v2** (9.0) | Dev tooling (we don't ship `@babylonjs/inspector` today) | Nice-to-have dev dependency |
+| **Node Particle Editor / flow maps / attractors** (9.0) | Classic `ParticleSystem` in Debris/Rain/Explosion | Only if we redesign those effects; no perf need identified |
+
+### Staged after both (flag-gated)
+
+**`r_webgpu` — `WebGPUEngine` with WebGL2 fallback.** Payoffs: background
+pipeline compilation (first-shot hitch class), lower JS submit overhead, compute
+for future effects, storage-buffer clustered lights. Named work items from this
+audit: (1) our four GLSL `ShaderMaterial` families run through runtime
+GLSL→WGSL conversion — validate each; (2) `Q3NodeMaterialBuilder` output needs
+`ShaderLanguage.WGSL` if those surfaces receive clustered lights; (3) snapshot
+rendering only for static contexts (menus/lobby/diorama), never gameplay.
+
+---
+
+## Upgrade plan (revised)
 
 ### Phase 0 — mechanical bump (1 session)
+1. Branch; bump `@babylonjs/core` + `@babylonjs/loaders` → `^9.17.0`; `npm i`
+   (watch `@babylonjs/havok` peer warnings; keep 1.3.11).
+2. Gates in order: `tsc` both repos (TS bump here if typings demand — isolated
+   commit) → `test:run` (134 NullEngine files are the real audit) → biome →
+   `server:tick` → headless smokes (`bsp load`, `sim replay`), including the
+   CLI's clustered-container leak test.
+3. Compile check the six `ShadersInclude` imports (thin-instance custom shaders).
 
-1. Branch (per current workflow: whatever feature branch is active — do **not**
-   mix with unfinished bot work in the same commit).
-2. `package.json`: `@babylonjs/core` + `@babylonjs/loaders` → `^9.17.0`
-   (keep `@babylonjs/havok` at 1.3.11 unless install warns). `npm i`.
-3. Gates, in order:
-   - `npx tsc --noEmit` (outer + `src/games/fps`) — if typings demand it, bump
-     TypeScript here (isolated commit).
-   - `npm run test:run` — the 134 NullEngine suites are the real audit.
-   - `node scripts/biome-gate.mjs`.
-   - `npm run server:tick` — expected untouched (no Babylon in the sim path).
-   - Headless smokes: `npm run cli:game -- -- --exec "bsp load wdm2; bsp info; quit"`,
-     `sim replay` movement smoke.
-4. Fix fallout; commit fps-first if submodule files are touched.
+### Phase 1 — browser validation pass
+Maps (world materials/lightmaps/skybox/patches/fog) → weapons (voltaic, rail,
+muzzle styles, tracers, explosions; first-shot smoothness) → pickups v4
+(fresnel grading, edge widths, collect burst) → post pipeline (bloom/exposure/
+contrast + SSAO + RenderVars round-trip) → GLB player models/viewmodels
+(skeletons, animation groups, sockets) → post-match flow → demo record/playback.
+*(Audio dropped from the checklist — HTMLAudio only.)*
 
-### Phase 1 — browser validation pass (playtest checklist)
+### Phase 2 — migrations A–C
+Can start **before or independent of** Phase 0 (all three are 8.56-compatible);
+A is the FPS payoff, B+C are hygiene PRs. If the upgrade lands first, do them on 9.
 
-- Map load (wdm2 + one companion map): world materials, lightmaps, skybox,
-  patches, fog.
-- Weapons: voltaic beam, electrobolt rail, muzzle flashes (all styles), tracers,
-  explosions — first-shot smoothness (prewarm still effective).
-- Procedural pickups v4: fresnel shell grading, edge-line width, collect burst.
-- Post pipeline: bloom/exposure/contrast + `r_*` multipliers round-trip.
-- Post-match: diorama camera, showcase model, dances, endgame music (audio
-  engine was "refined" in 9.0 — verify `AudioManager` playlists unaffected).
-- GLB weapon viewmodels + player models (skins, animation groups, sockets).
-- Demos: record + playback (presentation-only paths).
-
-### Phase 2 — cash in: clustered lighting (1–2 sessions)
-
-1. Introduce a `ClusteredLightContainer` per scene; route map `PointLight`s and
-   the effect/pickup/charge-glow lights into it.
-2. Retire the scarcity layer: `DynamicLightSafety` clamps →
-   no-op/delete; `PointLightPool` becomes a plain allocation cache (keep
-   pooling, drop rationing); `EffectPreloader` light-permutation warmups
-   reduced to the single clustered variant.
-3. Visual pass: corridors with rocket + muzzle + pickup glows simultaneously —
-   the previously-dropped lights now render; tune intensities down where the old
-   clamp was acting as an accidental art direction.
-4. Perf capture before/after (see Measurements).
-
-### Phase 3 — staged WebGPU experiment (separate cycle)
-
-- `r_webgpu` cvar (default 0): `WebGPUEngine` via async factory with automatic
-  WebGL2 fallback; GLSL `ShaderMaterial`s run through Babylon's runtime
-  GLSL→WGSL conversion — the flag exists precisely to validate that conversion
-  on our four custom shaders before any default flip.
-- Snapshot rendering evaluated only for lobby/menu/diorama scenes.
+### Phase 3 — `r_webgpu` experiment (separate cycle)
+As scoped above, with the three named work items.
 
 ### Rollback
-
-Single-commit revert of the package bump (lockfile included). No data or asset
-migrations anywhere in the plan; Phase 2 is a separate commit chain on top.
+Single-commit revert of the package bump (lockfile included). Migrations A–C
+are independent commits, individually revertible, and don't depend on 9.
 
 ---
 
 ## Measurements to capture
-
-- Before/after FPS + frame-time p95 on: dev desktop GPU and one iGPU laptop,
-  same map/route (the bandwidth-bound iGPU case is the target audience).
-- Shader-compile hitch count around first shots (DevTools performance trace)
-  pre/post clustered lighting.
-- `EffectPreloader` warmup time (it shrinks when light permutations collapse).
-- Bundle size delta (ESM tree-shaking should keep it near-flat; verify
-  `npm run build` output sizes).
+- FPS + frame-time p95 (desktop GPU + one iGPU laptop, fixed route) before/after
+  Phase 0 and after Migration A.
+- Shader-compile hitch trace around first shots pre/post Migration A;
+  `EffectPreloader` warmup time (should shrink as permutations collapse).
+- Bundle size before/after Phase 0 and after Migration C (`npm run build`).
 
 ## Open questions
-
-1. Does Babylon 9.17 typings require TS > 5.2? (Resolved in Phase 0 step 3.)
-2. `ClusteredLightContainer` + `material.freeze()` interaction — do frozen
-   materials pick up cluster texture updates without unfreeze? (Test in
-   Phase 2; worst case: unfreeze world materials once at map load — they were
-   only frozen to skip dirty-checks, and clustered lighting removes the
-   per-light define churn that made freezing valuable.)
-3. Havok 1.3.11 against core 9.x — plugin API is stable, but confirm at
-   `npm i` (peer warnings) + ragdoll/pickup-toss smoke.
-4. Audio engine "refinements" in 9.0 — any behavior change in `Sound`/streaming
-   used by `AudioManager` playlists?
+1. TS floor for 9.17 typings (Phase 0 resolves).
+2. Frozen materials × clustered-light texture updates (Migration A test).
+3. Havok 1.3.11 × core 9.x peer expectations (`npm i` + ragdoll/toss smoke).
+4. Exact 8.x minor that shipped clustered lighting (curiosity only — we have it).
 
 ## Sources
-
-- npm registry: `@babylonjs/core` latest **9.17.0**; 9.16.x published 2026-07
-- [Babylon.js 9.0 announcement (Medium)](https://babylonjs.medium.com/welcome-to-babylon-js-9-0-c3edc9ee6428) — clustered lighting (WebGL2+WebGPU), frame graph, 9.0 feature set
-- [Announcing Babylon.js 9.0 — Windows Dev Blog](https://blogs.windows.com/windowsdeveloper/2026/03/26/announcing-babylon-js-9-0/) (2026-03-26) + [Part 3: engine updates](https://blogs.windows.com/windowsdeveloper/2026/04/02/part-3-babylon-js-9-0-openpbr-and-additional-engine-updates/) — outline renderer, SDF text, nav mesh, audio refinements
-- [Official breaking-changes doc](https://doc.babylonjs.com/breaking-changes/) — newest entry 8.10.1; nothing listed for 9.x
-- [Babylon.js CHANGELOG](https://github.com/BabylonJS/Babylon.js/blob/master/CHANGELOG.md) — 9.0.0 section is bugfix-level
-- [Forum: Breaking Changes in 9.16.x](https://forum.babylonjs.com/t/breaking-changes-in-version-9-16-x/63772) — UMD ES2015 enforcement (ESM consumers unaffected)
-- [Clustered Lighting docs](https://doc.babylonjs.com/features/featuresDeepDive/lights/clusteredLighting/) + [feature thread](https://forum.babylonjs.com/t/clustered-lights-support/56111) — `ClusteredLightContainer`, WebGL2 texture path, WGSL-for-node-materials caveat
-- [WebGPU Support](https://doc.babylonjs.com/setup/support/webGPU) / [Snapshot Rendering](https://doc.babylonjs.com/setup/support/webGPU/webGPUOptimization/webGPUSnapshotRendering)
+- npm registry: `@babylonjs/core` latest **9.17.0** (9.16.x published 2026-07)
+- [Babylon.js 9.0 announcement (Medium)](https://babylonjs.medium.com/welcome-to-babylon-js-9-0-c3edc9ee6428) · [Windows Dev Blog](https://blogs.windows.com/windowsdeveloper/2026/03/26/announcing-babylon-js-9-0/) · [Part 3: engine updates](https://blogs.windows.com/windowsdeveloper/2026/04/02/part-3-babylon-js-9-0-openpbr-and-additional-engine-updates/)
+- [Official breaking-changes doc](https://doc.babylonjs.com/breaking-changes/) (newest: 8.10.1) · [CHANGELOG](https://github.com/BabylonJS/Babylon.js/blob/master/CHANGELOG.md) · [Forum: 9.16.x UMD ES2015](https://forum.babylonjs.com/t/breaking-changes-in-version-9-16-x/63772)
+- [Clustered Lighting docs](https://doc.babylonjs.com/features/featuresDeepDive/lights/clusteredLighting/) · [feature thread](https://forum.babylonjs.com/t/clustered-lights-support/56111)
+- [SceneLoader deprecation discussion](https://forum.babylonjs.com/t/what-is-an-alternative-for-deprecated-sceneloader-importmeshasync/56566) · [Loading file types docs](https://doc.babylonjs.com/features/featuresDeepDive/importers/loadingFileTypes) — module-level loader functions
+- [WebGPU Support](https://doc.babylonjs.com/setup/support/webGPU) · [Snapshot Rendering](https://doc.babylonjs.com/setup/support/webGPU/webGPUOptimization/webGPUSnapshotRendering)
+- In-repo evidence: `MapRenderer.ts` (clustered static map lights, tuned tiles/slices), `StreetLampSystem.ts` (lazy container), `headless-game.ts` (container leak test), `DynamicLightSafety.ts` (2/1 clamps), `PointLightPool.ts` (4-light ration), `Q3NodeMaterialBuilder.ts` (NodeMaterial usage), `AudioManager.ts` (HTMLAudio only)
