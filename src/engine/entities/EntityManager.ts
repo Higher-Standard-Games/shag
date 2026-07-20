@@ -4,16 +4,42 @@
 
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Scene } from "@babylonjs/core/scene";
-
-import { type PickupEntry, extractPickups } from "../../shared/bsp/PickupTable";
-import type { EntityDef } from "../../shared/entities/EntityDef";
-import { EntityRegistry } from "../../shared/entities/EntityRegistry";
-import { EntityType } from "../../shared/entities/EntityType";
-import { type EntityData, EntityHandlerRegistry, type EntityHandlerResult } from "../core/EntityHandlerRegistry";
 // Type-only import reaches into the fps game module — EntityManager itself
 // builds FPS-flavoured entity types (weapon/ammo) and is FPS-coupled (matrix #6).
 // Type-only imports are erased at compile time.
 import type { InventoryManager } from "../../games/fps/world/InventoryManager";
+import { extractPickups, type PickupEntry } from "../../shared/bsp/PickupTable";
+import type { EntityDef } from "../../shared/entities/EntityDef";
+import { EntityRegistry } from "../../shared/entities/EntityRegistry";
+import { EntityType } from "../../shared/entities/EntityType";
+import { type EntityData, EntityHandlerRegistry, type EntityHandlerResult } from "../core/EntityHandlerRegistry";
+import { RenderVars } from "../rendering/RenderVars";
+import type { PickupVisualFactory } from "../world/PickupVisual";
+
+/** Health/armor render as procedural sculptures unless r_pickupProcedural is 0. */
+function proceduralPickupsEnabled(): boolean {
+  try {
+    return (RenderVars.getInstance().get("r_pickupProcedural") ?? 1) >= 0.5;
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * Resolve the procedural visual factory for a health/armor definition, or
+ * undefined to keep the MD3 model path (weapons/ammo, unknown ids, or toggle off).
+ */
+async function resolvePickupVisualFactory(
+  def: EntityDef,
+  type: "weapon" | "ammo" | "armor" | "health",
+): Promise<PickupVisualFactory | undefined> {
+  if (type !== "health" && type !== "armor") return undefined;
+  if (!proceduralPickupsEnabled()) return undefined;
+  const { createProceduralPickupFactory } = await import(
+    "../../games/fps/world/pickups/procedural/ProceduralPickupFactory"
+  );
+  return createProceduralPickupFactory(def.id) ?? undefined;
+}
 
 export class EntityManager {
   private static instance: EntityManager;
@@ -101,17 +127,30 @@ export class EntityManager {
     console.log(`[EntityManager] Manually spawning ${id} at ${position}`);
 
     try {
+      // Preserve the definition's actual type so armor/health aren't misfiled as
+      // ammo (which also blocks their procedural visual).
+      const type: "weapon" | "ammo" | "armor" | "health" =
+        def.type === EntityType.WEAPON
+          ? "weapon"
+          : def.type === EntityType.ARMOR
+            ? "armor"
+            : def.type === EntityType.HEALTH
+              ? "health"
+              : "ammo";
+      const visualFactory = await resolvePickupVisualFactory(def, type);
+
       // DIRECT PICKUP CREATION for manual spawn is safer/cleaner.
       // FPSPickup lives in the fps game module — imported dynamically here to
       // keep EntityManager runtime-independent of the fps module loading order.
       new (await import("../../games/fps/world/FPSPickup")).FPSPickup(`${id}_${Date.now()}`, scene, position, {
         id: def.id,
         modelPath: def.modelPath || "models/items/ammo/ammobox/ammobox.md3",
-        type: def.type === EntityType.WEAPON ? "weapon" : "ammo",
+        type,
         value: (def as any).weaponId || (def as any).amount || def.id,
         scale: def.scale,
         gravity: options.gravity,
         glowColor: def.glowColor, // Pass glow color for pulsing light
+        visualFactory,
       });
 
       return true;
@@ -193,6 +232,10 @@ export class EntityManager {
       return { handled: true };
     }
 
+    // Health/armor render as procedural sculptures (falls back to modelPath if
+    // the recipe/toggle declines). Weapons/ammo keep the MD3 model path.
+    const visualFactory = await resolvePickupVisualFactory(def, type);
+
     const pickup = new FPSPickup(name, scene, position, {
       id: def.id,
       modelPath: def.modelPath || "models/items/ammo/ammobox/ammobox.md3",
@@ -204,6 +247,7 @@ export class EntityManager {
       scale: def.scale || 1.0,
       glowColor: def.glowColor,
       pickupId,
+      visualFactory,
     });
 
     // Register this pickup in local tracking (optional, Pickup handles its own logic now)

@@ -30,18 +30,29 @@ import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Observer } from "@babylonjs/core/Misc/observable";
 import { PhysicsShapeType } from "@babylonjs/core/Physics/v2/IPhysicsEnginePlugin";
 import type { Scene } from "@babylonjs/core/scene";
-import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
 import { AudioManager } from "../AudioManager";
 import { CameraSystem } from "../camera/CameraSystem";
+import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
 import { ModelLoader } from "../loader/model/ModelLoader";
 import { getCollisionManager } from "../physics";
 import { PhysicsSystem } from "../physics/PhysicsSystem";
+import type { PickupVisual, PickupVisualFactory } from "./PickupVisual";
 
 export interface PickupOptions {
   /** Stable identifier for this pickup (used by callers for matching/lookup). */
   id: string;
-  /** Path to the pickup model (e.g. `models/items/ammo/ammobox/ammobox.md3`). */
-  modelPath: string;
+  /**
+   * Path to the pickup model (e.g. `models/items/ammo/ammobox/ammobox.md3`).
+   * Optional when a `visualFactory` is supplied (procedural visuals need no
+   * model). Kept as a fallback: if the factory declines, the model path loads.
+   */
+  modelPath?: string;
+  /**
+   * Optional procedural visual factory. When present, `Pickup` builds a
+   * `PickupVisual` instead of loading `modelPath`, and routes update / active /
+   * dispose through it. Used by FPS health & armor. See `PickupVisual.ts`.
+   */
+  visualFactory?: PickupVisualFactory;
   /** Seconds before respawn. 0 = no respawn (dropped items). */
   respawnTime?: number;
   /** Scale multiplier. Default 1.5. */
@@ -78,6 +89,11 @@ export class Pickup extends TransformNode {
   protected glowLight: PointLight | null = null;
   protected glowPulseTime: number = 0;
 
+  /** Procedural visual (present only when `options.visualFactory` was supplied). */
+  protected visual: PickupVisual | null = null;
+  /** Seconds accumulator driving the procedural visual's cosmetic animation. */
+  private visualElapsed = 0;
+
   /** Per-frame proximity/glow observer. Captured so dispose() can detach it. */
   private _renderObserver: Observer<Scene> | null = null;
 
@@ -91,6 +107,14 @@ export class Pickup extends TransformNode {
     super(name, scene);
     this.options = options;
     this.position = position;
+    // Fail-closed init for server-managed procedural pickups: start hidden until
+    // the first authoritative active-mask arrives, so delayed items (armor,
+    // mega) never flash at map start and the first reconcile reaches the visual
+    // as a real change (see setActiveState + PickupVisual.setActive). Model-backed
+    // and dev-spawned pickups are unaffected.
+    if (options.visualFactory && options.serverManagedRespawn) {
+      this.isActive = false;
+    }
     this.onConstructed();
     this.loadModel();
   }
@@ -126,14 +150,29 @@ export class Pickup extends TransformNode {
   // ═════════════════════════════════════════════════════════════════
 
   protected async loadModel() {
+    // Procedural path: build a generated visual instead of loading a model.
+    // Falls through to the model path if the factory declines (returns false).
+    if (this.options.visualFactory) {
+      const installed = await this.installProceduralVisual();
+      if (installed) return;
+    }
+
+    const modelPath = this.options.modelPath;
+    if (!modelPath) {
+      // No model and no (surviving) factory — nothing to render. Still drop to
+      // ground so any future overlay would sit correctly.
+      if (this.options.gravity) this.dropToGround();
+      return;
+    }
+
     try {
       // Check AssetPreloader cache first for instant spawn
       let result = null;
       try {
         const { AssetPreloader } = await import("../loader/AssetPreloader");
         const preloader = AssetPreloader.getInstance();
-        if (preloader.hasModel(this.options.modelPath)) {
-          result = preloader.cloneCachedModel(this.options.modelPath, this.getScene());
+        if (preloader.hasModel(modelPath)) {
+          result = preloader.cloneCachedModel(modelPath, this.getScene());
         }
       } catch {
         // Preloader not available, continue with fresh load
@@ -144,7 +183,7 @@ export class Pickup extends TransformNode {
         const loader = ModelLoader.getInstance();
         if (!loader.isInitialized()) loader.init(this.getScene());
 
-        result = await loader.loadModel(this.options.modelPath, {
+        result = await loader.loadModel(modelPath, {
           position: Vector3.Zero(),
           scale: this.options.scale || 1.0,
           hasCollision: false,
@@ -257,6 +296,41 @@ export class Pickup extends TransformNode {
     }
   }
 
+  /**
+   * Build a procedural visual from `options.visualFactory`. Returns true if a
+   * visual was installed; false if the factory declined or threw, so the caller
+   * can fall back to the model path. Ground placement happens here (once) so the
+   * generated sculpture and its floor pedestal sit on the detected floor.
+   */
+  private async installProceduralVisual(): Promise<boolean> {
+    const factory = this.options.visualFactory;
+    if (!factory) return false;
+    try {
+      // Static map pickups (health/armor) are placed on the floor exactly like
+      // the model-backed map-spawn path: raycast down and offset above the floor.
+      this.dropToGround();
+      this.settled = true;
+
+      const visual = factory({
+        scene: this.getScene(),
+        position: this.getAbsolutePosition(),
+        options: this.options,
+      });
+      if (!visual) return false;
+      this.visual = visual;
+
+      // Per-frame cosmetic animation + proximity, same observer contract as the
+      // model path. Captured so dispose() can detach it.
+      this._renderObserver = this.getScene().onBeforeRenderObservable.add(() => {
+        this.tick();
+      });
+      return true;
+    } catch (e) {
+      console.error(`[Pickup] procedural visual install failed for ${this.name}:`, e);
+      return false;
+    }
+  }
+
   // ═════════════════════════════════════════════════════════════════
   // Per-frame
   // ═════════════════════════════════════════════════════════════════
@@ -274,8 +348,13 @@ export class Pickup extends TransformNode {
     return camera.position;
   }
 
-  /** Update glow pulse + run proximity check. */
+  /** Update glow pulse + procedural visual + run proximity check. */
   protected tick(): void {
+    if (this.visual) {
+      const dt = this.getScene().getEngine().getDeltaTime() / 1000;
+      this.visualElapsed += dt;
+      this.visual.update(dt, this.visualElapsed);
+    }
     if (this.glowLight && this.isActive) {
       const dt = this.getScene().getEngine().getDeltaTime() / 1000;
       this.glowPulseTime += dt * 3.0;
@@ -429,6 +508,9 @@ export class Pickup extends TransformNode {
     // root-level mesh), so it must be toggled explicitly.
     if (this.mesh) this.mesh.setEnabled(active);
     if (this.glowLight) this.glowLight.setEnabled(active);
+    // Procedural visual: the first call applies visibility silently; later
+    // transitions play the collection / respawn-assembly effect.
+    if (this.visual) this.visual.setActive(active);
   }
 
   protected respawn(): void {
@@ -531,6 +613,14 @@ export class Pickup extends TransformNode {
       this.glowLight = null;
     }
     this.removePhysics();
+
+    // Procedural visuals own their own meshes/materials/transients — dispose
+    // through the visual handle, NOT the blind leader-mesh path below (which
+    // force-disposes shared cached geometry/materials).
+    if (this.visual) {
+      this.visual.dispose();
+      this.visual = null;
+    }
 
     if (this.mesh) {
       this.mesh.dispose(false, true);
