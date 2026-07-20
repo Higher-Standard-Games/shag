@@ -13,6 +13,9 @@
 
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
+// Side effect: registers the OutlineRenderer scene component — required for
+// mesh.renderOutline (charge outline flash) to draw.
+import "@babylonjs/core/Rendering/outlineRenderer";
 
 // ── Public results ──────────────────────────────────────────────────
 

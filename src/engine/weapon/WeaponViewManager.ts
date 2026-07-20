@@ -10,6 +10,9 @@ import "@babylonjs/core/Culling/ray";
 import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
 import { PointLight } from "@babylonjs/core/Lights/pointLight";
 import { ImportMeshAsync } from "@babylonjs/core/Loading/sceneLoader";
+// Side effect: registers the OutlineRenderer scene component — required for
+// mesh.renderOutline (weapon outline / charge flash) to draw.
+import "@babylonjs/core/Rendering/outlineRenderer";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import "@babylonjs/core/Materials/Textures/Loaders/tgaTextureLoader"; // enable .tga glow maps

@@ -154,8 +154,19 @@ rendering only for static contexts (menus/lobby/diorama), never gameplay.
 > preserve exact old semantics by reading `scene.animationGroups`, since the
 > old static API returned the scene), and all 14 bare `@babylonjs/core` barrel
 > imports replaced with per-module paths. Biome baseline ratcheted 925/586 →
-> **913/583**. Gates: tsc ×2, 1511/1511, determinism unchanged. WS1 (clustered
-> dynamic lights) next.
+> **913/583**. Gates: tsc ×2, 1511/1511, determinism unchanged.
+>
+> **Playtest finding (WS3 validation):** enemy-model team outlines broke — the
+> barrel imports had been implicitly loading `Rendering/outlineRenderer`, and
+> nothing imported it explicitly, so removing the last barrels silently
+> unregistered `mesh.renderOutline`. Fixed with explicit side-effect imports at
+> the three usage owners (PlayerModelManager, WeaponViewManager, WeaponCharge)
+> and locked by a new regression test (`BabylonSideEffectImports.test.ts`) that
+> probes the Scene augmentations through the real app import chains
+> (`beginAnimation` audited too — loads transitively, fine). Lesson recorded:
+> any future barrel-import removal must audit Babylon's side-effect-registered
+> features (`renderOutline`, `showBoundingBox`, `beginAnimation`, …).
+> WS1 (clustered dynamic lights) next.
 
 Ordering rationale: **measure first** (targets are meaningless without a
 baseline), then take the biggest win on the version we already run (WS1 —
