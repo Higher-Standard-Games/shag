@@ -13,6 +13,7 @@
  */
 
 import { InputButtons } from "../engine/network/components/InputComponent";
+import { DEFAULT_FPS_MOVEMENT_CONFIG } from "../games/fps/simulation/MovementProfile";
 
 // ── Movement Mechanic Interface ─────────────────────────────────────
 
@@ -36,53 +37,54 @@ export interface MovementMechanic {
 }
 
 // ── Physics Constants (from MovementVars.ts defaults) ───────────────
-// These are hardcoded from the DEFAULT_VARS in MovementVars.ts.
-// If MovementVars defaults change, update these too.
+// Derived from the same exported baseline consumed by authoritative FPS simulation.
+
+const FPS = DEFAULT_FPS_MOVEMENT_CONFIG;
 
 export const PHYSICS = {
   // Movement speeds
-  BASE_SPEED: 280, // sv_movementSpeed
-  SPRINT_SPEED: 400, // sv_runSpeed
-  CROUCH_MULT: 0.5, // cl_crouchmult
+  BASE_SPEED: FPS.maxSpeed,
+  SPRINT_SPEED: FPS.runSpeed,
+  CROUCH_MULT: FPS.crouchMultiplier,
   SPRINT_MULT: 1.5, // cl_sprintmult
-  TOP_SPEED: 1000, // sv_topspeed (hard cap)
+  TOP_SPEED: FPS.topSpeed,
 
   // Jump
-  JUMP_VELOCITY: 320, // sv_jumpheight
-  GRAVITY: 1000, // sv_gravity
+  JUMP_VELOCITY: FPS.jumpVelocity,
+  GRAVITY: FPS.gravity,
   AUTO_HOP: true, // sv_autohop = 1
 
   // Air control
-  AIR_CONTROL: 150, // sv_aircontrol
-  MAX_AIR_SPEED: 30, // sv_maxairspeed
-  AIR_ACCELERATE: 1.0, // sv_airaccelerate
+  AIR_CONTROL: FPS.airControl,
+  MAX_AIR_SPEED: FPS.maxAirSpeed,
+  AIR_ACCELERATE: FPS.airAcceleration,
 
   // Crouch-slide
-  SLIDE_MIN_SPEED: 375, // sv_slideMinSpeed
-  SLIDE_SPEED_MULT: 1.2, // sv_slideSpeedMultiplier
-  SLIDE_DURATION: 800, // sv_slideDuration (ms)
-  SLIDE_COOLDOWN: 1500, // sv_slideCooldown (ms)
-  SLIDE_FRICTION: 0.1, // sv_slideFriction
-  SLIDE_DECAY: 0.5, // sv_slideDecay
-  SLIDE_JUMP_BOOST: 1.3, // sv_slideJumpBoost
+  SLIDE_MIN_SPEED: FPS.slideMinSpeed,
+  SLIDE_SPEED_MULT: FPS.slideSpeedMultiplier,
+  SLIDE_DURATION: FPS.slideDuration,
+  SLIDE_COOLDOWN: FPS.slideCooldown,
+  SLIDE_FRICTION: FPS.slideFriction,
+  SLIDE_DECAY: FPS.slideDecay,
+  SLIDE_JUMP_BOOST: FPS.slideJumpBoost,
 
   // Wall-jump
-  WALLJUMP_HEIGHT: 280, // sv_walljump_height
-  WALLJUMP_BOUNCE: 0.8, // sv_walljump_bounce
-  WALLJUMP_REACH: 20, // sv_walljump_reach
-  WALLJUMP_COOLDOWN: 1000, // sv_walljump_cooldown (ms, 1.0s)
-  WALLJUMP_MIN_HEIGHT: 32, // sv_walljump_minheight
-  WALLJUMP_CHARGE: 200, // sv_walljump_chargetime (ms, 0.2s)
-  WALLJUMP_BOOST: 1.2, // sv_walljump_boost
+  WALLJUMP_HEIGHT: FPS.wallJumpHeight,
+  WALLJUMP_BOUNCE: FPS.wallJumpBounce,
+  WALLJUMP_REACH: FPS.wallJumpReach,
+  WALLJUMP_COOLDOWN: FPS.wallJumpCooldown * 1000,
+  WALLJUMP_MIN_HEIGHT: FPS.wallJumpMinHeight,
+  WALLJUMP_CHARGE: FPS.wallJumpChargeTime * 1000,
+  WALLJUMP_BOOST: FPS.wallJumpBoost,
 
   // Ledge-grab
-  LEDGE_REACH: 32, // sv_ledge_reach
-  LEDGE_HEIGHT: 64, // sv_ledge_height
-  LEDGE_TIMEOUT: 2000, // sv_ledge_timeout (ms, 2.0s)
-  LEDGE_PULL_TIME: 350, // sv_ledge_pulltime (ms, 0.35s)
+  LEDGE_REACH: FPS.ledgeReach,
+  LEDGE_HEIGHT: FPS.ledgeHeight,
+  LEDGE_TIMEOUT: FPS.ledgeTimeout * 1000,
+  LEDGE_PULL_TIME: FPS.ledgePullTime * 1000,
 
   // Collision
-  STEP_HEIGHT: 18, // sv_stepheight
+  STEP_HEIGHT: FPS.stepHeight,
   PLAYER_HEIGHT: 64, // sv_playerheight
 } as const;
 

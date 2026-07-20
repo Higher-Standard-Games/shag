@@ -174,6 +174,8 @@ type TraversalHarness = {
   _navGraph: BotNavGraph | null;
   _currentPath: NavPath | null;
   _blockedNavEdges: Map<string, number>;
+  _blockedPickupIds: Map<number, number>;
+  _tryStartItemSlideApproach: (input: BotInput, state: BotGameState) => BotInput | null;
   _getNavPathOptions: (tick: number) => { blockedEdgeKeys: ReadonlySet<string> };
   _tryStartRouteCrouchslide: (input: BotInput, state: BotGameState) => BotInput | null;
   _tryStartRouteStrafeJump: (input: BotInput, state: BotGameState) => BotInput | null;
@@ -220,6 +222,54 @@ function makeTraversal(edgeType: NavEdgeType): { graph: BotNavGraph; path: NavPa
   return { graph, path };
 }
 
+it("starts the specialized slide only for an active final-lane pickup", () => {
+  const graph = new BotNavGraph("item-slide-test");
+  graph.loadStaticData({
+    nodes: [
+      { id: 0, type: "spawn", position: { x: 0, y: 0, z: 0 } },
+      { id: 1, type: "item", pickupId: 3, classname: "item_health", position: { x: 0, y: 0, z: 400 } },
+    ],
+    edges: [{ from: 0, to: 1, type: "walk", cost: 400 }],
+  });
+  const path = graph.findPath({ x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: 400 });
+  if (!path) throw new Error("test graph did not produce a path");
+
+  const brain = new StateMachineBrain(difficulty) as unknown as TraversalHarness;
+  brain.currentState = BotState.ITEM_RUN;
+  brain._navGraph = graph;
+  brain._currentPath = path;
+  const state = makeState({ velocity: { x: 0, y: 0, z: 420 } });
+  state.players = [];
+  state.pickupActiveMask = [false, false, false, true];
+  const routeInput: BotInput = {
+    direction: { x: 0, y: 0, z: 1 },
+    pitch: 0,
+    yaw: 0,
+    buttons: InputButtons.FORWARD | InputButtons.SPRINT,
+    weaponSlot: 0,
+  };
+
+  const slide = brain._tryStartItemSlideApproach(routeInput, state);
+  expect(slide!.buttons & InputButtons.CROUCH).not.toBe(0);
+  state.tick = 105;
+  state.self.isSliding = true;
+  state.self.position.z = 250;
+  brain._tickActiveSequence(state);
+  state.tick = 125;
+  state.self.position.z = 700;
+  brain._tickActiveSequence(state);
+  expect(brain._blockedPickupIds.has(3)).toBe(true);
+  expect(brain._currentPath).toBeNull();
+  state.self.position.z = 0;
+  state.self.isSliding = false;
+
+  const inactiveBrain = new StateMachineBrain(difficulty) as unknown as TraversalHarness;
+  inactiveBrain.currentState = BotState.ITEM_RUN;
+  inactiveBrain._navGraph = graph;
+  inactiveBrain._currentPath = path;
+  state.pickupActiveMask = [false, false, false, false];
+  expect(inactiveBrain._tryStartItemSlideApproach(routeInput, state)).toBeNull();
+});
 describe("StateMachineBrain traversal executors", () => {
   it("rejects a route slide before a sharp upcoming turn", () => {
     const brain = new StateMachineBrain(difficulty);

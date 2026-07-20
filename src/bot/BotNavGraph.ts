@@ -110,6 +110,7 @@ export interface NavGraphStaticData {
 
 export interface NavPathOptions {
   blockedEdgeKeys?: ReadonlySet<string>;
+  blockedPickupIds?: ReadonlySet<number>;
 }
 
 export function navEdgeKey(from: number, to: number, type: NavEdgeType): string {
@@ -359,6 +360,7 @@ export class BotNavGraph {
     // Find all matching item nodes
     const targets = this._nodes.filter((n) => {
       if (n.type !== "item" || !n.classname) return false;
+      if (n.pickupId !== undefined && options.blockedPickupIds?.has(n.pickupId)) return false;
       if (n.pickupId !== undefined && activeMask.length > n.pickupId && !activeMask[n.pickupId]) return false;
       return this._matchesItemType(n.classname, itemType);
     });

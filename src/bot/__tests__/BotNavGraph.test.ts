@@ -212,3 +212,21 @@ it("keeps progress after a non-local teleporter transition", () => {
   expect(graph.getNextStep({ x: 3200, y: 0, z: 0 }, path!, 50)).toBeNull();
   expect(path!.cursor).toBe(3);
 });
+
+it("excludes temporarily blocked pickup ids from item planning", () => {
+  const graph = new BotNavGraph("blocked-pickup-test");
+  graph.loadStaticData({
+    nodes: [
+      { id: 0, type: "spawn", position: { x: 0, y: 0, z: 0 } },
+      { id: 1, type: "item", pickupId: 0, classname: "item_health", position: { x: 100, y: 0, z: 0 } },
+      { id: 2, type: "item", pickupId: 1, classname: "item_health", position: { x: 200, y: 0, z: 0 } },
+    ],
+    edges: [
+      { from: 0, to: 1, type: "walk", cost: 10 },
+      { from: 0, to: 2, type: "walk", cost: 20 },
+    ],
+  });
+
+  const path = graph.findPathToItem({ x: 0, y: 0, z: 0 }, "health", [true, true], { blockedPickupIds: new Set([0]) });
+  expect(path?.nodes[path.nodes.length - 1]?.pickupId).toBe(1);
+});

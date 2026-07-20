@@ -23,6 +23,7 @@ import { type BotNavGraph, type NavPath, type NavStep, navEdgeKey } from "./BotN
 import { BotSequenceRegistry, BotSequenceRuntime, type BotSequenceRuntimeTick } from "./BotSequence";
 import type { BotVision, VisionResult } from "./BotVision";
 import { getWeaponProfile, selectBestWeapon, type WeaponProfile } from "./BotWeaponProfile";
+import { ItemSlideApproachSequence } from "./sequences/ItemSlideApproachSequence";
 import { RouteCrouchslideSequence } from "./sequences/RouteCrouchslideSequence";
 import { RouteStrafeJumpSequence } from "./sequences/RouteStrafeJumpSequence";
 import { TraverseJumppadSequence } from "./sequences/TraverseJumppadSequence";
@@ -61,6 +62,12 @@ const BOT_SLIDE_COOLDOWN_TICKS = Math.ceil((PHYSICS.SLIDE_COOLDOWN / 1000) * 125
 const ROUTE_SLIDE_MIN_REMAINING_DISTANCE = 320;
 const ROUTE_SLIDE_LOOKAHEAD_DISTANCE = 520;
 const ROUTE_SLIDE_MAX_TURN_RADIANS = Math.PI / 4;
+const ITEM_SLIDE_MIN_DISTANCE = 260;
+const ITEM_SLIDE_MAX_DISTANCE = 760;
+const ITEM_SLIDE_MAX_VELOCITY_ERROR_RADIANS = Math.PI / 6;
+const ITEM_SLIDE_ALLY_RADIUS = 80;
+const PICKUP_FAILURE_COOLDOWN_TICKS = 625;
+
 const BOT_STRAFE_RETRY_TICKS = 30;
 const ROUTE_STRAFE_MIN_REMAINING_DISTANCE = 640;
 const ROUTE_STRAFE_ITEM_MIN_REMAINING_DISTANCE = 800;
@@ -107,11 +114,15 @@ export class StateMachineBrain extends BotBrain {
   private _lastDecisionTick: number = 0;
   private readonly _blockedNavEdges = new Map<string, number>();
 
+  private readonly _blockedPickupIds = new Map<number, number>();
+  private _activeItemSlideTarget: { pickupId: number; position: Vec3 } | null = null;
+
   constructor(difficulty: BotDifficulty) {
     super(difficulty);
     this._huntYaw = Math.random() * Math.PI * 2;
     this._sequenceRegistry.register(new RouteCrouchslideSequence());
     this._sequenceRegistry.register(new ValidatedJumpSequence());
+    this._sequenceRegistry.register(new ItemSlideApproachSequence());
     this._sequenceRegistry.register(new TraverseTeleporterSequence());
     this._sequenceRegistry.register(new RouteStrafeJumpSequence());
     this._sequenceRegistry.register(new TraverseJumppadSequence());
@@ -226,8 +237,10 @@ export class StateMachineBrain extends BotBrain {
     }
 
     if (!this._suppressTraversalAutomation) {
-      const sequenceInput = this._tryStartRouteCrouchslide(input, state);
-      if (sequenceInput) return sequenceInput;
+      const itemSlideInput = this._tryStartItemSlideApproach(input, state);
+      if (itemSlideInput) return itemSlideInput;
+      const routeSlideInput = this._tryStartRouteCrouchslide(input, state);
+      if (routeSlideInput) return routeSlideInput;
       const strafeInput = this._tryStartRouteStrafeJump(input, state);
       if (strafeInput) return strafeInput;
     }
@@ -860,6 +873,16 @@ export class StateMachineBrain extends BotBrain {
   private _navigateToItem(state: BotGameState, itemType: string, urgent: boolean): BotInput | null {
     if (!this._navGraph) return null;
 
+    const goalPickupId = this._currentPath?.nodes[this._currentPath.nodes.length - 1]?.pickupId;
+    if (
+      goalPickupId !== undefined &&
+      (state.pickupActiveMask[goalPickupId] === false || this._blockedPickupIds.has(goalPickupId))
+    ) {
+      this._currentPath = null;
+      this._pathTarget = null;
+      this._pathRecalcTimer = PATH_RECALC_INTERVAL + 1;
+    }
+
     // Only recalculate item paths periodically
     if (!this._currentPath || this._pathRecalcTimer > PATH_RECALC_INTERVAL) {
       const itemPath = this._navGraph.findPathToItem(
@@ -885,11 +908,20 @@ export class StateMachineBrain extends BotBrain {
     return null;
   }
 
-  private _getNavPathOptions(tick: number): { blockedEdgeKeys: ReadonlySet<string> } {
+  private _getNavPathOptions(tick: number): {
+    blockedEdgeKeys: ReadonlySet<string>;
+    blockedPickupIds: ReadonlySet<number>;
+  } {
     for (const [key, retryTick] of this._blockedNavEdges) {
       if (tick >= retryTick) this._blockedNavEdges.delete(key);
     }
-    return { blockedEdgeKeys: new Set(this._blockedNavEdges.keys()) };
+    for (const [pickupId, retryTick] of this._blockedPickupIds) {
+      if (tick >= retryTick) this._blockedPickupIds.delete(pickupId);
+    }
+    return {
+      blockedEdgeKeys: new Set(this._blockedNavEdges.keys()),
+      blockedPickupIds: new Set(this._blockedPickupIds.keys()),
+    };
   }
 
   private _cooldownNavStep(step: NavStep, tick: number): void {
@@ -918,12 +950,17 @@ export class StateMachineBrain extends BotBrain {
       crouchslideReady,
       routeStrafeReady,
       routeStrafeSide,
+      itemSlideTarget: this._activeItemSlideTarget,
+      itemSlideReady: this._activeItemSlideTarget !== null,
     };
   }
 
   private _interruptSequence(state: BotGameState, reason: string, force: boolean = false): boolean {
     const interrupted = this._sequenceRuntime.interrupt(this._getSequenceContext(state), reason, force);
-    if (interrupted) this._activeSequenceStep = null;
+    if (interrupted) {
+      this._activeSequenceStep = null;
+      this._activeItemSlideTarget = null;
+    }
     return interrupted;
   }
 
@@ -934,6 +971,18 @@ export class StateMachineBrain extends BotBrain {
     this._suppressTraversalAutomation = true;
     this._pathRecalcTimer = 0;
     if (result.status === "running") return result.input;
+
+    const terminalItemTarget = this._activeItemSlideTarget;
+    this._activeItemSlideTarget = null;
+    if (result.sequenceId === "item_slide_approach" && terminalItemTarget) {
+      if (result.status === "succeeded") {
+        this._currentPath = null;
+      } else if (result.reason === "pickup_missed" || result.reason === "timeout") {
+        this._blockedPickupIds.set(terminalItemTarget.pickupId, state.tick + PICKUP_FAILURE_COOLDOWN_TICKS);
+        this._currentPath = null;
+      }
+      return null;
+    }
 
     const terminalStep = this._activeSequenceStep;
     this._activeSequenceStep = null;
@@ -1080,6 +1129,67 @@ export class StateMachineBrain extends BotBrain {
   }
 
   // ── Feeler Raycasts (Wall Avoidance) ──────────────────────────────
+
+  /** Slide only when a stable, active pickup closes a straight final walk lane. */
+  private _tryStartItemSlideApproach(input: BotInput, state: BotGameState): BotInput | null {
+    if (
+      state.self.isDead ||
+      this._sequenceRuntime.isActive ||
+      (this.currentState !== BotState.ITEM_RUN && this.currentState !== BotState.RETREAT) ||
+      !state.self.isGrounded ||
+      state.self.isSliding
+    )
+      return null;
+
+    const required = InputButtons.FORWARD | InputButtons.SPRINT;
+    const disallowed =
+      InputButtons.BACK | InputButtons.CROUCH | InputButtons.JUMP | InputButtons.FIRE | InputButtons.ALT_FIRE;
+    if ((input.buttons & required) !== required || (input.buttons & disallowed) !== 0) return null;
+
+    const horizontalSpeed = Math.hypot(state.self.velocity.x, state.self.velocity.z);
+    if (!canInitiateSlide(horizontalSpeed, state.tick >= this._slideCooldownUntilTick)) return null;
+
+    const path = this._currentPath;
+    const step = path?.steps[path.cursor] ?? null;
+    const target = path?.nodes[path.nodes.length - 1] ?? null;
+    if (!path || !step || !target || target.type !== "item" || target.pickupId === undefined) return null;
+    if (step.type !== "walk" || path.cursor !== path.steps.length - 1) return null;
+    if (state.pickupActiveMask[target.pickupId] !== true || this._blockedPickupIds.has(target.pickupId)) return null;
+
+    const targetDelta = vec3Subtract(target.position, state.self.position);
+    const targetDistance = Math.hypot(targetDelta.x, targetDelta.z);
+    const maximumDistance = Math.min(
+      ITEM_SLIDE_MAX_DISTANCE,
+      horizontalSpeed * PHYSICS.SLIDE_SPEED_MULT * (PHYSICS.SLIDE_DURATION / 1000) + 120,
+    );
+    if (targetDistance < ITEM_SLIDE_MIN_DISTANCE || targetDistance > maximumDistance || Math.abs(targetDelta.y) > 96)
+      return null;
+
+    const targetDirection = vec3Normalize({ x: targetDelta.x, y: 0, z: targetDelta.z });
+    if (horizontalSpeed > 0.001) {
+      const velocityDot =
+        (state.self.velocity.x * targetDirection.x + state.self.velocity.z * targetDirection.z) / horizontalSpeed;
+      if (Math.acos(Math.max(-1, Math.min(1, velocityDot))) > ITEM_SLIDE_MAX_VELOCITY_ERROR_RADIANS) return null;
+    }
+
+    const allyBlocksLane = state.players.some((player) => {
+      if (player.relation !== "ally" || player.isDead) return false;
+      const relative = vec3Subtract(player.position, state.self.position);
+      const along = relative.x * targetDirection.x + relative.z * targetDirection.z;
+      const lateral = Math.abs(relative.x * targetDirection.z - relative.z * targetDirection.x);
+      return Math.abs(relative.y) <= 96 && along > 0 && along < targetDistance && lateral < ITEM_SLIDE_ALLY_RADIUS;
+    });
+    if (allyBlocksLane) return null;
+
+    this._activeItemSlideTarget = { pickupId: target.pickupId, position: { ...target.position } };
+    const context = this._getSequenceContext(state, step, input);
+    if (!this._sequenceRuntime.start("item_slide_approach", context)) {
+      this._activeItemSlideTarget = null;
+      return null;
+    }
+    this._slideCooldownUntilTick = state.tick + BOT_SLIDE_COOLDOWN_TICKS;
+    return this._tickActiveSequence(state);
+  }
 
   /**
    * Optional route-speed sequence that rejects unsafe geometry and preserves

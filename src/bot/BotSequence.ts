@@ -1,6 +1,6 @@
 import type { BotInput } from "./BotBrain";
 import type { BotDifficulty } from "./BotConfig";
-import type { BotGameState } from "./BotGameState";
+import type { BotGameState, Vec3 } from "./BotGameState";
 import type { MovementOpportunity } from "./BotMovementAnalyzer";
 import type { BotNavGraph, NavStep } from "./BotNavGraph";
 import type { BotVision, VisionResult } from "./BotVision";
@@ -19,6 +19,11 @@ export interface BotSequenceContext {
   difficulty?: BotDifficulty | null;
   /** Brain-owned cooldown/precondition result for starting a route slide. */
   crouchslideReady?: boolean;
+  /** Stable authoritative pickup target for a specialized final-lane slide. */
+  itemSlideTarget?: { pickupId: number; position: Vec3 } | null;
+  /** Brain-owned route-shape, availability, and cooldown result. */
+  itemSlideReady?: boolean;
+
   /** Brain-owned route-shape/safety result for starting a strafe-jump hop. */
   routeStrafeReady?: boolean;
   /** Deterministic fallback side when route error does not prefer one. */

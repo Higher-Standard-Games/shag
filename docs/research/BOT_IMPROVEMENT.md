@@ -51,6 +51,7 @@ The first Phase 2 runtime slice is also active:
 - [x] Prevent `HybridBrain` inference from modifying any active authored sequence.
 - [x] Cool down failed traversal edges and ask A* for an alternate route instead of idling on the same failure.
 - [x] Convert generic crouchslide behavior to a registered, authoritative-state-verified sequence.
+- [x] Add a pickup-ID-aware `item_slide_approach` with authoritative collection confirmation and missed-pickup suppression.
 - [x] Convert teleporter and jumppad trigger traversal to registered, authoritative-state-verified sequences.
 - [x] Persist exact trigger ID/AABB/destination/exit-yaw metadata and reject pre-schema-3 cache entries.
 - [ ] Feed sequence outcomes into bounded per-edge traversal memory.
@@ -64,6 +65,8 @@ Sequence decisions still update from replicated snapshots while `BotClient` rese
 Live validation used two 12-second headless `wdm2` duel runs (750 recorded frames each). The first exposed an old repeated-fall-edge idle loop; after the cooldown/replan change, the same deterministic spawns stayed mobile through the full repeat run. This is smoke coverage rather than a committed behavior fixture.
 
 A follow-up 12-second `wdm2` run after the authored slide conversion recorded 751 frames, completed without server/runtime errors, and exposed `sequence=route_crouchslide phase=engage` in live bot diagnostics. That confirms real snapshot-driven selection; the unit fixtures remain the deterministic coverage for slide confirmation, jump-cancel, exit, and failure behavior.
+
+A 30-second two-bot `wdm12` smoke after `item_slide_approach` recorded 1,875 frames, completed without bot/server/runtime errors, and exposed `sequence=item_slide_approach phase=slide remaining=1` in live diagnostics. The npm recorder invocation used its positional defaults despite named arguments, so this is deliberately recorded as `wdm12` evidence; deterministic fixtures remain authoritative for collection, remote consumption, overshoot, and suppressed-pickup replanning.
 
 The trigger-sequence slice rebuilt `wdm2` as schema 3 with five metadata-complete trigger edges, then restored it with zero rollouts. A 12-second live duel recorded 752 frames and completed without bot/server/runtime errors. The stochastic smoke run did not select a trigger edge, so deterministic fixtures remain the evidence for teleporter activation/exit, jumppad launch/target, false-launch rejection, and failure cooldown behavior.
 
@@ -496,6 +499,10 @@ This is a specialization of route crouchslide:
 
 If an item is inactive, a skilled bot may still route there only when predicted respawn occurs near arrival. It must not repeatedly collide with an empty spawn.
 
+Implemented first slice: the sequence is restricted to the final straight `walk` edge of `ITEM_RUN` or health `RETREAT`, requires an active stable pickup ID, authoritative slide readiness, aligned velocity, a simulation-derived distance envelope, and an ally-free lane. It confirms slide entry from replicated `isSliding`, releases crouch at 190 units for a precise 128-unit-radius collection, and succeeds only when that exact pickup's authoritative mask bit clears after a near pass. A mask transition far from the target is classified as another player's pickup; passing an active target is a miss, temporarily suppresses that pickup ID for five seconds, and forces item replanning.
+
+This first slice deliberately excludes penultimate-corner entry and jump-cancel continuation. Those require a validated post-pickup route and exit occupancy check; otherwise the speed trick would recreate the overshoot problem it is meant to solve.
+
 ### 7.4 Teleporter traversal
 
 Sequence ID: `traverse_teleporter`
@@ -626,7 +633,7 @@ The analyzer should search over:
 
 Store the minimum required speed and a safe target speed. A bot should not attempt a jump merely because the theoretical maximum reaches it. `successMargin` should account for snapshot delay, turn error, route obstruction, and difficulty. Medium bots can require a wider landing region; hard bots can use narrower opportunities.
 
-Use the real simulation configuration. There is already evidence of constant drift: `MovementProfile` currently defaults `slideSpeedMultiplier` to `1.4`, while `MovementVars` declares `sv_slideSpeedMultiplier` as `1.2`. Duplicating either number in bot code or a cache would make special-jump estimates unreliable.
+Use the real simulation configuration. The implemented baseline is now exported as `DEFAULT_FPS_MOVEMENT_CONFIG`; both `MovementProfile` and `BotMovementProfile.PHYSICS` consume it. This removed stale bot assumptions including a `1.2` slide-entry multiplier when authoritative simulation uses `1.4`, plus outdated wall-jump and ledge-pull values. A physics-backed test confirms that the exported slide baseline actually enters a slide and applies the expected boost.
 
 #### Wall-jump reachability
 
@@ -1176,9 +1183,9 @@ This phase should land before new attacks.
 - Extend the initial `route_crouchslide` with collision/occupancy prediction and item-specific stopping-distance policy.
 - [x] Implement the first `traverse_teleporter` and `traverse_jumppad` executors.
 - [x] Implement the first conservative `route_strafe_jump` executor.
-- [ ] Implement `item_slide_approach`.
+- [x] Implement the first conservative final-edge `item_slide_approach`.
 - Implement opportunity executors for speed-assisted jump, wall jump, and wall-jump-to-ledge-grab plans.
-- Tune using real movement simulation, not duplicated hardcoded constants.
+- [x] Export the authoritative FPS movement baseline and derive bot physics knowledge from it.
 - Add route look-ahead, stopping distance, corner angle, trigger entry, and teammate occupancy checks.
 
 ### Phase 4: Combat choreography
@@ -1231,7 +1238,7 @@ Names are proposals; exact splits can be adjusted during implementation.
 | `src/cli/bot-analyze.ts` | Implemented deterministic map-analysis CLI; writes reports/caches without starting a match. |
 | `src/bot/BotGoalPlanner.ts` | Candidate goals, utility, stickiness, interruption, failure cooldowns. |
 | `src/bot/BotSequence.ts` | Implemented sequence registry/runtime; owns scoring, authoritative-tick phase state, commitments, timeouts, and aborts. |
-| `src/bot/sequences/*` | `ValidatedJumpSequence`, `RouteCrouchslideSequence`, `RouteStrafeJumpSequence`, `TraverseTeleporterSequence`, and `TraverseJumppadSequence` are implemented; richer movement, item, and combat sequences remain incremental. |
+| `src/bot/sequences/*` | `ValidatedJumpSequence`, `RouteCrouchslideSequence`, `RouteStrafeJumpSequence`, `ItemSlideApproachSequence`, `TraverseTeleporterSequence`, and `TraverseJumppadSequence` are implemented; richer movement and combat sequences remain incremental. |
 | `src/bot/BotFireSafety.ts` | Relation, line-of-fire, projectile, splash, and self-risk checks. |
 | `src/bot/StateMachineBrain.ts` | Become fallback/proposal logic; remove generic random actions replaced by sequences. |
 | `src/bot/HybridBrain.ts` | Score valid goals/sequences later; preserve rule fallback. |
