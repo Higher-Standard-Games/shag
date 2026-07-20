@@ -2,13 +2,27 @@
 
 > Deliberate combat sequences, movement skill, map memory, team safety, human-like behavior, and gametype-directed goals.
 
-**Date:** 2026-07-20
-**Status:** Investigation complete; phased implementation active on `feature/bot-improvements`
+**Date:** 2026-07-21
+**Status:** Phase 0–3 foundation merged to `main`; implementation deliberately paused at this checkpoint
 **Scope:** Headless bots in `src/bot`, FPS gametypes in `src/games/fps`, and the minimum shared network contracts needed to connect them
+
+### Current pause point
+
+The first generalized-map milestone is complete and work is paused here for playtesting and prioritization. Nothing in this slice hardcodes `wdm2` coordinates: bots derive typed navigation, trigger metadata, pickup identities, and bounded movement opportunities from the loaded BSP, then persist only versioned static results. `wdm2` is a repeatable validation map, not authored bot knowledge.
+
+Landed at this checkpoint:
+
+- team-safe per-bot perception, pickup-mask reasoning, and a final friendly-fire gate;
+- typed A* navigation with exact teleporter/jumppad steps, validated falls and ordinary jumps, failed-edge cooldowns, and replanning;
+- BSP-hashed/schema-versioned static map caches plus the reproducible `bot:analyze` report path;
+- deterministic, snapshot-verified sequences for ordinary jumps, route crouchslides, conservative strafe jumps, trigger traversal, and final-edge slides into active items;
+- authoritative FPS movement defaults/fingerprints shared with bot analysis so cached opportunities invalidate when physics changes.
+
+Resume from the remaining unchecked work below. The next coherent milestone is richer arbitrary-surface discovery and speed/wall/ledge movement analysis, followed by blade-slide and rocket-drop combat choreography. Gametype directives, humanization, empirical traversal memory, and neural training remain later phases; online gradient updates should not begin until attempt/outcome attribution and safety evaluation are versioned and testable.
 
 ### Implementation progress
 
-Phase 0 is intentionally a correctness foundation before advanced movement and combat sequences:
+Phase 0 landed as the correctness foundation before advanced movement and combat sequences:
 
 - [x] Create matching root and FPS-submodule feature branches.
 - [x] Keep BSP collision/map knowledge shared while forking LOS cache and enemy memory per bot.
@@ -23,7 +37,7 @@ Phase 0 is intentionally a correctness foundation before advanced movement and c
 - [ ] Add splash-risk safety and teammate-aware movement occupancy.
 - [ ] Expose explicit gametype `teamBased` metadata rather than relying only on playable team IDs.
 
-Phase 1 navigation foundation is now active:
+The first Phase 1 navigation foundation is complete; its richer discovery and learning layers remain deferred:
 
 - [x] Preserve A* edge semantics in per-bot `NavStep[]` paths with a stateful cursor.
 - [x] Execute jump, fall, teleporter, jumppad, and precise item approaches differently.
@@ -41,7 +55,7 @@ Phase 1 navigation foundation is now active:
 
 The first movement rollout slice is complete. On the current `wdm2` BSP an uncached deterministic build analyzes 14 directional candidates, accepts 12, rejects 2 outside the bounded envelope, and performs 14 rollouts in roughly 52-61 ms on the development machine. A cache hit performs zero new rollouts. These are observations, not CI budgets.
 
-The first Phase 2 runtime slice is also active:
+The first Phase 2 runtime slice is complete:
 
 - [x] Add a deterministic sequence registry with applicability scoring and stable tie-breaking.
 - [x] Track phase state, authoritative-tick timeouts, short commitment windows, terminal results, and abort reasons.
@@ -60,7 +74,7 @@ The first Phase 2 runtime slice is also active:
 
 `nav_traverse_teleporter` now approaches the cached trigger AABB center, commits after authoritative hull overlap, and succeeds only after a snapshot appears inside the lifted destination envelope. `nav_traverse_jumppad` likewise centers the pad, confirms a real upward airborne launch, commits through the flight, and succeeds only on reaching the authored ballistic-target envelope. Missing confirmation, short landing, or timeout fails the sequence; the owning edge is cooled down for five seconds and A* replans around it.
 
-Sequence decisions still update from replicated snapshots while `BotClient` resends the selected input at 125 Hz. Durations therefore use authoritative `BotGameState.tick`; there is not yet a separate 125 Hz local phase predictor. The next slices expand arbitrary-surface discovery and movement templates.
+Sequence decisions still update from replicated snapshots while `BotClient` resends the selected input at 125 Hz. Durations therefore use authoritative `BotGameState.tick`; there is not yet a separate 125 Hz local phase predictor. On resume, the next slices expand arbitrary-surface discovery and movement templates.
 
 Live validation used two 12-second headless `wdm2` duel runs (750 recorded frames each). The first exposed an old repeated-fall-edge idle loop; after the cooldown/replan change, the same deterministic spawns stayed mobile through the full repeat run. This is smoke coverage rather than a committed behavior fixture.
 
