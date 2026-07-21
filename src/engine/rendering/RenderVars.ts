@@ -71,6 +71,7 @@ export type RenderVarName =
   | "r_emissive"
   | "r_anisotropy"
   | "r_ktx2"
+  | "r_webgpu"
   | "r_wireframe"
   | "r_bloom"
   | "r_exposure"
@@ -174,6 +175,14 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, "name">> = {
     max: 1,
     description: "Prefer generated KTX2 texture sidecars when available (0/1). Applies on next texture load.",
     category: "texture",
+  },
+  r_webgpu: {
+    value: 0,
+    defaultValue: 0,
+    min: 0,
+    max: 1,
+    description: "Use the experimental WebGPU renderer after restart (0/1). Falls back to WebGL2 on failure.",
+    category: "display",
   },
   r_wireframe: {
     value: 0,
@@ -484,7 +493,7 @@ export class RenderVars {
     }
 
     // Integer-like vars
-    if (name === "r_anisotropy" || name === "r_wireframe") {
+    if (name === "r_anisotropy" || name === "r_wireframe" || name === "r_webgpu") {
       value = Math.round(value);
     }
 

@@ -1,7 +1,7 @@
 # Babylon.js 9 Upgrade — Deep Research & Migration Plan
 
 **Date:** 2026-07-21 (deep-audit revision — supersedes the first draft's claims)
-**Status:** Active migration — WS1–WS3 implemented; WS4 runtime/build pipeline and asset generation complete, browser visual/performance validation pending
+**Status:** Active migration — WS1–WS4 complete; WS6 WebGPU foundation implemented behind an opt-in fallback, browser visual/performance validation pending
 **Scope:** `@babylonjs/core` + `@babylonjs/loaders` 8.56 → 9.17.x; what the jump
 *actually* requires given our measured API surface; which modern APIs we can
 migrate into (some without upgrading at all)
@@ -229,6 +229,27 @@ rendering only for static contexts (menus/lobby/diorama), never gameplay.
 > the manifest request misses and the unchanged PK3 source path remains active.
 > The actual browser decoder path plus T4's visual A/B/VRAM/load-time
 > measurements remain owed.
+>
+> **WS5 audit completed:** keep the current outline path. The player and weapon
+> presentation already uses Babylon's built-in per-mesh `OutlineRenderer`; it
+> was not a new Babylon 9 replacement and the 9.x implementation offers no
+> migration win over the feature we already ship. Babylon navigation remains a
+> poor fit for the server-authoritative, BSP-derived `BotNavGraph`, so the bot
+> workstream keeps its deterministic graph/analyzer path. Inspector v2 remains
+> an optional developer tool rather than a shipped dependency.
+>
+> **WS6 foundation implemented (experimental, default off):** startup now goes
+> through an async renderer factory. `r_webgpu 1` selects `WebGPUEngine` after a
+> reload; `?renderer=webgpu`/`?renderer=webgl2` provide session-only A/B
+> overrides without changing persisted settings. Unsupported adapters and all
+> initialization failures fall back to WebGL2. GLSLang and TWGSL JS/WASM are
+> bundled locally instead of fetched from Babylon's CDN, Q3 `NodeMaterial`s
+> select WGSL under WebGPU, and gameplay resource recovery uses Babylon's
+> renderer-agnostic context-loss observables (including WebGPU device loss).
+> The production build emits the compiler assets and the factory/fallback unit
+> suite is green. This is the safe entry point, not completion of T6: the four
+> custom shader families, post stack, KTX1-only fallbacks, lobby-spawned map
+> lifecycle, and performance targets still require browser validation.
 
 Ordering rationale: **measure first** (targets are meaningless without a
 baseline), then take the biggest win on the version we already run (WS1 —
@@ -246,8 +267,8 @@ fps-first ritual; nothing here blocks or mixes with the in-flight bot work.
 | **WS2** | **Hygiene migrations** (B: `SceneLoader` → module loader functions, 8 sites; C: 15 barrel imports → per-module paths). Do BEFORE the bump so the 9.x diff is pure | Targets T2; tests green; zero behavior diff | 1 session |
 | **WS3** | **Babylon 9.17 bump** (old Phase 0+1): bump core+loaders, contingent TS bump (isolated commit), full gates (`tsc` ×2 → `test:run` → biome → `server:tick` → headless smokes incl. clustered-container leak test + `ShadersInclude` compile check), then the browser validation checklist (maps → weapons → pickups v4 → post pipeline → GLB models → post-match → demo playback) | Targets T3; checklist signed off in playtest | 1–2 sessions |
 | **WS4** | **KTX2 texture pipeline — code and generation complete.** PK3-aware converter → 3020 manifest-indexed `.ktx2` sidecars, loader preference, local worker transcoder, `r_ktx2` fallback | Publish cache with game data, then pass T4 + browser A/B visual checks | 1–2 sessions |
-| **WS5** | **9-gated adoption evaluations** (cheap spikes, adopt only on win): outline renderer vs custom team outlines; nav-mesh improvements → handoff note to the bot workstream; inspector v2 as dev dep | Keep-or-drop decision per item, noted here | ½ session each |
-| **WS6** | **`r_webgpu` experiment**: `WebGPUEngine` + WebGL2 fallback behind the cvar; validate the four GLSL `ShaderMaterial` families under runtime GLSL→WGSL; `Q3NodeMaterialBuilder` WGSL variant if clustered lights touch those surfaces; snapshot rendering only for lobby/menu/diorama | Targets T6; default stays WebGL2 until T6 met on both hardware tiers | separate cycle |
+| **WS5** | **9-gated adoption audit complete.** Keep Babylon's existing per-mesh outline path; keep deterministic BSP bot navigation; leave Inspector v2 optional/unshipped | Decisions recorded above; no speculative dependencies or renderer rewrite | complete |
+| **WS6** | **`r_webgpu` experiment — foundation implemented:** async `WebGPUEngine` selection, local GLSLang/TWGSL, WebGL2 fallback, WGSL Q3 NodeMaterials, renderer-neutral context recovery. Next: validate the four custom `ShaderMaterial` families and the full lobby-spawned game lifecycle; snapshot rendering only for lobby/menu/diorama after correctness | Targets T6; default stays WebGL2 until T6 met on both hardware tiers | active |
 
 **Rollback:** WS3 is a single-commit revert (lockfile included). WS1/WS2/WS4
 are independent commit chains, individually revertible, none depend on 9.
@@ -310,6 +331,23 @@ dGPU ≥ 240 FPS avg for competitive play.
 3. Which demo becomes the canonical perf demo (WS0) — record fresh on wdm2 with
    bots for repeatable combat density, or reuse an existing one.
 4. Whether the UASTC override list needs expansion after the WS4 texture A/B.
+5. Which KTX1-only assets need conversion or a broader software decoder before
+   WebGPU can be considered independent of the generated KTX2 cache.
+
+## Manual WebGPU acceptance path
+
+Use the normal lobby lifecycle (not direct `?map=` loading):
+
+1. Start the client and lobby server normally.
+2. Set `r_webgpu 1`, reload, click through the loading screen, then join a
+   lobby-spawned match. For a non-persistent one-off run, open
+   `/?renderer=webgpu` instead.
+3. Confirm `window.rendererBackend === "webgpu"` and the console reports
+   `[Main] Rendering backend: webgpu`. A fallback reports its reason and leaves
+   `window.rendererBackend === "webgl2"`.
+4. Exercise BSP/Q3 animated shaders, all weapon shader families, outlines,
+   KTX2 textures, post-processing, death/drop/respawn, map reset, and match end.
+5. Repeat with `/?renderer=webgl2` for the visual/performance comparison.
 
 ## Sources
 - npm registry: `@babylonjs/core` latest **9.17.0** (9.16.x published 2026-07)

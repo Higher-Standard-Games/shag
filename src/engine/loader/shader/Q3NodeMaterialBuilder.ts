@@ -16,6 +16,7 @@ import { VertexOutputBlock } from "@babylonjs/core/Materials/Node/Blocks/Vertex/
 import { VectorMergerBlock } from "@babylonjs/core/Materials/Node/Blocks/vectorMergerBlock";
 import { NodeMaterialSystemValues } from "@babylonjs/core/Materials/Node/Enums/nodeMaterialSystemValues";
 import { NodeMaterial } from "@babylonjs/core/Materials/Node/nodeMaterial";
+import { ShaderLanguage } from "@babylonjs/core/Materials/shaderLanguage";
 import type { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import type { Scene } from "@babylonjs/core/scene";
 import type { Q3ShaderStage } from "./Q3ShaderTypes";
@@ -111,7 +112,10 @@ export class Q3NodeMaterialBuilder {
 
     console.log(`[Q3NodeMaterialBuilder] Building ${name} with ${validStages.length} stages`);
 
-    const nodeMaterial = new NodeMaterial(name, scene, { emitComments: false });
+    const nodeMaterial = new NodeMaterial(name, scene, {
+      emitComments: false,
+      shaderLanguage: scene.getEngine().isWebGPU ? ShaderLanguage.WGSL : ShaderLanguage.GLSL,
+    });
     const animationInputs = new Map<number, { uOffset: InputBlock; vOffset: InputBlock; rotation?: InputBlock }>();
 
     // ========================================================================
