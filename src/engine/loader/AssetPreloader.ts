@@ -14,7 +14,12 @@ import { EntityRegistry } from "../../shared/entities/EntityRegistry";
 import { EntityType } from "../../shared/entities/EntityType";
 import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
 import type { BspFile } from "./bsp/BspLoader";
-import { ModelLoader, type ModelLoadResult } from "./model/ModelLoader";
+import {
+  collectModelAttachmentPoints,
+  type ModelAttachmentPoint,
+  ModelLoader,
+  type ModelLoadResult,
+} from "./model/ModelLoader";
 
 export interface PreloadProgress {
   current: number;
@@ -160,6 +165,7 @@ export class AssetPreloader {
             animationGroups: glbResult.animationGroups || [],
             skeletons: glbResult.skeletons || [],
             lights: [],
+            attachmentPoints: collectModelAttachmentPoints(glbResult.transformNodes),
           };
         } else {
           result = await loader.loadModel(modelPath, {
@@ -239,10 +245,27 @@ export class AssetPreloader {
         animationGroups: [],
         skeletons: [],
         lights: [],
+        attachmentPoints: this.cloneAttachmentPoints(cached.attachmentPoints),
       };
     } catch (e) {
       console.warn(`[AssetPreloader] Failed to clone cached model:`, e);
       return null;
     }
+  }
+
+  private cloneAttachmentPoints(
+    points?: Record<string, ModelAttachmentPoint>,
+  ): Record<string, ModelAttachmentPoint> | undefined {
+    if (!points) return undefined;
+    return Object.fromEntries(
+      Object.entries(points).map(([name, point]) => [
+        name,
+        {
+          position: point.position.clone(),
+          rotation: point.rotation.clone(),
+          rotationQuaternion: point.rotationQuaternion ? { ...point.rotationQuaternion } : null,
+        },
+      ]),
+    );
   }
 }

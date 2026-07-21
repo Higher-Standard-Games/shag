@@ -33,7 +33,7 @@ import type { Scene } from "@babylonjs/core/scene";
 import { AudioManager } from "../AudioManager";
 import { CameraSystem } from "../camera/CameraSystem";
 import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
-import { ModelLoader } from "../loader/model/ModelLoader";
+import { type ModelAttachmentPoint, ModelLoader } from "../loader/model/ModelLoader";
 import { getCollisionManager } from "../physics";
 import { PhysicsSystem } from "../physics/PhysicsSystem";
 import type { PickupVisual, PickupVisualFactory } from "./PickupVisual";
@@ -86,6 +86,8 @@ export class Pickup extends TransformNode {
   protected mesh: Mesh | null = null;
   /** Exposed through pickup_audit so cache hits can be compared with fresh model loads. */
   protected modelLoadSource: "none" | "cache-flat" | "fresh-flat" = "none";
+  /** Authored tag_* transforms retained even when the cached GLB is flattened. */
+  protected modelAttachmentPoints: Record<string, ModelAttachmentPoint> = {};
   public isActive: boolean = true;
   protected respawnTimer: number | null = null;
   protected glowLight: PointLight | null = null;
@@ -98,6 +100,9 @@ export class Pickup extends TransformNode {
 
   /** Per-frame proximity/glow observer. Captured so dispose() can detach it. */
   private _renderObserver: Observer<Scene> | null = null;
+
+  /** Model/procedural construction is part of map loading, not detached work. */
+  private readonly modelReady: Promise<void>;
 
   /** Whether physics has settled (velocity near zero). Used for server position sync. */
   public settled: boolean = false;
@@ -118,7 +123,12 @@ export class Pickup extends TransformNode {
       this.isActive = false;
     }
     this.onConstructed();
-    this.loadModel();
+    this.modelReady = this.loadModel();
+  }
+
+  /** Resolve when this pickup's renderable (or deliberate no-model fallback) is ready. */
+  public whenReady(): Promise<void> {
+    return this.modelReady;
   }
 
   // ═════════════════════════════════════════════════════════════════
@@ -196,6 +206,7 @@ export class Pickup extends TransformNode {
       }
 
       if (result?.root) {
+        this.modelAttachmentPoints = result.attachmentPoints ?? {};
         const pickupScale = this.options.scale || 1.5;
 
         // Find the leader mesh (first renderable) and parent all other meshes under it.
@@ -661,10 +672,10 @@ export class Pickup extends TransformNode {
       this.visual = null;
     }
 
-    if (this.mesh) {
+    if (this.mesh && !this.mesh.isDisposed()) {
       this.mesh.dispose(false, true);
-      this.mesh = null as unknown as Mesh;
     }
+    this.mesh = null as unknown as Mesh;
 
     super.dispose();
   }

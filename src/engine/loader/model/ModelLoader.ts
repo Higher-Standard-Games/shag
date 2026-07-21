@@ -75,8 +75,37 @@ export interface ModelLoadResult {
   skeletons: Skeleton[];
   /** Lights created for this model (for cleanup) */
   lights?: DirectionalLight[];
+  /** Named GLB attachment nodes (for example tag_barrel2), in model-local space. */
+  attachmentPoints?: Record<string, ModelAttachmentPoint>;
   /** Promises that resolve when textures finish loading (for async texture loading) */
   textureLoadPromises?: Promise<void>[];
+}
+
+export interface ModelAttachmentPoint {
+  position: Vector3;
+  rotation: Vector3;
+  rotationQuaternion: { x: number; y: number; z: number; w: number } | null;
+}
+
+/** Snapshot authored tag_* nodes before cache cloning/mesh flattening discards them. */
+export function collectModelAttachmentPoints(nodes?: readonly TransformNode[]): Record<string, ModelAttachmentPoint> {
+  const points: Record<string, ModelAttachmentPoint> = {};
+  for (const node of nodes ?? []) {
+    if (!node.name.startsWith("tag_")) continue;
+    points[node.name] = {
+      position: node.position.clone(),
+      rotation: node.rotation.clone(),
+      rotationQuaternion: node.rotationQuaternion
+        ? {
+            x: node.rotationQuaternion.x,
+            y: node.rotationQuaternion.y,
+            z: node.rotationQuaternion.z,
+            w: node.rotationQuaternion.w,
+          }
+        : null,
+    };
+  }
+  return points;
 }
 
 /**
@@ -276,6 +305,7 @@ export class ModelLoader {
 
       const animationGroups: AnimationGroup[] = result.animationGroups || [];
       const skeletons: Skeleton[] = result.skeletons || [];
+      const attachmentPoints = collectModelAttachmentPoints(result.transformNodes);
 
       // Apply BSP LightGrid lighting (skip for small items to avoid exceeding light limits)
       const lights = applyLighting ? this.applyBspLighting(root.position, meshes) : [];
@@ -300,7 +330,7 @@ export class ModelLoader {
         `Loaded model: ${modelPath} at ${position.toString()} (${meshes.length} meshes, ${animationGroups.length} animations)`,
       );
 
-      return { root, meshes, animationGroups, skeletons, lights };
+      return { root, meshes, animationGroups, skeletons, lights, attachmentPoints };
     } catch (error) {
       console.error(`Failed to load model: ${modelPath}`, error);
       return null;
