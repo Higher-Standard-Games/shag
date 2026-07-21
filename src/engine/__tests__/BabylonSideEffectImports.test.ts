@@ -22,6 +22,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import "../animation/PlayerModelManager"; // mesh.renderOutline (player/enemy outlines)
 import "../weapon/WeaponViewManager"; // weapon viewmodel outline
 import "../loader/bsp/BspEntityHandlers"; // scene.beginAnimation (BSP frame anims)
+import "../physics/PhysicsSystem"; // scene.enablePhysics / getPhysicsEngine
 
 let engine: NullEngine;
 let scene: Scene;
@@ -49,5 +50,15 @@ describe("Babylon side-effect registrations", () => {
     // The Animations/animatable side-effect adds Scene.beginAnimation.
     // biome-ignore lint/suspicious/noExplicitAny: probing runtime augmentation
     expect(typeof (scene as any).beginAnimation).toBe("function");
+  });
+
+  it("Physics engine component is registered (scene.enablePhysics wires an engine)", () => {
+    // joinedPhysicsEngineComponent adds Scene.prototype.enablePhysics +
+    // getPhysicsEngine. Without it, enablePhysics is a no-op stub and
+    // getPhysicsEngine() stays null → "No Physics Engine available".
+    // biome-ignore lint/suspicious/noExplicitAny: probing runtime augmentation
+    expect(typeof (scene as any).enablePhysics).toBe("function");
+    // biome-ignore lint/suspicious/noExplicitAny: probing runtime augmentation
+    expect(typeof (scene as any).getPhysicsEngine).toBe("function");
   });
 });
