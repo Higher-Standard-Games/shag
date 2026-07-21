@@ -1,7 +1,7 @@
 # Babylon.js 9 Upgrade — Deep Research & Migration Plan
 
 **Date:** 2026-07-21 (deep-audit revision — supersedes the first draft's claims)
-**Status:** Active migration — WS1–WS3 implemented; WS4 runtime/build pipeline implemented, asset generation and visual/performance validation pending
+**Status:** Active migration — WS1–WS3 implemented; WS4 runtime/build pipeline and asset generation complete, browser visual/performance validation pending
 **Scope:** `@babylonjs/core` + `@babylonjs/loaders` 8.56 → 9.17.x; what the jump
 *actually* requires given our measured API surface; which modern APIs we can
 migrate into (some without upgrading at all)
@@ -216,9 +216,19 @@ rendering only for static contexts (menus/lobby/diorama), never gameplay.
 > WASM modules locally. Gates: typecheck and build clean, **1527/1527 tests**,
 > simulation/server tick/1000-tick fuzz/headless wdm2 load clean; the existing
 > physics diagnostic still exits successfully while warning on its standalone
-> `StepSlideMove` Y delta. Khronos KTX-Software is not installed on this
-> machine, so no sidecars were generated and the actual decoder path plus T4's
-> browser A/B/VRAM/load-time measurements remain owed.
+> `StepSlideMove` Y delta.
+>
+> **WS4 generation completed:** the official stable Khronos KTX-Software 4.4.2
+> encoder generated all **3020/3020** sidecars with zero missing manifest
+> entries. The cache is **88,051,152 bytes (~84 MiB)**; all 3020 containers pass
+> `ktx validate`, and the production `dist/data/ktx2cache` copy has exact
+> file-count/byte-count parity. The discovery pass also hardened the converter
+> for KTX 4.x/5.x codec naming, indexed-color TGA variants, and PK3 filenames
+> containing commas. `public/data` is deliberately gitignored, so deployments
+> must publish `ktx2cache` with the external game-data payload. If it is absent,
+> the manifest request misses and the unchanged PK3 source path remains active.
+> The actual browser decoder path plus T4's visual A/B/VRAM/load-time
+> measurements remain owed.
 
 Ordering rationale: **measure first** (targets are meaningless without a
 baseline), then take the biggest win on the version we already run (WS1 —
@@ -235,7 +245,7 @@ fps-first ritual; nothing here blocks or mixes with the in-flight bot work.
 | **WS1** | **Cluster the dynamic effect lights** (Migration A): pooled effect lights + pickup/charge glows into a perspective-tuned `ClusteredLightContainer`; retire `DynamicLightSafety` clamps + `PointLightPool` rationing + light-permutation warmups. Verify frozen-material interaction (open question 2) | Targets T1; visual pass (no dropped lights, no double-lighting); all gates green | 1–2 sessions |
 | **WS2** | **Hygiene migrations** (B: `SceneLoader` → module loader functions, 8 sites; C: 15 barrel imports → per-module paths). Do BEFORE the bump so the 9.x diff is pure | Targets T2; tests green; zero behavior diff | 1 session |
 | **WS3** | **Babylon 9.17 bump** (old Phase 0+1): bump core+loaders, contingent TS bump (isolated commit), full gates (`tsc` ×2 → `test:run` → biome → `server:tick` → headless smokes incl. clustered-container leak test + `ShadersInclude` compile check), then the browser validation checklist (maps → weapons → pickups v4 → post pipeline → GLB models → post-match → demo playback) | Targets T3; checklist signed off in playtest | 1–2 sessions |
-| **WS4** | **KTX2 texture pipeline — code complete, generation pending.** PK3-aware converter → manifest-indexed `.ktx2` sidecars, loader preference, local worker transcoder, `r_ktx2` fallback | Install Khronos KTX-Software, generate cache, then pass T4 + A/B visual checks | 1–2 sessions |
+| **WS4** | **KTX2 texture pipeline — code and generation complete.** PK3-aware converter → 3020 manifest-indexed `.ktx2` sidecars, loader preference, local worker transcoder, `r_ktx2` fallback | Publish cache with game data, then pass T4 + browser A/B visual checks | 1–2 sessions |
 | **WS5** | **9-gated adoption evaluations** (cheap spikes, adopt only on win): outline renderer vs custom team outlines; nav-mesh improvements → handoff note to the bot workstream; inspector v2 as dev dep | Keep-or-drop decision per item, noted here | ½ session each |
 | **WS6** | **`r_webgpu` experiment**: `WebGPUEngine` + WebGL2 fallback behind the cvar; validate the four GLSL `ShaderMaterial` families under runtime GLSL→WGSL; `Q3NodeMaterialBuilder` WGSL variant if clustered lights touch those surfaces; snapshot rendering only for lobby/menu/diorama | Targets T6; default stays WebGL2 until T6 met on both hardware tiers | separate cycle |
 

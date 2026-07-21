@@ -18,6 +18,7 @@
 
 import { execFileSync, spawnSync } from "node:child_process";
 import {
+  copyFileSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -157,23 +158,63 @@ function decodeTga(buffer, sourceName) {
   const idLength = buffer[0];
   const colorMapType = buffer[1];
   const imageType = buffer[2];
+  const colorMapFirst = buffer.readUInt16LE(3);
+  const colorMapLength = buffer.readUInt16LE(5);
+  const colorMapDepth = buffer[7];
   const width = buffer.readUInt16LE(12);
   const height = buffer.readUInt16LE(14);
   const bitsPerPixel = buffer[16];
   const descriptor = buffer[17];
   const bytesPerPixel = bitsPerPixel / 8;
+  const colorMapped = imageType === 1 || imageType === 9;
   const grayscale = imageType === 3 || imageType === 11;
-  const rle = imageType === 10 || imageType === 11;
+  const rle = imageType === 9 || imageType === 10 || imageType === 11;
 
-  if (![2, 3, 10, 11].includes(imageType) || colorMapType !== 0 || width === 0 || height === 0) {
+  if (
+    ![1, 2, 3, 9, 10, 11].includes(imageType) ||
+    (colorMapped ? colorMapType !== 1 : colorMapType !== 0) ||
+    width === 0 ||
+    height === 0
+  ) {
     throw new Error(`Unsupported TGA layout in ${sourceName}`);
   }
-  if ((grayscale && ![1, 2].includes(bytesPerPixel)) || (!grayscale && ![3, 4].includes(bytesPerPixel))) {
+  if (
+    (colorMapped && (!Number.isInteger(bytesPerPixel) || ![1, 2].includes(bytesPerPixel))) ||
+    (grayscale && ![1, 2].includes(bytesPerPixel)) ||
+    (!colorMapped && !grayscale && ![3, 4].includes(bytesPerPixel))
+  ) {
     throw new Error(`Unsupported TGA pixel depth ${bitsPerPixel} in ${sourceName}`);
   }
 
   const rgba = Buffer.alloc(width * height * 4);
   let offset = 18 + idLength;
+  const palette = [];
+  if (colorMapped) {
+    if (colorMapLength === 0 || ![15, 16, 24, 32].includes(colorMapDepth)) {
+      throw new Error(`Unsupported TGA color map depth ${colorMapDepth} in ${sourceName}`);
+    }
+    const colorMapBytes = Math.ceil(colorMapDepth / 8);
+    for (let i = 0; i < colorMapLength; i++) {
+      if (offset + colorMapBytes > buffer.length) throw new Error(`TGA color map is truncated: ${sourceName}`);
+      if (colorMapDepth === 15 || colorMapDepth === 16) {
+        const packed = buffer.readUInt16LE(offset);
+        palette.push([
+          Math.round((((packed >> 10) & 0x1f) * 255) / 31),
+          Math.round((((packed >> 5) & 0x1f) * 255) / 31),
+          Math.round(((packed & 0x1f) * 255) / 31),
+          colorMapDepth === 16 ? ((packed & 0x8000) !== 0 ? 255 : 0) : 255,
+        ]);
+      } else {
+        palette.push([
+          buffer[offset + 2],
+          buffer[offset + 1],
+          buffer[offset],
+          colorMapDepth === 32 ? buffer[offset + 3] : 255,
+        ]);
+      }
+      offset += colorMapBytes;
+    }
+  }
   let pixelIndex = 0;
   const topOrigin = (descriptor & 0x20) !== 0;
   const rightOrigin = (descriptor & 0x10) !== 0;
@@ -181,7 +222,11 @@ function decodeTga(buffer, sourceName) {
   function readPixel() {
     if (offset + bytesPerPixel > buffer.length) throw new Error(`TGA pixel data is truncated: ${sourceName}`);
     let pixel;
-    if (grayscale) {
+    if (colorMapped) {
+      const colorIndex = bytesPerPixel === 1 ? buffer[offset] : buffer.readUInt16LE(offset);
+      pixel = palette[colorIndex - colorMapFirst];
+      if (!pixel) throw new Error(`TGA color index ${colorIndex} is outside the palette: ${sourceName}`);
+    } else if (grayscale) {
       const value = buffer[offset];
       pixel = [value, value, value, bytesPerPixel === 2 ? buffer[offset + 1] : 255];
     } else {
@@ -242,12 +287,13 @@ function runEncoder(tool, inputPath, outputPath, sourcePath) {
   const normal = isNormalMap(sourcePath);
   let commandArgs;
   if (tool.kind === "ktx") {
+    const majorVersion = Number(/v?(\d+)\./.exec(tool.version)?.[1] ?? 4);
     commandArgs = [
       "create",
       "--format",
       uastc ? "R8G8B8A8_UNORM" : "R8G8B8A8_SRGB",
       "--encode",
-      uastc ? "uastc-ldr-4x4" : "basis-lz",
+      uastc ? (majorVersion >= 5 ? "uastc-ldr-4x4" : "uastc") : "basis-lz",
       ...(uastc ? ["--uastc-quality", "2", "--zstd", "19"] : ["--clevel", "4", "--qlevel", "192"]),
       ...(normal ? ["--normalize"] : []),
       "--generate-mipmap",
@@ -295,6 +341,7 @@ async function convertTextures(selected, tool) {
   let skipped = 0;
   let errors = 0;
   let tempIndex = 0;
+  const total = selected.size;
 
   try {
     for (const sources of grouped.values()) {
@@ -314,10 +361,13 @@ async function convertTextures(selected, tool) {
           const entry = zip.file(source.entryName);
           if (!entry) throw new Error("PK3 entry disappeared while converting");
           const sourceBuffer = await entry.async("nodebuffer");
-          const pngPath = join(temporaryDirectory, `${tempIndex++}.png`);
+          const safeIndex = tempIndex++;
+          const pngPath = join(temporaryDirectory, `${safeIndex}.png`);
+          const encodedPath = join(temporaryDirectory, `${safeIndex}.ktx2`);
           writeFileSync(pngPath, decodeSourceToPng(sourceBuffer, source.path));
           mkdirSync(dirname(outputPath), { recursive: true });
-          const mode = runEncoder(tool, pngPath, outputPath, source.path);
+          const mode = runEncoder(tool, pngPath, encodedPath, source.path);
+          copyFileSync(encodedPath, outputPath);
           textures[source.canonicalPath] = {
             file: outputFile,
             source: sourceSignature,
@@ -327,6 +377,11 @@ async function convertTextures(selected, tool) {
         } catch (error) {
           errors++;
           console.error(`[KTX2] Failed ${source.path} from ${source.packageName}: ${error.message}`);
+        }
+
+        const processed = converted + skipped + errors;
+        if (processed % 50 === 0 || processed === total) {
+          console.log(`[KTX2] Progress ${processed}/${total} (converted ${converted}, skipped ${skipped}, errors ${errors})`);
         }
       }
     }
