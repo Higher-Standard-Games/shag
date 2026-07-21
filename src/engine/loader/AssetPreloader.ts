@@ -13,6 +13,7 @@ import { EntityRegistry } from "../../shared/entities/EntityRegistry";
 import { EntityType } from "../../shared/entities/EntityType";
 import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
 import type { BspFile } from "./bsp/BspLoader";
+import { bakeWorldTransformIntoVertices } from "./model/bakeGltfRoot";
 import { ModelLoader, type ModelLoadResult } from "./model/ModelLoader";
 
 export interface PreloadProgress {
@@ -138,6 +139,14 @@ export class AssetPreloader {
           // biome-ignore lint/suspicious/noExplicitAny: Babylon loader internals
           const root = glbResult.meshes[0] as any;
           const meshes = glbResult.meshes.filter((m) => m.getTotalVertices() > 0) as Mesh[];
+
+          // Flatten the glTF `__root__` handedness flip into each mesh's geometry
+          // so cloneCachedModel (which reparents to a fresh identity root) keeps
+          // correct face winding instead of rendering the pickup inside-out /
+          // invisible. See bakeGltfRoot for the full rationale.
+          for (const m of meshes) {
+            bakeWorldTransformIntoVertices(m);
+          }
 
           // Cap maxSimultaneousLights on PBR materials to prevent shader overflow
           for (const m of glbResult.meshes) {

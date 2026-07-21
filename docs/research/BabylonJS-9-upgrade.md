@@ -190,6 +190,21 @@ rendering only for static contexts (menus/lobby/diorama), never gameplay.
 > stable — no define churn); and weapon-viewmodel lighting under the raised PBR
 > budget (4, was 1) — confirm GLB weapons don't pick up world clusters wrongly
 > (fix if so: exclude the dynamic cluster from `WEAPON_LAYER_MASK`).
+>
+> **Playtest finding #2 (WS3 validation):** map weapon pickups rendered
+> invisible while dropped weapons were fine. Root cause was a real Babylon-9
+> glTF-loader behavior change: the handedness flip now lives as a `(1,1,-1)`
+> scale on the `__root__` node (pre-9 it was baked into the vertices). The
+> pickup preloader caches GLB child meshes and `cloneCachedModel` reparents them
+> to a fresh identity root — dropping `__root__` reversed the effective winding,
+> so every face became a backface (invisible). Dropped weapons keep `__root__`,
+> hence unaffected. Fix: bake each cached mesh's world matrix into its geometry
+> at preload (`bakeGltfRoot.bakeWorldTransformIntoVertices` — flips indices for
+> the negative determinant, flattens to identity), restoring the pre-9
+> origin-baked shape the clone path was written for. `ModelLoader`'s GLB
+> fallback keeps `__root__`, so it needed no change. Locked by a NullEngine
+> regression test. (The position-dependent "floating enemy model" reported
+> alongside was retracted by the reporter — not pursued.)
 
 Ordering rationale: **measure first** (targets are meaningless without a
 baseline), then take the biggest win on the version we already run (WS1 —
