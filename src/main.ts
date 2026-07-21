@@ -73,13 +73,13 @@ async function main() {
 
   const canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
 
-  // Show startup feedback before the optional async WebGPU initialization.
+  // Show startup feedback before async WebGPU initialization or WebGL fallback.
   const loadingScreen = new LoadingScreen();
   loadingScreen.show();
   loadingScreen.setStatus("Initializing renderer...");
 
-  // WebGPU is opt-in and restart-only. A URL override is useful for isolated
-  // A/B sessions while keeping the persisted default untouched.
+  // WebGPU is preferred and restart-only. A URL override is useful for
+  // isolated A/B sessions while keeping the persisted setting untouched.
   const renderVars = RenderVars.getInstance();
   const requestedBackend = resolveRenderingBackend(renderVars.get("r_webgpu") === 1, window.location.search);
   const renderer = await createRenderingEngine(canvas, requestedBackend);

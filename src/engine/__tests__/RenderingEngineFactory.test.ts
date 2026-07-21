@@ -22,7 +22,7 @@ function factories(overrides: Partial<RenderingEngineFactories> = {}): Rendering
 const canvas = {} as HTMLCanvasElement;
 
 describe("RenderingEngineFactory", () => {
-  it("keeps WebGL2 as the default and honors session URL overrides", () => {
+  it("resolves the persisted preference and honors session URL overrides", () => {
     expect(resolveRenderingBackend(false)).toBe("webgl2");
     expect(resolveRenderingBackend(true)).toBe("webgpu");
     expect(resolveRenderingBackend(false, "?renderer=webgpu")).toBe("webgpu");

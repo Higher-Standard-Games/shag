@@ -177,11 +177,11 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, "name">> = {
     category: "texture",
   },
   r_webgpu: {
-    value: 0,
-    defaultValue: 0,
+    value: 1,
+    defaultValue: 1,
     min: 0,
     max: 1,
-    description: "Use the experimental WebGPU renderer after restart (0/1). Falls back to WebGL2 on failure.",
+    description: "Prefer WebGPU after restart (0/1). Automatically falls back to WebGL2 on failure.",
     category: "display",
   },
   r_wireframe: {
@@ -493,7 +493,7 @@ export class RenderVars {
     }
 
     // Integer-like vars
-    if (name === "r_anisotropy" || name === "r_wireframe" || name === "r_webgpu") {
+    if (name === "r_anisotropy" || name === "r_ktx2" || name === "r_wireframe" || name === "r_webgpu") {
       value = Math.round(value);
     }
 

@@ -120,7 +120,7 @@ describe("RenderVars", () => {
       expect(rv.get("r_glossmap")).toBe(1.0);
       expect(rv.get("r_lightmap")).toBe(1.0);
       expect(rv.get("r_anisotropy")).toBe(8);
-      expect(rv.get("r_webgpu")).toBe(0);
+      expect(rv.get("r_webgpu")).toBe(1);
       expect(rv.get("r_wireframe")).toBe(0);
     });
 
@@ -202,8 +202,14 @@ describe("RenderVars", () => {
 
     it("rounds restart-only r_webgpu to integer", () => {
       const rv = getRV();
-      rv.set("r_webgpu", 0.8);
-      expect(rv.get("r_webgpu")).toBe(1);
+      rv.set("r_webgpu", 0.2);
+      expect(rv.get("r_webgpu")).toBe(0);
+    });
+
+    it("rounds r_ktx2 to integer", () => {
+      const rv = getRV();
+      rv.set("r_ktx2", 0.2);
+      expect(rv.get("r_ktx2")).toBe(0);
     });
   });
 
