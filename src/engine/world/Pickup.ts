@@ -233,18 +233,6 @@ export class Pickup extends TransformNode {
             m.isVisible = true;
           }
 
-          // Static map pickups are frustum-culled invisible under Babylon 9: the
-          // cloned/reparented leader's world bounding info is stale (dropped
-          // weapons escape this because their Havok body resyncs bounds every
-          // frame). Recompute bounds now and opt out of frustum culling — pickup
-          // meshes are few and small, so always-active is cheap and correct.
-          leaderMesh.computeWorldMatrix(true);
-          leaderMesh.refreshBoundingInfo();
-          leaderMesh.alwaysSelectAsActiveMesh = true;
-          for (const m of otherMeshes) {
-            m.alwaysSelectAsActiveMesh = true;
-          }
-
           this.mesh = leaderMesh;
         }
 

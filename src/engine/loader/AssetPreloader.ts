@@ -5,6 +5,7 @@
  * and preloads them to avoid loading hitches during gameplay.
  */
 
+import type { Material } from "@babylonjs/core/Materials/material";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
@@ -13,7 +14,6 @@ import { EntityRegistry } from "../../shared/entities/EntityRegistry";
 import { EntityType } from "../../shared/entities/EntityType";
 import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
 import type { BspFile } from "./bsp/BspLoader";
-import { bakeWorldTransformIntoVertices } from "./model/bakeGltfRoot";
 import { ModelLoader, type ModelLoadResult } from "./model/ModelLoader";
 
 export interface PreloadProgress {
@@ -140,19 +140,17 @@ export class AssetPreloader {
           const root = glbResult.meshes[0] as any;
           const meshes = glbResult.meshes.filter((m) => m.getTotalVertices() > 0) as Mesh[];
 
-          // Flatten the glTF `__root__` handedness flip into each mesh's geometry
-          // so cloneCachedModel (which reparents to a fresh identity root) keeps
-          // correct face winding instead of rendering the pickup inside-out /
-          // invisible. See bakeGltfRoot for the full rationale.
-          for (const m of meshes) {
-            bakeWorldTransformIntoVertices(m);
-          }
-
-          // Cap maxSimultaneousLights on PBR materials to prevent shader overflow
+          // Configure PBR materials for clustered lighting, matching ModelLoader's
+          // GLB path: cap simultaneous lights, and disable physical light falloff
+          // (GLB PBR + ClusteredLightContainer renders wrong with it on).
           for (const m of glbResult.meshes) {
-            if (m.material && "maxSimultaneousLights" in m.material) {
-              // biome-ignore lint/suspicious/noExplicitAny: Babylon loader internals
-              applySafeMaxSimultaneousLights(m.material as any);
+            const mat = m.material as (Material & { usePhysicalLightFalloff?: boolean }) | null;
+            if (mat && "maxSimultaneousLights" in mat) {
+              // biome-ignore lint/suspicious/noExplicitAny: Babylon material introspection
+              applySafeMaxSimultaneousLights(mat as any);
+            }
+            if (mat && "usePhysicalLightFalloff" in mat) {
+              mat.usePhysicalLightFalloff = false;
             }
           }
 
