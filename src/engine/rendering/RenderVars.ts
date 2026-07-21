@@ -70,6 +70,7 @@ export type RenderVarName =
   | "r_ambient"
   | "r_emissive"
   | "r_anisotropy"
+  | "r_ktx2"
   | "r_wireframe"
   | "r_bloom"
   | "r_exposure"
@@ -164,6 +165,14 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, "name">> = {
     min: 1,
     max: 16,
     description: "Anisotropic filtering level (1-16)",
+    category: "texture",
+  },
+  r_ktx2: {
+    value: 1,
+    defaultValue: 1,
+    min: 0,
+    max: 1,
+    description: "Prefer generated KTX2 texture sidecars when available (0/1). Applies on next texture load.",
     category: "texture",
   },
   r_wireframe: {

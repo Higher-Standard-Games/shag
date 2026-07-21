@@ -14,8 +14,22 @@ import { RawTexture } from "@babylonjs/core/Materials/Textures/rawTexture";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import type { Scene } from "@babylonjs/core/scene";
+import { Cvar } from "../../core/Cvar";
 import { createTextureFromKTX1, parseKTX1 } from "../texture/KTX1Loader";
+import { ensureKTX2Decoder } from "../texture/KTX2DecoderRuntime";
 import { PK3Loader } from "./PK3Loader";
+
+type KTX2ManifestEntry = string | { file: string };
+
+interface KTX2Manifest {
+  version: 1;
+  textures: Record<string, KTX2ManifestEntry>;
+}
+
+interface LocatedKTX2Manifest {
+  baseUrl: string;
+  manifest: KTX2Manifest;
+}
 
 export interface TextureSet {
   /** Base/diffuse texture path */
@@ -44,6 +58,8 @@ export class PK3TextureLoader {
   private engine: Engine | null = null;
   private scene: Scene | null = null;
   private textureCache: Map<string, Texture> = new Map();
+  private ktx2ManifestPromise: Promise<LocatedKTX2Manifest | null> | null = null;
+  private failedKTX2Sidecars = new Set<string>();
 
   private constructor() {}
 
@@ -139,6 +155,11 @@ export class PK3TextureLoader {
     // Strip existing extension to get the base
     const stripped = cleanPath.replace(/\.(ktx|tga|png|jpg|jpeg)$/i, "");
 
+    const sidecar = await this.tryLoadKTX2Sidecar(stripped);
+    if (sidecar) {
+      return sidecar;
+    }
+
     // Try extensions in priority order: lossless formats first,
     // then KTX (lossy ETC1 compression) as fallback only when no lossless source exists
     const candidates = [
@@ -162,6 +183,114 @@ export class PK3TextureLoader {
     }
 
     return null;
+  }
+
+  private isKTX2Enabled(): boolean {
+    const value = Cvar.get("r_ktx2");
+    return value === undefined || Cvar.getBool("r_ktx2");
+  }
+
+  private async getKTX2Manifest(): Promise<LocatedKTX2Manifest | null> {
+    if (this.ktx2ManifestPromise) {
+      return this.ktx2ManifestPromise;
+    }
+
+    this.ktx2ManifestPromise = (async () => {
+      for (const baseUrl of PK3Loader.getInstance().getSearchPaths()) {
+        try {
+          const response = await fetch(`${baseUrl}ktx2cache/manifest.json`);
+          if (!response.ok || (response.headers.get("Content-Type") || "").includes("text/html")) {
+            continue;
+          }
+          const manifest = (await response.json()) as Partial<KTX2Manifest>;
+          if (manifest.version === 1 && manifest.textures && typeof manifest.textures === "object") {
+            return { baseUrl, manifest: manifest as KTX2Manifest };
+          }
+        } catch {
+          // KTX2 sidecars are optional. Try the next configured search path.
+        }
+      }
+      return null;
+    })();
+
+    return this.ktx2ManifestPromise;
+  }
+
+  private async tryLoadKTX2Sidecar(strippedPath: string): Promise<Texture | null> {
+    if (!this.scene || !this.isKTX2Enabled()) {
+      return null;
+    }
+
+    const canonicalPath = strippedPath.toLowerCase().replace(/\\/g, "/");
+    const cacheKey = `ktx2:${canonicalPath}`;
+    const cached = this.textureCache.get(cacheKey);
+    if (cached && (cached.isReady() || (cached as unknown as { _texture: unknown })._texture !== null)) {
+      return cached;
+    }
+    if (this.failedKTX2Sidecars.has(canonicalPath)) {
+      return null;
+    }
+
+    const located = await this.getKTX2Manifest();
+    const entry = located?.manifest.textures[canonicalPath];
+    if (!located || !entry) {
+      return null;
+    }
+
+    const relativeFile = typeof entry === "string" ? entry : entry.file;
+    if (typeof relativeFile !== "string") {
+      console.warn("[PK3TextureLoader] Ignoring malformed KTX2 manifest entry");
+      this.failedKTX2Sidecars.add(canonicalPath);
+      return null;
+    }
+    const normalizedRelativeFile = relativeFile.replace(/\\/g, "/");
+    if (
+      !normalizedRelativeFile ||
+      normalizedRelativeFile.startsWith("/") ||
+      normalizedRelativeFile.split("/").includes("..") ||
+      !normalizedRelativeFile.toLowerCase().endsWith(".ktx2")
+    ) {
+      console.warn(`[PK3TextureLoader] Ignoring unsafe KTX2 manifest entry: ${relativeFile}`);
+      this.failedKTX2Sidecars.add(canonicalPath);
+      return null;
+    }
+
+    const url = `${located.baseUrl}ktx2cache/${normalizedRelativeFile}`;
+    try {
+      await ensureKTX2Decoder();
+      const texture = await new Promise<Texture | null>((resolve) => {
+        let candidate: Texture;
+        candidate = new Texture(
+          url,
+          this.scene!,
+          false,
+          true,
+          Texture.TRILINEAR_SAMPLINGMODE,
+          () => resolve(candidate),
+          (message, exception) => {
+            candidate.dispose();
+            console.warn(`[PK3TextureLoader] KTX2 sidecar failed, using source texture: ${url}`, message, exception);
+            resolve(null);
+          },
+        );
+        candidate.name = strippedPath;
+      });
+
+      if (!texture) {
+        this.failedKTX2Sidecars.add(canonicalPath);
+        return null;
+      }
+
+      texture.wrapU = Texture.WRAP_ADDRESSMODE;
+      texture.wrapV = Texture.WRAP_ADDRESSMODE;
+      this.textureCache.set(cacheKey, texture);
+      console.log(`[PK3TextureLoader] Loaded KTX2 sidecar: ${url}`);
+      return texture;
+    } catch (error) {
+      this.failedKTX2Sidecars.add(canonicalPath);
+      console.warn(`[PK3TextureLoader] KTX2 decoder unavailable, using source texture: ${url}`, error);
+      return null;
+    }
   }
 
   /**
@@ -741,6 +870,8 @@ export class PK3TextureLoader {
       texture.dispose();
     }
     this.textureCache.clear();
+    this.ktx2ManifestPromise = null;
+    this.failedKTX2Sidecars.clear();
     console.log("[PK3TextureLoader] Cache cleared");
   }
 

@@ -9,14 +9,14 @@ importers:
   .:
     dependencies:
       '@babylonjs/core':
-        specifier: ^8.44.1
-        version: 8.56.0
+        specifier: ^9.17.0
+        version: 9.17.1
       '@babylonjs/havok':
-        specifier: ^1.3.11
-        version: 1.3.12
+        specifier: ^1.3.13
+        version: 1.3.13
       '@babylonjs/loaders':
-        specifier: ^8.44.1
-        version: 8.56.0(@babylonjs/core@8.56.0)(babylonjs-gltf2interface@8.56.0)
+        specifier: ^9.17.0
+        version: 9.17.1(@babylonjs/core@9.17.1)(babylonjs-gltf2interface@9.17.0)
       '@capacitor/android':
         specifier: ^8.0.0
         version: 8.2.0(@capacitor/core@8.2.0)
@@ -45,6 +45,9 @@ importers:
         specifier: ^7.0.0
         version: 7.0.0
     devDependencies:
+      '@babylonjs/ktx2decoder':
+        specifier: 9.17.0
+        version: 9.17.0(@babylonjs/core@9.17.1)
       '@biomejs/biome':
         specifier: ^2.3.8
         version: 2.4.8
@@ -63,6 +66,9 @@ importers:
       '@vitest/coverage-v8':
         specifier: 3.2.4
         version: 3.2.4(vitest@3.2.4(@types/debug@4.1.13)(@types/node@25.5.0)(jiti@2.6.1)(jsdom@28.1.0)(yaml@2.8.2))
+      babylonjs-gltf2interface:
+        specifier: 9.17.0
+        version: 9.17.0
       concurrently:
         specifier: ^9.2.1
         version: 9.2.1
@@ -72,6 +78,9 @@ importers:
       electron-builder:
         specifier: ^26.8.1
         version: 26.8.1(electron-builder-squirrel-windows@26.8.1)
+      jpeg-js:
+        specifier: 0.4.4
+        version: 0.4.4
       jsdom:
         specifier: ^28.1.0
         version: 28.1.0
@@ -215,17 +224,22 @@ packages:
     resolution: {integrity: sha512-LwdZHpScM4Qz8Xw2iKSzS+cfglZzJGvofQICy7W7v4caru4EaAmyUuO6BGrbyQ2mYV11W0U8j5mBhd14dd3B0A==}
     engines: {node: '>=6.9.0'}
 
-  '@babylonjs/core@8.56.0':
-    resolution: {integrity: sha512-QD2OZ5SCp7hDYk7SNsmYimkNJbOOfDczPaTfEpFRezC/Bvi5zC14NmZN1/gCpGLW/jmqIXAzOdtRv25jufMGpQ==}
+  '@babylonjs/core@9.17.1':
+    resolution: {integrity: sha512-BMA+XD1KlcMdI5jorON4jElpZVAStD5b4qzMWxI7p6kxQRJCj8ykTzai1zlEhau/WhiAluov+bMFlZIi0ipNGg==}
 
-  '@babylonjs/havok@1.3.12':
-    resolution: {integrity: sha512-KR5Z7DBkVEgdvHLMDh2VWe/nHvUG8+MdLBiAE0iM19KIHAPqPRVITPAZKx4SQusK5nqm4ZXDcKv5OYtViIxLzA==}
+  '@babylonjs/havok@1.3.13':
+    resolution: {integrity: sha512-DDrPHbNdeanogdE261r4sfgKgtZb11ccaDjNEbhEcrcWz1XgYHTIJzz5QwO+J4XhOQJLXfn9Lv20cI2REIZiwg==}
 
-  '@babylonjs/loaders@8.56.0':
-    resolution: {integrity: sha512-HjBqC6owfbq0Fl46p9BUFaFwYIvavdqwq6q5X698BOKk6SsjYsrfbxm969G3Mp+piG5fKzMdaX7IZ1zmSDmx1w==}
+  '@babylonjs/ktx2decoder@9.17.0':
+    resolution: {integrity: sha512-cKQ223fywAiz7G/wYrfQoJu/PYA2JeUfG162D63z+TY5W1aafNXD6oacDmzH0OnTUFBPa3EBtKeEhkUzM2c4iw==}
     peerDependencies:
-      '@babylonjs/core': ^8.0.0
-      babylonjs-gltf2interface: ^8.0.0
+      '@babylonjs/core': ^9.0.0
+
+  '@babylonjs/loaders@9.17.1':
+    resolution: {integrity: sha512-wliUrBPjjQU66y/gBf1jJvpWG2eaDj4PKkAnGaDcI0uU0u6j2wjtpTMB02mqx2CAiSQ/fsswa37M53Yol8u/Fw==}
+    peerDependencies:
+      '@babylonjs/core': ^9.0.0
+      babylonjs-gltf2interface: ^9.0.0
 
   '@bcoe/v8-coverage@1.0.2':
     resolution: {integrity: sha512-6zABk/ECA/QYSCQ1NGiVwwbQerUCZ+TQbp64Q3AgmfNvurHH0j8TtXa1qbShXA6qqkpAj4V5W8pP6mLe1mcMqA==}
@@ -1655,8 +1669,8 @@ packages:
   axios@1.13.6:
     resolution: {integrity: sha512-ChTCHMouEe2kn713WHbQGcuYrr6fXTBiu460OTwWrWob16g1bXn4vtz07Ope7ewMozJAnEquLk5lWQWtBig9DQ==}
 
-  babylonjs-gltf2interface@8.56.0:
-    resolution: {integrity: sha512-FoOYvkEs1ovGJh1qtE5ronxqBI9SpI+TPphVhmvEksA8dwsf87xsqn87/ufSlaZRqeYv6UxcXtPffPQyT+U0CA==}
+  babylonjs-gltf2interface@9.17.0:
+    resolution: {integrity: sha512-nqiTh0w/9MODhsa4K4YWGRSXsGgUyPLevcexn4gYEsCxMSYQm48wm9NhXaw+DtvSQTtmh8JL0nqqFYNTyinACw==}
 
   balanced-match@1.0.2:
     resolution: {integrity: sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==}
@@ -2594,6 +2608,9 @@ packages:
   joi@18.0.2:
     resolution: {integrity: sha512-RuCOQMIt78LWnktPoeBL0GErkNaJPTBGcYuyaBvUOQSpcpcLfWrHPPihYdOGbV5pam9VTWbeoF7TsGiHugcjGA==}
     engines: {node: '>= 20'}
+
+  jpeg-js@0.4.4:
+    resolution: {integrity: sha512-WZzeDOEtTOBK4Mdsar0IqEU5sMr3vSV2RqkAIzUEV2BHnUfKGyswWFPFwK5EeDo93K3FohSHbLAjj0s1Wzd+dg==}
 
   js-tokens@10.0.0:
     resolution: {integrity: sha512-lM/UBzQmfJRo9ABXbPWemivdCW8V2G8FHaHdypQaIy523snUjog0W71ayWXTjiR+ixeMyVHN2XcpnTd/liPg/Q==}
@@ -4125,16 +4142,20 @@ snapshots:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.28.5
 
-  '@babylonjs/core@8.56.0': {}
+  '@babylonjs/core@9.17.1': {}
 
-  '@babylonjs/havok@1.3.12':
+  '@babylonjs/havok@1.3.13':
     dependencies:
       '@types/emscripten': 1.41.5
 
-  '@babylonjs/loaders@8.56.0(@babylonjs/core@8.56.0)(babylonjs-gltf2interface@8.56.0)':
+  '@babylonjs/ktx2decoder@9.17.0(@babylonjs/core@9.17.1)':
     dependencies:
-      '@babylonjs/core': 8.56.0
-      babylonjs-gltf2interface: 8.56.0
+      '@babylonjs/core': 9.17.1
+
+  '@babylonjs/loaders@9.17.1(@babylonjs/core@9.17.1)(babylonjs-gltf2interface@9.17.0)':
+    dependencies:
+      '@babylonjs/core': 9.17.1
+      babylonjs-gltf2interface: 9.17.0
 
   '@bcoe/v8-coverage@1.0.2': {}
 
@@ -5574,7 +5595,7 @@ snapshots:
     transitivePeerDependencies:
       - debug
 
-  babylonjs-gltf2interface@8.56.0: {}
+  babylonjs-gltf2interface@9.17.0: {}
 
   balanced-match@1.0.2: {}
 
@@ -6630,6 +6651,8 @@ snapshots:
       '@hapi/tlds': 1.1.6
       '@hapi/topo': 6.0.2
       '@standard-schema/spec': 1.1.0
+
+  jpeg-js@0.4.4: {}
 
   js-tokens@10.0.0: {}
 

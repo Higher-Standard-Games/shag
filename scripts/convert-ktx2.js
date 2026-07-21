@@ -1,252 +1,379 @@
 /**
- * KTX2 Texture Conversion Script
- * 
- * Converts PNG/JPG textures to KTX2 format for GPU-compressed textures.
- * This significantly reduces VRAM usage and improves mobile performance.
- * 
+ * Build a loose KTX2 sidecar cache from the effective Quake PK3 filesystem.
+ *
+ * The browser reads public/data/ktx2cache/manifest.json and prefers a listed
+ * sidecar before falling back to the original PK3 texture. PK3 archives are
+ * indexed in alphabetical order so later packages override earlier packages,
+ * matching PK3Loader.
+ *
  * Requirements:
- * - Install KTX-Software from: https://github.com/KhronosGroup/KTX-Software/releases
- * - Add 'toktx' to your PATH, or set KTX_TOOLS_PATH environment variable
- * 
+ * - Khronos KTX-Software 5.x (`ktx`) or legacy `toktx`
+ * - KTX_TOOLS_PATH may point at the executable or its containing directory
+ *
  * Usage:
- *   npm run build:textures           # Convert all textures
- *   npm run build:textures -- --clean # Clean and reconvert all
- * 
- * Compression modes:
- * - ETC1S: Best for color textures (albedo, sprites) - smaller files
- * - UASTC: Best for normal maps, metallic/roughness - higher quality
+ *   npm run tools:textures
+ *   npm run tools:textures:audit
+ *   npm run tools:textures:clean
  */
 
-import { execSync } from 'child_process';
-import { existsSync, mkdirSync, readdirSync, statSync, unlinkSync } from 'fs';
-import { basename, dirname, extname, join, relative } from 'path';
-import { fileURLToPath } from 'url';
+import { execFileSync, spawnSync } from "node:child_process";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { basename, dirname, extname, isAbsolute, join, relative } from "node:path";
+import { fileURLToPath } from "node:url";
+import jpeg from "jpeg-js";
+import JSZip from "jszip";
+import { PNG } from "pngjs";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = join(SCRIPT_DIR, "..");
+const SOURCE_DIR = join(REPO_ROOT, "public", "data");
+const OUTPUT_DIR = join(SOURCE_DIR, "ktx2cache");
+const MANIFEST_PATH = join(OUTPUT_DIR, "manifest.json");
+const GENERATOR_VERSION = 2;
+const SOURCE_EXTENSIONS = new Set([".tga", ".png", ".jpg", ".jpeg"]);
+const EXTENSION_PRIORITY = new Map([
+  [".tga", 4],
+  [".png", 3],
+  [".jpg", 2],
+  [".jpeg", 1],
+]);
+const UASTC_PATTERNS = ["_normal", "_norm", "_n.", "_bump", "_height", "_metallic", "_roughness", "_mr.", "_ao."];
+const NORMAL_PATTERNS = ["_normal", "_norm", "_n.", "_bump"];
 
-// Configuration
-const CONFIG = {
-  // Source directory for textures
-  sourceDir: join(__dirname, '..', 'public', 'textures'),
-  
-  // Output directory for KTX2 files (same structure as source)
-  outputDir: join(__dirname, '..', 'public', 'textures-ktx2'),
-  
-  // File extensions to convert
-  extensions: ['.png', '.jpg', '.jpeg', '.webp'],
-  
-  // Files/patterns to skip (normal maps, metallic maps use UASTC)
-  uastcPatterns: ['_normal', '_norm', '_n.', '_metallic', '_roughness', '_mr.', '_ao.'],
-  
-  // toktx path (uses PATH by default, or KTX_TOOLS_PATH env var)
-  toktxPath: process.env.KTX_TOOLS_PATH ? join(process.env.KTX_TOOLS_PATH, 'toktx') : 'toktx',
-};
+const args = new Set(process.argv.slice(2));
+const dryRun = args.has("--dry-run");
+const shouldClean = args.has("--clean");
 
-// ANSI colors for console output
-const colors = {
-  reset: '\x1b[0m',
-  green: '\x1b[32m',
-  yellow: '\x1b[33m',
-  red: '\x1b[31m',
-  cyan: '\x1b[36m',
-  dim: '\x1b[2m',
-};
-
-function log(message, color = 'reset') {
-  console.log(`${colors[color]}${message}${colors.reset}`);
+function normalizePath(value) {
+  return value.replace(/\\/g, "/").replace(/^\/+/, "").toLowerCase();
 }
 
-function logError(message) {
-  console.error(`${colors.red}ERROR: ${message}${colors.reset}`);
+function stripTextureExtension(value) {
+  return value.replace(/\.(tga|png|jpe?g)$/i, "");
 }
 
-/**
- * Check if toktx is available
- */
-function checkToktx() {
-  try {
-    execSync(`${CONFIG.toktxPath} --version`, { stdio: 'pipe' });
-    return true;
-  } catch {
-    return false;
+function isTexturePath(value) {
+  return SOURCE_EXTENSIONS.has(extname(value).toLowerCase());
+}
+
+function isUastc(value) {
+  const lower = value.toLowerCase();
+  return UASTC_PATTERNS.some((pattern) => lower.includes(pattern));
+}
+
+function isNormalMap(value) {
+  const lower = value.toLowerCase();
+  return NORMAL_PATTERNS.some((pattern) => lower.includes(pattern));
+}
+
+function assertSafeOutputDirectory() {
+  const expected = "public/data/ktx2cache";
+  const actual = normalizePath(relative(REPO_ROOT, OUTPUT_DIR));
+  if (actual !== expected || !isAbsolute(OUTPUT_DIR)) {
+    throw new Error(`Refusing to clean unexpected output directory: ${OUTPUT_DIR}`);
   }
 }
 
-/**
- * Determine if a texture should use UASTC (high quality) compression
- */
-function shouldUseUastc(filePath) {
-  const lowerPath = filePath.toLowerCase();
-  return CONFIG.uastcPatterns.some(pattern => lowerPath.includes(pattern));
-}
-
-/**
- * Get all texture files recursively from a directory
- */
-function getTextureFiles(dir, files = []) {
-  if (!existsSync(dir)) {
-    return files;
-  }
-  
-  const entries = readdirSync(dir);
-  
-  for (const entry of entries) {
-    const fullPath = join(dir, entry);
-    const stat = statSync(fullPath);
-    
-    if (stat.isDirectory()) {
-      getTextureFiles(fullPath, files);
-    } else if (CONFIG.extensions.includes(extname(entry).toLowerCase())) {
-      files.push(fullPath);
-    }
-  }
-  
-  return files;
-}
-
-/**
- * Convert a single texture to KTX2
- */
-function convertTexture(sourcePath) {
-  const relativePath = relative(CONFIG.sourceDir, sourcePath);
-  const outputPath = join(CONFIG.outputDir, relativePath.replace(/\.[^.]+$/, '.ktx2'));
-  const outputDirPath = dirname(outputPath);
-  
-  // Create output directory if needed
-  if (!existsSync(outputDirPath)) {
-    mkdirSync(outputDirPath, { recursive: true });
-  }
-  
-  // Check if output already exists and is newer than source
-  if (existsSync(outputPath)) {
-    const sourceTime = statSync(sourcePath).mtimeMs;
-    const outputTime = statSync(outputPath).mtimeMs;
-    if (outputTime > sourceTime) {
-      log(`  SKIP: ${relativePath} (up to date)`, 'dim');
-      return { skipped: true };
-    }
-  }
-  
-  // Determine compression mode
-  const useUastc = shouldUseUastc(sourcePath);
-  
-  // Build toktx command
-  // --t2 = output KTX2 format
-  // --encode basis = use Basis Universal compression
-  // --bcmp = BasisLZ/ETC1S compression (smaller, good for color)
-  // --uastc = UASTC compression (higher quality, good for normal maps)
-  // --zcmp = add Zstandard supercompression (smaller files)
-  // --genmipmap = generate mipmaps
-  const compressionArgs = useUastc 
-    ? '--t2 --encode uastc --uastc_quality 2 --zcmp 19'
-    : '--t2 --encode etc1s --clevel 4 --qlevel 192';
-  
-  const command = `${CONFIG.toktxPath} ${compressionArgs} --genmipmap "${outputPath}" "${sourcePath}"`;
-  
-  try {
-    execSync(command, { stdio: 'pipe' });
-    const mode = useUastc ? 'UASTC' : 'ETC1S';
-    log(`  DONE: ${relativePath} (${mode})`, 'green');
-    return { converted: true, mode };
-  } catch (error) {
-    logError(`Failed to convert ${relativePath}: ${error.message}`);
-    return { error: true };
-  }
-}
-
-/**
- * Clean all KTX2 files
- */
 function cleanOutput() {
-  if (!existsSync(CONFIG.outputDir)) {
-    return;
+  assertSafeOutputDirectory();
+  if (existsSync(OUTPUT_DIR)) {
+    rmSync(OUTPUT_DIR, { recursive: true, force: true });
   }
-  
-  log('Cleaning KTX2 output directory...', 'yellow');
-  
-  const ktx2Files = [];
-  function findKtx2(dir) {
-    const entries = readdirSync(dir);
-    for (const entry of entries) {
-      const fullPath = join(dir, entry);
-      const stat = statSync(fullPath);
-      if (stat.isDirectory()) {
-        findKtx2(fullPath);
-      } else if (extname(entry).toLowerCase() === '.ktx2') {
-        ktx2Files.push(fullPath);
-      }
-    }
-  }
-  
-  findKtx2(CONFIG.outputDir);
-  
-  for (const file of ktx2Files) {
-    unlinkSync(file);
-  }
-  
-  log(`Cleaned ${ktx2Files.length} KTX2 files`, 'yellow');
 }
 
-/**
- * Main conversion function
- */
-function main() {
-  const args = process.argv.slice(2);
-  const shouldClean = args.includes('--clean');
-  
-  log('\n=== KTX2 Texture Conversion ===\n', 'cyan');
-  
-  // Check for toktx
-  if (!checkToktx()) {
-    logError('toktx not found! Please install KTX-Software:');
-    log('  https://github.com/KhronosGroup/KTX-Software/releases', 'yellow');
-    log('\nAfter installing, either:', 'dim');
-    log('  1. Add the bin folder to your PATH', 'dim');
-    log('  2. Set KTX_TOOLS_PATH environment variable', 'dim');
-    process.exit(1);
+function toolCandidates() {
+  const configured = process.env.KTX_TOOLS_PATH;
+  const executableNames = process.platform === "win32" ? ["ktx.exe", "toktx.exe"] : ["ktx", "toktx"];
+  if (!configured) return executableNames;
+  if (!existsSync(configured) || !statSync(configured).isDirectory()) {
+    return [configured];
   }
-  
-  log(`Source: ${CONFIG.sourceDir}`, 'dim');
-  log(`Output: ${CONFIG.outputDir}`, 'dim');
-  log('');
-  
-  // Clean if requested
-  if (shouldClean) {
-    cleanOutput();
+  return executableNames.map((name) => join(configured, name));
+}
+
+function findKtxTool() {
+  for (const command of toolCandidates()) {
+    const result = spawnSync(command, ["--version"], { encoding: "utf8", shell: false });
+    if (!result.error && result.status === 0) {
+      return {
+        command,
+        kind: basename(command).toLowerCase().startsWith("toktx") ? "toktx" : "ktx",
+        version: (result.stdout || result.stderr || "unknown").trim(),
+      };
+    }
   }
-  
-  // Get all texture files
-  const textureFiles = getTextureFiles(CONFIG.sourceDir);
-  
-  if (textureFiles.length === 0) {
-    log('No texture files found to convert.', 'yellow');
-    log('Place PNG/JPG files in: public/textures/', 'dim');
-    return;
+  return null;
+}
+
+async function indexEffectiveTextures() {
+  const packageNames = readdirSync(SOURCE_DIR)
+    .filter((name) => name.toLowerCase().endsWith(".pk3"))
+    .sort((a, b) => a.localeCompare(b));
+  const exactFiles = new Map();
+
+  for (const packageName of packageNames) {
+    const packagePath = join(SOURCE_DIR, packageName);
+    const zip = await JSZip.loadAsync(readFileSync(packagePath));
+    for (const entry of Object.values(zip.files)) {
+      if (entry.dir || !isTexturePath(entry.name)) continue;
+      const path = normalizePath(entry.name);
+      exactFiles.set(path, {
+        packageName,
+        packagePath,
+        entryName: entry.name,
+        path,
+        size: entry._data?.uncompressedSize ?? 0,
+        date: entry.date?.toISOString?.() ?? "",
+      });
+    }
   }
-  
-  log(`Found ${textureFiles.length} texture(s) to process:\n`, 'cyan');
-  
-  // Convert each texture
+
+  const selected = new Map();
+  for (const source of exactFiles.values()) {
+    const canonicalPath = stripTextureExtension(source.path);
+    const existing = selected.get(canonicalPath);
+    const priority = EXTENSION_PRIORITY.get(extname(source.path)) ?? 0;
+    const existingPriority = existing ? EXTENSION_PRIORITY.get(extname(existing.path)) ?? 0 : -1;
+    if (!existing || priority > existingPriority) {
+      selected.set(canonicalPath, { ...source, canonicalPath });
+    }
+  }
+
+  return { packageNames, selected };
+}
+
+function decodeTga(buffer, sourceName) {
+  if (buffer.length < 18) throw new Error(`TGA header is truncated: ${sourceName}`);
+  const idLength = buffer[0];
+  const colorMapType = buffer[1];
+  const imageType = buffer[2];
+  const width = buffer.readUInt16LE(12);
+  const height = buffer.readUInt16LE(14);
+  const bitsPerPixel = buffer[16];
+  const descriptor = buffer[17];
+  const bytesPerPixel = bitsPerPixel / 8;
+  const grayscale = imageType === 3 || imageType === 11;
+  const rle = imageType === 10 || imageType === 11;
+
+  if (![2, 3, 10, 11].includes(imageType) || colorMapType !== 0 || width === 0 || height === 0) {
+    throw new Error(`Unsupported TGA layout in ${sourceName}`);
+  }
+  if ((grayscale && ![1, 2].includes(bytesPerPixel)) || (!grayscale && ![3, 4].includes(bytesPerPixel))) {
+    throw new Error(`Unsupported TGA pixel depth ${bitsPerPixel} in ${sourceName}`);
+  }
+
+  const rgba = Buffer.alloc(width * height * 4);
+  let offset = 18 + idLength;
+  let pixelIndex = 0;
+  const topOrigin = (descriptor & 0x20) !== 0;
+  const rightOrigin = (descriptor & 0x10) !== 0;
+
+  function readPixel() {
+    if (offset + bytesPerPixel > buffer.length) throw new Error(`TGA pixel data is truncated: ${sourceName}`);
+    let pixel;
+    if (grayscale) {
+      const value = buffer[offset];
+      pixel = [value, value, value, bytesPerPixel === 2 ? buffer[offset + 1] : 255];
+    } else {
+      pixel = [buffer[offset + 2], buffer[offset + 1], buffer[offset], bytesPerPixel === 4 ? buffer[offset + 3] : 255];
+    }
+    offset += bytesPerPixel;
+    return pixel;
+  }
+
+  function writePixel(pixel) {
+    const sourceY = Math.floor(pixelIndex / width);
+    const sourceX = pixelIndex % width;
+    const x = rightOrigin ? width - 1 - sourceX : sourceX;
+    const y = topOrigin ? sourceY : height - 1 - sourceY;
+    const target = (y * width + x) * 4;
+    rgba[target] = pixel[0];
+    rgba[target + 1] = pixel[1];
+    rgba[target + 2] = pixel[2];
+    rgba[target + 3] = pixel[3];
+    pixelIndex++;
+  }
+
+  while (pixelIndex < width * height) {
+    if (!rle) {
+      writePixel(readPixel());
+      continue;
+    }
+    if (offset >= buffer.length) throw new Error(`TGA RLE stream is truncated: ${sourceName}`);
+    const packet = buffer[offset++];
+    const count = (packet & 0x7f) + 1;
+    if ((packet & 0x80) !== 0) {
+      const pixel = readPixel();
+      for (let i = 0; i < count && pixelIndex < width * height; i++) writePixel(pixel);
+    } else {
+      for (let i = 0; i < count && pixelIndex < width * height; i++) writePixel(readPixel());
+    }
+  }
+
+  return { width, height, data: rgba };
+}
+
+function decodeSourceToPng(buffer, sourcePath) {
+  const isPng = buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47;
+  const isJpeg = buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+  let image;
+  if (isPng) {
+    image = PNG.sync.read(buffer);
+  } else if (isJpeg) {
+    image = jpeg.decode(buffer, { useTArray: true, formatAsRGBA: true });
+  } else {
+    image = decodeTga(buffer, sourcePath);
+  }
+  return PNG.sync.write({ width: image.width, height: image.height, data: Buffer.from(image.data) });
+}
+
+function runEncoder(tool, inputPath, outputPath, sourcePath) {
+  const uastc = isUastc(sourcePath);
+  const normal = isNormalMap(sourcePath);
+  let commandArgs;
+  if (tool.kind === "ktx") {
+    commandArgs = [
+      "create",
+      "--format",
+      uastc ? "R8G8B8A8_UNORM" : "R8G8B8A8_SRGB",
+      "--encode",
+      uastc ? "uastc-ldr-4x4" : "basis-lz",
+      ...(uastc ? ["--uastc-quality", "2", "--zstd", "19"] : ["--clevel", "4", "--qlevel", "192"]),
+      ...(normal ? ["--normalize"] : []),
+      "--generate-mipmap",
+      "--mipmap-wrap",
+      "wrap",
+      inputPath,
+      outputPath,
+    ];
+  } else {
+    commandArgs = [
+      "--t2",
+      "--encode",
+      uastc ? "uastc" : "etc1s",
+      ...(uastc ? ["--uastc_quality", "2", "--zcmp", "19"] : ["--clevel", "4", "--qlevel", "192"]),
+      "--genmipmap",
+      outputPath,
+      inputPath,
+    ];
+  }
+  execFileSync(tool.command, commandArgs, { stdio: "pipe" });
+  return uastc ? "uastc" : "etc1s";
+}
+
+function readPreviousManifest() {
+  if (!existsSync(MANIFEST_PATH)) return null;
+  try {
+    const manifest = JSON.parse(readFileSync(MANIFEST_PATH, "utf8"));
+    return manifest.generatorVersion === GENERATOR_VERSION ? manifest : null;
+  } catch {
+    return null;
+  }
+}
+
+async function convertTextures(selected, tool) {
+  const previous = readPreviousManifest();
+  const textures = {};
+  const grouped = new Map();
+  for (const source of selected.values()) {
+    if (!grouped.has(source.packageName)) grouped.set(source.packageName, []);
+    grouped.get(source.packageName).push(source);
+  }
+
+  const temporaryDirectory = mkdtempSync(join(tmpdir(), "shag-ktx2-"));
   let converted = 0;
   let skipped = 0;
   let errors = 0;
-  
-  for (const file of textureFiles) {
-    const result = convertTexture(file);
-    if (result.converted) converted++;
-    else if (result.skipped) skipped++;
-    else if (result.error) errors++;
+  let tempIndex = 0;
+
+  try {
+    for (const sources of grouped.values()) {
+      const zip = await JSZip.loadAsync(readFileSync(sources[0].packagePath));
+      for (const source of sources) {
+        const outputFile = `${source.canonicalPath}.ktx2`;
+        const outputPath = join(OUTPUT_DIR, ...outputFile.split("/"));
+        const sourceSignature = `${source.packageName}:${source.path}:${source.size}:${source.date}`;
+        const previousEntry = previous?.textures?.[source.canonicalPath];
+        if (previousEntry?.source === sourceSignature && existsSync(outputPath)) {
+          textures[source.canonicalPath] = previousEntry;
+          skipped++;
+          continue;
+        }
+
+        try {
+          const entry = zip.file(source.entryName);
+          if (!entry) throw new Error("PK3 entry disappeared while converting");
+          const sourceBuffer = await entry.async("nodebuffer");
+          const pngPath = join(temporaryDirectory, `${tempIndex++}.png`);
+          writeFileSync(pngPath, decodeSourceToPng(sourceBuffer, source.path));
+          mkdirSync(dirname(outputPath), { recursive: true });
+          const mode = runEncoder(tool, pngPath, outputPath, source.path);
+          textures[source.canonicalPath] = {
+            file: outputFile,
+            source: sourceSignature,
+            mode,
+          };
+          converted++;
+        } catch (error) {
+          errors++;
+          console.error(`[KTX2] Failed ${source.path} from ${source.packageName}: ${error.message}`);
+        }
+      }
+    }
+  } finally {
+    rmSync(temporaryDirectory, { recursive: true, force: true });
   }
-  
-  // Summary
-  log('\n=== Summary ===', 'cyan');
-  log(`  Converted: ${converted}`, 'green');
-  log(`  Skipped:   ${skipped}`, 'dim');
-  if (errors > 0) {
-    log(`  Errors:    ${errors}`, 'red');
-  }
-  log('');
+
+  return { textures, converted, skipped, errors };
 }
 
-main();
+async function main() {
+  if (!existsSync(SOURCE_DIR)) throw new Error(`PK3 source directory not found: ${SOURCE_DIR}`);
+  if (shouldClean) cleanOutput();
+
+  console.log("[KTX2] Indexing effective PK3 texture filesystem...");
+  const { packageNames, selected } = await indexEffectiveTextures();
+  console.log(`[KTX2] ${packageNames.length} PK3s, ${selected.size} unique source textures`);
+
+  const modeCounts = { etc1s: 0, uastc: 0 };
+  for (const path of selected.keys()) modeCounts[isUastc(path) ? "uastc" : "etc1s"]++;
+  console.log(`[KTX2] Plan: ${modeCounts.etc1s} ETC1S, ${modeCounts.uastc} UASTC`);
+  if (dryRun) return;
+
+  const tool = findKtxTool();
+  if (!tool) {
+    throw new Error(
+      "Khronos KTX tools not found. Install KTX-Software 5.x or set KTX_TOOLS_PATH. Use --dry-run to audit only.",
+    );
+  }
+  console.log(`[KTX2] Encoder: ${tool.kind} (${tool.version})`);
+
+  mkdirSync(OUTPUT_DIR, { recursive: true });
+  const result = await convertTextures(selected, tool);
+  const manifest = {
+    version: 1,
+    generatorVersion: GENERATOR_VERSION,
+    generatedAt: new Date().toISOString(),
+    encoder: { kind: tool.kind, version: tool.version },
+    textures: result.textures,
+  };
+  writeFileSync(MANIFEST_PATH, `${JSON.stringify(manifest, null, 2)}\n`);
+  console.log(`[KTX2] Converted ${result.converted}, skipped ${result.skipped}, errors ${result.errors}`);
+  console.log(`[KTX2] Manifest: ${MANIFEST_PATH}`);
+  if (result.errors > 0) process.exitCode = 1;
+}
+
+main().catch((error) => {
+  console.error(`[KTX2] ${error.message}`);
+  process.exitCode = 1;
+});

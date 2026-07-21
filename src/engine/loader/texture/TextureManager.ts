@@ -5,14 +5,7 @@ import { Color3 } from "@babylonjs/core/Maths/math.color";
 import type { Scene } from "@babylonjs/core/scene";
 import { GamePaths } from "../../core/GamePaths";
 import { ProceduralTextureGenerator } from "../../procedural/ProceduralTextureGenerator";
-import { PK3Loader } from "../pk3/PK3Loader";
 import { PK3TextureLoader } from "../pk3/PK3TextureLoader";
-
-// Check if we're in production mode (Vite sets this)
-const IS_PRODUCTION: boolean = import.meta.env?.PROD ?? false;
-
-// KTX2 texture directory (converted textures for production)
-const KTX2_BASE_PATH = "/textures-ktx2";
 
 export interface TextureInfo {
   path: string;
@@ -46,9 +39,7 @@ export class TextureManager {
   private basePath: string | null = null;
 
   // Supported extensions in order of preference
-  // In production, try KTX2 first for GPU-compressed textures
   private extensions: string[] = [".png", ".jpg", ".jpeg", ".tga", ".webp"];
-  private ktx2Extensions: string[] = [".ktx2"];
 
   // Textures to skip (editor-only)
   private skipTextures: Set<string> = new Set([
@@ -190,34 +181,10 @@ export class TextureManager {
     if (!normalizedPath.startsWith("textures/")) {
       normalizedPath = `textures/${normalizedPath}`;
     }
-    // Remove the "textures/" prefix for building paths
-    const cleanPath = normalizedPath.replace(/^textures\//, "");
-
-    // Try PK3 packages first
+    // This resolver checks generated KTX2 sidecars before PK3/loose source files.
     const pk3Texture = await this.tryLoadFromPK3(normalizedPath);
     if (pk3Texture) {
       return pk3Texture;
-    }
-
-    // In production, try KTX2 first (GPU-compressed textures)
-    if (IS_PRODUCTION) {
-      for (const ext of this.ktx2Extensions) {
-        const ktx2Path = `${KTX2_BASE_PATH}/${cleanPath}${ext}`;
-
-        try {
-          const exists = await this.checkTextureExists(ktx2Path);
-          if (exists) {
-            const texture = new Texture(ktx2Path, this.scene);
-            texture.name = textureName;
-            texture.wrapU = Texture.WRAP_ADDRESSMODE;
-            texture.wrapV = Texture.WRAP_ADDRESSMODE;
-            console.log(`Loaded KTX2 texture: ${ktx2Path}`);
-            return texture;
-          }
-        } catch {
-          // KTX2 not available, fall through to regular textures
-        }
-      }
     }
 
     // Fall back to regular texture formats
@@ -253,36 +220,18 @@ export class TextureManager {
   private async tryLoadFromPK3(texturePath: string): Promise<Texture | null> {
     if (!this.scene) return null;
 
-    const pk3 = PK3Loader.getInstance();
     const pk3Tex = PK3TextureLoader.getInstance();
+    // biome-ignore lint/suspicious/noExplicitAny: Babylon texture internals
+    pk3Tex.init(this.scene.getEngine() as any, this.scene);
 
-    // Check if any PK3 packages are loaded
-    if (pk3.getPackageInfo().length === 0) {
-      return null;
-    }
+    const texture = await pk3Tex.resolveAndLoadTexture(texturePath);
+    if (!texture) return null;
 
-    // PK3 texture extensions to try
-    const pk3Extensions = [".ktx", ".tga", ".png", ".jpg"];
-
-    for (const ext of pk3Extensions) {
-      const fullPath = `${texturePath}${ext}`;
-      if (pk3.hasFile(fullPath)) {
-        // Initialize PK3TextureLoader if needed
-        // biome-ignore lint/suspicious/noExplicitAny: Babylon texture internals
-        pk3Tex.init(this.scene.getEngine() as any, this.scene);
-
-        const texture = await pk3Tex.loadTexture(fullPath);
-        if (texture) {
-          texture.name = texturePath;
-          texture.wrapU = Texture.WRAP_ADDRESSMODE;
-          texture.wrapV = Texture.WRAP_ADDRESSMODE;
-          console.log(`[TextureManager] Loaded from PK3: ${fullPath}`);
-          return texture;
-        }
-      }
-    }
-
-    return null;
+    texture.name = texturePath;
+    texture.wrapU = Texture.WRAP_ADDRESSMODE;
+    texture.wrapV = Texture.WRAP_ADDRESSMODE;
+    console.log(`[TextureManager] Loaded through PK3/sidecar resolver: ${texturePath}`);
+    return texture;
   }
 
   /**
