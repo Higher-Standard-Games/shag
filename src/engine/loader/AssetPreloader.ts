@@ -152,13 +152,6 @@ export class AssetPreloader {
             if (mat && "usePhysicalLightFalloff" in mat) {
               mat.usePhysicalLightFalloff = false;
             }
-            // DIAGNOSTIC (temporary): force unlit to bypass all lighting/clusters.
-            // If weapon pickups then appear, the mesh/geometry/position are fine
-            // and the invisibility is PBR-under-clustered-lighting shading. If they
-            // stay invisible, the mesh isn't drawing at all (not a shading issue).
-            if (mat && "unlit" in mat) {
-              (mat as { unlit?: boolean }).unlit = true;
-            }
           }
 
           result = {
