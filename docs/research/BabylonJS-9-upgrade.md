@@ -166,7 +166,30 @@ rendering only for static contexts (menus/lobby/diorama), never gameplay.
 > (`beginAnimation` audited too — loads transitively, fine). Lesson recorded:
 > any future barrel-import removal must audit Babylon's side-effect-registered
 > features (`renderOutline`, `showBoundingBox`, `beginAnimation`, …).
-> WS1 (clustered dynamic lights) next.
+>
+> **WS1 executed** (clustered dynamic lights + retiring the scarcity system):
+> new `DynamicLightCluster` module — one scene-scoped `ClusteredLightContainer`
+> for gameplay dynamic world lights, lazy-created, torn down on scene dispose
+> without disposing member lights. The `PointLightPool` (raised 4→8) and the
+> charge glows (GameEvents + DemoService, cap relaxed 2→6) now render through
+> it. The muzzle-flash light stays OUT (it's `includedOnlyMeshes`-scoped to the
+> viewmodel, which per-light scoping the container can't preserve). Crucially,
+> `DynamicLightSafety` was inverted from a **clamp** (2 Standard / 1 PBR — which
+> would now truncate the cluster off surfaces, since a container occupies one
+> `maxSimultaneousLights` slot with a `CLUSTLIGHT` define) into a **budget**
+> (6/4) that admits ambient + sun + static-map cluster + dynamic cluster
+> (+ street-lamp cluster). Two NullEngine test suites added; note that
+> clustered lighting itself no-ops headlessly (batch size 0 without float-blend
+> caps), so the tests cover the module's lifecycle and membership/rendering is
+> browser-validated. Gates: tsc ×2, 1520/1520, determinism unchanged, biome
+> ratcheted to 913/582.
+>
+> **WS1 browser-validation items (owed):** dynamic lights actually lighting
+> world surfaces (rocket/muzzle-world-glow/pickup/charge all at once, no
+> truncation); first-shot smoothness preserved (cluster keeps the light set
+> stable — no define churn); and weapon-viewmodel lighting under the raised PBR
+> budget (4, was 1) — confirm GLB weapons don't pick up world clusters wrongly
+> (fix if so: exclude the dynamic cluster from `WEAPON_LAYER_MASK`).
 
 Ordering rationale: **measure first** (targets are meaningless without a
 baseline), then take the biggest win on the version we already run (WS1 —
