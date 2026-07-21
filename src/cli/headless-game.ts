@@ -23,6 +23,7 @@ import { Scene } from "@babylonjs/core/scene";
 import { fail } from "../engine/console/Command";
 // Static imports for command system
 import { registerEngineCommands } from "../engine/console/commands";
+import type { EngineConfig } from "../engine/core/GamePaths";
 import { formatPreflight, preflightGameAssets, resolveGameAssetDir } from "./_assetPreflight";
 import { runCli } from "./_runCli";
 
@@ -88,8 +89,16 @@ async function initializeEngine(): Promise<HeadlessContext> {
 
   // Initialize core and scene services
   try {
+    const { GamePaths } = await import("../engine/core/GamePaths");
     const { ServiceLocator } = await import("../engine/core/ServiceLocator");
     const { registerEngineServices } = await import("../engine/core/EngineServices");
+
+    // GamePaths is browser-shared and normally loads /engine.json with fetch.
+    // The headless composition root owns filesystem access and injects the
+    // same config before ServiceLocator initializes the shared singleton.
+    const engineConfigPath = path.resolve(process.cwd(), "public/engine.json");
+    const engineConfig = JSON.parse(fs.readFileSync(engineConfigPath, "utf8")) as EngineConfig;
+    GamePaths.getInstance().initFromConfig(engineConfig);
 
     // Register engine services
     registerEngineServices();
