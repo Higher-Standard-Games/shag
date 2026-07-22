@@ -1,4 +1,7 @@
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import type { Scene } from "@babylonjs/core/scene";
 import { AssetLoader } from "./AssetLoader";
+import { AudioV2Sfx, type SpatialSfxPlayOptions } from "./audio/AudioV2Sfx";
 import { Cvar } from "./core/Cvar";
 import { PK3Index } from "./loader/pk3/PK3Index";
 import { PK3Loader } from "./loader/pk3/PK3Loader";
@@ -32,6 +35,7 @@ export class AudioManager {
   // Sound effects state
   private sfxVolume = 0.7;
   private sfxEnabled = true;
+  private readonly sfxBackend = new AudioV2Sfx();
 
   private fadeInterval: number | null = null;
 
@@ -58,12 +62,14 @@ export class AudioManager {
     return AudioManager.instance;
   }
 
-  public init(): void {
+  public async init(scene?: Scene): Promise<void> {
     const config = AssetLoader.getInstance().getConfig();
     if (config) {
       this.musicVolume = config.settings.defaultVolume;
       this.musicEnabled = config.settings.musicEnabled;
     }
+    this.sfxBackend.setVolume(this.sfxVolume);
+    await this.sfxBackend.init(scene);
     // Cvars are registered in constructor
   }
 
@@ -108,13 +114,10 @@ export class AudioManager {
    * Must be called from a user gesture (click/tap) to satisfy browser policies.
    */
   public unlockAudio(): void {
-    // Create and play a silent audio to unlock the audio context
-    const silentAudio = new Audio();
-    silentAudio.volume = 0;
-    silentAudio.play().catch(() => {
-      // Ignore errors - this is just to unlock the context
-    });
-    console.log("[AudioManager] Audio context unlocked");
+    void this.sfxBackend
+      .unlock()
+      .then(() => console.log("[AudioManager] Audio context unlocked"))
+      .catch((error) => console.warn("[AudioManager] Audio unlock failed:", error));
   }
 
   public playMusic(key: string, loop = true, fadeIn = true): void {
@@ -267,17 +270,30 @@ export class AudioManager {
     if (!this.sfxEnabled) return;
 
     const audio = AssetLoader.getInstance().getAudio(key);
-    if (!audio) {
-      console.warn(`[AudioManager] SFX not found: ${key}`);
-      return;
-    }
+    const source = audio?.src || key;
+    void this.sfxBackend.play2D(source, { volume: volumeMultiplier });
+  }
 
-    // Clone so we can play multiple instances
-    const sfx = audio.cloneNode(true) as HTMLAudioElement;
-    sfx.volume = this.sfxVolume * volumeMultiplier;
-    sfx.play().catch((e) => {
-      console.warn("SFX play blocked:", e);
-    });
+  /** Decode a set of short SFX into the Babylon Audio V2 buffer cache. */
+  public async preloadSfx(paths: readonly string[]): Promise<void> {
+    if (!this.sfxEnabled) return;
+    await this.sfxBackend.preload(paths);
+  }
+
+  /** Play a listener-relative sound without HTMLAudioElement cloning. */
+  public playSfx2D(path: string, volumeMultiplier = 1.0, maxInstances = 8): void {
+    if (!this.sfxEnabled) return;
+    void this.sfxBackend.play2D(path, { volume: volumeMultiplier, maxInstances });
+  }
+
+  /** Play a bounded one-shot at an engine-world position. */
+  public playSfx3D(
+    path: string,
+    position: { x: number; y: number; z: number },
+    options: SpatialSfxPlayOptions = {},
+  ): void {
+    if (!this.sfxEnabled) return;
+    void this.sfxBackend.play3D(path, new Vector3(position.x, position.y, position.z), options);
   }
 
   /**
@@ -296,6 +312,7 @@ export class AudioManager {
 
   public setSfxVolume(volume: number): void {
     this.sfxVolume = Math.max(0, Math.min(1, volume));
+    this.sfxBackend.setVolume(this.sfxVolume);
   }
 
   public setSfxEnabled(enabled: boolean): void {
@@ -602,5 +619,6 @@ export class AudioManager {
       URL.revokeObjectURL(blobUrl);
     }
     this.audioBlobUrls.clear();
+    this.sfxBackend.dispose();
   }
 }
