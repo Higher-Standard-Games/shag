@@ -183,6 +183,10 @@ async function main() {
   loadingScreen.setStatus("Initializing services...");
   await ServiceLocator.getInstance().initScene(scene);
 
+  // Emissive glow layer (controllable glow on top of bloom; r_glow, default on).
+  const { GlowEffect } = await import("./engine/effects/GlowEffect");
+  GlowEffect.getInstance().init(scene);
+
   // Initialize Physics System
   try {
     loadingScreen.setStatus("Initializing physics...");

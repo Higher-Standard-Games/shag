@@ -84,6 +84,7 @@ export type RenderVarName =
   | "r_arealights_auto"
   | "r_arealights_intensity"
   | "r_wireframe"
+  | "r_glow"
   | "r_bloom"
   | "r_exposure"
   | "r_contrast"
@@ -295,6 +296,15 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, "name">> = {
     max: 1,
     description: "Wireframe mode toggle (0/1)",
     category: "debug",
+  },
+  // Emissive glow layer (see GlowEffect) — controllable glow on top of bloom.
+  r_glow: {
+    value: 0.7,
+    defaultValue: 0.7,
+    min: 0,
+    max: 2,
+    description: "Emissive glow-layer intensity (0 = off). Glows signs/strips/energy on top of bloom.",
+    category: "display",
   },
   // Post-processing (multipliers)
   r_bloom: {
