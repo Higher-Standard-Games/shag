@@ -131,9 +131,12 @@ and the sign texture projects; tune `faceDir` sign convention (the anchor
    unit-tested `MapEmissiveSurfaces` module reads the raw BSP world faces (no
    mesh-builder changes), computes each surface's Babylon centroid/normal/size,
    culls specks below a min area, and ranks by area so the largest hero signs win
-   the cap. Default-off because placement quality — facing sign, size heuristic
-   (two largest AABB extents), which surfaces, intensity — is browser-tuned;
-   texture reuse (projecting the sign image) is a further follow-up.
+   the cap. Each panel projects the surface's **own loaded BSP texture** (reused
+   from its `bsp_tex_*` material, no re-load) so the cast light carries the sign's
+   colors/shape, not flat white. Area-light specular is low by default (glossy
+   metal no longer mirror-streaks); `r_arealights_intensity` dials brightness.
+   Default-off because placement quality — facing, size heuristic (two largest
+   AABB extents), which surfaces — is browser-tuned.
 
 ---
 

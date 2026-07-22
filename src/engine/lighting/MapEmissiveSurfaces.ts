@@ -25,6 +25,8 @@ export interface EmissiveSurface {
   /** Planar area (width×height), used for ranking. */
   area: number;
   textureName: string;
+  /** BSP texture index — used to reuse the surface's loaded texture as the emitter. */
+  textureIndex: number;
 }
 
 /** Ignore fullbright specks (tiny detail faces, highlights) below this area. */
@@ -104,6 +106,7 @@ export function extractEmissiveSurfaces(
       height,
       area,
       textureName: bsp.textures[face.textureIndex]?.name ?? "",
+      textureIndex: face.textureIndex,
     });
   }
 

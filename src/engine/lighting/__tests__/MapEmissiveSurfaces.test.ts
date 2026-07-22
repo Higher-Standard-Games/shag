@@ -51,6 +51,7 @@ describe("extractEmissiveSurfaces", () => {
     expect(out).toHaveLength(1);
     const s = out[0];
     expect(s.textureName).toBe("sign");
+    expect(s.textureIndex).toBe(0); // used to reuse the surface's loaded texture
     expect(s.position.asArray()).toEqual([32, 32, 0]); // Quake (32,0,32) → Babylon (32,32,0)
     expect(s.width).toBe(64);
     expect(s.height).toBe(64);

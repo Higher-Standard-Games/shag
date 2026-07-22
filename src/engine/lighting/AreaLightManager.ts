@@ -15,6 +15,7 @@
  * and is budget-hostile at scale, so it stays capped/deferred.
  */
 
+import type { BaseTexture } from "@babylonjs/core/Materials/Textures/baseTexture";
 import type { Scene } from "@babylonjs/core/scene";
 import { BspManager } from "../loader/bsp/BspManager";
 import { Q3ShaderRegistry } from "../loader/shader/Q3ShaderRegistry";
@@ -71,6 +72,7 @@ export class AreaLightManager {
           intensity: spec.intensity * intensityMul,
           color: spec.color,
           emissionTextureUrl: spec.emissionTextureUrl,
+          emissionSource: spec.emissionSource,
         }),
       );
     }
@@ -107,6 +109,9 @@ export class AreaLightManager {
         const shaderReg = Q3ShaderRegistry.getInstance();
         const surfaces = extractEmissiveSurfaces(bspFile, (name) => shaderReg.resolveMaterialProps(name).isFullbright);
         for (const s of surfaces) {
+          // Project the sign's own loaded texture so the emitted light carries
+          // its colors/shape (not flat white). Falls back to a flat emitter.
+          const emissionSource = this.resolveSurfaceTexture(scene, s.textureIndex) ?? undefined;
           specs.push({
             name: `light_area_auto_${autoCount++}`,
             position: s.position,
@@ -114,6 +119,7 @@ export class AreaLightManager {
             width: s.width,
             height: s.height,
             intensity: AUTO_INTENSITY,
+            emissionSource,
           });
         }
       }
@@ -127,6 +133,22 @@ export class AreaLightManager {
       );
     }
     return created;
+  }
+
+  /**
+   * Reuse a fullbright surface's already-loaded BSP texture (on its
+   * `bsp_tex_<index>` mesh material) as the panel's emitter, so the projected
+   * light carries the sign's own colors/shape. Null if not found/loaded.
+   */
+  private resolveSurfaceTexture(scene: Scene, textureIndex: number): BaseTexture | null {
+    const mat = scene.getMeshByName(`bsp_tex_${textureIndex}`)?.material;
+    if (!mat) return null;
+    const m = mat as unknown as {
+      diffuseTexture?: BaseTexture | null;
+      emissiveTexture?: BaseTexture | null;
+      albedoTexture?: BaseTexture | null;
+    };
+    return m.diffuseTexture ?? m.emissiveTexture ?? m.albedoTexture ?? null;
   }
 
   dispose(): void {

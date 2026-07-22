@@ -17,6 +17,7 @@
  * so callers must cap the count (see AreaLightManager / r_arealights_max).
  */
 
+import type { BaseTexture } from "@babylonjs/core/Materials/Textures/baseTexture";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { BspEntity } from "../loader/bsp/BspLoader";
@@ -32,6 +33,8 @@ export interface AreaLightSpec {
   color?: Color3;
   intensity: number;
   emissionTextureUrl?: string;
+  /** A ready-made source texture to project (e.g. the surface's own BSP texture). */
+  emissionSource?: BaseTexture;
 }
 
 const DEFAULT_WIDTH = 64;
