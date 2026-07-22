@@ -81,6 +81,7 @@ export type RenderVarName =
   | "r_godrays_samples"
   | "r_arealights"
   | "r_arealights_max"
+  | "r_arealights_auto"
   | "r_wireframe"
   | "r_bloom"
   | "r_exposure"
@@ -267,6 +268,15 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, "name">> = {
     min: 0,
     max: 32,
     description: "Max area lights per map (they consume real per-surface light slots). Applies on next map load.",
+    category: "lighting",
+  },
+  r_arealights_auto: {
+    value: 0,
+    defaultValue: 0,
+    min: 0,
+    max: 1,
+    description:
+      "Auto-place area lights on the biggest emissive (fullbright) BSP surfaces, filling the r_arealights_max budget after explicit light_area entities. Experimental (0/1). Applies on next map load.",
     category: "lighting",
   },
   r_wireframe: {

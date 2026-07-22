@@ -17,9 +17,14 @@
 
 import type { Scene } from "@babylonjs/core/scene";
 import { BspManager } from "../loader/bsp/BspManager";
+import { Q3ShaderRegistry } from "../loader/shader/Q3ShaderRegistry";
 import RenderVars from "../rendering/RenderVars";
 import { AreaLightPanel } from "./AreaLightPanel";
 import { type AreaLightSpec, resolveAreaLightEntities } from "./MapAreaLightEntities";
+import { extractEmissiveSurfaces } from "./MapEmissiveSurfaces";
+
+/** Default intensity for auto-placed emissive-surface area lights (supplemental). */
+const AUTO_INTENSITY = 3;
 
 export class AreaLightManager {
   private static instance: AreaLightManager;
@@ -91,11 +96,34 @@ export class AreaLightManager {
     }
     if (!bsp.isLoaded()) return 0;
 
+    // Explicit light_area entities rank first; auto-placed emissive surfaces
+    // (opt-in) fill the remaining budget, largest signs first.
     const specs = resolveAreaLightEntities(bsp.getRawEntities());
+    let autoCount = 0;
+    if ((rv.get("r_arealights_auto") ?? 0) >= 0.5) {
+      const bspFile = bsp.getLoadedBsp();
+      if (bspFile) {
+        const shaderReg = Q3ShaderRegistry.getInstance();
+        const surfaces = extractEmissiveSurfaces(bspFile, (name) => shaderReg.resolveMaterialProps(name).isFullbright);
+        for (const s of surfaces) {
+          specs.push({
+            name: `light_area_auto_${autoCount++}`,
+            position: s.position,
+            faceDir: s.normal,
+            width: s.width,
+            height: s.height,
+            intensity: AUTO_INTENSITY,
+          });
+        }
+      }
+    }
+
     const cap = Math.round(rv.get("r_arealights_max") ?? 4);
     const created = this.applySpecs(scene, specs, cap);
     if (specs.length > 0) {
-      console.log(`[AreaLightManager] ${created} area lights active (${specs.length} light_area entities, cap ${cap})`);
+      console.log(
+        `[AreaLightManager] ${created} area lights active (${specs.length - autoCount} entities + ${autoCount} auto-emissive, cap ${cap})`,
+      );
     }
     return created;
   }

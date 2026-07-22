@@ -340,6 +340,11 @@ export class BspManager {
     return this.loadedBsp?.entities ?? [];
   }
 
+  /** The parsed BSP file, or null if none is loaded (for surface extraction). */
+  getLoadedBsp(): BspFile | null {
+    return this.loadedBsp;
+  }
+
   /** All entities of a given classname (empty if no BSP is loaded). */
   getEntitiesByClassname(classname: string): BspEntity[] {
     if (!this.loadedBsp) return [];

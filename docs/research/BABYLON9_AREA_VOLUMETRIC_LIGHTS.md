@@ -124,11 +124,16 @@ and the sign texture projects; tune `faceDir` sign convention (the anchor
    gate (default on); `r_arealights_max` caps the number per map (default 4). A
    world surface's realistic slot load is ambient + sun + a couple of clusters,
    leaving ~1-2 slots, so budget a few hero panels, not many.
-3. **Auto-derive from emissive surfaces (deferred).** Spawning panels from the
-   brightest emissive Q3 surfaces (reusing their texture) is the compelling next
-   step, but it needs per-face surface extraction (BSP is texture-grouped, so
-   group bounds span the map) and is budget-hostile at scale — so it stays a
-   capped/gated follow-up.
+3. **Auto-derive from emissive surfaces (implemented, opt-in).** `r_arealights_auto`
+   (default off) auto-places panels on the map's brightest **fullbright** world
+   surfaces (Q3 shaders mark lamps/signs `isFullbright`), filling the
+   `r_arealights_max` budget after any explicit `light_area` entities. The pure,
+   unit-tested `MapEmissiveSurfaces` module reads the raw BSP world faces (no
+   mesh-builder changes), computes each surface's Babylon centroid/normal/size,
+   culls specks below a min area, and ranks by area so the largest hero signs win
+   the cap. Default-off because placement quality — facing sign, size heuristic
+   (two largest AABB extents), which surfaces, intensity — is browser-tuned;
+   texture reuse (projecting the sign image) is a further follow-up.
 
 ---
 
