@@ -17,6 +17,7 @@ import { RawTexture } from "@babylonjs/core/Materials/Textures/rawTexture";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
 import type { Scene } from "@babylonjs/core/scene";
@@ -1263,6 +1264,33 @@ export class BspMeshBuilder {
    * flicker, the EffectPreloader pre-compiles the lightmap shader variant during
    * map load, and scene.whenReadyAsync() gates the loading screen until ready.
    */
+  /**
+   * Freeze world matrices + bounding info on the STATIC BSP world meshes
+   * (`bsp_world` + `bsp_tex_*`), which never transform after build. This skips
+   * the per-frame world-matrix recompute and bounding-info sync Babylon does for
+   * every mesh, a pure CPU win that scales with the map's texture-group count.
+   *
+   * Safe because: PVS toggles `isVisible` (not transforms), and static geometry's
+   * bounds never change. Autosprites are excluded — they billboard by rewriting
+   * vertex positions every frame, so their world matrix must stay live. Returns
+   * the number of meshes frozen. Gated by `r_bsp_freeze`; applied at map build.
+   */
+  public static freezeStaticWorld(result: BspMeshBuildResult): number {
+    if (!result?.worldMesh) return 0;
+    let frozen = 0;
+    const freezeOne = (mesh: AbstractMesh): void => {
+      if (mesh.metadata?.autosprite || mesh.metadata?.autosprite2) return;
+      mesh.freezeWorldMatrix();
+      mesh.doNotSyncBoundingInfo = true;
+      frozen++;
+    };
+    freezeOne(result.worldMesh);
+    for (const child of result.worldMesh.getChildMeshes()) {
+      freezeOne(child);
+    }
+    return frozen;
+  }
+
   public static applyLightmaps(result: BspMeshBuildResult, options?: { intensity?: number }): number {
     const { intensity = 2.0 } = options || {};
     const lightmaps = result.lightmapTextures;

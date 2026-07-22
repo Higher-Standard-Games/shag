@@ -72,6 +72,7 @@ export type RenderVarName =
   | "r_anisotropy"
   | "r_ktx2"
   | "r_webgpu"
+  | "r_bsp_freeze"
   | "r_wireframe"
   | "r_bloom"
   | "r_exposure"
@@ -182,6 +183,15 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, "name">> = {
     min: 0,
     max: 1,
     description: "Experimental WebGPU renderer (restart required). Use ?renderer=webgpu while the compatibility gate is open.",
+    category: "display",
+  },
+  r_bsp_freeze: {
+    value: 1,
+    defaultValue: 1,
+    min: 0,
+    max: 1,
+    description:
+      "Freeze world matrices + bounding info on static BSP world meshes (skips per-frame transform/bounds recompute). Applies on next map load (0/1).",
     category: "display",
   },
   r_wireframe: {
@@ -493,7 +503,13 @@ export class RenderVars {
     }
 
     // Integer-like vars
-    if (name === "r_anisotropy" || name === "r_ktx2" || name === "r_wireframe" || name === "r_webgpu") {
+    if (
+      name === "r_anisotropy" ||
+      name === "r_ktx2" ||
+      name === "r_wireframe" ||
+      name === "r_webgpu" ||
+      name === "r_bsp_freeze"
+    ) {
       value = Math.round(value);
     }
 

@@ -409,6 +409,14 @@ export class BspManager {
         deluxe: deluxeEnabled,
       });
 
+      // Freeze static world geometry (world matrix + bounding info) to skip its
+      // per-frame recompute. Static BSP meshes never transform; PVS only toggles
+      // visibility. Gated by r_bsp_freeze (default on); applies per map build.
+      if ((RenderVars.getInstance().get("r_bsp_freeze") ?? 1) >= 0.5) {
+        const frozen = BspMeshBuilder.freezeStaticWorld(this.meshResult);
+        console.log(`[BspManager] Froze ${frozen} static world meshes (r_bsp_freeze)`);
+      }
+
       const filterInfo = options.faceTypes ? ` (types: ${options.faceTypes.join(",")})` : "";
 
       return [
