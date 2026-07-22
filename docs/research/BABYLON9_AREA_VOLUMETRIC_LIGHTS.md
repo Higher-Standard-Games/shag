@@ -1,7 +1,7 @@
 # Babylon 9 — Textured Area Lights & Volumetric Lighting
 
-**Date:** 2026-07-21
-**Status:** Investigation + working POC for textured area lights; volumetric scoped
+**Date:** 2026-07-21 (volumetric POC added 2026-07-22)
+**Status:** Working POCs for both — textured area lights *and* volumetric god rays
 **Scope:** Two new/expanded Babylon 9 lighting features and how they fit our
 sci-fi FPS: (1) **textured rectangular area lights** (`RectAreaLight` +
 emission texture), (2) **volumetric light scattering** (god rays / light
@@ -24,10 +24,14 @@ lighting + the `maxSimultaneousLights` budget this interacts with).
   `ClusteredLightContainer` only accepts point/spot), so each one occupies a
   real `maxSimultaneousLights` slot on every lit surface — budget them like the
   sun/ambient, sparingly, not like pooled effect glows.
-- **Volumetric** has two paths: the classic `VolumetricLightScatteringPostProcess`
-  (god rays, WebGL2-ready, mesh-anchored) — usable now for sun shafts through
-  windows / bright emitters; and a new 9.0 Frame-Graph/compute volumetric task
-  that rides on the in-flight WebGPU work — deferred.
+- **Volumetric god rays are implemented (POC).** `SunGodRays` +
+  `GodRaysController` + a `godrays` console command wrap the classic
+  `VolumetricLightScatteringPostProcess` in two modes: **sun** (source tracks the
+  camera along the `SkyLightSystem` sun direction, skybox excluded from the
+  occlusion pass → sky shafts through windows/grates) and **anchored** (a fixed
+  bright emitter → localized shafts). BSP maps opt in via a worldspawn `godrays`
+  key. Only **one** full-screen VLS pass runs at a time (sun *or* one emitter);
+  true per-light/per-brush volumetrics are the WebGPU Frame-Graph task, deferred.
 
 ---
 
@@ -120,47 +124,100 @@ and the sign texture projects; tune `faceDir` sign convention (the anchor
 
 ---
 
-## 2. Volumetric Light Scattering (god rays / light shafts)
+## 2. Volumetric Light Scattering (god rays / light shafts) — POC in this branch
 
-Two implementations exist in 9.17:
-
-### A. Classic `VolumetricLightScatteringPostProcess` — usable now (WebGL2)
-
-Radial light-shaft post-process anchored to a **mesh** (a bright quad/plane at
-the light source, or the skybox). Screen-space occlusion-aware god rays.
+Screen-space radial light-shaft post-process. A bright **source mesh** is
+smeared outward from its projected screen position and occluded by scene
+geometry, so a wall/grate/window between the camera and the source carves the
+classic shaft silhouette (GPU Gems 3, ch. 13). Verified API (installed 9.17):
 
 ```ts
+import "@babylonjs/core/PostProcesses/volumetricLightScatteringPostProcess"; // SIDE EFFECT: registers PP + shaders
 import { VolumetricLightScatteringPostProcess } from "@babylonjs/core/PostProcesses/volumetricLightScatteringPostProcess";
-const godrays = new VolumetricLightScatteringPostProcess(
+const vls = new VolumetricLightScatteringPostProcess(
   "godrays", 1.0, camera, sourceMesh, /*samples*/ 60, Texture.BILINEAR_SAMPLINGMODE, engine);
-godrays.exposure = 0.3; godrays.decay = 0.96815; godrays.weight = 0.58767; godrays.density = 0.926;
+vls.exposure = 0.32; vls.decay = 0.965; vls.weight = 0.5; vls.density = 0.92;
+vls.excludedMeshes = [skybox];   // sky doesn't occlude → shafts fill the visible sky
+vls.dispose(camera);             // NOTE: dispose() takes the camera to detach from
 ```
 
-- **Fit:** sun shafts through the sci-fi hallway windows/grates; beams from a
-  bright emissive source; pairs with `SkyLightSystem`'s directional sun (anchor
-  the source mesh at the sun/sky direction).
-- **Cost:** one extra full-screen pass + `samples` taps; tune `samples` by
-  quality tier (`QualityDetector`).
-- **Caveat:** it's a `PostProcess`, so it must slot into our
-  `PostProcessingManager` pipeline order (after scene, around bloom). Occlusion
-  uses a depth/render pass — verify it composes with SSAO2 + bloom.
+- **Side-effect import** registers the post-process *and* its four shaders — same
+  class of hazard as the outline/physics/area-light regressions this cycle.
+  Without it the class is unregistered and the effect silently no-ops.
+- **Radial center** = the source mesh's projected screen position (or
+  `useCustomMeshPosition`/`customMeshPosition`). We just move an emissive
+  billboard and the rays follow.
+- **`excludedMeshes`** render as empty in the internal pass, so they don't block
+  the source. The skybox goes here in sun mode: the sky reads as open and only
+  solid world geometry carves the shafts.
 
-### B. New 9.0 Frame-Graph volumetric (`volumetricLightingTask`) — deferred
+### POC in this branch (tested)
+
+- `src/engine/lighting/SunGodRays.ts` — wraps the VLS post-process with a bright
+  emissive billboard source (radial-glow `DynamicTexture`, degrades to flat
+  emissive where no canvas exists so it's headless-safe). Two modes:
+  - **`"sun"`** — the source tracks the active camera at a large distance along
+    −(sun direction), so it behaves like a sun at infinity (a `scene.onBeforeRender`
+    observer repositions it each frame). Sky shafts through windows/grates.
+  - **`"anchored"`** — the source sits at a fixed world position (a bright lamp,
+    portal, energy conduit). Localized, static shafts.
+- `src/engine/lighting/GodRaysController.ts` — the **single owner** of the one
+  active VLS pass (screen-space VLS is one full-screen pass, so exactly one runs
+  at a time). `enableSun()` reads the live sun from `SkyLightSystem` and excludes
+  the skybox; `enableAnchored()` fixes an emitter; `loadFromWorldspawn()` reads
+  the map's opt-in keys. Both the console command and BSP map-load drive it here.
+- `src/engine/console/commands/GodRaysCommand.ts` — `godrays [sun|here|off]`.
+- Tests (NullEngine): `SunGodRays.test.ts` (PP registers/class, source tracks the
+  sun opposite the light direction, anchored + excluded-mesh forwarding, clean
+  dispose) and `GodRaysController.test.ts` (enable/disable, single-pass swap,
+  missing-sun fallback). Shafts + occlusion silhouettes are browser-validated.
+
+### Integration — two paths (the user's angle)
+
+**A. Sky god rays through the sun entity / sky shader (implemented).** Our "sun"
+is `SkyLightSystem`'s directional light. `GodRaysController.enableSun()` reads its
+live `.direction` and places the source opposite it, so the shafts follow the
+day/night sun and time-of-day. Wired at BSP map-load in `ClientMapLoader` right
+next to `SkyLightSystem.loadFromWorldspawn()`; a map opts in with worldspawn keys:
+
+```
+"godrays"           "1"            // enable sun shafts
+"godrays_color"     "1 0.95 0.8"   // tint (0-1 or 0-255)
+"godrays_exposure"  "0.32"         // overall intensity
+"godrays_decay"     "0.965"        // per-sample falloff
+"godrays_weight"    "0.5"
+"godrays_density"   "0.92"
+"godrays_samples"   "60"           // radial taps / quality
+```
+
+This is the most self-contained volumetric win and doesn't touch the in-flight
+WebGPU/KTX2 work.
+
+**B. BSP brush / point emitter (partly implemented + a documented ceiling).**
+`enableAnchored()` already gives one fixed god-ray emitter — enough for a single
+dominant source (a hero light, a reactor, a portal). A `light_volumetric` point
+entity (classname → `enableAnchored` in `MapRenderer`, next to the `light` →
+`PointLight` path, origin + color/exposure keys) is a small follow-up. **The hard
+ceiling:** screen-space VLS is *one* full-screen pass, so it can't do many
+emitters or true light **confined to a brush volume**. Arbitrary per-brush /
+per-light volumetrics are the Frame-Graph path below — that's where "light shafts
+that live inside a brush volume" actually belongs.
+
+### Frame-Graph volumetric (`volumetricLightingTask`) — deferred
 
 `FrameGraph/Tasks/PostProcesses/volumetricLightingTask` + `volumetricLightingBlock`
-— the "next-gen" volumetric that uses the Frame Graph and compute, taking full
-advantage of **WebGPU compute shaders**. This rides directly on the in-flight
-**WS6 WebGPU** work and the Frame Graph (which we don't otherwise use yet).
-**Defer** until WebGPU is validated; then evaluate as the higher-quality path,
-with the classic post-process as the WebGL2 fallback.
+— the 9.0 "next-gen" volumetric on the Frame Graph + compute, taking full
+advantage of **WebGPU compute shaders** and supporting real per-light /
+brush-volume scattering (path B's ceiling). Rides on the in-flight **WS6 WebGPU**
+work and the Frame Graph (unused elsewhere yet). **Defer** until WebGPU is
+validated; then adopt as the higher-quality path, with this screen-space POC as
+the WebGL2 fallback.
 
-### Sky-shader pairing (the user's angle)
-
-Our sky is `SkyLightSystem` (a directional sun + sky colors). A god-ray source
-anchored to the sun direction gives time-of-day light shafts through windows.
-This is the most self-contained volumetric win and doesn't touch the WebGPU/
-texture work in flight. Suggested next POC: `SunGodRays` module + `godrays`
-console command, mirroring the area-light POC shape.
+**Owed (browser):** run `godrays` in a windowed/skylit map; confirm shafts read
+and are carved by geometry; tune exposure/decay/weight/density and the source
+`size`/`distance`; verify composition order vs bloom + SSAO2 in
+`PostProcessingManager` (VLS is a separate PP on the camera — check it slots
+before image-processing so bloom picks up the shafts).
 
 ---
 
