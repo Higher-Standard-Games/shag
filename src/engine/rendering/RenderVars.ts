@@ -82,6 +82,7 @@ export type RenderVarName =
   | "r_arealights"
   | "r_arealights_max"
   | "r_arealights_auto"
+  | "r_arealights_intensity"
   | "r_wireframe"
   | "r_bloom"
   | "r_exposure"
@@ -277,6 +278,14 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, "name">> = {
     max: 1,
     description:
       "Auto-place area lights on the biggest emissive (fullbright) BSP surfaces, filling the r_arealights_max budget after explicit light_area entities. Experimental (0/1). Applies on next map load.",
+    category: "lighting",
+  },
+  r_arealights_intensity: {
+    value: 1.0,
+    defaultValue: 1.0,
+    min: 0,
+    max: 4,
+    description: "Brightness multiplier for all area lights. Applies on next map load.",
     category: "lighting",
   },
   r_wireframe: {

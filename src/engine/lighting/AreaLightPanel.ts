@@ -25,7 +25,7 @@ import "@babylonjs/core/Lights/rectAreaLight";
 import { RectAreaLight } from "@babylonjs/core/Lights/rectAreaLight";
 import type { BaseTexture } from "@babylonjs/core/Materials/Textures/baseTexture";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
-import type { Color3 } from "@babylonjs/core/Maths/math.color";
+import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import { AreaLightTextureTools } from "@babylonjs/core/Misc/areaLightsTextureTools";
@@ -43,6 +43,11 @@ export interface AreaLightPanelOptions {
   intensity?: number;
   /** Tint (multiplies the emission texture; the panel's base color if untextured). */
   color?: Color3;
+  /**
+   * Specular tint. Low by default: area lights otherwise mirror-highlight glossy
+   * metal (diamond-plate floors) into harsh streaks. Diffuse (color) is the fill.
+   */
+  specular?: Color3;
   /**
    * Image projected as the light. Loaded then pre-processed via
    * AreaLightTextureTools. Omit for a flat rectangular emitter.
@@ -79,6 +84,8 @@ export class AreaLightPanel {
     this.light.parent = this.anchor;
     this.light.intensity = opts.intensity ?? 1;
     if (opts.color) this.light.diffuse = opts.color.clone();
+    // Tame specular so glossy metal doesn't turn into mirror streaks.
+    this.light.specular = opts.specular ? opts.specular.clone() : new Color3(0.12, 0.12, 0.12);
 
     if (opts.emissionSource) {
       void this.preprocessAndAssign(scene, opts.emissionSource, false);

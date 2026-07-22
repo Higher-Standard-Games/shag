@@ -24,7 +24,7 @@ import { type AreaLightSpec, resolveAreaLightEntities } from "./MapAreaLightEnti
 import { extractEmissiveSurfaces } from "./MapEmissiveSurfaces";
 
 /** Default intensity for auto-placed emissive-surface area lights (supplemental). */
-const AUTO_INTENSITY = 3;
+const AUTO_INTENSITY = 2;
 
 export class AreaLightManager {
   private static instance: AreaLightManager;
@@ -58,6 +58,7 @@ export class AreaLightManager {
    */
   applySpecs(scene: Scene, specs: readonly AreaLightSpec[], cap: number): number {
     this.dispose();
+    const intensityMul = RenderVars.getInstance().get("r_arealights_intensity") ?? 1;
     const capped = specs.slice(0, Math.max(0, Math.floor(cap)));
     for (const spec of capped) {
       this.panels.push(
@@ -67,7 +68,7 @@ export class AreaLightManager {
           faceDir: spec.faceDir,
           width: spec.width,
           height: spec.height,
-          intensity: spec.intensity,
+          intensity: spec.intensity * intensityMul,
           color: spec.color,
           emissionTextureUrl: spec.emissionTextureUrl,
         }),
