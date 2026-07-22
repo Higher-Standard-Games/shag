@@ -177,11 +177,11 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, "name">> = {
     category: "texture",
   },
   r_webgpu: {
-    value: 1,
-    defaultValue: 1,
+    value: 0,
+    defaultValue: 0,
     min: 0,
     max: 1,
-    description: "Prefer WebGPU after restart (0/1). Automatically falls back to WebGL2 on failure.",
+    description: "Experimental WebGPU renderer (restart required). Use ?renderer=webgpu while the compatibility gate is open.",
     category: "display",
   },
   r_wireframe: {

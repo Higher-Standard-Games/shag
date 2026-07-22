@@ -22,6 +22,7 @@ import {
   disposeDynamicLightCluster,
   getDynamicLightCluster,
   removeFromDynamicLightCluster,
+  supportsClusteredLighting,
 } from "../DynamicLightCluster";
 
 let engine: NullEngine;
@@ -42,6 +43,17 @@ function light(name: string): PointLight {
 }
 
 describe("DynamicLightCluster", () => {
+  it("uses clustered lighting on the non-WebGPU headless backend", () => {
+    expect(supportsClusteredLighting(scene)).toBe(true);
+  });
+
+  it("rejects clustered lighting on WebGPU until its bindings pass validation", () => {
+    const webGPUScene = {
+      getEngine: () => ({ isWebGPU: true }),
+    } as Scene;
+    expect(supportsClusteredLighting(webGPUScene)).toBe(false);
+  });
+
   it("creates exactly one container per scene, lazily on first add", () => {
     expect(getDynamicLightCluster(scene)).toBeNull();
 

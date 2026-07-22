@@ -645,7 +645,7 @@ export class WeaponViewManager {
               pbr.alpha = 0.35;
               pbr.backFaceCulling = false;
               applySafeMaxSimultaneousLights(pbr);
-              pbr.maxSimultaneousLights = 2;
+              pbr.maxSimultaneousLights = this.scene!.getEngine().isWebGPU ? 1 : 2;
             } else {
               // Main body / sights: keep PBR for proper metallic/roughness.
               pbr.environmentIntensity = 2.0;
@@ -655,7 +655,9 @@ export class WeaponViewManager {
               // ...but the safe PBR cap is 1, and the weapon needs BOTH its dedicated
               // hemispheric weaponLight AND the always-present muzzle-flash light, or
               // one intensity-0 light wins the slot and the gun renders black (#2).
-              pbr.maxSimultaneousLights = 2;
+              // WebGPU must retain the one-light cap to stay below the adapter's
+              // per-stage UBO limit; weaponLight wins via its render priority.
+              pbr.maxSimultaneousLights = this.scene!.getEngine().isWebGPU ? 1 : 2;
               console.log(`[WeaponViewManager] Gun: keeping PBR "${pbr.name}" (env=${pbr.environmentIntensity})`);
             }
           }

@@ -120,7 +120,7 @@ describe("RenderVars", () => {
       expect(rv.get("r_glossmap")).toBe(1.0);
       expect(rv.get("r_lightmap")).toBe(1.0);
       expect(rv.get("r_anisotropy")).toBe(8);
-      expect(rv.get("r_webgpu")).toBe(1);
+      expect(rv.get("r_webgpu")).toBe(0);
       expect(rv.get("r_wireframe")).toBe(0);
     });
 

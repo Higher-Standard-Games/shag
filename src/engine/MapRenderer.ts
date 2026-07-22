@@ -9,9 +9,10 @@ import { PhysicsShapeType } from "@babylonjs/core/Physics/v2/IPhysicsEnginePlugi
 import type { Scene } from "@babylonjs/core/scene";
 import { type EntityData, EntityHandlerRegistry } from "./core/EntityHandlerRegistry";
 import { LocalDebrisManager, type LocalDebrisType } from "./effects/LocalDebrisEffect";
+import { supportsClusteredLighting } from "./lighting/DynamicLightCluster";
+import { applySafeMaxSimultaneousLights } from "./lighting/DynamicLightSafety";
 import { SkyLightSystem } from "./lighting/SkyLightSystem";
 import { StreetLampSystem } from "./lighting/StreetLampSystem";
-import { applySafeMaxSimultaneousLights } from "./lighting/DynamicLightSafety";
 import {
   BrushGenerator,
   type Entity,
@@ -826,7 +827,7 @@ export class MapRenderer {
 
     // Use ClusteredLightContainer for static point lights
     // This allows many lights without hitting WebGL uniform buffer limits
-    if (staticLights.length > 0) {
+    if (staticLights.length > 0 && supportsClusteredLighting(scene)) {
       if (!scene.metadata) scene.metadata = {};
       // biome-ignore lint/suspicious/noExplicitAny: BSP mesh metadata tagging via Babylon metadata API
       const existing = (scene.metadata as any).clusteredLightContainer;
@@ -844,6 +845,8 @@ export class MapRenderer {
       // Set max range to match our scene size
       clusteredLights.maxRange = 1000;
       console.log(`Created clustered light container with ${staticLights.length} static lights`);
+    } else if (staticLights.length > 0) {
+      console.log(`Using ${staticLights.length} capped forward static lights (WebGPU compatibility)`);
     }
 
     return {

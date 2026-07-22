@@ -33,10 +33,24 @@ import type { Scene } from "@babylonjs/core/scene";
 const containers = new WeakMap<Scene, ClusteredLightContainer>();
 
 /**
+ * Babylon 9.17 clustered lights currently produce invalid texture/storage
+ * bindings on our WebGPU path. A single invalid binding poisons the frame's
+ * command encoder, so use ordinary forward lights there until the Babylon
+ * clustered implementation passes browser validation.
+ */
+export function supportsClusteredLighting(scene: Scene): boolean {
+  return !scene.getEngine().isWebGPU;
+}
+
+/**
  * Add a dynamic world light to the scene's gameplay cluster (lazily creating
  * the container on first use). Safe to call repeatedly with the same light.
  */
 export function addToDynamicLightCluster(scene: Scene, light: Light): void {
+  // The light was constructed in the scene already, so returning here leaves it
+  // as a normal forward light owned and disposed by its existing caller.
+  if (!supportsClusteredLighting(scene)) return;
+
   let container = containers.get(scene);
   if (!container) {
     // Create empty + addLight (rather than passing lights to the constructor):

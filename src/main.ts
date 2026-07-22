@@ -34,7 +34,6 @@ import {
   type RenderingBackend,
   resolveRenderingBackend,
 } from "./engine/rendering/RenderingEngineFactory";
-import { RenderVars } from "./engine/rendering/RenderVars";
 import { LoadingScreen } from "./engine/ui/LoadingScreen";
 import { MapLoadingOverlay } from "./engine/ui/MapLoadingOverlay";
 import { UIScale } from "./engine/ui/UIScale";
@@ -78,10 +77,10 @@ async function main() {
   loadingScreen.show();
   loadingScreen.setStatus("Initializing renderer...");
 
-  // WebGPU is preferred and restart-only. A URL override is useful for
-  // isolated A/B sessions while keeping the persisted setting untouched.
-  const renderVars = RenderVars.getInstance();
-  const requestedBackend = resolveRenderingBackend(renderVars.get("r_webgpu") === 1, window.location.search);
+  // WebGPU remains an explicit test session while Babylon 9 pipeline parity is
+  // incomplete. Ignore a previously persisted default-on r_webgpu=1 so users
+  // recover to the known-good renderer; ?renderer=webgpu still enables A/B.
+  const requestedBackend = resolveRenderingBackend(false, window.location.search);
   const renderer = await createRenderingEngine(canvas, requestedBackend);
   const engine = renderer.engine;
   if (renderer.fallbackReason) {

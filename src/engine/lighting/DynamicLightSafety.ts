@@ -20,31 +20,53 @@ import type { Scene } from "@babylonjs/core/scene";
  *
  * This is a small fixed slot count (clusters hold their many lights in textures,
  * not uniforms), so it stays comfortably within WebGL2 uniform limits.
+ * WebGPU does not use these raised budgets; its compatibility path below
+ * disables clustered containers and restores strict forward-light caps.
  */
 export const SAFE_MAX_SIMULTANEOUS_LIGHTS = 6;
 export const SAFE_PBR_MAX_SIMULTANEOUS_LIGHTS = 4;
+
+/**
+ * WebGPU's guaranteed per-stage uniform-buffer limit is 12. Babylon allocates
+ * one UBO per forward light in addition to Scene/Mesh/Material (and bones for
+ * skinned meshes), so the WebGL clustered-light budgets above are not safe on
+ * all WebGPU adapters. Keep the original conservative caps until clustered
+ * lighting passes the WebGPU acceptance gate.
+ */
+export const WEBGPU_SAFE_MAX_SIMULTANEOUS_LIGHTS = 2;
+export const WEBGPU_SAFE_PBR_MAX_SIMULTANEOUS_LIGHTS = 1;
 
 function getMaterialClassName(material: Material): string {
   return typeof material.getClassName === "function" ? material.getClassName() : material.constructor?.name || "";
 }
 
+function materialUsesWebGPU(material: Material): boolean {
+  return material.getScene().getEngine().isWebGPU === true;
+}
+
 export function getSafeMaxSimultaneousLights(material: Material): number {
-  return getMaterialClassName(material) === "PBRMaterial"
-    ? SAFE_PBR_MAX_SIMULTANEOUS_LIGHTS
-    : SAFE_MAX_SIMULTANEOUS_LIGHTS;
+  const isPBR = getMaterialClassName(material) === "PBRMaterial";
+  if (materialUsesWebGPU(material)) {
+    return isPBR ? WEBGPU_SAFE_PBR_MAX_SIMULTANEOUS_LIGHTS : WEBGPU_SAFE_MAX_SIMULTANEOUS_LIGHTS;
+  }
+  return isPBR ? SAFE_PBR_MAX_SIMULTANEOUS_LIGHTS : SAFE_MAX_SIMULTANEOUS_LIGHTS;
 }
 
 /**
- * Ensure a material's `maxSimultaneousLights` is at least the budget above, so
- * the clustered dynamic/static lights are not truncated off the surface. (Names
- * kept for call-site stability; this now RAISES an under-budget cap rather than
- * clamping down a scarcity limit.)
+ * Apply the backend-specific light budget. WebGL2 raises low caps to admit its
+ * clustered containers; WebGPU clamps high caps to protect its command stream.
  */
 export function applySafeMaxSimultaneousLights(material: Material | null | undefined): void {
   if (!material || !("maxSimultaneousLights" in material)) return;
 
   const budget = getSafeMaxSimultaneousLights(material);
   const target = material as Material & { maxSimultaneousLights?: number };
+  if (materialUsesWebGPU(material)) {
+    if (target.maxSimultaneousLights !== budget) {
+      target.maxSimultaneousLights = budget;
+    }
+    return;
+  }
   if (target.maxSimultaneousLights === undefined || target.maxSimultaneousLights < budget) {
     target.maxSimultaneousLights = budget;
   }
