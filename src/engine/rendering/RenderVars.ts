@@ -79,6 +79,8 @@ export type RenderVarName =
   | "r_godrays_weight"
   | "r_godrays_density"
   | "r_godrays_samples"
+  | "r_arealights"
+  | "r_arealights_max"
   | "r_wireframe"
   | "r_bloom"
   | "r_exposure"
@@ -248,6 +250,23 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, "name">> = {
     min: 8,
     max: 200,
     description: "God-ray radial sample count / quality (applies on next activation)",
+    category: "lighting",
+  },
+  // Textured area lights (see AreaLightManager). Not clustered → budget by count.
+  r_arealights: {
+    value: 1,
+    defaultValue: 1,
+    min: 0,
+    max: 1,
+    description: "Enable textured area lights from map `light_area` entities (0/1). Applies on next map load.",
+    category: "lighting",
+  },
+  r_arealights_max: {
+    value: 4,
+    defaultValue: 4,
+    min: 0,
+    max: 32,
+    description: "Max area lights per map (they consume real per-surface light slots). Applies on next map load.",
     category: "lighting",
   },
   r_wireframe: {

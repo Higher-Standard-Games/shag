@@ -79,6 +79,10 @@ async function loadClientMapWithSystems(
     } else {
       GodRaysController.getInstance().disable();
     }
+
+    // Textured area lights from map `light_area` entities (r_arealights, capped).
+    const { AreaLightManager } = await import("../../lighting/AreaLightManager");
+    AreaLightManager.getInstance().loadFromMap(scene);
   }
 
   let spawnStatus = "";

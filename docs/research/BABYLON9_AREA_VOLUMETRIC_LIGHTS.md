@@ -108,19 +108,27 @@ tools.dispose();
 and the sign texture projects; tune `faceDir` sign convention (the anchor
 `lookAt` may need a flip), intensity, and size.
 
-### Proposed integration path (beyond the POC)
+### Integration — map feature (implemented)
 
-1. **BSP entity** `light_area` (or reuse Q3 `light` with a `_area`/`_surface`
-   key): classname → `AreaLightPanel` in `MapRenderer` (next to the existing
-   `light` → `PointLight` path), with width/height/texture/intensity from
-   entity properties. Vendored LTC makes it offline-safe.
-2. **Auto-derive from emissive surfaces** (stretch): when the Q3 shader pipeline
-   tags a surface emissive, optionally spawn a co-located area light using that
-   surface's texture + bounds. Gated behind an `r_arealights` cvar and a small
-   per-map cap (budget).
-3. **Budget policy:** area lights are scene-lightsources, so cap them per-map
-   and prefer `includedOnlyMeshes`/short range so distant surfaces don't pay the
-   slot. Revisit `DynamicLightSafety` budget if maps want many.
+1. **`light_area` BSP entity (implemented).** `AreaLightManager.loadFromMap`
+   reads `light_area` entities at BSP map-load (`ClientMapLoader`, next to the
+   sky/god-ray hooks) and builds `AreaLightPanel`s. Keys: `origin` (required),
+   `angle` (yaw; -1 up, -2 down) or `_arealight_dir`, `_size "W H"`, `_color`,
+   `light` (intensity), `_arealight_image` (optional projected texture). Vendored
+   LTC keeps it offline-safe. Parsing is the pure, unit-tested `MapAreaLightEntities`
+   module (Quake→Babylon coords + angle→emit-direction locked).
+2. **Budget policy (implemented as a count cap).** Area lights are NOT clustered:
+   each consumes a real per-surface `maxSimultaneousLights` slot, and BSP world
+   meshes are texture-grouped (map-wide), so `includedOnlyMeshes`/`range` can't
+   localize them — the only safe lever is **count**. `r_arealights` is the master
+   gate (default on); `r_arealights_max` caps the number per map (default 4). A
+   world surface's realistic slot load is ambient + sun + a couple of clusters,
+   leaving ~1-2 slots, so budget a few hero panels, not many.
+3. **Auto-derive from emissive surfaces (deferred).** Spawning panels from the
+   brightest emissive Q3 surfaces (reusing their texture) is the compelling next
+   step, but it needs per-face surface extraction (BSP is texture-grouped, so
+   group bounds span the map) and is budget-hostile at scale — so it stays a
+   capped/gated follow-up.
 
 ---
 
