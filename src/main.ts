@@ -187,6 +187,10 @@ async function main() {
   const { GlowEffect } = await import("./engine/effects/GlowEffect");
   GlowEffect.getInstance().init(scene);
 
+  // Screen-space reflections (opt-in via r_ssr; off by default, GPU-expensive).
+  const { SSREffect } = await import("./engine/effects/SSREffect");
+  SSREffect.getInstance().init(scene);
+
   // Initialize Physics System
   try {
     loadingScreen.setStatus("Initializing physics...");

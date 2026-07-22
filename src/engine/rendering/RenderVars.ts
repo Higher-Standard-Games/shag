@@ -85,6 +85,8 @@ export type RenderVarName =
   | "r_arealights_intensity"
   | "r_wireframe"
   | "r_glow"
+  | "r_ssr"
+  | "r_ssr_strength"
   | "r_bloom"
   | "r_exposure"
   | "r_contrast"
@@ -296,6 +298,23 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, "name">> = {
     max: 1,
     description: "Wireframe mode toggle (0/1)",
     category: "debug",
+  },
+  // Screen-space reflections (see SSREffect) — dynamic reflections on glossy metal.
+  r_ssr: {
+    value: 0,
+    defaultValue: 0,
+    min: 0,
+    max: 1,
+    description: "Screen-space reflections on glossy surfaces (0/1). GPU-expensive; off by default.",
+    category: "display",
+  },
+  r_ssr_strength: {
+    value: 0.6,
+    defaultValue: 0.6,
+    min: 0,
+    max: 2,
+    description: "SSR reflection strength (subtle by default). Tunes live when r_ssr is on.",
+    category: "display",
   },
   // Emissive glow layer (see GlowEffect) — controllable glow on top of bloom.
   r_glow: {
