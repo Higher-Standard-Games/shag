@@ -379,8 +379,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, "name">> = {
 
   // ==================== Camera ====================
   m_sensitivity: {
-    value: 2.0,
-    defaultValue: 2.0,
+    value: 1.0,
+    defaultValue: 1.0,
     min: 0.1,
     max: 10.0,
     description: "Mouse sensitivity multiplier",
