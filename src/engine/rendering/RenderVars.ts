@@ -73,6 +73,12 @@ export type RenderVarName =
   | "r_ktx2"
   | "r_webgpu"
   | "r_bsp_freeze"
+  | "r_godrays"
+  | "r_godrays_exposure"
+  | "r_godrays_decay"
+  | "r_godrays_weight"
+  | "r_godrays_density"
+  | "r_godrays_samples"
   | "r_wireframe"
   | "r_bloom"
   | "r_exposure"
@@ -182,7 +188,8 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, "name">> = {
     defaultValue: 0,
     min: 0,
     max: 1,
-    description: "Experimental WebGPU renderer (restart required). Use ?renderer=webgpu while the compatibility gate is open.",
+    description:
+      "Experimental WebGPU renderer (restart required). Use ?renderer=webgpu while the compatibility gate is open.",
     category: "display",
   },
   r_bsp_freeze: {
@@ -193,6 +200,55 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, "name">> = {
     description:
       "Freeze world matrices + bounding info on static BSP world meshes (skips per-frame transform/bounds recompute). Applies on next map load (0/1).",
     category: "display",
+  },
+  // Volumetric god rays (see GodRaysController). Master gate + live-tunable look.
+  r_godrays: {
+    value: 1,
+    defaultValue: 1,
+    min: 0,
+    max: 1,
+    description: "Master gate for volumetric god rays (0 disables; maps opt in via sun entity / worldspawn) (0/1)",
+    category: "lighting",
+  },
+  r_godrays_exposure: {
+    value: 0.32,
+    defaultValue: 0.32,
+    min: 0,
+    max: 2,
+    description: "God-ray overall intensity (live-tunes the active pass)",
+    category: "lighting",
+  },
+  r_godrays_decay: {
+    value: 0.965,
+    defaultValue: 0.965,
+    min: 0.5,
+    max: 1,
+    description: "God-ray per-sample falloff (live-tunes the active pass)",
+    category: "lighting",
+  },
+  r_godrays_weight: {
+    value: 0.5,
+    defaultValue: 0.5,
+    min: 0,
+    max: 2,
+    description: "God-ray per-sample weight (live-tunes the active pass)",
+    category: "lighting",
+  },
+  r_godrays_density: {
+    value: 0.92,
+    defaultValue: 0.92,
+    min: 0,
+    max: 1,
+    description: "God-ray sample density (live-tunes the active pass)",
+    category: "lighting",
+  },
+  r_godrays_samples: {
+    value: 60,
+    defaultValue: 60,
+    min: 8,
+    max: 200,
+    description: "God-ray radial sample count / quality (applies on next activation)",
+    category: "lighting",
   },
   r_wireframe: {
     value: 0,

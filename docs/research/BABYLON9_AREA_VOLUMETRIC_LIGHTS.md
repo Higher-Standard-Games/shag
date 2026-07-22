@@ -172,36 +172,43 @@ vls.dispose(camera);             // NOTE: dispose() takes the camera to detach f
   dispose) and `GodRaysController.test.ts` (enable/disable, single-pass swap,
   missing-sun fallback). Shafts + occlusion silhouettes are browser-validated.
 
-### Integration — two paths (the user's angle)
+### Integration — implemented as a map feature
 
-**A. Sky god rays through the sun entity / sky shader (implemented).** Our "sun"
-is `SkyLightSystem`'s directional light. `GodRaysController.enableSun()` reads its
-live `.direction` and places the source opposite it, so the shafts follow the
-day/night sun and time-of-day. Wired at BSP map-load in `ClientMapLoader` right
-next to `SkyLightSystem.loadFromWorldspawn()`; a map opts in with worldspawn keys:
+`GodRaysController.loadFromWorldspawn(scene, camera)` runs at BSP map-load
+(`ClientMapLoader`, next to `SkyLightSystem.loadFromWorldspawn()`) and activates
+the one VLS pass by priority, master-gated by the `r_godrays` cvar (default on):
+
+**1. Warsow/Q3 sun entity (implemented).** The strongest hook: many Warsow maps
+(the recent `wbomb1‑6` especially) author a **targeted sun light** — a `light`
+with `target "sun"`/`"_sun"` plus a marker entity with the matching `targetname`.
+`resolveMapSunDirection()` derives the sun *travel* direction from that link, so
+shafts follow the map's real authored sun rather than the engine's synthetic
+day/night sun. Auto-enables when present. (Sign convention is the common Radiant
+one; browser-validate against a real map and flip in `MapGodRayEntities` if the
+shafts point the wrong way.) Maps without a sun entity (e.g. `wdm2`) can add one.
+
+**2. worldspawn `godrays "1"` (implemented).** Sun shafts along `SkyLightSystem`'s
+directional sun, for maps with no sun entity. Optional per-map look overrides:
 
 ```
 "godrays"           "1"            // enable sun shafts
 "godrays_color"     "1 0.95 0.8"   // tint (0-1 or 0-255)
-"godrays_exposure"  "0.32"         // overall intensity
-"godrays_decay"     "0.965"        // per-sample falloff
-"godrays_weight"    "0.5"
-"godrays_density"   "0.92"
-"godrays_samples"   "60"           // radial taps / quality
+"godrays_exposure" / _decay / _weight / _density / _samples   // per-map look
 ```
 
-This is the most self-contained volumetric win and doesn't touch the in-flight
-WebGPU/KTX2 work.
+**3. `light_volumetric` point entity (implemented).** A mapper-placed anchored
+emitter (a reactor, portal, bright fixture): `origin` (required) + optional
+`_color`, `godrays_exposure`, `size`. **Ceiling:** screen-space VLS is *one*
+full-screen pass, so only **one** `light_volumetric` is active at a time (the
+first), and it can't do true light **confined to a brush volume** — that's the
+Frame-Graph path below.
 
-**B. BSP brush / point emitter (partly implemented + a documented ceiling).**
-`enableAnchored()` already gives one fixed god-ray emitter — enough for a single
-dominant source (a hero light, a reactor, a portal). A `light_volumetric` point
-entity (classname → `enableAnchored` in `MapRenderer`, next to the `light` →
-`PointLight` path, origin + color/exposure keys) is a small follow-up. **The hard
-ceiling:** screen-space VLS is *one* full-screen pass, so it can't do many
-emitters or true light **confined to a brush volume**. Arbitrary per-brush /
-per-light volumetrics are the Frame-Graph path below — that's where "light shafts
-that live inside a brush volume" actually belongs.
+**Live look / tuning.** The `r_godrays_*` cvars (`exposure`/`decay`/`weight`/
+`density` live, `samples` on next activation) are the persisted global look and
+tune the active pass in real time (`GodRaysController` subscribes to them); the
+`godrays` console command and per-map keys/entities layer on top. `r_godrays 0`
+kills the pass live. Entity parsing lives in the pure, unit-tested
+`MapGodRayEntities` module (coordinate + sun-direction conventions locked).
 
 ### Frame-Graph volumetric (`volumetricLightingTask`) — deferred
 

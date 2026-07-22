@@ -39,6 +39,15 @@ describe("GodRaysController", () => {
     expect(rays.postProcess.getClassName()).toBe("VolumetricLightScatteringPostProcess");
   });
 
+  it("applies the r_godrays_* cvar look to the pass on enable", async () => {
+    const { RenderVars } = await import("../../rendering/RenderVars");
+    const rv = RenderVars.getInstance();
+    // Defaults come from the registered cvars (exposure 0.32, density 0.92).
+    const rays = GodRaysController.getInstance().enableSun(scene, camera);
+    expect(rays.postProcess.exposure).toBe(rv.get("r_godrays_exposure"));
+    expect(rays.postProcess.density).toBe(rv.get("r_godrays_density"));
+  });
+
   it("keeps a single pass: switching modes disposes the previous one", () => {
     const controller = GodRaysController.getInstance();
     const sun = controller.enableSun(scene, camera);

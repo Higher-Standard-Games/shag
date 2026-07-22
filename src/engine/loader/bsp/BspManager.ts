@@ -12,7 +12,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Scene } from "@babylonjs/core/scene";
 import RenderVars from "../../rendering/RenderVars";
 import { PK3Loader } from "../pk3/PK3Loader";
-import { type BspFile, type BspLightVol, BspLoader } from "./BspLoader";
+import { type BspEntity, type BspFile, type BspLightVol, BspLoader } from "./BspLoader";
 import { BspMeshBuilder, type BspMeshBuildResult } from "./BspMeshBuilder";
 
 export interface BspLoadOptions {
@@ -333,6 +333,17 @@ export class BspManager {
     if (!this.loadedBsp) return undefined;
     const worldspawn = this.loadedBsp.entities.find((e) => e.classname === "worldspawn");
     return worldspawn?.properties[key];
+  }
+
+  /** Typed access to all parsed entities (empty if no BSP is loaded). */
+  getRawEntities(): BspEntity[] {
+    return this.loadedBsp?.entities ?? [];
+  }
+
+  /** All entities of a given classname (empty if no BSP is loaded). */
+  getEntitiesByClassname(classname: string): BspEntity[] {
+    if (!this.loadedBsp) return [];
+    return this.loadedBsp.entities.filter((e) => e.classname === classname);
   }
 
   getClusterInfo(): string {
