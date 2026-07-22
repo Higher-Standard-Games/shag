@@ -11,8 +11,8 @@ import type {
   Q3MaterialDirective,
   Q3Shader,
   Q3ShaderStage,
-  ResolveMaterialOptions,
   ResolvedMaterialProps,
+  ResolveMaterialOptions,
 } from "./Q3ShaderTypes";
 
 type ResolvedBranch = ResolvedMaterialProps["resolvedBranch"];
@@ -252,6 +252,7 @@ export class Q3ShaderRegistry {
       polygonOffset: false,
       isSky: false,
       isFullbright: false,
+      surfaceLight: 0,
       autosprite: false,
       autosprite2: false,
     };
@@ -311,6 +312,11 @@ export class Q3ShaderRegistry {
     if (shader.surfaceParms.has("nolightmap")) {
       props.isFullbright = true;
       props.useLightmap = false;
+    }
+
+    // Surface-light emission strength (q3map_surfacelight / lightingIntensity).
+    if (shader.surfaceLight && shader.surfaceLight > 0) {
+      props.surfaceLight = shader.surfaceLight;
     }
 
     // Normalize structured material metadata before any stage-map fallback.
@@ -506,7 +512,9 @@ export class Q3ShaderRegistry {
     }
 
     const diffuseBase = normalizeShaderName(diffuse);
-    const normal = this.findFirstExistingTexturePath(IMPLICIT_NORMAL_SUFFIXES.map((suffix) => `${diffuseBase}${suffix}`));
+    const normal = this.findFirstExistingTexturePath(
+      IMPLICIT_NORMAL_SUFFIXES.map((suffix) => `${diffuseBase}${suffix}`),
+    );
     const gloss = this.findFirstExistingTexturePath(IMPLICIT_GLOSS_SUFFIXES.map((suffix) => `${diffuseBase}${suffix}`));
     const glow = this.findFirstExistingTexturePath(IMPLICIT_GLOW_SUFFIXES.map((suffix) => `${diffuseBase}${suffix}`));
 

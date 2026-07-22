@@ -135,6 +135,9 @@ and the sign texture projects; tune `faceDir` sign convention (the anchor
    from its `bsp_tex_*` material, no re-load) so the cast light carries the sign's
    colors/shape, not flat white. Area-light specular is low by default (glossy
    metal no longer mirror-streaks); `r_arealights_intensity` dials brightness.
+   Per-panel intensity scales with the shader's authored surface-light strength —
+   the parser now captures `q3map_surfacelight` (Q3) / `lightingIntensity`
+   (Warsow) onto `ResolvedMaterialProps.surfaceLight`.
    Default-off because placement quality — facing, size heuristic (two largest
    AABB extents), which surfaces — is browser-tuned.
 

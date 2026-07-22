@@ -255,6 +255,9 @@ export interface Q3Shader {
   /** Surface parameters (trans, nonsolid, nomarks, etc.) */
   surfaceParms: Set<string>;
 
+  /** `q3map_surfacelight <value>` — radiosity surface-light emission strength. */
+  surfaceLight?: number;
+
   /** Face culling mode */
   cull: CullMode;
 
@@ -385,6 +388,9 @@ export interface ResolvedMaterialProps {
 
   /** Fullbright surface - uses emissive, no lightmap (lamps, signs) */
   isFullbright: boolean;
+
+  /** `q3map_surfacelight` emission strength (0/undefined if the shader doesn't emit light). */
+  surfaceLight?: number;
 
   /** Autosprite - full billboard, always faces camera */
   autosprite: boolean;

@@ -27,6 +27,16 @@ export interface EmissiveSurface {
   textureName: string;
   /** BSP texture index — used to reuse the surface's loaded texture as the emitter. */
   textureIndex: number;
+  /** Shader surface-light strength (q3map_surfacelight / lightingIntensity); 0 if none. */
+  surfaceLight: number;
+}
+
+/** Per-texture emission probe result. */
+export interface SurfaceEmission {
+  /** Should this surface receive an area light? */
+  emissive: boolean;
+  /** Surface-light emission strength (0 if unspecified). */
+  surfaceLight: number;
 }
 
 /** Ignore fullbright specks (tiny detail faces, highlights) below this area. */
@@ -38,25 +48,25 @@ const MIN_SURFACE_AREA = 256;
  */
 export function extractEmissiveSurfaces(
   bsp: BspFile,
-  isFullbright: (textureName: string) => boolean,
+  resolve: (textureName: string) => SurfaceEmission,
 ): EmissiveSurface[] {
   const model = bsp.models?.[0];
   if (!model) return [];
 
-  const fullbrightCache = new Map<number, boolean>();
+  const cache = new Map<number, SurfaceEmission>();
   const surfaces: EmissiveSurface[] = [];
 
   for (let i = model.firstFace; i < model.firstFace + model.numFaces; i++) {
     const face = bsp.faces[i];
     if (!face || face.numVertices <= 0) continue;
 
-    let emissive = fullbrightCache.get(face.textureIndex);
-    if (emissive === undefined) {
+    let emission = cache.get(face.textureIndex);
+    if (emission === undefined) {
       const texName = bsp.textures[face.textureIndex]?.name ?? "";
-      emissive = texName ? isFullbright(texName) : false;
-      fullbrightCache.set(face.textureIndex, emissive);
+      emission = texName ? resolve(texName) : { emissive: false, surfaceLight: 0 };
+      cache.set(face.textureIndex, emission);
     }
-    if (!emissive) continue;
+    if (!emission.emissive) continue;
 
     // Centroid + AABB from the face's vertex range (Quake Z-up → Babylon Y-up).
     let cx = 0;
@@ -107,6 +117,7 @@ export function extractEmissiveSurfaces(
       area,
       textureName: bsp.textures[face.textureIndex]?.name ?? "",
       textureIndex: face.textureIndex,
+      surfaceLight: emission.surfaceLight,
     });
   }
 

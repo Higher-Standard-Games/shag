@@ -47,11 +47,12 @@ describe("extractEmissiveSurfaces", () => {
       ["sign", "wall"],
     );
 
-    const out = extractEmissiveSurfaces(bsp, (name) => name === "sign");
+    const out = extractEmissiveSurfaces(bsp, (name) => ({ emissive: name === "sign", surfaceLight: 900 }));
     expect(out).toHaveLength(1);
     const s = out[0];
     expect(s.textureName).toBe("sign");
     expect(s.textureIndex).toBe(0); // used to reuse the surface's loaded texture
+    expect(s.surfaceLight).toBe(900); // shader surface-light strength passes through
     expect(s.position.asArray()).toEqual([32, 32, 0]); // Quake (32,0,32) → Babylon (32,32,0)
     expect(s.width).toBe(64);
     expect(s.height).toBe(64);
@@ -71,7 +72,7 @@ describe("extractEmissiveSurfaces", () => {
       ], // 4×4 = 16 area, below MIN
       ["glow"],
     );
-    expect(extractEmissiveSurfaces(bsp, () => true)).toHaveLength(0);
+    expect(extractEmissiveSurfaces(bsp, () => ({ emissive: true, surfaceLight: 0 }))).toHaveLength(0);
   });
 
   it("ranks surfaces largest-first", () => {
@@ -92,7 +93,7 @@ describe("extractEmissiveSurfaces", () => {
       ],
       ["small", "big"],
     );
-    const out = extractEmissiveSurfaces(bsp, () => true);
+    const out = extractEmissiveSurfaces(bsp, () => ({ emissive: true, surfaceLight: 0 }));
     expect(out.map((s) => s.textureName)).toEqual(["big", "small"]);
   });
 });

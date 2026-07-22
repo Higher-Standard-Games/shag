@@ -24,8 +24,16 @@ import { AreaLightPanel } from "./AreaLightPanel";
 import { type AreaLightSpec, resolveAreaLightEntities } from "./MapAreaLightEntities";
 import { extractEmissiveSurfaces } from "./MapEmissiveSurfaces";
 
-/** Default intensity for auto-placed emissive-surface area lights (supplemental). */
+/** Default intensity for auto-placed area lights on surfaces with no light value. */
 const AUTO_INTENSITY = 2;
+/** A "typical" q3map_surfacelight value that maps to AUTO_INTENSITY. */
+const SURFACELIGHT_REF = 300;
+
+/** Map a shader surface-light strength to an area-light intensity (clamped). */
+function autoIntensity(surfaceLight: number): number {
+  if (surfaceLight <= 0) return AUTO_INTENSITY;
+  return Math.min(6, Math.max(1, AUTO_INTENSITY * (surfaceLight / SURFACELIGHT_REF)));
+}
 
 export class AreaLightManager {
   private static instance: AreaLightManager;
@@ -107,7 +115,11 @@ export class AreaLightManager {
       const bspFile = bsp.getLoadedBsp();
       if (bspFile) {
         const shaderReg = Q3ShaderRegistry.getInstance();
-        const surfaces = extractEmissiveSurfaces(bspFile, (name) => shaderReg.resolveMaterialProps(name).isFullbright);
+        const surfaces = extractEmissiveSurfaces(bspFile, (name) => {
+          const p = shaderReg.resolveMaterialProps(name);
+          const surfaceLight = p.surfaceLight ?? 0;
+          return { emissive: p.isFullbright || surfaceLight > 0, surfaceLight };
+        });
         for (const s of surfaces) {
           // Project the sign's own loaded texture so the emitted light carries
           // its colors/shape (not flat white). Falls back to a flat emitter.
@@ -118,7 +130,8 @@ export class AreaLightManager {
             faceDir: s.normal,
             width: s.width,
             height: s.height,
-            intensity: AUTO_INTENSITY,
+            // Brighter for surfaces the shader authored as stronger light emitters.
+            intensity: autoIntensity(s.surfaceLight),
             emissionSource,
           });
         }
