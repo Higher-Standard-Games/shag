@@ -317,12 +317,13 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, "name">> = {
     category: "display",
   },
   // Emissive glow layer (see GlowEffect) — controllable glow on top of bloom.
+  // Off by default: bloom already covers bright surfaces; glow is opt-in polish.
   r_glow: {
-    value: 0.7,
-    defaultValue: 0.7,
+    value: 0,
+    defaultValue: 0,
     min: 0,
     max: 2,
-    description: "Emissive glow-layer intensity (0 = off). Glows signs/strips/energy on top of bloom.",
+    description: "Emissive glow-layer intensity (0 = off, default). Glows signs/strips/energy on top of bloom.",
     category: "display",
   },
   // Post-processing (multipliers)
