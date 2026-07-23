@@ -5,7 +5,10 @@
  * to any Mixamo-compatible skeleton.
  */
 
-import { type AnimationGroup, type Scene, SceneLoader, type Skeleton } from "@babylonjs/core";
+import type { AnimationGroup } from "@babylonjs/core/Animations/animationGroup";
+import type { Skeleton } from "@babylonjs/core/Bones/skeleton";
+import { ImportAnimationsAsync } from "@babylonjs/core/Loading/sceneLoader";
+import type { Scene } from "@babylonjs/core/scene";
 import "@babylonjs/loaders/glTF";
 
 /**
@@ -112,20 +115,21 @@ export class AnimationLoader {
     try {
       console.log(`[AnimationLoader] Loading animation: ${name} from ${fullPath}`);
 
-      const result = await SceneLoader.ImportAnimationsAsync(
-        "",
-        fullPath,
-        this.scene!,
-        false, // Don't overwrite existing animations
-      );
+      await ImportAnimationsAsync(fullPath, this.scene!, {
+        overwriteAnimations: false, // Don't overwrite existing animations
+      });
+
+      // The old static API returned the scene — keep operating on the scene's
+      // animation groups exactly as before.
+      const groups = this.scene!.animationGroups;
 
       // Rename animation groups for easier identification
-      result.animationGroups.forEach((group) => {
+      groups.forEach((group) => {
         group.name = `${name}_${group.name}`;
       });
 
-      console.log(`[AnimationLoader] Loaded ${result.animationGroups.length} animation groups for ${name}`);
-      return result.animationGroups;
+      console.log(`[AnimationLoader] Loaded ${groups.length} animation groups for ${name}`);
+      return groups;
     } catch (error) {
       console.error(`[AnimationLoader] Failed to load animation ${name}:`, error);
       return [];

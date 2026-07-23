@@ -75,6 +75,16 @@ export class GamePaths {
       throw new Error('[GamePaths] Missing engine.json - create public/engine.json with { "defaultGame": "default" }');
     }
 
+    this.initFromConfig(config, gameTitle);
+  }
+
+  /**
+   * Initialize from an already-loaded config. Browser startup uses `init()`;
+   * Node/headless composition roots use this adapter so shared GamePaths does
+   * not need to import `node:fs` or attempt a relative-URL fetch.
+   */
+  public initFromConfig(config: EngineConfig, gameTitle?: string): void {
+    if (this.initialized) return;
     if (!config.defaultGame) {
       throw new Error('[GamePaths] engine.json missing "defaultGame" field');
     }

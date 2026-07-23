@@ -82,7 +82,7 @@ export class WeaponBarrels {
     loadGen: number,
     currentLoadGen: () => number,
   ): Promise<void> {
-    const { SceneLoader } = await import("@babylonjs/core/Loading/sceneLoader");
+    const { ImportMeshAsync } = await import("@babylonjs/core/Loading/sceneLoader");
 
     // Derive model directory from first barrel path for tags.txt lookup
     const firstPath = barrelDefs[0]?.modelPath;
@@ -117,7 +117,7 @@ export class WeaponBarrels {
         const dir = barrelDef.modelPath.substring(0, lastSlash + 1);
         const file = barrelDef.modelPath.substring(lastSlash + 1);
 
-        const result = await SceneLoader.ImportMeshAsync("", dir, file, scene);
+        const result = await ImportMeshAsync(file, scene, { rootUrl: dir });
 
         // Check again after async
         if (currentLoadGen() !== loadGen) {

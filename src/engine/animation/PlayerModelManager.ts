@@ -14,12 +14,16 @@
 import type { Animation } from "@babylonjs/core/Animations/animation";
 import { AnimationGroup } from "@babylonjs/core/Animations/animationGroup";
 import type { Skeleton } from "@babylonjs/core/Bones/skeleton";
-import { SceneLoader } from "@babylonjs/core/Loading/sceneLoader";
+import { ImportAnimationsAsync, ImportMeshAsync } from "@babylonjs/core/Loading/sceneLoader";
 import type { Material } from "@babylonjs/core/Materials/material";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
+// Side effect: registers the OutlineRenderer scene component — required for
+// mesh.renderOutline (team outlines) to draw. Previously loaded implicitly by
+// bare @babylonjs/core barrel imports; must be explicit with per-module imports.
+import "@babylonjs/core/Rendering/outlineRenderer";
 import type { Scene } from "@babylonjs/core/scene";
 
 // ─── Types ───────────────────────────────────────────────────────
@@ -136,7 +140,7 @@ export class PlayerModelManager {
     console.log("[PlayerModelManager] Loading source model...");
 
     try {
-      const result = await SceneLoader.ImportMeshAsync("", modelPath, modelFile, this.scene);
+      const result = await ImportMeshAsync(modelFile, this.scene, { rootUrl: modelPath });
 
       if (result.meshes.length === 0) {
         console.error("[PlayerModelManager] No meshes in model");
@@ -199,13 +203,14 @@ export class PlayerModelManager {
           // CRITICAL: Stop ALL animation groups BEFORE importing
           for (const g of this.scene.animationGroups) g.stop();
 
-          const animResult = await SceneLoader.ImportAnimationsAsync("", modelPath + anim.file, this.scene, false);
+          await ImportAnimationsAsync(modelPath + anim.file, this.scene, { overwriteAnimations: false });
 
           // CRITICAL: Stop ALL animation groups IMMEDIATELY after import
           for (const g of this.scene.animationGroups) g.stop();
 
-          if (animResult.animationGroups.length > 0) {
-            const sourceGroup = animResult.animationGroups[0];
+          // Old static API returned the scene — keep reading scene.animationGroups.
+          if (this.scene.animationGroups.length > 0) {
+            const sourceGroup = this.scene.animationGroups[0];
             const channels = this.extractAnimChannels(sourceGroup, this.sourceBoneMap);
             if (channels.length > 0) {
               this.sourceAnims.push({ name: anim.name, animations: channels });

@@ -66,6 +66,11 @@ describe("countPk3Files", () => {
 });
 
 describe("resolveGameAssetDir", () => {
+  it("uses the canonical browser PK3 directory by default", () => {
+    delete process.env.GAME_PATH;
+    expect(resolveGameAssetDir()).toBe("./public/data");
+  });
+
   it("honors the GAME_PATH override", () => {
     process.env.GAME_PATH = tmp;
     expect(resolveGameAssetDir()).toBe(tmp);

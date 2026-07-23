@@ -419,8 +419,15 @@ export class MapLoader {
     if (meshResult.autospriteMeshes && meshResult.autospriteMeshes.length > 0) {
       progress("Autosprites", `Registering ${meshResult.autospriteMeshes.length} billboard sprites`);
       scene.registerBeforeRender(() => {
-        if (scene.activeCamera) {
-          BspMeshBuilder.updateAutosprites(meshResult, scene.activeCamera.position);
+        // Billboard toward the MAIN eye camera's WORLD position. With the weapon
+        // viewmodel active the scene is multi-camera (`activeCameras = [eye, weapon]`)
+        // and the weapon camera is parented to the eye, so its `.position` is a fixed
+        // local ~0. Babylon 9 leaves `scene.activeCamera` pointing at the last-rendered
+        // (weapon) camera by the time this fires, which froze the sprites in place.
+        // Take `activeCameras[0]` (the eye) and its `globalPosition` (world-space).
+        const eye = scene.activeCameras?.[0] ?? scene.activeCamera;
+        if (eye) {
+          BspMeshBuilder.updateAutosprites(meshResult, eye.globalPosition);
         }
       });
     }
@@ -456,20 +463,13 @@ export class MapLoader {
         console.warn("[MapLoader] Failed to preload assets:", e);
       }
 
-      // Phase 11: Process BSP entities through EntityHandlerRegistry
-      progress("Entities", "Processing");
-      registerBspEntityHandlers();
-      EntityManager.getInstance().registerHandlers();
-      setCurrentBspForHandlers(bsp);
-      await this.processBspEntities(bsp, scene);
-
       // Store BSP and meshResult in BspManager for PVS system
       const { BspManager } = await import("../bsp/BspManager");
       const bspManager = BspManager.getInstance();
       bspManager.setBsp(mapName, bsp);
       bspManager.setMeshResult(meshResult);
 
-      // Phase 12: Freeze materials
+      // Phase 11: Freeze world materials before gameplay entities exist.
       let frozenCount = 0;
       let skippedCount = 0;
       const frozenMats = new Set<number>();
@@ -494,9 +494,6 @@ export class MapLoader {
     } else {
       console.log(`[MapLoader] Background mode: skipped collisions, entities, assets`);
     }
-
-    this.currentMap = mapName;
-    progress("Complete", `Map ${mapName} loaded successfully`);
 
     // Find player start position
     let playerStartPosition = new Vector3(0, 50, 0); // Default
@@ -569,6 +566,20 @@ export class MapLoader {
 
       this.wasBackgroundedDuringLoad = false;
     }
+
+    // Final gameplay phase: spawn a fresh entity generation only after the BSP,
+    // collision, assets, shaders and tab recovery are complete. Pickup creation
+    // is awaited by EntityManager, so no model work is left racing map readiness.
+    if (!backgroundOnly) {
+      progress("Entities", "Spawning final gameplay entities");
+      registerBspEntityHandlers();
+      EntityManager.getInstance().registerHandlers();
+      setCurrentBspForHandlers(bsp);
+      await this.processBspEntities(bsp, scene);
+    }
+
+    this.currentMap = mapName;
+    progress("Complete", `Map ${mapName} loaded successfully`);
 
     // Emit loading:complete event
     const completeEvent: LoadingCompleteEvent = {
@@ -679,6 +690,14 @@ export class MapLoader {
    */
   async disposeCurrentMap(): Promise<void> {
     console.log(`[MapLoader] disposeCurrentMap called at ${Date.now()}`);
+    if (this.currentMap) {
+      EventBus.emit("map:unloading", { mapName: this.currentMap });
+    }
+
+    // Gameplay entities use independent root meshes, so disposing the BSP world
+    // hierarchy alone does not remove them.
+    EntityManager.getInstance().disposeMapEntities();
+
     if (this.currentMeshResult) {
       // Dispose child meshes first
       for (const child of this.currentMeshResult.worldMesh.getChildMeshes()) {

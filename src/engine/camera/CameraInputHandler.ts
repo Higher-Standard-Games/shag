@@ -143,7 +143,7 @@ export class CameraInputHandler {
       if (this._lookFrozen) return; // post-game screen: aim is locked, pointer lock stays held
 
       const baseSensitivity = this.config.mouseSensitivity || 0.002;
-      const sensitivityMultiplier = Cvar.getNumber("m_sensitivity") ?? 2.0;
+      const sensitivityMultiplier = Cvar.getNumber("m_sensitivity") ?? 1.0;
       let sensitivity = baseSensitivity * sensitivityMultiplier;
 
       // Apply controller-specific modifier (e.g. ADS reduction)

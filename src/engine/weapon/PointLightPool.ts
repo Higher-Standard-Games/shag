@@ -1,13 +1,16 @@
 /**
  * PointLightPool — Global pool of reusable PointLights.
  *
- * Pre-creates a fixed number of PointLights at init time and keeps them
- * PERMANENTLY ENABLED (parked at intensity 0) so the scene's enabled-light
- * set never changes. Babylon derives material shader defines from the set of
- * enabled lights — toggling `setEnabled()` (or creating lights mid-game)
- * changes the defines and forces shader recompilation, which caused the
- * v0.9.16 first-shot hitch + transparent-wall flicker. An enabled light at
- * intensity 0 contributes nothing visually but keeps the defines stable.
+ * The pooled lights live inside the scene's DynamicLightCluster (WS1): the
+ * cluster presents them to materials as ONE stable light whose per-light data
+ * is a texture, so neither light COUNT nor intensity changes touch material
+ * shader defines. (Historically the pool ALSO existed to freeze the
+ * enabled-light set — creating/toggling raw lights changed defines → shader
+ * recompiles → the v0.9.16 first-shot hitch. The cluster now provides that
+ * stability; the pool remains as an allocation cache and a hard cap on
+ * concurrent effect lights.)
+ *
+ * Lights stay permanently enabled, parked at intensity 0 when free.
  *
  * Usage:
  *   const pool = getPointLightPool();
@@ -21,8 +24,12 @@ import { PointLight } from "@babylonjs/core/Lights/pointLight";
 import type { Color3 } from "@babylonjs/core/Maths/math.color";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Scene } from "@babylonjs/core/scene";
+import { addToDynamicLightCluster, removeFromDynamicLightCluster } from "../lighting/DynamicLightCluster";
 
-const POOL_SIZE = 4;
+// Concurrent effect lights. Was 4 under the forward-light scarcity system;
+// clustered lighting removes the per-material cost, so the cap is just a
+// sanity budget now (rocket + muzzle world glow + several impacts at once).
+const POOL_SIZE = 8;
 
 interface PoolEntry {
   light: PointLight;
@@ -65,6 +72,9 @@ export class PointLightPool {
       const light = new PointLight(`_pool_light_${i}`, Vector3.Zero(), scene);
       light.intensity = 0;
       light.range = 1;
+      // Pool lights render through the gameplay cluster: many lights, one
+      // material-visible light, zero define churn.
+      addToDynamicLightCluster(scene, light);
 
       this.entries.push({
         light,
@@ -74,7 +84,7 @@ export class PointLightPool {
     }
 
     this.initialized = true;
-    console.log(`[PointLightPool] Initialized with ${POOL_SIZE} always-enabled lights (intensity-parked)`);
+    console.log(`[PointLightPool] Initialized with ${POOL_SIZE} clustered lights (intensity-parked)`);
   }
 
   /**
@@ -139,10 +149,14 @@ export class PointLightPool {
   }
 
   /**
-   * Dispose all pool lights (scene teardown).
+   * Dispose all pool lights (scene teardown). Detach each from the gameplay
+   * cluster first — a light disposed while still a cluster member is not
+   * auto-removed, leaving a dangling reference in the container.
    */
   dispose(): void {
     for (const entry of this.entries) {
+      const scene = entry.light.getScene();
+      if (scene) removeFromDynamicLightCluster(scene, entry.light);
       entry.light.dispose();
     }
     this.entries = [];

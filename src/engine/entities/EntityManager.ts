@@ -52,6 +52,11 @@ export class EntityManager {
    */
   private pickupTable: PickupEntry[] = [];
 
+  /** Stable identity lets EntityHandlerRegistry de-duplicate this hook across reloads. */
+  private readonly rebuildPickupTable = (entities: EntityData[]) => {
+    this.pickupTable = extractPickups(entities);
+  };
+
   private constructor() {}
 
   public static getInstance(): EntityManager {
@@ -95,9 +100,7 @@ export class EntityManager {
     // Build the authoritative weapon-pickup table before spawn handlers run, so
     // each weapon pickup gets the same id the server assigns. Pre-render hooks
     // run before the per-entity handlers in MapLoader.processBspEntities.
-    EntityHandlerRegistry.addPreRenderHook((entities) => {
-      this.pickupTable = extractPickups(entities);
-    });
+    EntityHandlerRegistry.addPreRenderHook(this.rebuildPickupTable);
   }
 
   /**
@@ -250,6 +253,11 @@ export class EntityManager {
       visualFactory,
     });
 
+    // A map entity is not spawned until its visual construction has settled.
+    // This makes entity processing an actual loader phase instead of detached
+    // constructor work racing scene readiness/material finalization.
+    await pickup.whenReady();
+
     // Register this pickup in local tracking (optional, Pickup handles its own logic now)
     this.entities.push({
       def,
@@ -258,6 +266,19 @@ export class EntityManager {
     });
 
     return { handled: true, node: pickup };
+  }
+
+  /** Dispose every gameplay entity owned by the current map generation. */
+  public disposeMapEntities(): void {
+    for (const entity of this.entities) {
+      try {
+        entity.node?.dispose();
+      } catch (e) {
+        console.warn("[EntityManager] Failed to dispose map entity:", e);
+      }
+    }
+    this.entities = [];
+    this.pickupTable = [];
   }
   /**
    * Check if player is picking up any entities

@@ -2,15 +2,13 @@
  * DebugCommand - Debug overlays and visualization
  */
 
-import {
-  Color3,
-  type Mesh,
-  MeshBuilder,
-  type Observer,
-  type Scene,
-  StandardMaterial,
-  type Vector3,
-} from "@babylonjs/core";
+import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
+import { Color3 } from "@babylonjs/core/Maths/math.color";
+import type { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import type { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
+import type { Observer } from "@babylonjs/core/Misc/observable";
+import type { Scene } from "@babylonjs/core/scene";
 import { Command, type CommandDef } from "../Command";
 
 // Static storage for debug visualization

@@ -5,15 +5,21 @@
  * and preloads them to avoid loading hitches during gameplay.
  */
 
+import type { Material } from "@babylonjs/core/Materials/material";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Scene } from "@babylonjs/core/scene";
-import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
 import { EntityRegistry } from "../../shared/entities/EntityRegistry";
 import { EntityType } from "../../shared/entities/EntityType";
+import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
 import type { BspFile } from "./bsp/BspLoader";
-import { ModelLoader, type ModelLoadResult } from "./model/ModelLoader";
+import {
+  collectModelAttachmentPoints,
+  type ModelAttachmentPoint,
+  ModelLoader,
+  type ModelLoadResult,
+} from "./model/ModelLoader";
 
 export interface PreloadProgress {
   current: number;
@@ -127,23 +133,29 @@ export class AssetPreloader {
 
         // GLB models use SceneLoader instead of PK3+MD3 ModelLoader
         if (modelPath.endsWith(".glb") || modelPath.endsWith(".gltf")) {
-          const { SceneLoader } = await import("@babylonjs/core/Loading/sceneLoader");
+          const { ImportMeshAsync } = await import("@babylonjs/core/Loading/sceneLoader");
           await import("@babylonjs/loaders/glTF");
 
           const lastSlash = modelPath.lastIndexOf("/");
           const dir = modelPath.substring(0, lastSlash + 1);
           const file = modelPath.substring(lastSlash + 1);
 
-          const glbResult = await SceneLoader.ImportMeshAsync("", dir, file, scene);
+          const glbResult = await ImportMeshAsync(file, scene, { rootUrl: dir });
           // biome-ignore lint/suspicious/noExplicitAny: Babylon loader internals
           const root = glbResult.meshes[0] as any;
           const meshes = glbResult.meshes.filter((m) => m.getTotalVertices() > 0) as Mesh[];
 
-          // Cap maxSimultaneousLights on PBR materials to prevent shader overflow
+          // Configure PBR materials for clustered lighting, matching ModelLoader's
+          // GLB path: cap simultaneous lights, and disable physical light falloff
+          // (GLB PBR + ClusteredLightContainer renders wrong with it on).
           for (const m of glbResult.meshes) {
-            if (m.material && "maxSimultaneousLights" in m.material) {
-              // biome-ignore lint/suspicious/noExplicitAny: Babylon loader internals
-              applySafeMaxSimultaneousLights(m.material as any);
+            const mat = m.material as (Material & { usePhysicalLightFalloff?: boolean }) | null;
+            if (mat && "maxSimultaneousLights" in mat) {
+              // biome-ignore lint/suspicious/noExplicitAny: Babylon material introspection
+              applySafeMaxSimultaneousLights(mat as any);
+            }
+            if (mat && "usePhysicalLightFalloff" in mat) {
+              mat.usePhysicalLightFalloff = false;
             }
           }
 
@@ -153,6 +165,7 @@ export class AssetPreloader {
             animationGroups: glbResult.animationGroups || [],
             skeletons: glbResult.skeletons || [],
             lights: [],
+            attachmentPoints: collectModelAttachmentPoints(glbResult.transformNodes),
           };
         } else {
           result = await loader.loadModel(modelPath, {
@@ -232,10 +245,27 @@ export class AssetPreloader {
         animationGroups: [],
         skeletons: [],
         lights: [],
+        attachmentPoints: this.cloneAttachmentPoints(cached.attachmentPoints),
       };
     } catch (e) {
       console.warn(`[AssetPreloader] Failed to clone cached model:`, e);
       return null;
     }
+  }
+
+  private cloneAttachmentPoints(
+    points?: Record<string, ModelAttachmentPoint>,
+  ): Record<string, ModelAttachmentPoint> | undefined {
+    if (!points) return undefined;
+    return Object.fromEntries(
+      Object.entries(points).map(([name, point]) => [
+        name,
+        {
+          position: point.position.clone(),
+          rotation: point.rotation.clone(),
+          rotationQuaternion: point.rotationQuaternion ? { ...point.rotationQuaternion } : null,
+        },
+      ]),
+    );
   }
 }

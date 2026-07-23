@@ -70,7 +70,23 @@ export type RenderVarName =
   | "r_ambient"
   | "r_emissive"
   | "r_anisotropy"
+  | "r_ktx2"
+  | "r_webgpu"
+  | "r_bsp_freeze"
+  | "r_godrays"
+  | "r_godrays_exposure"
+  | "r_godrays_decay"
+  | "r_godrays_weight"
+  | "r_godrays_density"
+  | "r_godrays_samples"
+  | "r_arealights"
+  | "r_arealights_max"
+  | "r_arealights_auto"
+  | "r_arealights_intensity"
   | "r_wireframe"
+  | "r_glow"
+  | "r_ssr"
+  | "r_ssr_strength"
   | "r_bloom"
   | "r_exposure"
   | "r_contrast"
@@ -166,6 +182,115 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, "name">> = {
     description: "Anisotropic filtering level (1-16)",
     category: "texture",
   },
+  r_ktx2: {
+    value: 1,
+    defaultValue: 1,
+    min: 0,
+    max: 1,
+    description: "Prefer generated KTX2 texture sidecars when available (0/1). Applies on next texture load.",
+    category: "texture",
+  },
+  r_webgpu: {
+    value: 0,
+    defaultValue: 0,
+    min: 0,
+    max: 1,
+    description:
+      "Experimental WebGPU renderer (restart required). Use ?renderer=webgpu while the compatibility gate is open.",
+    category: "display",
+  },
+  r_bsp_freeze: {
+    value: 1,
+    defaultValue: 1,
+    min: 0,
+    max: 1,
+    description:
+      "Freeze world matrices + bounding info on static BSP world meshes (skips per-frame transform/bounds recompute). Applies on next map load (0/1).",
+    category: "display",
+  },
+  // Volumetric god rays (see GodRaysController). Master gate + live-tunable look.
+  r_godrays: {
+    value: 1,
+    defaultValue: 1,
+    min: 0,
+    max: 1,
+    description: "Master gate for volumetric god rays (0 disables; maps opt in via sun entity / worldspawn) (0/1)",
+    category: "lighting",
+  },
+  r_godrays_exposure: {
+    value: 0.32,
+    defaultValue: 0.32,
+    min: 0,
+    max: 2,
+    description: "God-ray overall intensity (live-tunes the active pass)",
+    category: "lighting",
+  },
+  r_godrays_decay: {
+    value: 0.965,
+    defaultValue: 0.965,
+    min: 0.5,
+    max: 1,
+    description: "God-ray per-sample falloff (live-tunes the active pass)",
+    category: "lighting",
+  },
+  r_godrays_weight: {
+    value: 0.5,
+    defaultValue: 0.5,
+    min: 0,
+    max: 2,
+    description: "God-ray per-sample weight (live-tunes the active pass)",
+    category: "lighting",
+  },
+  r_godrays_density: {
+    value: 0.92,
+    defaultValue: 0.92,
+    min: 0,
+    max: 1,
+    description: "God-ray sample density (live-tunes the active pass)",
+    category: "lighting",
+  },
+  r_godrays_samples: {
+    value: 60,
+    defaultValue: 60,
+    min: 8,
+    max: 200,
+    description: "God-ray radial sample count / quality (applies on next activation)",
+    category: "lighting",
+  },
+  // Textured area lights (see AreaLightManager). Not clustered → budget by count.
+  r_arealights: {
+    value: 1,
+    defaultValue: 1,
+    min: 0,
+    max: 1,
+    description: "Enable textured area lights from map `light_area` entities (0/1). Applies on next map load.",
+    category: "lighting",
+  },
+  r_arealights_max: {
+    value: 4,
+    defaultValue: 4,
+    min: 0,
+    max: 32,
+    description: "Max area lights per map (they consume real per-surface light slots). Applies on next map load.",
+    category: "lighting",
+  },
+  r_arealights_auto: {
+    value: 0,
+    defaultValue: 0,
+    min: 0,
+    max: 1,
+    description:
+      "Auto-place area lights on the biggest emissive (fullbright) BSP surfaces, filling the r_arealights_max budget after explicit light_area entities. Experimental (0/1). Applies on next map load.",
+    category: "lighting",
+  },
+  r_arealights_intensity: {
+    value: 1.0,
+    defaultValue: 1.0,
+    min: 0,
+    max: 4,
+    description: "Brightness multiplier for all area lights. Applies on next map load.",
+    category: "lighting",
+  },
   r_wireframe: {
     value: 0,
     defaultValue: 0,
@@ -173,6 +298,33 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, "name">> = {
     max: 1,
     description: "Wireframe mode toggle (0/1)",
     category: "debug",
+  },
+  // Screen-space reflections (see SSREffect) — dynamic reflections on glossy metal.
+  r_ssr: {
+    value: 0,
+    defaultValue: 0,
+    min: 0,
+    max: 1,
+    description: "Screen-space reflections on glossy surfaces (0/1). GPU-expensive; off by default.",
+    category: "display",
+  },
+  r_ssr_strength: {
+    value: 0.4,
+    defaultValue: 0.4,
+    min: 0,
+    max: 2,
+    description: "SSR reflection strength (subtle by default). Tunes live when r_ssr is on.",
+    category: "display",
+  },
+  // Emissive glow layer (see GlowEffect) — controllable glow on top of bloom.
+  // Off by default: bloom already covers bright surfaces; glow is opt-in polish.
+  r_glow: {
+    value: 0,
+    defaultValue: 0,
+    min: 0,
+    max: 2,
+    description: "Emissive glow-layer intensity (0 = off, default). Glows signs/strips/energy on top of bloom.",
+    category: "display",
   },
   // Post-processing (multipliers)
   r_bloom: {
@@ -475,7 +627,13 @@ export class RenderVars {
     }
 
     // Integer-like vars
-    if (name === "r_anisotropy" || name === "r_wireframe") {
+    if (
+      name === "r_anisotropy" ||
+      name === "r_ktx2" ||
+      name === "r_wireframe" ||
+      name === "r_webgpu" ||
+      name === "r_bsp_freeze"
+    ) {
       value = Math.round(value);
     }
 

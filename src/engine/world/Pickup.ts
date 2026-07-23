@@ -33,7 +33,7 @@ import type { Scene } from "@babylonjs/core/scene";
 import { AudioManager } from "../AudioManager";
 import { CameraSystem } from "../camera/CameraSystem";
 import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
-import { ModelLoader } from "../loader/model/ModelLoader";
+import { type ModelAttachmentPoint, ModelLoader } from "../loader/model/ModelLoader";
 import { getCollisionManager } from "../physics";
 import { PhysicsSystem } from "../physics/PhysicsSystem";
 import type { PickupVisual, PickupVisualFactory } from "./PickupVisual";
@@ -84,6 +84,10 @@ export interface PickupOptions {
 export class Pickup extends TransformNode {
   protected options: PickupOptions;
   protected mesh: Mesh | null = null;
+  /** Exposed through pickup_audit so cache hits can be compared with fresh model loads. */
+  protected modelLoadSource: "none" | "cache-flat" | "fresh-flat" = "none";
+  /** Authored tag_* transforms retained even when the cached GLB is flattened. */
+  protected modelAttachmentPoints: Record<string, ModelAttachmentPoint> = {};
   public isActive: boolean = true;
   protected respawnTimer: number | null = null;
   protected glowLight: PointLight | null = null;
@@ -96,6 +100,9 @@ export class Pickup extends TransformNode {
 
   /** Per-frame proximity/glow observer. Captured so dispose() can detach it. */
   private _renderObserver: Observer<Scene> | null = null;
+
+  /** Model/procedural construction is part of map loading, not detached work. */
+  private readonly modelReady: Promise<void>;
 
   /** Whether physics has settled (velocity near zero). Used for server position sync. */
   public settled: boolean = false;
@@ -116,7 +123,12 @@ export class Pickup extends TransformNode {
       this.isActive = false;
     }
     this.onConstructed();
-    this.loadModel();
+    this.modelReady = this.loadModel();
+  }
+
+  /** Resolve when this pickup's renderable (or deliberate no-model fallback) is ready. */
+  public whenReady(): Promise<void> {
+    return this.modelReady;
   }
 
   // ═════════════════════════════════════════════════════════════════
@@ -173,6 +185,7 @@ export class Pickup extends TransformNode {
         const preloader = AssetPreloader.getInstance();
         if (preloader.hasModel(modelPath)) {
           result = preloader.cloneCachedModel(modelPath, this.getScene());
+          if (result) this.modelLoadSource = "cache-flat";
         }
       } catch {
         // Preloader not available, continue with fresh load
@@ -189,9 +202,11 @@ export class Pickup extends TransformNode {
           hasCollision: false,
           applyLighting: false,
         });
+        if (result) this.modelLoadSource = "fresh-flat";
       }
 
       if (result?.root) {
+        this.modelAttachmentPoints = result.attachmentPoints ?? {};
         const pickupScale = this.options.scale || 1.5;
 
         // Find the leader mesh (first renderable) and parent all other meshes under it.
@@ -387,6 +402,41 @@ export class Pickup extends TransformNode {
   // ═════════════════════════════════════════════════════════════════
   // Drop-to-ground (BSP raycast + collision-manager fallback)
   // ═════════════════════════════════════════════════════════════════
+
+  /** Compact render-path diagnostics consumed by the developer pickup_audit command. */
+  public describeModelForAudit(): string {
+    const leader = this.mesh;
+    if (!leader) return `source=${this.modelLoadSource} model=NONE`;
+
+    const meshes = [leader, ...leader.getChildMeshes(false)].filter((mesh) => mesh.getTotalVertices() > 0);
+    const activeMeshes = this.getScene().getActiveMeshes();
+    let negative = 0;
+    let positive = 0;
+    let zero = 0;
+    let active = 0;
+    let ready = 0;
+    let culled = 0;
+    let enabled = 0;
+    let visible = 0;
+    for (const mesh of meshes) {
+      const determinant = mesh.computeWorldMatrix(true).determinant();
+      if (determinant < -1e-6) negative++;
+      else if (determinant > 1e-6) positive++;
+      else zero++;
+      if (activeMeshes.contains(mesh)) active++;
+      if (mesh.isReady(true)) ready++;
+      if (mesh.material?.backFaceCulling) culled++;
+      if (mesh.isEnabled()) enabled++;
+      if (mesh.isVisible && mesh.visibility > 0) visible++;
+    }
+
+    return (
+      `source=${this.modelLoadSource},parent=${leader.parent?.name ?? "none"},meshes=${meshes.length},` +
+      `det(-/+0)=${negative}/${positive}/${zero},active=${active}/${meshes.length},` +
+      `enabled=${enabled}/${meshes.length},visible=${visible}/${meshes.length},` +
+      `ready=${ready}/${meshes.length},backCull=${culled}/${meshes.length}`
+    );
+  }
 
   public dropToGround() {
     const rayOrigin = this.position.clone();
@@ -622,10 +672,10 @@ export class Pickup extends TransformNode {
       this.visual = null;
     }
 
-    if (this.mesh) {
+    if (this.mesh && !this.mesh.isDisposed()) {
       this.mesh.dispose(false, true);
-      this.mesh = null as unknown as Mesh;
     }
+    this.mesh = null as unknown as Mesh;
 
     super.dispose();
   }

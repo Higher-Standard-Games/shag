@@ -36,6 +36,7 @@ const GL_FORMATS = {
   COMPRESSED_RGBA_ASTC_8x8_KHR: 0x93b7,
 
   // Uncompressed
+  ALPHA: 0x1906,
   RGB: 0x1907,
   RGBA: 0x1908,
   LUMINANCE: 0x1909,
@@ -172,6 +173,7 @@ function getFormatName(glInternalFormat: number): string {
     [GL_FORMATS.ETC1_RGB8_OES]: "ETC1",
     [GL_FORMATS.COMPRESSED_RGBA_ASTC_4x4_KHR]: "ASTC 4x4",
     [GL_FORMATS.COMPRESSED_RGBA_ASTC_8x8_KHR]: "ASTC 8x8",
+    [GL_FORMATS.ALPHA]: "Alpha (uncompressed)",
     [GL_FORMATS.RGB]: "RGB (uncompressed)",
     [GL_FORMATS.RGBA]: "RGBA (uncompressed)",
   };
@@ -519,6 +521,18 @@ export function createTextureFromKTX1(
       if (baseFmt === GL_FORMATS.RGBA && mip.data.length >= pixelCount * 4) {
         // Already RGBA — use directly
         rgba = mip.data;
+      } else if (baseFmt === GL_FORMATS.ALPHA) {
+        // Legacy GL_ALPHA samples as white with the stored alpha value.
+        // Expanding explicitly also works on WebGPU, which has no GL_ALPHA
+        // upload format and otherwise receives an undersized RGBA buffer.
+        rgba = new Uint8Array(pixelCount * 4);
+        for (let i = 0; i < pixelCount; i++) {
+          rgba[i * 4] = 255;
+          rgba[i * 4 + 1] = 255;
+          rgba[i * 4 + 2] = 255;
+          rgba[i * 4 + 3] = mip.data[i];
+        }
+        console.log(`[KTX1Loader] Converted ALPHA→RGBA: ${name} (${mip.width}x${mip.height})`);
       } else if (baseFmt === GL_FORMATS.RGB) {
         // RGB (3 bytes/pixel) → RGBA (4 bytes/pixel): add alpha=255
         rgba = new Uint8Array(pixelCount * 4);

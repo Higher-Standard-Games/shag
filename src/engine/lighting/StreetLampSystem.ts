@@ -18,6 +18,7 @@ import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Scene } from "@babylonjs/core/scene";
 import { GameClock, type TimePeriod } from "../core/GameClock";
+import { supportsClusteredLighting } from "./DynamicLightCluster";
 
 // ==================== Types ====================
 
@@ -109,6 +110,7 @@ export class StreetLampSystem {
    */
   private ensureClusteredLights(): void {
     if (!this.scene || this.clusteredLights) return;
+    if (!supportsClusteredLighting(this.scene)) return;
 
     // Create clustered light container for street lamp point lights
     // Configure for orthographic camera compatibility

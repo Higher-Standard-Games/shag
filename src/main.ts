@@ -8,10 +8,9 @@
 
 import "./style.css";
 import "./engine/ui/styles/WashikiFonts.css"; // Washiki fonts available at startup (before HUD)
-console.log(`ANTIGRAVITY_DEBUG_ACTIVE: ${Date.now()}`);
 
 import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
-import { Engine } from "@babylonjs/core/Engines/engine";
+import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine";
 import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Scene } from "@babylonjs/core/scene";
@@ -30,17 +29,31 @@ import { TextureManager, TextureMemoryManager } from "./engine/loader";
 import { MapLoader } from "./engine/loader/map/MapLoader";
 import { PK3Index } from "./engine/loader/pk3/PK3Index";
 import { InstancedMeshManager } from "./engine/rendering/InstancedMeshManager";
+import {
+  createRenderingEngine,
+  type RenderingBackend,
+  resolveRenderingBackend,
+} from "./engine/rendering/RenderingEngineFactory";
 import { LoadingScreen } from "./engine/ui/LoadingScreen";
 import { MapLoadingOverlay } from "./engine/ui/MapLoadingOverlay";
-import { LobbyPanel } from "./games/fps/client/LobbyPanel";
 import { UIScale } from "./engine/ui/UIScale";
 import { UITheme } from "./engine/ui/UITheme";
+import { LobbyPanel } from "./games/fps/client/LobbyPanel";
 import { FPSPlayer } from "./games/fps/FPSPlayer";
+
+interface DebugWindow extends Window {
+  __lobbyPanel?: LobbyPanel;
+  engine?: AbstractEngine;
+  player?: FPSPlayer;
+  rendererBackend?: RenderingBackend;
+  scene?: Scene;
+}
 
 /**
  * Main application entry point.
  */
 async function main() {
+  const debugWindow = window as DebugWindow;
   // Initialize GamePaths
   await GamePaths.getInstance().init(gameJson.displayName);
 
@@ -59,15 +72,24 @@ async function main() {
 
   const canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
 
-  // Create engine
-  const engine = new Engine(canvas, true, { stencil: false });
+  // Show startup feedback before async WebGPU initialization or WebGL fallback.
+  const loadingScreen = new LoadingScreen();
+  loadingScreen.show();
+  loadingScreen.setStatus("Initializing renderer...");
+
+  // WebGPU remains an explicit test session while Babylon 9 pipeline parity is
+  // incomplete. Ignore a previously persisted default-on r_webgpu=1 so users
+  // recover to the known-good renderer; ?renderer=webgpu still enables A/B.
+  const requestedBackend = resolveRenderingBackend(false, window.location.search);
+  const renderer = await createRenderingEngine(canvas, requestedBackend);
+  const engine = renderer.engine;
+  if (renderer.fallbackReason) {
+    console.warn(`[Main] ${renderer.fallbackReason}; using WebGL2`);
+  }
+  console.log(`[Main] Rendering backend: ${renderer.backend}`);
 
   // Handle window resize
   window.addEventListener("resize", () => engine.resize());
-
-  // Loading screen
-  const loadingScreen = new LoadingScreen();
-  loadingScreen.show();
 
   // Build PK3 index
   const pk3Index = PK3Index.getInstance();
@@ -159,6 +181,8 @@ async function main() {
 
   // Initialize scene services
   loadingScreen.setStatus("Initializing services...");
+  // GlowEffect + SSREffect are registered scene services (EngineServices), so
+  // initScene binds them to this scene and re-binds them on every scene rebuild.
   await ServiceLocator.getInstance().initScene(scene);
 
   // Initialize Physics System
@@ -236,7 +260,7 @@ async function main() {
     });
 
     // Store lobby reference for gameplay map transitions
-    (window as any).__lobbyPanel = lobby;
+    debugWindow.__lobbyPanel = lobby;
   }
 
   // Hide lobby when a GAMEPLAY map starts loading (network connect, console map cmd, etc.)
@@ -247,7 +271,7 @@ async function main() {
       // Don't hide for background ui map
       if (data?.id === "ui") return;
 
-      const lobby = (window as any).__lobbyPanel as LobbyPanel | undefined;
+      const lobby = debugWindow.__lobbyPanel;
       if (lobby?.isVisible()) {
         lobby.hide();
         console.log(`[Main] Lobby hidden (map loading: ${data?.id})`);
@@ -266,9 +290,10 @@ async function main() {
   });
 
   // Expose for debug
-  (window as any).scene = scene;
-  (window as any).engine = engine;
-  (window as any).player = player;
+  debugWindow.scene = scene;
+  debugWindow.engine = engine;
+  debugWindow.rendererBackend = renderer.backend;
+  debugWindow.player = player;
 
   console.log('[Main] FPS mode ready. Press ~ for console, use "map <name>" to load maps.');
 }

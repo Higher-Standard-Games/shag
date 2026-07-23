@@ -9,7 +9,10 @@ import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
 import "@babylonjs/core/Culling/ray";
 import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
 import { PointLight } from "@babylonjs/core/Lights/pointLight";
-import { SceneLoader } from "@babylonjs/core/Loading/sceneLoader";
+import { ImportMeshAsync } from "@babylonjs/core/Loading/sceneLoader";
+// Side effect: registers the OutlineRenderer scene component — required for
+// mesh.renderOutline (weapon outline / charge flash) to draw.
+import "@babylonjs/core/Rendering/outlineRenderer";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import "@babylonjs/core/Materials/Textures/Loaders/tgaTextureLoader"; // enable .tga glow maps
@@ -523,7 +526,7 @@ export class WeaponViewManager {
       const savedActiveCameras = this.scene!.activeCameras ? [...this.scene!.activeCameras] : null;
       const cameraCountBefore = this.scene!.cameras.length;
 
-      const result = await SceneLoader.ImportMeshAsync("", dir, file, this.scene!);
+      const result = await ImportMeshAsync(file, this.scene!, { rootUrl: dir });
 
       // Check if superseded during async import
       if (this._loadGeneration !== loadGen) {
@@ -642,7 +645,7 @@ export class WeaponViewManager {
               pbr.alpha = 0.35;
               pbr.backFaceCulling = false;
               applySafeMaxSimultaneousLights(pbr);
-              pbr.maxSimultaneousLights = 2;
+              pbr.maxSimultaneousLights = this.scene!.getEngine().isWebGPU ? 1 : 2;
             } else {
               // Main body / sights: keep PBR for proper metallic/roughness.
               pbr.environmentIntensity = 2.0;
@@ -652,7 +655,9 @@ export class WeaponViewManager {
               // ...but the safe PBR cap is 1, and the weapon needs BOTH its dedicated
               // hemispheric weaponLight AND the always-present muzzle-flash light, or
               // one intensity-0 light wins the slot and the gun renders black (#2).
-              pbr.maxSimultaneousLights = 2;
+              // WebGPU must retain the one-light cap to stay below the adapter's
+              // per-stage UBO limit; weaponLight wins via its render priority.
+              pbr.maxSimultaneousLights = this.scene!.getEngine().isWebGPU ? 1 : 2;
               console.log(`[WeaponViewManager] Gun: keeping PBR "${pbr.name}" (env=${pbr.environmentIntensity})`);
             }
           }

@@ -15,5 +15,11 @@ export type {
   TemplateData,
 } from "./InstancedMeshManager";
 export { InstancedMeshManager } from "./InstancedMeshManager";
+export type {
+  RenderingBackend,
+  RenderingEngineFactories,
+  RenderingEngineResult,
+} from "./RenderingEngineFactory";
+export { createRenderingEngine, resolveRenderingBackend } from "./RenderingEngineFactory";
 export type { RenderVar, RenderVarName } from "./RenderVars";
 export { RenderVars } from "./RenderVars";

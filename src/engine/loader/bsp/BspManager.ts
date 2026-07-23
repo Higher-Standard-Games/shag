@@ -12,7 +12,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Scene } from "@babylonjs/core/scene";
 import RenderVars from "../../rendering/RenderVars";
 import { PK3Loader } from "../pk3/PK3Loader";
-import { type BspFile, type BspLightVol, BspLoader } from "./BspLoader";
+import { type BspEntity, type BspFile, type BspLightVol, BspLoader } from "./BspLoader";
 import { BspMeshBuilder, type BspMeshBuildResult } from "./BspMeshBuilder";
 
 export interface BspLoadOptions {
@@ -335,6 +335,22 @@ export class BspManager {
     return worldspawn?.properties[key];
   }
 
+  /** Typed access to all parsed entities (empty if no BSP is loaded). */
+  getRawEntities(): BspEntity[] {
+    return this.loadedBsp?.entities ?? [];
+  }
+
+  /** The parsed BSP file, or null if none is loaded (for surface extraction). */
+  getLoadedBsp(): BspFile | null {
+    return this.loadedBsp;
+  }
+
+  /** All entities of a given classname (empty if no BSP is loaded). */
+  getEntitiesByClassname(classname: string): BspEntity[] {
+    if (!this.loadedBsp) return [];
+    return this.loadedBsp.entities.filter((e) => e.classname === classname);
+  }
+
   getClusterInfo(): string {
     if (!this.loadedBsp) {
       return "No BSP loaded";
@@ -408,6 +424,14 @@ export class BspManager {
         filterTextures: options.filterTextures ?? true,
         deluxe: deluxeEnabled,
       });
+
+      // Freeze static world geometry (world matrix + bounding info) to skip its
+      // per-frame recompute. Static BSP meshes never transform; PVS only toggles
+      // visibility. Gated by r_bsp_freeze (default on); applies per map build.
+      if ((RenderVars.getInstance().get("r_bsp_freeze") ?? 1) >= 0.5) {
+        const frozen = BspMeshBuilder.freezeStaticWorld(this.meshResult);
+        console.log(`[BspManager] Froze ${frozen} static world meshes (r_bsp_freeze)`);
+      }
 
       const filterInfo = options.faceTypes ? ` (types: ${options.faceTypes.join(",")})` : "";
 

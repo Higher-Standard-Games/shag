@@ -4,7 +4,7 @@
  * Provides weighted blending and crossfade transitions for animation groups.
  */
 
-import type { AnimationGroup } from "@babylonjs/core";
+import type { AnimationGroup } from "@babylonjs/core/Animations/animationGroup";
 
 /**
  * Blend state for an animation

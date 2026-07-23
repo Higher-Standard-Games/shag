@@ -5,16 +5,14 @@
  * Multiple AnimationGroups targeting the same bones overwrite each other.
  */
 
-import {
-  type Animation,
-  AnimationGroup,
-  type Mesh,
-  type Scene,
-  SceneLoader,
-  type Skeleton,
-  type TransformNode,
-  Vector3,
-} from "@babylonjs/core";
+import type { Animation } from "@babylonjs/core/Animations/animation";
+import { AnimationGroup } from "@babylonjs/core/Animations/animationGroup";
+import type { Skeleton } from "@babylonjs/core/Bones/skeleton";
+import { ImportAnimationsAsync, ImportMeshAsync } from "@babylonjs/core/Loading/sceneLoader";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import type { Mesh } from "@babylonjs/core/Meshes/mesh";
+import type { TransformNode } from "@babylonjs/core/Meshes/transformNode";
+import type { Scene } from "@babylonjs/core/scene";
 import "@babylonjs/loaders";
 import { Command, type CommandDef } from "../Command";
 
@@ -76,7 +74,7 @@ export default class AnimTestCommand extends Command {
     try {
       console.log("[AnimTest] Loading vanguard.glb...");
 
-      const result = await SceneLoader.ImportMeshAsync("", "games/default/animations/", "vanguard.glb", this.scene);
+      const result = await ImportMeshAsync("vanguard.glb", this.scene, { rootUrl: "games/default/animations/" });
 
       if (result.meshes.length === 0) return "No meshes found";
 
@@ -139,15 +137,14 @@ export default class AnimTestCommand extends Command {
         try {
           console.log(`[AnimTest] Loading ${anim.file}...`);
 
-          const animResult = await SceneLoader.ImportAnimationsAsync(
-            "",
-            `games/default/animations/${anim.file}`,
-            this.scene,
-            false,
-          );
+          await ImportAnimationsAsync(`games/default/animations/${anim.file}`, this.scene, {
+            overwriteAnimations: false,
+          });
 
-          if (animResult.animationGroups.length > 0) {
-            const sourceGroup = animResult.animationGroups[0];
+          // The old static API returned the scene — keep operating on the
+          // scene's animation groups exactly as before.
+          if (this.scene.animationGroups.length > 0) {
+            const sourceGroup = this.scene.animationGroups[0];
 
             // Store animations with retargeted bones
             const storedAnim: StoredAnimation = {

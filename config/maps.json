@@ -5,5 +5,5 @@
   "wdm7":  { "displayName": "Brimstone",       "gametypes": ["tdm", "ffa"] },
   "wdm12": { "displayName": "wdm12",           "gametypes": ["duel"] },
   "wdm14": { "displayName": "Aerowalk",        "gametypes": ["tdm", "ffa"] },
-  "wdm15": { "displayName": "wdm15",           "gametypes": ["duel"] }
+  "wbomb1": { "displayName": "wbomb1",         "gametypes": ["duel"] }
 }

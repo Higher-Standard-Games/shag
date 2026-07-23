@@ -16,6 +16,12 @@ import { HavokPlugin } from "@babylonjs/core/Physics/v2/Plugins/havokPlugin";
 import { PhysicsAggregate } from "@babylonjs/core/Physics/v2/physicsAggregate";
 import type { Scene } from "@babylonjs/core/scene";
 import "@babylonjs/core/Physics/v2/physicsEngineComponent";
+// Side effect: registers Scene.prototype.enablePhysics / getPhysicsEngine.
+// Babylon 9 split these off the v2 component above; without this,
+// scene.enablePhysics is a no-op and getPhysicsEngine() returns null →
+// "No Physics Engine available" (ragdolls, dropped-weapon bodies, tossed
+// pickups). Previously pulled in implicitly by bare @babylonjs/core barrels.
+import "@babylonjs/core/Physics/joinedPhysicsEngineComponent";
 import { MovementVars } from "../movement/MovementVars";
 
 // ==================== Types ====================

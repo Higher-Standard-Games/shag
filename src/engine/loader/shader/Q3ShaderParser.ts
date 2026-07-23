@@ -482,10 +482,20 @@ function parseShaderBody(name: string, tokens: string[], startPos: number): { sh
       }
 
       default:
-        // Skip q3map_*, qer_*, and other unknown directives
-        if (token.startsWith("q3map") || token.startsWith("qer_")) {
+        // Surface-light emission strength: q3map_surfacelight (Q3) /
+        // lightingIntensity (Warsow/qfusion). Used to scale emissive area lights.
+        if (token === "q3map_surfacelight" || token === "lightingintensity") {
+          if (pos + 1 < tokens.length) {
+            const v = Number(tokens[pos + 1]);
+            if (Number.isFinite(v) && v > 0) shader.surfaceLight = v;
+          }
           pos++;
-          // Skip parameters until next directive or brace
+          while (pos < tokens.length && tokens[pos] !== "{" && tokens[pos] !== "}" && !isDirective(tokens[pos])) {
+            pos++;
+          }
+        } else if (token.startsWith("q3map") || token.startsWith("qer_")) {
+          // Skip other q3map_*, qer_* directives
+          pos++;
           while (pos < tokens.length && tokens[pos] !== "{" && tokens[pos] !== "}" && !isDirective(tokens[pos])) {
             pos++;
           }
@@ -565,7 +575,10 @@ function parseConditionalBlock(
   return { block, newPos: pos };
 }
 
-function parseConditionalCondition(tokens: string[], startPos: number): { condition: "deluxe" | "!deluxe"; newPos: number } {
+function parseConditionalCondition(
+  tokens: string[],
+  startPos: number,
+): { condition: "deluxe" | "!deluxe"; newPos: number } {
   const first = tokens[startPos]?.toLowerCase();
   const second = tokens[startPos + 1]?.toLowerCase();
 

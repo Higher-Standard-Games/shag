@@ -6,7 +6,7 @@ import { BspLoader } from "../engine/loader/bsp/BspLoader";
 
 async function main(): Promise<void> {
   const pk3Path = "./public/games/default/map_wdm2.pk3";
-  const pk3Data = fs.readFileSync(pk3Path);
+  const pk3Data = new Uint8Array(fs.readFileSync(pk3Path));
   const zip = await JSZip.loadAsync(pk3Data);
 
   const bspFileName = Object.keys(zip.files).find((name) => name.endsWith(".bsp"));

@@ -18,8 +18,8 @@
  * ```
  */
 
-import type { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera";
-import type { Engine } from "@babylonjs/core/Engines/engine";
+import type { Camera } from "@babylonjs/core/Cameras/camera";
+import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Scene } from "@babylonjs/core/scene";
 
@@ -66,8 +66,8 @@ export class WorldIndicatorSystem {
   }
 
   private scene: Scene | null = null;
-  private camera: ArcRotateCamera | null = null;
-  private engine: Engine | null = null;
+  private camera: Camera | null = null;
+  private engine: AbstractEngine | null = null;
   private container: HTMLElement | null = null;
   private indicators: Map<string, WorldIndicator> = new Map();
   private animationFrameId: number | null = null;
@@ -85,7 +85,23 @@ export class WorldIndicatorSystem {
   /**
    * Initialize the system with scene, camera, and engine references
    */
-  public init(scene: Scene, camera: ArcRotateCamera, engine: Engine): void {
+  public init(
+    scene: Scene,
+    camera: Camera | null = scene.activeCamera,
+    engine: AbstractEngine = scene.getEngine(),
+  ): void {
+    // This is a DOM-backed presentation service. Headless scenes still pass
+    // through the shared service graph, so leave it dormant there.
+    if (typeof document === "undefined" || typeof window === "undefined") {
+      console.log("[WorldIndicatorSystem] Skipped in headless environment");
+      return;
+    }
+
+    if (!camera) {
+      console.warn("[WorldIndicatorSystem] No active camera; initialization deferred");
+      return;
+    }
+
     this.scene = scene;
     this.camera = camera;
     this.engine = engine;

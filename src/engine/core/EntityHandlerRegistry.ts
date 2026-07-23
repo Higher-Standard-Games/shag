@@ -145,7 +145,9 @@ export class EntityHandlerRegistry {
    * Add a pre-render hook
    */
   public static addPreRenderHook(hook: PreRenderHook): void {
-    EntityHandlerRegistry.preRenderHooks.push(hook);
+    if (!EntityHandlerRegistry.preRenderHooks.includes(hook)) {
+      EntityHandlerRegistry.preRenderHooks.push(hook);
+    }
   }
 
   /**

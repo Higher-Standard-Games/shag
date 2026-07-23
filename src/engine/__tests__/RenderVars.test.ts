@@ -8,12 +8,12 @@
  * and reset both RenderVars and Cvar state between tests.
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
-import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import { PBRMaterial } from "@babylonjs/core/Materials/PBR/pbrMaterial";
 import { RawTexture } from "@babylonjs/core/Materials/Textures/rawTexture";
+import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import { Scene } from "@babylonjs/core/scene";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock localStorage before importing modules that use it
 const localStorageMock = (() => {
@@ -103,6 +103,7 @@ describe("RenderVars", () => {
       expect(names).toContain("r_ambient");
       expect(names).toContain("r_emissive");
       expect(names).toContain("r_anisotropy");
+      expect(names).toContain("r_webgpu");
       expect(names).toContain("r_wireframe");
 
       // Post-processing
@@ -119,6 +120,7 @@ describe("RenderVars", () => {
       expect(rv.get("r_glossmap")).toBe(1.0);
       expect(rv.get("r_lightmap")).toBe(1.0);
       expect(rv.get("r_anisotropy")).toBe(8);
+      expect(rv.get("r_webgpu")).toBe(0);
       expect(rv.get("r_wireframe")).toBe(0);
     });
 
@@ -196,6 +198,18 @@ describe("RenderVars", () => {
       const rv = getRV();
       rv.set("r_wireframe", 0.8);
       expect(rv.get("r_wireframe")).toBe(1);
+    });
+
+    it("rounds restart-only r_webgpu to integer", () => {
+      const rv = getRV();
+      rv.set("r_webgpu", 0.2);
+      expect(rv.get("r_webgpu")).toBe(0);
+    });
+
+    it("rounds r_ktx2 to integer", () => {
+      const rv = getRV();
+      rv.set("r_ktx2", 0.2);
+      expect(rv.get("r_ktx2")).toBe(0);
     });
   });
 

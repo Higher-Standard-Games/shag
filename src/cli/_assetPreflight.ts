@@ -21,11 +21,11 @@ export interface AssetPreflightResult {
 
 /**
  * Resolve the headless game asset directory the same way headless-game does:
- * `GAME_PATH` env override (or its default `./public/game`), falling back to the
+ * `GAME_PATH` env override (or the canonical `./public/data`), falling back to the
  * legacy `./public/games/default/basewsw` when the primary path is absent.
  */
 export function resolveGameAssetDir(): string {
-  let gamePath = process.env.GAME_PATH || "./public/game";
+  let gamePath = process.env.GAME_PATH || "./public/data";
   if (!fs.existsSync(gamePath) && fs.existsSync("./public/games/default/basewsw")) {
     gamePath = "./public/games/default/basewsw";
   }
@@ -51,7 +51,7 @@ export function preflightGameAssets(gamePath: string = resolveGameAssetDir()): A
   const problems: string[] = [];
 
   if (!fs.existsSync(gamePath)) {
-    problems.push(`Game asset directory not found: ${gamePath} (set GAME_PATH or populate ./public/game)`);
+    problems.push(`Game asset directory not found: ${gamePath} (set GAME_PATH or populate ./public/data)`);
     return { ok: false, gamePath, pk3Count: 0, problems };
   }
 

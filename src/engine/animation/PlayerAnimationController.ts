@@ -7,7 +7,10 @@
  * - Animation blending and state machine
  */
 
-import type { AnimationGroup, Mesh, Scene, Skeleton } from "@babylonjs/core";
+import type { AnimationGroup } from "@babylonjs/core/Animations/animationGroup";
+import type { Skeleton } from "@babylonjs/core/Bones/skeleton";
+import type { Mesh } from "@babylonjs/core/Meshes/mesh";
+import type { Scene } from "@babylonjs/core/scene";
 import { AnimationBlender, type BlendConfig } from "./AnimationBlender";
 import { AnimationLoader } from "./AnimationLoader";
 import { HumanoidRig } from "./HumanoidRig";

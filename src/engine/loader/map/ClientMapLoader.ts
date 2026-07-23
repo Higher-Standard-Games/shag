@@ -1,5 +1,5 @@
-import { PLAYER_ORIGIN_HEIGHT } from "../../physics/PlayerPhysicsConstants";
 import { CommandRegistry } from "../../console/CommandRegistry";
+import { PLAYER_ORIGIN_HEIGHT } from "../../physics/PlayerPhysicsConstants";
 
 /**
  * Render/load a BSP map for a client that is already connected to an
@@ -70,6 +70,19 @@ async function loadClientMapWithSystems(
     const sky = SkyLightSystem.getInstance();
     sky.resetWorldspawn();
     sky.loadFromWorldspawn();
+
+    // Opt-in volumetric sun shafts via worldspawn `godrays "1"` (+ tuning keys).
+    const { GodRaysController } = await import("../../lighting/GodRaysController");
+    const godRayCamera = cameraSystem.getCamera();
+    if (godRayCamera) {
+      GodRaysController.getInstance().loadFromWorldspawn(scene, godRayCamera);
+    } else {
+      GodRaysController.getInstance().disable();
+    }
+
+    // Textured area lights from map `light_area` entities (r_arealights, capped).
+    const { AreaLightManager } = await import("../../lighting/AreaLightManager");
+    AreaLightManager.getInstance().loadFromMap(scene);
   }
 
   let spawnStatus = "";

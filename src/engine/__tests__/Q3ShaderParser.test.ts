@@ -735,4 +735,39 @@ models/items/armor/ga/ga
       expect(shader.stages[0].map).toBe("models/players/x/skin_fb.tga");
     });
   });
+
+  describe("surface light (q3map_surfacelight / lightingIntensity)", () => {
+    it("captures q3map_surfacelight strength", () => {
+      const content = `textures/base/lamp
+{
+\tsurfaceparm nolightmap
+\tq3map_surfacelight 1200
+\t{
+\t\tmap textures/base/lamp.tga
+\t}
+}`;
+      expect(parseShaderFile(content)[0].surfaceLight).toBe(1200);
+    });
+
+    it("captures the Warsow lightingIntensity directive", () => {
+      const content = `textures/base/sign
+{
+\tlightingIntensity 500
+\t{
+\t\tmap textures/base/sign.tga
+\t}
+}`;
+      expect(parseShaderFile(content)[0].surfaceLight).toBe(500);
+    });
+
+    it("leaves surfaceLight unset when the shader emits no light", () => {
+      const content = `textures/base/wall
+{
+\t{
+\t\tmap textures/base/wall.tga
+\t}
+}`;
+      expect(parseShaderFile(content)[0].surfaceLight).toBeUndefined();
+    });
+  });
 });

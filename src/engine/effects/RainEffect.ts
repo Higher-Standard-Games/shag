@@ -2,16 +2,20 @@
  * PrecipitationEffect - Particle-based rain/snow system
  *
  * Creates rain drops or snowflakes that fall from above the camera down to the ground.
- * Uses Babylon.js ParticleSystem for efficient GPU-accelerated rendering.
+ * Uses Babylon.js GPUParticleSystem so WebGL2 handles both particle simulation
+ * and rendering on the GPU.
  */
 
+import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { Color4 } from "@babylonjs/core/Maths/math.color";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Observer } from "@babylonjs/core/Misc/observable";
+import { GPUParticleSystem } from "@babylonjs/core/Particles/gpuParticleSystem";
 import { ParticleSystem } from "@babylonjs/core/Particles/particleSystem";
+import "@babylonjs/core/Particles/webgl2ParticleSystem";
 import type { Scene } from "@babylonjs/core/scene";
 import { type WindState, WindSystem } from "./WindSystem";
 
@@ -29,6 +33,11 @@ export interface PrecipitationSettings {
 
 // Legacy alias for backwards compatibility
 export type RainSettings = PrecipitationSettings;
+
+/** WebGPU precipitation stays on the compatibility path until that renderer returns. */
+export function supportsGpuPrecipitation(engine: AbstractEngine): boolean {
+  return !engine.isWebGPU && engine.getCaps().supportTransformFeedbacks;
+}
 
 const DEFAULT_RAIN_SETTINGS: PrecipitationSettings = {
   type: "rain",
@@ -52,7 +61,7 @@ const DEFAULT_SNOW_SETTINGS: PrecipitationSettings = {
 
 export class PrecipitationEffect {
   private scene: Scene;
-  private particleSystem: ParticleSystem | null = null;
+  private particleSystem: ParticleSystem | GPUParticleSystem | null = null;
   private emitter: AbstractMesh | null = null;
   private settings: PrecipitationSettings = { ...DEFAULT_RAIN_SETTINGS };
   private isActive: boolean = false;
@@ -185,22 +194,23 @@ export class PrecipitationEffect {
       this.renderObserver = null;
     }
 
-    if (this.particleSystem) {
-      this.particleSystem.stop();
+    const stoppedSystem = this.particleSystem;
+    const stoppedEmitter = this.emitter;
+    this.particleSystem = null;
+    this.emitter = null;
+
+    if (stoppedSystem) {
+      stoppedSystem.stop();
 
       if (immediate) {
         // Immediate disposal for map transitions
-        this.particleSystem.dispose();
-        this.particleSystem = null;
-        this.emitter?.dispose();
-        this.emitter = null;
+        stoppedSystem.dispose();
+        stoppedEmitter?.dispose();
       } else {
         // Let existing particles finish falling
         setTimeout(() => {
-          this.particleSystem?.dispose();
-          this.particleSystem = null;
-          this.emitter?.dispose();
-          this.emitter = null;
+          stoppedSystem.dispose();
+          stoppedEmitter?.dispose();
         }, 3000);
       }
     }
@@ -285,9 +295,26 @@ export class PrecipitationEffect {
     // Initial position at camera target
     this.updateEmitterPosition();
 
-    // Create particle system
+    // WebGL2 transform feedback updates precipitation entirely on the GPU.
+    // Retain a capability fallback so weather still works if Babylon had to
+    // create a WebGL1 context or while the experimental WebGPU path is used.
     const capacity = Math.floor(2000 * this.settings.intensity);
-    this.particleSystem = new ParticleSystem("precipitation", capacity, this.scene);
+    const engine = this.scene.getEngine();
+    if (supportsGpuPrecipitation(engine)) {
+      this.particleSystem = new GPUParticleSystem(
+        "precipitation",
+        {
+          capacity,
+          emitRateControl: true,
+          randomTextureSize: 4096,
+        },
+        this.scene,
+      );
+      console.log(`[PrecipitationEffect] GPU particle backend (${capacity} capacity)`);
+    } else {
+      this.particleSystem = new ParticleSystem("precipitation", capacity, this.scene);
+      console.warn("[PrecipitationEffect] GPU particles unavailable; using CPU compatibility backend");
+    }
 
     // Use appropriate texture based on type
     this.particleSystem.particleTexture =
@@ -363,8 +390,8 @@ export class PrecipitationEffect {
       groundDepth = orthoHeight * this.COVERAGE;
     } else if ("radius" in camera) {
       // ArcRotateCamera - estimate based on radius and viewport
-      const radius = (camera as any).radius as number;
-      const fov = (camera as any).fov || 0.8;
+      const radius = (camera as { radius: number }).radius;
+      const fov = (camera as { fov?: number }).fov || 0.8;
       const aspectRatio = viewportWidth / viewportHeight;
 
       // Approximate visible ground area based on camera distance
@@ -569,7 +596,7 @@ export class PrecipitationEffect {
    * Dispose all resources
    */
   public dispose(): void {
-    this.stop();
+    this.stop(true);
     if (this.particleSystem) {
       this.particleSystem.dispose();
       this.particleSystem = null;
