@@ -309,8 +309,8 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, "name">> = {
     category: "display",
   },
   r_ssr_strength: {
-    value: 0.6,
-    defaultValue: 0.6,
+    value: 0.4,
+    defaultValue: 0.4,
     min: 0,
     max: 2,
     description: "SSR reflection strength (subtle by default). Tunes live when r_ssr is on.",

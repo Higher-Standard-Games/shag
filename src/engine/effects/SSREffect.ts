@@ -20,7 +20,7 @@ import { EventBus } from "../core/EventBus";
 import { QualityDetector } from "../core/QualityDetector";
 import RenderVars from "../rendering/RenderVars";
 
-const DEFAULT_STRENGTH = 0.6;
+const DEFAULT_STRENGTH = 0.4;
 
 export class SSREffect {
   private static instance: SSREffect;
