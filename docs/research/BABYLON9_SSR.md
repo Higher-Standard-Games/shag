@@ -82,6 +82,16 @@ For a competitive FPS this is the whole risk, so gate it hard:
 
 ## v1 implementation plan
 
+- **Babylon gotcha — use the GeometryBufferRenderer, not the PrePass.** SSR's
+  PrePass path compiles a reflectivity write into each material's *own* shader,
+  and Babylon's **StandardMaterial** prepass output references an undeclared
+  `specularMapColor` (only declared in the skipped lighting block) — so
+  specular-textured Standard surfaces (most of our BSP world) fail to compile
+  (`FRAGMENT SHADER ERROR: 'specularMapColor' : undeclared identifier`).
+  Constructing the pipeline with `forceGeometryBuffer: true` renders the
+  reflectivity/normal/depth buffers with the GeometryBufferRenderer's dedicated
+  geometry shader instead, sidestepping the bug. Slightly costlier (an extra
+  geometry pass) but compatible.
 - **`SSREffect`** module (mirrors `GlowEffect`): owns one `SSRRenderingPipeline`,
   cvar-gated, GPU-tier-tuned, camera-swap-aware. Off unless `r_ssr >= 1`.
   - Subtle defaults: low `strength`, higher `reflectionSpecularFalloffExponent`

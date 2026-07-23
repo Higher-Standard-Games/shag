@@ -83,7 +83,13 @@ export class SSREffect {
     if (!camera) return;
 
     try {
-      const pipeline = new SSRRenderingPipeline("ssr", this.scene, [camera], false);
+      // forceGeometryBuffer=true: use the GeometryBufferRenderer (its own geometry
+      // shader) for the reflectivity/normal/depth buffers, NOT the PrePassRenderer.
+      // The prepass path compiles reflectivity into each material's own shader, and
+      // StandardMaterial's prepass output references an undeclared `specularMapColor`
+      // (Babylon bug) — breaking our specular-textured BSP surfaces. The geometry
+      // buffer path avoids that entirely.
+      const pipeline = new SSRRenderingPipeline("ssr", this.scene, [camera], true);
       if (!pipeline.isSupported) {
         console.warn("[SSREffect] SSR not supported on this device");
         pipeline.dispose();
