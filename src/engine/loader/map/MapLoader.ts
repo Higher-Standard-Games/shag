@@ -419,8 +419,15 @@ export class MapLoader {
     if (meshResult.autospriteMeshes && meshResult.autospriteMeshes.length > 0) {
       progress("Autosprites", `Registering ${meshResult.autospriteMeshes.length} billboard sprites`);
       scene.registerBeforeRender(() => {
-        if (scene.activeCamera) {
-          BspMeshBuilder.updateAutosprites(meshResult, scene.activeCamera.position);
+        // Billboard toward the MAIN eye camera's WORLD position. With the weapon
+        // viewmodel active the scene is multi-camera (`activeCameras = [eye, weapon]`)
+        // and the weapon camera is parented to the eye, so its `.position` is a fixed
+        // local ~0. Babylon 9 leaves `scene.activeCamera` pointing at the last-rendered
+        // (weapon) camera by the time this fires, which froze the sprites in place.
+        // Take `activeCameras[0]` (the eye) and its `globalPosition` (world-space).
+        const eye = scene.activeCameras?.[0] ?? scene.activeCamera;
+        if (eye) {
+          BspMeshBuilder.updateAutosprites(meshResult, eye.globalPosition);
         }
       });
     }
