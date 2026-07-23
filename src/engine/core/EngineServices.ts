@@ -29,8 +29,10 @@
  */
 
 import { AudioManager } from "../AudioManager";
+import { GlowEffect } from "../effects/GlowEffect";
 // NOTE: StreetLampSystem import removed - games that need it should import and init it themselves
 import { PostProcessingManager } from "../effects/PostProcessingManager";
+import { SSREffect } from "../effects/SSREffect";
 import { SkyLightSystem } from "../lighting/SkyLightSystem";
 import { ModelLoader } from "../loader/model/ModelLoader";
 import { PrefabLoader } from "../loader/model/PrefabLoader";
@@ -129,6 +131,25 @@ export const SCENE_SERVICES: ServiceRegistration[] = [
     name: "postProcessing",
     factory: () => PostProcessingManager.getInstance(),
     reset: () => PostProcessingManager.resetInstance(),
+    phase: "scene",
+    dependencies: [],
+  },
+  // Scene-scoped post/render effects — like postProcessing, they bind a
+  // GlowLayer / SSR pipeline to the CURRENT scene, so they must reset+re-init
+  // through this lifecycle on every scene rebuild (WO13). SSR also rebuilds on
+  // camera swaps against its bound scene, so a stale scene here is a real
+  // freeze/leak hazard, not just a silently-off effect.
+  {
+    name: "glowEffect",
+    factory: () => GlowEffect.getInstance(),
+    reset: () => GlowEffect.resetInstance(),
+    phase: "scene",
+    dependencies: [],
+  },
+  {
+    name: "ssrEffect",
+    factory: () => SSREffect.getInstance(),
+    reset: () => SSREffect.resetInstance(),
     phase: "scene",
     dependencies: [],
   },

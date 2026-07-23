@@ -181,15 +181,9 @@ async function main() {
 
   // Initialize scene services
   loadingScreen.setStatus("Initializing services...");
+  // GlowEffect + SSREffect are registered scene services (EngineServices), so
+  // initScene binds them to this scene and re-binds them on every scene rebuild.
   await ServiceLocator.getInstance().initScene(scene);
-
-  // Emissive glow layer (controllable glow on top of bloom; r_glow, default on).
-  const { GlowEffect } = await import("./engine/effects/GlowEffect");
-  GlowEffect.getInstance().init(scene);
-
-  // Screen-space reflections (opt-in via r_ssr; off by default, GPU-expensive).
-  const { SSREffect } = await import("./engine/effects/SSREffect");
-  SSREffect.getInstance().init(scene);
 
   // Initialize Physics System
   try {
