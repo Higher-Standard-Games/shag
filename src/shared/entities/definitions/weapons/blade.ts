@@ -26,7 +26,7 @@ export const BLADE: WeaponDef = {
 
   // Gameplay (server-authoritative) — primary fire: melee slash
   damage: 80, // Big hit for close range
-  fireRate: 2.0, // 500ms between swings
+  fireRate: 2.0, // 63 ticks @125Hz = 504ms between swings (2.0 doesn't divide 125 exactly)
   clipSize: 0,
   reloadModel: "none",
   ammoType: "blade",

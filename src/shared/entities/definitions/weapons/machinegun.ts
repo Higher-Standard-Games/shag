@@ -24,12 +24,12 @@ export const MACHINEGUN: WeaponDef = {
 
   // Gameplay (server-authoritative)
   damage: 10,
-  fireRate: 10, // 100ms reload = 10 shots/sec
-  clipSize: 40,
+  fireRate: 10, // 13 ticks @125Hz = 104ms/shot ≈ 9.6/s (10 doesn't divide 125 exactly)
+  clipSize: 30, // 30-round clip (~3.1s of fire) — a real magazine, not the old near-free 0.13s hitch
   reloadModel: "clip",
   ammoType: "bullets",
-  maxAmmo: 120,
-  reloadTime: 0.13,
+  maxAmmo: 120, // reserve
+  reloadTime: 1.5, // proper reload: 188 ticks @125Hz = 1.504s
   range: 6000,
   hitscan: true,
   hitscanType: "tracer",

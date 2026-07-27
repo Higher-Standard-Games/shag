@@ -137,7 +137,11 @@ export interface WeaponDef extends EntityDef {
   ammoType?: string;
   /** Max reserve ammo */
   maxAmmo: number;
-  /** Time to reload (seconds) */
+  /**
+   * Time to reload (seconds). Only the `clip` reload model reads this — for
+   * `pool`/`none` weapons it is ignored (they never reload), so a value there is
+   * dead data. Quantized up to a whole tick server-side: `ceil(reloadTime × 125)`.
+   */
   reloadTime: number;
   /** Max effective range */
   range: number;
