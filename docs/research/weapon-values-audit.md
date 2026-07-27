@@ -45,11 +45,30 @@ pool means it fires once then is dry. Kept only as a valid default id.
    ms the tick quantization doesn't deliver; `reloadTime` on pool weapons is dead data. Fixed the
    comments and documented on `WeaponDef.reloadTime` that only the `clip` model reads it.
 
-**Flagged, not changed (need a design call):**
+**Also actioned since this audit was written:**
 
-- **Plasmagun has the highest sustained DPS in the game (188; 141 effective)** with fast
-  projectiles + splash. Possibly overtuned relative to the rest of the roster.
-- **Machinegun** is a clip weapon with a near-free 136ms reload every 40 rounds (Warsow's MG is a
-  pool weapon). Barely noticeable, but it's a minor design inconsistency.
-- **Gunblade** is vestigial (see note ²) — either remove it from the weapon table or give it a
-  real role.
+3. **Machinegun magazine** *(gameplay)* — the near-free 40-round / 136ms reload is gone; it is now
+   a real magazine at **clip 30 / reserve 120 / reload 1.5s**, so running dry is a decision rather
+   than a cosmetic hitch.
+4. **Gunblade removed** — it was vestigial (see note ²) and is now deleted from the weapon table,
+   projectile/ammo defs and every reference. Blade is the sole default.
+
+5. **Plasmagun rate cut** *(gameplay)* — was `fireRate 12.5` (exactly 10 ticks @125Hz → 12.5
+   shots/s, **187.5 DPS**, the highest sustained in the game). Target was 10 shots/s / 150 DPS.
+   125Hz cannot express 10/s exactly (125/10 = 12.5 ticks), so it now authors `fireRate 10` and
+   quantizes to **13 ticks = 9.62 shots/s = 144 DPS**. 12 ticks would overshoot to 10.42/s
+   (156 DPS); 13 is nearer both the rate and the DPS target. Bump `damage` 15 → 16 if 150 DPS
+   matters more than the rate (→ 153.8).
+6. **Riotgun blast cut to 90** *(gameplay)* — was 5 damage × 20 pellets = 100. Pellet damage is
+   `Math.round`ed per hit in `CombatSystem`, so trimming via fractional damage does nothing (4.5
+   rounds straight back to 5). Reduced the pellet COUNT instead: **5 × 18 = 90**, which also
+   slightly loosens consistency at range — a normal shotgun nerf.
+
+**Quantization note (125Hz server tick):** a weapon's real rate is `125 / round(125 / fireRate)`.
+Rates that divide 125 evenly (25, 12.5, 5, 2.5, 1.25) are exact; others are not. Current
+non-exact cases: plasmagun 10 → 9.62/s, lasergun 20 → 20.83/s (145.8 DPS at 7/cell, against a
+140 target — 6 ticks is as close as 125Hz allows; 7 ticks would drop it to 125 DPS).
+
+**Still flagged, not changed (needs a design call):**
+
+- Nothing outstanding. Plasmagun was the last open balance item and is actioned above.

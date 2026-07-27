@@ -1,7 +1,7 @@
 /**
  * Riotgun - Weapon Definition
  *
- * Shotgun-style hitscan weapon firing 20 pellets per shot.
+ * Shotgun-style hitscan weapon firing 18 pellets per shot.
  * Stats from Warsow gs_weapondefs.c.
  */
 
@@ -23,7 +23,9 @@ export const RIOTGUN: WeaponDef = {
   glowColor: { r: 1.0, g: 0.6, b: 0.2 },
 
   // Gameplay (server-authoritative)
-  // 5 damage per pellet × 20 pellets = 100 max damage
+  // 5 damage per pellet × 18 pellets = 90 max damage. Pellet damage is rounded
+  // per hit (CombatSystem), so shaving the 100 down via fractional damage would
+  // not work — 4.5 rounds straight back to 5. Fewer pellets it is.
   damage: 5,
   fireRate: 1.25, // 800ms between shots
   clipSize: 8,
@@ -37,9 +39,9 @@ export const RIOTGUN: WeaponDef = {
   spread: 8, // 8° shotgun cone (hip-fire)
   adsSpread: 2, // 2° when ADS (4x tighter)
   fireMode: "semi",
-  burstCount: 20, // 20 pellets per shot
+  burstCount: 18, // 18 pellets per shot
   pickupBounds: { x: 32, y: 32, z: 32 },
-  pelletCount: 20,
+  pelletCount: 18,
   knockbackScale: 2.5,
   pickupAmmo: 8,
   useLagCompensation: true,
