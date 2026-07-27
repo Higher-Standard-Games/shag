@@ -15,6 +15,15 @@
  *   trigger_push     { model "*N", target "X"  } → target_position
  *     { targetname "X", origin }
  * Triggers have NO origin — the volume is BSP submodel N's AABB.
+ *
+ * NOTE: destination entities are NOT always the "canonical" classname above.
+ * A survey of all 38 shipping maps (v0.9.21) found mappers also point triggers
+ * at `target_location` (wdm12/17/18/19, wbomb6, wda1, wdm11, wtutorial1) and at
+ * Quake 3's `info_teleport_destination` (wbomb2, wctf1, wda4). The engine's
+ * G_PickTarget resolves target→targetname to ANY entity and uses its origin, so
+ * our classname filter is a safety allow-list (see DEST_CLASSNAMES), not an
+ * engine rule — it must include every point-entity class used as a dest, or the
+ * trigger is silently dropped and the pad/teleporter does nothing.
  */
 
 export type TriggerType = "teleport" | "push";
@@ -44,11 +53,21 @@ interface BspModelLike {
   maxs: [number, number, number];
 }
 
-/** Classnames accepted as a destination for each trigger type (Q3 allows several). */
-const DEST_CLASSNAMES: Record<TriggerType, string[]> = {
-  teleport: ["misc_teleporter_dest", "target_position", "info_notnull"],
-  push: ["target_position", "info_notnull", "misc_teleporter_dest"],
-};
+/**
+ * Point-entity classnames accepted as a trigger destination. Both trigger types
+ * share one set: cross-type dests occur in real maps (a `trigger_push` aimed at
+ * a `misc_teleporter_dest`, a `trigger_teleport` aimed at a `target_position`),
+ * and the engine (G_PickTarget) never filters by classname at all. This list is
+ * verified to cover every dest classname in the shipping map pack — extend it if
+ * a new map introduces another (a dropped trigger warns via console).
+ */
+const DEST_CLASSNAMES: readonly string[] = [
+  "target_position", // canonical jumppad / aim target
+  "misc_teleporter_dest", // Warsow/QF teleport dest
+  "info_teleport_destination", // Quake 3 teleport dest (wbomb2, wctf1, wda4)
+  "target_location", // used as push/teleport dest in many Warsow maps
+  "info_notnull", // generic Q3 target point
+];
 
 const TRIGGER_CLASSNAMES: Record<string, TriggerType> = {
   trigger_teleport: "teleport",
@@ -123,7 +142,7 @@ export function extractTriggerVolumes(entities: BspEntityLike[], models: BspMode
     // First matching destination in BSP order (Q3 picks randomly among
     // multiple matches; maps in practice have exactly one).
     const destEntity = entities.find(
-      (e) => DEST_CLASSNAMES[type].includes(e.classname) && e.properties.targetname === targetName,
+      (e) => DEST_CLASSNAMES.includes(e.classname) && e.properties.targetname === targetName,
     );
     if (!destEntity) {
       console.warn(`[TriggerTable] ${entity.classname} (*${modelIndex}) target "${targetName}" unresolved — dropped`);
