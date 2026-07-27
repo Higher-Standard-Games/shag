@@ -185,9 +185,7 @@ export class ProjectileManager {
           ? "plasma_bolt"
           : defId === "rlauncher"
             ? "rocket"
-            : defId === "gunblade"
-              ? "gunblade_blast"
-              : defId;
+            : defId;
 
     const direction = velocity.normalizeToNew();
     const muzzleOffset = this.computeMuzzleOffset(position, velocity);

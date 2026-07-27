@@ -15,7 +15,6 @@
 
 /** BSP weapon classname → game weapon id. Canonical map shared by client + server. */
 export const CLASSNAME_TO_WEAPON: Record<string, string> = {
-  weapon_gunblade: "gunblade",
   weapon_machinegun: "machinegun",
   weapon_riotgun: "riotgun",
   weapon_grenadelauncher: "glauncher",
@@ -50,7 +49,6 @@ const AMMO_CLASSNAMES: Record<string, PickupClassInfo> = {
   ammo_lasergun: { type: "ammo", kind: "cells", amount: 100 },
   ammo_electrobolt: { type: "ammo", kind: "bolts", amount: 10 },
   ammo_instagun: { type: "ammo", kind: "instas", amount: 5 },
-  ammo_gunblade: { type: "ammo", kind: "gunblade", amount: 1 },
   // Legacy Quake-style names — a couple of old maps still use these.
   ammo_bullets: { type: "ammo", kind: "bullets", amount: 50 },
   ammo_shells: { type: "ammo", kind: "shells", amount: 10 },

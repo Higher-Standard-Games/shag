@@ -12,7 +12,6 @@
 import { BLADE } from "../shared/entities/definitions/weapons/blade";
 import { ELECTROBOLT } from "../shared/entities/definitions/weapons/electrobolt";
 import { GRENADE_LAUNCHER } from "../shared/entities/definitions/weapons/glauncher";
-import { GUNBLADE } from "../shared/entities/definitions/weapons/gunblade";
 import { INSTAGUN } from "../shared/entities/definitions/weapons/instagun";
 import { MACHINEGUN } from "../shared/entities/definitions/weapons/machinegun";
 import { PLASMAGUN } from "../shared/entities/definitions/weapons/plasmagun";
@@ -156,7 +155,6 @@ function buildProfile(def: WeaponDef): WeaponProfile {
 
 const ALL_WEAPON_DEFS: WeaponDef[] = [
   BLADE,
-  GUNBLADE,
   MACHINEGUN,
   RIOTGUN,
   ELECTROBOLT,

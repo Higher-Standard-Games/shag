@@ -9,7 +9,6 @@ import {
   BOLT_AMMO,
   BULLET_AMMO,
   GRENADE_AMMO,
-  GUNBLADE_AMMO,
   INSTA_AMMO,
   PLASMA_AMMO,
   ROCKET_AMMO,
@@ -19,13 +18,12 @@ import {
 // Armor & health
 import { ARMOR_DEFS, HEALTH_DEFS } from "./definitions/items";
 // Projectiles
-import { BLADE_BLAST, GRENADE, GUNBLADE_BLAST, PLASMA_BOLT, ROCKET } from "./definitions/projectiles";
+import { BLADE_BLAST, GRENADE, PLASMA_BOLT, ROCKET } from "./definitions/projectiles";
 // Weapons
 import {
   BLADE,
   ELECTROBOLT,
   GRENADE_LAUNCHER,
-  GUNBLADE,
   INSTAGUN,
   MACHINEGUN,
   PLASMAGUN,
@@ -45,7 +43,6 @@ export function initializeEntityDefs(): void {
   console.log("[EntityDefs] Registering entity definitions...");
 
   // Weapons
-  registry.register(GUNBLADE);
   registry.register(MACHINEGUN);
   registry.register(RIOTGUN);
   registry.register(GRENADE_LAUNCHER);
@@ -59,14 +56,12 @@ export function initializeEntityDefs(): void {
 
   // Projectiles
   registry.register(PLASMA_BOLT);
-  registry.register(GUNBLADE_BLAST);
   registry.register(GRENADE);
   registry.register(ROCKET);
   registry.register(BLADE_BLAST);
 
   // Ammo
   registry.register(PLASMA_AMMO);
-  registry.register(GUNBLADE_AMMO);
   registry.register(BULLET_AMMO);
   registry.register(SHELL_AMMO);
   registry.register(GRENADE_AMMO);

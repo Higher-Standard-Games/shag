@@ -138,7 +138,7 @@ export interface MapKnowledge {
  * Flatten the server's per-weapon ammo (`{ clip, reserve }` objects) into a
  * single numeric total per weapon, which is what the bot's decision code
  * (selectBestWeapon, _hasAmmoForWeapon, BotInputNormalizer) all assume. A
- * missing entry means "unlimited" (blade/gunblade) and is preserved as absent.
+ * missing entry means "unlimited" (blade) and is preserved as absent.
  *
  * Without this the bot compared `{ clip, reserve }` objects as numbers —
  * `{ clip: 0, reserve: 0 } <= 0` is false — so it never recognized an empty
