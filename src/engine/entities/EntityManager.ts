@@ -25,6 +25,32 @@ function proceduralPickupsEnabled(): boolean {
   }
 }
 
+/** Upward pop given to a map-spawned weapon so it drops in rather than appearing. */
+const SPAWN_TOSS_UP = 95;
+/** Horizontal scatter of that toss. Deliberately small — see mapSpawnTossVelocity. */
+const SPAWN_TOSS_SPREAD = 22;
+
+/**
+ * Toss velocity for a map-spawned pickup, or undefined to keep the old
+ * place-flat-on-the-floor behaviour.
+ *
+ * Weapons get the same Havok toss a player-dropped weapon uses, so a rack of
+ * them no longer reads as identical props laid out on the ground. The horizontal
+ * component is kept small on purpose: the pickup TRIGGER is server-side at the
+ * mapper's entity origin, so the visual has to settle next to where it spawned —
+ * a full drop-strength throw would let weapons skate away from their own trigger
+ * or off a ledge. Vertical pop plus the tumble Pickup already applies does the
+ * work. Seeded off the pickup id so a given spawn always lands the same way and
+ * respawns are not a lottery.
+ */
+function mapSpawnTossVelocity(type: "weapon" | "ammo" | "armor" | "health", pickupId: number): Vector3 | undefined {
+  if (type !== "weapon") return undefined;
+  // Deterministic per spawn: two decorrelated angles/magnitudes from the id.
+  const angle = ((pickupId * 2.399963) % (Math.PI * 2)) + 0.5;
+  const spread = SPAWN_TOSS_SPREAD * (0.35 + ((pickupId * 0.618) % 1) * 0.65);
+  return new Vector3(Math.cos(angle) * spread, SPAWN_TOSS_UP, Math.sin(angle) * spread);
+}
+
 /**
  * Resolve the procedural visual factory for a health/armor definition, or
  * undefined to keep the MD3 model path (weapons/ammo, unknown ids, or toggle off).
@@ -251,6 +277,10 @@ export class EntityManager {
       glowColor: def.glowColor,
       pickupId,
       visualFactory,
+      // Weapons land rather than appear: giving them a velocity routes Pickup
+      // through the same Havok toss a player-dropped weapon uses, so they drop
+      // and tumble to rest instead of being placed flat and identical.
+      velocity: mapSpawnTossVelocity(type, pickupId),
     });
 
     // A map entity is not spawned until its visual construction has settled.
