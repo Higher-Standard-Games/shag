@@ -23,6 +23,15 @@ import {
 import { PatchTessellator } from "./PatchTessellator";
 import { PLAYER_HEIGHT, PLAYER_MINS_Z, PLAYER_RADIUS, STEPSIZE } from "./PlayerPhysicsConstants";
 
+/**
+ * Shaders that identify a triangle-soup surface as a baked `misc_model`
+ * decoration rather than world geometry. q3map2 bakes misc_model meshes into the
+ * BSP with their model shader path intact, so the prefix is a reliable marker.
+ * See `processFaces` for why decoration is matched by shader rather than by
+ * dropping triangle-soup collision wholesale.
+ */
+const DECORATION_SHADER_RE = /^(models\/|mapobjects)/i;
+
 // Content flags (Q3-compatible)
 const ContentFlags = {
   SOLID: 0x1,
@@ -199,6 +208,21 @@ export class SweepCollisionBackend implements CollisionBackend {
       }
       // Type 3: Mesh (Triangle Soup)
       else if (face.faceType === 3) {
+        // Q3 builds its collision model from brushes + patches only
+        // (CMod_LoadPatches skips everything that isn't MST_PATCH), so colliding
+        // soup at all is a deviation — but one these maps depend on. q3map2 emits
+        // MST_TRIANGLE_SOUP for any surface that can't be a lightmapped planar
+        // face, which here includes vertex-lit WORLD geometry (`textures/…_vertex`
+        // walkways, platforms, floors). Measured over the shipping pack, 336
+        // walkable surfaces across 10 maps (wbomb1-6, wctf2, wdm1, wdm17,
+        // wtutorial1) are held up by nothing but their soup face — dropping all
+        // soup collision opens holes straight out of the world. So only baked
+        // misc_model decorations are skipped: that is what was wrongly solid
+        // (wdm2's floor lamps, jumppad flames/rings, teleporter shells) and it
+        // carries no walkable surface anywhere in the pack (measured: 0 of 36 maps).
+        if (DECORATION_SHADER_RE.test(texture.name || "")) {
+          continue;
+        }
         const mesh = this.buildMeshFace(face);
         if (mesh) {
           this.faceCollisionMeshes[i] = mesh;
@@ -583,11 +607,22 @@ export class SweepCollisionBackend implements CollisionBackend {
     normal[1] /= len;
     normal[2] /= len;
 
-    // Project box onto normal to find offset
-    const offset =
-      Math.abs(state.extents[0] * normal[0]) +
-      Math.abs(state.extents[1] * normal[1]) +
-      Math.abs(state.extents[2] * normal[2]);
+    // Project the box onto the normal to find how far the origin sits from the
+    // plane at the moment of contact. The player hull is ASYMMETRIC about the
+    // origin (mins.z −24 to feet, maxs.z +40 to head), so the two sides of the
+    // plane get different clearances — using one symmetric half-extent here made
+    // the origin rest max(24, 40) = 40 above a floor instead of 24, i.e. every
+    // patch and triangle-soup surface floated the player exactly 16 units.
+    // Brush collision (traceBrush) has always used the asymmetric hull; this is
+    // the same support-point math, so face and brush surfaces now agree.
+    const frontOffset =
+      (normal[0] > 0 ? -normal[0] * state.mins[0] : -normal[0] * state.maxs[0]) +
+      (normal[1] > 0 ? -normal[1] * state.mins[1] : -normal[1] * state.maxs[1]) +
+      (normal[2] > 0 ? -normal[2] * state.mins[2] : -normal[2] * state.maxs[2]);
+    const backOffset =
+      (normal[0] > 0 ? normal[0] * state.maxs[0] : normal[0] * state.mins[0]) +
+      (normal[1] > 0 ? normal[1] * state.maxs[1] : normal[1] * state.mins[1]) +
+      (normal[2] > 0 ? normal[2] * state.maxs[2] : normal[2] * state.mins[2]);
 
     // Calculate plane distance
     const planeDist = this.dot(v1, normal);
@@ -597,13 +632,13 @@ export class SweepCollisionBackend implements CollisionBackend {
     const endDist = this.dot(state.end, normal) - planeDist;
 
     // Check if crossing plane (accounting for box thickness)
-    if (startDist > offset && endDist > offset) return; // entirely in front
-    if (startDist < -offset && endDist < -offset) return; // entirely behind
+    if (startDist > frontOffset && endDist > frontOffset) return; // entirely in front
+    if (startDist < -backOffset && endDist < -backOffset) return; // entirely behind
 
     // Check for start penetration (startSolid)
-    // If we are within the "slab" (between offset and -offset)
+    // If we are within the "slab" (between frontOffset and -backOffset)
     let isStartSolid = false;
-    if (startDist < offset && startDist > -offset) {
+    if (startDist < frontOffset && startDist > -backOffset) {
       // Check 2D overlap at START position
       // We need to project start position and test overlap
 
@@ -686,10 +721,10 @@ export class SweepCollisionBackend implements CollisionBackend {
     } else {
       if (startDist > endDist) {
         // Entering from front
-        fraction = (startDist - offset) / (startDist - endDist);
+        fraction = (startDist - frontOffset) / (startDist - endDist);
       } else if (startDist < endDist) {
         // Entering from back
-        fraction = (startDist + offset) / (startDist - endDist);
+        fraction = (startDist + backOffset) / (startDist - endDist);
         hitBack = true;
       } else {
         return; // Parallel
@@ -879,8 +914,11 @@ export class SweepCollisionBackend implements CollisionBackend {
     // Skip hint brushes
     if (surfaceFlags & SurfaceFlags.HINT) return false;
 
-    // Skip detail brushes (visual only)
-    if (contentFlags & ContentFlags.DETAIL) return false;
+    // NOTE: CONTENTS_DETAIL is NOT a non-solid flag. Detail brushes are fully solid
+    // in Q3/Warsow — "detail" only excludes a brush from BSP/vis portalization, not
+    // from collision. Skipping them here made SOLID|DETAIL geometry (e.g. wbomb1's
+    // and wdm12's glass panels / railings — SOLID|DETAIL|TRANS) walk-through. Their
+    // SOLID content is honored by the checks below.
 
     // Check by content flags
     const hasSolid = (contentFlags & ContentFlags.SOLID) !== 0;

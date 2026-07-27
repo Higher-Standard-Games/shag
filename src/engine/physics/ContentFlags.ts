@@ -65,19 +65,18 @@ export const CollisionMasks = {
 } as const;
 
 /**
- * Check if content flags indicate solid for players
+ * Check if content flags indicate solid for players.
+ * NOTE: CONTENTS_DETAIL is a BSP/vis flag, not a solidity flag — a detail brush is
+ * solid iff it carries SOLID/PLAYERCLIP content (Q3/Warsow collide detail brushes).
  */
 export function isPlayerSolid(contentFlags: number): boolean {
-  // Detail brushes are never solid
-  if (contentFlags & ContentFlags.DETAIL) return false;
   return (contentFlags & CollisionMasks.PLAYERSOLID) !== 0;
 }
 
 /**
- * Check if content flags indicate any solid
+ * Check if content flags indicate any solid (see isPlayerSolid re: detail).
  */
 export function isSolid(contentFlags: number): boolean {
-  if (contentFlags & ContentFlags.DETAIL) return false;
   return (contentFlags & ContentFlags.SOLID) !== 0;
 }
 
