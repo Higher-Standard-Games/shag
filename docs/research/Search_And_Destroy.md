@@ -3,7 +3,7 @@
 > A round-based bomb-and-defuse gametype, Warsow Bomb compatible, designed to put the bot goal framework under real load.
 
 **Date:** 2026-07-28
-**Status:** Design, with S1 (`BombSiteTable`) implemented and verified against all six shipped bomb maps.
+**Status:** Design complete and rules confirmed. S1 (`BombSiteTable`) implemented and verified against all six shipped bomb maps; S2-S8 planned (see 8, 9).
 **Scope:** `src/games/fps/server/gametypes`, `src/shared/bsp`, `src/shared/bot`
 **Depends on:** [`BOT_WEIGHTS_AND_GOALS.md`](BOT_WEIGHTS_AND_GOALS.md) Phases 1–4 (landed)
 
@@ -167,15 +167,17 @@ In CS and CoD the sites live in the **defenders'** half; attackers cross the map
 
 Full map traversal here costs 3–5 s where CS costs 20–30 s. Copying CS's clocks would produce a mode that is mostly standing around.
 
-| Parameter | Value | Reasoning |
+| Parameter | Value | Source |
 |---|---|---|
-| **Freeze time** | **5 s** | No buy phase to fill. Enough to read the map and pick a side; CS needs 15–20 s only because of the shop. |
-| **Round time** | **90 s** | CS 115 s / CoD 150 s, both scaled for far slower movement. Attackers reach a site in under 4 s, so 90 s is already a long time to fail to commit. |
-| **Bomb timer** | **30 s** | The real pacing device. Defenders cross the map in 3–4 s, so 30 s leaves ample retake time — in CS's terms this is proportionally *more* generous than its 40 s. |
-| **Plant time** | **3 s** | Matches CS. Long enough to be punishable, short enough to be worth attempting under pressure. |
-| **Defuse time** | **5 s** | No kits (no economy to buy them with), so one flat value. 5:30 mirrors CS's 10:40 ratio. |
-| **Rounds to win** | **6** | CoD's format. With ~90 s rounds plus overhead, a full 11-round match lands around 18–20 minutes. |
-| **Side swap** | after round 5 | Each side plays at least 5. Round 11 is the decider with sides already swapped. |
+| **Freeze time** | **5 s** | Proposed. No buy phase to fill; enough to read the map and pick a side. CS needs 15-20 s only because of the shop. *Unconfirmed.* |
+| **Round time** | **1:30 (90 s)** | Confirmed. Attackers reach a site in under 4 s, so 90 s is already a long time to fail to commit. |
+| **Bomb timer** | **35 s** | Confirmed. Matches Warsow. The real pacing device - defenders cross the map in 3-4 s, so 35 s leaves ample retake time. |
+| **Plant (arm)** | **4 s** | Confirmed. Standing on the dropped bomb, not a held button - see 5.3. |
+| **Defuse** | **5 s** | Confirmed. Same radius as the plant. No kits (no economy to buy them with). |
+| **Round end** | **4 s** | Proposed. Result beat before the next freeze. |
+| **Halftime** | **10 s** | Proposed. Side swap intermission. |
+| **Rounds to win** | **6** | Proposed. ~90 s rounds plus overhead puts a full 11-round match near 18-20 min. |
+| **Side swap** | after round 5 | Proposed. Each side plays at least 5; round 11 is the decider with sides already swapped. |
 
 All of these belong in `MatchConfig` and should be env-overridable like `SHAG_TIMELIMIT` already is — they are the first thing a playtest will want to move.
 
@@ -183,26 +185,29 @@ All of these belong in `MatchConfig` and should be env-overridable like `SHAG_TI
 
 ## 5. Rules
 
+Confirmed against Warsow behaviour. Where a rule is a proposal rather than a
+confirmation it says so.
+
 ### 5.1 Round lifecycle
 
 ```text
-FreezeTime (5s)  → players spawned, frozen, bomb assigned
-      ↓
-LiveRound (90s)  → pre_plant
-      ↓
-   ┌──┴──────────────────────────────┐
-   │ plant (3s channel)              │ else round timer expires
-   ↓                                 ↓
-PostPlant (30s bomb timer)      DEFENDERS WIN (time)
-   │                                  
-   ├── defuse (5s channel) → DEFENDERS WIN
-   ├── timer expires       → ATTACKERS WIN
-   └── all attackers dead  → round continues (bomb still ticking!)
-      ↓
-RoundEnd (4s)   → scoreboard beat, then next round or halftime
+ Warmup --> Countdown -->            ACTIVE                   --> PostGame
+                           +--------- round loop ---------+
+                           |                              |
+               RoundFreeze (5s) -> RoundLive (90s) -> RoundEnd (4s)
+                  spawn, freeze,       pre-plant         result beat,
+                  reset items,             |             no respawns
+                  place bomb               |                  |
+                                   plant completes            |
+                                           v                  |
+                                   RoundArmed (35s) ----------+
+                                   round timer STOPS
 ```
 
-**Elimination is a win condition only before the plant.** After the plant, killing every attacker does not end the round — the defenders must still defuse. This is the single most important rule in the mode; it is what makes the plant meaningful rather than a formality, and it is shared by CS, CoD and Warsow.
+**Elimination is a win condition only before the arm.** Once the bomb is armed,
+killing every attacker does not end the round - the defenders must still defuse.
+This is the single most important rule in the mode and is shared by Warsow, CS
+and CoD.
 
 ### 5.2 Win conditions
 
@@ -210,33 +215,131 @@ RoundEnd (4s)   → scoreboard beat, then next round or halftime
 |---|---|
 | Bomb detonates | Attackers |
 | Bomb defused | Defenders |
-| All attackers dead, **pre-plant** | Defenders |
-| All defenders dead | Attackers (only if bomb planted or plantable — see below) |
-| Round timer expires, no plant | Defenders |
+| All attackers dead, **pre-arm** | Defenders |
+| All defenders dead, **pre-arm** | Attackers *(nothing can stop the plant; playing it out is dead time)* |
+| Round timer expires, not armed | Defenders |
+| All attackers dead, **post-arm** | *Nobody - round continues* |
 
-Edge case worth deciding early: **all defenders dead, pre-plant.** CS gives the round to the Ts immediately (nothing can stop the plant). Recommend the same — otherwise the attackers walk to a site and plant against nobody for 3 s of dead time.
+### 5.3 The bomb - Warsow rules
 
-### 5.3 The bomb
+This is where the mode departs from CS/CoD, and it is the distinctive part.
 
-- One attacker spawns carrying it, chosen deterministically (seeded on round number, like the existing `rngFrom` spawn selection) so re-simulation and demos agree.
-- Dropped on death at the carrier's position; any attacker may pick it up.
-- Cannot be picked up by defenders; a dropped bomb is recoverable but never denied.
-- Carrier is visible to their own team. **Reuse `PlayerModelManager.applyPowerupGlow()`** — it already exists for the Quad carrier and does exactly the right thing cheaply.
-- Plant requires standing in a site volume (or within the 384 cylinder) and holding the action for 3 s. Movement or damage cancels; progress does not persist.
-- Defuse is the same channel, 5 s, and any defender may start it. Progress **does** persist across defusers in CS; recommend it does not here, for simplicity, and revisit if it feels bad.
+**Spawn.** The bomb is a world object placed on the ground near the attacking
+team's spawn at round start. It is **not** handed to a player - someone must go
+and pick it up, which is itself a small opening decision.
 
-### 5.4 Items, and the Quad question
+**Carry.** Any attacker may pick it up by touching it. Carrying is *safe*:
+speed, landings and knockback do not drop it in the open. The carrier is visible
+to their own team only.
 
-Map items stay. That is the Warsow answer, it is already implemented, and it is the resource game that replaces CS's economy. But two things must change per round:
+**Drop-to-plant.** Inside a bombsite, the carrier's horizontal speed falling
+below **100 ups** drops the bomb at their feet. That is the plant initiation -
+there is no plant button. Outside a site the rule does not apply, so crossing
+the map is never a movement skill check.
 
-- **Items reset at round start.** Otherwise round 2 begins with the map stripped. `PickupSystem.resetForMatch(tick)` already does precisely this — it restores every pickup and re-arms the first-spawn delay. It is named for matches but it is exactly a round reset.
-- **First-spawn delay becomes round-relevant.** The existing 15 s armor/mega delay was tuned for a continuous match; in a 90 s round it means the mega appears at the 17% mark. Probably fine, wants a playtest.
+**Arm.** With the bomb on the ground inside a site, an attacker standing within
+the plant radius for **4 s** arms it. Any attacker can arm, not only whoever
+carried it. Leaving the radius cancels; progress does not persist.
 
-**Quad should be disabled in S&D for the first playable version.** All six bomb maps carry an `item_quad`. In a mode with no respawn, one player with 4× damage for 30 s can end a round single-handedly, and there is no comeback mechanism. That may still be *fun* — a contested round-defining prize is a legitimate design — but it is a large variable to introduce while the mode itself is unproven. `PickupSystem` already branches on pickup type, so this is a filter, not a feature.
+**Detonate.** 35 s from the arm. The round timer stops the moment the bomb is
+armed - the bomb timer takes over as the clock.
 
-Revisit once the base mode plays well.
+**Defuse.** A defender standing within the **same radius** for **5 s** defuses.
+Any defender; leaving cancels. *(Proposal: progress does not persist across
+defusers - simpler, revisit if it feels bad.)*
 
----
+**Death.** A carrier who dies drops the bomb where they fell. Any attacker may
+retrieve it; defenders cannot pick it up or move it. A bomb lying in the open is
+recoverable but never denied.
+
+### 5.4 The beeping
+
+The armed bomb beeps positionally, audible to **both** teams - it is how
+defenders locate it, and how attackers feel the clock.
+
+| Remaining | Interval |
+|---|---|
+| 35 -> 10 s | 1.0 s |
+| 10 -> 5 s | 0.5 s |
+| 5 -> 0 s | 0.25 s |
+
+*(Proposal: a separate one-shot warning in the last 10 s of `RoundLive`, so
+attackers who have not planted feel the round clock too. Distinct from the bomb
+beep, which does not exist yet at that point.)*
+
+### 5.5 Spawning, freezing and waiting
+
+**On entering `RoundFreeze`:**
+
+1. Every player - living, dead, or spectating a teammate - is respawned at their
+   own team's spawn set.
+2. Spawn point chosen from the team's points, seeded on round number via the
+   existing `rngFrom` so re-simulation and demos agree.
+3. Health, armor and weapons reset to the gametype loadout; powerup timers
+   cleared (`clearPowerups`, already called on respawn).
+4. Map items fully reset (`PickupSystem.resetForMatch`), re-arming the
+   first-spawn delay so mega/armor timing is identical every round.
+5. Input frozen - players can look but not move, shoot or use.
+6. The bomb is placed (5.6).
+
+**On entering `RoundLive`:** input unfrozen. Nothing else changes.
+
+**On death:** no respawn for the rest of the round. The dead follow a living
+teammate's view (the demo POV and death-camera machinery already does this
+shape). Dead players must not leak information the living cannot see - free-fly
+spectating would hand a dead attacker the entire defensive setup.
+
+**On `RoundEnd`:** result beat, scores updated, no respawns. Then either the
+next `RoundFreeze`, the halftime intermission, or `PostGame`.
+
+**Halftime:** after round 5, a 10 s intermission, sides swap, round counter
+continues. Score follows the *player*, not the side.
+
+### 5.6 Where the bomb spawns
+
+`team_CTF_alphaflag` / `team_CTF_betaflag` look like the obvious anchor and
+**are not usable.** Measured on the shipped maps, the flag stands are placed
+inconsistently relative to both spawns and sites - on wbomb5 the attacker flag
+is *further* from the sites than the attacker spawn is - and **wbomb6 has no
+flags at all** while still being a valid bomb map.
+
+| Map | attacker flag -> attacker spawn | flag -> nearest site | spawn -> nearest site |
+|---|---|---|---|
+| wbomb1 | 2494 | 2520 | 3558 |
+| wbomb2 | 2358 | 1693 | 3377 |
+| wbomb3 | 1088 | 3591 | 3653 |
+| wbomb4 | 2237 | 2540 | 3569 |
+| wbomb5 | 1202 | 3474 | 3255 |
+| wbomb6 | none | - | 3970 |
+
+They are CTF leftovers, not bomb furniture. So:
+
+1. **If a dedicated bomb-spawn entity is present, use it.** No shipped map has
+   one; this exists for custom maps. Proposed classname `misc_bomb_spawn`, read
+   by `BombSiteTable` alongside the sites.
+2. **Otherwise place it at the attacking team's spawn centroid**, traced down to
+   the floor and nudged clear of any spawn point so it never spawns inside a
+   player.
+
+Since the fallback covers every shipped map, it is the path that must be solid;
+the entity is a convenience.
+
+### 5.7 Items, and the Quad question
+
+Map items stay - that is the Warsow answer, it is already implemented, and it is
+the resource game that replaces CS's economy. Two round-level rules:
+
+- **Items reset every round** (5.5). Otherwise round 2 opens with a stripped map
+  and the losing side is punished twice.
+- **The 15 s first-spawn delay is now round-relative.** In a 90 s round the mega
+  appears at the 17% mark rather than once per match. Probably right; wants a
+  playtest.
+
+**Quad is disabled in S&D for the first playable version.** All six bomb maps
+carry one, and 4x damage in a no-respawn round with no comeback mechanism is a
+large variable to introduce while the mode is unproven. `PickupSystem` already
+branches on pickup type, so this is a filter, not a feature. Revisit once the
+base mode plays well.
 
 ## 6. What does not exist yet
 
@@ -296,7 +399,7 @@ Honest list, because these will show up immediately in playtest:
 
 ---
 
-## 7.4 Existing machinery to reuse
+### 7.4 Existing machinery to reuse
 
 Consolidated here because it is scattered through the sections above and it is
 what makes the work smaller than §6 implies. None of this needs inventing.
@@ -313,7 +416,7 @@ what makes the work smaller than §6 implies. None of this needs inventing.
 | Per-player orders | `BaseGametype.getAgentDirectives()` | Landed in Phase 4, including per-client delivery. |
 | Match config overrides | `SHAG_TIMELIMIT` env pattern | Every §4.2 timing wants to be tunable in playtest without a rebuild. |
 
-## 7.5 Verified vs. assumed
+### 7.5 Verified vs. assumed
 
 Being explicit, because §4.2's timings read like facts and are not.
 
@@ -336,54 +439,164 @@ the *maps*, not about Warsow's convention. Confirm against Warsow's gametype
 source or by loading a map; the §4.1 load-time assertion is worth keeping either
 way.
 
-## 8. Implementation order
+## 8. Feature matrix
 
-Each step should be independently verifiable, and the early ones are useful even if the mode stalls.
+Everything the mode needs, and where each piece actually stands. "Reuse" means
+the machinery exists and needs wiring, not writing.
 
-**S1 — `BombSiteTable`. ✅ DONE.** `src/shared/bsp/BombSiteTable.ts` + 24 tests.
-Shared extraction per §3, with fixtures for all three authoring styles: volumes +
-names (wbomb1), `bombsite[ab]` naming (wbomb5), and bare indicators (wbomb3).
-Also `isBombMap()`, `extractTeamSpawns()`, `isInsideBombSite()` (cylinder, per
-§3.3) and `validateBombRoles()` (§4.1).
+### 8.1 Data and map
+
+| Feature | Status | Notes |
+|---|---|---|
+| Bomb site extraction | **Done** | `BombSiteTable`, verified against all 6 maps |
+| Site containment (cylinder + volumes) | **Done** | `isInsideBombSite` |
+| 384 default radius | **Done** | Measured, 5.3 |
+| Bomb-map detection | **Done** | `isBombMap` — rejects wdm4/wdm9 |
+| Role-vs-geometry assertion | **Done** | `validateBombRoles`, passes 6/6 |
+| Team spawn extraction | **Done** | `extractTeamSpawns` |
+| Team spawn *selection* | **Build** | `TeamSpawnStrategy.choose()` is a TODO; nothing calls `setTeamPoints` |
+| `misc_bomb_spawn` entity | **Optional** | No shipped map has one; fallback covers everything |
+
+### 8.2 Round lifecycle
+
+| Feature | Status | Notes |
+|---|---|---|
+| Round state machine | **Build** | Nothing exists — `MatchState` has zero notion of rounds |
+| Round timer (90 s) | **Build** | Stops on arm |
+| Freeze time (5 s) | **Reuse** | Generalize `applyPostGameInputFreeze` |
+| Round end beat (4 s) | **Build** | |
+| Per-round item reset | **Reuse** | `PickupSystem.resetForMatch` is exactly this |
+| Per-round player reset | **Reuse** | `respawnPlayer` already resets health/armor/weapons/powerups |
+| Respawn suppression | **Build** | `processRespawns` auto-respawns at a deadline; needs a gate |
+| Round scoring | **Build** | Score follows the player across the swap |
+| Halftime side swap | **Build** | After round 5 |
+| Dead-player spectate | **Reuse** | Demo POV + `DeathCamera` already do follow-cam |
+
+### 8.3 Bomb
+
+| Feature | Status | Notes |
+|---|---|---|
+| Bomb world entity | **Reuse** | `DroppedWeaponSystem` is the same shape: `EntityType.Item` + metadata + ground settle |
+| Spawn at attacker base | **Build** | Centroid + ground trace (5.6) |
+| Pickup on touch | **Reuse** | `PickupSystem` proximity pattern, attacker-only |
+| Carry state + team-only visibility | **Build** | Replicated flag |
+| Carrier glow | **Reuse** | `applyPowerupGlow`, built for Quad |
+| Drop below 100 ups in site | **Build** | Per-tick speed check while carrying |
+| Drop on death | **Reuse** | `DroppedWeaponSystem.queueDrop` |
+| Arm channel (4 s) | **Build** | No channelled-action system exists |
+| Defuse channel (5 s) | **Build** | Same system |
+| 35 s detonation timer | **Build** | |
+| Explosion effect | **Reuse** | `ExplosionEffect` + `target_explosion` already on the maps |
+
+### 8.4 Client / feedback
+
+| Feature | Status | Notes |
+|---|---|---|
+| Arm/defuse progress UI | **Build** | Bar or pie — visual choice deferred |
+| Bomb beep, 3-stage | **Build** | Scheduled `playSfx3D` at varying interval |
+| Round timer HUD | **Reuse** | `FPSTimer` widget exists |
+| Round score HUD | **Build** | Extend `MatchStateSnapshot` |
+| Site markers / compass | **Optional** | Not required for a playable version |
+| Bomb carrier indicator | **Build** | Team-only |
+
+### 8.5 Bots
+
+| Feature | Status | Notes |
+|---|---|---|
+| Goal arbitration | **Done** | Phases 1-4 |
+| Weight profiles per role/round state | **Reuse** | `selectWeightProfile` key scheme already supports it |
+| Directive emission | **Reuse** | `getAgentDirectives` landed |
+| `teamRoles` / `roundState` on the wire | **Build** | Designed; bot side already reads them |
+| Site-splitting logic | **Build** | Gametype decides which defender holds which site |
+| Plant / defuse sequences | **Build** | `BotSequence` runtime is the right home |
+| `map_control` consideration | **Build** | Weight key exists, no consideration behind it |
+| Retake coordination | **Deferred** | Bots will path independently at first |
+
+### 8.6 Summary
+
+| | Count |
+|---|---|
+| Done | 7 |
+| Reuse (wire, don't write) | 10 |
+| Build | 22 |
+| Optional / deferred | 4 |
+
+The ten reuses are what make this tractable: round reset, player reset, input
+freeze, dropped-item entities, carrier glow, follow-cam, explosion FX, the timer
+widget, and the whole bot goal stack are all already built and tested.
+
+The build column concentrates in three places — the round state machine, the
+channelled-action system (arm/defuse, for players *and* bots), and the bomb
+entity itself. Those are the three things worth designing before typing.
+
+## 9. Implementation order
+
+Each step independently verifiable; the early ones are useful even if the mode
+stalls. The feature matrix (8.6) says the build work concentrates in three
+places — **the round state machine, the channelled-action system, and the bomb
+entity** — so those get designed before they get typed.
+
+**S1 — `BombSiteTable`. DONE.** `src/shared/bsp/BombSiteTable.ts` + 24 tests.
+Shared extraction, `isBombMap()`, `extractTeamSpawns()`, `isInsideBombSite()`
+(cylinder per 3.3) and `validateBombRoles()` (4.1).
 
 Verified against the real BSPs of all six bomb maps: 2 sites each, volume counts
-1/1, 0/0, 0/0, 0/0, 4/2, 4/3, and wbomb6 labelled B/A exactly as the
-out-of-order prediction said. `wdm4`/`wdm9`/`wdm2` correctly rejected.
+1/1, 0/0, 0/0, 0/0, 4/2, 4/3, wbomb6 labelled B/A exactly as the out-of-order
+prediction said, and wdm4/wdm9/wdm2 correctly rejected. Unit tests use fixtures
+rather than pk3s so they run wherever the suite does.
 
-Unit tests use fixtures rather than reading pk3s, so they run wherever the suite
-does; the real-map check was a one-off verification, since no existing test
-depends on map assets being present.
+**S2 — Team spawns.** Implement `TeamSpawnStrategy.choose()`, wire
+`setTeamPoints()` from the extractor, deterministic per-round distribution.
+**Benefits TDM immediately** and is independent of S&D. Includes the 4.1
+role-vs-geometry assertion at map load.
 
-**S2 — Team spawns (G3, G4).** Parse `team_CTF_*spawn`, implement `TeamSpawnStrategy.choose()`, wire `setTeamPoints()`. **Benefits TDM immediately**, independent of S&D, and includes the §4.1 role-vs-geometry validation.
+**S3 — Round lifecycle.** The riskiest step: rounds are a genuinely new concept
+in code every mode depends on. Round state inside the Active phase, per-round
+reset via `resetForMatch`, respawn suppression, freeze via a generalized
+`applyPostGameInputFreeze`, round scoring, halftime swap. **Land it with TDM and
+Duel green at every commit.**
 
-**S3 — Round lifecycle (G1, G2).** Round state inside the Active phase, per-round reset via the existing `resetForMatch`, respawn suppression, side swap, round scoring. The riskiest step because it touches shared match code; land it with TDM still passing.
+**S4 — Channelled actions.** A shared arm/defuse progress system: start
+condition, per-tick continuation, cancel on leaving the radius, replicated
+progress for the HUD. Needed by players *and* bots, so it belongs in shared
+simulation rather than in the gametype.
 
-**S4 — Bomb mechanics (G6).** Carry, drop, pickup, and the plant/defuse channel. Carrier glow reuses `applyPowerupGlow`.
+**S5 — The bomb.** Entity (modelled on `DroppedWeaponSystem`), spawn placement,
+pickup, carry state, the <100 ups in-site drop, drop-on-death, detonation, and
+the beep.
 
-**S5 — Wire the mode.** `teamRoles` + `roundState` into `MatchStateSnapshot`; the `snd:*` weight profiles; the directive emitter.
+**S6 — Wire the mode.** `teamRoles` + `roundState` into `MatchStateSnapshot`;
+the `snd:*` weight profiles; the directive emitter; Quad filtered out.
 
-**S6 — Bot channelled actions.** `plant_bomb` / `defuse_bomb` sequences.
+**S7 — Bot channelled actions.** `plant_bomb` / `defuse_bomb` sequences on the
+existing `BotSequence` runtime.
 
-**S7 — Playtest and tune.** Every number in §4.2 is a first guess.
+**S8 — Playtest and tune.** Every "Proposed" row in 4.2 is a first guess.
 
----
+## 10. Open questions
 
-## 9. Open questions
+Resolved this round, kept for the record:
+
+| | Question | Resolution |
+|---|---|---|
+| ~~Q1~~ | Is alpha the defending team? | **Verified 6/6** by `validateBombRoles` over the real BSPs. Geometry is unambiguous; still worth confirming against Warsow itself, and the load-time assertion stays either way. |
+| ~~Q3~~ | Does the <100 ups drop apply everywhere? | **Only inside a site.** Carrying across the map is safe; the rule is the plant initiation, not a movement tax. |
+| ~~Q4~~ | Where does the bomb spawn? | **Attacker spawn centroid**, ground-traced. `team_CTF_*flag` measured and rejected: inconsistent placement, absent on wbomb6 (5.6). |
+| ~~Q7~~ | Items reset per round? | **Yes.** Persisting punishes the losing side twice. |
+
+Still open:
 
 | | Question | Leaning |
 |---|---|---|
-| Q1 | Is alpha really the defending team, or is the geometry coincidental? | Geometry is unambiguous on 5/6 maps; validate at load either way (§4.1) |
-| Q2 | Vertical band for the 384 fallback cylinder | Unknown — the volumes say how tall a *site* is, not how far above a bare indicator a plant should count. Playtest |
-| Q3 | Does defuse progress persist across defusers? | No, for simplicity; revisit if it feels bad |
-| Q4 | Quad in S&D | Disabled initially (§5.4); revisit once the mode plays |
-| Q5 | Does the round timer stop on plant? | Yes — bomb timer takes over, as in all three references |
-| Q6 | All defenders dead pre-plant: instant win or play it out? | Instant win, as CS |
-| Q7 | Items reset per round, or persist to reward early control? | Reset. Persisting punishes the losing side twice |
-| Q8 | Should the bomb carrier be visible to *enemies* too? | No. Warsow/CS keep it team-only; a visible carrier removes all attacker deception |
+| Q2 | Vertical band for the 384 fallback cylinder | `DEFAULT_BOMBSITE_HALF_HEIGHT = 192` is the least-evidenced number in the design. The volumes say how tall a *site* is, not how far above a bare indicator a plant should count. Playtest. |
+| Q5 | Freeze time length | 5 s proposed, unconfirmed. The only timing the spec did not fix. |
+| Q6 | Does defuse progress persist across defusers? | No, for simplicity; revisit if it feels bad. |
+| Q8 | Quad in S&D | Disabled initially (5.7); revisit once the mode plays. |
+| Q9 | Rounds to win / swap point | 6 and after round 5 proposed, unconfirmed. |
+| Q10 | Can defenders *move* a dropped, unarmed bomb? | No — recoverable but never denied. Confirm this matches Warsow. |
+| Q11 | Does the round-end beat show who won and why? | Assumed yes; needs a HUD decision. |
 
----
-
-## 10. Risks
+## 11. Risks
 
 - **S3 touches shared match lifecycle.** Rounds are a genuinely new concept in a codebase where every mode is one continuous match. The temptation will be to special-case S&D inside `GametypeController`; resist it, or every future mode inherits the mess.
 - **The mode is unplayable if roles are backwards** and the failure is silent in code (§4.1). The load-time assertion is not optional.
