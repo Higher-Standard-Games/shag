@@ -649,6 +649,95 @@ export class BotNavGraph {
     for (const edge of this._edges) {
       this._adjacency.get(edge.from)!.push(edge);
     }
+    // Any structural change invalidates cached distances.
+    this._distanceMatrix = null;
+  }
+
+  // ── All-pairs travel cost ───────────────────────────────────────
+
+  /**
+   * Exact graph distance between every pair of nodes, lazily computed.
+   *
+   * Goal scoring needs a travel estimate for EVERY candidate every decision,
+   * and running A* per candidate is the one thing that would make the goal
+   * arbiter too expensive (docs/research/BOT_WEIGHTS_AND_GOALS.md §7.4). The
+   * design anticipated landmark distances, but the graphs turned out small
+   * enough — 34-58 strategic nodes on shipped maps — that all-pairs is both
+   * exact and cheaper to reason about: ~58 Dijkstra runs over ~82 edges.
+   *
+   * Deliberately NOT persisted in the nav cache. At this size recomputing costs
+   * microseconds, so storing it would buy nothing and add a schema version to
+   * invalidate.
+   */
+  private _distanceMatrix: Float64Array[] | null = null;
+
+  private _ensureDistanceMatrix(): Float64Array[] {
+    if (this._distanceMatrix) return this._distanceMatrix;
+
+    const count = this._nodes.length;
+    const matrix: Float64Array[] = [];
+    for (let source = 0; source < count; source++) {
+      matrix.push(this._dijkstraFrom(source, count));
+    }
+    this._distanceMatrix = matrix;
+    return matrix;
+  }
+
+  /** Single-source shortest costs. Unreachable nodes stay Infinity. */
+  private _dijkstraFrom(source: number, count: number): Float64Array {
+    const dist = new Float64Array(count).fill(Number.POSITIVE_INFINITY);
+    const visited = new Uint8Array(count);
+    dist[source] = 0;
+
+    // Linear scan for the next node: at tens of nodes this beats a heap, and
+    // it keeps the implementation obvious.
+    for (;;) {
+      let best = -1;
+      let bestDist = Number.POSITIVE_INFINITY;
+      for (let i = 0; i < count; i++) {
+        if (!visited[i] && dist[i] < bestDist) {
+          bestDist = dist[i];
+          best = i;
+        }
+      }
+      if (best < 0) break;
+      visited[best] = 1;
+
+      for (const edge of this._adjacency.get(best) ?? []) {
+        const next = dist[best] + edge.cost;
+        if (next < dist[edge.to]) dist[edge.to] = next;
+      }
+    }
+    return dist;
+  }
+
+  /**
+   * Estimated travel cost between two world positions, or `null` when no route
+   * exists.
+   *
+   * The null is the important part. Goal scoring previously used a Euclidean
+   * estimate that could never fail, so the arbiter's `unreachable` gate could
+   * never fire and a bot could commit to an item on the far side of a wall.
+   * Graph distance answers reachability honestly, including across disconnected
+   * components.
+   */
+  estimateTravelCost(from: Vec3, to: Vec3): number | null {
+    if (this._nodes.length === 0) return null;
+    const start = this.findNearestNode(from);
+    const goal = this.findNearestNode(to);
+    if (!start || !goal) return null;
+
+    const approach = vec3Distance(from, start.position);
+    const arrival = vec3Distance(goal.position, to);
+    if (start.id === goal.id) return approach + arrival;
+
+    const matrix = this._ensureDistanceMatrix();
+    const graphCost = matrix[start.id]?.[goal.id];
+    if (graphCost === undefined || !Number.isFinite(graphCost)) return null;
+
+    // Snap distances at both ends: the bot is rarely standing exactly on a node,
+    // and the item is rarely exactly on one either.
+    return approach + graphCost + arrival;
   }
 
   // ── Private: A* ─────────────────────────────────────────────────

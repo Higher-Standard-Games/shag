@@ -14,7 +14,7 @@
 import { type BotWeightProfile, selectWeightProfile } from "../../shared/bot/WeightProfiles";
 import type { PickupEntry } from "../../shared/bsp/PickupTable";
 import { type ArmorKind, armorAfterPickup, type HealthKind, healthAfterPickup } from "../../shared/items/ItemGrants";
-import type { BotGameState } from "../BotGameState";
+import type { BotGameState, Vec3 } from "../BotGameState";
 import type { BotGoal } from "./BotGoal";
 import type { ConsiderationContext } from "./Consideration";
 import { Danger } from "./considerations/Danger";
@@ -26,6 +26,14 @@ import { collectItemGoals } from "./ItemGoalSource";
 
 /** Considerations in a fixed order — the order is the ML feature schema. */
 export const ITEM_CONSIDERATIONS = [ItemValue, ItemDenial, RouteCost, Danger] as const;
+
+/**
+ * Anything that can price a route. Structural rather than `BotNavGraph` so the
+ * estimator stays swappable and tests need no graph — this is the §7.4 seam.
+ */
+export interface RouteCostSource {
+  estimateTravelCost(from: Vec3, to: Vec3): number | null;
+}
 
 /**
  * Hard preconditions. These are 0/1 rejections, not low scores: "the server
@@ -70,6 +78,14 @@ export interface ItemGoalPlannerOptions {
    * per-bot personalities use this.
    */
   weights?: BotWeightProfile;
+  /**
+   * Navigation graph, when the map's is loaded.
+   *
+   * Supplies exact graph travel costs and, critically, honest reachability.
+   * Absent, the planner falls back to the Euclidean estimate — which is fine
+   * for ranking but cannot tell that an item is behind a wall.
+   */
+  navGraph?: RouteCostSource | null;
   /**
    * Restrict candidates to these pickup types.
    *
@@ -139,18 +155,28 @@ export class ItemGoalPlanner {
       candidates = candidates.filter((c) => allowed.has(c.item.type));
     }
 
-    const result = this.arbiter.select(candidates, (goal) => this.makeContext(goal, state, weights), state.tick, gates);
+    const result = this.arbiter.select(
+      candidates,
+      (goal) => this.makeContext(goal, state, weights, options.navGraph ?? null),
+      state.tick,
+      gates,
+    );
     this.lastExplain = result.explain;
     return result;
   }
 
-  private makeContext(goal: BotGoal, state: BotGameState, weights: BotWeightProfile): ConsiderationContext {
-    return {
-      goal,
-      self: state.self,
-      state,
-      routeCost: estimateRouteCost(state.self.position, goal.position),
-      weights,
-    };
+  private makeContext(
+    goal: BotGoal,
+    state: BotGameState,
+    weights: BotWeightProfile,
+    navGraph: RouteCostSource | null,
+  ): ConsiderationContext {
+    // Graph distance when the map is loaded — exact, and honest about
+    // unreachable targets. Euclidean otherwise, which ranks acceptably but
+    // cannot see walls.
+    const routeCost = navGraph
+      ? navGraph.estimateTravelCost(state.self.position, goal.position)
+      : estimateRouteCost(state.self.position, goal.position);
+    return { goal, self: state.self, state, routeCost, weights };
   }
 }

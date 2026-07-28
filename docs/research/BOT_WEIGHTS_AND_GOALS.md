@@ -3,7 +3,7 @@
 > Gametype-defined behavioural weights, a common goal currency, and the road to objective modes bots can actually play.
 
 **Date:** 2026-07-28
-**Status:** Phases 1–2 landed (see §13); Phases 3–6 are design research.
+**Status:** Phases 1–3 landed (see §13); Phases 4–6 are design research.
 **Scope:** `src/bot`, `src/shared/server/gametype`, `src/games/fps/server/gametypes`
 
 **Stated requirement:** the eventual Search & Destroy mode must be **compatible with Warsow's Bomb rules and entity contract** (`trigger_capture_area` + `misc_capture_area_indicator`), so the shipped `wbomb*` maps work unmodified. See §2.6 for the surveyed map data and §11.3 for the extraction contract.
@@ -444,8 +444,8 @@ BOT_IMPROVEMENT §8.2 already identifies the eventual fix and Phase 1 lists it a
 Staging that avoids blocking on it:
 
 1. **Phase 1 — Euclidean × detour factor.** `estimate = |Δ| × DETOUR_FACTOR` (≈1.35), with a vertical penalty. Cheap, wrong by a constant, and *good enough for ranking* because every candidate is wrong in the same direction. Exact A* runs **once**, for the winner only.
-2. **Phase 2 — landmark distances.** Precompute distances from every nav node to K landmark nodes at cache-build time; estimate via triangle inequality. Bounded error, near-zero query cost, and it lands in the existing versioned `.cache/bots/maps` payload as a new schema field.
-3. **Phase 3+ — measured traversal times** feeding back from sequence outcomes.
+2. **Phase 3 — exact all-pairs graph distance.** ✅ Landed, and simpler than the landmark scheme sketched here: the graphs are 34–58 strategic nodes, so all-pairs Dijkstra is exact, costs 0.04–0.42 ms to build and ~1 µs to query, and needs no cache schema change at all. See §13 Phase 3.
+3. **Later — measured traversal times** feeding back from sequence outcomes.
 
 The `Consideration` interface does not change across those steps, so this is a pure accuracy upgrade behind a stable seam. **`routeCost` must be an injected value on the context, never something a consideration computes itself** — otherwise the estimator cannot be swapped.
 
@@ -730,13 +730,19 @@ Each phase is independently shippable and independently valuable. Dependencies a
 
 **Acceptance met:** a duel bot demonstrably values contesting an item it cannot use more than a deathmatch bot, from weights alone with identical code; an `itemGreed: 0` profile makes a bot ignore items entirely (the Clan Arena / Instagib shape); `riskTolerance` visibly changes willingness to fetch items while under threat; and profile selection is driven end-to-end by the gametype the server already reports.
 
-### Phase 3 — Route accuracy
-*Pure upgrade behind the §7.4 seam. Can be reordered with Phase 4.*
+### Phase 3 — Route accuracy ✅ LANDED
+*Pure upgrade behind the §7.4 seam. No `Consideration` changed.*
 
-- Landmark distances precomputed at nav-cache build; new versioned schema field.
-- `routeCost` estimator swapped; no `Consideration` change.
+- `BotNavGraph.estimateTravelCost(from, to)` — exact all-pairs graph distance plus off-node approach/arrival, `null` when no route exists.
+- Distance matrix computed lazily from the adjacency list and invalidated whenever the graph is rebuilt or reloaded.
+- `ItemGoalPlanner` takes an optional `RouteCostSource`; the brain passes its nav graph. Euclidean remains the fallback when no graph is loaded.
 
-**Acceptance:** measurable drop in "chose a goal that turned out to be far" corrections; cache rebuild/reject behaves like existing schema bumps.
+**Deviations from the plan, discovered while implementing:**
+
+- **All-pairs, not landmarks, and nothing persisted.** The plan assumed the graph was large enough to need landmark distances and a new cache schema field. Measured, the shipped graphs are 34–58 *strategic* nodes with 44–88 edges, so exact all-pairs is both simpler and cheaper to reason about. Measured cost: matrix build **0.04–0.42 ms** once per map, query **0.6–1.3 µs**. At ~12 candidates × 8 bots × 4 Hz that is well under a millisecond per second of play. Persisting it would buy nothing and add a schema version to invalidate, so the matrix is memory-only and **the nav cache format is unchanged**.
+- **The real win was reachability, not accuracy.** This was listed under Risks rather than as the phase's purpose: the Phase 1 estimator *could never fail*, so the arbiter's `unreachable` gate could never fire and a bot could commit to an item on the far side of a wall. Graph distance answers that honestly, including across disconnected components. A regression test pins the old behaviour so the difference stays visible.
+
+**Acceptance met:** an item in a disconnected component is gated `unreachable` even when it is physically nearer than a reachable rival; a detour item is priced by walking distance rather than straight line; the matrix invalidates on reload; and with no nav graph the pre-Phase-3 behaviour is reproduced exactly (documented by test).
 
 ### Phase 4 — Directives
 *BOT_IMPROVEMENT Phase 5, unchanged in intent.*

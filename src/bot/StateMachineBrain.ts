@@ -931,6 +931,9 @@ export class StateMachineBrain extends BotBrain {
       maxDistance: PICKUP_SEEK_RANGE,
       blockedPickupIds: new Set(this._blockedPickupIds.keys()),
       typeFilter,
+      // Real graph distances when the map's nav graph is loaded, so an item
+      // behind a wall is gated as unreachable instead of looking close.
+      navGraph: this._navGraph,
     });
 
     this._activeItemGoal = result.goal;
