@@ -277,9 +277,27 @@ lead.
 scores. The lead requirement and the swap round are new fields; `overtimeOnDraw`
 is a *duel* rule (extend time on a tie) and is not the same thing.
 
-**Open:** who attacks during overtime, once both halves are played? Alternating
-each round is the obvious answer and keeps the total balanced, but it
-reintroduces exactly the per-round advantage the half-split exists to avoid.
+**Overtime alternates.** Once both halves are played the half-split has done its
+job — each team has had its nine attacking rounds — so overtime switches to
+alternating sides every round. The per-round advantage the split exists to avoid
+is no longer a concern, because from here the requirement is a *two-round lead*,
+and a lead of two spans one attack round for each team however the sides fall.
+
+Full sequence:
+
+```text
+rounds 1-9    alpha attacks          first half
+              (max reachable score is 9, so the swap can never be skipped)
+   swap
+rounds 10-18  beta attacks           second half
+              match ends the moment a team has >= 10 AND leads by >= 2
+   9-9 after 18 rounds
+rounds 19+    sides alternate        overtime, until a team leads by 2
+```
+
+A team reaching 10 without a two-round lead does **not** win — 10-9 continues.
+That is the tennis rule, and it is why overtime is reached at 9-9 rather than
+being a separate tie-break.
 
 ## 5. Rules
 
@@ -746,6 +764,7 @@ Resolved this round, kept for the record:
 | ~~Q3~~ | Does the <100 ups drop apply everywhere? | **Only inside a site.** Carrying across the map is safe; the rule is the plant initiation, not a movement tax. |
 | ~~Q4~~ | Where does the bomb spawn? | **Attacker spawn centroid**, ground-traced. `team_CTF_*flag` measured and rejected: inconsistent placement, absent on wbomb6 (5.6). |
 | ~~Q7~~ | Items reset per round? | **Yes.** Persisting punishes the losing side twice. |
+| ~~Q9~~ | Who attacks in overtime? | **Sides alternate every round.** The half-split has already given each team its nine attacking rounds; a two-round lead spans one attack round each however the sides fall (4.3). |
 
 Still open:
 
@@ -755,7 +774,7 @@ Still open:
 | Q5 | Freeze time length | 5 s proposed, unconfirmed. The only timing the spec did not fix. |
 | Q6 | Does defuse progress persist across defusers? | No, for simplicity; revisit if it feels bad. |
 | Q8 | Quad in S&D | Disabled initially (5.7); revisit once the mode plays. |
-| Q9 | Overtime attacker assignment | Once both halves are played, who attacks? Alternating is obvious but reintroduces the per-round advantage the half-split avoids (4.3). |
+
 | Q10 | Can defenders *move* a dropped, unarmed bomb? | No — recoverable but never denied. Confirm this matches Warsow. |
 | Q11 | Does the round-end beat show who won and why? | Assumed yes; needs a HUD decision. |
 
