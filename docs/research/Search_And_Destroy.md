@@ -20,6 +20,40 @@ Two reasons, and the second is the real one.
 
 The framework's acceptance criterion is that **no S&D-specific code appears in `src/bot`**. If that holds, the design worked.
 
+### 1.1 Where it sits in the lineup
+
+S&D **replaces Team Deathmatch on the menu**, giving three modes with distinct
+jobs rather than four with overlapping ones:
+
+| Mode | Job |
+|---|---|
+| **Duel** | Ultimate 1v1 — item timing and map control |
+| **FFA** | Practice and fun — low commitment, always something happening |
+| **S&D** | Tactical team play — rounds, objectives, no respawn |
+
+TDM's code stays (it is the only landed consumer of `getAgentDirectives`, and
+its tests pass), it simply stops being offered.
+
+The menu surface is small and already mapped:
+
+| Where | Change |
+|---|---|
+| `LobbyServer.GAMETYPE_SHELLS` | Replace the `tdm` shell with `snd` |
+| `LobbyServer.normalizeGametype` | Add `snd` / `bomb` aliases |
+| `LobbyServer` gametype switch | Instantiate the new gametype |
+| `config/maps.json` | Tag the bomb maps `snd` |
+| `headless-netserver-v2`, `record-demo` | CLI `--gametype` switches |
+| `FpsMapLauncher` | Currently hardcodes `"tdm"` |
+
+**Two map-manifest problems to fix when wiring the mode:**
+
+1. **Only `wbomb1` is in `config/maps.json` at all**, and it is tagged `duel`.
+   `wbomb2`–`wbomb6` are absent, so five of the six bomb maps are invisible to
+   the lobby even though they ship.
+2. Nothing validates that a map tagged for a gametype can actually host it.
+   `isBombMap()` (S1) makes that checkable — an `snd`-tagged map that fails it
+   is a manifest bug, and finding it at startup beats finding it in a match.
+
 ---
 
 ## 2. Prior art
@@ -586,8 +620,12 @@ rather than pk3s so they run wherever the suite does.
 
 **S2 — Team spawns.** Implement `TeamSpawnStrategy.choose()`, wire
 `setTeamPoints()` from the extractor, deterministic per-round distribution.
-**Benefits TDM immediately** and is independent of S&D. Includes the 4.1
-role-vs-geometry assertion at map load.
+Includes the 4.1 role-vs-geometry assertion at map load.
+
+*Required by S&D* — every round spawns both teams at their own spawn set. (It
+also fixes TDM, which currently falls back to `"furthest"` because team spawns
+were never implemented; that is now a side benefit rather than the reason, since
+TDM is leaving the menu.)
 
 **S3 — Round loop.** Reuses the phase cycle (5.1), so this is far smaller than
 it first looked: a round-based exit from `Active` (back to `Countdown`, or to
