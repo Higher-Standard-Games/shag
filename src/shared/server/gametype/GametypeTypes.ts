@@ -52,6 +52,32 @@ export interface MatchConfig {
   overtimeOnDraw?: boolean;
   /** Overtime extension in seconds (default 60). */
   overtimeDuration?: number;
+
+  // ── Round-based modes (Search & Destroy) ──────────────────────────────
+  /**
+   * Play in rounds: `Active` returns to `Countdown` when a round ends instead
+   * of ending the match, and players do not respawn until the next round.
+   *
+   * A round IS the existing phase cycle — `Countdown` is the round freeze and
+   * `Active` is the live round — so `timeLimit` becomes ROUND length and
+   * `scoreLimit` becomes rounds-to-win. Everything else keeps today's meaning.
+   * See docs/research/Search_And_Destroy.md §5.1.
+   */
+  roundBased?: boolean;
+  /**
+   * Rounds one side attacks before the sides swap. Round-based only.
+   *
+   * Deliberately a whole half rather than alternating: attacking is the
+   * stronger side, so alternating every round would mostly measure who drew the odd
+   * rounds. Set below `scoreLimit` so the limit cannot be reached before the
+   * swap — no team should be able to win without playing both sides.
+   */
+  roundsPerHalf?: number;
+  /**
+   * Score lead required to win, on top of reaching `scoreLimit` (tennis rule).
+   * 1 = no requirement (default). Warsow Bomb uses 2, so 10-9 does not win.
+   */
+  leadRequired?: number;
 }
 
 // ============================================================================
@@ -152,4 +178,10 @@ export interface MatchStateSnapshot {
   /** Match flow mode: "single" = per-match server, post-game is terminal
    *  (players return to the lobby); "continuous" = classic warmup loop. */
   flow?: "single" | "continuous";
+  /** Current round, 1-based. Round-based gametypes only. */
+  round?: number;
+  /** Per-team round role ("attacker"/"defender"). Round-based gametypes only. */
+  teamRoles?: Record<string, string>;
+  /** Round lifecycle for objective modes ("pre_plant"/"post_plant"). */
+  roundState?: string;
 }

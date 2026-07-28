@@ -3,7 +3,7 @@
 > A round-based bomb-and-defuse gametype, Warsow Bomb compatible, designed to put the bot goal framework under real load.
 
 **Date:** 2026-07-28
-**Status:** Design complete and rules confirmed. S1 (`BombSiteTable`) implemented and verified against all six shipped bomb maps; S2-S8 planned (see 8, 9).
+**Status:** Design complete and rules confirmed. S1-S3 implemented (site extraction, team spawns, round lifecycle); S4-S8 planned (see 8, 9).
 **Scope:** `src/games/fps/server/gametypes`, `src/shared/bsp`, `src/shared/bot`
 **Depends on:** [`BOT_WEIGHTS_AND_GOALS.md`](BOT_WEIGHTS_AND_GOALS.md) Phases 1–4 (landed)
 
@@ -612,18 +612,18 @@ the machinery exists and needs wiring, not writing.
 
 | Feature | Status | Notes |
 |---|---|---|
-| Round loop | **Reuse** | A round is the existing `Countdown -> Active` cycle; only the exit transition is new (5.1) |
-| Round timer (90 s) | **Reuse** | `Active` already ticks `timeLimit`; reinterpreted as round length |
-| Rounds-to-win limit | **Reuse** | `scoreLimit` + `addTeamScore` + the existing check already do this |
-| Freeze time (5 s) | **Reuse** | `Countdown` phase; generalize `applyPostGameInputFreeze` to cover it |
+| Round loop | **Done** | A round is the existing `Countdown -> Active` cycle; only the exit transition is new (5.1) |
+| Round timer (90 s) | **Done** | `Active` already ticks `timeLimit`; reinterpreted as round length |
+| Rounds-to-win limit | **Done** | `scoreLimit` + `addTeamScore` + the existing check already do this |
+| Freeze time (5 s) | **Done** | `Countdown` phase; generalize `applyPostGameInputFreeze` to cover it |
 | Round end beat | **Reuse** | Absorbed into `countdownDuration` — no extra phase |
-| `endRound(winner)` hook | **Build** | A round can end mid-`Active` on defuse/detonation/elimination |
+| `endRound(winner)` hook | **Done** | A round can end mid-`Active` on defuse/detonation/elimination |
 | Post-arm timer swap | **Build** | Gametype-internal `armed` state; not a phase |
 | Per-round item reset | **Reuse** | `PickupSystem.resetForMatch` is exactly this |
 | Per-round player reset | **Reuse** | `respawnPlayer` already resets health/armor/weapons/powerups |
-| Respawn suppression | **Build** | `processRespawns` auto-respawns at a deadline; needs a gate |
-| Round scoring | **Build** | Score follows the player across the swap |
-| Halftime side swap | **Build** | After round 5 |
+| Respawn suppression | **Done** | `processRespawns` auto-respawns at a deadline; needs a gate |
+| Round scoring | **Done** | Score follows the player across the swap |
+| Halftime side swap | **Done** | After round 5 |
 | Dead-player spectate | **Reuse** | Demo POV + `DeathCamera` already do follow-cam |
 
 ### 8.3 Bomb
@@ -660,7 +660,7 @@ the machinery exists and needs wiring, not writing.
 | Goal arbitration | **Done** | Phases 1-4 |
 | Weight profiles per role/round state | **Reuse** | `selectWeightProfile` key scheme already supports it |
 | Directive emission | **Reuse** | `getAgentDirectives` landed |
-| `teamRoles` / `roundState` on the wire | **Build** | Designed; bot side already reads them |
+| `teamRoles` on the wire | **Done** | Designed; bot side already reads them |
 | Site-splitting logic | **Build** | Gametype decides which defender holds which site |
 | Plant / defuse sequences | **Build** | `BotSequence` runtime is the right home |
 | `map_control` consideration | **Build** | Weight key exists, no consideration behind it |
@@ -670,9 +670,9 @@ the machinery exists and needs wiring, not writing.
 
 | | Count |
 |---|---|
-| Done | 9 |
-| Reuse (wire, don't write) | 14 |
-| Build | 18 |
+| Done | 18 |
+| Reuse (wire, don't write) | 8 |
+| Build | 15 |
 | Optional / deferred | 4 |
 
 The ten reuses are what make this tractable: round reset, player reset, input
@@ -726,16 +726,32 @@ also fixes TDM, which currently falls back to `"furthest"` because team spawns
 were never implemented; that is now a side benefit rather than the reason, since
 TDM is leaving the menu.)
 
-**S3 — Round loop.** Reuses the phase cycle (5.1), so this is far smaller than
-it first looked: a round-based exit from `Active` (back to `Countdown`, or to
-`PostGame` on the score limit), an `endRound(winner)` hook for round ends that
-are not timer expiries, input freeze extended to `Countdown`, respawn
-suppression, per-round reset via `resetForMatch`, and the halftime swap.
+**S3 — Round loop. DONE.** `MatchState` round machinery + `endRound()` +
+`onRoundTimeExpired()` hook + 20 tests.
 
-Still the step that touches shared match code, so: **land it with TDM and Duel
-green at every commit**, and keep every round-specific branch behind a
-`roundBased` config flag so non-round modes take exactly the path they take
-today.
+Reusing the phase cycle kept it small, as predicted. `roundBased`,
+`roundsPerHalf` and `leadRequired` join `MatchConfig`; `Active` loops back to
+`Countdown`; the half-split, overtime alternation and tennis rule all landed.
+
+**MatchState owns the round loop but not the round rules.** An expired timer
+sets a flag rather than deciding a winner — "defenders win if nothing was
+planted" is an S&D rule. The controller reads the flag, asks the gametype, and
+calls `endRound()`. Round ends that are not timer expiries come through the
+same door.
+
+*One subtle bug caught on the way:* `transition(Active)` resets scores, which is
+right once per match and catastrophic once per round. Round modes now reset only
+on round 1.
+
+Respawns are suppressed inside a live round; input freeze extended to cover
+`Countdown`. Everything sits behind `roundBased`, with tests pinning that
+non-round modes still end on the timer, still reset scores on `Active`, and
+publish no round context.
+
+*Still outstanding from this step:* the per-round item reset
+(`PickupSystem.resetForMatch`) is not yet called on round start, and the
+halftime intermission is a plain `Countdown` rather than a longer break. Both
+land with the gametype in S6.
 
 **S4 — Channelled actions.** A shared arm/defuse progress system: start
 condition, per-tick continuation, cancel on leaving the radius, replicated
