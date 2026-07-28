@@ -42,6 +42,27 @@ export interface GateFailure {
   reason: string;
 }
 
+/**
+ * `BotDifficulty.mistakeRate` at which a bot takes the runner-up on essentially
+ * every goal switch. The presets run 0.2 (expert) to 8 (easy), so this scale
+ * yields roughly 1% / 6% / 19% / 50% across expert → easy.
+ */
+const MISTAKE_RATE_FULL = 16;
+
+/**
+ * Convert the declared difficulty knob into a per-switch probability.
+ *
+ * `mistakeRate` has existed on every difficulty preset since bots were added
+ * and was never read by anything — "random dumb decisions per minute" with no
+ * implementation. Goal selection is the natural home for it: choosing the
+ * second-best item is a mistake a human plausibly makes, unlike the random
+ * button noise the field's original description implies.
+ */
+export function mistakeProbability(mistakeRate: number): number {
+  if (!Number.isFinite(mistakeRate) || mistakeRate <= 0) return 0;
+  return Math.min(1, mistakeRate / MISTAKE_RATE_FULL);
+}
+
 /** Per-candidate score record. Retained for diagnostics and future training. */
 export interface GoalScoreTrace {
   goalId: string;
@@ -69,15 +90,30 @@ export interface ArbitrationResult {
 /** A gate is a hard precondition. Returning a string rejects the candidate. */
 export type GoalGate = (goal: BotGoal, ctx: ConsiderationContext) => string | null;
 
+export interface GoalArbiterOptions {
+  /**
+   * Probability of taking the runner-up instead of the winner, rolled ONLY when
+   * switching to a new goal — never per tick, which would make a bot oscillate
+   * rather than look fallible. See `mistakeProbability()`.
+   */
+  mistakeChance?: number;
+  /** Injectable RNG so golden-scenario fixtures stay deterministic. */
+  random?: () => number;
+}
+
 export class GoalArbiter {
   private readonly considerations: readonly Consideration[];
+  private readonly mistakeChance: number;
+  private readonly random: () => number;
 
   /** Currently committed goal id, and the tick its commitment window ends. */
   private currentGoalId: string | null = null;
   private commitmentUntilTick = 0;
 
-  constructor(considerations: readonly Consideration[]) {
+  constructor(considerations: readonly Consideration[], options: GoalArbiterOptions = {}) {
     this.considerations = considerations;
+    this.mistakeChance = options.mistakeChance ?? 0;
+    this.random = options.random ?? Math.random;
   }
 
   /** The goal the bot is committed to, if any. */
@@ -122,6 +158,23 @@ export class GoalArbiter {
       }
     }
 
+    // Human fallibility: sometimes take the second-best option. Rolled only on
+    // a genuine switch, so the bot commits to its mistake and looks like it
+    // misjudged rather than like it is malfunctioning.
+    let mistaken = false;
+    if (best && best.id !== this.currentGoalId && this.mistakeChance > 0 && this.random() < this.mistakeChance) {
+      const runnerUp = traces
+        .filter((t) => t.gate === 1 && t.goalId !== best?.id)
+        .sort((a, b) => b.desire - a.desire)[0];
+      const alternative = runnerUp ? candidates.find((c) => c.id === runnerUp.goalId) : undefined;
+      if (alternative && runnerUp) {
+        best = alternative;
+        bestTrace = runnerUp;
+        bestDesire = runnerUp.desire;
+        mistaken = true;
+      }
+    }
+
     // Commit. A newly chosen goal starts a fresh window; re-picking the same
     // goal does NOT extend it, otherwise a bot could stay committed forever.
     if (best && best.id !== this.currentGoalId) {
@@ -131,10 +184,11 @@ export class GoalArbiter {
       this.reset();
     }
 
+    const explain = this.explain(best, bestTrace, traces);
     return {
       goal: best,
       desire: bestDesire,
-      explain: this.explain(best, bestTrace, traces),
+      explain: mistaken ? `${explain} [mistake: took runner-up]` : explain,
       traces,
     };
   }

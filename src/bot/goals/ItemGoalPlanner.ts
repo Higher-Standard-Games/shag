@@ -11,6 +11,7 @@
  * p.distance <= max)` — nearest wins, always, with no notion of value.
  */
 
+import { type BotWeightProfile, selectWeightProfile } from "../../shared/bot/WeightProfiles";
 import type { PickupEntry } from "../../shared/bsp/PickupTable";
 import { type ArmorKind, armorAfterPickup, type HealthKind, healthAfterPickup } from "../../shared/items/ItemGrants";
 import type { BotGameState } from "../BotGameState";
@@ -20,9 +21,8 @@ import { Danger } from "./considerations/Danger";
 import { ItemDenial } from "./considerations/ItemDenial";
 import { ItemValue } from "./considerations/ItemValue";
 import { estimateRouteCost, RouteCost } from "./considerations/RouteCost";
-import { type ArbitrationResult, GoalArbiter, type GoalGate } from "./GoalArbiter";
+import { type ArbitrationResult, GoalArbiter, type GoalGate, mistakeProbability } from "./GoalArbiter";
 import { collectItemGoals } from "./ItemGoalSource";
-import { type BotWeightProfile, DEFAULT_WEIGHT_PROFILE } from "./WeightProfile";
 
 /** Considerations in a fixed order — the order is the ML feature schema. */
 export const ITEM_CONSIDERATIONS = [ItemValue, ItemDenial, RouteCost, Danger] as const;
@@ -64,7 +64,11 @@ export interface ItemGoalPlannerOptions {
   maxDistance: number;
   /** Pickup ids on a local failure cooldown. */
   blockedPickupIds: ReadonlySet<number>;
-  /** Phase 2 will select this per gametype; Phase 1 uses the default. */
+  /**
+   * Override the behavioural profile. Normally omitted — the planner selects
+   * one from the gametype reported in `match_state`. Tests and future
+   * per-bot personalities use this.
+   */
   weights?: BotWeightProfile;
   /**
    * Restrict candidates to these pickup types.
@@ -80,8 +84,20 @@ export interface ItemGoalPlannerOptions {
 }
 
 export class ItemGoalPlanner {
-  private readonly arbiter = new GoalArbiter(ITEM_CONSIDERATIONS);
+  private readonly arbiter: GoalArbiter;
   private lastExplain = "";
+
+  /**
+   * @param mistakeRate `BotDifficulty.mistakeRate`; 0 makes selection fully
+   *   deterministic, which is what the golden-scenario fixtures rely on.
+   * @param random injectable RNG, for deterministic tests of the mistake path.
+   */
+  constructor(mistakeRate = 0, random?: () => number) {
+    this.arbiter = new GoalArbiter(ITEM_CONSIDERATIONS, {
+      mistakeChance: mistakeProbability(mistakeRate),
+      random,
+    });
+  }
 
   /** Committed goal id, for the brain's replan logic. */
   get committedGoalId(): string | null {
@@ -104,7 +120,12 @@ export class ItemGoalPlanner {
    * Pure with respect to the world: reads state, mutates only commitment.
    */
   select(state: BotGameState, options: ItemGoalPlannerOptions): ArbitrationResult {
-    const weights = options.weights ?? DEFAULT_WEIGHT_PROFILE;
+    // Policy comes from the gametype the server already reports. An unknown or
+    // not-yet-received gametype resolves to the deathmatch-shaped default, so a
+    // bot is never left without a profile.
+    const weights =
+      options.weights ??
+      selectWeightProfile(state.matchState.gametypeName, state.getOwnRole(), state.matchState.roundState);
     // Gates are per-call because the blocked set changes each tick; the arbiter
     // itself is long-lived because it owns the commitment window.
     const gates = buildGates(options.blockedPickupIds);

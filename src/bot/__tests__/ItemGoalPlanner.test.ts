@@ -15,6 +15,7 @@
 import { describe, expect, it } from "vitest";
 import type { PickupEntry } from "../../shared/bsp/PickupTable";
 import { BotGameState } from "../BotGameState";
+import { mistakeProbability } from "../goals/GoalArbiter";
 import { ItemGoalPlanner } from "../goals/ItemGoalPlanner";
 
 // ── Fixture helpers ──────────────────────────────────────────────────
@@ -249,6 +250,71 @@ describe("goal commitment", () => {
     expect(planner.committedGoalId).not.toBeNull();
     planner.reset();
     expect(planner.committedGoalId).toBeNull();
+  });
+});
+
+describe("mistakes (BotDifficulty.mistakeRate)", () => {
+  const mega = () => entry("item_health_mega", "health", "mega", 300);
+  const medium = () => entry("item_health_medium", "health", "medium", 320);
+
+  it("is deterministic at mistakeRate 0 — the fixtures above depend on this", () => {
+    const best = mega();
+    const other = medium();
+    const opts = { pickupPositions: [best, other], maxDistance: 1500, blockedPickupIds: new Set<number>() };
+    for (let i = 0; i < 20; i++) {
+      const result = new ItemGoalPlanner(0).select(makeState({ health: 40 }), opts);
+      expect(result.goal?.pickupId).toBe(best.id);
+    }
+  });
+
+  it("takes the runner-up when the roll succeeds, and says so", () => {
+    const best = mega();
+    const other = medium();
+    const result = new ItemGoalPlanner(16, () => 0).select(makeState({ health: 40 }), {
+      pickupPositions: [best, other],
+      maxDistance: 1500,
+      blockedPickupIds: new Set(),
+    });
+    expect(result.goal?.pickupId).toBe(other.id);
+    expect(result.explain).toContain("[mistake: took runner-up]");
+  });
+
+  it("takes the winner when the roll fails", () => {
+    const best = mega();
+    const other = medium();
+    // rate 8 -> p = 0.5, so a roll of 0.99 must miss. (rate 16 is p = 1.0,
+    // where nothing ever misses — which is what this test caught first time.)
+    const result = new ItemGoalPlanner(8, () => 0.99).select(makeState({ health: 40 }), {
+      pickupPositions: [best, other],
+      maxDistance: 1500,
+      blockedPickupIds: new Set(),
+    });
+    expect(result.goal?.pickupId).toBe(best.id);
+    expect(result.explain).not.toContain("mistake");
+  });
+
+  it("never picks a gated candidate as the mistake", () => {
+    // A mistake is a plausible misjudgement, not an impossible one: an item the
+    // server would refuse must stay unreachable through every path.
+    const best = mega();
+    const uncollectable = entry("item_health_small", "health", "small", 100);
+    const state = makeState({ health: 100 }); // bubble grants nothing
+    const result = new ItemGoalPlanner(16, () => 0).select(state, {
+      pickupPositions: [best, uncollectable],
+      maxDistance: 1500,
+      blockedPickupIds: new Set(),
+    });
+    expect(result.goal?.pickupId).toBe(best.id);
+  });
+
+  it("maps difficulty presets onto sane probabilities", () => {
+    // easy 8, medium 3, hard 1, expert 0.2 — monotonic, bounded, 0 for none.
+    expect(mistakeProbability(0)).toBe(0);
+    expect(mistakeProbability(0.2)).toBeLessThan(mistakeProbability(1));
+    expect(mistakeProbability(1)).toBeLessThan(mistakeProbability(3));
+    expect(mistakeProbability(3)).toBeLessThan(mistakeProbability(8));
+    expect(mistakeProbability(8)).toBeLessThanOrEqual(1);
+    expect(mistakeProbability(1000)).toBe(1);
   });
 });
 

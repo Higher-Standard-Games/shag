@@ -112,6 +112,23 @@ export interface BotDamageEvent {
   tick: number;
 }
 
+/**
+ * Gametype context the bot reads from `match_state`.
+ *
+ * Only the fields bot reasoning uses; `MatchStateSnapshot` carries more (HUD
+ * scores, spectators, winner) that is of no interest here.
+ */
+export interface BotMatchState {
+  /** Display name, e.g. "Team Deathmatch". Normalized before profile lookup. */
+  gametypeName: string;
+  /** MatchPhase: 0 warmup, 1 countdown, 2 active, 3 post-game. */
+  phase: number;
+  /** Per-team round role for alternating modes ("attacker"/"defender"). Phase 6. */
+  teamRoles?: Record<string, string>;
+  /** Round lifecycle for objective modes ("pre_plant"/"post_plant"). Phase 6. */
+  roundState?: string;
+}
+
 export interface BotKillEvent {
   killerId: string;
   victimId: string;
@@ -194,6 +211,16 @@ export class BotGameState {
 
   // Authoritative static-pickup availability, indexed by PickupEntry.id.
   pickupActiveMask: readonly boolean[] = [];
+
+  /**
+   * Latest gametype/match context, from the `match_state` snapshot event.
+   *
+   * The server has always sent this — it is spread into an event once per
+   * snapshot — and the bot simply discarded it. It is what lets a bot pick a
+   * behavioural weight profile without any protocol change, and from Phase 4 it
+   * carries the round role and state that objective modes need.
+   */
+  matchState: BotMatchState = { gametypeName: "", phase: 0 };
 
   // Recent events (cleared each tick)
   recentDamage: BotDamageEvent[] = [];
@@ -328,6 +355,28 @@ export class BotGameState {
     // ── Process events ───────────────────────────────────────────────
     for (const event of snapshot.events) {
       switch (event.type) {
+        case "match_state": {
+          // Gametype context — drives behavioural weight selection. Sent once
+          // per snapshot with the MatchStateSnapshot fields spread in. Read
+          // defensively: an older or newer server may omit any of these.
+          const evt = event as Partial<{
+            gametypeName: unknown;
+            phase: unknown;
+            teamRoles: unknown;
+            roundState: unknown;
+          }>;
+          this.matchState = {
+            gametypeName: typeof evt.gametypeName === "string" ? evt.gametypeName : "",
+            phase: typeof evt.phase === "number" ? evt.phase : 0,
+            teamRoles:
+              evt.teamRoles && typeof evt.teamRoles === "object"
+                ? (evt.teamRoles as Record<string, string>)
+                : undefined,
+            roundState: typeof evt.roundState === "string" ? evt.roundState : undefined,
+          };
+          break;
+        }
+
         case "combat_state": {
           const evt = event as any;
           if (evt.entityId === this.selfEntityId) {
@@ -449,6 +498,19 @@ export class BotGameState {
   /** Get the nearest pickup within a max distance */
   getNearestPickup(maxDistance: number = Infinity): VisiblePickup | null {
     return this.pickups.find((p) => p.distance <= maxDistance) || null;
+  }
+
+  /**
+   * This bot's round role in modes where teams alternate (S&D attacker /
+   * defender). Null in FFA, in team modes without roles, or before the first
+   * `match_state` arrives.
+   */
+  getOwnRole(): string | null {
+    const roles = this.matchState.teamRoles;
+    if (!roles) return null;
+    const team = this.self.team || this.scores.get(this.selfPlayerId)?.team;
+    if (!team) return null;
+    return roles[team] ?? null;
   }
 
   /** Get all living teammates, nearest first. */

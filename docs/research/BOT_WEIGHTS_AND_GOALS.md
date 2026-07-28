@@ -3,7 +3,7 @@
 > Gametype-defined behavioural weights, a common goal currency, and the road to objective modes bots can actually play.
 
 **Date:** 2026-07-28
-**Status:** Phase 1 landed (see §13); Phases 2–6 are design research.
+**Status:** Phases 1–2 landed (see §13); Phases 3–6 are design research.
 **Scope:** `src/bot`, `src/shared/server/gametype`, `src/games/fps/server/gametypes`
 
 **Stated requirement:** the eventual Search & Destroy mode must be **compatible with Warsow's Bomb rules and entity contract** (`trigger_capture_area` + `misc_capture_area_indicator`), so the shipped `wbomb*` maps work unmodified. See §2.6 for the surveyed map data and §11.3 for the extraction contract.
@@ -173,7 +173,8 @@ This delivers the property that motivated the idea — *"each of these skills ca
 ```typescript
 /** Behavioural policy for one gametype role. All values 0..1. */
 interface BotWeightProfile {
-  itemGreed: number;       // do map items matter here at all
+  itemGreed: number;       // value an item for your OWN use
+  itemDenial: number;      // value it purely for the enemy not having it
   objectivePush: number;   // advance and complete the objective
   teamCohesion: number;    // stay within supporting distance of allies
   carrierProtect: number;  // guard whoever holds the flag/bomb
@@ -191,12 +192,17 @@ interface BotWeightProfile {
 ### 4.2 Profiles are data
 
 ```typescript
-deathmatch      { itemGreed: 1.0, objectivePush: 0.0, teamCohesion: 0.0, carrierProtect: 0.0, mapControl: 0.3, aggression: 0.8, riskTolerance: 0.5 }
-team_deathmatch { itemGreed: 0.9, objectivePush: 0.0, teamCohesion: 0.5, carrierProtect: 0.0, mapControl: 0.4, aggression: 0.7, riskTolerance: 0.4 }
-duel            { itemGreed: 1.0, objectivePush: 0.0, teamCohesion: 0.0, carrierProtect: 0.0, mapControl: 0.9, aggression: 0.5, riskTolerance: 0.3 }
-snd_attacker    { itemGreed: 0.2, objectivePush: 0.9, teamCohesion: 0.6, carrierProtect: 0.8, mapControl: 0.2, aggression: 0.5, riskTolerance: 0.7 }
-snd_defender    { itemGreed: 0.2, objectivePush: 0.1, teamCohesion: 0.4, carrierProtect: 0.0, mapControl: 0.9, aggression: 0.4, riskTolerance: 0.3 }
+// Shipped (Phase 2)
+deathmatch      { itemGreed: 1.0, itemDenial: 0.3, mapControl: 0.3, aggression: 0.8, riskTolerance: 0.5 }
+team_deathmatch { itemGreed: 0.9, itemDenial: 0.4, mapControl: 0.4, aggression: 0.7, riskTolerance: 0.4, teamCohesion: 0.5 }
+duel            { itemGreed: 1.0, itemDenial: 0.9, mapControl: 0.9, aggression: 0.5, riskTolerance: 0.3 }
+
+// Illustrative (Phase 6)
+snd_attacker    { itemGreed: 0.2, itemDenial: 0.1, objectivePush: 0.9, teamCohesion: 0.6, carrierProtect: 0.8, riskTolerance: 0.7 }
+snd_defender    { itemGreed: 0.2, itemDenial: 0.1, objectivePush: 0.1, teamCohesion: 0.4, mapControl: 0.9, riskTolerance: 0.3 }
 ```
+
+Duel's signature is `itemDenial: 0.9` — in a 1v1, taking the Mega your opponent needs is worth nearly as much as needing it yourself. That is the whole difference between a duel bot and a deathmatch bot, and it is expressed entirely in data.
 
 Behaviour that falls out rather than being coded:
 
@@ -263,7 +269,7 @@ interface Consideration {
 | Consideration | Weight key | Shape |
 |---|---|---|
 | `item_value` | `itemGreed` | grant value × current need, minus overcap waste |
-| `item_denial` | `itemGreed` | enemy would benefit; scales with tier |
+| `item_denial` | `itemDenial` | enemy would benefit; scales with tier |
 | `objective_push` | `objectivePush` | progress toward an active directive |
 | `objective_urgency` | `objectivePush` | time pressure (bomb timer, round clock) |
 | `team_cohesion` | `teamCohesion` | falloff from nearest-ally distance |
@@ -706,15 +712,23 @@ Each phase is independently shippable and independently valuable. Dependencies a
 
 **Acceptance met:** quad/mega/red armor rank correctly over a 5 HP bubble with no item-specific branch anywhere in the scoring path; overcap items are gated rather than merely unattractive; no goal thrashing (commitment fixture); every decision explains itself; legacy ladder selectable via `BOT_GOAL_ARBITER=legacy`.
 
-### Phase 2 — Weights
-*Still no protocol change.*
+### Phase 2 — Weights ✅ LANDED
+*No protocol change.*
 
-- `BotWeightProfile` + profiles for DM/TDM/Duel in `src/shared/`.
-- `BotGameState` parses `match_state`; profile selected by key with safe fallback (§4.2).
-- Considerations gain their weight keys; `riskTolerance` wired into the danger suppressor.
-- `mistakeRate` re-expressed as runner-up selection / score noise (§8).
+- `BotWeightProfile` + profiles for DM/TDM/Duel in `src/shared/bot/WeightProfiles.ts`.
+- `BotGameState` parses `match_state` (previously discarded) into `matchState`; `getOwnRole()` derives the bot's round role from `teamRoles` + its team.
+- `selectWeightProfile()` with the `gametype:role:roundState → gametype:role → gametype → DEFAULT` fallback chain. Total: never throws, never returns undefined.
+- Considerations carry their weight keys; `riskTolerance` scales the danger discount.
+- `mistakeRate` re-expressed as runner-up selection (§8).
 
-**Acceptance:** a duel bot measurably plays more map control and less roaming than a DM bot, from weights alone, with no code difference.
+**Deviations from the plan, discovered while implementing:**
+
+- **`itemGreed` had to be split into `itemGreed` + `itemDenial`.** A single weight over both item attractors scales every candidate by the same factor, so the *ranking among items is unchanged* — the weight degenerates into an on/off switch and can express nothing else. Splitting them is what lets duel (contest everything, `itemDenial 0.9`) differ from deathmatch (take what you need, `0.3`) with no code difference. Any future weight must be checked against this: a weight that scales all candidates in a category uniformly does nothing.
+- **The acceptance criterion as written was untestable at this phase.** It asked for "more map control and less roaming", but `map_control` is a Phase 3+ consideration and Phase 1 was scoped to items only. Restated below to what weights can actually demonstrate today.
+- **Mistakes are rolled only on a goal *switch*, never per tick.** A per-tick roll makes a bot oscillate — which reads as malfunction, not fallibility. Rolling at switch time and then committing normally makes the bot look like it misjudged. The RNG is injectable so fixtures stay deterministic.
+- **`mistakeRate` had never been implemented at all.** It is declared on every difficulty preset (easy 8 → expert 0.2) and was read by nothing; "random dumb decisions per minute" had no behaviour behind it. Goal selection is its natural home — taking the second-best item is a mistake a human plausibly makes, unlike random button noise.
+
+**Acceptance met:** a duel bot demonstrably values contesting an item it cannot use more than a deathmatch bot, from weights alone with identical code; an `itemGreed: 0` profile makes a bot ignore items entirely (the Clan Arena / Instagib shape); `riskTolerance` visibly changes willingness to fetch items while under threat; and profile selection is driven end-to-end by the gametype the server already reports.
 
 ### Phase 3 — Route accuracy
 *Pure upgrade behind the §7.4 seam. Can be reordered with Phase 4.*

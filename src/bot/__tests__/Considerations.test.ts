@@ -8,6 +8,7 @@
  */
 
 import { describe, expect, it } from "vitest";
+import { DEFAULT_WEIGHT_PROFILE } from "../../shared/bot/WeightProfiles";
 import type { PickupType } from "../../shared/bsp/PickupTable";
 import { BotGameState } from "../BotGameState";
 import type { BotGoal } from "../goals/BotGoal";
@@ -17,7 +18,6 @@ import { ItemDenial } from "../goals/considerations/ItemDenial";
 import { ItemValue } from "../goals/considerations/ItemValue";
 import { estimateRouteCost, RouteCost } from "../goals/considerations/RouteCost";
 import { ITEM_CONSIDERATIONS } from "../goals/ItemGoalPlanner";
-import { DEFAULT_WEIGHT_PROFILE } from "../goals/WeightProfile";
 
 const TYPES: PickupType[] = ["weapon", "ammo", "armor", "health", "powerup"];
 const KINDS: Record<string, string[]> = {

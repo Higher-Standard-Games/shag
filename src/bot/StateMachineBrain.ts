@@ -125,13 +125,15 @@ export class StateMachineBrain extends BotBrain {
   // Scored item-goal selection (docs/research/BOT_WEIGHTS_AND_GOALS.md Phase 1).
   // Replaces "nearest pickup wins" for WHICH item to fetch; the state ladder
   // above still decides WHETHER to fetch one.
-  private readonly _itemGoalPlanner = new ItemGoalPlanner();
+  private readonly _itemGoalPlanner: ItemGoalPlanner;
   private readonly _goalArbiterMode: GoalArbiterMode;
   private _activeItemGoal: BotGoal | null = null;
 
   constructor(difficulty: BotDifficulty, goalArbiterMode: GoalArbiterMode = defaultGoalArbiterMode()) {
     super(difficulty);
     this._goalArbiterMode = goalArbiterMode;
+    // mistakeRate finally does something: an occasional runner-up pick.
+    this._itemGoalPlanner = new ItemGoalPlanner(difficulty.mistakeRate);
     this._huntYaw = Math.random() * Math.PI * 2;
     this._sequenceRegistry.register(new RouteCrouchslideSequence());
     this._sequenceRegistry.register(new ValidatedJumpSequence());

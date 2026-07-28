@@ -24,7 +24,10 @@ const HEALTH_COMFORT = 60;
 export const ItemDenial: Consideration = {
   id: "item_denial",
   role: "attractor",
-  weightKey: "itemGreed",
+  // Its OWN key, not itemGreed. Sharing one weight across both item attractors
+  // scales every candidate equally and so cannot change their ranking — the
+  // weight would degenerate into an on/off switch. See WeightProfiles.ts.
+  weightKey: "itemDenial",
 
   score(ctx: ConsiderationContext): number {
     const base = denialValue(ctx.goal.item.type, ctx.goal.item.kind);

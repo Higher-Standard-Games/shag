@@ -19,9 +19,9 @@
  * scale down a reason that already exists.
  */
 
+import type { BotWeightProfile } from "../../shared/bot/WeightProfiles";
 import type { BotGameState, BotSelf } from "../BotGameState";
 import type { BotGoal } from "./BotGoal";
-import type { BotWeightProfile } from "./WeightProfile";
 
 export type ConsiderationRole = "attractor" | "discount";
 
