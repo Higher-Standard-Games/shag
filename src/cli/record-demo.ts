@@ -120,7 +120,7 @@ async function main(): Promise<void> {
   };
   const server = new GameServer(config, makeGametype(args.gametype));
   server.setCollisionWorld(bspData.collision);
-  server.setSpawnPoints(bspData.spawnPoints);
+  server.setSpawnPoints(bspData.spawnPoints, bspData.teamSpawnPoints);
   server.setPickupItems(bspData.pickups);
   server.setTriggerVolumes(bspData.triggers);
   server.setPickupRespawnTime(15);

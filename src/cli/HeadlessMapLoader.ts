@@ -9,12 +9,15 @@ import { resolveMapBspViaIndex } from "../engine/loader/pk3/NodePk3";
 import type { CollisionWorld } from "../engine/network/systems/collision/CollisionWorld";
 import type { PickupEntry } from "../shared/bsp/PickupTable";
 import { extractPickups } from "../shared/bsp/PickupTable";
+import { extractSpawnPoints, extractTeamSpawnPoints, type SpawnVec3 } from "../shared/bsp/SpawnPointTable";
 import type { TriggerVolume } from "../shared/bsp/TriggerTable";
 import { extractTriggerVolumes } from "../shared/bsp/TriggerTable";
 
 export interface BspData {
   collision: CollisionWorld;
   spawnPoints: Array<{ x: number; y: number; z: number }>;
+  /** Team-tagged spawns (Warsow team_CTF_*spawn), empty on non-team maps. */
+  teamSpawnPoints: Map<string, SpawnVec3[]>;
   /** Authoritative pickup table (weapons/armor/health) shared with the client. */
   pickups: PickupEntry[];
   /** Trigger volumes (teleporters/jumppads) — shared TriggerTable, same ids as the client. */
@@ -48,19 +51,13 @@ export async function loadBspCollision(mapName: string, gamePath = "./game"): Pr
   const collision = await createHeadlessCollisionWorld(bsp);
   console.log(`[Map] Collision world initialized`);
 
-  // Extract spawn points
-  const spawnPoints: Array<{ x: number; y: number; z: number }> = [];
-  const spawnClassnames = ["info_player_deathmatch", "info_player_start", "info_player_team1", "info_player_team2"];
-
-  for (const entity of bsp.entities) {
-    if (spawnClassnames.includes(entity.classname)) {
-      const origin = entity.properties.origin;
-      if (origin) {
-        const [x, y, z] = origin.split(" ").map(Number);
-        const PLAYER_ORIGIN_HEIGHT = 24;
-        spawnPoints.push({ x, y: z + PLAYER_ORIGIN_HEIGHT, z: y });
-      }
-    }
+  // Extract spawn points via the shared table, which also understands Warsow's
+  // team_CTF_*spawn entities — every team map's spawns were invisible before.
+  const spawnPoints = extractSpawnPoints(bsp.entities);
+  const teamSpawnPoints = extractTeamSpawnPoints(bsp.entities);
+  if (teamSpawnPoints.size > 0) {
+    const summary = [...teamSpawnPoints].map(([t, p]) => `${t}=${p.length}`).join(", ");
+    console.log(`[Map] Team spawn points: ${summary}`);
   }
 
   if (spawnPoints.length === 0) {
@@ -93,5 +90,5 @@ export async function loadBspCollision(mapName: string, gamePath = "./game"): Pr
 
   console.log(pvs ? `[Map] PVS data retained: ${bsp.visData!.numClusters} clusters` : "[Map] No PVS data in BSP");
 
-  return { collision, spawnPoints, pickups, triggers, pvs };
+  return { collision, spawnPoints, teamSpawnPoints, pickups, triggers, pvs };
 }

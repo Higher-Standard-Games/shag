@@ -526,7 +526,7 @@ the machinery exists and needs wiring, not writing.
 | Bomb-map detection | **Done** | `isBombMap` — rejects wdm4/wdm9 |
 | Role-vs-geometry assertion | **Done** | `validateBombRoles`, passes 6/6 |
 | Team spawn extraction | **Done** | `extractTeamSpawns` |
-| Team spawn *selection* | **Build** | `TeamSpawnStrategy.choose()` is a TODO; nothing calls `setTeamPoints` |
+| Team spawn *selection* | **Done** | `TeamSpawnStrategy.choose(…, teamId)`, wired from the extractor |
 | `misc_bomb_spawn` entity | **Optional** | No shipped map has one; fallback covers everything |
 
 ### 8.2 Round lifecycle
@@ -591,9 +591,9 @@ the machinery exists and needs wiring, not writing.
 
 | | Count |
 |---|---|
-| Done | 7 |
+| Done | 9 |
 | Reuse (wire, don't write) | 14 |
-| Build | 20 |
+| Build | 18 |
 | Optional / deferred | 4 |
 
 The ten reuses are what make this tractable: round reset, player reset, input
@@ -622,9 +622,25 @@ Verified against the real BSPs of all six bomb maps: 2 sites each, volume counts
 prediction said, and wdm4/wdm9/wdm2 correctly rejected. Unit tests use fixtures
 rather than pk3s so they run wherever the suite does.
 
-**S2 — Team spawns.** Implement `TeamSpawnStrategy.choose()`, wire
-`setTeamPoints()` from the extractor, deterministic per-round distribution.
-Includes the 4.1 role-vs-geometry assertion at map load.
+**S2 — Team spawns. DONE.** `src/shared/bsp/SpawnPointTable.ts` +
+`TeamSpawnStrategy.choose()` + 19 tests.
+
+The spawn classname list had been duplicated in three files and every copy
+listed only the Quake conventions, so `team_CTF_*spawn` matched nothing —
+every team spawn on every CTF and bomb map was invisible. Verified against the
+real BSPs: udon/soba counts 9/7, 8/16, 6/6, 6/9, 8/8, 4/6 across wbomb1-6,
+matching the survey exactly, and wdm2 correctly reporting none.
+
+`choose()` gained a `teamId` parameter — without it a team strategy cannot
+possibly pick the right side. It deliberately skips furthest-from-enemy
+scoring, which would throw a defender across the map.
+
+**No behavioural change to duel or ffa**: checked every map in those pools and
+none carries team spawns, so their spawn sets are byte-identical.
+
+*The 4.1 role assertion is NOT included here.* `validateBombRoles()` exists and
+is tested (S1), but it needs to know which team attacks — a gametype decision.
+It gets called in S6, when there is a gametype to call it from.
 
 *Required by S&D* — every round spawns both teams at their own spawn set. (It
 also fixes TDM, which currently falls back to `"furthest"` because team spawns

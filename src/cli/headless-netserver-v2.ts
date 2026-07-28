@@ -13,13 +13,13 @@
  *   - @fails-components/webtransport or @aspect-build/webtransport
  */
 
-import { runCli } from "./_runCli";
 import * as fs from "node:fs";
 import { GameServer, type GameServerConfig } from "../games/fps/server/GameServer";
 import type { BaseGametype } from "../games/fps/server/gametypes/BaseGametype";
 import { Deathmatch } from "../games/fps/server/gametypes/Deathmatch";
 import { Duel } from "../games/fps/server/gametypes/Duel";
 import { TeamDeathmatch } from "../games/fps/server/gametypes/TeamDeathmatch";
+import { runCli } from "./_runCli";
 import { loadBspCollision } from "./HeadlessMapLoader";
 
 // ============================================================================
@@ -224,7 +224,7 @@ async function main(): Promise<void> {
 
   if (bspData) {
     server.setCollisionWorld(bspData.collision);
-    server.setSpawnPoints(bspData.spawnPoints);
+    server.setSpawnPoints(bspData.spawnPoints, bspData.teamSpawnPoints);
     server.setPickupItems(bspData.pickups);
     server.setTriggerVolumes(bspData.triggers);
     server.setPickupRespawnTime(15); // weapons: 15s (armor 25s+15s delay, health 20s, mega 60s are PickupSystem defaults)
