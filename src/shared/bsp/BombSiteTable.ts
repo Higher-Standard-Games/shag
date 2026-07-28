@@ -295,66 +295,83 @@ export function spawnCentroid(spawns: readonly Vec3Like[]): Vec3Like | null {
   return { x: x / spawns.length, y: y / spawns.length, z: z / spawns.length };
 }
 
-export interface BombRoleValidation {
-  ok: boolean;
-  /** Human-readable reason when `ok` is false. */
-  reason?: string;
-  attackerNearest: number;
-  defenderNearest: number;
+/** Distances from a spawn set to the sites, for diagnostics. */
+export interface SpawnSiteDistances {
+  /** Distance from the nearest spawn point to the nearest site. */
+  nearest: number;
+  /** Per-site nearest distance, indexed by BombSite.id. */
+  perSite: number[];
+}
+
+export interface BombRoleGeometry {
+  attacker: SpawnSiteDistances;
+  defender: SpawnSiteDistances;
+  /** Problems worth surfacing at map load. Empty when the layout looks sane. */
+  warnings: string[];
 }
 
 /**
- * Sanity-check which side defends, from geometry.
+ * Distance at which an attacker spawn is close enough to a site that the round
+ * is effectively decided at spawn — a plant can start before defenders could
+ * plausibly contest it.
  *
- * In every bomb-and-defuse game the sites live in the DEFENDERS' half — that is
- * what makes attacking a push. Measured on the shipped maps, one team's spawns
- * are dramatically nearer both sites (wbomb1: 729 vs 3857 units), so if the
- * roles are assigned the other way round the attackers spawn on top of the
- * objective and plant in about a second.
+ * Not a convention check. An earlier version of this function asserted that
+ * DEFENDERS must spawn nearer the objectives, reasoning from Counter-Strike and
+ * Call of Duty, where the sites sit in the defenders' half. That is not how
+ * Warsow Bomb works: alpha attacks by default and, measured across the shipped
+ * maps, alpha also spawns nearer the sites. The assertion would have fired on
+ * every single map.
  *
- * That failure is silent in code review and obvious in play, which is exactly
- * the kind worth asserting at load. Kept even once the convention is settled,
- * because a community map can still get it wrong.
+ * The lesson is worth keeping: measuring the maps told us the geometry, but
+ * only the game's own rules could tell us what the geometry MEANT.
  */
-export function validateBombRoles(
+export const TRIVIAL_PLANT_DISTANCE = 700;
+
+/** Nearest-spawn distances from one spawn set to every site. */
+function spawnDistances(sites: readonly BombSite[], spawns: readonly Vec3Like[]): SpawnSiteDistances {
+  const perSite = sites.map((site) => {
+    let best = Number.POSITIVE_INFINITY;
+    for (const spawn of spawns) {
+      const dx = site.position.x - spawn.x;
+      const dy = site.position.y - spawn.y;
+      const dz = site.position.z - spawn.z;
+      best = Math.min(best, Math.sqrt(dx * dx + dy * dy + dz * dz));
+    }
+    return best;
+  });
+  return { nearest: perSite.length > 0 ? Math.min(...perSite) : Number.POSITIVE_INFINITY, perSite };
+}
+
+/**
+ * Describe the spawn-to-site geometry of a bomb map.
+ *
+ * Reports rather than asserts. Which side spawns nearer the objectives is a
+ * property of the map and the mode, not a universal rule — see
+ * TRIVIAL_PLANT_DISTANCE. The one thing genuinely worth warning about is a
+ * layout where a round is over before it starts.
+ */
+export function analyzeBombRoleGeometry(
   sites: readonly BombSite[],
   attackerSpawns: readonly Vec3Like[],
   defenderSpawns: readonly Vec3Like[],
-): BombRoleValidation {
-  const attacker = spawnCentroid(attackerSpawns);
-  const defender = spawnCentroid(defenderSpawns);
-  if (!attacker || !defender || sites.length === 0) {
-    return {
-      ok: false,
-      reason: "missing spawns or sites",
-      attackerNearest: Number.NaN,
-      defenderNearest: Number.NaN,
-    };
+): BombRoleGeometry {
+  const attacker = spawnDistances(sites, attackerSpawns);
+  const defender = spawnDistances(sites, defenderSpawns);
+  const warnings: string[] = [];
+
+  if (sites.length === 0) warnings.push("map has no bomb sites");
+  if (attackerSpawns.length === 0) warnings.push("attacking team has no spawn points");
+  if (defenderSpawns.length === 0) warnings.push("defending team has no spawn points");
+
+  for (const site of sites) {
+    const d = attacker.perSite[site.id];
+    if (Number.isFinite(d) && d < TRIVIAL_PLANT_DISTANCE) {
+      warnings.push(
+        `attacker spawns are ${Math.round(d)} units from site ${site.label} — ` +
+          `a plant may begin before defenders can contest it`,
+      );
+    }
   }
 
-  const nearest = (from: Vec3Like) =>
-    Math.min(
-      ...sites.map((site) => {
-        const dx = site.position.x - from.x;
-        const dy = site.position.y - from.y;
-        const dz = site.position.z - from.z;
-        return Math.sqrt(dx * dx + dy * dy + dz * dz);
-      }),
-    );
-
-  const attackerNearest = nearest(attacker);
-  const defenderNearest = nearest(defender);
-
-  if (attackerNearest < defenderNearest) {
-    return {
-      ok: false,
-      reason:
-        `attacker spawns are nearer the objectives than defender spawns ` +
-        `(${Math.round(attackerNearest)} vs ${Math.round(defenderNearest)} units) — ` +
-        `roles are probably assigned to the wrong teams`,
-      attackerNearest,
-      defenderNearest,
-    };
-  }
-  return { ok: true, attackerNearest, defenderNearest };
+  return { attacker, defender, warnings };
 }

@@ -15,6 +15,7 @@
 
 import { describe, expect, it } from "vitest";
 import {
+  analyzeBombRoleGeometry,
   BOMB_SPAWN_CLASSNAMES,
   type BombSite,
   DEFAULT_BOMBSITE_HALF_HEIGHT,
@@ -24,7 +25,7 @@ import {
   isBombMap,
   isInsideBombSite,
   spawnCentroid,
-  validateBombRoles,
+  TRIVIAL_PLANT_DISTANCE,
 } from "../BombSiteTable";
 
 // ── Fixture helpers ──────────────────────────────────────────────────
@@ -265,27 +266,42 @@ describe("team spawns", () => {
   });
 });
 
-describe("validateBombRoles", () => {
+describe("analyzeBombRoleGeometry", () => {
   const sites = extractBombSites(WBOMB1, MODELS);
-  const near = extractTeamSpawns(WBOMB1, BOMB_SPAWN_CLASSNAMES.alpha);
-  const far = extractTeamSpawns(WBOMB1, BOMB_SPAWN_CLASSNAMES.beta);
+  const nearSites = extractTeamSpawns(WBOMB1, BOMB_SPAWN_CLASSNAMES.alpha);
+  const farFromSites = extractTeamSpawns(WBOMB1, BOMB_SPAWN_CLASSNAMES.beta);
 
-  it("passes when defenders spawn nearer the objectives", () => {
-    const result = validateBombRoles(sites, far, near);
-    expect(result.ok).toBe(true);
-    expect(result.defenderNearest).toBeLessThan(result.attackerNearest);
+  it("reports nearest distances for both sides without judging them", () => {
+    // Deliberately NOT an assertion about which side should be nearer. Warsow
+    // Bomb has alpha attacking AND alpha spawning nearer the objectives, so a
+    // Counter-Strike-derived rule would reject every shipped map.
+    const g = analyzeBombRoleGeometry(sites, nearSites, farFromSites);
+    expect(g.attacker.nearest).toBeLessThan(g.defender.nearest);
+    expect(g.warnings.some((w) => w.includes("wrong"))).toBe(false);
   });
 
-  it("fails loudly when the roles are swapped", () => {
-    // The silent-in-review, obvious-in-play failure this exists to catch:
-    // attackers would spawn on the objective and plant in about a second.
-    const result = validateBombRoles(sites, near, far);
-    expect(result.ok).toBe(false);
-    expect(result.reason).toContain("wrong teams");
+  it("reports per-site distances indexed by site id", () => {
+    const g = analyzeBombRoleGeometry(sites, nearSites, farFromSites);
+    expect(g.attacker.perSite).toHaveLength(sites.length);
+    expect(g.attacker.perSite[0]).toBeGreaterThan(0);
   });
 
-  it("fails rather than throwing when spawns or sites are missing", () => {
-    expect(validateBombRoles(sites, [], far).ok).toBe(false);
-    expect(validateBombRoles([], near, far).ok).toBe(false);
+  it("warns when an attacker spawn is close enough to make the plant trivial", () => {
+    const onTop = [{ ...sites[0].position }];
+    const g = analyzeBombRoleGeometry(sites, onTop, farFromSites);
+    expect(g.warnings.some((w) => w.includes("before defenders can contest"))).toBe(true);
+  });
+
+  it("does not warn when both sides have a real approach", () => {
+    const far = [{ x: 90000, y: 0, z: 0 }];
+    const g = analyzeBombRoleGeometry(sites, far, farFromSites);
+    expect(g.warnings).toHaveLength(0);
+    expect(TRIVIAL_PLANT_DISTANCE).toBeGreaterThan(0);
+  });
+
+  it("warns rather than throwing when spawns or sites are missing", () => {
+    expect(analyzeBombRoleGeometry(sites, [], farFromSites).warnings.join(" ")).toContain("attacking team");
+    expect(analyzeBombRoleGeometry(sites, nearSites, []).warnings.join(" ")).toContain("defending team");
+    expect(analyzeBombRoleGeometry([], nearSites, farFromSites).warnings.join(" ")).toContain("no bomb sites");
   });
 });

@@ -178,28 +178,53 @@ Distances are spawn-centroid to site, with times at run speed (400 ups) and sust
 
 *(Straight-line; real routes are longer. Treat as lower bounds — the ranking and the order of magnitude are what matter.)*
 
-### 4.1 Which team defends is not what the naming suggests
+### 4.1 Roles, and a lesson about inferring rules from geometry
 
-**On all six maps, `team_CTF_alphaspawn` is closer to the nearest bombsite than `team_CTF_betaspawn`** — wbomb1 is the extreme at 729 vs 3558 units. `team_CTF_alphaflag` also sits essentially *on* a bombsite (188 u on wbomb1, 315 on wbomb3, 627 on wbomb4).
+**Alpha attacks. Beta defends.** That is the Warsow rule and it is the spec.
 
-Confirmed by running the implemented `validateBombRoles()` over every shipped bomb map with beta as attacker: it passes 6/6.
+It is worth recording that measurement led me to the opposite conclusion, and
+why. Across the shipped maps, alpha spawns markedly *nearer* the bombsites:
 
-| Map | attacker→nearest site | defender→nearest site |
+| Map | alpha → nearest site | beta → nearest site |
 |---|---|---|
-| wbomb1 | 3558 | 729 |
-| wbomb2 | 3377 | 2919 |
-| wbomb3 | 3653 | 1249 |
-| wbomb4 | 3569 | 908 |
-| wbomb5 | 3255 | 1952 |
-| wbomb6 | 3970 | 2212 |
+| wbomb1 | 624 | 3438 |
+| wbomb2 | 2644 | 3191 |
+| wbomb3 | 1111 | 3574 |
+| wbomb4 | ~908 | ~3569 |
+| wbomb5 | ~1952 | ~3255 |
+| wbomb6 | ~2212 | ~3970 |
 
-wbomb2 is the narrowest margin and was described as "roughly symmetric" from the per-site figures; on the nearest-site metric the direction is still unambiguous.
+In Counter-Strike and Call of Duty the sites sit in the **defenders'** half, so
+the side spawning nearer must be defending. Applying that rule here gives
+"alpha defends" — confidently, consistently, and wrongly.
 
-In CS and CoD the sites live in the **defenders'** half; attackers cross the map. So the geometry says **alpha's base contains the objectives, and alpha therefore defends** — regardless of what the name suggests about which team "goes first".
+**The geometry was measured correctly; the rule imported to interpret it was
+from a different game.** Warsow Bomb simply does not place its objectives the
+way CS does. Measurement can tell you what a map looks like; only the game's own
+rules tell you what that shape means.
 
-> **Implication:** getting this backwards makes every map unplayable in a way that is easy to miss in code review and obvious the moment you load in — attackers would spawn on top of the objective and plant in under a second.
->
-> **Therefore: validate at map load.** If the attacking team's spawn centroid is closer to the nearest site than the defending team's, log an error and refuse to start (or auto-swap). A cheap assertion converts a subtle "the mode feels wrong" bug into a loud one. This is worth doing even once the convention is confirmed, because a community map could get it wrong.
+The practical consequence was a real defect: `validateBombRoles()` asserted that
+defenders must spawn nearer, and would have rejected **every shipped bomb map**.
+It has been replaced by `analyzeBombRoleGeometry()`, which reports distances and
+warns only about a layout that is broken on its own terms — an attacker spawn so
+close to a site (`TRIVIAL_PLANT_DISTANCE`, 700 u) that a plant could begin before
+defenders could possibly contest it.
+
+#### wbomb2 is the properly designed bomb map
+
+Per-spawn measurement also shows why wbomb2 is the right test choice. It is the
+only map where the two teams are each nearer a *different* site:
+
+| Map | alpha → site A / site B | beta → site A / site B |
+|---|---|---|
+| **wbomb2** | 2644 / 3844 | 3825 / **3191** |
+| wbomb1 | **624** / 1964 | 3747 / 3438 |
+| wbomb3 | **1111** / 1389 | 3574 / 4606 |
+
+wbomb2 is near-symmetric, with each side holding an approach — consistent with
+it being the original bomb development map. wbomb1 and wbomb3 are lopsided,
+which fits their being converted CTF layouts, and wbomb1 in particular will trip
+the trivial-plant warning at 624 units.
 
 ### 4.2 Timings that follow
 
@@ -213,13 +238,48 @@ Full map traversal here costs 3–5 s where CS costs 20–30 s. Copying CS's clo
 | **Plant (arm)** | **4 s** | Confirmed. Standing on the dropped bomb, not a held button - see 5.3. |
 | **Defuse** | **5 s** | Confirmed. Same radius as the plant. No kits (no economy to buy them with). |
 | **Round end** | **4 s** | Proposed. Result beat before the next freeze. |
-| **Halftime** | **10 s** | Proposed. Side swap intermission. |
-| **Rounds to win** | **6** | Proposed. ~90 s rounds plus overhead puts a full 11-round match near 18-20 min. |
-| **Side swap** | after round 5 | Proposed. Each side plays at least 5; round 11 is the decider with sides already swapped. |
+| **Halftime** | **10 s** | Proposed. Side swap intermission after round 9 (4.3). |
+| **Score limit** | **10** | Proposed, Warsow-shaped (it uses 15). See 4.3. |
+| **Lead required** | **2** | Warsow tennis rule. At 9-9 play continues until a team is two clear. |
+| **Side swap** | after round 9 | Proposed. One team attacks the whole first half; 9 makes the limit unreachable before the swap. |
 
 These are `MatchConfig` fields reinterpreted for a round mode (5.1), not new configuration. All of them belong in `MatchConfig` and should be env-overridable like `SHAG_TIMELIMIT` already is — they are the first thing a playtest will want to move.
 
 ---
+
+### 4.3 Match format: tennis rule and the one-sided swap
+
+Warsow Bomb runs a **score limit of 15 with a two-point lead requirement** — at
+14-14 nobody has won, and rounds continue until one team is two clear. It also
+does something that looks odd until you know why: **one team attacks for the
+entire first half**, then the sides swap, rather than alternating each round.
+
+The reasoning is that attacking is the stronger side. Alternating every round would
+hand the advantage back and forth and mostly measure who got the odd rounds; a
+clean split gives each team the same number of attacking rounds, so the format
+measures how well each side used its favoured half.
+
+**Proposed for this game — the same shape, shortened:**
+
+| Parameter | Value |
+|---|---|
+| Score limit | **10** |
+| Lead required | **2** (tennis rule) |
+| Sides swap after | **round 9** |
+| Attacker at start | **alpha** |
+
+Nine rounds before the swap means the maximum score reachable in the first half
+is 9, so **the swap can never be skipped** — no team can win without playing both
+sides. At 9-9 the tennis rule takes over and play continues until a two-round
+lead.
+
+`MatchConfig.scoreLimit` already exists and is already checked against team
+scores. The lead requirement and the swap round are new fields; `overtimeOnDraw`
+is a *duel* rule (extend time on a tie) and is not the same thing.
+
+**Open:** who attacks during overtime, once both halves are played? Alternating
+each round is the obvious answer and keeps the total balanced, but it
+reintroduces exactly the per-round advantage the half-split exists to avoid.
 
 ## 5. Rules
 
@@ -364,8 +424,9 @@ spectating would hand a dead attacker the entire defensive setup.
 **On `RoundEnd`:** result beat, scores updated, no respawns. Then either the
 next `RoundFreeze`, the halftime intermission, or `PostGame`.
 
-**Halftime:** after round 5, a 10 s intermission, sides swap, round counter
-continues. Score follows the *player*, not the side.
+**Halftime:** after round 9 (4.3), a 10 s intermission, sides swap, round
+counter continues. Score follows the *team*, and the team keeps its score across
+the swap — it is the SIDE that changes, not who the points belong to.
 
 ### 5.6 Where the bomb spawns
 
@@ -694,7 +755,7 @@ Still open:
 | Q5 | Freeze time length | 5 s proposed, unconfirmed. The only timing the spec did not fix. |
 | Q6 | Does defuse progress persist across defusers? | No, for simplicity; revisit if it feels bad. |
 | Q8 | Quad in S&D | Disabled initially (5.7); revisit once the mode plays. |
-| Q9 | Rounds to win / swap point | 6 and after round 5 proposed, unconfirmed. |
+| Q9 | Overtime attacker assignment | Once both halves are played, who attacks? Alternating is obvious but reintroduces the per-round advantage the half-split avoids (4.3). |
 | Q10 | Can defenders *move* a dropped, unarmed bomb? | No — recoverable but never denied. Confirm this matches Warsow. |
 | Q11 | Does the round-end beat show who won and why? | Assumed yes; needs a HUD decision. |
 
