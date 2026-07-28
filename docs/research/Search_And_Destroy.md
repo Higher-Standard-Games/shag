@@ -3,7 +3,7 @@
 > A round-based bomb-and-defuse gametype, Warsow Bomb compatible, designed to put the bot goal framework under real load.
 
 **Date:** 2026-07-28
-**Status:** Design complete and rules confirmed. S1-S5 implemented (site extraction, team spawns, round lifecycle, channelled actions, bomb rules); S6-S8 planned (see 8, 9).
+**Status:** S1-S6 implemented — the mode is playable end to end against bots that do not yet understand it. S7 (bot plant/defuse) and S8 (playtest) remain.
 **Scope:** `src/games/fps/server/gametypes`, `src/shared/bsp`, `src/shared/bot`
 **Depends on:** [`BOT_WEIGHTS_AND_GOALS.md`](BOT_WEIGHTS_AND_GOALS.md) Phases 1–4 (landed)
 
@@ -667,7 +667,7 @@ the machinery exists and needs wiring, not writing.
 | Site containment (cylinder + volumes) | **Done** | `isInsideBombSite` |
 | 384 default radius | **Done** | Measured, 5.3 |
 | Bomb-map detection | **Done** | `isBombMap` — rejects wdm4/wdm9 |
-| Role-vs-geometry assertion | **Done** | `validateBombRoles`, passes 6/6 |
+| Role-vs-geometry report | **Done** | `analyzeBombRoleGeometry` — reports distances; the assertion it replaced would have rejected every shipped map (4.4) |
 | Team spawn extraction | **Done** | `extractTeamSpawns` |
 | Team spawn *selection* | **Done** | `TeamSpawnStrategy.choose(…, teamId)`, wired from the extractor |
 | `misc_bomb_spawn` entity | **Optional** | No shipped map has one; fallback covers everything |
@@ -682,27 +682,29 @@ the machinery exists and needs wiring, not writing.
 | Freeze time (5 s) | **Done** | `Countdown` phase; generalize `applyPostGameInputFreeze` to cover it |
 | Round end beat | **Reuse** | Absorbed into `countdownDuration` — no extra phase |
 | `endRound(winner)` hook | **Done** | A round can end mid-`Active` on defuse/detonation/elimination |
-| Post-arm timer swap | **Build** | Gametype-internal `armed` state; not a phase |
-| Per-round item reset | **Reuse** | `PickupSystem.resetForMatch` is exactly this |
-| Per-round player reset | **Reuse** | `respawnPlayer` already resets health/armor/weapons/powerups |
-| Respawn suppression | **Done** | `processRespawns` auto-respawns at a deadline; needs a gate |
-| Round scoring | **Done** | Score follows the player across the swap |
-| Halftime side swap | **Done** | After round 5 |
+| Post-arm timer swap | **Done** | `onRoundTimeExpired` returns null while armed — the bomb's timer supersedes the round's |
+| Per-round item reset | **Done** | `PickupSystem.resetForRound`, at the freeze |
+| Per-round player reset | **Done** | `respawnAllPlayers` at the freeze, not at the go |
+| Respawn suppression | **Done** | `processRespawns` returns early in a live round |
+| Round scoring | **Done** | Frags no longer touch the team score, which IS the round count |
+| Halftime side swap | **Done** | After round 9 |
+| `onRoundStart` hook | **Done** | Runs before the reset and respawns, so a mode's decisions are true when players appear |
 | Dead-player spectate | **Reuse** | Demo POV + `DeathCamera` already do follow-cam |
 
 ### 8.3 Bomb
 
 | Feature | Status | Notes |
 |---|---|---|
-| Bomb world entity | **Reuse** | `DroppedWeaponSystem` is the same shape: `EntityType.Item` + metadata + ground settle |
-| Spawn at attacker base | **Build** | Centroid + ground trace (5.6) |
-| Pickup on touch | **Reuse** | `PickupSystem` proximity pattern, attacker-only |
-| Carry state | **Done** | `BombModel` (S5); replication remains |
-| Carrier glow | **Reuse** | `applyPowerupGlow`, built for Quad |
+| Bomb world entity | **Done** | Not an ECS entity — the bomb is gametype state replicated as an objective snapshot, since nothing else needs to collide with it |
+| Spawn at attacker base | **Done** | Centroid + ground trace, following the ROLE so the half-swap moves it |
+| Pickup on touch | **Done** | `BombModel.updatePickup`, attacker-only |
+| Carry state | **Done** | `BombModel` (S5), replicated (S6) |
+| Carrier backpack model | **Done** | `BombRenderer` attaches to the carrier's spine bone |
+| Carrier glow | **Optional** | The backpack model reads better than a glow; revisit at playtest |
 | Plant below 400 ups on flat ground in site | **Done** | `BombModel` (S5) |
 | Drop on death | **Reuse** | `DroppedWeaponSystem.queueDrop` |
 | Arm channel (4 s) | **Done** | `BombModel` over `ChannelTracker` |
-| Defuse channel (5 s) | **Done** | Same, with the defender precondition |
+| Defuse channel (7 s) | **Done** | Same, with the defender precondition |
 | 30 s detonation timer | **Done** | `BombModel` (S5) |
 | Explosion effect | **Reuse** | `ExplosionEffect` + `target_explosion` already on the maps |
 
@@ -710,12 +712,30 @@ the machinery exists and needs wiring, not writing.
 
 | Feature | Status | Notes |
 |---|---|---|
-| Arm/defuse progress UI | **Build** | Bar or pie — visual choice deferred |
-| Bomb beep, 3-stage | **Build** | Scheduled `playSfx3D` at varying interval |
+| Arm/defuse progress UI | **Done** | Bar. It also renders DECAY in a different colour, which a pie could not do legibly — the direction is the information (4.4) |
+| Bomb beep | **Done** | `FPSBombAudio`, on the server's interval — no stages to tune |
+| Blinking timer light | **Done** | Same interval as the beep, so light and sound are one signal |
+| Announcer | **Done** | Warsow's own per-side offense/defense lines, shipped in the pk3s |
 | Round timer HUD | **Reuse** | `FPSTimer` widget exists |
-| Round score HUD | **Build** | Extend `MatchStateSnapshot` |
-| Site markers / compass | **Optional** | Not required for a playable version |
-| Bomb carrier indicator | **Build** | Team-only |
+| Round score HUD | **Done** | `round` + `teamRoles` + `roundState` on `MatchStateSnapshot` |
+| Site markers / compass | **Optional** | Site positions ARE on the wire now; drawing them is deferred |
+| Bomb carrier indicator | **Optional** | The backpack model is visible to everyone; a team-only marker is a later refinement |
+
+### 8.4b Loadouts and items
+
+Not in the original plan. Warsow Bomb turned out to be a pure loadout mode —
+it zeroes every item mask (4.4) — which forced the question of what a player
+starts a round with when the map still spawns items.
+
+| Feature | Status | Notes |
+|---|---|---|
+| Blade + primary + secondary | **Done** | `shared/server/gametype/Loadout.ts`. One power weapon, not Warsow's pair: with map weapons still spawning, two would leave nothing worth walking to |
+| Warsow spawn ammo and armor | **Done** | `AMMO_*` and `PLAYER_ARMOR` from `player.as` |
+| Applies from the NEXT round | **Done** | Never mid-round, even when dead — re-kitting a lost gunfight is a free retry |
+| `loadout` console command | **Done** | Short names work, including Warsow's (`lg` is the Voltaic here) |
+| Loadout menu | **Build** | The console is the whole interface today |
+| One item per round | **Done** | `ItemRespawnMode.round` — a 25 s armor timer means nothing in a 90 s round |
+| Alternating scarcity | **Optional** | `ItemRespawnMode.alternating` is implemented and tested. Off: it is invisible without HUD support, and it leaves the second half inheriting the first half's depleted map, which breaks the mirror the side swap exists to provide |
 
 ### 8.5 Bots
 
@@ -861,16 +881,64 @@ of cases than against a running server.
   the final tick wins. Defenders arriving at the last possible instant is the
   most memorable thing in the mode; it should not lose to an ordering accident.
 
-*Still to do for the bomb:* the world entity itself (model on
-`DroppedWeaponSystem`), spawn placement at the attacker centroid with a ground
-trace, carrier glow via `applyPowerupGlow`, and the beep. All of it is wiring
-around this model, and it lands with the gametype in S6.
+**S6 — The gametype. DONE.** `SearchAndDestroy.ts` + 32 tests, plus the
+loadout table, the objective snapshot, and the client that draws it.
 
-**S6 — Wire the mode.** `teamRoles` + `roundState` into `MatchStateSnapshot`;
-the `snd:*` weight profiles; the directive emitter; Quad filtered out.
+The mode itself is thin, which was the point: `BombModel` owns the bomb and
+`MatchState` owns the round loop, both shared and tested alone, so the gametype
+is wiring — read the map, build the bomb's view of the world each tick, turn its
+events into round results.
 
-**S7 — Bot channelled actions.** `plant_bomb` / `defuse_bomb` sequences on the
-existing `BotSequence` runtime.
+Two hooks on `BaseGametype` carry it, both defaulting to no-ops so no other mode
+pays for them: `onMapLoad` hands over the raw BSP lumps for a mode to extract
+its own authoring, and `onTick` is the objective tick. `onTick` RETURNS a round
+result rather than calling back into the controller, so a mode holds no
+reference to it and stays testable standing up. `onRoundTimeExpired` returns the
+same shape, where null means *the round continues* — which is how an armed bomb
+outlives the round clock.
+
+*Round-end rules taken from Warsow's `checkPlayersAlive`, asymmetric on purpose:*
+killing every defender wins outright, since nothing can stop the plant. Killing
+every attacker only wins if the bomb is NOT armed — otherwise the defenders
+still have to walk over and defuse it, which is the tensest thing in the mode.
+
+*Four ordering bugs this surfaced,* none of them visible until a round mode
+existed to trip them:
+
+- **Frags were about to award rounds.** In a round mode the team score IS the
+  round count, so kills must not touch it. Personal score still counts frags.
+- **The round counter advanced when the round went LIVE**, so the freeze was
+  setting up for the previous round's attacker. Invisible in the first half,
+  wrong at the swap. It now advances at the freeze, where the round begins.
+- **Round modes respawned at the go**, making the freeze five seconds of
+  standing around dead. Reset and respawn now happen at the freeze, which is
+  what a freeze is for.
+- **`getSpawnLoadout()` had no player**, so a per-player kit was impossible.
+
+*Loadouts and items* came out of the discovery that Warsow Bomb has no map items
+at all (4.4) — see 8.4b.
+
+*On the wire:* the bomb travels as an `objective` on the existing `match_state`
+event, which is already the variable-shape JSON channel, so no binary layout
+work. Every time value crosses in SECONDS: the client has no tick rate to divide
+by, and a HUD that needs one breaks the day the rate changes.
+
+*Client:* a procedural dynamite bundle that rides the carrier's spine bone,
+turns on the ground, or sits planted with a timer light; a HUD slab with the
+phase, the fuse and the shared progress meter; Warsow's own beep and per-side
+announcer lines. The light and the beep run off the SAME server-computed
+interval, so they are one signal rather than two clocks drifting apart.
+
+*Still open from the original S6 scope:* the `snd:*` weight profiles and the
+Quad filter. Both belong with S7, since neither does anything until bots
+understand the objective.
+
+**S7 — Bots.** `plant_bomb` / `defuse_bomb` sequences on the existing
+`BotSequence` runtime, the `snd:*` weight profiles, and the Quad filter.
+
+Bots cannot currently fetch a bomb they cannot see; the objective snapshot (S6)
+is what unblocks this. Worth reading `progs/gametypes/bomb/bots.as` first — it
+is Warsow's own objective-bot logic and it ships in the pk3.
 
 **S8 — Playtest and tune.** Every "Proposed" row in 4.2 is a first guess.
 
