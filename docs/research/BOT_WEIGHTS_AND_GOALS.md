@@ -3,7 +3,7 @@
 > Gametype-defined behavioural weights, a common goal currency, and the road to objective modes bots can actually play.
 
 **Date:** 2026-07-28
-**Status:** Design research. No implementation yet.
+**Status:** Phase 1 landed (see §13); Phases 2–6 are design research.
 **Scope:** `src/bot`, `src/shared/server/gametype`, `src/games/fps/server/gametypes`
 
 **Stated requirement:** the eventual Search & Destroy mode must be **compatible with Warsow's Bomb rules and entity contract** (`trigger_capture_area` + `misc_capture_area_indicator`), so the shipped `wbomb*` maps work unmodified. See §2.6 for the surveyed map data and §11.3 for the extraction contract.
@@ -270,10 +270,10 @@ interface Consideration {
 | `carrier_protect` | `carrierProtect` | proximity to carrier, weighted by their exposure |
 | `map_control` | `mapControl` | node strength (height, choke, item neighborhood) |
 | `target_opportunity` | `aggression` | enemy reachable, weak, or isolated |
-| `route_cost` | *(null)* | inverse of travel cost — physics, not policy |
-| `danger` | *(null)* | exposure + damage heat, suppressed by `riskTolerance` |
+| `route_cost` | *(null, **discount**)* | inverse of travel cost — physics, not policy |
+| `danger` | *(null, **discount**)* | exposure + damage heat, suppressed by `riskTolerance` |
 
-`route_cost` and `danger` are deliberately **not** gametype-weighted. Route cost is physics. Danger is a suppressor scaled by `riskTolerance` rather than a peer goal — otherwise "avoid danger" competes with "push objective" as an equal, which is the wrong relationship.
+Everything above except the last two rows is an **attractor**; those two are **discounts** (§6.3). Neither is gametype-weighted: route cost is physics, and danger is a suppressor scaled by `riskTolerance` rather than a peer goal — otherwise "avoid danger" competes with "push objective" as an equal, which is the wrong relationship.
 
 ### 5.1 Normalization is part of the contract
 
@@ -318,14 +318,32 @@ Where weighted-consideration systems usually fail, so it needs an explicit decis
 - **Weighted max `max(wᵢcᵢ)`** — no additive pathology, but nothing compounds.
 - **Multiplicative `Π cᵢ^wᵢ`** — any zero vetoes everything (right for gates, wrong for soft pulls), and with many terms the product decays toward zero regardless of quality.
 
-**Proposed — gated weighted max with a small secondary term:**
+**Adopted — gated weighted max over ATTRACTORS, multiplied by DISCOUNTS:**
 
 ```text
-desire(goal) = gate(goal) × [ max_i(wᵢ·cᵢ) + β · mean_{i≠argmax}(wᵢ·cᵢ) ]
+desire(goal) = gate × attraction × discount
 
-gate(goal) ∈ {0,1}   reachable? alive? correct phase? not on cooldown?
-β ≈ 0.15             secondaries nudge ties, never dominate
+attraction = max_i(wᵢ·cᵢ) + β · mean_{i≠argmax}(wᵢ·cᵢ)   over attractors only
+discount   = Π(discount considerations)                   each 0..1
+
+gate ∈ {0,1}   reachable? alive? correct phase? not on cooldown? server will allow it?
+β ≈ 0.15       secondaries nudge ties, never dominate
 ```
+
+**The attractor/discount split is load-bearing, and an earlier draft of this
+document got it wrong.** Listing `route_cost` and `danger` as ordinary
+considerations inside the max means proximity becomes a *reason* to want
+something: a 5 HP bubble two steps away scores ~1.0 on route and beats a Mega
+across the room. Being close is not a reason to want a thing — it only makes a
+thing you already want cheaper. So considerations declare a role:
+
+- **attractor** — a reason to pursue the goal (`item_value`, `item_denial`,
+  later `objective_push`, `team_cohesion`). These compete for the maximum.
+- **discount** — a reason it is expensive or unwise (`route_cost`, `danger`).
+  These multiply, and can only ever scale down a reason that already exists.
+
+Discounts are never gametype-weighted: route cost is physics, and danger is
+scaled by `riskTolerance` inside its own curve rather than by a policy weight.
 
 plus the stickiness §4.1 already calls for:
 
@@ -665,19 +683,28 @@ What "perfected" means, in testable terms rather than vibes:
 
 Each phase is independently shippable and independently valuable. Dependencies are explicit.
 
-### Phase 1 — Goal currency and item desire
+### Phase 1 — Goal currency and item desire ✅ LANDED
 *No gametype involvement. No protocol change. Fixes today's bots including quad.*
 
-- `BotGoal` record, stable ids (§6.4), `GoalArbiter` with gated weighted max + hysteresis (§6.3).
-- `Consideration` interface, normalization contract (§5.1).
-- Five considerations: `item_value`, `item_denial`, `route_cost`, `danger`, `target_opportunity`.
-- `VisiblePickup` gains `kind`; bot pickup knowledge keeps the `PickupTable` identity it currently discards.
-- Euclidean × detour route estimate; exact A* for the winner only (§7.4 step 1).
-- `executionModeFor()` mapping goals onto the existing `BotState` executors (§7.2). **No executor is rewritten.**
-- Decision explanation string (§6.5) + `bot_goal_arbiter` cvar (§7.7).
-- Golden-scenario fixtures (§7.6).
+- `BotGoal` record with stable ids (§6.4); `GoalArbiter` with the §6.3 rule + hysteresis.
+- `Consideration` interface with the attractor/discount role split and the 0..1 contract (§5.1).
+- Four considerations: `item_value`, `item_denial`, `route_cost`, `danger`.
+- Euclidean × detour route estimate, injected into the context (§7.4 step 1).
+- `_selectItemGoal()` feeding the existing `_navigateTo`. **No executor rewritten**, ladder untouched.
+- Decision explanation string (§6.5) surfaced through `getNavigationDebug()`.
+- Golden-scenario fixtures + per-consideration contract tests (§7.6).
 
-**Acceptance:** quad/mega/red armor rank correctly over a 5 HP bubble with no item-specific branches; no goal thrashing; every decision explains itself; legacy ladder still selectable.
+**Deviations from the plan above, discovered while implementing:**
+
+- **`target_opportunity` deferred.** Phase 1 was scoped to items only, so combat never enters the arbiter and the reflex boundary (D3) stays unforced.
+- **`VisiblePickup` did NOT need `kind`.** The static pickup table reaching the bot (`BotVision.mapKnowledge.pickupPositions`) is already a full `PickupEntry[]` carrying `id`/`type`/`kind`/`amount`; the identity was being discarded by `findNearestItem()`, not missing from the data. Only dropped weapons lack a kind, and they are weapons by construction.
+- **No cvar.** `Cvar` does not exist in the bot process (it is a Node process). The toggle is `BotOptions.goalArbiter` defaulting from `BOT_GOAL_ARBITER`, following the `BOT_NAV_CACHE_DIR` precedent — and it is better, because `BotServer`'s control API can then A/B two bots inside one match.
+- **`executionModeFor()` was unnecessary.** Item goals map onto the existing `_navigateTo(position)`, which already caches paths and handles target changes. The mapping table only becomes useful when non-item goal kinds exist.
+- **RETREAT keeps a `health`-only candidate filter.** Without it the arbiter correctly ranks Yellow Armor above a medium health at 20 HP (50 armor is ~59 effective HP vs 45), which is a fine deathmatch judgement and the wrong answer for a bot that is fleeing. Filtering the candidate set is honest; distorting `item_value` to fake it would not be.
+- **`POINTS_FULL_VALUE` is 150, not 100.** Normalizing health/armor gain against 100 let a Mega saturate at 1.0, so nothing — including Quad — could outrank it. Headroom above the largest ordinary pickup is required for the top of the scale to mean anything.
+- **Health urgency ramps from 50 HP, not from 100.** Ramping from full health made a 60 HP bot value a Mega as highly as a Quad.
+
+**Acceptance met:** quad/mega/red armor rank correctly over a 5 HP bubble with no item-specific branch anywhere in the scoring path; overcap items are gated rather than merely unattractive; no goal thrashing (commitment fixture); every decision explains itself; legacy ladder selectable via `BOT_GOAL_ARBITER=legacy`.
 
 ### Phase 2 — Weights
 *Still no protocol change.*

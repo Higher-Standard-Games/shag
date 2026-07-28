@@ -20,7 +20,13 @@ import { MessageCodec, MessageType } from "../engine/network/protocol/MessageCod
 import type { BotBrain, BotInput } from "./BotBrain";
 // HybridBrain is imported dynamically — requires @tensorflow/tfjs-node native addon
 // import { HybridBrain } from './HybridBrain';
-import { type BotDifficulty, type BotOptions, getDifficultyModelDir, resolveDifficulty } from "./BotConfig";
+import {
+  type BotDifficulty,
+  type BotOptions,
+  defaultGoalArbiterMode,
+  getDifficultyModelDir,
+  resolveDifficulty,
+} from "./BotConfig";
 import type { BotEpisodeRecorder } from "./BotEpisodeRecorder";
 import { applyFriendlyFireSafety } from "./BotFireSafety";
 import { BotGameState } from "./BotGameState";
@@ -112,7 +118,7 @@ export class BotClient extends EventEmitter {
     this._difficulty = resolveDifficulty(options.difficulty);
 
     // Default to StateMachineBrain (no TF.js dependency)
-    this._brain = new StateMachineBrain(this._difficulty);
+    this._brain = new StateMachineBrain(this._difficulty, options.goalArbiter ?? defaultGoalArbiterMode());
 
     // If modelDir is specified, try to load HybridBrain (requires TF.js)
     if (options.modelDir) {

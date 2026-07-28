@@ -15,7 +15,7 @@
 
 import { DEFAULT_VIEWHEIGHT } from "../engine/physics/PlayerPhysicsConstants";
 import { BotBrain, type BotInput, BotState } from "./BotBrain";
-import { type BotDifficulty, InputButtons } from "./BotConfig";
+import { type BotDifficulty, defaultGoalArbiterMode, type GoalArbiterMode, InputButtons } from "./BotConfig";
 import type { BotGameState, Vec3, VisiblePlayer } from "./BotGameState";
 import { vec3Length, vec3Normalize, vec3Subtract } from "./BotGameState";
 import { canInitiateSlide, PHYSICS } from "./BotMovementProfile";
@@ -23,6 +23,8 @@ import { type BotNavGraph, type NavPath, type NavStep, navEdgeKey } from "./BotN
 import { BotSequenceRegistry, BotSequenceRuntime, type BotSequenceRuntimeTick } from "./BotSequence";
 import type { BotVision, VisionResult } from "./BotVision";
 import { getWeaponProfile, selectBestWeapon, type WeaponProfile } from "./BotWeaponProfile";
+import type { BotGoal } from "./goals/BotGoal";
+import { ItemGoalPlanner } from "./goals/ItemGoalPlanner";
 import { ItemSlideApproachSequence } from "./sequences/ItemSlideApproachSequence";
 import { RouteCrouchslideSequence } from "./sequences/RouteCrouchslideSequence";
 import { RouteStrafeJumpSequence } from "./sequences/RouteStrafeJumpSequence";
@@ -67,6 +69,9 @@ const ITEM_SLIDE_MAX_DISTANCE = 760;
 const ITEM_SLIDE_MAX_VELOCITY_ERROR_RADIANS = Math.PI / 6;
 const ITEM_SLIDE_ALLY_RADIUS = 80;
 const PICKUP_FAILURE_COOLDOWN_TICKS = 625;
+
+/** RETREAT wants healing, not shopping — see ItemGoalPlannerOptions.typeFilter. */
+const RETREAT_ITEM_TYPES: ReadonlySet<string> = new Set(["health"]);
 
 const BOT_STRAFE_RETRY_TICKS = 30;
 const ROUTE_STRAFE_MIN_REMAINING_DISTANCE = 640;
@@ -117,8 +122,16 @@ export class StateMachineBrain extends BotBrain {
   private readonly _blockedPickupIds = new Map<number, number>();
   private _activeItemSlideTarget: { pickupId: number; position: Vec3 } | null = null;
 
-  constructor(difficulty: BotDifficulty) {
+  // Scored item-goal selection (docs/research/BOT_WEIGHTS_AND_GOALS.md Phase 1).
+  // Replaces "nearest pickup wins" for WHICH item to fetch; the state ladder
+  // above still decides WHETHER to fetch one.
+  private readonly _itemGoalPlanner = new ItemGoalPlanner();
+  private readonly _goalArbiterMode: GoalArbiterMode;
+  private _activeItemGoal: BotGoal | null = null;
+
+  constructor(difficulty: BotDifficulty, goalArbiterMode: GoalArbiterMode = defaultGoalArbiterMode()) {
     super(difficulty);
+    this._goalArbiterMode = goalArbiterMode;
     this._huntYaw = Math.random() * Math.PI * 2;
     this._sequenceRegistry.register(new RouteCrouchslideSequence());
     this._sequenceRegistry.register(new ValidatedJumpSequence());
@@ -143,9 +156,13 @@ export class StateMachineBrain extends BotBrain {
       return `${sequence} remaining=${remaining}`;
     }
     if (this._pathBlockedReason) return `blocked=${this._pathBlockedReason}`;
-    if (!this._currentPath || !this._activeNavStep) return null;
+    if (!this._currentPath || !this._activeNavStep) {
+      // No path to describe, but a scored goal choice is still worth surfacing.
+      return this._activeItemGoal ? this._itemGoalPlanner.explain : null;
+    }
     const remaining = this._currentPath.steps.length - this._currentPath.cursor;
-    return `step=${this._activeNavStep} remaining=${remaining}`;
+    const nav = `step=${this._activeNavStep} remaining=${remaining}`;
+    return this._activeItemGoal ? `${nav} ${this._itemGoalPlanner.explain}` : nav;
   }
 
   isSequenceActive(): boolean {
@@ -176,6 +193,10 @@ export class StateMachineBrain extends BotBrain {
       this._interruptSequence(state, "dead", true);
       this._currentPath = null; // Clear path on death
       this._huntPatrolTarget = null;
+      // Drop goal commitment too — the item that was worth crossing the map for
+      // at 30 HP is a different proposition after respawning at 100.
+      this._itemGoalPlanner.reset();
+      this._activeItemGoal = null;
       // Clear vision cache on death
       if (vision) vision.clearCache();
       return this._noInput(state);
@@ -550,6 +571,13 @@ export class StateMachineBrain extends BotBrain {
   // ── RETREAT State ─────────────────────────────────────────────────
 
   private _executeRetreat(state: BotGameState): BotInput {
+    // Scored choice among HEALTH ONLY. Retreating is a specific intent, so the
+    // candidate set is filtered rather than left open — but within health the
+    // arbiter still beats "nearest": it accounts for overcap (a bubble at 98 HP
+    // is worthless), route cost, and mega vs. medium.
+    const healthGoal = this._selectItemGoal(state, RETREAT_ITEM_TYPES);
+    if (healthGoal) return this._navigateTo(state, healthGoal.position, true);
+
     // Try NavGraph path to nearest health (cached via _navigateToItem)
     if (this._navGraph) {
       const result = this._navigateToItem(state, "health", true);
@@ -600,6 +628,14 @@ export class StateMachineBrain extends BotBrain {
   // ── ITEM_RUN State ────────────────────────────────────────────────
 
   private _executeItemRun(state: BotGameState): BotInput {
+    // Scored choice first: value, denial, route and danger decide which item,
+    // instead of the fixed weapon > health > armor > ammo ordering below (which
+    // took the nearest of whichever type came first, so a 5 HP bubble could
+    // outrank Red Armor). Falls through to the legacy path when disabled or
+    // when nothing scores.
+    const goal = this._selectItemGoal(state);
+    if (goal) return this._navigateTo(state, goal.position, false);
+
     // Try NavGraph path to nearest item (weapon > health > armor > ammo)
     // Uses cached _navigateToItem to avoid A* every tick
     if (this._navGraph) {
@@ -870,6 +906,38 @@ export class StateMachineBrain extends BotBrain {
    * Caches the path to avoid running A* every tick.
    * Returns null if no path to item found.
    */
+  /**
+   * Choose WHICH item to fetch, by score rather than by distance.
+   *
+   * Returns null when the arbiter is disabled, when map pickup knowledge is not
+   * loaded, or when nothing is worth going for — callers then fall through to
+   * the legacy path, so a bot is never left standing still by this returning
+   * nothing.
+   */
+  private _selectItemGoal(state: BotGameState, typeFilter?: ReadonlySet<string>): BotGoal | null {
+    if (this._goalArbiterMode === "legacy") return null;
+    const pickupPositions = this._lastBotVision?.mapKnowledge.pickupPositions;
+    if (!pickupPositions || pickupPositions.length === 0) return null;
+
+    // Expire failure cooldowns first so a previously-blocked item can return.
+    for (const [pickupId, retryTick] of this._blockedPickupIds) {
+      if (state.tick >= retryTick) this._blockedPickupIds.delete(pickupId);
+    }
+
+    const result = this._itemGoalPlanner.select(state, {
+      pickupPositions,
+      maxDistance: PICKUP_SEEK_RANGE,
+      blockedPickupIds: new Set(this._blockedPickupIds.keys()),
+      typeFilter,
+    });
+
+    this._activeItemGoal = result.goal;
+    if (this._goalArbiterMode === "verbose" && result.goal) {
+      console.log(`[bot] ${result.explain}`);
+    }
+    return result.goal;
+  }
+
   private _navigateToItem(state: BotGameState, itemType: string, urgent: boolean): BotInput | null {
     if (!this._navGraph) return null;
 
