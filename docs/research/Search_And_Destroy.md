@@ -3,7 +3,7 @@
 > A round-based bomb-and-defuse gametype, Warsow Bomb compatible, designed to put the bot goal framework under real load.
 
 **Date:** 2026-07-28
-**Status:** Design. No implementation.
+**Status:** Design, with S1 (`BombSiteTable`) implemented and verified against all six shipped bomb maps.
 **Scope:** `src/games/fps/server/gametypes`, `src/shared/bsp`, `src/shared/bot`
 **Depends on:** [`BOT_WEIGHTS_AND_GOALS.md`](BOT_WEIGHTS_AND_GOALS.md) Phases 1–4 (landed)
 
@@ -142,11 +142,22 @@ Distances are spawn-centroid to site, with times at run speed (400 ups) and sust
 
 ### 4.1 Which team defends is not what the naming suggests
 
-**On five of six maps, `team_CTF_alphaspawn` is dramatically closer to both bombsites than `team_CTF_betaspawn`** — wbomb1 is the extreme at 729 vs 3857 units. `team_CTF_alphaflag` also sits essentially *on* a bombsite (188 u on wbomb1, 315 on wbomb3, 627 on wbomb4).
+**On all six maps, `team_CTF_alphaspawn` is closer to the nearest bombsite than `team_CTF_betaspawn`** — wbomb1 is the extreme at 729 vs 3558 units. `team_CTF_alphaflag` also sits essentially *on* a bombsite (188 u on wbomb1, 315 on wbomb3, 627 on wbomb4).
+
+Confirmed by running the implemented `validateBombRoles()` over every shipped bomb map with beta as attacker: it passes 6/6.
+
+| Map | attacker→nearest site | defender→nearest site |
+|---|---|---|
+| wbomb1 | 3558 | 729 |
+| wbomb2 | 3377 | 2919 |
+| wbomb3 | 3653 | 1249 |
+| wbomb4 | 3569 | 908 |
+| wbomb5 | 3255 | 1952 |
+| wbomb6 | 3970 | 2212 |
+
+wbomb2 is the narrowest margin and was described as "roughly symmetric" from the per-site figures; on the nearest-site metric the direction is still unambiguous.
 
 In CS and CoD the sites live in the **defenders'** half; attackers cross the map. So the geometry says **alpha's base contains the objectives, and alpha therefore defends** — regardless of what the name suggests about which team "goes first".
-
-wbomb2 is the exception, roughly symmetric (2919/3925 vs 3955/3377).
 
 > **Implication:** getting this backwards makes every map unplayable in a way that is easy to miss in code review and obvious the moment you load in — attackers would spawn on top of the objective and plant in under a second.
 >
@@ -285,11 +296,63 @@ Honest list, because these will show up immediately in playtest:
 
 ---
 
+## 7.4 Existing machinery to reuse
+
+Consolidated here because it is scattered through the sections above and it is
+what makes the work smaller than §6 implies. None of this needs inventing.
+
+| Need | Reuse | Why it fits |
+|---|---|---|
+| Per-round item reset | `PickupSystem.resetForMatch(tick)` | Restores every pickup and re-arms the first-spawn delay. Named for matches; it is exactly a round reset. |
+| Shared site identity | The `PickupTable` pattern | Server and bots derive identical ids from identical BSP bytes, with no handshake. Bomb sites need precisely this guarantee. |
+| Site containment test | `PickupSystem`'s `PICKUP_RADIUS_SQ` + `VERTICAL_RANGE_MIN`/`MAX` | Already the cylinder shape §3.3 requires, rather than a sphere. |
+| Bomb carrier visual | `PlayerModelManager.applyPowerupGlow()` | Built for the Quad carrier; writes only emissive + outline, so it is cheap per frame. |
+| Deterministic bomb assignment | `rngFrom(tick, id, salt)` | The same seeded RNG spawn selection uses, so re-simulation and demos agree. |
+| Plant / defuse channels | `BotSequence` runtime | Already models commitment windows, abort conditions and authoritative confirmation — the exact shape of a channelled action. |
+| Round role → bot policy | `selectWeightProfile(gametype, role, roundState)` | The `gametype:role:roundState` key scheme was designed for this and is landed. |
+| Per-player orders | `BaseGametype.getAgentDirectives()` | Landed in Phase 4, including per-client delivery. |
+| Match config overrides | `SHAG_TIMELIMIT` env pattern | Every §4.2 timing wants to be tunable in playtest without a rebuild. |
+
+## 7.5 Verified vs. assumed
+
+Being explicit, because §4.2's timings read like facts and are not.
+
+**Measured from the shipped pk3s** — entity counts and classnames per map, site
+volume extents, the 384 radius corroboration, spawn-to-site and site-to-site
+distances, and which team spawns nearer the objectives.
+
+**Read from the codebase** — the seven gaps in §6, and every reuse in §7.4.
+
+**Known from the reference games** — the CS/CoD/Warsow comparison in §2.1.
+
+**Reasoned, not verified** — every timing in §4.2. They are derived from measured
+geometry rather than copied from CS, which makes them better starting points, not
+correct ones. The strafe-jump figure (~1100 ups) is a sustained-speed assumption;
+real routes are longer than straight lines, so traversal times are lower bounds.
+
+**Inferred and needs confirmation** — that alpha is the defending team (§4.1).
+The geometry is unambiguous on five of six maps, but geometry is evidence about
+the *maps*, not about Warsow's convention. Confirm against Warsow's gametype
+source or by loading a map; the §4.1 load-time assertion is worth keeping either
+way.
+
 ## 8. Implementation order
 
 Each step should be independently verifiable, and the early ones are useful even if the mode stalls.
 
-**S1 — `BombSiteTable`.** Shared extraction per §3, with fixtures covering all three authoring styles: volumes + names (wbomb1), `bombsite[ab]` naming (wbomb5), and bare indicators (wbomb2/3/4). Plus `isBombMap()`. *No gameplay yet — this is pure data and fully testable.*
+**S1 — `BombSiteTable`. ✅ DONE.** `src/shared/bsp/BombSiteTable.ts` + 24 tests.
+Shared extraction per §3, with fixtures for all three authoring styles: volumes +
+names (wbomb1), `bombsite[ab]` naming (wbomb5), and bare indicators (wbomb3).
+Also `isBombMap()`, `extractTeamSpawns()`, `isInsideBombSite()` (cylinder, per
+§3.3) and `validateBombRoles()` (§4.1).
+
+Verified against the real BSPs of all six bomb maps: 2 sites each, volume counts
+1/1, 0/0, 0/0, 0/0, 4/2, 4/3, and wbomb6 labelled B/A exactly as the
+out-of-order prediction said. `wdm4`/`wdm9`/`wdm2` correctly rejected.
+
+Unit tests use fixtures rather than reading pk3s, so they run wherever the suite
+does; the real-map check was a one-off verification, since no existing test
+depends on map assets being present.
 
 **S2 — Team spawns (G3, G4).** Parse `team_CTF_*spawn`, implement `TeamSpawnStrategy.choose()`, wire `setTeamPoints()`. **Benefits TDM immediately**, independent of S&D, and includes the §4.1 role-vs-geometry validation.
 
