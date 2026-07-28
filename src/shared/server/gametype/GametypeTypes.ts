@@ -174,6 +174,46 @@ export interface MatchWinner {
 }
 
 /**
+ * The bomb, as the client needs to draw it.
+ *
+ * Positions are world space so the HUD can point at them and the world can put
+ * a model there. No rules travel — the client is told what is true, never how
+ * it was decided.
+ */
+export interface BombObjectiveSnapshot {
+  kind: "bomb";
+  /** See `BombPhase`. Sent as a string so the client needs no enum. */
+  phase: string;
+  x: number;
+  y: number;
+  z: number;
+  /** Site the bomb is planted at, or null. */
+  siteId: number | null;
+  /** Client entity key of the carrier, or null when nobody holds it. */
+  carrier: string | null;
+  /** Arm/defuse progress, 0..1. */
+  progress: number;
+  /** True while progress is rising — the HUD draws a falling bar differently. */
+  advancing: boolean;
+  /** Seconds to detonation, or null when not armed. */
+  fuse: number | null;
+  /** Seconds between beeps at the current fuse length, or null. */
+  beepInterval: number | null;
+  /**
+   * The sites, for site markers. Static per map, and re-sent every snapshot
+   * because `match_state` is the variable-shape JSON channel — two entries, so
+   * cheaper than a separate delivery path would be to maintain.
+   */
+  sites: Array<{ id: number; label: string; x: number; y: number; z: number }>;
+}
+
+/**
+ * Whatever a mode's objective currently is. A union so CTF can join later
+ * without another optional field on the snapshot.
+ */
+export type ObjectiveSnapshot = BombObjectiveSnapshot;
+
+/**
  * Lightweight match state sent to clients for HUD display.
  * Keeps game rules server-side; client only knows what to display.
  */
@@ -203,4 +243,6 @@ export interface MatchStateSnapshot {
   teamRoles?: Record<string, string>;
   /** Round lifecycle for objective modes ("pre_plant"/"post_plant"). */
   roundState?: string;
+  /** The mode's objective, for modes that have one. */
+  objective?: ObjectiveSnapshot;
 }

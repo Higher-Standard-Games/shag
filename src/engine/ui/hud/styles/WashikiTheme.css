@@ -3568,3 +3568,85 @@
   background: linear-gradient(100deg, hsla(42, 96%, 56%, 0.4), hsla(42, 96%, 46%, 0.2));
   border-left: 0;
 }
+
+/* ============================================================================
+   Bomb Status (Search & Destroy)
+
+   Sits under the round timer. Borrows the powerup slab's print language —
+   clipped parallelogram, hard drop shadow — so an objective reads as part of
+   the same HUD rather than bolted on.
+   ============================================================================ */
+
+.fps-bomb-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(3px * var(--ui-scale, 1));
+  margin-top: calc(6px * var(--ui-scale, 1));
+  pointer-events: none;
+}
+
+.fps-bomb-status-phase {
+  padding: calc(3px * var(--ui-scale, 1)) calc(16px * var(--ui-scale, 1)) calc(5px * var(--ui-scale, 1));
+  clip-path: polygon(3% 0, 100% 0, 97% 100%, 0 100%);
+  background: linear-gradient(178deg, hsl(210, 14%, 88%), hsl(210, 12%, 74%) 70%), var(--w-scan-cream);
+  font-family: var(--w-font-display);
+  font-size: calc(14px * var(--ui-scale, 1));
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: hsl(246, 40%, 8%);
+  box-shadow: calc(4px * var(--ui-scale, 1)) calc(5px * var(--ui-scale, 1)) 0 hsla(250, 45%, 4%, 0.55);
+  filter: var(--w-drop-print-sm);
+}
+
+/* Armed — the round has inverted. Red, and it should be impossible to miss. */
+.fps-bomb-status--armed .fps-bomb-status-phase {
+  background: linear-gradient(178deg, hsl(2, 92%, 62%), hsl(356, 84%, 48%) 72%), var(--w-scan-cream);
+  color: hsl(48, 100%, 95%);
+  text-shadow: calc(1px * var(--ui-scale, 1)) calc(1px * var(--ui-scale, 1)) 0 hsla(0, 60%, 12%, 0.8);
+}
+
+.fps-bomb-status-fuse {
+  font-family: var(--w-font-display);
+  font-size: calc(28px * var(--ui-scale, 1));
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  color: hsl(2, 92%, 66%);
+  text-shadow: calc(2px * var(--ui-scale, 1)) calc(2px * var(--ui-scale, 1)) 0 hsla(250, 45%, 4%, 0.75);
+}
+
+/* Last ten seconds — the same pulse the powerup timer uses when it lapses. */
+.fps-bomb-status--urgent .fps-bomb-status-fuse {
+  animation: fps-bomb-status-urgent 0.4s ease-in-out infinite;
+}
+
+@keyframes fps-bomb-status-urgent {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+.fps-bomb-status-meter {
+  width: calc(180px * var(--ui-scale, 1));
+  height: calc(8px * var(--ui-scale, 1));
+  background: hsla(250, 45%, 4%, 0.6);
+  box-shadow: inset 0 0 0 calc(1px * var(--ui-scale, 1)) hsla(210, 14%, 88%, 0.35);
+}
+
+.fps-bomb-status-meter-fill {
+  height: 100%;
+  background: hsl(48, 100%, 58%);
+  transition: width 80ms linear;
+}
+
+/* Falling, because nobody is on the bomb. Distinct colour rather than only a
+   shrinking width: the DIRECTION is the information — it tells a defender how
+   long they have to interrupt, and an attacker that their site is empty. */
+.fps-bomb-status-meter-fill--decaying {
+  background: hsl(210, 12%, 60%);
+}
