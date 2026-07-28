@@ -272,7 +272,7 @@ export class GoalArbiter {
     const via = trace.via ?? "?";
     const viaRaw = trace.features[via] ?? 0;
     const parts = [
-      `goal=${goal.id}(${goal.item.type}:${goal.item.kind})`,
+      `goal=${goal.id}(${goal.item ? `${goal.item.type}:${goal.item.kind}` : goal.kind})`,
       `desire=${trace.desire.toFixed(2)}`,
       `via=${via}(${viaRaw.toFixed(2)})`,
       `route=${(trace.features.route_cost ?? 1).toFixed(2)}`,

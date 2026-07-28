@@ -11,10 +11,18 @@
  */
 
 import type { PickupType } from "../../shared/bsp/PickupTable";
+import type { AgentDirective } from "../../shared/server/gametype";
 import type { Vec3 } from "../BotGameState";
 
-/** Goal kinds. Phase 1 implements only `acquire_item`. */
-export type BotGoalKind = "acquire_item";
+/**
+ * Goal kinds.
+ *
+ * `acquire_item` is generated locally from map knowledge; the rest come from
+ * gametype directives and mirror `AgentDirectiveKind`. They share one arbiter
+ * and one score currency, which is the entire point: an S&D bot must be able to
+ * decide that planting outranks a Red Armor without either being special-cased.
+ */
+export type BotGoalKind = "acquire_item" | "move_to" | "hold_area" | "defend" | "escort";
 
 /** What the goal is about, for considerations to score. */
 export interface GoalItem {
@@ -38,11 +46,16 @@ export interface BotGoal {
   id: string;
   kind: BotGoalKind;
   position: Vec3;
-  item: GoalItem;
+  /** Present only for `acquire_item`. */
+  item?: GoalItem;
   /** Static map pickup id (PickupEntry.id) — shared with the server. */
   pickupId?: number;
   /** Snapshot entity id, for dropped weapons (which have no static id). */
   entityId?: string;
+  /** The gametype order this goal came from, for directive-backed kinds. */
+  directive?: AgentDirective;
+  /** How close counts as "there". Directive-supplied; items use pickup radius. */
+  radius?: number;
 }
 
 /** Stable id for a static map pickup. */
@@ -53,4 +66,15 @@ export function staticItemGoalId(pickupId: number): string {
 /** Stable id for a dropped weapon lying in the world. */
 export function droppedItemGoalId(entityId: string): string {
   return `item:dropped:${entityId}`;
+}
+
+/**
+ * Stable id for a directive-backed goal.
+ *
+ * Derived from the DIRECTIVE's id, which the gametype guarantees is stable per
+ * objective — so commitment survives the order being re-issued every snapshot,
+ * which is exactly how a mode keeps a long-running objective alive.
+ */
+export function directiveGoalId(directiveId: string): string {
+  return `objective:${directiveId}`;
 }

@@ -3,7 +3,7 @@
 > Gametype-defined behavioural weights, a common goal currency, and the road to objective modes bots can actually play.
 
 **Date:** 2026-07-28
-**Status:** Phases 1–3 landed (see §13); Phases 4–6 are design research.
+**Status:** Phases 1–4 landed (see §13); Phases 5–6 are design research. Phase 6 (Search & Destroy) is the next slice.
 **Scope:** `src/bot`, `src/shared/server/gametype`, `src/games/fps/server/gametypes`
 
 **Stated requirement:** the eventual Search & Destroy mode must be **compatible with Warsow's Bomb rules and entity contract** (`trigger_capture_area` + `misc_capture_area_indicator`), so the shipped `wbomb*` maps work unmodified. See §2.6 for the surveyed map data and §11.3 for the extraction contract.
@@ -744,16 +744,27 @@ Each phase is independently shippable and independently valuable. Dependencies a
 
 **Acceptance met:** an item in a disconnected component is gated `unreachable` even when it is physically nearer than a reachable rival; a detour item is priced by walking distance rather than straight line; the matrix invalidates on reload; and with no nav graph the pre-Phase-3 behaviour is reproduced exactly (documented by test).
 
-### Phase 4 — Directives
-*BOT_IMPROVEMENT Phase 5, unchanged in intent.*
+### Phase 4 — Directives ✅ LANDED
+*BOT_IMPROVEMENT Phase 5, finally implemented. The first phase to touch server code and the wire.*
 
-- Shared `AgentDirective`; optional pure `BaseGametype.getAgentDirectives()`.
-- Per-client injection via `SnapshotBroadcaster` (§2.4); bot accepts only directives addressed to itself.
-- Directive→goal mapping with expiry and `interrupt` semantics.
-- Team considerations land here: `team_cohesion`, `carrier_protect`, `objective_push`, `objective_urgency`.
-- One TDM directive as the proving case.
+- `shared/server/gametype/AgentDirective.ts`: kinds (`move_to`/`hold_area`/`defend`/`escort`), targets (position or player), priority, urgency, expiry, interrupt policy.
+- Pure `BaseGametype.getAgentDirectives(context, state)`, default `[]`.
+- `GametypeController.collectAgentDirectives()` — once per snapshot per living player, wrapped so a throwing gametype cannot take the server down mid-snapshot.
+- Per-client injection in `SnapshotBroadcaster`: event code 20, JSON payload, appended only to the addressed client's snapshot.
+- `BotGameState.directives` + `collectDirectiveGoals()`; directive goals compete with item goals through the same arbiter and currency.
+- Four new considerations: `objective_push`, `objective_urgency`, `team_cohesion`, `carrier_protect`.
+- TDM regroup order as the proving case.
 
-**Acceptance:** a single TDM directive ("hold red armor") measurably changes bot positioning; directives never bypass fire safety or navigation feasibility.
+**Deviations from the plan, discovered while implementing:**
+
+- **The proving case is regroup, not "hold red armor".** A directive at an item position needs the gametype to know where items are, which it does not — pickups are not entities and `PickupSystem` owns the table. Regroup needs only positions and teams, so it works on every map with no authoring, and it exercises `team_cohesion` directly.
+- **`AgentDirectiveContext` needed a `teamOf(playerId)` resolver.** Team membership lives in `MatchState`, not on the entity, so a team-based mode reasoning about "my teammates" could not get there from `WorldState` alone. The first draft faked it by reading a `teamId` field off the entity that does not exist. S&D would have hit this immediately.
+- **Goal selection had to be memoized per decision.** `_executeItemRun` falls through to `_executeHunt`, and both now ask for a goal — so the arbiter would run twice per decision. Not merely wasteful: `select()` advances the commitment window and rolls the mistake dice, so the second call could commit to a different goal than the one just returned.
+- **`BotGoal.item` became optional**, which forced every item consideration to abstain explicitly on directive goals. That abstention (`return 0`) is exactly how the shared-currency design is supposed to work, and it is now load-bearing rather than incidental.
+- **RETREAT ignores directives entirely.** An objective order must not drag a bot at 20 HP back into the fight it is fleeing. Same reasoning as the Phase 1 `typeFilter`: bound the candidate set for a specific intent rather than distort scores.
+- **A live directive is now reason enough to leave HUNT.** Without that the ladder would only consult the arbiter when `_shouldSeekItems` happened to be true, and a bot with orders and full health would stand around patrolling.
+
+**Acceptance met:** a TDM regroup directive changes which goal a bot pursues; the same directive is ignored entirely by a deathmatch profile (`objectivePush: 0`) and taken by an objective profile, from weights alone; directives are dropped when addressed to another player, expired, malformed, or naming a dead escort subject; a re-issued directive keeps its commitment because its id is stable; and RETREAT is unreachable by any order.
 
 ### Phase 5 — Reward and trace alignment
 *Prerequisite for any future ML work; no ML shipped here.*

@@ -775,6 +775,7 @@ export class BinaryProtocol {
     electro_rail: 17,
     powerup_state: 18,
     powerup_spawn: 19,
+    agent_directives: 20,
   };
 
   private static readonly EVT_NAME_MAP: string[] = [
@@ -798,6 +799,7 @@ export class BinaryProtocol {
     "electro_rail",
     "powerup_state",
     "powerup_spawn",
+    "agent_directives",
   ];
 
   private static encodeEvents(encoder: BinaryEncoder, state: GameState): void {
@@ -972,6 +974,14 @@ export class BinaryProtocol {
           encoder.writeFloat32(event.x ?? 0);
           encoder.writeFloat32(event.y ?? 0);
           encoder.writeFloat32(event.z ?? 0);
+          break;
+
+        // agent_directives: addressee + orders. Variable shape and low
+        // frequency (only for gametypes that issue them, only to the addressed
+        // client), so JSON like match_state rather than a bespoke layout.
+        case 20:
+          encoder.writeString(event.entityId ?? "");
+          encoder.writeString(JSON.stringify(event.directives ?? []));
           break;
       }
     }
@@ -1195,6 +1205,21 @@ export class BinaryProtocol {
             z: decoder.readFloat32(),
           });
           break;
+
+        case 20: {
+          // agent_directives
+          const entityId = decoder.readString();
+          const raw = decoder.readString();
+          let directives: unknown = [];
+          try {
+            directives = JSON.parse(raw);
+          } catch {
+            // A malformed payload must not poison the whole snapshot decode.
+            directives = [];
+          }
+          state.events.push({ type, entityId, directives });
+          break;
+        }
       }
     }
   }

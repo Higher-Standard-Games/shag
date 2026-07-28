@@ -20,12 +20,32 @@ import type { ConsiderationContext } from "./Consideration";
 import { Danger } from "./considerations/Danger";
 import { ItemDenial } from "./considerations/ItemDenial";
 import { ItemValue } from "./considerations/ItemValue";
+import { ObjectivePush, ObjectiveUrgency } from "./considerations/ObjectivePush";
 import { estimateRouteCost, RouteCost } from "./considerations/RouteCost";
+import { CarrierProtect, TeamCohesion } from "./considerations/TeamPlay";
+import { collectDirectiveGoals } from "./DirectiveGoalSource";
 import { type ArbitrationResult, GoalArbiter, type GoalGate, mistakeProbability } from "./GoalArbiter";
 import { collectItemGoals } from "./ItemGoalSource";
 
-/** Considerations in a fixed order — the order is the ML feature schema. */
-export const ITEM_CONSIDERATIONS = [ItemValue, ItemDenial, RouteCost, Danger] as const;
+/**
+ * Considerations in a fixed order — the order is the ML feature schema (§10.3),
+ * so append, never reorder.
+ *
+ * Item and objective considerations share one list because they share one
+ * currency. A consideration that has nothing to say about a goal returns 0 and
+ * abstains, which is what lets "plant the bomb" and "take the Red Armor" be
+ * compared at all without either being special-cased.
+ */
+export const ITEM_CONSIDERATIONS = [
+  ItemValue,
+  ItemDenial,
+  ObjectivePush,
+  ObjectiveUrgency,
+  TeamCohesion,
+  CarrierProtect,
+  RouteCost,
+  Danger,
+] as const;
 
 /**
  * Anything that can price a route. Structural rather than `BotNavGraph` so the
@@ -49,6 +69,7 @@ function buildGates(blockedPickupIds: ReadonlySet<number>): GoalGate[] {
     // would grant nothing is not merely worthless — it is uncollectable, and a
     // bot that walks to one stands on it forever.
     (goal, ctx) => {
+      if (!goal.item) return null; // directive goals have no grant to check
       const { type, kind } = goal.item;
       if (type === "health") {
         return healthAfterPickup(ctx.self.health, kind as HealthKind) > ctx.self.health ? null : "no_gain";
@@ -86,6 +107,13 @@ export interface ItemGoalPlannerOptions {
    * for ranking but cannot tell that an item is behind a wall.
    */
   navGraph?: RouteCostSource | null;
+  /**
+   * Skip gametype directives entirely.
+   *
+   * Used by RETREAT: fleeing to heal is a survival act, and an objective order
+   * must not drag a bot at 20 HP back into the fight it is escaping.
+   */
+  ignoreDirectives?: boolean;
   /**
    * Restrict candidates to these pickup types.
    *
@@ -152,7 +180,15 @@ export class ItemGoalPlanner {
     });
     if (options.typeFilter) {
       const allowed = options.typeFilter;
-      candidates = candidates.filter((c) => allowed.has(c.item.type));
+      candidates = candidates.filter((c) => c.item !== undefined && allowed.has(c.item.type));
+    }
+
+    // Gametype orders compete with items in the same currency. Deliberately NOT
+    // subject to `maxDistance` or `typeFilter`: those bound the item shopping
+    // list, and an objective is not shopping — a bomb site across the map is
+    // still the thing to do.
+    if (!options.ignoreDirectives) {
+      candidates = candidates.concat(collectDirectiveGoals(state));
     }
 
     const result = this.arbiter.select(

@@ -53,7 +53,11 @@ export const ItemValue: Consideration = {
   weightKey: "itemGreed",
 
   score(ctx: ConsiderationContext): number {
-    const { item } = ctx.goal;
+    // Directive-backed goals carry no item, so this consideration simply has
+    // nothing to say about them. Returning 0 is how a consideration abstains —
+    // the max picks whichever consideration DOES have something to say.
+    const item = ctx.goal.item;
+    if (!item) return 0;
     const self = ctx.self;
 
     switch (item.type) {

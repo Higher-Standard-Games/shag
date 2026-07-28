@@ -10,6 +10,7 @@
  */
 
 import type { GameState } from "../engine/network/core/GameState";
+import type { AgentDirective } from "../shared/server/gametype";
 
 // ── Vec3 helper (lightweight, no Babylon.js dependency) ─────────────────
 
@@ -222,6 +223,15 @@ export class BotGameState {
    */
   matchState: BotMatchState = { gametypeName: "", phase: 0 };
 
+  /**
+   * Orders addressed to THIS bot by the gametype, from `agent_directives`.
+   *
+   * Replaced wholesale each time one arrives, and pruned by expiry every tick,
+   * so a directive cannot outlive the server's intent even if the mode stops
+   * re-issuing it. Empty for every gametype that issues none.
+   */
+  directives: AgentDirective[] = [];
+
   // Recent events (cleared each tick)
   recentDamage: BotDamageEvent[] = [];
   recentKills: BotKillEvent[] = [];
@@ -255,6 +265,13 @@ export class BotGameState {
     this.pickups = [];
     this.projectiles = [];
     this.recentKills = [];
+
+    // Drop directives the server's own expiry has passed. A bot must not keep
+    // executing an order the gametype has stopped issuing — expiry is the only
+    // guarantee that survives the mode crashing or the round ending.
+    if (this.directives.length > 0) {
+      this.directives = this.directives.filter((d) => snapshot.tick < d.expiresAtTick);
+    }
 
     // Prune old damage events (keep last 300 ticks for wasRecentlyDamaged)
     this.recentDamage = this.recentDamage.filter((d) => snapshot.tick - d.tick <= 300);
@@ -374,6 +391,15 @@ export class BotGameState {
                 : undefined,
             roundState: typeof evt.roundState === "string" ? evt.roundState : undefined,
           };
+          break;
+        }
+
+        case "agent_directives": {
+          // Only ever sent to the addressed client, but check anyway: a bot
+          // must never act on another player's orders, even by server bug.
+          const evt = event as { entityId?: unknown; directives?: unknown };
+          if (evt.entityId !== this.selfEntityId) break;
+          this.directives = Array.isArray(evt.directives) ? (evt.directives as AgentDirective[]) : [];
           break;
         }
 

@@ -30,7 +30,9 @@ export const ItemDenial: Consideration = {
   weightKey: "itemDenial",
 
   score(ctx: ConsiderationContext): number {
-    const base = denialValue(ctx.goal.item.type, ctx.goal.item.kind);
+    const item = ctx.goal.item;
+    if (!item) return 0;
+    const base = denialValue(item.type, item.kind);
     if (base <= 0) return 0;
 
     // Only worth contesting if there is somebody to contest it with.

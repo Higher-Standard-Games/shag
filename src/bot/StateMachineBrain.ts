@@ -128,6 +128,18 @@ export class StateMachineBrain extends BotBrain {
   private readonly _itemGoalPlanner: ItemGoalPlanner;
   private readonly _goalArbiterMode: GoalArbiterMode;
   private _activeItemGoal: BotGoal | null = null;
+  /**
+   * Per-decision memo for goal selection.
+   *
+   * `_executeItemRun` falls through to `_executeHunt`, which also asks for a
+   * goal — so without this the arbiter would run twice in one decision. That is
+   * not merely wasteful: `select()` advances the commitment window and rolls
+   * the mistake dice, so a double call could commit to a different goal than
+   * the one it just returned.
+   */
+  private _goalMemoTick = -1;
+  private _goalMemoKey = "";
+  private _goalMemoResult: BotGoal | null = null;
 
   constructor(difficulty: BotDifficulty, goalArbiterMode: GoalArbiterMode = defaultGoalArbiterMode()) {
     super(difficulty);
@@ -325,6 +337,13 @@ export class StateMachineBrain extends BotBrain {
 
     // Priority 4: Need items → go get them
     if (this._shouldSeekItems(state)) {
+      return BotState.ITEM_RUN;
+    }
+
+    // A live gametype order is reason enough to stop roaming. ITEM_RUN is the
+    // navigate-to-a-goal executor; the arbiter decides whether the order or an
+    // item actually wins, so this only says "there is somewhere to be".
+    if (state.directives.length > 0) {
       return BotState.ITEM_RUN;
     }
 
@@ -577,7 +596,7 @@ export class StateMachineBrain extends BotBrain {
     // candidate set is filtered rather than left open — but within health the
     // arbiter still beats "nearest": it accounts for overcap (a bubble at 98 HP
     // is worthless), route cost, and mega vs. medium.
-    const healthGoal = this._selectItemGoal(state, RETREAT_ITEM_TYPES);
+    const healthGoal = this._selectItemGoal(state, RETREAT_ITEM_TYPES, true);
     if (healthGoal) return this._navigateTo(state, healthGoal.position, true);
 
     // Try NavGraph path to nearest health (cached via _navigateToItem)
@@ -677,6 +696,12 @@ export class StateMachineBrain extends BotBrain {
 
   private _executeHunt(state: BotGameState): BotInput {
     this._huntTimer++;
+
+    // Prefer a scored goal over aimless patrol. Reached when the ladder falls
+    // through to HUNT but the arbiter still has something worth doing — an
+    // objective, or an item that did not meet _shouldSeekItems' cruder bar.
+    const goal = this._selectItemGoal(state);
+    if (goal) return this._navigateTo(state, goal.position, false);
 
     // Check if we know a last enemy position to investigate
     const huntTarget = this._getHuntTarget(state);
@@ -916,10 +941,25 @@ export class StateMachineBrain extends BotBrain {
    * the legacy path, so a bot is never left standing still by this returning
    * nothing.
    */
-  private _selectItemGoal(state: BotGameState, typeFilter?: ReadonlySet<string>): BotGoal | null {
+  private _selectItemGoal(
+    state: BotGameState,
+    typeFilter?: ReadonlySet<string>,
+    ignoreDirectives = false,
+  ): BotGoal | null {
     if (this._goalArbiterMode === "legacy") return null;
+
+    // One arbitration per decision, per distinct request shape.
+    const memoKey = `${typeFilter ? [...typeFilter].join(",") : "*"}|${ignoreDirectives ? 1 : 0}`;
+    if (this._goalMemoTick === state.tick && this._goalMemoKey === memoKey) {
+      return this._goalMemoResult;
+    }
+
     const pickupPositions = this._lastBotVision?.mapKnowledge.pickupPositions;
-    if (!pickupPositions || pickupPositions.length === 0) return null;
+    // Directives still stand without map pickup knowledge — an objective is not
+    // an item, and a bot with no nav cache must still follow its orders.
+    if ((!pickupPositions || pickupPositions.length === 0) && (ignoreDirectives || state.directives.length === 0)) {
+      return null;
+    }
 
     // Expire failure cooldowns first so a previously-blocked item can return.
     for (const [pickupId, retryTick] of this._blockedPickupIds) {
@@ -927,16 +967,20 @@ export class StateMachineBrain extends BotBrain {
     }
 
     const result = this._itemGoalPlanner.select(state, {
-      pickupPositions,
+      pickupPositions: pickupPositions ?? [],
       maxDistance: PICKUP_SEEK_RANGE,
       blockedPickupIds: new Set(this._blockedPickupIds.keys()),
       typeFilter,
+      ignoreDirectives,
       // Real graph distances when the map's nav graph is loaded, so an item
       // behind a wall is gated as unreachable instead of looking close.
       navGraph: this._navGraph,
     });
 
     this._activeItemGoal = result.goal;
+    this._goalMemoTick = state.tick;
+    this._goalMemoKey = memoKey;
+    this._goalMemoResult = result.goal;
     if (this._goalArbiterMode === "verbose" && result.goal) {
       console.log(`[bot] ${result.explain}`);
     }

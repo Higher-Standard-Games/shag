@@ -207,6 +207,19 @@ export interface PowerupStateEvent {
   seconds: number;
 }
 
+/**
+ * Gametype orders for ONE player. Sent only to the addressed client, so a
+ * human opponent never sees another team's tactics. Bots map these onto goals;
+ * human clients ignore them.
+ */
+export interface AgentDirectivesEvent {
+  type: "agent_directives";
+  entityId: string;
+  /** `AgentDirective[]` from shared/server/gametype; typed loosely here to keep
+   *  the engine's event union free of gametype imports. */
+  directives: unknown;
+}
+
 /** A powerup returned to the map. Broadcast to everyone, with its position. */
 export interface PowerupSpawnEvent {
   type: "powerup_spawn";
@@ -236,7 +249,8 @@ export type SnapshotEvent =
   | ChatSnapshotEvent
   | PickupNotifyEvent
   | PowerupStateEvent
-  | PowerupSpawnEvent;
+  | PowerupSpawnEvent
+  | AgentDirectivesEvent;
 
 const _warnedTypes = new Set<string>();
 
