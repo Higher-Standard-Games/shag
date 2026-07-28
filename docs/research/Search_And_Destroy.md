@@ -80,7 +80,7 @@ is a manifest bug, and finding it at startup beats finding it in a match.
 | Movement | Slow, counter-strafe, precise | Moderate, slide/mantle | **Very fast — strafe jump, dash, walljump, crouchslide** |
 | Respawn in round | No | No | No |
 | Round time | ~1:55 | ~2:30 | ~2:00 |
-| Bomb timer | 40 s | 45 s | ~35 s |
+| Bomb timer | 40 s | 45 s | 30 s |
 | Plant time | 3.2 s | 5 s | ~3 s |
 | Defuse | 10 s, 5 s with kit | 7.5 s | ~5 s |
 | Sites | 2 | 2 | 2 |
@@ -240,15 +240,20 @@ Full map traversal here costs 3–5 s where CS costs 20–30 s. Copying CS's clo
 | Parameter | Value | Source |
 |---|---|---|
 | **Freeze time** | **5 s** | Proposed. No buy phase to fill; enough to read the map and pick a side. CS needs 15-20 s only because of the shop. *Unconfirmed.* |
-| **Round time** | **1:30 (90 s)** | Confirmed. Attackers reach a site in under 4 s, so 90 s is already a long time to fail to commit. |
-| **Bomb timer** | **35 s** | Confirmed. Matches Warsow. The real pacing device - defenders cross the map in 3-4 s, so 35 s leaves ample retake time. |
-| **Plant (arm)** | **4 s** | Confirmed. Standing on the dropped bomb, not a held button - see 5.3. |
-| **Defuse** | **5 s** | Confirmed. Same radius as the plant. No kits (no economy to buy them with). |
+| **Round time** | **1:30 (90 s)** | **Ours.** Warsow uses 60 s. Kept deliberately: 90 s was chosen with the map traversal times in 3.4 in hand, and it is one cvar to try the other. |
+| **Bomb timer** | **30 s** | **Warsow** (`g_bomb_bombtimer`). We had guessed 35 s. |
+| **Plant (arm)** | **4 s** | **Warsow** (`g_bomb_armtime`). Standing near the planted bomb, not a held button - see 5.3. |
+| **Defuse** | **7 s** | **Warsow** (`g_bomb_defusetime`). We had guessed 5 s; defusing is deliberately slower than arming, which is what makes a late retake a real gamble. |
+| **Plant speed** | **< 400 ups** | **Warsow** (`BOMB_MAX_PLANT_SPEED`). We had guessed 100. |
+| **Spawn protection** | **3 s** | **Warsow** (`g_bomb_spawnprotection`). Not yet planned; see 4.4. |
 | **Round end** | **4 s** | Proposed. Result beat before the next freeze. |
 | **Halftime** | **10 s** | Proposed. Side swap intermission after round 9 (4.3). |
-| **Score limit** | **10** | Proposed, Warsow-shaped (it uses 15). See 4.3. |
+| **Score limit** | **10** | **Ours.** Warsow uses 16. Kept: a shorter match suits a game with no economy to build across a half. See 4.3. |
 | **Lead required** | **2** | Warsow tennis rule. At 9-9 play continues until a team is two clear. |
 | **Side swap** | after round 9 | Proposed. One team attacks the whole first half; 9 makes the limit unreachable before the swap. |
+
+Where "ours" differs from Warsow it is a deliberate choice rather than an
+oversight — everything we had merely *guessed* now takes Warsow's number (4.4).
 
 These are `MatchConfig` fields reinterpreted for a round mode (5.1), not new configuration. All of them belong in `MatchConfig` and should be env-overridable like `SHAG_TIMELIMIT` already is — they are the first thing a playtest will want to move.
 
@@ -256,8 +261,8 @@ These are `MatchConfig` fields reinterpreted for a round mode (5.1), not new con
 
 ### 4.3 Match format: tennis rule and the one-sided swap
 
-Warsow Bomb runs a **score limit of 15 with a two-point lead requirement** — at
-14-14 nobody has won, and rounds continue until one team is two clear. It also
+Warsow Bomb runs a **score limit of 16 with a two-point lead requirement** — at
+15-15 nobody has won, and rounds continue until one team is two clear. It also
 does something that looks odd until you know why: **one team attacks for the
 entire first half**, then the sides swap, rather than alternating each round.
 
@@ -439,20 +444,22 @@ and pick it up, which is itself a small opening decision.
 speed, landings and knockback do not drop it in the open. The carrier is visible
 to their own team only.
 
-**Drop-to-plant.** Inside a bombsite, the carrier's horizontal speed falling
-below **100 ups** drops the bomb at their feet. That is the plant initiation -
-there is no plant button. Outside a site the rule does not apply, so crossing
-the map is never a movement skill check.
+**Drop-to-plant.** Inside a bombsite, on ground flat enough to place it on, the
+carrier's speed falling below **400 ups** plants the bomb where they stand. That
+is the plant initiation - there is no plant button. Outside a site the rule does
+not apply, so crossing the map is never a movement skill check.
 
-**Arm.** With the bomb on the ground inside a site, an attacker standing within
-the plant radius for **4 s** arms it. Any attacker can arm, not only whoever
-carried it. Leaving the radius cancels; progress does not persist.
+**Arm.** With the bomb planted, an attacker standing within **100 units of the
+bomb** - not merely inside the site - for **4 s** arms it. Any attacker can arm,
+not only whoever carried it. Leaving does not cancel: the shared meter decays
+(4.4), so the site is a fight over ground rather than an all-or-nothing channel.
 
-**Detonate.** 35 s from the arm. The round timer stops the moment the bomb is
+**Detonate.** 30 s from the arm. The round timer stops the moment the bomb is
 armed - the bomb timer takes over as the clock.
 
-**Defuse.** A defender standing within the **same radius** for **5 s** defuses.
-Any defender; leaving cancels. *(Proposal: progress does not persist across
+**Defuse.** A defender standing within the **same 100 units** for **7 s**
+defuses - slower than arming, by design. Any defender; leaving decays rather
+than cancels. *(Superseded note: progress does not persist across
 defusers - simpler, revisit if it feels bad.)*
 
 **Death.** A carrier who dies drops the bomb where they fell. Any attacker may
@@ -692,11 +699,11 @@ the machinery exists and needs wiring, not writing.
 | Pickup on touch | **Reuse** | `PickupSystem` proximity pattern, attacker-only |
 | Carry state | **Done** | `BombModel` (S5); replication remains |
 | Carrier glow | **Reuse** | `applyPowerupGlow`, built for Quad |
-| Drop below 100 ups in site | **Done** | `BombModel` (S5) |
+| Plant below 400 ups on flat ground in site | **Done** | `BombModel` (S5) |
 | Drop on death | **Reuse** | `DroppedWeaponSystem.queueDrop` |
 | Arm channel (4 s) | **Done** | `BombModel` over `ChannelTracker` |
 | Defuse channel (5 s) | **Done** | Same, with the defender precondition |
-| 35 s detonation timer | **Done** | `BombModel` (S5) |
+| 30 s detonation timer | **Done** | `BombModel` (S5) |
 | Explosion effect | **Reuse** | `ExplosionEffect` + `target_explosion` already on the maps |
 
 ### 8.4 Client / feedback
