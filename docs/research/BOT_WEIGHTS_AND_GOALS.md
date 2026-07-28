@@ -808,6 +808,8 @@ Each phase is independently shippable and independently valuable. Dependencies a
 **Acceptance:** training in an objective mode does not regress objective play; a stale model is rejected rather than silently used.
 
 ### Phase 6 — Search & Destroy (Warsow Bomb compatible)
+
+> Fully designed in [`Search_And_Destroy.md`](Search_And_Destroy.md) — round lifecycle, measured timings, prior-art comparison, and the seven engine gaps. That document supersedes the sketch below.
 *The gametype itself, consuming everything above.*
 
 - `src/shared/bsp/BombSiteTable.ts` per the §11.3 contract, shared server+bot, with fixtures covering all three authoring styles: volumes + targetname (wbomb1), volumes + `bombsite[ab]` naming (wbomb5), and **bare indicators with neither** (wbomb2/3/4).
