@@ -45,14 +45,18 @@ The menu surface is small and already mapped:
 | `headless-netserver-v2`, `record-demo` | CLI `--gametype` switches |
 | `FpsMapLauncher` | Currently hardcodes `"tdm"` |
 
-**Two map-manifest problems to fix when wiring the mode:**
+**Test pool: `wbomb2` ("Reactors").** The original Warsow bomb development map
+— flat, with doors and interior structure. Tagged `snd` in `config/maps.json`;
+`wbomb1` left the duel pool and `wdm17` ("Le Toxiquet") took its place.
 
-1. **Only `wbomb1` is in `config/maps.json` at all**, and it is tagged `duel`.
-   `wbomb2`–`wbomb6` are absent, so five of the six bomb maps are invisible to
-   the lobby even though they ship.
-2. Nothing validates that a map tagged for a gametype can actually host it.
-   `isBombMap()` (S1) makes that checkable — an `snd`-tagged map that fails it
-   is a manifest bug, and finding it at startup beats finding it in a match.
+Usefully, wbomb2 is one of the three maps with **no `trigger_capture_area`**, so
+testing on it exercises the 384 radius fallback (§3.3) — the path that covers
+half the bomb maps and would otherwise go unexercised until later.
+
+The remaining bomb maps join the pool when the mode ships. One manifest gap
+stays open: nothing validates that a map tagged for a gametype can actually host
+it. `isBombMap()` (S1) makes that checkable — an `snd`-tagged map that fails it
+is a manifest bug, and finding it at startup beats finding it in a match.
 
 ---
 
