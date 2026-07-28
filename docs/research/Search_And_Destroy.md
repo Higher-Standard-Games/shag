@@ -9,6 +9,13 @@
 
 **Hard requirement:** compatible with Warsow's Bomb entity contract, so all six shipped `wbomb*` maps play unmodified.
 
+> **The original gametype source ships with the game.** `data0_21pure.pk3`
+> contains `progs/gametypes/bomb/*.as` — Warsow's actual bomb implementation in
+> AngelScript (main, bomb, round, site, player, media, **bots**), about 93 KB.
+> It is the authoritative answer to every rule, constant and edge case in this
+> document, and §4.4 records where it corrected assumptions that had been
+> inferred from map geometry and from Counter-Strike.
+
 ---
 
 ## 1. Why this mode
@@ -298,6 +305,56 @@ rounds 19+    sides alternate        overtime, until a team leads by 2
 A team reaching 10 without a two-round lead does **not** win — 10-9 continues.
 That is the tennis rule, and it is why overtime is reached at 9-9 rather than
 being a separate tie-break.
+
+### 4.4 Ground truth from the Warsow source
+
+Constants read directly from `progs/gametypes/bomb/`. Where our plan differed,
+the plan was a guess and this is not.
+
+| | Our plan | Warsow | Notes |
+|---|---|---|---|
+| Round time | 90 s | **60 s** (`g_bomb_roundtime`) | I argued for 90 s because movement here is fast; Warsow has the same movement and uses 60. The direction was right and did not go far enough. |
+| Bomb timer | 35 s | **30 s** (`g_bomb_bombtimer`) | |
+| Arm time | 4 s | **4 s** (`g_bomb_armtime`) | Matched. |
+| Defuse time | 5 s | **7 s** (`g_bomb_defusetime`) | Defusing is deliberately slower than arming. |
+| Score limit | 10 | **16** (`g_scorelimit`) | |
+| Swap after | round 9 | round `scoreLimit - 1` | **Same formula.** |
+| Lead required | 2 | `abs(alpha - beta) > 1` | **Same rule.** |
+| Overtime | alternate each round | `roundCount >= roundLimit * 2` | **Same rule.** |
+| Initial attacker | alpha | `INITIAL_ATTACKERS = TEAM_ALPHA` | **Confirmed.** Settles §4.1. |
+| Plant speed | < 100 ups | **< 400 ups** (`BOMB_MAX_PLANT_SPEED`) | |
+| Spawn protection | — | 3 s (`g_bomb_spawnprotection`) | Not yet planned. |
+
+**Four mechanics the source corrected, all of which change behaviour rather than
+just numbers:**
+
+1. **There are two radii, and this document conflated them.**
+   `BOMB_ARM_DEFUSE_RADIUS = 100` is measured from *the planted bomb*.
+   `BOMB_AUTODROP_DISTANCE = 400` is measured from *the site indicator* and is
+   what decides where a plant is legal. Using the site radius for arming would
+   let a bomb be defused from anywhere in the room. (The measured-from-brushes
+   estimate of 384 in §3.3 was a good approximation of the second number.)
+
+2. **Progress is shared and decays.** Warsow keeps one counter on the bomb:
+   `bombProgress += frameTime` while any qualifying player is near, and
+   `-= frameTime` when none are. It is not per-player and it does not reset.
+   That is a better game — an interrupted defuse bleeds down rather than
+   vanishing, so trading a kill and stepping back in is a real play, and the
+   falling bar tells a defender exactly how long they have. **Answers Q6.**
+
+3. **Planting also requires level ground.** A downward trace must find a surface
+   with `normal.z >= 0.90`. The source's own comment notes this removes real
+   plant spots such as wbomb1's B ramp — a gameplay rule, not a technicality.
+
+4. **Planting is not arming.** The carrier slowing in a zone *plants* the bomb
+   immediately; arming is the separate 4 s hold that follows. Our model had
+   collapsed the two into "drop, then stand on it".
+
+Also worth taking, though not yet implemented: the beep interval is one twelfth
+of the time remaining, clamped to 200–5000 ms, which accelerates smoothly with
+no staged thresholds to tune; a manual drop *throws* the bomb (300 ups) and
+locks the dropper out of retaking it for 1 s; and `bots.as` exists, which is
+worth reading before Phase 7.
 
 ## 5. Rules
 
@@ -816,9 +873,10 @@ Resolved this round, kept for the record:
 
 | | Question | Resolution |
 |---|---|---|
-| ~~Q1~~ | Is alpha the defending team? | **Verified 6/6** by `validateBombRoles` over the real BSPs. Geometry is unambiguous; still worth confirming against Warsow itself, and the load-time assertion stays either way. |
-| ~~Q3~~ | Does the <100 ups drop apply everywhere? | **Only inside a site.** Carrying across the map is safe; the rule is the plant initiation, not a movement tax. |
+| ~~Q1~~ | Is alpha the defending team? | **No — alpha attacks** (`INITIAL_ATTACKERS = TEAM_ALPHA`). I had inferred the opposite from spawn geometry and was wrong; `analyzeBombRoleGeometry` now reports distances rather than asserting a role, since the assertion would have rejected every shipped map. |
+| ~~Q3~~ | Does the slow-speed drop apply everywhere? | **Only inside a site**, and the threshold is **400 ups, not 100** (§4.4). Carrying across the map is safe; the rule is plant initiation, not a movement tax. |
 | ~~Q4~~ | Where does the bomb spawn? | **Attacker spawn centroid**, ground-traced. `team_CTF_*flag` measured and rejected: inconsistent placement, absent on wbomb6 (5.6). |
+| ~~Q6~~ | Does defuse progress persist across defusers? | **Yes — and it decays rather than resetting.** One shared counter on the bomb (§4.4). |
 | ~~Q7~~ | Items reset per round? | **Yes.** Persisting punishes the losing side twice. |
 | ~~Q9~~ | Who attacks in overtime? | **Sides alternate every round.** The half-split has already given each team its nine attacking rounds; a two-round lead spans one attack round each however the sides fall (4.3). |
 
@@ -828,7 +886,7 @@ Still open:
 |---|---|---|
 | Q2 | Vertical band for the 384 fallback cylinder | `DEFAULT_BOMBSITE_HALF_HEIGHT = 192` is the least-evidenced number in the design. The volumes say how tall a *site* is, not how far above a bare indicator a plant should count. Playtest. |
 | Q5 | Freeze time length | 5 s proposed, unconfirmed. The only timing the spec did not fix. |
-| Q6 | Does defuse progress persist across defusers? | No, for simplicity; revisit if it feels bad. |
+
 | Q8 | Quad in S&D | Disabled initially (5.7); revisit once the mode plays. |
 
 | Q10 | Can defenders *move* a dropped, unarmed bomb? | No — recoverable but never denied. Confirm this matches Warsow. |

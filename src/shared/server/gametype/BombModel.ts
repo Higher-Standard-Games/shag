@@ -1,34 +1,36 @@
 /**
  * BombModel — the Search & Destroy bomb, as rules rather than as an entity.
  *
- * Everything the bomb does is here: who may carry it, when it drops, when it
- * arms, when it defuses, when it detonates. Nothing here touches `WorldState`,
- * spawns entities, or plays a sound — the caller feeds it a view of the world
+ * Ported from Warsow's own bomb gametype (`progs/gametypes/bomb/*.as`, shipped
+ * inside `data0_21pure.pk3`), which is the authoritative source for every
+ * constant and edge case here. Nothing in this file touches `WorldState`,
+ * spawns entities or plays a sound — the caller feeds it a view of the world
  * each tick and applies the events it returns.
  *
- * That split exists because these rules are fiddly and interact (a carrier who
- * dies mid-plant, a bomb dropped outside a site, two defenders defusing at
- * once), and rules of that shape are far cheaper to get right against a table of
- * cases than against a running server.
- *
  * The distinctive rule, and the reason this is not a Counter-Strike clone:
- * **there is no plant button.** A carrier inside a bombsite whose horizontal
- * speed falls below `dropSpeedThreshold` drops the bomb at their feet, and that
- * is the plant initiation (docs/research/Search_And_Destroy.md §5.3). Outside a
- * site the rule does not apply, so crossing the map is never a movement skill
- * check and a bad landing cannot cost you the bomb.
+ * **there is no plant button.** A carrier who slows below `maxPlantSpeed`
+ * inside a site's plant zone, on level ground, plants the bomb where they
+ * stand. Outside a zone the rule does not apply, so crossing the map is never a
+ * movement skill check and a bad landing cannot cost you the bomb.
+ *
+ * Planting is not arming. Once planted, attackers must stand near the bomb
+ * while a SHARED progress meter fills; defenders later do the same to defuse.
+ * Interrupting does not reset that meter — it decays (see `ProgressMeter`), so
+ * a contested site is a fight over ground rather than an all-or-nothing channel.
  */
 
 import type { BombSite, Vec3Like } from "../../bsp/BombSiteTable";
 import { isInsideBombSite } from "../../bsp/BombSiteTable";
-import { type ChannelRequest, ChannelTracker } from "../simulation/ChannelledAction";
+import { ProgressMeter } from "../simulation/ChannelledAction";
 
 export type BombPhase =
   /** Held by an attacker. */
   | "carried"
-  /** Lying in the world — droppable anywhere, armable only inside a site. */
+  /** Loose in the world. Pickable; not arming. */
   | "dropped"
-  /** Planted and counting down. */
+  /** Planted at a site, arm meter filling. Not yet counting down. */
+  | "planted"
+  /** Armed and counting down to detonation. */
   | "armed"
   /** Defused. Round over. */
   | "defused"
@@ -40,49 +42,68 @@ export interface BombPlayerView {
   entityId: number;
   team: string;
   position: Vec3Like;
-  /** Horizontal speed in units/sec. Vertical motion is not a plant signal. */
-  horizontalSpeed: number;
+  /** Speed in units/sec. Warsow compares full velocity, not just horizontal. */
+  speed: number;
   alive: boolean;
+  /**
+   * Standing on ground level enough to plant on.
+   *
+   * Warsow traces one unit down and requires the surface normal's z >= 0.90.
+   * That is a real gameplay rule rather than a technicality — it removes ramp
+   * plant spots such as wbomb1's B ramp. Evaluating it needs the collision
+   * world, so it is the caller's job, not this model's.
+   */
+  onPlantableGround: boolean;
 }
 
 export interface BombRules {
-  /** Touch radius for picking the bomb up. */
+  /** Touch radius for picking up a loose bomb. */
   pickupRadius: number;
-  /** Below this horizontal speed, a carrier inside a site drops the bomb. */
-  dropSpeedThreshold: number;
-  /** Ticks of holding to arm. */
+  /**
+   * Radius around the PLANTED bomb within which attackers arm and defenders
+   * defuse. Warsow's `BOMB_ARM_DEFUSE_RADIUS`, whose own comment reads "it
+   * makes no sense for the two to be different".
+   *
+   * Distinct from the plant ZONE, which is the much larger site area deciding
+   * where you may plant at all. Conflating the two would make a bomb defusable
+   * from anywhere in the room.
+   */
+  armDefuseRadius: number;
+  /** Above this speed a carrier cannot plant (`BOMB_MAX_PLANT_SPEED`). */
+  maxPlantSpeed: number;
+  /** Ticks of attackers-present to arm a planted bomb. */
   armTicks: number;
-  /** Ticks of holding to defuse. */
+  /** Ticks of defenders-present to defuse an armed bomb. */
   defuseTicks: number;
   /** Ticks from arming to detonation. */
   detonateTicks: number;
 }
 
-/** Warsow-shaped defaults at 125 Hz (§4.2). */
+/**
+ * Warsow's shipped defaults, converted to 125 Hz ticks.
+ * `g_bomb_armtime 4`, `g_bomb_defusetime 7`, `g_bomb_bombtimer 30`.
+ */
 export const DEFAULT_BOMB_RULES: BombRules = {
   pickupRadius: 64,
-  dropSpeedThreshold: 100,
+  armDefuseRadius: 100,
+  maxPlantSpeed: 400,
   armTicks: 4 * 125,
-  defuseTicks: 5 * 125,
-  detonateTicks: 35 * 125,
+  defuseTicks: 7 * 125,
+  detonateTicks: 30 * 125,
 };
 
-export type BombEventKind =
-  | "picked_up"
-  | "dropped"
-  | "armed"
-  | "defused"
-  | "detonated"
-  | "arm_started"
-  | "arm_cancelled"
-  | "defuse_started"
-  | "defuse_cancelled";
+/** Beep pacing, from `BOMB_BEEP_*`. Interval is a twelfth of the time left. */
+const BEEP_FRACTION = 12;
+const BEEP_MAX_TICKS = 5 * 125;
+const BEEP_MIN_TICKS = 25; // 200 ms
+
+export type BombEventKind = "picked_up" | "dropped" | "planted" | "armed" | "defused" | "detonated";
 
 export interface BombEvent {
   kind: BombEventKind;
   /** Player responsible, where there is one. */
   entityId?: number;
-  /** Site involved, for arm/defuse/detonate. */
+  /** Site involved, for plant/arm/defuse/detonate. */
   siteId?: number;
   position?: Vec3Like;
 }
@@ -92,7 +113,7 @@ export interface BombEvent {
  *
  * `update()` is the only mutator, so a round's bomb behaviour is a pure
  * function of the tick sequence fed to it — which is what makes it testable and
- * what keeps demo re-simulation honest.
+ * keeps demo re-simulation honest.
  */
 export class BombModel {
   private _phase: BombPhase = "dropped";
@@ -100,11 +121,12 @@ export class BombModel {
   private _carrierId: number | null = null;
   private _siteId: number | null = null;
   private _armedAtTick = 0;
-  private readonly channels = new ChannelTracker();
   private readonly rules: BombRules;
+  private meter: ProgressMeter;
 
   constructor(rules: Partial<BombRules> = {}) {
     this.rules = { ...DEFAULT_BOMB_RULES, ...rules };
+    this.meter = new ProgressMeter(this.rules.armTicks);
   }
 
   get phase(): BombPhase {
@@ -117,7 +139,7 @@ export class BombModel {
   get carrierId(): number | null {
     return this._carrierId;
   }
-  /** Site the bomb is armed at, or null. */
+  /** Site the bomb is planted or armed at, or null. */
   get siteId(): number | null {
     return this._siteId;
   }
@@ -129,6 +151,17 @@ export class BombModel {
   get isResolved(): boolean {
     return this._phase === "defused" || this._phase === "detonated";
   }
+  /**
+   * Arm or defuse progress, 0..1. Shared by the whole team rather than owned by
+   * one player, and it decays when the area empties.
+   */
+  get progress(): number {
+    return this.meter.progress;
+  }
+  /** True if progress rose last tick — lets the HUD show the bar falling. */
+  get progressAdvancing(): boolean {
+    return this.meter.advancing;
+  }
 
   /** Ticks until detonation, or null when not armed. */
   ticksUntilDetonation(tick: number): number | null {
@@ -136,9 +169,16 @@ export class BombModel {
     return Math.max(0, this._armedAtTick + this.rules.detonateTicks - tick);
   }
 
-  /** Arm/defuse progress 0..1 for a player, for the HUD. */
-  progressFor(entityId: number): number {
-    return this.channels.progress(entityId);
+  /**
+   * Ticks until the next beep: a twelfth of the time remaining, clamped. The
+   * bomb therefore accelerates smoothly from a slow pulse to a frantic one with
+   * no staged thresholds to tune.
+   */
+  beepIntervalTicks(tick: number): number | null {
+    const remaining = this.ticksUntilDetonation(tick);
+    if (remaining === null) return null;
+    const raw = Math.floor(remaining / BEEP_FRACTION);
+    return Math.min(BEEP_MAX_TICKS, Math.max(BEEP_MIN_TICKS, raw));
   }
 
   /** Place the bomb on the ground to start a round. */
@@ -148,18 +188,16 @@ export class BombModel {
     this._carrierId = null;
     this._siteId = null;
     this._armedAtTick = 0;
-    this.channels.clearAll();
+    this.meter = new ProgressMeter(this.rules.armTicks);
   }
 
   /**
    * Advance the bomb by one tick.
    *
-   * Order matters and is deliberate: resolve carry state first (a dead carrier
-   * drops before anything else can happen), then arming/defusing, then the
-   * detonation deadline last — so a defuse completing on the same tick the
-   * timer expires wins. Defenders getting there at the last possible instant is
-   * the most memorable thing that happens in this mode; it should not lose to
-   * an ordering accident.
+   * Detonation is checked LAST so a defuse completing on the same tick the
+   * timer expires wins. Defenders arriving at the last possible instant is the
+   * most memorable thing that happens in this mode; it should not lose to an
+   * ordering accident.
    */
   update(
     tick: number,
@@ -170,14 +208,19 @@ export class BombModel {
     const events: BombEvent[] = [];
     if (this.isResolved) return events;
 
-    if (this._phase === "carried") {
-      this.updateCarried(players, sites, events);
-    } else if (this._phase === "dropped") {
-      this.updateDropped(players, sites, attackingTeam, events);
-    }
-
-    if (this._phase === "dropped" || this._phase === "armed") {
-      this.updateChannels(tick, players, sites, attackingTeam, events);
+    switch (this._phase) {
+      case "carried":
+        this.updateCarried(players, sites, events);
+        break;
+      case "dropped":
+        this.updatePickup(players, attackingTeam, events);
+        break;
+      case "planted":
+        this.updateArming(tick, players, attackingTeam, events);
+        break;
+      case "armed":
+        this.updateDefusing(players, attackingTeam, events);
+        break;
     }
 
     if (this._phase === "armed" && (this.ticksUntilDetonation(tick) ?? 0) <= 0) {
@@ -187,136 +230,90 @@ export class BombModel {
     return events;
   }
 
-  /** Carried: follow the carrier, drop on death or on slowing inside a site. */
+  /** Carried: follow the carrier, drop on death, plant on slowing in a zone. */
   private updateCarried(players: readonly BombPlayerView[], sites: readonly BombSite[], events: BombEvent[]): void {
     const carrier = players.find((p) => p.entityId === this._carrierId);
 
-    // Carrier gone or dead — the bomb falls where they did.
     if (!carrier || !carrier.alive) {
-      this.drop(carrier?.position ?? this._position, events, carrier?.entityId);
+      this._phase = "dropped";
+      this._position = { ...(carrier?.position ?? this._position) };
+      this._carrierId = null;
+      events.push({ kind: "dropped", entityId: carrier?.entityId, position: this._position });
       return;
     }
 
     this._position = { ...carrier.position };
 
-    // THE plant initiation: slow down inside a site and the bomb goes down.
-    // Only inside a site, so carrying it across the map is safe.
+    // The plant. Every condition must hold: slow enough, on ground level enough
+    // to place it on, and inside a site's plant zone.
+    if (carrier.speed > this.rules.maxPlantSpeed || !carrier.onPlantableGround) return;
     const site = sites.find((s) => isInsideBombSite(s, carrier.position));
-    if (site && carrier.horizontalSpeed < this.rules.dropSpeedThreshold) {
-      this.drop(carrier.position, events, carrier.entityId);
-    }
+    if (!site) return;
+
+    this._phase = "planted";
+    this._siteId = site.id;
+    this._carrierId = null;
+    this.meter = new ProgressMeter(this.rules.armTicks);
+    events.push({ kind: "planted", entityId: carrier.entityId, siteId: site.id, position: this._position });
   }
 
-  /**
-   * Dropped OUTSIDE a site: any living attacker who touches it picks it up.
-   *
-   * Inside a site it is not retrievable — it is a bomb being planted, and
-   * standing on it arms it instead. Without that rule planting is impossible:
-   * the carrier drops the bomb by slowing down and would instantly pick it back
-   * up on the same spot. It also means a bomb cannot be relocated from site A
-   * to site B once committed, which is the right trade.
-   */
-  private updateDropped(
-    players: readonly BombPlayerView[],
-    sites: readonly BombSite[],
-    attackingTeam: string,
-    events: BombEvent[],
-  ): void {
-    if (sites.some((site) => isInsideBombSite(site, this._position))) return;
-
+  /** Loose: any living attacker who touches it picks it up. */
+  private updatePickup(players: readonly BombPlayerView[], attackingTeam: string, events: BombEvent[]): void {
     const radiusSq = this.rules.pickupRadius * this.rules.pickupRadius;
     for (const player of players) {
       if (!player.alive || player.team !== attackingTeam) continue;
-      const dx = player.position.x - this._position.x;
-      const dy = player.position.y - this._position.y;
-      const dz = player.position.z - this._position.z;
-      if (dx * dx + dy * dy + dz * dz > radiusSq) continue;
+      if (this.distanceSqTo(player.position) > radiusSq) continue;
 
       this._phase = "carried";
       this._carrierId = player.entityId;
-      this.channels.clearAll();
       events.push({ kind: "picked_up", entityId: player.entityId, position: this._position });
       return;
     }
   }
 
-  /**
-   * Arming (dropped, in a site, attacker) and defusing (armed, defender).
-   *
-   * Every player is evaluated every tick and handed either a request or null,
-   * which is what makes interruption automatic — see ChannelledAction.
-   */
-  private updateChannels(
+  /** Planted: attackers near the bomb fill the arm meter; it decays otherwise. */
+  private updateArming(
     tick: number,
     players: readonly BombPlayerView[],
-    sites: readonly BombSite[],
     attackingTeam: string,
     events: BombEvent[],
   ): void {
-    const arming = this._phase === "dropped";
-    const site = arming
-      ? sites.find((s) => isInsideBombSite(s, this._position))
-      : sites.find((s) => s.id === this._siteId);
+    const working = this.someoneNear(players, (p) => p.team === attackingTeam);
+    if (this.meter.advance(working) !== "completed") return;
 
+    this._phase = "armed";
+    this._armedAtTick = tick;
+    this.meter = new ProgressMeter(this.rules.defuseTicks);
+    events.push({ kind: "armed", siteId: this._siteId ?? undefined, position: this._position });
+  }
+
+  /** Armed: defenders near the bomb fill the defuse meter; it decays otherwise. */
+  private updateDefusing(players: readonly BombPlayerView[], attackingTeam: string, events: BombEvent[]): void {
+    const working = this.someoneNear(players, (p) => p.team !== attackingTeam);
+    if (this.meter.advance(working) !== "completed") return;
+
+    this._phase = "defused";
+    events.push({ kind: "defused", siteId: this._siteId ?? undefined, position: this._position });
+  }
+
+  /**
+   * Is at least one living player matching `predicate` within the arm/defuse
+   * radius? Numbers deliberately do not stack — five attackers arm no faster
+   * than one, so a site cannot be taken by weight of bodies alone.
+   */
+  private someoneNear(players: readonly BombPlayerView[], predicate: (p: BombPlayerView) => boolean): boolean {
+    const radiusSq = this.rules.armDefuseRadius * this.rules.armDefuseRadius;
     for (const player of players) {
-      const request = this.channelRequestFor(player, site, arming, attackingTeam);
-      const outcome = this.channels.update(player.entityId, request, tick);
-
-      if (outcome.kind === "started") {
-        events.push({
-          kind: arming ? "arm_started" : "defuse_started",
-          entityId: player.entityId,
-          siteId: site?.id,
-        });
-      } else if (outcome.kind === "cancelled") {
-        events.push({
-          kind: outcome.channel?.kind === "arm" ? "arm_cancelled" : "defuse_cancelled",
-          entityId: player.entityId,
-        });
-      } else if (outcome.kind === "completed") {
-        if (arming && site) {
-          this._phase = "armed";
-          this._siteId = site.id;
-          this._armedAtTick = tick;
-          this._carrierId = null;
-          this.channels.clearAll();
-          events.push({ kind: "armed", entityId: player.entityId, siteId: site.id, position: this._position });
-          return;
-        }
-        this._phase = "defused";
-        this.channels.clearAll();
-        events.push({ kind: "defused", entityId: player.entityId, siteId: this._siteId ?? undefined });
-        return;
-      }
+      if (!player.alive || !predicate(player)) continue;
+      if (this.distanceSqTo(player.position) <= radiusSq) return true;
     }
+    return false;
   }
 
-  /** What this player could be channelling right now, or null. */
-  private channelRequestFor(
-    player: BombPlayerView,
-    site: BombSite | undefined,
-    arming: boolean,
-    attackingTeam: string,
-  ): ChannelRequest | null {
-    if (!player.alive || !site) return null;
-
-    // Arming is the attackers' job; defusing the defenders'.
-    const onDuty = arming ? player.team === attackingTeam : player.team !== attackingTeam;
-    if (!onDuty) return null;
-
-    // Same radius for both, so a defuse is contested exactly where a plant was.
-    if (!isInsideBombSite(site, player.position)) return null;
-
-    return arming
-      ? { kind: "arm", targetId: site.id, durationTicks: this.rules.armTicks }
-      : { kind: "defuse", targetId: site.id, durationTicks: this.rules.defuseTicks };
-  }
-
-  private drop(position: Vec3Like, events: BombEvent[], entityId?: number): void {
-    this._phase = "dropped";
-    this._position = { ...position };
-    this._carrierId = null;
-    this.channels.clearAll();
-    events.push({ kind: "dropped", entityId, position: this._position });
+  private distanceSqTo(point: Vec3Like): number {
+    const dx = point.x - this._position.x;
+    const dy = point.y - this._position.y;
+    const dz = point.z - this._position.z;
+    return dx * dx + dy * dy + dz * dz;
   }
 }

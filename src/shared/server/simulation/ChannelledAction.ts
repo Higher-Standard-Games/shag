@@ -1,166 +1,124 @@
 /**
- * ChannelledAction — "hold this state for N ticks to make something happen".
+ * ProgressMeter — shared "hold to act" progress that decays when unattended.
  *
- * Arming and defusing a bomb are the first users
+ * Arming and defusing a bomb are the users
  * (docs/research/Search_And_Destroy.md §5.3), but nothing here knows what a
- * bomb is. A channel is: a player, a kind, a target, a duration, and the rule
- * that interrupting it loses the progress.
+ * bomb is: a meter is a target, a duration, and progress that rises while
+ * somebody qualifying is present and falls back when nobody is.
  *
- * ## Declarative, not imperative
+ * ## Why shared-and-decaying rather than per-player-and-reset
  *
- * There is no `begin()` / `cancel()` pair. Each tick the caller states what the
- * player *could* be channelling right now — or `null` for nothing — and the
- * tracker works out whether that starts, continues, completes or cancels a
- * channel.
+ * The first version of this file modelled a channel per PLAYER, discarding all
+ * progress on interruption. Warsow's own bomb gametype
+ * (`progs/gametypes/bomb/bomb.as`) does neither: one counter lives on the bomb,
+ * every qualifying player advances the same counter, and when the area empties
+ * it winds back down at the same rate rather than snapping to zero.
  *
- * That matters because the cancel conditions for a real channel are numerous
- * and easy to forget: left the radius, died, the target was destroyed, the
- * round ended, the item was picked up by someone else, the player switched
- * weapons. With an imperative API every one of those is a call site that can be
- * missed, and a missed one leaves a player invisibly arming a bomb they walked
- * away from. Stating the precondition once per tick makes forgetting impossible
- * — if the condition stops holding, the channel stops.
+ * That is a better game, not just a different implementation:
+ *
+ *  - A defuse interrupted at 90% bleeds down instead of vanishing, so trading a
+ *    kill and stepping back in is a real play rather than a wasted round.
+ *  - Progress belongs to the TEAM, so a defender who dies mid-defuse hands the
+ *    work to whoever arrives next.
+ *  - The decay is legible: the HUD can show the bar falling, which tells a
+ *    defender exactly how long they have to get back.
  *
  * Ticks, not seconds: the server runs at a fixed rate and re-simulates for
  * demos, so accumulating float seconds would drift.
  */
 
-/** What a player is trying to channel this tick. */
-export interface ChannelRequest {
-  /** Action kind, e.g. "arm" / "defuse". Changing it restarts the channel. */
-  kind: string;
-  /**
-   * What is being acted on — a bomb site id, an entity id. Changing it restarts
-   * the channel, so walking from site A to site B never carries progress over.
-   */
-  targetId: number;
-  /** Ticks of continuous holding required. */
-  durationTicks: number;
-}
-
-/** A channel in progress. */
-export interface ChannelState {
-  kind: string;
-  targetId: number;
-  durationTicks: number;
-  /** Ticks of holding accumulated, starting at 1. Completion clears the channel. */
-  elapsedTicks: number;
-  /** Tick the channel began, for diagnostics and demo alignment. */
-  startedAtTick: number;
-}
-
-export type ChannelOutcomeKind =
-  /** Nothing was happening and nothing started. */
+export type ProgressOutcome =
+  /** No progress and nobody working. */
   | "idle"
-  /** A channel began this tick. */
-  | "started"
-  /** A channel advanced. */
-  | "progress"
-  /** A channel reached its duration this tick. Fires exactly once. */
-  | "completed"
-  /** A channel was interrupted and its progress discarded. */
-  | "cancelled";
+  /** Progress rose this tick. */
+  | "advancing"
+  /** Progress fell this tick because nobody was working. */
+  | "decaying"
+  /** Reached the duration this tick. Fires exactly once, then resets. */
+  | "completed";
 
-export interface ChannelOutcome {
-  kind: ChannelOutcomeKind;
-  /** The channel this outcome refers to. Absent for `idle`. */
-  channel?: ChannelState;
-  /** Why a channel was cancelled — "interrupted" or "retargeted". */
-  reason?: string;
-}
-
-/** Progress fraction 0..1 for a channel state. */
-export function channelProgress(channel: ChannelState | undefined): number {
-  if (!channel || channel.durationTicks <= 0) return 0;
-  const p = channel.elapsedTicks / channel.durationTicks;
-  return p < 0 ? 0 : p > 1 ? 1 : p;
+export interface ProgressState {
+  /** Ticks accumulated, 0..durationTicks. */
+  elapsedTicks: number;
+  durationTicks: number;
+  /** Whether the last tick advanced or decayed — for HUD direction. */
+  advancing: boolean;
 }
 
 /**
- * Per-entity channel bookkeeping.
+ * One shared progress meter.
  *
- * One channel per entity at a time: a player cannot arm and defuse at once, and
- * a second channel would only ever mean the caller's preconditions disagree.
- * Several entities may channel the same target simultaneously (two defenders on
- * one bomb) — each holds their own progress and whoever completes first wins,
- * which falls out rather than needing a rule.
+ * `advance(working, tick)` is the whole API: pass whether anybody qualifying is
+ * present this tick and the meter does the rest. There is no start or cancel to
+ * forget, which matters because the interruption conditions for a real objective
+ * are numerous — left the radius, died, round ended, bomb taken — and every one
+ * of them is just "nobody is working" from here.
  */
-export class ChannelTracker {
-  private readonly channels = new Map<number, ChannelState>();
+export class ProgressMeter {
+  private elapsed = 0;
+  private lastAdvancing = false;
+  private duration: number;
 
-  /** Active channel for an entity, if any. */
-  get(entityId: number): ChannelState | undefined {
-    return this.channels.get(entityId);
+  constructor(durationTicks: number) {
+    this.duration = Math.max(1, durationTicks);
   }
 
-  /** Progress fraction 0..1 for an entity's active channel. */
-  progress(entityId: number): number {
-    return channelProgress(this.channels.get(entityId));
+  /** Progress fraction 0..1. */
+  get progress(): number {
+    const p = this.elapsed / this.duration;
+    return p < 0 ? 0 : p > 1 ? 1 : p;
   }
 
-  /** Every active channel, for replication. */
-  entries(): IterableIterator<[number, ChannelState]> {
-    return this.channels.entries();
+  /** True while progress is non-zero — i.e. the bar should be visible. */
+  get active(): boolean {
+    return this.elapsed > 0;
+  }
+
+  /** True if the last tick advanced rather than decayed. */
+  get advancing(): boolean {
+    return this.lastAdvancing;
+  }
+
+  get state(): ProgressState {
+    return { elapsedTicks: this.elapsed, durationTicks: this.duration, advancing: this.lastAdvancing };
+  }
+
+  /** Change the required duration without discarding work already done. */
+  setDuration(durationTicks: number): void {
+    this.duration = Math.max(1, durationTicks);
+  }
+
+  /** Wind fully back — round end, bomb state change, target destroyed. */
+  reset(): void {
+    this.elapsed = 0;
+    this.lastAdvancing = false;
   }
 
   /**
-   * Advance this entity's channel by one tick.
+   * Advance one tick.
    *
-   * @param request what the entity could be channelling now, or `null` for
-   *   nothing — which cancels anything in progress.
+   * @param working true if at least one qualifying actor is present. Numbers do
+   *   not stack: five attackers arm no faster than one, which keeps a site from
+   *   being taken by weight of bodies alone.
    */
-  update(entityId: number, request: ChannelRequest | null, tick: number): ChannelOutcome {
-    const active = this.channels.get(entityId);
+  advance(working: boolean): ProgressOutcome {
+    this.lastAdvancing = working;
 
-    if (!request || request.durationTicks <= 0) {
-      if (!active) return { kind: "idle" };
-      this.channels.delete(entityId);
-      return { kind: "cancelled", channel: active, reason: "interrupted" };
-    }
-
-    // Switching kind or target discards progress rather than carrying it over.
-    if (active && (active.kind !== request.kind || active.targetId !== request.targetId)) {
-      this.channels.delete(entityId);
-      return { kind: "cancelled", channel: active, reason: "retargeted" };
-    }
-
-    if (!active) {
-      // The starting tick COUNTS as holding, so a 5-tick channel completes on
-      // the 5th update rather than the 6th. It also makes a 1-tick channel
-      // complete immediately without needing a special case.
-      const started: ChannelState = {
-        kind: request.kind,
-        targetId: request.targetId,
-        durationTicks: request.durationTicks,
-        elapsedTicks: 1,
-        startedAtTick: tick,
-      };
-      if (started.elapsedTicks >= started.durationTicks) {
-        return { kind: "completed", channel: started };
+    if (working) {
+      this.elapsed++;
+      if (this.elapsed >= this.duration) {
+        this.elapsed = 0;
+        this.lastAdvancing = false;
+        return "completed";
       }
-      this.channels.set(entityId, started);
-      return { kind: "started", channel: started };
+      return "advancing";
     }
 
-    // A duration change mid-channel (config reload, difficulty) takes effect
-    // without discarding progress — the player has still done the holding.
-    active.durationTicks = request.durationTicks;
-    active.elapsedTicks++;
-
-    if (active.elapsedTicks >= active.durationTicks) {
-      this.channels.delete(entityId);
-      return { kind: "completed", channel: active };
+    if (this.elapsed <= 0) {
+      this.elapsed = 0;
+      return "idle";
     }
-    return { kind: "progress", channel: active };
-  }
-
-  /** Drop an entity's channel — on death, disconnect, or round end. */
-  clear(entityId: number): void {
-    this.channels.delete(entityId);
-  }
-
-  /** Drop every channel — round transitions, match reset. */
-  clearAll(): void {
-    this.channels.clear();
+    this.elapsed--;
+    return "decaying";
   }
 }
