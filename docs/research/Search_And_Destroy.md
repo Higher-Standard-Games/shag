@@ -179,7 +179,7 @@ Full map traversal here costs 3–5 s where CS costs 20–30 s. Copying CS's clo
 | **Rounds to win** | **6** | Proposed. ~90 s rounds plus overhead puts a full 11-round match near 18-20 min. |
 | **Side swap** | after round 5 | Proposed. Each side plays at least 5; round 11 is the decider with sides already swapped. |
 
-All of these belong in `MatchConfig` and should be env-overridable like `SHAG_TIMELIMIT` already is — they are the first thing a playtest will want to move.
+These are `MatchConfig` fields reinterpreted for a round mode (5.1), not new configuration. All of them belong in `MatchConfig` and should be env-overridable like `SHAG_TIMELIMIT` already is — they are the first thing a playtest will want to move.
 
 ---
 
@@ -190,24 +190,58 @@ confirmation it says so.
 
 ### 5.1 Round lifecycle
 
+**Rounds are not a new state machine. A round IS the existing phase cycle.**
+
+The match phases already model exactly the shape a round needs — a countdown
+that freezes and counts in, an active period on a timer, and an end. S&D reuses
+them and simply loops instead of terminating:
+
 ```text
- Warmup --> Countdown -->            ACTIVE                   --> PostGame
-                           +--------- round loop ---------+
-                           |                              |
-               RoundFreeze (5s) -> RoundLive (90s) -> RoundEnd (4s)
-                  spawn, freeze,       pre-plant         result beat,
-                  reset items,             |             no respawns
-                  place bomb               |                  |
-                                   plant completes            |
-                                           v                  |
-                                   RoundArmed (35s) ----------+
-                                   round timer STOPS
+Warmup ──► Countdown ──► Active ──┐         (round 1)
+             ▲                    │
+             │   round ends       │
+             └────────────────────┤
+                                  │  score limit reached
+                                  ▼
+                              PostGame
 ```
 
-**Elimination is a win condition only before the arm.** Once the bomb is armed,
-killing every attacker does not end the round - the defenders must still defuse.
-This is the single most important rule in the mode and is shared by Warsow, CS
-and CoD.
+| Phase | Role in S&D | Timer source |
+|---|---|---|
+| `Warmup` | Once per match — players join and ready up | `warmupTimeout` |
+| `Countdown` | **Round freeze.** Result of the previous round shown, players spawned and frozen, bomb placed, items reset | `countdownDuration` |
+| `Active` | **The live round**, pre-arm | `timeLimit` = *round* time (90 s) |
+| `PostGame` | End of **match**, not round | `postGameDuration` |
+
+`MatchConfig` already carries everything needed, with only the interpretation
+changing:
+
+- **`scoreLimit` = rounds to win** (6). `addTeamScore()` and the score-limit
+  check in `GametypeController` already exist and already work on team scores.
+- **`timeLimit` = round length** (90 s), not match length.
+- **`countdownDuration` = freeze time**, absorbing the round-result beat so no
+  extra phase is needed.
+
+**The post-arm period is not a phase.** The phase stays `Active`; the gametype
+holds `armed` + `armedAtTick` internally and reports the bomb's remaining time
+in place of the round timer. Making it a phase would leak a mode-specific
+concept into machinery every gametype shares.
+
+**What actually has to change**, having reused all of the above:
+
+1. `Active` currently transitions to `PostGame` when its timer expires. Round-
+   based modes must instead end the round and return to `Countdown` — unless the
+   score limit is met.
+2. A round can end *mid-`Active`* (defuse, detonation, elimination), so the
+   gametype needs to be able to say "round over now" rather than waiting on a
+   timer.
+3. `Countdown` does not freeze input today; `applyPostGameInputFreeze` gates on
+   `PostGame`. It needs to cover the freeze phase too.
+4. The `overtimeOnDraw` path on `Active` expiry is a duel rule. For a round mode
+   an expired timer is a defender win, not a draw, so round-based modes bypass it.
+
+That is one new transition, one new hook, and two small gates — against a nested
+round state machine, which is what this replaces.
 
 ### 5.2 Win conditions
 
@@ -347,7 +381,7 @@ Surveyed against the current branch. This is the actual work.
 
 | # | Gap | Evidence |
 |---|---|---|
-| **G1** | **No round concept anywhere.** `MatchState` has phases (Warmup/Countdown/Active/PostGame) and nothing else — grepping it for "round" returns zero hits. Every existing mode is a single continuous match. | `MatchState.ts` |
+| **G1** | **No round loop.** `MatchState` has no notion of rounds — grepping it for "round" returns zero hits, and `Active` always terminates the match. Much smaller than it first appeared: rounds reuse the existing phase cycle (5.1), so this is one new transition plus an `endRound()` hook, not a second state machine. | `MatchState.ts` |
 | **G2** | **No respawn suppression.** `GametypeController` queues every death with a min/max delay and auto-respawns at the deadline. S&D needs "dead until round end", which no hook currently expresses. | `GametypeController.processRespawns` |
 | **G3** | **Team spawns are never parsed.** Spawn extraction looks for `info_player_deathmatch` / `info_player_start` / `info_player_team1` / `info_player_team2` — the Quake conventions. `team_CTF_alphaspawn` / `team_CTF_betaspawn` appear in **no** source file, so all 4–16 team spawns on every bomb map are currently invisible. | `SpawnPointManager.ts`, `HeadlessMapLoader.ts` |
 | **G4** | **`TeamSpawnStrategy.choose()` is a TODO.** The class exists and `setTeamPoints()` is never called by anything. TDM's `getSpawnStrategy()` returns `"furthest"` with a comment saying team spawns are not implemented. | `SpawnPointStrategy.ts:149` |
@@ -461,10 +495,13 @@ the machinery exists and needs wiring, not writing.
 
 | Feature | Status | Notes |
 |---|---|---|
-| Round state machine | **Build** | Nothing exists — `MatchState` has zero notion of rounds |
-| Round timer (90 s) | **Build** | Stops on arm |
-| Freeze time (5 s) | **Reuse** | Generalize `applyPostGameInputFreeze` |
-| Round end beat (4 s) | **Build** | |
+| Round loop | **Reuse** | A round is the existing `Countdown -> Active` cycle; only the exit transition is new (5.1) |
+| Round timer (90 s) | **Reuse** | `Active` already ticks `timeLimit`; reinterpreted as round length |
+| Rounds-to-win limit | **Reuse** | `scoreLimit` + `addTeamScore` + the existing check already do this |
+| Freeze time (5 s) | **Reuse** | `Countdown` phase; generalize `applyPostGameInputFreeze` to cover it |
+| Round end beat | **Reuse** | Absorbed into `countdownDuration` — no extra phase |
+| `endRound(winner)` hook | **Build** | A round can end mid-`Active` on defuse/detonation/elimination |
+| Post-arm timer swap | **Build** | Gametype-internal `armed` state; not a phase |
 | Per-round item reset | **Reuse** | `PickupSystem.resetForMatch` is exactly this |
 | Per-round player reset | **Reuse** | `respawnPlayer` already resets health/armor/weapons/powerups |
 | Respawn suppression | **Build** | `processRespawns` auto-respawns at a deadline; needs a gate |
@@ -517,17 +554,19 @@ the machinery exists and needs wiring, not writing.
 | | Count |
 |---|---|
 | Done | 7 |
-| Reuse (wire, don't write) | 10 |
-| Build | 22 |
+| Reuse (wire, don't write) | 14 |
+| Build | 20 |
 | Optional / deferred | 4 |
 
 The ten reuses are what make this tractable: round reset, player reset, input
 freeze, dropped-item entities, carrier glow, follow-cam, explosion FX, the timer
 widget, and the whole bot goal stack are all already built and tested.
 
-The build column concentrates in three places — the round state machine, the
-channelled-action system (arm/defuse, for players *and* bots), and the bomb
-entity itself. Those are the three things worth designing before typing.
+The build column now concentrates in **two** places: the channelled-action
+system (arm/defuse, needed by players *and* bots) and the bomb entity. The round
+lifecycle left the list once rounds were modelled as the existing phase cycle
+rather than a nested state machine (5.1) — the single largest simplification in
+the design so far.
 
 ## 9. Implementation order
 
@@ -550,11 +589,16 @@ rather than pk3s so they run wherever the suite does.
 **Benefits TDM immediately** and is independent of S&D. Includes the 4.1
 role-vs-geometry assertion at map load.
 
-**S3 — Round lifecycle.** The riskiest step: rounds are a genuinely new concept
-in code every mode depends on. Round state inside the Active phase, per-round
-reset via `resetForMatch`, respawn suppression, freeze via a generalized
-`applyPostGameInputFreeze`, round scoring, halftime swap. **Land it with TDM and
-Duel green at every commit.**
+**S3 — Round loop.** Reuses the phase cycle (5.1), so this is far smaller than
+it first looked: a round-based exit from `Active` (back to `Countdown`, or to
+`PostGame` on the score limit), an `endRound(winner)` hook for round ends that
+are not timer expiries, input freeze extended to `Countdown`, respawn
+suppression, per-round reset via `resetForMatch`, and the halftime swap.
+
+Still the step that touches shared match code, so: **land it with TDM and Duel
+green at every commit**, and keep every round-specific branch behind a
+`roundBased` config flag so non-round modes take exactly the path they take
+today.
 
 **S4 — Channelled actions.** A shared arm/defuse progress system: start
 condition, per-tick continuation, cancel on leaving the radius, replicated
@@ -598,7 +642,7 @@ Still open:
 
 ## 11. Risks
 
-- **S3 touches shared match lifecycle.** Rounds are a genuinely new concept in a codebase where every mode is one continuous match. The temptation will be to special-case S&D inside `GametypeController`; resist it, or every future mode inherits the mess.
+- **S3 still touches shared match lifecycle**, even though modelling rounds as the existing phase cycle (5.1) shrank it a lot. The round-specific branches must sit behind a `roundBased` flag so Deathmatch, TDM and Duel keep taking exactly the path they take today — a regression here breaks every mode at once.
 - **The mode is unplayable if roles are backwards** and the failure is silent in code (§4.1). The load-time assertion is not optional.
 - **Bots will look worst here first.** That is the point of building it, but expect the first playtest to expose gaps in *movement* and *combat* rather than in goal selection — the goal layer is the best-tested part of the bot.
 - **Timings are all first guesses.** They are reasoned from measured map geometry rather than copied, which makes them better starting points, not correct ones.
