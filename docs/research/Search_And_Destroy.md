@@ -3,7 +3,7 @@
 > A round-based bomb-and-defuse gametype, Warsow Bomb compatible, designed to put the bot goal framework under real load.
 
 **Date:** 2026-07-28
-**Status:** Design complete and rules confirmed. S1-S3 implemented (site extraction, team spawns, round lifecycle); S4-S8 planned (see 8, 9).
+**Status:** Design complete and rules confirmed. S1-S4 implemented (site extraction, team spawns, round lifecycle, channelled actions); S5-S8 planned (see 8, 9).
 **Scope:** `src/games/fps/server/gametypes`, `src/shared/bsp`, `src/shared/bot`
 **Depends on:** [`BOT_WEIGHTS_AND_GOALS.md`](BOT_WEIGHTS_AND_GOALS.md) Phases 1–4 (landed)
 
@@ -637,8 +637,8 @@ the machinery exists and needs wiring, not writing.
 | Carrier glow | **Reuse** | `applyPowerupGlow`, built for Quad |
 | Drop below 100 ups in site | **Build** | Per-tick speed check while carrying |
 | Drop on death | **Reuse** | `DroppedWeaponSystem.queueDrop` |
-| Arm channel (4 s) | **Build** | No channelled-action system exists |
-| Defuse channel (5 s) | **Build** | Same system |
+| Arm channel (4 s) | **Reuse** | `ChannelTracker` (S4); needs the bomb-side precondition |
+| Defuse channel (5 s) | **Reuse** | Same tracker, different kind/duration |
 | 35 s detonation timer | **Build** | |
 | Explosion effect | **Reuse** | `ExplosionEffect` + `target_explosion` already on the maps |
 
@@ -670,20 +670,20 @@ the machinery exists and needs wiring, not writing.
 
 | | Count |
 |---|---|
-| Done | 18 |
-| Reuse (wire, don't write) | 8 |
-| Build | 15 |
+| Done | 19 |
+| Reuse (wire, don't write) | 10 |
+| Build | 12 |
 | Optional / deferred | 4 |
 
 The ten reuses are what make this tractable: round reset, player reset, input
 freeze, dropped-item entities, carrier glow, follow-cam, explosion FX, the timer
 widget, and the whole bot goal stack are all already built and tested.
 
-The build column now concentrates in **two** places: the channelled-action
-system (arm/defuse, needed by players *and* bots) and the bomb entity. The round
-lifecycle left the list once rounds were modelled as the existing phase cycle
-rather than a nested state machine (5.1) — the single largest simplification in
-the design so far.
+With the round lifecycle (S3) and the channelled-action system (S4) both landed,
+the remaining build work is concentrated almost entirely in **the bomb entity
+and its client feedback** — spawn placement, carry state, the in-site speed
+drop, detonation, the beep, and the progress UI. The two pieces that looked
+structural at design time are done.
 
 ## 9. Implementation order
 
@@ -753,10 +753,29 @@ publish no round context.
 halftime intermission is a plain `Countdown` rather than a longer break. Both
 land with the gametype in S6.
 
-**S4 — Channelled actions.** A shared arm/defuse progress system: start
-condition, per-tick continuation, cancel on leaving the radius, replicated
-progress for the HUD. Needed by players *and* bots, so it belongs in shared
-simulation rather than in the gametype.
+**S4 — Channelled actions. DONE.**
+`src/shared/server/simulation/ChannelledAction.ts` + 17 tests.
+
+Deliberately **declarative, not imperative**: there is no `begin()`/`cancel()`
+pair. Each tick the caller states what a player *could* be channelling right now
+— or `null` — and the tracker decides start / progress / complete / cancel.
+
+That shape was chosen because the cancel conditions for a real channel are
+numerous and easy to forget: left the radius, died, target destroyed, round
+ended, bomb picked up by someone else, weapon switched. With an imperative API
+each is a call site that can be missed, and one miss leaves a player invisibly
+arming a bomb they walked away from. Stating the precondition once per tick
+makes forgetting impossible.
+
+Ticks, not seconds, so demo re-simulation cannot drift. Progress does not
+survive an interruption (§9 Q6), and switching kind or target discards it too —
+walking from site A to site B never carries progress over. Several entities may
+channel the same target at once, each with their own progress and first to
+finish winning, which falls out rather than needing a rule.
+
+*Caught while testing:* "hold for 5 ticks" originally took 6 updates, because
+the starting tick did not count. Making it count also removed the special case
+for a one-tick channel.
 
 **S5 — The bomb.** Entity (modelled on `DroppedWeaponSystem`), spawn placement,
 pickup, carry state, the <100 ups in-site drop, drop-on-death, detonation, and

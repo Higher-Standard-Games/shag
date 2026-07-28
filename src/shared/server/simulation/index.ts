@@ -2,6 +2,7 @@
  * Simulation shared types and components
  */
 
+export * from "./ChannelledAction";
 export * from "./components";
 // Re-export physics, but exclude GRAVITY from constants to avoid clash
 // (types/index.ts exports GRAVITY as AccelerationPerSec2 vector,
