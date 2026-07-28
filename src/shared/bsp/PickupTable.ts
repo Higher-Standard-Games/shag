@@ -46,18 +46,20 @@ const AMMO_CLASSNAMES: Record<string, PickupClassInfo> = {
   ammo_grenadelauncher: { type: "ammo", kind: "grenades", amount: 10 },
   ammo_rocketlauncher: { type: "ammo", kind: "rockets", amount: 10 },
   ammo_plasmagun: { type: "ammo", kind: "cells", amount: 50 },
-  ammo_lasergun: { type: "ammo", kind: "cells", amount: 100 },
+  // Lasers are the beam weapon's OWN pool — not shared with plasma cells.
+  ammo_lasergun: { type: "ammo", kind: "lasers", amount: 100 },
   ammo_electrobolt: { type: "ammo", kind: "bolts", amount: 10 },
   ammo_instagun: { type: "ammo", kind: "instas", amount: 5 },
   // Legacy Quake-style names — a couple of old maps still use these.
   ammo_bullets: { type: "ammo", kind: "bullets", amount: 50 },
   ammo_shells: { type: "ammo", kind: "shells", amount: 10 },
   ammo_rockets: { type: "ammo", kind: "rockets", amount: 10 },
-  ammo_cells: { type: "ammo", kind: "cells", amount: 100 },
+  // Quake's `cells` are plasma ammo; match the plasma box rather than the beam's.
+  ammo_cells: { type: "ammo", kind: "cells", amount: 50 },
   ammo_grenades: { type: "ammo", kind: "grenades", amount: 10 },
   ammo_bolts: { type: "ammo", kind: "bolts", amount: 10 },
   ammo_instas: { type: "ammo", kind: "instas", amount: 5 },
-  ammo_lasers: { type: "ammo", kind: "cells", amount: 100 },
+  ammo_lasers: { type: "ammo", kind: "lasers", amount: 100 },
 };
 
 /**

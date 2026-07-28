@@ -32,7 +32,7 @@ export const VOLTAIC: WeaponDef = {
   // 180 cells (clip 120 + reserve 60), just far fewer, quicker interruptions.
   clipSize: 120,
   reloadModel: "clip",
-  ammoType: "cells",
+  ammoType: "lasers", // own pool — no longer shared with the plasmagun's cells
   maxAmmo: 60,
   reloadTime: 0.5,
   range: 850, // Short range beam

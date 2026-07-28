@@ -52,14 +52,15 @@ function mapSpawnTossVelocity(type: "weapon" | "ammo" | "armor" | "health", pick
 }
 
 /**
- * Resolve the procedural visual factory for a health/armor definition, or
- * undefined to keep the MD3 model path (weapons/ammo, unknown ids, or toggle off).
+ * Resolve the procedural visual factory for a health/armor/ammo definition, or
+ * undefined to keep the MD3 model path (weapons, unknown ids, or toggle off).
+ * Weapons stay on models deliberately — the pickup IS the gun you collect.
  */
 async function resolvePickupVisualFactory(
   def: EntityDef,
   type: "weapon" | "ammo" | "armor" | "health",
 ): Promise<PickupVisualFactory | undefined> {
-  if (type !== "health" && type !== "armor") return undefined;
+  if (type !== "health" && type !== "armor" && type !== "ammo") return undefined;
   if (!proceduralPickupsEnabled()) return undefined;
   const { createProceduralPickupFactory } = await import(
     "../../games/fps/world/pickups/procedural/ProceduralPickupFactory"

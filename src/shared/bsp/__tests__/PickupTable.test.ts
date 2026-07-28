@@ -75,10 +75,16 @@ describe("extractPickups", () => {
       "shells:10",
       "grenades:10",
       "rockets:10",
-      "cells:100",
+      // ammo_lasergun feeds the beam's own `lasers` pool, not the plasmagun's cells.
+      "lasers:100",
       "bolts:10",
       "instas:5",
     ]);
+  });
+
+  it("keeps laser and plasma ammo in separate pools", () => {
+    const out = extractPickups([ent("ammo_plasmagun", "0 0 0"), ent("ammo_lasergun", "0 0 0")]);
+    expect(out.map((e) => e.kind)).toEqual(["cells", "lasers"]);
   });
 
   it("maps medium (25) and bare item_health to the medium kind", () => {
