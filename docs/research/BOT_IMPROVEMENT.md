@@ -6,6 +6,8 @@
 **Status:** Phase 0–3 foundation merged to `main`; implementation deliberately paused at this checkpoint
 **Scope:** Headless bots in `src/bot`, FPS gametypes in `src/games/fps`, and the minimum shared network contracts needed to connect them
 
+> **See also:** [`BOT_WEIGHTS_AND_GOALS.md`](BOT_WEIGHTS_AND_GOALS.md) (2026-07-28) refines §4 (goal planner), §4.2 (gametype directives), §8.1 (item utility) and Phase 5 of this document. It adds gametype-defined behavioural **weights** as a separate channel from directives, settles the arbitration and score-combination questions §4.1 leaves open, and specifies the Warsow Bomb map contract for a Search & Destroy mode. Phase 5 below remains unimplemented; that document supersedes its sequencing.
+
 ### Current pause point
 
 The first generalized-map milestone is complete and work is paused here for playtesting and prioritization. Nothing in this slice hardcodes `wdm2` coordinates: bots derive typed navigation, trigger metadata, pickup identities, and bounded movement opportunities from the loaded BSP, then persist only versioned static results. `wdm2` is a repeatable validation map, not authored bot knowledge.
