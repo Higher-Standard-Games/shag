@@ -20,7 +20,7 @@ export interface LobbyMessage {
 // ============================================================================
 
 export interface GametypeInfo {
-  id: string; // 'duel', 'tdm', 'ffa'
+  id: string; // 'duel', 'snd', 'ffa'
   name: string; // 'DUEL 1v1'
   description: string;
   maxPlayers: number;
@@ -91,7 +91,7 @@ export interface MatchLobbyInfo {
 
 export interface LiveMatchInfo {
   id: string; // lobby ID
-  gametype: string; // 'duel', 'tdm', 'ffa'
+  gametype: string; // 'duel', 'snd', 'ffa'
   gametypeName: string; // 'DUEL', 'TEAM', 'FFA'
   map: string; // map name (set when match starts, else '')
   mapDisplayName: string;

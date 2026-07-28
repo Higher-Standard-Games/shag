@@ -15,6 +15,7 @@ import { GameServer, type GameServerConfig } from "../games/fps/server/GameServe
 import type { BaseGametype } from "../games/fps/server/gametypes/BaseGametype";
 import { Deathmatch } from "../games/fps/server/gametypes/Deathmatch";
 import { Duel } from "../games/fps/server/gametypes/Duel";
+import { SearchAndDestroy } from "../games/fps/server/gametypes/SearchAndDestroy";
 import { TeamDeathmatch } from "../games/fps/server/gametypes/TeamDeathmatch";
 import { loadBspCollision } from "./HeadlessMapLoader";
 
@@ -79,6 +80,10 @@ function parseArgs(): Args {
 
 function makeGametype(name: string): BaseGametype {
   switch (name.toLowerCase()) {
+    case "snd":
+    case "bomb":
+    case "searchanddestroy":
+      return new SearchAndDestroy();
     case "tdm":
     case "teamdeathmatch":
       return new TeamDeathmatch();
@@ -121,6 +126,7 @@ async function main(): Promise<void> {
   const server = new GameServer(config, makeGametype(args.gametype));
   server.setCollisionWorld(bspData.collision);
   server.setSpawnPoints(bspData.spawnPoints, bspData.teamSpawnPoints);
+  server.setMapData(bspData.entities, bspData.models);
   server.setPickupItems(bspData.pickups);
   server.setTriggerVolumes(bspData.triggers);
   server.setPickupRespawnTime(15);

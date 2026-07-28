@@ -5,6 +5,7 @@
  */
 
 import * as path from "node:path";
+import type { BspEntity, BspModel } from "../engine/loader/bsp/BspLoader";
 import { resolveMapBspViaIndex } from "../engine/loader/pk3/NodePk3";
 import type { CollisionWorld } from "../engine/network/systems/collision/CollisionWorld";
 import type { PickupEntry } from "../shared/bsp/PickupTable";
@@ -24,6 +25,10 @@ export interface BspData {
   triggers: TriggerVolume[];
   /** PVS data for server-side network visibility culling */
   pvs: import("../engine/server/ServerPVS").ServerPVSData | null;
+  /** Raw entity lump, for gametypes that read their own map authoring. */
+  entities: BspEntity[];
+  /** Raw model lump, for entities whose `model` is a `*N` brush reference. */
+  models: BspModel[];
 }
 
 export async function loadBspCollision(mapName: string, gamePath = "./game"): Promise<BspData | null> {
@@ -90,5 +95,16 @@ export async function loadBspCollision(mapName: string, gamePath = "./game"): Pr
 
   console.log(pvs ? `[Map] PVS data retained: ${bsp.visData!.numClusters} clusters` : "[Map] No PVS data in BSP");
 
-  return { collision, spawnPoints, teamSpawnPoints, pickups, triggers, pvs };
+  // Raw lumps, so gametypes can extract their own authoring (S&D reads
+  // bombsites from them). Cheap: these are already parsed and held by `bsp`.
+  return {
+    collision,
+    spawnPoints,
+    teamSpawnPoints,
+    pickups,
+    triggers,
+    pvs,
+    entities: bsp.entities,
+    models: bsp.models,
+  };
 }

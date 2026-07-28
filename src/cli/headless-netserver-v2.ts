@@ -18,6 +18,7 @@ import { GameServer, type GameServerConfig } from "../games/fps/server/GameServe
 import type { BaseGametype } from "../games/fps/server/gametypes/BaseGametype";
 import { Deathmatch } from "../games/fps/server/gametypes/Deathmatch";
 import { Duel } from "../games/fps/server/gametypes/Duel";
+import { SearchAndDestroy } from "../games/fps/server/gametypes/SearchAndDestroy";
 import { TeamDeathmatch } from "../games/fps/server/gametypes/TeamDeathmatch";
 import { runCli } from "./_runCli";
 import { loadBspCollision } from "./HeadlessMapLoader";
@@ -129,7 +130,7 @@ Usage: npx vite-node src/cli/headless-netserver-v2.ts [options]
 Options:
   --port <n>             Server port (default: 7777)
   --map <name>           Map to load (default: wdm7)
-  --gametype <name>      Gametype (Deathmatch, TeamDeathmatch, Duel)
+  --gametype <name>      Gametype (Deathmatch, TeamDeathmatch, Duel, SnD)
   --name <name>          Server name
   --max <n>              Max clients (default: 16)
   --tickrate <n>         Tick rate in Hz (default: 125)
@@ -206,6 +207,11 @@ async function main(): Promise<void> {
   // Create game server with selected gametype
   let gametypeInstance: BaseGametype;
   switch (config.gametype.toLowerCase()) {
+    case "snd":
+    case "bomb":
+    case "searchanddestroy":
+      gametypeInstance = new SearchAndDestroy();
+      break;
     case "tdm":
     case "teamdeathmatch":
       gametypeInstance = new TeamDeathmatch();
@@ -225,6 +231,7 @@ async function main(): Promise<void> {
   if (bspData) {
     server.setCollisionWorld(bspData.collision);
     server.setSpawnPoints(bspData.spawnPoints, bspData.teamSpawnPoints);
+    server.setMapData(bspData.entities, bspData.models);
     server.setPickupItems(bspData.pickups);
     server.setTriggerVolumes(bspData.triggers);
     server.setPickupRespawnTime(15); // weapons: 15s (armor 25s+15s delay, health 20s, mega 60s are PickupSystem defaults)

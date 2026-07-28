@@ -42,10 +42,10 @@ const GAMETYPE_SHELLS: Omit<GametypeInfo, "mapPool">[] = [
     teamNames: ["UDON", "SOBA"],
   },
   {
-    id: "tdm",
-    name: "TEAM",
-    description: "2v2 Team Deathmatch",
-    maxPlayers: 4,
+    id: "snd",
+    name: "S&D",
+    description: "Search & Destroy",
+    maxPlayers: 10,
     hasTeams: true,
     teamNames: ["UDON", "SOBA"],
   },
@@ -58,11 +58,12 @@ export function normalizeGametype(input: string | undefined): string | null {
     case "duel":
     case "1v1":
       return "duel";
-    case "tdm":
-    case "team":
-    case "teamdeathmatch":
-    case "team_deathmatch":
-      return "tdm";
+    case "snd":
+    case "bomb":
+    case "search":
+    case "searchanddestroy":
+    case "search_and_destroy":
+      return "snd";
     case "ffa":
     case "dm":
     case "deathmatch":

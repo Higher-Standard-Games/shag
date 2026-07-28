@@ -164,7 +164,7 @@ function siteLabel(targetName: string | undefined, id: number): string {
  * areas alone are not sufficient: `wdm4` and `wdm9` carry three of them with no
  * team spawns at all, and must not be detected as bomb maps.
  */
-export function isBombMap(entities: BspEntityLike[]): boolean {
+export function isBombMap(entities: readonly BspEntityLike[]): boolean {
   let indicators = 0;
   let hasTeamSpawns = false;
   for (const entity of entities) {
@@ -183,7 +183,7 @@ export function isBombMap(entities: BspEntityLike[]): boolean {
  * note that dropping one silently changes the ids of those after it, which is
  * why the count is worth validating at load time.
  */
-export function extractBombSites(entities: BspEntityLike[], models: BspModelLike[] = []): BombSite[] {
+export function extractBombSites(entities: readonly BspEntityLike[], models: readonly BspModelLike[] = []): BombSite[] {
   const sites: BombSite[] = [];
   /** targetname → site index, for attaching volumes. */
   const byTargetName = new Map<string, number>();
@@ -239,7 +239,7 @@ export function extractBombSites(entities: BspEntityLike[], models: BspModelLike
 }
 
 /** Extract a team's spawn positions in Babylon space, in BSP order. */
-export function extractTeamSpawns(entities: BspEntityLike[], classname: string): Vec3Like[] {
+export function extractTeamSpawns(entities: readonly BspEntityLike[], classname: string): Vec3Like[] {
   const out: Vec3Like[] = [];
   for (const entity of entities) {
     if (entity.classname !== classname) continue;
