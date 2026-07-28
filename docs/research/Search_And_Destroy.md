@@ -3,7 +3,7 @@
 > A round-based bomb-and-defuse gametype, Warsow Bomb compatible, designed to put the bot goal framework under real load.
 
 **Date:** 2026-07-28
-**Status:** Design complete and rules confirmed. S1-S4 implemented (site extraction, team spawns, round lifecycle, channelled actions); S5-S8 planned (see 8, 9).
+**Status:** Design complete and rules confirmed. S1-S5 implemented (site extraction, team spawns, round lifecycle, channelled actions, bomb rules); S6-S8 planned (see 8, 9).
 **Scope:** `src/games/fps/server/gametypes`, `src/shared/bsp`, `src/shared/bot`
 **Depends on:** [`BOT_WEIGHTS_AND_GOALS.md`](BOT_WEIGHTS_AND_GOALS.md) Phases 1–4 (landed)
 
@@ -633,13 +633,13 @@ the machinery exists and needs wiring, not writing.
 | Bomb world entity | **Reuse** | `DroppedWeaponSystem` is the same shape: `EntityType.Item` + metadata + ground settle |
 | Spawn at attacker base | **Build** | Centroid + ground trace (5.6) |
 | Pickup on touch | **Reuse** | `PickupSystem` proximity pattern, attacker-only |
-| Carry state + team-only visibility | **Build** | Replicated flag |
+| Carry state | **Done** | `BombModel` (S5); replication remains |
 | Carrier glow | **Reuse** | `applyPowerupGlow`, built for Quad |
-| Drop below 100 ups in site | **Build** | Per-tick speed check while carrying |
+| Drop below 100 ups in site | **Done** | `BombModel` (S5) |
 | Drop on death | **Reuse** | `DroppedWeaponSystem.queueDrop` |
-| Arm channel (4 s) | **Reuse** | `ChannelTracker` (S4); needs the bomb-side precondition |
-| Defuse channel (5 s) | **Reuse** | Same tracker, different kind/duration |
-| 35 s detonation timer | **Build** | |
+| Arm channel (4 s) | **Done** | `BombModel` over `ChannelTracker` |
+| Defuse channel (5 s) | **Done** | Same, with the defender precondition |
+| 35 s detonation timer | **Done** | `BombModel` (S5) |
 | Explosion effect | **Reuse** | `ExplosionEffect` + `target_explosion` already on the maps |
 
 ### 8.4 Client / feedback
@@ -670,9 +670,9 @@ the machinery exists and needs wiring, not writing.
 
 | | Count |
 |---|---|
-| Done | 19 |
-| Reuse (wire, don't write) | 10 |
-| Build | 12 |
+| Done | 24 |
+| Reuse (wire, don't write) | 8 |
+| Build | 9 |
 | Optional / deferred | 4 |
 
 The ten reuses are what make this tractable: round reset, player reset, input
@@ -777,9 +777,30 @@ finish winning, which falls out rather than needing a rule.
 the starting tick did not count. Making it count also removed the special case
 for a one-tick channel.
 
-**S5 — The bomb.** Entity (modelled on `DroppedWeaponSystem`), spawn placement,
-pickup, carry state, the <100 ups in-site drop, drop-on-death, detonation, and
-the beep.
+**S5 — The bomb rules. DONE (rules); entity wiring remains.**
+`src/shared/server/gametype/BombModel.ts` + 25 tests.
+
+Carry, the in-site speed drop, arm, defuse, detonation and reset, as a pure
+model the caller feeds a view of the world each tick. It touches no
+`WorldState`, spawns nothing and plays no sound — these rules interact in fiddly
+ways (a carrier who dies mid-plant, a bomb dropped outside a site, a defuse
+landing on the detonation tick) and are far cheaper to get right against a table
+of cases than against a running server.
+
+*Two rules the tests forced into the open:*
+
+- **A bomb lying INSIDE a site cannot be picked up.** Otherwise planting is
+  impossible: the carrier drops it by slowing down and instantly retrieves it
+  from the same spot. The consequence is that a bomb cannot be relocated from
+  site A to site B once committed, which is the right trade.
+- **Channels resolve before the detonation deadline**, so a defuse completing on
+  the final tick wins. Defenders arriving at the last possible instant is the
+  most memorable thing in the mode; it should not lose to an ordering accident.
+
+*Still to do for the bomb:* the world entity itself (model on
+`DroppedWeaponSystem`), spawn placement at the attacker centroid with a ground
+trace, carrier glow via `applyPowerupGlow`, and the beep. All of it is wiring
+around this model, and it lands with the gametype in S6.
 
 **S6 — Wire the mode.** `teamRoles` + `roundState` into `MatchStateSnapshot`;
 the `snd:*` weight profiles; the directive emitter; Quad filtered out.
