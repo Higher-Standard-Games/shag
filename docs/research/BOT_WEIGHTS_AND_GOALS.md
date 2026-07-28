@@ -659,10 +659,42 @@ Rules, following directly from the four gotchas in §2.6:
 1. Collect `misc_capture_area_indicator` in BSP order; assign `id = 0..n-1`. Never reorder.
 2. Label from `targetname` if it matches `/bombsite([ab])/i` or `/indicator([12])/i`; otherwise `String.fromCharCode(65 + id)`. Label is display-only and never used for matching.
 3. Index `trigger_capture_area` by `target`; attach to the indicator whose `targetname` matches. Unmatched volumes are ignored, unmatched indicators keep an empty list.
-4. When `volumeModels` is empty, plant detection uses `radius` around `position`. `DEFAULT_BOMBSITE_RADIUS` needs a playtest value; the wbomb1/5/6 brush volumes give a measurable starting point (derive it from their average brush extent rather than guessing).
+4. When `volumeModels` is empty, plant detection uses `radius` around `position`. **`DEFAULT_BOMBSITE_RADIUS = 384`**, and it must be a CYLINDER, not a sphere — see §11.3.1.
 5. Attacker/defender spawns come from `team_CTF_alphaspawn` / `team_CTF_betaspawn`. **Do not depend on `team_CTF_alphaflag`/`betaflag`** — wbomb6 has neither.
 
 For bots this is nearly free: the objective is a point with an origin, which the nav graph can target like any other position, and `route_cost` gates it if unreachable.
+
+#### 11.3.1 The default bombsite radius
+
+Warsow's bomb gametype applied a default radius so a mapper could drop a bare
+`misc_capture_area_indicator` and be done — which is exactly why half the shipped
+bomb maps have no `trigger_capture_area` at all. The remembered figure is ~384
+units, and measuring the maps that *did* author volumes corroborates it.
+
+Circumscribed radius of the union of each site's brush volumes, read from the
+BSP models lump:
+
+| Map | Site | Size (x×y×z) | Circumscribed radius |
+|---|---|---|---|
+| wbomb1 | 1 | 456×280×56 | 268 |
+| wbomb1 | 2 | 800×280×264 | 424 |
+| wbomb5 | A | 704×640×320 | 476 |
+| wbomb5 | B | 544×544×192 | 385 |
+| wbomb6 | 1 | 480×384×224 | 307 |
+| wbomb6 | 2 | 672×448×224 | 404 |
+
+Mean 377, median 394. `384` sits in the middle of the distribution, matches
+wbomb5's B site to within a unit, and is `3 × 128` — three squares of the
+standard Quake mapping grid, which is both what a default would plausibly be set
+to and what mappers would then size brushes against.
+
+**It must be a cylinder.** Site heights run 56 → 320, so a spherical 384 test
+would allow planting from far above wbomb1's flat site 1. Use a horizontal
+radius plus a separate vertical band, the same shape `PickupSystem` already uses
+(`PICKUP_RADIUS_SQ` with `VERTICAL_RANGE_MIN`/`MAX`).
+
+Where volumes *are* authored they remain authoritative — the default is a
+fallback for bare indicators, not a replacement.
 
 ### 11.4 What S&D still needs beyond this document
 
@@ -802,7 +834,7 @@ Each phase is independently shippable and independently valuable. Dependencies a
 | **D6** | Does RL reward derive from weights? | Yes (§10.1) — one source of policy |
 | **D7** | Commitment window length vs sequence duration (§7.3) | Start 1.5 s; must exceed typical sequence duration |
 | **D8** | Is Phase 3 (route accuracy) before or after Phase 4 (directives)? | Either; Phase 4 is more visible, Phase 3 is more correct |
-| **D9** | `DEFAULT_BOMBSITE_RADIUS` for maps with no trigger volume (§11.3) | Derive from wbomb1/5/6 brush extents; do not guess |
+| **D9** | ~~`DEFAULT_BOMBSITE_RADIUS`~~ **RESOLVED** — 384 units, cylindrical (§11.3.1) | Corroborated against authored volumes: mean 377, median 394 |
 | **D10** | Do `wdm4`/`wdm9` (3 capture areas, no team spawns) get a mode later? | Out of scope; ensure `isBombMap()` excludes them |
 
 ---
