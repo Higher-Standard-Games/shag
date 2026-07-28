@@ -1863,6 +1863,76 @@
 }
 
 /* ============================================================================
+   Powerup timer — countdown slab while the local player holds a powerup.
+   Sits above the vitals block. Gold slab (Warsow's own quad colour), flipping
+   to hot red for the last few seconds so the lapse is never a surprise.
+   ============================================================================ */
+.fps-powerup-timer {
+  display: flex;
+  flex-direction: column;
+  gap: calc(4px * var(--ui-scale, 1));
+  margin-bottom: calc(8px * var(--ui-scale, 1));
+  pointer-events: none;
+}
+
+.fps-powerup-timer-slab {
+  display: inline-flex;
+  align-items: baseline;
+  gap: calc(8px * var(--ui-scale, 1));
+  padding: calc(4px * var(--ui-scale, 1)) calc(14px * var(--ui-scale, 1)) calc(6px * var(--ui-scale, 1));
+  clip-path: polygon(3% 0, 100% 0, 97% 100%, 0 100%);
+  box-shadow:
+    calc(4px * var(--ui-scale, 1)) calc(5px * var(--ui-scale, 1)) 0 hsla(250, 45%, 4%, 0.55),
+    inset 0 calc(-3px * var(--ui-scale, 1)) 0 hsla(38, 90%, 34%, 0.5);
+  filter: var(--w-drop-print-sm);
+}
+
+.fps-powerup-timer-label {
+  font-family: var(--w-font-display);
+  font-size: calc(15px * var(--ui-scale, 1));
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: hsl(246, 40%, 8%);
+}
+
+.fps-powerup-timer-count {
+  font-family: var(--w-font-display);
+  font-size: calc(21px * var(--ui-scale, 1));
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  color: hsl(246, 40%, 8%);
+  text-shadow: calc(1px * var(--ui-scale, 1)) calc(1px * var(--ui-scale, 1)) 0 hsla(45, 100%, 78%, 0.7);
+}
+
+/* QUAD — gold slab, matching gfx/hud/icons/powerup/quad.tga. */
+.fps-powerup-timer--quad {
+  background: linear-gradient(178deg, hsl(48, 100%, 62%), hsl(43, 96%, 50%) 70%), var(--w-scan-cream);
+}
+
+/* Last few seconds — hot red, pulsing. */
+.fps-powerup-timer-slab--expiring {
+  background: linear-gradient(178deg, hsl(2, 92%, 60%), hsl(356, 82%, 46%) 72%), var(--w-scan-cream);
+  animation: fps-powerup-timer-expiring 0.5s ease-in-out infinite;
+}
+
+.fps-powerup-timer-slab--expiring .fps-powerup-timer-label,
+.fps-powerup-timer-slab--expiring .fps-powerup-timer-count {
+  color: hsl(48, 100%, 94%);
+  text-shadow: calc(1px * var(--ui-scale, 1)) calc(1px * var(--ui-scale, 1)) 0 hsla(0, 60%, 12%, 0.8);
+}
+
+@keyframes fps-powerup-timer-expiring {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.06);
+  }
+}
+
+/* ============================================================================
    Actionable keycap — shared chip for HUD key hints ([F], [R], …)
    Dark ink chip with a gold inner edge so it reads on both cream and gold slabs.
    ============================================================================ */
@@ -2214,13 +2284,7 @@
      dark stage veil under the board. The model reads as ABOVE the overlay. */
   background:
     radial-gradient(hsla(190, 100%, 72%, 0.03) 1px, transparent 1.5px) 0 0 / 7px 7px,
-    linear-gradient(
-      100deg,
-      transparent 0%,
-      transparent 30%,
-      hsla(248, 30%, 4%, 0.72) 52%,
-      hsla(248, 30%, 4%, 0.92) 80%
-    );
+    linear-gradient(100deg, transparent 0%, transparent 30%, hsla(248, 30%, 4%, 0.72) 52%, hsla(248, 30%, 4%, 0.92) 80%);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   justify-content: flex-end;

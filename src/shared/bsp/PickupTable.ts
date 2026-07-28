@@ -27,7 +27,7 @@ export const CLASSNAME_TO_WEAPON: Record<string, string> = {
 };
 
 /** Pickup type tracked by the server. */
-export type PickupType = "weapon" | "ammo" | "armor" | "health";
+export type PickupType = "weapon" | "ammo" | "armor" | "health" | "powerup";
 
 /** Descriptor for a tracked pickup classname: its type + game-specific kind. */
 interface PickupClassInfo {
@@ -90,6 +90,11 @@ export const PICKUP_CLASSNAMES: Record<string, PickupClassInfo> = {
   item_health_large: { type: "health", kind: "large" }, // +50
   item_health_mega: { type: "health", kind: "mega" },
   item_health_ultra: { type: "health", kind: "ultra" }, // alias → mega behavior
+  // Powerups (kind = PowerupKind). Every shipped map places exactly one
+  // item_quad; item_warshell / item_regen are present in map data but not yet
+  // implemented, so they stay untracked and invisible rather than spawning an
+  // item that does nothing when grabbed.
+  item_quad: { type: "powerup", kind: "quad" },
 };
 
 export interface PickupEntry {

@@ -43,7 +43,33 @@ const SPAWN_TOSS_SPREAD = 22;
  * work. Seeded off the pickup id so a given spawn always lands the same way and
  * respawns are not a lottery.
  */
-function mapSpawnTossVelocity(type: "weapon" | "ammo" | "armor" | "health", pickupId: number): Vector3 | undefined {
+/** Pickup categories the client spawns visuals for (mirrors shared PickupType). */
+type ClientPickupType = "weapon" | "ammo" | "armor" | "health" | "powerup";
+
+/**
+ * EntityType → pickup category. One mapping instead of the ternary chains that
+ * used to sit at each spawn site and had to be edited in lockstep; `fallback`
+ * differs because the map-spawn path treats unknown defs as weapons while the
+ * console-spawn path treats them as ammo.
+ */
+function pickupTypeOf(def: EntityDef, fallback: ClientPickupType): ClientPickupType {
+  switch (def.type) {
+    case EntityType.WEAPON:
+      return "weapon";
+    case EntityType.AMMO:
+      return "ammo";
+    case EntityType.ARMOR:
+      return "armor";
+    case EntityType.HEALTH:
+      return "health";
+    case EntityType.POWERUP:
+      return "powerup";
+    default:
+      return fallback;
+  }
+}
+
+function mapSpawnTossVelocity(type: ClientPickupType, pickupId: number): Vector3 | undefined {
   if (type !== "weapon") return undefined;
   // Deterministic per spawn: two decorrelated angles/magnitudes from the id.
   const angle = ((pickupId * 2.399963) % (Math.PI * 2)) + 0.5;
@@ -58,9 +84,9 @@ function mapSpawnTossVelocity(type: "weapon" | "ammo" | "armor" | "health", pick
  */
 async function resolvePickupVisualFactory(
   def: EntityDef,
-  type: "weapon" | "ammo" | "armor" | "health",
+  type: ClientPickupType,
 ): Promise<PickupVisualFactory | undefined> {
-  if (type !== "health" && type !== "armor" && type !== "ammo") return undefined;
+  if (type === "weapon") return undefined;
   if (!proceduralPickupsEnabled()) return undefined;
   const { createProceduralPickupFactory } = await import(
     "../../games/fps/world/pickups/procedural/ProceduralPickupFactory"
@@ -103,13 +129,14 @@ export class EntityManager {
     const ammo = registry.getByType<EntityDef>(EntityType.AMMO);
     const armor = registry.getByType<EntityDef>(EntityType.ARMOR);
     const health = registry.getByType<EntityDef>(EntityType.HEALTH);
+    const powerups = registry.getByType<EntityDef>(EntityType.POWERUP);
 
     console.log(
-      `[EntityManager] Registering handlers for ${weapons.length} weapons, ${ammo.length} ammo, ${armor.length} armor, ${health.length} health...`,
+      `[EntityManager] Registering handlers for ${weapons.length} weapons, ${ammo.length} ammo, ${armor.length} armor, ${health.length} health, ${powerups.length} powerups...`,
     );
 
     // Register All Items
-    const allItems = [...weapons, ...ammo, ...armor, ...health];
+    const allItems = [...weapons, ...ammo, ...armor, ...health, ...powerups];
 
     for (const item of allItems) {
       const handler = (data: EntityData, scene: Scene) => this.spawnEntity(item, data, scene);
@@ -159,14 +186,7 @@ export class EntityManager {
     try {
       // Preserve the definition's actual type so armor/health aren't misfiled as
       // ammo (which also blocks their procedural visual).
-      const type: "weapon" | "ammo" | "armor" | "health" =
-        def.type === EntityType.WEAPON
-          ? "weapon"
-          : def.type === EntityType.ARMOR
-            ? "armor"
-            : def.type === EntityType.HEALTH
-              ? "health"
-              : "ammo";
+      const type = pickupTypeOf(def, "ammo");
       const visualFactory = await resolvePickupVisualFactory(def, type);
 
       // DIRECT PICKUP CREATION for manual spawn is safer/cleaner.
@@ -224,14 +244,7 @@ export class EntityManager {
     // Naming: Use targetname if available, otherwise classname
     const name = data.properties.targetname || `${def.classname || "item"}_${Date.now()}`;
 
-    const type: "weapon" | "ammo" | "armor" | "health" =
-      def.type === EntityType.AMMO
-        ? "ammo"
-        : def.type === EntityType.ARMOR
-          ? "armor"
-          : def.type === EntityType.HEALTH
-            ? "health"
-            : "weapon";
+    const type = pickupTypeOf(def, "weapon");
     let value: string | number = def.id;
 
     if (type === "ammo" && (def as any).ammoType) {

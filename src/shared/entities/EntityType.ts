@@ -15,4 +15,5 @@ export enum EntityType {
   AMMO = "ammo",
   ARMOR = "armor",
   HEALTH = "health",
+  POWERUP = "powerup",
 }

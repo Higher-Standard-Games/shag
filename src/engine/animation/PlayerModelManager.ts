@@ -63,6 +63,17 @@ export interface PlayerModelInstance {
 
 export type PlayerModelTeamColor = "alpha" | "beta" | "bravo" | "ffa";
 
+/**
+ * The material fields the powerup glow writes. Structural rather than
+ * `StandardMaterial | PBRMaterial` because player models arrive from glTF with
+ * either, and only these three fields are ever touched.
+ */
+interface GlowableMaterial {
+  emissiveColor?: Color3;
+  /** Stashed by applyVisualStyle so lifts are applied from a stable base. */
+  __playerModelBaseEmissiveColor?: Color3;
+}
+
 export interface PlayerModelVisualStyle {
   tintColor: Color3 | null;
   fullbrightEnabled: boolean;
@@ -603,6 +614,41 @@ export class PlayerModelManager {
 
       mesh.renderOutline = style.outlineEnabled && outlineWidth > 0;
       mesh.outlineColor = style.outlineColor;
+      mesh.outlineWidth = outlineWidth;
+    }
+  }
+
+  /**
+   * Overlay a powerup glow on top of whatever visual style is already applied.
+   *
+   * Separate from `applyVisualStyle` because this runs EVERY FRAME while a
+   * powerup is held (the pulse is time-driven), so it deliberately does the
+   * minimum: no material cloning, no albedo writes, just emissive and the
+   * outline. `applyVisualStyle` remains the thing that establishes the base
+   * look, and clearing the glow is done by re-applying that base.
+   *
+   * Assumes `applyVisualStyle` already ran for this instance, so the per-mesh
+   * material clone and `__playerModelBaseEmissiveColor` both exist.
+   */
+  applyPowerupGlow(instance: PlayerModelInstance, color: Color3, intensity: number, outlineWidth: number): void {
+    const allMeshes: AbstractMesh[] = [instance.mesh, ...instance.mesh.getChildMeshes()];
+
+    for (const mesh of allMeshes) {
+      const pbrMat = mesh.material as unknown as GlowableMaterial | null;
+      if (!pbrMat) continue;
+
+      if (pbrMat.emissiveColor) {
+        // Lift from the material's OWN base emissive, not from its current
+        // value — accumulating onto the current value would ramp to white
+        // within a second at 60fps.
+        const base = pbrMat.__playerModelBaseEmissiveColor ?? Color3.Black();
+        pbrMat.emissiveColor.r = base.r + color.r * intensity;
+        pbrMat.emissiveColor.g = base.g + color.g * intensity;
+        pbrMat.emissiveColor.b = base.b + color.b * intensity;
+      }
+
+      mesh.renderOutline = outlineWidth > 0;
+      mesh.outlineColor = color;
       mesh.outlineWidth = outlineWidth;
     }
   }

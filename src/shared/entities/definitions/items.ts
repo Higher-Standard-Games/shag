@@ -111,5 +111,22 @@ export const HEALTH_ULTRA: EntityDef = {
   glowColor: { r: 1.0, g: 0.2, b: 0.5 },
 };
 
+// ── Powerups (timed; see shared/items/Powerups.ts for duration & effect) ──
+
+/**
+ * Quad Damage. Unlike every other item here there is NO model to load: the pk3
+ * ships only a HUD icon for it (gfx/hud/icons/powerup/quad.tga), so the world
+ * item is procedural-only and `modelPath` is deliberately absent.
+ */
+export const POWERUP_QUAD: EntityDef = {
+  id: "powerup_quad",
+  name: "Quad Damage",
+  type: EntityType.POWERUP,
+  classname: "item_quad",
+  scale: 1.0,
+  glowColor: { r: 1.0, g: 0.7, b: 0.1 },
+};
+
 export const ARMOR_DEFS = [ARMOR_SHARD, ARMOR_GREEN, ARMOR_YELLOW, ARMOR_RED];
 export const HEALTH_DEFS = [HEALTH_SMALL, HEALTH_MEDIUM, HEALTH_LARGE, HEALTH_MEGA, HEALTH_ULTRA];
+export const POWERUP_DEFS = [POWERUP_QUAD];
