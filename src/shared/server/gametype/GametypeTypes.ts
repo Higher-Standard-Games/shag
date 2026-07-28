@@ -110,9 +110,28 @@ export interface WeaponLoadout {
  * - Clan Arena: no pickups, all weapons given on spawn
  * - Instagib: no pickups, instagun only
  */
+/**
+ * When a consumed item comes back.
+ *
+ * - `timed` — after its own respawn timer. Continuous modes; the item clock is
+ *   the skill.
+ * - `round` — not until the next round. There is one Red Armor per round and
+ *   whoever takes it has it; timing it is meaningless when the round is shorter
+ *   than the timer anyway.
+ * - `alternating` — not until the round AFTER next. An item taken in round 1 is
+ *   absent in round 2 and back in round 3, so taking it is also a denial play
+ *   that reaches into the next round. Experimental: it makes rounds
+ *   alternately rich and poor, and it breaks the mirror-halves property the
+ *   side swap relies on, since the second half inherits the first half's
+ *   depleted map.
+ */
+export type ItemRespawnMode = "timed" | "round" | "alternating";
+
 export interface ItemSpawnRules {
   /** Whether to parse and spawn items from BSP entities */
   spawnFromBsp: boolean;
+  /** When consumed items return. Defaults to `timed`. */
+  respawnMode?: ItemRespawnMode;
   /** Weapon respawn time in seconds */
   weaponRespawnTime: number;
   /** Ammo respawn time in seconds */

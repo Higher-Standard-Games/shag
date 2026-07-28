@@ -263,6 +263,32 @@ export class MessageCodec {
   }
 
   /**
+   * Encode a SetLoadout message (Client → Server)
+   *
+   * The chosen spawn kit, as weapon ids. Sent whenever the player changes it,
+   * not per round — the server decides when it takes effect (next round), so a
+   * client that spams this gains nothing.
+   * Format: [MessageType.SetLoadout][primary: string][secondary: string]
+   */
+  static encodeSetLoadout(primary: string, secondary: string): Uint8Array {
+    const encoder = new BinaryEncoder();
+    encoder.writeUint8(MessageType.SetLoadout);
+    encoder.writeString(primary);
+    encoder.writeString(secondary);
+    return encoder.getData();
+  }
+
+  /** Decode a SetLoadout message. Validation is the gametype's job, not ours. */
+  static decodeSetLoadout(data: Uint8Array): { primary: string; secondary: string } {
+    const decoder = new BinaryDecoder(data);
+    const messageType = decoder.readUint8();
+    if (messageType !== MessageType.SetLoadout) {
+      throw new Error(`Expected SetLoadout message, got 0x${messageType.toString(16)}`);
+    }
+    return { primary: decoder.readString(), secondary: decoder.readString() };
+  }
+
+  /**
    * Encode a Chat message (Client → Server)
    * Sender is identified by connection; the server sanitizes, rate-limits,
    * and rebroadcasts the text as a `chat` snapshot event (which also lands

@@ -1253,6 +1253,7 @@ export enum MessageType {
   Spectate = 0x87, // Player → Spectator: request to leave game and spectate
   RequestSpawn = 0x88, // Dead player requests respawn (after cooldown)
   Chat = 0x89, // In-game chat text (server sanitizes, rate-limits, rebroadcasts as snapshot event)
+  SetLoadout = 0x8a, // Chosen spawn kit (S&D). Takes effect from the next round.
 }
 
 // Text encoder/decoder for UTF-8 strings (more efficient than UTF-16)
