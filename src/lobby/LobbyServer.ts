@@ -41,6 +41,7 @@ const GAMETYPE_SHELLS: Omit<GametypeInfo, "mapPool">[] = [
     hasTeams: true,
     teamNames: ["UDON", "SOBA"],
   },
+  { id: "ffa", name: "FFA", description: "Free For All", maxPlayers: 8, hasTeams: false },
   {
     id: "snd",
     name: "S&D",
@@ -49,7 +50,6 @@ const GAMETYPE_SHELLS: Omit<GametypeInfo, "mapPool">[] = [
     hasTeams: true,
     teamNames: ["UDON", "SOBA"],
   },
-  { id: "ffa", name: "FFA", description: "Free For All", maxPlayers: 8, hasTeams: false },
 ];
 
 export function normalizeGametype(input: string | undefined): string | null {
