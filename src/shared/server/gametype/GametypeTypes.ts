@@ -33,6 +33,35 @@ export enum MatchPhase {
   RoundEnd = 4,
 }
 
+/**
+ * What a player has actually done, accumulated over a match.
+ *
+ * Kept separately from `score` because some modes DERIVE score from these
+ * rather than counting frags — Warsow Bomb scores mostly on damage dealt, so
+ * the player who softened three enemies is credited even though a teammate
+ * finished them. A derived score is also a pure function of these numbers,
+ * which means it cannot drift the way an incremented counter can.
+ */
+export interface PlayerStats {
+  frags: number;
+  /** Teammates killed. Counted separately so it can be penalised, not just netted. */
+  teamFrags: number;
+  deaths: number;
+  /** Damage dealt to enemies, before their armor. */
+  damageGiven: number;
+  /** Damage dealt to teammates. */
+  teamDamageGiven: number;
+  /** Bombs armed (or flags taken, in a future mode). */
+  plants: number;
+  /** Bombs defused. */
+  defuses: number;
+}
+
+/** A fresh stat line. */
+export function emptyPlayerStats(): PlayerStats {
+  return { frags: 0, teamFrags: 0, deaths: 0, damageGiven: 0, teamDamageGiven: 0, plants: 0, defuses: 0 };
+}
+
 /** How a round was won, for the banner. Server-authored, client-displayed. */
 export interface RoundResult {
   /** Winning team id, or null for a draw. */

@@ -278,36 +278,51 @@ export class BombModel {
     attackingTeam: string,
     events: BombEvent[],
   ): void {
-    const working = this.someoneNear(players, (p) => p.team === attackingTeam);
-    if (this.meter.advance(working) !== "completed") return;
+    const worker = this.someoneNear(players, (p) => p.team === attackingTeam);
+    if (this.meter.advance(worker !== null) !== "completed") return;
 
     this._phase = "armed";
     this._armedAtTick = tick;
     this.meter = new ProgressMeter(this.rules.defuseTicks);
-    events.push({ kind: "armed", siteId: this._siteId ?? undefined, position: this._position });
+    events.push({
+      kind: "armed",
+      entityId: worker ?? undefined,
+      siteId: this._siteId ?? undefined,
+      position: this._position,
+    });
   }
 
   /** Armed: defenders near the bomb fill the defuse meter; it decays otherwise. */
   private updateDefusing(players: readonly BombPlayerView[], attackingTeam: string, events: BombEvent[]): void {
-    const working = this.someoneNear(players, (p) => p.team !== attackingTeam);
-    if (this.meter.advance(working) !== "completed") return;
+    const worker = this.someoneNear(players, (p) => p.team !== attackingTeam);
+    if (this.meter.advance(worker !== null) !== "completed") return;
 
     this._phase = "defused";
-    events.push({ kind: "defused", siteId: this._siteId ?? undefined, position: this._position });
+    events.push({
+      kind: "defused",
+      entityId: worker ?? undefined,
+      siteId: this._siteId ?? undefined,
+      position: this._position,
+    });
   }
 
   /**
-   * Is at least one living player matching `predicate` within the arm/defuse
-   * radius? Numbers deliberately do not stack — five attackers arm no faster
+   * The first living player matching `predicate` within the arm/defuse radius,
+   * or null. Numbers deliberately do not stack — five attackers arm no faster
    * than one, so a site cannot be taken by weight of bodies alone.
+   *
+   * Returning WHO rather than merely whether is what lets the arm and the
+   * defuse be credited. Progress is shared, so there is no single owner of the
+   * work; the person standing on it when it completes is the fair answer and
+   * the only one a player would recognise.
    */
-  private someoneNear(players: readonly BombPlayerView[], predicate: (p: BombPlayerView) => boolean): boolean {
+  private someoneNear(players: readonly BombPlayerView[], predicate: (p: BombPlayerView) => boolean): number | null {
     const radiusSq = this.rules.armDefuseRadius * this.rules.armDefuseRadius;
     for (const player of players) {
       if (!player.alive || !predicate(player)) continue;
-      if (this.distanceSqTo(player.position) <= radiusSq) return true;
+      if (this.distanceSqTo(player.position) <= radiusSq) return player.entityId;
     }
-    return false;
+    return null;
   }
 
   private distanceSqTo(point: Vec3Like): number {
