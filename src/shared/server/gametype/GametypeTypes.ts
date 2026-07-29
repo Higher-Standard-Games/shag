@@ -23,6 +23,31 @@ export enum MatchPhase {
   Active = 2,
   /** Match ended — scoreboard display, then restart/rotate */
   PostGame = 3,
+  /**
+   * A round has been decided; the match has not.
+   *
+   * Its own phase rather than a flag on `Active` because everything about it
+   * differs: nobody may move or shoot, nothing scores, the camera leaves the
+   * player to watch the bomb, and the result banner is up. Round modes only.
+   */
+  RoundEnd = 4,
+}
+
+/** How a round was won, for the banner. Server-authored, client-displayed. */
+export interface RoundResult {
+  /** Winning team id, or null for a draw. */
+  winner: string | null;
+  /** Display name of the winning team. */
+  winnerName: string;
+  /**
+   * Why, as a stable key rather than prose: the client owns the wording, and a
+   * key survives translation and rephrasing where a sentence does not.
+   */
+  reason: "detonated" | "defused" | "eliminated" | "timeout";
+  /** Round this decided. */
+  round: number;
+  /** Where to point the camera — the bomb, for a detonation worth watching. */
+  focus?: { x: number; y: number; z: number };
 }
 
 export type TeamId = "udon" | "soba" | "spectator";
@@ -73,6 +98,13 @@ export interface MatchConfig {
    * swap — no team should be able to win without playing both sides.
    */
   roundsPerHalf?: number;
+  /**
+   * Seconds between a round being decided and the next freeze starting.
+   *
+   * Long enough to watch a detonation finish and read who won. Round-based
+   * only; defaults to 5.
+   */
+  roundEndDuration?: number;
   /**
    * Score lead required to win, on top of reaching `scoreLimit` (tennis rule).
    * 1 = no requirement (default). Warsow Bomb uses 2, so 10-9 does not win.
@@ -252,4 +284,6 @@ export interface MatchStateSnapshot {
   roundState?: string;
   /** The mode's objective, for modes that have one. */
   objective?: ObjectiveSnapshot;
+  /** Set only during RoundEnd — how the round that just ended was won. */
+  roundResult?: RoundResult;
 }
