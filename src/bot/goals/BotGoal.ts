@@ -22,7 +22,7 @@ import type { Vec3 } from "../BotGameState";
  * and one score currency, which is the entire point: an S&D bot must be able to
  * decide that planting outranks a Red Armor without either being special-cased.
  */
-export type BotGoalKind = "acquire_item" | "move_to" | "hold_area" | "defend" | "escort";
+export type BotGoalKind = "acquire_item" | "move_to" | "hold_area" | "defend" | "escort" | "hunt";
 
 /** What the goal is about, for considerations to score. */
 export interface GoalItem {

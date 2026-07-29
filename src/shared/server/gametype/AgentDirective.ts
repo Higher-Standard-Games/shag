@@ -24,7 +24,16 @@ export type AgentDirectiveKind =
   /** Stay near a place and deny it to enemies. */
   | "defend"
   /** Stay near a specific player (flag/bomb carrier). */
-  | "escort";
+  | "escort"
+  /**
+   * Seek out and kill a specific player.
+   *
+   * Distinct from ordinary target selection, which the bot does on its own from
+   * what it can see: this says a named enemy is worth going to FIND. Objective
+   * modes need it because killing the carrier is itself an objective — in S&D
+   * it drops the bomb, in CTF it drops the flag.
+   */
+  | "hunt";
 
 export type AgentDirectiveTarget =
   | { type: "position"; position: { x: number; y: number; z: number }; radius: number }

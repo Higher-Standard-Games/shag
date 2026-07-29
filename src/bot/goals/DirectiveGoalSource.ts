@@ -18,7 +18,7 @@ import { type BotGoal, type BotGoalKind, directiveGoalId } from "./BotGoal";
 /** Fallback arrival radius when a directive does not specify one. */
 const DEFAULT_DIRECTIVE_RADIUS = 160;
 
-const DIRECTIVE_KINDS = new Set(["move_to", "hold_area", "defend", "escort"]);
+const DIRECTIVE_KINDS = new Set(["move_to", "hold_area", "defend", "escort", "hunt"]);
 
 function isFiniteVec3(value: unknown): value is Vec3 {
   if (!value || typeof value !== "object") return false;

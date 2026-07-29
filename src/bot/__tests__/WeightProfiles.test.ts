@@ -62,7 +62,9 @@ describe("weightProfileKey", () => {
     expect(weightProfileKey("Deathmatch")).toBe("deathmatch");
     expect(weightProfileKey("Team Deathmatch")).toBe("team_deathmatch");
     expect(weightProfileKey("  Duel  ")).toBe("duel");
-    expect(weightProfileKey("Search & Destroy")).toBe("search__destroy");
+    // Dropped punctuation collapses rather than leaving a gap — "search_destroy",
+    // not the "search__destroy" a naive strip would produce and nobody would guess.
+    expect(weightProfileKey("Search & Destroy")).toBe("search_destroy");
   });
 
   it("is total — never throws on missing or junk input", () => {

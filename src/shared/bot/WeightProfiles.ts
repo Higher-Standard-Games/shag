@@ -89,6 +89,76 @@ export const WEIGHT_PROFILES: Readonly<Record<string, BotWeightProfile>> = {
     riskTolerance: 0.4,
   },
 
+  // ── Search & Destroy ─────────────────────────────────────────────
+  //
+  // Four profiles, because the mode asks for four different things and the
+  // difference between them is the difference between a bot that plays S&D and
+  // one that plays deathmatch on a bomb map.
+  //
+  // Items still matter — the map spawns them and there is one of each per round
+  // — but never more than the objective, which is why itemGreed sits below the
+  // deathmatch value everywhere here.
+
+  // Attacking, pre-plant. Push, take ground, get the bomb planted. Risk is
+  // acceptable: a round spent alive and unplanted is a round lost anyway.
+  search_destroy: {
+    ...DEFAULT_WEIGHT_PROFILE,
+    itemGreed: 0.7,
+    itemDenial: 0.2,
+    objectivePush: 1.0,
+    teamCohesion: 0.6,
+    carrierProtect: 0.8,
+    mapControl: 0.4,
+    aggression: 0.7,
+    riskTolerance: 0.6,
+  },
+
+  // Defending, pre-plant. The opposite disposition: hold, do not chase. A
+  // defender who leaves their site to take a fight has given up the site, and
+  // the attackers only need it undefended once.
+  "search_destroy:defender": {
+    ...DEFAULT_WEIGHT_PROFILE,
+    itemGreed: 0.6,
+    itemDenial: 0.2,
+    objectivePush: 0.8,
+    teamCohesion: 0.3,
+    carrierProtect: 0.0,
+    mapControl: 1.0,
+    aggression: 0.4,
+    riskTolerance: 0.3,
+  },
+
+  // Defending, post-plant. Everything inverts: the ground is worthless, only
+  // the bomb matters, and there is no reason left to preserve yourself — the
+  // round is lost in thirty seconds regardless. The most extreme profile in the
+  // game, and correctly so.
+  "search_destroy:defender:post_plant": {
+    ...DEFAULT_WEIGHT_PROFILE,
+    itemGreed: 0.1,
+    itemDenial: 0.0,
+    objectivePush: 1.0,
+    teamCohesion: 0.2,
+    carrierProtect: 0.0,
+    mapControl: 0.1,
+    aggression: 0.5,
+    riskTolerance: 1.0,
+  },
+
+  // Attacking, post-plant. Also inverted, the other way: the job is done and
+  // the only way to lose it is to be moved off the ground. Hold, do not chase,
+  // and stop caring about items entirely.
+  "search_destroy:attacker:post_plant": {
+    ...DEFAULT_WEIGHT_PROFILE,
+    itemGreed: 0.2,
+    itemDenial: 0.0,
+    objectivePush: 0.9,
+    teamCohesion: 0.5,
+    carrierProtect: 0.0,
+    mapControl: 0.9,
+    aggression: 0.4,
+    riskTolerance: 0.35,
+  },
+
   // Duel IS item control. Denying the opponent a Mega or Red Armor is worth as
   // much as taking it, so denial is nearly as strong as personal need — and the
   // bot plays tighter, because in a 1v1 a bad trade loses the round.
@@ -104,15 +174,19 @@ export const WEIGHT_PROFILES: Readonly<Record<string, BotWeightProfile>> = {
 
 /**
  * Normalize a gametype display name into a profile key.
- * "Team Deathmatch" -> "team_deathmatch".
+ *
+ * "Team Deathmatch" -> "team_deathmatch", "Search & Destroy" -> "search_destroy".
+ * Dropped punctuation collapses rather than leaving a gap, so a display name is
+ * free to contain an ampersand without the profile key growing a hole nobody
+ * would guess at.
  */
 export function weightProfileKey(gametypeName: string | undefined | null): string {
   if (!gametypeName) return "";
   return gametypeName
     .trim()
     .toLowerCase()
-    .replace(/[\s-]+/g, "_")
-    .replace(/[^a-z0-9_]/g, "");
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
 }
 
 /**

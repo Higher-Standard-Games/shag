@@ -655,7 +655,9 @@ export class StateMachineBrain extends BotBrain {
     // outrank Red Armor). Falls through to the legacy path when disabled or
     // when nothing scores.
     const goal = this._selectItemGoal(state);
-    if (goal) return this._navigateTo(state, goal.position, false);
+    // Only a DIRECTIVE goal holds on arrival. An item goal has to be touched,
+    // and a bot that stops next to a Red Armor never picks it up.
+    if (goal) return this._navigateTo(state, goal.position, false, goal.directive ? goal.radius : undefined);
 
     // Try NavGraph path to nearest item (weapon > health > armor > ammo)
     // Uses cached _navigateToItem to avoid A* every tick
@@ -701,7 +703,7 @@ export class StateMachineBrain extends BotBrain {
     // through to HUNT but the arbiter still has something worth doing — an
     // objective, or an item that did not meet _shouldSeekItems' cruder bar.
     const goal = this._selectItemGoal(state);
-    if (goal) return this._navigateTo(state, goal.position, false);
+    if (goal) return this._navigateTo(state, goal.position, false, goal.directive ? goal.radius : undefined);
 
     // Check if we know a last enemy position to investigate
     const huntTarget = this._getHuntTarget(state);
@@ -901,7 +903,19 @@ export class StateMachineBrain extends BotBrain {
    * Navigate to a target position using NavGraph pathfinding when available.
    * Falls back to direct movement when no graph exists.
    */
-  private _navigateTo(state: BotGameState, target: Vec3, urgent: boolean): BotInput {
+  private _navigateTo(state: BotGameState, target: Vec3, urgent: boolean, holdRadius?: number): BotInput {
+    // Arrived, and the goal is a PLACE TO BE rather than a thing to touch.
+    //
+    // Everything else in this brain deliberately never sends a zero direction
+    // (see `_moveToward`), which means a bot is always running. That is right
+    // for fetching items and wrong for objectives: Search & Destroy plants only
+    // below 400 ups and arms only while you stay within 100 units of the bomb,
+    // so a bot that cannot stop cannot plant, cannot arm, and cannot defuse.
+    // Holding is the behaviour that makes objective modes playable at all.
+    if (holdRadius !== undefined && vec3Length(vec3Subtract(target, state.self.position)) <= holdRadius) {
+      return this._holdPosition(state, target);
+    }
+
     if (!this._navGraph) {
       return this._moveToward(state, target, urgent);
     }
@@ -1584,6 +1598,29 @@ export class StateMachineBrain extends BotBrain {
     }
 
     return bestTarget;
+  }
+
+  /**
+   * Stand still where you are, facing the thing you came for.
+   *
+   * Zero direction is normally forbidden here because it persists on the server
+   * for 30-80 ms and friction bleeds the bot to a stop over several ticks —
+   * which is exactly what is wanted on arrival. Sprint is dropped too, so the
+   * bot is under the plant speed limit rather than merely slower.
+   *
+   * The bot keeps looking at the objective rather than freezing its view: a
+   * planted bomb is worth watching, and a fixed stare reads as a hung bot.
+   */
+  private _holdPosition(state: BotGameState, target: Vec3): BotInput {
+    const delta = vec3Subtract(target, state.self.position);
+    const distance = vec3Length(delta);
+    return {
+      direction: { x: 0, y: 0, z: 0 },
+      pitch: 0,
+      yaw: distance < 1 ? state.self.yaw : Math.atan2(delta.x, delta.z),
+      buttons: 0,
+      weaponSlot: 0,
+    };
   }
 
   private _noInput(_state: BotGameState): BotInput {

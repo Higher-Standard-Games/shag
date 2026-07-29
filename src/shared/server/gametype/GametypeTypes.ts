@@ -132,6 +132,13 @@ export interface ItemSpawnRules {
   spawnFromBsp: boolean;
   /** When consumed items return. Defaults to `timed`. */
   respawnMode?: ItemRespawnMode;
+  /**
+   * Pickup classnames this mode does not spawn at all.
+   *
+   * A denial at pickup time would still leave the item glowing on the map for
+   * players to walk to; not spawning it is the honest version.
+   */
+  excludeClassnames?: readonly string[];
   /** Weapon respawn time in seconds */
   weaponRespawnTime: number;
   /** Ammo respawn time in seconds */
