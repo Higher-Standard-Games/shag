@@ -68,6 +68,22 @@ export interface BombSiteVolume {
   max: Vec3Like;
 }
 
+/**
+ * One authored blast in a site's detonation, from a `target_explosion` entity.
+ *
+ * Mappers author these in groups sharing a `targetname`, which the site's
+ * `target` points at — wbomb1 has eight per site with staggered delays, so the
+ * explosion reads as a chain reaction through the room rather than one puff.
+ */
+export interface BombExplosionPoint {
+  /** Where, in Babylon space. */
+  position: Vec3Like;
+  /** Seconds after detonation. Authored per entity; 0 when unset. */
+  delay: number;
+  /** Visual scale, from the entity's `radius`. */
+  radius: number;
+}
+
 export interface BombSite {
   /**
    * Stable index in BSP order over accepted indicators — the authoritative id
@@ -92,6 +108,14 @@ export interface BombSite {
   radius: number;
   /** Fallback cylinder half-height, used when `volumes` is empty. */
   halfHeight: number;
+  /**
+   * Authored explosion points for the detonation, in BSP order.
+   *
+   * Empty on maps whose indicators have no `target` (wbomb2 among them), where
+   * the gametype generates points by tracing instead — the same split Warsow
+   * makes, and the reason it prints a nag suggesting mappers author them.
+   */
+  explosions: BombExplosionPoint[];
 }
 
 /** Minimal BSP entity shape (matches BspLoader.BspEntity). */
@@ -108,6 +132,10 @@ interface BspModelLike {
 
 const INDICATOR_CLASSNAME = "misc_capture_area_indicator";
 const VOLUME_CLASSNAME = "trigger_capture_area";
+const EXPLOSION_CLASSNAME = "target_explosion";
+
+/** Visual radius for an authored explosion that does not specify one. */
+const DEFAULT_EXPLOSION_RADIUS = 400;
 
 /** Attacker/defender spawn classnames. Warsow Bomb reuses the CTF entities. */
 export const BOMB_SPAWN_CLASSNAMES = {
@@ -208,7 +236,37 @@ export function extractBombSites(entities: readonly BspEntityLike[], models: rea
       volumes: [],
       radius: DEFAULT_BOMBSITE_RADIUS,
       halfHeight: DEFAULT_BOMBSITE_HALF_HEIGHT,
+      explosions: [],
     });
+  }
+
+  // Explosion groups. The indicator's `target` names a group; every
+  // `target_explosion` sharing that `targetname` belongs to it.
+  const explosionsByGroup = new Map<string, BombExplosionPoint[]>();
+  for (const entity of entities) {
+    if (entity.classname !== EXPLOSION_CLASSNAME) continue;
+    const groupName = entity.properties.targetname;
+    const position = parseOrigin(entity.properties.origin);
+    if (!groupName || !position) continue;
+
+    const delay = Number.parseFloat(entity.properties.delay ?? "0");
+    const radius = Number.parseFloat(entity.properties.radius ?? "0");
+    const group = explosionsByGroup.get(groupName) ?? [];
+    group.push({
+      position,
+      delay: Number.isFinite(delay) && delay > 0 ? delay : 0,
+      radius: Number.isFinite(radius) && radius > 0 ? radius : DEFAULT_EXPLOSION_RADIUS,
+    });
+    explosionsByGroup.set(groupName, group);
+  }
+
+  for (const entity of entities) {
+    if (entity.classname !== INDICATOR_CLASSNAME) continue;
+    const targetName = entity.properties.targetname;
+    const siteIndex = targetName === undefined ? undefined : byTargetName.get(targetName);
+    const group = entity.properties.target;
+    if (siteIndex === undefined || !group) continue;
+    sites[siteIndex].explosions = explosionsByGroup.get(group) ?? [];
   }
 
   // Volumes refine a site; they never define one. Many-to-one: wbomb5 puts four

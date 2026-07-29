@@ -276,6 +276,19 @@ export interface BombObjectiveSnapshot {
 }
 
 /**
+ * The detonation, as a schedule the client plays out.
+ *
+ * Sent once, in full, rather than one blast per tick: the whole sequence is
+ * known the moment the bomb goes off, and a client that has it can render the
+ * chain reaction without thirty more packets arriving during the one moment
+ * the frame budget is under pressure.
+ */
+export interface BombExplosionEvent {
+  /** Blasts, each with its own delay in seconds from the detonation. */
+  points: Array<{ x: number; y: number; z: number; radius: number; delay: number }>;
+}
+
+/**
  * Whatever a mode's objective currently is. A union so CTF can join later
  * without another optional field on the snapshot.
  */
@@ -315,4 +328,10 @@ export interface MatchStateSnapshot {
   objective?: ObjectiveSnapshot;
   /** Set only during RoundEnd — how the round that just ended was won. */
   roundResult?: RoundResult;
+  /**
+   * Sent for a few snapshots after a detonation. Repeated deliberately: it is
+   * fire-and-forget, and the alternative to repeating is a client that misses
+   * the whole explosion because one packet dropped.
+   */
+  explosion?: BombExplosionEvent;
 }

@@ -24,6 +24,7 @@ const SITES: BombSite[] = [
     volumes: [],
     radius: DEFAULT_BOMBSITE_RADIUS,
     halfHeight: DEFAULT_BOMBSITE_HALF_HEIGHT,
+    explosions: [],
   },
   {
     id: 1,
@@ -32,6 +33,7 @@ const SITES: BombSite[] = [
     volumes: [],
     radius: DEFAULT_BOMBSITE_RADIUS,
     halfHeight: DEFAULT_BOMBSITE_HALF_HEIGHT,
+    explosions: [],
   },
 ];
 

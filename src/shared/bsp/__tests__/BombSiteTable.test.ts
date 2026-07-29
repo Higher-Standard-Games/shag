@@ -208,6 +208,7 @@ describe("isInsideBombSite", () => {
     volumes: [],
     radius: DEFAULT_BOMBSITE_RADIUS,
     halfHeight: DEFAULT_BOMBSITE_HALF_HEIGHT,
+    explosions: [],
   };
 
   it("accepts a point inside the fallback radius", () => {
@@ -303,5 +304,63 @@ describe("analyzeBombRoleGeometry", () => {
     expect(analyzeBombRoleGeometry(sites, [], farFromSites).warnings.join(" ")).toContain("attacking team");
     expect(analyzeBombRoleGeometry(sites, nearSites, []).warnings.join(" ")).toContain("defending team");
     expect(analyzeBombRoleGeometry([], nearSites, farFromSites).warnings.join(" ")).toContain("no bomb sites");
+  });
+});
+
+// ── Authored explosions ──────────────────────────────────────────────
+
+describe("explosion groups", () => {
+  const entity = (classname: string, properties: Record<string, string>) => ({ classname, properties });
+
+  it("attaches a target_explosion group to the site that targets it", () => {
+    const sites = extractBombSites([
+      entity("misc_capture_area_indicator", { origin: "0 0 0", targetname: "site_a", target: "boom_a" }),
+      entity("team_CTF_alphaspawn", { origin: "0 0 0" }),
+      entity("misc_capture_area_indicator", { origin: "1000 0 0", targetname: "site_b", target: "boom_b" }),
+      entity("target_explosion", { targetname: "boom_a", origin: "10 20 30", delay: "0.6", radius: "450" }),
+      entity("target_explosion", { targetname: "boom_a", origin: "40 50 60", delay: "0.2", radius: "400" }),
+      entity("target_explosion", { targetname: "boom_b", origin: "900 0 0" }),
+    ]);
+
+    expect(sites[0].explosions).toHaveLength(2);
+    expect(sites[1].explosions).toHaveLength(1);
+    // Q3 "x y z" becomes Babylon (x, z, y) like every other origin here.
+    expect(sites[0].explosions[0].position).toEqual({ x: 10, y: 30, z: 20 });
+    expect(sites[0].explosions[0].delay).toBeCloseTo(0.6, 5);
+    expect(sites[0].explosions[0].radius).toBe(450);
+  });
+
+  it("defaults a radius the mapper left off", () => {
+    const sites = extractBombSites([
+      entity("misc_capture_area_indicator", { origin: "0 0 0", targetname: "a", target: "boom" }),
+      entity("team_CTF_alphaspawn", { origin: "0 0 0" }),
+      entity("misc_capture_area_indicator", { origin: "1000 0 0" }),
+      entity("target_explosion", { targetname: "boom", origin: "0 0 0" }),
+    ]);
+    expect(sites[0].explosions[0].radius).toBeGreaterThan(0);
+    expect(sites[0].explosions[0].delay).toBe(0);
+  });
+
+  it("leaves a site without a target empty, for the traced fallback", () => {
+    // Not hypothetical: wbomb2/3/4/6 author none at all, and wbomb5 authors
+    // only its B site — so the fallback is per SITE, not per map.
+    const sites = extractBombSites([
+      entity("misc_capture_area_indicator", { origin: "0 0 0" }),
+      entity("team_CTF_alphaspawn", { origin: "0 0 0" }),
+      entity("misc_capture_area_indicator", { origin: "1000 0 0", targetname: "b", target: "boom" }),
+      entity("target_explosion", { targetname: "boom", origin: "900 0 0" }),
+    ]);
+    expect(sites[0].explosions).toHaveLength(0);
+    expect(sites[1].explosions).toHaveLength(1);
+  });
+
+  it("ignores an explosion group nothing targets", () => {
+    const sites = extractBombSites([
+      entity("misc_capture_area_indicator", { origin: "0 0 0", targetname: "a" }),
+      entity("team_CTF_alphaspawn", { origin: "0 0 0" }),
+      entity("misc_capture_area_indicator", { origin: "1000 0 0" }),
+      entity("target_explosion", { targetname: "orphan", origin: "0 0 0" }),
+    ]);
+    expect(sites[0].explosions).toHaveLength(0);
   });
 });
