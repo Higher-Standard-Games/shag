@@ -128,6 +128,15 @@ export interface MatchConfig {
    */
   roundsPerHalf?: number;
   /**
+   * Seconds after spawning during which teammates cannot hurt you.
+   *
+   * Friendly fire is on in S&D, and with team spawns and no respawns a
+   * mis-timed rocket at the start of a round can end a teammate's whole round
+   * before they have moved. Enemy damage is never blocked — the protection is
+   * against your own side, not against the game.
+   */
+  teamSpawnProtection?: number;
+  /**
    * Seconds between a round being decided and the next freeze starting.
    *
    * Long enough to watch a detonation finish and read who won. Round-based
