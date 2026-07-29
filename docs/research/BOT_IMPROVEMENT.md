@@ -35,12 +35,45 @@ never reaches a site in a 90 s round, across repeated rounds. Item runs work
 inside whichever room the bot is standing in and nowhere else, which is why this
 never looked broken in deathmatch — a bot that wanders one room still fights.
 
+**Jumppads are not the missing piece.** wbomb2's routes genuinely run through
+jumppads, and the graph does contain them — 6 jumppad edges, one per pad, each
+linking its entry node to its landing node, plus one teleporter edge. The
+component analysis shows why that does not help: the components are
+`29,7,5,4,2,2,2,2,2` and then 21 singletons, and those size-2 components ARE the
+jumppad pairs. Each pad is an island of two nodes with nothing walking into it.
+The pads work; there is no floor around them to reach them from.
+
+**Three defects in a chain**, found by measurement in that order:
+
+1. **The floor grid sampled roofs.** `_sampleFloorGrid` cast ONE ray down the
+   column and took the first surface — which from above the map is the ceiling.
+   On wbomb2 that produced candidates with a median height of 545 in a map whose
+   playable band is 28-384, and 4 nodes survived out of 572 columns.
+   **Fixed:** the sampler now walks the whole column, taking up to 4 standing
+   surfaces per cell and skipping anything above the known node band. Floor
+   nodes went 4 → 34, total 78 → 108 nodes.
+
+2. **Traced floor points land inside solid.** With column sampling, 635
+   candidates pass every check in a standalone probe, but the real builder keeps
+   34 — `BotVision.isInsideSolid` rejects the rest. Verified directly: a floor
+   point produced by the sampler's own trace reports `pointContents = 0x1`
+   (SOLID) one unit above the surface it just hit, while all 37 real spawn
+   points correctly report 0. Something about how the downward trace reports
+   `hitPoint` puts it inside the brush rather than on top of it. **Unfixed** —
+   this is a collision-layer question, not a navigation one.
+
+3. **So the graph has no connective tissue**, and routing falls back to whatever
+   items and spawns happen to see each other. Adding the 30 extra floor nodes
+   from (1) moved routable pairs from 7.5% to 5.3% — MORE nodes, WORSE ratio,
+   because the new nodes are isolated too. Defect (2) has to be fixed before (1)
+   pays off.
+
 **Not fixable by tuning.** Raising `MAX_EDGE_DISTANCE` does nothing; the nodes
-are already within range and the trace is what fails. It needs either
-intermediate nodes along walkable floor (so line of sight is short enough to
-succeed), or multi-hop probing that accepts a link when a *path* exists rather
-than a straight line, or a real navmesh. That is a self-contained piece of work
-and the highest-value one remaining for bots.
+are already within range. `isPathClear` is not the problem either — verified
+clear at 64/128/256/384 units across open floor with player bounds. The work is
+(2), then re-measuring, and probably then multi-hop edge probing or a real
+navmesh. It is a self-contained project and the highest-value one remaining for
+bots.
 
 **Interim behaviour.** Objective goals are no longer gated on route cost
 (`ItemGoalPlanner.buildGates`), falling back to a straight-line estimate — a bot

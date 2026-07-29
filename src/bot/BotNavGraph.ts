@@ -138,6 +138,17 @@ const FLOOR_GRID_SPACING = 256;
 
 /** Raycast height for floor sampling (cast downward from this height) */
 const FLOOR_SAMPLE_HEIGHT = 500;
+/**
+ * Standing surfaces sampled per grid column.
+ *
+ * More than one because maps have storeys; bounded because a column through a
+ * stack of crates is not a stack of useful nav nodes.
+ */
+const FLOOR_SAMPLES_PER_COLUMN = 4;
+/** Drop this far below a surface before looking for the next one down. */
+const FLOOR_COLUMN_STEP = 8;
+/** How far outside the known node band a surface can be and still count. */
+const FLOOR_BAND_HEADROOM = 128;
 
 /** Min distance between any two nodes (dedup threshold) */
 const MIN_NODE_DISTANCE = 64;
@@ -158,6 +169,9 @@ export const BOT_NAV_MOVEMENT_FINGERPRINT = [
   `jump:${JUMP_HEIGHT_MAX}:${JUMP_COST_MULT}`,
   `fall:${FALL_COST_MULT}`,
   `grid:${FLOOR_GRID_SPACING}:${FLOOR_SAMPLE_HEIGHT}:${MIN_NODE_DISTANCE}`,
+  // Column sampling. Part of the fingerprint because a cache built by the old
+  // single-trace version is a grid of roofs and must be rebuilt, not reused.
+  `column:${FLOOR_SAMPLES_PER_COLUMN}:${FLOOR_COLUMN_STEP}:${FLOOR_BAND_HEADROOM}`,
   `trigger:${BOT_NAV_TRIGGER_RESOLVER_VERSION}:${TELEPORT_COST}:${JUMPPAD_COST_MULT}`,
   BOT_MOVEMENT_ANALYZER_FINGERPRINT,
 ].join("|");
@@ -481,19 +495,28 @@ export class BotNavGraph {
   }
 
   /**
-   * Sample a sparse floor grid to find walkable positions in
-   * corridors/hallways that have no items or spawns.
+   * Sample a floor grid to find walkable positions in corridors and rooms that
+   * hold no items or spawns.
+   *
+   * Traces the WHOLE column rather than stopping at the first surface. That is
+   * the difference between a floor grid and a roof grid: a single downward
+   * trace from above the map hits the ceiling, so on wbomb2 this produced 318
+   * candidate "floor" points with a median height of 545 in a map whose
+   * playable band is 28-384 — four survived, and the graph was left with no
+   * connective tissue between rooms at all.
+   *
+   * Sampling every storey also fixes multi-level maps generally: a walkway over
+   * a room is a floor, and so is the room under it.
    */
   private _sampleFloorGrid(vision: BotVision, startId: number): void {
-    // Determine bounds from existing nodes
     if (this._nodes.length === 0) return;
 
-    let minX = Infinity,
-      maxX = -Infinity;
-    let minY = Infinity,
-      maxY = -Infinity;
-    let minZ = Infinity,
-      maxZ = -Infinity;
+    let minX = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+    let minZ = Number.POSITIVE_INFINITY;
+    let maxZ = Number.NEGATIVE_INFINITY;
 
     for (const node of this._nodes) {
       minX = Math.min(minX, node.position.x);
@@ -504,43 +527,46 @@ export class BotNavGraph {
       maxZ = Math.max(maxZ, node.position.z);
     }
 
-    // Expand bounds slightly
     const pad = FLOOR_GRID_SPACING;
     minX -= pad;
     maxX += pad;
     minZ -= pad;
     maxZ += pad;
 
+    // Vertical band worth standing in. Anything above the highest known node by
+    // more than a jump is roof, not floor — nothing reaches it and sampling it
+    // only adds nodes that connect to nothing.
+    const ceiling = maxY + FLOOR_BAND_HEADROOM;
+    const floorLimit = minY - FLOOR_BAND_HEADROOM;
+
     let nextId = startId;
     const collision = vision.collisionWorld;
 
     for (let x = minX; x <= maxX; x += FLOOR_GRID_SPACING) {
       for (let z = minZ; z <= maxZ; z += FLOOR_GRID_SPACING) {
-        // Cast ray downward from height to find floor
-        const from: Vec3 = { x, y: maxY + FLOOR_SAMPLE_HEIGHT, z };
-        const to: Vec3 = { x, y: minY - 100, z };
+        let y = maxY + FLOOR_SAMPLE_HEIGHT;
+        let found = 0;
 
-        const result = collision.trace(from, to);
-        if (!result.hit || !result.hitPoint) continue;
+        // Walk down the column, surface by surface. Each hit is a candidate
+        // standing position; the trace then resumes just below it so the next
+        // storey down is reachable rather than shadowed by the one above.
+        while (found < FLOOR_SAMPLES_PER_COLUMN && y > floorLimit) {
+          const hit = collision.trace({ x, y, z }, { x, y: floorLimit, z });
+          if (!hit.hit || !hit.hitPoint) break;
 
-        // Floor found — check it's a valid standing position
-        const floorPos: Vec3 = {
-          x: result.hitPoint.x,
-          y: result.hitPoint.y + 1, // Slightly above floor
-          z: result.hitPoint.z,
-        };
+          const surfaceY = hit.hitPoint.y;
+          // Resume below this surface regardless of whether we keep it, or a
+          // rejected candidate would trap the loop on the same hit forever.
+          y = surfaceY - FLOOR_COLUMN_STEP;
 
-        // Skip if inside solid geometry
-        if (vision.isInsideSolid(floorPos)) continue;
+          if (surfaceY > ceiling) continue;
+          const floorPos: Vec3 = { x: hit.hitPoint.x, y: surfaceY + 1, z: hit.hitPoint.z };
+          if (vision.isInsideSolid(floorPos)) continue;
+          if (this._isTooCloseToExisting(floorPos)) continue;
 
-        // Skip if too close to existing node
-        if (this._isTooCloseToExisting(floorPos)) continue;
-
-        this._nodes.push({
-          id: nextId++,
-          position: floorPos,
-          type: "floor",
-        });
+          this._nodes.push({ id: nextId++, position: floorPos, type: "floor" });
+          found++;
+        }
       }
     }
   }
