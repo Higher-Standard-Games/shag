@@ -3729,3 +3729,124 @@
   color: hsl(45, 90%, 62%);
   text-shadow: calc(1px * var(--ui-scale, 1)) calc(1px * var(--ui-scale, 1)) 0 hsla(250, 45%, 4%, 0.7);
 }
+
+/* ============================================================================
+   Loadout Picker (Search & Destroy)
+
+   Full-screen and blocking. The kit decides a whole round with no respawn to
+   correct it, so this earns the interruption.
+   ============================================================================ */
+
+.fps-loadout {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: hsla(250, 45%, 4%, 0.82);
+  backdrop-filter: blur(3px);
+  pointer-events: auto;
+}
+
+.fps-loadout-panel {
+  width: min(760px, 92vw);
+  max-height: 92vh;
+  overflow-y: auto;
+  padding: calc(22px * var(--ui-scale, 1)) calc(26px * var(--ui-scale, 1)) calc(26px * var(--ui-scale, 1));
+  background: linear-gradient(178deg, hsla(250, 30%, 12%, 0.98), hsla(250, 35%, 8%, 0.98));
+  box-shadow:
+    calc(6px * var(--ui-scale, 1)) calc(7px * var(--ui-scale, 1)) 0 hsla(250, 45%, 2%, 0.6),
+    inset 0 0 0 calc(1px * var(--ui-scale, 1)) hsla(45, 90%, 62%, 0.28);
+}
+
+.fps-loadout-title {
+  font-family: var(--w-font-display);
+  font-size: calc(26px * var(--ui-scale, 1));
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  color: hsl(45, 92%, 64%);
+}
+
+.fps-loadout-note {
+  margin-bottom: calc(18px * var(--ui-scale, 1));
+  font-size: calc(13px * var(--ui-scale, 1));
+  color: hsl(210, 14%, 68%);
+}
+
+.fps-loadout-row {
+  margin-bottom: calc(18px * var(--ui-scale, 1));
+}
+
+.fps-loadout-row-label {
+  margin-bottom: calc(7px * var(--ui-scale, 1));
+  font-family: var(--w-font-display);
+  font-size: calc(13px * var(--ui-scale, 1));
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  color: hsl(210, 16%, 74%);
+}
+
+.fps-loadout-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(calc(168px * var(--ui-scale, 1)), 1fr));
+  gap: calc(8px * var(--ui-scale, 1));
+}
+
+.fps-loadout-option {
+  padding: calc(10px * var(--ui-scale, 1)) calc(12px * var(--ui-scale, 1));
+  text-align: left;
+  cursor: pointer;
+  border: none;
+  background: hsla(250, 25%, 18%, 0.9);
+  box-shadow: inset 0 0 0 calc(1px * var(--ui-scale, 1)) hsla(210, 20%, 70%, 0.18);
+  transition: background 120ms ease;
+}
+
+.fps-loadout-option:hover {
+  background: hsla(250, 25%, 24%, 0.95);
+}
+
+.fps-loadout-option--selected {
+  background: linear-gradient(178deg, hsl(48, 96%, 60%), hsl(43, 92%, 48%) 72%);
+  box-shadow: inset 0 0 0 calc(2px * var(--ui-scale, 1)) hsl(48, 100%, 78%);
+}
+
+.fps-loadout-option-name {
+  font-family: var(--w-font-display);
+  font-size: calc(15px * var(--ui-scale, 1));
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: hsl(210, 20%, 92%);
+}
+
+.fps-loadout-option-blurb {
+  margin-top: calc(3px * var(--ui-scale, 1));
+  font-size: calc(11.5px * var(--ui-scale, 1));
+  line-height: 1.35;
+  color: hsl(210, 14%, 66%);
+}
+
+.fps-loadout-option--selected .fps-loadout-option-name,
+.fps-loadout-option--selected .fps-loadout-option-blurb {
+  color: hsl(246, 45%, 10%);
+}
+
+.fps-loadout-confirm {
+  width: 100%;
+  margin-top: calc(6px * var(--ui-scale, 1));
+  padding: calc(12px * var(--ui-scale, 1));
+  cursor: pointer;
+  border: none;
+  clip-path: polygon(1.5% 0, 100% 0, 98.5% 100%, 0 100%);
+  background: linear-gradient(178deg, hsl(150, 62%, 52%), hsl(158, 66%, 38%) 72%);
+  font-family: var(--w-font-display);
+  font-size: calc(17px * var(--ui-scale, 1));
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  color: hsl(160, 60%, 8%);
+}
+
+.fps-loadout-confirm:hover {
+  filter: brightness(1.1);
+}

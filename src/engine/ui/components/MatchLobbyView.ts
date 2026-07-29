@@ -522,11 +522,14 @@ export class MatchLobbyView {
     });
     actions.appendChild(leaveBtn);
 
-    // Invite AI bot opponent (server feature — needs a live lobby connection)
+    // Add a bot (server feature — needs a live lobby connection). Pressable
+    // repeatedly: it re-enables as each bot joins, which is what a 5v5 mode
+    // needs when you are testing alone. The lobby balances teams on join, so
+    // each bot lands on whichever side is short.
     if (this.lobbyClient) {
       const inviteBtn = document.createElement("button");
       inviteBtn.className = "match-lobby__btn match-lobby__btn--invite-bot";
-      inviteBtn.textContent = "🤖 INVITE AI BOT";
+      inviteBtn.textContent = "🤖 ADD BOT";
       inviteBtn.addEventListener("click", () => this.requestBot());
       actions.appendChild(inviteBtn);
       this.inviteBotBtn = inviteBtn;
@@ -615,7 +618,7 @@ export class MatchLobbyView {
 
     const full = this.players.length >= this.config.maxPlayers;
     btn.disabled = full;
-    btn.textContent = full ? "🤖 LOBBY FULL" : "🤖 INVITE AI BOT";
+    btn.textContent = full ? "🤖 LOBBY FULL" : "🤖 ADD BOT";
   }
 
   /**

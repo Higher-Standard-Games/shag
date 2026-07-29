@@ -3,7 +3,7 @@
 > A round-based bomb-and-defuse gametype, Warsow Bomb compatible, designed to put the bot goal framework under real load.
 
 **Date:** 2026-07-28
-**Status:** S1-S6 implemented — the mode is playable end to end against bots that do not yet understand it. S7 (bot plant/defuse) and S8 (playtest) remain.
+**Status:** S1-S7 implemented — the mode is playable end to end and bots understand the objective. S8 (playtest) remains, and nothing here has been played.
 **Scope:** `src/games/fps/server/gametypes`, `src/shared/bsp`, `src/shared/bot`
 **Depends on:** [`BOT_WEIGHTS_AND_GOALS.md`](BOT_WEIGHTS_AND_GOALS.md) Phases 1–4 (landed)
 
@@ -954,6 +954,25 @@ Resolved this round, kept for the record:
 | ~~Q6~~ | Does defuse progress persist across defusers? | **Yes — and it decays rather than resetting.** One shared counter on the bomb (§4.4). |
 | ~~Q7~~ | Items reset per round? | **Yes.** Persisting punishes the losing side twice. |
 | ~~Q9~~ | Who attacks in overtime? | **Sides alternate every round.** The half-split has already given each team its nine attacking rounds; a two-round lead spans one attack round each however the sides fall (4.3). |
+
+Known gaps, deliberately deferred:
+
+**Demo re-simulation does not reproduce the bomb.** The bomb lives in gametype
+state, not `WorldState`, so a recorded S&D match replays the players and not the
+objective — no bomb model, no plant, no explosion. The detonation schedule is
+already seeded deterministically (tick + site) so it *would* replay identically;
+what is missing is the state itself crossing into the re-simulated world. The
+real question underneath is whether objectives belong in the deterministic sim
+at all. Putting them there buys demo fidelity and costs the clean separation
+that makes `BombModel` testable standing up. Not urgent: demos of an unplayed
+mode are not yet worth anything.
+
+**A holding bot is a stationary target.** `_holdPosition` is what made planting
+and arming possible — a bot that cannot stop cannot do either — but a bot
+standing perfectly still on a bomb for four seconds is free damage. It probably
+wants a small strafe or a crouch, and possibly a lower hold radius so it drifts
+inside the arm circle rather than freezing at its edge. This is tuning that
+needs eyes on it rather than a test.
 
 Still open:
 
