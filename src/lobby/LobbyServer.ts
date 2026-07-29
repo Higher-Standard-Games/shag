@@ -47,6 +47,10 @@ const GAMETYPE_SHELLS: Omit<GametypeInfo, "mapPool">[] = [
     name: "S&D",
     description: "Search & Destroy",
     maxPlayers: 10,
+    // Two is enough to start a round. A 5v5 mode that will not begin until ten
+    // people are in the room cannot be tested, and an underfilled bomb match is
+    // still a bomb match — unlike a duel, which is meaningless at one.
+    minPlayers: 2,
     hasTeams: true,
     teamNames: ["UDON", "SOBA"],
   },
@@ -214,7 +218,10 @@ class MatchLobby {
 
   isAllReady(): boolean {
     if (this.players.size === 0) return false;
-    if (this.players.size < this.gametype.maxPlayers) return false;
+    // Enough to play, not necessarily full. Defaulting to `maxPlayers` keeps
+    // every existing mode behaving exactly as before.
+    const needed = this.gametype.minPlayers ?? this.gametype.maxPlayers;
+    if (this.players.size < needed) return false;
     return [...this.players.values()].every((p) => p.ready);
   }
 

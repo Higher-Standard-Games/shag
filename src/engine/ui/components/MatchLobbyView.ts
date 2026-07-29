@@ -17,6 +17,14 @@ import { ConnectingOverlay } from "./ConnectingOverlay";
 // ═══════════════════════════════════════════════════════════════════
 
 export interface MatchLobbyPlayer {
+  /**
+   * Lobby player id, which is what every server broadcast addresses.
+   *
+   * Absent only for mock players, which have no server behind them. Ready
+   * updates key on this: matching on `name` looks like it works and silently
+   * never does, because the server sends an id.
+   */
+  id?: string;
   name: string;
   team: "alpha" | "bravo" | "none";
   ready: boolean;
@@ -89,6 +97,7 @@ export class MatchLobbyView {
         votedByLocal: false,
       }));
       this.players = lobbyInfo.players.map((p) => ({
+        id: p.id,
         name: p.name,
         team: p.team as "alpha" | "bravo" | "none",
         ready: p.ready,
@@ -128,10 +137,16 @@ export class MatchLobbyView {
     // Player ready updates
     this.unsubscribers.push(
       this.lobbyClient.on("lobby:player_updated", (msg) => {
-        const player = this.players.find((p) => p.name === msg.playerId || p.isLocal);
+        // By id. This compared `p.name` against a player ID and fell back to
+        // `|| p.isLocal`, so it matched the local player for every update and
+        // was then rejected by the isLocal guard below — meaning no remote
+        // player ever appeared ready, and a lobby of readied bots looked
+        // permanently stuck.
+        const player = this.players.find((p) => p.id === msg.playerId);
         if (player && !player.isLocal) {
           player.ready = msg.ready;
           this.refreshPlayerSlots();
+          this.refreshHeader();
         }
       }),
     );
@@ -140,6 +155,7 @@ export class MatchLobbyView {
     this.unsubscribers.push(
       this.lobbyClient.on("lobby:player_joined", (msg) => {
         this.players.push({
+          id: msg.player.id,
           name: msg.player.name,
           team: msg.player.team as "alpha" | "bravo" | "none",
           ready: msg.player.ready,

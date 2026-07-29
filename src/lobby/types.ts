@@ -24,6 +24,15 @@ export interface GametypeInfo {
   name: string; // 'DUEL 1v1'
   description: string;
   maxPlayers: number;
+  /**
+   * Players needed before a lobby can launch. Defaults to `maxPlayers`.
+   *
+   * Split from `maxPlayers` because they answer different questions: how many
+   * FIT, and how few can start. They were the same number, which meant a mode
+   * sized for 5v5 could not begin until ten people were in the room — fine for
+   * a duel, impossible for anything larger.
+   */
+  minPlayers?: number;
   hasTeams: boolean;
   teamNames?: [string, string];
   mapPool: string[]; // Available maps for this gametype

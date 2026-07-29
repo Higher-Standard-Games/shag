@@ -10,8 +10,9 @@
  * calling start() (no port bind); gametypes/mapNames are injected directly since
  * those are normally loaded from disk in start().
  */
-import { WebSocket } from "ws";
+
 import { describe, expect, it, vi } from "vitest";
+import { WebSocket } from "ws";
 import { LobbyServer } from "../LobbyServer";
 
 // biome-ignore lint/suspicious/noExplicitAny: injected test fixture for a private-shaped config
@@ -206,5 +207,83 @@ describe("LobbyServer lifecycle", () => {
 
     lobby.isStarting = false;
     expect(server.findWaitingLobby("duel")).toBe(lobby);
+  });
+});
+
+// ── Launch threshold ─────────────────────────────────────────────────
+
+describe("LobbyServer launch threshold", () => {
+  /** A 5v5-shaped gametype that can start with two. */
+  // biome-ignore lint/suspicious/noExplicitAny: injected test fixture
+  const SND: any = {
+    id: "snd",
+    name: "S&D",
+    description: "test snd",
+    maxPlayers: 10,
+    minPlayers: 2,
+    hasTeams: true,
+    teamNames: ["UDON", "SOBA"],
+    mapPool: ["wbomb2"],
+  };
+
+  // biome-ignore lint/suspicious/noExplicitAny: reaches private lobby internals
+  function sndServer(): any {
+    const { server } = setup();
+    server.gametypes = [SND];
+    return server;
+  }
+
+  it("starts a 5v5 mode without waiting for ten people", () => {
+    // What broke the first playtest: `isAllReady` required a FULL lobby, so a
+    // mode sized for ten could never begin with one human and a bot — which
+    // reads from the outside as the bots refusing to ready up.
+    const server = sndServer();
+    const host = register(server, makePlayer().player);
+    server.handleLobbyCreate(host, "snd");
+    const lobby = [...server.lobbies.values()][0];
+
+    const bot = register(server, makePlayer({ isBot: true, name: "Bot" }).player);
+    server.handleLobbyJoin(bot, lobby.id);
+
+    lobby.setReady(host.id, true);
+    lobby.setReady(bot.id, true);
+    expect(lobby.isAllReady()).toBe(true);
+  });
+
+  it("still waits for the minimum", () => {
+    const server = sndServer();
+    const host = register(server, makePlayer().player);
+    server.handleLobbyCreate(host, "snd");
+    const lobby = [...server.lobbies.values()][0];
+
+    lobby.setReady(host.id, true);
+    expect(lobby.isAllReady()).toBe(false);
+  });
+
+  it("needs everyone present ready, not just the minimum count", () => {
+    const server = sndServer();
+    const host = register(server, makePlayer().player);
+    server.handleLobbyCreate(host, "snd");
+    const lobby = [...server.lobbies.values()][0];
+
+    const a = register(server, makePlayer().player);
+    const b = register(server, makePlayer().player);
+    server.handleLobbyJoin(a, lobby.id);
+    server.handleLobbyJoin(b, lobby.id);
+
+    lobby.setReady(host.id, true);
+    lobby.setReady(a.id, true);
+    expect(lobby.isAllReady()).toBe(false);
+  });
+
+  it("leaves modes without a minimum needing a full lobby", () => {
+    // Duel has no minPlayers, so it keeps today's behaviour exactly.
+    const { server } = setup();
+    const host = register(server, makePlayer().player);
+    server.handleLobbyCreate(host, "duel");
+    const lobby = [...server.lobbies.values()][0];
+
+    lobby.setReady(host.id, true);
+    expect(lobby.isAllReady()).toBe(false);
   });
 });
