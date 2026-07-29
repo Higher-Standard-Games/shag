@@ -81,8 +81,17 @@ function buildGates(blockedPickupIds: ReadonlySet<number>): GoalGate[] {
     },
 
     // No route means no goal (design doc §7.4: unreachable is a gate, not a
-    // small score). Phase 1's estimator never returns null; Phase 3's will.
-    (_goal, ctx) => (ctx.routeCost === null ? "unreachable" : null),
+    // small score) — for ITEMS. An item the bot cannot path to is worthless.
+    //
+    // An objective is not. It is the thing that has to be done whether or not
+    // the nav graph knows a way there, and heading toward it in a straight line
+    // is strictly better than standing still. This matters in practice, not in
+    // theory: the graph links two nodes only when they have clear line of sight
+    // (`BotVision.isPathClear`), so on any map with corners it fragments into
+    // per-room islands — measured at 4-10% of node pairs routable across
+    // wbomb1, wbomb2 and wdm2. Gating objectives on that made bots ignore the
+    // bomb entirely rather than approach it badly.
+    (goal, ctx) => (ctx.routeCost === null && !goal.directive ? "unreachable" : null),
   ];
 }
 

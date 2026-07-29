@@ -335,3 +335,51 @@ describe("decision explanation", () => {
     expect(result.explain).toContain("gated=1");
   });
 });
+
+// ── Unreachable goals ────────────────────────────────────────────────
+
+describe("the unreachable gate", () => {
+  /** A directive to somewhere with no route to it. */
+  const order = {
+    id: "snd_plant_site_0",
+    kind: "move_to" as const,
+    target: { type: "position" as const, position: { x: 9000, y: 0, z: 9000 }, radius: 96 },
+    priority: 0.9,
+    expiresAtTick: 100_000,
+    interrupt: "never" as const,
+  };
+
+  /** A nav graph that can route nowhere — the fragmented case, exaggerated. */
+  const noRoutes = { estimateTravelCost: () => null } as never;
+
+  it("still pursues an objective the nav graph cannot route to", () => {
+    // The graph links nodes only when they have clear line of sight, so on any
+    // map with corners it fragments into per-room islands — 4-10% of node pairs
+    // routable on the shipped maps. Gating objectives on that made bots ignore
+    // the bomb rather than approach it badly.
+    const state = makeState({});
+    state.matchState = { gametypeName: "Search & Destroy", phase: 2, teamRoles: {}, roundState: "pre_plant" };
+    state.directives = [order];
+
+    const result = new ItemGoalPlanner().select(state, {
+      pickupPositions: [],
+      maxDistance: 3000,
+      blockedPickupIds: new Set(),
+      navGraph: noRoutes,
+    });
+    expect(result.goal?.id).toContain("snd_plant_site_0");
+  });
+
+  it("still drops an ITEM it cannot route to", () => {
+    // An item behind a wall is worthless, and a bot that walks at one stands
+    // there forever. The gate has to keep applying to those.
+    const redArmor = entry("item_armor_ra", "armor", "ra", 9000);
+    const result = new ItemGoalPlanner().select(makeState({ armor: 0 }), {
+      pickupPositions: [redArmor],
+      maxDistance: 30_000,
+      blockedPickupIds: new Set(),
+      navGraph: noRoutes,
+    });
+    expect(result.goal).toBeNull();
+  });
+});

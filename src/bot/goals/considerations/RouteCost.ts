@@ -30,7 +30,17 @@ export const RouteCost: Consideration = {
   score(ctx: ConsiderationContext): number {
     // Unreachable is handled by a hard gate in the arbiter, not by a small
     // score — a route that does not exist must not be merely unattractive.
-    if (ctx.routeCost === null) return 0;
+    //
+    // The gate exempts OBJECTIVES, which still have to be attempted whether or
+    // not the nav graph knows a way there. Scoring those zero here would gate
+    // them a second time by the back door, so they fall back to straight-line
+    // distance: a worse estimate than a real route, and a far better one than
+    // giving up.
+    if (ctx.routeCost === null) {
+      return ctx.goal.directive
+        ? clamp01(1 / (1 + estimateRouteCost(ctx.self.position, ctx.goal.position) / ROUTE_HALF_COST))
+        : 0;
+    }
     if (ctx.routeCost <= 0) return 1;
     return clamp01(1 / (1 + ctx.routeCost / ROUTE_HALF_COST));
   },

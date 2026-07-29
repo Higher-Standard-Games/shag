@@ -8,6 +8,46 @@
 
 > **See also:** [`BOT_WEIGHTS_AND_GOALS.md`](BOT_WEIGHTS_AND_GOALS.md) (2026-07-28) refines §4 (goal planner), §4.2 (gametype directives), §8.1 (item utility) and Phase 5 of this document. It adds gametype-defined behavioural **weights** as a separate channel from directives, settles the arbitration and score-combination questions §4.1 leaves open, and specifies the Warsow Bomb map contract for a Search & Destroy mode. Phase 5 below remains unimplemented; that document supersedes its sequencing.
 
+### Measured blocker: the nav graph is not connected
+
+**Measured 2026-07-29, headless, against the real cached graphs.** The
+proportion of node pairs the graph can route between:
+
+| Map | Nodes | Edges | Routable node pairs |
+|---|---|---|---|
+| wbomb2 | 78 | 148 | **7.5%** |
+| wdm2 | 34 | 44 | **10.2%** |
+| wbomb1 | 58 | 82 | **3.8%** |
+
+wbomb2 fragments into islands of ~21-23 nodes out of 78. Nodes are not too far
+apart (nearest-neighbour distance: min 64, median 270, max 605, against a
+`MAX_EDGE_DISTANCE` of 1500) — the limiter is the edge test itself.
+
+**Cause.** `_probeEdges` creates a walk edge only when `BotVision.isPathClear`
+succeeds, which is a straight-line trace between the two nodes. On any map with
+corners, walls or doors, nodes in different rooms never see each other, so the
+graph becomes a set of per-room cliques with nothing joining them. Every map has
+corners.
+
+**Consequence.** Bots cannot cross a map under navigation. Observed directly in
+a live Search & Destroy match on wbomb2: the carrier picks the bomb up and then
+never reaches a site in a 90 s round, across repeated rounds. Item runs work
+inside whichever room the bot is standing in and nowhere else, which is why this
+never looked broken in deathmatch — a bot that wanders one room still fights.
+
+**Not fixable by tuning.** Raising `MAX_EDGE_DISTANCE` does nothing; the nodes
+are already within range and the trace is what fails. It needs either
+intermediate nodes along walkable floor (so line of sight is short enough to
+succeed), or multi-hop probing that accepts a link when a *path* exists rather
+than a straight line, or a real navmesh. That is a self-contained piece of work
+and the highest-value one remaining for bots.
+
+**Interim behaviour.** Objective goals are no longer gated on route cost
+(`ItemGoalPlanner.buildGates`), falling back to a straight-line estimate — a bot
+that walks at the bomb and gets stuck on a wall is more useful for playtesting
+than one that ignores it. Items keep the gate: an item you cannot reach is
+worthless, while an objective you cannot reach is still the job.
+
 ### Current pause point
 
 The first generalized-map milestone is complete and work is paused here for playtesting and prioritization. Nothing in this slice hardcodes `wdm2` coordinates: bots derive typed navigation, trigger metadata, pickup identities, and bounded movement opportunities from the loaded BSP, then persist only versioned static results. `wdm2` is a repeatable validation map, not authored bot knowledge.
