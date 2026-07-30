@@ -974,6 +974,19 @@ wants a small strafe or a crouch, and possibly a lower hold radius so it drifts
 inside the arm circle rather than freezing at its edge. This is tuning that
 needs eyes on it rather than a test.
 
+**The objective snapshot is not team-filtered.** The bomb's phase, position and
+carrier ride the shared broadcast in `match_state`, so every client holds them
+regardless of side. The HUD no longer *shows* a defender anything before the arm
+(§8.4), but a modified client could still read the socket — and unlike enemy
+player positions, which PVS culls, the bomb is sent uncut across the map.
+
+Warsow has the same property, so this is not a regression, but it is the one
+place where the mode hands out information the design says has to be earned.
+Fixing it means moving `objective` onto the per-client append path that agent
+directives already use, and sending defenders only what the arm makes public.
+Worth doing before the mode is played competitively; not worth it before it has
+been played at all.
+
 Still open:
 
 | | Question | Leaning |

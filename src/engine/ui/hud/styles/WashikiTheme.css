@@ -3877,3 +3877,18 @@
     filter: brightness(1.22);
   }
 }
+
+/* Which side you are on this round. Small, above the objective line — the
+   central fact of the mode, and previously only inferable from wording. */
+.fps-bomb-status-role {
+  font-family: var(--w-font-display);
+  font-size: calc(11px * var(--ui-scale, 1));
+  font-weight: 800;
+  letter-spacing: 0.28em;
+  color: hsl(186, 70%, 62%);
+  text-shadow: calc(1px * var(--ui-scale, 1)) calc(1px * var(--ui-scale, 1)) 0 hsla(250, 45%, 4%, 0.8);
+}
+
+.fps-bomb-status--attacking .fps-bomb-status-role {
+  color: hsl(38, 92%, 62%);
+}
