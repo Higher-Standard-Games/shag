@@ -272,6 +272,13 @@ export interface BombObjectiveSnapshot {
   progress: number;
   /** True while progress is rising — the HUD draws a falling bar differently. */
   advancing: boolean;
+  /**
+   * Client entity key of whoever is arming or defusing right now, or null.
+   *
+   * The progress is shared; the BAR is not. It belongs to the player whose
+   * hands are on the bomb — and, through them, to anyone spectating them.
+   */
+  worker: string | null;
   /** Seconds to detonation, or null when not armed. */
   fuse: number | null;
   /** Seconds between beeps at the current fuse length, or null. */

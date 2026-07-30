@@ -121,6 +121,7 @@ export class BombModel {
   private _carrierId: number | null = null;
   private _siteId: number | null = null;
   private _armedAtTick = 0;
+  private _workerId: number | null = null;
   private readonly rules: BombRules;
   private meter: ProgressMeter;
 
@@ -163,6 +164,18 @@ export class BombModel {
     return this.meter.advancing;
   }
 
+  /**
+   * Who advanced the meter last tick, or null if nobody did.
+   *
+   * The progress is shared, but the PROGRESS BAR is not: it belongs to the
+   * player whose hands are on the bomb. Everyone else on the team learning how
+   * far along an arm is would be the same free intelligence the HUD wording was
+   * just stripped of.
+   */
+  get workerId(): number | null {
+    return this._workerId;
+  }
+
   /** Ticks until detonation, or null when not armed. */
   ticksUntilDetonation(tick: number): number | null {
     if (this._phase !== "armed") return null;
@@ -188,6 +201,7 @@ export class BombModel {
     this._carrierId = null;
     this._siteId = null;
     this._armedAtTick = 0;
+    this._workerId = null;
     this.meter = new ProgressMeter(this.rules.armTicks);
   }
 
@@ -279,6 +293,7 @@ export class BombModel {
     events: BombEvent[],
   ): void {
     const worker = this.someoneNear(players, (p) => p.team === attackingTeam);
+    this._workerId = worker;
     if (this.meter.advance(worker !== null) !== "completed") return;
 
     this._phase = "armed";
@@ -295,6 +310,7 @@ export class BombModel {
   /** Armed: defenders near the bomb fill the defuse meter; it decays otherwise. */
   private updateDefusing(players: readonly BombPlayerView[], attackingTeam: string, events: BombEvent[]): void {
     const worker = this.someoneNear(players, (p) => p.team !== attackingTeam);
+    this._workerId = worker;
     if (this.meter.advance(worker !== null) !== "completed") return;
 
     this._phase = "defused";

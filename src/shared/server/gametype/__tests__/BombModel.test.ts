@@ -309,3 +309,50 @@ describe("reset", () => {
     expect(bomb.progress).toBe(0);
   });
 });
+
+// ── Who is doing the work ────────────────────────────────────────────
+
+describe("worker credit", () => {
+  it("names the attacker arming it, so only they get the bar", () => {
+    // Progress is shared; the progress BAR is not. Showing it to a whole team
+    // would announce an arm across the map.
+    const bomb = new BombModel(RULES);
+    bomb.reset({ x: 0, y: 0, z: 0 });
+    run(bomb, [player({ entityId: 1, position: { x: 0, y: 0, z: 0 }, speed: 10 })], 2);
+    expect(bomb.phase).toBe("planted");
+
+    run(bomb, [player({ entityId: 4 })], 1, 2);
+    expect(bomb.workerId).toBe(4);
+  });
+
+  it("reports nobody when the bomb is unattended", () => {
+    const bomb = new BombModel(RULES);
+    bomb.reset({ x: 0, y: 0, z: 0 });
+    run(bomb, [player({ entityId: 1, position: { x: 0, y: 0, z: 0 }, speed: 10 })], 2);
+
+    run(bomb, [player({ entityId: 4, position: { x: 900, y: 0, z: 0 } })], 1, 2);
+    expect(bomb.workerId).toBeNull();
+  });
+
+  it("names the defender defusing it", () => {
+    const bomb = new BombModel(RULES);
+    bomb.reset({ x: 0, y: 0, z: 0 });
+    run(bomb, [player({ entityId: 1, position: { x: 0, y: 0, z: 0 }, speed: 10 })], 2);
+    run(bomb, [player({ entityId: 1 })], RULES.armTicks, 2);
+    expect(bomb.isArmed).toBe(true);
+
+    run(bomb, [player({ entityId: 2, team: DEFEND })], 1, 2 + RULES.armTicks);
+    expect(bomb.workerId).toBe(2);
+  });
+
+  it("forgets the worker when the round resets", () => {
+    const bomb = new BombModel(RULES);
+    bomb.reset({ x: 0, y: 0, z: 0 });
+    run(bomb, [player({ entityId: 1, position: { x: 0, y: 0, z: 0 }, speed: 10 })], 2);
+    run(bomb, [player({ entityId: 1 })], 1, 2);
+    expect(bomb.workerId).toBe(1);
+
+    bomb.reset({ x: 5000, y: 0, z: 0 });
+    expect(bomb.workerId).toBeNull();
+  });
+});

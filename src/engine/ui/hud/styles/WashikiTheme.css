@@ -3607,17 +3607,9 @@
   text-shadow: calc(1px * var(--ui-scale, 1)) calc(1px * var(--ui-scale, 1)) 0 hsla(0, 60%, 12%, 0.8);
 }
 
-.fps-bomb-status-fuse {
-  font-family: var(--w-font-display);
-  font-size: calc(28px * var(--ui-scale, 1));
-  font-weight: 900;
-  font-variant-numeric: tabular-nums;
-  color: hsl(2, 92%, 66%);
-  text-shadow: calc(2px * var(--ui-scale, 1)) calc(2px * var(--ui-scale, 1)) 0 hsla(250, 45%, 4%, 0.75);
-}
-
-/* Last ten seconds — the same pulse the powerup timer uses when it lapses. */
-.fps-bomb-status--urgent .fps-bomb-status-fuse {
+/* Last ten seconds. The fuse is never printed — the beep is the clock — so the
+   urgency lives in the phase slab instead. */
+.fps-bomb-status--urgent .fps-bomb-status-phase {
   animation: fps-bomb-status-urgent 0.4s ease-in-out infinite;
 }
 
