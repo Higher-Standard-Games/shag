@@ -3884,3 +3884,17 @@
 .fps-bomb-status--attacking .fps-bomb-status-role {
   color: hsl(38, 92%, 62%);
 }
+
+/* Team header: name and score on one slab. The score is the point in a round
+   mode, where it counts rounds won and appears nowhere else on the board. */
+.fps-scoreboard-team-title {
+  display: inline-flex;
+  align-items: baseline;
+  gap: calc(14px * var(--ui-scale, 1));
+}
+
+.fps-scoreboard-team-score {
+  font-size: calc(24px * var(--ui-scale, 1));
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
