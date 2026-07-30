@@ -326,7 +326,8 @@ the plan was a guess and this is not.
 | Swap after | round 9 | round `scoreLimit - 1` | **Same formula.** |
 | Lead required | 2 | `abs(alpha - beta) > 1` | **Same rule.** |
 | Overtime | alternate each round | `roundCount >= roundLimit * 2` | **Same rule.** |
-| Initial attacker | alpha | `INITIAL_ATTACKERS = TEAM_ALPHA` | **Confirmed.** Settles §4.1. |
+| Initial attacker | alpha | `INITIAL_ATTACKERS = TEAM_ALPHA` | **Confirmed** — but see the spawn row below, which is the half that matters in play. |
+| Attacker spawn area | alpha's | **beta's** (`GT_SelectSpawnPoint`) | Warsow crosses the sets against the labels. Missing this put both teams in the wrong half. |
 | Plant speed | < 100 ups | **< 400 ups** (`BOMB_MAX_PLANT_SPEED`) | |
 | Spawn protection | — | 3 s (`g_bomb_spawnprotection`) | Not yet planned. |
 
@@ -948,7 +949,7 @@ Resolved this round, kept for the record:
 
 | | Question | Resolution |
 |---|---|---|
-| ~~Q1~~ | Is alpha the defending team? | **No — alpha attacks** (`INITIAL_ATTACKERS = TEAM_ALPHA`). I had inferred the opposite from spawn geometry and was wrong; `analyzeBombRoleGeometry` now reports distances rather than asserting a role, since the assertion would have rejected every shipped map. |
+| ~~Q1~~ | Is alpha the defending team? | **Both answers were half right, and the question was wrong.** `INITIAL_ATTACKERS = TEAM_ALPHA` names the alpha TEAM as the attackers — but `GT_SelectSpawnPoint` then spawns attackers on `team_CTF_betaspawn` and defenders on `team_CTF_alphaspawn`. The team label and the spawn AREA are separate facts. So the alpha *area* is the defenders', which is what the spawn geometry said all along (alpha averages ~3400 units from the sites on wbomb2, beta ~3800). Reading the constant and stopping there shipped both teams in the wrong half of the map. |
 | ~~Q3~~ | Does the slow-speed drop apply everywhere? | **Only inside a site**, and the threshold is **400 ups, not 100** (§4.4). Carrying across the map is safe; the rule is plant initiation, not a movement tax. |
 | ~~Q4~~ | Where does the bomb spawn? | **Attacker spawn centroid**, ground-traced. `team_CTF_*flag` measured and rejected: inconsistent placement, absent on wbomb6 (5.6). |
 | ~~Q6~~ | Does defuse progress persist across defusers? | **Yes — and it decays rather than resetting.** One shared counter on the bomb (§4.4). |
