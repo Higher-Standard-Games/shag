@@ -40,11 +40,14 @@ export default defineConfig({
      * other mode touches. So the reload landed a few seconds into the first S&D
      * round and nowhere else.
      *
-     * Regenerate from source when adding a Babylon import:
-     *   grep -rhoE 'from "@babylonjs/[^"]+"' src/ | sed 's/from "//;s/"//' | sort -u
+     * Regenerate with `npm run deps:babylon`. That script matches every quoted
+     * `@babylonjs/...` specifier, which a `from "..."` grep does not: side-effect
+     * imports (`import "@babylonjs/core/Rendering/edgesRenderer"`) and dynamic
+     * `import(...)` calls have no `from`, and missing those is exactly how the
+     * reload came back after the first attempt at this list.
      *
-     * If the dev server ever logs "new dependencies optimized" for a Babylon
-     * module, it is missing here — add it rather than living with the reload.
+     * `ViteBabylonDeps.test.ts` fails if the two ever drift apart, so this
+     * cannot rot silently again.
      */
     include: [
       '@babylonjs/core/Animations/animation',
@@ -60,17 +63,21 @@ export default defineConfig({
       '@babylonjs/core/Cameras/arcRotateCamera',
       '@babylonjs/core/Cameras/camera',
       '@babylonjs/core/Cameras/freeCamera',
+      '@babylonjs/core/Collisions/collisionCoordinator',
       '@babylonjs/core/Culling/ray',
+      '@babylonjs/core/Debug/physicsViewer',
       '@babylonjs/core/Engines/abstractEngine',
       '@babylonjs/core/Engines/constants',
       '@babylonjs/core/Engines/engine',
       '@babylonjs/core/Engines/engineStore',
       '@babylonjs/core/Engines/nullEngine',
+      '@babylonjs/core/Engines/webgpuEngine',
       '@babylonjs/core/Events/pointerEvents',
       '@babylonjs/core/Instrumentation/engineInstrumentation',
       '@babylonjs/core/Instrumentation/sceneInstrumentation',
       '@babylonjs/core/Layers/glowLayer',
       '@babylonjs/core/Lights/Clustered/clusteredLightContainer',
+      '@babylonjs/core/Lights/Clustered/clusteredLightingSceneComponent',
       '@babylonjs/core/Lights/Shadows/shadowGenerator',
       '@babylonjs/core/Lights/directionalLight',
       '@babylonjs/core/Lights/hemisphericLight',
@@ -91,6 +98,8 @@ export default defineConfig({
       '@babylonjs/core/Materials/Node/Enums/nodeMaterialSystemValues',
       '@babylonjs/core/Materials/Node/nodeMaterial',
       '@babylonjs/core/Materials/PBR/pbrMaterial',
+      '@babylonjs/core/Materials/Textures/Loaders/ktxTextureLoader.js',
+      '@babylonjs/core/Materials/Textures/Loaders/tgaTextureLoader',
       '@babylonjs/core/Materials/Textures/baseTexture',
       '@babylonjs/core/Materials/Textures/cubeTexture',
       '@babylonjs/core/Materials/Textures/dynamicTexture',
@@ -116,6 +125,7 @@ export default defineConfig({
       '@babylonjs/core/Meshes/mesh',
       '@babylonjs/core/Meshes/mesh.vertexData',
       '@babylonjs/core/Meshes/meshBuilder',
+      '@babylonjs/core/Meshes/thinInstanceMesh',
       '@babylonjs/core/Meshes/trailMesh',
       '@babylonjs/core/Meshes/transformNode',
       '@babylonjs/core/Misc/areaLightsTextureTools',
@@ -123,23 +133,35 @@ export default defineConfig({
       '@babylonjs/core/Misc/khronosTextureContainer2Worker.js',
       '@babylonjs/core/Misc/logger',
       '@babylonjs/core/Misc/observable',
+      '@babylonjs/core/Misc/screenshotTools',
       '@babylonjs/core/Misc/tools',
       '@babylonjs/core/Misc/workerPool.js',
       '@babylonjs/core/Particles/gpuParticleSystem',
       '@babylonjs/core/Particles/particleSystem',
+      '@babylonjs/core/Particles/webgl2ParticleSystem',
+      '@babylonjs/core/Physics/joinedPhysicsEngineComponent',
       '@babylonjs/core/Physics/v2/IPhysicsEnginePlugin',
       '@babylonjs/core/Physics/v2/Plugins/havokPlugin',
       '@babylonjs/core/Physics/v2/physicsAggregate',
+      '@babylonjs/core/Physics/v2/physicsEngineComponent',
       '@babylonjs/core/Physics/v2/ragdoll',
       '@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/defaultRenderingPipeline',
       '@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/ssao2RenderingPipeline',
       '@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/ssrRenderingPipeline',
       '@babylonjs/core/PostProcesses/postProcess',
       '@babylonjs/core/PostProcesses/volumetricLightScatteringPostProcess',
+      '@babylonjs/core/Rendering/depthRendererSceneComponent',
+      '@babylonjs/core/Rendering/edgesRenderer',
+      '@babylonjs/core/Rendering/outlineRenderer',
+      '@babylonjs/core/Shaders/ShadersInclude/instancesDeclaration',
+      '@babylonjs/core/Shaders/ShadersInclude/instancesVertex',
       '@babylonjs/core/scene',
+      '@babylonjs/havok',
       '@babylonjs/ktx2decoder',
       '@babylonjs/ktx2decoder/Transcoders/mscTranscoder.js',
       '@babylonjs/ktx2decoder/wasm/msc_basis_transcoder.js',
+      '@babylonjs/loaders',
+      '@babylonjs/loaders/glTF',
     ],
   },
   // Strip log/debug console calls from PRODUCTION bundles as pure (QA-15):

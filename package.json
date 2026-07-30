@@ -69,7 +69,8 @@
     "electron:preview": "npm run build && npm run electron:compile && electron .",
     "demo:record": "npx vite-node src/cli/record-demo.ts --",
     "demo:verify": "npx vite-node src/cli/demo-verify.ts --",
-    "anticheat:calibrate": "npx vite-node src/cli/anticheat-calibrate.ts --"
+    "anticheat:calibrate": "npx vite-node src/cli/anticheat-calibrate.ts --",
+    "deps:babylon": "node scripts/babylon-deps.mjs"
   },
   "devDependencies": {
     "@babylonjs/ktx2decoder": "9.17.0",
