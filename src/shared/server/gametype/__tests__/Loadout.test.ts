@@ -7,6 +7,7 @@
  */
 
 import { describe, expect, it } from "vitest";
+import { normalizeTeamId } from "../GametypeTypes";
 import {
   buildLoadout,
   DEFAULT_LOADOUT,
@@ -88,5 +89,36 @@ describe("building the kit", () => {
 
   it("reads back as something a player would recognise", () => {
     expect(describeLoadout({ primary: "voltaic", secondary: "glauncher" })).toBe("Voltaic + Grenade Launcher");
+  });
+});
+
+// ── Team ids across the lobby boundary ───────────────────────────────
+
+describe("normalizeTeamId", () => {
+  it("translates the lobby's vocabulary into the match's", () => {
+    // The lobby names its sides alpha/bravo (CTF's entity vocabulary) and the
+    // match names them udon/soba. Nothing translated, so a side chosen in the
+    // lobby was discarded on join and the server auto-balanced instead.
+    expect(normalizeTeamId("alpha")).toBe("udon");
+    expect(normalizeTeamId("bravo")).toBe("soba");
+    expect(normalizeTeamId("beta")).toBe("soba");
+  });
+
+  it("passes through ids the match already uses", () => {
+    expect(normalizeTeamId("udon")).toBe("udon");
+    expect(normalizeTeamId("soba")).toBe("soba");
+    expect(normalizeTeamId("spectator")).toBe("spectator");
+  });
+
+  it("is case and whitespace insensitive", () => {
+    expect(normalizeTeamId("  ALPHA ")).toBe("udon");
+  });
+
+  it("returns null for anything else, so the caller can fall back to balancing", () => {
+    // Never guess: dropping a player onto an invalid team is worse than
+    // balancing them onto a real one.
+    expect(normalizeTeamId("green")).toBeNull();
+    expect(normalizeTeamId("")).toBeNull();
+    expect(normalizeTeamId(undefined)).toBeNull();
   });
 });

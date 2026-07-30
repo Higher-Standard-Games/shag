@@ -82,6 +82,33 @@ export interface RoundResult {
 export type TeamId = "udon" | "soba" | "spectator";
 
 /**
+ * Translate a requested team into one the match understands.
+ *
+ * The lobby names its sides `alpha`/`bravo` (CTF's entity vocabulary) and the
+ * match names them `udon`/`soba`. Nothing translated between them, so a side
+ * chosen in the lobby was silently discarded on join and the server
+ * auto-balanced instead — which is why choosing one never took effect.
+ *
+ * Returns null for anything unrecognised, so a bad value falls back to
+ * balancing rather than dropping a player into an invalid team.
+ */
+export function normalizeTeamId(requested: string | undefined | null): TeamId | null {
+  switch ((requested ?? "").trim().toLowerCase()) {
+    case "alpha":
+    case "udon":
+      return "udon";
+    case "bravo":
+    case "beta":
+    case "soba":
+      return "soba";
+    case "spectator":
+      return "spectator";
+    default:
+      return null;
+  }
+}
+
+/**
  * Match configuration — gametype defines these values
  */
 export interface MatchConfig {

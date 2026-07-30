@@ -216,6 +216,12 @@ export class MatchLobbyView {
         // (docs/research/single_game_server_lobby.md).
         try {
           sessionStorage.setItem("shag.return_lobby", this.lobbyId);
+          // The side you picked here, for the game server to honour on join.
+          // Without it `sendJoinGame()` asks for nothing and the server
+          // auto-balances, so choosing a team in the lobby did nothing at all.
+          const localTeam = this.players.find((p) => p.isLocal)?.team;
+          if (localTeam && localTeam !== "none") sessionStorage.setItem("shag.lobby_team", localTeam);
+          else sessionStorage.removeItem("shag.lobby_team");
         } catch {
           /* storage unavailable — return falls back to a plain reload */
         }
