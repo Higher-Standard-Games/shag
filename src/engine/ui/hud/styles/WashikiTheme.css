@@ -3850,3 +3850,30 @@
 .fps-loadout-confirm:hover {
   filter: brightness(1.1);
 }
+
+/* Warmup ready prompt — the message exists to tell you how to start. */
+.fps-phase-ready {
+  margin-top: calc(8px * var(--ui-scale, 1));
+  font-family: var(--w-font-display);
+  font-size: calc(14px * var(--ui-scale, 1));
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: hsl(186, 80%, 70%);
+}
+
+/* Carrying the bomb — the one state its holder must never have to infer. */
+.fps-bomb-status--carrying .fps-bomb-status-phase {
+  background: linear-gradient(178deg, hsl(48, 100%, 62%), hsl(38, 96%, 50%) 72%), var(--w-scan-cream);
+  color: hsl(246, 45%, 8%);
+  animation: fps-bomb-carry-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes fps-bomb-carry-pulse {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.22);
+  }
+}
