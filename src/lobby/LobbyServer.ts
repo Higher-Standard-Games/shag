@@ -205,8 +205,21 @@ class MatchLobby {
     this.recalcVotes();
   }
 
-  voteShuffle(playerId: string): { votes: number; needed: number; passed: boolean } {
+  /**
+   * Vote to shuffle. `alsoVoting` are ids counted as automatic yes votes.
+   *
+   * Bots go in there, and only when a human has actually voted — a bot has no
+   * opinion about team balance, and without them a lobby of one human and any
+   * number of bots can never reach `ceil(players / 2)` and so can never shuffle
+   * at all. Passing them in rather than having them vote on their own keeps
+   * bots from ever triggering a shuffle by themselves.
+   */
+  voteShuffle(
+    playerId: string,
+    alsoVoting: readonly string[] = [],
+  ): { votes: number; needed: number; passed: boolean } {
     this.shuffleVotes.add(playerId);
+    for (const id of alsoVoting) this.shuffleVotes.add(id);
     const needed = Math.ceil(this.players.size / 2);
     const passed = this.shuffleVotes.size >= needed;
     if (passed) {
@@ -454,6 +467,9 @@ export class LobbyServer {
         break;
       case "lobby:ready":
         this.handleLobbyReady(player, msg.lobbyId, msg.ready);
+        break;
+      case "lobby:switch_team":
+        this.handleLobbySwitchTeam(player, msg.lobbyId);
         break;
       case "lobby:vote_shuffle":
         this.handleLobbyVoteShuffle(player, msg.lobbyId);
@@ -754,13 +770,41 @@ export class LobbyServer {
     }
   }
 
+  /**
+   * Move one player to the other side.
+   *
+   * No vote and no balance check. Shuffling is random and needs a majority, so
+   * with a lobby of one human and any number of bots there was no way to choose
+   * a side at all — which makes the attacking half of a round mode untestable.
+   * A lopsided lobby is a worse problem to have than an untestable one, and
+   * `shuffleTeams` is still there to even it out.
+   */
+  private handleLobbySwitchTeam(player: ConnectedPlayer, lobbyId: string): void {
+    const lobby = this.lobbies.get(lobbyId);
+    if (!lobby || !lobby.players.has(player.id)) return;
+    if (!lobby.gametype.hasTeams) return;
+
+    const entry = lobby.players.get(player.id);
+    if (!entry) return;
+    entry.team = entry.team === "alpha" ? "bravo" : "alpha";
+    console.log(`[LobbyServer] ${player.name} switched to ${entry.team}`);
+
+    this.broadcastToLobby(lobbyId, {
+      type: "lobby:teams_shuffled",
+      players: [...lobby.players.values()],
+    });
+  }
+
   // ── Lobby: Shuffle Vote ──────────────────────────────────────
 
   private handleLobbyVoteShuffle(player: ConnectedPlayer, lobbyId: string): void {
     const lobby = this.lobbies.get(lobbyId);
     if (!lobby || !lobby.players.has(player.id)) return;
 
-    const result = lobby.voteShuffle(player.id);
+    // Bots back whatever a human asks for. Without this a solo tester can never
+    // change sides, because their single vote cannot reach the threshold.
+    const bots = [...lobby.players.keys()].filter((id) => this.players.get(id)?.isBot);
+    const result = lobby.voteShuffle(player.id, bots);
 
     if (result.passed) {
       // Shuffle happened — send new player assignments

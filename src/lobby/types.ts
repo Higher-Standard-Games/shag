@@ -174,6 +174,19 @@ export interface LobbyVoteShuffleMessage extends LobbyMessage {
   lobbyId: string;
 }
 
+/**
+ * Move yourself to the other side.
+ *
+ * Distinct from `vote_shuffle`, which is random and needs a majority. Swapping
+ * yourself needs neither: it affects one player, it is reversible, and without
+ * it there is no way at all to choose a side — which makes testing the
+ * attacking half of a round mode impossible.
+ */
+export interface LobbySwitchTeamMessage extends LobbyMessage {
+  type: "lobby:switch_team";
+  lobbyId: string;
+}
+
 export interface LobbyInviteBotMessage extends LobbyMessage {
   type: "lobby:invite_bot";
   lobbyId: string;

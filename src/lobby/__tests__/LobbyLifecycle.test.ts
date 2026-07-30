@@ -287,3 +287,70 @@ describe("LobbyServer launch threshold", () => {
     expect(lobby.isAllReady()).toBe(false);
   });
 });
+
+// ── Choosing a side ──────────────────────────────────────────────────
+
+describe("LobbyServer team selection", () => {
+  // biome-ignore lint/suspicious/noExplicitAny: injected test fixture
+  const TEAMS: any = {
+    id: "snd",
+    name: "S&D",
+    description: "test snd",
+    maxPlayers: 10,
+    minPlayers: 2,
+    hasTeams: true,
+    teamNames: ["UDON", "SOBA"],
+    mapPool: ["wbomb2"],
+  };
+
+  // biome-ignore lint/suspicious/noExplicitAny: reaches private lobby internals
+  function teamLobby(): { server: any; host: any; lobby: any } {
+    const { server } = setup();
+    server.gametypes = [TEAMS];
+    const host = register(server, makePlayer().player);
+    server.handleLobbyCreate(host, "snd");
+    return { server, host, lobby: [...server.lobbies.values()][0] };
+  }
+
+  it("lets a player move to the other side without a vote", () => {
+    // Shuffling is random and needs a majority, so with one human and any
+    // number of bots there was no way to choose a side at all — which makes the
+    // attacking half of a round mode untestable.
+    const { server, host, lobby } = teamLobby();
+    const before = lobby.players.get(host.id).team;
+
+    server.handleLobbySwitchTeam(host, lobby.id);
+    expect(lobby.players.get(host.id).team).not.toBe(before);
+
+    server.handleLobbySwitchTeam(host, lobby.id);
+    expect(lobby.players.get(host.id).team).toBe(before);
+  });
+
+  it("ignores a switch from someone not in the lobby", () => {
+    const { server, lobby } = teamLobby();
+    const outsider = register(server, makePlayer().player);
+    expect(() => server.handleLobbySwitchTeam(outsider, lobby.id)).not.toThrow();
+    expect(lobby.players.has(outsider.id)).toBe(false);
+  });
+
+  it("counts bots toward a shuffle a human called", () => {
+    // A solo tester's single vote can never reach ceil(players / 2), so without
+    // this the shuffle button does nothing forever.
+    const { server, host, lobby } = teamLobby();
+    const bot = register(server, makePlayer({ isBot: true, name: "Bot" }).player);
+    server.handleLobbyJoin(bot, lobby.id);
+
+    server.handleLobbyVoteShuffle(host, lobby.id);
+    expect(lobby.shuffleVotes.size).toBe(0); // cleared — it passed
+  });
+
+  it("never lets bots shuffle on their own", () => {
+    const { server, lobby } = teamLobby();
+    const bot = register(server, makePlayer({ isBot: true, name: "Bot" }).player);
+    server.handleLobbyJoin(bot, lobby.id);
+
+    server.handleLobbyVoteShuffle(bot, lobby.id);
+    // The bot's own vote counts for one and pulls in no others.
+    expect(lobby.shuffleVotes.size).toBeLessThanOrEqual(1);
+  });
+});

@@ -227,11 +227,15 @@ export class MatchLobbyView {
     // Teams shuffled
     this.unsubscribers.push(
       this.lobbyClient.on("lobby:teams_shuffled", (msg) => {
+        // By id. Matching on name is the same mistake the ready handler made:
+        // names are display text, they can collide between bots, and the server
+        // addresses players by id everywhere else.
         for (const sp of msg.players) {
-          const p = this.players.find((pp) => pp.name === sp.name);
+          const p = this.players.find((pp) => pp.id === sp.id);
           if (p) p.team = sp.team;
         }
         this.refreshPlayerSlots();
+        this.refreshHeader();
       }),
     );
   }
@@ -550,6 +554,17 @@ export class MatchLobbyView {
       actions.appendChild(inviteBtn);
       this.inviteBotBtn = inviteBtn;
       this.updateInviteBotState();
+    }
+
+    // Switch sides. Separate from shuffle, which is random and needs a
+    // majority — this affects only you, so it needs neither, and it is the only
+    // way to choose which half of a round mode you play.
+    if (this.config.hasTeams && this.lobbyClient) {
+      const switchBtn = document.createElement("button");
+      switchBtn.className = "match-lobby__btn match-lobby__btn--switch-team";
+      switchBtn.textContent = "⇄ SWITCH SIDE";
+      switchBtn.addEventListener("click", () => this.lobbyClient?.switchTeam(this.lobbyId));
+      actions.appendChild(switchBtn);
     }
 
     // Shuffle teams button (team modes only)
