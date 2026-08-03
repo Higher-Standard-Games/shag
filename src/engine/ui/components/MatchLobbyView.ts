@@ -72,9 +72,11 @@ export class MatchLobbyView {
   private unsubscribers: (() => void)[] = [];
   private inviteBotBtn: HTMLButtonElement | null = null;
   private inviteBotPending = false;
+  private readonly localPlayerId: string | null;
 
-  constructor(gametype: string, lobbyClient?: LobbyClient, lobbyInfo?: MatchLobbyInfo) {
+  constructor(gametype: string, lobbyClient?: LobbyClient, lobbyInfo?: MatchLobbyInfo, localPlayerId?: string) {
     this.lobbyClient = lobbyClient || null;
+    this.localPlayerId = localPlayerId ?? null;
 
     if (lobbyInfo) {
       // Use real server data
@@ -101,7 +103,7 @@ export class MatchLobbyView {
         name: p.name,
         team: p.team as "alpha" | "bravo" | "none",
         ready: p.ready,
-        isLocal: p.id === lobbyInfo.players[0]?.id, // First player is creator
+        isLocal: p.id === this.localPlayerId,
       }));
     } else {
       // Fallback: mock data (no server connection — map pool comes from server in production)
@@ -159,7 +161,7 @@ export class MatchLobbyView {
           name: msg.player.name,
           team: msg.player.team as "alpha" | "bravo" | "none",
           ready: msg.player.ready,
-          isLocal: false,
+          isLocal: msg.player.id === this.localPlayerId,
         });
         this.refreshPlayerSlots();
         this.refreshHeader();
@@ -172,7 +174,7 @@ export class MatchLobbyView {
     // Player left
     this.unsubscribers.push(
       this.lobbyClient.on("lobby:player_left", (msg) => {
-        this.players = this.players.filter((p) => p.name !== msg.playerId);
+        this.players = this.players.filter((p) => p.id !== msg.playerId);
         this.refreshPlayerSlots();
         this.refreshHeader();
         this.updateInviteBotState();

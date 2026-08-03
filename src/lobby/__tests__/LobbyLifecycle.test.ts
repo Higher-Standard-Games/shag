@@ -260,6 +260,20 @@ describe("LobbyServer launch threshold", () => {
     expect(lobby.isAllReady()).toBe(false);
   });
 
+  it("does not launch a team mode with an empty side", () => {
+    const server = sndServer();
+    const host = register(server, makePlayer().player);
+    server.handleLobbyCreate(host, "snd");
+    const lobby = [...server.lobbies.values()][0];
+    const bot = register(server, makePlayer({ isBot: true, name: "Bot" }).player);
+    server.handleLobbyJoin(bot, lobby.id);
+
+    lobby.players.get(bot.id).team = lobby.players.get(host.id).team;
+    lobby.setReady(host.id, true);
+    lobby.setReady(bot.id, true);
+    expect(lobby.isAllReady()).toBe(false);
+  });
+
   it("needs everyone present ready, not just the minimum count", () => {
     const server = sndServer();
     const host = register(server, makePlayer().player);
@@ -324,6 +338,20 @@ describe("LobbyServer team selection", () => {
 
     server.handleLobbySwitchTeam(host, lobby.id);
     expect(lobby.players.get(host.id).team).toBe(before);
+  });
+
+  it("swaps with the bot instead of emptying one side", () => {
+    const { server, host, lobby } = teamLobby();
+    const bot = register(server, makePlayer({ isBot: true, name: "Bot" }).player);
+    server.handleLobbyJoin(bot, lobby.id);
+    const hostBefore = lobby.players.get(host.id).team;
+    const botBefore = lobby.players.get(bot.id).team;
+
+    server.handleLobbySwitchTeam(host, lobby.id);
+
+    expect(lobby.players.get(host.id).team).toBe(botBefore);
+    expect(lobby.players.get(bot.id).team).toBe(hostBefore);
+    expect(new Set([...lobby.players.values()].map((p) => p.team))).toEqual(new Set(["alpha", "bravo"]));
   });
 
   it("ignores a switch from someone not in the lobby", () => {

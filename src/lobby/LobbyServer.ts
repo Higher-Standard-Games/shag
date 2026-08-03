@@ -235,6 +235,13 @@ class MatchLobby {
     // every existing mode behaving exactly as before.
     const needed = this.gametype.minPlayers ?? this.gametype.maxPlayers;
     if (this.players.size < needed) return false;
+    // A team match with an empty side is already decided when its first live
+    // tick checks eliminations. Never launch such a lobby, even if malformed
+    // state or a future team-selection path manages to create one.
+    if (this.gametype.hasTeams) {
+      const teams = new Set([...this.players.values()].map((p) => p.team));
+      if (!teams.has("alpha") || !teams.has("bravo")) return false;
+    }
     return [...this.players.values()].every((p) => p.ready);
   }
 
@@ -771,13 +778,14 @@ export class LobbyServer {
   }
 
   /**
-   * Move one player to the other side.
+   * Move one player to the other side without changing the team counts.
    *
    * No vote and no balance check. Shuffling is random and needs a majority, so
    * with a lobby of one human and any number of bots there was no way to choose
    * a side at all — which makes the attacking half of a round mode untestable.
-   * A lopsided lobby is a worse problem to have than an untestable one, and
-   * `shuffleTeams` is still there to even it out.
+   * If the destination is occupied, swap with one of its players (preferring a
+   * bot). This lets a solo tester choose their side while keeping both teams
+   * populated and the eventual S&D round valid.
    */
   private handleLobbySwitchTeam(player: ConnectedPlayer, lobbyId: string): void {
     const lobby = this.lobbies.get(lobbyId);
@@ -786,7 +794,12 @@ export class LobbyServer {
 
     const entry = lobby.players.get(player.id);
     if (!entry) return;
-    entry.team = entry.team === "alpha" ? "bravo" : "alpha";
+    const previousTeam = entry.team;
+    const destination = previousTeam === "alpha" ? "bravo" : "alpha";
+    const occupants = [...lobby.players.values()].filter((p) => p.id !== player.id && p.team === destination);
+    const counterpart = occupants.find((p) => this.players.get(p.id)?.isBot) ?? occupants[0];
+    if (counterpart) counterpart.team = previousTeam;
+    entry.team = destination;
     console.log(`[LobbyServer] ${player.name} switched to ${entry.team}`);
 
     this.broadcastToLobby(lobbyId, {

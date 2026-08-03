@@ -96,11 +96,10 @@ describe("building the kit", () => {
 
 describe("normalizeTeamId", () => {
   it("translates the lobby's vocabulary into the match's", () => {
-    // The lobby names its sides alpha/bravo (CTF's entity vocabulary) and the
-    // match names them udon/soba. Nothing translated, so a side chosen in the
-    // lobby was discarded on join and the server auto-balanced instead.
-    expect(normalizeTeamId("alpha")).toBe("udon");
-    expect(normalizeTeamId("bravo")).toBe("soba");
+    // Lobby alpha is the blue Soba column; bravo is the pink Udon column.
+    // Those display slots deliberately differ from BSP alpha/beta vocabulary.
+    expect(normalizeTeamId("alpha")).toBe("soba");
+    expect(normalizeTeamId("bravo")).toBe("udon");
     expect(normalizeTeamId("beta")).toBe("soba");
   });
 
@@ -111,7 +110,7 @@ describe("normalizeTeamId", () => {
   });
 
   it("is case and whitespace insensitive", () => {
-    expect(normalizeTeamId("  ALPHA ")).toBe("udon");
+    expect(normalizeTeamId("  ALPHA ")).toBe("soba");
   });
 
   it("returns null for anything else, so the caller can fall back to balancing", () => {
