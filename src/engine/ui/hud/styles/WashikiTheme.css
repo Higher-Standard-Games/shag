@@ -2242,6 +2242,37 @@
   white-space: nowrap;
 }
 
+/* Bomb carrier — a lit fuse ahead of the name, plus a warm edge on the row.
+   Drawn rather than an emoji so it matches the print-slab HUD and renders the
+   same on every platform. */
+.fps-scoreboard-carrier {
+  display: inline-block;
+  width: 0.62em;
+  height: 0.62em;
+  margin-right: 0.5em;
+  vertical-align: baseline;
+  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+  background: var(--washoi-gold, #f5c518);
+  box-shadow: 0 0 0 0.12em rgba(245, 197, 24, 0.28);
+  position: relative;
+}
+
+.fps-scoreboard-carrier::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 88%;
+  width: 0.13em;
+  height: 0.34em;
+  transform: translateX(-50%) rotate(14deg);
+  background: linear-gradient(to top, var(--washoi-gold, #f5c518), rgba(255, 255, 255, 0.9));
+}
+
+.fps-scoreboard-row--carrier {
+  border-left: 3px solid var(--washoi-gold, #f5c518);
+  background: linear-gradient(90deg, rgba(245, 197, 24, 0.16), transparent 62%);
+}
+
 .fps-scoreboard-col-score {
   flex: 1;
   text-align: center;
