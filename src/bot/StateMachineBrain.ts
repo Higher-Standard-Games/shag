@@ -933,7 +933,20 @@ export class StateMachineBrain extends BotBrain {
     if (this._currentPath) {
       const result = this._followCurrentPath(state, urgent);
       if (result.status === "moving") return result.input;
-      if (result.status === "blocked") return this._noInput(state);
+      if (result.status === "blocked") {
+        // Standing still is an acceptable answer for an ITEM — the armor is not
+        // going anywhere and a bot planted next to a lift it cannot use looks
+        // like it is waiting. It is never the answer for an OBJECTIVE. A round
+        // mode has a clock, and a bot that holds position at its own spawn
+        // because the graph could not route to the bomb has abandoned the round
+        // while looking like it decided to.
+        //
+        // Steer at it directly instead. That can walk into a wall, which is
+        // visible and recoverable, rather than invisible and not.
+        if (holdRadius === undefined) return this._noInput(state);
+        this._currentPath = null;
+        return this._moveToward(state, target, urgent);
+      }
       // Path complete — clear it
       this._currentPath = null;
     }

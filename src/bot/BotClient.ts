@@ -499,8 +499,13 @@ export class BotClient extends EventEmitter {
           ? ` Vis:${this._lastVisionResult.visibleEnemies.length}/${this._lastVisionResult.tracesPerformed}t`
           : " (no vision)";
         const diagnosticInfo = `${visionInfo}${navigationInfo ? ` Nav:${navigationInfo}` : ""}`;
+        // Orders held, by id. A bot standing still is either being told nothing
+        // or failing to act on what it was told, and those have different
+        // fixes — without this the two are indistinguishable from the outside.
+        const orders = this._gameState.directives;
+        const orderInfo = orders.length > 0 ? ` Orders:${orders.map((d) => d.id).join(",")}` : " Orders:none";
         console.log(
-          `${this._logPrefix} [${brain}] HP:${hp} E:${enemies} A:${allies} Pickups:${activePickups}/${this._gameState.pickupActiveMask.length} FF:${this._friendlyFireSuppressions}${diagnosticInfo} Tick:${snapshot.tick}`,
+          `${this._logPrefix} [${brain}] HP:${hp} E:${enemies} A:${allies} Pickups:${activePickups}/${this._gameState.pickupActiveMask.length} FF:${this._friendlyFireSuppressions}${diagnosticInfo}${orderInfo} Tick:${snapshot.tick}`,
         );
       }
     } catch (err) {
