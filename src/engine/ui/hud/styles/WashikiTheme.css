@@ -3774,7 +3774,7 @@
 }
 
 .fps-loadout-panel {
-  width: min(760px, 92vw);
+  width: min(920px, 94vw);
   max-height: 92vh;
   overflow-y: auto;
   padding: calc(22px * var(--ui-scale, 1)) calc(26px * var(--ui-scale, 1)) calc(26px * var(--ui-scale, 1));
@@ -3784,95 +3784,201 @@
     inset 0 0 0 calc(1px * var(--ui-scale, 1)) hsla(45, 90%, 62%, 0.28);
 }
 
-.fps-loadout-title {
-  font-family: var(--w-font-display);
-  font-size: calc(26px * var(--ui-scale, 1));
-  font-weight: 900;
-  letter-spacing: 0.12em;
+/* Hero slab — same print-slab language as the ESC menu's PAUSED block. */
+.fps-loadout-hero {
+  position: relative;
+  padding: calc(14px * var(--ui-scale, 1)) calc(18px * var(--ui-scale, 1));
+  margin-bottom: calc(18px * var(--ui-scale, 1));
+  background: linear-gradient(100deg, hsla(45, 100%, 55%, 0.16), transparent 68%), hsla(0, 0%, 100%, 0.055);
+  border: calc(2px * var(--ui-scale, 1)) solid hsla(45, 100%, 55%, 0.3);
+  clip-path: polygon(0 7%, 96% 0, 100% 88%, 5% 100%);
+}
+
+.fps-loadout-hero::after {
+  content: "";
+  position: absolute;
+  right: calc(16px * var(--ui-scale, 1));
+  bottom: calc(11px * var(--ui-scale, 1));
+  width: calc(72px * var(--ui-scale, 1));
+  height: calc(8px * var(--ui-scale, 1));
+  background: repeating-linear-gradient(90deg, hsl(45, 92%, 64%) 0 8px, transparent 8px 14px);
+  opacity: 0.55;
+}
+
+.fps-loadout-kicker {
+  font-family: var(--w-font-body);
+  font-size: calc(11px * var(--ui-scale, 1));
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
   color: hsl(45, 92%, 64%);
 }
 
-.fps-loadout-note {
-  margin-bottom: calc(18px * var(--ui-scale, 1));
-  font-size: calc(13px * var(--ui-scale, 1));
+.fps-loadout-heading {
+  font-family: var(--w-font-display);
+  font-size: calc(30px * var(--ui-scale, 1));
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--w-text);
+  text-shadow: calc(2px * var(--ui-scale, 1)) calc(2px * var(--ui-scale, 1)) 0 hsla(0, 0%, 0%, 0.45);
+}
+
+.fps-loadout-subtitle {
+  font-size: calc(12px * var(--ui-scale, 1));
   color: hsl(210, 14%, 68%);
 }
 
-.fps-loadout-row {
-  margin-bottom: calc(18px * var(--ui-scale, 1));
+/* Columns beside the stand. The weapon picture is the widest element on the
+   panel on purpose — it is the thing being chosen. */
+.fps-loadout-body {
+  display: flex;
+  gap: calc(20px * var(--ui-scale, 1));
+  align-items: stretch;
 }
 
-.fps-loadout-row-label {
-  margin-bottom: calc(7px * var(--ui-scale, 1));
-  font-family: var(--w-font-display);
-  font-size: calc(13px * var(--ui-scale, 1));
-  font-weight: 800;
+.fps-loadout-columns {
+  display: flex;
+  flex-direction: column;
+  gap: calc(16px * var(--ui-scale, 1));
+  flex: 0 0 auto;
+  min-width: calc(210px * var(--ui-scale, 1));
+}
+
+.fps-loadout-column {
+  display: flex;
+  flex-direction: column;
+  gap: calc(6px * var(--ui-scale, 1));
+}
+
+.fps-loadout-column-label {
+  font-family: var(--w-font-body);
+  font-size: calc(11px * var(--ui-scale, 1));
+  font-weight: 700;
+  text-transform: uppercase;
   letter-spacing: 0.2em;
-  color: hsl(210, 16%, 74%);
+  color: hsl(186, 70%, 62%);
 }
 
-.fps-loadout-options {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(calc(168px * var(--ui-scale, 1)), 1fr));
-  gap: calc(8px * var(--ui-scale, 1));
-}
-
+/* One row per weapon: the name, nothing else. */
 .fps-loadout-option {
-  padding: calc(10px * var(--ui-scale, 1)) calc(12px * var(--ui-scale, 1));
+  width: 100%;
+  min-height: calc(40px * var(--ui-scale, 1));
+  padding: calc(9px * var(--ui-scale, 1)) calc(16px * var(--ui-scale, 1));
+  border: calc(2px * var(--ui-scale, 1)) solid hsla(180, 100%, 50%, 0.24);
+  border-radius: 0;
+  background:
+    linear-gradient(92deg, hsla(180, 100%, 50%, 0.14), hsla(0, 0%, 100%, 0.05) 60%),
+    hsla(238, 38%, 8%, 0.95);
+  clip-path: polygon(3% 0, 100% 0, 97% 100%, 0 100%);
+  box-shadow:
+    calc(4px * var(--ui-scale, 1)) calc(5px * var(--ui-scale, 1)) 0 hsla(0, 0%, 0%, 0.32),
+    inset calc(5px * var(--ui-scale, 1)) 0 0 hsla(180, 100%, 50%, 0.4);
+  font-family: var(--w-font-display);
+  font-size: calc(15px * var(--ui-scale, 1));
+  font-weight: 700;
+  letter-spacing: 0.06em;
   text-align: left;
+  color: var(--w-text);
   cursor: pointer;
-  border: none;
-  background: hsla(250, 25%, 18%, 0.9);
-  box-shadow: inset 0 0 0 calc(1px * var(--ui-scale, 1)) hsla(210, 20%, 70%, 0.18);
-  transition: background 120ms ease;
+  pointer-events: auto;
+  transition:
+    transform 0.12s ease,
+    border-color 0.12s ease,
+    background 0.12s ease;
 }
 
 .fps-loadout-option:hover {
-  background: hsla(250, 25%, 24%, 0.95);
+  transform: translate(calc(-2px * var(--ui-scale, 1)), calc(-2px * var(--ui-scale, 1)));
+  border-color: hsla(180, 100%, 50%, 0.7);
 }
 
+/* Chosen: gold, matching the HUD's "this is yours" colour. */
 .fps-loadout-option--selected {
-  background: linear-gradient(178deg, hsl(48, 96%, 60%), hsl(43, 92%, 48%) 72%);
-  box-shadow: inset 0 0 0 calc(2px * var(--ui-scale, 1)) hsl(48, 100%, 78%);
+  border-color: hsla(45, 100%, 60%, 0.85);
+  background:
+    linear-gradient(92deg, hsla(45, 100%, 55%, 0.34), hsla(45, 90%, 50%, 0.12) 62%),
+    hsla(238, 38%, 8%, 0.98);
+  box-shadow:
+    calc(4px * var(--ui-scale, 1)) calc(5px * var(--ui-scale, 1)) 0 hsla(0, 0%, 0%, 0.36),
+    inset calc(5px * var(--ui-scale, 1)) 0 0 hsl(45, 92%, 60%);
+  color: hsl(45, 96%, 90%);
 }
 
-.fps-loadout-option-name {
+/* The stand. */
+.fps-loadout-preview {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: calc(260px * var(--ui-scale, 1));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(ellipse at 50% 62%, hsla(180, 100%, 50%, 0.14), transparent 62%),
+    hsla(238, 40%, 6%, 0.75);
+  border: calc(2px * var(--ui-scale, 1)) solid hsla(180, 100%, 50%, 0.22);
+  clip-path: polygon(2% 0, 100% 0, 98% 100%, 0 100%);
+  overflow: hidden;
+}
+
+.fps-loadout-preview-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  /* A display, not a viewer — drags belong to the picker underneath. */
+  pointer-events: none;
+}
+
+.fps-loadout-preview-name {
+  position: absolute;
+  left: calc(18px * var(--ui-scale, 1));
+  bottom: calc(14px * var(--ui-scale, 1));
   font-family: var(--w-font-display);
-  font-size: calc(15px * var(--ui-scale, 1));
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  color: hsl(210, 20%, 92%);
-}
-
-.fps-loadout-option-blurb {
-  margin-top: calc(3px * var(--ui-scale, 1));
-  font-size: calc(11.5px * var(--ui-scale, 1));
-  line-height: 1.35;
-  color: hsl(210, 14%, 66%);
-}
-
-.fps-loadout-option--selected .fps-loadout-option-name,
-.fps-loadout-option--selected .fps-loadout-option-blurb {
-  color: hsl(246, 45%, 10%);
+  font-size: calc(22px * var(--ui-scale, 1));
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--w-text);
+  text-shadow: calc(2px * var(--ui-scale, 1)) calc(2px * var(--ui-scale, 1)) 0 hsla(0, 0%, 0%, 0.55);
+  pointer-events: none;
 }
 
 .fps-loadout-confirm {
   width: 100%;
-  margin-top: calc(6px * var(--ui-scale, 1));
-  padding: calc(12px * var(--ui-scale, 1));
-  cursor: pointer;
+  margin-top: calc(20px * var(--ui-scale, 1));
+  min-height: calc(52px * var(--ui-scale, 1));
   border: none;
-  clip-path: polygon(1.5% 0, 100% 0, 98.5% 100%, 0 100%);
-  background: linear-gradient(178deg, hsl(150, 62%, 52%), hsl(158, 66%, 38%) 72%);
+  background: linear-gradient(92deg, hsl(158, 64%, 42%), hsl(168, 58%, 36%));
+  clip-path: polygon(2% 0, 100% 0, 98% 100%, 0 100%);
+  box-shadow: calc(5px * var(--ui-scale, 1)) calc(6px * var(--ui-scale, 1)) 0 hsla(0, 0%, 0%, 0.34);
   font-family: var(--w-font-display);
-  font-size: calc(17px * var(--ui-scale, 1));
+  font-size: calc(19px * var(--ui-scale, 1));
   font-weight: 900;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
   color: hsl(160, 60%, 8%);
+  cursor: pointer;
+  pointer-events: auto;
+  transition:
+    transform 0.12s ease,
+    filter 0.12s ease;
 }
 
 .fps-loadout-confirm:hover {
-  filter: brightness(1.1);
+  transform: translate(calc(-2px * var(--ui-scale, 1)), calc(-2px * var(--ui-scale, 1)));
+  filter: brightness(1.08);
+}
+
+/* Narrow windows: the stand goes above the columns rather than shrinking to a
+   stripe, since a squeezed weapon picture is worth less than no picture. */
+@media (max-width: 860px) {
+  .fps-loadout-body {
+    flex-direction: column-reverse;
+  }
+
+  .fps-loadout-preview {
+    min-height: calc(200px * var(--ui-scale, 1));
+  }
 }
 
 /* Warmup ready prompt — the message exists to tell you how to start. */
