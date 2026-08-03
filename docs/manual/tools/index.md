@@ -43,8 +43,8 @@ npm run build
 Generate TypeDoc documentation:
 
 ```bash
-npm run docs
-# Opens docs/api/index.html
+npm run docs:api
+# Writes docs/api/, open docs/api/index.html
 ```
 
 ## Performance Profiling
@@ -53,6 +53,7 @@ Use browser DevTools with:
 
 ```
 show_fps 1          # Enable FPS counter
-pvs toggle          # Toggle PVS culling
+perf capture 5      # Sample the renderer for 5 seconds
+pvs on              # Enable PVS culling (pvs status for stats)
 r_wireframe 1       # See geometry complexity
 ```

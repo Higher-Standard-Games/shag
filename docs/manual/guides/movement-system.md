@@ -126,8 +126,8 @@ Access via console or `MovementVars.getInstance().get('name')`:
 | `sv_aircontrol` | 150 | Warsow-style turning |
 | `sv_autohop` | 1 | Bunny hop enabled |
 | `sv_stepheight` | 18 | Auto-climb height |
-| `sv_movementSpeed` | 320 | Base movement speed |
-| `sv_movementRunSpeed` | 425 | Sprint speed |
+| `sv_movementSpeed` | 280 | Base movement speed |
+| `sv_runSpeed` | 400 | Sprint/run speed |
 
 > **Note:** Gravity multiplier for falling (`FALLING_GRAVITY_MULTIPLIER`) was reduced from 1.8 to 1.25 in v0.9.3 for less harsh descents while maintaining jump height.
 

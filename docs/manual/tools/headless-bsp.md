@@ -95,8 +95,8 @@ Output:
 Extract BSP from PK3 first or use the full headless game:
 
 ```bash
-# Extract from PK3
-unzip -p public/games/default/map_wdm7.pk3 maps/wdm7.bsp > wdm7.bsp
+# Extract from PK3 (map archives live in public/data/)
+unzip -p public/data/map_wdm7.pk3 maps/wdm7.bsp > wdm7.bsp
 
 # Then use headless-bsp
 npm run cli:bsp -- info wdm7.bsp

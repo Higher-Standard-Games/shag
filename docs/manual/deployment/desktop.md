@@ -4,7 +4,7 @@ Package SHAG Engine games as desktop applications.
 
 ## Prerequisites
 
-- Node.js 18+
+- Node.js 22 (pinned in `.nvmrc`)
 - npm or yarn
 
 ## Setup Electron
@@ -55,19 +55,27 @@ app.on('window-all-closed', () => {
 
 ### Package.json Scripts
 
+The shipped scripts (Electron sources live in `src/electron/` and compile to
+`dist-electron/*.cjs`):
+
 ```json
 {
-  "main": "electron/main.js",
+  "main": "dist-electron/main.cjs",
   "scripts": {
-    "electron:dev": "npm run build && electron .",
-    "electron:build": "npm run build && electron-builder"
+    "electron:dev": "concurrently -k \"npm run dev\" \"wait-on http://localhost:3000 && electron .\"",
+    "electron:compile": "tsc -p tsconfig.electron.json && (rename main.js/preload.js to .cjs)",
+    "electron:preview": "npm run build && npm run electron:compile && electron .",
+    "electron:build": "npm run build && npm run electron:compile && electron-builder --config electron-builder.config.js"
   }
 }
 ```
 
+`electron:dev` runs against the Vite dev server for hot reload;
+`electron:preview` runs the production bundle locally without packaging.
+
 ## Electron Builder Config
 
-### electron-builder.json
+### electron-builder.config.js
 
 ```json
 {

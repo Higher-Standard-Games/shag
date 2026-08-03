@@ -97,7 +97,9 @@ r_anisotropy 16  # High (slower)
 GPU-compressed textures load faster:
 
 ```bash
-npm run build:textures
+npm run tools:textures            # convert
+npm run tools:textures:audit      # dry run — report what would convert
+npm run tools:textures:clean      # remove generated .ktx2
 ```
 
 ### Texture Resolution
@@ -225,5 +227,5 @@ if (isMobile) {
 
 ## Next Steps
 
-- [Guide: Performance](../../guides/performance.md)
+- [Guide: Render Variables](../../guides/render-variables.md)
 - [Deployment](../../deployment/)

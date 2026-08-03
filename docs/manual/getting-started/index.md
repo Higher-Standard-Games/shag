@@ -8,7 +8,7 @@ Let's get you bunny hopping in under 5 minutes.
 
 | Requirement | Notes |
 |-------------|-------|
-| **Node.js 18+** | Recommended: 22 LTS |
+| **Node.js 22** | Pinned in `.nvmrc`; CI builds on 22 |
 | **npm 9+** or **pnpm** | Comes with Node.js |
 | **Git** | For cloning |
 | **Modern browser** | Chrome, Firefox, Edge with WebGL2 |
@@ -63,15 +63,20 @@ Open [http://localhost:5173](http://localhost:5173) — you should see the lobby
 
 | Command | What It Does |
 |---------|--------------|
-| `npm run net:server` | Start dedicated server |
+| `npm run lobby:server` | Start the lobby / matchmaker |
+| `npm run net:server` | Start dedicated game server |
 | `npm run net:client` | Headless test client |
+| `npm run bot:server` | Start the Bot Intelligence Server |
 
 ### Quality
 
 | Command | What It Does |
 |---------|--------------|
 | `npm run lint` | Run Biome linter |
-| `npm run docs` | Generate API documentation |
+| `npm run typecheck` | TypeScript check, no emit |
+| `npm run test` | Vitest (watch); `test:run` for one shot |
+| `npm run docs:api` | Generate TypeDoc API documentation |
+| `npm run docs:dev` | Serve this manual locally |
 
 ---
 
@@ -153,11 +158,18 @@ shag-engine/
 │   │   ├── core/         # EventBus, services
 │   │   ├── loader/       # BSP, PK3, textures
 │   │   ├── movement/     # Character physics
-│   │   ├── network/      # Multiplayer networking
+│   │   ├── network/      # Client networking
 │   │   ├── physics/      # Collision detection
-│   │   └── rendering/    # Render variables
-│   ├── games/            # Game implementations
-│   │   └── fps/          # FPS game mode
+│   │   ├── rendering/    # Render variables
+│   │   └── server/       # Authoritative simulation, lag comp
+│   ├── shared/           # Code shared by client + server
+│   ├── games/            # Game implementations (git submodules)
+│   │   ├── fps/          # Washiki Washoi (arena FPS)
+│   │   └── tower/        # Tower defense
+│   ├── lobby/            # Lobby server, matchmaking, game-server spawner
+│   ├── bot/              # Bot Intelligence Server (brain, vision, NavGraph, training)
+│   ├── electron/         # Desktop shell
+│   ├── tools/            # Map generation and asset tooling
 │   └── cli/              # Headless tools
 ├── public/
 │   ├── engine.json       # Engine configuration
@@ -165,6 +177,8 @@ shag-engine/
 │   └── games/            # Game assets (PK3 files, maps)
 └── docs/                 # Documentation
 ```
+
+See [Project Structure](./project-structure.md) for the full breakdown.
 
 ---
 
@@ -204,15 +218,16 @@ Now that you're running, here's where to go:
 ### "Map doesn't load"
 
 - Check that PK3 files exist under `public/data/` (the game-data directory; this is gitignored, so each developer has their own copy).
-- Verify the map name: `bsp list` shows available maps discovered in the PK3 index.
+- Verify the map name: `map list` shows available maps discovered in the PK3 index.
 - If you're using the developer `map <name>` command rather than `bsp load`, check that the lobby server is running: `npm run lobby:server`.
 - Check browser console for errors
 
 ### "Performance is bad"
 
-- Try `r_pvs 1` to enable PVS culling
+- Try `pvs on` to enable PVS culling (`pvs status` reports what it is culling)
 - Lower `r_bloom 0` to disable bloom
 - Check that you're using a discrete GPU, not integrated
+- `perf capture 5` samples the renderer for five seconds and prints a summary
 
 ### "Console won't open"
 

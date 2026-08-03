@@ -2,6 +2,10 @@
 
 Complete list of console commands in SHAG Engine. Press `~` to open the console.
 
+Commands marked **(game)** are registered by the FPS game, not the engine — they
+are unavailable in a build that ships a different game. Where a command has
+aliases, they are listed after the primary name.
+
 ## Map & Scene
 
 | Command | Description |
@@ -13,7 +17,7 @@ Complete list of console commands in SHAG Engine. Press `~` to open the console.
 | `scene empty` | Create empty scene for testing |
 | `scene clear` | Clear all scene objects |
 | `scene dispose` | Dispose empty scene |
-| `dumpscene` | Dump scene graph for debugging |
+| `dump_scene` | Dump scene graph for debugging |
 
 ## Player & Movement
 
@@ -21,22 +25,23 @@ Complete list of console commands in SHAG Engine. Press `~` to open the console.
 |---------|-------------|
 | `noclip` | Toggle noclip (fly through walls) |
 | `god` | Toggle god mode (invincibility) |
-| `teleport <x> <y> <z>` | Teleport to coordinates |
+| `teleport <x> <y> <z>` *(aliases: `tp`, `goto`)* | Teleport to coordinates |
 | `spawn [index]` | Respawn at spawn point |
-| `spectator` | Toggle spectator mode |
-| `position` | Show current position |
+| `spectator [0\|1]` | Toggle between FPS and spectator (freefly) camera |
+| `pos` *(aliases: `position`, `getpos`)* | Show current position |
+| `name [newname]` | Set or display player name |
 | `gravity [value]` | Get/set gravity |
 
 ## Entities & Models
 
 | Command | Description |
 |---------|-------------|
-| `spawnmodel <path> [x y z]` | Spawn a GLB model |
+| `spawnmodel <path> [x y z]` *(alias: `sm`)* | Spawn a GLB model |
 | `spawnmodel lighting <id>` | Refresh model lighting |
 | `spawn_pickable_entity <type>` | Spawn pickable item |
-| `give <weapon>` | Give weapon to player |
+| `giveweapon <weapon>` | Give weapon to player |
 | `inspect` | Inspect aimed object |
-| `entity list` | List all entities |
+| `entity list` *(alias: `ent`)* | List all entities |
 | `entity info <id>` | Show entity info |
 
 ## Camera
@@ -67,7 +72,9 @@ Complete list of console commands in SHAG Engine. Press `~` to open the console.
 | `weapon info` | Show weapon info |
 | `weapon hide` | Hide weapon model |
 | `weapon show` | Show weapon model |
-| `give <weapon>` | Give weapon to player |
+| `giveweapon <weapon>` | Give weapon to player |
+| `cl_wep_reset` | Reset all `cl_wep_*` overrides to 0 (use weapon defs) |
+| `loadout <primary> <secondary>` **(game)** | Choose your Search & Destroy spawn kit (applies next round) |
 
 ## BSP & PVS
 
@@ -183,24 +190,23 @@ Complete list of console commands in SHAG Engine. Press `~` to open the console.
 | `cg_idleamplitude` | float | Idle breathing intensity (default 0.02) |
 | `cg_idlefrequency` | float | Idle breathing speed (default 0.6) |
 
-### Gib Cvars
+### Gibs
 
-| Cvar | Type | Description |
-|------|------|-------------|
-| `gib_threshold` | int | Overkill damage to trigger gibs |
-| `gib_count` | int | Number of gib pieces |
-| `gib_lifetime` | float | Gib lifetime in seconds |
+The gib system is **not** cvar-driven. Its tuning lives as module constants at
+the top of `src/games/fps/client/GibSystem.ts` (`GIB_COUNT` 20, `GIB_LIFETIME`
+8.0 s, `MAX_ACTIVE_GIBS` 200, `TRACED_GIB_COUNT` 5, and the impulse/tumble
+ranges). Change them there and rebuild.
 
 ## Rendering & Post-Processing
 
 | Command | Description |
 |---------|-------------|
-| `render list` | List render variables |
+| `render list` *(alias: `r`)* | List render variables |
 | `render reset` | Reset all render vars |
 | `render export` | Export render config |
 | `r_<varname> [value]` | Get/set render variable |
-| `postprocess <effect> [value]` | Control post-processing |
-| `skybox <on\|off>` | Toggle skybox |
+| `pp <effect> [value]` *(alias: `postprocess`)* | Control post-processing |
+| `skybox <on\|off>` *(alias: `sky`)* | Toggle skybox |
 | `skybox load <name>` | Load skybox |
 
 ## Lighting & Shadows
@@ -210,7 +216,9 @@ Complete list of console commands in SHAG Engine. Press `~` to open the console.
 | `light add <type>` | Add light to scene |
 | `light list` | List scene lights |
 | `light info <id>` | Show light info |
-| `shadow on/off` | Toggle shadows |
+| `godrays [sun\|here\|off]` | Spawn Babylon 9 volumetric god rays (sun shafts or a fixed emitter) |
+| `arealight [<image-url>\|off]` | Spawn a Babylon 9 textured area light ahead of the camera (POC) |
+| `shadow on/off` *(alias: `shadows`)* | Toggle shadows |
 | `shadow quality <low\|medium\|high>` | Set shadow quality |
 | `shadow info` | Show shadow info |
 | `daynight on/off` | Toggle day/night cycle |
@@ -252,19 +260,32 @@ Complete list of console commands in SHAG Engine. Press `~` to open the console.
 
 | Command | Description |
 |---------|-------------|
-| `connect <url>` | Connect to game server |
-| `disconnect` | Disconnect from server |
-| `network connect <url>` | Connect to server |
-| `network disconnect` | Disconnect from server |
-| `network status` | Show connection status |
-| `network init [mode]` | Initialize networking (local\|network\|listen) |
-| `network mode` | Show current mode |
-| `network shutdown` | Shutdown networking |
-| `join <server>` | Join game server |
-| `net ...` | Alias for network |
+| `connect <server_url>` **(game)** | Connect to a game server |
+| `disconnect` **(game)** | Disconnect from current game server |
+| `join` | Join the connected game server |
+| `nettest <local\|simulation\|network\|server>` | Test networking infrastructure |
+| `netsim <test\|spawn\|tick\|state\|input>` **(game)** | Network simulation testing commands |
+| `binarytest <encode\|decode\|...>` | Test binary protocol encoding/decoding |
 | `cl_netgraph 0\|1\|2` | NetGraph overlay (off/text/graph) |
 | `cl_interp <ms>` | Interpolation delay (0=auto) |
 | `cl_timenudge <ms>` | Render time offset |
+
+> There is no `network` (or `net`) command. Connection state is driven by
+> `connect` / `disconnect` and the lobby flow; read the live numbers off the
+> NetGraph (`cl_netgraph 2`).
+
+## Demos **(game)**
+
+| Command | Description |
+|---------|-------------|
+| `demolist [filter]` | List available demos from the lobby server |
+| `demo <number\|filename>` | Load a demo by number (from `demolist`) or filename |
+| `demoplay` | Start playback of the loaded demo |
+| `demoplay cinematic <minutes>` | Play back as an auto-directed cinematic cut |
+| `demoplay hud <on\|off\|toggle>` | Control all active demo overlays; `H` toggles them during playback |
+| `demoplay analyze` | Run the demo analyzer over the loaded demo |
+| `demoplay stop` | Stop playback |
+| `pickup_audit` | Audit client/server pickup active-set reconciliation |
 
 ## Physics
 
@@ -298,10 +319,12 @@ Complete list of console commands in SHAG Engine. Press `~` to open the console.
 | `mem` | Show memory usage |
 | `mem textures` | Texture memory |
 | `mem meshes` | Mesh memory |
-| `showfps [on\|off]` | Toggle FPS counter |
+| `show_fps [on\|off]` *(alias: `fps`)* | Toggle FPS counter |
+| `perf capture [seconds]` | Capture renderer performance over a bounded interval |
+| `console_debug [0\|1]` | Toggle debug overlay at bottom-left |
 | `timescale <n>` | Set time scale (slow-mo) |
-| `developer <0\|1>` | Toggle developer mode |
-| `animtest <anim>` | Test animation playback |
+| `developer <0\|1>` *(alias: `dev`)* | Toggle developer mode |
+| `animtest <anim>` *(alias: `at`)* | Test animation playback |
 
 ## UI
 
@@ -323,19 +346,20 @@ Complete list of console commands in SHAG Engine. Press `~` to open the console.
 
 | Command | Description |
 |---------|-------------|
-| `help [command]` | Show help |
+| `help [command]` *(aliases: `?`, `commands`)* | Show help |
 | `echo <text>` | Print text |
-| `clear` | Clear console |
-| `quit` | Quit application |
-| `version` | Show engine version |
-| `screenshot` | Take screenshot |
+| `clear` *(alias: `cls`)* | Clear console |
+| `quit` *(aliases: `exit`, `q`)* | Quit application |
+| `version` *(alias: `ver`)* | Show engine version |
+| `screenshot` *(alias: `ss`)* | Take screenshot |
 | `exec <file.cfg>` | Execute config file |
-| `bind <key> <command>` | Bind key |
-| `unbind <key>` | Unbind key |
-| `bindlist` | List bindings |
-| `settings list` | List settings |
-| `settings reset` | Reset all settings |
-| `writeconsole` | Write console log to file |
+| `settings <export\|import\|list>` | Engine settings export/import |
+| `writeconsole` *(alias: `condump`)* | Write console log to file |
+
+> **Key binding is not implemented.** `bind <key> <command>` is a placeholder
+> that acknowledges the call and does nothing; there is no `unbind` or
+> `bindlist`. Rebind keys through the in-game settings overlay
+> (**Escape → Controls**) instead.
 
 ## Game Commands
 

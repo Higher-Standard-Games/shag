@@ -8,7 +8,7 @@ Everything SHAG Engine can do, and what you can build with it.
 
 | Feature | What It Means |
 |---------|---------------|
-| **Babylon.js 8.x** | Modern WebGL2 with full GPU features |
+| **Babylon.js 9.x** | Modern WebGL2 with full GPU features — area lights, volumetric god rays, SSR |
 | **TypeScript Native** | 100% typed, IDE-friendly, fewer bugs at runtime |
 | **Tree-Shaken** | 8MB → 3.4MB bundle (-58%) through ES6 imports |
 | **Singleton Services** | Clean architecture, easy to extend |
@@ -83,9 +83,13 @@ sv_aircontrol 150        # Warsow-style air turning
 sv_walljump 1            # Enable wall jumps
 sv_ledgegrab 1           # Enable ledge grabs
 sv_slide 1               # Enable crouchslide
-sv_movementSpeed 320     # Base movement speed
-sv_movementRunSpeed 425  # Sprint speed
+sv_movementSpeed 280     # Base movement speed
+sv_runSpeed 400          # Sprint/run speed
 ```
+
+Values above are the shipped defaults. The full set (including the
+`sv_walljump_*`, `sv_slide*` and `sv_falldamage*` families) lives in
+`src/engine/movement/MovementVars.ts`.
 
 ---
 
@@ -95,11 +99,12 @@ Multiple perspectives for different game types, switchable at runtime.
 
 | Controller | Use Case |
 |------------|----------|
-| **FPS/Freefly** | First-person WASD + mouse look with collision |
+| **FPS** | First-person WASD + mouse look with prediction and reconciliation |
+| **Freefly** | Noclip / inspection camera with optional collision |
 | **Isometric** | Top-down for strategy/RPG games |
 | **Sidescroll** | 2.5D platformer view |
 | **Follow** | Third-person tracking |
-| **Orthographic** | True orthographic projection (no perspective) |
+| **Spectator** | Follow/cycle live players (also drives demo playback POV) |
 
 Switch via console: `camera mode freefly`, `camera mode isometric`
 
@@ -167,9 +172,9 @@ Shows: ping, snapshot rate, packet loss %, interp delay, command rate, reconcili
 # Server
 npm run net:server -- --map wdm2 --port 7777
 
-# Client
+# Client (in-game console)
 connect ws://localhost:7777
-network status
+cl_netgraph 2
 disconnect
 ```
 
@@ -229,7 +234,7 @@ Physics-based death effects for overkill damage.
 | **Physics simulation** | Gibs inherit death force vector velocity |
 | **BSP collision** | Gibs collide with map geometry and settle |
 | **Object pooling** | Prevents GC spikes from rapid creation/destruction |
-| **Configurable** | `gib_threshold`, `gib_count`, `gib_lifetime` CVars |
+| **Configurable** | Module constants in `GibSystem.ts` (`GIB_COUNT`, `GIB_LIFETIME`, `MAX_ACTIVE_GIBS`, …) — not cvars |
 
 ---
 
@@ -258,14 +263,15 @@ Post-processing and first-person camera effects for polish.
 | **Speed FOV** | FOV increase at high speed |
 | **Strafe Lean** | Camera roll on strafe |
 | **Idle Breathing** | Subtle idle movement |
-| **Screen Shake** | For impacts and explosions |
-| **Damage Flash** | Red tint when hurt |
+| **Damage Flash** | Red tint when hurt (HUD overlay, not a camera effect) |
 | **Bloom** | Glow on bright areas |
-| **FXAA** | Fast anti-aliasing |
 | **Color Grading** | Tint, saturation, contrast |
 | **Vignette** | Darkened screen edges |
+| **Chromatic Aberration** | Edge colour fringing |
+| **God Rays** | Babylon 9 volumetric sun shafts |
+| **SSR** | Screen-space reflections |
 
-Controlled via CVars: `cl_bobbing 1`, `r_bloom 1.5`, `r_fxaa 1`
+Controlled via CVars: `cl_bobbing 1`, `r_bloom 1.5`, `r_godrays 1`, `r_ssr 1`
 
 ---
 
@@ -310,11 +316,11 @@ Being honest about limitations helps you choose the right tool:
 | Limitation | Why |
 |------------|-----|
 | **Game modes live in each game, not the engine** | The engine ships a `GametypeController` framework; each game built on SHAG implements its own gametypes (duel, deathmatch, team-vs-team, capture-the-flag, whatever). |
-| **Bots live in each game, not the engine** | The engine knows how to register a bot player slot in the simulation; each game ships its own bot brain and navigation. |
+| **Bots are a separate process, not an engine subsystem** | The bot brain, vision, NavGraph and training pipeline live in `src/bot/` and run as their own service (`npm run bot:server`), joining matches as ordinary networked clients. The engine and the game see a bot as just another player. |
 | **Partial shader support** | ~90% of Q3 shaders work, some edge cases don't |
 | **No map editor** | Use NetRadiant-custom, import the BSP |
 
-SHAG is an **engine**. It handles the hard parts — BSP loading, networking, physics, gametype framework, bot scaffolding — so each game built on it can focus on what makes it different. Games live as git submodules under `src/games/<gameid>/`; each game has its own repository, its own version, and its own manual.
+SHAG is an **engine**. It handles the hard parts — BSP loading, networking, physics, gametype framework, lobby/matchmaking, bot service — so each game built on it can focus on what makes it different. Games live as git submodules under `src/games/<gameid>/`; each game has its own repository, its own version, and its own manual.
 
 ---
 

@@ -609,7 +609,7 @@ Key files to understand the networking system:
 | File | Purpose |
 |------|---------|
 | `src/games/fps/client/V2NetworkClient.ts` | Client prediction, reconciliation, visual smoothing |
-| `src/games/fps/FPSGameManager.ts` | Game loop: processSnapshots → input → tick |
+| `src/games/fps/Game.ts` | Game loop: processSnapshots → input → tick |
 | `src/games/fps/server/GameServer.ts` | Server tick loop, snapshot broadcast, delta compression |
 | `src/engine/network/client/SnapshotBuffer.ts` | Time-based interpolation for remote entities |
 | `src/engine/network/client/ClockSync.ts` | NTP-like time synchronization |
