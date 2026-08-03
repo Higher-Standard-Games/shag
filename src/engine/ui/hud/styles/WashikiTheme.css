@@ -3824,11 +3824,6 @@
   text-shadow: calc(2px * var(--ui-scale, 1)) calc(2px * var(--ui-scale, 1)) 0 hsla(0, 0%, 0%, 0.45);
 }
 
-.fps-loadout-subtitle {
-  font-size: calc(12px * var(--ui-scale, 1));
-  color: hsl(210, 14%, 68%);
-}
-
 /* Columns beside the stand. The weapon picture is the widest element on the
    panel on purpose — it is the thing being chosen. */
 .fps-loadout-body {
