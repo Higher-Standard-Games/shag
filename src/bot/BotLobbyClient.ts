@@ -27,6 +27,10 @@ export class BotLobbyClient {
   private _ws: WebSocket | null = null;
   private _state: LobbyBotState = "disconnected";
   private _lobbyId: string = "";
+  /** Our own lobby id, so we can find ourselves in a roster. */
+  private _playerId: string = "";
+  /** The side the lobby put us on, carried into the match. */
+  private _lobbyTeam: string | undefined;
   private _joinLobbyId: string = ""; // when set, join this exact lobby instead of queueing
   private _gametype: string = "";
   private _botOptions: BotOptions;
@@ -126,6 +130,7 @@ export class BotLobbyClient {
       case "welcome": {
         // Successfully authenticated — join a specific lobby or the queue
         this._state = "authenticated";
+        this._playerId = msg.playerId ?? "";
         if (this._joinLobbyId) {
           console.log(
             `[LobbyBot:${this.name}] Authenticated (id: ${msg.playerId}). Joining lobby: ${this._joinLobbyId}`,
@@ -143,6 +148,7 @@ export class BotLobbyClient {
         // Placed in a lobby room (created or joined existing)
         this._state = "in_lobby";
         this._lobbyId = msg.lobby?.id || "";
+        this._rememberOwnTeam(msg.lobby?.players);
         console.log(`[LobbyBot:${this.name}] In lobby ${this._lobbyId} (${this._gametype}). Auto-readying...`);
 
         // Small delay before readying up (human-feel)
@@ -161,8 +167,19 @@ export class BotLobbyClient {
       case "lobby:connect": {
         // Match is starting! Connect to game server
         const serverUrl = msg.serverUrl;
-        console.log(`[LobbyBot:${this.name}] Match starting! Connecting to game server: ${serverUrl}`);
+        console.log(
+          `[LobbyBot:${this.name}] Match starting! Connecting to game server: ${serverUrl} (team: ${this._lobbyTeam ?? "auto"})`,
+        );
         this._state = "in_match";
+        // Carry the side the LOBBY put us on, not the one the invite asked for.
+        //
+        // `_botOptions.team` is whatever was passed at construction, which for a
+        // lobby-invited bot is nothing — so every bot used to join the game
+        // server with no side and be auto-balanced into a split that had no
+        // relation to the roster people had been looking at. Humans ask for a
+        // side and get measured against that split, so a lobby's teams could
+        // rearrange themselves the moment the match began.
+        if (this._lobbyTeam) this._botOptions.team = this._lobbyTeam;
         this._connectToGameServer(serverUrl);
         break;
       }
@@ -180,11 +197,17 @@ export class BotLobbyClient {
         break;
       }
 
+      case "lobby:teams_shuffled":
+        // Switching sides and shuffles move bots too. Without this a bot would
+        // carry the side it was first given into the match and contradict the
+        // roster everyone else was looking at.
+        this._rememberOwnTeam(msg.players);
+        break;
+
       case "lobby:all_ready":
       case "lobby:starting":
       case "lobby:player_joined":
       case "lobby:player_updated":
-      case "lobby:teams_shuffled":
       case "lobby:shuffle_progress":
       case "lobby:vote_update":
       case "player:join":
@@ -206,6 +229,19 @@ export class BotLobbyClient {
    * Create a BotClient and connect to the game server.
    * Includes retry logic because the game server process needs time to start listening.
    */
+  /**
+   * Record which side the lobby has us on, from any roster it sends.
+   *
+   * Matched by id rather than name: bot names are display text and can repeat,
+   * and the lobby addresses players by id everywhere else.
+   */
+  private _rememberOwnTeam(players: unknown): void {
+    if (!Array.isArray(players) || !this._playerId) return;
+    const own = players.find((p) => (p as { id?: string })?.id === this._playerId) as { team?: string } | undefined;
+    const team = own?.team;
+    if (team && team !== "none") this._lobbyTeam = team;
+  }
+
   private async _connectToGameServer(serverUrl: string): Promise<void> {
     const MAX_RETRIES = 5;
     const INITIAL_DELAY_MS = 2000; // Wait for game server to start
