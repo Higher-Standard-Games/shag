@@ -235,11 +235,17 @@ export class NetworkGameHost implements IGameHost {
    * Send JoinGame message — spectator → player transition.
    * Server will create entity and respond with JoinAccept.
    */
-  sendJoinGame(teamId?: string): void {
+  /**
+   * @param manualPick True when the player chose this side in-game. A side the
+   *   lobby assigned is delivered as-is; only an in-game pick is balanced.
+   */
+  sendJoinGame(teamId?: string, manualPick = false): void {
     if (!this._isConnected) return;
-    const data = MessageCodec.encodeJoinGame(teamId);
+    const data = MessageCodec.encodeJoinGame(teamId, manualPick);
     this.transport.send(data, true); // Reliable
-    console.log(`[NetworkGameHost] Sent JoinGame request${teamId ? ` for team ${teamId}` : ""}`);
+    console.log(
+      `[NetworkGameHost] Sent JoinGame request${teamId ? ` for team ${teamId}${manualPick ? " (picked)" : " (from lobby)"}` : ""}`,
+    );
   }
 
   /**

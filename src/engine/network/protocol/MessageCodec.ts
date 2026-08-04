@@ -213,11 +213,17 @@ export class MessageCodec {
    * Encode a JoinGame message (Client → Server)
    * Sent when spectator wants to enter the game.
    */
-  static encodeJoinGame(teamId?: string): Uint8Array {
+  static encodeJoinGame(teamId?: string, manualPick = false): Uint8Array {
     const encoder = new BinaryEncoder();
     encoder.writeUint8(MessageType.JoinGame);
     if (teamId) {
-      encoder.writeUint8(1);
+      // Widens the old has-team flag rather than adding a byte: 1 is a side the
+      // LOBBY assigned, 2 is one the player picked in-game. The server balances
+      // only the second — a lobby has already balanced its roster, and judging
+      // its players one at a time as they trickle in rejects the very
+      // assignment being delivered. An older client sends 1, which reads as
+      // lobby-assigned, so it keeps the more permissive behaviour.
+      encoder.writeUint8(manualPick ? 2 : 1);
       encoder.writeString(teamId);
     } else {
       encoder.writeUint8(0);
@@ -228,15 +234,16 @@ export class MessageCodec {
   /**
    * Decode a JoinGame message
    */
-  static decodeJoinGame(data: Uint8Array): { teamId?: string } {
+  static decodeJoinGame(data: Uint8Array): { teamId?: string; manualPick: boolean } {
     const decoder = new BinaryDecoder(data);
     const messageType = decoder.readUint8();
     if (messageType !== MessageType.JoinGame) {
       throw new Error(`Expected JoinGame message, got 0x${messageType.toString(16)}`);
     }
-    const hasTeamId = decoder.readUint8() === 1;
+    const teamFlag = decoder.readUint8();
     return {
-      teamId: hasTeamId ? decoder.readString() : undefined,
+      teamId: teamFlag > 0 ? decoder.readString() : undefined,
+      manualPick: teamFlag === 2,
     };
   }
 
