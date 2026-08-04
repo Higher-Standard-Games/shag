@@ -3862,9 +3862,7 @@
   padding: calc(9px * var(--ui-scale, 1)) calc(16px * var(--ui-scale, 1));
   border: calc(2px * var(--ui-scale, 1)) solid hsla(180, 100%, 50%, 0.24);
   border-radius: 0;
-  background:
-    linear-gradient(92deg, hsla(180, 100%, 50%, 0.14), hsla(0, 0%, 100%, 0.05) 60%),
-    hsla(238, 38%, 8%, 0.95);
+  background: linear-gradient(92deg, hsla(180, 100%, 50%, 0.14), hsla(0, 0%, 100%, 0.05) 60%), hsla(238, 38%, 8%, 0.95);
   clip-path: polygon(3% 0, 100% 0, 97% 100%, 0 100%);
   box-shadow:
     calc(4px * var(--ui-scale, 1)) calc(5px * var(--ui-scale, 1)) 0 hsla(0, 0%, 0%, 0.32),
@@ -3891,9 +3889,7 @@
 /* Chosen: gold, matching the HUD's "this is yours" colour. */
 .fps-loadout-option--selected {
   border-color: hsla(45, 100%, 60%, 0.85);
-  background:
-    linear-gradient(92deg, hsla(45, 100%, 55%, 0.34), hsla(45, 90%, 50%, 0.12) 62%),
-    hsla(238, 38%, 8%, 0.98);
+  background: linear-gradient(92deg, hsla(45, 100%, 55%, 0.34), hsla(45, 90%, 50%, 0.12) 62%), hsla(238, 38%, 8%, 0.98);
   box-shadow:
     calc(4px * var(--ui-scale, 1)) calc(5px * var(--ui-scale, 1)) 0 hsla(0, 0%, 0%, 0.36),
     inset calc(5px * var(--ui-scale, 1)) 0 0 hsl(45, 92%, 60%);
@@ -3909,8 +3905,7 @@
   align-items: center;
   justify-content: center;
   background:
-    radial-gradient(ellipse at 50% 62%, hsla(180, 100%, 50%, 0.14), transparent 62%),
-    hsla(238, 40%, 6%, 0.75);
+    radial-gradient(ellipse at 50% 62%, hsla(180, 100%, 50%, 0.14), transparent 62%), hsla(238, 40%, 6%, 0.75);
   border: calc(2px * var(--ui-scale, 1)) solid hsla(180, 100%, 50%, 0.22);
   clip-path: polygon(2% 0, 100% 0, 98% 100%, 0 100%);
   overflow: hidden;
@@ -4030,4 +4025,63 @@
   font-size: calc(24px * var(--ui-scale, 1));
   font-variant-numeric: tabular-nums;
   line-height: 1;
+}
+
+/* ── Bomb plant/defuse meter, centre screen ──────────────────────────────
+   Arming and defusing are the only actions that ask you to stand still and
+   watch a bar finish, and the corner slab is the wrong place to watch it — you
+   are looking down the sightline someone is about to come through. Sits BELOW
+   the crosshair so it never competes with what you are aiming with. */
+.fps-bomb-plant-meter {
+  position: fixed;
+  left: 50%;
+  top: 58%;
+  transform: translateX(-50%);
+  z-index: 620;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(6px * var(--ui-scale, 1));
+  pointer-events: none;
+}
+
+.fps-bomb-plant-meter-label {
+  font-family: var(--w-font-display);
+  font-size: calc(15px * var(--ui-scale, 1));
+  font-weight: 900;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: hsl(48, 100%, 66%);
+  text-shadow: calc(2px * var(--ui-scale, 1)) calc(2px * var(--ui-scale, 1)) 0 hsla(0, 0%, 0%, 0.62);
+}
+
+.fps-bomb-plant-meter-track {
+  width: calc(260px * var(--ui-scale, 1));
+  height: calc(12px * var(--ui-scale, 1));
+  background: hsla(250, 45%, 4%, 0.72);
+  box-shadow:
+    inset 0 0 0 calc(2px * var(--ui-scale, 1)) hsla(210, 14%, 88%, 0.4),
+    calc(3px * var(--ui-scale, 1)) calc(3px * var(--ui-scale, 1)) 0 hsla(0, 0%, 0%, 0.4);
+  clip-path: polygon(2% 0, 100% 0, 98% 100%, 0 100%);
+}
+
+.fps-bomb-plant-meter-fill {
+  height: 100%;
+  background: hsl(48, 100%, 58%);
+  transition: width 80ms linear;
+}
+
+/* Defusing is the defenders' half of the same bar — cyan, so a spectator can
+   tell which side is winning the contest without reading the word. */
+.fps-bomb-plant-meter--defusing .fps-bomb-plant-meter-label {
+  color: hsl(186, 90%, 68%);
+}
+
+.fps-bomb-plant-meter--defusing .fps-bomb-plant-meter-fill {
+  background: hsl(186, 85%, 55%);
+}
+
+/* Draining, because nobody is on the bomb. The direction is the information. */
+.fps-bomb-plant-meter-fill--decaying {
+  background: hsl(210, 12%, 60%);
 }
