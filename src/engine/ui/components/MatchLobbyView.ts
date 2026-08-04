@@ -407,11 +407,15 @@ export class MatchLobbyView {
       const alphaTeam = this.players.filter((p) => p.team === "alpha");
       const bravoTeam = this.players.filter((p) => p.team === "bravo");
 
-      // Display names match the in-game teams (esc menu): alpha = Soba (blue),
-      // bravo = Udon (pink). Internal team keys stay alpha/bravo (data + colors).
-      area.appendChild(this.buildTeamColumn("TEAM SOBA", alphaTeam, "alpha"));
+      // Display names match the in-game teams (esc menu): alpha = Soba, bravo =
+      // Udon. Colour is by ALLEGIANCE though — your column is the ally colour
+      // and theirs the enemy colour, the same pair the models wear in the map,
+      // so a side has one meaning from the lobby through to the firefight.
+      const localTeam = this.players.find((p) => p.isLocal)?.team;
+      const slot = (team: string) => (localTeam && team === localTeam ? "ally" : "enemy");
+      area.appendChild(this.buildTeamColumn("TEAM SOBA", alphaTeam, slot("alpha")));
       area.appendChild(this.buildVsDiv());
-      area.appendChild(this.buildTeamColumn("TEAM UDON", bravoTeam, "bravo"));
+      area.appendChild(this.buildTeamColumn("TEAM UDON", bravoTeam, slot("bravo")));
     } else {
       area.classList.add("match-lobby__players--ffa");
       area.appendChild(this.buildPlayerList());

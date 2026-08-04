@@ -230,13 +230,13 @@
   box-shadow: 3px 3px 0 hsla(0, 0%, 0%, 0.34);
 }
 
-.match-lobby__team--alpha .match-lobby__team-header {
-  background: var(--w-cyan, hsl(180, 100%, 50%));
+.match-lobby__team--ally .match-lobby__team-header {
+  background: var(--team-ally, hsl(320, 100%, 60%));
   box-shadow: 3px 3px 0 hsla(0, 0%, 0%, 0.34);
 }
 
-.match-lobby__team--bravo .match-lobby__team-header {
-  background: var(--w-magenta, hsl(320, 100%, 60%));
+.match-lobby__team--enemy .match-lobby__team-header {
+  background: var(--team-enemy, hsl(186, 98%, 58%));
 }
 
 .match-lobby__team-slots {
@@ -284,10 +284,10 @@
   border-color: hsla(180, 100%, 50%, 0.24);
 }
 
-.match-lobby__team--bravo .match-lobby__slot {
+.match-lobby__team--enemy .match-lobby__slot {
   box-shadow:
     var(--l-shadow-sm),
-    inset 4px 0 0 hsla(320, 100%, 60%, 0.34);
+    inset 4px 0 0 var(--team-enemy, hsl(186, 98%, 58%));
 }
 
 .match-lobby__slot--local {

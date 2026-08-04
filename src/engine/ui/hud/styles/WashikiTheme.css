@@ -2493,21 +2493,21 @@
 /* Udon magenta — the same pink the lobby and the ESC menu's JOIN TEAM UDON
    button use. It was red here, which is a different team as far as a player is
    concerned: you left a pink column in the lobby and arrived in a red one. */
-.fps-scoreboard-team--udon .fps-scoreboard-team-title {
-  background: linear-gradient(100deg, hsla(320, 100%, 60%, 0.95), hsla(330, 80%, 38%, 0.93)), var(--w-scan-cream);
+.fps-scoreboard-team--ally .fps-scoreboard-team-title {
+  background: linear-gradient(100deg, var(--team-ally, hsl(320, 100%, 60%)), hsla(255, 30%, 10%, 0.9)), var(--w-scan-cream);
 }
 
-.fps-scoreboard-team--udon .fps-scoreboard-row {
-  border-left: 3px solid hsla(320, 100%, 60%, 0.75);
+.fps-scoreboard-team--ally .fps-scoreboard-row {
+  border-left: 3px solid var(--team-ally, hsl(320, 100%, 60%));
 }
 
 /* Soba Team (armor cyan) */
-.fps-scoreboard-team--soba .fps-scoreboard-team-title {
-  background: linear-gradient(115deg, hsla(190, 98%, 58%, 0.45), hsla(210, 62%, 20%, 0.92) 70%), var(--w-scan-cyan);
+.fps-scoreboard-team--enemy .fps-scoreboard-team-title {
+  background: linear-gradient(115deg, var(--team-enemy, hsl(186, 98%, 58%)), hsla(210, 62%, 18%, 0.92) 70%), var(--w-scan-cyan);
 }
 
-.fps-scoreboard-team--soba .fps-scoreboard-row {
-  border-left: 3px solid hsla(185, 98%, 62%, 0.7);
+.fps-scoreboard-team--enemy .fps-scoreboard-row {
+  border-left: 3px solid var(--team-enemy, hsl(186, 98%, 58%));
 }
 
 /* ============================================================================
@@ -2584,12 +2584,12 @@
   margin-right: calc(8px * var(--ui-scale, 1));
 }
 
-.fps-chat-sender--udon {
-  color: var(--w-cyan);
+.fps-chat-sender--ally {
+  color: var(--team-ally, hsl(320, 100%, 60%));
 }
 
-.fps-chat-sender--soba {
-  color: var(--w-magenta);
+.fps-chat-sender--enemy {
+  color: var(--team-enemy, hsl(186, 98%, 58%));
 }
 
 .fps-chat-sender--spec {
