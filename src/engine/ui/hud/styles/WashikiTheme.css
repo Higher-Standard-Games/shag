@@ -2490,12 +2490,15 @@
 }
 
 /* Udon Team (blood) */
+/* Udon magenta — the same pink the lobby and the ESC menu's JOIN TEAM UDON
+   button use. It was red here, which is a different team as far as a player is
+   concerned: you left a pink column in the lobby and arrived in a red one. */
 .fps-scoreboard-team--udon .fps-scoreboard-team-title {
-  background: linear-gradient(100deg, hsla(7, 92%, 58%, 0.95), hsla(350, 80%, 42%, 0.93)), var(--w-scan-cream);
+  background: linear-gradient(100deg, hsla(320, 100%, 60%, 0.95), hsla(330, 80%, 38%, 0.93)), var(--w-scan-cream);
 }
 
 .fps-scoreboard-team--udon .fps-scoreboard-row {
-  border-left: 3px solid hsla(7, 92%, 58%, 0.75);
+  border-left: 3px solid hsla(320, 100%, 60%, 0.75);
 }
 
 /* Soba Team (armor cyan) */
