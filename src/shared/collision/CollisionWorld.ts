@@ -66,7 +66,7 @@ export interface CollisionWorld {
    * @param bounds - Optional AABB for box trace (point trace if omitted)
    * @returns Trace result with hit info
    */
-  trace(start: Vec3, end: Vec3, bounds?: AABB): TraceResult;
+  trace(start: Vec3, end: Vec3, bounds?: AABB, contentMask?: number): TraceResult;
 
   /**
    * Q3-style step-slide move with full collision resolution.
@@ -114,7 +114,31 @@ export interface CollisionWorld {
 export interface SweepBackendTraceOptions {
   radius: number;
   height: number;
+  /**
+   * Q3 content flags this trace collides with. Omitted means the backend's
+   * player default, SOLID | PLAYERCLIP.
+   *
+   * Q3 VALUES, not the {@link Contents} enum below — this crosses to the engine
+   * backend, which reads BSP shader flags straight from the map.
+   */
+  contentMask?: number;
 }
+
+/**
+ * What a shot collides with: solid world only.
+ *
+ * Q3's `CONTENTS_SOLID`. Deliberately excludes `CONTENTS_PLAYERCLIP` (0x10000),
+ * the invisible brush mappers put across railings, window openings and decorative
+ * gaps to keep players from walking or getting stuck in them. Those are supposed
+ * to stop bodies and let shots through — Warsow's wbomb1 has them over the vent
+ * openings, and firing a rocket at an obviously open hole and watching it burst
+ * in mid-air is the symptom of getting this wrong.
+ *
+ * Same numeric value as `Contents.SOLID` below, but this is the Q3 flag the
+ * engine backend matches against, which is a different vocabulary that happens
+ * to agree on this one bit.
+ */
+export const SHOT_CONTENT_MASK = 0x1;
 
 export interface SweepBackend {
   trace(
