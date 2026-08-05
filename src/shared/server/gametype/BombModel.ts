@@ -54,6 +54,25 @@ export interface BombPlayerView {
    * world, so it is the caller's job, not this model's.
    */
   onPlantableGround: boolean;
+  /**
+   * Where the bomb comes to rest if this player drops or plants it.
+   *
+   * NOT the same as `position`. A player's position is their ORIGIN, which in
+   * the Quake box is hip height — twenty-four units off the floor. Storing the
+   * bomb there left it hanging at waist height, half-buried in whatever the
+   * carrier happened to die against, and put the arm/defuse ring in the air
+   * rather than on the ground it is telling you to stand on.
+   *
+   * The bomb's own position is the floor point everywhere else — the round
+   * spawn is traced down before it is handed over — so this keeps one meaning
+   * for one field instead of two conventions sharing it.
+   *
+   * Resolving it needs a trace against the collision world, so like
+   * `onPlantableGround` it is the caller's job. That also makes a carrier who
+   * dies mid-air do the right thing: the bomb lands on the floor beneath them
+   * rather than hovering where they were hit.
+   */
+  groundPosition: Vec3Like;
 }
 
 export interface BombRules {
@@ -250,12 +269,16 @@ export class BombModel {
 
     if (!carrier || !carrier.alive) {
       this._phase = "dropped";
-      this._position = { ...(carrier?.position ?? this._position) };
+      // On the floor, not at hip height where the carrier's origin was.
+      this._position = { ...(carrier?.groundPosition ?? this._position) };
       this._carrierId = null;
       events.push({ kind: "dropped", entityId: carrier?.entityId, position: this._position });
       return;
     }
 
+    // While carried the bomb IS the carrier, and every range check the model
+    // makes is against other players' origins — so it tracks the origin here
+    // and only drops to the floor at the moment it becomes an object again.
     this._position = { ...carrier.position };
 
     // The plant. Every condition must hold: slow enough, on ground level enough
@@ -267,6 +290,8 @@ export class BombModel {
     this._phase = "planted";
     this._siteId = site.id;
     this._carrierId = null;
+    // Set down on the ground, which is where a planted bomb is.
+    this._position = { ...carrier.groundPosition };
     this.meter = new ProgressMeter(this.rules.armTicks);
     events.push({ kind: "planted", entityId: carrier.entityId, siteId: site.id, position: this._position });
   }

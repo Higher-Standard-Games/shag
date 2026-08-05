@@ -48,7 +48,7 @@ const RULES = {
 };
 
 function player(over: Partial<BombPlayerView> & { entityId: number }): BombPlayerView {
-  return {
+  const base = {
     team: ATTACK,
     position: { x: 0, y: 0, z: 0 },
     speed: 0,
@@ -56,6 +56,9 @@ function player(over: Partial<BombPlayerView> & { entityId: number }): BombPlaye
     onPlantableGround: true,
     ...over,
   };
+  // Feet, a player-origin's height below where they stand, unless a test says
+  // otherwise. The real caller traces the collision world for this.
+  return { groundPosition: { ...base.position, y: base.position.y - 24 }, ...base };
 }
 
 function run(bomb: BombModel, players: BombPlayerView[], ticks: number, from = 0) {
@@ -109,6 +112,47 @@ describe("carrying", () => {
     run(bomb, [], 1);
     expect(bomb.phase).toBe("dropped");
   });
+
+  it("comes to rest on the floor, not at the height the carrier's hips were", () => {
+    const bomb = carrying();
+    // A player standing on a floor at y=0 has their ORIGIN at y=24. Left there,
+    // the bomb hangs at waist height and the arm/defuse ring floats in the air
+    // instead of marking the ground you have to stand on.
+    run(
+      bomb,
+      [
+        player({
+          entityId: 1,
+          position: { x: 7000, y: 24, z: 0 },
+          groundPosition: { x: 7000, y: 0, z: 0 },
+          alive: false,
+        }),
+      ],
+      1,
+    );
+
+    expect(bomb.position.y).toBe(0);
+  });
+
+  it("falls to the floor beneath a carrier killed in mid-air", () => {
+    const bomb = carrying();
+    // The caller traces for this, so a bomb dropped over a pit lands in the
+    // pit rather than hovering where its carrier was hit.
+    run(
+      bomb,
+      [
+        player({
+          entityId: 1,
+          position: { x: 7000, y: 300, z: 0 },
+          groundPosition: { x: 7000, y: 12, z: 0 },
+          alive: false,
+        }),
+      ],
+      1,
+    );
+
+    expect(bomb.position.y).toBe(12);
+  });
 });
 
 // ── The plant ────────────────────────────────────────────────────────
@@ -120,6 +164,25 @@ describe("planting", () => {
     expect(kinds(events)).toContain("planted");
     expect(bomb.phase).toBe("planted");
     expect(bomb.siteId).toBe(0);
+  });
+
+  it("is set down on the ground, not at the planter's hip height", () => {
+    const bomb = carrying();
+    run(
+      bomb,
+      [
+        player({
+          entityId: 1,
+          position: { x: 0, y: 24, z: 0 },
+          groundPosition: { x: 0, y: 0, z: 0 },
+          speed: 100,
+        }),
+      ],
+      1,
+    );
+
+    expect(bomb.phase).toBe("planted");
+    expect(bomb.position.y).toBe(0);
   });
 
   it("does not plant above the speed limit", () => {
