@@ -872,7 +872,17 @@ Decisions made while building it:
 38 tests across `Swim` and `SwimMovement`. One fixture bug is worth recording because it is a trap: forty units of water is **waist-deep** for a 64-unit player and therefore already swimming. Ankle-deep needs a surface below the waist probe at origin+5. The ladder is about the body, not about a depth that sounds shallow.
 
 
-### Phase 3: First complete `acidwdm2` vertical slice
+### Phase 3: First complete `acidwdm2` vertical slice — **mostly done**
+
+Landed: the swim clips bound with the prone hull and its clearance rule; the electrical discharge; the underwater view driven by the active camera; the floating viewmodel; and the unified water material with `LiquidSurfaceSystem` owning it.
+
+Confirmed in play: swimming mechanics and the underwater screen distortion. Not yet seen: the swim animations, the water surface itself, and the discharge.
+
+Still owed from this phase: **entry/exit ripples and audio** through a `LiquidInteractionSystem`, the **debug commands** (`water splash`, liquid sample, post-process order), and a **map reload/switch cleanup pass in the browser** — the lifecycle is unit-tested against a NullEngine scene, which is not the same as watching a real map unload.
+
+Two things deliberately deferred rather than forgotten: the discharge has **no effect of its own** (a burst and a crack need a new wire event), and the weapon float is presentation with **no accuracy penalty**, which stays a separate gameplay decision.
+
+### Phase 3 original plan
 
 1. Add map-scoped `LiquidSurfaceSystem` ownership and the zero-extra-pass unified Low material.
 2. Route classified meshes away from ordinary Q3 material creation while retaining a legacy fallback.
