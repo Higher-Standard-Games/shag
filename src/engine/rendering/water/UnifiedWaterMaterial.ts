@@ -191,16 +191,16 @@ export const WATER_PROFILES: Record<WaterKind, WaterProfile> = {
     deep: new Color3(0.05, 0.17, 0.24),
     // Bright, slightly cool: a bounce off the room rather than a real sky, and
     // most Q3 pools are indoors.
-    sky: new Color3(0.42, 0.56, 0.66),
-    alpha: 0.3,
+    sky: new Color3(0.3, 0.4, 0.48),
+    alpha: 0.22,
     // One tile per ~90 units, so a pool a few hundred units across shows
     // several waves rather than one broad smear.
     scale: 0.011,
     waveSpeed: 26,
     waveStrength: 0.7,
-    reflectivity: 0.45,
+    reflectivity: 0.3,
     emissive: 0.0,
-    specular: 0.55,
+    specular: 0.35,
   },
   slime: {
     // Bright toxic green from a shader rule, not from the map's own texture.
