@@ -75,6 +75,7 @@ uniform float uWaveStrength;
 uniform float uAlpha;
 uniform float uEmissive;
 uniform float uSpecular;
+uniform float uReflectivity;
 
 void main(void) {
   vec2 base = vWorld.xz * uScale;
@@ -97,9 +98,14 @@ void main(void) {
   vec3 viewDir = normalize(uCameraPosition - vWorld);
   float facing = clamp(dot(viewDir, n), 0.0, 1.0);
 
-  // Schlick-ish Fresnel. Looking straight down you see into the water;
-  // at a grazing angle it turns to a sheet of reflected light.
-  float fresnel = pow(1.0 - facing, 3.0);
+  // Schlick-ish Fresnel, then CAPPED by reflectivity.
+  //
+  // Real water approaches a full mirror at grazing angles, and reproducing
+  // that faithfully is wrong here: we are not reflecting the scene, we are
+  // reflecting one constant bright colour, so full Fresnel turns the far half
+  // of every pool into a sheet of white. Most Q3 pools are indoors and should
+  // be reflecting a dim room. The cap is what keeps a grazing view readable.
+  float fresnel = pow(1.0 - facing, 4.0) * uReflectivity;
 
   vec3 body = mix(uDeepColor, uShallowColor, facing);
 
@@ -116,8 +122,9 @@ void main(void) {
   float spec = pow(clamp(dot(n, halfway), 0.0, 1.0), 24.0) * uSpecular;
 
   vec3 color = lit + vec3(spec) + body * uEmissive;
-  // Grazing angles go opaque, which is both physically right and the thing
-  // that stops a pool looking like coloured glass.
+  // Grazing angles thicken but never reach full opacity, so you can always see
+  // that there is a floor down there — the thing that separates water from
+  // painted glass.
   float alpha = clamp(uAlpha + fresnel * (1.0 - uAlpha), 0.0, 1.0);
 
   gl_FragColor = vec4(color, alpha);
@@ -159,6 +166,14 @@ export interface WaterProfile {
    */
   waveSpeed: number;
   waveStrength: number;
+  /**
+   * Ceiling on the Fresnel reflection, 0-1.
+   *
+   * Physical water reaches a full mirror at grazing angles. We reflect a flat
+   * colour rather than the scene, so honouring that turned the far half of a
+   * pool into a sheet of white. This bounds it.
+   */
+  reflectivity: number;
   /** Self-illumination — zero for water, high for lava, which is its own light. */
   emissive: number;
   specular: number;
@@ -176,26 +191,28 @@ export const WATER_PROFILES: Record<WaterKind, WaterProfile> = {
     deep: new Color3(0.02, 0.13, 0.22),
     // Bright, slightly cool: a bounce off the room rather than a real sky, and
     // most Q3 pools are indoors.
-    sky: new Color3(0.62, 0.78, 0.88),
-    alpha: 0.72,
+    sky: new Color3(0.42, 0.56, 0.66),
+    alpha: 0.46,
     // One tile per ~90 units, so a pool a few hundred units across shows
     // several waves rather than one broad smear.
     scale: 0.011,
     waveSpeed: 26,
     waveStrength: 0.7,
+    reflectivity: 0.45,
     emissive: 0.0,
-    specular: 1.0,
+    specular: 0.55,
   },
   slime: {
     // Bright toxic green from a shader rule, not from the map's own texture.
     shallow: new Color3(0.29, 0.72, 0.1),
     deep: new Color3(0.06, 0.22, 0.03),
-    sky: new Color3(0.55, 0.85, 0.3),
-    alpha: 0.93,
+    sky: new Color3(0.42, 0.68, 0.22),
+    alpha: 0.88,
     scale: 0.008,
     // Thicker than water, so it rolls rather than ripples.
     waveSpeed: 14,
     waveStrength: 0.85,
+    reflectivity: 0.35,
     emissive: 0.22,
     specular: 0.5,
   },
@@ -208,6 +225,7 @@ export const WATER_PROFILES: Record<WaterKind, WaterProfile> = {
     // Slow and heavy: lava is viscous, and fast ripples read as water tinted red.
     waveSpeed: 7,
     waveStrength: 0.45,
+    reflectivity: 0.25,
     emissive: 0.85,
     specular: 0.15,
   },
@@ -297,6 +315,7 @@ export function createUnifiedWaterMaterial(
           "uAlpha",
           "uEmissive",
           "uSpecular",
+          "uReflectivity",
         ],
         samplers: ["uNoise"],
         needAlphaBlending: true,
@@ -317,6 +336,7 @@ export function createUnifiedWaterMaterial(
     material.setFloat("uAlpha", profile.alpha);
     material.setFloat("uEmissive", profile.emissive);
     material.setFloat("uSpecular", profile.specular);
+    material.setFloat("uReflectivity", profile.reflectivity);
     material.setFloat("uTime", 0);
 
     // Liquid is transparent and must not write depth, or the geometry under it

@@ -105,8 +105,30 @@ describe("liquid appearance", () => {
   });
 
   it("lets you see into water and not into lava", () => {
-    expect(WATER_PROFILES.water.alpha).toBeLessThan(0.85);
+    // Water should read as water rather than as coloured glass, so you can
+    // see the floor and anyone swimming above it.
+    expect(WATER_PROFILES.water.alpha).toBeLessThan(0.6);
     expect(WATER_PROFILES.lava.alpha).toBe(1);
+  });
+
+  it("caps reflection well below a mirror", () => {
+    // Uncapped Fresnel turned the far half of a pool into a sheet of white,
+    // because the surface reflects one constant bright colour rather than the
+    // scene. Physical accuracy is the wrong target until there is a real
+    // capture to reflect.
+    for (const kind of KINDS) {
+      expect(WATER_PROFILES[kind].reflectivity).toBeGreaterThan(0);
+      expect(WATER_PROFILES[kind].reflectivity).toBeLessThanOrEqual(0.5);
+    }
+  });
+
+  it("never lets a grazing view go fully opaque", () => {
+    // alpha = base + fresnel * reflectivity * (1 - base). Even head-on into
+    // the far edge, some of the floor has to survive.
+    const p = WATER_PROFILES.water;
+    const grazing = p.alpha + p.reflectivity * (1 - p.alpha);
+
+    expect(grazing).toBeLessThan(0.8);
   });
 
   it("makes lava its own light source and water none", () => {
