@@ -36,6 +36,20 @@ export interface PhysicsComponent {
 
   /** Actual horizontal speed (for HUD, effects) */
   actualHorizSpeed: number;
+
+  // === Liquid state ===
+
+  /**
+   * How deep in liquid: 0 dry, 1 wading, 2 swimming, 3 submerged.
+   *
+   * Authoritative simulation state. Derived from position and map geometry
+   * every step rather than accumulated, so it cannot drift out of agreement
+   * with the world across a reconciliation replay.
+   */
+  waterLevel: 0 | 1 | 2 | 3;
+
+  /** Raw liquid contents at the feet (Q3's `watertype`); 0 when dry. */
+  liquidContents: number;
 }
 
 /** Create default physics */
@@ -51,6 +65,8 @@ export function createPhysics(): PhysicsComponent {
     wallJumpState: "none",
     ledgeGrabState: "none",
     actualHorizSpeed: 0,
+    waterLevel: 0,
+    liquidContents: 0,
   };
 }
 
@@ -67,5 +83,7 @@ export function clonePhysics(p: PhysicsComponent): PhysicsComponent {
     wallJumpState: p.wallJumpState,
     ledgeGrabState: p.ledgeGrabState,
     actualHorizSpeed: p.actualHorizSpeed,
+    waterLevel: p.waterLevel,
+    liquidContents: p.liquidContents,
   };
 }

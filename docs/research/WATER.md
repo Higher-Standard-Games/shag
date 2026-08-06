@@ -789,7 +789,15 @@ The corpus scan was listed here rather than in Phase 6 deliberately. Plane bucke
 - **`server:tick` determinism checksum unchanged at `2768943778`** — Phase 0 touches no simulation state, which is exactly what "zero behaviour change" has to mean here. That number is expected to move in Phase 1, when liquid state enters the authoritative physics component.
 - `test:simulation` passes; `test:physics` shows only its known pre-existing `StepSlideMove` diagnostic warning.
 
-### Phase 1: Add deterministic liquid sampling and state, no new movement yet
+### Phase 1: Add deterministic liquid sampling and state, no new movement yet — **DONE**
+
+Implemented as `games/fps/liquid/LiquidTypes.ts` (pure kinds, samples, transitions, fall scaling) and `LiquidVolumeSampler.ts` (the three-point query). Sampling is wrapped around the whole of `MovementProfile.simulate` rather than placed at one of its exits, because that method returns from several branches — wall-jump charging, ledge grab, teleport — and liquid state attached to only some of them would vanish whenever the player did something interesting. `waterLevel` and `liquidContents` are on `AdvancedMovementResult`, `PhysicsComponent` and the movement snapshot flags; movement itself is untouched.
+
+Two things the implementation corrected:
+
+- **The mid-probe fix is real and testable.** The waist sits at 105 for a standing player at origin 100; deriving it from the lifted foot probe would put it at 105.5. Both boundaries are pinned by tests.
+- **The checksum expectation was wrong** — see item 8.
+
 
 1. Implement pure point and three-sample player queries over the collision interface.
 2. Cover standing/crouched bounds and levels 0/1/2/3 with a synthetic collision fixture.
@@ -798,10 +806,10 @@ The corpus scan was listed here rather than in Phase 6 deliberately. Plane bucke
 5. Pack/round-trip water level in movement snapshot flags and decide protocol compatibility.
 6. Add transition output tests for enter, leave, head-under, and head-clear.
 7. Include the new mechanics state in clone/reset/reconciliation/replay/checksum paths.
-8. Re-baseline the `server:tick` determinism checksum deliberately, and record the new value in the changelog. Adding liquid fields to authoritative physics state changes it by construction; that checksum has been quoted across recent cycles as evidence that a change was presentation-only, so it must move as an announced decision rather than turn up as a red regression suite.
+8. ~~Re-baseline the `server:tick` determinism checksum.~~ **Not needed, and the reason matters.** `WorldState.checksum()` is an FNV-1a hash over **entity positions only** — not velocity, not physics flags. Adding liquid fields to `PhysicsComponent` therefore cannot move it, and the earlier claim that it would was wrong. The corollary is the useful part: **that checksum does not protect liquid state at all.** A server and client that disagreed about water level would produce identical checksums. Liquid determinism has to be covered by a test that compares the samples directly, which is what `LiquidStateDeterminism` does. Expect the checksum to move in Phase 2 only insofar as swimming changes where players end up.
 9. Play a demo recorded before this change, to confirm the widened flags byte does not misdecode in an older reader.
 
-Exit gate: server and predicted client report identical liquid samples for the same command stream, the new checksum is recorded, and pre-water demos still play.
+Exit gate: server and predicted client report identical liquid samples for the same command stream, and pre-water demos still play.
 
 ### Phase 2: Core Q3/Warsow swimming
 
@@ -979,7 +987,7 @@ Because swimming changes deterministic networking/prediction, implementation val
 | `pointContents` reports nothing for liquid | Every mechanic in this plan silently does nothing; rendering tests still look correct | Rebuild it as a real point query with a liquid mask in Phase 0, gated on a positive test inside the `acidwdm2` pool |
 | Raw contents enum mismatch | Swimming never activates or wrong liquid is selected | Normalize at the shared boundary; the two enums alias `SLIME` onto raw `LAVA`, so test that pair explicitly |
 | Liquid-aware contents make bots treat pools as walls | Bot navigation regresses the moment Phase 0 lands, before any feature exists | Fix `BotVision.isInsideSolid` to test the solid mask in the same change; check bot behavior at the collision phase, not the rendering phase |
-| Determinism checksum moves unannounced | A red regression suite reads as a bug rather than an intended change | Re-baseline `server:tick` deliberately in Phase 1 and record the new value |
+| The determinism checksum does not cover liquid state | A server/client disagreement about water level produces identical checksums and passes the regression suite | `WorldState.checksum()` hashes positions only. Cover liquid agreement with a direct sample-comparison test instead of trusting the checksum |
 | Server/client water sampling differs | Prediction jitter and replay divergence | One pure sampler and movement implementation; deterministic fixtures and reconciliation tests |
 | Rendering quality changes mechanics | Competitive inconsistency | Keep movement profile/config independent of all `r_water*` settings |
 | Player in water is classified as airborne | Wrong jump animation and false fall damage | Replicate water level, prioritize swim state, integrate water into fall tracking |

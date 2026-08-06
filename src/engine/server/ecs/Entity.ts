@@ -176,6 +176,8 @@ export function createProjectileEntity(
     wallJumpState: "none",
     ledgeGrabState: "none",
     actualHorizSpeed: 0,
+    waterLevel: 0,
+    liquidContents: 0,
   };
   return entity;
 }
@@ -204,6 +206,8 @@ export function createDroppedWeaponEntity(
       wallJumpState: "none",
       ledgeGrabState: "none",
       actualHorizSpeed: 0,
+      waterLevel: 0,
+      liquidContents: 0,
     };
   }
   return entity;

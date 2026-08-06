@@ -108,6 +108,7 @@ export class MovementSystem extends GameSystem {
           wallJumpState?: "none" | "available" | "charging";
           ledgeGrabState?: "none" | "grabbing" | "pulling";
           actualHorizSpeed?: number;
+          waterLevel?: 0 | 1 | 2 | 3;
         };
         movementState.updateFrom(advancedResult);
       }
