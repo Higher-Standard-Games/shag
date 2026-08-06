@@ -17,7 +17,7 @@ One correction outranks everything else in sequencing. This design makes collisi
 
 The first complete vertical slice should make `acidwdm2` do all of the following: classify its one pool without a name override, render it through the unified low-cost material, let a predicted and authoritative player wade and swim up/down, switch to a swimming animation, apply a camera-driven underwater view, produce entry/exit ripples and audio, and optionally add a bounded FluidRenderer splash on Epic quality.
 
-The movement implementation should support explicit Q3 and Warsow compatibility profiles. Both engines use the same three-point water-level test, 50% swim-speed cap, full pitched view direction, vertical input, and idle sink. Q3 uses water acceleration `4`; the verified Warsow source uses `10`. These are gameplay profile choices, not rendering quality choices.
+The movement implementation should ship **one SHAG profile**, not a pair of compatibility presets. Both references use the same three-point water-level test, 50% swim-speed cap, full pitched view direction, vertical input, and idle sink; they differ only in water acceleration (Q3 `4`, Warsow `10`) and water-exit impulse. Those are small enough to pick ourselves and tune by feel, and reproducing both would buy a per-profile test matrix across every special move for a distinction no map depends on. Seed from the Q3 column — the one independently verifiable from published source — and keep the tuning in data. These are gameplay choices, not rendering quality choices.
 
 The compatibility policy should be:
 
@@ -66,6 +66,29 @@ deformVertexes wave 64 sin 1 1 0.25 0.6
 SHAG's current conditional parser models only `deluxe` and `!deluxe`. It does not understand `textureCubeMap` as a condition or cubemap map source. In a headless resolve, the surface falls through to ordinary legacy stages and resolves to a transparent multiply-style material. This is the important compatibility lesson: reproducing water by extending stage emulation one vendor keyword at a time will remain fragile. The BSP's `WATER` bit and the top-level `surfaceparm water` both identify the surface correctly even when its appearance program is only partially understood.
 
 `acidwdm2` is thus a basic *geometry* case and a valuable *shader compatibility* case. It is not sufficient by itself to validate sloped liquid, multiple water levels, waterfalls, slime, lava, underwater transitions, or very large reflective surfaces.
+
+## What the rest of the corpus contains
+
+The Phase 0 corpus scan has been run for content flags and brush counts, which have the same layout in IBSP and FBSP. Distinct liquid *heights* still need the real loader, because face and vertex layouts differ between the two formats.
+
+**16 of the 39 shipped maps contain liquid.** The feature is not a one-map curiosity.
+
+| Kind | Shaders | Notable maps |
+|---|---:|---|
+| Water | 15 | wdm5 (22 brushes), wbomb6 (14), wbomb3 (12), wdm11, wdm15, wamphi1, wbomb1, wbomb4, acidwdm2 |
+| Lava | 4 | wdm7, wdm13, wbomb2, wda1 |
+| Slime | 2 | wamphi1, wdm7 |
+| `WATER | SLIME` combined on one shader | 4 | wbomb2, wdm16, wdm17, wda1 |
+
+Three results change the design rather than just its size.
+
+**Liquid volumes and liquid surfaces are usually different objects.** `textures/common/nodrawwater` appears on five maps (ui, wbomb1, wbomb3, wbomb6, wdm5) carrying `WATER` contents with the `NODRAW` surface flag, and on wdm5 it holds all 22 liquid brushes while the visible shader `textures/world/bluedistortwater` holds none. The mapper's idiom is a nodraw brush for the volume and a separate visible shader for the surface. A classifier that assumes the rendered surface and the swimmable volume are one descriptor will render a nodraw brush and miss the real waterline. Classify the two separately: **brush contents decide mechanics, face shaders decide rendering**, and a liquid surface with no volume behind it, or a volume with no visible surface, are both normal rather than broken.
+
+**Combined liquid contents are real, not hypothetical.** Four shaders carry `WATER | SLIME` on the same brush. The instruction to preserve raw contents in `LiquidSample` rather than collapsing to one kind is load-bearing, and the rendering profile must pick a dominant kind without the mechanics doing the same.
+
+**BSP shader names are not reliably null-terminated.** Several entries returned trailing ASE model text inside the 64-byte name field. Names must be sanitized at the first non-printable character before they are normalized, or the exact-name override table will never match the maps most likely to need it.
+
+**Five of the six bomb maps have water** — wbomb1, wbomb2, wbomb3, wbomb4 and wbomb6. Bots already play Search and Destroy on maps with liquid volumes, which decides the bot question below rather than leaving it to a later corpus scan.
 
 ## Current SHAG pipeline
 
@@ -219,7 +242,7 @@ Static water is transparent and may not be represented in the opaque depth textu
 | Mechanical truth | Rendered plane, trigger meshes, collision contents | Same source is available to prediction/server; handles enclosed and stacked volumes | Raw content values must be normalized correctly | Collision `pointContents` |
 | Static pool renderer | Legacy stages, WaterMaterial, FluidRenderer, custom material | Preserves BSP mesh while scaling from cubemap to depth/reflection | Largest renderer implementation surface | Custom `UnifiedWaterMaterial`; benchmark WaterMaterial |
 | Interaction renderer | Only sprites, only FluidRenderer, tiered effects | Cheap feedback on all hardware and an Epic ceiling | Two visual paths need consistent event tuning | Ripple/foam always; sprite spray at Medium; FluidRenderer at Epic |
-| Swim feel | One blended tuning, Q3/Warsow presets | Compatibility is explicit and testable | More profile tests | Shared algorithm with Q3 and Warsow parameter sets |
+| Swim feel | One blended tuning, Q3/Warsow presets, one SHAG profile | Half the test matrix; the numbers are ours to tune; a second preset stays cheap to add later as data | Loses exact parity with either reference, which nothing measurable depends on | One profile, seeded from the verifiable Q3 values |
 | Remote swim state | Guess from airborne state, recompute locally, snapshot water level | Two bits give stable animation transitions and spectator/replay behavior | Protocol serialization change | Encode water level `0..3`; derive liquid kind locally unless required |
 | Underwater detection | Local-player state, water plane distance, camera contents | Correct for spectator, death, third-person, and free cameras | Binary contents need visual hysteresis | Sample active camera contents; use plane only for smoothing |
 | Swim animation | Jump fallback, many directional clips, neutral+forward plus procedural pitch | Small asset requirement; Warsow-proven split; readable up/down motion | Retargeting and blend quality need validation | Neutral/tread + forward loop first |
@@ -359,6 +382,14 @@ Classification precedence should be:
 5. Otherwise, ordinary material handling.
 
 If signals disagree, prefer the explicit override, otherwise prefer the compiled content flag and emit an audit warning. The descriptor should retain all contributing sources so a command or debug overlay can explain the decision.
+
+**Classify volumes and surfaces separately.** The corpus scan shows the two are usually different objects: mappers put `WATER` contents on a `NODRAW` brush and the visible water on a different shader entirely, and on wdm5 every liquid brush is nodraw while the visible shader has none. So:
+
+- **Brush contents decide mechanics.** A nodraw liquid brush is a real swimmable volume and must be sampled, whatever it looks like.
+- **Face shaders decide rendering.** A liquid brush carrying `SurfaceFlags.NODRAW` must never produce a rendered surface, and a visible liquid face with no brush behind it is normal rather than an error.
+- Neither absence is a fault to warn about. The audit output should report volume-without-surface and surface-without-volume as ordinary map shapes, and reserve warnings for the case where signals genuinely conflict.
+
+**Sanitize shader names before normalizing them.** Several entries in the shipped corpus carry trailing uninitialized bytes — ASE model text — inside the 64-byte name field, so the name does not terminate at a null. Trim at the first non-printable character before lowercasing and normalizing separators, or exact-name overrides will silently fail to match precisely the malformed assets that need them.
 
 ### Detection decision matrix
 
@@ -502,7 +533,7 @@ The official Q3 and Warsow/QFusion movement sources agree on the core model and 
 | Water-level samples | Feet, midpoint to eye, eye | Same | Use one shared sampler |
 | Full swimming threshold | `waterLevel > 1` | `waterLevel >= 2` | Levels 2 and 3 (the two sources spell the same condition differently; there is no difference to preserve) |
 | Swim speed cap | 50% of player speed | 50% of player speed | Profile field, default `0.5` |
-| Water acceleration | `4` | `10` | Q3 and Warsow presets |
+| Water acceleration | `4` | `10` | Seed from Q3`s 4 and tune; one profile |
 | Source availability | Verified against published id source | `gs_pmove.cpp` is engine source and does **not** ship in `data0_21pure.pk3`, unlike the gametype AngelScript | Q3 values are independently checkable; the Warsow column rests on the upstream repository read and should be confirmed empirically once the profile exists |
 | Water friction | `1 * waterLevel`, including wading | `1 * waterLevel` at level 2/3 | Profile behavior, not one accidental hybrid |
 | Idle behavior | Sink at 60 units/sec | Sink at 60 units/sec | Default `60` |
@@ -512,20 +543,23 @@ The official Q3 and Warsow/QFusion movement sources agree on the core model and 
 | Base animation | One legs swim loop | Swim torso plus neutral/forward legs | Start with Warsow-like neutral/forward split |
 | Classic underwater view | Opposed horizontal/vertical FOV pulse, 1 degree at 0.4 Hz | Multiplicative FOV pulse around 0.6 Hz plus color blend | Keep as a restrained/accessibility-scaled homage |
 
-This argues for one algorithm with explicit compatibility data:
+This argues for one algorithm with its tuning held as data:
 
 ```ts
 interface LiquidMovementProfile {
-  swimScale: number;             // Q3/Warsow: 0.5
-  waterAcceleration: number;     // Q3: 4, Warsow: 10
-  waterFriction: number;         // both: 1
-  frictionStartsAtLevel: 1 | 2;  // Q3: 1, Warsow: 2
-  idleSinkSpeed: number;         // both: 60
-  waterJumpForward: number;      // Q3: 200, Warsow: 50
-  waterJumpUp: number;           // both: 350
-  allowWarsowSpecialMoves: boolean;
+  swimScale: number;             // 0.5 — half of base speed
+  waterAcceleration: number;     // seeded from Q3's 4
+  waterFriction: number;         // 1
+  frictionStartsAtLevel: 1 | 2;  // 1 — friction applies while wading
+  idleSinkSpeed: number;         // 60
+  waterJumpForward: number;      // seeded from Q3's 200
+  waterJumpUp: number;           // 350
 }
 ```
+
+**Ship one SHAG profile, not two compatibility presets.** The two references differ in three numbers, and reproducing that difference exactly would buy a dual-profile system whose cost is not the numbers but the test matrix: every special move — wall jump, dash, ledge, crouch-slide, auto-hop — would need per-profile coverage at levels 1, 2 and 3, to preserve a distinction no map depends on and no player can perceive. Seed the single profile from the Q3 column, which is the one independently verifiable from published source, and tune it by feel. Half of base speed is both engines' answer and a sensible one.
+
+The struct stays because the values want tuning, not because two of them want shipping. If a genuine compatibility need appears later, a second preset is a data entry rather than a rewrite.
 
 Do not select this profile from `r_water_quality`. It belongs to the FPS movement/game profile used identically by server and predicted client.
 
@@ -568,7 +602,7 @@ For water levels 2 and 3:
 
 This gives both familiar controls: looking upward and pressing forward swims upward, while Space/Ctrl provide unambiguous up/down movement independent of view direction.
 
-At water level 1, retain the normal ground/air branch but apply the selected wading friction and speed reduction. Q3 interpolates from full speed toward the 50% swim cap by water level. That is a sound baseline for the Q3 profile; the Warsow profile should preserve its verified friction threshold.
+At water level 1, retain the normal ground/air branch but apply the selected wading friction and speed reduction. Q3 interpolates from full speed toward the 50% swim cap by water level. That interpolation is the baseline: friction applies while wading, not only once swimming.
 
 ### Special movement and leaving water
 
@@ -576,11 +610,10 @@ Water-exit assistance is necessary for old maps. At level 2, probe a short dista
 
 SHAG also has wall jump, dash, ledge, crouch-slide, and auto-hop behavior that Q3 does not. Do not let call order decide their underwater behavior accidentally:
 
-- Q3 profile: swimming replaces ordinary jump and disables wall/ledge/crouch-slide state while deep.
-- Warsow profile: preserve the verified Warsow ordering, where dash/wall-jump checks occur before water movement and may be available when their own conditions pass.
+- Swimming replaces the ordinary jump and clears wall/ledge/crouch-slide state while deep. That is the Q3 answer and the simpler one. Whether a submerged dash or wall jump should be possible at all is a design question to settle in play, not a compatibility obligation inherited from either reference.
 - Crouch is descend input while swimming; it must not leave a stale crouch-slide flag.
 - Space is ascend input while swimming; it must not set the normal grounded jump-held state incorrectly.
-- Add focused tests for each special feature at levels 1, 2, and 3 before declaring compatibility.
+- Add focused tests for each special feature at levels 1, 2, and 3. Whatever the answer, it should be chosen and pinned rather than fall out of call order.
 
 ### Deterministic and networked state
 
@@ -602,17 +635,19 @@ Oxygen and damage belong to a separate server-owned `LiquidWorldEffectsSystem`, 
 
 ### Bots
 
-Bots consume collision contents today, so the first collision change in this plan reaches them before any water feature exists.
+**Swimming itself is not bot work.** Bots are network clients: they send usercmds and the server runs the same shared `MovementProfile` for a bot that it runs for a human. A bot that walks into water will swim, sink while idle, and obey the speed cap with no bot code written at all. What bots lack is not the ability to swim but the knowledge that water exists — where it is, what it costs to cross, and which button raises them out of it.
 
-[`BotVision.isInsideSolid`](../../src/bot/BotVision.ts) is literally `pointContents(point) !== 0`. The moment `pointContents` learns to report liquid, **every water volume reads as solid to bot vision and to nav-edge validation**: bots would treat pools as walls, and graph edges crossing them would be rejected. This is a regression shipped by the first phase, and the fix is to make that predicate test the solid mask explicitly rather than "anything at all". Do it in the same change, not afterwards.
+That knowledge is `src/bot/`, which runs in the `bot:server` process:
 
-Beyond that immediate break, bots have no concept of liquid:
+- **`BotVision.isInsideSolid`** is literally `pointContents(point) !== 0`. The moment `pointContents` learns to report liquid, **every water volume reads as solid to bot vision and to nav-edge validation**: bots would treat pools as walls, and graph edges crossing them would be rejected. This is a regression shipped by Phase 0, before any water feature exists, and the fix is to test the solid mask explicitly rather than "anything at all". Do it in the same change, not afterwards.
+- **The nav graph** has no swimmable space and no notion of a surface; its floor sampling assumes standable ground, and nothing costs a water crossing differently from a floor crossing, so a route through a pool looks free.
+- **Cached graphs will hide the fix.** Graphs persist in `.cache/bots/maps` behind `BOT_NAV_GRAPH_SCHEMA_VERSION`, a map fingerprint, a trigger-resolver version and a movement fingerprint. Adding water nodes or water edge costs without bumping the schema version means every bot silently loads its old, water-less graph and the work appears to do nothing.
+- **Vertical intent has no expression.** Steering produces a horizontal direction; ascending requires the jump button and descending requires crouch. A bot that cannot press those can enter water and never leave it, which looks exactly like the bot being stuck.
+- **Drowning avoidance** needs oxygen state and belongs with the Phase 7 world effects, not before.
 
-- The nav graph has no swimmable space and no notion of a surface. Its floor sampling assumes standable ground.
-- A bot that paths into water will sink, and once oxygen and liquid damage land it will drown there.
-- Nothing costs a water crossing differently from a floor crossing, so a route through a pool looks free.
+This is not deferrable to "if a map needs it". The corpus scan says 16 of 39 shipped maps contain liquid and five of the six bomb maps have water, so bots are already running Search and Destroy in maps with water volumes in them.
 
-None of this belongs in the first milestone, and the shipping maps may not even require it — the corpus scan in Phase 0 decides that. What is required is that bot behavior is checked at the phase that changes collision, and that "bots ignore water" is a stated, tested limitation rather than an assumption nobody wrote down.
+The staging that follows from this: the `BotVision` fix ships in Phase 0 with the collision change, because it is a regression rather than a feature. Vertical intent ships with Phase 2, because a bot that can swim but cannot surface is worse than one that avoids water. Nav-graph water nodes, edge costs and the schema bump belong in their own milestone alongside Phase 6, and until then "bots avoid water rather than route through it" is a stated and tested limitation, not an assumption nobody wrote down.
 
 ## Swimming animation and player presentation
 
@@ -736,11 +771,12 @@ Nothing else in this plan can be built or tested until the collision primitive i
 7. Annotate/index the child meshes created by `BspMeshBuilder` without changing their material.
 8. Add `water info` or `bsp liquids` output: shader, kind, signals, faces, bounds, plane, bucket, and override.
 9. Verify `acidwdm2` reports one water plane at Babylon `y=56` from both `contentFlag` and `surfaceParm`, and that a point at `y=50` inside the pool now reports `WATER` while a point above it reports nothing.
-10. **Scan the full shipped map corpus** for liquid surfaces: count per map, distinct heights, non-horizontal normals, patch/mesh liquids, and slime/lava. This is one headless command over the 38 local pk3s.
+10. Separate volume classification from surface classification, honour `NODRAW`, and sanitize shader names.
+11. ~~Scan the shipped map corpus for liquid.~~ **Done for content flags and brush counts**; results are in "What the rest of the corpus contains" above. Still owed, because it needs the real loader rather than a format-agnostic reader: **distinct liquid heights per map, non-horizontal liquid normals, and patch/mesh liquid surfaces.** Those are what plane bucketing actually rests on.
 
-The corpus scan is listed here rather than in Phase 6 deliberately. Plane bucketing, the multi-height policy, and the "one horizontal plane" assumption are the largest architectural bets in this design and are currently validated against a single map with a single pool. The scan either confirms or kills them for the cost of one command, and it should be paid before a shader is written rather than after.
+The corpus scan is listed here rather than in Phase 6 deliberately. Plane bucketing, the multi-height policy, and the "one horizontal plane" assumption are the largest architectural bets in this design and were validated against a single map with a single pool. The half that has been run already changed the classifier design; the half that remains is the half that decides bucketing.
 
-Exit gate: headless classification and contents tests pass, `acidwdm2` reports liquid at a point inside its pool, bots are unaffected, and there is zero visual or simulation behavior change.
+Exit gate: headless classification and contents tests pass, `acidwdm2` reports liquid at a point inside its pool, a nodraw liquid brush produces a volume but no rendered surface, bots are unaffected, and there is zero visual or simulation behavior change.
 
 ### Phase 1: Add deterministic liquid sampling and state, no new movement yet
 
@@ -764,7 +800,7 @@ Exit gate: server and predicted client report identical liquid samples for the s
 4. Add idle sinking, swim-speed cap, water acceleration, slope clipping, and no-gravity slide movement.
 5. Implement profile-specific assisted water exit.
 6. Integrate fall-damage attenuation/reset.
-7. Resolve wall jump, dash, ledge, crouch-slide, auto-hop, and jump-held flags with per-profile tests.
+7. Resolve wall jump, dash, ledge, crouch-slide, auto-hop, and jump-held flags, with a test per feature at levels 1, 2, and 3.
 8. Add deterministic replay/reconciliation cases for entering, swimming, surfacing, and leaving water.
 
 Exit gate: a headless player can enter a test liquid, sink, ascend, descend, move along view pitch, exit, and reconcile without divergence.
@@ -842,11 +878,14 @@ These rules consume `LiquidSample`; they do not belong in `LiquidSurfaceSystem`.
 - Raw content-mask tests distinguish `0x8`, `0x10`, and `0x20` despite other contents bits, including the `Contents.SLIME` / raw `LAVA` aliasing.
 - A point inside the `acidwdm2` pool reports `WATER`; a point above the surface reports nothing; the three sample heights of one standing player can return three different answers.
 - `BotVision.isInsideSolid` still answers false inside water after the contents change.
-- The corpus scan reports liquid surface counts, distinct heights, and non-horizontal liquid across all shipped maps.
+- A `common/nodrawwater` brush yields a sampled liquid volume and no rendered surface; a visible liquid face with no brush behind it still renders.
+- Shader names carrying trailing uninitialized bytes normalize to the same key as their clean equivalents.
+- Maps carrying `WATER | SLIME` on one shader report both bits in `LiquidSample.rawContents`.
+- The height half of the corpus scan reports distinct liquid heights and non-horizontal liquid across all shipped maps.
 - Synthetic volume tests cover standing/crouched levels 0/1/2/3 and pre/post transitions.
 - Server and predicted client produce the same sample and movement for identical commands.
 - Swimming tests cover idle sink, Space ascend, Ctrl descend, pitched-forward motion, diagonal normalization, friction, speed cap, and water exit.
-- Q3 and Warsow profiles differ only where documented.
+- Swim tuning lives entirely in `LiquidMovementProfile`; no water constant is hardcoded in the movement branch.
 - Fall tests cover the 50%/25%/0% water-level multipliers and no false post-swim landing.
 - Snapshot tests round-trip all four water levels and do not fractional-interpolate them.
 - Reconciliation/replay tests cross the waterline repeatedly without divergence.
@@ -868,7 +907,7 @@ Test at minimum:
 |---|---|
 | Backend | WebGL 2, WebGPU |
 | Water quality | 0 legacy, 1 Low, 2 Medium, 3 Epic |
-| Movement profile | Q3, Warsow |
+| Movement profile | The single shipped profile, at its default and at retuned values |
 | General reflection | SSR off, SSR on |
 | Camera | Above, grazing/crossing, below, spectator/free camera |
 | Interaction | Body slow/fast entry, exit, projectile entry, nearby explosion, repeated splash |
@@ -954,14 +993,15 @@ Because swimming changes deterministic networking/prediction, implementation val
 9. Does the current camera post-process order place FluidRenderer before a world-only underwater effect and before GUI composition?
 10. Is fixed thickness visually sufficient for fast splash crowns, and what fixed depth/thickness sizes meet the actual GPU budget?
 11. Does the existing projectile interpolation expose stable previous/current segments for cosmetic liquid crossings?
-12. Should Q3/Warsow movement profile selection follow game/media configuration, a server setting, or the existing movement-profile identity?
-13. Do Warsow-compatible wall jumps/dashes while submerged feel intentional in SHAG, or should an explicit modern profile change them?
+12. ~~Should Q3/Warsow movement profile selection follow game/media configuration, a server setting, or the existing movement-profile identity?~~ **Answered:** there is one profile, so there is nothing to select.
+13. Should wall jumps and dashes be possible while submerged? Now a design question to settle in play rather than a compatibility question, since neither reference binds us.
 14. Can the current player skeleton retarget two in-place Mixamo swim loops without foot/root artifacts?
 15. Is packing water level into the two spare movement-flag bits protocol-compatible with all snapshot/demo readers?
-16. Does Warsow's water acceleration of `10` reproduce Warsow's actual feel in SHAG? The value comes from the upstream `gs_pmove.cpp`, which — unlike the gametype AngelScript — does not ship in the local pk3s, so it cannot be re-derived from the shipped assets and is worth confirming against play.
-17. Do any shipped maps actually need bot-navigable water, or is "bots ignore liquid" an acceptable permanent limitation? The Phase 0 corpus scan answers the first half.
+16. ~~Does Warsow's water acceleration of `10` reproduce Warsow's actual feel?~~ **Moot:** one profile, seeded from Q3 and tuned by feel, so the unverifiable upstream constant is no longer load-bearing.
+17. ~~Do any shipped maps actually need bot-navigable water?~~ **Answered by the corpus scan:** 16 of 39 maps carry liquid and five of six bomb maps have water, so bots meet it in normal play. What remains open is how far the nav graph should go — avoidance, or genuine swim routing.
+18. Does any shipped map put a liquid volume where its visible surface shader disagrees about the waterline height, rather than merely being a separate object? The nodraw idiom makes this possible, and it decides whether the render descriptor can ever be trusted for a mechanical answer.
 
-The first rendering prototype should answer questions 1-3, 9, and 10 with measurements on `acidwdm2`. The first mechanics prototype should answer 12, 13, and 15 with deterministic tests. The Phase 0 corpus scan answers 5 and 17 before plane and profile assumptions are committed.
+The first rendering prototype should answer questions 1-3, 9, and 10 with measurements on `acidwdm2`. The first mechanics prototype should answer 13 and 15 with deterministic tests. Question 5 needs the height half of the corpus scan, which requires the real loader; question 18 comes with it.
 
 ## Sources
 
