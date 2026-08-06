@@ -106,6 +106,11 @@ export const DEFAULT_ANIM_FILES: AnimFileConfig[] = [
   { name: "crouch_strafe_l", file: "crouch_walk_left.glb" },
   { name: "crouch_strafe_r", file: "crouch_walk_right.glb" },
   { name: "walljump", file: "wallrun.glb" },
+  // Swimming. The moving clip lays the body flat; the idle one treads upright.
+  // The hull follows suit — see RemotePlayerRenderer and the swim hull in
+  // MovementProfile — so the two must stay paired.
+  { name: "swim", file: "swimming.glb" },
+  { name: "swim_idle", file: "swimming_idle.glb" },
   // Victory dances (post-game winner showcase) — Mixamo dance clips exported
   // as GLB into public/games/default/animations/. Missing files are tolerated
   // (per-file try/catch above; playAnimation falls back to idle), so ship as

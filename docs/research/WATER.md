@@ -658,15 +658,41 @@ The staging that follows from this: the `BotVision` fix ships in Phase 0 with th
 
 Q3 selects a swim legs loop for a deep, ungrounded player. Warsow goes further: it selects a swimming torso, a neutral/treading lower-body loop when not moving forward, and a forward lower-body loop otherwise. That is a strong fit for SHAG's initial animation scope.
 
-Recommended first asset set:
+The two required clips are **in the repo**: `public/games/default/animations/swimming.fbx` (the moving stroke, body horizontal) and `swimming_idle.fbx` (treading water, body upright). Both arrived as FBX and need the same GLB conversion every other clip in that folder has had; the loader reads `.glb` only. Root motion must be stripped as usual — movement stays simulation-driven.
 
-- required: `swim_idle` / treading-water loop;
-- required: `swim_forward` loop;
-- optional: `swim_up` strong stroke;
-- optional: `swim_down` / dive;
-- later polish: surface swim, enter-water, exit-water, and water-jump one-shots.
+Later polish, none of it required for the slice: a strong upward stroke, a dive, surface swim, and enter/exit one-shots.
 
-Mixamo is a reasonable candidate source for the first two loops. Prefer in-place downloads, retain the untouched source files, record the source/terms with the asset, and validate retargeting against SHAG's actual player skeleton before committing names or frame ranges. Root motion must be removed; movement remains simulation-driven.
+### The swimming hitbox, and why it cannot simply be rotated
+
+The moving clip lays the body flat, so the natural instinct is to lay the hull flat with it — long in the direction of travel rather than tall. **An axis-aligned box cannot express that.** SHAG's collision is AABB throughout: `trace()` takes world-axis `min`/`max`, and step-slide, hitscan, spawn validation, telefrag and separation all assume it. A prone body is long along the player's *yaw*, which rotates; the moment the box has to follow yaw it stops being axis-aligned and every one of those consumers is wrong.
+
+Three honest options, none of them free:
+
+| Option | Hull | Gains | Costs |
+|---|---|---|---|
+| **A. Square footprint** | radius 32, height ~28 | Circumscribes a 64-long body at any yaw, so the hull genuinely covers the model | The swimmer is now 64 wide and can wedge in tunnels they would swim through standing — a gameplay-breaking failure in exactly the places pools are |
+| **B. Short, not wide** *(recommended)* | radius 16, height ~28 | Fits through low horizontal gaps, presents a shorter vertical target, no new stuck hazard | Shots at the rendered head or feet of a prone swimmer miss; the hull covers the torso only |
+| **C. No change** | standing | Zero risk; what Q3 and Warsow both do, for this reason | The flat model and the tall hull disagree completely |
+
+Ship **B**. It delivers what "long rather than tall" means in play — you fit under things, and you are a flatter target — without the wedging that A invites, and the residual mismatch is bounded by a swimmer already being a hard target. It is two constants, so A remains available if play says otherwise.
+
+**The hull follows the animation, and the animation yields to the hull.** The upright treading clip keeps the standing hull, as it should — the body is vertical. The moving clip takes the prone hull. That means the hull changes with movement input, which is a wedging risk in its own right, so growing back to the tall hull requires a clearance trace exactly like standing up from a crouch. **If there is no room to grow, the player stays prone and stays in the moving clip.** Visual and hull never disagree, which is the entire point of changing the hull at all.
+
+### The weapon in water
+
+Presentation first, and deliberately only presentation: extra low-frequency sway on the viewmodel, reduced bob, and the weapon riding a little loose in the hands. That reads as "this is not a firing platform" without touching what the shot does.
+
+An actual accuracy penalty is a **separate gameplay decision, defaulted off**. Spread that changes with water level is a competitive change and belongs in tuning with numbers behind it, not in a presentation pass. Nothing in the visual float may feed deterministic state.
+
+### Electrical discharge
+
+Firing an electrical weapon while submerged discharges it into the water and kills the person holding it — Quake's lightning-gun rule, and one of the few pieces of environmental interaction old players still quote.
+
+- **Triggers on** electrobolt and voltaic, the two electrical weapons, when the shooter is at water level 2 or 3.
+- **The shooter dies**, gibbed rather than merely killed: this is an explosion in the water, not a bullet.
+- **Everyone else sharing the liquid takes it too**, within a radius, because that is what makes it a hazard rather than a suicide button.
+- Server-authoritative, through the existing damage funnel so scoring, obituaries and knockback all behave; the client only plays the effect.
+- The ammo is spent. Discharging is a mistake, not a free action.
 
 Animation-state priority should be explicit:
 
@@ -851,13 +877,15 @@ Decisions made while building it:
 1. Add map-scoped `LiquidSurfaceSystem` ownership and the zero-extra-pass unified Low material.
 2. Route classified meshes away from ordinary Q3 material creation while retaining a legacy fallback.
 3. Add water level to remote animation selection, replacing the current `!grounded => jump` rule.
-4. Import/retarget `swim_idle` and `swim_forward`, add blending, speed scaling, and procedural swim pitch.
+4. Bind `swimming.glb` (moving, body flat) and `swimming_idle.glb` (treading, body upright), with the prone hull on the moving clip and the clearance rule that keeps the two in agreement.
 5. Add camera-contents-driven underwater tint/fog, optional classic pulse, basic audio transition, and comfort control.
 6. Add body entry/exit ripple, foam ring, and audio through `LiquidInteractionSystem`, and settle the footstep rule for wading and swimming.
 7. Decide where the animated normal/noise textures live, run them through the KTX2 pass, and add them to the pk3 manifest — a texture the client cannot find fails as a broken material rather than a missing file.
 8. Surface `r_water_quality` and `r_underwater_distortion` in Settings under Graphics, with the default tier from `QualityDetector`.
-9. Add debug commands for liquid sample, transition events, post-process order, and a repeatable `water splash small|medium|large`.
-10. Verify cleanup across same-map reload and map switch.
+9. Add the electrical discharge: firing electrobolt or voltaic at water level 2 or 3 gibs the shooter and damages everyone sharing the liquid.
+10. Float the viewmodel while submerged — sway up, bob down, presentation only.
+11. Add debug commands for liquid sample, transition events, post-process order, and a repeatable `water splash small|medium|large`.
+12. Verify cleanup across same-map reload and map switch.
 
 In parallel—not as the permanent API—time-box a `WaterMaterial` acid-pool version using an explicit/proxy plane. Capture matched screenshots and GPU timings. Its purpose is to establish the visual bar and validate render lists, plane bucketing, target sizes, and transparent ordering.
 
