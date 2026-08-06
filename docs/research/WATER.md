@@ -628,7 +628,7 @@ For remote presentation, pack `waterLevel` into the two currently unused high bi
 
 The two bits are genuinely free — bits 0 and 1 are sliding and crouching, 2-3 are wall-jump state, and 4-5 are ledge state — but water level consumes **both**, and that byte is written on every snapshot for every player. Spend them deliberately: the next piece of movement state to need replication will have to widen the field, and it should not discover that at the time.
 
-An older demo or snapshot reader that predates the change will decode the new bits as part of a flags byte it thinks it understands. Playing a pre-water demo is therefore part of this phase's exit gate, not a later compatibility chore.
+An older demo or snapshot reader that predates the change decodes the new bits as part of a flags byte it thinks it understands. That is accepted: demo compatibility across the water work is not a requirement, and pre-water demos are allowed to break rather than constrain the wire format.
 
 Do not network fluid particles. Body transitions already follow movement state; projectile and explosion interactions can be reconstructed from authoritative entity/event motion. If a replicated interaction is ever necessary, send one semantic event with position, energy, kind, and seed.
 
@@ -806,12 +806,31 @@ Two things the implementation corrected:
 5. Pack/round-trip water level in movement snapshot flags and decide protocol compatibility.
 6. Add transition output tests for enter, leave, head-under, and head-clear.
 7. Include the new mechanics state in clone/reset/reconciliation/replay/checksum paths.
-8. ~~Re-baseline the `server:tick` determinism checksum.~~ **Not needed, and the reason matters.** `WorldState.checksum()` is an FNV-1a hash over **entity positions only** — not velocity, not physics flags. Adding liquid fields to `PhysicsComponent` therefore cannot move it, and the earlier claim that it would was wrong. The corollary is the useful part: **that checksum does not protect liquid state at all.** A server and client that disagreed about water level would produce identical checksums. Liquid determinism has to be covered by a test that compares the samples directly, which is what `LiquidStateDeterminism` does. Expect the checksum to move in Phase 2 only insofar as swimming changes where players end up.
-9. Play a demo recorded before this change, to confirm the widened flags byte does not misdecode in an older reader.
+8. ~~Re-baseline the `server:tick` determinism checksum.~~ **Not needed, for two reasons, and both are worth knowing.**
 
-Exit gate: server and predicted client report identical liquid samples for the same command stream, and pre-water demos still play.
+   First, `WorldState.checksum()` is an FNV-1a hash over **entity positions only** — not velocity, not physics flags. Adding liquid fields to `PhysicsComponent` cannot move it, and the earlier claim that it would was wrong.
 
-### Phase 2: Core Q3/Warsow swimming
+   Second, and more decisive: `server:tick` spawns a player into an **empty world with no map loaded**. There is no collision world and no liquid, so neither sampling nor swimming can engage there at all. The checksum stayed at `2768943778` through Phase 2 as well, and that is not evidence that swimming is behaviour-neutral — it is evidence that the scenario is dry.
+
+   **`server:tick` therefore cannot validate any part of this feature.** Liquid determinism is covered by tests that run the real collision stack and compare samples and positions directly (`LiquidStateDeterminism`, `SwimMovement`). Treat the checksum as unrelated rather than as reassurance.
+9. ~~Play a demo recorded before this change.~~ **Waived by decision.** Demo compatibility across the water work is explicitly not a requirement; pre-water demos are allowed to break. Revisit only if demos become a shipped artefact rather than a development tool.
+
+Exit gate: server and predicted client report identical liquid samples for the same command stream.
+
+### Phase 2: Core swimming — **DONE**
+
+Implemented as `simulation/Swim.ts` (the tuning struct plus stateless 3-D physics, in the same shape as `Acceleration.ts`) and a swim branch in `MovementProfile`. Everything in `Swim.ts` works on full 3-D velocity; the ground and air families stay XZ-only, because a runner's vertical motion belongs to gravity and a swimmer's belongs to the player.
+
+Decisions made while building it:
+
+- **Gravity is off entirely while swimming.** The idle sink is what makes a swimmer settle, and it settles at a terminal speed rather than accelerating. A player who stops swimming drifts down; a player who stops running falls.
+- **Deep water clears the special moves** — wall jump, ledge grab and crouchslide are reset on entering, and their update paths are skipped while swimming. Each describes a body against solid geometry. Deciding this by call order would have been an accident; deciding it explicitly is a choice, and it is reversible if submerged dashes turn out to be fun.
+- **Crouch is descend, so the slide system must not see it.** Otherwise a player who held crouch while swimming would surface already sliding, having never touched a floor.
+- **Jump is ascend, and the normal jump is suppressed while swimming** — standing on the bottom of a deep pool still reports grounded, so without that guard a submerged player could jump.
+- **The assisted climb is a timed state anchored to the sim clock**, like the wall-jump and slide timers, so re-simulating a command lands on the same answer. It cancels early on ground contact or a downward velocity, so a failed climb does not freeze control for the full two seconds.
+- **Fall tracking resets on contact with any liquid.** A swimmer is ungrounded, so without this the tracker keeps measuring from wherever they left solid ground and bills them for the whole drop when they touch the bottom — a safe dive charging fall damage several seconds later.
+
+### Phase 2 original plan
 
 1. Add movement-profile fields and explicit Q3/Warsow defaults.
 2. Implement wading friction/speed rules and the deep-water movement branch.
@@ -822,7 +841,10 @@ Exit gate: server and predicted client report identical liquid samples for the s
 7. Resolve wall jump, dash, ledge, crouch-slide, auto-hop, and jump-held flags, with a test per feature at levels 1, 2, and 3.
 8. Add deterministic replay/reconciliation cases for entering, swimming, surfacing, and leaving water.
 
-Exit gate: a headless player can enter a test liquid, sink, ascend, descend, move along view pitch, exit, and reconcile without divergence.
+**Exit gate met.** `SwimMovement` runs the real `MovementProfile` against the real collision stack: a headless player sinks with no input, ascends on jump, descends on crouch, swims up when looking up with forward held and down when looking down, is capped near half of base speed, wades slower than they walk on dry ground while still standing on the floor, reaches the surface and settles rather than flying out, and leaves no stale slide or ledge state. Two independent profiles over a 300-command swimming stream agree on position, velocity and level, and a replay lands in the same place — with a guard asserting the stream actually crosses the waterline.
+
+38 tests across `Swim` and `SwimMovement`. One fixture bug is worth recording because it is a trap: forty units of water is **waist-deep** for a 64-unit player and therefore already swimming. Ankle-deep needs a surface below the waist probe at origin+5. The ladder is about the body, not about a depth that sounds shallow.
+
 
 ### Phase 3: First complete `acidwdm2` vertical slice
 
