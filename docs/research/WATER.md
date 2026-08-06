@@ -878,7 +878,11 @@ Landed: the swim clips bound with the prone hull and its clearance rule; the ele
 
 Confirmed in play: swimming mechanics and the underwater screen distortion. Not yet seen: the swim animations, the water surface itself, and the discharge.
 
-Still owed from this phase: **entry/exit ripples and audio** through a `LiquidInteractionSystem`, the **debug commands** (`water splash`, liquid sample, post-process order), and a **map reload/switch cleanup pass in the browser** — the lifecycle is unit-tested against a NullEngine scene, which is not the same as watching a real map unload.
+Also landed since: **splashes and ripples** through `LiquidInteractionSystem`, fed by the water level already on the wire for remotes and by prediction for the local player; Warsow's whole liquid sound bank, which shipped in the pk3s and had never been wired; and a **`water` console command** (`sample`, `splash`).
+
+Still owed from this phase: a **map reload/switch cleanup pass in the browser**. The lifecycle is unit-tested against a NullEngine scene, which is not the same as watching a real map unload.
+
+Two things the material still wants, both reported from play and both single constants: the wave scale against a real pool, and whether the sky reflection reads right for an indoor room.
 
 Two things deliberately deferred rather than forgotten: the discharge has **no effect of its own** (a burst and a crack need a new wire event), and the weapon float is presentation with **no accuracy penalty**, which stays a separate gameplay decision.
 
