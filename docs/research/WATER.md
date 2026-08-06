@@ -1,17 +1,23 @@
-# Unified Water Rendering Research
+# Unified Water System Research
 
-**Date:** 2026-08-06  
-**Status:** Research complete; implementation proposed  
-**Primary test map:** `acidwdm2`  
-**Scope:** Rendering and compatibility for BSP liquid surfaces. Swimming, damage volumes, and buoyancy are separate gameplay work.
+**Date:** 2026-08-06<br>
+**Status:** Deep verification complete; implementation plan proposed; revised after a codebase verification pass<br>
+**Primary test map:** `acidwdm2`<br>
+**Scope:** BSP liquid compatibility, static rendering, dynamic interactions, deterministic swimming, player animation, underwater presentation, and quality scaling.
 
 ## Executive decision
 
-SHAG should identify liquids from BSP and shader semantics, then deliberately stop translating those surfaces as ordinary Q3/Warsow materials. A map-scoped `LiquidSurfaceSystem` should replace them with one custom, quality-scalable Babylon material family.
+SHAG should treat water as one feature with several deliberately separated owners. BSP and shader semantics identify liquid surfaces; collision contents determine gameplay and camera state; a map-scoped `LiquidSurfaceSystem` renders the static surface; deterministic FPS simulation owns swimming; and a cosmetic `LiquidInteractionSystem` owns ripples, spray, audio, and optional FluidRenderer splashes.
 
 The recommended production path is a custom `UnifiedWaterMaterial`, initially using animated normal maps, Fresnel reflection, environment fallback, tint, and opacity. Higher quality tiers can add one shared scene color/depth capture for refraction, absorption, and shoreline foam, followed by tightly budgeted planar reflections for large horizontal planes.
 
-Babylon's `WaterMaterial` is worthwhile as a short visual and performance spike on `acidwdm2`, but it should not define the architecture. It owns reflection and refraction render targets per material and assumes a horizontal water plane. Babylon's `FluidRenderer` is a screen-space particle-fluid renderer; it is a compelling future source of splashes and jets, not a replacement for static BSP pool surfaces.
+Babylon's `WaterMaterial` is worthwhile as a short visual and performance spike on `acidwdm2`, but it should not define the architecture. It owns reflection and refraction render targets per material and assumes a horizontal water plane. Babylon's `FluidRenderer` should be an **Epic-tier interaction renderer** for crowns, sheets, and droplets above the waterline. It does not simulate fluid and should never be used to fill the BSP pool.
+
+One correction outranks everything else in sequencing. This design makes collision `pointContents` the authoritative source for swimming, damage, and camera immersion, and that query cannot see liquid today — it is a player-hull box trace, masked to solids, behind a filter that discards `NONSOLID` surfaces before reading their contents. Rebuilding it is the first gate, ahead of any movement or rendering work, because every mechanic here is downstream of it and rendering tests would keep looking correct while gameplay never entered water.
+
+The first complete vertical slice should make `acidwdm2` do all of the following: classify its one pool without a name override, render it through the unified low-cost material, let a predicted and authoritative player wade and swim up/down, switch to a swimming animation, apply a camera-driven underwater view, produce entry/exit ripples and audio, and optionally add a bounded FluidRenderer splash on Epic quality.
+
+The movement implementation should support explicit Q3 and Warsow compatibility profiles. Both engines use the same three-point water-level test, 50% swim-speed cap, full pitched view direction, vertical input, and idle sink. Q3 uses water acceleration `4`; the verified Warsow source uses `10`. These are gameplay profile choices, not rendering quality choices.
 
 The compatibility policy should be:
 
@@ -20,6 +26,9 @@ The compatibility policy should be:
 3. Provide exact-name include, exclude, kind, and profile overrides for broken or unusual maps.
 4. Never classify a surface as water merely because its name contains `water`.
 5. Treat the original shader stages as optional appearance hints, not as the identity of a liquid.
+6. Use collision `pointContents` as the authoritative truth for swimming, drowning/damage, and camera immersion.
+7. Keep visual quality independent of mechanics: low water quality must never disable swimming or change prediction.
+8. Network states and interaction causes, never cosmetic fluid particles.
 
 This approach replaces Q3 and Warsow water through one route without binding the new renderer to every historical shader-language extension.
 
@@ -77,9 +86,14 @@ Useful existing foundations:
 - [`BspLoader`](../../src/engine/loader/bsp/BspLoader.ts) preserves `surfaceFlags` and `contentFlags` for every BSP texture.
 - [`BspMeshBuilder`](../../src/engine/loader/bsp/BspMeshBuilder.ts) groups faces by texture/lightmap and copies the BSP flags and texture name into child-mesh metadata.
 - [`ContentFlags`](../../src/engine/physics/ContentFlags.ts) already defines `WATER`, `SLIME`, `LAVA`, and the combined liquid mask.
-- The collision world can query point contents, which can later support underwater camera effects.
+- The collision world exposes a `pointContents` entry point. The interface is the right one; the implementation behind it does not answer liquid questions yet, and rebuilding it is the first gate below.
 - [`SSREffect`](../../src/engine/effects/SSREffect.ts) already supplies optional screen-space reflection for the general scene, with environment fallback and GPU-tier settings.
 - Existing custom materials demonstrate that a shader-backed material is an established project pattern.
+- [`MovementProfile`](../../src/games/fps/simulation/MovementProfile.ts) is shared by server simulation and client prediction, so swimming can be deterministic without duplicating movement code.
+- [`MovementStateComponent`](../../src/engine/network/components/MovementStateComponent.ts) has two currently unused flag bits, enough to encode water level `0..3` after protocol tests.
+- [`PostProcessingManager`](../../src/engine/effects/PostProcessingManager.ts) already coordinates the main Babylon post-process pipeline.
+- `trace()` and `SweepBackendTraceOptions` already take a `contentMask`, with `SHOT_CONTENT_MASK` beside them, so a liquid mask is an argument to an existing parameter rather than a new query path.
+- [`QualityDetector`](../../src/engine/core/QualityDetector.ts) already tiers effects by GPU class, and Settings already hosts per-effect graphics controls.
 
 Current gaps:
 
@@ -88,7 +102,13 @@ Current gaps:
 - The Q3 shader parser cannot faithfully express all QFusion/Warsow cubemap conditions.
 - Original `tesssize` and water vertex deformation are not a reliable basis for the new path.
 - No map-scoped owner currently manages liquid render targets, observers, shared textures, or their disposal.
-- Content flags exist, but there is no complete swimming, drowning, lava/slime damage, or underwater-rendering system.
+- [`RemotePlayerRenderer`](../../src/games/fps/client/RemotePlayerRenderer.ts) currently interprets every ungrounded player as jumping; it needs water level before it can select swim animation.
+- FluidRenderer attaches its own camera post-process, so its order relative to SHAG's default pipeline and a future underwater effect must be inspected and made explicit.
+- Content flags exist, but there is no complete swimming, drowning, lava/slime damage, underwater-rendering, or liquid-interaction system.
+- `pointContents` cannot currently see liquid at all. This is the largest gap in the plan and has its own section below.
+- There is a dangerous contents-contract mismatch: the Q3/FBSP backend returns raw flags (`LAVA=0x8`, `SLIME=0x10`, `WATER=0x20`), while the abstract `Contents` enum in [`CollisionWorld`](../../src/shared/collision/CollisionWorld.ts) uses `WATER=0x2`, `LAVA=0x4`, `SLIME=0x8`. The two agree on exactly one value, `SOLID=0x1`, which is why nothing has broken yet — and `Contents.SLIME` collides numerically with raw `LAVA`, so a mask written against the shared enum reports slime while standing in lava.
+- Bots consume collision contents today and are not mentioned anywhere in this design. Changing `pointContents` regresses them on contact; see the bots section below.
+- New animated normal/noise textures have no home yet. They are not in any pk3, so the asset location, the KTX2 conversion pass (`npm run tools:textures`), and the pk3 manifest all need a decision before the first material ships.
 
 The new system should be inserted at the semantic boundary between mesh construction and ordinary texture/material application. This avoids creating a legacy material only to dispose it immediately and makes map unload ownership explicit.
 
@@ -104,7 +124,11 @@ The new system should be inserted at the semantic boundary between mesh construc
 - Remain useful when the original shader is absent, unsupported, or partially parsed.
 - Allow exact compatibility corrections without hard-coding map names in renderer logic.
 - Give headless tools a way to report what will be replaced and why.
-- Keep renderer-only work out of deterministic gameplay and networking state.
+- Make swimming identical in server simulation, client prediction, reconciliation, and replay.
+- Support wading, full swimming, pitched forward motion, explicit ascend/descend controls, idle sinking, water exits, and fall-damage attenuation.
+- Provide readable third-person swim states and a comfortable first-person underwater presentation.
+- Add scalable ripples, splashes, and optional screen-space fluid accents without networking particles.
+- Keep cosmetic renderer state out of deterministic gameplay checksums.
 
 ### Non-goals for the first implementation
 
@@ -112,8 +136,11 @@ The new system should be inserted at the semantic boundary between mesh construc
 - Vertex-displaced collision or buoyancy.
 - Automatic conversion of every translucent or reflective material into water.
 - Perfect reproduction of each map's legacy blend-stage appearance.
-- Swimming, drowning, or slime/lava damage rules.
-- Fluid-particle splashes in the initial static-surface backend.
+- A general-purpose volumetric fluid simulator.
+- Networking individual splash, foam, bubble, or FluidRenderer particles.
+- Making fluid particles merge perfectly with the static polygonal pool surface.
+- Shipping oxygen/drowning and slime/lava damage in the first swimming milestone; those should use the same liquid sample later as separate authoritative world-effect rules.
+- Authoring a large animation set before the neutral and forward swim loops have been proven sufficient.
 
 ## Candidate feature matrix
 
@@ -130,6 +157,8 @@ The new system should be inserted at the semantic boundary between mesh construc
 
 The official [`WaterMaterial` source](https://github.com/BabylonJS/Babylon.js/blob/master/packages/dev/materials/src/water/waterMaterial.ts) shows that each instance creates both reflection and refraction `RenderTargetTexture`s. Its clip and reflection planes are derived from one mesh's absolute `y` position with a world-up normal. That is a good match for the single horizontal `acidwdm2` pool, but a poor global contract for maps with several heights or non-horizontal liquid.
 
+There is also a concrete SHAG integration trap. BSP child meshes currently contain baked world-space vertices while their Babylon transforms normally remain at the origin. Assigning `WaterMaterial` directly to the acid surface would therefore give the material a mesh height near `y=0`, even though the actual water vertices are at `y=56`. The spike must either build a proxy mesh whose local vertices are relative to the plane and whose transform is at the water height, or fork/adapt the material to accept an explicit plane. A visually correct result obtained by hard-coding `56` would not validate the reusable architecture.
+
 It remains a useful spike because it can quickly establish a visual bar, reveal the cost of reflection/refraction on the project's target hardware, and expose BSP integration issues before a custom shader is built. The installed project currently has `@babylonjs/core` 9.17.0 but not `@babylonjs/materials`; a spike must add the matching materials package and import the modular water entry point rather than a UMD bundle.
 
 ### Why the Playground fluid is not a pool renderer
@@ -138,25 +167,171 @@ The linked [FluidRenderer Playground](https://playground.babylonjs.com/#XMXDAA#1
 
 The effect is still highly relevant to the longer-term visual stack. A rocket splash, drain, fountain, or short-lived blob can be composed over the static unified surface without changing how the pool itself is classified or collided.
 
+### FluidRenderer deep dive: what an Epic splash actually costs
+
+The installed `@babylonjs/core@9.17.0` already contains FluidRenderer; no extra package is required. The explicit integration import is:
+
+```ts
+import @babylonjs/core/Rendering/fluidRenderer/fluidRenderer;
+
+const fluidRenderer = scene.enableFluidRenderer();
+```
+
+That side-effect import registers `scene.enableFluidRenderer()`. The relevant public routes are `addParticleSystem(...)` for Babylon CPU/GPU particle systems and `addCustomParticles(...)` for application-owned position/color/velocity buffers. Both return render objects; neither advances a liquid simulation.
+
+The source inspection changes the implementation recommendation in several useful ways:
+
+- Pass one shared `FluidRenderingTargetRenderer` as the third argument to all splash render objects for a camera. Omitting it creates a new target renderer and final post-process for every add call.
+- Create a small number of long-lived particle pools. Do not create and dispose a Babylon `ParticleSystem` for every impact.
+- Start with `generateDiffuseTexture=false`. Water spray can use one fluid color and avoid the optional diffuse render target.
+- Use fixed `depthMapSize` and `thicknessMapSize` values rather than screen-size defaults. This makes cost predictable on high-DPI displays.
+- Keep `samples=1`. The installed API notes depth/stencil MSAA limitations under WebGL.
+- Benchmark `useFixedThickness=true`. It removes the thickness target and its blur chain at the cost of a flatter result.
+- Keep `useVelocity=false` initially. In the current shader, velocity magnitude changes whiteness; it does not stretch droplets.
+- Reuse FluidRenderer's depth, thickness, diffuse, normal, and debug display modes in `water debug fluid`.
+
+With the installed defaults, one dynamic-thickness target renderer draws particle depth, performs three bilateral depth-blur iterations (two ping-pong passes each), draws thickness, performs one two-pass thickness blur, and composites the result. That is roughly eleven fluid-related draws/passes before optional diffuse output and surrounding scene work. It is far too much as an unnoticed default for a few droplets; a deliberate fixed-resolution, low-iteration Epic preset is required.
+
+Initial prototype values, explicitly subject to GPU measurement:
+
+| Preset | Particle pool | Depth / thickness maps | Blur | Diffuse | Purpose |
+|---|---:|---:|---|---|---|
+| Medium | No FluidRenderer | N/A | N/A | N/A | Ripple impulse, foam ring, and ordinary sprite/mesh spray |
+| Epic starting point | 128-256 active droplets globally | 512 / 256 | 1 depth + 1 thickness iteration | Off | Validate the visual win and post-process order |
+| Epic experiment | Same capped pool | 768 / 512 | 2 depth + 1 thickness iterations | Off | Measure whether extra smoothness is visible in motion |
+| Fixed-thickness experiment | Same capped pool | 512 / none | 1 depth iteration | Off | High-value cost fallback if crowns still read well |
+
+These are starting caps, not promised budgets. The browser prototype must record GPU/frame time, target count, target dimensions, particle count, and emitted-versus-dropped interactions.
+
+### Fluid simulation and surface handoff
+
+The first FluidRenderer prototype should use one or two CPU `ParticleSystem` pools grouped by droplet size, with a shared target renderer. CPU ownership is intentional: SHAG can update the effect on a small fixed step, know each particle position, and detect when a droplet crosses the logical water plane. On re-entry, retire the droplet and inject a cheap normal/ripple impulse into the static water material.
+
+A GPU particle system is attractive only after profiling. GPU-owned positions make per-particle BSP/plane re-entry, ripple handoff, and deterministic replay seeding harder. A custom buffer pool offers the most control, but is extra code that should be justified by the CPU prototype.
+
+Static water is transparent and may not be represented in the opaque depth texture FluidRenderer uses for occlusion. Fluid particles below the surface can therefore show through, and the particle volume will not truly merge with the polygonal pool. The robust art direction is to render the crown, sheet, and droplets **above** the surface, terminate them at re-entry, and let the static material supply the pool and ripples.
+
+### Cross-system decision matrix
+
+| Decision | Options considered | Advantages of the chosen option | Costs / disadvantages | Decision |
+|---|---|---|---|---|
+| Liquid identity | Name list, shader-stage heuristic, semantic BSP/shader signals | Works across Q3/Warsow syntax; deterministic; auditable | Needs overrides for genuinely broken assets | Semantic classifier plus exact overrides |
+| Mechanical truth | Rendered plane, trigger meshes, collision contents | Same source is available to prediction/server; handles enclosed and stacked volumes | Raw content values must be normalized correctly | Collision `pointContents` |
+| Static pool renderer | Legacy stages, WaterMaterial, FluidRenderer, custom material | Preserves BSP mesh while scaling from cubemap to depth/reflection | Largest renderer implementation surface | Custom `UnifiedWaterMaterial`; benchmark WaterMaterial |
+| Interaction renderer | Only sprites, only FluidRenderer, tiered effects | Cheap feedback on all hardware and an Epic ceiling | Two visual paths need consistent event tuning | Ripple/foam always; sprite spray at Medium; FluidRenderer at Epic |
+| Swim feel | One blended tuning, Q3/Warsow presets | Compatibility is explicit and testable | More profile tests | Shared algorithm with Q3 and Warsow parameter sets |
+| Remote swim state | Guess from airborne state, recompute locally, snapshot water level | Two bits give stable animation transitions and spectator/replay behavior | Protocol serialization change | Encode water level `0..3`; derive liquid kind locally unless required |
+| Underwater detection | Local-player state, water plane distance, camera contents | Correct for spectator, death, third-person, and free cameras | Binary contents need visual hysteresis | Sample active camera contents; use plane only for smoothing |
+| Swim animation | Jump fallback, many directional clips, neutral+forward plus procedural pitch | Small asset requirement; Warsow-proven split; readable up/down motion | Retargeting and blend quality need validation | Neutral/tread + forward loop first |
+| Cosmetic networking | Replicate particles, replicate effect seeds, derive from existing state/events | No bandwidth or prediction coupling | Distant effects may differ cosmetically | Derive client-side; stable seed from tick/source/position |
+
 ## Proposed architecture
 
 ```text
-                         exact compatibility overrides
-                                      |
-BSP flags -----------+                 v
-shader surfaceparms -+--> LiquidSurfaceClassifier --> LiquidSurfaceDescriptor
-shader hints --------+          |                         |
-                                |                         v
-                                |              coplanar/profile bucketing
-                                |                         |
-                                +--> headless audit       v
-                                                   LiquidSurfaceSystem
-                                          +--------------+--------------+
-                                          |              |              |
-                                      low tier       medium tier      high tier
-                                    normal+Fresnel   color/depth      optional planar
-                                      + cubemap      refraction/foam    reflection
+BSP flags + shader semantics + exact overrides
+                  |
+                  v
+        LiquidSurfaceClassifier -------> LiquidSurfaceDescriptor[]
+                  |                                  |
+                  |                                  v
+                  |                      LiquidSurfaceSystem
+                  |                    static material + ripples
+                  |
+collision pointContents
+                  |
+                  v
+          LiquidVolumeSampler
+       +----------+-----------+-------------------+
+       |                      |                   |
+       v                      v                   v
+predicted/authoritative   camera contents    segment/surface crossings
+MovementProfile          UnderwaterView      LiquidInteractionSystem
+       |                      |                |       |       |
+       v                      v                v       v       v
+waterLevel/state       world post-process   ripple  sprite  FluidRenderer
+       |
+       +----> snapshots/replays ----> remote swim animation
 ```
+
+The dependencies flow one way. Rendering never decides whether a player can swim. Fluid particles never feed collision. Underwater presentation samples the active camera rather than assuming it is attached to the local player. Static render descriptors may improve the exact visual crossing point, but authoritative state always comes from collision contents.
+
+### Ownership and suggested module boundary
+
+The active game is FPS-centric, so avoid creating an engine-wide liquid framework before the first feature is proven. A practical split is:
+
+- `src/games/fps/liquid/LiquidTypes.ts`: pure liquid kinds, samples, transitions, and profile data; no Babylon imports.
+- `src/games/fps/liquid/LiquidVolumeSampler.ts`: pure three-point/player and point-content queries over the existing collision interface.
+- `src/games/fps/simulation/MovementProfile.ts`: consumes the sampler and applies authoritative/predicted swimming.
+- `src/games/fps/liquid/client/LiquidInteractionSystem.ts`: client-only body/projectile/explosion crossings and effect dispatch.
+- `src/games/fps/liquid/client/UnderwaterViewEffect.ts`: camera contents, visual mix, post-process, and audio transitions.
+- A renderer-owned `LiquidSurfaceSystem` close to BSP mesh/material construction, because it owns Babylon meshes, materials, captures, and map unload.
+
+The classifier and surface descriptors should not import FPS simulation. The pure sampler should not import Babylon. Client effect systems may consume both descriptors and collision queries.
+
+### Core liquid contracts
+
+```ts
+type LiquidKind = water | slime | lava;
+type WaterLevel = 0 | 1 | 2 | 3;
+
+interface LiquidSample {
+  level: WaterLevel;
+  kind: LiquidKind | null;
+  rawContents: number;
+  footContents: number;
+  waistContents: number;
+  eyeContents: number;
+}
+
+interface LiquidInteraction {
+  type:
+    | body-enter
+    | body-exit
+    | head-under
+    | head-clear
+    | projectile-enter
+    | explosion-impulse
+    | particle-reentry;
+  liquidKind: LiquidKind;
+  position: [number, number, number];
+  normal: [number, number, number];
+  velocity: [number, number, number];
+  energy: number;
+  radius: number;
+  seed: number;
+  tick?: number;
+}
+```
+
+`LiquidSample` is deterministic simulation data. `LiquidInteraction` is a semantic cosmetic request: one request can produce audio, a normal-map impulse, foam, ordinary particles, and FluidRenderer particles according to quality and budget.
+
+### Make `pointContents` a real point query first
+
+Policy 6 makes collision contents the authoritative truth for swimming, drowning, and camera immersion. That entry point exists, but it cannot report liquid today, for three independent reasons in [`SweepCollisionBackend`](../../src/engine/physics/SweepCollisionBackend.ts):
+
+1. **It is a box query, not a point query.** `pointContents` is implemented as `trace(point, point)` with no options, and `trace` defaults to `PLAYER_RADIUS` / `PLAYER_HEIGHT` — a 32x32x64 hull. Three-point sampling over that primitive would return the same answer for feet, waist, and eye, collapsing all four water levels into one.
+2. **The default mask excludes liquids.** `trace` defaults `contentMask` to `SOLID | PLAYERCLIP`, and `shouldCollideWith` has no branch that can return true for `WATER`, `SLIME`, or `LAVA` under any mask. It falls through to `return false`.
+3. **Liquid is rejected before the content check runs.** `shouldCollideWith` returns false on `SurfaceFlags.NONSOLID` as its first rule. The `acidwdm2` water surface flags recorded above, `0x00004c00`, are `NONSOLID | POINTLIGHT | NOLIGHTMAP` — the test map's water is discarded by the first line of the filter.
+
+The net effect is that `pointContents` returns `0` inside water on every map. This is not a wrapper or a normalization job; the primitive has to be built:
+
+- a true point-in-brush test that does not inflate the query by a player hull;
+- a `MASK_LIQUID` content mask, using the `contentMask` parameter the trace already accepts;
+- a liquid-aware path through the brush filter, so that liquid content is honored *because* the caller asked for it, while `NONSOLID` continues to mean "does not block movement" for every solid-seeking caller;
+- a point query that reports accumulated contents rather than the contents of one stopping brush.
+
+Everything mechanical in this design is downstream of that primitive, and all of it is testable headlessly, so it should be its own gate before any movement work begins.
+
+### Then normalize the contents contract
+
+The raw BSP/Q3 values used by the active collision backend are `LAVA=0x8`, `SLIME=0x10`, and `WATER=0x20`. The generic shared `Contents` enum uses `WATER=0x2`, `LAVA=0x4`, `SLIME=0x8`, while `SharedCollisionWorld.pointContents()` passes backend values through without translation. The two enums agree on `SOLID=0x1` and nothing else, and `Contents.SLIME` is numerically identical to raw `LAVA`.
+
+The audit this needs is already done, and it is small. There are exactly two consumers, and both test only the one bit that happens to coincide:
+
+- [`BotVision.isInsideSolid`](../../src/bot/BotVision.ts) — `pointContents(point) !== 0`;
+- [`GametypeController`](../../src/games/fps/server/gametypes/GametypeController.ts) spawn-point jitter — `contents & Contents.SOLID`.
+
+That two-call-site blast radius removes the argument for keeping a separate `Q3ContentFlags` contract purely to avoid churn. **Normalize the backend flags once at the shared collision boundary and update both consumers and their tests together.** Add exact mask tests for water, slime, lava, combinations with translucent flags, and non-liquid contents. A wrong mask would make all later rendering tests look plausible while gameplay never enters water — and the slime/lava aliasing above would do it silently rather than visibly.
 
 ### 1. A semantic classifier
 
@@ -285,79 +460,375 @@ Later, low-amplitude displacement can be enabled only for eligible, sufficiently
 
 ## Quality and performance policy
 
-| Tier | Water features | Extra full-scene passes | Intended target | Main limits |
-|---|---|---:|---|---|
-| Low | Animated normals, Fresnel, tint/alpha, map or sky cubemap | 0 | Integrated/low-end GPU | No live scene refraction or reflection |
-| Medium | Low tier plus shared scene color/depth, refraction, absorption, intersection foam | 1 shared opaque capture, subject to implementation | Main default | Capture resolution and depth availability must be profiled in WebGL 2 and WebGPU |
-| High | Medium plus budgeted planar reflection for a visible horizontal plane bucket | 1 additional pass per selected/updated plane bucket | High-end desktop | Strict cap on active buckets, resolution, render list, and update frequency |
+| Tier | Static surface | Interactions | Underwater view | Extra render cost | Intended target |
+|---|---|---|---|---|---|
+| 0: Legacy | Existing Q3/Warsow path | Entry/exit audio and minimal ring only | Readable tint; distortion off | No new full-scene pass | Compatibility / weakest GPU |
+| 1: Low | Animated normals, Fresnel, tint/alpha, map or sky cubemap | Normal-map ripple and cheap foam ring | Tint/fog plus optional Q3-style FOV pulse | No full-scene water capture | Integrated GPU |
+| 2: Medium | Shared scene color/depth, refraction, absorption, intersection foam | Ripple, foam, ordinary sprite/mesh spray | Tint/fog, restrained refraction, suspended particles | One shared opaque capture, subject to implementation | Main default |
+| 3: Epic | Medium plus one budgeted planar reflection bucket | Medium effects plus capped FluidRenderer crowns/droplets | Medium plus optional caustics/light shafts | Shared capture, selected reflection, one fixed-size fluid target per active camera | High-end desktop |
+
+Swimming, liquid damage, oxygen, water level, and input behavior are intentionally absent from this table: they are identical at every rendering tier.
 
 Recommended controls for the first implementation:
 
-- `r_water 0|1`: legacy fallback versus unified water.
-- `r_water_quality 0|1|2`: low, medium, or high feature set.
+- `r_water 0|1`: legacy fallback versus unified static surface.
+- `r_water_quality 0|1|2|3`: legacy, low, medium, or Epic visual preset.
 - `r_water_debug 0|1`: classification/bucket visualization and counters.
+- `r_underwater_distortion 0..1`: accessibility/user comfort scale; `0` keeps color/fog and disables motion.
+- A developer-only `r_water_fluid -1|0|1` override may force the preset choice while profiling, but should not become a required user setting.
 
 Do not expose a large collection of tuning CVars until measurements show which controls users need. Visual profiles should hold map/content tuning; renderer CVars should control capability and cost.
+
+`r_water_quality` and `r_underwater_distortion` belong in Settings under Graphics, beside the Bloom/Glow/Reflections controls added in v0.9.20, not console-only: the first is a performance choice and the second is a comfort control, and neither is discoverable from a console the average player never opens. The default tier should come from `QualityDetector` like the other GPU-tier-scaled effects rather than being hardcoded to Medium.
 
 Performance telemetry should include:
 
 - number of classified surfaces and plane buckets;
 - number and dimensions of active water render targets;
+- Fluid target renderer count, active/capped particle count, and dropped emissions;
 - reflection/refraction pass time where the backend exposes it;
 - draw calls and material variants caused by water;
 - how often each reflection target updates;
 - fallback or shader-compilation events.
 
-## Underwater and gameplay boundaries
+## Swimming mechanics
 
-Water rendering and being underwater are related but should not be the same system.
+### Verified Q3 and Warsow baseline
 
-The collision world can query the camera position against BSP contents. A later `UnderwaterViewEffect` can use `WATER`, `SLIME`, or `LAVA` to select fog/color distortion, audio filtering, particles, and transition effects. Sampling point contents is preferable to guessing from the rendered plane, especially in stacked or enclosed volumes.
+The official Q3 and Warsow/QFusion movement sources agree on the core model and differ mainly in tuning:
 
-Swimming, buoyancy, drowning, current volumes, lava damage, and slime damage belong in authoritative gameplay/simulation work. The visual replacement must neither add nor remove collision and must not change deterministic state.
+| Behavior | Quake 3 | Warsow/QFusion | SHAG decision |
+|---|---|---|---|
+| Water-level samples | Feet, midpoint to eye, eye | Same | Use one shared sampler |
+| Full swimming threshold | `waterLevel > 1` | `waterLevel >= 2` | Levels 2 and 3 (the two sources spell the same condition differently; there is no difference to preserve) |
+| Swim speed cap | 50% of player speed | 50% of player speed | Profile field, default `0.5` |
+| Water acceleration | `4` | `10` | Q3 and Warsow presets |
+| Source availability | Verified against published id source | `gs_pmove.cpp` is engine source and does **not** ship in `data0_21pure.pk3`, unlike the gametype AngelScript | Q3 values are independently checkable; the Warsow column rests on the upstream repository read and should be confirmed empirically once the profile exists |
+| Water friction | `1 * waterLevel`, including wading | `1 * waterLevel` at level 2/3 | Profile behavior, not one accidental hybrid |
+| Idle behavior | Sink at 60 units/sec | Sink at 60 units/sec | Default `60` |
+| Direction | Full pitched forward/right plus vertical command | Same | Look-and-swim plus explicit ascend/descend |
+| Water exit | Solid 30 ahead at +4, clear 16 above; forward/up `200/350` | Same probes; forward/up `50/350` | Profile impulse |
+| Fall attenuation | Level 1: 50%; level 2: 25%; level 3: none | Same | Apply in authoritative fall calculation |
+| Base animation | One legs swim loop | Swim torso plus neutral/forward legs | Start with Warsow-like neutral/forward split |
+| Classic underwater view | Opposed horizontal/vertical FOV pulse, 1 degree at 0.4 Hz | Multiplicative FOV pulse around 0.6 Hz plus color blend | Keep as a restrained/accessibility-scaled homage |
+
+This argues for one algorithm with explicit compatibility data:
+
+```ts
+interface LiquidMovementProfile {
+  swimScale: number;             // Q3/Warsow: 0.5
+  waterAcceleration: number;     // Q3: 4, Warsow: 10
+  waterFriction: number;         // both: 1
+  frictionStartsAtLevel: 1 | 2;  // Q3: 1, Warsow: 2
+  idleSinkSpeed: number;         // both: 60
+  waterJumpForward: number;      // Q3: 200, Warsow: 50
+  waterJumpUp: number;           // both: 350
+  allowWarsowSpecialMoves: boolean;
+}
+```
+
+Do not select this profile from `r_water_quality`. It belongs to the FPS movement/game profile used identically by server and predicted client.
+
+### Three-point water sampling
+
+Sample using the current canonical movement bounds and effective view height after crouch state has been resolved:
+
+```ts
+feetY = origin.y + bounds.min.y;       // the hull's own floor
+footY = feetY + 1;                     // probe point, lifted 1u out of the floor
+eyeY  = origin.y + viewHeight;
+midY  = feetY + (eyeY - feetY) * 0.5;  // midpoint of feet..eye, NOT of footY..eye
+```
+
+The `+ 1` belongs to the foot probe alone. Q3 computes `sample2 = viewheight - MINS_Z` and places the middle sample at `origin + MINS_Z + sample2 / 2`, measuring from the hull floor rather than from the lifted probe. Deriving the midpoint from `footY` instead puts it half a unit high — visually nothing, but it makes a profile that claims Q3 exactness silently not Q3, in a path that feeds prediction and replay.
+
+1. If the foot point is not in `MASK_LIQUID`, level is 0.
+2. Otherwise level is 1 and liquid contents/kind are recorded.
+3. If the midpoint is liquid, level is 2.
+4. If the eye point is also liquid, level is 3.
+
+Sample immediately before movement and again after movement. The first sample selects the movement branch; the second becomes output state and generates enter/leave/head-under/head-clear transitions. Using current bounds matters because SHAG's standing, crouched, and camera values are not currently defined in one place. The sampler should receive them from movement state rather than repeat magic heights.
+
+Preserve raw contents in the sample. If water/slime/lava bits are ever combined, authoritative world effects may need all of them even if rendering chooses one dominant visual profile.
+
+### Control and movement algorithm
+
+For water levels 2 and 3:
+
+1. Apply water friction to full 3D velocity.
+2. Reconstruct full camera forward/right from the command yaw and pitch; do not flatten forward as ground/air movement does.
+3. Add forward/back and strafe intentions.
+4. Map jump/Space to positive vertical intent and crouch/Ctrl to negative vertical intent.
+5. Use command scaling/normalization so forward+strafe+vertical input cannot exceed the intended speed.
+6. If there is no input, target `-idleSinkSpeed` vertically.
+7. Clamp wish speed to `maxSpeed * swimScale`.
+8. Accelerate with the selected water acceleration.
+9. Clip against an underwater ground plane without discarding speed, then slide-move without normal gravity.
+10. Re-sample contents and emit state transitions.
+
+This gives both familiar controls: looking upward and pressing forward swims upward, while Space/Ctrl provide unambiguous up/down movement independent of view direction.
+
+At water level 1, retain the normal ground/air branch but apply the selected wading friction and speed reduction. Q3 interpolates from full speed toward the 50% swim cap by water level. That is a sound baseline for the Q3 profile; the Warsow profile should preserve its verified friction threshold.
+
+### Special movement and leaving water
+
+Water-exit assistance is necessary for old maps. At level 2, probe a short distance forward near the torso, require a solid lip, require clearance above it, then launch forward/up using the movement profile. While the timed water-jump is active, apply gravity and collision without user control; cancel it on ground contact or once vertical velocity becomes negative.
+
+SHAG also has wall jump, dash, ledge, crouch-slide, and auto-hop behavior that Q3 does not. Do not let call order decide their underwater behavior accidentally:
+
+- Q3 profile: swimming replaces ordinary jump and disables wall/ledge/crouch-slide state while deep.
+- Warsow profile: preserve the verified Warsow ordering, where dash/wall-jump checks occur before water movement and may be available when their own conditions pass.
+- Crouch is descend input while swimming; it must not leave a stale crouch-slide flag.
+- Space is ascend input while swimming; it must not set the normal grounded jump-held state incorrectly.
+- Add focused tests for each special feature at levels 1, 2, and 3 before declaring compatibility.
+
+### Deterministic and networked state
+
+Add `waterLevel` and raw liquid contents/kind to the movement result and authoritative physics component. Include every mechanics-relevant field in cloning, reset, prediction reconciliation, replay/checksum, and simulation fingerprints.
+
+For remote presentation, pack `waterLevel` into the two currently unused high bits of `MovementStateComponent`'s movement flags, subject to a serialization audit and protocol-version decision. Water level is discrete and must step at snapshot boundaries, not interpolate through fractional values. Remote clients can derive the visual liquid kind from local static collision/map data unless a later gameplay rule requires it explicitly.
+
+The two bits are genuinely free — bits 0 and 1 are sliding and crouching, 2-3 are wall-jump state, and 4-5 are ledge state — but water level consumes **both**, and that byte is written on every snapshot for every player. Spend them deliberately: the next piece of movement state to need replication will have to widen the field, and it should not discover that at the time.
+
+An older demo or snapshot reader that predates the change will decode the new bits as part of a flags byte it thinks it understands. Playing a pre-water demo is therefore part of this phase's exit gate, not a later compatibility chore.
+
+Do not network fluid particles. Body transitions already follow movement state; projectile and explosion interactions can be reconstructed from authoritative entity/event motion. If a replicated interaction is ever necessary, send one semantic event with position, energy, kind, and seed.
+
+### Fall damage, oxygen, slime, and lava
+
+Current fall tracking treats a swimmer as merely ungrounded. Without integration, entering water can lead to a false hard landing later. Apply the verified water multipliers to the landing delta: level 1 halves it, level 2 quarters it, and level 3 cancels it. Liquid entry should also reset any auxiliary fall accumulator that is not already derived from instantaneous velocity.
+
+Oxygen and damage belong to a separate server-owned `LiquidWorldEffectsSystem`, consuming the same `LiquidSample`. Q3's reference behavior resets a 12-second air timer whenever the head is clear; after full submersion exhausts it, drowning damage occurs once per second and increases from 2 up to a cap of 15. Lava and slime damage scale by water level. Those are good compatibility references, but should ship after core swimming with their own gameplay tests and configurable policy.
+
+### Bots
+
+Bots consume collision contents today, so the first collision change in this plan reaches them before any water feature exists.
+
+[`BotVision.isInsideSolid`](../../src/bot/BotVision.ts) is literally `pointContents(point) !== 0`. The moment `pointContents` learns to report liquid, **every water volume reads as solid to bot vision and to nav-edge validation**: bots would treat pools as walls, and graph edges crossing them would be rejected. This is a regression shipped by the first phase, and the fix is to make that predicate test the solid mask explicitly rather than "anything at all". Do it in the same change, not afterwards.
+
+Beyond that immediate break, bots have no concept of liquid:
+
+- The nav graph has no swimmable space and no notion of a surface. Its floor sampling assumes standable ground.
+- A bot that paths into water will sink, and once oxygen and liquid damage land it will drown there.
+- Nothing costs a water crossing differently from a floor crossing, so a route through a pool looks free.
+
+None of this belongs in the first milestone, and the shipping maps may not even require it — the corpus scan in Phase 0 decides that. What is required is that bot behavior is checked at the phase that changes collision, and that "bots ignore water" is a stated, tested limitation rather than an assumption nobody wrote down.
+
+## Swimming animation and player presentation
+
+Q3 selects a swim legs loop for a deep, ungrounded player. Warsow goes further: it selects a swimming torso, a neutral/treading lower-body loop when not moving forward, and a forward lower-body loop otherwise. That is a strong fit for SHAG's initial animation scope.
+
+Recommended first asset set:
+
+- required: `swim_idle` / treading-water loop;
+- required: `swim_forward` loop;
+- optional: `swim_up` strong stroke;
+- optional: `swim_down` / dive;
+- later polish: surface swim, enter-water, exit-water, and water-jump one-shots.
+
+Mixamo is a reasonable candidate source for the first two loops. Prefer in-place downloads, retain the untouched source files, record the source/terms with the asset, and validate retargeting against SHAG's actual player skeleton before committing names or frame ranges. Root motion must be removed; movement remains simulation-driven.
+
+Animation-state priority should be explicit:
+
+1. death and non-interruptible one-shots;
+2. timed water-exit/water-jump;
+3. `waterLevel >= 2`: swim state;
+4. ordinary airborne jump/fall;
+5. slide/crouch/run/walk/idle.
+
+For the first pass, choose idle versus forward from 3D speed/input and procedurally pitch the whole body or lower-body root toward normalized swim velocity. Clamp and smooth pitch so ascending/descending reads clearly without breaking weapon aim. Keep torso/weapon aiming as a separate layer where the current skeleton supports it. Playback speed can follow swim speed within a narrow range.
+
+At level 1, retain walking/running animation and add wading splashes. At level 2, use a surface/deep swim state even if feet occasionally contact the bottom. At level 3, use the same base loops initially; bubbles and underwater presentation provide the extra cue.
+
+`PlayerModelManager` currently tolerates missing animation files by falling back, which is useful during development but not acceptance. The feature is visually complete only when the neutral and forward loops actually load, blend, survive map/player reload, and override the current remote-player `!grounded => jump` rule.
+
+First-person presentation should be modest: reduce normal weapon bob, add a low-amplitude fluid sway, and allow bubbles/particulate to cross the view. Do not make weapon sway part of deterministic state.
+
+## Liquid interactions and splash generation
+
+Every interaction first creates a semantic `LiquidInteraction`, then quality/budget decides the outputs:
+
+| Source | Detection | Always-cheap output | Medium output | Epic output |
+|---|---|---|---|---|
+| Player enter/exit | Pre/post water-level transition plus velocity | Ripple impulse + audio | Foam ring + spray | Fluid crown/droplets |
+| Head under/clear | Level 3 transition | Audio/view transition | Bubbles | Small Fluid droplets only on clear if useful |
+| Projectile entry | Previous-to-current projectile segment crosses liquid contents/surface | Ripple impulse | Directional spray | Fluid sheet/droplets |
+| Explosion near water | Explosion radius intersects indexed liquid surface | Broad ripple | Foam/spray burst | Large bounded crown |
+| Fluid particle re-entry | CPU particle crosses owning plane | Secondary ripple | Same | Particle is retired |
+
+The existing projectile-impact event is insufficient for water entry because water is nonsolid and ordinary shot traces use a solid mask. That mask is now a parameter rather than a fixed assumption: `trace()` and `SweepBackendTraceOptions` take a `contentMask`, with `SHOT_CONTENT_MASK` defined beside them. A liquid-masked trace along the projectile's previous-to-current segment is therefore a smaller mechanism than a parallel segment sampler, and it reuses the primitive Phase 0 is already building. Client effects track the previous and current positions of server-driven projectiles and trace that segment against `MASK_LIQUID`. This is cosmetic and requires no new network state. An explosion can query a spatial index of liquid surface bounds/planes to determine whether its radius reaches the waterline.
+
+Use a stable cosmetic seed from source entity, simulation tick, quantized position, and interaction type. That makes demos and screenshots less noisy without putting particles in the deterministic checksum.
+
+The interaction manager should enforce:
+
+- one global active-particle cap and one emission cap per frame;
+- distance, screen-coverage, visibility, and energy priority;
+- degradation from FluidRenderer to ordinary spray to ripple-only;
+- no emission while offscreen unless audio is still relevant;
+- fixed-step CPU particle integration with bounded catch-up;
+- no per-particle full BSP sweep at high counts;
+- complete removal of render objects, particle systems, observers, and pools on map unload.
+
+Babylon's FluidRenderer wrapper does not dispose the underlying `ParticleSystem`. Cleanup must remove the fluid render object and separately dispose the pool. Repeated splash and map-reload tests should assert that there remains exactly one shared target renderer per active camera/liquid visual kind, not one per emitter.
+
+## Underwater screen and audio
+
+### State source
+
+`UnderwaterViewEffect` should sample the **active camera position** against collision contents every frame. Do not use only the local player's water level: spectator, chase, death, third-person, portal, or free cameras can cross the surface independently.
+
+Sample *after* whichever controller wrote the camera transform this frame, not before. The camera stack is contested: `FPSController`, `FreeflyController`, `SpectatorController`, `DeathCamera`, and `SpectateEyeCamera` each write position and rotation directly, and which one owns the frame is decided at runtime. Sampling ahead of that write reads last frame's position, which shows up as a one-frame lag exactly at the surface crossing, where it is most visible.
+
+Mechanics switch immediately. Presentation can smooth its mix over roughly 100-250 ms and use a small plane-distance hysteresis when a matching surface descriptor is available. If no plane can be resolved, use a short frame debounce only for visual/audio blending; never delay authoritative swimming.
+
+### Recommended visual stack
+
+- liquid-kind color absorption/fog: blue/green water, toxic slime, hot emissive lava;
+- restrained low-frequency refraction or UV distortion;
+- optional Q3/Warsow-style FOV pulse, scaled by `r_underwater_distortion`;
+- reduced contrast and distance visibility without hiding gameplay silhouettes;
+- camera-local suspended particulate and occasional bubbles at Medium+;
+- optional caustics/light shafts at Epic, only if the measured cost and map lighting support them;
+- correct underside/backface rendering at the water surface;
+- entry droplets and exit clearing without covering the crosshair.
+
+The GUI/HUD should stay crisp. Apply the effect to the 3D world before GUI composition. The view weapon should normally receive the underwater tint and distortion because it is in the world view, but this must be checked against the actual camera/layer setup.
+
+The existing post-process chain is a risk area. FluidRenderer attaches its final composite to a camera, while `PostProcessingManager` owns the default pipeline and camera changes. Before implementation is locked, add a debug dump of active camera post-process names/order and test the desired conceptual order:
+
+```text
+opaque/static scene + water -> FluidRenderer composite -> underwater view -> bloom/tone/color -> GUI
+```
+
+This is a target, not an assumption about Babylon's current attachment order. Camera replacement, quality changes, map unload, and context/device restoration must rebuild the chain without duplicates.
+
+### Audio
+
+On head-under/head-clear transitions, crossfade to:
+
+- a low-pass or muffled world mix;
+- lower high-frequency weapon/impact content;
+- an underwater ambience/bubble loop;
+- distinct entry, exit, wade, and swim stroke sounds;
+- separate slime/lava profiles.
+
+Footsteps are an existing system and need an explicit rule. `FPSMovementAudio` drives them off replicated travel distance and selects normal/metal/silent banks from the BSP `METALSTEPS` and `NOSTEPS` surface flags. Wading should replace that bank rather than play dry footsteps through water, and swimming should suppress it entirely in favour of stroke sounds — a swimmer is ungrounded and covering distance, which is exactly the condition the current rule fires on.
+
+Audio and visual transitions should consume the same camera contents state but maintain independent mix timers. A missing audio effect must not block movement or rendering.
+
+### Comfort and competitive readability
+
+Distortion must be optional and amplitude-limited. A value of zero should retain tint/fog/audio so underwater state remains clear without motion. Never communicate drowning, lava, or direction solely through screen warp; provide sound, color, and HUD cues as well.
 
 ## Implementation plan
 
-### Phase 0: Classification and audit, no visual change
+### Phase 0: Make collision answer liquid questions, and lock the semantic contracts
 
-1. Add typed liquid kinds, descriptors, and exact compatibility overrides.
-2. Classify from BSP flags and parsed top-level surface parameters with the stated precedence.
-3. Annotate or index the child meshes created by `BspMeshBuilder` without changing their current material.
-4. Add `water info` (or a `bsp liquids` subcommand) that prints shader name, kind, sources, face/mesh count, bounds, plane, and override use.
-5. Add focused tests for flag-only, surfaceparm-only, agreement, disagreement, explicit include/exclude, name-only non-classification, and water/slime/lava separation.
-6. Verify that `acidwdm2` reports one `water` plane from both `contentFlag` and `surfaceParm`.
+Nothing else in this plan can be built or tested until the collision primitive is real, so it comes first and stands alone.
 
-This phase is valuable independently: it produces a compatibility inventory before high-risk renderer work begins.
+1. Rebuild `pointContents` as a true point query: no player-hull inflation, a `MASK_LIQUID` content mask through the existing `contentMask` parameter, a liquid-aware brush filter that does not discard `NONSOLID` liquid, and accumulated rather than single-brush contents.
+2. Normalize the backend content flags at the shared collision boundary and update both existing consumers with their tests.
+3. Fix [`BotVision.isInsideSolid`](../../src/bot/BotVision.ts) to test the solid mask explicitly in the same change, before liquid-aware contents can turn every pool into a wall for bots.
+4. Add exact raw-mask tests before changing movement: water, slime, lava, each combined with `TRANSLUCENT`, and non-liquid contents. Cover the `Contents.SLIME` / raw `LAVA` aliasing directly.
+5. Add typed liquid kinds, surface descriptors, samples, interactions, and exact compatibility overrides.
+6. Classify from BSP flags and parsed top-level surface parameters with the stated precedence.
+7. Annotate/index the child meshes created by `BspMeshBuilder` without changing their material.
+8. Add `water info` or `bsp liquids` output: shader, kind, signals, faces, bounds, plane, bucket, and override.
+9. Verify `acidwdm2` reports one water plane at Babylon `y=56` from both `contentFlag` and `surfaceParm`, and that a point at `y=50` inside the pool now reports `WATER` while a point above it reports nothing.
+10. **Scan the full shipped map corpus** for liquid surfaces: count per map, distinct heights, non-horizontal normals, patch/mesh liquids, and slime/lava. This is one headless command over the 38 local pk3s.
 
-### Phase 1: Low-tier unified material
+The corpus scan is listed here rather than in Phase 6 deliberately. Plane bucketing, the multi-height policy, and the "one horizontal plane" assumption are the largest architectural bets in this design and are currently validated against a single map with a single pool. The scan either confirms or kills them for the cost of one command, and it should be paid before a shader is written rather than after.
 
-1. Add a map-scoped `LiquidSurfaceSystem` and explicit cleanup.
-2. Route classified meshes away from ordinary Q3 material creation.
-3. Implement the low-tier normal/Fresnel/tint/environment material in both WebGL 2 and WebGPU paths.
-4. Define `water`, `slime`, and `lava` profiles while only claiming full visual acceptance for water.
-5. Preserve and test the legacy fallback.
-6. Compare `acidwdm2` seams, boundaries, sorting, sky/cubemap reflection, and unload/reload behavior.
+Exit gate: headless classification and contents tests pass, `acidwdm2` reports liquid at a point inside its pool, bots are unaffected, and there is zero visual or simulation behavior change.
 
-In parallel with design—not as the permanent API—time-box a `WaterMaterial` version of the acid pool. Capture screenshots and GPU timings at matched render-target resolutions. Its purpose is to establish a quality/performance reference and validate the plane grouping assumptions.
+### Phase 1: Add deterministic liquid sampling and state, no new movement yet
 
-### Phase 2: Shared refraction, depth, and foam
+1. Implement pure point and three-sample player queries over the collision interface.
+2. Cover standing/crouched bounds and levels 0/1/2/3 with a synthetic collision fixture.
+3. Add `waterLevel` and raw liquid contents to movement input/result and authoritative physics state.
+4. Sample before and after both server and predicted client movement, but keep normal movement behavior temporarily.
+5. Pack/round-trip water level in movement snapshot flags and decide protocol compatibility.
+6. Add transition output tests for enter, leave, head-under, and head-clear.
+7. Include the new mechanics state in clone/reset/reconciliation/replay/checksum paths.
+8. Re-baseline the `server:tick` determinism checksum deliberately, and record the new value in the changelog. Adding liquid fields to authoritative physics state changes it by construction; that checksum has been quoted across recent cycles as evidence that a change was presentation-only, so it must move as an announced decision rather than turn up as a red regression suite.
+9. Play a demo recorded before this change, to confirm the widened flags byte does not misdecode in an older reader.
 
-1. Add a shared opaque color/depth input rather than a pair of targets per water surface.
-2. Implement depth absorption and shallow/deep tint.
-3. Add intersection foam with temporal and distance stability.
-4. Handle missing depth support and camera-inside-water cases with explicit fallbacks.
-5. Validate ordering with transparent materials, sky, particles, post-processes, and SSR disabled/enabled.
+Exit gate: server and predicted client report identical liquid samples for the same command stream, the new checksum is recorded, and pre-water demos still play.
 
-### Phase 3: Budgeted reflection and underwater view
+### Phase 2: Core Q3/Warsow swimming
 
-1. Add planar reflection selection and a hard per-frame budget for horizontal buckets.
-2. Define reflection priority from visibility, screen coverage, distance, and last update.
-3. Add the separate point-contents-driven underwater post-process.
-4. Profile map transitions, split-screen/multiple cameras if supported, and context/device loss.
+1. Add movement-profile fields and explicit Q3/Warsow defaults.
+2. Implement wading friction/speed rules and the deep-water movement branch.
+3. Reconstruct pitched forward/right vectors and map jump/crouch to ascend/descend.
+4. Add idle sinking, swim-speed cap, water acceleration, slope clipping, and no-gravity slide movement.
+5. Implement profile-specific assisted water exit.
+6. Integrate fall-damage attenuation/reset.
+7. Resolve wall jump, dash, ledge, crouch-slide, auto-hop, and jump-held flags with per-profile tests.
+8. Add deterministic replay/reconciliation cases for entering, swimming, surfacing, and leaving water.
 
-### Phase 4: Optional dynamic accents
+Exit gate: a headless player can enter a test liquid, sink, ascend, descend, move along view pitch, exit, and reconcile without divergence.
 
-Evaluate `FluidRenderer` only for bounded effects such as impacts, splashes, drips, and fountains. These effects should consume gameplay/render events and compose with the static surface; they must not redefine BSP liquid classification or collision.
+### Phase 3: First complete `acidwdm2` vertical slice
+
+1. Add map-scoped `LiquidSurfaceSystem` ownership and the zero-extra-pass unified Low material.
+2. Route classified meshes away from ordinary Q3 material creation while retaining a legacy fallback.
+3. Add water level to remote animation selection, replacing the current `!grounded => jump` rule.
+4. Import/retarget `swim_idle` and `swim_forward`, add blending, speed scaling, and procedural swim pitch.
+5. Add camera-contents-driven underwater tint/fog, optional classic pulse, basic audio transition, and comfort control.
+6. Add body entry/exit ripple, foam ring, and audio through `LiquidInteractionSystem`, and settle the footstep rule for wading and swimming.
+7. Decide where the animated normal/noise textures live, run them through the KTX2 pass, and add them to the pk3 manifest — a texture the client cannot find fails as a broken material rather than a missing file.
+8. Surface `r_water_quality` and `r_underwater_distortion` in Settings under Graphics, with the default tier from `QualityDetector`.
+9. Add debug commands for liquid sample, transition events, post-process order, and a repeatable `water splash small|medium|large`.
+10. Verify cleanup across same-map reload and map switch.
+
+In parallel—not as the permanent API—time-box a `WaterMaterial` acid-pool version using an explicit/proxy plane. Capture matched screenshots and GPU timings. Its purpose is to establish the visual bar and validate render lists, plane bucketing, target sizes, and transparent ordering.
+
+Exit gate: `acidwdm2` is playable end to end with correct surface, swimming, remote animation, underwater presentation, and cheap interactions on WebGL 2.
+
+### Phase 4: Medium surface and interaction quality
+
+1. Add one shared opaque color/depth input per active camera, not per surface.
+2. Implement refraction, depth absorption, shallow/deep tint, and intersection foam.
+3. Add ordinary pooled spray for body/projectile/explosion interactions.
+4. Detect projectile segment entry with a `MASK_LIQUID` trace over the previous-to-current segment, independently of solid impact events.
+5. Handle camera-inside-water, unavailable depth, transparent materials, sky, particles, and SSR combinations.
+6. Compile and visually test WebGL 2 and WebGPU paths.
+
+Exit gate: Medium has bounded target count, no recursive sampling, stable shorelines, and no interaction leaks.
+
+### Phase 5: Epic FluidRenderer accents
+
+1. Import/register Babylon FluidRenderer explicitly.
+2. Create one shared target renderer per active camera/liquid visual kind.
+3. Create fixed-capacity CPU particle pools; start without diffuse or velocity output.
+4. Add fixed-step crown/droplet simulation, plane re-entry retirement, and ripple handoff.
+5. Implement distance/visibility/energy budgets and graceful degradation.
+6. Benchmark fixed map sizes, blur iterations, fixed thickness, WebGL 2, and WebGPU.
+7. Assert target-renderer, wrapper, particle-system, observer, and post-process counts over repeated emissions/reloads.
+
+Exit gate: Epic produces a visible improvement at its documented measured cost; Medium and Low allocate no fluid targets.
+
+### Phase 6: Reflection and broader compatibility
+
+1. Add budgeted planar reflection for one eligible visible horizontal bucket.
+2. Prioritize by screen coverage, distance, last update, and map/profile importance.
+3. Act on the Phase 0 corpus scan: handle the multiple levels, slopes, patches, waterfalls, slime, and lava it actually found, rather than the ones this document guessed at.
+4. Add exact overrides only for verified broken semantics.
+5. Tune distinct visual/audio/underwater profiles without duplicating the core architecture.
+6. Test multiple cameras only if the product actually supports them; otherwise state the single-active-camera constraint.
+
+Exit gate: the system degrades predictably when maps are more complex than `acidwdm2`.
+
+### Phase 7: Authoritative world effects and polish
+
+1. Add optional oxygen/drowning policy.
+2. Add slime/lava periodic damage and protection rules.
+3. Add surface currents or authored volume metadata only after a real map requires them.
+4. Add optional swim-up/down, surface-swim, and water-entry/exit animation polish.
+5. Add Epic caustics/light shafts only if profiling and competitive readability support them.
+
+These rules consume `LiquidSample`; they do not belong in `LiquidSurfaceSystem`.
 
 ## Validation and acceptance plan
 
@@ -368,6 +839,17 @@ Evaluate `FluidRenderer` only for bounded effects such as impacts, splashes, dri
 - It reports one horizontal plane at Babylon `y = 56` and no unmatched required override.
 - Disabling unified water resolves through the existing legacy material path.
 - Classification tests cover Q3 and FBSP/Warsow flag values without requiring a browser.
+- Raw content-mask tests distinguish `0x8`, `0x10`, and `0x20` despite other contents bits, including the `Contents.SLIME` / raw `LAVA` aliasing.
+- A point inside the `acidwdm2` pool reports `WATER`; a point above the surface reports nothing; the three sample heights of one standing player can return three different answers.
+- `BotVision.isInsideSolid` still answers false inside water after the contents change.
+- The corpus scan reports liquid surface counts, distinct heights, and non-horizontal liquid across all shipped maps.
+- Synthetic volume tests cover standing/crouched levels 0/1/2/3 and pre/post transitions.
+- Server and predicted client produce the same sample and movement for identical commands.
+- Swimming tests cover idle sink, Space ascend, Ctrl descend, pitched-forward motion, diagonal normalization, friction, speed cap, and water exit.
+- Q3 and Warsow profiles differ only where documented.
+- Fall tests cover the 50%/25%/0% water-level multipliers and no false post-swim landing.
+- Snapshot tests round-trip all four water levels and do not fractional-interpolate them.
+- Reconciliation/replay tests cross the waterline repeatedly without divergence.
 - Repeated load/unload does not increase owned liquid-resource counts.
 
 The baseline command used during this research was:
@@ -385,9 +867,13 @@ Test at minimum:
 | Axis | Cases |
 |---|---|
 | Backend | WebGL 2, WebGPU |
-| Water quality | Low, medium, high, legacy fallback |
+| Water quality | 0 legacy, 1 Low, 2 Medium, 3 Epic |
+| Movement profile | Q3, Warsow |
 | General reflection | SSR off, SSR on |
-| Camera | Above water, grazing angle, shoreline intersection, below water |
+| Camera | Above, grazing/crossing, below, spectator/free camera |
+| Interaction | Body slow/fast entry, exit, projectile entry, nearby explosion, repeated splash |
+| Animation | Tread, forward, ascend/descend pitch, surface exit, missing-clip fallback |
+| Comfort | Distortion 0, default, maximum allowed |
 | Lifecycle | First load, reload same map, switch away and back |
 | Performance | Low/integrated profile, default desktop, high-end desktop |
 
@@ -400,9 +886,16 @@ Acceptance criteria for `acidwdm2`:
 - The map cubemap or documented fallback is used when live reflection is unavailable.
 - Refraction does not sample stale or recursive water passes.
 - Sorting is stable from above and below the plane.
-- Low tier adds no full-scene render pass.
-- Medium/high target counts and resolutions match the documented budgets.
-- Map reload disposes all water materials, textures, targets, and observers.
+- Level 1 wades; levels 2/3 swim; Space/Ctrl move up/down; looking up/down and moving forward affects swim direction.
+- Server and predicted local player stay reconciled while crossing the waterline.
+- Remote players use tread/forward swimming instead of the jump loop.
+- The active camera, including spectator/free camera, drives underwater presentation.
+- HUD remains crisp and distortion can be disabled without hiding underwater state.
+- Body/projectile/explosion interactions all create a ripple; Medium adds conventional spray.
+- Low allocates no full-scene capture; Medium allocates the documented shared capture only.
+- Epic keeps one shared fluid target renderer for the active water camera and respects the global particle cap.
+- Fluid droplets terminate at surface re-entry and create ripples rather than showing through below the pool.
+- Map reload disposes all water materials, textures, targets, post-processes, particle systems, wrappers, and observers.
 
 ### Required renderer regression suite
 
@@ -418,6 +911,8 @@ npm run cli:game -- -- --exec "bsp load wdm2; bsp info; quit"
 
 Also rerun the `acidwdm2` audit/load command and add focused liquid-classifier and lifecycle tests. Documentation-only changes in this investigation do not require the renderer regression suite.
 
+Because swimming changes deterministic networking/prediction, implementation validation should also include a recorded command sequence that enters and exits water and, when a verification bundle exists, `npm run demo:verify -- <bundle.shagverify>`.
+
 ## Risks and mitigations
 
 | Risk | Impact | Mitigation |
@@ -431,7 +926,20 @@ Also rerun the `acidwdm2` audit/load command and add focused liquid-classifier a
 | WebGL/WebGPU shader drift | Backend-specific failures | Keep shared shader inputs/contracts, compile-test both paths, provide legacy fallback |
 | SSR and planar reflection duplicate work | Unnecessary GPU cost and inconsistent image | Default to one reflection strategy for water; expose debug telemetry and profile combinations |
 | Map unload leaks targets or observers | Increasing memory and work after map changes | One map-scoped owner with explicit disposal and lifecycle regression tests |
-| Water visuals imply gameplay that does not exist | Player confusion | Track underwater/swimming as separate phases and document current behavior |
+| `pointContents` reports nothing for liquid | Every mechanic in this plan silently does nothing; rendering tests still look correct | Rebuild it as a real point query with a liquid mask in Phase 0, gated on a positive test inside the `acidwdm2` pool |
+| Raw contents enum mismatch | Swimming never activates or wrong liquid is selected | Normalize at the shared boundary; the two enums alias `SLIME` onto raw `LAVA`, so test that pair explicitly |
+| Liquid-aware contents make bots treat pools as walls | Bot navigation regresses the moment Phase 0 lands, before any feature exists | Fix `BotVision.isInsideSolid` to test the solid mask in the same change; check bot behavior at the collision phase, not the rendering phase |
+| Determinism checksum moves unannounced | A red regression suite reads as a bug rather than an intended change | Re-baseline `server:tick` deliberately in Phase 1 and record the new value |
+| Server/client water sampling differs | Prediction jitter and replay divergence | One pure sampler and movement implementation; deterministic fixtures and reconciliation tests |
+| Rendering quality changes mechanics | Competitive inconsistency | Keep movement profile/config independent of all `r_water*` settings |
+| Player in water is classified as airborne | Wrong jump animation and false fall damage | Replicate water level, prioritize swim state, integrate water into fall tracking |
+| Projectile impact never fires on nonsolid water | Missing weapon splashes | Detect projectile segment contents/surface crossing, not solid impact |
+| One Fluid target per emitter | Severe target/post-process explosion | Pass one shared target renderer to long-lived pools and assert counts |
+| Fluid droplets render below transparent pool | Visible screen-space leak | Render above-surface crown/droplets; retire at plane re-entry and inject ripple |
+| Post-process attachment order changes | Fluid or underwater effect is tinted/composited incorrectly | Central order diagnostics and rebuild tests on camera/pipeline changes |
+| Underwater distortion causes discomfort | Accessibility failure | User scale down to zero; retain non-motion tint/fog/audio cues |
+| Swim clips are missing or incompatible | Remote players remain in jump/idle poses | Validate in-place retargeted neutral/forward loops; explicit fallback only during development |
+| Cosmetic particles become network state | Bandwidth and determinism burden | Network/derive semantic causes and stable seeds, never particle instances |
 
 ## Open questions to answer with prototypes
 
@@ -443,8 +951,17 @@ Also rerun the `acidwdm2` audit/load command and add focused liquid-classifier a
 6. Do slime and lava need the same refraction pipeline, or only the shared classifier/ownership architecture with distinct emissive materials?
 7. Which transparent objects must appear through/reflected in water, and can a restricted render list meet that requirement?
 8. What shoreline foam behavior is acceptable when the BSP has no depth texture, terrain distance field, or authored shoreline mask?
+9. Does the current camera post-process order place FluidRenderer before a world-only underwater effect and before GUI composition?
+10. Is fixed thickness visually sufficient for fast splash crowns, and what fixed depth/thickness sizes meet the actual GPU budget?
+11. Does the existing projectile interpolation expose stable previous/current segments for cosmetic liquid crossings?
+12. Should Q3/Warsow movement profile selection follow game/media configuration, a server setting, or the existing movement-profile identity?
+13. Do Warsow-compatible wall jumps/dashes while submerged feel intentional in SHAG, or should an explicit modern profile change them?
+14. Can the current player skeleton retarget two in-place Mixamo swim loops without foot/root artifacts?
+15. Is packing water level into the two spare movement-flag bits protocol-compatible with all snapshot/demo readers?
+16. Does Warsow's water acceleration of `10` reproduce Warsow's actual feel in SHAG? The value comes from the upstream `gs_pmove.cpp`, which — unlike the gametype AngelScript — does not ship in the local pk3s, so it cannot be re-derived from the shipped assets and is worth confirming against play.
+17. Do any shipped maps actually need bot-navigable water, or is "bots ignore liquid" an acceptable permanent limitation? The Phase 0 corpus scan answers the first half.
 
-The first prototype should answer questions 1–3 with measurements on `acidwdm2`, then scan a broader map corpus before committing plane and profile assumptions.
+The first rendering prototype should answer questions 1-3, 9, and 10 with measurements on `acidwdm2`. The first mechanics prototype should answer 12, 13, and 15 with deterministic tests. The Phase 0 corpus scan answers 5 and 17 before plane and profile assumptions are committed.
 
 ## Sources
 
@@ -453,12 +970,31 @@ The first prototype should answer questions 1–3 with measurements on `acidwdm2
 - [Shader system guide](../manual/guides/shader-system.md)
 - [BSP system guide](../manual/guides/bsp-system.md)
 - [PK3 filesystem guide](../manual/guides/pk3-filesystem.md)
+- [Movement system guide](../manual/guides/movement-system.md)
+- [Networking guide](../manual/guides/networking.md)
+- [Headless mode guide](../manual/guides/headless-mode.md)
 - [Rendering pipeline research](./RENDERING_PIPELINE.md)
 - [Babylon 9 SSR research](./BABYLON9_SSR.md)
 - [`Q3ShaderParser`](../../src/engine/loader/shader/Q3ShaderParser.ts)
 - [`Q3ShaderMaterialFactory`](../../src/engine/loader/shader/Q3ShaderMaterialFactory.ts)
 - [`BspMeshBuilder`](../../src/engine/loader/bsp/BspMeshBuilder.ts)
 - [`ContentFlags`](../../src/engine/physics/ContentFlags.ts)
+- [FPS `MovementProfile`](../../src/games/fps/simulation/MovementProfile.ts)
+- [`MovementConfig`](../../src/games/fps/simulation/MovementConfig.ts)
+- [`SharedCollisionWorld`](../../src/shared/collision/SharedCollisionWorld.ts)
+- [shared `CollisionWorld` contract](../../src/shared/collision/CollisionWorld.ts)
+- [`SweepCollisionBackend`](../../src/engine/physics/SweepCollisionBackend.ts) — the active trace/`pointContents` implementation
+- [`BotVision`](../../src/bot/BotVision.ts) — the existing contents consumer on the bot side
+- [`QualityDetector`](../../src/engine/core/QualityDetector.ts)
+- [`FPSMovementAudio`](../../src/games/fps/client/FPSMovementAudio.ts)
+- [`PhysicsComponent`](../../src/shared/server/simulation/components/PhysicsComponent.ts)
+- [`MovementStateComponent`](../../src/engine/network/components/MovementStateComponent.ts)
+- [`SnapshotBuilder`](../../src/games/fps/server/SnapshotBuilder.ts)
+- [`V2NetworkClient`](../../src/games/fps/client/V2NetworkClient.ts)
+- [`RemotePlayerRenderer`](../../src/games/fps/client/RemotePlayerRenderer.ts)
+- [`PlayerModelManager`](../../src/engine/animation/PlayerModelManager.ts)
+- [`PostProcessingManager`](../../src/engine/effects/PostProcessingManager.ts)
+- [FPS client `GameEvents`](../../src/games/fps/client/GameEvents.ts)
 
 ### Official Babylon.js material and renderer references
 
@@ -466,8 +1002,18 @@ The first prototype should answer questions 1–3 with measurements on `acidwdm2
 - [WaterMaterial implementation](https://github.com/BabylonJS/Babylon.js/blob/master/packages/dev/materials/src/water/waterMaterial.ts)
 - [Fluid renderer documentation](https://doc.babylonjs.com/features/featuresDeepDive/particles/fluid_renderer/)
 - [FluidRenderer API](https://doc.babylonjs.com/typedoc/classes/BABYLON.FluidRenderer)
+- [FluidRenderer registration/implementation](https://github.com/BabylonJS/Babylon.js/tree/master/packages/dev/core/src/Rendering/fluidRenderer)
+- [FluidRenderingTargetRenderer implementation](https://github.com/BabylonJS/Babylon.js/blob/master/packages/dev/core/src/Rendering/fluidRenderer/fluidRenderingTargetRenderer.ts)
 - [Linked precomputed-particle FluidRenderer Playground](https://playground.babylonjs.com/#XMXDAA#113)
 - [PBR subsurface/refraction API](https://doc.babylonjs.com/typedoc/classes/BABYLON.PBRSubSurfaceConfiguration)
 - [RefractionTexture API](https://doc.babylonjs.com/typedoc/classes/BABYLON.RefractionTexture)
 - [RenderTargetTexture API](https://doc.babylonjs.com/typedoc/classes/BABYLON.RenderTargetTexture)
 
+### Official Q3 and Warsow compatibility references
+
+- [ioquake3 shared movement source: water sampling, friction, swimming, exits, fall attenuation, and events](https://github.com/ioquake/ioq3/blob/master/code/game/bg_pmove.c)
+- [Quake III client view source: classic underwater FOV warp](https://github.com/id-Software/Quake-III-Arena/blob/master/code/cgame/cg_view.c)
+- [Quake III server world effects: air timer, drowning, lava, and slime](https://github.com/id-Software/Quake-III-Arena/blob/master/code/game/g_active.c)
+- [Warsow/QFusion shared movement source: swimming parameters, sampling, exits, and fall attenuation](https://github.com/Warsow/qfusion/blob/master/source/common/facilities/gs_pmove.cpp)
+- [Warsow client view source: underwater/crossing state, FOV pulse, color blend, and reduced water bob](https://github.com/Warsow/qfusion/blob/master/source/client/cgame/cg_view.cpp)
+- [Warsow player-model source: swim torso and neutral/forward leg-state selection](https://github.com/Warsow/qfusion/blob/master/source/client/cgame/cg_pmodels.cpp)
