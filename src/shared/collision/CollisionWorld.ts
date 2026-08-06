@@ -130,9 +130,8 @@ export interface SweepBackendTraceOptions {
  * Q3's `CONTENTS_SOLID`. Deliberately excludes `CONTENTS_PLAYERCLIP` (0x10000),
  * the invisible brush mappers put across railings, window openings and decorative
  * gaps to keep players from walking or getting stuck in them. Those are supposed
- * to stop bodies and let shots through — Warsow's wbomb1 has them over the vent
- * openings, and firing a rocket at an obviously open hole and watching it burst
- * in mid-air is the symptom of getting this wrong.
+ * to stop bodies and let shots through. Firing a rocket at an obviously open
+ * hole and watching it burst in mid-air is the symptom of getting this wrong.
  *
  * Same numeric value as `Contents.SOLID` below, but this is the Q3 flag the
  * engine backend matches against, which is a different vocabulary that happens
