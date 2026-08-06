@@ -6,7 +6,7 @@ All notable changes to this project are documented in version-specific files.
 
 | Version | Date | Summary |
 |---------|------|---------|
-| [v0.9.21](./v0.9.21.md) | unreleased | Search & Destroy (bomb/defuse rounds, loadouts, bot directives), Quad Damage, lobby team selection, collision + root-motion fixes, both manuals rewritten |
+| [v0.9.21](./v0.9.21.md) | Aug 6, 2026 | Search & Destroy (bomb/defuse rounds, loadouts, bot directives), Quad Damage, first-person spectating, lobby team selection, collision + root-motion fixes, both manuals rewritten |
 | [v0.9.20](./v0.9.20.md) | Jul 23, 2026 | Procedural weapon/pickup effects, post-match polish, and map-learning bot movement foundation |
 | [v0.9.19](./v0.9.19.md) | Jul 18, 2026 | v0.9.18 QA audit work orders — truthful CLI/headless exit codes, protocol + lobby lifecycle suites, one server timing contract |
 | [v0.9.18](./v0.9.18.md) | Jul 15, 2026 | In-game chat, post-game screen + single-match servers, demo player recorded-tick playback, smarter bots, HUD/pickup/death-cam polish |
