@@ -187,12 +187,12 @@ export interface WaterProfile {
  */
 export const WATER_PROFILES: Record<WaterKind, WaterProfile> = {
   water: {
-    shallow: new Color3(0.11, 0.42, 0.52),
-    deep: new Color3(0.02, 0.13, 0.22),
+    shallow: new Color3(0.16, 0.4, 0.47),
+    deep: new Color3(0.05, 0.17, 0.24),
     // Bright, slightly cool: a bounce off the room rather than a real sky, and
     // most Q3 pools are indoors.
     sky: new Color3(0.42, 0.56, 0.66),
-    alpha: 0.46,
+    alpha: 0.3,
     // One tile per ~90 units, so a pool a few hundred units across shows
     // several waves rather than one broad smear.
     scale: 0.011,
