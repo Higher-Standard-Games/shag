@@ -66,9 +66,11 @@ uniform sampler2D uNoise;
 uniform vec3 uCameraPosition;
 uniform vec3 uShallowColor;
 uniform vec3 uDeepColor;
+uniform vec3 uSkyColor;
 uniform vec3 uSunDirection;
 uniform float uTime;
 uniform float uScale;
+uniform float uScroll;
 uniform float uWaveStrength;
 uniform float uAlpha;
 uniform float uEmissive;
@@ -77,10 +79,11 @@ uniform float uSpecular;
 void main(void) {
   vec2 base = vWorld.xz * uScale;
 
-  // Opposed directions and mismatched rates: the beat between them is long
-  // enough that the eye never finds the loop.
-  vec2 uv1 = base + vec2(uTime * 0.013, uTime * 0.007);
-  vec2 uv2 = base * 1.73 - vec2(uTime * 0.009, -uTime * 0.011);
+  // Two layers moving against each other. Opposed directions and mismatched
+  // rates make the beat between them long enough that the eye never finds the
+  // loop; the second is finer and faster so there is chop riding on the swell.
+  vec2 uv1 = base + vec2(uTime * uScroll, uTime * uScroll * 0.55);
+  vec2 uv2 = base * 2.7 - vec2(uTime * uScroll * 0.8, -uTime * uScroll * 1.3);
 
   vec3 n1 = texture2D(uNoise, uv1).rgb * 2.0 - 1.0;
   vec3 n2 = texture2D(uNoise, uv2).rgb * 2.0 - 1.0;
@@ -88,7 +91,7 @@ void main(void) {
   // Tangent space is world XZ for a surface that is essentially horizontal;
   // the geometric normal still decides which way is up so a sloped liquid
   // surface is shaded from its own plane rather than from world up.
-  vec3 perturb = normalize(vec3((n1.x + n2.x) * uWaveStrength, 1.0, (n1.y + n2.y) * uWaveStrength));
+  vec3 perturb = normalize(vec3((n1.x + n2.x * 0.6) * uWaveStrength, 1.0, (n1.y + n2.y * 0.6) * uWaveStrength));
   vec3 n = normalize(mix(vNormal, perturb, 0.85));
 
   vec3 viewDir = normalize(uCameraPosition - vWorld);
@@ -96,16 +99,23 @@ void main(void) {
 
   // Schlick-ish Fresnel. Looking straight down you see into the water;
   // at a grazing angle it turns to a sheet of reflected light.
-  float fresnel = pow(1.0 - facing, 4.0);
+  float fresnel = pow(1.0 - facing, 3.0);
 
   vec3 body = mix(uDeepColor, uShallowColor, facing);
 
-  // Sun glint. A single specular lobe is enough to make a surface read as wet,
-  // and it is what sells motion when the camera is still.
-  vec3 halfway = normalize(uSunDirection + viewDir);
-  float spec = pow(clamp(dot(n, halfway), 0.0, 1.0), 96.0) * uSpecular;
+  // Fresnel drives COLOUR, not just opacity. This is what makes the waves
+  // visible at all: each ripple tilts the normal, which changes how much sky
+  // that pixel reflects, so the surface reads as moving rather than as a
+  // tinted pane with a pattern printed on it.
+  vec3 lit = mix(body, uSkyColor, fresnel);
 
-  vec3 color = body + vec3(spec) + body * uEmissive;
+  // Sun glint. A broad lobe rather than a tight one — a mirror-sharp highlight
+  // is invisible from almost every angle, and this is the thing that sells
+  // "wet" when the camera is standing still.
+  vec3 halfway = normalize(uSunDirection + viewDir);
+  float spec = pow(clamp(dot(n, halfway), 0.0, 1.0), 24.0) * uSpecular;
+
+  vec3 color = lit + vec3(spec) + body * uEmissive;
   // Grazing angles go opaque, which is both physically right and the thing
   // that stops a pool looking like coloured glass.
   float alpha = clamp(uAlpha + fresnel * (1.0 - uAlpha), 0.0, 1.0);
@@ -126,10 +136,28 @@ function registerShaders(): void {
 export interface WaterProfile {
   shallow: Color3;
   deep: Color3;
+  /**
+   * What the surface reflects at grazing angles.
+   *
+   * Not a real reflection — Medium tier owns that. It is the single value that
+   * makes ripples visible, because Fresnel varies per pixel with the wave
+   * normal and this is what it varies toward.
+   */
+  sky: Color3;
   /** Base opacity looking straight down; grazing angles always reach opaque. */
   alpha: number;
-  /** World units per noise tile. Smaller means larger, slower-looking waves. */
+  /** UV per world unit. One noise tile spans `1 / scale` units. */
   scale: number;
+  /**
+   * How fast the wave pattern travels, in WORLD UNITS PER SECOND.
+   *
+   * Deliberately not a UV rate. The first version scrolled 0.013 UV/sec at a
+   * scale where one tile spanned 182 units — 2.4 units/sec, which crossed
+   * acidwdm2's pool in about 160 seconds and read as a still image. Expressing
+   * it in world units makes "is this visibly moving?" a question anyone can
+   * answer without doing the division.
+   */
+  waveSpeed: number;
   waveStrength: number;
   /** Self-illumination — zero for water, high for lava, which is its own light. */
   emissive: number;
@@ -146,9 +174,15 @@ export const WATER_PROFILES: Record<WaterKind, WaterProfile> = {
   water: {
     shallow: new Color3(0.11, 0.42, 0.52),
     deep: new Color3(0.02, 0.13, 0.22),
+    // Bright, slightly cool: a bounce off the room rather than a real sky, and
+    // most Q3 pools are indoors.
+    sky: new Color3(0.62, 0.78, 0.88),
     alpha: 0.72,
-    scale: 0.0055,
-    waveStrength: 0.55,
+    // One tile per ~90 units, so a pool a few hundred units across shows
+    // several waves rather than one broad smear.
+    scale: 0.011,
+    waveSpeed: 26,
+    waveStrength: 0.7,
     emissive: 0.0,
     specular: 1.0,
   },
@@ -156,23 +190,39 @@ export const WATER_PROFILES: Record<WaterKind, WaterProfile> = {
     // Bright toxic green from a shader rule, not from the map's own texture.
     shallow: new Color3(0.29, 0.72, 0.1),
     deep: new Color3(0.06, 0.22, 0.03),
+    sky: new Color3(0.55, 0.85, 0.3),
     alpha: 0.93,
-    scale: 0.004,
-    waveStrength: 0.75,
+    scale: 0.008,
+    // Thicker than water, so it rolls rather than ripples.
+    waveSpeed: 14,
+    waveStrength: 0.85,
     emissive: 0.22,
     specular: 0.5,
   },
   lava: {
     shallow: new Color3(1.0, 0.46, 0.06),
     deep: new Color3(0.5, 0.08, 0.0),
+    sky: new Color3(1.0, 0.72, 0.25),
     alpha: 1.0,
-    scale: 0.0028,
+    scale: 0.006,
     // Slow and heavy: lava is viscous, and fast ripples read as water tinted red.
-    waveStrength: 0.35,
+    waveSpeed: 7,
+    waveStrength: 0.45,
     emissive: 0.85,
     specular: 0.15,
   },
 };
+
+/**
+ * UV scroll rate for a profile.
+ *
+ * The shader works in UV; the profile is authored in world units. This is the
+ * conversion, exported so a test can assert the surface actually moves at a
+ * speed a player would notice.
+ */
+export function scrollRateFor(profile: WaterProfile): number {
+  return profile.waveSpeed * profile.scale;
+}
 
 /** Scene-scoped noise texture — one for every water surface in the map. */
 const noiseByScene = new WeakMap<Scene, RawTexture>();
@@ -238,9 +288,11 @@ export function createUnifiedWaterMaterial(
           "uCameraPosition",
           "uShallowColor",
           "uDeepColor",
+          "uSkyColor",
           "uSunDirection",
           "uTime",
           "uScale",
+          "uScroll",
           "uWaveStrength",
           "uAlpha",
           "uEmissive",
@@ -257,8 +309,10 @@ export function createUnifiedWaterMaterial(
     material.setTexture("uNoise", noiseTexture(scene) as unknown as Texture);
     material.setColor3("uShallowColor", profile.shallow);
     material.setColor3("uDeepColor", profile.deep);
+    material.setColor3("uSkyColor", profile.sky);
     material.setVector3("uSunDirection", sun);
     material.setFloat("uScale", profile.scale);
+    material.setFloat("uScroll", scrollRateFor(profile));
     material.setFloat("uWaveStrength", profile.waveStrength);
     material.setFloat("uAlpha", profile.alpha);
     material.setFloat("uEmissive", profile.emissive);
