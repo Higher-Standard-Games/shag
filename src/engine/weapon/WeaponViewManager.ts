@@ -94,6 +94,13 @@ export const DEFAULT_POSITIONS: Record<string, WeaponPosition> = {
 // Layer mask for weapon-only rendering
 const WEAPON_LAYER_MASK = 0x10000000;
 
+/** Underwater viewmodel drift — slow enough to read as buoyancy, not as sway. */
+const WEAPON_FLOAT_HZ = 0.35;
+/** Peak drift in world units. Small: the gun floats, it does not swim away. */
+const WEAPON_FLOAT_AMPLITUDE = 0.55;
+/** Constant droop, so the weapon also hangs a little heavier in the water. */
+const WEAPON_FLOAT_SAG = 0.35;
+
 export class WeaponViewManager {
   private static instance: WeaponViewManager;
   private static readonly IDENTITY_MATRIX = Matrix.Identity();
@@ -215,12 +222,37 @@ export class WeaponViewManager {
     const bobY = (bs.bobY + bs.jumpLandBob) * scale;
     const recoilZ = -this.weaponRecoil.offset * scale;
 
+    // Underwater the weapon stops being a firing platform and starts being a
+    // heavy object held in a current: a slow figure-of-eight drift, well below
+    // the frequency of bob, plus a little sag. Presentation only — nothing
+    // here reaches the shot, which still goes exactly where the crosshair is.
+    const submersion = this.submersionAmount;
+    let floatRight = 0;
+    let floatUp = 0;
+    if (submersion > 0) {
+      const t = performance.now() / 1000;
+      floatRight = Math.sin(t * WEAPON_FLOAT_HZ * Math.PI * 2) * WEAPON_FLOAT_AMPLITUDE * submersion;
+      // Twice the rate on the vertical axis traces a lazy figure-of-eight
+      // rather than a circle, which reads as buoyancy instead of a wobble.
+      const vertical = Math.sin(t * WEAPON_FLOAT_HZ * Math.PI * 4) * WEAPON_FLOAT_AMPLITUDE;
+      floatUp = (vertical - WEAPON_FLOAT_SAG) * submersion;
+    }
+
     const origin = this.mainCamera.position.clone();
     origin.addInPlace(forward.scale(fwdOff + recoilZ));
-    origin.addInPlace(right.scale(rightOff + bobX));
-    origin.addInPlace(up.scale(-downOff + bobY));
+    origin.addInPlace(right.scale(rightOff + bobX + floatRight));
+    origin.addInPlace(up.scale(-downOff + bobY + floatUp));
     return origin;
   }
+
+  /**
+   * How submerged the camera is, 0-1, supplied by the game.
+   *
+   * A plain number rather than a reference to the liquid system: the engine
+   * must not know the FPS game exists, and "how wet is the view" is the only
+   * thing a viewmodel needs from it.
+   */
+  public submersionAmount = 0;
   private weaponCamera: FreeCamera | null = null;
   private weaponLight: HemisphericLight | null = null;
   private mainCamera: FreeCamera | null = null; // The camera this instance was init()ed with

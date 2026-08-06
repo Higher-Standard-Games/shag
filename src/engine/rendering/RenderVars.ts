@@ -94,6 +94,7 @@ export type RenderVarName =
   // Future vars (documented but not yet implemented)
   | "r_lightintensity"
   | "r_lightmapscale"
+  | "r_underwater_distortion"
   | "r_shadows"
   | "r_gamma"
   | "r_saturation"
@@ -376,6 +377,15 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, "name">> = {
     min: 0.1,
     max: 3.0,
     description: "Scales baked lightmap gain on top of the per-format default (takes effect on map load)",
+    category: "lighting",
+  },
+  r_underwater_distortion: {
+    value: 1.0,
+    defaultValue: 1.0,
+    min: 0,
+    max: 1.0,
+    description:
+      "Underwater view-warp strength. At 0 the motion stops entirely and tint, fog and audio still say you are underwater — nothing is communicated by movement alone.",
     category: "lighting",
   },
   // Debug visualization
