@@ -1,7 +1,8 @@
 # Unified Water System Research
 
 **Date:** 2026-08-06<br>
-**Status:** Deep verification complete; implementation plan proposed; revised after a codebase verification pass<br>
+**Status:** Phase 0 complete; Phase 1 next<br>
+**Goal:** replace every Q3 and Warsow water shader with one engine water that looks deliberately modern, rather than translating the legacy shaders one vendor keyword at a time<br>
 **Primary test map:** `acidwdm2`<br>
 **Scope:** BSP liquid compatibility, static rendering, dynamic interactions, deterministic swimming, player animation, underwater presentation, and quality scaling.
 
@@ -467,6 +468,10 @@ The system must not create server state or enter simulation checksums. The autho
 
 `acidwdm2` already ships `env/acidwdm2/water_{px,nx,py,ny,pz,nz}.jpg`; the profile/hint layer should be able to reuse this cubemap. Unsupported legacy cubemap syntax should not prevent classification.
 
+**Slime and lava are colour, not content.** They are the same material with different absorption, tint and emissive values — bright toxic green for slime, hot emissive orange for lava — driven by shader parameters rather than by loading the original per-map texture sets. That is the whole point of replacing the legacy shaders instead of translating them: one material that looks deliberately modern, parameterized per liquid kind, rather than a fork per art asset. The classifier already yields the kind, so the profile is a lookup.
+
+Nothing about *touching* slime or lava hurting the player belongs here. Damage is a gameplay rule over `LiquidSample`, and it ships with the world effects in Phase 7.
+
 ### Medium-tier additions
 
 - One shared opaque scene-color capture per camera for refracted background sampling.
@@ -758,25 +763,31 @@ Distortion must be optional and amplitude-limited. A value of zero should retain
 
 ## Implementation plan
 
-### Phase 0: Make collision answer liquid questions, and lock the semantic contracts
+### Phase 0: Make collision answer liquid questions, and lock the semantic contracts — **DONE**
 
-Nothing else in this plan can be built or tested until the collision primitive is real, so it comes first and stands alone.
+Nothing else in this plan can be built or tested until the collision primitive is real, so it came first and stood alone.
 
-1. Rebuild `pointContents` as a true point query: no player-hull inflation, a `MASK_LIQUID` content mask through the existing `contentMask` parameter, a liquid-aware brush filter that does not discard `NONSOLID` liquid, and accumulated rather than single-brush contents.
-2. Normalize the backend content flags at the shared collision boundary and update both existing consumers with their tests.
-3. Fix [`BotVision.isInsideSolid`](../../src/bot/BotVision.ts) to test the solid mask explicitly in the same change, before liquid-aware contents can turn every pool into a wall for bots.
-4. Add exact raw-mask tests before changing movement: water, slime, lava, each combined with `TRANSLUCENT`, and non-liquid contents. Cover the `Contents.SLIME` / raw `LAVA` aliasing directly.
-5. Add typed liquid kinds, surface descriptors, samples, interactions, and exact compatibility overrides.
-6. Classify from BSP flags and parsed top-level surface parameters with the stated precedence.
-7. Annotate/index the child meshes created by `BspMeshBuilder` without changing their material.
-8. Add `water info` or `bsp liquids` output: shader, kind, signals, faces, bounds, plane, bucket, and override.
-9. Verify `acidwdm2` reports one water plane at Babylon `y=56` from both `contentFlag` and `surfaceParm`, and that a point at `y=50` inside the pool now reports `WATER` while a point above it reports nothing.
-10. Separate volume classification from surface classification, honour `NODRAW`, and sanitize shader names.
+1. ✅ **`pointContents` rebuilt as a true point query.** Descends the BSP tree to the leaf holding the point, tests the point against every brush that leaf references, and ORs the contents of the ones it is inside. No hull inflation, no solidity filter, optional content mask. Overlapping volumes union rather than the last brush winning.
+2. ✅ **Backend content flags normalized at the shared boundary** (`toSharedContents` in `SweepBackendAdapter`), so nothing in shared or simulation code sees a BSP value. `MASK_LIQUID` and `MASK_SOLID` added to the shared vocabulary. BSP bits with no shared meaning are dropped rather than passed through.
+3. ✅ **`BotVision.isInsideSolid` fixed** to test `MASK_SOLID` instead of "any contents at all", in the same change.
+4. ✅ **Exact mask tests**, including the `Contents.SLIME` / raw `LAVA` aliasing asserted directly rather than described.
+5. ✅ Typed liquid kinds, surface descriptors and an exact-override table (`LiquidClassifier`). Samples and interactions belong to Phase 1 and are not built yet.
+6. ✅ **Classification from BSP flags and `surfaceparm`** with the stated precedence, retaining every contributing signal so the audit can explain itself. A name containing "water" never qualifies.
+7. ✅ **Child meshes annotated** with `liquidKind` in `BspMeshBuilder` metadata. Annotation only — the material is unchanged, so nothing looks different until a renderer claims them.
+8. ✅ **`bsp liquids` audit command** in `headless-bsp`: per shader, the kind, volume brush count, drawn face count, nodraw state and waterline, plus live `pointContents` probes at each brush's own centre.
+9. ✅ **Verified on the real maps.** `acidwdm2` reports one water shader, 1 volume brush, 23 drawn faces, waterline `z=56`. A point inside the pool returns `0x30000020` (water, translucent, detail); a point above returns no liquid.
+10. ✅ **Volume and surface classification separated**, `NODRAW` honoured, shader names sanitized.
 11. ~~Scan the shipped map corpus for liquid.~~ **Done for content flags and brush counts**; results are in "What the rest of the corpus contains" above. Still owed, because it needs the real loader rather than a format-agnostic reader: **distinct liquid heights per map, non-horizontal liquid normals, and patch/mesh liquid surfaces.** Those are what plane bucketing actually rests on.
 
-The corpus scan is listed here rather than in Phase 6 deliberately. Plane bucketing, the multi-height policy, and the "one horizontal plane" assumption are the largest architectural bets in this design and were validated against a single map with a single pool. The half that has been run already changed the classifier design; the half that remains is the half that decides bucketing.
+The corpus scan was listed here rather than in Phase 6 deliberately. Plane bucketing, the multi-height policy, and the "one horizontal plane" assumption are the largest architectural bets in this design and were validated against a single map with a single pool. The half that has been run already changed the classifier design; the half that remains is the half that decides bucketing.
 
-Exit gate: headless classification and contents tests pass, `acidwdm2` reports liquid at a point inside its pool, a nodraw liquid brush produces a volume but no rendered surface, bots are unaffected, and there is zero visual or simulation behavior change.
+**Exit gate met.** Evidence:
+
+- `wdm5` — the map that motivated the volume/surface split — probes `water` inside three separate `common/nodrawwater` brushes and nothing above them, while its 22 nodraw brushes contribute zero rendered surfaces and its `bluedistortwater` shader contributes 5 faces and zero volume.
+- 44 new tests across `LiquidContents`, `LiquidClassifier` and `BotLiquidAwareness`. The contents suite was run against the previous implementation to confirm it bites: 7 of 18 failed, and they were the 7 that describe the new behaviour.
+- `tsc --noEmit` clean; full suite 207 files / 2113 tests.
+- **`server:tick` determinism checksum unchanged at `2768943778`** — Phase 0 touches no simulation state, which is exactly what "zero behaviour change" has to mean here. That number is expected to move in Phase 1, when liquid state enters the authoritative physics component.
+- `test:simulation` passes; `test:physics` shows only its known pre-existing `StepSlideMove` diagnostic warning.
 
 ### Phase 1: Add deterministic liquid sampling and state, no new movement yet
 

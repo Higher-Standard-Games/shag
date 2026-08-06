@@ -155,7 +155,17 @@ export interface SweepBackend {
 }
 
 /**
- * Contents flags (BSP-style, game can define more)
+ * Contents flags in the shared vocabulary.
+ *
+ * These are NOT the BSP's own values. A map's raw content flags are translated
+ * once, at the engine-side collision boundary, so nothing in shared or
+ * simulation code ever has to know what a Q3 shader wrote. Read individual
+ * bits: `pointContents` returns the union of every volume containing the point,
+ * and a single brush may legitimately be both water and slime.
+ *
+ * Do not compare these against BSP flags. `SOLID` is the only value that
+ * happens to agree, and the coincidence is not load-bearing — raw `LAVA` shares
+ * its number with `SLIME` here, which is exactly the trap translation removes.
  */
 export const Contents = {
   EMPTY: 0,
@@ -167,6 +177,12 @@ export const Contents = {
   MONSTERCLIP: 1 << 5,
   TRIGGER: 1 << 6,
 } as const;
+
+/** Any liquid: water, slime or lava. A brush may carry more than one. */
+export const MASK_LIQUID = Contents.WATER | Contents.LAVA | Contents.SLIME;
+
+/** What stops a body: the mask a "is this position blocked" question means. */
+export const MASK_SOLID = Contents.SOLID | Contents.PLAYERCLIP;
 
 /**
  * Null/empty collision world for testing

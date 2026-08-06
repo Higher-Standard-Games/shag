@@ -12,7 +12,6 @@
  *   npx vite-node src/cli/headless-bsp.ts build <bspfile>
  */
 
-import { runCli } from "./_runCli";
 import * as fs from "node:fs";
 import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
@@ -20,9 +19,9 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import { Scene } from "@babylonjs/core/scene";
-
 // Import BSP loader
 import { type BspFile, BspLoader } from "../engine/loader/bsp/BspLoader";
+import { runCli } from "./_runCli";
 
 // ============================================================================
 // CLI Entry Point
@@ -40,7 +39,17 @@ async function main(): Promise<void> {
   let command = "info";
   let bspFile: string;
 
-  const validCommands = ["info", "entities", "textures", "effects", "build", "test", "collision", "clipbrushes"];
+  const validCommands = [
+    "info",
+    "entities",
+    "textures",
+    "effects",
+    "build",
+    "test",
+    "collision",
+    "clipbrushes",
+    "liquids",
+  ];
   if (validCommands.includes(args[0])) {
     command = args[0];
     bspFile = args[1];
@@ -100,6 +109,9 @@ async function main(): Promise<void> {
         break;
       case "clipbrushes":
         analyzeClipBrushes(bsp);
+        break;
+      case "liquids":
+        await auditLiquids(bsp);
         break;
       default:
         printInfo(bsp);
@@ -436,6 +448,144 @@ async function buildMeshes(bsp: BspFile): Promise<void> {
   engine.dispose();
 
   console.log("\n[Build] Done");
+}
+
+/**
+ * Report every liquid volume and liquid surface in a map, and probe the
+ * collision world at each one.
+ *
+ * The two halves are deliberately separate. Brush contents say what a player
+ * swims in; face shaders say what is drawn. Mappers routinely split them — a
+ * `common/nodrawwater` brush for the volume and a different shader for the
+ * visible surface — so a map with liquid you can swim in and nothing to look
+ * at, or the reverse, is normal rather than broken.
+ */
+async function auditLiquids(bsp: BspFile): Promise<void> {
+  const { ContentFlags, SurfaceFlags } = await import("../engine/physics/ContentFlags");
+  const { SweepCollisionBackend } = await import("../engine/physics/SweepCollisionBackend");
+
+  const LIQUID = ContentFlags.LAVA | ContentFlags.SLIME | ContentFlags.WATER;
+  const kindOf = (c: number): string =>
+    [c & ContentFlags.WATER ? "water" : "", c & ContentFlags.SLIME ? "slime" : "", c & ContentFlags.LAVA ? "lava" : ""]
+      .filter(Boolean)
+      .join("+") || "none";
+
+  // BSP shader names are not reliably null-terminated — several shipped maps
+  // carry uninitialized bytes (ASE model text) inside the 64-byte field.
+  const clean = (name: string): string => {
+    const cut = name.search(/[^\x20-\x7e]/);
+    return (cut === -1 ? name : name.slice(0, cut)).trim();
+  };
+
+  console.log("\n=== Liquid audit ===\n");
+
+  const liquidTextures = bsp.textures
+    .map((t, index) => ({ index, ...t }))
+    .filter((t) => (t.contentFlags & LIQUID) !== 0);
+
+  if (liquidTextures.length === 0) {
+    console.log("No liquid shaders in this map.");
+    return;
+  }
+
+  // Volumes: brushes whose own shader carries liquid contents.
+  const volumes = new Map<number, { count: number; top: number; bottom: number }>();
+  for (const brush of bsp.brushes) {
+    const tex = bsp.textures[brush.shaderIndex];
+    if (!tex || (tex.contentFlags & LIQUID) === 0) continue;
+
+    // Axial brush sides give the bounds directly; the +Z side is the waterline.
+    let top = Number.NEGATIVE_INFINITY;
+    let bottom = Number.POSITIVE_INFINITY;
+    for (let i = 0; i < brush.numSides; i++) {
+      const side = bsp.brushSides[brush.firstSide + i];
+      const plane = side ? bsp.planes[side.planeIndex] : undefined;
+      if (!plane) continue;
+      if (plane.normal[2] === 1) top = Math.max(top, plane.dist);
+      if (plane.normal[2] === -1) bottom = Math.min(bottom, -plane.dist);
+    }
+
+    const seen = volumes.get(brush.shaderIndex);
+    if (seen) {
+      seen.count++;
+      seen.top = Math.max(seen.top, top);
+      seen.bottom = Math.min(seen.bottom, bottom);
+    } else {
+      volumes.set(brush.shaderIndex, { count: 1, top, bottom });
+    }
+  }
+
+  // Surfaces: faces drawn with a liquid shader, and whether they are drawn at all.
+  const faceCount = new Map<number, number>();
+  for (const face of bsp.faces) {
+    faceCount.set(face.textureIndex, (faceCount.get(face.textureIndex) ?? 0) + 1);
+  }
+
+  console.log("shader                                   kind   vol  faces  nodraw  waterline");
+  console.log("-".repeat(84));
+  for (const tex of liquidTextures) {
+    const vol = volumes.get(tex.index);
+    const nodraw = (tex.surfaceFlags & SurfaceFlags.NODRAW) !== 0;
+    const line = vol && Number.isFinite(vol.top) ? `z=${vol.top}` : "-";
+    console.log(
+      `${clean(tex.name).padEnd(40).slice(0, 40)} ${kindOf(tex.contentFlags).padEnd(6)} ` +
+        `${String(vol?.count ?? 0).padStart(4)} ${String(faceCount.get(tex.index) ?? 0).padStart(6)} ` +
+        `${(nodraw ? "yes" : "no").padStart(7)}  ${line}`,
+    );
+  }
+
+  // Probe the real collision world at the waterline of each volume.
+  const backend = new SweepCollisionBackend();
+  await backend.init(bsp);
+
+  console.log("\n=== pointContents probes ===");
+  console.log("(Q3 z maps to Babylon y; the backend takes Babylon coordinates)\n");
+
+  // Probe each liquid brush at its OWN centre. A shader's brushes can be
+  // scattered across the map, so one shared centre would land in the wall
+  // between two of them and report solid.
+  const PROBES_PER_SHADER = 3;
+
+  for (const shaderIndex of volumes.keys()) {
+    const tex = bsp.textures[shaderIndex];
+    console.log(clean(tex?.name ?? "?"));
+
+    let probed = 0;
+    for (let bi = 0; bi < bsp.brushes.length && probed < PROBES_PER_SHADER; bi++) {
+      const brush = bsp.brushes[bi];
+      if (brush.shaderIndex !== shaderIndex) continue;
+
+      // Each axial side gives one bound directly: the +X plane's dist IS maxX.
+      // Seed the accumulators so a brush with duplicate sides still narrows
+      // rather than widens.
+      const min = [-Infinity, -Infinity, -Infinity];
+      const max = [Infinity, Infinity, Infinity];
+      for (let i = 0; i < brush.numSides; i++) {
+        const side = bsp.brushSides[brush.firstSide + i];
+        const plane = side ? bsp.planes[side.planeIndex] : undefined;
+        if (!plane) continue;
+        for (let axis = 0; axis < 3; axis++) {
+          if (plane.normal[axis] === 1) max[axis] = Math.min(max[axis], plane.dist);
+          if (plane.normal[axis] === -1) min[axis] = Math.max(min[axis], -plane.dist);
+        }
+      }
+      if (![...min, ...max].every(Number.isFinite)) continue;
+
+      // Q3 (x, y, z) -> Babylon (x, z, y)
+      const cx = (min[0] + max[0]) / 2;
+      const cy = (min[1] + max[1]) / 2;
+      const cz = (min[2] + max[2]) / 2;
+
+      const inside = backend.pointContents(new Vector3(cx, cz, cy));
+      const above = backend.pointContents(new Vector3(cx, max[2] + 32, cy));
+      console.log(
+        `  brush ${String(bi).padStart(5)}  inside (${cx.toFixed(0)}, ${cz.toFixed(0)}, ${cy.toFixed(0)}) -> ` +
+          `0x${(inside >>> 0).toString(16).padStart(8, "0")} ${kindOf(inside).padEnd(6)}` +
+          `   above -> 0x${(above >>> 0).toString(16).padStart(8, "0")} ${kindOf(above)}`,
+      );
+      probed++;
+    }
+  }
 }
 
 async function testCollision(bsp: BspFile): Promise<void> {

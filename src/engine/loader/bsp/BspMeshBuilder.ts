@@ -16,23 +16,24 @@ import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { RawTexture } from "@babylonjs/core/Materials/Textures/rawTexture";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
-import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import type { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
 import type { Scene } from "@babylonjs/core/scene";
 import { applySafeMaxSimultaneousLights } from "../../lighting/DynamicLightSafety";
+import { liquidKindOf } from "../../physics/ContentFlags";
 import { Q3ShaderRegistry } from "../shader/Q3ShaderRegistry";
 import type { ResolvedMaterialProps } from "../shader/Q3ShaderTypes";
 import type { BspFile } from "./BspLoader";
-import { createRadialGradientTexture, createSolidColorTexture } from "./mesh/fallbackTextures";
 import { buildMeshFace, buildPatchFace, buildPolygonFace } from "./mesh/faceBuilders";
+import { createRadialGradientTexture, createSolidColorTexture } from "./mesh/fallbackTextures";
 import type { BspMeshBuildResult, BuildOptions } from "./mesh/types";
 
-export type { BspMeshBuildResult, BuildOptions } from "./mesh/types";
-export { q3ToBabylonVec3, reverseTriangleWinding } from "./mesh/coordinates";
 export { buildBrushModel } from "./mesh/brushModelBuilder";
+export { q3ToBabylonVec3, reverseTriangleWinding } from "./mesh/coordinates";
 export { getVisibleFaces } from "./mesh/pvs";
+export type { BspMeshBuildResult, BuildOptions } from "./mesh/types";
 
 // ============================================================================
 // BspMeshBuilder Class
@@ -464,6 +465,13 @@ export class BspMeshBuilder {
         fogParams: group.fogParams,
         autosprite: group.shaderProps.autosprite,
         autosprite2: group.shaderProps.autosprite2,
+        // Which liquid this surface draws, if any. An annotation only — the
+        // material above is still the ordinary one, so nothing about how the
+        // map looks changes until a liquid renderer exists to claim these.
+        // A NODRAW liquid brush produces no drawn group at all and so never
+        // reaches here, which is the correct answer for a volume with no
+        // surface.
+        liquidKind: texFlags ? liquidKindOf(texFlags.contentFlags) : null,
       };
 
       // Note: Per-face fog detection works, but applying global scene fog here is wrong
