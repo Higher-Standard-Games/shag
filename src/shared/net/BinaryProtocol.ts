@@ -23,6 +23,10 @@
  * - 0x08 = rotation changed (8 bytes: 2 floats — yaw + pitch)
  * - 0x10 = movement state changed (1 byte: bit 0=crouching, bit 1=sliding, bit 2=wallJumping)
  * - 0x20 = weaponMeta changed (string + 1 byte — for item_ entities)
+ * - 0x40 = powerup mask (1 byte: bit per POWERUP_KINDS entry) — sent for EVERY
+ *          player every snapshot (not delta-compressed) for the same reason as
+ *          movement state: a stuck flag after a baseline-ACK mismatch would
+ *          leave a player glowing with a quad they no longer have.
  */
 
 import { Entity } from "./Entity";
@@ -85,6 +89,11 @@ interface MovementStateShape {
 interface WeaponMetaShape {
   weaponId: string;
   settled: boolean;
+}
+
+/** Held powerups, packed as a bitmask over POWERUP_KINDS (shared/items/Powerups). */
+interface PowerupShape {
+  mask: number;
 }
 
 /**
@@ -382,18 +391,26 @@ export class BinaryProtocol {
         flags |= 0x20;
       }
 
+      // Powerup mask: sent for every entity that has the component, every
+      // snapshot (like movement state). 1 byte, and a stuck delta flag here
+      // would leave a player rendering a quad glow they no longer hold.
+      const powerups = entity.getComponent("powerups") as unknown as PowerupShape | undefined;
+      if (powerups) {
+        flags |= 0x40;
+      }
+
       encoder.writeUint8(flags);
 
       // Encode changed components
       // Flag 0x01: Position (12 bytes - 3 floats)
-      if ((flags & 0x01) && pos) {
+      if (flags & 0x01 && pos) {
         encoder.writeFloat32(pos.x);
         encoder.writeFloat32(pos.y);
         encoder.writeFloat32(pos.z);
       }
 
       // Flag 0x02: Velocity (12 bytes - 3 floats)
-      if ((flags & 0x02) && velData) {
+      if (flags & 0x02 && velData) {
         encoder.writeFloat32(velData.x);
         encoder.writeFloat32(velData.y);
         encoder.writeFloat32(velData.z);
@@ -405,7 +422,7 @@ export class BinaryProtocol {
       }
 
       // Flag 0x08: Rotation (8 bytes - 2 floats: yaw, pitch)
-      if ((flags & 0x08) && rot) {
+      if (flags & 0x08 && rot) {
         encoder.writeFloat32(rot.y); // yaw
         encoder.writeFloat32(rot.x); // pitch
       }
@@ -420,9 +437,14 @@ export class BinaryProtocol {
       }
 
       // Flag 0x20: WeaponMeta (string weaponId + 1 byte settled)
-      if ((flags & 0x20) && weaponMeta) {
+      if (flags & 0x20 && weaponMeta) {
         encoder.writeString(weaponMeta.weaponId);
         encoder.writeUint8(weaponMeta.settled ? 1 : 0);
+      }
+
+      // Flag 0x40: Powerup mask (1 byte — bit per POWERUP_KINDS entry)
+      if (flags & 0x40 && powerups) {
+        encoder.writeUint8(powerups.mask & 0xff);
       }
     }
   }
@@ -618,6 +640,19 @@ export class BinaryProtocol {
           entity.addComponent("weaponMeta", baselineMeta);
         }
       }
+
+      // Flag 0x40: Powerup mask. Absent = no powerups. Deliberately NOT carried
+      // forward from the baseline: the encoder sends this every snapshot for
+      // any entity that has the component, so a missing flag genuinely means
+      // "no powerup component", not "unchanged".
+      if (flags & 0x40) {
+        entity.addComponent("powerups", {
+          mask: decoder.readUint8(),
+          serialize: _noopSerialize,
+          deserialize: _noopDeserialize,
+          clone: _shallowClone,
+        });
+      }
     }
   }
 
@@ -738,6 +773,9 @@ export class BinaryProtocol {
     pickup_notify: 15,
     voltaic_beam: 16,
     electro_rail: 17,
+    powerup_state: 18,
+    powerup_spawn: 19,
+    agent_directives: 20,
   };
 
   private static readonly EVT_NAME_MAP: string[] = [
@@ -759,6 +797,9 @@ export class BinaryProtocol {
     "pickup_notify",
     "voltaic_beam",
     "electro_rail",
+    "powerup_state",
+    "powerup_spawn",
+    "agent_directives",
   ];
 
   private static encodeEvents(encoder: BinaryEncoder, state: GameState): void {
@@ -920,6 +961,27 @@ export class BinaryProtocol {
           encoder.writeFloat32(event.normalY ?? 0);
           encoder.writeFloat32(event.normalZ ?? 0);
           encoder.writeUint8(event.impactKind ?? 0);
+          break;
+
+        case 18: // powerup_state: entityId (holder), kind, whole seconds left
+          encoder.writeString(event.entityId ?? "");
+          encoder.writeString(event.kind ?? "");
+          encoder.writeUint16(event.seconds ?? 0);
+          break;
+
+        case 19: // powerup_spawn: kind + world position (broadcast to everyone)
+          encoder.writeString(event.kind ?? "");
+          encoder.writeFloat32(event.x ?? 0);
+          encoder.writeFloat32(event.y ?? 0);
+          encoder.writeFloat32(event.z ?? 0);
+          break;
+
+        // agent_directives: addressee + orders. Variable shape and low
+        // frequency (only for gametypes that issue them, only to the addressed
+        // client), so JSON like match_state rather than a bespoke layout.
+        case 20:
+          encoder.writeString(event.entityId ?? "");
+          encoder.writeString(JSON.stringify(event.directives ?? []));
           break;
       }
     }
@@ -1124,6 +1186,40 @@ export class BinaryProtocol {
             impactKind: decoder.readUint8(),
           });
           break;
+
+        case 18: // powerup_state
+          state.events.push({
+            type,
+            entityId: decoder.readString(),
+            kind: decoder.readString(),
+            seconds: decoder.readUint16(),
+          });
+          break;
+
+        case 19: // powerup_spawn
+          state.events.push({
+            type,
+            kind: decoder.readString(),
+            x: decoder.readFloat32(),
+            y: decoder.readFloat32(),
+            z: decoder.readFloat32(),
+          });
+          break;
+
+        case 20: {
+          // agent_directives
+          const entityId = decoder.readString();
+          const raw = decoder.readString();
+          let directives: unknown = [];
+          try {
+            directives = JSON.parse(raw);
+          } catch {
+            // A malformed payload must not poison the whole snapshot decode.
+            directives = [];
+          }
+          state.events.push({ type, entityId, directives });
+          break;
+        }
       }
     }
   }
@@ -1157,6 +1253,7 @@ export enum MessageType {
   Spectate = 0x87, // Player → Spectator: request to leave game and spectate
   RequestSpawn = 0x88, // Dead player requests respawn (after cooldown)
   Chat = 0x89, // In-game chat text (server sanitizes, rate-limits, rebroadcasts as snapshot event)
+  SetLoadout = 0x8a, // Chosen spawn kit (S&D). Takes effect from the next round.
 }
 
 // Text encoder/decoder for UTF-8 strings (more efficient than UTF-16)

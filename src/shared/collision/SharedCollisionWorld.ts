@@ -34,13 +34,14 @@ export class SharedCollisionWorld implements CollisionWorld {
   // TRACE
   // ───────────────────────────────────────────────────────────────
 
-  trace(start: Vec3, end: Vec3, bounds?: AABB): TraceResult {
+  trace(start: Vec3, end: Vec3, bounds?: AABB, contentMask?: number): TraceResult {
     const options = bounds
       ? {
           radius: (bounds.max.x - bounds.min.x) / 2,
           height: bounds.max.y - bounds.min.y,
+          contentMask,
         }
-      : { radius: 0, height: 0 };
+      : { radius: 0, height: 0, contentMask };
 
     const result = this.backend.trace(start, end, options);
 

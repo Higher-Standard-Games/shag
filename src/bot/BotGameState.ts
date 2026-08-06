@@ -10,6 +10,7 @@
  */
 
 import type { GameState } from "../engine/network/core/GameState";
+import type { AgentDirective } from "../shared/server/gametype";
 
 // ── Vec3 helper (lightweight, no Babylon.js dependency) ─────────────────
 
@@ -112,6 +113,23 @@ export interface BotDamageEvent {
   tick: number;
 }
 
+/**
+ * Gametype context the bot reads from `match_state`.
+ *
+ * Only the fields bot reasoning uses; `MatchStateSnapshot` carries more (HUD
+ * scores, spectators, winner) that is of no interest here.
+ */
+export interface BotMatchState {
+  /** Display name, e.g. "Team Deathmatch". Normalized before profile lookup. */
+  gametypeName: string;
+  /** MatchPhase: 0 warmup, 1 countdown, 2 active, 3 post-game. */
+  phase: number;
+  /** Per-team round role for alternating modes ("attacker"/"defender"). Phase 6. */
+  teamRoles?: Record<string, string>;
+  /** Round lifecycle for objective modes ("pre_plant"/"post_plant"). Phase 6. */
+  roundState?: string;
+}
+
 export interface BotKillEvent {
   killerId: string;
   victimId: string;
@@ -138,7 +156,7 @@ export interface MapKnowledge {
  * Flatten the server's per-weapon ammo (`{ clip, reserve }` objects) into a
  * single numeric total per weapon, which is what the bot's decision code
  * (selectBestWeapon, _hasAmmoForWeapon, BotInputNormalizer) all assume. A
- * missing entry means "unlimited" (blade/gunblade) and is preserved as absent.
+ * missing entry means "unlimited" (blade) and is preserved as absent.
  *
  * Without this the bot compared `{ clip, reserve }` objects as numbers —
  * `{ clip: 0, reserve: 0 } <= 0` is false — so it never recognized an empty
@@ -195,6 +213,25 @@ export class BotGameState {
   // Authoritative static-pickup availability, indexed by PickupEntry.id.
   pickupActiveMask: readonly boolean[] = [];
 
+  /**
+   * Latest gametype/match context, from the `match_state` snapshot event.
+   *
+   * The server has always sent this — it is spread into an event once per
+   * snapshot — and the bot simply discarded it. It is what lets a bot pick a
+   * behavioural weight profile without any protocol change, and from Phase 4 it
+   * carries the round role and state that objective modes need.
+   */
+  matchState: BotMatchState = { gametypeName: "", phase: 0 };
+
+  /**
+   * Orders addressed to THIS bot by the gametype, from `agent_directives`.
+   *
+   * Replaced wholesale each time one arrives, and pruned by expiry every tick,
+   * so a directive cannot outlive the server's intent even if the mode stops
+   * re-issuing it. Empty for every gametype that issues none.
+   */
+  directives: AgentDirective[] = [];
+
   // Recent events (cleared each tick)
   recentDamage: BotDamageEvent[] = [];
   recentKills: BotKillEvent[] = [];
@@ -228,6 +265,13 @@ export class BotGameState {
     this.pickups = [];
     this.projectiles = [];
     this.recentKills = [];
+
+    // Drop directives the server's own expiry has passed. A bot must not keep
+    // executing an order the gametype has stopped issuing — expiry is the only
+    // guarantee that survives the mode crashing or the round ending.
+    if (this.directives.length > 0) {
+      this.directives = this.directives.filter((d) => snapshot.tick < d.expiresAtTick);
+    }
 
     // Prune old damage events (keep last 300 ticks for wasRecentlyDamaged)
     this.recentDamage = this.recentDamage.filter((d) => snapshot.tick - d.tick <= 300);
@@ -328,6 +372,37 @@ export class BotGameState {
     // ── Process events ───────────────────────────────────────────────
     for (const event of snapshot.events) {
       switch (event.type) {
+        case "match_state": {
+          // Gametype context — drives behavioural weight selection. Sent once
+          // per snapshot with the MatchStateSnapshot fields spread in. Read
+          // defensively: an older or newer server may omit any of these.
+          const evt = event as Partial<{
+            gametypeName: unknown;
+            phase: unknown;
+            teamRoles: unknown;
+            roundState: unknown;
+          }>;
+          this.matchState = {
+            gametypeName: typeof evt.gametypeName === "string" ? evt.gametypeName : "",
+            phase: typeof evt.phase === "number" ? evt.phase : 0,
+            teamRoles:
+              evt.teamRoles && typeof evt.teamRoles === "object"
+                ? (evt.teamRoles as Record<string, string>)
+                : undefined,
+            roundState: typeof evt.roundState === "string" ? evt.roundState : undefined,
+          };
+          break;
+        }
+
+        case "agent_directives": {
+          // Only ever sent to the addressed client, but check anyway: a bot
+          // must never act on another player's orders, even by server bug.
+          const evt = event as { entityId?: unknown; directives?: unknown };
+          if (evt.entityId !== this.selfEntityId) break;
+          this.directives = Array.isArray(evt.directives) ? (evt.directives as AgentDirective[]) : [];
+          break;
+        }
+
         case "combat_state": {
           const evt = event as any;
           if (evt.entityId === this.selfEntityId) {
@@ -449,6 +524,19 @@ export class BotGameState {
   /** Get the nearest pickup within a max distance */
   getNearestPickup(maxDistance: number = Infinity): VisiblePickup | null {
     return this.pickups.find((p) => p.distance <= maxDistance) || null;
+  }
+
+  /**
+   * This bot's round role in modes where teams alternate (S&D attacker /
+   * defender). Null in FFA, in team modes without roles, or before the first
+   * `match_state` arrives.
+   */
+  getOwnRole(): string | null {
+    const roles = this.matchState.teamRoles;
+    if (!roles) return null;
+    const team = this.self.team || this.scores.get(this.selfPlayerId)?.team;
+    if (!team) return null;
+    return roles[team] ?? null;
   }
 
   /** Get all living teammates, nearest first. */

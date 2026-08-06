@@ -9,9 +9,16 @@ import type {
   HealthComponent,
   InputComponent,
   PhysicsComponent,
+  PowerupComponent,
   TransformComponent,
 } from "@shared/server/simulation/components";
-import { cloneHealth, cloneInput, clonePhysics, cloneTransform } from "@shared/server/simulation/components";
+import {
+  cloneHealth,
+  cloneInput,
+  clonePhysics,
+  clonePowerups,
+  cloneTransform,
+} from "@shared/server/simulation/components";
 import type { EntityId, PlayerId } from "./types";
 import { EntityType } from "./types";
 
@@ -44,6 +51,9 @@ export class Entity {
 
   /** Health and armor */
   health?: HealthComponent;
+
+  /** Timed powerups (quad). Present on players only. */
+  powerups?: PowerupComponent;
 
   /** Optional metadata for item entities (weaponId, ammo count) */
   metadata?: { weaponId: string; ammo?: number };
@@ -88,6 +98,7 @@ export class Entity {
     if (this.physics) cloned.physics = clonePhysics(this.physics);
     if (this.input) cloned.input = cloneInput(this.input);
     if (this.health) cloned.health = cloneHealth(this.health);
+    if (this.powerups) cloned.powerups = clonePowerups(this.powerups);
 
     return cloned;
   }
@@ -116,7 +127,13 @@ export class Entity {
 // FACTORY FUNCTIONS
 // ═══════════════════════════════════════════════════════════════════
 
-import { createHealth, createInput, createPhysics, createTransform } from "@shared/server/simulation/components";
+import {
+  createHealth,
+  createInput,
+  createPhysics,
+  createPowerups,
+  createTransform,
+} from "@shared/server/simulation/components";
 
 /**
  * Create a new player entity with all required components
@@ -132,6 +149,7 @@ export function createPlayerEntity(
   entity.physics = createPhysics();
   entity.input = createInput();
   entity.health = createHealth();
+  entity.powerups = createPowerups();
   return entity;
 }
 

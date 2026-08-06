@@ -119,6 +119,11 @@ export class LobbyClient {
     this.send({ type: "lobby:vote_shuffle", lobbyId });
   }
 
+  /** Move yourself to the other side. No vote — it affects only you. */
+  switchTeam(lobbyId: string): void {
+    this.send({ type: "lobby:switch_team", lobbyId });
+  }
+
   /** Ask the server to spawn an AI bot opponent into this lobby. */
   inviteBot(lobbyId: string, difficulty?: string): void {
     this.send({ type: "lobby:invite_bot", lobbyId, difficulty });

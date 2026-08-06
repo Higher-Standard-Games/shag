@@ -7,6 +7,9 @@ export default defineConfig({
   // Use docs/manual as the source
   srcDir: '.',
   outDir: '../../dist-docs',
+
+  // localhost URLs are dev-server instructions, not links to verify
+  ignoreDeadLinks: [/^https?:\/\/localhost/],
   
   head: [
     ['link', { rel: 'icon', href: '/favicon.ico' }],
@@ -92,7 +95,8 @@ export default defineConfig({
                 { text: 'Debug Shader', link: '/tutorials/recipes/debug-shader' },
                 { text: 'Export Settings', link: '/tutorials/recipes/export-settings' }
               ]
-            }
+            },
+            { text: 'Quick Recipes', link: '/tutorials/quick-recipes' }
           ]
         },
         {
@@ -100,13 +104,51 @@ export default defineConfig({
           collapsed: false,
           items: [
             { text: 'Overview', link: '/guides/' },
-            { text: 'BSP System', link: '/guides/bsp-system' },
-            { text: 'Shader System', link: '/guides/shader-system' },
-            { text: 'Camera System', link: '/guides/camera-system' },
-            { text: 'Console System', link: '/guides/console-system' },
-            { text: 'PK3 Filesystem', link: '/guides/pk3-filesystem' },
-            { text: 'Skybox System', link: '/guides/skybox-system' },
-            { text: 'Render Variables', link: '/guides/render-variables' },
+            {
+              text: 'Core Systems',
+              collapsed: false,
+              items: [
+                { text: 'Configuration', link: '/guides/configuration' },
+                { text: 'BSP System', link: '/guides/bsp-system' },
+                { text: 'Shader System', link: '/guides/shader-system' },
+                { text: 'PK3 Filesystem', link: '/guides/pk3-filesystem' },
+                { text: 'Raw .map System', link: '/guides/raw-map-system' },
+                { text: 'Camera System', link: '/guides/camera-system' },
+                { text: 'Physics System', link: '/guides/physics-system' },
+                { text: 'Movement System', link: '/guides/movement-system' },
+                { text: 'Pickup System', link: '/guides/pickup-system' },
+                { text: 'Weapon System', link: '/guides/weapon-system' },
+                { text: 'Model Loading', link: '/guides/model-loading' }
+              ]
+            },
+            {
+              text: 'Rendering',
+              collapsed: true,
+              items: [
+                { text: 'Render Variables', link: '/guides/render-variables' },
+                { text: 'Lighting System', link: '/guides/lighting-system' },
+                { text: 'Skybox System', link: '/guides/skybox-system' },
+                { text: 'Viewport Effects', link: '/guides/viewport-effects' }
+              ]
+            },
+            {
+              text: 'Runtime',
+              collapsed: true,
+              items: [
+                { text: 'Console System', link: '/guides/console-system' },
+                { text: 'Command Reference', link: '/guides/command-reference' },
+                { text: 'Cvar System', link: '/guides/cvar-system' },
+                { text: 'Map Launching', link: '/guides/map-launching' },
+                { text: 'Service Registries', link: '/guides/service-registries' }
+              ]
+            },
+            {
+              text: 'Multiplayer',
+              collapsed: true,
+              items: [
+                { text: 'Networking System', link: '/guides/networking' }
+              ]
+            },
             { text: 'Headless Mode', link: '/guides/headless-mode' }
           ]
         },
@@ -114,9 +156,11 @@ export default defineConfig({
           text: 'Tools',
           items: [
             { text: 'Overview', link: '/tools/' },
-            { text: 'Agent Orchestration', link: '/tools/agent-orchestration' },
             { text: 'Headless Game', link: '/tools/headless-game' },
-            { text: 'Headless BSP', link: '/tools/headless-bsp' }
+            { text: 'Headless BSP', link: '/tools/headless-bsp' },
+            { text: 'Network Server', link: '/tools/network-server' },
+            { text: 'Network Client', link: '/tools/network-client' },
+            { text: 'Agent Orchestration', link: '/tools/agent-orchestration' }
           ]
         },
         {

@@ -270,5 +270,5 @@ If no BSP is loaded or the map lacks lightgrid data, models receive fallback lig
 
 ## See Also
 
-- [DEBUG_CONSOLE.md](../../reference/DEBUG_CONSOLE.md) - Full console command reference
+- [Command Reference](./command-reference.md) - Full console command reference
 - [BSP System](./bsp-system.md) - Loading Quake 3 maps

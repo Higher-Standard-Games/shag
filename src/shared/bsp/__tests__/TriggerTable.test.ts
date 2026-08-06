@@ -168,6 +168,40 @@ describe("extractTriggerVolumes (fail-closed)", () => {
 
     expect(volumes).toHaveLength(2);
   });
+
+  // Regression: several shipping maps aim triggers at classnames that were NOT
+  // in the old allow-list, so the pad/teleporter was silently dropped (dead
+  // jumppads on wdm12/17/18/19, wbomb6; dead teleporters on wbomb2/wctf1/wda4).
+  it("resolves a jumppad whose dest is target_location (real wdm12 records)", () => {
+    // wdm12: trigger_push *4 → target_location "target_location1" at Q3 (192 96 120)
+    const volumes = extractTriggerVolumes(
+      [
+        ent("trigger_push", { model: "*3", target: "target_location1" }),
+        ent("target_location", { targetname: "target_location1", angle: "180", origin: "192 96 120" }),
+      ],
+      models,
+    );
+
+    expect(volumes).toHaveLength(1);
+    expect(volumes[0].type).toBe("push");
+    expect(volumes[0].dest).toEqual({ x: 192, y: 120, z: 96 }); // Y↔Z swap
+  });
+
+  it("resolves a teleporter whose dest is info_teleport_destination (Q3 standard)", () => {
+    // wbomb2/wctf1: trigger_teleport → info_teleport_destination with an exit angle.
+    const volumes = extractTriggerVolumes(
+      [
+        ent("trigger_teleport", { model: "*1", target: "dst" }),
+        ent("info_teleport_destination", { targetname: "dst", angle: "90", origin: "0 0 300" }),
+      ],
+      models,
+    );
+
+    expect(volumes).toHaveLength(1);
+    expect(volumes[0].type).toBe("teleport");
+    expect(volumes[0].dest).toEqual({ x: 0, y: 300, z: 0 });
+    expect(volumes[0].destYaw).toBeCloseTo(0, 6); // q3 angle 90 → game yaw 0
+  });
 });
 
 describe("q3AngleToGameYaw", () => {

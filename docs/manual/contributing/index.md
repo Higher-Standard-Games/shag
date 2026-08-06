@@ -94,9 +94,18 @@ npm run test -- --watch
 Documentation lives in `docs/manual/`. Use Markdown.
 
 ```bash
-# Generate API docs
-npm run docs
+# Serve this manual locally with hot reload
+npm run docs:dev
+
+# Build the manual
+npm run docs:build
+
+# Generate TypeDoc API reference
+npm run docs:api
 ```
+
+New pages must be added to the sidebar in `docs/manual/.vitepress/config.ts`,
+otherwise they are unreachable in the built site.
 
 ## Roadmap
 

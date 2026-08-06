@@ -17,6 +17,14 @@ import { ConnectingOverlay } from "./ConnectingOverlay";
 // ═══════════════════════════════════════════════════════════════════
 
 export interface MatchLobbyPlayer {
+  /**
+   * Lobby player id, which is what every server broadcast addresses.
+   *
+   * Absent only for mock players, which have no server behind them. Ready
+   * updates key on this: matching on `name` looks like it works and silently
+   * never does, because the server sends an id.
+   */
+  id?: string;
   name: string;
   team: "alpha" | "bravo" | "none";
   ready: boolean;
@@ -64,9 +72,11 @@ export class MatchLobbyView {
   private unsubscribers: (() => void)[] = [];
   private inviteBotBtn: HTMLButtonElement | null = null;
   private inviteBotPending = false;
+  private readonly localPlayerId: string | null;
 
-  constructor(gametype: string, lobbyClient?: LobbyClient, lobbyInfo?: MatchLobbyInfo) {
+  constructor(gametype: string, lobbyClient?: LobbyClient, lobbyInfo?: MatchLobbyInfo, localPlayerId?: string) {
     this.lobbyClient = lobbyClient || null;
+    this.localPlayerId = localPlayerId ?? null;
 
     if (lobbyInfo) {
       // Use real server data
@@ -89,10 +99,11 @@ export class MatchLobbyView {
         votedByLocal: false,
       }));
       this.players = lobbyInfo.players.map((p) => ({
+        id: p.id,
         name: p.name,
         team: p.team as "alpha" | "bravo" | "none",
         ready: p.ready,
-        isLocal: p.id === lobbyInfo.players[0]?.id, // First player is creator
+        isLocal: p.id === this.localPlayerId,
       }));
     } else {
       // Fallback: mock data (no server connection — map pool comes from server in production)
@@ -128,10 +139,16 @@ export class MatchLobbyView {
     // Player ready updates
     this.unsubscribers.push(
       this.lobbyClient.on("lobby:player_updated", (msg) => {
-        const player = this.players.find((p) => p.name === msg.playerId || p.isLocal);
+        // By id. This compared `p.name` against a player ID and fell back to
+        // `|| p.isLocal`, so it matched the local player for every update and
+        // was then rejected by the isLocal guard below — meaning no remote
+        // player ever appeared ready, and a lobby of readied bots looked
+        // permanently stuck.
+        const player = this.players.find((p) => p.id === msg.playerId);
         if (player && !player.isLocal) {
           player.ready = msg.ready;
           this.refreshPlayerSlots();
+          this.refreshHeader();
         }
       }),
     );
@@ -140,10 +157,11 @@ export class MatchLobbyView {
     this.unsubscribers.push(
       this.lobbyClient.on("lobby:player_joined", (msg) => {
         this.players.push({
+          id: msg.player.id,
           name: msg.player.name,
           team: msg.player.team as "alpha" | "bravo" | "none",
           ready: msg.player.ready,
-          isLocal: false,
+          isLocal: msg.player.id === this.localPlayerId,
         });
         this.refreshPlayerSlots();
         this.refreshHeader();
@@ -156,7 +174,7 @@ export class MatchLobbyView {
     // Player left
     this.unsubscribers.push(
       this.lobbyClient.on("lobby:player_left", (msg) => {
-        this.players = this.players.filter((p) => p.name !== msg.playerId);
+        this.players = this.players.filter((p) => p.id !== msg.playerId);
         this.refreshPlayerSlots();
         this.refreshHeader();
         this.updateInviteBotState();
@@ -200,6 +218,12 @@ export class MatchLobbyView {
         // (docs/research/single_game_server_lobby.md).
         try {
           sessionStorage.setItem("shag.return_lobby", this.lobbyId);
+          // The side you picked here, for the game server to honour on join.
+          // Without it `sendJoinGame()` asks for nothing and the server
+          // auto-balances, so choosing a team in the lobby did nothing at all.
+          const localTeam = this.players.find((p) => p.isLocal)?.team;
+          if (localTeam && localTeam !== "none") sessionStorage.setItem("shag.lobby_team", localTeam);
+          else sessionStorage.removeItem("shag.lobby_team");
         } catch {
           /* storage unavailable — return falls back to a plain reload */
         }
@@ -211,11 +235,15 @@ export class MatchLobbyView {
     // Teams shuffled
     this.unsubscribers.push(
       this.lobbyClient.on("lobby:teams_shuffled", (msg) => {
+        // By id. Matching on name is the same mistake the ready handler made:
+        // names are display text, they can collide between bots, and the server
+        // addresses players by id everywhere else.
         for (const sp of msg.players) {
-          const p = this.players.find((pp) => pp.name === sp.name);
+          const p = this.players.find((pp) => pp.id === sp.id);
           if (p) p.team = sp.team;
         }
         this.refreshPlayerSlots();
+        this.refreshHeader();
       }),
     );
   }
@@ -379,11 +407,15 @@ export class MatchLobbyView {
       const alphaTeam = this.players.filter((p) => p.team === "alpha");
       const bravoTeam = this.players.filter((p) => p.team === "bravo");
 
-      // Display names match the in-game teams (esc menu): alpha = Soba (blue),
-      // bravo = Udon (pink). Internal team keys stay alpha/bravo (data + colors).
-      area.appendChild(this.buildTeamColumn("TEAM SOBA", alphaTeam, "alpha"));
+      // Display names match the in-game teams (esc menu): alpha = Soba, bravo =
+      // Udon. Colour is by ALLEGIANCE though — your column is the ally colour
+      // and theirs the enemy colour, the same pair the models wear in the map,
+      // so a side has one meaning from the lobby through to the firefight.
+      const localTeam = this.players.find((p) => p.isLocal)?.team;
+      const slot = (team: string) => (localTeam && team === localTeam ? "ally" : "enemy");
+      area.appendChild(this.buildTeamColumn("TEAM SOBA", alphaTeam, slot("alpha")));
       area.appendChild(this.buildVsDiv());
-      area.appendChild(this.buildTeamColumn("TEAM UDON", bravoTeam, "bravo"));
+      area.appendChild(this.buildTeamColumn("TEAM UDON", bravoTeam, slot("bravo")));
     } else {
       area.classList.add("match-lobby__players--ffa");
       area.appendChild(this.buildPlayerList());
@@ -522,15 +554,29 @@ export class MatchLobbyView {
     });
     actions.appendChild(leaveBtn);
 
-    // Invite AI bot opponent (server feature — needs a live lobby connection)
+    // Add a bot (server feature — needs a live lobby connection). Pressable
+    // repeatedly: it re-enables as each bot joins, which is what a 5v5 mode
+    // needs when you are testing alone. The lobby balances teams on join, so
+    // each bot lands on whichever side is short.
     if (this.lobbyClient) {
       const inviteBtn = document.createElement("button");
       inviteBtn.className = "match-lobby__btn match-lobby__btn--invite-bot";
-      inviteBtn.textContent = "🤖 INVITE AI BOT";
+      inviteBtn.textContent = "🤖 ADD BOT";
       inviteBtn.addEventListener("click", () => this.requestBot());
       actions.appendChild(inviteBtn);
       this.inviteBotBtn = inviteBtn;
       this.updateInviteBotState();
+    }
+
+    // Switch sides. Separate from shuffle, which is random and needs a
+    // majority — this affects only you, so it needs neither, and it is the only
+    // way to choose which half of a round mode you play.
+    if (this.config.hasTeams && this.lobbyClient) {
+      const switchBtn = document.createElement("button");
+      switchBtn.className = "match-lobby__btn match-lobby__btn--switch-team";
+      switchBtn.textContent = "⇄ SWITCH SIDE";
+      switchBtn.addEventListener("click", () => this.lobbyClient?.switchTeam(this.lobbyId));
+      actions.appendChild(switchBtn);
     }
 
     // Shuffle teams button (team modes only)
@@ -615,7 +661,7 @@ export class MatchLobbyView {
 
     const full = this.players.length >= this.config.maxPlayers;
     btn.disabled = full;
-    btn.textContent = full ? "🤖 LOBBY FULL" : "🤖 INVITE AI BOT";
+    btn.textContent = full ? "🤖 LOBBY FULL" : "🤖 ADD BOT";
   }
 
   /**

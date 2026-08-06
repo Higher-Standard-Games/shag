@@ -13,7 +13,6 @@ import {
   BLADE,
   ELECTROBOLT,
   GRENADE_LAUNCHER,
-  GUNBLADE,
   INSTAGUN,
   MACHINEGUN,
   PLASMAGUN,
@@ -27,7 +26,6 @@ import {
  * All stats come from shared definitions — single source of truth.
  */
 export const WEAPONS: Record<string, WeaponDef> = {
-  [GUNBLADE.id]: GUNBLADE,
   [MACHINEGUN.id]: MACHINEGUN,
   [RIOTGUN.id]: RIOTGUN,
   [GRENADE_LAUNCHER.id]: GRENADE_LAUNCHER,
@@ -48,7 +46,6 @@ export const WEAPONS: Record<string, WeaponDef> = {
   rocket: ROCKET_LAUNCHER,
   grenade: GRENADE_LAUNCHER,
   plasma_bolt: PLASMAGUN,
-  gunblade_blast: GUNBLADE,
   // Blade's charged blast gets RL-equal knockback (KB = damage × scale: 50×20 = 1000).
   blade_blast: { ...BLADE, knockbackScale: 20.0 },
 };

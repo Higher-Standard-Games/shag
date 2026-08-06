@@ -64,6 +64,8 @@ export interface MapLoadingOverlayConfig {
   animationColors: PaletteColor[] | null;
   /** Loading types to respond to */
   loadingTypes: string[];
+  /** Safety net: force-release a hold its owner never released (ms) */
+  holdTimeoutMs: number;
 }
 
 const DEFAULT_CONFIG: MapLoadingOverlayConfig = {
@@ -78,6 +80,7 @@ const DEFAULT_CONFIG: MapLoadingOverlayConfig = {
   animationEnabled: true,
   animationColors: null,
   loadingTypes: ["map"],
+  holdTimeoutMs: 20000,
 };
 
 export class MapLoadingOverlay {
@@ -93,6 +96,10 @@ export class MapLoadingOverlay {
   private container: HTMLDivElement | null = null;
   private messageArea: HTMLDivElement | null = null;
   private messages: string[] = [];
+
+  // Holds keeping the curtain down past `loading:complete`
+  private holds: Set<string> = new Set();
+  private holdTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
 
   // Animation
   private smokeAnimation: LoadingAnimation | null = null;
@@ -182,6 +189,12 @@ export class MapLoadingOverlay {
     }
     instance.unsubscribers = [];
 
+    // Drop any outstanding holds with their safety timers — a disabled overlay
+    // has nothing left to hold up, and a surviving timer would fire against it.
+    instance.holds.clear();
+    for (const timer of instance.holdTimers.values()) clearTimeout(timer);
+    instance.holdTimers.clear();
+
     // Hide if currently showing
     if (instance.state !== "idle") {
       instance.hide();
@@ -230,20 +243,75 @@ export class MapLoadingOverlay {
 
     this.state = "completing";
 
-    // Calculate delay before fade
+    // The MAP is loaded, which is not the same as the GAME being ready to show.
+    // Anything still holding keeps the curtain down — see `hold()`.
+    if (this.holds.size > 0) {
+      this.addMessage(`waiting for ${[...this.holds].join(", ")}`);
+      return;
+    }
+
+    this.scheduleFadeOut();
+  }
+
+  /** Fade after the minimum display time, or after a brief hold if already past it. */
+  private scheduleFadeOut(): void {
     const elapsed = Date.now() - this.showTime;
     const remaining = this.config.minDisplayMs - elapsed;
+    const delay = remaining > 0 ? remaining : this.config.completeHoldMs;
 
-    if (remaining > 0) {
-      // Wait for minimum display time
-      this.fadeTimer = setTimeout(() => {
-        this.startFadeOut();
-      }, remaining);
-    } else {
-      // Already displayed long enough, hold briefly then fade
-      this.fadeTimer = setTimeout(() => {
-        this.startFadeOut();
-      }, this.config.completeHoldMs);
+    this.fadeTimer = setTimeout(() => {
+      this.startFadeOut();
+    }, delay);
+  }
+
+  // ==================== Holds ====================
+
+  /**
+   * Keep the loading screen up past `loading:complete`.
+   *
+   * The map finishing is not the moment the game is ready to be looked at. The
+   * FPS client still has to decode its audio banks, build the collision world,
+   * extract trigger volumes and warm its viewmodel — seconds of work that used
+   * to happen with the curtain already up, so the player watched the world
+   * assemble itself.
+   *
+   * Every hold MUST be released from a `finally`. A hold that leaks would strand
+   * someone on a loading screen forever, which is worse than the flicker this
+   * exists to fix — so a leaked hold is also force-released after
+   * `holdTimeoutMs` rather than trusted.
+   */
+  static hold(name: string): void {
+    MapLoadingOverlay.getInstance().addHold(name);
+  }
+
+  static release(name: string): void {
+    MapLoadingOverlay.getInstance().removeHold(name);
+  }
+
+  private addHold(name: string): void {
+    this.holds.add(name);
+    const existing = this.holdTimers.get(name);
+    if (existing) clearTimeout(existing);
+    this.holdTimers.set(
+      name,
+      setTimeout(() => {
+        console.warn(`[MapLoadingOverlay] hold "${name}" was never released — forcing it after timeout`);
+        this.removeHold(name);
+      }, this.config.holdTimeoutMs),
+    );
+  }
+
+  private removeHold(name: string): void {
+    if (!this.holds.delete(name)) return;
+    const timer = this.holdTimers.get(name);
+    if (timer) {
+      clearTimeout(timer);
+      this.holdTimers.delete(name);
+    }
+    // The map may have completed while this was still held; that completion was
+    // parked rather than dropped, so run it now the last holder is done.
+    if (this.holds.size === 0 && this.state === "completing" && this.fadeTimer === null) {
+      this.scheduleFadeOut();
     }
   }
 

@@ -630,3 +630,67 @@ describe("StateMachineBrain traversal executors", () => {
     expect(harness._getNavPathOptions(625).blockedEdgeKeys.size).toBe(0);
   });
 });
+
+// ── Holding position on an objective ─────────────────────────────────
+
+describe("StateMachineBrain objective holding", () => {
+  /**
+   * A bot in a mode that cares about objectives.
+   *
+   * The gametype matters: with no profile, `objectivePush` is 0 and a directive
+   * scores nothing — correctly, since an unknown mode should not have its bots
+   * chasing orders it did not mean.
+   */
+  function objectiveState(position: { x: number; y: number; z: number }, radius: number, yaw = 0): BotGameState {
+    const state = makeState({ position: { x: 0, y: 0, z: 0 }, yaw }, 5000);
+    state.matchState = { gametypeName: "Search & Destroy", phase: 2, teamRoles: {}, roundState: "pre_plant" };
+    state.directives = [orderTo(position, radius)];
+    return state;
+  }
+
+  /** A directive telling the bot to be somewhere, expiring far in the future. */
+  function orderTo(position: { x: number; y: number; z: number }, radius: number) {
+    return {
+      id: "test_hold",
+      kind: "move_to" as const,
+      target: { type: "position" as const, position, radius },
+      priority: 0.9,
+      expiresAtTick: 100_000,
+      interrupt: "never" as const,
+    };
+  }
+
+  it("only follows orders in a mode that has them", () => {
+    // With no gametype the profile is deathmatch-shaped and objectivePush is 0,
+    // so the directive scores nothing and the bot goes about its business.
+    const brain = new StateMachineBrain(difficulty, "on");
+    const state = makeState({ position: { x: 0, y: 0, z: 0 } }, 5000);
+    state.directives = [orderTo({ x: 30, y: 0, z: 0 }, 64)];
+    expect(brain.decide(state).direction).not.toEqual({ x: 0, y: 0, z: 0 });
+  });
+
+  it("stops moving once it reaches an objective", () => {
+    // The behaviour objective modes are impossible without. Everything else in
+    // this brain deliberately never sends a zero direction, so a bot ordered to
+    // stand on a bomb would run straight past it — unable to plant (which needs
+    // low speed) or arm (which needs staying in a 100-unit radius).
+    const brain = new StateMachineBrain(difficulty, "on");
+    const input = brain.decide(objectiveState({ x: 30, y: 0, z: 0 }, 64));
+    expect(input.direction).toEqual({ x: 0, y: 0, z: 0 });
+    expect(input.buttons & InputButtons.SPRINT).toBe(0);
+    expect(input.buttons & InputButtons.FORWARD).toBe(0);
+  });
+
+  it("keeps running while the objective is still far away", () => {
+    const brain = new StateMachineBrain(difficulty, "on");
+    const input = brain.decide(objectiveState({ x: 2000, y: 0, z: 0 }, 64));
+    expect(input.direction).not.toEqual({ x: 0, y: 0, z: 0 });
+  });
+
+  it("faces what it came for rather than freezing its view", () => {
+    // A fixed stare reads as a hung bot, and a planted bomb is worth watching.
+    const brain = new StateMachineBrain(difficulty, "on");
+    const input = brain.decide(objectiveState({ x: 0, y: 0, z: 40 }, 64, 3));
+    expect(input.yaw).toBeCloseTo(0, 2); // atan2(0, 40) — looking down +z
+  });
+});

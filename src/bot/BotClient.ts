@@ -20,7 +20,13 @@ import { MessageCodec, MessageType } from "../engine/network/protocol/MessageCod
 import type { BotBrain, BotInput } from "./BotBrain";
 // HybridBrain is imported dynamically — requires @tensorflow/tfjs-node native addon
 // import { HybridBrain } from './HybridBrain';
-import { type BotDifficulty, type BotOptions, getDifficultyModelDir, resolveDifficulty } from "./BotConfig";
+import {
+  type BotDifficulty,
+  type BotOptions,
+  defaultGoalArbiterMode,
+  getDifficultyModelDir,
+  resolveDifficulty,
+} from "./BotConfig";
 import type { BotEpisodeRecorder } from "./BotEpisodeRecorder";
 import { applyFriendlyFireSafety } from "./BotFireSafety";
 import { BotGameState } from "./BotGameState";
@@ -112,7 +118,7 @@ export class BotClient extends EventEmitter {
     this._difficulty = resolveDifficulty(options.difficulty);
 
     // Default to StateMachineBrain (no TF.js dependency)
-    this._brain = new StateMachineBrain(this._difficulty);
+    this._brain = new StateMachineBrain(this._difficulty, options.goalArbiter ?? defaultGoalArbiterMode());
 
     // If modelDir is specified, try to load HybridBrain (requires TF.js)
     if (options.modelDir) {
@@ -493,8 +499,13 @@ export class BotClient extends EventEmitter {
           ? ` Vis:${this._lastVisionResult.visibleEnemies.length}/${this._lastVisionResult.tracesPerformed}t`
           : " (no vision)";
         const diagnosticInfo = `${visionInfo}${navigationInfo ? ` Nav:${navigationInfo}` : ""}`;
+        // Orders held, by id. A bot standing still is either being told nothing
+        // or failing to act on what it was told, and those have different
+        // fixes — without this the two are indistinguishable from the outside.
+        const orders = this._gameState.directives;
+        const orderInfo = orders.length > 0 ? ` Orders:${orders.map((d) => d.id).join(",")}` : " Orders:none";
         console.log(
-          `${this._logPrefix} [${brain}] HP:${hp} E:${enemies} A:${allies} Pickups:${activePickups}/${this._gameState.pickupActiveMask.length} FF:${this._friendlyFireSuppressions}${diagnosticInfo} Tick:${snapshot.tick}`,
+          `${this._logPrefix} [${brain}] HP:${hp} E:${enemies} A:${allies} Pickups:${activePickups}/${this._gameState.pickupActiveMask.length} FF:${this._friendlyFireSuppressions}${diagnosticInfo}${orderInfo} Tick:${snapshot.tick}`,
         );
       }
     } catch (err) {

@@ -331,3 +331,132 @@ describe("SweepCollisionBackend — stats & dispose", () => {
     expect(backend.getStats().traceCount).toBe(0);
   });
 });
+
+// ── triangle-soup collision (world vs. baked decoration) ────────────
+
+/**
+ * Build a BSP whose only collision geometry is a single horizontal triangle-soup
+ * quad (faceType 3) at Q3 z=0, spanning x/y ∈ [-64, 64], on the given shader.
+ *
+ * Regression guard for v0.9.21: dropping collision for ALL triangle soup (the
+ * Q3-authentic rule — CMod_LoadPatches only loads MST_PATCH) opened holes in
+ * 336 walkable surfaces across 10 shipping maps, because q3map2 emits
+ * MST_TRIANGLE_SOUP for vertex-lit WORLD geometry too, not just misc_models.
+ * World soup must stay solid; only `models/`|`mapobjects` decorations are skipped.
+ */
+function buildSoupBsp(shaderName: string): BspFile {
+  const quad: Vec3[] = [
+    [-64, -64, 0],
+    [64, -64, 0],
+    [64, 64, 0],
+    [-64, 64, 0],
+  ];
+  const big: Vec3 = [1e6, 1e6, 1e6];
+  const negBig: Vec3 = [-1e6, -1e6, -1e6];
+
+  const bsp = {
+    header: { isFBSP: false },
+    lumps: [],
+    entities: [],
+    textures: [{ name: shaderName, contentFlags: SOLID, surfaceFlags: 0 }],
+    planes: [{ normal: [0, 0, 1], dist: 0 }],
+    nodes: [{ planeIndex: 0, children: [-1, -1] as [number, number], mins: negBig, maxs: big }],
+    leafs: [
+      {
+        cluster: 0,
+        area: 0,
+        mins: negBig,
+        maxs: big,
+        firstLeafFace: 0,
+        numLeafFaces: 1,
+        firstLeafBrush: 0,
+        numLeafBrushes: 0,
+      },
+    ],
+    leafFaces: [0],
+    leafBrushes: [],
+    models: [],
+    brushes: [],
+    brushSides: [],
+    vertices: quad.map((p) => ({ position: p })),
+    meshVerts: [0, 1, 2, 0, 2, 3],
+    effects: [],
+    faces: [
+      {
+        textureIndex: 0,
+        effectIndex: -1,
+        faceType: 3,
+        firstVertex: 0,
+        numVertices: 4,
+        firstMeshVert: 0,
+        numMeshVerts: 6,
+        lightmapIndex: -1,
+        normal: [0, 0, 1],
+        patchSize: [0, 0],
+      },
+    ],
+    lightmaps: [],
+    lightVols: [],
+    visData: null,
+    lightmapSize: 128,
+  };
+
+  return bsp as unknown as BspFile;
+}
+
+async function soupBackend(shaderName: string): Promise<SweepCollisionBackend> {
+  const backend = new SweepCollisionBackend();
+  await backend.init(buildSoupBsp(shaderName));
+  return backend;
+}
+
+describe("SweepCollisionBackend — triangle-soup faces", () => {
+  it("collides world triangle soup so vertex-lit walkways stay solid", async () => {
+    const backend = await soupBackend("textures/plastic_vertex/vertex_grey65");
+    const r = backend.trace(new Vector3(0, 100, 0), new Vector3(0, -100, 0));
+
+    expect(r.fraction).toBeLessThan(1);
+    expect(r.endPos.y).toBeGreaterThan(23);
+    expect(r.endPos.y).toBeLessThan(25);
+    expect(r.normal?.y).toBeGreaterThan(0.9);
+  });
+
+  it("does not collide baked misc_model decorations (models/ shader)", async () => {
+    const backend = await soupBackend("models/mapobjects/lights/coldlight_01");
+    const r = backend.trace(new Vector3(0, 100, 0), new Vector3(0, -100, 0));
+
+    expect(r.fraction).toBe(1);
+  });
+
+  it("does not collide decorations authored under the mapobjects_ prefix", async () => {
+    const backend = await soupBackend("mapobjects_decor_misc_spanner");
+    const r = backend.trace(new Vector3(0, 100, 0), new Vector3(0, -100, 0));
+
+    expect(r.fraction).toBe(1);
+  });
+});
+
+describe("SweepCollisionBackend — face hull is asymmetric like the brush hull", () => {
+  it("rests the origin 24u above a soup floor, not max(24, 40)=40", async () => {
+    const soup = await soupBackend("textures/plastic_vertex/vertex_grey65");
+    const brush = await makeBackend([FLOOR]);
+
+    const onSoup = soup.trace(new Vector3(0, 100, 0), new Vector3(0, -100, 0));
+    const onBrush = brush.trace(new Vector3(0, 100, 0), new Vector3(0, -100, 0));
+
+    // Both surfaces sit at y=0; a player must stand at the same height on either.
+    // Using a symmetric half-extent for faces floated the player exactly 16u.
+    expect(onSoup.endPos.y).toBeCloseTo(onBrush.endPos.y, 1);
+    expect(onSoup.endPos.y - onBrush.endPos.y).toBeLessThan(0.5);
+  });
+
+  it("still stops the head against a soup ceiling at the full 40u", async () => {
+    const backend = await soupBackend("textures/plastic_vertex/vertex_grey65");
+    // Rise from well below the surface; the head (+40) should hit it.
+    const r = backend.trace(new Vector3(0, -100, 0), new Vector3(0, 100, 0));
+
+    expect(r.fraction).toBeLessThan(1);
+    expect(r.endPos.y).toBeGreaterThan(-41);
+    expect(r.endPos.y).toBeLessThan(-39);
+  });
+});

@@ -45,6 +45,29 @@ export interface MapLoadProgress {
   progress?: number; // 0-1
 }
 
+/** Baked-lighting gain for a Warsow-format map. */
+const LIGHTMAP_INTENSITY_FBSP = 2.0;
+
+/**
+ * Baked-lighting gain for a Quake 3 format map.
+ *
+ * Higher than FBSP because the two toolchains bake to different targets: a Q3
+ * map expects the engine to apply overbright AND a gamma ramp on top, and
+ * rendering it at the Warsow gain leaves it visibly dim.
+ *
+ * This is a per-FORMAT bet on one map's worth of evidence. If a second IBSP map
+ * disagrees, the honest conclusion is that this belongs per-map instead, and
+ * `r_lightmapscale` is the escape hatch until then.
+ */
+const LIGHTMAP_INTENSITY_IBSP = 3.0;
+
+/** Resolve the lightmap gain for a map, with the user's scale applied. */
+export function lightmapIntensityFor(isFBSP: boolean, scale: number | undefined): number {
+  const base = isFBSP ? LIGHTMAP_INTENSITY_FBSP : LIGHTMAP_INTENSITY_IBSP;
+  // A missing or nonsensical scale means "leave it alone" rather than "black".
+  return base * (scale !== undefined && Number.isFinite(scale) && scale > 0 ? scale : 1);
+}
+
 export type ProgressCallback = (progress: MapLoadProgress) => void;
 
 export class MapLoader {
@@ -352,11 +375,14 @@ export class MapLoader {
       progress("Skybox", "Skipped (NullEngine)");
     }
 
-    // Phase 7: Apply lightmaps (Q3 baked lighting)
+    // Phase 7: Apply lightmaps (baked lighting)
     progress("Lighting", "Applying lightmaps");
     try {
-      const lmCount = BspMeshBuilder.applyLightmaps(meshResult, { intensity: 2.0 });
-      console.log(`[MapLoader] Applied ${lmCount} lightmaps`);
+      const intensity = lightmapIntensityFor(bsp.header.isFBSP, this.renderVars.get("r_lightmapscale"));
+      const lmCount = BspMeshBuilder.applyLightmaps(meshResult, { intensity });
+      console.log(
+        `[MapLoader] Applied ${lmCount} lightmaps (${bsp.header.isFBSP ? "FBSP" : "IBSP"}, intensity ${intensity.toFixed(2)})`,
+      );
     } catch (e) {
       console.warn(`[MapLoader] Failed to apply lightmaps:`, e);
     }

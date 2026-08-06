@@ -669,7 +669,7 @@ export class FPSController implements ICameraController {
         this.onWeaponSelect(slot - 1);
       }
 
-      // Scroll weapon cycling via InputSystem actions (skip gunblade at slot 0)
+      // Scroll weapon cycling via InputSystem actions (skip the default melee at slot 0)
       if (this.onWeaponSelect) {
         const weaponCount = this._inventory ? this._inventory.getSlotCount() : 3;
         if (weaponCount > 1) {
@@ -677,11 +677,11 @@ export class FPSController implements ICameraController {
 
           if (input.wasPressed(FPS.WEAPON_NEXT)) {
             next = this.currentWeaponSlot + 1;
-            if (next >= weaponCount) next = 1; // wrap to first non-gunblade
-            if (next === 0) next = 1; // skip gunblade
+            if (next >= weaponCount) next = 1; // wrap to first non-default
+            if (next === 0) next = 1; // skip the default melee (slot 0)
           } else if (input.wasPressed(FPS.WEAPON_PREV)) {
             next = this.currentWeaponSlot - 1;
-            if (next <= 0) next = weaponCount - 1; // wrap to last slot, skip gunblade
+            if (next <= 0) next = weaponCount - 1; // wrap to last slot, skip slot 0
           }
 
           if (next > 0) {

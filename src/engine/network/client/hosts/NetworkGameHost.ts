@@ -235,11 +235,17 @@ export class NetworkGameHost implements IGameHost {
    * Send JoinGame message — spectator → player transition.
    * Server will create entity and respond with JoinAccept.
    */
-  sendJoinGame(teamId?: string): void {
+  /**
+   * @param manualPick True when the player chose this side in-game. A side the
+   *   lobby assigned is delivered as-is; only an in-game pick is balanced.
+   */
+  sendJoinGame(teamId?: string, manualPick = false): void {
     if (!this._isConnected) return;
-    const data = MessageCodec.encodeJoinGame(teamId);
+    const data = MessageCodec.encodeJoinGame(teamId, manualPick);
     this.transport.send(data, true); // Reliable
-    console.log(`[NetworkGameHost] Sent JoinGame request${teamId ? ` for team ${teamId}` : ""}`);
+    console.log(
+      `[NetworkGameHost] Sent JoinGame request${teamId ? ` for team ${teamId}${manualPick ? " (picked)" : " (from lobby)"}` : ""}`,
+    );
   }
 
   /**
@@ -263,6 +269,17 @@ export class NetworkGameHost implements IGameHost {
     const trimmed = text.trim();
     if (!trimmed) return;
     this.transport.send(MessageCodec.encodeChat(trimmed.slice(0, 128)), true); // Reliable
+  }
+
+  /**
+   * Tell the server which spawn kit this player wants.
+   *
+   * Reliable, and fire-and-forget: the server validates the names and decides
+   * when the choice applies, so there is nothing here to confirm or retry.
+   */
+  sendLoadout(primary: string, secondary: string): void {
+    if (!this._isConnected) return;
+    this.transport.send(MessageCodec.encodeSetLoadout(primary, secondary), true);
   }
 
   // Debug counter

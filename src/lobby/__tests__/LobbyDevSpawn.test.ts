@@ -39,9 +39,12 @@ describe("LobbyServer dev spawn", () => {
   it("normalizes gametype aliases", () => {
     expect(normalizeGametype(undefined)).toBe("duel");
     expect(normalizeGametype("1v1")).toBe("duel");
-    expect(normalizeGametype("teamdeathmatch")).toBe("tdm");
+    expect(normalizeGametype("searchanddestroy")).toBe("snd");
+    expect(normalizeGametype("bomb")).toBe("snd");
     expect(normalizeGametype("dm")).toBe("ffa");
     expect(normalizeGametype("ctf")).toBeNull();
+    // TDM was replaced by S&D on the menu; its alias is gone with it.
+    expect(normalizeGametype("teamdeathmatch")).toBeNull();
   });
 
   it("recognizes loopback addresses", () => {

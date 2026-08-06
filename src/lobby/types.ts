@@ -20,10 +20,19 @@ export interface LobbyMessage {
 // ============================================================================
 
 export interface GametypeInfo {
-  id: string; // 'duel', 'tdm', 'ffa'
+  id: string; // 'duel', 'snd', 'ffa'
   name: string; // 'DUEL 1v1'
   description: string;
   maxPlayers: number;
+  /**
+   * Players needed before a lobby can launch. Defaults to `maxPlayers`.
+   *
+   * Split from `maxPlayers` because they answer different questions: how many
+   * FIT, and how few can start. They were the same number, which meant a mode
+   * sized for 5v5 could not begin until ten people were in the room — fine for
+   * a duel, impossible for anything larger.
+   */
+  minPlayers?: number;
   hasTeams: boolean;
   teamNames?: [string, string];
   mapPool: string[]; // Available maps for this gametype
@@ -91,7 +100,7 @@ export interface MatchLobbyInfo {
 
 export interface LiveMatchInfo {
   id: string; // lobby ID
-  gametype: string; // 'duel', 'tdm', 'ffa'
+  gametype: string; // 'duel', 'snd', 'ffa'
   gametypeName: string; // 'DUEL', 'TEAM', 'FFA'
   map: string; // map name (set when match starts, else '')
   mapDisplayName: string;
@@ -162,6 +171,19 @@ export interface LobbyReadyMessage extends LobbyMessage {
 
 export interface LobbyVoteShuffleMessage extends LobbyMessage {
   type: "lobby:vote_shuffle";
+  lobbyId: string;
+}
+
+/**
+ * Move yourself to the other side.
+ *
+ * Distinct from `vote_shuffle`, which is random and needs a majority. Swapping
+ * yourself needs neither: it affects one player, it is reversible, and without
+ * it there is no way at all to choose a side — which makes testing the
+ * attacking half of a round mode impossible.
+ */
+export interface LobbySwitchTeamMessage extends LobbyMessage {
+  type: "lobby:switch_team";
   lobbyId: string;
 }
 

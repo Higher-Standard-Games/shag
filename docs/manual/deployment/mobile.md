@@ -4,7 +4,7 @@ Deploy SHAG Engine games to iOS and Android.
 
 ## Prerequisites
 
-- Node.js 18+
+- Node.js 22 (pinned in `.nvmrc`)
 - For iOS: macOS with Xcode
 - For Android: Android Studio
 
@@ -36,6 +36,7 @@ npx cap add ios
 
 ```bash
 npm run build
+# or, for Android in one step: npm run android:build
 ```
 
 ### 2. Sync to Native Projects

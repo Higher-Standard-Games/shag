@@ -1,9 +1,56 @@
 {
-  "wdm1":  { "displayName": "The Edge",        "gametypes": ["ffa", "tdm"] },
-  "wdm2":  { "displayName": "Proving Grounds", "gametypes": ["duel", "tdm", "ffa"] },
-  "wdm5":  { "displayName": "Sinister",        "gametypes": ["ffa", "tdm"] },
-  "wdm7":  { "displayName": "Brimstone",       "gametypes": ["tdm", "ffa"] },
-  "wdm12": { "displayName": "wdm12",           "gametypes": ["duel"] },
-  "wdm14": { "displayName": "Aerowalk",        "gametypes": ["tdm", "ffa"] },
-  "wbomb1": { "displayName": "wbomb1",         "gametypes": ["duel"] }
+  "wdm1": {
+    "displayName": "The Edge",
+    "gametypes": [
+      "ffa",
+      "tdm"
+    ]
+  },
+  "wdm2": {
+    "displayName": "Proving Grounds",
+    "gametypes": [
+      "duel",
+      "tdm",
+      "ffa"
+    ]
+  },
+  "wdm5": {
+    "displayName": "Sinister",
+    "gametypes": [
+      "ffa",
+      "tdm"
+    ]
+  },
+  "wdm7": {
+    "displayName": "Brimstone",
+    "gametypes": [
+      "tdm",
+      "ffa"
+    ]
+  },
+  "acidwdm2": {
+    "displayName": "Acid Warehouse",
+    "gametypes": [
+      "duel"
+    ]
+  },
+  "wdm14": {
+    "displayName": "Aerowalk",
+    "gametypes": [
+      "tdm",
+      "ffa"
+    ]
+  },
+  "wdm17": {
+    "displayName": "Le Toxiquet",
+    "gametypes": [
+      "duel"
+    ]
+  },
+  "wbomb2": {
+    "displayName": "Reactors",
+    "gametypes": [
+      "snd"
+    ]
+  }
 }

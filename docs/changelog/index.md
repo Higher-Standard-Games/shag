@@ -6,8 +6,9 @@ All notable changes to this project are documented in version-specific files.
 
 | Version | Date | Summary |
 |---------|------|---------|
-| [v0.9.20](./v0.9.20.md) | unreleased | Procedural weapon/pickup effects, post-match polish, and map-learning bot movement foundation |
-| [v0.9.19](./v0.9.19.md) | unreleased | Living changelog — v0.9.19 QA cycle |
+| [v0.9.21](./v0.9.21.md) | Aug 6, 2026 | Search & Destroy (bomb/defuse rounds, loadouts, bot directives), Quad Damage, first-person spectating, lobby team selection, collision + root-motion fixes, both manuals rewritten |
+| [v0.9.20](./v0.9.20.md) | Jul 23, 2026 | Procedural weapon/pickup effects, post-match polish, and map-learning bot movement foundation |
+| [v0.9.19](./v0.9.19.md) | Jul 18, 2026 | v0.9.18 QA audit work orders — truthful CLI/headless exit codes, protocol + lobby lifecycle suites, one server timing contract |
 | [v0.9.18](./v0.9.18.md) | Jul 15, 2026 | In-game chat, post-game screen + single-match servers, demo player recorded-tick playback, smarter bots, HUD/pickup/death-cam polish |
 | [v0.9.17](./v0.9.17.md) | Jul 10, 2026 | Fall damage tuning, Washoi UI rollout, blade drop leak fix, teleporters and jumppads |
 | [v0.9.16](./v0.9.16.md) | May 31, 2026 | Server-authoritative pickups (fixes "ghost weapons") + plate-armor/health systems; server tick-rate fix (was half real-time); armor absorption fix; Warsow template/celshade shader fixes; SweepCollisionBackend coverage; weapon balance retune |

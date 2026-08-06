@@ -5,7 +5,6 @@
 export { BLADE } from "./blade";
 export { ELECTROBOLT } from "./electrobolt";
 export { GRENADE_LAUNCHER } from "./glauncher";
-export { GUNBLADE } from "./gunblade";
 export { INSTAGUN } from "./instagun";
 export { LASERGUN } from "./lasergun";
 export { MACHINEGUN } from "./machinegun";

@@ -41,15 +41,19 @@ const GAMETYPE_SHELLS: Omit<GametypeInfo, "mapPool">[] = [
     hasTeams: true,
     teamNames: ["UDON", "SOBA"],
   },
+  { id: "ffa", name: "FFA", description: "Free For All", maxPlayers: 8, hasTeams: false },
   {
-    id: "tdm",
-    name: "TEAM",
-    description: "2v2 Team Deathmatch",
-    maxPlayers: 4,
+    id: "snd",
+    name: "S&D",
+    description: "Search & Destroy",
+    maxPlayers: 10,
+    // Two is enough to start a round. A 5v5 mode that will not begin until ten
+    // people are in the room cannot be tested, and an underfilled bomb match is
+    // still a bomb match — unlike a duel, which is meaningless at one.
+    minPlayers: 2,
     hasTeams: true,
     teamNames: ["UDON", "SOBA"],
   },
-  { id: "ffa", name: "FFA", description: "Free For All", maxPlayers: 8, hasTeams: false },
 ];
 
 export function normalizeGametype(input: string | undefined): string | null {
@@ -58,11 +62,12 @@ export function normalizeGametype(input: string | undefined): string | null {
     case "duel":
     case "1v1":
       return "duel";
-    case "tdm":
-    case "team":
-    case "teamdeathmatch":
-    case "team_deathmatch":
-      return "tdm";
+    case "snd":
+    case "bomb":
+    case "search":
+    case "searchanddestroy":
+    case "search_and_destroy":
+      return "snd";
     case "ffa":
     case "dm":
     case "deathmatch":
@@ -200,8 +205,21 @@ class MatchLobby {
     this.recalcVotes();
   }
 
-  voteShuffle(playerId: string): { votes: number; needed: number; passed: boolean } {
+  /**
+   * Vote to shuffle. `alsoVoting` are ids counted as automatic yes votes.
+   *
+   * Bots go in there, and only when a human has actually voted — a bot has no
+   * opinion about team balance, and without them a lobby of one human and any
+   * number of bots can never reach `ceil(players / 2)` and so can never shuffle
+   * at all. Passing them in rather than having them vote on their own keeps
+   * bots from ever triggering a shuffle by themselves.
+   */
+  voteShuffle(
+    playerId: string,
+    alsoVoting: readonly string[] = [],
+  ): { votes: number; needed: number; passed: boolean } {
     this.shuffleVotes.add(playerId);
+    for (const id of alsoVoting) this.shuffleVotes.add(id);
     const needed = Math.ceil(this.players.size / 2);
     const passed = this.shuffleVotes.size >= needed;
     if (passed) {
@@ -213,7 +231,17 @@ class MatchLobby {
 
   isAllReady(): boolean {
     if (this.players.size === 0) return false;
-    if (this.players.size < this.gametype.maxPlayers) return false;
+    // Enough to play, not necessarily full. Defaulting to `maxPlayers` keeps
+    // every existing mode behaving exactly as before.
+    const needed = this.gametype.minPlayers ?? this.gametype.maxPlayers;
+    if (this.players.size < needed) return false;
+    // A team match with an empty side is already decided when its first live
+    // tick checks eliminations. Never launch such a lobby, even if malformed
+    // state or a future team-selection path manages to create one.
+    if (this.gametype.hasTeams) {
+      const teams = new Set([...this.players.values()].map((p) => p.team));
+      if (!teams.has("alpha") || !teams.has("bravo")) return false;
+    }
     return [...this.players.values()].every((p) => p.ready);
   }
 
@@ -446,6 +474,9 @@ export class LobbyServer {
         break;
       case "lobby:ready":
         this.handleLobbyReady(player, msg.lobbyId, msg.ready);
+        break;
+      case "lobby:switch_team":
+        this.handleLobbySwitchTeam(player, msg.lobbyId);
         break;
       case "lobby:vote_shuffle":
         this.handleLobbyVoteShuffle(player, msg.lobbyId);
@@ -746,13 +777,47 @@ export class LobbyServer {
     }
   }
 
+  /**
+   * Move one player to the other side without changing the team counts.
+   *
+   * No vote and no balance check. Shuffling is random and needs a majority, so
+   * with a lobby of one human and any number of bots there was no way to choose
+   * a side at all — which makes the attacking half of a round mode untestable.
+   * If the destination is occupied, swap with one of its players (preferring a
+   * bot). This lets a solo tester choose their side while keeping both teams
+   * populated and the eventual S&D round valid.
+   */
+  private handleLobbySwitchTeam(player: ConnectedPlayer, lobbyId: string): void {
+    const lobby = this.lobbies.get(lobbyId);
+    if (!lobby || !lobby.players.has(player.id)) return;
+    if (!lobby.gametype.hasTeams) return;
+
+    const entry = lobby.players.get(player.id);
+    if (!entry) return;
+    const previousTeam = entry.team;
+    const destination = previousTeam === "alpha" ? "bravo" : "alpha";
+    const occupants = [...lobby.players.values()].filter((p) => p.id !== player.id && p.team === destination);
+    const counterpart = occupants.find((p) => this.players.get(p.id)?.isBot) ?? occupants[0];
+    if (counterpart) counterpart.team = previousTeam;
+    entry.team = destination;
+    console.log(`[LobbyServer] ${player.name} switched to ${entry.team}`);
+
+    this.broadcastToLobby(lobbyId, {
+      type: "lobby:teams_shuffled",
+      players: [...lobby.players.values()],
+    });
+  }
+
   // ── Lobby: Shuffle Vote ──────────────────────────────────────
 
   private handleLobbyVoteShuffle(player: ConnectedPlayer, lobbyId: string): void {
     const lobby = this.lobbies.get(lobbyId);
     if (!lobby || !lobby.players.has(player.id)) return;
 
-    const result = lobby.voteShuffle(player.id);
+    // Bots back whatever a human asks for. Without this a solo tester can never
+    // change sides, because their single vote cannot reach the threshold.
+    const bots = [...lobby.players.keys()].filter((id) => this.players.get(id)?.isBot);
+    const result = lobby.voteShuffle(player.id, bots);
 
     if (result.passed) {
       // Shuffle happened — send new player assignments

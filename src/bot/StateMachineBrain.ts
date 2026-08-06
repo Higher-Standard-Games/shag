@@ -15,7 +15,7 @@
 
 import { DEFAULT_VIEWHEIGHT } from "../engine/physics/PlayerPhysicsConstants";
 import { BotBrain, type BotInput, BotState } from "./BotBrain";
-import { type BotDifficulty, InputButtons } from "./BotConfig";
+import { type BotDifficulty, defaultGoalArbiterMode, type GoalArbiterMode, InputButtons } from "./BotConfig";
 import type { BotGameState, Vec3, VisiblePlayer } from "./BotGameState";
 import { vec3Length, vec3Normalize, vec3Subtract } from "./BotGameState";
 import { canInitiateSlide, PHYSICS } from "./BotMovementProfile";
@@ -23,6 +23,8 @@ import { type BotNavGraph, type NavPath, type NavStep, navEdgeKey } from "./BotN
 import { BotSequenceRegistry, BotSequenceRuntime, type BotSequenceRuntimeTick } from "./BotSequence";
 import type { BotVision, VisionResult } from "./BotVision";
 import { getWeaponProfile, selectBestWeapon, type WeaponProfile } from "./BotWeaponProfile";
+import type { BotGoal } from "./goals/BotGoal";
+import { ItemGoalPlanner } from "./goals/ItemGoalPlanner";
 import { ItemSlideApproachSequence } from "./sequences/ItemSlideApproachSequence";
 import { RouteCrouchslideSequence } from "./sequences/RouteCrouchslideSequence";
 import { RouteStrafeJumpSequence } from "./sequences/RouteStrafeJumpSequence";
@@ -67,6 +69,9 @@ const ITEM_SLIDE_MAX_DISTANCE = 760;
 const ITEM_SLIDE_MAX_VELOCITY_ERROR_RADIANS = Math.PI / 6;
 const ITEM_SLIDE_ALLY_RADIUS = 80;
 const PICKUP_FAILURE_COOLDOWN_TICKS = 625;
+
+/** RETREAT wants healing, not shopping — see ItemGoalPlannerOptions.typeFilter. */
+const RETREAT_ITEM_TYPES: ReadonlySet<string> = new Set(["health"]);
 
 const BOT_STRAFE_RETRY_TICKS = 30;
 const ROUTE_STRAFE_MIN_REMAINING_DISTANCE = 640;
@@ -117,8 +122,30 @@ export class StateMachineBrain extends BotBrain {
   private readonly _blockedPickupIds = new Map<number, number>();
   private _activeItemSlideTarget: { pickupId: number; position: Vec3 } | null = null;
 
-  constructor(difficulty: BotDifficulty) {
+  // Scored item-goal selection (docs/research/BOT_WEIGHTS_AND_GOALS.md Phase 1).
+  // Replaces "nearest pickup wins" for WHICH item to fetch; the state ladder
+  // above still decides WHETHER to fetch one.
+  private readonly _itemGoalPlanner: ItemGoalPlanner;
+  private readonly _goalArbiterMode: GoalArbiterMode;
+  private _activeItemGoal: BotGoal | null = null;
+  /**
+   * Per-decision memo for goal selection.
+   *
+   * `_executeItemRun` falls through to `_executeHunt`, which also asks for a
+   * goal — so without this the arbiter would run twice in one decision. That is
+   * not merely wasteful: `select()` advances the commitment window and rolls
+   * the mistake dice, so a double call could commit to a different goal than
+   * the one it just returned.
+   */
+  private _goalMemoTick = -1;
+  private _goalMemoKey = "";
+  private _goalMemoResult: BotGoal | null = null;
+
+  constructor(difficulty: BotDifficulty, goalArbiterMode: GoalArbiterMode = defaultGoalArbiterMode()) {
     super(difficulty);
+    this._goalArbiterMode = goalArbiterMode;
+    // mistakeRate finally does something: an occasional runner-up pick.
+    this._itemGoalPlanner = new ItemGoalPlanner(difficulty.mistakeRate);
     this._huntYaw = Math.random() * Math.PI * 2;
     this._sequenceRegistry.register(new RouteCrouchslideSequence());
     this._sequenceRegistry.register(new ValidatedJumpSequence());
@@ -143,9 +170,13 @@ export class StateMachineBrain extends BotBrain {
       return `${sequence} remaining=${remaining}`;
     }
     if (this._pathBlockedReason) return `blocked=${this._pathBlockedReason}`;
-    if (!this._currentPath || !this._activeNavStep) return null;
+    if (!this._currentPath || !this._activeNavStep) {
+      // No path to describe, but a scored goal choice is still worth surfacing.
+      return this._activeItemGoal ? this._itemGoalPlanner.explain : null;
+    }
     const remaining = this._currentPath.steps.length - this._currentPath.cursor;
-    return `step=${this._activeNavStep} remaining=${remaining}`;
+    const nav = `step=${this._activeNavStep} remaining=${remaining}`;
+    return this._activeItemGoal ? `${nav} ${this._itemGoalPlanner.explain}` : nav;
   }
 
   isSequenceActive(): boolean {
@@ -176,6 +207,10 @@ export class StateMachineBrain extends BotBrain {
       this._interruptSequence(state, "dead", true);
       this._currentPath = null; // Clear path on death
       this._huntPatrolTarget = null;
+      // Drop goal commitment too — the item that was worth crossing the map for
+      // at 30 HP is a different proposition after respawning at 100.
+      this._itemGoalPlanner.reset();
+      this._activeItemGoal = null;
       // Clear vision cache on death
       if (vision) vision.clearCache();
       return this._noInput(state);
@@ -302,6 +337,13 @@ export class StateMachineBrain extends BotBrain {
 
     // Priority 4: Need items → go get them
     if (this._shouldSeekItems(state)) {
+      return BotState.ITEM_RUN;
+    }
+
+    // A live gametype order is reason enough to stop roaming. ITEM_RUN is the
+    // navigate-to-a-goal executor; the arbiter decides whether the order or an
+    // item actually wins, so this only says "there is somewhere to be".
+    if (state.directives.length > 0) {
       return BotState.ITEM_RUN;
     }
 
@@ -550,6 +592,13 @@ export class StateMachineBrain extends BotBrain {
   // ── RETREAT State ─────────────────────────────────────────────────
 
   private _executeRetreat(state: BotGameState): BotInput {
+    // Scored choice among HEALTH ONLY. Retreating is a specific intent, so the
+    // candidate set is filtered rather than left open — but within health the
+    // arbiter still beats "nearest": it accounts for overcap (a bubble at 98 HP
+    // is worthless), route cost, and mega vs. medium.
+    const healthGoal = this._selectItemGoal(state, RETREAT_ITEM_TYPES, true);
+    if (healthGoal) return this._navigateTo(state, healthGoal.position, true);
+
     // Try NavGraph path to nearest health (cached via _navigateToItem)
     if (this._navGraph) {
       const result = this._navigateToItem(state, "health", true);
@@ -600,6 +649,16 @@ export class StateMachineBrain extends BotBrain {
   // ── ITEM_RUN State ────────────────────────────────────────────────
 
   private _executeItemRun(state: BotGameState): BotInput {
+    // Scored choice first: value, denial, route and danger decide which item,
+    // instead of the fixed weapon > health > armor > ammo ordering below (which
+    // took the nearest of whichever type came first, so a 5 HP bubble could
+    // outrank Red Armor). Falls through to the legacy path when disabled or
+    // when nothing scores.
+    const goal = this._selectItemGoal(state);
+    // Only a DIRECTIVE goal holds on arrival. An item goal has to be touched,
+    // and a bot that stops next to a Red Armor never picks it up.
+    if (goal) return this._navigateTo(state, goal.position, false, goal.directive ? goal.radius : undefined);
+
     // Try NavGraph path to nearest item (weapon > health > armor > ammo)
     // Uses cached _navigateToItem to avoid A* every tick
     if (this._navGraph) {
@@ -639,6 +698,12 @@ export class StateMachineBrain extends BotBrain {
 
   private _executeHunt(state: BotGameState): BotInput {
     this._huntTimer++;
+
+    // Prefer a scored goal over aimless patrol. Reached when the ladder falls
+    // through to HUNT but the arbiter still has something worth doing — an
+    // objective, or an item that did not meet _shouldSeekItems' cruder bar.
+    const goal = this._selectItemGoal(state);
+    if (goal) return this._navigateTo(state, goal.position, false, goal.directive ? goal.radius : undefined);
 
     // Check if we know a last enemy position to investigate
     const huntTarget = this._getHuntTarget(state);
@@ -838,7 +903,19 @@ export class StateMachineBrain extends BotBrain {
    * Navigate to a target position using NavGraph pathfinding when available.
    * Falls back to direct movement when no graph exists.
    */
-  private _navigateTo(state: BotGameState, target: Vec3, urgent: boolean): BotInput {
+  private _navigateTo(state: BotGameState, target: Vec3, urgent: boolean, holdRadius?: number): BotInput {
+    // Arrived, and the goal is a PLACE TO BE rather than a thing to touch.
+    //
+    // Everything else in this brain deliberately never sends a zero direction
+    // (see `_moveToward`), which means a bot is always running. That is right
+    // for fetching items and wrong for objectives: Search & Destroy plants only
+    // below 400 ups and arms only while you stay within 100 units of the bomb,
+    // so a bot that cannot stop cannot plant, cannot arm, and cannot defuse.
+    // Holding is the behaviour that makes objective modes playable at all.
+    if (holdRadius !== undefined && vec3Length(vec3Subtract(target, state.self.position)) <= holdRadius) {
+      return this._holdPosition(state, target);
+    }
+
     if (!this._navGraph) {
       return this._moveToward(state, target, urgent);
     }
@@ -856,7 +933,20 @@ export class StateMachineBrain extends BotBrain {
     if (this._currentPath) {
       const result = this._followCurrentPath(state, urgent);
       if (result.status === "moving") return result.input;
-      if (result.status === "blocked") return this._noInput(state);
+      if (result.status === "blocked") {
+        // Standing still is an acceptable answer for an ITEM — the armor is not
+        // going anywhere and a bot planted next to a lift it cannot use looks
+        // like it is waiting. It is never the answer for an OBJECTIVE. A round
+        // mode has a clock, and a bot that holds position at its own spawn
+        // because the graph could not route to the bomb has abandoned the round
+        // while looking like it decided to.
+        //
+        // Steer at it directly instead. That can walk into a wall, which is
+        // visible and recoverable, rather than invisible and not.
+        if (holdRadius === undefined) return this._noInput(state);
+        this._currentPath = null;
+        return this._moveToward(state, target, urgent);
+      }
       // Path complete — clear it
       this._currentPath = null;
     }
@@ -870,6 +960,60 @@ export class StateMachineBrain extends BotBrain {
    * Caches the path to avoid running A* every tick.
    * Returns null if no path to item found.
    */
+  /**
+   * Choose WHICH item to fetch, by score rather than by distance.
+   *
+   * Returns null when the arbiter is disabled, when map pickup knowledge is not
+   * loaded, or when nothing is worth going for — callers then fall through to
+   * the legacy path, so a bot is never left standing still by this returning
+   * nothing.
+   */
+  private _selectItemGoal(
+    state: BotGameState,
+    typeFilter?: ReadonlySet<string>,
+    ignoreDirectives = false,
+  ): BotGoal | null {
+    if (this._goalArbiterMode === "legacy") return null;
+
+    // One arbitration per decision, per distinct request shape.
+    const memoKey = `${typeFilter ? [...typeFilter].join(",") : "*"}|${ignoreDirectives ? 1 : 0}`;
+    if (this._goalMemoTick === state.tick && this._goalMemoKey === memoKey) {
+      return this._goalMemoResult;
+    }
+
+    const pickupPositions = this._lastBotVision?.mapKnowledge.pickupPositions;
+    // Directives still stand without map pickup knowledge — an objective is not
+    // an item, and a bot with no nav cache must still follow its orders.
+    if ((!pickupPositions || pickupPositions.length === 0) && (ignoreDirectives || state.directives.length === 0)) {
+      return null;
+    }
+
+    // Expire failure cooldowns first so a previously-blocked item can return.
+    for (const [pickupId, retryTick] of this._blockedPickupIds) {
+      if (state.tick >= retryTick) this._blockedPickupIds.delete(pickupId);
+    }
+
+    const result = this._itemGoalPlanner.select(state, {
+      pickupPositions: pickupPositions ?? [],
+      maxDistance: PICKUP_SEEK_RANGE,
+      blockedPickupIds: new Set(this._blockedPickupIds.keys()),
+      typeFilter,
+      ignoreDirectives,
+      // Real graph distances when the map's nav graph is loaded, so an item
+      // behind a wall is gated as unreachable instead of looking close.
+      navGraph: this._navGraph,
+    });
+
+    this._activeItemGoal = result.goal;
+    this._goalMemoTick = state.tick;
+    this._goalMemoKey = memoKey;
+    this._goalMemoResult = result.goal;
+    if (this._goalArbiterMode === "verbose" && result.goal) {
+      console.log(`[bot] ${result.explain}`);
+    }
+    return result.goal;
+  }
+
   private _navigateToItem(state: BotGameState, itemType: string, urgent: boolean): BotInput | null {
     if (!this._navGraph) return null;
 
@@ -1467,6 +1611,29 @@ export class StateMachineBrain extends BotBrain {
     }
 
     return bestTarget;
+  }
+
+  /**
+   * Stand still where you are, facing the thing you came for.
+   *
+   * Zero direction is normally forbidden here because it persists on the server
+   * for 30-80 ms and friction bleeds the bot to a stop over several ticks —
+   * which is exactly what is wanted on arrival. Sprint is dropped too, so the
+   * bot is under the plant speed limit rather than merely slower.
+   *
+   * The bot keeps looking at the objective rather than freezing its view: a
+   * planted bomb is worth watching, and a fixed stare reads as a hung bot.
+   */
+  private _holdPosition(state: BotGameState, target: Vec3): BotInput {
+    const delta = vec3Subtract(target, state.self.position);
+    const distance = vec3Length(delta);
+    return {
+      direction: { x: 0, y: 0, z: 0 },
+      pitch: 0,
+      yaw: distance < 1 ? state.self.yaw : Math.atan2(delta.x, delta.z),
+      buttons: 0,
+      weaponSlot: 0,
+    };
   }
 
   private _noInput(_state: BotGameState): BotInput {

@@ -17,6 +17,8 @@ In-depth explanations of SHAG Engine systems. These guides explain concepts and 
 | [Pickup System](./pickup-system.md) | Engine-generic in-world collectibles + how to subclass for your game |
 | [Viewport Effects](./viewport-effects.md) | View bob, screen shake, FOV effects |
 | [Weapon System](./weapon-system.md) | First-person weapons and projectiles |
+| [Model Loading](./model-loading.md) | MD3, GLB and prefab loading |
+| [Lighting System](./lighting-system.md) | Lightmaps, LightGrid, dynamic and area lights |
 
 ## Runtime Systems
 
@@ -42,8 +44,8 @@ In-depth explanations of SHAG Engine systems. These guides explain concepts and 
 | Guide | Description |
 |-------|-------------|
 | [Headless Mode](./headless-mode.md) | NullEngine and CLI usage |
-| [Performance](./performance.md) | PVS culling and optimization |
-| [Entity System](./entity-system.md) | BSP entities and spawning |
+| [Performance](../tutorials/advanced/performance.md) | PVS culling and optimization *(tutorial)* |
+| [Entity System](../tutorials/advanced/entity-system.md) | BSP entities and spawning *(tutorial)* |
 
 ## How Guides Differ from Tutorials
 

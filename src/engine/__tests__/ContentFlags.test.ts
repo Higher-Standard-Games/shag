@@ -26,9 +26,9 @@ describe("ContentFlags", () => {
       expect(isPlayerSolid(ContentFlags.DETAIL)).toBe(false);
     });
 
-    it("should return false for DETAIL | SOLID", () => {
-      // DETAIL overrides SOLID — this is Q3 behavior
-      expect(isPlayerSolid(ContentFlags.DETAIL | ContentFlags.SOLID)).toBe(false);
+    it("should return true for DETAIL | SOLID (detail is a vis flag, not non-solid)", () => {
+      // Q3/Warsow: detail brushes are fully solid — DETAIL only affects portalization.
+      expect(isPlayerSolid(ContentFlags.DETAIL | ContentFlags.SOLID)).toBe(true);
     });
 
     it("should return false for WATER", () => {
@@ -57,8 +57,8 @@ describe("ContentFlags", () => {
       expect(isSolid(ContentFlags.PLAYERCLIP)).toBe(false);
     });
 
-    it("should return false for DETAIL", () => {
-      expect(isSolid(ContentFlags.DETAIL | ContentFlags.SOLID)).toBe(false);
+    it("should return true for DETAIL | SOLID (detail brushes are solid in Q3)", () => {
+      expect(isSolid(ContentFlags.DETAIL | ContentFlags.SOLID)).toBe(true);
     });
   });
 

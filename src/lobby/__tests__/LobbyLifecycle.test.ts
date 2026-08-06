@@ -10,8 +10,9 @@
  * calling start() (no port bind); gametypes/mapNames are injected directly since
  * those are normally loaded from disk in start().
  */
-import { WebSocket } from "ws";
+
 import { describe, expect, it, vi } from "vitest";
+import { WebSocket } from "ws";
 import { LobbyServer } from "../LobbyServer";
 
 // biome-ignore lint/suspicious/noExplicitAny: injected test fixture for a private-shaped config
@@ -206,5 +207,178 @@ describe("LobbyServer lifecycle", () => {
 
     lobby.isStarting = false;
     expect(server.findWaitingLobby("duel")).toBe(lobby);
+  });
+});
+
+// ── Launch threshold ─────────────────────────────────────────────────
+
+describe("LobbyServer launch threshold", () => {
+  /** A 5v5-shaped gametype that can start with two. */
+  // biome-ignore lint/suspicious/noExplicitAny: injected test fixture
+  const SND: any = {
+    id: "snd",
+    name: "S&D",
+    description: "test snd",
+    maxPlayers: 10,
+    minPlayers: 2,
+    hasTeams: true,
+    teamNames: ["UDON", "SOBA"],
+    mapPool: ["wbomb2"],
+  };
+
+  // biome-ignore lint/suspicious/noExplicitAny: reaches private lobby internals
+  function sndServer(): any {
+    const { server } = setup();
+    server.gametypes = [SND];
+    return server;
+  }
+
+  it("starts a 5v5 mode without waiting for ten people", () => {
+    // What broke the first playtest: `isAllReady` required a FULL lobby, so a
+    // mode sized for ten could never begin with one human and a bot — which
+    // reads from the outside as the bots refusing to ready up.
+    const server = sndServer();
+    const host = register(server, makePlayer().player);
+    server.handleLobbyCreate(host, "snd");
+    const lobby = [...server.lobbies.values()][0];
+
+    const bot = register(server, makePlayer({ isBot: true, name: "Bot" }).player);
+    server.handleLobbyJoin(bot, lobby.id);
+
+    lobby.setReady(host.id, true);
+    lobby.setReady(bot.id, true);
+    expect(lobby.isAllReady()).toBe(true);
+  });
+
+  it("still waits for the minimum", () => {
+    const server = sndServer();
+    const host = register(server, makePlayer().player);
+    server.handleLobbyCreate(host, "snd");
+    const lobby = [...server.lobbies.values()][0];
+
+    lobby.setReady(host.id, true);
+    expect(lobby.isAllReady()).toBe(false);
+  });
+
+  it("does not launch a team mode with an empty side", () => {
+    const server = sndServer();
+    const host = register(server, makePlayer().player);
+    server.handleLobbyCreate(host, "snd");
+    const lobby = [...server.lobbies.values()][0];
+    const bot = register(server, makePlayer({ isBot: true, name: "Bot" }).player);
+    server.handleLobbyJoin(bot, lobby.id);
+
+    lobby.players.get(bot.id).team = lobby.players.get(host.id).team;
+    lobby.setReady(host.id, true);
+    lobby.setReady(bot.id, true);
+    expect(lobby.isAllReady()).toBe(false);
+  });
+
+  it("needs everyone present ready, not just the minimum count", () => {
+    const server = sndServer();
+    const host = register(server, makePlayer().player);
+    server.handleLobbyCreate(host, "snd");
+    const lobby = [...server.lobbies.values()][0];
+
+    const a = register(server, makePlayer().player);
+    const b = register(server, makePlayer().player);
+    server.handleLobbyJoin(a, lobby.id);
+    server.handleLobbyJoin(b, lobby.id);
+
+    lobby.setReady(host.id, true);
+    lobby.setReady(a.id, true);
+    expect(lobby.isAllReady()).toBe(false);
+  });
+
+  it("leaves modes without a minimum needing a full lobby", () => {
+    // Duel has no minPlayers, so it keeps today's behaviour exactly.
+    const { server } = setup();
+    const host = register(server, makePlayer().player);
+    server.handleLobbyCreate(host, "duel");
+    const lobby = [...server.lobbies.values()][0];
+
+    lobby.setReady(host.id, true);
+    expect(lobby.isAllReady()).toBe(false);
+  });
+});
+
+// ── Choosing a side ──────────────────────────────────────────────────
+
+describe("LobbyServer team selection", () => {
+  // biome-ignore lint/suspicious/noExplicitAny: injected test fixture
+  const TEAMS: any = {
+    id: "snd",
+    name: "S&D",
+    description: "test snd",
+    maxPlayers: 10,
+    minPlayers: 2,
+    hasTeams: true,
+    teamNames: ["UDON", "SOBA"],
+    mapPool: ["wbomb2"],
+  };
+
+  // biome-ignore lint/suspicious/noExplicitAny: reaches private lobby internals
+  function teamLobby(): { server: any; host: any; lobby: any } {
+    const { server } = setup();
+    server.gametypes = [TEAMS];
+    const host = register(server, makePlayer().player);
+    server.handleLobbyCreate(host, "snd");
+    return { server, host, lobby: [...server.lobbies.values()][0] };
+  }
+
+  it("lets a player move to the other side without a vote", () => {
+    // Shuffling is random and needs a majority, so with one human and any
+    // number of bots there was no way to choose a side at all — which makes the
+    // attacking half of a round mode untestable.
+    const { server, host, lobby } = teamLobby();
+    const before = lobby.players.get(host.id).team;
+
+    server.handleLobbySwitchTeam(host, lobby.id);
+    expect(lobby.players.get(host.id).team).not.toBe(before);
+
+    server.handleLobbySwitchTeam(host, lobby.id);
+    expect(lobby.players.get(host.id).team).toBe(before);
+  });
+
+  it("swaps with the bot instead of emptying one side", () => {
+    const { server, host, lobby } = teamLobby();
+    const bot = register(server, makePlayer({ isBot: true, name: "Bot" }).player);
+    server.handleLobbyJoin(bot, lobby.id);
+    const hostBefore = lobby.players.get(host.id).team;
+    const botBefore = lobby.players.get(bot.id).team;
+
+    server.handleLobbySwitchTeam(host, lobby.id);
+
+    expect(lobby.players.get(host.id).team).toBe(botBefore);
+    expect(lobby.players.get(bot.id).team).toBe(hostBefore);
+    expect(new Set([...lobby.players.values()].map((p) => p.team))).toEqual(new Set(["alpha", "bravo"]));
+  });
+
+  it("ignores a switch from someone not in the lobby", () => {
+    const { server, lobby } = teamLobby();
+    const outsider = register(server, makePlayer().player);
+    expect(() => server.handleLobbySwitchTeam(outsider, lobby.id)).not.toThrow();
+    expect(lobby.players.has(outsider.id)).toBe(false);
+  });
+
+  it("counts bots toward a shuffle a human called", () => {
+    // A solo tester's single vote can never reach ceil(players / 2), so without
+    // this the shuffle button does nothing forever.
+    const { server, host, lobby } = teamLobby();
+    const bot = register(server, makePlayer({ isBot: true, name: "Bot" }).player);
+    server.handleLobbyJoin(bot, lobby.id);
+
+    server.handleLobbyVoteShuffle(host, lobby.id);
+    expect(lobby.shuffleVotes.size).toBe(0); // cleared — it passed
+  });
+
+  it("never lets bots shuffle on their own", () => {
+    const { server, lobby } = teamLobby();
+    const bot = register(server, makePlayer({ isBot: true, name: "Bot" }).player);
+    server.handleLobbyJoin(bot, lobby.id);
+
+    server.handleLobbyVoteShuffle(bot, lobby.id);
+    // The bot's own vote counts for one and pulls in no others.
+    expect(lobby.shuffleVotes.size).toBeLessThanOrEqual(1);
   });
 });

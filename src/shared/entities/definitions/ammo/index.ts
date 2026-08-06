@@ -1,6 +1,5 @@
 export * from "./electrobolt";
 export * from "./glauncher";
-export * from "./gunblade";
 export * from "./instagun";
 export * from "./lasergun";
 export * from "./machinegun";

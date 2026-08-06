@@ -23,12 +23,16 @@ export const PLASMAGUN: WeaponDef = {
 
   // Gameplay (server-authoritative)
   damage: 15,
-  fireRate: 12.5, // 12.5 shots per second (25% faster)
+  // Target is 10 shots/sec. 125Hz cannot express that exactly — 125/10 = 12.5
+  // ticks — so the nearest tick is 13, giving 9.62 shots/sec (144 DPS at 15
+  // damage). 12 ticks would overshoot to 10.42/s (156 DPS); 13 is closer to both
+  // the rate and the 150 DPS target.
+  fireRate: 10,
   clipSize: 50,
   reloadModel: "clip",
   ammoType: "cells",
   maxAmmo: 150,
-  reloadTime: 1.3, // Reload animation duration (1.0 seconds)
+  reloadTime: 1.3, // clip reload: 163 ticks @125Hz = 1.304s
   range: 1500,
   hitscan: false,
   fireMode: "auto",

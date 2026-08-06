@@ -6,6 +6,81 @@
 **Status:** Phase 0–3 foundation merged to `main`; implementation deliberately paused at this checkpoint
 **Scope:** Headless bots in `src/bot`, FPS gametypes in `src/games/fps`, and the minimum shared network contracts needed to connect them
 
+> **See also:** [`BOT_WEIGHTS_AND_GOALS.md`](BOT_WEIGHTS_AND_GOALS.md) (2026-07-28) refines §4 (goal planner), §4.2 (gametype directives), §8.1 (item utility) and Phase 5 of this document. It adds gametype-defined behavioural **weights** as a separate channel from directives, settles the arbitration and score-combination questions §4.1 leaves open, and specifies the Warsow Bomb map contract for a Search & Destroy mode. Phase 5 below remains unimplemented; that document supersedes its sequencing.
+
+### Measured blocker: the nav graph is not connected
+
+**Measured 2026-07-29, headless, against the real cached graphs.** The
+proportion of node pairs the graph can route between:
+
+| Map | Nodes | Edges | Routable node pairs |
+|---|---|---|---|
+| wbomb2 | 78 | 148 | **7.5%** |
+| wdm2 | 34 | 44 | **10.2%** |
+| wbomb1 | 58 | 82 | **3.8%** |
+
+wbomb2 fragments into islands of ~21-23 nodes out of 78. Nodes are not too far
+apart (nearest-neighbour distance: min 64, median 270, max 605, against a
+`MAX_EDGE_DISTANCE` of 1500) — the limiter is the edge test itself.
+
+**Cause.** `_probeEdges` creates a walk edge only when `BotVision.isPathClear`
+succeeds, which is a straight-line trace between the two nodes. On any map with
+corners, walls or doors, nodes in different rooms never see each other, so the
+graph becomes a set of per-room cliques with nothing joining them. Every map has
+corners.
+
+**Consequence.** Bots cannot cross a map under navigation. Observed directly in
+a live Search & Destroy match on wbomb2: the carrier picks the bomb up and then
+never reaches a site in a 90 s round, across repeated rounds. Item runs work
+inside whichever room the bot is standing in and nowhere else, which is why this
+never looked broken in deathmatch — a bot that wanders one room still fights.
+
+**Jumppads are not the missing piece.** wbomb2's routes genuinely run through
+jumppads, and the graph does contain them — 6 jumppad edges, one per pad, each
+linking its entry node to its landing node, plus one teleporter edge. The
+component analysis shows why that does not help: the components are
+`29,7,5,4,2,2,2,2,2` and then 21 singletons, and those size-2 components ARE the
+jumppad pairs. Each pad is an island of two nodes with nothing walking into it.
+The pads work; there is no floor around them to reach them from.
+
+**Three defects in a chain**, found by measurement in that order:
+
+1. **The floor grid sampled roofs.** `_sampleFloorGrid` cast ONE ray down the
+   column and took the first surface — which from above the map is the ceiling.
+   On wbomb2 that produced candidates with a median height of 545 in a map whose
+   playable band is 28-384, and 4 nodes survived out of 572 columns.
+   **Fixed:** the sampler now walks the whole column, taking up to 4 standing
+   surfaces per cell and skipping anything above the known node band. Floor
+   nodes went 4 → 34, total 78 → 108 nodes.
+
+2. **Traced floor points land inside solid.** With column sampling, 635
+   candidates pass every check in a standalone probe, but the real builder keeps
+   34 — `BotVision.isInsideSolid` rejects the rest. Verified directly: a floor
+   point produced by the sampler's own trace reports `pointContents = 0x1`
+   (SOLID) one unit above the surface it just hit, while all 37 real spawn
+   points correctly report 0. Something about how the downward trace reports
+   `hitPoint` puts it inside the brush rather than on top of it. **Unfixed** —
+   this is a collision-layer question, not a navigation one.
+
+3. **So the graph has no connective tissue**, and routing falls back to whatever
+   items and spawns happen to see each other. Adding the 30 extra floor nodes
+   from (1) moved routable pairs from 7.5% to 5.3% — MORE nodes, WORSE ratio,
+   because the new nodes are isolated too. Defect (2) has to be fixed before (1)
+   pays off.
+
+**Not fixable by tuning.** Raising `MAX_EDGE_DISTANCE` does nothing; the nodes
+are already within range. `isPathClear` is not the problem either — verified
+clear at 64/128/256/384 units across open floor with player bounds. The work is
+(2), then re-measuring, and probably then multi-hop edge probing or a real
+navmesh. It is a self-contained project and the highest-value one remaining for
+bots.
+
+**Interim behaviour.** Objective goals are no longer gated on route cost
+(`ItemGoalPlanner.buildGates`), falling back to a straight-line estimate — a bot
+that walks at the bomb and gets stuck on a wall is more useful for playtesting
+than one that ignores it. Items keep the gate: an item you cannot reach is
+worthless, while an objective you cannot reach is still the job.
+
 ### Current pause point
 
 The first generalized-map milestone is complete and work is paused here for playtesting and prioritization. Nothing in this slice hardcodes `wdm2` coordinates: bots derive typed navigation, trigger metadata, pickup identities, and bounded movement opportunities from the loaded BSP, then persist only versioned static results. `wdm2` is a repeatable validation map, not authored bot knowledge.

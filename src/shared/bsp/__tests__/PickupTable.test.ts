@@ -75,10 +75,28 @@ describe("extractPickups", () => {
       "shells:10",
       "grenades:10",
       "rockets:10",
-      "cells:100",
+      // ammo_lasergun feeds the beam's own `lasers` pool, not the plasmagun's cells.
+      "lasers:100",
       "bolts:10",
       "instas:5",
     ]);
+  });
+
+  it("keeps laser and plasma ammo in separate pools", () => {
+    const out = extractPickups([ent("ammo_plasmagun", "0 0 0"), ent("ammo_lasergun", "0 0 0")]);
+    expect(out.map((e) => e.kind)).toEqual(["cells", "lasers"]);
+  });
+
+  it("tracks item_quad as a powerup and leaves unimplemented powerups alone", () => {
+    const out = extractPickups([
+      ent("item_quad", "10 20 30"),
+      // Present in map data but not implemented — must NOT become a pickup, or
+      // players would grab an item that does nothing.
+      ent("item_warshell", "0 0 0"),
+      ent("item_regen", "0 0 0"),
+    ]);
+    expect(out.map((e) => `${e.type}:${e.kind}`)).toEqual(["powerup:quad"]);
+    expect(out[0].position).toEqual({ x: 10, y: 30, z: 20 });
   });
 
   it("maps medium (25) and bare item_health to the medium kind", () => {

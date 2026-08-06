@@ -15,7 +15,6 @@
 
 /** BSP weapon classname → game weapon id. Canonical map shared by client + server. */
 export const CLASSNAME_TO_WEAPON: Record<string, string> = {
-  weapon_gunblade: "gunblade",
   weapon_machinegun: "machinegun",
   weapon_riotgun: "riotgun",
   weapon_grenadelauncher: "glauncher",
@@ -28,7 +27,7 @@ export const CLASSNAME_TO_WEAPON: Record<string, string> = {
 };
 
 /** Pickup type tracked by the server. */
-export type PickupType = "weapon" | "ammo" | "armor" | "health";
+export type PickupType = "weapon" | "ammo" | "armor" | "health" | "powerup";
 
 /** Descriptor for a tracked pickup classname: its type + game-specific kind. */
 interface PickupClassInfo {
@@ -47,19 +46,20 @@ const AMMO_CLASSNAMES: Record<string, PickupClassInfo> = {
   ammo_grenadelauncher: { type: "ammo", kind: "grenades", amount: 10 },
   ammo_rocketlauncher: { type: "ammo", kind: "rockets", amount: 10 },
   ammo_plasmagun: { type: "ammo", kind: "cells", amount: 50 },
-  ammo_lasergun: { type: "ammo", kind: "cells", amount: 100 },
+  // Lasers are the beam weapon's OWN pool — not shared with plasma cells.
+  ammo_lasergun: { type: "ammo", kind: "lasers", amount: 100 },
   ammo_electrobolt: { type: "ammo", kind: "bolts", amount: 10 },
   ammo_instagun: { type: "ammo", kind: "instas", amount: 5 },
-  ammo_gunblade: { type: "ammo", kind: "gunblade", amount: 1 },
   // Legacy Quake-style names — a couple of old maps still use these.
   ammo_bullets: { type: "ammo", kind: "bullets", amount: 50 },
   ammo_shells: { type: "ammo", kind: "shells", amount: 10 },
   ammo_rockets: { type: "ammo", kind: "rockets", amount: 10 },
-  ammo_cells: { type: "ammo", kind: "cells", amount: 100 },
+  // Quake's `cells` are plasma ammo; match the plasma box rather than the beam's.
+  ammo_cells: { type: "ammo", kind: "cells", amount: 50 },
   ammo_grenades: { type: "ammo", kind: "grenades", amount: 10 },
   ammo_bolts: { type: "ammo", kind: "bolts", amount: 10 },
   ammo_instas: { type: "ammo", kind: "instas", amount: 5 },
-  ammo_lasers: { type: "ammo", kind: "cells", amount: 100 },
+  ammo_lasers: { type: "ammo", kind: "lasers", amount: 100 },
 };
 
 /**
@@ -90,6 +90,11 @@ export const PICKUP_CLASSNAMES: Record<string, PickupClassInfo> = {
   item_health_large: { type: "health", kind: "large" }, // +50
   item_health_mega: { type: "health", kind: "mega" },
   item_health_ultra: { type: "health", kind: "ultra" }, // alias → mega behavior
+  // Powerups (kind = PowerupKind). Every shipped map places exactly one
+  // item_quad; item_warshell / item_regen are present in map data but not yet
+  // implemented, so they stay untracked and invisible rather than spawning an
+  // item that does nothing when grabbed.
+  item_quad: { type: "powerup", kind: "quad" },
 };
 
 export interface PickupEntry {

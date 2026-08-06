@@ -193,6 +193,42 @@ export interface PickupNotifyEvent {
   label: string;
 }
 
+/**
+ * Countdown for one powerup held by one player. Emitted every snapshot while the
+ * timer runs; the client shows it only for the local player (like combat_state).
+ * The public "who is glowing" signal is the entity powerup mask, not this.
+ */
+export interface PowerupStateEvent {
+  type: "powerup_state";
+  entityId: string;
+  /** PowerupKind, e.g. "quad". */
+  kind: string;
+  /** Whole seconds remaining (rounded up). */
+  seconds: number;
+}
+
+/**
+ * Gametype orders for ONE player. Sent only to the addressed client, so a
+ * human opponent never sees another team's tactics. Bots map these onto goals;
+ * human clients ignore them.
+ */
+export interface AgentDirectivesEvent {
+  type: "agent_directives";
+  entityId: string;
+  /** `AgentDirective[]` from shared/server/gametype; typed loosely here to keep
+   *  the engine's event union free of gametype imports. */
+  directives: unknown;
+}
+
+/** A powerup returned to the map. Broadcast to everyone, with its position. */
+export interface PowerupSpawnEvent {
+  type: "powerup_spawn";
+  kind: string;
+  x: number;
+  y: number;
+  z: number;
+}
+
 /** One-shot snapshot event — discriminated on `type`. Mirrors BinaryProtocol. */
 export type SnapshotEvent =
   | CombatStateEvent
@@ -211,7 +247,10 @@ export type SnapshotEvent =
   | DeathEvent
   | AwardSnapshotEvent
   | ChatSnapshotEvent
-  | PickupNotifyEvent;
+  | PickupNotifyEvent
+  | PowerupStateEvent
+  | PowerupSpawnEvent
+  | AgentDirectivesEvent;
 
 const _warnedTypes = new Set<string>();
 

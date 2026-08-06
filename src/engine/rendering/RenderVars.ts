@@ -93,6 +93,7 @@ export type RenderVarName =
   | "r_pickupProcedural"
   // Future vars (documented but not yet implemented)
   | "r_lightintensity"
+  | "r_lightmapscale"
   | "r_shadows"
   | "r_gamma"
   | "r_saturation"
@@ -367,6 +368,14 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, "name">> = {
     min: 0,
     max: 4.0,
     description: "Global light intensity multiplier",
+    category: "lighting",
+  },
+  r_lightmapscale: {
+    value: 1.0,
+    defaultValue: 1.0,
+    min: 0.1,
+    max: 3.0,
+    description: "Scales baked lightmap gain on top of the per-format default (takes effect on map load)",
     category: "lighting",
   },
   // Debug visualization

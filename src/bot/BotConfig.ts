@@ -93,6 +93,32 @@ export interface BotOptions {
   team?: string;
   /** Path to TF.js model directory for HybridBrain (undefined = pure state machine) */
   modelDir?: string;
+  /**
+   * Item-goal arbiter mode (docs/research/BOT_WEIGHTS_AND_GOALS.md §7.7).
+   * Per-bot rather than process-wide so two bots can be A/B'd in one match via
+   * the BotServer control API. Defaults from BOT_GOAL_ARBITER.
+   */
+  goalArbiter?: GoalArbiterMode;
+}
+
+/**
+ * How a bot chooses which item to go for.
+ *   legacy  — the old nearest-pickup-wins behaviour
+ *   on      — scored goal arbitration
+ *   verbose — arbitration plus a per-decision explanation in the bot log
+ */
+export type GoalArbiterMode = "legacy" | "on" | "verbose";
+
+/**
+ * Process default for the arbiter, from `BOT_GOAL_ARBITER`.
+ * Follows the `BOT_NAV_CACHE_DIR` precedent — the bot runs as a Node process
+ * and has no access to the client `Cvar` system.
+ */
+export function defaultGoalArbiterMode(): GoalArbiterMode {
+  const raw = (process.env.BOT_GOAL_ARBITER ?? "").toLowerCase();
+  if (raw === "legacy" || raw === "0" || raw === "off") return "legacy";
+  if (raw === "verbose" || raw === "2") return "verbose";
+  return "on";
 }
 
 // ── Bot Names ──────────────────────────────────────────────────────────────

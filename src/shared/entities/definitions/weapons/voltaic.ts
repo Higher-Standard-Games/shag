@@ -25,14 +25,16 @@ export const VOLTAIC: WeaponDef = {
 
   // Gameplay (server-authoritative)
   damage: 7,
-  fireRate: 20, // 50ms reload = 20 shots/sec (beam)
-  clipSize: 60,
+  fireRate: 20, // 6 ticks @125Hz = 48ms/shot ≈ 20.8/s (20 doesn't divide 125 exactly)
+  // Continuous-beam clip: 120 cells run ~5.8s before a brief 0.5s reload, so the
+  // beam's rhythm isn't broken every ~3s the way the old 60-cell / 1.3s reload did
+  // (that was ~31% downtime — unacceptable for a held beam). Total ammo is the same
+  // 180 cells (clip 120 + reserve 60), just far fewer, quicker interruptions.
+  clipSize: 120,
   reloadModel: "clip",
-  ammoType: "cells",
-  maxAmmo: 120,
-  // Uses the shared Plasmagun-style downshift reload. Fire cadence comes from
-  // fireRate; the old 0.065 value compressed the entire clip reload animation.
-  reloadTime: 1.3,
+  ammoType: "lasers", // own pool — no longer shared with the plasmagun's cells
+  maxAmmo: 60,
+  reloadTime: 0.5,
   range: 850, // Short range beam
   hitscan: true,
   hitscanType: "beam",

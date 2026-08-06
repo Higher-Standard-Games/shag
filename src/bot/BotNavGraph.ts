@@ -138,6 +138,17 @@ const FLOOR_GRID_SPACING = 256;
 
 /** Raycast height for floor sampling (cast downward from this height) */
 const FLOOR_SAMPLE_HEIGHT = 500;
+/**
+ * Standing surfaces sampled per grid column.
+ *
+ * More than one because maps have storeys; bounded because a column through a
+ * stack of crates is not a stack of useful nav nodes.
+ */
+const FLOOR_SAMPLES_PER_COLUMN = 4;
+/** Drop this far below a surface before looking for the next one down. */
+const FLOOR_COLUMN_STEP = 8;
+/** How far outside the known node band a surface can be and still count. */
+const FLOOR_BAND_HEADROOM = 128;
 
 /** Min distance between any two nodes (dedup threshold) */
 const MIN_NODE_DISTANCE = 64;
@@ -158,6 +169,9 @@ export const BOT_NAV_MOVEMENT_FINGERPRINT = [
   `jump:${JUMP_HEIGHT_MAX}:${JUMP_COST_MULT}`,
   `fall:${FALL_COST_MULT}`,
   `grid:${FLOOR_GRID_SPACING}:${FLOOR_SAMPLE_HEIGHT}:${MIN_NODE_DISTANCE}`,
+  // Column sampling. Part of the fingerprint because a cache built by the old
+  // single-trace version is a grid of roofs and must be rebuilt, not reused.
+  `column:${FLOOR_SAMPLES_PER_COLUMN}:${FLOOR_COLUMN_STEP}:${FLOOR_BAND_HEADROOM}`,
   `trigger:${BOT_NAV_TRIGGER_RESOLVER_VERSION}:${TELEPORT_COST}:${JUMPPAD_COST_MULT}`,
   BOT_MOVEMENT_ANALYZER_FINGERPRINT,
 ].join("|");
@@ -481,19 +495,28 @@ export class BotNavGraph {
   }
 
   /**
-   * Sample a sparse floor grid to find walkable positions in
-   * corridors/hallways that have no items or spawns.
+   * Sample a floor grid to find walkable positions in corridors and rooms that
+   * hold no items or spawns.
+   *
+   * Traces the WHOLE column rather than stopping at the first surface. That is
+   * the difference between a floor grid and a roof grid: a single downward
+   * trace from above the map hits the ceiling, so on wbomb2 this produced 318
+   * candidate "floor" points with a median height of 545 in a map whose
+   * playable band is 28-384 — four survived, and the graph was left with no
+   * connective tissue between rooms at all.
+   *
+   * Sampling every storey also fixes multi-level maps generally: a walkway over
+   * a room is a floor, and so is the room under it.
    */
   private _sampleFloorGrid(vision: BotVision, startId: number): void {
-    // Determine bounds from existing nodes
     if (this._nodes.length === 0) return;
 
-    let minX = Infinity,
-      maxX = -Infinity;
-    let minY = Infinity,
-      maxY = -Infinity;
-    let minZ = Infinity,
-      maxZ = -Infinity;
+    let minX = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+    let minZ = Number.POSITIVE_INFINITY;
+    let maxZ = Number.NEGATIVE_INFINITY;
 
     for (const node of this._nodes) {
       minX = Math.min(minX, node.position.x);
@@ -504,43 +527,46 @@ export class BotNavGraph {
       maxZ = Math.max(maxZ, node.position.z);
     }
 
-    // Expand bounds slightly
     const pad = FLOOR_GRID_SPACING;
     minX -= pad;
     maxX += pad;
     minZ -= pad;
     maxZ += pad;
 
+    // Vertical band worth standing in. Anything above the highest known node by
+    // more than a jump is roof, not floor — nothing reaches it and sampling it
+    // only adds nodes that connect to nothing.
+    const ceiling = maxY + FLOOR_BAND_HEADROOM;
+    const floorLimit = minY - FLOOR_BAND_HEADROOM;
+
     let nextId = startId;
     const collision = vision.collisionWorld;
 
     for (let x = minX; x <= maxX; x += FLOOR_GRID_SPACING) {
       for (let z = minZ; z <= maxZ; z += FLOOR_GRID_SPACING) {
-        // Cast ray downward from height to find floor
-        const from: Vec3 = { x, y: maxY + FLOOR_SAMPLE_HEIGHT, z };
-        const to: Vec3 = { x, y: minY - 100, z };
+        let y = maxY + FLOOR_SAMPLE_HEIGHT;
+        let found = 0;
 
-        const result = collision.trace(from, to);
-        if (!result.hit || !result.hitPoint) continue;
+        // Walk down the column, surface by surface. Each hit is a candidate
+        // standing position; the trace then resumes just below it so the next
+        // storey down is reachable rather than shadowed by the one above.
+        while (found < FLOOR_SAMPLES_PER_COLUMN && y > floorLimit) {
+          const hit = collision.trace({ x, y, z }, { x, y: floorLimit, z });
+          if (!hit.hit || !hit.hitPoint) break;
 
-        // Floor found — check it's a valid standing position
-        const floorPos: Vec3 = {
-          x: result.hitPoint.x,
-          y: result.hitPoint.y + 1, // Slightly above floor
-          z: result.hitPoint.z,
-        };
+          const surfaceY = hit.hitPoint.y;
+          // Resume below this surface regardless of whether we keep it, or a
+          // rejected candidate would trap the loop on the same hit forever.
+          y = surfaceY - FLOOR_COLUMN_STEP;
 
-        // Skip if inside solid geometry
-        if (vision.isInsideSolid(floorPos)) continue;
+          if (surfaceY > ceiling) continue;
+          const floorPos: Vec3 = { x: hit.hitPoint.x, y: surfaceY + 1, z: hit.hitPoint.z };
+          if (vision.isInsideSolid(floorPos)) continue;
+          if (this._isTooCloseToExisting(floorPos)) continue;
 
-        // Skip if too close to existing node
-        if (this._isTooCloseToExisting(floorPos)) continue;
-
-        this._nodes.push({
-          id: nextId++,
-          position: floorPos,
-          type: "floor",
-        });
+          this._nodes.push({ id: nextId++, position: floorPos, type: "floor" });
+          found++;
+        }
       }
     }
   }
@@ -649,6 +675,95 @@ export class BotNavGraph {
     for (const edge of this._edges) {
       this._adjacency.get(edge.from)!.push(edge);
     }
+    // Any structural change invalidates cached distances.
+    this._distanceMatrix = null;
+  }
+
+  // ── All-pairs travel cost ───────────────────────────────────────
+
+  /**
+   * Exact graph distance between every pair of nodes, lazily computed.
+   *
+   * Goal scoring needs a travel estimate for EVERY candidate every decision,
+   * and running A* per candidate is the one thing that would make the goal
+   * arbiter too expensive (docs/research/BOT_WEIGHTS_AND_GOALS.md §7.4). The
+   * design anticipated landmark distances, but the graphs turned out small
+   * enough — 34-58 strategic nodes on shipped maps — that all-pairs is both
+   * exact and cheaper to reason about: ~58 Dijkstra runs over ~82 edges.
+   *
+   * Deliberately NOT persisted in the nav cache. At this size recomputing costs
+   * microseconds, so storing it would buy nothing and add a schema version to
+   * invalidate.
+   */
+  private _distanceMatrix: Float64Array[] | null = null;
+
+  private _ensureDistanceMatrix(): Float64Array[] {
+    if (this._distanceMatrix) return this._distanceMatrix;
+
+    const count = this._nodes.length;
+    const matrix: Float64Array[] = [];
+    for (let source = 0; source < count; source++) {
+      matrix.push(this._dijkstraFrom(source, count));
+    }
+    this._distanceMatrix = matrix;
+    return matrix;
+  }
+
+  /** Single-source shortest costs. Unreachable nodes stay Infinity. */
+  private _dijkstraFrom(source: number, count: number): Float64Array {
+    const dist = new Float64Array(count).fill(Number.POSITIVE_INFINITY);
+    const visited = new Uint8Array(count);
+    dist[source] = 0;
+
+    // Linear scan for the next node: at tens of nodes this beats a heap, and
+    // it keeps the implementation obvious.
+    for (;;) {
+      let best = -1;
+      let bestDist = Number.POSITIVE_INFINITY;
+      for (let i = 0; i < count; i++) {
+        if (!visited[i] && dist[i] < bestDist) {
+          bestDist = dist[i];
+          best = i;
+        }
+      }
+      if (best < 0) break;
+      visited[best] = 1;
+
+      for (const edge of this._adjacency.get(best) ?? []) {
+        const next = dist[best] + edge.cost;
+        if (next < dist[edge.to]) dist[edge.to] = next;
+      }
+    }
+    return dist;
+  }
+
+  /**
+   * Estimated travel cost between two world positions, or `null` when no route
+   * exists.
+   *
+   * The null is the important part. Goal scoring previously used a Euclidean
+   * estimate that could never fail, so the arbiter's `unreachable` gate could
+   * never fire and a bot could commit to an item on the far side of a wall.
+   * Graph distance answers reachability honestly, including across disconnected
+   * components.
+   */
+  estimateTravelCost(from: Vec3, to: Vec3): number | null {
+    if (this._nodes.length === 0) return null;
+    const start = this.findNearestNode(from);
+    const goal = this.findNearestNode(to);
+    if (!start || !goal) return null;
+
+    const approach = vec3Distance(from, start.position);
+    const arrival = vec3Distance(goal.position, to);
+    if (start.id === goal.id) return approach + arrival;
+
+    const matrix = this._ensureDistanceMatrix();
+    const graphCost = matrix[start.id]?.[goal.id];
+    if (graphCost === undefined || !Number.isFinite(graphCost)) return null;
+
+    // Snap distances at both ends: the bot is rarely standing exactly on a node,
+    // and the item is rarely exactly on one either.
+    return approach + graphCost + arrival;
   }
 
   // ── Private: A* ─────────────────────────────────────────────────

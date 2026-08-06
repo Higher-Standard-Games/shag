@@ -23,9 +23,93 @@ export enum MatchPhase {
   Active = 2,
   /** Match ended — scoreboard display, then restart/rotate */
   PostGame = 3,
+  /**
+   * A round has been decided; the match has not.
+   *
+   * Its own phase rather than a flag on `Active` because everything about it
+   * differs: nobody may move or shoot, nothing scores, the camera leaves the
+   * player to watch the bomb, and the result banner is up. Round modes only.
+   */
+  RoundEnd = 4,
+}
+
+/**
+ * What a player has actually done, accumulated over a match.
+ *
+ * Kept separately from `score` because some modes DERIVE score from these
+ * rather than counting frags — Warsow Bomb scores mostly on damage dealt, so
+ * the player who softened three enemies is credited even though a teammate
+ * finished them. A derived score is also a pure function of these numbers,
+ * which means it cannot drift the way an incremented counter can.
+ */
+export interface PlayerStats {
+  frags: number;
+  /** Teammates killed. Counted separately so it can be penalised, not just netted. */
+  teamFrags: number;
+  deaths: number;
+  /** Damage dealt to enemies, before their armor. */
+  damageGiven: number;
+  /** Damage dealt to teammates. */
+  teamDamageGiven: number;
+  /** Bombs armed (or flags taken, in a future mode). */
+  plants: number;
+  /** Bombs defused. */
+  defuses: number;
+}
+
+/** A fresh stat line. */
+export function emptyPlayerStats(): PlayerStats {
+  return { frags: 0, teamFrags: 0, deaths: 0, damageGiven: 0, teamDamageGiven: 0, plants: 0, defuses: 0 };
+}
+
+/** How a round was won, for the banner. Server-authored, client-displayed. */
+export interface RoundResult {
+  /** Winning team id, or null for a draw. */
+  winner: string | null;
+  /** Display name of the winning team. */
+  winnerName: string;
+  /**
+   * Why, as a stable key rather than prose: the client owns the wording, and a
+   * key survives translation and rephrasing where a sentence does not.
+   */
+  reason: "detonated" | "defused" | "eliminated" | "timeout";
+  /** Round this decided. */
+  round: number;
+  /** Where to point the camera — the bomb, for a detonation worth watching. */
+  focus?: { x: number; y: number; z: number };
 }
 
 export type TeamId = "udon" | "soba" | "spectator";
+
+/**
+ * Translate a requested team into one the match understands.
+ *
+ * The lobby names its display columns `alpha`/`bravo`, while the match names
+ * them `soba`/`udon`. These are display slots, not the BSP's alpha/beta spawn
+ * vocabulary: the lobby labels alpha as blue Soba and bravo as pink Udon.
+ * Nothing translated between them, so a side chosen in the lobby was silently
+ * discarded on join and the server auto-balanced instead.
+ *
+ * Returns null for anything unrecognised, so a bad value falls back to
+ * balancing rather than dropping a player into an invalid team.
+ */
+export function normalizeTeamId(requested: string | undefined | null): TeamId | null {
+  switch ((requested ?? "").trim().toLowerCase()) {
+    case "alpha":
+    case "soba":
+      return "soba";
+    case "bravo":
+    case "udon":
+      return "udon";
+    // `beta` is the BSP/legacy second-team alias, not the lobby's bravo slot.
+    case "beta":
+      return "soba";
+    case "spectator":
+      return "spectator";
+    default:
+      return null;
+  }
+}
 
 /**
  * Match configuration — gametype defines these values
@@ -52,6 +136,48 @@ export interface MatchConfig {
   overtimeOnDraw?: boolean;
   /** Overtime extension in seconds (default 60). */
   overtimeDuration?: number;
+
+  // ── Round-based modes (Search & Destroy) ──────────────────────────────
+  /**
+   * Play in rounds: `Active` returns to `Countdown` when a round ends instead
+   * of ending the match, and players do not respawn until the next round.
+   *
+   * A round IS the existing phase cycle — `Countdown` is the round freeze and
+   * `Active` is the live round — so `timeLimit` becomes ROUND length and
+   * `scoreLimit` becomes rounds-to-win. Everything else keeps today's meaning.
+   * See docs/research/Search_And_Destroy.md §5.1.
+   */
+  roundBased?: boolean;
+  /**
+   * Rounds one side attacks before the sides swap. Round-based only.
+   *
+   * Deliberately a whole half rather than alternating: attacking is the
+   * stronger side, so alternating every round would mostly measure who drew the odd
+   * rounds. Set below `scoreLimit` so the limit cannot be reached before the
+   * swap — no team should be able to win without playing both sides.
+   */
+  roundsPerHalf?: number;
+  /**
+   * Seconds after spawning during which teammates cannot hurt you.
+   *
+   * Friendly fire is on in S&D, and with team spawns and no respawns a
+   * mis-timed rocket at the start of a round can end a teammate's whole round
+   * before they have moved. Enemy damage is never blocked — the protection is
+   * against your own side, not against the game.
+   */
+  teamSpawnProtection?: number;
+  /**
+   * Seconds between a round being decided and the next freeze starting.
+   *
+   * Long enough to watch a detonation finish and read who won. Round-based
+   * only; defaults to 5.
+   */
+  roundEndDuration?: number;
+  /**
+   * Score lead required to win, on top of reaching `scoreLimit` (tennis rule).
+   * 1 = no requirement (default). Warsow Bomb uses 2, so 10-9 does not win.
+   */
+  leadRequired?: number;
 }
 
 // ============================================================================
@@ -84,9 +210,35 @@ export interface WeaponLoadout {
  * - Clan Arena: no pickups, all weapons given on spawn
  * - Instagib: no pickups, instagun only
  */
+/**
+ * When a consumed item comes back.
+ *
+ * - `timed` — after its own respawn timer. Continuous modes; the item clock is
+ *   the skill.
+ * - `round` — not until the next round. There is one Red Armor per round and
+ *   whoever takes it has it; timing it is meaningless when the round is shorter
+ *   than the timer anyway.
+ * - `alternating` — not until the round AFTER next. An item taken in round 1 is
+ *   absent in round 2 and back in round 3, so taking it is also a denial play
+ *   that reaches into the next round. Experimental: it makes rounds
+ *   alternately rich and poor, and it breaks the mirror-halves property the
+ *   side swap relies on, since the second half inherits the first half's
+ *   depleted map.
+ */
+export type ItemRespawnMode = "timed" | "round" | "alternating";
+
 export interface ItemSpawnRules {
   /** Whether to parse and spawn items from BSP entities */
   spawnFromBsp: boolean;
+  /** When consumed items return. Defaults to `timed`. */
+  respawnMode?: ItemRespawnMode;
+  /**
+   * Pickup classnames this mode does not spawn at all.
+   *
+   * A denial at pickup time would still leave the item glowing on the map for
+   * players to walk to; not spawning it is the honest version.
+   */
+  excludeClassnames?: readonly string[];
   /** Weapon respawn time in seconds */
   weaponRespawnTime: number;
   /** Ammo respawn time in seconds */
@@ -129,6 +281,66 @@ export interface MatchWinner {
 }
 
 /**
+ * The bomb, as the client needs to draw it.
+ *
+ * Positions are world space so the HUD can point at them and the world can put
+ * a model there. No rules travel — the client is told what is true, never how
+ * it was decided.
+ */
+export interface BombObjectiveSnapshot {
+  kind: "bomb";
+  /** See `BombPhase`. Sent as a string so the client needs no enum. */
+  phase: string;
+  x: number;
+  y: number;
+  z: number;
+  /** Site the bomb is planted at, or null. */
+  siteId: number | null;
+  /** Client entity key of the carrier, or null when nobody holds it. */
+  carrier: string | null;
+  /** Arm/defuse progress, 0..1. */
+  progress: number;
+  /** True while progress is rising — the HUD draws a falling bar differently. */
+  advancing: boolean;
+  /**
+   * Client entity key of whoever is arming or defusing right now, or null.
+   *
+   * The progress is shared; the BAR is not. It belongs to the player whose
+   * hands are on the bomb — and, through them, to anyone spectating them.
+   */
+  worker: string | null;
+  /** Seconds to detonation, or null when not armed. */
+  fuse: number | null;
+  /** Seconds between beeps at the current fuse length, or null. */
+  beepInterval: number | null;
+  /**
+   * The sites, for site markers. Static per map, and re-sent every snapshot
+   * because `match_state` is the variable-shape JSON channel — two entries, so
+   * cheaper than a separate delivery path would be to maintain.
+   */
+  sites: Array<{ id: number; label: string; x: number; y: number; z: number }>;
+}
+
+/**
+ * The detonation, as a schedule the client plays out.
+ *
+ * Sent once, in full, rather than one blast per tick: the whole sequence is
+ * known the moment the bomb goes off, and a client that has it can render the
+ * chain reaction without thirty more packets arriving during the one moment
+ * the frame budget is under pressure.
+ */
+export interface BombExplosionEvent {
+  /** Blasts, each with its own delay in seconds from the detonation. */
+  points: Array<{ x: number; y: number; z: number; radius: number; delay: number }>;
+}
+
+/**
+ * Whatever a mode's objective currently is. A union so CTF can join later
+ * without another optional field on the snapshot.
+ */
+export type ObjectiveSnapshot = BombObjectiveSnapshot;
+
+/**
  * Lightweight match state sent to clients for HUD display.
  * Keeps game rules server-side; client only knows what to display.
  */
@@ -152,4 +364,20 @@ export interface MatchStateSnapshot {
   /** Match flow mode: "single" = per-match server, post-game is terminal
    *  (players return to the lobby); "continuous" = classic warmup loop. */
   flow?: "single" | "continuous";
+  /** Current round, 1-based. Round-based gametypes only. */
+  round?: number;
+  /** Per-team round role ("attacker"/"defender"). Round-based gametypes only. */
+  teamRoles?: Record<string, string>;
+  /** Round lifecycle for objective modes ("pre_plant"/"post_plant"). */
+  roundState?: string;
+  /** The mode's objective, for modes that have one. */
+  objective?: ObjectiveSnapshot;
+  /** Set only during RoundEnd — how the round that just ended was won. */
+  roundResult?: RoundResult;
+  /**
+   * Sent for a few snapshots after a detonation. Repeated deliberately: it is
+   * fire-and-forget, and the alternative to repeating is a client that misses
+   * the whole explosion because one packet dropped.
+   */
+  explosion?: BombExplosionEvent;
 }

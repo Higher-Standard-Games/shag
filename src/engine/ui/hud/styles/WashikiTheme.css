@@ -1863,6 +1863,76 @@
 }
 
 /* ============================================================================
+   Powerup timer — countdown slab while the local player holds a powerup.
+   Sits above the vitals block. Gold slab (Warsow's own quad colour), flipping
+   to hot red for the last few seconds so the lapse is never a surprise.
+   ============================================================================ */
+.fps-powerup-timer {
+  display: flex;
+  flex-direction: column;
+  gap: calc(4px * var(--ui-scale, 1));
+  margin-bottom: calc(8px * var(--ui-scale, 1));
+  pointer-events: none;
+}
+
+.fps-powerup-timer-slab {
+  display: inline-flex;
+  align-items: baseline;
+  gap: calc(8px * var(--ui-scale, 1));
+  padding: calc(4px * var(--ui-scale, 1)) calc(14px * var(--ui-scale, 1)) calc(6px * var(--ui-scale, 1));
+  clip-path: polygon(3% 0, 100% 0, 97% 100%, 0 100%);
+  box-shadow:
+    calc(4px * var(--ui-scale, 1)) calc(5px * var(--ui-scale, 1)) 0 hsla(250, 45%, 4%, 0.55),
+    inset 0 calc(-3px * var(--ui-scale, 1)) 0 hsla(38, 90%, 34%, 0.5);
+  filter: var(--w-drop-print-sm);
+}
+
+.fps-powerup-timer-label {
+  font-family: var(--w-font-display);
+  font-size: calc(15px * var(--ui-scale, 1));
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: hsl(246, 40%, 8%);
+}
+
+.fps-powerup-timer-count {
+  font-family: var(--w-font-display);
+  font-size: calc(21px * var(--ui-scale, 1));
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  color: hsl(246, 40%, 8%);
+  text-shadow: calc(1px * var(--ui-scale, 1)) calc(1px * var(--ui-scale, 1)) 0 hsla(45, 100%, 78%, 0.7);
+}
+
+/* QUAD — gold slab, matching gfx/hud/icons/powerup/quad.tga. */
+.fps-powerup-timer--quad {
+  background: linear-gradient(178deg, hsl(48, 100%, 62%), hsl(43, 96%, 50%) 70%), var(--w-scan-cream);
+}
+
+/* Last few seconds — hot red, pulsing. */
+.fps-powerup-timer-slab--expiring {
+  background: linear-gradient(178deg, hsl(2, 92%, 60%), hsl(356, 82%, 46%) 72%), var(--w-scan-cream);
+  animation: fps-powerup-timer-expiring 0.5s ease-in-out infinite;
+}
+
+.fps-powerup-timer-slab--expiring .fps-powerup-timer-label,
+.fps-powerup-timer-slab--expiring .fps-powerup-timer-count {
+  color: hsl(48, 100%, 94%);
+  text-shadow: calc(1px * var(--ui-scale, 1)) calc(1px * var(--ui-scale, 1)) 0 hsla(0, 60%, 12%, 0.8);
+}
+
+@keyframes fps-powerup-timer-expiring {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.06);
+  }
+}
+
+/* ============================================================================
    Actionable keycap — shared chip for HUD key hints ([F], [R], …)
    Dark ink chip with a gold inner edge so it reads on both cream and gold slabs.
    ============================================================================ */
@@ -2172,6 +2242,37 @@
   white-space: nowrap;
 }
 
+/* Bomb carrier — a lit fuse ahead of the name, plus a warm edge on the row.
+   Drawn rather than an emoji so it matches the print-slab HUD and renders the
+   same on every platform. */
+.fps-scoreboard-carrier {
+  display: inline-block;
+  width: 0.62em;
+  height: 0.62em;
+  margin-right: 0.5em;
+  vertical-align: baseline;
+  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+  background: var(--washoi-gold, #f5c518);
+  box-shadow: 0 0 0 0.12em rgba(245, 197, 24, 0.28);
+  position: relative;
+}
+
+.fps-scoreboard-carrier::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 88%;
+  width: 0.13em;
+  height: 0.34em;
+  transform: translateX(-50%) rotate(14deg);
+  background: linear-gradient(to top, var(--washoi-gold, #f5c518), rgba(255, 255, 255, 0.9));
+}
+
+.fps-scoreboard-row--carrier {
+  border-left: 3px solid var(--washoi-gold, #f5c518);
+  background: linear-gradient(90deg, rgba(245, 197, 24, 0.16), transparent 62%);
+}
+
 .fps-scoreboard-col-score {
   flex: 1;
   text-align: center;
@@ -2214,13 +2315,7 @@
      dark stage veil under the board. The model reads as ABOVE the overlay. */
   background:
     radial-gradient(hsla(190, 100%, 72%, 0.03) 1px, transparent 1.5px) 0 0 / 7px 7px,
-    linear-gradient(
-      100deg,
-      transparent 0%,
-      transparent 30%,
-      hsla(248, 30%, 4%, 0.72) 52%,
-      hsla(248, 30%, 4%, 0.92) 80%
-    );
+    linear-gradient(100deg, transparent 0%, transparent 30%, hsla(248, 30%, 4%, 0.72) 52%, hsla(248, 30%, 4%, 0.92) 80%);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   justify-content: flex-end;
@@ -2395,21 +2490,24 @@
 }
 
 /* Udon Team (blood) */
-.fps-scoreboard-team--udon .fps-scoreboard-team-title {
-  background: linear-gradient(100deg, hsla(7, 92%, 58%, 0.95), hsla(350, 80%, 42%, 0.93)), var(--w-scan-cream);
+/* Udon magenta — the same pink the lobby and the ESC menu's JOIN TEAM UDON
+   button use. It was red here, which is a different team as far as a player is
+   concerned: you left a pink column in the lobby and arrived in a red one. */
+.fps-scoreboard-team--ally .fps-scoreboard-team-title {
+  background: linear-gradient(100deg, var(--team-ally, hsl(320, 100%, 60%)), hsla(255, 30%, 10%, 0.9)), var(--w-scan-cream);
 }
 
-.fps-scoreboard-team--udon .fps-scoreboard-row {
-  border-left: 3px solid hsla(7, 92%, 58%, 0.75);
+.fps-scoreboard-team--ally .fps-scoreboard-row {
+  border-left: 3px solid var(--team-ally, hsl(320, 100%, 60%));
 }
 
 /* Soba Team (armor cyan) */
-.fps-scoreboard-team--soba .fps-scoreboard-team-title {
-  background: linear-gradient(115deg, hsla(190, 98%, 58%, 0.45), hsla(210, 62%, 20%, 0.92) 70%), var(--w-scan-cyan);
+.fps-scoreboard-team--enemy .fps-scoreboard-team-title {
+  background: linear-gradient(115deg, var(--team-enemy, hsl(186, 98%, 58%)), hsla(210, 62%, 18%, 0.92) 70%), var(--w-scan-cyan);
 }
 
-.fps-scoreboard-team--soba .fps-scoreboard-row {
-  border-left: 3px solid hsla(185, 98%, 62%, 0.7);
+.fps-scoreboard-team--enemy .fps-scoreboard-row {
+  border-left: 3px solid var(--team-enemy, hsl(186, 98%, 58%));
 }
 
 /* ============================================================================
@@ -2486,12 +2584,12 @@
   margin-right: calc(8px * var(--ui-scale, 1));
 }
 
-.fps-chat-sender--udon {
-  color: var(--w-cyan);
+.fps-chat-sender--ally {
+  color: var(--team-ally, hsl(320, 100%, 60%));
 }
 
-.fps-chat-sender--soba {
-  color: var(--w-magenta);
+.fps-chat-sender--enemy {
+  color: var(--team-enemy, hsl(186, 98%, 58%));
 }
 
 .fps-chat-sender--spec {
@@ -3503,4 +3601,490 @@
   color: var(--w-cream);
   background: linear-gradient(100deg, hsla(42, 96%, 56%, 0.4), hsla(42, 96%, 46%, 0.2));
   border-left: 0;
+}
+
+/* ============================================================================
+   Bomb Status (Search & Destroy)
+
+   Sits under the round timer. Borrows the powerup slab's print language —
+   clipped parallelogram, hard drop shadow — so an objective reads as part of
+   the same HUD rather than bolted on.
+   ============================================================================ */
+
+.fps-bomb-status {
+  display: flex;
+  flex-direction: column;
+  /* Left-aligned: it lives in the top-left corner, not in the centre cluster,
+     so centring it would leave the role tag floating over nothing. */
+  align-items: flex-start;
+  gap: calc(3px * var(--ui-scale, 1));
+  pointer-events: none;
+}
+
+.fps-bomb-status-phase {
+  padding: calc(3px * var(--ui-scale, 1)) calc(16px * var(--ui-scale, 1)) calc(5px * var(--ui-scale, 1));
+  clip-path: polygon(3% 0, 100% 0, 97% 100%, 0 100%);
+  background: linear-gradient(178deg, hsl(210, 14%, 88%), hsl(210, 12%, 74%) 70%), var(--w-scan-cream);
+  font-family: var(--w-font-display);
+  font-size: calc(14px * var(--ui-scale, 1));
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: hsl(246, 40%, 8%);
+  box-shadow: calc(4px * var(--ui-scale, 1)) calc(5px * var(--ui-scale, 1)) 0 hsla(250, 45%, 4%, 0.55);
+  filter: var(--w-drop-print-sm);
+}
+
+/* Armed — the round has inverted. Red, and it should be impossible to miss. */
+.fps-bomb-status--armed .fps-bomb-status-phase {
+  background: linear-gradient(178deg, hsl(2, 92%, 62%), hsl(356, 84%, 48%) 72%), var(--w-scan-cream);
+  color: hsl(48, 100%, 95%);
+  text-shadow: calc(1px * var(--ui-scale, 1)) calc(1px * var(--ui-scale, 1)) 0 hsla(0, 60%, 12%, 0.8);
+}
+
+/* Last ten seconds. The fuse is never printed — the beep is the clock — so the
+   urgency lives in the phase slab instead. */
+.fps-bomb-status--urgent .fps-bomb-status-phase {
+  animation: fps-bomb-status-urgent 0.4s ease-in-out infinite;
+}
+
+@keyframes fps-bomb-status-urgent {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+.fps-bomb-status-meter {
+  width: calc(180px * var(--ui-scale, 1));
+  height: calc(8px * var(--ui-scale, 1));
+  background: hsla(250, 45%, 4%, 0.6);
+  box-shadow: inset 0 0 0 calc(1px * var(--ui-scale, 1)) hsla(210, 14%, 88%, 0.35);
+}
+
+.fps-bomb-status-meter-fill {
+  height: 100%;
+  background: hsl(48, 100%, 58%);
+  transition: width 80ms linear;
+}
+
+/* Falling, because nobody is on the bomb. Distinct colour rather than only a
+   shrinking width: the DIRECTION is the information — it tells a defender how
+   long they have to interrupt, and an attacker that their site is empty. */
+.fps-bomb-status-meter-fill--decaying {
+  background: hsl(210, 12%, 60%);
+}
+
+/* ============================================================================
+   Round Result (Search & Destroy)
+
+   Centre screen during the round-end intermission. Larger and heavier than the
+   frag message it shares that slot with — a round ending is a bigger event
+   than a kill, and the two must never be mistaken for one another.
+   ============================================================================ */
+
+.fps-round-result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(6px * var(--ui-scale, 1));
+  pointer-events: none;
+  animation: fps-round-result-in 220ms ease-out;
+}
+
+.fps-round-result-lead {
+  padding: calc(5px * var(--ui-scale, 1)) calc(22px * var(--ui-scale, 1)) calc(7px * var(--ui-scale, 1));
+  clip-path: polygon(3% 0, 100% 0, 97% 100%, 0 100%);
+  background: linear-gradient(178deg, hsl(210, 14%, 90%), hsl(210, 12%, 76%) 70%), var(--w-scan-cream);
+  font-family: var(--w-font-display);
+  font-size: calc(30px * var(--ui-scale, 1));
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: hsl(246, 40%, 8%);
+  box-shadow: calc(5px * var(--ui-scale, 1)) calc(6px * var(--ui-scale, 1)) 0 hsla(250, 45%, 4%, 0.6);
+  filter: var(--w-drop-print-sm);
+}
+
+/* Detonated is the attackers' win — the bomb's own red. */
+.fps-round-result--detonated .fps-round-result-lead {
+  background: linear-gradient(178deg, hsl(2, 92%, 62%), hsl(356, 84%, 48%) 72%), var(--w-scan-cream);
+  color: hsl(48, 100%, 95%);
+  text-shadow: calc(1px * var(--ui-scale, 1)) calc(1px * var(--ui-scale, 1)) 0 hsla(0, 60%, 12%, 0.8);
+}
+
+/* Defused is the defenders' — the cool end, deliberately opposite. */
+.fps-round-result--defused .fps-round-result-lead {
+  background: linear-gradient(178deg, hsl(186, 82%, 62%), hsl(196, 76%, 44%) 72%), var(--w-scan-cream);
+  color: hsl(200, 100%, 96%);
+  text-shadow: calc(1px * var(--ui-scale, 1)) calc(1px * var(--ui-scale, 1)) 0 hsla(210, 60%, 10%, 0.8);
+}
+
+.fps-round-result-text {
+  font-family: var(--w-font-display);
+  font-size: calc(20px * var(--ui-scale, 1));
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: hsl(210, 20%, 94%);
+  text-shadow: calc(2px * var(--ui-scale, 1)) calc(2px * var(--ui-scale, 1)) 0 hsla(250, 45%, 4%, 0.8);
+}
+
+@keyframes fps-round-result-in {
+  from {
+    opacity: 0;
+    transform: translateY(calc(-10px * var(--ui-scale, 1))) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Round counter above the team columns (round modes only). The score itself
+   is the columns; this is the one number they do not carry. */
+.fps-scoreboard-round {
+  text-align: center;
+  margin-bottom: calc(6px * var(--ui-scale, 1));
+  font-family: var(--w-font-display);
+  font-size: calc(15px * var(--ui-scale, 1));
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  color: hsl(45, 90%, 62%);
+  text-shadow: calc(1px * var(--ui-scale, 1)) calc(1px * var(--ui-scale, 1)) 0 hsla(250, 45%, 4%, 0.7);
+}
+
+/* ============================================================================
+   Loadout Picker (Search & Destroy)
+
+   Full-screen and blocking. The kit decides a whole round with no respawn to
+   correct it, so this earns the interruption.
+   ============================================================================ */
+
+.fps-loadout {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: hsla(250, 45%, 4%, 0.82);
+  backdrop-filter: blur(3px);
+  pointer-events: auto;
+}
+
+.fps-loadout-panel {
+  width: min(920px, 94vw);
+  max-height: 92vh;
+  overflow-y: auto;
+  padding: calc(22px * var(--ui-scale, 1)) calc(26px * var(--ui-scale, 1)) calc(26px * var(--ui-scale, 1));
+  background: linear-gradient(178deg, hsla(250, 30%, 12%, 0.98), hsla(250, 35%, 8%, 0.98));
+  box-shadow:
+    calc(6px * var(--ui-scale, 1)) calc(7px * var(--ui-scale, 1)) 0 hsla(250, 45%, 2%, 0.6),
+    inset 0 0 0 calc(1px * var(--ui-scale, 1)) hsla(45, 90%, 62%, 0.28);
+}
+
+/* Hero slab — same print-slab language as the ESC menu's PAUSED block. */
+.fps-loadout-hero {
+  position: relative;
+  padding: calc(14px * var(--ui-scale, 1)) calc(18px * var(--ui-scale, 1));
+  margin-bottom: calc(18px * var(--ui-scale, 1));
+  background: linear-gradient(100deg, hsla(45, 100%, 55%, 0.16), transparent 68%), hsla(0, 0%, 100%, 0.055);
+  border: calc(2px * var(--ui-scale, 1)) solid hsla(45, 100%, 55%, 0.3);
+  clip-path: polygon(0 7%, 96% 0, 100% 88%, 5% 100%);
+}
+
+.fps-loadout-hero::after {
+  content: "";
+  position: absolute;
+  right: calc(16px * var(--ui-scale, 1));
+  bottom: calc(11px * var(--ui-scale, 1));
+  width: calc(72px * var(--ui-scale, 1));
+  height: calc(8px * var(--ui-scale, 1));
+  background: repeating-linear-gradient(90deg, hsl(45, 92%, 64%) 0 8px, transparent 8px 14px);
+  opacity: 0.55;
+}
+
+.fps-loadout-kicker {
+  font-family: var(--w-font-body);
+  font-size: calc(11px * var(--ui-scale, 1));
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: hsl(45, 92%, 64%);
+}
+
+.fps-loadout-heading {
+  font-family: var(--w-font-display);
+  font-size: calc(30px * var(--ui-scale, 1));
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--w-text);
+  text-shadow: calc(2px * var(--ui-scale, 1)) calc(2px * var(--ui-scale, 1)) 0 hsla(0, 0%, 0%, 0.45);
+}
+
+/* Columns beside the stand. The weapon picture is the widest element on the
+   panel on purpose — it is the thing being chosen. */
+.fps-loadout-body {
+  display: flex;
+  gap: calc(20px * var(--ui-scale, 1));
+  align-items: stretch;
+}
+
+.fps-loadout-columns {
+  display: flex;
+  flex-direction: column;
+  gap: calc(16px * var(--ui-scale, 1));
+  flex: 0 0 auto;
+  min-width: calc(210px * var(--ui-scale, 1));
+}
+
+.fps-loadout-column {
+  display: flex;
+  flex-direction: column;
+  gap: calc(6px * var(--ui-scale, 1));
+}
+
+.fps-loadout-column-label {
+  font-family: var(--w-font-body);
+  font-size: calc(11px * var(--ui-scale, 1));
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: hsl(186, 70%, 62%);
+}
+
+/* One row per weapon: the name, nothing else. */
+.fps-loadout-option {
+  width: 100%;
+  min-height: calc(40px * var(--ui-scale, 1));
+  padding: calc(9px * var(--ui-scale, 1)) calc(16px * var(--ui-scale, 1));
+  border: calc(2px * var(--ui-scale, 1)) solid hsla(180, 100%, 50%, 0.24);
+  border-radius: 0;
+  background: linear-gradient(92deg, hsla(180, 100%, 50%, 0.14), hsla(0, 0%, 100%, 0.05) 60%), hsla(238, 38%, 8%, 0.95);
+  clip-path: polygon(3% 0, 100% 0, 97% 100%, 0 100%);
+  box-shadow:
+    calc(4px * var(--ui-scale, 1)) calc(5px * var(--ui-scale, 1)) 0 hsla(0, 0%, 0%, 0.32),
+    inset calc(5px * var(--ui-scale, 1)) 0 0 hsla(180, 100%, 50%, 0.4);
+  font-family: var(--w-font-display);
+  font-size: calc(15px * var(--ui-scale, 1));
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-align: left;
+  color: var(--w-text);
+  cursor: pointer;
+  pointer-events: auto;
+  transition:
+    transform 0.12s ease,
+    border-color 0.12s ease,
+    background 0.12s ease;
+}
+
+.fps-loadout-option:hover {
+  transform: translate(calc(-2px * var(--ui-scale, 1)), calc(-2px * var(--ui-scale, 1)));
+  border-color: hsla(180, 100%, 50%, 0.7);
+}
+
+/* Chosen: gold, matching the HUD's "this is yours" colour. */
+.fps-loadout-option--selected {
+  border-color: hsla(45, 100%, 60%, 0.85);
+  background: linear-gradient(92deg, hsla(45, 100%, 55%, 0.34), hsla(45, 90%, 50%, 0.12) 62%), hsla(238, 38%, 8%, 0.98);
+  box-shadow:
+    calc(4px * var(--ui-scale, 1)) calc(5px * var(--ui-scale, 1)) 0 hsla(0, 0%, 0%, 0.36),
+    inset calc(5px * var(--ui-scale, 1)) 0 0 hsl(45, 92%, 60%);
+  color: hsl(45, 96%, 90%);
+}
+
+/* The stand. */
+.fps-loadout-preview {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: calc(260px * var(--ui-scale, 1));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(ellipse at 50% 62%, hsla(180, 100%, 50%, 0.14), transparent 62%), hsla(238, 40%, 6%, 0.75);
+  border: calc(2px * var(--ui-scale, 1)) solid hsla(180, 100%, 50%, 0.22);
+  clip-path: polygon(2% 0, 100% 0, 98% 100%, 0 100%);
+  overflow: hidden;
+}
+
+.fps-loadout-preview-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  /* A display, not a viewer — drags belong to the picker underneath. */
+  pointer-events: none;
+}
+
+.fps-loadout-preview-name {
+  position: absolute;
+  left: calc(18px * var(--ui-scale, 1));
+  bottom: calc(14px * var(--ui-scale, 1));
+  font-family: var(--w-font-display);
+  font-size: calc(22px * var(--ui-scale, 1));
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--w-text);
+  text-shadow: calc(2px * var(--ui-scale, 1)) calc(2px * var(--ui-scale, 1)) 0 hsla(0, 0%, 0%, 0.55);
+  pointer-events: none;
+}
+
+.fps-loadout-confirm {
+  width: 100%;
+  margin-top: calc(20px * var(--ui-scale, 1));
+  min-height: calc(52px * var(--ui-scale, 1));
+  border: none;
+  background: linear-gradient(92deg, hsl(158, 64%, 42%), hsl(168, 58%, 36%));
+  clip-path: polygon(2% 0, 100% 0, 98% 100%, 0 100%);
+  box-shadow: calc(5px * var(--ui-scale, 1)) calc(6px * var(--ui-scale, 1)) 0 hsla(0, 0%, 0%, 0.34);
+  font-family: var(--w-font-display);
+  font-size: calc(19px * var(--ui-scale, 1));
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: hsl(160, 60%, 8%);
+  cursor: pointer;
+  pointer-events: auto;
+  transition:
+    transform 0.12s ease,
+    filter 0.12s ease;
+}
+
+.fps-loadout-confirm:hover {
+  transform: translate(calc(-2px * var(--ui-scale, 1)), calc(-2px * var(--ui-scale, 1)));
+  filter: brightness(1.08);
+}
+
+/* Narrow windows: the stand goes above the columns rather than shrinking to a
+   stripe, since a squeezed weapon picture is worth less than no picture. */
+@media (max-width: 860px) {
+  .fps-loadout-body {
+    flex-direction: column-reverse;
+  }
+
+  .fps-loadout-preview {
+    min-height: calc(200px * var(--ui-scale, 1));
+  }
+}
+
+/* Warmup ready prompt — the message exists to tell you how to start. */
+.fps-phase-ready {
+  margin-top: calc(8px * var(--ui-scale, 1));
+  font-family: var(--w-font-display);
+  font-size: calc(14px * var(--ui-scale, 1));
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: hsl(186, 80%, 70%);
+}
+
+/* Carrying the bomb — the one state its holder must never have to infer. */
+.fps-bomb-status--carrying .fps-bomb-status-phase {
+  background: linear-gradient(178deg, hsl(48, 100%, 62%), hsl(38, 96%, 50%) 72%), var(--w-scan-cream);
+  color: hsl(246, 45%, 8%);
+  animation: fps-bomb-carry-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes fps-bomb-carry-pulse {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.22);
+  }
+}
+
+/* Which side you are on this round. Small, above the objective line — the
+   central fact of the mode, and previously only inferable from wording. */
+.fps-bomb-status-role {
+  font-family: var(--w-font-display);
+  font-size: calc(11px * var(--ui-scale, 1));
+  font-weight: 800;
+  letter-spacing: 0.28em;
+  color: hsl(186, 70%, 62%);
+  text-shadow: calc(1px * var(--ui-scale, 1)) calc(1px * var(--ui-scale, 1)) 0 hsla(250, 45%, 4%, 0.8);
+}
+
+.fps-bomb-status--attacking .fps-bomb-status-role {
+  color: hsl(38, 92%, 62%);
+}
+
+/* Team header: name and score on one slab. The score is the point in a round
+   mode, where it counts rounds won and appears nowhere else on the board. */
+.fps-scoreboard-team-title {
+  display: inline-flex;
+  align-items: baseline;
+  gap: calc(14px * var(--ui-scale, 1));
+}
+
+.fps-scoreboard-team-score {
+  font-size: calc(24px * var(--ui-scale, 1));
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+/* ── Bomb plant/defuse meter, centre screen ──────────────────────────────
+   Arming and defusing are the only actions that ask you to stand still and
+   watch a bar finish, and the corner slab is the wrong place to watch it — you
+   are looking down the sightline someone is about to come through. Sits BELOW
+   the crosshair so it never competes with what you are aiming with. */
+.fps-bomb-plant-meter {
+  position: fixed;
+  left: 50%;
+  top: 58%;
+  transform: translateX(-50%);
+  z-index: 620;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(9px * var(--ui-scale, 1));
+  pointer-events: none;
+}
+
+.fps-bomb-plant-meter-label {
+  font-family: var(--w-font-display);
+  font-size: calc(24px * var(--ui-scale, 1));
+  font-weight: 900;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: hsl(48, 100%, 66%);
+  text-shadow: calc(2px * var(--ui-scale, 1)) calc(2px * var(--ui-scale, 1)) 0 hsla(0, 0%, 0%, 0.62);
+}
+
+.fps-bomb-plant-meter-track {
+  width: calc(380px * var(--ui-scale, 1));
+  height: calc(20px * var(--ui-scale, 1));
+  background: hsla(250, 45%, 4%, 0.72);
+  box-shadow:
+    inset 0 0 0 calc(2px * var(--ui-scale, 1)) hsla(210, 14%, 88%, 0.4),
+    calc(3px * var(--ui-scale, 1)) calc(3px * var(--ui-scale, 1)) 0 hsla(0, 0%, 0%, 0.4);
+  clip-path: polygon(2% 0, 100% 0, 98% 100%, 0 100%);
+}
+
+.fps-bomb-plant-meter-fill {
+  height: 100%;
+  background: hsl(48, 100%, 58%);
+  transition: width 80ms linear;
+}
+
+/* Defusing is the defenders' half of the same bar — cyan, so a spectator can
+   tell which side is winning the contest without reading the word. */
+.fps-bomb-plant-meter--defusing .fps-bomb-plant-meter-label {
+  color: hsl(186, 90%, 68%);
+}
+
+.fps-bomb-plant-meter--defusing .fps-bomb-plant-meter-fill {
+  background: hsl(186, 85%, 55%);
+}
+
+/* Draining, because nobody is on the bomb. The direction is the information. */
+.fps-bomb-plant-meter-fill--decaying {
+  background: hsl(210, 12%, 60%);
 }

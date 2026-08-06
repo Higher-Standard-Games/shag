@@ -31,6 +31,11 @@ export interface EntitySnapshot {
   wallJumping: boolean;
   /** Recorded camera offset from the entity origin (0 standing, negative crouched). */
   crouchViewOffset?: number;
+  /**
+   * Held powerups as a bitmask over POWERUP_KINDS (shared/items/Powerups).
+   * Never interpolated — it is stepped, like `crouching`.
+   */
+  powerupMask?: number;
 }
 
 /** A timestamped snapshot for the entire frame */
@@ -60,6 +65,11 @@ export interface InterpolatedEntity {
   wallJumping: boolean;
   /** Recorded camera offset from the entity origin (0 standing, negative crouched). */
   crouchViewOffset?: number;
+  /**
+   * Held powerups as a bitmask over POWERUP_KINDS (shared/items/Powerups).
+   * Never interpolated — it is stepped, like `crouching`.
+   */
+  powerupMask?: number;
 }
 
 /** Server gravity constant (must match server physics) */
@@ -205,6 +215,7 @@ export class SnapshotBuffer {
         crouching: entity.crouching,
         sliding: entity.sliding,
         wallJumping: entity.wallJumping,
+        powerupMask: entity.powerupMask,
       };
     }
 
@@ -314,6 +325,9 @@ export class SnapshotBuffer {
       crouching: clampedT < 0.5 ? a.crouching : b.crouching,
       sliding: clampedT < 0.5 ? a.sliding : b.sliding,
       wallJumping: clampedT < 0.5 ? a.wallJumping : b.wallJumping,
+      // Take the NEWER mask rather than the nearer one: a quad expiring or
+      // being grabbed should read the moment the server says so.
+      powerupMask: b.powerupMask ?? a.powerupMask,
     };
   }
 

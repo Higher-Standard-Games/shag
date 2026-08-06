@@ -24,7 +24,7 @@ SHAG Engine is released under the **MIT License**. You can use it freely in pers
 
 ### "npm install" fails
 
-Ensure Node.js 18+ is installed:
+Ensure Node.js 22 is installed (pinned in `.nvmrc`):
 
 ```bash
 node --version  # Should be 18+
@@ -148,10 +148,10 @@ Check device logs in Android Studio or Xcode.
 
 ## Performance Tips
 
-1. **Enable PVS culling**: `pvs toggle`
+1. **Enable PVS culling**: `pvs on`
 2. **Lower anisotropy**: `r_anisotropy 4`
 3. **Disable post-processing**: `r_bloom 0`
-4. **Use KTX2 textures**: `npm run build:textures`
+4. **Use KTX2 textures**: `npm run tools:textures`
 
 ## Getting Help
 

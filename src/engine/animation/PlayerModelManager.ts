@@ -52,9 +52,27 @@ export interface PlayerModelInstance {
    * floating after death/ragdoll cleanup).
    */
   attachedWeapon?: TransformNode | null;
+  /**
+   * Bind-pose local position of the Hips node, captured at instance creation.
+   * `resetRootMotion` restores it every frame so root motion can never move the
+   * body away from the anchor. Y is part of the bind pose (the skeleton's natural
+   * hip height above the feet), so it is restored rather than zeroed.
+   */
+  hipsBind?: { node: TransformNode; x: number; y: number; z: number } | null;
 }
 
 export type PlayerModelTeamColor = "alpha" | "beta" | "bravo" | "ffa";
+
+/**
+ * The material fields the powerup glow writes. Structural rather than
+ * `StandardMaterial | PBRMaterial` because player models arrive from glTF with
+ * either, and only these three fields are ever touched.
+ */
+interface GlowableMaterial {
+  emissiveColor?: Color3;
+  /** Stashed by applyVisualStyle so lifts are applied from a stable base. */
+  __playerModelBaseEmissiveColor?: Color3;
+}
 
 export interface PlayerModelVisualStyle {
   tintColor: Color3 | null;
@@ -184,7 +202,7 @@ export class PlayerModelManager {
       // on clones. Our AnimationGroups hold their own references and are
       // unaffected by this clear.
       this.sourceMesh.animations = [];
-      for (const node of this.sourceMesh.getChildTransformNodes(true)) {
+      for (const node of this.sourceMesh.getChildTransformNodes(false)) {
         node.animations = [];
       }
       for (const child of this.sourceMesh.getChildMeshes()) {
@@ -337,8 +355,11 @@ export class PlayerModelManager {
     // these independently of our AnimationGroups, causing root-motion drift
     // (model slides away from hitbox). Our AnimationGroups hold their own
     // channel references and are NOT affected by this clear.
+    // Traverse the FULL subtree: the skeleton nodes sit under RootNode, not
+    // directly under __root__, so a direct-descendants-only walk clears nothing
+    // but RootNode and leaves the 69 nodes below it still animating.
     clonedMesh.animations = [];
-    for (const node of clonedMesh.getChildTransformNodes(true)) {
+    for (const node of clonedMesh.getChildTransformNodes(false)) {
       node.animations = [];
     }
     for (const child of clonedMesh.getChildMeshes()) {
@@ -350,7 +371,7 @@ export class PlayerModelManager {
     }
     // Also stop any scene-level Animatables targeting cloned nodes
     this.scene.stopAnimation(clonedMesh);
-    for (const node of clonedMesh.getChildTransformNodes(true)) {
+    for (const node of clonedMesh.getChildTransformNodes(false)) {
       this.scene.stopAnimation(node);
     }
     for (const bone of clonedSkeleton.bones) {
@@ -373,6 +394,16 @@ export class PlayerModelManager {
       }
     }
 
+    // Capture the Hips bind pose now, before any animation has run, so
+    // resetRootMotion can never mistake a drifted pose for the bind pose.
+    let hipsBind: PlayerModelInstance["hipsBind"] = null;
+    for (const node of clonedMesh.getChildTransformNodes(false)) {
+      if (node.name.toLowerCase().includes("hips")) {
+        hipsBind = { node, x: node.position.x, y: node.position.y, z: node.position.z };
+        break;
+      }
+    }
+
     const instance: PlayerModelInstance = {
       id,
       anchor,
@@ -382,6 +413,7 @@ export class PlayerModelManager {
       masterGroup: null,
       currentAnim: "",
       oneshotUntil: 0,
+      hipsBind,
     };
 
     console.log(`[PlayerModelManager] Created instance: ${id}`);
@@ -586,6 +618,41 @@ export class PlayerModelManager {
     }
   }
 
+  /**
+   * Overlay a powerup glow on top of whatever visual style is already applied.
+   *
+   * Separate from `applyVisualStyle` because this runs EVERY FRAME while a
+   * powerup is held (the pulse is time-driven), so it deliberately does the
+   * minimum: no material cloning, no albedo writes, just emissive and the
+   * outline. `applyVisualStyle` remains the thing that establishes the base
+   * look, and clearing the glow is done by re-applying that base.
+   *
+   * Assumes `applyVisualStyle` already ran for this instance, so the per-mesh
+   * material clone and `__playerModelBaseEmissiveColor` both exist.
+   */
+  applyPowerupGlow(instance: PlayerModelInstance, color: Color3, intensity: number, outlineWidth: number): void {
+    const allMeshes: AbstractMesh[] = [instance.mesh, ...instance.mesh.getChildMeshes()];
+
+    for (const mesh of allMeshes) {
+      const pbrMat = mesh.material as unknown as GlowableMaterial | null;
+      if (!pbrMat) continue;
+
+      if (pbrMat.emissiveColor) {
+        // Lift from the material's OWN base emissive, not from its current
+        // value — accumulating onto the current value would ramp to white
+        // within a second at 60fps.
+        const base = pbrMat.__playerModelBaseEmissiveColor ?? Color3.Black();
+        pbrMat.emissiveColor.r = base.r + color.r * intensity;
+        pbrMat.emissiveColor.g = base.g + color.g * intensity;
+        pbrMat.emissiveColor.b = base.b + color.b * intensity;
+      }
+
+      mesh.renderOutline = outlineWidth > 0;
+      mesh.outlineColor = color;
+      mesh.outlineWidth = outlineWidth;
+    }
+  }
+
   /** Back-compat wrapper for older callers that only know about team colors. */
   applyTeamColor(instance: PlayerModelInstance, team: PlayerModelTeamColor | null): void {
     const color = team ? PlayerModelManager.TEAM_COLORS[team] : null;
@@ -604,26 +671,40 @@ export class PlayerModelManager {
   // ── Per-Frame Utilities ──────────────────────────────────────
 
   /**
-   * Zero out root-motion bone positions each frame.
-   * Call this every frame to prevent animation drift.
+   * Cancel root motion each frame so the body always renders on its anchor.
    *
-   * IMPORTANT: Only zero X and Z on the Hips bone — preserve Y.
-   * Hips Y determines the character's natural height above the mesh root.
-   * Zeroing it collapses the entire skeleton to mesh origin (feet level),
-   * causing legs to extend ~35 units below the floor.
+   * The Mixamo clips carry large root motion on `mixamorig:Hips` — measured
+   * against MODEL_SCALE 36: run travels 82u forward, strafes 39–51u sideways,
+   * slide 246u. That displacement lives in the anchor's LOCAL space, so the
+   * anchor's yaw rotates it: a turning player's body swings around its true
+   * position instead of standing on it.
+   *
+   * MUST traverse the full subtree. In vanguard.glb the hierarchy is
+   * `__root__ > RootNode > mixamorig:Hips`, so `getChildTransformNodes(true)`
+   * (direct descendants) sees only `RootNode` and the Hips branch below never
+   * ran. Only `RootNode` and `mixamorig:Hips` match these names anywhere in the
+   * 70-node subtree, so the recursive walk stays targeted.
+   *
+   * Hips Y is restored to its BIND value, not zeroed: it is the skeleton's
+   * natural hip height above the feet, and zeroing it collapses the skeleton to
+   * mesh origin, dropping the legs ~35 units through the floor.
    */
   resetRootMotion(instance: PlayerModelInstance): void {
     instance.mesh.position.set(0, 0, 0);
-    for (const child of instance.mesh.getChildTransformNodes(true)) {
+
+    for (const child of instance.mesh.getChildTransformNodes(false)) {
       const name = child.name.toLowerCase();
       if (name.includes("armature") || name.includes("root")) {
         // Armature/root nodes should always be at mesh origin
         child.position.set(0, 0, 0);
-      } else if (name.includes("hips")) {
-        // Hips: only zero horizontal drift, keep natural Y height
-        child.position.x = 0;
-        child.position.z = 0;
       }
+    }
+
+    // Hips: restore the bind pose, killing both horizontal drift and the
+    // vertical bob that would otherwise float the body off the ground.
+    const bind = instance.hipsBind;
+    if (bind) {
+      bind.node.position.set(bind.x, bind.y, bind.z);
     }
   }
 

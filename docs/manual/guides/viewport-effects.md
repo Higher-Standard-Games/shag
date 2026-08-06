@@ -43,7 +43,10 @@ applicator.apply(delta, camera, baseFOV);
 | `SpeedFOVEffect` | FOV increase at high speed | — |
 | `StrafeLeanEffect` | Camera roll on strafe | — |
 | `IdleBreathingEffect` | Subtle idle movement | `cg_idleamplitude` |
-| `DamageFlashEffect` | Red screen tint on damage | — |
+
+The red screen tint on damage is **not** a viewport effect — it is a HUD
+overlay (`src/engine/ui/hud/DamageOverlay.ts`) drawn on top of the rendered
+frame, so it does not participate in the camera delta pipeline described above.
 
 ## Player State
 
