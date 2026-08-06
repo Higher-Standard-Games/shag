@@ -95,6 +95,7 @@ export type RenderVarName =
   | "r_lightintensity"
   | "r_lightmapscale"
   | "r_underwater_distortion"
+  | "r_water"
   | "r_shadows"
   | "r_gamma"
   | "r_saturation"
@@ -377,6 +378,15 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, "name">> = {
     min: 0.1,
     max: 3.0,
     description: "Scales baked lightmap gain on top of the per-format default (takes effect on map load)",
+    category: "lighting",
+  },
+  r_water: {
+    value: 1,
+    defaultValue: 1,
+    min: 0,
+    max: 1,
+    description:
+      "Draw liquid surfaces with the unified water material. 0 falls back to the legacy Q3/Warsow shader translation (applies on next map load).",
     category: "lighting",
   },
   r_underwater_distortion: {

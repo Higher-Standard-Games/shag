@@ -21,6 +21,7 @@ import { EventBus } from "../../core/EventBus";
 import { LOADING_EVENTS, type LoadingCompleteEvent, type LoadingProgressEvent } from "../../core/LoadingEvents";
 import { EntityManager } from "../../entities/EntityManager";
 import RenderVars from "../../rendering/RenderVars";
+import { LiquidSurfaceSystem } from "../../rendering/water/LiquidSurfaceSystem";
 import { registerBspEntityHandlers, setCurrentBspForHandlers } from "../bsp/BspEntityHandlers";
 import { type BspFile, BspLoader } from "../bsp/BspLoader";
 import { BspMeshBuilder, type BspMeshBuildResult } from "../bsp/BspMeshBuilder";
@@ -81,6 +82,8 @@ export class MapLoader {
   private currentMap: string | null = null;
   private currentBsp: BspFile | null = null;
   private currentMeshResult: BspMeshBuildResult | null = null;
+  /** Owns the unified water materials for the loaded map; disposed with it. */
+  private liquidSurfaces: LiquidSurfaceSystem | null = null;
 
   /** True while a BSP map is being loaded */
   private isLoadingMap: boolean = false;
@@ -356,6 +359,14 @@ export class MapLoader {
       deluxe: deluxeEnabled,
       pbr: bspPbrEnabled,
     });
+
+    // Phase 6b: Claim liquid surfaces.
+    //
+    // After textures, deliberately: the legacy material is built first and then
+    // displaced, so a shader that will not compile leaves a working surface
+    // behind rather than a hole. Restoring it later is also what makes
+    // `r_water 0` a live toggle instead of a reload.
+    this.claimLiquidSurfaces(meshResult, scene);
 
     // Phase 7: Apply skybox
     progress("Skybox", "Creating");
@@ -724,6 +735,11 @@ export class MapLoader {
     // hierarchy alone does not remove them.
     EntityManager.getInstance().disposeMapEntities();
 
+    // Hand liquid surfaces back before the meshes go, so nothing is left
+    // pointing at a material that is about to be disposed.
+    this.liquidSurfaces?.dispose();
+    this.liquidSurfaces = null;
+
     if (this.currentMeshResult) {
       // Dispose child meshes first
       for (const child of this.currentMeshResult.worldMesh.getChildMeshes()) {
@@ -869,6 +885,36 @@ export class MapLoader {
 
   // NOTE: buildClipBrushMeshes, brushToBounds, intersectPlanes, and isInsideAllPlanes
   // were disabled for testing and have been removed. See git history if needed.
+
+  /**
+   * Hand every liquid surface in the built map to the unified water material.
+   *
+   * Gated by `r_water` so the legacy Q3/Warsow translation stays reachable —
+   * it is the comparison baseline for tuning this, and the fallback if a
+   * driver refuses the shader.
+   */
+  private claimLiquidSurfaces(meshResult: BspMeshBuildResult, scene: Scene): void {
+    this.liquidSurfaces?.dispose();
+    this.liquidSurfaces = null;
+
+    if (this.renderVars?.get("r_water") === 0) {
+      console.log("[MapLoader] r_water 0 — liquid surfaces left on the legacy renderer");
+      return;
+    }
+
+    const system = new LiquidSurfaceSystem(scene);
+    const claimed = system.claim(meshResult.worldMesh);
+
+    if (claimed === 0) {
+      // No liquid drawn in this map. Common and not a fault: a map can have
+      // swimmable volumes with no visible surface at all.
+      system.dispose();
+      return;
+    }
+
+    this.liquidSurfaces = system;
+    console.log(`[MapLoader] Unified water claimed ${claimed} liquid surface(s)`);
+  }
 
   /**
    * Get current BSP
