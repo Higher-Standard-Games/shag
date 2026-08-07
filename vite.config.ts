@@ -154,6 +154,8 @@ export default defineConfig({
       '@babylonjs/core/PostProcesses/volumetricLightScatteringPostProcess',
       '@babylonjs/core/Rendering/depthRendererSceneComponent',
       '@babylonjs/core/Rendering/edgesRenderer',
+      '@babylonjs/core/Rendering/fluidRenderer/fluidRenderer',
+      '@babylonjs/core/Rendering/fluidRenderer/fluidRenderingObjectCustomParticles',
       '@babylonjs/core/Rendering/outlineRenderer',
       '@babylonjs/core/Shaders/ShadersInclude/instancesDeclaration',
       '@babylonjs/core/Shaders/ShadersInclude/instancesVertex',

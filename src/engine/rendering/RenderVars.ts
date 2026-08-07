@@ -96,6 +96,7 @@ export type RenderVarName =
   | "r_lightmapscale"
   | "r_underwater_distortion"
   | "r_water"
+  | "r_water_quality"
   | "r_water_debug"
   | "r_shadows"
   | "r_gamma"
@@ -388,6 +389,15 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, "name">> = {
     max: 1,
     description:
       "Draw liquid surfaces with the unified water material. 0 falls back to the legacy Q3/Warsow shader translation (applies on next map load).",
+    category: "lighting",
+  },
+  r_water_quality: {
+    value: 2,
+    defaultValue: 2,
+    min: 1,
+    max: 3,
+    description:
+      "Splash detail. 1 = ripple ring only, 2 = ring plus surface foam, 3 = Epic — screen-space fluid crowns thrown from every impact. 3 allocates render targets; 1 and 2 allocate none.",
     category: "lighting",
   },
   r_water_debug: {
