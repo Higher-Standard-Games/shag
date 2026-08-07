@@ -127,6 +127,22 @@ describe("liquid appearance", () => {
     expect(WATER_PROFILES.lava.minAlpha).toBe(1);
   });
 
+  it("foams at a water shoreline but not at a lava one", () => {
+    // Water laps at an edge; lava crusts. A white band on lava would read as
+    // steam it is not producing.
+    expect(WATER_PROFILES.water.foam).toBeGreaterThan(0);
+    expect(WATER_PROFILES.lava.foam).toBe(0);
+  });
+
+  it("keeps the foam band narrow enough to be an edge", () => {
+    // Foam fades out over this many world units of thickness. Too wide and it
+    // stops being a shoreline and becomes a pale wash over the whole shallow
+    // end.
+    for (const kind of KINDS) {
+      expect(WATER_PROFILES[kind].foamWidth).toBeLessThan(40);
+    }
+  });
+
   it("makes thicker liquids absorb faster", () => {
     // Slime and lava swallow their own floor over a much shorter distance than
     // water does; if this ever inverts, lava reads as red water.

@@ -89,6 +89,8 @@ uniform float uCameraFar;
 uniform float uAbsorb;
 uniform float uHasDepth;
 uniform float uDebug;
+uniform float uFoam;
+uniform float uFoamWidth;
 
 void main(void) {
   vec2 base = vWorld.xz * uScale;
@@ -146,6 +148,25 @@ void main(void) {
 
   vec3 body = mix(uShallowColor, uDeepColor, absorbed);
 
+  // Shoreline foam, from the same thickness the absorption uses.
+  //
+  // Where the water meets geometry it is arbitrarily thin, and a surface that
+  // simply fades out there reads as a rendering artefact — the pool looks like
+  // it has no edge. A band of white along that line is what makes the edge
+  // deliberate. It rides on the wave noise so it breaks up rather than tracing
+  // a clean outline of the collision geometry, which would look worse than no
+  // foam at all.
+  float foam = 0.0;
+  if (uHasDepth > 0.5 && uFoam > 0.0) {
+    vec2 screenUv2 = gl_FragCoord.xy / uScreenSize;
+    float edgeThickness = max(0.0, texture2D(uSceneDepth, screenUv2).r - vViewDepth);
+    float band = 1.0 - smoothstep(0.0, uFoamWidth, edgeThickness);
+    // The noise both breaks the line and animates it, so foam drifts with the
+    // waves instead of sitting welded to the bank.
+    float churn = 0.65 + 0.35 * (n1.x + n2.y);
+    foam = clamp(band * churn, 0.0, 1.0) * uFoam;
+  }
+
   // Fresnel drives COLOUR, not just opacity. This is what makes the waves
   // visible at all: each ripple tilts the normal, which changes how much sky
   // that pixel reflects, so the surface reads as moving rather than as a
@@ -173,11 +194,14 @@ void main(void) {
   }
 
   vec3 color = lit + vec3(spec) + body * uEmissive;
+  // Foam is white and opaque, and it goes on last so it survives the tinting.
+  color = mix(color, vec3(1.0), foam);
+
   // Opacity follows thickness for the same reason colour does: a puddle's edge
   // should be almost invisible and a deep pool should hide its floor. Fresnel
   // still thickens a grazing view on top, but never to fully opaque.
   float depthAlpha = mix(uMinAlpha, uAlpha, absorbed);
-  float alpha = clamp(depthAlpha + fresnel * (1.0 - depthAlpha), 0.0, 1.0);
+  float alpha = clamp(depthAlpha + fresnel * (1.0 - depthAlpha) + foam, 0.0, 1.0);
 
   gl_FragColor = vec4(color, alpha);
 }
@@ -215,6 +239,16 @@ export interface WaterProfile {
    * one uniform opacity.
    */
   minAlpha: number;
+  /**
+   * How strongly a shoreline foams, 0-1.
+   *
+   * Where water meets geometry it is arbitrarily thin, and a surface that just
+   * fades out there reads as a rendering fault — the pool looks edgeless. Foam
+   * is what makes the edge deliberate.
+   */
+  foam: number;
+  /** World units of thickness over which the foam band fades out. */
+  foamWidth: number;
   /**
    * Absorption per world unit of thickness.
    *
@@ -265,6 +299,8 @@ export const WATER_PROFILES: Record<WaterKind, WaterProfile> = {
     sky: new Color3(0.3, 0.4, 0.48),
     alpha: 0.8,
     minAlpha: 0.04,
+    foam: 0.7,
+    foamWidth: 26,
     // ~110 units of water before the floor is half gone.
     absorb: 0.006,
     // One tile per ~90 units, so a pool a few hundred units across shows
@@ -285,6 +321,9 @@ export const WATER_PROFILES: Record<WaterKind, WaterProfile> = {
     // Thicker than water even at its edge: slime is opaque in every game that
     // has it, and a see-through shoreline would read as dyed water.
     minAlpha: 0.5,
+    // Thicker and stickier: slime crusts at its edge rather than foaming.
+    foam: 0.45,
+    foamWidth: 18,
     absorb: 0.03,
     scale: 0.008,
     // Thicker than water, so it rolls rather than ripples.
@@ -301,6 +340,10 @@ export const WATER_PROFILES: Record<WaterKind, WaterProfile> = {
     alpha: 1.0,
     // Opaque everywhere. There is no depth of lava you can see through.
     minAlpha: 1.0,
+    // No foam. Lava does not lap at a shore, it crusts, and a white band
+    // would read as steam it is not producing.
+    foam: 0.0,
+    foamWidth: 0,
     absorb: 0.5,
     scale: 0.006,
     // Slow and heavy: lava is viscous, and fast ripples read as water tinted red.
@@ -404,6 +447,8 @@ export function createUnifiedWaterMaterial(
           "uAbsorb",
           "uHasDepth",
           "uDebug",
+          "uFoam",
+          "uFoamWidth",
         ],
         samplers: ["uNoise", "uSceneDepth"],
         needAlphaBlending: true,
@@ -433,6 +478,8 @@ export function createUnifiedWaterMaterial(
     // driver that refuses the depth renderer degrades instead of breaking.
     material.setFloat("uHasDepth", 0);
     material.setFloat("uDebug", 0);
+    material.setFloat("uFoam", profile.foam);
+    material.setFloat("uFoamWidth", profile.foamWidth);
     material.setFloat("uCameraFar", 10000);
     material.setVector2("uScreenSize", new Vector2(1920, 1080));
 
