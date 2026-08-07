@@ -150,14 +150,25 @@ describe("liquid appearance", () => {
     expect(WATER_PROFILES.lava.absorb).toBeGreaterThan(WATER_PROFILES.slime.absorb);
   });
 
-  it("absorbs water over a plausible pool depth", () => {
-    // 1 - exp(-absorb * thickness). A couple of hundred units of water should
-    // be well on the way to hiding its floor, and a few units should not.
+  it("absorbs water over a plausible RAY LENGTH, not a pool depth", () => {
+    // 1 - exp(-absorb * thickness), where thickness is the distance the view
+    // ray travels through liquid — not how deep the pool is.
+    //
+    // Those are very different numbers. Standing at a poolside looking across,
+    // a ray enters the surface and travels a long way before it reaches the
+    // floor, so a pool 200 units deep routinely presents 600+ units of water
+    // to the eye. Tuning against vertical depth is what made the middle of
+    // every pool saturate from any angle worth standing at.
     const absorb = WATER_PROFILES.water.absorb;
     const at = (t: number) => 1 - Math.exp(-absorb * t);
 
-    expect(at(5)).toBeLessThan(0.1);
-    expect(at(200)).toBeGreaterThan(0.5);
+    // A shoreline: a few units of water, essentially clear.
+    expect(at(10)).toBeLessThan(0.05);
+    // Looking straight down into a deep pool: tinted, floor still visible.
+    expect(at(200)).toBeGreaterThan(0.3);
+    expect(at(200)).toBeLessThan(0.75);
+    // A long grazing ray across the pool: the floor is gone.
+    expect(at(900)).toBeGreaterThan(0.9);
   });
 
   it("caps reflection well below a mirror", () => {

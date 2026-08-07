@@ -299,17 +299,19 @@ export interface WaterProfile {
 export const WATER_PROFILES: Record<WaterKind, WaterProfile> = {
   water: {
     // Thin water is barely there; thick water is a dark blue-green.
-    shallow: new Color3(0.3, 0.5, 0.55),
+    shallow: new Color3(0.2, 0.4, 0.45),
     deep: new Color3(0.02, 0.12, 0.19),
     // Bright, slightly cool: a bounce off the room rather than a real sky, and
     // most Q3 pools are indoors.
     sky: new Color3(0.3, 0.4, 0.48),
     alpha: 0.8,
     minAlpha: 0.04,
-    foam: 0.7,
-    foamWidth: 26,
-    // ~110 units of water before the floor is half gone.
-    absorb: 0.006,
+    foam: 0.5,
+    foamWidth: 20,
+    // A grazing ray travels far further through a pool than the pool is deep,
+    // so this is tuned against that rather than against vertical depth: at
+    // 0.006 the middle of a pool saturated from any angle worth standing at.
+    absorb: 0.003,
     // One tile per ~90 units, so a pool a few hundred units across shows
     // several waves rather than one broad smear.
     scale: 0.011,
