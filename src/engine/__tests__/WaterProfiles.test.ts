@@ -134,12 +134,20 @@ describe("liquid appearance", () => {
     expect(WATER_PROFILES.lava.foam).toBe(0);
   });
 
-  it("keeps the foam band narrow enough to be an edge", () => {
-    // Foam fades out over this many world units of thickness. Too wide and it
-    // stops being a shoreline and becomes a pale wash over the whole shallow
-    // end.
+  it("keeps the foam band inside the absorption curve's early range", () => {
+    // Foam fades out over this many units of RAY LENGTH — the same measure
+    // absorption uses, not vertical depth. The first version used 20, which is
+    // a couple of pixels at any angle worth standing at, and the foam was
+    // invisible.
+    //
+    // The bound that matters is relative: foam should live where the water is
+    // still mostly clear, so it reads as an edge rather than a wash over the
+    // whole shallow end. Past ~40% absorbed it has stopped being an edge.
     for (const kind of KINDS) {
-      expect(WATER_PROFILES[kind].foamWidth).toBeLessThan(40);
+      const p = WATER_PROFILES[kind];
+      if (p.foam === 0) continue;
+      const absorbedAtFoamEdge = 1 - Math.exp(-p.absorb * p.foamWidth);
+      expect(absorbedAtFoamEdge).toBeLessThan(0.4);
     }
   });
 

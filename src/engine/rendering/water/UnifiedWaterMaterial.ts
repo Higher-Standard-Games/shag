@@ -306,8 +306,11 @@ export const WATER_PROFILES: Record<WaterKind, WaterProfile> = {
     sky: new Color3(0.3, 0.4, 0.48),
     alpha: 0.8,
     minAlpha: 0.04,
-    foam: 0.5,
-    foamWidth: 20,
+    foam: 0.6,
+    // In RAY LENGTH, not depth — the same units absorption uses. Twenty units
+    // of ray is a couple of pixels at any angle worth standing at, which is
+    // why the foam was invisible.
+    foamWidth: 90,
     // A grazing ray travels far further through a pool than the pool is deep,
     // so this is tuned against that rather than against vertical depth: at
     // 0.006 the middle of a pool saturated from any angle worth standing at.
@@ -331,8 +334,8 @@ export const WATER_PROFILES: Record<WaterKind, WaterProfile> = {
     // has it, and a see-through shoreline would read as dyed water.
     minAlpha: 0.5,
     // Thicker and stickier: slime crusts at its edge rather than foaming.
-    foam: 0.45,
-    foamWidth: 18,
+    foam: 0.4,
+    foamWidth: 14,
     absorb: 0.03,
     scale: 0.008,
     // Thicker than water, so it rolls rather than ripples.
