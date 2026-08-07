@@ -905,7 +905,17 @@ In parallel—not as the permanent API—time-box a `WaterMaterial` acid-pool ve
 
 Exit gate: `acidwdm2` is playable end to end with correct surface, swimming, remote animation, underwater presentation, and cheap interactions on WebGL 2.
 
-### Phase 4: Medium surface and interaction quality
+### Phase 4: Medium surface and interaction quality — **depth absorption written, unverified**
+
+Written but not yet run: the shared scene depth capture and depth-driven absorption, which is the actual answer to three rounds of "it should be more transparent". The surface was tinting by view ANGLE, so a pool was one flat colour whatever its depth, and lowering alpha only made that flat colour hazier. It now tints and thickens by how much liquid the view ray passes through — a shoreline nearly vanishes, a deep pool hides its floor.
+
+`shallow` and `deep` changed meaning with it: they are now the thin-water and thick-water colours rather than the near-and-far-facing ones, and `alpha` is the DEEP opacity with a new `minAlpha` for the edge. Raising alpha back to 0.8 is not a reversal of the earlier tuning — it is the same intent expressed on an axis that can hold it.
+
+Three things to check first, none of them verified: that Babylon's depth map is normalized linear depth in `.r` with `storeNonLinearDepth: false`; that the water mesh is excluded from it (it should be, being alpha-blended — if the whole surface goes uniformly clear, that is why); and that `disableDepthRenderer` in `dispose()` actually releases it, since otherwise every map load adds a full-scene depth pass.
+
+Still owed for this phase: refraction (distorting what is seen through the surface, not just tinting it), shoreline foam from the same depth difference, and pooled spray for projectile and explosion impacts.
+
+### Phase 4 original plan
 
 1. Add one shared opaque color/depth input per active camera, not per surface.
 2. Implement refraction, depth absorption, shallow/deep tint, and intersection foam.
@@ -939,7 +949,17 @@ Exit gate: Epic produces a visible improvement at its documented measured cost; 
 
 Exit gate: the system degrades predictably when maps are more complex than `acidwdm2`.
 
-### Phase 7: Authoritative world effects and polish
+### Phase 7: Authoritative world effects — **drowning and liquid damage written, unverified**
+
+Written but not yet run: `LiquidWorldEffects`, the pure rules for air, drowning and lava/slime burn, wired into `FPSMovementSubsystem` beside fall damage. Until this you could swim in lava indefinitely, which sat oddly next to an electrical discharge that kills you outright.
+
+Q3's numbers, because they are load-bearing rather than arbitrary: twelve seconds of air, drowning damage escalating 2 at a time to a cap of 15, lava at 30/second/level and slime at 10. Lava kills a full-health player in about two seconds, which is what makes it a wall rather than a shortcut.
+
+The client mirrors the air rules for presentation only — `LocalAirTracker` runs the same pure functions to drive the gasp and, later, a HUD meter. A mirror rather than a wire field: the server owns the damage, and a meter that disagrees by a tenth of a second costs nothing, so paying protocol for it would be the wrong trade.
+
+Still owed: **the HUD air meter itself** (`Game.localAirFraction` and `localDrowning` are exposed and waiting for a widget), and a decision on whether drowning and burning deserve their own damage types — they currently both report as `World`, which keeps obituaries honest but not specific.
+
+### Phase 7 original plan
 
 1. Add optional oxygen/drowning policy.
 2. Add slime/lava periodic damage and protection rules.

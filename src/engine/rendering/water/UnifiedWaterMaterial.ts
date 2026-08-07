@@ -23,7 +23,7 @@ import { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial";
 import { RawTexture } from "@babylonjs/core/Materials/Textures/rawTexture";
 import type { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
-import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { Vector2, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Scene } from "@babylonjs/core/scene";
 import { generateWaterNormalMap, WATER_NOISE_SIZE } from "./WaterNoise";
 
@@ -36,15 +36,20 @@ attribute vec3 position;
 attribute vec3 normal;
 
 uniform mat4 world;
+uniform mat4 view;
 uniform mat4 viewProjection;
 
 varying vec3 vWorld;
 varying vec3 vNormal;
+varying float vViewDepth;
 
 void main(void) {
   vec4 worldPos = world * vec4(position, 1.0);
   vWorld = worldPos.xyz;
   vNormal = normalize(mat3(world) * normal);
+  // Distance from the eye along the view axis, so the fragment can be compared
+  // against the scene depth behind it. Babylon's view space looks down -Z.
+  vViewDepth = -(view * worldPos).z;
   gl_Position = viewProjection * worldPos;
 }
 `;
@@ -61,8 +66,11 @@ precision highp float;
 
 varying vec3 vWorld;
 varying vec3 vNormal;
+varying float vViewDepth;
 
 uniform sampler2D uNoise;
+uniform sampler2D uSceneDepth;
+uniform vec2 uScreenSize;
 uniform vec3 uCameraPosition;
 uniform vec3 uShallowColor;
 uniform vec3 uDeepColor;
@@ -73,9 +81,13 @@ uniform float uScale;
 uniform float uScroll;
 uniform float uWaveStrength;
 uniform float uAlpha;
+uniform float uMinAlpha;
 uniform float uEmissive;
 uniform float uSpecular;
 uniform float uReflectivity;
+uniform float uCameraFar;
+uniform float uAbsorb;
+uniform float uHasDepth;
 
 void main(void) {
   vec2 base = vWorld.xz * uScale;
@@ -107,7 +119,28 @@ void main(void) {
   // be reflecting a dim room. The cap is what keeps a grazing view readable.
   float fresnel = pow(1.0 - facing, 4.0) * uReflectivity;
 
-  vec3 body = mix(uDeepColor, uShallowColor, facing);
+  // How much liquid the view ray passes through before it hits something.
+  //
+  // This is the difference between water and tinted glass. The scene depth
+  // buffer holds the opaque world; the water is alpha-blended and therefore
+  // absent from it, so the gap between them IS the thickness of liquid in the
+  // way. Near a shore it approaches zero and the surface nearly vanishes; over
+  // a deep pit it saturates and the bottom disappears. Tinting by view ANGLE
+  // instead — which is what this did before — makes the whole pool one flat
+  // colour no matter how deep it is.
+  //
+  // Beer-Lambert: absorption through a medium is multiplicative, and the
+  // exponential also puts the fastest change at the shoreline, where the eye
+  // is most sensitive to it.
+  float absorbed = 1.0;
+  if (uHasDepth > 0.5) {
+    vec2 screenUv = gl_FragCoord.xy / uScreenSize;
+    float sceneDepth = texture2D(uSceneDepth, screenUv).r * uCameraFar;
+    float thickness = max(0.0, sceneDepth - vViewDepth);
+    absorbed = 1.0 - exp(-thickness * uAbsorb);
+  }
+
+  vec3 body = mix(uShallowColor, uDeepColor, absorbed);
 
   // Fresnel drives COLOUR, not just opacity. This is what makes the waves
   // visible at all: each ripple tilts the normal, which changes how much sky
@@ -122,10 +155,11 @@ void main(void) {
   float spec = pow(clamp(dot(n, halfway), 0.0, 1.0), 24.0) * uSpecular;
 
   vec3 color = lit + vec3(spec) + body * uEmissive;
-  // Grazing angles thicken but never reach full opacity, so you can always see
-  // that there is a floor down there — the thing that separates water from
-  // painted glass.
-  float alpha = clamp(uAlpha + fresnel * (1.0 - uAlpha), 0.0, 1.0);
+  // Opacity follows thickness for the same reason colour does: a puddle's edge
+  // should be almost invisible and a deep pool should hide its floor. Fresnel
+  // still thickens a grazing view on top, but never to fully opaque.
+  float depthAlpha = mix(uMinAlpha, uAlpha, absorbed);
+  float alpha = clamp(depthAlpha + fresnel * (1.0 - depthAlpha), 0.0, 1.0);
 
   gl_FragColor = vec4(color, alpha);
 }
@@ -141,7 +175,9 @@ function registerShaders(): void {
 }
 
 export interface WaterProfile {
+  /** Colour where the liquid is vanishingly thin — a shoreline, a puddle edge. */
   shallow: Color3;
+  /** Colour where it is thick enough to hide its own floor. */
   deep: Color3;
   /**
    * What the surface reflects at grazing angles.
@@ -151,8 +187,24 @@ export interface WaterProfile {
    * normal and this is what it varies toward.
    */
   sky: Color3;
-  /** Base opacity looking straight down; grazing angles always reach opaque. */
+  /** Opacity where the liquid is thick. Fresnel adds on top at grazing angles. */
   alpha: number;
+  /**
+   * Opacity where it is vanishingly thin.
+   *
+   * The number that makes water read as water: a shoreline you can see the
+   * gravel through, rather than a sheet of coloured film laid over the map at
+   * one uniform opacity.
+   */
+  minAlpha: number;
+  /**
+   * Absorption per world unit of thickness.
+   *
+   * Higher means the floor disappears sooner. This replaces the old
+   * angle-based tint, which gave a pool one flat colour no matter how deep it
+   * was — the actual reason it kept reading as a dye.
+   */
+  absorb: number;
   /** UV per world unit. One noise tile spans `1 / scale` units. */
   scale: number;
   /**
@@ -187,12 +239,16 @@ export interface WaterProfile {
  */
 export const WATER_PROFILES: Record<WaterKind, WaterProfile> = {
   water: {
-    shallow: new Color3(0.16, 0.4, 0.47),
-    deep: new Color3(0.05, 0.17, 0.24),
+    // Thin water is barely there; thick water is a dark blue-green.
+    shallow: new Color3(0.3, 0.5, 0.55),
+    deep: new Color3(0.02, 0.12, 0.19),
     // Bright, slightly cool: a bounce off the room rather than a real sky, and
     // most Q3 pools are indoors.
     sky: new Color3(0.3, 0.4, 0.48),
-    alpha: 0.22,
+    alpha: 0.8,
+    minAlpha: 0.04,
+    // ~110 units of water before the floor is half gone.
+    absorb: 0.006,
     // One tile per ~90 units, so a pool a few hundred units across shows
     // several waves rather than one broad smear.
     scale: 0.011,
@@ -207,7 +263,11 @@ export const WATER_PROFILES: Record<WaterKind, WaterProfile> = {
     shallow: new Color3(0.29, 0.72, 0.1),
     deep: new Color3(0.06, 0.22, 0.03),
     sky: new Color3(0.42, 0.68, 0.22),
-    alpha: 0.88,
+    alpha: 0.97,
+    // Thicker than water even at its edge: slime is opaque in every game that
+    // has it, and a see-through shoreline would read as dyed water.
+    minAlpha: 0.5,
+    absorb: 0.03,
     scale: 0.008,
     // Thicker than water, so it rolls rather than ripples.
     waveSpeed: 14,
@@ -221,6 +281,9 @@ export const WATER_PROFILES: Record<WaterKind, WaterProfile> = {
     deep: new Color3(0.5, 0.08, 0.0),
     sky: new Color3(1.0, 0.72, 0.25),
     alpha: 1.0,
+    // Opaque everywhere. There is no depth of lava you can see through.
+    minAlpha: 1.0,
+    absorb: 0.5,
     scale: 0.006,
     // Slow and heavy: lava is viscous, and fast ripples read as water tinted red.
     waveSpeed: 7,
@@ -302,6 +365,7 @@ export function createUnifiedWaterMaterial(
         attributes: ["position", "normal"],
         uniforms: [
           "world",
+          "view",
           "viewProjection",
           "uCameraPosition",
           "uShallowColor",
@@ -313,11 +377,16 @@ export function createUnifiedWaterMaterial(
           "uScroll",
           "uWaveStrength",
           "uAlpha",
+          "uMinAlpha",
           "uEmissive",
           "uSpecular",
           "uReflectivity",
+          "uScreenSize",
+          "uCameraFar",
+          "uAbsorb",
+          "uHasDepth",
         ],
-        samplers: ["uNoise"],
+        samplers: ["uNoise", "uSceneDepth"],
         needAlphaBlending: true,
       },
     );
@@ -334,10 +403,18 @@ export function createUnifiedWaterMaterial(
     material.setFloat("uScroll", scrollRateFor(profile));
     material.setFloat("uWaveStrength", profile.waveStrength);
     material.setFloat("uAlpha", profile.alpha);
+    material.setFloat("uMinAlpha", profile.minAlpha);
+    material.setFloat("uAbsorb", profile.absorb);
     material.setFloat("uEmissive", profile.emissive);
     material.setFloat("uSpecular", profile.specular);
     material.setFloat("uReflectivity", profile.reflectivity);
     material.setFloat("uTime", 0);
+    // Until a depth map is supplied the surface renders at full thickness,
+    // which is its old flat look rather than a black or invisible one — a
+    // driver that refuses the depth renderer degrades instead of breaking.
+    material.setFloat("uHasDepth", 0);
+    material.setFloat("uCameraFar", 10000);
+    material.setVector2("uScreenSize", new Vector2(1920, 1080));
 
     // Liquid is transparent and must not write depth, or the geometry under it
     // vanishes; and it is drawn from below as often as from above.

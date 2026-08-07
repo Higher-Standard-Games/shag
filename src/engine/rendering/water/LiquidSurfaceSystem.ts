@@ -16,8 +16,11 @@
  * at, and 22 of wdm5's 22 liquid brushes are exactly that.
  */
 
+import type { Camera } from "@babylonjs/core/Cameras/camera";
 import type { Material } from "@babylonjs/core/Materials/material";
 import type { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial";
+import type { Texture } from "@babylonjs/core/Materials/Textures/texture";
+import { Vector2 } from "@babylonjs/core/Maths/math.vector";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
@@ -34,6 +37,11 @@ export class LiquidSurfaceSystem {
   private readonly claimed: ClaimedSurface[] = [];
   private observer: Observer<Scene> | null = null;
   private elapsed = 0;
+  /** Reused so the per-frame uniform write does not allocate. */
+  private readonly screenSize = new Vector2(1920, 1080);
+  /** undefined = not yet tried, null = unavailable on this device. */
+  private depthMap: Texture | null | undefined;
+  private depthRendererCamera: Camera | null = null;
 
   constructor(private readonly scene: Scene) {}
 
@@ -83,11 +91,54 @@ export class LiquidSurfaceSystem {
     this.observer = this.scene.onBeforeRenderObservable.add(() => {
       this.elapsed += Math.min(0.1, this.scene.getEngine().getDeltaTime() / 1000);
       const camera = this.scene.activeCameras?.[0] ?? this.scene.activeCamera;
+      if (!camera) return;
+
+      const engine = this.scene.getEngine();
+      const depthMap = this.depthMapFor(camera);
+
       for (const material of this.materials.values()) {
         material.setFloat("uTime", this.elapsed);
-        if (camera) material.setVector3("uCameraPosition", camera.globalPosition);
+        material.setVector3("uCameraPosition", camera.globalPosition);
+        material.setFloat("uCameraFar", camera.maxZ);
+        // Screen size every frame rather than at build: a resize would
+        // otherwise offset every depth lookup by the ratio of the change.
+        this.screenSize.set(engine.getRenderWidth(), engine.getRenderHeight());
+        material.setVector2("uScreenSize", this.screenSize);
+
+        if (depthMap) {
+          material.setTexture("uSceneDepth", depthMap);
+          material.setFloat("uHasDepth", 1);
+        } else {
+          material.setFloat("uHasDepth", 0);
+        }
       }
     });
+  }
+
+  /**
+   * The scene's linear depth map, enabled on first use.
+   *
+   * Water is alpha-blended and therefore absent from this map, which is
+   * precisely what makes it useful: it holds the world BEHIND the water, and
+   * the gap between that and the surface is the thickness of liquid the view
+   * ray passes through.
+   *
+   * A driver that refuses the depth renderer leaves `uHasDepth` at zero and
+   * the surface falls back to its uniform look rather than to a black hole.
+   */
+  private depthMapFor(camera: Camera): Texture | null {
+    if (this.depthMap !== undefined) return this.depthMap;
+
+    try {
+      const renderer = this.scene.enableDepthRenderer(camera, false);
+      this.depthRendererCamera = camera;
+      this.depthMap = renderer.getDepthMap();
+    } catch (error) {
+      console.warn("[Water] Depth renderer unavailable; water will not be depth-tinted", error);
+      this.depthMap = null;
+    }
+
+    return this.depthMap;
   }
 
   /** How many surfaces this system currently draws. */
@@ -115,6 +166,19 @@ export class LiquidSurfaceSystem {
 
     for (const material of this.materials.values()) material.dispose();
     this.materials.clear();
+
+    // The depth renderer is a per-camera render target the scene keeps until
+    // told otherwise. Left behind, every map load adds another full-scene
+    // depth pass to a scene that may no longer have water in it at all.
+    if (this.depthRendererCamera) {
+      try {
+        this.scene.disableDepthRenderer(this.depthRendererCamera);
+      } catch {
+        // Already gone with the scene; nothing to do.
+      }
+      this.depthRendererCamera = null;
+    }
+    this.depthMap = undefined;
 
     disposeWaterNoise(this.scene);
     this.elapsed = 0;

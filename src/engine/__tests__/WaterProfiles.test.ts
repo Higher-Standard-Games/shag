@@ -86,14 +86,19 @@ describe("scrollRateFor", () => {
 });
 
 describe("liquid appearance", () => {
-  it("gives every liquid a sky colour brighter than its body", () => {
+  it("gives every liquid a sky colour brighter than its deep body", () => {
     // The sky term is what Fresnel varies toward, and it is the reason ripples
     // are visible at all. A sky darker than the water would make waves read as
     // dirt rather than as light.
+    //
+    // Compared against DEEP rather than shallow: Fresnel only matters at
+    // grazing angles, and a grazing ray passes through a lot of liquid, so the
+    // body it is reflecting off is the deep colour. Shallow is now the
+    // near-clear shoreline tint and is naturally lighter than any reflection.
     for (const kind of KINDS) {
       const p = WATER_PROFILES[kind];
       const luma = (c: { r: number; g: number; b: number }) => c.r * 0.3 + c.g * 0.6 + c.b * 0.1;
-      expect(luma(p.sky)).toBeGreaterThan(luma(p.shallow));
+      expect(luma(p.sky)).toBeGreaterThan(luma(p.deep));
     }
   });
 
@@ -104,11 +109,39 @@ describe("liquid appearance", () => {
     }
   });
 
-  it("lets you see into water and not into lava", () => {
-    // Water should read as water rather than as coloured glass, so you can
-    // see the floor and anyone swimming above it.
-    expect(WATER_PROFILES.water.alpha).toBeLessThan(0.6);
+  it("makes a shoreline nearly invisible", () => {
+    // The number that separates water from a sheet of coloured film. Opacity
+    // now follows THICKNESS, so the edge of a pool has to almost vanish even
+    // though its middle is opaque — lowering the single flat alpha, which is
+    // what the earlier tuning did, only ever made the whole surface hazier.
+    expect(WATER_PROFILES.water.minAlpha).toBeLessThan(0.1);
+  });
+
+  it("hides the floor of a deep pool", () => {
+    // The other end of the same axis: thick water is not a window.
+    expect(WATER_PROFILES.water.alpha).toBeGreaterThan(0.6);
+  });
+
+  it("gives lava no transparency at any thickness", () => {
     expect(WATER_PROFILES.lava.alpha).toBe(1);
+    expect(WATER_PROFILES.lava.minAlpha).toBe(1);
+  });
+
+  it("makes thicker liquids absorb faster", () => {
+    // Slime and lava swallow their own floor over a much shorter distance than
+    // water does; if this ever inverts, lava reads as red water.
+    expect(WATER_PROFILES.slime.absorb).toBeGreaterThan(WATER_PROFILES.water.absorb);
+    expect(WATER_PROFILES.lava.absorb).toBeGreaterThan(WATER_PROFILES.slime.absorb);
+  });
+
+  it("absorbs water over a plausible pool depth", () => {
+    // 1 - exp(-absorb * thickness). A couple of hundred units of water should
+    // be well on the way to hiding its floor, and a few units should not.
+    const absorb = WATER_PROFILES.water.absorb;
+    const at = (t: number) => 1 - Math.exp(-absorb * t);
+
+    expect(at(5)).toBeLessThan(0.1);
+    expect(at(200)).toBeGreaterThan(0.5);
   });
 
   it("caps reflection well below a mirror", () => {
@@ -122,11 +155,12 @@ describe("liquid appearance", () => {
     }
   });
 
-  it("never lets a grazing view go fully opaque", () => {
-    // alpha = base + fresnel * reflectivity * (1 - base). Even head-on into
-    // the far edge, some of the floor has to survive.
+  it("never lets a thin grazing view go fully opaque", () => {
+    // alpha = minAlpha + fresnel * reflectivity * (1 - minAlpha) where the
+    // water is thin. Looking across a shallow edge must still show what is
+    // under it.
     const p = WATER_PROFILES.water;
-    const grazing = p.alpha + p.reflectivity * (1 - p.alpha);
+    const grazing = p.minAlpha + p.reflectivity * (1 - p.minAlpha);
 
     expect(grazing).toBeLessThan(0.8);
   });
