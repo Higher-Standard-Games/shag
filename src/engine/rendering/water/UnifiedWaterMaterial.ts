@@ -47,9 +47,16 @@ void main(void) {
   vec4 worldPos = world * vec4(position, 1.0);
   vWorld = worldPos.xyz;
   vNormal = normalize(mat3(world) * normal);
-  // Distance from the eye along the view axis, so the fragment can be compared
-  // against the scene depth behind it. Babylon's view space looks down -Z.
-  vViewDepth = -(view * worldPos).z;
+  // Distance from the eye along the view axis, to compare against the scene
+  // depth behind this fragment.
+  //
+  // NOT negated. Babylon is left-handed — +Z is forward — and its depth
+  // renderer stores view-space Z raw, so this has to match it exactly.
+  // Negating it, the OpenGL habit, made thickness come out as roughly twice
+  // the view distance instead of the gap between two surfaces: absorption
+  // saturated everywhere, the pool was uniformly at its deep colour and its
+  // deep opacity, and the debug view was a flat white rectangle.
+  vViewDepth = (view * worldPos).z;
   gl_Position = viewProjection * worldPos;
 }
 `;
@@ -306,11 +313,11 @@ export const WATER_PROFILES: Record<WaterKind, WaterProfile> = {
     // One tile per ~90 units, so a pool a few hundred units across shows
     // several waves rather than one broad smear.
     scale: 0.011,
-    waveSpeed: 26,
-    waveStrength: 0.7,
-    reflectivity: 0.3,
+    waveSpeed: 13,
+    waveStrength: 0.45,
+    reflectivity: 0.22,
     emissive: 0.0,
-    specular: 0.35,
+    specular: 0.12,
   },
   slime: {
     // Bright toxic green from a shader rule, not from the map's own texture.
@@ -327,8 +334,8 @@ export const WATER_PROFILES: Record<WaterKind, WaterProfile> = {
     absorb: 0.03,
     scale: 0.008,
     // Thicker than water, so it rolls rather than ripples.
-    waveSpeed: 14,
-    waveStrength: 0.85,
+    waveSpeed: 8,
+    waveStrength: 0.6,
     reflectivity: 0.35,
     emissive: 0.22,
     specular: 0.5,
@@ -347,8 +354,11 @@ export const WATER_PROFILES: Record<WaterKind, WaterProfile> = {
     absorb: 0.5,
     scale: 0.006,
     // Slow and heavy: lava is viscous, and fast ripples read as water tinted red.
-    waveSpeed: 7,
-    waveStrength: 0.45,
+    // Slowest of the three by a wide margin, but still above the speed at
+    // which a surface stops reading as moving at all. Viscosity comes from the
+    // low wave strength and the emissive body, not from being imperceptible.
+    waveSpeed: 6,
+    waveStrength: 0.3,
     reflectivity: 0.25,
     emissive: 0.85,
     specular: 0.15,
