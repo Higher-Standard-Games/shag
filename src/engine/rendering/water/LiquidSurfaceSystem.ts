@@ -24,6 +24,7 @@ import { Vector2 } from "@babylonjs/core/Maths/math.vector";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
+import RenderVars from "../RenderVars";
 import { createUnifiedWaterMaterial, disposeWaterNoise, type WaterKind } from "./UnifiedWaterMaterial";
 
 interface ClaimedSurface {
@@ -95,8 +96,10 @@ export class LiquidSurfaceSystem {
 
       const engine = this.scene.getEngine();
       const depthMap = this.depthMapFor(camera);
+      const debug = RenderVars.getInstance().get("r_water_debug") ?? 0;
 
       for (const material of this.materials.values()) {
+        material.setFloat("uDebug", debug);
         material.setFloat("uTime", this.elapsed);
         material.setVector3("uCameraPosition", camera.globalPosition);
         material.setFloat("uCameraFar", camera.maxZ);
@@ -130,7 +133,15 @@ export class LiquidSurfaceSystem {
     if (this.depthMap !== undefined) return this.depthMap;
 
     try {
-      const renderer = this.scene.enableDepthRenderer(camera, false);
+      // storeCameraSpaceZ: the map holds view-space Z in WORLD UNITS, which the
+      // shader can subtract from its own depth directly.
+      //
+      // The alternative, Babylon's default `vDepthMetric`, is built from
+      // clip-space z and the near/far pair — reconstructing world distance
+      // from it means reproducing the projection matrix's terms in the shader,
+      // and getting that subtly wrong is invisible: the surface still renders,
+      // it just stops varying with depth. Which is exactly what it did.
+      const renderer = this.scene.enableDepthRenderer(camera, false, false, undefined, true);
       this.depthRendererCamera = camera;
       this.depthMap = renderer.getDepthMap();
     } catch (error) {

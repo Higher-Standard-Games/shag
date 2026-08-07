@@ -88,6 +88,7 @@ uniform float uReflectivity;
 uniform float uCameraFar;
 uniform float uAbsorb;
 uniform float uHasDepth;
+uniform float uDebug;
 
 void main(void) {
   vec2 base = vWorld.xz * uScale;
@@ -135,7 +136,10 @@ void main(void) {
   float absorbed = 1.0;
   if (uHasDepth > 0.5) {
     vec2 screenUv = gl_FragCoord.xy / uScreenSize;
-    float sceneDepth = texture2D(uSceneDepth, screenUv).r * uCameraFar;
+    // View-space Z in world units, straight out of the depth map. No
+    // reconstruction: the renderer is asked to store camera-space Z precisely
+    // so this line cannot be subtly wrong in a way that still renders.
+    float sceneDepth = texture2D(uSceneDepth, screenUv).r;
     float thickness = max(0.0, sceneDepth - vViewDepth);
     absorbed = 1.0 - exp(-thickness * uAbsorb);
   }
@@ -153,6 +157,20 @@ void main(void) {
   // "wet" when the camera is standing still.
   vec3 halfway = normalize(uSunDirection + viewDir);
   float spec = pow(clamp(dot(n, halfway), 0.0, 1.0), 24.0) * uSpecular;
+
+  // Debug views. Absorption is invisible when it fails — the surface still
+  // renders, it just stops varying with depth — so being able to LOOK at the
+  // number beats reasoning about it. 1: absorption as grey, black at the
+  // shoreline and white where the floor is gone. 2: raw thickness over 512
+  // units. Either one flat means depth is not reaching the shader.
+  if (uDebug > 0.5) {
+    vec2 dbgUv = gl_FragCoord.xy / uScreenSize;
+    float dbgScene = texture2D(uSceneDepth, dbgUv).r;
+    float dbgThickness = max(0.0, dbgScene - vViewDepth);
+    float shown = uDebug < 1.5 ? absorbed : clamp(dbgThickness / 512.0, 0.0, 1.0);
+    gl_FragColor = vec4(vec3(shown), 1.0);
+    return;
+  }
 
   vec3 color = lit + vec3(spec) + body * uEmissive;
   // Opacity follows thickness for the same reason colour does: a puddle's edge
@@ -385,6 +403,7 @@ export function createUnifiedWaterMaterial(
           "uCameraFar",
           "uAbsorb",
           "uHasDepth",
+          "uDebug",
         ],
         samplers: ["uNoise", "uSceneDepth"],
         needAlphaBlending: true,
@@ -413,6 +432,7 @@ export function createUnifiedWaterMaterial(
     // which is its old flat look rather than a black or invisible one — a
     // driver that refuses the depth renderer degrades instead of breaking.
     material.setFloat("uHasDepth", 0);
+    material.setFloat("uDebug", 0);
     material.setFloat("uCameraFar", 10000);
     material.setVector2("uScreenSize", new Vector2(1920, 1080));
 

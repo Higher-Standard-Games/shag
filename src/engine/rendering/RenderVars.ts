@@ -96,6 +96,7 @@ export type RenderVarName =
   | "r_lightmapscale"
   | "r_underwater_distortion"
   | "r_water"
+  | "r_water_debug"
   | "r_shadows"
   | "r_gamma"
   | "r_saturation"
@@ -388,6 +389,15 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, "name">> = {
     description:
       "Draw liquid surfaces with the unified water material. 0 falls back to the legacy Q3/Warsow shader translation (applies on next map load).",
     category: "lighting",
+  },
+  r_water_debug: {
+    value: 0,
+    defaultValue: 0,
+    min: 0,
+    max: 2,
+    description:
+      "Visualise the water depth term. 1 = absorption as grey (black at a shoreline, white where the floor is gone), 2 = raw thickness. A flat result means depth is not reaching the shader.",
+    category: "debug",
   },
   r_underwater_distortion: {
     value: 1.0,
