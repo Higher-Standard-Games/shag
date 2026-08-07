@@ -1,7 +1,7 @@
 # Unified Water System Research
 
 **Date:** 2026-08-06<br>
-**Status:** Phase 0 complete; Phase 1 next<br>
+**Status:** Phases 0–5 and 7 written; 0–3 and the Phase 4 surface confirmed in play. Owed: refraction (Phase 4), Phase 6 reflection and broad map compatibility, and browser passes on Epic crowns, swim animations, electrical discharge and the air meter.<br>
 **Goal:** replace every Q3 and Warsow water shader with one engine water that looks deliberately modern, rather than translating the legacy shaders one vendor keyword at a time<br>
 **Primary test map:** `acidwdm2`<br>
 **Scope:** BSP liquid compatibility, static rendering, dynamic interactions, deterministic swimming, player animation, underwater presentation, and quality scaling.
@@ -905,15 +905,23 @@ In parallel—not as the permanent API—time-box a `WaterMaterial` acid-pool ve
 
 Exit gate: `acidwdm2` is playable end to end with correct surface, swimming, remote animation, underwater presentation, and cheap interactions on WebGL 2.
 
-### Phase 4: Medium surface and interaction quality — **depth absorption written, unverified**
+### Phase 4: Medium surface and interaction quality — **depth absorption and foam confirmed in play; refraction still owed**
 
-Written but not yet run: the shared scene depth capture and depth-driven absorption, which is the actual answer to three rounds of "it should be more transparent". The surface was tinting by view ANGLE, so a pool was one flat colour whatever its depth, and lowering alpha only made that flat colour hazier. It now tints and thickens by how much liquid the view ray passes through — a shoreline nearly vanishes, a deep pool hides its floor.
+Depth-driven absorption is in and verified in the browser. It was the actual answer to three rounds of "it should be more transparent": the surface had been tinting by view ANGLE, so a pool was one flat colour whatever its depth, and lowering alpha only made that flat colour hazier. It now tints and thickens by how much liquid the view ray passes through — a shoreline nearly vanishes, a deep pool hides its floor.
 
 `shallow` and `deep` changed meaning with it: they are now the thin-water and thick-water colours rather than the near-and-far-facing ones, and `alpha` is the DEEP opacity with a new `minAlpha` for the edge. Raising alpha back to 0.8 is not a reversal of the earlier tuning — it is the same intent expressed on an axis that can hold it.
 
-Three things to check first, none of them verified: that Babylon's depth map is normalized linear depth in `.r` with `storeNonLinearDepth: false`; that the water mesh is excluded from it (it should be, being alpha-blended — if the whole surface goes uniformly clear, that is why); and that `disableDepthRenderer` in `dispose()` actually releases it, since otherwise every map load adds a full-scene depth pass.
+Three guesses in the original write-up were wrong, and each cost a debugging round:
 
-Still owed for this phase: refraction (distorting what is seen through the surface, not just tinting it), shoreline foam from the same depth difference, and pooled spray for projectile and explosion impacts.
+- **The depth encoding.** Babylon's depth renderer does not store linear view depth by default; it stores the clip-space metric. The fix is `storeCameraSpaceZ: true`, not a division by `far`.
+- **Water polluting its own depth map.** It does not. `forceDepthWriteTransparentMeshes` defaults false, so an alpha-blended surface is already excluded. This was a stated hypothesis that turned out to be a non-problem.
+- **The sign of view-space Z.** Babylon is left-handed and +Z is forward, so `(view * worldPos).z` must NOT be negated. One character doubled every measured thickness and saturated both debug views to white.
+
+A fourth was a units error rather than an API one: absorption and the foam band were both tuned against a pool's vertical DEPTH, when the quantity the shader has is RAY LENGTH through the liquid. Those diverge badly — a poolside view across 200 units of depth presents 600+ units of water to the eye — which is why the middle of every pool saturated from any angle worth standing at, and why 20 units of foam was invisible.
+
+Still owed for this phase: refraction — distorting what is seen through the surface, not merely tinting it.
+
+Shoreline foam and pooled projectile spray are done. Projectile entry needed its own path: liquid is NONSOLID, so nothing impacts it and the ordinary hit event never fires — a rocket into a pool landed in silence.
 
 ### Phase 4 original plan
 
@@ -926,7 +934,30 @@ Still owed for this phase: refraction (distorting what is seen through the surfa
 
 Exit gate: Medium has bounded target count, no recursive sampling, stable shorelines, and no interaction leaks.
 
-### Phase 5: Epic FluidRenderer accents
+### Phase 5: Epic FluidRenderer accents — **written, not yet seen in play**
+
+`SplashDroplets` (CPU ballistics over a fixed pool) and `FluidSplashRenderer` (the Babylon half), joined in `LiquidInteractionSystem` and gated behind `r_water_quality 3`.
+
+The split is the whole design. FluidRenderer draws particles; it does not move them and does not know where the waterline is. A droplet it owned would sink straight through the pool it came from — liquid is transparent and therefore absent from the opaque depth buffer, so there is nothing down there to occlude it against. Owning the positions on the CPU is what lets a droplet retire exactly as it falls back through the surface and hand its energy to the static water as a small ripple, which is what makes the crown and the ring read as one effect.
+
+What the installed API actually does, checked against `node_modules` rather than assumed:
+
+- `addCustomParticles(buffers, numParticles, generateDiffuseTexture?, targetRenderer?, camera?)`. Omitting `targetRenderer` creates a new one **and a new final post-process** per call — the research warning held, and it is why there is exactly one for the whole game.
+- `addBuffers` constructs a new `VertexBuffer` per call and never disposes the one it replaces. Calling it per frame leaks a GPU buffer per frame. It creates them updatable, so the per-frame path is `updateDirectly`.
+- `removeRenderObject` does not dispose the underlying particle object. Cleanup does both.
+
+Defaults are pinned rather than accepted: fixed `depthMapSize`/`thicknessMapSize` so the cost is a property of the effect and not the player's monitor, one blur iteration each, `useFixedThickness` (which drops a target and its blur), no diffuse output.
+
+Two bugs worth remembering, both found before the browser saw it:
+
+- A re-entry ripple that went through the ordinary splash path would spawn another crown, which would land and spawn more, forever. Ring placement is split out from splash spawning for exactly this.
+- On the frame the LAST droplet lands, the ring loop has already run and the droplet count is now zero — so the frame callback would shut down and strand that final ripple mid-animation.
+
+Slime and lava do not crown. They are thick, and pale spray over lava reads as steam that is not there.
+
+Still owed: a real-device benchmark, and the repeated-reload assertions on target-renderer and post-process counts (item 7 below) — the NullEngine lifecycle tests cover disposal but are not the same as watching a map unload.
+
+#### Original plan
 
 1. Import/register Babylon FluidRenderer explicitly.
 2. Create one shared target renderer per active camera/liquid visual kind.
@@ -949,7 +980,7 @@ Exit gate: Epic produces a visible improvement at its documented measured cost; 
 
 Exit gate: the system degrades predictably when maps are more complex than `acidwdm2`.
 
-### Phase 7: Authoritative world effects — **drowning and liquid damage written, unverified**
+### Phase 7: Authoritative world effects — **written, not yet seen in play**
 
 Written but not yet run: `LiquidWorldEffects`, the pure rules for air, drowning and lava/slime burn, wired into `FPSMovementSubsystem` beside fall damage. Until this you could swim in lava indefinitely, which sat oddly next to an electrical discharge that kills you outright.
 
@@ -957,7 +988,7 @@ Q3's numbers, because they are load-bearing rather than arbitrary: twelve second
 
 The client mirrors the air rules for presentation only — `LocalAirTracker` runs the same pure functions to drive the gasp and, later, a HUD meter. A mirror rather than a wire field: the server owns the damage, and a meter that disagrees by a tenth of a second costs nothing, so paying protocol for it would be the wrong trade.
 
-Still owed: **the HUD air meter itself** (`Game.localAirFraction` and `localDrowning` are exposed and waiting for a widget), and a decision on whether drowning and burning deserve their own damage types — they currently both report as `World`, which keeps obituaries honest but not specific.
+The HUD air meter is in — hidden at full air, amber to red as it runs out. Still owed: a decision on whether drowning and burning deserve their own damage types. They both report as `World`, which keeps obituaries honest but not specific.
 
 ### Phase 7 original plan
 
