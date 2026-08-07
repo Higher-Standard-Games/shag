@@ -151,6 +151,33 @@ export class PostProcessingManager {
   }
 
   /**
+   * Re-register the managed pipelines on the camera they are already on.
+   *
+   * `DefaultRenderingPipeline` owns the ordering of `camera._postProcesses`.
+   * Anything that calls `camera.attachPostProcess()` directly splices itself
+   * into that array behind the pipeline's back, and the pipeline's internal
+   * ordering no longer matches what the camera will actually run — which does
+   * not degrade, it renders nothing.
+   *
+   * So whenever something outside this manager attaches a post-process to our
+   * camera, it must say so here, and the pipelines are rebuilt on top of it.
+   */
+  public rebuild(): void {
+    if (!this.initialized || !this.scene || !this.camera) return;
+
+    if (this.pipeline) {
+      this.pipeline.dispose();
+      this.pipeline = null;
+    }
+    if (this.ssaoPipeline) {
+      this.ssaoPipeline.dispose();
+      this.ssaoPipeline = null;
+    }
+
+    this.createPipeline();
+  }
+
+  /**
    * Rebind post-processing to a new active camera.
    * This is needed when the engine swaps scene.activeCamera (e.g. BSP/freefly).
    */
