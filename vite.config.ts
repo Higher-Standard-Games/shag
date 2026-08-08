@@ -104,6 +104,7 @@ export default defineConfig({
       '@babylonjs/core/Materials/Textures/cubeTexture',
       '@babylonjs/core/Materials/Textures/dynamicTexture',
       '@babylonjs/core/Materials/Textures/internalTexture',
+      '@babylonjs/core/Materials/Textures/mirrorTexture',
       '@babylonjs/core/Materials/Textures/rawCubeTexture',
       '@babylonjs/core/Materials/Textures/rawTexture',
       '@babylonjs/core/Materials/Textures/renderTargetTexture',

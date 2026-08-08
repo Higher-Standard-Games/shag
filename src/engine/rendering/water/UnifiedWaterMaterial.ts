@@ -103,6 +103,9 @@ uniform float uHasRefraction;
 uniform float uRefract;
 uniform vec3 uCameraForward;
 uniform float uCaustics;
+uniform sampler2D uReflection;
+uniform float uHasReflection;
+uniform float uReflectDistort;
 
 void main(void) {
   vec2 base = vWorld.xz * uScale;
@@ -128,11 +131,16 @@ void main(void) {
   // Schlick-ish Fresnel, then CAPPED by reflectivity.
   //
   // Real water approaches a full mirror at grazing angles, and reproducing
-  // that faithfully is wrong here: we are not reflecting the scene, we are
-  // reflecting one constant bright colour, so full Fresnel turns the far half
-  // of every pool into a sheet of white. Most Q3 pools are indoors and should
-  // be reflecting a dim room. The cap is what keeps a grazing view readable.
-  float fresnel = pow(1.0 - facing, 4.0) * uReflectivity;
+  // that faithfully was wrong while we were reflecting one constant bright
+  // colour: full Fresnel turned the far half of every pool into a sheet of
+  // white. The cap is what kept a grazing view readable.
+  //
+  // With a real planar reflection the cap can relax, because what comes back
+  // at a grazing angle is now the room rather than a flat swatch — a strong
+  // reflection of something is legible where a strong reflection of nothing
+  // is just glare.
+  float reflectCap = uReflectivity * (1.0 + uHasReflection * 1.2);
+  float fresnel = pow(1.0 - facing, 4.0) * reflectCap;
 
   // How much liquid the view ray passes through before it hits something.
   //
@@ -246,7 +254,21 @@ void main(void) {
   // visible at all: each ripple tilts the normal, which changes how much sky
   // that pixel reflects, so the surface reads as moving rather than as a
   // tinted pane with a pattern printed on it.
-  vec3 lit = mix(transmitted, uSkyColor, fresnel);
+  // What the surface reflects: the room if we have a mirror for this plane,
+  // otherwise the flat stand-in colour.
+  //
+  // The mirror is rendered from the camera reflected through the water plane
+  // with the SAME projection, which is exactly why it can be sampled at this
+  // fragment's own screen coordinate — no reprojection, no matrix to get
+  // subtly wrong. Perturbing that coordinate by the wave normal is what makes
+  // the reflection ripple instead of sitting on the surface like a decal.
+  vec3 reflected = uSkyColor;
+  if (uHasReflection > 0.5) {
+    vec2 muv = clamp(gl_FragCoord.xy / uScreenSize + n.xz * uReflectDistort, vec2(0.002), vec2(0.998));
+    reflected = texture2D(uReflection, muv).rgb;
+  }
+
+  vec3 lit = mix(transmitted, reflected, fresnel);
 
   // Sun glint. A broad lobe rather than a tight one — a mirror-sharp highlight
   // is invisible from almost every angle, and this is the thing that sells
@@ -387,6 +409,14 @@ export interface WaterProfile {
    * the liquid, so an opaque one has none by definition.
    */
   caustics: number;
+  /**
+   * How far the wave normals ripple the reflection, in screen UV.
+   *
+   * Larger than the refraction offset: a reflection is sampled at a grazing
+   * angle where a small normal change swings the reflected ray a long way, and
+   * an unrippled reflection sits on the surface like a decal.
+   */
+  reflectDistort: number;
 }
 
 /**
@@ -441,6 +471,7 @@ export const WATER_PROFILES: Record<WaterKind, WaterProfile> = {
     // so there is actually something behind it worth bending.
     refract: 0.045,
     caustics: 0.5,
+    reflectDistort: 0.07,
   },
   slime: {
     // Bright toxic green from a shader rule, not from the map's own texture.
@@ -467,6 +498,7 @@ export const WATER_PROFILES: Record<WaterKind, WaterProfile> = {
     refract: 0.02,
     // Slime is opaque enough that nothing reaches the bottom to focus.
     caustics: 0.0,
+    reflectDistort: 0.05,
   },
   lava: {
     shallow: new Color3(1.0, 0.46, 0.06),
@@ -493,6 +525,8 @@ export const WATER_PROFILES: Record<WaterKind, WaterProfile> = {
     // Lava is opaque at every thickness. Nothing is behind it, ever.
     refract: 0.0,
     caustics: 0.0,
+    // Lava is molten rock with a crust; it does not mirror a room.
+    reflectDistort: 0.03,
   },
 };
 
@@ -594,8 +628,10 @@ export function createUnifiedWaterMaterial(
           "uRefract",
           "uCameraForward",
           "uCaustics",
+          "uHasReflection",
+          "uReflectDistort",
         ],
-        samplers: ["uNoise", "uSceneDepth", "uSceneColor"],
+        samplers: ["uNoise", "uSceneDepth", "uSceneColor", "uReflection"],
         needAlphaBlending: true,
       },
     );
@@ -631,6 +667,10 @@ export function createUnifiedWaterMaterial(
     material.setFloat("uHasRefraction", 0);
     material.setFloat("uRefract", profile.refract);
     material.setFloat("uCaustics", profile.caustics);
+    // No mirror until one is supplied; the surface reflects the flat stand-in
+    // colour, which is what it did for the whole feature until now.
+    material.setFloat("uHasReflection", 0);
+    material.setFloat("uReflectDistort", profile.reflectDistort);
     material.setVector3("uCameraForward", new Vector3(0, 0, 1));
     material.setFloat("uCameraFar", 10000);
     material.setVector2("uScreenSize", new Vector2(1920, 1080));

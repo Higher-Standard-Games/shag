@@ -19,6 +19,7 @@
 import type { Camera } from "@babylonjs/core/Cameras/camera";
 import type { Material } from "@babylonjs/core/Materials/material";
 import type { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial";
+import type { MirrorTexture } from "@babylonjs/core/Materials/Textures/mirrorTexture";
 import type { RenderTargetTexture } from "@babylonjs/core/Materials/Textures/renderTargetTexture";
 import { Vector2, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
@@ -27,6 +28,7 @@ import type { Scene } from "@babylonjs/core/scene";
 import RenderVars from "../RenderVars";
 import { createUnifiedWaterMaterial, disposeWaterNoise, type WaterKind } from "./UnifiedWaterMaterial";
 import { WaterDepthProvider } from "./WaterDepth";
+import { WaterReflection } from "./WaterReflection";
 import { WaterSceneCapture } from "./WaterSceneCapture";
 
 /** Local forward, reused so the per-frame camera query does not allocate. */
@@ -49,6 +51,10 @@ export class LiquidSurfaceSystem {
   private readonly depth: WaterDepthProvider;
   /** Epic only: a copy of the world behind the water, for refraction. */
   private capture: WaterSceneCapture | null = null;
+  /** Epic only: one planar reflection, for the largest pool in the map. */
+  private reflection: WaterReflection | null = null;
+  /** Height of that pool's surface, chosen once when surfaces are claimed. */
+  private reflectionPlaneY: number | null = null;
 
   constructor(private readonly scene: Scene) {
     this.depth = new WaterDepthProvider(scene);
@@ -76,7 +82,13 @@ export class LiquidSurfaceSystem {
       count++;
     }
 
-    if (count > 0) this.start();
+    if (count > 0) {
+      // Chosen once, here, rather than per frame: the plane is a property of
+      // the map, and re-picking it as the player moves would swap which pool
+      // reflects mid-match.
+      this.reflectionPlaneY = WaterReflection.choosePlaneY(this.claimed.map((s) => s.mesh));
+      this.start();
+    }
     return count;
   }
 
@@ -113,6 +125,7 @@ export class LiquidSurfaceSystem {
       // a live setting, and a tier change must not need a map reload.
       const wantsRefraction = (RenderVars.getInstance().get("r_water_quality") ?? 2) >= 3;
       const sceneColor = this.captureFor(camera, wantsRefraction);
+      const mirror = this.reflectionFor(camera, wantsRefraction);
 
       for (const material of this.materials.values()) {
         material.setFloat("uDebug", debug);
@@ -145,8 +158,36 @@ export class LiquidSurfaceSystem {
         } else {
           material.setFloat("uHasRefraction", 0);
         }
+
+        if (mirror) {
+          material.setTexture("uReflection", mirror);
+          material.setFloat("uHasReflection", 1);
+        } else {
+          material.setFloat("uHasReflection", 0);
+        }
       }
     });
+  }
+
+  /**
+   * The planar reflection, built on the first Epic frame and released with it.
+   *
+   * One mirror for the whole map, at the height of its largest pool. Pools on
+   * other floors keep the flat sky colour — a deliberate budget, since each
+   * mirror is another full pass over the world and a reflection is the least
+   * load-bearing thing the surface does.
+   */
+  private reflectionFor(camera: Camera, wanted: boolean): MirrorTexture | null {
+    if (!wanted || this.reflectionPlaneY === null) {
+      if (this.reflection) {
+        this.reflection.dispose();
+        this.reflection = null;
+      }
+      return null;
+    }
+
+    if (!this.reflection) this.reflection = new WaterReflection(this.scene);
+    return this.reflection.textureFor(camera, this.reflectionPlaneY);
   }
 
   /**
@@ -201,6 +242,9 @@ export class LiquidSurfaceSystem {
     this.depth.dispose();
     this.capture?.dispose();
     this.capture = null;
+    this.reflection?.dispose();
+    this.reflection = null;
+    this.reflectionPlaneY = null;
 
     disposeWaterNoise(this.scene);
     this.elapsed = 0;
