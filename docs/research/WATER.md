@@ -934,30 +934,44 @@ Shoreline foam and pooled projectile spray are done. Projectile entry needed its
 
 Exit gate: Medium has bounded target count, no recursive sampling, stable shorelines, and no interaction leaks.
 
-### Phase 5: Epic FluidRenderer accents — **written, not yet seen in play**
+### Phase 5: Epic splash crowns — **FluidRenderer abandoned; drawn as geometry instead**
 
-`SplashDroplets` (CPU ballistics over a fixed pool) and `FluidSplashRenderer` (the Babylon half), joined in `LiquidInteractionSystem` and gated behind `r_water_quality 3`.
+`SplashDroplets` (CPU ballistics over a fixed pool) and `SplashDropletRenderer` (thin-instanced spheres), joined in `LiquidInteractionSystem` and gated behind `r_water_quality 3`.
 
-The split is the whole design. FluidRenderer draws particles; it does not move them and does not know where the waterline is. A droplet it owned would sink straight through the pool it came from — liquid is transparent and therefore absent from the opaque depth buffer, so there is nothing down there to occlude it against. Owning the positions on the CPU is what lets a droplet retire exactly as it falls back through the surface and hand its energy to the static water as a small ripple, which is what makes the crown and the ring read as one effect.
+#### Why FluidRenderer is not usable here
 
-What the installed API actually does, checked against `node_modules` rather than assumed:
+This phase was built on Babylon's `FluidRenderer` first, per the plan below. It made `r_water_quality 3` render **no world at all** — the player was in the map and taking damage, viewmodel and HUD drew normally, and the eye camera's output was simply gone. Two hypothesis-driven fixes failed before the cause was pinned down. There are three independent conflicts, and the first two are each fatal:
 
-- `addCustomParticles(buffers, numParticles, generateDiffuseTexture?, targetRenderer?, camera?)`. Omitting `targetRenderer` creates a new one **and a new final post-process** per call — the research warning held, and it is why there is exactly one for the whole game.
-- `addBuffers` constructs a new `VertexBuffer` per call and never disposes the one it replaces. Calling it per frame leaks a GPU buffer per frame. It creates them updatable, so the per-frame path is `updateDirectly`.
-- `removeRenderObject` does not dispose the underlying particle object. Cleanup does both.
+1. **It splices a composite into a post-process chain it does not own.** The composite is built with `camera: null` and attached later via `attachPostProcess(pp, i)` at an index. That array belongs to `DefaultRenderingPipeline`. Rebuilding the pipeline on top of it — the first attempted fix — changed nothing. Note that manual attachment is *not* itself the problem: `CelOutlinePostProcess` appends one by passing the camera to the constructor and has always been fine.
+2. **Gameplay is multi-camera.** `WeaponViewManager` sets `activeCameras = [eye, weapon]`, and the fluid pass binds and unbinds framebuffers during `_afterCameraDraw`. In a layered render that discards the eye camera's contribution, which is the observed symptom precisely.
+3. **Its composite is hardcoded `UNSIGNED_BYTE`** — the same 8-bit quantisation of the HDR chain that `CelOutlinePostProcess` documents and works around with an explicit `HALF_FLOAT`. FluidRenderer exposes no setter, so even a working integration would have cost image quality permanently.
 
-Defaults are pinned rather than accepted: fixed `depthMapSize`/`thicknessMapSize` so the cost is a property of the effect and not the player's monitor, one blur iteration each, `useFixedThickness` (which drops a target and its blur), no diffuse output.
+Revisit only if Babylon gains a way to render fluid to an offscreen target we composite ourselves. The API facts below stay recorded because they were verified against `node_modules` and would have to be re-derived otherwise.
 
-Two bugs worth remembering, both found before the browser saw it:
+#### What replaced it
+
+Droplets are low-poly icospheres drawn with thin instances. **Spheres rather than billboards** is the choice that keeps it simple: a sphere looks the same from every angle, so there is no per-instance orientation to solve in a vertex shader and none to carry in the instance buffer. Twenty faces each, 220 of them, one draw call. No render target, no post-process, and nothing with an opinion about which camera is rendering.
+
+Two details that matter: the material has `disableDepthWrite`, so droplets stay out of the depth map the water surface measures thickness against — otherwise a crown would punch holes in the pool it came from. And the mesh clears `WEAPON_LAYER_MASK`, because a default mask is visible to *both* cameras and the spray would otherwise be drawn a second time at the viewmodel's field of view.
+
+**The CPU simulation was untouched by the switch.** Keeping `SplashDroplets` renderer-agnostic was deliberate, and it meant a rendering dead end cost only the rendering.
+
+#### What survives from the original design
+
+The CPU/GPU split is still the point. A renderer that owned droplet positions could not retire them at the waterline, because liquid is transparent and therefore absent from the opaque depth buffer — there is nothing down there to occlude a droplet against, so it would sink visibly through the pool it came from. Owning the positions is what lets a droplet retire exactly as it falls back through the surface and hand its energy to the static water as a small ripple.
+
+Two bugs worth remembering, both found before the browser saw the feature:
 
 - A re-entry ripple that went through the ordinary splash path would spawn another crown, which would land and spawn more, forever. Ring placement is split out from splash spawning for exactly this.
 - On the frame the LAST droplet lands, the ring loop has already run and the droplet count is now zero — so the frame callback would shut down and strand that final ripple mid-animation.
 
 Slime and lava do not crown. They are thick, and pale spray over lava reads as steam that is not there.
 
-Still owed: a real-device benchmark, and the repeated-reload assertions on target-renderer and post-process counts (item 7 below) — the NullEngine lifecycle tests cover disposal but are not the same as watching a map unload.
+Still owed: a real-device look at the crowns, and tuning of droplet size and count against how they actually read in play.
 
-#### Original plan
+#### Original plan, and the API facts it produced
+
+`addCustomParticles(buffers, numParticles, generateDiffuseTexture?, targetRenderer?, camera?)` — omitting `targetRenderer` creates a new one **and a new final post-process** per call. `addBuffers` constructs a new `VertexBuffer` per call and never disposes the one it replaces, so per-frame use leaks a GPU buffer per frame; they are created updatable, so the per-frame path is `updateDirectly`. `removeRenderObject` does not dispose the underlying particle object.
 
 1. Import/register Babylon FluidRenderer explicitly.
 2. Create one shared target renderer per active camera/liquid visual kind.
@@ -967,7 +981,7 @@ Still owed: a real-device benchmark, and the repeated-reload assertions on targe
 6. Benchmark fixed map sizes, blur iterations, fixed thickness, WebGL 2, and WebGPU.
 7. Assert target-renderer, wrapper, particle-system, observer, and post-process counts over repeated emissions/reloads.
 
-Exit gate: Epic produces a visible improvement at its documented measured cost; Medium and Low allocate no fluid targets.
+Exit gate: Epic produces a visible improvement at its documented measured cost; Medium and Low allocate nothing for it. Items 1–3 and 5–7 are moot now that no fluid targets exist at any tier — the cost is one mesh and one draw call.
 
 ### Phase 6: Reflection and broader compatibility
 
