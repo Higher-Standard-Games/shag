@@ -16,16 +16,15 @@
  * at, and 22 of wdm5's 22 liquid brushes are exactly that.
  */
 
-import type { Camera } from "@babylonjs/core/Cameras/camera";
 import type { Material } from "@babylonjs/core/Materials/material";
 import type { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial";
-import type { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { Vector2 } from "@babylonjs/core/Maths/math.vector";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
 import RenderVars from "../RenderVars";
 import { createUnifiedWaterMaterial, disposeWaterNoise, type WaterKind } from "./UnifiedWaterMaterial";
+import { WaterDepthProvider } from "./WaterDepth";
 
 interface ClaimedSurface {
   mesh: AbstractMesh;
@@ -40,11 +39,12 @@ export class LiquidSurfaceSystem {
   private elapsed = 0;
   /** Reused so the per-frame uniform write does not allocate. */
   private readonly screenSize = new Vector2(1920, 1080);
-  /** undefined = not yet tried, null = unavailable on this device. */
-  private depthMap: Texture | null | undefined;
-  private depthRendererCamera: Camera | null = null;
+  /** Owns water's own depth pass; see WaterDepth for why it is not shared. */
+  private readonly depth: WaterDepthProvider;
 
-  constructor(private readonly scene: Scene) {}
+  constructor(private readonly scene: Scene) {
+    this.depth = new WaterDepthProvider(scene);
+  }
 
   /**
    * Replace the material on every liquid surface under `root`.
@@ -95,7 +95,10 @@ export class LiquidSurfaceSystem {
       if (!camera) return;
 
       const engine = this.scene.getEngine();
-      const depthMap = this.depthMapFor(camera);
+      // Asked per frame with the live camera: it swaps on death, spectate and
+      // freefly, and a map built for a camera that is no longer rendering
+      // describes a view nobody is looking through.
+      const depthMap = this.depth.mapFor(camera);
       const debug = RenderVars.getInstance().get("r_water_debug") ?? 0;
 
       for (const material of this.materials.values()) {
@@ -116,40 +119,6 @@ export class LiquidSurfaceSystem {
         }
       }
     });
-  }
-
-  /**
-   * The scene's linear depth map, enabled on first use.
-   *
-   * Water is alpha-blended and therefore absent from this map, which is
-   * precisely what makes it useful: it holds the world BEHIND the water, and
-   * the gap between that and the surface is the thickness of liquid the view
-   * ray passes through.
-   *
-   * A driver that refuses the depth renderer leaves `uHasDepth` at zero and
-   * the surface falls back to its uniform look rather than to a black hole.
-   */
-  private depthMapFor(camera: Camera): Texture | null {
-    if (this.depthMap !== undefined) return this.depthMap;
-
-    try {
-      // storeCameraSpaceZ: the map holds view-space Z in WORLD UNITS, which the
-      // shader can subtract from its own depth directly.
-      //
-      // The alternative, Babylon's default `vDepthMetric`, is built from
-      // clip-space z and the near/far pair — reconstructing world distance
-      // from it means reproducing the projection matrix's terms in the shader,
-      // and getting that subtly wrong is invisible: the surface still renders,
-      // it just stops varying with depth. Which is exactly what it did.
-      const renderer = this.scene.enableDepthRenderer(camera, false, false, undefined, true);
-      this.depthRendererCamera = camera;
-      this.depthMap = renderer.getDepthMap();
-    } catch (error) {
-      console.warn("[Water] Depth renderer unavailable; water will not be depth-tinted", error);
-      this.depthMap = null;
-    }
-
-    return this.depthMap;
   }
 
   /** How many surfaces this system currently draws. */
@@ -178,18 +147,10 @@ export class LiquidSurfaceSystem {
     for (const material of this.materials.values()) material.dispose();
     this.materials.clear();
 
-    // The depth renderer is a per-camera render target the scene keeps until
-    // told otherwise. Left behind, every map load adds another full-scene
-    // depth pass to a scene that may no longer have water in it at all.
-    if (this.depthRendererCamera) {
-      try {
-        this.scene.disableDepthRenderer(this.depthRendererCamera);
-      } catch {
-        // Already gone with the scene; nothing to do.
-      }
-      this.depthRendererCamera = null;
-    }
-    this.depthMap = undefined;
+    // Water's own depth pass, and only water's. Left behind, every map load
+    // adds another full-scene depth pass to a scene that may no longer have
+    // water in it at all.
+    this.depth.dispose();
 
     disposeWaterNoise(this.scene);
     this.elapsed = 0;

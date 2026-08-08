@@ -142,6 +142,10 @@ void main(void) {
   // Beer-Lambert: absorption through a medium is multiplicative, and the
   // exponential also puts the fastest change at the shoreline, where the eye
   // is most sensitive to it.
+  // Sampled ONCE and shared by absorption, foam and the debug views. They are
+  // three readings of the same number, and computing it three times invites
+  // them to drift apart.
+  float thickness = 0.0;
   float absorbed = 1.0;
   if (uHasDepth > 0.5) {
     vec2 screenUv = gl_FragCoord.xy / uScreenSize;
@@ -149,7 +153,7 @@ void main(void) {
     // reconstruction: the renderer is asked to store camera-space Z precisely
     // so this line cannot be subtly wrong in a way that still renders.
     float sceneDepth = texture2D(uSceneDepth, screenUv).r;
-    float thickness = max(0.0, sceneDepth - vViewDepth);
+    thickness = max(0.0, sceneDepth - vViewDepth);
     absorbed = 1.0 - exp(-thickness * uAbsorb);
   }
 
@@ -165,9 +169,7 @@ void main(void) {
   // foam at all.
   float foam = 0.0;
   if (uHasDepth > 0.5 && uFoam > 0.0) {
-    vec2 screenUv2 = gl_FragCoord.xy / uScreenSize;
-    float edgeThickness = max(0.0, texture2D(uSceneDepth, screenUv2).r - vViewDepth);
-    float band = 1.0 - smoothstep(0.0, uFoamWidth, edgeThickness);
+    float band = 1.0 - smoothstep(0.0, uFoamWidth, thickness);
     // The noise both breaks the line and animates it, so foam drifts with the
     // waves instead of sitting welded to the bank.
     float churn = 0.65 + 0.35 * (n1.x + n2.y);
@@ -192,10 +194,15 @@ void main(void) {
   // shoreline and white where the floor is gone. 2: raw thickness over 512
   // units. Either one flat means depth is not reaching the shader.
   if (uDebug > 0.5) {
-    vec2 dbgUv = gl_FragCoord.xy / uScreenSize;
-    float dbgScene = texture2D(uSceneDepth, dbgUv).r;
-    float dbgThickness = max(0.0, dbgScene - vViewDepth);
-    float shown = uDebug < 1.5 ? absorbed : clamp(dbgThickness / 512.0, 0.0, 1.0);
+    // No depth bound at all is drawn RED rather than grey. Both failures used
+    // to look identical — a flat black surface — so the one view meant to say
+    // whether depth reaches the shader could not distinguish "the map says
+    // zero" from "there is no map". Red means the term is not connected.
+    if (uHasDepth <= 0.5) {
+      gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+      return;
+    }
+    float shown = uDebug < 1.5 ? absorbed : clamp(thickness / 512.0, 0.0, 1.0);
     gl_FragColor = vec4(vec3(shown), 1.0);
     return;
   }

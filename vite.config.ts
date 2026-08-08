@@ -152,6 +152,7 @@ export default defineConfig({
       '@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/ssrRenderingPipeline',
       '@babylonjs/core/PostProcesses/postProcess',
       '@babylonjs/core/PostProcesses/volumetricLightScatteringPostProcess',
+      '@babylonjs/core/Rendering/depthRenderer',
       '@babylonjs/core/Rendering/depthRendererSceneComponent',
       '@babylonjs/core/Rendering/edgesRenderer',
       '@babylonjs/core/Rendering/fluidRenderer/fluidRenderer',
