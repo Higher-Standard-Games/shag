@@ -67,6 +67,35 @@ describe("wave scale", () => {
   });
 });
 
+describe("refraction and caustics", () => {
+  it("bends the most through the clearest liquid", () => {
+    // Refraction only shows where something behind the surface survives the
+    // trip. Lava is opaque at every thickness, so there is never anything to
+    // bend; slime nearly so.
+    expect(WATER_PROFILES.water.refract).toBeGreaterThan(WATER_PROFILES.slime.refract);
+    expect(WATER_PROFILES.lava.refract).toBe(0);
+  });
+
+  it("keeps the bend small enough to read as a bend", () => {
+    // This is a fraction of the SCREEN, not of the world: 0.04 already moves a
+    // sample forty pixels across a 1080p frame. Past roughly 0.08 neighbouring
+    // pixels sample points too far apart to be the same object, and the
+    // background stops looking bent and starts looking torn.
+    for (const kind of KINDS) {
+      expect(WATER_PROFILES[kind].refract).toBeLessThan(0.08);
+    }
+  });
+
+  it("casts caustics only through liquid light can get through", () => {
+    // Caustics are focused light that reached the floor. An opaque liquid has
+    // none by definition, and a bright web under lava would read as lava being
+    // see-through.
+    expect(WATER_PROFILES.water.caustics).toBeGreaterThan(0);
+    expect(WATER_PROFILES.slime.caustics).toBe(0);
+    expect(WATER_PROFILES.lava.caustics).toBe(0);
+  });
+});
+
 describe("scrollRateFor", () => {
   it("converts world speed to a UV rate", () => {
     const profile = WATER_PROFILES.water;

@@ -20,7 +20,7 @@ import type { Camera } from "@babylonjs/core/Cameras/camera";
 import type { Material } from "@babylonjs/core/Materials/material";
 import type { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial";
 import type { RenderTargetTexture } from "@babylonjs/core/Materials/Textures/renderTargetTexture";
-import { Vector2 } from "@babylonjs/core/Maths/math.vector";
+import { Vector2, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
@@ -28,6 +28,9 @@ import RenderVars from "../RenderVars";
 import { createUnifiedWaterMaterial, disposeWaterNoise, type WaterKind } from "./UnifiedWaterMaterial";
 import { WaterDepthProvider } from "./WaterDepth";
 import { WaterSceneCapture } from "./WaterSceneCapture";
+
+/** Local forward, reused so the per-frame camera query does not allocate. */
+const FORWARD = new Vector3(0, 0, 1);
 
 interface ClaimedSurface {
   mesh: AbstractMesh;
@@ -115,6 +118,10 @@ export class LiquidSurfaceSystem {
         material.setFloat("uDebug", debug);
         material.setFloat("uTime", this.elapsed);
         material.setVector3("uCameraPosition", camera.globalPosition);
+        // Needed to turn the depth term back into a distance along the view
+        // ray, which is what places caustics on the floor rather than letting
+        // them slide as the player turns.
+        material.setVector3("uCameraForward", camera.getDirection(FORWARD));
         material.setFloat("uCameraFar", camera.maxZ);
         // Screen size every frame rather than at build: a resize would
         // otherwise offset every depth lookup by the ratio of the change.

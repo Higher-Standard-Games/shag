@@ -101,6 +101,8 @@ uniform float uFoamWidth;
 uniform sampler2D uSceneColor;
 uniform float uHasRefraction;
 uniform float uRefract;
+uniform vec3 uCameraForward;
+uniform float uCaustics;
 
 void main(void) {
   vec2 base = vWorld.xz * uScale;
@@ -188,6 +190,41 @@ void main(void) {
     refracting = 1.0;
   }
 
+  // Caustics — the shifting web of focused light on the floor of a pool.
+  //
+  // Drawn from HERE rather than projected onto the floor's own material,
+  // which would mean touching every world material in the map. The surface
+  // already knows how far the view ray travels before it hits something, so
+  // it can reconstruct where the floor is and sample the pattern anchored to
+  // that world position. The result sits on the floor and stays there as the
+  // camera moves, which is the whole illusion; anchoring to screen space or to
+  // the surface instead makes the pattern swim with the player and it reads
+  // immediately as a texture on the water rather than light on the bottom.
+  //
+  // Thickness is a difference of VIEW-space Z, so it has to be divided back
+  // out along the ray to become a distance — otherwise a glancing view finds
+  // the floor short and the caustics slide as the player turns.
+  float caustics = 0.0;
+  if (uHasDepth > 0.5 && uCaustics > 0.0) {
+    vec3 rayDir = normalize(vWorld - uCameraPosition);
+    float axis = max(0.15, dot(rayDir, uCameraForward));
+    vec3 floorPos = vWorld + rayDir * (thickness / axis);
+
+    vec2 cuv = floorPos.xz * uScale * 0.55;
+    float c1 = texture2D(uNoise, cuv + vec2(uTime * uScroll * 0.35, uTime * uScroll * 0.2)).b;
+    float c2 = texture2D(uNoise, cuv * 1.45 - vec2(uTime * uScroll * 0.25, -uTime * uScroll * 0.4)).b;
+
+    // The ridge between two offset samples. Light focused by a wavy surface
+    // arrives in thin bright filaments, not in blobs, so the band is narrowed
+    // hard — a plain noise product looks like dappled shade instead.
+    float ridge = max(0.0, 1.0 - abs(c1 - c2) * 5.0);
+    // Fades out with depth: the deeper the water the less light reaches the
+    // bottom, and it must vanish entirely at a dry edge where there is no
+    // water to focus anything.
+    float reach = (1.0 - absorbed) * min(1.0, thickness / 12.0);
+    caustics = pow(ridge, 7.0) * reach * uCaustics;
+  }
+
   // Shoreline foam, from the same thickness the absorption uses.
   //
   // Where the water meets geometry it is arbitrarily thin, and a surface that
@@ -236,7 +273,11 @@ void main(void) {
     return;
   }
 
-  vec3 color = lit + vec3(spec) + body * uEmissive;
+  // Caustics are ADDED, not mixed. They are extra light arriving at the floor,
+  // not a different colour of floor — mixing toward white would wash the tint
+  // out of the water instead of putting a highlight under it. Tinted by the
+  // shallow colour so the light looks like it came through the water.
+  vec3 color = lit + vec3(spec) + body * uEmissive + uShallowColor * caustics;
   // Foam is white and opaque, and it goes on last so it survives the tinting.
   color = mix(color, vec3(1.0), foam);
 
@@ -339,6 +380,13 @@ export interface WaterProfile {
    * neighbouring pixels sample points too far apart to be the same object.
    */
   refract: number;
+  /**
+   * Brightness of the caustic web cast on the floor beneath the surface.
+   *
+   * Water only in practice: caustics are focused light that made it through
+   * the liquid, so an opaque one has none by definition.
+   */
+  caustics: number;
 }
 
 /**
@@ -392,6 +440,7 @@ export const WATER_PROFILES: Record<WaterKind, WaterProfile> = {
     // Water bends the most of the three: it is the thinnest and the clearest,
     // so there is actually something behind it worth bending.
     refract: 0.045,
+    caustics: 0.5,
   },
   slime: {
     // Bright toxic green from a shader rule, not from the map's own texture.
@@ -416,6 +465,8 @@ export const WATER_PROFILES: Record<WaterKind, WaterProfile> = {
     // Slime is nearly opaque, so almost nothing survives to be refracted; the
     // little there is only shows at the very edge.
     refract: 0.02,
+    // Slime is opaque enough that nothing reaches the bottom to focus.
+    caustics: 0.0,
   },
   lava: {
     shallow: new Color3(1.0, 0.46, 0.06),
@@ -441,6 +492,7 @@ export const WATER_PROFILES: Record<WaterKind, WaterProfile> = {
     specular: 0.15,
     // Lava is opaque at every thickness. Nothing is behind it, ever.
     refract: 0.0,
+    caustics: 0.0,
   },
 };
 
@@ -540,6 +592,8 @@ export function createUnifiedWaterMaterial(
           "uFoamWidth",
           "uHasRefraction",
           "uRefract",
+          "uCameraForward",
+          "uCaustics",
         ],
         samplers: ["uNoise", "uSceneDepth", "uSceneColor"],
         needAlphaBlending: true,
@@ -576,6 +630,8 @@ export function createUnifiedWaterMaterial(
     // merely acceptable — it just does not bend anything.
     material.setFloat("uHasRefraction", 0);
     material.setFloat("uRefract", profile.refract);
+    material.setFloat("uCaustics", profile.caustics);
+    material.setVector3("uCameraForward", new Vector3(0, 0, 1));
     material.setFloat("uCameraFar", 10000);
     material.setVector2("uScreenSize", new Vector2(1920, 1080));
 
