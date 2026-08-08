@@ -151,6 +151,47 @@ describe("liquid appearance", () => {
     }
   });
 
+  it("leaves the middle of a SHALLOW pool free of foam", () => {
+    // This number has now been wrong in both directions, so the bound is
+    // stated as the failure rather than as a value. Twenty units of ray was
+    // invisible; ninety was worse — a shin-deep pad of water presents well
+    // under ninety units across its entire surface, so every pixel of it sat
+    // inside the foam band and the pool rendered as a sheet of white.
+    //
+    // A shallow pool viewed at a normal standing angle: ~24 units of water,
+    // ~35 units of ray. The middle of it has to be mostly clear of foam.
+    const p = WATER_PROFILES.water;
+    const rayThroughShallowPool = 35;
+    const smoothstep = (edge: number, x: number) => {
+      const t = Math.min(1, Math.max(0, x / edge));
+      return t * t * (3 - 2 * t);
+    };
+    const foamAtMiddle = 1 - smoothstep(p.foamWidth, rayThroughShallowPool);
+
+    expect(foamAtMiddle).toBeLessThan(0.25);
+  });
+
+  it("still foams at an actual shoreline", () => {
+    // The other end of the same axis, so a correction for the above cannot
+    // simply turn foam off.
+    const p = WATER_PROFILES.water;
+    const smoothstep = (edge: number, x: number) => {
+      const t = Math.min(1, Math.max(0, x / edge));
+      return t * t * (3 - 2 * t);
+    };
+
+    expect(1 - smoothstep(p.foamWidth, 4)).toBeGreaterThan(0.9);
+  });
+
+  it("tints a shallow pool at all", () => {
+    // A pad of water a player wades through presents perhaps 35 units of ray.
+    // If that absorbs essentially nothing the water has no colour of its own
+    // and reads as a pane of glass over the floor, which is what it did.
+    const absorbed = 1 - Math.exp(-WATER_PROFILES.water.absorb * 35);
+
+    expect(absorbed).toBeGreaterThan(0.1);
+  });
+
   it("makes thicker liquids absorb faster", () => {
     // Slime and lava swallow their own floor over a much shorter distance than
     // water does; if this ever inverts, lava reads as red water.

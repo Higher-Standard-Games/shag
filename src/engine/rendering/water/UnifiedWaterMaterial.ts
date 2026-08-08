@@ -306,30 +306,45 @@ export interface WaterProfile {
 export const WATER_PROFILES: Record<WaterKind, WaterProfile> = {
   water: {
     // Thin water is barely there; thick water is a dark blue-green.
-    shallow: new Color3(0.2, 0.4, 0.45),
+    //
+    // More chroma than lightness in the shallow tint. Water over a pale floor
+    // is genuinely pale — that part is physics — but a desaturated tint reads
+    // as dirty glass, where a saturated one at the same lightness still reads
+    // as water.
+    shallow: new Color3(0.13, 0.42, 0.47),
     deep: new Color3(0.02, 0.12, 0.19),
     // Bright, slightly cool: a bounce off the room rather than a real sky, and
     // most Q3 pools are indoors.
     sky: new Color3(0.3, 0.4, 0.48),
     alpha: 0.8,
-    minAlpha: 0.04,
-    foam: 0.6,
-    // In RAY LENGTH, not depth — the same units absorption uses. Twenty units
-    // of ray is a couple of pixels at any angle worth standing at, which is
-    // why the foam was invisible.
-    foamWidth: 90,
+    minAlpha: 0.06,
+    foam: 0.45,
+    // In RAY LENGTH, not depth — the same units absorption uses.
+    //
+    // This has now been wrong in both directions. Twenty was invisible, so it
+    // went to ninety; but a shallow pool presents well under ninety units of
+    // ray across its WHOLE surface, so the band stopped marking the shoreline
+    // and washed the entire pool white. Foam has to be narrow relative to the
+    // water it edges: at 28 a shallow pool still has a middle.
+    foamWidth: 28,
     // A grazing ray travels far further through a pool than the pool is deep,
     // so this is tuned against that rather than against vertical depth: at
     // 0.006 the middle of a pool saturated from any angle worth standing at.
-    absorb: 0.003,
+    // Nudged up from 0.003 so a SHALLOW pool still picks up colour — at the
+    // old value a shin-deep pad of water was effectively untinted, which is
+    // most of why it read as a white sheet.
+    absorb: 0.0045,
     // One tile per ~90 units, so a pool a few hundred units across shows
     // several waves rather than one broad smear.
     scale: 0.011,
     waveSpeed: 13,
-    waveStrength: 0.45,
+    // Stronger normals and a brighter glint. With absorption doing less work
+    // in shallow water, the moving highlight is what is left to say the
+    // surface is liquid rather than a pane laid over the floor.
+    waveStrength: 0.6,
     reflectivity: 0.22,
     emissive: 0.0,
-    specular: 0.12,
+    specular: 0.3,
   },
   slime: {
     // Bright toxic green from a shader rule, not from the map's own texture.
