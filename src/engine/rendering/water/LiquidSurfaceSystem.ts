@@ -16,8 +16,10 @@
  * at, and 22 of wdm5's 22 liquid brushes are exactly that.
  */
 
+import type { Camera } from "@babylonjs/core/Cameras/camera";
 import type { Material } from "@babylonjs/core/Materials/material";
 import type { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial";
+import type { RenderTargetTexture } from "@babylonjs/core/Materials/Textures/renderTargetTexture";
 import { Vector2 } from "@babylonjs/core/Maths/math.vector";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import type { Observer } from "@babylonjs/core/Misc/observable";
@@ -25,6 +27,7 @@ import type { Scene } from "@babylonjs/core/scene";
 import RenderVars from "../RenderVars";
 import { createUnifiedWaterMaterial, disposeWaterNoise, type WaterKind } from "./UnifiedWaterMaterial";
 import { WaterDepthProvider } from "./WaterDepth";
+import { WaterSceneCapture } from "./WaterSceneCapture";
 
 interface ClaimedSurface {
   mesh: AbstractMesh;
@@ -41,6 +44,8 @@ export class LiquidSurfaceSystem {
   private readonly screenSize = new Vector2(1920, 1080);
   /** Owns water's own depth pass; see WaterDepth for why it is not shared. */
   private readonly depth: WaterDepthProvider;
+  /** Epic only: a copy of the world behind the water, for refraction. */
+  private capture: WaterSceneCapture | null = null;
 
   constructor(private readonly scene: Scene) {
     this.depth = new WaterDepthProvider(scene);
@@ -100,6 +105,11 @@ export class LiquidSurfaceSystem {
       // describes a view nobody is looking through.
       const depthMap = this.depth.mapFor(camera);
       const debug = RenderVars.getInstance().get("r_water_debug") ?? 0;
+      // Refraction costs a second pass over the world, so it is Epic only.
+      // Read per frame rather than latched at claim time: r_water_quality is
+      // a live setting, and a tier change must not need a map reload.
+      const wantsRefraction = (RenderVars.getInstance().get("r_water_quality") ?? 2) >= 3;
+      const sceneColor = this.captureFor(camera, wantsRefraction);
 
       for (const material of this.materials.values()) {
         material.setFloat("uDebug", debug);
@@ -117,8 +127,39 @@ export class LiquidSurfaceSystem {
         } else {
           material.setFloat("uHasDepth", 0);
         }
+
+        // Refraction needs BOTH: the capture to sample, and the depth term to
+        // decide how far to bend it. Without depth every fragment would think
+        // it was infinitely thick and the whole pool would smear equally,
+        // including the shoreline.
+        if (sceneColor && depthMap) {
+          material.setTexture("uSceneColor", sceneColor);
+          material.setFloat("uHasRefraction", 1);
+        } else {
+          material.setFloat("uHasRefraction", 0);
+        }
       }
     });
+  }
+
+  /**
+   * The scene capture, built on first Epic frame and released when Epic ends.
+   *
+   * Torn down rather than left idle when the tier drops, because an idle
+   * capture is still a full pass over the world every frame — the expensive
+   * half of the feature would keep running with nothing sampling it.
+   */
+  private captureFor(camera: Camera, wanted: boolean): RenderTargetTexture | null {
+    if (!wanted) {
+      if (this.capture) {
+        this.capture.dispose();
+        this.capture = null;
+      }
+      return null;
+    }
+
+    if (!this.capture) this.capture = new WaterSceneCapture(this.scene);
+    return this.capture.textureFor(camera);
   }
 
   /** How many surfaces this system currently draws. */
@@ -151,6 +192,8 @@ export class LiquidSurfaceSystem {
     // adds another full-scene depth pass to a scene that may no longer have
     // water in it at all.
     this.depth.dispose();
+    this.capture?.dispose();
+    this.capture = null;
 
     disposeWaterNoise(this.scene);
     this.elapsed = 0;

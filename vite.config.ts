@@ -106,6 +106,7 @@ export default defineConfig({
       '@babylonjs/core/Materials/Textures/internalTexture',
       '@babylonjs/core/Materials/Textures/rawCubeTexture',
       '@babylonjs/core/Materials/Textures/rawTexture',
+      '@babylonjs/core/Materials/Textures/renderTargetTexture',
       '@babylonjs/core/Materials/Textures/texture',
       '@babylonjs/core/Materials/effect',
       '@babylonjs/core/Materials/fresnelParameters',

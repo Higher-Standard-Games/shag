@@ -98,6 +98,9 @@ uniform float uHasDepth;
 uniform float uDebug;
 uniform float uFoam;
 uniform float uFoamWidth;
+uniform sampler2D uSceneColor;
+uniform float uHasRefraction;
+uniform float uRefract;
 
 void main(void) {
   vec2 base = vWorld.xz * uScale;
@@ -159,6 +162,32 @@ void main(void) {
 
   vec3 body = mix(uShallowColor, uDeepColor, absorbed);
 
+  // Refraction: the world behind the surface, bent by the waves.
+  //
+  // Sampled here rather than left to the hardware blend, because a blend can
+  // only mix the pixel directly behind this one — and that is precisely the
+  // pixel refraction says you should not be looking at. With a capture the
+  // shader composites the background itself and the surface can be opaque,
+  // which is also what stops the two from double-counting.
+  //
+  // The offset is scaled by thickness, so a shoreline stays honest: there is
+  // barely any water there to bend anything, and smearing the bank would read
+  // as a rendering fault rather than as a wet edge.
+  vec3 transmitted = body;
+  float refracting = 0.0;
+  if (uHasRefraction > 0.5) {
+    vec2 screenUv3 = gl_FragCoord.xy / uScreenSize;
+    float bend = min(1.0, thickness / 60.0);
+    vec2 offset = n.xz * uRefract * bend;
+    // Clamped so a sample never wraps to the far side of the screen at the
+    // frame edge, which shows up as a bright seam along the border.
+    vec2 refractUv = clamp(screenUv3 + offset, vec2(0.002), vec2(0.998));
+    vec3 behind = texture2D(uSceneColor, refractUv).rgb;
+    // Absorption decides how much of it survives the trip.
+    transmitted = mix(behind, body, absorbed);
+    refracting = 1.0;
+  }
+
   // Shoreline foam, from the same thickness the absorption uses.
   //
   // Where the water meets geometry it is arbitrarily thin, and a surface that
@@ -180,7 +209,7 @@ void main(void) {
   // visible at all: each ripple tilts the normal, which changes how much sky
   // that pixel reflects, so the surface reads as moving rather than as a
   // tinted pane with a pattern printed on it.
-  vec3 lit = mix(body, uSkyColor, fresnel);
+  vec3 lit = mix(transmitted, uSkyColor, fresnel);
 
   // Sun glint. A broad lobe rather than a tight one — a mirror-sharp highlight
   // is invisible from almost every angle, and this is the thing that sells
@@ -216,6 +245,12 @@ void main(void) {
   // still thickens a grazing view on top, but never to fully opaque.
   float depthAlpha = mix(uMinAlpha, uAlpha, absorbed);
   float alpha = clamp(depthAlpha + fresnel * (1.0 - depthAlpha) + foam, 0.0, 1.0);
+
+  // With a capture in hand the background is already composited in, so
+  // blending it a second time would show the floor twice — once bent and once
+  // straight, at half strength each, which reads as a ghost rather than as
+  // water. Opaque output is what makes the refraction actually visible.
+  alpha = mix(alpha, 1.0, refracting);
 
   gl_FragColor = vec4(color, alpha);
 }
@@ -295,6 +330,15 @@ export interface WaterProfile {
   /** Self-illumination — zero for water, high for lava, which is its own light. */
   emissive: number;
   specular: number;
+  /**
+   * How far the wave normals bend what is behind the surface, in screen UV.
+   *
+   * Epic only, and small by nature: this is a fraction of the screen, so even
+   * 0.04 moves a sample forty pixels across a 1080p frame. Past roughly 0.08
+   * the background stops looking bent and starts looking broken, because
+   * neighbouring pixels sample points too far apart to be the same object.
+   */
+  refract: number;
 }
 
 /**
@@ -345,6 +389,9 @@ export const WATER_PROFILES: Record<WaterKind, WaterProfile> = {
     reflectivity: 0.22,
     emissive: 0.0,
     specular: 0.3,
+    // Water bends the most of the three: it is the thinnest and the clearest,
+    // so there is actually something behind it worth bending.
+    refract: 0.045,
   },
   slime: {
     // Bright toxic green from a shader rule, not from the map's own texture.
@@ -366,6 +413,9 @@ export const WATER_PROFILES: Record<WaterKind, WaterProfile> = {
     reflectivity: 0.35,
     emissive: 0.22,
     specular: 0.5,
+    // Slime is nearly opaque, so almost nothing survives to be refracted; the
+    // little there is only shows at the very edge.
+    refract: 0.02,
   },
   lava: {
     shallow: new Color3(1.0, 0.46, 0.06),
@@ -389,6 +439,8 @@ export const WATER_PROFILES: Record<WaterKind, WaterProfile> = {
     reflectivity: 0.25,
     emissive: 0.85,
     specular: 0.15,
+    // Lava is opaque at every thickness. Nothing is behind it, ever.
+    refract: 0.0,
   },
 };
 
@@ -486,8 +538,10 @@ export function createUnifiedWaterMaterial(
           "uDebug",
           "uFoam",
           "uFoamWidth",
+          "uHasRefraction",
+          "uRefract",
         ],
-        samplers: ["uNoise", "uSceneDepth"],
+        samplers: ["uNoise", "uSceneDepth", "uSceneColor"],
         needAlphaBlending: true,
       },
     );
@@ -517,6 +571,11 @@ export function createUnifiedWaterMaterial(
     material.setFloat("uDebug", 0);
     material.setFloat("uFoam", profile.foam);
     material.setFloat("uFoamWidth", profile.foamWidth);
+    // Refraction is Epic-only and off until a capture is supplied. Without it
+    // the surface keeps the alpha-blended look, which is correct rather than
+    // merely acceptable — it just does not bend anything.
+    material.setFloat("uHasRefraction", 0);
+    material.setFloat("uRefract", profile.refract);
     material.setFloat("uCameraFar", 10000);
     material.setVector2("uScreenSize", new Vector2(1920, 1080));
 
