@@ -1086,6 +1086,42 @@ Also rerun the `acidwdm2` audit/load command and add focused liquid-classifier a
 
 Because swimming changes deterministic networking/prediction, implementation validation should also include a recorded command sequence that enters and exits water and, when a verification bundle exists, `npm run demo:verify -- <bundle.shagverify>`.
 
+## Full-feature review, 2026-08-07
+
+A read of all ~8,000 lines across both repos after the Epic tier landed. Seven defects, none of which had shown up in play; six were fixed in the same pass and one design gap was left open deliberately.
+
+### The pattern
+
+Four of the seven were the same mistake: **state captured once and cached, when the thing it depends on changes at runtime.** The depth map was bound to the first camera; the splash kind was fixed by the caller; the FOV was restored only on the surfacing path; the remote body table was never re-baselined. Each looked correct when written because at the moment of writing the dependency was constant.
+
+Worth stating as a rule for the rest of this feature: anything captured from the camera, the active liquid, or the roster is a per-frame question, not a constructor question.
+
+### The one that matters most
+
+`scene.enableDepthRenderer()` cannot be shared. It caches one renderer per camera and returns the cached one **with its original settings**, silently discarding the arguments of every later caller. Water wants camera-space Z; `CelOutlinePostProcess` wants the default clip-space metric; both ask about the same camera. Whoever calls first decides for both, and the loser reads an encoding it will misinterpret — for water that means the surface renders and simply stops varying with depth.
+
+This is the *same failure mode* as the original Phase 4 depth bug, arrived at from a completely different direction. It was dormant only because `r_cel_outlines` defaults to `0`.
+
+Water now owns a `DepthRenderer` it constructs itself and registers in `scene.customRenderTargets`, so neither consumer can inherit or destroy the other's. When no float target exists it returns null rather than taking Babylon's `UNSIGNED_BYTE` fallback, which would clamp world distances to 1.0 and compute every thickness as zero.
+
+### The rest
+
+- **Remote bodies were never re-baselined.** `forget()` was wired for the local player only, so a remote dying at the bottom of a pool and respawning dry played an exit splash on dry land — the ring was suppressed for want of a nearby waterline, the sound was not.
+- **The splash kind was a guess.** Only the water LEVEL is on the wire, so the remote renderer hardcoded `"water"`; lava dives and rockets into lava both got water effects. Derived from the waterline probe now, which is the only honest source, and it gates the Epic crown too.
+- **Water jump accepted submerged ledges.** The upper probe rejected solid but not liquid, so a step inside a deep pool read as a way out and launched a treading player, taking control for two seconds. Q3 rejects `SOLID|WATER|SLIME|LAVA` there.
+- **`liquidEffects` leaked.** Missing from `removeEntity`, which cleans seven other per-entity maps. Players can disconnect alive and entity ids are reused.
+- **`UnderwaterView.dispose()` kept the camera's FOV.** Cameras outlive maps, so unloading while submerged warped every map after it.
+
+### Checked and clean
+
+The contents translation table and all its consumers; the raw/shared boundary at `SweepBackendAdapter` (engine side uniformly raw, shared side uniformly translated, `SOLID` the only value that coincides); `swimIntent`'s yaw decomposition against the engine's actual left-handed basis; the `MovementStateComponent` bit packing; `updateProneState`'s clearance polarity; drowning escalation against Q3's `g_active.c`; `MapLoader`'s claim/dispose lifecycle.
+
+### Left open
+
+- **Electrical discharge has no same-pool test.** Two pools within 384 units electrocute each other, including one directly above another. Bounding by radius alone was a deliberate simplification; making it correct needs a connectivity notion the collision world does not currently offer. The obituary also reads as `DamageType.Rail`, which is a presentation gap rather than a rule one.
+- **Epic crowns are not re-enabled after a camera change.** The fluid composite stays on the old camera; crowns silently stop and the renderer is wasted. Not urgent while the whole FluidRenderer path is still unverified on a real GPU.
+- **`waterJumpUntilMs` is unreplicated instance state.** Consistent with how `jumpConsumed`, slide and walljump state already work, but a two-second control lockout is higher stakes than the others if client and server ever disagree about a launch.
+
 ## Risks and mitigations
 
 | Risk | Impact | Mitigation |
