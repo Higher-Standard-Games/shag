@@ -1,7 +1,9 @@
 # Unified Water System Research
 
 **Date:** 2026-08-06<br>
-**Status:** Phases 0–5 and 7 written; 0–3 and the Phase 4 surface confirmed in play. Owed: refraction (Phase 4), Phase 6 reflection and broad map compatibility, and browser passes on Epic crowns, swim animations, electrical discharge and the air meter.<br>
+**Status:** All seven phases written. Confirmed in play: swimming, the depth-tinted surface, splashes and ripples, and the Epic crown. Written but not yet seen: refraction, caustics, planar reflection, swim animations, electrical discharge, the air meter. Owed: broad map compatibility (Phase 6, items 3–5).<br>
+
+**Render cost by tier.** Low and Medium: the water pass plus one depth pass. Epic adds a half-res capture of the world for refraction and one 0.35-scale mirror — two more passes over the scene, which is the whole difference between the tiers.<br>
 **Goal:** replace every Q3 and Warsow water shader with one engine water that looks deliberately modern, rather than translating the legacy shaders one vendor keyword at a time<br>
 **Primary test map:** `acidwdm2`<br>
 **Scope:** BSP liquid compatibility, static rendering, dynamic interactions, deterministic swimming, player animation, underwater presentation, and quality scaling.
@@ -919,7 +921,11 @@ Three guesses in the original write-up were wrong, and each cost a debugging rou
 
 A fourth was a units error rather than an API one: absorption and the foam band were both tuned against a pool's vertical DEPTH, when the quantity the shader has is RAY LENGTH through the liquid. Those diverge badly — a poolside view across 200 units of depth presents 600+ units of water to the eye — which is why the middle of every pool saturated from any angle worth standing at, and why 20 units of foam was invisible.
 
-Still owed for this phase: refraction — distorting what is seen through the surface, not merely tinting it.
+**Refraction is now in** (`WaterSceneCapture`), and it completes this phase. Doing it properly required the shader to sample the background *itself*: the hardware blend can only mix the pixel directly behind a fragment, and that is precisely the pixel refraction says you should not be looking at. So the opaque world is rendered once more into a half-resolution capture, sampled at a wave-driven offset, and the surface goes opaque where it has one — blending a background that is already composited in shows the floor twice, once bent and once straight at half strength each, which reads as a ghost.
+
+The material already declaring `needAlphaBlending: true` is what makes that safe. It keeps the surface in the transparent pass and therefore out of the depth map thickness is measured against, whatever alpha the shader actually writes.
+
+The capture excludes liquid (or it samples itself and compounds frame over frame — a feedback tunnel that looks like the effect working for the first few frames), the viewmodel, and splash spray. Gated to Epic and torn down the moment the tier drops: a capture nothing samples is still a full pass over the world every frame.
 
 Shoreline foam and pooled projectile spray are done. Projectile entry needed its own path: liquid is NONSOLID, so nothing impacts it and the ordinary hit event never fires — a rocket into a pool landed in silence.
 
@@ -983,7 +989,21 @@ Still owed: a real-device look at the crowns, and tuning of droplet size and cou
 
 Exit gate: Epic produces a visible improvement at its documented measured cost; Medium and Low allocate nothing for it. Items 1–3 and 5–7 are moot now that no fluid targets exist at any tier — the cost is one mesh and one draw call.
 
-### Phase 6: Reflection and broader compatibility
+### Phase 6: Reflection and broader compatibility — **reflection done; compatibility still owed**
+
+`WaterReflection` adds one planar reflection, for the largest claimed surface in the map.
+
+`MirrorTexture` renders the scene from the camera reflected through a plane with the **same projection**, which is why it can be sampled at the fragment's own screen coordinate — no reprojection, no matrix to get subtly wrong. That is the property that made this cheap to integrate compared to everything else in Phase 5.
+
+The reflection is what finally lets the Fresnel cap relax. It existed because the surface was reflecting one constant bright swatch, and full Fresnel turned the far half of every pool white; a strong reflection *of the room* is legible where a strong reflection of nothing is glare. So reflectivity scales up only when a mirror is present.
+
+Item 2's full priority scheme was not built. The plane is chosen by footprint **area** alone — the one property available without knowing anything about the map, and the one that decides how much of the screen a reflection can ever occupy. It is picked once when surfaces are claimed, not per frame, or which pool reflects would change as the player walks. Pools on other floors keep the flat colour.
+
+Also landed in this pass, from outside the original plan: **caustics** (`uCaustics`), drawn from the water shader rather than projected onto the floor's material, which would have meant touching every world material in the map. The surface already knows how far the view ray travels before it hits something, so it reconstructs the floor position and anchors the pattern there. That anchoring is the whole illusion — keyed to screen space or to the surface, the pattern swims with the player and reads instantly as a texture on the water.
+
+Still owed here: items 3, 4 and 5 — acting on the corpus scan for maps more complex than `acidwdm2`.
+
+#### Original plan
 
 1. Add budgeted planar reflection for one eligible visible horizontal bucket.
 2. Prioritize by screen coverage, distance, last update, and map/profile importance.
