@@ -106,6 +106,7 @@ uniform float uCaustics;
 uniform sampler2D uReflection;
 uniform float uHasReflection;
 uniform float uReflectDistort;
+uniform vec3 uAbsorbTint;
 
 void main(void) {
   vec2 base = vWorld.xz * uScale;
@@ -113,8 +114,17 @@ void main(void) {
   // Two layers moving against each other. Opposed directions and mismatched
   // rates make the beat between them long enough that the eye never finds the
   // loop; the second is finer and faster so there is chop riding on the swell.
+  // The second layer is ROTATED, not just offset and rescaled.
+  //
+  // Two layers translating along nearby axes read as two sheets sliding over
+  // each other — the eye locks onto the shared direction and the surface looks
+  // like a conveyor rather than like water. Rotating one by an angle that is
+  // not a fraction of a right angle removes the common axis: what is left is
+  // the interference between them, which drifts and churns without ever
+  // presenting a direction to follow.
+  const mat2 SWIRL = mat2(0.5403, -0.8415, 0.8415, 0.5403);
   vec2 uv1 = base + vec2(uTime * uScroll, uTime * uScroll * 0.55);
-  vec2 uv2 = base * 2.7 - vec2(uTime * uScroll * 0.8, -uTime * uScroll * 1.3);
+  vec2 uv2 = SWIRL * base * 2.3 - vec2(uTime * uScroll * 0.75, -uTime * uScroll * 1.15);
 
   vec3 n1 = texture2D(uNoise, uv1).rgb * 2.0 - 1.0;
   vec3 n2 = texture2D(uNoise, uv2).rgb * 2.0 - 1.0;
@@ -170,6 +180,13 @@ void main(void) {
   // them to drift apart.
   float thickness = 0.0;
   float absorbed = 1.0;
+  // PER CHANNEL. Water does not dim what is under it evenly — it eats red
+  // first, then green, and blue last, which is the entire reason water is
+  // blue-green rather than grey. A single scalar cannot express that, and with
+  // one the surface tints nothing at all until it is deep enough to go dark:
+  // a shallow pool over a pale floor came out as a white sheet, because a
+  // white floor times a scalar is still white.
+  vec3 transmittance = vec3(0.0);
   if (uHasDepth > 0.5) {
     vec2 screenUv = gl_FragCoord.xy / uScreenSize;
     // View-space Z in world units, straight out of the depth map. No
@@ -177,7 +194,10 @@ void main(void) {
     // so this line cannot be subtly wrong in a way that still renders.
     float sceneDepth = texture2D(uSceneDepth, screenUv).r;
     thickness = max(0.0, sceneDepth - vViewDepth);
-    absorbed = 1.0 - exp(-thickness * uAbsorb);
+    transmittance = exp(-thickness * uAbsorb * uAbsorbTint);
+    // Green is the middle of the three and the channel the eye weights most,
+    // so it stands in wherever one number is needed — foam, opacity, caustics.
+    absorbed = 1.0 - transmittance.g;
   }
 
   vec3 body = mix(uShallowColor, uDeepColor, absorbed);
@@ -203,8 +223,11 @@ void main(void) {
     // frame edge, which shows up as a bright seam along the border.
     vec2 refractUv = clamp(screenUv3 + offset, vec2(0.002), vec2(0.998));
     vec3 behind = texture2D(uSceneColor, refractUv).rgb;
-    // Absorption decides how much of it survives the trip.
-    transmitted = mix(behind, body, absorbed);
+    // Beer-Lambert, per channel: what survives the trip is the background
+    // FILTERED by the water, and what is lost to it is replaced by the water's
+    // own colour. Multiplying rather than cross-fading is the difference
+    // between a floor seen through water and a floor with a wash over it.
+    transmitted = behind * transmittance + uDeepColor * (1.0 - transmittance);
     refracting = 1.0;
   }
 
@@ -453,6 +476,14 @@ export interface WaterProfile {
    * an unrippled reflection sits on the surface like a decal.
    */
   reflectDistort: number;
+  /**
+   * Per-channel multiplier on {@link LiquidProfile.absorb}.
+   *
+   * Water absorbs red roughly three times faster than blue, and that ratio IS
+   * why water is blue-green. A single scalar makes it grey-out instead, which
+   * over a pale floor comes out as a white sheet.
+   */
+  absorbTint: Color3;
 }
 
 /**
@@ -508,6 +539,7 @@ export const WATER_PROFILES: Record<WaterKind, WaterProfile> = {
     refract: 0.045,
     caustics: 0.5,
     reflectDistort: 0.07,
+    absorbTint: new Color3(1.0, 0.42, 0.28),
   },
   slime: {
     // Bright toxic green from a shader rule, not from the map's own texture.
@@ -535,6 +567,9 @@ export const WATER_PROFILES: Record<WaterKind, WaterProfile> = {
     // Slime is opaque enough that nothing reaches the bottom to focus.
     caustics: 0.0,
     reflectDistort: 0.05,
+    // Slime swallows blue instead, which is what keeps it green rather than
+    // letting it drift toward water.
+    absorbTint: new Color3(1.0, 0.35, 1.4),
   },
   lava: {
     shallow: new Color3(1.0, 0.46, 0.06),
@@ -563,6 +598,8 @@ export const WATER_PROFILES: Record<WaterKind, WaterProfile> = {
     caustics: 0.0,
     // Lava is molten rock with a crust; it does not mirror a room.
     reflectDistort: 0.03,
+    // Opaque within a hair of the surface, evenly across the spectrum.
+    absorbTint: new Color3(1.0, 1.0, 1.0),
   },
 };
 
@@ -666,6 +703,7 @@ export function createUnifiedWaterMaterial(
           "uCaustics",
           "uHasReflection",
           "uReflectDistort",
+          "uAbsorbTint",
         ],
         samplers: ["uNoise", "uSceneDepth", "uSceneColor", "uReflection"],
         needAlphaBlending: true,
@@ -707,6 +745,7 @@ export function createUnifiedWaterMaterial(
     // colour, which is what it did for the whole feature until now.
     material.setFloat("uHasReflection", 0);
     material.setFloat("uReflectDistort", profile.reflectDistort);
+    material.setColor3("uAbsorbTint", profile.absorbTint);
     material.setVector3("uCameraForward", new Vector3(0, 0, 1));
     material.setFloat("uCameraFar", 10000);
     material.setVector2("uScreenSize", new Vector2(1920, 1080));

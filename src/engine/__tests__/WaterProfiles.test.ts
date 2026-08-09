@@ -67,6 +67,52 @@ describe("wave scale", () => {
   });
 });
 
+describe("per-channel absorption", () => {
+  /** Beer-Lambert for one channel, at a given ray length. */
+  const survives = (kind: WaterKind, channel: "r" | "g" | "b", t: number) => {
+    const p = WATER_PROFILES[kind];
+    return Math.exp(-t * p.absorb * p.absorbTint[channel]);
+  };
+
+  it("eats red fastest in water, which is why water is blue-green", () => {
+    // The whole reason this is a colour and not a scalar. A single coefficient
+    // dims what is under the surface evenly, and a pale floor dimmed evenly is
+    // still a pale floor — which is exactly how a shallow pool came out as a
+    // white sheet.
+    expect(WATER_PROFILES.water.absorbTint.r).toBeGreaterThan(WATER_PROFILES.water.absorbTint.g);
+    expect(WATER_PROFILES.water.absorbTint.g).toBeGreaterThan(WATER_PROFILES.water.absorbTint.b);
+  });
+
+  it("tints a SHALLOW pool rather than only dimming it", () => {
+    // 35 units of ray — a pad of water a player wades through. The point is
+    // not that much light is lost, it is that the channels diverge, because
+    // divergence is what the eye reads as colour.
+    const red = survives("water", "r", 35);
+    const blue = survives("water", "b", 35);
+
+    expect(blue - red).toBeGreaterThan(0.08);
+  });
+
+  it("keeps a deep pool from going black", () => {
+    // Blue has to survive where red and green do not, or deep water reads as
+    // a hole rather than as water.
+    expect(survives("water", "b", 600)).toBeGreaterThan(0.15);
+    expect(survives("water", "r", 600)).toBeLessThan(0.15);
+  });
+
+  it("makes slime swallow blue instead, so it stays green", () => {
+    // If slime absorbed like water it would drift toward looking like water
+    // with a green light on it.
+    expect(WATER_PROFILES.slime.absorbTint.b).toBeGreaterThan(WATER_PROFILES.slime.absorbTint.g);
+  });
+
+  it("leaves lava neutral, since it is opaque either way", () => {
+    const lava = WATER_PROFILES.lava.absorbTint;
+    expect(lava.r).toBe(lava.g);
+    expect(lava.g).toBe(lava.b);
+  });
+});
+
 describe("refraction and caustics", () => {
   it("bends the most through the clearest liquid", () => {
     // Refraction only shows where something behind the surface survives the
