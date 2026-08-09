@@ -55,6 +55,8 @@ export class LiquidSurfaceSystem {
   private reflection: WaterReflection | null = null;
   /** Height of that pool's surface, chosen once when surfaces are claimed. */
   private reflectionPlaneY: number | null = null;
+  /** Last state line printed, so only CHANGES are logged. */
+  private lastReport = "";
 
   constructor(private readonly scene: Scene) {
     this.depth = new WaterDepthProvider(scene);
@@ -131,6 +133,7 @@ export class LiquidSurfaceSystem {
 
       const sceneColor = this.captureFor(camera, wantsRefraction, visible);
       const mirror = this.reflectionFor(camera, wantsRefraction, visible);
+      this.reportState(wantsRefraction, visible, depthMap !== null, sceneColor !== null, mirror !== null);
 
       for (const material of this.materials.values()) {
         material.setFloat("uDebug", debug);
@@ -222,21 +225,42 @@ export class LiquidSurfaceSystem {
   }
 
   /**
-   * Is any claimed surface within the camera's frustum?
+   * Say, once, whenever the set of active water terms changes.
    *
-   * Cheap — a handful of bounding-box tests against planes the scene already
-   * computed this frame — and it is what turns "Epic costs two extra passes"
-   * into "Epic costs two extra passes while you are looking at a pool".
+   * Every failure in this feature has looked the same from the outside — a
+   * flat pale surface — whether the cause was tuning, a missing texture, a
+   * quality tier, or a visibility gate answering wrong. Guessing between those
+   * has cost more time than building any of them. One line per CHANGE is
+   * enough to tell them apart and quiet enough to leave switched on.
+   */
+  private reportState(epic: boolean, visible: boolean, depth: boolean, refraction: boolean, reflection: boolean): void {
+    const line = `tier=${epic ? "epic" : "low/medium"} waterOnScreen=${visible} depth=${depth} refraction=${refraction} reflection=${reflection}`;
+    if (line === this.lastReport) return;
+    this.lastReport = line;
+    console.log(`[Water] ${line}`);
+  }
+
+  /**
+   * Is the renderer actually drawing a liquid surface this frame?
+   *
+   * Asked of the scene's own active-mesh list rather than by testing bounding
+   * boxes against the frustum here. Re-deriving culling was the first attempt
+   * and it silently answered "no" while a pool filled the screen — which
+   * switched off BOTH Epic passes, and looked exactly like the effects being
+   * unwired rather than like a culling bug. The engine has already made this
+   * decision; asking it cannot disagree with what gets drawn.
+   *
+   * One frame stale, because the list is rebuilt during render and this runs
+   * before it. That is invisible and self-correcting.
    */
   private anyLiquidVisible(): boolean {
-    const planes = this.scene.frustumPlanes;
-    // Before the scene has computed them, assume visible rather than blink the
-    // effect off on the first frame of a map.
-    if (!planes) return true;
+    const active = this.scene.getActiveMeshes();
+    // Nothing evaluated yet — a map's first frames. Assume visible rather than
+    // start the effect switched off.
+    if (active.length === 0) return true;
 
-    for (const surface of this.claimed) {
-      if (surface.mesh.isDisposed() || !surface.mesh.isEnabled()) continue;
-      if (surface.mesh.isInFrustum(planes)) return true;
+    for (let i = 0; i < active.length; i++) {
+      if (active.data[i]?.metadata?.liquidKind) return true;
     }
     return false;
   }

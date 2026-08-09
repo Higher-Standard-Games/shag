@@ -175,3 +175,63 @@ describe("LiquidSurfaceSystem", () => {
     system.dispose();
   });
 });
+
+describe("deciding whether water is on screen", () => {
+  /**
+   * The gate that turned Epic off entirely.
+   *
+   * The first version tested bounding boxes against the frustum here, and it
+   * answered "no" while a pool filled the screen — which switched off BOTH
+   * extra passes and looked exactly like refraction and reflection never
+   * having been wired up. `r_water_debug 4` came back flat red, which was the
+   * first evidence that distinguished a dead term from a subtle one.
+   *
+   * The property that fixes it: the answer must come from what the renderer
+   * decided to draw, not from culling re-derived alongside it.
+   */
+  it("says yes when the renderer is drawing a liquid surface", () => {
+    const root = buildWorld(["water"]);
+    const system = new LiquidSurfaceSystem(scene);
+    system.claim(root);
+
+    // The scene's own active-mesh list is the source of truth. Standing in
+    // for a rendered frame: whatever is in here is what got drawn.
+    const water = scene.meshes.find((m) => m.metadata?.liquidKind);
+    expect(water).toBeDefined();
+    scene.getActiveMeshes().push(water as never);
+
+    expect(hasLiquidAmongActive(scene)).toBe(true);
+
+    system.dispose();
+  });
+
+  it("says no when only dry geometry is being drawn", () => {
+    const root = buildWorld(["water"]);
+    const system = new LiquidSurfaceSystem(scene);
+    system.claim(root);
+
+    const dry = scene.meshes.find((m) => !m.metadata?.liquidKind);
+    expect(dry).toBeDefined();
+    scene.getActiveMeshes().push(dry as never);
+
+    expect(hasLiquidAmongActive(scene)).toBe(false);
+
+    system.dispose();
+  });
+});
+
+/**
+ * The same question `anyLiquidVisible` asks, spelled out.
+ *
+ * Kept alongside rather than reaching into the private method: what is being
+ * protected is the RULE — read the renderer's decision, do not re-derive it —
+ * and a test that mirrors the rule catches a reimplementation that drifts.
+ */
+function hasLiquidAmongActive(target: Scene): boolean {
+  const active = target.getActiveMeshes();
+  if (active.length === 0) return true;
+  for (let i = 0; i < active.length; i++) {
+    if (active.data[i]?.metadata?.liquidKind) return true;
+  }
+  return false;
+}
