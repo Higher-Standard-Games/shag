@@ -32,7 +32,7 @@ import { EXCLUDE_FROM_WATER_CAPTURE } from "./WaterSceneCapture";
  * through a wave-distorted normal and is mixed in at a fraction of the final
  * colour, so it survives being soft far better than the refraction does.
  */
-const MIRROR_RATIO = 0.35;
+const MIRROR_RATIO = 0.25;
 
 /** The viewmodel camera's layer. The weapon does not appear in the pool. */
 const WEAPON_LAYER_MASK = 0x10000000;
@@ -97,9 +97,15 @@ export class WaterReflection {
       // the water, which looks like a reflection until you move.
       mirror.mirrorPlane = new Plane(0, -1, 0, planeY);
 
-      // Softened deliberately. A mirror-sharp reflection on a rippling surface
-      // reads as ice; blurring it is what makes it read as a wet one.
-      mirror.adaptiveBlurKernel = 16;
+      // NO blur kernel.
+      //
+      // A soft reflection is wanted — mirror-sharp on a rippling surface reads
+      // as ice — but a blur kernel buys it with extra full-screen passes on top
+      // of the scene pass this already costs, and it was a measurable part of
+      // why Epic halved the frame rate. Quarter resolution plus the wave-normal
+      // offset already destroys far more detail than a blur would, so the blur
+      // was paying for softness we were getting for free.
+      mirror.adaptiveBlurKernel = 0;
 
       mirror.renderList = [];
       mirror.renderListPredicate = (mesh: AbstractMesh) => this.shouldReflect(mesh);
@@ -129,6 +135,27 @@ export class WaterReflection {
     if (mesh.metadata?.[EXCLUDE_FROM_WATER_CAPTURE]) return false;
     if ((mesh.layerMask & WEAPON_LAYER_MASK) !== 0) return false;
     return true;
+  }
+
+  /**
+   * Start or stop rendering, without tearing the mirror down.
+   *
+   * The single most expensive thing in the feature: a full pass over the world
+   * plus its blur. Registration in `customRenderTargets` is what decides
+   * whether the scene renders it, so removing it there stops the cost dead
+   * while keeping the target allocated for when the player turns back around.
+   */
+  setRendering(enabled: boolean): void {
+    if (!this.mirror) return;
+
+    const index = this.scene.customRenderTargets.indexOf(this.mirror);
+    if (enabled && index === -1) this.scene.customRenderTargets.push(this.mirror);
+    else if (!enabled && index !== -1) this.scene.customRenderTargets.splice(index, 1);
+  }
+
+  /** Whether the scene is currently rendering this. Tests and diagnostics. */
+  get isRendering(): boolean {
+    return this.mirror !== null && this.scene.customRenderTargets.indexOf(this.mirror) !== -1;
   }
 
   /** Height of the reflected plane, or null. Tests and diagnostics only. */

@@ -404,9 +404,9 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, "name">> = {
     value: 0,
     defaultValue: 0,
     min: 0,
-    max: 2,
+    max: 4,
     description:
-      "Visualise the water depth term. 1 = absorption as grey (black at a shoreline, white where the floor is gone), 2 = raw thickness. A flat result means depth is not reaching the shader.",
+      "Visualise a water term. 1 = absorption as grey (black at a shoreline, white where the floor is gone), 2 = raw thickness, 3 = the refraction sample, 4 = the reflection sample. Flat RED means that term is switched off; black means it is bound to nothing; a picture means the pass is running.",
     category: "debug",
   },
   r_underwater_distortion: {

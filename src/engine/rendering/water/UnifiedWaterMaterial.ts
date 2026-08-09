@@ -139,8 +139,18 @@ void main(void) {
   // at a grazing angle is now the room rather than a flat swatch — a strong
   // reflection of something is legible where a strong reflection of nothing
   // is just glare.
-  float reflectCap = uReflectivity * (1.0 + uHasReflection * 1.2);
-  float fresnel = pow(1.0 - facing, 4.0) * reflectCap;
+  // Without a mirror: the old capped curve, because the thing being reflected
+  // is one flat swatch and a strong reflection of a swatch is just glare.
+  float flatFresnel = pow(1.0 - facing, 4.0) * uReflectivity;
+  // With one: real Schlick, R0 = 0.02 for water, uncapped. Now that there is
+  // an actual room coming back, the physical curve is both correct and what
+  // makes a pool look wet when you look ACROSS it.
+  //
+  // It also means looking straight DOWN into a pool shows almost no
+  // reflection, which is not a bug — that is what real water does, and it is
+  // why the effect is invisible from directly above no matter how it is tuned.
+  float schlick = 0.02 + 0.98 * pow(1.0 - facing, 5.0);
+  float fresnel = mix(flatFresnel, schlick, uHasReflection);
 
   // How much liquid the view ray passes through before it hits something.
   //
@@ -281,6 +291,32 @@ void main(void) {
   // number beats reasoning about it. 1: absorption as grey, black at the
   // shoreline and white where the floor is gone. 2: raw thickness over 512
   // units. Either one flat means depth is not reaching the shader.
+  // 3 shows the refraction sample and 4 the reflection sample, both RAW.
+  //
+  // These exist because "the effect is subtle" and "the effect is not
+  // connected" look identical on a plain grey pool floor, and every round of
+  // this feature has been lost to that ambiguity. A raw view answers it in one
+  // glance: an image means the texture is bound and the pass is running, flat
+  // red means the term is off, and black means it is bound to nothing.
+  if (uDebug > 2.5) {
+    if (uDebug < 3.5) {
+      if (uHasRefraction <= 0.5) {
+        gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+        return;
+      }
+      vec2 duv = clamp(gl_FragCoord.xy / uScreenSize + n.xz * uRefract * min(1.0, thickness / 60.0), vec2(0.002), vec2(0.998));
+      gl_FragColor = vec4(texture2D(uSceneColor, duv).rgb, 1.0);
+      return;
+    }
+    if (uHasReflection <= 0.5) {
+      gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+      return;
+    }
+    vec2 muv2 = clamp(gl_FragCoord.xy / uScreenSize + n.xz * uReflectDistort, vec2(0.002), vec2(0.998));
+    gl_FragColor = vec4(texture2D(uReflection, muv2).rgb, 1.0);
+    return;
+  }
+
   if (uDebug > 0.5) {
     // No depth bound at all is drawn RED rather than grey. Both failures used
     // to look identical — a flat black surface — so the one view meant to say

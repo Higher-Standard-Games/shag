@@ -108,6 +108,28 @@ export class WaterSceneCapture {
     return true;
   }
 
+  /**
+   * Start or stop rendering, without tearing the target down.
+   *
+   * A capture only earns its cost while water is actually on screen, and in a
+   * Q3 map that is a small fraction of the time. Registration in
+   * `customRenderTargets` is what decides whether the scene renders it, so
+   * removing it there is a complete stop — no pass, no cost — while keeping
+   * the texture allocated so walking back to the pool does not rebuild it.
+   */
+  setRendering(enabled: boolean): void {
+    if (!this.texture) return;
+
+    const index = this.scene.customRenderTargets.indexOf(this.texture);
+    if (enabled && index === -1) this.scene.customRenderTargets.push(this.texture);
+    else if (!enabled && index !== -1) this.scene.customRenderTargets.splice(index, 1);
+  }
+
+  /** Whether the scene is currently rendering this. Tests and diagnostics. */
+  get isRendering(): boolean {
+    return this.texture !== null && this.scene.customRenderTargets.indexOf(this.texture) !== -1;
+  }
+
   get isAvailable(): boolean {
     return this.texture !== null;
   }

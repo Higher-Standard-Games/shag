@@ -124,8 +124,13 @@ export class LiquidSurfaceSystem {
       // Read per frame rather than latched at claim time: r_water_quality is
       // a live setting, and a tier change must not need a map reload.
       const wantsRefraction = (RenderVars.getInstance().get("r_water_quality") ?? 2) >= 3;
-      const sceneColor = this.captureFor(camera, wantsRefraction);
-      const mirror = this.reflectionFor(camera, wantsRefraction);
+      // Both Epic passes are full sweeps over the world, and in a Q3 map the
+      // player is looking at water a small fraction of the time. Paying for
+      // them while facing away is most of what made Epic expensive.
+      const visible = this.anyLiquidVisible();
+
+      const sceneColor = this.captureFor(camera, wantsRefraction, visible);
+      const mirror = this.reflectionFor(camera, wantsRefraction, visible);
 
       for (const material of this.materials.values()) {
         material.setFloat("uDebug", debug);
@@ -177,7 +182,7 @@ export class LiquidSurfaceSystem {
    * mirror is another full pass over the world and a reflection is the least
    * load-bearing thing the surface does.
    */
-  private reflectionFor(camera: Camera, wanted: boolean): MirrorTexture | null {
+  private reflectionFor(camera: Camera, wanted: boolean, visible: boolean): MirrorTexture | null {
     if (!wanted || this.reflectionPlaneY === null) {
       if (this.reflection) {
         this.reflection.dispose();
@@ -187,7 +192,9 @@ export class LiquidSurfaceSystem {
     }
 
     if (!this.reflection) this.reflection = new WaterReflection(this.scene);
-    return this.reflection.textureFor(camera, this.reflectionPlaneY);
+    const mirror = this.reflection.textureFor(camera, this.reflectionPlaneY);
+    this.reflection.setRendering(visible);
+    return visible ? mirror : null;
   }
 
   /**
@@ -197,7 +204,7 @@ export class LiquidSurfaceSystem {
    * capture is still a full pass over the world every frame — the expensive
    * half of the feature would keep running with nothing sampling it.
    */
-  private captureFor(camera: Camera, wanted: boolean): RenderTargetTexture | null {
+  private captureFor(camera: Camera, wanted: boolean, visible: boolean): RenderTargetTexture | null {
     if (!wanted) {
       if (this.capture) {
         this.capture.dispose();
@@ -207,7 +214,31 @@ export class LiquidSurfaceSystem {
     }
 
     if (!this.capture) this.capture = new WaterSceneCapture(this.scene);
-    return this.capture.textureFor(camera);
+    const texture = this.capture.textureFor(camera);
+    // Kept alive but unrendered when no water is on screen: rebuilding it
+    // every time the player turns around would cost more than the pass.
+    this.capture.setRendering(visible);
+    return visible ? texture : null;
+  }
+
+  /**
+   * Is any claimed surface within the camera's frustum?
+   *
+   * Cheap — a handful of bounding-box tests against planes the scene already
+   * computed this frame — and it is what turns "Epic costs two extra passes"
+   * into "Epic costs two extra passes while you are looking at a pool".
+   */
+  private anyLiquidVisible(): boolean {
+    const planes = this.scene.frustumPlanes;
+    // Before the scene has computed them, assume visible rather than blink the
+    // effect off on the first frame of a map.
+    if (!planes) return true;
+
+    for (const surface of this.claimed) {
+      if (surface.mesh.isDisposed() || !surface.mesh.isEnabled()) continue;
+      if (surface.mesh.isInFrustum(planes)) return true;
+    }
+    return false;
   }
 
   /** How many surfaces this system currently draws. */

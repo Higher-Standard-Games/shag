@@ -158,3 +158,52 @@ describe("ownership", () => {
     expect(scene.customRenderTargets.length).toBe(1);
   });
 });
+
+describe("paying only when there is water on screen", () => {
+  it("stops rendering without tearing the target down", () => {
+    // Rebuilding it every time the player turns around would cost more than
+    // the pass it saves.
+    const texture = capture.textureFor(camera);
+
+    capture.setRendering(false);
+
+    expect(capture.isRendering).toBe(false);
+    expect(scene.customRenderTargets).not.toContain(texture);
+    expect(capture.textureFor(camera)).toBe(texture);
+  });
+
+  it("resumes without rebuilding", () => {
+    const texture = capture.textureFor(camera);
+    capture.setRendering(false);
+
+    capture.setRendering(true);
+
+    expect(capture.isRendering).toBe(true);
+    expect(capture.textureFor(camera)).toBe(texture);
+    expect(scene.customRenderTargets.length).toBe(1);
+  });
+
+  it("does not register twice when told to render repeatedly", () => {
+    capture.textureFor(camera);
+    for (let i = 0; i < 5; i++) capture.setRendering(true);
+
+    expect(scene.customRenderTargets.length).toBe(1);
+  });
+
+  it("survives being stopped twice", () => {
+    capture.textureFor(camera);
+    capture.setRendering(false);
+
+    expect(() => capture.setRendering(false)).not.toThrow();
+    expect(scene.customRenderTargets.length).toBe(0);
+  });
+
+  it("leaves nothing registered after dispose, whatever the last state", () => {
+    capture.textureFor(camera);
+    capture.setRendering(false);
+
+    capture.dispose();
+
+    expect(scene.customRenderTargets.length).toBe(0);
+  });
+});

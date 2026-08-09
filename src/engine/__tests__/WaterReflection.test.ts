@@ -169,3 +169,45 @@ describe("ownership", () => {
     expect(() => reflection.dispose()).not.toThrow();
   });
 });
+
+describe("paying only when there is water on screen", () => {
+  it("stops rendering without tearing the mirror down", () => {
+    // The single most expensive thing in the feature: a full pass over the
+    // world. Not paying for it while the player faces away is most of what
+    // separates a usable Epic tier from an unusable one.
+    const mirror = reflection.textureFor(camera, 100);
+
+    reflection.setRendering(false);
+
+    expect(reflection.isRendering).toBe(false);
+    expect(scene.customRenderTargets).not.toContain(mirror);
+    expect(reflection.textureFor(camera, 100)).toBe(mirror);
+  });
+
+  it("resumes without rebuilding", () => {
+    const mirror = reflection.textureFor(camera, 100);
+    reflection.setRendering(false);
+
+    reflection.setRendering(true);
+
+    expect(reflection.isRendering).toBe(true);
+    expect(reflection.textureFor(camera, 100)).toBe(mirror);
+    expect(scene.customRenderTargets.length).toBe(1);
+  });
+
+  it("does not register twice when told to render repeatedly", () => {
+    reflection.textureFor(camera, 100);
+    for (let i = 0; i < 5; i++) reflection.setRendering(true);
+
+    expect(scene.customRenderTargets.length).toBe(1);
+  });
+
+  it("leaves nothing registered after dispose, whatever the last state", () => {
+    reflection.textureFor(camera, 100);
+    reflection.setRendering(false);
+
+    reflection.dispose();
+
+    expect(scene.customRenderTargets.length).toBe(0);
+  });
+});
