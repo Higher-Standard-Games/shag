@@ -23,11 +23,15 @@
 import type { Camera } from "@babylonjs/core/Cameras/camera";
 import { Constants } from "@babylonjs/core/Engines/constants";
 import type { Texture } from "@babylonjs/core/Materials/Textures/texture";
+import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { DepthRenderer } from "@babylonjs/core/Rendering/depthRenderer";
 import type { Scene } from "@babylonjs/core/scene";
 
 /** Matches the default `scene.enableDepthRenderer` used before this existed. */
 const SAMPLING_MODE = Constants.TEXTURE_TRILINEAR_SAMPLINGMODE;
+
+/** The viewmodel camera layer. The weapon is not part of the world. */
+const WEAPON_LAYER_MASK = 0x10000000;
 
 export class WaterDepthProvider {
   private renderer: DepthRenderer | null = null;
@@ -65,9 +69,26 @@ export class WaterDepthProvider {
 
     try {
       const renderer = new DepthRenderer(this.scene, type, camera, false, SAMPLING_MODE, true, "water-scene-depth");
+      const map = renderer.getDepthMap();
+
+      // An EXPLICIT list, rather than DepthRenderer's default of null.
+      //
+      // Null means "whatever is in scene.getActiveMeshes()", and that list is
+      // rewritten by every render target that draws — including water's own
+      // refraction capture and mirror, which run in the same phase and
+      // deliberately exclude liquid. Depending on it made the depth pass draw
+      // an unpredictable subset, and where it drew nothing the map keeps its
+      // clear value: with storeCameraSpaceZ that clear is 0.0, so thickness
+      // computes as max(0, 0 - viewDepth) = ZERO.
+      //
+      // Zero thickness is the white-plaster look exactly — no absorption at
+      // any coefficient, and full shoreline foam across the whole pool. It is
+      // also why raising absorption five-fold changed nothing.
+      map.renderListPredicate = (mesh: AbstractMesh) => this.shouldRender(mesh);
+
       // Ours to render: the scene component's gather step only walks the
       // cameras in `scene._depthRenderer`, and this deliberately is not one.
-      this.scene.customRenderTargets.push(renderer.getDepthMap());
+      this.scene.customRenderTargets.push(map);
       this.renderer = renderer;
       this.camera = camera;
       return renderer.getDepthMap();
@@ -76,6 +97,24 @@ export class WaterDepthProvider {
       this.unavailable = true;
       return null;
     }
+  }
+
+  /**
+   * The world the water measures its thickness against.
+   *
+   * Liquid is excluded because the gap between the surface and what is BEHIND
+   * it is the whole quantity — a surface that appears in its own depth map
+   * measures zero. Babylon already skips it, since the material declares alpha
+   * blending and the depth pass drops transparent submeshes, but stating it
+   * here means the exclusion does not depend on that staying true.
+   *
+   * The viewmodel is excluded because it is not in the world.
+   */
+  private shouldRender(mesh: AbstractMesh): boolean {
+    if (!mesh.isVisible || !mesh.isEnabled()) return false;
+    if (mesh.metadata?.liquidKind) return false;
+    if ((mesh.layerMask & WEAPON_LAYER_MASK) !== 0) return false;
+    return true;
   }
 
   /**

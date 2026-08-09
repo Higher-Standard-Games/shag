@@ -406,7 +406,7 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, "name">> = {
     min: 0,
     max: 4,
     description:
-      "Visualise a water term. 1 = absorption as grey (black at a shoreline, white where the floor is gone), 2 = raw thickness, 3 = the refraction sample, 4 = the reflection sample. Flat RED means that term is switched off; black means it is bound to nothing; a picture means the pass is running.",
+      "Visualise a water term. 1 = absorption as grey. 2 = thickness as bands — magenta EXACTLY zero (the depth map is empty here), red under 8 units, yellow 8-32, green 32-128, cyan 128-512, white beyond. 3 = the refraction sample, 4 = the reflection sample; for those, flat RED means the term is switched off and black means it is bound to nothing.",
     category: "debug",
   },
   r_underwater_distortion: {

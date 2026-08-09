@@ -19,6 +19,8 @@
 import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
+import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder";
 import { Scene } from "@babylonjs/core/scene";
 import "@babylonjs/core/Rendering/depthRendererSceneComponent";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -191,5 +193,52 @@ describe("teardown", () => {
     provider.dispose();
 
     expect(provider.mapFor(camera("b"))).not.toBeNull();
+  });
+});
+
+describe("what the depth pass draws", () => {
+  const captured = (): AbstractMesh[] => {
+    const map = provider.mapFor(camera("a"));
+    if (!map) return [];
+    const predicate = (map as unknown as { renderListPredicate: (m: AbstractMesh) => boolean }).renderListPredicate;
+    return scene.meshes.filter((m) => predicate(m));
+  };
+
+  it("uses an explicit list rather than the scene's active meshes", () => {
+    // DepthRenderer defaults renderList to null, which means "whatever is in
+    // scene.getActiveMeshes()". That list is rewritten by every render target
+    // that draws, including water's own capture and mirror — so the depth pass
+    // drew an unpredictable subset, and where it drew nothing the map kept its
+    // clear value. With storeCameraSpaceZ that clear is 0.0, which makes
+    // thickness compute as exactly zero: no absorption at any coefficient, and
+    // full shoreline foam over the entire pool.
+    const map = provider.mapFor(camera("a"));
+
+    expect(map).not.toBeNull();
+    // The predicate is what replaces the null default. `renderList` itself
+    // stays null until a render evaluates the predicate and fills it, so
+    // asserting on the list here would pass for the broken case too.
+    expect(typeof (map as unknown as { renderListPredicate: unknown }).renderListPredicate).toBe("function");
+  });
+
+  it("measures against the world", () => {
+    const wall = CreateBox("wall", { size: 1 }, scene);
+
+    expect(captured()).toContain(wall);
+  });
+
+  it("excludes liquid, since the gap BEHIND it is the whole quantity", () => {
+    // A surface that appears in its own depth map measures zero thickness.
+    const pool = CreateBox("pool", { size: 1 }, scene);
+    pool.metadata = { liquidKind: "water" };
+
+    expect(captured()).not.toContain(pool);
+  });
+
+  it("excludes the viewmodel, which is not in the world", () => {
+    const gun = CreateBox("viewmodel", { size: 1 }, scene);
+    gun.layerMask = 0x10000000;
+
+    expect(captured()).not.toContain(gun);
   });
 });

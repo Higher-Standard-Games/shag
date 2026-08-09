@@ -353,8 +353,35 @@ void main(void) {
       gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
       return;
     }
-    float shown = uDebug < 1.5 ? absorbed : clamp(thickness / 512.0, 0.0, 1.0);
-    gl_FragColor = vec4(vec3(shown), 1.0);
+    if (uDebug < 1.5) {
+      gl_FragColor = vec4(vec3(absorbed), 1.0);
+      return;
+    }
+
+    // Thickness as a BANDED RAMP rather than grey over 512 units.
+    //
+    // The grey version could not answer the question it existed for. A pool
+    // presenting 40 units rendered at 8% grey, which is indistinguishable by
+    // eye from the 0% that means the depth map is empty — so the one view
+    // meant to separate "shallow" from "broken" showed the same near-black
+    // for both, and several rounds of tuning were spent guessing between them.
+    //
+    // Bands, each an order of magnitude apart, and an exact zero called out
+    // in its own colour:
+    //   magenta = EXACTLY zero      (the depth map has nothing here)
+    //   red     = under 8 units     (a shoreline)
+    //   yellow  = 8 to 32           (ankle deep)
+    //   green   = 32 to 128         (a wading pool — most Q3 water)
+    //   cyan    = 128 to 512        (deep)
+    //   white   = over 512          (a shaft, or a bad reading)
+    vec3 band;
+    if (thickness <= 0.0)         band = vec3(1.0, 0.0, 1.0);
+    else if (thickness < 8.0)     band = vec3(1.0, 0.0, 0.0);
+    else if (thickness < 32.0)    band = vec3(1.0, 1.0, 0.0);
+    else if (thickness < 128.0)   band = vec3(0.0, 1.0, 0.0);
+    else if (thickness < 512.0)   band = vec3(0.0, 1.0, 1.0);
+    else                          band = vec3(1.0, 1.0, 1.0);
+    gl_FragColor = vec4(band, 1.0);
     return;
   }
 
