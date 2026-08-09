@@ -23,6 +23,7 @@ import type { MirrorTexture } from "@babylonjs/core/Materials/Textures/mirrorTex
 import type { RenderTargetTexture } from "@babylonjs/core/Materials/Textures/renderTargetTexture";
 import { Vector2, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
+import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
 import RenderVars from "../RenderVars";
@@ -30,6 +31,14 @@ import { createUnifiedWaterMaterial, disposeWaterNoise, type WaterKind } from ".
 import { WaterDepthProvider } from "./WaterDepth";
 import { WaterReflection } from "./WaterReflection";
 import { WaterSceneCapture } from "./WaterSceneCapture";
+
+/**
+ * Frames without water drawn before the Epic passes stop.
+ *
+ * A pillar briefly hiding a pool must not toggle two render targets in and
+ * out of the scene; a few frames of grace costs far less than the churn.
+ */
+const DRY_FRAMES_BEFORE_STOPPING = 10;
 
 /** Local forward, reused so the per-frame camera query does not allocate. */
 const FORWARD = new Vector3(0, 0, 1);
@@ -57,6 +66,14 @@ export class LiquidSurfaceSystem {
   private reflectionPlaneY: number | null = null;
   /** Last state line printed, so only CHANGES are logged. */
   private lastReport = "";
+  /** Set by a claimed mesh when it is drawn; read and cleared each frame. */
+  private waterDrawn = false;
+  /** False until at least one mesh could be hooked, in which case assume visible. */
+  private drawHooked = false;
+  /** Consecutive frames with no water drawn, for the stop hysteresis. */
+  private dryFrames = 0;
+  /** Draw observers on the claimed meshes, removed on dispose. */
+  private readonly drawObservers: Array<{ mesh: Mesh; observer: Observer<Mesh> }> = [];
 
   constructor(private readonly scene: Scene) {
     this.depth = new WaterDepthProvider(scene);
@@ -81,6 +98,7 @@ export class LiquidSurfaceSystem {
 
       this.claimed.push({ mesh, original: mesh.material });
       mesh.material = material;
+      this.watchDraws(mesh);
       count++;
     }
 
@@ -92,6 +110,30 @@ export class LiquidSurfaceSystem {
       this.start();
     }
     return count;
+  }
+
+  /**
+   * Have this surface say when it is drawn.
+   *
+   * The signal the Epic passes are gated on. It has to come from the mesh
+   * because every signal computed ALONGSIDE the renderer has been wrong — see
+   * `anyLiquidVisible` for both previous attempts.
+   */
+  private watchDraws(mesh: AbstractMesh): void {
+    // AbstractMesh does not declare the observable; Mesh does, and BSP
+    // surfaces are Meshes. Feature-detected rather than assumed, so a future
+    // surface type that is not a Mesh degrades to "always visible" instead of
+    // throwing.
+    const drawable = mesh as unknown as Partial<Mesh>;
+    if (!drawable.onBeforeDrawObservable) return;
+
+    const observer = drawable.onBeforeDrawObservable.add(() => {
+      this.waterDrawn = true;
+    });
+    if (!observer) return;
+
+    this.drawObservers.push({ mesh: mesh as Mesh, observer });
+    this.drawHooked = true;
   }
 
   private materialFor(kind: WaterKind): ShaderMaterial | null {
@@ -241,28 +283,42 @@ export class LiquidSurfaceSystem {
   }
 
   /**
-   * Is the renderer actually drawing a liquid surface this frame?
+   * Did the renderer actually draw a liquid surface last frame?
    *
-   * Asked of the scene's own active-mesh list rather than by testing bounding
-   * boxes against the frustum here. Re-deriving culling was the first attempt
-   * and it silently answered "no" while a pool filled the screen — which
-   * switched off BOTH Epic passes, and looked exactly like the effects being
-   * unwired rather than like a culling bug. The engine has already made this
-   * decision; asking it cannot disagree with what gets drawn.
+   * Reported by the water meshes themselves, and that detail is the whole
+   * point. Two earlier attempts both failed, in ways worth keeping written
+   * down because each looked like the effects being unwired:
    *
-   * One frame stale, because the list is rebuilt during render and this runs
-   * before it. That is invisible and self-correcting.
+   * - Testing bounding boxes against the frustum here answered "no" while a
+   *   pool filled the screen. Re-deriving culling beside the renderer means
+   *   maintaining a second opinion about visibility, and it was wrong.
+   * - Reading `scene.getActiveMeshes()` OSCILLATED, every single frame. The
+   *   list is rebuilt when a render target draws, and both Epic targets
+   *   deliberately exclude water — so the act of enabling them erased the
+   *   evidence that they should be enabled. On, off, on, off, forever.
+   *
+   * A mesh reporting its own draw cannot suffer either problem. Water is
+   * excluded from both extra passes, so the only pass that can fire this is
+   * the one the player is looking through.
    */
   private anyLiquidVisible(): boolean {
-    const active = this.scene.getActiveMeshes();
-    // Nothing evaluated yet — a map's first frames. Assume visible rather than
-    // start the effect switched off.
-    if (active.length === 0) return true;
+    // Nothing has reported yet — the first frames of a map, or a build where
+    // no claimed mesh could be hooked. Assume visible rather than start the
+    // effect switched off with no way to recover.
+    if (!this.drawHooked) return true;
 
-    for (let i = 0; i < active.length; i++) {
-      if (active.data[i]?.metadata?.liquidKind) return true;
+    const drawn = this.waterDrawn;
+    this.waterDrawn = false;
+
+    if (drawn) {
+      this.dryFrames = 0;
+      return true;
     }
-    return false;
+
+    // Hysteresis. Registering and unregistering render targets every time a
+    // pillar briefly hides a pool would churn more than the passes cost.
+    this.dryFrames++;
+    return this.dryFrames < DRY_FRAMES_BEFORE_STOPPING;
   }
 
   /** How many surfaces this system currently draws. */
@@ -282,6 +338,14 @@ export class LiquidSurfaceSystem {
       this.scene.onBeforeRenderObservable.remove(this.observer);
       this.observer = null;
     }
+
+    for (const { mesh, observer } of this.drawObservers) {
+      if (!mesh.isDisposed()) mesh.onBeforeDrawObservable.remove(observer);
+    }
+    this.drawObservers.length = 0;
+    this.drawHooked = false;
+    this.waterDrawn = false;
+    this.dryFrames = 0;
 
     for (const surface of this.claimed) {
       if (!surface.mesh.isDisposed()) surface.mesh.material = surface.original;

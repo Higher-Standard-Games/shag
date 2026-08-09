@@ -178,60 +178,57 @@ describe("LiquidSurfaceSystem", () => {
 
 describe("deciding whether water is on screen", () => {
   /**
-   * The gate that turned Epic off entirely.
+   * The gate that switched Epic off entirely, twice.
    *
-   * The first version tested bounding boxes against the frustum here, and it
-   * answered "no" while a pool filled the screen — which switched off BOTH
-   * extra passes and looked exactly like refraction and reflection never
-   * having been wired up. `r_water_debug 4` came back flat red, which was the
-   * first evidence that distinguished a dead term from a subtle one.
+   * First it tested bounding boxes against the frustum and answered "no"
+   * while a pool filled the screen. Then it read `scene.getActiveMeshes()`
+   * and OSCILLATED every single frame — the list is rebuilt when a render
+   * target draws, and both Epic targets deliberately exclude water, so
+   * enabling them erased the evidence that they should be enabled.
    *
-   * The property that fixes it: the answer must come from what the renderer
-   * decided to draw, not from culling re-derived alongside it.
+   * Both failures looked identical from outside: a flat pale surface with no
+   * refraction and no reflection. The rule that survives both is that the
+   * signal must come from the MESH reporting its own draw, because water is
+   * excluded from the extra passes and so only the player's view can fire it.
    */
-  it("says yes when the renderer is drawing a liquid surface", () => {
-    const root = buildWorld(["water"]);
+  it("hooks the claimed surfaces so they can report being drawn", () => {
+    const root = buildWorld(["water", null, "slime"]);
     const system = new LiquidSurfaceSystem(scene);
+
     system.claim(root);
 
-    // The scene's own active-mesh list is the source of truth. Standing in
-    // for a rendered frame: whatever is in here is what got drawn.
-    const water = scene.meshes.find((m) => m.metadata?.liquidKind);
-    expect(water).toBeDefined();
-    scene.getActiveMeshes().push(water as never);
-
-    expect(hasLiquidAmongActive(scene)).toBe(true);
+    // Every claimed surface carries a draw observer; nothing else does.
+    for (const mesh of scene.meshes) {
+      const watched = (mesh as Mesh).onBeforeDrawObservable.hasObservers();
+      expect(watched).toBe(Boolean(mesh.metadata?.liquidKind));
+    }
 
     system.dispose();
   });
 
-  it("says no when only dry geometry is being drawn", () => {
+  it("unhooks them on dispose, so a map unload leaves nothing behind", () => {
     const root = buildWorld(["water"]);
     const system = new LiquidSurfaceSystem(scene);
     system.claim(root);
 
-    const dry = scene.meshes.find((m) => !m.metadata?.liquidKind);
-    expect(dry).toBeDefined();
-    scene.getActiveMeshes().push(dry as never);
+    system.dispose();
 
-    expect(hasLiquidAmongActive(scene)).toBe(false);
+    for (const mesh of scene.meshes) {
+      expect((mesh as Mesh).onBeforeDrawObservable.hasObservers()).toBe(false);
+    }
+  });
+
+  it("does not hook a surface it declined to claim", () => {
+    // A shader that will not compile leaves the legacy material in place, and
+    // an unclaimed surface must not be driving the Epic gate either.
+    const root = buildWorld([null, null]);
+    const system = new LiquidSurfaceSystem(scene);
+
+    expect(system.claim(root)).toBe(0);
+    for (const mesh of scene.meshes) {
+      expect((mesh as Mesh).onBeforeDrawObservable.hasObservers()).toBe(false);
+    }
 
     system.dispose();
   });
 });
-
-/**
- * The same question `anyLiquidVisible` asks, spelled out.
- *
- * Kept alongside rather than reaching into the private method: what is being
- * protected is the RULE — read the renderer's decision, do not re-derive it —
- * and a test that mirrors the rule catches a reimplementation that drifts.
- */
-function hasLiquidAmongActive(target: Scene): boolean {
-  const active = target.getActiveMeshes();
-  if (active.length === 0) return true;
-  for (let i = 0; i < active.length; i++) {
-    if (active.data[i]?.metadata?.liquidKind) return true;
-  }
-  return false;
-}
