@@ -159,7 +159,11 @@ void main(void) {
   // It also means looking straight DOWN into a pool shows almost no
   // reflection, which is not a bug — that is what real water does, and it is
   // why the effect is invisible from directly above no matter how it is tuned.
-  float schlick = 0.02 + 0.98 * pow(1.0 - facing, 5.0);
+  // R0 of 0.05 rather than water's true 0.02. A deliberate stylisation, and a
+  // small one: at the angles a player actually looks at a pool — down into it,
+  // not across it — true Schlick returns about two percent, which is correct
+  // and invisible. This keeps the shape of the curve and lifts the floor.
+  float schlick = 0.05 + 0.95 * pow(1.0 - facing, 5.0);
   float fresnel = mix(flatFresnel, schlick, uHasReflection);
 
   // How much liquid the view ray passes through before it hits something.
@@ -522,7 +526,19 @@ export const WATER_PROFILES: Record<WaterKind, WaterProfile> = {
     // Nudged up from 0.003 so a SHALLOW pool still picks up colour — at the
     // old value a shin-deep pad of water was effectively untinted, which is
     // most of why it read as a white sheet.
-    absorb: 0.0045,
+    // Tuned against the ray lengths Q3 pools ACTUALLY present.
+    //
+    // This was 0.0045, chosen from reasoning about deep water, and at that
+    // value a wading pool absorbed 16% of red and 5% of blue over its whole
+    // depth — optically it was clear glass, and what the player saw was the
+    // pale concrete floor at ninety-odd percent strength. Every complaint
+    // about the water being a white sheet traces here.
+    //
+    // At 0.022 the same 40 units of ray absorb 59/31/22, which is a clear
+    // blue-green cast with the floor still legible through it. A deep pool
+    // saturates sooner than before, and that is correct: 400 units is ten
+    // metres of water and you do not see the bottom of that.
+    absorb: 0.022,
     // One tile per ~90 units, so a pool a few hundred units across shows
     // several waves rather than one broad smear.
     scale: 0.011,

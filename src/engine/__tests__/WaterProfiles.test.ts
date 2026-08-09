@@ -93,11 +93,15 @@ describe("per-channel absorption", () => {
     expect(blue - red).toBeGreaterThan(0.08);
   });
 
-  it("keeps a deep pool from going black", () => {
-    // Blue has to survive where red and green do not, or deep water reads as
-    // a hole rather than as water.
-    expect(survives("water", "b", 600)).toBeGreaterThan(0.15);
-    expect(survives("water", "r", 600)).toBeLessThan(0.15);
+  it("keeps blue alive longest, so deep water is blue and not black", () => {
+    // What matters is the ORDER, not a floor on any one channel. Six hundred
+    // units is fifteen metres of water and nothing survives that; measured at
+    // a depth a player might actually look through, blue has to be the last
+    // channel standing or the pool reads as a hole rather than as water.
+    const t = 150;
+    expect(survives("water", "b", t)).toBeGreaterThan(survives("water", "g", t));
+    expect(survives("water", "g", t)).toBeGreaterThan(survives("water", "r", t));
+    expect(survives("water", "b", t)).toBeGreaterThan(0.15);
   });
 
   it("makes slime swallow blue instead, so it stays green", () => {
@@ -221,7 +225,9 @@ describe("liquid appearance", () => {
     for (const kind of KINDS) {
       const p = WATER_PROFILES[kind];
       if (p.foam === 0) continue;
-      const absorbedAtFoamEdge = 1 - Math.exp(-p.absorb * p.foamWidth);
+      // Green, because absorption is per channel now and green is the one the
+      // eye weights most — the same channel the shader reduces to.
+      const absorbedAtFoamEdge = 1 - Math.exp(-p.absorb * p.absorbTint.g * p.foamWidth);
       expect(absorbedAtFoamEdge).toBeLessThan(0.4);
     }
   });
@@ -274,25 +280,33 @@ describe("liquid appearance", () => {
     expect(WATER_PROFILES.lava.absorb).toBeGreaterThan(WATER_PROFILES.slime.absorb);
   });
 
-  it("absorbs water over a plausible RAY LENGTH, not a pool depth", () => {
-    // 1 - exp(-absorb * thickness), where thickness is the distance the view
-    // ray travels through liquid — not how deep the pool is.
+  it("tints the ray lengths Q3 pools ACTUALLY present", () => {
+    // The bound that was wrong for the longest, and the reason the water read
+    // as a white sheet for round after round.
     //
-    // Those are very different numbers. Standing at a poolside looking across,
-    // a ray enters the surface and travels a long way before it reaches the
-    // floor, so a pool 200 units deep routinely presents 600+ units of water
-    // to the eye. Tuning against vertical depth is what made the middle of
-    // every pool saturate from any angle worth standing at.
-    const absorb = WATER_PROFILES.water.absorb;
-    const at = (t: number) => 1 - Math.exp(-absorb * t);
+    // The previous version was reasoned out from deep water — clear at 10
+    // units, half-absorbed at 200, gone by 900 — and it is a fine description
+    // of a lake. Q3 pools are not lakes. A player wading through acidwdm2
+    // presents something like 40 units of ray, and at the old coefficient that
+    // absorbed 7% of green: optically clear glass over pale concrete.
+    //
+    // So the test now asks about the distance that actually occurs, and it
+    // asks for a TINT rather than for dimming — the channels must diverge,
+    // because divergence is what the eye reads as water.
+    const p = WATER_PROFILES.water;
+    const at = (t: number, c: "r" | "g" | "b") => 1 - Math.exp(-p.absorb * p.absorbTint[c] * t);
 
-    // A shoreline: a few units of water, essentially clear.
-    expect(at(10)).toBeLessThan(0.05);
-    // Looking straight down into a deep pool: tinted, floor still visible.
-    expect(at(200)).toBeGreaterThan(0.3);
-    expect(at(200)).toBeLessThan(0.75);
-    // A long grazing ray across the pool: the floor is gone.
-    expect(at(900)).toBeGreaterThan(0.9);
+    // A shoreline, a couple of units deep: still essentially clear.
+    expect(at(4, "g")).toBeLessThan(0.05);
+
+    // A wading pool. Visibly coloured, floor still legible through it.
+    expect(at(40, "g")).toBeGreaterThan(0.2);
+    expect(at(40, "g")).toBeLessThan(0.55);
+    // And COLOURED, not merely darker.
+    expect(at(40, "r") - at(40, "b")).toBeGreaterThan(0.25);
+
+    // Chest-deep and beyond: the floor goes.
+    expect(at(200, "g")).toBeGreaterThan(0.75);
   });
 
   it("caps reflection well below a mirror", () => {
