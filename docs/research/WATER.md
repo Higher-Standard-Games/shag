@@ -3,7 +3,7 @@
 **Date:** 2026-08-06<br>
 **Status:** All seven phases written. Confirmed in play: swimming, the depth-tinted surface, splashes and ripples, and the Epic crown. Written but not yet seen: refraction, caustics, planar reflection, swim animations, electrical discharge, the air meter. Owed: broad map compatibility (Phase 6, items 3–5).<br>
 
-**Render cost by tier.** Low and Medium: the water pass plus one depth pass. Epic adds a half-res capture of the world for refraction and one 0.35-scale mirror — two more passes over the scene, which is the whole difference between the tiers.<br>
+**Render cost.** The water's own draw, plus ONE depth pass that stops itself whenever no water is on screen. Refraction and planar reflection were built and then deleted — see "What the surface ended up being" for the measurement.<br>
 **Goal:** replace every Q3 and Warsow water shader with one engine water that looks deliberately modern, rather than translating the legacy shaders one vendor keyword at a time<br>
 **Primary test map:** `acidwdm2`<br>
 **Scope:** BSP liquid compatibility, static rendering, dynamic interactions, deterministic swimming, player animation, underwater presentation, and quality scaling.
@@ -1155,6 +1155,43 @@ The contents translation table and all its consumers; the raw/shared boundary at
 - **Electrical discharge has no same-pool test.** Two pools within 384 units electrocute each other, including one directly above another. Bounding by radius alone was a deliberate simplification; making it correct needs a connectivity notion the collision world does not currently offer. The obituary also reads as `DamageType.Rail`, which is a presentation gap rather than a rule one.
 - **Epic crowns are not re-enabled after a camera change.** The fluid composite stays on the old camera; crowns silently stop and the renderer is wasted. Not urgent while the whole FluidRenderer path is still unverified on a real GPU.
 - **`waterJumpUntilMs` is unreplicated instance state.** Consistent with how `jumpConsumed`, slide and walljump state already work, but a two-second control lockout is higher stakes than the others if client and server ever disagree about a launch.
+
+## What the surface ended up being, 2026-08-12
+
+**One extra scene pass. The depth pass. That is the whole budget.**
+
+A refraction capture and a planar mirror were both built, both worked, and both were deleted. Worth recording why, because they are the obvious things to reach for again.
+
+### The measurement that decided it
+
+| pass | fill cost | what it buys |
+|---|---|---|
+| depth (full res) | 1.000 | thickness — colour, transparency, foam, caustics |
+| refraction capture (0.5) | 0.250 | a few pixels of distortion |
+| planar mirror (0.25) | 0.063 | a reflection invisible at play angles |
+
+Fill was the smaller half. **Each pass re-submits all world geometry**, so draw calls tripled regardless of target size — and on a Q3 map built from small brush submeshes that is the dominant cost. It is why shrinking the targets never helped, and why the frame rate collapsed even though the extra targets were small.
+
+### Why losing them costs almost nothing
+
+**Refraction's colour contribution was free all along.** It composited Beer-Lambert — background filtered by the water, plus the water's own colour for what was lost. But `dst * (1 - alpha)` in the hardware blend *is* that term. The GPU was already doing the work the extra pass was being paid for. Only the bending is gone, and that was a few pixels of distortion over flat Q3 floor textures. The surface is genuinely transparent again rather than opaque with a copied background behind it.
+
+**The mirror showed a reflection nobody could see.** Fresnel correctly returns ~2% at the angle a player looks down into a pool, and no tuning changes that without lying about the physics. Six rounds of screenshots never once showed it. A flat sky colour varied by the wave normal is what actually makes ripples read, and it costs nothing.
+
+### What the single pass still gets you
+
+Per-channel absorption, two rotated noise layers, shoreline foam, floor caustics, sun glint, capped Fresnel — all arithmetic inside the water's own draw. Plus the depth pass gates itself off entirely whenever no water is on screen.
+
+`r_water_quality` now only means splash detail. The surface is not tiered because there is nothing left to tier.
+
+### The lesson worth keeping
+
+Every visual problem in this feature — white plaster, no reflection, invisible refraction, dead caustics — traced to **one** quantity: thickness. And thickness was broken twice by things that had nothing to do with tuning:
+
+1. The depth map inherited `scene.getActiveMeshes()`, which other render targets rewrite. Where it drew nothing it kept its clear value, and with `storeCameraSpaceZ` that clear is `0.0` — so `thickness = max(0, 0 - viewDepth)` was exactly zero.
+2. The visibility gate read the same contaminated list and oscillated every frame.
+
+Absorption was raised five-fold while it was being multiplied by zero. Four separate tuning passes were spent on coefficients that could not possibly have had an effect. **The diagnostics should have come first**: `r_water_debug 2` as a banded ramp with an explicit zero, and the `[Water]` state line, each converted a multi-round guessing loop into a single screenshot.
 
 ## Risks and mitigations
 
