@@ -79,10 +79,12 @@ uniform sampler2D uNoise;
 uniform sampler2D uSceneDepth;
 uniform vec2 uScreenSize;
 uniform vec3 uCameraPosition;
+uniform vec3 uCameraForward;
 uniform vec3 uShallowColor;
 uniform vec3 uDeepColor;
 uniform vec3 uSkyColor;
 uniform vec3 uSunDirection;
+uniform vec3 uAbsorbTint;
 uniform float uTime;
 uniform float uScale;
 uniform float uScroll;
@@ -98,30 +100,16 @@ uniform float uHasDepth;
 uniform float uDebug;
 uniform float uFoam;
 uniform float uFoamWidth;
-uniform sampler2D uSceneColor;
-uniform float uHasRefraction;
-uniform float uRefract;
-uniform vec3 uCameraForward;
 uniform float uCaustics;
-uniform sampler2D uReflection;
-uniform float uHasReflection;
-uniform float uReflectDistort;
-uniform vec3 uAbsorbTint;
 
 void main(void) {
   vec2 base = vWorld.xz * uScale;
 
-  // Two layers moving against each other. Opposed directions and mismatched
-  // rates make the beat between them long enough that the eye never finds the
-  // loop; the second is finer and faster so there is chop riding on the swell.
-  // The second layer is ROTATED, not just offset and rescaled.
-  //
-  // Two layers translating along nearby axes read as two sheets sliding over
-  // each other — the eye locks onto the shared direction and the surface looks
-  // like a conveyor rather than like water. Rotating one by an angle that is
-  // not a fraction of a right angle removes the common axis: what is left is
-  // the interference between them, which drifts and churns without ever
-  // presenting a direction to follow.
+  // Two layers, the second ROTATED rather than merely offset and rescaled.
+  // Two layers translating along nearby axes read as a conveyor, because the
+  // eye locks onto the shared direction. Rotating one by an angle that is not
+  // a fraction of a right angle removes the common axis, and what is left is
+  // interference that churns without offering a direction to follow.
   const mat2 SWIRL = mat2(0.5403, -0.8415, 0.8415, 0.5403);
   vec2 uv1 = base + vec2(uTime * uScroll, uTime * uScroll * 0.55);
   vec2 uv2 = SWIRL * base * 2.3 - vec2(uTime * uScroll * 0.75, -uTime * uScroll * 1.15);
@@ -130,7 +118,7 @@ void main(void) {
   vec3 n2 = texture2D(uNoise, uv2).rgb * 2.0 - 1.0;
 
   // Tangent space is world XZ for a surface that is essentially horizontal;
-  // the geometric normal still decides which way is up so a sloped liquid
+  // the geometric normal still decides which way is up, so a sloped liquid
   // surface is shaded from its own plane rather than from world up.
   vec3 perturb = normalize(vec3((n1.x + n2.x * 0.6) * uWaveStrength, 1.0, (n1.y + n2.y * 0.6) * uWaveStrength));
   vec3 n = normalize(mix(vNormal, perturb, 0.85));
@@ -138,58 +126,16 @@ void main(void) {
   vec3 viewDir = normalize(uCameraPosition - vWorld);
   float facing = clamp(dot(viewDir, n), 0.0, 1.0);
 
-  // Schlick-ish Fresnel, then CAPPED by reflectivity.
-  //
-  // Real water approaches a full mirror at grazing angles, and reproducing
-  // that faithfully was wrong while we were reflecting one constant bright
-  // colour: full Fresnel turned the far half of every pool into a sheet of
-  // white. The cap is what kept a grazing view readable.
-  //
-  // With a real planar reflection the cap can relax, because what comes back
-  // at a grazing angle is now the room rather than a flat swatch — a strong
-  // reflection of something is legible where a strong reflection of nothing
-  // is just glare.
-  // Without a mirror: the old capped curve, because the thing being reflected
-  // is one flat swatch and a strong reflection of a swatch is just glare.
-  float flatFresnel = pow(1.0 - facing, 4.0) * uReflectivity;
-  // With one: real Schlick, R0 = 0.02 for water, uncapped. Now that there is
-  // an actual room coming back, the physical curve is both correct and what
-  // makes a pool look wet when you look ACROSS it.
-  //
-  // It also means looking straight DOWN into a pool shows almost no
-  // reflection, which is not a bug — that is what real water does, and it is
-  // why the effect is invisible from directly above no matter how it is tuned.
-  // R0 of 0.05 rather than water's true 0.02. A deliberate stylisation, and a
-  // small one: at the angles a player actually looks at a pool — down into it,
-  // not across it — true Schlick returns about two percent, which is correct
-  // and invisible. This keeps the shape of the curve and lifts the floor.
-  float schlick = 0.05 + 0.95 * pow(1.0 - facing, 5.0);
-  float fresnel = mix(flatFresnel, schlick, uHasReflection);
+  // Capped Fresnel. What comes back is one flat colour standing in for a room,
+  // and a strong reflection of a flat colour is glare rather than a reflection.
+  float fresnel = pow(1.0 - facing, 4.0) * uReflectivity;
 
-  // How much liquid the view ray passes through before it hits something.
+  // How much liquid the view ray crosses, and what survives the crossing.
   //
-  // This is the difference between water and tinted glass. The scene depth
-  // buffer holds the opaque world; the water is alpha-blended and therefore
-  // absent from it, so the gap between them IS the thickness of liquid in the
-  // way. Near a shore it approaches zero and the surface nearly vanishes; over
-  // a deep pit it saturates and the bottom disappears. Tinting by view ANGLE
-  // instead — which is what this did before — makes the whole pool one flat
-  // colour no matter how deep it is.
-  //
-  // Beer-Lambert: absorption through a medium is multiplicative, and the
-  // exponential also puts the fastest change at the shoreline, where the eye
-  // is most sensitive to it.
-  // Sampled ONCE and shared by absorption, foam and the debug views. They are
-  // three readings of the same number, and computing it three times invites
-  // them to drift apart.
+  // Per channel, because water eats red about three times faster than blue and
+  // that ratio IS why water is blue-green. A scalar dims evenly, and a pale
+  // floor dimmed evenly is still a pale floor.
   float thickness = 0.0;
-  float absorbed = 1.0;
-  // PER CHANNEL. Water does not dim what is under it evenly — it eats red
-  // first, then green, and blue last, which is the entire reason water is
-  // blue-green rather than grey. A single scalar cannot express that, and with
-  // one the surface tints nothing at all until it is deep enough to go dark:
-  // a shallow pool over a pale floor came out as a white sheet, because a
-  // white floor times a scalar is still white.
   vec3 transmittance = vec3(0.0);
   if (uHasDepth > 0.5) {
     vec2 screenUv = gl_FragCoord.xy / uScreenSize;
@@ -199,156 +145,47 @@ void main(void) {
     float sceneDepth = texture2D(uSceneDepth, screenUv).r;
     thickness = max(0.0, sceneDepth - vViewDepth);
     transmittance = exp(-thickness * uAbsorb * uAbsorbTint);
-    // Green is the middle of the three and the channel the eye weights most,
-    // so it stands in wherever one number is needed — foam, opacity, caustics.
-    absorbed = 1.0 - transmittance.g;
+  }
+  // Green is the middle channel and the one the eye weights most, so it stands
+  // in wherever a single number is needed.
+  float absorbed = 1.0 - transmittance.g;
+
+  // Shoreline foam, from the same thickness the absorption uses. Narrow
+  // relative to the water it edges: a band wide enough to cover a shallow
+  // pool stops marking the shoreline and simply paints the pool white.
+  float foam = 0.0;
+  if (uHasDepth > 0.5 && uFoam > 0.0) {
+    float band = 1.0 - smoothstep(0.0, uFoamWidth, thickness);
+    float churn = 0.65 + 0.35 * (n1.x + n2.y);
+    foam = clamp(band * churn, 0.0, 1.0) * uFoam;
   }
 
-  vec3 body = mix(uShallowColor, uDeepColor, absorbed);
-
-  // Refraction: the world behind the surface, bent by the waves.
+  // Caustics on the floor, sampled at the FLOOR's world position so the web
+  // stays put as the camera moves. Anchored to screen space or to the surface
+  // it swims with the player and reads as a texture on the water instead.
   //
-  // Sampled here rather than left to the hardware blend, because a blend can
-  // only mix the pixel directly behind this one — and that is precisely the
-  // pixel refraction says you should not be looking at. With a capture the
-  // shader composites the background itself and the surface can be opaque,
-  // which is also what stops the two from double-counting.
-  //
-  // The offset is scaled by thickness, so a shoreline stays honest: there is
-  // barely any water there to bend anything, and smearing the bank would read
-  // as a rendering fault rather than as a wet edge.
-  vec3 transmitted = body;
-  float refracting = 0.0;
-  if (uHasRefraction > 0.5) {
-    vec2 screenUv3 = gl_FragCoord.xy / uScreenSize;
-    float bend = min(1.0, thickness / 60.0);
-    vec2 offset = n.xz * uRefract * bend;
-    // Clamped so a sample never wraps to the far side of the screen at the
-    // frame edge, which shows up as a bright seam along the border.
-    vec2 refractUv = clamp(screenUv3 + offset, vec2(0.002), vec2(0.998));
-    vec3 behind = texture2D(uSceneColor, refractUv).rgb;
-    // Beer-Lambert, per channel: what survives the trip is the background
-    // FILTERED by the water, and what is lost to it is replaced by the water's
-    // own colour. Multiplying rather than cross-fading is the difference
-    // between a floor seen through water and a floor with a wash over it.
-    transmitted = behind * transmittance + uDeepColor * (1.0 - transmittance);
-    refracting = 1.0;
-  }
-
-  // Caustics — the shifting web of focused light on the floor of a pool.
-  //
-  // Drawn from HERE rather than projected onto the floor's own material,
-  // which would mean touching every world material in the map. The surface
-  // already knows how far the view ray travels before it hits something, so
-  // it can reconstruct where the floor is and sample the pattern anchored to
-  // that world position. The result sits on the floor and stays there as the
-  // camera moves, which is the whole illusion; anchoring to screen space or to
-  // the surface instead makes the pattern swim with the player and it reads
-  // immediately as a texture on the water rather than light on the bottom.
-  //
-  // Thickness is a difference of VIEW-space Z, so it has to be divided back
-  // out along the ray to become a distance — otherwise a glancing view finds
-  // the floor short and the caustics slide as the player turns.
+  // The depth term is a difference of VIEW-space Z, so it is divided back out
+  // along the ray to become a distance; without that a glancing view finds the
+  // floor short and the caustics slide as the player turns.
   float caustics = 0.0;
   if (uHasDepth > 0.5 && uCaustics > 0.0) {
     vec3 rayDir = normalize(vWorld - uCameraPosition);
     float axis = max(0.15, dot(rayDir, uCameraForward));
     vec3 floorPos = vWorld + rayDir * (thickness / axis);
-
     vec2 cuv = floorPos.xz * uScale * 0.55;
     float c1 = texture2D(uNoise, cuv + vec2(uTime * uScroll * 0.35, uTime * uScroll * 0.2)).b;
     float c2 = texture2D(uNoise, cuv * 1.45 - vec2(uTime * uScroll * 0.25, -uTime * uScroll * 0.4)).b;
-
-    // The ridge between two offset samples. Light focused by a wavy surface
-    // arrives in thin bright filaments, not in blobs, so the band is narrowed
-    // hard — a plain noise product looks like dappled shade instead.
+    // The ridge between two offset samples: focused light arrives in thin
+    // filaments, and a plain noise product looks like dappled shade instead.
     float ridge = max(0.0, 1.0 - abs(c1 - c2) * 5.0);
-    // Fades out with depth: the deeper the water the less light reaches the
-    // bottom, and it must vanish entirely at a dry edge where there is no
-    // water to focus anything.
-    float reach = (1.0 - absorbed) * min(1.0, thickness / 12.0);
+    float reach = transmittance.g * min(1.0, thickness / 12.0);
     caustics = pow(ridge, 7.0) * reach * uCaustics;
   }
 
-  // Shoreline foam, from the same thickness the absorption uses.
-  //
-  // Where the water meets geometry it is arbitrarily thin, and a surface that
-  // simply fades out there reads as a rendering artefact — the pool looks like
-  // it has no edge. A band of white along that line is what makes the edge
-  // deliberate. It rides on the wave noise so it breaks up rather than tracing
-  // a clean outline of the collision geometry, which would look worse than no
-  // foam at all.
-  float foam = 0.0;
-  if (uHasDepth > 0.5 && uFoam > 0.0) {
-    float band = 1.0 - smoothstep(0.0, uFoamWidth, thickness);
-    // The noise both breaks the line and animates it, so foam drifts with the
-    // waves instead of sitting welded to the bank.
-    float churn = 0.65 + 0.35 * (n1.x + n2.y);
-    foam = clamp(band * churn, 0.0, 1.0) * uFoam;
-  }
-
-  // Fresnel drives COLOUR, not just opacity. This is what makes the waves
-  // visible at all: each ripple tilts the normal, which changes how much sky
-  // that pixel reflects, so the surface reads as moving rather than as a
-  // tinted pane with a pattern printed on it.
-  // What the surface reflects: the room if we have a mirror for this plane,
-  // otherwise the flat stand-in colour.
-  //
-  // The mirror is rendered from the camera reflected through the water plane
-  // with the SAME projection, which is exactly why it can be sampled at this
-  // fragment's own screen coordinate — no reprojection, no matrix to get
-  // subtly wrong. Perturbing that coordinate by the wave normal is what makes
-  // the reflection ripple instead of sitting on the surface like a decal.
-  vec3 reflected = uSkyColor;
-  if (uHasReflection > 0.5) {
-    vec2 muv = clamp(gl_FragCoord.xy / uScreenSize + n.xz * uReflectDistort, vec2(0.002), vec2(0.998));
-    reflected = texture2D(uReflection, muv).rgb;
-  }
-
-  vec3 lit = mix(transmitted, reflected, fresnel);
-
-  // Sun glint. A broad lobe rather than a tight one — a mirror-sharp highlight
-  // is invisible from almost every angle, and this is the thing that sells
-  // "wet" when the camera is standing still.
-  vec3 halfway = normalize(uSunDirection + viewDir);
-  float spec = pow(clamp(dot(n, halfway), 0.0, 1.0), 24.0) * uSpecular;
-
-  // Debug views. Absorption is invisible when it fails — the surface still
-  // renders, it just stops varying with depth — so being able to LOOK at the
-  // number beats reasoning about it. 1: absorption as grey, black at the
-  // shoreline and white where the floor is gone. 2: raw thickness over 512
-  // units. Either one flat means depth is not reaching the shader.
-  // 3 shows the refraction sample and 4 the reflection sample, both RAW.
-  //
-  // These exist because "the effect is subtle" and "the effect is not
-  // connected" look identical on a plain grey pool floor, and every round of
-  // this feature has been lost to that ambiguity. A raw view answers it in one
-  // glance: an image means the texture is bound and the pass is running, flat
-  // red means the term is off, and black means it is bound to nothing.
-  if (uDebug > 2.5) {
-    if (uDebug < 3.5) {
-      if (uHasRefraction <= 0.5) {
-        gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
-        return;
-      }
-      vec2 duv = clamp(gl_FragCoord.xy / uScreenSize + n.xz * uRefract * min(1.0, thickness / 60.0), vec2(0.002), vec2(0.998));
-      gl_FragColor = vec4(texture2D(uSceneColor, duv).rgb, 1.0);
-      return;
-    }
-    if (uHasReflection <= 0.5) {
-      gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
-      return;
-    }
-    vec2 muv2 = clamp(gl_FragCoord.xy / uScreenSize + n.xz * uReflectDistort, vec2(0.002), vec2(0.998));
-    gl_FragColor = vec4(texture2D(uReflection, muv2).rgb, 1.0);
-    return;
-  }
-
   if (uDebug > 0.5) {
-    // No depth bound at all is drawn RED rather than grey. Both failures used
-    // to look identical — a flat black surface — so the one view meant to say
-    // whether depth reaches the shader could not distinguish "the map says
-    // zero" from "there is no map". Red means the term is not connected.
+    // No depth bound at all is RED. Both failures used to draw the same flat
+    // black, so the one view meant to say whether depth reaches the shader
+    // could not tell "the map says zero" from "there is no map".
     if (uHasDepth <= 0.5) {
       gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
       return;
@@ -357,53 +194,42 @@ void main(void) {
       gl_FragColor = vec4(vec3(absorbed), 1.0);
       return;
     }
-
-    // Thickness as a BANDED RAMP rather than grey over 512 units.
-    //
-    // The grey version could not answer the question it existed for. A pool
-    // presenting 40 units rendered at 8% grey, which is indistinguishable by
-    // eye from the 0% that means the depth map is empty — so the one view
-    // meant to separate "shallow" from "broken" showed the same near-black
-    // for both, and several rounds of tuning were spent guessing between them.
-    //
-    // Bands, each an order of magnitude apart, and an exact zero called out
-    // in its own colour:
-    //   magenta = EXACTLY zero      (the depth map has nothing here)
-    //   red     = under 8 units     (a shoreline)
-    //   yellow  = 8 to 32           (ankle deep)
-    //   green   = 32 to 128         (a wading pool — most Q3 water)
-    //   cyan    = 128 to 512        (deep)
-    //   white   = over 512          (a shaft, or a bad reading)
+    // Bands an order of magnitude apart, with an exact zero called out. Grey
+    // over 512 units could not tell a 40-unit pool from an empty depth map —
+    // both drew near-black — and rounds of tuning were lost guessing between.
     vec3 band;
-    if (thickness <= 0.0)         band = vec3(1.0, 0.0, 1.0);
-    else if (thickness < 8.0)     band = vec3(1.0, 0.0, 0.0);
-    else if (thickness < 32.0)    band = vec3(1.0, 1.0, 0.0);
-    else if (thickness < 128.0)   band = vec3(0.0, 1.0, 0.0);
-    else if (thickness < 512.0)   band = vec3(0.0, 1.0, 1.0);
-    else                          band = vec3(1.0, 1.0, 1.0);
+    if (thickness <= 0.0)       band = vec3(1.0, 0.0, 1.0);
+    else if (thickness < 8.0)   band = vec3(1.0, 0.0, 0.0);
+    else if (thickness < 32.0)  band = vec3(1.0, 1.0, 0.0);
+    else if (thickness < 128.0) band = vec3(0.0, 1.0, 0.0);
+    else if (thickness < 512.0) band = vec3(0.0, 1.0, 1.0);
+    else                        band = vec3(1.0, 1.0, 1.0);
     gl_FragColor = vec4(band, 1.0);
     return;
   }
 
-  // Caustics are ADDED, not mixed. They are extra light arriving at the floor,
-  // not a different colour of floor — mixing toward white would wash the tint
-  // out of the water instead of putting a highlight under it. Tinted by the
-  // shallow colour so the light looks like it came through the water.
+  // The water's OWN colour. What is behind it comes from the hardware blend
+  // rather than from a captured copy of the scene: dst * (1 - alpha) IS the
+  // transmittance term of Beer-Lambert, so the blend the GPU already does for
+  // free is the same compositing an extra full-scene pass was buying.
+  vec3 body = mix(uShallowColor, uDeepColor, absorbed);
+  vec3 lit = mix(body, uSkyColor, fresnel);
+
+  // Sun glint. A broad lobe rather than a tight one: a mirror-sharp highlight
+  // is invisible from almost every angle, and this is what sells "wet" when
+  // the camera is standing still.
+  vec3 halfway = normalize(uSunDirection + viewDir);
+  float spec = pow(clamp(dot(n, halfway), 0.0, 1.0), 24.0) * uSpecular;
+
   vec3 color = lit + vec3(spec) + body * uEmissive + uShallowColor * caustics;
-  // Foam is white and opaque, and it goes on last so it survives the tinting.
+  // Foam is white and opaque, and goes on last so it survives the tinting.
   color = mix(color, vec3(1.0), foam);
 
-  // Opacity follows thickness for the same reason colour does: a puddle's edge
-  // should be almost invisible and a deep pool should hide its floor. Fresnel
-  // still thickens a grazing view on top, but never to fully opaque.
-  float depthAlpha = mix(uMinAlpha, uAlpha, absorbed);
-  float alpha = clamp(depthAlpha + fresnel * (1.0 - depthAlpha) + foam, 0.0, 1.0);
-
-  // With a capture in hand the background is already composited in, so
-  // blending it a second time would show the floor twice — once bent and once
-  // straight, at half strength each, which reads as a ghost rather than as
-  // water. Opaque output is what makes the refraction actually visible.
-  alpha = mix(alpha, 1.0, refracting);
+  // Opacity IS the absorption, capped by the profile so even deep water keeps
+  // a trace of what is under it. Fresnel and foam sit on top; minAlpha stops a
+  // shoreline vanishing into nothing at all.
+  float alpha = clamp(absorbed, uMinAlpha, uAlpha);
+  alpha = clamp(alpha + fresnel * (1.0 - alpha) + foam, 0.0, 1.0);
 
   gl_FragColor = vec4(color, alpha);
 }
@@ -484,29 +310,12 @@ export interface WaterProfile {
   emissive: number;
   specular: number;
   /**
-   * How far the wave normals bend what is behind the surface, in screen UV.
-   *
-   * Epic only, and small by nature: this is a fraction of the screen, so even
-   * 0.04 moves a sample forty pixels across a 1080p frame. Past roughly 0.08
-   * the background stops looking bent and starts looking broken, because
-   * neighbouring pixels sample points too far apart to be the same object.
-   */
-  refract: number;
-  /**
    * Brightness of the caustic web cast on the floor beneath the surface.
    *
    * Water only in practice: caustics are focused light that made it through
    * the liquid, so an opaque one has none by definition.
    */
   caustics: number;
-  /**
-   * How far the wave normals ripple the reflection, in screen UV.
-   *
-   * Larger than the refraction offset: a reflection is sampled at a grazing
-   * angle where a small normal change swings the reflected ray a long way, and
-   * an unrippled reflection sits on the surface like a decal.
-   */
-  reflectDistort: number;
   /**
    * Per-channel multiplier on {@link LiquidProfile.absorb}.
    *
@@ -577,11 +386,7 @@ export const WATER_PROFILES: Record<WaterKind, WaterProfile> = {
     reflectivity: 0.22,
     emissive: 0.0,
     specular: 0.3,
-    // Water bends the most of the three: it is the thinnest and the clearest,
-    // so there is actually something behind it worth bending.
-    refract: 0.045,
     caustics: 0.5,
-    reflectDistort: 0.07,
     absorbTint: new Color3(1.0, 0.42, 0.28),
   },
   slime: {
@@ -604,12 +409,8 @@ export const WATER_PROFILES: Record<WaterKind, WaterProfile> = {
     reflectivity: 0.35,
     emissive: 0.22,
     specular: 0.5,
-    // Slime is nearly opaque, so almost nothing survives to be refracted; the
-    // little there is only shows at the very edge.
-    refract: 0.02,
-    // Slime is opaque enough that nothing reaches the bottom to focus.
+    // Slime is opaque enough that nothing reaches a floor to be focused.
     caustics: 0.0,
-    reflectDistort: 0.05,
     // Slime swallows blue instead, which is what keeps it green rather than
     // letting it drift toward water.
     absorbTint: new Color3(1.0, 0.35, 1.4),
@@ -636,11 +437,7 @@ export const WATER_PROFILES: Record<WaterKind, WaterProfile> = {
     reflectivity: 0.25,
     emissive: 0.85,
     specular: 0.15,
-    // Lava is opaque at every thickness. Nothing is behind it, ever.
-    refract: 0.0,
     caustics: 0.0,
-    // Lava is molten rock with a crust; it does not mirror a room.
-    reflectDistort: 0.03,
     // Opaque within a hair of the surface, evenly across the spectrum.
     absorbTint: new Color3(1.0, 1.0, 1.0),
   },
@@ -740,15 +537,11 @@ export function createUnifiedWaterMaterial(
           "uDebug",
           "uFoam",
           "uFoamWidth",
-          "uHasRefraction",
-          "uRefract",
           "uCameraForward",
           "uCaustics",
-          "uHasReflection",
-          "uReflectDistort",
           "uAbsorbTint",
         ],
-        samplers: ["uNoise", "uSceneDepth", "uSceneColor", "uReflection"],
+        samplers: ["uNoise", "uSceneDepth"],
         needAlphaBlending: true,
       },
     );
@@ -778,16 +571,7 @@ export function createUnifiedWaterMaterial(
     material.setFloat("uDebug", 0);
     material.setFloat("uFoam", profile.foam);
     material.setFloat("uFoamWidth", profile.foamWidth);
-    // Refraction is Epic-only and off until a capture is supplied. Without it
-    // the surface keeps the alpha-blended look, which is correct rather than
-    // merely acceptable — it just does not bend anything.
-    material.setFloat("uHasRefraction", 0);
-    material.setFloat("uRefract", profile.refract);
     material.setFloat("uCaustics", profile.caustics);
-    // No mirror until one is supplied; the surface reflects the flat stand-in
-    // colour, which is what it did for the whole feature until now.
-    material.setFloat("uHasReflection", 0);
-    material.setFloat("uReflectDistort", profile.reflectDistort);
     material.setColor3("uAbsorbTint", profile.absorbTint);
     material.setVector3("uCameraForward", new Vector3(0, 0, 1));
     material.setFloat("uCameraFar", 10000);

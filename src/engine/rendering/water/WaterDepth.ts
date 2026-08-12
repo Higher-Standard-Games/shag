@@ -130,6 +130,30 @@ export class WaterDepthProvider {
     return null;
   }
 
+  /**
+   * Start or stop rendering, without tearing the target down.
+   *
+   * The only extra scene pass water costs, and it only earns that cost while
+   * water is on screen — in a Q3 map, a small fraction of the time.
+   * Registration in `customRenderTargets` is what decides whether the scene
+   * renders it, so removing it there is a complete stop, while keeping the
+   * texture allocated so turning back toward the pool does not rebuild it.
+   */
+  setRendering(enabled: boolean): void {
+    if (!this.renderer) return;
+
+    const map = this.renderer.getDepthMap();
+    const index = this.scene.customRenderTargets.indexOf(map);
+    if (enabled && index === -1) this.scene.customRenderTargets.push(map);
+    else if (!enabled && index !== -1) this.scene.customRenderTargets.splice(index, 1);
+  }
+
+  /** Whether the scene is currently rendering this. Tests and diagnostics. */
+  get isRendering(): boolean {
+    if (!this.renderer) return false;
+    return this.scene.customRenderTargets.indexOf(this.renderer.getDepthMap()) !== -1;
+  }
+
   /** Drop the current renderer and unregister its target. */
   private release(): void {
     if (!this.renderer) return;

@@ -397,7 +397,7 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, "name">> = {
     min: 1,
     max: 3,
     description:
-      "Water detail. 1 = ripple ring only, 2 = ring plus a thrown crown of spray, 3 = adds refraction and a planar reflection. Only 3 allocates render targets, and only 3 costs extra passes over the scene; the crown at 2 is one mesh and one draw call.",
+      "Splash detail. 1 = ripple ring only, 2 and above add a thrown crown of spray (one mesh, one draw call). Water surface quality is not tiered: the depth pass that gives it colour, transparency, foam and caustics is the only extra scene pass, and it already stops itself whenever no water is on screen.",
     category: "lighting",
   },
   r_water_debug: {
