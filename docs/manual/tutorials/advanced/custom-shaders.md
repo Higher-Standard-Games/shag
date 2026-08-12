@@ -1,230 +1,50 @@
-# Custom Shader Materials
+# Extending shader rendering
 
-**Time:** 60 minutes  
-**Level:** Advanced
+There are two different extension tasks:
 
-Create custom Babylon.js materials that work with Q3 shaders.
+1. improve compatibility with a Quake shader directive;
+2. replace a recognized surface class with a modern Babylon material/system.
 
-## Prerequisites
+Keep them separate so compatibility fallbacks stay testable.
 
-- [Guide: Shader System](../../guides/shader-system.md)
-- Babylon.js material knowledge
+## Compatibility work
 
-## Understanding the Pipeline
+For a new Q3 directive:
 
-```
-Q3 Shader (.shader file)
-    ↓
-Q3ShaderParser → Q3Shader object
-    ↓
-Q3ShaderRegistry.resolveMaterialProps()
-    ↓
-ResolvedMaterialProps
-    ↓
-BspMeshBuilder → Babylon.js Material
-```
+1. add or refine its type in `Q3ShaderTypes.ts`;
+2. parse it in `Q3ShaderParser.ts`;
+3. expose resolved behavior through `Q3ShaderRegistry.ts`;
+4. translate it in the material factory or `BspMeshBuilder`;
+5. add parser, resolver, and rendering-focused tests.
 
-## ResolvedMaterialProps Interface
+Use real shader text from a redistributable map fixture. Preserve the original shader name and stage order in diagnostics.
 
-```typescript
-interface ResolvedMaterialProps {
-  diffuseMap?: string;
-  normalMap?: string;
-  glossMap?: string;
-  alphaMode: 'opaque' | 'blend' | 'add' | 'multiply';
-  cullMode: 'back' | 'front' | 'none';
-  useLightmap: boolean;
-  isSky: boolean;
-  isTransparent: boolean;
-  sort?: number;
-  skyParms?: { farbox: string; cloudHeight: number; nearbox: string };
-}
-```
+## Specialized material work
 
-## Creating a Custom Material
+For enhanced water, portals, or other surface classes:
 
-### Example: Glow Material
+- detect the surface from parsed shader/content semantics first;
+- allow a small compatibility override list for broken legacy media;
+- adapt the existing BSP mesh instead of reparsing the map;
+- own all materials, render targets, observers, and emitters in one disposable per-map system;
+- fall back to the ordinary resolved Q3 material when disabled or unsupported;
+- expose quality through render variables and apply expensive changes at map reload boundaries when appropriate.
 
-```typescript
-import { ShaderMaterial } from '@babylonjs/core/Materials/shaderMaterial';
-import { Effect } from '@babylonjs/core/Materials/effect';
+The map loader is the correct lifecycle boundary because it already owns the current BSP mesh result and cleanup.
 
-// Register shader code
-Effect.ShadersStore['glowVertexShader'] = `
-  precision highp float;
-  
-  attribute vec3 position;
-  attribute vec2 uv;
-  
-  uniform mat4 worldViewProjection;
-  
-  varying vec2 vUV;
-  
-  void main() {
-    gl_Position = worldViewProjection * vec4(position, 1.0);
-    vUV = uv;
-  }
-`;
+## Debugging
 
-Effect.ShadersStore['glowFragmentShader'] = `
-  precision highp float;
-  
-  uniform sampler2D diffuseTexture;
-  uniform float time;
-  uniform float glowIntensity;
-  
-  varying vec2 vUV;
-  
-  void main() {
-    vec4 color = texture2D(diffuseTexture, vUV);
-    float glow = sin(time * 2.0) * 0.5 + 0.5;
-    color.rgb += color.rgb * glow * glowIntensity;
-    gl_FragColor = color;
-  }
-`;
-
-function createGlowMaterial(scene: Scene, texture: Texture): ShaderMaterial {
-  const material = new ShaderMaterial('glow', scene, 'glow', {
-    attributes: ['position', 'uv'],
-    uniforms: ['worldViewProjection', 'time', 'glowIntensity']
-  });
-  
-  material.setTexture('diffuseTexture', texture);
-  material.setFloat('glowIntensity', 1.0);
-  
-  // Update time uniform
-  scene.onBeforeRenderObservable.add(() => {
-    material.setFloat('time', performance.now() / 1000);
-  });
-  
-  return material;
-}
+```text
+developer 1
+pk3 find scripts/example.shader
+shader load
+shader info textures/example/surface
+shader resolve textures/example/surface
+shader deps textures/example/surface
 ```
 
-## Integrating with Q3 Shaders
+For visuals, compare a known map and surface with the enhancement on and off. For renderer changes, run the renderer regression commands in `AGENTS.md` before browser comparison.
 
-### Custom Material Factory
+## Current limits
 
-```typescript
-import { Q3ShaderRegistry } from '../../engine/loader/shader/Q3ShaderRegistry';
-
-class MaterialFactory {
-  private scene: Scene;
-  private registry: Q3ShaderRegistry;
-  
-  constructor(scene: Scene) {
-    this.scene = scene;
-    this.registry = Q3ShaderRegistry.getInstance();
-  }
-  
-  createMaterial(textureName: string): Material {
-    const props = this.registry.resolveMaterialProps(textureName);
-    const shader = this.registry.getShader(textureName);
-    
-    // Check for special shader types
-    if (this.isGlowShader(shader)) {
-      return this.createGlowMaterial(props);
-    }
-    
-    if (this.isAnimatedShader(shader)) {
-      return this.createAnimatedMaterial(shader);
-    }
-    
-    // Default material
-    return this.createStandardMaterial(props);
-  }
-  
-  private isGlowShader(shader: Q3Shader | undefined): boolean {
-    if (!shader) return false;
-    return shader.stages.some(s => 
-      s.blendFunc?.[0] === 'GL_ONE' && 
-      s.blendFunc?.[1] === 'GL_ONE'
-    );
-  }
-}
-```
-
-## Animated Textures
-
-Handle Q3 `animMap` directive:
-
-```typescript
-class AnimatedMaterial extends StandardMaterial {
-  private frames: Texture[] = [];
-  private fps: number;
-  private currentFrame = 0;
-  private lastUpdate = 0;
-  
-  constructor(name: string, scene: Scene, frames: string[], fps: number) {
-    super(name, scene);
-    this.fps = fps;
-    
-    // Load all frame textures
-    this.frames = frames.map(path => new Texture(path, scene));
-    this.diffuseTexture = this.frames[0];
-    
-    // Update animation
-    scene.onBeforeRenderObservable.add(() => this.updateAnimation());
-  }
-  
-  private updateAnimation() {
-    const now = performance.now();
-    const frameTime = 1000 / this.fps;
-    
-    if (now - this.lastUpdate > frameTime) {
-      this.currentFrame = (this.currentFrame + 1) % this.frames.length;
-      this.diffuseTexture = this.frames[this.currentFrame];
-      this.lastUpdate = now;
-    }
-  }
-}
-```
-
-## tcMod Effects
-
-Implement texture coordinate modifiers:
-
-```typescript
-// Scroll effect via UV offset
-material.diffuseTexture.uOffset += scrollX * deltaTime;
-material.diffuseTexture.vOffset += scrollY * deltaTime;
-
-// Scale effect
-material.diffuseTexture.uScale = scaleX;
-material.diffuseTexture.vScale = scaleY;
-
-// Rotate effect (requires shader)
-```
-
-## Blend Modes
-
-Map Q3 blend functions to Babylon.js:
-
-```typescript
-function applyBlendMode(material: StandardMaterial, blendFunc: string[]) {
-  const [src, dst] = blendFunc;
-  
-  if (src === 'GL_ONE' && dst === 'GL_ONE') {
-    // Additive
-    material.alphaMode = Constants.ALPHA_ADD;
-  } else if (src === 'GL_SRC_ALPHA' && dst === 'GL_ONE_MINUS_SRC_ALPHA') {
-    // Alpha blend
-    material.alphaMode = Constants.ALPHA_COMBINE;
-  } else if (src === 'GL_DST_COLOR' && dst === 'GL_ZERO') {
-    // Multiply
-    material.alphaMode = Constants.ALPHA_MULTIPLY;
-  }
-}
-```
-
-## Best Practices
-
-1. **Cache materials** - Reuse for same shader
-2. **Pool textures** - Don't reload same texture
-3. **Batch updates** - Update uniforms once per frame
-4. **Dispose properly** - Clean up when done
-
-## Next Steps
-
-- [Tutorial: Entity System](./entity-system.md)
-- [Guide: Shader System](../../guides/shader-system.md)
+Do not claim full Q3 shader parity. `tcMod`, environment tcGen, wave color/alpha generation, and autosprites have active paths; other vertex deforms such as wave, bulge, and move are skipped.

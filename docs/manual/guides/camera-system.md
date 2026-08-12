@@ -1,258 +1,93 @@
-# Camera System
+# Camera system
 
-How the camera system works in SHAG Engine.
+`CameraSystem` owns the active Babylon camera and swaps reusable camera controllers.
 
-## Overview
+## Initialize
 
-The camera system provides multiple camera controllers for different game types, with runtime switching via console commands.
-
-## Architecture
-
-```
-CameraSystem (Singleton)
-    │
-    ├── currentCamera (Babylon.js Camera)
-    │
-    └── controllers/
-        ├── FreeflyController
-        ├── IsometricController
-        ├── SidescrollController
-        └── FollowController
+```ts
+const cameras = CameraSystem.getInstance();
+cameras.init(scene, canvas, {
+  defaultMode: 'perspective',
+});
+cameras.setCamera(camera);
 ```
 
-## Using CameraSystem
-
-```typescript
-import { CameraSystem } from './engine/camera/CameraSystem';
-
-const cameraSystem = CameraSystem.getInstance();
-
-// Initialize with scene
-cameraSystem.init(scene);
-
-// Set controller
-cameraSystem.setController('freefly');
-cameraSystem.setController('isometric');
-
-// Get current camera
-const camera = cameraSystem.getCamera();
-
-// Set height
-cameraSystem.setHeight(500);
-```
+`init` requires both the scene and canvas in browser code. Headless code passes its own controlled substitute. Select the controller explicitly after registration; the current implementation does not act on `defaultController`.
 
 ## Controllers
 
-### FPSController
+Built-in controller type names:
 
-Full first-person shooter controller with physics, weapons, and advanced movement. The primary controller for gameplay.
+- `fps`;
+- `freefly`;
+- `isometric`;
+- `sidescroll`;
+- `follow`.
 
-**Features:**
-
-- Full Q3/Warsow physics (gravity, jumping, sliding)
-- Weapon system integration (viewmodels, firing, reload, ADS)
-- Advanced movement: crouchslide, wall jump, ledge grab
-- Viewport effects integration (walk bob, landing impact)
-- Collision via CollisionManager
-
-**Controls:**
-
-- WASD - Movement
-- Mouse - Look
-- Space - Jump (wall jump when airborne)
-- Ctrl - Crouch (slide when sprinting)
-- Shift - Sprint
-- Mouse1 - Fire
-- Mouse2 - ADS (Aim Down Sights)
-- R - Reload
-- 1-9 - Weapon slots
-- Q - Quick switch
-
-**Key Methods:**
-
-```typescript
-controller.getPlayerPosition()       // Origin position (Q3-style)
-controller.getPlayerFeetPosition()   // Feet position
-controller.setPosition(pos)          // Teleport to origin
-controller.getCurrentHeight()        // 56 or 36 (crouched)
-controller.getCrouchState()          // {isCrouching, isSliding, height}
+```ts
+const changed = cameras.setController('freefly');
+const active = cameras.getActiveController();
+const registered = cameras.getController('isometric');
 ```
 
-**Console:**
+`setController` detaches the previous controller. For isometric, sidescroll, and follow, it creates or restores an `ArcRotateCamera` when necessary.
 
-```
-spectator 0           # Enable physics mode
-spectator 1           # Noclip/fly mode
-sv_gravity 1000       # Gravity strength
-sv_jumpheight 320     # Jump velocity
-```
+Console selection uses:
 
-### FreeflyController
-
-FPS-style first-person camera with optional collision.
-
-**Controls:**
-
-- WASD - Movement
-- Mouse - Look
-- Space/Shift - Up/Down
-- Scroll - Speed
-
-**Console:**
-
-```
-camera controller freefly
-freefly_speed 2.0
-freefly_collision 1
+```text
+camera mode freefly
+camera mode isometric
+camera fov 100
+camera info
 ```
 
-### IsometricController
+The console subcommand is named `mode`, but its current implementation selects a controller.
 
-Top-down camera for strategy/RPG games.
+## Projection modes
 
-**Features:**
+`CameraSystem` separately supports:
 
-- Fixed angle view
-- Pan with WASD or edge scroll
-- Zoom with scroll wheel
+- `perspective`;
+- `orthographic`;
+- `fake_ortho`.
 
-**Console:**
+Use `createCamera(mode)` or `applyCameraMode(mode)` in code. The console does not expose the older `camera mode orthographic` projection syntax.
 
-```
-camera controller isometric
-camera height 800
-```
+## Freefly
 
-### SidescrollController
-
-2.5D camera for platformers.
-
-**Features:**
-
-- Horizontal tracking
-- Fixed depth position
-- Vertical follow
-
-**Console:**
-
-```
-camera controller sidescroll
+```text
+freefly_speed 300
+freefly_collision
+freefly_collision 0
+freefly_collision mode bsp
 ```
 
-### FollowController
+Freefly uses FPS actions: WASD, Space up, C/Ctrl down, Shift speed multiplier, and mouse look under pointer lock.
 
-Third-person camera that tracks a target.
+## Custom controller
 
-**Features:**
-
-- Smooth following
-- Orbit controls
-- Collision avoidance
-
-**Console:**
-
-```
-camera controller follow
+```ts
+const controller: ICameraController = new MyController();
+cameras.registerController(controller.type, controller);
+cameras.setController(controller.type);
 ```
 
-## Camera Modes
+`ICameraController` requires `attach(camera, scene, canvas)`, `detach`, `update`, configuration accessors, enable state, and `dispose`. Optional target/follow methods are available.
 
-Two projection modes available:
+Always remove observers, input contexts, and DOM listeners in `detach`. Do not dispose the shared camera there.
 
-```typescript
-cameraSystem.setMode('perspective');   // 3D perspective
-cameraSystem.setMode('orthographic');  // True orthographic
+## Position
+
+```text
+pos
+pos copy
+teleport 0 128 0
 ```
 
-**Console:**
+The old `camera target` command is not a teleport API.
 
-```
-camera mode perspective
-camera mode orthographic
-```
+## FPS integration
 
-## Creating Custom Controllers
+The FPS controller participates in prediction, reconciliation, viewport effects, and weapon view presentation. Keep those game-specific dependencies in the FPS composition and shared hooks rather than adding direct game imports to generic camera code.
 
-Implement the `ICameraController` interface:
-
-```typescript
-import { ICameraController } from './engine/camera/ICameraController';
-
-class CinematicController implements ICameraController {
-  name = 'cinematic';
-  
-  attach(camera: Camera): void {
-    // Setup controls
-  }
-  
-  detach(): void {
-    // Cleanup
-  }
-  
-  update(deltaTime: number): void {
-    // Per-frame logic
-  }
-}
-
-// Register
-cameraSystem.registerController(new CinematicController());
-```
-
-## Spawning at Map Locations
-
-After loading a map, spawn camera at a player start:
-
-```typescript
-const spawns = entities.filter(e => 
-  e.classname === 'info_player_deathmatch'
-);
-
-if (spawns.length > 0) {
-  const spawn = spawns[0];
-  const pos = parseOrigin(spawn.origin);
-  camera.position = new Vector3(pos.x, pos.y + 50, pos.z);
-}
-```
-
-## Console Commands
-
-| Command | Description |
-|---------|-------------|
-| `camera controller <name>` | Switch controller |
-| `camera mode <mode>` | Perspective/orthographic |
-| `camera height <n>` | Set camera height |
-| `camera target <x> <y> <z>` | Look at position |
-| `freefly_speed <n>` | Movement speed |
-| `freefly_collision <0/1>` | Toggle collision |
-
-## Network Integration
-
-In multiplayer, FPS/Freefly camera integrates with the networking stack:
-
-- **Prediction:** FPSController applies predicted movement instantly for responsive camera
-- **Reconciliation:** `visualOffset` absorbs server corrections via exponential decay (~50ms)
-- **Remote players:** Interpolated via `SnapshotBuffer`, camera position is not affected
-- **processSnapshots():** Called each frame to apply server state while preserving visual smoothness
-
-See [Networking System](./networking.md) for details.
-
-## Viewport Effects Integration
-
-The `ViewportEffectsManager` processes camera effects each frame via the FPSController:
-
-1. Controller gathers `PlayerState` (speed, grounded, jumping, direction)
-2. Each effect produces a `ViewportDelta` (position offset, rotation offset, FOV change, `bobCycle`)
-3. Deltas are accumulated and applied to the camera
-4. `bobCycle` syncs weapon bob with walk bob for visual coherence
-
-Effects: WalkBob, LandingImpact, SpeedFOV, StrafeLean, IdleBreathing, DamageFlash.
-
-See [Viewport Effects](./viewport-effects.md) for details.
-
-## Related
-
-- [Movement System](./movement-system.md) - Physics integration
-- [Viewport Effects](./viewport-effects.md) - Camera effects pipeline
-- [Networking System](./networking.md) - Prediction and reconciliation
-- [Tutorial: Camera Navigation](../tutorials/beginner/camera-navigation.md)
-- [Tutorial: Custom Camera Controller](../tutorials/advanced/custom-camera.md)
+See [Camera navigation](../tutorials/beginner/camera-navigation.md) and [Custom camera](../tutorials/advanced/custom-camera.md).

@@ -1,57 +1,38 @@
-# Recipe: Get Player Spawn Points
+# Recipe: get BSP spawn points
 
-Extract spawn locations from a loaded map.
-
-## Console Command
-
-```
-bsp entities
+```text
+bsp entities info_player details
 ```
 
-Look for `info_player_deathmatch` or `info_player_start`.
+In code:
 
-## Code
+```ts
+const bsp = BspManager.getInstance().getBsp();
+if (!bsp) throw new Error('Load a BSP first');
 
-```typescript
-import { parseEntities } from '../../engine/loader/bsp/EntityParser';
+const spawnClassnames = new Set([
+  'info_player_deathmatch',
+  'info_player_start',
+  'info_player_team1',
+  'info_player_team2',
+]);
 
-interface SpawnPoint {
-  x: number;
-  y: number;
-  z: number;
-  angle: number;
-}
+const spawns = bsp.entities
+  .filter((entity) => spawnClassnames.has(entity.classname))
+  .map((entity) => {
+    const origin = (entity.properties.origin ?? '0 0 0')
+      .trim()
+      .split(/\s+/)
+      .map(Number);
 
-function getSpawnPoints(entityString: string): SpawnPoint[] {
-  const entities = parseEntities(entityString);
-  
-  return entities
-    .filter(e => 
-      e.classname === 'info_player_deathmatch' ||
-      e.classname === 'info_player_start'
-    )
-    .map(e => {
-      const [x, y, z] = (e.origin || '0 0 0').split(' ').map(Number);
-      const angle = parseFloat(e.angle || '0');
-      return { x, y, z, angle };
-    });
-}
-
-// Usage after loading map
-const spawns = getSpawnPoints(bspData.entities);
-console.log('Spawn points:', spawns);
-
-// Pick random spawn
-const randomSpawn = spawns[Math.floor(Math.random() * spawns.length)];
+    return {
+      classname: entity.classname,
+      origin,
+      angle: Number(entity.properties.angle ?? 0),
+    };
+  });
 ```
 
-## Spawn at Location
+Keep these values in Quake coordinates until passing them through the existing BSP coordinate conversion. Do not add an approximate eye height or swap axes in entity parsing.
 
-```typescript
-function spawnCamera(camera: Camera, spawn: SpawnPoint) {
-  camera.position.set(spawn.x, spawn.y + 56, spawn.z);
-  camera.rotation.y = (spawn.angle * Math.PI) / 180;
-}
-```
-
-Note: `+ 56` is approximate eye height.
+For actual respawning, use the FPS server spawn-selection path so collision, team rules, and authoritative state remain consistent.

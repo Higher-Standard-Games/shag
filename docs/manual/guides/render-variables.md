@@ -1,181 +1,63 @@
-# Render Variables Guide
+# Render variables
 
-Runtime-configurable rendering settings.
+`RenderVars` registers numeric `r_*` cvars, clamps values, batches live scene updates, and persists non-debug values under `engine.renderVars`.
 
-## Overview
+## Current groups
 
-Render variables (r_*) allow adjusting graphics at runtime without restarting. They integrate with the unified [Cvar System](./cvar-system.md) for console access.
+| Category | Representative variables |
+| --- | --- |
+| Material | `r_deluxe`, `r_bsp_pbr`, `r_normalmap`, `r_glossmap`, `r_lightmap`, `r_emissive` |
+| Texture | `r_anisotropy`, `r_ktx2` |
+| Display | `r_webgpu`, `r_bsp_freeze`, `r_ssr`, `r_glow`, `r_bloom`, `r_exposure`, `r_contrast`, `r_pickupProcedural` |
+| Lighting | `r_ambient`, `r_lightintensity`, `r_lightmapscale`, god-ray, area-light, and day/night groups |
+| Debug | `r_wireframe`, `r_showtris` |
 
-## Architecture
+Use `render list` for the authoritative current list, defaults, ranges, and descriptions. Type-only future names in `RenderVarName` are not necessarily registered.
 
-```
-RenderVars (Singleton)
-    │
-    ├── vars: Map<name, { value, default, min, max }>
-    ├── scene: Scene
-    │
-    ├── get(name) → number
-    ├── set(name, value)
-    ├── applyToScene()
-    │
-    └── registerCvars() → registers all r_* as cvars
-            │
-            └── Cvar system provides console integration
-```
+## Console
 
-## Available Variables
-
-### Texture/Material
-
-| Variable | Range | Default | Description |
-|----------|-------|---------|-------------|
-| `r_normalmap` | 0-4 | 1 | Normal/bump map intensity |
-| `r_glossmap` | 0-4 | 1 | Specular/gloss intensity |
-| `r_lightmap` | 0-4 | 1 | Lightmap intensity |
-| `r_emissive` | 0-4 | 1 | Emissive/glow intensity |
-| `r_anisotropy` | 1-16 | 8 | Anisotropic filtering |
-
-### Lighting
-
-| Variable | Range | Default | Description |
-|----------|-------|---------|-------------|
-| `r_ambient` | 0-4 | 1 | Ambient light intensity |
-| `r_lightintensity` | 0-4 | 1 | Global light multiplier |
-
-### Post-Processing
-
-| Variable | Range | Default | Description |
-|----------|-------|---------|-------------|
-| `r_bloom` | 0-3 | 1 | Bloom intensity |
-| `r_exposure` | 0-3 | 1 | Exposure multiplier |
-| `r_contrast` | 0-3 | 1 | Contrast multiplier |
-
-### Debug
-
-| Variable | Range | Default | Description |
-|----------|-------|---------|-------------|
-| `r_wireframe` | 0-1 | 0 | Per-mesh wireframe |
-| `r_showtris` | 0-1 | 0 | Scene wireframe |
-
-## Using RenderVars
-
-### Console (via Cvar System)
-
-```
-cvarlist r_             # List all r_* variables
-r_lightmap 2            # Set value
-r_lightmap              # Show current value
-help r_lightmap         # Show type, range, default
-reset r_lightmap        # Reset to default
-resetall                # Reset all cvars to defaults
-cvarexport              # Export modified cvars
+```text
+developer 1
+render list
+r_lightmap
+r_lightmap 1.5
+reset r_lightmap
+render reset
+render export
 ```
 
-### Code
+`render apply` reports that values apply automatically. Construction switches such as deluxe/PBR selection, KTX2, WebGPU, or static BSP setup may require a new map load, activation, or restart as their descriptions state.
 
-```typescript
-import { RenderVars } from './engine/rendering/RenderVars';
+## API
 
-const renderVars = RenderVars.getInstance();
+```ts
+import { RenderVars } from '../../../src/engine/rendering/RenderVars';
 
-// Initialize with scene
-renderVars.setScene(scene);
+const vars = RenderVars.getInstance();
+vars.setScene(scene);
 
-// Get value
-const lightmap = renderVars.get('r_lightmap');
-
-// Set value
-renderVars.set('r_lightmap', 2);
-
-// Reset all
-renderVars.resetAll();
-
-// Listen for changes
-renderVars.onChange('r_lightmap', (value) => {
-  console.log('Lightmap changed:', value);
+const lightmap = vars.get('r_lightmap');
+vars.set('r_lightmap', 1.5);
+const unsubscribe = vars.onChange('r_lightmap', (value) => {
+  console.log(value);
 });
+
+vars.resetAll();
+const text = vars.exportConfig();
+const result = vars.importConfig(text);
 ```
 
-## Persistence
+Keep and call the `onChange` unsubscribe handle when the listener owner is disposed.
 
-Most variables persist to localStorage automatically:
+`loadFromStorage` is private and runs during initialization; do not call it from application code. Debug-category variables are excluded from persisted data.
 
-```typescript
-// Saved on change
-renderVars.set('r_lightmap', 2); // Saved
+## Adding a variable
 
-// Loaded on init
-renderVars.loadFromStorage();
-```
+Add the definition to `DEFAULT_VARS` with `value`, `defaultValue`, `min`, `max`, a valid category, and a useful description. Then:
 
-### Debug Variables
+1. connect any non-generic behavior in the relevant subsystem;
+2. decide whether it is live, next-load, or restart-only;
+3. test range clamping and persistence;
+4. update the focused reference if it is user-facing.
 
-Debug variables (`r_wireframe`, `r_showtris`) do NOT persist - they reset on page reload.
-
-## Application to Scene
-
-When a variable changes, `applyToScene()` is called:
-
-```typescript
-public applyToScene(): void {
-  // Apply to all materials
-  for (const mesh of this.scene.meshes) {
-    const material = mesh.material as StandardMaterial;
-    if (!material) continue;
-    
-    // Apply normal map intensity
-    if (material.bumpTexture) {
-      material.bumpTexture.level = this.get('r_normalmap');
-    }
-    
-    // Apply wireframe
-    material.wireframe = this.get('r_wireframe') >= 0.5;
-  }
-  
-  // Apply scene wireframe
-  this.scene.forceWireframe = this.get('r_showtris') >= 0.5;
-}
-```
-
-## Adding Custom Variables
-
-```typescript
-// In RenderVars.ts DEFAULT_VARS
-r_myvar: {
-  value: 1,
-  default: 1,
-  min: 0,
-  max: 10,
-  category: 'custom',
-  description: 'My custom variable'
-}
-```
-
-## Categories
-
-Variables are grouped by category:
-
-- `texture` - Texture/material settings
-- `lighting` - Light settings
-- `postprocess` - Post-processing
-- `debug` - Debug visualization
-
-## Console Commands
-
-Via the unified [Cvar System](./cvar-system.md):
-
-| Command | Description |
-|---------|-------------|
-| `cvarlist r_` | List all r_* cvars with values |
-| `r_<name>` | Get current value and info |
-| `r_<name> <val>` | Set value |
-| `help r_<name>` | Show type, range, default |
-| `reset r_<name>` | Reset to default |
-| `toggle r_wireframe` | Toggle debug cvars |
-| `cvarexport` | Export modified cvars |
-
-## Related
-
-- [Cvar System](./cvar-system.md)
-- [Tutorial: Tweaking Render Variables](../tutorials/beginner/render-variables.md)
-- [Tutorial: Export Settings](../tutorials/recipes/export-settings.md)
+Valid categories are `material`, `lighting`, `display`, `texture`, and `debug`.

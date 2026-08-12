@@ -1,120 +1,31 @@
-# Capacitor Mobile Integration
+# Capacitor Integration
 
-The engine includes Capacitor.js support for building native Android (and iOS) apps.
+> Verified against Capacitor 8 configuration and source on 2026-08-06.
 
-## CapacitorBridge
+The repository contains an Android platform project. Current <code>capacitor.config.ts</code> uses app id <code>com.iwmengine.ganjawars</code>, app name <code>Ganjawars</code>, web directory <code>dist</code>, a dark background, manual splash hiding, and dark status-bar styling. The bridge's native setup would hide the status bar for immersive play.
 
-The `CapacitorBridge` class (`src/engine/core/CapacitorBridge.ts`) provides:
+<code>CapacitorBridge</code> provides:
 
-| Feature | Description |
-|---------|-------------|
-| Platform detection | `CapacitorBridge.isNative()`, `CapacitorBridge.getPlatform()` |
-| App lifecycle | Pause/resume game when backgrounded |
-| Back button | Android hardware back button → `app:back_button` event |
-| Safe areas | Detect and expose device notch/cutout insets |
-| Status bar | Native status bar styling |
-| Mobile CSS | Auto-loads mobile styles on touch devices |
+- native/platform/touch detection;
+- body classes for platform and touch CSS;
+- mobile CSS injection;
+- status-bar and splash handling;
+- Android back, app-state, and deep-link EventBus events;
+- safe-area CSS variables;
+- Android exit and native app info.
 
-### Usage
+The bridge is currently an available API, not active FPS bootstrap wiring: <code>src/main.ts</code> neither initializes it nor calls <code>hideSplashScreen()</code>. This matters because <code>launchAutoHide</code> is disabled in <code>capacitor.config.ts</code>. Before treating the native shell as complete, initialize the bridge early and hide the native splash after the app is ready. Native listeners are installed only on a native platform.
 
-```typescript
-import { CapacitorBridge } from '@engine/core/CapacitorBridge';
+## Scripts
 
-// Initialize early in app startup
-await CapacitorBridge.getInstance().init();
+| Script | Action |
+|---|---|
+| <code>cap:sync</code> | Run generic Capacitor sync |
+| <code>android:build</code> | Build web assets and sync Android |
+| <code>android:open</code> | Open checked-in project in Android Studio |
+| <code>android:run</code> | Run on selected device/emulator |
+| <code>android:live</code> | Build, sync, then run with live reload/external access |
 
-// Check platform
-if (CapacitorBridge.isNative()) {
-  console.log('Running as native app');
-}
+<code>android:build</code> does not produce an APK by itself; it prepares the native project. Build/sign the APK or bundle with Android Studio/Gradle.
 
-// Listen for app lifecycle events
-EventBus.on('app:state_change', ({ isActive }) => {
-  if (!isActive) SaveManager.getInstance().saveGame();
-});
-
-EventBus.on('app:back_button', () => {
-  MenuSystem.getInstance().showPauseMenu();
-});
-```
-
----
-
-## Build Commands
-
-```bash
-# Sync web build to native project
-npm run cap:sync
-
-# Build and open in Android Studio
-npm run android:build
-npm run android:open
-
-# Run on connected device/emulator
-npm run android:run
-
-# Build APK
-npm run android:build-apk
-npm run android:build-release
-```
-
----
-
-## Configuration
-
-`capacitor.config.ts`:
-```typescript
-import type { CapacitorConfig } from '@capacitor/cli';
-
-const config: CapacitorConfig = {
-  appId: 'com.shagengine.ganjawars',
-  appName: 'Ganjawars',
-  webDir: 'dist',
-  android: {
-    backgroundColor: '#1a1a2e',
-    allowMixedContent: true,
-  },
-  plugins: {
-    SplashScreen: {
-      launchShowDuration: 2000,
-      backgroundColor: '#1a1a2e',
-    },
-    StatusBar: {
-      style: 'dark',
-      backgroundColor: '#1a1a2e',
-    },
-  },
-};
-
-export default config;
-```
-
----
-
-## Safe Area CSS
-
-The bridge exposes safe area insets via CSS variables:
-
-```css
-:root {
-  --safe-area-top: env(safe-area-inset-top, 0px);
-  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
-  --safe-area-left: env(safe-area-inset-left, 0px);
-  --safe-area-right: env(safe-area-inset-right, 0px);
-}
-
-.hud-container {
-  padding: var(--safe-area-top) var(--safe-area-right) 
-           var(--safe-area-bottom) var(--safe-area-left);
-}
-```
-
----
-
-## Prerequisites
-
-- **Android Studio** with SDK 33+
-- **Java 17+** for Gradle
-- **Node.js 18+**
-
-See also: [ANDROID_BUILD_GUIDE.md](./ANDROID_BUILD_GUIDE.md)
+Node 22 is pinned in <code>.nvmrc</code>. An iOS project is not checked in.

@@ -1,47 +1,46 @@
 # Introduction
 
-## What is SHAG Engine?
+SHAG is a TypeScript/Babylon.js engine and playable arena-FPS stack built around Quake 3 and Warsow media.
 
-SHAG Engine is a cross-platform WebGL game engine built on [Babylon.js](https://babylonjs.com). It integrates with NetRadiant-custom and idTech3 tooling, enabling streamlined level design workflows while targeting web, mobile, and desktop from a single TypeScript codebase.
+It is more than an asset viewer. The repository includes:
 
-With **headless mode** and an **AI-agent friendly** architecture, SHAG Engine supports automated testing, CI/CD pipelines, and AI-assisted development—making it fast to iterate and easy to integrate with modern development workflows.
+- Q3 `IBSP` and Warsow/qfusion `FBSP` loading;
+- PK3 discovery and a virtual filesystem;
+- Quake shader compatibility and Babylon material extensions;
+- BSP collision and deterministic FPS movement;
+- server-authoritative multiplayer, prediction, and snapshots;
+- the active FPS game, lobby, bot, HUD, weapon, pickup, and gametype layers;
+- browser, headless, Android, and Electron compositions at different maturity levels.
 
-### Key Features
+## Architecture
 
-- **Cross-Platform** - Web, mobile (Capacitor), desktop (Electron) from one codebase
-- **Headless Mode** - Run without GPU for automated testing, CI/CD, and AI-agent workflows
-- **BSP Map Loading** - Load IBSP (Quake 3) and FBSP (Warsow) maps with lightmaps and geometry
-- **Q3 Shader Parsing** - Supports common shader directives: blendFunc, tcMod, animMap, skyparms
-- **PK3 Virtual Filesystem** - Priority-based archive loading for mod support
-- **Multiple Camera Modes** - Freefly, isometric, sidescroll, follow controllers
-- **Console Command System** - Q3-style command syntax with extensible registry
-
-### Why SHAG Engine?
-
-| Traditional Approach | SHAG Engine |
-|---------------------|-------------|
-| Port Q3 engine to WebGL | Native TypeScript, modern tooling |
-| Desktop only | Web + Mobile + Desktop |
-| C/C++ knowledge required | TypeScript, accessible to web devs |
-| Full game logic port | Asset loading only - bring your own game logic |
-
-## Architecture Overview
-
-```
-┌─────────────────────────────────────────────────────┐
-│                    Your Game                        │
-├─────────────────────────────────────────────────────┤
-│  Console Commands  │  Camera System  │  Game Logic  │
-├─────────────────────────────────────────────────────┤
-│     BSP Loader     │  Shader System  │  PK3 Loader  │
-├─────────────────────────────────────────────────────┤
-│                   Babylon.js                        │
-├─────────────────────────────────────────────────────┤
-│                   WebGL / GPU                       │
-└─────────────────────────────────────────────────────┘
+```text
+browser / CLI / server compositions
+              |
+        game modules
+   (active path: games/fps)
+              |
+ shared deterministic contracts
+              |
+ reusable engine systems
+ (loader, rendering, input, console,
+  collision, networking, services)
+              |
+          Babylon.js
 ```
 
-## Next Steps
+`src/engine/` should not depend on a game module. Game-specific integrations belong under `src/games/fps/` unless a task explicitly calls for a separate game.
 
-- [Feature Overview](./features.md) - Complete feature list
-- [Getting Started](../getting-started/) - Set up your development environment
+The repository can select a build game through `GAME`, but it is still architecturally FPS-centric: `src/main.ts` wires FPS flow and `@game/*` points to `src/games/fps/*`.
+
+## Content workflow
+
+External PK3s live under `public/data/` and are not committed. Browser discovery starts from a generated manifest; the runtime index resolves maps, shader scripts, textures, models, and sounds.
+
+Use NetRadiant or another compatible idTech3 toolchain for authored map content. SHAG does not include a map editor.
+
+## Testing philosophy
+
+Loading, collision, simulation, server behavior, and protocol work can be checked headlessly. WebGL material output, input feel, and native wrappers still require their target runtime.
+
+Start with [Getting started](../getting-started/) and use [Feature status](./features.md) to distinguish implemented paths from partial or planned ones.

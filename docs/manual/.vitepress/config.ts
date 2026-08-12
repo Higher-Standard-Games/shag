@@ -184,7 +184,7 @@ export default defineConfig({
     },
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/user/shag-engine' }
+      { icon: 'github', link: 'https://github.com/Higher-Standard-Games/shag' }
     ],
 
     search: {

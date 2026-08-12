@@ -1,186 +1,82 @@
-# Engine Configuration
+# Configuration
 
-SHAG Engine uses environment variables and optional configuration files to control game builds and paths.
+SHAG currently has three distinct configuration concerns: build-time game code, loose-asset paths, and server/lobby environment.
 
-## Game Selection
+## Build-time game selection
 
-Games are selected at **build time** via the `GAME` environment variable. This determines which game submodule's code is bundled.
+`vite.config.ts` selects the Vite `@game` alias from `GAME`, falling back to `public/engine.json.defaultGame`.
 
-### Development
-
-```bash
-# Use default game (fps)
+```powershell
+$env:GAME = 'fps'
 npm run dev
-
-# Use different game submodule
-GAME=newgame npm run dev
-
-# Windows PowerShell
-$env:GAME="newgame"; npm run dev
 ```
 
-### Production Build
+This is only partly generic today. `tsconfig.json` still maps `@game/*` to `src/games/fps/*`, and `src/main.ts` directly composes the FPS game. A new selected game therefore needs bootstrap and TypeScript wiring, not just an environment variable.
 
-```bash
-# Build default game
-npm run build
+Engine code should not import `@game`; keep that dependency in application/game composition.
 
-# Build specific game
-GAME=demo npm run build
+## engine.json and GamePaths
+
+`public/engine.json` is required by browser startup and is injected explicitly by the headless composition:
+
+```text
+defaultGame: fps
+engineAssetsPath: /engine
 ```
 
-## Directory Structure
+The file is JSON; the values above describe the currently committed configuration.
 
-```
-shag-engine/
-├── src/
-│   ├── engine/           # Engine code (always included)
-│   └── games/            # Game submodules
-│       ├── fps/          # → git submodule (a SHAG-based game)
-│       └── newgame/      # → git submodule (another SHAG-based game)
-├── public/
-│   ├── engine/           # Engine assets (fonts) - IN GIT
-│   └── data/             # Game data - GITIGNORED
-│       ├── maps/
-│       ├── textures/
-│       └── *.pk3
-├── vite.config.ts
-└── package.json
-```
+`GamePaths` builds:
 
-## @game Import Alias
+| Helper | Current shape |
+| --- | --- |
+| `game(path)` | `/games/<id>/<path>` |
+| `engine(path)` | `/engine/<path>` by default |
+| `maps/textures/prefabs/data/music/fonts` | convenience paths below the loose game root |
 
-Use the `@game` alias to import from the selected game's source:
-
-```typescript
-// In main.ts or engine code
-import { GameScene } from "@game/GameScene";
-import { PlayerController } from "@game/PlayerController";
-```
-
-The alias resolves to `src/games/${GAME}/` at build time.
-
-## Game Submodules
-
-Games are git submodules under `src/games/`. This allows:
-- Separate git history for each game
-- Independent versioning
-- Easy switching between games
-
-### Adding a Game Submodule
-
-```bash
-git submodule add git@github.com:you/my-game.git src/games/mygame
-git commit -m "Add mygame submodule"
-```
-
-### Updating a Submodule
-
-```bash
-cd src/games/fps
-git pull origin main
-cd ../..
-git add src/games/fps
-git commit -m "chore: update fps submodule"
-```
-
-### Cloning with Submodules
-
-```bash
-git clone --recursive https://github.com/Higher-Standard-Games/shag.git
-# Or if already cloned:
-git submodule update --init --recursive
-```
-
-## Game Data
-
-Game data (maps, pk3 files, textures) is **not stored in git**. Place assets in `public/data/`:
-
-```
-public/data/
-├── maps/           # .bsp and .map files
-├── textures/       # Texture images
-├── music/          # Audio files
-└── *.pk3           # PK3 packages
-```
-
-> [!NOTE]
-> The `public/data/` directory is gitignored. Each developer downloads game data separately.
-
-## GamePaths API
-
-Access runtime asset paths via `GamePaths`:
-
-```typescript
+```ts
+// From src/main.ts
 import { GamePaths } from './engine/core/GamePaths';
 
-// After init()
 const paths = GamePaths.getInstance();
-
-paths.getGameName();     // "fps"
-paths.data('maps/level.bsp');   // "/data/maps/level.bsp"
-paths.engine('fonts/Nunito.ttf'); // "/engine/fonts/Nunito.ttf"
+await paths.init();
+console.log(paths.game('models/example.glb'));
 ```
 
-## Legacy: engine.json (Optional)
+The FPS PK3 pipeline is separate and primarily reads `public/data/`. Do not change PK3 lookup to `GamePaths.data()`.
 
-For backwards compatibility, you can still use `public/engine.json`:
+## External game data
 
-```json
-{
-  "defaultGame": "fps",
-  "engineAssetsPath": "/engine",
-  "title": "My Game"
-}
+```text
+public/data/
+  *.pk3
+  pk3_manifest.json
+  ktx2cache/
 ```
-
-However, the `GAME` environment variable takes precedence.
-
-## Runtime Networking Configuration (.env)
-
-In addition to the build-time `GAME` variable, runtime networking behaviour is configured via `.env` at the repo root. Copy `.env.example` to `.env` and edit:
 
 ```bash
-# Browser-visible lobby WebSocket URL.
-# Default if unset: ws://localhost:9000
-VITE_LOBBY_URL=ws://localhost:9000
-
-# Public address advertised by the lobby for spawned game servers.
-# Defaults if unset: ws / localhost
-SHAG_PUBLIC_GAME_PROTOCOL=ws
-SHAG_PUBLIC_GAME_HOST=localhost
+npm run tools:manifest
+npm run tools:textures
 ```
 
-| Variable | Read By | Purpose |
-|----------|---------|---------|
-| `VITE_LOBBY_URL` | Browser (Vite-exposed) | The lobby URL the client connects to for matchmaking and developer dev-spawn flows. `VITE_` prefix is required for Vite to expose the variable to client code. |
-| `SHAG_PUBLIC_GAME_PROTOCOL` | Lobby server (Node) | `ws` or `wss`. Used when the lobby returns a freshly-spawned game server's URL to the requesting client. |
-| `SHAG_PUBLIC_GAME_HOST` | Lobby server (Node) | The public hostname (or IP) that clients should use to reach a spawned game server. For LAN play this might be your machine's LAN IP; for production it's the public host. |
+`public/data/`, `public/games/`, PK3 files, and generated media are ignored. A clean checkout needs external compatible assets.
 
-For the dev workflow (`map <name>` console command, "Play" button in the lobby UI) the lobby server has to be running. Start it with `npm run lobby:server` in a separate terminal — see [Map Launching Guide](./map-launching.md) for the full flow.
+## Networking environment
 
-## Customizing UI Styles
+Copy and review `.env.example`. Important values include:
 
-Games can customize the engine's UI colors before initialization.
+| Variable | Owner |
+| --- | --- |
+| `VITE_LOBBY_URL` | browser lobby connection |
+| `SHAG_PUBLIC_GAME_PROTOCOL` | lobby-advertised game URL protocol |
+| `SHAG_PUBLIC_GAME_HOST` | lobby-advertised game host |
+| `GAME_PATH` | headless asset-directory override |
+| `SHAG_GAME_CERT_PATH` / `SHAG_GAME_KEY_PATH` | spawned server TLS files |
 
-### Console Colors
+Only `VITE_*` variables are exposed to browser code.
 
-```typescript
-import { UIStyles } from './engine/ui/UIStyles';
+## UI and game metadata
 
-// Call BEFORE UIStyles.injectBase()
-UIStyles.setConsoleColors({
-  primary: '#ff6600',
-  primaryDim: 'rgba(255, 102, 0, 0.4)',
-  primaryGlow: 'rgba(255, 102, 0, 0.6)',
-  error: '#ff4444',
-  warn: '#ffaa00',
-  success: '#44ff44',
-});
-```
+`src/games/fps/game.json` contains FPS metadata. Optional loose game config/UI/HUD paths exist in `GamePaths`, but the active direct FPS bootstrap does not imply every optional file is loaded.
 
-Available color keys:
-- `primary`, `primaryDim`, `primaryGlow` - Main accent
-- `error`, `warn`, `info`, `success` - Semantic colors
-- `text`, `textBright`, `textDim` - Text colors
-- `bg`, `bgHeader`, `bgInput` - Background colors
+Keep secrets and machine-local paths out of Vite-exposed variables and source-controlled configuration.

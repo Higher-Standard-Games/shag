@@ -1,66 +1,26 @@
 # Deployment
 
-Deploy your SHAG Engine game to multiple platforms.
+The repository has three delivery paths, but they are not at the same maturity level.
 
-## Platforms
+| Target | Current path | Status |
+| --- | --- | --- |
+| Web | Vite static build | Primary and directly buildable |
+| Android | Capacitor 8 project in `android/` | Project exists; native lifecycle wiring needs verification |
+| Desktop | Electron 40 and electron-builder | Shell exists; packaging metadata path is currently stale |
+| iOS | Capacitor | No iOS project is committed |
 
-| Platform | Technology | Guide |
-|----------|------------|-------|
-| Web | Vite static build | [Web Deployment](./web.md) |
-| Mobile | Capacitor | [Mobile Deployment](./mobile.md) |
-| Desktop | Electron | [Desktop Deployment](./desktop.md) |
-
-## Quick Start
-
-### Web
+Start with a clean web build:
 
 ```bash
+npm run typecheck
+npm run test:run
 npm run build
-# Upload dist/ to any static host
 ```
 
-### Mobile
+Then follow the target guide:
 
-```bash
-npm run build
-npx cap sync
-npx cap open android  # or ios
-```
+- [Web deployment](./web.md)
+- [Android/Capacitor](./mobile.md)
+- [Desktop/Electron](./desktop.md)
 
-### Desktop
-
-```bash
-npm run build
-npm run electron:build
-```
-
-## Build Sizes
-
-| Platform | Size (gzip) |
-|----------|-------------|
-| Web | ~755 KB |
-| Android APK | ~15 MB |
-| iOS IPA | ~18 MB |
-| Windows | ~80 MB |
-| macOS | ~90 MB |
-
-## Hosting Recommendations
-
-### Web
-
-- **Netlify** - Free tier, easy deployment
-- **Vercel** - Free tier, fast CDN
-- **GitHub Pages** - Free for public repos
-- **Cloudflare Pages** - Free tier, global CDN
-
-### Mobile
-
-- **Google Play Store** - Android distribution
-- **Apple App Store** - iOS distribution
-- **TestFlight** - iOS beta testing
-
-### Desktop
-
-- **Steam** - Game distribution
-- **itch.io** - Indie game platform
-- **Direct download** - Self-hosted
+Do not use fixed package-size estimates as release criteria. Measure the current artifacts, including any external PK3 data shipped with the game.

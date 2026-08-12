@@ -1,245 +1,86 @@
-# Console System
+# Console system
 
-How the console command system works in SHAG Engine.
+SHAG has an in-game developer console and a shared command registry used by the browser UI, headless tools, and tests.
 
-## Overview
+## Opening the console
 
-SHAG Engine includes a Q3-style console for runtime control, debugging, and configuration. Commands can be executed via the in-game console or programmatically.
+Press the backquote/tilde key (the key normally below Escape). The current input binding does not use F1.
 
-## Architecture
+Enable developer-only commands before using renderer and inspection tools:
 
-The console system uses a modular command class architecture:
-
-```
-src/engine/console/
-├── Command.ts              # Abstract base class
-├── CommandRegistry.ts      # Registration and execution
-└── commands/               # Auto-discovered command classes
-    ├── BspCommand.ts
-    ├── CameraCommand.ts
-    ├── MapCommand.ts
-    ├── ShaderCommand.ts
-    └── ... (56+ commands)
+```text
+developer 1
+help
+help bsp
 ```
 
-Each command is a class extending `Command`:
+Useful commands include:
 
-```typescript
-export class MyCommand extends Command {
-  readonly definition: CommandDef = {
-    name: 'mycommand',
-    description: 'Does something',
-    usage: 'mycommand <arg>',
-  };
-
-  async execute(args: string[]): Promise<string> {
-    return 'Result';
-  }
-}
-export default MyCommand;
+```text
+map wdm2 duel
+bsp load wdm2
+bsp info
+camera mode freefly
+camera fov 100
+pk3 stats
+shader count
+render list
+debug wireframe
 ```
 
-Commands are **auto-discovered** via Vite glob import - just create a `*Command.ts` file in the commands folder.
+`map` starts the normal server-backed FPS flow. `bsp load` is the lower-level inspection path and is the command to use in the headless game CLI.
 
-## Using the Console
+## Adding a command
 
-### Opening
+Engine commands live in `src/engine/console/commands/`; FPS commands live in `src/games/fps/console/commands/`. Command modules in those directories are auto-discovered. Export a default class extending `Command`:
 
-Press **`~`** (tilde) or **`F1`** to toggle.
+```ts
+import { Command, type CommandDef } from '../../../../engine/console/Command';
 
-### Syntax
-
-```
-command arg1 arg2 arg3
-```
-
-Quoted strings for spaces:
-
-```
-echo "Hello World"
-```
-
-### Navigation
-
-- **Tab** - Auto-complete
-- **Up/Down** - Command history
-- **Enter** - Execute
-
-## Built-in Commands
-
-### Map Commands
-
-```
-developer 1          // Enable developer commands
-map <name> [type]    // Spawn a server via lobby and connect
-map list             // List available maps
-bsp load <name>      // Load BSP for inspection
-scene clear          // Clear current scene
-```
-
-### Camera Commands
-
-```
-camera controller <name>  // Switch controller
-camera mode <mode>        // perspective/orthographic
-camera height <n>         // Set height
-freefly_speed <n>         // Movement speed
-freefly_collision <0/1>   // Toggle collision
-```
-
-### Cvars (Console Variables)
-
-```
-cvarlist             // List all cvars
-cvarlist r_          // List r_* cvars only
-r_bloom 0.5          // Set cvar value
-toggle s_musicenabled // Toggle boolean cvar
-reset r_bloom        // Reset to default
-resetall             // Reset all cvars
-cvarexport           // Export modified cvars
-```
-
-See [Cvar System](./cvar-system.md) for full documentation.
-
-### Debug Commands
-
-```
-debug fps            // Toggle FPS display
-debug wireframe      // Toggle wireframe
-shader info          // Inspect aimed surface
-bsp info             // Map statistics
-bsp entities         // List entities
-version              // Engine version
-```
-
-## Creating Custom Commands
-
-### Command Class (Recommended)
-
-Create a new file in `src/engine/console/commands/`:
-
-```typescript
-// src/engine/console/commands/HelloCommand.ts
-import { Command, CommandDef } from '../Command';
-
-export class HelloCommand extends Command {
+export default class HelloCommand extends Command {
   readonly definition: CommandDef = {
     name: 'hello',
-    description: 'Say hello',
+    description: 'Print a greeting',
     usage: 'hello [name]',
   };
 
   async execute(args: string[]): Promise<string> {
-    const name = args[0] || 'World';
-    return `Hello, ${name}!`;
-  }
-}
-
-export default HelloCommand;
-// Auto-discovered! No registration needed.
-```
-
-### Command with Subcommands
-
-```typescript
-export class PlayerCommand extends Command {
-  readonly definition: CommandDef = {
-    name: 'player',
-    description: 'Player commands',
-    usage: 'player <health|position|teleport>',
-    subcommands: [
-      { name: 'health', description: 'Show health' },
-      { name: 'position', description: 'Show position' },
-    ],
-  };
-
-  async execute(args: string[]): Promise<string> {
-    const sub = args[0]?.toLowerCase();
-    
-    switch (sub) {
-      case 'health':
-        return `Health: ${player.health}`;
-      case 'position':
-        return `Position: ${player.position}`;
-      default:
-        return 'Subcommands: health, position';
-    }
+    return `Hello, ${args[0] ?? 'player'}!`;
   }
 }
 ```
 
-### Using Engine Systems
+Use `fail(message)` from `Command.ts` when a failure must produce a non-zero headless/batch result. Returning a string is successful display output.
 
-Commands can dynamically import engine systems:
+For runtime-only integrations, the legacy registration overload remains available:
 
-```typescript
-export class MapInfoCommand extends Command {
-  readonly definition: CommandDef = {
-    name: 'mapinfo',
-    description: 'Show current map info',
-  };
+```ts
+import { CommandRegistry } from './engine/console/CommandRegistry';
 
-  async execute(): Promise<string> {
-    const { MapLoader } = await import('../../loader/map/MapLoader');
-    const loader = MapLoader.getInstance();
-    const current = loader.getCurrentMap();
-    return current ? `Current map: ${current}` : 'No map loaded';
-  }
-}
+CommandRegistry.getInstance().register(
+  'hello_runtime',
+  async (args) => `Hello, ${args[0] ?? 'player'}!`,
+  'Print a greeting',
+);
 ```
 
-## Programmatic Execution
+Clean up runtime registrations with `unregister(name)`.
 
-Execute commands from code:
+## Programmatic execution
 
-```typescript
-const result = await registry.execute('map wdm7');
-console.log(result); // "Map loaded: wdm7"
+```ts
+const registry = CommandRegistry.getInstance();
+const output = await registry.execute('bsp info');
+const result = await registry.executeChecked('bsp load wdm2');
 ```
 
-## Command Definition Interface
+`executeChecked` is preferable in automation because its `ok` field distinguishes command failure from ordinary output.
 
-```typescript
-interface CommandDefinition {
-  name: string;
-  description: string;
-  usage?: string;
-  execute: (args: string[]) => string | Promise<string>;
-}
-```
+## Source of truth
 
-## Help System
+- `src/engine/console/Command.ts`
+- `src/engine/console/CommandRegistry.ts`
+- `src/engine/console/commands/`
+- `src/games/fps/console/commands/`
 
-```
-help                 // List all commands
-help map             // Show map command help
-```
-
-Commands with `usage` property show detailed help:
-
-```typescript
-registry.registerCommand({
-  name: 'teleport',
-  description: 'Teleport to position',
-  usage: 'teleport <x> <y> <z>',
-  execute: (args) => { /* ... */ }
-});
-
-// help teleport → "teleport <x> <y> <z>"
-```
-
-## Console UI
-
-The console UI is a separate component that:
-
-- Renders command prompt
-- Handles keyboard input
-- Displays output history
-- Provides auto-complete
-
-## Related
-
-- [Cvar System](./cvar-system.md)
-- [Render Variables](./render-variables.md)
-- [Tutorial: Using the Console](../tutorials/beginner/using-console.md)
-- [Tutorial: Custom Commands](../tutorials/intermediate/custom-commands.md)
+See [Command reference](./command-reference.md) for the user-facing command list.

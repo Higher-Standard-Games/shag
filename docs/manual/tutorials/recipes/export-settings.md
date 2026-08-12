@@ -1,120 +1,26 @@
-# Recipe: Export Render Settings
+# Recipe: export settings
 
-Save and restore render variable configuration.
+## Console
 
-## Console Commands
-
-### Export Current Settings
-
-```
-r_export
+```text
+cvarexport
+render export
+export all
 ```
 
-Outputs all render variables as commands:
-
-```
-r_normalmap 1
-r_lightmap 1.5
-r_bloom 0.8
-r_anisotropy 8
-...
-```
-
-### List All Variables
-
-```
-r_list
-```
-
-### Reset to Defaults
-
-```
-r_reset
-```
+`cvarexport` and `export all` copy to the browser clipboard. Clipboard access can fail when the page lacks permission or a secure context. `render export` returns renderer configuration as command output.
 
 ## Code
 
-### Export Settings
-
-```typescript
-import { RenderVars } from '../../engine/rendering/RenderVars';
-
-function exportSettings(): string {
-  const renderVars = RenderVars.getInstance();
-  const lines: string[] = [];
-  
-  for (const [name, value] of renderVars.getAll()) {
-    lines.push(`${name} ${value}`);
-  }
-  
-  return lines.join('\n');
-}
-
-// Save to clipboard
-navigator.clipboard.writeText(exportSettings());
+```ts
+const cvarText = Cvar.exportConfig();
+const renderText = RenderVars.getInstance().exportConfig();
 ```
 
-### Import Settings
+Restore cvar text with:
 
-```typescript
-import { ConsoleCommandRegistry } from '../../engine/debug/ConsoleCommandRegistry';
-
-function importSettings(config: string) {
-  const registry = ConsoleCommandRegistry.getInstance();
-  
-  const lines = config.split('\n').filter(l => l.trim());
-  for (const line of lines) {
-    registry.execute(line);
-  }
-}
-
-// Usage
-importSettings(`
-r_normalmap 2
-r_lightmap 1.5
-r_bloom 0.5
-`);
+```ts
+Cvar.execConfig(cvarText);
 ```
 
-### Save to localStorage
-
-```typescript
-function savePreset(name: string) {
-  const config = exportSettings();
-  localStorage.setItem(`render_preset_${name}`, config);
-}
-
-function loadPreset(name: string) {
-  const config = localStorage.getItem(`render_preset_${name}`);
-  if (config) {
-    importSettings(config);
-  }
-}
-```
-
-## Presets
-
-Create common presets:
-
-```typescript
-const PRESETS = {
-  performance: `
-r_bloom 0
-r_normalmap 0
-r_anisotropy 1
-`,
-  quality: `
-r_bloom 1.5
-r_normalmap 2
-r_anisotropy 16
-`,
-  debug: `
-r_wireframe 1
-r_lightmap 0
-`
-};
-
-function applyPreset(name: keyof typeof PRESETS) {
-  importSettings(PRESETS[name]);
-}
-```
+There is no `Cvar.importConfig` method. Treat exported debug settings as local diagnostics rather than checked-in production defaults unless they have been reviewed.

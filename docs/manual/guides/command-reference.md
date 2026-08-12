@@ -1,380 +1,115 @@
-# Command Reference
+# Command reference
 
-Complete list of console commands in SHAG Engine. Press `~` to open the console.
+Press backquote/tilde to open the browser console. Run `help` for the commands registered in the current composition and `help <command>` for metadata.
 
-Commands marked **(game)** are registered by the FPS game, not the engine — they
-are unavailable in a build that ships a different game. Where a command has
-aliases, they are listed after the primary name.
+This page is a workflow reference, not a generated exhaustive list. Engine commands are auto-discovered from `src/engine/console/commands/`; the active FPS module adds commands from `src/games/fps/console/commands/`.
 
-## Map & Scene
+## Setup and help
 
-| Command | Description |
-|---------|-------------|
-| `map <name> [gametype]` | Developer-only server-backed gameplay launch through the lobby |
-| `map list` | List available maps |
-| `map reload` | Relaunch last server-backed gameplay map |
-| `map unload` | Disconnect and unload current client map |
-| `scene empty` | Create empty scene for testing |
-| `scene clear` | Clear all scene objects |
-| `scene dispose` | Dispose empty scene |
-| `dump_scene` | Dump scene graph for debugging |
+| Command | Purpose |
+| --- | --- |
+| `help [command]` | List commands or show command help |
+| `developer 0|1` | Gate developer-only commands |
+| `version` | Show build version |
+| `clear` | Clear console output |
+| `quit` | Exit supported CLI/app compositions |
 
-## Player & Movement
+## Maps and BSP inspection
 
-| Command | Description |
-|---------|-------------|
-| `noclip` | Toggle noclip (fly through walls) |
-| `god` | Toggle god mode (invincibility) |
-| `teleport <x> <y> <z>` *(aliases: `tp`, `goto`)* | Teleport to coordinates |
-| `spawn [index]` | Respawn at spawn point |
-| `spectator [0\|1]` | Toggle between FPS and spectator (freefly) camera |
-| `pos` *(aliases: `position`, `getpos`)* | Show current position |
-| `name [newname]` | Set or display player name |
-| `gravity [value]` | Get/set gravity |
+| Command | Purpose |
+| --- | --- |
+| `map <name> [gametype]` | Browser gameplay launch through the registered launcher |
+| `map list|current|reload|unload` | Gameplay-map operations |
+| `bsp load <name>` | Parse an indexed BSP for inspection |
+| `bsp render [all|poly|patch|mesh]` | Build inspection geometry |
+| `bsp info|faces|entities|textures|worldspawn` | Inspect parsed data |
+| `bsp clusters|lightmaps|required` | Inspect dependencies and visibility/lightmaps |
+| `bsp loadrequired` | Load dependent PK3 archives |
+| `bsp applytextures|applylightmaps` | Apply inspection materials |
+| `bsp sky info|apply|toggle|remove|debug` | Inspect/manage BSP sky |
+| `bsp fog info|apply|clear` | Inspect/manage BSP fog volumes |
+| `bsp collision point` | Show contents at the active camera |
+| `pvs on|off|status|cluster` | PVS diagnostics |
 
-## Entities & Models
+`map` is not registered with a gameplay launcher in `cli:game`; use `bsp load` there.
 
-| Command | Description |
-|---------|-------------|
-| `spawnmodel <path> [x y z]` *(alias: `sm`)* | Spawn a GLB model |
-| `spawnmodel lighting <id>` | Refresh model lighting |
-| `spawn_pickable_entity <type>` | Spawn pickable item |
-| `giveweapon <weapon>` | Give weapon to player |
-| `inspect` | Inspect aimed object |
-| `entity list` *(alias: `ent`)* | List all entities |
-| `entity info <id>` | Show entity info |
+## Camera and position
 
-## Camera
+| Command | Purpose |
+| --- | --- |
+| `camera mode <iso|fps|freefly|follow|sidescroll>` | Select a built-in controller |
+| `camera fov <degrees>` | Get or set FOV |
+| `camera pos` / `camera info` | Inspect camera |
+| `pos [copy]` | Show/copy position |
+| `teleport <x> <y> <z>` | Move the camera |
+| `freefly_speed [value]` | Get/set freefly speed |
+| `freefly_collision [0|1]` | Get/set collision |
+| `freefly_collision mode <native|bsp>` | Select collision path |
 
-| Command | Description |
-|---------|-------------|
-| `camera mode <type>` | Switch controller (iso, fps, freefly, follow, sidescroll) |
-| `camera fov <degrees>` | Set field of view |
-| `camera pos [x y z]` | Show/set camera position |
-| `camera info` | Show camera info |
-| `camera controller <type>` | Switch to controller |
-| `camera controllers` | List registered controllers |
-| `camera preset <name>` | Apply camera preset |
-| `camera reset` | Reset to default view |
-| `freefly_speed <n>` | Set freefly movement speed |
-| `freefly_collision <0\|1>` | Toggle freefly collision |
-| `freefly_collision mode <native\|bsp>` | Set collision mode |
+The console does not expose the old `camera controller`, `camera height`, or `camera target` forms.
 
-## Weapons
+## PK3 and shaders
 
-| Command | Description |
-|---------|-------------|
-| `weapon load <name> [pk3path]` | Load weapon model |
-| `weapon pos <x> <y> <z>` | Set position offset |
-| `weapon scale <n>` | Set weapon scale |
-| `weapon preset <hip\|ads\|lowered>` | Use position preset |
-| `weapon clear` | Remove current weapon |
-| `weapon info` | Show weapon info |
-| `weapon hide` | Hide weapon model |
-| `weapon show` | Show weapon model |
-| `giveweapon <weapon>` | Give weapon to player |
-| `cl_wep_reset` | Reset all `cl_wep_*` overrides to 0 (use weapon defs) |
-| `loadout <primary> <secondary>` **(game)** | Choose your Search & Destroy spawn kit (applies next round) |
+| Command | Purpose |
+| --- | --- |
+| `pk3 list` | List indexed packages |
+| `pk3 index` | Rebuild the runtime index |
+| `pk3 find <exact-path>` | Find the owning archive |
+| `pk3 stats` | Show package/file/shader/map counts |
+| `shader load|count` | Load or count parsed shaders |
+| `shader list [filter]` | List parsed shader names |
+| `shader info [name]` | Inspect a shader or aimed surface |
+| `shader resolve <name>` | Show resolved material flags |
+| `shader deps <name>` | Trace archive dependencies |
+| `shader aim <0|1>` | Highlight aimed surfaces |
 
-## BSP & PVS
+## Cvars and rendering
 
-| Command | Description |
-|---------|-------------|
-| `bsp load <name>` | Load BSP file for inspection/rendering |
-| `bsp info` | Show BSP statistics |
-| `bsp entities` | List BSP entities |
-| `bsp textures` | List required textures |
-| `bsp render` | Render loaded BSP |
-| `bsp clear` | Clear rendered BSP |
-| `bsp fog info` | Show fog settings |
-| `bsp sky` | Toggle skybox |
-| `bsp lightgrid` | Show LightGrid info at pos |
-| `bsp debug_grid [clear]` | Visualize LightGrid points |
-| `bsp collision` | Show collision info |
-| `pvs on` | Enable PVS culling |
-| `pvs off` | Disable PVS culling |
-| `pvs status` | Show PVS statistics |
-| `pvs cluster` | Show current cluster info |
-
-## Shaders
-
-| Command | Description |
-|---------|-------------|
-| `shader load` | Load shaders from PK3 |
-| `shader count` | Show loaded shader count |
-| `shader list [filter]` | List shaders |
-| `shader info [name]` | Show shader info (or aimed surface) |
-| `shader aim <0\|1>` | Toggle aim highlight |
-| `shader resolve <name>` | Resolve material properties |
-| `shader pattern <name>` | Debug shader pattern |
-| `shader deps <name>` | Show shader dependencies |
-| `shader glow <n>` | Set glow intensity |
-| `shader lightmap <n>` | Set lightmap intensity |
-| `shader blendmode <add\|alpha>` | Set glow blend mode |
-| `shader clear` | Clear shader registry |
-| `shader anim status` | Show animation status |
-| `shader anim pause/resume` | Control animations |
-| `shader anim speed <n>` | Set animation speed |
-
-## PK3 Filesystem
-
-| Command | Description |
-|---------|-------------|
-| `pk3 load <file.pk3>` | Load PK3 package |
-| `pk3 list [pattern]` | List files |
-| `pk3 dir [path]` | List directory |
-| `pk3 info` | Show loaded packages |
-| `pk3 path [add]` | Show/add search paths |
-| `pk3 test <file>` | Test loading a file |
-| `pk3 texture <path>` | Load texture with companions |
-| `pk3 cache` | Show texture cache |
-| `pk3 unload` | Unload all packages |
-| `pk3 index build` | Build file index |
-| `pk3 index find <path>` | Find file in index |
-| `pk3 index search <pattern>` | Search index |
-
-## Textures
-
-| Command | Description |
-|---------|-------------|
-| `texture list` | List loaded textures |
-| `texture stats` | Show texture memory stats |
-| `texture reload` | Reload all textures |
-
-## Cvars (Console Variables)
-
-| Command | Description |
-|---------|-------------|
+| Command | Purpose |
+| --- | --- |
+| `<cvar> [value]` | Get or set a registered cvar directly |
+| `set <cvar> <value>` | Explicit setter |
+| `toggle <cvar>` | Toggle a boolean/numeric cvar |
+| `reset <cvar>` / `resetall` | Restore defaults |
 | `cvarlist [filter]` | List cvars |
-| `toggle <cvar>` | Toggle boolean cvar |
-| `reset <cvar>` | Reset cvar to default |
-| `resetall` | Reset all cvars |
-| `set <cvar> <value>` | Set cvar value |
-| `cvarexport` | Export modified cvars |
+| `cvarexport` | Copy modified cvars |
+| `render list|reset|export|apply` | Render-variable group operations |
+| `pp ...` | Post-processing command |
+| `show_fps [on|off]` | FPS counter |
+| `perf ...` | Performance capture/summary |
 
-### Common Cvars
+Use `render list` rather than the obsolete `r_list`; render values apply through callbacks.
 
-| Cvar | Type | Description |
-|------|------|-------------|
-| `r_bloom` | float | Bloom intensity (0-3) |
-| `r_exposure` | float | Exposure level |
-| `r_contrast` | float | Contrast level |
-| `r_normalmap` | float | Normal map intensity |
-| `r_lightmap` | float | Lightmap intensity |
-| `r_wireframe` | int | Wireframe mode |
-| `s_volume` | float | Master volume |
-| `s_musicenabled` | bool | Music enabled |
+## Physics and diagnostics
 
-### Network Cvars
+| Command | Purpose |
+| --- | --- |
+| `physics init|on|off|gravity|debug|info` | Havok scene-physics control |
+| `gravity [value]` | Movement gravity shortcut |
+| `debug collision|wireframe|bounds|player|info` | Current debug toggles |
+| `stats` / `mem` | Runtime statistics |
+| `inspect` | Inspect aimed scene object |
+| `dump_scene` | Dump the Babylon scene graph |
 
-| Cvar | Type | Description |
-|------|------|-------------|
-| `cl_netgraph` | int | NetGraph overlay (0=off, 1=text, 2=text+graph) |
-| `cl_interp` | int | Interpolation delay ms (0=auto) |
-| `cl_timenudge` | int | Render time offset ms (negative=ahead) |
+There is no `debug fps` subcommand; use `show_fps`.
 
-### Crosshair Cvars
+## Networking and FPS game commands
 
-| Cvar | Type | Description |
-|------|------|-------------|
-| `cg_crosshairSize` | int | Crosshair size in pixels |
-| `cg_crosshairColor` | string | Crosshair color |
-| `cg_crosshairAlpha` | float | Crosshair opacity |
+The FPS composition provides `connect`, `disconnect`, `loadout`, demo commands, `pickup_audit`, and network simulation commands. Engine-level commands include `join`, `nettest`, and `binarytest`.
 
-### Viewport Effect Cvars
+```text
+connect localhost:7777
+disconnect
+cl_netgraph 2
+demolist
+demo <number-or-file>
+demoplay
+```
 
-| Cvar | Type | Description |
-|------|------|-------------|
-| `cl_vieweffects` | int | Master toggle for viewport effects |
-| `cl_bobbing` | int | Enable walk bob |
-| `cg_idleamplitude` | float | Idle breathing intensity (default 0.02) |
-| `cg_idlefrequency` | float | Idle breathing speed (default 0.6) |
-
-### Gibs
-
-The gib system is **not** cvar-driven. Its tuning lives as module constants at
-the top of `src/games/fps/client/GibSystem.ts` (`GIB_COUNT` 20, `GIB_LIFETIME`
-8.0 s, `MAX_ACTIVE_GIBS` 200, `TRACED_GIB_COUNT` 5, and the impulse/tumble
-ranges). Change them there and rebuild.
-
-## Rendering & Post-Processing
-
-| Command | Description |
-|---------|-------------|
-| `render list` *(alias: `r`)* | List render variables |
-| `render reset` | Reset all render vars |
-| `render export` | Export render config |
-| `r_<varname> [value]` | Get/set render variable |
-| `pp <effect> [value]` *(alias: `postprocess`)* | Control post-processing |
-| `skybox <on\|off>` *(alias: `sky`)* | Toggle skybox |
-| `skybox load <name>` | Load skybox |
-
-## Lighting & Shadows
-
-| Command | Description |
-|---------|-------------|
-| `light add <type>` | Add light to scene |
-| `light list` | List scene lights |
-| `light info <id>` | Show light info |
-| `godrays [sun\|here\|off]` | Spawn Babylon 9 volumetric god rays (sun shafts or a fixed emitter) |
-| `arealight [<image-url>\|off]` | Spawn a Babylon 9 textured area light ahead of the camera (POC) |
-| `shadow on/off` *(alias: `shadows`)* | Toggle shadows |
-| `shadow quality <low\|medium\|high>` | Set shadow quality |
-| `shadow info` | Show shadow info |
-| `daynight on/off` | Toggle day/night cycle |
-| `daynight time <hour>` | Set time of day |
-| `daynight speed <n>` | Set cycle speed |
-| `time set <hour>` | Set time of day |
-| `time pause/resume` | Pause/resume time |
-
-## Weather & Environment
-
-| Command | Description |
-|---------|-------------|
-| `weather rain [intensity]` | Start rain |
-| `weather snow [intensity]` | Start snow |
-| `weather clear` | Clear all weather |
-| `weather fog <density>` | Set weather fog |
-| `weather thunder` | Trigger thunder |
-| `weather status` | Show weather status |
-| `wind on/off` | Toggle wind |
-| `wind strength <n>` | Set wind strength |
-| `wind direction <x y z>` | Set wind direction |
-| `debris on/off` | Toggle debris particles |
-| `debris intensity <n>` | Set debris intensity |
-
-## Fog
-
-| Command | Description |
-|---------|-------------|
-| `fog on [r g b density]` | Enable EXP2 fog |
-| `fog off` | Disable fog |
-| `fog color <r g b>` | Set fog color |
-| `fog density <value>` | Set fog density |
-| `fog linear <start end>` | Enable linear fog |
-| `fog status` | Show fog settings |
-| `fog worldspawn` | Apply BSP fog |
-| `fog cam on/off` | Toggle camera-based fog |
-
-## Networking
-
-| Command | Description |
-|---------|-------------|
-| `connect <server_url>` **(game)** | Connect to a game server |
-| `disconnect` **(game)** | Disconnect from current game server |
-| `join` | Join the connected game server |
-| `nettest <local\|simulation\|network\|server>` | Test networking infrastructure |
-| `netsim <test\|spawn\|tick\|state\|input>` **(game)** | Network simulation testing commands |
-| `binarytest <encode\|decode\|...>` | Test binary protocol encoding/decoding |
-| `cl_netgraph 0\|1\|2` | NetGraph overlay (off/text/graph) |
-| `cl_interp <ms>` | Interpolation delay (0=auto) |
-| `cl_timenudge <ms>` | Render time offset |
-
-> There is no `network` (or `net`) command. Connection state is driven by
-> `connect` / `disconnect` and the lobby flow; read the live numbers off the
-> NetGraph (`cl_netgraph 2`).
-
-## Demos **(game)**
-
-| Command | Description |
-|---------|-------------|
-| `demolist [filter]` | List available demos from the lobby server |
-| `demo <number\|filename>` | Load a demo by number (from `demolist`) or filename |
-| `demoplay` | Start playback of the loaded demo |
-| `demoplay cinematic <minutes>` | Play back as an auto-directed cinematic cut |
-| `demoplay hud <on\|off\|toggle>` | Control all active demo overlays; `H` toggles them during playback |
-| `demoplay analyze` | Run the demo analyzer over the loaded demo |
-| `demoplay stop` | Stop playback |
-| `pickup_audit` | Audit client/server pickup active-set reconciliation |
-
-## Physics
-
-| Command | Description |
-|---------|-------------|
-| `physics init` | Initialize Havok physics |
-| `physics enable/disable` | Toggle physics |
-| `physics gravity <x y z>` | Set gravity vector |
-| `physics debug` | Toggle physics debug |
-| `physics info` | Show physics status |
-| `gravity [value]` | Get/set gravity strength |
-
-## Audio
-
-| Command | Description |
-|---------|-------------|
-| `audio volume <0-1>` | Set music volume |
-| `audio mute/unmute` | Mute/unmute |
-| `audio play <track>` | Play music |
-| `audio stop` | Stop music |
-
-## Debug
-
-| Command | Description |
-|---------|-------------|
-| `debug fps` | Toggle FPS display |
-| `debug wireframe` | Toggle wireframe |
-| `debug bounds` | Toggle bounding boxes |
-| `debug lights` | Toggle light gizmos |
-| `stats` | Show engine statistics |
-| `mem` | Show memory usage |
-| `mem textures` | Texture memory |
-| `mem meshes` | Mesh memory |
-| `show_fps [on\|off]` *(alias: `fps`)* | Toggle FPS counter |
-| `perf capture [seconds]` | Capture renderer performance over a bounded interval |
-| `console_debug [0\|1]` | Toggle debug overlay at bottom-left |
-| `timescale <n>` | Set time scale (slow-mo) |
-| `developer <0\|1>` *(alias: `dev`)* | Toggle developer mode |
-| `animtest <anim>` *(alias: `at`)* | Test animation playback |
-
-## UI
-
-| Command | Description |
-|---------|-------------|
-| `ui scale [value\|auto]` | Get/set UI scale |
-| `ui mode <fit\|fill\|width\|height>` | Set scale mode |
-| `ui theme <light\|dark>` | Set UI theme |
-| `ui debug` | Toggle debug overlay |
-| `ui info` | Show UI info |
-| `hud info` | Show HUD status |
-| `hud interval <ms>` | Set update interval |
-| `hud show/hide/toggle <id>` | Control elements |
-| `hud refresh` | Force refresh |
-| `hud theme <name>` | Set theme |
-| `demoplay hud <on\|off\|toggle>` | Control all active demo overlays; `H` toggles them during playback |
+Consult `help` in the actual FPS build because game commands and gametype-specific options evolve independently from engine commands.
 
 ## Utility
 
-| Command | Description |
-|---------|-------------|
-| `help [command]` *(aliases: `?`, `commands`)* | Show help |
-| `echo <text>` | Print text |
-| `clear` *(alias: `cls`)* | Clear console |
-| `quit` *(aliases: `exit`, `q`)* | Quit application |
-| `version` *(alias: `ver`)* | Show engine version |
-| `screenshot` *(alias: `ss`)* | Take screenshot |
-| `exec <file.cfg>` | Execute config file |
-| `settings <export\|import\|list>` | Engine settings export/import |
-| `writeconsole` *(alias: `condump`)* | Write console log to file |
+Other current engine command classes cover audio, fog, day/night, lights, shadows, weather, wind, debris, UI, HUD, screenshots, settings export, config execution, model spawning, and weapon inspection. Their subcommands are intentionally obtained through `help <command>` rather than duplicated here.
 
-> **Key binding is not implemented.** `bind <key> <command>` is a placeholder
-> that acknowledges the call and does nothing; there is no `unbind` or
-> `bindlist`. Rebind keys through the in-game settings overlay
-> (**Escape → Controls**) instead.
-
-## Game Commands
-
-| Command | Description |
-|---------|-------------|
-| `game info` | Show game info |
-| `game load` | Load game |
-| `game reload` | Reload game |
-| `export camera` | Export camera settings |
-| `export fx` | Export post-processing |
-| `export all` | Export all settings |
-
-## See Also
-
-- [Console System](./console-system.md) - How to use and extend the console
-- [Cvar System](./cvar-system.md) - Console variables
-- [Render Variables](./render-variables.md) - Rendering cvars
-- [Networking System](./networking.md) - Multiplayer networking
+The `bind` command is currently a placeholder; use the controls/settings UI for durable bindings.

@@ -1,47 +1,24 @@
-# Recipe: Toggle Wireframe Mode
+# Recipe: toggle wireframe
 
-Enable wireframe for debugging geometry.
+## Console
 
-## Console Commands
-
-```
-r_wireframe 1    # Per-mesh wireframe
+```text
+developer 1
+r_wireframe 1
 r_wireframe 0
-
-r_showtris 1     # Entire scene wireframe
+r_showtris 1
 r_showtris 0
 ```
 
+`r_wireframe` changes material wireframe state. `r_showtris` is the scene-level debug switch.
+
 ## Code
 
-```typescript
-import { RenderVars } from '../../engine/rendering/RenderVars';
-
+```ts
 const renderVars = RenderVars.getInstance();
 
-// Toggle wireframe
-function toggleWireframe() {
-  const current = renderVars.get('r_wireframe');
-  renderVars.set('r_wireframe', current >= 0.5 ? 0 : 1);
-}
-
-// Force scene wireframe
-function toggleShowTris() {
-  const current = renderVars.get('r_showtris');
-  renderVars.set('r_showtris', current >= 0.5 ? 0 : 1);
-}
+const current = renderVars.get('r_wireframe') ?? 0;
+renderVars.set('r_wireframe', current >= 0.5 ? 0 : 1);
 ```
 
-## Keyboard Shortcut
-
-```typescript
-window.addEventListener('keydown', (e) => {
-  if (e.key === 'F3') {
-    toggleWireframe();
-  }
-});
-```
-
-## Note
-
-Debug variables (`r_wireframe`, `r_showtris`) don't persist to localStorage - they reset on page reload.
+Both variables are debug category and are not persisted as durable render preferences. If you add a key binding, register it through `InputSystem` and remove its context/handler during teardown rather than attaching an unmanaged global DOM listener.

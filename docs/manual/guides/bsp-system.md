@@ -1,201 +1,85 @@
-# BSP Map System
+# BSP system
 
-How SHAG Engine loads and renders Quake 3/Warsow BSP maps.
+SHAG supports Quake 3 `IBSP` version 46 and Warsow/qfusion `FBSP` version 1 maps.
 
-## Overview
+## Normal map flow
 
-BSP (Binary Space Partitioning) is a data structure used by id Tech engines for storing level geometry. SHAG Engine supports:
+The playable FPS path resolves a map through `PK3Index`, loads its dependencies, parses it, builds Babylon meshes, initializes collision, and spawns supported entities:
 
-- **IBSP** - Quake 3 Arena format
-- **FBSP** - Warsow/Qfusion format (extended IBSP)
-
-## Loading Pipeline
-
-```
-PK3 Archive
-    ↓
-BspLoader.load()        ← Parse binary format
-    ↓
-BspMeshBuilder.build()  ← Create Babylon.js meshes
-    ↓
-TextureLoader           ← Apply textures
-    ↓
-SkyboxLoader            ← Create skybox
-    ↓
-Scene ready
+```text
+map wdm2 duel
 ```
 
-## BSP Structure
+`MapLoader.getInstance().loadMap(mapName, scene, onProgress?)` is the high-level browser API. It currently resolves indexed BSP maps. Its local text-map branch is marked TODO.
 
-A BSP file contains multiple data "lumps":
+## Inspection flow
 
-| Lump | Content |
-|------|---------|
-| Entities | Spawn points, lights, triggers (text) |
-| Textures | Texture/shader names |
-| Planes | BSP node splitting planes |
-| Nodes | BSP tree nodes |
-| Leaves | BSP tree leaves (visibility) |
-| Leaffaces | Faces in each leaf |
-| Vertices | Vertex positions, UVs, colors |
-| Meshverts | Triangle indices |
-| Faces | Geometry surfaces |
-| Lightmaps | Pre-baked lighting |
-| Visibility | PVS data for occlusion |
+`BspManager` and the `bsp` command expose a lower-level path that is useful in the developer console and headless runner:
 
-## Face Types
-
-BSP faces come in four types:
-
-| Type | ID | Description |
-|------|-----|-------------|
-| Polygon | 1 | Simple convex polygon |
-| Patch | 2 | Bezier curve surface |
-| Mesh | 3 | Triangle mesh |
-| Billboard | 4 | Camera-facing sprite |
-
-## Using BspLoader
-
-```typescript
-import { BspLoader } from './engine/loader/bsp/BspLoader';
-
-// Load BSP file
-const bspData = await BspLoader.load(bspArrayBuffer);
-
-// Access parsed data
-console.log(bspData.header);       // Format info
-console.log(bspData.vertices);     // Vertex array
-console.log(bspData.faces);        // Face array
-console.log(bspData.entities);     // Entity string
+```text
+developer 1
+bsp load wdm2
+bsp info
+bsp faces
+bsp entities
+bsp textures
+bsp worldspawn
+bsp clusters
+bsp lightmaps
 ```
 
-## Using BspMeshBuilder
+In a browser scene, additional inspection operations include:
 
-```typescript
-import { BspMeshBuilder } from './engine/loader/bsp/BspMeshBuilder';
-
-const builder = new BspMeshBuilder(bspData, scene);
-const result = await builder.build();
-
-// result contains:
-result.worldMesh;        // Main geometry mesh
-result.lightmapTextures; // Lightmap atlas
-result.skyShaders;       // Sky shader info
-result.stats;            // Build statistics
+```text
+bsp render
+bsp applytextures
+bsp applylightmaps
+bsp sky info
+bsp sky apply
+bsp fog info
 ```
 
-## Entity Parsing
+Use `help bsp` for the complete list in the current build.
 
-Entities are stored as a text lump in Q3 format:
+## Low-level parsing and mesh construction
 
-```
-{
-"classname" "info_player_deathmatch"
-"origin" "256 128 64"
-"angle" "90"
-}
-{
-"classname" "light"
-"origin" "0 0 128"
-"light" "300"
-}
+```ts
+import { BspLoader } from '../../../src/engine/loader/bsp/BspLoader';
+import { BspMeshBuilder } from '../../../src/engine/loader/bsp/BspMeshBuilder';
+
+const bsp = BspLoader.load(arrayBuffer);
+const result = BspMeshBuilder.build(bsp, scene, {
+  filterTextures: true,
+});
 ```
 
-Parse with:
+`BspLoader.load` and `BspMeshBuilder.build` are static. The mesh builder constructor is private. Parsed entities are already available as `bsp.entities`; a separate `EntityParser` is not required.
 
-```typescript
-import { parseEntities } from './engine/loader/bsp/EntityParser';
+The result includes the world mesh and mesh/material bookkeeping needed by map cleanup and animation systems. Treat its exact shape as an internal loader contract and import the `BspMeshBuildResult` type when extending it.
 
-const entities = parseEntities(bspData.entities);
-const spawns = entities.filter(e => e.classname === 'info_player_deathmatch');
-```
+## Coordinates
 
-## Lightmaps
+Quake map coordinates are converted to Babylon coordinates by the BSP mesh helpers. Reuse `q3ToBabylonVec3` and the existing winding conversion rather than adding local axis swaps.
 
-BSP files contain pre-baked lighting as 128x128 RGB textures. SHAG Engine:
+## Visibility, lightmaps, and entities
 
-1. Extracts lightmap data from BSP
-2. Creates Babylon.js textures
-3. Applies as second UV channel on meshes
+- polygon, patch, mesh, and billboard face types are parsed;
+- PVS cluster data is used for visibility culling;
+- IBSP and FBSP lightmap sizes and lightstyles are handled separately;
+- worldspawn, spawn points, brush entities, lights, and other supported entities are processed after geometry.
 
-Control with render variables:
+Not every classname has gameplay behavior. Confirm handlers in `BspEntityHandlers.ts` and the FPS entity layer before promising support.
 
-```
-r_lightmap 0    # Disable lightmaps
-r_lightmap 1    # Normal intensity
-r_lightmap 2    # Brighter
-```
-
-## LightGrid (Light Volumes)
-
-BSP files also contain a 3D grid of lighting samples called the "lightgrid" or "light volumes". This is used for lighting dynamic objects (players, models) that don't have lightmaps.
-
-Each grid point stores:
-- **Ambient RGB** - Base illumination (0-255 per channel)
-- **Directional RGB** - Dominant light color (0-255 per channel)
-- **Direction** - Spherical coords (theta, phi) pointing toward light source
-
-### Query Lightgrid
+## Headless verification
 
 ```bash
-bsp lightgrid    # Show values at camera position
+npm run cli:game -- --exec 'bsp load wdm2; bsp info; quit'
+npm run test:physics
 ```
 
-Output:
-```
-Position: (128, 64, 256)
-Ambient: [45.2, 42.1, 38.5]
-Directional: [180.3, 175.2, 165.8]
-Direction: [128, 64]
-```
+## Source of truth
 
-### Debug Visualization
-
-```bash
-bsp debug_grid        # Spawn colored spheres at grid points
-bsp debug_grid clear  # Remove debug spheres
-```
-
-Debug spheres are colored by their ambient light value - brighter spheres indicate more light at that grid point.
-
-### Programmatic Access
-
-```typescript
-import { BspManager } from './engine/loader/bsp/BspManager';
-
-const manager = BspManager.getInstance();
-const lighting = manager.getLightingAt(position);
-
-if (lighting) {
-  console.log('Ambient:', lighting.ambient);      // [r, g, b] 0-255
-  console.log('Directional:', lighting.directional); // [r, g, b] 0-255
-  console.log('Direction:', lighting.direction);  // [theta, phi] bytes
-}
-```
-
-The `getLightingAt()` method performs trilinear interpolation for smooth lighting transitions between grid points.
-
-## Collision
-
-BSP geometry provides collision data through:
-
-- **Brush models** - Solid volumes
-- **Planes** - Surface normals
-- **Trace functions** - Ray/box intersection
-
-## PVS (Potentially Visible Set)
-
-BSP files include precomputed visibility data:
-
-```typescript
-import { PVSCuller } from './engine/loader/bsp/PVSCuller';
-
-const culler = new PVSCuller(bspData);
-const visibleLeaves = culler.getVisibleLeaves(cameraPosition);
-```
-
-## Related
-
-- [PK3 Filesystem](./pk3-filesystem.md) - How BSP files are loaded from archives
-- [Shader System](./shader-system.md) - How textures/materials are applied
-- [Skybox System](./skybox-system.md) - Sky shader handling
+- `src/engine/loader/map/MapLoader.ts`
+- `src/engine/loader/bsp/BspLoader.ts`
+- `src/engine/loader/bsp/BspMeshBuilder.ts`
+- `src/engine/loader/bsp/BspManager.ts`

@@ -1,168 +1,74 @@
-# Q3 Shader System
+# Quake shader system
 
-How SHAG Engine parses and applies Quake 3/Warsow shaders.
+SHAG parses Quake 3 and Warsow shader scripts from loaded PK3 archives and resolves them into Babylon materials for BSP surfaces.
 
-## Overview
+## Loading and inspection
 
-Q3 shaders are text files that define material properties, texture effects, and rendering behavior. SHAG Engine parses these and translates them to Babylon.js materials.
-
-## Shader File Format
-
-Shaders are defined in `.shader` files inside PK3 archives:
-
-```
-textures/base_wall/concrete
-{
-    surfaceparm nomarks
-    {
-        map textures/base_wall/concrete.tga
-    }
-    {
-        map $lightmap
-        blendFunc GL_DST_COLOR GL_ZERO
-    }
-}
+```text
+developer 1
+shader load
+shader count
+shader list water
+shader info textures/liquids/pool3d_3c
+shader resolve textures/liquids/pool3d_3c
+shader deps textures/liquids/pool3d_3c
 ```
 
-## Supported Directives
+In code:
 
-### Surface Parameters
-
-```
-surfaceparm sky        // Sky surface
-surfaceparm trans      // Transparent
-surfaceparm noimpact   // No bullet marks
-surfaceparm nolightmap // No lightmap
-surfaceparm alphashadow // Transparent shadow
-```
-
-### Culling
-
-```
-cull front             // Cull front faces
-cull back              // Cull back faces (default)
-cull disable           // No culling (two-sided)
-cull none              // Same as disable
-```
-
-### Sorting
-
-```
-sort portal            // Render order
-sort sky
-sort opaque
-sort banner
-sort underwater
-sort additive
-sort nearest
-```
-
-### Sky Parameters
-
-```
-skyparms env/stormydays/stormydays - -
-// Loads 6 cubemap faces: _rt, _lf, _ft, _bk, _up, _dn
-```
-
-## Stage Directives
-
-Each `{ }` block inside a shader is a rendering stage.
-
-### Map
-
-```
-map textures/base/texture.tga    // Texture path
-map $lightmap                    // Use lightmap
-map $whiteimage                  // White texture
-```
-
-### Blend Functions
-
-```
-blendFunc add                    // Additive
-blendFunc blend                  // Alpha blend
-blendFunc filter                 // Multiply
-blendFunc GL_ONE GL_ONE          // Custom blend
-blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
-```
-
-### Texture Coordinate Modifiers
-
-```
-tcMod scroll 0.5 0               // Scroll texture
-tcMod scale 2 2                  // Scale texture
-tcMod rotate 45                  // Rotate texture
-tcMod turb 0 0.1 0 0.5           // Turbulence
-tcMod stretch sin 1 0.5 0 1      // Stretch wave
-```
-
-### Vertex Deformations
-
-```
-deformVertexes wave sin 0 5 0 0.5   // Wave vertices
-deformVertexes move 0 0 10 sin 0 1 0 0.5
-deformVertexes autosprite           // Billboard
-deformVertexes autosprite2          // Axial billboard
-```
-
-### Animation
-
-```
-animMap 8 textures/anim/frame1.tga textures/anim/frame2.tga
-// 8 FPS animation between frames
-```
-
-## Using Q3ShaderRegistry
-
-```typescript
-import { Q3ShaderRegistry } from './engine/loader/shader/Q3ShaderRegistry';
+```ts
+import { Q3ShaderRegistry } from '../../../src/engine/loader/shader/Q3ShaderRegistry';
 
 const registry = Q3ShaderRegistry.getInstance();
+await registry.loadShaders();
 
-// Load shaders from PK3s
-await registry.loadFromPK3();
-
-// Get shader definition
-const shader = registry.getShader('textures/base_wall/concrete');
-
-// Check shader count
-console.log(registry.getShaderCount()); // 1741
-
-// Resolve material properties
-const props = registry.resolveMaterialProps('textures/base_wall/concrete');
-// props.diffuseMap, props.alphaMode, props.isSky, etc.
+const shader = registry.getShader('textures/liquids/pool3d_3c');
+const props = registry.resolveMaterialProps('textures/liquids/pool3d_3c');
 ```
 
-## Material Resolution
+The current method is `loadShaders()`; there is no `loadFromPK3()`.
 
-When BspMeshBuilder needs a material, it:
+## Supported material behavior
 
-1. Looks up shader by texture name
-2. Extracts material properties (blend mode, textures, etc.)
-3. Creates Babylon.js StandardMaterial or custom material
-4. Applies textures and blend settings
+The parser and BSP material path cover the compatibility features most maps depend on:
 
-## Debugging Shaders
+- stage maps, animated maps, blend and alpha functions;
+- culling, depth-write, polygon offset, surface/content parameters;
+- lightmap and base-texture stages;
+- `tcMod` animation;
+- `tcGen environment`;
+- wave-driven `rgbGen` and `alphaGen`;
+- `deformVertexes autosprite` and `autosprite2`.
 
-```
-shader count                    // Total loaded
-shader list                     // List all shaders
-shader list base_wall           // Filter by name
-shader info textures/path/name  // Show shader details
-shader info                     // Inspect aimed surface
-shader aim 1                    // Highlight aimed surface
-```
+Support is not a complete reimplementation of the original Q3 renderer. In particular, other vertex deforms such as `wave`, `bulge`, and `move` are currently skipped by the parser. Some uncommon multi-stage combinations are approximated by Babylon material paths.
 
-## Limitations
+## Debug workflow
 
-Not all Q3 shader features are supported:
+When a material looks wrong:
 
-- ❌ `tcGen environment` (environment mapping)
-- ❌ `rgbGen` (vertex color generation)
-- ❌ `alphaGen` (alpha generation)
-- ❌ Complex multi-pass effects
+1. Run `pk3 find <path>` to confirm which archive wins.
+2. Run `shader deps <shader-name>`.
+3. Inspect parsed stages with `shader info <shader-name>`.
+4. Compare resolved flags with `shader resolve <shader-name>`.
+5. In the browser, use `shader aim 1` to identify the surface under the crosshair.
 
-## Related
+Keep shader names normalized to forward-slash paths without file extensions.
 
-- [BSP System](./bsp-system.md) - How shaders are applied to geometry
-- [Skybox System](./skybox-system.md) - Sky shader handling
+## Extending materials
+
+Compatibility parsing and enhanced rendering should remain separate:
+
+- preserve shader semantics in `Q3ShaderParser` and `Q3ShaderRegistry`;
+- translate resolved properties in the BSP material factory/builder;
+- add specialized rendering systems, such as unified liquid surfaces, at the map-loading boundary;
+- keep a fallback material path for unsupported hardware or disabled effects.
+
+This separation lets old content continue to load while selected surface classes receive modern Babylon rendering.
+
+## Source of truth
+
+- `src/engine/loader/shader/Q3ShaderParser.ts`
+- `src/engine/loader/shader/Q3ShaderRegistry.ts`
+- `src/engine/loader/shader/Q3ShaderMaterialFactory.ts`
+- `src/engine/loader/shader/ShaderAnimationSystem.ts`
+- `src/engine/loader/bsp/BspMeshBuilder.ts`
