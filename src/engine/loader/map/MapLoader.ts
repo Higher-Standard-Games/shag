@@ -11,6 +11,7 @@
  * - Skybox textures
  */
 
+import type { BaseTexture } from "@babylonjs/core/Materials/Textures/baseTexture";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Scene } from "@babylonjs/core/scene";
 import { initializeEntityDefs } from "../../../shared/entities";
@@ -20,8 +21,10 @@ import { type EntityData, EntityHandlerRegistry } from "../../core/EntityHandler
 import { EventBus } from "../../core/EventBus";
 import { LOADING_EVENTS, type LoadingCompleteEvent, type LoadingProgressEvent } from "../../core/LoadingEvents";
 import { EntityManager } from "../../entities/EntityManager";
+import { extractEmissiveSurfaces } from "../../lighting/MapEmissiveSurfaces";
 import RenderVars from "../../rendering/RenderVars";
 import { LiquidSurfaceSystem } from "../../rendering/water/LiquidSurfaceSystem";
+import { waterMapLights, waterSurfaceLights } from "../../rendering/water/WaterSurfaceLighting";
 import { registerBspEntityHandlers, setCurrentBspForHandlers } from "../bsp/BspEntityHandlers";
 import { type BspFile, BspLoader } from "../bsp/BspLoader";
 import { BspMeshBuilder, type BspMeshBuildResult } from "../bsp/BspMeshBuilder";
@@ -360,14 +363,6 @@ export class MapLoader {
       pbr: bspPbrEnabled,
     });
 
-    // Phase 6b: Claim liquid surfaces.
-    //
-    // After textures, deliberately: the legacy material is built first and then
-    // displaced, so a shader that will not compile leaves a working surface
-    // behind rather than a hole. Restoring it later is also what makes
-    // `r_water 0` a live toggle instead of a reload.
-    this.claimLiquidSurfaces(meshResult, scene);
-
     // Phase 7: Apply skybox
     progress("Skybox", "Creating");
     // biome-ignore lint/suspicious/noExplicitAny: Babylon loader internals
@@ -375,10 +370,15 @@ export class MapLoader {
     const engineClass = engineAny?.getClassName?.();
     const engineCtorName = engineAny?.constructor?.name;
     const isHeadlessNullEngine = engineClass === "NullEngine" || engineCtorName === "NullEngine";
+    let skyEnvironment: BaseTexture | null = null;
     if (!isHeadlessNullEngine) {
       const skyResult = await BspMeshBuilder.applySkybox(meshResult, scene);
       if (skyResult.success) {
         console.log(`[MapLoader] Skybox created (${meshResult.skyShaders.length} sky shaders)`);
+        const reflectionTexture = (
+          skyResult.skybox?.material as unknown as { reflectionTexture?: BaseTexture | null } | null
+        )?.reflectionTexture;
+        skyEnvironment = reflectionTexture?.isCube ? reflectionTexture : null;
       } else if (skyResult.error) {
         console.warn(`[MapLoader] Skybox failed: ${skyResult.error}`);
       }
@@ -451,6 +451,12 @@ export class MapLoader {
         console.error("[MapLoader] Failed to create fallback lighting:", fallbackError);
       }
     }
+
+    // Water starts one-shot room captures as soon as it claims the map. Shader
+    // readiness alone does not mean scene lighting is configured: placing this
+    // before the awaited SkyLightSystem setup could permanently cache a black
+    // room. Both baked lightmaps and BSP ambient lighting must be set first.
+    await this.claimLiquidSurfaces(meshResult, scene, skyEnvironment, !isHeadlessNullEngine);
 
     // Phase 8b: Register autosprite billboard updates (per-frame)
     if (meshResult.autospriteMeshes && meshResult.autospriteMeshes.length > 0) {
@@ -893,7 +899,12 @@ export class MapLoader {
    * it is the comparison baseline for tuning this, and the fallback if a
    * driver refuses the shader.
    */
-  private claimLiquidSurfaces(meshResult: BspMeshBuildResult, scene: Scene): void {
+  private async claimLiquidSurfaces(
+    meshResult: BspMeshBuildResult,
+    scene: Scene,
+    skyEnvironment: BaseTexture | null,
+    loadEnvironmentMaps: boolean,
+  ): Promise<void> {
     this.liquidSurfaces?.dispose();
     this.liquidSurfaces = null;
 
@@ -903,6 +914,41 @@ export class MapLoader {
     }
 
     const system = new LiquidSurfaceSystem(scene);
+    system.mapLights = waterMapLights(this.currentBsp?.entities ?? []);
+    if (this.currentBsp) {
+      const panels = extractEmissiveSurfaces(this.currentBsp, (name) => {
+        const strength = this.shaderRegistry.resolveMaterialProps(name).surfaceLight ?? 0;
+        return { emissive: strength > 0, surfaceLight: strength };
+      });
+      system.mapLights = [...system.mapLights, ...waterSurfaceLights(panels)];
+    }
+    console.log(`[Water] Authored highlight candidates: ${system.mapLights.length}`);
+    system.setEnvironmentTexture(skyEnvironment);
+
+    if (loadEnvironmentMaps) {
+      const hints = new Map<"water" | "slime" | "lava", string>();
+      for (const mesh of [meshResult.worldMesh, ...meshResult.worldMesh.getChildMeshes(false)]) {
+        const kind = mesh.metadata?.liquidKind as "water" | "slime" | "lava" | null | undefined;
+        const environmentMap = mesh.metadata?.liquidEnvironmentMap as string | null | undefined;
+        if (!kind || !environmentMap || hints.has(kind)) continue;
+        hints.set(kind, environmentMap);
+      }
+
+      if (hints.size > 0) {
+        const { SkyboxLoader } = await import("../texture/SkyboxLoader");
+        const loader = SkyboxLoader.getInstance();
+        loader.init(scene);
+        for (const [kind, basePath] of hints) {
+          const environment = await loader.loadEnvironmentCubemap(basePath);
+          if (environment.success && environment.texture) {
+            system.setEnvironmentTexture(environment.texture, { kind, owned: true });
+          } else {
+            console.warn(`[Water] Could not load ${kind} environment ${basePath}: ${environment.error}`);
+          }
+        }
+      }
+    }
+
     const claimed = system.claim(meshResult.worldMesh);
 
     if (claimed === 0) {

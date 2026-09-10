@@ -22,10 +22,10 @@ import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
 import type { Scene } from "@babylonjs/core/scene";
 import { applySafeMaxSimultaneousLights } from "../../lighting/DynamicLightSafety";
-import { liquidKindOf } from "../../physics/ContentFlags";
 import { Q3ShaderRegistry } from "../shader/Q3ShaderRegistry";
 import type { ResolvedMaterialProps } from "../shader/Q3ShaderTypes";
 import type { BspFile } from "./BspLoader";
+import { classifyLiquids, DEFAULT_LIQUID_OVERRIDES, liquidKindFromSurfaceParms } from "./LiquidClassifier";
 import { buildMeshFace, buildPatchFace, buildPolygonFace } from "./mesh/faceBuilders";
 import { createRadialGradientTexture, createSolidColorTexture } from "./mesh/fallbackTextures";
 import type { BspMeshBuildResult, BuildOptions } from "./mesh/types";
@@ -132,6 +132,24 @@ export class BspMeshBuilder {
     // Key: "textureIndex_lightmapIndex" for unique (texture, lightmap) pairs
     const textureGroups = new Map<string, TextureGroup>();
     const shaderRegistry = Q3ShaderRegistry.getInstance();
+    const liquidDescriptors = classifyLiquids(this.bsp, {
+      overrides: DEFAULT_LIQUID_OVERRIDES,
+      surfaceParm: (shaderName) => liquidKindFromSurfaceParms(shaderRegistry.getShader(shaderName)?.surfaceParms ?? []),
+      environmentMap: (shaderName) => {
+        const shader = shaderRegistry.getShader(shaderName);
+        if (!shader) return null;
+        const stages = [
+          ...(shader.unconditionalStages ?? shader.stages),
+          ...(shader.conditionalBlocks?.flatMap((block) => block.stages) ?? []),
+        ];
+        return stages.find((stage) => stage.cubeMap)?.cubeMap ?? null;
+      },
+    });
+    const liquidByTextureIndex = new Map(liquidDescriptors.map((descriptor) => [descriptor.textureIndex, descriptor]));
+
+    if (liquidDescriptors.length > 0) {
+      console.log(`[BspMeshBuilder] Classified ${liquidDescriptors.length} liquid shader descriptor(s)`);
+    }
 
     // Track individual autosprite faces (not merged, each becomes its own mesh)
     interface AutospriteFace {
@@ -456,6 +474,7 @@ export class BspMeshBuilder {
       // Store texture name, lightmap info, and fog params in metadata
       // Each group now has exactly one lightmap (grouped by texture+lightmap)
       const texFlags = this.bsp.textures[group.textureIndex];
+      const liquid = liquidByTextureIndex.get(group.textureIndex);
       mesh.metadata = {
         textureName: group.textureName,
         textureIndex: group.textureIndex,
@@ -471,7 +490,10 @@ export class BspMeshBuilder {
         // A NODRAW liquid brush produces no drawn group at all and so never
         // reaches here, which is the correct answer for a volume with no
         // surface.
-        liquidKind: texFlags ? liquidKindOf(texFlags.contentFlags) : null,
+        liquidKind: liquid?.kind ?? null,
+        liquidSignals: liquid?.signals ?? [],
+        liquidProfile: liquid?.profile ?? null,
+        liquidEnvironmentMap: liquid?.environmentMap ?? null,
       };
 
       // Note: Per-face fog detection works, but applying global scene fog here is wrong

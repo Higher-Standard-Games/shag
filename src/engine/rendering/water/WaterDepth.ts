@@ -34,6 +34,7 @@ const SAMPLING_MODE = Constants.TEXTURE_TRILINEAR_SAMPLINGMODE;
 const WEAPON_LAYER_MASK = 0x10000000;
 
 export class WaterDepthProvider {
+  private readonly candidates: AbstractMesh[] = [];
   private renderer: DepthRenderer | null = null;
   private camera: Camera | null = null;
   /** null once we know this device cannot give us a usable depth format. */
@@ -71,24 +72,24 @@ export class WaterDepthProvider {
       const renderer = new DepthRenderer(this.scene, type, camera, false, SAMPLING_MODE, true, "water-scene-depth");
       const map = renderer.getDepthMap();
 
-      // An EXPLICIT list, rather than DepthRenderer's default of null.
-      //
-      // Null means "whatever is in scene.getActiveMeshes()", and that list is
-      // rewritten by every render target that draws — including water's own
-      // refraction capture and mirror, which run in the same phase and
-      // deliberately exclude liquid. Depending on it made the depth pass draw
-      // an unpredictable subset, and where it drew nothing the map keeps its
-      // clear value: with storeCameraSpaceZ that clear is 0.0, so thickness
-      // computes as max(0, 0 - viewDepth) = ZERO.
-      //
-      // Zero thickness is the white-plaster look exactly — no absorption at
-      // any coefficient, and full shoreline foam across the whole pool. It is
-      // also why raising absorption five-fold changed nothing.
-      map.renderListPredicate = (mesh: AbstractMesh) => this.shouldRender(mesh);
+      // Registered on the WORLD CAMERA below, after its current active-mesh
+      // evaluation. The previous scene-level registration inherited stale
+      // weapon-camera lists unless it explicitly resubmitted the whole map.
+      map.renderList = null;
+      map.forceLayerMaskCheck = true;
+      map.getCustomRenderList = (_pass, list, length) => {
+        this.candidates.length = 0;
+        if (!list) return this.candidates;
+        for (let i = 0; i < length; i++) {
+          const mesh = list[i];
+          if (mesh && this.shouldRender(mesh)) this.candidates.push(mesh);
+        }
+        return this.candidates;
+      };
 
       // Ours to render: the scene component's gather step only walks the
       // cameras in `scene._depthRenderer`, and this deliberately is not one.
-      this.scene.customRenderTargets.push(map);
+      camera.customRenderTargets.push(map);
       this.renderer = renderer;
       this.camera = camera;
       return renderer.getDepthMap();
@@ -113,6 +114,7 @@ export class WaterDepthProvider {
   private shouldRender(mesh: AbstractMesh): boolean {
     if (!mesh.isVisible || !mesh.isEnabled()) return false;
     if (mesh.metadata?.liquidKind) return false;
+    if (mesh.metadata?.effectOwned || mesh.metadata?.excludeFromWaterCapture || mesh.infiniteDistance) return false;
     if ((mesh.layerMask & WEAPON_LAYER_MASK) !== 0) return false;
     return true;
   }
@@ -143,15 +145,16 @@ export class WaterDepthProvider {
     if (!this.renderer) return;
 
     const map = this.renderer.getDepthMap();
-    const index = this.scene.customRenderTargets.indexOf(map);
-    if (enabled && index === -1) this.scene.customRenderTargets.push(map);
-    else if (!enabled && index !== -1) this.scene.customRenderTargets.splice(index, 1);
+    const targets = this.camera!.customRenderTargets;
+    const index = targets.indexOf(map);
+    if (enabled && index === -1) targets.push(map);
+    else if (!enabled && index !== -1) targets.splice(index, 1);
   }
 
   /** Whether the scene is currently rendering this. Tests and diagnostics. */
   get isRendering(): boolean {
     if (!this.renderer) return false;
-    return this.scene.customRenderTargets.indexOf(this.renderer.getDepthMap()) !== -1;
+    return this.camera!.customRenderTargets.indexOf(this.renderer.getDepthMap()) !== -1;
   }
 
   /** Drop the current renderer and unregister its target. */
@@ -159,8 +162,9 @@ export class WaterDepthProvider {
     if (!this.renderer) return;
 
     const map = this.renderer.getDepthMap();
-    const index = this.scene.customRenderTargets.indexOf(map);
-    if (index !== -1) this.scene.customRenderTargets.splice(index, 1);
+    const targets = this.camera!.customRenderTargets;
+    const index = targets.indexOf(map);
+    if (index !== -1) targets.splice(index, 1);
 
     this.renderer.dispose();
     this.renderer = null;

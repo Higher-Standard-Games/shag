@@ -32,6 +32,10 @@ export interface LiquidSurfaceDescriptor {
   rawContents: number;
   surfaceFlags: number;
   signals: LiquidSignal[];
+  /** Optional appearance profile selected by an exact compatibility override. */
+  profile?: string;
+  /** Optional six-face cubemap base path supplied by the original shader. */
+  environmentMap?: string;
   /**
    * Whether this shader contributes a drawn surface. A `NODRAW` liquid is a
    * volume with no picture, which is normal rather than broken.
@@ -53,6 +57,25 @@ export interface LiquidOverride {
 }
 
 export type LiquidOverrideTable = Readonly<Record<string, LiquidOverride>>;
+
+/**
+ * Versioned engine compatibility corrections.
+ *
+ * Keep this asset-centric and deliberately small. Most maps should classify
+ * from their compiled contents or top-level surfaceparm; entries belong here
+ * only after a broken asset has been verified in the corpus.
+ */
+export const DEFAULT_LIQUID_OVERRIDES: LiquidOverrideTable = Object.freeze({});
+
+/** Resolve the dominant liquid declared by top-level shader surfaceparms. */
+export function liquidKindFromSurfaceParms(surfaceParms: Iterable<string>): LiquidKind | null {
+  const normalized = new Set(Array.from(surfaceParms, (parm) => parm.toLowerCase()));
+  // Match ContentFlags.liquidKindOf: the most hostile combined kind wins.
+  if (normalized.has("lava")) return "lava";
+  if (normalized.has("slime")) return "slime";
+  if (normalized.has("water")) return "water";
+  return null;
+}
 
 /**
  * Strip a BSP shader name down to something comparable.
@@ -84,6 +107,7 @@ export function normalizeShaderName(raw: string): string {
  * agreement when both are present.
  */
 export type SurfaceParmLookup = (shaderName: string) => LiquidKind | null;
+export type EnvironmentMapLookup = (shaderName: string) => string | null;
 
 function kindFromOverride(override: LiquidOverride | undefined, fallback: LiquidKind | null): LiquidKind | null {
   if (!override) return fallback;
@@ -105,7 +129,11 @@ function kindFromOverride(override: LiquidOverride | undefined, fallback: Liquid
  */
 export function classifyLiquids(
   bsp: BspFile,
-  options: { overrides?: LiquidOverrideTable; surfaceParm?: SurfaceParmLookup } = {},
+  options: {
+    overrides?: LiquidOverrideTable;
+    surfaceParm?: SurfaceParmLookup;
+    environmentMap?: EnvironmentMapLookup;
+  } = {},
 ): LiquidSurfaceDescriptor[] {
   const overrides = options.overrides ?? {};
   const surfaceParm = options.surfaceParm;
@@ -158,6 +186,8 @@ export function classifyLiquids(
       rawContents: texture.contentFlags,
       surfaceFlags: texture.surfaceFlags,
       signals,
+      profile: override?.profile,
+      environmentMap: options.environmentMap?.(shaderName) ?? undefined,
       drawn: (texture.surfaceFlags & SurfaceFlags.NODRAW) === 0,
       volumeBrushes: volumeBrushes.get(textureIndex) ?? 0,
       drawnFaces: drawnFaces.get(textureIndex) ?? 0,

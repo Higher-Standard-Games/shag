@@ -9,11 +9,16 @@
  * compiles there, which is exactly the fallback path worth exercising.
  */
 
+import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
+import type { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { Scene } from "@babylonjs/core/scene";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import RenderVars from "../rendering/RenderVars";
 import { LiquidSurfaceSystem } from "../rendering/water/LiquidSurfaceSystem";
 
 let engine: NullEngine;
@@ -25,6 +30,9 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  // Restore the value without scheduling a browser-only animation callback.
+  RenderVars.getInstance().getVar("r_water_quality")!.value =
+    RenderVars.getInstance().getVar("r_water_quality")!.defaultValue;
   scene.dispose();
   engine.dispose();
 });
@@ -42,6 +50,45 @@ function buildWorld(kinds: Array<string | null>): Mesh {
 }
 
 describe("LiquidSurfaceSystem", () => {
+  it("updates polish controls without replacing the material or allocating capture targets", () => {
+    const root = buildWorld(["water"]);
+    scene.activeCamera = new FreeCamera("world", new Vector3(0, 80, 0), scene);
+    const vars = RenderVars.getInstance();
+    vars.getVar("r_water_quality")!.value = 1;
+    const system = new LiquidSurfaceSystem(scene);
+    system.claim(root);
+    const material = root.getChildMeshes(false)[0].material as ShaderMaterial;
+    const setFloat = vi.spyOn(material, "setFloat");
+    try {
+      for (const value of [0, 0.35, 1]) {
+        for (const name of ["r_water_blur", "r_water_detail", "r_water_contact"]) vars.getVar(name)!.value = value;
+        scene.onBeforeRenderObservable.notifyObservers(scene);
+        for (const name of ["uReflectionBlur", "uDetailStrength", "uContactStrength"])
+          expect(setFloat).toHaveBeenCalledWith(name, value);
+        expect(root.getChildMeshes(false)[0].material).toBe(material);
+        expect(scene.activeCamera.customRenderTargets).toHaveLength(0);
+        expect(scene.customRenderTargets).toHaveLength(0);
+        setFloat.mockClear();
+      }
+    } finally {
+      for (const name of ["r_water_blur", "r_water_detail", "r_water_contact"])
+        vars.getVar(name)!.value = vars.getVar(name)!.defaultValue;
+      setFloat.mockRestore();
+      system.dispose();
+    }
+  });
+  it("binds distinct shader-selected profiles while sharing equal profiles", () => {
+    const root = buildWorld(["water", "water", "water"]);
+    const [clear, deep, anotherClear] = root.getChildMeshes(false);
+    clear.metadata.liquidProfile = "clear";
+    deep.metadata.liquidProfile = "deep";
+    anotherClear.metadata.liquidProfile = "clear";
+    const system = new LiquidSurfaceSystem(scene);
+    system.claim(root);
+    expect(clear.material).not.toBe(deep.material);
+    expect(clear.material).toBe(anotherClear.material);
+    system.dispose();
+  });
   it("claims only the annotated liquid surfaces", () => {
     const root = buildWorld(["water", null, null, "slime"]);
     const system = new LiquidSurfaceSystem(scene);
@@ -84,6 +131,21 @@ describe("LiquidSurfaceSystem", () => {
 
     expect(wet.material).toBe(original);
     expect(system.claimedCount).toBe(0);
+  });
+
+  it("restores the legacy surface when Babylon reports a lazy shader compile failure", async () => {
+    const root = buildWorld(["water"]);
+    const wet = root.getChildMeshes(false)[0];
+    const original = wet.material;
+    const system = new LiquidSurfaceSystem(scene);
+    system.claim(root);
+
+    wet.material?.onError?.({} as never, "synthetic compile failure");
+    await Promise.resolve();
+
+    expect(wet.material).toBe(original);
+    expect(system.claimedCount).toBe(0);
+    system.dispose();
   });
 
   it("survives disposal of the meshes it claimed", () => {
@@ -173,6 +235,69 @@ describe("LiquidSurfaceSystem", () => {
 
     expect(scene.onBeforeRenderObservable.observers.length).toBe(before + 1);
     system.dispose();
+  });
+
+  it("does not claim the same mesh twice or lose its real legacy material", () => {
+    const root = buildWorld(["water"]);
+    const wet = root.getChildMeshes(false)[0];
+    const legacy = wet.material;
+    const system = new LiquidSurfaceSystem(scene);
+
+    expect(system.claim(root)).toBe(1);
+    expect(system.claim(root)).toBe(0);
+    system.dispose();
+
+    expect(wet.material).toBe(legacy);
+  });
+
+  it("never schedules a recurring live mirror on Epic", () => {
+    const root = new Mesh("bsp_world", scene);
+    const wet = CreateBox("pool", { width: 200, depth: 150, height: 1 }, scene);
+    wet.parent = root;
+    wet.metadata = { liquidKind: "water" };
+    wet.material = new StandardMaterial("legacy", scene);
+    scene.activeCamera = new FreeCamera("eye", new Vector3(0, 100, 0), scene);
+
+    const qualityVar = RenderVars.getInstance().getVar("r_water_quality");
+    expect(qualityVar).toBeDefined();
+    qualityVar!.value = 3;
+    const system = new LiquidSurfaceSystem(scene);
+    system.claim(root);
+    scene.onBeforeRenderObservable.notifyObservers(scene);
+
+    expect(scene.customRenderTargets.some((target) => target.name === "water-planar-reflection")).toBe(false);
+
+    qualityVar!.value = 2;
+    scene.onBeforeRenderObservable.notifyObservers(scene);
+
+    expect(scene.customRenderTargets.some((target) => target.name === "water-planar-reflection")).toBe(false);
+    system.dispose();
+  });
+
+  it("adds colour refraction only on Epic and suspends every capture offscreen", () => {
+    engine.getCaps().textureHalfFloatRender = true;
+    const root = buildWorld(["water"]);
+    const wet = root.getChildMeshes(false)[0] as Mesh;
+    const camera = new FreeCamera("world", new Vector3(0, 100, 0), scene);
+    scene.activeCamera = camera;
+    const quality = RenderVars.getInstance().getVar("r_water_quality")!;
+    const system = new LiquidSurfaceSystem(scene);
+    system.claim(root);
+    for (const [tier, count] of [
+      [3, 2],
+      [2, 1],
+      [1, 0],
+      [3, 2],
+    ]) {
+      quality.value = tier;
+      wet.onBeforeDrawObservable.notifyObservers(wet);
+      scene.onBeforeRenderObservable.notifyObservers(scene);
+      expect(camera.customRenderTargets).toHaveLength(count);
+    }
+    for (let i = 0; i < 12; i++) scene.onBeforeRenderObservable.notifyObservers(scene);
+    expect(camera.customRenderTargets).toHaveLength(0);
+    system.dispose();
+    expect(camera.customRenderTargets).toHaveLength(0);
   });
 });
 

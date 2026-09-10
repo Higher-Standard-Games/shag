@@ -23,6 +23,10 @@ import { parseKTX1 } from "./KTX1Loader";
 const Q3_FACE_SUFFIXES = ["_rt", "_bk", "_lf", "_ft", "_up", "_dn"] as const;
 // Indices:                  0     1     2     3     4     5
 
+// QFusion/Warsow axis suffixes in the same logical order as Q3 above:
+// +X, -Y, -X, +Y, +Z, -Z.
+const QF_FACE_SUFFIXES = ["_px", "_ny", "_nx", "_py", "_pz", "_nz"] as const;
+
 // Q3 coordinate system: +X=right, +Y=forward, +Z=up (right-handed, Z-up)
 // Babylon.js: +X=right, +Y=up, +Z=forward (left-handed, Y-up)
 //
@@ -95,6 +99,13 @@ export interface SkyboxLoadResult {
   /** Error message (if failed) */
   error?: string;
   /** Loaded texture paths for debugging */
+  loadedFaces?: string[];
+}
+
+export interface EnvironmentCubeLoadResult {
+  success: boolean;
+  texture?: RawCubeTexture;
+  error?: string;
   loadedFaces?: string[];
 }
 
@@ -207,6 +218,62 @@ export class SkyboxLoader {
       success: true,
       skybox,
       loadedFaces,
+    };
+  }
+
+  /**
+   * Load a six-face cubemap without creating a skybox mesh.
+   *
+   * This is used by semantic material hints such as QFusion's `cubemap`
+   * stage. Both common suffix dialects share the same image decoder and the
+   * same Q3-to-Babylon axis conversion as the skybox path.
+   */
+  async loadEnvironmentCubemap(basePath: string): Promise<EnvironmentCubeLoadResult> {
+    if (!this.scene) {
+      return { success: false, error: "SkyboxLoader not initialized" };
+    }
+
+    for (const suffixes of [Q3_FACE_SUFFIXES, QF_FACE_SUFFIXES]) {
+      const faceImages: Uint8Array[] = [];
+      const loadedFaces: string[] = [];
+      let faceSize = 0;
+      let complete = true;
+
+      for (const suffix of suffixes) {
+        const result = await this.loadSkyboxFace(basePath, suffix);
+        if (!result || (faceSize !== 0 && result.size !== faceSize)) {
+          complete = false;
+          break;
+        }
+        faceImages.push(result.data);
+        loadedFaces.push(result.path);
+        faceSize = result.size;
+      }
+      if (!complete) continue;
+
+      const babylonFaces: Uint8Array[] = [];
+      for (const mapping of Q3_TO_BABYLON_FACE_MAP) {
+        babylonFaces.push(this.transformFace(faceImages[mapping.index]!, faceSize, mapping.transform));
+      }
+
+      const texture = new RawCubeTexture(
+        this.scene,
+        babylonFaces,
+        faceSize,
+        Constants.TEXTUREFORMAT_RGBA,
+        Constants.TEXTURETYPE_UNSIGNED_INT,
+        false,
+        false,
+        Texture.TRILINEAR_SAMPLINGMODE,
+      );
+      texture.name = `environment_${basePath.replace(/\//g, "_")}`;
+      console.log(`[SkyboxLoader] Loaded water environment ${basePath} (${faceSize}x${faceSize})`);
+      return { success: true, texture, loadedFaces };
+    }
+
+    return {
+      success: false,
+      error: `No complete Q3 (_rt...) or QFusion (_px...) cubemap found for ${basePath}`,
     };
   }
 

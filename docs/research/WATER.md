@@ -1,9 +1,9 @@
 # Unified Water System Research
 
 **Date:** 2026-08-06<br>
-**Status:** All seven phases written. Confirmed in play: swimming, the depth-tinted surface, splashes and ripples, and the Epic crown. Written but not yet seen: refraction, caustics, planar reflection, swim animations, electrical discharge, the air meter. Owed: broad map compatibility (Phase 6, items 3–5).<br>
+**Status:** All seven phases written. Confirmed in play: swimming, the depth-tinted surface, splashes and ripples, and the Epic crown. Reworked on 2026-08-18: semantic material hints now load real map/sky cubemaps, and Epic owns one budgeted live planar reflection. Browser feedback on 2026-08-22 exposed a scene-wide capture list, captured muzzle-flash ghosts, and an underweighted mirror; those are corrected and awaiting another real-GPU visual/performance pass. Owed: broad map compatibility (Phase 6, items 3–5).<br>
 
-**Render cost.** The water's own draw, plus ONE depth pass that stops itself whenever no water is on screen. Refraction and planar reflection were built and then deleted — see "What the surface ended up being" for the measurement.<br>
+**Render cost.** Low is the water draw plus a cubemap. Medium adds one shared depth pass. Epic adds one quarter-resolution planar mirror, refreshed every third frame and restricted to the already active/PVS-culled scene list. Both scene passes stop whenever no water is on screen; refraction remains omitted after measurement — see "What the surface ended up being".<br>
 **Goal:** replace every Q3 and Warsow water shader with one engine water that looks deliberately modern, rather than translating the legacy shaders one vendor keyword at a time<br>
 **Primary test map:** `acidwdm2`<br>
 **Scope:** BSP liquid compatibility, static rendering, dynamic interactions, deterministic swimming, player animation, underwater presentation, and quality scaling.
@@ -509,9 +509,9 @@ Swimming, liquid damage, oxygen, water level, and input behavior are intentional
 
 Recommended controls for the first implementation:
 
-- `r_water 0|1`: legacy fallback versus unified static surface.
-- `r_water_quality 0|1|2|3`: legacy, low, medium, or Epic visual preset.
-- `r_water_debug 0|1`: classification/bucket visualization and counters.
+- `r_water 0|1`: legacy or unified surface (applies on the next map load).
+- `r_water_quality 1|2|3`: Low cubemap, Medium depth effects, or Epic live planar reflection.
+- `r_water_debug 0..4`: normal, RGB absorption, thickness bands, raw environment, or raw planar reflection.
 - `r_underwater_distortion 0..1`: accessibility/user comfort scale; `0` keeps color/fog and disables motion.
 - A developer-only `r_water_fluid -1|0|1` override may force the preset choice while profiling, but should not become a required user setting.
 
@@ -907,7 +907,7 @@ In parallel—not as the permanent API—time-box a `WaterMaterial` acid-pool ve
 
 Exit gate: `acidwdm2` is playable end to end with correct surface, swimming, remote animation, underwater presentation, and cheap interactions on WebGL 2.
 
-### Phase 4: Medium surface and interaction quality — **depth absorption and foam confirmed in play; refraction still owed**
+### Phase 4: Medium surface and interaction quality — **depth absorption and foam confirmed; refraction omitted after profiling**
 
 Depth-driven absorption is in and verified in the browser. It was the actual answer to three rounds of "it should be more transparent": the surface had been tinting by view ANGLE, so a pool was one flat colour whatever its depth, and lowering alpha only made that flat colour hazier. It now tints and thickens by how much liquid the view ray passes through — a shoreline nearly vanishes, a deep pool hides its floor.
 
@@ -921,11 +921,7 @@ Three guesses in the original write-up were wrong, and each cost a debugging rou
 
 A fourth was a units error rather than an API one: absorption and the foam band were both tuned against a pool's vertical DEPTH, when the quantity the shader has is RAY LENGTH through the liquid. Those diverge badly — a poolside view across 200 units of depth presents 600+ units of water to the eye — which is why the middle of every pool saturated from any angle worth standing at, and why 20 units of foam was invisible.
 
-**Refraction is now in** (`WaterSceneCapture`), and it completes this phase. Doing it properly required the shader to sample the background *itself*: the hardware blend can only mix the pixel directly behind a fragment, and that is precisely the pixel refraction says you should not be looking at. So the opaque world is rendered once more into a half-resolution capture, sampled at a wave-driven offset, and the surface goes opaque where it has one — blending a background that is already composited in shows the floor twice, once bent and once straight at half strength each, which reads as a ghost.
-
-The material already declaring `needAlphaBlending: true` is what makes that safe. It keeps the surface in the transparent pass and therefore out of the depth map thickness is measured against, whatever alpha the shader actually writes.
-
-The capture excludes liquid (or it samples itself and compounds frame over frame — a feedback tunnel that looks like the effect working for the first few frames), the viewmodel, and splash spray. Gated to Epic and torn down the moment the tier drops: a capture nothing samples is still a full pass over the world every frame.
+The refraction capture experiment was later removed after profiling. Correct bending requires sampling a copied background, but that second full BSP submission bought only a small offset over low-detail floor textures. Hardware alpha remains scalar, so the current material uses RGB Beer-Lambert absorption in its own body colour and a luminance-derived alpha as an explicit inexpensive approximation. Exact per-channel transmission is not claimed.
 
 Shoreline foam and pooled projectile spray are done. Projectile entry needed its own path: liquid is NONSOLID, so nothing impacts it and the ordinary hit event never fires — a rocket into a pool landed in silence.
 
@@ -991,13 +987,13 @@ Exit gate: Epic produces a visible improvement at its documented measured cost; 
 
 ### Phase 6: Reflection and broader compatibility — **reflection done; compatibility still owed**
 
-`WaterReflection` adds one planar reflection, for the largest claimed surface in the map.
+`WaterReflection` adds one planar reflection for the largest eligible horizontal water footprint in the map. It is quarter resolution, refreshes every third frame, is created only on Epic, and is removed from the render-target list while water is off-screen. The capture filters Babylon's already active/PVS-culled list; using `renderListPredicate` here rebuilt a scene-wide explicit list and bypassed normal frustum selection. Transient `effectOwned` meshes are rejected so procedural muzzle flashes and rails cannot reappear as displaced ghosts in the water sample.
 
 `MirrorTexture` renders the scene from the camera reflected through a plane with the **same projection**, which is why it can be sampled at the fragment's own screen coordinate — no reprojection, no matrix to get subtly wrong. That is the property that made this cheap to integrate compared to everything else in Phase 5.
 
-The reflection is what finally lets the Fresnel cap relax. It existed because the surface was reflecting one constant bright swatch, and full Fresnel turned the far half of every pool white; a strong reflection *of the room* is legible where a strong reflection of nothing is glare. So reflectivity scales up only when a mirror is present.
+Real reflection is what finally lets the Fresnel cap relax. The old cap existed because the surface reflected one constant bright swatch, and full Fresnel turned the far half of every pool white. A map-provided or sky cubemap now supplies the inexpensive reflection on every tier with a restrained six-percent normal-incidence floor. The live room mirror replaces it on Epic where its selected plane matches and uses the water profile's stronger twenty-two-percent floor so the paid pass remains legible from the usual FPS view angle.
 
-Item 2's full priority scheme was not built. The plane is chosen by footprint **area** alone — the one property available without knowing anything about the map, and the one that decides how much of the screen a reflection can ever occupy. It is picked once when surfaces are claimed, not per frame, or which pool reflects would change as the player walks. Pools on other floors keep the flat colour.
+Item 2's full priority scheme was not built. The plane is chosen by footprint **area** alone — the one property available without knowing anything about the map, and the one that decides how much of the screen a reflection can ever occupy. It is picked once when surfaces are claimed, not per frame, or which pool reflects would change as the player walks. Other levels and non-horizontal liquid keep the cubemap reflection.
 
 Also landed in this pass, from outside the original plan: **caustics** (`uCaustics`), drawn from the water shader rather than projected onto the floor's material, which would have meant touching every world material in the map. The surface already knows how far the view ray travels before it hits something, so it reconstructs the floor position and anchors the pattern there. That anchoring is the whole illusion — keyed to screen space or to the surface, the pattern swims with the player and reads instantly as a texture on the water.
 
@@ -1156,11 +1152,15 @@ The contents translation table and all its consumers; the raw/shared boundary at
 - **Epic crowns are not re-enabled after a camera change.** The fluid composite stays on the old camera; crowns silently stop and the renderer is wasted. Not urgent while the whole FluidRenderer path is still unverified on a real GPU.
 - **`waterJumpUntilMs` is unreplicated instance state.** Consistent with how `jumpConsumed`, slide and walljump state already work, but a two-second control lockout is higher stakes than the others if client and server ever disagree about a launch.
 
-## What the surface ended up being, 2026-08-12
+## What the surface ended up being, revised 2026-08-18
 
-**One extra scene pass. The depth pass. That is the whole budget.**
+The renderer is tiered again, but with a strict shared budget:
 
-A refraction capture and a planar mirror were both built, both worked, and both were deleted. Worth recording why, because they are the obvious things to reach for again.
+- Low: the surface draw, animated normal detail, and a real map/sky cubemap; no scene re-submit.
+- Medium: Low plus the one shared depth pass for thickness, absorption, foam, and caustics.
+- Epic: Medium plus one live planar mirror for the largest horizontal water footprint, at quarter resolution and every-third-frame refresh.
+
+The scene passes are lazily allocated and removed from `customRenderTargets` after water has not been drawn by the player's view. Sloped water and pools at other heights retain the cubemap rather than receiving an incorrect horizontal mirror.
 
 ### The measurement that decided it
 
@@ -1168,21 +1168,23 @@ A refraction capture and a planar mirror were both built, both worked, and both 
 |---|---|---|
 | depth (full res) | 1.000 | thickness — colour, transparency, foam, caustics |
 | refraction capture (0.5) | 0.250 | a few pixels of distortion |
-| planar mirror (0.25) | 0.063 | a reflection invisible at play angles |
+| planar mirror (0.25, every third frame) | ~0.021 average fill | a live reflection on one selected pool |
 
 Fill was the smaller half. **Each pass re-submits all world geometry**, so draw calls tripled regardless of target size — and on a Q3 map built from small brush submeshes that is the dominant cost. It is why shrinking the targets never helped, and why the frame rate collapsed even though the extra targets were small.
 
-### Why losing them costs almost nothing
+### What stayed removed, and what came back
 
 **Refraction's colour contribution was free all along.** It composited Beer-Lambert — background filtered by the water, plus the water's own colour for what was lost. But `dst * (1 - alpha)` in the hardware blend *is* that term. The GPU was already doing the work the extra pass was being paid for. Only the bending is gone, and that was a few pixels of distortion over flat Q3 floor textures. The surface is genuinely transparent again rather than opaque with a copied background behind it.
 
-**The mirror showed a reflection nobody could see.** Fresnel correctly returns ~2% at the angle a player looks down into a pool, and no tuning changes that without lying about the physics. Six rounds of screenshots never once showed it. A flat sky colour varied by the wave normal is what actually makes ripples read, and it costs nothing.
+**The refraction capture stays removed.** Its colour contribution can be approximated by the ordinary transparent blend, while exact bending costs another submission of all BSP geometry. RGB absorption now shapes the surface body per channel; the unavoidable framebuffer alpha is derived from luminance rather than pretending the hardware blend is per-channel.
 
-### What the single pass still gets you
+**Reflection came back with a source worth reflecting.** The old shader varied toward a constant bright swatch, so its Fresnel term could only look like glare. The semantic descriptor now preserves QFusion/Warsow `cubemap` appearance hints; `acidwdm2` therefore loads `env/acidwdm2/water_{px,nx,py,ny,pz,nz}` directly, with the map sky cubemap as fallback. Epic replaces that source with the one live mirror on its selected plane. The environment uses a deliberately stylised six-percent floor; Epic water raises the live mirror to the profile's twenty-two-percent floor because browser testing showed the lower value was still functionally invisible in dark rooms.
 
-Per-channel absorption, two rotated noise layers, shoreline foam, floor caustics, sun glint, capped Fresnel — all arithmetic inside the water's own draw. Plus the depth pass gates itself off entirely whenever no water is on screen.
+### What the bounded passes get you
 
-`r_water_quality` now only means splash detail. The surface is not tiered because there is nothing left to tier.
+RGB absorption, two rotated noise layers, shoreline foam, floor caustics, sun glint, cubemap reflection, and optional live planar reflection. Debug modes show spectral absorption, thickness bands, the raw environment sample, and the raw mirror sample; unavailable sources are red rather than silently indistinguishable from black.
+
+`r_water_quality` controls both the surface budget and splash detail. Shader compilation failure is caught through Babylon's lazy `onError` path and restores the original legacy material instead of leaving a hole.
 
 ### The lesson worth keeping
 
@@ -1298,3 +1300,1608 @@ The first rendering prototype should answer questions 1-3, 9, and 10 with measur
 - [Warsow/QFusion shared movement source: swimming parameters, sampling, exits, and fall attenuation](https://github.com/Warsow/qfusion/blob/master/source/common/facilities/gs_pmove.cpp)
 - [Warsow client view source: underwater/crossing state, FOV pulse, color blend, and reduced water bob](https://github.com/Warsow/qfusion/blob/master/source/client/cgame/cg_view.cpp)
 - [Warsow player-model source: swim torso and neutral/forward leg-state selection](https://github.com/Warsow/qfusion/blob/master/source/client/cgame/cg_pmodels.cpp)
+
+## Revised visual plan: cached room reflections and reactive water (2026-09-07)
+
+**Status: agreed direction, not implemented or visually accepted.** This section is the current plan for visual work. Earlier sections remain as development history; their completion labels and conclusions do not establish that the current water looks correct. In particular, live planar reflection is no longer a prerequisite for the first successful visual milestone.
+
+The target is attractive engine water that can be bound to selected Q3/Warsow shader surfaces, with convincing room reflections and player-driven disturbances. Start with `acidwdm2` and the normal FPS world/viewmodel camera arrangement. Keep swimming, collision volumes, prediction, and network semantics intact. Rendering must work for both local and remote player interactions without transmitting cosmetic wave or droplet state.
+
+### What the review established
+
+The review covered branch `0.9.22-water` and its existing uncommitted changes. Commit `ddd30996` removed reflection/refraction; the working tree subsequently restored cubemap hints and a live mirror. Reviewing only committed HEAD would therefore describe a different renderer.
+
+- **The current mirror can capture an empty scene.** `WaterReflection` filters `scene.getActiveMeshes()` through `getCustomRenderList`, but scene-level custom targets execute before the current frame's camera draws. With `[worldCamera, weaponCamera]`, the list retained from the previous frame belongs to the weapon camera. A minimal Babylon 9.17.0 NullEngine reproduction supplied only the weapon, which the mirror then excluded. Even a correctly timed main-view list would miss geometry visible only in reflection. Capture selection and timing must be explicit.
+- **Reflection and transmission are composed inconsistently.** `UnifiedWaterMaterial` mixes reflection into its colour and then alpha-blends that colour, attenuating reflection again. RGB absorption changes the water's body colour, but scalar framebuffer alpha cannot apply that RGB transmission to the background. The previous claim that ordinary alpha blending fully replaces spectral transmission is too broad. Absorption also uses a view-axis depth difference where its tuning describes distance along the viewing ray.
+- **The depth pass remains a performance concern.** It uses a full-resolution target and a scene-wide predicate without its own camera-frustum selection. A cached reflection does not fix this separate cost. Current GPU timings have not been measured in this review.
+- **The caustic source is nearly constant.** The normal texture's blue channel measured 0.992–1.000; the current ridge expression therefore stays at least approximately 76% bright before other attenuation. This produces a broad wash rather than the intended thin pattern. Remove it from initial appearance tuning.
+- **Appearance bindings are unfinished.** Classification records `liquidProfile`, but the surface system shares materials by liquid kind and does not consume that profile. Cubemap hints are selected per kind, and mirror selection uses mesh bounding boxes rather than actual coplanar pool groups.
+- **Interaction events exist, but do not deform the visual surface.** The existing system detects player entry/exit and projectile crossings and draws separate ripple discs and droplets. Continuous swimming wakes and ripple-driven reflection distortion are not implemented.
+
+The targeted water/classifier/parser suite passed 154 tests during the review. Those tests establish useful ownership and data contracts, but did not detect the real two-camera capture failure and do not validate GPU pixels. The new milestones need both render-order integration tests and recorded visual evidence.
+
+### Retain the useful infrastructure
+
+Keep semantic classification, exact shader-name matching, the distinction between visible surfaces and swimming volumes, original BSP outlines, map-scoped ownership, cleanup, legacy fallback, and cubemap hint loading. Retain the interaction event sources and bounded droplet simulation where suitable. Repair or replace visual material internals behind those boundaries.
+
+Finish the appearance contract as **shader name -> profile -> surface assignment**. Share material resources where profiles agree, and share captures where surfaces belong to the same suitable reflection region. Use actual face planes and spatial grouping: disconnected pools or different heights must not become one interaction domain merely because they use the same shader or liquid kind. Probe bounds describe the surrounding room, not just the thin bounding box of the water mesh. Allow explicit profile/probe corrections when automatic placement or room bounds are inadequate.
+
+### First candidate: generate a local cubemap from the actual map
+
+Use Babylon's `ReflectionProbe` to capture the static room near a pool after geometry, textures, and static lighting are ready. Capture all six directions once, then reuse the result. This is a scene capture, not generated artwork: the reflected architecture should match the loaded BSP.
+
+- Include eligible static room geometry and the relevant sky. Exclude water, players, moving entities, viewmodels, particles, and transient effects so no player or muzzle flash is frozen into the texture.
+- Build capture visibility explicitly for the probe. Do not inherit the weapon camera's active list or blindly use visibility flags set for the player's current PVS. Probe capture must leave normal world visibility and camera state restored.
+- Put the probe at a validated position near the surface, inside the relevant room rather than inside solid geometry. Start with one known pool; automate placement and grouping after that case is correct.
+- Configure render-once behaviour. A probe update renders six faces; updating every frame would defeat the performance objective. Initially retain captures in memory for the map lifetime. Disk caches and offline baking are later options, not requirements.
+- Regenerate on map reload or an explicit capture refresh after relevant static-scene changes. Bound capture count, resolution, memory, and loading hitch cost. Stage capture work if measurements require it.
+- Preserve an authored environment/sky fallback while a capture is unavailable or fails. A source being allocated is not evidence that it contains a completed, usable image.
+
+A cached scene can still look reactive: view direction and water normals change the cubemap lookup every frame. Player ripples can bend the reflected room without recapturing it. Moving players, doors, or lighting will not appear dynamically in a static capture; that is an explicit limitation of the first version.
+
+Add local, box-projected cubemap sampling to reduce the positional errors of treating nearby walls as infinitely distant. Babylon provides this concept for its materials, but our custom shader must implement the corresponding position/bounds-aware lookup; setting texture metadata alone will not change its raw `textureCube` call. Box projection remains approximate for irregular rooms and large pools. Validate while moving across the whole pool, not only from the probe position.
+
+### Compare Babylon WaterMaterial before choosing the final surface implementation
+
+Run a bounded visual comparison between the cached-probe/custom surface and Babylon's `WaterMaterial` on the same pool and fixed camera views. WaterMaterial is a candidate renderer and a reference for reflection/refraction projection, clipping, wave detail, and image-processing integration. It is not an automatic player-ripple simulation.
+
+The stock material owns reflection and refraction targets per instance and derives the horizontal clip plane from the mesh's position. Our BSP vertices already contain world positions, so assigning it to an unchanged mesh with an origin at zero can place the plane at the wrong height. Adapt the test geometry/origin while preserving world-space shape and boundaries. Supply controlled render lists and account for both captures in the comparison; the two approaches do not have identical capture costs.
+
+Choose from visible quality, integration effort, and measured cost. Keep WaterMaterial behind the replacement system if it meets the requirements; otherwise reuse its applicable implementation patterns in the custom surface. Do not treat either choice as settled before the comparison. Any added Babylon materials package should match the engine's installed Babylon version.
+
+### Repair composition and establish one convincing pool profile
+
+Define the colour space, capture timing, depth encoding, and reflection/transmission weights explicitly. Reflection should not be unintentionally weakened by a second transparency blend. Convert depth to the intended distance metric before applying absorption, with defined handling for missing depth and above/below-water views.
+
+Keep a cheap transparency approximation as a valid fallback. For accurate background tint and refraction, investigate obtaining world colour/depth from the main world render before water and the viewmodel, rather than assuming another full world submission is necessary. Reuse existing depth only when its encoding, lifetime, and ownership are compatible. Profile the existing separate depth pass independently of reflection.
+
+Start appearance tuning with recognizable room reflection, restrained colour, and coherent normal detail. Disable foam, caustics, and arbitrary glints in the initial baseline. Introduce optional effects only after the pool is convincing without them. Static BSP boundaries and collision remain unchanged; vertex displacement is not required for the first result.
+
+### Reactive surface: reuse causes, make the water shader respond
+
+Feed bounded surface disturbances from existing gameplay observations into the chosen material. A disturbance has a pool/region identity, world position, start time, strength, and spatial scale. Combine its wave slope with the base water normals so reflection, highlights, and any refraction respond consistently.
+
+| Cause | Intended visible response |
+|---|---|
+| Player entering or leaving | Expanding waves; spray strength follows the crossing |
+| Wading or swimming near the surface | Repeated, speed-dependent disturbances forming a wake |
+| Projectile crossing the surface | Local impact ripple and appropriate spray |
+| Strong droplet re-entry | Small secondary ripple without recursively spawning another crown |
+
+Start with a fixed-budget set of analytic expanding impulses. This adds material work without another scene capture; cap active impulses and wake emission rate and measure the shader cost. Associate effects with their own pool, preserve continuous waves across adjacent BSP faces, and prevent wakes from appearing in nearby disconnected pools or while a player is deeply submerged. Cosmetic waves must not change collision, swimming, or prediction.
+
+A later Epic experiment may use a small GPU height-field simulation in render textures for interacting waves and boundary behaviour. That requires masks, stable update timing, and a separate measured budget. It is not needed to demonstrate a convincing reactive pool.
+
+### Optional additions after the cached reflection is accepted
+
+**Dynamic models over cached scenery.** A hybrid may keep the room in a cubemap and render selected moving actors into a small live reflection layer. This must handle reflected-world occlusion: an actor behind a pillar must not appear through it. It also needs compatible projection, masking, and composition with the approximate cubemap background. A depth/occluder pass can consume some of the expected savings. Prototype and measure before adopting; a simple colour overlay is insufficient. A bounded full planar mirror remains an alternative for selected surfaces.
+
+**FluidRenderer for localized splashes.** Babylon's FluidRenderer draws particles as fluid; it does not supply pool simulation or player interaction. The earlier failed SHAG integration is evidence of an integration problem, not proof of universal incompatibility. The installed implementation explicitly tracks cameras and filters work by camera. Reproduce world/viewmodel compositing and HDR/post-process behaviour in isolation before deciding whether to reuse it. Compare against existing droplets, including depth, waterline re-entry, and performance. Do not fill the BSP pool with particles.
+
+### Implementation milestones and acceptance gates
+
+1. **Diagnostic baseline and generated probe.** Use `acidwdm2` plus an asymmetric test scene with labelled/coloured geometry in each capture direction. Verify the cached room capture, face orientation, correct water height, exclusions, local projection, readiness, and map disposal. Start with undistorted reflection and no foam/caustics. After capture completes, it must issue no recurring six-face scene render.
+2. **Material comparison and base composition.** Compare the probe-backed surface, WaterMaterial, and legacy appearance at fixed views. Repair blending and depth handling. Record which renderer is selected and why. Acceptance requires recognizable, stable room reflections and readable submerged geometry, with no weapon ghosts or camera-dependent disappearance.
+3. **Shader/profile and region bindings.** Make exact-name profile assignment work end to end. Test adjacent faces, disconnected pools, multiple heights, missing authored cubemaps, and capture failure. Unsupported surface shapes keep a documented fallback. Report the selected profile, region, reflection source, and fallback reason.
+4. **Reactive water.** Make local and remote player crossings and continuous surface movement disturb the same normals used for reflection. Acceptance: watch another player cross the pool and see the wake bend the reflected room, confined to that pool and fading within its budget.
+5. **Performance and compatibility.** Measure capture startup, steady-state CPU/GPU frame time, draw calls, and texture memory with water visible and off-screen. Test world/viewmodel rendering, above/below-water views, camera changes, reloads, and WebGL 2/WebGPU. Broaden map coverage before setting final tier defaults. Evaluate hybrid reflections and FluidRenderer only after the preceding gates pass.
+
+The first deliverable is **good-looking water with cached room reflections**, followed by reactive ripples and wakes. Live reflected players, full planar mirrors, fluid-rendered splashes, and simulated wave fields are optional upgrades rather than dependencies of that deliverable. A quality label such as "Epic" does not itself establish visual completion.
+
+### Validation and reporting for the new work
+
+Run headless checks before browser/manual acceptance. Add meaningful integration coverage for successive world/weapon camera frames, capture readiness and suspension, profile assignment, region isolation, and cleanup. Retain unit tests for classification and bounded interaction data, but do not substitute coefficient assertions or allocated render targets for rendered-image evidence. NullEngine cannot validate the cubemap's GPU image.
+
+For renderer implementation changes, run the required regressions and inspect output:
+
+```text
+npm run typecheck
+npm run test:simulation
+npm run test:physics
+npm run server:tick
+npm run server:fuzz -- --ticks 1000
+npm run cli:game -- -- --exec "bsp load wdm2; bsp info; quit"
+npm run cli:game -- -- --exec "sim replay W+CROUCH 60; JUMP 1; W 30; quit"
+```
+
+Also run the relevant water/classifier/interaction tests and headless inspection of the acceptance map. Confirm that the fuzz runner actually receives the requested tick count; previous npm argument forwarding required `npx vite-node src/cli/server-fuzz.ts --ticks 1000` to verify the intended run.
+
+Record screenshots or captures at fixed above-water, grazing, and underwater views, plus a moving-camera/player-interaction sequence and measured frame costs on identified hardware/backend. Set numerical budgets from that baseline before increasing effect scope. Keep `r_water 0` as the legacy comparison on map load. Existing `r_water_debug` modes cover absorption, thickness, environment, and planar reflection; add explicit probe readiness/orientation and disturbance diagnostics as needed. Final quality-tier meanings and any new controls must be documented when implemented, rather than inferred from the historical ladder above.
+
+For this dated plan, generated probes, WaterMaterial comparison, reactive shader disturbances, hybrid composition, and FluidRenderer reintegration are all **unimplemented and visually unverified**. Preserve that distinction in subsequent progress updates.
+
+### References for this revision
+
+- [Babylon reflection probes: capture lists, placement, and render-once refresh](https://doc.babylonjs.com/features/featuresDeepDive/environment/reflectionProbes/)
+- [Babylon local cubemaps and reflection projection](https://doc.babylonjs.com/features/featuresDeepDive/materials/using/reflectionTexture/#local-cubemaps)
+- [Babylon WaterMaterial](https://doc.babylonjs.com/toolsAndResources/assetLibraries/materialsLibrary/waterMat/)
+- [WaterMaterial implementation](https://github.com/BabylonJS/Babylon.js/blob/master/packages/dev/materials/src/water/waterMaterial.ts)
+- [Babylon FluidRenderer](https://doc.babylonjs.com/features/featuresDeepDive/particles/fluid_renderer/)
+- Local review evidence: `src/engine/rendering/water/`, `src/engine/loader/bsp/LiquidClassifier.ts`, `src/engine/loader/map/MapLoader.ts`, `src/games/fps/liquid/client/`, and installed Babylon 9.17.0 scene/object-renderer/probe/fluid-renderer implementations. Upstream links may evolve; verify APIs against the installed version when implementing.
+
+### Implementation checkpoint: cached reflections and reactive normals (2026-09-08)
+
+The preceding revision records the plan **before implementation**. This checkpoint
+records what is now implemented and what is still not accepted. The earlier
+research/history above the new revision has been preserved.
+
+**Implemented:**
+
+- Map-scoped, render-once Babylon `ReflectionProbe` captures: 256px per face,
+  maximum four regions, at most one complete six-face capture per scene frame.
+  They are not registered as recurring scene/camera targets. Readiness is checked;
+  failure restores state and retains authored/sky/neutral fallback.
+- Flat, connected world-space geometry supplies region membership and probe
+  placement. Adjacent meshes sharing vertices at the same height merge into one
+  region. Disconnected/multi-height batches remain explicit fallbacks rather than
+  pretending that their bounding box is one pool. Candidate placement checks
+  opaque backfaces to avoid capturing from inside solid islands. Room bounds are
+  a raycast-derived proxy, not a reconstruction of arbitrary BSP room shape.
+- Static capture lists do not depend on the previous weapon-camera active list.
+  They temporarily include PVS-hidden map geometry and restore visibility in a
+  `finally` block. Water, actors outside the static BSP root, effects, autosprites,
+  and weapon-layer meshes are excluded. Gameplay dynamic lights and their cluster
+  are tagged and disabled/restored during capture so an impact glow is not baked.
+- Local/box-projected cubemap sampling, including Babylon's render-target cube
+  Y inversion. The GPU fixture exposed the missing inversion: without it, water
+  reflected the floor in place of the room above. The old live-mirror path is no
+  longer wired into `LiquidSurfaceSystem`; its experimental standalone module
+  remains in the working tree for history/testing, not in the active water path.
+- Reflection is blended once, with the correct conversion from premultiplied
+  contributions to straight alpha. Depth uses ray distance, not just view-axis
+  separation. Background transmission remains a scalar-alpha approximation, not
+  physically correct spectral refraction. Foam, fake sun glint, and caustics are
+  disabled for the water baseline; historical profile coefficients remain in the
+  table but are not all active material features.
+- The depth target runs on the world camera **after its active-mesh evaluation**,
+  filtering that camera's current candidates. It excludes liquid/effect/weapon
+  geometry and stops after ten frames without drawn water. Quality 1 has no depth
+  pass; qualities 2/3 retain it. There is no live reflection pass at any tier.
+  Qualities 2 and 3 currently use the same surface path. Existing `Game.ts`
+  enables splash geometry at initialization for both, not only 3; the new cvar
+  description/manual reflect that existing behaviour. Changing depth quality is
+  live, while changing splash allocation requires reinitialization/map load.
+- Exact-name override profiles now reach distinct renderer materials: `default`,
+  `clear`, and `deep`. Equal kind/profile pairs share a material. Unknown profiles
+  warn and fall back to default. Existing per-kind authored cubemaps remain a
+  fallback limitation; generated captures are bound per region/mesh.
+- Up to twelve two-second analytic impulses bend the same normals as the base
+  waves. Existing entry/exit, projectile, and droplet re-entry rings also feed
+  shader impulses. Local and remote moving surface swimmers emit speed-scaled
+  wakes at most every 120ms. Initial reports, stationary bodies, teleports, and
+  fully submerged movement are suppressed. Geometry membership isolates pools,
+  and no swimming, collision, prediction, or replicated state was changed.
+
+**Renderer comparison and visual evidence:**
+
+`scripts/water-visual-check.mjs` serves a browser-only diagnostic scene, starts an
+isolated headless Chrome session, captures real WebGL output, and records console
+errors and scene submission metrics. It supports a synthetic asymmetric room and
+actual BSP geometry loaded through `PK3Index`/`MapLoader` (background-only loading).
+`--stock` adapts the same BSP water triangles to Babylon WaterMaterial's origin-
+based clip plane and uses explicit reflection/refraction lists. Babylon materials
+9.17.0 is a **development-only** comparison dependency, not the production renderer.
+
+Select the cached custom surface for this iteration: it supports reactive normals
+directly and removes recurring reflected-world submissions. Stock WaterMaterial
+also rendered successfully, but its two live captures cost more in this fixture.
+The comparison is against this configured stock reference, not every possible
+WaterMaterial optimization or a claim that the custom material is universally better.
+
+All three browser runs compiled/drew without captured WebGL or JavaScript errors.
+Images were inspected, including normal reflection, disturbance visualization,
+grazing, and below-surface views. The synthetic gold pillar/red wall are visibly
+reflected and distorted by an injected ripple. The actual `acidwdm2` room is dark;
+its capture remains dark, not artificially brightened to manufacture a reflection.
+
+Local artifacts (gitignored) are in:
+
+- `temp/water-visual-check/`
+- `temp/water-visual-check-acidwdm2/`
+- `temp/water-visual-check-acidwdm2-stock/`
+
+Each directory includes `surface.png`, `grazing.png`, `underwater.png`, and
+`result.json`; the custom runs also include `room.png` and `disturbance.png`.
+The isolated browser profiles are left in the OS temporary directory for diagnosis.
+
+Measured fixed-view **scene totals**, 1100x740 WebGL 2 on Chrome/ANGLE D3D11,
+NVIDIA GeForce RTX 4070 SUPER, 120 steady-state samples per setting:
+
+| Scene/renderer | Setting | Draw calls/frame | Mean CPU time in `scene.render()` |
+|---|---|---:|---:|
+| Synthetic cached | Low | 12 | 0.237 ms |
+| Synthetic cached | Epic | 23 | 0.257 ms |
+| acidwdm2 cached | Low | 76 | 0.688 ms |
+| acidwdm2 cached | Epic | 149 | 0.823 ms |
+| acidwdm2 stock WaterMaterial | 512px reflection + refraction | 288 | 1.893 ms |
+
+These are CPU submission measurements, **not GPU timings or gameplay FPS**. They
+exclude startup capture cost, live actors, HUD, gameplay post-processing, and game
+PVS integration. Other headless regression processes were running during the
+capture batch, so CPU differences are directional, not controlled benchmarks.
+Epic's remaining depth pass still nearly doubles draw submissions here. One
+256px RGBA8 cubemap with mipmaps is approximately 2 MiB of colour storage; depth
+and driver allocations are additional. Startup hitch/GPU-time budgets remain open.
+
+**Validation commands and results:**
+
+```text
+npm run typecheck
+npm run build
+npm run test:simulation
+npm run test:physics
+npm run server:tick
+npm run server:fuzz -- --ticks 1000
+npx vite-node src/cli/server-fuzz.ts --ticks 1000
+npm run cli:game -- -- --exec "bsp load wdm2; bsp info; quit"
+npm run cli:game -- -- --exec "bsp load acidwdm2; bsp info; bsp render; quit"
+npm run cli:game -- -- --exec "sim replay W+CROUCH 60; JUMP 1; W 30; quit"
+npm run cli:game -- -- --exec "sim replay W+CROUCH 60; sim replay JUMP 1; sim replay W 30; quit"
+npx vitest run src/engine/__tests__/LiquidClassifier.test.ts src/engine/__tests__/Q3ShaderParser.test.ts src/engine/__tests__/WaterProbeCache.test.ts src/engine/__tests__/WaterDepth.test.ts src/engine/__tests__/WaterReflection.test.ts src/engine/__tests__/LiquidSurfaceSystem.test.ts src/engine/__tests__/WaterProfiles.test.ts src/engine/__tests__/WaterNoise.test.ts src/engine/lighting/__tests__/DynamicLightCluster.test.ts src/games/fps/liquid/__tests__ --silent
+node scripts/water-visual-check.mjs
+node scripts/water-visual-check.mjs --map=acidwdm2
+node scripts/water-visual-check.mjs --map=acidwdm2 --stock
+git diff --check
+git -C src/games/fps diff --check
+```
+
+- Typecheck/build passed. Build retains existing externalized Node-module,
+  mixed dynamic/static import, and bundle-size warnings.
+- 308 tests in 17 files passed, including consecutive world/weapon camera
+  frames, probe cleanup/failure recovery, shared/isolated regions, solid-island
+  avoidance, profile binding, and local/remote wake throttling.
+- Simulation, physics, server tick, both fuzz runs, and both map checks exited 0.
+  Physics still prints its existing step-slide Y-position warning. BSP loading
+  still reports light-grid dimension mismatches and missing shader templates.
+- npm's fuzz argument forwarding ran the default 10,000 ticks; the direct command
+  confirmed the requested 1,000 ticks. Both had zero errors and deterministic
+  replay checksums.
+- The required combined replay command exits **1**: the existing batch parser
+  splits semicolons before `sim replay` sees them, leaving `JUMP` and `W` as
+  unknown console commands. The fully qualified three-command alternative exits
+  0 but resets the simulation between segments; it is **not** equivalent to a
+  continuous 91-tick replay. The unrelated CLI parser was not modified.
+- Local setup also ran `npm install --save-exact @babylonjs/materials@9.17.0`,
+  then `npm install --save-dev --save-exact @babylonjs/materials@9.17.0`, and
+  `npm run deps:babylon`. npm reported 39 dependency vulnerabilities; no unrelated
+  audit fix or broad dependency upgrade was attempted.
+
+**Changed-file manifest for this implementation** (other pre-existing branch and
+submodule changes were retained):
+
+```text
+docs/research/WATER.md
+docs/manual/guides/shader-system.md
+package.json
+package-lock.json
+vite.config.ts
+scripts/water-visual-scene.ts
+scripts/water-visual-check.mjs
+src/engine/rendering/RenderVars.ts
+src/engine/rendering/water/LiquidSurfaceSystem.ts
+src/engine/rendering/water/UnifiedWaterMaterial.ts
+src/engine/rendering/water/WaterDepth.ts
+src/engine/rendering/water/WaterProbeCache.ts
+src/engine/rendering/water/WaterDisturbances.ts
+src/engine/lighting/DynamicLightCluster.ts
+src/engine/__tests__/LiquidSurfaceSystem.test.ts
+src/engine/__tests__/WaterDepth.test.ts
+src/engine/__tests__/WaterProbeCache.test.ts
+src/games/fps/liquid/client/LiquidInteractionSystem.ts
+src/games/fps/liquid/__tests__/LiquidInteractions.test.ts
+```
+
+The last two files live in the FPS git submodule and must be committed there as
+well as updating the parent repository pointer when this work is committed.
+No commits were created by this implementation.
+
+**Assumptions and remaining acceptance work:**
+
+The first target is the existing FPS game's horizontal BSP water, with the
+installed `acidwdm2` content as the visual acceptance pool. The benchmark fixture
+loads actual textures/lightmaps but not a live duel. Existing local/remote body
+reports supply cosmetic causes; no new server authority or protocol is assumed.
+
+Do not call the overall "Epic water" goal complete yet. Full-game shooting near
+water (the reported ghost), HDR/outline/glow compositing, a moving remote player
+wake, map reload/camera swaps in the browser, WebGPU, and broader map/hardware
+coverage remain unverified visually. Below-surface fixture captures validate the
+surface shader only, not the game's swimming post-process. Box projection is
+approximate around irregular geometry; batches with disconnected components,
+T-junction-only adjacency, regions beyond the four-probe cap, and authored cubemap
+selection per shader need more work. Captures freeze static animated scenery and
+lighting until map reload. No live reflected players, colour-buffer refraction,
+FluidRenderer splash replacement, or GPU wave simulation has been added.
+
+Next acceptance pass: run `developer 1; r_water 1; r_water_quality 3; map acidwdm2 duel`,
+inspect `r_water_debug 4` (cached room, red if missing) and `5` (wave slopes), then
+restore `0`. Walk/swim across the pool, fire repeatedly, watch another player,
+and compare `r_water_quality 1` against `3`. Use `r_water 0` plus a map reload for
+the legacy comparison. Investigate any remaining ghost independently rather
+than assuming that replacing the old mirror has proved every effect path clean.
+
+### GPU-readiness incident follow-up (2026-09-08)
+
+The user reported `acidwdm2` hanging at GPU readiness with Babylon world-material
+compilation errors, then confirmed that restarting the services resolved it.
+The exact original compiler failure was not reproduced. Stale development-server
+dependency/module state is the leading explanation, not a proven water GLSL bug.
+
+The diagnostic Vite server previously shared the normal development server's
+dependency cache while using different `optimizeDeps` settings. It now uses
+`temp/vite-water-check-cache`, so comparison runs cannot rewrite that shared
+cache. Dependency changes can still require restarting the ordinary dev server
+and hard-refreshing the browser. Tentative renderer changes made while diagnosing
+the report were withdrawn after the clean-start result; no production rendering
+behaviour was changed in this follow-up.
+
+Expanded checks now support `--full` (the real MapLoader warm-up/readiness path)
+and `--app` (the actual application services/lighting/post-processing scene,
+loading the map directly after reaching the lobby). Both succeeded on acidwdm2.
+The application check reached `ready: true`, loaded successfully, produced one
+water probe, and found no failed mesh shaders. It does not start a networked duel
+or reproduce the user's prior persisted browser state. Failure diagnostics are
+saved before asserting readiness, rather than being lost on a failed check.
+
+Files changed in this follow-up:
+
+- `scripts/water-visual-check.mjs`
+- `scripts/water-visual-scene.ts`
+- `docs/research/WATER.md`
+
+Validation:
+
+```text
+npx vitest run src/engine/__tests__/WaterProbeCache.test.ts src/engine/lighting/__tests__/DynamicLightCluster.test.ts --silent
+node scripts/water-visual-check.mjs --map=acidwdm2 --full
+node scripts/water-visual-check.mjs --map=acidwdm2 --app
+node --check scripts/water-visual-check.mjs
+git diff --check
+```
+
+The 14 headless tests passed; both browser paths and the syntax/diff checks passed.
+The application check was rerun successfully after isolating the dependency cache.
+
+### Gameplay appearance correction: colour space and high-FPS wakes (2026-09-08)
+
+The user's gameplay screenshot still looked like a flat cyan surface. The earlier
+attractive screenshot was an asymmetric, brightly lit diagnostic room using the
+`clear` profile with a manually injected full-strength ripple. It was not a
+representative screenshot of ordinary acidwdm2 gameplay. A screenshot alone also
+cannot prove which material is bound: `r_water_debug 4` remains the useful check
+for cached reflection (red indicates no local capture).
+
+Source review found two concrete problems, now corrected:
+
+1. The custom water shader composed display-space colours but did not convert
+   them to linear input for the game's image-processing post-process. That
+   allows the post-process to brighten the blue body colour a second time.
+   Following the installed Babylon WaterMaterial's output convention, water now
+   converts its final RGB when image processing is enabled and applied as a
+   post-process. This is bound per draw, including frozen materials and live
+   configuration changes. Debug colours follow the same output convention.
+   The cheap internal colour composition/scalar transmission remains an
+   approximation; this does not implement physically correct spectral refraction.
+2. Wakes required movement greater than 0.5 units **in one rendered frame**.
+   At 200 units/sec and 1000 FPS each move is only 0.2 units, suppressing every
+   wake. Movement now accumulates over the 120ms emission interval, from which
+   average speed determines strength. Stationary/submerged/teleported motion
+   remains suppressed. A regression covers 60 and 1000 FPS at the same speed.
+
+Room captures now record the scene's actual colour encoding on their texture;
+linear captures are decoded before the material's display-space composition.
+This also keeps later post-process toggles from misinterpreting an existing cube.
+No profile coefficients or map overrides were changed in this correction.
+
+The expanded `--postprocess` diagnostic explicitly supplies engine and scene
+image-processing configuration, uses linear input, and pre-optimizes its Babylon
+module in the isolated cache. An initial fixture-only run failed because its
+post-process relied on the ambient engine singleton; explicit engine/configuration
+binding fixed that setup error. Uncaught fixture exceptions now fail promptly.
+The successful acidwdm2 run compiled with no captured errors and produced the
+water/reflection/ripple screenshots in
+`temp/water-visual-check-acidwdm2-postprocess/`. The `--app` check also loaded
+acidwdm2 successfully with one probe and zero failed mesh shaders.
+
+Files changed for this correction:
+
+```text
+src/engine/rendering/water/UnifiedWaterMaterial.ts
+src/engine/rendering/water/WaterProbeCache.ts
+src/engine/__tests__/WaterColorSpace.test.ts
+src/games/fps/liquid/client/LiquidInteractionSystem.ts
+src/games/fps/liquid/__tests__/LiquidInteractions.test.ts
+scripts/water-visual-scene.ts
+scripts/water-visual-check.mjs
+docs/research/WATER.md
+```
+
+Validation commands:
+
+```text
+npm run typecheck
+npx vitest run src/engine/__tests__/WaterColorSpace.test.ts src/engine/__tests__/WaterProbeCache.test.ts src/engine/__tests__/WaterDepth.test.ts src/engine/__tests__/LiquidSurfaceSystem.test.ts src/games/fps/liquid/__tests__/LiquidInteractions.test.ts --silent
+npm run test:simulation
+npm run test:physics
+npm run server:tick
+npm run server:fuzz -- --ticks 1000
+npx vite-node src/cli/server-fuzz.ts --ticks 1000
+npm run cli:game -- -- --exec "bsp load wdm2; bsp info; quit"
+node scripts/water-visual-check.mjs --map=acidwdm2 --postprocess
+node scripts/water-visual-check.mjs --map=acidwdm2 --app
+git diff --check
+git -C src/games/fps diff --check
+```
+
+90 targeted tests passed. Typecheck and required simulation/physics/server/map
+commands passed, retaining the previously documented physics and asset warnings.
+Both 10,000-tick (npm forwarding) and direct 1,000-tick fuzz runs passed with zero
+errors and matching deterministic replay checksums. Browser checks passed after
+the fixture setup correction above. Production build was not rerun for this
+small correction; the earlier build result is not a claim about a new build.
+
+Assumption: existing WebGL 2 FPS rendering and acidwdm2, with cosmetic local/remote
+movement notifications unchanged. The user's precise persisted settings, live
+networked player wake, and WebGPU output remain visually unverified. The dark room
+will not reflect like the brightly lit diagnostic room, and large expanding rings
+require an interaction. To inspect an interaction explicitly, stand in the pool
+and run `water splash`; use `r_water_debug 5` for its shader slopes and restore
+`r_water_debug 0` afterwards. Reload the map/browser to ensure the revised shader
+is compiled before comparison. Further aesthetic tuning should use the actual
+gameplay pipeline and fixed map views, not just the attractive synthetic room.
+
+### 2026-09-08 follow-up: prove gameplay ripple delivery, remove duplicate discs
+
+The user's grey debug surface and legacy-looking splash were not evidence that
+the legacy material was still bound. Debug 5 deliberately hides the base normals
+and draws grey wherever there is no current reactive slope. Previous fixture
+captures injected strength 1 / radius 120 directly into the renderer; that did
+not validate the actual gameplay emitter and overstated the ordinary splash.
+
+The expanded acidwdm2 check loads collisions and shader warm-up (`--full`), uses
+the game's `createBSPCollisionWorld` adapter and `LiquidInteractionSystem.notify`
+wet/dry transition, and reads the WebGL uniform array back from the compiled
+program. An initial diagnostic attempt incorrectly handed raw BSP content flags
+to the gameplay sampler, which expects normalized shared flags; using the same
+adapter as Game fixed the fixture. This was not a discovered production bug.
+
+Before the production edits, that corrected check confirmed a real gameplay
+splash at body `(704,72,-960)` reached render height 56 with strength 0.679 and
+radius 48, but also allocated one legacy disc. The shader's 55-unit/sec wavefront
+already reaches the old 48-unit radius cutoff at 0.87 seconds, despite a nominal
+two-second lifetime. The console also always claimed a splash succeeded, even
+when no shader impulse was emitted, and its foot-position effect can be outside
+the player's view. These are concrete usability/visibility issues, not proof
+that the gameplay-to-shader connection was wholly broken.
+
+Changes in this follow-up:
+
+- Suppress the legacy disc when the replacement renderer accepts a water
+  impulse. Retain fallback rings for unsupported/legacy water and other liquids.
+  Crown updates still start even when there is no disc to animate.
+- Increase ordinary splash radius to 96 (wake radii and shader coefficients
+  unchanged). The two-second lifetime and twelve-impulse budget remain bounded.
+- Return acceptance from the impulse queue, retaining accepted/rejected counts
+  and the last result after expiry. These are queue diagnostics, not GPU proof.
+- Add `water ripple`: aim at a visible replacement surface, inject an ordinary
+  strength shader-only impulse, never draw a disc. The nearest visible geometry
+  blocks targeting water behind a bank. Add `water render` for delivery state.
+  `water splash` now reports if it failed to emit a replacement impulse.
+- Add integration tests for actual surface ownership plus gameplay events,
+  fallback preservation, aimed command occlusion and truthful diagnostics.
+
+After the changes, the real-map WebGL 2 check read back strength 0.679 / radius 96
+at height 56, with age advancing from 0.285 to 1.067 seconds and **zero ring
+meshes active**. The debug images show an expanding shader-normal disturbance
+at both ages. No captured GPU/JavaScript errors. Artifacts:
+`temp/water-visual-check-acidwdm2-full-postprocess/gameplay-disturbance.json`,
+`gameplay-disturbance.png`, and `gameplay-disturbance-later.png`.
+
+Exact files changed in this follow-up (FPS paths live in the game submodule):
+
+```text
+src/engine/rendering/water/WaterDisturbances.ts
+src/games/fps/liquid/client/LiquidInteractionSystem.ts
+src/games/fps/liquid/__tests__/LiquidInteractions.test.ts
+src/games/fps/console/commands/WaterCommand.ts
+src/games/fps/console/commands/__tests__/WaterCommand.test.ts
+scripts/water-visual-scene.ts
+scripts/water-visual-check.mjs
+docs/manual/guides/shader-system.md
+docs/research/WATER.md
+```
+
+Validation commands and results:
+
+```text
+npm run typecheck
+npx vitest run src/engine/__tests__/WaterColorSpace.test.ts src/engine/__tests__/WaterProbeCache.test.ts src/engine/__tests__/WaterDepth.test.ts src/engine/__tests__/LiquidSurfaceSystem.test.ts src/games/fps/liquid/__tests__/LiquidInteractions.test.ts src/games/fps/console/commands/__tests__/WaterCommand.test.ts --silent
+npm run test:simulation
+npm run test:physics
+npm run server:tick
+npm run server:fuzz -- --ticks 1000
+npx vite-node src/cli/server-fuzz.ts --ticks 1000
+npm run cli:game -- -- --exec "bsp load wdm2; bsp info; quit"
+node scripts/water-visual-check.mjs --map=acidwdm2 --full --postprocess
+```
+
+97 targeted tests and typecheck pass. Required simulation/physics/tick/map
+commands exit 0. Physics still prints the previously noted step-slide warning;
+map loading still prints light-grid and asset warnings. The npm fuzz wrapper
+forwards the tick argument incorrectly and runs its default 10,000 ticks;
+the additional direct 1,000-tick run also passes with zero errors and matching
+deterministic checksums. The first browser attempt required permission to spawn
+the local diagnostic server/browser; subsequent runs used the isolated cache.
+
+Assumptions: acidwdm2, existing WebGL 2 FPS coordinate/collision conventions,
+cosmetic waves rather than gameplay physics. Unverified: the user's persisted
+settings and live server-backed local/remote movement, WebGPU, and a new production
+build. The fixture exercises real map geometry/collision and the game emitter,
+but does not run a networked duel or the complete Game startup flow.
+
+This is **not** a claim that the water now looks epic. Ordinary surface motion
+still comes from two scrolling normal-map layers. The underlying scene colour
+is alpha-blended without displaced/refraction sampling; only reflected light
+responds to the changing normal. In a dark room, with the floor dominating the
+view, correct shader ripples can consequently remain subtle in beauty mode.
+The next visual milestone should address transmission distortion and broad
+surface motion in the actual gameplay pipeline, with fixed before/after views.
+Do not use stronger debug rings or another tint adjustment as its acceptance test.
+
+Additional workflow checks:
+
+```text
+npm run cli:game -- -- --exec "sim replay W+CROUCH 60; JUMP 1; W 30; quit"
+git diff --check
+git -C src/games/fps diff --check
+```
+
+Both whitespace checks pass. The documented replay command still exits 1:
+the batch parser runs its first replay but treats `JUMP 1` and `W 30` as separate
+unknown console commands. This is the previously documented CLI composition
+issue, not a passing continuous movement replay. Its first attempt was also
+sandbox-blocked at the Vite subprocess; the authorized retry reached this actual
+command failure. No movement or batch-parser code was modified in this follow-up.
+
+### 2026-09-08 visual milestone: calm waves and screen-space transmission
+
+Following the user's confirmation that reactive ripples now show, this pass
+addresses the remaining fast-scrolling surface and undistorted underwater view.
+The reference is the clearer appearance in the user's test capture, not a promise
+to make a dark indoor map resemble the brightly lit synthetic room.
+
+Implemented:
+
+- Water base normals now combine three broad analytic wave gradients with only
+  8% of the former texture-layer slope. Fine texture drift is 2 world units/sec
+  instead of 13. Slime/lava keep their previous motion. Interactive impulses
+  contribute to the same normal used by both reflection and transmission.
+- Quality 3 adds a camera-scoped world-colour target at exactly half width and
+  height (550x370 for the 1100x740 fixture), with no camera post-processing,
+  particles, sprites, liquids, viewmodels, or transparent effect meshes. It
+  samples the current world's active candidates, not the weapon camera list.
+- Above-water shading offsets this colour lookup using the view-space wave
+  normal, fades distortion at shallow boundaries, and rejects samples outside
+  the screen or in front of the water according to the existing depth map.
+  Per-channel transmission/scattering and cached reflection are then composed
+  once; the already-rendered world is not alpha-blended a second time.
+- Default absorption is 0.008; clear is 0.0045, deep remains 0.035. This reduces
+  the opaque blue-sheet appearance while keeping long paths coloured. Legacy
+  coefficient tests were updated deliberately to assert the new clear-water
+  target, rather than require the old fast drift and heavy shallow tint.
+- Quality 2 retains depth-tinted alpha transmission; quality 1 needs neither
+  recurring capture. All tiers share calm/reactive normals and cached cubemaps.
+  The extra colour pass unregisters offscreen/at lower quality, follows camera
+  changes, resizes without changing viewport proportions, and disposes on unload.
+- Debug 6 shows undistorted captured colour (red when absent), so alignment can
+  be compared against the same view with water hidden. No fluid simulation,
+  displaced collision surface, or recurring planar mirror was introduced.
+
+Validation added: capture ownership/filtering/colour-space/resize tests and
+quality/offscreen integration tests. The existing motion tests now distinguish
+slow water texture detail from slime/lava animation. One newly added test
+initially reached a browser-only requestAnimationFrame in its cleanup; resetting
+the headless test's cvar value directly fixes the harness, not production code.
+
+Fixed acidwdm2 WebGL 2 captures with and without image processing pass without
+captured GPU/JavaScript errors. Gameplay ripple position/strength/radius and
+advancing age still read back correctly from the GPU, with zero legacy discs.
+The undistorted colour capture visually aligns with the hidden-water reference;
+half-resolution edges are naturally less sharp. Normal-mode idle and gameplay
+wave shots, grazing/underwater views, alignment/reference shots and metrics are
+saved under `temp/water-visual-check-acidwdm2-full-postprocess/` (and `-full/`
+without postprocessing). `--app` also reaches ready/success with one probe and
+zero failed mesh shaders, now explicitly setting quality 3 before map load.
+
+Final postprocessed fixture cost, 120-frame CPU render samples:
+
+| Quality | CPU render ms | Draw calls | Recurring water targets |
+| --- | ---: | ---: | ---: |
+| 1 | 1.02 | 83 | 0 |
+| 2 | 1.17 | 160 | 1 depth |
+| 3 | 1.65 | 238 | 1 depth + 1 colour |
+
+This is an RTX 4070 SUPER Chrome/ANGLE diagnostic, **not gameplay FPS or GPU
+timing**. Quality 3 resubmits world geometry once more despite shading only a
+quarter-resolution colour image. The non-postprocessed run measured differently
+(1.89/1.95/3.06 ms); do not extrapolate a universal performance promise. Keep
+quality 2 available for users who prefer the lower submission cost.
+
+Exact files changed for this visual milestone:
+
+```text
+src/engine/rendering/water/UnifiedWaterMaterial.ts
+src/engine/rendering/water/LiquidSurfaceSystem.ts
+src/engine/rendering/water/WaterRefraction.ts
+src/engine/rendering/RenderVars.ts
+src/engine/__tests__/WaterRefraction.test.ts
+src/engine/__tests__/WaterProfiles.test.ts
+src/engine/__tests__/LiquidSurfaceSystem.test.ts
+scripts/water-visual-scene.ts
+scripts/water-visual-check.mjs
+docs/manual/guides/shader-system.md
+docs/research/WATER.md
+```
+
+Exact validation commands:
+
+```text
+npm run typecheck
+npx vitest run src/engine/__tests__/WaterProfiles.test.ts src/engine/__tests__/WaterNoise.test.ts src/engine/__tests__/WaterRefraction.test.ts src/engine/__tests__/WaterColorSpace.test.ts src/engine/__tests__/WaterProbeCache.test.ts src/engine/__tests__/WaterDepth.test.ts src/engine/__tests__/LiquidSurfaceSystem.test.ts src/games/fps/liquid/__tests__/LiquidInteractions.test.ts src/games/fps/console/commands/__tests__/WaterCommand.test.ts --silent
+npm run build
+npm run test:simulation
+npm run test:physics
+npm run server:tick
+npm run server:fuzz -- --ticks 1000
+npx vite-node src/cli/server-fuzz.ts --ticks 1000
+npm run cli:game -- -- --exec "bsp load wdm2; bsp info; quit"
+npm run cli:game -- -- --exec "sim replay W+CROUCH 60; JUMP 1; W 30; quit"
+node scripts/water-visual-check.mjs --map=acidwdm2 --full --postprocess
+node scripts/water-visual-check.mjs --map=acidwdm2 --full
+node scripts/water-visual-check.mjs --map=acidwdm2 --app
+git diff --check
+git -C src/games/fps diff --check
+```
+
+144 targeted tests, typecheck, build, simulation, physics, tick, map inspection
+and browser checks pass. Both fuzz runs (10,000 through the npm wrapper, 1,000
+direct) pass with zero errors and matching deterministic checksums. The build
+retains existing externalized fs/path, mixed import and large-chunk warnings.
+Physics retains its existing step-slide warning and maps their light-grid/asset
+warnings. The documented compound replay still exits 1 on unknown JUMP/W commands;
+it is not a passing continuous replay. Build/replay first attempts required
+authorized retries after the sandbox blocked Vite's subprocess.
+
+Assumptions and unverified limits: full-viewport WebGL 2 FPS rendering on acidwdm2.
+The application check loads a map in the real app but is not a server-backed duel;
+live multiplayer motion/firing, the user's persisted settings, WebGPU, split
+viewports and other GPUs/maps remain unverified. The refraction is a screen-space
+approximation, not traced optics: it cannot reconstruct offscreen scenery and
+does not transmit submerged transparent particles/effects. Byte-target fallback
+can clip HDR lighting. Below-water views retain the previous transparency path.
+Cached reflections still approximate room geometry and omit moving actors.
+Visual polish is not complete; this milestone specifically replaces dominant
+fast scrolling and adds actual wave-driven transmission distortion.
+
+### 2026-09-08 follow-up: idle readability and fine splash spray
+
+User feedback after that milestone: the idle surface reads as blank, while
+splash particles look like pale blobs. These are two distinct presentation
+problems, not evidence that the legacy shader has returned. The previous calm
+normal setting reduced procedural texture detail to 8%; the splash renderer was
+still drawing unlit, faceted spheres. Its lifetime-based size fade usually never
+started before ballistic droplets landed.
+
+Changes in this pass:
+
+- Strengthened the three slow analytic wave slopes, added a smaller capillary
+  wave, and restored procedural normal detail to a 50% slope weight. Texture
+  drift remains 2 world units/sec: legacy coloured scrolling layers are not
+  restored. A faint, bounded slope-driven ambient sheen adds an artistic surface
+  cue where uniformly dark scenery gives refraction little detail to distort.
+  This is not traced lighting, a new reflection source, or a new render pass.
+- Replaced sphere droplets with soft, velocity-aligned camera-facing quads in
+  one pooled mesh, two triangles per active droplet, capped at 220 droplets.
+  They fade in briefly, fade over their final 12 units of descent, and fade near
+  the eye. Ballistics and waterline retirement remain CPU-owned. The mesh is
+  excluded from water captures and adds no fluid postprocess or render target.
+- Explicitly refresh shortened submesh bounds for transparent sorting. The
+  first browser exercise caught a new missing-bounds exception in this rewrite;
+  it was fixed and covered by a regression before the final successful run.
+- Added renderer ownership/pooling/bounds/velocity/opacity tests and a short-flight
+  fade test. The visual fixture's new `--spray` option enables the actual gameplay
+  emitter and checks a ready shader, live particle geometry, and capture exclusion.
+  It also saves two idle frames, not only an injected maximum-strength ring.
+
+Current normal-mode captures are under
+`temp/water-visual-check-acidwdm2-full-postprocess-spray/`: `quality-3-idle.png`,
+`idle-later.png`, `spray.png`, and `gameplay-beauty.png`. The earlier non-spray
+directory is preserved for comparison. The final WebGL 2 run records no captured
+GPU/JavaScript errors, and the spray snapshot has 21 active droplets / 126 indices
+with a ready shader. The gameplay impulse GPU check, refraction alignment,
+quality 1/2/3, grazing and underwater captures also complete.
+
+Visual assessment: spray is finer and soft-edged instead of faceted beads.
+Idle water still reads subtly in this dark, sparsely textured room; the shots
+do **not** establish that the desired visual target is finished. Future tuning
+should compare normal-mode idle views and actual gameplay splashes at fixed
+camera/settings, not treat a strong diagnostic ripple as a beauty acceptance
+test. The final timing sample overlapped a production build, so it is not used
+to claim a performance improvement. The recurring target budget is unchanged.
+
+Exact files changed in this follow-up (other dirty branch work is preserved):
+
+```text
+src/engine/rendering/water/UnifiedWaterMaterial.ts
+src/games/fps/liquid/client/LiquidInteractionSystem.ts
+src/games/fps/liquid/client/SplashDroplets.ts
+src/games/fps/liquid/client/SplashDropletRenderer.ts
+src/games/fps/liquid/__tests__/SplashDroplets.test.ts
+src/games/fps/liquid/__tests__/SplashDropletRenderer.test.ts
+scripts/water-visual-check.mjs
+scripts/water-visual-scene.ts
+docs/manual/guides/shader-system.md
+docs/research/WATER.md
+```
+
+Exact validation commands (targeted subset runs preceded the combined run):
+
+```text
+npm run typecheck
+npx vitest run src/games/fps/liquid/__tests__/LiquidInteractions.test.ts src/games/fps/liquid/__tests__/SplashDroplets.test.ts src/engine/__tests__/WaterProfiles.test.ts --silent
+npx vitest run src/games/fps/liquid/__tests__/SplashDropletRenderer.test.ts src/games/fps/liquid/__tests__/SplashDroplets.test.ts src/games/fps/liquid/__tests__/LiquidInteractions.test.ts --silent
+npx vitest run src/games/fps/liquid/__tests__/SplashDropletRenderer.test.ts --silent
+npx vitest run src/engine/__tests__/WaterProfiles.test.ts src/engine/__tests__/WaterNoise.test.ts src/engine/__tests__/WaterRefraction.test.ts src/engine/__tests__/WaterColorSpace.test.ts src/engine/__tests__/WaterProbeCache.test.ts src/engine/__tests__/WaterDepth.test.ts src/engine/__tests__/LiquidSurfaceSystem.test.ts src/games/fps/liquid/__tests__/LiquidInteractions.test.ts src/games/fps/liquid/__tests__/SplashDroplets.test.ts src/games/fps/liquid/__tests__/SplashDropletRenderer.test.ts src/games/fps/console/commands/__tests__/WaterCommand.test.ts --silent
+npm run build
+npm run test:simulation
+npm run test:physics
+npm run server:tick
+npm run server:fuzz -- --ticks 1000
+npx vite-node src/cli/server-fuzz.ts --ticks 1000
+npm run cli:game -- -- --exec "bsp load wdm2; bsp info; quit"
+npm run cli:game -- -- --exec "sim replay W+CROUCH 60; JUMP 1; W 30; quit"
+node scripts/water-visual-check.mjs --map=acidwdm2 --full --postprocess --spray
+git diff --check
+git -C src/games/fps diff --check
+```
+
+Results: 169 tests pass in the final combined run; typecheck, production build,
+simulation, tick, map inspection and final browser check pass. Physics exits 0
+but retains the previously documented step-slide warning (expected Y 432, got
+422). Both fuzz runs pass with zero errors and matching deterministic checksums:
+the npm wrapper runs 10,000 ticks because it drops the option; direct invocation
+verifies 1,000. The compound replay still exits 1 on unknown JUMP/W commands after
+its first segment; it is not a passing continuous replay. Sandbox subprocess
+restrictions required authorized retries for browser/build/replay tools. Existing
+build chunk/import and map light-grid warnings remain.
+
+Assumptions: acidwdm2, full-viewport WebGL 2 FPS camera, quality 3 normal rendering
+(`r_water_debug 0`); quality 2 remains the lower-cost option. Reload the application
+and map to recreate the spray renderer; set quality 2 or 3 before map load to
+allocate splash detail. The browser fixture uses real map geometry/collision and
+the gameplay liquid interaction system, but not a server-backed duel. Live
+multiplayer, the user's saved settings, other GPUs/maps and WebGPU are unverified.
+Spray uses ordinary depth testing, not soft depth intersections or per-droplet
+lighting; cached reflections still omit moving actors. No collision/swimming
+or network behavior was intentionally changed in this pass.
+
+### 2026-09-08 next milestone: reflection control, authored lighting and directional wakes
+
+The accepted next steps were surface lighting/reflection control, then directional
+player wakes; shoreline detail and caustics remain later milestones. During work,
+the user also requested a small increase in cubemap visibility. The cubemap system
+was already active: cached static world captures were not deferred; dynamic actor
+reflection was. This pass leaves that architecture and the recurring RTT budget
+unchanged.
+
+Implemented:
+
+- Live `r_water_reflection` (0-2), default **1.3**, multiplies the previous water
+  Fresnel weight and retains its 0.95 cap. This modest boost preserves transmission;
+  it does not brighten every pixel or change slime/lava reflection weighting.
+- Live `r_water_highlights` (0-2, default 0.6) and `r_water_roughness` (0.12-0.8,
+  default 0.3). A bounded, normalized Blinn-style lobe with Fresnel and finite-range
+  attenuation is composed in both refraction and transparent water paths.
+  Roughness controls this lobe, **not** cubemap mip filtering.
+- `WaterSurfaceLighting` consumes authored BSP point lights and the existing
+  emissive-surface extractor, restricted to positive `surfaceLight` shaders.
+  Arbitrary fullbright paint, targeted sun/spot entities, weapons and runtime
+  lights are not treated as point emitters. Panel positions are offset along their
+  normals and panels facing away from the pool are excluded. Panel hue/brightness
+  are approximated by sampling the cached room in their direction, not by inventing
+  a white point light or spawning an actual Babylon area light.
+- At most four sources per horizontal connected patch and four lit patches.
+  Map-claim-time rays bake one 16x16 RGBA visibility texture per patch (one light per
+  channel). Hidden/PVS-culled opaque world geometry still blocks; liquid, effects,
+  weapon meshes and transparent surfaces do not. Masks also encode panel facing.
+  No per-frame ray tracing or new scene target; all textures are water-owned and
+  disposed on unload/complete shader fallback.
+- Movement packets now pack normalized direction in the two previously unused
+  impulse components and shade as trailing V-shaped wave packets. Net movement
+  direction accumulates over the existing rate-limit interval; radius grows with
+  speed (40 + speed*0.08, capped at 88). Radial splash behavior, two-second expiry,
+  twelve-impulse budget and cosmetic local/remote event flow remain intact.
+
+Evidence and limits:
+
+The acidwdm2 fixture initially had no eligible point-light highlights. Reusing the
+existing shader-emitter extractor supplies four facing panel sources and one
+visibility mask. Readback confirms nonzero visibility channels and unchanged light
+uniforms after injecting a bright transient light. However, the matched-time
+normal-mode highlights-on/off images are identical in this camera view: valid
+uniforms are **not** proof of a visible visual upgrade. Dark cached panel colours
+and highlight/view alignment limit this approximation. The controlled room with
+an authored point light does show the highlight: its matched on/off comparison
+changes 258,129 pixels, maximum channel difference 30/255. This isolates shader
+functionality without claiming that synthetic lighting represents acidwdm2.
+
+The matched-time acidwdm2 reflection 1.0/1.3 comparison changes 161,495 pixels,
+maximum channel difference 20/255 in the checked pair. Directional gameplay wake
+components reach the GPU and normal-mode wake/spray shots complete. Browser checks
+capture no GPU/JavaScript errors. Quality 1/2/3 retain 83/160/238 draw calls and
+0/1/2 recurring camera targets in the map fixture. CPU render samples vary between
+runs; they are not GPU timings or a gameplay FPS guarantee. The four-source shader
+and visibility bake are additional work even though scene submissions are unchanged.
+
+Captures: `temp/water-visual-check-acidwdm2-full-postprocess-spray-lighting/`
+and `temp/water-visual-check-postprocess-lighting/`. Compare `reflection-baseline.png`,
+`reflection-boost.png`, `highlights-off.png`, `directional-wake.png`; `lighting.json`
+contains GPU controls, source arrays, mask summaries and wake data. Earlier capture
+directories remain untouched. No new foam, caustics or dynamic actor reflections
+are claimed by this milestone.
+
+Exact files changed in this milestone:
+
+```text
+src/engine/rendering/water/WaterSurfaceLighting.ts
+src/engine/rendering/water/UnifiedWaterMaterial.ts
+src/engine/rendering/water/LiquidSurfaceSystem.ts
+src/engine/rendering/water/WaterDisturbances.ts
+src/engine/rendering/RenderVars.ts
+src/engine/loader/map/MapLoader.ts
+src/engine/__tests__/WaterSurfaceLighting.test.ts
+src/engine/__tests__/WaterProbeCache.test.ts
+src/games/fps/liquid/client/LiquidInteractionSystem.ts
+src/games/fps/liquid/__tests__/LiquidInteractions.test.ts
+scripts/water-visual-scene.ts
+scripts/water-visual-check.mjs
+docs/manual/guides/shader-system.md
+docs/research/WATER.md
+```
+
+Validation commands:
+
+```text
+npm run typecheck
+npx vitest run src/engine/__tests__/WaterProfiles.test.ts src/engine/__tests__/LiquidSurfaceSystem.test.ts src/engine/__tests__/WaterProbeCache.test.ts src/games/fps/liquid/__tests__/LiquidInteractions.test.ts --silent
+npx vitest run src/engine/__tests__/WaterSurfaceLighting.test.ts src/games/fps/liquid/__tests__/LiquidInteractions.test.ts --silent
+npx vitest run src/engine/__tests__/WaterSurfaceLighting.test.ts src/engine/__tests__/WaterProbeCache.test.ts src/engine/__tests__/WaterProfiles.test.ts src/engine/__tests__/WaterNoise.test.ts src/engine/__tests__/WaterRefraction.test.ts src/engine/__tests__/WaterColorSpace.test.ts src/engine/__tests__/WaterDepth.test.ts src/engine/__tests__/LiquidSurfaceSystem.test.ts src/games/fps/liquid/__tests__/LiquidInteractions.test.ts src/games/fps/liquid/__tests__/SplashDroplets.test.ts src/games/fps/liquid/__tests__/SplashDropletRenderer.test.ts src/games/fps/console/commands/__tests__/WaterCommand.test.ts --silent
+npm run build
+npm run test:simulation
+npm run test:physics
+npm run server:tick
+npm run server:fuzz -- --ticks 1000
+npx vite-node src/cli/server-fuzz.ts --ticks 1000
+npm run cli:game -- -- --exec "bsp load wdm2; bsp info; quit"
+npm run cli:game -- -- --exec "sim replay W+CROUCH 60; JUMP 1; W 30; quit"
+node scripts/water-visual-check.mjs --map=acidwdm2 --full --postprocess --spray --lighting
+node scripts/water-visual-check.mjs --postprocess --lighting
+git diff --check
+git -C src/games/fps diff --check
+```
+
+175 targeted tests pass. Typecheck, build, simulation, server tick, map inspection,
+and both browser fixtures pass. Fuzz verifies zero errors and matching checksums
+for 10,000 ticks through the npm wrapper (which drops `--ticks`) and 1,000 through
+direct invocation. Physics exits 0 but retains the known step-slide warning
+(expected Y 432, got 422); maps retain light-grid warnings. The documented compound
+replay again exits 1 on unknown JUMP/W commands after its first segment. Its initial
+attempt hit sandbox EPERM and was retried with authorization. Build retains known
+mixed-import, fs/path externalization and large-chunk warnings.
+
+Assumptions: acidwdm2, full-viewport WebGL 2 FPS camera, normal water rendering.
+Live settings work without reload, but new lighting data/masks need a map reload.
+Previously saved cvar values can override defaults; explicitly run
+`r_water_reflection 1.3` to select the new weighting. The browser gameplay checks
+exercise real geometry/collision and the liquid interaction system, not a complete
+server-backed duel or real weapon firing. WebGPU, other GPUs/maps, moving-door
+lighting and the user's persisted configuration remain unverified. Cached masks
+are coarse static visibility, not per-pixel shadow maps; alpha-tested cutouts are
+treated as solid triangles and panel emission is a point approximation. The next
+lighting improvement should address panel-colour reliability/area response, not
+silently boost all highlights until the water glows.
+
+### 2026-09-09 checkpoint: capture lighting order and probe viewpoint
+
+The user's lighting question meant that missing lighting might explain the weak
+reflection, not a request for an unlit capture mode. Inspection and cube-face
+readback found a real ordering defect: liquid claiming installed the one-shot
+capture callback before lightmaps and the awaited BSP lighting initialization.
+Rendering during that await could cache the wrong lighting state permanently.
+Material readiness alone did not guarantee the scene lighting was configured.
+
+Liquid claiming now happens after lightmap application and the complete BSP
+lighting setup/fallback block. Captures still use the map's lit materials, with
+transient weapon/effect lights excluded. The browser audit verifies the lighting
+configuration log precedes capture and exports all six faces, rather than merely
+checking that a texture exists. The corrected acidwdm2 cube contains purple trim,
+stairs and other lit geometry; the earlier capture had entirely black faces.
+
+A second limitation was the capture viewpoint only two units above the surface,
+mostly seeing dark retaining walls. `r_water_probe_height` now defaults to 64
+(range 0..128), added to that waterline anchor. After finding an open anchor, an
+upward ray limits the lift to four units below opaque geometry. Hidden/non-pickable
+BSP geometry still blocks it. The projection box must still include the actual
+waterline, even if a downward ray hits a raised island. Value 0 restores the old
+viewpoint; changing it requires a map reload. This remains approximate box-projected
+static reflection, not a planar mirror, and may misplace nearby interior geometry.
+
+`r_water_quality` now defaults to 3. Saved quality settings are preserved rather
+than silently migrated. For an existing installation, select these explicitly:
+
+```text
+r_water_quality 3
+r_water_probe_height 64
+r_water_reflection 1.3
+r_water_debug 0
+map acidwdm2 duel
+```
+
+Evidence and limits:
+
+- Full-map, postprocessed WebGL 2 fixture: one ready cached probe at
+  `(704, 122, -960)`, zero captured GPU/JavaScript errors. Each 256px cube face
+  contains coloured scene pixels (8,089 / 9,766 / 9,266 / 23,363 / 6,379 / 14,590
+  under the diagnostic threshold). These counts establish content, not beauty.
+- Inspected normal-mode quality-3 and reflection-control captures as well as raw
+  cube faces. The room is still dark and the reflection is subtle in normal mode;
+  this checkpoint does not claim the requested "epic" visual target is reached.
+- Actual-app acidwdm2 smoke check also completes map loading, reaches readiness
+  with one probe, and reports no failed materials. It is not a networked duel.
+- Gameplay ripple data reaches the GPU and no legacy ring is emitted. Quality
+  1/2/3 retain 83/160/238 draw calls and 0/1/2 recurring camera targets in this
+  fixture. The lift adds load-time tracing, not another recurring render pass.
+  Quality 3 still costs more than 2 because of refraction; no FPS guarantee.
+- Captures: `temp/water-visual-check-acidwdm2-full-postprocess-spray-lighting-reflection/`.
+  See `quality-3-idle.png`, `reflection-boost.png`, `cube-face-0.png` through
+  `cube-face-5.png`, and `reflection-audit.json`. The audit's `--probe-height=N`
+  option is an experimental additional recapture offset, not the production cvar.
+
+Exact files changed in this checkpoint (other pre-existing branch edits preserved):
+
+```text
+src/engine/loader/map/MapLoader.ts
+src/engine/rendering/RenderVars.ts
+src/engine/rendering/water/LiquidSurfaceSystem.ts
+src/engine/rendering/water/WaterProbeCache.ts
+src/engine/__tests__/RenderVars.test.ts
+src/engine/__tests__/LiquidSurfaceSystem.test.ts
+src/engine/__tests__/WaterProbeCache.test.ts
+scripts/water-visual-check.mjs
+scripts/water-visual-scene.ts
+docs/manual/guides/shader-system.md
+docs/research/WATER.md
+```
+
+Validation commands (headless checks before browser validation):
+
+```text
+npm run typecheck
+npx vitest run src/engine/__tests__/WaterProbeCache.test.ts src/engine/__tests__/RenderVars.test.ts src/engine/__tests__/LiquidSurfaceSystem.test.ts --silent
+npx vitest run src/engine/__tests__/Water src/engine/__tests__/Liquid src/engine/__tests__/RenderVars.test.ts src/games/fps/__tests__/LiquidInteractionSystem.test.ts src/games/fps/__tests__/SplashDropletRenderer.test.ts --silent
+npx vitest run src/games/fps/liquid/__tests__/LiquidInteractions.test.ts src/games/fps/liquid/__tests__/SplashDroplets.test.ts src/games/fps/liquid/__tests__/SplashDropletRenderer.test.ts src/games/fps/console/commands/__tests__/WaterCommand.test.ts --silent
+npm run build
+npm run test:simulation
+npm run test:physics
+npm run server:tick
+npm run server:fuzz -- --ticks 1000
+npx vite-node src/cli/server-fuzz.ts --ticks 1000
+npm run cli:game -- -- --exec "bsp load wdm2; bsp info; quit"
+npm run cli:game -- -- --exec "sim replay W+CROUCH 60; JUMP 1; W 30; quit"
+node scripts/water-visual-check.mjs --map=acidwdm2 --full --postprocess --spray --lighting --reflection-audit
+node scripts/water-visual-check.mjs --map=acidwdm2 --app
+git diff --check
+git -C src/games/fps diff --check
+```
+
+256 distinct targeted tests pass (178 engine + 78 FPS). The initial broad command
+used two nonexistent FPS filters; the explicit subsequent command covers the
+correct liquid/console test paths. Typecheck, build, simulation, tick, map
+inspection and both final browser checks pass. The npm fuzz wrapper ran 10,000
+ticks; direct invocation ran the requested 1,000, both with zero errors and
+matching checksums. Physics exits 0 but still reports the known step-slide
+discrepancy (expected Y 432, got 422); map loading retains light-grid warnings.
+The compound replay exits 1 because JUMP/W are parsed as standalone unknown
+commands after the first segment. Build and replay initially hit sandbox spawn
+EPERM and were retried with authorization. Build retains mixed-import,
+fs/path-externalization and large-chunk warnings.
+
+Assumptions: acidwdm2, existing replacement water enabled, WebGL 2 FPS camera.
+Verified browser hardware: RTX 4070 SUPER through Chrome ANGLE/D3D11. Other maps,
+WebGPU, other GPUs, the user's saved config and full server-backed gameplay remain
+unverified. No unlit capture mode, dynamic actor reflections, extra foam or new
+fluid simulation was added. Next visual work should inspect reflection alignment
+and contribution in matched normal-mode gameplay views before increasing effects.
+
+### 2026-09-09 checkpoint: reflection softness, fine waves and bank contact
+
+The user confirmed that the corrected cached reflection is now visible and
+approved the next surface-polish batch. This checkpoint retains the existing
+probe placement, reflection weighting and 1/2/3 capture budgets. No live mirror,
+moving-actor reflection, caustics or new splash geometry was added.
+
+Implemented:
+
+- `r_water_blur 0.3` (0..1): small five-tap angular filtering of the cubemap,
+  weighted 0.4 at the centre and 0.15 at each of four neighbours. Samples are
+  averaged in linear colour before returning to the water composition's display
+  space. Zero selects a single sharp sample. It works without prefiltered authored
+  cube mipmaps. This is an artistic softness control, not a GGX convolution or a
+  correction for the cubemap's approximate geometric alignment. The existing
+  `r_water_roughness` remains the separate point-highlight lobe control.
+- `r_water_detail 0.5` (0..1): fine procedural/capillary slopes fade between 192
+  and 768 world units and near grazing incidence. Broad wave frequencies and
+  player-driven slopes remain unchanged. Zero leaves broad waves and reactive
+  ripples. No legacy coloured scrolling layer is restored.
+- `r_water_contact 0.25` (0..1): narrow, broken scene-coloured contact detail,
+  fading out by six units of view-ray thickness. Slow world-coordinate breakup
+  and reactive slopes modulate coverage. It requires valid depth behind the
+  fragment and front-facing water, so it does not whiten empty depth or the
+  underside. Both quality-2 transparency and quality-3 refraction compose it;
+  quality 1 disables it. It is not white shoreline foam or simulated wetting.
+- All three controls update live without new material allocation. Their console
+  registration explicitly preserves fractional values; the old max==1 heuristic
+  would have registered them as integer toggles. Defaults do not override saved
+  user values.
+
+Validation uses three normal-mode viewpoints with water time fixed at eight
+seconds and all player impulses expired. Each compares defaults against sharp
+reflection, contact disabled and broad-waves-only independently. The inspected
+views retain visible distorted room features; this is incremental polish rather
+than a claim that the engine-water visual target is finished. The box projection
+still distorts/misplaces nearby geometry and this patch does not change that.
+
+In the first matched run, blur changed 7,528 / 5,778 / 23,551 pixels across the
+three views; contact changed only 588 / 904 / 880. These are coverage diagnostics,
+not a quality score. The final run also asserts contact on/off images are
+pixel-identical without depth and underwater, and verifies new control values
+reach actual GPU uniforms. Final fixture reports no captured GPU/JavaScript
+errors, one ready lit probe, and real gameplay impulses with no legacy ring.
+
+No new scene passes: quality 1/2/3 still measure 83/160/238 draw calls and 0/1/2
+recurring camera targets. Blur adds four cubemap samples per shaded water pixel;
+fine-wave/contact evaluation adds arithmetic. CPU samples are not GPU timings
+and do not establish unchanged gameplay FPS. `r_water_blur 0` is the cheaper
+single-sample option. High blur values can expose the sparse filter or erase
+detail. Depth-based contact is view-dependent, not a persistent world-space
+shoreline, and excludes transparent submerged objects.
+
+Use a fresh page load to pick up the shader changes, then reload acidwdm2. Live
+defaults and individual comparison switches:
+
+```text
+r_water_quality 3
+r_water_debug 0
+r_water_blur 0.3
+r_water_detail 0.5
+r_water_contact 0.25
+```
+
+Set any of the last three to 0 to isolate its effect. Comparison captures and
+GPU/pixel diagnostics are in
+`temp/water-visual-check-acidwdm2-full-postprocess-spray-lighting-reflection-polish/`,
+especially `polish-0-default.png` through `polish-2-default.png`, their comparison
+variants, `polish.json`, and `contact-guard-*.png`.
+
+Exact files changed in this checkpoint:
+
+```text
+src/engine/rendering/water/UnifiedWaterMaterial.ts
+src/engine/rendering/water/LiquidSurfaceSystem.ts
+src/engine/rendering/RenderVars.ts
+src/engine/__tests__/LiquidSurfaceSystem.test.ts
+src/engine/__tests__/RenderVars.test.ts
+scripts/water-visual-scene.ts
+scripts/water-visual-check.mjs
+docs/manual/guides/shader-system.md
+docs/research/WATER.md
+```
+
+Validation commands:
+
+```text
+npm run typecheck
+npx vitest run src/engine/__tests__/Water src/engine/__tests__/Liquid src/engine/__tests__/RenderVars.test.ts --silent
+npx vitest run src/engine/__tests__/Water src/engine/__tests__/Liquid src/engine/__tests__/RenderVars.test.ts src/games/fps/liquid/__tests__ src/games/fps/console/commands/__tests__/WaterCommand.test.ts --silent
+npm run test:simulation
+npm run test:physics
+npm run server:tick
+npm run server:fuzz -- --ticks 1000
+npx vite-node src/cli/server-fuzz.ts --ticks 1000
+npm run cli:game -- -- --exec "bsp load wdm2; bsp info; quit"
+npm run cli:game -- -- --exec "sim replay W+CROUCH 60; JUMP 1; W 30; quit"
+npm run build
+node scripts/water-visual-check.mjs --map=acidwdm2 --full --postprocess --spray --lighting --reflection-audit --polish
+node scripts/water-visual-check.mjs --map=acidwdm2 --app
+git diff --check
+git -C src/games/fps diff --check
+```
+
+331 tests pass across 22 files, including live control/material reuse, fractional
+console values and existing gameplay/liquid tests. Headless regressions preceded
+browser validation. Typecheck, build, simulation, tick, map inspection and final
+browser checks pass. Fuzz has zero errors and deterministic checksums for both
+10,000 ticks via the npm wrapper (which drops the flag) and the direct 1,000-tick
+run. Physics still exits 0 with the known Y 432/422 step-slide warning, and BSPs
+retain light-grid warnings. The compound replay still exits 1 on standalone
+unknown JUMP/W commands after its first segment. The initial unit-test startup
+hit sandbox spawn EPERM and was retried with authorization. Build retains
+mixed-import, externalized fs/path and chunk-size warnings.
+
+Assumptions: acidwdm2, replacement water enabled, WebGL 2 FPS camera. Verified on
+Chrome/ANGLE/D3D11 with RTX 4070 SUPER. Other GPUs, WebGL 1/WebGPU, other maps,
+full networked gameplay and temporal shimmer during an actual player-controlled
+walk remain unverified. Existing dirty work outside these nine files was preserved.
+
+### 2026-09-09 feedback pass: stronger detail, no cyan contact dots
+
+User feedback identified the previous contact patches as blue dots and requested
+at least 0.8 fine-wave strength. `r_water_detail` now defaults to 0.8 in the cvar,
+material initialization and live-binding fallback; existing saved settings remain
+untouched. The distance/grazing fade and broad/reactive waves are unchanged.
+
+The dot treatment mixed shallow-water colour into the surface and increased alpha
+in a repeating sine pattern. Removed that colour, opacity increase and pattern.
+Contact is now only a smooth neutral attenuation of the existing water contribution,
+fading out by four view-ray world units. RGB uses the same factor and alpha stays
+unchanged. At default `r_water_contact 0.25`, the shader's display-space attenuation
+is at most 6.25% (not a bound on postprocessed pixel differences). This intentionally
+subtle artistic edge cue does not claim to simulate a meniscus, foam or wetting.
+It keeps the valid-depth/front-face guards and adds no samples or scene passes.
+
+After a page refresh/map reload to load the revised shader:
+
+```text
+r_water_detail 0.8
+r_water_contact 0.25
+```
+
+Set contact to 0 if the depth-based edge is still undesirable. Saved 0.5 detail
+values override the new default, so existing users should select 0.8 explicitly.
+
+Matched-time normal-mode screenshots across three acidwdm2 viewpoints confirm
+0.8 vs 0.5 changes visible wave detail. Contact affects only 280 / 136 / 217 pixels
+in those views; no RGB channel is brighter with contact enabled. Additional
+checks compare contact 0 vs 1: quality 1 and underwater are pixel-identical,
+quality 2 shows a change with zero brightening. This replaces the previous test's
+"visible difference" criterion with a no-added-light guard for the reported defect.
+Inspected normal-mode views 0 and 2; no tinted contact patches are introduced.
+
+Browser fixture has zero captured GPU/JavaScript errors and verifies one lit cached
+probe, detail 0.8 on the GPU, and gameplay impulses with no legacy ring. Quality
+1/2/3 retain 83/160/238 draw calls and 0/1/2 recurring camera targets. These are not
+GPU timings or an FPS guarantee. Captures preserve the previous checkpoint and
+are stored in `temp/water-visual-check-acidwdm2-full-postprocess-spray-lighting-reflection-polish-contact/`.
+`polish.json` records comparisons and guards; `polish-*-previous-detail.png` compares
+the old 0.5 setting with new defaults, not the old dot shader.
+
+Exact files changed in this feedback pass:
+
+```text
+src/engine/rendering/water/UnifiedWaterMaterial.ts
+src/engine/rendering/water/LiquidSurfaceSystem.ts
+src/engine/rendering/RenderVars.ts
+src/engine/__tests__/RenderVars.test.ts
+scripts/water-visual-scene.ts
+scripts/water-visual-check.mjs
+docs/manual/guides/shader-system.md
+docs/research/WATER.md
+```
+
+Exact validation commands:
+
+```text
+npm run typecheck
+npx vitest run src/engine/__tests__/Water src/engine/__tests__/Liquid src/engine/__tests__/RenderVars.test.ts src/games/fps/liquid/__tests__ src/games/fps/console/commands/__tests__/WaterCommand.test.ts --silent
+npm run test:simulation
+npm run test:physics
+npm run server:tick
+npm run server:fuzz -- --ticks 1000
+npx vite-node src/cli/server-fuzz.ts --ticks 1000
+npm run cli:game -- -- --exec "bsp load wdm2; bsp info; quit"
+npm run cli:game -- -- --exec "sim replay W+CROUCH 60; JUMP 1; W 30; quit"
+npm run build
+node scripts/water-visual-check.mjs --map=acidwdm2 --full --postprocess --spray --lighting --reflection-audit --contact-polish
+git diff --check
+git -C src/games/fps diff --check
+```
+
+331 tests pass; typecheck, build, simulation, tick, map inspection and browser
+fixture pass. Both 10,000-tick npm-wrapper and direct 1,000-tick fuzz checks pass
+with zero errors and matching checksums. Physics retains the known expected-Y432/
+actual-Y422 warning despite exit 0. Map loading retains light-grid warnings;
+compound replay still exits 1 on unknown standalone JUMP/W commands. Build retains
+mixed-import, fs/path externalization and large-chunk warnings. Headless checks
+preceded browser validation.
+
+Assumptions: acidwdm2 replacement water, WebGL 2 FPS view on Chrome/ANGLE RTX 4070
+SUPER. Other maps/GPUs, WebGPU/WebGL 1, player-controlled temporal shimmer and
+networked gameplay remain unverified. Contact remains screen-depth-dependent;
+reflection alignment remains the existing approximate cubemap projection. No
+changes to swimming, splash particles or networking in this feedback pass.
+
+### 2026-09-09 checkpoint: differentiated interactions and settling spray
+
+Implemented the approved interaction polish, leaving actor reflections as a
+discussion-only proposal below:
+
+- Level-1 wading emits weaker/smaller directional wakes than level-2 surface
+  swimming at the same speed. The existing 120ms cadence, local/remote input path,
+  teleport filter and submerged suppression remain. Net-zero horizontal jitter
+  no longer turns into a radial impulse through a zero direction vector.
+- Gameplay impact radius is now `48 + 64 * strength` (up to 112), rather than
+  universally 96. Exit visuals use 55% of the equivalent entry strength; audio
+  remains unchanged. Explicit debug impulses retain their own/default radius.
+- Radial shader waves use strength-dependent propagation, smooth time decay and
+  a weaker trailing wave inside the SAME impulse. No extra timers or impulse
+  slots. Combined reactive slopes approach a bounded magnitude smoothly instead
+  of growing without limit as wakes overlap. The twelve-slot/two-second budget
+  still applies; this is cosmetic normal shading, not fluid displacement.
+- Spray uses 3..24 droplets per positive-strength splash, lower launch velocities
+  for weak entries, finer size distribution, narrower streaks and lower opacity.
+  Sizes shrink using actual descending velocity relative to launch speed. The
+  previous test could pass by comparing against an empty buffer after all droplets
+  landed; it now asserts a live falling droplet actually shrinks.
+- Re-entry aftermath is restricted to 24-unit, 0.25-strength ripples, at most one
+  per 120ms per interaction system, and never spawns another spray crown. Pool
+  capacity stays 220 droplets. Invalid/zero-strength spawns are rejected and
+  strength is capped before determining count/velocity.
+
+Validation: 337 tests pass in 22 files. Added behavior tests cover wading vs
+swimming, submerged suppression, cancelling jitter, weaker exits, bounded small
+re-entry ripples, weak/hard spray and live descent shrinkage. Typecheck and build
+pass. Required simulation, tick, map inspection and fuzz regressions pass;
+the npm fuzz wrapper ran 10,000 ticks, direct invocation ran exactly 1,000, both
+with zero errors and matching checksums. Physics retains the known Y432/Y422
+step-slide warning despite exit 0; maps retain light-grid warnings. Compound replay
+still exits 1 after the first segment on unknown standalone JUMP/W commands.
+Build retains mixed-import, fs/path-externalization and large-chunk warnings.
+
+The first browser check correctly failed its stale fixed-radius-96 assertion;
+it now compares the GPU radius against the actual emitted gameplay radius. Final
+full-map WebGL fixture passes with zero GPU/JavaScript errors. At -100 vertical
+speed, the splash emits strength 0.357/radius 70.86 and shows 11 spray quads at
+the early sample; at -700, strength 1/radius 112 and 24 quads. Both expire, leaving
+no impulses or legacy rings. Inspected light/hard early and hard spreading shots.
+Direction-bearing gameplay wakes still reach the GPU. Idle quality 1/2/3 remain
+83/160/238 draw calls and 0/1/2 recurring camera targets. Added wave arithmetic is
+not free, but no new scene pass was added; these CPU samples are not GPU timings.
+
+Captures: `temp/water-visual-check-acidwdm2-full-postprocess-spray-lighting-interactions/`.
+See `impact-{light,hard}-{early,spread,settle}.png`, `spray.png`,
+`directional-wake.png` and `interactions.json`. Timing is sampled, not a deterministic
+video benchmark. To try in-game, refresh/reload acidwdm2 with quality 3, wade and
+swim at the surface, and compare a short drop with a hard landing. No new cvars.
+
+Exact files changed (including files inside the FPS submodule):
+
+```text
+src/engine/rendering/water/UnifiedWaterMaterial.ts
+src/games/fps/liquid/client/LiquidInteractionSystem.ts
+src/games/fps/liquid/client/SplashDroplets.ts
+src/games/fps/liquid/client/SplashDropletRenderer.ts
+src/games/fps/liquid/__tests__/LiquidInteractions.test.ts
+src/games/fps/liquid/__tests__/SplashDroplets.test.ts
+scripts/water-visual-scene.ts
+scripts/water-visual-check.mjs
+docs/manual/guides/shader-system.md
+docs/research/WATER.md
+```
+
+Exact validation commands:
+
+```text
+npm run typecheck
+npx vitest run src/engine/__tests__/Water src/engine/__tests__/Liquid src/engine/__tests__/RenderVars.test.ts src/games/fps/liquid/__tests__ src/games/fps/console/commands/__tests__/WaterCommand.test.ts --silent
+npm run test:simulation
+npm run test:physics
+npm run server:tick
+npm run server:fuzz -- --ticks 1000
+npx vite-node src/cli/server-fuzz.ts --ticks 1000
+npm run cli:game -- -- --exec "bsp load wdm2; bsp info; quit"
+npm run cli:game -- -- --exec "sim replay W+CROUCH 60; JUMP 1; W 30; quit"
+npm run build
+node scripts/water-visual-check.mjs --map=acidwdm2 --full --postprocess --spray --lighting --interactions
+git diff --check
+git -C src/games/fps diff --check
+```
+
+Assumptions: acidwdm2, replacement water, WebGL 2 FPS view, Chrome/ANGLE RTX4070
+SUPER. Headless validation preceded browser checks. Other maps/GPUs, WebGL1/WebGPU,
+full multiplayer, and player-controlled motion remain unverified. Spray remains
+unlit cosmetic quads with ordinary depth testing, not a fluid surface or particles
+colliding with banks in flight. Existing unrelated dirty changes were preserved.
+
+#### Brainstorm only: soft, distance-limited actor reflections
+
+The user's idea is workable as a proposed visual compromise, not an occlusion
+solution. Blur can hide low-resolution detail, but an occluded coloured silhouette
+is still visible and can reveal a player's position through a wall. Distance limits
+reduce candidate actors; small targets reduce fill cost; simplified reflected models
+could reduce geometry/skinning cost. Blur by itself does not remove those costs.
+
+Proposed experiment (NOT implemented in this checkpoint): keep static cubemap
+colour and add one small actor-reflection layer for one visible pool. Start with
+a strict nearby actor count/distance budget, fade with both camera distance and
+distance/height from water, and keep even nearby reflections soft. Far actors fade
+out entirely, not into permanent haze. Exclude first-person weapon/effect geometry.
+Use a single reflected view rather than six changing cube faces per player.
+Babylon supports selective mirror render lists, as demonstrated in its
+[official reflection demo source](https://www.babylonjs.com/Demos/RefProbe/source/).
+
+The critical work is occlusion: the prototype should draw relevant static geometry
+depth-only from the REFLECTED viewpoint before actor colour, then use a mask-aware
+blur/composite so colour does not bleed through occluders. The main-camera depth
+is a different viewpoint and is not interchangeable. This adds geometry submission
+even if static colour stays cached, so it must be measured, not called free.
+Coarse visibility probes could instead reject ambiguous actors, but cannot prove
+correct per-pixel occlusion; for an FPS, reject uncertain reflections rather than
+show silhouettes through walls. Reduced update rate is a later measurement-led
+option because camera motion can make cached projected images lag or slide.
+
+Acceptance before shipping: actor behind wall/column remains hidden, banks clip
+correctly, no first-person muzzle ghosts, distance fade has no popping, and measured
+GPU/draw-call cost fits the budget. No actor-reflection code was added here.
+
+### Prototype: short-range actor reflection layer (2026-09-09)
+
+The user approved prototyping the separate, deliberately soft actor layer. The
+historical brainstorm above remains unchanged; this section records what actually
+exists now, rather than treating the proposed production acceptance list as done.
+
+Enable with `r_water_quality 3; r_water_actors 1`; disable with `r_water_actors 0`.
+Quality 3 remains the water default, but actor reflections default OFF. Existing
+saved quality settings are preserved. This reflects remote models, including the
+real skinned Vanguard model, not the first-person weapon or a nonexistent local
+third-person body. The water state log now includes `reflectedActors`.
+
+Implementation:
+
+- One camera-owned `MirrorTexture`, quarter width/height and at most 320px on
+  either side. No six-face actor cubemap, no change to the static room cubemap.
+- Select one nearby visible horizontal water patch and at most two actor groups.
+  Camera-to-patch-bounds distance must be below 240u and the eye above the surface.
+  Actor bounding-box centres must be within 160u of the patch bounds; fully
+  submerged, hidden/disabled, transparent and weapon/effect meshes are excluded.
+- RemotePlayerRenderer marks model roots with `waterReflectionActorId`; engine
+  code follows that metadata without importing FPS renderer classes.
+- Opaque static world meshes write depth and transparent black into the actor
+  capture. Zero colour/coverage, not just colour-write disabling, also removes an
+  actor if a closer occluder is submitted later. Depth is shared across groups.
+- Occluders are culled against the reflected frustum, NEVER the main camera's
+  active/PVS list. Temporarily restore PVS-hidden occluders for capture, then
+  restore their visibility. Gameplay model outlines/overlays are likewise
+  suppressed only during capture and restored afterward.
+- Fail closed if occlusion geometry/shader is not ready or budgets are exceeded:
+  256 occluder submeshes and 32 actor submeshes. Do not truncate the blocker list.
+  These are submission budgets, not an absolute GPU-time guarantee.
+- Use the physical water plane (`patch.min.y`), not the cubemap anchor lifted
+  two units above it. Clip geometry below the plane; capture the reflected view
+  matrix for world-projected sampling. Preserve the native capture colour space.
+- The water shader applies a five-tap soft filter plus wave distortion, retaining
+  unwarped centre coverage so blur cannot expand freely through a wall silhouette.
+  Filter radius grows from 0.65 to 4 texels over eye distances 32..200u. Fade the
+  surface contribution over 140..240u; blend into the existing Fresnel reflection.
+- No capture while disabled, underwater, outside range, without eligible actors,
+  or after water's existing visibility gate expires. One target is reused across
+  camera switches/resizes; disposal removes camera registration and render-pass
+  overrides. No network/physics/event protocol changes.
+
+Validation and findings:
+
+- 348 targeted tests across 23 files passed, including 11 actor-reflection tests:
+  opt-in allocation, readiness gating, physical plane, caps, reflected-frustum
+  selection, hidden blockers, outline/visibility restoration, camera switching,
+  underwater/range gates, and disposal.
+- Production build and TypeScript check passed. Simulation/tick/fuzz and indexed
+  `wdm2` load passed. Physics exits 0 but retains its known expected-Y432/got422
+  warning; `wdm2`/`wdm7` retain lightgrid-count warnings. The documented compound
+  replay still runs its first segment and fails on standalone `JUMP`/`W` commands.
+- Real WebGL2/Chrome/ANGLE RTX4070 SUPER, 1100x740, acidwdm2 through full MapLoader
+  and image postprocessing: 275x185 actor target; visible surface changes with
+  the toggle; an admitted two-colour actor produces 3623 covered capture pixels,
+  and a fully blocking wall reduces that to zero. An actual skinned player from
+  RemotePlayerRenderer is captured, and the fully occluded player test also gives
+  zero covered pixels. No GPU errors in the completed run.
+- The final acidwdm2 run without image postprocessing also passed the visible
+  overlay, native-player and full-occlusion checks with no GPU errors. Evidence
+  is in `temp/water-visual-check-acidwdm2-full-actors/`.
+- Test correction: low feet can have valid reflected rays passing below a bank's
+  water clip plane. Those capture pixels alone are not evidence of a visible-water
+  leak. The strict full-mask test uses an elevated player fully behind a tall wall,
+  with reflected rays crossing the wall above the clip plane. General bank-edge
+  and partial-occlusion visual acceptance still needs gameplay testing.
+- The synthetic room GPU check also passed. An intermediate first-load run hit
+  Vite's dependency-reoptimization/shader failure; prebundling the new Frustum
+  import in the isolated fixture fixed that reload path. Restart dev services and
+  refresh when adopting the renderer changes, as with earlier water updates.
+- At the fixed acidwdm2 test view, the simple actor adds 79 draws (202 -> 281),
+  versus 106 before reflected-frustum culling. CPU `scene.render()` samples varied
+  between runs (roughly +0.4..1.1ms); these are NOT GPU timings or a multiplayer FPS
+  guarantee. Rendering the native skinned model also costs skinning/material work.
+
+Captured evidence (workspace-local, not shipped assets):
+
+- `temp/water-visual-check-acidwdm2-full-postprocess-actors/actor-on.png`
+- `temp/water-visual-check-acidwdm2-full-postprocess-actors/actor-off.png`
+- `temp/water-visual-check-acidwdm2-full-postprocess-actors/actor-player.png`
+- `temp/water-visual-check-acidwdm2-full-postprocess-actors/actors.json`
+- `temp/water-visual-check-acidwdm2-full-postprocess-actors/actor-player-occlusion.json`
+
+Exact files changed in this checkpoint (other pre-existing worktree edits preserved):
+
+- `src/engine/rendering/water/WaterActorReflection.ts` (new)
+- `src/engine/rendering/water/LiquidSurfaceSystem.ts`
+- `src/engine/rendering/water/UnifiedWaterMaterial.ts`
+- `src/engine/rendering/RenderVars.ts`
+- `src/engine/__tests__/WaterActorReflection.test.ts` (new)
+- `src/games/fps/client/RemotePlayerRenderer.ts` (FPS submodule)
+- `scripts/water-visual-scene.ts`
+- `scripts/water-visual-check.mjs`
+- `docs/manual/guides/shader-system.md`
+- `docs/research/WATER.md`
+
+Exact validation commands run (including targeted iterations):
+
+```sh
+npm run typecheck
+npx vitest run src/engine/__tests__/WaterActorReflection.test.ts --reporter=verbose
+npx vitest run src/engine/__tests__/WaterActorReflection.test.ts --silent
+npx vitest run src/engine/__tests__/WaterActorReflection.test.ts src/engine/__tests__/LiquidSurfaceSystem.test.ts src/engine/__tests__/WaterProfiles.test.ts src/engine/__tests__/RenderVars.test.ts
+npx vitest run src/engine/__tests__/Water src/engine/__tests__/Liquid src/engine/__tests__/RenderVars.test.ts src/games/fps/liquid/__tests__ src/games/fps/console/commands/__tests__/WaterCommand.test.ts --silent
+npm run test:simulation
+npm run test:physics
+npm run server:tick
+npm run server:fuzz -- --ticks 1000
+npx vite-node src/cli/server-fuzz.ts --ticks 1000
+npm run cli:game -- -- --exec "bsp load wdm2; bsp info; quit"
+npm run cli:game -- -- --exec "sim replay W+CROUCH 60; JUMP 1; W 30; quit"
+npm run build
+node scripts/water-visual-check.mjs --postprocess --actors
+node scripts/water-visual-check.mjs --map=acidwdm2 --full --postprocess --actors
+node scripts/water-visual-check.mjs --map=acidwdm2 --full --actors
+git diff --check
+git -C src/games/fps diff --check
+```
+
+The npm fuzz wrapper drops `--ticks` and runs 10000 ticks; the direct command
+verified 1000 as well. Vite subprocess tests requiring escalation were retried
+outside the sandbox. Earlier failing prototype tests/captures were corrected and
+rerun; the counts above describe the final targeted suite, not every intermediate
+iteration.
+
+Assumptions: FPS/acidwdm2, replacement horizontal water, WebGL2. The browser fixture
+uses the real player creation path but not a networked match. Other GPUs/maps,
+WebGL1/WebGPU, moving doors, full multiplayer motion, frame-time spikes, and broad
+bank/occlusion edge cases are unverified. This is not yet a production-ready tier.
+
+Next work, after judging this opt-in prototype in gameplay: reduce static blocker
+submission cost (a cached merged/simplified occlusion mesh is a candidate), measure
+GPU time with moving players, and smooth actor/pool admission. The current per-pixel
+camera fade is smooth, but actor-distance cutoffs, two-actor ranking changes and
+switching the chosen pool can pop. Alpha-tested blockers are conservatively solid;
+only opaque actor parts participate. The mask-constrained blur softens internal
+detail more than silhouette edges. Do not claim all brainstorm acceptance criteria
+are met, or enable this by default, until those remaining items are validated.
+
+### Local player reflection and testing defaults (2026-09-10)
+
+The user requested their own body in the water, and actor reflections enabled by
+default to make solo testing practical. This explicitly supersedes the previous
+checkpoint's opt-in default, but does **not** certify the prototype's performance.
+Existing saved `r_water_actors 0` settings are preserved.
+
+Implemented:
+
+- `r_water_actors` defaults to 1 (quality 3 remains the default).
+- A local world-space body reuses `RemotePlayerRenderer`'s model creation and
+  locomotion animation assets. Its pose follows the local visual player position
+  and camera yaw. It is not the first-person weapon and has no gameplay hitbox.
+- The model loads lazily when a water reflection provider requests it. Normal
+  rendering sees invisible meshes; only the selected mirror capture temporarily
+  reveals them, then restores visibility. Dead/spectator/non-FPS, distant and
+  disabled states suspend the body. Disposal also handles in-flight model loads.
+- The body shares the existing two-actor capture, distance limits, wall mask and
+  blur with other players. No second local-player reflection target is added.
+- Actor-covered pixels have a stylised 0.18 minimum reflection coefficient,
+  scaled by reflection strength, coverage and distance fade. This makes looking
+  down useful for testing without lifting the room cubemap everywhere. Reflection
+  strength zero still removes the contribution. This is an artistic adjustment,
+  not a physically accurate water Fresnel model.
+- `water render` reports capture status and selected actor count, including
+  disabled, no eligible model, distance and geometry-budget reasons.
+
+Solo check: restart dev services and refresh after updating renderer imports,
+then join acidwdm2, stand in shallow water with the eye above its surface, and look
+down. Use `r_water_quality 3; r_water_actors 1; water render` if saved settings
+override the defaults. From a bank, the body's reflection may not intersect the
+pool; being near water alone does not guarantee a visible self reflection.
+
+Validation:
+
+- Typecheck and production build passed. Build retains externalized decoder
+  module, mixed import and large-chunk warnings.
+- Targeted water/liquid/console suite: **352 tests passed across 24 files**.
+  A separate final default/reset check passed 36 tests. New checks cover hidden
+  local-body ownership/pose/suspend/dispose, temporary capture visibility and
+  provider status/lifecycle.
+- Required simulation and server-tick tests passed. Physics exited successfully
+  with the existing expected-Y 432 vs actual 422 warning and lightgrid mismatch.
+  Fuzz passed; npm's wrapper drops `--ticks` and executed 10000 ticks. Wdm2 BSP
+  load/info passed with its existing lightgrid warning.
+- The documented compound replay command still fails after its first 60-tick
+  replay: the console treats `JUMP` and `W` as unknown standalone commands. This
+  command limitation is not claimed as a passing regression.
+- Headless tests preceded browser checks. Chrome/WebGL2 on RTX 4070 SUPER,
+  acidwdm2 full scene with postprocessing: self capture passed, with 2308 covered
+  RTT pixels and 66825 changed RGB components above threshold 3 in the on/off
+  screenshots. Both body meshes remain invisible outside the capture, and both
+  disable when the feature is switched off. No GPU errors in the completed run.
+- The other-player fixture also passed after the shared blend change: a fully
+  blocking wall reduced the real skinned player's capture coverage to zero.
+  This tests full occlusion, not every partial bank-edge case.
+- Both root and FPS submodule `git diff --check` passed. Sandbox-blocked esbuild
+  subprocesses were retried with escalation, not reported as test failures.
+
+Evidence (workspace-local, not shipped assets):
+
+- `temp/water-visual-check-acidwdm2-full-postprocess-self/self-on.png`
+- `temp/water-visual-check-acidwdm2-full-postprocess-self/self-off.png`
+- `temp/water-visual-check-acidwdm2-full-postprocess-self/self.json`
+- `temp/water-visual-check-acidwdm2-full-postprocess-actors/actor-player-occlusion.json`
+
+Exact files changed for this checkpoint (other existing edits preserved):
+
+- `src/engine/rendering/RenderVars.ts`
+- `src/engine/rendering/water/WaterActorReflection.ts`
+- `src/engine/rendering/water/LiquidSurfaceSystem.ts`
+- `src/engine/rendering/water/UnifiedWaterMaterial.ts`
+- `src/engine/__tests__/RenderVars.test.ts`
+- `src/engine/__tests__/WaterActorReflection.test.ts`
+- `src/engine/__tests__/LocalWaterReflection.test.ts` (new)
+- `src/games/fps/Game.ts` (FPS submodule)
+- `src/games/fps/client/RemotePlayerRenderer.ts` (FPS submodule)
+- `src/games/fps/console/commands/WaterCommand.ts` (FPS submodule)
+- `scripts/water-visual-scene.ts`
+- `scripts/water-visual-check.mjs`
+- `docs/manual/guides/shader-system.md`
+- `docs/research/WATER.md`
+
+Exact validation commands run:
+
+```sh
+npm run typecheck
+npx vitest run src/engine/__tests__/LocalWaterReflection.test.ts src/engine/__tests__/WaterActorReflection.test.ts src/engine/__tests__/RenderVars.test.ts --silent
+npx vitest run src/engine/__tests__/Water src/engine/__tests__/LocalWaterReflection.test.ts src/engine/__tests__/Liquid src/engine/__tests__/RenderVars.test.ts src/games/fps/liquid/__tests__ src/games/fps/console/commands/__tests__/WaterCommand.test.ts --silent
+npx vitest run src/engine/__tests__/RenderVars.test.ts --silent
+npm run test:simulation
+npm run test:physics
+npm run server:tick
+npm run server:fuzz -- --ticks 1000
+npm run cli:game -- -- --exec "bsp load wdm2; bsp info; quit"
+npm run cli:game -- -- --exec "sim replay W+CROUCH 60; JUMP 1; W 30; quit"
+npm run build
+node scripts/water-visual-check.mjs --map=acidwdm2 --full --postprocess --self-reflection
+node scripts/water-visual-check.mjs --map=acidwdm2 --full --postprocess --actors
+git diff --check
+git -C src/games/fps diff --check
+```
+
+Assumptions: FPS, horizontal replacement water, acidwdm2, above-water camera.
+Unverified: the local Game-to-renderer hook in a live networked match, moving
+multiplayer frame time, other GPUs/maps, WebGL1/WebGPU and all partial-occlusion
+edges. The browser test invokes the real local-model method with a fixed pose,
+not a live player input/network stream. Local animation is a locomotion proxy,
+not a full aiming/weapon pose; team cosmetics and actor-ranking transitions need
+further polish. The same two-actor budget can omit a body in crowded situations.
+Static blocker submission cost and smooth actor/pool admission remain next tasks.

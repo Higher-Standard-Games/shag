@@ -98,6 +98,14 @@ export type RenderVarName =
   | "r_water"
   | "r_water_quality"
   | "r_water_debug"
+  | "r_water_highlights"
+  | "r_water_roughness"
+  | "r_water_reflection"
+  | "r_water_blur"
+  | "r_water_detail"
+  | "r_water_contact"
+  | "r_water_actors"
+  | "r_water_probe_height"
   | "r_shadows"
   | "r_gamma"
   | "r_saturation"
@@ -392,22 +400,92 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, "name">> = {
     category: "lighting",
   },
   r_water_quality: {
-    value: 2,
-    defaultValue: 2,
+    value: 3,
+    defaultValue: 3,
     min: 1,
     max: 3,
     description:
-      "Splash detail. 1 = ripple ring only, 2 and above add a thrown crown of spray (one mesh, one draw call). Water surface quality is not tiered: the depth pass that gives it colour, transparency, foam and caustics is the only extra scene pass, and it already stops itself whenever no water is on screen.",
+      "Water quality. All tiers use cached room reflections and calm reactive waves. 1 = no capture pass; 2 = depth tint; 3 = depth plus half-resolution refraction. Splash detail initializes on map load. No recurring reflection capture.",
     category: "lighting",
   },
   r_water_debug: {
     value: 0,
     defaultValue: 0,
     min: 0,
-    max: 4,
+    max: 6,
     description:
-      "Visualise a water term. 1 = absorption as grey. 2 = thickness as bands — magenta EXACTLY zero (the depth map is empty here), red under 8 units, yellow 8-32, green 32-128, cyan 128-512, white beyond. 3 = the refraction sample, 4 = the reflection sample; for those, flat RED means the term is switched off and black means it is bound to nothing.",
+      "Water debug: 1 = absorption, 2 = thickness, 3 = environment, 4 = cached room, 5 = reactive slopes, 6 = undistorted refraction capture (red = unavailable). 0 = normal rendering.",
     category: "debug",
+  },
+  r_water_highlights: {
+    value: 0.6,
+    defaultValue: 0.6,
+    min: 0,
+    max: 2,
+    description: "Water highlights from authored static map lights; 0 disables. No weapon/projectile lights.",
+    category: "lighting",
+  },
+  r_water_roughness: {
+    value: 0.3,
+    defaultValue: 0.3,
+    min: 0.12,
+    max: 0.8,
+    description: "Water point-highlight roughness: higher gives broader, softer highlights (not cubemap blur).",
+    category: "lighting",
+  },
+  r_water_reflection: {
+    value: 1.3,
+    defaultValue: 1.3,
+    min: 0,
+    max: 2,
+    description:
+      "Water cached reflection weighting. 1 = previous baseline; 1.3 = default; 0 disables reflected contribution.",
+    category: "lighting",
+  },
+  r_water_probe_height: {
+    value: 64,
+    defaultValue: 64,
+    min: 0,
+    max: 128,
+    description:
+      "Static water probe lift above its waterline anchor, clamped below solid geometry. Map reload required; 0 restores the low probe.",
+    category: "lighting",
+  },
+  r_water_blur: {
+    value: 0.3,
+    defaultValue: 0.3,
+    min: 0,
+    max: 1,
+    description:
+      "Cached water reflection softness. 0 = single sharp sample; higher = wider five-tap angular filter. Updates live.",
+    category: "lighting",
+  },
+  r_water_detail: {
+    value: 0.8,
+    defaultValue: 0.8,
+    min: 0,
+    max: 1,
+    description:
+      "Fine water wave strength, faded at distance/grazing angles. 0 leaves broad waves and player ripples. Updates live.",
+    category: "lighting",
+  },
+  r_water_contact: {
+    value: 0.25,
+    defaultValue: 0.25,
+    min: 0,
+    max: 1,
+    description:
+      "Subtle neutral bank-contact shade from depth (quality 2/3, above water). No coloured dots or extra opacity. 0 disables. Updates live.",
+    category: "lighting",
+  },
+  r_water_actors: {
+    value: 1,
+    defaultValue: 1,
+    min: 0,
+    max: 1,
+    description:
+      "Experimental near-water actor reflection overlay (quality 3). One small live pass, two nearby actors; 0 disables. Updates live.",
+    category: "lighting",
   },
   r_underwater_distortion: {
     value: 1.0,
@@ -562,7 +640,8 @@ export class RenderVars {
     for (const [name, def] of this.vars) {
       // Determine type based on var characteristics
       const isDebug = def.category === "debug";
-      const isInt = name === "r_anisotropy" || def.max === 1;
+      const fractionalWater = name === "r_water_blur" || name === "r_water_detail" || name === "r_water_contact";
+      const isInt = name === "r_anisotropy" || (def.max === 1 && !fractionalWater);
 
       Cvar.register(name, def.value, {
         type: isInt ? "int" : "float",

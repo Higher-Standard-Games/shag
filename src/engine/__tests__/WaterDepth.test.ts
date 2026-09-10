@@ -18,6 +18,8 @@
 
 import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
+import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
+import type { RenderTargetTexture } from "@babylonjs/core/Materials/Textures/renderTargetTexture";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder";
@@ -79,7 +81,7 @@ describe("not sharing the scene's depth renderer", () => {
     scene.disableDepthRenderer(cam);
 
     expect(provider.mapFor(cam)).toBe(ours);
-    expect(scene.customRenderTargets).toContain(ours);
+    expect(scene.cameras.flatMap((camera) => camera.customRenderTargets)).toContain(ours);
   });
 });
 
@@ -89,14 +91,14 @@ describe("following the active camera", () => {
     // in `_depthRenderer`, and we are deliberately not one of them.
     const map = provider.mapFor(camera("a"));
 
-    expect(scene.customRenderTargets).toContain(map);
+    expect(scene.cameras.flatMap((camera) => camera.customRenderTargets)).toContain(map);
   });
 
   it("reuses the map while the camera is unchanged", () => {
     const cam = camera("a");
 
     expect(provider.mapFor(cam)).toBe(provider.mapFor(cam));
-    expect(scene.customRenderTargets.length).toBe(1);
+    expect(scene.cameras.flatMap((camera) => camera.customRenderTargets).length).toBe(1);
   });
 
   it("rebuilds for a new camera", () => {
@@ -113,7 +115,7 @@ describe("following the active camera", () => {
     // running eleven full-scene depth passes.
     for (let i = 0; i < 10; i++) provider.mapFor(camera(`cam${i}`));
 
-    expect(scene.customRenderTargets.length).toBe(1);
+    expect(scene.cameras.flatMap((camera) => camera.customRenderTargets).length).toBe(1);
   });
 
   it("unregisters the old target when it switches", () => {
@@ -121,7 +123,7 @@ describe("following the active camera", () => {
     const first = provider.mapFor(cam);
     provider.mapFor(camera("b"));
 
-    expect(scene.customRenderTargets).not.toContain(first);
+    expect(scene.cameras.flatMap((camera) => camera.customRenderTargets)).not.toContain(first);
   });
 
   it("switches back and forth without leaking", () => {
@@ -133,7 +135,7 @@ describe("following the active camera", () => {
       provider.mapFor(b);
     }
 
-    expect(scene.customRenderTargets.length).toBe(1);
+    expect(scene.cameras.flatMap((camera) => camera.customRenderTargets).length).toBe(1);
   });
 });
 
@@ -150,7 +152,7 @@ describe("a device that cannot store world distances", () => {
     const strict = new WaterDepthProvider(scene);
 
     expect(strict.mapFor(camera("a"))).toBeNull();
-    expect(scene.customRenderTargets.length).toBe(0);
+    expect(scene.cameras.flatMap((camera) => camera.customRenderTargets).length).toBe(0);
   });
 
   it("asks the device only once", () => {
@@ -171,11 +173,11 @@ describe("a device that cannot store world distances", () => {
 describe("teardown", () => {
   it("removes its target from the scene", () => {
     const map = provider.mapFor(camera("a"));
-    expect(scene.customRenderTargets).toContain(map);
+    expect(scene.cameras.flatMap((camera) => camera.customRenderTargets)).toContain(map);
 
     provider.dispose();
 
-    expect(scene.customRenderTargets).not.toContain(map);
+    expect(scene.cameras.flatMap((camera) => camera.customRenderTargets)).not.toContain(map);
     expect(provider.boundCamera).toBeNull();
   });
 
@@ -200,25 +202,37 @@ describe("what the depth pass draws", () => {
   const captured = (): AbstractMesh[] => {
     const map = provider.mapFor(camera("a"));
     if (!map) return [];
-    const predicate = (map as unknown as { renderListPredicate: (m: AbstractMesh) => boolean }).renderListPredicate;
-    return scene.meshes.filter((m) => predicate(m));
+    return (map as RenderTargetTexture).getCustomRenderList?.(0, scene.meshes, scene.meshes.length) ?? [];
   };
 
-  it("uses an explicit list rather than the scene's active meshes", () => {
-    // DepthRenderer defaults renderList to null, which means "whatever is in
-    // scene.getActiveMeshes()". That list is rewritten by every render target
-    // that draws, including water's own capture and mirror — so the depth pass
-    // drew an unpredictable subset, and where it drew nothing the map kept its
-    // clear value. With storeCameraSpaceZ that clear is 0.0, which makes
-    // thickness compute as exactly zero: no absorption at any coefficient, and
-    // full shoreline foam over the entire pool.
-    const map = provider.mapFor(camera("a"));
-
-    expect(map).not.toBeNull();
-    // The predicate is what replaces the null default. `renderList` itself
-    // stays null until a render evaluates the predicate and fills it, so
-    // asserting on the list here would pass for the broken case too.
-    expect(typeof (map as unknown as { renderListPredicate: unknown }).renderListPredicate).toBe("function");
+  it("uses the current world camera list across successive weapon-camera frames", async () => {
+    const eye = camera("world");
+    eye.layerMask = 0x0fffffff;
+    const weapon = camera("weapon");
+    weapon.layerMask = 0x10000000;
+    scene.activeCameras = [eye, weapon];
+    const wall = CreateBox("wall", { size: 2 }, scene);
+    wall.position.z = 8;
+    wall.material = new StandardMaterial("wall-material", scene);
+    const gun = CreateBox("gun", { size: 1 }, scene);
+    gun.position.z = 4;
+    gun.layerMask = weapon.layerMask;
+    gun.material = wall.material;
+    const map = provider.mapFor(eye) as RenderTargetTexture;
+    const filter = map.getCustomRenderList!;
+    const captures: string[][] = [];
+    map.getCustomRenderList = (...args) => {
+      const meshes = filter(...args) ?? [];
+      captures.push(meshes.map((mesh) => mesh.name));
+      return meshes;
+    };
+    await scene.whenReadyAsync();
+    for (let frame = 0; frame < 3; frame++) scene.render();
+    expect(captures).toHaveLength(3);
+    expect(captures.every((names) => names.includes("wall") && !names.includes("gun"))).toBe(true);
+    expect(scene.getActiveMeshes().data.slice(0, scene.getActiveMeshes().length)).toContain(gun);
+    expect(scene.customRenderTargets).not.toContain(map);
+    expect(eye.customRenderTargets).toContain(map);
   });
 
   it("measures against the world", () => {
