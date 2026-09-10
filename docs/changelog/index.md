@@ -6,6 +6,7 @@ All notable changes to this project are documented in version-specific files.
 
 | Version | Date | Summary |
 |---------|------|---------|
+| [v0.9.23](./v0.9.23.md) | unreleased | Living changelog for the next development cycle |
 | [v0.9.22](./v0.9.22.md) | Sep 10, 2026 | Engine-owned quality-scalable water, swimming, reactive splashes, cached room reflections and soft player reflections |
 | [v0.9.21](./v0.9.21.md) | Aug 6, 2026 | Search & Destroy (bomb/defuse rounds, loadouts, bot directives), Quad Damage, first-person spectating, lobby team selection, collision + root-motion fixes, both manuals rewritten |
 | [v0.9.20](./v0.9.20.md) | Jul 23, 2026 | Procedural weapon/pickup effects, post-match polish, and map-learning bot movement foundation |
