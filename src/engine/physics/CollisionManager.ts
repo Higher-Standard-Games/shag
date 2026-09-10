@@ -27,6 +27,10 @@ import { SweepCollisionBackend } from "./SweepCollisionBackend";
  * Singleton collision manager
  */
 export class CollisionManager {
+  getLiftSystem() {
+    const backend = this.backends.get("q3");
+    return backend instanceof SweepCollisionBackend ? backend.lifts : undefined;
+  }
   private static instance: CollisionManager | null = null;
 
   // Debug: unique ID to track singleton

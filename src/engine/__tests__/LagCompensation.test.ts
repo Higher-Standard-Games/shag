@@ -7,8 +7,24 @@
 
 import { playerId, tickNumber } from "@shared/server/simulation/types";
 import { describe, expect, it } from "vitest";
+import { extractLifts, LiftSystem } from "../../shared/bsp/LiftSystem";
+import type { CollisionWorld } from "../../shared/collision/CollisionWorld";
+import type { WorldState } from "../server/core/WorldState";
+import type { EntityId } from "../server/ecs/types";
 import { CASUAL_CONFIG, TOURNAMENT_CONFIG } from "../server/lagcomp/config";
 import { LagCompensation } from "../server/lagcomp/LagCompensation";
+import { liftBsp } from "./fixtures/liftBsp";
+
+/** Minimal state: history only needs a tick, a clone and a checksum. */
+function fakeWorldState(tick: number): WorldState {
+  const state = {
+    tick: tickNumber(tick),
+    clone: () => state,
+    checksum: () => 0,
+    entitiesByType: () => [],
+  };
+  return state as unknown as WorldState;
+}
 
 describe("LagCompensation", () => {
   describe("getRewindTick", () => {
@@ -107,6 +123,39 @@ describe("LagCompensation", () => {
     it("should not crash when no collision world is set", () => {
       const lagComp = new LagCompensation();
       expect(() => lagComp.setCollisionWorld(null)).not.toThrow();
+    });
+
+    it("traces a rewound shot against the mover position recorded for that tick", () => {
+      const bsp = liftBsp();
+      const lifts = new LiftSystem(extractLifts(bsp.entities, bsp.models), () => ({
+        fraction: 1,
+        solid: false,
+        normalY: 0,
+        modelIndex: -1,
+      }));
+      const sampled: number[] = [];
+      const world = {
+        lifts,
+        trace: () => {
+          sampled.push(lifts.offsets()[0]);
+          return { hit: false, fraction: 1 };
+        },
+      } as unknown as CollisionWorld;
+      const lagComp = new LagCompensation(CASUAL_CONFIG);
+      lagComp.setCollisionWorld(world);
+
+      // Record the world while the plat is still down, then send it up.
+      lagComp.recordSnapshot(fakeWorldState(0));
+      const whenFired = lifts.offsets()[0];
+      const rider = { position: { x: 0, y: 24.03125, z: 0 }, velocity: { x: 0, y: 0, z: 0 } };
+      for (let i = 0; i < 60; i++) lifts.step(1 / 60, [rider]);
+      expect(lifts.offsets()[0]).not.toBe(whenFired);
+
+      const ray = { origin: { x: 0, y: 60, z: 0 }, direction: { x: 0, y: -1, z: 0 }, maxDistance: 100 };
+      lagComp.traceHitscan(ray, 9 as unknown as EntityId, 0, fakeWorldState(0));
+      expect(sampled).toEqual([whenFired]);
+      // The live world is handed back untouched for the next simulation tick.
+      expect(lifts.offsets()[0]).not.toBe(whenFired);
     });
   });
 });

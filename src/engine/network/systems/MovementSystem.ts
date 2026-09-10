@@ -1,3 +1,4 @@
+import type { LiftActor } from "../../../shared/bsp/LiftSystem";
 import type { InputComponent } from "../components/InputComponent";
 import type { MovementStateComponent } from "../components/MovementStateComponent";
 import type { TransformComponent } from "../components/TransformComponent";
@@ -55,6 +56,21 @@ export class MovementSystem extends GameSystem {
   }
 
   update(state: GameState, deltaTime: number): void {
+    if (this.collision?.lifts?.definitions.length) {
+      const actors: LiftActor[] = [];
+      // Everything with a body rides; only an input-driven body calls a lift.
+      for (const entity of state.entities.values()) {
+        const transform = entity.getComponent<TransformComponent>("transform");
+        const velocity = entity.getComponent<VelocityComponent>("velocity");
+        if (transform && velocity)
+          actors.push({
+            position: transform.position,
+            velocity: velocity.linear,
+            passive: !entity.getComponent("input"),
+          });
+      }
+      this.collision.lifts.step(deltaTime, actors);
+    }
     for (const [_entityId, entity] of state.entities) {
       // Get required components
       const transform = entity.getComponent<TransformComponent>("transform");

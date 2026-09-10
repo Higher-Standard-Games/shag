@@ -53,6 +53,8 @@ export class LagCompensation {
   private historyBuffer: HistoryBuffer;
   private config: LagCompensationConfig;
   private clientLatencies: Map<PlayerId, number> = new Map();
+  /** Mover travel offsets per recorded tick, pruned alongside the state history. */
+  private liftHistory: Map<number, number[]> = new Map();
 
   private collisionWorld: CollisionWorld | null = null;
 
@@ -75,6 +77,14 @@ export class LagCompensation {
   recordSnapshot(state: Readonly<WorldState>): void {
     // Only record players and their vicinity for efficiency
     this.historyBuffer.push(state as WorldState);
+
+    // Movers are world geometry that moves, so they need the same history the
+    // players get, or a rewound shot is traced against a lift that has moved on.
+    const lifts = this.collisionWorld?.lifts;
+    if (!lifts?.definitions.length) return;
+    this.liftHistory.set(state.tick as number, lifts.offsets());
+    const oldest = this.historyBuffer.oldestTick as number | null;
+    if (oldest !== null) for (const tick of this.liftHistory.keys()) if (tick < oldest) this.liftHistory.delete(tick);
   }
 
   /**
@@ -161,7 +171,10 @@ export class LagCompensation {
         z: ray.origin.z + ray.direction.z * ray.maxDistance,
       };
 
-      const worldTrace = this.collisionWorld.trace(ray.origin, endPoint);
+      const trace = () => this.collisionWorld!.trace(ray.origin, endPoint);
+      const lifts = this.collisionWorld.lifts;
+      const offsets = this.liftHistory.get(tick as number);
+      const worldTrace = lifts && offsets ? lifts.rewind(offsets, trace) : trace();
       if (worldTrace.hit) {
         worldBlockDistance = worldTrace.fraction * ray.maxDistance;
       }

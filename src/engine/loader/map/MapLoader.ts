@@ -824,6 +824,11 @@ export class MapLoader {
         try {
           const result = await handler(entity, scene);
           if (result.handled) {
+            // Movers are separate inline models, but still belong to this map.
+            // Parenting makes unload dispose their meshes and render observers.
+            if (result.node?.metadata?.isMover && this.currentMeshResult) {
+              result.node.parent = this.currentMeshResult.worldMesh;
+            }
             handledCount++;
           }
         } catch (e) {

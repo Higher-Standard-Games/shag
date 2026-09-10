@@ -61,6 +61,10 @@ export function toSharedContents(raw: number): number {
 export class SweepBackendAdapter implements SweepBackend {
   constructor(private readonly backend: SweepCollisionBackend) {}
 
+  get lifts() {
+    return this.backend.lifts;
+  }
+
   trace(
     start: Vec3,
     end: Vec3,

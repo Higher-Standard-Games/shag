@@ -6,10 +6,14 @@
  */
 
 import { Animation } from "@babylonjs/core/Animations/animation";
+import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { Scene } from "@babylonjs/core/scene";
+import { extractLifts, type LiftSystem } from "../../../shared/bsp/LiftSystem";
+import { AudioManager } from "../../AudioManager";
 import { type EntityData, EntityHandlerRegistry, type EntityHandlerResult } from "../../core/EntityHandlerRegistry";
+import { getCollisionManager } from "../../physics/CollisionManager";
 import type { BspFile } from "./BspLoader";
 import { buildBrushModel } from "./BspMeshBuilder";
 
@@ -199,6 +203,7 @@ function addDoorToGroup(targetname: string, controller: ReturnType<typeof create
  * func_door handler
  */
 async function handleFuncDoor(entity: EntityData, scene: Scene): Promise<EntityHandlerResult> {
+  if (entity.properties.angle === "-1" || entity.properties.angle === "-2") return handleLift(entity, scene);
   if (!currentBsp) {
     console.warn("[BspEntityHandlers] No BSP loaded for func_door");
     return { handled: false };
@@ -251,14 +256,63 @@ async function handleFuncDoor(entity: EntityData, scene: Scene): Promise<EntityH
  * Register all BSP entity handlers
  */
 export function registerBspEntityHandlers(): void {
+  EntityHandlerRegistry.register("func_plat", handleLift);
   EntityHandlerRegistry.register("func_door", handleFuncDoor);
-  console.log("[BspEntityHandlers] Registered BSP entity handlers: func_door");
+  console.log("[BspEntityHandlers] Registered BSP entity handlers: func_door, func_plat");
 }
 
 /**
  * Unregister BSP entity handlers
  */
 export function unregisterBspEntityHandlers(): void {
+  EntityHandlerRegistry.unregister("func_plat");
   EntityHandlerRegistry.unregister("func_door");
   doorGroups.clear();
+}
+
+async function handleLift(entity: EntityData, scene: Scene): Promise<EntityHandlerResult> {
+  const bsp = currentBsp;
+  if (!bsp) return { handled: false };
+  const definition = extractLifts([entity], bsp.models)[0];
+  if (!definition) return { handled: false };
+  const mesh = await buildBrushModel(bsp, definition.modelIndex, scene, `bsp_lift_${definition.modelIndex}`);
+  if (!mesh) return { handled: false };
+  mesh.metadata = { ...mesh.metadata, mapOwned: true, entityType: entity.classname, isMover: true };
+  const sounds = [definition.sound, definition.soundStop].filter(Boolean);
+  void AudioManager.getInstance().preloadSfx(sounds);
+  // Sound follows the shared simulation state, so a lift another player called
+  // is heard the moment its restored phase changes — no separate mover event.
+  let heardPhase: ReturnType<LiftSystem["phase"]>;
+  const update = () => {
+    const lifts = getCollisionManager().getLiftSystem();
+    const offset = lifts?.offset(definition.modelIndex);
+    mesh.position.set(
+      offset?.x ?? definition.origin.x,
+      offset?.y ?? definition.origin.y + definition.start,
+      offset?.z ?? definition.origin.z,
+    );
+    const phase = lifts?.phase(definition.modelIndex);
+    if (phase && heardPhase && phase !== heardPhase) {
+      const path = phase === "up" || phase === "down" ? definition.sound : definition.soundStop;
+      if (path)
+        AudioManager.getInstance().playSfx3D(path, mesh.position, {
+          volume: 0.7,
+          minDistance: 128,
+          maxDistance: 3000,
+        });
+    }
+    heardPhase = phase;
+  };
+  update();
+  const observer = scene.onBeforeRenderObservable.add(update);
+  const materials = mesh.getChildMeshes().map((child) => child.material);
+  mesh.onDisposeObservable.addOnce(() => {
+    scene.onBeforeRenderObservable.remove(observer);
+    for (const material of materials) {
+      // Inline builder owns its materials/lightmaps; diffuse textures belong to the PK3 cache.
+      if (material instanceof StandardMaterial) material.lightmapTexture?.dispose();
+      material?.dispose(false, false);
+    }
+  });
+  return { handled: true, node: mesh };
 }
