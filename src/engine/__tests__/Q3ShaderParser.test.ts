@@ -770,4 +770,24 @@ models/items/armor/ga/ga
       expect(parseShaderFile(content)[0].surfaceLight).toBeUndefined();
     });
   });
+
+  describe("QFusion cubemap stages", () => {
+    it("preserves the environment base path inside an unsupported feature branch", () => {
+      const content = `textures/acidwdm2/water1
+{
+  surfaceparm water
+  if textureCubeMap
+  {
+    cubemap env/acidwdm2/water
+    blendFunc blend
+  }
+  endif
+}`;
+
+      const shader = parseShaderFile(content)[0];
+      const stages = shader.conditionalBlocks?.flatMap((block) => block.stages) ?? [];
+
+      expect(stages.find((stage) => stage.cubeMap)?.cubeMap).toBe("env/acidwdm2/water");
+    });
+  });
 });

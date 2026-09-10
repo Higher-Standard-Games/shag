@@ -1,270 +1,33 @@
-# Game Configuration
+# Configuration
 
-Central configuration file for game assets and settings.
+> Verified on 2026-08-06.
 
----
+The active FPS bootstrap uses layered configuration. A separate generic <code>GameConfig</code> still exists for the <code>AssetLoader</code>/<code>EngineScene</code> raw-map extension path.
 
-## Location
+| Layer | Source | Owner |
+|---|---|---|
+| Engine selection | <code>public/engine.json</code> | <code>GamePaths</code> |
+| FPS metadata | <code>src/games/fps/game.json</code> | Browser bootstrap |
+| Map pool | <code>config/maps.json</code> | Lobby server |
+| Loose-game defaults | <code>/games/&lt;id&gt;/engine-settings.json</code> | <code>EngineSettings</code> |
+| Raw-map extension manifest | <code>/games/&lt;id&gt;/config.json</code> | <code>AssetLoader</code> |
+| Live/user settings | Cvars and browser storage | Owning subsystem |
+| Process options | CLI arguments/environment | Entry point |
 
-```
-public/game/config.json
-```
+Current <code>engine.json</code> selects game <code>fps</code> and engine root <code>/engine</code>. Headless roots may pass the same data to <code>initFromConfig()</code>.
 
----
+Optional engine settings cover camera, lighting, time, and post-processing. A missing file is valid and uses defaults. The current FPS public game directory is not checked in.
 
-## Structure
+The direct FPS entry point in <code>src/main.ts</code> loads <code>EngineSettings</code>, but does not call <code>AssetLoader.loadAll()</code>. Consequently, <code>config.json</code> is not an active FPS configuration layer. <code>EngineScene</code> can use the loader for raw <code>.map</code> files, prefabs, and conventional audio assets.
 
-```json
-{
-  "game": {
-    "title": "Game Title",
-    "version": "1.0.0",
-    "startMap": "level1.map"
-  },
-  "assets": {
-    "maps": ["level1.map", "level2.map"],
-    "menuMap": "menu_background.map",
-    "prefabs": ["tree.map", "rock.map"],
-    "music": {
-      "menu": "music/menu.ogg",
-      "maps": {
-        "level1.map": "music/level1.ogg",
-        "level2.map": "music/level2.ogg"
-      }
-    },
-    "textures": []
-  },
-  "settings": {
-    "defaultVolume": 0.5,
-    "musicEnabled": true,
-    "sfxEnabled": true
-  }
-}
-```
+FPS media follows a separate path: <code>public/data</code> PK3 files through <code>PK3Index</code>/<code>PK3Loader</code>. Do not add ad-hoc BSP filesystem searches.
 
----
+Choose ownership deliberately:
 
-## Sections
+- deterministic gameplay: shared typed definition;
+- live preference: cvar;
+- map display/mode metadata: <code>config/maps.json</code>;
+- boot selection: <code>engine.json</code>;
+- build/deployment: Vite, package scripts, Capacitor, or Electron.
 
-### game
-
-General game information.
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `title` | string | Game title (shown in browser tab) |
-| `version` | string | Version number |
-| `startMap` | string | Map to load when starting game |
-
-### assets
-
-Assets to preload during loading screen.
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `maps` | string[] | Map files to preload |
-| `menuMap` | string | Map to show in main menu background |
-| `prefabs` | string[] | Prefab files to preload |
-| `music.menu` | string | Menu music file path |
-| `music.maps` | object | Map name → music file mapping |
-| `textures` | string[] | Textures to preload (optional) |
-
-### settings
-
-Default game settings.
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `defaultVolume` | number | Audio volume 0-1 |
-| `musicEnabled` | boolean | Music on/off |
-| `sfxEnabled` | boolean | Sound effects on/off |
-
----
-
-## Asset Paths
-
-### Maps
-
-```
-"maps": ["level1.map"]
-→ Loads from: /maps/level1.map
-```
-
-### Prefabs
-
-```
-"prefabs": ["tree.map"]
-→ Loads from: /prefabs/tree.map
-```
-
-### Music
-
-```
-"music": { "menu": "music/menu.ogg" }
-→ Loads from: /game/music/menu.ogg
-```
-
-### Textures
-
-Textures are loaded on-demand from `/textures/` based on map references.
-
----
-
-## Loading Process
-
-1. **Config loaded** - `config.json` parsed
-2. **Maps loaded** - All maps in `assets.maps` parsed and cached
-3. **Prefabs loaded** - All prefabs in `assets.prefabs` parsed and cached
-4. **Audio loaded** - Menu and map music files preloaded
-5. **Complete** - Loading screen hidden, menu shown
-
----
-
-## Accessing Config
-
-```typescript
-import { AssetLoader } from "./engine/AssetLoader";
-
-const config = AssetLoader.getInstance().getConfig();
-
-console.log(config.game.title);
-console.log(config.settings.defaultVolume);
-```
-
----
-
-## Example Configurations
-
-### Minimal
-
-```json
-{
-  "game": {
-    "title": "My Game",
-    "version": "0.1.0",
-    "startMap": "test.map"
-  },
-  "assets": {
-    "maps": ["test.map"],
-    "menuMap": "test.map",
-    "prefabs": [],
-    "music": {
-      "menu": "",
-      "maps": {}
-    },
-    "textures": []
-  },
-  "settings": {
-    "defaultVolume": 0.5,
-    "musicEnabled": true,
-    "sfxEnabled": true
-  }
-}
-```
-
-### Full Game
-
-```json
-{
-  "game": {
-    "title": "Epic Adventure",
-    "version": "1.0.0",
-    "startMap": "intro.map"
-  },
-  "assets": {
-    "maps": [
-      "intro.map",
-      "town.map",
-      "forest.map",
-      "dungeon.map",
-      "boss.map"
-    ],
-    "menuMap": "menu_scene.map",
-    "prefabs": [
-      "props/tree.map",
-      "props/rock.map",
-      "props/chest.map",
-      "buildings/house.map",
-      "characters/npc_base.map"
-    ],
-    "music": {
-      "menu": "music/title_theme.ogg",
-      "maps": {
-        "intro.map": "music/intro.ogg",
-        "town.map": "music/peaceful_town.ogg",
-        "forest.map": "music/forest_ambience.ogg",
-        "dungeon.map": "music/dungeon_dark.ogg",
-        "boss.map": "music/boss_battle.ogg"
-      }
-    },
-    "textures": []
-  },
-  "settings": {
-    "defaultVolume": 0.7,
-    "musicEnabled": true,
-    "sfxEnabled": true
-  }
-}
-```
-
----
-
-## Audio Manager
-
-Access loaded audio:
-
-```typescript
-import { AudioManager } from "./engine/AudioManager";
-
-const audio = AudioManager.getInstance();
-
-// Play menu music
-audio.playMusic("menu");
-
-// Play map-specific music
-audio.playMusic("level1.map");
-
-// Control volume
-audio.setVolume(0.5);
-
-// Fade out
-audio.fadeOut(2000); // 2 seconds
-```
-
----
-
-## Adding New Config Options
-
-### 1. Update Interface
-
-In `AssetLoader.ts`:
-
-```typescript
-export interface GameConfig {
-  game: {
-    title: string;
-    version: string;
-    startMap: string;
-    myNewOption: string;  // Add here
-  };
-  // ...
-}
-```
-
-### 2. Use in Code
-
-```typescript
-const config = AssetLoader.getInstance().getConfig();
-const myValue = config.game.myNewOption;
-```
-
-### 3. Update config.json
-
-```json
-{
-  "game": {
-    "title": "My Game",
-    "myNewOption": "my value"
-  }
-}
-```
+Use <code>cvarlist</code>, <code>help &lt;cvar&gt;</code>, <code>reset</code>, and <code>cvarexport</code> for runtime settings.

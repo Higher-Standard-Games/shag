@@ -183,6 +183,9 @@ export interface Q3ShaderStage {
   /** Texture map path, or special values like $lightmap, $whiteimage */
   map: string;
 
+  /** QFusion/Warsow cubemap base path (six files with axis suffixes). */
+  cubeMap?: string;
+
   /** Structured payload for Warsow/QFusion `material` directives */
   material?: Q3MaterialDirective;
 

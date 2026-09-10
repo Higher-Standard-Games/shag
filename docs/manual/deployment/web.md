@@ -1,122 +1,37 @@
-# Web Deployment
+# Web deployment
 
-Deploy SHAG Engine games as static web applications.
-
-## Build for Production
+## Build and preview
 
 ```bash
 npm run build
+npm run preview
 ```
 
-This creates an optimized build in `dist/`.
+Deploy the contents of `dist/` to a static HTTPS host. Vite copies files from `public/`, so any game data under `public/data/` becomes part of the output unless the deployment process separates it.
 
-## Output Structure
+## Hosting requirements
 
-```
-dist/
-├── index.html
-├── assets/
-│   ├── index-[hash].js    # Main bundle
-│   └── index-[hash].css   # Styles
-└── game/                  # PK3 assets (if included)
-```
+- serve `index.html` and hashed assets with the correct MIME types;
+- provide an SPA fallback to `index.html` for client-side routes;
+- use HTTPS for browser APIs and production networking;
+- serve `.wasm`, `.pk3`, compressed textures, and source maps with suitable cache headers;
+- avoid caching `index.html` indefinitely while using long immutable caching for hashed assets.
 
-## Static Hosting
+Large PK3 files may be more practical on a CDN. The current loaders resolve assets through `GamePaths`, `PK3Index`, and generated manifests; there is no `PK3Loader.setBasePath` API. Configure the public paths rather than documenting a nonexistent loader setter.
 
-The `dist/` folder can be deployed to any static host.
+## Verification
 
-### Netlify
+Test the deployed origin, not just the Vite preview:
 
-1. Connect GitHub repository
-2. Set build command: `npm run build`
-3. Set publish directory: `dist`
+1. open browser developer tools and check for 404 or MIME errors;
+2. confirm the PK3 index and a representative map resolve;
+3. load `wdm2` through the normal gameplay flow;
+4. test WebSocket/WebTransport endpoints through the production proxy;
+5. confirm cache invalidation with a second deployment.
 
-Or use CLI:
+## Related configuration
 
-```bash
-npm install -g netlify-cli
-netlify deploy --prod --dir=dist
-```
-
-### Vercel
-
-```bash
-npm install -g vercel
-vercel --prod
-```
-
-### GitHub Pages
-
-Add to `.github/workflows/deploy.yml`:
-
-```yaml
-name: Deploy
-on:
-  push:
-    branches: [main]
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - run: npm ci
-      - run: npm run build
-      - uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
-```
-
-## Asset Hosting
-
-PK3 files are large. Consider:
-
-### Option 1: Include in Build
-
-Place in `public/games/default/`, included in `dist/`.
-
-**Pros:** Simple, works offline  
-**Cons:** Large initial download
-
-### Option 2: CDN
-
-Host assets separately:
-
-```typescript
-PK3Loader.setBasePath('https://cdn.example.com/game/');
-```
-
-**Pros:** Cached separately, smaller app bundle  
-**Cons:** Requires CDN setup
-
-## Compression
-
-Ensure server sends gzip/brotli:
-
-| File | Uncompressed | Gzip |
-|------|-------------|------|
-| Main JS | 3.4 MB | 755 KB |
-
-Most hosts handle this automatically.
-
-## CORS
-
-If hosting assets on CDN, configure CORS headers:
-
-```
-Access-Control-Allow-Origin: *
-```
-
-## Cache Headers
-
-Recommended cache policy:
-
-| File | Cache |
-|------|-------|
-| `index.html` | No cache |
-| `assets/*` | 1 year (hashed) |
-| `game/*.pk3` | 1 year |
+- `vite.config.ts`
+- `public/engine.json`
+- `src/engine/core/GamePaths.ts`
+- `src/engine/loader/pk3/PK3Index.ts`

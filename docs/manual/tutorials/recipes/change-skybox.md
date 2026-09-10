@@ -1,48 +1,32 @@
-# Recipe: Change Skybox at Runtime
+# Recipe: inspect or replace a map skybox
 
-Swap the skybox dynamically during gameplay.
+## BSP sky workflow
 
-## Console Command
-
+```text
+developer 1
+bsp load wdm2
+bsp render
+bsp sky info
+bsp sky apply
+bsp sky toggle
+bsp sky remove
 ```
-bsp skybox env/stormydays/stormydays
-```
 
-## Code
+Use `bsp sky debug` to verify face orientation.
 
-```typescript
-import { SkyboxLoader } from '../../engine/loader/texture/SkyboxLoader';
+## Loader API
 
-async function changeSkybox(scene: Scene, skyPath: string) {
-  const skyboxLoader = SkyboxLoader.getInstance();
-  skyboxLoader.init(scene);
-  
-  // Remove existing skybox
-  skyboxLoader.disposeSkybox();
-  
-  // Load new skybox
-  const result = await skyboxLoader.loadSkybox(skyPath);
-  
-  if (result.success) {
-    console.log('Skybox changed to:', skyPath);
-  } else {
-    console.error('Failed:', result.error);
-  }
+```ts
+const loader = SkyboxLoader.getInstance();
+loader.init(scene);
+
+const result = await loader.loadSkybox(basePath);
+if (!result.success) {
+  console.warn(result.error);
 }
 
-// Usage
-changeSkybox(scene, 'env/stormydays/stormydays');
+// On map/scene teardown:
+loader.disposeSkybox();
 ```
 
-## Available Skyboxes
-
-List skyboxes in PK3:
-
-```
-pk3 list env/
-```
-
-Common paths:
-- `env/stormydays/stormydays`
-- `env/bluesky/bluesky`
-- `env/desert/desert`
+The standalone `skybox load` command is not a general loader at present; it directs users back to map loading.

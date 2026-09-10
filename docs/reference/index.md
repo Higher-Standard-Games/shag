@@ -1,54 +1,49 @@
 # Engine Reference
 
-Technical reference documentation for SHAG Engine systems.
+> Verified against SHAG Engine 0.9.22 on 2026-08-06.
 
-## Core
+This directory is a source-oriented reference for the current engine. The maintained manual in [docs/manual](../manual/index.md) remains the best place for tutorials and end-to-end workflows; these pages focus on APIs, formats, commands, and integration status.
 
-| Document | Description |
-|----------|-------------|
-| [ARCHITECTURE.md](./ARCHITECTURE.md) | Engine architecture patterns and conventions |
-| [FEATURES.md](./FEATURES.md) | Complete feature list |
-| [config.md](./config.md) | Configuration options |
-| [data-files.md](./data-files.md) | JSON data file formats |
+## Start Here
 
-## Map & Entities
+- [Architecture](./ARCHITECTURE.md) — runtime composition, dependency boundaries, and service lifetimes
+- [Feature Matrix](./FEATURES.md) — implemented, experimental, extension-only, and unavailable features
+- [CLI Tools](./CLI_TOOLS.md) — exact package scripts and headless validation commands
+- [Debug Console](./DEBUG_CONSOLE.md) — console behavior and current command inventory
+- [Data and Configuration](./data-files.md) — active JSON files, generated manifests, and TypeScript definition tables
 
-| Document | Description |
-|----------|-------------|
-| [MAP_FORMAT.md](./MAP_FORMAT.md) | .map file format specification |
-| [entities.md](./entities.md) | All supported entity types |
-| [triggers.md](./triggers.md) | Trigger system and actions |
-| [prefabs.md](./prefabs.md) | Prefab/model system |
-| [collision.md](./collision.md) | BSP collision system |
+## Maps and Gameplay
 
-## Graphics & Rendering
+- [BSP Collision](./collision.md)
+- [Raw .map Format](./MAP_FORMAT.md)
+- [Entities](./entities.md)
+- [BSP Triggers](./triggers.md)
+- [Game Paths](./GAME_PATHS.md)
+- [Configuration](./config.md)
 
-| Document | Description |
-|----------|-------------|
-| [sprites.md](./sprites.md) | 2D sprite systems |
-| [weather-effects.md](./weather-effects.md) | Weather system (rain, snow, fog) |
-| [post-processing.md](./post-processing.md) | Graphics effects (bloom, SSAO) |
-| [ktx2-textures.md](./ktx2-textures.md) | Compressed texture format |
-| [RENDER_VARS.md](./RENDER_VARS.md) | Runtime render variables |
+## Rendering and Content Extensions
 
-## Systems
+- [Render Variables](./RENDER_VARS.md)
+- [Post-processing](./post-processing.md)
+- [KTX2 Textures](./ktx2-textures.md)
+- [Prefabs](./prefabs.md)
+- [Sprites](./sprites.md)
+- [Weather Effects](./weather-effects.md)
+- [UI Scaling](./ui-scaling.md)
+- [Buildable System](./buildable-system.md)
 
-| Document | Description |
-|----------|-------------|
-| [buildable-system.md](./buildable-system.md) | Generic buildable object system |
-| [ui-scaling.md](./ui-scaling.md) | Cross-platform UI scaling |
+Some of these are engine extension APIs used by <code>EngineScene</code> or external SHAG games and are not wired into the current FPS bootstrap. Each page calls that out explicitly.
 
-## Tools
+## Platforms
 
-| Document | Description |
-|----------|-------------|
-| [DEBUG_CONSOLE.md](./DEBUG_CONSOLE.md) | Debug console commands |
-| [CLI_TOOLS.md](./CLI_TOOLS.md) | Headless CLI tools |
+- [Capacitor Integration](./capacitor.md)
+- [Android Build Guide](./ANDROID_BUILD_GUIDE.md)
 
-## Platform & Build
+## Sources of Truth
 
-| Document | Description |
-|----------|-------------|
-| [ANDROID_BUILD_GUIDE.md](./ANDROID_BUILD_GUIDE.md) | Android build instructions |
-| [capacitor.md](./capacitor.md) | Mobile (Android/iOS) integration |
-| [GAME_PATHS.md](./GAME_PATHS.md) | Game path configuration |
+When reference text and code disagree, use these in order:
+
+1. Current TypeScript source under <code>src/</code>.
+2. Script definitions in <code>package.json</code>.
+3. Maintained guides under <code>docs/manual/guides/</code>.
+4. This reference directory.

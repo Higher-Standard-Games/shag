@@ -1,186 +1,58 @@
-# Working with PK3 Mods
+# Testing PK3 overrides
 
-**Time:** 20 minutes  
-**Level:** Intermediate
+PK3 files are ZIP archives with Quake-style virtual paths.
 
-Load custom asset packs and manage mod priority.
+## Add an archive
 
-## What Are PK3 Files?
+Place it under:
 
-PK3 files are ZIP archives containing game assets:
-- Maps (`.bsp`)
-- Textures (`.tga`, `.jpg`, `.png`)
-- Shaders (`.shader`)
-- Models (`.md3`)
-- Sounds (`.wav`, `.ogg`)
-
-## PK3 Priority System
-
-SHAG Engine loads PK3s with priority ordering. Higher priority overrides lower:
-
-```
-tex_custom.pk3     (priority 100) ← Wins for conflicts
-tex_factory.pk3    (priority 0)
-data0_15pure.pk3   (priority 0)
+```text
+public/data/
 ```
 
-## Loading Custom PK3s
-
-### Method 1: Place in Game Directory
-
-```
-public/games/default/
-├── data0_15pure.pk3     # Base assets
-├── map_wdm7.pk3         # Map
-└── my_custom_mod.pk3    # Your mod (auto-loaded)
-```
-
-All PK3s in the game directory are automatically indexed.
-
-### Method 2: Load Programmatically
-
-```typescript
-const pk3 = PK3Loader.getInstance();
-
-// Index base directory
-await pk3.indexDirectory('./game');
-
-// Load additional PK3 with high priority
-await pk3.loadPK3('./mods/custom_textures.pk3', 100);
-```
-
-## Creating a PK3 Mod
-
-### Step 1: Create Directory Structure
-
-```
-my_mod/
-├── textures/
-│   └── my_textures/
-│       ├── wall01.tga
-│       └── floor01.tga
-├── scripts/
-│   └── my_mod.shader
-└── maps/
-    └── my_map.bsp
-```
-
-### Step 2: Create Shader File
-
-```
-// scripts/my_mod.shader
-
-textures/my_textures/wall01
-{
-    {
-        map textures/my_textures/wall01.tga
-    }
-    {
-        map $lightmap
-        blendFunc GL_DST_COLOR GL_ZERO
-    }
-}
-```
-
-### Step 3: Package as ZIP
+Then regenerate the browser discovery manifest:
 
 ```bash
-cd my_mod
-zip -r ../my_mod.pk3 *
+npm run tools:manifest
 ```
 
-Or use any ZIP tool, then rename `.zip` to `.pk3`.
+In a developer console:
 
-## Overriding Base Assets
-
-To replace a base texture, use the same path:
-
-```
-my_override.pk3/
-└── textures/
-    └── base_wall/
-        └── concrete.tga    # Replaces original
+```text
+developer 1
+pk3 index
+pk3 stats
+pk3 list
 ```
 
-Load with higher priority:
+There is no runtime `indexDirectory` method. Browser discovery starts from `pk3_manifest.json`.
 
-```typescript
-await pk3.loadPK3('./mods/my_override.pk3', 50);
+## Override order
+
+Indexed packages are processed alphabetically, and a later package wins when virtual paths collide. Use a clearly late filename for an override and verify it:
+
+```text
+pk3 find textures/example/wall.tga
+shader deps textures/example/wall
 ```
 
-## Checking Loaded Assets
+Do not depend on undocumented filesystem enumeration order.
 
-```typescript
-const pk3 = PK3Loader.getInstance();
+## Shader updates
 
-// List all loaded PK3s
-console.log('Loaded PK3s:', pk3.getLoadedArchives());
+Shader scripts normally live under `scripts/*.shader`. After loading/reindexing packages:
 
-// List files in a path
-const textures = pk3.listFiles('textures/');
-console.log('Textures:', textures);
-
-// Check if file exists
-const exists = await pk3.hasFile('textures/my_mod/wall01.tga');
-```
-
-Console commands:
-
-```
-pk3 list                    # All PK3s
-pk3 list textures/          # Files in path
-pk3 list maps/              # Available maps
-```
-
-## Reload Shaders After Loading PK3
-
-After loading a new PK3 with shaders:
-
-```typescript
-const shaders = Q3ShaderRegistry.getInstance();
-await shaders.loadFromPK3(); // Loads new shaders
-```
-
-Console:
-
-```
+```text
 shader load
-shader count
+shader info textures/example/wall
 ```
 
-## Best Practices
+The registry API is `loadShaders()`, not `loadFromPK3()`.
 
-1. **Use unique paths** - Avoid conflicts with base assets
-2. **Test priority** - Higher priority wins
-3. **Keep mods small** - Split large mods into multiple PK3s
-4. **Document dependencies** - List required base PK3s
-5. **Use descriptive names** - `tex_my_mod.pk3` not `mod.pk3`
+## Packaging advice
 
-## Troubleshooting
-
-### Textures not appearing
-
-```
-shader info textures/my_mod/wall01
-pk3 list textures/my_mod/
-```
-
-### Wrong texture version loading
-
-Check priority:
-```typescript
-pk3.loadPK3('./mods/fix.pk3', 999); // Very high priority
-```
-
-### Shader not found
-
-Ensure shader file is in `scripts/` directory and reload:
-```
-shader load
-shader list my_mod
-```
-
-## Next Steps
-
-- [Custom Shader Materials](../advanced/custom-shaders.md)
-- [Guide: PK3 Filesystem](../../guides/pk3-filesystem.md)
+- preserve lowercase, forward-slash virtual paths;
+- include only owned or redistributable media;
+- avoid duplicate files that are not intentional overrides;
+- test both clean browser storage and an existing index;
+- keep gameplay compatibility separate from enhanced material systems.

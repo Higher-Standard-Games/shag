@@ -612,6 +612,9 @@ export class Q3ShaderRegistry {
     shader.stages.forEach((stage, i) => {
       console.log(`  Stage ${i}:`);
       console.log(`    Map: ${stage.map}`);
+      if (stage.cubeMap) {
+        console.log(`    Cubemap: ${stage.cubeMap}`);
+      }
       if (stage.blendFunc) {
         console.log(`    BlendFunc: ${stage.blendFunc.join(", ")}`);
       }

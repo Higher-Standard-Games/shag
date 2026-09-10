@@ -1,107 +1,39 @@
-# Headless Game CLI
+# Headless game CLI
 
-Run the full SHAG Engine without a GPU using NullEngine.
+The headless game runner creates a Babylon `NullEngine`, initializes shared engine services, registers engine console commands, and supports interactive or batch execution.
 
-## Overview
-
-Headless mode allows you to:
-
-- Run console commands without a browser
-- Validate maps and assets
-- Automate testing in CI/CD pipelines
-- Script batch operations
-
-## Usage
+## Interactive mode
 
 ```bash
 npm run cli:game
 ```
 
-Or with commands:
+Use `help` to inspect commands and `quit` to stop.
+
+## Batch mode
 
 ```bash
-npm run cli:game -- --command "map wdm7" --command "bsp info"
+npm run cli:game -- --exec 'bsp load wdm2; bsp info; quit'
 ```
 
-## Options
+`--command` is an alias for `--exec`. A semicolon-separated batch is the simplest CI form. There is no `--map` option.
 
-| Option | Description |
-|--------|-------------|
-| `--command "cmd"` | Execute command(s) |
-| `--map <name>` | Load map on startup |
+This composition does not register the browser gameplay launcher, so use `bsp load` rather than `map`.
 
-## Interactive Mode
-
-Without commands, enters interactive REPL:
-
-```
-=== Headless Game Engine ===
-
-[Init] Creating NullEngine...
-[Init] Found 94 PK3 files
-[Init] Loaded 1741 shaders
-[Init] Commands registered: 45
-
-[Ready] Type commands, 'help' for list, 'quit' to exit
-
-> map wdm7
-[MapLoader] Loading map: wdm7
-...
-> bsp info
-Format: FBSP
-Vertices: 12,456
-...
-> quit
-[Headless] Shutting down...
-```
-
-## Available Commands
-
-All 45+ console commands work in headless mode:
-
-```
-help                # List commands
-map <name>          # Load map
-bsp info            # Map statistics
-bsp entities        # Entity list
-shader count        # Shader count
-pk3 list <path>     # Browse PK3s
-version             # Engine version
-quit                # Exit
-```
-
-## CI/CD Integration
-
-Use in GitHub Actions:
-
-```yaml
-- name: Validate Maps
-  run: |
-    npm run cli:game -- \
-      --command "map wdm7" \
-      --command "bsp info"
-```
-
-## Scripting
-
-Chain multiple commands:
+## Useful batches
 
 ```bash
-npm run cli:game -- \
-  --command "map wdm7" \
-  --command "bsp info" \
-  --command "bsp entities" \
-  --command "quit"
+npm run cli:game -- --exec 'pk3 stats; bsp load wdm2; bsp entities; quit'
+npm run cli:game -- --exec 'sim replay W+CROUCH 60; JUMP 1; W 30; quit'
 ```
+
+Batch failures set a non-zero exit status when the command reports an explicit failure, throws, or cannot be resolved.
 
 ## Limitations
 
-- No visual rendering (NullEngine)
-- No mouse/keyboard input
-- No audio playback
-- Texture loading skipped
+- no WebGL rendering;
+- no interactive browser input;
+- browser-only Havok initialization is skipped;
+- rendering still needs a browser verification pass.
 
-## Related
-
-- [Headless BSP](./headless-bsp.md) - BSP-only loader
-- [Guide: Headless Mode](../guides/headless-mode.md) - In-depth explanation
+See [Headless mode](../guides/headless-mode.md) for the full validation workflow.

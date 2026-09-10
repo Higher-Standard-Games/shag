@@ -13,7 +13,7 @@
  * share the same collision world and map knowledge.
  */
 
-import type { AABB, CollisionWorld } from "../engine/network/systems/collision/CollisionWorld";
+import { type AABB, type CollisionWorld, MASK_SOLID } from "../engine/network/systems/collision/CollisionWorld";
 import type { Vec3 } from "../shared/bsp/BspDataLoader";
 import type { PickupEntry } from "../shared/bsp/PickupTable";
 import { extractTriggerVolumes, type TriggerVolume } from "../shared/bsp/TriggerTable";
@@ -449,9 +449,15 @@ export class BotVision {
 
   /**
    * Check if a position is inside solid geometry (stuck in a wall).
+   *
+   * Tests the solid mask rather than "any contents at all". Contents report
+   * every volume containing the point, so water, slime, lava, fog and triggers
+   * come back too — and a bot that reads those as solid would treat every pool
+   * on the map as a wall, discarding nav nodes and rejecting the edges that
+   * cross them.
    */
   isInsideSolid(point: Vec3): boolean {
-    return this._collisionWorld.pointContents(point) !== 0;
+    return (this._collisionWorld.pointContents(point) & MASK_SOLID) !== 0;
   }
 
   /**

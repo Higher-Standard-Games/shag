@@ -626,6 +626,16 @@ function parseStage(tokens: string[], startPos: number): { stage: Q3ShaderStage;
         pos += 2;
         break;
 
+      case "cubemap":
+        // QFusion/Warsow stage source. Preserve it as an appearance hint even
+        // when its surrounding `if textureCubeMap` condition is not a branch
+        // the legacy material resolver understands.
+        if (tokens[pos + 1]) {
+          stage.cubeMap = tokens[pos + 1];
+        }
+        pos += 2;
+        break;
+
       case "material":
         pos++;
         {
@@ -798,6 +808,7 @@ function isStageDirective(token: string): boolean {
   const directives = [
     "map",
     "clampmap",
+    "cubemap",
     "animmap",
     "animclampmap",
     "material",

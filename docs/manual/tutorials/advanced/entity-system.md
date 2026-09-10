@@ -1,243 +1,61 @@
-# Entity System Integration
+# Extending entities
 
-**Time:** 45 minutes  
-**Level:** Advanced
+SHAG has multiple entity representations. Choose the one that matches the loading/simulation boundary.
 
-Parse BSP entities and spawn game objects.
+## BSP entities
 
-## Prerequisites
+`BspLoader.load` returns parsed entities in `bsp.entities`. Geometry-affecting BSP classnames and brush models are handled by `BspEntityHandlers.ts`; the playable FPS path also maps supported entities into game/shared systems.
 
-- [Recipe: Extract Entities](../recipes/extract-entities.md)
-- [Guide: BSP System](../../guides/bsp-system.md)
+Adding a classname requires deciding whether it is:
 
-## BSP Entity Format
+- visual and client-only;
+- authoritative gameplay state;
+- a brush model with collision;
+- static metadata such as a spawn point.
 
-Entities are stored as text in the BSP file:
+Do not put authoritative trigger or damage decisions in a client-only Babylon node.
 
-```
-{
-"classname" "info_player_deathmatch"
-"origin" "256 128 64"
-"angle" "90"
-}
-{
-"classname" "item_health_large"
-"origin" "512 256 32"
-}
-```
+## Raw-map extension handlers
 
-## Entity Parser
-
-```typescript
-interface Entity {
-  classname: string;
-  origin?: string;
-  angle?: string;
-  targetname?: string;
-  target?: string;
-  [key: string]: string | undefined;
-}
-
-function parseEntities(entityString: string): Entity[] {
-  const entities: Entity[] = [];
-  const regex = /\{([^}]+)\}/g;
-  
-  let match;
-  while ((match = regex.exec(entityString)) !== null) {
-    const entity: Entity = { classname: '' };
-    const lines = match[1].trim().split('\n');
-    
-    for (const line of lines) {
-      const keyValue = line.match(/"([^"]+)"\s+"([^"]*)"/);
-      if (keyValue) {
-        entity[keyValue[1]] = keyValue[2];
-      }
-    }
-    
-    if (entity.classname) {
-      entities.push(entity);
-    }
-  }
-  
-  return entities;
-}
-```
-
-## Entity Spawner System
-
-```typescript
-type EntitySpawner = (entity: Entity, scene: Scene) => void;
-
-class EntitySystem {
-  private spawners: Map<string, EntitySpawner> = new Map();
-  private scene: Scene;
-  
-  constructor(scene: Scene) {
-    this.scene = scene;
-    this.registerDefaultSpawners();
-  }
-  
-  registerSpawner(classname: string, spawner: EntitySpawner) {
-    this.spawners.set(classname, spawner);
-  }
-  
-  spawnAll(entities: Entity[]) {
-    for (const entity of entities) {
-      this.spawn(entity);
-    }
-  }
-  
-  spawn(entity: Entity) {
-    const spawner = this.spawners.get(entity.classname);
-    if (spawner) {
-      spawner(entity, this.scene);
-    } else {
-      console.log(`No spawner for: ${entity.classname}`);
-    }
-  }
-  
-  private registerDefaultSpawners() {
-    // Player spawns - just log, don't create mesh
-    this.registerSpawner('info_player_deathmatch', (e) => {
-      console.log('Player spawn at:', e.origin);
-    });
-    
-    // Lights
-    this.registerSpawner('light', (e, scene) => {
-      const pos = this.parseOrigin(e.origin);
-      const intensity = parseFloat(e.light || '300') / 300;
-      
-      const light = new PointLight(
-        `light_${e.origin}`,
-        new Vector3(pos.x, pos.y, pos.z),
-        scene
-      );
-      light.intensity = intensity;
-    });
-  }
-  
-  private parseOrigin(origin?: string): { x: number; y: number; z: number } {
-    if (!origin) return { x: 0, y: 0, z: 0 };
-    const [x, y, z] = origin.split(' ').map(Number);
-    return { x, y, z };
-  }
-}
-```
-
-## Spawning Items
-
-```typescript
-// Item spawner
-entitySystem.registerSpawner('item_health_large', (entity, scene) => {
-  const pos = parseOrigin(entity.origin);
-  
-  // Create visual
-  const mesh = MeshBuilder.CreateBox('health', { size: 32 }, scene);
-  mesh.position.set(pos.x, pos.y + 16, pos.z);
-  
-  // Add rotation animation
-  scene.onBeforeRenderObservable.add(() => {
-    mesh.rotation.y += 0.02;
-  });
-  
-  // Store entity data
-  mesh.metadata = { entity, type: 'pickup' };
+```ts
+EntityHandlerRegistry.register('example_marker', async (entity, scene) => {
+  const node = createMarker(entity.properties, scene);
+  return { handled: true, node };
 });
 
-// Weapon spawner
-entitySystem.registerSpawner('weapon_rocketlauncher', (entity, scene) => {
-  const pos = parseOrigin(entity.origin);
-  
-  // Load weapon model (if available)
-  // Or create placeholder
-  const mesh = MeshBuilder.CreateCylinder('weapon', { height: 48 }, scene);
-  mesh.position.set(pos.x, pos.y + 24, pos.z);
-  mesh.metadata = { entity, type: 'weapon', weapon: 'rocketlauncher' };
-});
+// Teardown:
+EntityHandlerRegistry.unregister('example_marker');
 ```
 
-## Trigger Volumes
+`EntityHandlerRegistry` is a static registry used by `MapRenderer` for raw text-map extensions. It is not the shared gameplay ECS.
 
-```typescript
-entitySystem.registerSpawner('trigger_teleport', (entity, scene) => {
-  // trigger_ entities use brush models
-  const modelIndex = parseInt(entity.model?.replace('*', '') || '0');
-  
-  // Get brush geometry from BSP
-  // Create invisible collision mesh
-  const trigger = MeshBuilder.CreateBox('trigger', { size: 64 }, scene);
-  trigger.visibility = 0;
-  trigger.checkCollisions = true;
-  
-  trigger.metadata = {
-    entity,
-    type: 'trigger',
-    target: entity.target // Where to teleport
-  };
-});
+## Shared and gameplay entities
+
+Definitions and stable entity types live under `src/shared/entities/`. Runtime engine entities are coordinated by `src/engine/entities/EntityManager.ts`; FPS-specific authoritative behavior belongs in `src/games/fps/server/`.
+
+When adding networked state:
+
+1. define its shared serialized representation;
+2. update authoritative spawning and tick behavior;
+3. update snapshot/replication paths;
+4. add client presentation;
+5. test late join, cleanup, and map reload.
+
+## Cleanup
+
+- mark map-created Babylon objects with map ownership metadata where the loader expects it;
+- unsubscribe EventBus listeners;
+- remove scene observers and timers;
+- unregister raw-map extension handlers;
+- ensure authoritative entities are destroyed on match/map teardown.
+
+## Verification
+
+```bash
+npm run test:simulation
+npm run test:physics
+npm run server:tick
+npm run server:fuzz -- --ticks 1000
 ```
 
-## Collision Detection
-
-```typescript
-function checkPickups(playerPos: Vector3, scene: Scene) {
-  const pickupRadius = 32;
-  
-  for (const mesh of scene.meshes) {
-    if (mesh.metadata?.type === 'pickup') {
-      const dist = Vector3.Distance(playerPos, mesh.position);
-      
-      if (dist < pickupRadius) {
-        handlePickup(mesh);
-        mesh.dispose();
-      }
-    }
-  }
-}
-
-function handlePickup(mesh: Mesh) {
-  const entity = mesh.metadata.entity;
-  
-  switch (entity.classname) {
-    case 'item_health_large':
-      player.health = Math.min(100, player.health + 50);
-      break;
-    case 'item_armor_body':
-      player.armor = Math.min(100, player.armor + 100);
-      break;
-  }
-}
-```
-
-## Complete Example
-
-```typescript
-async function loadMapWithEntities(scene: Scene, mapName: string) {
-  // Load map
-  const mapLoader = new MapLoader(scene);
-  const result = await mapLoader.load(mapName);
-  
-  // Parse entities
-  const entities = parseEntities(result.bspData.entities);
-  
-  // Create entity system
-  const entitySystem = new EntitySystem(scene);
-  
-  // Register custom spawners
-  entitySystem.registerSpawner('item_health_large', createHealthPickup);
-  entitySystem.registerSpawner('item_armor_body', createArmorPickup);
-  
-  // Spawn all entities
-  entitySystem.spawnAll(entities);
-  
-  // Get player spawn
-  const spawns = entities.filter(e => e.classname === 'info_player_deathmatch');
-  
-  return { result, entities, spawns };
-}
-```
-
-## Next Steps
-
-- [Performance Optimization](./performance.md)
-- [Guide: BSP System](../../guides/bsp-system.md)
+Use `bsp entities <classname> details` to verify source map data before debugging behavior.

@@ -1,7 +1,7 @@
 {
   "name": "shag-engine",
   "private": true,
-  "version": "0.9.22",
+  "version": "0.9.23",
   "type": "module",
   "main": "dist-electron/main.cjs",
   "scripts": {
@@ -74,6 +74,7 @@
   },
   "devDependencies": {
     "@babylonjs/ktx2decoder": "9.17.0",
+    "@babylonjs/materials": "9.17.0",
     "@biomejs/biome": "^2.3.8",
     "@fails-components/webtransport": "^1.5.2",
     "@gltf-transform/cli": "^4.3.0",

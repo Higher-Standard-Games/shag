@@ -36,6 +36,11 @@ export interface EntitySnapshot {
    * Never interpolated — it is stepped, like `crouching`.
    */
   powerupMask?: number;
+  /**
+   * How deep in liquid: 0 dry, 1 wading, 2 swimming, 3 submerged.
+   * Stepped, never interpolated — a fractional water level is not a state.
+   */
+  waterLevel?: 0 | 1 | 2 | 3;
 }
 
 /** A timestamped snapshot for the entire frame */
@@ -70,6 +75,11 @@ export interface InterpolatedEntity {
    * Never interpolated — it is stepped, like `crouching`.
    */
   powerupMask?: number;
+  /**
+   * How deep in liquid: 0 dry, 1 wading, 2 swimming, 3 submerged.
+   * Stepped, never interpolated — a fractional water level is not a state.
+   */
+  waterLevel?: 0 | 1 | 2 | 3;
 }
 
 /** Server gravity constant (must match server physics) */
@@ -215,6 +225,7 @@ export class SnapshotBuffer {
         crouching: entity.crouching,
         sliding: entity.sliding,
         wallJumping: entity.wallJumping,
+        waterLevel: entity.waterLevel,
         powerupMask: entity.powerupMask,
       };
     }
@@ -325,6 +336,7 @@ export class SnapshotBuffer {
       crouching: clampedT < 0.5 ? a.crouching : b.crouching,
       sliding: clampedT < 0.5 ? a.sliding : b.sliding,
       wallJumping: clampedT < 0.5 ? a.wallJumping : b.wallJumping,
+      waterLevel: clampedT < 0.5 ? a.waterLevel : b.waterLevel,
       // Take the NEWER mask rather than the nearer one: a quad expiring or
       // being grabbed should read the moment the server says so.
       powerupMask: b.powerupMask ?? a.powerupMask,

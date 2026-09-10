@@ -1,59 +1,40 @@
 # Tools
 
-CLI tools and debugging utilities included with SHAG Engine.
+## CLI entry points
 
-## CLI Tools
+| Tool | Command | Purpose |
+| --- | --- | --- |
+| [Headless game](./headless-game.md) | `npm run cli:game` | Engine commands and indexed map inspection |
+| [Headless BSP](./headless-bsp.md) | `npm run cli:bsp` | Direct BSP-file analysis |
+| [Network server](./network-server.md) | `npm run net:server` | Dedicated authoritative server |
+| [Network client](./network-client.md) | `npm run net:client` | Protocol/connectivity smoke client |
+| [Agent orchestration](./agent-orchestration.md) | `npm run dev:research:wizard` | Multi-agent research document workflow |
 
-| Tool | Command | Description |
-|------|---------|-------------|
-| [Headless Game](./headless-game.md) | `npm run cli:game` | Full engine without GPU |
-| [Headless BSP](./headless-bsp.md) | `npm run cli:bsp` | BSP loader only |
-| [Network Server](./network-server.md) | `npm run net:server` | Dedicated game server |
-| [Network Client](./network-client.md) | `npm run net:client` | Headless network client |
-| [Agent Orchestration](./agent-orchestration.md) | `npm run dev:research:wizard` | Multi-agent document research |
+Other focused scripts are listed in `package.json` and the [Headless mode guide](../guides/headless-mode.md).
 
-Use Agent Orchestration when you want a low-friction research pass over one document and a synthesized result under `.agent/runs/`.
+## Browser diagnostics
 
-## Debug Commands
-
-In-game debugging via console:
-
-| Command | Description |
-|---------|-------------|
-| `debug fps` | Toggle FPS display |
-| `debug wireframe` | Toggle wireframe |
-| `debug bounds` | Show bounding boxes |
-| `shader info` | Inspect aimed surface |
-| `shader aim 1` | Highlight aimed surface |
-| `bsp info` | Map statistics |
-| `bsp entities` | List entities |
-| `mem` | Memory usage |
-
-## Bundle Analysis
-
-After building, analyze bundle composition:
-
-```bash
-npm run build
-# Open dist/stats.html in browser
+```text
+developer 1
+show_fps on
+perf capture 5
+debug wireframe
+debug bounds
+shader aim 1
+shader info
+bsp info
+mem
 ```
 
-## API Documentation
+Use `show_fps`, not `debug fps`.
 
-Generate TypeDoc documentation:
+## Documentation
 
 ```bash
+npm run docs:dev
 npm run docs:api
-# Writes docs/api/, open docs/api/index.html
+npm run docs:build
+npm run docs:preview
 ```
 
-## Performance Profiling
-
-Use browser DevTools with:
-
-```
-show_fps 1          # Enable FPS counter
-perf capture 5      # Sample the renderer for 5 seconds
-pvs on              # Enable PVS culling (pvs status for stats)
-r_wireframe 1       # See geometry complexity
-```
+`docs:api` generates TypeDoc under `docs/api/`; the other scripts serve/build the VitePress manual.

@@ -1,123 +1,63 @@
-# Navigating with the Camera
+# Camera navigation
 
-**Time:** 5 minutes  
-**Level:** Beginner
+## Freefly
 
-Learn camera controls for exploring maps.
-
-## Prerequisites
-
-- [First Map Load](./first-map-load.md) completed
-- A map loaded in the engine
-
-## Freefly Controls
-
-The default camera uses freefly mode (FPS-style):
-
-| Key | Action |
-|-----|--------|
-| **W** | Move forward |
-| **S** | Move backward |
-| **A** | Strafe left |
-| **D** | Strafe right |
-| **Space** | Move up |
-| **Shift** | Move down |
-| **Mouse** | Look around |
-| **Scroll** | Adjust speed |
-
-## Adjusting Speed
-
-### Via Scroll Wheel
-
-Scroll up to increase speed, scroll down to decrease.
-
-### Via Console
-
-```
-freefly_speed 2.0
+```text
+developer 1
+camera mode freefly
+freefly_speed 300
 ```
 
-Values: `0.1` (slow) to `10.0` (very fast)
+After clicking the canvas:
 
-## Collision Detection
+| Input | Action |
+| --- | --- |
+| WASD | move |
+| Mouse | look |
+| Space | move up |
+| C or Ctrl | move down |
+| Shift | speed multiplier |
+| Escape | release pointer lock |
 
-By default, collision is enabled. Toggle with:
+The scroll wheel is used by FPS weapon selection and is not the documented freefly speed control. Use `freefly_speed <positive-number>`.
 
-```
-freefly_collision 0    # Disable (noclip)
-freefly_collision 1    # Enable
-```
+## Collision
 
-With collision disabled, you can fly through walls.
-
-## Switching Camera Modes
-
-### Isometric View
-
-Top-down camera for strategy games:
-
-```
-camera controller isometric
-```
-
-Controls:
-- WASD or edge scroll to pan
-- Scroll to zoom
-
-### Sidescroll View
-
-2.5D platformer camera:
-
-```
-camera controller sidescroll
+```text
+freefly_collision
+freefly_collision 0
+freefly_collision 1
+freefly_collision mode bsp
+freefly_collision test
 ```
 
-### Back to Freefly
+The no-argument form reports the current state. The BSP mode requires loaded collision data; native mode uses Babylon mesh collision.
 
-```
-camera controller freefly
-```
+## Other controllers
 
-## Adjusting Camera Height
-
-For isometric/sidescroll modes:
-
-```
-camera height 800
+```text
+camera mode fps
+camera mode isometric
+camera mode sidescroll
+camera mode follow
 ```
 
-## Projection Modes
+Despite its name, the console `camera mode` subcommand selects a registered controller. Projection configuration is an internal `CameraSystem.applyCameraMode` API and is not exposed as the old `camera mode orthographic` command.
 
-```
-camera mode perspective     # 3D perspective (default)
-camera mode orthographic    # True orthographic
-```
+## Position and teleport
 
-## Teleporting to Position
-
-```
-camera target 0 100 0
+```text
+pos
+pos copy
+teleport 0 128 0
 ```
 
-Moves camera to coordinates (x, y, z).
+`teleport` requires developer mode. `camera target` is not the teleport command.
 
-## Finding Spawn Points
+## Useful inspection
 
-To see where players spawn:
-
+```text
+camera info
+camera fov 100
+bsp entities info_player_deathmatch details
 ```
-bsp entities
-```
-
-Look for `info_player_deathmatch` entries.
-
-## Tips
-
-- **Stuck?** Try `freefly_collision 0` to escape
-- **Too dark?** Use `r_lightmap 2` to brighten
-- **Lost?** Load a different map for inspection with `bsp load wdm2` (see the [first-map-load tutorial](./first-map-load.md) for why `bsp load` vs `map`)
-
-## Next Steps
-
-- [Using the Console](./using-console.md)
-- [Tweaking Render Variables](./render-variables.md)

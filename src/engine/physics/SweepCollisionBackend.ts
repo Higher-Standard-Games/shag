@@ -1447,12 +1447,92 @@ export class SweepCollisionBackend implements CollisionBackend {
   }
 
   /**
-   * Get content flags at a point
+   * Content flags of the volumes containing a point.
+   *
+   * A genuine point query: descend the BSP tree to the leaf holding the point,
+   * test the point against every brush that leaf references, and OR together
+   * the contents of the ones it is inside. Nothing is filtered by solidity, so
+   * water, slime, lava, fog and trigger volumes all report — which is the whole
+   * reason to ask.
+   *
+   * Volumes overlap, so the result is a union rather than the contents of one
+   * brush. Read individual bits, never equality.
+   *
+   * @param point Babylon-space position.
+   * @param contentMask Optional filter. Omitted means "tell me everything".
    */
-  pointContents(point: Vector3): number {
-    // Simple trace to same point
-    const result = this.trace(point, point, { debug: false });
-    return result.contents;
+  pointContents(point: Vector3, contentMask?: number): number {
+    if (!this.bsp) return 0;
+
+    // Babylon -> Q3 (Y and Z swap)
+    const q3: [number, number, number] = [point.x, point.z, point.y];
+
+    const leaf = this.bsp.leafs[this.pointLeafIndex(q3)];
+    if (!leaf) return 0;
+
+    let contents = 0;
+    for (let i = 0; i < leaf.numLeafBrushes; i++) {
+      const brushIndex = this.bsp.leafBrushes[leaf.firstLeafBrush + i];
+      const brush = this.bsp.brushes[brushIndex];
+      if (!brush || brush.numSides < 1) continue;
+
+      const texture = this.getBrushTexture(brush);
+      if (!texture || texture.contentFlags === 0) continue;
+      // Nothing new to learn from this brush; skip the side test.
+      if ((contents & texture.contentFlags) === texture.contentFlags) continue;
+
+      if (this.pointInBrush(q3, brush)) {
+        contents |= texture.contentFlags;
+      }
+    }
+
+    return contentMask === undefined ? contents : contents & contentMask;
+  }
+
+  /**
+   * Walk the BSP tree to the leaf containing a Q3-space point.
+   *
+   * Point descent, not the swept-box traversal — no hull extents, so a point
+   * one unit above a floor lands in the room rather than in the floor.
+   */
+  private pointLeafIndex(q3: [number, number, number]): number {
+    if (!this.bsp) return -1;
+
+    let nodeIndex = 0;
+    while (nodeIndex >= 0) {
+      const node = this.bsp.nodes[nodeIndex];
+      if (!node) return -1;
+      const plane = this.bsp.planes[node.planeIndex];
+      if (!plane) return -1;
+
+      const dist = this.dot(q3, plane.normal) - plane.dist;
+      nodeIndex = dist >= 0 ? node.children[0] : node.children[1];
+    }
+
+    return -(nodeIndex + 1);
+  }
+
+  /**
+   * Is a Q3-space point inside this convex brush?
+   *
+   * Brush side planes face outward, so the point is inside only when it is
+   * behind every one of them. No epsilon: a point exactly on the surface counts
+   * as inside, which is what makes a waterline at z=56 report water at z=56
+   * rather than depending on which way a float rounded.
+   */
+  private pointInBrush(q3: [number, number, number], brush: BspBrush): boolean {
+    if (!this.bsp) return false;
+
+    for (let i = 0; i < brush.numSides; i++) {
+      const side = this.bsp.brushSides[brush.firstSide + i];
+      if (!side) return false;
+      const plane = this.bsp.planes[side.planeIndex];
+      if (!plane) return false;
+
+      if (this.dot(q3, plane.normal) - plane.dist > 0) return false;
+    }
+
+    return true;
   }
 
   /**

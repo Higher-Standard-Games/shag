@@ -85,6 +85,8 @@ _archive/
 tools/
 !src/tools/
 !src/tools/**
+!docs/manual/tools/
+!docs/manual/tools/agent-orchestration.md
 
 # TLS certificates for local development
 certs/

@@ -1,162 +1,80 @@
-# FAQ & Troubleshooting
+# Frequently asked questions
 
-Common questions and solutions.
+## What is SHAG Engine?
 
-## General
+SHAG is a Babylon.js engine and arena-FPS stack for Quake 3 and Warsow media. It includes BSP/PK3 loading, Quake shader compatibility, deterministic movement, an authoritative multiplayer server, console tooling, and the active FPS game module.
 
-### What is SHAG Engine?
+## What license is it under?
 
-SHAG Engine is a cross-platform WebGL game engine built on Babylon.js, designed for streamlined development using NetRadiant-custom and idTech3 tooling.
+The repository uses the MIT License. See the [LICENSE file](https://github.com/Higher-Standard-Games/shag/blob/main/LICENSE).
 
-### What can I build with it?
+## Where do maps and PK3s go?
 
-- Arena shooters
-- Map explorers
-- Isometric strategy games
-- Sidescrollers
-- Any game using Q3/Warsow assets
+Put external game data under `public/data/`. The directory and `*.pk3` files are ignored by Git. Generate the manifest/index using the repository scripts, then confirm discovery with:
 
-### What is the license?
+```text
+developer 1
+pk3 stats
+pk3 list
+pk3 find maps/wdm2.bsp
+```
 
-SHAG Engine is released under the **MIT License**. You can use it freely in personal and commercial projects. See the [LICENSE](https://github.com/user/shag-engine/blob/main/LICENSE) file for details.
+## Why does a map not load?
 
-## Installation
+Check these in order:
 
-### "npm install" fails
+1. the expected PK3 is under `public/data/`;
+2. the generated index is current;
+3. `pk3 find maps/<name>.bsp` resolves;
+4. `bsp load <name>` succeeds in the headless runner;
+5. the browser network panel has no missing PK3, texture, WASM, or manifest requests.
 
-Ensure Node.js 22 is installed (pinned in `.nvmrc`):
+Use `bsp load` for inspection and `map <name> [gametype]` for normal gameplay.
+
+## Why did `bsp load` not start a match?
+
+`bsp load` is the loader/inspection path. A browser match uses the gameplay launcher and server:
+
+```text
+map wdm2 duel
+```
+
+See [Map launching](../guides/map-launching.md).
+
+## How do I open the console?
+
+Press backquote/tilde. F1 is not a current default console binding. Enable restricted commands with `developer 1`.
+
+## How do I change rendering settings?
+
+Individual variables apply immediately:
+
+```text
+r_wireframe 1
+r_wireframe 0
+r_bloom 1.2
+render list
+render reset
+```
+
+`r_apply` is not a standalone command. `render apply` remains as a compatibility message because changes already apply through callbacks.
+
+## Does SHAG support raw .map files?
+
+The parser and renderer exist, but the active high-level `MapLoader` currently resolves indexed BSPs and marks local text-map loading TODO. Treat raw maps as an engine extension path, not as a complete FPS workflow.
+
+## How should I test a change?
 
 ```bash
-node --version  # Should be 18+
+npm run typecheck
+npm run test:run
+npm run cli:game -- --exec 'bsp load wdm2; bsp info; quit'
+npm run test:simulation
+npm run test:physics
 ```
 
-### "Cannot find module" errors
+Renderer or networking edits need the extended regression set in `AGENTS.md`.
 
-Delete `node_modules` and reinstall:
+## Where do I report a problem?
 
-```bash
-rm -rf node_modules
-npm install
-```
-
-## Runtime Issues
-
-### Black screen after loading map
-
-Check console for errors. Try:
-
-```
-r_lightmap 1
-r_apply
-```
-
-### Map not found
-
-List available maps:
-
-```
-pk3 list maps/
-```
-
-### Textures missing
-
-Ensure texture PK3s are loaded:
-
-```
-pk3 list textures/
-shader count
-```
-
-### Sky not rendering
-
-Check if skybox loaded:
-
-```
-bsp info
-shader info textures/<mapname>/sky
-```
-
-### Low FPS
-
-Try:
-
-```
-pvs toggle          # Enable PVS culling
-r_anisotropy 1      # Reduce filtering
-```
-
-## Camera Issues
-
-### Camera stuck / can't move
-
-Check collision:
-
-```
-freefly_collision 0
-```
-
-### Camera spawns in wrong place
-
-Manually position:
-
-```
-camera target 0 100 0
-```
-
-## Console
-
-### Command not found
-
-Check spelling and use `help`:
-
-```
-help
-help map
-```
-
-### Console won't open
-
-Try both `~` (tilde) and `F1`.
-
-## Build Issues
-
-### Build fails with TypeScript errors
-
-Run type check:
-
-```bash
-npx tsc --noEmit
-```
-
-### Bundle too large
-
-Ensure tree-shaking is working. Check `dist/stats.html` after build.
-
-## Mobile
-
-### Touch controls not working
-
-Ensure Capacitor is synced:
-
-```bash
-npx cap sync
-```
-
-### App crashes on startup
-
-Check device logs in Android Studio or Xcode.
-
-## Performance Tips
-
-1. **Enable PVS culling**: `pvs on`
-2. **Lower anisotropy**: `r_anisotropy 4`
-3. **Disable post-processing**: `r_bloom 0`
-4. **Use KTX2 textures**: `npm run tools:textures`
-
-## Getting Help
-
-- Check existing [GitHub Issues](https://github.com/user/shag-engine/issues)
-- Open a new issue with:
-  - Browser/OS version
-  - Console error messages
-  - Steps to reproduce
+Search or open an issue in the [SHAG GitHub repository](https://github.com/Higher-Standard-Games/shag/issues). Include the exact command, map, browser/runtime, console output, and a minimal reproduction.

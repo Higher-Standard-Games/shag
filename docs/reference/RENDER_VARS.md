@@ -1,175 +1,25 @@
-# Render Variables (r_*)
+# Render Variables
 
-Runtime-configurable renderer settings in Q3/Warsow style. All variables are registered as [cvars](../manual/guides/cvar-system.md) for console access, persisted to localStorage, and applied live to the scene.
+> Verified against <code>RenderVars.ts</code> on 2026-08-06.
 
-## Quick Start
+Render variables are registered as cvars, clamped to declared ranges, and persisted to <code>localStorage</code> key <code>engine.renderVars</code>. Debug variables do not persist.
 
-```
-r_normalmap 2.0     # Increase normal map intensity
-r_lightmap 1.5      # Brighten lightmaps
-cvarlist r_         # Show all r_* cvars
-reset r_normalmap   # Reset single cvar to default
-resetall            # Reset all cvars to defaults
-```
+| Category | Variables and defaults |
+|---|---|
+| Material | <code>r_deluxe 1</code>, <code>r_bsp_pbr 1</code>, <code>r_normalmap 1</code>, <code>r_glossmap 1</code>, <code>r_lightmap 1</code>, <code>r_emissive 1</code> |
+| Texture | <code>r_anisotropy 8</code>, <code>r_ktx2 1</code> |
+| Display | <code>r_webgpu 0</code>, <code>r_bsp_freeze 1</code>, <code>r_ssr 0</code>, <code>r_ssr_strength 0.4</code>, <code>r_glow 0</code>, <code>r_bloom 1</code>, <code>r_exposure 1</code>, <code>r_contrast 1</code>, <code>r_pickupProcedural 1</code> |
+| Lighting | <code>r_ambient 1</code>, <code>r_lightintensity 1</code>, <code>r_lightmapscale 1</code>, god-ray and area-light groups, day/night group |
+| Debug | <code>r_wireframe 0</code>, <code>r_showtris 0</code> |
 
-## Currently Implemented
+God rays: <code>r_godrays</code>, <code>r_godrays_exposure</code>, <code>r_godrays_decay</code>, <code>r_godrays_weight</code>, <code>r_godrays_density</code>, <code>r_godrays_samples</code>.
 
-### Material Intensities
+Area lights: <code>r_arealights</code>, <code>r_arealights_max</code>, <code>r_arealights_auto</code>, <code>r_arealights_intensity</code>.
 
-| Variable | Default | Range | Description |
-|----------|---------|-------|-------------|
-| `r_normalmap` | 1.0 | 0-4 | Normal/bump map intensity multiplier |
-| `r_glossmap` | 1.0 | 0-4 | Specular/gloss map intensity multiplier |
-| `r_lightmap` | 1.0 | 0-4 | Lightmap intensity multiplier |
-| `r_ambient` | 1.0 | 0-4 | Ambient light intensity multiplier |
-| `r_emissive` | 1.0 | 0-4 | Emissive/glow intensity multiplier |
+Day/night: <code>r_daynight</code>, <code>r_daynight_time</code>, <code>r_daynight_animate</code>, <code>r_daynight_speed</code>, <code>r_daynight_length</code>, <code>r_daynight_lm_min</code>, <code>r_daynight_lm_max</code>, <code>r_daynight_sun_intensity</code>, <code>r_daynight_moon_intensity</code>, <code>r_daynight_sky_tint</code>.
 
-### Texture Quality
+Use <code>cvarlist r_</code>, direct <code>r_name [value]</code>, <code>help r_name</code>, <code>reset</code>, <code>render list</code>, and <code>render export</code>.
 
-| Variable | Default | Range | Description |
-|----------|---------|-------|-------------|
-| `r_anisotropy` | 8 | 1-16 | Anisotropic filtering level |
+Some values apply live; deluxe/PBR selection, KTX2, WebGPU, BSP freeze, area lights, pickup visuals, and some quality settings require a new load, activation, or restart as their descriptions state.
 
-### Lighting
-
-| Variable | Default | Range | Description |
-|----------|---------|-------|-----------|
-| `r_lightintensity` | 1.0 | 0-4 | Global light intensity multiplier |
-
-### Debug / Visualization
-
-| Variable | Default | Range | Description |
-|----------|---------|-------|-----------|
-| `r_wireframe` | 0 | 0-1 | Wireframe mode toggle (per-material) |
-| `r_showtris` | 0 | 0-1 | Force wireframe on entire scene |
-
-### Display / Post-processing
-
-| Variable | Default | Range | Description |
-|----------|---------|-------|-------------|
-| `r_bloom` | 1.0 | 0-3 | Bloom intensity multiplier |
-| `r_exposure` | 1.0 | 0-3 | Exposure multiplier |
-| `r_contrast` | 1.0 | 0-3 | Contrast multiplier |
-
-> **Note:** Post-processing variables (`r_bloom`, `r_exposure`, `r_contrast`) only work on pure Babylon.js scenes. They do not affect BSP maps loaded via `scene empty` + `bsp render` (which use a separate scene without post-processing pipeline).
-
-### Console Commands (via Cvar System)
-
-| Command | Description |
-|---------|-------------|
-| `cvarlist r_` | List all r_* cvars with current values |
-| `r_<name>` | Show current value, default, and range |
-| `r_<name> <val>` | Set cvar to value |
-| `help r_<name>` | Show detailed cvar info (type, range) |
-| `reset r_<name>` | Reset single cvar to default |
-| `resetall` | Reset all cvars to defaults |
-| `cvarexport` | Export modified cvars as config text |
-
-## Usage
-
-### Getting Values
-```
-r_normalmap         # Prints current value, default, and range
-help r_normalmap    # Shows type, range, usage
-```
-
-### Setting Values
-```
-r_normalmap 2.0     # Set to 2.0
-reset r_normalmap   # Reset to default
-```
-
-### Exporting Config
-```
-cvarexport          # Outputs all modified cvars as config
-```
-
-Example output:
-```
-// Render variables config
-r_ambient 1
-r_glossmap 1.5
-r_lightmap 1.2
-r_normalmap 2
-```
-
----
-
-## Planned Variables (Roadmap)
-
-The following variables are documented for future implementation:
-
-### Material Intensities
-| Variable | Description |
-|----------|-------------|
-| `r_showlightmaps` | Show only lightmaps (no diffuse) |
-
-### Lighting
-| Variable | Description |
-|----------|-------------|
-| `r_shadows` | Shadow intensity (0-1) or toggle |
-| `r_shadowquality` | Shadow map resolution |
-
-### Display / Post-processing
-| Variable | Description |
-|----------|-------------|
-| `r_gamma` | Display gamma correction |
-| `r_saturation` | Color saturation |
-
-### Texture Quality
-| Variable | Description |
-|----------|-------------|
-| `r_picmip` | Texture mipmap bias (classic Q3 style) |
-
-### Debug / Visualization
-| Variable | Description |
-|----------|-------------|
-| `r_showlightmaps` | Show only lightmaps (no diffuse) |
-
----
-
-## Technical Details
-
-### Persistence
-- All values saved to `localStorage` under key `engine.renderVars`
-- Values persist across browser sessions
-- Can be exported/imported as config text
-
-### Live Updates
-- Changes apply immediately to all scene materials
-- Uses `requestAnimationFrame` batching for performance
-- Works with both `StandardMaterial` and `PBRMaterial`
-
-### Babylon.js Mappings
-
-| Variable | StandardMaterial | PBRMaterial |
-|----------|------------------|-------------|
-| `r_normalmap` | `bumpTexture.level` | `bumpTexture.level` |
-| `r_glossmap` | `specularPower` multiplier | `reflectivityTexture.level` |
-| `r_lightmap` | `lightmapTexture.level` | `lightmapTexture.level` |
-| `r_ambient` | `scene.ambientColor` multiplier | `scene.ambientColor` multiplier |
-| `r_emissive` | `emissiveColor` multiplier | `emissiveColor` multiplier |
-| `r_anisotropy` | `*.anisotropicFilteringLevel` | `*.anisotropicFilteringLevel` |
-| `r_wireframe` | `material.wireframe` | `material.wireframe` |
-| `r_lightintensity` | `light.intensity` multiplier | `light.intensity` multiplier |
-| `r_showtris` | `scene.forceWireframe` | `scene.forceWireframe` |
-| `r_bloom` | `DefaultRenderingPipeline.bloomWeight` multiplier | `DefaultRenderingPipeline.bloomWeight` multiplier |
-| `r_exposure` | `imageProcessing.exposure` multiplier | `imageProcessing.exposure` multiplier |
-| `r_contrast` | `imageProcessing.contrast` multiplier | `imageProcessing.contrast` multiplier |
-
-### Adding New Variables
-
-To add a new render variable:
-
-1. Add definition to `DEFAULT_VARS` in `src/engine/rendering/RenderVars.ts`
-2. Add type to `RenderVarName` union
-3. The cvar is auto-registered via `RenderVars.registerCvars()` - no manual console setup needed
-4. Implement application logic in `applyToMesh()` or `applyToScene()`
-
----
-
-## See Also
-
-- [Cvar System](../manual/guides/cvar-system.md) - Unified console variable system
-- [Debug Console](DEBUG_CONSOLE.md) - Full console command reference
-- [Shader Commands](DEBUG_CONSOLE.md#q3-shader-commands) - Shader debugging utilities
+Type-only future names such as gamma, saturation, picmip, shadows, and normal/lightmap debug views are not registered defaults and must not be documented as available cvars.

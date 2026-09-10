@@ -28,6 +28,16 @@ export class MovementStateComponent implements IComponent {
   // Speed (for UI)
   actualHorizSpeed: number = 0;
 
+  /**
+   * How deep this player is in liquid: 0 dry, 1 wading, 2 swimming, 3 submerged.
+   *
+   * Replicated so remote players can be animated as swimming rather than as
+   * falling — every ungrounded player currently reads as mid-jump. Discrete by
+   * nature: it steps at snapshot boundaries and must never be interpolated
+   * through fractional values.
+   */
+  waterLevel: 0 | 1 | 2 | 3 = 0;
+
   constructor(init?: Partial<MovementStateComponent>) {
     if (init) {
       Object.assign(this, init);
@@ -45,6 +55,9 @@ export class MovementStateComponent implements IComponent {
     // ledgeGrabState: 0=none, 1=grabbing, 2=pulling (2 bits)
     const ledgeBits = this.ledgeGrabState === "none" ? 0 : this.ledgeGrabState === "grabbing" ? 1 : 2;
     flags |= ledgeBits << 4;
+    // waterLevel 0..3 (2 bits) — the last two free bits in this byte. The next
+    // piece of movement state to need replication has to widen the field.
+    flags |= (this.waterLevel & 3) << 6;
 
     encoder.writeUint8(flags);
     encoder.writeFloat32(this.crouchViewOffset);
@@ -62,6 +75,8 @@ export class MovementStateComponent implements IComponent {
     const ledgeBits = (flags >> 4) & 3;
     this.ledgeGrabState = ledgeBits === 0 ? "none" : ledgeBits === 1 ? "grabbing" : "pulling";
 
+    this.waterLevel = ((flags >> 6) & 3) as 0 | 1 | 2 | 3;
+
     this.crouchViewOffset = decoder.readFloat32();
     this.actualHorizSpeed = decoder.readFloat32();
   }
@@ -74,6 +89,7 @@ export class MovementStateComponent implements IComponent {
       wallJumpState: this.wallJumpState,
       ledgeGrabState: this.ledgeGrabState,
       actualHorizSpeed: this.actualHorizSpeed,
+      waterLevel: this.waterLevel,
     });
   }
 
@@ -87,6 +103,7 @@ export class MovementStateComponent implements IComponent {
     wallJumpState?: "none" | "available" | "charging";
     ledgeGrabState?: "none" | "grabbing" | "pulling";
     actualHorizSpeed?: number;
+    waterLevel?: 0 | 1 | 2 | 3;
   }): void {
     if (result.isSliding !== undefined) this.isSliding = result.isSliding;
     if (result.isCrouching !== undefined) this.isCrouching = result.isCrouching;
@@ -94,5 +111,6 @@ export class MovementStateComponent implements IComponent {
     if (result.wallJumpState !== undefined) this.wallJumpState = result.wallJumpState;
     if (result.ledgeGrabState !== undefined) this.ledgeGrabState = result.ledgeGrabState;
     if (result.actualHorizSpeed !== undefined) this.actualHorizSpeed = result.actualHorizSpeed;
+    if (result.waterLevel !== undefined) this.waterLevel = result.waterLevel;
   }
 }

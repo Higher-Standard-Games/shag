@@ -1,67 +1,44 @@
 # Tutorials
 
-Step-by-step guides to learn SHAG Engine, organized by difficulty.
+The tutorials are organized by the amount of engine context they assume.
 
 ## Beginner
 
-Start here if you're new to SHAG Engine.
-
-| Tutorial | Time | Description |
-|----------|------|-------------|
-| [Your First Map Load](./beginner/first-map-load.md) | 10 min | Load a map and explore |
-| [Navigating with the Camera](./beginner/camera-navigation.md) | 5 min | Movement and controls |
-| [Using the Console](./beginner/using-console.md) | 10 min | Console commands basics |
-| [Tweaking Render Variables](./beginner/render-variables.md) | 10 min | Adjust graphics at runtime |
+| Tutorial | Outcome |
+| --- | --- |
+| [Your first map load](./beginner/first-map-load.md) | Verify and inspect an indexed BSP |
+| [Camera navigation](./beginner/camera-navigation.md) | Use built-in controllers and collision diagnostics |
+| [Using the console](./beginner/using-console.md) | Discover commands, cvars, and batches |
+| [Render variables](./beginner/render-variables.md) | Tune and export renderer state |
 
 ## Intermediate
 
-Build complete features and applications.
-
-| Tutorial | Time | Description |
-|----------|------|-------------|
-| [Building a Map Viewer](./intermediate/map-viewer.md) | 30 min | Complete map browser app |
-| [FPS Game Skeleton](./intermediate/fps-skeleton.md) | 45 min | First-person game foundation |
-| [Isometric Strategy Setup](./intermediate/isometric-game.md) | 30 min | Top-down camera and controls |
-| [Sidescroller Setup](./intermediate/sidescroller.md) | 30 min | 2.5D platformer foundation |
-| [Custom Console Commands](./intermediate/custom-commands.md) | 20 min | Add your own commands |
-| [Working with PK3 Mods](./intermediate/pk3-mods.md) | 20 min | Load custom asset packs |
+| Tutorial | Outcome |
+| --- | --- |
+| [Map browser](./intermediate/map-viewer.md) | Build UI over the existing PK3 index and launcher |
+| [Extending the FPS](./intermediate/fps-skeleton.md) | Place a feature in client/shared/server layers |
+| [Isometric controller](./intermediate/isometric-game.md) | Configure the built-in isometric camera |
+| [Sidescroll controller](./intermediate/sidescroller.md) | Configure a follow view and understand gameplay constraints |
+| [Custom commands](./intermediate/custom-commands.md) | Add an auto-discovered command class |
+| [PK3 overrides](./intermediate/pk3-mods.md) | Package and diagnose mod assets |
 
 ## Advanced
 
-Deep customization and optimization.
-
-| Tutorial | Time | Description |
-|----------|------|-------------|
-| [Custom Camera Controller](./advanced/custom-camera.md) | 45 min | Build a cinematic camera |
-| [Custom Shader Materials](./advanced/custom-shaders.md) | 60 min | Babylon.js + Q3 shaders |
-| [Entity System Integration](./advanced/entity-system.md) | 45 min | Parse and spawn entities |
-| [Headless Testing & CI/CD](./advanced/headless-testing.md) | 30 min | Automated testing |
-| [Performance Optimization](./advanced/performance.md) | 45 min | PVS, profiling, optimization |
+| Tutorial | Outcome |
+| --- | --- |
+| [Custom camera](./advanced/custom-camera.md) | Implement the current controller lifecycle |
+| [Shader extensions](./advanced/custom-shaders.md) | Separate compatibility parsing from enhanced materials |
+| [Entity integration](./advanced/entity-system.md) | Choose BSP, raw-map, or authoritative entity boundaries |
+| [Headless testing](./advanced/headless-testing.md) | Select the correct CLI and regression layer |
+| [Performance](./advanced/performance.md) | Profile map and rendering costs |
 
 ## Recipes
 
-Quick solutions for common tasks.
+- [Change or inspect a skybox](./recipes/change-skybox.md)
+- [Toggle wireframe](./recipes/toggle-wireframe.md)
+- [Get spawn points](./recipes/get-spawn-points.md)
+- [Inspect BSP entities](./recipes/extract-entities.md)
+- [Debug a shader](./recipes/debug-shader.md)
+- [Export settings](./recipes/export-settings.md)
 
-| Recipe | Description |
-|--------|-------------|
-| [Change Skybox at Runtime](./recipes/change-skybox.md) | Swap skybox dynamically |
-| [Toggle Wireframe Mode](./recipes/toggle-wireframe.md) | Debug visualization |
-| [Get Spawn Points](./recipes/get-spawn-points.md) | Extract player spawns |
-| [Extract Entities from BSP](./recipes/extract-entities.md) | Parse entity data |
-| [Debug Shader on Surface](./recipes/debug-shader.md) | Inspect materials |
-| [Export Render Settings](./recipes/export-settings.md) | Save configuration |
-
-## Learning Path
-
-```
-Beginner ──► Intermediate ──► Advanced
-    │              │              │
-    ▼              ▼              ▼
- Basics      Build Games     Customize
-```
-
-**Recommended order for new users:**
-1. Your First Map Load
-2. Using the Console
-3. Camera Navigation
-4. FPS Game Skeleton (or your preferred game type)
+For a compact command/API sheet, see [Quick recipes](./quick-recipes.md).

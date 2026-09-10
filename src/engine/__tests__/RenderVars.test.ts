@@ -67,6 +67,15 @@ function getRV(): RenderVars {
 // ─── Tests ──────────────────────────────────────────────────────
 
 describe("RenderVars", () => {
+  it("enables actor reflections by default but still supports explicit opt-out/reset", () => {
+    const vars = getRV();
+    expect(vars.getVar("r_water_actors")?.defaultValue).toBe(1);
+    expect(vars.get("r_water_actors")).toBe(1);
+    vars.set("r_water_actors", 0);
+    expect(vars.get("r_water_actors")).toBe(0);
+    vars.reset("r_water_actors");
+    expect(vars.get("r_water_actors")).toBe(1);
+  });
   beforeEach(() => {
     resetState();
     localStorageMock.clear();
@@ -122,6 +131,27 @@ describe("RenderVars", () => {
       expect(rv.get("r_anisotropy")).toBe(8);
       expect(rv.get("r_webgpu")).toBe(0);
       expect(rv.get("r_wireframe")).toBe(0);
+      expect(rv.get("r_water_quality")).toBe(3);
+      expect(rv.getVar("r_water_quality")!.defaultValue).toBe(3);
+      expect(rv.get("r_water_probe_height")).toBe(64);
+      expect(rv.get("r_water_blur")).toBe(0.3);
+      expect(rv.get("r_water_detail")).toBe(0.8);
+      expect(rv.getVar("r_water_detail")!.defaultValue).toBe(0.8);
+      expect(rv.get("r_water_contact")).toBe(0.25);
+    });
+
+    it("preserves fractional water polish values through the console cvar path", () => {
+      const rv = getRV();
+      rv.registerCvars();
+      for (const name of ["r_water_blur", "r_water_detail", "r_water_contact"]) {
+        expect(Cvar.set(name, "0.35")).toBe(true);
+        expect(rv.get(name)).toBeCloseTo(0.35);
+        expect(Cvar.getNumber(name)).toBeCloseTo(0.35);
+        rv.set(name, 2);
+        expect(rv.get(name)).toBe(1);
+        rv.set(name, -1);
+        expect(rv.get(name)).toBe(0);
+      }
     });
 
     it("includes day/night variables", () => {

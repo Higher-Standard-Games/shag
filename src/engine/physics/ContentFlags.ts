@@ -57,7 +57,17 @@ export const CollisionMasks = {
   /** What blocks shots/projectiles */
   SHOT: ContentFlags.SOLID,
 
-  /** Water volumes */
+  /**
+   * Every liquid volume: water, slime and lava.
+   *
+   * A single brush can carry more than one of these bits — four shaders in the
+   * shipped map pack declare `WATER | SLIME` together — so callers that need to
+   * know *which* liquid must read the individual bits rather than assume the
+   * mask matched exactly one.
+   */
+  LIQUID: ContentFlags.WATER | ContentFlags.LAVA | ContentFlags.SLIME,
+
+  /** @deprecated Name predates slime/lava; use {@link CollisionMasks.LIQUID}. */
   WATER: ContentFlags.WATER | ContentFlags.LAVA | ContentFlags.SLIME,
 
   /** Opaque to visibility */
@@ -84,5 +94,19 @@ export function isSolid(contentFlags: number): boolean {
  * Check if this is a water/liquid volume
  */
 export function isLiquid(contentFlags: number): boolean {
-  return (contentFlags & CollisionMasks.WATER) !== 0;
+  return (contentFlags & CollisionMasks.LIQUID) !== 0;
+}
+
+/**
+ * Which liquid a set of content flags describes, or null for none.
+ *
+ * Where a brush carries several liquid bits at once, the most hostile one
+ * wins: standing in something that is both slime and water should read as
+ * slime, because that is the bit with consequences.
+ */
+export function liquidKindOf(contentFlags: number): "water" | "slime" | "lava" | null {
+  if (contentFlags & ContentFlags.LAVA) return "lava";
+  if (contentFlags & ContentFlags.SLIME) return "slime";
+  if (contentFlags & ContentFlags.WATER) return "water";
+  return null;
 }

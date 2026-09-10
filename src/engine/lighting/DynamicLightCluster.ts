@@ -47,6 +47,9 @@ export function supportsClusteredLighting(scene: Scene): boolean {
  * the container on first use). Safe to call repeatedly with the same light.
  */
 export function addToDynamicLightCluster(scene: Scene, light: Light): void {
+  // Static room probes must not freeze a transient projectile/impact glow into
+  // their cached scenery. Keep the tag on forward-light fallback paths too.
+  light.metadata = { ...light.metadata, excludeFromWaterCapture: true };
   // The light was constructed in the scene already, so returning here leaves it
   // as a normal forward light owned and disposed by its existing caller.
   if (!supportsClusteredLighting(scene)) return;
@@ -60,6 +63,7 @@ export function addToDynamicLightCluster(scene: Scene, light: Light): void {
     // functionally identical on WebGL2. The light is added synchronously, so the
     // container is never observably empty.
     container = new ClusteredLightContainer("dynamicLightsCluster", [], scene);
+    container.metadata = { ...container.metadata, excludeFromWaterCapture: true };
     containers.set(scene, container);
     scene.onDisposeObservable.addOnce(() => {
       disposeDynamicLightCluster(scene);

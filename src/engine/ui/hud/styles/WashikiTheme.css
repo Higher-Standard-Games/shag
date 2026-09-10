@@ -4088,3 +4088,66 @@
 .fps-bomb-plant-meter-fill--decaying {
   background: hsl(210, 12%, 60%);
 }
+
+/* ============================================================
+   AIR METER — breath remaining, shown only while the head is under
+   ============================================================ */
+
+.fps-air-meter {
+  display: flex;
+  align-items: center;
+  gap: calc(8px * var(--ui-scale, 1));
+  margin-bottom: calc(8px * var(--ui-scale, 1));
+  padding: calc(4px * var(--ui-scale, 1)) calc(12px * var(--ui-scale, 1)) calc(6px * var(--ui-scale, 1));
+  clip-path: polygon(3% 0, 100% 0, 97% 100%, 0 100%);
+  background: linear-gradient(178deg, hsl(196, 70%, 58%), hsl(202, 72%, 42%) 70%), var(--w-scan-cream);
+  box-shadow:
+    calc(4px * var(--ui-scale, 1)) calc(5px * var(--ui-scale, 1)) 0 hsla(250, 45%, 4%, 0.55),
+    inset 0 calc(-3px * var(--ui-scale, 1)) 0 hsla(202, 80%, 28%, 0.5);
+  filter: var(--w-drop-print-sm);
+  pointer-events: none;
+}
+
+.fps-air-meter-label {
+  font-family: var(--w-font-display);
+  font-size: calc(13px * var(--ui-scale, 1));
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: hsl(246, 40%, 8%);
+}
+
+.fps-air-meter-track {
+  width: calc(120px * var(--ui-scale, 1));
+  height: calc(9px * var(--ui-scale, 1));
+  background: hsla(246, 40%, 8%, 0.42);
+  overflow: hidden;
+}
+
+.fps-air-meter-fill {
+  height: 100%;
+  width: 100%;
+  background: hsl(246, 40%, 8%);
+  transition: width 120ms linear;
+}
+
+/* Running short. Amber rather than red — red is reserved for damage. */
+.fps-air-meter--low {
+  background: linear-gradient(178deg, hsl(38, 96%, 62%), hsl(32, 92%, 48%) 70%), var(--w-scan-cream);
+}
+
+/* Empty, and taking damage for it. */
+.fps-air-meter--drowning {
+  background: linear-gradient(178deg, hsl(2, 92%, 60%), hsl(356, 82%, 46%) 72%), var(--w-scan-cream);
+  animation: fps-air-meter-drowning 0.5s ease-in-out infinite;
+}
+
+@keyframes fps-air-meter-drowning {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}

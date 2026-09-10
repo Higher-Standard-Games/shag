@@ -1,255 +1,39 @@
-# Desktop Deployment (Electron)
+# Desktop with Electron
 
-Package SHAG Engine games as desktop applications.
+The desktop shell is implemented in `src/electron/main.ts` and `src/electron/preload.ts`.
 
-## Prerequisites
-
-- Node.js 22 (pinned in `.nvmrc`)
-- npm or yarn
-
-## Setup Electron
-
-### Install
+## Development and preview
 
 ```bash
-npm install electron --save-dev
-npm install electron-builder --save-dev
+npm run electron:dev
+npm run electron:preview
 ```
 
-### Create Main Process
+`electron:dev` starts Vite and Electron together. `electron:preview` builds the web app, compiles the main/preload processes to `dist-electron/`, and starts the packaged layout without producing an installer.
 
-```javascript
-// electron/main.js
-const { app, BrowserWindow } = require('electron');
-const path = require('path');
-
-function createWindow() {
-  const win = new BrowserWindow({
-    width: 1280,
-    height: 720,
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true
-    },
-    fullscreen: false,
-    autoHideMenuBar: true
-  });
-
-  // Load built app
-  win.loadFile(path.join(__dirname, '../dist/index.html'));
-  
-  // Open DevTools in development
-  if (process.env.NODE_ENV === 'development') {
-    win.webContents.openDevTools();
-  }
-}
-
-app.whenReady().then(createWindow);
-
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
-});
-```
-
-### Package.json Scripts
-
-The shipped scripts (Electron sources live in `src/electron/` and compile to
-`dist-electron/*.cjs`):
-
-```json
-{
-  "main": "dist-electron/main.cjs",
-  "scripts": {
-    "electron:dev": "concurrently -k \"npm run dev\" \"wait-on http://localhost:3000 && electron .\"",
-    "electron:compile": "tsc -p tsconfig.electron.json && (rename main.js/preload.js to .cjs)",
-    "electron:preview": "npm run build && npm run electron:compile && electron .",
-    "electron:build": "npm run build && npm run electron:compile && electron-builder --config electron-builder.config.js"
-  }
-}
-```
-
-`electron:dev` runs against the Vite dev server for hot reload;
-`electron:preview` runs the production bundle locally without packaging.
-
-## Electron Builder Config
-
-### electron-builder.config.js
-
-```json
-{
-  "appId": "com.example.mygame",
-  "productName": "My Game",
-  "directories": {
-    "output": "release"
-  },
-  "files": [
-    "dist/**/*",
-    "electron/**/*"
-  ],
-  "win": {
-    "target": ["nsis", "portable"],
-    "icon": "assets/icon.ico"
-  },
-  "mac": {
-    "target": ["dmg", "zip"],
-    "icon": "assets/icon.icns",
-    "category": "public.app-category.games"
-  },
-  "linux": {
-    "target": ["AppImage", "deb"],
-    "icon": "assets/icon.png",
-    "category": "Game"
-  }
-}
-```
-
-## Build for Platforms
-
-### Windows
+## Packaging
 
 ```bash
-npm run electron:build -- --win
+npm run electron:build
 ```
 
-Outputs:
-- `release/My Game Setup.exe` (installer)
-- `release/My Game.exe` (portable)
+The intended output directory is `release/<version>/`, with electron-builder targets configured in `electron-builder.config.js`.
 
-### macOS
+### Known packaging blocker
 
-```bash
-npm run electron:build -- --mac
-```
+At the time of this audit, `electron-builder.config.js` requires `src/game/game.json`, but that path does not exist; active game metadata lives under the game modules. Update the packaging configuration to an existing, selected game manifest before expecting `electron:build` to complete.
 
-Outputs:
-- `release/My Game.dmg`
-- `release/My Game.app`
+This is a repository configuration issue, not an extra Electron installation step.
 
-### Linux
+## Security model
 
-```bash
-npm run electron:build -- --linux
-```
+The renderer receives a small API from `preload.ts`; keep Node integration disabled and expose only capabilities required by the game. Validate external links, navigation, and any future filesystem IPC in the main process.
 
-Outputs:
-- `release/My Game.AppImage`
-- `release/my-game.deb`
+## Release checklist
 
-## Fullscreen Mode
-
-```javascript
-// Toggle fullscreen
-win.setFullScreen(!win.isFullScreen());
-
-// Start fullscreen
-const win = new BrowserWindow({
-  fullscreen: true,
-  // ...
-});
-```
-
-In game:
-
-```typescript
-// Request fullscreen via Electron IPC or browser API
-document.documentElement.requestFullscreen();
-```
-
-## Native Menus
-
-```javascript
-const { Menu } = require('electron');
-
-const template = [
-  {
-    label: 'Game',
-    submenu: [
-      { label: 'New Game', accelerator: 'CmdOrCtrl+N' },
-      { label: 'Load Game', accelerator: 'CmdOrCtrl+O' },
-      { type: 'separator' },
-      { label: 'Quit', role: 'quit' }
-    ]
-  },
-  {
-    label: 'View',
-    submenu: [
-      { label: 'Fullscreen', accelerator: 'F11', role: 'togglefullscreen' },
-      { label: 'DevTools', accelerator: 'F12', role: 'toggleDevTools' }
-    ]
-  }
-];
-
-Menu.setApplicationMenu(Menu.buildFromTemplate(template));
-```
-
-## File System Access
-
-For save games, use Electron's Node.js integration:
-
-```javascript
-// preload.js
-const { contextBridge, ipcRenderer } = require('electron');
-
-contextBridge.exposeInMainWorld('electronAPI', {
-  saveGame: (data) => ipcRenderer.invoke('save-game', data),
-  loadGame: () => ipcRenderer.invoke('load-game')
-});
-```
-
-```javascript
-// main.js
-const fs = require('fs');
-const path = require('path');
-
-ipcMain.handle('save-game', async (event, data) => {
-  const savePath = path.join(app.getPath('userData'), 'save.json');
-  fs.writeFileSync(savePath, JSON.stringify(data));
-});
-```
-
-## Auto-Updates
-
-```bash
-npm install electron-updater
-```
-
-```javascript
-const { autoUpdater } = require('electron-updater');
-
-app.whenReady().then(() => {
-  autoUpdater.checkForUpdatesAndNotify();
-});
-```
-
-## Code Signing
-
-### Windows
-
-Use a code signing certificate (.pfx):
-
-```json
-{
-  "win": {
-    "certificateFile": "./cert.pfx",
-    "certificatePassword": "password"
-  }
-}
-```
-
-### macOS
-
-Requires Apple Developer account and certificates.
-
-## Distribution
-
-- **Steam** - Use Steamworks SDK
-- **itch.io** - Upload directly
-- **Direct download** - Host on your website
-- **Microsoft Store** - Package as MSIX
-
-## Related
-
-- [Web Deployment](./web.md)
-- [Mobile Deployment](./mobile.md)
+- make `electron:preview` pass on the target OS;
+- fix and verify the selected game-metadata source;
+- provide icons under `build-resources/`;
+- sign platform artifacts where required;
+- confirm production asset paths and native fullscreen behavior;
+- test installers on a clean machine.

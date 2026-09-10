@@ -9,8 +9,9 @@
  */
 
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
-import type { SweepBackend, SweepBackendTraceOptions } from "../../shared/collision/CollisionWorld";
+import { Contents, type SweepBackend, type SweepBackendTraceOptions } from "../../shared/collision/CollisionWorld";
 import type { Vec3 } from "../../shared/server/simulation/types";
+import { ContentFlags } from "./ContentFlags";
 import type { SweepCollisionBackend } from "./SweepCollisionBackend";
 
 function toBabylon(v: Vec3): Vector3 {
@@ -19,6 +20,42 @@ function toBabylon(v: Vec3): Vector3 {
 
 function fromBabylon(v: Vector3): Vec3 {
   return { x: v.x, y: v.y, z: v.z };
+}
+
+/**
+ * Raw BSP content bit -> the shared `Contents` vocabulary.
+ *
+ * The two enums are numerically different and agree on exactly one value,
+ * `SOLID = 0x1`. That coincidence is why nothing had noticed: every consumer so
+ * far only ever asked about solidity. The rest do not line up at all, and one
+ * pair actively lies — raw `LAVA` is `0x8`, which is the same number as shared
+ * `Contents.SLIME`, so an untranslated lava reading would report slime.
+ *
+ * Translating here means shared and simulation code never sees a BSP value.
+ */
+const CONTENTS_TRANSLATION: ReadonlyArray<readonly [number, number]> = [
+  [ContentFlags.SOLID, Contents.SOLID],
+  [ContentFlags.WATER, Contents.WATER],
+  [ContentFlags.LAVA, Contents.LAVA],
+  [ContentFlags.SLIME, Contents.SLIME],
+  [ContentFlags.PLAYERCLIP, Contents.PLAYERCLIP],
+  [ContentFlags.MONSTERCLIP, Contents.MONSTERCLIP],
+  [ContentFlags.TRIGGER, Contents.TRIGGER],
+];
+
+/**
+ * Convert raw BSP content flags into the shared vocabulary.
+ *
+ * Bits with no shared equivalent (fog, detail, structural, translucent...) are
+ * dropped rather than passed through, so a shared-side mask can never match a
+ * BSP bit by accident.
+ */
+export function toSharedContents(raw: number): number {
+  let out = 0;
+  for (const [bspBit, sharedBit] of CONTENTS_TRANSLATION) {
+    if (raw & bspBit) out |= sharedBit;
+  }
+  return out;
 }
 
 export class SweepBackendAdapter implements SweepBackend {
@@ -34,7 +71,7 @@ export class SweepBackendAdapter implements SweepBackend {
       fraction: result.fraction,
       endPos: result.endPos ? fromBabylon(result.endPos) : undefined,
       normal: result.normal ? fromBabylon(result.normal) : undefined,
-      contents: result.contents,
+      contents: result.contents === undefined ? undefined : toSharedContents(result.contents),
     };
   }
 
@@ -52,6 +89,6 @@ export class SweepBackendAdapter implements SweepBackend {
   }
 
   pointContents(point: Vec3): number {
-    return this.backend.pointContents(toBabylon(point));
+    return toSharedContents(this.backend.pointContents(toBabylon(point)));
   }
 }
