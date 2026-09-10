@@ -342,6 +342,10 @@ export class WeaponViewManager {
   private _weaponOutlineEnabled = true;
   private _weaponOutlineWidth = 0.15; // Actual Babylon value (cvar is *100 scale, default 15)
   private _weaponOutlineColor = new Color3(0, 0, 0);
+  /** Gameplay-owned outline override (currently Quad Damage). */
+  private _powerupOutlineActive = false;
+  private _powerupOutlineWidth = 0.24;
+  private _powerupOutlineColor = new Color3(1, 0.18, 0.025);
 
   // Load generation counter — prevents concurrent loadWeapon calls from clobbering each other
   private _loadGeneration: number = 0;
@@ -1302,13 +1306,29 @@ export class WeaponViewManager {
     // GLB models are scaled much larger than MD3 (e.g. 30x), so outlines
     // appear proportionally thicker. Divide by root scale to normalize.
     const rootScale = this.currentWeapon.root.scaling.x || 1;
-    const adjustedWidth = this._weaponOutlineWidth / rootScale;
+    const width = this._powerupOutlineActive ? this._powerupOutlineWidth : this._weaponOutlineWidth;
+    const color = this._powerupOutlineActive ? this._powerupOutlineColor : this._weaponOutlineColor;
+    const enabled = this._powerupOutlineActive || this._weaponOutlineEnabled;
+    const adjustedWidth = width / rootScale;
 
     for (const mesh of this.currentWeapon.meshes) {
-      mesh.renderOutline = this._weaponOutlineEnabled;
+      mesh.renderOutline = enabled;
       mesh.outlineWidth = adjustedWidth;
-      mesh.outlineColor = this._weaponOutlineColor;
+      mesh.outlineColor = color;
     }
+  }
+
+  /**
+   * Apply a temporary gameplay outline without mutating the player's saved
+   * r_cel_weapon_* preferences. Calling with false restores those preferences.
+   */
+  public setPowerupOutlineOverride(active: boolean, color: Color3, width: number): void {
+    this._powerupOutlineActive = active;
+    if (active) {
+      this._powerupOutlineColor = color;
+      this._powerupOutlineWidth = Math.max(0.001, width);
+    }
+    this.applyWeaponOutlines();
   }
 
   public setWeaponOutlineEnabled(enabled: boolean): void {
@@ -1500,6 +1520,10 @@ export class WeaponViewManager {
       this._weaponOutlineEnabled = chargeResult.savedEnabled;
       this.applyWeaponOutlines();
     }
+
+    // Quad is the highest-priority outline. In particular it replaces the
+    // blade charge outline instead of flickering between two effects.
+    if (this._powerupOutlineActive) this.applyWeaponOutlines();
 
     // Get reload animation offsets
     const reloadOffsets = this.getReloadAnimationOffsets();
