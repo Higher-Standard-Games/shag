@@ -2,6 +2,9 @@ import type { Vec3 } from "../server/simulation/types";
 
 /** Cooldown for a caller that must never rearm, finite so it still serializes. */
 const ONCE = 1e9;
+/** Q3 dealt a mover's `dmg` once per 50ms server frame; hold that rate. */
+const CRUSH_RATE_HZ = 20;
+const NO_CRUSHES: readonly LiftCrush[] = Object.freeze([]);
 const DEFAULT_DOOR_SOUND = "sounds/movers/door_start.ogg";
 const DEFAULT_PLAT_SOUND = "sounds/movers/elevator_move.ogg";
 const DEFAULT_STOP_SOUND = "sounds/movers/door_stop.ogg";
@@ -22,6 +25,10 @@ export interface LiftDefinition {
   /** Asset paths for the move/arrive one-shots. Presentation only; never simulated. */
   sound: string;
   soundStop: string;
+  /** Q3 `dmg` dealt to whoever blocks this mover. 0 disables crushing. */
+  damage: number;
+  /** Q3 CRUSHER spawnflag: keep pushing when blocked instead of reversing. */
+  crusher: boolean;
   triggers: Array<{ min: Vec3; max: Vec3; wait: number }>;
 }
 export interface LiftState {
@@ -32,9 +39,20 @@ export interface LiftState {
   remaining: number;
   cooldowns: number[];
 }
+/** A body squashed by a blocked mover, for the caller to turn into damage. */
+export interface LiftCrush {
+  /** The caller's own handle from LiftActor.id, passed through untouched. */
+  id: number | undefined;
+  modelIndex: number;
+  /** Damage for this step, already scaled to the tick length. */
+  damage: number;
+}
+
 export interface LiftActor {
   position: Vec3;
   velocity: Vec3;
+  /** Caller's handle, echoed back in LiftCrush. Never interpreted here. */
+  id?: number;
   /**
    * Corpses and dropped items ride a lift but must never call one or hold it
    * open, or a gun left on a plat would pin it at the top for the whole match.
@@ -108,6 +126,8 @@ export function extractLifts(
       wait: number(p.wait, plat ? 1 : 2),
       sound: p.noise_start ?? p.noise ?? p.sound ?? (plat ? DEFAULT_PLAT_SOUND : DEFAULT_DOOR_SOUND),
       soundStop: p.noise_stop ?? DEFAULT_STOP_SOUND,
+      damage: Math.max(0, number(p.dmg, 2)),
+      crusher: !!(number(p.spawnflags, 0) & 4),
       automatic: !p.targetname,
       start,
       end,
@@ -195,8 +215,14 @@ export class LiftSystem {
     const o = this.definitions[i].origin;
     return { x: o.x, y: o.y + this.states[i].offset, z: o.z };
   }
-  step(dt: number, actors: readonly LiftActor[]): void {
-    if (!(dt > 0) || !Number.isFinite(dt)) return;
+  /**
+   * Advance every mover one fixed step, carrying and pushing the given bodies.
+   * Returns whoever got squashed this step, for the caller to turn into damage —
+   * the simulation core stays out of the business of hurting anyone.
+   */
+  step(dt: number, actors: readonly LiftActor[]): readonly LiftCrush[] {
+    if (!(dt > 0) || !Number.isFinite(dt)) return NO_CRUSHES;
+    let crushes: LiftCrush[] | null = null;
     for (let i = 0; i < this.states.length; i++) {
       const d = this.definitions[i];
       const s = this.states[i];
@@ -241,7 +267,7 @@ export class LiftSystem {
       const next = oldOffset + Math.sign(target - oldOffset) * Math.min(Math.abs(target - oldOffset), d.speed * dt);
       const delta = next - oldOffset;
       const pushed: Array<{ actor: LiftActor; end: Vec3 }> = [];
-      let blocked = false;
+      let blocker: LiftActor | undefined;
       for (const a of nearby) {
         // Relative sweep catches the moving brush hitting a non-rider, including its underside.
         const contact = this.trace(a.position, { ...a.position, y: a.position.y - delta }, undefined, d.modelIndex);
@@ -249,14 +275,26 @@ export class LiftSystem {
         const end = { ...a.position, y: a.position.y + delta };
         const obstruction = this.trace(a.position, end, d.modelIndex);
         if (obstruction.fraction < 1 || obstruction.solid) {
-          blocked = true;
+          blocker = a;
           break;
         }
         pushed.push({ actor: a, end });
       }
-      if (blocked) {
-        // Roll back the whole move, not just one rider. No crushing damage in this first pass.
-        s.phase = s.phase === "up" ? "down" : "up";
+      if (blocker) {
+        // Roll back the whole move, not just one rider.
+        // A body with no simulation of its own cannot be hurt, so it only blocks.
+        if (d.damage > 0 && !blocker.passive) {
+          if (!crushes) crushes = [];
+          crushes.push({
+            id: blocker.id,
+            modelIndex: d.modelIndex,
+            // Q3 dealt `dmg` once per 50ms frame. Hold that rate whatever our
+            // tick length is, so crush lethality does not follow the tick rate.
+            damage: d.damage * dt * CRUSH_RATE_HZ,
+          });
+        }
+        // A crusher never backs off; everything else reverses (Q3 Blocked_Door).
+        if (!d.crusher) s.phase = s.phase === "up" ? "down" : "up";
         continue;
       }
       s.offset = next;
@@ -266,6 +304,7 @@ export class LiftSystem {
         s.remaining = Math.max(0, d.wait);
       } else if (s.offset === d.start) s.phase = "bottom";
     }
+    return crushes ?? NO_CRUSHES;
   }
   private inTrigger(d: LiftDefinition, p: Vec3): boolean {
     const x0 = Math.min(d.min.x + 33, (d.min.x + d.max.x) / 2);

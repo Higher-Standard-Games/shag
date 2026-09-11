@@ -1,6 +1,6 @@
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { describe, expect, it } from "vitest";
-import { extractLifts } from "../../shared/bsp/LiftSystem";
+import { extractLifts, type LiftCrush } from "../../shared/bsp/LiftSystem";
 import { SweepCollisionBackend } from "../physics/SweepCollisionBackend";
 import { liftBsp } from "./fixtures/liftBsp";
 
@@ -67,6 +67,53 @@ describe("moving BSP lifts", () => {
     expect(d.automatic).toBe(false);
     expect(d.triggers[0].wait).toBe(6);
     expect(d.triggers[0].max.y).toBe(80);
+  });
+  it("crushes the body that blocks it, then reverses", async () => {
+    const backend = await setup(true); // ceiling just above the plat's travel
+    const victim = { ...actor(), id: 7 };
+    // Rising freely: nobody is being squashed yet.
+    expect(backend.lifts!.step(1 / 60, [victim])).toEqual([]);
+    let crushes = backend.lifts!.step(1 / 60, [victim]);
+    for (let i = 0; i < 60 && crushes.length === 0; i++) crushes = backend.lifts!.step(1 / 60, [victim]);
+    expect(crushes).toHaveLength(1);
+    expect(crushes[0].id).toBe(7);
+    // Default dmg 2 held at Q3's 20Hz cadence, scaled to this step's length.
+    expect(crushes[0].damage).toBeCloseTo(2 * (1 / 60) * 20, 6);
+    // Not a crusher, so it backs off rather than grinding the player to death.
+    expect(backend.lifts!.snapshot()[0].phase).toBe("down");
+  });
+  it("a CRUSHER keeps pushing and keeps dealing damage instead of backing off", async () => {
+    const bsp = liftBsp(true);
+    bsp.entities = [
+      // spawnflags 4 = CRUSHER
+      { classname: "func_plat", properties: { model: "*1", height: "100", speed: "100", spawnflags: "4" } },
+    ];
+    const backend = new SweepCollisionBackend();
+    await backend.init(bsp);
+    const victim = { ...actor(), id: 9 };
+    let crushed = 0;
+    for (let i = 0; i < 120; i++) crushed += backend.lifts!.step(1 / 60, [victim]).length;
+    // It stayed on the player rather than reversing after the first contact.
+    expect(crushed).toBeGreaterThan(20);
+    expect(backend.lifts!.snapshot()[0].phase).toBe("up");
+  });
+  it("does not crush a passive body, and honours dmg 0", async () => {
+    const backend = await setup(true);
+    const corpse = { ...actor(), id: 3, passive: true };
+    const crushes: LiftCrush[] = [];
+    // A passive body still blocks the mover, but cannot be hurt by it.
+    for (let i = 0; i < 60; i++) crushes.push(...backend.lifts!.step(1 / 60, [corpse]));
+    expect(crushes).toEqual([]);
+
+    const bsp = liftBsp(true);
+    bsp.entities = [{ classname: "func_plat", properties: { model: "*1", height: "100", speed: "100", dmg: "0" } }];
+    const harmless = new SweepCollisionBackend();
+    await harmless.init(bsp);
+    expect(harmless.lifts!.definitions[0].damage).toBe(0);
+    const victim = { ...actor(), id: 4 };
+    let any = 0;
+    for (let i = 0; i < 120; i++) any += harmless.lifts!.step(1 / 60, [victim]).length;
+    expect(any).toBe(0);
   });
   it("rewinds mover geometry for a historical trace and restores it afterwards", async () => {
     const backend = await setup();

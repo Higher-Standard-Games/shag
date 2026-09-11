@@ -33,6 +33,19 @@ export interface Capsule {
   radius: number;
 }
 
+/**
+ * Where the world was when a client took its shot: the bodies it was aiming at,
+ * and the movers that were or were not in the way.
+ */
+export interface RewindView {
+  tick: TickNumber;
+  compensationMs: number;
+  /** Live player positions as of `tick`. */
+  positions: ReadonlyMap<EntityId, { x: number; y: number; z: number }>;
+  /** Mover travel offsets as of `tick`, in LiftSystem definition order. */
+  liftOffsets?: readonly number[];
+}
+
 export interface HitResult {
   hit: boolean;
   entityId?: EntityId;
@@ -53,14 +66,20 @@ export class LagCompensation {
   private historyBuffer: HistoryBuffer;
   private config: LagCompensationConfig;
   private clientLatencies: Map<PlayerId, number> = new Map();
-  /** Mover travel offsets per recorded tick, pruned alongside the state history. */
+  /** Mover travel offsets per recorded tick. */
   private liftHistory: Map<number, number[]> = new Map();
+  /** Live player positions per recorded tick — all a rewound trace needs. */
+  private positionHistory: Map<number, Map<EntityId, { x: number; y: number; z: number }>> = new Map();
+  /** How far back history is kept, in ticks, with a little slack at the boundary. */
+  private readonly capacityTicks: number;
+  private newestRecordedTick: number | null = null;
 
   private collisionWorld: CollisionWorld | null = null;
 
   constructor(config: LagCompensationConfig = CASUAL_CONFIG) {
     this.config = config;
     this.historyBuffer = new HistoryBuffer(config.maxCompensationMs, config.tickRate);
+    this.capacityTicks = Math.ceil((config.maxCompensationMs / 1000) * config.tickRate) + 2;
   }
 
   /**
@@ -70,21 +89,72 @@ export class LagCompensation {
     this.collisionWorld = world;
   }
 
+  /** Drop all rewind history — on a restart, the old world is not coming back. */
+  clearHistory(): void {
+    this.positionHistory.clear();
+    this.liftHistory.clear();
+    this.newestRecordedTick = null;
+  }
+
   /**
-   * Record current state for lag compensation
-   * Call this every tick after simulation runs
+   * Record current state for lag compensation, every tick after the simulation
+   * runs. Full fidelity, including a deep state clone for capsule tracing —
+   * costly, so prefer `recordPositions` on a live server loop.
    */
   recordSnapshot(state: Readonly<WorldState>): void {
-    // Only record players and their vicinity for efficiency
     this.historyBuffer.push(state as WorldState);
+    this.recordPositions(state);
+  }
+
+  /**
+   * Record only what a rewound shot needs: where the live bodies were, and where
+   * the movers were. Cheap enough to run every tick, unlike a full state clone.
+   */
+  recordPositions(state: Readonly<WorldState>): void {
+    const tick = state.tick as number;
+    if (!Number.isFinite(tick)) return;
+    // A restart rewinds the clock. Window pruning only trims what is older than
+    // the newest tick, so without this the pre-restart ticks would never expire.
+    if (this.newestRecordedTick !== null && tick < this.newestRecordedTick) this.clearHistory();
+    this.newestRecordedTick = tick;
+
+    const positions = new Map<EntityId, { x: number; y: number; z: number }>();
+    for (const entity of state.entitiesByType(EntityType.Player)) {
+      if (!entity.transform || !entity.health || entity.health.dead) continue;
+      const p = entity.transform.position;
+      positions.set(entity.id, { x: p.x, y: p.y, z: p.z });
+    }
+    this.positionHistory.set(tick, positions);
 
     // Movers are world geometry that moves, so they need the same history the
     // players get, or a rewound shot is traced against a lift that has moved on.
     const lifts = this.collisionWorld?.lifts;
-    if (!lifts?.definitions.length) return;
-    this.liftHistory.set(state.tick as number, lifts.offsets());
-    const oldest = this.historyBuffer.oldestTick as number | null;
-    if (oldest !== null) for (const tick of this.liftHistory.keys()) if (tick < oldest) this.liftHistory.delete(tick);
+    if (lifts?.definitions.length) this.liftHistory.set(tick, lifts.offsets());
+
+    const oldest = tick - this.capacityTicks;
+    for (const t of this.positionHistory.keys()) if (t < oldest) this.positionHistory.delete(t);
+    for (const t of this.liftHistory.keys()) if (t < oldest) this.liftHistory.delete(t);
+  }
+
+  /**
+   * Where the bodies and movers were when this client took its shot.
+   *
+   * Falls back to the closest recorded tick at or before the target, so a gap in
+   * history degrades to a slightly stale rewind rather than silently snapping the
+   * trace to the present. Returns null when nothing usable has been recorded.
+   */
+  rewind(currentTick: TickNumber, clientPingMs: number): RewindView | null {
+    const target = this.getRewindTick(currentTick, clientPingMs) as number;
+    let tick = this.positionHistory.has(target) ? target : -1;
+    if (tick < 0) for (const t of this.positionHistory.keys()) if (t <= target && t > tick) tick = t;
+    const positions = tick < 0 ? undefined : this.positionHistory.get(tick);
+    if (!positions) return null;
+    return {
+      tick: tickNumber(tick),
+      compensationMs: ((currentTick as number) - tick) * (1000 / this.config.tickRate),
+      positions,
+      liftOffsets: this.liftHistory.get(tick),
+    };
   }
 
   /**
