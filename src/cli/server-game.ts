@@ -13,7 +13,7 @@
 import { Simulation } from "../engine/server/core/Simulation";
 import { createPlayerEntity } from "../engine/server/ecs/Entity";
 import { EntityType, entityId, playerId } from "../engine/server/ecs/types";
-import { COMPETITIVE_CONFIG } from "../engine/server/lagcomp/config";
+import { LAG_COMPENSATION } from "../engine/server/lagcomp/config";
 import type { Ray } from "../engine/server/lagcomp/LagCompensation";
 import { LagCompensation } from "../engine/server/lagcomp/LagCompensation";
 import { CharacterPhysicsSystem } from "../games/fps/server/systems/CharacterPhysicsSystem";
@@ -50,7 +50,7 @@ sim.addSubsystem(projectileSystem);
 sim.initialize();
 
 // Create lag compensation
-const lagComp = new LagCompensation(COMPETITIVE_CONFIG);
+const lagComp = new LagCompensation(LAG_COMPENSATION);
 
 // Add players
 const state = sim.getStateMut();

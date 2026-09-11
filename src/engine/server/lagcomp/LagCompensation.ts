@@ -14,7 +14,7 @@ import type { Entity } from "../ecs/Entity";
 import type { EntityId, PlayerId, TickNumber } from "../ecs/types";
 import { EntityType, tickNumber } from "../ecs/types";
 import type { LagCompensationConfig } from "./config";
-import { CASUAL_CONFIG } from "./config";
+import { LAG_COMPENSATION } from "./config";
 import { HistoryBuffer } from "./HistoryBuffer";
 
 // ═══════════════════════════════════════════════════════════════════
@@ -76,7 +76,7 @@ export class LagCompensation {
 
   private collisionWorld: CollisionWorld | null = null;
 
-  constructor(config: LagCompensationConfig = CASUAL_CONFIG) {
+  constructor(config: LagCompensationConfig = LAG_COMPENSATION) {
     this.config = config;
     this.historyBuffer = new HistoryBuffer(config.maxCompensationMs, config.tickRate);
     this.capacityTicks = Math.ceil((config.maxCompensationMs / 1000) * config.tickRate) + 2;

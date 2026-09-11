@@ -11,7 +11,7 @@ import { extractLifts, LiftSystem } from "../../shared/bsp/LiftSystem";
 import type { CollisionWorld } from "../../shared/collision/CollisionWorld";
 import type { WorldState } from "../server/core/WorldState";
 import type { EntityId } from "../server/ecs/types";
-import { CASUAL_CONFIG, TOURNAMENT_CONFIG } from "../server/lagcomp/config";
+import { LAG_COMPENSATION } from "../server/lagcomp/config";
 import { LagCompensation } from "../server/lagcomp/LagCompensation";
 import { liftBsp } from "./fixtures/liftBsp";
 
@@ -29,7 +29,7 @@ function fakeWorldState(tick: number): WorldState {
 describe("LagCompensation", () => {
   describe("getRewindTick", () => {
     it("should rewind by correct number of ticks for given ping", () => {
-      const lagComp = new LagCompensation(CASUAL_CONFIG); // 125Hz, 200ms max
+      const lagComp = new LagCompensation(LAG_COMPENSATION); // 125Hz, 100ms max
 
       // At 125Hz, 1 tick = 8ms. Half-tick = 4ms.
       // 50ms ping + 0ms input delay + 4ms half-tick = 54ms
@@ -39,40 +39,37 @@ describe("LagCompensation", () => {
     });
 
     it("should clamp to max compensation", () => {
-      const lagComp = new LagCompensation(CASUAL_CONFIG); // max 200ms
+      const lagComp = new LagCompensation(LAG_COMPENSATION); // max 100ms
 
-      // 500ms ping would be 504ms total, but clamped to 200ms
-      // 200ms / 8ms = 25 ticks
+      // 500ms ping would be 504ms total, but clamped to 100ms
+      // 100ms / 8ms = 12.5 → 13 ticks
       const rewind = lagComp.getRewindTick(tickNumber(100), 500, 0);
-      expect(rewind).toBe(tickNumber(75)); // 100 - 25
+      expect(rewind).toBe(tickNumber(87)); // 100 - 13
     });
 
     it("should not go below tick 0", () => {
-      const lagComp = new LagCompensation(CASUAL_CONFIG);
+      const lagComp = new LagCompensation(LAG_COMPENSATION);
 
       const rewind = lagComp.getRewindTick(tickNumber(5), 200, 0);
       expect(rewind).toBeGreaterThanOrEqual(0);
     });
 
     it("should include client input delay", () => {
-      const lagComp = new LagCompensation(CASUAL_CONFIG);
+      const lagComp = new LagCompensation(LAG_COMPENSATION);
 
       // 50ms ping + 20ms input delay + 4ms = 74ms → 9.25 → 9 ticks
       const rewind = lagComp.getRewindTick(tickNumber(100), 50, 20);
       expect(rewind).toBe(tickNumber(91)); // 100 - 9
     });
 
-    it("should differ between configs", () => {
-      // Same ping, different max compensation
-      const casual = new LagCompensation(CASUAL_CONFIG); // 200ms max
-      const tournament = new LagCompensation(TOURNAMENT_CONFIG); // 50ms max
+    it("honours a per-server override of the shared defaults", () => {
+      // GameServer spreads over the defaults to pass its real tick rate, and the
+      // ms↔tick conversion is only correct if that override actually takes.
+      const slow = new LagCompensation({ ...LAG_COMPENSATION, tickRate: 50 });
 
-      // 100ms ping: casual allows full rewind, tournament clamps
-      const casualRewind = casual.getRewindTick(tickNumber(100), 100, 0);
-      const tournamentRewind = tournament.getRewindTick(tickNumber(100), 100, 0);
-
-      // Tournament should rewind less (stricter)
-      expect(tournamentRewind).toBeGreaterThan(casualRewind);
+      // At 50Hz a tick is 20ms, half-tick 10ms. 100ms ping + 10 = 110ms, clamped
+      // to the 100ms budget → 5 ticks, not the 13 a 125Hz server would rewind.
+      expect(slow.getRewindTick(tickNumber(100), 100, 0)).toBe(tickNumber(95));
     });
   });
 
@@ -141,7 +138,7 @@ describe("LagCompensation", () => {
           return { hit: false, fraction: 1 };
         },
       } as unknown as CollisionWorld;
-      const lagComp = new LagCompensation(CASUAL_CONFIG);
+      const lagComp = new LagCompensation(LAG_COMPENSATION);
       lagComp.setCollisionWorld(world);
 
       // Record the world while the plat is still down, then send it up.
