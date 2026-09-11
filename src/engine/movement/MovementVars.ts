@@ -557,6 +557,15 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, "name">> = {
     category: "camera",
     developerOnly: false,
   },
+  cl_fov: {
+    value: 90,
+    defaultValue: 90,
+    min: 80,
+    max: 110,
+    description: "Field of view in horizontal degrees at 16:9, Quake-style",
+    category: "camera",
+    developerOnly: false,
+  },
   cl_ads_fov_reduction: {
     value: 15,
     defaultValue: 15,
