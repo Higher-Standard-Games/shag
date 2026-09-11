@@ -59,7 +59,17 @@ describe("sanitizeCommand", () => {
       buttons: 0xffff,
       weaponSlot: 2,
       sequence: 7,
+      viewTick: 123,
     });
+  });
+
+  it("coerces the reported view tick without trusting its range", () => {
+    // The server clamps against its own clock; the sanitizer only guarantees a
+    // non-negative integer so a hostile value cannot poison arithmetic.
+    expect(sanitizeCommand(command({ tick: 1234 }))!.viewTick).toBe(1234);
+    expect(sanitizeCommand(command({ tick: -5 }))!.viewTick).toBe(0);
+    expect(sanitizeCommand(command({ tick: 12.7 }))!.viewTick).toBe(12);
+    expect(sanitizeCommand(command({ tick: Number.NaN }))!.viewTick).toBe(0);
   });
 
   it("bounds weapon slot defensively", () => {
