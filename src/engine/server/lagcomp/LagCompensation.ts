@@ -144,7 +144,22 @@ export class LagCompensation {
    * trace to the present. Returns null when nothing usable has been recorded.
    */
   rewind(currentTick: TickNumber, clientPingMs: number): RewindView | null {
-    const target = this.getRewindTick(currentTick, clientPingMs) as number;
+    return this.rewindToTick(currentTick, this.getRewindTick(currentTick, clientPingMs) as number);
+  }
+
+  /**
+   * Rewind to an explicit server tick — the view the client reported having,
+   * rather than one estimated from a ping it told us about.
+   *
+   * The target is clamped into the compensation window, so a client asking to be
+   * judged against the distant past gets the oldest rewind the budget allows and
+   * nothing more.
+   */
+  rewindToTick(currentTick: TickNumber, targetTick: number): RewindView | null {
+    if (!Number.isFinite(targetTick)) return null;
+    const now = currentTick as number;
+    const oldest = now - Math.round((this.config.maxCompensationMs / 1000) * this.config.tickRate);
+    const target = Math.max(oldest, Math.min(now, targetTick));
     let tick = this.positionHistory.has(target) ? target : -1;
     if (tick < 0) for (const t of this.positionHistory.keys()) if (t <= target && t > tick) tick = t;
     const positions = tick < 0 ? undefined : this.positionHistory.get(tick);

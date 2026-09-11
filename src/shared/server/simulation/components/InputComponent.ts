@@ -12,6 +12,16 @@ export interface QueuedInput {
   sequence: number;
   /** Weapon slot the player wants to switch to (1-based, 0 = no change) */
   weaponSlot: number;
+  /**
+   * Server snapshot tick the client was looking at when it aimed this command.
+   * Server-clamped on arrival. Absent or 0 means "no view reported" — a bot, a
+   * replayed demo, or a client yet to see its first snapshot — and is not rewound.
+   *
+   * Optional on purpose: this steers hit registration only, never movement, so
+   * it stays out of the deterministic usercmd contract that re-sim bundles and
+   * recorded demos are verified against.
+   */
+  viewTick?: number;
 }
 
 export interface InputComponent {
@@ -38,6 +48,9 @@ export interface InputComponent {
 
   /** Sequence number for reconciliation */
   sequence: number;
+
+  /** View tick of the command currently being simulated (see QueuedInput.viewTick). */
+  viewTick: number;
 
   /** Queued inputs waiting to be processed (FIFO — oldest at front, newest at end) */
   inputQueue: QueuedInput[];
@@ -68,6 +81,7 @@ export function createInput(): InputComponent {
     buttons: 0,
     weaponSlot: 1,
     sequence: 0,
+    viewTick: 0,
     inputQueue: [],
     lastProcessedSeq: 0,
     wantsRespawn: false,

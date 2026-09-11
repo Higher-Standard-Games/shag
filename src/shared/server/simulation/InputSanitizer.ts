@@ -17,6 +17,12 @@ export interface SanitizedMovement {
 export interface SanitizedCommand extends SanitizedMovement {
   weaponSlot: number;
   sequence: number;
+  /**
+   * The server snapshot tick this command was aimed with — the client's view at
+   * the time. Coerced to a non-negative integer here; the server still has to
+   * clamp it against its own tick, since a client can claim any value.
+   */
+  viewTick: number;
 }
 
 export function wrapAngle(angle: number): number {
@@ -83,6 +89,7 @@ export function sanitizeCommand(cmd: NetworkCommand): SanitizedCommand | null {
     // weaponSlot/seq are coerced, not rejected: `| 0` maps NaN/Inf → 0 safely.
     weaponSlot: Math.max(0, Math.min(MAX_WEAPON_SLOT, (cmd.weaponSlot ?? 0) | 0)),
     sequence: cmd.seq ?? 0,
+    viewTick: Math.max(0, (cmd.tick ?? 0) | 0),
   };
 }
 
