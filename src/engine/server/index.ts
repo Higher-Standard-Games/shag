@@ -63,8 +63,8 @@ export {
 // LAG COMPENSATION
 // ═══════════════════════════════════════════════════════════════════
 
-export type { Capsule, HistoryEntry, HitResult, LagCompensationConfig, Ray } from "./lagcomp";
-export { CASUAL_CONFIG, COMPETITIVE_CONFIG, HistoryBuffer, LagCompensation, TOURNAMENT_CONFIG } from "./lagcomp";
+export type { Capsule, HistoryEntry, HitResult, LagCompensationConfig, Ray, RewindView } from "./lagcomp";
+export { HistoryBuffer, LAG_COMPENSATION, LagCompensation } from "./lagcomp";
 
 // ═══════════════════════════════════════════════════════════════════
 // REPLAY SYSTEM

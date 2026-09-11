@@ -30,6 +30,10 @@ export class SharedCollisionWorld implements CollisionWorld {
     this.backend = backend;
   }
 
+  get lifts() {
+    return this.backend.lifts;
+  }
+
   // ───────────────────────────────────────────────────────────────
   // TRACE
   // ───────────────────────────────────────────────────────────────

@@ -12,6 +12,7 @@
 
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Scene } from "@babylonjs/core/scene";
+import { extractLifts, LiftSystem } from "../../shared/bsp/LiftSystem";
 import type { BspBrush, BspFace, BspFile, BspLeaf } from "../loader/bsp/BspLoader";
 import {
   type CollisionBackend,
@@ -101,6 +102,9 @@ interface InternalTraceResult {
  * Q3-style collision backend
  */
 export class SweepCollisionBackend implements CollisionBackend {
+  public lifts: LiftSystem | undefined;
+  private liftBrushes = new Map<number, number>();
+  private liftFaces = new Set<number>();
   readonly type = "q3" as const;
   readonly name = "Sweep Collision (Experimental)";
 
@@ -150,6 +154,30 @@ export class SweepCollisionBackend implements CollisionBackend {
 
   async init(bsp: BspFile, _scene?: Scene): Promise<void> {
     this.bsp = bsp;
+    this.liftBrushes.clear();
+    this.liftFaces.clear();
+    const definitions = extractLifts(bsp.entities, bsp.models);
+    for (const d of definitions) {
+      const model = bsp.models[d.modelIndex];
+      for (let i = model.firstBrush; i < model.firstBrush + model.numBrushes; i++)
+        this.liftBrushes.set(i, d.modelIndex);
+      for (let i = model.firstFace; i < model.firstFace + model.numFaces; i++) this.liftFaces.add(i);
+    }
+    this.lifts = new LiftSystem(definitions, (start, end, exclude, only) => {
+      const hit = this.trace(
+        new Vector3(start.x, start.y, start.z),
+        new Vector3(end.x, end.y, end.z),
+        { radius: 16, height: 64 },
+        exclude,
+        only,
+      );
+      return {
+        fraction: hit.fraction,
+        solid: !!hit.startSolid,
+        normalY: hit.normal?.y ?? 0,
+        modelIndex: this.liftBrushes.get(hit.hitBrushIndex ?? -1) ?? -1,
+      };
+    });
     this.isFBSP = (bsp as any).header?.isFBSP ?? false;
 
     this.processFaces();
@@ -164,6 +192,7 @@ export class SweepCollisionBackend implements CollisionBackend {
     this.clipBrushIndices = [];
 
     for (let bi = 0; bi < this.bsp.brushes.length; bi++) {
+      if (this.liftBrushes.has(bi)) continue;
       const brush = this.bsp.brushes[bi];
       if (!brush || brush.numSides < 4) continue;
 
@@ -183,6 +212,7 @@ export class SweepCollisionBackend implements CollisionBackend {
     this.faceCollisionMeshes = new Array(this.bsp.faces.length).fill(null);
 
     for (let i = 0; i < this.bsp.faces.length; i++) {
+      if (this.liftFaces.has(i)) continue;
       const face = this.bsp.faces[i];
 
       // Filter by flags: Must be SOLID or PLAYERCLIP
@@ -272,7 +302,7 @@ export class SweepCollisionBackend implements CollisionBackend {
   /**
    * Main trace function - performs swept box collision
    */
-  trace(start: Vector3, end: Vector3, options?: TraceOptions): TraceResult {
+  trace(start: Vector3, end: Vector3, options?: TraceOptions, excludeModel = -1, onlyModel = -1): TraceResult {
     if (!this.bsp) {
       return createDefaultTraceResult(start, end);
     }
@@ -345,11 +375,40 @@ export class SweepCollisionBackend implements CollisionBackend {
     }
 
     // Traverse BSP tree for solid brushes
-    this.traceNode(0, 0.0, 1.0, state.start, state.end, state);
+    if (onlyModel < 0) this.traceNode(0, 0.0, 1.0, state.start, state.end, state);
 
     // ALSO check ALL clip brushes directly (they may not be in BSP tree leaves)
     // This is how Q3/clipviz handles clip brushes - iterate all, not just BSP traversal
-    this.traceAllClipBrushes(state);
+    if (onlyModel < 0) this.traceAllClipBrushes(state);
+
+    // Inline brushes use model-local traces; retain the earliest world/model hit.
+    for (const d of this.lifts?.definitions ?? []) {
+      if (d.modelIndex === excludeModel || (onlyModel >= 0 && d.modelIndex !== onlyModel)) continue;
+      const offset = this.lifts!.offset(d.modelIndex)!;
+      const shift = [offset.x, offset.z, offset.y];
+      const model = this.bsp.models[d.modelIndex];
+      if (
+        [0, 1, 2].some(
+          (j) =>
+            Math.min(q3Start[j], q3End[j]) + mins[j] > model.maxs[j] + shift[j] + 0.1 ||
+            Math.max(q3Start[j], q3End[j]) + maxs[j] < model.mins[j] + shift[j] - 0.1,
+        )
+      )
+        continue;
+      for (let j = 0; j < 3; j++) {
+        state.start[j] = q3Start[j] - shift[j];
+        state.end[j] = q3End[j] - shift[j];
+      }
+      for (let i = model.firstBrush; i < model.firstBrush + model.numBrushes; i++) {
+        const brush = this.bsp.brushes[i];
+        const texture = this.getBrushTexture(brush);
+        if (texture && this.shouldCollideWith(texture, contentMask)) this.traceBrush(brush, i, texture, state);
+      }
+    }
+    for (let j = 0; j < 3; j++) {
+      state.start[j] = q3Start[j];
+      state.end[j] = q3End[j];
+    }
 
     // Calculate final position
     if (state.result.fraction < 1.0) {
@@ -509,6 +568,7 @@ export class SweepCollisionBackend implements CollisionBackend {
 
     for (let i = 0; i < leaf.numLeafBrushes; i++) {
       const brushIndex = this.bsp.leafBrushes[leaf.firstLeafBrush + i];
+      if (this.liftBrushes.has(brushIndex)) continue;
       const brush = this.bsp.brushes[brushIndex];
       if (!brush || brush.numSides < 1) continue;
 
@@ -1473,6 +1533,7 @@ export class SweepCollisionBackend implements CollisionBackend {
     let contents = 0;
     for (let i = 0; i < leaf.numLeafBrushes; i++) {
       const brushIndex = this.bsp.leafBrushes[leaf.firstLeafBrush + i];
+      if (this.liftBrushes.has(brushIndex)) continue;
       const brush = this.bsp.brushes[brushIndex];
       if (!brush || brush.numSides < 1) continue;
 
@@ -1486,6 +1547,17 @@ export class SweepCollisionBackend implements CollisionBackend {
       }
     }
 
+    for (const d of this.lifts?.definitions ?? []) {
+      const offset = this.lifts!.offset(d.modelIndex)!;
+      const local: [number, number, number] = [point.x - offset.x, point.z - offset.z, point.y - offset.y];
+      const model = this.bsp.models[d.modelIndex];
+      if ([0, 1, 2].some((j) => local[j] < model.mins[j] || local[j] > model.maxs[j])) continue;
+      for (let i = model.firstBrush; i < model.firstBrush + model.numBrushes; i++) {
+        const brush = this.bsp.brushes[i];
+        const texture = this.getBrushTexture(brush);
+        if (texture && this.pointInBrush(local, brush)) contents |= texture.contentFlags;
+      }
+    }
     return contentMask === undefined ? contents : contents & contentMask;
   }
 
@@ -1587,6 +1659,9 @@ export class SweepCollisionBackend implements CollisionBackend {
    * Clean up
    */
   dispose(): void {
+    this.lifts = undefined;
+    this.liftBrushes.clear();
+    this.liftFaces.clear();
     this.bsp = null;
     this.stats = { traceCount: 0, hitCount: 0, totalTraceTime: 0 };
   }

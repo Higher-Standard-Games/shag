@@ -776,6 +776,7 @@ export class BinaryProtocol {
     powerup_state: 18,
     powerup_spawn: 19,
     agent_directives: 20,
+    lift_state: 21,
   };
 
   private static readonly EVT_NAME_MAP: string[] = [
@@ -800,7 +801,11 @@ export class BinaryProtocol {
     "powerup_state",
     "powerup_spawn",
     "agent_directives",
+    "lift_state",
   ];
+
+  /** Wire order for LiftState.phase. Append only — the index is the encoding. */
+  private static readonly LIFT_PHASES = ["bottom", "up", "top", "down"] as const;
 
   private static encodeEvents(encoder: BinaryEncoder, state: GameState): void {
     encoder.writeUint16(state.events.length);
@@ -819,6 +824,18 @@ export class BinaryProtocol {
 
         case 2: // match_state — variable shape, use JSON (sent once per snapshot)
           encoder.writeString(JSON.stringify(event));
+          break;
+
+        case 21: // lift_state — full recoverable mover state, on every snapshot
+          encoder.writeUint8(event.lifts.length);
+          for (const lift of event.lifts) {
+            encoder.writeUint16(lift.modelIndex);
+            encoder.writeFloat32(lift.offset);
+            encoder.writeUint8(Math.max(0, BinaryProtocol.LIFT_PHASES.indexOf(lift.phase)));
+            encoder.writeFloat32(lift.remaining);
+            encoder.writeUint8(lift.cooldowns.length);
+            for (const cooldown of lift.cooldowns) encoder.writeFloat32(cooldown);
+          }
           break;
 
         case 3: // weapon_state: entityId, currentWeapon, weapons[], ammo{}, reloading, lastFireTick
@@ -1008,6 +1025,22 @@ export class BinaryProtocol {
         case 2: // match_state — JSON
           state.events.push({ type, ...JSON.parse(decoder.readString()) });
           break;
+
+        case 21: {
+          // lift_state
+          const lifts = [];
+          for (let l = decoder.readUint8(); l > 0; l--) {
+            const modelIndex = decoder.readUint16();
+            const offset = decoder.readFloat32();
+            const phase = BinaryProtocol.LIFT_PHASES[decoder.readUint8()] ?? "bottom";
+            const remaining = decoder.readFloat32();
+            const cooldowns = [];
+            for (let c = decoder.readUint8(); c > 0; c--) cooldowns.push(decoder.readFloat32());
+            lifts.push({ modelIndex, offset, phase, remaining, cooldowns });
+          }
+          state.events.push({ type, lifts });
+          break;
+        }
 
         case 3: // weapon_state
           state.events.push({

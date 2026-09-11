@@ -38,6 +38,7 @@
     "debug:spawn": "npx vite-node src/cli/test-spawn.ts --",
     "test:simulation": "npx vite-node src/cli/test-fps-simulation.ts",
     "test:physics": "npx vite-node src/cli/test-server-physics.ts",
+    "test:lifts": "npx vite-node src/cli/test-lifts.ts",
     "tools:convert": "npx vite-node src/cli/convert-fbx.ts --",
     "tools:fbx2gltf": "npx vite-node scripts/download-fbx2gltf.ts",
     "tools:textures": "node scripts/convert-ktx2.js",

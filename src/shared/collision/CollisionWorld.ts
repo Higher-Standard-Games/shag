@@ -1,3 +1,4 @@
+import type { LiftSystem } from "../bsp/LiftSystem";
 import type { Vec3 } from "../server/simulation/types";
 
 /**
@@ -58,6 +59,7 @@ export interface StepSlideMoveResult {
  * queries, making them game-agnostic.
  */
 export interface CollisionWorld {
+  readonly lifts?: LiftSystem;
   /**
    * Trace a ray/box from start to end
    *
@@ -140,6 +142,7 @@ export interface SweepBackendTraceOptions {
 export const SHOT_CONTENT_MASK = 0x1;
 
 export interface SweepBackend {
+  readonly lifts?: LiftSystem;
   trace(
     start: Vec3,
     end: Vec3,

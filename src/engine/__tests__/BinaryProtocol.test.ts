@@ -110,6 +110,26 @@ function createTestState(): GameState {
 // ── Tests ────────────────────────────────────────────────────────
 
 describe("BinaryProtocol", () => {
+  it("roundtrips full lift state with and without a delta baseline", () => {
+    const state = createTestState();
+    state.events.push({
+      type: "lift_state",
+      // Every phase, an empty and a multi cooldown list, and a model index past
+      // a byte — all values chosen to be exact in float32.
+      lifts: [
+        { modelIndex: 3, offset: -42.75, phase: "up", remaining: 0, cooldowns: [0.25] },
+        { modelIndex: 300, offset: 0, phase: "bottom", remaining: 0, cooldowns: [] },
+        { modelIndex: 60, offset: -212.5, phase: "top", remaining: 1.5, cooldowns: [0.5, 1e9] },
+        { modelIndex: 7, offset: 128, phase: "down", remaining: 0, cooldowns: [2] },
+      ],
+    });
+    for (const baseline of [undefined, createTestState()]) {
+      const decoded = BinaryProtocol.decodeSnapshot(BinaryProtocol.encodeSnapshot(state, baseline), baseline);
+      expect(decoded.events.find((e) => e.type === "lift_state")).toEqual(
+        state.events.find((e) => e.type === "lift_state"),
+      );
+    }
+  });
   describe("Snapshot roundtrip (no baseline)", () => {
     it("should encode and decode matching entity positions", () => {
       const state = createTestState();
