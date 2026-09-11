@@ -28,7 +28,12 @@ interface SimPeek {
   getState(): { allEntities(): Iterable<{ input?: { viewTick?: number } }> };
 }
 
-async function measure(oneWayMs: number): Promise<number> {
+interface Sample {
+  lagTicks: number;
+  pingMs: number;
+}
+
+async function measure(oneWayMs: number): Promise<Sample> {
   const server = new GameServer(
     {
       port: 0,
@@ -43,7 +48,8 @@ async function measure(oneWayMs: number): Promise<number> {
     new Deathmatch(),
   );
   await server.start();
-  const sim = (server as unknown as { simulation: SimPeek }).simulation;
+  const peek = server as unknown as { simulation: SimPeek; clients: Map<string, { ping: number }> };
+  const sim = peek.simulation;
 
   const client = await ProtocolTestClient.connect(server.getPort());
   client.send(MessageCodec.encodeJoin("viewlag-probe"));
@@ -59,6 +65,9 @@ async function measure(oneWayMs: number): Promise<number> {
         try {
           const tick = MessageCodec.decodeSnapshot(frame).tick;
           if (tick > newestSnapshot) newestSnapshot = tick;
+          // Real clients ack every snapshot, and the server times its ping
+          // against that ack. A probe that skipped it would read ping 0.
+          client.send(MessageCodec.encodeAck(tick));
         } catch {
           // A frame we cannot decode says nothing about the clock.
         }
@@ -87,23 +96,26 @@ async function measure(oneWayMs: number): Promise<number> {
     if (seen.length) lags.push(Number(sim.currentTick) - Math.max(...seen));
   }
 
+  const pingMs = Math.max(0, ...[...peek.clients.values()].map((c) => c.ping));
+
   await client.close();
   await server.stop();
 
   if (!lags.length) throw new Error(`no view ticks observed at ${oneWayMs}ms`);
   lags.sort((a, b) => a - b);
-  return lags[Math.floor(lags.length / 2)]; // median — immune to a stray scheduling hiccup
+  // Median — immune to a stray scheduling hiccup.
+  return { lagTicks: lags[Math.floor(lags.length / 2)], pingMs };
 }
 
 console.log(`[viewlag] ${TICK_RATE}Hz ticks, ${SNAPSHOT_RATE}Hz snapshots\n`);
-console.log("  one-way    RTT   view lag   view lag   overhead");
-console.log("     (ms)   (ms)    (ticks)       (ms)       (ms)");
+console.log("  one-way    RTT   measured   view lag   view lag   overhead");
+console.log("     (ms)   (ms)   ping (ms)    (ticks)       (ms)       (ms)");
 for (const oneWay of LATENCIES) {
-  const ticks = await measure(oneWay);
-  const ms = (ticks / TICK_RATE) * 1000;
+  const { lagTicks, pingMs } = await measure(oneWay);
+  const ms = (lagTicks / TICK_RATE) * 1000;
   const rtt = oneWay * 2;
   console.log(
-    `  ${String(oneWay).padStart(7)}  ${String(rtt).padStart(5)}  ${String(ticks).padStart(9)}  ${ms.toFixed(1).padStart(9)}  ${(ms - rtt).toFixed(1).padStart(9)}`,
+    `  ${String(oneWay).padStart(7)}  ${String(rtt).padStart(5)}  ${pingMs.toFixed(1).padStart(9)}  ${String(lagTicks).padStart(9)}  ${ms.toFixed(1).padStart(9)}  ${(ms - rtt).toFixed(1).padStart(9)}`,
   );
 }
 console.log(
