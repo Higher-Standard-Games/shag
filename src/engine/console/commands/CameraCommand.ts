@@ -3,6 +3,7 @@
  */
 
 import type { CameraSystem } from "../../camera/CameraSystem";
+import { MovementVars } from "../../movement/MovementVars";
 import { Command, type CommandDef } from "../Command";
 
 export default class CameraCommand extends Command {
@@ -70,15 +71,21 @@ export default class CameraCommand extends Command {
       }
 
       case "fov": {
+        // Writing camera.fov directly only held until the next frame, when the
+        // viewport effects overwrote it with baseFOV × their multipliers. Drive
+        // cl_fov instead, which is what baseFOV is derived from.
+        const mv = MovementVars.getInstance();
+        const def = mv.getVar("cl_fov");
         const fov = parseFloat(args[1]);
         if (Number.isNaN(fov)) {
-          return `Current FOV: ${((camera.fov * 180) / Math.PI).toFixed(1)}°`;
+          return `cl_fov ${mv.get("cl_fov")}° horizontal at 16:9`;
         }
-        if (fov < 10 || fov > 170) {
-          return "FOV must be between 10 and 170 degrees";
+        // set() clamps silently, so say so rather than appearing to ignore them.
+        if (def && (fov < def.min || fov > def.max)) {
+          return `cl_fov must be between ${def.min} and ${def.max} degrees`;
         }
-        camera.fov = (fov * Math.PI) / 180;
-        return `FOV set to ${fov}°`;
+        mv.set("cl_fov", fov);
+        return `cl_fov set to ${mv.get("cl_fov")}°`;
       }
 
       case "pos": {

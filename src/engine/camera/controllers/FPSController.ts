@@ -57,6 +57,7 @@ import {
   WalkBobEffect,
 } from "../../viewport";
 import { CameraInputHandler } from "../CameraInputHandler";
+import { currentBaseFov } from "../FovSettings";
 import type { CameraControllerConfig, ICameraController } from "./ICameraController";
 
 // import { EntityManager } from "../../entities/EntityManager";
@@ -331,7 +332,9 @@ export class FPSController implements ICameraController {
     speed: FPSController.defaultSpeed,
     mouseSensitivity: 0.002,
     invertY: false,
-    fov: 1.0, // Wider FOV for debugging
+    // No fov here on purpose: cl_fov owns the player's view now. Leaving the old
+    // hardcoded 1.0 in place would have won this `??` forever and made the
+    // setting do nothing. Setting it explicitly still overrides, for cinematics.
   };
 
   /**
@@ -491,9 +494,10 @@ export class FPSController implements ICameraController {
     // Weapon initialization is now handled by FPSPlayer
     // WeaponViewManager.getInstance().init(scene, this.camera);
 
-    // Apply FOV
-    if (this.config.fov && this.camera) {
-      this.camera.fov = this.config.fov;
+    // Apply FOV. Set it here as well as per-frame so the first frame is already
+    // the player's FOV rather than Babylon's default, which would pop.
+    if (this.camera) {
+      this.camera.fov = this.config.fov ?? currentBaseFov();
     }
 
     // Disable collisions for free flight
@@ -561,7 +565,10 @@ export class FPSController implements ICameraController {
     });
 
     // === INITIALIZE VIEWPORT EFFECTS ===
-    this.baseFOV = this.config.fov || 1.0;
+    // An explicit config FOV still wins (freefly presets, cinematics); otherwise
+    // the player's cl_fov decides, re-read each frame so the slider moves the
+    // view while you are dragging it.
+    this.baseFOV = this.config.fov ?? currentBaseFov();
     this.viewportEffectsManager = ViewportEffectsManager.getInstance();
     this.viewportEffectsManager.init();
 
@@ -1163,6 +1170,7 @@ export class FPSController implements ICameraController {
       // Skip view-bob/FOV shaping while the corpse-follow owns the camera — it
       // sets an absolute position + look target that bob would fight.
       if (!deathCamOwnsCamera) {
+        if (this.config.fov === undefined) this.baseFOV = currentBaseFov();
         const viewportDelta = this.viewportEffectsManager.update(deltaTime, playerState);
         this.viewportApplicator.apply(viewportDelta, this.camera, this.baseFOV);
       }
