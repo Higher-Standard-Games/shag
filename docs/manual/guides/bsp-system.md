@@ -87,11 +87,13 @@ World meshes use compiled BSP face/leaf membership. A mesh stays visible if any 
 
 Culling follows the current world camera, including the usual world + weapon camera setup. Until a camera is assigned, and for multiple world views, it conservatively shows all registered surfaces. Disabling restores the visibility recorded when meshes were registered; map cleanup removes PVS observers. `pvs status` reports the last evaluated view without forcing a visibility change.
 
+Autosprite billboards update before each world camera draws, after frame-level PVS. Hidden/disabled sprites skip vertex work; visible sprites reuse their last uploaded orientation while the eye position is unchanged. Newly visible sprites refresh before selection, and map cleanup removes their callback. This is automatic on map load and needs no extra setting.
+
 For headless inspection, build geometry with `bsp render` before `pvs on`. Enabling updates visibility immediately, but command batches do not run the gameplay render loop. Mesh counts from `NullEngine` do not measure GPU performance. The repository's `docs/research/v0.9.23-rendering-research.md` tracks implementation progress, validation and remaining visual checks.
 
 ## Experimental spatial grouping
 
-`r_bsp_cellsize` changes grouping on the next map load. The default is `0` (off); positive values use 128-4096 map-unit cells. Only eligible opaque texture/lightmap/patch groups with at least 1,024 triangles split. Small batches, liquids, transparent surfaces, animated materials, sprites and fog-associated textures retain their existing grouping. Whole faces are preserved, so large faces can extend outside their assigned cell.
+`r_bsp_cellsize` changes grouping on the next map load. The default is `0` (off); positive values use 128-4096 map-unit cells. Only eligible opaque texture/lightmap/patch groups with at least 1,024 triangles split. Small batches, liquids, transparent surfaces, animated materials and sprites retain their existing grouping. Existing fog associations carry across split cells. Whole faces are preserved, so large faces can extend outside their assigned cell.
 
 To try the experiment on a large map, enter these commands individually:
 
@@ -111,7 +113,7 @@ The repeatable geometry/PVS audit checks all authored deathmatch spawn origins a
 npx vite-node src/cli/audit-pvs.ts -- wdm2 acidwdm2 wbomb6
 ```
 
-It verifies geometry hashes and reports mesh/triangle counts before frustum culling. It does not benchmark GPU rendering or load the complete gameplay/material pipeline.
+It verifies authored geometry hashes, reports mesh/triangle counts before frustum culling, and checks moving/stationary autosprite upload counts with PVS on/off. It does not benchmark GPU rendering or load the complete gameplay/material pipeline.
 
 ## Headless verification
 

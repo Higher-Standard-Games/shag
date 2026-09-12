@@ -459,21 +459,10 @@ export class MapLoader {
     // room. Both baked lightmaps and BSP ambient lighting must be set first.
     await this.claimLiquidSurfaces(meshResult, scene, skyEnvironment, !isHeadlessNullEngine);
 
-    // Phase 8b: Register autosprite billboard updates (per-frame)
+    // Phase 8b: Register map-owned billboard updates after frame-level PVS.
     if (meshResult.autospriteMeshes && meshResult.autospriteMeshes.length > 0) {
       progress("Autosprites", `Registering ${meshResult.autospriteMeshes.length} billboard sprites`);
-      scene.registerBeforeRender(() => {
-        // Billboard toward the MAIN eye camera's WORLD position. With the weapon
-        // viewmodel active the scene is multi-camera (`activeCameras = [eye, weapon]`)
-        // and the weapon camera is parented to the eye, so its `.position` is a fixed
-        // local ~0. Babylon 9 leaves `scene.activeCamera` pointing at the last-rendered
-        // (weapon) camera by the time this fires, which froze the sprites in place.
-        // Take `activeCameras[0]` (the eye) and its `globalPosition` (world-space).
-        const eye = scene.activeCameras?.[0] ?? scene.activeCamera;
-        if (eye) {
-          BspMeshBuilder.updateAutosprites(meshResult, eye.globalPosition);
-        }
-      });
+      BspMeshBuilder.registerAutospriteUpdates(meshResult);
     }
 
     // ── Phases 9-12: Gameplay-only (skip for background maps) ──

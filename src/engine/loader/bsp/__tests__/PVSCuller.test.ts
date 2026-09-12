@@ -502,6 +502,55 @@ describe("default PVS through gameplay MapLoader", () => {
     vi.unstubAllGlobals();
   });
 
+  it("uploads newly visible billboards in the same frame as a PVS boundary crossing", async () => {
+    const vertex = bsp.vertices[0];
+    bsp.vertices = [2, -2].flatMap((x) =>
+      [
+        [-1, -1],
+        [1, -1],
+        [1, 1],
+        [-1, 1],
+      ].map(([y, z]) => ({
+        ...vertex,
+        position: [x, y, z] as [number, number, number],
+      })),
+    );
+    bsp.meshVerts = [0, 1, 2, 0, 2, 3, 0, 1, 2, 0, 2, 3];
+    bsp.faces = bsp.faces.map((face, i) => ({
+      ...face,
+      firstVertex: i * 4,
+      numVertices: 4,
+      firstMeshVert: i * 6,
+      numMeshVerts: 6,
+    }));
+    const registry = Q3ShaderRegistry.getInstance();
+    const resolve = registry.resolveMaterialProps.bind(registry);
+    vi.spyOn(registry, "resolveMaterialProps").mockImplementation((name, options) => ({
+      ...resolve(name, options),
+      autosprite: true,
+    }));
+    const camera = new FreeCamera("eye", new Vector3(0.1, 0, 10), scene);
+    const loaded = await loader.loadMap("test", scene);
+    expect(loaded.success).toBe(true);
+    const sprites = loaded.meshResult!.autospriteMeshes!;
+    expect(sprites).toHaveLength(2);
+    const uploads = sprites.map(({ mesh }) => vi.spyOn(mesh, "updateVerticesData"));
+    const frame = () => {
+      scene.onBeforeRenderObservable.notifyObservers(scene);
+      scene.onBeforeCameraRenderObservable.notifyObservers(camera);
+    };
+    frame();
+    expect(uploads.map((upload) => upload.mock.calls.length)).toEqual([1, 0]);
+    camera.position.x = -0.1;
+    frame();
+    expect(uploads.map((upload) => upload.mock.calls.length)).toEqual([1, 1]);
+    frame();
+    expect(uploads.map((upload) => upload.mock.calls.length)).toEqual([1, 1]);
+    BspManager.getInstance().disablePVS(scene);
+    frame();
+    expect(uploads.map((upload) => upload.mock.calls.length)).toEqual([2, 1]);
+  });
+
   it("enables PVS after setup, supports off, and re-enables on the next map", async () => {
     const manager = BspManager.getInstance();
     const camera = new FreeCamera("eye", new Vector3(1, 0, 0), scene);

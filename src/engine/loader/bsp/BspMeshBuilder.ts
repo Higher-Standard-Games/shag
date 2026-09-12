@@ -60,6 +60,9 @@ const NON_DRAWABLE_TEXTURES = [
 ];
 
 export class BspMeshBuilder {
+  /** Last successful billboard upload; weak keys do not retain disposed maps. */
+  private static readonly autospriteCameraPositions = new WeakMap<Mesh, [number, number, number]>();
+
   private bsp: BspFile;
   private scene: Scene;
   private options: BuildOptions;
@@ -846,15 +849,54 @@ export class BspMeshBuilder {
   }
 
   /**
+   * Billboard for each world camera after frame-level PVS, before mesh selection.
+   * The weapon-only camera must not overwrite the world's sprite orientation.
+   */
+  public static registerAutospriteUpdates(result: BspMeshBuildResult): void {
+    if (!result.autospriteMeshes?.length) return;
+    const world = result.worldMesh;
+    const scene = world.getScene();
+    const observer = scene.onBeforeCameraRenderObservable.add((camera) => {
+      if ((camera.layerMask & ~0x10000000) === 0) return;
+      camera.getViewMatrix();
+      BspMeshBuilder.updateAutosprites(result, camera.globalPosition);
+    });
+    const cleanup = () => {
+      scene.onBeforeCameraRenderObservable.remove(observer);
+      scene.onDisposeObservable.remove(sceneDispose);
+      world.onDisposeObservable.remove(worldDispose);
+    };
+    const sceneDispose = scene.onDisposeObservable.addOnce(cleanup);
+    const worldDispose = world.onDisposeObservable.addOnce(cleanup);
+  }
+
+  /**
    * Update autosprite meshes to face the camera (call each frame)
    * Q3 autosprite: full billboard, always faces camera
    * Q3 autosprite2: cylindrical billboard, rotates around Y axis only
+   * Returns the number of position-buffer uploads, for headless auditing.
    */
-  public static updateAutosprites(result: BspMeshBuildResult, cameraPosition: Vector3): void {
-    if (!result.autospriteMeshes || result.autospriteMeshes.length === 0) return;
+  public static updateAutosprites(result: BspMeshBuildResult, cameraPosition: Vector3): number {
+    if (!result.autospriteMeshes?.length) return 0;
+    if (!Number.isFinite(cameraPosition.x) || !Number.isFinite(cameraPosition.y) || !Number.isFinite(cameraPosition.z))
+      return 0;
+    let uploads = 0;
 
     for (const sprite of result.autospriteMeshes) {
       const { mesh, center, halfWidth, halfHeight, isAutosprite2 } = sprite;
+      if (mesh.isDisposed() || !mesh.isVisible || mesh.visibility <= 0 || !mesh.isEnabled()) {
+        // Re-entering visibility must upload before the first visible draw.
+        BspMeshBuilder.autospriteCameraPositions.delete(mesh);
+        continue;
+      }
+      const previous = BspMeshBuilder.autospriteCameraPositions.get(mesh);
+      if (
+        previous &&
+        previous[0] === cameraPosition.x &&
+        previous[1] === cameraPosition.y &&
+        previous[2] === cameraPosition.z
+      )
+        continue;
 
       // Calculate direction from sprite center to camera
       const cx = center[0],
@@ -949,7 +991,16 @@ export class BspMeshBuilder {
 
       // Update mesh vertices
       mesh.updateVerticesData(VertexBuffer.PositionKind, positions);
+      if (previous) {
+        previous[0] = cameraPosition.x;
+        previous[1] = cameraPosition.y;
+        previous[2] = cameraPosition.z;
+      } else {
+        BspMeshBuilder.autospriteCameraPositions.set(mesh, [cameraPosition.x, cameraPosition.y, cameraPosition.z]);
+      }
+      uploads++;
     }
+    return uploads;
   }
 
   /**

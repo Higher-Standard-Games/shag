@@ -8,7 +8,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { Scene } from "@babylonjs/core/scene";
 import { BspLoader } from "../engine/loader/bsp/BspLoader";
-import { BspMeshBuilder } from "../engine/loader/bsp/BspMeshBuilder";
+import { BspMeshBuilder, type BspMeshBuildResult } from "../engine/loader/bsp/BspMeshBuilder";
 import { MIN_SPATIAL_BATCH_TRIANGLES } from "../engine/loader/bsp/mesh/spatialBatching";
 import { PVSCuller } from "../engine/loader/bsp/PVSCuller";
 import { ingestPk3Dir, resolveMapBspViaIndex } from "../engine/loader/pk3/NodePk3";
@@ -77,6 +77,8 @@ async function main(): Promise<void> {
             triangles: mesh.getTotalIndices() / 3,
             clusters: mesh.metadata?.bspPvsClusters as number[],
           }));
+          // Hash authored geometry before billboarding modifies position buffers.
+          const hash = geometryHash(meshes);
           const samples = positions.map((position) => {
             const stats = culler.update(position);
             return {
@@ -86,7 +88,6 @@ async function main(): Promise<void> {
               visibleTriangles: batches.reduce((sum, batch) => sum + (batch.mesh.isVisible ? batch.triangles : 0), 0),
             };
           });
-          const hash = geometryHash(meshes);
           if (cellSize === 0) {
             baselineHash = hash;
             baselineTriangles = samples.map((sample) => sample.visibleTriangles);
@@ -111,6 +112,7 @@ async function main(): Promise<void> {
               averageVisibleTriangles:
                 samples.reduce((sum, sample) => sum + sample.visibleTriangles, 0) / samples.length,
               alwaysVisibleMeshes: batches.filter((batch) => batch.clusters.includes(-1)).length,
+              autosprites: auditAutospriteUploads(result, positions, culler),
               heaviestBatches: [...batches]
                 .sort((a, b) => b.triangles - a.triangles)
                 .slice(0, 5)
@@ -137,6 +139,51 @@ async function main(): Promise<void> {
   } finally {
     engine.dispose();
   }
+}
+
+/** Count actual update calls at spawn origins; this is not a GPU/FPS benchmark. */
+function auditAutospriteUploads(result: BspMeshBuildResult, positions: Vector3[], culler: PVSCuller) {
+  const sprites = result.autospriteMeshes ?? [];
+  const eligible = sprites.filter(
+    (sprite) => (sprite.mesh.getVerticesData(VertexBuffer.PositionKind)?.length ?? 0) >= 12,
+  );
+  const samples = positions.map((position, index) => {
+    culler.update(position);
+    const expected = eligible.filter(
+      ({ mesh, center }) =>
+        mesh.isVisible &&
+        mesh.isEnabled() &&
+        mesh.visibility > 0 &&
+        Math.hypot(position.x - center[0], position.y - center[1], position.z - center[2]) >= 0.001,
+    ).length;
+    const uploads = BspMeshBuilder.updateAutosprites(result, position);
+    const stationaryUploads = BspMeshBuilder.updateAutosprites(result, position);
+    // Distinct spawn entities can share an origin; the second is stationary too.
+    const expectedUploads = index > 0 && position.equals(positions[index - 1]) ? 0 : expected;
+    if (uploads !== expectedUploads || stationaryUploads !== 0) {
+      throw new Error(
+        `Unexpected autosprite uploads at ${position.asArray()}: ${uploads}/${expectedUploads}, stationary ${stationaryUploads}`,
+      );
+    }
+    return { position: position.asArray(), visibleEligibleSprites: expected, uploads, stationaryUploads };
+  });
+  culler.setEnabled(false);
+  const offPosition = positions[0].add(new Vector3(0.125, 0, 0));
+  const pvsOffUploads = BspMeshBuilder.updateAutosprites(result, offPosition);
+  const pvsOffStationaryUploads = BspMeshBuilder.updateAutosprites(result, offPosition);
+  if (pvsOffUploads !== eligible.length || pvsOffStationaryUploads !== 0) {
+    throw new Error(`PVS off failed to restore billboard updates: ${pvsOffUploads}/${eligible.length}`);
+  }
+  culler.setEnabled(true);
+  culler.update(offPosition);
+  return {
+    total: sprites.length,
+    eligible: eligible.length,
+    averageMovingUploads: samples.reduce((sum, sample) => sum + sample.uploads, 0) / samples.length,
+    pvsOffUploads,
+    pvsOffStationaryUploads,
+    samples,
+  };
 }
 
 // The full loader import graph can retain Node handles; flush the report before
