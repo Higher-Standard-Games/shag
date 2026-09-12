@@ -95,4 +95,8 @@ export class SweepBackendAdapter implements SweepBackend {
   pointContents(point: Vec3): number {
     return toSharedContents(this.backend.pointContents(toBabylon(point)));
   }
+
+  isInLadder(min: Vec3, max: Vec3): boolean {
+    return this.backend.isInLadder(toBabylon(min), toBabylon(max));
+  }
 }

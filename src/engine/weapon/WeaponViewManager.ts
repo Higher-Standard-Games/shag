@@ -37,6 +37,7 @@ import { getProjectileManager } from "./ProjectileManager";
 import { WeaponBarrels } from "./WeaponBarrels";
 import { WeaponBob } from "./WeaponBob";
 import { WeaponCharge } from "./WeaponCharge";
+import { WeaponHolsterAnim } from "./WeaponHolsterAnim";
 import { WeaponLighting } from "./WeaponLighting";
 import { WeaponRecoil } from "./WeaponRecoil";
 import { WeaponReloadAnim } from "./WeaponReloadAnim";
@@ -274,6 +275,15 @@ export class WeaponViewManager {
    * reset to blade (which would otherwise re-show a fresh, enabled mesh).
    */
   private _visible = true;
+  /**
+   * Transient hide for a movement state that occupies both hands (climbing).
+   *
+   * Deliberately separate from {@link _visible}: the two have different owners
+   * and different lifetimes. Death and spectating own the sticky flag, movement
+   * owns this one, and folding them together would hand a player who died
+   * mid-climb their gun back the moment the climb ended.
+   */
+  private _movementHidden = false;
   private currentPosition: WeaponPosition = DEFAULT_POSITIONS.hip;
 
   // CVar tracking for live updates
@@ -329,6 +339,7 @@ export class WeaponViewManager {
 
   // Weapon switch animation (extracted)
   private switchAnim = new WeaponSwitchAnim();
+  private holsterAnim = new WeaponHolsterAnim();
 
   // Babylon scene render observer — stored so re-init on a fresh scene
   // can detach the previous observer (prevents stale per-frame update()
@@ -373,6 +384,8 @@ export class WeaponViewManager {
     this.disposeViewInfrastructure();
     this.scene = scene;
     this._visible = true;
+    this._movementHidden = false;
+    this.holsterAnim.reset();
     this.clearDemoBob();
     this.weaponRecoil.reset();
     this.weaponCharge.reset();
@@ -1025,7 +1038,7 @@ export class WeaponViewManager {
 
     // Re-apply sticky visibility — a weapon loaded while the view is hidden
     // (e.g. the death reset to blade) must stay hidden until setVisible(true).
-    this.currentWeapon.root.setEnabled(this._visible);
+    this.currentWeapon.root.setEnabled(this._visible && !this.holsterAnim.isFullyHolstered);
 
     // Set rendering group and layer mask for each mesh
     // - renderingGroupId 1: renders after world with depth cleared
@@ -1124,9 +1137,26 @@ export class WeaponViewManager {
    */
   public setVisible(visible: boolean): void {
     this._visible = visible;
-    if (this.currentWeapon) {
-      this.currentWeapon.root.setEnabled(visible);
-    }
+    this.applyVisibility();
+  }
+
+  /**
+   * Stow the viewmodel for the duration of a movement state, without touching
+   * the sticky visibility death and spectating own.
+   *
+   * The weapon slides down and rolls away rather than blinking out; the mesh is
+   * only actually disabled once it has finished travelling, so the animation
+   * always gets to play.
+   */
+  public setMovementHidden(hidden: boolean): void {
+    if (this._movementHidden === hidden) return;
+    this._movementHidden = hidden;
+    this.holsterAnim.setHolstered(hidden);
+    this.applyVisibility();
+  }
+
+  private applyVisibility(): void {
+    this.currentWeapon?.root.setEnabled(this._visible && !this.holsterAnim.isFullyHolstered);
   }
 
   /**
@@ -1158,6 +1188,8 @@ export class WeaponViewManager {
     this.currentWeaponDef = null;
     this._intendedWeaponId = null;
     this._visible = false;
+    this._movementHidden = false;
+    this.holsterAnim.reset();
     this.disposeViewInfrastructure();
     this.scene = null;
   }
@@ -1413,6 +1445,13 @@ export class WeaponViewManager {
     // Process switch animation state transitions (even if no weapon loaded yet)
     this.updateSwitchAnimation();
 
+    // Advance the holster slide. The mesh stops drawing only once the weapon
+    // has finished travelling, and starts again the instant it begins to come
+    // back, so neither direction of the animation is skipped.
+    const wasStowed = this.holsterAnim.isFullyHolstered;
+    this.holsterAnim.update(deltaTime);
+    if (this.holsterAnim.isFullyHolstered !== wasStowed) this.applyVisibility();
+
     if (!this.currentWeapon) return;
 
     // Throttle CVar checking - 10 times per second max
@@ -1534,9 +1573,18 @@ export class WeaponViewManager {
     // Get slash animation offsets (melee weapons)
     const slashOffsets = this.weaponSlash.getOffsets();
 
+    // Get holster offsets (weapon stowed for a both-hands movement state)
+    const holsterOffsets = this.holsterAnim.getOffsets();
+
     // Apply position offset (bob + jump/land + ADS + recoil + reload + switch + charge shake + slash)
     root.position.set(
-      adsX + bob.bobX + reloadOffsets.xOffset + switchOffsets.xOffset + chargeShakeX + slashOffsets.xOffset,
+      adsX +
+        bob.bobX +
+        reloadOffsets.xOffset +
+        switchOffsets.xOffset +
+        chargeShakeX +
+        slashOffsets.xOffset +
+        holsterOffsets.xOffset,
       basePos.y +
         bob.bobY +
         bob.jumpLandBob +
@@ -1544,13 +1592,15 @@ export class WeaponViewManager {
         reloadOffsets.yOffset +
         switchOffsets.yOffset +
         chargeShakeY +
-        slashOffsets.yOffset,
+        slashOffsets.yOffset +
+        holsterOffsets.yOffset,
       basePos.z +
         adsZ +
         reloadOffsets.zOffset -
         this.weaponRecoil.offset +
         switchOffsets.zOffset +
-        slashOffsets.zOffset,
+        slashOffsets.zOffset +
+        holsterOffsets.zOffset,
     );
 
     // Apply rotation (base + sprint: pitch X, yaw Y, roll Z + reload roll)
@@ -1573,7 +1623,8 @@ export class WeaponViewManager {
         reloadOffsets.roll +
         switchOffsets.roll +
         this.weaponRecoil.offset * 0.06 +
-        slashOffsets.roll,
+        slashOffsets.roll +
+        holsterOffsets.roll,
     );
   }
 

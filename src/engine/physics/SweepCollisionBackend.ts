@@ -54,6 +54,7 @@ const SurfaceFlags = {
   NODAMAGE: 0x1,
   SLICK: 0x2,
   SKY: 0x4,
+  LADDER: 0x8,
   NODRAW: 0x80,
   HINT: 0x100,
   SKIP: 0x200,
@@ -105,6 +106,18 @@ export class SweepCollisionBackend implements CollisionBackend {
   public lifts: LiftSystem | undefined;
   private liftBrushes = new Map<number, number>();
   private liftFaces = new Set<number>();
+
+  /**
+   * Brushes carrying SURF_LADDER, collected once at init.
+   *
+   * Climbing tests scan this list directly instead of walking the BSP tree.
+   * Ladder brushes sit flush against the wall they are bolted to and stick out
+   * about 16 units, so the player hull straddles a leaf boundary at exactly the
+   * position where climbing has to work — a leaf lookup from the player origin
+   * would find the open-air leaf and miss the brush. Shipped maps carry at most
+   * ten of these (four of thirty-nine maps have any), so the scan is free.
+   */
+  private ladderBrushes: number[] = [];
   readonly type = "q3" as const;
   readonly name = "Sweep Collision (Experimental)";
 
@@ -182,6 +195,59 @@ export class SweepCollisionBackend implements CollisionBackend {
 
     this.processFaces();
     this.buildClipBrushIndex();
+    this.buildLadderBrushIndex();
+  }
+
+  /** Collect SURF_LADDER brushes once; see {@link ladderBrushes}. */
+  private buildLadderBrushIndex(): void {
+    if (!this.bsp) return;
+    this.ladderBrushes = [];
+
+    for (let bi = 0; bi < this.bsp.brushes.length; bi++) {
+      const brush = this.bsp.brushes[bi];
+      if (!brush || brush.numSides < 4) continue;
+      if (this.isLadderBrush(brush)) this.ladderBrushes.push(bi);
+    }
+  }
+
+  /**
+   * A ladder brush is tagged on its faces, not on the brush shader, and which
+   * of the two carries the flag varies by map — so both are checked.
+   */
+  private isLadderBrush(brush: BspBrush): boolean {
+    if (!this.bsp) return false;
+    if ((this.bsp.textures[brush.shaderIndex]?.surfaceFlags ?? 0) & SurfaceFlags.LADDER) return true;
+
+    for (let i = 0; i < brush.numSides; i++) {
+      const side = this.bsp.brushSides[brush.firstSide + i];
+      if (!side) continue;
+      if ((this.bsp.textures[side.shaderIndex]?.surfaceFlags ?? 0) & SurfaceFlags.LADDER) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Is any part of this body inside a climbable brush?
+   *
+   * Takes the whole hull rather than a point on purpose. Ladder brushes are
+   * nonsolid volumes flush against their wall, reaching roughly a hull radius
+   * into the room, so a player pressed up against the ladder has their ORIGIN
+   * tangent to the brush's outer face — never inside it. Testing the origin as
+   * a point makes climbing a coin flip on floating-point noise.
+   */
+  isInLadder(min: Vector3, max: Vector3): boolean {
+    if (!this.bsp || !this.ladderBrushes.length) return false;
+
+    // Babylon -> Q3 (Y and Z swap). Both corners are axis-aligned, so per-axis
+    // min/max survive the swap and the box stays a box.
+    const centre: [number, number, number] = [(min.x + max.x) / 2, (min.z + max.z) / 2, (min.y + max.y) / 2];
+    const half: [number, number, number] = [(max.x - min.x) / 2, (max.z - min.z) / 2, (max.y - min.y) / 2];
+
+    for (const brushIndex of this.ladderBrushes) {
+      const brush = this.bsp.brushes[brushIndex];
+      if (brush && this.pointInBrush(centre, brush, half)) return true;
+    }
+    return false;
   }
 
   /**
@@ -1592,7 +1658,18 @@ export class SweepCollisionBackend implements CollisionBackend {
    * as inside, which is what makes a waterline at z=56 report water at z=56
    * rather than depending on which way a float rounded.
    */
-  private pointInBrush(q3: [number, number, number], brush: BspBrush): boolean {
+  /**
+   * @param half - Optional Q3-space half-extents of a box centred on `q3`.
+   *   Each plane is pushed out by the box's reach along that plane's normal,
+   *   which turns a box-vs-brush overlap into a point-vs-expanded-brush test.
+   *   Exact for any convex brush, not only axis-aligned ones — several shipped
+   *   ladder brushes have angled faces.
+   */
+  private pointInBrush(
+    q3: [number, number, number],
+    brush: BspBrush,
+    half?: readonly [number, number, number],
+  ): boolean {
     if (!this.bsp) return false;
 
     for (let i = 0; i < brush.numSides; i++) {
@@ -1601,7 +1678,12 @@ export class SweepCollisionBackend implements CollisionBackend {
       const plane = this.bsp.planes[side.planeIndex];
       if (!plane) return false;
 
-      if (this.dot(q3, plane.normal) - plane.dist > 0) return false;
+      const offset = half
+        ? Math.abs(half[0] * plane.normal[0]) +
+          Math.abs(half[1] * plane.normal[1]) +
+          Math.abs(half[2] * plane.normal[2])
+        : 0;
+      if (this.dot(q3, plane.normal) - plane.dist > offset) return false;
     }
 
     return true;
@@ -1662,6 +1744,7 @@ export class SweepCollisionBackend implements CollisionBackend {
     this.lifts = undefined;
     this.liftBrushes.clear();
     this.liftFaces.clear();
+    this.ladderBrushes = [];
     this.bsp = null;
     this.stats = { traceCount: 0, hitCount: 0, totalTraceTime: 0 };
   }

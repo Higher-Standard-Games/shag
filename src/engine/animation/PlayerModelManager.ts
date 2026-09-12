@@ -111,6 +111,7 @@ export const DEFAULT_ANIM_FILES: AnimFileConfig[] = [
   // MovementProfile — so the two must stay paired.
   { name: "swim", file: "swimming.glb" },
   { name: "swim_idle", file: "swimming_idle.glb" },
+  { name: "climb", file: "climbing_ladder.glb" },
   // Victory dances (post-game winner showcase) — Mixamo dance clips exported
   // as GLB into public/games/default/animations/. Missing files are tolerated
   // (per-file try/catch above; playAnimation falls back to idle), so ship as

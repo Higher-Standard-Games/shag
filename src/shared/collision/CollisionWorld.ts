@@ -91,6 +91,22 @@ export interface CollisionWorld {
   pointContents(point: Vec3): number;
 
   /**
+   * Is any part of this body inside a climbable (ladder) volume?
+   *
+   * Takes the hull rather than a point because ladder brushes are nonsolid
+   * volumes flush against their wall, reaching only about a hull radius into
+   * the room: a player pressed against the ladder has their origin tangent to
+   * the brush's outer face, never inside it.
+   *
+   * Optional — backends with no BSP surface data simply never report a ladder,
+   * and movement treats its absence as "no ladders on this map".
+   *
+   * @param min - World-space minimum corner of the body's AABB
+   * @param max - World-space maximum corner of the body's AABB
+   */
+  isInLadder?(min: Vec3, max: Vec3): boolean;
+
+  /**
    * Find all entities within a radius
    *
    * @param center - Center of search
@@ -155,6 +171,8 @@ export interface SweepBackend {
     options: SweepBackendTraceOptions,
   ): { endPos: Vec3; velocity: Vec3; hitCount: number };
   pointContents(point: Vec3): number;
+  /** See {@link CollisionWorld.isInLadder}. World-space AABB corners. */
+  isInLadder?(min: Vec3, max: Vec3): boolean;
 }
 
 /**

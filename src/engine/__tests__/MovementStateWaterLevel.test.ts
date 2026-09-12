@@ -1,10 +1,12 @@
 /**
  * Water level on the wire (water Phase 1).
  *
- * `waterLevel` rides in the two remaining free bits of `MovementStateComponent`'s
- * flags byte — bits 0-1 are sliding and crouching, 2-3 wall jump, 4-5 ledge.
- * Those are the LAST two: whatever needs replicating next has to widen the
- * field, and it should not discover that by silently corrupting ledge state.
+ * `waterLevel` rides in bits 6-7 of `MovementStateComponent`'s flags — bits 0-1
+ * are sliding and crouching, 2-3 wall jump, 4-5 ledge. Those filled the first
+ * byte, so ladders widened the field to a uint16 rather than corrupting ledge
+ * state; `onLadder` is bit 8. The point of these tests is unchanged: the next
+ * thing to need replicating must not discover the boundary by silently
+ * clobbering a neighbour.
  */
 
 import { describe, expect, it } from "vitest";
@@ -66,7 +68,7 @@ describe("MovementStateComponent — water level", () => {
     expect(roundTrip(state).waterLevel).toBe(0);
   });
 
-  it("still fits in one byte", () => {
+  it("fits in the two flag bytes", () => {
     const encoder = new BinaryEncoder();
     new MovementStateComponent({
       isSliding: true,
@@ -74,11 +76,39 @@ describe("MovementStateComponent — water level", () => {
       wallJumpState: "charging",
       ledgeGrabState: "pulling",
       waterLevel: 3,
+      onLadder: true,
     }).serialize(encoder);
 
-    // 1 flags byte + 2 float32s. If the flags ever needed a second byte this
-    // would be 10, and every reader of this component would need a version.
-    expect(encoder.getData().byteLength).toBe(9);
+    // 2 flags bytes + 2 float32s. Seven of the sixteen bits are still free;
+    // needing a third byte would change the size every reader expects.
+    expect(encoder.getData().byteLength).toBe(10);
+  });
+
+  it("round-trips the ladder flag without disturbing the byte below it", () => {
+    // `onLadder` is the first bit past the original byte, so a serializer that
+    // still wrote a uint8 would drop it while every other field round-tripped
+    // perfectly — the exact failure that is easy to miss by hand.
+    const state = new MovementStateComponent({
+      isSliding: true,
+      isCrouching: true,
+      wallJumpState: "charging",
+      ledgeGrabState: "pulling",
+      waterLevel: 3,
+      onLadder: true,
+    });
+
+    const decoded = roundTrip(state);
+
+    expect(decoded.onLadder).toBe(true);
+    expect(decoded.waterLevel).toBe(3);
+    expect(decoded.ledgeGrabState).toBe("pulling");
+    expect(decoded.wallJumpState).toBe("charging");
+  });
+
+  it("defaults to off the ladder and survives clone", () => {
+    expect(new MovementStateComponent().onLadder).toBe(false);
+    expect(roundTrip(new MovementStateComponent()).onLadder).toBe(false);
+    expect(new MovementStateComponent({ onLadder: true }).clone().onLadder).toBe(true);
   });
 
   it("carries the level through clone", () => {

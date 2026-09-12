@@ -148,6 +148,10 @@ export class SharedCollisionWorld implements CollisionWorld {
     return this.backend.pointContents(point);
   }
 
+  isInLadder(min: Vec3, max: Vec3): boolean {
+    return this.backend.isInLadder?.(min, max) ?? false;
+  }
+
   // ───────────────────────────────────────────────────────────────
   // ENTITY QUERY (not yet used)
   // ───────────────────────────────────────────────────────────────
