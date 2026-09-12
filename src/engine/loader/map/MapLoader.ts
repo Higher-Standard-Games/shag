@@ -535,6 +535,16 @@ export class MapLoader {
         }
       }
       console.log(`[MapLoader] Froze ${frozenCount} materials, skipped ${skippedCount} lightmapped`);
+
+      // Materials were only half of it: the world meshes still recomputed their
+      // world matrix and bounding info every frame despite never moving. The
+      // `bsp render` path already froze them; the playable path built its meshes
+      // directly and never called the helper. Movers are excluded by annotation
+      // rather than by running before they are parented.
+      if ((this.renderVars.get("r_bsp_freeze") ?? 1) >= 0.5) {
+        const frozenMeshes = BspMeshBuilder.freezeStaticWorld(meshResult);
+        console.log(`[MapLoader] Froze ${frozenMeshes} static world meshes (r_bsp_freeze)`);
+      }
     } else {
       console.log(`[MapLoader] Background mode: skipped collisions, entities, assets`);
     }

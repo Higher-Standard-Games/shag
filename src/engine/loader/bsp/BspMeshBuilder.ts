@@ -1372,6 +1372,15 @@ export class BspMeshBuilder {
    * bounds never change. Autosprites are excluded — they billboard by rewriting
    * vertex positions every frame, so their world matrix must stay live. Returns
    * the number of meshes frozen. Gated by `r_bsp_freeze`; applied at map build.
+   *
+   * Eligibility is the `bspPvsClusters` annotation this builder puts on authored
+   * world surfaces — the same opt-in PVS registration uses, so both systems agree
+   * on what "static world" means. It matters on the playable path, where gameplay
+   * movers are parented under the world root: `buildBrushModel` does not write
+   * that annotation, so a lift and its per-material children are excluded whatever
+   * order they are attached in. Freezing one would pin its world matrix and stop
+   * it moving. Opting in beats an exclusion list — a mover type added later is
+   * safe by default rather than by remembering to list it.
    */
   public static freezeStaticWorld(result: BspMeshBuildResult): number {
     if (!result?.worldMesh) return 0;
@@ -1382,8 +1391,10 @@ export class BspMeshBuilder {
       mesh.doNotSyncBoundingInfo = true;
       frozen++;
     };
+    // The root is the static container itself, and carries no face annotation.
     freezeOne(result.worldMesh);
     for (const child of result.worldMesh.getChildMeshes()) {
+      if (!Array.isArray(child.metadata?.bspPvsClusters)) continue;
       freezeOne(child);
     }
     return frozen;
