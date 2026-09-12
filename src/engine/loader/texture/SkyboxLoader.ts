@@ -91,6 +91,33 @@ const Q3_TO_BABYLON_FACE_MAP: { index: number; transform: FaceTransform }[] = [
   { index: 3, transform: "flipH" }, // slot 5: pz ← ft
 ];
 
+/**
+ * Bring an undersized cube face up to the cube's face size by nearest-neighbour.
+ *
+ * Every face of a cube texture must be the same size, but authors stub the faces
+ * nobody looks at: wbomb6 ships a 1x1 grey `_dn` beside five 512x512 faces.
+ * Replicating it fills that face with its own colour, which is what a 1x1 image
+ * means. Reading it at the other faces' size instead read 4 bytes as 512x512 and
+ * lost the whole sky.
+ */
+export function scaleFaceTo(data: Uint8Array, size: number, target: number): Uint8Array {
+  if (size === target || size <= 0) return data;
+  const scaled = new Uint8Array(target * target * 4);
+  for (let y = 0; y < target; y++) {
+    const srcY = Math.min(size - 1, Math.floor((y * size) / target));
+    for (let x = 0; x < target; x++) {
+      const srcX = Math.min(size - 1, Math.floor((x * size) / target));
+      const src = (srcY * size + srcX) * 4;
+      const dst = (y * target + x) * 4;
+      scaled[dst] = data[src];
+      scaled[dst + 1] = data[src + 1];
+      scaled[dst + 2] = data[src + 2];
+      scaled[dst + 3] = data[src + 3];
+    }
+  }
+  return scaled;
+}
+
 export interface SkyboxLoadResult {
   /** Whether loading was successful */
   success: boolean;
@@ -142,9 +169,8 @@ export class SkyboxLoader {
     console.log(`[SkyboxLoader] Loading skybox: ${basePath}`);
 
     // Try to load all 6 faces
-    const faceImages: (Uint8Array | null)[] = [];
+    const faces: { data: Uint8Array; size: number }[] = [];
     const loadedFaces: string[] = [];
-    let faceSize = 0;
 
     for (const suffix of Q3_FACE_SUFFIXES) {
       const result = await this.loadSkyboxFace(basePath, suffix);
@@ -154,14 +180,20 @@ export class SkyboxLoader {
           error: `Failed to load skybox face: ${basePath}${suffix}`,
         };
       }
-      faceImages.push(result.data);
+      faces.push({ data: result.data, size: result.size });
       loadedFaces.push(result.path);
-      if (faceSize === 0) {
-        faceSize = result.size;
-      }
     }
 
-    console.log(`[SkyboxLoader] Loaded ${faceImages.length} faces (${faceSize}x${faceSize})`);
+    // Faces are not required to match. Authors stub the one you never look at —
+    // wbomb6 ships a 1x1 grey `_dn` beside five 512x512 faces — and taking the
+    // first face's size for all six read 4 bytes as 512x512 and lost the sky.
+    const faceSize = Math.max(...faces.map((face) => face.size));
+    const faceImages = faces.map((face) => scaleFaceTo(face.data, face.size, faceSize));
+    const stubbed = faces.filter((face) => face.size !== faceSize).length;
+    console.log(
+      `[SkyboxLoader] Loaded ${faceImages.length} faces (${faceSize}x${faceSize})` +
+        (stubbed ? `, ${stubbed} upscaled from a smaller stub` : ""),
+    );
 
     // Reorder and transform faces from Q3 order to Babylon.js order
     // Babylon RawCubeTexture actual order: nx, px, py, ny, nz, pz
