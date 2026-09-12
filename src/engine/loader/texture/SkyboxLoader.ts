@@ -16,7 +16,7 @@ import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Scene } from "@babylonjs/core/scene";
 import { PK3Loader } from "../pk3/PK3Loader";
-import { parseKTX1 } from "./KTX1Loader";
+import { canSoftwareDecode, parseKTX1, softwareDecodeMip } from "./KTX1Loader";
 
 // Q3 skybox face suffixes - MUST match Q3 tr_shader.c order!
 // From Q3 source: static char *suf[6] = {"rt", "bk", "lf", "ft", "up", "dn"};
@@ -173,7 +173,11 @@ export class SkyboxLoader {
     const loadedFaces: string[] = [];
 
     for (const suffix of Q3_FACE_SUFFIXES) {
-      const result = await this.loadSkyboxFace(basePath, suffix);
+      // Warsow's `skyparmssides` lets a shader point several sides at one image,
+      // and such maps ship the unsuffixed file instead of a full set — wdm2 has
+      // `env/36sky.ktx` and nothing else but `_up`. Falling back to the base name
+      // gives every side that image, which is what the shader asked for.
+      const result = (await this.loadSkyboxFace(basePath, suffix)) ?? (await this.loadSkyboxFace(basePath, ""));
       if (!result) {
         return {
           success: false,
@@ -522,9 +526,16 @@ export class SkyboxLoader {
         return { data: rgba, size: mip.width };
       }
 
-      // Compressed KTX — can't software-decompress for cubemap faces
-      // GPU-compressed textures need createTextureFromKTX1 which requires an engine reference
+      // A cube face needs pixels, not a GPU texture, so reuse the same software
+      // decode the normal texture path uses. ETC1 is the one that matters here:
+      // it is a mobile format desktop WebGL will not accept, and the pk3s ship
+      // 291 of them including this sky.
       const compFmt = ktx.header.glInternalFormat;
+      if (canSoftwareDecode(compFmt)) {
+        const rgba = softwareDecodeMip(mip.data, mip.width, mip.height, compFmt);
+        return { data: rgba, size: mip.width };
+      }
+
       console.warn(`[SkyboxLoader] Cannot decode compressed KTX format 0x${compFmt.toString(16)} for skybox face`);
       return null;
     } catch (e) {
