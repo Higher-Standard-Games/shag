@@ -198,16 +198,38 @@ describe("optional spatial BSP grouping", () => {
     expect(split.worldMesh.getChildMeshes().some((mesh) => mesh.metadata.bspSpatialCell)).toBe(false);
   });
 
-  it("keeps liquids and fog-associated materials out of spatial splitting", () => {
+  it("keeps liquids out of spatial splitting", () => {
     largeBatchFixture();
     bsp.textures[0].contentFlags = ContentFlags.WATER;
     const liquid = BspMeshBuilder.build(bsp, scene, { spatialCellSize: 1024 });
     expect(liquid.worldMesh.getChildMeshes()).toHaveLength(2);
     expect(liquid.worldMesh.getChildMeshes()[0].metadata.liquidKind).toBe("water");
+  });
+
+  it("splits a fogged material and carries the fog to every cell", () => {
+    // Fog is a per-material association taken from the first fogged face. A
+    // split must not leave it on whichever cell happened to contain that face:
+    // the others belong to the same material and have to look the same.
+    //
+    // This replaces a rule that refused to split any texture with a fogged face
+    // anywhere. On wbomb6 that held back 12,651 of 21,584 faces while only 1,546
+    // are in a fog volume — most of the map excluded over a handful of faces.
+    largeBatchFixture();
     bsp.textures[0].contentFlags = 0;
     bsp.faces[0].effectIndex = 0;
-    const fog = BspMeshBuilder.build(bsp, scene, { spatialCellSize: 1024 });
-    expect(fog.worldMesh.getChildMeshes()).toHaveLength(2);
+
+    const baseline = BspMeshBuilder.build(bsp, scene);
+    const split = BspMeshBuilder.build(bsp, scene, { spatialCellSize: 1024 });
+
+    const parts = split.worldMesh.getChildMeshes().filter((mesh) => mesh.metadata.textureIndex === 0);
+    expect(parts.length).toBeGreaterThan(1);
+    // Geometry is untouched by the regrouping; only the batching changed.
+    expect(split.stats).toEqual(baseline.stats);
+
+    const original = baseline.worldMesh.getChildMeshes().find((mesh) => mesh.metadata.textureIndex === 0)!;
+    for (const part of parts) {
+      expect(part.metadata.fogParams).toEqual(original.metadata.fogParams);
+    }
   });
 
   it("keeps lightmap groups separate while loading each texture once for all chunks", async () => {

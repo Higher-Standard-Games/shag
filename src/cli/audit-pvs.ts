@@ -119,6 +119,11 @@ async function main(): Promise<void> {
                   lightmap: batch.mesh.metadata.lightmapIndex,
                   triangles: batch.triangles,
                   clusters: batch.clusters.length,
+                  // A heavy batch with a null cell was refused a spatial split.
+                  // Without this the only symptom is a batch that never shrinks
+                  // however small the cells get, which says nothing about why.
+                  spatialCell: batch.mesh.metadata.bspSpatialCell ?? null,
+                  patch: /_patch/.test(batch.mesh.name),
                 })),
               samples,
             })}`,

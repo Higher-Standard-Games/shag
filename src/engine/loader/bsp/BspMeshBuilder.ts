@@ -138,10 +138,19 @@ export class BspMeshBuilder {
     const textureGroups = new Map<string, TextureGroup>();
     const faceClusters = buildFaceClusters(this.bsp);
     const spatialCellSize = normalizeSpatialCellSize(this.options.spatialCellSize);
-    // Preserve the existing material-wide fog association when any face uses it.
-    const effectTextures = new Set(
-      this.bsp.faces.filter((face) => face.effectIndex >= 0).map((face) => face.textureIndex),
-    );
+    /**
+     * Fog is associated per material: one fogged face gives its whole batch
+     * `fogParams`. Splitting that batch by cell would leave the fog on whichever
+     * cell happened to contain that face and drop it from the rest, so a split
+     * has to carry the association to every cell of the same base key.
+     *
+     * This used to be handled by refusing to split any texture that had a fogged
+     * face anywhere. On `wbomb6` that excluded 12,651 of 21,584 faces while only
+     * 1,546 are in a fog volume at all — 51% of the map held back as collateral,
+     * some textures over a single fogged face. `wdm2` has no fog volumes, which
+     * is why it never showed there.
+     */
+    const fogByBaseKey = new Map<string, { color: [number, number, number]; depthForOpaque: number }>();
     const shaderRegistry = Q3ShaderRegistry.getInstance();
     const liquidDescriptors = classifyLiquids(this.bsp, {
       overrides: DEFAULT_LIQUID_OVERRIDES,
@@ -327,7 +336,6 @@ export class BspMeshBuilder {
         !shaderProps.needsAnimation &&
         !shaderProps.polygonOffset &&
         !liquidByTextureIndex.has(face.textureIndex) &&
-        !effectTextures.has(face.textureIndex) &&
         !shaderRegistry.getShader(textureName)?.deformVertexes?.length &&
         !faceClusters[i].includes(-1)
           ? faceSpatialCell(this.bsp, face, spatialCellSize)
@@ -376,6 +384,8 @@ export class BspMeshBuilder {
             color: fogShader.fogParms.color,
             depthForOpaque: fogShader.fogParms.depthForOpaque,
           };
+          // Remembered against the unsplit key so sibling cells inherit it below.
+          if (!fogByBaseKey.has(group.baseKey)) fogByBaseKey.set(group.baseKey, group.fogParams);
           _fogFacesCount++;
           console.log(
             `[BspMeshBuilder] Face ${i} has fog effect: ${effect.name} -> color=(${fogShader.fogParms.color.join(",")}), depth=${fogShader.fogParms.depthForOpaque}`,
@@ -444,6 +454,11 @@ export class BspMeshBuilder {
     // savings. Restore those groups after their actual tessellated size is known.
     // Only the opt-in build pays for this; authored vertex/index data is retained.
     if (spatialCellSize) {
+      // A cell that holds none of the fogged faces still belongs to a fogged
+      // material, and must look the same as it did unsplit.
+      for (const group of textureGroups.values()) {
+        if (!group.fogParams) group.fogParams = fogByBaseKey.get(group.baseKey);
+      }
       const triangleCounts = new Map<string, number>();
       for (const group of textureGroups.values()) {
         triangleCounts.set(group.baseKey, (triangleCounts.get(group.baseKey) ?? 0) + group.indices.length / 3);
