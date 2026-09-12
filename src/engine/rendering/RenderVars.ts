@@ -73,6 +73,7 @@ export type RenderVarName =
   | "r_ktx2"
   | "r_webgpu"
   | "r_bsp_freeze"
+  | "r_bsp_cellsize"
   | "r_godrays"
   | "r_godrays_exposure"
   | "r_godrays_decay"
@@ -219,6 +220,15 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, "name">> = {
     max: 1,
     description:
       "Freeze world matrices + bounding info on static BSP world meshes (skips per-frame transform/bounds recompute). Applies on next map load (0/1).",
+    category: "display",
+  },
+  r_bsp_cellsize: {
+    value: 0,
+    defaultValue: 0,
+    min: 0,
+    max: 4096,
+    description:
+      "Experimental opaque BSP spatial grouping on next map load: 0 off; positive sizes clamp to 128-4096 map units. Try 1024, compare with PVS on.",
     category: "display",
   },
   // Volumetric god rays (see GodRaysController). Master gate + live-tunable look.
@@ -760,7 +770,8 @@ export class RenderVars {
       name === "r_ktx2" ||
       name === "r_wireframe" ||
       name === "r_webgpu" ||
-      name === "r_bsp_freeze"
+      name === "r_bsp_freeze" ||
+      name === "r_bsp_cellsize"
     ) {
       value = Math.round(value);
     }
@@ -923,7 +934,7 @@ export class RenderVars {
   }
 
   private shouldApplyLive(name: string): boolean {
-    return name !== "r_deluxe" && name !== "r_bsp_pbr";
+    return name !== "r_deluxe" && name !== "r_bsp_pbr" && name !== "r_bsp_cellsize";
   }
 
   /**

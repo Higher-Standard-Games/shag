@@ -28,6 +28,8 @@ import type { BspFile } from "./BspLoader";
 import { classifyLiquids, DEFAULT_LIQUID_OVERRIDES, liquidKindFromSurfaceParms } from "./LiquidClassifier";
 import { buildMeshFace, buildPatchFace, buildPolygonFace } from "./mesh/faceBuilders";
 import { createRadialGradientTexture, createSolidColorTexture } from "./mesh/fallbackTextures";
+import { buildFaceClusters } from "./mesh/pvs";
+import { faceSpatialCell, MIN_SPATIAL_BATCH_TRIANGLES, normalizeSpatialCellSize } from "./mesh/spatialBatching";
 import type { BspMeshBuildResult, BuildOptions } from "./mesh/types";
 
 export { buildBrushModel } from "./mesh/brushModelBuilder";
@@ -125,12 +127,21 @@ export class BspMeshBuilder {
       colors: number[];
       indices: number[];
       indexOffset: number;
+      pvsClusters: Set<number>;
+      spatialCell: string | null;
+      baseKey: string;
       // Fog params if any face in this group has a fog effect
       fogParams?: { color: [number, number, number]; depthForOpaque: number };
     }
 
     // Key: "textureIndex_lightmapIndex" for unique (texture, lightmap) pairs
     const textureGroups = new Map<string, TextureGroup>();
+    const faceClusters = buildFaceClusters(this.bsp);
+    const spatialCellSize = normalizeSpatialCellSize(this.options.spatialCellSize);
+    // Preserve the existing material-wide fog association when any face uses it.
+    const effectTextures = new Set(
+      this.bsp.faces.filter((face) => face.effectIndex >= 0).map((face) => face.textureIndex),
+    );
     const shaderRegistry = Q3ShaderRegistry.getInstance();
     const liquidDescriptors = classifyLiquids(this.bsp, {
       overrides: DEFAULT_LIQUID_OVERRIDES,
@@ -309,7 +320,20 @@ export class BspMeshBuilder {
       // Patch faces get their own group with two-sided rendering (Q3 patches are always two-sided)
       const lmIdx = face.lightmapIndex >= 0 ? face.lightmapIndex : -1;
       const isPatch = face.faceType === 2;
-      const groupKey = `${face.textureIndex}_${lmIdx}${isPatch ? "_patch" : ""}`;
+      const spatialCell =
+        spatialCellSize &&
+        !shaderProps.isTransparent &&
+        shaderProps.alphaMode === "opaque" &&
+        !shaderProps.needsAnimation &&
+        !shaderProps.polygonOffset &&
+        !liquidByTextureIndex.has(face.textureIndex) &&
+        !effectTextures.has(face.textureIndex) &&
+        !shaderRegistry.getShader(textureName)?.deformVertexes?.length &&
+        !faceClusters[i].includes(-1)
+          ? faceSpatialCell(this.bsp, face, spatialCellSize)
+          : null;
+      const baseKey = `${face.textureIndex}_${lmIdx}${isPatch ? "_patch" : ""}`;
+      const groupKey = `${baseKey}${spatialCell === null ? "" : `_cell_${spatialCell}`}`;
       let group = textureGroups.get(groupKey);
       if (!group) {
         // For patches, force two-sided rendering: bezier normals can face inward at edges
@@ -336,6 +360,9 @@ export class BspMeshBuilder {
           colors: [],
           indices: [],
           indexOffset: 0,
+          pvsClusters: new Set(),
+          spatialCell,
+          baseKey,
         };
         textureGroups.set(groupKey, group);
       }
@@ -387,6 +414,7 @@ export class BspMeshBuilder {
       if (faceData) {
         // Add to texture group
         const numVerts = faceData.positions.length / 3;
+        for (const cluster of faceClusters[i]) group.pvsClusters.add(cluster);
 
         for (const p of faceData.positions) group.positions.push(p);
         for (const n of faceData.normals) group.normals.push(n);
@@ -410,6 +438,36 @@ export class BspMeshBuilder {
       console.log(
         `[BspMeshBuilder] Detail faces: ${detailFaceCount} total, ${detailFaceSkipped} skipped (non-drawable), ${detailFaceCount - detailFaceSkipped} rendered`,
       );
+    }
+
+    // Splitting tiny material batches creates many draws for little triangle
+    // savings. Restore those groups after their actual tessellated size is known.
+    // Only the opt-in build pays for this; authored vertex/index data is retained.
+    if (spatialCellSize) {
+      const triangleCounts = new Map<string, number>();
+      for (const group of textureGroups.values()) {
+        triangleCounts.set(group.baseKey, (triangleCounts.get(group.baseKey) ?? 0) + group.indices.length / 3);
+      }
+      const mergedGroups = new Map<string, TextureGroup>();
+      for (const [key, group] of textureGroups) {
+        const keepSplit =
+          group.spatialCell !== null && triangleCounts.get(group.baseKey)! >= MIN_SPATIAL_BATCH_TRIANGLES;
+        const targetKey = keepSplit ? key : group.baseKey;
+        if (!keepSplit) group.spatialCell = null;
+        const target = mergedGroups.get(targetKey);
+        if (!target) {
+          mergedGroups.set(targetKey, group);
+          continue;
+        }
+        for (const channel of ["positions", "normals", "uvs", "uv2s", "colors"] as const) {
+          for (const value of group[channel]) target[channel].push(value);
+        }
+        for (const index of group.indices) target.indices.push(index + target.indexOffset);
+        target.indexOffset += group.indexOffset;
+        for (const cluster of group.pvsClusters) target.pvsClusters.add(cluster);
+      }
+      textureGroups.clear();
+      for (const [key, group] of mergedGroups) textureGroups.set(key, group);
     }
 
     // Separate opaque and transparent groups
@@ -479,6 +537,11 @@ export class BspMeshBuilder {
         textureName: group.textureName,
         textureIndex: group.textureIndex,
         lightmapIndex: group.lightmapIndex,
+        // Only model-0 surfaces carry this annotation; movers stay outside
+        // static PVS even when gameplay parents them under the world root.
+        bspPvsClusters: [...group.pvsClusters],
+        bspSpatialCell: group.spatialCell,
+        bspSpatialCellSize: group.spatialCell === null ? 0 : spatialCellSize,
         contentFlags: texFlags?.contentFlags ?? 0,
         surfaceFlags: texFlags?.surfaceFlags ?? 0,
         fogParams: group.fogParams,
@@ -601,6 +664,7 @@ export class BspMeshBuilder {
         textureName: sprite.textureName,
         textureIndex: sprite.textureIndex,
         lightmapIndex: -1, // Sprites typically don't use lightmaps
+        bspPvsClusters: faceClusters[sprite.faceIndex],
         autosprite: sprite.shaderProps.autosprite,
         autosprite2: sprite.shaderProps.autosprite2,
       };
@@ -718,9 +782,13 @@ export class BspMeshBuilder {
     }
 
     // Collect texture group info for later loading (including autosprite textures)
-    const allTextureGroups = [...opaqueGroups, ...transparentGroups]
-      .filter((g) => g.indices.length > 0)
-      .map((g) => ({ textureIndex: g.textureIndex, textureName: g.textureName }));
+    const allTextureGroups = [
+      ...new Map(
+        [...opaqueGroups, ...transparentGroups]
+          .filter((g) => g.indices.length > 0)
+          .map((g) => [g.textureIndex, { textureIndex: g.textureIndex, textureName: g.textureName }]),
+      ).values(),
+    ];
 
     // Add autosprite textures (deduplicated)
     const seenTextureIndices = new Set(allTextureGroups.map((g) => g.textureIndex));

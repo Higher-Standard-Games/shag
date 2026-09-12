@@ -353,6 +353,7 @@ export class MapLoader {
     const meshResult = BspMeshBuilder.build(bsp, scene, {
       filterTextures: true,
       deluxe: deluxeEnabled,
+      spatialCellSize: this.renderVars.get("r_bsp_cellsize") ?? 0,
     });
     this.currentMeshResult = meshResult;
 
@@ -619,6 +620,11 @@ export class MapLoader {
       EntityManager.getInstance().registerHandlers();
       setCurrentBspForHandlers(bsp);
       await this.processBspEntities(bsp, scene);
+
+      // Start PVS after material setup and entity spawning have established the
+      // world's intended visibility. The live camera may arrive on a later frame.
+      const { BspManager } = await import("../bsp/BspManager");
+      console.log(`[MapLoader] ${await BspManager.getInstance().enablePVS(scene)}`);
     }
 
     this.currentMap = mapName;

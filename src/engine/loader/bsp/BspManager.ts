@@ -14,6 +14,7 @@ import RenderVars from "../../rendering/RenderVars";
 import { PK3Loader } from "../pk3/PK3Loader";
 import { type BspEntity, type BspFile, type BspLightVol, BspLoader } from "./BspLoader";
 import { BspMeshBuilder, type BspMeshBuildResult } from "./BspMeshBuilder";
+import { createPVSCuller, type PVSCuller } from "./PVSCuller";
 
 export interface BspLoadOptions {
   autoLoadPK3?: boolean;
@@ -70,6 +71,7 @@ export class BspManager {
    */
   // biome-ignore lint/suspicious/noExplicitAny: Babylon.js internal API access
   setMeshResult(result: any): void {
+    if (this.meshResult !== result) this.disposePVS();
     this.meshResult = result;
   }
 
@@ -77,6 +79,7 @@ export class BspManager {
    * Set already-loaded BSP data (used by MapLoader)
    */
   setBsp(mapName: string, bsp: BspFile): void {
+    if (this.loadedBsp !== bsp) this.disposePVS();
     this.loadedBsp = bsp;
     this.currentMapName = mapName;
   }
@@ -135,9 +138,8 @@ export class BspManager {
       throw new Error(`Failed to load BSP: ${bspPath}`);
     }
 
-    this.loadedBsp = bsp;
-    this.currentMapName = mapName;
-
+    this.clearRender();
+    this.setBsp(mapName, bsp);
     return this.getLoadSummary();
   }
 
@@ -423,6 +425,7 @@ export class BspManager {
         faceTypes: options.faceTypes,
         filterTextures: options.filterTextures ?? true,
         deluxe: deluxeEnabled,
+        spatialCellSize: RenderVars.getInstance().get("r_bsp_cellsize") ?? 0,
       });
 
       // Freeze static world geometry (world matrix + bounding info) to skip its
@@ -451,6 +454,7 @@ export class BspManager {
    * Clear rendered BSP geometry
    */
   clearRender(): void {
+    this.disposePVS();
     if (this.meshResult) {
       this.meshResult.worldMesh.dispose();
       for (const tex of this.meshResult.lightmapTextures) {
@@ -780,9 +784,9 @@ export class BspManager {
   // PVS Culling
   // ============================================================================
 
-  private pvsCuller: import("./PVSCuller").PVSCuller | null = null;
-  // biome-ignore lint/suspicious/noExplicitAny: Babylon.js internal API access
-  private pvsObserver: any = null;
+  private pvsCuller: PVSCuller | null = null;
+  private pvsCleanup: (() => void) | null = null;
+  private pvsLifetimeCleanup: (() => void) | null = null;
 
   /**
    * Initialize PVS culling system
@@ -799,39 +803,59 @@ export class BspManager {
     }
 
     if (!this.pvsCuller) {
-      const { createPVSCuller } = await import("./PVSCuller");
       this.pvsCuller = createPVSCuller(this.loadedBsp);
       if (this.pvsCuller) {
         this.pvsCuller.registerFromWorldMesh(this.meshResult.worldMesh);
       }
     }
 
-    return this.pvsCuller ? null : "Failed to create PVS culler";
+    return this.pvsCuller ? null : "PVS unavailable: missing or invalid visibility data; world remains visible";
   }
 
   /**
-   * Enable PVS culling with automatic updates
+   * Enable PVS culling with automatic updates. A camera can be assigned later;
+   * until then the registered world surfaces retain their original visibility.
    */
-  async enablePVS(scene: Scene, camera: import("@babylonjs/core/Cameras/camera").Camera): Promise<string> {
+  async enablePVS(scene: Scene, _camera?: import("@babylonjs/core/Cameras/camera").Camera): Promise<string> {
     if (!this.loadedBsp) {
       return "No BSP loaded. Load a map first.";
     }
 
+    const bsp = this.loadedBsp;
+    const result = this.meshResult;
     const error = await this.initPVS();
+    if (this.loadedBsp !== bsp || this.meshResult !== result) return "Map changed while enabling PVS; try again";
     if (error || !this.pvsCuller) {
       return error || "PVS data not available in this map";
     }
 
+    this.pvsCleanup?.();
+    this.pvsLifetimeCleanup?.();
     this.pvsCuller.setEnabled(true);
-
-    // Start update loop
-    if (!this.pvsObserver) {
-      this.pvsObserver = scene.onBeforeRenderObservable.add(() => {
-        if (this.pvsCuller?.isEnabled() && camera) {
-          this.pvsCuller.update(camera.position);
-        }
-      });
-    }
+    const update = () => {
+      if (!this.pvsCuller?.isEnabled()) return;
+      // The FPS viewmodel has its own camera on layer 0x10000000. It cannot
+      // see the BSP and must not disable culling for the normal [eye, weapon] pair.
+      // Multiple world views still need a union; conservatively show all for now.
+      const cameras = (scene.activeCameras?.length ? scene.activeCameras : [scene.activeCamera]).filter(
+        (candidate) => candidate && (candidate.layerMask & ~0x10000000) !== 0,
+      );
+      const camera = cameras.length === 1 ? cameras[0] : null;
+      camera?.getViewMatrix();
+      this.pvsCuller.update(camera?.globalPosition ?? null);
+    };
+    const observer = scene.onBeforeRenderObservable.add(update);
+    const sceneDispose = scene.onDisposeObservable.addOnce(() => this.disposePVS());
+    const world = this.meshResult!.worldMesh;
+    const worldDispose = world.onDisposeObservable.addOnce(() => this.disposePVS());
+    this.pvsCleanup = () => {
+      scene.onBeforeRenderObservable.remove(observer);
+    };
+    this.pvsLifetimeCleanup = () => {
+      scene.onDisposeObservable.remove(sceneDispose);
+      world.onDisposeObservable.remove(worldDispose);
+    };
+    update();
 
     return "PVS culling: ON";
   }
@@ -839,15 +863,13 @@ export class BspManager {
   /**
    * Disable PVS culling
    */
-  disablePVS(scene: Scene): string {
+  disablePVS(_scene: Scene): string {
     if (this.pvsCuller) {
       this.pvsCuller.setEnabled(false);
     }
 
-    if (this.pvsObserver) {
-      scene.onBeforeRenderObservable.remove(this.pvsObserver);
-      this.pvsObserver = null;
-    }
+    this.pvsCleanup?.();
+    this.pvsCleanup = null;
 
     return "PVS culling: OFF";
   }
@@ -855,7 +877,7 @@ export class BspManager {
   /**
    * Get PVS status
    */
-  getPVSStatus(camera?: import("@babylonjs/core/Cameras/camera").Camera): string {
+  getPVSStatus(_camera?: import("@babylonjs/core/Cameras/camera").Camera): string {
     if (!this.pvsCuller) {
       if (!this.loadedBsp) {
         return "No BSP loaded";
@@ -865,11 +887,8 @@ export class BspManager {
         : "No PVS data in this map";
     }
 
-    // Force update for fresh stats
-    if (camera) {
-      this.pvsCuller.update(camera.position);
-    }
-
+    // Report the last rendered view; a diagnostic must not change visibility
+    // (particularly when multiple primary cameras conservatively show all).
     const stats = this.pvsCuller.getStats();
     const culledPct = stats.totalMeshes > 0 ? ((stats.culledMeshes / stats.totalMeshes) * 100).toFixed(1) : "0";
 
@@ -896,7 +915,9 @@ export class BspManager {
     }
 
     const { findLeafForPoint } = await import("./BspLoader");
-    const q3Pos: [number, number, number] = [camera.position.x, camera.position.z, camera.position.y];
+    camera.getViewMatrix();
+    const position = camera.globalPosition;
+    const q3Pos: [number, number, number] = [position.x, position.z, position.y];
     const leaf = findLeafForPoint(q3Pos, this.loadedBsp.nodes, this.loadedBsp.leafs, this.loadedBsp.planes);
 
     if (!leaf) {
@@ -917,7 +938,7 @@ export class BspManager {
 
     return [
       `=== Current Cluster Info ===`,
-      `Camera: (${camera.position.x.toFixed(1)}, ${camera.position.y.toFixed(1)}, ${camera.position.z.toFixed(1)})`,
+      `Camera: (${position.x.toFixed(1)}, ${position.y.toFixed(1)}, ${position.z.toFixed(1)})`,
       `Cluster: ${leaf.cluster}`,
       `Area: ${leaf.area}`,
       `Leaf bounds:`,
@@ -940,6 +961,15 @@ export class BspManager {
   // Cleanup
   // ============================================================================
 
+  private disposePVS(): void {
+    this.pvsCleanup?.();
+    this.pvsCleanup = null;
+    this.pvsLifetimeCleanup?.();
+    this.pvsLifetimeCleanup = null;
+    this.pvsCuller?.dispose();
+    this.pvsCuller = null;
+  }
+
   /**
    * Unload everything
    */
@@ -947,8 +977,6 @@ export class BspManager {
     this.clearRender();
     this.loadedBsp = null;
     this.currentMapName = null;
-    this.pvsCuller = null;
-    this.pvsObserver = null;
   }
 
   /**

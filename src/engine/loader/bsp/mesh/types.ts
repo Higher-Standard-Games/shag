@@ -1,5 +1,5 @@
-import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { Texture } from "@babylonjs/core/Materials/Textures/texture";
+import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { BspFile } from "../BspLoader";
 
 export interface BspMeshBuildResult {
@@ -53,6 +53,8 @@ export interface BspMeshBuildResult {
 }
 
 export interface BuildOptions {
+  /** Experimental opaque face grouping in map units. 0/default disables; positive values clamp to 128-4096. */
+  spatialCellSize?: number;
   /** Only render specific face types (1=polygon, 2=patch, 3=mesh) */
   faceTypes?: number[];
   /** Skip non-drawable textures */
