@@ -16,8 +16,8 @@ import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Scene } from "@babylonjs/core/scene";
-import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
 import { DEFAULT_PROJECTILE_BOUNCE_FACTOR, getEntityRegistry, type ProjectileDef } from "../../shared/entities";
+import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
 import { getMD3Loader, type MD3LoadResult } from "../loader/model/MD3Loader";
 import { PK3Loader } from "../loader/pk3/PK3Loader";
 import {
@@ -45,6 +45,15 @@ interface ActiveProjectile {
   materials: StandardMaterial[]; // For fade-in effect
   trailPoints: Vector3[]; // Position history for trail rendering
   trailMesh: LinesMesh | null; // Current trail line mesh
+  /**
+   * Second blade of the trail, at 90 degrees to {@link trailMesh}.
+   *
+   * A single camera-facing ribbon collapses when the projectile travels along
+   * the view axis — which is the ordinary case, because players shoot where
+   * they are looking — leaving a flat sliver. Two crossed blades read as a
+   * volume from any angle, including straight down the barrel.
+   */
+  trailMeshCross: LinesMesh | null;
   trailMaterial: StandardMaterial | null; // Trail material for disposal
   isLocalPrediction: boolean; // If true, silently despawn on hit (no explosion)
   isServerDriven: boolean; // If true, position comes from server snapshots (no client raycast)
@@ -551,6 +560,7 @@ export class ProjectileManager {
       materials,
       trailPoints: [],
       trailMesh: null,
+      trailMeshCross: null,
       trailMaterial: null,
       isLocalPrediction: opts?.isLocalPrediction ?? false,
       isServerDriven: opts?.isServerDriven ?? false,
@@ -982,6 +992,7 @@ export class ProjectileManager {
     // Cleanup
     getPointLightPool().release(proj.light);
     proj.trailMesh?.dispose();
+    proj.trailMeshCross?.dispose();
     proj.trailMaterial?.dispose();
     proj.node.dispose();
 
@@ -1003,6 +1014,7 @@ export class ProjectileManager {
     for (const proj of this.projectiles) {
       getPointLightPool().release(proj.light);
       proj.trailMesh?.dispose();
+      proj.trailMeshCross?.dispose();
       proj.trailMaterial?.dispose();
       proj.node.dispose();
     }
@@ -1057,6 +1069,8 @@ export class ProjectileManager {
     // second trail.
     const pathA: Vector3[] = [];
     const pathB: Vector3[] = [];
+    const pathC: Vector3[] = [];
+    const pathD: Vector3[] = [];
     const cameraPos = this.scene.activeCamera?.globalPosition ?? this.scene.activeCamera?.position ?? null;
 
     // Cumulative arc length per point — the width taper is distance-based,
@@ -1102,11 +1116,18 @@ export class ProjectileManager {
       const t = totalArcLen > 0.001 ? arcLen[i] / totalArcLen : 0;
       const width = TRAIL_WIDTH * t;
 
+      // The crossing blade: perpendicular to both the trail and the first
+      // blade, so the pair form an X around the flight path.
+      const perpCross = Vector3.Cross(tangent, perp).normalize();
+
       pathA.push(p.add(perp.scale(width)));
       pathB.push(p.subtract(perp.scale(width)));
+      pathC.push(p.add(perpCross.scale(width)));
+      pathD.push(p.subtract(perpCross.scale(width)));
     }
 
     const pathArray = [pathA, pathB];
+    const pathArrayCross = [pathC, pathD];
 
     // Point count is fixed from the first frame (pre-fill above), so the mesh
     // is created exactly once and updated in place ever after — same vertex
@@ -1117,6 +1138,12 @@ export class ProjectileManager {
         updatable: true,
         sideOrientation: Mesh.DOUBLESIDE,
         instance: proj.trailMesh as unknown as Mesh,
+      });
+      MeshBuilder.CreateRibbon(`${proj.id}_trailCross`, {
+        pathArray: pathArrayCross,
+        updatable: true,
+        sideOrientation: Mesh.DOUBLESIDE,
+        instance: proj.trailMeshCross as unknown as Mesh,
       });
     } else {
       proj.trailMesh = MeshBuilder.CreateRibbon(
@@ -1129,6 +1156,17 @@ export class ProjectileManager {
         this.scene,
       ) as unknown as LinesMesh;
       proj.trailMesh.isPickable = false;
+
+      proj.trailMeshCross = MeshBuilder.CreateRibbon(
+        `${proj.id}_trailCross`,
+        {
+          pathArray: pathArrayCross,
+          updatable: true,
+          sideOrientation: Mesh.DOUBLESIDE,
+        },
+        this.scene,
+      ) as unknown as LinesMesh;
+      proj.trailMeshCross.isPickable = false;
     }
 
     // Create material once, reuse on subsequent frames
@@ -1148,6 +1186,7 @@ export class ProjectileManager {
       proj.trailMaterial = mat;
     }
     proj.trailMesh.material = proj.trailMaterial;
+    if (proj.trailMeshCross) proj.trailMeshCross.material = proj.trailMaterial;
   }
 }
 
