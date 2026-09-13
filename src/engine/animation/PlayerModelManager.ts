@@ -13,12 +13,13 @@
 
 import type { Animation } from "@babylonjs/core/Animations/animation";
 import { AnimationGroup } from "@babylonjs/core/Animations/animationGroup";
+import type { AssetContainer } from "@babylonjs/core/assetContainer";
 import type { Skeleton } from "@babylonjs/core/Bones/skeleton";
-import { ImportAnimationsAsync, ImportMeshAsync } from "@babylonjs/core/Loading/sceneLoader";
+import { LoadAssetContainerAsync } from "@babylonjs/core/Loading/sceneLoader";
 import type { Material } from "@babylonjs/core/Materials/material";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
-import type { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 // Side effect: registers the OutlineRenderer scene component — required for
 // mesh.renderOutline (team outlines) to draw. Previously loaded implicitly by
@@ -130,13 +131,10 @@ export class PlayerModelManager {
   private scene: Scene;
   private readonly activeOneShots = new Map<PlayerModelInstance, { group: AnimationGroup; baseSpeedRatio: number }>();
 
-  // Source model (loaded once)
   private loaded = false;
-  private loading = false;
-  private sourceMesh: Mesh | null = null;
-  private sourceSkeleton: Skeleton | null = null;
-  private sourceAnims: StoredAnim[] = [];
-  private sourceBoneMap: Map<string, TransformNode> = new Map();
+  private disposed = false;
+  private loadPromise: Promise<void> | null = null;
+  private sourceContainer: AssetContainer | null = null;
 
   constructor(scene: Scene) {
     this.scene = scene;
@@ -153,280 +151,147 @@ export class PlayerModelManager {
    * Load the player model and all animation files.
    * Idempotent — calling multiple times is safe; only loads once.
    */
-  async loadModel(
+  loadModel(
     modelPath: string = "/games/default/animations/",
     modelFile: string = "vanguard.glb",
     animFiles: AnimFileConfig[] = DEFAULT_ANIM_FILES,
   ): Promise<void> {
-    if (this.loading || this.loaded) return;
-    this.loading = true;
-
-    console.log("[PlayerModelManager] Loading source model...");
-
-    try {
-      const result = await ImportMeshAsync(modelFile, this.scene, { rootUrl: modelPath });
-
-      if (result.meshes.length === 0) {
-        console.error("[PlayerModelManager] No meshes in model");
-        return;
-      }
-
-      this.sourceMesh = result.meshes[0] as Mesh;
-      this.sourceSkeleton = result.skeletons[0] || null;
-
-      // Hide source — used only for cloning
-      this.sourceMesh.isVisible = false;
-      this.sourceMesh.getChildMeshes().forEach((m) => {
-        m.isVisible = false;
-      });
-
-      // Stop embedded anims immediately
-      result.animationGroups.forEach((g) => {
-        g.stop();
-      });
-
-      // Build bone map
-      if (this.sourceSkeleton) {
-        for (const bone of this.sourceSkeleton.bones) {
-          const node = bone.getTransformNode();
-          if (node) this.sourceBoneMap.set(bone.name, node);
-        }
-      }
-
-      // Store embedded animation (with root-motion filtering)
-      if (result.animationGroups.length > 0) {
-        const embedded = this.extractAnimChannels(result.animationGroups[0], this.sourceBoneMap);
-        if (embedded.length > 0) {
-          this.sourceAnims.push({ name: "embedded", animations: embedded });
-        }
-        result.animationGroups[0].dispose();
-      }
-
-      // CRITICAL: Clear ALL direct .animations on every node in the source.
-      // Babylon's scene animation system evaluates these independently of
-      // AnimationGroups. mesh.clone() copies them, causing root-motion drift
-      // on clones. Our AnimationGroups hold their own references and are
-      // unaffected by this clear.
-      this.sourceMesh.animations = [];
-      for (const node of this.sourceMesh.getChildTransformNodes(false)) {
-        node.animations = [];
-      }
-      for (const child of this.sourceMesh.getChildMeshes()) {
-        child.animations = [];
-      }
-      if (this.sourceSkeleton) {
-        for (const bone of this.sourceSkeleton.bones) {
-          const node = bone.getTransformNode();
-          if (node) node.animations = [];
-        }
-      }
-
-      // Load external animations
-      for (const anim of animFiles) {
-        try {
-          // CRITICAL: Stop ALL animation groups BEFORE importing
-          for (const g of this.scene.animationGroups) g.stop();
-
-          await ImportAnimationsAsync(modelPath + anim.file, this.scene, { overwriteAnimations: false });
-
-          // CRITICAL: Stop ALL animation groups IMMEDIATELY after import
-          for (const g of this.scene.animationGroups) g.stop();
-
-          // Old static API returned the scene — keep reading scene.animationGroups.
-          if (this.scene.animationGroups.length > 0) {
-            const sourceGroup = this.scene.animationGroups[0];
-            const channels = this.extractAnimChannels(sourceGroup, this.sourceBoneMap);
-            if (channels.length > 0) {
-              this.sourceAnims.push({ name: anim.name, animations: channels });
-              console.log(`[PlayerModelManager] Loaded ${anim.name}: ${channels.length} channels`);
-            } else {
-              console.warn(`[PlayerModelManager] ${anim.name} has 0 channels`);
-            }
-            sourceGroup.dispose();
-
-            // Stop again after dispose
-            for (const g of this.scene.animationGroups) g.stop();
-
-            // CRITICAL: Clear any .animations injected onto nodes by the import.
-            // ImportAnimationsAsync retargets to existing skeleton, injecting
-            // .animations on TransformNodes that may not be mesh children.
-            // Iterate ALL scene transform nodes to catch everything.
-            if (this.sourceMesh) {
-              this.sourceMesh.animations = [];
-            }
-            for (const node of this.scene.transformNodes) {
-              node.animations = [];
-            }
-            for (const mesh of this.scene.meshes) {
-              mesh.animations = [];
-            }
-          }
-        } catch (err) {
-          console.warn(`[PlayerModelManager] Failed to load ${anim.file}:`, err);
-        }
-      }
-
-      // FINAL CLEANUP: Same broad sweep over ALL scene transform nodes.
-      for (const g of this.scene.animationGroups) g.stop();
-      for (const node of this.scene.transformNodes) {
-        node.animations = [];
-      }
-      for (const mesh of this.scene.meshes) {
-        mesh.animations = [];
-      }
-
-      // NUCLEAR: Stop ALL scene-level Animatables.
-      // ImportAnimationsAsync can create scene.beginAnimation() calls
-      // that survive AnimationGroup disposal and .animations[] cleanup.
-      this.scene.stopAllAnimations();
-
-      console.log(`[PlayerModelManager] Ready: ${this.sourceAnims.length} animations`);
-      // Debug: log what channels each animation has
-      for (const anim of this.sourceAnims) {
-        const posChannels = anim.animations.filter((a) => a.animation.targetProperty === "position");
-        console.log(
-          `  ${anim.name}: ${anim.animations.length} channels (${posChannels.length} position tracks: ${posChannels.map((p) => p.target.name).join(", ")})`,
-        );
-      }
-      this.loaded = true;
-    } catch (err) {
-      console.error("[PlayerModelManager] Load error:", err);
-    } finally {
-      this.loading = false;
-    }
-  }
-
-  // ── Instance Management ──────────────────────────────────────
-
-  /**
-   * Create a new player model instance (clone of source mesh + skeleton).
-   * Returns null if sources aren't loaded yet.
-   *
-   * @param id  Unique identifier (entity id, "debug", etc.)
-   * @param scale  Mixamo → BSP scale factor (default 36)
-   */
-  createInstance(id: string, scale: number = 36): PlayerModelInstance | null {
-    console.log(
-      `[PlayerModelManager] createInstance called for ${id}. sourceMesh=${!!this.sourceMesh}, sourceSkeleton=${!!this.sourceSkeleton}`,
-    );
-    if (!this.sourceMesh || !this.sourceSkeleton) return null;
-
-    // Clone mesh
-    const clonedMesh = this.sourceMesh.clone(`player_${id}`, null);
-    if (!clonedMesh) return null;
-
-    // Clone skeleton
-    const clonedSkeleton = this.sourceSkeleton.clone(`skel_${id}`);
-
-    // Build bone map for clone
-    const cloneBoneMap = new Map<string, TransformNode>();
-    for (const bone of clonedSkeleton.bones) {
-      const node = bone.getTransformNode();
-      if (node) cloneBoneMap.set(bone.name, node);
-    }
-
-    // Link
-    clonedMesh.skeleton = clonedSkeleton;
-    for (const child of clonedMesh.getChildMeshes()) {
-      child.skeleton = clonedSkeleton;
-    }
-
-    // Anchor (caller sets position/rotation on this)
-    const anchor = new TransformNode(`anchor_${id}`, this.scene);
-    clonedMesh.setParent(anchor);
-    clonedMesh.position.set(0, 0, 0);
-
-    // Scale and orient
-    clonedMesh.scaling.set(scale, scale, scale);
-    if (clonedMesh.rotationQuaternion) clonedMesh.rotationQuaternion = null;
-    clonedMesh.rotation.set(0, 0, 0);
-
-    // Visible and never culled. Skinned clone bounds can be stale after GLB
-    // cloning/retargeted animations; if Babylon culls the body, the separately
-    // bone-attached weapon still renders and looks like a floating gun.
-    clonedMesh.setEnabled(true);
-    clonedMesh.isVisible = true;
-    clonedMesh.visibility = 1;
-    clonedMesh.alwaysSelectAsActiveMesh = true;
-    clonedMesh.getChildMeshes().forEach((m) => {
-      m.setEnabled(true);
-      m.isVisible = true;
-      m.visibility = 1;
-      m.alwaysSelectAsActiveMesh = true;
+    if (this.disposed || this.loaded) return Promise.resolve();
+    this.loadPromise ??= this.loadAssets(modelPath, modelFile, animFiles).finally(() => {
+      this.loadPromise = null;
     });
-
-    // CRITICAL: Clear ALL .animations on cloned nodes.
-    // mesh.clone() / skeleton.clone() copies residual .animations arrays
-    // from source nodes. Babylon's scene animation system auto-evaluates
-    // these independently of our AnimationGroups, causing root-motion drift
-    // (model slides away from hitbox). Our AnimationGroups hold their own
-    // channel references and are NOT affected by this clear.
-    // Traverse the FULL subtree: the skeleton nodes sit under RootNode, not
-    // directly under __root__, so a direct-descendants-only walk clears nothing
-    // but RootNode and leaves the 69 nodes below it still animating.
-    clonedMesh.animations = [];
-    for (const node of clonedMesh.getChildTransformNodes(false)) {
-      node.animations = [];
-    }
-    for (const child of clonedMesh.getChildMeshes()) {
-      child.animations = [];
-    }
-    for (const bone of clonedSkeleton.bones) {
-      const node = bone.getTransformNode();
-      if (node) node.animations = [];
-    }
-    // Also stop any scene-level Animatables targeting cloned nodes
-    this.scene.stopAnimation(clonedMesh);
-    for (const node of clonedMesh.getChildTransformNodes(false)) {
-      this.scene.stopAnimation(node);
-    }
-    for (const bone of clonedSkeleton.bones) {
-      const node = bone.getTransformNode();
-      if (node) this.scene.stopAnimation(node);
-    }
-
-    // Clone animations retargeted to clone's bones
-    const clonedAnims: StoredAnim[] = [];
-    for (const srcAnim of this.sourceAnims) {
-      const channels: { target: TransformNode; animation: Animation }[] = [];
-      for (const ch of srcAnim.animations) {
-        const cloneBone = cloneBoneMap.get(ch.target.name);
-        if (cloneBone) {
-          channels.push({ target: cloneBone, animation: ch.animation.clone() });
-        }
-      }
-      if (channels.length > 0) {
-        clonedAnims.push({ name: srcAnim.name, animations: channels });
-      }
-    }
-
-    // Capture the Hips bind pose now, before any animation has run, so
-    // resetRootMotion can never mistake a drifted pose for the bind pose.
-    let hipsBind: PlayerModelInstance["hipsBind"] = null;
-    for (const node of clonedMesh.getChildTransformNodes(false)) {
-      if (node.name.toLowerCase().includes("hips")) {
-        hipsBind = { node, x: node.position.x, y: node.position.y, z: node.position.z };
-        break;
-      }
-    }
-
-    const instance: PlayerModelInstance = {
-      id,
-      anchor,
-      mesh: clonedMesh,
-      skeleton: clonedSkeleton,
-      anims: clonedAnims,
-      masterGroup: null,
-      currentAnim: "",
-      oneshotUntil: 0,
-      hipsBind,
-    };
-
-    console.log(`[PlayerModelManager] Created instance: ${id}`);
-    return instance;
+    return this.loadPromise;
   }
 
-  // ── Animation Playback ───────────────────────────────────────
+  private async loadAssets(modelPath: string, modelFile: string, animFiles: AnimFileConfig[]): Promise<void> {
+    let container: AssetContainer | null = null;
+    try {
+      // Keep both model and clip imports out of the live scene. ImportAnimationsAsync
+      // defaults to Clean even with overwriteAnimations:false, destroying OTHER
+      // managers' animation groups (e.g. players when the teleport pool loads).
+      const options = { rootUrl: modelPath, pluginOptions: { gltf: { animationStartMode: 0 } } };
+      container = await LoadAssetContainerAsync(modelFile, this.scene, options);
+      if (this.disposed) return;
+      if (container.skeletons.length !== 1) throw new Error("Player model must contain one skeleton");
+      const boneMap = new Map<string, TransformNode>();
+      for (const bone of container.skeletons[0].bones) {
+        const node = bone.getTransformNode();
+        if (node) boneMap.set(bone.name, node);
+      }
+
+      const embedded = container.animationGroups.splice(0);
+      try {
+        if (embedded[0]) this.storeAnimation(container, embedded[0], "embedded", boneMap);
+      } finally {
+        for (const group of embedded) group.dispose();
+      }
+      for (const anim of animFiles) {
+        let clip: AssetContainer | null = null;
+        try {
+          clip = await LoadAssetContainerAsync(anim.file, this.scene, options);
+          if (this.disposed) return;
+          if (!clip.animationGroups[0]) throw new Error(`No animation group in ${anim.file}`);
+          this.storeAnimation(container, clip.animationGroups[0], anim.name, boneMap);
+        } catch (error) {
+          console.warn(`[PlayerModelManager] Failed to load ${anim.name}:`, error);
+        } finally {
+          clip?.dispose();
+        }
+      }
+      // Only our template nodes are cleaned. Never stop/clear scene-wide animation.
+      for (const node of [...container.meshes, ...container.transformNodes]) node.animations = [];
+      this.sourceContainer = container;
+      this.loaded = true;
+      console.log(`[PlayerModelManager] Ready: ${container.animationGroups.length} animations`);
+      container = null; // Ownership transfers to this manager only after a complete load.
+    } catch (error) {
+      console.error("[PlayerModelManager] Load error:", error);
+    } finally {
+      container?.dispose();
+    }
+  }
+
+  private storeAnimation(
+    container: AssetContainer,
+    source: AnimationGroup,
+    name: string,
+    boneMap: Map<string, TransformNode>,
+  ): void {
+    const channels = this.extractAnimChannels(source, boneMap);
+    if (!channels.length) throw new Error(`Player animation "${name}" has no usable channels`);
+    const group = new AnimationGroup(name, this.scene);
+    this.scene.removeAnimationGroup(group);
+    for (const channel of channels) group.addTargetedAnimation(channel.animation, channel.target);
+    container.animationGroups.push(group);
+  }
+
+  /** Create an independent player; Babylon owns hierarchy, skeleton and clip retargeting. */
+  createInstance(id: string, scale: number = 36): PlayerModelInstance | null {
+    const container = this.sourceContainer;
+    if (!container || this.disposed) return null;
+    // One prefix per node, not an ancestor path containing RootNode on every joint.
+    const entries = container.instantiateModelsToScene((name) => `${id}/${name}`, false, { doNotInstantiate: true });
+    const mesh = entries.rootNodes[0];
+    try {
+      if (entries.rootNodes.length !== 1 || !(mesh instanceof Mesh) || entries.skeletons.length !== 1) {
+        throw new Error("Player model must instantiate one mesh root and one skeleton");
+      }
+      const owns = (node: TransformNode) => node === mesh || node.isDescendantOf(mesh);
+      const skeleton = entries.skeletons[0];
+      for (const bone of skeleton.bones) {
+        const node = bone.getTransformNode();
+        if (node && !owns(node)) throw new Error(`Player bone escaped its instance: ${bone.name}`);
+      }
+      if (entries.animationGroups.length !== container.animationGroups.length) {
+        throw new Error("Player instance lost animation clips");
+      }
+      const anims: StoredAnim[] = entries.animationGroups.map((group, index) => {
+        const source = container.animationGroups[index];
+        if (!group.targetedAnimations.length || group.targetedAnimations.length !== source.targetedAnimations.length) {
+          throw new Error(`Player instance lost channels for "${source.name}"`);
+        }
+        for (const channel of group.targetedAnimations) {
+          if (!(channel.target instanceof TransformNode) || !owns(channel.target)) {
+            throw new Error(`Unmapped player animation target in "${source.name}": ${channel.target?.name}`);
+          }
+        }
+        return {
+          name: source.name,
+          animations: group.targetedAnimations.map(({ target, animation }) => ({ target, animation })),
+        };
+      });
+      // The existing locomotion/one-shot controller owns playback groups. Retain
+      // the already-retargeted channels, release these inactive template groups.
+      for (const group of entries.animationGroups) group.dispose();
+      const anchor = new TransformNode(`anchor_${id}`, this.scene);
+      mesh.parent = anchor;
+      mesh.position.set(0, 0, 0);
+      mesh.scaling.set(scale, scale, scale);
+      mesh.rotationQuaternion = null;
+      mesh.rotation.set(0, 0, 0);
+      for (const child of [mesh, ...mesh.getChildMeshes()]) {
+        child.setEnabled(true);
+        child.isVisible = true;
+        child.visibility = 1;
+        child.alwaysSelectAsActiveMesh = true;
+      }
+      const hips = skeleton.bones.find((bone) => bone.name.toLowerCase().includes("hips"))?.getTransformNode();
+      return {
+        id,
+        anchor,
+        mesh,
+        skeleton,
+        anims,
+        masterGroup: null,
+        currentAnim: "",
+        oneshotUntil: 0,
+        hipsBind: hips ? { node: hips, x: hips.position.x, y: hips.position.y, z: hips.position.z } : null,
+      };
+    } catch (error) {
+      entries.dispose();
+      throw error;
+    }
+  }
 
   /**
    * Switch an instance to a named animation. Skips if already playing.
@@ -725,8 +590,8 @@ export class PlayerModelManager {
    * MUST traverse the full subtree. In vanguard.glb the hierarchy is
    * `__root__ > RootNode > mixamorig:Hips`, so `getChildTransformNodes(true)`
    * (direct descendants) sees only `RootNode` and the Hips branch below never
-   * ran. Only `RootNode` and `mixamorig:Hips` match these names anywhere in the
-   * 70-node subtree, so the recursive walk stays targeted.
+   * ran. Identify roots from SOURCE names: Babylon prefixes clone names with
+   * ancestor paths, so every cloned joint below RootNode contains "root".
    *
    * Hips Y is restored to its BIND value, not zeroed: it is the skeleton's
    * natural hip height above the feet, and zeroing it collapses the skeleton to
@@ -735,12 +600,11 @@ export class PlayerModelManager {
   resetRootMotion(instance: PlayerModelInstance): void {
     instance.mesh.position.set(0, 0, 0);
 
-    for (const child of instance.mesh.getChildTransformNodes(false)) {
-      const name = child.name.toLowerCase();
-      if (name.includes("armature") || name.includes("root")) {
-        // Armature/root nodes should always be at mesh origin
-        child.position.set(0, 0, 0);
-      }
+    for (const node of instance.mesh.getChildTransformNodes(false)) {
+      // instantiateModelsToScene uses only id/sourceName, so ancestor names
+      // cannot accidentally classify ordinary joints as root-motion nodes.
+      const name = node.name.split("/").pop()!.toLowerCase();
+      if (name === "rootnode" || name === "armature" || name === "__root__") node.position.set(0, 0, 0);
     }
 
     // Hips: restore the bind pose, killing both horizontal drift and the
@@ -772,16 +636,9 @@ export class PlayerModelManager {
 
   /** Dispose the manager and source model */
   dispose(): void {
-    if (this.sourceMesh) {
-      this.sourceMesh.dispose();
-      this.sourceMesh = null;
-    }
-    if (this.sourceSkeleton) {
-      this.sourceSkeleton.dispose();
-      this.sourceSkeleton = null;
-    }
-    this.sourceAnims = [];
-    this.sourceBoneMap.clear();
+    this.disposed = true;
+    this.sourceContainer?.dispose();
+    this.sourceContainer = null;
     this.loaded = false;
   }
 
@@ -809,10 +666,8 @@ export class PlayerModelManager {
       }
 
       const ourBone = boneMap.get(targetName);
-      if (ourBone) {
-        const clonedAnim = ta.animation.clone();
-        channels.push({ target: ourBone, animation: clonedAnim });
-      }
+      if (!ourBone) throw new Error(`Unmapped source animation target: ${targetName} (${prop})`);
+      channels.push({ target: ourBone, animation: ta.animation.clone() });
     }
 
     return channels;

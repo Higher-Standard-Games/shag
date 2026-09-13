@@ -163,6 +163,7 @@ export default defineConfig({
       '@babylonjs/core/Rendering/outlineRenderer',
       '@babylonjs/core/Shaders/ShadersInclude/instancesDeclaration',
       '@babylonjs/core/Shaders/ShadersInclude/instancesVertex',
+      '@babylonjs/core/assetContainer',
       '@babylonjs/core/node',
       '@babylonjs/core/scene',
       '@babylonjs/havok',
