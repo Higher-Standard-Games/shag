@@ -89,6 +89,22 @@ export interface InterpolatedEntity {
 /** Server gravity constant (must match server physics) */
 const GRAVITY = -800;
 
+/**
+ * How far past the newest snapshot a remote entity may be dead-reckoned.
+ *
+ * Extrapolation covers a late or dropped snapshot, and it is blind: it projects
+ * the last velocity forward with no collision, so every millisecond allowed is
+ * millimetres a body may travel through solid geometry before the truth arrives
+ * and snaps it back. At run speed 200ms is 64 units — a full player width
+ * through a wall — and 180 units off a rocket jump, which is what made remote
+ * players drift into walls, sink through floors and warp.
+ *
+ * One snapshot interval at 30Hz plus a little margin. Past that a body freezes
+ * where it was last seen, which reads as a brief stall instead of a player
+ * standing inside a wall.
+ */
+const MAX_EXTRAPOLATION_SEC = 0.06;
+
 export class SnapshotBuffer {
   private buffer: BufferedSnapshot[] = [];
   private readonly maxBufferSize = 32;
@@ -212,7 +228,7 @@ export class SnapshotBuffer {
       if (!entity) return null;
 
       // Extrapolate using velocity + gravity (capped to prevent flying off)
-      const elapsed = Math.min((renderTime - this.getSnapTime(before)) / 1000, 0.2); // Max 200ms extrapolation
+      const elapsed = Math.min((renderTime - this.getSnapTime(before)) / 1000, MAX_EXTRAPOLATION_SEC);
       // Apply gravity to Y velocity for parabolic arc (not constant velocity)
       const extraY = entity.grounded
         ? entity.y // Grounded: don't extrapolate Y (stay on surface)
