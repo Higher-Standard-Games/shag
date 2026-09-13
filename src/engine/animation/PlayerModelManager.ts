@@ -432,6 +432,28 @@ export class PlayerModelManager {
    * Switch an instance to a named animation. Skips if already playing.
    * @returns true if animation was changed
    */
+  /**
+   * Pause or resume an instance's skeleton work.
+   *
+   * AnimationGroups run at the scene level, so a hidden mesh keeps evaluating
+   * its bones every frame — disabling the mesh saves the draw call and nothing
+   * else. For a map full of bots that animation cost is the larger half, and
+   * it is spent entirely on players nobody can see.
+   *
+   * Paused instances keep their pose, so a player who walks back into view
+   * resumes mid-stride rather than snapping to a bind pose.
+   */
+  setAnimationActive(instance: PlayerModelInstance, active: boolean): void {
+    const group = instance.masterGroup;
+    if (!group) return;
+
+    if (active) {
+      if (!group.isPlaying) group.play(true);
+      return;
+    }
+    if (group.isPlaying) group.pause();
+  }
+
   playAnimation(instance: PlayerModelInstance, name: string): boolean {
     return PlayerModelManager.playAnimationOn(instance, name);
   }

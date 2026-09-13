@@ -785,6 +785,16 @@ export class BspManager {
   // ============================================================================
 
   private pvsCuller: PVSCuller | null = null;
+
+  /**
+   * The active culler, for callers that need to test moving things.
+   *
+   * Static world surfaces are culled by the manager itself; entities have no
+   * compiled cluster and must ask per frame (see PVSCuller.isPositionVisible).
+   */
+  getPvsCuller(): PVSCuller | null {
+    return this.pvsCuller;
+  }
   private pvsCleanup: (() => void) | null = null;
   private pvsLifetimeCleanup: (() => void) | null = null;
 

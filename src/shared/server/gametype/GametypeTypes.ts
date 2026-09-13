@@ -351,6 +351,14 @@ export interface MatchStateSnapshot {
   totalPlayers: number;
   gametypeName: string;
   scoreLimit: number;
+  /**
+   * Whether this gametype divides players into teams.
+   *
+   * Authoritative, because the client cannot infer it: `teamScores` ships with
+   * both sides present whatever the gametype, so a free-for-all that guessed
+   * from it rendered a team board and filed every player as a spectator.
+   */
+  teamBased?: boolean;
   teamScores?: Record<TeamId, number>;
   playerTeams?: Record<string, TeamId>;
   teamNames?: Record<TeamId, string>;

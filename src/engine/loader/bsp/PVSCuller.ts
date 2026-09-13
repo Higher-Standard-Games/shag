@@ -112,6 +112,33 @@ export class PVSCuller {
     return this.validCluster(cluster) ? cluster : -1;
   }
 
+  /**
+   * Could a body standing at this position be seen from where the camera is?
+   *
+   * For moving things — players, gibs, dropped weapons — which have no compiled
+   * cluster membership of their own and so are never registered for static
+   * culling. The point is resolved to a leaf per call, then tested against the
+   * visible set `update()` already computed for this camera position.
+   *
+   * **Fails open.** Every uncertainty — PVS disabled, no vis data, a position
+   * outside the tree, a camera that has not been placed yet — returns true.
+   * A wrongly hidden player is an invisible enemy, which is a far worse bug
+   * than a wrongly drawn one, so nothing here may hide on a guess.
+   *
+   * Callers should sample more than one point on a body: a player straddling a
+   * doorway has their origin in one cluster and their shoulders in another.
+   */
+  isPositionVisible(position: Vector3): boolean {
+    if (!this.enabled || !this.hasPVS) return true;
+    if (!this.validCluster(this.currentCluster)) return true;
+
+    const cluster = this.findClusterAtPosition(position);
+    if (cluster < 0) return true;
+    if (cluster === this.currentCluster) return true;
+
+    return this.visibleClusters.has(cluster);
+  }
+
   getVisibleClusters(fromCluster: number): Set<number> {
     const visible = new Set<number>();
     for (let i = 0; i < (this.bsp.visData?.numClusters ?? 0); i++) {
