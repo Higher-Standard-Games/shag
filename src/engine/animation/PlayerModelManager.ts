@@ -463,11 +463,26 @@ export class PlayerModelManager {
    * PlayerModelInstance without needing the owning manager (the post-game
    * winner showcase holds only the instance). Scene comes from the instance.
    */
+  /** Clips already reported missing, so the warning is one line, not one per frame. */
+  private static readonly warnedMissingAnims = new Set<string>();
+
   static playAnimationOn(instance: PlayerModelInstance, name: string): boolean {
     if (instance.currentAnim === name) return false;
 
     const animData = instance.anims.find((a) => a.name === name);
-    if (!animData) return false;
+    if (!animData) {
+      // A clip that did not load leaves the PREVIOUS one playing — it does not
+      // fall back to idle. That reads in game as a player sliding in whatever
+      // pose they last held, which is indistinguishable from a physics bug and
+      // was silent, so say it once per missing clip.
+      if (!PlayerModelManager.warnedMissingAnims.has(name)) {
+        PlayerModelManager.warnedMissingAnims.add(name);
+        console.warn(
+          `[PlayerModelManager] animation "${name}" is not loaded; players needing it keep their previous pose`,
+        );
+      }
+      return false;
+    }
 
     // Tear down old
     if (instance.masterGroup) {
