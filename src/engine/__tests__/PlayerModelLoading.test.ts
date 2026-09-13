@@ -4,8 +4,12 @@ import "@babylonjs/loaders/glTF";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { PlayerModelManager } from "../animation/PlayerModelManager";
 
-/** Minimal skinned glTF with a Spine rotation clip; exercises the actual loader. */
-function modelAsset(): string {
+/**
+ * Minimal skinned glTF with a Spine rotation clip; exercises the actual loader.
+ * `skins` mirrors real exports, which emit one skin per skinned submesh over a
+ * single shared rig — vanguard.glb ships three.
+ */
+function modelAsset(skins: number = 1): string {
   const arrays = [
     new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
     new Uint16Array(12),
@@ -19,6 +23,7 @@ function modelAsset(): string {
     byteOffset += array.byteLength;
     return view;
   });
+  const submeshes = Array.from({ length: skins });
   const bytes = new Uint8Array(byteOffset);
   arrays.forEach((array, index) => {
     bytes.set(new Uint8Array(array.buffer, array.byteOffset, array.byteLength), bufferViews[index].byteOffset);
@@ -28,13 +33,14 @@ function modelAsset(): string {
     scene: 0,
     scenes: [{ nodes: [0] }],
     nodes: [
-      { name: "RootNode", children: [1, 3] },
+      { name: "RootNode", children: [1, ...submeshes.map((_, index) => 3 + index)] },
       { name: "mixamorig:Hips", translation: [0, 1.061, 0], children: [2] },
       { name: "mixamorig:Spine", translation: [0, 0.1, 0] },
-      { name: "Body", mesh: 0, skin: 0 },
+      ...submeshes.map((_, index) => ({ name: index === 0 ? "Body" : `Part_${index}`, mesh: index, skin: index })),
     ],
-    skins: [{ joints: [1, 2], skeleton: 1 }],
-    meshes: [{ primitives: [{ attributes: { POSITION: 0, JOINTS_0: 1, WEIGHTS_0: 2 } }] }],
+    // Every skin names the same joints, which is what makes them collapsible.
+    skins: submeshes.map(() => ({ joints: [1, 2], skeleton: 1 })),
+    meshes: submeshes.map(() => ({ primitives: [{ attributes: { POSITION: 0, JOINTS_0: 1, WEIGHTS_0: 2 } }] })),
     animations: [
       {
         name: "lean",
@@ -88,6 +94,32 @@ describe("player model loading in a shared scene", () => {
     players.disposeInstance(player);
     players.dispose();
     ghosts.dispose();
+  });
+
+  it("loads an export that ships one skin per submesh, onto a single shared skeleton", async () => {
+    // vanguard.glb carries three skins over one rig. Demanding exactly one
+    // skeleton rejected the real asset outright, and the load error left every
+    // remote player without a model at all.
+    const asset = modelAsset(3);
+    const manager = new PlayerModelManager(scene);
+    await manager.loadModel("", asset, [{ name: "idle", file: asset }]);
+    expect(manager.isLoaded).toBe(true);
+
+    const instance = manager.createInstance("player");
+    expect(instance).not.toBeNull();
+    const skinnedMeshes = [instance!.mesh, ...instance!.mesh.getChildMeshes()].filter((child) => child.skeleton);
+    expect(skinnedMeshes.length).toBeGreaterThan(1);
+    // Redundant skins must not survive as extra skeletons: each one is evaluated
+    // every frame, over bones another skeleton has already computed.
+    expect(new Set(skinnedMeshes.map((child) => child.skeleton))).toEqual(new Set([instance!.skeleton]));
+    expect(scene.skeletons).toHaveLength(1);
+
+    manager.playAnimation(instance!, "idle");
+    instance!.masterGroup!.goToFrame(instance!.masterGroup!.to);
+    expect(instance!.skeleton!.bones[1].getTransformNode()!.rotationQuaternion!.x).toBeCloseTo(Math.sin(0.5));
+
+    manager.disposeInstance(instance!);
+    manager.dispose();
   });
 
   it("concurrent managers preserve every clip and retarget all channels to their own instances", async () => {

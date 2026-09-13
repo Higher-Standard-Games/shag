@@ -172,9 +172,14 @@ export class PlayerModelManager {
       const options = { rootUrl: modelPath, pluginOptions: { gltf: { animationStartMode: 0 } } };
       container = await LoadAssetContainerAsync(modelFile, this.scene, options);
       if (this.disposed) return;
-      if (container.skeletons.length !== 1) throw new Error("Player model must contain one skeleton");
+      // One skeleton per SKIN, and an exporter emits a skin per skinned submesh:
+      // vanguard.glb ships three over one 65-joint rig. They share the joint
+      // nodes, so the first skeleton's nodes drive every mesh and the rest are
+      // redundant — createInstance collapses them once it can prove they match.
+      const [sourceSkeleton] = container.skeletons;
+      if (!sourceSkeleton) throw new Error("Player model has no skeleton");
       const boneMap = new Map<string, TransformNode>();
-      for (const bone of container.skeletons[0].bones) {
+      for (const bone of sourceSkeleton.bones) {
         const node = bone.getTransformNode();
         if (node) boneMap.set(bone.name, node);
       }
@@ -233,15 +238,28 @@ export class PlayerModelManager {
     const entries = container.instantiateModelsToScene((name) => `${id}/${name}`, false, { doNotInstantiate: true });
     const mesh = entries.rootNodes[0];
     try {
-      if (entries.rootNodes.length !== 1 || !(mesh instanceof Mesh) || entries.skeletons.length !== 1) {
-        throw new Error("Player model must instantiate one mesh root and one skeleton");
+      if (entries.rootNodes.length !== 1 || !(mesh instanceof Mesh) || !entries.skeletons.length) {
+        throw new Error("Player model must instantiate one mesh root and at least one skeleton");
       }
       const owns = (node: TransformNode) => node === mesh || node.isDescendantOf(mesh);
-      const skeleton = entries.skeletons[0];
+      const [skeleton, ...redundant] = entries.skeletons;
       for (const bone of skeleton.bones) {
         const node = bone.getTransformNode();
         if (node && !owns(node)) throw new Error(`Player bone escaped its instance: ${bone.name}`);
       }
+      // Duplicate skins only cost frames if they survive: every skeleton is
+      // evaluated per frame, over the same bones. Collapsing needs them to be
+      // driven by the same nodes, so prove that rather than assume it.
+      for (const extra of redundant) {
+        const matches =
+          extra.bones.length === skeleton.bones.length &&
+          extra.bones.every((bone, index) => bone.getTransformNode() === skeleton.bones[index].getTransformNode());
+        if (!matches) throw new Error("Player model skins disagree on their rig");
+      }
+      for (const child of [mesh, ...mesh.getChildMeshes()]) {
+        if (child.skeleton) child.skeleton = skeleton;
+      }
+      for (const extra of redundant) extra.dispose();
       if (entries.animationGroups.length !== container.animationGroups.length) {
         throw new Error("Player instance lost animation clips");
       }
