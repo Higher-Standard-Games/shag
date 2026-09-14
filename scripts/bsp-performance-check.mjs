@@ -32,6 +32,12 @@ const flags = ["--headless=new", "--remote-debugging-port=0", `--user-data-dir=$
   "--disable-frame-rate-limit", "--disable-gpu-vsync", "about:blank"];
 const server = await createServer({
   cacheDir: resolve("temp/vite-bsp-performance-cache"),
+  // Fixture-only imports are outside the app's src/ dependency inventory.
+  // Prebundle them before navigation to avoid a reload during map loading.
+  optimizeDeps: { include: [
+    "@babylonjs/core/Engines/AbstractEngine/abstractEngine.timeQuery",
+    "@babylonjs/core/Engines/Extensions/engine.query",
+  ] },
   server: { host: "127.0.0.1", port: 0, open: false },
   plugins: [{ name: "bsp-performance-fixture", configureServer(vite) {
     vite.middlewares.use("/__bsp_performance", (_req, res) => {

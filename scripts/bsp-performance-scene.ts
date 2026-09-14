@@ -1,6 +1,8 @@
 /** Browser diagnostic fixture; launched by bsp-performance-check.mjs. */
 import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
 import { Engine } from "@babylonjs/core/Engines/engine";
+import "@babylonjs/core/Engines/AbstractEngine/abstractEngine.timeQuery";
+import "@babylonjs/core/Engines/Extensions/engine.query";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Scene } from "@babylonjs/core/scene";
 import { horizontalFovToVerticalRadians } from "../src/engine/camera/FovSettings";
