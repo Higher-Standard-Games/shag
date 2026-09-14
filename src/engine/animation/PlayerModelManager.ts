@@ -342,6 +342,28 @@ export class PlayerModelManager {
   }
 
   /**
+   * Evaluate the current clip now instead of waiting for the next render.
+   *
+   * `play()` only schedules an animatable, so a body created this tick still
+   * holds the bind pose — a T-pose — until a frame is drawn. Anything that
+   * reads the pose in the same tick it built the model needs this first. The
+   * corpse handed to the ragdoll is the case that matters: physics lays its
+   * bone bodies out from whatever pose it finds, so a T-pose there is frozen
+   * in permanently.
+   *
+   * The source model used to be posed by accident — it was loaded into the
+   * live scene with the glTF plugin's default start mode, so frames elapsed
+   * with its embedded clip running and every clone inherited the result. It
+   * now loads into an out-of-scene container with animations explicitly off,
+   * which is correct, and makes this evaluation the caller's job.
+   */
+  settlePose(instance: PlayerModelInstance): void {
+    const group = instance.masterGroup;
+    if (!group) return;
+    group.goToFrame(group.from);
+  }
+
+  /**
    * Static variant of playAnimation — plays a looping animation on any
    * PlayerModelInstance without needing the owning manager (the post-game
    * winner showcase holds only the instance). Scene comes from the instance.

@@ -15,7 +15,9 @@ function modelAsset(skins: number = 1): string {
     new Uint16Array(12),
     new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0]),
     new Float32Array([0, 1]),
-    new Float32Array([0, 0, 0, 1, Math.sin(0.5), 0, 0, Math.cos(0.5)]),
+    // Both keys are rotated, so the clip's FIRST frame already differs from the
+    // bind pose — which is what settling a fresh body has to prove it reached.
+    new Float32Array([Math.sin(0.25), 0, 0, Math.cos(0.25), Math.sin(0.5), 0, 0, Math.cos(0.5)]),
   ];
   let byteOffset = 0;
   const bufferViews = arrays.map((array) => {
@@ -94,6 +96,31 @@ describe("player model loading in a shared scene", () => {
     players.disposeInstance(player);
     players.dispose();
     ghosts.dispose();
+  });
+
+  it("settles a freshly built body off its bind pose without waiting for a frame", async () => {
+    // The corpse handed to the ragdoll is built and physicalised inside one
+    // tick. play() only schedules an animatable, so without settling, physics
+    // lays its bone bodies out from the bind pose and the body stays a T-pose.
+    // The source model used to be posed by accident, loaded into the live scene
+    // with the glTF default start mode; it now loads animations-off.
+    const asset = modelAsset();
+    const manager = new PlayerModelManager(scene);
+    await manager.loadModel("", asset, [{ name: "idle", file: asset }]);
+    const instance = manager.createInstance("corpse")!;
+    const spine = instance.skeleton!.bones[1].getTransformNode()!;
+
+    manager.playAnimation(instance, "idle");
+    const beforeSettle = spine.rotationQuaternion?.clone() ?? null;
+
+    manager.settlePose(instance);
+    const afterSettle = spine.rotationQuaternion;
+    expect(afterSettle).toBeTruthy();
+    expect(afterSettle!.x).toBeCloseTo(Math.sin(0.25));
+    expect(beforeSettle?.equals(afterSettle!) ?? false).toBe(false);
+
+    manager.disposeInstance(instance);
+    manager.dispose();
   });
 
   it("loads an export that ships one skin per submesh, onto a single shared skeleton", async () => {
