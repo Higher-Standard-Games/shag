@@ -10,6 +10,7 @@
  */
 
 import { WebSocket } from "ws";
+import { SnapshotReceiver } from "../engine/network/client/SnapshotReceiver";
 import { BinaryEncoder } from "../engine/network/protocol/BinaryProtocol";
 import { MessageCodec, MessageType } from "../engine/network/protocol/MessageCodec";
 
@@ -50,6 +51,7 @@ let playerId: string | null = null;
 let entityId: string | null = null;
 let tickCount = 0;
 let lastSnapshotTime = 0;
+const snapshotReceiver = new SnapshotReceiver();
 
 // Connect to server
 const ws = new WebSocket(serverUrl);
@@ -113,8 +115,10 @@ function handleMessage(data: Uint8Array): void {
         break;
       }
 
+      case MessageType.LegacySnapshot:
       case MessageType.Snapshot: {
-        const snapshot = MessageCodec.decodeSnapshot(data);
+        const snapshot = snapshotReceiver.receive(data);
+        if (!snapshot) break;
         tickCount++;
         const now = Date.now();
         const delta = lastSnapshotTime > 0 ? now - lastSnapshotTime : 0;

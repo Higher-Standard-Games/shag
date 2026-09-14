@@ -15,7 +15,7 @@
 
 import { EventEmitter } from "node:events";
 import { WebSocket } from "ws";
-import type { GameState } from "../engine/network/core/GameState";
+import { SnapshotReceiver } from "../engine/network/client/SnapshotReceiver";
 import { MessageCodec, MessageType } from "../engine/network/protocol/MessageCodec";
 import type { BotBrain, BotInput } from "./BotBrain";
 // HybridBrain is imported dynamically — requires @tensorflow/tfjs-node native addon
@@ -74,8 +74,7 @@ export class BotClient extends EventEmitter {
   private _friendlyFireSuppressions: number = 0;
   private _lastSnapshotTick: number = 0;
 
-  // Snapshot baseline for delta decompression
-  private _baseline: GameState | undefined;
+  private readonly _snapshotReceiver = new SnapshotReceiver();
 
   // AI
   private _brain: BotBrain;
@@ -222,6 +221,7 @@ export class BotClient extends EventEmitter {
     }
 
     this._state = "connecting";
+    this._snapshotReceiver.reset();
     console.log(`${this._logPrefix} Connecting to ${serverUrl}...`);
 
     return new Promise<void>((resolve, reject) => {
@@ -295,7 +295,7 @@ export class BotClient extends EventEmitter {
       this._ws = null;
     }
     this._state = "disconnected";
-    this._baseline = undefined;
+    this._snapshotReceiver.reset();
 
     // Reset all mutable state for potential reuse
     this._playerId = "";
@@ -337,6 +337,7 @@ export class BotClient extends EventEmitter {
         this.disconnect();
         return false;
 
+      case MessageType.LegacySnapshot:
       case MessageType.Snapshot:
         this._handleSnapshot(data);
         return false;
@@ -403,8 +404,8 @@ export class BotClient extends EventEmitter {
 
   private _handleSnapshot(data: Uint8Array): void {
     try {
-      // Decode snapshot with baseline for delta decompression
-      const snapshot = MessageCodec.decodeSnapshot(data, this._baseline);
+      const snapshot = this._snapshotReceiver.receive(data);
+      if (!snapshot) return;
       this._tickCount++;
 
       // Send acknowledgment
@@ -413,8 +414,6 @@ export class BotClient extends EventEmitter {
       // Update game state from snapshot
       this._gameState.update(snapshot);
 
-      // Store as baseline for next decode
-      this._baseline = snapshot;
       this._lastSnapshotTick = snapshot.tick;
 
       // Only run game logic if we're actually in the game

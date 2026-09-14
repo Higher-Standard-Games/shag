@@ -12,6 +12,7 @@
  * Run: npm run net:viewlag
  */
 
+import { SnapshotReceiver } from "../engine/network/client/SnapshotReceiver";
 import { MessageType } from "../engine/network/protocol/BinaryProtocol";
 import { MessageCodec } from "../engine/network/protocol/MessageCodec";
 import { ProtocolTestClient } from "../games/fps/server/__tests__/_protocolTestClient";
@@ -59,11 +60,14 @@ async function measure(oneWayMs: number): Promise<Sample> {
   client.setLatency(oneWayMs);
 
   let newestSnapshot = 0;
+  const snapshotReceiver = new SnapshotReceiver();
   void client
     .waitFor((frame) => {
       if (frame.length > 0 && frame[0] === MessageType.Snapshot) {
         try {
-          const tick = MessageCodec.decodeSnapshot(frame).tick;
+          const snapshot = snapshotReceiver.receive(frame);
+          if (!snapshot) return false;
+          const tick = snapshot.tick;
           if (tick > newestSnapshot) newestSnapshot = tick;
           // Real clients ack every snapshot, and the server times its ping
           // against that ack. A probe that skipped it would read ping 0.

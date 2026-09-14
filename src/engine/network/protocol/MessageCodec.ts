@@ -4,6 +4,21 @@ import { BinaryDecoder, BinaryEncoder, BinaryProtocol, MessageType, type Network
 // Re-export MessageType for convenience
 export { MessageType };
 
+export class MissingSnapshotBaselineError extends Error {
+  constructor(readonly baselineTick: number) {
+    super(`Missing snapshot baseline ${baselineTick}`);
+    this.name = "MissingSnapshotBaselineError";
+  }
+}
+
+export interface SnapshotHeader {
+  tick: number;
+  /** null means a self-contained full snapshot; tick zero is a valid baseline. */
+  baselineTick: number | null;
+}
+
+const SNAPSHOT_HEADER_BYTES = 6; // type + full/delta byte + baseline tick
+
 /**
  * Message codec for network protocol
  * All messages are prefixed with a MessageType byte for proper routing
@@ -11,29 +26,53 @@ export { MessageType };
 export class MessageCodec {
   /**
    * Encode a snapshot message (Server → Client)
-   * Format: [MessageType.Snapshot][tick][timestamp][entities...][players...][events...]
+   * Format: [Snapshot=0x0b][hasBaseline:u8][baselineTick:u32][raw snapshot]
+   * A distinct message type keeps pre-baseline peers from misreading the header.
+   * BinaryProtocol's raw format is deliberately unchanged for recorded demos.
    */
   static encodeSnapshot(state: GameState, baseline?: GameState): Uint8Array {
     const encoder = new BinaryEncoder();
     encoder.writeUint8(MessageType.Snapshot);
+    encoder.writeUint8(baseline ? 1 : 0);
+    encoder.writeUint32(baseline?.tick ?? 0);
     encoder.writeBytes(BinaryProtocol.encodeSnapshot(state, baseline));
     return encoder.getData();
   }
 
   /**
-   * Decode a snapshot message
+   * Read the dependency identity before attempting component reconstruction.
    */
-  static decodeSnapshot(data: Uint8Array, baseline?: GameState): GameState {
+  static readSnapshotHeader(data: Uint8Array): SnapshotHeader {
     const decoder = new BinaryDecoder(data);
     const messageType = decoder.readUint8();
+    if (messageType === MessageType.LegacySnapshot) {
+      throw new Error("Unsupported legacy network snapshot: update server and clients together");
+    }
     if (messageType !== MessageType.Snapshot) {
       throw new Error(
         `Expected Snapshot message (0x${MessageType.Snapshot.toString(16)}), got 0x${messageType.toString(16)}`,
       );
     }
-    // Read remaining bytes after message type
-    const remaining = data.subarray(decoder.getOffset());
-    return BinaryProtocol.decodeSnapshot(remaining, baseline);
+    const hasBaseline = decoder.readUint8();
+    const baselineTick = decoder.readUint32();
+    if (hasBaseline > 1 || (hasBaseline === 0 && baselineTick !== 0)) {
+      throw new Error("Invalid snapshot baseline header");
+    }
+    return { tick: decoder.readUint32(), baselineTick: hasBaseline ? baselineTick : null };
+  }
+
+  static decodeSnapshot(data: Uint8Array, baselines?: GameState | ReadonlyMap<number, GameState>): GameState {
+    const header = MessageCodec.readSnapshotHeader(data);
+    let baseline: GameState | undefined;
+    if (header.baselineTick !== null) {
+      baseline = baselines && "tick" in baselines ? baselines : baselines?.get(header.baselineTick);
+      if (!baseline || baseline.tick !== header.baselineTick) {
+        throw new MissingSnapshotBaselineError(header.baselineTick);
+      }
+    }
+    // Full snapshots ignore any supplied history, including stale grounded and
+    // rotation values. Never decode a delta against an arbitrary latest state.
+    return BinaryProtocol.decodeSnapshot(data.subarray(SNAPSHOT_HEADER_BYTES), baseline);
   }
 
   /**

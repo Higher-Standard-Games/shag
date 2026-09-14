@@ -44,6 +44,7 @@ import { MessageCodec, MessageType } from "../../protocol/MessageCodec";
 import { ClockSync } from "../ClockSync";
 import { InterpolationBuffer } from "../InterpolationBuffer";
 import { SmoothCorrection } from "../SmoothCorrection";
+import { SnapshotReceiver } from "../SnapshotReceiver";
 import type { Transport } from "../transport/Transport";
 
 // Component shapes for typed access
@@ -107,9 +108,7 @@ export class NetworkGameHost implements IGameHost {
   private smoothCorrection = new SmoothCorrection();
   private pendingCommands: Command[] = [];
   private commandSequence = 1;
-  /** Clone of the last acked snapshot — used as decode baseline for delta compression.
-   * This must NOT be localState (which gets mutated by prediction). */
-  private lastAckedSnapshot: GameState | null = null;
+  private readonly snapshotReceiver = new SnapshotReceiver();
 
   /** Redundant command buffer: store last N encoded payloads for packet loss resilience */
   private recentCommandPayloads: Uint8Array[] = [];
@@ -200,6 +199,7 @@ export class NetworkGameHost implements IGameHost {
   }
 
   async connect(url?: string, playerName?: string): Promise<void> {
+    this.snapshotReceiver.reset();
     // Create promise that resolves when JoinAccept is received
     const joinAcceptPromise = new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => {
@@ -228,6 +228,7 @@ export class NetworkGameHost implements IGameHost {
   async disconnect(): Promise<void> {
     this._isConnected = false;
     this.clockSync.stop();
+    this.snapshotReceiver.reset();
     await this.transport.disconnect();
   }
 
@@ -454,6 +455,7 @@ export class NetworkGameHost implements IGameHost {
       console.log("[NetworkGameHost] Disconnected:", reason);
       this._isConnected = false;
       this.lastMatchPhase = null;
+      this.snapshotReceiver.reset();
       AudioManager.getInstance().loadPlaylist("data/menu.playlist.json");
     });
 
@@ -470,9 +472,10 @@ export class NetworkGameHost implements IGameHost {
       const messageType = MessageCodec.peekMessageType(data);
 
       switch (messageType) {
+        case MessageType.LegacySnapshot:
         case MessageType.Snapshot: {
-          const snapshot = MessageCodec.decodeSnapshot(data, this.lastAckedSnapshot ?? undefined);
-          this.handleSnapshot(snapshot);
+          const snapshot = this.snapshotReceiver.receive(data);
+          if (snapshot) this.handleSnapshot(snapshot);
           break;
         }
         case MessageType.JoinAccept: {
@@ -549,9 +552,8 @@ export class NetworkGameHost implements IGameHost {
       }
     } catch (error) {
       console.error("[NetworkGameHost] Failed to handle message:", error);
-      // Clear baseline to break cascading delta decode failures —
-      // next snapshot will decode without delta baseline
-      this.lastAckedSnapshot = null;
+      // Keep valid history: an unrelated malformed message must not invalidate
+      // acknowledged dependencies. Missing baselines wait for a full snapshot.
     }
   }
 
@@ -585,7 +587,7 @@ export class NetworkGameHost implements IGameHost {
     this.currentTick = snapshot.tick;
 
     // Step 4: Acknowledge receipt (server uses this for delta compression baseline)
-    this.sendAck(snapshot.tick, snapshot);
+    this.sendAck(snapshot.tick);
 
     // Step 5: Apply accumulated smooth correction (legacy only)
     if (!this.useExternalPrediction) {
@@ -621,12 +623,9 @@ export class NetworkGameHost implements IGameHost {
   /**
    * Send acknowledgment for received snapshot
    */
-  private sendAck(tick: number, snapshot: GameState): void {
+  private sendAck(tick: number): void {
     const data = MessageCodec.encodeAck(tick);
-    this.transport.send(data, true); // Reliable — prevents delta baseline desync on loss
-    // Store a lightweight copy of the RECEIVED snapshot as the decode baseline for future deltas.
-    // shallowCopy is sufficient: entity/player/event references are never mutated by decode.
-    this.lastAckedSnapshot = snapshot.shallowCopy();
+    this.transport.send(data, true); // ACK only successfully reconstructed state
   }
 
   /**

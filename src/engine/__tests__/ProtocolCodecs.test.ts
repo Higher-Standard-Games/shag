@@ -368,7 +368,8 @@ describe("MessageCodec — all message types", () => {
       expect(MessageType.Welcome).toBe(0x01);
       expect(MessageType.JoinAccept).toBe(0x02);
       expect(MessageType.JoinReject).toBe(0x03);
-      expect(MessageType.Snapshot).toBe(0x04);
+      expect(MessageType.LegacySnapshot).toBe(0x04);
+      expect(MessageType.Snapshot).toBe(0x0b);
       expect(MessageType.PlayerJoined).toBe(0x05);
       expect(MessageType.PlayerLeft).toBe(0x06);
       expect(MessageType.GameStart).toBe(0x07);
@@ -980,9 +981,9 @@ describe("MessageCodec.encodeSnapshot — envelope", () => {
     s.tick = 42;
     const wrapped = MessageCodec.encodeSnapshot(s);
     expect(wrapped[0]).toBe(MessageType.Snapshot);
-    // Unwrapped length = wrapped length - 1 (minus type byte)
+    // type + hasBaseline + baselineTick; raw demo payload stays unchanged.
     const raw = BinaryProtocol.encodeSnapshot(s);
-    expect(wrapped.length).toBe(raw.length + 1);
+    expect(wrapped.length).toBe(raw.length + 6);
   });
 
   it("decodeSnapshot reverses encodeSnapshot with baseline", () => {

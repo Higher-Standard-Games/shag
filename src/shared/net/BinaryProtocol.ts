@@ -502,11 +502,13 @@ export class BinaryProtocol {
       } else if (baselineEntity) {
         const baselinePos = baselineEntity.getComponent("position");
         if (baselinePos) {
-          entity.addComponent("position", baselinePos);
+          entity.addComponent("position", baselinePos.clone());
         }
         const baselineTransform = baselineEntity.getComponent("transform");
         if (baselineTransform) {
-          entity.addComponent("transform", baselineTransform);
+          // Rotation can change independently below. Never write into the
+          // retained baseline (N11), which other deltas may still reference.
+          entity.addComponent("transform", baselineTransform.clone());
         }
       }
 
@@ -637,7 +639,7 @@ export class BinaryProtocol {
         // Carry forward from baseline
         const baselineMeta = baselineEntity.getComponent("weaponMeta");
         if (baselineMeta) {
-          entity.addComponent("weaponMeta", baselineMeta);
+          entity.addComponent("weaponMeta", baselineMeta.clone());
         }
       }
 
@@ -1268,13 +1270,14 @@ export enum MessageType {
   Welcome = 0x01,
   JoinAccept = 0x02,
   JoinReject = 0x03,
-  Snapshot = 0x04,
+  LegacySnapshot = 0x04, // Unidentified baseline; unsafe to decode on the live network
   PlayerJoined = 0x05,
   PlayerLeft = 0x06,
   GameStart = 0x07,
   Ack = 0x08,
   ServerMessage = 0x09, // Generic server→client text message (queue, rejection, info)
   Pong = 0x0a,
+  Snapshot = 0x0b, // Baseline-identified envelope; raw demo snapshot format is unchanged
 
   // Client → Server
   Join = 0x81,
