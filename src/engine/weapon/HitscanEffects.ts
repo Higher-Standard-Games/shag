@@ -20,6 +20,7 @@ import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Scene } from "@babylonjs/core/scene";
 import { mulberry32 } from "../../shared/SpreadUtils";
 import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
+import { ImpactSparkRenderer } from "./impact/ImpactSparkRenderer";
 import { MuzzleFlashRenderer, type MuzzleFlashSpawn } from "./muzzle/MuzzleFlashRenderer";
 import { getPointLightPool } from "./PointLightPool";
 import { RailEffectRenderer } from "./rail/RailEffectRenderer";
@@ -107,6 +108,21 @@ export interface BoltConfig extends HitscanFireConfig {
   spiral?: boolean;
 }
 
+// ── Impact spark budgets ─────────────────────────────────────────────
+
+/**
+ * Embers per contact, per weapon class. These fire on every shot, so the
+ * rapid-fire weapons stay deliberately thin: a machinegun landing eight sparks
+ * per bullet is not detail, it is noise. The star is reserved for weapons that
+ * hit once and hard, which is the same reason CartoonHitEffect gates its sprite
+ * on damage rather than playing for every tick of chip damage.
+ */
+const TRACER_SPARKS = 6;
+/** Per pellet — a full riotgun blast is this times the pellet count. */
+const PELLET_SPARKS = 3;
+const BOLT_SPARKS = 14;
+const RAIL_SPARKS = 16;
+
 // ── Active effect tracking ───────────────────────────────────────────
 
 interface ActiveEffect {
@@ -149,11 +165,15 @@ export class HitscanEffects {
   private railRenderer: RailEffectRenderer | null = null;
   /** Procedural GPU muzzle flashes (shared base, per-weapon style). */
   private muzzleFlashRenderer: MuzzleFlashRenderer | null = null;
+  /** Procedural GPU impact sparks (ember scatter, plus a hit star on heavy contacts). */
+  private impactSparkRenderer: ImpactSparkRenderer | null = null;
   private muzzleAnchorResolver: (() => Vector3 | null) | null = null;
   private remoteVoltaicStartResolver: VoltaicRemoteStartResolver | null = null;
   private readonly localVoltaicEndpoint = new Vector3();
   private readonly localVoltaicNormal = new Vector3();
   private readonly localVoltaicDirection = new Vector3();
+  /** Scratch for the rail's travel direction; burst() copies out before returning. */
+  private readonly railImpactDirection = new Vector3();
   private localVoltaicImpactKind: VoltaicImpactKind = "none";
   private localVoltaicHasNormal = false;
   private localVoltaicHasDirection = false;
@@ -191,6 +211,12 @@ export class HitscanEffects {
       this.muzzleFlashRenderer.setAnchorResolver(this.muzzleAnchorResolver);
       void this.muzzleFlashRenderer.prewarm().catch((error) => {
         console.warn("[HitscanEffects] Muzzle flash shader prewarm failed; first use will retry compilation", error);
+      });
+
+      this.impactSparkRenderer?.dispose();
+      this.impactSparkRenderer = new ImpactSparkRenderer(scene);
+      void this.impactSparkRenderer.prewarm().catch((error) => {
+        console.warn("[HitscanEffects] Impact spark shader prewarm failed; first use will retry compilation", error);
       });
     }
     this.scene = scene;
@@ -245,6 +271,7 @@ export class HitscanEffects {
     // Leave a wall mark at hit point
     if (hit) {
       this.spawnWallMark(hit.point, hit.normal, color, 0.3);
+      this.spawnImpactSparks(hit.point, hit.normal, cfg.direction, color, TRACER_SPARKS, false);
     }
 
     return hit?.point ?? null;
@@ -415,9 +442,11 @@ export class HitscanEffects {
 
       if (hit?.point) hitPoints.push(hit.point);
 
-      // Impact sparks for ALL pellets (wall marks only — lights are expensive)
+      // Every pellet marks and sparks; only the consolidated flash below is
+      // shared, because lights are the expensive part, not instances.
       if (hit?.point) {
         this.spawnWallMark(hit.point, hit.normal, color, 2.0);
+        this.spawnImpactSparks(hit.point, hit.normal, dir, color, PELLET_SPARKS, false);
       }
 
       // Traveling tracer only for selected representative pellets (no per-pellet lights)
@@ -581,6 +610,7 @@ export class HitscanEffects {
     // Leave a scorch mark at impact
     if (hit) {
       this.spawnWallMark(hit.point, hit.normal, color, 1.0);
+      this.spawnImpactSparks(hit.point, hit.normal, cfg.direction, color, BOLT_SPARKS, true);
     }
 
     return hit?.point ?? null;
@@ -598,6 +628,15 @@ export class HitscanEffects {
     this.railRenderer.fireRail(sample);
     if (sample.impactKind === "world" && sample.impactNormal) {
       this.spawnWallMark(sample.end, sample.impactNormal, sample.color, 1.0);
+      sample.end.subtractToRef(sample.start, this.railImpactDirection);
+      this.spawnImpactSparks(
+        sample.end,
+        sample.impactNormal,
+        this.railImpactDirection,
+        sample.color,
+        RAIL_SPARKS,
+        true,
+      );
     }
   }
 
@@ -707,6 +746,7 @@ export class HitscanEffects {
     this.voltaicRenderer?.update(_deltaTime);
     this.railRenderer?.update(_deltaTime);
     this.muzzleFlashRenderer?.update(_deltaTime);
+    this.impactSparkRenderer?.update(_deltaTime);
   }
 
   /** Cleanup everything */
@@ -726,6 +766,22 @@ export class HitscanEffects {
     this.voltaicRenderer?.clear();
     this.railRenderer?.clear();
     this.muzzleFlashRenderer?.clear();
+    this.impactSparkRenderer?.clear();
+  }
+
+  /**
+   * Sparks for one contact. Paired with every wall mark: the mark is what the
+   * shot left behind, this is the shot arriving.
+   */
+  private spawnImpactSparks(
+    position: Vector3,
+    normal: Vector3,
+    incoming: Vector3,
+    color: Color3,
+    count: number,
+    heavy: boolean,
+  ): void {
+    this.impactSparkRenderer?.burst({ position, normal, incoming, color, count, heavy });
   }
 
   // ── Private helpers ──────────────────────────────────────────────

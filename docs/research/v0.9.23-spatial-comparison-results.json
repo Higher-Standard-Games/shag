@@ -1,0 +1,3665 @@
+{
+  "revision": "699a37ed0f9cdac2bd51b4834089d8fcd31ad1a3",
+  "complete": true,
+  "map": "wbomb6",
+  "cells": [
+    0,
+    1024,
+    2048
+  ],
+  "spawns": [
+    0,
+    10,
+    20
+  ],
+  "rounds": 3,
+  "seconds": 4,
+  "sweepSeconds": 6,
+  "fixture": "MapLoader + default post-processing + world/empty weapon cameras; no full client simulation",
+  "browser": {
+    "protocolVersion": "1.3",
+    "product": "Chrome/152.0.7977.83",
+    "revision": "@79460ebecaa5625e57a5fb679a735659e73dc687",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/152.0.0.0 Safari/537.36",
+    "jsVersion": "15.2.124.21"
+  },
+  "flags": [
+    "--headless=new",
+    "--remote-debugging-port=0",
+    "--no-first-run",
+    "--no-default-browser-check",
+    "--window-size=1280,720",
+    "--disable-frame-rate-limit",
+    "--disable-gpu-vsync",
+    "about:blank"
+  ],
+  "runs": [
+    {
+      "round": 1,
+      "cell": 0,
+      "meshes": 974,
+      "pvs": {
+        "enabled": true,
+        "currentCluster": 1538,
+        "totalClusters": 2796,
+        "visibleClusters": 531,
+        "totalMeshes": 743,
+        "visibleMeshes": 235,
+        "culledMeshes": 508,
+        "lastUpdateTime": 0.40000003576278687
+      },
+      "finalPvs": {
+        "enabled": true,
+        "currentCluster": 1538,
+        "totalClusters": 2796,
+        "visibleClusters": 531,
+        "totalMeshes": 743,
+        "visibleMeshes": 235,
+        "culledMeshes": 508,
+        "lastUpdateTime": 0.2999999523162842
+      },
+      "ready": true,
+      "shaderErrors": []
+    },
+    {
+      "round": 1,
+      "cell": 1024,
+      "meshes": 1489,
+      "pvs": {
+        "enabled": true,
+        "currentCluster": 1538,
+        "totalClusters": 2796,
+        "visibleClusters": 531,
+        "totalMeshes": 1258,
+        "visibleMeshes": 336,
+        "culledMeshes": 922,
+        "lastUpdateTime": 0.5999999642372131
+      },
+      "finalPvs": {
+        "enabled": true,
+        "currentCluster": 1538,
+        "totalClusters": 2796,
+        "visibleClusters": 531,
+        "totalMeshes": 1258,
+        "visibleMeshes": 336,
+        "culledMeshes": 922,
+        "lastUpdateTime": 0.19999998807907104
+      },
+      "ready": true,
+      "shaderErrors": []
+    },
+    {
+      "round": 1,
+      "cell": 2048,
+      "meshes": 1213,
+      "pvs": {
+        "enabled": true,
+        "currentCluster": 1538,
+        "totalClusters": 2796,
+        "visibleClusters": 531,
+        "totalMeshes": 982,
+        "visibleMeshes": 298,
+        "culledMeshes": 684,
+        "lastUpdateTime": 0.5999999642372131
+      },
+      "finalPvs": {
+        "enabled": true,
+        "currentCluster": 1538,
+        "totalClusters": 2796,
+        "visibleClusters": 531,
+        "totalMeshes": 982,
+        "visibleMeshes": 298,
+        "culledMeshes": 684,
+        "lastUpdateTime": 0.30000001192092896
+      },
+      "ready": true,
+      "shaderErrors": []
+    },
+    {
+      "round": 2,
+      "cell": 1024,
+      "meshes": 1489,
+      "pvs": {
+        "enabled": true,
+        "currentCluster": 1538,
+        "totalClusters": 2796,
+        "visibleClusters": 531,
+        "totalMeshes": 1258,
+        "visibleMeshes": 336,
+        "culledMeshes": 922,
+        "lastUpdateTime": 0.5
+      },
+      "finalPvs": {
+        "enabled": true,
+        "currentCluster": 1538,
+        "totalClusters": 2796,
+        "visibleClusters": 531,
+        "totalMeshes": 1258,
+        "visibleMeshes": 336,
+        "culledMeshes": 922,
+        "lastUpdateTime": 0.19999998807907104
+      },
+      "ready": true,
+      "shaderErrors": []
+    },
+    {
+      "round": 2,
+      "cell": 2048,
+      "meshes": 1213,
+      "pvs": {
+        "enabled": true,
+        "currentCluster": 1538,
+        "totalClusters": 2796,
+        "visibleClusters": 531,
+        "totalMeshes": 982,
+        "visibleMeshes": 298,
+        "culledMeshes": 684,
+        "lastUpdateTime": 0.40000003576278687
+      },
+      "finalPvs": {
+        "enabled": true,
+        "currentCluster": 1538,
+        "totalClusters": 2796,
+        "visibleClusters": 531,
+        "totalMeshes": 982,
+        "visibleMeshes": 298,
+        "culledMeshes": 684,
+        "lastUpdateTime": 0.5
+      },
+      "ready": true,
+      "shaderErrors": []
+    },
+    {
+      "round": 2,
+      "cell": 0,
+      "meshes": 974,
+      "pvs": {
+        "enabled": true,
+        "currentCluster": 1538,
+        "totalClusters": 2796,
+        "visibleClusters": 531,
+        "totalMeshes": 743,
+        "visibleMeshes": 235,
+        "culledMeshes": 508,
+        "lastUpdateTime": 0.5
+      },
+      "finalPvs": {
+        "enabled": true,
+        "currentCluster": 1538,
+        "totalClusters": 2796,
+        "visibleClusters": 531,
+        "totalMeshes": 743,
+        "visibleMeshes": 235,
+        "culledMeshes": 508,
+        "lastUpdateTime": 0.30000001192092896
+      },
+      "ready": true,
+      "shaderErrors": []
+    },
+    {
+      "round": 3,
+      "cell": 2048,
+      "meshes": 1213,
+      "pvs": {
+        "enabled": true,
+        "currentCluster": 1538,
+        "totalClusters": 2796,
+        "visibleClusters": 531,
+        "totalMeshes": 982,
+        "visibleMeshes": 298,
+        "culledMeshes": 684,
+        "lastUpdateTime": 0.6000000238418579
+      },
+      "finalPvs": {
+        "enabled": true,
+        "currentCluster": 1538,
+        "totalClusters": 2796,
+        "visibleClusters": 531,
+        "totalMeshes": 982,
+        "visibleMeshes": 298,
+        "culledMeshes": 684,
+        "lastUpdateTime": 0.20000004768371582
+      },
+      "ready": true,
+      "shaderErrors": []
+    },
+    {
+      "round": 3,
+      "cell": 0,
+      "meshes": 974,
+      "pvs": {
+        "enabled": true,
+        "currentCluster": 1538,
+        "totalClusters": 2796,
+        "visibleClusters": 531,
+        "totalMeshes": 743,
+        "visibleMeshes": 235,
+        "culledMeshes": 508,
+        "lastUpdateTime": 0.5999999642372131
+      },
+      "finalPvs": {
+        "enabled": true,
+        "currentCluster": 1538,
+        "totalClusters": 2796,
+        "visibleClusters": 531,
+        "totalMeshes": 743,
+        "visibleMeshes": 235,
+        "culledMeshes": 508,
+        "lastUpdateTime": 0.5
+      },
+      "ready": true,
+      "shaderErrors": []
+    },
+    {
+      "round": 3,
+      "cell": 1024,
+      "meshes": 1489,
+      "pvs": {
+        "enabled": true,
+        "currentCluster": 1538,
+        "totalClusters": 2796,
+        "visibleClusters": 531,
+        "totalMeshes": 1258,
+        "visibleMeshes": 336,
+        "culledMeshes": 922,
+        "lastUpdateTime": 0.6000000238418579
+      },
+      "finalPvs": {
+        "enabled": true,
+        "currentCluster": 1538,
+        "totalClusters": 2796,
+        "visibleClusters": 531,
+        "totalMeshes": 1258,
+        "visibleMeshes": 336,
+        "culledMeshes": 922,
+        "lastUpdateTime": 0.30000001192092896
+      },
+      "ready": true,
+      "shaderErrors": []
+    }
+  ],
+  "records": [
+    {
+      "round": 1,
+      "cell": 0,
+      "index": 0,
+      "sweep": false,
+      "position": [
+        112,
+        58,
+        272
+      ],
+      "yaw": 0,
+      "elapsedSeconds": 4.011800000011921,
+      "observedFps": 125.87865795864684,
+      "frameIntervalMs": {
+        "p50": 7.699999988079071,
+        "p95": 9.884999981522558
+      },
+      "worldActiveMeshes": {
+        "p50": 229,
+        "p95": 229
+      },
+      "backend": "webgl2",
+      "map": "wbomb6",
+      "ktx2": true,
+      "durationSeconds": 4,
+      "frames": 505,
+      "frameTimeMs": {
+        "p50": 7.400000035762787,
+        "p95": 9.599999964237213
+      },
+      "cpuRenderMs": {
+        "p50": 0,
+        "p95": 0.09999996423721313
+      },
+      "gpuFrameMs": {
+        "p50": 6.977536,
+        "p95": 9.749196799999998
+      },
+      "activeMeshesEvaluationMs": {
+        "p50": 0.40000003576278687,
+        "p95": 0.699999988079071
+      },
+      "particlesRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "animationsMs": {
+        "p50": 0.09999996423721313,
+        "p95": 0.19999998807907104
+      },
+      "physicsMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "drawCalls": {
+        "p50": 503,
+        "p95": 503
+      },
+      "activeMeshes": {
+        "p50": 0,
+        "p95": 0
+      },
+      "triangles": {
+        "p50": 267574,
+        "p95": 267574
+      },
+      "shaderCompilation": {
+        "count": 0,
+        "totalMs": 0
+      },
+      "webgpuBundles": null
+    },
+    {
+      "round": 1,
+      "cell": 0,
+      "index": 10,
+      "sweep": false,
+      "position": [
+        832,
+        258,
+        1792
+      ],
+      "yaw": 4.71238898038469,
+      "elapsedSeconds": 4.006600000023842,
+      "observedFps": 192.4324863962991,
+      "frameIntervalMs": {
+        "p50": 4.899999976158142,
+        "p95": 7.199999988079071
+      },
+      "worldActiveMeshes": {
+        "p50": 150,
+        "p95": 150
+      },
+      "backend": "webgl2",
+      "map": "wbomb6",
+      "ktx2": true,
+      "durationSeconds": 4,
+      "frames": 771,
+      "frameTimeMs": {
+        "p50": 4.799999952316284,
+        "p95": 7
+      },
+      "cpuRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "gpuFrameMs": {
+        "p50": 4.481024,
+        "p95": 7.030784
+      },
+      "activeMeshesEvaluationMs": {
+        "p50": 0.30000001192092896,
+        "p95": 0.5999999642372131
+      },
+      "particlesRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "animationsMs": {
+        "p50": 0,
+        "p95": 0.10000002384185791
+      },
+      "physicsMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "drawCalls": {
+        "p50": 324,
+        "p95": 324
+      },
+      "activeMeshes": {
+        "p50": 0,
+        "p95": 0
+      },
+      "triangles": {
+        "p50": 189223,
+        "p95": 189223
+      },
+      "shaderCompilation": {
+        "count": 0,
+        "totalMs": 0
+      },
+      "webgpuBundles": null
+    },
+    {
+      "round": 1,
+      "cell": 0,
+      "index": 20,
+      "sweep": false,
+      "position": [
+        -304,
+        170,
+        2784
+      ],
+      "yaw": 0,
+      "elapsedSeconds": 4.003100000023842,
+      "observedFps": 124.40358721916364,
+      "frameIntervalMs": {
+        "p50": 7.700000047683716,
+        "p95": 9.900000035762787
+      },
+      "worldActiveMeshes": {
+        "p50": 245,
+        "p95": 245
+      },
+      "backend": "webgl2",
+      "map": "wbomb6",
+      "ktx2": true,
+      "durationSeconds": 4,
+      "frames": 498,
+      "frameTimeMs": {
+        "p50": 7.5,
+        "p95": 9.600000023841858
+      },
+      "cpuRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "gpuFrameMs": {
+        "p50": 7.075327999999999,
+        "p95": 9.653248
+      },
+      "activeMeshesEvaluationMs": {
+        "p50": 0.3999999761581421,
+        "p95": 0.6000000238418579
+      },
+      "particlesRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "animationsMs": {
+        "p50": 0.09999996423721313,
+        "p95": 0.1150000184774376
+      },
+      "physicsMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "drawCalls": {
+        "p50": 546,
+        "p95": 546
+      },
+      "activeMeshes": {
+        "p50": 0,
+        "p95": 0
+      },
+      "triangles": {
+        "p50": 371321,
+        "p95": 371321
+      },
+      "shaderCompilation": {
+        "count": 0,
+        "totalMs": 0
+      },
+      "webgpuBundles": null
+    },
+    {
+      "round": 1,
+      "cell": 0,
+      "index": 0,
+      "sweep": true,
+      "position": [
+        112,
+        58,
+        272
+      ],
+      "yaw": 0,
+      "elapsedSeconds": 6.006399999976158,
+      "observedFps": 148.508257858874,
+      "frameIntervalMs": {
+        "p50": 6.599999964237213,
+        "p95": 8.699999988079071
+      },
+      "worldActiveMeshes": {
+        "p50": 162,
+        "p95": 236
+      },
+      "backend": "webgl2",
+      "map": "wbomb6",
+      "ktx2": true,
+      "durationSeconds": 6,
+      "frames": 892,
+      "frameTimeMs": {
+        "p50": 6.5,
+        "p95": 8.399999976158142
+      },
+      "cpuRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "gpuFrameMs": {
+        "p50": 5.88288,
+        "p95": 8.020070399999998
+      },
+      "activeMeshesEvaluationMs": {
+        "p50": 0.3999999761581421,
+        "p95": 0.6000000238418579
+      },
+      "particlesRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "animationsMs": {
+        "p50": 0.04999998211860657,
+        "p95": 0.10000002384185791
+      },
+      "physicsMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "drawCalls": {
+        "p50": 438,
+        "p95": 508
+      },
+      "activeMeshes": {
+        "p50": 0,
+        "p95": 0
+      },
+      "triangles": {
+        "p50": 235962,
+        "p95": 262461.9
+      },
+      "shaderCompilation": {
+        "count": 0,
+        "totalMs": 0
+      },
+      "webgpuBundles": null
+    },
+    {
+      "round": 1,
+      "cell": 1024,
+      "index": 0,
+      "sweep": false,
+      "position": [
+        112,
+        58,
+        272
+      ],
+      "yaw": 0,
+      "elapsedSeconds": 4.014599999964237,
+      "observedFps": 99.13814576883013,
+      "frameIntervalMs": {
+        "p50": 9.800000011920929,
+        "p95": 12.099999964237213
+      },
+      "worldActiveMeshes": {
+        "p50": 264,
+        "p95": 264
+      },
+      "backend": "webgl2",
+      "map": "wbomb6",
+      "ktx2": true,
+      "durationSeconds": 4,
+      "frames": 398,
+      "frameTimeMs": {
+        "p50": 9.600000023841858,
+        "p95": 11.599999973177908
+      },
+      "cpuRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "gpuFrameMs": {
+        "p50": 9.058304,
+        "p95": 10.540287999999999
+      },
+      "activeMeshesEvaluationMs": {
+        "p50": 0.5999999642372131,
+        "p95": 0.800000011920929
+      },
+      "particlesRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "animationsMs": {
+        "p50": 0.09999996423721313,
+        "p95": 0.19999998807907104
+      },
+      "physicsMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "drawCalls": {
+        "p50": 639,
+        "p95": 639
+      },
+      "activeMeshes": {
+        "p50": 0,
+        "p95": 0
+      },
+      "triangles": {
+        "p50": 184673,
+        "p95": 184673
+      },
+      "shaderCompilation": {
+        "count": 0,
+        "totalMs": 0
+      },
+      "webgpuBundles": null
+    },
+    {
+      "round": 1,
+      "cell": 1024,
+      "index": 10,
+      "sweep": false,
+      "position": [
+        832,
+        258,
+        1792
+      ],
+      "yaw": 4.71238898038469,
+      "elapsedSeconds": 4.0035,
+      "observedFps": 149.11952041963283,
+      "frameIntervalMs": {
+        "p50": 6.300000011920929,
+        "p95": 9.100000023841858
+      },
+      "worldActiveMeshes": {
+        "p50": 167,
+        "p95": 167
+      },
+      "backend": "webgl2",
+      "map": "wbomb6",
+      "ktx2": true,
+      "durationSeconds": 4,
+      "frames": 597,
+      "frameTimeMs": {
+        "p50": 6.199999988079071,
+        "p95": 8.89999998807907
+      },
+      "cpuRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "gpuFrameMs": {
+        "p50": 5.556223999999999,
+        "p95": 8.090828799999999
+      },
+      "activeMeshesEvaluationMs": {
+        "p50": 0.5,
+        "p95": 0.800000011920929
+      },
+      "particlesRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "animationsMs": {
+        "p50": 0.09999996423721313,
+        "p95": 0.10000002384185791
+      },
+      "physicsMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "drawCalls": {
+        "p50": 367,
+        "p95": 367
+      },
+      "activeMeshes": {
+        "p50": 0,
+        "p95": 0
+      },
+      "triangles": {
+        "p50": 100705,
+        "p95": 100705
+      },
+      "shaderCompilation": {
+        "count": 0,
+        "totalMs": 0
+      },
+      "webgpuBundles": null
+    },
+    {
+      "round": 1,
+      "cell": 1024,
+      "index": 20,
+      "sweep": false,
+      "position": [
+        -304,
+        170,
+        2784
+      ],
+      "yaw": 0,
+      "elapsedSeconds": 4.0186000000238415,
+      "observedFps": 86.34847956948721,
+      "frameIntervalMs": {
+        "p50": 11.199999988079071,
+        "p95": 13.874999985098839
+      },
+      "worldActiveMeshes": {
+        "p50": 309,
+        "p95": 309
+      },
+      "backend": "webgl2",
+      "map": "wbomb6",
+      "ktx2": true,
+      "durationSeconds": 4,
+      "frames": 347,
+      "frameTimeMs": {
+        "p50": 10.900000035762787,
+        "p95": 13.599999964237213
+      },
+      "cpuRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "gpuFrameMs": {
+        "p50": 9.624576,
+        "p95": 12.773990399999995
+      },
+      "activeMeshesEvaluationMs": {
+        "p50": 0.5999999642372131,
+        "p95": 0.8999999761581421
+      },
+      "particlesRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "animationsMs": {
+        "p50": 0.09999996423721313,
+        "p95": 0.19999998807907104
+      },
+      "physicsMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "drawCalls": {
+        "p50": 774,
+        "p95": 774
+      },
+      "activeMeshes": {
+        "p50": 0,
+        "p95": 0
+      },
+      "triangles": {
+        "p50": 196568,
+        "p95": 196568
+      },
+      "shaderCompilation": {
+        "count": 0,
+        "totalMs": 0
+      },
+      "webgpuBundles": null
+    },
+    {
+      "round": 1,
+      "cell": 1024,
+      "index": 0,
+      "sweep": true,
+      "position": [
+        112,
+        58,
+        272
+      ],
+      "yaw": 0,
+      "elapsedSeconds": 6.011700000047684,
+      "observedFps": 108.7878636649887,
+      "frameIntervalMs": {
+        "p50": 9,
+        "p95": 11.800000011920929
+      },
+      "worldActiveMeshes": {
+        "p50": 190,
+        "p95": 276
+      },
+      "backend": "webgl2",
+      "map": "wbomb6",
+      "ktx2": true,
+      "durationSeconds": 6,
+      "frames": 654,
+      "frameTimeMs": {
+        "p50": 8.600000023841858,
+        "p95": 11.099999985098838
+      },
+      "cpuRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "gpuFrameMs": {
+        "p50": 8.20736,
+        "p95": 10.727424
+      },
+      "activeMeshesEvaluationMs": {
+        "p50": 0.5,
+        "p95": 0.800000011920929
+      },
+      "particlesRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "animationsMs": {
+        "p50": 0.09999996423721313,
+        "p95": 0.19999998807907104
+      },
+      "physicsMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "drawCalls": {
+        "p50": 567,
+        "p95": 649
+      },
+      "activeMeshes": {
+        "p50": 0,
+        "p95": 0
+      },
+      "triangles": {
+        "p50": 152529.5,
+        "p95": 180064
+      },
+      "shaderCompilation": {
+        "count": 0,
+        "totalMs": 0
+      },
+      "webgpuBundles": null
+    },
+    {
+      "round": 1,
+      "cell": 2048,
+      "index": 0,
+      "sweep": false,
+      "position": [
+        112,
+        58,
+        272
+      ],
+      "yaw": 0,
+      "elapsedSeconds": 4.004899999976158,
+      "observedFps": 84.896002397569,
+      "frameIntervalMs": {
+        "p50": 11.5,
+        "p95": 15.34000000953673
+      },
+      "worldActiveMeshes": {
+        "p50": 258,
+        "p95": 258
+      },
+      "backend": "webgl2",
+      "map": "wbomb6",
+      "ktx2": true,
+      "durationSeconds": 4,
+      "frames": 340,
+      "frameTimeMs": {
+        "p50": 11.199999988079071,
+        "p95": 14.899999979138375
+      },
+      "cpuRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "gpuFrameMs": {
+        "p50": 9.905152,
+        "p95": 12.852224
+      },
+      "activeMeshesEvaluationMs": {
+        "p50": 0.800000011920929,
+        "p95": 1.2049999862909329
+      },
+      "particlesRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "animationsMs": {
+        "p50": 0.10000002384185791,
+        "p95": 0.19999998807907104
+      },
+      "physicsMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "drawCalls": {
+        "p50": 595,
+        "p95": 595
+      },
+      "activeMeshes": {
+        "p50": 0,
+        "p95": 0
+      },
+      "triangles": {
+        "p50": 200500,
+        "p95": 200500
+      },
+      "shaderCompilation": {
+        "count": 0,
+        "totalMs": 0
+      },
+      "webgpuBundles": null
+    },
+    {
+      "round": 1,
+      "cell": 2048,
+      "index": 10,
+      "sweep": false,
+      "position": [
+        832,
+        258,
+        1792
+      ],
+      "yaw": 4.71238898038469,
+      "elapsedSeconds": 4.001699999988079,
+      "observedFps": 128.69530449597275,
+      "frameIntervalMs": {
+        "p50": 7.300000011920929,
+        "p95": 10.934999984502788
+      },
+      "worldActiveMeshes": {
+        "p50": 171,
+        "p95": 171
+      },
+      "backend": "webgl2",
+      "map": "wbomb6",
+      "ktx2": true,
+      "durationSeconds": 4,
+      "frames": 515,
+      "frameTimeMs": {
+        "p50": 7.100000023841858,
+        "p95": 10.5
+      },
+      "cpuRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "gpuFrameMs": {
+        "p50": 5.948416,
+        "p95": 8.5453824
+      },
+      "activeMeshesEvaluationMs": {
+        "p50": 0.5,
+        "p95": 1
+      },
+      "particlesRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "animationsMs": {
+        "p50": 0.09999996423721313,
+        "p95": 0.19999998807907104
+      },
+      "physicsMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "drawCalls": {
+        "p50": 368,
+        "p95": 368
+      },
+      "activeMeshes": {
+        "p50": 0,
+        "p95": 0
+      },
+      "triangles": {
+        "p50": 119451,
+        "p95": 119451
+      },
+      "shaderCompilation": {
+        "count": 0,
+        "totalMs": 0
+      },
+      "webgpuBundles": null
+    },
+    {
+      "round": 1,
+      "cell": 2048,
+      "index": 20,
+      "sweep": false,
+      "position": [
+        -304,
+        170,
+        2784
+      ],
+      "yaw": 0,
+      "elapsedSeconds": 4.008699999988079,
+      "observedFps": 91.80033427322931,
+      "frameIntervalMs": {
+        "p50": 10.5,
+        "p95": 13.369999969005583
+      },
+      "worldActiveMeshes": {
+        "p50": 286,
+        "p95": 286
+      },
+      "backend": "webgl2",
+      "map": "wbomb6",
+      "ktx2": true,
+      "durationSeconds": 4,
+      "frames": 368,
+      "frameTimeMs": {
+        "p50": 10.199999988079071,
+        "p95": 13.165000039339063
+      },
+      "cpuRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "gpuFrameMs": {
+        "p50": 8.812032,
+        "p95": 11.061247999999999
+      },
+      "activeMeshesEvaluationMs": {
+        "p50": 0.5,
+        "p95": 0.9000000357627869
+      },
+      "particlesRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "animationsMs": {
+        "p50": 0.09999996423721313,
+        "p95": 0.19999998807907104
+      },
+      "physicsMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "drawCalls": {
+        "p50": 673,
+        "p95": 673
+      },
+      "activeMeshes": {
+        "p50": 0,
+        "p95": 0
+      },
+      "triangles": {
+        "p50": 234656,
+        "p95": 234656
+      },
+      "shaderCompilation": {
+        "count": 0,
+        "totalMs": 0
+      },
+      "webgpuBundles": null
+    },
+    {
+      "round": 1,
+      "cell": 2048,
+      "index": 0,
+      "sweep": true,
+      "position": [
+        112,
+        58,
+        272
+      ],
+      "yaw": 0,
+      "elapsedSeconds": 6.0099000000357625,
+      "observedFps": 110.81715169903607,
+      "frameIntervalMs": {
+        "p50": 8.700000047683716,
+        "p95": 11.900000023841859
+      },
+      "worldActiveMeshes": {
+        "p50": 183,
+        "p95": 267
+      },
+      "backend": "webgl2",
+      "map": "wbomb6",
+      "ktx2": true,
+      "durationSeconds": 6,
+      "frames": 666,
+      "frameTimeMs": {
+        "p50": 8.5,
+        "p95": 11.400000020861626
+      },
+      "cpuRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "gpuFrameMs": {
+        "p50": 8.050688,
+        "p95": 11.2
+      },
+      "activeMeshesEvaluationMs": {
+        "p50": 0.5,
+        "p95": 0.800000011920929
+      },
+      "particlesRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "animationsMs": {
+        "p50": 0.09999996423721313,
+        "p95": 0.19999998807907104
+      },
+      "physicsMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "drawCalls": {
+        "p50": 522,
+        "p95": 602
+      },
+      "activeMeshes": {
+        "p50": 0,
+        "p95": 0
+      },
+      "triangles": {
+        "p50": 161780,
+        "p95": 195418
+      },
+      "shaderCompilation": {
+        "count": 0,
+        "totalMs": 0
+      },
+      "webgpuBundles": null
+    },
+    {
+      "round": 2,
+      "cell": 1024,
+      "index": 0,
+      "sweep": false,
+      "position": [
+        112,
+        58,
+        272
+      ],
+      "yaw": 0,
+      "elapsedSeconds": 4.003100000023842,
+      "observedFps": 100.9217856155464,
+      "frameIntervalMs": {
+        "p50": 9.699999988079071,
+        "p95": 11.800000011920929
+      },
+      "worldActiveMeshes": {
+        "p50": 264,
+        "p95": 264
+      },
+      "backend": "webgl2",
+      "map": "wbomb6",
+      "ktx2": true,
+      "durationSeconds": 4,
+      "frames": 404,
+      "frameTimeMs": {
+        "p50": 9.399999976158142,
+        "p95": 11.300000002980232
+      },
+      "cpuRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "gpuFrameMs": {
+        "p50": 8.72448,
+        "p95": 11.673599999999999
+      },
+      "activeMeshesEvaluationMs": {
+        "p50": 0.5,
+        "p95": 0.800000011920929
+      },
+      "particlesRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "animationsMs": {
+        "p50": 0.09999996423721313,
+        "p95": 0.19999998807907104
+      },
+      "physicsMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "drawCalls": {
+        "p50": 639,
+        "p95": 639
+      },
+      "activeMeshes": {
+        "p50": 0,
+        "p95": 0
+      },
+      "triangles": {
+        "p50": 184673,
+        "p95": 184673
+      },
+      "shaderCompilation": {
+        "count": 0,
+        "totalMs": 0
+      },
+      "webgpuBundles": null
+    },
+    {
+      "round": 2,
+      "cell": 1024,
+      "index": 10,
+      "sweep": false,
+      "position": [
+        832,
+        258,
+        1792
+      ],
+      "yaw": 4.71238898038469,
+      "elapsedSeconds": 4.003800000011921,
+      "observedFps": 142.36475348376612,
+      "frameIntervalMs": {
+        "p50": 6.300000011920929,
+        "p95": 10.100000023841858
+      },
+      "worldActiveMeshes": {
+        "p50": 167,
+        "p95": 167
+      },
+      "backend": "webgl2",
+      "map": "wbomb6",
+      "ktx2": true,
+      "durationSeconds": 4,
+      "frames": 570,
+      "frameTimeMs": {
+        "p50": 6.199999988079071,
+        "p95": 9.954999989271158
+      },
+      "cpuRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "gpuFrameMs": {
+        "p50": 5.357568,
+        "p95": 8.742912
+      },
+      "activeMeshesEvaluationMs": {
+        "p50": 0.5,
+        "p95": 1
+      },
+      "particlesRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "animationsMs": {
+        "p50": 0,
+        "p95": 0.10000002384185791
+      },
+      "physicsMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "drawCalls": {
+        "p50": 367,
+        "p95": 367
+      },
+      "activeMeshes": {
+        "p50": 0,
+        "p95": 0
+      },
+      "triangles": {
+        "p50": 100705,
+        "p95": 100705
+      },
+      "shaderCompilation": {
+        "count": 0,
+        "totalMs": 0
+      },
+      "webgpuBundles": null
+    },
+    {
+      "round": 2,
+      "cell": 1024,
+      "index": 20,
+      "sweep": false,
+      "position": [
+        -304,
+        170,
+        2784
+      ],
+      "yaw": 0,
+      "elapsedSeconds": 4.009400000035763,
+      "observedFps": 86.54661545291187,
+      "frameIntervalMs": {
+        "p50": 11.100000023841858,
+        "p95": 14.275000020861626
+      },
+      "worldActiveMeshes": {
+        "p50": 309,
+        "p95": 309
+      },
+      "backend": "webgl2",
+      "map": "wbomb6",
+      "ktx2": true,
+      "durationSeconds": 4,
+      "frames": 347,
+      "frameTimeMs": {
+        "p50": 10.899999976158142,
+        "p95": 13.77000000476837
+      },
+      "cpuRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "gpuFrameMs": {
+        "p50": 9.454592,
+        "p95": 11.656601599999998
+      },
+      "activeMeshesEvaluationMs": {
+        "p50": 0.6000000238418579,
+        "p95": 1
+      },
+      "particlesRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "animationsMs": {
+        "p50": 0.09999996423721313,
+        "p95": 0.19999998807907104
+      },
+      "physicsMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "drawCalls": {
+        "p50": 774,
+        "p95": 774
+      },
+      "activeMeshes": {
+        "p50": 0,
+        "p95": 0
+      },
+      "triangles": {
+        "p50": 196568,
+        "p95": 196568
+      },
+      "shaderCompilation": {
+        "count": 0,
+        "totalMs": 0
+      },
+      "webgpuBundles": null
+    },
+    {
+      "round": 2,
+      "cell": 1024,
+      "index": 0,
+      "sweep": true,
+      "position": [
+        112,
+        58,
+        272
+      ],
+      "yaw": 0,
+      "elapsedSeconds": 6.004299999952316,
+      "observedFps": 110.75395966312162,
+      "frameIntervalMs": {
+        "p50": 9,
+        "p95": 11.400000026822092
+      },
+      "worldActiveMeshes": {
+        "p50": 192,
+        "p95": 276
+      },
+      "backend": "webgl2",
+      "map": "wbomb6",
+      "ktx2": true,
+      "durationSeconds": 6,
+      "frames": 665,
+      "frameTimeMs": {
+        "p50": 8.699999988079071,
+        "p95": 10.800000011920929
+      },
+      "cpuRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "gpuFrameMs": {
+        "p50": 8.176639999999999,
+        "p95": 10.366976
+      },
+      "activeMeshesEvaluationMs": {
+        "p50": 0.5,
+        "p95": 0.800000011920929
+      },
+      "particlesRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "animationsMs": {
+        "p50": 0.09999996423721313,
+        "p95": 0.10000002384185791
+      },
+      "physicsMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "drawCalls": {
+        "p50": 569,
+        "p95": 649
+      },
+      "activeMeshes": {
+        "p50": 0,
+        "p95": 0
+      },
+      "triangles": {
+        "p50": 152620,
+        "p95": 180064
+      },
+      "shaderCompilation": {
+        "count": 0,
+        "totalMs": 0
+      },
+      "webgpuBundles": null
+    },
+    {
+      "round": 2,
+      "cell": 2048,
+      "index": 0,
+      "sweep": false,
+      "position": [
+        112,
+        58,
+        272
+      ],
+      "yaw": 0,
+      "elapsedSeconds": 4.008600000023842,
+      "observedFps": 103.77687970800922,
+      "frameIntervalMs": {
+        "p50": 9.199999988079071,
+        "p95": 12.130000013113017
+      },
+      "worldActiveMeshes": {
+        "p50": 258,
+        "p95": 258
+      },
+      "backend": "webgl2",
+      "map": "wbomb6",
+      "ktx2": true,
+      "durationSeconds": 4,
+      "frames": 416,
+      "frameTimeMs": {
+        "p50": 9,
+        "p95": 11.799999967217445
+      },
+      "cpuRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "gpuFrameMs": {
+        "p50": 8.469503999999999,
+        "p95": 11.654143999999999
+      },
+      "activeMeshesEvaluationMs": {
+        "p50": 0.5,
+        "p95": 0.800000011920929
+      },
+      "particlesRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "animationsMs": {
+        "p50": 0.10000002384185791,
+        "p95": 0.19999998807907104
+      },
+      "physicsMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "drawCalls": {
+        "p50": 595,
+        "p95": 595
+      },
+      "activeMeshes": {
+        "p50": 0,
+        "p95": 0
+      },
+      "triangles": {
+        "p50": 200500,
+        "p95": 200500
+      },
+      "shaderCompilation": {
+        "count": 0,
+        "totalMs": 0
+      },
+      "webgpuBundles": null
+    },
+    {
+      "round": 2,
+      "cell": 2048,
+      "index": 10,
+      "sweep": false,
+      "position": [
+        832,
+        258,
+        1792
+      ],
+      "yaw": 4.71238898038469,
+      "elapsedSeconds": 4.006,
+      "observedFps": 148.77683474787818,
+      "frameIntervalMs": {
+        "p50": 6.300000011920929,
+        "p95": 9.33000001907348
+      },
+      "worldActiveMeshes": {
+        "p50": 171,
+        "p95": 171
+      },
+      "backend": "webgl2",
+      "map": "wbomb6",
+      "ktx2": true,
+      "durationSeconds": 4,
+      "frames": 596,
+      "frameTimeMs": {
+        "p50": 6.100000023841858,
+        "p95": 9.025000005960464
+      },
+      "cpuRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "gpuFrameMs": {
+        "p50": 5.579776,
+        "p95": 8.802304
+      },
+      "activeMeshesEvaluationMs": {
+        "p50": 0.40000003576278687,
+        "p95": 0.800000011920929
+      },
+      "particlesRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "animationsMs": {
+        "p50": 0.09999996423721313,
+        "p95": 0.19999998807907104
+      },
+      "physicsMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "drawCalls": {
+        "p50": 368,
+        "p95": 368
+      },
+      "activeMeshes": {
+        "p50": 0,
+        "p95": 0
+      },
+      "triangles": {
+        "p50": 119451,
+        "p95": 119451
+      },
+      "shaderCompilation": {
+        "count": 0,
+        "totalMs": 0
+      },
+      "webgpuBundles": null
+    },
+    {
+      "round": 2,
+      "cell": 2048,
+      "index": 20,
+      "sweep": false,
+      "position": [
+        -304,
+        170,
+        2784
+      ],
+      "yaw": 0,
+      "elapsedSeconds": 4.005199999988079,
+      "observedFps": 99.12114251502587,
+      "frameIntervalMs": {
+        "p50": 9.700000047683716,
+        "p95": 12.099999964237213
+      },
+      "worldActiveMeshes": {
+        "p50": 286,
+        "p95": 286
+      },
+      "backend": "webgl2",
+      "map": "wbomb6",
+      "ktx2": true,
+      "durationSeconds": 4,
+      "frames": 397,
+      "frameTimeMs": {
+        "p50": 9.399999976158142,
+        "p95": 11.39999998807907
+      },
+      "cpuRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "gpuFrameMs": {
+        "p50": 8.3712,
+        "p95": 9.720832
+      },
+      "activeMeshesEvaluationMs": {
+        "p50": 0.5,
+        "p95": 0.699999988079071
+      },
+      "particlesRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "animationsMs": {
+        "p50": 0.10000002384185791,
+        "p95": 0.20000004768371582
+      },
+      "physicsMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "drawCalls": {
+        "p50": 673,
+        "p95": 673
+      },
+      "activeMeshes": {
+        "p50": 0,
+        "p95": 0
+      },
+      "triangles": {
+        "p50": 234656,
+        "p95": 234656
+      },
+      "shaderCompilation": {
+        "count": 0,
+        "totalMs": 0
+      },
+      "webgpuBundles": null
+    },
+    {
+      "round": 2,
+      "cell": 2048,
+      "index": 0,
+      "sweep": true,
+      "position": [
+        112,
+        58,
+        272
+      ],
+      "yaw": 0,
+      "elapsedSeconds": 6.002899999976158,
+      "observedFps": 111.61272051885939,
+      "frameIntervalMs": {
+        "p50": 8.600000023841858,
+        "p95": 11.800000011920929
+      },
+      "worldActiveMeshes": {
+        "p50": 183,
+        "p95": 267
+      },
+      "backend": "webgl2",
+      "map": "wbomb6",
+      "ktx2": true,
+      "durationSeconds": 6,
+      "frames": 670,
+      "frameTimeMs": {
+        "p50": 8.300000011920929,
+        "p95": 11.15500000417232
+      },
+      "cpuRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "gpuFrameMs": {
+        "p50": 7.937024,
+        "p95": 11.015168
+      },
+      "activeMeshesEvaluationMs": {
+        "p50": 0.5,
+        "p95": 0.800000011920929
+      },
+      "particlesRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "animationsMs": {
+        "p50": 0.10000002384185791,
+        "p95": 0.19999998807907104
+      },
+      "physicsMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "drawCalls": {
+        "p50": 522,
+        "p95": 602
+      },
+      "activeMeshes": {
+        "p50": 0,
+        "p95": 0
+      },
+      "triangles": {
+        "p50": 161801,
+        "p95": 195418
+      },
+      "shaderCompilation": {
+        "count": 0,
+        "totalMs": 0
+      },
+      "webgpuBundles": null
+    },
+    {
+      "round": 2,
+      "cell": 0,
+      "index": 0,
+      "sweep": false,
+      "position": [
+        112,
+        58,
+        272
+      ],
+      "yaw": 0,
+      "elapsedSeconds": 4.006,
+      "observedFps": 124.06390414378431,
+      "frameIntervalMs": {
+        "p50": 7.699999988079071,
+        "p95": 10.5
+      },
+      "worldActiveMeshes": {
+        "p50": 229,
+        "p95": 229
+      },
+      "backend": "webgl2",
+      "map": "wbomb6",
+      "ktx2": true,
+      "durationSeconds": 4,
+      "frames": 497,
+      "frameTimeMs": {
+        "p50": 7.5,
+        "p95": 10.199999988079071
+      },
+      "cpuRenderMs": {
+        "p50": 0,
+        "p95": 0.09999996423721313
+      },
+      "gpuFrameMs": {
+        "p50": 7.177216,
+        "p95": 10.482688
+      },
+      "activeMeshesEvaluationMs": {
+        "p50": 0.3999999761581421,
+        "p95": 0.6000000238418579
+      },
+      "particlesRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "animationsMs": {
+        "p50": 0.09999996423721313,
+        "p95": 0.10000002384185791
+      },
+      "physicsMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "drawCalls": {
+        "p50": 503,
+        "p95": 503
+      },
+      "activeMeshes": {
+        "p50": 0,
+        "p95": 0
+      },
+      "triangles": {
+        "p50": 267574,
+        "p95": 267574
+      },
+      "shaderCompilation": {
+        "count": 0,
+        "totalMs": 0
+      },
+      "webgpuBundles": null
+    },
+    {
+      "round": 2,
+      "cell": 0,
+      "index": 10,
+      "sweep": false,
+      "position": [
+        832,
+        258,
+        1792
+      ],
+      "yaw": 4.71238898038469,
+      "elapsedSeconds": 4.008300000011921,
+      "observedFps": 147.6935359125413,
+      "frameIntervalMs": {
+        "p50": 6.099999964237213,
+        "p95": 9.950000017881393
+      },
+      "worldActiveMeshes": {
+        "p50": 150,
+        "p95": 150
+      },
+      "backend": "webgl2",
+      "map": "wbomb6",
+      "ktx2": true,
+      "durationSeconds": 4,
+      "frames": 592,
+      "frameTimeMs": {
+        "p50": 5.900000035762787,
+        "p95": 9.300000011920929
+      },
+      "cpuRenderMs": {
+        "p50": 0,
+        "p95": 0.09999996423721313
+      },
+      "gpuFrameMs": {
+        "p50": 5.628928,
+        "p95": 9.158348799999994
+      },
+      "activeMeshesEvaluationMs": {
+        "p50": 0.5,
+        "p95": 0.9000000357627869
+      },
+      "particlesRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "animationsMs": {
+        "p50": 0.09999996423721313,
+        "p95": 0.19999998807907104
+      },
+      "physicsMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "drawCalls": {
+        "p50": 324,
+        "p95": 324
+      },
+      "activeMeshes": {
+        "p50": 0,
+        "p95": 0
+      },
+      "triangles": {
+        "p50": 189223,
+        "p95": 189223
+      },
+      "shaderCompilation": {
+        "count": 0,
+        "totalMs": 0
+      },
+      "webgpuBundles": null
+    },
+    {
+      "round": 2,
+      "cell": 0,
+      "index": 20,
+      "sweep": false,
+      "position": [
+        -304,
+        170,
+        2784
+      ],
+      "yaw": 0,
+      "elapsedSeconds": 4.005100000023842,
+      "observedFps": 98.37457241957868,
+      "frameIntervalMs": {
+        "p50": 9.800000011920929,
+        "p95": 13.640000009536742
+      },
+      "worldActiveMeshes": {
+        "p50": 245,
+        "p95": 245
+      },
+      "backend": "webgl2",
+      "map": "wbomb6",
+      "ktx2": true,
+      "durationSeconds": 4,
+      "frames": 394,
+      "frameTimeMs": {
+        "p50": 9.199999988079071,
+        "p95": 13.399999997019766
+      },
+      "cpuRenderMs": {
+        "p50": 0,
+        "p95": 0.09999996423721313
+      },
+      "gpuFrameMs": {
+        "p50": 8.907264,
+        "p95": 12.319078399999997
+      },
+      "activeMeshesEvaluationMs": {
+        "p50": 0.6000000238418579,
+        "p95": 1.099999985098839
+      },
+      "particlesRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "animationsMs": {
+        "p50": 0.10000002384185791,
+        "p95": 0.19999998807907104
+      },
+      "physicsMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "drawCalls": {
+        "p50": 546,
+        "p95": 546
+      },
+      "activeMeshes": {
+        "p50": 0,
+        "p95": 0
+      },
+      "triangles": {
+        "p50": 371321,
+        "p95": 371321
+      },
+      "shaderCompilation": {
+        "count": 0,
+        "totalMs": 0
+      },
+      "webgpuBundles": null
+    },
+    {
+      "round": 2,
+      "cell": 0,
+      "index": 0,
+      "sweep": true,
+      "position": [
+        112,
+        58,
+        272
+      ],
+      "yaw": 0,
+      "elapsedSeconds": 6.0075999999642375,
+      "observedFps": 109.36147546506275,
+      "frameIntervalMs": {
+        "p50": 8.600000023841858,
+        "p95": 13.524999991059303
+      },
+      "worldActiveMeshes": {
+        "p50": 160,
+        "p95": 236
+      },
+      "backend": "webgl2",
+      "map": "wbomb6",
+      "ktx2": true,
+      "durationSeconds": 6,
+      "frames": 657,
+      "frameTimeMs": {
+        "p50": 8.399999976158142,
+        "p95": 12.820000004768366
+      },
+      "cpuRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "gpuFrameMs": {
+        "p50": 7.778303999999999,
+        "p95": 11.83744
+      },
+      "activeMeshesEvaluationMs": {
+        "p50": 0.5999999642372131,
+        "p95": 1.199999988079071
+      },
+      "particlesRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "animationsMs": {
+        "p50": 0.09999996423721313,
+        "p95": 0.19999998807907104
+      },
+      "physicsMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "drawCalls": {
+        "p50": 436,
+        "p95": 508
+      },
+      "activeMeshes": {
+        "p50": 0,
+        "p95": 0
+      },
+      "triangles": {
+        "p50": 235931,
+        "p95": 262602
+      },
+      "shaderCompilation": {
+        "count": 0,
+        "totalMs": 0
+      },
+      "webgpuBundles": null
+    },
+    {
+      "round": 3,
+      "cell": 2048,
+      "index": 0,
+      "sweep": false,
+      "position": [
+        112,
+        58,
+        272
+      ],
+      "yaw": 0,
+      "elapsedSeconds": 4.016,
+      "observedFps": 105.82669322709164,
+      "frameIntervalMs": {
+        "p50": 9.199999988079071,
+        "p95": 11.584999969601627
+      },
+      "worldActiveMeshes": {
+        "p50": 258,
+        "p95": 258
+      },
+      "backend": "webgl2",
+      "map": "wbomb6",
+      "ktx2": true,
+      "durationSeconds": 4,
+      "frames": 425,
+      "frameTimeMs": {
+        "p50": 8.899999976158142,
+        "p95": 10.779999971389767
+      },
+      "cpuRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "gpuFrameMs": {
+        "p50": 8.421376,
+        "p95": 11.427737599999993
+      },
+      "activeMeshesEvaluationMs": {
+        "p50": 0.5,
+        "p95": 0.699999988079071
+      },
+      "particlesRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "animationsMs": {
+        "p50": 0.10000002384185791,
+        "p95": 0.19999998807907104
+      },
+      "physicsMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "drawCalls": {
+        "p50": 595,
+        "p95": 595
+      },
+      "activeMeshes": {
+        "p50": 0,
+        "p95": 0
+      },
+      "triangles": {
+        "p50": 200500,
+        "p95": 200500
+      },
+      "shaderCompilation": {
+        "count": 0,
+        "totalMs": 0
+      },
+      "webgpuBundles": null
+    },
+    {
+      "round": 3,
+      "cell": 2048,
+      "index": 10,
+      "sweep": false,
+      "position": [
+        832,
+        258,
+        1792
+      ],
+      "yaw": 4.71238898038469,
+      "elapsedSeconds": 4.0060999999642375,
+      "observedFps": 153.01664961071174,
+      "frameIntervalMs": {
+        "p50": 6.100000023841858,
+        "p95": 9.399999976158142
+      },
+      "worldActiveMeshes": {
+        "p50": 171,
+        "p95": 171
+      },
+      "backend": "webgl2",
+      "map": "wbomb6",
+      "ktx2": true,
+      "durationSeconds": 4,
+      "frames": 613,
+      "frameTimeMs": {
+        "p50": 6,
+        "p95": 9.039999985694884
+      },
+      "cpuRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "gpuFrameMs": {
+        "p50": 5.43744,
+        "p95": 7.966310399999999
+      },
+      "activeMeshesEvaluationMs": {
+        "p50": 0.40000003576278687,
+        "p95": 0.699999988079071
+      },
+      "particlesRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "animationsMs": {
+        "p50": 0.09999996423721313,
+        "p95": 0.19999998807907104
+      },
+      "physicsMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "drawCalls": {
+        "p50": 368,
+        "p95": 368
+      },
+      "activeMeshes": {
+        "p50": 0,
+        "p95": 0
+      },
+      "triangles": {
+        "p50": 119451,
+        "p95": 119451
+      },
+      "shaderCompilation": {
+        "count": 0,
+        "totalMs": 0
+      },
+      "webgpuBundles": null
+    },
+    {
+      "round": 3,
+      "cell": 2048,
+      "index": 20,
+      "sweep": false,
+      "position": [
+        -304,
+        170,
+        2784
+      ],
+      "yaw": 0,
+      "elapsedSeconds": 4.001300000011921,
+      "observedFps": 96.46864768921351,
+      "frameIntervalMs": {
+        "p50": 10,
+        "p95": 12.959999990463247
+      },
+      "worldActiveMeshes": {
+        "p50": 286,
+        "p95": 286
+      },
+      "backend": "webgl2",
+      "map": "wbomb6",
+      "ktx2": true,
+      "durationSeconds": 4,
+      "frames": 386,
+      "frameTimeMs": {
+        "p50": 9.699999988079071,
+        "p95": 12.900000020861626
+      },
+      "cpuRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "gpuFrameMs": {
+        "p50": 8.491007999999999,
+        "p95": 10.035456
+      },
+      "activeMeshesEvaluationMs": {
+        "p50": 0.5,
+        "p95": 0.800000011920929
+      },
+      "particlesRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "animationsMs": {
+        "p50": 0.10000002384185791,
+        "p95": 0.19999998807907104
+      },
+      "physicsMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "drawCalls": {
+        "p50": 673,
+        "p95": 673
+      },
+      "activeMeshes": {
+        "p50": 0,
+        "p95": 0
+      },
+      "triangles": {
+        "p50": 234656,
+        "p95": 234656
+      },
+      "shaderCompilation": {
+        "count": 0,
+        "totalMs": 0
+      },
+      "webgpuBundles": null
+    },
+    {
+      "round": 3,
+      "cell": 2048,
+      "index": 0,
+      "sweep": true,
+      "position": [
+        112,
+        58,
+        272
+      ],
+      "yaw": 0,
+      "elapsedSeconds": 6.005900000035763,
+      "observedFps": 88.74606636754295,
+      "frameIntervalMs": {
+        "p50": 10.900000035762787,
+        "p95": 15.044999983906745
+      },
+      "worldActiveMeshes": {
+        "p50": 190,
+        "p95": 267
+      },
+      "backend": "webgl2",
+      "map": "wbomb6",
+      "ktx2": true,
+      "durationSeconds": 6,
+      "frames": 533,
+      "frameTimeMs": {
+        "p50": 10.5,
+        "p95": 14.640000009536742
+      },
+      "cpuRenderMs": {
+        "p50": 0,
+        "p95": 0.09999996423721313
+      },
+      "gpuFrameMs": {
+        "p50": 9.268224,
+        "p95": 13.078527999999999
+      },
+      "activeMeshesEvaluationMs": {
+        "p50": 0.800000011920929,
+        "p95": 1.300000011920929
+      },
+      "particlesRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "animationsMs": {
+        "p50": 0.10000002384185791,
+        "p95": 0.20000004768371582
+      },
+      "physicsMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "drawCalls": {
+        "p50": 529,
+        "p95": 602
+      },
+      "activeMeshes": {
+        "p50": 0,
+        "p95": 0
+      },
+      "triangles": {
+        "p50": 162147,
+        "p95": 197522.79999999987
+      },
+      "shaderCompilation": {
+        "count": 0,
+        "totalMs": 0
+      },
+      "webgpuBundles": null
+    },
+    {
+      "round": 3,
+      "cell": 0,
+      "index": 0,
+      "sweep": false,
+      "position": [
+        112,
+        58,
+        272
+      ],
+      "yaw": 0,
+      "elapsedSeconds": 4.002700000047684,
+      "observedFps": 126.66450146000454,
+      "frameIntervalMs": {
+        "p50": 7.5,
+        "p95": 10.400000020861626
+      },
+      "worldActiveMeshes": {
+        "p50": 229,
+        "p95": 229
+      },
+      "backend": "webgl2",
+      "map": "wbomb6",
+      "ktx2": true,
+      "durationSeconds": 4,
+      "frames": 507,
+      "frameTimeMs": {
+        "p50": 7.300000011920929,
+        "p95": 9.399999976158142
+      },
+      "cpuRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "gpuFrameMs": {
+        "p50": 6.89664,
+        "p95": 9.384755199999997
+      },
+      "activeMeshesEvaluationMs": {
+        "p50": 0.3999999761581421,
+        "p95": 0.5999999642372131
+      },
+      "particlesRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "animationsMs": {
+        "p50": 0.09999996423721313,
+        "p95": 0.19999998807907104
+      },
+      "physicsMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "drawCalls": {
+        "p50": 503,
+        "p95": 503
+      },
+      "activeMeshes": {
+        "p50": 0,
+        "p95": 0
+      },
+      "triangles": {
+        "p50": 267574,
+        "p95": 267574
+      },
+      "shaderCompilation": {
+        "count": 0,
+        "totalMs": 0
+      },
+      "webgpuBundles": null
+    },
+    {
+      "round": 3,
+      "cell": 0,
+      "index": 10,
+      "sweep": false,
+      "position": [
+        832,
+        258,
+        1792
+      ],
+      "yaw": 4.71238898038469,
+      "elapsedSeconds": 4.003800000011921,
+      "observedFps": 179.57939956987343,
+      "frameIntervalMs": {
+        "p50": 5.100000023841858,
+        "p95": 8.5
+      },
+      "worldActiveMeshes": {
+        "p50": 150,
+        "p95": 150
+      },
+      "backend": "webgl2",
+      "map": "wbomb6",
+      "ktx2": true,
+      "durationSeconds": 4,
+      "frames": 719,
+      "frameTimeMs": {
+        "p50": 5,
+        "p95": 8.199999988079071
+      },
+      "cpuRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "gpuFrameMs": {
+        "p50": 4.765696,
+        "p95": 7.788134400000002
+      },
+      "activeMeshesEvaluationMs": {
+        "p50": 0.30000001192092896,
+        "p95": 0.6000000238418579
+      },
+      "particlesRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "animationsMs": {
+        "p50": 0.09999996423721313,
+        "p95": 0.19999998807907104
+      },
+      "physicsMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "drawCalls": {
+        "p50": 324,
+        "p95": 324
+      },
+      "activeMeshes": {
+        "p50": 0,
+        "p95": 0
+      },
+      "triangles": {
+        "p50": 189223,
+        "p95": 189223
+      },
+      "shaderCompilation": {
+        "count": 0,
+        "totalMs": 0
+      },
+      "webgpuBundles": null
+    },
+    {
+      "round": 3,
+      "cell": 0,
+      "index": 20,
+      "sweep": false,
+      "position": [
+        -304,
+        170,
+        2784
+      ],
+      "yaw": 0,
+      "elapsedSeconds": 4.002399999976158,
+      "observedFps": 114.93104137585952,
+      "frameIntervalMs": {
+        "p50": 8.399999976158142,
+        "p95": 11.110000020265577
+      },
+      "worldActiveMeshes": {
+        "p50": 245,
+        "p95": 245
+      },
+      "backend": "webgl2",
+      "map": "wbomb6",
+      "ktx2": true,
+      "durationSeconds": 4,
+      "frames": 460,
+      "frameTimeMs": {
+        "p50": 8.099999964237213,
+        "p95": 10.699999988079071
+      },
+      "cpuRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "gpuFrameMs": {
+        "p50": 7.580672,
+        "p95": 10.507264
+      },
+      "activeMeshesEvaluationMs": {
+        "p50": 0.40000003576278687,
+        "p95": 0.7000000476837158
+      },
+      "particlesRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "animationsMs": {
+        "p50": 0.10000002384185791,
+        "p95": 0.19999998807907104
+      },
+      "physicsMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "drawCalls": {
+        "p50": 546,
+        "p95": 546
+      },
+      "activeMeshes": {
+        "p50": 0,
+        "p95": 0
+      },
+      "triangles": {
+        "p50": 371321,
+        "p95": 371321
+      },
+      "shaderCompilation": {
+        "count": 0,
+        "totalMs": 0
+      },
+      "webgpuBundles": null
+    },
+    {
+      "round": 3,
+      "cell": 0,
+      "index": 0,
+      "sweep": true,
+      "position": [
+        112,
+        58,
+        272
+      ],
+      "yaw": 0,
+      "elapsedSeconds": 6.0085,
+      "observedFps": 136.30689856037282,
+      "frameIntervalMs": {
+        "p50": 7.100000023841858,
+        "p95": 10.100000023841858
+      },
+      "worldActiveMeshes": {
+        "p50": 159,
+        "p95": 236
+      },
+      "backend": "webgl2",
+      "map": "wbomb6",
+      "ktx2": true,
+      "durationSeconds": 6,
+      "frames": 819,
+      "frameTimeMs": {
+        "p50": 7,
+        "p95": 9.199999988079071
+      },
+      "cpuRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "gpuFrameMs": {
+        "p50": 6.324224,
+        "p95": 9.324544
+      },
+      "activeMeshesEvaluationMs": {
+        "p50": 0.3999999761581421,
+        "p95": 0.6000000238418579
+      },
+      "particlesRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "animationsMs": {
+        "p50": 0.09999996423721313,
+        "p95": 0.19999998807907104
+      },
+      "physicsMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "drawCalls": {
+        "p50": 435,
+        "p95": 508
+      },
+      "activeMeshes": {
+        "p50": 0,
+        "p95": 0
+      },
+      "triangles": {
+        "p50": 235868,
+        "p95": 262463
+      },
+      "shaderCompilation": {
+        "count": 0,
+        "totalMs": 0
+      },
+      "webgpuBundles": null
+    },
+    {
+      "round": 3,
+      "cell": 1024,
+      "index": 0,
+      "sweep": false,
+      "position": [
+        112,
+        58,
+        272
+      ],
+      "yaw": 0,
+      "elapsedSeconds": 4.004300000011921,
+      "observedFps": 95.89691082058208,
+      "frameIntervalMs": {
+        "p50": 10.100000023841858,
+        "p95": 12.899999976158142
+      },
+      "worldActiveMeshes": {
+        "p50": 264,
+        "p95": 264
+      },
+      "backend": "webgl2",
+      "map": "wbomb6",
+      "ktx2": true,
+      "durationSeconds": 4,
+      "frames": 384,
+      "frameTimeMs": {
+        "p50": 9.800000011920929,
+        "p95": 12.440000003576266
+      },
+      "cpuRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "gpuFrameMs": {
+        "p50": 8.915968,
+        "p95": 12.244377599999998
+      },
+      "activeMeshesEvaluationMs": {
+        "p50": 0.5999999940395355,
+        "p95": 0.8999999761581421
+      },
+      "particlesRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "animationsMs": {
+        "p50": 0.10000002384185791,
+        "p95": 0.19999998807907104
+      },
+      "physicsMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "drawCalls": {
+        "p50": 639,
+        "p95": 639
+      },
+      "activeMeshes": {
+        "p50": 0,
+        "p95": 0
+      },
+      "triangles": {
+        "p50": 184673,
+        "p95": 184673
+      },
+      "shaderCompilation": {
+        "count": 0,
+        "totalMs": 0
+      },
+      "webgpuBundles": null
+    },
+    {
+      "round": 3,
+      "cell": 1024,
+      "index": 10,
+      "sweep": false,
+      "position": [
+        832,
+        258,
+        1792
+      ],
+      "yaw": 4.71238898038469,
+      "elapsedSeconds": 4.0133999999761585,
+      "observedFps": 138.03757412749565,
+      "frameIntervalMs": {
+        "p50": 6.799999952316284,
+        "p95": 10.199999988079071
+      },
+      "worldActiveMeshes": {
+        "p50": 167,
+        "p95": 167
+      },
+      "backend": "webgl2",
+      "map": "wbomb6",
+      "ktx2": true,
+      "durationSeconds": 4,
+      "frames": 554,
+      "frameTimeMs": {
+        "p50": 6.600000023841858,
+        "p95": 9.800000011920929
+      },
+      "cpuRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "gpuFrameMs": {
+        "p50": 5.721088,
+        "p95": 8.476467200000002
+      },
+      "activeMeshesEvaluationMs": {
+        "p50": 0.5,
+        "p95": 1
+      },
+      "particlesRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "animationsMs": {
+        "p50": 0.09999996423721313,
+        "p95": 0.19999998807907104
+      },
+      "physicsMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "drawCalls": {
+        "p50": 367,
+        "p95": 367
+      },
+      "activeMeshes": {
+        "p50": 0,
+        "p95": 0
+      },
+      "triangles": {
+        "p50": 100705,
+        "p95": 100705
+      },
+      "shaderCompilation": {
+        "count": 0,
+        "totalMs": 0
+      },
+      "webgpuBundles": null
+    },
+    {
+      "round": 3,
+      "cell": 1024,
+      "index": 20,
+      "sweep": false,
+      "position": [
+        -304,
+        170,
+        2784
+      ],
+      "yaw": 0,
+      "elapsedSeconds": 4.034100000023842,
+      "observedFps": 77.58855754645401,
+      "frameIntervalMs": {
+        "p50": 12,
+        "p95": 16.489999970793722
+      },
+      "worldActiveMeshes": {
+        "p50": 309,
+        "p95": 309
+      },
+      "backend": "webgl2",
+      "map": "wbomb6",
+      "ktx2": true,
+      "durationSeconds": 4,
+      "frames": 313,
+      "frameTimeMs": {
+        "p50": 11.700000047683716,
+        "p95": 16.14000000953674
+      },
+      "cpuRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "gpuFrameMs": {
+        "p50": 10.010624,
+        "p95": 14.129561599999999
+      },
+      "activeMeshesEvaluationMs": {
+        "p50": 0.699999988079071,
+        "p95": 1.339999997615812
+      },
+      "particlesRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "animationsMs": {
+        "p50": 0.10000002384185791,
+        "p95": 0.20000004768371582
+      },
+      "physicsMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "drawCalls": {
+        "p50": 774,
+        "p95": 774
+      },
+      "activeMeshes": {
+        "p50": 0,
+        "p95": 0
+      },
+      "triangles": {
+        "p50": 196568,
+        "p95": 196568
+      },
+      "shaderCompilation": {
+        "count": 0,
+        "totalMs": 0
+      },
+      "webgpuBundles": null
+    },
+    {
+      "round": 3,
+      "cell": 1024,
+      "index": 0,
+      "sweep": true,
+      "position": [
+        112,
+        58,
+        272
+      ],
+      "yaw": 0,
+      "elapsedSeconds": 6.009,
+      "observedFps": 83.04210351139956,
+      "frameIntervalMs": {
+        "p50": 11.699999988079071,
+        "p95": 15.614999967813489
+      },
+      "worldActiveMeshes": {
+        "p50": 197,
+        "p95": 276
+      },
+      "backend": "webgl2",
+      "map": "wbomb6",
+      "ktx2": true,
+      "durationSeconds": 6,
+      "frames": 499,
+      "frameTimeMs": {
+        "p50": 11.300000011920929,
+        "p95": 15.210000044107433
+      },
+      "cpuRenderMs": {
+        "p50": 0,
+        "p95": 0.09999996423721313
+      },
+      "gpuFrameMs": {
+        "p50": 9.719808,
+        "p95": 13.423615999999999
+      },
+      "activeMeshesEvaluationMs": {
+        "p50": 1,
+        "p95": 1.5
+      },
+      "particlesRenderMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "animationsMs": {
+        "p50": 0.10000002384185791,
+        "p95": 0.20000004768371582
+      },
+      "physicsMs": {
+        "p50": 0,
+        "p95": 0
+      },
+      "drawCalls": {
+        "p50": 574,
+        "p95": 649
+      },
+      "activeMeshes": {
+        "p50": 0,
+        "p95": 0
+      },
+      "triangles": {
+        "p50": 153020,
+        "p95": 180805.69999999987
+      },
+      "shaderCompilation": {
+        "count": 0,
+        "totalMs": 0
+      },
+      "webgpuBundles": null
+    }
+  ],
+  "aggregateDefinition": "Median of three per-capture percentiles, not pooled frame percentiles",
+  "rows": [
+    {
+      "cell": 0,
+      "view": 0,
+      "n": 3,
+      "frameIntervalMs": {
+        "p50": 7.699999988079071,
+        "p95": 10.400000020861626
+      },
+      "frameTimeMs": {
+        "p50": 7.400000035762787,
+        "p95": 9.599999964237213
+      },
+      "gpuFrameMs": {
+        "p50": 6.977536,
+        "p95": 9.749196799999998
+      },
+      "drawCalls": {
+        "p50": 503,
+        "p95": 503
+      },
+      "worldActiveMeshes": {
+        "p50": 229,
+        "p95": 229
+      },
+      "triangles": {
+        "p50": 267574,
+        "p95": 267574
+      },
+      "p95Range": [
+        9.884999981522558,
+        10.5,
+        10.400000020861626
+      ],
+      "compiles": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "cell": 0,
+      "view": 10,
+      "n": 3,
+      "frameIntervalMs": {
+        "p50": 5.100000023841858,
+        "p95": 8.5
+      },
+      "frameTimeMs": {
+        "p50": 5,
+        "p95": 8.199999988079071
+      },
+      "gpuFrameMs": {
+        "p50": 4.765696,
+        "p95": 7.788134400000002
+      },
+      "drawCalls": {
+        "p50": 324,
+        "p95": 324
+      },
+      "worldActiveMeshes": {
+        "p50": 150,
+        "p95": 150
+      },
+      "triangles": {
+        "p50": 189223,
+        "p95": 189223
+      },
+      "p95Range": [
+        7.199999988079071,
+        9.950000017881393,
+        8.5
+      ],
+      "compiles": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "cell": 0,
+      "view": 20,
+      "n": 3,
+      "frameIntervalMs": {
+        "p50": 8.399999976158142,
+        "p95": 11.110000020265577
+      },
+      "frameTimeMs": {
+        "p50": 8.099999964237213,
+        "p95": 10.699999988079071
+      },
+      "gpuFrameMs": {
+        "p50": 7.580672,
+        "p95": 10.507264
+      },
+      "drawCalls": {
+        "p50": 546,
+        "p95": 546
+      },
+      "worldActiveMeshes": {
+        "p50": 245,
+        "p95": 245
+      },
+      "triangles": {
+        "p50": 371321,
+        "p95": 371321
+      },
+      "p95Range": [
+        9.900000035762787,
+        13.640000009536742,
+        11.110000020265577
+      ],
+      "compiles": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "cell": 0,
+      "view": "sweep",
+      "n": 3,
+      "frameIntervalMs": {
+        "p50": 7.100000023841858,
+        "p95": 10.100000023841858
+      },
+      "frameTimeMs": {
+        "p50": 7,
+        "p95": 9.199999988079071
+      },
+      "gpuFrameMs": {
+        "p50": 6.324224,
+        "p95": 9.324544
+      },
+      "drawCalls": {
+        "p50": 436,
+        "p95": 508
+      },
+      "worldActiveMeshes": {
+        "p50": 160,
+        "p95": 236
+      },
+      "triangles": {
+        "p50": 235931,
+        "p95": 262463
+      },
+      "p95Range": [
+        8.699999988079071,
+        13.524999991059303,
+        10.100000023841858
+      ],
+      "compiles": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "cell": 1024,
+      "view": 0,
+      "n": 3,
+      "frameIntervalMs": {
+        "p50": 9.800000011920929,
+        "p95": 12.099999964237213
+      },
+      "frameTimeMs": {
+        "p50": 9.600000023841858,
+        "p95": 11.599999973177908
+      },
+      "gpuFrameMs": {
+        "p50": 8.915968,
+        "p95": 11.673599999999999
+      },
+      "drawCalls": {
+        "p50": 639,
+        "p95": 639
+      },
+      "worldActiveMeshes": {
+        "p50": 264,
+        "p95": 264
+      },
+      "triangles": {
+        "p50": 184673,
+        "p95": 184673
+      },
+      "p95Range": [
+        12.099999964237213,
+        11.800000011920929,
+        12.899999976158142
+      ],
+      "compiles": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "cell": 1024,
+      "view": 10,
+      "n": 3,
+      "frameIntervalMs": {
+        "p50": 6.300000011920929,
+        "p95": 10.100000023841858
+      },
+      "frameTimeMs": {
+        "p50": 6.199999988079071,
+        "p95": 9.800000011920929
+      },
+      "gpuFrameMs": {
+        "p50": 5.556223999999999,
+        "p95": 8.476467200000002
+      },
+      "drawCalls": {
+        "p50": 367,
+        "p95": 367
+      },
+      "worldActiveMeshes": {
+        "p50": 167,
+        "p95": 167
+      },
+      "triangles": {
+        "p50": 100705,
+        "p95": 100705
+      },
+      "p95Range": [
+        9.100000023841858,
+        10.100000023841858,
+        10.199999988079071
+      ],
+      "compiles": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "cell": 1024,
+      "view": 20,
+      "n": 3,
+      "frameIntervalMs": {
+        "p50": 11.199999988079071,
+        "p95": 14.275000020861626
+      },
+      "frameTimeMs": {
+        "p50": 10.900000035762787,
+        "p95": 13.77000000476837
+      },
+      "gpuFrameMs": {
+        "p50": 9.624576,
+        "p95": 12.773990399999995
+      },
+      "drawCalls": {
+        "p50": 774,
+        "p95": 774
+      },
+      "worldActiveMeshes": {
+        "p50": 309,
+        "p95": 309
+      },
+      "triangles": {
+        "p50": 196568,
+        "p95": 196568
+      },
+      "p95Range": [
+        13.874999985098839,
+        14.275000020861626,
+        16.489999970793722
+      ],
+      "compiles": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "cell": 1024,
+      "view": "sweep",
+      "n": 3,
+      "frameIntervalMs": {
+        "p50": 9,
+        "p95": 11.800000011920929
+      },
+      "frameTimeMs": {
+        "p50": 8.699999988079071,
+        "p95": 11.099999985098838
+      },
+      "gpuFrameMs": {
+        "p50": 8.20736,
+        "p95": 10.727424
+      },
+      "drawCalls": {
+        "p50": 569,
+        "p95": 649
+      },
+      "worldActiveMeshes": {
+        "p50": 192,
+        "p95": 276
+      },
+      "triangles": {
+        "p50": 152620,
+        "p95": 180064
+      },
+      "p95Range": [
+        11.800000011920929,
+        11.400000026822092,
+        15.614999967813489
+      ],
+      "compiles": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "cell": 2048,
+      "view": 0,
+      "n": 3,
+      "frameIntervalMs": {
+        "p50": 9.199999988079071,
+        "p95": 12.130000013113017
+      },
+      "frameTimeMs": {
+        "p50": 9,
+        "p95": 11.799999967217445
+      },
+      "gpuFrameMs": {
+        "p50": 8.469503999999999,
+        "p95": 11.654143999999999
+      },
+      "drawCalls": {
+        "p50": 595,
+        "p95": 595
+      },
+      "worldActiveMeshes": {
+        "p50": 258,
+        "p95": 258
+      },
+      "triangles": {
+        "p50": 200500,
+        "p95": 200500
+      },
+      "p95Range": [
+        15.34000000953673,
+        12.130000013113017,
+        11.584999969601627
+      ],
+      "compiles": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "cell": 2048,
+      "view": 10,
+      "n": 3,
+      "frameIntervalMs": {
+        "p50": 6.300000011920929,
+        "p95": 9.399999976158142
+      },
+      "frameTimeMs": {
+        "p50": 6.100000023841858,
+        "p95": 9.039999985694884
+      },
+      "gpuFrameMs": {
+        "p50": 5.579776,
+        "p95": 8.5453824
+      },
+      "drawCalls": {
+        "p50": 368,
+        "p95": 368
+      },
+      "worldActiveMeshes": {
+        "p50": 171,
+        "p95": 171
+      },
+      "triangles": {
+        "p50": 119451,
+        "p95": 119451
+      },
+      "p95Range": [
+        10.934999984502788,
+        9.33000001907348,
+        9.399999976158142
+      ],
+      "compiles": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "cell": 2048,
+      "view": 20,
+      "n": 3,
+      "frameIntervalMs": {
+        "p50": 10,
+        "p95": 12.959999990463247
+      },
+      "frameTimeMs": {
+        "p50": 9.699999988079071,
+        "p95": 12.900000020861626
+      },
+      "gpuFrameMs": {
+        "p50": 8.491007999999999,
+        "p95": 10.035456
+      },
+      "drawCalls": {
+        "p50": 673,
+        "p95": 673
+      },
+      "worldActiveMeshes": {
+        "p50": 286,
+        "p95": 286
+      },
+      "triangles": {
+        "p50": 234656,
+        "p95": 234656
+      },
+      "p95Range": [
+        13.369999969005583,
+        12.099999964237213,
+        12.959999990463247
+      ],
+      "compiles": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "cell": 2048,
+      "view": "sweep",
+      "n": 3,
+      "frameIntervalMs": {
+        "p50": 8.700000047683716,
+        "p95": 11.900000023841859
+      },
+      "frameTimeMs": {
+        "p50": 8.5,
+        "p95": 11.400000020861626
+      },
+      "gpuFrameMs": {
+        "p50": 8.050688,
+        "p95": 11.2
+      },
+      "drawCalls": {
+        "p50": 522,
+        "p95": 602
+      },
+      "worldActiveMeshes": {
+        "p50": 183,
+        "p95": 267
+      },
+      "triangles": {
+        "p50": 161801,
+        "p95": 195418
+      },
+      "p95Range": [
+        11.900000023841859,
+        11.800000011920929,
+        15.044999983906745
+      ],
+      "compiles": [
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "diagnostics": {
+    "[BspLoader] LightGrid dimension mismatch! The map bounds imply 50820 vols, but lump has 45735. Lighting will be aligned incorrectly.": 9,
+    "[MapLoader] No PK3 found for entity model: /data/models/weapons/rlauncher/rlauncher.glb": 9,
+    "[MapLoader] No PK3 found for entity model: /data/models/weapons/electrobolt/electrobolt.glb": 9,
+    "[MapLoader] No PK3 found for entity model: /data/models/weapons/plasmagun/plasmagun.glb": 9,
+    "[MapLoader] No PK3 found for entity model: /data/models/weapons/riotgun/riotgun.glb": 9,
+    "[MapLoader] No PK3 found for entity model: /data/models/weapons/lasergun/lasergun.glb": 9,
+    "[MapLoader] No PK3 found for entity model: /data/models/weapons/glauncher/glauncher.glb": 9,
+    "[MapLoader] No PK3 found for entity model: /data/models/weapons/machinegun/machinegun.glb": 9,
+    "[Q3ShaderParser] Template not found: models/objects/capture_indicator_template": 36,
+    "[Q3ShaderParser] Template not found: textures/billboard/board_512_256_1": 9,
+    "[WebGL] GL_INVALID_OPERATION: glCompressedTexImage2D: The implied base level dimensions for an S3TC, RGTC, or BPTC texture are not multiples of 4.": 9,
+    "[WebGL] GL_INVALID_OPERATION: glTexStorage2D: The implied base level dimensions for an S3TC, RGTC, or BPTC texture are not multiples of 4.": 27,
+    "[WebGL] GL_INVALID_OPERATION: glCompressedTexSubImage2D: Texture level does not exist.": 270,
+    "[KTX1Loader] Truncated KTX: mip 8 needs 65408 bytes at offset 262272, but buffer is only 262281 bytes": 9,
+    "[Water] bsp_tex_83: non-flat or disconnected batch; using authored/sky fallback, no local waves": 9,
+    "/skins/0: Failed to find common root": 63,
+    "[MapLoader] No handler for entity: team_CTF_betaspawn": 54,
+    "[MapLoader] No handler for entity: misc_capture_area_indicator": 18,
+    "[MapLoader] No handler for entity: trigger_capture_area": 63,
+    "[MapLoader] No handler for entity: trigger_push": 27,
+    "[MapLoader] No handler for entity: target_location": 36,
+    "[MapLoader] No handler for entity: team_CTF_alphaspawn": 36,
+    "[MapLoader] No handler for entity: target_position": 540,
+    "[MapLoader] No handler for entity: target_print": 9,
+    "[MapLoader] No handler for entity: trigger_multiple": 9,
+    "[MapLoader] No handler for entity: target_speaker": 9
+  },
+  "rawArtifactDirectory": "C:\\Users\\sundf\\Desktop\\wash\\shag\\temp\\bsp-performance-wbomb6-2026-09-14T10-56-41-532Z",
+  "notes": [
+    "Runtime source at revision; diagnostic scripts include the timer-import and prebundle fixes described in the research document.",
+    "cpuRenderMs and activeMeshesEvaluationMs are preserved as recorded but are not full-frame CPU totals: Babylon 9.17 PerfCounter.endMonitoring overwrites on later camera passes.",
+    "frameTimeMs is CPU-side elapsed scene render time, including possible driver/GPU waits; frameIntervalMs is the observed interval.",
+    "Asset warnings occur across all configurations; screenshots establish sampled parity, not asset correctness."
+  ],
+  "configuration": {
+    "ready": true,
+    "map": "wbomb6",
+    "spawns": [
+      {
+        "position": [
+          112,
+          58,
+          272
+        ],
+        "yaw": 0
+      },
+      {
+        "position": [
+          -128,
+          154,
+          5472
+        ],
+        "yaw": 3.141592653589793
+      },
+      {
+        "position": [
+          -1184,
+          -214,
+          1592
+        ],
+        "yaw": 0
+      },
+      {
+        "position": [
+          -952,
+          154,
+          4568
+        ],
+        "yaw": 3.141592653589793
+      },
+      {
+        "position": [
+          -1224,
+          154,
+          3896
+        ],
+        "yaw": 3.141592653589793
+      },
+      {
+        "position": [
+          -1352,
+          442,
+          3832
+        ],
+        "yaw": 3.141592653589793
+      },
+      {
+        "position": [
+          -1792,
+          66,
+          2496
+        ],
+        "yaw": 1.5707963267948966
+      },
+      {
+        "position": [
+          -1248,
+          162,
+          1056
+        ],
+        "yaw": 1.5707963267948966
+      },
+      {
+        "position": [
+          -96,
+          162,
+          768
+        ],
+        "yaw": 4.71238898038469
+      },
+      {
+        "position": [
+          1280,
+          162,
+          448
+        ],
+        "yaw": 4.712388718585302
+      },
+      {
+        "position": [
+          832,
+          258,
+          1792
+        ],
+        "yaw": 4.71238898038469
+      },
+      {
+        "position": [
+          1888,
+          418,
+          2976
+        ],
+        "yaw": 1.5707963267948966
+      },
+      {
+        "position": [
+          2272,
+          546,
+          3616
+        ],
+        "yaw": 0
+      },
+      {
+        "position": [
+          1184,
+          514,
+          3584
+        ],
+        "yaw": 4.712388718585302
+      },
+      {
+        "position": [
+          512,
+          258,
+          4160
+        ],
+        "yaw": 3.141592653589793
+      },
+      {
+        "position": [
+          -32,
+          -30,
+          2560
+        ],
+        "yaw": 4.71238898038469
+      },
+      {
+        "position": [
+          1984,
+          258,
+          1728
+        ],
+        "yaw": 0
+      },
+      {
+        "position": [
+          616,
+          274,
+          2800
+        ],
+        "yaw": 0
+      },
+      {
+        "position": [
+          1312,
+          106,
+          2904
+        ],
+        "yaw": 4.712388718585302
+      },
+      {
+        "position": [
+          -792,
+          458,
+          1720
+        ],
+        "yaw": 0
+      },
+      {
+        "position": [
+          -304,
+          170,
+          2784
+        ],
+        "yaw": 0
+      }
+    ],
+    "gl": {
+      "vendor": "Google Inc. (NVIDIA)",
+      "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4070 SUPER (0x00002783) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)"
+    },
+    "webGLVersion": 2,
+    "gpuTimerSupported": true,
+    "viewport": [
+      1280,
+      720
+    ],
+    "horizontalFov": 90,
+    "eyeHeight": 34,
+    "cameraClip": [
+      1,
+      10000
+    ],
+    "renderVars": {
+      "r_ambient": 1,
+      "r_anisotropy": 8,
+      "r_arealights": 1,
+      "r_arealights_auto": 0,
+      "r_arealights_intensity": 1,
+      "r_arealights_max": 4,
+      "r_bloom": 1,
+      "r_bsp_cellsize": 0,
+      "r_bsp_freeze": 1,
+      "r_bsp_pbr": 1,
+      "r_contrast": 1,
+      "r_daynight": 0,
+      "r_daynight_animate": 0,
+      "r_daynight_length": 1440,
+      "r_daynight_lm_max": 1,
+      "r_daynight_lm_min": 0.05,
+      "r_daynight_moon_intensity": 0.15,
+      "r_daynight_sky_tint": 1,
+      "r_daynight_speed": 1,
+      "r_daynight_sun_intensity": 0.3,
+      "r_daynight_time": 0.5,
+      "r_deluxe": 1,
+      "r_emissive": 1,
+      "r_exposure": 1,
+      "r_glossmap": 1,
+      "r_glow": 0,
+      "r_godrays": 1,
+      "r_godrays_decay": 0.965,
+      "r_godrays_density": 0.92,
+      "r_godrays_exposure": 0.32,
+      "r_godrays_samples": 60,
+      "r_godrays_weight": 0.5,
+      "r_ktx2": 1,
+      "r_lightintensity": 1,
+      "r_lightmap": 1,
+      "r_lightmapscale": 1,
+      "r_normalmap": 1,
+      "r_pickupProcedural": 1,
+      "r_showtris": 0,
+      "r_ssr": 0,
+      "r_ssr_strength": 0.4,
+      "r_underwater_distortion": 1,
+      "r_water": 1,
+      "r_water_actors": 1,
+      "r_water_blur": 0.3,
+      "r_water_contact": 0.25,
+      "r_water_debug": 0,
+      "r_water_detail": 0.8,
+      "r_water_highlights": 0.6,
+      "r_water_probe_height": 64,
+      "r_water_quality": 3,
+      "r_water_reflection": 1.3,
+      "r_water_roughness": 0.3,
+      "r_webgpu": 0,
+      "r_wireframe": 0
+    },
+    "postProcessing": {
+      "enabled": true,
+      "bloom": {
+        "enabled": true,
+        "threshold": 0.8,
+        "weight": 0.3,
+        "kernel": 64,
+        "scale": 0.5
+      },
+      "colorGrading": {
+        "enabled": true,
+        "contrast": 1.05,
+        "exposure": 1,
+        "saturation": 1.1
+      },
+      "vignette": {
+        "enabled": true,
+        "weight": 0.3,
+        "color": {
+          "r": 0,
+          "g": 0,
+          "b": 0
+        },
+        "stretch": 0.5
+      },
+      "ssao": {
+        "enabled": false,
+        "radius": 2,
+        "samples": 16,
+        "intensity": 1
+      },
+      "chromaticAberration": {
+        "enabled": false,
+        "amount": 0.5
+      }
+    }
+  }
+}

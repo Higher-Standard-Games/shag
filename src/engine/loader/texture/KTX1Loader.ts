@@ -225,7 +225,7 @@ export function isFormatSupported(engine: AbstractEngine, glInternalFormat: numb
 //  Software DXT Decompression (on-load fallback for any GPU)
 // ══════════════════════════════════════════════════════════════════════
 
-function canSoftwareDecode(format: number): boolean {
+export function canSoftwareDecode(format: number): boolean {
   return (
     format === GL_FORMATS.COMPRESSED_RGB_S3TC_DXT1_EXT ||
     format === GL_FORMATS.COMPRESSED_RGBA_S3TC_DXT1_EXT ||
@@ -446,9 +446,14 @@ function decompressDXT5Block(block: Uint8Array, out: Uint8Array, outOff: number,
 }
 
 /**
- * Software-decode an entire DXT mip level → RGBA Uint8Array
+ * Software-decode an entire compressed mip level → RGBA Uint8Array.
+ *
+ * Exported because callers that need pixels rather than a GPU texture — the
+ * skybox assembles six faces into one cube itself — would otherwise have to
+ * reimplement this, and a second ETC1 decoder is a second chance to get the
+ * bit layout wrong.
  */
-function softwareDecodeMip(data: Uint8Array, width: number, height: number, format: number): Uint8Array {
+export function softwareDecodeMip(data: Uint8Array, width: number, height: number, format: number): Uint8Array {
   const rgba = new Uint8Array(width * height * 4);
   const bw = Math.max(1, Math.ceil(width / 4));
   const bh = Math.max(1, Math.ceil(height / 4));

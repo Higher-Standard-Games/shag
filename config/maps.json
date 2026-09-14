@@ -52,5 +52,11 @@
     "gametypes": [
       "snd"
     ]
+  },
+  "wbomb6": {
+    "displayName": "Depot",
+    "gametypes": [
+      "snd"
+    ]
   }
 }

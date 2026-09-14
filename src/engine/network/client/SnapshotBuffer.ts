@@ -41,6 +41,8 @@ export interface EntitySnapshot {
    * Stepped, never interpolated — a fractional water level is not a state.
    */
   waterLevel?: 0 | 1 | 2 | 3;
+  /** Attached to a ladder. Stepped like waterLevel, never interpolated. */
+  onLadder?: boolean;
 }
 
 /** A timestamped snapshot for the entire frame */
@@ -80,10 +82,28 @@ export interface InterpolatedEntity {
    * Stepped, never interpolated — a fractional water level is not a state.
    */
   waterLevel?: 0 | 1 | 2 | 3;
+  /** Attached to a ladder. Stepped like waterLevel, never interpolated. */
+  onLadder?: boolean;
 }
 
 /** Server gravity constant (must match server physics) */
 const GRAVITY = -800;
+
+/**
+ * How far past the newest snapshot a remote entity may be dead-reckoned.
+ *
+ * Extrapolation covers a late or dropped snapshot, and it is blind: it projects
+ * the last velocity forward with no collision, so every millisecond allowed is
+ * millimetres a body may travel through solid geometry before the truth arrives
+ * and snaps it back. At run speed 200ms is 64 units — a full player width
+ * through a wall — and 180 units off a rocket jump, which is what made remote
+ * players drift into walls, sink through floors and warp.
+ *
+ * One snapshot interval at 30Hz plus a little margin. Past that a body freezes
+ * where it was last seen, which reads as a brief stall instead of a player
+ * standing inside a wall.
+ */
+const MAX_EXTRAPOLATION_SEC = 0.06;
 
 export class SnapshotBuffer {
   private buffer: BufferedSnapshot[] = [];
@@ -208,7 +228,7 @@ export class SnapshotBuffer {
       if (!entity) return null;
 
       // Extrapolate using velocity + gravity (capped to prevent flying off)
-      const elapsed = Math.min((renderTime - this.getSnapTime(before)) / 1000, 0.2); // Max 200ms extrapolation
+      const elapsed = Math.min((renderTime - this.getSnapTime(before)) / 1000, MAX_EXTRAPOLATION_SEC);
       // Apply gravity to Y velocity for parabolic arc (not constant velocity)
       const extraY = entity.grounded
         ? entity.y // Grounded: don't extrapolate Y (stay on surface)
@@ -226,6 +246,7 @@ export class SnapshotBuffer {
         sliding: entity.sliding,
         wallJumping: entity.wallJumping,
         waterLevel: entity.waterLevel,
+        onLadder: entity.onLadder,
         powerupMask: entity.powerupMask,
       };
     }
@@ -337,6 +358,7 @@ export class SnapshotBuffer {
       sliding: clampedT < 0.5 ? a.sliding : b.sliding,
       wallJumping: clampedT < 0.5 ? a.wallJumping : b.wallJumping,
       waterLevel: clampedT < 0.5 ? a.waterLevel : b.waterLevel,
+      onLadder: clampedT < 0.5 ? a.onLadder : b.onLadder,
       // Take the NEWER mask rather than the nearer one: a quad expiring or
       // being grabbed should read the moment the server says so.
       powerupMask: b.powerupMask ?? a.powerupMask,

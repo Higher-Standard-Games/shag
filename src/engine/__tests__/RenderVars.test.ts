@@ -166,6 +166,20 @@ describe("RenderVars", () => {
   // ── Get/Set ───────────────────────────────────────────────
 
   describe("get/set", () => {
+    it("stores spatial batching through the console without scheduling a live material update", () => {
+      const rv = getRV();
+      const apply = vi.spyOn(rv, "applyToScene");
+      expect(rv.get("r_bsp_cellsize")).toBe(0);
+      expect(Cvar.set("r_bsp_cellsize", "1024")).toBe(true);
+      expect(rv.get("r_bsp_cellsize")).toBe(1024);
+      expect(rv.exportConfig()).toContain("r_bsp_cellsize 1024");
+      expect(apply).not.toHaveBeenCalled();
+      rv.reset("r_bsp_cellsize");
+      expect(rv.get("r_bsp_cellsize")).toBe(0);
+      expect(apply).not.toHaveBeenCalled();
+      apply.mockRestore();
+    });
+
     it("gets a variable value", () => {
       const rv = getRV();
       expect(rv.get("r_normalmap")).toBe(1.0);

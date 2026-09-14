@@ -40,6 +40,8 @@
     "test:physics": "npx vite-node src/cli/test-server-physics.ts",
     "test:lifts": "npx vite-node src/cli/test-lifts.ts",
     "net:viewlag": "npx vite-node src/cli/measure-viewlag.ts",
+    "audit:pvs": "npx vite-node src/cli/audit-pvs.ts --",
+    "audit:stuck": "npx vite-node src/cli/audit-stuck.ts --",
     "tools:convert": "npx vite-node src/cli/convert-fbx.ts --",
     "tools:fbx2gltf": "npx vite-node scripts/download-fbx2gltf.ts",
     "tools:textures": "node scripts/convert-ktx2.js",

@@ -16,7 +16,7 @@ import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Scene } from "@babylonjs/core/scene";
 import { PK3Loader } from "../pk3/PK3Loader";
-import { parseKTX1 } from "./KTX1Loader";
+import { canSoftwareDecode, parseKTX1, softwareDecodeMip } from "./KTX1Loader";
 
 // Q3 skybox face suffixes - MUST match Q3 tr_shader.c order!
 // From Q3 source: static char *suf[6] = {"rt", "bk", "lf", "ft", "up", "dn"};
@@ -91,6 +91,33 @@ const Q3_TO_BABYLON_FACE_MAP: { index: number; transform: FaceTransform }[] = [
   { index: 3, transform: "flipH" }, // slot 5: pz ← ft
 ];
 
+/**
+ * Bring an undersized cube face up to the cube's face size by nearest-neighbour.
+ *
+ * Every face of a cube texture must be the same size, but authors stub the faces
+ * nobody looks at: wbomb6 ships a 1x1 grey `_dn` beside five 512x512 faces.
+ * Replicating it fills that face with its own colour, which is what a 1x1 image
+ * means. Reading it at the other faces' size instead read 4 bytes as 512x512 and
+ * lost the whole sky.
+ */
+export function scaleFaceTo(data: Uint8Array, size: number, target: number): Uint8Array {
+  if (size === target || size <= 0) return data;
+  const scaled = new Uint8Array(target * target * 4);
+  for (let y = 0; y < target; y++) {
+    const srcY = Math.min(size - 1, Math.floor((y * size) / target));
+    for (let x = 0; x < target; x++) {
+      const srcX = Math.min(size - 1, Math.floor((x * size) / target));
+      const src = (srcY * size + srcX) * 4;
+      const dst = (y * target + x) * 4;
+      scaled[dst] = data[src];
+      scaled[dst + 1] = data[src + 1];
+      scaled[dst + 2] = data[src + 2];
+      scaled[dst + 3] = data[src + 3];
+    }
+  }
+  return scaled;
+}
+
 export interface SkyboxLoadResult {
   /** Whether loading was successful */
   success: boolean;
@@ -142,26 +169,35 @@ export class SkyboxLoader {
     console.log(`[SkyboxLoader] Loading skybox: ${basePath}`);
 
     // Try to load all 6 faces
-    const faceImages: (Uint8Array | null)[] = [];
+    const faces: { data: Uint8Array; size: number }[] = [];
     const loadedFaces: string[] = [];
-    let faceSize = 0;
 
     for (const suffix of Q3_FACE_SUFFIXES) {
-      const result = await this.loadSkyboxFace(basePath, suffix);
+      // Warsow's `skyparmssides` lets a shader point several sides at one image,
+      // and such maps ship the unsuffixed file instead of a full set — wdm2 has
+      // `env/36sky.ktx` and nothing else but `_up`. Falling back to the base name
+      // gives every side that image, which is what the shader asked for.
+      const result = (await this.loadSkyboxFace(basePath, suffix)) ?? (await this.loadSkyboxFace(basePath, ""));
       if (!result) {
         return {
           success: false,
           error: `Failed to load skybox face: ${basePath}${suffix}`,
         };
       }
-      faceImages.push(result.data);
+      faces.push({ data: result.data, size: result.size });
       loadedFaces.push(result.path);
-      if (faceSize === 0) {
-        faceSize = result.size;
-      }
     }
 
-    console.log(`[SkyboxLoader] Loaded ${faceImages.length} faces (${faceSize}x${faceSize})`);
+    // Faces are not required to match. Authors stub the one you never look at —
+    // wbomb6 ships a 1x1 grey `_dn` beside five 512x512 faces — and taking the
+    // first face's size for all six read 4 bytes as 512x512 and lost the sky.
+    const faceSize = Math.max(...faces.map((face) => face.size));
+    const faceImages = faces.map((face) => scaleFaceTo(face.data, face.size, faceSize));
+    const stubbed = faces.filter((face) => face.size !== faceSize).length;
+    console.log(
+      `[SkyboxLoader] Loaded ${faceImages.length} faces (${faceSize}x${faceSize})` +
+        (stubbed ? `, ${stubbed} upscaled from a smaller stub` : ""),
+    );
 
     // Reorder and transform faces from Q3 order to Babylon.js order
     // Babylon RawCubeTexture actual order: nx, px, py, ny, nz, pz
@@ -490,9 +526,16 @@ export class SkyboxLoader {
         return { data: rgba, size: mip.width };
       }
 
-      // Compressed KTX — can't software-decompress for cubemap faces
-      // GPU-compressed textures need createTextureFromKTX1 which requires an engine reference
+      // A cube face needs pixels, not a GPU texture, so reuse the same software
+      // decode the normal texture path uses. ETC1 is the one that matters here:
+      // it is a mobile format desktop WebGL will not accept, and the pk3s ship
+      // 291 of them including this sky.
       const compFmt = ktx.header.glInternalFormat;
+      if (canSoftwareDecode(compFmt)) {
+        const rgba = softwareDecodeMip(mip.data, mip.width, mip.height, compFmt);
+        return { data: rgba, size: mip.width };
+      }
+
       console.warn(`[SkyboxLoader] Cannot decode compressed KTX format 0x${compFmt.toString(16)} for skybox face`);
       return null;
     } catch (e) {

@@ -351,9 +351,27 @@ export interface MatchStateSnapshot {
   totalPlayers: number;
   gametypeName: string;
   scoreLimit: number;
+  /**
+   * Whether this gametype divides players into teams.
+   *
+   * Authoritative, because the client cannot infer it: `teamScores` ships with
+   * both sides present whatever the gametype, so a free-for-all that guessed
+   * from it rendered a team board and filed every player as a spectator.
+   */
+  teamBased?: boolean;
   teamScores?: Record<TeamId, number>;
   playerTeams?: Record<string, TeamId>;
   teamNames?: Record<TeamId, string>;
+  /**
+   * Final standings, independent of live entities.
+   *
+   * The scoreboard reads score and deaths off simulation entities, which are
+   * gone by the time a match ends — so at the exact moment the result matters
+   * most there was nothing left to render, and every player fell through to the
+   * spectator roster. These come from the match's own tally and survive the
+   * entities they describe.
+   */
+  standings?: Array<{ playerId: string; name: string; score: number; deaths: number; ping: number }>;
   /** Spectator roster (no sim entity) — for the scoreboard. Populated by
    *  SnapshotBuilder; client-consumed. */
   spectators?: Array<{ playerId: string; name: string; ping: number }>;

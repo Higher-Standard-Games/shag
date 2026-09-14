@@ -1,6 +1,22 @@
 import type { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { BspFile } from "../BspLoader";
 
+/** Compiled face membership, including every leaf that references each face.
+ * -1 keeps unassigned/invalid faces visible instead of guessing from bounds.
+ */
+export function buildFaceClusters(bsp: BspFile): number[][] {
+  const clusters = Array.from({ length: bsp.faces.length }, () => new Set<number>());
+  const count = bsp.visData?.numClusters ?? 0;
+  for (const leaf of bsp.leafs) {
+    const cluster = Number.isInteger(leaf.cluster) && leaf.cluster >= 0 && leaf.cluster < count ? leaf.cluster : -1;
+    for (let i = 0; i < leaf.numLeafFaces; i++) {
+      const face = bsp.leafFaces[leaf.firstLeafFace + i];
+      clusters[face]?.add(cluster);
+    }
+  }
+  return clusters.map((members) => (members.size ? [...members] : [-1]));
+}
+
 export function getVisibleFaces(
   bsp: BspFile,
   cameraPosition: Vector3,

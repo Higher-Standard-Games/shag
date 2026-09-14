@@ -353,6 +353,7 @@ export class MapLoader {
     const meshResult = BspMeshBuilder.build(bsp, scene, {
       filterTextures: true,
       deluxe: deluxeEnabled,
+      spatialCellSize: this.renderVars.get("r_bsp_cellsize") ?? 0,
     });
     this.currentMeshResult = meshResult;
 
@@ -458,21 +459,10 @@ export class MapLoader {
     // room. Both baked lightmaps and BSP ambient lighting must be set first.
     await this.claimLiquidSurfaces(meshResult, scene, skyEnvironment, !isHeadlessNullEngine);
 
-    // Phase 8b: Register autosprite billboard updates (per-frame)
+    // Phase 8b: Register map-owned billboard updates after frame-level PVS.
     if (meshResult.autospriteMeshes && meshResult.autospriteMeshes.length > 0) {
       progress("Autosprites", `Registering ${meshResult.autospriteMeshes.length} billboard sprites`);
-      scene.registerBeforeRender(() => {
-        // Billboard toward the MAIN eye camera's WORLD position. With the weapon
-        // viewmodel active the scene is multi-camera (`activeCameras = [eye, weapon]`)
-        // and the weapon camera is parented to the eye, so its `.position` is a fixed
-        // local ~0. Babylon 9 leaves `scene.activeCamera` pointing at the last-rendered
-        // (weapon) camera by the time this fires, which froze the sprites in place.
-        // Take `activeCameras[0]` (the eye) and its `globalPosition` (world-space).
-        const eye = scene.activeCameras?.[0] ?? scene.activeCamera;
-        if (eye) {
-          BspMeshBuilder.updateAutosprites(meshResult, eye.globalPosition);
-        }
-      });
+      BspMeshBuilder.registerAutospriteUpdates(meshResult);
     }
 
     // ── Phases 9-12: Gameplay-only (skip for background maps) ──
@@ -534,6 +524,16 @@ export class MapLoader {
         }
       }
       console.log(`[MapLoader] Froze ${frozenCount} materials, skipped ${skippedCount} lightmapped`);
+
+      // Materials were only half of it: the world meshes still recomputed their
+      // world matrix and bounding info every frame despite never moving. The
+      // `bsp render` path already froze them; the playable path built its meshes
+      // directly and never called the helper. Movers are excluded by annotation
+      // rather than by running before they are parented.
+      if ((this.renderVars.get("r_bsp_freeze") ?? 1) >= 0.5) {
+        const frozenMeshes = BspMeshBuilder.freezeStaticWorld(meshResult);
+        console.log(`[MapLoader] Froze ${frozenMeshes} static world meshes (r_bsp_freeze)`);
+      }
     } else {
       console.log(`[MapLoader] Background mode: skipped collisions, entities, assets`);
     }
@@ -619,6 +619,11 @@ export class MapLoader {
       EntityManager.getInstance().registerHandlers();
       setCurrentBspForHandlers(bsp);
       await this.processBspEntities(bsp, scene);
+
+      // Start PVS after material setup and entity spawning have established the
+      // world's intended visibility. The live camera may arrive on a later frame.
+      const { BspManager } = await import("../bsp/BspManager");
+      console.log(`[MapLoader] ${await BspManager.getInstance().enablePVS(scene)}`);
     }
 
     this.currentMap = mapName;
