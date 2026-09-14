@@ -105,12 +105,15 @@ const GRAVITY = -800;
  */
 const MAX_EXTRAPOLATION_SEC = 0.06;
 
+/** Safe starting delay for 60Hz snapshots (~3 intervals) until jitter is measured. */
+const DEFAULT_INTERP_DELAY_MS = 50;
+
 export class SnapshotBuffer {
   private buffer: BufferedSnapshot[] = [];
   private readonly maxBufferSize = 32;
 
   /** Base interpolation delay in ms (auto-adjusts based on jitter) */
-  private interpDelay: number = 50; // 50ms = safe default for 60Hz snapshots (~3 intervals)
+  private interpDelay: number = DEFAULT_INTERP_DELAY_MS;
 
   /** Whether CVars have been registered (once globally) */
   private static cvarsRegistered = false;
@@ -140,15 +143,27 @@ export class SnapshotBuffer {
   private jitterSamples: number[] = [];
   private readonly maxJitterSamples = 20;
 
+  /** Highest tick accepted in this session; null before the first push. */
+  private lastTick: number | null = null;
+
   /**
    * Push a new snapshot into the buffer.
    * Call this when a server state update arrives.
    *
+   * Arrival order is not server chronology. A tick that is not newer than the
+   * newest one already buffered is rejected rather than appended: interpolating
+   * between out-of-order samples walks remote bodies backwards, and a duplicate
+   * would be read as a zero-length bracket. Ticks belong to one session, so
+   * reset() must run at a connection boundary before a lower tick is legal.
+   *
    * @param tick Server tick number
    * @param entities Entity snapshot data
    * @param serverLocalTime Optional server timestamp converted to local time via ClockSync
+   * @returns whether the snapshot was accepted
    */
-  push(tick: number, entities: Map<string, EntitySnapshot>, serverLocalTime?: number): void {
+  push(tick: number, entities: Map<string, EntitySnapshot>, serverLocalTime?: number): boolean {
+    if (this.lastTick !== null && tick <= this.lastTick) return false;
+    this.lastTick = tick;
     const now = performance.now();
 
     // Track jitter for adaptive delay
@@ -173,6 +188,23 @@ export class SnapshotBuffer {
     while (this.buffer.length > this.maxBufferSize) {
       this.buffer.shift();
     }
+    return true;
+  }
+
+  /**
+   * Drop everything tied to the previous connection.
+   *
+   * Entity ids and ticks are only meaningful inside one session, so a reconnect
+   * that kept them would bracket a new body against whoever last held its id and
+   * would carry the disconnect gap into the jitter window as a lasting interp
+   * delay. Call this when a session starts, not when a player respawns.
+   */
+  reset(): void {
+    this.buffer.length = 0;
+    this.jitterSamples.length = 0;
+    this.lastReceiveTime = 0;
+    this.lastTick = null;
+    this.interpDelay = DEFAULT_INTERP_DELAY_MS;
   }
 
   /**
