@@ -179,7 +179,7 @@ function simulation() {
   assert.equal(input.lastProcessedSeq, 77);
 }
 
-// N08: at 33 unacked inputs, unchanged free-fall authority unexpectedly drops
+// N08 fixed: at 33 unacked inputs, unchanged free-fall authority used to move
 // one full physics step. Control at 32 proves this is the replay cap boundary.
 {
   const measure = (count: number) => {
@@ -194,13 +194,19 @@ function simulation() {
   };
   const control = measure(32);
   const truncated = measure(33);
-  observations.N08 = { control, truncated };
+  observations.N08 = { control, truncated, authoritativeY: 5000 };
+  // Inside the replay budget, authority agrees and nothing moves.
   assert.equal(control.before, control.after);
-  assert.notEqual(truncated.before, truncated.after);
+  // Past it, the client resynchronises to authority exactly, instead of landing
+  // on 4958.272 — a position produced by replaying 32 of 33 commands from a
+  // state that precedes all of them.
+  assert.equal(truncated.after, 5000);
 }
 
-// N10: one render-frame catch-up burst. FPSController puts a pending weapon
-// slot only on its first command; the server keeps only the newest six.
+// N10 fixed: one render-frame catch-up burst. FPSController puts a pending
+// weapon slot only on its first command and the server still keeps only the
+// newest six — the six oldest commands forfeit their physics, as they must, but
+// the switch riding one of them is carried onto the oldest survivor.
 {
   const { sim, id } = simulation();
   const queue = sim.getStateMut().getEntityMut(id)!.input!.inputQueue;
@@ -217,9 +223,9 @@ function simulation() {
     slots.push(input.weaponSlot);
   }
   observations.N10 = { sent: 12, requestedSlot: 3, processed, slots };
-  assert.deepEqual(processed, [7, 8, 9, 10, 11, 12]);
-  assert.ok(slots.every((slot) => slot !== 3));
+  assert.deepEqual(processed, [7, 8, 9, 10, 11, 12]); // physics rate unchanged
+  assert.ok(slots.every((slot) => slot === 3));
 }
 
 console.log("QA_OBSERVATIONS=" + JSON.stringify(observations, null, 2));
-console.log("N01/N02/N03/N04/N05/N06 now assert the fixed behaviour; N07/N08/N10 still reproduce. Not a full correctness gate.");
+console.log("N01-N06, N08 and N10 now assert the fixed behaviour; N07 still reproduces. Not a full correctness gate.");
