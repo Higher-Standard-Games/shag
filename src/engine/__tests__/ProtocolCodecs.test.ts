@@ -834,6 +834,33 @@ describe("BinaryProtocol — event serialization", () => {
     expect(ev).toMatchObject({ type: "pickup_notify", entityId: "player_4", label: "Green Armor" });
   });
 
+  it("knockback_state: drag age and explicit inactive state", () => {
+    const events = [
+      { type: "knockback_state", entityId: "player_1", ageTicks: 0 },
+      { type: "knockback_state", entityId: "player_1", ageTicks: 125 },
+      { type: "knockback_state", entityId: "player_1", ageTicks: null },
+    ];
+    expect(roundtripEvents(events)).toEqual(events);
+  });
+
+  it("knockback_state: a value that is not a byte age travels as inactive, not truncated", () => {
+    const decoded = roundtripEvents([
+      { type: "knockback_state", entityId: "p", ageTicks: 300 },
+      { type: "knockback_state", entityId: "p", ageTicks: -1 },
+      { type: "knockback_state", entityId: "p", ageTicks: 2.5 },
+    ]);
+    expect(decoded.map((e) => e.ageTicks)).toEqual([null, null, null]);
+  });
+
+  it("knockback_state: keeps the stream aligned for the event after it", () => {
+    const [kb, combat] = roundtripEvents([
+      { type: "knockback_state", entityId: "player_1", ageTicks: 7 },
+      { type: "combat_state", entityId: "player_1", health: 50, armor: 10, dead: false },
+    ]);
+    expect(kb).toEqual({ type: "knockback_state", entityId: "player_1", ageTicks: 7 });
+    expect(combat).toEqual({ type: "combat_state", entityId: "player_1", health: 50, armor: 10, dead: false });
+  });
+
   it("preserves event order across roundtrip", () => {
     const events = [
       {

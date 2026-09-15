@@ -779,6 +779,7 @@ export class BinaryProtocol {
     powerup_spawn: 19,
     agent_directives: 20,
     lift_state: 21,
+    knockback_state: 22,
   };
 
   private static readonly EVT_NAME_MAP: string[] = [
@@ -804,6 +805,7 @@ export class BinaryProtocol {
     "powerup_spawn",
     "agent_directives",
     "lift_state",
+    "knockback_state",
   ];
 
   /** Wire order for LiftState.phase. Append only — the index is the encoding. */
@@ -1002,6 +1004,16 @@ export class BinaryProtocol {
           encoder.writeString(event.entityId ?? "");
           encoder.writeString(JSON.stringify(event.directives ?? []));
           break;
+
+        // knockback_state: the owner's drag age after this tick. Repeated state
+        // in one byte; 255 means no drag, and so does anything that is not an
+        // integer age a byte can hold — truncating one would invent an age.
+        case 22: {
+          const age = event.ageTicks;
+          encoder.writeString(event.entityId ?? "");
+          encoder.writeUint8(typeof age === "number" && Number.isInteger(age) && age >= 0 && age < 255 ? age : 255);
+          break;
+        }
       }
     }
   }
@@ -1253,6 +1265,14 @@ export class BinaryProtocol {
             directives = [];
           }
           state.events.push({ type, entityId, directives });
+          break;
+        }
+
+        case 22: {
+          // knockback_state
+          const entityId = decoder.readString();
+          const age = decoder.readUint8();
+          state.events.push({ type, entityId, ageTicks: age === 255 ? null : age });
           break;
         }
       }
