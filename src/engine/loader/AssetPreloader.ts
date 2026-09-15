@@ -20,6 +20,7 @@ import {
   ModelLoader,
   type ModelLoadResult,
 } from "./model/ModelLoader";
+import { ModelSourceCache } from "./model/ModelSourceCache";
 
 export interface PreloadProgress {
   current: number;
@@ -32,8 +33,8 @@ export type PreloadProgressCallback = (progress: PreloadProgress) => void;
 export class AssetPreloader {
   private static instance: AssetPreloader;
 
-  /** Cache of preloaded models by path */
-  private modelCache: Map<string, ModelLoadResult> = new Map();
+  /** Preloaded models by path. An entry that lost what it renders with is dropped on lookup. */
+  private modelCache = new ModelSourceCache<ModelLoadResult>("AssetPreloader");
 
   private constructor() {}
 
@@ -45,7 +46,7 @@ export class AssetPreloader {
   }
 
   /**
-   * Check if a model is already cached
+   * Check if a model is cached and can still be cloned
    */
   hasModel(modelPath: string): boolean {
     return this.modelCache.has(modelPath);
@@ -55,23 +56,17 @@ export class AssetPreloader {
    * Get a cached model (returns null if not cached)
    */
   getCachedModel(modelPath: string): ModelLoadResult | null {
-    return this.modelCache.get(modelPath) || null;
+    return this.modelCache.get(modelPath) ?? null;
   }
 
   /**
-   * Clear the cache (call when unloading map)
+   * Release every cached model (call when unloading a map, after its pickups).
+   * Materials and textures a remaining clone still uses are kept.
    */
   clearCache(): void {
-    // Dispose all cached model roots and meshes
-    for (const [path, result] of this.modelCache) {
-      console.log(`[AssetPreloader] Disposing cached model: ${path}`);
-      // Dispose individual meshes (GLB meshes may not be children of root)
-      for (const mesh of result.meshes) {
-        mesh.dispose();
-      }
-      result.root.dispose();
-    }
+    const count = this.modelCache.size;
     this.modelCache.clear();
+    if (count > 0) console.log(`[AssetPreloader] Released ${count} cached models`);
   }
 
   /**
@@ -120,7 +115,7 @@ export class AssetPreloader {
     const BATCH_SIZE = 4;
 
     const loadOneModel = async (modelPath: string): Promise<void> => {
-      // Skip if already cached
+      // Skip if already cached and still renderable
       if (this.modelCache.has(modelPath)) {
         loaded++;
         return;

@@ -746,6 +746,11 @@ export class MapLoader {
     // hierarchy alone does not remove them.
     EntityManager.getInstance().disposeMapEntities();
 
+    // Pickup models were preloaded for this map, and its pickups are gone.
+    // Release the sources; the next map preloads the models it needs.
+    const { AssetPreloader } = await import("../AssetPreloader");
+    AssetPreloader.getInstance().clearCache();
+
     // Hand liquid surfaces back before the meshes go, so nothing is left
     // pointing at a material that is about to be disposed.
     this.liquidSurfaces?.dispose();

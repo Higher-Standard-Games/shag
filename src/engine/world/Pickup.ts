@@ -34,6 +34,7 @@ import { AudioManager } from "../AudioManager";
 import { CameraSystem } from "../camera/CameraSystem";
 import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
 import { type ModelAttachmentPoint, ModelLoader } from "../loader/model/ModelLoader";
+import { disposeModelResources } from "../loader/model/ModelSourceCache";
 import { getCollisionManager } from "../physics";
 import { PhysicsSystem } from "../physics/PhysicsSystem";
 import type { PickupVisual, PickupVisualFactory } from "./PickupVisual";
@@ -84,6 +85,8 @@ export interface PickupOptions {
 export class Pickup extends TransformNode {
   protected options: PickupOptions;
   protected mesh: Mesh | null = null;
+  /** The loader root the meshes were detached from; it still holds glTF nodes and bones. */
+  private modelRoot: TransformNode | null = null;
   /** Exposed through pickup_audit so cache hits can be compared with fresh model loads. */
   protected modelLoadSource: "none" | "cache-flat" | "fresh-flat" = "none";
   /** Authored tag_* transforms retained even when the cached GLB is flattened. */
@@ -255,6 +258,7 @@ export class Pickup extends TransformNode {
         if (result.root) {
           result.root.parent = null;
           result.root.setEnabled(false);
+          this.modelRoot = result.root;
         }
 
         // Physics: only apply Havok for tossed pickups (dropped weapons).
@@ -665,17 +669,17 @@ export class Pickup extends TransformNode {
     this.removePhysics();
 
     // Procedural visuals own their own meshes/materials/transients — dispose
-    // through the visual handle, NOT the blind leader-mesh path below (which
-    // force-disposes shared cached geometry/materials).
+    // through the visual handle.
     if (this.visual) {
       this.visual.dispose();
       this.visual = null;
     }
 
-    if (this.mesh && !this.mesh.isDisposed()) {
-      this.mesh.dispose(false, true);
-    }
+    // A model clone shares materials, textures and its skeleton with the
+    // preloaded source and every other clone; release only what nothing else uses.
+    disposeModelResources([this.mesh, this.modelRoot]);
     this.mesh = null as unknown as Mesh;
+    this.modelRoot = null;
 
     super.dispose();
   }

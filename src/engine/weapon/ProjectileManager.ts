@@ -19,6 +19,7 @@ import type { Scene } from "@babylonjs/core/scene";
 import { DEFAULT_PROJECTILE_BOUNCE_FACTOR, getEntityRegistry, type ProjectileDef } from "../../shared/entities";
 import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
 import { getMD3Loader, type MD3LoadResult } from "../loader/model/MD3Loader";
+import { ModelSourceCache } from "../loader/model/ModelSourceCache";
 import { PK3Loader } from "../loader/pk3/PK3Loader";
 import {
   BLADE_EXPLOSION,
@@ -85,15 +86,18 @@ export class ProjectileManager {
     defId: string;
   }> = [];
 
-  // Cache loaded projectile models for cloning
-  private modelCache: Map<string, MD3LoadResult> = new Map();
+  // Projectile models for cloning. An entry that lost what it renders with is
+  // dropped on lookup and loaded again.
+  private modelCache = new ModelSourceCache<MD3LoadResult>("ProjectileManager");
   // Cache projectile model textures
   private modelTextureCache: Map<string, string> = new Map(); // defId -> url
   // Cache sprite textures
   private spriteCache: Map<string, string> = new Map(); // defId -> url
   // Cache impact models
-  private impactModelCache: Map<string, MD3LoadResult> = new Map();
+  private impactModelCache = new ModelSourceCache<MD3LoadResult>("ProjectileManager");
   private impactTextureCache: Map<string, string> = new Map();
+  /** Preloads in progress by def id, so every spawn during a reload shares one load. */
+  private preloads = new Map<string, Promise<boolean>>();
 
   // Pre-allocated temporaries for hot-loop reuse (avoids per-frame GC pressure)
   private _tmpMoveDir = Vector3.Zero();
@@ -258,9 +262,18 @@ export class ProjectileManager {
   }
 
   /**
-   * Preload a projectile model (call during init for instant spawning)
+   * Preload a projectile model (call during init for instant spawning).
+   * A model whose meshes, materials or textures were disposed loads again.
    */
-  public async preloadModel(defId: string): Promise<boolean> {
+  public preloadModel(defId: string): Promise<boolean> {
+    const pending = this.preloads.get(defId);
+    if (pending) return pending;
+    const load = this.loadModelAssets(defId).finally(() => this.preloads.delete(defId));
+    this.preloads.set(defId, load);
+    return load;
+  }
+
+  private async loadModelAssets(defId: string): Promise<boolean> {
     if (!this.scene) return false;
 
     const registry = getEntityRegistry();
@@ -296,10 +309,8 @@ export class ProjectileManager {
       } catch (e) {
         console.warn(`[ProjectileManager] Failed to load sprite: ${path}`, e);
       }
-    } else {
+    } else if (!this.modelCache.has(defId)) {
       // MD3 model
-      if (this.modelCache.has(defId)) return true;
-
       const md3Loader = getMD3Loader();
       try {
         const modelData = await pk3.getFile(path);
@@ -475,6 +486,9 @@ export class ProjectileManager {
       const scale = def.scale ?? 1.0;
       node.scaling.setAll(scale);
     } else {
+      // A model disposed with the scene or its textures loads again in the
+      // background; until it arrives, projectiles show only their trail and light.
+      if (def.modelPath) void this.preloadModel(defId);
       console.warn(`[ProjectileManager] Failed to spawn projectile ${defId}: No cached model or sprite`);
       // Fallback: simple glowing sphere - REMOVED per user request (was causing "blue dot" artifact)
       // const mesh = MeshBuilder.CreateSphere(`${id}_mesh`, { diameter: 0.5 }, this.scene);

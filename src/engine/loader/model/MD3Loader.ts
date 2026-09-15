@@ -22,6 +22,7 @@ import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Scene } from "@babylonjs/core/scene";
 import { PK3TextureLoader } from "../pk3/PK3TextureLoader";
 import { Q3ShaderRegistry } from "../shader/Q3ShaderRegistry";
+import { isTextureReleased } from "./ModelSourceCache";
 
 // MD3 Constants
 const MD3_IDENT = 0x33504449; // "IDP3" in little-endian
@@ -454,6 +455,10 @@ export class MD3Loader {
       // console.log(`[MD3] Reusing material structure: ${materialName}`);
       // We don't return early anymore - we proceed to refresh the texture
       // This ensures that if the texture was disposed (but material wasn't), it gets reloaded.
+      // Unbind a disposed texture now rather than when the refresh arrives: model
+      // caches drop a model whose material samples a released texture.
+      if (mat.diffuseTexture && isTextureReleased(mat.diffuseTexture)) mat.diffuseTexture = null;
+      if (mat.emissiveTexture && isTextureReleased(mat.emissiveTexture)) mat.emissiveTexture = null;
     } else {
       mat = new StandardMaterial(materialName, this.scene);
       console.log(`[MD3] Creating material for shader: "${normalizedName}"`, props);
