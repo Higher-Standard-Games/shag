@@ -3,6 +3,11 @@ import { KhronosTextureContainer2 } from "@babylonjs/core/Misc/khronosTextureCon
 import { initializeWebWorker } from "@babylonjs/core/Misc/khronosTextureContainer2Worker.js";
 import { AutoReleaseWorkerPool } from "@babylonjs/core/Misc/workerPool.js";
 
+/** A decoder worker that has not answered its init message by then counts as failed. */
+const WORKER_START_TIMEOUT_MS = 30_000;
+
+type DecoderBinaries = Parameters<typeof initializeWebWorker>[1];
+
 let initialization: Promise<void> | null = null;
 
 /**
@@ -15,6 +20,83 @@ export function ensureKTX2Decoder(): Promise<void> {
     initialization = initializeKTX2Decoder();
   }
   return initialization;
+}
+
+/** Share one load until it fails, so the next caller retries a transient failure. */
+export function cacheUntilFailure<T>(load: () => Promise<T>): () => Promise<T> {
+  let pending: Promise<T> | null = null;
+  return () => {
+    pending ??= load().catch((error) => {
+      pending = null;
+      throw error;
+    });
+    return pending;
+  };
+}
+
+/**
+ * Start one decoder worker for Babylon's KTX2 worker pool.
+ *
+ * The pool runs a queued decode only after its worker promise resolves, and
+ * does not handle a rejection. A worker that failed to start would leave that
+ * decode, and every later decode queued for its slot, waiting forever: the
+ * texture would neither load nor report an error, so it would never fall back
+ * to its source image. A failed or stalled start therefore resolves to a
+ * stand-in that fails each decode at once. The slot is then freed as usual, so
+ * a later decode tries a real worker again.
+ */
+export async function startDecoderWorker(
+  createWorker: () => Worker,
+  binaries: () => Promise<DecoderBinaries>,
+  timeoutMs = WORKER_START_TIMEOUT_MS,
+): Promise<Worker> {
+  const started: { worker?: Worker } = {};
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const start = (async () => {
+      started.worker = createWorker();
+      return initializeWebWorker(started.worker, await binaries());
+    })();
+    start.catch(() => {}); // A start that loses the race below may still reject.
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`no init response within ${timeoutMs}ms`)), timeoutMs);
+    });
+    return await Promise.race([start, timeout]);
+  } catch (error) {
+    started.worker?.terminate();
+    console.warn("[KTX2] Decoder worker failed to start; KTX2 textures fall back to their source images", error);
+    return unavailableDecoderWorker(error);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Stands in for a worker that could not start: every decode fails, as a decode error would. */
+function unavailableDecoderWorker(reason: unknown): Worker {
+  const listeners = new Set<EventListenerOrEventListenerObject>();
+  const msg = `KTX2 decoder worker unavailable: ${reason instanceof Error ? reason.message : String(reason)}`;
+  const worker = {
+    addEventListener(type: string, listener: EventListenerOrEventListenerObject) {
+      if (type === "message") listeners.add(listener);
+    },
+    removeEventListener(type: string, listener: EventListenerOrEventListenerObject) {
+      if (type === "message") listeners.delete(listener);
+    },
+    postMessage(message: { action?: string } | undefined) {
+      if (message?.action !== "decode") return;
+      const event = { data: { action: "decoded", success: false, msg } } as MessageEvent;
+      queueMicrotask(() => {
+        for (const listener of [...listeners]) {
+          if (typeof listener === "function") listener(event);
+          else listener.handleEvent(event);
+        }
+      });
+    },
+    terminate() {
+      listeners.clear();
+    },
+  };
+  return worker as unknown as Worker;
 }
 
 async function initializeKTX2Decoder(): Promise<void> {
@@ -59,19 +141,23 @@ async function initializeKTX2Decoder(): Promise<void> {
     wasmUASTCToRG8_UNORM: rg8Wasm.default,
     wasmZSTDDecoder: zstdWasm.default,
   };
-  const wasmBinaries = Promise.all(
-    Object.entries(wasmUrls).map(async ([name, url]) => {
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`KTX2 ${name} fetch failed: HTTP ${response.status}`);
-      }
-      return [name, await response.arrayBuffer()] as const;
-    }),
-  ).then((entries) => Object.fromEntries(entries));
+  const wasmBinaries = cacheUntilFailure(() =>
+    Promise.all(
+      Object.entries(wasmUrls).map(async ([name, url]) => {
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`KTX2 ${name} fetch failed: HTTP ${response.status}`);
+        }
+        return [name, await response.arrayBuffer()] as const;
+      }),
+    ).then((entries) => Object.fromEntries(entries)),
+  );
 
   const workerCount = Math.max(1, KhronosTextureContainer2.DefaultNumWorkers);
-  KhronosTextureContainer2.WorkerPool = new AutoReleaseWorkerPool(workerCount, async () => {
-    const worker = new Worker(new URL("./KTX2DecoderWorker.ts", import.meta.url), { type: "module" });
-    return initializeWebWorker(worker, await wasmBinaries);
-  });
+  KhronosTextureContainer2.WorkerPool = new AutoReleaseWorkerPool(workerCount, () =>
+    startDecoderWorker(
+      () => new Worker(new URL("./KTX2DecoderWorker.ts", import.meta.url), { type: "module" }),
+      wasmBinaries,
+    ),
+  );
 }
