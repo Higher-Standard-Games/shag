@@ -89,13 +89,13 @@ function apply(client: V2NetworkClient, value: ServerSnapshot) {
 
 // N03 fixed: no new inputs between reconciliations. The same authoritative
 // state and input history must produce the same result, knockback drag age
-// included. Age is now anchored to a step index instead of counted per call.
+// included. The age now arrives with the snapshot and every replay restores it.
 {
   const client = new V2NetworkClient({ tickRate: 125 });
   apply(client, snapshot());
-  client.applyKnockback(100, { x: 1, y: 1, z: 0 }, 5, true);
   for (let i = 0; i < 30; i++) client.processInput(idle);
-  const authority = { ...snapshot(2), velocity: { x: 400, y: 400, z: 0 } };
+  // Deep in the drag window, so the replay really applies drag.
+  const authority = { ...snapshot(2), velocity: { x: 400, y: 400, z: 0 }, knockbackAgeTicks: 80 };
   apply(client, authority);
   const first = { ...client.getPosition() };
   apply(client, { ...authority, tick: 3 });

@@ -265,12 +265,13 @@ Projectiles (rockets, grenades, plasma) are server-authoritative:
 
 ### 10. Knockback System
 
-Server-side knockback with client prediction:
+Server-side knockback, replicated as state:
 
 1. **Server:** Damage dealt → knockback impulse queued on victim
 2. **Server:** Impulse applied as velocity change before next movement simulation
-3. **Client:** Self-damage detected locally → immediate KB prediction via `V2NetworkClient.applyKnockback()`
-4. **Reconciliation:** Server confirms or corrects the predicted KB
+3. **Server:** Air drag steps the impulse's age once per tick; a landing or the end of the drag window ends it
+4. **Snapshot:** The impulse travels as velocity. Its owner alone also receives `knockback_state` — the drag age after that tick, or null when inactive
+5. **Client:** Reconciliation adopts the age with position and velocity, and every predicted or replayed step advances it through the same `applyKnockbackDrag` the server runs. The client never predicts an impulse itself
 
 Splash damage uses radius-based falloff with configurable `splashRadius`, `splashDamage`, and `knockbackScale` per weapon.
 
@@ -472,9 +473,6 @@ if (v2Client.hasValidPosition()) {
 const ms = v2Client.getMovementState();
 // { isSliding, isCrouching, crouchViewOffset, wallJumpState,
 //   ledgeGrabState, actualHorizSpeed, slidePhase, ledgeGrabPhase }
-
-// Apply client-predicted knockback (for instant self-damage feedback)
-v2Client.applyKnockback(damage, direction, kbScale, isSelf);
 ```
 
 ### Features
