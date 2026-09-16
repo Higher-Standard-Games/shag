@@ -235,10 +235,7 @@ describe("ServiceLocator", () => {
       // Even though B threw, the locator's own dispose loop must not propagate
       // — A's dispose still has to run after B's failure.
       expect(disposed).toEqual(["C", "B", "A"]);
-      expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringContaining("Dispose of 'B' threw:"),
-        expect.any(Error),
-      );
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("Dispose of 'B' threw:"), expect.any(Error));
       warnSpy.mockRestore();
     });
   });

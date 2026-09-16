@@ -190,9 +190,15 @@ function addDoorToGroup(targetname: string, controller: ReturnType<typeof create
   if (!group) {
     group = {
       controllers: [],
-      open: () => group!.controllers.forEach((c) => c.open()),
-      close: () => group!.controllers.forEach((c) => c.close()),
-      toggle: () => group!.controllers.forEach((c) => c.toggle()),
+      open: () => {
+        for (const c of group!.controllers) c.open();
+      },
+      close: () => {
+        for (const c of group!.controllers) c.close();
+      },
+      toggle: () => {
+        for (const c of group!.controllers) c.toggle();
+      },
     };
     doorGroups.set(targetname, group);
   }

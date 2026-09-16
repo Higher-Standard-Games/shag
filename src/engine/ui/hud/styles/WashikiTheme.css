@@ -2494,7 +2494,8 @@
    button use. It was red here, which is a different team as far as a player is
    concerned: you left a pink column in the lobby and arrived in a red one. */
 .fps-scoreboard-team--ally .fps-scoreboard-team-title {
-  background: linear-gradient(100deg, var(--team-ally, hsl(320, 100%, 60%)), hsla(255, 30%, 10%, 0.9)), var(--w-scan-cream);
+  background:
+    linear-gradient(100deg, var(--team-ally, hsl(320, 100%, 60%)), hsla(255, 30%, 10%, 0.9)), var(--w-scan-cream);
 }
 
 .fps-scoreboard-team--ally .fps-scoreboard-row {
@@ -2503,7 +2504,8 @@
 
 /* Soba Team (armor cyan) */
 .fps-scoreboard-team--enemy .fps-scoreboard-team-title {
-  background: linear-gradient(115deg, var(--team-enemy, hsl(186, 98%, 58%)), hsla(210, 62%, 18%, 0.92) 70%), var(--w-scan-cyan);
+  background:
+    linear-gradient(115deg, var(--team-enemy, hsl(186, 98%, 58%)), hsla(210, 62%, 18%, 0.92) 70%), var(--w-scan-cyan);
 }
 
 .fps-scoreboard-team--enemy .fps-scoreboard-row {

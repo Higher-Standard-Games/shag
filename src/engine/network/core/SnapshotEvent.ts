@@ -231,6 +231,7 @@ export interface PowerupSpawnEvent {
 
 /** One-shot snapshot event — discriminated on `type`. Mirrors BinaryProtocol. */
 export type SnapshotEvent =
+  | { type: "knockback_state"; entityId: string; ageTicks: number | null }
   | CombatStateEvent
   | MatchStateEvent
   | WeaponStateEvent

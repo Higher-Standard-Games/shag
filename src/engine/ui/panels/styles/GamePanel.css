@@ -122,9 +122,7 @@
   flex-direction: column;
   overflow: hidden;
   z-index: 1;
-  background:
-    linear-gradient(138deg, hsla(238, 36%, 9%, 0.95), hsla(245, 42%, 5%, 0.96)),
-    var(--gp-scan);
+  background: linear-gradient(138deg, hsla(238, 36%, 9%, 0.95), hsla(245, 42%, 5%, 0.96)), var(--gp-scan);
   border-top: 2px solid hsla(180, 100%, 50%, 0.28);
   border-bottom: 2px solid hsla(180, 100%, 50%, 0.28);
   box-shadow:
@@ -270,9 +268,7 @@
   line-height: 1;
   text-transform: uppercase;
   color: var(--w-text, hsl(180, 100%, 95%));
-  background:
-    linear-gradient(92deg, hsla(180, 100%, 50%, 0.12), hsla(320, 100%, 60%, 0.06)),
-    hsla(238, 38%, 8%, 0.7);
+  background: linear-gradient(92deg, hsla(180, 100%, 50%, 0.12), hsla(320, 100%, 60%, 0.06)), hsla(238, 38%, 8%, 0.7);
   border: 1.5px solid hsla(180, 100%, 50%, 0.28);
   clip-path: polygon(6% 0, 100% 0, 94% 100%, 0 100%);
   box-shadow:
@@ -346,9 +342,7 @@
   line-height: 1;
   text-transform: uppercase;
   color: var(--w-text-muted, hsl(220, 10%, 55%));
-  background:
-    linear-gradient(92deg, hsla(180, 100%, 50%, 0.08), hsla(0, 0%, 100%, 0.03) 62%),
-    var(--gp-flat);
+  background: linear-gradient(92deg, hsla(180, 100%, 50%, 0.08), hsla(0, 0%, 100%, 0.03) 62%), var(--gp-flat);
   border: 1.5px solid hsla(180, 100%, 50%, 0.24);
   clip-path: polygon(8% 0, 100% 0, 92% 100%, 0 100%);
   box-shadow:
@@ -489,8 +483,7 @@
   margin-bottom: 8px;
   padding: 10px 14px;
   background:
-    linear-gradient(92deg, hsla(180, 100%, 50%, 0.07), hsla(0, 0%, 100%, 0.025) 62%),
-    hsla(238, 38%, 8%, 0.62);
+    linear-gradient(92deg, hsla(180, 100%, 50%, 0.07), hsla(0, 0%, 100%, 0.025) 62%), hsla(238, 38%, 8%, 0.62);
   border: 1px solid hsla(180, 100%, 50%, 0.2);
   clip-path: polygon(2% 0, 100% 0, 98% 100%, 0 100%);
   box-shadow:
@@ -606,9 +599,7 @@
   letter-spacing: 0.1em;
   text-align: center;
   color: var(--w-text, hsl(180, 100%, 95%));
-  background:
-    linear-gradient(92deg, hsla(180, 100%, 50%, 0.14), hsla(0, 0%, 100%, 0.04) 62%),
-    hsla(238, 38%, 8%, 0.82);
+  background: linear-gradient(92deg, hsla(180, 100%, 50%, 0.14), hsla(0, 0%, 100%, 0.04) 62%), hsla(238, 38%, 8%, 0.82);
   border: 1.5px solid hsla(180, 100%, 50%, 0.32);
   clip-path: polygon(8% 0, 100% 0, 92% 100%, 0 100%);
   box-shadow: 3px 3px 0 hsla(250, 45%, 4%, 0.36);
@@ -646,9 +637,7 @@
   line-height: 1;
   text-transform: uppercase;
   color: var(--w-text, hsl(180, 100%, 95%));
-  background:
-    linear-gradient(92deg, hsla(180, 100%, 50%, 0.16), hsla(0, 0%, 100%, 0.04) 62%),
-    hsla(238, 38%, 8%, 0.9);
+  background: linear-gradient(92deg, hsla(180, 100%, 50%, 0.16), hsla(0, 0%, 100%, 0.04) 62%), hsla(238, 38%, 8%, 0.9);
   border: 1.5px solid hsla(180, 100%, 50%, 0.38);
   clip-path: polygon(7% 0, 100% 0, 93% 100%, 0 100%);
   box-shadow:
@@ -701,8 +690,7 @@
   color: hsl(350, 100%, 86%);
   border-color: hsla(345, 100%, 62%, 0.58);
   background:
-    linear-gradient(92deg, hsla(345, 100%, 62%, 0.24), hsla(320, 100%, 60%, 0.06) 62%),
-    hsla(248, 42%, 8%, 0.92);
+    linear-gradient(92deg, hsla(345, 100%, 62%, 0.24), hsla(320, 100%, 60%, 0.06) 62%), hsla(248, 42%, 8%, 0.92);
   box-shadow:
     var(--gp-shadow-sm),
     inset 5px 0 0 hsla(345, 100%, 62%, 0.54);
@@ -746,7 +734,14 @@
   width: min(240px, 68vw);
   height: 6px;
   margin: 10px 0;
-  background: linear-gradient(90deg, transparent, var(--w-gold, hsl(45, 100%, 55%)) 18%, var(--w-magenta, hsl(320, 100%, 60%)) 50%, var(--w-cyan, hsl(180, 100%, 50%)) 82%, transparent);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--w-gold, hsl(45, 100%, 55%)) 18%,
+    var(--w-magenta, hsl(320, 100%, 60%)) 50%,
+    var(--w-cyan, hsl(180, 100%, 50%)) 82%,
+    transparent
+  );
   clip-path: polygon(4% 0, 100% 0, 96% 100%, 0 100%);
   box-shadow: 3px 3px 0 hsla(250, 45%, 4%, 0.38);
 }

@@ -21,11 +21,11 @@ describe("parseAmmoCounter", () => {
   });
 
   it("returns null when the weapon declares no counter", () => {
-    expect(parseAmmoCounter("firesound \"x\"\nbarrel 850 0.5 0.5")).toBeNull();
+    expect(parseAmmoCounter('firesound "x"\nbarrel 850 0.5 0.5')).toBeNull();
   });
 
   it("ignores a commented-out ammoCounter line", () => {
-    expect(parseAmmoCounter("// ammoCounter \"LCDdigits\" 46 0.18 0.34 0.75 0.22 0.3")).toBeNull();
+    expect(parseAmmoCounter('// ammoCounter "LCDdigits" 46 0.18 0.34 0.75 0.22 0.3')).toBeNull();
   });
 
   it("tolerates an unquoted font and extra whitespace", () => {

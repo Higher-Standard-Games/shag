@@ -20,6 +20,7 @@ import {
   ModelLoader,
   type ModelLoadResult,
 } from "./model/ModelLoader";
+import { ModelSourceCache } from "./model/ModelSourceCache";
 
 export interface PreloadProgress {
   current: number;
@@ -32,8 +33,8 @@ export type PreloadProgressCallback = (progress: PreloadProgress) => void;
 export class AssetPreloader {
   private static instance: AssetPreloader;
 
-  /** Cache of preloaded models by path */
-  private modelCache: Map<string, ModelLoadResult> = new Map();
+  /** Preloaded models by path. An entry that lost what it renders with is dropped on lookup. */
+  private modelCache = new ModelSourceCache<ModelLoadResult>("AssetPreloader");
 
   private constructor() {}
 
@@ -45,7 +46,7 @@ export class AssetPreloader {
   }
 
   /**
-   * Check if a model is already cached
+   * Check if a model is cached and can still be cloned
    */
   hasModel(modelPath: string): boolean {
     return this.modelCache.has(modelPath);
@@ -55,23 +56,17 @@ export class AssetPreloader {
    * Get a cached model (returns null if not cached)
    */
   getCachedModel(modelPath: string): ModelLoadResult | null {
-    return this.modelCache.get(modelPath) || null;
+    return this.modelCache.get(modelPath) ?? null;
   }
 
   /**
-   * Clear the cache (call when unloading map)
+   * Release every cached model (call when unloading a map, after its pickups).
+   * Materials and textures a remaining clone still uses are kept.
    */
   clearCache(): void {
-    // Dispose all cached model roots and meshes
-    for (const [path, result] of this.modelCache) {
-      console.log(`[AssetPreloader] Disposing cached model: ${path}`);
-      // Dispose individual meshes (GLB meshes may not be children of root)
-      for (const mesh of result.meshes) {
-        mesh.dispose();
-      }
-      result.root.dispose();
-    }
+    const count = this.modelCache.size;
     this.modelCache.clear();
+    if (count > 0) console.log(`[AssetPreloader] Released ${count} cached models`);
   }
 
   /**
@@ -120,7 +115,7 @@ export class AssetPreloader {
     const BATCH_SIZE = 4;
 
     const loadOneModel = async (modelPath: string): Promise<void> => {
-      // Skip if already cached
+      // Skip if already cached and still renderable
       if (this.modelCache.has(modelPath)) {
         loaded++;
         return;
@@ -225,15 +220,32 @@ export class AssetPreloader {
       const clonedRoot = new TransformNode(`${cached.root.name}_clone_${Date.now()}`, scene);
       const clonedMeshes: Mesh[] = [];
 
+      // Babylon clones a mesh together with its children, so a cached mesh that
+      // sits under another cached mesh already arrives inside that one's clone.
+      // Cloning it again would draw the same geometry twice in the same place.
+      const sources = new Set<unknown>(cached.meshes);
+      const carriedByAnother = (mesh: Mesh): boolean => {
+        let parent = mesh.parent;
+        while (parent) {
+          if (sources.has(parent)) return true;
+          parent = parent.parent;
+        }
+        return false;
+      };
+
       // Clone each mesh from the cached model
       for (const mesh of cached.meshes) {
-        if (mesh.clone) {
-          const clonedMesh = mesh.clone(`${mesh.name}_clone`, clonedRoot);
-          if (clonedMesh) {
-            clonedMesh.setEnabled(true);
-            clonedMesh.isVisible = true;
-            clonedMeshes.push(clonedMesh);
-          }
+        if (!mesh.clone || carriedByAnother(mesh)) continue;
+        const clonedMesh = mesh.clone(`${mesh.name}_clone`, clonedRoot);
+        if (!clonedMesh) continue;
+        // Sources are cached hidden, and a clone inherits that for its whole
+        // subtree — not just the mesh named in the clone call. A child left
+        // hidden is a weapon body that never draws while the barrels loaded
+        // fresh beside it do.
+        for (const node of [clonedMesh, ...clonedMesh.getChildMeshes(false)]) {
+          node.setEnabled(true);
+          node.isVisible = true;
+          clonedMeshes.push(node as Mesh);
         }
       }
 

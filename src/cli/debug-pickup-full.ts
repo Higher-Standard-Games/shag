@@ -1,13 +1,14 @@
 /**
  * Comprehensive headless test to verify computeWorldMatrix fixes child positions
  */
-import { runCli } from "./_runCli";
+
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import { Logger } from "@babylonjs/core/Misc/logger";
 import { Scene } from "@babylonjs/core/scene";
+import { runCli } from "./_runCli";
 
 Logger.LogLevels = 0;
 

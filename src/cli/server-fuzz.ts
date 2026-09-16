@@ -1,4 +1,5 @@
 #!/usr/bin/env npx vite-node
+
 /**
  * Server Fuzz Test
  *
@@ -12,11 +13,11 @@
  *   npm run server:fuzz -- --ticks 100000 --seed 42
  */
 
-import { runCli } from "./_runCli";
 import { Simulation } from "../engine/server/core/Simulation";
 import { createPlayerEntity } from "../engine/server/ecs/Entity";
 import { EntityType, entityId, playerId } from "../engine/server/ecs/types";
 import { CharacterPhysicsSystem } from "../games/fps/server/systems/CharacterPhysicsSystem";
+import { runCli } from "./_runCli";
 
 // ═══════════════════════════════════════════════════════════════════
 // CONFIGURATION

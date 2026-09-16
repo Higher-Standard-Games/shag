@@ -34,8 +34,10 @@ import { AudioManager } from "../AudioManager";
 import { CameraSystem } from "../camera/CameraSystem";
 import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
 import { type ModelAttachmentPoint, ModelLoader } from "../loader/model/ModelLoader";
+import { disposeModelResources } from "../loader/model/ModelSourceCache";
 import { getCollisionManager } from "../physics";
 import { PhysicsSystem } from "../physics/PhysicsSystem";
+import { describeModelRender } from "./ModelRenderAudit";
 import type { PickupVisual, PickupVisualFactory } from "./PickupVisual";
 
 export interface PickupOptions {
@@ -57,8 +59,17 @@ export interface PickupOptions {
   respawnTime?: number;
   /** Scale multiplier. Default 1.5. */
   scale?: number;
+  /** Yaw (radians) the model rests at, so a row of the same item does not read as copies. */
+  yaw?: number;
   /** Drop to the floor after spawn (BSP raycast). */
   gravity?: boolean;
+  /**
+   * The spawn position is already where this item rests, so skip the floor
+   * raycast. A map weapon is thrown to its resting spot by the shared landing
+   * that the server's trigger uses; raycasting again is a client-only guess that
+   * can seat the model below the floor, invisible where the trigger still is.
+   */
+  landedOnFloor?: boolean;
   /** Enable bobbing/rotation animation (default true). */
   bobbing?: boolean;
   /** Optional glow light color (RGB 0-1). */
@@ -84,6 +95,8 @@ export interface PickupOptions {
 export class Pickup extends TransformNode {
   protected options: PickupOptions;
   protected mesh: Mesh | null = null;
+  /** The loader root the meshes were detached from; it still holds glTF nodes and bones. */
+  private modelRoot: TransformNode | null = null;
   /** Exposed through pickup_audit so cache hits can be compared with fresh model loads. */
   protected modelLoadSource: "none" | "cache-flat" | "fresh-flat" = "none";
   /** Authored tag_* transforms retained even when the cached GLB is flattened. */
@@ -236,7 +249,7 @@ export class Pickup extends TransformNode {
           leaderMesh.parent = null;
           leaderMesh.position.copyFrom(this.getAbsolutePosition());
           leaderMesh.rotationQuaternion = null;
-          leaderMesh.rotation.setAll(0);
+          leaderMesh.rotation.set(0, this.options.yaw ?? 0, 0);
           leaderMesh.isVisible = true;
           leaderMesh.scaling.setAll(pickupScale);
 
@@ -249,12 +262,22 @@ export class Pickup extends TransformNode {
           }
 
           this.mesh = leaderMesh;
+        } else {
+          // Every mesh in the result was empty, so nothing is drawn and nothing
+          // says so. A cached source whose geometry has gone hands out clones
+          // with no vertices; a weapon with sub-models then shows only the parts
+          // loaded fresh after this point — its barrels, standing on no body.
+          console.warn(
+            `[Pickup] ${this.name}: no renderable mesh from ${this.modelLoadSource} ` +
+              `(${result.meshes.length} meshes, all empty) — nothing will be drawn`,
+          );
         }
 
         // Detach loader root from scene hierarchy without disposing children.
         if (result.root) {
           result.root.parent = null;
           result.root.setEnabled(false);
+          this.modelRoot = result.root;
         }
 
         // Physics: only apply Havok for tossed pickups (dropped weapons).
@@ -276,8 +299,11 @@ export class Pickup extends TransformNode {
             }
           }
         } else {
-          // Map spawn: raycast down to BSP floor, then place mesh there
-          this.dropToGround();
+          // Map spawn: raycast down to the BSP floor, then place the mesh there —
+          // unless the spawn position is already the resting spot the server's
+          // trigger uses, in which case a second, client-only raycast can only
+          // disagree with it (and has, by seating models below the floor).
+          if (!this.options.landedOnFloor) this.dropToGround();
           this.settled = true;
           if (leaderMesh) {
             leaderMesh.position.copyFrom(this.getAbsolutePosition());
@@ -407,35 +433,7 @@ export class Pickup extends TransformNode {
   public describeModelForAudit(): string {
     const leader = this.mesh;
     if (!leader) return `source=${this.modelLoadSource} model=NONE`;
-
-    const meshes = [leader, ...leader.getChildMeshes(false)].filter((mesh) => mesh.getTotalVertices() > 0);
-    const activeMeshes = this.getScene().getActiveMeshes();
-    let negative = 0;
-    let positive = 0;
-    let zero = 0;
-    let active = 0;
-    let ready = 0;
-    let culled = 0;
-    let enabled = 0;
-    let visible = 0;
-    for (const mesh of meshes) {
-      const determinant = mesh.computeWorldMatrix(true).determinant();
-      if (determinant < -1e-6) negative++;
-      else if (determinant > 1e-6) positive++;
-      else zero++;
-      if (activeMeshes.contains(mesh)) active++;
-      if (mesh.isReady(true)) ready++;
-      if (mesh.material?.backFaceCulling) culled++;
-      if (mesh.isEnabled()) enabled++;
-      if (mesh.isVisible && mesh.visibility > 0) visible++;
-    }
-
-    return (
-      `source=${this.modelLoadSource},parent=${leader.parent?.name ?? "none"},meshes=${meshes.length},` +
-      `det(-/+0)=${negative}/${positive}/${zero},active=${active}/${meshes.length},` +
-      `enabled=${enabled}/${meshes.length},visible=${visible}/${meshes.length},` +
-      `ready=${ready}/${meshes.length},backCull=${culled}/${meshes.length}`
-    );
+    return `source=${this.modelLoadSource},parent=${leader.parent?.name ?? "none"},${describeModelRender(leader, this.getScene())}`;
   }
 
   public dropToGround() {
@@ -665,17 +663,17 @@ export class Pickup extends TransformNode {
     this.removePhysics();
 
     // Procedural visuals own their own meshes/materials/transients — dispose
-    // through the visual handle, NOT the blind leader-mesh path below (which
-    // force-disposes shared cached geometry/materials).
+    // through the visual handle.
     if (this.visual) {
       this.visual.dispose();
       this.visual = null;
     }
 
-    if (this.mesh && !this.mesh.isDisposed()) {
-      this.mesh.dispose(false, true);
-    }
+    // A model clone shares materials, textures and its skeleton with the
+    // preloaded source and every other clone; release only what nothing else uses.
+    disposeModelResources([this.mesh, this.modelRoot]);
     this.mesh = null as unknown as Mesh;
+    this.modelRoot = null;
 
     super.dispose();
   }

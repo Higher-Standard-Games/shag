@@ -1,10 +1,10 @@
-import { runCli } from "./_runCli";
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import { Logger } from "@babylonjs/core/Misc/logger";
 import { Scene } from "@babylonjs/core/scene";
 import { FPSPickup } from "../games/fps/world/FPSPickup";
+import { runCli } from "./_runCli";
 
 // Mute babylon noise
 Logger.LogLevels = 0;

@@ -13,6 +13,7 @@ import { extractPickups } from "../shared/bsp/PickupTable";
 import { extractSpawnPoints, extractTeamSpawnPoints, type SpawnVec3 } from "../shared/bsp/SpawnPointTable";
 import type { TriggerVolume } from "../shared/bsp/TriggerTable";
 import { extractTriggerVolumes } from "../shared/bsp/TriggerTable";
+import { landMapPickups } from "../shared/items/ItemThrow";
 
 export interface BspData {
   collision: CollisionWorld;
@@ -72,9 +73,10 @@ export async function loadBspCollision(mapName: string, gamePath = "./game"): Pr
 
   console.log(`[Map] Found ${spawnPoints.length} spawn points`);
 
-  // Extract the authoritative pickup table (weapons/armor/health) — shared
-  // extractor guarantees ids match the client.
-  const pickups = extractPickups(bsp.entities);
+  // Extract the authoritative pickup table (weapons/armor/health) — the shared
+  // extractor guarantees ids match the client — with each weapon moved to where
+  // its spawn toss comes to rest, the same spot clients draw it.
+  const pickups = landMapPickups(extractPickups(bsp.entities), collision);
   console.log(`[Map] Found ${pickups.length} tracked pickups (weapon/armor/health)`);
 
   // Extract trigger volumes (teleporters + jumppads) via the shared TriggerTable.

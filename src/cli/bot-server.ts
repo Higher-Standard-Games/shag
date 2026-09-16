@@ -18,8 +18,8 @@
  *   --difficulty <level>     Difficulty: easy, medium, hard, insane (default: medium)
  */
 
-import { runCli } from "./_runCli";
 import { BotServer } from "../bot/BotServer";
+import { runCli } from "./_runCli";
 
 // ── Parse Arguments ─────────────────────────────────────────────────────
 

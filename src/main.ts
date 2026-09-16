@@ -26,7 +26,6 @@ import { EngineVersion } from "./engine/core/EngineVersion";
 import { GamePaths } from "./engine/core/GamePaths";
 import { DebugConsole } from "./engine/debug";
 import { TextureManager, TextureMemoryManager } from "./engine/loader";
-import { MapLoader } from "./engine/loader/map/MapLoader";
 import { PK3Index } from "./engine/loader/pk3/PK3Index";
 import { InstancedMeshManager } from "./engine/rendering/InstancedMeshManager";
 import {
@@ -209,59 +208,31 @@ async function main() {
   const player = new FPSPlayer(controller);
   console.log("[Main] FPSPlayer initialized");
 
-  // Check if a map was specified via URL param
-  const requestedMap = new URLSearchParams(window.location.search).get("map");
+  // ── Lobby (no 3D background — will use background image in future) ──
+  // Every map is played on a server the lobby spawns; the client loads it on join.
+  loadingScreen.setStatus("Loading lobby...");
+  await userReadyPromise;
 
-  if (requestedMap) {
-    // Wait for user click before switching to MapLoadingOverlay
-    await userReadyPromise;
-    loadingScreen.hide();
+  // Stop piping progress to splash screen
+  unsubProgress();
 
-    // Enable map loading overlay for explicit map loads
-    MapLoadingOverlay.enable();
+  // Enable overlay for future map loads (e.g., joining a match)
+  MapLoadingOverlay.enable();
 
-    // Load map if specified in URL
-    console.log(`[Main] Loading map from URL: ${requestedMap}`);
-    const mapLoader = MapLoader.getInstance();
-    const result = await mapLoader.loadMap(requestedMap, scene);
+  // Hide splash → show lobby (seamless: both click AND map are ready)
+  loadingScreen.hide();
 
-    if (result.success && result.playerStartPosition) {
-      console.log(`[Main] Map loaded: ${requestedMap}`);
-      const fpsController = cameraSystem.getController("fps");
-      if (fpsController && "setPosition" in fpsController) {
-        (fpsController as FPSController).setPosition(result.playerStartPosition);
-      } else {
-        camera.position.copyFrom(result.playerStartPosition);
-      }
-    } else {
-      console.error(`[Main] Failed to load map: ${requestedMap}`);
-    }
-  } else {
-    // ── Lobby (no 3D background — will use background image in future) ──
-    loadingScreen.setStatus("Loading lobby...");
-    await userReadyPromise;
+  // Show lobby UI — main menu on top of the 3D background
+  const lobby = new LobbyPanel();
+  lobby.show();
 
-    // Stop piping progress to splash screen
-    unsubProgress();
+  // Connect play button (Phase 1: just log; Phase 2+: real matchmaking)
+  lobby.setOnPlay((mode) => {
+    console.log(`[Lobby] Queue for mode: ${mode}`);
+  });
 
-    // Enable overlay for future map loads (e.g., joining a match)
-    MapLoadingOverlay.enable();
-
-    // Hide splash → show lobby (seamless: both click AND map are ready)
-    loadingScreen.hide();
-
-    // Show lobby UI — main menu on top of the 3D background
-    const lobby = new LobbyPanel();
-    lobby.show();
-
-    // Connect play button (Phase 1: just log; Phase 2+: real matchmaking)
-    lobby.setOnPlay((mode) => {
-      console.log(`[Lobby] Queue for mode: ${mode}`);
-    });
-
-    // Store lobby reference for gameplay map transitions
-    debugWindow.__lobbyPanel = lobby;
-  }
+  // Store lobby reference for gameplay map transitions
+  debugWindow.__lobbyPanel = lobby;
 
   // Hide lobby when a GAMEPLAY map starts loading (network connect, console map cmd, etc.)
   // Uses loading:start (not map:loaded) so it fires IMMEDIATELY, not after map finishes.

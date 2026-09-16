@@ -502,11 +502,13 @@ export class BinaryProtocol {
       } else if (baselineEntity) {
         const baselinePos = baselineEntity.getComponent("position");
         if (baselinePos) {
-          entity.addComponent("position", baselinePos);
+          entity.addComponent("position", baselinePos.clone());
         }
         const baselineTransform = baselineEntity.getComponent("transform");
         if (baselineTransform) {
-          entity.addComponent("transform", baselineTransform);
+          // Rotation can change independently below. Never write into the
+          // retained baseline (N11), which other deltas may still reference.
+          entity.addComponent("transform", baselineTransform.clone());
         }
       }
 
@@ -637,7 +639,7 @@ export class BinaryProtocol {
         // Carry forward from baseline
         const baselineMeta = baselineEntity.getComponent("weaponMeta");
         if (baselineMeta) {
-          entity.addComponent("weaponMeta", baselineMeta);
+          entity.addComponent("weaponMeta", baselineMeta.clone());
         }
       }
 
@@ -777,6 +779,7 @@ export class BinaryProtocol {
     powerup_spawn: 19,
     agent_directives: 20,
     lift_state: 21,
+    knockback_state: 22,
   };
 
   private static readonly EVT_NAME_MAP: string[] = [
@@ -802,6 +805,7 @@ export class BinaryProtocol {
     "powerup_spawn",
     "agent_directives",
     "lift_state",
+    "knockback_state",
   ];
 
   /** Wire order for LiftState.phase. Append only — the index is the encoding. */
@@ -1000,6 +1004,16 @@ export class BinaryProtocol {
           encoder.writeString(event.entityId ?? "");
           encoder.writeString(JSON.stringify(event.directives ?? []));
           break;
+
+        // knockback_state: the owner's drag age after this tick. Repeated state
+        // in one byte; 255 means no drag, and so does anything that is not an
+        // integer age a byte can hold — truncating one would invent an age.
+        case 22: {
+          const age = event.ageTicks;
+          encoder.writeString(event.entityId ?? "");
+          encoder.writeUint8(typeof age === "number" && Number.isInteger(age) && age >= 0 && age < 255 ? age : 255);
+          break;
+        }
       }
     }
   }
@@ -1253,6 +1267,14 @@ export class BinaryProtocol {
           state.events.push({ type, entityId, directives });
           break;
         }
+
+        case 22: {
+          // knockback_state
+          const entityId = decoder.readString();
+          const age = decoder.readUint8();
+          state.events.push({ type, entityId, ageTicks: age === 255 ? null : age });
+          break;
+        }
       }
     }
   }
@@ -1268,13 +1290,15 @@ export enum MessageType {
   Welcome = 0x01,
   JoinAccept = 0x02,
   JoinReject = 0x03,
-  Snapshot = 0x04,
+  LegacySnapshot = 0x04, // Unidentified baseline; unsafe to decode on the live network
   PlayerJoined = 0x05,
   PlayerLeft = 0x06,
   GameStart = 0x07,
   Ack = 0x08,
   ServerMessage = 0x09, // Generic server→client text message (queue, rejection, info)
   Pong = 0x0a,
+  Snapshot = 0x0b, // Baseline-identified envelope; raw demo snapshot format is unchanged
+  ResumeToken = 0x0c, // The token a dropped client presents to take its seat back
 
   // Client → Server
   Join = 0x81,
@@ -1287,6 +1311,7 @@ export enum MessageType {
   RequestSpawn = 0x88, // Dead player requests respawn (after cooldown)
   Chat = 0x89, // In-game chat text (server sanitizes, rate-limits, rebroadcasts as snapshot event)
   SetLoadout = 0x8a, // Chosen spawn kit (S&D). Takes effect from the next round.
+  Resume = 0x8b, // Reconnecting client claims the session it was dropped from
 }
 
 // Text encoder/decoder for UTF-8 strings (more efficient than UTF-16)

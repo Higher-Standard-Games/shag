@@ -1,13 +1,14 @@
 /**
  * Simple spawn test - check if player can spawn and stand on ground
  */
-import { runCli } from "./_runCli";
+
 import * as fs from "node:fs";
 import * as path from "node:path";
 import JSZip from "jszip";
 import { BspLoader } from "../engine/loader/bsp/BspLoader";
 import type { Vec3 } from "../engine/network/components/TransformComponent";
 import { MovementProfile as FPSMovementProfile } from "../games/fps/simulation/MovementProfile";
+import { runCli } from "./_runCli";
 import { createHeadlessCollisionWorld } from "./HeadlessBSPCollisionWorld";
 
 async function loadBsp() {

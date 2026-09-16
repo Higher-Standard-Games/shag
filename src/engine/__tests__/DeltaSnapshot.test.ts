@@ -217,10 +217,7 @@ describe("Delta Snapshot", () => {
       same.tick = 2;
       addPlayer(same, "p1", "e1", "Alice");
       same.players.get("p1")!.team = "udon";
-      const decodedSame = BinaryProtocol.decodeSnapshot(
-        BinaryProtocol.encodeSnapshot(same, baseline),
-        baseline,
-      );
+      const decodedSame = BinaryProtocol.decodeSnapshot(BinaryProtocol.encodeSnapshot(same, baseline), baseline);
       expect(decodedSame.players.get("p1")!.team).toBe("udon");
 
       // Changed team → re-sent
@@ -228,10 +225,7 @@ describe("Delta Snapshot", () => {
       changed.tick = 3;
       addPlayer(changed, "p1", "e1", "Alice");
       changed.players.get("p1")!.team = "soba";
-      const decodedChanged = BinaryProtocol.decodeSnapshot(
-        BinaryProtocol.encodeSnapshot(changed, baseline),
-        baseline,
-      );
+      const decodedChanged = BinaryProtocol.decodeSnapshot(BinaryProtocol.encodeSnapshot(changed, baseline), baseline);
       expect(decodedChanged.players.get("p1")!.team).toBe("soba");
     });
   });

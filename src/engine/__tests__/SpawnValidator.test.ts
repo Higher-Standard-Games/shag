@@ -346,10 +346,7 @@ describe("SpawnValidator", () => {
   describe("MaxCountValidator", () => {
     it("allows when count is below maxCount", () => {
       const v = new MaxCountValidator();
-      const transformNodes = [
-        { name: "prefab_tower_001" },
-        { name: "prefab_other_001" },
-      ];
+      const transformNodes = [{ name: "prefab_tower_001" }, { name: "prefab_other_001" }];
       const ctx = makeContext({
         prefabName: "tower",
         triggerProperties: { maxCount: "3" },
@@ -360,10 +357,7 @@ describe("SpawnValidator", () => {
 
     it("denies when count equals or exceeds maxCount", () => {
       const v = new MaxCountValidator();
-      const transformNodes = [
-        { name: "prefab_tower_001" },
-        { name: "prefab_tower_002" },
-      ];
+      const transformNodes = [{ name: "prefab_tower_001" }, { name: "prefab_tower_002" }];
       const ctx = makeContext({
         prefabName: "tower",
         triggerProperties: { maxCount: "2" },

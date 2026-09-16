@@ -9,10 +9,14 @@ import type { Scene } from "@babylonjs/core/scene";
 // Type-only imports are erased at compile time.
 import type { InventoryManager } from "../../games/fps/world/InventoryManager";
 import { extractPickups, type PickupEntry } from "../../shared/bsp/PickupTable";
+import { SharedCollisionWorld } from "../../shared/collision/SharedCollisionWorld";
 import type { EntityDef } from "../../shared/entities/EntityDef";
 import { EntityRegistry } from "../../shared/entities/EntityRegistry";
 import { EntityType } from "../../shared/entities/EntityType";
+import { landMapPickups } from "../../shared/items/ItemThrow";
 import { type EntityData, EntityHandlerRegistry, type EntityHandlerResult } from "../core/EntityHandlerRegistry";
+import { getCollisionManager } from "../physics/CollisionManager";
+import { SweepBackendAdapter } from "../physics/SweepBackendAdapter";
 import { RenderVars } from "../rendering/RenderVars";
 import type { PickupVisualFactory } from "../world/PickupVisual";
 
@@ -25,24 +29,11 @@ function proceduralPickupsEnabled(): boolean {
   }
 }
 
-/** Upward pop given to a map-spawned weapon so it drops in rather than appearing. */
-const SPAWN_TOSS_UP = 95;
-/** Horizontal scatter of that toss. Deliberately small — see mapSpawnTossVelocity. */
-const SPAWN_TOSS_SPREAD = 22;
+/** A map weapon's resting yaw, from its pickup id, so a rack of them does not read as identical props. */
+function mapWeaponYaw(pickupId: number): number {
+  return (pickupId * 2.399963) % (Math.PI * 2);
+}
 
-/**
- * Toss velocity for a map-spawned pickup, or undefined to keep the old
- * place-flat-on-the-floor behaviour.
- *
- * Weapons get the same Havok toss a player-dropped weapon uses, so a rack of
- * them no longer reads as identical props laid out on the ground. The horizontal
- * component is kept small on purpose: the pickup TRIGGER is server-side at the
- * mapper's entity origin, so the visual has to settle next to where it spawned —
- * a full drop-strength throw would let weapons skate away from their own trigger
- * or off a ledge. Vertical pop plus the tumble Pickup already applies does the
- * work. Seeded off the pickup id so a given spawn always lands the same way and
- * respawns are not a lottery.
- */
 /** Pickup categories the client spawns visuals for (mirrors shared PickupType). */
 type ClientPickupType = "weapon" | "ammo" | "armor" | "health" | "powerup";
 
@@ -69,14 +60,6 @@ function pickupTypeOf(def: EntityDef, fallback: ClientPickupType): ClientPickupT
   }
 }
 
-function mapSpawnTossVelocity(type: ClientPickupType, pickupId: number): Vector3 | undefined {
-  if (type !== "weapon") return undefined;
-  // Deterministic per spawn: two decorrelated angles/magnitudes from the id.
-  const angle = ((pickupId * 2.399963) % (Math.PI * 2)) + 0.5;
-  const spread = SPAWN_TOSS_SPREAD * (0.35 + ((pickupId * 0.618) % 1) * 0.65);
-  return new Vector3(Math.cos(angle) * spread, SPAWN_TOSS_UP, Math.sin(angle) * spread);
-}
-
 /**
  * Resolve the procedural visual factory for a health/armor/ammo definition, or
  * undefined to keep the MD3 model path (weapons, unknown ids, or toggle off).
@@ -98,16 +81,29 @@ export class EntityManager {
   private static instance: EntityManager;
   private entities: any[] = []; // TODO: ActiveEntity interface
   /**
-   * Authoritative weapon-pickup table for the current map, derived from the SAME
-   * shared extractor the server uses (src/shared/bsp/PickupTable.ts). Pickup ids
-   * come from here so they match the server exactly — no parallel counter.
+   * Authoritative pickup table for the current map, derived from the SAME shared
+   * extractor the server uses (src/shared/bsp/PickupTable.ts). Pickup ids come
+   * from here so they match the server exactly — no parallel counter — and map
+   * entities are matched to it by their authored origin.
    * Rebuilt each map load via the pre-render hook registered in registerHandlers().
    */
   private pickupTable: PickupEntry[] = [];
 
+  /** The same table with each weapon where its spawn toss comes to rest, which is where the server's trigger is. */
+  private landedPickups: PickupEntry[] = [];
+
   /** Stable identity lets EntityHandlerRegistry de-duplicate this hook across reloads. */
   private readonly rebuildPickupTable = (entities: EntityData[]) => {
     this.pickupTable = extractPickups(entities);
+    const sweep = getCollisionManager().getSweepBackend();
+    if (!sweep) {
+      console.warn("[EntityManager] Collision is not ready: weapons stay at authored spots the server does not use");
+    }
+    // Without collision there is no landing to speak of: the authored spots stand,
+    // and each pickup finds the floor beneath it the way it always did.
+    this.landedPickups = sweep
+      ? landMapPickups(this.pickupTable, new SharedCollisionWorld(new SweepBackendAdapter(sweep)))
+      : [];
   };
 
   private constructor() {}
@@ -279,7 +275,14 @@ export class EntityManager {
     // the recipe/toggle declines). Weapons/ammo keep the MD3 model path.
     const visualFactory = await resolvePickupVisualFactory(def, type);
 
-    const pickup = new FPSPickup(name, scene, position, {
+    // A weapon is drawn where its spawn toss comes to rest — the exact spot the
+    // server's trigger and bot goals use. It is placed there and left there: a
+    // floor raycast on top of that is a client-only guess which can disagree with
+    // the server, and did, seating models below the floor where the trigger stayed.
+    const landed = type === "weapon" ? this.landedPickups.find((e) => e.id === pickupId)?.position : undefined;
+    const spawnAt = landed ? new Vector3(landed.x, landed.y, landed.z) : position;
+
+    const pickup = new FPSPickup(name, scene, spawnAt, {
       id: def.id,
       modelPath: def.modelPath || "models/items/ammo/ammobox/ammobox.md3",
       type: type,
@@ -291,10 +294,8 @@ export class EntityManager {
       glowColor: def.glowColor,
       pickupId,
       visualFactory,
-      // Weapons land rather than appear: giving them a velocity routes Pickup
-      // through the same Havok toss a player-dropped weapon uses, so they drop
-      // and tumble to rest instead of being placed flat and identical.
-      velocity: mapSpawnTossVelocity(type, pickupId),
+      yaw: type === "weapon" ? mapWeaponYaw(pickupId) : undefined,
+      landedOnFloor: landed !== undefined,
     });
 
     // A map entity is not spawned until its visual construction has settled.
@@ -323,6 +324,7 @@ export class EntityManager {
     }
     this.entities = [];
     this.pickupTable = [];
+    this.landedPickups = [];
   }
   /**
    * Check if player is picking up any entities

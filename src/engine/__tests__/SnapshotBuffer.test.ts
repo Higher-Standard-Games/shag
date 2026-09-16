@@ -218,4 +218,56 @@ describe("SnapshotBuffer", () => {
       expect(buffer.getInterpDelay()).toBeGreaterThan(0);
     });
   });
+
+  // N06/W02: arrival order is not server chronology, and ticks and entity ids
+  // only mean anything inside one connection.
+  describe("Session freshness", () => {
+    const at = (x: number) => new Map([["e1", makeEntity({ x })]]);
+
+    it("rejects a stale tick instead of bracketing a body backwards", () => {
+      expect(buffer.push(20, at(200))).toBe(true);
+      // Reordered delivery of tick 18 previously regressed the body to x=100.
+      expect(buffer.push(18, at(100))).toBe(false);
+      expect(buffer.getBufferSize()).toBe(1);
+      expect(buffer.sample("e1")?.x).toBe(200);
+      expect(buffer.push(21, at(210))).toBe(true);
+    });
+
+    it("rejects a duplicate tick, which would read as a zero-length bracket", () => {
+      expect(buffer.push(7, at(70))).toBe(true);
+      expect(buffer.push(7, at(999))).toBe(false);
+      expect(buffer.getBufferSize()).toBe(1);
+    });
+
+    it("accepts a lower tick only after the session boundary", () => {
+      buffer.push(5000, at(1));
+      expect(buffer.push(1, at(2))).toBe(false);
+      buffer.reset();
+      expect(buffer.push(1, at(2))).toBe(true);
+    });
+
+    it("drops the previous connection's samples and restores the default delay", () => {
+      const now = vi.spyOn(performance, "now");
+      let clock = 1000;
+      now.mockImplementation(() => clock);
+      for (let tick = 1; tick <= 6; tick++) {
+        clock += 100; // 100ms apart: enough jitter history to move interpDelay
+        buffer.push(tick, at(tick));
+      }
+      const laggedDelay = buffer.getInterpDelay();
+      expect(buffer.getBufferSize()).toBe(6);
+
+      buffer.reset();
+      expect(buffer.getBufferSize()).toBe(0);
+      expect(buffer.sample("e1")).toBeNull();
+
+      // A disconnect gap is not jitter: the next session must not inherit it.
+      clock += 60_000;
+      buffer.push(1, at(1));
+      clock += 16;
+      buffer.push(2, at(2));
+      expect(buffer.getInterpDelay()).toBeLessThan(laggedDelay);
+      now.mockRestore();
+    });
+  });
 });

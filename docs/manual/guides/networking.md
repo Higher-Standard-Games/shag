@@ -33,6 +33,20 @@ SHAG Engine uses Q3-style server-authoritative multiplayer networking. If you've
 
 ## Core Concepts
 
+### Supported network timing
+
+The FPS browser client supports **125Hz simulation (8ms steps)**. Input sampling
+and prediction use the same rate. `initializeNetwork` rejects other client rate
+settings, and `NetworkGameHost` checks the server's Welcome before map loading,
+seat acceptance or snapshot delivery. A mismatch rejects the connection with an
+error naming the advertised and required rates; resumed connections are checked
+again. Early snapshot datagrams are discarded until the handshake completes.
+
+Server timing experiments at other integer rates remain available, but a 60Hz
+or 250Hz server cannot be joined by this FPS client. Welcome represents tick rate
+as one byte, so server configuration is limited to 1–255Hz. Arbitrary-rate FPS
+prediction requires further work on tick-based gameplay constants.
+
 ### 1. Tick-Based Simulation
 
 The game runs in discrete time steps called **ticks**, not continuous real-time.
@@ -265,12 +279,13 @@ Projectiles (rockets, grenades, plasma) are server-authoritative:
 
 ### 10. Knockback System
 
-Server-side knockback with client prediction:
+Server-side knockback, replicated as state:
 
 1. **Server:** Damage dealt → knockback impulse queued on victim
 2. **Server:** Impulse applied as velocity change before next movement simulation
-3. **Client:** Self-damage detected locally → immediate KB prediction via `V2NetworkClient.applyKnockback()`
-4. **Reconciliation:** Server confirms or corrects the predicted KB
+3. **Server:** Air drag steps the impulse's age once per tick; a landing or the end of the drag window ends it
+4. **Snapshot:** The impulse travels as velocity. Its owner alone also receives `knockback_state` — the drag age after that tick, or null when inactive
+5. **Client:** Reconciliation adopts the age with position and velocity, and every predicted or replayed step advances it through the same `applyKnockbackDrag` the server runs. The client never predicts an impulse itself
 
 Splash damage uses radius-based falloff with configurable `splashRadius`, `splashDamage`, and `knockbackScale` per weapon.
 
@@ -472,9 +487,6 @@ if (v2Client.hasValidPosition()) {
 const ms = v2Client.getMovementState();
 // { isSliding, isCrouching, crouchViewOffset, wallJumpState,
 //   ledgeGrabState, actualHorizSpeed, slidePhase, ledgeGrabPhase }
-
-// Apply client-predicted knockback (for instant self-damage feedback)
-v2Client.applyKnockback(damage, direction, kbScale, isSelf);
 ```
 
 ### Features

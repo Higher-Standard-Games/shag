@@ -244,7 +244,9 @@ export class DebugConsole {
       this.log("command", "inspect");
       CommandRegistry.getInstance()
         .execute("inspect")
-        .then((result) => { if (result) this.log("result", result); });
+        .then((result) => {
+          if (result) this.log("result", result);
+        });
     });
   }
 

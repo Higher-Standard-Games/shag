@@ -26,13 +26,7 @@ export class GameDialogPanel {
   private escHandler: (e: KeyboardEvent) => void;
 
   constructor(options: GameDialogPanelOptions) {
-    const {
-      title,
-      extraClass = "",
-      closeOnBackdrop = true,
-      closeOnEscape = true,
-      showCloseButton = true,
-    } = options;
+    const { title, extraClass = "", closeOnBackdrop = true, closeOnEscape = true, showCloseButton = true } = options;
 
     this.closeOnEscape = closeOnEscape;
 

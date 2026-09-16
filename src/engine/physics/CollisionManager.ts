@@ -31,6 +31,12 @@ export class CollisionManager {
     const backend = this.backends.get("q3");
     return backend instanceof SweepCollisionBackend ? backend.lifts : undefined;
   }
+
+  /** The Q3 sweep backend, the one the server's collision world also runs, once initialized. */
+  getSweepBackend(): SweepCollisionBackend | null {
+    const backend = this.backends.get("q3");
+    return this.initialized && backend instanceof SweepCollisionBackend ? backend : null;
+  }
   private static instance: CollisionManager | null = null;
 
   // Debug: unique ID to track singleton
