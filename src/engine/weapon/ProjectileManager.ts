@@ -11,6 +11,7 @@ import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector";
+import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import type { LinesMesh } from "@babylonjs/core/Meshes/linesMesh";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
@@ -43,7 +44,8 @@ interface ActiveProjectile {
   bounceFactor: number; // Velocity retention on bounce
   spawnTime: number;
   lifetime: number;
-  materials: StandardMaterial[]; // For fade-in effect
+  /** Faded in through their own visibility: every shot of a type shares one material. */
+  fadeMeshes: AbstractMesh[];
   trailPoints: Vector3[]; // Position history for trail rendering
   trailMesh: LinesMesh | null; // Current trail line mesh
   /**
@@ -151,44 +153,20 @@ export class ProjectileManager {
   // the view-model muzzle and converge onto the true trajectory over the
   // first fraction of a second. Position on the wire is untouched.
 
-  /** Visual muzzle relative to the camera (units): forward, down. */
-  private static readonly MUZZLE_FORWARD = 34;
-  private static readonly MUZZLE_DOWN = 9;
   /** Time for the visual to converge onto the authoritative trajectory. */
   private static readonly MUZZLE_CONVERGE_SEC = 0.22;
-  /** "This is my shot" heuristic: spawned near my camera, flying along my view. */
-  private static readonly OWN_SHOT_MAX_DIST = 120;
-
-  /**
-   * If a freshly spawned server projectile looks like the local player's own
-   * shot, return the render offset that moves its visual to the view-model
-   * muzzle (decays to zero over MUZZLE_CONVERGE_SEC).
-   */
-  private computeMuzzleOffset(position: Vector3, velocity: Vector3): Vector3 | null {
-    const camera = this.scene?.activeCamera;
-    if (!camera) return null;
-
-    const camPos = camera.globalPosition;
-    if (Vector3.Distance(position, camPos) > ProjectileManager.OWN_SHOT_MAX_DIST) return null;
-
-    const forward = camera.getDirection(Vector3.Forward());
-    const speed = velocity.length();
-    if (speed > 1) {
-      const alongView = Vector3.Dot(velocity, forward) / speed;
-      if (alongView < 0.7) return null; // not flying where I'm looking — not my shot
-    }
-
-    const muzzle = camPos
-      .add(forward.scale(ProjectileManager.MUZZLE_FORWARD))
-      .add(new Vector3(0, -ProjectileManager.MUZZLE_DOWN, 0));
-    return muzzle.subtract(position);
-  }
 
   /**
    * Spawn a server-driven projectile visual.
    * Position will be updated from server snapshots.
    */
-  public spawnFromServer(serverEntityId: string, defId: string, position: Vector3, velocity: Vector3): string | null {
+  public spawnFromServer(
+    serverEntityId: string,
+    defId: string,
+    position: Vector3,
+    velocity: Vector3,
+    muzzlePosition?: Vector3 | null,
+  ): string | null {
     // defId is the projectileId (F8); older weapon-id forms are mapped for back-compat,
     // and any already-projectile id passes through unchanged.
     const projDefId =
@@ -201,7 +179,9 @@ export class ProjectileManager {
             : defId;
 
     const direction = velocity.normalizeToNew();
-    const muzzleOffset = this.computeMuzzleOffset(position, velocity);
+    // The owning presentation supplies a socket projected through its world
+    // camera. scene.activeCamera may be the viewmodel camera from the last pass.
+    const muzzleOffset = muzzlePosition ? muzzlePosition.subtract(position) : null;
     const id = this.spawn(projDefId, muzzleOffset ? position.add(muzzleOffset) : position, direction, {
       isLocalPrediction: false,
       isServerDriven: true,
@@ -546,16 +526,11 @@ export class ProjectileManager {
       if (light) light.parent = node;
     }
 
-    // Collect all materials from child meshes for fade-in effect
-    const materials: StandardMaterial[] = [];
-    const meshes = node.getChildMeshes();
-    for (const mesh of meshes) {
-      if (mesh.material && mesh.material instanceof StandardMaterial) {
-        materials.push(mesh.material);
-        // Start fully transparent for fade-in
-        mesh.material.alpha = 0;
-      }
-    }
+    // Fade in through each mesh's own visibility. A cloned model shares its
+    // material with every other shot of the same type, so fading the material
+    // would restart the fade of shots already in flight.
+    const fadeMeshes = node.getChildMeshes();
+    for (const mesh of fadeMeshes) mesh.visibility = 0;
 
     const normalDir = direction.normalize();
     const projectile: ActiveProjectile = {
@@ -571,7 +546,7 @@ export class ProjectileManager {
       bounceFactor: def.bounceFactor ?? DEFAULT_PROJECTILE_BOUNCE_FACTOR,
       spawnTime: performance.now() / 1000,
       lifetime: def.lifetime,
-      materials,
+      fadeMeshes,
       trailPoints: [],
       trailMesh: null,
       trailMeshCross: null,
@@ -592,7 +567,7 @@ export class ProjectileManager {
       child.metadata.celOutlineExclude = true;
     }
 
-    console.log(`[ProjectileManager] Spawned ${defId} (${id}) with ${materials.length} materials for fade-in`);
+    console.log(`[ProjectileManager] Spawned ${defId} (${id}) with ${fadeMeshes.length} meshes fading in`);
 
     return id;
   }
@@ -630,15 +605,9 @@ export class ProjectileManager {
 
       // Fade-in effect: 0 -> 1 over 100ms
       const fadeInDuration = 0.1; // 100ms
-      if (age < fadeInDuration && proj.materials.length > 0) {
-        const alpha = Math.min(1.0, age / fadeInDuration);
-        for (const mat of proj.materials) {
-          mat.alpha = alpha;
-        }
-      } else if (proj.materials.length > 0 && proj.materials[0].alpha < 1.0) {
-        for (const mat of proj.materials) {
-          mat.alpha = 1.0;
-        }
+      if (proj.fadeMeshes.length > 0 && proj.fadeMeshes[0].visibility < 1) {
+        const visibility = Math.min(1, age / fadeInDuration);
+        for (const mesh of proj.fadeMeshes) mesh.visibility = visibility;
       }
 
       // Apply gravity to velocity

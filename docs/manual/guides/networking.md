@@ -33,6 +33,20 @@ SHAG Engine uses Q3-style server-authoritative multiplayer networking. If you've
 
 ## Core Concepts
 
+### Supported network timing
+
+The FPS browser client supports **125Hz simulation (8ms steps)**. Input sampling
+and prediction use the same rate. `initializeNetwork` rejects other client rate
+settings, and `NetworkGameHost` checks the server's Welcome before map loading,
+seat acceptance or snapshot delivery. A mismatch rejects the connection with an
+error naming the advertised and required rates; resumed connections are checked
+again. Early snapshot datagrams are discarded until the handshake completes.
+
+Server timing experiments at other integer rates remain available, but a 60Hz
+or 250Hz server cannot be joined by this FPS client. Welcome represents tick rate
+as one byte, so server configuration is limited to 1–255Hz. Arbitrary-rate FPS
+prediction requires further work on tick-based gameplay constants.
+
 ### 1. Tick-Based Simulation
 
 The game runs in discrete time steps called **ticks**, not continuous real-time.

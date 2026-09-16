@@ -220,15 +220,32 @@ export class AssetPreloader {
       const clonedRoot = new TransformNode(`${cached.root.name}_clone_${Date.now()}`, scene);
       const clonedMeshes: Mesh[] = [];
 
+      // Babylon clones a mesh together with its children, so a cached mesh that
+      // sits under another cached mesh already arrives inside that one's clone.
+      // Cloning it again would draw the same geometry twice in the same place.
+      const sources = new Set<unknown>(cached.meshes);
+      const carriedByAnother = (mesh: Mesh): boolean => {
+        let parent = mesh.parent;
+        while (parent) {
+          if (sources.has(parent)) return true;
+          parent = parent.parent;
+        }
+        return false;
+      };
+
       // Clone each mesh from the cached model
       for (const mesh of cached.meshes) {
-        if (mesh.clone) {
-          const clonedMesh = mesh.clone(`${mesh.name}_clone`, clonedRoot);
-          if (clonedMesh) {
-            clonedMesh.setEnabled(true);
-            clonedMesh.isVisible = true;
-            clonedMeshes.push(clonedMesh);
-          }
+        if (!mesh.clone || carriedByAnother(mesh)) continue;
+        const clonedMesh = mesh.clone(`${mesh.name}_clone`, clonedRoot);
+        if (!clonedMesh) continue;
+        // Sources are cached hidden, and a clone inherits that for its whole
+        // subtree — not just the mesh named in the clone call. A child left
+        // hidden is a weapon body that never draws while the barrels loaded
+        // fresh beside it do.
+        for (const node of [clonedMesh, ...clonedMesh.getChildMeshes(false)]) {
+          node.setEnabled(true);
+          node.isVisible = true;
+          clonedMeshes.push(node as Mesh);
         }
       }
 

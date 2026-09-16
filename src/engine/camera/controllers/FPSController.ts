@@ -33,6 +33,7 @@ import "@babylonjs/loaders";
 // so this doesn't introduce a runtime engine→games dependency. Full relocation
 // to src/games/fps/camera/ is tracked separately.
 import type { InventoryManager } from "../../../games/fps/world/InventoryManager";
+import { DEFAULT_PHYSICS_TICK_RATE } from "../../../shared/server/simulation/physics/constants";
 import { Cvar } from "../../core/Cvar";
 import { DeveloperBar } from "../../debug/DeveloperBar";
 import { InputSystem } from "../../input/InputSystem";
@@ -914,7 +915,7 @@ export class FPSController implements ICameraController {
       // === NETWORK MOVEMENT MODE ===
       // Throttle command sending to 125Hz (server tick rate)
       // This prevents "superfast" movement on high refresh rate monitors (e.g. 144Hz, 240Hz)
-      const TICK_RATE = 125;
+      const TICK_RATE = DEFAULT_PHYSICS_TICK_RATE;
       const TICK_DURATION = 1.0 / TICK_RATE;
 
       this.commandAccumulator += deltaTime;
@@ -1340,6 +1341,44 @@ export class FPSController implements ICameraController {
    * final frag left it otherwise (often the floor), and the post-game winner
    * showcase spawns at eye level — a floor-stare would frame nothing.
    */
+  /**
+   * Put the view back on the horizon and clear the effects that tilt it.
+   *
+   * View bob and strafe lean roll the camera a couple of degrees, and the
+   * controller takes that roll back out at the start of every frame. A frame
+   * displayed while the controller is NOT running — a backgrounded tab, a
+   * blocked main thread — therefore keeps whatever roll it was drawn with, and
+   * keeps showing it until updates resume. Levelling on the way back in makes
+   * that impossible.
+   */
+  levelView(): void {
+    this.viewportEffectsManager?.resetAll();
+    if (!this.camera) return;
+    this.viewportApplicator?.reset(this.camera, this.baseFOV);
+    this.camera.rotation.z = 0;
+  }
+
+  /**
+   * Why the view sits where it does, for the developer `camera_audit` command.
+   *
+   * Roll is the value to read. update() sets it to zero every frame, so a
+   * non-zero roll names whoever wrote it afterwards: the death-camera fallback
+   * writes it absolutely (up to 40°) while the viewport effects add a few
+   * degrees. `effects=false` means none of that ran at all — the whole block,
+   * mouse pitch/yaw included, is behind that one guard.
+   */
+  public describeViewForAudit(): string {
+    if (!this.camera) return "view: no camera";
+    const deg = (radians: number) => ((radians * 180) / Math.PI).toFixed(1);
+    return (
+      `view: roll=${deg(this.camera.rotation.z)}° pitch=${deg(this.camera.rotation.x)}° ` +
+      `enabled=${this.enabled} locked=${this.inputHandler.isPointerLocked} ` +
+      `effects=${this.viewportEffectsManager !== null && this.viewportApplicator !== null} ` +
+      `deathCam(phase=${this.deathCamPhase.toFixed(2)},roll=${deg(this.deathCamRoll)}°,drop=${this.deathCamHeightDrop.toFixed(1)}) ` +
+      `mouse(pitch=${deg(this.mouseRotationX)}°,yaw=${deg(this.mouseRotationY)}°)`
+    );
+  }
+
   setLookFrozen(frozen: boolean): void {
     this.inputHandler.setLookFrozen(frozen);
     if (frozen) {

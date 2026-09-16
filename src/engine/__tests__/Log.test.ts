@@ -9,6 +9,7 @@ import { log } from "../core/Log";
 beforeEach(() => {
   vi.useFakeTimers();
   vi.spyOn(console, "warn").mockImplementation(() => {});
+  vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
 afterEach(() => {
@@ -33,6 +34,27 @@ describe("log.warnRateLimited", () => {
     log.warnRateLimited("qa-test-b", "b");
     log.warnRateLimited("qa-test-c", "c");
     expect(console.warn).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("log.errorRateLimited", () => {
+  it("fires once per tag inside the window, again after it", () => {
+    vi.setSystemTime(3_000_000);
+    log.errorRateLimited("qa-test-e", "first");
+    log.errorRateLimited("qa-test-e", "suppressed");
+    expect(console.error).toHaveBeenCalledTimes(1);
+
+    vi.setSystemTime(3_000_000 + 5001);
+    log.errorRateLimited("qa-test-e", "second window");
+    expect(console.error).toHaveBeenCalledTimes(2);
+  });
+
+  it("is not suppressed by a warn on the same tag", () => {
+    vi.setSystemTime(4_000_000);
+    log.warnRateLimited("qa-test-f", "warn");
+    log.errorRateLimited("qa-test-f", "error");
+    expect(console.warn).toHaveBeenCalledTimes(1);
+    expect(console.error).toHaveBeenCalledTimes(1);
   });
 });
 

@@ -92,6 +92,8 @@ export class MapLoader {
   private isLoadingMap: boolean = false;
   /** Set to true if the tab was backgrounded during map loading */
   private wasBackgroundedDuringLoad: boolean = false;
+  /** Cancels the pending check of world mesh readiness for when the loading screen closes. */
+  private readinessCheck: (() => void) | null = null;
 
   private constructor() {
     this.pk3Index = PK3Index.getInstance();
@@ -624,6 +626,21 @@ export class MapLoader {
       // world's intended visibility. The live camera may arrive on a later frame.
       const { BspManager } = await import("../bsp/BspManager");
       console.log(`[MapLoader] ${await BspManager.getInstance().enablePVS(scene)}`);
+
+      // A world mesh still not ready when the loading screen goes renders as a
+      // hole until it is. Name those meshes and what each is waiting on.
+      this.readinessCheck?.();
+      this.readinessCheck = EventBus.once(LOADING_EVENTS.HIDDEN, async () => {
+        this.readinessCheck = null;
+        if (this.currentMeshResult !== meshResult || meshResult.worldMesh.isDisposed()) return;
+        const { describeUnreadyMeshes } = await import("../../world/ModelRenderAudit");
+        const unready = describeUnreadyMeshes([meshResult.worldMesh, ...meshResult.worldMesh.getChildMeshes()]);
+        if (unready.length > 0) {
+          console.warn(
+            `[MapLoader] ${unready.length} world meshes were not ready to draw when the loading screen closed: ${unready.slice(0, 12).join("; ")}`,
+          );
+        }
+      });
     }
 
     this.currentMap = mapName;

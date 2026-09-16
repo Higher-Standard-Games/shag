@@ -1,3 +1,4 @@
+import { log } from "../../core/Log";
 import { GameState } from "../core/GameState";
 import { MessageCodec, MissingSnapshotBaselineError } from "../protocol/MessageCodec";
 
@@ -20,7 +21,15 @@ export class SnapshotReceiver {
     try {
       snapshot = MessageCodec.decodeSnapshot(data, this.history);
     } catch (error) {
-      if (error instanceof MissingSnapshotBaselineError) return null;
+      if (error instanceof MissingSnapshotBaselineError) {
+        // One-tick events ride only in the snapshot that carries them: a
+        // projectile spawned in this one flies without a model or trail.
+        log.warnRateLimited(
+          "SnapshotReceiver",
+          `dropped snapshot ${tick}: baseline ${error.baselineTick} is not in history, and its events are lost`,
+        );
+        return null;
+      }
       throw error;
     }
 

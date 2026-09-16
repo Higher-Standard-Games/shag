@@ -26,6 +26,19 @@ When extending it:
 - dispose observers, materials, lights, particles, and models on reset;
 - keep weapon bob synchronized with viewport/player state.
 
+Projectile collision and velocity follow the server's eye-based aim ray. The
+first-person **visible start** uses the weapon's authored `tag_flash` socket:
+project through the weapon camera's FOV and map that pixel into the world camera.
+This keeps the start aligned during ADS, sway and FOV changes. Presentation
+converges onto the authoritative trajectory over 220ms; later mouse movement
+does not steer an already spawned shot.
+
+The viewmodel camera is parented at the main camera's local origin. Projectile
+renderers receive an explicit visual muzzle instead of using `scene.activeCamera`,
+which may refer to the last weapon-camera pass. Demo POV uses its own view manager.
+Projectile ownership is still inferred from nearby position/forward velocity;
+reliable owner metadata is a tracked follow-up in the v0.9.23 QA ledger.
+
 ## Console inspection
 
 ```text

@@ -8,6 +8,7 @@
  *   - 'loading:start'    - Loading operation begins
  *   - 'loading:progress' - Progress update during loading
  *   - 'loading:complete' - Loading operation finished
+ *   - 'loading:hidden'   - The loading screen finished fading out; the world is on screen
  *
  * Usage:
  *   // Emitting (in MapLoader)
@@ -77,4 +78,5 @@ export const LOADING_EVENTS = {
   START: "loading:start",
   PROGRESS: "loading:progress",
   COMPLETE: "loading:complete",
+  HIDDEN: "loading:hidden",
 } as const;

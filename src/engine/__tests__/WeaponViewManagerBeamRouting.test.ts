@@ -125,4 +125,76 @@ describe("WeaponViewManager continuous beam routing", () => {
       engine.dispose();
     }
   });
+
+  it.each([-0.4, 0.4])("keeps the socket projection current after a same-frame yaw change of %s", (yaw) => {
+    const engine = new NullEngine({
+      renderWidth: 1280,
+      renderHeight: 720,
+      textureSize: 512,
+      deterministicLockstep: false,
+      lockstepMaxSteps: 4,
+    });
+    const scene = new Scene(engine);
+    const camera = new FreeCamera("world", new Vector3(300, 80, -200), scene);
+    camera.fov = 1.8;
+    const manager = new WeaponViewManager();
+    try {
+      manager.init(scene, camera);
+      const internals = manager as unknown as BeamRoutingInternals;
+      const socket = new TransformNode("tag_flash", scene);
+      socket.parent = internals.weaponRoot;
+      socket.position.set(3, -2, 25);
+      internals.muzzleSocket = socket;
+      camera.getViewMatrix(true);
+      camera.getProjectionMatrix(true);
+      internals.weaponCamera.getViewMatrix(true);
+      internals.weaponCamera.getProjectionMatrix(true);
+      // Input and weapon sway change AFTER the preceding render, before effects
+      // sample their muzzle. The helper must not use last frame's matrices.
+      camera.rotation.set(0.25, yaw, 0.08);
+      camera.position.addInPlaceFromFloats(4, 1, 2);
+      internals.weaponRoot.position.set(2, -5, 8);
+      internals.weaponCamera.fov = 0.9;
+      const muzzle = manager.getMuzzleWorldPosition();
+      camera.getViewMatrix(true);
+      camera.getProjectionMatrix(true);
+      internals.weaponCamera.getViewMatrix(true);
+      internals.weaponCamera.getProjectionMatrix(true);
+      socket.computeWorldMatrix(true);
+      const viewport = camera.viewport.toGlobal(1280, 720);
+      const expected = Vector3.Project(
+        socket.getAbsolutePosition(),
+        Matrix.Identity(),
+        internals.weaponCamera.getTransformationMatrix(),
+        viewport,
+      );
+      const actual = Vector3.Project(muzzle!, Matrix.Identity(), camera.getTransformationMatrix(), viewport);
+      // Float32 world matrices at map coordinates lose tiny fractions of a pixel.
+      expect(Math.abs(actual.x - expected.x)).toBeLessThan(0.05);
+      expect(Math.abs(actual.y - expected.y)).toBeLessThan(0.05);
+    } finally {
+      manager.dispose();
+      scene.dispose();
+      engine.dispose();
+    }
+  });
+
+  it("places the parented weapon camera at the world camera's eye", () => {
+    const engine = new NullEngine();
+    const scene = new Scene(engine);
+    const camera = new FreeCamera("world", new Vector3(300, 80, -200), scene);
+    camera.rotation.set(0.3, 0.8, 0);
+    const manager = new WeaponViewManager();
+    try {
+      manager.init(scene, camera);
+      const internals = manager as unknown as BeamRoutingInternals;
+      camera.getViewMatrix(true);
+      internals.weaponCamera.getViewMatrix(true);
+      expect(Vector3.Distance(internals.weaponCamera.globalPosition, camera.globalPosition)).toBeLessThan(0.001);
+    } finally {
+      manager.dispose();
+      scene.dispose();
+      engine.dispose();
+    }
+  });
 });

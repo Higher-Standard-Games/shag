@@ -21,7 +21,15 @@
  */
 
 const RATE_LIMIT_MS = 5000;
-const lastWarnAt = new Map<string, number>();
+const lastAt = new Map<string, number>();
+
+/** True at most once per key per window. Each level counts separately. */
+function due(key: string): boolean {
+  const now = Date.now();
+  if (now - (lastAt.get(key) ?? 0) < RATE_LIMIT_MS) return false;
+  lastAt.set(key, now);
+  return true;
+}
 
 export const log = {
   /** Verbose diagnostics — stripped from production builds. */
@@ -49,9 +57,17 @@ export const log = {
    * per-frame) where a persistent fault must be visible but not a firehose.
    */
   warnRateLimited(tag: string, ...args: unknown[]): void {
-    const now = Date.now();
-    if (now - (lastWarnAt.get(tag) ?? 0) < RATE_LIMIT_MS) return;
-    lastWarnAt.set(tag, now);
+    if (!due(`warn:${tag}`)) return;
     console.warn(`[${tag}]`, ...args);
+  },
+
+  /**
+   * Error at most once per tag per 5s — for a failure that repeats every tick
+   * or frame, where each occurrence is the same fault and the flood would bury
+   * everything else.
+   */
+  errorRateLimited(tag: string, ...args: unknown[]): void {
+    if (!due(`error:${tag}`)) return;
+    console.error(`[${tag}]`, ...args);
   },
 };

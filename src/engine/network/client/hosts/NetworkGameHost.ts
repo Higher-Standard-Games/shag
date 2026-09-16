@@ -42,6 +42,7 @@ import type { IGameHost } from "../../core/IGameHost";
 import type { Simulation, SimulationConfig } from "../../core/Simulation";
 import { MessageCodec, MessageType } from "../../protocol/MessageCodec";
 import { ClockSync } from "../ClockSync";
+import { ConnectionWatchdog } from "../ConnectionWatchdog";
 import { InterpolationBuffer } from "../InterpolationBuffer";
 import { SmoothCorrection } from "../SmoothCorrection";
 import { SnapshotReceiver } from "../SnapshotReceiver";
@@ -62,6 +63,9 @@ interface MovementStateShape {
   isCrouching?: boolean;
   isSliding?: boolean;
 }
+
+/** How long to wait for a resume to be accepted before trying again. */
+const RESUME_RETRY_MS = 2000;
 
 /** Duck-type for simulations that support player spawning */
 interface SpawnableSimulation {
@@ -110,6 +114,21 @@ export class NetworkGameHost implements IGameHost {
   private commandSequence = 1;
   private readonly snapshotReceiver = new SnapshotReceiver();
 
+  /** Notices snapshots that stop arriving while the connection stays open. */
+  private readonly watchdog = new ConnectionWatchdog();
+  private watchdogTimer: ReturnType<typeof setInterval> | null = null;
+  /** When the watchdog last ran; a longer gap means the client itself was not running. */
+  private watchdogCheckedAt = 0;
+
+  /** Where and as whom to reconnect, kept from the first connect. */
+  private serverUrl: string | null = null;
+  private playerName: string | null = null;
+  /** The seat the server holds for this client after a drop, and for how long. */
+  private resumeToken: string | null = null;
+  private resumeGraceMs = 20000;
+  /** True while reconnecting, so a stall and a close do not both start one. */
+  private resuming = false;
+
   /** Redundant command buffer: store last N encoded payloads for packet loss resilience */
   private recentCommandPayloads: Uint8Array[] = [];
   private readonly COMMAND_REDUNDANCY = 3; // Send last 3 commands per packet
@@ -126,6 +145,10 @@ export class NetworkGameHost implements IGameHost {
   private _isConnected: boolean = false;
   private _serverInfo: ServerInfo | null = null;
   private _onJoinAccept: (() => void) | null = null; // Called when JoinAccept received
+  private _onJoinReject: ((error: Error) => void) | null = null;
+  private readonly tickRate: number;
+  private acceptingMessages = false;
+  private connectionRejected = false;
 
   // Correction threshold - beyond this distance, we snap instead of smooth
   private readonly SNAP_THRESHOLD = 100;
@@ -136,7 +159,17 @@ export class NetworkGameHost implements IGameHost {
     config: SimulationConfig,
     SimulationClass: new (config: SimulationConfig) => Simulation,
   ) {
+    if (
+      !Number.isInteger(config.tickRate) ||
+      config.tickRate <= 0 ||
+      config.tickRate > 255 ||
+      !Number.isFinite(config.tickDuration) ||
+      Math.abs(config.tickDuration - 1000 / config.tickRate) > 1e-9
+    ) {
+      throw new Error("Network simulation requires an integer tick rate from 1 to 255Hz and a matching tick duration");
+    }
     this.transport = transport;
+    this.tickRate = config.tickRate;
     console.log(
       `[NetworkGameHost] Creating simulation with config: tickRate=${config.tickRate}, tickDuration=${config.tickDuration}ms`,
     );
@@ -200,36 +233,66 @@ export class NetworkGameHost implements IGameHost {
 
   async connect(url?: string, playerName?: string): Promise<void> {
     this.snapshotReceiver.reset();
-    // Create promise that resolves when JoinAccept is received
-    const joinAcceptPromise = new Promise<void>((resolve, reject) => {
+    this._serverInfo = null;
+    this._isConnected = false;
+    this.connectionRejected = false;
+    this.acceptingMessages = true;
+    this.resumeToken = null;
+    // Kept so a dropped connection can be reopened as the same player.
+    this.serverUrl = url ?? this.serverUrl;
+    this.playerName = playerName ?? this.playerName;
+    // Install both outcomes before opening the transport: Welcome may arrive
+    // before connect() resolves. Every failure clears the handshake timer.
+    return new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => {
-        reject(new Error("Timeout waiting for JoinAccept"));
+        this.failConnection(new Error("Timeout waiting for Welcome and JoinAccept"));
       }, 10000); // 10 second timeout
-
-      // Store the resolve function to be called when JoinAccept arrives
-      this._onJoinAccept = () => {
+      const clearHandshake = () => {
         clearTimeout(timeout);
+        this._onJoinAccept = null;
+        this._onJoinReject = null;
+      };
+      this._onJoinAccept = () => {
+        clearHandshake();
         resolve();
       };
+      this._onJoinReject = (error) => {
+        clearHandshake();
+        reject(error);
+      };
+      void this.transport
+        .connect(this.serverUrl || "ws://localhost:8080")
+        .then(() => {
+          if (!this.acceptingMessages) return;
+          this.transport.send(MessageCodec.encodeJoin(this.playerName || this.localPlayerId), true);
+        })
+        .catch((error: unknown) => {
+          this.failConnection(error instanceof Error ? error : new Error(String(error)));
+        });
     });
-
-    await this.transport.connect(url || "ws://localhost:8080");
-
-    // Send join message using binary protocol
-    // Use player profile name if provided, otherwise fall back to localPlayerId
-    const displayName = playerName || this.localPlayerId;
-    const joinData = MessageCodec.encodeJoin(displayName);
-    this.transport.send(joinData, true); // Reliable for join
-
-    // Wait for JoinAccept before returning
-    await joinAcceptPromise;
   }
 
   async disconnect(): Promise<void> {
+    this.acceptingMessages = false;
+    this.resumeToken = null;
+    this._serverInfo = null;
+    this._onJoinReject?.(new Error("Disconnected before the handshake completed"));
     this._isConnected = false;
+    this.stopWatchdog();
     this.clockSync.stop();
     this.snapshotReceiver.reset();
     await this.transport.disconnect();
+  }
+
+  private failConnection(error: Error): void {
+    this.connectionRejected = true;
+    this._onJoinReject?.(error);
+    // Disable gameplay synchronously, even if transport closure is asynchronous.
+    void this.disconnect().catch((closeError) => console.error("[NetworkGameHost] Disconnect failed:", closeError));
+    console.error("[NetworkGameHost] Connection rejected:", error.message);
+    this.serverMessageCallbacks.forEach((cb) => {
+      cb({ type: "error", message: error.message });
+    });
   }
 
   /**
@@ -453,10 +516,19 @@ export class NetworkGameHost implements IGameHost {
 
     this.transport.onDisconnect((reason) => {
       console.log("[NetworkGameHost] Disconnected:", reason);
+      const wasConnected = this._isConnected;
       this._isConnected = false;
+      this.acceptingMessages = false;
+      this._serverInfo = null;
+      this._onJoinReject?.(new Error(`Disconnected before the handshake completed: ${reason}`));
+      this.stopWatchdog();
+      this.clockSync.stop();
       this.lastMatchPhase = null;
       this.snapshotReceiver.reset();
       AudioManager.getInstance().loadPlaylist("data/menu.playlist.json");
+      // A connection that drops mid-match leaves a seat waiting; take it back
+      // rather than making the player rejoin as someone new.
+      if (wasConnected && this.resumeToken) void this.resumeSession();
     });
 
     this.transport.onError((error) => {
@@ -464,21 +536,144 @@ export class NetworkGameHost implements IGameHost {
     });
   }
 
+  // ============================================================================
+  // CONNECTION WATCHDOG
+  // ============================================================================
+
+  private static readonly WATCHDOG_INTERVAL_MS = 500;
+
+  /** Start noticing snapshots that stop arriving, from the moment the join is accepted. */
+  private startWatchdog(): void {
+    this.stopWatchdog();
+    const now = performance.now();
+    this.watchdog.start(now);
+    this.watchdogCheckedAt = now;
+    this.watchdogTimer = setInterval(() => this.checkWatchdog(), NetworkGameHost.WATCHDOG_INTERVAL_MS);
+  }
+
+  private stopWatchdog(): void {
+    if (this.watchdogTimer !== null) clearInterval(this.watchdogTimer);
+    this.watchdogTimer = null;
+    this.watchdog.stop();
+  }
+
+  /**
+   * Reopen the connection and claim the seat the server is holding.
+   *
+   * A stalled link is not a close: nothing arrives, nothing sent gets through,
+   * and neither side reports anything. Dropping the socket ourselves turns that
+   * into a reconnect, and the token takes back the same player, entity and score
+   * rather than joining as someone new. Attempts stop once the server's grace has
+   * passed, because by then the seat is gone.
+   */
+  private async resumeSession(): Promise<void> {
+    if (this.resuming || !this.resumeToken || !this.serverUrl) return;
+    this.resuming = true;
+    const deadline = performance.now() + this.resumeGraceMs;
+    const token = this.resumeToken;
+    try {
+      while (performance.now() < deadline && this.resumeToken === token && !this.connectionRejected) {
+        this._isConnected = false;
+        this.acceptingMessages = false;
+        this.stopWatchdog();
+        this.clockSync.stop();
+        try {
+          await this.transport.disconnect();
+          if (this.resumeToken !== token) return;
+          this._serverInfo = null;
+          this.snapshotReceiver.reset();
+          this.acceptingMessages = true;
+          await this.transport.connect(this.serverUrl);
+          if (!this.acceptingMessages || this.resumeToken !== token) return;
+          this.transport.send(MessageCodec.encodeResume(token), true);
+          console.warn("[NetworkGameHost] Connection lost — asking the server for our seat back");
+          // JoinAccept for the same player ends the resume; the watchdog restarts with it.
+          await new Promise((resolve) => setTimeout(resolve, RESUME_RETRY_MS));
+          if (this._isConnected) {
+            console.warn("[NetworkGameHost] Resumed the session");
+            return;
+          }
+        } catch (error) {
+          console.warn("[NetworkGameHost] Reconnect attempt failed:", error);
+          await new Promise((resolve) => setTimeout(resolve, RESUME_RETRY_MS));
+        }
+      }
+      if (this.connectionRejected || this.resumeToken !== token) return;
+      console.error(
+        `[NetworkGameHost] Could not resume within ${(this.resumeGraceMs / 1000).toFixed(0)}s; the seat is gone. Disconnect from the menu to return to the lobby.`,
+      );
+    } finally {
+      this.resuming = false;
+    }
+  }
+
+  private noteSnapshotArrived(): void {
+    const stalledFor = this.watchdog.dataArrived(performance.now());
+    if (stalledFor !== null) {
+      console.warn(`[NetworkGameHost] Snapshots resumed after ${(stalledFor / 1000).toFixed(1)}s`);
+    }
+  }
+
+  private checkWatchdog(): void {
+    const now = performance.now();
+    const sinceLastCheck = now - this.watchdogCheckedAt;
+    this.watchdogCheckedAt = now;
+
+    // A hidden page is throttled, and a blocked main thread leaves snapshots
+    // queued unread: neither gap says anything about the connection.
+    const hidden = typeof document !== "undefined" && document.visibilityState === "hidden";
+    if (hidden || sinceLastCheck > NetworkGameHost.WATCHDOG_INTERVAL_MS * 3) {
+      this.watchdog.skipGap(now);
+      return;
+    }
+
+    const stage = this.watchdog.check(now);
+    if (!stage) return;
+    const seconds = (this.watchdog.silentFor(now) / 1000).toFixed(1);
+    if (stage === "warn") {
+      const unsent = this.transport.bufferedAmount?.();
+      console.warn(
+        `[NetworkGameHost] No snapshot for ${seconds}s: nothing is arriving though the connection is ` +
+          `${this.transport.isConnected() ? "open" : "not open"}` +
+          (unsent === undefined ? "" : ` (${unsent} bytes waiting to send)`),
+      );
+    } else if (this.resumeToken) {
+      console.error(`[NetworkGameHost] No snapshot for ${seconds}s: the connection has stalled`);
+      // Nothing is crossing a stalled link in either direction, and neither side
+      // will close it. Drop it and claim the seat the server still holds.
+      void this.resumeSession();
+    } else {
+      console.error(
+        `[NetworkGameHost] No snapshot for ${seconds}s: the connection has stalled. Disconnect from the menu to return to the lobby.`,
+      );
+    }
+  }
+
   /**
    * Handle incoming message using binary protocol
    */
   private handleMessage(data: Uint8Array): void {
+    if (!this.acceptingMessages) return;
     try {
       const messageType = MessageCodec.peekMessageType(data);
 
       switch (messageType) {
         case MessageType.LegacySnapshot:
         case MessageType.Snapshot: {
+          // Datagram snapshots may beat the reliable handshake. Drop them until
+          // the timing contract and local seat are known; never ACK them early.
+          if (!this._serverInfo || !this._isConnected) break;
+          // Any snapshot shows the link delivers, even one waiting on a baseline.
+          this.noteSnapshotArrived();
           const snapshot = this.snapshotReceiver.receive(data);
           if (snapshot) this.handleSnapshot(snapshot);
           break;
         }
         case MessageType.JoinAccept: {
+          if (!this._serverInfo) {
+            this.failConnection(new Error("Server sent JoinAccept before a compatible Welcome"));
+            break;
+          }
           const { playerId, entityId } = MessageCodec.decodeJoinAccept(data);
 
           // Guard against duplicate JoinAccept messages
@@ -494,6 +689,7 @@ export class NetworkGameHost implements IGameHost {
           this.localEntityId = entityId;
           console.log(`[NetworkGameHost] Join accepted: ${playerId}, entity: ${entityId}`);
           this._isConnected = true;
+          this.startWatchdog();
 
           // CRITICAL: Resolve connect() promise FIRST, before any potentially-throwing code.
           // If spawnPlayer throws, the error is caught by the outer catch and the promise
@@ -525,8 +721,23 @@ export class NetworkGameHost implements IGameHost {
 
           break;
         }
+        case MessageType.ResumeToken: {
+          // The seat the server keeps if this connection drops, and for how long.
+          const { token, graceMs } = MessageCodec.decodeResumeToken(data);
+          this.resumeToken = token;
+          this.resumeGraceMs = graceMs;
+          break;
+        }
         case MessageType.Welcome: {
           const welcome = MessageCodec.decodeWelcome(data);
+          if (welcome.tickRate !== this.tickRate) {
+            this.failConnection(
+              new Error(
+                `Unsupported server tick rate: ${welcome.tickRate}Hz; this client requires ${this.tickRate}Hz.`,
+              ),
+            );
+            break;
+          }
           console.log(`[NetworkGameHost] Welcome from ${welcome.serverName}, map: ${welcome.map}`);
 
           // Store server info

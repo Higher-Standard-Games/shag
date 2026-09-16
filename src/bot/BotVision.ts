@@ -828,6 +828,9 @@ export async function createBotVision(mapName: string): Promise<BotVision | null
 
   // Extract map knowledge
   const mapData = extractMapData(bsp.entities);
+  // Weapons sit where their spawn toss comes to rest, which is where the server's trigger is.
+  const { landMapPickups } = await import("../shared/items/ItemThrow");
+  mapData.pickupItems = landMapPickups(mapData.pickupItems, collisionWorld);
   const triggerVolumes = extractTriggerVolumes(bsp.entities, bsp.models);
   console.log(`[BotVision] Map data: ${mapData.spawnPoints.length} spawns, ${mapData.pickupItems.length} pickups`);
   const mapFingerprint = createHash("sha256").update(new Uint8Array(bspBuffer)).digest("hex");

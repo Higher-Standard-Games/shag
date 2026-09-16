@@ -112,6 +112,11 @@ export class MessageCodec {
     maxPlayers: number,
     currentPlayers: number,
   ): Uint8Array {
+    // Never truncate an unsupported rate (e.g. 381Hz) into a valid 125Hz
+    // handshake. Zero remains encodable so receivers can reject it explicitly.
+    if (!Number.isInteger(tickRate) || tickRate < 0 || tickRate > 255) {
+      throw new Error(`Welcome tick rate must be an integer byte, got ${tickRate}`);
+    }
     const encoder = new BinaryEncoder();
     encoder.writeUint8(MessageType.Welcome);
     encoder.writeString(serverId);
@@ -202,6 +207,47 @@ export class MessageCodec {
       playerId: decoder.readString(),
       entityId: decoder.readString(),
     };
+  }
+
+  /**
+   * Encode the token a client resumes its session with (Server → Client).
+   *
+   * Sent once per accepted join. A connection that drops keeps its player, entity
+   * and score on the server for `graceMs`; presenting this token takes that seat
+   * back instead of joining as someone new.
+   */
+  static encodeResumeToken(token: string, graceMs: number): Uint8Array {
+    const encoder = new BinaryEncoder();
+    encoder.writeUint8(MessageType.ResumeToken);
+    encoder.writeString(token);
+    encoder.writeUint32(graceMs);
+    return encoder.getData();
+  }
+
+  static decodeResumeToken(data: Uint8Array): { token: string; graceMs: number } {
+    const decoder = new BinaryDecoder(data);
+    const messageType = decoder.readUint8();
+    if (messageType !== MessageType.ResumeToken) {
+      throw new Error(`Expected ResumeToken message, got 0x${messageType.toString(16)}`);
+    }
+    return { token: decoder.readString(), graceMs: decoder.readUint32() };
+  }
+
+  /** Encode a claim on a suspended session (Client → Server). */
+  static encodeResume(token: string): Uint8Array {
+    const encoder = new BinaryEncoder();
+    encoder.writeUint8(MessageType.Resume);
+    encoder.writeString(token);
+    return encoder.getData();
+  }
+
+  static decodeResume(data: Uint8Array): { token: string } {
+    const decoder = new BinaryDecoder(data);
+    const messageType = decoder.readUint8();
+    if (messageType !== MessageType.Resume) {
+      throw new Error(`Expected Resume message, got 0x${messageType.toString(16)}`);
+    }
+    return { token: decoder.readString() };
   }
 
   /**

@@ -131,4 +131,8 @@ export class WebSocketTransport implements Transport {
   isConnected(): boolean {
     return this.ws?.readyState === WebSocket.OPEN;
   }
+
+  bufferedAmount(): number {
+    return this.ws?.bufferedAmount ?? 0;
+  }
 }

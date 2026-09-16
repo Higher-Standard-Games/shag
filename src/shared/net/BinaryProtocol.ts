@@ -1298,6 +1298,7 @@ export enum MessageType {
   ServerMessage = 0x09, // Generic server→client text message (queue, rejection, info)
   Pong = 0x0a,
   Snapshot = 0x0b, // Baseline-identified envelope; raw demo snapshot format is unchanged
+  ResumeToken = 0x0c, // The token a dropped client presents to take its seat back
 
   // Client → Server
   Join = 0x81,
@@ -1310,6 +1311,7 @@ export enum MessageType {
   RequestSpawn = 0x88, // Dead player requests respawn (after cooldown)
   Chat = 0x89, // In-game chat text (server sanitizes, rate-limits, rebroadcasts as snapshot event)
   SetLoadout = 0x8a, // Chosen spawn kit (S&D). Takes effect from the next round.
+  Resume = 0x8b, // Reconnecting client claims the session it was dropped from
 }
 
 // Text encoder/decoder for UTF-8 strings (more efficient than UTF-16)

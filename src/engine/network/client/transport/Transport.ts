@@ -25,6 +25,9 @@ export interface Transport {
 
   /** Check if connected */
   isConnected(): boolean;
+
+  /** Bytes queued to send but not yet handed to the network, where the transport can tell. */
+  bufferedAmount?(): number;
 }
 
 /**

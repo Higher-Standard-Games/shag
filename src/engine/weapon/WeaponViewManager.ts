@@ -171,14 +171,21 @@ export class WeaponViewManager {
    * mainCamera orientation. Transform through mainCamera's world matrix
    * to get main-scene world-space coordinates.
    */
-  public getMuzzleWorldPosition(): Vector3 | null {
+  public getMuzzleWorldPosition(distance = 5): Vector3 | null {
     if (!this.mainCamera) return null;
+
+    // Effects can sample between input/FOV changes and the camera render.
+    // getTransformationMatrix() only multiplies cached matrices in Babylon.
+    this.mainCamera.getViewMatrix(true);
+    this.mainCamera.getProjectionMatrix(true);
 
     // The viewmodel is rendered by a second camera with its own FOV. Project
     // the authored model socket through that camera, then cast the matching
     // screen ray through the world camera. Any point on that ray is pixel-exact
     // with tag_flash even when cg_weaponfov differs from the gameplay FOV.
     if (this.muzzleSocket && this.weaponCamera && this.scene) {
+      this.weaponCamera.getViewMatrix(true);
+      this.weaponCamera.getProjectionMatrix(true);
       this.muzzleSocket.computeWorldMatrix(true);
       const socketWorld = this.muzzleSocket.getAbsolutePosition();
       const engine = this.scene.getEngine();
@@ -197,7 +204,7 @@ export class WeaponViewManager {
           this.mainCamera,
           false,
         );
-        return this.mainCamera.globalPosition.add(ray.direction.scale(5));
+        return this.mainCamera.globalPosition.add(ray.direction.scale(distance));
       }
     }
 
@@ -239,11 +246,31 @@ export class WeaponViewManager {
       floatUp = (vertical - WEAPON_FLOAT_SAG) * submersion;
     }
 
-    const origin = this.mainCamera.position.clone();
+    const origin = this.mainCamera.globalPosition.clone();
     origin.addInPlace(forward.scale(fwdOff + recoilZ));
     origin.addInPlace(right.scale(rightOff + bobX + floatRight));
     origin.addInPlace(up.scale(-downOff + bobY + floatUp));
+    if (distance !== 5) {
+      const eye = this.mainCamera.globalPosition;
+      return eye.add(origin.subtract(eye).normalize().scale(distance));
+    }
     return origin;
+  }
+
+  /**
+   * Presentation-only start for a nearby shot travelling along the local view.
+   * Ownership is not on the projectile wire yet, so keep the existing bounded
+   * proximity/direction heuristic, but use this view's camera and authored socket.
+   */
+  public getProjectileMuzzlePosition(position: Vector3, velocity: Vector3): Vector3 | null {
+    if (!this.mainCamera || !this.currentWeapon || !this._visible || this.holsterAnim.isFullyHolstered) return null;
+    this.mainCamera.getViewMatrix(true);
+    if (Vector3.Distance(position, this.mainCamera.globalPosition) > 120) return null;
+    const speed = velocity.length();
+    if (speed <= 1 || Vector3.Dot(velocity, this.mainCamera.getDirection(Vector3.Forward())) / speed < 0.7) return null;
+    // A world projectile needs more depth than a beam endpoint to avoid drawing
+    // its mesh/trail across the near plane. Projection still matches tag_flash.
+    return this.getMuzzleWorldPosition(34);
   }
 
   /**
@@ -409,7 +436,7 @@ export class WeaponViewManager {
 
     // Create weapon camera with separate FOV
     // This camera only sees weapon layer and renders after main camera
-    this.weaponCamera = new FreeCamera("weaponCamera", camera.position.clone(), scene);
+    this.weaponCamera = new FreeCamera("weaponCamera", Vector3.Zero(), scene);
     this.weaponCamera.fov = (this.lastWeaponFov * Math.PI) / 180;
     this.weaponCamera.minZ = 0.1;
     this.weaponCamera.maxZ = 1000;
@@ -1452,6 +1479,12 @@ export class WeaponViewManager {
     this.holsterAnim.update(deltaTime);
     if (this.holsterAnim.isFullyHolstered !== wasStowed) this.applyVisibility();
 
+    // Projectiles and hitscan effects belong to the world, not the view weapon:
+    // they keep moving, fading and drawing trails while no weapon model is
+    // loaded, as during a weapon switch.
+    getProjectileManager().update(deltaTime);
+    getHitscanEffects().update(deltaTime);
+
     if (!this.currentWeapon) return;
 
     // Throttle CVar checking - 10 times per second max
@@ -1471,12 +1504,6 @@ export class WeaponViewManager {
 
     // Update muzzle flash
     this.updateMuzzleFlash(deltaTime);
-
-    // Update projectiles
-    getProjectileManager().update(deltaTime);
-
-    // Update hitscan effects (fade, cleanup)
-    getHitscanEffects().update(deltaTime);
 
     // Update slash trail effect
     this.weaponSlash.updateTrail(this.scene, this.mainCamera);

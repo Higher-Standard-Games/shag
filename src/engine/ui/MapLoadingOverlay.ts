@@ -368,10 +368,12 @@ export class MapLoadingOverlay {
     // Add to DOM with fade-in
     document.body.appendChild(this.container);
 
-    // Transition to loading state after fade-in
+    // Transition to loading state after fade-in. The frame can come late (a
+    // backgrounded tab runs none) and the load may have completed by then, so
+    // only a screen that is still showing moves on.
     requestAnimationFrame(() => {
       this.container?.classList.add("ui-map-loading-overlay--visible");
-      this.state = "loading";
+      if (this.state === "showing") this.state = "loading";
     });
   }
 
@@ -397,9 +399,10 @@ export class MapLoadingOverlay {
     this.state = "fading";
     this.container?.classList.add("ui-map-loading-overlay--fading");
 
-    // Remove after animation
+    // Remove after animation; the world is then on screen.
     setTimeout(() => {
       this.hide();
+      EventBus.emit(LOADING_EVENTS.HIDDEN);
     }, this.config.fadeDurationMs);
   }
 
