@@ -2,9 +2,9 @@
  * PhysicsCommand - Havok physics system control
  */
 
+import type { Scene } from "@babylonjs/core/scene";
 import { MovementVars } from "../../movement/MovementVars";
 import { PhysicsSystem } from "../../physics/PhysicsSystem";
-import type { Scene } from "@babylonjs/core/scene";
 import { Command, type CommandDef } from "../Command";
 
 export default class PhysicsCommand extends Command {

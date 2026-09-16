@@ -744,7 +744,7 @@ export class NetworkGameHost implements IGameHost {
           this._serverInfo = welcome;
 
           // Notify callbacks (for map loading, etc.)
-          this.serverInfoCallbacks.forEach((cb) => cb(welcome));
+          for (const cb of this.serverInfoCallbacks) cb(welcome);
           break;
         }
         case MessageType.Pong: {
@@ -755,7 +755,7 @@ export class NetworkGameHost implements IGameHost {
         case MessageType.ServerMessage: {
           const msg = MessageCodec.decodeServerMessage(data);
           console.log(`[NetworkGameHost] Server message [${msg.type}]: ${msg.message}`);
-          this.serverMessageCallbacks.forEach((cb) => cb(msg));
+          for (const cb of this.serverMessageCallbacks) cb(msg);
           break;
         }
         default:
@@ -810,7 +810,7 @@ export class NetworkGameHost implements IGameHost {
     // In V2 mode, predictLocally() is skipped, so we MUST fire callbacks here
     // so Game.onServerStateUpdate() can feed snapshots to V2NetworkClient.
     if (this.useExternalPrediction) {
-      this.stateUpdateCallbacks.forEach((cb) => cb(snapshot));
+      for (const cb of this.stateUpdateCallbacks) cb(snapshot);
     }
 
     // Handle Match Phase transitions (for music)
@@ -854,7 +854,7 @@ export class NetworkGameHost implements IGameHost {
     // Notify callbacks with predicted state for animations
     // This is critical: without this, FPSController only gets state at snapshot rate (20Hz)
     // which causes choppy animations. By notifying here, animations update at prediction rate (125Hz).
-    this.stateUpdateCallbacks.forEach((cb) => cb(this.localState));
+    for (const cb of this.stateUpdateCallbacks) cb(this.localState);
   }
 
   // ============================================================================
@@ -994,7 +994,7 @@ export class NetworkGameHost implements IGameHost {
     this.localState.events = [];
 
     events.forEach((event) => {
-      this.eventCallbacks.forEach((callback) => callback(event));
+      for (const callback of this.eventCallbacks) callback(event);
     });
   }
 }

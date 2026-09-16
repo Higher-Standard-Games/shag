@@ -252,12 +252,32 @@ export class AmmoCounterDisplay {
 // Live tuning cvars for positioning the on-gun counter (Q3 tag axis conventions
 // vary per weapon model, so the facing needs to be dialed in per-set). Changes
 // apply immediately — WeaponViewManager re-applies them each frame.
-Cvar.register("cg_ammocounter_scale", 1, { type: "float", min: 0.05, max: 20, description: "Ammo counter size multiplier" });
+Cvar.register("cg_ammocounter_scale", 1, {
+  type: "float",
+  min: 0.05,
+  max: 20,
+  description: "Ammo counter size multiplier",
+});
 // Default 90° yaw aligns the counter with the IQM z_weapons tag_ammo axis
 // convention shared by all counter-bearing models (#3, confirmed in playtest).
 Cvar.register("cg_ammocounter_yaw", 90, { type: "float", min: -180, max: 180, description: "Ammo counter yaw (deg)" });
-Cvar.register("cg_ammocounter_pitch", 0, { type: "float", min: -180, max: 180, description: "Ammo counter pitch (deg)" });
+Cvar.register("cg_ammocounter_pitch", 0, {
+  type: "float",
+  min: -180,
+  max: 180,
+  description: "Ammo counter pitch (deg)",
+});
 // Default 180° roll (with yaw 90) seats the counter upright on the IQM
 // z_weapons tag_ammo bone (#3, confirmed in playtest).
-Cvar.register("cg_ammocounter_roll", 180, { type: "float", min: -180, max: 180, description: "Ammo counter roll (deg)" });
-Cvar.register("cg_ammocounter_fwd", 0, { type: "float", min: -10, max: 10, description: "Ammo counter forward offset" });
+Cvar.register("cg_ammocounter_roll", 180, {
+  type: "float",
+  min: -180,
+  max: 180,
+  description: "Ammo counter roll (deg)",
+});
+Cvar.register("cg_ammocounter_fwd", 0, {
+  type: "float",
+  min: -10,
+  max: 10,
+  description: "Ammo counter forward offset",
+});

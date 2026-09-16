@@ -47,9 +47,9 @@ export class WebTransportTransport implements Transport {
       // Start reading messages from incoming streams (reliable channel)
       this.readIncomingStreams();
 
-      this.connectCallbacks.forEach((cb) => cb());
+      for (const cb of this.connectCallbacks) cb();
     } catch (error) {
-      this.errorCallbacks.forEach((cb) => cb(error as Error));
+      for (const cb of this.errorCallbacks) cb(error as Error);
       throw error;
     }
   }
@@ -75,7 +75,7 @@ export class WebTransportTransport implements Transport {
         })
         .catch((err: Error) => {
           console.warn("[WebTransportTransport] Reliable send failed:", err);
-          this.errorCallbacks.forEach((cb) => cb(err));
+          for (const cb of this.errorCallbacks) cb(err);
         });
     } else if (this.writer) {
       // Unreliable: fast QUIC datagrams (game input, snapshots)
@@ -92,11 +92,11 @@ export class WebTransportTransport implements Transport {
         if (done) break;
 
         if (value) {
-          this.messageCallbacks.forEach((cb) => cb(value));
+          for (const cb of this.messageCallbacks) cb(value);
         }
       }
     } catch (error) {
-      this.errorCallbacks.forEach((cb) => cb(error as Error));
+      for (const cb of this.errorCallbacks) cb(error as Error);
     }
   }
 
@@ -124,7 +124,7 @@ export class WebTransportTransport implements Transport {
 
         // Concatenate chunks and deliver as a single message
         if (chunks.length === 1) {
-          this.messageCallbacks.forEach((cb) => cb(chunks[0]));
+          for (const cb of this.messageCallbacks) cb(chunks[0]);
         } else if (chunks.length > 1) {
           const total = chunks.reduce((acc, c) => acc + c.length, 0);
           const merged = new Uint8Array(total);
@@ -133,7 +133,7 @@ export class WebTransportTransport implements Transport {
             merged.set(chunk, offset);
             offset += chunk.length;
           }
-          this.messageCallbacks.forEach((cb) => cb(merged));
+          for (const cb of this.messageCallbacks) cb(merged);
         }
       }
     } catch (_error) {

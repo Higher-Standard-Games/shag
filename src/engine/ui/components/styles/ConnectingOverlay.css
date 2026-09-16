@@ -14,8 +14,7 @@
   justify-content: center;
   background:
     radial-gradient(circle at 50% 42%, hsla(320, 100%, 60%, 0.16), transparent 36%),
-    radial-gradient(circle at 20% 20%, hsla(45, 100%, 55%, 0.1), transparent 30%),
-    hsla(240, 22%, 4%, 0.9);
+    radial-gradient(circle at 20% 20%, hsla(45, 100%, 55%, 0.1), transparent 30%), hsla(240, 22%, 4%, 0.9);
   backdrop-filter: blur(8px) saturate(1.15);
   -webkit-backdrop-filter: blur(8px) saturate(1.15);
   animation: co-fade-in 0.4s ease-out both;

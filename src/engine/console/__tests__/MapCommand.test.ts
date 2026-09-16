@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Cvar } from "../../core/Cvar";
-import { clearGameplayMapLauncher, registerGameplayMapLauncher } from "../GameplayMapLauncher";
 import { CommandRegistry } from "../CommandRegistry";
 import MapCommand from "../commands/MapCommand";
+import { clearGameplayMapLauncher, registerGameplayMapLauncher } from "../GameplayMapLauncher";
 
 describe("MapCommand", () => {
   beforeEach(() => {

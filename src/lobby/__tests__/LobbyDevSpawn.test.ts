@@ -1,5 +1,5 @@
-import { WebSocket } from "ws";
 import { describe, expect, it, vi } from "vitest";
+import { WebSocket } from "ws";
 import { isLoopbackAddress, LobbyServer, normalizeGametype } from "../LobbyServer";
 
 function makePlayer(overrides: Partial<any> = {}) {

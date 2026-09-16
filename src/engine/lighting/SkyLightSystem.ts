@@ -376,9 +376,7 @@ export class SkyLightSystem {
       // Let's stick to a clean white light so colours aren't tinted.
       this.ambientLight.intensity = bspPbrEnabled ? 0.35 : 0.8;
       this.ambientLight.diffuse = new Color3(1, 1, 1);
-      this.ambientLight.groundColor = bspPbrEnabled
-        ? new Color3(0.18, 0.18, 0.18)
-        : new Color3(0.5, 0.5, 0.5);
+      this.ambientLight.groundColor = bspPbrEnabled ? new Color3(0.18, 0.18, 0.18) : new Color3(0.5, 0.5, 0.5);
       this.ambientLight.specular = Color3.Black();
 
       return;

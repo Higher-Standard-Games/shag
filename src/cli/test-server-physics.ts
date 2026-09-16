@@ -7,7 +7,6 @@
  * Run with: npx vite-node src/cli/test-server-physics.ts --map wdm14
  */
 
-import { runCli } from "./_runCli";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import JSZip from "jszip";
@@ -16,6 +15,7 @@ import { InputButtons } from "../engine/network/components/InputComponent";
 import type { Vec3 } from "../engine/network/components/TransformComponent";
 import type { MovementInput } from "../engine/network/systems/movement/MovementProfile";
 import { MovementProfile as FPSMovementProfile } from "../games/fps/simulation/MovementProfile";
+import { runCli } from "./_runCli";
 import { createHeadlessCollisionWorld } from "./HeadlessBSPCollisionWorld";
 
 // Parse command line args

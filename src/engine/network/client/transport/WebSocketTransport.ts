@@ -43,23 +43,23 @@ export class WebSocketTransport implements Transport {
         this.ws.binaryType = "arraybuffer";
 
         this.ws.onopen = () => {
-          this.connectCallbacks.forEach((cb) => cb());
+          for (const cb of this.connectCallbacks) cb();
           resolve();
         };
 
         this.ws.onmessage = (event) => {
           // event.data is ArrayBuffer when binaryType is 'arraybuffer'
           const data = new Uint8Array(event.data as ArrayBuffer);
-          this.messageCallbacks.forEach((cb) => cb(data));
+          for (const cb of this.messageCallbacks) cb(data);
         };
 
         this.ws.onclose = (event) => {
-          this.disconnectCallbacks.forEach((cb) => cb(event.reason));
+          for (const cb of this.disconnectCallbacks) cb(event.reason);
         };
 
         this.ws.onerror = (_event) => {
           const error = new Error("WebSocket connection error");
-          this.errorCallbacks.forEach((cb) => cb(error));
+          for (const cb of this.errorCallbacks) cb(error);
           reject(error);
         };
       } catch (error) {

@@ -21,11 +21,7 @@ import { Entity } from "../network/core/Entity";
 import { GameState } from "../network/core/GameState";
 import { NullCollisionWorld } from "../network/systems/collision/CollisionWorld";
 import { MovementSystem } from "../network/systems/MovementSystem";
-import type {
-  MovementInput,
-  MovementProfile,
-  MovementResult,
-} from "../network/systems/movement/MovementProfile";
+import type { MovementInput, MovementProfile, MovementResult } from "../network/systems/movement/MovementProfile";
 import { SimpleMovement } from "../network/systems/movement/SimpleMovement";
 
 // ── Test helpers ───────────────────────────────────────────────────
@@ -246,18 +242,19 @@ describe("MovementSystem — result application", () => {
     e.addComponent("movementState", ms);
 
     const stub = new StubProfile();
-    stub.nextResultFactory = () => ({
-      position: { x: 0, y: 0, z: 0 },
-      velocity: { x: 0, y: 0, z: 0 },
-      grounded: true,
-      // Extended fields — MovementSystem forwards them via updateFrom().
-      isSliding: true,
-      isCrouching: true,
-      crouchViewOffset: -12,
-      wallJumpState: "charging",
-      ledgeGrabState: "grabbing",
-      actualHorizSpeed: 420,
-    } as MovementResult);
+    stub.nextResultFactory = () =>
+      ({
+        position: { x: 0, y: 0, z: 0 },
+        velocity: { x: 0, y: 0, z: 0 },
+        grounded: true,
+        // Extended fields — MovementSystem forwards them via updateFrom().
+        isSliding: true,
+        isCrouching: true,
+        crouchViewOffset: -12,
+        wallJumpState: "charging",
+        ledgeGrabState: "grabbing",
+        actualHorizSpeed: 420,
+      }) as MovementResult;
 
     new MovementSystem(stub).update(makeState([e]), 0.016);
 

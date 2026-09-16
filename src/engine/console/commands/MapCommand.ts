@@ -2,8 +2,8 @@
  * MapCommand - Map loading and management
  */
 
-import { getGameplayMapLauncher } from "../GameplayMapLauncher";
 import { Command, type CommandDef } from "../Command";
+import { getGameplayMapLauncher } from "../GameplayMapLauncher";
 
 export default class MapCommand extends Command {
   private lastMapName: string | null = null;

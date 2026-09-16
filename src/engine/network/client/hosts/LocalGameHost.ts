@@ -247,7 +247,7 @@ export class LocalGameHost implements IGameHost {
 
   private notifyStateUpdate(): void {
     const state = this.simulation.state;
-    this.stateUpdateCallbacks.forEach((callback) => callback(state));
+    for (const callback of this.stateUpdateCallbacks) callback(state);
   }
 
   private processEvents(): void {
@@ -255,7 +255,7 @@ export class LocalGameHost implements IGameHost {
     this.simulation.state.events = []; // Clear events
 
     events.forEach((event: GameEvent) => {
-      this.eventCallbacks.forEach((callback) => callback(event));
+      for (const callback of this.eventCallbacks) callback(event);
     });
   }
 }

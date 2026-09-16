@@ -149,11 +149,7 @@ describe("Q3ShaderRegistry", () => {
     });
 
     it("uses placeholder tokens for implicit gloss/glow without a normal map", () => {
-      injectPk3Files([
-        "textures/test/panel.tga",
-        "textures/test/panel_gloss.tga",
-        "textures/test/panel_add.tga",
-      ]);
+      injectPk3Files(["textures/test/panel.tga", "textures/test/panel_gloss.tga", "textures/test/panel_add.tga"]);
 
       const props = getRegistry().resolveMaterialProps("textures/test/panel");
       expect(props.hasMaterialMetadata).toBe(true);
@@ -323,12 +319,7 @@ describe("Q3ShaderRegistry", () => {
             {
               map: "textures/test/fallback.tga",
               material: {
-                rawTokens: [
-                  "textures\\test\\diffuse.tga",
-                  "textures/test/diffuse_norm.tga",
-                  "-",
-                  "$whiteimage",
-                ],
+                rawTokens: ["textures\\test\\diffuse.tga", "textures/test/diffuse_norm.tga", "-", "$whiteimage"],
                 diffuse: "textures\\test\\diffuse.tga",
                 normal: "textures/test/diffuse_norm.tga",
                 gloss: "-",
@@ -340,12 +331,7 @@ describe("Q3ShaderRegistry", () => {
             {
               map: "textures/test/fallback.tga",
               material: {
-                rawTokens: [
-                  "textures\\test\\diffuse.tga",
-                  "textures/test/diffuse_norm.tga",
-                  "-",
-                  "$whiteimage",
-                ],
+                rawTokens: ["textures\\test\\diffuse.tga", "textures/test/diffuse_norm.tga", "-", "$whiteimage"],
                 diffuse: "textures\\test\\diffuse.tga",
                 normal: "textures/test/diffuse_norm.tga",
                 gloss: "-",

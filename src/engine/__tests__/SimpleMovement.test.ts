@@ -11,11 +11,7 @@
 import { describe, expect, it } from "vitest";
 import { InputButtons } from "../network/components/InputComponent";
 import type { Vec3 } from "../network/components/TransformComponent";
-import {
-  type CollisionWorld,
-  NullCollisionWorld,
-  type TraceResult,
-} from "../network/systems/collision/CollisionWorld";
+import { type CollisionWorld, NullCollisionWorld, type TraceResult } from "../network/systems/collision/CollisionWorld";
 import type { MovementInput } from "../network/systems/movement/MovementProfile";
 import { SimpleMovement, type SimpleMovementConfig } from "../network/systems/movement/SimpleMovement";
 
@@ -200,13 +196,7 @@ describe("SimpleMovement — gravity + ground snap", () => {
 
   it("does not apply gravity when grounded (collision world reports contact)", () => {
     const m = new SimpleMovement();
-    const r = m.simulate(
-      { x: 0, y: 0.05, z: 0 },
-      { x: 0, y: 0, z: 0 },
-      null,
-      0.016,
-      floorAtZero(),
-    );
+    const r = m.simulate({ x: 0, y: 0.05, z: 0 }, { x: 0, y: 0, z: 0 }, null, 0.016, floorAtZero());
     expect(r.grounded).toBe(true);
     // With floor beneath, gravity is skipped — vy stays at 0.
     expect(r.velocity.y).toBeCloseTo(0, 5);
@@ -214,13 +204,7 @@ describe("SimpleMovement — gravity + ground snap", () => {
 
   it("clamps negative vy to zero on ground contact", () => {
     const m = new SimpleMovement();
-    const r = m.simulate(
-      { x: 0, y: 0.05, z: 0 },
-      { x: 0, y: -50, z: 0 },
-      null,
-      0.016,
-      floorAtZero(),
-    );
+    const r = m.simulate({ x: 0, y: 0.05, z: 0 }, { x: 0, y: -50, z: 0 }, null, 0.016, floorAtZero());
     expect(r.grounded).toBe(true);
     expect(r.velocity.y).toBe(0);
   });
@@ -326,38 +310,20 @@ describe("SimpleMovement — ground movement", () => {
 
   it("applies friction with null input (e.g., bot with no input component)", () => {
     const m = new SimpleMovement();
-    const r = m.simulate(
-      { x: 0, y: 0.05, z: 0 },
-      { x: 100, y: 0, z: 0 },
-      null,
-      0.016,
-      floorAtZero(),
-    );
+    const r = m.simulate({ x: 0, y: 0.05, z: 0 }, { x: 100, y: 0, z: 0 }, null, 0.016, floorAtZero());
     expect(r.velocity.x).toBeCloseTo(90.4, 3);
   });
 
   it("zeroes very low horizontal speed (< 0.1) to avoid creep", () => {
     const m = new SimpleMovement();
-    const r = m.simulate(
-      { x: 0, y: 0.05, z: 0 },
-      { x: 0.05, y: 0, z: 0.05 },
-      null,
-      0.016,
-      floorAtZero(),
-    );
+    const r = m.simulate({ x: 0, y: 0.05, z: 0 }, { x: 0.05, y: 0, z: 0.05 }, null, 0.016, floorAtZero());
     expect(r.velocity.x).toBe(0);
     expect(r.velocity.z).toBe(0);
   });
 
   it("does not apply horizontal friction while airborne", () => {
     const m = new SimpleMovement();
-    const r = m.simulate(
-      { x: 0, y: 100, z: 0 },
-      { x: 200, y: 0, z: 0 },
-      null,
-      0.016,
-      null,
-    );
+    const r = m.simulate({ x: 0, y: 100, z: 0 }, { x: 200, y: 0, z: 0 }, null, 0.016, null);
     // x velocity unchanged in air (no input, no collision).
     expect(r.velocity.x).toBe(200);
   });
@@ -445,13 +411,7 @@ describe("SimpleMovement — collision response", () => {
   it("moves freely when trace misses", () => {
     const m = new SimpleMovement();
     const collision = new NullCollisionWorld();
-    const r = m.simulate(
-      { x: 0, y: 100, z: 0 },
-      { x: 50, y: 0, z: 50 },
-      null,
-      0.02,
-      collision,
-    );
+    const r = m.simulate({ x: 0, y: 100, z: 0 }, { x: 50, y: 0, z: 50 }, null, 0.02, collision);
     // NullCollisionWorld.trace always returns hit:false, so free movement.
     expect(r.position.x).toBeCloseTo(1.0, 5);
     expect(r.position.z).toBeCloseTo(1.0, 5);
@@ -469,13 +429,7 @@ describe("SimpleMovement — custom config knobs", () => {
 
   it("friction=0 preserves horizontal speed when grounded with no input", () => {
     const m = new SimpleMovement({ friction: 0 });
-    const r = m.simulate(
-      { x: 0, y: 0.05, z: 0 },
-      { x: 100, y: 0, z: 0 },
-      null,
-      0.016,
-      floorAtZero(),
-    );
+    const r = m.simulate({ x: 0, y: 0.05, z: 0 }, { x: 100, y: 0, z: 0 }, null, 0.016, floorAtZero());
     expect(r.velocity.x).toBe(100);
   });
 

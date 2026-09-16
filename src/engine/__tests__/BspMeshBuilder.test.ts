@@ -1,6 +1,6 @@
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
-import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { RawTexture } from "@babylonjs/core/Materials/Textures/rawTexture";
+import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { Scene } from "@babylonjs/core/scene";
 import { describe, expect, it } from "vitest";
 import { BspMeshBuilder } from "../loader/bsp/BspMeshBuilder";

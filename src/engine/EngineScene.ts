@@ -42,9 +42,9 @@ import { ScreenTransition } from "./effects/ScreenTransition";
 import { ThunderEffect } from "./effects/ThunderEffect";
 import { WindSystem } from "./effects/WindSystem";
 import { InputSystem } from "./input";
+import { applySafeMaxSimultaneousLights, applySafeSceneLightCaps } from "./lighting/DynamicLightSafety";
 import { SkyLightSystem } from "./lighting/SkyLightSystem";
 import { StreetLampSystem } from "./lighting/StreetLampSystem";
-import { applySafeMaxSimultaneousLights, applySafeSceneLightCaps } from "./lighting/DynamicLightSafety";
 import { TextureManager, TextureMemoryManager } from "./loader";
 import { MapLoader } from "./loader/map/MapLoader";
 import { MapRenderer } from "./MapRenderer";
@@ -124,7 +124,17 @@ export abstract class EngineScene {
 
   // Debug-window keys this scene attached in exposeDebugFunctions() — cleared
   // in dispose() so stale closures don't keep the disposed scene alive.
-  private readonly debugWindowKeys = ["loadMap", "setZoom", "setCameraMode", "getCameraMode", "setCameraHeight", "getCameraHeight", "camera", "fx", "weather"] as const;
+  private readonly debugWindowKeys = [
+    "loadMap",
+    "setZoom",
+    "setCameraMode",
+    "getCameraMode",
+    "setCameraHeight",
+    "getCameraHeight",
+    "camera",
+    "fx",
+    "weather",
+  ] as const;
 
   constructor(engine: Engine, canvas: HTMLCanvasElement) {
     this.engine = engine;
