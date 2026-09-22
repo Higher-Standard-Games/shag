@@ -146,7 +146,8 @@ export default defineConfig({
               text: 'Multiplayer',
               collapsed: true,
               items: [
-                { text: 'Networking System', link: '/guides/networking' }
+                { text: 'Networking System', link: '/guides/networking' },
+                { text: 'Lobby Server', link: '/guides/lobby-server' }
               ]
             },
             { text: 'Headless Mode', link: '/guides/headless-mode' }

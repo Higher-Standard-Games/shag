@@ -37,6 +37,7 @@ In-depth explanations of SHAG Engine systems. These guides explain concepts and 
 | Guide | Description |
 |-------|-------------|
 | [Networking System](./networking.md) | Multiplayer architecture and API |
+| [Lobby Server](./lobby-server.md) | Accounts, rooms, match spawning, results and ranking |
 | [Map Launching](./map-launching.md) | Lobby dev-spawn flow used by the developer `map` command |
 
 ## Advanced Topics
