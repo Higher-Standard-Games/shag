@@ -14,7 +14,8 @@ Deploy the contents of `dist/` to a static HTTPS host. Vite copies files from `p
 - serve `index.html` and hashed assets with the correct MIME types;
 - provide an SPA fallback to `index.html` for client-side routes;
 - use HTTPS for browser APIs and production networking;
-- serve `.wasm`, `.pk3`, compressed textures, and source maps with suitable cache headers;
+- serve `.wasm`, `.pk3` and compressed textures with suitable cache headers;
+- do not deploy source maps: the build emits hidden maps and then moves them out of `dist/` into `sourcemaps/`, which is for symbolicating reports, not for serving;
 - avoid caching `index.html` indefinitely while using long immutable caching for hashed assets.
 
 Large PK3 files may be more practical on a CDN. The current loaders resolve assets through `GamePaths`, `PK3Index`, and generated manifests; there is no `PK3Loader.setBasePath` API. Configure the public paths rather than documenting a nonexistent loader setter.

@@ -4,14 +4,17 @@
  * Configures how the app is packaged for Windows, Linux, and macOS.
  * Run: npm run electron:build
  * 
- * Reads game metadata from src/game/game.json
+ * Reads metadata for the selected game, the same way vite.config.ts picks it:
+ * the GAME environment variable, else engine.json's defaultGame.
  */
 
-const gameConfig = require('./src/game/game.json');
+const engineConfig = require('./public/engine.json');
+const selectedGame = process.env.GAME || engineConfig.defaultGame || 'fps';
+const gameConfig = require(`./src/games/${selectedGame}/game.json`);
 
 module.exports = {
   appId: gameConfig.desktop?.appId || 'com.shagengine.game',
-  productName: gameConfig.display?.title || gameConfig.name || 'SHAG Engine Game',
+  productName: gameConfig.displayName || gameConfig.display?.title || gameConfig.name || 'SHAG Engine Game',
   
   // Directories
   directories: {
@@ -49,7 +52,7 @@ module.exports = {
     installerHeaderIcon: 'build-resources/icon.ico',
     createDesktopShortcut: true,
     createStartMenuShortcut: true,
-    shortcutName: gameConfig.display?.title || gameConfig.name || 'Game',
+    shortcutName: gameConfig.displayName || gameConfig.display?.title || gameConfig.name || 'Game',
   },
   
   // Linux configuration
@@ -67,7 +70,7 @@ module.exports = {
     icon: 'build-resources/icons',
     category: 'Game',
     synopsis: gameConfig.description || 'A game built with SHAG Engine',
-    description: `${gameConfig.display?.title || gameConfig.name || 'Game'} - Built with SHAG Engine`,
+    description: `${gameConfig.displayName || gameConfig.display?.title || gameConfig.name || 'Game'} - Built with SHAG Engine`,
   },
   
   // macOS configuration (if needed later)

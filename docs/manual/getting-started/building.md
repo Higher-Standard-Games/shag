@@ -8,6 +8,8 @@ npm run build
 
 This runs TypeScript and Vite and writes the deployable site to `dist/`. Build filenames and sizes are generated artifacts; inspect the current output instead of relying on fixed values in documentation.
 
+A `postbuild` step then moves the hidden source maps out of `dist/` into `sourcemaps/`. Keep them for symbolicating error reports; do not deploy them, and do not let them into the Electron or Capacitor packages, both of which copy `dist/` wholesale.
+
 Preview it locally:
 
 ```bash
