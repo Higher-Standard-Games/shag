@@ -232,6 +232,12 @@ export class GamePanel {
     this.scrollInner.appendChild(element);
   }
 
+  /** Opt-in full-viewport rail shell for menus that provide their own navigation. */
+  protected useRailLayout(rail: HTMLElement): void {
+    this.root.classList.add("game-panel--rail");
+    this.root.insertBefore(rail, this.centerZone);
+  }
+
   /**
    * Get the scrollable inner container (for appending content directly).
    */

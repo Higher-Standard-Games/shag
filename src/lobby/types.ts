@@ -19,6 +19,12 @@ export interface LobbyMessage {
 // Gametype Definitions (sent in welcome)
 // ============================================================================
 
+/** Display names for the lobby's two sides. */
+export interface TeamNames {
+  alpha: string;
+  bravo: string;
+}
+
 export interface GametypeInfo {
   id: string; // 'duel', 'snd', 'ffa'
   name: string; // 'DUEL 1v1'
@@ -34,7 +40,12 @@ export interface GametypeInfo {
    */
   minPlayers?: number;
   hasTeams: boolean;
-  teamNames?: [string, string];
+  /**
+   * What to call each side. Keyed by the lobby's team ids rather than ordered,
+   * because a pair read by position is a coin flip: the game maps alpha to Soba
+   * and bravo to Udon (see normalizeTeamId in shared/server/gametype).
+   */
+  teamNames?: TeamNames;
   mapPool: string[]; // Available maps for this gametype
   backgroundImage?: string;
 }
@@ -84,13 +95,19 @@ export interface LobbyPlayerInfo {
 export interface MatchLobbyInfo {
   id: string;
   gametype: string;
+  /** Present only for the currently running match, to reopen an unplayed seat. */
+  activeMatchId?: string;
+  /** Absent on older servers, which only create public rooms. */
+  visibility?: "public" | "private";
   maps: MapOption[];
   players: LobbyPlayerInfo[];
+  /** Recent messages in this room, sent only to a member receiving room state. */
+  chatHistory?: ChatMessage[];
   shareUrl: string;
   config: {
     maxPlayers: number;
     hasTeams: boolean;
-    teamNames?: [string, string];
+    teamNames?: TeamNames;
   };
 }
 
@@ -128,12 +145,37 @@ export interface DemoInfo {
   levelshot?: string; // "/data/levelshots/wdm14.png"
 }
 
+export interface FeaturedDemoInfo {
+  demo: DemoInfo;
+  /** Position in the recency selection, not a skill or player ranking. */
+  rank: number;
+  reason: string;
+}
+
 // ============================================================================
 // Client → Server Messages
 // ============================================================================
 
+/**
+ * Log in. With `key`, into that player's account. Without one, into a new
+ * account named Player_<number>, whose key comes back once in `welcome`.
+ * Players can't choose a name here; that's what `identity:rename` is for.
+ */
 export interface AuthMessage extends LobbyMessage {
   type: "auth";
+  /** The player's key, in any form they might paste it (see PlayerIdentity.normalizeKey). */
+  key?: string;
+  /** A bot's name. Ignored for players. */
+  name?: string;
+  /** Set by the bot server's lobby bots. Believed only with `botSecret`, from the lobby's own machine. */
+  isBot?: boolean;
+  /** The secret the lobby shares with its bot server. */
+  botSecret?: string;
+}
+
+/** Change your account's name. Not while in a room: the room and its match keep the name they were given. */
+export interface IdentityRenameMessage extends LobbyMessage {
+  type: "identity:rename";
   name: string;
 }
 
@@ -142,14 +184,23 @@ export interface ChatSendMessage extends LobbyMessage {
   text: string;
 }
 
+export interface RoomChatSendMessage extends LobbyMessage {
+  type: "lobby:chat_send";
+  lobbyId: string;
+  text: string;
+}
+
 export interface LobbyCreateMessage extends LobbyMessage {
   type: "lobby:create";
   gametype: string;
+  visibility?: "public" | "private";
 }
 
 export interface LobbyJoinMessage extends LobbyMessage {
   type: "lobby:join";
   lobbyId: string;
+  /** Bearer secret from a private room's share URL. */
+  inviteToken?: string;
 }
 
 export interface LobbyLeaveMessage extends LobbyMessage {
@@ -209,18 +260,107 @@ export interface DevSpawnServerMessage extends LobbyMessage {
   gametype: string;
 }
 
+/** Public read-only rankings; request IDs correlate concurrent mode/period changes. */
+export interface LeaderboardRequest extends LobbyMessage {
+  type: "leaderboard:get";
+  requestId: string;
+  gametype: string;
+  period: "month" | "all";
+  offset: number;
+  limit: number;
+}
+
+export interface LeaderboardResponse extends LobbyMessage {
+  type: "leaderboard:page";
+  requestId: string;
+  gametype: string;
+  period: "month" | "all";
+  entries: Array<{ rank: number; playerId: string; name: string; wins: number; losses: number; draws: number }>;
+  total: number;
+  localPlayerRank?: number;
+  /** The authenticated account's actual row, even when it is outside this page. */
+  localPlayerEntry?: LeaderboardResponse["entries"][number];
+}
+
+export interface LeaderboardError extends LobbyMessage {
+  type: "leaderboard:error";
+  requestId: string;
+  reason: "unavailable" | "invalid_query" | "rate_limited";
+}
+
+/** Recover the original unplayed human seat after its short initial ticket expires. */
+export interface SeatReissueRequest extends LobbyMessage {
+  type: "match:seat_reissue";
+  requestId: string;
+  matchId: string;
+}
+
+export interface SeatReissueResponse extends LobbyMessage {
+  type: "match:seat_reissued";
+  requestId: string;
+  matchId: string;
+  serverUrl: string;
+  admissionTicket: string;
+}
+
+export interface SeatReissueError extends LobbyMessage {
+  type: "match:seat_reissue_error";
+  requestId: string;
+  reason: "unavailable";
+}
+
 // ============================================================================
 // Server → Client Messages
 // ============================================================================
 
+/** A player's account, as the player sees it. Bots have none. */
+export interface PlayerIdentityInfo {
+  id: string;
+  name: string;
+}
+
 export interface WelcomeMessage extends LobbyMessage {
   type: "welcome";
+  /** Older servers omit this; clients must keep Private disabled then. */
+  features?: { privateLobbies: boolean; leaderboard?: boolean; featuredDemos?: boolean; demoOwnership?: boolean };
+  /** This connection's id, used by rooms and chat. Not the account id. */
   playerId: string;
+  /** The account this connection is logged in to; absent for bots. */
+  identity?: PlayerIdentityInfo;
+  /** Only when this login created the account: its key, sent this once. Store it. */
+  key?: string;
   gametypes: GametypeInfo[];
   onlinePlayers: PlayerInfo[];
   chatHistory: ChatMessage[];
   liveMatches: LiveMatchInfo[];
   recentDemos: DemoInfo[];
+}
+
+export type AuthErrorCode = "unknown_key" | "rate_limited" | "already_authenticated";
+
+/** Login failed; the connection stays open and may send `auth` again. */
+export interface AuthErrorMessage extends LobbyMessage {
+  type: "auth:error";
+  code: AuthErrorCode;
+}
+
+export interface IdentityRenamedMessage extends LobbyMessage {
+  type: "identity:renamed";
+  identity: PlayerIdentityInfo;
+}
+
+export type IdentityErrorCode = "name_invalid" | "name_reserved" | "name_taken" | "in_lobby" | "rate_limited";
+
+export interface IdentityErrorMessage extends LobbyMessage {
+  type: "identity:error";
+  code: IdentityErrorCode;
+}
+
+/** Someone online changed their name. */
+export interface PlayerRenamedMessage extends LobbyMessage {
+  type: "player:renamed";
+  playerId: string;
+  name: string;
 }
 
 export interface ChatBroadcastMessage extends LobbyMessage {
@@ -229,6 +369,11 @@ export interface ChatBroadcastMessage extends LobbyMessage {
   fromId: string;
   text: string;
   ts: number;
+}
+
+export interface RoomChatBroadcastMessage extends ChatMessage, LobbyMessage {
+  type: "lobby:chat_message";
+  lobbyId: string;
 }
 
 export interface PlayerJoinMessage extends LobbyMessage {
@@ -285,9 +430,12 @@ export interface LobbyStartingMessage extends LobbyMessage {
 
 export interface LobbyConnectMessage extends LobbyMessage {
   type: "lobby:connect";
+  matchId?: string;
   serverUrl: string;
   map: string;
   gametype: string;
+  /** Private one-use game-server seat credential. Never send via room broadcast. */
+  admissionTicket?: string;
 }
 
 export interface LobbyErrorMessage extends LobbyMessage {
@@ -334,9 +482,32 @@ export interface DevServerSpawnFailedMessage extends LobbyMessage {
 export interface DemosListRequest extends LobbyMessage {
   type: "demos:list";
   limit?: number; // max demos to return (default 64)
+  scope?: "latest" | "yours";
 }
 
 export interface DemosListResponse extends LobbyMessage {
   type: "demos:list_response";
   demos: DemoInfo[];
+  scope?: "latest" | "yours";
+}
+
+export interface FeaturedDemosRequest extends LobbyMessage {
+  type: "featured:get";
+  requestId: string;
+  gametype?: string;
+  map?: string;
+  limit: number;
+}
+
+export interface FeaturedDemosResponse extends LobbyMessage {
+  type: "featured:page";
+  requestId: string;
+  entries: FeaturedDemoInfo[];
+  selection: "ranked_month_week" | "recent_multiplayer_week";
+}
+
+export interface FeaturedDemosError extends LobbyMessage {
+  type: "featured:error";
+  requestId: string;
+  reason: "invalid_query" | "rate_limited";
 }

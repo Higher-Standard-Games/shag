@@ -92,6 +92,7 @@ export class BotClient extends EventEmitter {
 
   // Options
   private _team: string | undefined;
+  private _admissionTicket: string | undefined;
 
   // Vision (shared across bots on same map)
   private _vision: BotVision | null = null;
@@ -215,12 +216,13 @@ export class BotClient extends EventEmitter {
    * Returns a promise that resolves when connection is established
    * and the bot has joined the game.
    */
-  async connect(serverUrl: string): Promise<void> {
+  async connect(serverUrl: string, admissionTicket?: string): Promise<void> {
     if (this._state !== "disconnected") {
       throw new Error(`${this._logPrefix} Already connected (state: ${this._state})`);
     }
 
     this._state = "connecting";
+    this._admissionTicket = admissionTicket;
     this._snapshotReceiver.reset();
     console.log(`${this._logPrefix} Connecting to ${serverUrl}...`);
 
@@ -548,7 +550,8 @@ export class BotClient extends EventEmitter {
   private _sendJoin(): void {
     console.log(`${this._logPrefix} Sending Join...`);
     // Mark as a bot so the server can tell humans from bots (demo/shutdown gating).
-    this._send(MessageCodec.encodeJoin(this.name, true));
+    this._send(MessageCodec.encodeJoin(this.name, true, this._admissionTicket));
+    this._admissionTicket = undefined;
   }
 
   private _sendJoinGame(): void {

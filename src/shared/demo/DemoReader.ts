@@ -37,6 +37,8 @@ export interface DemoHeader {
   snapshotRate: number;
   /** Recording start time (ms since epoch) */
   startTime: number;
+  /** Version 2 only: lobby-issued match ID. Absent for legacy/direct recordings. */
+  matchId?: string;
   /** Player roster */
   players: DemoPlayerInfo[];
 }
@@ -45,6 +47,8 @@ export interface DemoPlayerInfo {
   playerId: string;
   name: string;
   team: string;
+  /** Version 2 only: account from a verified game seat, if present. */
+  accountId?: number;
 }
 
 export interface DemoFrame {
@@ -115,7 +119,7 @@ export class DemoReader {
     // Version
     const version = view.getUint8(offset);
     offset += 1;
-    if (version !== 1) {
+    if (version !== 1 && version !== 2) {
       throw new Error(`Unsupported demo version: ${version}`);
     }
 
@@ -142,6 +146,13 @@ export class DemoReader {
     offset += 4;
     const startTime = tsHigh * 0x100000000 + tsLow;
 
+    let matchId: string | undefined;
+    if (version >= 2) {
+      const [value, bytes] = this._readString(offset);
+      offset += bytes;
+      matchId = value || undefined;
+    }
+
     // Player roster
     const playerCount = view.getUint8(offset);
     offset += 1;
@@ -154,11 +165,18 @@ export class DemoReader {
       offset += nameLen;
       const [team, teamLen] = this._readString(offset);
       offset += teamLen;
-      players.push({ playerId, name, team });
+      let accountId: number | undefined;
+      if (version >= 2) {
+        const [value, bytes] = this._readString(offset);
+        offset += bytes;
+        const parsed = Number(value);
+        if (value && Number.isSafeInteger(parsed) && parsed > 0) accountId = parsed;
+      }
+      players.push({ playerId, name, team, ...(accountId ? { accountId } : {}) });
     }
 
     // headerEndOffset = offset (for sequential frame reading)
-    this._header = { version, map, gametype, tickRate, snapshotRate, startTime, players };
+    this._header = { version, map, gametype, tickRate, snapshotRate, startTime, matchId, players };
     return this._header;
   }
 

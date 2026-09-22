@@ -1,0 +1,247 @@
+/**
+ * RaisedKey — the menu's 3D key.
+ *
+ * Two layers with the same slanted cut: the face, and the side it stands on.
+ * clip-path cuts away anything outside the polygon, shadows included, so the
+ * depth is a real layer and the cast shadow lives on the unclipped button.
+ * --key-press moves the face: negative lifts it off the side, 1 sinks it flat.
+ *
+ * States come from the element: [aria-current="page"] latches a key (the page
+ * you're on), [aria-pressed="true"] picks a mode key, :disabled unlights one.
+ * Hover and keyboard focus share the violet lift, which is the focus ring.
+ */
+
+.raised-key {
+  --key-d: 6px;
+  --key-dx: calc(var(--key-d) * 0.75);
+  --key-cut: 3%;
+  --key-press: 0;
+
+  --key-face: linear-gradient(180deg, hsl(51 100% 73%), hsl(46 100% 58%) 55%, hsl(42 100% 50%));
+  --key-side: linear-gradient(180deg, hsl(36 92% 40%), hsl(28 88% 25%));
+  --key-text: hsl(250 45% 8%);
+  --key-sub: hsla(250, 45%, 8%, 0.62);
+  --key-shadow: hsla(28, 90%, 14%, 0.42);
+
+  position: relative;
+  display: block;
+  width: 100%;
+  margin: 0 0 calc(var(--key-d) + 8px);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  filter: drop-shadow(
+    calc(var(--key-dx) * (1 - var(--key-press)) + 2px) calc(var(--key-d) * (1 - var(--key-press)) + 5px) 9px
+      var(--key-shadow)
+  );
+  transition: filter 0.14s ease;
+}
+
+.raised-key__side,
+.raised-key__face {
+  clip-path: polygon(var(--key-cut) 0, 100% 0, calc(100% - var(--key-cut)) 100%, 0 100%);
+}
+
+.raised-key__side {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: var(--key-side);
+  transform: translate(var(--key-dx), var(--key-d));
+}
+
+.raised-key__face {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-height: 60px;
+  padding: 14px 22px 14px 26px;
+  box-sizing: border-box;
+  background: var(--key-face);
+  color: var(--key-text);
+  transform: translate(calc(var(--key-dx) * var(--key-press)), calc(var(--key-d) * var(--key-press)));
+  transition: transform 0.15s cubic-bezier(0.2, 0.9, 0.3, 1.25);
+}
+
+/* Lit top edge: the bevel that makes it a key rather than a card */
+.raised-key__face::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 2px;
+  background: hsla(0, 0%, 100%, 0.55);
+  pointer-events: none;
+}
+
+.raised-key__face::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: hsla(250, 60%, 5%, 0.14);
+  pointer-events: none;
+}
+
+.raised-key__label {
+  min-width: 0;
+  font: 900 20px / 1 var(--w-font-display, "Orbitron", monospace);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.raised-key__hint {
+  min-width: 0;
+  overflow: hidden;
+  font: 700 13px / 1 var(--w-font-body, "Rajdhani", sans-serif);
+  letter-spacing: 0.12em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--key-sub);
+}
+
+/* ── Variants ── */
+
+.raised-key--nav .raised-key__face {
+  min-height: 66px;
+  padding: 17px 24px 17px 28px;
+}
+
+.raised-key--nav .raised-key__label {
+  font-size: clamp(15px, 1.1vw, 21px);
+}
+
+.raised-key--sm {
+  --key-d: 3.6px;
+  margin-bottom: calc(var(--key-d) + 6px);
+}
+
+.raised-key--sm .raised-key__face {
+  gap: 10px;
+  min-height: 46px;
+  padding: 10px 16px 10px 20px;
+}
+
+.raised-key--sm .raised-key__label {
+  font-size: 14px;
+}
+
+.raised-key--cream {
+  --key-face: linear-gradient(180deg, hsl(45 100% 97%), hsl(42 62% 90%) 60%, hsl(40 42% 82%));
+  --key-side: linear-gradient(180deg, hsl(36 26% 60%), hsl(30 22% 42%));
+}
+
+/* Ink at rest, gold lettering: the one key that matters on a gold panel */
+.raised-key--ink {
+  --key-face: linear-gradient(180deg, hsl(250 28% 21%), hsl(250 40% 10%) 60%, hsl(252 44% 6%));
+  --key-side: linear-gradient(180deg, hsl(252 44% 5%), hsl(252 44% 3%));
+  --key-text: hsl(46 100% 60%);
+  --key-sub: hsla(46, 100%, 60%, 0.62);
+  --key-shadow: hsla(28, 90%, 14%, 0.5);
+}
+
+/* The arcade key, in the stage's accent */
+.raised-key--cta {
+  --key-d: 9.6px;
+  --key-cut: 5%;
+  --key-face: linear-gradient(180deg, var(--accent-hi), var(--accent) 58%, var(--accent-lo));
+  --key-side: linear-gradient(180deg, var(--accent-side-hi), var(--accent-side-lo));
+  --key-shadow: hsla(250, 70%, 3%, 0.62);
+  display: inline-block;
+  width: auto;
+}
+
+.raised-key--cta .raised-key__face {
+  justify-content: center;
+  min-height: 90px;
+  padding: 0 66px 0 60px;
+}
+
+.raised-key--cta .raised-key__label {
+  font-size: 30px;
+  letter-spacing: 0.1em;
+}
+
+.raised-key--util .raised-key__face {
+  justify-content: center;
+  min-height: 40px;
+  padding: 8px 10px;
+}
+
+.raised-key--util .raised-key__label {
+  font: 800 11px / 1 var(--w-font-display, "Orbitron", monospace);
+  letter-spacing: 0.12em;
+}
+
+/* Keys that sit in a row and size to their label */
+.raised-key--inline {
+  flex: 0 0 auto;
+  width: auto;
+  margin: 0 calc(var(--key-dx) + 2px) var(--key-d) 0;
+}
+
+/* ── States: order matters, later rules win ties ── */
+
+.raised-key:is(:hover, :focus-visible):not(:disabled) {
+  --key-press: -0.35;
+  --key-face: linear-gradient(180deg, hsl(278 92% 75%), hsl(273 80% 61%) 55%, hsl(268 72% 50%));
+  --key-side: linear-gradient(180deg, hsl(266 72% 34%), hsl(258 72% 19%));
+  --key-text: hsl(45 100% 96%);
+  --key-sub: hsla(45, 100%, 96%, 0.72);
+  --key-shadow: hsla(268, 80%, 14%, 0.5);
+}
+
+.raised-key:active:not(:disabled) {
+  --key-press: 1;
+  --key-face: linear-gradient(180deg, hsl(272 76% 58%), hsl(266 70% 45%));
+}
+
+.raised-key:active:not(:disabled),
+.raised-key:active:not(:disabled) .raised-key__face {
+  transition-duration: 0.05s;
+  transition-timing-function: ease-out;
+}
+
+/* The page you're on: a latched key, pressed in and inked */
+.raised-key[aria-current="page"],
+.raised-key[aria-current="page"]:is(:hover, :focus-visible, :active):not(:disabled) {
+  --key-press: 0.62;
+  --key-face: linear-gradient(180deg, hsl(250 28% 21%), hsl(250 40% 10%) 60%, hsl(252 44% 6%));
+  --key-side: linear-gradient(180deg, hsl(252 44% 5%), hsl(252 44% 3%));
+  --key-text: hsl(46 100% 60%);
+  --key-sub: hsla(46, 100%, 60%, 0.66);
+}
+
+/* Unlit: the key stays where it is and its lettering goes dark */
+.raised-key:disabled {
+  cursor: not-allowed;
+}
+
+.raised-key:disabled .raised-key__face {
+  filter: saturate(0.45) brightness(0.94);
+}
+
+.raised-key:disabled :is(.raised-key__label, .raised-key__hint) {
+  opacity: 0.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .raised-key,
+  .raised-key__face {
+    transition: none;
+  }
+}

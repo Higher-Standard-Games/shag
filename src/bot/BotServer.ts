@@ -7,7 +7,9 @@
  *
  * Architecture (follows LobbyServer pattern):
  *   - CLI entry point: src/cli/bot-server.ts
- *   - Control API: WebSocket JSON messages on port 9100
+ *   - Control API: WebSocket JSON messages on 127.0.0.1:9100. A connection must
+ *     send the shared bot secret in the x-bot-secret header (see
+ *     src/lobby/ServerData.ts); any other connection is closed at once.
  *   - BotClients: Spawned on demand, connect to game servers as real clients
  *
  * Control API Messages:
@@ -27,7 +29,9 @@
  *   ← { type: 'status', bots: [...] }
  */
 
+import type { IncomingMessage } from "node:http";
 import { WebSocket, WebSocketServer } from "ws";
+import { BOT_SECRET_HEADER, secretMatches } from "../lobby/ServerData";
 import { BotClient } from "./BotClient";
 import { type BotOptions, getNextBotName } from "./BotConfig";
 import { BotLobbyClient } from "./BotLobbyClient";
@@ -59,16 +63,39 @@ export class BotServer {
 
   // Versioned on-disk cache for deterministic map geometry analysis.
   private _navCacheStore: BotNavCacheStore = new BotNavCacheStore();
-  constructor(port: number = 9100) {
+  /** Shared with the lobby: guards the control port and marks lobby bots as bots. */
+  private _secret: string | undefined;
+
+  constructor(port: number = 9100, options: { secret?: string } = {}) {
     this._port = port;
+    this._secret = options.secret;
+  }
+
+  /** The port the control API listens on; the real one when started on port 0. */
+  get port(): number {
+    const address = this._wss?.address();
+    return address && typeof address === "object" ? address.port : this._port;
   }
 
   // ── Lifecycle ─────────────────────────────────────────────────────
 
   async start(): Promise<void> {
-    this._wss = new WebSocketServer({ port: this._port });
+    if (!this._secret) {
+      throw new Error("BotServer control API needs the shared bot secret");
+    }
+    const wss = new WebSocketServer({ port: this._port, host: "127.0.0.1" });
+    this._wss = wss;
+    await new Promise<void>((resolve, reject) => {
+      wss.once("listening", resolve);
+      wss.once("error", reject);
+    });
 
-    this._wss.on("connection", (ws: WebSocket) => {
+    wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
+      if (!secretMatches(this._secret, req.headers[BOT_SECRET_HEADER])) {
+        console.warn(`[BotServer] Refused control client without the bot secret (${req.socket.remoteAddress})`);
+        ws.close(1008, "Bot secret required");
+        return;
+      }
       console.log(`[BotServer] Control client connected`);
 
       ws.on("message", (data: Buffer) => {
@@ -85,7 +112,7 @@ export class BotServer {
       });
     });
 
-    console.log(`[BotServer] ✓ Control API listening on port ${this._port}`);
+    console.log(`[BotServer] ✓ Control API listening on 127.0.0.1:${this.port}`);
     console.log(`[BotServer] Managing ${this._bots.size} bots`);
   }
 
@@ -153,12 +180,16 @@ export class BotServer {
     gametype: string,
     options?: Partial<BotOptions>,
     joinLobbyId?: string,
+    inviteToken?: string,
   ): Promise<BotLobbyClient> {
-    const lobbyBot = new BotLobbyClient({
-      name: options?.name || getNextBotName(),
-      difficulty: options?.difficulty || "medium",
-      team: options?.team,
-    });
+    const lobbyBot = new BotLobbyClient(
+      {
+        name: options?.name || getNextBotName(),
+        difficulty: options?.difficulty || "medium",
+        team: options?.team,
+      },
+      this._secret,
+    );
 
     // When lobby bot transitions to game, track the game BotClient
     lobbyBot.onGameBotCreated = (bot: BotClient) => {
@@ -179,7 +210,7 @@ export class BotServer {
     };
 
     try {
-      await lobbyBot.connect(lobbyUrl, gametype, joinLobbyId);
+      await lobbyBot.connect(lobbyUrl, gametype, joinLobbyId, inviteToken);
       this._lobbyBots.set(lobbyBot.id, lobbyBot);
       const where = joinLobbyId ? `lobby ${joinLobbyId}` : `queue ${gametype}`;
       console.log(`[BotServer] Lobby bot ${lobbyBot.name} (${lobbyBot.id}) → ${where}`);
@@ -351,7 +382,13 @@ export class BotServer {
 
       case "add_lobby_bot": {
         try {
-          const bot = await this.addLobbyBot(msg.lobbyUrl, msg.gametype || "duel", msg.options, msg.lobbyId);
+          const bot = await this.addLobbyBot(
+            msg.lobbyUrl,
+            msg.gametype || "duel",
+            msg.options,
+            msg.lobbyId,
+            msg.inviteToken,
+          );
           this._sendResponse(ws, {
             type: "bot_added",
             botId: bot.id,

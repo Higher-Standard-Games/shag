@@ -1,0 +1,855 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Leaderboard prototype</title>
+
+<style>
+@font-face { font-family: "Orbitron"; src: url("/engine/fonts/Orbitron/static/Orbitron-Bold.ttf") format("truetype"); font-weight: 700; font-display: block; }
+@font-face { font-family: "Orbitron"; src: url("/engine/fonts/Orbitron/static/Orbitron-ExtraBold.ttf") format("truetype"); font-weight: 800; font-display: block; }
+@font-face { font-family: "Orbitron"; src: url("/engine/fonts/Orbitron/static/Orbitron-Black.ttf") format("truetype"); font-weight: 900; font-display: block; }
+@font-face { font-family: "Rajdhani"; src: url("/engine/fonts/Rajdhani/Rajdhani-SemiBold.ttf") format("truetype"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "Rajdhani"; src: url("/engine/fonts/Rajdhani/Rajdhani-Bold.ttf") format("truetype"); font-weight: 700; font-display: swap; }
+
+:root {
+  --ink: hsl(250 45% 7%);
+  --cream: hsl(45 100% 95%);
+  --gold-text: hsl(46 100% 60%);
+  --violet: hsl(276 90% 64%);
+  --display: "Orbitron", monospace;
+  --body: "Rajdhani", sans-serif;
+
+  --depth: 6px;       /* how far every key stands off its tray */
+  --iso: 0.75;        /* oblique extrusion: the side shows below and to the right */
+  --rail-w: 26%;
+  --rail-skew: 44px;
+
+  /* Stage accent, set per gametype */
+  --a: hsl(182 95% 52%);
+  --a-hi: hsl(182 100% 74%);
+  --a-lo: hsl(188 90% 40%);
+  --a-side-hi: hsl(192 85% 28%);
+  --a-side-lo: hsl(198 80% 17%);
+}
+
+* { box-sizing: border-box; }
+
+/* The ground behind the stage: a deep blue, lifted by the stage's drifting light */
+:root { --ground: linear-gradient(165deg, hsl(222 56% 17%), hsl(217 58% 24%) 55%, hsl(224 52% 16%)); }
+html, body { height: 100%; }
+body {
+  margin: 0; overflow: hidden;
+  background: var(--ground); color: var(--cream); font-family: var(--body);
+}
+.shell { position: relative; display: flex; height: 100vh; }
+
+/* ═══════════════════════════════ 3D KEY ═══════════════════════════════
+   Two layers with the same sharp cut: the face, and the side it stands on.
+   clip-path cuts away anything outside the polygon, shadows included, so the
+   depth is a real layer and the cast shadow lives on the unclipped parent.
+   --press moves the face: negative lifts it off the side, 1 sinks it flat. */
+.k {
+  --d: var(--depth);
+  --dx: calc(var(--d) * var(--iso));
+  --cut: 3%;
+  --press: 0;
+
+  --face: linear-gradient(180deg, hsl(51 100% 73%), hsl(46 100% 58%) 55%, hsl(42 100% 50%));
+  --side: linear-gradient(180deg, hsl(36 92% 40%), hsl(28 88% 25%));
+  --text: hsl(250 45% 8%);
+  --sub: hsla(250, 45%, 8%, 0.62);
+  --shadow: hsla(28, 90%, 14%, 0.42);
+
+  position: relative; display: block; width: 100%;
+  margin: 0 0 calc(var(--d) + 8px);
+  padding: 0; border: 0; background: none; color: inherit;
+  font: inherit; text-align: left; cursor: pointer;
+  -webkit-tap-highlight-color: transparent; outline: none;
+  filter: drop-shadow(
+    calc(var(--dx) * (1 - var(--press)) + 2px)
+    calc(var(--d) * (1 - var(--press)) + 5px)
+    9px var(--shadow)
+  );
+  transition: filter .14s ease;
+}
+.k-side,
+.k-face { clip-path: polygon(var(--cut) 0, 100% 0, calc(100% - var(--cut)) 100%, 0 100%); }
+.k-side {
+  position: absolute; inset: 0; z-index: 0;
+  background: var(--side);
+  transform: translate(var(--dx), var(--d));
+}
+.k-face {
+  position: relative; z-index: 1;
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  min-height: 60px; padding: 14px 22px 14px 26px;
+  background: var(--face); color: var(--text);
+  transform: translate(calc(var(--dx) * var(--press)), calc(var(--d) * var(--press)));
+  transition: transform .15s cubic-bezier(.2, .9, .3, 1.25);
+}
+/* Lit top edge: the bevel that makes it a key rather than a card */
+.k-face::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px;
+  background: hsla(0, 0%, 100%, 0.55); pointer-events: none;
+}
+.k-face::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px;
+  background: hsla(250, 60%, 5%, 0.14); pointer-events: none;
+}
+
+.k-label { font: 900 20px/1 var(--display); letter-spacing: 0.07em; text-transform: uppercase; }
+.k-hint  { font: 700 13px/1 var(--body); letter-spacing: 0.12em; text-transform: uppercase; color: var(--sub); white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── Variants ── */
+.k--nav .k-face { min-height: 66px; padding: 17px 24px 17px 28px; }
+.k--nav .k-label { font-size: clamp(15px, 1.1vw, 21px); }
+
+.k--sm { --d: calc(var(--depth) * 0.6); margin-bottom: calc(var(--d) + 6px); }
+.k--sm .k-face { min-height: 46px; padding: 10px 16px 10px 20px; gap: 10px; }
+.k--sm .k-label { font-size: 14px; }
+
+.k--cream {
+  --face: linear-gradient(180deg, hsl(45 100% 97%), hsl(42 62% 90%) 60%, hsl(40 42% 82%));
+  --side: linear-gradient(180deg, hsl(36 26% 60%), hsl(30 22% 42%));
+}
+
+/* Gametype tile: a big slab, cream at rest, its own colour once picked */
+.k--mode {
+  --d: calc(var(--depth) * 1.5);
+  --cut: 2.2%;
+  --face: linear-gradient(180deg, hsl(45 100% 97%), hsl(42 58% 89%) 62%, hsl(40 40% 80%));
+  --side: linear-gradient(180deg, hsl(36 24% 56%), hsl(30 20% 38%));
+  --shadow: hsla(250, 70%, 2%, 0.6);
+}
+.k--mode .k-face {
+  min-height: 176px; padding: 18px 26px 22px 40px;
+  flex-direction: column; align-items: stretch; justify-content: space-between;
+}
+.k--mode.is-picked {
+  --press: -0.5;
+  --face: linear-gradient(180deg, var(--a-hi), var(--a) 58%, var(--a-lo));
+  --side: linear-gradient(180deg, var(--a-side-hi), var(--a-side-lo));
+  --sub: hsla(250, 45%, 8%, 0.66);
+}
+.tile-band { position: absolute; left: 0; top: 0; bottom: 0; width: 16px; background: var(--a); }
+.k--mode.is-picked .tile-band { background: var(--a-side-hi); }
+.tile-no { font: 800 13px/1 var(--display); letter-spacing: 0.14em; color: var(--sub); }
+.tile-main { display: flex; flex-direction: column; gap: 8px; }
+.tile-name { font: 900 clamp(28px, 2.6vw, 46px)/0.9 var(--display); letter-spacing: 0.02em; text-transform: uppercase; }
+.tile-sub { font: 700 14px/1 var(--body); letter-spacing: 0.18em; text-transform: uppercase; color: var(--sub); }
+
+/* The arcade key */
+.k--cta {
+  display: inline-block; width: auto;
+  --d: calc(var(--depth) * 1.6);
+  --cut: 5%;
+  --face: linear-gradient(180deg, var(--a-hi), var(--a) 58%, var(--a-lo));
+  --side: linear-gradient(180deg, var(--a-side-hi), var(--a-side-lo));
+  --shadow: hsla(250, 70%, 3%, 0.62);
+}
+.k--cta .k-face { min-height: 90px; padding: 0 66px 0 60px; justify-content: center; }
+.k--cta .k-label { font-size: 30px; letter-spacing: 0.1em; }
+
+.k--util .k-face { justify-content: center; min-height: 40px; padding: 8px 10px; }
+.k--util .k-label { font: 800 11px/1 var(--display); letter-spacing: 0.12em; }
+
+.k--send { width: auto; flex: 0 0 auto; margin: 0 calc(var(--dx) + 2px) var(--d) 0; }
+.k--send .k-face { min-height: 44px; padding: 0 22px 0 24px; }
+.k--send .k-label { font-size: 13px; letter-spacing: 0.12em; }
+
+/* ── States: order matters, later rules win ties ── */
+.k:hover,
+.k:focus-visible {
+  --press: -0.35;
+  --face: linear-gradient(180deg, hsl(278 92% 75%), hsl(273 80% 61%) 55%, hsl(268 72% 50%));
+  --side: linear-gradient(180deg, hsl(266 72% 34%), hsl(258 72% 19%));
+  --text: hsl(45 100% 96%);
+  --sub: hsla(45, 100%, 96%, 0.72);
+  --shadow: hsla(268, 80%, 14%, 0.5);
+}
+.k--mode.is-picked:hover,
+.k--mode.is-picked:focus-visible {
+  --press: -0.75;
+  --face: linear-gradient(180deg, var(--a-hi), var(--a) 58%, var(--a-lo));
+  --side: linear-gradient(180deg, var(--a-side-hi), var(--a-side-lo));
+  --text: hsl(250 45% 8%);
+  --sub: hsla(250, 45%, 8%, 0.66);
+}
+.k:active {
+  --press: 1;
+  --face: linear-gradient(180deg, hsl(272 76% 58%), hsl(266 70% 45%));
+}
+.k--mode.is-picked:active {
+  --press: 1;
+  --face: linear-gradient(180deg, var(--a), var(--a-lo));
+}
+.k:active .k-face { transition-duration: .05s; transition-timing-function: ease-out; }
+.k:active { transition-duration: .05s; }
+
+/* Current page: a latched key, pressed in and inked */
+.k.is-on,
+.k.is-on:hover,
+.k.is-on:focus-visible,
+.k.is-on:active {
+  --press: 0.62;
+  --face: linear-gradient(180deg, hsl(250 28% 21%), hsl(250 40% 10%) 60%, hsl(252 44% 6%));
+  --side: linear-gradient(180deg, hsl(252 44% 5%), hsl(252 44% 3%));
+  --text: var(--gold-text);
+  --sub: hsla(46, 100%, 60%, 0.66);
+}
+
+/* ═══════════════════════════════ RAIL ═══════════════════════════════ */
+.rail {
+  position: relative; z-index: 2; flex: 0 0 var(--rail-w);
+  display: flex; flex-direction: column;
+  padding: 22px 0 18px;
+  background:
+    radial-gradient(120% 55% at 25% 0%, hsla(54, 100%, 78%, 0.55), transparent 62%),
+    linear-gradient(172deg, hsl(46 100% 57%), hsl(41 96% 48%));
+  clip-path: polygon(0 0, 100% 0, calc(100% - var(--rail-skew)) 100%, 0 100%);
+  overflow: hidden;
+}
+.rail::after {
+  content: ""; position: absolute; top: 0; bottom: 0; right: 0; z-index: 3;
+  width: calc(var(--rail-skew) + 8px);
+  background: linear-gradient(180deg, hsl(276 90% 64%), hsl(262 75% 42%));
+  clip-path: polygon(calc(100% - 8px) 0, 100% 0, calc(100% - var(--rail-skew)) 100%, calc(100% - var(--rail-skew) - 8px) 100%);
+}
+.rail > * { position: relative; z-index: 1; }
+.rail-kanji {
+  position: absolute !important; z-index: 0 !important; right: 12%; bottom: 17%;
+  font: 400 clamp(180px, 19vw, 300px)/0.8 serif;
+  color: hsla(30, 90%, 22%, 0.1); pointer-events: none; user-select: none;
+}
+
+.brand { padding: 0 calc(var(--rail-skew) + 16px) 16px 22px; }
+.brand-logo {
+  display: block; width: 100%; max-width: 420px; height: auto;
+  filter: drop-shadow(0 6px 10px hsla(28, 90%, 14%, 0.35));
+}
+
+.rail-label {
+  padding: 0 24px; margin: 6px 0 12px;
+  font: 700 11px/1 var(--body); letter-spacing: 0.26em; text-transform: uppercase;
+  color: hsla(250, 45%, 8%, 0.62);
+}
+.rail-keys { display: flex; flex-direction: column; padding: 0 calc(var(--rail-skew) + 18px) 0 22px; }
+
+.live-dot {
+  display: inline-block; width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%;
+  background: hsl(322 100% 58%); box-shadow: 0 0 8px hsl(322 100% 58%);
+}
+.live-count { margin-left: auto; }
+.join {
+  padding: 4px 11px; background: var(--ink); color: var(--gold-text);
+  font: 900 11px/1 var(--display); letter-spacing: 0.1em;
+  clip-path: polygon(8% 0, 100% 0, 92% 100%, 0 100%);
+}
+
+/* ── Lobby list: takes whatever height the rail has left, and scrolls ── */
+.lobby-head { display: flex; justify-content: space-between; padding-right: calc(var(--rail-skew) + 26px); }
+.lobby-list {
+  flex: 1; min-height: 0;
+  overflow-y: auto; overflow-x: hidden;
+  /* The box ends before the slanted edge: the rail's clip would otherwise cut
+     the scrollbar off, since it sits on the box's right edge. */
+  margin-right: calc(var(--rail-skew) + 12px);
+  padding: 8px 14px 16px 22px;   /* room for the hover lift, the side, the shadow */
+  scrollbar-width: thin;
+  scrollbar-color: hsla(250, 45%, 8%, 0.45) transparent;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 12px, #000 calc(100% - 18px), transparent);
+          mask-image: linear-gradient(to bottom, transparent, #000 12px, #000 calc(100% - 18px), transparent);
+}
+.lobby-list > .k { flex-shrink: 0; }
+
+.lobby .k-face { gap: 10px; }
+.lobby-dot {
+  width: 10px; height: 10px; flex: 0 0 10px;
+  background: var(--mode);
+  clip-path: polygon(22% 0, 100% 0, 78% 100%, 0 100%);
+}
+.lobby--playing .lobby-dot { animation: lobby-pulse 1.6s ease-in-out infinite; }
+@keyframes lobby-pulse { 50% { opacity: 0.3; } }
+.lobby .k-label { flex: 0 0 66px; }
+.lobby-map {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font: 700 13px/1 var(--body); letter-spacing: 0.06em; color: var(--sub);
+}
+.lobby--waiting .lobby-map { font-style: italic; }
+.lobby-count { flex: 0 0 auto; min-width: 42px; text-align: right; font-variant-numeric: tabular-nums; }
+
+.badge {
+  flex: 0 0 auto; min-width: 54px; padding: 4px 10px; text-align: center;
+  font: 900 10px/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase;
+  background: var(--ink); color: var(--gold-text);
+  clip-path: polygon(8% 0, 100% 0, 92% 100%, 0 100%);
+}
+.badge--watch { background: hsla(322, 90%, 52%, 0.16); color: hsl(322 85% 38%); }
+.badge--full  { background: hsla(250, 45%, 8%, 0.1); color: hsla(250, 45%, 8%, 0.45); }
+.lobby:hover .badge--watch, .lobby:focus-visible .badge--watch,
+.lobby:hover .badge--full,  .lobby:focus-visible .badge--full {
+  background: hsla(0, 0%, 100%, 0.16); color: hsla(45, 100%, 96%, 0.85);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lobby--playing .lobby-dot { animation: none; }
+}
+
+.player {
+  display: flex; align-items: center; gap: 12px;
+  margin: 0 calc(var(--rail-skew) + 18px) 18px 22px; padding: 12px 16px;
+  background: hsla(250, 45%, 7%, 0.92); color: var(--cream);
+  clip-path: polygon(3% 0, 100% 0, 97% 100%, 0 100%);
+}
+.player-avatar {
+  width: 38px; height: 38px; flex: 0 0 38px;
+  background: linear-gradient(135deg, hsl(182 95% 55%), var(--violet));
+  clip-path: polygon(14% 0, 100% 8%, 88% 100%, 0 90%);
+}
+.player-name { font: 800 14px/1.2 var(--display); letter-spacing: 0.05em; }
+.player-meta { font: 600 12px/1.2 var(--body); letter-spacing: 0.08em; color: hsla(45, 100%, 95%, 0.55); }
+
+.util { flex-direction: row; gap: 10px; }
+.util .k { flex: 1; width: auto; }
+
+/* ═══════════════════════════════ STAGE ═══════════════════════════════ */
+/* The stage slides under the rail's slanted edge (the rail sits above it), so the
+   light and the backdrop word run up to the diagonal instead of stopping at the
+   rail's rectangular box on a vertical line. */
+.stage {
+  flex: 1; min-width: 0; position: relative; overflow: hidden;
+  display: flex; flex-direction: column; gap: 22px;
+  margin-left: calc(-1 * var(--rail-skew));
+  padding: 30px 52px 24px calc(28px + var(--rail-skew));
+}
+.stage > :not(.fx):not(.ghost) { position: relative; z-index: 1; }
+
+/* Drifting light: three blurred fields wandering slowly behind everything.
+   Only transform animates, so the blur is rasterised once and moved. */
+.fx { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+.orb {
+  position: absolute; top: 0; left: 0; border-radius: 50%;
+  filter: blur(90px); will-change: transform;
+}
+.orb--accent {
+  width: 640px; height: 640px; opacity: 0.24;
+  background-color: var(--a);
+  transition: background-color 1.4s ease;
+  animation: drift-a 38s ease-in-out infinite alternate;
+}
+.orb--violet {
+  width: 760px; height: 760px; opacity: 0.22;
+  background-color: hsl(276 90% 56%);
+  animation: drift-b 47s ease-in-out infinite alternate;
+}
+.orb--deep {
+  width: 560px; height: 560px; opacity: 0.2;
+  background-color: hsl(232 85% 52%);
+  animation: drift-c 31s ease-in-out infinite alternate;
+}
+@keyframes drift-a {
+  0%   { transform: translate(40vw, -20vh) scale(1); }
+  30%  { transform: translate(16vw, 20vh) scale(1.15); }
+  65%  { transform: translate(44vw, 36vh) scale(0.9); }
+  100% { transform: translate(6vw, 2vh) scale(1.05); }
+}
+@keyframes drift-b {
+  0%   { transform: translate(-14vw, 34vh) scale(1); }
+  35%  { transform: translate(26vw, 54vh) scale(1.1); }
+  70%  { transform: translate(40vw, 4vh) scale(0.95); }
+  100% { transform: translate(2vw, 44vh) scale(1.08); }
+}
+@keyframes drift-c {
+  0%   { transform: translate(48vw, 52vh) scale(1); }
+  40%  { transform: translate(20vw, 62vh) scale(1.2); }
+  75%  { transform: translate(4vw, 18vh) scale(0.9); }
+  100% { transform: translate(34vw, 28vh) scale(1); }
+}
+
+/* The mode name, huge and hollow, bleeding off the bottom-left */
+.ghost {
+  position: absolute; z-index: 0; left: -1%; bottom: -4%;
+  font: 900 clamp(200px, 25vw, 440px)/0.78 var(--display); letter-spacing: -0.04em;
+  white-space: nowrap; color: transparent;
+  -webkit-text-stroke: 2px color-mix(in srgb, var(--a) 26%, transparent);
+  pointer-events: none; user-select: none;
+}
+
+.kicker { font: 700 12px/1 var(--body); letter-spacing: 0.32em; text-transform: uppercase; color: var(--a); }
+.title {
+  margin: 8px 0 0; font: 900 clamp(40px, 4.4vw, 74px)/0.92 var(--display);
+  color: var(--cream); text-shadow: 5px 6px 0 hsl(250 50% 3%);
+}
+
+/* One equal column per mode, however many modes there are */
+
+/* ═══════════════════════════════ LEADERBOARD ═══════════════════════════════ */
+a.k { text-decoration: none; }
+.stage { gap: 18px; padding-bottom: 20px; }
+.stage-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px 24px; }
+.stage-head .title { font-size: clamp(36px, 3.4vw, 60px); }
+
+/* ── Mode: four keys in the modes' own colours ── */
+.modes { display: flex; gap: 10px; padding-bottom: 6px; }
+.mode-btn {
+  min-width: 100px; height: 46px; padding: 0 18px; border: 0; cursor: pointer; border-radius: 2px;
+  background: linear-gradient(180deg, hsl(250 24% 25%), hsl(250 30% 17%)); color: hsla(45, 100%, 95%, 0.78);
+  font: 900 14px/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase;
+  box-shadow: inset 0 -4px 0 var(--m), 0 4px 0 hsl(250 40% 8%), 0 8px 14px hsla(250, 70%, 2%, 0.45);
+  transition: transform .1s ease, box-shadow .1s ease;
+}
+.mode-btn:hover, .mode-btn:focus-visible { outline: none; transform: translateY(-2px); background: linear-gradient(180deg, hsl(278 92% 72%), hsl(268 72% 52%)); color: var(--cream); }
+.mode-btn.is-on, .mode-btn.is-on:hover {
+  transform: translateY(3px); color: var(--ink);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--m) 62%, white), var(--m));
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--m) 40%, black), inset 0 2px 0 hsla(0, 0%, 100%, 0.35);
+}
+
+/* ── Tabs: the same keys as the video sections ── */
+.tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; }
+.k--tab {
+  --d: calc(var(--depth) * 1.1);
+  --cut: 3%;
+  --face: linear-gradient(180deg, hsl(250 26% 25%), hsl(250 30% 16%));
+  --side: linear-gradient(180deg, hsl(250 36% 11%), hsl(250 40% 6%));
+  --text: var(--cream);
+  --sub: hsla(45, 100%, 95%, 0.58);
+  --shadow: hsla(250, 70%, 2%, 0.6);
+  margin-bottom: calc(var(--d) + 4px);
+}
+.k--tab .k-face { min-height: 78px; padding: 12px 24px 12px 26px; flex-direction: column; align-items: stretch; justify-content: center; gap: 9px; }
+.tab-name { font: 900 clamp(16px, 1.25vw, 22px)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; }
+.tab-sub { font: 700 12px/1 var(--body); letter-spacing: 0.18em; text-transform: uppercase; color: var(--sub); }
+.k--tab.is-open, .k--tab.is-open:hover, .k--tab.is-open:focus-visible {
+  --press: 0.45;
+  --face: linear-gradient(180deg, hsl(51 100% 73%), hsl(46 100% 58%) 55%, hsl(42 100% 50%));
+  --side: linear-gradient(180deg, hsl(36 92% 40%), hsl(28 88% 25%));
+  --text: var(--ink);
+  --sub: hsla(250, 45%, 8%, 0.66);
+}
+.rule { font: 700 12px/1 var(--body); letter-spacing: 0.18em; text-transform: uppercase; color: hsla(45, 100%, 95%, 0.5); }
+
+.pane { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 18px; overflow: hidden; }
+.pane[hidden] { display: none; }
+
+/* ── Podium: gold, silver and bronze blocks, first place standing tallest ── */
+.podium { display: grid; grid-template-columns: 1fr 1.12fr 1fr; gap: 28px; align-items: end; padding-top: 4px; }
+.plinth {
+  --medal-face: linear-gradient(180deg, hsl(51 100% 74%), hsl(46 100% 58%) 55%, hsl(42 100% 50%));
+  --medal-side: linear-gradient(180deg, hsl(36 92% 40%), hsl(28 88% 25%));
+  position: relative; filter: drop-shadow(12px 14px 14px hsla(250, 70%, 2%, 0.55));
+  animation: rise .5s cubic-bezier(.2, .9, .3, 1.2) backwards;
+}
+.plinth--2 { --medal-face: linear-gradient(180deg, hsl(220 30% 96%), hsl(222 16% 80%) 60%, hsl(224 12% 68%)); --medal-side: linear-gradient(180deg, hsl(225 12% 46%), hsl(228 14% 30%)); animation-delay: .08s; }
+.plinth--3 { --medal-face: linear-gradient(180deg, hsl(30 90% 74%), hsl(24 72% 56%) 60%, hsl(20 66% 46%)); --medal-side: linear-gradient(180deg, hsl(18 62% 32%), hsl(14 60% 20%)); animation-delay: .16s; }
+@keyframes rise { from { opacity: 0; transform: translateY(24px); } }
+.plinth-side, .plinth-face { clip-path: polygon(3% 0, 100% 0, 97% 100%, 0 100%); }
+.plinth-side { position: absolute; inset: 0; background: var(--medal-side); transform: translate(9px, 11px); }
+.plinth-face {
+  position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr); align-content: center; gap: 4px 20px;
+  min-height: 158px; padding: 20px 30px 22px 34px;
+  background: var(--medal-face); color: var(--ink);
+}
+.plinth--1 .plinth-face { min-height: 204px; }
+.plinth-face::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px; background: hsla(0, 0%, 100%, 0.6); }
+.plinth-rank { grid-row: 1 / 5; align-self: center; font: 900 clamp(60px, 5.2vw, 100px)/0.8 var(--display); letter-spacing: -0.04em; }
+.plinth--1 .plinth-rank { font-size: clamp(76px, 6.6vw, 128px); }
+.plinth-tag { justify-self: start; padding: 4px 9px; background: var(--ink); color: var(--gold-text); font: 900 10px/1 var(--display); letter-spacing: 0.16em; text-transform: uppercase; clip-path: polygon(8% 0, 100% 0, 92% 100%, 0 100%); }
+.plinth-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 900 clamp(20px, 1.7vw, 30px)/1.05 var(--display); letter-spacing: 0.02em; }
+.plinth-wins { font: 900 clamp(24px, 2vw, 34px)/1 var(--display); font-variant-numeric: tabular-nums; }
+.plinth-wins small { font: 700 14px/1 var(--body); letter-spacing: 0.14em; text-transform: uppercase; margin-left: 6px; opacity: 0.7; }
+.plinth-meta { font: 700 14px/1.2 var(--body); letter-spacing: 0.06em; color: hsla(250, 45%, 8%, 0.66); }
+.plinth.is-you .plinth-face { box-shadow: inset 0 0 0 4px var(--ink); }
+
+/* ── Ranking rows ── */
+.board {
+  display: flex; flex-direction: column; min-height: 0;
+  background: linear-gradient(180deg, hsla(250, 40%, 11%, 0.8), hsla(250, 44%, 7%, 0.88));
+  border: 1.5px solid hsla(276, 90%, 64%, 0.28);
+  clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 0 100%);
+}
+.board--full { flex: 1; }
+/* Room to breathe under the podium and the toolbar keys */
+.pane > .board { margin-top: 22px; }
+.row {
+  display: grid; grid-template-columns: 76px minmax(0, 1fr) repeat(4, minmax(70px, 110px)); align-items: center;
+  min-height: 44px; padding: 0 22px 0 18px;
+  border-bottom: 1px solid hsla(276, 90%, 64%, 0.1);
+  font: 700 17px/1 var(--body); color: hsla(45, 100%, 95%, 0.88); font-variant-numeric: tabular-nums;
+}
+.row > .num { text-align: right; }
+.row--head { min-height: 36px; font: 700 11px/1 var(--body); letter-spacing: 0.2em; text-transform: uppercase; color: hsla(45, 100%, 95%, 0.45); border-bottom-color: hsla(276, 90%, 64%, 0.25); }
+.row--head .num.is-key { color: var(--a); }
+.row-rank { font: 900 19px/1 var(--display); color: var(--cream); }
+.row-who { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.row-av {
+  width: 28px; height: 28px; flex: 0 0 28px; display: grid; place-items: center;
+  background: linear-gradient(135deg, var(--c, var(--a)), color-mix(in srgb, var(--c, var(--a)) 40%, var(--violet)));
+  color: var(--ink); font: 900 13px/1 var(--display); clip-path: polygon(14% 0, 100% 8%, 88% 100%, 0 90%);
+}
+.row-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 800 16px/1.1 var(--display); letter-spacing: 0.03em; color: var(--cream); }
+.row-you { padding: 3px 7px; background: var(--gold-text); color: var(--ink); font: 900 10px/1 var(--display); letter-spacing: 0.12em; clip-path: polygon(10% 0, 100% 0, 90% 100%, 0 100%); }
+.row .is-key { color: var(--cream); font-weight: 700; }
+.row--1 .row-rank { color: hsl(48 100% 62%); }
+.row--2 .row-rank { color: hsl(220 25% 84%); }
+.row--3 .row-rank { color: hsl(26 85% 64%); }
+.row.is-you { background: linear-gradient(90deg, hsla(46, 100%, 60%, 0.24), hsla(46, 100%, 60%, 0.05) 70%); box-shadow: inset 5px 0 0 var(--gold-text); }
+.row.is-flash { animation: row-flash 1.4s ease-out; }
+@keyframes row-flash { 0%, 30% { background: hsla(46, 100%, 60%, 0.55); } }
+.rows { min-height: 0; }
+.rows--scroll { flex: 1; overflow-y: auto; scrollbar-width: thin; scrollbar-color: hsla(276, 90%, 64%, 0.45) transparent; }
+.rows-empty { padding: 26px 22px; font: 700 16px/1.3 var(--body); color: hsla(45, 100%, 95%, 0.5); }
+
+/* You, pinned under the list wherever you rank */
+.you-note { margin-left: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 13px/1.2 var(--body); letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold-text); }
+.board-foot { border-top: 1.5px solid hsla(46, 100%, 60%, 0.4); }
+.board-foot .row { border-bottom: 0; }
+
+/* ── Top 100 toolbar ── */
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 18px; }
+.search {
+  width: min(360px, 100%); height: 46px; padding: 0 16px;
+  background: hsla(250, 44%, 5%, 0.8); color: var(--cream);
+  border: 1.5px solid hsla(276, 90%, 64%, 0.3); outline: none; font: 600 16px/1 var(--body);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+}
+.search::placeholder { color: hsla(45, 100%, 95%, 0.4); }
+.search:focus { border-color: var(--violet); }
+.toolbar .k { width: auto; margin: 0 calc(var(--dx) + 2px) var(--d) 0; }
+.toolbar .k .k-face { min-height: 44px; padding: 0 20px 0 22px; }
+.toolbar .k .k-label { font-size: 13px; letter-spacing: 0.1em; }
+.period { display: flex; gap: 8px; margin-left: auto; }
+.period button {
+  height: 40px; padding: 0 16px; border: 0; cursor: pointer; border-radius: 2px;
+  background: linear-gradient(180deg, hsl(250 24% 25%), hsl(250 30% 17%)); color: hsla(45, 100%, 95%, 0.72);
+  font: 800 12px/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; box-shadow: 0 4px 0 hsl(250 40% 8%);
+}
+.period button:hover { background: linear-gradient(180deg, hsl(278 92% 72%), hsl(268 72% 52%)); color: var(--cream); }
+.period button.is-on { background: linear-gradient(180deg, hsl(51 100% 73%), hsl(44 100% 55%)); color: var(--ink); transform: translateY(3px); box-shadow: 0 1px 0 hsl(30 88% 28%); }
+
+/* ── Rail: your rank in each mode ── */
+.rail-mid { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.myrank .lobby-map { font-style: normal; }
+.myrank.is-on .lobby-dot { outline: 2px solid var(--gold-text); outline-offset: 2px; }
+
+/* ═══ PROTOTYPE CONTROLS ═══ */
+.proto {
+  position: fixed; z-index: 50; top: 0; left: 63%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 4px; padding: 5px 10px;
+  background: hsla(250, 45%, 4%, 0.9); border: 1px solid hsla(276, 90%, 64%, 0.4);
+  font: 700 11px/1 var(--body); letter-spacing: 0.16em; text-transform: uppercase; color: hsla(45, 100%, 95%, 0.45);
+}
+.proto a { padding: 5px 9px; text-decoration: none; letter-spacing: 0.1em; color: hsla(45, 100%, 95%, 0.7); }
+.proto a:hover { color: var(--cream); background: hsla(276, 90%, 64%, 0.25); }
+
+@media (max-width: 1500px) {
+  .row { grid-template-columns: 64px minmax(0, 1fr) repeat(4, minmax(56px, 84px)); }
+}
+@media (max-height: 960px) {
+  .plinth-face { min-height: 128px; padding-top: 14px; padding-bottom: 16px; }
+  .plinth--1 .plinth-face { min-height: 164px; }
+  .row { min-height: 38px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .k, .k-face, .mode-btn { transition: none; }
+  .orb, .plinth, .row.is-flash { animation: none; }
+}
+</style>
+</head>
+
+<body>
+<div class="proto" aria-label="Prototype controls">
+  Pages <a href="welcome.html">Welcome</a><a href="lobby-3d.html">Play</a><a href="lobby-room.html">Room</a><a href="settings.html">Settings</a><a href="demos.html">Demos</a>
+</div>
+
+<div class="shell">
+  <nav class="rail">
+    <div class="rail-kanji">王</div>
+    <div class="brand"><img class="brand-logo" src="/data/washoi.png" alt="Washiki Washoi" /></div>
+
+    <div class="rail-keys">
+      <a class="k k--nav" href="lobby-3d.html">
+        <span class="k-side"></span>
+        <span class="k-face"><span class="k-label">Play</span><span class="k-hint">4 modes</span></span>
+      </a>
+      <a class="k k--nav is-on" href="leaderboard.html">
+        <span class="k-side"></span>
+        <span class="k-face"><span class="k-label">Leaderboard</span><span class="k-hint">Top players</span></span>
+      </a>
+      <a class="k k--nav" href="demos.html">
+        <span class="k-side"></span>
+        <span class="k-face"><span class="k-label">Demos</span><span class="k-hint">Replays</span></span>
+      </a>
+    </div>
+
+    <div class="rail-mid">
+      <div class="rail-label lobby-head"><span>Your ranks</span><span id="myPeriod"></span></div>
+      <div class="rail-keys" id="myRanks"></div>
+    </div>
+
+    <div class="player">
+      <div class="player-avatar"></div>
+      <div><div class="player-name" id="playerName">sundflux</div><div class="player-meta">Leaderboard</div></div>
+    </div>
+
+    <div class="rail-keys util">
+      <a class="k k--sm k--util" href="welcome.html?screen=key"><span class="k-side"></span><span class="k-face"><span class="k-label">Profile</span></span></a>
+      <a class="k k--sm k--util" href="settings.html"><span class="k-side"></span><span class="k-face"><span class="k-label">Settings</span></span></a>
+      <button class="k k--sm k--util"><span class="k-side"></span><span class="k-face"><span class="k-label">Console</span></span></button>
+    </div>
+  </nav>
+
+  <main class="stage" id="stage">
+    <div class="fx" aria-hidden="true">
+      <div class="orb orb--violet"></div>
+      <div class="orb orb--deep"></div>
+      <div class="orb orb--accent"></div>
+    </div>
+    <div class="ghost" id="ghost" aria-hidden="true">TOP</div>
+
+    <header class="stage-head">
+      <div>
+        <div class="kicker" id="kicker">Leaderboard · Duel</div>
+        <h1 class="title" id="title">Last 30 days</h1>
+      </div>
+      <div class="modes" id="modes"></div>
+    </header>
+
+    <div class="tabs" id="tabs"></div>
+    <div class="rule">Most wins ranks first · ties go to the better win rate</div>
+
+    <!-- Last 30 days and all time: the podium and the rest of the top ten -->
+    <section class="pane" id="panePodium">
+      <div class="podium" id="podium"></div>
+      <div class="board">
+        <div class="rows" id="topTen"></div>
+        <div class="board-foot" id="youPin"></div>
+      </div>
+    </section>
+
+    <!-- Top 100 -->
+    <section class="pane" id="paneList" hidden>
+      <div class="toolbar">
+        <input class="search" id="search" placeholder="Find a player…" autocomplete="off" spellcheck="false" />
+        <button class="k k--sm k--cream" id="jumpMe"><span class="k-side"></span><span class="k-face"><span class="k-label">Jump to me</span></span></button>
+        <div class="period" id="period"></div>
+      </div>
+      <div class="board board--full">
+        <div class="rows" id="listHead"></div>
+        <div class="rows rows--scroll" id="list"></div>
+        <div class="board-foot" id="listPin"></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const el = (tag, className = "", text = "") => Object.assign(document.createElement(tag), { className, textContent: text });
+
+  const MODES = {
+    duel:  { name: "Duel",  c: "hsl(186 95% 48%)", accent: ["hsl(182 95% 52%)", "hsl(182 100% 74%)", "hsl(188 90% 40%)", "hsl(192 85% 28%)", "hsl(198 80% 17%)"] },
+    amphi: { name: "Amphi", c: "hsl(100 85% 50%)", accent: ["hsl(100 85% 52%)", "hsl(98 95% 72%)", "hsl(108 80% 40%)", "hsl(115 70% 26%)", "hsl(125 65% 16%)"] },
+    ffa:   { name: "FFA",   c: "hsl(44 100% 55%)", accent: ["hsl(46 100% 57%)", "hsl(51 100% 73%)", "hsl(41 100% 48%)", "hsl(34 90% 36%)", "hsl(28 85% 23%)"] },
+    snd:   { name: "S&D",   c: "hsl(322 95% 60%)", accent: ["hsl(322 95% 62%)", "hsl(322 100% 77%)", "hsl(318 85% 50%)", "hsl(312 70% 33%)", "hsl(306 70% 21%)"] },
+  };
+  const ACCENT_VARS = ["--a", "--a-hi", "--a-lo", "--a-side-hi", "--a-side-lo"];
+  const TABS = [
+    { id: "month", name: "Last 30 days", sub: "Rolling · never resets", period: "month" },
+    { id: "all", name: "All time", sub: "Since launch", period: "all" },
+    { id: "list", name: "Top 100", sub: "The full list" },
+  ];
+  const PERIOD_NAME = { month: "30 days", all: "All time" };
+
+  const ME = (() => { try { return JSON.parse(localStorage.getItem("proto-player"))?.name || "sundflux"; } catch { return "sundflux"; } })();
+
+  // ── Mock results, the same every load ──
+  // Where you land in each board, to show every case: top ten, podium, deep in the list, outside the 100
+  const MY_RANK = { duel: { month: 37, all: 58 }, amphi: { month: 12, all: 41 }, ffa: { month: 88, all: 143 }, snd: { month: 3, all: 26 } };
+  function rng(seed) {
+    let t = seed >>> 0;
+    return () => { t += 0x6d2b79f5; let r = Math.imul(t ^ (t >>> 15), 1 | t); r ^= r + Math.imul(r ^ (r >>> 7), 61 | r); return ((r ^ (r >>> 14)) >>> 0) / 4294967296; };
+  }
+  const hash = (s) => [...s].reduce((h, c) => Math.imul(h ^ c.charCodeAt(0), 16777619), 2166136261);
+  const NAMES = (() => {
+    const cast = ["Nova", "Reaper", "Shadow", "Fury", "Titan", "Storm", "Wraith", "Eclipse"];
+    const a = ["Neo", "Zero", "Hyper", "Frag", "Rail", "Blitz", "Ghost", "Iron", "Nitro", "Void", "Pixel", "Turbo", "Crimson", "Lunar", "Static", "Rogue", "Venom", "Echo", "Omega", "Kuro"];
+    const b = ["fox", "byte", "kid", "wolf", "rider", "blade", "hawk", "punk", "core", "ray", "dash", "jin", "kai", "mancer", "_gg", "99", "x", "ster", "bolt", "zen"];
+    const r = rng(7);
+    const pool = a.flatMap((x) => b.map((y) => x + y)).sort(() => r() - 0.5);
+    return [...cast, ...pool].filter((n) => n.toLowerCase() !== ME.toLowerCase()).slice(0, 160);
+  })();
+  const COLORS = ["hsl(182 95% 62%)", "hsl(322 95% 70%)", "hsl(125 70% 62%)", "hsl(276 90% 76%)", "hsl(28 100% 64%)", "hsl(200 90% 68%)", "hsl(350 90% 70%)", "hsl(52 100% 64%)"];
+
+  const boards = new Map();
+  function board(mode, period) {
+    const id = `${mode}:${period}`;
+    if (boards.has(id)) return boards.get(id);
+    const r = rng(hash(id));
+    const big = period === "all";
+    const rows = NAMES.map((name) => {
+      const matches = Math.round(big ? 60 + r() * r() * 2400 : 6 + r() * r() * 170);
+      const rate = Math.min(0.82, Math.max(0.18, 0.5 + (r() - 0.5) * 0.55));
+      const kd = 0.55 + r() * 1.5;
+      return { name, matches, wins: Math.round(matches * rate), kd };
+    });
+    const rank = (list) => list.sort((x, y) => y.wins - x.wins || y.wins / y.matches - x.wins / x.matches);
+    rank(rows);
+    // You: as many wins as whoever holds your spot, at a better rate, so you land just ahead of them
+    const beat = rows[MY_RANK[mode][period] - 1];
+    const wins = beat.wins;
+    rows.push({ name: ME, me: true, wins, matches: Math.max(wins, Math.floor(wins / Math.min(0.9, wins / beat.matches + 0.04))), kd: 1.21 });
+    rank(rows);
+    rows.forEach((row, i) => { row.rank = i + 1; row.rate = row.wins / row.matches; });
+    boards.set(id, rows);
+    return rows;
+  }
+
+  // ── State ──
+  let mode = "duel", tab = "month", listPeriod = "all", query = "";
+  const stage = $("stage");
+
+  // ── Rendering ──
+  const pct = (v) => `${Math.round(v * 100)}%`;
+  function row(p, { head } = {}) {
+    const r = el("div", `row${head ? " row--head" : ""}${p?.rank <= 3 ? ` row--${p.rank}` : ""}${p?.me ? " is-you" : ""}`);
+    if (head) {
+      r.append(el("span", "", "Rank"), el("span", "", "Player"), el("span", "num is-key", "Wins"), el("span", "num", "Matches"), el("span", "num", "Win rate"), el("span", "num", "K/D"));
+      return r;
+    }
+    r.dataset.rank = p.rank;
+    const who = el("span", "row-who");
+    const av = el("span", "row-av", p.name[0].toUpperCase());
+    av.style.setProperty("--c", p.me ? "var(--gold-text)" : COLORS[(hash(p.name) >>> 0) % COLORS.length]);
+    who.append(av, el("span", "row-name", p.name));
+    if (p.me) who.append(el("span", "row-you", "You"));
+    r.append(el("span", "row-rank", `#${p.rank}`), who, el("span", "num is-key", String(p.wins)), el("span", "num", String(p.matches)), el("span", "num", pct(p.rate)), el("span", "num", p.kd.toFixed(2)));
+    return r;
+  }
+
+  // Under the list: where you stand, and what the next step takes
+  function youLine(rows, limit) {
+    const me = rows.find((p) => p.me);
+    let note;
+    if (me.rank === 1) note = "On top. Hold it";
+    else if (me.rank <= limit) note = `${rows[me.rank - 2].wins - me.wins + 1} wins to pass #${me.rank - 1}`;
+    else note = `${rows[limit - 1].wins - me.wins + 1} wins to reach the top ${limit}`;
+    // The note rides in the name cell, so the numbers line up with the rows above
+    const line = row(me);
+    line.querySelector(".row-who").append(el("span", "you-note", note));
+    return line;
+  }
+
+  function renderPodium() {
+    const rows = board(mode, TABS.find((t) => t.id === tab).period);
+    const top = rows.slice(0, 3);
+    $("podium").replaceChildren(...[top[1], top[0], top[2]].map((p) => {
+      const plinth = el("div", `plinth plinth--${p.rank}${p.me ? " is-you" : ""}`);
+      const face = el("div", "plinth-face");
+      face.append(el("span", "plinth-rank", String(p.rank)));
+      if (p.rank === 1) face.append(el("span", "plinth-tag", tab === "month" ? "Leading" : "Champion"));
+      if (p.me) face.append(el("span", "plinth-tag", "You"));
+      const wins = el("span", "plinth-wins", String(p.wins));
+      wins.append(el("small", "", "wins"));
+      face.append(el("span", "plinth-name", p.name), wins, el("span", "plinth-meta", `${pct(p.rate)} win rate · ${p.matches} matches`));
+      plinth.append(el("div", "plinth-side"), face);
+      return plinth;
+    }));
+    $("topTen").replaceChildren(row(null, { head: true }), ...rows.slice(3, 10).map((p) => row(p)));
+    const me = rows.find((p) => p.me);
+    $("youPin").replaceChildren(...(me.rank > 10 ? [youLine(rows, 10)] : []));
+    $("youPin").hidden = me.rank <= 10;
+  }
+
+  function renderList() {
+    const rows = board(mode, listPeriod).slice(0, 100);
+    const all = board(mode, listPeriod);
+    const q = query.trim().toLowerCase();
+    const shown = q ? rows.filter((p) => p.name.toLowerCase().includes(q)) : rows;
+    $("listHead").replaceChildren(row(null, { head: true }));
+    $("list").replaceChildren(...(shown.length ? shown.map((p) => row(p)) : [el("div", "rows-empty", `Nobody in the top 100 goes by “${query.trim()}”`)]));
+    const me = all.find((p) => p.me);
+    $("listPin").replaceChildren(youLine(all, 100));
+    $("jumpMe").hidden = me.rank > 100;
+    for (const b of $("period").children) b.classList.toggle("is-on", b.dataset.period === listPeriod);
+  }
+
+  function renderMyRanks() {
+    const period = tab === "list" ? listPeriod : TABS.find((t) => t.id === tab).period;
+    $("myPeriod").textContent = PERIOD_NAME[period];
+    $("myRanks").replaceChildren(...Object.entries(MODES).map(([key, m]) => {
+      const me = board(key, period).find((p) => p.me);
+      const b = el("button", `k k--sm k--cream lobby myrank${key === mode ? " is-on" : ""}`);
+      b.style.setProperty("--mode", m.c);
+      const face = el("span", "k-face");
+      face.append(el("span", "lobby-dot"), el("span", "k-label", m.name), el("span", "lobby-map", `${me.wins} wins`), el("span", "k-hint lobby-count", `#${me.rank}`));
+      b.append(el("span", "k-side"), face);
+      b.addEventListener("click", () => setMode(key));
+      return b;
+    }));
+  }
+
+  function render() {
+    const t = TABS.find((x) => x.id === tab);
+    $("kicker").textContent = `Leaderboard · ${MODES[mode].name}`;
+    $("title").textContent = t.name;
+    $("panePodium").hidden = tab === "list";
+    $("paneList").hidden = tab !== "list";
+    for (const b of $("tabs").children) b.classList.toggle("is-open", b.dataset.tab === tab);
+    for (const b of $("modes").children) b.classList.toggle("is-on", b.dataset.mode === mode);
+    if (tab === "list") renderList(); else renderPodium();
+    renderMyRanks();
+    history.replaceState(null, "", `?mode=${mode}&tab=${tab}`);
+  }
+
+  function setMode(key) {
+    mode = key;
+    ACCENT_VARS.forEach((v, i) => stage.style.setProperty(v, MODES[key].accent[i]));
+    render();
+  }
+
+  // ── Controls ──
+  for (const [key, m] of Object.entries(MODES)) {
+    const b = el("button", "mode-btn", m.name);
+    b.type = "button";
+    b.dataset.mode = key;
+    b.style.setProperty("--m", m.c);
+    b.addEventListener("click", () => setMode(key));
+    $("modes").append(b);
+  }
+  for (const t of TABS) {
+    const b = el("button", "k k--tab");
+    b.type = "button";
+    b.dataset.tab = t.id;
+    const face = el("span", "k-face");
+    face.append(el("span", "tab-name", t.name), el("span", "tab-sub", t.sub));
+    b.append(el("span", "k-side"), face);
+    b.addEventListener("click", () => { tab = t.id; render(); });
+    $("tabs").append(b);
+  }
+  for (const [p, name] of Object.entries(PERIOD_NAME)) {
+    const b = el("button", "", name);
+    b.type = "button";
+    b.dataset.period = p;
+    b.addEventListener("click", () => { listPeriod = p; render(); });
+    $("period").append(b);
+  }
+  $("search").addEventListener("input", () => { query = $("search").value; renderList(); });
+  $("jumpMe").addEventListener("click", () => {
+    query = "";
+    $("search").value = "";
+    renderList();
+    const mine = $("list").querySelector(".row.is-you");
+    if (!mine) return;
+    mine.scrollIntoView({ block: "center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    mine.classList.add("is-flash");
+  });
+
+  $("playerName").textContent = ME;
+  const params = new URLSearchParams(location.search);
+  if (TABS.some((t) => t.id === params.get("tab"))) tab = params.get("tab");
+  setMode(MODES[params.get("mode")] ? params.get("mode") : "duel");
+</script>
+</body>
+</html>

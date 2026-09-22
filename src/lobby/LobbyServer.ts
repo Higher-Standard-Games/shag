@@ -7,17 +7,28 @@
  * Usage: npm run lobby:server
  */
 
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import * as fs from "node:fs";
+import type { IncomingMessage } from "node:http";
 import * as path from "node:path";
 import { WebSocket, WebSocketServer } from "ws";
 import { log } from "../engine/core/Log";
+import type { MatchResultReport } from "../engine/server/network/MatchResultReport";
 import { DemoReader } from "../shared/demo/DemoReader";
+import { selectFeaturedDemos } from "./FeaturedDemos";
 import { GameServerSpawner } from "./GameServerSpawner";
+import type { MatchResultStore } from "./MatchResultStore";
+import { PlayerStore } from "./PlayerStore";
+import { RateLimiter } from "./RateLimiter";
+import { BOT_SECRET_HEADER, secretMatches } from "./ServerData";
 import type {
+  AuthMessage,
   ChatMessage as ChatMsg,
   DemoInfo,
+  FeaturedDemoInfo,
+  FeaturedDemosRequest,
   GametypeInfo,
+  LeaderboardRequest,
   LiveMatchInfo,
   LobbyMessage,
   LobbyPlayerInfo,
@@ -39,7 +50,15 @@ const GAMETYPE_SHELLS: Omit<GametypeInfo, "mapPool">[] = [
     description: "1v1 Arena Duel",
     maxPlayers: 2,
     hasTeams: true,
-    teamNames: ["UDON", "SOBA"],
+    teamNames: { alpha: "Team Soba", bravo: "Team Udon" },
+  },
+  {
+    id: "amphi",
+    name: "AMPHI",
+    description: "1v1, first to three three-minute rounds",
+    maxPlayers: 2,
+    hasTeams: true,
+    teamNames: { alpha: "Team Soba", bravo: "Team Udon" },
   },
   { id: "ffa", name: "FFA", description: "Free For All", maxPlayers: 8, hasTeams: false },
   {
@@ -52,7 +71,7 @@ const GAMETYPE_SHELLS: Omit<GametypeInfo, "mapPool">[] = [
     // still a bomb match — unlike a duel, which is meaningless at one.
     minPlayers: 2,
     hasTeams: true,
-    teamNames: ["UDON", "SOBA"],
+    teamNames: { alpha: "Team Soba", bravo: "Team Udon" },
   },
 ];
 
@@ -62,6 +81,8 @@ export function normalizeGametype(input: string | undefined): string | null {
     case "duel":
     case "1v1":
       return "duel";
+    case "amphi":
+      return "amphi";
     case "snd":
     case "bomb":
     case "search":
@@ -89,9 +110,59 @@ export function isLoopbackAddress(address: string | undefined): boolean {
 }
 
 /**
+ * Where a connection really comes from. A proxy on this machine (Caddy
+ * terminating TLS for wss://) connects from loopback and names the player in
+ * X-Forwarded-For; its last entry is the one that proxy added. The header is
+ * ignored from anyone else, who could write anything in it.
+ */
+/** A seat as the lobby knows it when a match starts. */
+export interface RankedSeat {
+  accountId: number | null;
+  team: string;
+  isBot: boolean;
+}
+
+/**
+ * Whether a match counts towards the leaderboard, decided from the roster the
+ * moment it starts (docs/research/PLAYER_IDENTITY.md):
+ *
+ * - a one-on-one counts only if both players are human;
+ * - a team mode needs more than half the players human AND a human on each
+ *   side, because a majority alone would rank four humans against three bots;
+ * - anything else needs more than half the players human.
+ *
+ * Bots never wipe out a human's result — they only decide whether the match is
+ * ranked — and a seat without an account is a bot as far as this is concerned.
+ */
+export function isRankedRoster(gametype: GametypeInfo, seats: readonly RankedSeat[]): boolean {
+  const isHuman = (seat: RankedSeat) => !seat.isBot && seat.accountId !== null;
+  const humans = seats.filter(isHuman);
+  if (humans.length < 2) return false;
+  if (gametype.maxPlayers === 2) return humans.length === seats.length;
+  if (humans.length * 2 <= seats.length) return false;
+  if (!gametype.hasTeams) return true;
+  const sides = new Set(seats.map((seat) => seat.team));
+  return [...sides].every((side) => humans.some((seat) => seat.team === side));
+}
+
+export function clientAddress(req: IncomingMessage): string {
+  const peer = req.socket.remoteAddress || "unknown";
+  const forwarded = req.headers["x-forwarded-for"];
+  if (!forwarded || !isLoopbackAddress(peer)) return peer;
+  const last = (Array.isArray(forwarded) ? forwarded.join(",") : forwarded).split(",").pop()?.trim();
+  return last || peer;
+}
+
+/** Per player address: new accounts, wrong keys, renames. */
+const ACCOUNT_CREATION_LIMIT = { limit: 30, windowMs: 60 * 60_000 };
+const KEY_FAILURE_LIMIT = { limit: 20, windowMs: 60_000 };
+const RENAME_LIMIT = { limit: 10, windowMs: 60_000 };
+
+/**
  * Bot Intelligence Server (BIS) control API URL. The lobby relays
- * "invite bot" requests here so a bot can be spawned into a lobby.
- * Override with BOT_SERVER_URL for non-local deployments.
+ * "invite bot" requests here so a bot can be spawned into a lobby. The bot
+ * server runs on the lobby's machine and listens on 127.0.0.1 only; override
+ * with BOT_SERVER_URL to use another port.
  */
 const BOT_SERVER_URL = process.env.BOT_SERVER_URL || "ws://127.0.0.1:9100";
 
@@ -105,6 +176,17 @@ function botLobbyConnectUrl(port: number): string {
 
 /** How long to wait for the bot server to acknowledge an invite before failing. */
 const BOT_INVITE_TIMEOUT_MS = 8000;
+
+export interface LobbyServerOptions {
+  /** Shared with the bot server. Without it no connection counts as a bot and bot invites fail. */
+  botSecret?: string;
+  /** Override the local bot control endpoint, primarily for isolated server instances. */
+  botServerUrl?: string;
+  /** Player accounts. Without one the lobby keeps accounts in memory until it stops. */
+  players?: PlayerStore;
+  /** Durable results; omitted in ephemeral test/dev lobbies. */
+  results?: MatchResultStore;
+}
 
 /** Shape of config/maps.json */
 interface MapManifestEntry {
@@ -128,6 +210,8 @@ interface ConnectedPlayer {
   /** true = AI bot connection (flagged at auth). Bots are evicted from a lobby
    *  once its last human leaves so a bot-only lobby/match never lingers. */
   isBot: boolean;
+  /** The player account this connection is logged in to; null for bots and before login. */
+  accountId: number | null;
 }
 
 // ============================================================================
@@ -136,9 +220,12 @@ interface ConnectedPlayer {
 
 class MatchLobby {
   id: string;
+  visibility: "public" | "private";
+  inviteToken: string | null;
   gametype: GametypeInfo;
   maps: MapOption[];
   players: Map<string, LobbyPlayerInfo> = new Map();
+  chatHistory: ChatMsg[] = [];
   votes: Map<string, string> = new Map(); // playerId → mapName
   shuffleVotes: Set<string> = new Set();
   createdAt: number = Date.now();
@@ -146,6 +233,9 @@ class MatchLobby {
   matchMap: string = ""; // Set when match starts
   serverUrl: string = ""; // Set when game server is spawned
   state: "waiting" | "playing" = "waiting";
+  activeMatchId: string | null = null;
+  /** Immutable account/team roster while a dedicated match is running. */
+  activeSeatTeams = new Map<number, string>();
   /** Empty-lobby destruction is deferred until this time — set when the match
    *  server exits, so players returning via the ?lobby= deep link (a page
    *  reload that drops every lobby socket at once) still find their lobby. */
@@ -155,8 +245,10 @@ class MatchLobby {
     return this.players.size;
   }
 
-  constructor(gametype: GametypeInfo, mapNames: Record<string, string>) {
+  constructor(gametype: GametypeInfo, mapNames: Record<string, string>, visibility: "public" | "private" = "public") {
     this.id = randomUUID().slice(0, 8);
+    this.visibility = visibility;
+    this.inviteToken = visibility === "private" ? randomBytes(24).toString("base64url") : null;
     this.gametype = gametype;
 
     // Pick 3 random maps from pool (or all if pool ≤ 3)
@@ -265,9 +357,12 @@ class MatchLobby {
     return {
       id: this.id,
       gametype: this.gametype.id,
+      activeMatchId: this.activeMatchId ?? undefined,
+      visibility: this.visibility,
       maps: this.maps,
       players: [...this.players.values()],
-      shareUrl: `washoi.gg/lobby/${this.id}`,
+      chatHistory: [...this.chatHistory],
+      shareUrl: `/?lobby=${encodeURIComponent(this.id)}${this.inviteToken ? `&invite=${this.inviteToken}` : ""}`,
       config: {
         maxPlayers: this.gametype.maxPlayers,
         hasTeams: this.gametype.hasTeams,
@@ -306,6 +401,8 @@ export class LobbyServer {
   private nextPlayerId = 1;
   private spawner: GameServerSpawner;
   /** Map matchId → lobbyId for server exit cleanup */
+  /** Whether a running match's starting roster earns a place on the leaderboard. */
+  private rankedMatches = new Map<string, boolean>();
   private matchToLobby: Map<string, string> = new Map();
   /** Map dev-spawned matchId to the requesting player. */
   private devMatchToPlayer: Map<string, string> = new Map();
@@ -314,6 +411,8 @@ export class LobbyServer {
 
   // Demo listing cache
   private _demoCache: DemoInfo[] = [];
+  /** Server-only verified ownership; account IDs never ride in public demo cards. */
+  private _demoOwnership = new Map<string, Set<number>>();
   private _demoCacheTimer: ReturnType<typeof setInterval> | null = null;
   private readonly DEMO_DIR = path.join(process.cwd(), "public", "data", "demos");
   private readonly DEMO_CACHE_INTERVAL = 60_000; // 60s refresh
@@ -325,14 +424,36 @@ export class LobbyServer {
   private readonly MAP_CONFIG_PATH = path.join(process.cwd(), "config", "maps.json");
   private readonly PK3_DIR = path.join(process.cwd(), "public", "data");
 
-  constructor(port: number = 9000, spawner: GameServerSpawner = new GameServerSpawner()) {
+  private readonly botSecret: string | undefined;
+  private readonly botServerUrl: string;
+  private readonly accounts: PlayerStore;
+  private readonly results: MatchResultStore | undefined;
+  /** Close the store on stop only if this server opened it. */
+  private readonly ownsAccounts: boolean;
+  private readonly accountCreations = new RateLimiter(ACCOUNT_CREATION_LIMIT.limit, ACCOUNT_CREATION_LIMIT.windowMs);
+  private readonly keyFailures = new RateLimiter(KEY_FAILURE_LIMIT.limit, KEY_FAILURE_LIMIT.windowMs);
+  private readonly renames = new RateLimiter(RENAME_LIMIT.limit, RENAME_LIMIT.windowMs);
+  private readonly leaderboardReads = new RateLimiter(60, 60_000);
+  private readonly featuredReads = new RateLimiter(60, 60_000);
+
+  constructor(
+    port: number = 9000,
+    spawner: GameServerSpawner = new GameServerSpawner(),
+    options: LobbyServerOptions = {},
+  ) {
     this.port = port;
     this.spawner = spawner;
+    this.botSecret = options.botSecret;
+    this.botServerUrl = options.botServerUrl ?? BOT_SERVER_URL;
+    this.ownsAccounts = !options.players;
+    this.accounts = options.players ?? new PlayerStore(":memory:");
+    this.results = options.results;
 
     // Handle game server exits
     this.spawner.onServerExit = (matchId, code) => {
       this.handleServerExit(matchId, code);
     };
+    this.spawner.onServerResult = (result) => this.handleServerResult(result);
   }
 
   // ── Lifecycle ──────────────────────────────────────────────────
@@ -342,7 +463,7 @@ export class LobbyServer {
     return new Promise((resolve, reject) => {
       this.wss = new WebSocketServer({ port: this.port, host: "0.0.0.0" });
 
-      this.wss.on("connection", (ws, req) => this.handleConnection(ws, req.socket.remoteAddress || "unknown"));
+      this.wss.on("connection", (ws, req) => this.handleConnection(ws, clientAddress(req)));
       this.wss.on("error", (err) => {
         console.error("[LobbyServer] Error:", err);
         reject(err);
@@ -383,6 +504,8 @@ export class LobbyServer {
     this.matchToLobby.clear();
     this.devMatchToPlayer.clear();
 
+    if (this.ownsAccounts) this.accounts.close();
+
     return new Promise((resolve) => {
       this.wss!.close(() => {
         this.wss = null;
@@ -407,6 +530,7 @@ export class LobbyServer {
       authenticated: false,
       address,
       isBot: false,
+      accountId: null,
     };
     this.players.set(playerId, player);
 
@@ -430,6 +554,8 @@ export class LobbyServer {
 
   private handleDisconnect(player: ConnectedPlayer): void {
     console.log(`[LobbyServer] Disconnected: ${player.name || player.id}`);
+    this.leaderboardReads.forget(player.id);
+    this.featuredReads.forget(player.id);
 
     // Leave lobby if in one
     if (player.lobbyId) {
@@ -455,16 +581,22 @@ export class LobbyServer {
 
     switch (msg.type) {
       case "auth":
-        this.handleAuth(player, msg.name, msg.isBot === true);
+        this.handleAuth(player, msg as AuthMessage);
+        break;
+      case "identity:rename":
+        this.handleIdentityRename(player, msg.name);
         break;
       case "chat:send":
         this.handleChatSend(player, msg.text);
         break;
+      case "lobby:chat_send":
+        this.handleRoomChatSend(player, msg.lobbyId, msg.text);
+        break;
       case "lobby:create":
-        this.handleLobbyCreate(player, msg.gametype);
+        this.handleLobbyCreate(player, msg.gametype, msg.visibility);
         break;
       case "lobby:join":
-        this.handleLobbyJoin(player, msg.lobbyId);
+        this.handleLobbyJoin(player, msg.lobbyId, msg.inviteToken);
         break;
       case "lobby:leave":
         this.handleLobbyLeave(player, msg.lobbyId);
@@ -495,7 +627,16 @@ export class LobbyServer {
         this.send(player, { type: "queue:left" });
         break;
       case "demos:list":
-        this.handleDemosList(player, msg.limit ?? 64);
+        this.handleDemosList(player, msg.limit ?? 64, msg.scope);
+        break;
+      case "featured:get":
+        this.handleFeaturedGet(player, msg as FeaturedDemosRequest);
+        break;
+      case "leaderboard:get":
+        this.handleLeaderboardGet(player, msg as LeaderboardRequest);
+        break;
+      case "match:seat_reissue":
+        this.handleSeatReissue(player, msg.requestId, msg.matchId);
         break;
       case "dev:spawn_server":
         this.handleDevSpawnServer(player, msg.requestId, msg.map, msg.gametype);
@@ -507,28 +648,78 @@ export class LobbyServer {
 
   // ── Auth ─────────────────────────────────────────────────────
 
-  private handleAuth(player: ConnectedPlayer, name: string, isBot = false): void {
-    player.name = name || `Player${player.id.slice(2)}`;
-    player.authenticated = true;
-    // Only trust the bot flag from loopback. The bot server always runs locally
-    // and connects bots over 127.0.0.1, so a remote client cannot claim bot
-    // status to dodge the human-presence accounting that drives lobby eviction.
-    player.isBot = isBot && isLoopbackAddress(player.address);
-    console.log(`[LobbyServer] Authenticated: ${player.name} (${player.id})${player.isBot ? " [bot]" : ""}`);
+  private handleAuth(player: ConnectedPlayer, msg: AuthMessage): void {
+    if (player.authenticated) {
+      this.send(player, { type: "auth:error", code: "already_authenticated" });
+      return;
+    }
 
-    // Send welcome with all initial data
-    const welcome = {
+    // A bot must come from this machine and know the secret shared with the bot
+    // server. Anyone else claiming to be a bot is a player, so nobody can dodge
+    // the human-presence accounting that drives lobby eviction, or log in as a bot.
+    const isBot =
+      msg.isBot === true && isLoopbackAddress(player.address) && secretMatches(this.botSecret, msg.botSecret);
+    if (isBot) {
+      player.isBot = true;
+      player.name = msg.name || `Bot${player.id.slice(2)}`;
+      this.completeAuth(player, {});
+      return;
+    }
+
+    // Every player has an account: the one their key opens, or a new one.
+    // Never log a key.
+    if (typeof msg.key === "string") {
+      if (this.keyFailures.isBlocked(player.address)) {
+        this.send(player, { type: "auth:error", code: "rate_limited" });
+        return;
+      }
+      const account = this.accounts.findByKey(msg.key);
+      if (!account) {
+        this.keyFailures.record(player.address);
+        this.send(player, { type: "auth:error", code: "unknown_key" });
+        return;
+      }
+      player.accountId = account.id;
+      player.name = account.name;
+      this.completeAuth(player, {});
+      return;
+    }
+
+    if (!this.accountCreations.tryRecord(player.address)) {
+      this.send(player, { type: "auth:error", code: "rate_limited" });
+      return;
+    }
+    const { account, key } = this.accounts.create();
+    console.log(`[LobbyServer] New account ${account.id}: ${account.name}`);
+    player.accountId = account.id;
+    player.name = account.name;
+    this.completeAuth(player, { key });
+  }
+
+  /** Logged in: send the welcome, and tell everyone else. */
+  private completeAuth(player: ConnectedPlayer, extra: { key?: string }): void {
+    player.authenticated = true;
+    const who = player.isBot ? "bot" : `account ${player.accountId}`;
+    console.log(`[LobbyServer] Authenticated: ${player.name} (${player.id}, ${who})`);
+
+    this.send(player, {
       type: "welcome",
+      features: {
+        privateLobbies: true,
+        leaderboard: !!this.results,
+        featuredDemos: true,
+        demoOwnership: !!this.results,
+      },
       playerId: player.id,
+      identity: player.accountId === null ? undefined : { id: String(player.accountId), name: player.name },
+      key: extra.key,
       gametypes: this.gametypes,
       onlinePlayers: this.getOnlinePlayers(),
       chatHistory: this.chatHistory,
       liveMatches: this.getLiveMatches(),
       recentDemos: this._demoCache.slice(0, 10),
-    };
-    this.send(player, welcome);
+    });
 
-    // Broadcast new player to others
     this.broadcast(
       {
         type: "player:join",
@@ -536,6 +727,41 @@ export class LobbyServer {
       },
       player.id,
     );
+  }
+
+  // ── Identity ─────────────────────────────────────────────────
+
+  private handleIdentityRename(player: ConnectedPlayer, name: unknown): void {
+    const accountId = player.accountId;
+    if (accountId === null) return;
+    if (typeof name !== "string") {
+      this.send(player, { type: "identity:error", code: "name_invalid" });
+      return;
+    }
+    if (player.lobbyId) {
+      this.send(player, { type: "identity:error", code: "in_lobby" });
+      return;
+    }
+    if (!this.renames.tryRecord(player.address)) {
+      this.send(player, { type: "identity:error", code: "rate_limited" });
+      return;
+    }
+
+    const result = this.accounts.rename(accountId, name);
+    if (!result.ok) {
+      this.send(player, { type: "identity:error", code: result.code });
+      return;
+    }
+    console.log(`[LobbyServer] Account ${accountId} renamed: ${player.name} → ${result.account.name}`);
+
+    // Every connection logged in to this account takes the new name
+    const identity = { id: String(accountId), name: result.account.name };
+    for (const other of this.players.values()) {
+      if (other.accountId !== accountId) continue;
+      other.name = identity.name;
+      this.send(other, { type: "identity:renamed", identity });
+      this.broadcast({ type: "player:renamed", playerId: other.id, name: identity.name }, other.id);
+    }
   }
 
   // ── Chat ─────────────────────────────────────────────────────
@@ -565,9 +791,33 @@ export class LobbyServer {
     console.log(`[LobbyServer] Chat: <${player.name}> ${chatMsg.text}`);
   }
 
+  private handleRoomChatSend(player: ConnectedPlayer, lobbyId: unknown, text: unknown): void {
+    if (typeof lobbyId !== "string" || player.lobbyId !== lobbyId) {
+      this.send(player, { type: "lobby:error", error: "You are not in that room." });
+      return;
+    }
+    const lobby = this.lobbies.get(lobbyId);
+    if (!lobby?.players.has(player.id)) {
+      this.send(player, { type: "lobby:error", error: "You are not in that room." });
+      return;
+    }
+    if (typeof text !== "string") return;
+    const clean = text.trim().slice(0, 500);
+    if (!clean) return;
+
+    const message: ChatMsg = { from: player.name, fromId: player.id, text: clean, ts: Date.now() };
+    lobby.chatHistory.push(message);
+    if (lobby.chatHistory.length > this.MAX_CHAT_HISTORY) lobby.chatHistory.shift();
+    this.broadcastToLobby(lobbyId, { type: "lobby:chat_message", lobbyId, ...message });
+  }
+
   // ── Lobby: Create ────────────────────────────────────────────
 
-  private handleLobbyCreate(player: ConnectedPlayer, gametypeId: string): void {
+  private handleLobbyCreate(
+    player: ConnectedPlayer,
+    gametypeId: string,
+    visibility: "public" | "private" = "public",
+  ): void {
     // Already in a lobby?
     if (player.lobbyId) {
       this.send(player, { type: "lobby:error", error: "Already in a lobby. Leave first." });
@@ -579,8 +829,12 @@ export class LobbyServer {
       this.send(player, { type: "lobby:error", error: `Unknown gametype: ${gametypeId}` });
       return;
     }
+    if (visibility !== "public" && visibility !== "private") {
+      this.send(player, { type: "lobby:error", error: "Invalid room visibility." });
+      return;
+    }
 
-    const lobby = new MatchLobby(gametype, this.mapNames);
+    const lobby = new MatchLobby(gametype, this.mapNames, visibility);
     this.lobbies.set(lobby.id, lobby);
 
     // Add creator to lobby
@@ -612,15 +866,20 @@ export class LobbyServer {
 
   // ── Lobby: Join ──────────────────────────────────────────────
 
-  private handleLobbyJoin(player: ConnectedPlayer, lobbyId: string): void {
+  private handleLobbyJoin(player: ConnectedPlayer, lobbyId: string, inviteToken?: string): void {
     if (player.lobbyId) {
       this.send(player, { type: "lobby:error", error: "Already in a lobby." });
       return;
     }
 
     const lobby = this.lobbies.get(lobbyId);
-    if (!lobby) {
-      this.send(player, { type: "lobby:error", error: `Lobby not found: ${lobbyId}` });
+    if (!lobby || (lobby.visibility === "private" && inviteToken !== lobby.inviteToken)) {
+      this.send(player, { type: "lobby:error", error: "Lobby not found or invite invalid." });
+      return;
+    }
+
+    if (lobby.state === "playing" && (player.accountId === null || !lobby.activeSeatTeams.has(player.accountId))) {
+      this.send(player, { type: "lobby:error", error: "This match is already in progress." });
       return;
     }
 
@@ -630,6 +889,9 @@ export class LobbyServer {
     }
 
     const lobbyPlayer = lobby.addPlayer(player);
+    if (lobby.state === "playing" && player.accountId !== null) {
+      lobbyPlayer.team = lobby.activeSeatTeams.get(player.accountId)!;
+    }
     player.lobbyId = lobbyId;
     player.status = "in_lobby";
 
@@ -669,7 +931,7 @@ export class LobbyServer {
 
   private handleLobbyLeave(player: ConnectedPlayer, lobbyId: string): void {
     const lobby = this.lobbies.get(lobbyId);
-    if (!lobby) return;
+    if (!lobby || player.lobbyId !== lobbyId || !lobby.players.has(player.id)) return;
 
     lobby.removePlayer(player.id);
     player.lobbyId = null;
@@ -685,7 +947,7 @@ export class LobbyServer {
 
     // If only bots are left, evict them too — a bot-only lobby should never
     // persist or start a match once every human has left.
-    this.evictBotsIfNoHumans(lobby);
+    if (lobby.state !== "playing") this.evictBotsIfNoHumans(lobby);
 
     // Destroy empty lobbies — EXCEPT mid-match or during the return window.
     // With per-match servers every player's lobby socket drops at once when
@@ -741,7 +1003,7 @@ export class LobbyServer {
 
   private handleLobbyVoteMap(player: ConnectedPlayer, lobbyId: string, mapName: string): void {
     const lobby = this.lobbies.get(lobbyId);
-    if (!lobby || !lobby.players.has(player.id)) return;
+    if (!lobby || !lobby.players.has(player.id) || lobby.state !== "waiting" || lobby.isStarting) return;
 
     lobby.voteMap(player.id, mapName);
 
@@ -760,7 +1022,7 @@ export class LobbyServer {
 
   private handleLobbyReady(player: ConnectedPlayer, lobbyId: string, ready: boolean): void {
     const lobby = this.lobbies.get(lobbyId);
-    if (!lobby || !lobby.players.has(player.id)) return;
+    if (!lobby || !lobby.players.has(player.id) || lobby.state !== "waiting" || lobby.isStarting) return;
 
     lobby.setReady(player.id, ready);
 
@@ -789,7 +1051,7 @@ export class LobbyServer {
    */
   private handleLobbySwitchTeam(player: ConnectedPlayer, lobbyId: string): void {
     const lobby = this.lobbies.get(lobbyId);
-    if (!lobby || !lobby.players.has(player.id)) return;
+    if (!lobby || !lobby.players.has(player.id) || lobby.state !== "waiting" || lobby.isStarting) return;
     if (!lobby.gametype.hasTeams) return;
 
     const entry = lobby.players.get(player.id);
@@ -812,7 +1074,7 @@ export class LobbyServer {
 
   private handleLobbyVoteShuffle(player: ConnectedPlayer, lobbyId: string): void {
     const lobby = this.lobbies.get(lobbyId);
-    if (!lobby || !lobby.players.has(player.id)) return;
+    if (!lobby || !lobby.players.has(player.id) || lobby.state !== "waiting" || lobby.isStarting) return;
 
     // Bots back whatever a human asks for. Without this a solo tester can never
     // change sides, because their single vote cannot reach the threshold.
@@ -881,8 +1143,12 @@ export class LobbyServer {
    */
   private requestBotForLobby(lobby: MatchLobby, difficulty?: string): Promise<string> {
     return new Promise<string>((resolve, reject) => {
+      if (!this.botSecret) {
+        reject(new Error("Bot server secret not configured"));
+        return;
+      }
       let settled = false;
-      const ws = new WebSocket(BOT_SERVER_URL);
+      const ws = new WebSocket(this.botServerUrl, { headers: { [BOT_SECRET_HEADER]: this.botSecret } });
 
       const finish = (fn: () => void) => {
         if (settled) return;
@@ -906,6 +1172,7 @@ export class LobbyServer {
             type: "add_lobby_bot",
             lobbyUrl: botLobbyConnectUrl(this.port),
             lobbyId: lobby.id,
+            ...(lobby.inviteToken ? { inviteToken: lobby.inviteToken } : {}),
             gametype: lobby.gametype.id,
             options: { difficulty: difficulty || "medium" },
           }),
@@ -1107,7 +1374,12 @@ export class LobbyServer {
   /** Find an existing lobby of this gametype that still has room */
   private findWaitingLobby(gametypeId: string): MatchLobby | undefined {
     for (const lobby of this.lobbies.values()) {
-      if (lobby.gametype.id === gametypeId && lobby.playerCount < lobby.gametype.maxPlayers && !lobby.isStarting) {
+      if (
+        lobby.visibility === "public" &&
+        lobby.gametype.id === gametypeId &&
+        lobby.playerCount < lobby.gametype.maxPlayers &&
+        !lobby.isStarting
+      ) {
         return lobby;
       }
     }
@@ -1136,26 +1408,54 @@ export class LobbyServer {
     this.broadcastMatchesUpdate();
 
     try {
+      const admissionSeats = [...lobby.players.values()].map((lp) => {
+        const player = this.players.get(lp.id);
+        if (!player || !player.authenticated) throw new Error("A lobby player is no longer connected");
+        return {
+          lobbyPlayerId: lp.id,
+          accountId: player.accountId,
+          name: player.name,
+          team: lp.team,
+          isBot: player.isBot,
+        };
+      });
       // Spawn game server as child process
       const server = await this.spawner.spawn({
         map,
         gametype: gametypeId,
         maxClients: lobby.gametype.maxPlayers,
+        admissionSeats,
       });
 
       // Track matchId → lobbyId mapping for cleanup
       this.matchToLobby.set(server.matchId, lobby.id);
+      // Ranked or not is decided by the roster that starts the match, not by
+      // whoever is still connected when it ends.
+      this.rankedMatches.set(server.matchId, isRankedRoster(lobby.gametype, admissionSeats));
+      lobby.activeMatchId = server.matchId;
+      lobby.activeSeatTeams = new Map(
+        admissionSeats.flatMap((seat) => (seat.accountId === null ? [] : [[seat.accountId, seat.team] as const])),
+      );
 
       // Store server URL on lobby for spectator discovery
       lobby.serverUrl = server.url;
 
-      // Send connect URL to all lobby players
-      this.broadcastToLobby(lobby.id, {
-        type: "lobby:connect",
-        serverUrl: server.url,
-        map,
-        gametype: gametypeId,
-      });
+      // Each ticket belongs to one verified seat; a room broadcast would expose them all.
+      for (const lp of lobby.players.values()) {
+        const player = this.players.get(lp.id);
+        if (!player) continue;
+        const admissionTicket = server.admissionTickets?.get(lp.id);
+        this.send(player, {
+          type: "lobby:connect",
+          matchId: server.matchId,
+          serverUrl: server.url,
+          map,
+          gametype: gametypeId,
+          admissionTicket,
+        });
+      }
+      // The child has hashes; after private delivery the lobby has no reason to retain raw tickets.
+      server.admissionTickets?.clear();
 
       // Update player statuses
       for (const lp of lobby.players.values()) {
@@ -1178,6 +1478,8 @@ export class LobbyServer {
       lobby.isStarting = false;
       lobby.state = "waiting";
       lobby.matchMap = "";
+      lobby.activeMatchId = null;
+      lobby.activeSeatTeams.clear();
 
       this.broadcastToLobby(lobby.id, {
         type: "lobby:error",
@@ -1201,9 +1503,100 @@ export class LobbyServer {
 
   // ── Game Server Exit Handling ────────────────────────────
 
+  private handleServerResult(report: MatchResultReport): void {
+    if (!this.results || !this.matchToLobby.has(report.matchId)) return;
+    // A room the bots outnumbered is played for fun: every human still gets
+    // their match, but it never reaches the leaderboard.
+    if (!this.rankedMatches.get(report.matchId)) {
+      console.log(`[LobbyServer] Match ${report.matchId} was not ranked: too few humans in the room`);
+      return;
+    }
+    const participants = report.participants.flatMap(({ accountId, outcome, score }) =>
+      accountId === null ? [] : [{ accountId, outcome, score }],
+    );
+    // Incomplete/abandoned or bot-decided matches do not create rankings.
+    if (participants.length < 2 || !participants.some((p) => p.outcome === "win" || p.outcome === "draw")) return;
+    try {
+      if (
+        this.results.record({
+          matchId: report.matchId,
+          gametype: report.gametype,
+          map: report.map,
+          endedAt: report.endedAt,
+          participants,
+        })
+      )
+        console.log(`[LobbyServer] Stored final result: ${report.matchId}`);
+    } catch (error) {
+      console.warn(`[LobbyServer] Skipped unrankable match ${report.matchId}:`, error);
+    }
+  }
+
+  private handleLeaderboardGet(player: ConnectedPlayer, msg: LeaderboardRequest): void {
+    // Bound both the SQL page and the echo payload; no client chooses the account whose rank is returned.
+    const requestId =
+      typeof msg.requestId === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(msg.requestId) ? msg.requestId : "";
+    if (
+      !requestId ||
+      !["duel", "amphi", "ffa", "snd"].includes(msg.gametype) ||
+      (msg.period !== "month" && msg.period !== "all") ||
+      !Number.isSafeInteger(msg.offset) ||
+      msg.offset < 0 ||
+      msg.offset > 1000 ||
+      !Number.isSafeInteger(msg.limit) ||
+      msg.limit < 1 ||
+      msg.limit > 100
+    ) {
+      this.send(player, { type: "leaderboard:error", requestId, reason: "invalid_query" });
+      return;
+    }
+    if (!this.results) {
+      this.send(player, { type: "leaderboard:error", requestId, reason: "unavailable" });
+      return;
+    }
+    if (!this.leaderboardReads.tryRecord(player.id)) {
+      this.send(player, { type: "leaderboard:error", requestId, reason: "rate_limited" });
+      return;
+    }
+    const page = this.results.leaderboard({
+      gametype: msg.gametype,
+      period: msg.period,
+      offset: msg.offset,
+      limit: msg.limit,
+      accountId: player.accountId ?? undefined,
+    });
+    this.send(player, {
+      type: "leaderboard:page",
+      requestId,
+      gametype: msg.gametype,
+      period: msg.period,
+      entries: page.entries.map(({ accountId, ...row }) => ({ ...row, playerId: String(accountId) })),
+      total: page.total,
+      localPlayerRank: page.localPlayerRank,
+      localPlayerEntry: page.localPlayerEntry
+        ? (({ accountId, ...row }) => ({ ...row, playerId: String(accountId) }))(page.localPlayerEntry)
+        : undefined,
+    });
+  }
+
+  private handleSeatReissue(player: ConnectedPlayer, requestId: unknown, matchId: unknown): void {
+    if (typeof requestId !== "string" || !/^[A-Za-z0-9_-]{1,64}$/.test(requestId)) return;
+    const ticket =
+      !player.isBot &&
+      player.accountId !== null &&
+      typeof matchId === "string" &&
+      /^[A-Za-z0-9_-]{1,64}$/.test(matchId) &&
+      this.matchToLobby.has(matchId)
+        ? this.spawner.reissueUnclaimedSeat(matchId, player.accountId)
+        : null;
+    if (ticket) this.send(player, { type: "match:seat_reissued", requestId, matchId, ...ticket });
+    else this.send(player, { type: "match:seat_reissue_error", requestId, reason: "unavailable" });
+  }
+
   private handleServerExit(matchId: string, code: number | null): void {
     const lobbyId = this.matchToLobby.get(matchId);
     this.matchToLobby.delete(matchId);
+    this.rankedMatches.delete(matchId);
 
     console.log(`[LobbyServer] Game server exited: match=${matchId} lobby=${lobbyId} code=${code}`);
 
@@ -1237,11 +1630,16 @@ export class LobbyServer {
     // (single-match flow: docs/research/single_game_server_lobby.md).
     lobby.state = "waiting";
     lobby.matchMap = "";
+    lobby.activeMatchId = null;
+    lobby.activeSeatTeams.clear();
     lobby.isStarting = false; // otherwise re-ready and findWaitingLobby stay blocked
     lobby.serverUrl = ""; // never offer a connect URL to a dead server
     lobby.votes.clear(); // fresh map vote for the next round
     // Hold the lobby open for the return trip (reload drops all its sockets).
     lobby.keepAliveUntil = Date.now() + 3 * 60_000;
+    // During play, a browser reload must not kick the remaining match bots.
+    // Once the child exits, a bot-only room has no human to ready a rematch.
+    this.evictBotsIfNoHumans(lobby);
 
     // Return all players to the lobby (the rematch screen), not-ready.
     for (const lp of lobby.players.values()) {
@@ -1346,7 +1744,12 @@ export class LobbyServer {
       const mapPool = Object.entries(manifest)
         .filter(([name, entry]) => {
           const inManifest = entry.gametypes.includes(shell.id);
-          const onDisk = availableOnDisk === null || availableOnDisk.has(name);
+          // Amphi is a new playable mode: do not advertise it from manifest
+          // names alone in a checkout without its PK3 assets.
+          const onDisk =
+            shell.id === "amphi"
+              ? availableOnDisk?.has(name) === true
+              : availableOnDisk === null || availableOnDisk.has(name);
           return inManifest && onDisk;
         })
         .map(([name]) => name);
@@ -1358,14 +1761,75 @@ export class LobbyServer {
       }
 
       return { ...shell, mapPool };
-    });
+    }).filter((gametype) => gametype.id !== "amphi" || gametype.mapPool.length > 0);
   }
 
   // ── Demo Scanning ────────────────────────────────────────────
 
-  private handleDemosList(player: ConnectedPlayer, limit: number): void {
-    const demos = this._demoCache.slice(0, Math.min(limit, 64));
-    this.send(player, { type: "demos:list_response", demos });
+  private handleDemosList(player: ConnectedPlayer, limit: number, requestedScope?: string): void {
+    const scope = requestedScope === "yours" ? "yours" : "latest";
+    const source =
+      scope === "yours"
+        ? this._demoCache.filter(
+            (demo) => player.accountId != null && this._demoOwnership.get(demo.filename)?.has(player.accountId),
+          )
+        : this._demoCache;
+    const size = Number.isSafeInteger(limit) ? Math.max(1, Math.min(limit, 64)) : 64;
+    this.send(player, { type: "demos:list_response", demos: source.slice(0, size), scope });
+  }
+
+  private handleFeaturedGet(player: ConnectedPlayer, query: FeaturedDemosRequest): void {
+    const { requestId, gametype = "all", map = "all", limit } = query;
+    if (typeof requestId !== "string" || !/^[A-Za-z0-9_-]{1,64}$/.test(requestId)) return;
+    if (
+      !Number.isSafeInteger(limit) ||
+      limit < 1 ||
+      limit > 10 ||
+      typeof gametype !== "string" ||
+      !["all", "duel", "amphi", "ffa", "snd"].includes(gametype) ||
+      typeof map !== "string" ||
+      (map !== "all" && !/^[A-Za-z0-9_-]{1,64}$/.test(map))
+    ) {
+      this.send(player, { type: "featured:error", requestId, reason: "invalid_query" });
+      return;
+    }
+    if (!this.featuredReads.tryRecord(player.id)) {
+      this.send(player, { type: "featured:error", requestId, reason: "rate_limited" });
+      return;
+    }
+    const ranked = this.selectRankedFeatured(gametype, map, limit);
+    this.send(player, {
+      type: "featured:page",
+      requestId,
+      entries: ranked.length > 0 ? ranked : selectFeaturedDemos(this._demoCache, { gametype, map, limit }),
+      selection: ranked.length > 0 ? "ranked_month_week" : "recent_multiplayer_week",
+    });
+  }
+
+  /** Prefer recent demos containing a verified top-ten account in that demo's mode. */
+  private selectRankedFeatured(gametype: string, map: string, limit: number): FeaturedDemoInfo[] {
+    if (!this.results) return [];
+    const now = Date.now();
+    const topByMode = new Map<string, Set<number>>();
+    const eligible = this._demoCache.filter((demo) => {
+      const mode = normalizeGametype(demo.gametype);
+      if (!mode || (gametype !== "all" && mode !== gametype)) return false;
+      let top = topByMode.get(mode);
+      if (!top) {
+        top = new Set(
+          this.results
+            ?.leaderboard({ gametype: mode, period: "month", offset: 0, limit: 10, now })
+            .entries.map((entry) => entry.accountId) ?? [],
+        );
+        topByMode.set(mode, top);
+      }
+      const owners = this._demoOwnership.get(demo.filename);
+      return !!owners && [...owners].some((accountId) => top?.has(accountId));
+    });
+    return selectFeaturedDemos(eligible, { gametype, map, limit }, now).map((entry) => ({
+      ...entry,
+      reason: "Features a 30-day top 10 player",
+    }));
   }
 
   /**
@@ -1376,6 +1840,7 @@ export class LobbyServer {
     try {
       if (!fs.existsSync(this.DEMO_DIR)) {
         this._demoCache = [];
+        this._demoOwnership.clear();
         return;
       }
 
@@ -1386,6 +1851,7 @@ export class LobbyServer {
         .reverse(); // newest first by filename (contains date)
 
       const demos: DemoInfo[] = [];
+      const ownership = new Map<string, Set<number>>();
 
       for (const filename of files) {
         try {
@@ -1407,6 +1873,19 @@ export class LobbyServer {
           }
 
           if (header) {
+            const mode = normalizeGametype(header.gametype);
+            const recordedAccounts =
+              this.results && header.matchId && mode
+                ? new Set(this.results.verifiedDemoAccounts(header.matchId, mode, header.map, header.startTime))
+                : null;
+            const verifiedAccountIds = recordedAccounts
+              ? new Set(
+                  header.players
+                    .map((player) => player.accountId)
+                    .filter((id): id is number => !!id && recordedAccounts.has(id)),
+                )
+              : new Set<number>();
+            if (verifiedAccountIds.size > 0) ownership.set(filename, verifiedAccountIds);
             demos.push({
               filename,
               map: header.map,
@@ -1416,7 +1895,7 @@ export class LobbyServer {
               durationMs,
               date: header.startTime,
               sizeMB: parseFloat((stat.size / (1024 * 1024)).toFixed(2)),
-              levelshot: `/data/levelshots/${header.map}.png`,
+              levelshot: `/data/levelshots/${header.map}.jpg`,
             });
           }
         } catch (err) {
@@ -1425,6 +1904,7 @@ export class LobbyServer {
       }
 
       this._demoCache = demos;
+      this._demoOwnership = ownership;
       if (demos.length > 0) {
         console.log(`[LobbyServer] Demo scan: ${demos.length} demos found`);
       }
@@ -1442,7 +1922,7 @@ export class LobbyServer {
         id: p.id,
         name: p.name,
         status: p.status,
-        lobbyId: p.lobbyId || undefined,
+        lobbyId: p.lobbyId && this.lobbies.get(p.lobbyId)?.visibility !== "private" ? p.lobbyId : undefined,
       }));
   }
 
@@ -1451,6 +1931,7 @@ export class LobbyServer {
   private getLiveMatches(): LiveMatchInfo[] {
     const matches: LiveMatchInfo[] = [];
     for (const lobby of this.lobbies.values()) {
+      if (lobby.visibility === "private") continue;
       matches.push({
         id: lobby.id,
         gametype: lobby.gametype.id,

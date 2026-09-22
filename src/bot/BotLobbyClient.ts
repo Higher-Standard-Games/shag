@@ -32,6 +32,7 @@ export class BotLobbyClient {
   /** The side the lobby put us on, carried into the match. */
   private _lobbyTeam: string | undefined;
   private _joinLobbyId: string = ""; // when set, join this exact lobby instead of queueing
+  private _inviteToken: string = "";
   private _gametype: string = "";
   private _botOptions: BotOptions;
   private _difficulty: BotOptions["difficulty"];
@@ -43,7 +44,11 @@ export class BotLobbyClient {
   onGameBotCreated: ((bot: BotClient) => void) | null = null;
   onDisconnected: (() => void) | null = null;
 
-  constructor(options?: Partial<BotOptions>) {
+  /** The secret shared with the lobby; without it the lobby takes us for a player. */
+  private _botSecret: string | undefined;
+
+  constructor(options?: Partial<BotOptions>, botSecret?: string) {
+    this._botSecret = botSecret;
     this.name = options?.name || getNextBotName();
     this.id = `lobby_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     this._difficulty = options?.difficulty || "medium";
@@ -70,41 +75,55 @@ export class BotLobbyClient {
    * (used by the in-lobby "Invite AI Bot" button); otherwise join the queue
    * for `gametype`.
    */
-  async connect(lobbyUrl: string, gametype: string, joinLobbyId?: string): Promise<void> {
+  async connect(lobbyUrl: string, gametype: string, joinLobbyId?: string, inviteToken?: string): Promise<void> {
     this._gametype = gametype;
     this._joinLobbyId = joinLobbyId || "";
+    this._inviteToken = inviteToken || "";
     this._state = "connecting";
 
     return new Promise<void>((resolve, reject) => {
       const ws = new WebSocket(lobbyUrl);
       this._ws = ws;
+      let settled = false;
+
+      const succeed = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(connectTimeout);
+        resolve();
+      };
+      const fail = (error: Error) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(connectTimeout);
+        this._state = "disconnected";
+        ws.close();
+        reject(error);
+      };
 
       const connectTimeout = setTimeout(() => {
-        ws.close();
-        this._state = "disconnected";
-        reject(new Error(`Lobby connection timeout: ${lobbyUrl}`));
+        fail(new Error(`Lobby join timeout: ${lobbyUrl}`));
       }, 10000);
 
       ws.on("open", () => {
-        clearTimeout(connectTimeout);
         console.log(`[LobbyBot:${this.name}] Connected to lobby ${lobbyUrl}`);
 
-        // Step 1: Authenticate (flagged as a bot so the lobby can evict bots
-        // once the last human leaves a lobby).
-        this._send({ type: "auth", name: this.name, isBot: true });
+        // Step 1: Authenticate as a bot. The lobby believes the flag only with
+        // the shared secret, from its own machine.
+        this._send({ type: "auth", name: this.name, isBot: true, botSecret: this._botSecret });
       });
 
       ws.on("message", (data: Buffer) => {
         try {
           const msg = JSON.parse(data.toString());
-          this._handleMessage(msg, resolve);
+          this._handleMessage(msg, succeed, fail);
         } catch (err) {
           console.error(`[LobbyBot:${this.name}] Failed to parse message:`, err);
         }
       });
 
       ws.on("close", () => {
-        clearTimeout(connectTimeout);
+        fail(new Error("Lobby connection closed before bot joined"));
         console.log(`[LobbyBot:${this.name}] Lobby connection closed`);
         this._state = "disconnected";
         this._ws = null;
@@ -112,12 +131,8 @@ export class BotLobbyClient {
       });
 
       ws.on("error", (err: Error) => {
-        clearTimeout(connectTimeout);
         console.error(`[LobbyBot:${this.name}] Lobby WS error:`, err.message);
-        if (this._state === "connecting") {
-          this._state = "disconnected";
-          reject(err);
-        }
+        fail(err);
       });
     });
   }
@@ -125,7 +140,7 @@ export class BotLobbyClient {
   /**
    * Handle incoming lobby messages.
    */
-  private _handleMessage(msg: any, onReady?: () => void): void {
+  private _handleMessage(msg: any, onJoined?: () => void, onJoinError?: (error: Error) => void): void {
     switch (msg.type) {
       case "welcome": {
         // Successfully authenticated — join a specific lobby or the queue
@@ -135,12 +150,15 @@ export class BotLobbyClient {
           console.log(
             `[LobbyBot:${this.name}] Authenticated (id: ${msg.playerId}). Joining lobby: ${this._joinLobbyId}`,
           );
-          this._send({ type: "lobby:join", lobbyId: this._joinLobbyId });
+          this._send({
+            type: "lobby:join",
+            lobbyId: this._joinLobbyId,
+            ...(this._inviteToken ? { inviteToken: this._inviteToken } : {}),
+          });
         } else {
           console.log(`[LobbyBot:${this.name}] Authenticated (id: ${msg.playerId}). Joining queue: ${this._gametype}`);
           this._send({ type: "queue:join", gametype: this._gametype });
         }
-        onReady?.();
         break;
       }
 
@@ -150,6 +168,7 @@ export class BotLobbyClient {
         this._lobbyId = msg.lobby?.id || "";
         this._rememberOwnTeam(msg.lobby?.players);
         console.log(`[LobbyBot:${this.name}] In lobby ${this._lobbyId} (${this._gametype}). Auto-readying...`);
+        onJoined?.();
 
         // Small delay before readying up (human-feel)
         setTimeout(
@@ -180,7 +199,7 @@ export class BotLobbyClient {
         // side and get measured against that split, so a lobby's teams could
         // rearrange themselves the moment the match began.
         if (this._lobbyTeam) this._botOptions.team = this._lobbyTeam;
-        this._connectToGameServer(serverUrl);
+        this._connectToGameServer(serverUrl, msg.admissionTicket);
         break;
       }
 
@@ -194,6 +213,12 @@ export class BotLobbyClient {
 
       case "lobby:error": {
         console.error(`[LobbyBot:${this.name}] Lobby error: ${msg.error}`);
+        onJoinError?.(new Error(String(msg.error || "Lobby rejected bot join")));
+        break;
+      }
+
+      case "auth:error": {
+        onJoinError?.(new Error(`Bot authentication failed: ${msg.code || "unknown"}`));
         break;
       }
 
@@ -242,7 +267,7 @@ export class BotLobbyClient {
     if (team && team !== "none") this._lobbyTeam = team;
   }
 
-  private async _connectToGameServer(serverUrl: string): Promise<void> {
+  private async _connectToGameServer(serverUrl: string, admissionTicket?: string): Promise<void> {
     const MAX_RETRIES = 5;
     const INITIAL_DELAY_MS = 2000; // Wait for game server to start
     const RETRY_DELAY_MS = 1500;
@@ -260,7 +285,7 @@ export class BotLobbyClient {
           this._botClient = null;
         });
 
-        await bot.connect(serverUrl);
+        await bot.connect(serverUrl, admissionTicket);
         this._botClient = bot;
         console.log(`[LobbyBot:${this.name}] Game bot connected as ${bot.playerId}`);
 

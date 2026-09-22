@@ -31,8 +31,9 @@ let nextId = 1;
 // biome-ignore lint/suspicious/noExplicitAny: fake ConnectedPlayer
 function makePlayer(overrides: Partial<any> = {}): { player: any; sent: any[] } {
   const sent: any[] = [];
+  const number = nextId++;
   const player = {
-    id: `p_${nextId++}`,
+    id: `p_${number}`,
     ws: { readyState: WebSocket.OPEN, send: (data: string) => sent.push(JSON.parse(data)) },
     name: "Tester",
     status: "online",
@@ -40,6 +41,7 @@ function makePlayer(overrides: Partial<any> = {}): { player: any; sent: any[] } 
     authenticated: true,
     address: "127.0.0.1",
     isBot: false,
+    accountId: number,
     ...overrides,
   };
   return { player, sent };
@@ -47,7 +49,7 @@ function makePlayer(overrides: Partial<any> = {}): { player: any; sent: any[] } 
 
 // biome-ignore lint/suspicious/noExplicitAny: reaches private lobby internals
 function setup(spawn: any = vi.fn()): { server: any; spawn: any } {
-  const spawner = { onServerExit: undefined as unknown, spawn, shutdownAll: vi.fn() };
+  const spawner = { onServerExit: undefined as unknown, spawn, shutdownAll: vi.fn(), reissueUnclaimedSeat: vi.fn() };
   const server = new LobbyServer(0, spawner as never) as any;
   server.gametypes = [GAMETYPE];
   server.mapNames = MAP_NAMES;
@@ -70,6 +72,82 @@ function createLobby(server: any, player: any): any {
 const lastMessage = (sent: unknown[]): unknown => sent[sent.length - 1];
 
 describe("LobbyServer lifecycle", () => {
+  it("releases a replacement only to the authenticated original account of an active room match", () => {
+    const { server } = setup();
+    const original = makePlayer();
+    const impostor = makePlayer();
+    const lobby = createLobby(server, original.player);
+    register(server, impostor.player);
+    server.matchToLobby.set("m_1", lobby.id);
+    const release = vi.fn((_matchId: string, accountId: number) =>
+      accountId === original.player.accountId
+        ? { admissionTicket: "private-fallback", serverUrl: "ws://localhost:7777" }
+        : null,
+    );
+    server.spawner.reissueUnclaimedSeat = release;
+    server.handleSeatReissue(impostor.player, "req_1", "m_1");
+    expect(lastMessage(impostor.sent)).toEqual({
+      type: "match:seat_reissue_error",
+      requestId: "req_1",
+      reason: "unavailable",
+    });
+    server.handleSeatReissue(original.player, "req_2", "other");
+    expect(release).toHaveBeenCalledTimes(1);
+    server.handleSeatReissue(original.player, "req_3", "m_1");
+    expect(lastMessage(original.sent)).toEqual({
+      type: "match:seat_reissued",
+      requestId: "req_3",
+      matchId: "m_1",
+      admissionTicket: "private-fallback",
+      serverUrl: "ws://localhost:7777",
+    });
+    expect(impostor.sent.some((msg: { admissionTicket?: string }) => msg.admissionTicket)).toBe(false);
+  });
+
+  it("lets an original account reopen its running room with its original team, without admitting a new player", () => {
+    const { server } = setup();
+    const original = makePlayer();
+    const lobby = createLobby(server, original.player);
+    lobby.state = "playing";
+    lobby.activeMatchId = "m_1";
+    lobby.activeSeatTeams.set(original.player.accountId, "bravo");
+    server.handleLobbyLeave(original.player, lobby.id);
+    const stranger = makePlayer();
+    register(server, stranger.player);
+    server.handleLobbyJoin(stranger.player, lobby.id);
+    expect(lastMessage(stranger.sent)).toEqual({ type: "lobby:error", error: "This match is already in progress." });
+    const restored = makePlayer({ accountId: original.player.accountId });
+    register(server, restored.player);
+    server.handleLobbyJoin(restored.player, lobby.id);
+    expect(lobby.players.get(restored.player.id).team).toBe("bravo");
+    expect(restored.sent.find((msg: { type: string }) => msg.type === "lobby:created")).toMatchObject({
+      type: "lobby:created",
+      lobby: { activeMatchId: "m_1" },
+    });
+    server.handleLobbyReady(restored.player, lobby.id, true);
+    server.handleLobbyVoteMap(restored.player, lobby.id, lobby.maps[0].name);
+    server.handleLobbySwitchTeam(restored.player, lobby.id);
+    server.handleLobbyVoteShuffle(restored.player, lobby.id);
+    expect(lobby.players.get(restored.player.id)).toMatchObject({ ready: false, team: "bravo" });
+    expect(lobby.votes.size).toBe(0);
+  });
+
+  it("keeps match bots alive while the last human reloads, then evicts a bot-only rematch room", () => {
+    const { server } = setup();
+    const host = makePlayer();
+    const bot = makePlayer({ isBot: true, accountId: null, name: "Bot" });
+    const lobby = createLobby(server, host.player);
+    register(server, bot.player);
+    server.handleLobbyJoin(bot.player, lobby.id);
+    lobby.state = "playing";
+    server.matchToLobby.set("m_1", lobby.id);
+    server.handleLobbyLeave(host.player, lobby.id);
+    expect(lobby.players.has(bot.player.id)).toBe(true);
+    expect(bot.sent.some((msg: { type: string }) => msg.type === "lobby:kicked")).toBe(false);
+    server.handleServerExit("m_1", 0);
+    expect(lobby.players.size).toBe(0);
+    expect(bot.sent.some((msg: { type: string }) => msg.type === "lobby:kicked")).toBe(true);
+  });
   it("creates a lobby and adds the creator", () => {
     const { server } = setup();
     const { player } = makePlayer();
@@ -178,6 +256,35 @@ describe("LobbyServer lifecycle", () => {
     expect(lobby.serverUrl).toBe("ws://localhost:7777");
     expect(server.matchToLobby.get("m_1")).toBe(lobby.id);
     expect(host.player.status).toBe("in_match");
+    expect(spawn.mock.calls[0][0].admissionSeats).toEqual([
+      expect.objectContaining({ lobbyPlayerId: host.player.id, accountId: host.player.accountId, isBot: false }),
+      expect.objectContaining({ lobbyPlayerId: joiner.id, accountId: joiner.accountId, isBot: false }),
+    ]);
+  });
+
+  it("sends each member only their own game seat ticket", async () => {
+    const host = makePlayer({ name: "Host" });
+    const guest = makePlayer({ name: "Guest" });
+    const spawn = vi
+      .fn()
+      .mockImplementation(async ({ admissionSeats }: { admissionSeats: Array<{ lobbyPlayerId: string }> }) => ({
+        url: "ws://localhost:7777",
+        matchId: "m_private",
+        admissionTickets: new Map(admissionSeats.map((seat) => [seat.lobbyPlayerId, `ticket-${seat.lobbyPlayerId}`])),
+      }));
+    const { server } = setup(spawn);
+    const lobby = createLobby(server, host.player);
+    server.handleLobbyJoin(register(server, guest.player), lobby.id);
+
+    await server.handleAllReady(lobby);
+
+    const hostConnect = host.sent.find((msg: any) => msg.type === "lobby:connect");
+    const guestConnect = guest.sent.find((msg: any) => msg.type === "lobby:connect");
+    expect(hostConnect?.admissionTicket).toBe(`ticket-${host.player.id}`);
+    expect(guestConnect?.admissionTicket).toBe(`ticket-${guest.player.id}`);
+    expect(JSON.stringify(host.sent)).not.toContain(`ticket-${guest.player.id}`);
+    expect(JSON.stringify(guest.sent)).not.toContain(`ticket-${host.player.id}`);
+    expect((await spawn.mock.results[0].value).admissionTickets.size).toBe(0);
   });
 
   it("handleAllReady reverts isStarting/state when the spawn fails", async () => {

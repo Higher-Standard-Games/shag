@@ -17,6 +17,8 @@ export interface NetworkConnectOptions {
   autoJoin?: boolean;
   /** Spectator-only connection (default false). Mutually exclusive with autoJoin. */
   watchOnly?: boolean;
+  /** One-use seat ticket from the lobby, sent only in the binary Join. */
+  admissionTicket?: string;
 }
 
 export interface NetworkConnector {
