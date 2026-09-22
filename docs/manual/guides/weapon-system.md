@@ -46,14 +46,19 @@ developer 1
 weapon info
 weapon load <name> [pk3path]
 weapon pos <x> <y> <z>
+weapon offset <x> <y> <z>
 weapon scale <value>
 weapon preset <hip|ads|lowered>
+weapon spawn
+weapon debug
 weapon hide
 weapon show
 weapon clear
-giveweapon <name>
+giveweapon <weapon_id|all> [amount]
 cl_wep_reset
 ```
+
+`weapon` itself is not developer-gated; `giveweapon` and `cl_wep_reset` are not either.
 
 Use `help weapon` for the active command metadata.
 

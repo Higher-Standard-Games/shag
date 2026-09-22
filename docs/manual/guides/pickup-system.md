@@ -49,10 +49,16 @@ The server decides whether a player collected a pickup, applies the effect, and 
 - clear respawn timers and physics resources;
 - test repeated pickup/respawn and late-join active-set reconciliation.
 
-Useful FPS diagnostic:
+Useful diagnostics:
 
 ```text
-pickup_audit
+pickup_audit                        # FPS: what the client thinks it has
+spawn_pickable_entity <entity_id>   # developer-gated; place one to look at
 ```
+
+Respawn intervals belong to the gametype, not to the pickup: each one carries
+`weaponRespawnTime`, `ammoRespawnTime`, `armorRespawnTime`, `healthRespawnTime`
+and `megaHealthRespawnTime`, and a round-based mode can return everything at the
+round boundary instead.
 
 See the FPS game manual for concrete weapon/ammo pickup behavior.
