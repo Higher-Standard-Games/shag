@@ -5,28 +5,27 @@
  * clicks "FIND MATCH". Shows map vote, player slots, share URL,
  * and READY/LEAVE buttons.
  *
- * Phase 1: Pure UI with mock data. Phase 2: Wire to REST+WebSocket.
+ * The room state and actions come from the lobby server.
  */
 
 import type { LobbyClient } from "../../../lobby/LobbyClient";
-import type { MatchLobbyInfo } from "../../../lobby/types";
+import type { MatchLobbyInfo, TeamNames } from "../../../lobby/types";
 import { ConnectingOverlay } from "./ConnectingOverlay";
+import { createRaisedKey, setRaisedKeyText } from "./RaisedKey";
 
 // ═══════════════════════════════════════════════════════════════════
-// TYPES & MOCK DATA
+// TYPES
 // ═══════════════════════════════════════════════════════════════════
 
 export interface MatchLobbyPlayer {
   /**
    * Lobby player id, which is what every server broadcast addresses.
    *
-   * Absent only for mock players, which have no server behind them. Ready
-   * updates key on this: matching on `name` looks like it works and silently
-   * never does, because the server sends an id.
+   * Ready updates key on this, because the server addresses players by id.
    */
-  id?: string;
+  id: string;
   name: string;
-  team: "alpha" | "bravo" | "none";
+  team: "alpha" | "bravo" | "ffa";
   ready: boolean;
   isLocal: boolean;
 }
@@ -39,20 +38,12 @@ export interface MatchLobbyMapOption {
 }
 
 export interface MatchLobbyConfig {
+  /** Names for the two sides, when the lobby server supplies them. */
+  teamNames?: TeamNames;
   gametype: string;
   gametypeLabel: string;
   maxPlayers: number;
   hasTeams: boolean;
-}
-
-const GAMETYPE_CONFIG: Record<string, MatchLobbyConfig> = {
-  duel: { gametype: "duel", gametypeLabel: "DUEL 1v1", maxPlayers: 2, hasTeams: true },
-  team: { gametype: "team", gametypeLabel: "TEAM 2v2", maxPlayers: 4, hasTeams: true },
-  ffa: { gametype: "ffa", gametypeLabel: "FFA", maxPlayers: 8, hasTeams: false },
-};
-
-function generateLobbyId(): string {
-  return `${Math.random().toString(36).slice(2, 5)}-${Math.random().toString(36).slice(2, 5)}-${Math.random().toString(36).slice(2, 5)}`;
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -64,66 +55,70 @@ export class MatchLobbyView {
 
   private config: MatchLobbyConfig;
   private lobbyId: string;
+  private readonly shareUrl: string;
   private maps: MatchLobbyMapOption[];
   private players: MatchLobbyPlayer[];
   private localReady = false;
   private onLeaveCallback: (() => void) | null = null;
-  private lobbyClient: LobbyClient | null = null;
+  private lobbyClient: LobbyClient;
   private unsubscribers: (() => void)[] = [];
   private inviteBotBtn: HTMLButtonElement | null = null;
+  private readyBtn: HTMLButtonElement | null = null;
+  private recoverBtn: HTMLButtonElement | null = null;
+  private activeMatchId: string | null = null;
+  private switchBtn: HTMLButtonElement | null = null;
+  private shuffleBtn: HTMLButtonElement | null = null;
   private inviteBotPending = false;
+  private phase: "waiting" | "starting" = "waiting";
+  /** True when the room's match was already running as this player walked in. */
+  private matchInProgress = false;
+  private roomError: string | null = null;
+  private timers = new Set<number>();
+  private clockTimer: number | null = null;
+  private readonly openedAt = Date.now();
+  private disposed = false;
   private readonly localPlayerId: string | null;
 
-  constructor(gametype: string, lobbyClient?: LobbyClient, lobbyInfo?: MatchLobbyInfo, localPlayerId?: string) {
-    this.lobbyClient = lobbyClient || null;
+  constructor(gametype: string, lobbyClient: LobbyClient, lobbyInfo: MatchLobbyInfo, localPlayerId?: string) {
+    this.lobbyClient = lobbyClient;
     this.localPlayerId = localPlayerId ?? null;
-
-    if (lobbyInfo) {
-      // Use real server data
-      this.config = {
-        gametype: lobbyInfo.gametype,
-        gametypeLabel:
-          lobbyInfo.config.hasTeams && lobbyInfo.config.maxPlayers === 2
-            ? "DUEL 1v1"
-            : lobbyInfo.config.hasTeams
-              ? `TEAM ${lobbyInfo.config.maxPlayers / 2}v${lobbyInfo.config.maxPlayers / 2}`
-              : "FFA",
-        maxPlayers: lobbyInfo.config.maxPlayers,
-        hasTeams: lobbyInfo.config.hasTeams,
-      };
-      this.lobbyId = lobbyInfo.id;
-      this.maps = lobbyInfo.maps.map((m) => ({
-        name: m.name,
-        displayName: m.displayName,
-        votes: m.votes,
-        votedByLocal: false,
-      }));
-      this.players = lobbyInfo.players.map((p) => ({
-        id: p.id,
-        name: p.name,
-        team: p.team as "alpha" | "bravo" | "none",
-        ready: p.ready,
-        isLocal: p.id === this.localPlayerId,
-      }));
-    } else {
-      // Fallback: mock data (no server connection — map pool comes from server in production)
-      this.config = GAMETYPE_CONFIG[gametype] || GAMETYPE_CONFIG.duel;
-      this.lobbyId = generateLobbyId();
-      this.maps = [];
-      this.players = this.generateMockPlayers();
+    this.config = {
+      teamNames: lobbyInfo.config.teamNames,
+      gametype: lobbyInfo.gametype,
+      gametypeLabel: gametype === "duel" ? "DUEL 1v1" : gametype === "snd" ? "S&D" : gametype.toUpperCase(),
+      maxPlayers: lobbyInfo.config.maxPlayers,
+      hasTeams: lobbyInfo.config.hasTeams,
+    };
+    this.lobbyId = lobbyInfo.id;
+    this.activeMatchId = lobbyInfo.activeMatchId ?? null;
+    if (this.activeMatchId) {
+      this.phase = "starting";
+      this.matchInProgress = true;
     }
+    // Older public-room servers advertised a placeholder domain; only private
+    // rooms need the server's bearer-token link.
+    this.shareUrl =
+      lobbyInfo.visibility === "private" ? lobbyInfo.shareUrl : `/?lobby=${encodeURIComponent(lobbyInfo.id)}`;
+    this.maps = lobbyInfo.maps.map((m) => ({
+      name: m.name,
+      displayName: m.displayName,
+      votes: m.votes,
+      votedByLocal: false,
+    }));
+    this.players = lobbyInfo.players.map((p) => ({
+      id: p.id,
+      name: p.name,
+      team: p.team as "alpha" | "bravo" | "ffa",
+      ready: p.ready,
+      isLocal: p.id === this.localPlayerId,
+    }));
+    this.localReady = this.players.find((p) => p.isLocal)?.ready ?? false;
 
     this.root = this.build();
-
-    // Wire lobby events if connected
-    if (this.lobbyClient) {
-      this.wireLobbyEvents();
-    }
+    this.wireLobbyEvents();
   }
 
   private wireLobbyEvents(): void {
-    if (!this.lobbyClient) return;
-
     // Vote updates
     this.unsubscribers.push(
       this.lobbyClient.on("lobby:votes_updated", (msg) => {
@@ -139,14 +134,10 @@ export class MatchLobbyView {
     // Player ready updates
     this.unsubscribers.push(
       this.lobbyClient.on("lobby:player_updated", (msg) => {
-        // By id. This compared `p.name` against a player ID and fell back to
-        // `|| p.isLocal`, so it matched the local player for every update and
-        // was then rejected by the isLocal guard below — meaning no remote
-        // player ever appeared ready, and a lobby of readied bots looked
-        // permanently stuck.
         const player = this.players.find((p) => p.id === msg.playerId);
-        if (player && !player.isLocal) {
+        if (player) {
           player.ready = msg.ready;
+          if (player.isLocal) this.localReady = msg.ready;
           this.refreshPlayerSlots();
           this.refreshHeader();
         }
@@ -156,13 +147,18 @@ export class MatchLobbyView {
     // Player joined
     this.unsubscribers.push(
       this.lobbyClient.on("lobby:player_joined", (msg) => {
-        this.players.push({
+        const arrival: MatchLobbyPlayer = {
           id: msg.player.id,
           name: msg.player.name,
-          team: msg.player.team as "alpha" | "bravo" | "none",
+          team: msg.player.team as "alpha" | "bravo" | "ffa",
           ready: msg.player.ready,
           isLocal: msg.player.id === this.localPlayerId,
-        });
+        };
+        // One seat per id: a join for someone the roster already has replaces
+        // them rather than seating them twice.
+        const seated = this.players.findIndex((p) => p.id === arrival.id);
+        if (seated >= 0) this.players[seated] = arrival;
+        else this.players.push(arrival);
         this.refreshPlayerSlots();
         this.refreshHeader();
         // A joining player (incl. an invited bot) may have filled the lobby.
@@ -195,9 +191,9 @@ export class MatchLobbyView {
         this.inviteBotPending = false;
         this.updateInviteBotState();
         if (this.inviteBotBtn) {
-          this.inviteBotBtn.textContent = "🤖 NO BOTS AVAILABLE";
+          setRaisedKeyText(this.inviteBotBtn, "+ Add bot", "No bots available");
           this.inviteBotBtn.disabled = true;
-          window.setTimeout(() => this.updateInviteBotState(), 2500);
+          this.schedule(() => this.updateInviteBotState(), 2500);
         }
       }),
     );
@@ -205,14 +201,64 @@ export class MatchLobbyView {
     // All ready → connect
     this.unsubscribers.push(
       this.lobbyClient.on("lobby:all_ready", () => {
-        // Show all players as ready
+        this.roomError = null;
+        this.phase = "starting";
         for (const p of this.players) p.ready = true;
         this.refreshPlayerSlots();
+        this.refreshStatus();
+        this.refreshMapVotes();
+        this.updateInviteBotState();
+        this.refreshSwitchKey();
+        if (this.shuffleBtn) this.shuffleBtn.disabled = true;
+      }),
+    );
+
+    // A completed match returns this same room to the ready-up screen.
+    this.unsubscribers.push(
+      this.lobbyClient.on("match:ended", () => {
+        this.roomError = null;
+        this.activeMatchId = null;
+        this.matchInProgress = false;
+        if (this.recoverBtn) this.recoverBtn.hidden = true;
+        this.phase = "waiting";
+        this.localReady = false;
+        for (const player of this.players) player.ready = false;
+        for (const map of this.maps) {
+          map.votes = 0;
+          map.votedByLocal = false;
+        }
+        this.refreshPlayerSlots();
+        this.refreshMapVotes();
+        this.refreshStatus();
+        this.updateInviteBotState();
+        this.refreshSwitchKey();
+        if (this.shuffleBtn) this.shuffleBtn.disabled = false;
+      }),
+    );
+
+    this.unsubscribers.push(
+      this.lobbyClient.on("lobby:error", (msg) => {
+        this.roomError = msg.error;
+        this.phase = this.activeMatchId ? "starting" : "waiting";
+        this.refreshStatus();
+        this.refreshMapVotes();
+        this.updateInviteBotState();
+        this.refreshSwitchKey();
+        if (this.shuffleBtn) this.shuffleBtn.disabled = this.phase === "starting";
       }),
     );
 
     this.unsubscribers.push(
       this.lobbyClient.on("lobby:connect", (msg) => {
+        this.roomError = null;
+        this.activeMatchId = msg.matchId ?? null;
+        if (this.recoverBtn) this.recoverBtn.hidden = !this.activeMatchId;
+        this.phase = "starting";
+        this.refreshStatus();
+        this.refreshMapVotes();
+        this.updateInviteBotState();
+        this.refreshSwitchKey();
+        if (this.shuffleBtn) this.shuffleBtn.disabled = true;
         // Remember which lobby this match came from — the post-game
         // RETURN TO LOBBY button navigates back to it via ?lobby=<id>
         // (docs/research/single_game_server_lobby.md).
@@ -222,13 +268,20 @@ export class MatchLobbyView {
           // Without it `sendJoinGame()` asks for nothing and the server
           // auto-balances, so choosing a team in the lobby did nothing at all.
           const localTeam = this.players.find((p) => p.isLocal)?.team;
-          if (localTeam && localTeam !== "none") sessionStorage.setItem("shag.lobby_team", localTeam);
+          if (localTeam && localTeam !== "ffa") sessionStorage.setItem("shag.lobby_team", localTeam);
           else sessionStorage.removeItem("shag.lobby_team");
         } catch {
           /* storage unavailable — return falls back to a plain reload */
         }
         const overlay = new ConnectingOverlay();
-        overlay.show(msg.serverUrl);
+        overlay.show(
+          msg.serverUrl,
+          false,
+          msg.admissionTicket,
+          msg.matchId
+            ? async () => (await this.lobbyClient.requestSeatReissue(msg.matchId)).admissionTicket
+            : undefined,
+        );
       }),
     );
 
@@ -244,12 +297,37 @@ export class MatchLobbyView {
         }
         this.refreshPlayerSlots();
         this.refreshHeader();
+        this.refreshSwitchKey();
+        if (this.shuffleBtn) {
+          this.shuffleBtn.disabled = false;
+          setRaisedKeyText(this.shuffleBtn, "⤨ Shuffle", "Mix the teams");
+        }
       }),
     );
   }
 
   onLeave(cb: () => void): void {
     this.onLeaveCallback = cb;
+  }
+
+  destroy(): void {
+    if (this.disposed) return;
+    this.disposed = true;
+    for (const unsub of this.unsubscribers) unsub();
+    this.unsubscribers = [];
+    for (const timer of this.timers) window.clearTimeout(timer);
+    this.timers.clear();
+    if (this.clockTimer !== null) window.clearTimeout(this.clockTimer);
+    this.clockTimer = null;
+  }
+
+  private schedule(callback: () => void, delay: number): void {
+    if (this.disposed) return;
+    const timer = window.setTimeout(() => {
+      this.timers.delete(timer);
+      callback();
+    }, delay);
+    this.timers.add(timer);
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -259,282 +337,420 @@ export class MatchLobbyView {
   private build(): HTMLElement {
     const container = document.createElement("div");
     container.className = "match-lobby";
-
-    // ── Header (static top) ──
-    const header = document.createElement("div");
-    header.className = "match-lobby__header";
-    header.innerHTML = `
-            <span class="match-lobby__gametype">${this.config.gametypeLabel}</span>
-            <span class="match-lobby__player-count">${this.players.length} / ${this.config.maxPlayers} PLAYERS</span>
-        `;
-    container.appendChild(header);
-
-    // ── Scrollable content area ──
-    const content = document.createElement("div");
-    content.className = "match-lobby__content";
-
-    // Map Vote Row
-    content.appendChild(this.buildMapVoteRow());
-
-    // Lobby URL (between maps and teams)
-    content.appendChild(this.buildUrlBar());
-
-    // Players / Teams
-    content.appendChild(this.buildPlayerArea());
-
-    container.appendChild(content);
-
-    // ── Action Buttons (static bottom) ──
-    container.appendChild(this.buildActions());
-
+    container.append(this.buildTopBar(), this.buildStatus(), this.buildRoster(), this.buildVote(), this.buildActions());
+    this.startClock();
     return container;
   }
 
-  // ── Map Vote ──
+  /** Which room this is, and how to bring people into it. */
+  private buildTopBar(): HTMLElement {
+    const top = document.createElement("header");
+    top.className = "match-lobby__top";
 
-  private buildMapVoteRow(): HTMLElement {
-    const row = document.createElement("div");
-    row.className = "match-lobby__maps";
+    const who = document.createElement("div");
+    who.className = "match-lobby__room";
+    const chip = document.createElement("span");
+    chip.className = "match-lobby__mode-chip";
+    chip.textContent = this.config.gametypeLabel;
+    const meta = document.createElement("span");
+    meta.className = "match-lobby__meta";
+    const shape =
+      this.config.maxPlayers === 2 ? "1 vs 1" : this.config.hasTeams ? "Teams" : `Up to ${this.config.maxPlayers}`;
+    meta.append(shape, document.createElement("br"));
+    const room = document.createElement("b");
+    room.textContent = this.lobbyId;
+    meta.append("Lobby ", room);
+    who.append(chip, meta);
 
-    for (const map of this.maps) {
-      const card = document.createElement("div");
-      card.className = "match-lobby__map-card";
-      if (map.votedByLocal) card.classList.add("match-lobby__map-card--voted");
-
-      // Map image placeholder (gradient based on name hash)
-      const img = document.createElement("div");
-      img.className = "match-lobby__map-img";
-      const hue = this.hashToHue(map.name);
-      img.style.background = `linear-gradient(135deg, hsl(${hue}, 40%, 15%) 0%, hsl(${hue + 30}, 50%, 25%) 100%)`;
-      card.appendChild(img);
-
-      const label = document.createElement("div");
-      label.className = "match-lobby__map-label";
-      label.textContent = map.displayName;
-      card.appendChild(label);
-
-      const mapId = document.createElement("div");
-      mapId.className = "match-lobby__map-id";
-      mapId.textContent = map.name;
-      card.appendChild(mapId);
-
-      const voteCount = document.createElement("div");
-      voteCount.className = "match-lobby__map-votes";
-      voteCount.textContent = map.votes > 0 ? `${map.votes} vote${map.votes !== 1 ? "s" : ""}` : "";
-      card.appendChild(voteCount);
-
-      const check = document.createElement("div");
-      check.className = "match-lobby__map-check";
-      check.textContent = "✓";
-      card.appendChild(check);
-
-      card.addEventListener("click", () => {
-        this.toggleMapVote(map, card, voteCount);
-      });
-
-      row.appendChild(card);
-    }
-
-    return row;
+    top.append(who, this.buildInvite());
+    return top;
   }
 
-  private toggleMapVote(map: MatchLobbyMapOption, _card: HTMLElement, _voteEl: HTMLElement): void {
-    // Unvote all first
-    for (const m of this.maps) {
-      if (m.votedByLocal && m !== map) {
-        m.votedByLocal = false;
-        if (!this.lobbyClient) m.votes = Math.max(0, m.votes - 1);
+  private buildInvite(): HTMLElement {
+    const invite = document.createElement("div");
+    invite.className = "match-lobby__invite";
+    const label = document.createElement("span");
+    label.className = "match-lobby__invite-label";
+    label.textContent = "Invite";
+
+    // Real, working invite link — the ?lobby= deep link LobbyPanel auto-joins
+    // on boot (works on any host, no SPA path-fallback required).
+    const inviteUrl = new URL(this.shareUrl || `/?lobby=${encodeURIComponent(this.lobbyId)}`, window.location.origin);
+    const url = document.createElement("span");
+    url.className = "match-lobby__invite-url";
+    url.textContent = `${inviteUrl.host}${inviteUrl.pathname}${inviteUrl.search}`;
+
+    const copy = createRaisedKey({ label: "Copy", variants: ["sm", "cream", "inline"] });
+    copy.addEventListener("click", async () => {
+      let said = "Copied ✓";
+      try {
+        await navigator.clipboard.writeText(inviteUrl.href);
+      } catch {
+        said = "Copy blocked";
       }
-    }
-
-    // Toggle this map
-    map.votedByLocal = !map.votedByLocal;
-    if (!this.lobbyClient) {
-      map.votes += map.votedByLocal ? 1 : -1;
-    }
-
-    // Send to server if connected
-    if (this.lobbyClient && map.votedByLocal) {
-      this.lobbyClient.voteMap(this.lobbyId, map.name);
-    }
-
-    // Update all cards (local visual toggle)
-    const cards = this.root.querySelectorAll(".match-lobby__map-card");
-    this.maps.forEach((m, i) => {
-      cards[i]?.classList.toggle("match-lobby__map-card--voted", m.votedByLocal);
+      if (this.disposed) return;
+      setRaisedKeyText(copy, said);
+      this.schedule(() => setRaisedKeyText(copy, "Copy"), 2000);
     });
 
-    // If not connected, also update vote counts locally
-    if (!this.lobbyClient) {
-      this.refreshMapVotes();
-    }
+    invite.append(label, url, copy);
+    return invite;
   }
 
-  private refreshMapVotes(): void {
-    const voteCounts = this.root.querySelectorAll(".match-lobby__map-votes");
-    this.maps.forEach((m, i) => {
-      if (voteCounts[i]) {
-        (voteCounts[i] as HTMLElement).textContent = m.votes > 0 ? `${m.votes} vote${m.votes !== 1 ? "s" : ""}` : "";
+  // ── Status ──
+
+  private buildStatus(): HTMLElement {
+    const status = document.createElement("section");
+    status.className = "match-lobby__status";
+    status.setAttribute("aria-live", "polite");
+
+    const radar = document.createElement("div");
+    radar.className = "match-lobby__radar";
+    radar.setAttribute("aria-hidden", "true");
+    for (const part of [
+      "ring",
+      "ring match-lobby__radar-ring--inner",
+      "sweep",
+      "blip",
+      "blip match-lobby__radar-blip--late",
+    ]) {
+      const [name, extra] = part.split(" ");
+      const piece = document.createElement("span");
+      piece.className = `match-lobby__radar-${name}${extra ? ` ${extra}` : ""}`;
+      radar.appendChild(piece);
+    }
+    const core = document.createElement("span");
+    core.className = "match-lobby__radar-core";
+    radar.appendChild(core);
+
+    const copy = document.createElement("div");
+    const kicker = document.createElement("span");
+    kicker.className = "match-lobby__status-kicker";
+    kicker.textContent = "Match lobby";
+    const head = document.createElement("h2");
+    head.className = "match-lobby__status-head";
+    const sub = document.createElement("p");
+    sub.className = "match-lobby__status-sub";
+    copy.append(kicker, head, sub);
+
+    const tally = document.createElement("div");
+    tally.className = "match-lobby__status-count";
+    const count = document.createElement("div");
+    count.className = "match-lobby__count";
+    const clock = document.createElement("div");
+    clock.className = "match-lobby__clock";
+    tally.append(count, clock);
+
+    const bar = document.createElement("div");
+    bar.className = "match-lobby__status-bar";
+    const fill = document.createElement("span");
+    fill.className = "match-lobby__status-fill";
+    bar.appendChild(fill);
+
+    status.append(radar, copy, tally, bar);
+    this.refreshStatus(status);
+    return status;
+  }
+
+  /** Seconds in the room, so the wait is visibly real rather than staged. */
+  private startClock(): void {
+    const tick = () => {
+      if (this.disposed) return;
+      const clock = this.root?.querySelector<HTMLElement>(".match-lobby__clock");
+      if (clock) {
+        const seconds = Math.floor((Date.now() - this.openedAt) / 1000);
+        clock.textContent = this.matchInProgress
+          ? "In match"
+          : this.phase === "starting"
+            ? "Starting"
+            : `Waiting ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
       }
-    });
+      this.clockTimer = window.setTimeout(tick, 1000);
+    };
+    tick();
   }
 
-  private refreshPlayerSlots(): void {
-    // Rebuild player area
-    const playerArea = this.root.querySelector(".match-lobby__players, .match-lobby__teams");
-    if (playerArea) {
-      const newArea = this.buildPlayerArea();
-      playerArea.replaceWith(newArea);
+  private refreshStatus(status = this.root?.querySelector<HTMLElement>(".match-lobby__status")): void {
+    if (!status) return;
+    const full = this.players.length >= this.config.maxPlayers;
+    status.dataset.phase = this.phase === "starting" ? "starting" : full ? "ready" : "searching";
+    status.dataset.error = String(this.roomError !== null);
+
+    const readyCount = this.players.filter((p) => p.ready).length;
+    const waiting = this.players.length - readyCount;
+    const head = status.querySelector<HTMLElement>(".match-lobby__status-head");
+    const sub = status.querySelector<HTMLElement>(".match-lobby__status-sub");
+    const count = status.querySelector<HTMLElement>(".match-lobby__count");
+    const fill = status.querySelector<HTMLElement>(".match-lobby__status-fill");
+    const core = status.querySelector<HTMLElement>(".match-lobby__radar-core");
+
+    if (head) {
+      head.textContent = this.roomError
+        ? "Room action failed"
+        : this.matchInProgress
+          ? "Match in progress"
+          : this.phase === "starting"
+            ? "Match starting"
+            : !full
+              ? this.config.maxPlayers === 2
+                ? "Searching for an opponent"
+                : "Waiting for players"
+              : this.localReady
+                ? "You're ready"
+                : "Ready when you are";
     }
-  }
-
-  private refreshHeader(): void {
-    const countEl = this.root.querySelector(".match-lobby__player-count");
-    if (countEl) {
-      countEl.textContent = `${this.players.length} / ${this.config.maxPlayers} PLAYERS`;
+    if (sub) {
+      sub.textContent =
+        this.roomError ??
+        (this.matchInProgress
+          ? "This room's match is still running. Rejoin your seat, or wait here for it to end."
+          : this.phase === "starting"
+            ? "Everyone is ready. Connecting when the game server is available."
+            : !full
+              ? "Share the invite, or add a bot to play right now."
+              : this.localReady
+                ? `${waiting} player${waiting === 1 ? "" : "s"} still to ready up.`
+                : `${readyCount} of ${this.players.length} ready.`);
+      if (this.roomError) sub.setAttribute("role", "alert");
+      else sub.removeAttribute("role");
     }
+    if (count) {
+      count.replaceChildren(document.createTextNode(String(this.players.length)));
+      const of = document.createElement("span");
+      of.className = "match-lobby__count-of";
+      of.textContent = `/${this.config.maxPlayers}`;
+      count.appendChild(of);
+    }
+    if (fill) fill.style.width = `${Math.min(100, (this.players.length / this.config.maxPlayers) * 100)}%`;
+    if (core) core.textContent = full ? "✓" : String(this.config.maxPlayers - this.players.length);
+    this.refreshReadyKey();
   }
 
-  // ── Players ──
+  // ── Roster ──
 
-  private buildPlayerArea(): HTMLElement {
-    const area = document.createElement("div");
-    area.className = "match-lobby__players";
+  private buildRoster(): HTMLElement {
+    const roster = document.createElement("section");
+    roster.className = "match-lobby__roster";
+    roster.setAttribute("aria-label", "Players");
+    this.fillRoster(roster);
+    return roster;
+  }
+
+  private fillRoster(roster = this.root?.querySelector<HTMLElement>(".match-lobby__roster")): void {
+    if (!roster) return;
+    roster.classList.remove("match-lobby__roster--vs", "match-lobby__roster--ffa", "match-lobby__roster--teams");
+
+    // Two seats face each other across the VS, whether or not the server calls them teams
+    if (this.config.maxPlayers === 2) {
+      roster.classList.add("match-lobby__roster--vs");
+      const mine = this.players.find((p) => p.isLocal) ?? this.players[0];
+      const other = this.players.find((p) => p !== mine);
+      roster.replaceChildren(this.buildSeat(mine, "you", 0), this.buildVs(), this.buildSeat(other, "them", 1));
+      return;
+    }
 
     if (this.config.hasTeams) {
-      area.classList.add("match-lobby__players--teams");
-
-      const alphaTeam = this.players.filter((p) => p.team === "alpha");
-      const bravoTeam = this.players.filter((p) => p.team === "bravo");
-
+      roster.classList.add("match-lobby__roster--teams");
       // Display names match the in-game teams (esc menu): alpha = Soba, bravo =
       // Udon. Colour is by ALLEGIANCE though — your column is the ally colour
       // and theirs the enemy colour, the same pair the models wear in the map,
       // so a side has one meaning from the lobby through to the firefight.
       const localTeam = this.players.find((p) => p.isLocal)?.team;
-      const slot = (team: string) => (localTeam && team === localTeam ? "ally" : "enemy");
-      area.appendChild(this.buildTeamColumn("TEAM SOBA", alphaTeam, slot("alpha")));
-      area.appendChild(this.buildVsDiv());
-      area.appendChild(this.buildTeamColumn("TEAM UDON", bravoTeam, slot("bravo")));
-    } else {
-      area.classList.add("match-lobby__players--ffa");
-      area.appendChild(this.buildPlayerList());
+      const side = (team: string) => (localTeam && team === localTeam ? "you" : "them");
+      const perTeam = Math.ceil(this.config.maxPlayers / 2);
+      roster.replaceChildren(
+        this.buildTeam(this.teamName("alpha"), "alpha", side("alpha"), perTeam),
+        this.buildVs(),
+        this.buildTeam(this.teamName("bravo"), "bravo", side("bravo"), perTeam),
+      );
+      return;
     }
 
-    return area;
+    roster.classList.add("match-lobby__roster--ffa");
+    roster.replaceChildren(
+      ...Array.from({ length: this.config.maxPlayers }, (_, i) =>
+        this.buildSeat(this.players[i], this.players[i]?.isLocal ? "you" : "them", i),
+      ),
+    );
   }
 
-  private buildTeamColumn(title: string, players: MatchLobbyPlayer[], team: string): HTMLElement {
-    const col = document.createElement("div");
-    col.className = `match-lobby__team match-lobby__team--${team}`;
+  private buildTeam(title: string, team: string, side: "you" | "them", seats: number): HTMLElement {
+    const column = document.createElement("div");
+    column.className = `match-lobby__team match-lobby__team--${side}`;
 
-    const header = document.createElement("div");
-    header.className = "match-lobby__team-header";
-    header.textContent = title;
-    col.appendChild(header);
-
-    const slots = document.createElement("div");
-    slots.className = "match-lobby__team-slots";
-
-    const maxPerTeam = Math.ceil(this.config.maxPlayers / 2);
-    for (let i = 0; i < maxPerTeam; i++) {
-      const player = players[i];
-      slots.appendChild(this.buildPlayerSlot(player));
+    const head = document.createElement("div");
+    head.className = "match-lobby__team-head";
+    const name = document.createElement("span");
+    name.textContent = title;
+    head.appendChild(name);
+    if (side === "you") {
+      const mine = document.createElement("span");
+      mine.className = "match-lobby__team-mine";
+      mine.textContent = "Your side";
+      head.appendChild(mine);
     }
+    const tally = document.createElement("span");
+    tally.className = "match-lobby__team-count";
+    const players = this.players.filter((p) => p.team === team);
+    tally.textContent = `${players.length}/${seats}`;
+    head.appendChild(tally);
 
-    col.appendChild(slots);
-    return col;
+    column.appendChild(head);
+    for (let i = 0; i < seats; i++) column.appendChild(this.buildSeat(players[i], side, i));
+    return column;
   }
 
-  private buildVsDiv(): HTMLElement {
+  private buildVs(): HTMLElement {
     const vs = document.createElement("div");
     vs.className = "match-lobby__vs";
     vs.textContent = "VS";
     return vs;
   }
 
-  private buildPlayerList(): HTMLElement {
-    const list = document.createElement("div");
-    list.className = "match-lobby__player-list";
+  private buildSeat(player: MatchLobbyPlayer | undefined, side: "you" | "them", index: number): HTMLElement {
+    const seat = document.createElement("div");
+    seat.className = `match-lobby__seat match-lobby__seat--${side}`;
+    seat.style.setProperty("--seat", String(index));
 
-    const header = document.createElement("div");
-    header.className = "match-lobby__team-header";
-    header.textContent = "PLAYERS";
-    list.appendChild(header);
-
-    const slots = document.createElement("div");
-    slots.className = "match-lobby__team-slots";
-
-    for (let i = 0; i < this.config.maxPlayers; i++) {
-      const player = this.players[i];
-      slots.appendChild(this.buildPlayerSlot(player));
-    }
-
-    list.appendChild(slots);
-    return list;
-  }
-
-  private buildPlayerSlot(player?: MatchLobbyPlayer): HTMLElement {
-    const slot = document.createElement("div");
-    slot.className = "match-lobby__slot";
+    const avatar = document.createElement("span");
+    avatar.className = "match-lobby__seat-avatar";
+    avatar.setAttribute("aria-hidden", "true");
+    const name = document.createElement("span");
+    name.className = "match-lobby__seat-name";
+    const state = document.createElement("span");
+    state.className = "match-lobby__seat-state";
 
     if (player) {
-      slot.classList.add("match-lobby__slot--filled");
-      if (player.isLocal) slot.classList.add("match-lobby__slot--local");
-      if (player.ready) slot.classList.add("match-lobby__slot--ready");
-
-      const name = document.createElement("span");
-      name.className = "match-lobby__slot-name";
+      if (player.isLocal) seat.classList.add("match-lobby__seat--local");
+      if (player.ready && !this.matchInProgress) seat.classList.add("match-lobby__seat--ready");
+      avatar.textContent = player.name.slice(0, 1).toUpperCase();
       name.textContent = player.name;
-      slot.appendChild(name);
-
-      const status = document.createElement("span");
-      status.className = "match-lobby__slot-status";
-      status.textContent = player.ready ? "✓ READY" : "NOT READY";
-      slot.appendChild(status);
-    } else {
-      slot.classList.add("match-lobby__slot--empty");
-      const waiting = document.createElement("span");
-      waiting.className = "match-lobby__slot-waiting";
-      waiting.textContent = "Waiting for player...";
-      slot.appendChild(waiting);
+      // Ready flags belong to the next match; the one being played says so
+      state.textContent = this.matchInProgress ? "In match" : player.ready ? "Ready" : "Not ready";
+      seat.append(avatar, name);
+      if (player.isLocal) {
+        const you = document.createElement("span");
+        you.className = "match-lobby__seat-tag";
+        you.textContent = "You";
+        seat.appendChild(you);
+      }
+      seat.appendChild(state);
+      return seat;
     }
 
-    return slot;
+    seat.classList.add("match-lobby__seat--open");
+    avatar.textContent = "?";
+    name.textContent = this.phase === "starting" ? "Empty seat" : "Waiting for a player";
+    seat.append(avatar, name, state);
+    return seat;
   }
 
-  // ── URL Bar ──
+  // ── Map vote ──
 
-  private buildUrlBar(): HTMLElement {
-    const bar = document.createElement("div");
-    bar.className = "match-lobby__url-bar";
+  private buildVote(): HTMLElement {
+    const vote = document.createElement("section");
+    vote.className = "match-lobby__vote";
 
-    const icon = document.createElement("span");
-    icon.className = "match-lobby__url-icon";
-    icon.textContent = "🔗";
-    bar.appendChild(icon);
+    const head = document.createElement("div");
+    head.className = "match-lobby__vote-head";
+    const title = document.createElement("h2");
+    title.className = "match-lobby__vote-title";
+    title.textContent = "Vote map";
+    const hint = document.createElement("span");
+    hint.className = "match-lobby__vote-hint";
+    hint.textContent = "Most votes wins · ties are random";
+    head.append(title, hint);
 
-    // Real, working invite link — the ?lobby= deep link LobbyPanel auto-joins
-    // on boot (works on any host, no SPA path-fallback required).
-    const inviteUrl = `${window.location.origin}/?lobby=${this.lobbyId}`;
-    const url = document.createElement("span");
-    url.className = "match-lobby__url-text";
-    url.textContent = `${window.location.host}/?lobby=${this.lobbyId}`;
-    bar.appendChild(url);
+    const maps = document.createElement("div");
+    maps.className = "match-lobby__maps";
+    vote.append(head, maps);
+    this.fillMaps(maps);
+    return vote;
+  }
 
-    const copyBtn = document.createElement("button");
-    copyBtn.className = "match-lobby__url-copy";
-    copyBtn.textContent = "COPY";
-    copyBtn.addEventListener("click", () => {
-      navigator.clipboard.writeText(inviteUrl);
-      copyBtn.textContent = "COPIED!";
-      setTimeout(() => {
-        copyBtn.textContent = "COPY";
-      }, 2000);
-    });
-    bar.appendChild(copyBtn);
+  private fillMaps(maps = this.root?.querySelector<HTMLElement>(".match-lobby__maps")): void {
+    if (!maps) return;
+    if (this.maps.length === 0) {
+      const empty = document.createElement("p");
+      empty.className = "match-lobby__maps-empty";
+      empty.textContent = "No maps are offered for this room yet.";
+      maps.replaceChildren(empty);
+      return;
+    }
 
-    return bar;
+    const most = Math.max(...this.maps.map((m) => m.votes));
+    maps.replaceChildren(
+      ...this.maps.map((map) => {
+        const shot = document.createElement("span");
+        shot.className = "match-lobby__map-shot";
+        const image = document.createElement("span");
+        image.className = "match-lobby__map-img";
+        // A map with no levelshot installed keeps the gradient underneath
+        image.style.setProperty("--map-shot", `url("/data/levelshots/${map.name}.jpg")`);
+        const flags = document.createElement("span");
+        flags.className = "match-lobby__map-flags";
+        if (map.votedByLocal) {
+          const yours = document.createElement("span");
+          yours.className = "match-lobby__flag match-lobby__flag--yours";
+          yours.textContent = "Your vote";
+          flags.appendChild(yours);
+        }
+        if (map.votes > 0 && map.votes === most && this.maps.filter((m) => m.votes === most).length === 1) {
+          const leading = document.createElement("span");
+          leading.className = "match-lobby__flag match-lobby__flag--leading";
+          leading.textContent = "Leading";
+          flags.appendChild(leading);
+        }
+        const votes = document.createElement("span");
+        votes.className = "match-lobby__map-votes";
+        if (map.votes > 0) {
+          votes.textContent = String(map.votes);
+          const word = document.createElement("small");
+          word.textContent = map.votes === 1 ? "vote" : "votes";
+          votes.appendChild(word);
+        }
+        shot.append(image, flags, votes);
+
+        const info = document.createElement("span");
+        info.className = "match-lobby__map-info";
+        const name = document.createElement("span");
+        name.className = "match-lobby__map-name";
+        name.textContent = map.displayName;
+        const id = document.createElement("span");
+        id.className = "match-lobby__map-id";
+        id.textContent = map.name;
+        info.append(name, id);
+
+        const card = createRaisedKey({ variants: ["map"], content: [shot, info] });
+        card.dataset.map = map.name;
+        card.disabled = this.phase === "starting";
+        card.setAttribute("aria-label", `Vote for ${map.displayName}`);
+        card.setAttribute("aria-pressed", String(map.votedByLocal));
+        card.addEventListener("click", () => this.selectMapVote(map));
+        return card;
+      }),
+    );
+  }
+
+  private selectMapVote(map: MatchLobbyMapOption): void {
+    if (this.phase === "starting") return;
+    // The server supports changing a vote, but not removing it.
+    if (map.votedByLocal) return;
+    for (const option of this.maps) option.votedByLocal = option === map;
+    this.lobbyClient.voteMap(this.lobbyId, map.name);
+    this.fillMaps();
+  }
+
+  private refreshMapVotes(): void {
+    this.fillMaps();
+  }
+
+  private refreshPlayerSlots(): void {
+    this.fillRoster();
+  }
+
+  private refreshHeader(): void {
+    this.refreshStatus();
   }
 
   // ── Actions ──
@@ -543,105 +759,137 @@ export class MatchLobbyView {
     const actions = document.createElement("div");
     actions.className = "match-lobby__actions";
 
-    const leaveBtn = document.createElement("button");
-    leaveBtn.className = "match-lobby__btn match-lobby__btn--leave";
-    leaveBtn.textContent = "← LEAVE";
-    leaveBtn.addEventListener("click", () => {
-      // Cleanup event subscriptions
-      for (const unsub of this.unsubscribers) unsub();
-      this.unsubscribers = [];
+    const leave = createRaisedKey({ label: "← Leave", hint: "Back to play", variants: ["act", "cream", "leave"] });
+    leave.addEventListener("click", () => {
+      this.destroy();
       this.onLeaveCallback?.();
     });
-    actions.appendChild(leaveBtn);
+    actions.appendChild(leave);
 
     // Add a bot (server feature — needs a live lobby connection). Pressable
     // repeatedly: it re-enables as each bot joins, which is what a 5v5 mode
     // needs when you are testing alone. The lobby balances teams on join, so
     // each bot lands on whichever side is short.
-    if (this.lobbyClient) {
-      const inviteBtn = document.createElement("button");
-      inviteBtn.className = "match-lobby__btn match-lobby__btn--invite-bot";
-      inviteBtn.textContent = "🤖 ADD BOT";
-      inviteBtn.addEventListener("click", () => this.requestBot());
-      actions.appendChild(inviteBtn);
-      this.inviteBotBtn = inviteBtn;
-      this.updateInviteBotState();
-    }
+    this.inviteBotBtn = createRaisedKey({ label: "+ Add bot", hint: "Fill a seat", variants: ["act", "cream"] });
+    this.inviteBotBtn.addEventListener("click", () => this.requestBot());
+    actions.appendChild(this.inviteBotBtn);
+    this.updateInviteBotState();
 
-    // Switch sides. Separate from shuffle, which is random and needs a
-    // majority — this affects only you, so it needs neither, and it is the only
-    // way to choose which half of a round mode you play.
-    if (this.config.hasTeams && this.lobbyClient) {
-      const switchBtn = document.createElement("button");
-      switchBtn.className = "match-lobby__btn match-lobby__btn--switch-team";
-      switchBtn.textContent = "⇄ SWITCH SIDE";
-      switchBtn.addEventListener("click", () => this.lobbyClient?.switchTeam(this.lobbyId));
-      actions.appendChild(switchBtn);
-    }
-
-    // Shuffle teams button (team modes only)
     if (this.config.hasTeams) {
-      const shuffleBtn = document.createElement("button");
-      shuffleBtn.className = "match-lobby__btn match-lobby__btn--shuffle";
-      shuffleBtn.textContent = "🔀 SHUFFLE TEAMS";
-      shuffleBtn.addEventListener("click", () => {
-        if (this.lobbyClient) {
-          this.lobbyClient.voteShuffle(this.lobbyId);
-        }
-        shuffleBtn.textContent = `🔀 VOTED (1/${Math.ceil(this.players.length / 2)})`;
-        shuffleBtn.classList.add("match-lobby__btn--voted");
+      // Switch sides. Separate from shuffle, which is random and needs a
+      // majority — this affects only you, so it needs neither, and it is the
+      // only way to choose which half of a round mode you play.
+      this.switchBtn = createRaisedKey({ label: "⇄ Switch", variants: ["act", "cream"] });
+      this.switchBtn.addEventListener("click", () => this.lobbyClient.switchTeam(this.lobbyId));
+      actions.appendChild(this.switchBtn);
+      this.refreshSwitchKey();
+
+      this.shuffleBtn = createRaisedKey({ label: "⤨ Shuffle", hint: "Mix the teams", variants: ["act", "cream"] });
+      this.shuffleBtn.addEventListener("click", () => {
+        this.lobbyClient.voteShuffle(this.lobbyId);
+        if (!this.shuffleBtn) return;
+        setRaisedKeyText(this.shuffleBtn, "⤨ Shuffle", "Vote sent");
+        this.shuffleBtn.disabled = true;
       });
-      actions.appendChild(shuffleBtn);
+      actions.appendChild(this.shuffleBtn);
+      this.shuffleBtn.disabled = this.phase === "starting";
     }
 
-    const readyBtn = document.createElement("button");
-    readyBtn.className = "match-lobby__btn match-lobby__btn--ready";
-    readyBtn.textContent = "✓ READY";
-    readyBtn.addEventListener("click", () => {
-      this.localReady = !this.localReady;
-      readyBtn.classList.toggle("match-lobby__btn--ready-active", this.localReady);
-      readyBtn.textContent = this.localReady ? "✓ READY!" : "✓ READY";
+    const spacer = document.createElement("span");
+    spacer.className = "match-lobby__spacer";
+    actions.appendChild(spacer);
 
-      // Update local player slot
-      const localPlayer = this.players.find((p) => p.isLocal);
-      if (localPlayer) {
-        localPlayer.ready = this.localReady;
-        const localSlot = this.root.querySelector(".match-lobby__slot--local");
-        localSlot?.classList.toggle("match-lobby__slot--ready", this.localReady);
-        const statusEl = localSlot?.querySelector(".match-lobby__slot-status");
-        if (statusEl) statusEl.textContent = this.localReady ? "✓ READY" : "NOT READY";
-      }
+    this.recoverBtn = createRaisedKey({ label: "Rejoin match", hint: "Unplayed seat", variants: ["act", "cream"] });
+    this.recoverBtn.hidden = !this.activeMatchId;
+    this.recoverBtn.addEventListener("click", () => void this.recoverSeat());
+    actions.appendChild(this.recoverBtn);
 
-      // Send to lobby server if connected
-      if (this.lobbyClient) {
-        this.lobbyClient.setReady(this.lobbyId, this.localReady);
-      } else {
-        // Demo: when local readies up, simulate other players readying after delay
-        if (this.localReady) {
-          setTimeout(() => this.simulateAllReady(), 1000);
-        }
-      }
-    });
-    actions.appendChild(readyBtn);
+    this.readyBtn = createRaisedKey({ label: "Ready", variants: ["ready"] });
+    this.readyBtn.addEventListener("click", () => this.setReady(!this.localReady));
+    actions.appendChild(this.readyBtn);
+    this.refreshReadyKey();
 
     return actions;
   }
 
+  private async recoverSeat(): Promise<void> {
+    if (!this.activeMatchId || !this.recoverBtn?.isConnected || !this.lobbyClient.connected) return;
+    this.recoverBtn.disabled = true;
+    setRaisedKeyText(this.recoverBtn, "Rejoin match", "Checking seat…");
+    try {
+      const { serverUrl, admissionTicket } = await this.lobbyClient.requestSeatReissue(this.activeMatchId);
+      if (this.disposed) return;
+      await new ConnectingOverlay().show(serverUrl, false, admissionTicket);
+    } catch {
+      if (!this.disposed) setRaisedKeyText(this.recoverBtn, "Rejoin match", "Unavailable yet or seat already used");
+    } finally {
+      if (!this.disposed && this.recoverBtn) this.recoverBtn.disabled = false;
+    }
+  }
+
+  private setReady(ready: boolean): void {
+    this.roomError = null;
+    this.localReady = ready;
+    const localPlayer = this.players.find((p) => p.isLocal);
+    if (localPlayer) localPlayer.ready = ready;
+    this.fillRoster();
+    this.refreshStatus();
+    this.lobbyClient.setReady(this.lobbyId, ready);
+  }
+
+  private refreshReadyKey(): void {
+    const key = this.readyBtn;
+    if (!key) return;
+    const full = this.players.length >= this.config.maxPlayers;
+    key.setAttribute("aria-pressed", String(this.localReady));
+    key.disabled = this.phase === "starting";
+    // Only breathe when the room is only waiting on you
+    key.classList.toggle("match-lobby__ready--calling", full && !this.localReady && this.phase !== "starting");
+    setRaisedKeyText(
+      key,
+      this.localReady ? "Ready!" : "Ready",
+      this.matchInProgress
+        ? "Match running"
+        : this.phase === "starting"
+          ? "Starting"
+          : this.localReady
+            ? "Waiting for the rest"
+            : "Click when set",
+    );
+  }
+
+  private refreshSwitchKey(): void {
+    if (!this.switchBtn) return;
+    this.switchBtn.disabled = this.phase === "starting";
+    const localTeam = this.players.find((p) => p.isLocal)?.team;
+    setRaisedKeyText(this.switchBtn, "⇄ Switch", `To ${this.teamName(localTeam === "alpha" ? "bravo" : "alpha")}`);
+  }
+
+  /**
+   * What this room calls a side. The server may name them; the fallback is the
+   * pairing the game itself uses (alpha is Soba, bravo is Udon).
+   */
+  private teamName(team: "alpha" | "bravo"): string {
+    const named = this.config.teamNames?.[team];
+    return named ?? (team === "alpha" ? "Team Soba" : "Team Udon");
+  }
+
   /** Ask the server to spawn an AI bot opponent into this lobby. */
   private requestBot(): void {
-    if (!this.lobbyClient || this.inviteBotPending) return;
+    if (this.phase === "starting") return;
+    if (this.inviteBotPending) return;
     if (this.players.length >= this.config.maxPlayers) return;
 
     this.inviteBotPending = true;
     this.lobbyClient.inviteBot(this.lobbyId);
 
     if (this.inviteBotBtn) {
-      this.inviteBotBtn.textContent = "🤖 SUMMONING…";
+      setRaisedKeyText(this.inviteBotBtn, "+ Add bot", "Summoning…");
       this.inviteBotBtn.disabled = true;
     }
 
     // Safety: clear the pending state if the server never answers.
-    window.setTimeout(() => {
+    this.schedule(() => {
       if (this.inviteBotPending) {
         this.inviteBotPending = false;
         this.updateInviteBotState();
@@ -654,72 +902,13 @@ export class MatchLobbyView {
     const btn = this.inviteBotBtn;
     if (!btn) return;
 
-    if (this.inviteBotPending) {
+    if (this.inviteBotPending || this.phase === "starting") {
       btn.disabled = true;
       return;
     }
 
     const full = this.players.length >= this.config.maxPlayers;
     btn.disabled = full;
-    btn.textContent = full ? "🤖 LOBBY FULL" : "🤖 ADD BOT";
-  }
-
-  /**
-   * Demo: simulate all players becoming ready, then show connecting overlay.
-   */
-  private simulateAllReady(): void {
-    if (!this.localReady) return; // User unreadied during the delay
-
-    // Set all mock players to ready
-    for (const player of this.players) {
-      player.ready = true;
-    }
-
-    // Update all slot visuals
-    const slots = this.root.querySelectorAll(".match-lobby__slot--filled");
-    slots.forEach((slot) => {
-      slot.classList.add("match-lobby__slot--ready");
-      const statusEl = slot.querySelector(".match-lobby__slot-status");
-      if (statusEl) statusEl.textContent = "✓ READY";
-    });
-
-    // Short pause for visual feedback, then show overlay
-    setTimeout(() => {
-      if (!this.localReady) return;
-      const overlay = new ConnectingOverlay();
-      overlay.show("ws://localhost:7777");
-    }, 800);
-  }
-
-  // ═══════════════════════════════════════════════════════════════
-  // HELPERS
-  // ═══════════════════════════════════════════════════════════════
-
-  private generateMockPlayers(): MatchLobbyPlayer[] {
-    const players: MatchLobbyPlayer[] = [{ name: "washoi_dev", team: "alpha", ready: false, isLocal: true }];
-
-    const mockNames = ["rocketJump99", "fragmaster", "zeroQL"];
-
-    if (this.config.gametype === "duel") {
-      players.push({ name: mockNames[0], team: "bravo", ready: true, isLocal: false });
-    } else if (this.config.gametype === "team") {
-      players.push({ name: mockNames[0], team: "alpha", ready: true, isLocal: false });
-      players.push({ name: mockNames[1], team: "bravo", ready: false, isLocal: false });
-    } else {
-      // FFA — add a few
-      players.push({ name: mockNames[0], team: "none", ready: true, isLocal: false });
-      players.push({ name: mockNames[1], team: "none", ready: false, isLocal: false });
-      players.push({ name: mockNames[2], team: "none", ready: true, isLocal: false });
-    }
-
-    return players;
-  }
-
-  private hashToHue(str: string): number {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      hash = str.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    return Math.abs(hash) % 360;
+    setRaisedKeyText(btn, "+ Add bot", full ? "Room is full" : "Fill a seat");
   }
 }

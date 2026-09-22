@@ -1,0 +1,745 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Welcome prototype</title>
+
+<style>
+@font-face { font-family: "Orbitron"; src: url("/engine/fonts/Orbitron/static/Orbitron-Bold.ttf") format("truetype"); font-weight: 700; font-display: block; }
+@font-face { font-family: "Orbitron"; src: url("/engine/fonts/Orbitron/static/Orbitron-ExtraBold.ttf") format("truetype"); font-weight: 800; font-display: block; }
+@font-face { font-family: "Orbitron"; src: url("/engine/fonts/Orbitron/static/Orbitron-Black.ttf") format("truetype"); font-weight: 900; font-display: block; }
+@font-face { font-family: "Rajdhani"; src: url("/engine/fonts/Rajdhani/Rajdhani-SemiBold.ttf") format("truetype"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "Rajdhani"; src: url("/engine/fonts/Rajdhani/Rajdhani-Bold.ttf") format("truetype"); font-weight: 700; font-display: swap; }
+
+:root {
+  --ink: hsl(250 45% 7%);
+  --cream: hsl(45 100% 95%);
+  --gold-text: hsl(46 100% 60%);
+  --violet: hsl(276 90% 64%);
+  --display: "Orbitron", monospace;
+  --body: "Rajdhani", sans-serif;
+
+  --depth: 6px;       /* how far every key stands off its tray */
+  --iso: 0.75;        /* oblique extrusion: the side shows below and to the right */
+  --rail-w: 26%;
+  --rail-skew: 44px;
+
+  /* Stage accent, set per gametype */
+  --a: hsl(182 95% 52%);
+  --a-hi: hsl(182 100% 74%);
+  --a-lo: hsl(188 90% 40%);
+  --a-side-hi: hsl(192 85% 28%);
+  --a-side-lo: hsl(198 80% 17%);
+}
+
+* { box-sizing: border-box; }
+
+/* The ground behind the stage: a deep blue, lifted by the stage's drifting light */
+:root { --ground: linear-gradient(165deg, hsl(222 56% 17%), hsl(217 58% 24%) 55%, hsl(224 52% 16%)); }
+html, body { height: 100%; }
+body {
+  margin: 0; overflow: hidden;
+  background: var(--ground); color: var(--cream); font-family: var(--body);
+}
+.shell { position: relative; display: flex; height: 100vh; }
+
+/* ═══════════════════════════════ 3D KEY ═══════════════════════════════
+   Two layers with the same sharp cut: the face, and the side it stands on.
+   clip-path cuts away anything outside the polygon, shadows included, so the
+   depth is a real layer and the cast shadow lives on the unclipped parent.
+   --press moves the face: negative lifts it off the side, 1 sinks it flat. */
+.k {
+  --d: var(--depth);
+  --dx: calc(var(--d) * var(--iso));
+  --cut: 3%;
+  --press: 0;
+
+  --face: linear-gradient(180deg, hsl(51 100% 73%), hsl(46 100% 58%) 55%, hsl(42 100% 50%));
+  --side: linear-gradient(180deg, hsl(36 92% 40%), hsl(28 88% 25%));
+  --text: hsl(250 45% 8%);
+  --sub: hsla(250, 45%, 8%, 0.62);
+  --shadow: hsla(28, 90%, 14%, 0.42);
+
+  position: relative; display: block; width: 100%;
+  margin: 0 0 calc(var(--d) + 8px);
+  padding: 0; border: 0; background: none; color: inherit;
+  font: inherit; text-align: left; cursor: pointer;
+  -webkit-tap-highlight-color: transparent; outline: none;
+  filter: drop-shadow(
+    calc(var(--dx) * (1 - var(--press)) + 2px)
+    calc(var(--d) * (1 - var(--press)) + 5px)
+    9px var(--shadow)
+  );
+  transition: filter .14s ease;
+}
+.k-side,
+.k-face { clip-path: polygon(var(--cut) 0, 100% 0, calc(100% - var(--cut)) 100%, 0 100%); }
+.k-side {
+  position: absolute; inset: 0; z-index: 0;
+  background: var(--side);
+  transform: translate(var(--dx), var(--d));
+}
+.k-face {
+  position: relative; z-index: 1;
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  min-height: 60px; padding: 14px 22px 14px 26px;
+  background: var(--face); color: var(--text);
+  transform: translate(calc(var(--dx) * var(--press)), calc(var(--d) * var(--press)));
+  transition: transform .15s cubic-bezier(.2, .9, .3, 1.25);
+}
+/* Lit top edge: the bevel that makes it a key rather than a card */
+.k-face::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px;
+  background: hsla(0, 0%, 100%, 0.55); pointer-events: none;
+}
+.k-face::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px;
+  background: hsla(250, 60%, 5%, 0.14); pointer-events: none;
+}
+
+.k-label { font: 900 20px/1 var(--display); letter-spacing: 0.07em; text-transform: uppercase; }
+.k-hint  { font: 700 13px/1 var(--body); letter-spacing: 0.12em; text-transform: uppercase; color: var(--sub); white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── Variants ── */
+.k--nav .k-face { min-height: 66px; padding: 17px 24px 17px 28px; }
+.k--nav .k-label { font-size: clamp(15px, 1.1vw, 21px); }
+
+.k--sm { --d: calc(var(--depth) * 0.6); margin-bottom: calc(var(--d) + 6px); }
+.k--sm .k-face { min-height: 46px; padding: 10px 16px 10px 20px; gap: 10px; }
+.k--sm .k-label { font-size: 14px; }
+
+.k--cream {
+  --face: linear-gradient(180deg, hsl(45 100% 97%), hsl(42 62% 90%) 60%, hsl(40 42% 82%));
+  --side: linear-gradient(180deg, hsl(36 26% 60%), hsl(30 22% 42%));
+}
+
+/* Gametype tile: a big slab, cream at rest, its own colour once picked */
+.k--mode {
+  --d: calc(var(--depth) * 1.5);
+  --cut: 2.2%;
+  --face: linear-gradient(180deg, hsl(45 100% 97%), hsl(42 58% 89%) 62%, hsl(40 40% 80%));
+  --side: linear-gradient(180deg, hsl(36 24% 56%), hsl(30 20% 38%));
+  --shadow: hsla(250, 70%, 2%, 0.6);
+}
+.k--mode .k-face {
+  min-height: 176px; padding: 18px 26px 22px 40px;
+  flex-direction: column; align-items: stretch; justify-content: space-between;
+}
+.k--mode.is-picked {
+  --press: -0.5;
+  --face: linear-gradient(180deg, var(--a-hi), var(--a) 58%, var(--a-lo));
+  --side: linear-gradient(180deg, var(--a-side-hi), var(--a-side-lo));
+  --sub: hsla(250, 45%, 8%, 0.66);
+}
+.tile-band { position: absolute; left: 0; top: 0; bottom: 0; width: 16px; background: var(--a); }
+.k--mode.is-picked .tile-band { background: var(--a-side-hi); }
+.tile-no { font: 800 13px/1 var(--display); letter-spacing: 0.14em; color: var(--sub); }
+.tile-main { display: flex; flex-direction: column; gap: 8px; }
+.tile-name { font: 900 clamp(28px, 2.6vw, 46px)/0.9 var(--display); letter-spacing: 0.02em; text-transform: uppercase; }
+.tile-sub { font: 700 14px/1 var(--body); letter-spacing: 0.18em; text-transform: uppercase; color: var(--sub); }
+
+/* The arcade key */
+.k--cta {
+  display: inline-block; width: auto;
+  --d: calc(var(--depth) * 1.6);
+  --cut: 5%;
+  --face: linear-gradient(180deg, var(--a-hi), var(--a) 58%, var(--a-lo));
+  --side: linear-gradient(180deg, var(--a-side-hi), var(--a-side-lo));
+  --shadow: hsla(250, 70%, 3%, 0.62);
+}
+.k--cta .k-face { min-height: 90px; padding: 0 66px 0 60px; justify-content: center; }
+.k--cta .k-label { font-size: 30px; letter-spacing: 0.1em; }
+
+.k--util .k-face { justify-content: center; min-height: 40px; padding: 8px 10px; }
+.k--util .k-label { font: 800 11px/1 var(--display); letter-spacing: 0.12em; }
+
+.k--send { width: auto; flex: 0 0 auto; margin: 0 calc(var(--dx) + 2px) var(--d) 0; }
+.k--send .k-face { min-height: 44px; padding: 0 22px 0 24px; }
+.k--send .k-label { font-size: 13px; letter-spacing: 0.12em; }
+
+/* ── States: order matters, later rules win ties ── */
+.k:hover,
+.k:focus-visible {
+  --press: -0.35;
+  --face: linear-gradient(180deg, hsl(278 92% 75%), hsl(273 80% 61%) 55%, hsl(268 72% 50%));
+  --side: linear-gradient(180deg, hsl(266 72% 34%), hsl(258 72% 19%));
+  --text: hsl(45 100% 96%);
+  --sub: hsla(45, 100%, 96%, 0.72);
+  --shadow: hsla(268, 80%, 14%, 0.5);
+}
+.k--mode.is-picked:hover,
+.k--mode.is-picked:focus-visible {
+  --press: -0.75;
+  --face: linear-gradient(180deg, var(--a-hi), var(--a) 58%, var(--a-lo));
+  --side: linear-gradient(180deg, var(--a-side-hi), var(--a-side-lo));
+  --text: hsl(250 45% 8%);
+  --sub: hsla(250, 45%, 8%, 0.66);
+}
+.k:active {
+  --press: 1;
+  --face: linear-gradient(180deg, hsl(272 76% 58%), hsl(266 70% 45%));
+}
+.k--mode.is-picked:active {
+  --press: 1;
+  --face: linear-gradient(180deg, var(--a), var(--a-lo));
+}
+.k:active .k-face { transition-duration: .05s; transition-timing-function: ease-out; }
+.k:active { transition-duration: .05s; }
+
+/* Current page: a latched key, pressed in and inked */
+.k.is-on,
+.k.is-on:hover,
+.k.is-on:focus-visible,
+.k.is-on:active {
+  --press: 0.62;
+  --face: linear-gradient(180deg, hsl(250 28% 21%), hsl(250 40% 10%) 60%, hsl(252 44% 6%));
+  --side: linear-gradient(180deg, hsl(252 44% 5%), hsl(252 44% 3%));
+  --text: var(--gold-text);
+  --sub: hsla(46, 100%, 60%, 0.66);
+}
+
+a.k { text-decoration: none; }
+
+/* ═══════════════════════════════ STAGE ═══════════════════════════════ */
+/* The stage slides under the rail's slanted edge (the rail sits above it), so the
+   light and the backdrop word run up to the diagonal instead of stopping at the
+   rail's rectangular box on a vertical line. */
+.stage {
+  flex: 1; min-width: 0; position: relative; overflow: hidden;
+  display: flex; flex-direction: column; gap: 22px;
+  margin-left: calc(-1 * var(--rail-skew));
+  padding: 30px 52px 24px calc(28px + var(--rail-skew));
+}
+.stage > :not(.fx):not(.ghost) { position: relative; z-index: 1; }
+
+/* Drifting light: three blurred fields wandering slowly behind everything.
+   Only transform animates, so the blur is rasterised once and moved. */
+.fx { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+.orb {
+  position: absolute; top: 0; left: 0; border-radius: 50%;
+  filter: blur(90px); will-change: transform;
+}
+.orb--accent {
+  width: 640px; height: 640px; opacity: 0.24;
+  background-color: var(--a);
+  transition: background-color 1.4s ease;
+  animation: drift-a 38s ease-in-out infinite alternate;
+}
+.orb--violet {
+  width: 760px; height: 760px; opacity: 0.22;
+  background-color: hsl(276 90% 56%);
+  animation: drift-b 47s ease-in-out infinite alternate;
+}
+.orb--deep {
+  width: 560px; height: 560px; opacity: 0.2;
+  background-color: hsl(232 85% 52%);
+  animation: drift-c 31s ease-in-out infinite alternate;
+}
+@keyframes drift-a {
+  0%   { transform: translate(40vw, -20vh) scale(1); }
+  30%  { transform: translate(16vw, 20vh) scale(1.15); }
+  65%  { transform: translate(44vw, 36vh) scale(0.9); }
+  100% { transform: translate(6vw, 2vh) scale(1.05); }
+}
+@keyframes drift-b {
+  0%   { transform: translate(-14vw, 34vh) scale(1); }
+  35%  { transform: translate(26vw, 54vh) scale(1.1); }
+  70%  { transform: translate(40vw, 4vh) scale(0.95); }
+  100% { transform: translate(2vw, 44vh) scale(1.08); }
+}
+@keyframes drift-c {
+  0%   { transform: translate(48vw, 52vh) scale(1); }
+  40%  { transform: translate(20vw, 62vh) scale(1.2); }
+  75%  { transform: translate(4vw, 18vh) scale(0.9); }
+  100% { transform: translate(34vw, 28vh) scale(1); }
+}
+
+/* The mode name, huge and hollow, bleeding off the bottom-left */
+.ghost {
+  position: absolute; z-index: 0; left: -1%; bottom: -4%;
+  font: 900 clamp(200px, 25vw, 440px)/0.78 var(--display); letter-spacing: -0.04em;
+  white-space: nowrap; color: transparent;
+  -webkit-text-stroke: 2px color-mix(in srgb, var(--a) 26%, transparent);
+  pointer-events: none; user-select: none;
+}
+
+
+/* ═══════════════════════════════ WELCOME ═══════════════════════════════
+   The gold panel is the rail before it has a menu in it: wide while you pick a
+   name, then it shrinks to the rail's width as the lobby opens. */
+.stage { padding: 30px 52px 24px calc(28px + var(--rail-skew)); }
+.ghost { left: 6%; bottom: -5%; font-size: clamp(150px, 17vw, 340px); transition: opacity .3s ease; }
+
+.panel {
+  position: relative; z-index: 2; flex: 0 0 60%;
+  display: flex; flex-direction: column; justify-content: center;
+  padding: 36px calc(var(--rail-skew) + 60px) 36px 64px;
+  background:
+    radial-gradient(120% 55% at 25% 0%, hsla(54, 100%, 78%, 0.55), transparent 62%),
+    linear-gradient(172deg, hsl(46 100% 57%), hsl(41 96% 48%));
+  clip-path: polygon(0 0, 100% 0, calc(100% - var(--rail-skew)) 100%, 0 100%);
+  overflow: hidden;
+  transition: flex-basis .7s cubic-bezier(.7, 0, .2, 1);
+}
+.panel::after {
+  content: ""; position: absolute; top: 0; bottom: 0; right: 0; z-index: 3;
+  width: calc(var(--rail-skew) + 8px);
+  background: linear-gradient(180deg, hsl(276 90% 64%), hsl(262 75% 42%));
+  clip-path: polygon(calc(100% - 8px) 0, 100% 0, calc(100% - var(--rail-skew)) 100%, calc(100% - var(--rail-skew) - 8px) 100%);
+}
+.panel-kanji {
+  position: absolute; z-index: 0; right: 14%; bottom: 6%;
+  font: 400 clamp(220px, 24vw, 420px)/0.8 serif;
+  color: hsla(30, 90%, 22%, 0.09); pointer-events: none; user-select: none;
+}
+.panel-inner {
+  position: relative; z-index: 1;
+  width: 100%; max-width: 640px; margin: 0 auto;
+  transition: opacity .25s ease;
+}
+.shell.is-leaving .panel { flex-basis: var(--rail-w); }
+.shell.is-leaving .panel-inner,
+.shell.is-leaving .ghost { opacity: 0; }
+
+.hero-logo {
+  display: block; width: 100%; max-width: 520px; height: auto; margin: 0 0 18px -8px;
+  filter: drop-shadow(0 6px 10px hsla(28, 90%, 14%, 0.35));
+}
+
+.screen { display: flex; flex-direction: column; gap: 16px; }
+.screen[hidden] { display: none; }
+.w-kicker { font: 700 13px/1 var(--body); letter-spacing: 0.32em; text-transform: uppercase; color: hsla(250, 45%, 8%, 0.62); }
+.w-title {
+  margin: 0; font: 900 clamp(38px, 3.8vw, 66px)/0.95 var(--display); letter-spacing: 0.01em;
+  color: var(--ink); text-shadow: 4px 5px 0 hsla(30, 90%, 32%, 0.3);
+}
+.w-lead { margin: 0; max-width: 54ch; font: 600 20px/1.3 var(--body); color: hsla(250, 45%, 8%, 0.78); }
+.w-lead b { color: var(--ink); }
+
+/* ── The slot you type into: cut into the gold, not stood on it ── */
+.slot-wrap { margin-top: 6px; filter: drop-shadow(0 2px 0 hsla(54, 100%, 86%, 0.9)); }
+.slot {
+  position: relative; display: flex; align-items: center; gap: 16px;
+  height: 90px; padding: 0 34px 0 32px;
+  background: linear-gradient(180deg, hsl(250 42% 4%), hsl(250 34% 12%));
+  box-shadow: inset 0 7px 0 hsla(0, 0%, 0%, 0.5);
+  clip-path: polygon(2.4% 0, 100% 0, 97.6% 100%, 0 100%);
+}
+.slot::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 4px;
+  background: var(--violet); transform: scaleX(0); transform-origin: left;
+  transition: transform .25s cubic-bezier(.2, .9, .3, 1);
+}
+.slot:focus-within::after { transform: scaleX(1); }
+.slot input {
+  flex: 1; min-width: 0; height: 100%; padding: 0;
+  background: none; border: 0; outline: none;
+  color: var(--gold-text); caret-color: var(--violet);
+  font: 900 34px/1 var(--display); letter-spacing: 0.04em;
+}
+.slot input::placeholder { color: hsla(46, 100%, 60%, 0.22); }
+.slot-count { flex: 0 0 auto; font: 700 14px/1 var(--body); letter-spacing: 0.12em; color: hsla(45, 100%, 95%, 0.38); font-variant-numeric: tabular-nums; }
+.slot-prefix { flex: 0 0 auto; font: 800 18px/1 var(--display); letter-spacing: 0.06em; color: hsla(46, 100%, 60%, 0.45); }
+.slot--key input { font-size: clamp(18px, 1.55vw, 26px); letter-spacing: 0.08em; }
+
+.say {
+  min-height: 20px; font: 700 16px/1.2 var(--body); letter-spacing: 0.08em; text-transform: uppercase;
+  color: hsla(250, 45%, 8%, 0.6);
+}
+.say--ok  { color: hsl(142 80% 20%); }
+.say--bad { color: hsl(354 80% 36%); }
+
+/* ── The one key that matters: ink at rest, purple under the pointer ── */
+.go-row { display: flex; align-items: center; gap: 30px; margin-top: 8px; flex-wrap: wrap; }
+.k--go {
+  --d: calc(var(--depth) * 1.7);
+  --cut: 4%;
+  --face: linear-gradient(180deg, hsl(250 28% 21%), hsl(250 40% 10%) 60%, hsl(252 44% 6%));
+  --side: linear-gradient(180deg, hsl(252 44% 5%), hsl(252 44% 3%));
+  --text: var(--gold-text);
+  --sub: hsla(46, 100%, 60%, 0.62);
+  --shadow: hsla(28, 90%, 14%, 0.5);
+  width: auto; flex: 0 0 auto; margin: 0 calc(var(--dx) + 4px) var(--d) 0;
+}
+.k--go .k-face { min-width: 280px; min-height: 96px; padding: 0 52px 0 50px; flex-direction: column; justify-content: center; gap: 8px; }
+.k--go .k-label { font-size: 34px; letter-spacing: 0.12em; }
+/* Unlit until the name is good: same key, its lettering dark */
+.k--go:disabled { pointer-events: none; --text: hsla(46, 100%, 60%, 0.3); --sub: hsla(46, 100%, 60%, 0.2); }
+.go-note { font: 700 15px/1.3 var(--body); letter-spacing: 0.1em; text-transform: uppercase; color: hsla(250, 45%, 8%, 0.62); }
+
+.alt { display: flex; align-items: center; gap: 16px; margin-top: 4px; font: 700 16px/1 var(--body); color: hsla(250, 45%, 8%, 0.7); }
+.alt .k { width: auto; flex: 0 0 auto; margin: 0 calc(var(--dx) + 2px) var(--d) 0; }
+.fine { margin: 0; max-width: 52ch; font: 600 15px/1.35 var(--body); color: hsla(250, 45%, 8%, 0.6); }
+
+/* ── Player key ── */
+.keyplate {
+  position: relative; display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 22px;
+  padding: 24px 30px 24px 28px;
+  background: linear-gradient(180deg, hsl(250 40% 6%), hsl(250 34% 12%));
+  clip-path: polygon(0 0, calc(100% - 22px) 0, 100% 22px, 100% 100%, 0 100%);
+}
+.keyplate-name { grid-column: 1 / -1; font: 700 12px/1 var(--body); letter-spacing: 0.28em; text-transform: uppercase; color: hsla(45, 100%, 95%, 0.45); }
+.keyplate-name b { color: var(--gold-text); font-family: var(--display); letter-spacing: 0.1em; }
+.key-prefix { font: 800 16px/1 var(--display); letter-spacing: 0.08em; color: hsla(46, 100%, 60%, 0.5); }
+.key-groups {
+  display: grid; grid-template-columns: repeat(3, auto); justify-content: start; gap: 10px 22px;
+  font: 800 clamp(22px, 1.9vw, 32px)/1 var(--display); letter-spacing: 0.1em; color: var(--gold-text);
+  transition: filter .3s ease;
+}
+.keyplate.is-hidden .key-groups { filter: blur(9px); user-select: none; }
+.key-reveal {
+  position: absolute; right: 18px; bottom: 14px; padding: 6px 12px; border: 0; cursor: pointer;
+  background: hsla(276, 90%, 64%, 0.22); color: var(--cream);
+  font: 800 11px/1 var(--display); letter-spacing: 0.14em; text-transform: uppercase;
+  clip-path: polygon(8% 0, 100% 0, 92% 100%, 0 100%);
+}
+.key-reveal:hover { background: var(--violet); }
+
+.key-actions { display: flex; flex-wrap: wrap; gap: 16px; }
+.key-actions .k { width: auto; flex: 0 0 auto; margin: 0 calc(var(--dx) + 2px) var(--d) 0; }
+.key-actions .k-face { min-height: 54px; padding: 0 24px 0 26px; }
+.key-actions .k-label { font-size: 15px; letter-spacing: 0.1em; }
+
+.warn {
+  margin: 0; padding: 12px 16px 12px 18px; max-width: 60ch;
+  font: 600 16px/1.35 var(--body); color: hsla(250, 45%, 8%, 0.82);
+  background: hsla(250, 45%, 8%, 0.08); border-left: 5px solid var(--ink);
+}
+.warn b { color: var(--ink); }
+
+/* ═══════════════════════════════ PROTOTYPE CONTROLS ═══════════════════════════════ */
+.proto {
+  position: fixed; z-index: 50; top: 0; left: 80%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 4px; padding: 5px 10px;
+  background: hsla(250, 45%, 4%, 0.9); border: 1px solid hsla(276, 90%, 64%, 0.4);
+  font: 700 11px/1 var(--body); letter-spacing: 0.16em; text-transform: uppercase; color: hsla(45, 100%, 95%, 0.45);
+  white-space: nowrap;
+}
+.proto .sep { width: 1px; height: 18px; margin: 0 8px; background: hsla(276, 90%, 64%, 0.35); }
+.proto button {
+  padding: 5px 9px; border: 0; background: none; cursor: pointer;
+  font: inherit; letter-spacing: 0.1em; color: hsla(45, 100%, 95%, 0.7);
+}
+.proto button:hover { color: var(--cream); background: hsla(276, 90%, 64%, 0.25); }
+.proto button.is-on { background: var(--gold-text); color: var(--ink); }
+
+@media (max-height: 820px) {
+  .hero-logo { max-width: 380px; margin-bottom: 6px; }
+  .screen { gap: 12px; }
+  .slot { height: 76px; }
+  .k--go .k-face { min-height: 82px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .k, .k-face, .panel, .panel-inner, .slot::after, .key-groups { transition: none; }
+  .orb { animation: none; }
+}
+</style>
+</head>
+
+<body>
+<div class="proto" aria-label="Prototype controls">
+  Screen <button data-screen-set="new">Name</button><button data-screen-set="restore">Key in</button><button data-screen-set="key">Backup</button>
+  <span class="sep"></span>
+  <button id="forget">Forget me</button>
+</div>
+
+<div class="shell" id="shell">
+  <section class="panel">
+    <div class="panel-kanji" aria-hidden="true">名</div>
+    <div class="panel-inner">
+      <img class="hero-logo" src="/data/washoi.png" alt="Washiki Washoi" />
+
+      <!-- First visit: a name and nothing else -->
+      <form class="screen" id="screenNew" autocomplete="off">
+        <div class="w-kicker">Welcome</div>
+        <h1 class="w-title">Who are you?</h1>
+        <div class="slot-wrap">
+          <label class="slot">
+            <input id="nameInput" maxlength="16" placeholder="Your name" spellcheck="false" aria-describedby="nameSay" />
+            <span class="slot-count" id="nameCount">0 / 16</span>
+          </label>
+        </div>
+        <div class="say" id="nameSay">2–16 characters: letters, numbers, _ and -</div>
+        <div class="go-row">
+          <button class="k k--go" id="nameGo" type="submit" disabled>
+            <span class="k-side"></span>
+            <span class="k-face"><span class="k-label">Play →</span><span class="k-hint">That's it</span></span>
+          </button>
+          <span class="go-note">No email.<br />No password.</span>
+        </div>
+        <div class="alt">
+          Played before?
+          <button class="k k--sm k--cream" type="button" data-screen-set="restore">
+            <span class="k-side"></span><span class="k-face"><span class="k-label">Use my key</span></span>
+          </button>
+        </div>
+      </form>
+
+      <!-- Another browser, or this one after it forgot you -->
+      <form class="screen" id="screenRestore" autocomplete="off" hidden>
+        <div class="w-kicker">Welcome back</div>
+        <h1 class="w-title">Paste your key</h1>
+        <p class="w-lead">Your name comes back with it.</p>
+        <div class="slot-wrap">
+          <label class="slot slot--key">
+            <span class="slot-prefix">WASHOI-</span>
+            <input id="keyInput" placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX" spellcheck="false" autocapitalize="characters" aria-describedby="keySay" />
+          </label>
+        </div>
+        <div class="say" id="keySay">24 characters. Dashes and spaces don't matter.</div>
+        <div class="go-row">
+          <button class="k k--go" id="keyGo" type="submit" disabled>
+            <span class="k-side"></span>
+            <span class="k-face"><span class="k-label">Restore →</span><span class="k-hint">Back to it</span></span>
+          </button>
+        </div>
+        <div class="alt">
+          New here?
+          <button class="k k--sm k--cream" type="button" data-screen-set="new">
+            <span class="k-side"></span><span class="k-face"><span class="k-label">Pick a name</span></span>
+          </button>
+        </div>
+      </form>
+
+      <!-- Profile, and the one nudge once there is something to lose -->
+      <section class="screen" id="screenKey" hidden>
+        <div class="w-kicker">Keep your name</div>
+        <h1 class="w-title">Your player key</h1>
+        <p class="w-lead" id="keyLead"></p>
+        <div class="keyplate is-hidden" id="keyplate">
+          <div class="keyplate-name">Player <b id="keyName"></b></div>
+          <span class="key-prefix">WASHOI-</span>
+          <div class="key-groups" id="keyGroups"></div>
+          <button class="key-reveal" id="keyReveal" type="button">Show</button>
+        </div>
+        <div class="key-actions">
+          <button class="k k--cream" id="keyCopy" type="button">
+            <span class="k-side"></span><span class="k-face"><span class="k-label" id="keyCopyLabel">Copy key</span></span>
+          </button>
+          <button class="k k--cream" id="keyFile" type="button">
+            <span class="k-side"></span><span class="k-face"><span class="k-label">Save as file</span></span>
+          </button>
+          <button class="k k--cream" id="keyBrowser" type="button" hidden>
+            <span class="k-side"></span><span class="k-face"><span class="k-label" id="keyBrowserLabel">Save in browser</span></span>
+          </button>
+        </div>
+        <p class="warn"><b>This key is you.</b> Anyone who has it can play as you, and nobody can get it back for you if it's lost.</p>
+        <div class="go-row">
+          <a class="k k--go" href="lobby-3d.html">
+            <span class="k-side"></span>
+            <span class="k-face"><span class="k-label">Done</span><span class="k-hint">Back to the lobby</span></span>
+          </a>
+        </div>
+      </section>
+
+      <!-- Backup asked for before there is a player -->
+      <section class="screen" id="screenNone" hidden>
+        <div class="w-kicker">Player key</div>
+        <h1 class="w-title">No player yet</h1>
+        <p class="w-lead">Pick a name first. Your key is made with it.</p>
+        <div class="go-row">
+          <button class="k k--go" type="button" data-screen-set="new">
+            <span class="k-side"></span>
+            <span class="k-face"><span class="k-label">Pick a name</span></span>
+          </button>
+        </div>
+      </section>
+    </div>
+  </section>
+
+  <main class="stage">
+    <div class="fx" aria-hidden="true">
+      <div class="orb orb--violet"></div>
+      <div class="orb orb--deep"></div>
+      <div class="orb orb--accent"></div>
+    </div>
+    <div class="ghost" id="ghost" aria-hidden="true">HELLO</div>
+  </main>
+</div>
+
+<script>
+  // ── Player key ──
+  // 24 characters of Crockford base32: 120 random bits, no I, L, O or U to misread.
+  // The browser keeps it. The server keeps a hash of it and the name that goes with it,
+  // and nothing else: never the key itself.
+  const ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+  const KEY_LEN = 24;
+  const STORE = "proto-player";
+
+  function newKey() {
+    // A byte masked to 5 bits is uniform: 256 is a multiple of 32
+    return [...crypto.getRandomValues(new Uint8Array(KEY_LEN))].map((b) => ALPHABET[b & 31]).join("");
+  }
+  const groups = (raw) => raw.match(/.{1,4}/g) || [];
+  const formatKey = (raw) => `WASHOI-${groups(raw).join("-")}`;
+
+  // Forgiving reader: any case, any separators, the prefix or not, O for 0 and I or L for 1
+  function readKey(text) {
+    const t = text.toUpperCase().replace(/^\s*WASHOI[\s-]*/, "").replace(/O/g, "0").replace(/[IL]/g, "1");
+    return [...t].filter((c) => ALPHABET.includes(c)).join("").slice(0, KEY_LEN);
+  }
+
+  function loadPlayer() {
+    try { return JSON.parse(localStorage.getItem(STORE)); } catch { return null; }
+  }
+  function savePlayer(p) {
+    try { localStorage.setItem(STORE, JSON.stringify(p)); } catch {}
+  }
+
+  // ── Screens ──
+  const $ = (id) => document.getElementById(id);
+  const ghost = $("ghost");
+  const SCREENS = { new: "screenNew", restore: "screenRestore", key: "screenKey", none: "screenNone" };
+
+  function show(name) {
+    if (name === "key" && !loadPlayer()) name = "none";
+    for (const [k, id] of Object.entries(SCREENS)) $(id).hidden = k !== name;
+    for (const b of document.querySelectorAll(".proto [data-screen-set]")) {
+      b.classList.toggle("is-on", b.dataset.screenSet === (name === "none" ? "key" : name));
+    }
+    history.replaceState(null, "", `?screen=${name === "none" ? "key" : name}`);
+    if (name === "new") { ghost.textContent = $("nameInput").value.toUpperCase() || "HELLO"; $("nameInput").focus(); }
+    if (name === "restore") { ghost.textContent = "AGAIN"; $("keyInput").focus(); }
+    if (name === "key") fillKey();
+    if (name === "none") ghost.textContent = "HELLO";
+  }
+  for (const b of document.querySelectorAll("[data-screen-set]")) b.addEventListener("click", () => show(b.dataset.screenSet));
+
+  // The panel shrinks to the rail, then the lobby takes over
+  function enterLobby() {
+    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    $("shell").classList.add("is-leaving");
+    setTimeout(() => { location.href = "lobby-3d.html"; }, reduce ? 0 : 720);
+  }
+
+  // ── Name ──
+  // Stand-ins for the server's check: these names already belong to someone
+  const TAKEN = new Set(["nova", "reaper", "shadow", "fury", "titan", "storm", "wraith", "eclipse"]);
+
+  function judgeName(v) {
+    if (!v) return ["", "2–16 characters: letters, numbers, _ and -"];
+    if (!/^[A-Za-z0-9_-]+$/.test(v)) return ["bad", "Letters, numbers, _ and - only"];
+    if (v.length < 2) return ["", "One more character"];
+    if (TAKEN.has(v.toLowerCase())) return ["bad", `${v} is taken. Try another`];
+    return ["ok", `✓ ${v} is free`];
+  }
+
+  $("nameInput").addEventListener("input", () => {
+    const v = $("nameInput").value.trim();
+    const [tone, text] = judgeName(v);
+    $("nameSay").className = `say${tone ? ` say--${tone}` : ""}`;
+    $("nameSay").textContent = text;
+    $("nameCount").textContent = `${v.length} / 16`;
+    $("nameGo").disabled = tone !== "ok";
+    ghost.textContent = v.toUpperCase() || "HELLO";
+  });
+
+  $("screenNew").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const name = $("nameInput").value.trim();
+    if (judgeName(name)[0] !== "ok") return;
+    savePlayer({ name, key: newKey() });
+    enterLobby();
+  });
+
+  // ── Key in ──
+  $("keyInput").addEventListener("input", () => {
+    const raw = readKey($("keyInput").value);
+    $("keyInput").value = groups(raw).join("-");
+    const done = raw.length === KEY_LEN;
+    $("keySay").className = `say${done ? " say--ok" : ""}`;
+    $("keySay").textContent = done ? "✓ That's a whole key" : `${raw.length} / ${KEY_LEN} characters`;
+    $("keyGo").disabled = !done;
+  });
+
+  $("screenRestore").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const raw = readKey($("keyInput").value);
+    // The server would look the key's hash up. Here, only the key this browser made is known.
+    const saved = loadPlayer();
+    if (saved && saved.key === raw) {
+      $("keySay").className = "say say--ok";
+      $("keySay").textContent = `✓ Welcome back, ${saved.name}`;
+      ghost.textContent = saved.name.toUpperCase();
+      setTimeout(enterLobby, 600);
+    } else {
+      $("keySay").className = "say say--bad";
+      $("keySay").textContent = "No player has that key. Check it, or pick a new name";
+    }
+  });
+
+  // ── Backup ──
+  function fillKey() {
+    const p = loadPlayer();
+    $("keyName").textContent = p.name;
+    $("keyLead").innerHTML = "";
+    $("keyLead").append("Paste it on any computer to play as ", Object.assign(document.createElement("b"), { textContent: p.name }), ".");
+    $("keyGroups").replaceChildren(...groups(p.key).map((g) => Object.assign(document.createElement("span"), { textContent: g })));
+    $("keyplate").classList.add("is-hidden");
+    $("keyReveal").textContent = "Show";
+    ghost.textContent = p.name.toUpperCase();
+  }
+
+  // Hidden until asked, so a stream or a screenshot doesn't give it away
+  $("keyReveal").addEventListener("click", () => {
+    const hidden = $("keyplate").classList.toggle("is-hidden");
+    $("keyReveal").textContent = hidden ? "Show" : "Hide";
+  });
+
+  $("keyCopy").addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(formatKey(loadPlayer().key)); } catch {}
+    $("keyCopyLabel").textContent = "Copied ✓";
+    setTimeout(() => { $("keyCopyLabel").textContent = "Copy key"; }, 1600);
+  });
+
+  $("keyFile").addEventListener("click", () => {
+    const p = loadPlayer();
+    const text = [
+      "Washiki Washoi player key",
+      "",
+      `Player: ${p.name}`,
+      `Key:    ${formatKey(p.key)}`,
+      "",
+      "To play as this player on another computer, open the game,",
+      "choose \"Use my key\" and paste the key.",
+      "Anyone with this key can play as you. Keep it private.",
+      "",
+    ].join("\n");
+    const a = Object.assign(document.createElement("a"), {
+      href: URL.createObjectURL(new Blob([text], { type: "text/plain" })),
+      download: `washoi-key-${p.name}.txt`,
+    });
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  });
+
+  // The browser's own password manager, where it will take a credential directly (Chromium).
+  // It syncs across the player's devices and fills the key in for them later.
+  if ("PasswordCredential" in window) {
+    $("keyBrowser").hidden = false;
+    $("keyBrowser").addEventListener("click", async () => {
+      const p = loadPlayer();
+      try {
+        await navigator.credentials.store(new PasswordCredential({ id: p.name, password: formatKey(p.key), name: p.name }));
+        $("keyBrowserLabel").textContent = "Offered ✓";
+      } catch {
+        $("keyBrowserLabel").textContent = "Browser said no";
+      }
+    });
+  }
+
+  // ── Prototype controls ──
+  $("forget").addEventListener("click", () => {
+    try { localStorage.removeItem(STORE); } catch {}
+    $("nameInput").value = "";
+    $("nameInput").dispatchEvent(new Event("input"));
+    show("new");
+  });
+
+  const asked = new URLSearchParams(location.search).get("screen");
+  show(SCREENS[asked] ? asked : "new");
+</script>
+</body>
+</html>

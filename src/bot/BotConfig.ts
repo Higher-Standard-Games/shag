@@ -5,6 +5,8 @@
  * and other parameters that make them feel more or less human.
  */
 
+import { BOT_NAMES } from "./BotNames";
+
 // Re-export InputButtons for convenience (bots use these to construct button bitmasks)
 export { InputButtons } from "../engine/network/components/InputComponent";
 
@@ -122,39 +124,6 @@ export function defaultGoalArbiterMode(): GoalArbiterMode {
 }
 
 // ── Bot Names ──────────────────────────────────────────────────────────────
-
-const BOT_NAMES = [
-  "Wraith",
-  "Phantom",
-  "Specter",
-  "Requiem",
-  "Cipher",
-  "Havoc",
-  "Vortex",
-  "Blitz",
-  "Nova",
-  "Eclipse",
-  "Reaper",
-  "Shadow",
-  "Storm",
-  "Fury",
-  "Titan",
-  "Ghost",
-  "Raven",
-  "Nemesis",
-  "Valkyrie",
-  "Phoenix",
-  "Sentinel",
-  "Apex",
-  "Onyx",
-  "Pulse",
-  "Cobalt",
-  "Chrome",
-  "Haze",
-  "Lynx",
-  "Vertex",
-  "Zero",
-];
 
 let _botNameIndex = 0;
 

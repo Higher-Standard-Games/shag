@@ -47,6 +47,24 @@
       "duel"
     ]
   },
+  "wamphi1": {
+    "displayName": "Amphitheatre",
+    "gametypes": [
+      "amphi"
+    ]
+  },
+  "wda1": {
+    "displayName": "Arena One",
+    "gametypes": [
+      "amphi"
+    ]
+  },
+  "wda2": {
+    "displayName": "Arena Two",
+    "gametypes": [
+      "amphi"
+    ]
+  },
   "wbomb2": {
     "displayName": "Reactors",
     "gametypes": [

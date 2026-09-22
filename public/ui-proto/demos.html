@@ -1,0 +1,1387 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Demos prototype</title>
+
+<style>
+@font-face { font-family: "Orbitron"; src: url("/engine/fonts/Orbitron/static/Orbitron-Bold.ttf") format("truetype"); font-weight: 700; font-display: block; }
+@font-face { font-family: "Orbitron"; src: url("/engine/fonts/Orbitron/static/Orbitron-ExtraBold.ttf") format("truetype"); font-weight: 800; font-display: block; }
+@font-face { font-family: "Orbitron"; src: url("/engine/fonts/Orbitron/static/Orbitron-Black.ttf") format("truetype"); font-weight: 900; font-display: block; }
+@font-face { font-family: "Rajdhani"; src: url("/engine/fonts/Rajdhani/Rajdhani-SemiBold.ttf") format("truetype"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "Rajdhani"; src: url("/engine/fonts/Rajdhani/Rajdhani-Bold.ttf") format("truetype"); font-weight: 700; font-display: swap; }
+
+:root {
+  --ink: hsl(250 45% 7%);
+  --cream: hsl(45 100% 95%);
+  --gold-text: hsl(46 100% 60%);
+  --violet: hsl(276 90% 64%);
+  --display: "Orbitron", monospace;
+  --body: "Rajdhani", sans-serif;
+
+  --depth: 6px;       /* how far every key stands off its tray */
+  --iso: 0.75;        /* oblique extrusion: the side shows below and to the right */
+  --rail-w: 26%;
+  --rail-skew: 44px;
+
+  /* Stage accent, set per gametype */
+  --a: hsl(182 95% 52%);
+  --a-hi: hsl(182 100% 74%);
+  --a-lo: hsl(188 90% 40%);
+  --a-side-hi: hsl(192 85% 28%);
+  --a-side-lo: hsl(198 80% 17%);
+}
+
+* { box-sizing: border-box; }
+
+/* The ground behind the stage: a deep blue, lifted by the stage's drifting light */
+:root { --ground: linear-gradient(165deg, hsl(222 56% 17%), hsl(217 58% 24%) 55%, hsl(224 52% 16%)); }
+html, body { height: 100%; }
+body {
+  margin: 0; overflow: hidden;
+  background: var(--ground); color: var(--cream); font-family: var(--body);
+}
+.shell { position: relative; display: flex; height: 100vh; }
+
+/* ═══════════════════════════════ 3D KEY ═══════════════════════════════
+   Two layers with the same sharp cut: the face, and the side it stands on.
+   clip-path cuts away anything outside the polygon, shadows included, so the
+   depth is a real layer and the cast shadow lives on the unclipped parent.
+   --press moves the face: negative lifts it off the side, 1 sinks it flat. */
+.k {
+  --d: var(--depth);
+  --dx: calc(var(--d) * var(--iso));
+  --cut: 3%;
+  --press: 0;
+
+  --face: linear-gradient(180deg, hsl(51 100% 73%), hsl(46 100% 58%) 55%, hsl(42 100% 50%));
+  --side: linear-gradient(180deg, hsl(36 92% 40%), hsl(28 88% 25%));
+  --text: hsl(250 45% 8%);
+  --sub: hsla(250, 45%, 8%, 0.62);
+  --shadow: hsla(28, 90%, 14%, 0.42);
+
+  position: relative; display: block; width: 100%;
+  margin: 0 0 calc(var(--d) + 8px);
+  padding: 0; border: 0; background: none; color: inherit;
+  font: inherit; text-align: left; cursor: pointer;
+  -webkit-tap-highlight-color: transparent; outline: none;
+  filter: drop-shadow(
+    calc(var(--dx) * (1 - var(--press)) + 2px)
+    calc(var(--d) * (1 - var(--press)) + 5px)
+    9px var(--shadow)
+  );
+  transition: filter .14s ease;
+}
+.k-side,
+.k-face { clip-path: polygon(var(--cut) 0, 100% 0, calc(100% - var(--cut)) 100%, 0 100%); }
+.k-side {
+  position: absolute; inset: 0; z-index: 0;
+  background: var(--side);
+  transform: translate(var(--dx), var(--d));
+}
+.k-face {
+  position: relative; z-index: 1;
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  min-height: 60px; padding: 14px 22px 14px 26px;
+  background: var(--face); color: var(--text);
+  transform: translate(calc(var(--dx) * var(--press)), calc(var(--d) * var(--press)));
+  transition: transform .15s cubic-bezier(.2, .9, .3, 1.25);
+}
+/* Lit top edge: the bevel that makes it a key rather than a card */
+.k-face::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px;
+  background: hsla(0, 0%, 100%, 0.55); pointer-events: none;
+}
+.k-face::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px;
+  background: hsla(250, 60%, 5%, 0.14); pointer-events: none;
+}
+
+.k-label { font: 900 20px/1 var(--display); letter-spacing: 0.07em; text-transform: uppercase; }
+.k-hint  { font: 700 13px/1 var(--body); letter-spacing: 0.12em; text-transform: uppercase; color: var(--sub); white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── Variants ── */
+.k--nav .k-face { min-height: 66px; padding: 17px 24px 17px 28px; }
+.k--nav .k-label { font-size: clamp(15px, 1.1vw, 21px); }
+
+.k--sm { --d: calc(var(--depth) * 0.6); margin-bottom: calc(var(--d) + 6px); }
+.k--sm .k-face { min-height: 46px; padding: 10px 16px 10px 20px; gap: 10px; }
+.k--sm .k-label { font-size: 14px; }
+
+.k--cream {
+  --face: linear-gradient(180deg, hsl(45 100% 97%), hsl(42 62% 90%) 60%, hsl(40 42% 82%));
+  --side: linear-gradient(180deg, hsl(36 26% 60%), hsl(30 22% 42%));
+}
+
+/* Gametype tile: a big slab, cream at rest, its own colour once picked */
+.k--mode {
+  --d: calc(var(--depth) * 1.5);
+  --cut: 2.2%;
+  --face: linear-gradient(180deg, hsl(45 100% 97%), hsl(42 58% 89%) 62%, hsl(40 40% 80%));
+  --side: linear-gradient(180deg, hsl(36 24% 56%), hsl(30 20% 38%));
+  --shadow: hsla(250, 70%, 2%, 0.6);
+}
+.k--mode .k-face {
+  min-height: 176px; padding: 18px 26px 22px 40px;
+  flex-direction: column; align-items: stretch; justify-content: space-between;
+}
+.k--mode.is-picked {
+  --press: -0.5;
+  --face: linear-gradient(180deg, var(--a-hi), var(--a) 58%, var(--a-lo));
+  --side: linear-gradient(180deg, var(--a-side-hi), var(--a-side-lo));
+  --sub: hsla(250, 45%, 8%, 0.66);
+}
+.tile-band { position: absolute; left: 0; top: 0; bottom: 0; width: 16px; background: var(--a); }
+.k--mode.is-picked .tile-band { background: var(--a-side-hi); }
+.tile-no { font: 800 13px/1 var(--display); letter-spacing: 0.14em; color: var(--sub); }
+.tile-main { display: flex; flex-direction: column; gap: 8px; }
+.tile-name { font: 900 clamp(28px, 2.6vw, 46px)/0.9 var(--display); letter-spacing: 0.02em; text-transform: uppercase; }
+.tile-sub { font: 700 14px/1 var(--body); letter-spacing: 0.18em; text-transform: uppercase; color: var(--sub); }
+
+/* The arcade key */
+.k--cta {
+  display: inline-block; width: auto;
+  --d: calc(var(--depth) * 1.6);
+  --cut: 5%;
+  --face: linear-gradient(180deg, var(--a-hi), var(--a) 58%, var(--a-lo));
+  --side: linear-gradient(180deg, var(--a-side-hi), var(--a-side-lo));
+  --shadow: hsla(250, 70%, 3%, 0.62);
+}
+.k--cta .k-face { min-height: 90px; padding: 0 66px 0 60px; justify-content: center; }
+.k--cta .k-label { font-size: 30px; letter-spacing: 0.1em; }
+
+.k--util .k-face { justify-content: center; min-height: 40px; padding: 8px 10px; }
+.k--util .k-label { font: 800 11px/1 var(--display); letter-spacing: 0.12em; }
+
+.k--send { width: auto; flex: 0 0 auto; margin: 0 calc(var(--dx) + 2px) var(--d) 0; }
+.k--send .k-face { min-height: 44px; padding: 0 22px 0 24px; }
+.k--send .k-label { font-size: 13px; letter-spacing: 0.12em; }
+
+/* ── States: order matters, later rules win ties ── */
+.k:hover,
+.k:focus-visible {
+  --press: -0.35;
+  --face: linear-gradient(180deg, hsl(278 92% 75%), hsl(273 80% 61%) 55%, hsl(268 72% 50%));
+  --side: linear-gradient(180deg, hsl(266 72% 34%), hsl(258 72% 19%));
+  --text: hsl(45 100% 96%);
+  --sub: hsla(45, 100%, 96%, 0.72);
+  --shadow: hsla(268, 80%, 14%, 0.5);
+}
+.k--mode.is-picked:hover,
+.k--mode.is-picked:focus-visible {
+  --press: -0.75;
+  --face: linear-gradient(180deg, var(--a-hi), var(--a) 58%, var(--a-lo));
+  --side: linear-gradient(180deg, var(--a-side-hi), var(--a-side-lo));
+  --text: hsl(250 45% 8%);
+  --sub: hsla(250, 45%, 8%, 0.66);
+}
+.k:active {
+  --press: 1;
+  --face: linear-gradient(180deg, hsl(272 76% 58%), hsl(266 70% 45%));
+}
+.k--mode.is-picked:active {
+  --press: 1;
+  --face: linear-gradient(180deg, var(--a), var(--a-lo));
+}
+.k:active .k-face { transition-duration: .05s; transition-timing-function: ease-out; }
+.k:active { transition-duration: .05s; }
+
+/* Current page: a latched key, pressed in and inked */
+.k.is-on,
+.k.is-on:hover,
+.k.is-on:focus-visible,
+.k.is-on:active {
+  --press: 0.62;
+  --face: linear-gradient(180deg, hsl(250 28% 21%), hsl(250 40% 10%) 60%, hsl(252 44% 6%));
+  --side: linear-gradient(180deg, hsl(252 44% 5%), hsl(252 44% 3%));
+  --text: var(--gold-text);
+  --sub: hsla(46, 100%, 60%, 0.66);
+}
+
+/* ═══════════════════════════════ RAIL ═══════════════════════════════ */
+.rail {
+  position: relative; z-index: 2; flex: 0 0 var(--rail-w);
+  display: flex; flex-direction: column;
+  padding: 22px 0 18px;
+  background:
+    radial-gradient(120% 55% at 25% 0%, hsla(54, 100%, 78%, 0.55), transparent 62%),
+    linear-gradient(172deg, hsl(46 100% 57%), hsl(41 96% 48%));
+  clip-path: polygon(0 0, 100% 0, calc(100% - var(--rail-skew)) 100%, 0 100%);
+  overflow: hidden;
+}
+.rail::after {
+  content: ""; position: absolute; top: 0; bottom: 0; right: 0; z-index: 3;
+  width: calc(var(--rail-skew) + 8px);
+  background: linear-gradient(180deg, hsl(276 90% 64%), hsl(262 75% 42%));
+  clip-path: polygon(calc(100% - 8px) 0, 100% 0, calc(100% - var(--rail-skew)) 100%, calc(100% - var(--rail-skew) - 8px) 100%);
+}
+.rail > * { position: relative; z-index: 1; }
+.rail-kanji {
+  position: absolute !important; z-index: 0 !important; right: 12%; bottom: 17%;
+  font: 400 clamp(180px, 19vw, 300px)/0.8 serif;
+  color: hsla(30, 90%, 22%, 0.1); pointer-events: none; user-select: none;
+}
+
+.brand { padding: 0 calc(var(--rail-skew) + 16px) 16px 22px; }
+.brand-logo {
+  display: block; width: 100%; max-width: 420px; height: auto;
+  filter: drop-shadow(0 6px 10px hsla(28, 90%, 14%, 0.35));
+}
+
+.rail-label {
+  padding: 0 24px; margin: 6px 0 12px;
+  font: 700 11px/1 var(--body); letter-spacing: 0.26em; text-transform: uppercase;
+  color: hsla(250, 45%, 8%, 0.62);
+}
+.rail-keys { display: flex; flex-direction: column; padding: 0 calc(var(--rail-skew) + 18px) 0 22px; }
+
+.live-dot {
+  display: inline-block; width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%;
+  background: hsl(322 100% 58%); box-shadow: 0 0 8px hsl(322 100% 58%);
+}
+.live-count { margin-left: auto; }
+.join {
+  padding: 4px 11px; background: var(--ink); color: var(--gold-text);
+  font: 900 11px/1 var(--display); letter-spacing: 0.1em;
+  clip-path: polygon(8% 0, 100% 0, 92% 100%, 0 100%);
+}
+
+/* ── Lobby list: takes whatever height the rail has left, and scrolls ── */
+.lobby-head { display: flex; justify-content: space-between; padding-right: calc(var(--rail-skew) + 26px); }
+.lobby-list {
+  flex: 1; min-height: 0;
+  overflow-y: auto; overflow-x: hidden;
+  /* The box ends before the slanted edge: the rail's clip would otherwise cut
+     the scrollbar off, since it sits on the box's right edge. */
+  margin-right: calc(var(--rail-skew) + 12px);
+  padding: 8px 14px 16px 22px;   /* room for the hover lift, the side, the shadow */
+  scrollbar-width: thin;
+  scrollbar-color: hsla(250, 45%, 8%, 0.45) transparent;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 12px, #000 calc(100% - 18px), transparent);
+          mask-image: linear-gradient(to bottom, transparent, #000 12px, #000 calc(100% - 18px), transparent);
+}
+.lobby-list > .k { flex-shrink: 0; }
+
+.lobby .k-face { gap: 10px; }
+.lobby-dot {
+  width: 10px; height: 10px; flex: 0 0 10px;
+  background: var(--mode);
+  clip-path: polygon(22% 0, 100% 0, 78% 100%, 0 100%);
+}
+.lobby--playing .lobby-dot { animation: lobby-pulse 1.6s ease-in-out infinite; }
+@keyframes lobby-pulse { 50% { opacity: 0.3; } }
+.lobby .k-label { flex: 0 0 66px; }
+.lobby-map {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font: 700 13px/1 var(--body); letter-spacing: 0.06em; color: var(--sub);
+}
+.lobby--waiting .lobby-map { font-style: italic; }
+.lobby-count { flex: 0 0 auto; min-width: 42px; text-align: right; font-variant-numeric: tabular-nums; }
+
+.badge {
+  flex: 0 0 auto; min-width: 54px; padding: 4px 10px; text-align: center;
+  font: 900 10px/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase;
+  background: var(--ink); color: var(--gold-text);
+  clip-path: polygon(8% 0, 100% 0, 92% 100%, 0 100%);
+}
+.badge--watch { background: hsla(322, 90%, 52%, 0.16); color: hsl(322 85% 38%); }
+.badge--full  { background: hsla(250, 45%, 8%, 0.1); color: hsla(250, 45%, 8%, 0.45); }
+.lobby:hover .badge--watch, .lobby:focus-visible .badge--watch,
+.lobby:hover .badge--full,  .lobby:focus-visible .badge--full {
+  background: hsla(0, 0%, 100%, 0.16); color: hsla(45, 100%, 96%, 0.85);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lobby--playing .lobby-dot { animation: none; }
+}
+
+.player {
+  display: flex; align-items: center; gap: 12px;
+  margin: 0 calc(var(--rail-skew) + 18px) 18px 22px; padding: 12px 16px;
+  background: hsla(250, 45%, 7%, 0.92); color: var(--cream);
+  clip-path: polygon(3% 0, 100% 0, 97% 100%, 0 100%);
+}
+.player-avatar {
+  width: 38px; height: 38px; flex: 0 0 38px;
+  background: linear-gradient(135deg, hsl(182 95% 55%), var(--violet));
+  clip-path: polygon(14% 0, 100% 8%, 88% 100%, 0 90%);
+}
+.player-name { font: 800 14px/1.2 var(--display); letter-spacing: 0.05em; }
+.player-meta { font: 600 12px/1.2 var(--body); letter-spacing: 0.08em; color: hsla(45, 100%, 95%, 0.55); }
+
+.util { flex-direction: row; gap: 10px; }
+.util .k { flex: 1; width: auto; }
+
+/* ═══════════════════════════════ STAGE ═══════════════════════════════ */
+/* The stage slides under the rail's slanted edge (the rail sits above it), so the
+   light and the backdrop word run up to the diagonal instead of stopping at the
+   rail's rectangular box on a vertical line. */
+.stage {
+  flex: 1; min-width: 0; position: relative; overflow: hidden;
+  display: flex; flex-direction: column; gap: 22px;
+  margin-left: calc(-1 * var(--rail-skew));
+  padding: 30px 52px 24px calc(28px + var(--rail-skew));
+}
+.stage > :not(.fx):not(.ghost) { position: relative; z-index: 1; }
+
+/* Drifting light: three blurred fields wandering slowly behind everything.
+   Only transform animates, so the blur is rasterised once and moved. */
+.fx { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+.orb {
+  position: absolute; top: 0; left: 0; border-radius: 50%;
+  filter: blur(90px); will-change: transform;
+}
+.orb--accent {
+  width: 640px; height: 640px; opacity: 0.24;
+  background-color: var(--a);
+  transition: background-color 1.4s ease;
+  animation: drift-a 38s ease-in-out infinite alternate;
+}
+.orb--violet {
+  width: 760px; height: 760px; opacity: 0.22;
+  background-color: hsl(276 90% 56%);
+  animation: drift-b 47s ease-in-out infinite alternate;
+}
+.orb--deep {
+  width: 560px; height: 560px; opacity: 0.2;
+  background-color: hsl(232 85% 52%);
+  animation: drift-c 31s ease-in-out infinite alternate;
+}
+@keyframes drift-a {
+  0%   { transform: translate(40vw, -20vh) scale(1); }
+  30%  { transform: translate(16vw, 20vh) scale(1.15); }
+  65%  { transform: translate(44vw, 36vh) scale(0.9); }
+  100% { transform: translate(6vw, 2vh) scale(1.05); }
+}
+@keyframes drift-b {
+  0%   { transform: translate(-14vw, 34vh) scale(1); }
+  35%  { transform: translate(26vw, 54vh) scale(1.1); }
+  70%  { transform: translate(40vw, 4vh) scale(0.95); }
+  100% { transform: translate(2vw, 44vh) scale(1.08); }
+}
+@keyframes drift-c {
+  0%   { transform: translate(48vw, 52vh) scale(1); }
+  40%  { transform: translate(20vw, 62vh) scale(1.2); }
+  75%  { transform: translate(4vw, 18vh) scale(0.9); }
+  100% { transform: translate(34vw, 28vh) scale(1); }
+}
+
+/* The mode name, huge and hollow, bleeding off the bottom-left */
+.ghost {
+  position: absolute; z-index: 0; left: -1%; bottom: -4%;
+  font: 900 clamp(200px, 25vw, 440px)/0.78 var(--display); letter-spacing: -0.04em;
+  white-space: nowrap; color: transparent;
+  -webkit-text-stroke: 2px color-mix(in srgb, var(--a) 26%, transparent);
+  pointer-events: none; user-select: none;
+}
+
+.kicker { font: 700 12px/1 var(--body); letter-spacing: 0.32em; text-transform: uppercase; color: var(--a); }
+.title {
+  margin: 8px 0 0; font: 900 clamp(40px, 4.4vw, 74px)/0.92 var(--display);
+  color: var(--cream); text-shadow: 5px 6px 0 hsl(250 50% 3%);
+}
+
+/* One equal column per mode, however many modes there are */
+
+/* ═══════════════════════════════ DEMOS ═══════════════════════════════ */
+a.k { text-decoration: none; }
+.stage { gap: 18px; padding-bottom: 22px; }
+.stage-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px 24px; }
+.stage-head .title { font-size: clamp(36px, 3.4vw, 60px); }
+
+/* ── Mode filter: the modes' own colours, plus All ── */
+.modes { display: flex; gap: 10px; padding-bottom: 6px; }
+.mode-btn {
+  min-width: 90px; height: 46px; padding: 0 18px; border: 0; cursor: pointer; border-radius: 2px;
+  background: linear-gradient(180deg, hsl(250 24% 25%), hsl(250 30% 17%)); color: hsla(45, 100%, 95%, 0.78);
+  font: 900 14px/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase;
+  box-shadow: inset 0 -4px 0 var(--m), 0 4px 0 hsl(250 40% 8%), 0 8px 14px hsla(250, 70%, 2%, 0.45);
+  transition: transform .1s ease, box-shadow .1s ease;
+}
+.mode-btn:hover, .mode-btn:focus-visible { outline: none; transform: translateY(-2px); background: linear-gradient(180deg, hsl(278 92% 72%), hsl(268 72% 52%)); color: var(--cream); }
+.mode-btn.is-on, .mode-btn.is-on:hover {
+  transform: translateY(3px); color: var(--ink);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--m) 62%, white), var(--m));
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--m) 40%, black), inset 0 2px 0 hsla(0, 0%, 100%, 0.35);
+}
+
+/* ── Tabs: the leaderboard's keys ── */
+.tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; }
+.k--tab {
+  --d: calc(var(--depth) * 1.1);
+  --cut: 3%;
+  --face: linear-gradient(180deg, hsl(250 26% 25%), hsl(250 30% 16%));
+  --side: linear-gradient(180deg, hsl(250 36% 11%), hsl(250 40% 6%));
+  --text: var(--cream);
+  --sub: hsla(45, 100%, 95%, 0.58);
+  --shadow: hsla(250, 70%, 2%, 0.6);
+  margin-bottom: calc(var(--d) + 4px);
+}
+.k--tab .k-face { min-height: 78px; padding: 12px 24px 12px 26px; flex-direction: column; align-items: stretch; justify-content: center; gap: 9px; }
+.tab-name { font: 900 clamp(16px, 1.25vw, 22px)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; }
+.tab-sub { font: 700 12px/1 var(--body); letter-spacing: 0.18em; text-transform: uppercase; color: var(--sub); }
+.k--tab.is-open, .k--tab.is-open:hover, .k--tab.is-open:focus-visible {
+  --press: 0.45;
+  --face: linear-gradient(180deg, hsl(51 100% 73%), hsl(46 100% 58%) 55%, hsl(42 100% 50%));
+  --side: linear-gradient(180deg, hsl(36 92% 40%), hsl(28 88% 25%));
+  --text: var(--ink);
+  --sub: hsla(250, 45%, 8%, 0.66);
+}
+
+/* What the tab shows */
+.rule { font: 700 12px/1 var(--body); letter-spacing: 0.18em; text-transform: uppercase; color: hsla(45, 100%, 95%, 0.5); }
+
+.pane { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 22px; }
+.pane[hidden] { display: none; }
+
+/* ═══ DEMO SLAB ═══
+   A dark block standing on a side in its mode's colour. The levelshot fills the
+   top; the map, the time and the keys sit on the foot below. */
+.slab {
+  --cut: 1.8%;
+  position: relative; min-height: 0; min-width: 0;
+  filter: drop-shadow(10px 14px 14px hsla(250, 70%, 2%, 0.55));
+}
+.slab-side, .slab-face { clip-path: polygon(var(--cut) 0, 100% 0, calc(100% - var(--cut)) 100%, 0 100%); }
+.slab-side { position: absolute; inset: 0; background: linear-gradient(180deg, var(--ms-hi), var(--ms-lo)); transform: translate(8px, 10px); }
+.slab-face {
+  position: relative; height: 100%; display: flex; flex-direction: column;
+  background: linear-gradient(180deg, hsl(250 26% 19%), hsl(250 32% 11%));
+  transition: transform .2s cubic-bezier(.2, .9, .3, 1.25);
+}
+.slab-face::before { content: ""; position: absolute; z-index: 2; left: 0; right: 0; top: 0; height: 2px; background: hsla(0, 0%, 100%, 0.4); pointer-events: none; }
+.demo:hover .slab-face { transform: translate(-2px, -3px); }
+.hero:hover .slab-face { transform: none; }
+
+.shot { position: relative; flex: 1; min-height: 0; overflow: hidden; background: hsl(250 30% 14%); }
+.shot-img { position: absolute; inset: 0; background: var(--img) center / cover no-repeat; transition: transform .6s cubic-bezier(.2, .9, .3, 1); }
+.demo:hover .shot-img { transform: scale(1.05); }
+.shot::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(180deg, hsla(250, 50%, 4%, 0.4), transparent 26%, transparent 40%, hsla(250, 50%, 4%, 0.88));
+}
+.shot > :not(.shot-img) { position: absolute; z-index: 1; }
+.shot-flags { top: 14px; left: 22px; right: 100px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.shot-flags .flag { flex: 0 0 auto; }
+.shot-map {
+  min-width: 0; margin-left: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font: 900 clamp(14px, 1.05vw, 19px)/1.1 var(--display); letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--cream); text-shadow: 2px 3px 0 hsl(250 50% 3%), 0 0 14px hsla(250, 50%, 3%, 0.9);
+}
+.flag {
+  padding: 6px 12px; font: 900 11px/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase;
+  background: var(--ink); color: var(--gold-text);
+  clip-path: polygon(8% 0, 100% 0, 92% 100%, 0 100%);
+}
+.flag--mode { background: var(--m); color: var(--ink); }
+.flag--win { background: var(--gold-text); color: var(--ink); }
+.shot-len {
+  top: 14px; right: 18px; padding: 6px 10px 6px 12px;
+  background: hsla(250, 50%, 4%, 0.72); color: var(--cream);
+  font: 800 13px/1 var(--display); letter-spacing: 0.06em; font-variant-numeric: tabular-nums;
+  clip-path: polygon(8% 0, 100% 0, 92% 100%, 0 100%);
+}
+
+/* Rank and you: small tags beside a name */
+.rk, .you {
+  flex: 0 0 auto; padding: 3px 7px 3px 8px; font: 900 10px/1 var(--display); letter-spacing: 0.08em;
+  clip-path: polygon(12% 0, 100% 0, 88% 100%, 0 100%);
+}
+.rk { background: var(--gold-text); color: var(--ink); }
+.you { background: var(--violet); color: var(--cream); }
+
+/* ── Who played: stacked rows on a card ── */
+.mu { left: 18px; right: 22px; bottom: 14px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 6px; }
+.mu--ffa { grid-template-columns: minmax(0, 1fr); }
+.mu-vs {
+  grid-row: 1 / span 2; display: grid; place-items: center; width: 42px;
+  background: var(--m); color: var(--ink); font: 900 14px/1 var(--display); letter-spacing: 0.02em;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 7px) 100%, 0 100%);
+}
+.mu-row {
+  display: flex; align-items: center; gap: 10px; min-width: 0; min-height: 32px; padding: 0 16px 0 12px;
+  background: hsla(250, 50%, 5%, 0.74);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+}
+.mu-who { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; }
+.mu-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 800 clamp(13px, 0.95vw, 16px)/1 var(--display); letter-spacing: 0.03em; color: var(--cream); }
+.mu-team { flex: 0 0 auto; font: 900 clamp(13px, 0.95vw, 16px)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--cream); }
+.mu-roster { min-width: 0; display: flex; align-items: center; gap: 6px; overflow: hidden; white-space: nowrap; font: 700 14px/1 var(--body); letter-spacing: 0.03em; color: hsla(45, 100%, 95%, 0.66); }
+.mu-roster > span:not(.rk):not(.you) { overflow: hidden; text-overflow: ellipsis; }
+.mu-place { flex: 0 0 18px; font: 900 13px/1 var(--display); color: hsla(45, 100%, 95%, 0.5); }
+.mu-score { flex: 0 0 auto; font: 900 19px/1 var(--display); font-variant-numeric: tabular-nums; color: hsla(45, 100%, 95%, 0.55); }
+.mu-row.is-win { box-shadow: inset 4px 0 0 var(--gold-text); }
+.mu-row.is-win .mu-score, .mu-row.is-win .mu-place { color: var(--gold-text); }
+
+/* ── Card foot ── */
+.demo-foot { display: flex; align-items: center; gap: 12px; padding: 13px 14px 5px 22px; }
+.demo-where { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 7px; padding-bottom: 8px; text-align: right; }
+.demo-ago { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 17px/1 var(--body); letter-spacing: 0.08em; text-transform: uppercase; color: var(--cream); }
+.demo-size { font: 700 13px/1 var(--body); letter-spacing: 0.1em; text-transform: uppercase; color: hsla(45, 100%, 95%, 0.55); }
+.demo-foot .k { width: auto; flex: 0 0 auto; margin: 0 calc(var(--dx) + 2px) var(--d) 0; }
+.demo-foot .k .k-face { min-height: 42px; padding: 0 16px 0 18px; justify-content: center; }
+.demo-foot .k .k-label { font-size: 12px; letter-spacing: 0.1em; }
+
+/* ═══ FEATURED ═══ */
+.featured { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) clamp(300px, 23vw, 400px); gap: 38px; padding: 0 10px 12px 0; }
+.hero { --cut: 1.1%; }
+.hero-empty { display: grid; place-items: center; height: 100%; padding: 40px; text-align: center; font: 700 18px/1.4 var(--body); letter-spacing: 0.06em; color: hsla(45, 100%, 95%, 0.55); }
+.hero .shot-flags { top: 20px; left: 30px; right: 110px; }
+.hero .shot-map { font-size: clamp(18px, 1.6vw, 28px); margin-left: 8px; }
+.hero .flag { font-size: 12px; padding: 7px 14px; }
+.hero .shot-len { top: 20px; right: 28px; font-size: 15px; padding: 8px 12px 8px 14px; }
+
+/* Who played, big: two sides and the score between */
+.vs { left: 34px; right: 38px; bottom: 26px; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: end; gap: 28px; }
+.vs-side { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+.vs-side--r { align-items: flex-end; text-align: right; }
+.vs-tags { display: flex; gap: 8px; }
+.vs-tags .rk, .vs-tags .you { font-size: 12px; padding: 5px 10px 5px 11px; }
+.vs-name {
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font: 900 clamp(26px, 2.5vw, 48px)/1.05 var(--display); letter-spacing: 0.01em;
+  color: var(--cream); text-shadow: 4px 5px 0 hsl(250 50% 3%);
+}
+.vs-team { text-transform: uppercase; letter-spacing: 0.04em; }
+.vs-sub { display: flex; flex-wrap: wrap; gap: 6px 14px; max-width: 100%; font: 700 17px/1.1 var(--body); letter-spacing: 0.04em; color: hsla(45, 100%, 95%, 0.8); text-shadow: 0 2px 6px hsla(250, 50%, 3%, 0.8); }
+.vs-stat { font-size: 15px; letter-spacing: 0.08em; text-transform: uppercase; color: hsla(45, 100%, 95%, 0.7); }
+.vs-side--r .vs-sub { justify-content: flex-end; }
+.vs-sub > span { display: inline-flex; align-items: center; gap: 6px; }
+.vs-mid { display: flex; align-items: center; gap: 18px; padding-bottom: 4px; }
+.vs-score { font: 900 clamp(46px, 4.4vw, 84px)/0.9 var(--display); font-variant-numeric: tabular-nums; color: hsla(45, 100%, 95%, 0.62); text-shadow: 4px 5px 0 hsl(250 50% 3%); }
+.vs-score.is-win { color: var(--gold-text); }
+.vs-badge {
+  padding: 9px 14px 9px 16px; background: var(--m); color: var(--ink);
+  font: 900 clamp(16px, 1.3vw, 22px)/1 var(--display); letter-spacing: 0.04em;
+  clip-path: polygon(10% 0, 100% 0, 90% 100%, 0 100%);
+}
+
+/* Free for all, big: the top three, first in the middle */
+.vs--ffa { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: end; }
+.place { min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
+.place-no { font: 900 clamp(15px, 1.1vw, 19px)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--pc); text-shadow: 3px 3px 0 hsl(250 50% 3%); }
+.place .vs-name { font-size: clamp(20px, 1.8vw, 34px); }
+.place--1 .vs-name { font-size: clamp(26px, 2.4vw, 46px); }
+.place-frags { font: 900 clamp(22px, 1.9vw, 34px)/1 var(--display); color: var(--pc); text-shadow: 3px 4px 0 hsl(250 50% 3%); }
+.place-frags small { font: 700 13px/1 var(--body); letter-spacing: 0.14em; text-transform: uppercase; margin-left: 6px; color: hsla(45, 100%, 95%, 0.7); }
+
+.hero-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 26px; padding: 20px 28px 10px 34px; }
+.hero-where { flex: 1; min-width: 150px; display: flex; flex-direction: column; align-items: flex-end; gap: 9px; padding-bottom: 10px; text-align: right; }
+.hero-ago { white-space: nowrap; font: 900 clamp(16px, 1.3vw, 22px)/1 var(--display); letter-spacing: 0.05em; text-transform: uppercase; color: var(--cream); }
+.hero-when { font: 700 14px/1 var(--body); letter-spacing: 0.12em; text-transform: uppercase; color: hsla(45, 100%, 95%, 0.58); }
+.hero-foot .k { width: auto; flex: 0 0 auto; margin: 0 calc(var(--dx) + 2px) var(--d) 0; }
+.k--watch { --d: calc(var(--depth) * 1.3); --cut: 5%; }
+.k--watch .k-face { min-height: 62px; padding: 0 38px 0 40px; justify-content: center; }
+.k--watch .k-label { font-size: clamp(16px, 1.25vw, 22px); letter-spacing: 0.1em; }
+.reel { display: flex; align-items: center; gap: 12px; }
+.reel .k .k-face { min-height: 52px; padding: 0 22px 0 24px; justify-content: center; }
+.reel .k .k-label { font-size: 14px; letter-spacing: 0.1em; }
+.lens { display: flex; gap: 6px; padding-bottom: var(--depth); }
+.lens button {
+  height: 38px; min-width: 50px; padding: 0 10px; border: 0; cursor: pointer; border-radius: 2px;
+  background: linear-gradient(180deg, hsl(250 24% 27%), hsl(250 30% 18%)); color: hsla(45, 100%, 95%, 0.72);
+  font: 800 12px/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; box-shadow: 0 4px 0 hsl(250 40% 6%);
+}
+.lens button:hover { background: linear-gradient(180deg, hsl(278 92% 72%), hsl(268 72% 52%)); color: var(--cream); }
+.lens button.is-on { background: linear-gradient(180deg, hsl(51 100% 73%), hsl(44 100% 55%)); color: var(--ink); transform: translateY(3px); box-shadow: 0 1px 0 hsl(30 88% 28%); }
+
+/* ── The other featured matches: a channel list ── */
+.picks { min-height: 0; display: flex; flex-direction: column; }
+.picks-label { display: flex; justify-content: space-between; margin: 2px 0 14px; font: 700 12px/1 var(--body); letter-spacing: 0.18em; text-transform: uppercase; color: hsla(45, 100%, 95%, 0.5); }
+.picks-list {
+  flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 6px 16px 12px 2px;
+  scrollbar-width: thin; scrollbar-color: hsla(276, 90%, 64%, 0.45) transparent;
+}
+.k--pick { --d: calc(var(--depth) * 0.9); margin-bottom: calc(var(--d) + 12px); }
+.k--pick .k-face { min-height: 0; padding: 10px 18px 10px 12px; gap: 14px; justify-content: flex-start; }
+.pick-shot { width: clamp(84px, 6.4vw, 118px); aspect-ratio: 16 / 10; flex: 0 0 auto; background: var(--img) center / cover no-repeat; clip-path: polygon(7% 0, 100% 0, 93% 100%, 0 100%); }
+.pick-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.pick-vs { display: flex; align-items: center; gap: 6px; min-width: 0; font: 900 clamp(13px, 0.95vw, 16px)/1.1 var(--display); letter-spacing: 0.02em; }
+.pick-vs span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pick-vs i { flex: 0 0 auto; font: 900 10px/1 var(--display); font-style: normal; color: var(--sub); }
+.pick-meta { display: flex; align-items: center; gap: 8px; min-width: 0; font: 700 12px/1 var(--body); letter-spacing: 0.1em; text-transform: uppercase; color: var(--sub); white-space: nowrap; }
+.pick-meta .lobby-dot { width: 9px; height: 9px; flex-basis: 9px; }
+.pick-meta > span:not(.lobby-dot) { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.pick-ago { margin-left: auto; flex: 0 0 auto; }
+
+/* ═══ LATEST AND YOURS ═══ */
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 18px; }
+.search {
+  width: min(380px, 100%); height: 46px; padding: 0 16px;
+  background: hsla(250, 44%, 5%, 0.8); color: var(--cream);
+  border: 1.5px solid hsla(276, 90%, 64%, 0.3); outline: none; font: 600 16px/1 var(--body);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+}
+.search::placeholder { color: hsla(45, 100%, 95%, 0.4); }
+.search:focus { border-color: var(--violet); }
+.count { margin-left: auto; font: 700 13px/1 var(--body); letter-spacing: 0.18em; text-transform: uppercase; color: hsla(45, 100%, 95%, 0.55); }
+.count b { font: 900 15px/1 var(--display); letter-spacing: 0.04em; color: var(--cream); margin-right: 4px; }
+
+.grid {
+  flex: 1; min-height: 0; display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 30px 34px; padding: 0 10px 12px 0;
+}
+.grid-empty { grid-column: 1 / -1; grid-row: 1 / -1; display: grid; place-items: center; font: 700 18px/1.4 var(--body); letter-spacing: 0.06em; color: hsla(45, 100%, 95%, 0.55); }
+.grid .demo { animation: card-in .35s cubic-bezier(.2, .9, .3, 1.15) backwards; animation-delay: calc(var(--i) * 35ms); }
+@keyframes card-in { from { opacity: 0; transform: translateY(16px); } }
+
+.pager { display: flex; justify-content: center; align-items: center; gap: 12px; }
+.pager .k { width: auto; margin: 0 calc(var(--dx) + 2px) var(--d) 0; }
+.pager .k .k-face { min-width: 48px; min-height: 44px; padding: 0 14px; justify-content: center; }
+.pager .k .k-label { font-size: 14px; letter-spacing: 0.06em; }
+.pager .k[disabled] { opacity: 0.35; pointer-events: none; }
+.pager-gap { padding: 0 2px var(--depth); font: 900 16px/1 var(--display); color: hsla(45, 100%, 95%, 0.45); }
+
+/* ── Rail: maps ── */
+.rail-mid { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.maprow .k-face { gap: 10px; }
+.maprow .k-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.maprow.is-on .lobby-dot { outline: 2px solid var(--gold-text); outline-offset: 2px; }
+
+/* ── Highlight reel menu ── */
+.pop {
+  position: fixed; z-index: 40; width: min(440px, 92vw);
+  filter:
+    drop-shadow(0 30px 40px hsla(250, 80%, 2%, 0.75))
+    drop-shadow(0 0 110px hsla(276, 90%, 45%, 0.45));
+  animation: pop-in .18s cubic-bezier(.2, .9, .3, 1.25);
+}
+.pop[hidden] { display: none; }
+@keyframes pop-in { from { opacity: 0; transform: translateY(10px) scale(0.96); } }
+.pop-card {
+  position: relative; padding: 18px 22px 20px 30px;
+  background:
+    radial-gradient(120% 70% at 20% 0%, hsla(54, 100%, 80%, 0.6), transparent 60%),
+    linear-gradient(172deg, hsl(48 100% 60%), hsl(42 97% 50%));
+  color: var(--ink);
+  clip-path: polygon(0 0, calc(100% - 26px) 0, 100% 26px, 100% 100%, 0 100%);
+}
+.pop-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 8px; background: linear-gradient(180deg, hsl(276 90% 64%), hsl(262 75% 42%)); }
+.pop-head { display: flex; align-items: center; gap: 16px; margin-bottom: 6px; }
+.pop-q { font: 900 clamp(18px, 1.3vw, 22px)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; }
+.pop-close {
+  margin-left: auto; width: 36px; height: 36px; border: 0; cursor: pointer; border-radius: 3px;
+  background: hsla(250, 45%, 8%, 0.12); color: var(--ink); font: 900 22px/1 var(--body);
+}
+.pop-close:hover { background: var(--ink); color: var(--gold-text); }
+.pop-sub { margin-bottom: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 15px/1.2 var(--body); letter-spacing: 0.06em; text-transform: uppercase; color: hsla(250, 45%, 8%, 0.66); }
+.reel-opts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.opt {
+  display: flex; align-items: baseline; justify-content: center; gap: 6px; padding: 14px 10px 13px;
+  border: 0; cursor: pointer; border-radius: 2px;
+  background: linear-gradient(180deg, hsl(45 100% 97%), hsl(42 55% 86%)); color: var(--ink);
+  box-shadow: 0 5px 0 hsl(33 45% 40%), 0 8px 12px hsla(28, 90%, 14%, 0.3);
+  transition: transform .1s ease, box-shadow .1s ease;
+}
+.opt b { font: 900 30px/1 var(--display); }
+.opt small { font: 700 14px/1 var(--body); letter-spacing: 0.14em; text-transform: uppercase; }
+.opt:hover, .opt:focus-visible {
+  outline: none; transform: translateY(-2px);
+  background: linear-gradient(180deg, hsl(278 92% 75%), hsl(268 72% 52%)); color: hsl(45 100% 96%);
+  box-shadow: 0 7px 0 hsl(258 72% 22%), 0 10px 16px hsla(268, 80%, 14%, 0.45);
+}
+.opt:active { transform: translateY(4px); box-shadow: 0 1px 0 hsl(258 72% 22%); }
+.pop-hint { margin-top: 16px; font: 700 14px/1.25 var(--body); letter-spacing: 0.06em; text-transform: uppercase; color: hsla(250, 45%, 8%, 0.62); }
+
+.toast {
+  position: fixed; z-index: 45; left: 63%; bottom: 26px; transform: translateX(-50%);
+  padding: 12px 22px; background: var(--cream); color: var(--ink);
+  font: 700 16px/1.2 var(--body); letter-spacing: 0.04em;
+  clip-path: polygon(3% 0, 100% 0, 97% 100%, 0 100%);
+  animation: toast 2.6s ease forwards;
+}
+.toast b { font-family: var(--display); font-weight: 800; }
+@keyframes toast { 0% { opacity: 0; transform: translate(-50%, 10px); } 8%, 85% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; } }
+
+/* ═══ PROTOTYPE CONTROLS ═══ */
+.proto {
+  position: fixed; z-index: 50; top: 0; left: 63%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 4px; padding: 5px 10px;
+  background: hsla(250, 45%, 4%, 0.9); border: 1px solid hsla(276, 90%, 64%, 0.4);
+  font: 700 11px/1 var(--body); letter-spacing: 0.16em; text-transform: uppercase; color: hsla(45, 100%, 95%, 0.45);
+}
+.proto a { padding: 5px 9px; text-decoration: none; letter-spacing: 0.1em; color: hsla(45, 100%, 95%, 0.7); }
+.proto a:hover { color: var(--cream); background: hsla(276, 90%, 64%, 0.25); }
+
+@media (max-width: 1500px) {
+  .featured { grid-template-columns: minmax(0, 1fr) 290px; gap: 28px; }
+  .grid { gap: 24px 26px; }
+  .demo-foot .long { display: none; }
+}
+@media (max-height: 960px) {
+  .k--tab .k-face { min-height: 66px; }
+  .hero-foot { padding-top: 14px; }
+  .mu-row { min-height: 28px; }
+  .mu--ffa .mu-row:nth-child(3) { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .k, .k-face, .mode-btn, .slab-face, .shot-img { transition: none; }
+  .orb, .pop, .toast, .grid .demo { animation: none; }
+}
+</style>
+</head>
+
+<body>
+<div class="proto" aria-label="Prototype controls">
+  Pages <a href="welcome.html">Welcome</a><a href="lobby-3d.html">Play</a><a href="lobby-room.html">Room</a><a href="leaderboard.html">Leaderboard</a><a href="settings.html">Settings</a>
+</div>
+
+<div class="shell">
+  <nav class="rail">
+    <div class="rail-kanji">映</div>
+    <div class="brand"><img class="brand-logo" src="/data/washoi.png" alt="Washiki Washoi" /></div>
+
+    <div class="rail-keys">
+      <a class="k k--nav" href="lobby-3d.html">
+        <span class="k-side"></span>
+        <span class="k-face"><span class="k-label">Play</span><span class="k-hint">4 modes</span></span>
+      </a>
+      <a class="k k--nav" href="leaderboard.html">
+        <span class="k-side"></span>
+        <span class="k-face"><span class="k-label">Leaderboard</span><span class="k-hint">Top players</span></span>
+      </a>
+      <a class="k k--nav is-on" href="demos.html">
+        <span class="k-side"></span>
+        <span class="k-face"><span class="k-label">Demos</span><span class="k-hint">Replays</span></span>
+      </a>
+    </div>
+
+    <div class="rail-mid">
+      <div class="rail-label lobby-head"><span>Maps</span><span id="mapCount"></span></div>
+      <div class="lobby-list" id="maps"></div>
+    </div>
+
+    <div class="player">
+      <div class="player-avatar"></div>
+      <div><div class="player-name" id="playerName">sundflux</div><div class="player-meta">Demos</div></div>
+    </div>
+
+    <div class="rail-keys util">
+      <a class="k k--sm k--util" href="welcome.html?screen=key"><span class="k-side"></span><span class="k-face"><span class="k-label">Profile</span></span></a>
+      <a class="k k--sm k--util" href="settings.html"><span class="k-side"></span><span class="k-face"><span class="k-label">Settings</span></span></a>
+      <button class="k k--sm k--util"><span class="k-side"></span><span class="k-face"><span class="k-label">Console</span></span></button>
+    </div>
+  </nav>
+
+  <main class="stage" id="stage">
+    <div class="fx" aria-hidden="true">
+      <div class="orb orb--violet"></div>
+      <div class="orb orb--deep"></div>
+      <div class="orb orb--accent"></div>
+    </div>
+    <div class="ghost" aria-hidden="true">REPLAY</div>
+
+    <header class="stage-head">
+      <div>
+        <div class="kicker" id="kicker">Demos · All modes</div>
+        <h1 class="title" id="title">Featured</h1>
+      </div>
+      <div class="modes" id="modes"></div>
+    </header>
+
+    <div class="tabs" id="tabs"></div>
+    <div class="rule" id="rule"></div>
+
+    <!-- Featured: one big match, and the rest of the week's best beside it -->
+    <section class="pane" id="paneFeatured">
+      <div class="featured">
+        <article class="slab demo hero" id="hero"></article>
+        <aside class="picks">
+          <div class="picks-label"><span>This week's best</span><span id="pickCount"></span></div>
+          <div class="picks-list" id="picks"></div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- Latest and Yours: a page of cards at a time -->
+    <section class="pane" id="paneGrid" hidden>
+      <div class="toolbar">
+        <input class="search" id="search" placeholder="Find a player or map…" autocomplete="off" spellcheck="false" />
+        <div class="count" id="count"></div>
+      </div>
+      <div class="grid" id="grid"></div>
+      <div class="pager" id="pager"></div>
+    </section>
+  </main>
+</div>
+
+<div class="pop" id="reelPop" hidden>
+  <div class="pop-card">
+    <div class="pop-head"><span class="pop-q">⚡ Highlight reel</span><button class="pop-close" id="reelClose" type="button" aria-label="Close">×</button></div>
+    <div class="pop-sub" id="reelWho"></div>
+    <div class="reel-opts" id="reelOpts"></div>
+    <div class="pop-hint">Kills, sprees and close calls, cut together</div>
+  </div>
+</div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const el = (tag, className = "", text = "") => Object.assign(document.createElement(tag), { className, textContent: text });
+
+  // Map names match the current lobby; the Amphi ones are placeholders
+  const MODES = {
+    all:   { name: "All", c: "hsl(276 90% 72%)", accent: ["hsl(276 90% 64%)", "hsl(278 95% 80%)", "hsl(268 75% 54%)", "hsl(262 70% 36%)", "hsl(256 70% 22%)"] },
+    duel:  { name: "Duel", kind: "vs", c: "hsl(186 95% 48%)", accent: ["hsl(182 95% 52%)", "hsl(182 100% 74%)", "hsl(188 90% 40%)", "hsl(192 85% 28%)", "hsl(198 80% 17%)"],
+             maps: [["wdm2", "Proving Grounds"], ["acidwdm2", "Acid Warehouse"], ["wdm17", "Le Toxiquet"]] },
+    amphi: { name: "Amphi", kind: "vs", c: "hsl(100 85% 50%)", accent: ["hsl(100 85% 52%)", "hsl(98 95% 72%)", "hsl(108 80% 40%)", "hsl(115 70% 26%)", "hsl(125 65% 16%)"],
+             maps: [["wamphi1", "Amphitheatre"], ["wda1", "Arena One"], ["wda2", "Arena Two"]] },
+    ffa:   { name: "FFA", kind: "ffa", c: "hsl(44 100% 55%)", accent: ["hsl(46 100% 57%)", "hsl(51 100% 73%)", "hsl(41 100% 48%)", "hsl(34 90% 36%)", "hsl(28 85% 23%)"],
+             maps: [["wdm14", "Aerowalk"], ["wdm5", "Sinister"], ["wdm7", "Brimstone"]] },
+    snd:   { name: "S&D", kind: "teams", c: "hsl(322 95% 60%)", accent: ["hsl(322 95% 62%)", "hsl(322 100% 77%)", "hsl(318 85% 50%)", "hsl(312 70% 33%)", "hsl(306 70% 21%)"],
+             maps: [["wbomb6", "Depot"], ["wbomb2", "Reactors"]] },
+  };
+  const PLAYED = ["duel", "amphi", "ffa", "snd"];
+  const MAP_NAME = Object.fromEntries(PLAYED.flatMap((k) => MODES[k].maps));
+  const ACCENT_VARS = ["--a", "--a-hi", "--a-lo", "--a-side-hi", "--a-side-lo"];
+  const TEAM_NAME = { alpha: "Udon", bravo: "Soba" };
+  const TABS = [
+    { id: "featured", name: "Featured", sub: "The top 10 · this week", rule: "This week's matches with players from the 30-day top 10 · the higher they rank, the higher the pick" },
+    { id: "latest", name: "Latest", sub: "Every recorded match", rule: "Newest first · every match on the servers is recorded" },
+    { id: "yours", name: "Yours", sub: "Matches you played", rule: "Every match you played, newest first" },
+  ];
+  const PER_PAGE = 6;
+  const REEL_MINUTES = [1, 2, 5];
+  const WEEK = 7 * 864e5;
+  const NOW = Date.now();
+
+  const ME = (() => { try { return JSON.parse(localStorage.getItem("proto-player"))?.name || "sundflux"; } catch { return "sundflux"; } })();
+
+  // ── The leaderboard page's mock boards, so the ranks here match it ──
+  const MY_RANK = { duel: { month: 37, all: 58 }, amphi: { month: 12, all: 41 }, ffa: { month: 88, all: 143 }, snd: { month: 3, all: 26 } };
+  function rng(seed) {
+    let t = seed >>> 0;
+    return () => { t += 0x6d2b79f5; let r = Math.imul(t ^ (t >>> 15), 1 | t); r ^= r + Math.imul(r ^ (r >>> 7), 61 | r); return ((r ^ (r >>> 14)) >>> 0) / 4294967296; };
+  }
+  const hash = (s) => [...s].reduce((h, c) => Math.imul(h ^ c.charCodeAt(0), 16777619), 2166136261);
+  const NAMES = (() => {
+    const cast = ["Nova", "Reaper", "Shadow", "Fury", "Titan", "Storm", "Wraith", "Eclipse"];
+    const a = ["Neo", "Zero", "Hyper", "Frag", "Rail", "Blitz", "Ghost", "Iron", "Nitro", "Void", "Pixel", "Turbo", "Crimson", "Lunar", "Static", "Rogue", "Venom", "Echo", "Omega", "Kuro"];
+    const b = ["fox", "byte", "kid", "wolf", "rider", "blade", "hawk", "punk", "core", "ray", "dash", "jin", "kai", "mancer", "_gg", "99", "x", "ster", "bolt", "zen"];
+    const r = rng(7);
+    const pool = a.flatMap((x) => b.map((y) => x + y)).sort(() => r() - 0.5);
+    return [...cast, ...pool].filter((n) => n.toLowerCase() !== ME.toLowerCase()).slice(0, 160);
+  })();
+  function board(mode, period) {
+    const r = rng(hash(`${mode}:${period}`));
+    const big = period === "all";
+    const rows = NAMES.map((name) => {
+      const matches = Math.round(big ? 60 + r() * r() * 2400 : 6 + r() * r() * 170);
+      const rate = Math.min(0.82, Math.max(0.18, 0.5 + (r() - 0.5) * 0.55));
+      r();
+      return { name, matches, wins: Math.round(matches * rate) };
+    });
+    const rank = (list) => list.sort((x, y) => y.wins - x.wins || y.wins / y.matches - x.wins / x.matches);
+    rank(rows);
+    const beat = rows[MY_RANK[mode][period] - 1];
+    const wins = beat.wins;
+    rows.push({ name: ME, me: true, wins, matches: Math.max(wins, Math.floor(wins / Math.min(0.9, wins / beat.matches + 0.04))) });
+    rank(rows);
+    rows.forEach((row, i) => { row.rank = i + 1; });
+    return rows;
+  }
+  const BOARD = Object.fromEntries(PLAYED.map((k) => [k, new Map(board(k, "month").map((p) => [p.name, p]))]));
+  const rankOf = (mode, name) => BOARD[mode].get(name)?.rank ?? 999;
+  const topRank = (mode, name) => (rankOf(mode, name) <= 10 ? rankOf(mode, name) : 0);
+
+  // ── Mock demos, the same every load. The fields are the lobby's DemoInfo (map,
+  // gametype, players with their teams, length, date, size) plus the final score.
+  const DEMOS = (() => {
+    const r = rng(2026);
+    const pick = (list) => list[Math.floor(r() * list.length)];
+    const between = (lo, hi) => lo + Math.floor(r() * (hi - lo + 1));
+    const list = [];
+    let t = NOW - 38 * 60e3;
+    for (let i = 0; i < 58; i++) {
+      const x = r();
+      const mode = x < 0.34 ? "duel" : x < 0.52 ? "amphi" : x < 0.74 ? "ffa" : "snd";
+      const [map, mapName] = pick(MODES[mode].maps);
+      const pool = [...BOARD[mode].values()].filter((p) => !p.me);
+      const size = mode === "ffa" ? 8 : mode === "snd" ? 2 * between(3, 5) : 2;
+      const names = r() < 0.28 ? [ME] : [];
+      // Top players play more: draws lean towards the head of the board
+      while (names.length < size) {
+        const n = pool[Math.floor(r() * r() * 48)].name;
+        if (!names.includes(n)) names.push(n);
+      }
+      for (let k = names.length - 1; k > 0; k--) { const j = Math.floor(r() * (k + 1)); [names[k], names[j]] = [names[j], names[k]]; }
+      const favourite = (a, b) => (r() < 0.7) === (rankOf(mode, a) < rankOf(mode, b));
+      const d = { id: `d${i}`, map, mapName, mode, date: t };
+      if (mode === "duel" || mode === "amphi") {
+        // Duel: ten minutes, frags, sometimes overtime. Amphi: first to three rounds.
+        const [w, l] = mode === "duel" ? (() => { const w = between(9, 31); return [w, between(Math.max(0, w - 14), w - 1)]; })() : [3, between(0, 2)];
+        const firstWins = favourite(names[0], names[1]);
+        d.players = names.map((name, k) => ({ name, score: (k === 0) === firstWins ? w : l }));
+        d.durationMs = mode === "duel" ? (600 + (r() < 0.2 ? between(1, 2) * 120 : 0)) * 1000 : (w + l) * between(100, 175) * 1000;
+      } else if (mode === "ffa") {
+        // To 20 frags, or whoever leads when the ten minutes run out
+        const capped = r() < 0.75;
+        let s = capped ? 20 : between(13, 19);
+        const order = [...names].sort((a, b) => rankOf(mode, a) * (0.6 + r()) - rankOf(mode, b) * (0.6 + r()));
+        const score = new Map(order.map((n) => { const v = s; s = Math.max(0, s - between(1, 4)); return [n, v]; }));
+        d.players = names.map((name) => ({ name, score: score.get(name) }));
+        d.durationMs = capped ? between(330, 590) * 1000 : 600000;
+      } else {
+        // First to ten rounds of ninety seconds at most
+        const half = names.length / 2;
+        const l = between(2, 9);
+        const alphaWins = r() < 0.5;
+        d.teams = ["alpha", "bravo"].map((id, k) => ({ id, name: TEAM_NAME[id], score: (k === 0) === alphaWins ? 10 : l, players: names.slice(k * half, (k + 1) * half) }));
+        d.players = names.map((name) => ({ name }));
+        d.durationMs = (10 + l) * between(55, 88) * 1000;
+      }
+      d.sizeMB = Math.round((d.durationMs / 60000) * (0.18 + size * 0.05) * 10) / 10;
+      list.push(d);
+      t -= Math.round((12 + r() * r() * 900) * 60e3);
+    }
+    return list;
+  })();
+
+  // ── State ──
+  let tab = "featured", mode = "all", map = null, page = 1, query = "", heroId = null, reelLen = 2;
+  const stage = $("stage");
+
+  // ── Words ──
+  const namesOf = (d) => d.players.map((p) => p.name);
+  const clock = (ms) => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, "0")}`;
+  const pct = (v) => `${Math.round(v * 100)}%`;
+  // Short for cards and the pick list, long for the featured match
+  function ago(t, short) {
+    const min = (NOW - t) / 60e3;
+    if (min < 60) return `${Math.max(1, Math.round(min))}${short ? "m" : " min"} ago`;
+    if (min < 24 * 60) return `${Math.round(min / 60)}${short ? "h" : " h"} ago`;
+    const days = Math.floor(min / (24 * 60));
+    if (short && days < 7) return `${days}d ago`;
+    if (days === 1) return "Yesterday";
+    if (days < 7) return `${days} days ago`;
+    return new Date(t).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  }
+  function title(d) {
+    const kind = MODES[d.mode].kind;
+    if (kind === "teams") return `${d.teams[0].name} vs ${d.teams[1].name}`;
+    if (kind === "ffa") return `${d.players.length}-player free for all`;
+    return `${d.players[0].name} vs ${d.players[1].name}`;
+  }
+  function modeLabel(d) {
+    if (d.mode === "ffa") return `FFA · ${d.players.length}`;
+    if (d.mode === "snd") return `S&D · ${d.teams[0].players.length}v${d.teams[1].players.length}`;
+    return MODES[d.mode].name;
+  }
+  // Your result, when you played
+  function result(d) {
+    if (!namesOf(d).includes(ME)) return null;
+    const kind = MODES[d.mode].kind;
+    if (kind === "teams") {
+      const mine = d.teams.find((t) => t.players.includes(ME));
+      const win = mine.score === Math.max(...d.teams.map((t) => t.score));
+      return { win, text: win ? "Won" : "Lost" };
+    }
+    const place = [...d.players].sort((a, b) => b.score - a.score).findIndex((p) => p.name === ME) + 1;
+    if (kind === "ffa") return { win: place === 1, text: ["1st", "2nd", "3rd"][place - 1] ?? `${place}th` };
+    return { win: place === 1, text: place === 1 ? "Won" : "Lost" };
+  }
+  // The names worth showing first: you, then the best ranked
+  const notable = (mode) => (a, b) => (b === ME) - (a === ME) || rankOf(mode, a) - rankOf(mode, b);
+  // Why a demo is featured: its two best-ranked players, the higher the better
+  const stars = (d) => namesOf(d).map((n) => topRank(d.mode, n)).filter(Boolean).sort((a, b) => a - b).slice(0, 2).reduce((s, k) => s + 11 - k, 0);
+
+  // ── Pieces ──
+  function paint(node, d) {
+    const m = MODES[d.mode];
+    node.style.setProperty("--img", `url("/data/levelshots/${d.map}.jpg")`);
+    node.style.setProperty("--m", m.c);
+    node.style.setProperty("--mode", m.c);
+    node.style.setProperty("--ms-hi", m.accent[3]);
+    node.style.setProperty("--ms-lo", m.accent[4]);
+  }
+  const rkTag = (mode, name) => (topRank(mode, name) ? [el("span", "rk", `#${topRank(mode, name)}`)] : []);
+  const youTag = (name) => (name === ME ? [el("span", "you", "You")] : []);
+  function key(cls, label) {
+    const b = el("button", `k ${cls}`);
+    b.type = "button";
+    const face = el("span", "k-face");
+    face.append(el("span", "k-label", label));
+    b.append(el("span", "k-side"), face);
+    return b;
+  }
+  function watchKey(d, cls) {
+    const b = key(cls, "▶ Watch");
+    b.addEventListener("click", () => toast(`<b>Loading the demo</b> · ${title(d)} on ${d.mapName}`));
+    return b;
+  }
+  function flagsFor(d, extra = []) {
+    const flags = el("div", "shot-flags");
+    flags.append(el("span", "flag flag--mode", modeLabel(d)));
+    const res = result(d);
+    if (res) flags.append(el("span", `flag${res.win ? " flag--win" : ""}`, res.text));
+    flags.append(...extra, el("span", "shot-map", d.mapName));
+    return flags;
+  }
+
+  // Who played, on a card: a row per player or team
+  function compact(d) {
+    const kind = MODES[d.mode].kind;
+    const mu = el("div", `mu${kind === "ffa" ? " mu--ffa" : ""}`);
+    const row = (win) => el("div", `mu-row${win ? " is-win" : ""}`);
+    if (kind === "vs") {
+      const top = Math.max(...d.players.map((p) => p.score));
+      mu.append(el("span", "mu-vs", "VS"));
+      for (const p of d.players) {
+        const r = row(p.score === top);
+        const who = el("span", "mu-who");
+        who.append(...rkTag(d.mode, p.name), el("span", "mu-name", p.name), ...youTag(p.name));
+        r.append(who, el("span", "mu-score", String(p.score)));
+        mu.append(r);
+      }
+    } else if (kind === "teams") {
+      const top = Math.max(...d.teams.map((t) => t.score));
+      mu.append(el("span", "mu-vs", "VS"));
+      for (const t of d.teams) {
+        const r = row(t.score === top);
+        const who = el("span", "mu-who");
+        const roster = el("span", "mu-roster");
+        // The team's best-known player stands for it
+        const lead = [...t.players].sort(notable(d.mode))[0];
+        roster.append(...rkTag(d.mode, lead), el("span", "", lead), ...youTag(lead), el("span", "", `+${t.players.length - 1}`));
+        who.append(el("span", "mu-team", t.name), roster);
+        r.append(who, el("span", "mu-score", String(t.score)));
+        mu.append(r);
+      }
+    } else {
+      [...d.players].sort((a, b) => b.score - a.score).slice(0, 3).forEach((p, k) => {
+        const r = row(k === 0);
+        const who = el("span", "mu-who");
+        who.append(...rkTag(d.mode, p.name), el("span", "mu-name", p.name), ...youTag(p.name));
+        r.append(el("span", "mu-place", String(k + 1)), who, el("span", "mu-score", String(p.score)));
+        mu.append(r);
+      });
+    }
+    return mu;
+  }
+
+  function card(d, i) {
+    const c = el("article", "slab demo");
+    paint(c, d);
+    c.style.setProperty("--i", i);
+    const face = el("div", "slab-face");
+    const shot = el("div", "shot");
+    shot.append(el("div", "shot-img"), flagsFor(d), el("span", "shot-len", clock(d.durationMs)), compact(d));
+    const foot = el("div", "demo-foot");
+    const reel = key("k--sm k--cream", "⚡ ");
+    reel.querySelector(".k-label").append(el("span", "long", "Highlights"));
+    reel.addEventListener("click", () => openReel(d, reel));
+    const where = el("div", "demo-where");
+    where.append(el("span", "demo-ago", ago(d.date, true)), el("span", "demo-size", `${d.sizeMB} MB`));
+    foot.append(watchKey(d, "k--sm"), reel, where);
+    face.append(shot, foot);
+    c.append(el("div", "slab-side"), face);
+    return c;
+  }
+
+  // Who played, big: across the bottom of the featured shot
+  function big(d) {
+    const kind = MODES[d.mode].kind;
+    if (kind === "ffa") {
+      const vs = el("div", "vs vs--ffa");
+      const order = [...d.players].sort((a, b) => b.score - a.score);
+      const PLACE = [["1st", "hsl(48 100% 62%)"], ["2nd", "hsl(220 25% 86%)"], ["3rd", "hsl(26 85% 64%)"]];
+      for (const k of [1, 0, 2]) {
+        const p = order[k];
+        const place = el("div", `place place--${k + 1}`);
+        place.style.setProperty("--pc", PLACE[k][1]);
+        const tags = el("div", "vs-tags");
+        tags.append(...rkTag(d.mode, p.name), ...youTag(p.name));
+        const frags = el("span", "place-frags", String(p.score));
+        frags.append(el("small", "", "frags"));
+        place.append(el("span", "place-no", PLACE[k][0]), tags, el("span", "vs-name", p.name), frags);
+        vs.append(place);
+      }
+      return vs;
+    }
+    const vs = el("div", "vs");
+    const sides = kind === "teams"
+      ? d.teams.map((t) => ({ score: t.score, name: t.name, team: t }))
+      : d.players.map((p) => ({ score: p.score, name: p.name }));
+    const top = Math.max(...sides.map((s) => s.score));
+    const side = (s, right) => {
+      const box = el("div", `vs-side${right ? " vs-side--r" : ""}`);
+      const sub = el("div", "vs-sub");
+      if (s.team) {
+        for (const n of [...s.team.players].sort(notable(d.mode))) {
+          const span = el("span");
+          span.append(...rkTag(d.mode, n), n, ...youTag(n));
+          sub.append(span);
+        }
+        box.append(el("span", "vs-name vs-team", s.name), sub);
+      } else {
+        const tags = el("div", "vs-tags");
+        tags.append(...rkTag(d.mode, s.name), ...youTag(s.name));
+        const p = BOARD[d.mode].get(s.name);
+        sub.append(el("span", "vs-stat", `${pct(p.wins / p.matches)} win rate · 30 days`));
+        box.append(tags, el("span", "vs-name", s.name), sub);
+      }
+      return box;
+    };
+    const mid = el("div", "vs-mid");
+    const score = (s) => el("span", `vs-score${s.score === top ? " is-win" : ""}`, String(s.score));
+    mid.append(score(sides[0]), el("span", "vs-badge", "VS"), score(sides[1]));
+    vs.append(side(sides[0], false), mid, side(sides[1], true));
+    return vs;
+  }
+
+  // ── Scopes ──
+  const scoped = () => DEMOS.filter((d) => (mode === "all" || d.mode === mode) && (!map || d.map === map));
+  // Best first, but every mode gets its best match in before any mode gets a second
+  function featured() {
+    const best = scoped().filter((d) => NOW - d.date < WEEK && stars(d) > 0).sort((a, b) => stars(b) - stars(a) || b.date - a.date);
+    const seen = new Map();
+    for (const d of best) d.round = seen.set(d.mode, (seen.get(d.mode) ?? -1) + 1).get(d.mode);
+    return best.sort((a, b) => a.round - b.round || stars(b) - stars(a) || b.date - a.date).slice(0, 6);
+  }
+  function gridList() {
+    let list = scoped();
+    if (tab === "yours") list = list.filter((d) => namesOf(d).includes(ME));
+    const q = query.trim().toLowerCase();
+    if (q) list = list.filter((d) => d.mapName.toLowerCase().includes(q) || d.map.includes(q) || namesOf(d).some((n) => n.toLowerCase().includes(q)) || d.teams?.some((t) => t.name.toLowerCase().includes(q)));
+    return list;
+  }
+
+  // ── Rendering ──
+  function renderFeatured() {
+    const list = featured();
+    const hero = $("hero");
+    const d = list.find((x) => x.id === heroId) ?? list[0];
+    heroId = d?.id ?? null;
+    $("pickCount").textContent = list.length ? `${list.length} picks` : "";
+    if (!d) {
+      hero.removeAttribute("style");
+      const where = map ? ` on ${MAP_NAME[map]}` : mode !== "all" ? ` in ${MODES[mode].name}` : "";
+      hero.replaceChildren(el("div", "slab-side"), Object.assign(el("div", "slab-face"), { innerHTML: `<div class="hero-empty">No top-10 matches${where} this week yet.<br>Latest has every match.</div>` }));
+      hero.style.setProperty("--ms-hi", "hsl(250 36% 14%)");
+      hero.style.setProperty("--ms-lo", "hsl(250 40% 8%)");
+      $("picks").replaceChildren();
+      return;
+    }
+    paint(hero, d);
+    const face = el("div", "slab-face");
+    const shot = el("div", "shot");
+    shot.append(el("div", "shot-img"), flagsFor(d, [el("span", "flag", "★ Featured")]), el("span", "shot-len", clock(d.durationMs)), big(d));
+    const foot = el("div", "hero-foot");
+    const watch = watchKey(d, "k--watch");
+    const reel = el("div", "reel");
+    const hl = key("k--cream", "⚡ Highlights");
+    hl.addEventListener("click", () => toast(`<b>Cutting a ${reelLen}-minute reel</b> · ${title(d)}`));
+    const lens = el("div", "lens");
+    for (const n of REEL_MINUTES) {
+      const b = el("button", n === reelLen ? "is-on" : "", `${n} min`);
+      b.type = "button";
+      b.addEventListener("click", () => { reelLen = n; for (const x of lens.children) x.classList.toggle("is-on", x === b); });
+      lens.append(b);
+    }
+    reel.append(hl, lens);
+    const where = el("div", "hero-where");
+    where.append(el("span", "hero-ago", ago(d.date)), el("span", "hero-when", `${new Date(d.date).toLocaleString("en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit" })} · ${d.sizeMB} MB`));
+    foot.append(watch, reel, where);
+    face.append(shot, foot);
+    hero.replaceChildren(el("div", "slab-side"), face);
+    fitNames(hero);
+
+    $("picks").replaceChildren(...list.map((x) => {
+      const b = el("button", `k k--cream k--pick${x.id === d.id ? " is-on" : ""}`);
+      b.type = "button";
+      paint(b, x);
+      const face = el("span", "k-face");
+      const text = el("span", "pick-text");
+      const line = (tags, name, prefix) => {
+        const l = el("span", "pick-vs");
+        if (prefix) l.append(el("i", "", prefix));
+        l.append(...tags, el("span", "", name));
+        return l;
+      };
+      const kind = MODES[x.mode].kind;
+      if (kind === "vs") {
+        const [a, c] = x.players.map((p) => p.name);
+        text.append(line([...rkTag(x.mode, a), ...youTag(a)], a), line([...rkTag(x.mode, c), ...youTag(c)], c, "VS"));
+      } else if (kind === "teams") {
+        // A team is its best-known player, with a count of the rest
+        text.append(...x.teams.map((t, k) => {
+          const best = [...t.players].sort(notable(x.mode))[0];
+          return line([...rkTag(x.mode, best), ...youTag(best)], `${best} +${t.players.length - 1}`, k ? "VS" : "");
+        }));
+      } else {
+        const best = [...namesOf(x)].sort(notable(x.mode))[0];
+        text.append(line([...rkTag(x.mode, best), ...youTag(best)], best), line([], `+${x.players.length - 1} more`));
+      }
+      const meta = el("span", "pick-meta");
+      meta.append(el("span", "lobby-dot"), el("span", "", `${MODES[x.mode].name} · ${x.mapName}`), el("span", "pick-ago", ago(x.date, true)));
+      text.append(meta);
+      face.append(el("span", "pick-shot"), text);
+      b.append(el("span", "k-side"), face);
+      b.addEventListener("click", () => { heroId = x.id; renderFeatured(); });
+      return b;
+    }));
+  }
+
+  // Names run up to 16 characters: shrink a big one until it fits its side
+  function fitNames(root) {
+    for (const n of root.querySelectorAll(".vs-name")) {
+      n.style.fontSize = "";
+      let size = parseFloat(getComputedStyle(n).fontSize);
+      while (n.scrollWidth > n.clientWidth + 1 && size > 18) n.style.fontSize = `${(size -= 2)}px`;
+    }
+  }
+
+  function renderGrid() {
+    const list = gridList();
+    const pages = Math.max(1, Math.ceil(list.length / PER_PAGE));
+    page = Math.min(Math.max(1, page), pages);
+    const shown = list.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+    const q = query.trim();
+    const empty = q ? `No demos with “${q}” in them` : tab === "yours" ? "You haven't played here yet. Your matches land here once they end." : "No demos here yet";
+    $("grid").replaceChildren(...(shown.length ? shown.map(card) : [el("div", "grid-empty", empty)]));
+    $("count").innerHTML = `<b>${list.length}</b>${list.length === 1 ? "demo" : "demos"}${pages > 1 ? ` · page ${page} of ${pages}` : ""}`;
+
+    // Every page when there are few; otherwise the ends and the pages around this one
+    const nums = pages <= 7 ? [...Array(pages).keys()].map((n) => n + 1)
+      : [...new Set([1, 2, page - 1, page, page + 1, pages - 1, pages])].filter((n) => n >= 1 && n <= pages).sort((a, b) => a - b);
+    const keys = [];
+    const prev = key("k--sm", "‹ Prev");
+    prev.disabled = page === 1;
+    prev.addEventListener("click", () => go(page - 1));
+    keys.push(prev);
+    nums.forEach((n, k) => {
+      if (k && n - nums[k - 1] > 1) keys.push(el("span", "pager-gap", "…"));
+      const b = key(`k--sm k--cream${n === page ? " is-on" : ""}`, String(n));
+      b.addEventListener("click", () => go(n));
+      keys.push(b);
+    });
+    const next = key("k--sm", "Next ›");
+    next.disabled = page === pages;
+    next.addEventListener("click", () => go(page + 1));
+    keys.push(next);
+    $("pager").replaceChildren(...(pages > 1 ? keys : []));
+  }
+  function go(n) { page = n; renderGrid(); saveUrl(); }
+
+  function renderMaps() {
+    const modes = mode === "all" ? PLAYED : [mode];
+    const inMode = DEMOS.filter((d) => mode === "all" || d.mode === mode);
+    const row = (id, name, count, colour) => {
+      const b = el("button", `k k--sm k--cream lobby maprow${map === id ? " is-on" : ""}`);
+      b.type = "button";
+      b.style.setProperty("--mode", colour);
+      const face = el("span", "k-face");
+      face.append(el("span", "lobby-dot"), el("span", "k-label", name), el("span", "k-hint lobby-count", String(count)));
+      b.append(el("span", "k-side"), face);
+      b.addEventListener("click", () => { map = map === id ? null : id; page = 1; heroId = null; render(); });
+      return b;
+    };
+    const rows = [row(null, "All maps", inMode.length, MODES[mode].c)];
+    for (const k of modes) for (const [id, name] of MODES[k].maps) rows.push(row(id, name, DEMOS.filter((d) => d.map === id).length, MODES[k].c));
+    $("maps").replaceChildren(...rows);
+    $("mapCount").textContent = `${rows.length - 1} maps`;
+  }
+
+  function render() {
+    const t = TABS.find((x) => x.id === tab);
+    $("kicker").textContent = ["Demos", mode === "all" ? "All modes" : MODES[mode].name, map && MAP_NAME[map]].filter(Boolean).join(" · ");
+    $("title").textContent = t.name;
+    $("rule").textContent = t.rule;
+    $("paneFeatured").hidden = tab !== "featured";
+    $("paneGrid").hidden = tab === "featured";
+    for (const b of $("tabs").children) b.classList.toggle("is-open", b.dataset.tab === tab);
+    for (const b of $("modes").children) b.classList.toggle("is-on", b.dataset.mode === mode);
+    if (tab === "featured") renderFeatured(); else renderGrid();
+    renderMaps();
+    saveUrl();
+  }
+  function saveUrl() {
+    const p = new URLSearchParams({ tab, mode });
+    if (map) p.set("map", map);
+    if (tab !== "featured" && page > 1) p.set("page", page);
+    history.replaceState(null, "", `?${p}`);
+  }
+
+  function setMode(k) {
+    mode = k;
+    if (map && k !== "all" && !MODES[k].maps.some(([id]) => id === map)) map = null;
+    page = 1;
+    heroId = null;
+    ACCENT_VARS.forEach((v, i) => stage.style.setProperty(v, MODES[k].accent[i]));
+    render();
+  }
+
+  // ── Highlight reel menu, for the cards ──
+  const pop = $("reelPop");
+  let reelDemo = null;
+  for (const n of REEL_MINUTES) {
+    const b = el("button", "opt");
+    b.type = "button";
+    b.append(el("b", "", String(n)), el("small", "", "min"));
+    b.addEventListener("click", () => { toast(`<b>Cutting a ${n}-minute reel</b> · ${title(reelDemo)}`); closeReel(); });
+    $("reelOpts").append(b);
+  }
+  function openReel(d, anchor) {
+    reelDemo = d;
+    $("reelWho").textContent = `${title(d)} · ${d.mapName}`;
+    pop.hidden = false;
+    const r = anchor.getBoundingClientRect();
+    const left = Math.min(Math.max(stage.getBoundingClientRect().left + 60, r.left + r.width / 2 - pop.offsetWidth / 2), innerWidth - pop.offsetWidth - 16);
+    const top = r.top - pop.offsetHeight - 18 < 12 ? r.bottom + 18 : r.top - pop.offsetHeight - 18;
+    Object.assign(pop.style, { left: `${left}px`, top: `${top}px` });
+    pop.querySelector(".opt:nth-child(2)").focus();
+  }
+  function closeReel() { pop.hidden = true; reelDemo = null; }
+  $("reelClose").addEventListener("click", closeReel);
+  document.addEventListener("mousedown", (e) => { if (reelDemo && !e.target.closest("#reelPop")) closeReel(); });
+
+  function toast(html) {
+    for (const t of document.querySelectorAll(".toast")) t.remove();
+    const t = el("div", "toast");
+    t.innerHTML = html;
+    document.body.append(t);
+    setTimeout(() => t.remove(), 2700);
+  }
+
+  // ── Controls ──
+  for (const [k, m] of Object.entries(MODES)) {
+    const b = el("button", "mode-btn", m.name);
+    b.type = "button";
+    b.dataset.mode = k;
+    b.style.setProperty("--m", m.c);
+    b.addEventListener("click", () => setMode(k));
+    $("modes").append(b);
+  }
+  for (const t of TABS) {
+    const b = el("button", "k k--tab");
+    b.type = "button";
+    b.dataset.tab = t.id;
+    const face = el("span", "k-face");
+    face.append(el("span", "tab-name", t.name), el("span", "tab-sub", t.sub));
+    b.append(el("span", "k-side"), face);
+    b.addEventListener("click", () => { if (tab !== t.id) page = 1; tab = t.id; render(); });
+    $("tabs").append(b);
+  }
+  let fitFrame = 0;
+  addEventListener("resize", () => { cancelAnimationFrame(fitFrame); fitFrame = requestAnimationFrame(() => fitNames($("hero"))); });
+  $("search").addEventListener("input", () => { query = $("search").value; page = 1; renderGrid(); saveUrl(); });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && reelDemo) { closeReel(); return; }
+    if (tab === "featured" || e.target.closest("input")) return;
+    if (e.key === "ArrowLeft" || e.key === "PageUp") go(Math.max(1, page - 1));
+    if (e.key === "ArrowRight" || e.key === "PageDown") go(page + 1);
+  });
+
+  $("playerName").textContent = ME;
+  const params = new URLSearchParams(location.search);
+  if (TABS.some((t) => t.id === params.get("tab"))) tab = params.get("tab");
+  if (DEMOS.some((d) => d.map === params.get("map"))) map = params.get("map");
+  const startPage = Number(params.get("page")) || 1;
+  setMode(MODES[params.get("mode")] ? params.get("mode") : "all");
+  if (startPage > 1 && tab !== "featured") go(startPage);
+  // Measure again once the display font is in: the fallback font is narrower
+  document.fonts.ready.then(() => fitNames($("hero")));
+</script>
+</body>
+</html>

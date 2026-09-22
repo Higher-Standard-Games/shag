@@ -11,6 +11,9 @@
  */
 
 import { type ChildProcess, spawn } from "node:child_process";
+import { randomBytes } from "node:crypto";
+import { issueMatchAdmission, type MatchSeat } from "../engine/server/network/MatchAdmission";
+import { type MatchResultReport, RESULT_PREFIX, verifyMatchResult } from "../engine/server/network/MatchResultReport";
 
 // ============================================================================
 // Types
@@ -26,6 +29,8 @@ export interface SpawnConfig {
    *  lobby (docs/research/single_game_server_lobby.md). Defaults to true —
    *  every lobby/dev spawn is per-match during alpha. */
   singleMatch?: boolean;
+  /** Verified lobby roster. Omitted for standalone/dev servers. */
+  admissionSeats?: MatchSeat[];
 }
 
 export interface SpawnedServer {
@@ -36,6 +41,8 @@ export interface SpawnedServer {
   gametype: string;
   url: string; // e.g. 'ws://localhost:7777'
   startedAt: number;
+  /** Private tickets to deliver individually; never broadcast with server listings. */
+  admissionTickets?: Map<string, string>;
 }
 
 export function buildPublicGameServerUrl(port: number): string {
@@ -51,7 +58,37 @@ export function buildPublicGameServerUrl(port: number): string {
 // GameServerSpawner
 // ============================================================================
 
+/**
+ * How long a game server gets to say it is ready. A cold start compiles the
+ * server and loads a BSP, which on a busy machine takes longer than it looks;
+ * SHAG_SPAWN_TIMEOUT_MS raises it where that is not enough.
+ */
+const SPAWN_READY_TIMEOUT_MS = Math.min(
+  Math.max(Number(process.env.SHAG_SPAWN_TIMEOUT_MS) || 45_000, 5_000),
+  5 * 60_000,
+);
+
+/**
+ * Stop a child the lobby has given up on. A server that reports itself ready a
+ * few seconds after the wait expired would otherwise keep running, holding its
+ * port, with nobody left who knows it exists.
+ */
+export function abandonSpawnedChild(child: Pick<ChildProcess, "kill" | "killed" | "exitCode">): void {
+  if (child.killed || child.exitCode !== null) return;
+  child.kill("SIGTERM");
+  const forceKill = setTimeout(() => {
+    if (!child.killed && child.exitCode === null) child.kill("SIGKILL");
+  }, 5_000);
+  // The lobby should not be held open by a child it has already abandoned
+  forceKill.unref?.();
+}
+
 export class GameServerSpawner {
+  /** Kept outside public SpawnedServer listings, removed on delivery or exit. */
+  private readonly recoveryByMatch = new Map<
+    string,
+    Map<number, { ticket: string; availableAt: number; expiresAt: number }>
+  >();
   private nextPort: number;
   private activeServers: Map<string, SpawnedServer> = new Map();
   private projectRoot: string;
@@ -65,6 +102,10 @@ export class GameServerSpawner {
   async spawn(config: SpawnConfig): Promise<SpawnedServer> {
     const port = this.allocatePort();
     const matchId = this.generateMatchId();
+    const admission = config.admissionSeats
+      ? issueMatchAdmission(matchId, config.admissionSeats, Date.now(), 2 * 60_000, 30 * 60_000)
+      : null;
+    const resultSecret = admission ? randomBytes(32).toString("base64url") : null;
 
     console.log(`[Spawner] Starting game server: map=${config.map} gametype=${config.gametype} port=${port}`);
 
@@ -91,10 +132,16 @@ export class GameServerSpawner {
       args.push("--max", String(config.maxClients));
     }
 
+    const childEnv = { ...process.env };
+    delete childEnv.SHAG_MATCH_ADMISSION;
+    delete childEnv.SHAG_MATCH_RESULT_SECRET;
+    if (admission) childEnv.SHAG_MATCH_ADMISSION = JSON.stringify(admission.manifest);
+    if (resultSecret) childEnv.SHAG_MATCH_RESULT_SECRET = resultSecret;
     const child = spawn("npx", args, {
       cwd: this.projectRoot,
       stdio: ["pipe", "pipe", "pipe"],
       shell: true,
+      env: childEnv,
     });
 
     const server: SpawnedServer = {
@@ -105,18 +152,39 @@ export class GameServerSpawner {
       gametype: config.gametype,
       url: buildPublicGameServerUrl(port),
       startedAt: Date.now(),
+      admissionTickets: admission?.tickets,
     };
 
-    // Wait for ready signal in stdout
-    await this.waitForReady(child, matchId, port);
+    // Wait for ready signal in stdout. A child that never gets there is killed
+    // rather than left running: the room has already been told the match failed.
+    try {
+      await this.waitForReady(child, matchId, port, (line) => {
+        if (!admission || !resultSecret || !this.activeServers.has(matchId)) return;
+        const report = verifyMatchResult(line, resultSecret, {
+          matchId,
+          map: config.map,
+          gametype: config.gametype,
+          startedAt: server.startedAt,
+          admission: admission.manifest,
+        });
+        if (report) this.onServerResult?.(report);
+        else console.warn(`[Spawner] Rejected result for match ${matchId}`);
+      });
+    } catch (error) {
+      console.warn(`[Spawner] Abandoning match ${matchId} on port ${port}:`, (error as Error).message);
+      abandonSpawnedChild(child);
+      throw error;
+    }
 
     this.activeServers.set(matchId, server);
+    if (admission) this.recoveryByMatch.set(matchId, admission.recoveryTickets);
     console.log(`[Spawner] Server ready: ${server.url} (match: ${matchId})`);
 
     // Monitor process exit
     child.on("exit", (code, signal) => {
       console.log(`[Spawner] Server exited: match=${matchId} code=${code} signal=${signal}`);
       this.activeServers.delete(matchId);
+      this.recoveryByMatch.delete(matchId);
       this.onServerExit?.(matchId, code);
     });
 
@@ -127,6 +195,7 @@ export class GameServerSpawner {
   async shutdown(matchId: string): Promise<void> {
     const server = this.activeServers.get(matchId);
     if (!server) {
+      this.recoveryByMatch.delete(matchId);
       console.log(`[Spawner] No server found for match: ${matchId}`);
       return;
     }
@@ -136,6 +205,7 @@ export class GameServerSpawner {
     return new Promise((resolve) => {
       server.process.on("exit", () => {
         this.activeServers.delete(matchId);
+        this.recoveryByMatch.delete(matchId);
         resolve();
       });
 
@@ -148,6 +218,7 @@ export class GameServerSpawner {
           console.warn(`[Spawner] Force-killing server: match=${matchId}`);
           server.process.kill("SIGKILL");
           this.activeServers.delete(matchId);
+          this.recoveryByMatch.delete(matchId);
           resolve();
         }
       }, 5000);
@@ -165,8 +236,24 @@ export class GameServerSpawner {
     return [...this.activeServers.values()];
   }
 
+  /** Privately release one reserved credential to its original verified account. */
+  reissueUnclaimedSeat(
+    matchId: string,
+    accountId: number,
+    now = Date.now(),
+  ): { admissionTicket: string; serverUrl: string } | null {
+    const server = this.activeServers.get(matchId);
+    const byAccount = this.recoveryByMatch.get(matchId);
+    const reserved = byAccount?.get(accountId);
+    if (!server || !reserved || now < reserved.availableAt || now > reserved.expiresAt) return null;
+    byAccount!.delete(accountId);
+    return { admissionTicket: reserved.ticket, serverUrl: server.url };
+  }
+
   /** Callback when a server exits (set by LobbyServer) */
   onServerExit: ((matchId: string, code: number | null) => void) | null = null;
+  /** Only authenticated reports with an exact issued-seat roster reach the lobby. */
+  onServerResult: ((result: MatchResultReport) => void) | null = null;
 
   // ── Internal ─────────────────────────────────────────────────
 
@@ -184,28 +271,34 @@ export class GameServerSpawner {
     return `m_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
   }
 
-  private waitForReady(child: ChildProcess, matchId: string, port: number): Promise<void> {
+  private waitForReady(
+    child: ChildProcess,
+    matchId: string,
+    port: number,
+    onResult?: (line: string) => void,
+  ): Promise<void> {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         reject(new Error(`[Spawner] Server start timed out (match: ${matchId})`));
-      }, 30000); // 30s timeout
+      }, SPAWN_READY_TIMEOUT_MS);
 
-      let output = "";
+      let pending = "";
 
       const onData = (data: Buffer) => {
-        const text = data.toString();
-        output += text;
-        // Forward server output with prefix
-        for (const line of text.split("\n")) {
-          if (line.trim()) {
-            console.log(`  [Server:${port}] ${line.trim()}`);
+        pending += data.toString();
+        // Child writes can split a result across chunks; cap an unfinished line.
+        if (pending.length > 16_384) pending = "";
+        let end = pending.indexOf("\n");
+        while (end >= 0) {
+          const line = pending.slice(0, end).trim();
+          pending = pending.slice(end + 1);
+          if (line.startsWith(RESULT_PREFIX)) onResult?.(line);
+          else if (line) console.log(`  [Server:${port}] ${line}`);
+          if (line.includes("Ready for connections") || line.includes("Server ready on")) {
+            clearTimeout(timeout);
+            resolve();
           }
-        }
-
-        // Look for the ready signal
-        if (output.includes("Ready for connections") || output.includes("Server ready on")) {
-          clearTimeout(timeout);
-          resolve();
+          end = pending.indexOf("\n");
         }
       };
 

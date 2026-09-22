@@ -1,0 +1,763 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Lobby prototype — 3D keys</title>
+
+<style>
+@font-face { font-family: "Orbitron"; src: url("/engine/fonts/Orbitron/static/Orbitron-Bold.ttf") format("truetype"); font-weight: 700; font-display: block; }
+@font-face { font-family: "Orbitron"; src: url("/engine/fonts/Orbitron/static/Orbitron-ExtraBold.ttf") format("truetype"); font-weight: 800; font-display: block; }
+@font-face { font-family: "Orbitron"; src: url("/engine/fonts/Orbitron/static/Orbitron-Black.ttf") format("truetype"); font-weight: 900; font-display: block; }
+@font-face { font-family: "Rajdhani"; src: url("/engine/fonts/Rajdhani/Rajdhani-SemiBold.ttf") format("truetype"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "Rajdhani"; src: url("/engine/fonts/Rajdhani/Rajdhani-Bold.ttf") format("truetype"); font-weight: 700; font-display: swap; }
+
+:root {
+  --ink: hsl(250 45% 7%);
+  --cream: hsl(45 100% 95%);
+  --gold-text: hsl(46 100% 60%);
+  --violet: hsl(276 90% 64%);
+  --display: "Orbitron", monospace;
+  --body: "Rajdhani", sans-serif;
+
+  --depth: 6px;       /* how far every key stands off its tray */
+  --iso: 0.75;        /* oblique extrusion: the side shows below and to the right */
+  --rail-w: 26%;
+  --rail-skew: 44px;
+
+  /* Stage accent, set per gametype */
+  --a: hsl(182 95% 52%);
+  --a-hi: hsl(182 100% 74%);
+  --a-lo: hsl(188 90% 40%);
+  --a-side-hi: hsl(192 85% 28%);
+  --a-side-lo: hsl(198 80% 17%);
+}
+
+* { box-sizing: border-box; }
+
+/* The ground behind the stage: a deep blue, lifted by the stage's drifting light */
+:root { --ground: linear-gradient(165deg, hsl(222 56% 17%), hsl(217 58% 24%) 55%, hsl(224 52% 16%)); }
+html, body { height: 100%; }
+body {
+  margin: 0; overflow: hidden;
+  background: var(--ground); color: var(--cream); font-family: var(--body);
+}
+.shell { position: relative; display: flex; height: 100vh; }
+
+/* ═══════════════════════════════ 3D KEY ═══════════════════════════════
+   Two layers with the same sharp cut: the face, and the side it stands on.
+   clip-path cuts away anything outside the polygon, shadows included, so the
+   depth is a real layer and the cast shadow lives on the unclipped parent.
+   --press moves the face: negative lifts it off the side, 1 sinks it flat. */
+.k {
+  --d: var(--depth);
+  --dx: calc(var(--d) * var(--iso));
+  --cut: 3%;
+  --press: 0;
+
+  --face: linear-gradient(180deg, hsl(51 100% 73%), hsl(46 100% 58%) 55%, hsl(42 100% 50%));
+  --side: linear-gradient(180deg, hsl(36 92% 40%), hsl(28 88% 25%));
+  --text: hsl(250 45% 8%);
+  --sub: hsla(250, 45%, 8%, 0.62);
+  --shadow: hsla(28, 90%, 14%, 0.42);
+
+  position: relative; display: block; width: 100%;
+  margin: 0 0 calc(var(--d) + 8px);
+  padding: 0; border: 0; background: none; color: inherit;
+  font: inherit; text-align: left; cursor: pointer;
+  -webkit-tap-highlight-color: transparent; outline: none;
+  filter: drop-shadow(
+    calc(var(--dx) * (1 - var(--press)) + 2px)
+    calc(var(--d) * (1 - var(--press)) + 5px)
+    9px var(--shadow)
+  );
+  transition: filter .14s ease;
+}
+.k-side,
+.k-face { clip-path: polygon(var(--cut) 0, 100% 0, calc(100% - var(--cut)) 100%, 0 100%); }
+.k-side {
+  position: absolute; inset: 0; z-index: 0;
+  background: var(--side);
+  transform: translate(var(--dx), var(--d));
+}
+.k-face {
+  position: relative; z-index: 1;
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  min-height: 60px; padding: 14px 22px 14px 26px;
+  background: var(--face); color: var(--text);
+  transform: translate(calc(var(--dx) * var(--press)), calc(var(--d) * var(--press)));
+  transition: transform .15s cubic-bezier(.2, .9, .3, 1.25);
+}
+/* Lit top edge: the bevel that makes it a key rather than a card */
+.k-face::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px;
+  background: hsla(0, 0%, 100%, 0.55); pointer-events: none;
+}
+.k-face::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px;
+  background: hsla(250, 60%, 5%, 0.14); pointer-events: none;
+}
+
+.k-label { font: 900 20px/1 var(--display); letter-spacing: 0.07em; text-transform: uppercase; }
+.k-hint  { font: 700 13px/1 var(--body); letter-spacing: 0.12em; text-transform: uppercase; color: var(--sub); white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── Variants ── */
+.k--nav .k-face { min-height: 66px; padding: 17px 24px 17px 28px; }
+.k--nav .k-label { font-size: clamp(15px, 1.1vw, 21px); }
+
+.k--sm { --d: calc(var(--depth) * 0.6); margin-bottom: calc(var(--d) + 6px); }
+.k--sm .k-face { min-height: 46px; padding: 10px 16px 10px 20px; gap: 10px; }
+.k--sm .k-label { font-size: 14px; }
+
+.k--cream {
+  --face: linear-gradient(180deg, hsl(45 100% 97%), hsl(42 62% 90%) 60%, hsl(40 42% 82%));
+  --side: linear-gradient(180deg, hsl(36 26% 60%), hsl(30 22% 42%));
+}
+
+/* Gametype tile: a big slab, cream at rest, its own colour once picked */
+.k--mode {
+  --d: calc(var(--depth) * 1.5);
+  --cut: 2.2%;
+  --face: linear-gradient(180deg, hsl(45 100% 97%), hsl(42 58% 89%) 62%, hsl(40 40% 80%));
+  --side: linear-gradient(180deg, hsl(36 24% 56%), hsl(30 20% 38%));
+  --shadow: hsla(250, 70%, 2%, 0.6);
+}
+.k--mode .k-face {
+  min-height: 176px; padding: 18px 26px 22px 40px;
+  flex-direction: column; align-items: stretch; justify-content: space-between;
+}
+.k--mode.is-picked {
+  --press: -0.5;
+  --face: linear-gradient(180deg, var(--a-hi), var(--a) 58%, var(--a-lo));
+  --side: linear-gradient(180deg, var(--a-side-hi), var(--a-side-lo));
+  --sub: hsla(250, 45%, 8%, 0.66);
+}
+.tile-band { position: absolute; left: 0; top: 0; bottom: 0; width: 16px; background: var(--a); }
+.k--mode.is-picked .tile-band { background: var(--a-side-hi); }
+.tile-no { font: 800 13px/1 var(--display); letter-spacing: 0.14em; color: var(--sub); }
+.tile-main { display: flex; flex-direction: column; gap: 8px; }
+.tile-name { font: 900 clamp(28px, 2.6vw, 46px)/0.9 var(--display); letter-spacing: 0.02em; text-transform: uppercase; }
+.tile-sub { font: 700 14px/1 var(--body); letter-spacing: 0.18em; text-transform: uppercase; color: var(--sub); }
+
+/* The arcade key */
+.k--cta {
+  display: inline-block; width: auto;
+  --d: calc(var(--depth) * 1.6);
+  --cut: 5%;
+  --face: linear-gradient(180deg, var(--a-hi), var(--a) 58%, var(--a-lo));
+  --side: linear-gradient(180deg, var(--a-side-hi), var(--a-side-lo));
+  --shadow: hsla(250, 70%, 3%, 0.62);
+}
+.k--cta .k-face { min-height: 90px; padding: 0 66px 0 60px; justify-content: center; }
+.k--cta .k-label { font-size: 30px; letter-spacing: 0.1em; }
+
+.k--util .k-face { justify-content: center; min-height: 40px; padding: 8px 10px; }
+.k--util .k-label { font: 800 11px/1 var(--display); letter-spacing: 0.12em; }
+
+.k--send { width: auto; flex: 0 0 auto; margin: 0 calc(var(--dx) + 2px) var(--d) 0; }
+.k--send .k-face { min-height: 44px; padding: 0 22px 0 24px; }
+.k--send .k-label { font-size: 13px; letter-spacing: 0.12em; }
+
+/* ── States: order matters, later rules win ties ── */
+.k:hover,
+.k:focus-visible {
+  --press: -0.35;
+  --face: linear-gradient(180deg, hsl(278 92% 75%), hsl(273 80% 61%) 55%, hsl(268 72% 50%));
+  --side: linear-gradient(180deg, hsl(266 72% 34%), hsl(258 72% 19%));
+  --text: hsl(45 100% 96%);
+  --sub: hsla(45, 100%, 96%, 0.72);
+  --shadow: hsla(268, 80%, 14%, 0.5);
+}
+.k--mode.is-picked:hover,
+.k--mode.is-picked:focus-visible {
+  --press: -0.75;
+  --face: linear-gradient(180deg, var(--a-hi), var(--a) 58%, var(--a-lo));
+  --side: linear-gradient(180deg, var(--a-side-hi), var(--a-side-lo));
+  --text: hsl(250 45% 8%);
+  --sub: hsla(250, 45%, 8%, 0.66);
+}
+.k:active {
+  --press: 1;
+  --face: linear-gradient(180deg, hsl(272 76% 58%), hsl(266 70% 45%));
+}
+.k--mode.is-picked:active {
+  --press: 1;
+  --face: linear-gradient(180deg, var(--a), var(--a-lo));
+}
+.k:active .k-face { transition-duration: .05s; transition-timing-function: ease-out; }
+.k:active { transition-duration: .05s; }
+
+/* Current page: a latched key, pressed in and inked */
+.k.is-on,
+.k.is-on:hover,
+.k.is-on:focus-visible,
+.k.is-on:active {
+  --press: 0.62;
+  --face: linear-gradient(180deg, hsl(250 28% 21%), hsl(250 40% 10%) 60%, hsl(252 44% 6%));
+  --side: linear-gradient(180deg, hsl(252 44% 5%), hsl(252 44% 3%));
+  --text: var(--gold-text);
+  --sub: hsla(46, 100%, 60%, 0.66);
+}
+
+/* ═══════════════════════════════ RAIL ═══════════════════════════════ */
+.rail {
+  position: relative; z-index: 2; flex: 0 0 var(--rail-w);
+  display: flex; flex-direction: column;
+  padding: 22px 0 18px;
+  background:
+    radial-gradient(120% 55% at 25% 0%, hsla(54, 100%, 78%, 0.55), transparent 62%),
+    linear-gradient(172deg, hsl(46 100% 57%), hsl(41 96% 48%));
+  clip-path: polygon(0 0, 100% 0, calc(100% - var(--rail-skew)) 100%, 0 100%);
+  overflow: hidden;
+}
+.rail::after {
+  content: ""; position: absolute; top: 0; bottom: 0; right: 0; z-index: 3;
+  width: calc(var(--rail-skew) + 8px);
+  background: linear-gradient(180deg, hsl(276 90% 64%), hsl(262 75% 42%));
+  clip-path: polygon(calc(100% - 8px) 0, 100% 0, calc(100% - var(--rail-skew)) 100%, calc(100% - var(--rail-skew) - 8px) 100%);
+}
+.rail > * { position: relative; z-index: 1; }
+.rail-kanji {
+  position: absolute !important; z-index: 0 !important; right: 12%; bottom: 17%;
+  font: 400 clamp(180px, 19vw, 300px)/0.8 serif;
+  color: hsla(30, 90%, 22%, 0.1); pointer-events: none; user-select: none;
+}
+
+.brand { padding: 0 calc(var(--rail-skew) + 16px) 16px 22px; }
+.brand-logo {
+  display: block; width: 100%; max-width: 420px; height: auto;
+  filter: drop-shadow(0 6px 10px hsla(28, 90%, 14%, 0.35));
+}
+
+.rail-label {
+  padding: 0 24px; margin: 6px 0 12px;
+  font: 700 11px/1 var(--body); letter-spacing: 0.26em; text-transform: uppercase;
+  color: hsla(250, 45%, 8%, 0.62);
+}
+.rail-keys { display: flex; flex-direction: column; padding: 0 calc(var(--rail-skew) + 18px) 0 22px; }
+
+.live-dot {
+  display: inline-block; width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%;
+  background: hsl(322 100% 58%); box-shadow: 0 0 8px hsl(322 100% 58%);
+}
+.live-count { margin-left: auto; }
+.join {
+  padding: 4px 11px; background: var(--ink); color: var(--gold-text);
+  font: 900 11px/1 var(--display); letter-spacing: 0.1em;
+  clip-path: polygon(8% 0, 100% 0, 92% 100%, 0 100%);
+}
+
+/* ── Lobby list: takes whatever height the rail has left, and scrolls ── */
+.lobby-head { display: flex; justify-content: space-between; padding-right: calc(var(--rail-skew) + 26px); }
+.lobby-list {
+  flex: 1; min-height: 0;
+  overflow-y: auto; overflow-x: hidden;
+  /* The box ends before the slanted edge: the rail's clip would otherwise cut
+     the scrollbar off, since it sits on the box's right edge. */
+  margin-right: calc(var(--rail-skew) + 12px);
+  padding: 8px 14px 16px 22px;   /* room for the hover lift, the side, the shadow */
+  scrollbar-width: thin;
+  scrollbar-color: hsla(250, 45%, 8%, 0.45) transparent;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 12px, #000 calc(100% - 18px), transparent);
+          mask-image: linear-gradient(to bottom, transparent, #000 12px, #000 calc(100% - 18px), transparent);
+}
+.lobby-list > .k { flex-shrink: 0; }
+
+.lobby .k-face { gap: 10px; }
+.lobby-dot {
+  width: 10px; height: 10px; flex: 0 0 10px;
+  background: var(--mode);
+  clip-path: polygon(22% 0, 100% 0, 78% 100%, 0 100%);
+}
+.lobby--playing .lobby-dot { animation: lobby-pulse 1.6s ease-in-out infinite; }
+@keyframes lobby-pulse { 50% { opacity: 0.3; } }
+.lobby .k-label { flex: 0 0 66px; }
+.lobby-map {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font: 700 13px/1 var(--body); letter-spacing: 0.06em; color: var(--sub);
+}
+.lobby--waiting .lobby-map { font-style: italic; }
+.lobby-count { flex: 0 0 auto; min-width: 42px; text-align: right; font-variant-numeric: tabular-nums; }
+
+.badge {
+  flex: 0 0 auto; min-width: 54px; padding: 4px 10px; text-align: center;
+  font: 900 10px/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase;
+  background: var(--ink); color: var(--gold-text);
+  clip-path: polygon(8% 0, 100% 0, 92% 100%, 0 100%);
+}
+.badge--watch { background: hsla(322, 90%, 52%, 0.16); color: hsl(322 85% 38%); }
+.badge--full  { background: hsla(250, 45%, 8%, 0.1); color: hsla(250, 45%, 8%, 0.45); }
+.lobby:hover .badge--watch, .lobby:focus-visible .badge--watch,
+.lobby:hover .badge--full,  .lobby:focus-visible .badge--full {
+  background: hsla(0, 0%, 100%, 0.16); color: hsla(45, 100%, 96%, 0.85);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lobby--playing .lobby-dot { animation: none; }
+}
+
+.player {
+  display: flex; align-items: center; gap: 12px;
+  margin: 0 calc(var(--rail-skew) + 18px) 18px 22px; padding: 12px 16px;
+  background: hsla(250, 45%, 7%, 0.92); color: var(--cream);
+  clip-path: polygon(3% 0, 100% 0, 97% 100%, 0 100%);
+}
+.player-avatar {
+  width: 38px; height: 38px; flex: 0 0 38px;
+  background: linear-gradient(135deg, hsl(182 95% 55%), var(--violet));
+  clip-path: polygon(14% 0, 100% 8%, 88% 100%, 0 90%);
+}
+.player-name { font: 800 14px/1.2 var(--display); letter-spacing: 0.05em; }
+.player-meta { font: 600 12px/1.2 var(--body); letter-spacing: 0.08em; color: hsla(45, 100%, 95%, 0.55); }
+
+.util { flex-direction: row; gap: 10px; }
+.util .k { flex: 1; width: auto; }
+
+/* ═══════════════════════════════ STAGE ═══════════════════════════════ */
+/* The stage slides under the rail's slanted edge (the rail sits above it), so the
+   light and the backdrop word run up to the diagonal instead of stopping at the
+   rail's rectangular box on a vertical line. */
+.stage {
+  flex: 1; min-width: 0; position: relative; overflow: hidden;
+  display: flex; flex-direction: column; gap: 22px;
+  margin-left: calc(-1 * var(--rail-skew));
+  padding: 30px 52px 24px calc(28px + var(--rail-skew));
+}
+.stage > :not(.fx):not(.ghost) { position: relative; z-index: 1; }
+
+/* Drifting light: three blurred fields wandering slowly behind everything.
+   Only transform animates, so the blur is rasterised once and moved. */
+.fx { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+.orb {
+  position: absolute; top: 0; left: 0; border-radius: 50%;
+  filter: blur(90px); will-change: transform;
+}
+.orb--accent {
+  width: 640px; height: 640px; opacity: 0.24;
+  background-color: var(--a);
+  transition: background-color 1.4s ease;
+  animation: drift-a 38s ease-in-out infinite alternate;
+}
+.orb--violet {
+  width: 760px; height: 760px; opacity: 0.22;
+  background-color: hsl(276 90% 56%);
+  animation: drift-b 47s ease-in-out infinite alternate;
+}
+.orb--deep {
+  width: 560px; height: 560px; opacity: 0.2;
+  background-color: hsl(232 85% 52%);
+  animation: drift-c 31s ease-in-out infinite alternate;
+}
+@keyframes drift-a {
+  0%   { transform: translate(40vw, -20vh) scale(1); }
+  30%  { transform: translate(16vw, 20vh) scale(1.15); }
+  65%  { transform: translate(44vw, 36vh) scale(0.9); }
+  100% { transform: translate(6vw, 2vh) scale(1.05); }
+}
+@keyframes drift-b {
+  0%   { transform: translate(-14vw, 34vh) scale(1); }
+  35%  { transform: translate(26vw, 54vh) scale(1.1); }
+  70%  { transform: translate(40vw, 4vh) scale(0.95); }
+  100% { transform: translate(2vw, 44vh) scale(1.08); }
+}
+@keyframes drift-c {
+  0%   { transform: translate(48vw, 52vh) scale(1); }
+  40%  { transform: translate(20vw, 62vh) scale(1.2); }
+  75%  { transform: translate(4vw, 18vh) scale(0.9); }
+  100% { transform: translate(34vw, 28vh) scale(1); }
+}
+
+/* The mode name, huge and hollow, bleeding off the bottom-left */
+.ghost {
+  position: absolute; z-index: 0; left: -1%; bottom: -4%;
+  font: 900 clamp(200px, 25vw, 440px)/0.78 var(--display); letter-spacing: -0.04em;
+  white-space: nowrap; color: transparent;
+  -webkit-text-stroke: 2px color-mix(in srgb, var(--a) 26%, transparent);
+  pointer-events: none; user-select: none;
+}
+
+.kicker { font: 700 12px/1 var(--body); letter-spacing: 0.32em; text-transform: uppercase; color: var(--a); }
+.title {
+  margin: 8px 0 0; font: 900 clamp(40px, 4.4vw, 74px)/0.92 var(--display);
+  color: var(--cream); text-shadow: 5px 6px 0 hsl(250 50% 3%);
+}
+
+/* One equal column per mode, however many modes there are */
+.tiles { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 24px; margin-top: 10px; }
+
+/* Lower half: the mode on the left, the room on the right */
+.lower {
+  flex: 1; min-height: 0;
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.12fr); gap: 42px;
+}
+
+.detail { align-self: start; display: flex; flex-direction: column; gap: 16px; }
+.tagline { margin: 0; max-width: 40ch; font: 600 24px/1.2 var(--body); color: hsla(45, 100%, 95%, 0.9); }
+.specs { display: flex; gap: 10px; flex-wrap: wrap; }
+.spec {
+  padding: 7px 15px; font: 700 12px/1 var(--body); letter-spacing: 0.14em; text-transform: uppercase;
+  color: hsla(45, 100%, 95%, 0.82); background: hsla(250, 40%, 12%, 0.82);
+  border: 1px solid color-mix(in srgb, var(--a) 38%, transparent);
+  clip-path: polygon(7% 0, 100% 0, 93% 100%, 0 100%);
+}
+.cta-row { margin-top: 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 30px; }
+/* Private lobby: the quieter way in, beside the big key */
+.k--private { width: auto; --d: calc(var(--depth) * 1.1); }
+.k--private .k-face { min-height: 64px; padding: 0 30px 0 32px; flex-direction: column; align-items: flex-start; justify-content: center; gap: 7px; }
+.k--private .k-label { font-size: 16px; letter-spacing: 0.1em; }
+
+/* ── Lobby chat ── */
+.chat-panel {
+  min-height: 0; display: flex; flex-direction: column;
+  padding: 16px 20px 16px 22px;
+  background: linear-gradient(180deg, hsla(250, 40%, 11%, 0.72), hsla(250, 44%, 7%, 0.82));
+  border: 1.5px solid hsla(276, 90%, 64%, 0.32);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  clip-path: polygon(0 0, calc(100% - 22px) 0, 100% 22px, 100% 100%, 0 100%);
+}
+.chat-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding-bottom: 12px; margin-bottom: 6px;
+  border-bottom: 1px solid hsla(276, 90%, 64%, 0.2);
+}
+.chat-title { font: 900 14px/1 var(--display); letter-spacing: 0.16em; text-transform: uppercase; color: var(--cream); }
+.chat-online {
+  display: inline-flex; align-items: center; gap: 8px;
+  font: 700 12px/1 var(--body); letter-spacing: 0.14em; text-transform: uppercase;
+  color: hsla(45, 100%, 95%, 0.55);
+}
+
+.chat-log {
+  flex: 1; min-height: 0; overflow-y: auto; padding: 6px 4px 6px 0;
+  scrollbar-width: thin; scrollbar-color: hsla(276, 90%, 64%, 0.45) transparent;
+}
+.msg {
+  display: grid; grid-template-columns: 46px auto 1fr; gap: 12px; align-items: baseline;
+  padding: 6px 8px 6px 4px;
+  font: 600 16px/1.35 var(--body); color: hsla(45, 100%, 95%, 0.9);
+}
+.msg .t { font: 700 11px/1 var(--body); letter-spacing: 0.08em; color: hsla(45, 100%, 95%, 0.3); }
+.msg .who { font: 800 13px/1 var(--display); letter-spacing: 0.04em; color: var(--c, hsl(182 95% 60%)); white-space: nowrap; }
+.msg--me { background: linear-gradient(90deg, hsla(46, 100%, 60%, 0.1), transparent 70%); }
+.msg--me .who { color: var(--gold-text); }
+.msg--sys { grid-template-columns: 46px 1fr; font-size: 14px; font-style: italic; color: hsla(45, 100%, 95%, 0.45); }
+.msg--sys .txt::before { content: "◆  "; font-style: normal; color: hsl(276 90% 72%); }
+.msg--new { animation: msg-in .22s ease-out; }
+@keyframes msg-in { from { opacity: 0; transform: translateY(8px); } }
+
+.chat-form { display: flex; align-items: center; gap: 14px; padding-top: 12px; margin-top: 6px; border-top: 1px solid hsla(276, 90%, 64%, 0.2); }
+.chat-input {
+  flex: 1; min-width: 0; height: 44px; padding: 0 16px;
+  background: hsla(250, 44%, 5%, 0.8); color: var(--cream);
+  border: 1.5px solid hsla(276, 90%, 64%, 0.28); outline: none;
+  font: 600 16px/1 var(--body);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+  transition: border-color .14s ease;
+}
+.chat-input::placeholder { color: hsla(45, 100%, 95%, 0.38); }
+.chat-input:focus { border-color: var(--violet); }
+
+/* ═══════════════════════════════ PROTOTYPE CONTROLS ═══════════════════════════════ */
+.proto {
+  position: fixed; z-index: 50; top: 0; left: 63%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 4px; padding: 5px 10px;
+  background: hsla(250, 45%, 4%, 0.9); border: 1px solid hsla(276, 90%, 64%, 0.4);
+  font: 700 11px/1 var(--body); letter-spacing: 0.16em; text-transform: uppercase; color: hsla(45, 100%, 95%, 0.45);
+}
+.proto .sep { width: 1px; height: 18px; margin: 0 8px; background: hsla(276, 90%, 64%, 0.35); }
+.proto button, .proto a {
+  padding: 5px 9px; border: 0; background: none; cursor: pointer; text-decoration: none;
+  font: inherit; letter-spacing: 0.1em; color: hsla(45, 100%, 95%, 0.7);
+}
+.proto button:hover, .proto a:hover { color: var(--cream); background: hsla(276, 90%, 64%, 0.25); }
+.proto button.is-on { background: var(--gold-text); color: var(--ink); }
+
+@media (prefers-reduced-motion: reduce) {
+  .k, .k-face { transition: none; }
+  .orb { animation: none; }
+  .msg--new { animation: none; }
+}
+</style>
+</head>
+
+<body>
+<div class="proto" aria-label="Prototype controls">
+  Pages <a href="welcome.html">Welcome</a><a href="lobby-room.html">Room</a><a href="settings.html">Settings</a><a href="leaderboard.html">Leaderboard</a><a href="demos.html">Demos</a>
+</div>
+
+<div class="shell">
+
+  <nav class="rail">
+    <div class="rail-kanji">闘</div>
+
+    <div class="brand"><img class="brand-logo" src="/data/washoi.png" alt="Washiki Washoi" /></div>
+
+    <div class="rail-keys">
+      <button class="k k--nav is-on">
+        <span class="k-side"></span>
+        <span class="k-face"><span class="k-label">Play</span><span class="k-hint">4 modes</span></span>
+      </button>
+      <a class="k k--nav" href="leaderboard.html">
+        <span class="k-side"></span>
+        <span class="k-face"><span class="k-label">Leaderboard</span><span class="k-hint">Top players</span></span>
+      </a>
+      <a class="k k--nav" href="demos.html">
+        <span class="k-side"></span>
+        <span class="k-face"><span class="k-label">Demos</span><span class="k-hint">Replays</span></span>
+      </a>
+    </div>
+
+    <div class="rail-label lobby-head"><span>Lobbies</span><span id="lobbyCount"></span></div>
+    <div class="rail-keys lobby-list" id="lobbyList"></div>
+
+    <div class="player">
+      <div class="player-avatar"></div>
+      <div><div class="player-name" id="playerName">sundflux</div><div class="player-meta">In lobby</div></div>
+    </div>
+
+    <div class="rail-keys util">
+      <button class="k k--sm k--util"><span class="k-side"></span><span class="k-face"><span class="k-label">Profile</span></span></button>
+      <button class="k k--sm k--util"><span class="k-side"></span><span class="k-face"><span class="k-label">Settings</span></span></button>
+      <button class="k k--sm k--util"><span class="k-side"></span><span class="k-face"><span class="k-label">Console</span></span></button>
+    </div>
+  </nav>
+
+  <main class="stage" id="stage">
+    <div class="fx" aria-hidden="true">
+      <div class="orb orb--violet"></div>
+      <div class="orb orb--deep"></div>
+      <div class="orb orb--accent"></div>
+    </div>
+    <div class="ghost" id="ghost" aria-hidden="true">DUEL</div>
+
+    <header>
+      <div class="kicker">Play</div>
+      <h1 class="title">Pick your fight</h1>
+    </header>
+
+    <div class="tiles">
+      <button class="k k--mode is-picked" data-mode="duel"
+        style="--a: hsl(182 95% 52%); --a-hi: hsl(182 100% 74%); --a-lo: hsl(188 90% 40%); --a-side-hi: hsl(192 85% 28%); --a-side-lo: hsl(198 80% 17%)">
+        <span class="k-side"></span>
+        <span class="k-face">
+          <span class="tile-band"></span>
+          <span class="tile-no">01</span>
+          <span class="tile-main"><span class="tile-name">Duel</span><span class="tile-sub">1 vs 1</span></span>
+        </span>
+      </button>
+      <button class="k k--mode" data-mode="amphi"
+        style="--a: hsl(100 85% 52%); --a-hi: hsl(98 95% 72%); --a-lo: hsl(108 80% 40%); --a-side-hi: hsl(115 70% 26%); --a-side-lo: hsl(125 65% 16%)">
+        <span class="k-side"></span>
+        <span class="k-face">
+          <span class="tile-band"></span>
+          <span class="tile-no">02</span>
+          <span class="tile-main"><span class="tile-name">Amphi</span><span class="tile-sub">Aim arena</span></span>
+        </span>
+      </button>
+      <button class="k k--mode" data-mode="ffa"
+        style="--a: hsl(46 100% 57%); --a-hi: hsl(51 100% 73%); --a-lo: hsl(41 100% 48%); --a-side-hi: hsl(34 90% 36%); --a-side-lo: hsl(28 85% 23%)">
+        <span class="k-side"></span>
+        <span class="k-face">
+          <span class="tile-band"></span>
+          <span class="tile-no">03</span>
+          <span class="tile-main"><span class="tile-name">FFA</span><span class="tile-sub">Free for all</span></span>
+        </span>
+      </button>
+      <button class="k k--mode" data-mode="snd"
+        style="--a: hsl(322 95% 62%); --a-hi: hsl(322 100% 77%); --a-lo: hsl(318 85% 50%); --a-side-hi: hsl(312 70% 33%); --a-side-lo: hsl(306 70% 21%)">
+        <span class="k-side"></span>
+        <span class="k-face">
+          <span class="tile-band"></span>
+          <span class="tile-no">04</span>
+          <span class="tile-main"><span class="tile-name">S&amp;D</span><span class="tile-sub">Search &amp; destroy</span></span>
+        </span>
+      </button>
+    </div>
+
+    <div class="lower">
+      <section class="detail">
+        <p class="tagline" id="tagline">Timing, aim, and nerve. Nothing extra.</p>
+        <div class="specs" id="specs">
+          <span class="spec">One on one</span><span class="spec">Control pace</span>
+          <span class="spec">Item timing</span><span class="spec">Rail · Rocket · Blade</span>
+        </div>
+        <div class="cta-row">
+          <button class="k k--cta" id="cta">
+            <span class="k-side"></span>
+            <span class="k-face"><span class="k-label" id="ctaLabel">Find Duel</span></span>
+          </button>
+          <button class="k k--cream k--private" id="privateBtn">
+            <span class="k-side"></span>
+            <span class="k-face"><span class="k-label">🔒 Private lobby</span><span class="k-hint">Invite by link only</span></span>
+          </button>
+        </div>
+      </section>
+
+      <section class="chat-panel" aria-label="Lobby chat">
+        <div class="chat-head">
+          <span class="chat-title">Lobby</span>
+          <span class="chat-online"><span class="live-dot"></span>9 online</span>
+        </div>
+
+        <div class="chat-log" id="chatLog">
+          <div class="msg msg--sys"><span class="t">21:02</span><span class="txt">Nova joined the lobby</span></div>
+          <div class="msg"><span class="t">21:02</span><span class="who" style="--c: hsl(182 95% 62%)">Nova</span><span class="txt">anyone up for a duel?</span></div>
+          <div class="msg"><span class="t">21:03</span><span class="who" style="--c: hsl(322 95% 70%)">Reaper</span><span class="txt">1v1 me on wdm2. rail only, no excuses</span></div>
+          <div class="msg msg--me"><span class="t">21:03</span><span class="who">sundflux</span><span class="txt">after this one, still warming up</span></div>
+          <div class="msg msg--sys"><span class="t">21:04</span><span class="txt">Duel on acidwdm2 started · Reaper vs Eclipse</span></div>
+          <div class="msg"><span class="t">21:05</span><span class="who" style="--c: hsl(125 70% 62%)">Shadow</span><span class="txt">s&amp;d needs three more, come on</span></div>
+          <div class="msg"><span class="t">21:05</span><span class="who" style="--c: hsl(276 90% 76%)">Fury</span><span class="txt">gg last round, that defuse with 0.2s left was filthy</span></div>
+          <div class="msg"><span class="t">21:06</span><span class="who" style="--c: hsl(28 100% 64%)">Titan</span><span class="txt">who keeps spamming GL in ffa lol</span></div>
+          <div class="msg"><span class="t">21:06</span><span class="who" style="--c: hsl(200 90% 68%)">Storm</span><span class="txt">guilty</span></div>
+          <div class="msg msg--sys"><span class="t">21:07</span><span class="txt">Wraith joined the lobby</span></div>
+          <div class="msg"><span class="t">21:07</span><span class="who" style="--c: hsl(350 90% 70%)">Wraith</span><span class="txt">evening all o/</span></div>
+          <div class="msg"><span class="t">21:08</span><span class="who" style="--c: hsl(182 95% 62%)">Nova</span><span class="txt">wraith, duel? loser buys the ramen</span></div>
+        </div>
+
+        <form class="chat-form" id="chatForm">
+          <input class="chat-input" id="chatInput" placeholder="Say something…" autocomplete="off" />
+          <button class="k k--sm k--send" type="submit">
+            <span class="k-side"></span>
+            <span class="k-face"><span class="k-label">Send</span></span>
+          </button>
+        </form>
+      </section>
+    </div>
+  </main>
+</div>
+
+<script>
+  const MODES = {
+    duel: { name: "Duel", line: "Timing, aim, and nerve. Nothing extra.",
+            specs: ["One on one", "Control pace", "Item timing", "Rail · Rocket · Blade"] },
+    ffa:  { name: "FFA", line: "Spawn hot, scrap hard, steal the lead.",
+            specs: ["Open pit", "Fast chaos", "Fast respawn", "GL · Rocket · Blade"] },
+    snd:  { name: "S&D", line: "Plant it, or make sure they never do.",
+            specs: ["5 vs 5 rounds", "One life", "Two sites", "Rocket · Bomb · Armor"] },
+    amphi: { name: "Amphi", line: "Tiny arena, three-minute rounds. Pick a kit, prove your aim.",
+             specs: ["1 vs 1", "3 min rounds", "Tiny maps", "Pick your loadout"] },
+  };
+  const ACCENT_VARS = ["--a", "--a-hi", "--a-lo", "--a-side-hi", "--a-side-lo"];
+  const stage = document.getElementById("stage");
+
+  function pick(tile) {
+    for (const t of document.querySelectorAll(".k--mode")) t.classList.toggle("is-picked", t === tile);
+    // The stage takes the picked tile's colours, so the CTA, backdrop and light follow it
+    for (const v of ACCENT_VARS) stage.style.setProperty(v, tile.style.getPropertyValue(v));
+    const m = MODES[tile.dataset.mode];
+    document.getElementById("ghost").textContent = m.name.toUpperCase();
+    document.getElementById("tagline").textContent = m.line;
+    document.getElementById("ctaLabel").textContent = `Find ${m.name}`;
+    const specs = document.getElementById("specs");
+    specs.replaceChildren(...m.specs.map((s) => Object.assign(document.createElement("span"), { className: "spec", textContent: s })));
+  }
+  for (const tile of document.querySelectorAll(".k--mode")) tile.addEventListener("click", () => pick(tile));
+
+  for (const key of document.querySelectorAll(".k--nav")) {
+    key.addEventListener("click", () => {
+      for (const n of document.querySelectorAll(".k--nav")) n.classList.toggle("is-on", n === key);
+    });
+  }
+
+  // Lobbies, in the shape of LiveMatchInfo (src/lobby/types.ts): one entry per
+  // lobby, "waiting" (seats open, no map yet) or "playing" (map chosen, and a
+  // server to spectate). Empty lobbies are left out, as the real list should.
+  const LOBBY_MODES = {
+    duel:  { name: "Duel",  color: "hsl(186 95% 42%)" },
+    amphi: { name: "Amphi", color: "hsl(104 80% 38%)" },
+    ffa:   { name: "FFA",   color: "hsl(38 100% 44%)" },
+    snd:   { name: "S&D",   color: "hsl(322 90% 52%)" },
+  };
+  const LOBBIES = [
+    { gametype: "duel",  state: "waiting", map: "",         playerCount: 1,  maxPlayers: 2 },
+    { gametype: "amphi", state: "waiting", map: "",         playerCount: 1,  maxPlayers: 2 },
+    { gametype: "ffa",   state: "waiting", map: "",         playerCount: 3,  maxPlayers: 8 },
+    { gametype: "snd",   state: "waiting", map: "",         playerCount: 6,  maxPlayers: 10 },
+    { gametype: "duel",  state: "waiting", map: "",         playerCount: 1,  maxPlayers: 2 },
+    { gametype: "ffa",   state: "waiting", map: "",         playerCount: 5,  maxPlayers: 8 },
+    { gametype: "snd",   state: "waiting", map: "",         playerCount: 9,  maxPlayers: 10 },
+    { gametype: "amphi", state: "waiting", map: "",         playerCount: 2,  maxPlayers: 2 },
+    { gametype: "duel",  state: "playing", map: "Aerowalk", playerCount: 2,  maxPlayers: 2 },
+    { gametype: "ffa",   state: "playing", map: "Brimstone",playerCount: 7,  maxPlayers: 8 },
+    { gametype: "snd",   state: "playing", map: "wbomb1",   playerCount: 10, maxPlayers: 10 },
+    { gametype: "amphi", state: "playing", map: "wamphi1",  playerCount: 2,  maxPlayers: 2 },
+    { gametype: "duel",  state: "playing", map: "wdm2",     playerCount: 2,  maxPlayers: 2 },
+    { gametype: "ffa",   state: "playing", map: "wdm6",     playerCount: 8,  maxPlayers: 8 },
+    { gametype: "snd",   state: "playing", map: "wbomb3",   playerCount: 8,  maxPlayers: 10 },
+    { gametype: "duel",  state: "playing", map: "acidwdm2", playerCount: 2,  maxPlayers: 2 },
+    { gametype: "amphi", state: "playing", map: "wamphi1",  playerCount: 2,  maxPlayers: 2 },
+    { gametype: "ffa",   state: "playing", map: "Brimstone",playerCount: 6,  maxPlayers: 8 },
+    { gametype: "duel",  state: "playing", map: "Aerowalk", playerCount: 2,  maxPlayers: 2 },
+    { gametype: "snd",   state: "playing", map: "wbomb1",   playerCount: 10, maxPlayers: 10 },
+  ];
+
+  const joinable = (l) => l.state === "waiting" && l.playerCount < l.maxPlayers;
+  const lobbyRank = (l) => (joinable(l) ? 0 : l.state === "waiting" ? 1 : 2);
+
+  function lobbyRow(l) {
+    const el = (tag, className, text = "") => Object.assign(document.createElement(tag), { className, textContent: text });
+    const mode = LOBBY_MODES[l.gametype];
+    const full = l.playerCount >= l.maxPlayers;
+    const [where, action] =
+      l.state === "playing" ? [l.map, "watch"] : full ? ["Starting", "full"] : ["Open", "join"];
+
+    const row = el("button", `k k--sm k--cream lobby lobby--${l.state}`);
+    row.style.setProperty("--mode", mode.color);
+    const face = el("span", "k-face");
+    face.append(
+      el("span", "lobby-dot"),
+      el("span", "k-label", mode.name),
+      el("span", "lobby-map", where),
+      el("span", "k-hint lobby-count", `${l.playerCount} / ${l.maxPlayers}`),
+      el("span", `badge badge--${action}`, action),
+    );
+    row.append(el("span", "k-side"), face);
+    return row;
+  }
+
+  // Joinable first, fewest seats left on top; then full lobbies about to start; then running matches
+  const sortedLobbies = [...LOBBIES].sort(
+    (a, b) => lobbyRank(a) - lobbyRank(b) || (a.maxPlayers - a.playerCount) - (b.maxPlayers - b.playerCount),
+  );
+  document.getElementById("lobbyList").replaceChildren(...sortedLobbies.map(lobbyRow));
+  document.getElementById("lobbyCount").textContent =
+    `${LOBBIES.filter(joinable).length} open · ${LOBBIES.length}`;
+
+  // Chat: a mock log, but typing into it works
+  const log = document.getElementById("chatLog");
+  log.scrollTop = log.scrollHeight;
+  document.getElementById("chatForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const input = document.getElementById("chatInput");
+    const text = input.value.trim();
+    if (!text) return;
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, "0");
+    const span = (className, textContent) => Object.assign(document.createElement("span"), { className, textContent });
+    const msg = document.createElement("div");
+    msg.className = "msg msg--me msg--new";
+    msg.append(span("t", `${pad(now.getHours())}:${pad(now.getMinutes())}`), span("who", "sundflux"), span("txt", text));
+    log.append(msg);
+    log.scrollTop = log.scrollHeight;
+    input.value = "";
+  });
+
+  // The name picked on the welcome page, if there is one
+  try {
+    const saved = JSON.parse(localStorage.getItem("proto-player"));
+    if (saved?.name) document.getElementById("playerName").textContent = saved.name;
+  } catch {}
+
+  // Profile holds the player key
+  document.querySelector(".util .k").addEventListener("click", () => { location.href = "welcome.html?screen=key"; });
+  document.querySelectorAll(".util .k")[1].addEventListener("click", () => { location.href = "settings.html"; });
+
+  // Find, and for now Private too: into the room for the picked mode
+  for (const id of ["cta", "privateBtn"]) {
+    document.getElementById(id).addEventListener("click", () => {
+      location.href = `lobby-room.html?mode=${document.querySelector(".k--mode.is-picked").dataset.mode}`;
+    });
+  }
+</script>
+</body>
+</html>

@@ -3,9 +3,12 @@
  *
  * Usage:
  *   name              → Show current name
- *   name <newname>    → Set new name (persists to profile)
+ *   name <newname>    → Rename your account when logged in to the lobby;
+ *                       otherwise set the name for local play only
  */
 
+import { currentIdentity, renameAccount, renameFailureText } from "../../../lobby/AccountSession";
+import { NAME_PATTERN } from "../../../lobby/PlayerIdentity";
 import { PlayerProfile } from "../../player/PlayerProfile";
 import { Command, type CommandDef } from "../Command";
 
@@ -18,23 +21,28 @@ export default class NameCommand extends Command {
 
   async execute(args: string[]): Promise<string | undefined> {
     const profile = PlayerProfile.load();
+    const account = currentIdentity();
 
     if (args.length === 0) {
-      return `Player name: ${profile.name}  (id: ${profile.id.substring(0, 8)}...)`;
+      return account
+        ? `Player name: ${account.name}  (account ${account.id})`
+        : `Player name: ${profile.name}  (not logged in to the lobby)`;
     }
 
     const newName = args.join(" ").trim();
-    if (newName.length === 0) {
-      return "Name cannot be empty.";
+    if (!NAME_PATTERN.test(newName)) {
+      return renameFailureText("name_invalid");
     }
-    if (newName.length > 32) {
-      return "Name too long (max 32 characters).";
+
+    // Logged in: the account owns the name, and the profile follows it
+    if (account) {
+      const outcome = await renameAccount(newName);
+      return outcome.ok ? `Name changed: ${account.name} → ${outcome.identity.name}` : renameFailureText(outcome.code);
     }
 
     const oldName = profile.name;
     profile.name = newName;
     profile.save();
-
-    return `Name changed: ${oldName} → ${newName}`;
+    return `Name changed for local play: ${oldName} → ${newName}. Online, your account's name is used; rename again once logged in to the lobby.`;
   }
 }

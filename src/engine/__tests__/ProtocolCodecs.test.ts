@@ -193,6 +193,15 @@ describe("MessageCodec — all message types", () => {
       expect(MessageCodec.decodeJoin(MessageCodec.encodeJoin("Alice")).isBot).toBe(false);
       expect(MessageCodec.decodeJoin(MessageCodec.encodeJoin("Botty", true)).isBot).toBe(true);
     });
+
+    it("roundtrips an optional admission ticket without changing older joins", () => {
+      expect(MessageCodec.decodeJoin(MessageCodec.encodeJoin("Alice")).admissionTicket).toBeUndefined();
+      expect(MessageCodec.decodeJoin(MessageCodec.encodeJoin("Alice", false, "seat-token"))).toMatchObject({
+        playerName: "Alice",
+        isBot: false,
+        admissionTicket: "seat-token",
+      });
+    });
   });
 
   describe("JoinAccept", () => {

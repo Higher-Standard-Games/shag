@@ -445,6 +445,57 @@
   padding: 16px clamp(18px, 4vw, 48px) 22px;
 }
 
+/* The lobby opts into a full-viewport rail and stage. Other panels keep the
+   floating frame above. */
+.game-panel--rail {
+  flex-direction: row;
+  background: linear-gradient(165deg, hsl(222, 56%, 17%), hsl(217, 58%, 24%) 55%, hsl(224, 52%, 16%));
+}
+
+.game-panel--rail > .game-panel__blur-top,
+.game-panel--rail > .game-panel__blur-bot,
+.game-panel--rail > .game-panel__divider,
+.game-panel--rail .game-panel__header,
+.game-panel--rail .game-panel__footer,
+.game-panel--rail .game-panel__kanji,
+.game-panel--rail .game-panel__scan,
+.game-panel--rail .game-panel__particles {
+  display: none;
+}
+
+.game-panel--rail .game-panel__center {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
+.game-panel--rail .game-panel__center::before,
+.game-panel--rail .game-panel__center::after {
+  content: none;
+}
+
+.game-panel--rail .game-panel__content {
+  min-height: 0;
+  padding: 0;
+}
+
+.game-panel--rail .game-panel__scroll {
+  max-width: none;
+  min-height: 0;
+  padding: 0;
+  mask-image: none;
+  -webkit-mask-image: none;
+}
+
+@media (max-width: 700px) {
+  .game-panel--rail {
+    flex-direction: column;
+  }
+}
+
 /* ============================================================================
    Settings-specific shared controls
    ============================================================================ */

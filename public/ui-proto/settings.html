@@ -1,0 +1,1817 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Settings prototype</title>
+
+<style>
+@font-face { font-family: "Orbitron"; src: url("/engine/fonts/Orbitron/static/Orbitron-Bold.ttf") format("truetype"); font-weight: 700; font-display: block; }
+@font-face { font-family: "Orbitron"; src: url("/engine/fonts/Orbitron/static/Orbitron-ExtraBold.ttf") format("truetype"); font-weight: 800; font-display: block; }
+@font-face { font-family: "Orbitron"; src: url("/engine/fonts/Orbitron/static/Orbitron-Black.ttf") format("truetype"); font-weight: 900; font-display: block; }
+@font-face { font-family: "Rajdhani"; src: url("/engine/fonts/Rajdhani/Rajdhani-SemiBold.ttf") format("truetype"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "Rajdhani"; src: url("/engine/fonts/Rajdhani/Rajdhani-Bold.ttf") format("truetype"); font-weight: 700; font-display: swap; }
+
+:root {
+  --ink: hsl(250 45% 7%);
+  --cream: hsl(45 100% 95%);
+  --gold-text: hsl(46 100% 60%);
+  --violet: hsl(276 90% 64%);
+  --display: "Orbitron", monospace;
+  --body: "Rajdhani", sans-serif;
+
+  --depth: 6px;       /* how far every key stands off its tray */
+  --iso: 0.75;        /* oblique extrusion: the side shows below and to the right */
+  --rail-w: 26%;
+  --rail-skew: 44px;
+
+  /* Stage accent, set per gametype */
+  --a: hsl(182 95% 52%);
+  --a-hi: hsl(182 100% 74%);
+  --a-lo: hsl(188 90% 40%);
+  --a-side-hi: hsl(192 85% 28%);
+  --a-side-lo: hsl(198 80% 17%);
+}
+
+* { box-sizing: border-box; }
+
+/* The ground behind the stage: a deep blue, lifted by the stage's drifting light */
+:root { --ground: linear-gradient(165deg, hsl(222 56% 17%), hsl(217 58% 24%) 55%, hsl(224 52% 16%)); }
+html, body { height: 100%; }
+body {
+  margin: 0; overflow: hidden;
+  background: var(--ground); color: var(--cream); font-family: var(--body);
+}
+.shell { position: relative; display: flex; height: 100vh; }
+
+/* ═══════════════════════════════ 3D KEY ═══════════════════════════════
+   Two layers with the same sharp cut: the face, and the side it stands on.
+   clip-path cuts away anything outside the polygon, shadows included, so the
+   depth is a real layer and the cast shadow lives on the unclipped parent.
+   --press moves the face: negative lifts it off the side, 1 sinks it flat. */
+.k {
+  --d: var(--depth);
+  --dx: calc(var(--d) * var(--iso));
+  --cut: 3%;
+  --press: 0;
+
+  --face: linear-gradient(180deg, hsl(51 100% 73%), hsl(46 100% 58%) 55%, hsl(42 100% 50%));
+  --side: linear-gradient(180deg, hsl(36 92% 40%), hsl(28 88% 25%));
+  --text: hsl(250 45% 8%);
+  --sub: hsla(250, 45%, 8%, 0.62);
+  --shadow: hsla(28, 90%, 14%, 0.42);
+
+  position: relative; display: block; width: 100%;
+  margin: 0 0 calc(var(--d) + 8px);
+  padding: 0; border: 0; background: none; color: inherit;
+  font: inherit; text-align: left; cursor: pointer;
+  -webkit-tap-highlight-color: transparent; outline: none;
+  filter: drop-shadow(
+    calc(var(--dx) * (1 - var(--press)) + 2px)
+    calc(var(--d) * (1 - var(--press)) + 5px)
+    9px var(--shadow)
+  );
+  transition: filter .14s ease;
+}
+.k-side,
+.k-face { clip-path: polygon(var(--cut) 0, 100% 0, calc(100% - var(--cut)) 100%, 0 100%); }
+.k-side {
+  position: absolute; inset: 0; z-index: 0;
+  background: var(--side);
+  transform: translate(var(--dx), var(--d));
+}
+.k-face {
+  position: relative; z-index: 1;
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  min-height: 60px; padding: 14px 22px 14px 26px;
+  background: var(--face); color: var(--text);
+  transform: translate(calc(var(--dx) * var(--press)), calc(var(--d) * var(--press)));
+  transition: transform .15s cubic-bezier(.2, .9, .3, 1.25);
+}
+/* Lit top edge: the bevel that makes it a key rather than a card */
+.k-face::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px;
+  background: hsla(0, 0%, 100%, 0.55); pointer-events: none;
+}
+.k-face::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px;
+  background: hsla(250, 60%, 5%, 0.14); pointer-events: none;
+}
+
+.k-label { font: 900 20px/1 var(--display); letter-spacing: 0.07em; text-transform: uppercase; }
+.k-hint  { font: 700 13px/1 var(--body); letter-spacing: 0.12em; text-transform: uppercase; color: var(--sub); white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── Variants ── */
+.k--nav .k-face { min-height: 66px; padding: 17px 24px 17px 28px; }
+.k--nav .k-label { font-size: clamp(15px, 1.1vw, 21px); }
+
+.k--sm { --d: calc(var(--depth) * 0.6); margin-bottom: calc(var(--d) + 6px); }
+.k--sm .k-face { min-height: 46px; padding: 10px 16px 10px 20px; gap: 10px; }
+.k--sm .k-label { font-size: 14px; }
+
+.k--cream {
+  --face: linear-gradient(180deg, hsl(45 100% 97%), hsl(42 62% 90%) 60%, hsl(40 42% 82%));
+  --side: linear-gradient(180deg, hsl(36 26% 60%), hsl(30 22% 42%));
+}
+
+/* Gametype tile: a big slab, cream at rest, its own colour once picked */
+.k--mode {
+  --d: calc(var(--depth) * 1.5);
+  --cut: 2.2%;
+  --face: linear-gradient(180deg, hsl(45 100% 97%), hsl(42 58% 89%) 62%, hsl(40 40% 80%));
+  --side: linear-gradient(180deg, hsl(36 24% 56%), hsl(30 20% 38%));
+  --shadow: hsla(250, 70%, 2%, 0.6);
+}
+.k--mode .k-face {
+  min-height: 176px; padding: 18px 26px 22px 40px;
+  flex-direction: column; align-items: stretch; justify-content: space-between;
+}
+.k--mode.is-picked {
+  --press: -0.5;
+  --face: linear-gradient(180deg, var(--a-hi), var(--a) 58%, var(--a-lo));
+  --side: linear-gradient(180deg, var(--a-side-hi), var(--a-side-lo));
+  --sub: hsla(250, 45%, 8%, 0.66);
+}
+.tile-band { position: absolute; left: 0; top: 0; bottom: 0; width: 16px; background: var(--a); }
+.k--mode.is-picked .tile-band { background: var(--a-side-hi); }
+.tile-no { font: 800 13px/1 var(--display); letter-spacing: 0.14em; color: var(--sub); }
+.tile-main { display: flex; flex-direction: column; gap: 8px; }
+.tile-name { font: 900 clamp(28px, 2.6vw, 46px)/0.9 var(--display); letter-spacing: 0.02em; text-transform: uppercase; }
+.tile-sub { font: 700 14px/1 var(--body); letter-spacing: 0.18em; text-transform: uppercase; color: var(--sub); }
+
+/* The arcade key */
+.k--cta {
+  display: inline-block; width: auto;
+  --d: calc(var(--depth) * 1.6);
+  --cut: 5%;
+  --face: linear-gradient(180deg, var(--a-hi), var(--a) 58%, var(--a-lo));
+  --side: linear-gradient(180deg, var(--a-side-hi), var(--a-side-lo));
+  --shadow: hsla(250, 70%, 3%, 0.62);
+}
+.k--cta .k-face { min-height: 90px; padding: 0 66px 0 60px; justify-content: center; }
+.k--cta .k-label { font-size: 30px; letter-spacing: 0.1em; }
+
+.k--util .k-face { justify-content: center; min-height: 40px; padding: 8px 10px; }
+.k--util .k-label { font: 800 11px/1 var(--display); letter-spacing: 0.12em; }
+
+.k--send { width: auto; flex: 0 0 auto; margin: 0 calc(var(--dx) + 2px) var(--d) 0; }
+.k--send .k-face { min-height: 44px; padding: 0 22px 0 24px; }
+.k--send .k-label { font-size: 13px; letter-spacing: 0.12em; }
+
+/* ── States: order matters, later rules win ties ── */
+.k:hover,
+.k:focus-visible {
+  --press: -0.35;
+  --face: linear-gradient(180deg, hsl(278 92% 75%), hsl(273 80% 61%) 55%, hsl(268 72% 50%));
+  --side: linear-gradient(180deg, hsl(266 72% 34%), hsl(258 72% 19%));
+  --text: hsl(45 100% 96%);
+  --sub: hsla(45, 100%, 96%, 0.72);
+  --shadow: hsla(268, 80%, 14%, 0.5);
+}
+.k--mode.is-picked:hover,
+.k--mode.is-picked:focus-visible {
+  --press: -0.75;
+  --face: linear-gradient(180deg, var(--a-hi), var(--a) 58%, var(--a-lo));
+  --side: linear-gradient(180deg, var(--a-side-hi), var(--a-side-lo));
+  --text: hsl(250 45% 8%);
+  --sub: hsla(250, 45%, 8%, 0.66);
+}
+.k:active {
+  --press: 1;
+  --face: linear-gradient(180deg, hsl(272 76% 58%), hsl(266 70% 45%));
+}
+.k--mode.is-picked:active {
+  --press: 1;
+  --face: linear-gradient(180deg, var(--a), var(--a-lo));
+}
+.k:active .k-face { transition-duration: .05s; transition-timing-function: ease-out; }
+.k:active { transition-duration: .05s; }
+
+/* Current page: a latched key, pressed in and inked */
+.k.is-on,
+.k.is-on:hover,
+.k.is-on:focus-visible,
+.k.is-on:active {
+  --press: 0.62;
+  --face: linear-gradient(180deg, hsl(250 28% 21%), hsl(250 40% 10%) 60%, hsl(252 44% 6%));
+  --side: linear-gradient(180deg, hsl(252 44% 5%), hsl(252 44% 3%));
+  --text: var(--gold-text);
+  --sub: hsla(46, 100%, 60%, 0.66);
+}
+
+/* ═══════════════════════════════ RAIL ═══════════════════════════════ */
+.rail {
+  position: relative; z-index: 2; flex: 0 0 var(--rail-w);
+  display: flex; flex-direction: column;
+  padding: 22px 0 18px;
+  background:
+    radial-gradient(120% 55% at 25% 0%, hsla(54, 100%, 78%, 0.55), transparent 62%),
+    linear-gradient(172deg, hsl(46 100% 57%), hsl(41 96% 48%));
+  clip-path: polygon(0 0, 100% 0, calc(100% - var(--rail-skew)) 100%, 0 100%);
+  overflow: hidden;
+}
+.rail::after {
+  content: ""; position: absolute; top: 0; bottom: 0; right: 0; z-index: 3;
+  width: calc(var(--rail-skew) + 8px);
+  background: linear-gradient(180deg, hsl(276 90% 64%), hsl(262 75% 42%));
+  clip-path: polygon(calc(100% - 8px) 0, 100% 0, calc(100% - var(--rail-skew)) 100%, calc(100% - var(--rail-skew) - 8px) 100%);
+}
+.rail > * { position: relative; z-index: 1; }
+.rail-kanji {
+  position: absolute !important; z-index: 0 !important; right: 12%; bottom: 17%;
+  font: 400 clamp(180px, 19vw, 300px)/0.8 serif;
+  color: hsla(30, 90%, 22%, 0.1); pointer-events: none; user-select: none;
+}
+
+.brand { padding: 0 calc(var(--rail-skew) + 16px) 16px 22px; }
+.brand-logo {
+  display: block; width: 100%; max-width: 420px; height: auto;
+  filter: drop-shadow(0 6px 10px hsla(28, 90%, 14%, 0.35));
+}
+
+.rail-label {
+  padding: 0 24px; margin: 6px 0 12px;
+  font: 700 11px/1 var(--body); letter-spacing: 0.26em; text-transform: uppercase;
+  color: hsla(250, 45%, 8%, 0.62);
+}
+.rail-keys { display: flex; flex-direction: column; padding: 0 calc(var(--rail-skew) + 18px) 0 22px; }
+
+.live-dot {
+  display: inline-block; width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%;
+  background: hsl(322 100% 58%); box-shadow: 0 0 8px hsl(322 100% 58%);
+}
+.live-count { margin-left: auto; }
+.join {
+  padding: 4px 11px; background: var(--ink); color: var(--gold-text);
+  font: 900 11px/1 var(--display); letter-spacing: 0.1em;
+  clip-path: polygon(8% 0, 100% 0, 92% 100%, 0 100%);
+}
+
+/* ── Lobby list: takes whatever height the rail has left, and scrolls ── */
+.lobby-head { display: flex; justify-content: space-between; padding-right: calc(var(--rail-skew) + 26px); }
+.lobby-list {
+  flex: 1; min-height: 0;
+  overflow-y: auto; overflow-x: hidden;
+  /* The box ends before the slanted edge: the rail's clip would otherwise cut
+     the scrollbar off, since it sits on the box's right edge. */
+  margin-right: calc(var(--rail-skew) + 12px);
+  padding: 8px 14px 16px 22px;   /* room for the hover lift, the side, the shadow */
+  scrollbar-width: thin;
+  scrollbar-color: hsla(250, 45%, 8%, 0.45) transparent;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 12px, #000 calc(100% - 18px), transparent);
+          mask-image: linear-gradient(to bottom, transparent, #000 12px, #000 calc(100% - 18px), transparent);
+}
+.lobby-list > .k { flex-shrink: 0; }
+
+.lobby .k-face { gap: 10px; }
+.lobby-dot {
+  width: 10px; height: 10px; flex: 0 0 10px;
+  background: var(--mode);
+  clip-path: polygon(22% 0, 100% 0, 78% 100%, 0 100%);
+}
+.lobby--playing .lobby-dot { animation: lobby-pulse 1.6s ease-in-out infinite; }
+@keyframes lobby-pulse { 50% { opacity: 0.3; } }
+.lobby .k-label { flex: 0 0 66px; }
+.lobby-map {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font: 700 13px/1 var(--body); letter-spacing: 0.06em; color: var(--sub);
+}
+.lobby--waiting .lobby-map { font-style: italic; }
+.lobby-count { flex: 0 0 auto; min-width: 42px; text-align: right; font-variant-numeric: tabular-nums; }
+
+.badge {
+  flex: 0 0 auto; min-width: 54px; padding: 4px 10px; text-align: center;
+  font: 900 10px/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase;
+  background: var(--ink); color: var(--gold-text);
+  clip-path: polygon(8% 0, 100% 0, 92% 100%, 0 100%);
+}
+.badge--watch { background: hsla(322, 90%, 52%, 0.16); color: hsl(322 85% 38%); }
+.badge--full  { background: hsla(250, 45%, 8%, 0.1); color: hsla(250, 45%, 8%, 0.45); }
+.lobby:hover .badge--watch, .lobby:focus-visible .badge--watch,
+.lobby:hover .badge--full,  .lobby:focus-visible .badge--full {
+  background: hsla(0, 0%, 100%, 0.16); color: hsla(45, 100%, 96%, 0.85);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lobby--playing .lobby-dot { animation: none; }
+}
+
+.player {
+  display: flex; align-items: center; gap: 12px;
+  margin: 0 calc(var(--rail-skew) + 18px) 18px 22px; padding: 12px 16px;
+  background: hsla(250, 45%, 7%, 0.92); color: var(--cream);
+  clip-path: polygon(3% 0, 100% 0, 97% 100%, 0 100%);
+}
+.player-avatar {
+  width: 38px; height: 38px; flex: 0 0 38px;
+  background: linear-gradient(135deg, hsl(182 95% 55%), var(--violet));
+  clip-path: polygon(14% 0, 100% 8%, 88% 100%, 0 90%);
+}
+.player-name { font: 800 14px/1.2 var(--display); letter-spacing: 0.05em; }
+.player-meta { font: 600 12px/1.2 var(--body); letter-spacing: 0.08em; color: hsla(45, 100%, 95%, 0.55); }
+
+.util { flex-direction: row; gap: 10px; }
+.util .k { flex: 1; width: auto; }
+
+/* ═══════════════════════════════ STAGE ═══════════════════════════════ */
+/* The stage slides under the rail's slanted edge (the rail sits above it), so the
+   light and the backdrop word run up to the diagonal instead of stopping at the
+   rail's rectangular box on a vertical line. */
+.stage {
+  flex: 1; min-width: 0; position: relative; overflow: hidden;
+  display: flex; flex-direction: column; gap: 22px;
+  margin-left: calc(-1 * var(--rail-skew));
+  padding: 30px 52px 24px calc(28px + var(--rail-skew));
+}
+.stage > :not(.fx):not(.ghost) { position: relative; z-index: 1; }
+
+/* Drifting light: three blurred fields wandering slowly behind everything.
+   Only transform animates, so the blur is rasterised once and moved. */
+.fx { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+.orb {
+  position: absolute; top: 0; left: 0; border-radius: 50%;
+  filter: blur(90px); will-change: transform;
+}
+.orb--accent {
+  width: 640px; height: 640px; opacity: 0.24;
+  background-color: var(--a);
+  transition: background-color 1.4s ease;
+  animation: drift-a 38s ease-in-out infinite alternate;
+}
+.orb--violet {
+  width: 760px; height: 760px; opacity: 0.22;
+  background-color: hsl(276 90% 56%);
+  animation: drift-b 47s ease-in-out infinite alternate;
+}
+.orb--deep {
+  width: 560px; height: 560px; opacity: 0.2;
+  background-color: hsl(232 85% 52%);
+  animation: drift-c 31s ease-in-out infinite alternate;
+}
+@keyframes drift-a {
+  0%   { transform: translate(40vw, -20vh) scale(1); }
+  30%  { transform: translate(16vw, 20vh) scale(1.15); }
+  65%  { transform: translate(44vw, 36vh) scale(0.9); }
+  100% { transform: translate(6vw, 2vh) scale(1.05); }
+}
+@keyframes drift-b {
+  0%   { transform: translate(-14vw, 34vh) scale(1); }
+  35%  { transform: translate(26vw, 54vh) scale(1.1); }
+  70%  { transform: translate(40vw, 4vh) scale(0.95); }
+  100% { transform: translate(2vw, 44vh) scale(1.08); }
+}
+@keyframes drift-c {
+  0%   { transform: translate(48vw, 52vh) scale(1); }
+  40%  { transform: translate(20vw, 62vh) scale(1.2); }
+  75%  { transform: translate(4vw, 18vh) scale(0.9); }
+  100% { transform: translate(34vw, 28vh) scale(1); }
+}
+
+/* The mode name, huge and hollow, bleeding off the bottom-left */
+.ghost {
+  position: absolute; z-index: 0; left: -1%; bottom: -4%;
+  font: 900 clamp(200px, 25vw, 440px)/0.78 var(--display); letter-spacing: -0.04em;
+  white-space: nowrap; color: transparent;
+  -webkit-text-stroke: 2px color-mix(in srgb, var(--a) 26%, transparent);
+  pointer-events: none; user-select: none;
+}
+
+.kicker { font: 700 12px/1 var(--body); letter-spacing: 0.32em; text-transform: uppercase; color: var(--a); }
+.title {
+  margin: 8px 0 0; font: 900 clamp(40px, 4.4vw, 74px)/0.92 var(--display);
+  color: var(--cream); text-shadow: 5px 6px 0 hsl(250 50% 3%);
+}
+
+/* One equal column per mode, however many modes there are */
+
+/* ═══════════════════════════════ SETTINGS ═══════════════════════════════ */
+:root {
+  /* What each group of actions is drawn in, on the keyboard, the mouse and the list */
+  --c-move: hsl(182 95% 52%);
+  --c-weapons: hsl(46 100% 57%);
+  --c-fight: hsl(322 95% 62%);
+  --c-other: hsl(276 90% 70%);
+}
+a.k { text-decoration: none; }
+.k.is-on .k-hint { color: var(--sub); }
+
+.stage { gap: 18px; padding-bottom: 20px; }
+.stage-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; }
+.stage-head .title { font-size: clamp(36px, 3.4vw, 60px); }
+.head-side { display: flex; align-items: center; gap: 16px; }
+.saved-note { font: 700 12px/1 var(--body); letter-spacing: 0.2em; text-transform: uppercase; color: hsla(45, 100%, 95%, 0.45); }
+.saved-note::before { content: "●  "; color: var(--go, hsl(96 85% 55%)); }
+.head-side .k { width: auto; margin: 0 calc(var(--dx) + 2px) var(--d) 0; }
+.k--reset .k-face { min-height: 40px; padding: 0 16px 0 18px; }
+.k--reset .k-label { font-size: 12px; letter-spacing: 0.1em; }
+.k--reset.is-armed { --face: linear-gradient(180deg, hsl(356 95% 68%), hsl(356 85% 54%) 55%, hsl(352 80% 44%)); --side: linear-gradient(180deg, hsl(350 75% 30%), hsl(345 72% 18%)); --text: hsl(45 100% 96%); }
+
+/* The page body scrolls on short screens; the head and rail stay put */
+.pane { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 4px 12px 12px 0; margin-right: -12px;
+  scrollbar-width: thin; scrollbar-color: hsla(276, 90%, 64%, 0.45) transparent; }
+.pane[hidden] { display: none; }
+
+.card {
+  position: relative; min-width: 0;
+  padding: 16px 22px 20px;
+  background: linear-gradient(180deg, hsla(250, 40%, 11%, 0.78), hsla(250, 44%, 7%, 0.86));
+  border: 1.5px solid hsla(276, 90%, 64%, 0.28);
+  clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 0 100%);
+}
+.card-title {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px;
+  font: 900 15px/1 var(--display); letter-spacing: 0.16em; text-transform: uppercase; color: var(--cream);
+}
+.card-title small { font: 700 12px/1 var(--body); letter-spacing: 0.14em; color: hsla(45, 100%, 95%, 0.45); }
+
+/* ═══ CONTROLS ═══ */
+/* Keyboard and mouse on top; what each key does, and how the mouse feels, below */
+.controls-grid { display: grid; grid-template-columns: minmax(0, 1fr) clamp(280px, 19vw, 340px); gap: 20px; align-items: stretch; }
+
+/* ── Keyboard: every key a small cap, coloured by what it does ── */
+/* Fifteen keys wide, arrows tucked into the bottom row like a laptop's */
+.board { --kh: clamp(40px, 2.9vw, 54px); display: flex; flex-direction: column; gap: 7px; }
+.krow { display: flex; gap: 6px; height: var(--kh); }
+.krow--f { margin-bottom: 6px; }
+.arrows { flex: 3 1 0; min-width: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); gap: 3px 6px; }
+.arrows .cap { height: auto; padding: 3px 5px; }
+.arrows .cap[data-code="ArrowLeft"]  { grid-column: 1; grid-row: 1 / 3; }
+.arrows .cap[data-code="ArrowUp"]    { grid-column: 2; grid-row: 1; }
+.arrows .cap[data-code="ArrowDown"]  { grid-column: 2; grid-row: 2; }
+.arrows .cap[data-code="ArrowRight"] { grid-column: 3; grid-row: 1 / 3; }
+.arrows .cap[data-code="ArrowUp"] .cap-act, .arrows .cap[data-code="ArrowDown"] .cap-act { display: none; }
+
+.cap {
+  --face: linear-gradient(180deg, hsl(250 26% 24%), hsl(250 30% 17%));
+  --side: hsl(250 36% 9%);
+  --text: hsla(45, 100%, 95%, 0.72);
+  --lift: 0px;
+  position: relative; flex: var(--w, 1) 1 0; min-width: 0; height: 100%;
+  display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start;
+  padding: 5px 6px 6px; border: 0; border-radius: 3px; cursor: pointer; text-align: left;
+  background: var(--face); color: var(--text);
+  box-shadow: 0 calc(5px - var(--lift)) 0 var(--side), 0 calc(8px - var(--lift)) 10px hsla(250, 70%, 2%, 0.55), inset 0 1.5px 0 hsla(0, 0%, 100%, 0.14);
+  transform: translateY(var(--lift));
+  transition: transform .12s cubic-bezier(.2, .9, .3, 1.25), box-shadow .12s ease, opacity .2s ease, filter .2s ease;
+}
+.cap-legend { font: 800 clamp(10px, 0.72vw, 13px)/1 var(--display); letter-spacing: 0.02em; white-space: nowrap; }
+.cap { container-type: inline-size; }
+.cap-act {
+  align-self: stretch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font: 700 clamp(9px, 0.62vw, 11px)/1 var(--body); letter-spacing: 0.02em; text-transform: uppercase;
+}
+/* The full name where it fits, the short one on narrow keys */
+.cap-act-short { display: none; }
+@container (max-width: 42px) {
+  .cap-act-long { display: none; }
+  .cap-act-short { display: inline; }
+}
+.cap.is-bound { --text: var(--ink); --side: color-mix(in srgb, var(--c) 45%, hsl(250 50% 6%)); --face: linear-gradient(180deg, color-mix(in srgb, var(--c) 72%, white), var(--c)); }
+.cap:hover, .cap:focus-visible, .cap.is-open {
+  --lift: -2px; outline: none;
+  --face: linear-gradient(180deg, hsl(278 92% 75%), hsl(268 72% 54%)); --side: hsl(258 72% 22%); --text: hsl(45 100% 96%);
+}
+.cap:active { --lift: 4px; }
+.cap.is-fixed, .cap.is-fixed:hover, .cap.is-fixed:focus-visible {
+  --lift: 0px; cursor: help;
+  --face: linear-gradient(180deg, hsl(250 26% 22%), hsl(250 30% 15%)); --side: hsl(250 36% 9%); --text: var(--c);
+  box-shadow: 0 5px 0 var(--side), 0 8px 10px hsla(250, 70%, 2%, 0.55), inset 0 0 0 1.5px var(--c);
+}
+/* When one action is under the pointer, only its keys stay lit */
+.is-focusing .cap:not(.is-focus), .is-focusing .mzone:not(.is-focus) { opacity: 0.28; filter: saturate(0.4); }
+.cap.is-focus { --lift: -3px; }
+.cap.is-flash { animation: flash .7s ease-out; }
+@keyframes flash { 0%, 40% { box-shadow: 0 0 0 3px var(--cream), 0 0 22px 6px var(--c, var(--violet)); } }
+
+/* ── Mouse ── */
+.mouse-card { display: flex; flex-direction: column; }
+.mouse-wrap { position: relative; flex: 1; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 18px; }
+.mouse {
+  position: relative; width: 104px; height: 172px;
+  border-radius: 58px 58px 64px 64px;
+  background: linear-gradient(180deg, hsl(250 26% 22%), hsl(250 32% 12%));
+  box-shadow: 0 7px 0 hsl(250 40% 7%), 0 14px 24px hsla(250, 70%, 2%, 0.6), inset 0 2px 0 hsla(0, 0%, 100%, 0.12);
+  overflow: hidden;
+}
+.mzone {
+  --face: hsl(250 24% 26%);
+  position: absolute; border: 0; padding: 0; cursor: pointer; background: var(--face);
+  transition: background .15s ease, opacity .2s ease, filter .2s ease;
+}
+.mzone.is-bound { --face: var(--c); }
+.mzone:hover, .mzone:focus-visible, .mzone.is-open { --face: hsl(273 80% 61%); outline: none; }
+.mzone[data-code="mouse:left"]  { left: 0; top: 0; width: calc(50% - 2px); height: 44%; border-radius: 58px 0 0 0; }
+.mzone[data-code="mouse:right"] { right: 0; top: 0; width: calc(50% - 2px); height: 44%; border-radius: 0 58px 0 0; }
+.mzone[data-code="wheel:up"]     { left: calc(50% - 11px); top: 10%; width: 22px; height: 10%; border-radius: 11px 11px 2px 2px; z-index: 2; box-shadow: 0 0 0 3px hsl(250 32% 12%); }
+.mzone[data-code="mouse:middle"] { left: calc(50% - 11px); top: 20.5%; width: 22px; height: 7%; border-radius: 2px; z-index: 2; box-shadow: 0 0 0 3px hsl(250 32% 12%); }
+.mzone[data-code="wheel:down"]   { left: calc(50% - 11px); top: 28%; width: 22px; height: 10%; border-radius: 2px 2px 11px 11px; z-index: 2; box-shadow: 0 0 0 3px hsl(250 32% 12%); }
+.mzone.is-flash { animation: flash .7s ease-out; }
+
+.mlabels { display: flex; flex-direction: column; gap: 6px; }
+.mlabel {
+  display: flex; flex-direction: column; gap: 3px; padding: 6px 10px; border: 0; cursor: pointer; background: none; color: inherit; text-align: inherit;
+  border-bottom: 2px solid var(--c, hsla(45, 100%, 95%, 0.2));
+  transition: background .15s ease, opacity .2s ease;
+}
+.mlabel:hover, .mlabel:focus-visible { background: hsla(276, 90%, 64%, 0.2); outline: none; }
+.is-focusing .mlabel:not(.is-focus) { opacity: 0.3; }
+.mlabel-slot { font: 700 11px/1 var(--body); letter-spacing: 0.18em; text-transform: uppercase; color: hsla(45, 100%, 95%, 0.5); }
+.mlabel-act { font: 700 16px/1.1 var(--body); letter-spacing: 0.04em; color: var(--cream); }
+.mlabel.is-empty .mlabel-act { color: hsla(45, 100%, 95%, 0.32); font-family: var(--body); font-style: italic; }
+
+.mouse-tune { display: flex; flex-direction: column; gap: 16px; }
+
+/* ── Actions: what you want to do, and the keys that do it ── */
+.acts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px 26px; }
+.act-group-title {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 8px; padding-bottom: 8px;
+  border-bottom: 3px solid var(--c);
+  font: 900 14px/1 var(--display); letter-spacing: 0.16em; text-transform: uppercase; color: var(--c);
+}
+.act {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 36px; padding: 4px 8px 4px 10px;
+  border: 0; background: none; color: var(--cream); cursor: pointer; text-align: left;
+  border-left: 3px solid transparent;
+  transition: background .12s ease, border-color .12s ease;
+}
+.act:hover, .act:focus-visible, .act.is-hl { background: hsla(276, 90%, 64%, 0.18); border-left-color: var(--c); outline: none; }
+.act-name { flex: 0 0 auto; max-width: 55%; font: 700 16px/1.1 var(--body); letter-spacing: 0.04em; }
+.act.is-empty .act-name { color: hsla(45, 100%, 95%, 0.45); }
+.act-keys { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 5px; }
+.chip {
+  position: relative;
+  display: inline-flex; align-items: center; gap: 5px; min-width: 26px; height: 24px; padding: 0 7px; justify-content: center;
+  background: var(--c); color: var(--ink);
+  font: 800 11px/1 var(--display); letter-spacing: 0.02em; white-space: nowrap;
+  border-radius: 3px; box-shadow: 0 3px 0 color-mix(in srgb, var(--c) 45%, hsl(250 50% 6%));
+}
+/* Taking a key off: a badge on the chip's corner, there only while pointing at the chip */
+.chip-x {
+  position: absolute; top: -7px; right: -7px; width: 16px; height: 16px; border-radius: 50%;
+  display: none; place-items: center; cursor: pointer;
+  background: hsl(356 88% 56%); color: var(--cream); font: 900 11px/1 var(--body);
+  box-shadow: 0 0 0 2px hsl(250 42% 9%);
+}
+.chip:hover .chip-x { display: grid; }
+.chip-x:hover { background: hsl(356 95% 66%); }
+.chip--fixed { background: none; color: var(--c); box-shadow: inset 0 0 0 1.5px var(--c); }
+.act.is-fixed { cursor: default; }
+.act.is-fixed:hover { background: hsla(0, 0%, 100%, 0.04); }
+.act-fixed {
+  margin-left: 8px; padding: 2px 6px; vertical-align: 2px;
+  font: 700 10px/1 var(--body); letter-spacing: 0.16em; text-transform: uppercase;
+  color: hsla(45, 100%, 95%, 0.5); box-shadow: inset 0 0 0 1px hsla(45, 100%, 95%, 0.22); border-radius: 2px;
+}
+.chip--none { background: none; box-shadow: inset 0 0 0 1.5px hsla(45, 100%, 95%, 0.18); color: hsla(45, 100%, 95%, 0.35); font-family: var(--body); }
+/* Waiting for the key: the row pulses until something is pressed */
+.act.is-listening { background: color-mix(in srgb, var(--c) 22%, transparent); border-left-color: var(--c); }
+.act.is-listening .act-keys::before {
+  content: "Press a key, wheel or button…"; padding: 5px 10px;
+  font: 800 11px/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase;
+  background: var(--cream); color: var(--ink); border-radius: 3px;
+  animation: listen 1s ease-in-out infinite;
+}
+.act.is-listening .chip { display: none; }
+@keyframes listen { 50% { opacity: 0.45; } }
+
+/* ── Picking an action for a key: a gold sheet lifted well off the page ──
+   The cut corner clips the card, so the shadow lives on the unclipped wrapper. */
+.pop {
+  position: fixed; z-index: 40; width: min(700px, 92vw);
+  filter:
+    drop-shadow(0 30px 40px hsla(250, 80%, 2%, 0.75))
+    drop-shadow(0 0 110px hsla(276, 90%, 45%, 0.45));
+  animation: pop-in .18s cubic-bezier(.2, .9, .3, 1.25);
+}
+.pop[hidden] { display: none; }
+@keyframes pop-in { from { opacity: 0; transform: translateY(10px) scale(0.96); } }
+.pop-card {
+  position: relative; padding: 18px 22px 20px 30px;
+  background:
+    radial-gradient(120% 70% at 20% 0%, hsla(54, 100%, 80%, 0.6), transparent 60%),
+    linear-gradient(172deg, hsl(48 100% 60%), hsl(42 97% 50%));
+  color: var(--ink);
+  clip-path: polygon(0 0, calc(100% - 26px) 0, 100% 26px, 100% 100%, 0 100%);
+}
+.pop-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 8px; background: linear-gradient(180deg, hsl(276 90% 64%), hsl(262 75% 42%)); }
+
+.pop-head { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+.pop-key {
+  min-width: 58px; height: 54px; padding: 0 14px; display: grid; place-items: center;
+  background: linear-gradient(180deg, hsl(250 28% 21%), hsl(252 44% 7%)); color: var(--gold-text);
+  font: 900 22px/1 var(--display); border-radius: 3px;
+  box-shadow: 0 5px 0 hsl(252 44% 3%), 0 8px 14px hsla(28, 90%, 14%, 0.45), inset 0 1.5px 0 hsla(0, 0%, 100%, 0.14);
+}
+.pop-q { font: 900 clamp(18px, 1.3vw, 24px)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink); }
+.pop-close {
+  margin-left: auto; width: 38px; height: 38px; border: 0; cursor: pointer; border-radius: 3px;
+  background: hsla(250, 45%, 8%, 0.12); color: var(--ink); font: 900 22px/1 var(--body);
+}
+.pop-close:hover { background: var(--ink); color: var(--gold-text); }
+
+.pop-groups { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; align-items: start; }
+.pop-col { display: flex; flex-direction: column; gap: 18px; }
+.pop-group-title {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+  font: 900 13px/1 var(--display); letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink);
+}
+.pop-group-title::before {
+  content: ""; width: 14px; height: 14px; background: var(--c);
+  box-shadow: 0 0 0 2px var(--ink); clip-path: polygon(22% 0, 100% 0, 78% 100%, 0 100%);
+}
+.pop-opts { display: grid; gap: 8px; }
+/* Each choice a small cream key, striped in its group's colour */
+.opt {
+  width: 100%; text-align: left;
+  padding: 10px 13px 10px 18px; border: 0; cursor: pointer; border-radius: 2px;
+  background: linear-gradient(180deg, hsl(45 100% 97%), hsl(42 55% 86%)); color: var(--ink);
+  font: 700 16px/1 var(--body); letter-spacing: 0.03em;
+  box-shadow: inset 5px 0 0 var(--c), 0 4px 0 hsl(33 45% 40%), 0 6px 10px hsla(28, 90%, 14%, 0.3);
+  transition: transform .1s ease, box-shadow .1s ease;
+}
+.opt:hover, .opt:focus-visible {
+  outline: none; transform: translateY(-2px);
+  background: linear-gradient(180deg, hsl(278 92% 75%), hsl(268 72% 52%)); color: hsl(45 100% 96%);
+  box-shadow: inset 5px 0 0 var(--c), 0 6px 0 hsl(258 72% 22%), 0 10px 16px hsla(268, 80%, 14%, 0.45);
+}
+.opt:active { transform: translateY(3px); box-shadow: inset 5px 0 0 var(--c), 0 1px 0 hsl(258 72% 22%); }
+/* What the key does now: pressed in and inked */
+.opt.is-current, .opt.is-current:hover {
+  transform: translateY(3px);
+  background: linear-gradient(180deg, hsl(250 28% 21%), hsl(252 44% 8%)); color: var(--gold-text);
+  box-shadow: inset 5px 0 0 var(--c), 0 1px 0 hsl(252 44% 3%);
+}
+.pop-foot { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-top: 18px; padding-top: 14px; border-top: 2px solid hsla(250, 45%, 8%, 0.14); }
+.pop-hint { font: 700 15px/1.2 var(--body); letter-spacing: 0.06em; text-transform: uppercase; color: hsla(250, 45%, 8%, 0.62); }
+.pop-hint b { color: var(--ink); }
+.opt--unbind { --c: hsl(356 88% 50%); width: auto; color: hsl(356 80% 38%); }
+.opt--unbind:hover { background: linear-gradient(180deg, hsl(356 95% 66%), hsl(354 82% 48%)); color: hsl(45 100% 96%); box-shadow: 0 6px 0 hsl(348 72% 22%), 0 10px 16px hsla(350, 80%, 14%, 0.45); }
+
+.toast {
+  position: fixed; z-index: 45; left: 50%; bottom: 26px; transform: translateX(-50%);
+  padding: 12px 22px; background: var(--cream); color: var(--ink);
+  font: 700 16px/1.2 var(--body); letter-spacing: 0.04em;
+  clip-path: polygon(3% 0, 100% 0, 97% 100%, 0 100%);
+  animation: toast 2.6s ease forwards;
+}
+.toast b { font-family: var(--display); font-weight: 800; }
+@keyframes toast { 0% { opacity: 0; transform: translate(-50%, 10px); } 8%, 85% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; } }
+
+/* ═══ SHARED CONTROLS ═══ */
+.field { display: flex; flex-direction: column; gap: 9px; }
+.field[aria-disabled="true"] { opacity: 0.35; pointer-events: none; }
+.field-top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 12px; }
+.field-name { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px 9px; font: 700 15px/1.1 var(--body); letter-spacing: 0.14em; text-transform: uppercase; color: hsla(45, 100%, 95%, 0.82); }
+/* "Next map", "New": when a setting takes hold, or that it isn't in the game yet */
+.field-tag { padding: 3px 6px 2px; border-radius: 2px; font: 700 10px/1 var(--body); letter-spacing: 0.14em; background: hsl(276 90% 72%); color: var(--ink); }
+.field-tag--new { background: var(--gold-text); }
+/* Frame-rate cost: one to three pips */
+.cost { display: inline-flex; gap: 2px; }
+.cost i { width: 8px; height: 8px; background: hsla(45, 100%, 95%, 0.14); clip-path: polygon(25% 0, 100% 0, 75% 100%, 0 100%); }
+.cost--low i:nth-child(1) { background: hsl(96 85% 55%); }
+.cost--mid i:nth-child(-n+2) { background: hsl(40 100% 58%); }
+.cost--high i { background: hsl(356 90% 62%); }
+.cost-legend { display: flex; align-items: center; gap: 16px; font: 700 12px/1 var(--body); letter-spacing: 0.16em; text-transform: uppercase; color: hsla(45, 100%, 95%, 0.5); }
+.cost-legend > span { display: inline-flex; align-items: center; gap: 7px; color: hsla(45, 100%, 95%, 0.75); }
+.field-help { font: 600 13px/1.25 var(--body); color: hsla(45, 100%, 95%, 0.45); }
+.field-val { font: 900 20px/1 var(--display); color: var(--cream); font-variant-numeric: tabular-nums; }
+.field-val.is-default::after { content: " · default"; font: 700 11px/1 var(--body); letter-spacing: 0.14em; text-transform: uppercase; color: hsla(45, 100%, 95%, 0.38); }
+
+/* Slider: a chunky track, a key for a thumb */
+.range {
+  --pct: 50%;
+  -webkit-appearance: none; appearance: none; width: 100%; height: 26px; margin: 0; background: none; cursor: pointer;
+}
+.range:focus { outline: none; }
+.range::-webkit-slider-runnable-track {
+  height: 10px; border-radius: 2px;
+  background: linear-gradient(90deg, var(--gold-text) var(--pct), hsla(250, 30%, 24%, 0.9) var(--pct));
+  box-shadow: inset 0 2px 0 hsla(0, 0%, 0%, 0.35);
+}
+.range::-moz-range-track { height: 10px; border-radius: 2px; background: hsla(250, 30%, 24%, 0.9); box-shadow: inset 0 2px 0 hsla(0, 0%, 0%, 0.35); }
+.range::-moz-range-progress { height: 10px; border-radius: 2px; background: var(--gold-text); }
+.range::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 20px; height: 28px; margin-top: -9px; border: 0; border-radius: 2px;
+  background: linear-gradient(180deg, hsl(51 100% 80%), hsl(44 100% 55%));
+  box-shadow: 0 4px 0 hsl(30 88% 28%), 0 6px 10px hsla(0, 0%, 0%, 0.5);
+  transition: transform .12s ease;
+}
+.range::-moz-range-thumb {
+  width: 20px; height: 28px; border: 0; border-radius: 2px;
+  background: linear-gradient(180deg, hsl(51 100% 80%), hsl(44 100% 55%));
+  box-shadow: 0 4px 0 hsl(30 88% 28%), 0 6px 10px hsla(0, 0%, 0%, 0.5);
+}
+.range:hover::-webkit-slider-thumb, .range:focus-visible::-webkit-slider-thumb { background: linear-gradient(180deg, hsl(278 92% 78%), hsl(268 72% 54%)); box-shadow: 0 4px 0 hsl(258 72% 22%), 0 6px 10px hsla(0, 0%, 0%, 0.5); transform: translateY(-1px); }
+.range:hover::-moz-range-thumb { background: linear-gradient(180deg, hsl(278 92% 78%), hsl(268 72% 54%)); }
+
+/* Segmented: a row of keys, one of them down */
+.seg { display: flex; flex-wrap: wrap; gap: 8px; }
+.seg-btn {
+  flex: 1 1 0; min-width: 0; min-height: 40px; padding: 0 12px; border: 0; cursor: pointer; border-radius: 2px;
+  background: linear-gradient(180deg, hsl(250 24% 25%), hsl(250 30% 17%)); color: hsla(45, 100%, 95%, 0.72);
+  font: 800 13px/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase;
+  box-shadow: 0 4px 0 hsl(250 40% 8%), inset 0 1.5px 0 hsla(0, 0%, 100%, 0.1);
+  transition: transform .1s ease, box-shadow .1s ease;
+}
+.seg-btn:hover, .seg-btn:focus-visible { background: linear-gradient(180deg, hsl(278 92% 72%), hsl(268 72% 52%)); color: var(--cream); outline: none; transform: translateY(-1px); box-shadow: 0 5px 0 hsl(258 72% 20%); }
+.seg-btn.is-on, .seg-btn.is-on:hover {
+  background: linear-gradient(180deg, hsl(51 100% 73%), hsl(44 100% 55%)); color: var(--ink);
+  transform: translateY(3px); box-shadow: 0 1px 0 hsl(30 88% 28%), inset 0 2px 0 hsla(0, 0%, 100%, 0.4);
+}
+
+/* Colour swatches */
+.swatches { display: flex; flex-wrap: wrap; gap: 9px; }
+.sw {
+  position: relative; width: 38px; height: 38px; padding: 0; border: 0; cursor: pointer; border-radius: 3px;
+  background: var(--sw); box-shadow: 0 4px 0 color-mix(in srgb, var(--sw) 40%, hsl(250 50% 5%)), 0 0 14px -2px var(--sw);
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.sw:hover, .sw:focus-visible { transform: translateY(-2px); outline: none; }
+.sw.is-on { transform: translateY(3px); box-shadow: 0 1px 0 color-mix(in srgb, var(--sw) 40%, hsl(250 50% 5%)), 0 0 0 3px var(--cream), 0 0 18px var(--sw); }
+.sw.is-on::after { content: "✓"; position: absolute; inset: 0; display: grid; place-items: center; font: 900 18px/1 var(--body); color: var(--ink); }
+.sw:disabled { cursor: not-allowed; opacity: 0.22; box-shadow: none; }
+
+/* ═══ GAMEPLAY ═══ */
+.play-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
+.play-grid > .card--wide { grid-column: 1 / -1; }
+.split { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 22px; align-items: start; }
+.stack { display: flex; flex-direction: column; gap: 16px; }
+.field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 26px; align-content: start; }
+.split--x { grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); }
+
+/* A slice of a real map behind the preview, so colours are judged against the game */
+.scene {
+  position: relative; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 2px;
+  background: var(--img, url("/data/levelshots/wdm2.jpg")) center / cover no-repeat, hsl(250 30% 14%);
+  box-shadow: inset 0 0 0 1.5px hsla(276, 90%, 64%, 0.3);
+}
+.scene::after { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse at center, transparent 45%, hsla(250, 50%, 4%, 0.55)); pointer-events: none; }
+.scene-tag {
+  position: absolute; z-index: 2; left: 10px; top: 10px; padding: 5px 10px;
+  background: hsla(250, 45%, 5%, 0.82); font: 800 10px/1 var(--display); letter-spacing: 0.14em; text-transform: uppercase; color: hsla(45, 100%, 95%, 0.7);
+}
+.xhair { position: absolute; z-index: 1; left: 50%; top: 50%; transform: translate(-50%, -50%); overflow: visible; }
+.xhair.is-off { display: none; }
+
+.figures { position: absolute; z-index: 1; inset: 0; display: flex; align-items: flex-end; justify-content: space-around; padding: 0 12% 7%; }
+.figure { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.figure svg { width: clamp(64px, 6vw, 104px); height: auto; overflow: visible; }
+.figure-tag { padding: 4px 9px; background: hsla(250, 45%, 5%, 0.85); font: 800 10px/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--tag); }
+.figure--far svg { width: clamp(38px, 3.4vw, 60px); }
+
+.fov-visual { position: relative; height: 92px; }
+.fov-visual svg { width: 100%; height: 100%; overflow: visible; }
+
+/* ═══ VIDEO ═══ */
+.presets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; margin-bottom: 8px; }
+.k--preset {
+  --d: calc(var(--depth) * 1.4);
+  --cut: 2.6%;
+  --face: linear-gradient(180deg, hsl(45 100% 97%), hsl(42 58% 89%) 62%, hsl(40 40% 80%));
+  --side: linear-gradient(180deg, hsl(36 24% 56%), hsl(30 20% 38%));
+  --shadow: hsla(250, 70%, 2%, 0.6);
+}
+.k--preset .k-face { min-height: 150px; padding: 18px 26px 20px 30px; flex-direction: column; align-items: stretch; justify-content: space-between; gap: 10px; }
+.preset-name { font: 900 clamp(24px, 2.1vw, 36px)/0.95 var(--display); text-transform: uppercase; }
+.preset-line { font: 700 15px/1.25 var(--body); letter-spacing: 0.04em; color: var(--sub); }
+.preset-meter { display: flex; gap: 4px; }
+.preset-meter i { width: 22px; height: 8px; background: hsla(250, 45%, 8%, 0.18); clip-path: polygon(20% 0, 100% 0, 80% 100%, 0 100%); }
+.preset-meter i.on { background: var(--ink); }
+.k--preset.is-picked {
+  --press: -0.5;
+  --face: linear-gradient(180deg, hsl(51 100% 73%), hsl(46 100% 58%) 55%, hsl(42 100% 50%));
+  --side: linear-gradient(180deg, hsl(36 92% 40%), hsl(28 88% 25%));
+}
+.k--preset.is-picked:hover, .k--preset.is-picked:focus-visible {
+  --press: -0.75; --text: hsl(250 45% 8%); --sub: hsla(250, 45%, 8%, 0.62);
+  --face: linear-gradient(180deg, hsl(51 100% 73%), hsl(46 100% 58%) 55%, hsl(42 100% 50%));
+  --side: linear-gradient(180deg, hsl(36 92% 40%), hsl(28 88% 25%));
+}
+.k--preset.is-picked:hover .preset-meter i.on { background: var(--ink); }
+.k--preset:hover .preset-meter i.on, .k--preset:focus-visible .preset-meter i.on { background: var(--cream); }
+.preset-status { font: 700 14px/1.3 var(--body); letter-spacing: 0.1em; text-transform: uppercase; color: hsla(45, 100%, 95%, 0.55); }
+.preset-status b { color: var(--gold-text); }
+.video-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; }
+/* Sections: a row of keys, closed by default. Each says what's in it; one opens at a time. */
+.sections { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 22px; margin-top: 24px; }
+.k--sect {
+  --d: calc(var(--depth) * 1.1);
+  --cut: 3.2%;
+  --face: linear-gradient(180deg, hsl(250 26% 25%), hsl(250 30% 16%));
+  --side: linear-gradient(180deg, hsl(250 36% 11%), hsl(250 40% 6%));
+  --text: var(--cream);
+  --sub: hsla(45, 100%, 95%, 0.58);
+  --shadow: hsla(250, 70%, 2%, 0.6);
+  margin-bottom: calc(var(--d) + 4px);
+}
+.k--sect .k-face { min-height: 88px; padding: 14px 24px 14px 26px; flex-direction: column; align-items: stretch; justify-content: space-between; gap: 8px; }
+.sect-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.sect-name { font: 900 clamp(16px, 1.2vw, 21px)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; }
+.sect-chev { font: 900 14px/1 var(--body); color: var(--sub); transition: transform .2s ease; }
+/* How heavy the section is set right now, in the legend's pips and words */
+.sect-load { display: flex; align-items: center; gap: 10px; font: 700 12px/1 var(--body); letter-spacing: 0.18em; text-transform: uppercase; color: var(--sub); }
+.sect-load .cost { gap: 3px; }
+.sect-load .cost i { width: 18px; height: 9px; }
+/* On the gold key the colours would vanish: ink pips instead */
+.k--sect.is-open .sect-load .cost i { background: hsla(250, 45%, 8%, 0.16); }
+.k--sect.is-open .sect-load .cost--low i:nth-child(1),
+.k--sect.is-open .sect-load .cost--mid i:nth-child(-n+2),
+.k--sect.is-open .sect-load .cost--high i { background: var(--ink); }
+.k--sect.is-open, .k--sect.is-open:hover, .k--sect.is-open:focus-visible {
+  --press: 0.45;
+  --face: linear-gradient(180deg, hsl(51 100% 73%), hsl(46 100% 58%) 55%, hsl(42 100% 50%));
+  --side: linear-gradient(180deg, hsl(36 92% 40%), hsl(28 88% 25%));
+  --text: var(--ink);
+  --sub: hsla(250, 45%, 8%, 0.66);
+}
+.k--sect.is-open .sect-chev { transform: rotate(180deg); }
+.section-panel { margin-top: 18px; padding: 26px 32px 28px; border-color: hsla(46, 100%, 60%, 0.55); animation: panel-in .2s cubic-bezier(.2, .9, .3, 1); }
+.section-panel[hidden] { display: none; }
+@keyframes panel-in { from { opacity: 0; transform: translateY(-8px); } }
+.panel-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px 34px; align-items: start; }
+.panel-fields[hidden] { display: none; }
+.tune-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 26px; }
+.disclose {
+  display: flex; align-items: center; gap: 10px; border: 0; background: none; cursor: pointer; padding: 0; color: var(--cream);
+  font: 900 15px/1 var(--display); letter-spacing: 0.16em; text-transform: uppercase;
+}
+.disclose::after { content: "▸"; color: var(--gold-text); transition: transform .2s ease; }
+.disclose[aria-expanded="true"]::after { transform: rotate(90deg); }
+.disclose:hover { color: var(--gold-text); }
+.tune-body { margin-top: 16px; }
+.tune-body[hidden] { display: none; }
+
+/* ═══ AUDIO ═══ */
+.audio-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; max-width: 1100px; }
+.vol { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 18px 22px; align-items: center; }
+.vol-big { font: 900 64px/0.9 var(--display); color: var(--cream); font-variant-numeric: tabular-nums; min-width: 3.2ch; text-align: right; }
+.vol-big small { font-size: 22px; color: hsla(45, 100%, 95%, 0.45); }
+.vol.is-muted .vol-big { color: hsla(45, 100%, 95%, 0.25); }
+.vol.is-muted .range { opacity: 0.35; }
+.vol .field-val { font-size: 0; }
+.vol .field-val.is-default::after { font-size: 11px; }
+
+/* ═══ RAIL: SETTINGS PAGES ═══ */
+.rail-mid { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.k--page .k-face { min-height: 58px; }
+.k--page .k-label { font-size: clamp(14px, 1vw, 18px); }
+.util .k.is-on .k-face { color: var(--gold-text); }
+
+/* ═══ PROTOTYPE CONTROLS ═══ */
+.proto {
+  position: fixed; z-index: 50; top: 0; left: 63%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 4px; padding: 5px 10px;
+  background: hsla(250, 45%, 4%, 0.9); border: 1px solid hsla(276, 90%, 64%, 0.4);
+  font: 700 11px/1 var(--body); letter-spacing: 0.16em; text-transform: uppercase; color: hsla(45, 100%, 95%, 0.45);
+}
+.proto .sep { width: 1px; height: 18px; margin: 0 8px; background: hsla(276, 90%, 64%, 0.35); }
+.proto button, .proto a { padding: 5px 9px; border: 0; background: none; cursor: pointer; text-decoration: none; font: inherit; letter-spacing: 0.1em; color: hsla(45, 100%, 95%, 0.7); }
+.proto button:hover, .proto a:hover { color: var(--cream); background: hsla(276, 90%, 64%, 0.25); }
+.proto button.is-on { background: var(--gold-text); color: var(--ink); }
+
+@media (max-width: 1500px) {
+  .acts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sections { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .panel-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .split { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .k, .k-face, .cap, .mzone, .sw, .seg-btn { transition: none; }
+  .orb, .pop, .toast, .section-panel, .act.is-listening .act-keys::before, .cap.is-flash, .mzone.is-flash { animation: none; }
+}
+</style>
+</head>
+
+<body>
+<div class="proto" aria-label="Prototype controls">
+  Pages <a href="welcome.html">Welcome</a><a href="lobby-3d.html">Play</a><a href="lobby-room.html">Room</a><a href="leaderboard.html">Leaderboard</a><a href="demos.html">Demos</a>
+</div>
+
+<div class="shell">
+  <nav class="rail">
+    <div class="rail-kanji">設</div>
+    <div class="brand"><img class="brand-logo" src="/data/washoi.png" alt="Washiki Washoi" /></div>
+
+    <div class="rail-keys">
+      <a class="k k--nav" href="lobby-3d.html">
+        <span class="k-side"></span>
+        <span class="k-face"><span class="k-label">Play</span><span class="k-hint">4 modes</span></span>
+      </a>
+      <a class="k k--nav" href="leaderboard.html">
+        <span class="k-side"></span>
+        <span class="k-face"><span class="k-label">Leaderboard</span><span class="k-hint">Top players</span></span>
+      </a>
+      <a class="k k--nav" href="demos.html">
+        <span class="k-side"></span>
+        <span class="k-face"><span class="k-label">Demos</span><span class="k-hint">Replays</span></span>
+      </a>
+    </div>
+
+    <div class="rail-mid">
+      <div class="rail-label">Settings</div>
+      <div class="rail-keys" id="pageKeys">
+        <button class="k k--page" data-page="controls">
+          <span class="k-side"></span>
+          <span class="k-face"><span class="k-label">Controls</span><span class="k-hint">Keys · mouse</span></span>
+        </button>
+        <button class="k k--page" data-page="gameplay">
+          <span class="k-side"></span>
+          <span class="k-face"><span class="k-label">Gameplay</span><span class="k-hint">Aim · colours</span></span>
+        </button>
+        <button class="k k--page" data-page="video">
+          <span class="k-side"></span>
+          <span class="k-face"><span class="k-label">Video</span><span class="k-hint">Quality</span></span>
+        </button>
+        <button class="k k--page" data-page="audio">
+          <span class="k-side"></span>
+          <span class="k-face"><span class="k-label">Audio</span><span class="k-hint">Volume</span></span>
+        </button>
+      </div>
+    </div>
+
+    <div class="player">
+      <div class="player-avatar"></div>
+      <div><div class="player-name" id="playerName">sundflux</div><div class="player-meta">Settings</div></div>
+    </div>
+
+    <div class="rail-keys util">
+      <a class="k k--sm k--util" href="welcome.html?screen=key"><span class="k-side"></span><span class="k-face"><span class="k-label">Profile</span></span></a>
+      <button class="k k--sm k--util is-on"><span class="k-side"></span><span class="k-face"><span class="k-label">Settings</span></span></button>
+      <button class="k k--sm k--util"><span class="k-side"></span><span class="k-face"><span class="k-label">Console</span></span></button>
+    </div>
+  </nav>
+
+  <main class="stage" id="stage">
+    <div class="fx" aria-hidden="true">
+      <div class="orb orb--violet"></div>
+      <div class="orb orb--deep"></div>
+      <div class="orb orb--accent"></div>
+    </div>
+    <div class="ghost" id="ghost" aria-hidden="true">KEYS</div>
+
+    <header class="stage-head">
+      <div>
+        <div class="kicker">Settings</div>
+        <h1 class="title" id="pageTitle">Controls</h1>
+      </div>
+      <div class="head-side">
+        <span class="saved-note">Saved as you go</span>
+        <button class="k k--sm k--cream k--reset" id="resetPage"><span class="k-side"></span><span class="k-face"><span class="k-label" id="resetPageLabel">Reset page</span></span></button>
+        <button class="k k--sm k--cream k--reset" id="resetAll"><span class="k-side"></span><span class="k-face"><span class="k-label" id="resetAllLabel">Reset all</span></span></button>
+      </div>
+    </header>
+
+    <!-- CONTROLS -->
+    <section class="pane" id="pane-controls" data-page="controls">
+      <div class="controls-grid">
+        <div class="card">
+          <div class="card-title">Keyboard <small>Click a key to choose what it does</small></div>
+          <div class="board" id="board"></div>
+        </div>
+        <div class="card mouse-card">
+          <div class="card-title">Mouse</div>
+          <div class="mouse-wrap">
+            <div class="mouse" id="mouse">
+              <button class="mzone" data-code="mouse:left" aria-label="Left button"></button>
+              <button class="mzone" data-code="mouse:right" aria-label="Right button"></button>
+              <button class="mzone" data-code="wheel:up" aria-label="Wheel up"></button>
+              <button class="mzone" data-code="mouse:middle" aria-label="Wheel click"></button>
+              <button class="mzone" data-code="wheel:down" aria-label="Wheel down"></button>
+            </div>
+            <div class="mlabels" id="mlabels"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">What each key does <small>Click an action, then press the key you want</small></div>
+          <div class="acts" id="acts"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Mouse feel</div>
+          <div class="mouse-tune" id="mouseTune"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- GAMEPLAY -->
+    <section class="pane" id="pane-gameplay" data-page="gameplay" hidden>
+      <div class="play-grid">
+        <div class="card card--wide">
+          <div class="card-title">Who's who <small>Your side, and everyone you can shoot</small></div>
+          <div class="split">
+            <div class="scene" id="teamScene" style="--img: url('/data/levelshots/wdm7.jpg')">
+              <span class="scene-tag">Preview</span>
+              <div class="figures" id="figures"></div>
+            </div>
+            <div class="stack" id="teamFields"></div>
+          </div>
+        </div>
+        <div class="card card--wide">
+          <div class="card-title">Crosshair</div>
+          <div class="split split--x">
+            <div class="scene" id="xScene">
+              <span class="scene-tag">Preview</span>
+              <svg class="xhair" id="xhair" width="64" height="64" viewBox="-32 -32 64 64"></svg>
+            </div>
+            <div class="field-grid" id="xFields"></div>
+          </div>
+        </div>
+        <div class="card card--wide">
+          <div class="card-title">View &amp; info</div>
+          <div class="field-grid" id="viewFields"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIDEO -->
+    <section class="pane" id="pane-video" data-page="video" hidden>
+      <div class="presets" id="presets"></div>
+      <div class="video-bar">
+        <div class="preset-status" id="presetStatus"></div>
+        <div class="cost-legend">
+          Frame-rate cost
+          <span><span class="cost cost--low"><i></i><i></i><i></i></span>Light</span>
+          <span><span class="cost cost--mid"><i></i><i></i><i></i></span>Medium</span>
+          <span><span class="cost cost--high"><i></i><i></i><i></i></span>Heavy</span>
+        </div>
+      </div>
+      <div class="sections" id="sections"></div>
+      <div class="card section-panel" id="sectionPanel" hidden>
+        <div class="panel-fields" id="screenFields" data-section="screen"></div>
+        <div class="panel-fields" id="effectFields" data-section="effects"></div>
+        <div class="panel-fields" id="worldFields" data-section="world"></div>
+        <div class="panel-fields" id="textureFields" data-section="textures"></div>
+      </div>
+    </section>
+
+    <!-- AUDIO -->
+    <section class="pane" id="pane-audio" data-page="audio" hidden>
+      <div class="audio-grid" id="audioGrid"></div>
+    </section>
+  </main>
+</div>
+
+<div class="pop" id="pop" hidden role="dialog" aria-label="Choose an action"></div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const el = (tag, className = "", text = "") => Object.assign(document.createElement(tag), { className, textContent: text });
+  const load = (key) => { try { return JSON.parse(localStorage.getItem(key)); } catch { return null; } };
+  const store = (key, value) => { try { localStorage.setItem(key, JSON.stringify(value)); } catch {} };
+
+  // ═══════════════════ ACTIONS AND KEYS ═══════════════════
+  // The game's actions and default bindings (FPSSettingsView), in four plain groups
+  const GROUPS = [
+    { id: "move", name: "Move", c: "var(--c-move)" },
+    { id: "weapons", name: "Weapons", c: "var(--c-weapons)" },
+    { id: "fight", name: "Fight", c: "var(--c-fight)" },
+    { id: "other", name: "Other", c: "var(--c-other)" },
+  ];
+  const GROUP = Object.fromEntries(GROUPS.map((g) => [g.id, g]));
+  // Only what the game acts on. Weapons stop at three because a player carries three:
+  // the blade and two picked up. Scoreboard, chat, console and join are wired to fixed
+  // keys in the game, so they show here as fixed rather than as bindings that do nothing.
+  const ACTIONS = [
+    { id: "fwd", group: "move", name: "Forward", keys: ["KeyW"] },
+    { id: "back", group: "move", name: "Back", keys: ["KeyS"] },
+    { id: "left", group: "move", name: "Left", keys: ["KeyA"] },
+    { id: "right", group: "move", name: "Right", keys: ["KeyD"] },
+    { id: "jump", group: "move", name: "Jump", keys: ["Space"] },
+    { id: "crouch", group: "move", name: "Crouch / slide", keys: ["mouse:middle", "KeyC", "ControlLeft", "ControlRight"] },
+    { id: "sprint", group: "move", name: "Sprint", keys: ["ShiftLeft", "ShiftRight"] },
+    { id: "blade", group: "weapons", name: "Blade", keys: ["Digit1", "KeyQ"] },
+    { id: "primary", group: "weapons", name: "Primary", keys: ["Digit2"] },
+    { id: "secondary", group: "weapons", name: "Secondary", keys: ["Digit3"] },
+    { id: "next", group: "weapons", name: "Next weapon", keys: ["wheel:down"] },
+    { id: "prev", group: "weapons", name: "Previous weapon", keys: ["wheel:up"] },
+    { id: "fire", group: "fight", name: "Fire", keys: ["mouse:left"] },
+    { id: "aim", group: "fight", name: "Aim", keys: ["mouse:right"] },
+    { id: "reload", group: "fight", name: "Reload", keys: ["KeyR"] },
+    { id: "ready", group: "other", name: "Ready", keys: ["F4"] },
+    { id: "scores", group: "other", name: "Scoreboard", keys: ["Tab"], fixed: "opens the scoreboard" },
+    { id: "chat", group: "other", name: "Chat", keys: ["KeyT", "Enter"], fixed: "opens chat" },
+    { id: "console", group: "other", name: "Console", keys: ["Backquote"], fixed: "opens the console" },
+    { id: "join", group: "other", name: "Join game", keys: ["KeyJ"], fixed: "joins the game" },
+  ];
+  const ACTION = Object.fromEntries(ACTIONS.map((a) => [a.id, a]));
+  // What a key says: the name where it fits, a short form on a narrow key
+  const ON_KEY = { crouch: "Crouch", next: "Next wpn", prev: "Prev wpn", secondary: "Second.", scores: "Scores", join: "Join" };
+  const ON_NARROW_KEY = {
+    fwd: "Fwd", crouch: "Crch", sprint: "Sprnt", blade: "Blade", primary: "Pri", secondary: "Sec",
+    next: "Next", prev: "Prev", reload: "Rld", scores: "Score", console: "Con",
+  };
+
+  const letters = (s) => [...s].map((c) => [`Key${c}`, c]);
+  const ROWS = [
+    [["Escape", "Esc"], ...Array.from({ length: 12 }, (_, i) => [`F${i + 1}`, `F${i + 1}`])],
+    [["Backquote", "`"], ...[1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map((n) => [`Digit${n}`, String(n)]), ["Minus", "-"], ["Equal", "="], ["Backspace", "⌫", 2]],
+    [["Tab", "Tab", 1.5], ...letters("QWERTYUIOP"), ["BracketLeft", "["], ["BracketRight", "]"], ["Backslash", "\\", 1.5]],
+    [["CapsLock", "Caps", 1.75], ...letters("ASDFGHJKL"), ["Semicolon", ";"], ["Quote", "'"], ["Enter", "Enter", 2.25]],
+    [["ShiftLeft", "Shift", 2.25], ...letters("ZXCVBNM"), ["Comma", ","], ["Period", "."], ["Slash", "/"], ["ShiftRight", "Shift", 2.75]],
+    [["ControlLeft", "Ctrl", 1.25], ["MetaLeft", "Win", 1.25], ["AltLeft", "Alt", 1.25], ["Space", "Space", 5.75], ["AltRight", "Alt", 1.25], ["ControlRight", "Ctrl", 1.25]],
+  ];
+  const ARROWS = [["ArrowUp", "↑"], ["ArrowLeft", "←"], ["ArrowDown", "↓"], ["ArrowRight", "→"]];
+  const MOUSE = { "mouse:left": "Left click", "mouse:right": "Right click", "mouse:middle": "Wheel click", "wheel:up": "Wheel up", "wheel:down": "Wheel down" };
+  const LEGEND = Object.fromEntries([...ROWS.flat(), ...ARROWS].map(([code, legend]) => [code, legend]));
+  const CHIP = {
+    ShiftLeft: "L-Shift", ShiftRight: "R-Shift", ControlLeft: "L-Ctrl", ControlRight: "R-Ctrl", AltLeft: "L-Alt", AltRight: "R-Alt",
+    "mouse:left": "L-Click", "mouse:right": "R-Click", "mouse:middle": "Wheel", "wheel:up": "Wheel ↑", "wheel:down": "Wheel ↓",
+  };
+  const codeName = (code) => CHIP[code] || LEGEND[code] || code.replace(/^Key|^Digit/, "");
+
+  const defaultBinds = () => Object.fromEntries(ACTIONS.map((a) => [a.id, [...a.keys]]));
+  let binds = { ...defaultBinds(), ...(load("proto-binds") || {}) };
+  // Fixed keys stay where the game has them, whatever was saved
+  const FIXED = new Map(ACTIONS.filter((a) => a.fixed).flatMap((a) => a.keys.map((code) => [code, a])));
+  for (const a of ACTIONS) binds[a.id] = a.fixed ? [...a.keys] : (binds[a.id] || []).filter((c) => !FIXED.has(c));
+  function sayFixed(code) {
+    const a = FIXED.get(code);
+    toast(`<b>${codeName(code)}</b> always ${a.fixed}. That can't be changed yet`);
+  }
+  const saveBinds = () => store("proto-binds", binds);
+  const actionOf = (code) => ACTIONS.find((a) => binds[a.id].includes(code)) || null;
+
+  // A key does one thing: giving it to an action takes it from whichever had it
+  function assign(code, actionId) {
+    if (FIXED.has(code)) { sayFixed(code); return; }
+    const before = actionOf(code);
+    for (const a of ACTIONS) binds[a.id] = binds[a.id].filter((c) => c !== code);
+    if (actionId) binds[actionId].push(code);
+    saveBinds();
+    renderControls();
+    flash(code);
+    const k = `<b>${codeName(code)}</b>`;
+    if (!actionId) toast(`${k} does nothing now`);
+    else if (before && before.id !== actionId) toast(`${k} was ${before.name}, now ${ACTION[actionId].name}`);
+    else if (!before) toast(`${k} → ${ACTION[actionId].name}`);
+  }
+
+  // ── Keyboard and mouse ──
+  const caps = new Map();
+  function cap(code, legend, width = 1) {
+    const b = el("button", "cap");
+    b.type = "button";
+    b.dataset.code = code;
+    b.style.setProperty("--w", width);
+    const act = el("span", "cap-act");
+    act.append(el("span", "cap-act-long"), el("span", "cap-act-short"));
+    b.append(el("span", "cap-legend", legend), act);
+    b.addEventListener("click", () => (FIXED.has(code) ? sayFixed(code) : openPop(code, b)));
+    b.addEventListener("mouseenter", () => { const a = actionOf(code); if (a) focusAction(a.id); });
+    b.addEventListener("mouseleave", () => focusAction(null));
+    caps.set(code, b);
+    return b;
+  }
+  ROWS.forEach((row, i) => {
+    const r = el("div", `krow${i === 0 ? " krow--f" : ""}`);
+    for (const [code, legend, w] of row) r.append(cap(code, legend, w));
+    if (i === ROWS.length - 1) {
+      const arrows = el("div", "arrows");
+      for (const [code, legend] of ARROWS) arrows.append(cap(code, legend));
+      r.append(arrows);
+    }
+    $("board").append(r);
+  });
+
+  const mlabels = new Map();
+  for (const code of ["mouse:left", "mouse:right", "wheel:up", "mouse:middle", "wheel:down"]) {
+    const b = el("button", "mlabel");
+    b.type = "button";
+    b.append(el("span", "mlabel-slot", MOUSE[code]), el("span", "mlabel-act"));
+    b.addEventListener("click", () => openPop(code, b));
+    b.addEventListener("mouseenter", () => { const a = actionOf(code); if (a) focusAction(a.id); });
+    b.addEventListener("mouseleave", () => focusAction(null));
+    $("mlabels").append(b);
+    mlabels.set(code, b);
+  }
+  for (const z of document.querySelectorAll(".mzone")) {
+    z.addEventListener("click", () => openPop(z.dataset.code, z));
+    z.addEventListener("mouseenter", () => { const a = actionOf(z.dataset.code); if (a) focusAction(a.id); });
+    z.addEventListener("mouseleave", () => focusAction(null));
+  }
+
+  function renderKeys() {
+    for (const [code, b] of caps) {
+      const a = actionOf(code);
+      b.classList.toggle("is-bound", !!a);
+      b.classList.toggle("is-fixed", FIXED.has(code));
+      b.style.setProperty("--c", a ? GROUP[a.group].c : "");
+      const long = a ? ON_KEY[a.id] || a.name : "";
+      b.querySelector(".cap-act-long").textContent = long;
+      b.querySelector(".cap-act-short").textContent = a ? ON_NARROW_KEY[a.id] || long : "";
+      b.title = a ? `${LEGEND[code]}: ${a.name}${a.fixed ? " (fixed)" : ""}` : `${LEGEND[code]}: nothing`;
+    }
+    for (const z of document.querySelectorAll(".mzone")) {
+      const a = actionOf(z.dataset.code);
+      z.classList.toggle("is-bound", !!a);
+      z.style.setProperty("--c", a ? GROUP[a.group].c : "");
+    }
+    for (const [code, b] of mlabels) {
+      const a = actionOf(code);
+      b.classList.toggle("is-empty", !a);
+      b.style.setProperty("--c", a ? GROUP[a.group].c : "");
+      b.querySelector(".mlabel-act").textContent = a ? a.name : "Nothing";
+    }
+  }
+
+  // Pointing at an action lights its keys; pointing at a key lights its action
+  function focusAction(id) {
+    const focused = id ? new Set(binds[id]) : null;
+    for (const root of [$("board"), $("mouse").parentElement]) root.classList.toggle("is-focusing", !!id);
+    for (const [code, b] of caps) b.classList.toggle("is-focus", !!focused?.has(code));
+    for (const z of document.querySelectorAll(".mzone")) z.classList.toggle("is-focus", !!focused?.has(z.dataset.code));
+    for (const [code, b] of mlabels) b.classList.toggle("is-focus", !!focused?.has(code));
+    for (const row of document.querySelectorAll(".act")) row.classList.toggle("is-hl", row.dataset.action === id);
+  }
+
+  function flash(code) {
+    const target = caps.get(code) || document.querySelector(`.mzone[data-code="${code}"]`);
+    if (!target) return;
+    target.classList.remove("is-flash");
+    void target.offsetWidth;
+    target.classList.add("is-flash");
+  }
+
+  // ── The action list ──
+  let listening = null;   // action id waiting for a key
+  function renderActs() {
+    const cols = GROUPS.map((g) => {
+      const col = el("div", "act-group");
+      col.style.setProperty("--c", g.c);
+      col.append(el("div", "act-group-title", g.name));
+      for (const a of ACTIONS.filter((x) => x.group === g.id)) {
+        const row = el("button", `act${binds[a.id].length ? "" : " is-empty"}${a.fixed ? " is-fixed" : ""}${listening === a.id ? " is-listening" : ""}`);
+        row.type = "button";
+        row.dataset.action = a.id;
+        const name = el("span", "act-name", a.name);
+        if (a.fixed) {
+          name.append(el("span", "act-fixed", "Fixed"));
+          row.title = `${a.name}: fixed in the game for now`;
+        }
+        const keys = el("span", "act-keys");
+        for (const code of binds[a.id]) {
+          const chip = el("span", `chip${a.fixed ? " chip--fixed" : ""}`, codeName(code));
+          if (!a.fixed) {
+            const x = el("span", "chip-x", "×");
+            x.title = `Take ${codeName(code)} off ${a.name}`;
+            x.addEventListener("click", (e) => { e.stopPropagation(); assign(code, null); });
+            chip.append(x);
+          }
+          keys.append(chip);
+        }
+        if (!binds[a.id].length) keys.append(el("span", "chip chip--none", "none"));
+        row.append(name, keys);
+        if (a.fixed) row.addEventListener("click", () => sayFixed(a.keys[0]));
+        else row.addEventListener("click", () => listen(a.id));
+        row.addEventListener("mouseenter", () => focusAction(a.id));
+        row.addEventListener("mouseleave", () => focusAction(null));
+        col.append(row);
+      }
+      return col;
+    });
+    $("acts").replaceChildren(...cols);
+  }
+
+  // Press-to-bind: the next key, click or wheel turn goes to the waiting action. Esc cancels.
+  function listen(id) {
+    closePop();
+    listening = listening === id ? null : id;
+    renderActs();
+  }
+  const takeInput = (code) => {
+    if (FIXED.has(code)) { sayFixed(code); return; }
+    const id = listening;
+    listening = null;
+    assign(code, id);
+  };
+  window.addEventListener("keydown", (e) => {
+    if (listening) {
+      e.preventDefault();
+      if (e.code === "Escape") { listening = null; renderActs(); return; }
+      takeInput(e.code);
+    } else if (e.code === "Escape") closePop();
+  }, true);
+  let eatMenu = false;
+  window.addEventListener("mousedown", (e) => {
+    if (!listening || e.target.closest(".act")) return;
+    // A left click away cancels, so reaching for another control can't take Fire's button.
+    // Left click is still yours to give from the mouse picture.
+    if (e.button === 0) { listening = null; renderActs(); return; }
+    e.preventDefault();
+    eatMenu = e.button === 2;
+    takeInput(e.button === 1 ? "mouse:middle" : "mouse:right");
+  }, true);
+  window.addEventListener("wheel", (e) => {
+    if (!listening) return;
+    e.preventDefault();
+    takeInput(e.deltaY < 0 ? "wheel:up" : "wheel:down");
+  }, { passive: false, capture: true });
+  window.addEventListener("contextmenu", (e) => {
+    if (listening || eatMenu || e.target.closest(".mouse-card")) e.preventDefault();
+    eatMenu = false;
+  });
+
+  // ── Choosing an action for a key ──
+  let popCode = null;
+  function openPop(code, anchor) {
+    listening = null;
+    popCode = code;
+    const pop = $("pop");
+    const current = actionOf(code);
+    const head = el("div", "pop-head");
+    const close = el("button", "pop-close", "×");
+    close.type = "button";
+    close.setAttribute("aria-label", "Close");
+    close.addEventListener("click", closePop);
+    const q = el("span", "pop-q", "What should it do?");
+    head.append(el("span", "pop-key", MOUSE[code] ? MOUSE[code] : LEGEND[code]), q, close);
+
+    const groups = el("div", "pop-groups");
+    const groupBox = (g) => {
+      const box = el("div", "pop-group");
+      box.style.setProperty("--c", g.c);
+      box.append(el("div", "pop-group-title", g.name));
+      const opts = el("div", "pop-opts");
+      for (const a of ACTIONS.filter((x) => x.group === g.id && !x.fixed)) {
+        const o = el("button", `opt${current?.id === a.id ? " is-current" : ""}`, a.name);
+        o.type = "button";
+        o.addEventListener("click", () => { closePop(); assign(code, a.id); });
+        opts.append(o);
+      }
+      box.append(opts);
+      return box;
+    };
+    for (const ids of [["move"], ["weapons"], ["fight", "other"]]) {
+      const col = el("div", "pop-col");
+      col.append(...ids.map((id) => groupBox(GROUP[id])));
+      groups.append(col);
+    }
+
+    const foot = el("div", "pop-foot");
+    const hint = el("span", "pop-hint");
+    if (current) hint.append("Now: ", el("b", "", current.name));
+    else hint.append("Does nothing yet");
+    foot.append(hint);
+    if (current) {
+      const un = el("button", "opt opt--unbind", "Make it do nothing");
+      un.type = "button";
+      un.addEventListener("click", () => { closePop(); assign(code, null); });
+      foot.append(un);
+    }
+    const card = el("div", "pop-card");
+    card.append(head, groups, foot);
+    pop.replaceChildren(card);
+    pop.hidden = false;
+
+    for (const b of document.querySelectorAll(".is-open")) b.classList.remove("is-open");
+    anchor.classList.add("is-open");
+    const r = anchor.getBoundingClientRect();
+    const w = pop.offsetWidth, h = pop.offsetHeight;
+    const below = r.bottom + 12 + h < innerHeight;
+    // Centred on the key, but kept on the stage: never over the rail
+    const minLeft = $("stage").getBoundingClientRect().left + 60;
+    pop.style.left = `${Math.max(minLeft, Math.min(innerWidth - w - 16, r.left + r.width / 2 - w / 2))}px`;
+    pop.style.top = `${below ? r.bottom + 12 : Math.max(16, r.top - h - 12)}px`;
+    renderActs();
+  }
+  function closePop() {
+    $("pop").hidden = true;
+    popCode = null;
+    for (const b of document.querySelectorAll(".is-open")) b.classList.remove("is-open");
+  }
+  document.addEventListener("mousedown", (e) => {
+    if (!popCode) return;
+    if (e.target.closest("#pop, .cap, .mzone, .mlabel")) return;
+    closePop();
+  });
+
+  function toast(html) {
+    for (const t of document.querySelectorAll(".toast")) t.remove();
+    const t = el("div", "toast");
+    t.innerHTML = html;
+    document.body.append(t);
+    setTimeout(() => t.remove(), 2700);
+  }
+
+  function renderControls() { renderKeys(); renderActs(); }
+</script>
+
+<script>
+  // ═══════════════════ SETTINGS VALUES ═══════════════════
+  // Keyed by the game's cvar names, with the game's defaults. Team colours, outline and
+  // boost are one choice each here; the comments on those say what they set.
+  const DEFAULTS = {
+    m_sensitivity: 1, cl_ads_sensitivity: 0.5, cl_autorun: 1,
+    team_ally: "pink", team_enemy: "cyan", team_outline: "thin", team_boost: "off",
+    cg_crosshair: 1, cg_crosshairSize: 24, cg_crosshairAlpha: 0.9, cg_crosshairColor: "00FF00", cg_crosshairSpread: 1, cg_crosshairDmgColor: "FF0000",
+    cl_fov: 90, cl_netgraph: 0,
+    r_bloom: 1, r_glow: 0, r_ssr: 0, r_ssr_strength: 0.4, r_anisotropy: 8,
+    godrays: "high", r_water_quality: 3, r_water_actors: 1, r_arealights: 1, r_bsp_pbr: 1, r_cel_outlines: 0,
+    r_exposure: 1, r_contrast: 1, r_underwater_distortion: 1, res_scale: 1,
+    s_musicenabled: 1, s_volume: 0.5, s_sfxenabled: 1, s_sfxvolume: 0.7,
+  };
+  const PAGE_KEYS = {
+    controls: ["m_sensitivity", "cl_ads_sensitivity", "cl_autorun"],
+    gameplay: ["team_ally", "team_enemy", "team_outline", "team_boost", "cg_crosshair", "cg_crosshairSize", "cg_crosshairAlpha", "cg_crosshairColor", "cg_crosshairSpread", "cg_crosshairDmgColor", "cl_fov", "cl_netgraph"],
+    video: ["r_bloom", "r_glow", "r_ssr", "r_ssr_strength", "r_anisotropy", "godrays", "r_water_quality", "r_water_actors",
+            "r_arealights", "r_bsp_pbr", "r_cel_outlines", "r_exposure", "r_contrast", "r_underwater_distortion", "res_scale"],
+    audio: ["s_musicenabled", "s_volume", "s_sfxenabled", "s_sfxvolume"],
+  };
+  let S = { ...DEFAULTS, ...(load("proto-settings") || {}) };
+  const refreshers = [];
+  function set(key, value) {
+    S[key] = value;
+    store("proto-settings", S);
+    for (const r of refreshers) r();
+  }
+  const pct = (v) => `${Math.round(v * 100)}%`;
+  const num = (v) => (Number.isInteger(v) ? String(v) : v.toFixed(2).replace(/\.?0+$/, ""));
+
+  const COST = { low: "light", mid: "medium", high: "heavy" };
+  function field(name, help, { cost, tag } = {}) {
+    const f = el("div", "field");
+    const top = el("div", "field-top");
+    const label = el("span", "field-name", name);
+    if (tag) label.append(el("span", `field-tag${tag === "New" ? " field-tag--new" : ""}`, tag));
+    if (cost) {
+      const pips = el("span", `cost cost--${cost}`);
+      pips.title = `Frame-rate cost: ${COST[cost]}`;
+      pips.append(el("i"), el("i"), el("i"));
+      label.append(pips);
+    }
+    top.append(label);
+    f.append(top);
+    if (help) f.append(el("div", "field-help", help));
+    return { f, top };
+  }
+
+  function slider(parent, { key, name, min, max, step, fmt = num, help, enabledIf, cost, tag }) {
+    const { f, top } = field(name, help, { cost, tag });
+    const val = el("span", "field-val");
+    top.append(val);
+    const r = Object.assign(el("input", "range"), { type: "range", min, max, step });
+    r.setAttribute("aria-label", name);
+    r.addEventListener("input", () => set(key, Number(r.value)));
+    f.insertBefore(r, f.children[1] || null);
+    parent.append(f);
+    refreshers.push(() => {
+      r.value = S[key];
+      r.style.setProperty("--pct", `${((S[key] - min) / (max - min)) * 100}%`);
+      val.textContent = fmt(S[key]);
+      val.classList.toggle("is-default", S[key] === DEFAULTS[key]);
+      if (enabledIf) f.setAttribute("aria-disabled", String(!enabledIf()));
+    });
+  }
+
+  function seg(parent, { key, name, options, help, onPick, enabledIf, cost, tag }) {
+    const { f } = field(name, help, { cost, tag });
+    const row = el("div", "seg");
+    const btns = options.map(([value, label]) => {
+      const b = el("button", "seg-btn", label);
+      b.type = "button";
+      b.addEventListener("click", () => (onPick ? onPick(value) : set(key, value)));
+      row.append(b);
+      return [value, b];
+    });
+    f.insertBefore(row, f.children[1] || null);
+    parent.append(f);
+    refreshers.push(() => {
+      for (const [v, b] of btns) b.classList.toggle("is-on", (key ? S[key] : null) === v);
+      if (enabledIf) f.setAttribute("aria-disabled", String(!enabledIf()));
+    });
+    return btns;
+  }
+
+  function swatches(parent, { key, name, options, help, blocked }) {
+    const { f } = field(name, help);
+    const row = el("div", "swatches");
+    const btns = options.map((o) => {
+      const b = el("button", "sw");
+      b.type = "button";
+      b.title = o.label;
+      b.setAttribute("aria-label", o.label);
+      b.style.setProperty("--sw", o.css);
+      b.addEventListener("click", () => set(key, o.value));
+      row.append(b);
+      return [o.value, b];
+    });
+    f.insertBefore(row, f.children[1] || null);
+    parent.append(f);
+    refreshers.push(() => {
+      for (const [v, b] of btns) {
+        b.classList.toggle("is-on", S[key] === v);
+        b.disabled = blocked ? blocked() === v : false;
+        b.title = b.disabled ? `${b.getAttribute("aria-label")}: the other side has it` : b.getAttribute("aria-label");
+      }
+    });
+    return f;
+  }
+
+  // ═══════════════════ CONTROLS: MOUSE ═══════════════════
+  slider($("mouseTune"), { key: "m_sensitivity", name: "Sensitivity", min: 0.1, max: 10, step: 0.1 });
+  slider($("mouseTune"), { key: "cl_ads_sensitivity", name: "While aiming", min: 0.1, max: 1, step: 0.05, fmt: pct, help: "Share of your sensitivity while you hold Aim" });
+  seg($("mouseTune"), { key: "cl_autorun", name: "Always run", options: [[0, "Off"], [1, "On"]], help: "On: you run all the time, and holding Sprint walks" });
+
+  // ═══════════════════ GAMEPLAY: WHO'S WHO ═══════════════════
+  // Each colour sets the body and its outline together, both at full glow: the
+  // cl_team_*_color and cl_team_*_outline_color pairs, values above 1 included.
+  // Enemies covers free-for-all too (cl_team_ffa_*): anyone you can shoot is one colour.
+  const TEAM_COLORS = [
+    { value: "pink",   label: "Pink",   css: "hsl(318 100% 62%)", fill: "1.55 0.2 1.35", outline: "1.85 0.28 1.65" },
+    { value: "cyan",   label: "Cyan",   css: "hsl(190 100% 55%)", fill: "0.1 1.15 1.85", outline: "0.16 1.35 2.2" },
+    { value: "lime",   label: "Lime",   css: "hsl(96 90% 55%)",   fill: "0.55 1.7 0.2",  outline: "0.7 2 0.3" },
+    { value: "orange", label: "Orange", css: "hsl(28 100% 58%)",  fill: "1.8 0.7 0.1",   outline: "2.1 0.85 0.15" },
+    { value: "yellow", label: "Yellow", css: "hsl(52 100% 58%)",  fill: "1.7 1.5 0.15",  outline: "2 1.8 0.2" },
+    { value: "red",    label: "Red",    css: "hsl(356 95% 60%)",  fill: "1.8 0.2 0.25",  outline: "2.1 0.3 0.3" },
+    { value: "violet", label: "Violet", css: "hsl(272 95% 68%)",  fill: "0.9 0.3 1.9",   outline: "1.1 0.4 2.2" },
+    { value: "white",  label: "White",  css: "hsl(45 60% 95%)",   fill: "1.6 1.6 1.6",   outline: "1.9 1.9 1.9" },
+  ];
+  const TEAM = Object.fromEntries(TEAM_COLORS.map((c) => [c.value, c]));
+  // Outline: cl_player_outline and cl_player_outline_size. Boost: cl_player_fullbright and its intensity.
+  const OUTLINE = { off: 0, thin: 2.2, bold: 4.5 };
+  const BOOST = { off: 1, some: 1.18, lots: 1.4 };
+
+  swatches($("teamFields"), { key: "team_ally", name: "Your side", options: TEAM_COLORS, blocked: () => S.team_enemy });
+  swatches($("teamFields"), { key: "team_enemy", name: "Enemies", options: TEAM_COLORS, blocked: () => S.team_ally, help: "In free-for-all, that's everyone else" });
+  seg($("teamFields"), { key: "team_outline", name: "Outline", options: [["off", "Off"], ["thin", "Thin"], ["bold", "Bold"]] });
+  seg($("teamFields"), { key: "team_boost", name: "Brighter players", options: [["off", "Off"], ["some", "Some"], ["lots", "Lots"]], help: "Makes players stand out in dark corners" });
+
+  const FIGURE = `
+    <circle cx="30" cy="13" r="10"/>
+    <path d="M14 27 Q30 21 46 27 L52 60 L44 62 L41 88 L45 118 L34 118 L30 93 L26 118 L15 118 L19 88 L16 62 L8 60 Z"/>`;
+  function figure(tag, side, far) {
+    const box = el("div", `figure${far ? " figure--far" : ""}`);
+    box.dataset.side = side;
+    box.innerHTML = `<svg viewBox="0 0 60 120">${FIGURE}</svg>`;
+    if (tag) box.append(el("span", "figure-tag", tag));
+    return box;
+  }
+  $("figures").append(figure("Your side", "ally"), figure("", "enemy", true), figure("Enemy", "enemy"));
+  refreshers.push(() => {
+    for (const box of $("figures").children) {
+      const c = TEAM[box.dataset.side === "ally" ? S.team_ally : S.team_enemy].css;
+      const svg = box.querySelector("svg");
+      svg.style.fill = `color-mix(in srgb, ${c} 78%, hsl(250 40% 12%))`;
+      svg.style.stroke = c;
+      svg.style.strokeWidth = OUTLINE[S.team_outline];
+      svg.style.filter = `brightness(${BOOST[S.team_boost]})${S.team_outline === "off" ? "" : ` drop-shadow(0 0 6px ${c})`}`;
+      box.style.setProperty("--tag", c);
+    }
+  });
+
+  // ═══════════════════ GAMEPLAY: CROSSHAIR ═══════════════════
+  // The game's colour choices, with its defaults (green, and red on hit) among them
+  const XHAIR_COLORS = [["00FF00", "Green"], ["00E7FF", "Cyan"], ["FFB400", "Amber"], ["F4F7FF", "White"], ["FF4FD8", "Magenta"], ["FF3355", "Red"]]
+    .map(([value, label]) => ({ value, label, css: `#${value}` }));
+  const HIT_COLORS = [["FF0000", "Red"], ["F4F7FF", "White"], ["FFB400", "Amber"], ["FF4FD8", "Magenta"], ["00E7FF", "Cyan"]]
+    .map(([value, label]) => ({ value, label, css: `#${value}` }));
+
+  const xf = $("xFields");
+  seg(xf, { key: "cg_crosshair", name: "Crosshair", options: [[0, "Off"], [1, "On"]] });
+  seg(xf, { key: "cg_crosshairSpread", name: "Opens up when moving", options: [[0, "Off"], [1, "On"]], help: "Tightens again while you aim" });
+  slider(xf, { key: "cg_crosshairSize", name: "Size", min: 8, max: 64, step: 1, enabledIf: () => S.cg_crosshair === 1 });
+  slider(xf, { key: "cg_crosshairAlpha", name: "Opacity", min: 0.1, max: 1, step: 0.05, fmt: pct, enabledIf: () => S.cg_crosshair === 1 });
+  swatches(xf, { key: "cg_crosshairColor", name: "Colour", options: XHAIR_COLORS });
+  const hitField = swatches(xf, { key: "cg_crosshairDmgColor", name: "When you hit", options: HIT_COLORS, help: "Pick one to see it flash" });
+
+  // Drawn like the game's reticle: four bars round a gap, each on a dark underlay
+  let hitUntil = 0;
+  function drawCrosshair() {
+    const svg = $("xhair");
+    svg.classList.toggle("is-off", S.cg_crosshair !== 1);
+    const k = S.cg_crosshairSize / 24;
+    const zoom = 1.5;
+    const gap = 4 * k * zoom, len = 6 * k * zoom, w = Math.max(1, Math.round(2 * k)) * zoom;
+    const color = `#${Date.now() < hitUntil ? S.cg_crosshairDmgColor : S.cg_crosshairColor}`;
+    const bars = [[-w / 2, -gap - len, w, len], [-w / 2, gap, w, len], [-gap - len, -w / 2, len, w], [gap, -w / 2, len, w]];
+    const rect = ([x, y, rw, rh], fill, pad) =>
+      `<rect x="${x - pad}" y="${y - pad}" width="${rw + pad * 2}" height="${rh + pad * 2}" fill="${fill}"/>`;
+    svg.innerHTML = bars.map((b) => rect(b, "rgba(0,0,0,.7)", zoom)).join("") + bars.map((b) => rect(b, color, 0)).join("");
+    svg.style.opacity = S.cg_crosshairAlpha;
+  }
+  refreshers.push(drawCrosshair);
+  for (const b of hitField.querySelectorAll(".sw")) {
+    b.addEventListener("click", () => { hitUntil = Date.now() + 500; drawCrosshair(); setTimeout(drawCrosshair, 520); });
+  }
+
+  // ═══════════════════ GAMEPLAY: VIEW ═══════════════════
+  const vf = $("viewFields");
+  const fovBox = el("div", "fov-visual");
+  fovBox.innerHTML = `<svg viewBox="-100 -8 200 100" preserveAspectRatio="xMidYMax meet"><path id="fovWedge" fill="hsla(46,100%,60%,.16)" stroke="hsl(46 100% 60%)" stroke-width="1.5"/><circle cx="0" cy="84" r="5" fill="hsl(45 100% 95%)"/></svg>`;
+  slider(vf, { key: "cl_fov", name: "Field of view", min: 80, max: 110, step: 1, fmt: (v) => `${v}°`, help: "How wide you see. Wider shows more, but things look smaller" });
+  vf.firstElementChild.append(fovBox);
+  refreshers.push(() => {
+    const half = (S.cl_fov / 2) * (Math.PI / 180);
+    const r = 92;
+    const x = Math.sin(half) * r, y = 84 - Math.cos(half) * r;
+    $("fovWedge").setAttribute("d", `M0 84 L${-x} ${y} A${r} ${r} 0 0 1 ${x} ${y} Z`);
+  });
+  seg(vf, { key: "cl_netgraph", name: "Connection info", options: [[0, "Off"], [1, "Numbers"], [2, "Graph"]], help: "Ping and packet loss in a corner of the screen" });
+
+  // ═══════════════════ VIDEO ═══════════════════
+  // Every setting here is one of the renderer's own variables, except resolution, which the
+  // engine can't do yet. Light shafts is one choice over two: r_godrays, and r_godrays_samples
+  // at 30 (low) or 60 (high, the game's default). Costs are estimates from what each pass does.
+
+  // Presets set only what costs frames; brightness, outlines and the like are left alone
+  const PRESETS = [
+    { id: "smooth", name: "Smooth", line: "The most frames. Plain water, no light shafts, no bloom.", bars: 1,
+      values: { r_bloom: 0, r_glow: 0, r_ssr: 0, r_ssr_strength: 0.4, r_anisotropy: 4, godrays: "off", r_water_quality: 1, r_water_actors: 0, r_arealights: 0, r_bsp_pbr: 0 } },
+    { id: "balanced", name: "Balanced", line: "The look the game ships with.", bars: 2,
+      values: { r_bloom: 1, r_glow: 0, r_ssr: 0, r_ssr_strength: 0.4, r_anisotropy: 8, godrays: "high", r_water_quality: 3, r_water_actors: 1, r_arealights: 1, r_bsp_pbr: 1 } },
+    { id: "pretty", name: "Pretty", line: "Adds glow and reflections. Wants a strong graphics card.", bars: 3,
+      values: { r_bloom: 1.3, r_glow: 1, r_ssr: 1, r_ssr_strength: 0.5, r_anisotropy: 16, godrays: "high", r_water_quality: 3, r_water_actors: 1, r_arealights: 1, r_bsp_pbr: 1 } },
+  ];
+  const presetNow = () => PRESETS.find((p) => Object.entries(p.values).every(([k, v]) => S[k] === v)) || null;
+  const presetKeys = PRESETS.map((p) => {
+    const b = el("button", "k k--preset");
+    b.type = "button";
+    const face = el("span", "k-face");
+    const meter = el("span", "preset-meter");
+    for (let i = 0; i < 3; i++) meter.append(el("i", i < p.bars ? "on" : ""));
+    const top = el("span", "");
+    top.append(el("span", "preset-name", p.name));
+    face.append(top, el("span", "preset-line", p.line), meter);
+    b.append(el("span", "k-side"), face);
+    b.addEventListener("click", () => { Object.assign(S, p.values); set("r_bloom", S.r_bloom); });
+    $("presets").append(b);
+    return [p, b];
+  });
+  refreshers.push(() => {
+    const now = presetNow();
+    for (const [p, b] of presetKeys) b.classList.toggle("is-picked", p === now);
+    $("presetStatus").innerHTML = now ? `Using <b>${now.name}</b>` : "Using <b>your own mix</b> · pick a preset to start over from it";
+  });
+
+  // ── Screen ──
+  const sf = $("screenFields");
+  const fsBtns = seg(sf, {
+    name: "Fullscreen", options: [[false, "Off"], [true, "On"]],
+    onPick: async (on) => {
+      try { on ? await document.documentElement.requestFullscreen() : document.fullscreenElement && (await document.exitFullscreen()); } catch {}
+      for (const r of refreshers) r();
+    },
+  });
+  // Fullscreen is the browser's state, not a stored value
+  refreshers.push(() => { for (const [on, b] of fsBtns) b.classList.toggle("is-on", on === !!document.fullscreenElement); });
+  document.addEventListener("fullscreenchange", () => { for (const r of refreshers) r(); });
+  seg(sf, { key: "res_scale", name: "Resolution", tag: "New", options: [[0.5, "50%"], [0.67, "67%"], [0.85, "85%"], [1, "100%"]],
+    help: "Draws fewer pixels and scales up: the biggest frame-rate win there is. Not in the game yet" });
+  slider(sf, { key: "r_exposure", name: "Brightness", min: 0.5, max: 2, step: 0.05, fmt: pct });
+  slider(sf, { key: "r_contrast", name: "Contrast", min: 0.5, max: 2, step: 0.05, fmt: pct });
+
+  // ── Effects ──
+  const ef = $("effectFields");
+  slider(ef, { key: "r_bloom", name: "Bloom", cost: "low", min: 0, max: 3, step: 0.1, help: "Soft light around bright things" });
+  seg(ef, { key: "r_ssr", name: "Reflections", cost: "high", options: [[0, "Off"], [1, "On"]], help: "Shiny floors and metal" });
+  seg(ef, { key: "godrays", name: "Light shafts", cost: "mid", options: [["off", "Off"], ["low", "Low"], ["high", "High"]], help: "Sunbeams, on maps that have a sun" });
+  slider(ef, { key: "r_glow", name: "Glow", cost: "mid", min: 0, max: 2, step: 0.05, help: "Signs, strips and energy shine" });
+  slider(ef, { key: "r_ssr_strength", name: "Reflection strength", min: 0, max: 2, step: 0.05, enabledIf: () => S.r_ssr === 1 });
+  seg(ef, { key: "r_cel_outlines", name: "Comic outlines", cost: "low", options: [[0, "Off"], [1, "On"]], help: "Inked edges on the world" });
+
+  // ── World ──
+  const wf = $("worldFields");
+  seg(wf, { key: "r_water_quality", name: "Water", cost: "mid", options: [[1, "Low"], [2, "Medium"], [3, "High"]] });
+  seg(wf, { key: "r_water_actors", name: "Players in water", cost: "low", options: [[0, "Off"], [1, "On"]],
+    help: "Reflections of nearby players. High water only", enabledIf: () => S.r_water_quality === 3 });
+  seg(wf, { key: "r_arealights", name: "Glowing panel light", cost: "mid", tag: "Next map", options: [[0, "Off"], [1, "On"]],
+    help: "Light cast from the map's glowing panels" });
+  slider(wf, { key: "r_underwater_distortion", name: "Underwater wobble", min: 0, max: 1, step: 0.05, fmt: pct, help: "How much the view warps under water" });
+
+  // ── Textures ──
+  const tf = $("textureFields");
+  seg(tf, { key: "r_anisotropy", name: "Sharpness", cost: "low", options: [[1, "1×"], [2, "2×"], [4, "4×"], [8, "8×"], [16, "16×"]], help: "Keeps floors crisp at an angle" });
+  seg(tf, { key: "r_bsp_pbr", name: "Detailed surfaces", cost: "mid", tag: "Next map", options: [[0, "Off"], [1, "On"]],
+    help: "Richer metal, stone and wear on map surfaces" });
+
+  // ── Sections: closed until asked for, one open at a time ──
+  // Each key shows how heavy its section is set: points from the same cost estimates as the pips
+  // (light 1, medium 2, heavy 3), then up to 1 is light, up to 3 medium, more is heavy.
+  const SECTIONS = [
+    { id: "screen", name: "Screen", load: () => (S.res_scale >= 1 ? 3 : S.res_scale >= 0.85 ? 1 : 0) },
+    { id: "effects", name: "Effects", load: () =>
+        (S.r_bloom > 0 ? 1 : 0) + (S.r_glow > 0 ? 2 : 0) + (S.r_ssr ? 3 : 0) + { off: 0, low: 1, high: 2 }[S.godrays] + (S.r_cel_outlines ? 1 : 0) },
+    { id: "world", name: "World", load: () =>
+        (S.r_water_quality - 1) + (S.r_water_quality === 3 && S.r_water_actors ? 1 : 0) + (S.r_arealights ? 2 : 0) },
+    { id: "textures", name: "Textures", load: () => (S.r_anisotropy >= 16 ? 2 : S.r_anisotropy >= 4 ? 1 : 0) + (S.r_bsp_pbr ? 2 : 0) },
+  ];
+  const loadLevel = (n) => (n <= 1 ? "low" : n <= 3 ? "mid" : "high");
+  let openSection = null;
+  const sectKeys = SECTIONS.map((sec) => {
+    const b = el("button", "k k--sect");
+    b.type = "button";
+    b.setAttribute("aria-expanded", "false");
+    b.setAttribute("aria-controls", "sectionPanel");
+    const top = el("span", "sect-top");
+    top.append(el("span", "sect-name", sec.name), el("span", "sect-chev", "▾"));
+    const face = el("span", "k-face");
+    face.append(top, el("span", "sect-load"));
+    b.append(el("span", "k-side"), face);
+    b.addEventListener("click", () => openVideoSection(openSection === sec.id ? null : sec.id));
+    $("sections").append(b);
+    return [sec, b];
+  });
+  function openVideoSection(id) {
+    openSection = id;
+    for (const [sec, b] of sectKeys) {
+      b.classList.toggle("is-open", sec.id === id);
+      b.setAttribute("aria-expanded", String(sec.id === id));
+    }
+    $("sectionPanel").hidden = !id;
+    for (const box of $("sectionPanel").children) box.hidden = box.dataset.section !== id;
+  }
+  refreshers.push(() => {
+    for (const [sec, b] of sectKeys) {
+      const level = loadLevel(sec.load());
+      const pips = el("span", `cost cost--${level}`);
+      pips.append(el("i"), el("i"), el("i"));
+      b.querySelector(".sect-load").replaceChildren(pips, COST[level]);
+    }
+  });
+  window.addEventListener("keydown", (e) => { if (e.code === "Escape" && page === "video" && openSection && !popCode) openVideoSection(null); });
+  openVideoSection(null);
+
+  // ═══════════════════ AUDIO ═══════════════════
+  for (const [title, onKey, volKey] of [["Music", "s_musicenabled", "s_volume"], ["Effects", "s_sfxenabled", "s_sfxvolume"]]) {
+    const card = el("div", "card");
+    card.append(el("div", "card-title", title));
+    const vol = el("div", "vol");
+    const big = el("div", "vol-big");
+    const rest = el("div", "stack");
+    vol.append(big, rest);
+    card.append(vol);
+    $("audioGrid").append(card);
+    seg(rest, { key: onKey, name: "Sound", options: [[0, "Off"], [1, "On"]] });
+    slider(rest, { key: volKey, name: "Volume", min: 0, max: 1, step: 0.05, fmt: pct });
+    refreshers.push(() => {
+      big.innerHTML = `${Math.round(S[volKey] * 100)}<small>%</small>`;
+      vol.classList.toggle("is-muted", S[onKey] !== 1);
+    });
+  }
+
+  // ═══════════════════ PAGES ═══════════════════
+  const PAGES = {
+    controls: { title: "Controls", ghost: "KEYS" },
+    gameplay: { title: "Gameplay", ghost: "AIM" },
+    video: { title: "Video", ghost: "VIDEO" },
+    audio: { title: "Audio", ghost: "SOUND" },
+  };
+  let page = "controls";
+  function show(p) {
+    page = PAGES[p] ? p : "controls";
+    closePop();
+    listening = null;
+    for (const pane of document.querySelectorAll(".pane")) pane.hidden = pane.dataset.page !== page;
+    for (const k of document.querySelectorAll("#pageKeys .k")) k.classList.toggle("is-on", k.dataset.page === page);
+    $("pageTitle").textContent = PAGES[page].title;
+    $("ghost").textContent = PAGES[page].ghost;
+    history.replaceState(null, "", `?page=${page}`);
+    disarm();
+  }
+  for (const k of document.querySelectorAll("#pageKeys .k")) k.addEventListener("click", () => show(k.dataset.page));
+
+  // Resets ask once: the first press arms the key, the second within a few seconds does it
+  let armed = null, armTimer = 0;
+  function disarm() {
+    armed = null;
+    clearTimeout(armTimer);
+    for (const [id, text] of [["resetPage", "Reset page"], ["resetAll", "Reset all"]]) {
+      $(id).classList.remove("is-armed");
+      $(`${id}Label`).textContent = text;
+    }
+  }
+  function armOrRun(id, run) {
+    if (armed === id) { disarm(); run(); return; }
+    disarm();
+    armed = id;
+    $(id).classList.add("is-armed");
+    $(`${id}Label`).textContent = id === "resetAll" ? "Sure? Everything" : `Sure? ${PAGES[page].title}`;
+    armTimer = setTimeout(disarm, 3500);
+  }
+  function resetKeys(keys) { for (const k of keys) S[k] = DEFAULTS[k]; set(keys[0], DEFAULTS[keys[0]]); }
+  $("resetPage").addEventListener("click", () => armOrRun("resetPage", () => {
+    if (page === "controls") { binds = defaultBinds(); saveBinds(); renderControls(); }
+    resetKeys(PAGE_KEYS[page]);
+    toast(`<b>${PAGES[page].title}</b> back to defaults`);
+  }));
+  $("resetAll").addEventListener("click", () => armOrRun("resetAll", () => {
+    binds = defaultBinds(); saveBinds(); renderControls();
+    resetKeys(Object.keys(DEFAULTS));
+    toast("<b>Everything</b> back to defaults");
+  }));
+
+  // ── Prototype plumbing ──
+  const me = load("proto-player");
+  if (me?.name) $("playerName").textContent = me.name;
+
+  renderControls();
+  for (const r of refreshers) r();
+  const params = new URLSearchParams(location.search);
+  show(params.get("page"));
+  // Prototype: ?section=effects opens that video section, for reviewing it without clicking
+  if (page === "video" && SECTIONS.some((s) => s.id === params.get("section"))) openVideoSection(params.get("section"));
+  // Prototype: ?key=KeyH opens that key's menu, for reviewing it without clicking
+  const openKey = params.get("key");
+  if (page === "controls" && caps.has(openKey)) requestAnimationFrame(() => openPop(openKey, caps.get(openKey)));
+</script>
+</body>
+</html>

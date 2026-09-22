@@ -14,7 +14,10 @@
  */
 
 import * as fs from "node:fs";
+import type { AdmissionManifest } from "../engine/server/network/MatchAdmission";
+import { signMatchResult } from "../engine/server/network/MatchResultReport";
 import { GameServer, type GameServerConfig } from "../games/fps/server/GameServer";
+import { Amphi } from "../games/fps/server/gametypes/Amphi";
 import type { BaseGametype } from "../games/fps/server/gametypes/BaseGametype";
 import { Deathmatch } from "../games/fps/server/gametypes/Deathmatch";
 import { Duel } from "../games/fps/server/gametypes/Duel";
@@ -118,7 +121,23 @@ function parseArgs(): GameServerConfig & { gamePath: string; gametype: string } 
     }
   }
 
-  return config;
+  const rawAdmission = process.env.SHAG_MATCH_ADMISSION;
+  const matchAdmission = rawAdmission ? (JSON.parse(rawAdmission) as AdmissionManifest) : undefined;
+  if (matchAdmission && (!matchAdmission.matchId || !Array.isArray(matchAdmission.grants))) {
+    throw new Error("Invalid match admission manifest");
+  }
+  const resultSecret = process.env.SHAG_MATCH_RESULT_SECRET;
+  if (matchAdmission && !resultSecret) throw new Error("Missing match result secret");
+  return {
+    ...config,
+    matchAdmission,
+    matchGametype: config.gametype,
+    onFinalResult:
+      matchAdmission && resultSecret
+        ? (report: Parameters<typeof signMatchResult>[0]) =>
+            process.stdout.write(`${signMatchResult(report, resultSecret)}\n`)
+        : undefined,
+  };
 }
 
 function printHelp(): void {
@@ -130,7 +149,7 @@ Usage: npx vite-node src/cli/headless-netserver-v2.ts [options]
 Options:
   --port <n>             Server port (default: 7777)
   --map <name>           Map to load (default: wdm7)
-  --gametype <name>      Gametype (Deathmatch, TeamDeathmatch, Duel, SnD)
+  --gametype <name>      Gametype (Deathmatch, TeamDeathmatch, Duel, Amphi, SnD)
   --name <name>          Server name
   --max <n>              Max clients (default: 16)
   --tickrate <n>         Tick rate in Hz (default: 125)
@@ -207,6 +226,9 @@ async function main(): Promise<void> {
   // Create game server with selected gametype
   let gametypeInstance: BaseGametype;
   switch (config.gametype.toLowerCase()) {
+    case "amphi":
+      gametypeInstance = new Amphi();
+      break;
     case "snd":
     case "bomb":
     case "searchanddestroy":

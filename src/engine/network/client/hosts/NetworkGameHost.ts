@@ -126,6 +126,8 @@ export class NetworkGameHost implements IGameHost {
   /** The seat the server holds for this client after a drop, and for how long. */
   private resumeToken: string | null = null;
   private resumeGraceMs = 20000;
+  /** Ticketed joins are not complete until the server sends the recovery token. */
+  private waitForInitialResumeToken = false;
   /** True while reconnecting, so a stall and a close do not both start one. */
   private resuming = false;
 
@@ -231,13 +233,14 @@ export class NetworkGameHost implements IGameHost {
     }
   }
 
-  async connect(url?: string, playerName?: string): Promise<void> {
+  async connect(url?: string, playerName?: string, admissionTicket?: string): Promise<void> {
     this.snapshotReceiver.reset();
     this._serverInfo = null;
     this._isConnected = false;
     this.connectionRejected = false;
     this.acceptingMessages = true;
     this.resumeToken = null;
+    this.waitForInitialResumeToken = Boolean(admissionTicket);
     // Kept so a dropped connection can be reopened as the same player.
     this.serverUrl = url ?? this.serverUrl;
     this.playerName = playerName ?? this.playerName;
@@ -264,7 +267,10 @@ export class NetworkGameHost implements IGameHost {
         .connect(this.serverUrl || "ws://localhost:8080")
         .then(() => {
           if (!this.acceptingMessages) return;
-          this.transport.send(MessageCodec.encodeJoin(this.playerName || this.localPlayerId), true);
+          this.transport.send(
+            MessageCodec.encodeJoin(this.playerName || this.localPlayerId, false, admissionTicket),
+            true,
+          );
         })
         .catch((error: unknown) => {
           this.failConnection(error instanceof Error ? error : new Error(String(error)));
@@ -275,6 +281,7 @@ export class NetworkGameHost implements IGameHost {
   async disconnect(): Promise<void> {
     this.acceptingMessages = false;
     this.resumeToken = null;
+    this.waitForInitialResumeToken = false;
     this._serverInfo = null;
     this._onJoinReject?.(new Error("Disconnected before the handshake completed"));
     this._isConnected = false;
@@ -694,7 +701,7 @@ export class NetworkGameHost implements IGameHost {
           // CRITICAL: Resolve connect() promise FIRST, before any potentially-throwing code.
           // If spawnPlayer throws, the error is caught by the outer catch and the promise
           // would never resolve, hanging connect() forever.
-          if (this._onJoinAccept) {
+          if (this._onJoinAccept && (!this.waitForInitialResumeToken || this.resumeToken)) {
             this._onJoinAccept();
             this._onJoinAccept = null;
           }
@@ -726,6 +733,11 @@ export class NetworkGameHost implements IGameHost {
           const { token, graceMs } = MessageCodec.decodeResumeToken(data);
           this.resumeToken = token;
           this.resumeGraceMs = graceMs;
+          if (this._isConnected && this.waitForInitialResumeToken && this._onJoinAccept) {
+            this.waitForInitialResumeToken = false;
+            this._onJoinAccept();
+            this._onJoinAccept = null;
+          }
           break;
         }
         case MessageType.Welcome: {

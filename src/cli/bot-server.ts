@@ -9,8 +9,9 @@
  *   npx vite-node src/cli/bot-server.ts --port 9100
  *   npx vite-node src/cli/bot-server.ts --auto ws://localhost:7777 --count 3
  *
- * The bot server exposes a control WebSocket API on its port.
- * Game servers or admin tools connect here to add/remove bots.
+ * The bot server exposes a control WebSocket API on 127.0.0.1 at its port.
+ * The lobby connects here to add bots, sending the secret it shares with the
+ * bot server (BOT_SECRET, or <data-dir>/bot-secret).
  *
  * For quick testing, use --auto to spawn bots immediately:
  *   --auto <gameServerUrl>   Auto-connect bots to this game server
@@ -19,6 +20,7 @@
  */
 
 import { BotServer } from "../bot/BotServer";
+import { loadBotSecret, resolveDataDir } from "../lobby/ServerData";
 import { runCli } from "./_runCli";
 
 // ── Parse Arguments ─────────────────────────────────────────────────────
@@ -31,6 +33,7 @@ interface BotServerArgs {
   lobbyUrl?: string;
   gametype: string;
   modelDir?: string;
+  dataDir?: string;
 }
 
 function parseArgs(): BotServerArgs {
@@ -76,6 +79,10 @@ function parseArgs(): BotServerArgs {
         config.modelDir = args[++i];
         namedFlagFound = true;
         break;
+      case "--data-dir":
+        config.dataDir = args[++i];
+        namedFlagFound = true;
+        break;
       case "--help":
       case "-h":
         printHelp();
@@ -113,6 +120,8 @@ Options:
   --count <n>         Number of bots to auto-spawn (default: 3)
   --difficulty <lvl>  Bot difficulty: easy, medium, hard, insane (default: medium)
   --models <dir>       Path to TF.js model directory for HybridBrain AI
+  --data-dir <dir>    Server data directory holding the shared bot secret
+                      (default: SERVER_DATA_DIR, else ./server-data)
   --help, -h          Show this help
 
 Examples:
@@ -140,7 +149,7 @@ async function main(): Promise<void> {
   console.log(`[BIS] Default difficulty: ${config.difficulty}`);
   console.log("");
 
-  const server = new BotServer(config.port);
+  const server = new BotServer(config.port, { secret: loadBotSecret(resolveDataDir(config.dataDir)) });
   await server.start();
 
   // Auto-connect through lobby if --lobby flag

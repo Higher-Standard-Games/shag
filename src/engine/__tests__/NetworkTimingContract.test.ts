@@ -77,6 +77,43 @@ afterEach(() => {
 });
 
 describe("network timing handshake", () => {
+  it("forwards a lobby seat ticket in the initial Join only", async () => {
+    const f = fixture();
+    const connecting = f.host.connect("ws://test", "Local Name", "private-seat-ticket");
+    await Promise.resolve();
+    const join = vi
+      .mocked(f.transport.send)
+      .mock.calls.find(([data]) => MessageCodec.peekMessageType(data) === MessageType.Join);
+    expect(join).toBeDefined();
+    expect(MessageCodec.decodeJoin(join?.[0] as Uint8Array)).toEqual({
+      playerName: "Local Name",
+      isBot: false,
+      admissionTicket: "private-seat-ticket",
+    });
+    let finished = false;
+    void connecting.then(() => {
+      finished = true;
+    });
+    f.deliver(welcome());
+    f.deliver(accepted());
+    await Promise.resolve();
+    expect(finished).toBe(false);
+    f.deliver(MessageCodec.encodeResumeToken("recovery-seat", 20000));
+    await connecting;
+    await f.host.disconnect();
+  });
+
+  it("rejects a ticketed handshake that drops before its recovery token arrives", async () => {
+    const f = fixture();
+    const connecting = f.host.connect("ws://test", "Local Name", "private-seat-ticket");
+    const rejected = expect(connecting).rejects.toThrow("Disconnected before the handshake completed");
+    f.deliver(welcome());
+    f.deliver(accepted());
+    f.close();
+    await rejected;
+    expect(f.host.isConnected()).toBe(false);
+  });
+
   it.each([0, 60, 250])("rejects %iHz before map loading, state publication or input", async (rate) => {
     const f = fixture();
     const connecting = f.host.connect("ws://test");

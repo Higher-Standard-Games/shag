@@ -1,0 +1,229 @@
+/**
+ * AccountSession — this browser's player account: logging in to the lobby,
+ * keeping the key, and renaming.
+ *
+ * The key lives in its own localStorage entry, never inside PlayerProfile,
+ * whose JSON is meant to sync to a server one day. The account's name is copied
+ * into PlayerProfile.name, which is what the game shows and sends to game
+ * servers. See docs/research/PLAYER_IDENTITY.md.
+ */
+
+import { PlayerProfile } from "../engine/player/PlayerProfile";
+import type { LobbyClient } from "./LobbyClient";
+import { checkPlayerName, normalizeKey } from "./PlayerIdentity";
+import type {
+  AuthErrorCode,
+  AuthErrorMessage,
+  IdentityErrorCode,
+  IdentityErrorMessage,
+  IdentityRenamedMessage,
+  PlayerIdentityInfo,
+  WelcomeMessage,
+} from "./types";
+
+const KEY_STORAGE = "shag_player_key";
+/** A key the lobby no longer knew; kept so the player can still try restoring it. */
+const UNKNOWN_KEY_STORAGE = "shag_player_key_unknown";
+const ANSWER_TIMEOUT_MS = 10_000;
+/** The name PlayerProfile makes up for a new browser (Player_ and 4 base36 characters). */
+const LOCAL_DEFAULT_NAME = /^Player_[a-z0-9]{4}$/;
+
+export type RenameFailure = IdentityErrorCode | "not_connected" | "timeout";
+
+export type RenameOutcome = { ok: true; identity: PlayerIdentityInfo } | { ok: false; code: RenameFailure };
+
+const RENAME_FAILURES: Record<RenameFailure, string> = {
+  name_invalid: "Names are 2–16 letters, digits, _ or -.",
+  name_reserved: "That name is kept for bots and new players.",
+  name_taken: "Someone already has that name.",
+  in_lobby: "Leave the room first, then rename.",
+  rate_limited: "Too many renames. Try again in a minute.",
+  timeout: "The lobby didn't answer. Try again.",
+  not_connected: "Not connected to the lobby.",
+};
+
+/** What to tell the player when a rename fails. */
+export function renameFailureText(code: RenameFailure): string {
+  return RENAME_FAILURES[code] ?? `Rename failed: ${code}`;
+}
+
+/** Login failed with an answer from the lobby, as opposed to a lost connection. */
+export class LoginError extends Error {
+  constructor(readonly code: AuthErrorCode) {
+    super(`Lobby refused the login: ${code}`);
+  }
+}
+
+let identity: PlayerIdentityInfo | null = null;
+let activeClient: LobbyClient | null = null;
+let newAccount = false;
+const watchedClients = new WeakSet<LobbyClient>();
+
+function readStorage(name: string): string | null {
+  try {
+    return localStorage.getItem(name);
+  } catch {
+    return null;
+  }
+}
+
+function writeStorage(name: string, value: string | null): void {
+  try {
+    if (value === null) localStorage.removeItem(name);
+    else localStorage.setItem(name, value);
+  } catch {
+    // Storage unavailable (private window, blocked site data): the key lives only this session
+  }
+}
+
+/** The key this browser logs in with, if it has one. */
+export function storedPlayerKey(): string | null {
+  return readStorage(KEY_STORAGE);
+}
+
+/** The key the lobby last refused as unknown, if any. */
+export function unknownPlayerKey(): string | null {
+  return readStorage(UNKNOWN_KEY_STORAGE);
+}
+
+/** The account this browser is logged in to, or null before login and for bots. */
+export function currentIdentity(): PlayerIdentityInfo | null {
+  return identity;
+}
+
+/**
+ * Whether the last login made this browser a new account that nobody has
+ * named yet: the moment to ask the player who they are. A browser carrying a
+ * name from before accounts asks for that name instead, so it doesn't count.
+ */
+export function accountIsNew(): boolean {
+  return newAccount;
+}
+
+/** Take the lobby's word for who we are, and show that name everywhere. */
+function adopt(next: PlayerIdentityInfo): void {
+  identity = next;
+  const profile = PlayerProfile.load();
+  if (profile.name !== next.name) {
+    profile.name = next.name;
+    profile.save();
+  }
+}
+
+/** Use `client` from now on, and follow renames made from any tab logged in to this account. */
+function attach(client: LobbyClient): void {
+  activeClient = client;
+  if (watchedClients.has(client)) return;
+  watchedClients.add(client);
+  client.on("identity:renamed", (msg: IdentityRenamedMessage) => adopt(msg.identity));
+}
+
+/** Send `auth` and wait for the lobby's answer. */
+function sendAuth(client: LobbyClient, key: string | undefined): Promise<WelcomeMessage | AuthErrorMessage> {
+  return new Promise((resolve, reject) => {
+    const finish = (fn: () => void) => {
+      clearTimeout(timer);
+      for (const unsubscribe of unsubscribers) unsubscribe();
+      fn();
+    };
+    const unsubscribers = [
+      client.on("welcome", (msg: WelcomeMessage) => finish(() => resolve(msg))),
+      client.on("auth:error", (msg: AuthErrorMessage) => finish(() => resolve(msg))),
+      client.on("_disconnected", () => finish(() => reject(new Error("Lobby connection closed during login")))),
+    ];
+    const timer = setTimeout(
+      () => finish(() => reject(new Error("Lobby did not answer the login"))),
+      ANSWER_TIMEOUT_MS,
+    );
+    client.auth(key);
+  });
+}
+
+/**
+ * Log in on a connected client: with the stored key, or into a new account
+ * whose key is then stored. Resolves with the lobby's welcome.
+ *
+ * If the lobby doesn't know the stored key (for example its accounts were
+ * reset), the key is set aside (see unknownPlayerKey) and a new account made.
+ * A browser that had a name before accounts existed asks for that name on its
+ * new account; if it's taken, the account keeps its Player_<number> name.
+ */
+export async function logIn(client: LobbyClient): Promise<WelcomeMessage> {
+  attach(client);
+  newAccount = false;
+
+  const key = storedPlayerKey();
+  if (key) {
+    const answer = await sendAuth(client, key);
+    if (answer.type === "welcome") {
+      if (answer.identity) adopt(answer.identity);
+      return answer;
+    }
+    if (answer.code !== "unknown_key") throw new LoginError(answer.code);
+    writeStorage(UNKNOWN_KEY_STORAGE, key);
+    writeStorage(KEY_STORAGE, null);
+  }
+
+  const answer = await sendAuth(client, undefined);
+  if (answer.type !== "welcome") throw new LoginError(answer.code);
+  if (answer.key) writeStorage(KEY_STORAGE, answer.key);
+
+  const earlierName = PlayerProfile.load().name;
+  if (answer.identity) adopt(answer.identity);
+  if (!LOCAL_DEFAULT_NAME.test(earlierName) && checkPlayerName(earlierName) === null) {
+    client.rename(earlierName);
+  } else {
+    newAccount = true;
+  }
+  return answer;
+}
+
+/**
+ * Log in with a key the player pasted, to restore their account in this
+ * browser. `client` must be connected and not yet logged in, which means a new
+ * connection when switching accounts. The pasted key replaces the stored one
+ * only once the lobby accepts it: a mistyped key rejects with
+ * LoginError("unknown_key") and leaves the stored key alone.
+ */
+export async function restoreAccount(client: LobbyClient, pastedKey: string): Promise<WelcomeMessage> {
+  const key = normalizeKey(pastedKey);
+  if (!key) throw new LoginError("unknown_key");
+  const answer = await sendAuth(client, key);
+  if (answer.type !== "welcome") throw new LoginError(answer.code);
+  attach(client);
+  newAccount = false;
+  writeStorage(KEY_STORAGE, key);
+  if (answer.identity) adopt(answer.identity);
+  return answer;
+}
+
+/**
+ * Rename the logged-in account. Every tab logged in to it takes the new name,
+ * and PlayerProfile.name follows.
+ */
+export function renameAccount(name: string): Promise<RenameOutcome> {
+  const client = activeClient;
+  if (!client?.connected || !identity) return Promise.resolve({ ok: false, code: "not_connected" });
+
+  return new Promise((resolve) => {
+    const finish = (outcome: RenameOutcome) => {
+      clearTimeout(timer);
+      for (const unsubscribe of unsubscribers) unsubscribe();
+      resolve(outcome);
+    };
+    const unsubscribers = [
+      client.on("identity:renamed", (msg: IdentityRenamedMessage) => finish({ ok: true, identity: msg.identity })),
+      client.on("identity:error", (msg: IdentityErrorMessage) => finish({ ok: false, code: msg.code })),
+      client.on("_disconnected", () => finish({ ok: false, code: "not_connected" })),
+    ];
+    const timer = setTimeout(() => finish({ ok: false, code: "timeout" }), ANSWER_TIMEOUT_MS);
+    client.rename(name);
+  });
+}
+
+/** Forget the session, for tests. Leaves stored keys alone. */
+export function resetAccountSessionForTests(): void {
+  identity = null;
+  activeClient = null;
+  newAccount = false;
+}

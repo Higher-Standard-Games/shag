@@ -7,12 +7,14 @@
  * Usage:
  *   const client = new LobbyClient();
  *   await client.connect('ws://localhost:9000');
- *   client.auth('PlayerName');
- *   client.on('welcome', (data) => { ... });
+ *   await logIn(client);   // AccountSession: sends the stored key, keeps a new one
  *   client.on('chat:message', (data) => { ... });
  */
 
-import type { LobbyMessage } from "./types";
+import type { FeaturedDemosResponse, LeaderboardResponse, LobbyMessage, SeatReissueResponse } from "./types";
+
+/** How long to wait for a connection before telling the caller it failed. */
+const CONNECT_TIMEOUT_MS = 20_000;
 
 type MessageHandler = (msg: any) => void;
 
@@ -30,19 +32,37 @@ export class LobbyClient {
 
   // ── Connection ───────────────────────────────────────────────
 
-  async connect(url: string): Promise<void> {
+  /**
+   * Open a connection, giving up after `timeoutMs`. Browsers delay repeated
+   * connections to the same host, so a reconnect can sit unanswered for a
+   * while; callers get an error rather than a promise that never settles.
+   */
+  async connect(url: string, timeoutMs: number = CONNECT_TIMEOUT_MS): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
-        this.ws = new WebSocket(url);
+        const ws = new WebSocket(url);
+        this.ws = ws;
+        const timer = setTimeout(() => {
+          if (this.ws !== ws) return;
+          this.ws = null;
+          ws.close();
+          reject(new Error(`Lobby server did not answer in ${Math.round(timeoutMs / 1000)}s`));
+        }, timeoutMs);
+        // A socket this client has since replaced or closed speaks no more:
+        // its late close must not report the new connection as lost
+        const current = () => this.ws === ws;
 
-        this.ws.onopen = () => {
+        ws.onopen = () => {
+          if (!current()) return;
+          clearTimeout(timer);
           this._connected = true;
           console.log("[LobbyClient] Connected to lobby server");
           this.emit("_connected", {});
           resolve();
         };
 
-        this.ws.onmessage = (event) => {
+        ws.onmessage = (event) => {
+          if (!current()) return;
           try {
             const msg = JSON.parse(event.data) as LobbyMessage;
             this.emit(msg.type, msg);
@@ -51,13 +71,17 @@ export class LobbyClient {
           }
         };
 
-        this.ws.onclose = (event) => {
+        ws.onclose = (event) => {
+          if (!current()) return;
+          clearTimeout(timer);
           this._connected = false;
           console.log(`[LobbyClient] Disconnected: ${event.reason || event.code}`);
           this.emit("_disconnected", { reason: event.reason, code: event.code });
         };
 
-        this.ws.onerror = () => {
+        ws.onerror = () => {
+          if (!current()) return;
+          clearTimeout(timer);
           const err = new Error("WebSocket connection error");
           this._connected = false;
           this.emit("_error", { error: err.message });
@@ -69,22 +93,34 @@ export class LobbyClient {
     });
   }
 
+  /** Close the connection. Listeners hear `_disconnected` now, not when the socket finishes closing. */
   disconnect(): void {
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
-    if (this.ws) {
-      this.ws.close(1000, "Client disconnect");
-      this.ws = null;
-    }
+    const ws = this.ws;
+    const wasConnected = this._connected;
+    this.ws = null;
     this._connected = false;
+    console.log("[LobbyClient] Closing the connection");
+    ws?.close(1000, "Client disconnect");
+    if (wasConnected) this.emit("_disconnected", { reason: "Client disconnect", code: 1000 });
   }
 
   // ── Auth ─────────────────────────────────────────────────────
 
-  auth(name: string): void {
-    this.send({ type: "auth", name });
+  /**
+   * Log in with the player's key, or without one to get a new account.
+   * AccountSession.logIn wraps this and handles the answer.
+   */
+  auth(key?: string): void {
+    this.send({ type: "auth", key });
+  }
+
+  /** Ask for a new name for this account; the answer is identity:renamed or identity:error. */
+  rename(name: string): void {
+    this.send({ type: "identity:rename", name });
   }
 
   // ── Chat ─────────────────────────────────────────────────────
@@ -93,14 +129,19 @@ export class LobbyClient {
     this.send({ type: "chat:send", text });
   }
 
-  // ── Lobby ────────────────────────────────────────────────────
-
-  createLobby(gametype: string): void {
-    this.send({ type: "lobby:create", gametype });
+  /** Send to members of one match room. The server verifies membership. */
+  roomChatSend(lobbyId: string, text: string): void {
+    this.send({ type: "lobby:chat_send", lobbyId, text });
   }
 
-  joinLobby(lobbyId: string): void {
-    this.send({ type: "lobby:join", lobbyId });
+  // ── Lobby ────────────────────────────────────────────────────
+
+  createLobby(gametype: string, visibility: "public" | "private" = "public"): void {
+    this.send({ type: "lobby:create", gametype, visibility });
+  }
+
+  joinLobby(lobbyId: string, inviteToken?: string): void {
+    this.send({ type: "lobby:join", lobbyId, inviteToken });
   }
 
   leaveLobby(lobbyId: string): void {
@@ -200,8 +241,103 @@ export class LobbyClient {
 
   // ── Demo Archive ────────────────────────────────────────────
 
-  requestDemoList(limit: number = 64): void {
-    this.send({ type: "demos:list", limit });
+  requestDemoList(limit: number = 64, scope: "latest" | "yours" = "latest"): void {
+    this.send({ type: "demos:list", limit, scope });
+  }
+
+  requestFeaturedDemos(
+    query: { gametype?: string; map?: string; limit: number },
+    timeoutMs = 10_000,
+  ): Promise<FeaturedDemosResponse> {
+    if (!this.connected) return Promise.reject(new Error("Lobby is offline"));
+    const requestId = `feat_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+    return new Promise((resolve, reject) => {
+      const cleanup: Array<() => void> = [];
+      let settled = false;
+      const finish = (fn: () => void) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        for (const unsub of cleanup) unsub();
+        fn();
+      };
+      const timer = setTimeout(() => finish(() => reject(new Error("Featured demos request timed out"))), timeoutMs);
+      cleanup.push(
+        this.on("featured:page", (msg: FeaturedDemosResponse) => {
+          if (msg.requestId === requestId) finish(() => resolve(msg));
+        }),
+      );
+      cleanup.push(
+        this.on("featured:error", (msg) => {
+          if (msg.requestId === requestId) finish(() => reject(new Error(`Featured demos: ${msg.reason}`)));
+        }),
+      );
+      cleanup.push(this.on("_disconnected", () => finish(() => reject(new Error("Lobby disconnected")))));
+      this.send({ type: "featured:get", requestId, ...query });
+    });
+  }
+
+  /** A bounded, account-scoped ranking read; listeners are released on every outcome. */
+  requestLeaderboard(
+    query: { gametype: string; period: "month" | "all"; offset: number; limit: number },
+    timeoutMs = 10_000,
+  ): Promise<LeaderboardResponse> {
+    if (!this.connected) return Promise.reject(new Error("Lobby is offline"));
+    const requestId = `lb_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+    return new Promise((resolve, reject) => {
+      const cleanup: Array<() => void> = [];
+      let settled = false;
+      const finish = (fn: () => void) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        for (const unsub of cleanup) unsub();
+        fn();
+      };
+      const timer = setTimeout(() => finish(() => reject(new Error("Leaderboard request timed out"))), timeoutMs);
+      cleanup.push(
+        this.on("leaderboard:page", (msg: LeaderboardResponse) => {
+          if (msg.requestId === requestId) finish(() => resolve(msg));
+        }),
+      );
+      cleanup.push(
+        this.on("leaderboard:error", (msg) => {
+          if (msg.requestId === requestId) finish(() => reject(new Error(`Leaderboard: ${msg.reason}`)));
+        }),
+      );
+      cleanup.push(this.on("_disconnected", () => finish(() => reject(new Error("Lobby disconnected")))));
+      this.send({ type: "leaderboard:get", requestId, ...query });
+    });
+  }
+
+  /** Ask for the one reserved replacement for this authenticated account's unplayed seat. */
+  requestSeatReissue(matchId: string, timeoutMs = 10_000): Promise<SeatReissueResponse> {
+    if (!this.connected) return Promise.reject(new Error("Lobby is offline"));
+    const requestId = `seat_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+    return new Promise((resolve, reject) => {
+      const cleanup: Array<() => void> = [];
+      let settled = false;
+      const finish = (fn: () => void) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        for (const unsub of cleanup) unsub();
+        fn();
+      };
+      const timer = setTimeout(() => finish(() => reject(new Error("Seat recovery timed out"))), timeoutMs);
+      cleanup.push(
+        this.on("match:seat_reissued", (msg: SeatReissueResponse) => {
+          if (msg.requestId === requestId && msg.matchId === matchId) finish(() => resolve(msg));
+        }),
+      );
+      cleanup.push(
+        this.on("match:seat_reissue_error", (msg) => {
+          if (msg.requestId === requestId) finish(() => reject(new Error("Seat recovery unavailable")));
+        }),
+      );
+      cleanup.push(this.on("_disconnected", () => finish(() => reject(new Error("Lobby disconnected")))));
+      this.send({ type: "match:seat_reissue", requestId, matchId });
+    });
   }
 
   // ── Event Handling ──────────────────────────────────────────
