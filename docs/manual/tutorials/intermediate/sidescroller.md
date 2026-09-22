@@ -15,7 +15,7 @@ The controller requires an `ArcRotateCamera`; `CameraSystem` creates or restores
 ```ts
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { CameraSystem } from '../../../../src/engine/camera/CameraSystem';
-import { SideScrollController } from '../../../../src/engine/camera/controllers/SidescrollController';
+import { SideScrollController } from '../../../../src/engine/camera/controllers/SideScrollController';
 
 const cameraSystem = CameraSystem.getInstance();
 const controller = cameraSystem.getController('sidescroll') as SideScrollController;
