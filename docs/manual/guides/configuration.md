@@ -63,17 +63,24 @@ npm run tools:textures
 
 ## Networking environment
 
-Copy and review `.env.example`. Important values include:
+Copy and review `.env.example`, which lists every variable below.
 
-| Variable | Owner |
-| --- | --- |
-| `VITE_LOBBY_URL` | browser lobby connection |
-| `SHAG_PUBLIC_GAME_PROTOCOL` | lobby-advertised game URL protocol |
-| `SHAG_PUBLIC_GAME_HOST` | lobby-advertised game host |
-| `GAME_PATH` | headless asset-directory override |
-| `SHAG_GAME_CERT_PATH` / `SHAG_GAME_KEY_PATH` | spawned server TLS files |
+| Variable | Owner | What it does |
+| --- | --- | --- |
+| `VITE_LOBBY_URL` | browser | Lobby socket the client connects to |
+| `SHAG_PUBLIC_GAME_PROTOCOL` / `SHAG_PUBLIC_GAME_HOST` | lobby | The address the lobby advertises for spawned game servers |
+| `SERVER_DATA_DIR` | lobby, bot server | Where `players.db` and the shared bot secret live; `--data-dir` wins over it |
+| `BOT_SECRET` | lobby, bot server | Proves a bot connection; written into the data directory when unset |
+| `BOT_SERVER_URL` | lobby | Bot control socket the lobby asks for bots |
+| `LOBBY_BOT_CONNECT_URL` | lobby | Lobby URL a spawned bot connects back to |
+| `SHAG_SPAWN_TIMEOUT_MS` | lobby | How long to wait for a spawned server to report ready (default 45s, clamped to 5s–5min) |
+| `SHAG_MATCH_ADMISSION` / `SHAG_MATCH_RESULT_SECRET` | spawned server | That match's seat manifest, and the secret its result line is signed with; the lobby sets both per match |
+| `SHAG_TIMELIMIT` / `SHAG_WARMUP` / `SHAG_SCORELIMIT` | game server | Match rule overrides; a bare number is minutes for the time limit and seconds for warmup, and either takes an `s`/`m` suffix |
+| `SHAG_GAME_CERT_PATH` / `SHAG_GAME_KEY_PATH` | spawned server | TLS files for a direct `wss://` socket |
+| `GAME_PATH` | headless | Asset-directory override |
+| `BOT_NAV_CACHE_DIR` / `BOT_GOAL_ARBITER` | bot server | Navigation cache directory and goal-arbiter selection |
 
-Only `VITE_*` variables are exposed to browser code.
+Only `VITE_*` variables are exposed to browser code; the rest are read by Node processes only.
 
 ## UI and game metadata
 
