@@ -1,10 +1,26 @@
 # Known Bugs - Network & Spawn System
 
-This document tracks known issues with the multiplayer networking and spawn systems.
+This document tracks known issues with the multiplayer networking and spawn
+systems.
+
+> **Read this first.** These entries are a record of what was believed when
+> each was written, not a current list. Several predate the v0.9.23 networking
+> audit. Verify an entry against the code before acting on it, then correct or
+> delete it — a stale bug report costs a session chasing something that is
+> already gone.
+>
+> Reviewed 2026-09-22 (v0.9.24 documentation QA): symbol names below were
+> checked against the tree and the ones that had moved are fixed. **Line
+> numbers have been removed rather than updated** — they were all wrong, and
+> they rot again the moment anyone edits a file. Search for the symbol instead.
+> No entry's *symptom* was re-tested; that needs play, not reading.
 
 ## 🔴 Critical: Player Stuck in Walls on Network Spawn
 
-**Status:** Partially fixed — needs live repro  
+**Status:** Partially fixed — needs live repro. Re-checked 2026-09-22: every
+fix listed below is still in the source, `SharedCollisionWorld` included, and
+`SpawnValidator` now runs a collision validator over spawn points as well. The
+symptom itself has not been re-tested with two clients on a dedicated server.  
 **Severity:** Critical (if still occurs)  
 **First Observed:** v0.9.0 development  
 **Affected:** Multiplayer mode (dedicated server)
@@ -27,23 +43,23 @@ This document tracks known issues with the multiplayer networking and spawn syst
 
 | Fix | Source |
 |-----|--------|
-| `V2NetworkClient.resetForRespawn()` — clears all death-period state (input history, skip counters, visual offset) | `V2NetworkClient.ts:492-525` |
-| `V2NetworkClient.forceTeleport()` — snaps camera on next snapshot (respawn/teleport) | `V2NetworkClient.ts:472-478` |
+| `V2NetworkClient.resetForRespawn()` — clears all death-period state (input history, skip counters, visual offset) | `V2NetworkClient.ts` |
+| `V2NetworkClient.forceTeleport()` — snaps camera on next snapshot (respawn/teleport) | `V2NetworkClient.ts` |
 | `SharedCollisionWorld` — single shared implementation for client and server (eliminates physics divergence) | `SharedCollisionWorld.ts` |
-| Reconciliation skip during ledge grab / walljump (prevents correction-induced jitter) | `V2NetworkClient.ts:284-308` |
-| `FPSController` waits for server position before physics init | `FPSController.ts:735-751` |
+| Reconciliation skip during ledge grab / walljump (prevents correction-induced jitter) | `V2NetworkClient.ts` |
+| `FPSController` waits for server position before physics init | `FPSController.ts` |
 
 ### Remaining Risk: Async Collision Injection Timing
 
 The most plausible remaining cause is a race between collision world injection and the first physics tick:
 
-- `FPSController.ts:828-838` injects BSP collision via `initializeLocal().then(...)` — this is async
+- `FPSController.ts` injects BSP collision via `initializeLocal().then(...)` — this is async
 - `V2NetworkClient.setCollisionWorld()` (line 157) can be called after the client has already started processing inputs
 - If the first few ticks run with `collision = null`, the player moves in no-collision mode, then collision appears mid-frame and the player is inside geometry
 
 ### Unverified Hypotheses
 
-- **Spawn point inside brush** — spawn points may be too close to walls/floors. The ledge grab code now does a full hull clearance check (`LedgeGrab.ts:228-234`), but spawn point selection does not.
+- **Spawn point inside brush** — spawn points may be too close to walls/floors. The ledge grab code now does a full hull clearance check (`LedgeGrab.ts`), but spawn point selection does not.
 - **Patch collision variance** — curve/patch tessellation could differ between client and server if the `SweepCollisionBackend` handles patches differently on each side.
 
 ### Workarounds
@@ -63,9 +79,9 @@ The most plausible remaining cause is a race between collision world injection a
 
 ## ~~🟡 Medium: FPSController Re-initialization on Pointer Lock~~
 
-**Status:** ✅ Fixed (verified in source)  
-**Severity:** Was Medium  
-**Fixed In:** v0.9.0
+**Status:** ✅ Fixed in v0.9.0, and the guard is still in the source as of
+2026-09-22. Kept only because the reasoning below explains the spawn entry
+above; delete it when that one closes.
 
 ### Issue
 
@@ -73,7 +89,7 @@ When mouse pointer was captured (click to play), FPSController would re-initiali
 
 ### Fix
 
-`FPSController.ts:735-751` — `smoothingInitialized` guard calls `gameManager.processSnapshots()` then `gameManager.getLocalPlayerPosition()` before setting physics position. If server position is not yet available, the frame returns early without initializing. In local mode, camera position is still used (acceptable).
+`FPSController.ts` — `smoothingInitialized` guard calls `gameManager.processSnapshots()` then `gameManager.getLocalPlayerPosition()` before setting physics position. If server position is not yet available, the frame returns early without initializing. In local mode, camera position is still used (acceptable).
 
 ---
 
