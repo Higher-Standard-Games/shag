@@ -8,7 +8,7 @@ The headless game runner creates a Babylon `NullEngine`, initializes shared engi
 npm run cli:game
 ```
 
-Use `help` to inspect commands and `quit` to stop.
+Use `help` to inspect commands and `quit` to stop. This runner adds `sim`, `anim`, `headless`, `leaktest` and `trace_test` to the engine command set.
 
 ## Batch mode
 
@@ -23,11 +23,13 @@ This composition does not register the browser gameplay launcher, so use `bsp lo
 ## Useful batches
 
 ```bash
-npm run cli:game -- --exec 'pk3 stats; bsp load wdm2; bsp entities; quit'
-npm run cli:game -- --exec 'sim replay W+CROUCH 60; JUMP 1; W 30; quit'
+npm run cli:game -- --exec 'developer 1; pk3 stats; bsp load wdm2; bsp entities; quit'
+npm run cli:game -- --exec 'sim replay "W+CROUCH 60; JUMP 1; W 30"; quit'
 ```
 
-Batch failures set a non-zero exit status when the command reports an explicit failure, throws, or cannot be resolved.
+`pk3` is one of the developer-gated commands, so a batch that uses it starts with `developer 1`; `bsp` is not gated. A batch is split on semicolons and newlines except inside double quotes, which is why the replay sequence above is quoted.
+
+Batch failures set a non-zero exit status when the command reports an explicit failure, throws, or cannot be resolved: a batch whose first command is refused exits 1, and the remaining commands still run.
 
 ## Limitations
 

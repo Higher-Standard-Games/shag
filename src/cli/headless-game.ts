@@ -930,10 +930,8 @@ async function runBatch(commands: string): Promise<void> {
 
   console.log(`\n[Batch] Executing: ${commands}\n`);
 
-  const parts = commands
-    .split(/\r?\n|;/g)
-    .map((s) => s.trim())
-    .filter(Boolean);
+  const { splitCommandBatch } = await import("../engine/console/CommandBatch");
+  const parts = splitCommandBatch(commands);
 
   for (const cmd of parts) {
     const { ok, output } = await registry.executeChecked(cmd);
