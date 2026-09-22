@@ -70,6 +70,19 @@ CommandRegistry.getInstance().register(
 
 Clean up runtime registrations with `unregister(name)`.
 
+## Key bindings
+
+`bind <key> <command>` runs a console command from a key press;
+`unbind <key>` and `unbind all` remove them. Bindings live in
+`src/engine/input/CommandBindings.ts`, persist per browser, and are attached to
+the window by `registerEngineCommands()`, so any composition with commands has
+them.
+
+They are not the action map: an action binding answers what a key means while
+it is held, a command binding fires once on the press, and a key can be both.
+A press is ignored while a text field has the keyboard, while the console is
+open, or when Ctrl, Alt or Meta is held.
+
 ## Programmatic execution
 
 ```ts

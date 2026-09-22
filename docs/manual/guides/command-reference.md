@@ -162,6 +162,32 @@ demoplay
 
 Consult `help` in the actual FPS build: game commands and gametype options evolve independently from engine commands.
 
-## Not yet implemented
+## Key bindings
 
-`bind` accepts its arguments and binds nothing — it reports that binding is planned. Durable key bindings are edited in Settings → Controls, which stores them per action in the player profile.
+| Command | Purpose |
+| --- | --- |
+| `bind` | List every bound key |
+| `bind <key>` | Show what one key runs |
+| `bind <key> <command>` | Bind a key to a console command |
+| `unbind <key>` | Remove one binding |
+| `unbind all` | Remove every binding |
+
+```text
+bind f screenshot
+bind 5 "give all"
+bind ` clear
+unbind f
+```
+
+A key is written the way you would say it — `f`, `5`, `f5`, `space`, `esc`,
+`up`, `` ` `` — or as the browser's own key code, `KeyF`. Bindings persist per
+browser.
+
+This is separate from the action map in Settings → Controls. An action binding
+says what a key *means* while it is held — Jump, Fire, Crouch — and a command
+binding runs a console command once, on the press. A key can carry both:
+binding `space` to a command does not stop it being Jump.
+
+A bound key stays quiet while a text field has the keyboard, while the console
+is open, and when Ctrl, Alt or Meta is held, so it never steals a browser or
+operating-system shortcut.
