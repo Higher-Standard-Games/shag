@@ -10,7 +10,7 @@ The playable FPS path resolves a map through `PK3Index`, loads its dependencies,
 map wdm2 duel
 ```
 
-`MapLoader.getInstance().loadMap(mapName, scene, onProgress?)` is the high-level browser API. It currently resolves indexed BSP maps. Its local text-map branch is marked TODO.
+`MapLoader.getInstance().loadMap(mapName, scene, onProgress?, opts?)` is the high-level browser API. It currently resolves indexed BSP maps; its local text-map branch is marked TODO. `opts.backgroundOnly` loads a map as menu scenery, which is how a background map skips the gameplay setup that turns PVS on.
 
 ## Inspection flow
 

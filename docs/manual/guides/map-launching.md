@@ -40,6 +40,7 @@ The FPS adapter uses the lobby/development-server flow and then initializes the 
 ```text
 map list
 map current
+map load <name>
 map reload
 map unload
 ```
