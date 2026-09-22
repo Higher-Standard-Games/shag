@@ -337,6 +337,59 @@ A feature is done only when all are true:
 5. User-facing summary includes run instructions and caveats.
 6. If renderer/networking was touched, required regression suite was run and reported.
 
+## Branches, Changelog and Releases
+
+The repository is two repositories: the outer engine and `src/games/fps`, a git
+submodule. Both carry the same branch names and move together.
+
+### Feature branches
+
+- Named for the version and the topic: `v0.9.23-lobby-ui`, or
+  `0.9.X-qa-improvements` for a QA/bugfix cycle.
+- Created from `main` in **both** repositories.
+
+### The living changelog
+
+Each cycle keeps `docs/changelog/v0.9.X.md` with `**Release Date:** unreleased
+— living changelog` at the top, updated as work lands rather than written at
+the end. Write it for a player or a developer reading later: what changed, and
+what was wrong before. A cycle's research notes live in `docs/research/`.
+
+### Merge order (always fps first)
+
+1. Commit in `src/games/fps`, merge its branch into its `main`, push.
+2. In the outer repo, merge the feature branch into `main`, then `git add
+   src/games/fps` to re-pin the submodule at its merged `main` tip and commit
+   that.
+3. Push the outer `main`.
+
+Merging the outer branch can leave `UU src/games/fps` when the pins diverge:
+check out the fps `main` tip inside the submodule, `git add src/games/fps`, and
+continue.
+
+### Release ritual
+
+1. Finalize the date in the living changelog (replace the unreleased line, drop
+   the trailing unreleased marker).
+2. Bump `src/engine/version.txt` and `package.json` — **outer repo only** — to
+   the *next* version.
+3. Commit as `chore: release v0.9.X, bump version to v0.9.X+1`.
+4. Annotated tag `v0.9.X` on that commit: `git tag -a v0.9.X -m "..."`.
+5. Push the branch and the tag: `git push origin main && git push origin v0.9.X`.
+6. Open the next cycle's living changelog stub, `docs/changelog/v0.9.X+1.md`.
+
+Because the release and the bump are one commit, `version.txt` at the tag
+already reads the next version. That is the accepted artifact, not a mistake.
+Tags are annotated, on the release commit, and recent releases are tagged in
+the **outer repo only**.
+
+### Gates
+
+`npm run typecheck`, `npm run test:run`, `npm run build`, and
+`npm run gate:biome` — the last is also a pre-commit hook from `.githooks`, so
+a commit that raises the Biome baseline is refused. Renderer or networking
+edits additionally need the regression set in "Critical Systems" above.
+
 ## Common Gotchas
 
 1. Babylon imports must be modular:
@@ -362,6 +415,7 @@ mesh.metadata = { mapOwned: true };
 - Headless: `docs/manual/guides/headless-mode.md`
 - Configuration: `docs/manual/guides/configuration.md`
 - Shader system: `docs/manual/guides/shader-system.md`
+- Lobby, accounts, results: `docs/manual/guides/lobby-server.md`
 - Research notes: `docs/research/`
 - Changelog: `docs/changelog/`
 
