@@ -70,6 +70,8 @@ export class MatchLobbyView {
   private shuffleBtn: HTMLButtonElement | null = null;
   private inviteBotPending = false;
   private phase: "waiting" | "starting" = "waiting";
+  /** True when the room's match was already running as this player walked in. */
+  private matchInProgress = false;
   private roomError: string | null = null;
   private timers = new Set<number>();
   private clockTimer: number | null = null;
@@ -89,7 +91,10 @@ export class MatchLobbyView {
     };
     this.lobbyId = lobbyInfo.id;
     this.activeMatchId = lobbyInfo.activeMatchId ?? null;
-    if (this.activeMatchId) this.phase = "starting";
+    if (this.activeMatchId) {
+      this.phase = "starting";
+      this.matchInProgress = true;
+    }
     // Older public-room servers advertised a placeholder domain; only private
     // rooms need the server's bearer-token link.
     this.shareUrl =
@@ -213,6 +218,7 @@ export class MatchLobbyView {
       this.lobbyClient.on("match:ended", () => {
         this.roomError = null;
         this.activeMatchId = null;
+        this.matchInProgress = false;
         if (this.recoverBtn) this.recoverBtn.hidden = true;
         this.phase = "waiting";
         this.localReady = false;
@@ -453,8 +459,9 @@ export class MatchLobbyView {
       const clock = this.root?.querySelector<HTMLElement>(".match-lobby__clock");
       if (clock) {
         const seconds = Math.floor((Date.now() - this.openedAt) / 1000);
-        clock.textContent =
-          this.phase === "starting"
+        clock.textContent = this.matchInProgress
+          ? "In match"
+          : this.phase === "starting"
             ? "Starting"
             : `Waiting ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
       }
@@ -480,26 +487,30 @@ export class MatchLobbyView {
     if (head) {
       head.textContent = this.roomError
         ? "Room action failed"
-        : this.phase === "starting"
-          ? "Match starting"
-          : !full
-            ? this.config.maxPlayers === 2
-              ? "Searching for an opponent"
-              : "Waiting for players"
-            : this.localReady
-              ? "You're ready"
-              : "Ready when you are";
+        : this.matchInProgress
+          ? "Match in progress"
+          : this.phase === "starting"
+            ? "Match starting"
+            : !full
+              ? this.config.maxPlayers === 2
+                ? "Searching for an opponent"
+                : "Waiting for players"
+              : this.localReady
+                ? "You're ready"
+                : "Ready when you are";
     }
     if (sub) {
       sub.textContent =
         this.roomError ??
-        (this.phase === "starting"
-          ? "Everyone is ready. Connecting when the game server is available."
-          : !full
-            ? "Share the invite, or add a bot to play right now."
-            : this.localReady
-              ? `${waiting} player${waiting === 1 ? "" : "s"} still to ready up.`
-              : `${readyCount} of ${this.players.length} ready.`);
+        (this.matchInProgress
+          ? "This room's match is still running. Rejoin your seat, or wait here for it to end."
+          : this.phase === "starting"
+            ? "Everyone is ready. Connecting when the game server is available."
+            : !full
+              ? "Share the invite, or add a bot to play right now."
+              : this.localReady
+                ? `${waiting} player${waiting === 1 ? "" : "s"} still to ready up.`
+                : `${readyCount} of ${this.players.length} ready.`);
       if (this.roomError) sub.setAttribute("role", "alert");
       else sub.removeAttribute("role");
     }
@@ -611,10 +622,11 @@ export class MatchLobbyView {
 
     if (player) {
       if (player.isLocal) seat.classList.add("match-lobby__seat--local");
-      if (player.ready) seat.classList.add("match-lobby__seat--ready");
+      if (player.ready && !this.matchInProgress) seat.classList.add("match-lobby__seat--ready");
       avatar.textContent = player.name.slice(0, 1).toUpperCase();
       name.textContent = player.name;
-      state.textContent = player.ready ? "Ready" : "Not ready";
+      // Ready flags belong to the next match; the one being played says so
+      state.textContent = this.matchInProgress ? "In match" : player.ready ? "Ready" : "Not ready";
       seat.append(avatar, name);
       if (player.isLocal) {
         const you = document.createElement("span");
@@ -836,7 +848,13 @@ export class MatchLobbyView {
     setRaisedKeyText(
       key,
       this.localReady ? "Ready!" : "Ready",
-      this.phase === "starting" ? "Starting" : this.localReady ? "Waiting for the rest" : "Click when set",
+      this.matchInProgress
+        ? "Match running"
+        : this.phase === "starting"
+          ? "Starting"
+          : this.localReady
+            ? "Waiting for the rest"
+            : "Click when set",
     );
   }
 

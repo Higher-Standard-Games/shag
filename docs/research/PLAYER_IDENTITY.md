@@ -103,7 +103,7 @@ The lobby, the bot server and the game servers always run together on one machin
 - **Game servers need no secret.** The lobby starts each match and knows which players are bots.
 - **Why nobody can log in as a bot:** a bot has no key to steal or guess, and the bot flag needs both the lobby's machine and the secret.
 
-### Stats and the leaderboard (S4, not built yet)
+### Stats and the leaderboard (S4)
 
 Mixed lobbies are wanted, for example bots filling S&D teams. So bots don't wipe out anyone's stats; they only decide whether a match counts for the leaderboard.
 
@@ -118,6 +118,8 @@ Mixed lobbies are wanted, for example bots filling S&D teams. So bots don't wipe
 
   S&D needs the second condition because the majority rule alone would rank 4 humans against a team of 3 bots: 4 of 7 players are human, but it's still humans farming bots.
 - **Counted once, when the match starts.** The lobby knows the roster then, and it already refuses new bots once a match is starting. If bots ever replace players who leave mid-match, the count at the start still decides.
+
+The rule lives in `isRankedRoster()` in `src/lobby/LobbyServer.ts`, decided from the seats a match is spawned with and remembered per match id; `handleServerResult` stores nothing for a match that was not ranked (`RankedRoster.test.ts`).
 
 ## Client
 
@@ -148,6 +150,7 @@ Mixed lobbies are wanted, for example bots filling S&D teams. So bots don't wipe
   - **Name:** the same rules the lobby applies are applied as the player types (`judgeName` in `IdentityFields.ts`); the lobby still has the last word, and its refusal is what the player reads.
   - **Key:** Copy, Save as file, and — where the browser takes one (Chromium) — Save in browser, which hands the key to the password manager so it syncs. The warning next to it says plainly that the key is the account.
   - **Play as someone else:** a key slot that tidies what is pasted into groups of four, and switches accounts once it is whole. Renaming and switching are both refused while the player is in a room, because a room keeps its own copy of every name.
+  - **Your record:** one line per mode the lobby ranks this account in — rank, wins, losses, draws — over a summary line. Each line is the account's own row from that mode's leaderboard query, so the card says what is true and nothing more: it asks the player to connect when the lobby is away, passes on the lobby's own words when it does not rank, and says "No ranked match yet" rather than showing a row of zeroes.
 
 ## Where it lives
 
@@ -165,13 +168,14 @@ Mixed lobbies are wanted, for example bots filling S&D teams. So bots don't wipe
 | `src/cli/lobby-server.ts`, `src/cli/bot-server.ts` | `--data-dir`, loading the secret and the store |
 | `src/games/fps/client/FpsLobbyService.ts` | Logs in through `AccountSession`; `switchFpsAccount()` |
 | `src/games/fps/client/WelcomeOverlay.ts` | The first screen: a name, or the key you already have |
-| `src/games/fps/client/ProfileView.ts` | Name, key backup, switching accounts |
+| `src/games/fps/client/ProfileView.ts` | Name, key backup, switching accounts, the account's record |
 | `src/games/fps/client/IdentityFields.ts` | The name and key slots both screens use |
 | `src/engine/console/commands/NameCommand.ts` | `name` renames the account |
 
 ## Open work
 
 1. **A nudge to back the key up**, once a player has something to lose (a first ranked result, say). The Profile has the key; nothing yet asks the player to save it.
+2. **A real two-human ranked row has not been seen in a browser.** The server path is verified end to end, and the browser reads the board correctly against stored results; what is missing is two people finishing a match in front of it.
 
 ## Validation (2026-09-20)
 

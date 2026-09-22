@@ -72,7 +72,7 @@ describe("MatchLobbyView roster identity", () => {
       button.textContent?.includes("Rejoin match"),
     );
     expect(rejoin?.hidden).toBe(false);
-    expect(view.root.querySelector(".match-lobby__status-head")?.textContent).toBe("Match starting");
+    expect(view.root.querySelector(".match-lobby__status-head")?.textContent).toBe("Match in progress");
     client.emit("match:ended", { matchId: "m_1" });
     expect(rejoin?.hidden).toBe(true);
     view.destroy();
@@ -226,6 +226,44 @@ describe("MatchLobbyView roster identity", () => {
       expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/?lobby=snd-room&invite=secret-token`),
     );
     expect(view.root.querySelector(".match-lobby__invite-url")?.textContent).toContain("invite=secret-token");
+    view.destroy();
+  });
+  it("says a room whose match is running is in progress, not starting", () => {
+    const client = new FakeLobbyClient();
+    const view = new MatchLobbyView(
+      "snd",
+      client as never,
+      {
+        ...lobby,
+        activeMatchId: "m_running",
+        players: [
+          { id: "host", name: "Host", team: "alpha", ready: true },
+          { id: "joiner", name: "Joiner", team: "bravo", ready: true },
+        ],
+      },
+      "joiner",
+    );
+
+    expect(view.root.querySelector(".match-lobby__status-head")?.textContent).toBe("Match in progress");
+    expect(view.root.querySelector(".match-lobby__status-sub")?.textContent).toContain("Rejoin your seat");
+    // A ready flag from the match being played says nothing about the next one
+    expect([...view.root.querySelectorAll(".match-lobby__seat-state")].map((s) => s.textContent)).toEqual([
+      "In match",
+      "In match",
+    ]);
+    view.destroy();
+  });
+
+  it("returns to the ready-up screen when that match ends", () => {
+    const client = new FakeLobbyClient();
+    const view = new MatchLobbyView("snd", client as never, { ...lobby, activeMatchId: "m_running" }, "joiner");
+    client.emit("match:ended", { type: "match:ended", matchId: "m_running", exitCode: 0 });
+
+    expect(view.root.querySelector(".match-lobby__status-head")?.textContent).toBe("Ready when you are");
+    expect([...view.root.querySelectorAll(".match-lobby__seat-state")].map((s) => s.textContent)).toEqual([
+      "Not ready",
+      "Not ready",
+    ]);
     view.destroy();
   });
 });

@@ -58,6 +58,31 @@ export function buildPublicGameServerUrl(port: number): string {
 // GameServerSpawner
 // ============================================================================
 
+/**
+ * How long a game server gets to say it is ready. A cold start compiles the
+ * server and loads a BSP, which on a busy machine takes longer than it looks;
+ * SHAG_SPAWN_TIMEOUT_MS raises it where that is not enough.
+ */
+const SPAWN_READY_TIMEOUT_MS = Math.min(
+  Math.max(Number(process.env.SHAG_SPAWN_TIMEOUT_MS) || 45_000, 5_000),
+  5 * 60_000,
+);
+
+/**
+ * Stop a child the lobby has given up on. A server that reports itself ready a
+ * few seconds after the wait expired would otherwise keep running, holding its
+ * port, with nobody left who knows it exists.
+ */
+export function abandonSpawnedChild(child: Pick<ChildProcess, "kill" | "killed" | "exitCode">): void {
+  if (child.killed || child.exitCode !== null) return;
+  child.kill("SIGTERM");
+  const forceKill = setTimeout(() => {
+    if (!child.killed && child.exitCode === null) child.kill("SIGKILL");
+  }, 5_000);
+  // The lobby should not be held open by a child it has already abandoned
+  forceKill.unref?.();
+}
+
 export class GameServerSpawner {
   /** Kept outside public SpawnedServer listings, removed on delivery or exit. */
   private readonly recoveryByMatch = new Map<
@@ -130,19 +155,26 @@ export class GameServerSpawner {
       admissionTickets: admission?.tickets,
     };
 
-    // Wait for ready signal in stdout
-    await this.waitForReady(child, matchId, port, (line) => {
-      if (!admission || !resultSecret || !this.activeServers.has(matchId)) return;
-      const report = verifyMatchResult(line, resultSecret, {
-        matchId,
-        map: config.map,
-        gametype: config.gametype,
-        startedAt: server.startedAt,
-        admission: admission.manifest,
+    // Wait for ready signal in stdout. A child that never gets there is killed
+    // rather than left running: the room has already been told the match failed.
+    try {
+      await this.waitForReady(child, matchId, port, (line) => {
+        if (!admission || !resultSecret || !this.activeServers.has(matchId)) return;
+        const report = verifyMatchResult(line, resultSecret, {
+          matchId,
+          map: config.map,
+          gametype: config.gametype,
+          startedAt: server.startedAt,
+          admission: admission.manifest,
+        });
+        if (report) this.onServerResult?.(report);
+        else console.warn(`[Spawner] Rejected result for match ${matchId}`);
       });
-      if (report) this.onServerResult?.(report);
-      else console.warn(`[Spawner] Rejected result for match ${matchId}`);
-    });
+    } catch (error) {
+      console.warn(`[Spawner] Abandoning match ${matchId} on port ${port}:`, (error as Error).message);
+      abandonSpawnedChild(child);
+      throw error;
+    }
 
     this.activeServers.set(matchId, server);
     if (admission) this.recoveryByMatch.set(matchId, admission.recoveryTickets);
@@ -248,7 +280,7 @@ export class GameServerSpawner {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         reject(new Error(`[Spawner] Server start timed out (match: ${matchId})`));
-      }, 30000); // 30s timeout
+      }, SPAWN_READY_TIMEOUT_MS);
 
       let pending = "";
 

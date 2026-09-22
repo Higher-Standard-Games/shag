@@ -883,12 +883,20 @@ export class LobbyServer {
       return;
     }
 
+    // An account arriving back from a match is a new socket, and the one that
+    // carried it into the game may not be known to be gone yet. Give the seat
+    // to the newest connection instead of letting a room read as full against
+    // its own member.
+    const stale = this.seatHeldByAccount(lobby, player);
+    if (stale) this.releaseSeat(lobby, stale);
+
     if (lobby.players.size >= lobby.gametype.maxPlayers) {
       this.send(player, { type: "lobby:error", error: "Lobby is full." });
       return;
     }
 
     const lobbyPlayer = lobby.addPlayer(player);
+    if (stale && lobby.gametype.hasTeams) lobbyPlayer.team = stale.team;
     if (lobby.state === "playing" && player.accountId !== null) {
       lobbyPlayer.team = lobby.activeSeatTeams.get(player.accountId)!;
     }
@@ -925,6 +933,31 @@ export class LobbyServer {
 
     // Broadcast updated matches list
     this.broadcastMatchesUpdate();
+  }
+
+  /**
+   * The seat this account already holds in a room under some other connection.
+   * Bots have no account and never share a seat, however many of them are in.
+   */
+  private seatHeldByAccount(lobby: MatchLobby, player: ConnectedPlayer): LobbyPlayerInfo | undefined {
+    if (player.accountId === null) return undefined;
+    for (const seat of lobby.players.values()) {
+      if (seat.id === player.id) continue;
+      if (this.players.get(seat.id)?.accountId === player.accountId) return seat;
+    }
+    return undefined;
+  }
+
+  /** Take a seat back out of a room, and tell its old connection it is out. */
+  private releaseSeat(lobby: MatchLobby, seat: LobbyPlayerInfo): void {
+    lobby.removePlayer(seat.id);
+    const previous = this.players.get(seat.id);
+    if (previous) {
+      previous.lobbyId = null;
+      previous.status = "online";
+      this.send(previous, { type: "lobby:kicked", lobbyId: lobby.id, reason: "you joined from another window" });
+    }
+    this.broadcastToLobby(lobby.id, { type: "lobby:player_left", playerId: seat.id });
   }
 
   // ── Lobby: Leave ─────────────────────────────────────────────
