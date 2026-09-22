@@ -6,6 +6,16 @@ import type { CameraSystem } from "../../camera/CameraSystem";
 import { MovementVars } from "../../movement/MovementVars";
 import { Command, type CommandDef } from "../Command";
 
+/** Console names for the registered controller types, including short forms. */
+const MODE_ALIASES: Record<string, string> = {
+  iso: "isometric",
+  isometric: "isometric",
+  fps: "fps",
+  freefly: "freefly",
+  follow: "follow",
+  sidescroll: "sidescroll",
+};
+
 export default class CameraCommand extends Command {
   readonly definition: CommandDef = {
     name: "camera",
@@ -43,21 +53,12 @@ export default class CameraCommand extends Command {
       case "mode": {
         const mode = args[1]?.toLowerCase();
         if (!mode) {
-          const current = cameraSystem.getActiveController()?.constructor.name || "unknown";
-          return `Current mode: ${current}\nAvailable: iso, fps, freefly, follow, sidescroll`;
+          // A controller's own type is the word a player can type back
+          const current = cameraSystem.getActiveController()?.type || "unknown";
+          return `Current mode: ${current}\nAvailable: ${Object.keys(MODE_ALIASES).join(", ")}`;
         }
 
-        // CameraSystem.setController expects a registered controller type name
-        const modeMap: Record<string, string> = {
-          iso: "isometric",
-          isometric: "isometric",
-          fps: "fps",
-          freefly: "freefly",
-          follow: "follow",
-          sidescroll: "sidescroll",
-        };
-
-        const controllerType = modeMap[mode];
+        const controllerType = MODE_ALIASES[mode];
         if (!controllerType) {
           return `Unknown mode: ${mode}`;
         }

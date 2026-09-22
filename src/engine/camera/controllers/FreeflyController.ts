@@ -6,8 +6,10 @@
  * - ESC to release mouse
  * - WASD to move (W forward, S backward, A left, D right)
  * - Mouse movement: freelook (when captured)
- * - Space to go up, Shift to go down
- * - No gravity, no collision, flies through everything
+ * - Jump to rise, Crouch to sink, Sprint to go faster: the player's own
+ *   bindings, so Space, C/Ctrl/middle mouse and Shift by default
+ * - No gravity. Collision is off by default and is turned on per session with
+ *   the freefly_collision command, in native or BSP mode.
  */
 
 import type { Camera } from "@babylonjs/core/Cameras/camera";

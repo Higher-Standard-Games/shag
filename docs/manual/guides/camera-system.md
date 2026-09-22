@@ -22,7 +22,8 @@ Built-in controller type names:
 - `freefly`;
 - `isometric`;
 - `sidescroll`;
-- `follow`.
+- `follow`;
+- `spectator`, driven by the FPS `spectator` command rather than by `camera mode`.
 
 ```ts
 const changed = cameras.setController('freefly');
@@ -41,7 +42,9 @@ camera fov 100
 camera info
 ```
 
-The console subcommand is named `mode`, but its current implementation selects a controller.
+The console subcommand is named `mode`, but its current implementation selects a controller. `iso` is accepted as a short form of `isometric`. With no argument it reports the active controller by its own type name and lists the names it takes.
+
+`camera fov` does not write the camera: viewport effects rewrite that every frame from `cl_fov`, so the subcommand sets `cl_fov` instead, and reports the range rather than silently clamping a value outside it.
 
 ## Projection modes
 
@@ -62,7 +65,7 @@ freefly_collision 0
 freefly_collision mode bsp
 ```
 
-Freefly uses FPS actions: WASD, Space up, C/Ctrl down, Shift speed multiplier, and mouse look under pointer lock.
+Freefly uses the player's own FPS action bindings rather than fixed keys: move is WASD, rise is Jump (Space), sink is Crouch (C, Ctrl or middle mouse), and the speed multiplier is Sprint (Shift). Mouse look needs pointer lock. Rebinding those actions rebinds freefly with them.
 
 ## Custom controller
 
