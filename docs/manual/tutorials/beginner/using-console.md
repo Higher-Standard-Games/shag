@@ -69,10 +69,10 @@ There is no `debug fps` subcommand in the current `DebugCommand`.
 
 ## Quoting and batches
 
-Arguments containing spaces may be quoted:
+Arguments containing spaces are quoted with double quotes; the parser does not treat single quotes as quoting:
 
 ```text
-echo 'hello world'
+echo "hello world"
 ```
 
 Headless batches are semicolon-separated:

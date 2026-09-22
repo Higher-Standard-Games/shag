@@ -10,9 +10,11 @@
 | Texture | `r_anisotropy`, `r_ktx2` |
 | Display | `r_webgpu`, `r_bsp_freeze`, `r_ssr`, `r_glow`, `r_bloom`, `r_exposure`, `r_contrast`, `r_pickupProcedural` |
 | Lighting | `r_ambient`, `r_lightintensity`, `r_lightmapscale`, god-ray, area-light, and day/night groups |
-| Debug | `r_wireframe`, `r_showtris` |
+| Debug | `r_wireframe`, `r_showtris`, `r_water_debug` |
 
-Use `render list` for the authoritative current list, defaults, ranges, and descriptions. Type-only future names in `RenderVarName` are not necessarily registered.
+Water has its own set inside those categories: `r_water` and `r_water_quality` select the tier, with `r_water_highlights`, `r_water_roughness`, `r_water_reflection`, `r_water_probe_height`, `r_water_blur`, `r_water_detail`, `r_water_contact`, `r_water_actors` and `r_underwater_distortion` shaping it. Day/night runs from `r_daynight` with its time, speed, length, lightmap range, sun/moon intensity and sky tint.
+
+Fifty-five variables are registered today. Use `render list` for the authoritative current list, defaults, ranges, and descriptions. Type-only future names in `RenderVarName` are not necessarily registered.
 
 ## Console
 

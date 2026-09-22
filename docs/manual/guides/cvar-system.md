@@ -17,6 +17,8 @@ Cvar.reset('r_bloom');
 
 `Cvar.get(name)` returns the stored `CvarValue | undefined`. Use `getNumber`, `getInt`, `getBool`, or `getString` when a specific type is required.
 
+`set` returns false, and changes nothing, when the cvar does not exist, is read-only, or is numeric and was given text — `Cvar.set("r_bloom", "abc")` is refused rather than read as zero. A number outside `min`/`max` is clamped to the range and the set succeeds. The console reports a refused set as a failure, which is what headless and batch runners turn into a non-zero exit code.
+
 ## Registering a variable
 
 ```ts
@@ -32,7 +34,9 @@ Cvar.register('g_example', 1, {
 });
 ```
 
-Persisted values are stored in browser local storage under `engine_cvars`. Debug-only state should normally use `persist: false`.
+Persisted values are stored in browser local storage under `engine_cvars`, and only values that differ from their default are written. Debug-only state should normally use `persist: false`.
+
+Registering a cvar that already has a value — one loaded from storage before its type was known, or an earlier registration — keeps that value but holds it to the type and bounds the registration declares. A stored `99` for a cvar later registered with `max: 3` reads as `3`.
 
 ## Console use
 

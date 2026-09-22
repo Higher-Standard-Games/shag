@@ -256,6 +256,35 @@ describe("Cvar", () => {
       Cvar.set("r_aniso", 6.7);
       expect(Cvar.get("r_aniso")).toBe(7);
     });
+
+    it("refuses text where a number belongs, instead of reading it as zero", () => {
+      Cvar.register("r_bloom", 1.5, { type: "float" });
+      Cvar.register("r_aniso", 8, { type: "int" });
+
+      expect(Cvar.set("r_bloom", "abc" as unknown as CvarValue)).toBe(false);
+      expect(Cvar.set("r_aniso", "" as unknown as CvarValue)).toBe(false);
+      expect(Cvar.set("r_aniso", "   " as unknown as CvarValue)).toBe(false);
+
+      expect(Cvar.get("r_bloom")).toBe(1.5);
+      expect(Cvar.get("r_aniso")).toBe(8);
+    });
+
+    it("still takes a number written as text", () => {
+      Cvar.register("r_bloom", 1, { type: "float" });
+      expect(Cvar.set("r_bloom", " 2.5 " as unknown as CvarValue)).toBe(true);
+      expect(Cvar.get("r_bloom")).toBe(2.5);
+    });
+
+    it("holds a value kept from storage to the bounds it is registered with", () => {
+      // A value saved before this cvar's type and bounds were known
+      Cvar.register("r_shadowquality", 99, { persist: false });
+      Cvar.register("r_shadowquality", 2, { type: "int", min: 0, max: 3, persist: false });
+      expect(Cvar.get("r_shadowquality")).toBe(3);
+
+      Cvar.register("r_scale", "not a number" as unknown as CvarValue, { persist: false });
+      Cvar.register("r_scale", 1, { type: "float", min: 0.5, max: 2, persist: false });
+      expect(Cvar.get("r_scale")).toBe(0.5);
+    });
   });
 
   // ── Toggle ────────────────────────────────────────────────

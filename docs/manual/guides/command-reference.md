@@ -1,50 +1,57 @@
 # Command reference
 
-Press backquote/tilde to open the browser console. Run `help` for the commands registered in the current composition and `help <command>` for metadata.
+Press backquote/tilde to open the browser console. Run `help` for the commands registered in the current composition and `help <command>` for its usage and subcommands.
 
-This page is a workflow reference, not a generated exhaustive list. Engine commands are auto-discovered from `src/engine/console/commands/`; the active FPS module adds commands from `src/games/fps/console/commands/`.
+This page is a workflow reference, not a generated exhaustive list. Engine commands are auto-discovered from `src/engine/console/commands/`; the active FPS module adds commands from `src/games/fps/console/commands/`. Commands marked **dev** are registered only while `developer 1` is set — the console answers `Command 'x' requires developer mode` otherwise, and they are hidden from completion.
 
 ## Setup and help
 
 | Command | Purpose |
 | --- | --- |
-| `help [command]` | List commands or show command help |
-| `developer 0|1` | Gate developer-only commands |
+| `help [command]` | List commands or show one command's usage and subcommands |
+| `developer [0\|1]` | Turn developer mode on or off (aliases: `dev`) |
 | `version` | Show build version |
 | `clear` | Clear console output |
+| `echo <text>` | Print text |
+| `exec <filename>` | Run a config file through the virtual filesystem |
 | `quit` | Exit supported CLI/app compositions |
+| `writeconsole` | Write the console log to a file |
 
 ## Maps and BSP inspection
 
 | Command | Purpose |
 | --- | --- |
-| `map <name> [gametype]` | Browser gameplay launch through the registered launcher |
-| `map list|current|reload|unload` | Gameplay-map operations |
-| `bsp load <name>` | Parse an indexed BSP for inspection |
-| `bsp render [all|poly|patch|mesh]` | Build inspection geometry |
-| `bsp info|faces|entities|textures|worldspawn` | Inspect parsed data |
-| `bsp clusters|lightmaps|required` | Inspect dependencies and visibility/lightmaps |
-| `bsp loadrequired` | Load dependent PK3 archives |
-| `bsp applytextures|applylightmaps` | Apply inspection materials |
-| `bsp sky info|apply|toggle|remove|debug` | Inspect/manage BSP sky |
-| `bsp fog info|apply|clear` | Inspect/manage BSP fog volumes |
+| `map <name> [gametype]` **dev** | Browser gameplay launch through the registered launcher |
+| `map list\|current\|reload\|unload` **dev** | Gameplay-map operations |
+| `bsp load\|unload <name>` | Parse an indexed BSP for inspection, or drop it |
+| `bsp render [all\|poly\|patch\|mesh]` | Build inspection geometry |
+| `bsp info\|faces\|entities\|textures\|worldspawn` | Inspect parsed data |
+| `bsp clusters\|lightmaps\|lightgrid\|required` | Inspect visibility, lightmaps and dependencies |
+| `bsp loadrequired\|preload\|loadtextures` | Load dependent archives and textures |
+| `bsp applytextures\|applylightmaps\|clear` | Apply or drop inspection materials |
+| `bsp sky info\|apply\|toggle\|remove\|debug` | Inspect and manage BSP sky |
+| `bsp fog info\|apply\|clear` | Inspect and manage BSP fog volumes |
 | `bsp collision point` | Show contents at the active camera |
-| `pvs on|off|status|cluster` | PVS diagnostics |
+| `bsp trace` | Trace a ray through the collision world |
+| `bsp door` | Inspect door and mover entities |
+| `pvs on\|off\|status\|cluster` | PVS diagnostics |
 
-`map` is not registered with a gameplay launcher in `cli:game`; use `bsp load` there.
+`map` needs a gameplay launcher, which the browser composition registers and `cli:game` does not; use `bsp load` there.
 
 ## Camera and position
 
 | Command | Purpose |
 | --- | --- |
-| `camera mode <iso|fps|freefly|follow|sidescroll>` | Select a built-in controller |
+| `camera mode <iso\|fps\|freefly\|follow\|sidescroll>` | Select a built-in controller |
 | `camera fov <degrees>` | Get or set FOV |
 | `camera pos` / `camera info` | Inspect camera |
-| `pos [copy]` | Show/copy position |
-| `teleport <x> <y> <z>` | Move the camera |
-| `freefly_speed [value]` | Get/set freefly speed |
-| `freefly_collision [0|1]` | Get/set collision |
-| `freefly_collision mode <native|bsp>` | Select collision path |
+| `pos [copy]` | Show or copy position |
+| `teleport <x> <y> <z>` **dev** | Move the camera |
+| `freefly_speed [value]` **dev** | Get or set freefly speed |
+| `freefly_collision [0\|1]` | Turn freefly collision on or off |
+| `freefly_collision mode [native\|bsp]` | Select the collision path |
+| `freefly_collision test\|draw\|clear` | Probe and visualise collision geometry |
+| `freefly_collision clipviz\|clipdump\|cliptrace` | Inspect clip brushes |
 
 The console does not expose the old `camera controller`, `camera height`, or `camera target` forms.
 
@@ -52,16 +59,18 @@ The console does not expose the old `camera controller`, `camera height`, or `ca
 
 | Command | Purpose |
 | --- | --- |
-| `pk3 list` | List indexed packages |
-| `pk3 index` | Rebuild the runtime index |
-| `pk3 find <exact-path>` | Find the owning archive |
-| `pk3 stats` | Show package/file/shader/map counts |
-| `shader load|count` | Load or count parsed shaders |
+| `pk3 list` **dev** | List indexed packages |
+| `pk3 index` **dev** | Rebuild the runtime index |
+| `pk3 find <exact-path>` **dev** | Find the owning archive |
+| `pk3 stats` **dev** | Show package/file/shader/map counts |
+| `shader load\|count` | Load or count parsed shaders |
 | `shader list [filter]` | List parsed shader names |
-| `shader info [name]` | Inspect a shader or aimed surface |
+| `shader info [name]` | Inspect a shader or the aimed surface |
 | `shader resolve <name>` | Show resolved material flags |
 | `shader deps <name>` | Trace archive dependencies |
-| `shader aim <0|1>` | Highlight aimed surfaces |
+| `shader aim <0\|1>` | Highlight aimed surfaces |
+| `shader anim play\|pause\|resume\|speed\|status` | Drive shader animation |
+| `shader glow\|blendmode\|lightmap\|toggle\|clear` | Inspect and override stage behaviour |
 
 ## Cvars and rendering
 
@@ -69,33 +78,78 @@ The console does not expose the old `camera controller`, `camera height`, or `ca
 | --- | --- |
 | `<cvar> [value]` | Get or set a registered cvar directly |
 | `set <cvar> <value>` | Explicit setter |
-| `toggle <cvar>` | Toggle a boolean/numeric cvar |
+| `toggle <cvar>` | Toggle a boolean cvar, or flip a numeric one between 0 and 1 |
 | `reset <cvar>` / `resetall` | Restore defaults |
 | `cvarlist [filter]` | List cvars |
 | `cvarexport` | Copy modified cvars |
-| `render list|reset|export|apply` | Render-variable group operations |
-| `pp ...` | Post-processing command |
-| `show_fps [on|off]` | FPS counter |
-| `perf ...` | Performance capture/summary |
+| `render list\|reset\|export\|apply` **dev** | Render-variable group operations |
+| `pp <effect> [value]` **dev** | Post-processing control |
+| `show_fps [0\|1\|on\|off]` | FPS counter |
+| `perf capture [seconds]` | Performance capture and summary |
+| `export <all\|cvars\|camera\|fx>` | Copy current state as config text |
+| `settings export\|import\|list` | Settings file operations |
+| `screenshot [filename]` | Save a screenshot |
 
-Use `render list` rather than the obsolete `r_list`; render values apply through callbacks.
+A numeric cvar refuses text: `r_bloom abc` fails and leaves the value alone rather than reading the typo as zero. A number outside the cvar's range is clamped, not refused.
+
+## World, lighting and weather
+
+| Command | Purpose |
+| --- | --- |
+| `light <subcommand>` **dev** | Dynamic light control |
+| `arealight [<image-url>\|off]` | Area light from an image |
+| `shadow on\|off\|quality [value]` **dev** | Shadow control |
+| `godrays [sun\|here\|off]` | Volumetric light shafts |
+| `skybox load\|clear\|info [name]` **dev** | Skybox control |
+| `fog on\|off\|color\|density` **dev** | Scene fog |
+| `daynight on\|off\|noon\|midnight\|start\|stop\|info` **dev** | Day/night cycle |
+| `weather rain\|snow\|clear\|fog\|thunder [intensity]` | Weather |
+| `wind on\|off\|strength\|direction [value]` | Wind |
+| `debris leaves\|trash\|dust\|mixed\|off\|density\|size\|speed` | Ambient debris |
+| `time [subcommand]` | Time of day |
+| `texture <subcommand>` **dev** | Texture inspection |
+
+## Player state and cheats
+
+| Command | Purpose |
+| --- | --- |
+| `god` **dev** | Toggle invulnerability |
+| `noclip` **dev** | Toggle movement through geometry |
+| `giveweapon <weapon_id\|all> [amount]` | Give a weapon and ammunition |
+| `cl_wep_reset` | Reset client weapon state |
+| `weapon <subcommand>` | Weapon inspection |
+| `spectator [0\|1]` | Enter or leave spectator |
+| `timescale [value]` **dev** | Scale simulation speed |
+| `gravity [value]` **dev** | Movement gravity shortcut |
+| `spawn [index]` **dev** | Move to a spawn point |
+| `spawnmodel <model> [scale] [x y z] [angle]` **dev** | Spawn a model |
+| `spawn_pickable_entity <entity_id>` **dev** | Spawn a pickup |
+| `name [newname]` | Show or change the account name |
 
 ## Physics and diagnostics
 
 | Command | Purpose |
 | --- | --- |
-| `physics init|on|off|gravity|debug|info` | Havok scene-physics control |
-| `gravity [value]` | Movement gravity shortcut |
-| `debug collision|wireframe|bounds|player|info` | Current debug toggles |
-| `stats` / `mem` | Runtime statistics |
-| `inspect` | Inspect aimed scene object |
-| `dump_scene` | Dump the Babylon scene graph |
+| `physics init\|on\|off\|gravity\|debug\|info` **dev** | Havok scene-physics control |
+| `debug collision\|wireframe\|bounds\|player\|info` **dev** | Debug toggles |
+| `stats [detailed]` / `mem` **dev** | Runtime statistics |
+| `inspect` **dev** | Inspect the aimed scene object |
+| `entity list\|info\|count` **dev** | Inspect entities |
+| `scene [subcommand]` | Scene queries |
+| `dump_scene [filter]` **dev** | Dump the Babylon scene graph |
+| `console_debug [0\|1]` **dev** | Console diagnostics |
+| `animtest load\|play\|list\|stop\|dispose` **dev** | Animation harness |
+| `game info\|load\|switch\|reload` | Game module control |
+| `hud <subcommand>` / `ui <subcommand>` | HUD and UI control |
+| `audio <subcommand>` | Audio control |
 
 There is no `debug fps` subcommand; use `show_fps`.
 
 ## Networking and FPS game commands
 
-The FPS composition provides `connect`, `disconnect`, `loadout`, demo commands, `pickup_audit`, and network simulation commands. Engine-level commands include `join`, `nettest`, and `binarytest`.
+Engine: `join`, `nettest <subcommand>`, `binarytest <subcommand>`.
+
+The FPS composition adds `connect`, `disconnect`, `loadout`, `demo`, `demolist`, `demoplay`, `netsim` (network condition simulation), `pickup_audit`, `camera_audit` and `water`.
 
 ```text
 connect localhost:7777
@@ -106,10 +160,8 @@ demo <number-or-file>
 demoplay
 ```
 
-Consult `help` in the actual FPS build because game commands and gametype-specific options evolve independently from engine commands.
+Consult `help` in the actual FPS build: game commands and gametype options evolve independently from engine commands.
 
-## Utility
+## Not yet implemented
 
-Other current engine command classes cover audio, fog, day/night, lights, shadows, weather, wind, debris, UI, HUD, screenshots, settings export, config execution, model spawning, and weapon inspection. Their subcommands are intentionally obtained through `help <command>` rather than duplicated here.
-
-The `bind` command is currently a placeholder; use the controls/settings UI for durable bindings.
+`bind` accepts its arguments and binds nothing — it reports that binding is planned. Durable key bindings are edited in Settings → Controls, which stores them per action in the player profile.
