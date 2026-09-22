@@ -32,12 +32,17 @@ Use this generic class only when building an engine-level controller. Existing F
 Common movement variables include:
 
 ```text
-sv_speed
+cl_speed
+sv_topspeed
 sv_jumpheight
 sv_gravity
 sv_aircontrol
 sv_autohop
 ```
+
+Ground speed is `cl_speed`, with `sv_topspeed` and `sv_maxairspeed` as the
+server's caps; there is no `sv_speed`. Fall damage, ledge grabs, wall jumps and
+the weapon-bob and ADS groups are all registered here too.
 
 Run `cvarlist sv_` or inspect `MovementVars.ts` for the current registered set and bounds. Avoid copying old default values into game design documents; profiles and gametypes may override them.
 
@@ -55,7 +60,7 @@ The FPS path includes Quake/Warsow-style acceleration, air control, bunny hoppin
 ## Validation
 
 ```bash
-npm run cli:game -- --exec 'sim replay W+CROUCH 60; JUMP 1; W 30; quit'
+npm run cli:game -- --exec 'sim replay "W+CROUCH 60; JUMP 1; W 30"; quit'
 npm run test:simulation
 npm run test:physics
 ```

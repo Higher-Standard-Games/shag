@@ -23,9 +23,14 @@ Useful diagnostics:
 ```text
 developer 1
 bsp collision point
-freefly_collision info
+freefly_collision
+freefly_collision test
 debug collision
 ```
+
+`freefly_collision` with no argument reports the current state and backend; it
+takes an explicit `0`/`1` (or `off`/`on`) to toggle, and refuses anything else
+rather than reading it as off.
 
 `bsp collision point` reports the contents flags at the active camera. Use `help bsp` and `help freefly_collision` for the complete diagnostics in the build being tested.
 
