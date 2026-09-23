@@ -1,4 +1,4 @@
-package com.iwmengine.ganjawars;
+package net.washoi.game;
 
 import android.os.Bundle;
 import android.view.View;

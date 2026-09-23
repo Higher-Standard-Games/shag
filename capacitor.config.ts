@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.iwmengine.ganjawars',
-  appName: 'Ganjawars',
+  appId: 'net.washoi.game',
+  appName: 'Washiki Washoi!',
   webDir: 'dist',
   server: {
     // Uncomment for live reload during development:

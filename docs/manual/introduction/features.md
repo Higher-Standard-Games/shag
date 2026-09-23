@@ -72,7 +72,7 @@ Input is action-based. The FPS module registers the active default action map, i
 | --- | --- |
 | Web | Primary Vite build |
 | Headless Node | Active CLI/server/test tooling |
-| Android | Capacitor project exists; its app identity is still another product's, and the splash screen is never hidden — both need a device |
+| Android | Capacitor project exists under its own identity, and the splash screen is dismissed by the app; the startup path still needs a device to confirm |
 | Electron | Shell exists; packaging config loads and names the selected game |
 | iOS | No committed native project |
 
