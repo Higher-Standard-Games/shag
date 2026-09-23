@@ -22,6 +22,7 @@ import { CameraSystem } from "./engine/camera";
 import { FPSController } from "./engine/camera/controllers/FPSController";
 import { registerEngineCommands } from "./engine/console/commands";
 import { QualityDetector, registerEngineServices, ServiceLocator } from "./engine/core";
+import { CapacitorBridge } from "./engine/core/CapacitorBridge";
 import { EngineVersion } from "./engine/core/EngineVersion";
 import { GamePaths } from "./engine/core/GamePaths";
 import { DebugConsole } from "./engine/debug";
@@ -53,6 +54,12 @@ interface DebugWindow extends Window {
  */
 async function main() {
   const debugWindow = window as DebugWindow;
+
+  // Platform classes, mobile CSS and the native lifecycle, before anything
+  // draws. No-ops in a browser beyond the touch-device class.
+  const capacitor = CapacitorBridge.getInstance();
+  await capacitor.init();
+
   // Initialize GamePaths
   await GamePaths.getInstance().init(gameJson.displayName);
 
@@ -75,6 +82,12 @@ async function main() {
   const loadingScreen = new LoadingScreen();
   loadingScreen.show();
   loadingScreen.setStatus("Initializing renderer...");
+
+  // The native splash is configured not to hide itself, so it waits for this.
+  // Now is the moment: our own loading screen is up and showing progress, and
+  // holding the splash any longer would hide that progress behind a still
+  // image. No-op off a device.
+  void capacitor.hideSplashScreen();
 
   // WebGPU remains an explicit test session while Babylon 9 pipeline parity is
   // incomplete. Ignore a previously persisted default-on r_webgpu=1 so users
