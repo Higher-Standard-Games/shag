@@ -121,7 +121,10 @@ Usage: npx vite-node src/cli/bot-train.ts [options]
 
   Extracts training data from .shagdemo recordings — no server needed.
 
-  --demo <file>      Train from a .shagdemo demo file
+  --demo <path>      Train from a .shagdemo file, or a directory of them.
+                     A directory is read as one corpus: matches already counted
+                     are skipped by match id, and whole matches are held out for
+                     validation rather than random frames, which would leak.
   --include-bots     Train on every player in the demo, bots included.
                      By default only players with a verified account are used,
                      because the point is to learn from people.
@@ -155,9 +158,26 @@ Examples:
 
 // ── Demo Training ───────────────────────────────────────────────────
 
+/** Say what the run achieved, and whether it was measured on unseen play. */
+// biome-ignore lint/suspicious/noExplicitAny: tf.History, without importing TF into this module
+function reportLoss(label: string, result: any): void {
+  const history = result?.history ?? {};
+  const last = (values: unknown): number | null =>
+    Array.isArray(values) && values.length > 0 ? (values[values.length - 1] as number) : null;
+  const loss = last(history.loss);
+  const valLoss = last(history.val_loss);
+  const lossText = loss === null ? "n/a" : loss.toFixed(6);
+  console.log(
+    valLoss === null
+      ? `[Trainer] ${label} model loss: ${lossText} (training only — no held-out matches)`
+      : `[Trainer] ${label} model loss: ${lossText}, held-out: ${valLoss.toFixed(6)}`,
+  );
+}
+
 async function trainFromDemo(demoFile: string, config: Partial<TrainerConfig>, includeBots = false): Promise<void> {
   // Dynamic import to avoid loading TF.js unless needed
-  const { DemoTrainingExtractor } = await import("../bot/DemoTrainingExtractor");
+  const { buildCorpus } = await import("../bot/TrainingCorpus");
+  const { writeMetadata, describeCurrentFeatures } = await import("../bot/ModelMetadata");
   const { HybridBrain } = await import("../bot/HybridBrain");
   const { getTF } = await import("../bot/TFBackend");
   const { resolveDifficulty, InputButtons } = await import("../bot/BotConfig");
@@ -175,16 +195,29 @@ async function trainFromDemo(demoFile: string, config: Partial<TrainerConfig>, i
   console.log(`[Trainer] Model dir: ${config.modelDir || "./src/games/fps/models"}`);
   console.log("");
 
-  // 1. Extract training data from demo
-  const extractor = new DemoTrainingExtractor();
-  const dataset = await extractor.extractFromFile(demoFile, { includeBots });
+  // 1. Gather every recording under the target — a file, or a directory of them
+  const corpus = await buildCorpus(demoFile, { includeBots });
 
-  if (dataset.totalFrames === 0) {
-    console.error("[Trainer] No training frames extracted from demo!");
+  for (const match of corpus.matches) {
+    console.log(`[Trainer]   ${path.basename(match.file)} — ${match.map}, ${match.frames} frames`);
+  }
+  for (const skip of corpus.skipped) {
+    console.log(`[Trainer]   skipped ${path.basename(skip.file)} — ${skip.reason}`);
+  }
+
+  if (corpus.totalFrames === 0) {
+    console.error("[Trainer] No training frames. A demo trains nothing unless it holds a verified player;");
+    console.error("[Trainer] pass --include-bots to train on bot play instead.");
     process.exit(1);
   }
 
-  console.log(`[Trainer] Extracted ${dataset.totalFrames} total frames from ${dataset.players.length} players`);
+  console.log(
+    `[Trainer] ${corpus.totalFrames} frames from ${corpus.matches.length} match(es): ` +
+      `${corpus.train.length} training, ${corpus.validation.length} validation`,
+  );
+  if (corpus.validation.length === 0 && corpus.matches.length < 2) {
+    console.warn("[Trainer] One match means no validation set — the loss below says memorised, not learned.");
+  }
 
   // 2. Create or load models
   const difficulty = resolveDifficulty(config.difficulty || "medium");
@@ -204,8 +237,13 @@ async function trainFromDemo(demoFile: string, config: Partial<TrainerConfig>, i
   const tf = getTF();
 
   // Collect all frames from all players
-  const allFrames = dataset.players.flatMap((p) => p.frames);
+  const allFrames = corpus.train;
   console.log(`[Trainer] Training on ${allFrames.length} frames (${epochs} epochs, batch ${batchSize})`);
+
+  // Validation comes from matches held out of training, so the number below is
+  // measured on play the network has never seen. With one match there is none,
+  // and a training loss alone only says the frames were memorised.
+  const validationSplit = corpus.validation.length > 0 ? 0.2 : 0;
 
   // Build tactical training data (keep frame + input together to avoid index misalignment)
   const tactPairs = allFrames
@@ -232,10 +270,10 @@ async function trainFromDemo(demoFile: string, config: Partial<TrainerConfig>, i
       batchSize,
       shuffle: true,
       verbose: 1,
+      ...(validationSplit > 0 ? { validationSplit } : {}),
     });
 
-    const finalLoss = result.history.loss ? (result.history.loss[result.history.loss.length - 1] as number) : 0;
-    console.log(`[Trainer] Tactical model final loss: ${finalLoss.toFixed(6)}`);
+    reportLoss("Tactical", result);
 
     inputTensor.dispose();
     targetTensor.dispose();
@@ -264,23 +302,33 @@ async function trainFromDemo(demoFile: string, config: Partial<TrainerConfig>, i
       batchSize,
       shuffle: true,
       verbose: 1,
+      ...(validationSplit > 0 ? { validationSplit } : {}),
     });
 
-    const finalLoss = result.history.loss ? (result.history.loss[result.history.loss.length - 1] as number) : 0;
-    console.log(`[Trainer] Combat model final loss: ${finalLoss.toFixed(6)}`);
+    reportLoss("Combat", result);
 
     inputTensor.dispose();
     targetTensor.dispose();
   }
 
-  // 4. Save models and clean up
+  // 4. Save models, and what they were trained on, and clean up
   fs.mkdirSync(path.resolve(modelDir), { recursive: true });
   await brain.saveModels(modelDir);
+  writeMetadata(modelDir, {
+    ...describeCurrentFeatures(),
+    trainedAt: new Date().toISOString(),
+    matches: corpus.matches.length,
+    trainFrames: corpus.train.length,
+    validationFrames: corpus.validation.length,
+    includedBots: includeBots,
+    matchIds: corpus.matches.map((match) => match.matchId).filter((id): id is string => Boolean(id)),
+  });
   brain.dispose();
 
   console.log("");
   console.log(`[Trainer] ✅ Demo training complete!`);
   console.log(`[Trainer] Models saved to: ${modelDir}`);
+  console.log(`[Trainer] Trained on ${corpus.matches.length} match(es); metadata written beside the weights.`);
 }
 
 // ── Main ────────────────────────────────────────────────────────────

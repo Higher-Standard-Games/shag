@@ -222,7 +222,7 @@ up.
 | TF-6 | Train/validation split, early stopping, and a metric that means something on held-out frames | TF-4 | 3 | Sonnet 5 | todo |
 | TF-7 | Tests: extractor on a fixture demo, shape contract between normalizer and models, target construction, and a training smoke run | TF-4 | 3 | Sonnet 5 | todo |
 | TF-8 | Measure inference: per-decision cost with models loaded, eight bots, native and pure-JS backends | TF-2 | 2 | Haiku 4.5 | todo |
-| TF-10 | A dataset layer: a corpus directory, incremental accumulation across matches, a train/validation split, stored normalisation statistics, and model metadata recording input size, feature version and provenance | TF-1 | 3 | Sonnet 5 | todo |
+| TF-10 | A dataset layer | TF-1 | 3 | Sonnet 5 | **done 2026-09-23** |
 | TF-11 | Frame stacking: the last N feature vectors concatenated, so the network can see a movement in progress rather than a still | TF-10 | 3 | Opus 5 | todo |
 | TF-12 | One trunk, typed heads: softmax for modes, independent sigmoids with binary cross-entropy for buttons, a linear head for aim delta, and sampling with a temperature so two bots in the same spot do not do the same thing | TF-5, TF-11 | 4 | Opus 5 | todo |
 | TF-9 | Document the pipeline in the manual — there is no page for any of this today | TF-1…TF-5 | 2 | Sonnet 5 | todo |
@@ -247,6 +247,33 @@ down.
   competent bot instead of a broken one. Keep that.
 
 ## Progress log
+
+### 2026-09-23 — TF-10 done: matches accumulate
+
+`--demo` now takes a **directory** as readily as a file, and reads it as one
+corpus: every `.shagdemo` in it, matches already counted skipped by match id, a
+demo that cannot be read skipped with a reason rather than failing the run.
+
+**The validation split is by match, not by frame**, and that is the part worth
+keeping. Frames inside one match are seconds apart, same player, same map — a
+random frame split puts the answer on both sides and reports a number that
+means nothing. Whole matches go one way or the other, the split prefers holding
+back the smaller ones, and it undershoots the requested share rather than
+overshooting it. A test caught that last rule getting it wrong: asking for 10%
+of three matches held back half the corpus, because the loop kept adding until
+it passed the target instead of stopping before it.
+
+With one match there is no validation, and the trainer says so rather than
+printing a training loss that only proves memorisation. Where there is
+validation, the loss line reports held-out loss beside it.
+
+**Weights now carry their provenance.** `metadata.json` beside the models
+records the feature vector sizes, when they were trained, on how many matches
+and frames, whether bots were included, and the match ids — so a later run can
+skip what it already counted. `HybridBrain.loadModels` checks it and **refuses
+weights built for a different feature vector**, which until now loaded happily
+and read nonsense, because a dense layer accepts any vector of the right
+length.
 
 ### 2026-09-23 — TF-1 done: demos record what a person did
 

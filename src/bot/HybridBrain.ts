@@ -26,6 +26,7 @@ import { buildCombatInput, buildTacticalInput, COMBAT_INPUT_SIZE, TACTICAL_INPUT
 import { canInitiateSlide } from "./BotMovementProfile";
 import type { BotVision, VisionResult } from "./BotVision";
 import { getWeaponProfile } from "./BotWeaponProfile";
+import { checkCompatibility, readMetadata } from "./ModelMetadata";
 import { StateMachineBrain } from "./StateMachineBrain";
 import { getTF, initTF } from "./TFBackend";
 
@@ -99,6 +100,18 @@ export class HybridBrain extends BotBrain {
   async loadModels(modelDir: string): Promise<void> {
     await initTF();
     const tf = getTF();
+
+    // Weights carry no record of the features they expect, so a normalizer
+    // change would otherwise load cleanly and read nonsense.
+    const compatibility = checkCompatibility(readMetadata(modelDir));
+    if (!compatibility.ok) {
+      console.error(`[HybridBrain] Refusing models in ${modelDir}: ${compatibility.reason}`);
+      console.error("[HybridBrain] Retrain them, or point at models built for this feature set.");
+      return;
+    }
+    if (compatibility.reason) {
+      console.warn(`[HybridBrain] ${compatibility.reason} (${modelDir})`);
+    }
 
     try {
       this._tacticalModel = await tf.loadLayersModel(`file://${modelDir}/tactical/model.json`);
