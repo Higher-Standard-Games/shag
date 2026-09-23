@@ -26,12 +26,15 @@ import { runCli } from "./_runCli";
 interface CLIArgs {
   trainerConfig: Partial<TrainerConfig>;
   demoFile?: string;
+  /** Train on every player in the demo, bots included. Default: people only. */
+  includeBots: boolean;
 }
 
 function parseArgs(): CLIArgs {
   const args = process.argv.slice(2);
   const config: Partial<TrainerConfig> = {};
   let demoFile: string | undefined;
+  let includeBots = false;
 
   for (let i = 0; i < args.length; i++) {
     switch (args[i]) {
@@ -74,6 +77,9 @@ function parseArgs(): CLIArgs {
       case "--gametype":
         config.gametype = args[++i];
         break;
+      case "--include-bots":
+        includeBots = true;
+        break;
       case "--demo":
         demoFile = args[++i];
         break;
@@ -84,7 +90,7 @@ function parseArgs(): CLIArgs {
     }
   }
 
-  return { trainerConfig: config, demoFile };
+  return { trainerConfig: config, demoFile, includeBots };
 }
 
 function printHelp(): void {
@@ -116,6 +122,9 @@ Usage: npx vite-node src/cli/bot-train.ts [options]
   Extracts training data from .shagdemo recordings — no server needed.
 
   --demo <file>      Train from a .shagdemo demo file
+  --include-bots     Train on every player in the demo, bots included.
+                     By default only players with a verified account are used,
+                     because the point is to learn from people.
 
 ═══════════════════════════════════════════════════════════════════
   SHARED OPTIONS
@@ -146,7 +155,7 @@ Examples:
 
 // ── Demo Training ───────────────────────────────────────────────────
 
-async function trainFromDemo(demoFile: string, config: Partial<TrainerConfig>): Promise<void> {
+async function trainFromDemo(demoFile: string, config: Partial<TrainerConfig>, includeBots = false): Promise<void> {
   // Dynamic import to avoid loading TF.js unless needed
   const { DemoTrainingExtractor } = await import("../bot/DemoTrainingExtractor");
   const { HybridBrain } = await import("../bot/HybridBrain");
@@ -168,7 +177,7 @@ async function trainFromDemo(demoFile: string, config: Partial<TrainerConfig>): 
 
   // 1. Extract training data from demo
   const extractor = new DemoTrainingExtractor();
-  const dataset = await extractor.extractFromFile(demoFile);
+  const dataset = await extractor.extractFromFile(demoFile, { includeBots });
 
   if (dataset.totalFrames === 0) {
     console.error("[Trainer] No training frames extracted from demo!");
@@ -277,7 +286,7 @@ async function trainFromDemo(demoFile: string, config: Partial<TrainerConfig>): 
 // ── Main ────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
-  const { trainerConfig, demoFile } = parseArgs();
+  const { trainerConfig, demoFile, includeBots } = parseArgs();
 
   // Graceful shutdown
   process.on("SIGINT", () => {
@@ -286,7 +295,7 @@ async function main(): Promise<void> {
   });
 
   if (demoFile) {
-    await trainFromDemo(demoFile, trainerConfig);
+    await trainFromDemo(demoFile, trainerConfig, includeBots);
   } else {
     const trainer = new BotTrainer(trainerConfig);
     await trainer.train();

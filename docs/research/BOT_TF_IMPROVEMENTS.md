@@ -215,8 +215,8 @@ up.
 | WO | What | Depends on | Diff | Model | Status |
 | --- | --- | --- | --- | --- | --- |
 | TF-1 | Record inputs in demos: a v3 frame carrying the applied command per player per tick — buttons, view angles, weapon slot. The server already has them. Old demos are disposable, so v3 may break v2 rather than carry both | — | 3 | Opus 5 | todo |
-| TF-2 | Close the model path: a default model directory on `BotServer` that control-spawned bots inherit, and a lobby that can ask for a tier | — | 2 | Sonnet 5 | todo |
-| TF-3 | Keep humans, drop bots: filter extraction by verified `accountId`, and report how many frames each side contributed | — | 2 | Sonnet 5 | todo |
+| TF-2 | Close the model path | — | 2 | Sonnet 5 | **done 2026-09-23** |
+| TF-3 | Keep humans, drop bots | — | 2 | Sonnet 5 | **done 2026-09-23** |
 | TF-4 | Rebuild the labels as behaviour cloning: targets are what the human did, not the reward. Aim deltas included | TF-1, TF-3 | 4 | Opus 5 | todo |
 | TF-5 | Reshape the heads so every output has a label a demo can supply, and move the mode heads to self-play or drop them | TF-4 | 4 | Opus 5 | todo |
 | TF-6 | Train/validation split, early stopping, and a metric that means something on held-out frames | TF-4 | 3 | Sonnet 5 | todo |
@@ -247,6 +247,29 @@ down.
   competent bot instead of a broken one. Keep that.
 
 ## Progress log
+
+### 2026-09-23 — TF-2 and TF-3 done
+
+**TF-2 — trained models can now reach a bot in a match.** `BotServer` takes a
+`modelDir` and every bot it spawns inherits it unless the request names another
+one, so a bot added from a room gets whatever the server was started with.
+`bot-server.ts` passes `--models` into the server itself rather than only into
+the bots it spawns at startup.
+
+The audit under-reported this one: `addLobbyBot` also dropped `modelDir` when
+constructing the `BotLobbyClient`, so even `--models --lobby` lost it on the
+way. Both paths carry it now. Four tests.
+
+**TF-3 — training learns from people.** `selectPlayers()` keeps only players
+with a verified `accountId`, which comes from a lobby seat ticket that only a
+person holds. Extraction reports how many players it kept and how many it
+dropped. `--include-bots` takes everyone, for self-play datasets where our own
+bot's behaviour is the point.
+
+A consequence worth stating: **version-1 demos are now unusable for training**,
+because nothing in them can be proven human. That is correct rather than
+unfortunate — a v1 demo of a bot match is exactly the data that would teach the
+network to imitate the state machine.
 
 ### 2026-09-23 — audited
 

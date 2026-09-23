@@ -58,6 +58,37 @@ export interface PlayerTrainingData {
 
 // ── DemoTrainingExtractor ─────────────────────────────────────────────
 
+/** A player as the demo header describes them. */
+interface DemoPlayerInfo {
+  playerId: string;
+  name: string;
+  accountId?: number;
+}
+
+export interface ExtractOptions {
+  /**
+   * Take every player, bots included. For self-play datasets, where our own
+   * bot's behaviour is the point rather than the contamination.
+   */
+  includeBots?: boolean;
+}
+
+/**
+ * Which players in a demo are worth learning from.
+ *
+ * A verified `accountId` comes from a lobby seat ticket, which only a person
+ * holds — bots carry no account. Version-1 demos predate accounts entirely, so
+ * nothing in them can be proven human.
+ */
+export function selectPlayers<T extends DemoPlayerInfo>(
+  players: readonly T[],
+  options: ExtractOptions = {},
+): { kept: T[]; dropped: number } {
+  if (options.includeBots) return { kept: [...players], dropped: 0 };
+  const kept = players.filter((player) => typeof player.accountId === "number" && player.accountId > 0);
+  return { kept, dropped: players.length - kept.length };
+}
+
 export class DemoTrainingExtractor {
   private _rewardComputer: BotRewardComputer;
 
@@ -68,15 +99,15 @@ export class DemoTrainingExtractor {
   /**
    * Extract training data from a .shagdemo file on disk.
    */
-  async extractFromFile(filepath: string): Promise<DemoDataset> {
+  async extractFromFile(filepath: string, options: ExtractOptions = {}): Promise<DemoDataset> {
     const data = fs.readFileSync(filepath);
-    return this.extract(new Uint8Array(data));
+    return this.extract(new Uint8Array(data), options);
   }
 
   /**
    * Extract training data from raw demo bytes.
    */
-  extract(demoData: Uint8Array): DemoDataset {
+  extract(demoData: Uint8Array, options: ExtractOptions = {}): DemoDataset {
     const reader = new DemoReader(demoData);
     const header = reader.readHeader();
     const demoFrames = reader.readAllFrames();
@@ -84,11 +115,22 @@ export class DemoTrainingExtractor {
     console.log(`[DemoExtractor] Loaded: ${header.map} (${header.gametype})`);
     console.log(`[DemoExtractor] ${demoFrames.length} frames, ${header.players.length} players`);
 
+    // The point of training on demos is to learn from people. A seat with a
+    // verified account is a person; a bot has none, so training on every player
+    // in a bot match would teach the network the state machine it exists to
+    // grow beyond. Version-1 demos predate accounts and can prove nobody human,
+    // so they are refused rather than silently treated as human.
+    const selected = selectPlayers(header.players, options);
+    console.log(
+      `[DemoExtractor] ${selected.kept.length} of ${header.players.length} players kept` +
+        `${selected.dropped ? ` (${selected.dropped} without a verified account)` : ""}`,
+    );
+
     // Extract training data for each player
     const players: PlayerTrainingData[] = [];
     let totalFrames = 0;
 
-    for (const playerInfo of header.players) {
+    for (const playerInfo of selected.kept) {
       const playerData = this._extractPlayerData(playerInfo.playerId, playerInfo.name, demoFrames, header);
 
       if (playerData.frames.length > 0) {

@@ -53,6 +53,11 @@ export class BotServer {
   private _bots: Map<string, BotClient> = new Map();
   private _lobbyBots: Map<string, BotLobbyClient> = new Map();
   private _port: number;
+  /** Trained models a bot inherits unless its request names another directory.
+   *  Without this, a bot asked for over the control socket — which is what the
+   *  lobby's Add bot does — could never receive a model, because the lobby
+   *  sends only a difficulty. */
+  private _modelDir: string | undefined;
 
   // Vision cache: mapName → BotVision (shared across all bots on same map)
   private _visionCache: Map<string, BotVision> = new Map();
@@ -66,9 +71,15 @@ export class BotServer {
   /** Shared with the lobby: guards the control port and marks lobby bots as bots. */
   private _secret: string | undefined;
 
-  constructor(port: number = 9100, options: { secret?: string } = {}) {
+  constructor(port: number = 9100, options: { secret?: string; modelDir?: string } = {}) {
     this._port = port;
     this._secret = options.secret;
+    this._modelDir = options.modelDir;
+  }
+
+  /** Where trained models live, for every bot this server spawns. */
+  get modelDir(): string | undefined {
+    return this._modelDir;
   }
 
   /** The port the control API listens on; the real one when started on port 0. */
@@ -146,7 +157,7 @@ export class BotServer {
       name: options?.name || getNextBotName(),
       difficulty: options?.difficulty || "medium",
       team: options?.team,
-      modelDir: options?.modelDir,
+      modelDir: options?.modelDir ?? this._modelDir,
     };
 
     const bot = new BotClient(botOptions);
@@ -187,6 +198,7 @@ export class BotServer {
         name: options?.name || getNextBotName(),
         difficulty: options?.difficulty || "medium",
         team: options?.team,
+        modelDir: options?.modelDir ?? this._modelDir,
       },
       this._secret,
     );
