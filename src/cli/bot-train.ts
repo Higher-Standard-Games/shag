@@ -180,7 +180,8 @@ async function trainFromDemo(demoFile: string, config: Partial<TrainerConfig>, i
   const { writeMetadata, describeCurrentFeatures } = await import("../bot/ModelMetadata");
   const { HybridBrain } = await import("../bot/HybridBrain");
   const { getTF } = await import("../bot/TFBackend");
-  const { resolveDifficulty, InputButtons } = await import("../bot/BotConfig");
+  const { resolveDifficulty } = await import("../bot/BotConfig");
+  const { buildCombatTarget, buildTacticalTarget } = await import("../bot/CloningTargets");
   const { TACTICAL_INPUT_SIZE, COMBAT_INPUT_SIZE } = await import("../bot/BotInputNormalizer");
   const fs = await import("node:fs");
   const path = await import("node:path");
@@ -251,15 +252,11 @@ async function trainFromDemo(demoFile: string, config: Partial<TrainerConfig>, i
     .map((f) => ({ input: f.tacticalInput, frame: f }));
 
   const tactInputs = tactPairs.map((p) => p.input);
-  const tactTargets = tactPairs.map((p) => {
-    const rewardScale = (p.frame.reward + 1) / 2;
-    const target = new Array(8).fill(0.5);
-    target[0] = rewardScale;
-    target[1] = 1 - rewardScale;
-    target[3] = p.frame.action.buttons & InputButtons.SPRINT ? rewardScale : 1 - rewardScale;
-    target[5] = p.frame.action.buttons & InputButtons.JUMP ? rewardScale : 1 - rewardScale;
-    return target;
-  });
+  // Behaviour cloning: the target is what the person did on this frame. The
+  // previous frame comes along because a turn is a difference, not a position.
+  const tactTargets = tactPairs.map((p, index) =>
+    buildTacticalTarget(p.frame, index > 0 ? tactPairs[index - 1].frame : undefined),
+  );
 
   if (tactInputs.length > 0 && brain.tacticalModel) {
     const inputTensor = tf.tensor2d(tactInputs);
@@ -284,15 +281,9 @@ async function trainFromDemo(demoFile: string, config: Partial<TrainerConfig>, i
 
   if (combatFrames.length > 0 && brain.combatModel) {
     const combatInputs = combatFrames.map((f) => f.combatInput!);
-    const combatTargets = combatFrames.map((f) => {
-      const rewardScale = (f.reward + 1) / 2;
-      const target = new Array(6).fill(0.5);
-      target[0] = f.action.buttons & InputButtons.FIRE ? rewardScale : 1 - rewardScale;
-      target[1] = f.action.buttons & InputButtons.ALT_FIRE ? rewardScale : 1 - rewardScale;
-      target[4] = f.action.directionX < 0 ? rewardScale : 0.5;
-      target[5] = f.action.directionX > 0 ? rewardScale : 0.5;
-      return target;
-    });
+    const combatTargets = combatFrames.map((f, index) =>
+      buildCombatTarget(f, index > 0 ? combatFrames[index - 1] : undefined),
+    );
 
     const inputTensor = tf.tensor2d(combatInputs);
     const targetTensor = tf.tensor2d(combatTargets);

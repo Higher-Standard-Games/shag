@@ -217,7 +217,7 @@ up.
 | TF-1 | Record inputs in demos | — | 3 | Opus 5 | **done 2026-09-23** |
 | TF-2 | Close the model path | — | 2 | Sonnet 5 | **done 2026-09-23** |
 | TF-3 | Keep humans, drop bots | — | 2 | Sonnet 5 | **done 2026-09-23** |
-| TF-4 | Rebuild the labels as behaviour cloning: targets are what the human did, not the reward. Aim deltas included | TF-1, TF-3 | 4 | Opus 5 | todo |
+| TF-4 | Rebuild the labels as behaviour cloning | TF-1, TF-3 | 4 | Opus 5 | **done 2026-09-23** |
 | TF-5 | Reshape the heads so every output has a label a demo can supply, and move the mode heads to self-play or drop them | TF-4 | 4 | Opus 5 | todo |
 | TF-6 | Train/validation split, early stopping, and a metric that means something on held-out frames | TF-4 | 3 | Sonnet 5 | todo |
 | TF-7 | Tests: extractor on a fixture demo, shape contract between normalizer and models, target construction, and a training smoke run | TF-4 | 3 | Sonnet 5 | todo |
@@ -247,6 +247,39 @@ down.
   competent bot instead of a broken one. Keep that.
 
 ## Progress log
+
+### 2026-09-23 — TF-4 done: the label is what the person did
+
+`src/bot/CloningTargets.ts` replaces the reward-scaled targets. Every label now
+comes from the recorded action:
+
+| Output | Label |
+| --- | --- |
+| Sprint, crouch, jump | The button, held or not |
+| Weapon switch, slot | Whether the slot changed from the previous frame, and which |
+| Fire, alt-fire | The button |
+| Aim yaw, aim pitch | **The turn the person made between frames** |
+| Dodge left/right | The *wish* direction they gave |
+
+The aim labels are the ones worth the trouble. View angles have been in every
+demo since the format existed, they are the one signal in this pipeline that
+was never a guess, and the previous scheme left both outputs at 0.5 on every
+single frame. Strafe labels come from the recorded wish direction rather than
+velocity, which in an air-strafe points somewhere the player never pressed.
+
+**Still honest about the weak spot.** The three mode outputs cannot be observed
+— nobody presses "hunt" — so they are derived: firing is fighting, backing away
+hurt is retreating, neither is hunting. They are proxies, marked as proxies in
+the source, and TF-5 takes them out of the cloning objective and leaves modes
+to self-play, where the bot knows its own mode because it chose it.
+
+The aim encoding is a sigmoid with 0.5 as "no turn" and a radian per frame as
+the edge, which is the existing head's shape rather than a good one. TF-12
+replaces it with a linear head; until then the constant is named and explained
+rather than buried.
+
+Nine tests cover each mapping, including the case the old scheme got wrong: a
+neutral reward no longer erases what the human did.
 
 ### 2026-09-23 — TF-10 done: matches accumulate
 
