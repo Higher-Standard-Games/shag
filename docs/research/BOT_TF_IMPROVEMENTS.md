@@ -136,6 +136,77 @@ per decision, per bot. Nobody has measured what that costs with eight bots on a
 125 Hz server, or what happens when `tfjs-node` is absent and it falls back to
 pure JS.
 
+## Is the architecture good? — an honest read
+
+Separating three things that deserve different verdicts.
+
+### Keep
+
+- **The overlay.** `HybridBrain` runs the rules and lets the network adjust,
+  so a bad model degrades to a competent bot rather than a broken one. This is
+  how shipped game AI works; nobody fields a pure-network opponent.
+- **Inference at snapshot rate.** `decide()` runs per snapshot, and the result
+  is cached and re-sent by the 125 Hz input loop. That is the right cadence and
+  it was chosen deliberately.
+- **Hand-engineered features.** 25 and 18 scalars suit the data budget. Raw
+  world state would need orders of magnitude more matches than this project
+  will have.
+- **Backend degradation**, and the goal/consideration layer kept apart from the
+  brain.
+
+### Dated
+
+1. **No temporal context.** Frame-independent MLPs for an entirely sequential
+   problem — strafe-jump chains, tracking across 300 ms, peek rhythm. Cheapest
+   fix: frame stacking, concatenating the last N feature vectors. Proper fix: a
+   small GRU. Stacking is nearly free and would matter more than any other
+   modelling change here.
+2. **Lossy output encoding.** Aim adjustment is squashed into [0,1] with 0.5 as
+   "no change", which wastes half the range and makes a small correction
+   indistinguishable from noise. Aim wants a linear head on the angle delta or
+   discretised buckets; modes want a softmax; buttons want independent sigmoids
+   with binary cross-entropy. Everything is currently sigmoid against
+   MSE-shaped targets.
+3. **Two models, no shared trunk**, over overlapping features, two forward
+   passes per decision. One trunk with typed heads is cheaper and learns better
+   representations.
+4. **A deterministic policy.** The same state gives the same action, which
+   reads as robotic — and human-likeness is partly variance. Sampling with a
+   temperature is the fix.
+5. **Cloning and reward share one path.** The standard recipe is two stages:
+   behaviour-clone on human data, then use that as the initialisation for
+   self-play RL. Today they are tangled in one target-building block.
+
+### The weakest part is not the model
+
+There is **no dataset layer**. `bot-train --demo` takes a single file: no
+corpus, no train/validation split, no stored normalisation statistics, no
+dedup, no incremental accumulation. Nothing is saved beside the weights either
+— no input size, no feature version, no provenance — so changing
+`BotInputNormalizer` silently invalidates every existing model with no error to
+catch it.
+
+The arithmetic says this is the priority. A three-minute duel at snapshot rate
+is roughly 10k frames per player; behaviour cloning wants 10⁵–10⁶. **Tens of
+matches are needed before any modelling work pays off**, so the pipeline's real
+job is to make demos accumulate — which it cannot do today.
+
+### Why recording inputs is the keystone
+
+Beyond giving cloning its labels: the simulation is deterministic, so a demo
+that carries the applied commands is **re-simulatable**. Every derived feature
+can be regenerated later without re-recording, which means the corpus survives
+every future change to the feature vector. Without inputs, each change to the
+normalizer throws the dataset away. That is the difference between recordings
+worth keeping forever and recordings worth deleting.
+
+### What not to do
+
+No decision transformer, no fashionable sequence model. At this data volume it
+would underperform a well-fed small network and add a second system to
+maintain. Fix the data, stack some frames, give each head a loss that matches
+its job, and sample.
+
 ## Work orders
 
 Difficulty 1 (mechanical) to 5 (deep). Model: a suggestion for whoever picks it
@@ -151,6 +222,9 @@ up.
 | TF-6 | Train/validation split, early stopping, and a metric that means something on held-out frames | TF-4 | 3 | Sonnet 5 | todo |
 | TF-7 | Tests: extractor on a fixture demo, shape contract between normalizer and models, target construction, and a training smoke run | TF-4 | 3 | Sonnet 5 | todo |
 | TF-8 | Measure inference: per-decision cost with models loaded, eight bots, native and pure-JS backends | TF-2 | 2 | Haiku 4.5 | todo |
+| TF-10 | A dataset layer: a corpus directory, incremental accumulation across matches, a train/validation split, stored normalisation statistics, and model metadata recording input size, feature version and provenance | TF-1 | 3 | Sonnet 5 | todo |
+| TF-11 | Frame stacking: the last N feature vectors concatenated, so the network can see a movement in progress rather than a still | TF-10 | 3 | Opus 5 | todo |
+| TF-12 | One trunk, typed heads: softmax for modes, independent sigmoids with binary cross-entropy for buttons, a linear head for aim delta, and sampling with a temperature so two bots in the same spot do not do the same thing | TF-5, TF-11 | 4 | Opus 5 | todo |
 | TF-9 | Document the pipeline in the manual — there is no page for any of this today | TF-1…TF-5 | 2 | Sonnet 5 | todo |
 
 **Order.** TF-1, TF-2 and TF-3 are independent and each worth doing alone: one
