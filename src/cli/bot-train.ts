@@ -240,7 +240,7 @@ async function trainFromDemo(demoFile: string, config: Partial<TrainerConfig>, i
     await brain.loadModels(modelDir);
   }
   if (!brain.hasModels) {
-    await brain.createFreshModels();
+    await brain.createFreshModels(config.learningRate);
   }
 
   // 3. Train on extracted data

@@ -144,10 +144,10 @@ export class BotTrainer {
       await this._brain.loadModels(this._config.modelDir);
       if (!this._brain.hasModels) {
         console.log("[Trainer] No existing models found, creating fresh ones");
-        await this._brain.createFreshModels();
+        await this._brain.createFreshModels(this._config.learningRate);
       }
     } else {
-      await this._brain.createFreshModels();
+      await this._brain.createFreshModels(this._config.learningRate);
     }
 
     // Ensure model directory exists

@@ -65,6 +65,9 @@ const COMBAT = {
 
 export const COMBAT_OUTPUT_SIZE = 6;
 
+/** Adam's step size when the trainer names none. */
+export const DEFAULT_LEARNING_RATE = 0.001;
+
 // ── Confidence Thresholds ───────────────────────────────────────────
 // Only override state machine when neural net is confident enough.
 
@@ -138,8 +141,11 @@ export class HybridBrain extends BotBrain {
   /**
    * Create fresh untrained models (for training from scratch).
    * Initializes TF.js backend if not already done.
+   *
+   * The learning rate is the caller's, because `--lr` is the trainer's to set;
+   * it used to be fixed here, so the flag was accepted and then ignored.
    */
-  async createFreshModels(): Promise<void> {
+  async createFreshModels(learningRate = DEFAULT_LEARNING_RATE): Promise<void> {
     await initTF();
     const tf = getTF();
 
@@ -151,7 +157,7 @@ export class HybridBrain extends BotBrain {
       ],
     });
     this._tacticalModel.compile({
-      optimizer: tf.train.adam(0.001),
+      optimizer: tf.train.adam(learningRate),
       loss: "meanSquaredError",
     });
 
@@ -163,7 +169,7 @@ export class HybridBrain extends BotBrain {
       ],
     });
     this._combatModel.compile({
-      optimizer: tf.train.adam(0.001),
+      optimizer: tf.train.adam(learningRate),
       loss: "meanSquaredError",
     });
 

@@ -224,8 +224,8 @@ up.
 | TF-8 | Measure inference: per-decision cost with models loaded, eight bots, native and pure-JS backends | TF-2 | 2 | Haiku 4.5 | todo |
 | TF-10 | A dataset layer | TF-1 | 3 | Sonnet 5 | **done 2026-09-23** |
 | TF-11 | Frame stacking: the last N feature vectors concatenated, so the network can see a movement in progress rather than a still | TF-10 | 3 | Opus 5 | todo |
-| TF-12 | One trunk, typed heads: softmax for modes, independent sigmoids with binary cross-entropy for buttons, a linear head for aim delta, and sampling with a temperature so two bots in the same spot do not do the same thing | TF-5, TF-11 | 4 | Opus 5 | todo |
-| TF-9 | Document the pipeline in the manual — there is no page for any of this today | TF-1…TF-5 | 2 | Sonnet 5 | todo |
+| TF-12 | One trunk, typed heads: independent sigmoids with binary cross-entropy for the buttons, a linear head for aim delta, and sampling with a temperature so two bots in the same spot do not do the same thing | TF-5, TF-11 | 4 | Opus 5 | todo |
+| TF-9 | Document the pipeline in the manual — there is no page for any of this today | TF-1…TF-5 | 2 | Sonnet 5 | **done 2026-09-23** |
 
 **Order.** TF-1, TF-2 and TF-3 are independent and each worth doing alone: one
 makes the data real, one makes the result reachable, one makes the data human.
@@ -247,6 +247,24 @@ down.
   competent bot instead of a broken one. Keep that.
 
 ## Progress log
+
+### 2026-09-23 — TF-9 done: the pipeline has a page
+
+`docs/manual/tools/bot-training.md` in the game submodule, beside the bot server
+page, which had a Training Pipeline section describing a scheme that no longer
+exists — rewards updating weights, no mention of where a human comes into it. The
+new page follows one chain: a match records itself, a directory of recordings is
+a corpus, labels are what the person did, weights carry their provenance, and a
+bot in a room inherits the directory they live in. It states what each output is
+answerable from, why runs and time gaps matter, and what the thing still cannot
+do.
+
+Writing it turned up a flag that lied. `--lr` was parsed, stored in the trainer
+config, and then never read: both models were compiled with a hard-coded
+`adam(0.001)`, so every run anyone tuned had the same step size as every other.
+The rate is now the caller's, defaulting to the same 0.001, on both the demo and
+self-play paths. Documenting a pipeline is a good way to find the parts of it
+that were never wired up.
 
 ### 2026-09-23 — TF-5 done: every output is something a person pressed
 
