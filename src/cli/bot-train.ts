@@ -248,9 +248,12 @@ async function trainFromDemo(demoFile: string, config: Partial<TrainerConfig>, i
 
   // Behaviour cloning, run by run. A run is one player in one match, and the
   // labels are differences, so frames from two players must never be adjacent.
-  const tactPairs = buildCorpusPairs(allFrames, "tactical", TACTICAL_INPUT_SIZE);
-  const tactInputs = tactPairs.map((pair) => pair.input);
-  const tactTargets = tactPairs.map((pair) => pair.target);
+  const tactical = buildCorpusPairs(allFrames, "tactical", TACTICAL_INPUT_SIZE);
+  const tactInputs = tactical.pairs.map((pair) => pair.input);
+  const tactTargets = tactical.pairs.map((pair) => pair.target);
+  if (tactical.dropped > 0) {
+    console.log(`[Trainer] ${tactical.dropped} frame(s) dropped: wrong feature width, or a value that is not a number`);
+  }
 
   if (tactInputs.length > 0 && brain.tacticalModel) {
     const inputTensor = tf.tensor2d(tactInputs);
@@ -271,11 +274,11 @@ async function trainFromDemo(demoFile: string, config: Partial<TrainerConfig>, i
   }
 
   // Build combat training tensors, run by run for the same reason
-  const combatPairs = buildCorpusPairs(allFrames, "combat", COMBAT_INPUT_SIZE);
+  const combat = buildCorpusPairs(allFrames, "combat", COMBAT_INPUT_SIZE);
 
-  if (combatPairs.length > 0 && brain.combatModel) {
-    const combatInputs = combatPairs.map((pair) => pair.input);
-    const combatTargets = combatPairs.map((pair) => pair.target);
+  if (combat.pairs.length > 0 && brain.combatModel) {
+    const combatInputs = combat.pairs.map((pair) => pair.input);
+    const combatTargets = combat.pairs.map((pair) => pair.target);
 
     const inputTensor = tf.tensor2d(combatInputs);
     const targetTensor = tf.tensor2d(combatTargets);

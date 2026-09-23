@@ -248,6 +248,39 @@ down.
 
 ## Progress log
 
+### 2026-09-23 — second review round: the same bug one level deeper
+
+Asked whether one review was enough. It was not, and the reason is worth
+keeping: the first round read the code written this week, so the second went
+looking underneath it, at the older parts that feed it.
+
+**A run has holes in it.** The extractor skips every frame where a player is
+dead or missing from the roster, so a run jumps from the moment of death to the
+moment of respawn — hundreds of ticks — while the array makes those two frames
+look adjacent. The turn label across that jump is a flick made while staring at
+a respawn screen, and the weapon label is a loadout mistaken for a switch. This
+is the *same* class as the boundary bug found in the first round, one level
+down: the first fix stopped labels crossing between players, this one stops
+them crossing a gap in time. `adjacentOrNothing` requires frames to be within
+`MAX_LABEL_GAP_TICKS`, which is roomy for real adjacency at any snapshot rate
+and far below a respawn delay.
+
+**Nothing checked that a feature was a number.** A single NaN anywhere in a
+training tensor turns the loss to NaN and takes the weights with it, silently
+and unrecoverably. Frames are now dropped if any feature or label is not
+finite, and the count is reported — alongside frames dropped for the wrong
+feature width, which were being discarded silently, the way a training set
+quietly becomes a tenth of what the operator believes it is.
+
+**Checked and sound, for the record:** reward normalisation guards its
+divide-by-zero; `BotInputNormalizer` clamps every feature and guards its one
+risky `atan2`; the death-transition bookkeeping in the extractor updates its
+previous-health correctly on both paths.
+
+**The stopping rule from here:** review again when the code changes shape, not
+on a schedule. The next round belongs after TF-5 and TF-11, which both change
+what a label means.
+
 ### 2026-09-23 — data-flow review: two bugs, both mine, both invisible to play
 
 Reading the chain end to end — `handleInput` → recorder → file → reader →

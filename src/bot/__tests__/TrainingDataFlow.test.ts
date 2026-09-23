@@ -13,9 +13,9 @@ import { buildCorpusPairs, buildRunPairs, encodeAimDelta } from "../CloningTarge
 import { chooseAction } from "../DemoTrainingExtractor";
 import { splitByMatch } from "../TrainingCorpus";
 
-const frame = (yaw: number, tag = ""): TrainingFrame =>
+const frame = (yaw: number, tag = "", tick = 0): TrainingFrame =>
   ({
-    tick: 0,
+    tick,
     tacticalInput: new Array(25).fill(0),
     combatInput: new Array(18).fill(0),
     reward: 0,
@@ -36,10 +36,10 @@ const frame = (yaw: number, tag = ""): TrainingFrame =>
 describe("a turn is measured within one run, never across two", () => {
   it("gives the first frame of every run a neutral turn", () => {
     // Two players, each ending and starting at wildly different view angles
-    const alice = [frame(0), frame(0.1)];
-    const bob = [frame(3.0), frame(3.1)];
+    const alice = [frame(0, "", 10), frame(0.1, "", 12)];
+    const bob = [frame(3.0, "", 10), frame(3.1, "", 12)];
 
-    const pairs = buildCorpusPairs([alice, bob], "combat", 18);
+    const { pairs } = buildCorpusPairs([alice, bob], "combat", 18);
 
     // Frame 0 of each run has no predecessor, so no turn is claimed
     expect(pairs[0].target[2]).toBe(0.5);
@@ -51,7 +51,11 @@ describe("a turn is measured within one run, never across two", () => {
 
   it("would have invented a turn if the runs were concatenated", () => {
     // What the old flat-array code did: alice's last frame became bob's previous
-    const concatenated = buildRunPairs([frame(0), frame(0.1), frame(3.0), frame(3.1)], "combat", 18);
+    const concatenated = buildRunPairs(
+      [frame(0, "", 10), frame(0.1, "", 12), frame(3.0, "", 14), frame(3.1, "", 16)],
+      "combat",
+      18,
+    );
     // A 2.9-radian flick nobody made, at the seam
     expect(concatenated[2].target[2]).not.toBe(0.5);
     expect(Math.abs(concatenated[2].target[2] - 0.5)).toBeGreaterThan(0.4);
@@ -66,6 +70,32 @@ describe("a turn is measured within one run, never across two", () => {
       expect(run.length).toBeGreaterThan(0);
     }
     expect(train.length + validation.length).toBe(3);
+  });
+});
+
+describe("a gap in a run is not a turn", () => {
+  it("claims no turn across a death, where the array jumps but time does not", () => {
+    // The extractor skips every frame a player is dead, so the array goes
+    // straight from the moment of death to the respawn — hundreds of ticks
+    const beforeDeath = frame(0, "", 100);
+    const afterRespawn = frame(3.0, "", 400);
+
+    const pairs = buildRunPairs([beforeDeath, afterRespawn], "combat", 18);
+    expect(pairs[1].target[2]).toBe(0.5);
+  });
+
+  it("still measures a turn between genuinely consecutive frames", () => {
+    const pairs = buildRunPairs([frame(0, "", 100), frame(0.3, "", 102)], "combat", 18);
+    expect(pairs[1].target[2]).toBeCloseTo(encodeAimDelta(0.3), 5);
+  });
+
+  it("claims no weapon switch across a gap either", () => {
+    const before = frame(0, "", 100);
+    const after = frame(0, "", 500);
+    (after as { action: { weaponSlot: number } }).action.weaponSlot = 4;
+    // A different weapon after respawning is a loadout, not a switch the
+    // player performed between two frames
+    expect(buildRunPairs([before, after], "tactical", 25)[1].target[6]).toBe(0);
   });
 });
 
@@ -113,5 +143,25 @@ describe("a frame with no recorded command", () => {
       directionX: -1,
       directionZ: 1,
     });
+  });
+});
+
+describe("a frame that is not a number", () => {
+  it("never reaches fit, because one NaN destroys the weights", () => {
+    const good = frame(0, "", 10);
+    const bad = frame(0.1, "", 12);
+    (bad as { tacticalInput: number[] }).tacticalInput[3] = Number.NaN;
+
+    const { pairs, dropped } = buildCorpusPairs([[good, bad]], "tactical", 25);
+    expect(pairs).toHaveLength(1);
+    expect(dropped).toBe(1);
+  });
+
+  it("counts a frame dropped for the wrong feature width too", () => {
+    const wrongWidth = frame(0, "", 10);
+    (wrongWidth as { tacticalInput: number[] }).tacticalInput = new Array(9).fill(0);
+    const { pairs, dropped } = buildCorpusPairs([[wrongWidth]], "tactical", 25);
+    expect(pairs).toEqual([]);
+    expect(dropped).toBe(1);
   });
 });

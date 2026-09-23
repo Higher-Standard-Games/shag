@@ -32,6 +32,20 @@ export const COMBAT_TARGET_SIZE = 6;
  */
 export const AIM_DELTA_SCALE = 1.0;
 
+/**
+ * How far apart two frames may be and still be treated as consecutive.
+ *
+ * A run has holes in it: the extractor skips every frame where the player is
+ * dead or not in the roster, so the array jumps from the moment of death to the
+ * moment of respawn — hundreds of ticks. Measuring a turn across that gap
+ * invents a flick made while the player was staring at a respawn screen.
+ *
+ * Twelve ticks is roomy for real adjacency (a 125 Hz simulation at 60 Hz
+ * snapshots is about two, at 20 Hz about six) and far below any death gap,
+ * which a respawn delay alone puts past a hundred.
+ */
+export const MAX_LABEL_GAP_TICKS = 12;
+
 const held = (buttons: number, bit: number): number => ((buttons & bit) !== 0 ? 1 : 0);
 
 /** Shortest signed distance from `from` to `to` on a circle, in radians. */
@@ -138,22 +152,51 @@ export function buildRunPairs(
   const pairs: TrainingPair[] = [];
   for (let index = 0; index < run.length; index++) {
     const frame = run[index];
-    const previous = index > 0 ? run[index - 1] : undefined;
+    const previous = index > 0 ? adjacentOrNothing(run[index - 1], frame) : undefined;
     const input = head === "tactical" ? frame.tacticalInput : frame.combatInput;
     if (!input || input.length !== expectedInputSize) continue;
-    pairs.push({
-      input,
-      target: head === "tactical" ? buildTacticalTarget(frame, previous) : buildCombatTarget(frame, previous),
-    });
+    const target = head === "tactical" ? buildTacticalTarget(frame, previous) : buildCombatTarget(frame, previous);
+
+    // One non-finite number turns the loss to NaN and takes the weights with
+    // it, silently and irreversibly. A corrupt frame is not worth a training
+    // run, so it is dropped here rather than discovered afterwards.
+    if (!allFinite(input) || !allFinite(target)) continue;
+
+    pairs.push({ input, target });
   }
   return pairs;
 }
 
-/** Build pairs across many runs, each kept separate. */
+/** Every element present and a real number. */
+function allFinite(values: readonly number[]): boolean {
+  return values.every((value) => Number.isFinite(value));
+}
+
+/**
+ * The previous frame, but only if it really is the previous frame.
+ *
+ * Array adjacency is not time adjacency: see MAX_LABEL_GAP_TICKS.
+ */
+export function adjacentOrNothing(
+  previous: TrainingFrame,
+  frame: TrainingFrame,
+  maxGap = MAX_LABEL_GAP_TICKS,
+): TrainingFrame | undefined {
+  const gap = frame.tick - previous.tick;
+  return gap > 0 && gap <= maxGap ? previous : undefined;
+}
+
+/**
+ * Build pairs across many runs, each kept separate, and say how many frames
+ * were dropped on the way — a silent drop is how a training set quietly
+ * becomes a tenth of what the operator believes it is.
+ */
 export function buildCorpusPairs(
   runs: readonly (readonly TrainingFrame[])[],
   head: "tactical" | "combat",
   expectedInputSize: number,
-): TrainingPair[] {
-  return runs.flatMap((run) => buildRunPairs(run, head, expectedInputSize));
+): { pairs: TrainingPair[]; dropped: number } {
+  const pairs = runs.flatMap((run) => buildRunPairs(run, head, expectedInputSize));
+  const total = runs.reduce((sum, run) => sum + run.length, 0);
+  return { pairs, dropped: total - pairs.length };
 }
