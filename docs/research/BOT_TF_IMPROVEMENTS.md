@@ -218,7 +218,7 @@ up.
 | TF-2 | Close the model path | — | 2 | Sonnet 5 | **done 2026-09-23** |
 | TF-3 | Keep humans, drop bots | — | 2 | Sonnet 5 | **done 2026-09-23** |
 | TF-4 | Rebuild the labels as behaviour cloning | TF-1, TF-3 | 4 | Opus 5 | **done 2026-09-23** |
-| TF-5 | Reshape the heads so every output has a label a demo can supply, and move the mode heads to self-play or drop them | TF-4 | 4 | Opus 5 | todo |
+| TF-5 | Reshape the heads so every output has a label a demo can supply, and move the mode heads to self-play or drop them | TF-4 | 4 | Opus 5 | **done 2026-09-23** |
 | TF-6 | Early stopping, and metrics per output rather than one mean-squared number (the held-out split itself now works — see TF-7) | TF-4 | 3 | Sonnet 5 | todo |
 | TF-7 | Tests: extractor on a fixture demo, shape contract between normalizer and models, target construction, and a training smoke run | TF-4 | 3 | Sonnet 5 | **done 2026-09-23** |
 | TF-8 | Measure inference: per-decision cost with models loaded, eight bots, native and pure-JS backends | TF-2 | 2 | Haiku 4.5 | todo |
@@ -247,6 +247,41 @@ down.
   competent bot instead of a broken one. Keep that.
 
 ## Progress log
+
+### 2026-09-23 — TF-5 done: every output is something a person pressed
+
+The tactical head had eight outputs and three of them were unanswerable. FIGHT,
+RETREAT and HUNT were derived from behaviour — firing meant fighting, backing
+away hurt meant retreating — because a player never emits a mode. Two of those
+three were then never read at inference at all, and the third overrode the state
+machine's decision on the strength of "hurt and walking backwards". The head is
+now five outputs wide: sprint, slide, jump, switch, slot. Which mode to be in
+stays the state machine's call, and sharpening it belongs to self-play, where
+the bot knows its own mode and does not have to be told.
+
+**A weapon output meant two different things.** The label encoded the slot as
+`slot / 9`; inference decoded it as `floor(output × inventory size)`. A person
+pressing slot 2 was labelled 0.22, which with four weapons in hand decoded to
+slot 1 — and the mapping moved every time the bot picked something up, so the
+same number meant a different weapon from one moment to the next. Nothing could
+learn that. There is now one encode/decode pair, inverses of each other, and the
+pipeline test round-trips every slot.
+
+**Self-play was still training the old way.** `BotTrainer` — the live
+`bot:train` path, no demos involved — was still building eight-wide targets from
+`(reward + 1) / 2`, which would now simply be rejected by a five-output model.
+It builds the same labels as the demo path, through the same builder, so an
+output cannot come to mean one thing in self-play and another when cloning a
+person. Reward enters where it belongs: as a sample weight, so the best frames
+of a round pull hardest and the worst pull not at all, rather than being written
+into the target as though the player had half-pressed a key. It also flattened
+every bot's episode into one array before building labels — the run-boundary bug
+again, still live there — and now hands over runs.
+
+**The compatibility guard covers output widths too.** A width is what fixes the
+meaning of an index, so weights that predict eight numbers read through a
+five-output map are not a little wrong: index 0 is a different question. Older
+metadata without the field is still accepted, since nothing trained exists yet.
 
 ### 2026-09-23 — TF-7 done: the pipeline has a test that plays a match
 

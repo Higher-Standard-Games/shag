@@ -14,6 +14,10 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { COMBAT_INPUT_SIZE, TACTICAL_INPUT_SIZE } from "./BotInputNormalizer";
+import {
+  COMBAT_TARGET_SIZE as COMBAT_OUTPUT_SIZE,
+  TACTICAL_TARGET_SIZE as TACTICAL_OUTPUT_SIZE,
+} from "./CloningTargets";
 
 export const METADATA_FILE = "metadata.json";
 
@@ -21,6 +25,12 @@ export interface ModelMetadata {
   /** Feature vector sizes the weights were trained against. */
   tacticalInputSize: number;
   combatInputSize: number;
+  /**
+   * Output widths, which fix what each index means. Absent in metadata written
+   * before the heads were reshaped.
+   */
+  tacticalOutputSize?: number;
+  combatOutputSize?: number;
   /** When, and by which engine version. */
   trainedAt: string;
   engineVersion?: string;
@@ -34,8 +44,16 @@ export interface ModelMetadata {
   matchIds: string[];
 }
 
-export function describeCurrentFeatures(): Pick<ModelMetadata, "tacticalInputSize" | "combatInputSize"> {
-  return { tacticalInputSize: TACTICAL_INPUT_SIZE, combatInputSize: COMBAT_INPUT_SIZE };
+export function describeCurrentFeatures(): Pick<
+  ModelMetadata,
+  "tacticalInputSize" | "combatInputSize" | "tacticalOutputSize" | "combatOutputSize"
+> {
+  return {
+    tacticalInputSize: TACTICAL_INPUT_SIZE,
+    combatInputSize: COMBAT_INPUT_SIZE,
+    tacticalOutputSize: TACTICAL_OUTPUT_SIZE,
+    combatOutputSize: COMBAT_OUTPUT_SIZE,
+  };
 }
 
 export function writeMetadata(modelDir: string, metadata: ModelMetadata): void {
@@ -74,6 +92,21 @@ export function checkCompatibility(metadata: ModelMetadata | null): { ok: boolea
     return {
       ok: false,
       reason: `trained on ${metadata.combatInputSize} combat features, this build produces ${current.combatInputSize}`,
+    };
+  }
+  // An output width is what fixes the meaning of each index. Weights that
+  // predict eight numbers read through a five-output map are not wrong by a
+  // little: index 0 is a different question entirely.
+  if (typeof metadata.tacticalOutputSize === "number" && metadata.tacticalOutputSize !== current.tacticalOutputSize) {
+    return {
+      ok: false,
+      reason: `trained with ${metadata.tacticalOutputSize} tactical outputs, this build reads ${current.tacticalOutputSize}`,
+    };
+  }
+  if (typeof metadata.combatOutputSize === "number" && metadata.combatOutputSize !== current.combatOutputSize) {
+    return {
+      ok: false,
+      reason: `trained with ${metadata.combatOutputSize} combat outputs, this build reads ${current.combatOutputSize}`,
     };
   }
   return { ok: true };

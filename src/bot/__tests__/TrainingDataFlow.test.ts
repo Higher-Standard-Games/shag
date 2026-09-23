@@ -95,7 +95,7 @@ describe("a gap in a run is not a turn", () => {
     (after as { action: { weaponSlot: number } }).action.weaponSlot = 4;
     // A different weapon after respawning is a loadout, not a switch the
     // player performed between two frames
-    expect(buildRunPairs([before, after], "tactical", 25)[1].target[6]).toBe(0);
+    expect(buildRunPairs([before, after], "tactical", 25)[1].target[3]).toBe(0);
   });
 });
 

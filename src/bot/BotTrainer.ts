@@ -27,10 +27,11 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { BotClient } from "./BotClient";
-import { getDifficultyTiers, getNextBotName, InputButtons, resetBotNameIndex } from "./BotConfig";
+import { getDifficultyTiers, getNextBotName, resetBotNameIndex } from "./BotConfig";
 import { BotEpisodeRecorder, type TrainingFrame } from "./BotEpisodeRecorder";
 import { COMBAT_INPUT_SIZE, TACTICAL_INPUT_SIZE } from "./BotInputNormalizer";
 import { BotRewardComputer } from "./BotRewardComputer";
+import { buildCorpusPairs, rewardToWeight, type TrainingPair } from "./CloningTargets";
 import { HybridBrain } from "./HybridBrain";
 import { getTF } from "./TFBackend";
 
@@ -167,9 +168,12 @@ export class BotTrainer {
           this._rewardComputer.normalizeRewards(episode.frames);
         }
 
-        // 3. Train models on collected data
+        // 3. Train models on collected data. One episode is one bot playing one
+        // match, which is a run: the aim and weapon labels are differences
+        // between neighbouring frames, so two bots' frames must never meet.
+        const runs = episodes.map((episode) => episode.frames);
         const allFrames = episodes.flatMap((e) => e.frames);
-        const { tacticalLoss, combatLoss } = await this._trainOnFrames(allFrames);
+        const { tacticalLoss, combatLoss } = await this._trainOnRuns(runs);
 
         // 4. Log stats
         const totalKills = episodes.reduce((s, e) => s + e.summary.kills, 0);
@@ -290,110 +294,61 @@ export class BotTrainer {
   // ── Model Training ──────────────────────────────────────────────
 
   /**
-   * Train both models on a batch of frames.
+   * Train both models on the runs a round produced.
+   *
+   * The labels are the same ones a human demo produces — what the player did —
+   * built by the one shared builder, so an output cannot come to mean one thing
+   * in self-play and another when cloning a person. Reward enters as a sample
+   * weight: the best frames of a round pull hardest and the worst pull not at
+   * all. It used to be folded into the target itself, which said the bot had
+   * pressed a button halfway, something no player ever does.
+   *
    * Returns loss values for logging.
    */
-  private async _trainOnFrames(frames: TrainingFrame[]): Promise<{
+  private async _trainOnRuns(runs: TrainingFrame[][]): Promise<{
     tacticalLoss: number;
     combatLoss: number;
   }> {
-    if (frames.length === 0) {
+    if (runs.every((run) => run.length === 0)) {
       return { tacticalLoss: 0, combatLoss: 0 };
     }
 
-    let tacticalLoss = 0;
-    let combatLoss = 0;
+    const tactical = await this._fitHead(this._brain.tacticalModel, runs, "tactical", TACTICAL_INPUT_SIZE);
+    const combat = await this._fitHead(this._brain.combatModel, runs, "combat", COMBAT_INPUT_SIZE);
+    return { tacticalLoss: tactical, combatLoss: combat };
+  }
 
-    const tacticalModel = this._brain.tacticalModel;
-    const combatModel = this._brain.combatModel;
+  /** Fit one head on one round of play. Returns the final loss, or 0. */
+  private async _fitHead(
+    // biome-ignore lint/suspicious/noExplicitAny: tf.LayersModel, kept out of this module's types
+    model: any,
+    runs: TrainingFrame[][],
+    head: "tactical" | "combat",
+    inputSize: number,
+  ): Promise<number> {
+    if (!model) return 0;
 
-    // ── Train Tactical Model ────────────────────────────────────
-    if (tacticalModel) {
-      const tactInputs: number[][] = [];
-      const tactTargets: number[][] = [];
+    const { pairs } = buildCorpusPairs(runs, head, inputSize);
+    if (pairs.length === 0) return 0;
 
-      for (const frame of frames) {
-        if (frame.tacticalInput.length !== TACTICAL_INPUT_SIZE) continue;
+    const tf = getTF();
+    const inputTensor = tf.tensor2d(pairs.map((pair: TrainingPair) => pair.input));
+    const targetTensor = tf.tensor2d(pairs.map((pair: TrainingPair) => pair.target));
+    const weightTensor = tf.tensor1d(pairs.map((pair: TrainingPair) => rewardToWeight(pair.reward)));
 
-        tactInputs.push(frame.tacticalInput);
+    const result = await model.fit(inputTensor, targetTensor, {
+      epochs: this._config.epochs,
+      batchSize: this._config.batchSize,
+      shuffle: true,
+      verbose: 0,
+      sampleWeight: weightTensor,
+    });
 
-        // Target: what the bot SHOULD have done, weighted by reward
-        // Higher reward → reinforce current action, lower → discourage
-        const rewardScale = (frame.reward + 1) / 2; // Map [-1,1] → [0,1]
+    inputTensor.dispose();
+    targetTensor.dispose();
+    weightTensor.dispose();
 
-        // Create target from action: map buttons/slots to output indices
-        const target = new Array(8).fill(0.5); // Start at neutral
-        target[0] = rewardScale; // Fight confidence = reward
-        target[1] = 1 - rewardScale; // Retreat = inverse of reward
-        target[3] = frame.action.buttons & InputButtons.SPRINT ? rewardScale : 1 - rewardScale; // Sprint
-        target[5] = frame.action.buttons & InputButtons.JUMP ? rewardScale : 1 - rewardScale; // Jump
-
-        tactTargets.push(target);
-      }
-
-      if (tactInputs.length > 0) {
-        const tf = getTF();
-        const inputTensor = tf.tensor2d(tactInputs);
-        const targetTensor = tf.tensor2d(tactTargets);
-
-        const result = await tacticalModel.fit(inputTensor, targetTensor, {
-          epochs: this._config.epochs,
-          batchSize: this._config.batchSize,
-          shuffle: true,
-          verbose: 0,
-        });
-
-        tacticalLoss = result.history.loss ? (result.history.loss[result.history.loss.length - 1] as number) : 0;
-
-        inputTensor.dispose();
-        targetTensor.dispose();
-      }
-    }
-
-    // ── Train Combat Model ──────────────────────────────────────
-    if (combatModel) {
-      const combatInputs: number[][] = [];
-      const combatTargets: number[][] = [];
-
-      for (const frame of frames) {
-        if (!frame.combatInput || frame.combatInput.length !== COMBAT_INPUT_SIZE) continue;
-
-        combatInputs.push(frame.combatInput);
-
-        const rewardScale = (frame.reward + 1) / 2;
-
-        // Target from action
-        const target = new Array(6).fill(0.5);
-        target[0] = frame.action.buttons & InputButtons.FIRE ? rewardScale : 1 - rewardScale; // Fire
-        target[1] = frame.action.buttons & InputButtons.ALT_FIRE ? rewardScale : 1 - rewardScale; // ADS
-        target[2] = 0.5; // Aim yaw (neutral — actual aiming is complex)
-        target[3] = 0.5; // Aim pitch (neutral)
-        target[4] = frame.action.directionX < 0 ? rewardScale : 0.5; // Dodge left
-        target[5] = frame.action.directionX > 0 ? rewardScale : 0.5; // Dodge right
-
-        combatTargets.push(target);
-      }
-
-      if (combatInputs.length > 0) {
-        const tf = getTF();
-        const inputTensor = tf.tensor2d(combatInputs);
-        const targetTensor = tf.tensor2d(combatTargets);
-
-        const result = await combatModel.fit(inputTensor, targetTensor, {
-          epochs: this._config.epochs,
-          batchSize: this._config.batchSize,
-          shuffle: true,
-          verbose: 0,
-        });
-
-        combatLoss = result.history.loss ? (result.history.loss[result.history.loss.length - 1] as number) : 0;
-
-        inputTensor.dispose();
-        targetTensor.dispose();
-      }
-    }
-
-    return { tacticalLoss, combatLoss };
+    return result.history.loss ? (result.history.loss[result.history.loss.length - 1] as number) : 0;
   }
 
   // ── Checkpoint Management ───────────────────────────────────────

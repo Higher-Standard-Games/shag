@@ -9,7 +9,17 @@
 import { describe, expect, it } from "vitest";
 import { InputButtons } from "../BotConfig";
 import type { TrainingFrame } from "../BotEpisodeRecorder";
-import { angleDelta, buildCombatTarget, buildTacticalTarget, encodeAimDelta } from "../CloningTargets";
+import {
+  angleDelta,
+  buildCombatTarget,
+  buildTacticalTarget,
+  decodeWeaponSlot,
+  encodeAimDelta,
+  encodeWeaponSlot,
+  MAX_WEAPON_SLOT,
+  rewardToWeight,
+  TACTICAL_TARGET_SIZE,
+} from "../CloningTargets";
 
 const frame = (over: {
   buttons?: number;
@@ -52,31 +62,53 @@ describe("tactical targets", () => {
     const pressed = frame({ buttons: InputButtons.SPRINT | InputButtons.JUMP, reward: 0 });
     const target = buildTacticalTarget(pressed);
     // A neutral reward used to erase this: both would have been 0.5
-    expect(target[3]).toBe(1); // sprint
-    expect(target[5]).toBe(1); // jump
+    expect(target[0]).toBe(1); // sprint
+    expect(target[2]).toBe(1); // jump
   });
 
   it("labels a button not held as zero, not as an inverse of the reward", () => {
     const target = buildTacticalTarget(frame({ buttons: 0, reward: 0.9 }));
-    expect(target[3]).toBe(0);
-    expect(target[5]).toBe(0);
+    expect(target[0]).toBe(0);
+    expect(target[2]).toBe(0);
   });
 
   it("notices a weapon switch and which slot was chosen", () => {
     const before = frame({ weaponSlot: 2 });
     const after = frame({ weaponSlot: 5 });
-    expect(buildTacticalTarget(after, before)[6]).toBe(1);
-    expect(buildTacticalTarget(after, before)[7]).toBeCloseTo(5 / 9, 5);
-    expect(buildTacticalTarget(after, after)[6]).toBe(0);
+    expect(buildTacticalTarget(after, before)[3]).toBe(1);
+    expect(buildTacticalTarget(after, before)[4]).toBeCloseTo(5 / 9, 5);
+    expect(buildTacticalTarget(after, after)[3]).toBe(0);
   });
 
-  it("derives a mode proxy from behaviour rather than leaving it undecided", () => {
-    const fighting = buildTacticalTarget(frame({ buttons: InputButtons.FIRE }));
-    expect(fighting[0]).toBe(1);
-    const retreating = buildTacticalTarget(frame({ damageTaken: 30, directionZ: -1 }));
-    expect(retreating[1]).toBe(1);
-    const hunting = buildTacticalTarget(frame({}));
-    expect(hunting[2]).toBe(1);
+  it("has no output a demo cannot label", () => {
+    // The head used to open with FIGHT, RETREAT and HUNT confidences, which no
+    // recording can supply and which were derived from behaviour instead.
+    expect(buildTacticalTarget(frame({}))).toHaveLength(TACTICAL_TARGET_SIZE);
+    expect(TACTICAL_TARGET_SIZE).toBe(5);
+  });
+
+  it("names the same weapon on both sides of the network", () => {
+    // The label and the decoding have to be inverses, or an output means one
+    // slot in training and another at inference
+    for (let slot = 0; slot <= MAX_WEAPON_SLOT; slot++) {
+      expect(decodeWeaponSlot(encodeWeaponSlot(slot))).toBe(slot);
+    }
+    // Out of range in either direction saturates rather than wrapping
+    expect(decodeWeaponSlot(encodeWeaponSlot(20))).toBe(MAX_WEAPON_SLOT);
+    expect(decodeWeaponSlot(Number.NaN)).toBe(0);
+  });
+});
+
+describe("reward as a weight", () => {
+  it("maps a normalised reward into a weight, worst to nothing", () => {
+    expect(rewardToWeight(-1)).toBe(0);
+    expect(rewardToWeight(0)).toBeCloseTo(0.5, 5);
+    expect(rewardToWeight(1)).toBe(1);
+  });
+
+  it("refuses to weigh a value that is not a number", () => {
+    expect(rewardToWeight(Number.NaN)).toBe(0);
+    expect(rewardToWeight(Number.POSITIVE_INFINITY)).toBe(0);
   });
 });
 

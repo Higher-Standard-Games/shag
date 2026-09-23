@@ -161,18 +161,18 @@ describe("a recorded match, all the way to training labels", () => {
     // Pitch never moved
     expect(at(combat.pairs, 12).target[3]).toBeCloseTo(0.5, 5);
     // The jump the person pressed
-    expect(at(tactical.pairs, 12).target[5]).toBe(1);
+    expect(at(tactical.pairs, 12).target[2]).toBe(1);
 
     // A weapon carried through an idle frame is not a switch
-    expect(at(tactical.pairs, 24).target[6]).toBe(0);
+    expect(at(tactical.pairs, 24).target[3]).toBe(0);
 
     // Across the death gap there is no previous frame: no invented flick, and
     // no invented switch, although both the view and the weapon changed
     const respawn = at(combat.pairs, RESPAWNED);
     expect(respawn.target[2]).toBe(0.5);
     expect(respawn.target[3]).toBe(0.5);
-    expect(at(tactical.pairs, RESPAWNED).target[6]).toBe(0);
-    expect(at(tactical.pairs, RESPAWNED).target[7]).toBeCloseTo(7 / 9, 5);
+    expect(at(tactical.pairs, RESPAWNED).target[3]).toBe(0);
+    expect(at(tactical.pairs, RESPAWNED).target[4]).toBeCloseTo(7 / 9, 5);
   });
 
   it("produces vectors the models can actually accept", async () => {

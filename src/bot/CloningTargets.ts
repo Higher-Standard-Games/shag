@@ -16,8 +16,8 @@
 import { InputButtons } from "./BotConfig";
 import type { TrainingFrame } from "./BotEpisodeRecorder";
 
-/** Tactical head, 8 outputs. Index order matches HybridBrain's TACT map. */
-export const TACTICAL_TARGET_SIZE = 8;
+/** Tactical head, 5 outputs. Index order matches HybridBrain's TACT map. */
+export const TACTICAL_TARGET_SIZE = 5;
 /** Combat head, 6 outputs. Index order matches HybridBrain's COMBAT map. */
 export const COMBAT_TARGET_SIZE = 6;
 
@@ -28,9 +28,38 @@ export const COMBAT_TARGET_SIZE = 6;
  * meaning "no change". A whole radian between snapshots is a fast flick; using
  * that as the edge keeps ordinary tracking in the middle of the range instead
  * of pinned at the ends, where the network cannot tell one correction from
- * another. TF-5 should replace this encoding with a linear head.
+ * another. TF-12 replaces this encoding with a linear head.
  */
 export const AIM_DELTA_SCALE = 1.0;
+
+/**
+ * Slots a weapon label is spread over: the keyboard's worth of them.
+ *
+ * A commanded slot is a 1-based index into the player's own inventory, which the
+ * server resolves against the weapons they are actually carrying. Fixing the
+ * range at nine keeps one output meaning one slot however many weapons happen to
+ * be held — encoding against the current inventory size instead would make the
+ * same number mean a different weapon from one pickup to the next, which is not
+ * something a network can learn.
+ */
+export const MAX_WEAPON_SLOT = 9;
+
+/** A commanded slot as a [0,1] label. Zero means no weapon named. */
+export function encodeWeaponSlot(slot: number): number {
+  return Math.max(0, Math.min(1, slot / MAX_WEAPON_SLOT));
+}
+
+/**
+ * A head's weapon output back to a slot number, or 0 for none.
+ *
+ * The inverse of the label, so the two sides cannot drift apart. The caller
+ * still has to check the slot against what the bot is carrying.
+ */
+export function decodeWeaponSlot(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  const slot = Math.round(Math.max(0, Math.min(1, value)) * MAX_WEAPON_SLOT);
+  return slot;
+}
 
 /**
  * How far apart two frames may be and still be treated as consecutive.
@@ -65,34 +94,27 @@ export function encodeAimDelta(delta: number, scale = AIM_DELTA_SCALE): number {
 /**
  * What the tactical head should have said, from what the person did.
  *
- * The three mode outputs are the honest weak spot: a person never emits "my
- * mode is HUNT", so they are derived from behaviour — firing means fighting,
- * backing away hurt means retreating, neither means hunting. They are labelled
- * as proxies rather than truth, and TF-5 removes them from the cloning
- * objective, leaving modes to self-play where the bot knows its own.
+ * Every output here is something a person pressed. The head used to carry three
+ * more — FIGHT, RETREAT and HUNT — which nobody can label, because a player
+ * never emits "my mode is HUNT". They were derived from behaviour instead, which
+ * made them a guess dressed as a target; two of the three were then never read
+ * at inference, and the third overrode the state machine on the strength of
+ * "hurt and walking backwards". Which mode to be in stays the state machine's
+ * decision, and belongs to self-play, where the bot knows its own.
  */
 export function buildTacticalTarget(frame: TrainingFrame, previous?: TrainingFrame): number[] {
   const { buttons, weaponSlot } = frame.action;
   const target = new Array<number>(TACTICAL_TARGET_SIZE).fill(0);
 
-  const firing = held(buttons, InputButtons.FIRE);
-  const hurt = frame.events.damageTaken > 0;
-  const movingBack = frame.action.directionZ < -0.3;
+  // 0-2: movement, straight from the buttons the person held
+  target[0] = held(buttons, InputButtons.SPRINT);
+  target[1] = held(buttons, InputButtons.CROUCH);
+  target[2] = held(buttons, InputButtons.JUMP);
 
-  // 0-2: mode proxies — derived, not observed. See the note above.
-  target[0] = firing ? 1 : 0; // FIGHT
-  target[1] = hurt && movingBack ? 1 : 0; // RETREAT
-  target[2] = !firing && !hurt ? 1 : 0; // HUNT
-
-  // 3-5: movement, straight from the buttons the person held
-  target[3] = held(buttons, InputButtons.SPRINT);
-  target[4] = held(buttons, InputButtons.CROUCH);
-  target[5] = held(buttons, InputButtons.JUMP);
-
-  // 6-7: weapon — did they switch, and to what
+  // 3-4: weapon — did they switch, and to what
   const switched = previous !== undefined && previous.action.weaponSlot !== weaponSlot;
-  target[6] = switched ? 1 : 0;
-  target[7] = Math.max(0, Math.min(1, weaponSlot / 9));
+  target[3] = switched ? 1 : 0;
+  target[4] = encodeWeaponSlot(weaponSlot);
 
   return target;
 }
@@ -132,6 +154,25 @@ export function buildCombatTarget(frame: TrainingFrame, previous?: TrainingFrame
 export interface TrainingPair {
   input: number[];
   target: number[];
+  /**
+   * The frame's reward, normalised to [-1, 1], carried along rather than mixed
+   * into the target. Cloning a person ignores it — what they did is the answer
+   * whether or not the frame went well. Self-play uses it as a weight, which is
+   * where a reward belongs: it says how much to listen, not what to say.
+   */
+  reward: number;
+}
+
+/**
+ * A normalised reward as a sample weight in [0, 1].
+ *
+ * The worst frame of a round weighs nothing and the best weighs one, so a bot
+ * training on its own play leans on what went well without being told that
+ * anything it did was a different action than the one it took.
+ */
+export function rewardToWeight(reward: number): number {
+  if (!Number.isFinite(reward)) return 0;
+  return Math.max(0, Math.min(1, (reward + 1) / 2));
 }
 
 /**
@@ -162,7 +203,7 @@ export function buildRunPairs(
     // run, so it is dropped here rather than discovered afterwards.
     if (!allFinite(input) || !allFinite(target)) continue;
 
-    pairs.push({ input, target });
+    pairs.push({ input, target, reward: frame.reward });
   }
   return pairs;
 }

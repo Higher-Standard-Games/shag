@@ -26,6 +26,7 @@ import { buildCombatInput, buildTacticalInput, COMBAT_INPUT_SIZE, TACTICAL_INPUT
 import { canInitiateSlide } from "./BotMovementProfile";
 import type { BotVision, VisionResult } from "./BotVision";
 import { getWeaponProfile } from "./BotWeaponProfile";
+import { decodeWeaponSlot } from "./CloningTargets";
 import { checkCompatibility, readMetadata } from "./ModelMetadata";
 import { StateMachineBrain } from "./StateMachineBrain";
 import { getTF, initTF } from "./TFBackend";
@@ -34,19 +35,23 @@ import { getTF, initTF } from "./TFBackend";
 // These map neural network output indices to semantic meanings.
 // Changing these requires retraining models.
 
-/** TacticalBrain output indices (8 outputs) */
+/**
+ * TacticalBrain output indices (5 outputs)
+ *
+ * Every one of these is something a person presses, which is what makes them
+ * trainable from a demo. The head used to begin with three mode confidences —
+ * FIGHT, RETREAT, HUNT — that no recording can label; which mode to be in is the
+ * state machine's decision, and sharpening it belongs to self-play.
+ */
 const TACT = {
-  MODE_FIGHT: 0, // 0-1: confidence to stay in FIGHT
-  MODE_RETREAT: 1, // 0-1: confidence to RETREAT
-  MODE_HUNT: 2, // 0-1: confidence to HUNT for items/enemies
-  MOVE_SPRINT: 3, // 0-1: should sprint
-  MOVE_SLIDE: 4, // 0-1: should crouch-slide
-  MOVE_JUMP: 5, // 0-1: should jump
-  WEAPON_SWITCH: 6, // 0-1: should switch weapon (>0.5 = yes)
-  WEAPON_SLOT: 7, // 0-1: which slot (mapped to weapon index)
+  MOVE_SPRINT: 0, // 0-1: should sprint
+  MOVE_SLIDE: 1, // 0-1: should crouch-slide
+  MOVE_JUMP: 2, // 0-1: should jump
+  WEAPON_SWITCH: 3, // 0-1: should switch weapon (>0.5 = yes)
+  WEAPON_SLOT: 4, // 0-1: which slot, over MAX_WEAPON_SLOT
 } as const;
 
-export const TACTICAL_OUTPUT_SIZE = 8;
+export const TACTICAL_OUTPUT_SIZE = 5;
 
 /** CombatBrain output indices (6 outputs) */
 const COMBAT = {
@@ -64,7 +69,6 @@ export const COMBAT_OUTPUT_SIZE = 6;
 // Only override state machine when neural net is confident enough.
 
 const THRESHOLD = {
-  TACTICAL_OVERRIDE: 0.7, // Override state machine mode
   MOVEMENT_ACTION: 0.6, // Apply movement mechanic
   COMBAT_FIRE: 0.5, // Fire/don't fire
   COMBAT_ADS: 0.5, // ADS on/off
@@ -321,27 +325,14 @@ export class HybridBrain extends BotBrain {
       input.buttons |= InputButtons.JUMP;
     }
 
-    // Weapon switch suggestion
+    // Weapon switch suggestion. The slot is decoded with the inverse of the
+    // label it was trained on, so an output means the same weapon on both sides
+    // of the network, and is taken only if the bot is carrying it.
     if (output[TACT.WEAPON_SWITCH] > THRESHOLD.WEAPON_SWITCH) {
-      const weaponCount = state.self.weapons.length;
-      if (weaponCount > 0) {
-        const slotIndex = Math.floor(output[TACT.WEAPON_SLOT] * weaponCount);
-        const clampedSlot = Math.min(slotIndex, weaponCount - 1);
-        input.weaponSlot = clampedSlot + 1; // 1-indexed
+      const slot = decodeWeaponSlot(output[TACT.WEAPON_SLOT]);
+      if (slot >= 1 && slot <= state.self.weapons.length) {
+        input.weaponSlot = slot;
       }
-    }
-
-    // Retreat override — if neural net says retreat AND health is low
-    if (
-      output[TACT.MODE_RETREAT] > THRESHOLD.TACTICAL_OVERRIDE &&
-      state.self.health < 80 &&
-      currentState === BotState.FIGHT
-    ) {
-      // Reverse direction to retreat — must set BACK and clear FORWARD
-      // so server applies backward movement physics correctly
-      input.direction.z = -1;
-      input.buttons |= InputButtons.SPRINT | InputButtons.BACK;
-      input.buttons &= ~(InputButtons.FIRE | InputButtons.ALT_FIRE | InputButtons.FORWARD);
     }
   }
 
