@@ -28,6 +28,7 @@
     "bot:server": "npx vite-node src/cli/bot-server.ts --",
     "bot:analyze": "vite-node src/cli/bot-analyze.ts",
     "bot:train": "npx vite-node src/cli/bot-train.ts --",
+    "bot:bench": "npx vite-node src/cli/bot-bench.ts --",
     "server:tick": "npx vite-node src/cli/server-tick.ts",
     "server:game": "npx vite-node src/cli/server-game.ts",
     "server:fuzz": "npx vite-node src/cli/server-fuzz.ts --",

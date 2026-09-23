@@ -221,9 +221,10 @@ up.
 | TF-5 | Reshape the heads so every output has a label a demo can supply, and move the mode heads to self-play or drop them | TF-4 | 4 | Opus 5 | **done 2026-09-23** |
 | TF-6 | Early stopping, and metrics per output rather than one mean-squared number (the held-out split itself now works — see TF-7) | TF-4 | 3 | Sonnet 5 | **done 2026-09-23** |
 | TF-7 | Tests: extractor on a fixture demo, shape contract between normalizer and models, target construction, and a training smoke run | TF-4 | 3 | Sonnet 5 | **done 2026-09-23** |
-| TF-8 | Measure inference: per-decision cost with models loaded, eight bots, native and pure-JS backends | TF-2 | 2 | Haiku 4.5 | todo |
+| TF-8 | Measure inference: per-decision cost with models loaded, eight bots, native and pure-JS backends | TF-2 | 2 | Haiku 4.5 | **done 2026-09-23** |
 | TF-10 | A dataset layer | TF-1 | 3 | Sonnet 5 | **done 2026-09-23** |
 | TF-11 | Frame stacking: the last N feature vectors concatenated, so the network can see a movement in progress rather than a still | TF-10 | 3 | Opus 5 | todo |
+| TF-13 | Batch inference across bots: one predict call for the whole fleet instead of one per bot, since the measured cost is the round trip into TF and not the arithmetic | TF-8 | 3 | Sonnet 5 | todo |
 | TF-12 | One trunk, typed heads: independent sigmoids with binary cross-entropy for the buttons, a linear head for aim delta, and sampling with a temperature so two bots in the same spot do not do the same thing | TF-5, TF-11 | 4 | Opus 5 | todo |
 | TF-9 | Document the pipeline in the manual — there is no page for any of this today | TF-1…TF-5 | 2 | Sonnet 5 | **done 2026-09-23** |
 
@@ -247,6 +248,40 @@ down.
   competent bot instead of a broken one. Keep that.
 
 ## Progress log
+
+### 2026-09-23 — TF-8 done: 0.52 ms a decision, and the reason is not the maths
+
+`npm run bot:bench` measures the overlay against a synthetic fight state, so the
+number is the difference training makes to a decision and not a whole bot's
+frame — there is no BSP, vision raycast or navigation in it, and those costs are
+the state machine's either way.
+
+On this machine, native backend (`tensorflow`), hard difficulty, eight bots:
+
+| | |
+| --- | --- |
+| Network per decision | **0.52 ms** |
+| State machine alone, same state | 0.004 ms |
+| Weights in memory | 4.2 KiB per bot, 128 tensors for eight |
+| Eight bots, 20 Hz snapshots | 4.2 ms of a 50 ms interval — 8% |
+| Eight bots, 30 Hz snapshots | 4.2 ms of a 33 ms interval — 13% |
+| Eight bots, 60 Hz snapshots | 4.2 ms of a 17 ms interval — 25% |
+
+A bot decides when a snapshot arrives, not every tick: the 125 Hz input loop
+re-sends the last decision. The first draft of the bench reported the cost as a
+share of a 125 Hz tick and made it look twice as bad as it is; the share that
+matters is of a snapshot interval, on one thread, because the whole fleet lives
+in one process.
+
+**The interesting part is the ratio.** These networks are tiny — 16 and 12 hidden
+units — so half a millisecond is not arithmetic. It is the round trip: building a
+tensor, calling predict, reading the result back synchronously, twice per
+decision. Eight bots in one process each pay that separately, which is why
+batching the fleet into one call is now TF-13 and is worth roughly the whole cost.
+It also changes what frame stacking costs: widening the input vector will barely
+move a number dominated by call overhead.
+
+Affordable today at 20–30 Hz. Worth fixing before a server runs more than eight.
 
 ### 2026-09-23 — TF-6 done: a number that can say "learned nothing"
 
