@@ -158,6 +158,15 @@ Examples:
 
 // ── Demo Training ───────────────────────────────────────────────────
 
+/**
+ * Frames across every run. A corpus is a list of runs and a run holds many
+ * frames, so counting the outer array reports a handful where there are
+ * thousands — and wrote that number into the model's provenance.
+ */
+function countFrames(runs: readonly { length: number }[]): number {
+  return runs.reduce((sum, run) => sum + run.length, 0);
+}
+
 /** Say what the run achieved, and whether it was measured on unseen play. */
 // biome-ignore lint/suspicious/noExplicitAny: tf.History, without importing TF into this module
 function reportLoss(label: string, result: any): void {
@@ -212,9 +221,11 @@ async function trainFromDemo(demoFile: string, config: Partial<TrainerConfig>, i
     process.exit(1);
   }
 
+  const trainFrames = countFrames(corpus.train);
+  const validationFrames = countFrames(corpus.validation);
   console.log(
     `[Trainer] ${corpus.totalFrames} frames from ${corpus.matches.length} match(es): ` +
-      `${corpus.train.length} training, ${corpus.validation.length} validation`,
+      `${trainFrames} training, ${validationFrames} validation`,
   );
   if (corpus.validation.length === 0 && corpus.matches.length < 2) {
     console.warn("[Trainer] One match means no validation set — the loss below says memorised, not learned.");
@@ -237,65 +248,63 @@ async function trainFromDemo(demoFile: string, config: Partial<TrainerConfig>, i
   const batchSize = config.batchSize || 32;
   const tf = getTF();
 
-  // Collect all frames from all players
-  const allFrames = corpus.train;
-  console.log(`[Trainer] Training on ${allFrames.length} frames (${epochs} epochs, batch ${batchSize})`);
+  console.log(`[Trainer] Training on ${trainFrames} frames (${epochs} epochs, batch ${batchSize})`);
 
-  // Validation comes from matches held out of training, so the number below is
-  // measured on play the network has never seen. With one match there is none,
-  // and a training loss alone only says the frames were memorised.
-  const validationSplit = corpus.validation.length > 0 ? 0.2 : 0;
+  /**
+   * Fit one head on the corpus, measured against the matches held back.
+   *
+   * Behaviour cloning, run by run: a run is one player in one match and the
+   * labels are differences, so frames from two players must never be adjacent.
+   *
+   * The held-out matches are passed as `validationData` rather than letting
+   * Keras take a `validationSplit` off the tail of the training set. A frame
+   * split leaks — frames seconds apart in one match are nearly the same frame,
+   * so the network is scored on play it has effectively already seen, which is
+   * the whole reason the corpus splits by match.
+   */
+  const fitHead = async (
+    label: string,
+    // biome-ignore lint/suspicious/noExplicitAny: tf.LayersModel, without importing TF into this module
+    model: any,
+    head: "tactical" | "combat",
+    inputSize: number,
+  ): Promise<void> => {
+    const train = buildCorpusPairs(corpus.train, head, inputSize);
+    if (train.dropped > 0) {
+      console.log(
+        `[Trainer] ${label}: ${train.dropped} frame(s) dropped — wrong feature width, or a value that is not a number`,
+      );
+    }
+    if (train.pairs.length === 0 || !model) {
+      console.warn(`[Trainer] ${label}: nothing to train on.`);
+      return;
+    }
 
-  // Behaviour cloning, run by run. A run is one player in one match, and the
-  // labels are differences, so frames from two players must never be adjacent.
-  const tactical = buildCorpusPairs(allFrames, "tactical", TACTICAL_INPUT_SIZE);
-  const tactInputs = tactical.pairs.map((pair) => pair.input);
-  const tactTargets = tactical.pairs.map((pair) => pair.target);
-  if (tactical.dropped > 0) {
-    console.log(`[Trainer] ${tactical.dropped} frame(s) dropped: wrong feature width, or a value that is not a number`);
-  }
+    const inputTensor = tf.tensor2d(train.pairs.map((pair) => pair.input));
+    const targetTensor = tf.tensor2d(train.pairs.map((pair) => pair.target));
 
-  if (tactInputs.length > 0 && brain.tacticalModel) {
-    const inputTensor = tf.tensor2d(tactInputs);
-    const targetTensor = tf.tensor2d(tactTargets);
+    const heldOut = buildCorpusPairs(corpus.validation, head, inputSize);
+    const valInput = heldOut.pairs.length > 0 ? tf.tensor2d(heldOut.pairs.map((pair) => pair.input)) : null;
+    const valTarget = heldOut.pairs.length > 0 ? tf.tensor2d(heldOut.pairs.map((pair) => pair.target)) : null;
 
-    const result = await brain.tacticalModel.fit(inputTensor, targetTensor, {
+    const result = await model.fit(inputTensor, targetTensor, {
       epochs,
       batchSize,
       shuffle: true,
       verbose: 1,
-      ...(validationSplit > 0 ? { validationSplit } : {}),
+      ...(valInput && valTarget ? { validationData: [valInput, valTarget] } : {}),
     });
 
-    reportLoss("Tactical", result);
+    reportLoss(label, result);
 
     inputTensor.dispose();
     targetTensor.dispose();
-  }
+    valInput?.dispose();
+    valTarget?.dispose();
+  };
 
-  // Build combat training tensors, run by run for the same reason
-  const combat = buildCorpusPairs(allFrames, "combat", COMBAT_INPUT_SIZE);
-
-  if (combat.pairs.length > 0 && brain.combatModel) {
-    const combatInputs = combat.pairs.map((pair) => pair.input);
-    const combatTargets = combat.pairs.map((pair) => pair.target);
-
-    const inputTensor = tf.tensor2d(combatInputs);
-    const targetTensor = tf.tensor2d(combatTargets);
-
-    const result = await brain.combatModel.fit(inputTensor, targetTensor, {
-      epochs,
-      batchSize,
-      shuffle: true,
-      verbose: 1,
-      ...(validationSplit > 0 ? { validationSplit } : {}),
-    });
-
-    reportLoss("Combat", result);
-
-    inputTensor.dispose();
-    targetTensor.dispose();
-  }
+  await fitHead("Tactical", brain.tacticalModel, "tactical", TACTICAL_INPUT_SIZE);
+  await fitHead("Combat", brain.combatModel, "combat", COMBAT_INPUT_SIZE);
 
   // 4. Save models, and what they were trained on, and clean up
   fs.mkdirSync(path.resolve(modelDir), { recursive: true });
@@ -304,8 +313,8 @@ async function trainFromDemo(demoFile: string, config: Partial<TrainerConfig>, i
     ...describeCurrentFeatures(),
     trainedAt: new Date().toISOString(),
     matches: corpus.matches.length,
-    trainFrames: corpus.train.length,
-    validationFrames: corpus.validation.length,
+    trainFrames,
+    validationFrames,
     includedBots: includeBots,
     matchIds: corpus.matches.map((match) => match.matchId).filter((id): id is string => Boolean(id)),
   });

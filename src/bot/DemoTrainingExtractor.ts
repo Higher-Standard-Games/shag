@@ -108,6 +108,10 @@ export interface FrameAction {
  * there would label a falling or sliding player as holding keys they never
  * touched. Only an older recording, which carries no commands at all, falls
  * back to inference.
+ *
+ * Pressing nothing is not the same as holding no weapon, so `inferred` carries
+ * the slot the player was last seen with and the idle frame keeps it. Resetting
+ * it to zero would make the next command look like a deliberate switch.
  */
 export function chooseAction(
   recorded: RecordedInput | undefined,
@@ -125,8 +129,16 @@ export function chooseAction(
     };
   }
   if (demoRecordsInputs) {
-    // Idle: the view is wherever the state says it is, and nothing is pressed.
-    return { buttons: 0, weaponSlot: 0, yaw: inferred.yaw, pitch: inferred.pitch, directionX: 0, directionZ: 0 };
+    // Idle: the view is wherever the state says it is, nothing is pressed, and
+    // the weapon stays where it was.
+    return {
+      buttons: 0,
+      weaponSlot: inferred.weaponSlot,
+      yaw: inferred.yaw,
+      pitch: inferred.pitch,
+      directionX: 0,
+      directionZ: 0,
+    };
   }
   return inferred;
 }
@@ -215,6 +227,8 @@ export class DemoTrainingExtractor {
     // Track previous frame state for delta detection
     let prevHealth = 100;
     let prevArmor = 0;
+    /** The slot the player was last seen holding, carried across idle frames. */
+    let lastWeaponSlot = 0;
 
     for (let i = 0; i < demoFrames.length; i++) {
       const demoFrame = demoFrames[i];
@@ -356,7 +370,7 @@ export class DemoTrainingExtractor {
         combatInput,
         action: chooseAction(
           recorded,
-          { buttons, weaponSlot: 0, yaw, pitch, directionX: dirX, directionZ: dirZ },
+          { buttons, weaponSlot: lastWeaponSlot, yaw, pitch, directionX: dirX, directionZ: dirZ },
           header.version >= 3,
         ),
         events: {
@@ -376,6 +390,7 @@ export class DemoTrainingExtractor {
       frames.push(frame);
       prevHealth = gameState.self.health;
       prevArmor = gameState.self.armor;
+      lastWeaponSlot = frame.action.weaponSlot;
     }
 
     return {

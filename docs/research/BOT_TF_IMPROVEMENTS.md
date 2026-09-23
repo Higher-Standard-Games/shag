@@ -219,8 +219,8 @@ up.
 | TF-3 | Keep humans, drop bots | — | 2 | Sonnet 5 | **done 2026-09-23** |
 | TF-4 | Rebuild the labels as behaviour cloning | TF-1, TF-3 | 4 | Opus 5 | **done 2026-09-23** |
 | TF-5 | Reshape the heads so every output has a label a demo can supply, and move the mode heads to self-play or drop them | TF-4 | 4 | Opus 5 | todo |
-| TF-6 | Train/validation split, early stopping, and a metric that means something on held-out frames | TF-4 | 3 | Sonnet 5 | todo |
-| TF-7 | Tests: extractor on a fixture demo, shape contract between normalizer and models, target construction, and a training smoke run | TF-4 | 3 | Sonnet 5 | todo |
+| TF-6 | Early stopping, and metrics per output rather than one mean-squared number (the held-out split itself now works — see TF-7) | TF-4 | 3 | Sonnet 5 | todo |
+| TF-7 | Tests: extractor on a fixture demo, shape contract between normalizer and models, target construction, and a training smoke run | TF-4 | 3 | Sonnet 5 | **done 2026-09-23** |
 | TF-8 | Measure inference: per-decision cost with models loaded, eight bots, native and pure-JS backends | TF-2 | 2 | Haiku 4.5 | todo |
 | TF-10 | A dataset layer | TF-1 | 3 | Sonnet 5 | **done 2026-09-23** |
 | TF-11 | Frame stacking: the last N feature vectors concatenated, so the network can see a movement in progress rather than a still | TF-10 | 3 | Opus 5 | todo |
@@ -247,6 +247,46 @@ down.
   competent bot instead of a broken one. Keep that.
 
 ## Progress log
+
+### 2026-09-23 — TF-7 done: the pipeline has a test that plays a match
+
+A scripted match is now recorded to a real `.shagdemo` and read back through
+the corpus builder, and the labels that come out the far end are checked against
+the script. The body in the fixture never moves — zero velocity in every
+snapshot — so any label claiming the player walked, sprinted or jumped can only
+have come from a recorded command. Both boundary bugs found by reading fail this
+test: the death-gap flick saturates to 1 instead of 0.5, and a cross-player
+label shows up as a turn nobody made. Verified by breaking each fix in turn and
+watching the assertion catch it.
+
+A second test does one real fit on two recorded matches, because tensor widths
+and `validationData` are only proved by TensorFlow accepting them.
+
+Writing it turned up three more defects, all of the same family — something
+that is true between two frames being read as something a person did:
+
+**A weapon carried through silence looked like a switch.** On a frame with no
+command the action was built with slot 0, so the next real command read as a
+deliberate weapon change, and the slot-identity label read zero for the whole
+idle stretch. The slot a player was last seen holding is now carried across
+those frames. Pressing nothing is not the same as holding nothing.
+
+**The held-out matches were built and then thrown away.** The trainer passed
+Keras a `validationSplit`, which slices the tail off the *training* tensor frame
+by frame — the exact leak the match-level split exists to prevent, since frames
+seconds apart in one match are nearly the same frame. Meanwhile `corpus.valid`
+sat unused. The held-out matches are now passed as `validationData`, so the
+number printed after a run is measured on a match the network has never seen.
+
+**The model's provenance counted runs as frames.** `corpus.train.length` is the
+number of runs, not frames, and it was written into `metadata.json` as
+`trainFrames`. A model trained on forty thousand frames recorded that it had
+seen four.
+
+And one in the recorder, found because the fixture writes two demos in a row:
+the filename is accurate to a second, so two matches finishing inside the same
+one — a lobby starting two rooms at once — silently overwrote the first
+recording. It now takes the next free name.
 
 ### 2026-09-23 — second review round: the same bug one level deeper
 

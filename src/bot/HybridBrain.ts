@@ -46,7 +46,7 @@ const TACT = {
   WEAPON_SLOT: 7, // 0-1: which slot (mapped to weapon index)
 } as const;
 
-const TACTICAL_OUTPUT_SIZE = 8;
+export const TACTICAL_OUTPUT_SIZE = 8;
 
 /** CombatBrain output indices (6 outputs) */
 const COMBAT = {
@@ -58,7 +58,7 @@ const COMBAT = {
   DODGE_RIGHT: 5, // 0-1: strafe right to dodge
 } as const;
 
-const COMBAT_OUTPUT_SIZE = 6;
+export const COMBAT_OUTPUT_SIZE = 6;
 
 // ── Confidence Thresholds ───────────────────────────────────────────
 // Only override state machine when neural net is confident enough.
