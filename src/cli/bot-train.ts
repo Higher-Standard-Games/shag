@@ -181,7 +181,7 @@ async function trainFromDemo(demoFile: string, config: Partial<TrainerConfig>, i
   const { HybridBrain } = await import("../bot/HybridBrain");
   const { getTF } = await import("../bot/TFBackend");
   const { resolveDifficulty } = await import("../bot/BotConfig");
-  const { buildCombatTarget, buildTacticalTarget } = await import("../bot/CloningTargets");
+  const { buildCorpusPairs } = await import("../bot/CloningTargets");
   const { TACTICAL_INPUT_SIZE, COMBAT_INPUT_SIZE } = await import("../bot/BotInputNormalizer");
   const fs = await import("node:fs");
   const path = await import("node:path");
@@ -246,17 +246,11 @@ async function trainFromDemo(demoFile: string, config: Partial<TrainerConfig>, i
   // and a training loss alone only says the frames were memorised.
   const validationSplit = corpus.validation.length > 0 ? 0.2 : 0;
 
-  // Build tactical training data (keep frame + input together to avoid index misalignment)
-  const tactPairs = allFrames
-    .filter((f) => f.tacticalInput.length === TACTICAL_INPUT_SIZE)
-    .map((f) => ({ input: f.tacticalInput, frame: f }));
-
-  const tactInputs = tactPairs.map((p) => p.input);
-  // Behaviour cloning: the target is what the person did on this frame. The
-  // previous frame comes along because a turn is a difference, not a position.
-  const tactTargets = tactPairs.map((p, index) =>
-    buildTacticalTarget(p.frame, index > 0 ? tactPairs[index - 1].frame : undefined),
-  );
+  // Behaviour cloning, run by run. A run is one player in one match, and the
+  // labels are differences, so frames from two players must never be adjacent.
+  const tactPairs = buildCorpusPairs(allFrames, "tactical", TACTICAL_INPUT_SIZE);
+  const tactInputs = tactPairs.map((pair) => pair.input);
+  const tactTargets = tactPairs.map((pair) => pair.target);
 
   if (tactInputs.length > 0 && brain.tacticalModel) {
     const inputTensor = tf.tensor2d(tactInputs);
@@ -276,14 +270,12 @@ async function trainFromDemo(demoFile: string, config: Partial<TrainerConfig>, i
     targetTensor.dispose();
   }
 
-  // Build combat training tensors
-  const combatFrames = allFrames.filter((f) => f.combatInput && f.combatInput.length === COMBAT_INPUT_SIZE);
+  // Build combat training tensors, run by run for the same reason
+  const combatPairs = buildCorpusPairs(allFrames, "combat", COMBAT_INPUT_SIZE);
 
-  if (combatFrames.length > 0 && brain.combatModel) {
-    const combatInputs = combatFrames.map((f) => f.combatInput!);
-    const combatTargets = combatFrames.map((f, index) =>
-      buildCombatTarget(f, index > 0 ? combatFrames[index - 1] : undefined),
-    );
+  if (combatPairs.length > 0 && brain.combatModel) {
+    const combatInputs = combatPairs.map((pair) => pair.input);
+    const combatTargets = combatPairs.map((pair) => pair.target);
 
     const inputTensor = tf.tensor2d(combatInputs);
     const targetTensor = tf.tensor2d(combatTargets);

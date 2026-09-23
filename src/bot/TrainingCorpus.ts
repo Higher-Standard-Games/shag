@@ -33,9 +33,18 @@ export interface CorpusSkip {
   reason: string;
 }
 
+/**
+ * One player's frames from one match, in order.
+ *
+ * Runs are kept apart rather than concatenated because a label like "how far
+ * did the view turn since the last frame" is only meaningful inside one. Flatten
+ * two players together and every boundary produces a turn that nobody made.
+ */
+export type TrainingRun = TrainingFrame[];
+
 export interface Corpus {
-  train: TrainingFrame[];
-  validation: TrainingFrame[];
+  train: TrainingRun[];
+  validation: TrainingRun[];
   matches: CorpusMatch[];
   skipped: CorpusSkip[];
   get totalFrames(): number;
@@ -73,7 +82,8 @@ export async function buildCorpus(target: string, options: CorpusOptions = {}): 
 
   const matches: CorpusMatch[] = [];
   const skipped: CorpusSkip[] = [];
-  const perMatchFrames: TrainingFrame[][] = [];
+  /** Per match, one run per player. */
+  const perMatchRuns: TrainingRun[][] = [];
 
   for (const file of files) {
     try {
@@ -97,20 +107,21 @@ export async function buildCorpus(target: string, options: CorpusOptions = {}): 
         players: dataset.players.length,
         frames: dataset.totalFrames,
       });
-      perMatchFrames.push(dataset.players.flatMap((player) => player.frames));
+      perMatchRuns.push(dataset.players.map((player) => player.frames).filter((run) => run.length > 0));
     } catch (error) {
       skipped.push({ file, reason: (error as Error).message });
     }
   }
 
-  const { train, validation } = splitByMatch(perMatchFrames, options.validationFraction ?? 0.2);
+  const { train, validation } = splitByMatch(perMatchRuns, options.validationFraction ?? 0.2);
+  const count = (runs: TrainingRun[]): number => runs.reduce((sum, run) => sum + run.length, 0);
   return {
     train,
     validation,
     matches,
     skipped,
     get totalFrames() {
-      return train.length + validation.length;
+      return count(train) + count(validation);
     },
   };
 }
@@ -122,24 +133,25 @@ export async function buildCorpus(target: string, options: CorpusOptions = {}): 
  * is told there is no validation.
  */
 export function splitByMatch(
-  perMatchFrames: readonly TrainingFrame[][],
+  perMatchRuns: readonly TrainingRun[][],
   validationFraction: number,
-): { train: TrainingFrame[]; validation: TrainingFrame[] } {
-  const total = perMatchFrames.reduce((sum, frames) => sum + frames.length, 0);
+): { train: TrainingRun[]; validation: TrainingRun[] } {
+  const sizeOf = (runs: readonly TrainingRun[]): number => runs.reduce((sum, run) => sum + run.length, 0);
+  const total = perMatchRuns.reduce((sum, runs) => sum + sizeOf(runs), 0);
   const wanted = Math.floor(total * Math.max(0, Math.min(1, validationFraction)));
 
-  if (perMatchFrames.length < 2 || wanted === 0) {
-    return { train: perMatchFrames.flat(), validation: [] };
+  if (perMatchRuns.length < 2 || wanted === 0) {
+    return { train: perMatchRuns.flat(), validation: [] };
   }
 
   // Smallest matches first, so the held-out share overshoots as little as
   // possible and the training set keeps the biggest recordings.
-  const order = perMatchFrames.map((frames, index) => ({ index, size: frames.length })).sort((a, b) => a.size - b.size);
+  const order = perMatchRuns.map((runs, index) => ({ index, size: sizeOf(runs) })).sort((a, b) => a.size - b.size);
 
   const held = new Set<number>();
   let heldFrames = 0;
   for (const entry of order) {
-    if (held.size === perMatchFrames.length - 1) break; // never hold back everything
+    if (held.size === perMatchRuns.length - 1) break; // never hold back everything
     if (heldFrames + entry.size > wanted) continue; // overshooting the share is worse than undershooting it
     held.add(entry.index);
     heldFrames += entry.size;
@@ -150,10 +162,10 @@ export function splitByMatch(
   // unseen play, and none at all measures nothing.
   if (held.size === 0) held.add(order[0].index);
 
-  const train: TrainingFrame[] = [];
-  const validation: TrainingFrame[] = [];
-  perMatchFrames.forEach((frames, index) => {
-    (held.has(index) ? validation : train).push(...frames);
+  const train: TrainingRun[] = [];
+  const validation: TrainingRun[] = [];
+  perMatchRuns.forEach((runs, index) => {
+    (held.has(index) ? validation : train).push(...runs);
   });
   return { train, validation };
 }

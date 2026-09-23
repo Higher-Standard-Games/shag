@@ -248,6 +248,36 @@ down.
 
 ## Progress log
 
+### 2026-09-23 — data-flow review: two bugs, both mine, both invisible to play
+
+Reading the chain end to end — `handleInput` → recorder → file → reader →
+extractor → corpus → targets → `fit` — rather than testing the pieces again.
+Each part was right on its own; both defects lived in what one part assumed
+about another, and neither would have surfaced in a playtest. A bot trained on
+subtly wrong labels just plays subtly badly, and nobody can tell you why.
+
+**A run is one player in one match, and a turn is a difference.** TF-4 built
+each target from the frame and *the previous element of the array*, and the
+array was every player of every match concatenated. At each seam the "previous
+frame" belonged to somebody else, so the label claimed a flick nobody made and
+a weapon switch nobody performed — once per player per match, silently. The
+corpus now keeps runs apart all the way through the split, `buildRunPairs`
+builds labels inside a run, and the first frame of every run gets a neutral
+turn because it genuinely has no predecessor. A test pins what the old shape
+would have produced.
+
+**On a version-3 demo, no command means no input.** TF-1 left the old velocity
+inference as the fallback for a frame with no recorded command — reasonable for
+an old recording, wrong for a new one, where silence is information: the player
+sent nothing, so they pressed nothing. As written, a falling or sliding player
+would have been labelled as holding forward. `chooseAction` now decides by
+format version: recorded command, else nothing on a v3 demo, else the guess on
+an older one.
+
+**Also noticed, and left alone:** the filter on feature width used to run before
+pairing, so a dropped frame made its neighbour's delta span a gap. Pairing now
+takes the previous frame before filtering.
+
 ### 2026-09-23 — TF-4 done: the label is what the person did
 
 `src/bot/CloningTargets.ts` replaces the reward-scaled targets. Every label now

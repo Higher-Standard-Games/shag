@@ -115,7 +115,45 @@ export function buildCombatTarget(frame: TrainingFrame, previous?: TrainingFrame
   return target;
 }
 
-/** Pair each frame with the one before it, so deltas have something to measure. */
-export function withPrevious<T>(frames: readonly T[]): Array<{ frame: T; previous?: T }> {
-  return frames.map((frame, index) => ({ frame, previous: index > 0 ? frames[index - 1] : undefined }));
+export interface TrainingPair {
+  input: number[];
+  target: number[];
+}
+
+/**
+ * Build training pairs for one run — one player, one match, in order.
+ *
+ * Runs matter because the aim labels are *differences*. Concatenate two
+ * players and the frame before the seam belongs to someone else, so the
+ * network is taught a turn nobody made and a weapon switch nobody performed.
+ * The previous frame is taken before filtering on input width, so a frame
+ * dropped for the wrong feature size does not silently make its neighbour's
+ * delta span a gap.
+ */
+export function buildRunPairs(
+  run: readonly TrainingFrame[],
+  head: "tactical" | "combat",
+  expectedInputSize: number,
+): TrainingPair[] {
+  const pairs: TrainingPair[] = [];
+  for (let index = 0; index < run.length; index++) {
+    const frame = run[index];
+    const previous = index > 0 ? run[index - 1] : undefined;
+    const input = head === "tactical" ? frame.tacticalInput : frame.combatInput;
+    if (!input || input.length !== expectedInputSize) continue;
+    pairs.push({
+      input,
+      target: head === "tactical" ? buildTacticalTarget(frame, previous) : buildCombatTarget(frame, previous),
+    });
+  }
+  return pairs;
+}
+
+/** Build pairs across many runs, each kept separate. */
+export function buildCorpusPairs(
+  runs: readonly (readonly TrainingFrame[])[],
+  head: "tactical" | "combat",
+  expectedInputSize: number,
+): TrainingPair[] {
+  return runs.flatMap((run) => buildRunPairs(run, head, expectedInputSize));
 }

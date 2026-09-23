@@ -22,6 +22,7 @@
  */
 
 import * as fs from "node:fs";
+import type { RecordedInput } from "../shared/demo/DemoInputs";
 import { type DemoFrame, type DemoHeader, DemoReader } from "../shared/demo/DemoReader";
 import { InputButtons } from "./BotConfig";
 import type { TrainingFrame } from "./BotEpisodeRecorder";
@@ -87,6 +88,47 @@ export function selectPlayers<T extends DemoPlayerInfo>(
   if (options.includeBots) return { kept: [...players], dropped: 0 };
   const kept = players.filter((player) => typeof player.accountId === "number" && player.accountId > 0);
   return { kept, dropped: players.length - kept.length };
+}
+
+/** The action a training frame should carry. */
+export interface FrameAction {
+  buttons: number;
+  weaponSlot: number;
+  yaw: number;
+  pitch: number;
+  directionX: number;
+  directionZ: number;
+}
+
+/**
+ * Which action a frame gets: the recorded one, nothing, or a guess.
+ *
+ * On a version-3 demo the absence of a command is information — the player sent
+ * none over that interval, so they pressed nothing. Guessing from velocity
+ * there would label a falling or sliding player as holding keys they never
+ * touched. Only an older recording, which carries no commands at all, falls
+ * back to inference.
+ */
+export function chooseAction(
+  recorded: RecordedInput | undefined,
+  inferred: FrameAction,
+  demoRecordsInputs: boolean,
+): FrameAction {
+  if (recorded) {
+    return {
+      buttons: recorded.buttons,
+      weaponSlot: recorded.weaponSlot,
+      yaw: recorded.yaw,
+      pitch: recorded.pitch,
+      directionX: recorded.right,
+      directionZ: recorded.forward,
+    };
+  }
+  if (demoRecordsInputs) {
+    // Idle: the view is wherever the state says it is, and nothing is pressed.
+    return { buttons: 0, weaponSlot: 0, yaw: inferred.yaw, pitch: inferred.pitch, directionX: 0, directionZ: 0 };
+  }
+  return inferred;
 }
 
 export class DemoTrainingExtractor {
@@ -162,7 +204,7 @@ export class DemoTrainingExtractor {
     playerId: string,
     name: string,
     demoFrames: DemoFrame[],
-    _header: DemoHeader,
+    header: DemoHeader,
   ): PlayerTrainingData {
     // Create a BotGameState that "sees" from this player's perspective
     const gameState = new BotGameState();
@@ -312,23 +354,11 @@ export class DemoTrainingExtractor {
         tick: demoFrame.tick,
         tacticalInput,
         combatInput,
-        action: recorded
-          ? {
-              buttons: recorded.buttons,
-              weaponSlot: recorded.weaponSlot,
-              yaw: recorded.yaw,
-              pitch: recorded.pitch,
-              directionX: recorded.right,
-              directionZ: recorded.forward,
-            }
-          : {
-              buttons,
-              weaponSlot: 0,
-              yaw,
-              pitch,
-              directionX: dirX,
-              directionZ: dirZ,
-            },
+        action: chooseAction(
+          recorded,
+          { buttons, weaponSlot: 0, yaw, pitch, directionX: dirX, directionZ: dirZ },
+          header.version >= 3,
+        ),
         events: {
           damageDealt,
           damageTaken,
