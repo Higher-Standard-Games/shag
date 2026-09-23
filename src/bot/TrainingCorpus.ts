@@ -18,6 +18,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { TrainingFrame } from "./BotEpisodeRecorder";
+import type { BotVision } from "./BotVision";
 import { DemoTrainingExtractor, type ExtractOptions } from "./DemoTrainingExtractor";
 
 export interface CorpusMatch {
@@ -47,14 +48,39 @@ export interface Corpus {
   validation: TrainingRun[];
   matches: CorpusMatch[];
   skipped: CorpusSkip[];
+  /**
+   * Maps whose geometry could not be loaded, so their matches were read without
+   * line of sight or item distances. Still consistent with a bot on the same
+   * blind terms, but it is the weaker kind of data and worth knowing about.
+   */
+  blindMaps: string[];
   get totalFrames(): number;
 }
 
-export interface CorpusOptions extends ExtractOptions {
+export interface CorpusOptions extends Omit<ExtractOptions, "vision"> {
   /** Share of frames held out for validation, by match. Default 0.2. */
   validationFraction?: number;
   /** Match ids already trained on, to skip. */
   seen?: ReadonlySet<string>;
+  /**
+   * Where a map's vision comes from. By default the map's BSP is loaded, once per
+   * map, the same way the bot server does it. Tests pass their own, because a
+   * scripted fixture's positions mean nothing inside a real map's walls.
+   */
+  visionFor?: (map: string) => Promise<BotVision | null>;
+}
+
+/** Load each map's vision at most once, and remember a map that would not load. */
+function loadVisionOncePerMap(): (map: string) => Promise<BotVision | null> {
+  const loaded = new Map<string, Promise<BotVision | null>>();
+  return (map) => {
+    let pending = loaded.get(map);
+    if (!pending) {
+      pending = import("./BotVision").then(({ createBotVision }) => createBotVision(map)).catch(() => null);
+      loaded.set(map, pending);
+    }
+    return pending;
+  };
 }
 
 /** Every `.shagdemo` in a directory, or the file itself if given one. */
@@ -79,21 +105,31 @@ export async function buildCorpus(target: string, options: CorpusOptions = {}): 
   const files = listDemoFiles(target);
   const extractor = new DemoTrainingExtractor();
   const seen = new Set(options.seen ?? []);
+  const visionFor = options.visionFor ?? loadVisionOncePerMap();
 
   const matches: CorpusMatch[] = [];
   const skipped: CorpusSkip[] = [];
+  const blindMaps = new Set<string>();
   /** Per match, one run per player. */
   const perMatchRuns: TrainingRun[][] = [];
 
   for (const file of files) {
     try {
-      const dataset = await extractor.extractFromFile(file, { includeBots: options.includeBots });
-      const matchId = dataset.header.matchId;
+      const { header, frames } = DemoTrainingExtractor.decode(new Uint8Array(fs.readFileSync(file)));
+      const matchId = header.matchId;
 
+      // Before extracting, which is the expensive part
       if (matchId && seen.has(matchId)) {
         skipped.push({ file, reason: `already counted (match ${matchId})` });
         continue;
       }
+
+      // The same map a bot on this server would load, so the frames are built
+      // with the line of sight and item distances a bot would have had
+      const vision = await visionFor(header.map);
+      if (!vision) blindMaps.add(header.map);
+
+      const dataset = extractor.extractDecoded(header, frames, { includeBots: options.includeBots, vision });
       if (dataset.totalFrames === 0) {
         skipped.push({ file, reason: "no frames from a verified player" });
         continue;
@@ -120,6 +156,7 @@ export async function buildCorpus(target: string, options: CorpusOptions = {}): 
     validation,
     matches,
     skipped,
+    blindMaps: [...blindMaps],
     get totalFrames() {
       return count(train) + count(validation);
     },

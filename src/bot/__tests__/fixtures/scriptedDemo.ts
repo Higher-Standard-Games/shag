@@ -119,6 +119,13 @@ export async function recordPlainMatch(dir: string, matchId: string, frames: num
   return recorder.stop();
 }
 
+/**
+ * A corpus option that reads every map blind. The fixture's positions were made
+ * up, so tracing them against a real map's walls would test the walls; and a
+ * test that depends on the map files being present passes on one machine only.
+ */
+export const blind = { visionFor: async () => null };
+
 /** A throwaway directory for recordings, and a way to be rid of it. */
 export function demoTempDir(label: string): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), `shag-${label}-`));

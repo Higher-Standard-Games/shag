@@ -27,8 +27,9 @@ import { type DemoFrame, type DemoHeader, DemoReader } from "../shared/demo/Demo
 import { InputButtons } from "./BotConfig";
 import type { TrainingFrame } from "./BotEpisodeRecorder";
 import { BotGameState } from "./BotGameState";
-import { buildCombatInput, buildTacticalInput } from "./BotInputNormalizer";
 import { BotRewardComputer } from "./BotRewardComputer";
+import type { BotVision } from "./BotVision";
+import { buildModelInputs } from "./ModelInputs";
 
 // ── Types ───────────────────────────────────────────────────────────────
 
@@ -72,6 +73,12 @@ export interface ExtractOptions {
    * bot's behaviour is the point rather than the contamination.
    */
   includeBots?: boolean;
+  /**
+   * The demo's map, for line of sight and item distances. Each player gets their
+   * own fork of it, as each bot does. Without one, those features fall back the
+   * same way they do for a bot with no map — consistent, but blind.
+   */
+  vision?: BotVision | null;
 }
 
 /**
@@ -159,13 +166,27 @@ export class DemoTrainingExtractor {
   }
 
   /**
+   * Decode a demo once: its header and every frame. Separate from extraction so
+   * a caller can look at the header — which map, which match — before deciding
+   * what to extract with, without decompressing the file twice.
+   */
+  static decode(demoData: Uint8Array): { header: DemoHeader; frames: DemoFrame[] } {
+    const reader = new DemoReader(demoData);
+    return { header: reader.readHeader(), frames: reader.readAllFrames() };
+  }
+
+  /**
    * Extract training data from raw demo bytes.
    */
   extract(demoData: Uint8Array, options: ExtractOptions = {}): DemoDataset {
-    const reader = new DemoReader(demoData);
-    const header = reader.readHeader();
-    const demoFrames = reader.readAllFrames();
+    const { header, frames } = DemoTrainingExtractor.decode(demoData);
+    return this.extractDecoded(header, frames, options);
+  }
 
+  /**
+   * Extract training data from a demo that is already decoded.
+   */
+  extractDecoded(header: DemoHeader, demoFrames: DemoFrame[], options: ExtractOptions = {}): DemoDataset {
     console.log(`[DemoExtractor] Loaded: ${header.map} (${header.gametype})`);
     console.log(`[DemoExtractor] ${demoFrames.length} frames, ${header.players.length} players`);
 
@@ -185,7 +206,13 @@ export class DemoTrainingExtractor {
     let totalFrames = 0;
 
     for (const playerInfo of selected.kept) {
-      const playerData = this._extractPlayerData(playerInfo.playerId, playerInfo.name, demoFrames, header);
+      const playerData = this._extractPlayerData(
+        playerInfo.playerId,
+        playerInfo.name,
+        demoFrames,
+        header,
+        options.vision?.fork() ?? null,
+      );
 
       if (playerData.frames.length > 0) {
         // Compute delayed rewards
@@ -217,6 +244,7 @@ export class DemoTrainingExtractor {
     name: string,
     demoFrames: DemoFrame[],
     header: DemoHeader,
+    perception: BotVision | null,
   ): PlayerTrainingData {
     // Create a BotGameState that "sees" from this player's perspective
     const gameState = new BotGameState();
@@ -257,16 +285,10 @@ export class DemoTrainingExtractor {
         continue;
       }
 
-      // Build neural network inputs
-      const tacticalArr = buildTacticalInput(gameState, null);
-      const tacticalInput = Array.from(tacticalArr);
-
-      let combatInput: number[] | null = null;
-      const nearestEnemy = gameState.getNearestEnemy();
-      if (nearestEnemy) {
-        const combatArr = buildCombatInput(gameState, nearestEnemy);
-        combatInput = Array.from(combatArr);
-      }
+      // The vectors a bot in this player's place would have been fed: this
+      // player's own perception, looking at this frame, through the same code.
+      const visionResult = perception ? perception.getVisibleState(gameState) : null;
+      const { tactical: tacticalInput, combat: combatInput } = buildModelInputs(gameState, perception, visionResult);
 
       // A version-3 demo records the command the server applied, which is what
       // a person actually did. Prefer it: everything below this is guesswork

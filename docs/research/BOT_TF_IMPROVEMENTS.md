@@ -223,7 +223,8 @@ up.
 | TF-7 | Tests: extractor on a fixture demo, shape contract between normalizer and models, target construction, and a training smoke run | TF-4 | 3 | Sonnet 5 | **done 2026-09-23** |
 | TF-8 | Measure inference: per-decision cost with models loaded, eight bots, native and pure-JS backends | TF-2 | 2 | Haiku 4.5 | **done 2026-09-23** |
 | TF-10 | A dataset layer | TF-1 | 3 | Sonnet 5 | **done 2026-09-23** |
-| TF-11 | Frame stacking: the last N feature vectors concatenated, so the network can see a movement in progress rather than a still | TF-10 | 3 | Opus 5 | todo |
+| TF-11 | Frame stacking: the last N feature vectors concatenated, so the network can see a movement in progress rather than a still | TF-10 | 3 | Opus 5 | **done 2026-09-23** |
+| TF-14 | Record the snapshot rate a corpus was recorded at, and have a bot say so when it plays at a different one — a stack of three frames only spans the same time on both sides at the same rate | TF-11 | 2 | Sonnet 5 | todo |
 | TF-13 | Batch inference across bots: one predict call for the whole fleet instead of one per bot, since the measured cost is the round trip into TF and not the arithmetic | TF-8 | 3 | Sonnet 5 | todo |
 | TF-12 | One trunk, typed heads: independent sigmoids with binary cross-entropy for the buttons, a linear head for aim delta, and sampling with a temperature so two bots in the same spot do not do the same thing | TF-5, TF-11 | 4 | Opus 5 | todo |
 | TF-9 | Document the pipeline in the manual — there is no page for any of this today | TF-1…TF-5 | 2 | Sonnet 5 | **done 2026-09-23** |
@@ -248,6 +249,59 @@ down.
   competent bot instead of a broken one. Keep that.
 
 ## Progress log
+
+### 2026-09-23 — TF-11 done: three frames, built one way
+
+The network now sees the last three frames, oldest first, instead of one. A
+single vector is a still; whether a player is starting a strafe-jump or ending
+one is invisible in it and plain in three.
+
+**Before stacking anything, the vectors had to be built the same way on both
+sides, and they were not.** There were three copies of the input-building code —
+the demo extractor, the self-play episode recorder and `HybridBrain` — and each
+disagreed with the others:
+
+- The extractor had no map, so the distances to the nearest health and armour
+  (features 22–23) were `1`, "far", in every training frame. A bot in a match
+  fed real distances. The network would have been handed values it had never
+  seen, on exactly the features that say where to go next.
+- The extractor aimed the combat vector at the *nearest* enemy; the brain at the
+  first one in *line of sight*. A demo frame is a full server-side snapshot, so
+  the nearest enemy is often someone behind a wall the person never saw — the
+  aim labels described them tracking one player while the inputs described
+  another.
+- The self-play recorder used the map for tactical and the nearest enemy for
+  combat: a third combination, matching neither.
+
+All three now call one function, `buildModelInputs` in `ModelInputs.ts`. The
+extractor loads each demo's map through the same `createBotVision` the bot
+server uses, once per map, and gives every player their own `fork()` of it as
+the server gives every bot — the line-of-sight cache is keyed by the target, so
+a shared one would answer one player's question with another's view. A map that
+will not load is reported and its matches read blind, which is still consistent
+with a blind bot, just weaker.
+
+**The death gap, again, at inference this time.** A bot's `decide()` is never
+called while it is dead, so nothing tells the brain a death happened: the next
+call is the respawn, and a naive history would stack it on top of the last
+frames before dying — the same bug as the training-side gap, on the other side.
+`FeatureHistory` applies the tick-gap rule itself, and training and the brain
+both use it, with the same constant.
+
+**The test this all rests on.** `TrainInferenceParity.test.ts` walks a
+`HybridBrain` through the same recorded match the training pipeline reads,
+snapshot by snapshot, skipping the dead frames as a bot would, and compares the
+stack it would feed each network with the training input for that frame. Eight
+living frames, both heads, identical. Given a history whose gap rule never
+fires, it fails at exactly tick 126 — the respawn.
+
+Old weights are refused: the metadata records the stacked width and the depth,
+and the brain now also checks the width a loaded model actually declares, so
+weights without metadata cannot slip through and then throw on every decision.
+
+**Cost, as TF-8 predicted.** Tripling the input width changed nothing measurable
+— 0.47 ms a decision against 0.52 ms before — because the cost is the call, not
+the arithmetic. Weights went from 4 to 9 KiB a bot.
 
 ### 2026-09-23 — TF-8 done: 0.52 ms a decision, and the reason is not the maths
 

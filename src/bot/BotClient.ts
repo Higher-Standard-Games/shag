@@ -439,7 +439,7 @@ export class BotClient extends EventEmitter {
             pitch: 0,
             weaponSlot: 0,
           };
-          this._recorder.recordTick(this._gameState, deathInput, this._vision);
+          this._recorder.recordTick(this._gameState, deathInput, this._vision, this._lastVisionResult);
         }
       }
 
@@ -485,7 +485,7 @@ export class BotClient extends EventEmitter {
 
       // Record training frame (if recorder is attached)
       if (this._recorder) {
-        this._recorder.recordTick(this._gameState, input, this._vision);
+        this._recorder.recordTick(this._gameState, input, this._vision, this._lastVisionResult);
       }
 
       // Periodic logging

@@ -238,6 +238,11 @@ async function trainFromDemo(
   for (const skip of corpus.skipped) {
     console.log(`[Trainer]   skipped ${path.basename(skip.file)} — ${skip.reason}`);
   }
+  for (const map of corpus.blindMaps) {
+    console.warn(
+      `[Trainer]   ${map}: map would not load, so its matches were read without line of sight or item distances`,
+    );
+  }
 
   if (corpus.totalFrames === 0) {
     console.error("[Trainer] No training frames. A demo trains nothing unless it holds a verified player;");
@@ -299,6 +304,9 @@ async function trainFromDemo(
       console.log(
         `[Trainer] ${label}: ${train.dropped} frame(s) dropped — wrong feature width, or a value that is not a number`,
       );
+    }
+    if (train.absent > 0) {
+      console.log(`[Trainer] ${label}: ${train.absent} frame(s) had nothing for this head (no enemy to be about)`);
     }
     if (train.pairs.length === 0 || !model) {
       console.warn(`[Trainer] ${label}: nothing to train on.`);
@@ -362,6 +370,7 @@ async function trainFromDemo(
     trainFrames,
     validationFrames,
     includedBots: includeBots,
+    blindMaps: corpus.blindMaps,
     matchIds: corpus.matches.map((match) => match.matchId).filter((id): id is string => Boolean(id)),
   });
   brain.dispose();

@@ -21,12 +21,12 @@ import type { BotInput } from "./BotBrain";
 import { BotBrain, BotState } from "./BotBrain";
 import type { BotDifficulty } from "./BotConfig";
 import { InputButtons } from "./BotConfig";
-import type { BotGameState, VisiblePlayer } from "./BotGameState";
-import { buildCombatInput, buildTacticalInput, COMBAT_INPUT_SIZE, TACTICAL_INPUT_SIZE } from "./BotInputNormalizer";
+import type { BotGameState } from "./BotGameState";
 import { canInitiateSlide } from "./BotMovementProfile";
 import type { BotVision, VisionResult } from "./BotVision";
 import { getWeaponProfile } from "./BotWeaponProfile";
 import { decodeWeaponSlot } from "./CloningTargets";
+import { buildModelInputs, COMBAT_MODEL_INPUT, FeatureHistory, TACTICAL_MODEL_INPUT } from "./ModelInputs";
 import { checkCompatibility, readMetadata } from "./ModelMetadata";
 import { StateMachineBrain } from "./StateMachineBrain";
 import { getTF, initTF } from "./TFBackend";
@@ -92,6 +92,9 @@ export class HybridBrain extends BotBrain {
   private _stateMachine: StateMachineBrain;
   private _tacticalModel: TFModel | null = null;
   private _combatModel: TFModel | null = null;
+  /** The last few frames each head has seen, stacked the way training stacks them. */
+  private readonly _tacticalHistory = new FeatureHistory();
+  private readonly _combatHistory = new FeatureHistory();
   private _warmedUp: boolean = false;
 
   constructor(difficulty: BotDifficulty) {
@@ -121,15 +124,17 @@ export class HybridBrain extends BotBrain {
     }
 
     try {
-      this._tacticalModel = await tf.loadLayersModel(`file://${modelDir}/tactical/model.json`);
-      console.log(`[HybridBrain] Loaded tactical model from ${modelDir}/tactical/`);
+      const model = await tf.loadLayersModel(`file://${modelDir}/tactical/model.json`);
+      this._tacticalModel = this._acceptModel(model, TACTICAL_MODEL_INPUT, "tactical", modelDir);
+      if (this._tacticalModel) console.log(`[HybridBrain] Loaded tactical model from ${modelDir}/tactical/`);
     } catch {
       console.warn(`[HybridBrain] No tactical model found at ${modelDir}/tactical/ — using state machine`);
     }
 
     try {
-      this._combatModel = await tf.loadLayersModel(`file://${modelDir}/combat/model.json`);
-      console.log(`[HybridBrain] Loaded combat model from ${modelDir}/combat/`);
+      const model = await tf.loadLayersModel(`file://${modelDir}/combat/model.json`);
+      this._combatModel = this._acceptModel(model, COMBAT_MODEL_INPUT, "combat", modelDir);
+      if (this._combatModel) console.log(`[HybridBrain] Loaded combat model from ${modelDir}/combat/`);
     } catch {
       console.warn(`[HybridBrain] No combat model found at ${modelDir}/combat/ — using state machine`);
     }
@@ -151,7 +156,7 @@ export class HybridBrain extends BotBrain {
 
     this._tacticalModel = tf.sequential({
       layers: [
-        tf.layers.dense({ inputShape: [TACTICAL_INPUT_SIZE], units: 16, activation: "relu" }),
+        tf.layers.dense({ inputShape: [TACTICAL_MODEL_INPUT], units: 16, activation: "relu" }),
         tf.layers.dense({ units: 12, activation: "relu" }),
         tf.layers.dense({ units: TACTICAL_OUTPUT_SIZE, activation: "sigmoid" }),
       ],
@@ -163,7 +168,7 @@ export class HybridBrain extends BotBrain {
 
     this._combatModel = tf.sequential({
       layers: [
-        tf.layers.dense({ inputShape: [COMBAT_INPUT_SIZE], units: 12, activation: "relu" }),
+        tf.layers.dense({ inputShape: [COMBAT_MODEL_INPUT], units: 12, activation: "relu" }),
         tf.layers.dense({ units: 8, activation: "relu" }),
         tf.layers.dense({ units: COMBAT_OUTPUT_SIZE, activation: "sigmoid" }),
       ],
@@ -202,6 +207,15 @@ export class HybridBrain extends BotBrain {
   }
 
   /** Whether any neural models are loaded */
+  /**
+   * The stacked vectors the networks would be fed at the last decision, or
+   * empty before any. The one promise this whole system rests on is that these
+   * are built exactly as training builds them; this is how that gets checked.
+   */
+  get lastInputs(): { tactical: number[]; combat: number[] } {
+    return { tactical: this._tacticalHistory.stacked(), combat: this._combatHistory.stacked() };
+  }
+
   get hasModels(): boolean {
     return this._tacticalModel !== null || this._combatModel !== null;
   }
@@ -224,40 +238,49 @@ export class HybridBrain extends BotBrain {
     // Sync our state for external queries
     this.currentState = currentState;
 
+    // 2. No models loaded → pure state machine (perfectly functional!)
+    if (!this._tacticalModel && !this._combatModel) {
+      return baseInput;
+    }
+
+    // A dead frame never enters a stack. A bot is not normally asked to decide
+    // while dead, and the stacks' own gap rule is what notices the respawn.
+    if (state.self.isDead) {
+      return baseInput;
+    }
+
+    // 3. Keep the stacks current on every decision, whether or not the network
+    // is consulted this time, because a demo's stacks are built from every frame
+    // a person played — including the ones spent mid-manoeuvre.
+    const inputs = buildModelInputs(state, vision ?? null, visionResult ?? null);
+    this._tacticalHistory.push(inputs.tactical, state.tick);
+    if (inputs.combat) {
+      this._combatHistory.push(inputs.combat, state.tick);
+    } else {
+      this._combatHistory.clear();
+    }
+
     // Authored sequences own their complete input while active. Neural layers
     // may score future candidates but cannot mutate an in-flight sequence.
     if (this._stateMachine.isSequenceActive()) {
       return baseInput;
     }
 
-    // 2. No models loaded → pure state machine (perfectly functional!)
-    if (!this._tacticalModel && !this._combatModel) {
-      return baseInput;
-    }
-
-    // Don't run inference while dead
-    if (state.self.isDead) {
-      return baseInput;
-    }
-
-    // 3. Tactical model: strategic decision enhancement
+    // 4. Tactical model: strategic decision enhancement
     if (this._tacticalModel) {
-      const tactOutput = this._runTactical(state, vision);
+      const tactOutput = this._runTactical(this._tacticalHistory.stacked());
       if (tactOutput) {
         this._applyTactical(tactOutput, baseInput, state, currentState);
       }
     }
 
-    // 4. Combat model: aim/fire refinement (only during FIGHT)
-    if (this._combatModel && currentState === BotState.FIGHT) {
-      // Use vision's LOS-confirmed enemies, not raw player list
-      // (state.players includes enemies behind walls)
-      const visibleEnemy = visionResult?.visibleEnemies?.[0]?.player ?? state.getNearestEnemy();
-      if (visibleEnemy) {
-        const combatOutput = this._runCombat(state, visibleEnemy);
-        if (combatOutput) {
-          this._applyCombat(combatOutput, baseInput, state);
-        }
+    // 5. Combat model: aim/fire refinement (only during FIGHT), about the same
+    // enemy the stack was built about — the first in line of sight, else the
+    // nearest, exactly as in training
+    if (this._combatModel && currentState === BotState.FIGHT && inputs.combat) {
+      const combatOutput = this._runCombat(this._combatHistory.stacked());
+      if (combatOutput) {
+        this._applyCombat(combatOutput, baseInput, state);
       }
     }
 
@@ -267,14 +290,13 @@ export class HybridBrain extends BotBrain {
   // ── Neural Inference ────────────────────────────────────────────
 
   /**
-   * Run tactical model inference. Returns Float32Array of outputs or null.
+   * Run tactical model inference on a stacked input. Returns the outputs or null.
    */
-  private _runTactical(state: BotGameState, vision: BotVision | null | undefined): Float32Array | null {
+  private _runTactical(stacked: number[]): Float32Array | null {
     try {
       const tf = getTF();
       return tf.tidy(() => {
-        const input = buildTacticalInput(state, vision ?? null);
-        const tensor = tf.tensor2d([Array.from(input)]);
+        const tensor = tf.tensor2d([stacked]);
         const prediction = this._tacticalModel!.predict(tensor);
         return prediction.dataSync() as Float32Array;
       });
@@ -285,14 +307,13 @@ export class HybridBrain extends BotBrain {
   }
 
   /**
-   * Run combat model inference. Returns Float32Array of outputs or null.
+   * Run combat model inference on a stacked input. Returns the outputs or null.
    */
-  private _runCombat(state: BotGameState, enemy: VisiblePlayer): Float32Array | null {
+  private _runCombat(stacked: number[]): Float32Array | null {
     try {
       const tf = getTF();
       return tf.tidy(() => {
-        const input = buildCombatInput(state, enemy);
-        const tensor = tf.tensor2d([Array.from(input)]);
+        const tensor = tf.tensor2d([stacked]);
         const prediction = this._combatModel!.predict(tensor);
         return prediction.dataSync() as Float32Array;
       });
@@ -400,6 +421,25 @@ export class HybridBrain extends BotBrain {
   /**
    * Run dummy predictions to warm up TF.js (first call is ~50-100ms).
    */
+  /**
+   * Keep a loaded model only if it takes the vector this build feeds it.
+   *
+   * Metadata catches most mismatches, but weights with none beside them still
+   * load — and a model of the wrong width does not fail once, it throws on every
+   * decision for the rest of the match. Checking the shape the weights declare
+   * turns that into one refusal at load.
+   */
+  // biome-ignore lint/suspicious/noExplicitAny: tf.LayersModel, kept out of this module's field types
+  private _acceptModel(model: any, expected: number, label: string, modelDir: string): any {
+    const width = model?.inputs?.[0]?.shape?.[1];
+    if (width === expected) return model;
+    console.error(
+      `[HybridBrain] Refusing the ${label} model in ${modelDir}: it takes ${width} inputs, this build feeds ${expected}`,
+    );
+    model?.dispose?.();
+    return null;
+  }
+
   private _warmup(): void {
     if (this._warmedUp) return;
 
@@ -407,11 +447,11 @@ export class HybridBrain extends BotBrain {
       const tf = getTF();
       tf.tidy(() => {
         if (this._tacticalModel) {
-          const dummyTact = tf.zeros([1, TACTICAL_INPUT_SIZE]);
+          const dummyTact = tf.zeros([1, TACTICAL_MODEL_INPUT]);
           this._tacticalModel.predict(dummyTact);
         }
         if (this._combatModel) {
-          const dummyCombat = tf.zeros([1, COMBAT_INPUT_SIZE]);
+          const dummyCombat = tf.zeros([1, COMBAT_MODEL_INPUT]);
           this._combatModel.predict(dummyCombat);
         }
       });

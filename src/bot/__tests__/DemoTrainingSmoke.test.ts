@@ -22,7 +22,7 @@ import { HybridBrain } from "../HybridBrain";
 import { getTF, initTF, isTFAvailable } from "../TFBackend";
 import { buildCorpus } from "../TrainingCorpus";
 import { scoreOutputs } from "../TrainingReport";
-import { demoTempDir, recordPlainMatch } from "./fixtures/scriptedDemo";
+import { blind, demoTempDir, recordPlainMatch } from "./fixtures/scriptedDemo";
 
 let demoDir: string;
 
@@ -40,7 +40,7 @@ afterAll(() => {
 
 describe("training on a recorded corpus", () => {
   it("holds one match back rather than splitting frames", async () => {
-    const corpus = await buildCorpus(demoDir);
+    const corpus = await buildCorpus(demoDir, blind);
     expect(corpus.matches).toHaveLength(2);
 
     const trainFrames = corpus.train.flat();
@@ -58,7 +58,7 @@ describe("training on a recorded corpus", () => {
   it("fits a head on the corpus and scores it on the match it never saw", async () => {
     if (!isTFAvailable()) return; // No TF here — the CLI reports the same
 
-    const corpus = await buildCorpus(demoDir);
+    const corpus = await buildCorpus(demoDir, blind);
     const train = buildCorpusPairs(corpus.train, "tactical", TACTICAL_INPUT_SIZE);
     const held = buildCorpusPairs(corpus.validation, "tactical", TACTICAL_INPUT_SIZE);
     expect(train.pairs.length).toBeGreaterThan(0);

@@ -13,18 +13,23 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { COMBAT_INPUT_SIZE, TACTICAL_INPUT_SIZE } from "./BotInputNormalizer";
 import {
   COMBAT_TARGET_SIZE as COMBAT_OUTPUT_SIZE,
   TACTICAL_TARGET_SIZE as TACTICAL_OUTPUT_SIZE,
 } from "./CloningTargets";
+import { COMBAT_MODEL_INPUT, FRAME_STACK, TACTICAL_MODEL_INPUT } from "./ModelInputs";
 
 export const METADATA_FILE = "metadata.json";
 
 export interface ModelMetadata {
-  /** Feature vector sizes the weights were trained against. */
+  /**
+   * Input widths the weights were trained against — the whole stacked vector,
+   * frames times features, since that is what the first layer was built for.
+   */
   tacticalInputSize: number;
   combatInputSize: number;
+  /** Frames per stacked input. Absent in metadata written before inputs were stacked. */
+  frameStack?: number;
   /**
    * Output widths, which fix what each index means. Absent in metadata written
    * before the heads were reshaped.
@@ -40,17 +45,23 @@ export interface ModelMetadata {
   validationFrames: number;
   /** Whether bot players were included rather than people only. */
   includedBots: boolean;
+  /**
+   * Maps trained on without their geometry, so without line of sight or item
+   * distances. Absent or empty when every map loaded.
+   */
+  blindMaps?: string[];
   /** Match ids, so a later run can skip what it already counted. */
   matchIds: string[];
 }
 
 export function describeCurrentFeatures(): Pick<
   ModelMetadata,
-  "tacticalInputSize" | "combatInputSize" | "tacticalOutputSize" | "combatOutputSize"
+  "tacticalInputSize" | "combatInputSize" | "frameStack" | "tacticalOutputSize" | "combatOutputSize"
 > {
   return {
-    tacticalInputSize: TACTICAL_INPUT_SIZE,
-    combatInputSize: COMBAT_INPUT_SIZE,
+    tacticalInputSize: TACTICAL_MODEL_INPUT,
+    combatInputSize: COMBAT_MODEL_INPUT,
+    frameStack: FRAME_STACK,
     tacticalOutputSize: TACTICAL_OUTPUT_SIZE,
     combatOutputSize: COMBAT_OUTPUT_SIZE,
   };
@@ -85,13 +96,22 @@ export function checkCompatibility(metadata: ModelMetadata | null): { ok: boolea
   if (metadata.tacticalInputSize !== current.tacticalInputSize) {
     return {
       ok: false,
-      reason: `trained on ${metadata.tacticalInputSize} tactical features, this build produces ${current.tacticalInputSize}`,
+      reason: `trained on ${metadata.tacticalInputSize} tactical inputs, this build feeds ${current.tacticalInputSize}`,
     };
   }
   if (metadata.combatInputSize !== current.combatInputSize) {
     return {
       ok: false,
-      reason: `trained on ${metadata.combatInputSize} combat features, this build produces ${current.combatInputSize}`,
+      reason: `trained on ${metadata.combatInputSize} combat inputs, this build feeds ${current.combatInputSize}`,
+    };
+  }
+  // The same width can come from a different split between frames and features;
+  // the depth says which, and a model read with the wrong one sees time smeared
+  // across features that were never next to each other.
+  if (typeof metadata.frameStack === "number" && metadata.frameStack !== current.frameStack) {
+    return {
+      ok: false,
+      reason: `trained on stacks of ${metadata.frameStack} frames, this build stacks ${current.frameStack}`,
     };
   }
   // An output width is what fixes the meaning of each index. Weights that

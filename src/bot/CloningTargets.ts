@@ -15,6 +15,7 @@
 
 import { InputButtons } from "./BotConfig";
 import type { TrainingFrame } from "./BotEpisodeRecorder";
+import { FeatureHistory, FRAME_STACK, MAX_FRAME_GAP_TICKS } from "./ModelInputs";
 
 /** Tactical head, 5 outputs. Index order matches HybridBrain's TACT map. */
 export const TACTICAL_TARGET_SIZE = 5;
@@ -60,20 +61,6 @@ export function decodeWeaponSlot(value: number): number {
   const slot = Math.round(Math.max(0, Math.min(1, value)) * MAX_WEAPON_SLOT);
   return slot;
 }
-
-/**
- * How far apart two frames may be and still be treated as consecutive.
- *
- * A run has holes in it: the extractor skips every frame where the player is
- * dead or not in the roster, so the array jumps from the moment of death to the
- * moment of respawn — hundreds of ticks. Measuring a turn across that gap
- * invents a flick made while the player was staring at a respawn screen.
- *
- * Twelve ticks is roomy for real adjacency (a 125 Hz simulation at 60 Hz
- * snapshots is about two, at 20 Hz about six) and far below any death gap,
- * which a respawn delay alone puts past a hundred.
- */
-export const MAX_LABEL_GAP_TICKS = 12;
 
 const held = (buttons: number, bit: number): number => ((buttons & bit) !== 0 ? 1 : 0);
 
@@ -190,32 +177,44 @@ export function rewardToWeight(reward: number): number {
 /**
  * Build training pairs for one run — one player, one match, in order.
  *
- * Runs matter because the aim labels are *differences*. Concatenate two
- * players and the frame before the seam belongs to someone else, so the
- * network is taught a turn nobody made and a weapon switch nobody performed.
- * The previous frame is taken before filtering on input width, so a frame
- * dropped for the wrong feature size does not silently make its neighbour's
- * delta span a gap.
+ * Runs matter because the aim labels are *differences* and the inputs are
+ * *stacks*. Concatenate two players and the frame before the seam belongs to
+ * someone else, so the network is taught a turn nobody made, and shown a
+ * movement that started as one player and finished as another.
+ *
+ * `frameWidth` is the width of one frame's vector; the input each pair carries
+ * is `depth` of them end to end, built by the same `FeatureHistory` a bot uses in
+ * a match. A frame whose vector is missing, the wrong width or not all numbers
+ * is dropped and breaks the stack — whatever comes after it did not follow on
+ * from what came before, as far as the network could ever tell.
  */
 export function buildRunPairs(
   run: readonly TrainingFrame[],
   head: "tactical" | "combat",
-  expectedInputSize: number,
+  frameWidth: number,
+  depth: number = FRAME_STACK,
 ): TrainingPair[] {
   const pairs: TrainingPair[] = [];
+  const history = new FeatureHistory(depth);
   for (let index = 0; index < run.length; index++) {
     const frame = run[index];
     const previous = index > 0 ? adjacentOrNothing(run[index - 1], frame) : undefined;
-    const input = head === "tactical" ? frame.tacticalInput : frame.combatInput;
-    if (!input || input.length !== expectedInputSize) continue;
-    const target = head === "tactical" ? buildTacticalTarget(frame, previous) : buildCombatTarget(frame, previous);
+    const vector = head === "tactical" ? frame.tacticalInput : frame.combatInput;
 
     // One non-finite number turns the loss to NaN and takes the weights with
     // it, silently and irreversibly. A corrupt frame is not worth a training
-    // run, so it is dropped here rather than discovered afterwards.
-    if (!allFinite(input) || !allFinite(target)) continue;
+    // run, so it is dropped here rather than discovered afterwards — and kept
+    // out of the stack, where it would poison the frames after it too.
+    if (!vector || vector.length !== frameWidth || !allFinite(vector)) {
+      history.clear();
+      continue;
+    }
+    history.push(vector, frame.tick);
 
-    pairs.push({ input, target, reward: frame.reward });
+    const target = head === "tactical" ? buildTacticalTarget(frame, previous) : buildCombatTarget(frame, previous);
+    if (!allFinite(target)) continue;
+
+    pairs.push({ input: history.stacked(), target, reward: frame.reward });
   }
   return pairs;
 }
@@ -228,28 +227,41 @@ function allFinite(values: readonly number[]): boolean {
 /**
  * The previous frame, but only if it really is the previous frame.
  *
- * Array adjacency is not time adjacency: see MAX_LABEL_GAP_TICKS.
+ * Array adjacency is not time adjacency: see MAX_FRAME_GAP_TICKS.
  */
 export function adjacentOrNothing(
   previous: TrainingFrame,
   frame: TrainingFrame,
-  maxGap = MAX_LABEL_GAP_TICKS,
+  maxGap = MAX_FRAME_GAP_TICKS,
 ): TrainingFrame | undefined {
   const gap = frame.tick - previous.tick;
   return gap > 0 && gap <= maxGap ? previous : undefined;
 }
 
 /**
- * Build pairs across many runs, each kept separate, and say how many frames
- * were dropped on the way — a silent drop is how a training set quietly
- * becomes a tenth of what the operator believes it is.
+ * Build pairs across many runs, each kept separate, and account for every frame
+ * that did not become one.
+ *
+ * `absent` frames had nothing for this head — for the combat head, no enemy to
+ * be about — which is the ordinary state of most of a match, not a fault.
+ * `dropped` frames had a vector that could not be used: the wrong width, or a
+ * value that is not a number. A silent drop is how a training set quietly
+ * becomes a tenth of what the operator believes it is, so both are counted.
  */
 export function buildCorpusPairs(
   runs: readonly (readonly TrainingFrame[])[],
   head: "tactical" | "combat",
-  expectedInputSize: number,
-): { pairs: TrainingPair[]; dropped: number } {
-  const pairs = runs.flatMap((run) => buildRunPairs(run, head, expectedInputSize));
-  const total = runs.reduce((sum, run) => sum + run.length, 0);
-  return { pairs, dropped: total - pairs.length };
+  frameWidth: number,
+  depth: number = FRAME_STACK,
+): { pairs: TrainingPair[]; dropped: number; absent: number } {
+  const pairs = runs.flatMap((run) => buildRunPairs(run, head, frameWidth, depth));
+  let total = 0;
+  let absent = 0;
+  for (const run of runs) {
+    for (const frame of run) {
+      total++;
+      if ((head === "tactical" ? frame.tacticalInput : frame.combatInput) == null) absent++;
+    }
+  }
+  return { pairs, dropped: total - absent - pairs.length, absent };
 }

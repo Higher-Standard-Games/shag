@@ -29,8 +29,9 @@ import {
 } from "../CloningTargets";
 import { DemoTrainingExtractor } from "../DemoTrainingExtractor";
 import { COMBAT_OUTPUT_SIZE, TACTICAL_OUTPUT_SIZE } from "../HybridBrain";
+import { FRAME_STACK, TACTICAL_MODEL_INPUT } from "../ModelInputs";
 import { buildCorpus } from "../TrainingCorpus";
-import { BOT, demoTempDir, HUMAN, human, scriptedRecorder, snapshot } from "./fixtures/scriptedDemo";
+import { BOT, blind, demoTempDir, HUMAN, human, scriptedRecorder, snapshot } from "./fixtures/scriptedDemo";
 
 /** Ticks the script writes a snapshot at, and which of them survive. */
 const ALIVE = [6, 12, 18, 24];
@@ -139,7 +140,7 @@ describe("a recorded match, all the way to training labels", () => {
   });
 
   it("builds every label the network is trained on from that one match", async () => {
-    const corpus = await buildCorpus(demoDir);
+    const corpus = await buildCorpus(demoDir, blind);
     expect(corpus.matches).toHaveLength(1);
     expect(corpus.matches[0].matchId).toBe("scripted-match");
     // One match cannot be split without emptying the training set
@@ -175,8 +176,38 @@ describe("a recorded match, all the way to training labels", () => {
     expect(at(tactical.pairs, RESPAWNED).target[4]).toBeCloseTo(7 / 9, 5);
   });
 
+  it("stacks frames that follow on, and never across the death", async () => {
+    const corpus = await buildCorpus(demoDir, blind);
+    const run: TrainingFrame[] = corpus.train[0];
+    const { pairs } = buildCorpusPairs(corpus.train, "tactical", TACTICAL_INPUT_SIZE);
+    const width = TACTICAL_INPUT_SIZE;
+    const slice = (input: number[], slot: number): number[] => input.slice(slot * width, (slot + 1) * width);
+    const at = (tick: number): number => KEPT.indexOf(tick);
+
+    // The newest frame is always last, and it is this frame
+    for (let index = 0; index < pairs.length; index++) {
+      expect(slice(pairs[index].input, FRAME_STACK - 1)).toEqual(run[index].tacticalInput);
+    }
+
+    // The first frame of the run has nothing before it: it stands in for itself
+    const first = pairs[at(6)].input;
+    for (let slot = 0; slot < FRAME_STACK; slot++) expect(slice(first, slot)).toEqual(run[at(6)].tacticalInput);
+
+    // Mid-run, the stack is the frames that led here, oldest first
+    const mid = pairs[at(18)].input;
+    expect(slice(mid, 0)).toEqual(run[at(6)].tacticalInput);
+    expect(slice(mid, 1)).toEqual(run[at(12)].tacticalInput);
+
+    // After respawning, nothing from before the death is in view — the stack
+    // starts again from the respawn, as a bot's does
+    const respawn = pairs[at(RESPAWNED)].input;
+    for (let slot = 0; slot < FRAME_STACK; slot++) {
+      expect(slice(respawn, slot)).toEqual(run[at(RESPAWNED)].tacticalInput);
+    }
+  });
+
   it("produces vectors the models can actually accept", async () => {
-    const corpus = await buildCorpus(demoDir);
+    const corpus = await buildCorpus(demoDir, blind);
     const run: TrainingFrame[] = corpus.train[0];
     expect(run[0].tacticalInput).toHaveLength(TACTICAL_INPUT_SIZE);
     expect(run[0].combatInput).toHaveLength(COMBAT_INPUT_SIZE);
@@ -188,7 +219,7 @@ describe("a recorded match, all the way to training labels", () => {
 
     const tactical = buildCorpusPairs(corpus.train, "tactical", TACTICAL_INPUT_SIZE);
     for (const pair of tactical.pairs) {
-      expect(pair.input).toHaveLength(TACTICAL_INPUT_SIZE);
+      expect(pair.input).toHaveLength(TACTICAL_MODEL_INPUT);
       expect(pair.target).toHaveLength(TACTICAL_TARGET_SIZE);
       for (const value of [...pair.input, ...pair.target]) {
         expect(Number.isFinite(value)).toBe(true);

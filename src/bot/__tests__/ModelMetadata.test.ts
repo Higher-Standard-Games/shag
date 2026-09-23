@@ -5,8 +5,8 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { COMBAT_INPUT_SIZE, TACTICAL_INPUT_SIZE } from "../BotInputNormalizer";
 import { TACTICAL_TARGET_SIZE } from "../CloningTargets";
+import { COMBAT_MODEL_INPUT, FRAME_STACK, TACTICAL_MODEL_INPUT } from "../ModelInputs";
 import { checkCompatibility, describeCurrentFeatures, type ModelMetadata } from "../ModelMetadata";
 
 const metadata = (over: Partial<ModelMetadata> = {}): ModelMetadata => ({
@@ -26,13 +26,13 @@ describe("checkCompatibility", () => {
   });
 
   it("refuses weights whose tactical vector is a different size", () => {
-    const result = checkCompatibility(metadata({ tacticalInputSize: TACTICAL_INPUT_SIZE + 3 }));
+    const result = checkCompatibility(metadata({ tacticalInputSize: TACTICAL_MODEL_INPUT + 3 }));
     expect(result.ok).toBe(false);
-    expect(result.reason).toContain(`${TACTICAL_INPUT_SIZE}`);
+    expect(result.reason).toContain(`${TACTICAL_MODEL_INPUT}`);
   });
 
   it("refuses weights whose combat vector is a different size", () => {
-    const result = checkCompatibility(metadata({ combatInputSize: COMBAT_INPUT_SIZE - 1 }));
+    const result = checkCompatibility(metadata({ combatInputSize: COMBAT_MODEL_INPUT - 1 }));
     expect(result.ok).toBe(false);
   });
 
@@ -50,6 +50,18 @@ describe("checkCompatibility", () => {
     delete older.tacticalOutputSize;
     delete older.combatOutputSize;
     expect(checkCompatibility(older)).toEqual({ ok: true });
+  });
+
+  it("refuses weights trained before inputs were stacked", () => {
+    // One frame's worth of features: exactly what every model had before
+    const result = checkCompatibility(metadata({ tacticalInputSize: TACTICAL_MODEL_INPUT / FRAME_STACK }));
+    expect(result.ok).toBe(false);
+  });
+
+  it("refuses the same width split into a different number of frames", () => {
+    const result = checkCompatibility(metadata({ frameStack: FRAME_STACK + 1 }));
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("frames");
   });
 
   it("allows weights with no metadata, but says the shape is unknown", () => {
