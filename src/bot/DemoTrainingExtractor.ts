@@ -212,6 +212,11 @@ export class DemoTrainingExtractor {
         combatInput = Array.from(combatArr);
       }
 
+      // A version-3 demo records the command the server applied, which is what
+      // a person actually did. Prefer it: everything below this is guesswork
+      // kept only so older recordings still yield something.
+      const recorded = demoFrame.inputs.find((entry) => entry.playerId === playerId);
+
       // Extract player actions from entity state
       // Note: demos store state, not inputs. We infer actions from state changes.
       const entity = state.entities.get(entityId);
@@ -307,14 +312,23 @@ export class DemoTrainingExtractor {
         tick: demoFrame.tick,
         tacticalInput,
         combatInput,
-        action: {
-          buttons,
-          weaponSlot: 0,
-          yaw,
-          pitch,
-          directionX: dirX,
-          directionZ: dirZ,
-        },
+        action: recorded
+          ? {
+              buttons: recorded.buttons,
+              weaponSlot: recorded.weaponSlot,
+              yaw: recorded.yaw,
+              pitch: recorded.pitch,
+              directionX: recorded.right,
+              directionZ: recorded.forward,
+            }
+          : {
+              buttons,
+              weaponSlot: 0,
+              yaw,
+              pitch,
+              directionX: dirX,
+              directionZ: dirZ,
+            },
         events: {
           damageDealt,
           damageTaken,

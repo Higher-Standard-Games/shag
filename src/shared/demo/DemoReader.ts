@@ -11,6 +11,7 @@
 
 import { BinaryProtocol } from "../net/BinaryProtocol";
 import type { GameState } from "../net/GameState";
+import { decodeInputs, type RecordedInput } from "./DemoInputs";
 
 // zlib is Node-only. Lazy-loaded to avoid crashes when this module is
 // imported in a browser context (future demo viewer will use DecompressionStream).
@@ -56,6 +57,12 @@ export interface DemoFrame {
   tick: number;
   /** Decoded GameState */
   state: GameState;
+  /**
+   * Commands the server applied over the interval this frame covers, from
+   * format version 3. Empty for older demos, which recorded state only —
+   * meaning what a player pressed has to be guessed from motion.
+   */
+  inputs: RecordedInput[];
 }
 
 export interface DemoIndex {
@@ -119,7 +126,7 @@ export class DemoReader {
     // Version
     const version = view.getUint8(offset);
     offset += 1;
-    if (version !== 1 && version !== 2) {
+    if (version !== 1 && version !== 2 && version !== 3) {
       throw new Error(`Unsupported demo version: ${version}`);
     }
 
@@ -306,11 +313,27 @@ export class DemoReader {
 
     // Extract frame data
     const frameData = this._data.slice(offset, offset + frameLen);
+    offset += frameLen;
+
+    // Version 3 appends the commands applied over this frame's interval
+    let inputs: RecordedInput[] = [];
+    const version = this._header?.version ?? this.readHeader().version;
+    if (version >= 3 && offset + 4 <= this._data.byteLength) {
+      const inputLen = view.getUint32(offset, true);
+      offset += 4;
+      if (inputLen > 0 && offset + inputLen <= this._data.byteLength) {
+        try {
+          inputs = decodeInputs(this._data.slice(offset, offset + inputLen));
+        } catch (err) {
+          console.warn(`[DemoReader] Failed to decode inputs at tick ${tick}:`, err);
+        }
+      }
+    }
 
     // Decode using BinaryProtocol (no baseline = full decode)
     try {
       const state = BinaryProtocol.decodeSnapshot(frameData);
-      return { tick, state };
+      return { tick, state, inputs };
     } catch (err) {
       console.warn(`[DemoReader] Failed to decode frame at tick ${tick}:`, err);
       return null;

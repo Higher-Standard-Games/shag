@@ -214,7 +214,7 @@ up.
 
 | WO | What | Depends on | Diff | Model | Status |
 | --- | --- | --- | --- | --- | --- |
-| TF-1 | Record inputs in demos: a v3 frame carrying the applied command per player per tick — buttons, view angles, weapon slot. The server already has them. Old demos are disposable, so v3 may break v2 rather than carry both | — | 3 | Opus 5 | todo |
+| TF-1 | Record inputs in demos | — | 3 | Opus 5 | **done 2026-09-23** |
 | TF-2 | Close the model path | — | 2 | Sonnet 5 | **done 2026-09-23** |
 | TF-3 | Keep humans, drop bots | — | 2 | Sonnet 5 | **done 2026-09-23** |
 | TF-4 | Rebuild the labels as behaviour cloning: targets are what the human did, not the reward. Aim deltas included | TF-1, TF-3 | 4 | Opus 5 | todo |
@@ -247,6 +247,33 @@ down.
   competent bot instead of a broken one. Keep that.
 
 ## Progress log
+
+### 2026-09-23 — TF-1 done: demos record what a person did
+
+Format version 3. Each frame now carries, after its snapshot, the commands the
+server applied over the interval that frame covers: buttons, view angles, wish
+direction and weapon slot, per player.
+
+**Where it is taken.** `GameServer.handleInput` hands the recorder the
+*sanitised* command at the moment it is accepted into the input queue — the
+same value the simulation is about to apply, after anti-warp and clamping. Not
+what the client claimed; what the server did.
+
+**How several commands become one frame.** Commands arrive at tick rate and
+frames are written at snapshot rate, so `aggregateCommand` folds them: buttons
+are OR-ed, so a jump pressed between two snapshots survives; the analogue
+fields keep the value they ended on; and the record says how many commands it
+covers.
+
+**What reads it.** `DemoReader` exposes `frame.inputs`, empty for older
+recordings. `DemoTrainingExtractor` prefers a recorded command when the frame
+has one and falls back to the old inference when it does not, so a version-2
+demo still yields something while a version-3 demo yields the truth.
+
+The shared encoding lives in `src/shared/demo/DemoInputs.ts` so the writer and
+the reader cannot drift apart, and is round-tripped end to end in the
+recorder's own test — record two commands, flush a frame, read the file back,
+and check the fold.
 
 ### 2026-09-23 — TF-2 and TF-3 done
 
