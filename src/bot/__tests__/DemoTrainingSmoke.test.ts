@@ -17,10 +17,11 @@ import * as fs from "node:fs";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { resolveDifficulty } from "../BotConfig";
 import { TACTICAL_INPUT_SIZE } from "../BotInputNormalizer";
-import { buildCorpusPairs } from "../CloningTargets";
+import { buildCorpusPairs, TACTICAL_OUTPUT_NAMES } from "../CloningTargets";
 import { HybridBrain } from "../HybridBrain";
 import { getTF, initTF, isTFAvailable } from "../TFBackend";
 import { buildCorpus } from "../TrainingCorpus";
+import { scoreOutputs } from "../TrainingReport";
 import { demoTempDir, recordPlainMatch } from "./fixtures/scriptedDemo";
 
 let demoDir: string;
@@ -75,17 +76,35 @@ describe("training on a recorded corpus", () => {
     const heldTarget = tf.tensor2d(held.pairs.map((pair) => pair.target));
 
     const result = await brain.tacticalModel?.fit(input, target, {
-      epochs: 1,
+      epochs: 3,
       batchSize: 8,
       shuffle: true,
       verbose: 0,
       validationData: [heldInput, heldTarget],
+      // The trainer stops early on the held-out loss; a wrong monitor name or a
+      // missing validation set only shows up when the callback actually runs
+      callbacks: tf.callbacks.earlyStopping({ monitor: "val_loss", patience: 1 }),
     });
 
     const loss = (result?.history.loss as number[])[0];
     const valLoss = (result?.history.val_loss as number[])[0];
     expect(Number.isFinite(loss)).toBe(true);
     expect(Number.isFinite(valLoss)).toBe(true);
+    // Early stopping may cut the run short, never lengthen it
+    expect((result?.history.loss as number[]).length).toBeLessThanOrEqual(3);
+
+    // The per-output report reads predictions back as plain arrays
+    const predictions = brain.tacticalModel?.predict(heldInput).arraySync() as number[][];
+    const scores = scoreOutputs(
+      TACTICAL_OUTPUT_NAMES,
+      predictions,
+      held.pairs.map((pair) => pair.target),
+    );
+    expect(scores).toHaveLength(TACTICAL_OUTPUT_NAMES.length);
+    for (const score of scores) {
+      expect(Number.isFinite(score.error)).toBe(true);
+      expect(Number.isFinite(score.floor)).toBe(true);
+    }
 
     input.dispose();
     target.dispose();

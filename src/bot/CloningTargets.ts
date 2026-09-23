@@ -151,6 +151,18 @@ export function buildCombatTarget(frame: TrainingFrame, previous?: TrainingFrame
   return target;
 }
 
+/**
+ * What each tactical output answers, in index order.
+ *
+ * One mean-squared number over a whole head says nothing about which question
+ * the network is getting wrong, and these outputs are not the same kind of
+ * question: a button is a yes, a slot is a which.
+ */
+export const TACTICAL_OUTPUT_NAMES = ["sprint", "slide", "jump", "switch", "slot"] as const;
+
+/** What each combat output answers, in index order. */
+export const COMBAT_OUTPUT_NAMES = ["fire", "alt-fire", "aim yaw", "aim pitch", "dodge left", "dodge right"] as const;
+
 export interface TrainingPair {
   input: number[];
   target: number[];

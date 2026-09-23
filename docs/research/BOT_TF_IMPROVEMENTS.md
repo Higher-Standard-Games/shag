@@ -219,7 +219,7 @@ up.
 | TF-3 | Keep humans, drop bots | — | 2 | Sonnet 5 | **done 2026-09-23** |
 | TF-4 | Rebuild the labels as behaviour cloning | TF-1, TF-3 | 4 | Opus 5 | **done 2026-09-23** |
 | TF-5 | Reshape the heads so every output has a label a demo can supply, and move the mode heads to self-play or drop them | TF-4 | 4 | Opus 5 | **done 2026-09-23** |
-| TF-6 | Early stopping, and metrics per output rather than one mean-squared number (the held-out split itself now works — see TF-7) | TF-4 | 3 | Sonnet 5 | todo |
+| TF-6 | Early stopping, and metrics per output rather than one mean-squared number (the held-out split itself now works — see TF-7) | TF-4 | 3 | Sonnet 5 | **done 2026-09-23** |
 | TF-7 | Tests: extractor on a fixture demo, shape contract between normalizer and models, target construction, and a training smoke run | TF-4 | 3 | Sonnet 5 | **done 2026-09-23** |
 | TF-8 | Measure inference: per-decision cost with models loaded, eight bots, native and pure-JS backends | TF-2 | 2 | Haiku 4.5 | todo |
 | TF-10 | A dataset layer | TF-1 | 3 | Sonnet 5 | **done 2026-09-23** |
@@ -247,6 +247,31 @@ down.
   competent bot instead of a broken one. Keep that.
 
 ## Progress log
+
+### 2026-09-23 — TF-6 done: a number that can say "learned nothing"
+
+Training ran a fixed number of epochs and printed one mean-squared loss per
+head. Both halves of that are misleading. It now stops when the held-out loss
+stops improving — `--patience`, five epochs by default, and only when there is a
+held-out match to watch, since stopping on the training loss would just be
+stopping when it had finished memorising.
+
+And the loss is reported per output against a floor. The floor is the error of
+the best answer that ignores the input entirely, which for mean absolute error is
+the column's median — not its mean, because for an output that is on one frame in
+ten "never" beats "a tenth", and scoring against the weaker constant would
+flatter a network that learned nothing. That is not a hypothetical: three buttons
+and a weapon switch are all rare, and a network answering "no" to all of them
+scores a respectable 0.1 while being useless. Each line now says `error / floor`
+and whether the output was learned at all.
+
+The floor was wrong in the first draft — mean rather than median — and the test
+written for the rare-output case caught it immediately, which is the argument for
+writing that test before believing the metric.
+
+TF.js has no callback for restoring the best weights, so patience is the whole of
+the protection: a stopped run keeps the last epoch's weights, not the best ones.
+Worth knowing before tuning it down to 1.
 
 ### 2026-09-23 — TF-9 done: the pipeline has a page
 

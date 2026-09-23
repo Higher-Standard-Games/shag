@@ -28,13 +28,25 @@ interface CLIArgs {
   demoFile?: string;
   /** Train on every player in the demo, bots included. Default: people only. */
   includeBots: boolean;
+  /** Epochs without improvement on held-out play before stopping. 0 to run them all. */
+  patience: number;
 }
+
+/**
+ * Epochs to keep going after the held-out loss stops improving.
+ *
+ * Past that point the network is learning the training matches rather than how
+ * people play, and the weights get worse at the only thing anyone wants from
+ * them. Five is loose enough to ride out a noisy epoch.
+ */
+const DEFAULT_PATIENCE = 5;
 
 function parseArgs(): CLIArgs {
   const args = process.argv.slice(2);
   const config: Partial<TrainerConfig> = {};
   let demoFile: string | undefined;
   let includeBots = false;
+  let patience = DEFAULT_PATIENCE;
 
   for (let i = 0; i < args.length; i++) {
     switch (args[i]) {
@@ -80,6 +92,9 @@ function parseArgs(): CLIArgs {
       case "--include-bots":
         includeBots = true;
         break;
+      case "--patience":
+        patience = parseInt(args[++i], 10);
+        break;
       case "--demo":
         demoFile = args[++i];
         break;
@@ -90,7 +105,7 @@ function parseArgs(): CLIArgs {
     }
   }
 
-  return { trainerConfig: config, demoFile, includeBots };
+  return { trainerConfig: config, demoFile, includeBots, patience };
 }
 
 function printHelp(): void {
@@ -128,6 +143,9 @@ Usage: npx vite-node src/cli/bot-train.ts [options]
   --include-bots     Train on every player in the demo, bots included.
                      By default only players with a verified account are used,
                      because the point is to learn from people.
+  --patience <n>     Stop after N epochs without improvement on the held-out
+                     matches (default: ${DEFAULT_PATIENCE}; 0 runs every epoch).
+                     Needs more than one match, or there is nothing to watch.
 
 ═══════════════════════════════════════════════════════════════════
   SHARED OPTIONS
@@ -183,14 +201,20 @@ function reportLoss(label: string, result: any): void {
   );
 }
 
-async function trainFromDemo(demoFile: string, config: Partial<TrainerConfig>, includeBots = false): Promise<void> {
+async function trainFromDemo(
+  demoFile: string,
+  config: Partial<TrainerConfig>,
+  includeBots = false,
+  patience = DEFAULT_PATIENCE,
+): Promise<void> {
   // Dynamic import to avoid loading TF.js unless needed
   const { buildCorpus } = await import("../bot/TrainingCorpus");
   const { writeMetadata, describeCurrentFeatures } = await import("../bot/ModelMetadata");
   const { HybridBrain } = await import("../bot/HybridBrain");
   const { getTF } = await import("../bot/TFBackend");
   const { resolveDifficulty } = await import("../bot/BotConfig");
-  const { buildCorpusPairs } = await import("../bot/CloningTargets");
+  const { buildCorpusPairs, COMBAT_OUTPUT_NAMES, TACTICAL_OUTPUT_NAMES } = await import("../bot/CloningTargets");
+  const { formatScores, scoreOutputs } = await import("../bot/TrainingReport");
   const { TACTICAL_INPUT_SIZE, COMBAT_INPUT_SIZE } = await import("../bot/BotInputNormalizer");
   const fs = await import("node:fs");
   const path = await import("node:path");
@@ -268,6 +292,7 @@ async function trainFromDemo(demoFile: string, config: Partial<TrainerConfig>, i
     model: any,
     head: "tactical" | "combat",
     inputSize: number,
+    outputNames: readonly string[],
   ): Promise<void> => {
     const train = buildCorpusPairs(corpus.train, head, inputSize);
     if (train.dropped > 0) {
@@ -287,15 +312,36 @@ async function trainFromDemo(demoFile: string, config: Partial<TrainerConfig>, i
     const valInput = heldOut.pairs.length > 0 ? tf.tensor2d(heldOut.pairs.map((pair) => pair.input)) : null;
     const valTarget = heldOut.pairs.length > 0 ? tf.tensor2d(heldOut.pairs.map((pair) => pair.target)) : null;
 
+    // Stopping early only makes sense against play the network has not seen. It
+    // keeps the last epoch's weights rather than the best ones, which TF.js has
+    // no callback for, so patience is the whole of the protection.
+    const stopEarly = patience > 0 && valInput !== null;
+
     const result = await model.fit(inputTensor, targetTensor, {
       epochs,
       batchSize,
       shuffle: true,
       verbose: 1,
       ...(valInput && valTarget ? { validationData: [valInput, valTarget] } : {}),
+      ...(stopEarly ? { callbacks: tf.callbacks.earlyStopping({ monitor: "val_loss", patience }) } : {}),
     });
 
     reportLoss(label, result);
+    const ranFor = (result?.history?.loss as unknown[] | undefined)?.length ?? epochs;
+    if (stopEarly && ranFor < epochs) {
+      console.log(`[Trainer] ${label}: stopped after ${ranFor} of ${epochs} epochs — held-out loss stopped improving`);
+    }
+
+    // Per output, against the floor of ignoring the input entirely
+    if (valInput && valTarget) {
+      const predictions = model.predict(valInput).arraySync() as number[][];
+      const scores = scoreOutputs(
+        outputNames,
+        predictions,
+        heldOut.pairs.map((pair) => pair.target),
+      );
+      for (const line of formatScores(label, scores)) console.log(line);
+    }
 
     inputTensor.dispose();
     targetTensor.dispose();
@@ -303,8 +349,8 @@ async function trainFromDemo(demoFile: string, config: Partial<TrainerConfig>, i
     valTarget?.dispose();
   };
 
-  await fitHead("Tactical", brain.tacticalModel, "tactical", TACTICAL_INPUT_SIZE);
-  await fitHead("Combat", brain.combatModel, "combat", COMBAT_INPUT_SIZE);
+  await fitHead("Tactical", brain.tacticalModel, "tactical", TACTICAL_INPUT_SIZE, TACTICAL_OUTPUT_NAMES);
+  await fitHead("Combat", brain.combatModel, "combat", COMBAT_INPUT_SIZE, COMBAT_OUTPUT_NAMES);
 
   // 4. Save models, and what they were trained on, and clean up
   fs.mkdirSync(path.resolve(modelDir), { recursive: true });
@@ -329,7 +375,7 @@ async function trainFromDemo(demoFile: string, config: Partial<TrainerConfig>, i
 // ── Main ────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
-  const { trainerConfig, demoFile, includeBots } = parseArgs();
+  const { trainerConfig, demoFile, includeBots, patience } = parseArgs();
 
   // Graceful shutdown
   process.on("SIGINT", () => {
@@ -338,7 +384,7 @@ async function main(): Promise<void> {
   });
 
   if (demoFile) {
-    await trainFromDemo(demoFile, trainerConfig, includeBots);
+    await trainFromDemo(demoFile, trainerConfig, includeBots, patience);
   } else {
     const trainer = new BotTrainer(trainerConfig);
     await trainer.train();
