@@ -225,7 +225,7 @@ up.
 | TF-10 | A dataset layer | TF-1 | 3 | Sonnet 5 | **done 2026-09-23** |
 | TF-11 | Frame stacking: the last N feature vectors concatenated, so the network can see a movement in progress rather than a still | TF-10 | 3 | Opus 5 | **done 2026-09-23** |
 | TF-14 | Record the snapshot rate a corpus was recorded at, and have a bot say so when it plays at a different one — a stack of three frames only spans the same time on both sides at the same rate | TF-11 | 2 | Sonnet 5 | **done 2026-09-24** |
-| TF-13 | Batch inference across bots: one predict call for the whole fleet instead of one per bot, since the measured cost is the round trip into TF and not the arithmetic | TF-8 | 3 | Sonnet 5 | todo |
+| TF-13 | Batch inference across bots: one predict call for the whole fleet instead of one per bot, since the measured cost is the round trip into TF and not the arithmetic | TF-8 | 3 | Sonnet 5 | **done 2026-09-24** — by not calling TF at decision time; see the log |
 | TF-12 | One trunk, typed heads: independent sigmoids with binary cross-entropy for the buttons, a linear head for aim delta, and sampling with a temperature so two bots in the same spot do not do the same thing | TF-5, TF-11 | 4 | Opus 5 | todo |
 | TF-9 | Document the pipeline in the manual — there is no page for any of this today | TF-1…TF-5 | 2 | Sonnet 5 | **done 2026-09-23** |
 
@@ -249,6 +249,34 @@ down.
   competent bot instead of a broken one. Keep that.
 
 ## Progress log
+
+### 2026-09-24 — TF-13 done, differently: no round trip at all
+
+TF-13 asked for one `predict` call for the whole fleet, because the measured cost
+was the round trip into TensorFlow rather than the arithmetic. Batching would have
+amortised that, but at a price: a bot's decision could no longer finish inside its
+own `decide()` — it would wait for the other bots' snapshots — and the network's
+refinement would land after `BotClient` had already applied friendly-fire
+suppression to the decision. A combat head saying "fire" would skip the one check
+that stops a bot shooting its own team.
+
+The heads are two small stacks of dense layers, a few thousand multiply-adds. So
+`DenseForward.ts` reads the weights out once and runs the forward pass in plain
+JavaScript, in the same call as everything else. TensorFlow still trains, saves
+and loads. Anything that is not a sequential stack of dense layers with relu,
+sigmoid or linear activation is declined, and inference goes through TensorFlow as
+before — a future architecture is slower, never wrong.
+
+The one thing that could make it wrong is a stale copy: both trainers `fit` the
+model through the brain's public getter. Handing the model out now marks the copy
+stale, and it is read again before the next decision. A test trains through the
+getter and requires the decision path to move with the weights; with the stale
+marking removed, it fails.
+
+Measured, eight bots, native backend: **0.008 ms a decision against 0.47 ms**, of
+which the network is 0.005 ms. Eight bots at 60 Hz snapshots went from 22.6% of an
+interval to 0.4%. The pure-JS TensorFlow fallback, where the round trip is dearer
+still, gains the most.
 
 ### 2026-09-24 — TF-14 done: frames spaced the way training spaced them
 

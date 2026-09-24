@@ -26,6 +26,7 @@ import { canInitiateSlide } from "./BotMovementProfile";
 import type { BotVision, VisionResult } from "./BotVision";
 import { getWeaponProfile } from "./BotWeaponProfile";
 import { decodeWeaponSlot } from "./CloningTargets";
+import { type DenseLayer, extractDenseStack, forward, inputWidth } from "./DenseForward";
 import {
   buildModelInputs,
   COMBAT_MODEL_INPUT,
@@ -105,6 +106,15 @@ export class HybridBrain extends BotBrain {
   /** The last few frames each head has seen, stacked the way training stacks them. */
   private readonly _tacticalHistory = new FeatureHistory();
   private readonly _combatHistory = new FeatureHistory();
+  /**
+   * The same weights as plain arrays, so a decision does not pay a round trip
+   * into TensorFlow. Null when not yet read, or when a model is something the
+   * plain forward pass cannot run — then inference goes through TensorFlow.
+   */
+  private _tacticalForward: DenseLayer[] | null = null;
+  private _combatForward: DenseLayer[] | null = null;
+  /** Set whenever the weights may have changed since they were last read out. */
+  private _forwardStale = true;
   /** Frame spacing the loaded weights were trained on, from their metadata. */
   private _trainedInterval: number | null = null;
   /** Ticks of recent decisions, to measure this server's spacing once. */
@@ -162,6 +172,7 @@ export class HybridBrain extends BotBrain {
     }
 
     // Warm up models with dummy predictions to avoid cold-start latency
+    this._forwardStale = true;
     this._warmup();
     return this.hasModels;
   }
@@ -202,6 +213,7 @@ export class HybridBrain extends BotBrain {
     });
 
     console.log("[HybridBrain] Created fresh untrained models");
+    this._forwardStale = true;
     this._warmup();
   }
 
@@ -220,12 +232,19 @@ export class HybridBrain extends BotBrain {
   }
 
   /** Get the tactical model for external training */
+  /**
+   * The model itself, for training. Whoever holds it can change its weights, so
+   * handing it out marks the plain copy used for decisions stale; it is read out
+   * again before the next one.
+   */
   get tacticalModel(): TFModel | null {
+    this._forwardStale = true;
     return this._tacticalModel;
   }
 
   /** Get the combat model for external training */
   get combatModel(): TFModel | null {
+    this._forwardStale = true;
     return this._combatModel;
   }
 
@@ -331,9 +350,31 @@ export class HybridBrain extends BotBrain {
   // ── Neural Inference ────────────────────────────────────────────
 
   /**
+   * Read the weights out into plain arrays if they may have changed. A stack the
+   * plain pass cannot run, or one whose width is not what this build feeds, is
+   * left to TensorFlow — slower, never wrong.
+   */
+  private _refreshForward(): void {
+    if (!this._forwardStale) return;
+    this._forwardStale = false;
+    const read = (model: TFModel | null, width: number): DenseLayer[] | null => {
+      try {
+        const layers = extractDenseStack(model);
+        return layers && inputWidth(layers) === width ? layers : null;
+      } catch {
+        return null;
+      }
+    };
+    this._tacticalForward = read(this._tacticalModel, TACTICAL_MODEL_INPUT);
+    this._combatForward = read(this._combatModel, COMBAT_MODEL_INPUT);
+  }
+
+  /**
    * Run tactical model inference on a stacked input. Returns the outputs or null.
    */
   private _runTactical(stacked: number[]): Float32Array | null {
+    this._refreshForward();
+    if (this._tacticalForward) return forward(this._tacticalForward, stacked);
     try {
       const tf = getTF();
       return tf.tidy(() => {
@@ -351,6 +392,8 @@ export class HybridBrain extends BotBrain {
    * Run combat model inference on a stacked input. Returns the outputs or null.
    */
   private _runCombat(stacked: number[]): Float32Array | null {
+    this._refreshForward();
+    if (this._combatForward) return forward(this._combatForward, stacked);
     try {
       const tf = getTF();
       return tf.tidy(() => {
@@ -511,6 +554,9 @@ export class HybridBrain extends BotBrain {
    * Call when the bot is being removed.
    */
   dispose(): void {
+    this._tacticalForward = null;
+    this._combatForward = null;
+    this._forwardStale = true;
     if (this._tacticalModel) {
       this._tacticalModel.dispose();
       this._tacticalModel = null;
