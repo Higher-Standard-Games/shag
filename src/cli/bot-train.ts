@@ -19,6 +19,7 @@
  */
 
 import { BotTrainer, DEFAULT_TRAINER_CONFIG, type TrainerConfig } from "../bot/BotTrainer";
+import type { OutputKind } from "../bot/CloningTargets";
 import { runCli } from "./_runCli";
 
 // ── Argument Parsing ────────────────────────────────────────────────
@@ -213,8 +214,9 @@ async function trainFromDemo(
   const { HybridBrain } = await import("../bot/HybridBrain");
   const { getTF } = await import("../bot/TFBackend");
   const { resolveDifficulty } = await import("../bot/BotConfig");
-  const { buildCorpusPairs, COMBAT_OUTPUT_NAMES, TACTICAL_OUTPUT_NAMES } = await import("../bot/CloningTargets");
-  const { formatScores, scoreOutputs } = await import("../bot/TrainingReport");
+  const { buildCorpusPairs, COMBAT_OUTPUT_KINDS, COMBAT_OUTPUT_NAMES, TACTICAL_OUTPUT_KINDS, TACTICAL_OUTPUT_NAMES } =
+    await import("../bot/CloningTargets");
+  const { formatScores, scoreModel, skillByName } = await import("../bot/TrainingReport");
   const { TACTICAL_INPUT_SIZE, COMBAT_INPUT_SIZE } = await import("../bot/BotInputNormalizer");
   const { intervalMismatch } = await import("../bot/ModelInputs");
   const fs = await import("node:fs");
@@ -286,6 +288,11 @@ async function trainFromDemo(
   if (!brain.hasModels) {
     await brain.createFreshModels(config.learningRate);
   }
+  // Loaded or fresh, the heads train with this run's learning rate
+  brain.prepareForTraining(config.learningRate);
+
+  /** Held-out skill per output, for the bot to read how far to trust each one. */
+  const outputSkill: Record<string, number> = {};
 
   // 3. Train on extracted data
   const epochs = config.epochs || 10;
@@ -313,6 +320,7 @@ async function trainFromDemo(
     head: "tactical" | "combat",
     inputSize: number,
     outputNames: readonly string[],
+    outputKinds: readonly OutputKind[],
   ): Promise<void> => {
     const train = buildCorpusPairs(corpus.train, head, inputSize);
     if (train.dropped > 0) {
@@ -355,15 +363,12 @@ async function trainFromDemo(
       console.log(`[Trainer] ${label}: stopped after ${ranFor} of ${epochs} epochs — held-out loss stopped improving`);
     }
 
-    // Per output, against the floor of ignoring the input entirely
+    // Per output, against the floor of ignoring the input entirely — and kept,
+    // because it is what tells a bot how far to trust each output
     if (valInput && valTarget) {
-      const predictions = model.predict(valInput).arraySync() as number[][];
-      const scores = scoreOutputs(
-        outputNames,
-        predictions,
-        heldOut.pairs.map((pair) => pair.target),
-      );
+      const scores = scoreModel(tf, model, heldOut.pairs, outputNames, outputKinds);
       for (const line of formatScores(label, scores)) console.log(line);
+      Object.assign(outputSkill, skillByName(scores));
     }
 
     inputTensor.dispose();
@@ -372,8 +377,15 @@ async function trainFromDemo(
     valTarget?.dispose();
   };
 
-  await fitHead("Tactical", brain.tacticalModel, "tactical", TACTICAL_INPUT_SIZE, TACTICAL_OUTPUT_NAMES);
-  await fitHead("Combat", brain.combatModel, "combat", COMBAT_INPUT_SIZE, COMBAT_OUTPUT_NAMES);
+  await fitHead(
+    "Tactical",
+    brain.tacticalModel,
+    "tactical",
+    TACTICAL_INPUT_SIZE,
+    TACTICAL_OUTPUT_NAMES,
+    TACTICAL_OUTPUT_KINDS,
+  );
+  await fitHead("Combat", brain.combatModel, "combat", COMBAT_INPUT_SIZE, COMBAT_OUTPUT_NAMES, COMBAT_OUTPUT_KINDS);
 
   // 4. Save models, and what they were trained on, and clean up
   fs.mkdirSync(path.resolve(modelDir), { recursive: true });
@@ -386,6 +398,7 @@ async function trainFromDemo(
     validationFrames,
     includedBots: includeBots,
     blindMaps: corpus.blindMaps,
+    outputSkill: Object.keys(outputSkill).length > 0 ? outputSkill : undefined,
     frameIntervalTicks,
     matchIds: corpus.matches.map((match) => match.matchId).filter((id): id is string => Boolean(id)),
   });

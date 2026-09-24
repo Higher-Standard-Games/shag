@@ -23,15 +23,51 @@ export const TACTICAL_TARGET_SIZE = 5;
 export const COMBAT_TARGET_SIZE = 6;
 
 /**
- * How far the view may turn between two frames before the label saturates.
+ * How an output is read, and so how it is trained.
  *
- * The aim heads are sigmoids, so a turn has to be squeezed into [0,1] with 0.5
- * meaning "no change". A whole radian between snapshots is a fast flick; using
- * that as the edge keeps ordinary tracking in the middle of the range instead
- * of pinned at the ends, where the network cannot tell one correction from
- * another. TF-12 replaces this encoding with a linear head.
+ * A **probability** is a yes-or-no a person gives with a button: its output is a
+ * logit, trained with binary cross-entropy and read through a sigmoid. A **turn**
+ * is how far the view moved between two frames: its output is a signed number in
+ * turn units, trained with Huber loss and read as radians. They used to be one
+ * kind — a sigmoid on everything, trained on squared error — which squeezed a turn
+ * into the 0-to-1 range around 0.5, where a typical correction moved the label by
+ * a hundredth and there was almost nothing to learn.
  */
-export const AIM_DELTA_SCALE = 1.0;
+export type OutputKind = "probability" | "turn";
+
+/** Tactical: sprint, slide, jump, switch, slot — all answered yes-or-no, the slot as a share of nine. */
+export const TACTICAL_OUTPUT_KINDS: readonly OutputKind[] = [
+  "probability",
+  "probability",
+  "probability",
+  "probability",
+  "probability",
+];
+
+/** Combat: fire, alt-fire, aim yaw, aim pitch, dodge left, dodge right. */
+export const COMBAT_OUTPUT_KINDS: readonly OutputKind[] = [
+  "probability",
+  "probability",
+  "turn",
+  "turn",
+  "probability",
+  "probability",
+];
+
+/**
+ * Radians per turn unit. A tenth of a radian is a brisk correction between two
+ * snapshots, so ordinary tracking lands around one unit, where a network learns
+ * best, and a flick lands at several.
+ */
+export const AIM_TURN_SCALE = 0.1;
+
+/**
+ * The largest turn a label keeps, in radians. Beyond a radian between two
+ * snapshots is a flick to somewhere else entirely, not tracking, and Huber loss
+ * already limits how hard one can pull; this only keeps a wrapped angle or a
+ * glitch from producing a label of thirty units.
+ */
+export const MAX_AIM_TURN = 1.0;
 
 /**
  * Slots a weapon label is spread over: the keyboard's worth of them.
@@ -72,10 +108,54 @@ export function angleDelta(from: number, to: number): number {
   return delta;
 }
 
-/** Encode a turn into the sigmoid range, 0.5 being no turn. */
-export function encodeAimDelta(delta: number, scale = AIM_DELTA_SCALE): number {
-  const clamped = Math.max(-scale, Math.min(scale, delta));
-  return 0.5 + clamped / (2 * scale);
+/** A turn in radians as a label, in turn units. Zero is no turn. */
+export function encodeAimTurn(radians: number): number {
+  if (!Number.isFinite(radians)) return 0;
+  return Math.max(-MAX_AIM_TURN, Math.min(MAX_AIM_TURN, radians)) / AIM_TURN_SCALE;
+}
+
+/**
+ * A turn output back to radians — the inverse of the label, so the two sides
+ * cannot drift apart the way they had: the label said `(output − 0.5) × 2`
+ * radians and the brain applied `(output − 0.5) × 0.6`, behind a dead zone wider
+ * than most turns a person makes between two snapshots.
+ */
+export function decodeAimTurn(value: number): number {
+  return Number.isFinite(value) ? value * AIM_TURN_SCALE : 0;
+}
+
+const sigmoid = (x: number): number => 1 / (1 + Math.exp(-x));
+
+/**
+ * A head's raw outputs in the space its labels live in: probabilities through a
+ * sigmoid, turns in turn units as they are. What the held-out report scores.
+ */
+export function toLabelSpace(raw: ArrayLike<number>, kinds: readonly OutputKind[]): number[] {
+  return kinds.map((kind, index) => (kind === "probability" ? sigmoid(raw[index]) : raw[index]));
+}
+
+/**
+ * A head's raw outputs as the brain acts on them: probabilities, and turns in
+ * radians.
+ */
+export function decodeOutputs(raw: ArrayLike<number>, kinds: readonly OutputKind[]): number[] {
+  return kinds.map((kind, index) => (kind === "probability" ? sigmoid(raw[index]) : decodeAimTurn(raw[index])));
+}
+
+/**
+ * A probability made more or less decisive before it is sampled.
+ *
+ * At temperature 1 a button is pressed exactly as often as the network thinks a
+ * person would; lower sharpens toward the likelier answer and 0 always takes it,
+ * which is a plain threshold at one half.
+ */
+export function sharpen(probability: number, temperature: number): number {
+  if (!Number.isFinite(probability)) return 0;
+  const p = Math.max(0, Math.min(1, probability));
+  if (temperature <= 0) return p > 0.5 ? 1 : 0;
+  const yes = p ** (1 / temperature);
+  const no = (1 - p) ** (1 / temperature);
+  return yes + no === 0 ? 0.5 : yes / (yes + no);
 }
 
 /**
@@ -111,8 +191,7 @@ export function buildTacticalTarget(frame: TrainingFrame, previous?: TrainingFra
  *
  * Aim is the part worth having: view angles are recorded state, so the turn a
  * person made between two frames is the one label in this whole pipeline that
- * was never a guess — and the previous scheme threw it away, leaving both aim
- * outputs at 0.5 on every frame.
+ * was never a guess. Buttons are 0 or 1; the turns are in turn units, signed.
  */
 export function buildCombatTarget(frame: TrainingFrame, previous?: TrainingFrame): number[] {
   const { buttons } = frame.action;
@@ -121,13 +200,11 @@ export function buildCombatTarget(frame: TrainingFrame, previous?: TrainingFrame
   target[0] = held(buttons, InputButtons.FIRE);
   target[1] = held(buttons, InputButtons.ALT_FIRE);
 
-  // 2-3: where the view actually went, not where it ended up
+  // 2-3: where the view actually went, not where it ended up. With no frame
+  // before this one to measure from, the label is no turn.
   if (previous) {
-    target[2] = encodeAimDelta(angleDelta(previous.action.yaw, frame.action.yaw));
-    target[3] = encodeAimDelta(angleDelta(previous.action.pitch, frame.action.pitch));
-  } else {
-    target[2] = 0.5;
-    target[3] = 0.5;
+    target[2] = encodeAimTurn(angleDelta(previous.action.yaw, frame.action.yaw));
+    target[3] = encodeAimTurn(angleDelta(previous.action.pitch, frame.action.pitch));
   }
 
   // 4-5: strafing, from the wish direction the person gave — not from velocity,

@@ -10,12 +10,15 @@ import { describe, expect, it } from "vitest";
 import { InputButtons } from "../BotConfig";
 import type { TrainingFrame } from "../BotEpisodeRecorder";
 import {
+  AIM_TURN_SCALE,
   angleDelta,
   buildCombatTarget,
   buildTacticalTarget,
+  decodeAimTurn,
   decodeWeaponSlot,
-  encodeAimDelta,
+  encodeAimTurn,
   encodeWeaponSlot,
+  MAX_AIM_TURN,
   MAX_WEAPON_SLOT,
   resampleByWeight,
   rewardWeights,
@@ -158,10 +161,11 @@ describe("combat targets", () => {
     const before = frame({ yaw: 0 });
     const right = buildCombatTarget(frame({ yaw: 0.5 }), before);
     const left = buildCombatTarget(frame({ yaw: -0.5 }), before);
-    expect(right[2]).toBeGreaterThan(0.5);
-    expect(left[2]).toBeLessThan(0.5);
+    // Signed, in turn units: half a radian is five
+    expect(right[2]).toBeCloseTo(5, 5);
+    expect(left[2]).toBeCloseTo(-5, 5);
     // No previous frame means no measurable turn
-    expect(buildCombatTarget(frame({ yaw: 0.5 }))[2]).toBe(0.5);
+    expect(buildCombatTarget(frame({ yaw: 0.5 }))[2]).toBe(0);
   });
 
   it("strafes from the wish direction, not from velocity", () => {
@@ -177,9 +181,13 @@ describe("angle handling", () => {
     expect(angleDelta(0, 1)).toBeCloseTo(1, 5);
   });
 
-  it("keeps a flick inside the sigmoid range", () => {
-    expect(encodeAimDelta(0)).toBe(0.5);
-    expect(encodeAimDelta(99)).toBe(1);
-    expect(encodeAimDelta(-99)).toBe(0);
+  it("caps a flick at a radian, and reads a turn back exactly", () => {
+    expect(encodeAimTurn(0)).toBe(0);
+    expect(encodeAimTurn(99)).toBeCloseTo(MAX_AIM_TURN / AIM_TURN_SCALE, 5);
+    expect(encodeAimTurn(-99)).toBeCloseTo(-MAX_AIM_TURN / AIM_TURN_SCALE, 5);
+    // The brain reads a turn with the inverse of the label, so the two cannot drift
+    for (const radians of [-0.8, -0.05, 0, 0.013, 0.3]) {
+      expect(decodeAimTurn(encodeAimTurn(radians))).toBeCloseTo(radians, 10);
+    }
   });
 });

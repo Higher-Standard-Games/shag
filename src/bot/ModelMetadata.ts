@@ -19,6 +19,12 @@ import {
 } from "./CloningTargets";
 import { COMBAT_MODEL_INPUT, FRAME_STACK, TACTICAL_MODEL_INPUT } from "./ModelInputs";
 
+/**
+ * How this build reads a head's outputs: logits for yes-or-no answers, turn
+ * units for aim. Recorded beside the weights, and required of them.
+ */
+export const OUTPUT_ENCODING = "logits-and-turns-1";
+
 export const METADATA_FILE = "metadata.json";
 
 export interface ModelMetadata {
@@ -30,6 +36,18 @@ export interface ModelMetadata {
   combatInputSize: number;
   /** Frames per stacked input. Absent in metadata written before inputs were stacked. */
   frameStack?: number;
+  /**
+   * How the outputs are to be read. Absent before outputs were typed, when every
+   * output went through a sigmoid; such weights are refused, because their
+   * outputs are probabilities where this build expects logits and turns.
+   */
+  outputEncoding?: string;
+  /**
+   * Held-out skill per output, 1 − error / floor, from matches the weights never
+   * trained on. A bot acts on an output only as far as this says it was learned;
+   * with none recorded, the network advises nothing.
+   */
+  outputSkill?: Record<string, number>;
   /**
    * Ticks between the frames of a stack in the recordings trained on. A bot
    * compares it with the spacing of the snapshots it actually receives.
@@ -61,9 +79,10 @@ export interface ModelMetadata {
 
 export function describeCurrentFeatures(): Pick<
   ModelMetadata,
-  "tacticalInputSize" | "combatInputSize" | "frameStack" | "tacticalOutputSize" | "combatOutputSize"
+  "tacticalInputSize" | "combatInputSize" | "frameStack" | "tacticalOutputSize" | "combatOutputSize" | "outputEncoding"
 > {
   return {
+    outputEncoding: OUTPUT_ENCODING,
     tacticalInputSize: TACTICAL_MODEL_INPUT,
     combatInputSize: COMBAT_MODEL_INPUT,
     frameStack: FRAME_STACK,
@@ -137,6 +156,14 @@ export function checkCompatibility(metadata: ModelMetadata | null): { ok: boolea
   // The same width can come from a different split between frames and features;
   // the depth says which, and a model read with the wrong one sees time smeared
   // across features that were never next to each other.
+  if (metadata.outputEncoding !== current.outputEncoding) {
+    return {
+      ok: false,
+      reason: metadata.outputEncoding
+        ? `outputs encoded as "${metadata.outputEncoding}", this build reads "${current.outputEncoding}"`
+        : "trained when every output went through a sigmoid; this build reads logits and turns",
+    };
+  }
   if (typeof metadata.frameStack === "number" && metadata.frameStack !== current.frameStack) {
     return {
       ok: false,

@@ -16,7 +16,7 @@ import {
   TACTICAL_OUTPUT_NAMES,
   TACTICAL_TARGET_SIZE,
 } from "../CloningTargets";
-import { formatScores, scoreOutputs } from "../TrainingReport";
+import { formatScores, LEARNED_SKILL, scoreOutputs, skillOf } from "../TrainingReport";
 
 describe("scoreOutputs", () => {
   it("scores each output on its own, not the head as a whole", () => {
@@ -75,6 +75,16 @@ describe("scoreOutputs", () => {
     const [score] = scoreOutputs(["jump"], rate, targets);
     expect(score.error).toBeCloseTo(score.floor, 10);
     expect(formatScores("Tactical", [score]).join("\n")).toContain("no better than a fixed answer");
+  });
+
+  it("does not call a hair under the floor learned", () => {
+    // Half on, half off: floor 0.25. An error of 0.249 removed 0.4% of it — luck
+    const targets = [[1], [0], [1], [0]];
+    const nearly = [[0.5005], [0.4995], [0.5005], [0.4995]];
+    const [score] = scoreOutputs(["aim yaw"], nearly, targets);
+    expect(score.error).toBeLessThan(score.floor);
+    expect(skillOf(score)).toBeLessThan(LEARNED_SKILL);
+    expect(formatScores("Combat", [score]).join("\n")).toContain("within the noise");
   });
 
   it("says an output was learned only when it beat that floor", () => {

@@ -21,6 +21,8 @@
  * TF-6 in docs/research/BOT_TF_IMPROVEMENTS.md.
  */
 
+import { type OutputKind, toLabelSpace } from "./CloningTargets";
+
 export interface OutputScore {
   name: string;
   /** Mean squared error of the network on held-out frames. */
@@ -83,13 +85,74 @@ export function scoreOutputs(
   return scores;
 }
 
+/**
+ * The least skill that counts as learned.
+ *
+ * A held-out match is a sample, and an output a hair under its floor — a tenth of
+ * a percent of the error removed — is within the noise of a fixed answer; acting
+ * on it would be acting on luck. The first typed-head run scored aim at exactly
+ * that, and a bot would have trusted it. Five percent credits a real, modest
+ * improvement, and the report and the bot use the same line, so what the report
+ * calls learned is what a bot acts on.
+ */
+export const LEARNED_SKILL = 0.05;
+
+/**
+ * How much of the floor an output's error removed: 1 − error / floor.
+ *
+ * Above zero is learned — at 0.4 the network removed four tenths of the error a
+ * fixed answer would have made — and zero or below means a fixed answer would
+ * have done as well. An output that never varied has no floor to beat and scores
+ * zero. This is what a bot reads to decide how far to trust each output.
+ */
+export function skillOf(score: OutputScore): number {
+  return score.floor > 0 ? 1 - score.error / score.floor : 0;
+}
+
+/** Skill by output name, for the metadata beside the weights. */
+export function skillByName(scores: readonly OutputScore[]): Record<string, number> {
+  return Object.fromEntries(scores.map((score) => [score.name, Number(skillOf(score).toFixed(4))]));
+}
+
+/**
+ * Score a model on pairs it did not train on.
+ *
+ * Raw outputs are logits and turn units; they are put into the space the labels
+ * live in — probabilities through a sigmoid — before they are compared, or a
+ * logit of 3 would be scored as a miss against a label of 1. `tf` is passed in so
+ * this module loads without TensorFlow.
+ */
+export function scoreModel(
+  // biome-ignore lint/suspicious/noExplicitAny: the TensorFlow module, passed in rather than imported
+  tf: any,
+  // biome-ignore lint/suspicious/noExplicitAny: a tf.LayersModel
+  model: any,
+  pairs: readonly { input: number[]; target: number[] }[],
+  names: readonly string[],
+  kinds: readonly OutputKind[],
+): OutputScore[] {
+  if (!model || pairs.length === 0) return [];
+  const raw = tf.tidy(() => model.predict(tf.tensor2d(pairs.map((pair) => pair.input))).arraySync()) as number[][];
+  return scoreOutputs(
+    names,
+    raw.map((row) => toLabelSpace(row, kinds)),
+    pairs.map((pair) => pair.target),
+  );
+}
+
 /** One line per output: what it scored, and whether that beat ignoring the input. */
 export function formatScores(label: string, scores: readonly OutputScore[]): string[] {
   if (scores.length === 0) return [`[Trainer] ${label}: nothing held out to score against`];
   return [
     `[Trainer] ${label} per output (error / floor, lower is better; floor = best fixed answer):`,
     ...scores.map((score) => {
-      const verdict = score.error < score.floor ? "learned" : "no better than a fixed answer";
+      const skill = skillOf(score);
+      const verdict =
+        skill >= LEARNED_SKILL
+          ? "learned"
+          : skill > 0
+            ? "within the noise of a fixed answer"
+            : "no better than a fixed answer";
       return (
         `[Trainer]   ${score.name.padEnd(10)} ${score.error.toFixed(4)} / ${score.floor.toFixed(4)}` +
         `  on in ${(score.positiveRate * 100).toFixed(1)}% of frames — ${verdict}`

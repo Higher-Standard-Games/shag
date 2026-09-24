@@ -23,7 +23,7 @@ import { COMBAT_INPUT_SIZE, TACTICAL_INPUT_SIZE } from "../BotInputNormalizer";
 import {
   buildCorpusPairs,
   COMBAT_TARGET_SIZE,
-  encodeAimDelta,
+  encodeAimTurn,
   TACTICAL_TARGET_SIZE,
   type TrainingPair,
 } from "../CloningTargets";
@@ -158,9 +158,9 @@ describe("a recorded match, all the way to training labels", () => {
 
     // The turn the person made, as a difference — the one label in this
     // pipeline that was never a guess
-    expect(at(combat.pairs, 12).target[2]).toBeCloseTo(encodeAimDelta(0.2), 4);
+    expect(at(combat.pairs, 12).target[2]).toBeCloseTo(encodeAimTurn(0.2), 4);
     // Pitch never moved
-    expect(at(combat.pairs, 12).target[3]).toBeCloseTo(0.5, 5);
+    expect(at(combat.pairs, 12).target[3]).toBeCloseTo(0, 5);
     // The jump the person pressed
     expect(at(tactical.pairs, 12).target[2]).toBe(1);
 
@@ -170,8 +170,8 @@ describe("a recorded match, all the way to training labels", () => {
     // Across the death gap there is no previous frame: no invented flick, and
     // no invented switch, although both the view and the weapon changed
     const respawn = at(combat.pairs, RESPAWNED);
-    expect(respawn.target[2]).toBe(0.5);
-    expect(respawn.target[3]).toBe(0.5);
+    expect(respawn.target[2]).toBe(0);
+    expect(respawn.target[3]).toBe(0);
     expect(at(tactical.pairs, RESPAWNED).target[3]).toBe(0);
     expect(at(tactical.pairs, RESPAWNED).target[4]).toBeCloseTo(7 / 9, 5);
   });

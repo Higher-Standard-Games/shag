@@ -25,7 +25,16 @@ import type { BotGameState } from "./BotGameState";
 import { canInitiateSlide } from "./BotMovementProfile";
 import type { BotVision, VisionResult } from "./BotVision";
 import { getWeaponProfile } from "./BotWeaponProfile";
-import { decodeWeaponSlot } from "./CloningTargets";
+import {
+  angleDelta,
+  COMBAT_OUTPUT_KINDS,
+  COMBAT_OUTPUT_NAMES,
+  decodeOutputs,
+  decodeWeaponSlot,
+  sharpen,
+  TACTICAL_OUTPUT_KINDS,
+  TACTICAL_OUTPUT_NAMES,
+} from "./CloningTargets";
 import { type DenseLayer, extractDenseStack, forward, inputWidth } from "./DenseForward";
 import {
   buildModelInputs,
@@ -38,6 +47,8 @@ import {
 import { checkCompatibility, readMetadata } from "./ModelMetadata";
 import { StateMachineBrain } from "./StateMachineBrain";
 import { getTF, initTF } from "./TFBackend";
+import { LEARNED_SKILL } from "./TrainingReport";
+import { typedLoss } from "./TypedLoss";
 
 // ── Output Index Constants ──────────────────────────────────────────
 // These map neural network output indices to semantic meanings.
@@ -82,13 +93,16 @@ export const DEFAULT_LEARNING_RATE = 0.001;
 // ── Confidence Thresholds ───────────────────────────────────────────
 // Only override state machine when neural net is confident enough.
 
-const THRESHOLD = {
-  MOVEMENT_ACTION: 0.6, // Apply movement mechanic
-  COMBAT_FIRE: 0.5, // Fire/don't fire
-  COMBAT_ADS: 0.5, // ADS on/off
-  WEAPON_SWITCH: 0.6, // Switch weapon
-  AIM_DEADZONE: 0.05, // Ignore tiny aim adjustments (within ±0.05 of 0.5)
-} as const;
+/**
+ * How decisive the network's yes-or-no answers are made before they are drawn.
+ *
+ * Buttons are sampled, not thresholded: at temperature 1 a bot presses a button
+ * exactly as often as the network thinks a person would in its place, so two bots
+ * in the same spot do not do the same thing. A half leans toward the likelier
+ * answer, so a held button is not dropped on the one frame in ten the network is
+ * unsure about.
+ */
+const SAMPLING_TEMPERATURE = 0.5;
 
 // ── Model type aliases (avoid direct tf namespace in class fields) ──
 // We use `any` for the stored model references because the tf types
@@ -115,6 +129,13 @@ export class HybridBrain extends BotBrain {
   private _combatForward: DenseLayer[] | null = null;
   /** Set whenever the weights may have changed since they were last read out. */
   private _forwardStale = true;
+  private readonly _random: () => number;
+  /**
+   * Held-out skill per output, from the weights' metadata. An output is acted on
+   * only as far as this says it was learned; empty means nothing was proven and
+   * the network advises nothing, however confident its outputs look.
+   */
+  private _skill: Record<string, number> = {};
   /** Frame spacing the loaded weights were trained on, from their metadata. */
   private _trainedInterval: number | null = null;
   /** Ticks of recent decisions, to measure this server's spacing once. */
@@ -122,9 +143,14 @@ export class HybridBrain extends BotBrain {
   private _intervalChecked = false;
   private _warmedUp: boolean = false;
 
-  constructor(difficulty: BotDifficulty) {
+  /**
+   * @param random Where sampled decisions draw from — `Math.random` in a match,
+   *   something fixed in a test.
+   */
+  constructor(difficulty: BotDifficulty, random: () => number = Math.random) {
     super(difficulty);
     this._stateMachine = new StateMachineBrain(difficulty);
+    this._random = random;
   }
 
   /**
@@ -145,6 +171,7 @@ export class HybridBrain extends BotBrain {
     // change would otherwise load cleanly and read nonsense.
     const metadata = readMetadata(modelDir);
     this._trainedInterval = metadata?.frameIntervalTicks ?? null;
+    this._skill = metadata?.outputSkill ?? {};
     const compatibility = checkCompatibility(metadata);
     if (!compatibility.ok) {
       console.error(`[HybridBrain] Refusing models in ${modelDir}: ${compatibility.reason}`);
@@ -171,10 +198,39 @@ export class HybridBrain extends BotBrain {
       console.warn(`[HybridBrain] No combat model found at ${modelDir}/combat/ — using state machine`);
     }
 
+    if (this.hasModels && Object.keys(this._skill).length === 0) {
+      console.warn(
+        `[HybridBrain] No held-out skill recorded for ${modelDir} — nothing was measured on a match the weights ` +
+          "never saw, so the network advises nothing. Train on two or more matches.",
+      );
+    }
+
+    // A model loaded from disk comes back uncompiled, and --resume threw on its
+    // first fit. Compiling here makes a loaded model trainable; a trainer calls
+    // prepareForTraining again with its own learning rate.
+    this.prepareForTraining();
+
     // Warm up models with dummy predictions to avoid cold-start latency
     this._forwardStale = true;
     this._warmup();
     return this.hasModels;
+  }
+
+  /**
+   * Compile both heads for training with the loss their output kinds need —
+   * cross-entropy on the yes-or-no answers, Huber on the turns.
+   */
+  prepareForTraining(learningRate: number = DEFAULT_LEARNING_RATE): void {
+    if (!this.hasModels) return;
+    const tf = getTF();
+    this._tacticalModel?.compile({
+      optimizer: tf.train.adam(learningRate),
+      loss: typedLoss(tf, TACTICAL_OUTPUT_KINDS),
+    });
+    this._combatModel?.compile({
+      optimizer: tf.train.adam(learningRate),
+      loss: typedLoss(tf, COMBAT_OUTPUT_KINDS),
+    });
   }
 
   /**
@@ -192,25 +248,18 @@ export class HybridBrain extends BotBrain {
       layers: [
         tf.layers.dense({ inputShape: [TACTICAL_MODEL_INPUT], units: 16, activation: "relu" }),
         tf.layers.dense({ units: 12, activation: "relu" }),
-        tf.layers.dense({ units: TACTICAL_OUTPUT_SIZE, activation: "sigmoid" }),
+        tf.layers.dense({ units: TACTICAL_OUTPUT_SIZE, activation: "linear" }),
       ],
-    });
-    this._tacticalModel.compile({
-      optimizer: tf.train.adam(learningRate),
-      loss: "meanSquaredError",
     });
 
     this._combatModel = tf.sequential({
       layers: [
         tf.layers.dense({ inputShape: [COMBAT_MODEL_INPUT], units: 12, activation: "relu" }),
         tf.layers.dense({ units: 8, activation: "relu" }),
-        tf.layers.dense({ units: COMBAT_OUTPUT_SIZE, activation: "sigmoid" }),
+        tf.layers.dense({ units: COMBAT_OUTPUT_SIZE, activation: "linear" }),
       ],
     });
-    this._combatModel.compile({
-      optimizer: tf.train.adam(learningRate),
-      loss: "meanSquaredError",
-    });
+    this.prepareForTraining(learningRate);
 
     console.log("[HybridBrain] Created fresh untrained models");
     this._forwardStale = true;
@@ -411,20 +460,25 @@ export class HybridBrain extends BotBrain {
 
   /**
    * Apply tactical model outputs to enhance the base decision.
+   *
+   * Each output is acted on only if it was learned — positive skill on matches
+   * the weights never saw — and then drawn, not thresholded. An output that was
+   * not learned leaves the state machine's decision exactly as it was.
    */
-  private _applyTactical(output: Float32Array, input: BotInput, state: BotGameState, currentState: BotState): void {
+  private _applyTactical(raw: Float32Array, input: BotInput, state: BotGameState, currentState: BotState): void {
+    const output = decodeOutputs(raw, TACTICAL_OUTPUT_KINDS);
     // Movement mechanics (additive — don't remove what state machine set)
     const speed = Math.sqrt(state.self.velocity.x ** 2 + state.self.velocity.y ** 2 + state.self.velocity.z ** 2);
 
     // Sprint suggestion
-    if (output[TACT.MOVE_SPRINT] > THRESHOLD.MOVEMENT_ACTION && currentState !== BotState.FIGHT) {
+    if (this._draws(TACTICAL_OUTPUT_NAMES, TACT.MOVE_SPRINT, output) && currentState !== BotState.FIGHT) {
       input.buttons |= InputButtons.SPRINT;
       input.buttons |= InputButtons.FORWARD;
     }
 
     // Crouch-slide suggestion (only if speed allows)
     if (
-      output[TACT.MOVE_SLIDE] > THRESHOLD.MOVEMENT_ACTION &&
+      this._draws(TACTICAL_OUTPUT_NAMES, TACT.MOVE_SLIDE, output) &&
       canInitiateSlide(speed, true) &&
       (input.buttons & InputButtons.ALT_FIRE) === 0
     ) {
@@ -432,14 +486,17 @@ export class HybridBrain extends BotBrain {
     }
 
     // Jump suggestion
-    if (output[TACT.MOVE_JUMP] > THRESHOLD.MOVEMENT_ACTION) {
+    if (this._draws(TACTICAL_OUTPUT_NAMES, TACT.MOVE_JUMP, output)) {
       input.buttons |= InputButtons.JUMP;
     }
 
     // Weapon switch suggestion. The slot is decoded with the inverse of the
     // label it was trained on, so an output means the same weapon on both sides
     // of the network, and is taken only if the bot is carrying it.
-    if (output[TACT.WEAPON_SWITCH] > THRESHOLD.WEAPON_SWITCH) {
+    if (
+      this._draws(TACTICAL_OUTPUT_NAMES, TACT.WEAPON_SWITCH, output) &&
+      this._skillAt(TACTICAL_OUTPUT_NAMES, TACT.WEAPON_SLOT) > 0
+    ) {
       const slot = decodeWeaponSlot(output[TACT.WEAPON_SLOT]);
       if (slot >= 1 && slot <= state.self.weapons.length) {
         input.weaponSlot = slot;
@@ -449,55 +506,87 @@ export class HybridBrain extends BotBrain {
 
   /**
    * Apply combat model outputs to refine aim and fire decisions.
+   *
+   * Buttons are drawn as in the tactical head. Aim is a turn from where the bot is
+   * looking now — the label is the turn a person made between two frames — and
+   * the bot moves from the state machine's aim toward that turn by as much as the
+   * output's skill: a network that learned aim well steers, one that barely
+   * learned it nudges, one that did not leaves the aim alone.
    */
-  private _applyCombat(output: Float32Array, input: BotInput, state: BotGameState): void {
+  private _applyCombat(raw: Float32Array, input: BotInput, state: BotGameState): void {
+    const output = decodeOutputs(raw, COMBAT_OUTPUT_KINDS);
     const profile = getWeaponProfile(state.self.currentWeapon);
     const baseAltFireCharge =
       profile.hasChargedProjectile &&
       (input.buttons & InputButtons.ALT_FIRE) !== 0 &&
       (input.buttons & InputButtons.FIRE) === 0;
 
-    // Fire control
-    if (output[COMBAT.SHOULD_FIRE] > THRESHOLD.COMBAT_FIRE) {
-      input.buttons |= InputButtons.FIRE;
-    } else {
-      input.buttons &= ~InputButtons.FIRE;
+    // Fire control: a learned fire output decides either way
+    if (this._skillAt(COMBAT_OUTPUT_NAMES, COMBAT.SHOULD_FIRE) > 0) {
+      if (this._draws(COMBAT_OUTPUT_NAMES, COMBAT.SHOULD_FIRE, output)) {
+        input.buttons |= InputButtons.FIRE;
+      } else {
+        input.buttons &= ~InputButtons.FIRE;
+      }
     }
 
     // ADS control. ALT_FIRE is allowed only as part of an attack: either firing
     // a ranged weapon or holding an existing charged alt-fire attack.
-    const isFiring = (input.buttons & InputButtons.FIRE) !== 0;
-    if (output[COMBAT.SHOULD_ADS] > THRESHOLD.COMBAT_ADS && (isFiring || baseAltFireCharge)) {
-      input.buttons |= InputButtons.ALT_FIRE;
-    } else if (!baseAltFireCharge) {
-      input.buttons &= ~InputButtons.ALT_FIRE;
+    if (this._skillAt(COMBAT_OUTPUT_NAMES, COMBAT.SHOULD_ADS) > 0) {
+      const isFiring = (input.buttons & InputButtons.FIRE) !== 0;
+      if (this._draws(COMBAT_OUTPUT_NAMES, COMBAT.SHOULD_ADS, output) && (isFiring || baseAltFireCharge)) {
+        input.buttons |= InputButtons.ALT_FIRE;
+      } else if (!baseAltFireCharge) {
+        input.buttons &= ~InputButtons.ALT_FIRE;
+      }
     }
 
-    // Aim adjustments (small nudges, ±0.3 radians max)
-    const yawAdj = output[COMBAT.AIM_YAW_ADJUST] - 0.5; // -0.5 to +0.5
-    const pitchAdj = output[COMBAT.AIM_PITCH_ADJUST] - 0.5;
-
-    if (Math.abs(yawAdj) > THRESHOLD.AIM_DEADZONE) {
-      input.yaw += yawAdj * 0.6; // Scale to ±0.3 radians
+    // Aim: toward where a person would have turned from here, by as far as that
+    // output was learned
+    const yawTrust = Math.min(1, Math.max(0, this._skillAt(COMBAT_OUTPUT_NAMES, COMBAT.AIM_YAW_ADJUST)));
+    if (yawTrust > 0) {
+      const turnedTo = state.self.yaw + output[COMBAT.AIM_YAW_ADJUST];
+      input.yaw += yawTrust * angleDelta(input.yaw, turnedTo);
     }
-    if (Math.abs(pitchAdj) > THRESHOLD.AIM_DEADZONE) {
-      input.pitch += pitchAdj * 0.6;
+    const pitchTrust = Math.min(1, Math.max(0, this._skillAt(COMBAT_OUTPUT_NAMES, COMBAT.AIM_PITCH_ADJUST)));
+    if (pitchTrust > 0) {
+      const turnedTo = state.self.pitch + output[COMBAT.AIM_PITCH_ADJUST];
+      input.pitch += pitchTrust * (turnedTo - input.pitch);
     }
 
     // Dodge suggestions (strafe direction override)
     // Must set LEFT/RIGHT button flags — server strafe physics requires them
-    if (
-      output[COMBAT.DODGE_LEFT] > THRESHOLD.MOVEMENT_ACTION &&
-      output[COMBAT.DODGE_LEFT] > output[COMBAT.DODGE_RIGHT]
-    ) {
+    const left = this._draws(COMBAT_OUTPUT_NAMES, COMBAT.DODGE_LEFT, output);
+    const right = this._draws(COMBAT_OUTPUT_NAMES, COMBAT.DODGE_RIGHT, output);
+    const goLeft = left && (!right || output[COMBAT.DODGE_LEFT] >= output[COMBAT.DODGE_RIGHT]);
+    if (goLeft) {
       input.direction.x = -1;
       input.buttons |= InputButtons.LEFT;
       input.buttons &= ~InputButtons.RIGHT;
-    } else if (output[COMBAT.DODGE_RIGHT] > THRESHOLD.MOVEMENT_ACTION) {
+    } else if (right) {
       input.direction.x = 1;
       input.buttons |= InputButtons.RIGHT;
       input.buttons &= ~InputButtons.LEFT;
     }
+  }
+
+  /**
+   * Held-out skill of one output, or 0 when nothing was measured or what was
+   * measured is within the noise of a fixed answer — the same line the training
+   * report draws, so what it calls learned is what a bot acts on.
+   */
+  private _skillAt(names: readonly string[], index: number): number {
+    const skill = this._skill[names[index]];
+    return typeof skill === "number" && Number.isFinite(skill) && skill >= LEARNED_SKILL ? skill : 0;
+  }
+
+  /**
+   * Whether this yes-or-no output says yes this time: only if it was learned,
+   * and then drawn from its probability rather than compared with a threshold.
+   */
+  private _draws(names: readonly string[], index: number, output: readonly number[]): boolean {
+    if (this._skillAt(names, index) <= 0) return false;
+    return this._random() < sharpen(output[index], SAMPLING_TEMPERATURE);
   }
 
   // ── Warmup ──────────────────────────────────────────────────────
@@ -516,10 +605,17 @@ export class HybridBrain extends BotBrain {
   // biome-ignore lint/suspicious/noExplicitAny: tf.LayersModel, kept out of this module's field types
   private _acceptModel(model: any, expected: number, label: string, modelDir: string): any {
     const width = model?.inputs?.[0]?.shape?.[1];
-    if (width === expected) return model;
-    console.error(
-      `[HybridBrain] Refusing the ${label} model in ${modelDir}: it takes ${width} inputs, this build feeds ${expected}`,
-    );
+    const layers = model?.layers ?? [];
+    const lastActivation = layers[layers.length - 1]?.getConfig?.()?.activation;
+    let problem: string | null = null;
+    if (width !== expected) problem = `it takes ${width} inputs, this build feeds ${expected}`;
+    // Weights from when every output went through a sigmoid answer in
+    // probabilities where this build reads logits and turns
+    else if (lastActivation !== undefined && lastActivation !== "linear") {
+      problem = `its outputs go through a ${lastActivation}, this build reads logits and turns from a linear layer`;
+    }
+    if (!problem) return model;
+    console.error(`[HybridBrain] Refusing the ${label} model in ${modelDir}: ${problem}`);
     model?.dispose?.();
     return null;
   }

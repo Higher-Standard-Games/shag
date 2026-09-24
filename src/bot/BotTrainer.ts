@@ -32,11 +32,21 @@ import { BotEpisodeRecorder, type TrainingFrame } from "./BotEpisodeRecorder";
 import { COMBAT_INPUT_SIZE, TACTICAL_INPUT_SIZE } from "./BotInputNormalizer";
 import { BotRewardComputer } from "./BotRewardComputer";
 import { BotServer } from "./BotServer";
-import { buildCorpusPairs, resampleByWeight, rewardWeights, type TrainingPair } from "./CloningTargets";
+import {
+  buildCorpusPairs,
+  COMBAT_OUTPUT_KINDS,
+  COMBAT_OUTPUT_NAMES,
+  resampleByWeight,
+  rewardWeights,
+  TACTICAL_OUTPUT_KINDS,
+  TACTICAL_OUTPUT_NAMES,
+  type TrainingPair,
+} from "./CloningTargets";
 import { HybridBrain } from "./HybridBrain";
 import { typicalInterval } from "./ModelInputs";
 import { describeCurrentFeatures, writeMetadata } from "./ModelMetadata";
 import { getTF } from "./TFBackend";
+import { LEARNED_SKILL, scoreModel, skillByName } from "./TrainingReport";
 
 // ── Training Configuration ──────────────────────────────────────────
 
@@ -113,6 +123,12 @@ export class BotTrainer {
   private _roundsTrained = 0;
   private _framesTrained = 0;
   private _frameInterval: number | undefined;
+  /**
+   * Held-out skill of the weights, measured on each new round before training on
+   * it — play those weights have never seen. Saved beside them, so a bot acts on
+   * an output only as far as it was learned.
+   */
+  private _outputSkill: Record<string, number> | undefined;
 
   constructor(config?: Partial<TrainerConfig>) {
     this._config = { ...DEFAULT_TRAINER_CONFIG, ...config };
@@ -156,6 +172,7 @@ export class BotTrainer {
         console.log("[Trainer] No existing models found, creating fresh ones");
         await this._brain.createFreshModels(this._config.learningRate);
       }
+      this._brain.prepareForTraining(this._config.learningRate);
     } else {
       await this._brain.createFreshModels(this._config.learningRate);
     }
@@ -192,6 +209,11 @@ export class BotTrainer {
         // between neighbouring frames, so two bots' frames must never meet.
         const runs = episodes.map((episode) => episode.frames);
         const allFrames = episodes.flatMap((e) => e.frames);
+
+        // Before learning from this round, see how the weights do on it: none of
+        // it has been trained on yet, so this is the held-out measure a bot reads
+        if (this._roundsTrained > 0) this._measureSkill(runs);
+
         const { tacticalLoss, combatLoss } = await this._trainOnRuns(runs);
 
         // The next round's bots play what this round taught. Without this the
@@ -267,7 +289,34 @@ export class BotTrainer {
       validationFrames: 0,
       includedBots: true,
       matchIds: [],
+      outputSkill: this._outputSkill,
     });
+  }
+
+  /** Score the current weights on a round they have not trained on. */
+  private _measureSkill(runs: TrainingFrame[][]): void {
+    const tf = getTF();
+    const tactical = scoreModel(
+      tf,
+      this._brain.tacticalModel,
+      buildCorpusPairs(runs, "tactical", TACTICAL_INPUT_SIZE).pairs,
+      TACTICAL_OUTPUT_NAMES,
+      TACTICAL_OUTPUT_KINDS,
+    );
+    const combat = scoreModel(
+      tf,
+      this._brain.combatModel,
+      buildCorpusPairs(runs, "combat", COMBAT_INPUT_SIZE).pairs,
+      COMBAT_OUTPUT_NAMES,
+      COMBAT_OUTPUT_KINDS,
+    );
+    this._outputSkill = { ...skillByName(tactical), ...skillByName(combat) };
+    const learned = Object.entries(this._outputSkill).filter(([, skill]) => skill >= LEARNED_SKILL);
+    console.log(
+      `[Trainer] Held-out skill of last round's weights — what the next bots act on: ${
+        learned.length > 0 ? learned.map(([name, skill]) => `${name} ${skill.toFixed(2)}`).join(", ") : "nothing yet"
+      }`,
+    );
   }
 
   // ── Play Training Round ─────────────────────────────────────────

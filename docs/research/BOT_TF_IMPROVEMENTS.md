@@ -226,7 +226,7 @@ up.
 | TF-11 | Frame stacking: the last N feature vectors concatenated, so the network can see a movement in progress rather than a still | TF-10 | 3 | Opus 5 | **done 2026-09-23** |
 | TF-14 | Record the snapshot rate a corpus was recorded at, and have a bot say so when it plays at a different one — a stack of three frames only spans the same time on both sides at the same rate | TF-11 | 2 | Sonnet 5 | **done 2026-09-24** |
 | TF-13 | Batch inference across bots: one predict call for the whole fleet instead of one per bot, since the measured cost is the round trip into TF and not the arithmetic | TF-8 | 3 | Sonnet 5 | **done 2026-09-24** — by not calling TF at decision time; see the log |
-| TF-12 | One trunk, typed heads: independent sigmoids with binary cross-entropy for the buttons, a linear head for aim delta, and sampling with a temperature so two bots in the same spot do not do the same thing | TF-5, TF-11 | 4 | Opus 5 | todo |
+| TF-12 | One trunk, typed heads: independent sigmoids with binary cross-entropy for the buttons, a linear head for aim delta, and sampling with a temperature so two bots in the same spot do not do the same thing | TF-5, TF-11 | 4 | Opus 5 | **done 2026-09-24** |
 | TF-9 | Document the pipeline in the manual — there is no page for any of this today | TF-1…TF-5 | 2 | Sonnet 5 | **done 2026-09-23** |
 
 **Order.** TF-1, TF-2 and TF-3 are independent and each worth doing alone: one
@@ -249,6 +249,60 @@ down.
   competent bot instead of a broken one. Keep that.
 
 ## Progress log
+
+### 2026-09-24 — TF-12 done: typed heads, drawn answers, and nothing unproven acts
+
+**The aim label and the aim the brain applied disagreed.** The label encoded a turn
+as `0.5 + turn/2`; the brain applied `(output − 0.5) × 0.6` — thirty percent of
+the learned turn — behind a dead zone of ±0.1 rad, wider than most turns a person
+makes between two snapshots, and added it to the *state machine's* target yaw
+when the label is a turn from the *current view*. Almost everything the network
+could learn about aim was thrown away on the way out. There is now one
+`encodeAimTurn`/`decodeAimTurn` pair, and the brain turns from where it is looking.
+
+**Typed outputs.** Each head ends in a linear layer. Buttons are logits trained
+with binary cross-entropy — squared error through a sigmoid all but stops learning
+once an output is confidently wrong, which for a rare button is most of the time.
+Aim is a signed turn in units of 0.1 rad, trained with Huber loss so a snap cannot
+outweigh a thousand frames of tracking. One custom loss (`TypedLoss.ts`) per head;
+both stay plain dense stacks, so the fast forward pass still runs them.
+
+**Drawn, not thresholded.** A yes-or-no answer is sampled at temperature 0.5, so
+two bots in the same spot do not do the same thing and a held button is not
+dropped on the one frame in ten the network is unsure.
+
+**Nothing unproven acts.** Held-out skill per output (1 − error / floor) is written
+beside the weights, by the demo trainer from its held-out matches and by self-play
+from each new round before training on it. A bot acts on an output only if its
+skill is at least `LEARNED_SKILL` (0.05) — the same line the report uses for
+"learned" — and moves its aim toward the network's only as far as aim's skill says.
+Weights trained on one match carry no skill and advise nothing; the bot says so.
+The threshold exists because the first typed run scored aim at a skill of 0.0007,
+and a bot would have trusted luck.
+
+**Measured on the four wdm2 bot matches** (held-out skill, learned from 0.05):
+
+| Output | Before | Typed |
+| --- | --- | --- |
+| jump | 0.57 | 0.60 |
+| slide | 0.62 | 0.57 |
+| fire | 0.46 | 0.48 |
+| alt-fire | 0.25 | 0.25 |
+| slot | −0.12 | 0.06 |
+| aim yaw / pitch | ≤ 0 | 0.00 / 0.00 |
+
+A wash for the buttons, and neither learns aim. That is the data, not the head:
+bot aim is still on most frames and snaps several units at once on a few — target
+acquisition and look-arounds timed by the state machine's own timers, which nothing
+in the features can see. Continuous human tracking is what the linear head is for,
+and only human demos can say whether it works. Four self-play rounds with the typed
+heads closed the loop properly: the second round's bots advised nothing, the third
+acted on slide and fire, and slide's measured skill rose from 0.16 to 0.49.
+
+**Also fixed here:** `--resume` had never worked on either path — a model loaded
+from disk comes back uncompiled, so its first `fit` threw. Loading compiles now.
+Weights whose outputs went through a sigmoid are refused, by metadata and by the
+last layer's own activation.
 
 ### 2026-09-24 — self-play had never been self-play, and Deathmatch bots never fought
 

@@ -9,7 +9,7 @@
 import { describe, expect, it } from "vitest";
 import { InputButtons } from "../BotConfig";
 import type { TrainingFrame } from "../BotEpisodeRecorder";
-import { buildCorpusPairs, buildRunPairs, encodeAimDelta } from "../CloningTargets";
+import { buildCorpusPairs, buildRunPairs, encodeAimTurn } from "../CloningTargets";
 import { chooseAction } from "../DemoTrainingExtractor";
 import { splitByMatch } from "../TrainingCorpus";
 
@@ -42,11 +42,11 @@ describe("a turn is measured within one run, never across two", () => {
     const { pairs } = buildCorpusPairs([alice, bob], "combat", 18);
 
     // Frame 0 of each run has no predecessor, so no turn is claimed
-    expect(pairs[0].target[2]).toBe(0.5);
-    expect(pairs[2].target[2]).toBe(0.5);
+    expect(pairs[0].target[2]).toBe(0);
+    expect(pairs[2].target[2]).toBe(0);
     // Within a run, the small turn is measured
-    expect(pairs[1].target[2]).toBeCloseTo(encodeAimDelta(0.1), 5);
-    expect(pairs[3].target[2]).toBeCloseTo(encodeAimDelta(0.1), 5);
+    expect(pairs[1].target[2]).toBeCloseTo(encodeAimTurn(0.1), 5);
+    expect(pairs[3].target[2]).toBeCloseTo(encodeAimTurn(0.1), 5);
   });
 
   it("would have invented a turn if the runs were concatenated", () => {
@@ -57,8 +57,8 @@ describe("a turn is measured within one run, never across two", () => {
       18,
     );
     // A 2.9-radian flick nobody made, at the seam
-    expect(concatenated[2].target[2]).not.toBe(0.5);
-    expect(Math.abs(concatenated[2].target[2] - 0.5)).toBeGreaterThan(0.4);
+    expect(concatenated[2].target[2]).not.toBe(0);
+    expect(Math.abs(concatenated[2].target[2])).toBeGreaterThan(5);
   });
 
   it("keeps runs separate through the validation split", () => {
@@ -81,12 +81,12 @@ describe("a gap in a run is not a turn", () => {
     const afterRespawn = frame(3.0, "", 400);
 
     const pairs = buildRunPairs([beforeDeath, afterRespawn], "combat", 18);
-    expect(pairs[1].target[2]).toBe(0.5);
+    expect(pairs[1].target[2]).toBe(0);
   });
 
   it("still measures a turn between genuinely consecutive frames", () => {
     const pairs = buildRunPairs([frame(0, "", 100), frame(0.3, "", 102)], "combat", 18);
-    expect(pairs[1].target[2]).toBeCloseTo(encodeAimDelta(0.3), 5);
+    expect(pairs[1].target[2]).toBeCloseTo(encodeAimTurn(0.3), 5);
   });
 
   it("claims no weapon switch across a gap either", () => {

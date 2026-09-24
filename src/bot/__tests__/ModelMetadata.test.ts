@@ -67,6 +67,14 @@ describe("checkCompatibility", () => {
     expect(result.reason).toContain("frames");
   });
 
+  it("refuses weights from when every output went through a sigmoid", () => {
+    const older = metadata();
+    delete older.outputEncoding;
+    const result = checkCompatibility(older);
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("sigmoid");
+  });
+
   it("allows weights with no metadata, but says the shape is unknown", () => {
     const result = checkCompatibility(null);
     expect(result.ok).toBe(true);
