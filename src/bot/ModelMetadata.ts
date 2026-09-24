@@ -31,6 +31,11 @@ export interface ModelMetadata {
   /** Frames per stacked input. Absent in metadata written before inputs were stacked. */
   frameStack?: number;
   /**
+   * Ticks between the frames of a stack in the recordings trained on. A bot
+   * compares it with the spacing of the snapshots it actually receives.
+   */
+  frameIntervalTicks?: number;
+  /**
    * Output widths, which fix what each index means. Absent in metadata written
    * before the heads were reshaped.
    */

@@ -26,7 +26,14 @@ import { canInitiateSlide } from "./BotMovementProfile";
 import type { BotVision, VisionResult } from "./BotVision";
 import { getWeaponProfile } from "./BotWeaponProfile";
 import { decodeWeaponSlot } from "./CloningTargets";
-import { buildModelInputs, COMBAT_MODEL_INPUT, FeatureHistory, TACTICAL_MODEL_INPUT } from "./ModelInputs";
+import {
+  buildModelInputs,
+  COMBAT_MODEL_INPUT,
+  FeatureHistory,
+  intervalMismatch,
+  TACTICAL_MODEL_INPUT,
+  typicalInterval,
+} from "./ModelInputs";
 import { checkCompatibility, readMetadata } from "./ModelMetadata";
 import { StateMachineBrain } from "./StateMachineBrain";
 import { getTF, initTF } from "./TFBackend";
@@ -65,6 +72,9 @@ const COMBAT = {
 
 export const COMBAT_OUTPUT_SIZE = 6;
 
+/** Decisions to watch before comparing this server's snapshot spacing with training's. */
+const INTERVAL_SAMPLE = 64;
+
 /** Adam's step size when the trainer names none. */
 export const DEFAULT_LEARNING_RATE = 0.001;
 
@@ -95,6 +105,11 @@ export class HybridBrain extends BotBrain {
   /** The last few frames each head has seen, stacked the way training stacks them. */
   private readonly _tacticalHistory = new FeatureHistory();
   private readonly _combatHistory = new FeatureHistory();
+  /** Frame spacing the loaded weights were trained on, from their metadata. */
+  private _trainedInterval: number | null = null;
+  /** Ticks of recent decisions, to measure this server's spacing once. */
+  private _decisionTicks: number[] = [];
+  private _intervalChecked = false;
   private _warmedUp: boolean = false;
 
   constructor(difficulty: BotDifficulty) {
@@ -118,7 +133,9 @@ export class HybridBrain extends BotBrain {
 
     // Weights carry no record of the features they expect, so a normalizer
     // change would otherwise load cleanly and read nonsense.
-    const compatibility = checkCompatibility(readMetadata(modelDir));
+    const metadata = readMetadata(modelDir);
+    this._trainedInterval = metadata?.frameIntervalTicks ?? null;
+    const compatibility = checkCompatibility(metadata);
     if (!compatibility.ok) {
       console.error(`[HybridBrain] Refusing models in ${modelDir}: ${compatibility.reason}`);
       console.error("[HybridBrain] Retrain them, or point at models built for this feature set.");
@@ -260,6 +277,7 @@ export class HybridBrain extends BotBrain {
     // a person played — including the ones spent mid-manoeuvre.
     const inputs = buildModelInputs(state, vision ?? null, visionResult ?? null);
     this._tacticalHistory.push(inputs.tactical, state.tick);
+    this._checkInterval(state.tick);
     if (inputs.combat) {
       this._combatHistory.push(inputs.combat, state.tick);
     } else {
@@ -291,6 +309,23 @@ export class HybridBrain extends BotBrain {
     }
 
     return baseInput;
+  }
+
+  /**
+   * Once enough snapshots have arrived, say whether they are spaced like the
+   * frames the weights learned from. Nothing is refused over it — the bot still
+   * plays — but a stack spanning twice the time it did in training reads every
+   * movement at the wrong speed, and nobody would otherwise know why.
+   */
+  private _checkInterval(tick: number): void {
+    if (this._intervalChecked || this._trainedInterval === null) return;
+    this._decisionTicks.push(tick);
+    if (this._decisionTicks.length < INTERVAL_SAMPLE) return;
+    this._intervalChecked = true;
+    const observed = typicalInterval(this._decisionTicks);
+    this._decisionTicks = [];
+    const mismatch = observed === null ? null : intervalMismatch(this._trainedInterval, observed);
+    if (mismatch) console.warn(`[HybridBrain] ${mismatch}`);
   }
 
   // ── Neural Inference ────────────────────────────────────────────

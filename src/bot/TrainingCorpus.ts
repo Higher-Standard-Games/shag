@@ -20,6 +20,7 @@ import * as path from "node:path";
 import type { TrainingFrame } from "./BotEpisodeRecorder";
 import type { BotVision } from "./BotVision";
 import { DemoTrainingExtractor, type ExtractOptions } from "./DemoTrainingExtractor";
+import { typicalInterval } from "./ModelInputs";
 
 export interface CorpusMatch {
   file: string;
@@ -27,6 +28,8 @@ export interface CorpusMatch {
   map: string;
   players: number;
   frames: number;
+  /** Ticks between one recorded frame and the next — the snapshot rate, measured. */
+  frameInterval: number | null;
 }
 
 export interface CorpusSkip {
@@ -147,6 +150,7 @@ export async function buildCorpus(target: string, options: CorpusOptions = {}): 
         map: dataset.header.map,
         players: dataset.players.length,
         frames: dataset.totalFrames,
+        frameInterval: typicalInterval(frames.map((frame) => frame.tick)),
       });
       perMatchRuns.push(dataset.players.map((player) => player.frames).filter((run) => run.length > 0));
     } catch (error) {

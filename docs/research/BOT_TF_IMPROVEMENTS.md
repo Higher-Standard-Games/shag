@@ -224,7 +224,7 @@ up.
 | TF-8 | Measure inference: per-decision cost with models loaded, eight bots, native and pure-JS backends | TF-2 | 2 | Haiku 4.5 | **done 2026-09-23** |
 | TF-10 | A dataset layer | TF-1 | 3 | Sonnet 5 | **done 2026-09-23** |
 | TF-11 | Frame stacking: the last N feature vectors concatenated, so the network can see a movement in progress rather than a still | TF-10 | 3 | Opus 5 | **done 2026-09-23** |
-| TF-14 | Record the snapshot rate a corpus was recorded at, and have a bot say so when it plays at a different one — a stack of three frames only spans the same time on both sides at the same rate | TF-11 | 2 | Sonnet 5 | todo |
+| TF-14 | Record the snapshot rate a corpus was recorded at, and have a bot say so when it plays at a different one — a stack of three frames only spans the same time on both sides at the same rate | TF-11 | 2 | Sonnet 5 | **done 2026-09-24** |
 | TF-13 | Batch inference across bots: one predict call for the whole fleet instead of one per bot, since the measured cost is the round trip into TF and not the arithmetic | TF-8 | 3 | Sonnet 5 | todo |
 | TF-12 | One trunk, typed heads: independent sigmoids with binary cross-entropy for the buttons, a linear head for aim delta, and sampling with a temperature so two bots in the same spot do not do the same thing | TF-5, TF-11 | 4 | Opus 5 | todo |
 | TF-9 | Document the pipeline in the manual — there is no page for any of this today | TF-1…TF-5 | 2 | Sonnet 5 | **done 2026-09-23** |
@@ -249,6 +249,23 @@ down.
   competent bot instead of a broken one. Keep that.
 
 ## Progress log
+
+### 2026-09-24 — TF-14 done: frames spaced the way training spaced them
+
+A stack of three frames means "the last two snapshot intervals", which is the
+same stretch of time in training and in a match only at the same snapshot rate.
+Both sides now measure it the same way, in ticks between consecutive frames,
+leaving out gaps long enough to be deaths: the corpus from the recorded frame
+ticks, a bot from the ticks of the snapshots it decides on. Measured rather than
+read from the header, because the header's rate is rounded — the real recordings
+say 63 for an effective 62.5 — and a bot is never told the rate at all.
+
+The trainer warns about a match recorded at a different spacing from the rest of
+its corpus and writes the spacing into the metadata (`frameIntervalTicks`; the
+real wdm12 corpus records 2). A bot compares its own after 64 decisions and warns
+once if they differ by more than a quarter. Nothing is refused: the bot still
+plays, but a stack spanning three times the time it did in training reads every
+movement three times as fast, and nobody would otherwise know why.
 
 ### 2026-09-24 — the first real recording: three bugs that no fixture could see
 

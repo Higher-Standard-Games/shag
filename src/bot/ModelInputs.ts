@@ -138,3 +138,39 @@ export class FeatureHistory {
     return this._frames.length;
   }
 }
+
+/**
+ * The usual number of ticks between one frame and the next, or null with fewer
+ * than two frames that follow on.
+ *
+ * A stack of three frames means "the last two snapshot intervals", and that is
+ * only the same stretch of time in training and in a match if the two run at the
+ * same snapshot rate. Measuring it in ticks, from the frames themselves, compares
+ * like with like on both sides — a demo header's rate is rounded to a whole
+ * number, and a bot is never told the rate at all. Gaps longer than the stack
+ * would bridge are deaths and absences, not intervals, and are left out.
+ */
+export function typicalInterval(ticks: readonly number[]): number | null {
+  const intervals: number[] = [];
+  for (let index = 1; index < ticks.length; index++) {
+    const gap = ticks[index] - ticks[index - 1];
+    if (gap > 0 && gap <= MAX_FRAME_GAP_TICKS) intervals.push(gap);
+  }
+  if (intervals.length === 0) return null;
+  intervals.sort((a, b) => a - b);
+  return intervals[Math.floor(intervals.length / 2)];
+}
+
+/**
+ * Why a bot's frames are not spaced like the frames it learned from, or null if
+ * they are close enough that a stack means the same thing.
+ */
+export function intervalMismatch(trainedTicks: number, observedTicks: number): string | null {
+  const ratio = Math.max(trainedTicks, observedTicks) / Math.min(trainedTicks, observedTicks);
+  if (ratio <= 1.25) return null;
+  return (
+    `trained on frames ${trainedTicks} tick(s) apart, but this server sends a snapshot every ` +
+    `${observedTicks} — a stack of ${FRAME_STACK} spans ${(observedTicks / trainedTicks).toFixed(1)}× the time it ` +
+    `did in training, so every movement reads ${observedTicks > trainedTicks ? "faster" : "slower"} than it is`
+  );
+}

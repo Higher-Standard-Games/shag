@@ -216,6 +216,7 @@ async function trainFromDemo(
   const { buildCorpusPairs, COMBAT_OUTPUT_NAMES, TACTICAL_OUTPUT_NAMES } = await import("../bot/CloningTargets");
   const { formatScores, scoreOutputs } = await import("../bot/TrainingReport");
   const { TACTICAL_INPUT_SIZE, COMBAT_INPUT_SIZE } = await import("../bot/BotInputNormalizer");
+  const { intervalMismatch } = await import("../bot/ModelInputs");
   const fs = await import("node:fs");
   const path = await import("node:path");
 
@@ -256,6 +257,20 @@ async function trainFromDemo(
     `[Trainer] ${corpus.totalFrames} frames from ${corpus.matches.length} match(es): ` +
       `${trainFrames} training, ${validationFrames} validation`,
   );
+  // A stack means the same stretch of time only at the same snapshot rate, so a
+  // corpus that mixes rates teaches one movement at two speeds
+  const intervals = corpus.matches
+    .map((match) => match.frameInterval)
+    .filter((interval): interval is number => interval !== null)
+    .sort((a, b) => a - b);
+  const frameIntervalTicks = intervals.length > 0 ? intervals[Math.floor(intervals.length / 2)] : undefined;
+  if (frameIntervalTicks !== undefined) {
+    for (const match of corpus.matches) {
+      const mismatch = match.frameInterval === null ? null : intervalMismatch(frameIntervalTicks, match.frameInterval);
+      if (mismatch) console.warn(`[Trainer]   ${path.basename(match.file)}: ${mismatch}`);
+    }
+  }
+
   if (corpus.validation.length === 0 && corpus.matches.length < 2) {
     console.warn("[Trainer] One match means no validation set — the loss below says memorised, not learned.");
   }
@@ -371,6 +386,7 @@ async function trainFromDemo(
     validationFrames,
     includedBots: includeBots,
     blindMaps: corpus.blindMaps,
+    frameIntervalTicks,
     matchIds: corpus.matches.map((match) => match.matchId).filter((id): id is string => Boolean(id)),
   });
   brain.dispose();
