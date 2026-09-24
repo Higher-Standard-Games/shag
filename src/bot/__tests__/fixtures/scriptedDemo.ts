@@ -10,11 +10,19 @@
  * The scripted body never moves. Velocity is zero in every snapshot, so any
  * label that says the player was walking, sprinting or jumping can only have
  * come from a recorded command — which is what these tests are checking.
+ *
+ * Identities are named exactly as the game server names them, because that is
+ * where the worst bug in this pipeline hid. The demo roster and the recorded
+ * commands use the bare player id ("1"); the snapshot keys players by the wire
+ * key (`player_1`); and entity ids are wire keys of a different number. An
+ * earlier version of this fixture used "1" for all three, every test passed,
+ * and the extractor found nobody in a real recording.
  */
 
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { toClientKey } from "../../../games/fps/ClientEntityKey";
 import { DemoRecorder } from "../../../games/fps/server/DemoRecorder";
 import { Entity } from "../../../shared/net/Entity";
 import { GameState, PlayerState } from "../../../shared/net/GameState";
@@ -37,10 +45,13 @@ const noop = {
   },
 };
 
-/** The human seat: playerId "1", entity "e1", a verified account. */
-export const HUMAN = { playerId: "1", entityId: "e1", accountId: 41 };
+/**
+ * The human seat: roster id "1", a verified account, and an entity whose number
+ * differs from the player's, as it does on a server with anything else spawned.
+ */
+export const HUMAN = { playerId: "1", entityId: toClientKey(11), accountId: 41 };
 /** A bot seat, with no account — nothing here should learn from it. */
-export const BOT: Body = { playerId: "2", entityId: "e2", yaw: 0, health: 100, dead: false };
+export const BOT: Body = { playerId: "2", entityId: toClientKey(12), yaw: 0, health: 100, dead: false };
 
 export function human(yaw: number, health = 100, dead = false): Body {
   return { playerId: HUMAN.playerId, entityId: HUMAN.entityId, yaw, health, dead };
@@ -65,10 +76,11 @@ export function snapshot(tick: number, bodies: Body[]): GameState {
     } as never);
     state.entities.set(body.entityId, entity);
 
+    // The snapshot keys a player by the wire key, not the roster id
     const player = new PlayerState();
     player.entityId = body.entityId;
     player.name = body.playerId === HUMAN.playerId ? "Person" : "Bot";
-    state.players.set(body.playerId, player);
+    state.players.set(toClientKey(body.playerId), player);
 
     state.events.push({
       type: "combat_state",

@@ -167,19 +167,6 @@ export const DIFFICULTY_TRAINING_ROUNDS: Record<string, number> = {
 };
 
 /**
- * Get the model directory for a specific difficulty tier.
- * Appends the difficulty name to the base model directory.
- *
- * @param baseModelDir Base model directory (e.g. './models')
- * @param difficulty Difficulty level name ('easy', 'medium', 'hard', 'insane')
- * @returns Tier-specific directory (e.g. './models/hard')
- */
-export function getDifficultyModelDir(baseModelDir: string, difficulty: string): string {
-  const tier = typeof difficulty === "string" ? difficulty : "medium";
-  return `${baseModelDir}/${tier}`;
-}
-
-/**
  * Get all difficulty tiers in order of training progression.
  * Used by the trainer to save checkpoints at tier boundaries.
  */

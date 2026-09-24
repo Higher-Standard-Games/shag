@@ -16,6 +16,7 @@
 
 import * as fs from "node:fs";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { toClientKey } from "../../games/fps/ClientEntityKey";
 import { InputButtons, resolveDifficulty } from "../BotConfig";
 import { BotGameState } from "../BotGameState";
 import { COMBAT_INPUT_SIZE, TACTICAL_INPUT_SIZE } from "../BotInputNormalizer";
@@ -80,10 +81,12 @@ describe("training and a bot in a match", () => {
 
     let compared = 0;
     for (const frame of frames) {
-      const entityId = frame.state.players.get(HUMAN.playerId)?.entityId;
+      // A bot knows itself by the keys the server's join accept gives it
+      const self = toClientKey(HUMAN.playerId);
+      const entityId = frame.state.players.get(self)?.entityId;
       if (!entityId) continue;
       state.selfEntityId = entityId;
-      state.selfPlayerId = HUMAN.playerId;
+      state.selfPlayerId = self;
       state.update(frame.state);
       if (state.self.isDead) continue;
 

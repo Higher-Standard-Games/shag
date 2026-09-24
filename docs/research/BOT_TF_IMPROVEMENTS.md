@@ -250,6 +250,56 @@ down.
 
 ## Progress log
 
+### 2026-09-24 — the first real recording: three bugs that no fixture could see
+
+Everything up to TF-11 was verified against a scripted fixture. `demo:record`
+records a real match with AI bots, and `--include-bots` lets training read it, so
+the whole loop could be run on real data without anyone playing. It failed at
+three separate links, each invisible to every test so far.
+
+**Demo training had never extracted a frame from a real recording.** One person
+has three names in a real demo: the roster and the recorded commands say `"1"`,
+while the snapshot keys players by the wire key, `player_1`. The extractor looked
+snapshots up by the roster id, found nobody in any frame, and reported the match
+as holding no verified player. The fixture used `"1"` for all three, so every
+test passed. The extractor now looks players up by the wire key through the
+game's own `ensureClientKey`, sets `selfPlayerId` to it as a bot's join accept
+does — which is also how a bot finds its own team, so teammates would otherwise
+all have read as enemies — and warns loudly if a kept player appears in none of
+the snapshots. The fixture now names identities exactly as the server does, with
+entity numbers that differ from player numbers, and ten tests failed against the
+old extractor before the fix.
+
+**The trainer never exited.** vite-node keeps a filesystem watcher open for the
+life of the process, so a finished run — weights saved, metadata written — sat
+there until killed. Every other long-running CLI here exits explicitly for this
+reason. Nobody had noticed because the first bug always ended the run early with
+"No training frames": one bug was hiding the other.
+
+**Trained weights could not reach a bot.** A bot looked for its weights in
+`<models>/<difficulty>`, and was meant to fall back to `<models>` itself, which is
+where demo training writes them. The fallback ran only if loading *rejected*, and
+loading never rejects — it logs "using state machine" and resolves. So a bot
+pointed at demo-trained weights looked in `<models>/medium`, found nothing, and
+played the state machine. TF-2's test checked that the directory reached the bot,
+not that anything was found in it. `resolveModelDir` now picks the difficulty's
+own weights when self-play left some and the base set otherwise, and
+`loadModels` says whether it loaded anything.
+
+**After the fixes, on real data.** Extraction with line of sight traced against
+the real map is fast — about six seconds for a 2,800-frame match with its BSP
+load. `demo:record` gained `--models`, and two bots loaded both trained heads and
+played a full match with no inference errors: record, train, load, play, the loop
+closed. A two-match run split by match, stopped early on both heads (19 and 11 of
+60 epochs) and printed the per-output report, which said, correctly, that nothing
+was learned: every output no better than a fixed answer.
+
+**And a fact about the data.** Neither 45-second duel on wdm12 contained a shot:
+no fire in any command, no damage, the one kill a self-kill. Two bots on a large
+map spend that long collecting items. A self-play or bot-demo dataset needs longer
+matches or a smaller map before its combat head has anything to learn, and the
+report is what makes that visible rather than a loss that looks fine.
+
 ### 2026-09-23 — TF-11 done: three frames, built one way
 
 The network now sees the last three frames, oldest first, instead of one. A

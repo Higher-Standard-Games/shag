@@ -22,6 +22,7 @@
  */
 
 import * as fs from "node:fs";
+import { ensureClientKey } from "../games/fps/ClientEntityKey";
 import type { RecordedInput } from "../shared/demo/DemoInputs";
 import { type DemoFrame, type DemoHeader, DemoReader } from "../shared/demo/DemoReader";
 import { InputButtons } from "./BotConfig";
@@ -258,12 +259,21 @@ export class DemoTrainingExtractor {
     /** The slot the player was last seen holding, carried across idle frames. */
     let lastWeaponSlot = 0;
 
+    // One person, two names. The demo roster and the recorded commands use the
+    // bare player id ("1"), as the demo viewer and analyser expect; a snapshot
+    // keys players by the wire key (`player_1`), which is also what a bot is told
+    // it is called when it joins, and so what it looks its own team up by. The
+    // extractor used to look snapshots up by the roster id and found nobody in
+    // any real recording.
+    const wireKey = ensureClientKey(playerId);
+    let seen = 0;
+
     for (let i = 0; i < demoFrames.length; i++) {
       const demoFrame = demoFrames[i];
       const state = demoFrame.state;
 
       // Find this player's entity ID from the player roster in this frame
-      const playerState = state.players.get(playerId);
+      const playerState = state.players.get(wireKey);
       if (!playerState) continue;
 
       const entityId = playerState.entityId;
@@ -271,7 +281,8 @@ export class DemoTrainingExtractor {
 
       // Set up BotGameState to view from this player's perspective
       gameState.selfEntityId = entityId;
-      gameState.selfPlayerId = playerId;
+      gameState.selfPlayerId = wireKey;
+      seen++;
 
       // Update game state from the snapshot (this does all the heavy lifting:
       // extracts self position/health/armor, other players, pickups, events)
@@ -364,7 +375,7 @@ export class DemoTrainingExtractor {
 
       // Check kill events
       for (const killEvent of gameState.recentKills) {
-        if (killEvent.killerId === playerId || killEvent.killerId === entityId) {
+        if (killEvent.killerId === wireKey || killEvent.killerId === entityId) {
           kill = true;
           kills++;
           damageDealt += 100;
@@ -413,6 +424,13 @@ export class DemoTrainingExtractor {
       prevHealth = gameState.self.health;
       prevArmor = gameState.self.armor;
       lastWeaponSlot = frame.action.weaponSlot;
+    }
+
+    if (seen === 0 && demoFrames.length > 0) {
+      console.warn(
+        `[DemoExtractor] ${name} (roster id "${playerId}", looked up as "${wireKey}") appears in none of ` +
+          `${demoFrames.length} snapshots — the recording and the extractor disagree about what players are called`,
+      );
     }
 
     return {

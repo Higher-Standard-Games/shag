@@ -67,6 +67,30 @@ export function describeCurrentFeatures(): Pick<
   };
 }
 
+/** Whether a directory holds either head's weights. */
+export function hasModels(modelDir: string): boolean {
+  const dir = path.resolve(modelDir);
+  return (
+    fs.existsSync(path.join(dir, "tactical", "model.json")) || fs.existsSync(path.join(dir, "combat", "model.json"))
+  );
+}
+
+/**
+ * Where a bot of a given difficulty should load its weights from.
+ *
+ * Self-play leaves one set per difficulty tier under the base directory, and
+ * demo training leaves a single set in the base directory itself. A bot takes its
+ * tier's weights when there are any and the base set otherwise. This used to be
+ * a fallback that ran only when loading the tier's weights *failed* — but loading
+ * never fails, it logs "using state machine" and carries on, so a bot pointed at
+ * demo-trained weights looked in `<dir>/medium`, found nothing, and never looked
+ * anywhere else.
+ */
+export function resolveModelDir(baseModelDir: string, difficulty: string): string {
+  const tierDir = path.join(baseModelDir, difficulty);
+  return hasModels(tierDir) ? tierDir : baseModelDir;
+}
+
 export function writeMetadata(modelDir: string, metadata: ModelMetadata): void {
   fs.mkdirSync(path.resolve(modelDir), { recursive: true });
   fs.writeFileSync(path.join(path.resolve(modelDir), METADATA_FILE), `${JSON.stringify(metadata, null, 2)}\n`);

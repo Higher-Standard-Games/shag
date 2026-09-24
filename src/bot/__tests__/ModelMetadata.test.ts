@@ -4,10 +4,13 @@
  * a refusal. TF-10 in docs/research/BOT_TF_IMPROVEMENTS.md.
  */
 
-import { describe, expect, it } from "vitest";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
+import { afterAll, describe, expect, it } from "vitest";
 import { TACTICAL_TARGET_SIZE } from "../CloningTargets";
 import { COMBAT_MODEL_INPUT, FRAME_STACK, TACTICAL_MODEL_INPUT } from "../ModelInputs";
-import { checkCompatibility, describeCurrentFeatures, type ModelMetadata } from "../ModelMetadata";
+import { checkCompatibility, describeCurrentFeatures, type ModelMetadata, resolveModelDir } from "../ModelMetadata";
 
 const metadata = (over: Partial<ModelMetadata> = {}): ModelMetadata => ({
   ...describeCurrentFeatures(),
@@ -68,5 +71,37 @@ describe("checkCompatibility", () => {
     const result = checkCompatibility(null);
     expect(result.ok).toBe(true);
     expect(result.reason).toContain("unknown");
+  });
+});
+
+describe("resolveModelDir", () => {
+  const dirs: string[] = [];
+  const makeDir = (): string => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "shag-models-"));
+    dirs.push(dir);
+    return dir;
+  };
+  const placeModel = (dir: string): void => {
+    fs.mkdirSync(path.join(dir, "tactical"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "tactical", "model.json"), "{}");
+  };
+
+  afterAll(() => {
+    for (const dir of dirs) fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("uses the base directory when that is where the weights are, as demo training leaves them", () => {
+    // A bot used to look only in <dir>/medium here and play the state machine
+    const base = makeDir();
+    placeModel(base);
+    expect(resolveModelDir(base, "medium")).toBe(base);
+  });
+
+  it("prefers the difficulty's own weights when self-play left a set for it", () => {
+    const base = makeDir();
+    placeModel(base);
+    placeModel(path.join(base, "hard"));
+    expect(resolveModelDir(base, "hard")).toBe(path.join(base, "hard"));
+    expect(resolveModelDir(base, "easy")).toBe(base);
   });
 });

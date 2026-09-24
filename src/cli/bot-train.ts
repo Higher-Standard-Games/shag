@@ -400,4 +400,9 @@ async function main(): Promise<void> {
   }
 }
 
-runCli(main);
+// vite-node keeps a filesystem watcher open for as long as the process lives, so
+// a finished run never drains on its own: training completed, saved its weights
+// and then sat there. Every other long-running CLI here exits explicitly for the
+// same reason. runCli always resolves — a failure sets the exit code — so this
+// covers a failed run too, which would otherwise hang just the same.
+runCli(main).then(() => process.exit(process.exitCode ?? 0));

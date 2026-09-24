@@ -107,7 +107,12 @@ export class HybridBrain extends BotBrain {
    * Initializes TF.js backend if not already done.
    * Gracefully falls back if models don't exist.
    */
-  async loadModels(modelDir: string): Promise<void> {
+  /**
+   * Load both heads' weights from a directory. Resolves true if either loaded;
+   * a missing or refused model leaves the bot on the state machine, which is a
+   * working bot, so it is reported rather than thrown.
+   */
+  async loadModels(modelDir: string): Promise<boolean> {
     await initTF();
     const tf = getTF();
 
@@ -117,7 +122,7 @@ export class HybridBrain extends BotBrain {
     if (!compatibility.ok) {
       console.error(`[HybridBrain] Refusing models in ${modelDir}: ${compatibility.reason}`);
       console.error("[HybridBrain] Retrain them, or point at models built for this feature set.");
-      return;
+      return false;
     }
     if (compatibility.reason) {
       console.warn(`[HybridBrain] ${compatibility.reason} (${modelDir})`);
@@ -141,6 +146,7 @@ export class HybridBrain extends BotBrain {
 
     // Warm up models with dummy predictions to avoid cold-start latency
     this._warmup();
+    return this.hasModels;
   }
 
   /**

@@ -131,7 +131,12 @@ export async function buildCorpus(target: string, options: CorpusOptions = {}): 
 
       const dataset = extractor.extractDecoded(header, frames, { includeBots: options.includeBots, vision });
       if (dataset.totalFrames === 0) {
-        skipped.push({ file, reason: "no frames from a verified player" });
+        skipped.push({
+          file,
+          reason: options.includeBots
+            ? "no frames from any player — none of the roster was found alive in its snapshots"
+            : "no frames from a verified player",
+        });
         continue;
       }
       if (matchId) seen.add(matchId);
