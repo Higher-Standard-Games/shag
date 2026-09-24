@@ -6,20 +6,26 @@
  * most of them are zero most of the time, so a network that answers "no" to
  * everything scores well and has learned nothing. The floor makes that visible:
  * for each output it is the error of the best answer that ignores the input
- * entirely. Error is mean absolute, so that constant is the column's median, not
- * its mean — for an output that is on one frame in ten, "never" is a better fixed
- * answer than "a tenth", and comparing against the weaker of the two would
- * flatter a network that had learned nothing. An output whose error is not below
- * its floor was not learned.
+ * entirely. An output whose error is not below its floor was not learned.
+ *
+ * Error is squared, because squared error is what both heads are trained on, and
+ * what it teaches a sigmoid output to be is a probability: for a button pressed
+ * one frame in thirty, the honest answer is "about a thirtieth", not "never".
+ * The best fixed answer under squared error is the column's mean, so the floor
+ * is its variance. A lazy "never" still loses to it — its error is the pressed
+ * share p, the floor p(1 − p) — while a network that has learned *when* the
+ * button is pressed beats it. An earlier version scored absolute error against
+ * the median, which rewards hard yes-or-no answers and would have called a
+ * well-calibrated network useless.
  *
  * TF-6 in docs/research/BOT_TF_IMPROVEMENTS.md.
  */
 
 export interface OutputScore {
   name: string;
-  /** Mean absolute error of the network on held-out frames. */
+  /** Mean squared error of the network on held-out frames. */
   error: number;
-  /** Mean absolute error of the best fixed answer, which is the median. */
+  /** Mean squared error of the best fixed answer — the column's mean — which is its variance. */
   floor: number;
   /** What share of frames this output was on for, as a sanity check. */
   positiveRate: number;
@@ -48,19 +54,23 @@ export function scoreOutputs(
   const scores: OutputScore[] = [];
 
   for (let column = 0; column < width; column++) {
-    const values: number[] = [];
+    let sum = 0;
     let error = 0;
     let positives = 0;
     for (let row = 0; row < frames; row++) {
       const target = targets[row][column] ?? 0;
-      values.push(target);
-      error += Math.abs((predictions[row][column] ?? 0) - target);
+      sum += target;
+      const miss = (predictions[row][column] ?? 0) - target;
+      error += miss * miss;
       if (target > 0.5) positives++;
     }
 
-    const constant = median(values);
+    const mean = sum / frames;
     let floor = 0;
-    for (const value of values) floor += Math.abs(constant - value);
+    for (let row = 0; row < frames; row++) {
+      const miss = mean - (targets[row][column] ?? 0);
+      floor += miss * miss;
+    }
 
     scores.push({
       name: names[column],
@@ -71,13 +81,6 @@ export function scoreOutputs(
   }
 
   return scores;
-}
-
-/** The value that minimises mean absolute error, which is what a floor needs. */
-function median(values: number[]): number {
-  const sorted = [...values].sort((a, b) => a - b);
-  const middle = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 0 ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle];
 }
 
 /** One line per output: what it scored, and whether that beat ignoring the input. */

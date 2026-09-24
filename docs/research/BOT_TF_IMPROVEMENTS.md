@@ -250,6 +250,30 @@ down.
 
 ## Progress log
 
+### 2026-09-24 — correcting TF-6: the report was scoring the wrong error
+
+The per-output report scored mean absolute error against the column's median.
+That pairing is internally consistent — the median is the best fixed answer under
+absolute error — but it is not what the heads are trained on. Both are trained on
+squared error, which teaches a sigmoid output to be a probability, and absolute
+error punishes a probability: for a button pressed one frame in ten, a network
+that says 0.6 on that frame and 0.1 on the others has plainly learned *when*, and
+absolute error scored it 0.13 against a floor of 0.1 — "no better than a fixed
+answer".
+
+The report now scores squared error against the variance — the error of the
+column's mean, the best fixed answer under squared error. A lazy "never" still
+loses (error p against a floor of p(1 − p)), and a network that learned the base
+rate but not when scores exactly the floor, which the report calls unlearned. Both
+cases have tests, and so does the one above.
+
+On the same real bot data, trained on one match and scored on the other, the
+corrected report credits jump (0.0176 against 0.0278), slide and dodge-right as
+learned — the state machine's bots move predictably, and a network can learn when
+they jump from speed and footing. The old report had called every output
+unlearned. Dodge-left is far above its floor: one match is not enough to
+generalise from, and the report says so.
+
 ### 2026-09-24 — TF-13 done, differently: no round trip at all
 
 TF-13 asked for one `predict` call for the whole fleet, because the measured cost

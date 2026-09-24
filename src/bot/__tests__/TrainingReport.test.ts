@@ -2,8 +2,8 @@
  * A loss number on its own cannot tell you whether anything was learned.
  *
  * Most of these outputs are off most of the time, so a network that answers "no"
- * to everything scores a fine mean error. The floor — the error of the best
- * fixed answer, which for mean absolute error is the median — is what makes the
+ * to everything scores a fine mean error. The floor — the squared error of the
+ * best fixed answer, the column's mean, which is its variance — is what makes the
  * difference visible.
  *
  * TF-6 in docs/research/BOT_TF_IMPROVEMENTS.md.
@@ -36,14 +36,15 @@ describe("scoreOutputs", () => {
     const [first, second] = scoreOutputs(["right", "wrong"], predictions, targets);
     expect(first.error).toBe(0);
     expect(second.error).toBe(1);
-    // Both columns are on half the time, so no fixed answer beats 0.5
-    expect(first.floor).toBeCloseTo(0.5, 5);
-    expect(second.floor).toBeCloseTo(0.5, 5);
+    // Both columns are on half the time: the best fixed answer is 0.5, off by 0.5
+    expect(first.floor).toBeCloseTo(0.25, 5);
+    expect(second.floor).toBeCloseTo(0.25, 5);
   });
 
   it("gives a rare output a floor low enough to expose a lazy network", () => {
     // On in one frame of ten: answering "never" is wrong a tenth of the time,
-    // which is exactly the floor — so the network added nothing
+    // and answering "a tenth" always does slightly better — so "never" is not
+    // even as good as ignoring the input sensibly
     const targets = Array.from({ length: 10 }, (_, index) => [index === 0 ? 1 : 0]);
     const lazy = Array.from({ length: 10 }, () => [0]);
     const [score] = scoreOutputs(["jump"], lazy, targets);
@@ -51,8 +52,28 @@ describe("scoreOutputs", () => {
     expect(score.positiveRate).toBeCloseTo(0.1, 5);
     // A tenth of an error looks respectable until it is read against the floor
     expect(score.error).toBeCloseTo(0.1, 5);
-    expect(score.floor).toBeCloseTo(0.1, 5);
+    expect(score.floor).toBeCloseTo(0.09, 5);
     expect(score.error).toBeGreaterThanOrEqual(score.floor);
+    expect(formatScores("Tactical", [score]).join("\n")).toContain("no better than a fixed answer");
+  });
+
+  it("credits a network that knows when a rare button is pressed, without a hard yes", () => {
+    // On in one frame of ten. The network says 0.6 on that frame and 0.1 on the
+    // others: it never commits, but it has plainly learned when. Scored by
+    // absolute error against the median, this looked worse than answering "never"
+    const targets = Array.from({ length: 10 }, (_, index) => [index === 0 ? 1 : 0]);
+    const knowing = Array.from({ length: 10 }, (_, index) => [index === 0 ? 0.6 : 0.1]);
+    const [score] = scoreOutputs(["jump"], knowing, targets);
+    expect(score.error).toBeLessThan(score.floor);
+    expect(formatScores("Tactical", [score]).join("\n")).toContain("learned");
+  });
+
+  it("does not credit a network that only learned how often, not when", () => {
+    // The base rate on every frame is calibrated and useless
+    const targets = Array.from({ length: 10 }, (_, index) => [index === 0 ? 1 : 0]);
+    const rate = Array.from({ length: 10 }, () => [0.1]);
+    const [score] = scoreOutputs(["jump"], rate, targets);
+    expect(score.error).toBeCloseTo(score.floor, 10);
     expect(formatScores("Tactical", [score]).join("\n")).toContain("no better than a fixed answer");
   });
 
