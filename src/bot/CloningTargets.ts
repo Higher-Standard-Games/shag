@@ -156,22 +156,73 @@ export interface TrainingPair {
   /**
    * The frame's reward, normalised to [-1, 1], carried along rather than mixed
    * into the target. Cloning a person ignores it — what they did is the answer
-   * whether or not the frame went well. Self-play uses it as a weight, which is
-   * where a reward belongs: it says how much to listen, not what to say.
+   * whether or not the frame went well. Self-play uses it to decide how often a
+   * frame is trained on, which is where a reward belongs: it says how much to
+   * listen, not what to say.
    */
   reward: number;
 }
 
 /**
- * A normalised reward as a sample weight in [0, 1].
+ * How much each frame of a round should count, from its reward.
  *
- * The worst frame of a round weighs nothing and the best weighs one, so a bot
- * training on its own play leans on what went well without being told that
- * anything it did was a different action than the one it took.
+ * The typical frame counts normally (0.5), a frame that went better counts more,
+ * one that went worse counts less, up to 1 and down to 0. "Typical" is the median
+ * and the scale is the largest distance from it, because rewards arrive min-max
+ * normalised per episode: an episode with one kill and no death put that kill at
+ * +1 and every other frame at −1, and weighting from the raw value then counted
+ * one frame of the whole round and ignored the rest. Centring on the median leaves
+ * the ordinary frames ordinary whichever extreme an episode happened to contain.
+ *
+ * A reward that is not a number weighs nothing.
  */
-export function rewardToWeight(reward: number): number {
-  if (!Number.isFinite(reward)) return 0;
-  return Math.max(0, Math.min(1, (reward + 1) / 2));
+export function rewardWeights(rewards: readonly number[]): number[] {
+  const finite = rewards.filter((reward) => Number.isFinite(reward)).sort((a, b) => a - b);
+  if (finite.length === 0) return rewards.map(() => 0);
+  const middle = Math.floor(finite.length / 2);
+  const median = finite.length % 2 === 0 ? (finite[middle - 1] + finite[middle]) / 2 : finite[middle];
+  const spread = finite.reduce((widest, reward) => Math.max(widest, Math.abs(reward - median)), 0);
+  return rewards.map((reward) => {
+    if (!Number.isFinite(reward)) return 0;
+    if (spread === 0) return 0.5;
+    return 0.5 + 0.5 * ((reward - median) / spread);
+  });
+}
+
+/**
+ * Draw `count` items in proportion to their weights, by systematic resampling.
+ *
+ * This is how a round's reward weights reach training. TensorFlow.js does not
+ * support per-sample weights in `fit` — passing them throws — so the weights
+ * decide which frames are trained on instead: a frame twice as heavy appears
+ * about twice as often, and one that weighs nothing not at all. In expectation it
+ * is the same as weighting the loss, with nothing asked of the API.
+ *
+ * `offset` in [0, 1) is where the first draw falls; the rest are evenly spaced,
+ * which keeps the draw close to the weights even for a small `count`.
+ */
+export function resampleByWeight<T>(
+  items: readonly T[],
+  weights: readonly number[],
+  count: number,
+  offset: number,
+): T[] {
+  const total = weights.reduce((sum, weight) => sum + (weight > 0 ? weight : 0), 0);
+  if (items.length === 0 || total <= 0 || count <= 0) return [];
+  const step = total / count;
+  const drawn: T[] = [];
+  let position = Math.max(0, Math.min(0.999999, offset)) * step;
+  let cumulative = 0;
+  let index = 0;
+  for (let draw = 0; draw < count; draw++) {
+    while (index < items.length - 1 && cumulative + Math.max(0, weights[index]) <= position) {
+      cumulative += Math.max(0, weights[index]);
+      index++;
+    }
+    drawn.push(items[index]);
+    position += step;
+  }
+  return drawn;
 }
 
 /**

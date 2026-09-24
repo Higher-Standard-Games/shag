@@ -17,7 +17,8 @@ import {
   encodeAimDelta,
   encodeWeaponSlot,
   MAX_WEAPON_SLOT,
-  rewardToWeight,
+  resampleByWeight,
+  rewardWeights,
   TACTICAL_TARGET_SIZE,
 } from "../CloningTargets";
 
@@ -100,15 +101,49 @@ describe("tactical targets", () => {
 });
 
 describe("reward as a weight", () => {
-  it("maps a normalised reward into a weight, worst to nothing", () => {
-    expect(rewardToWeight(-1)).toBe(0);
-    expect(rewardToWeight(0)).toBeCloseTo(0.5, 5);
-    expect(rewardToWeight(1)).toBe(1);
+  it("counts the typical frame normally, better more, worse less", () => {
+    const [typical, better, worse] = rewardWeights([0, 1, -1, 0, 0]);
+    expect(typical).toBeCloseTo(0.5, 5);
+    expect(better).toBe(1);
+    expect(worse).toBe(0);
+  });
+
+  it("keeps ordinary frames ordinary when an episode has only a kill", () => {
+    // Min-max normalisation puts the one kill at +1 and every other frame at -1.
+    // Weighted from the raw value, the round would have been one frame long.
+    const rewards = [-1, -1, -1, -1, -1, -1, -1, -1, -1, 1];
+    const weights = rewardWeights(rewards);
+    expect(weights.slice(0, 9).every((weight) => weight === 0.5)).toBe(true);
+    expect(weights[9]).toBe(1);
+  });
+
+  it("weighs every frame the same when nothing stood out", () => {
+    expect(rewardWeights([0, 0, 0])).toEqual([0.5, 0.5, 0.5]);
   });
 
   it("refuses to weigh a value that is not a number", () => {
-    expect(rewardToWeight(Number.NaN)).toBe(0);
-    expect(rewardToWeight(Number.POSITIVE_INFINITY)).toBe(0);
+    const weights = rewardWeights([0, Number.NaN, 1, Number.POSITIVE_INFINITY]);
+    expect(weights[1]).toBe(0);
+    expect(weights[3]).toBe(0);
+  });
+});
+
+describe("resampleByWeight", () => {
+  it("draws each item about as often as its weight says", () => {
+    const drawn = resampleByWeight(["light", "heavy"], [1, 3], 400, 0.5);
+    const heavy = drawn.filter((item) => item === "heavy").length;
+    expect(drawn).toHaveLength(400);
+    expect(heavy).toBe(300);
+  });
+
+  it("never draws what weighs nothing", () => {
+    const drawn = resampleByWeight(["a", "b", "c"], [1, 0, 1], 100, 0.3);
+    expect(drawn).not.toContain("b");
+  });
+
+  it("draws nothing when nothing has weight", () => {
+    expect(resampleByWeight(["a"], [0], 10, 0.5)).toEqual([]);
+    expect(resampleByWeight([], [], 10, 0.5)).toEqual([]);
   });
 });
 

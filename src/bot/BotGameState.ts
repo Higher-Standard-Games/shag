@@ -72,6 +72,18 @@ export interface BotSelf {
 
 export type PlayerRelation = "ally" | "enemy";
 
+/**
+ * Whether a team name from the server means an actual team.
+ *
+ * In a free-for-all the server has no team to name and sends "spectator" for
+ * every player — its own damage rule and snapshot broadcaster both read it as
+ * "no team". Read as a team, it made every other player in a Deathmatch an ally
+ * sharing the "spectator" team, and a bot never had anyone to fight.
+ */
+export function onATeam(team: string | undefined): team is string {
+  return team !== undefined && team !== "" && team !== "spectator";
+}
+
 export interface VisiblePlayer {
   entityId: string;
   playerId: string;
@@ -319,7 +331,7 @@ export class BotGameState {
       if (playerEntry) {
         const distance = vec3Distance(this.self.position, position);
         const team = playerEntry.player.team || "";
-        const relation: PlayerRelation = this.self.team && team === this.self.team ? "ally" : "enemy";
+        const relation: PlayerRelation = onATeam(this.self.team) && team === this.self.team ? "ally" : "enemy";
         this.players.push({
           entityId,
           playerId: playerEntry.playerId,
@@ -535,7 +547,7 @@ export class BotGameState {
     const roles = this.matchState.teamRoles;
     if (!roles) return null;
     const team = this.self.team || this.scores.get(this.selfPlayerId)?.team;
-    if (!team) return null;
+    if (!team || !onATeam(team)) return null;
     return roles[team] ?? null;
   }
 
@@ -565,7 +577,7 @@ export class BotGameState {
   getTeamCounts(): Map<string, number> {
     const counts = new Map<string, number>();
     for (const [, data] of this.scores) {
-      if (data.team) {
+      if (onATeam(data.team)) {
         counts.set(data.team, (counts.get(data.team) || 0) + 1);
       }
     }

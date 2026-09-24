@@ -26,13 +26,16 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { BotClient } from "./BotClient";
+import type { BotClient } from "./BotClient";
 import { getDifficultyTiers, getNextBotName, resetBotNameIndex } from "./BotConfig";
 import { BotEpisodeRecorder, type TrainingFrame } from "./BotEpisodeRecorder";
 import { COMBAT_INPUT_SIZE, TACTICAL_INPUT_SIZE } from "./BotInputNormalizer";
 import { BotRewardComputer } from "./BotRewardComputer";
-import { buildCorpusPairs, rewardToWeight, type TrainingPair } from "./CloningTargets";
+import { BotServer } from "./BotServer";
+import { buildCorpusPairs, resampleByWeight, rewardWeights, type TrainingPair } from "./CloningTargets";
 import { HybridBrain } from "./HybridBrain";
+import { typicalInterval } from "./ModelInputs";
+import { describeCurrentFeatures, writeMetadata } from "./ModelMetadata";
 import { getTF } from "./TFBackend";
 
 // ── Training Configuration ──────────────────────────────────────────
@@ -103,6 +106,13 @@ export class BotTrainer {
   private _rewardComputer: BotRewardComputer;
   private _roundStats: RoundStats[] = [];
   private _startTime: number = 0;
+  /** Spawns each round's bots the way the bot server does: with the map and the weights. */
+  private _botServer: BotServer | null = null;
+  /** Whether the weights in the latest directory were trained, so bots may play them. */
+  private _playable = false;
+  private _roundsTrained = 0;
+  private _framesTrained = 0;
+  private _frameInterval: number | undefined;
 
   constructor(config?: Partial<TrainerConfig>) {
     this._config = { ...DEFAULT_TRAINER_CONFIG, ...config };
@@ -150,6 +160,15 @@ export class BotTrainer {
       await this._brain.createFreshModels(this._config.learningRate);
     }
 
+    // Resumed weights were trained, so the first round may already play them.
+    // Fresh ones are random, and a random network at a coin-flip threshold
+    // fires at nothing: the first round of a new run plays the state machine.
+    if (this._config.resumeTraining && this._brain.hasModels) {
+      await this._saveWeights(this._latestDir);
+      this._playable = true;
+    }
+    this._botServer = new BotServer(this._config.serverPort + 100);
+
     // Ensure model directory exists
     fs.mkdirSync(path.resolve(this._config.modelDir), { recursive: true });
 
@@ -174,6 +193,17 @@ export class BotTrainer {
         const runs = episodes.map((episode) => episode.frames);
         const allFrames = episodes.flatMap((e) => e.frames);
         const { tacticalLoss, combatLoss } = await this._trainOnRuns(runs);
+
+        // The next round's bots play what this round taught. Without this the
+        // bots never played the models being trained: every round was the state
+        // machine, and the network only ever learned to imitate it.
+        if (allFrames.length > 0) {
+          this._roundsTrained++;
+          this._framesTrained += allFrames.length;
+          this._frameInterval = typicalInterval(runs[0]?.map((frame) => frame.tick) ?? []) ?? this._frameInterval;
+          await this._saveWeights(this._latestDir);
+          this._playable = true;
+        }
 
         // 4. Log stats
         const totalKills = episodes.reduce((s, e) => s + e.summary.kills, 0);
@@ -211,7 +241,33 @@ export class BotTrainer {
 
     // Final save
     await this._saveCheckpoint(this._config.rounds);
+    await this._botServer?.stop();
+    this._botServer = null;
     this._printSummary();
+  }
+
+  /** Where each round's weights go, for the next round's bots to play. */
+  private get _latestDir(): string {
+    // Its own directory: a bot prefers its difficulty's subdirectory, and the
+    // trainer freezes one there at every tier boundary, so bots pointed at the
+    // base would lock onto that snapshot and stop playing anything newer.
+    return path.join(path.resolve(this._config.modelDir), "latest");
+  }
+
+  /** Save the weights with what they were trained on, so any bot can check them. */
+  private async _saveWeights(dir: string): Promise<void> {
+    fs.mkdirSync(dir, { recursive: true });
+    await this._brain.saveModels(dir);
+    writeMetadata(dir, {
+      ...describeCurrentFeatures(),
+      frameIntervalTicks: this._frameInterval,
+      trainedAt: new Date().toISOString(),
+      matches: this._roundsTrained,
+      trainFrames: this._framesTrained,
+      validationFrames: 0,
+      includedBots: true,
+      matchIds: [],
+    });
   }
 
   // ── Play Training Round ─────────────────────────────────────────
@@ -232,21 +288,25 @@ export class BotTrainer {
     // The trainer expects a running game server on the configured port
     const serverUrl = `ws://localhost:${this._config.serverPort}`;
     const bots: Array<{ client: BotClient; recorder: BotEpisodeRecorder }> = [];
+    const botServer = this._botServer;
+    if (!botServer) throw new Error("[Trainer] No bot server — train() creates one before the first round");
 
     for (let i = 0; i < this._config.botCount; i++) {
       const botName = getNextBotName();
       const recorder = new BotEpisodeRecorder(botName, this._config.map);
 
-      const client = new BotClient({
-        name: botName,
-        difficulty: this._config.difficulty,
-      });
-
-      // Wire recorder into client so recordTick() is called each snapshot
-      client.setRecorder(recorder);
-
       try {
-        await client.connect(serverUrl);
+        // Through the bot server, as a match's bots are made: with the map's
+        // vision and navigation, which a bare client lacks — without them two
+        // bots never found each other and a round had no fight in it — and,
+        // from the second round, with the weights the last round trained.
+        const client = await botServer.addBot(serverUrl, {
+          name: botName,
+          difficulty: this._config.difficulty,
+          modelDir: this._playable ? this._latestDir : undefined,
+        });
+        // Wire recorder into client so recordTick() is called each snapshot
+        client.setRecorder(recorder);
         recorder.startRecording(0);
         bots.push({ client, recorder });
       } catch (e) {
@@ -298,8 +358,8 @@ export class BotTrainer {
    *
    * The labels are the same ones a human demo produces — what the player did —
    * built by the one shared builder, so an output cannot come to mean one thing
-   * in self-play and another when cloning a person. Reward enters as a sample
-   * weight: the best frames of a round pull hardest and the worst pull not at
+   * in self-play and another when cloning a person. Reward decides how often a
+   * frame is trained on: the best frames of a round appear most, the worst not at
    * all. It used to be folded into the target itself, which said the bot had
    * pressed a button halfway, something no player ever does.
    *
@@ -328,25 +388,26 @@ export class BotTrainer {
   ): Promise<number> {
     if (!model) return 0;
 
-    const { pairs } = buildCorpusPairs(runs, head, inputSize);
+    const { pairs: all } = buildCorpusPairs(runs, head, inputSize);
+    // The round's frames, drawn as often as their reward says they deserve.
+    // TensorFlow.js throws on per-sample weights, so this is how they apply.
+    const weights = rewardWeights(all.map((pair: TrainingPair) => pair.reward));
+    const pairs = resampleByWeight(all, weights, all.length, Math.random());
     if (pairs.length === 0) return 0;
 
     const tf = getTF();
     const inputTensor = tf.tensor2d(pairs.map((pair: TrainingPair) => pair.input));
     const targetTensor = tf.tensor2d(pairs.map((pair: TrainingPair) => pair.target));
-    const weightTensor = tf.tensor1d(pairs.map((pair: TrainingPair) => rewardToWeight(pair.reward)));
 
     const result = await model.fit(inputTensor, targetTensor, {
       epochs: this._config.epochs,
       batchSize: this._config.batchSize,
       shuffle: true,
       verbose: 0,
-      sampleWeight: weightTensor,
     });
 
     inputTensor.dispose();
     targetTensor.dispose();
-    weightTensor.dispose();
 
     return result.history.loss ? (result.history.loss[result.history.loss.length - 1] as number) : 0;
   }
@@ -358,12 +419,11 @@ export class BotTrainer {
     fs.mkdirSync(dir, { recursive: true });
 
     // Save current models (latest)
-    await this._brain.saveModels(dir);
+    await this._saveWeights(dir);
 
     // Save checkpoint copy
     const checkpointDir = path.join(dir, "checkpoints", `round_${round}`);
-    fs.mkdirSync(checkpointDir, { recursive: true });
-    await this._brain.saveModels(checkpointDir);
+    await this._saveWeights(checkpointDir);
 
     // ── Difficulty Tier Snapshots ────────────────────────────────
     // When training reaches a tier boundary, save models to the
@@ -373,8 +433,7 @@ export class BotTrainer {
     for (const tier of tiers) {
       if (tier.rounds > 0 && round === tier.rounds) {
         const tierDir = path.join(dir, tier.name);
-        fs.mkdirSync(tierDir, { recursive: true });
-        await this._brain.saveModels(tierDir);
+        await this._saveWeights(tierDir);
         console.log(`[Trainer] 🏆 Difficulty tier "${tier.name}" saved (round ${round}) → ${tierDir}`);
       }
     }

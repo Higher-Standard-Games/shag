@@ -250,6 +250,47 @@ down.
 
 ## Progress log
 
+### 2026-09-24 — self-play had never been self-play, and Deathmatch bots never fought
+
+Starting TF-12, the typed loss's own test showed that TensorFlow.js does not
+support per-sample weights in `fit` — it throws. Self-play had passed them since
+TF-5, so every self-play round failed, was caught and logged, and the loop carried
+on to save untrained weights. Running self-play for real against a live server to
+confirm the fix turned up the rest.
+
+**Reward weights now apply by resampling.** Each round's frames are drawn in
+proportion to their weights by systematic resampling — unbiased, and nothing asked
+of the API. The weights are centred on the median frame rather than min-max: rewards
+arrive min-max normalised per episode, so an episode with one kill and no death put
+every other frame at −1 and weighted the whole round onto one frame.
+
+**The trainer's bots were built bare** — no map vision, no navigation graph, and no
+model directory. They could not find each other, and they never played the models
+being trained: every round was the plain state machine, and the network only ever
+learned to imitate it. Bots now come from a `BotServer`, as `demo:record`'s do: the
+first round plays the state machine (fresh weights are random, and a random network
+at a coin-flip threshold fires at nothing), and every later round plays the weights
+the round before it trained, saved to `<models>/latest` with metadata. That directory
+is separate because a bot prefers its difficulty's subdirectory, which the trainer
+freezes at tier boundaries — pointed at the base, bots would stop playing anything
+newer. Every set of weights self-play saves now carries metadata; none did.
+
+**Bots in Deathmatch had no enemies.** Even with vision, three rounds had no kills
+and no combat frames. Both bots believed they were on team `"spectator"`: in a
+free-for-all the server has no team to name and sends `"spectator"` for everyone —
+since the demo team-colour change in July — and its own damage rule and snapshot
+broadcaster read that as "no team". The bot read it as a shared team, so every other
+player in a Deathmatch, bots and people alike, was an ally. `onATeam` now says what
+counts as a team, and every team comparison in the bot uses it. After the fix, three
+self-play rounds on wdm2: 6/7, 5/5 and 1/1, and the combat head trained for the first
+time. This one reaches past training: any Deathmatch room with bots in it.
+
+**Two more, found on the way.** Three recordings finishing in the same second left
+one file: checking a name was free and then writing to it is a race between
+processes, so names are now claimed by exclusive create. And `--resume` has never
+worked on either path — a model loaded from disk is uncompiled and `fit` throws;
+that is fixed with TF-12, which recompiles every head anyway.
+
 ### 2026-09-24 — correcting TF-6: the report was scoring the wrong error
 
 The per-output report scored mean absolute error against the column's median.

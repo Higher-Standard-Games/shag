@@ -63,6 +63,28 @@ const mapKnowledge: MapKnowledgeData = {
 };
 
 describe("bot team perception", () => {
+  it('counts everyone as an enemy in a free-for-all, where the server calls every team "spectator"', () => {
+    // The server has no team to name in a free-for-all and sends "spectator" for
+    // everyone; its own damage rule and broadcaster read that as "no team". The
+    // bot read it as a shared team, so in Deathmatch every other player — bots
+    // and people alike — was an ally, and nobody was ever a target.
+    const snapshot = new GameState();
+    snapshot.tick = 1;
+    snapshot.players.set("self", player("self-entity", "spectator"));
+    snapshot.players.set("other", player("other-entity", "spectator"));
+    snapshot.entities.set("self-entity", entity("self-entity", 0, 0));
+    snapshot.entities.set("other-entity", entity("other-entity", 0, 100));
+
+    const state = new BotGameState();
+    state.selfEntityId = "self-entity";
+    state.selfPlayerId = "self";
+    state.update(snapshot);
+
+    expect(state.players.map((seen) => seen.relation)).toEqual(["enemy"]);
+    expect(state.getNearestEnemy()?.entityId).toBe("other-entity");
+    expect(state.getAllies()).toEqual([]);
+  });
+
   it("derives allies and enemies from the snapshot and copies pickup availability", () => {
     const snapshot = new GameState();
     snapshot.tick = 42;
