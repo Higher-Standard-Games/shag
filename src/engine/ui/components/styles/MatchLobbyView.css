@@ -504,6 +504,11 @@
   clip-path: polygon(8% 0, 100% 0, 92% 100%, 0 100%);
 }
 
+/* An open seat has no state to show */
+.match-lobby__seat-state:empty {
+  display: none;
+}
+
 .match-lobby__seat--ready .match-lobby__seat-state {
   color: var(--ink);
   background: var(--go);

@@ -775,7 +775,9 @@ export class MatchLobbyView {
     actions.appendChild(this.inviteBotBtn);
     this.updateInviteBotState();
 
-    if (this.config.hasTeams) {
+    // Two seats are two players facing each other: which side is whose changes
+    // nothing, so there is nothing to switch or shuffle
+    if (this.config.hasTeams && this.config.maxPlayers > 2) {
       // Switch sides. Separate from shuffle, which is random and needs a
       // majority — this affects only you, so it needs neither, and it is the
       // only way to choose which half of a round mode you play.

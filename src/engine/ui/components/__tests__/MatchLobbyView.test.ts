@@ -119,7 +119,8 @@ describe("MatchLobbyView roster identity", () => {
 
   it("shows a failed server start in the room and re-enables retry controls", () => {
     const client = new FakeLobbyClient();
-    const view = new MatchLobbyView("snd", client as never, lobby, "host");
+    const bombRoom = { ...lobby, config: { ...lobby.config, maxPlayers: 10 } };
+    const view = new MatchLobbyView("snd", client as never, bombRoom, "host");
     document.body.appendChild(view.root);
 
     client.emit("lobby:all_ready", {});
@@ -143,6 +144,17 @@ describe("MatchLobbyView roster identity", () => {
     view.root.querySelector<HTMLButtonElement>(".raised-key--ready")?.click();
     expect(status?.dataset.error).toBe("false");
     expect(detail?.getAttribute("role")).toBeNull();
+    view.destroy();
+  });
+
+  it("offers no side to switch or shuffle when two players face each other", () => {
+    const client = new FakeLobbyClient();
+    const view = new MatchLobbyView("duel", client as never, lobby, "host");
+    document.body.appendChild(view.root);
+
+    const keys = [...view.root.querySelectorAll(".match-lobby__actions button")].map((key) => key.textContent ?? "");
+    expect(keys.some((text) => text.includes("Switch") || text.includes("Shuffle"))).toBe(false);
+    expect(keys.some((text) => text.includes("Add bot"))).toBe(true);
     view.destroy();
   });
 
