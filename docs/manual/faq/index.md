@@ -52,8 +52,8 @@ reaches the lobby without one is given a new account and a key, kept in that
 browser's local storage; pasting the key into another browser opens the same
 account there. The lobby stores only the key's SHA-256, so nobody — including
 the server operator — can recover a lost key or tell you what it was. The
-Profile page is where you copy it, save it as a file, or hand it to the
-browser's password manager. Lose it and the account is gone; make a new one.
+Profile key at the foot of the menu opens it: copy it, save it as a file, or hand
+it to the browser's password manager. Lose it and the account is gone; make a new one.
 
 See the [Lobby server guide](../guides/lobby-server.md).
 
