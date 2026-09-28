@@ -36,6 +36,7 @@ import {
 } from "./engine/rendering/RenderingEngineFactory";
 import { LoadingScreen } from "./engine/ui/LoadingScreen";
 import { MapLoadingOverlay } from "./engine/ui/MapLoadingOverlay";
+import { TransferLoadingView } from "./engine/ui/TransferLoadingView";
 import { UIScale } from "./engine/ui/UIScale";
 import { UITheme } from "./engine/ui/UITheme";
 import { LobbyPanel } from "./games/fps/client/LobbyPanel";
@@ -229,7 +230,9 @@ async function main() {
   // Stop piping progress to splash screen
   unsubProgress();
 
-  // Enable overlay for future map loads (e.g., joining a match)
+  // Enable overlay for future map loads (e.g., joining a match), in the look of
+  // the match handoff that comes before it
+  MapLoadingOverlay.configure({ view: () => new TransferLoadingView() });
   MapLoadingOverlay.enable();
 
   // Hide splash → show lobby (seamless: both click AND map are ready)

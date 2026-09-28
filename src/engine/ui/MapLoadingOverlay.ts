@@ -1,25 +1,29 @@
 /**
  * MapLoadingOverlay - In-game loading screen for map transitions
  *
- * Displays an overlay during map loading with:
+ * Owns WHEN the screen is up: it shows on `loading:start`, stays down past
+ * `loading:complete` while anything holds it, and fades out after a minimum
+ * display time. WHAT is on it is a `MapLoadingView`. The default view is the
+ * engine's own:
  * - Animated smoke background (shared LoadingAnimation)
  * - Engine/game logo
  * - Console-style loading messages
  * - Engine branding
- * - Automatic fade-out when complete
  *
  * Listens to EventBus loading events - completely decoupled from MapLoader.
- * Games can disable this and use their own loading UI by listening to the same events.
  *
  * Usage:
  *   // Enable during game init (subscribes to EventBus)
  *   MapLoadingOverlay.enable();
  *
- *   // Optional: Configure appearance
+ *   // Optional: Configure the default view's appearance
  *   MapLoadingOverlay.configure({
  *     showLogo: true,
  *     logoUrl: 'games/mygame/logo.png',
  *   });
+ *
+ *   // Or give the screen a look of the game's own, on the same timing
+ *   MapLoadingOverlay.configure({ view: () => new MyLoadingView() });
  *
  *   // Disable if using custom loading UI
  *   MapLoadingOverlay.disable();
@@ -39,6 +43,23 @@ import { UIStyles } from "./UIStyles";
 
 /** Overlay states */
 type OverlayState = "idle" | "showing" | "loading" | "completing" | "fading";
+
+/**
+ * What a loading screen shows. The overlay decides when it is up and when it
+ * fades; a view only draws what the load is doing.
+ */
+export interface MapLoadingView {
+  /** Build the screen inside the overlay's container, for the map starting. */
+  mount(container: HTMLElement, map: LoadingStartEvent): void;
+  /** Another map started before this screen came down. */
+  restart(map: LoadingStartEvent): void;
+  progress(event: LoadingProgressEvent): void;
+  /** The map finished; `waitingFor` names the holds still keeping the screen up. */
+  complete(event: LoadingCompleteEvent, waitingFor: string[]): void;
+  /** Nothing holds the screen any more: it fades next. */
+  ready(): void;
+  destroy(): void;
+}
 
 /** Configuration options */
 export interface MapLoadingOverlayConfig {
@@ -66,6 +87,10 @@ export interface MapLoadingOverlayConfig {
   loadingTypes: string[];
   /** Safety net: force-release a hold its owner never released (ms) */
   holdTimeoutMs: number;
+  /** A failed load keeps its error on screen at least this long (ms) */
+  failureHoldMs: number;
+  /** Builds the screen for each load (null = the engine's own view) */
+  view: (() => MapLoadingView) | null;
 }
 
 const DEFAULT_CONFIG: MapLoadingOverlayConfig = {
@@ -81,6 +106,8 @@ const DEFAULT_CONFIG: MapLoadingOverlayConfig = {
   animationColors: null,
   loadingTypes: ["map"],
   holdTimeoutMs: 20000,
+  failureHoldMs: 2500,
+  view: null,
 };
 
 export class MapLoadingOverlay {
@@ -94,15 +121,12 @@ export class MapLoadingOverlay {
 
   // DOM elements
   private container: HTMLDivElement | null = null;
-  private messageArea: HTMLDivElement | null = null;
-  private messages: string[] = [];
+  private view: MapLoadingView | null = null;
+  private failed = false;
 
   // Holds keeping the curtain down past `loading:complete`
   private holds: Set<string> = new Set();
   private holdTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
-
-  // Animation
-  private smokeAnimation: LoadingAnimation | null = null;
 
   // EventBus subscriptions
   private unsubscribers: (() => void)[] = [];
@@ -215,49 +239,47 @@ export class MapLoadingOverlay {
   private onLoadingStart(event: LoadingStartEvent): void {
     // If already showing (rapid map switches), reset instead of re-creating
     if (this.state !== "idle") {
-      this.messages = [];
       this.showTime = Date.now();
-      this.addMessage(`loading ${event.meta?.displayName || event.id}...`);
+      this.failed = false;
+      this.view?.restart(event);
       return;
     }
 
-    this.show(event.meta?.displayName || event.id);
+    this.show(event);
   }
 
   private onLoadingProgress(event: LoadingProgressEvent): void {
     if (this.state === "idle" || this.state === "fading") return;
-
-    const message = event.detail ? `${event.phase}: ${event.detail}` : event.phase;
-    this.addMessage(message.toLowerCase());
+    this.view?.progress(event);
   }
 
   private onLoadingComplete(event: LoadingCompleteEvent): void {
     if (this.state === "idle" || this.state === "fading") return;
 
-    // Add completion message
-    if (event.success) {
-      this.addMessage(`complete (${event.duration}ms)`);
-    } else {
-      this.addMessage(`error: ${event.error || "unknown error"}`);
-    }
-
     this.state = "completing";
+    this.failed = !event.success;
 
     // The MAP is loaded, which is not the same as the GAME being ready to show.
     // Anything still holding keeps the curtain down — see `hold()`.
-    if (this.holds.size > 0) {
-      this.addMessage(`waiting for ${[...this.holds].join(", ")}`);
-      return;
-    }
+    this.view?.complete(event, [...this.holds]);
+    if (this.holds.size > 0) return;
 
     this.scheduleFadeOut();
   }
 
-  /** Fade after the minimum display time, or after a brief hold if already past it. */
+  /**
+   * Fade after the minimum display time, or after a brief hold if already past
+   * it; a failure stays up long enough to read.
+   */
   private scheduleFadeOut(): void {
+    this.view?.ready();
     const elapsed = Date.now() - this.showTime;
     const remaining = this.config.minDisplayMs - elapsed;
-    const delay = remaining > 0 ? remaining : this.config.completeHoldMs;
+    const delay = this.failed
+      ? Math.max(remaining, this.config.failureHoldMs)
+      : remaining > 0
+        ? remaining
+        : this.config.completeHoldMs;
 
     this.fadeTimer = setTimeout(() => {
       this.startFadeOut();
@@ -317,53 +339,17 @@ export class MapLoadingOverlay {
 
   // ==================== UI Methods ====================
 
-  private show(mapName: string): void {
+  private show(event: LoadingStartEvent): void {
     this.state = "showing";
     this.showTime = Date.now();
-    this.messages = [];
+    this.failed = false;
 
     // Create container
     this.container = document.createElement("div");
     this.container.className = "ui-map-loading-overlay";
 
-    // Smoke animation
-    if (this.config.animationEnabled) {
-      this.smokeAnimation = new LoadingAnimation();
-      this.smokeAnimation.create(this.container, {
-        colors: this.config.animationColors ?? SHAG_PALETTE,
-        puffCount: 30,
-      });
-    }
-
-    // Logo
-    if (this.config.showLogo) {
-      const logo = document.createElement("img");
-      logo.src = this.config.logoUrl ?? "engine.png";
-      logo.alt = "Loading";
-      logo.className = "ui-map-loading-overlay__logo";
-      this.container.appendChild(logo);
-    }
-
-    // Message area
-    if (this.config.showMessages) {
-      this.messageArea = document.createElement("div");
-      this.messageArea.className = "ui-map-loading-overlay__messages";
-      this.container.appendChild(this.messageArea);
-    }
-
-    // Branding
-    if (this.config.showBranding) {
-      const branding = document.createElement("div");
-      branding.className = "ui-map-loading-overlay__branding";
-      branding.innerHTML = `
-        <div class="ui-map-loading-overlay__branding-name">${EngineVersion.getInstance().getEngineName()}</div>
-        <div class="ui-map-loading-overlay__branding-version">${EngineVersion.getInstance().getVersionString()}</div>
-      `;
-      this.container.appendChild(branding);
-    }
-
-    // Add initial message
-    this.addMessage(`loading ${mapName}...`);
+    this.view = this.config.view ? this.config.view() : new EngineLoadingView(this.config);
+    this.view.mount(this.container, event);
 
     // Add to DOM with fade-in
     document.body.appendChild(this.container);
@@ -375,22 +361,6 @@ export class MapLoadingOverlay {
       this.container?.classList.add("ui-map-loading-overlay--visible");
       if (this.state === "showing") this.state = "loading";
     });
-  }
-
-  private addMessage(message: string): void {
-    this.messages.push(message);
-
-    // Trim to max count
-    while (this.messages.length > this.config.messageCount) {
-      this.messages.shift();
-    }
-
-    // Update UI
-    if (this.messageArea) {
-      this.messageArea.innerHTML = this.messages
-        .map((m) => `<div class="ui-map-loading-overlay__message">${m}</div>`)
-        .join("");
-    }
   }
 
   private startFadeOut(): void {
@@ -413,11 +383,8 @@ export class MapLoadingOverlay {
       this.fadeTimer = null;
     }
 
-    // Destroy animation
-    if (this.smokeAnimation) {
-      this.smokeAnimation.destroy();
-      this.smokeAnimation = null;
-    }
+    this.view?.destroy();
+    this.view = null;
 
     // Remove from DOM
     if (this.container) {
@@ -425,8 +392,6 @@ export class MapLoadingOverlay {
       this.container = null;
     }
 
-    this.messageArea = null;
-    this.messages = [];
     this.state = "idle";
   }
 
@@ -452,8 +417,14 @@ export class MapLoadingOverlay {
   transition: opacity var(--map-loading-fade-in-duration, 200ms) ease-out;
 }
 
-.ui-map-loading-overlay--visible {
+.ui-map-loading-overlay--visible,
+.ui-map-loading-overlay--instant {
   opacity: 1;
+}
+
+/* A view taking over from a screen already up appears in place */
+.ui-map-loading-overlay--instant {
+  transition: none;
 }
 
 .ui-map-loading-overlay--fading {
@@ -514,5 +485,101 @@ export class MapLoadingOverlay {
   dispose(): void {
     MapLoadingOverlay.disable();
     this.hide();
+  }
+}
+
+/**
+ * The engine's own loading screen: smoke, the logo, the loader's messages in
+ * console style and the engine's name and version.
+ */
+class EngineLoadingView implements MapLoadingView {
+  private messageArea: HTMLDivElement | null = null;
+  private messages: string[] = [];
+  private smokeAnimation: LoadingAnimation | null = null;
+
+  constructor(private readonly config: MapLoadingOverlayConfig) {}
+
+  mount(container: HTMLElement, map: LoadingStartEvent): void {
+    // Smoke animation
+    if (this.config.animationEnabled) {
+      this.smokeAnimation = new LoadingAnimation();
+      this.smokeAnimation.create(container, {
+        colors: this.config.animationColors ?? SHAG_PALETTE,
+        puffCount: 30,
+      });
+    }
+
+    // Logo
+    if (this.config.showLogo) {
+      const logo = document.createElement("img");
+      logo.src = this.config.logoUrl ?? "engine.png";
+      logo.alt = "Loading";
+      logo.className = "ui-map-loading-overlay__logo";
+      container.appendChild(logo);
+    }
+
+    // Message area
+    if (this.config.showMessages) {
+      this.messageArea = document.createElement("div");
+      this.messageArea.className = "ui-map-loading-overlay__messages";
+      container.appendChild(this.messageArea);
+    }
+
+    // Branding
+    if (this.config.showBranding) {
+      const branding = document.createElement("div");
+      branding.className = "ui-map-loading-overlay__branding";
+      branding.innerHTML = `
+        <div class="ui-map-loading-overlay__branding-name">${EngineVersion.getInstance().getEngineName()}</div>
+        <div class="ui-map-loading-overlay__branding-version">${EngineVersion.getInstance().getVersionString()}</div>
+      `;
+      container.appendChild(branding);
+    }
+
+    this.restart(map);
+  }
+
+  restart(map: LoadingStartEvent): void {
+    this.messages = [];
+    this.addMessage(`loading ${map.meta?.displayName || map.id}...`);
+  }
+
+  progress(event: LoadingProgressEvent): void {
+    const message = event.detail ? `${event.phase}: ${event.detail}` : event.phase;
+    this.addMessage(message.toLowerCase());
+  }
+
+  complete(event: LoadingCompleteEvent, waitingFor: string[]): void {
+    if (event.success) {
+      this.addMessage(`complete (${event.duration}ms)`);
+    } else {
+      this.addMessage(`error: ${event.error || "unknown error"}`);
+    }
+    if (waitingFor.length > 0) this.addMessage(`waiting for ${waitingFor.join(", ")}`);
+  }
+
+  ready(): void {}
+
+  destroy(): void {
+    this.smokeAnimation?.destroy();
+    this.smokeAnimation = null;
+    this.messageArea = null;
+    this.messages = [];
+  }
+
+  private addMessage(message: string): void {
+    this.messages.push(message);
+
+    // Trim to max count
+    while (this.messages.length > this.config.messageCount) {
+      this.messages.shift();
+    }
+
+    // Update UI
+    if (this.messageArea) {
+      this.messageArea.innerHTML = this.messages
+        .map((m) => `<div class="ui-map-loading-overlay__message">${m}</div>`)
+        .join("");
+    }
   }
 }

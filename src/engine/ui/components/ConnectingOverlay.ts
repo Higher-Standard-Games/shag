@@ -4,7 +4,10 @@
  * Shown when all players are ready and the match server is starting.
  * Displays a connecting animation, then triggers the actual server connection
  * via the registered `NetworkConnector` (game modules register one at boot).
+ * When the server's map starts loading, the map loading screen takes over.
  */
+import { EventBus } from "../../core/EventBus";
+import { LOADING_EVENTS, type LoadingStartEvent } from "../../core/LoadingEvents";
 import { getNetworkConnector } from "./NetworkConnector";
 
 // Import CSS
@@ -18,6 +21,7 @@ export class ConnectingOverlay {
   private stepEls: HTMLElement[] = [];
 
   private dotInterval: number | null = null;
+  private unsubscribeLoading: (() => void) | null = null;
 
   /**
    * Show the overlay and begin connecting to the given server URL.
@@ -44,6 +48,17 @@ export class ConnectingOverlay {
 
     document.body.appendChild(this.el);
     this.el.focus({ preventScroll: true });
+
+    // The map loading screen takes over the moment the map starts loading. It
+    // listens first (lower priority runs later), so it still finds this screen
+    // up and appears in its place rather than fading in over the lobby.
+    this.unsubscribeLoading = EventBus.on(
+      LOADING_EVENTS.START,
+      (event: LoadingStartEvent) => {
+        if (event.type === "map" && event.id !== "ui") this.hide();
+      },
+      -1,
+    );
 
     // Start animated dots
     this.startDots();
@@ -93,8 +108,8 @@ export class ConnectingOverlay {
       }
       this.setStatus(asSpectator ? "SPECTATING" : "CONNECTED");
 
-      // The lobby hide + overlay cleanup happens when EventBus fires 'loading:start'
-      // which triggers the lobby to hide — we clean up ourselves after a moment
+      // Normally the map loading has taken over by now. A server already on the
+      // map this client has loaded starts no load, so come down on our own.
       await this.delay(1500);
       this.hide();
     } catch (error) {
@@ -112,6 +127,8 @@ export class ConnectingOverlay {
    */
   hide(): void {
     this.stopDots();
+    this.unsubscribeLoading?.();
+    this.unsubscribeLoading = null;
     if (this.el) {
       this.el.remove();
       this.el = null;

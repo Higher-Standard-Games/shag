@@ -10,6 +10,7 @@
 
 import type { LobbyClient } from "../../../lobby/LobbyClient";
 import type { MatchLobbyInfo, TeamNames } from "../../../lobby/types";
+import { rememberMapTitle } from "../MapTitles";
 import { ConnectingOverlay } from "./ConnectingOverlay";
 import { createRaisedKey, setRaisedKeyText } from "./RaisedKey";
 
@@ -108,6 +109,7 @@ export class MatchLobbyView {
       votes: m.votes,
       votedByLocal: false,
     }));
+    for (const map of lobbyInfo.maps) rememberMapTitle(map.name, map.displayName);
     this.players = lobbyInfo.players.map((p) => ({
       id: p.id,
       name: p.name,

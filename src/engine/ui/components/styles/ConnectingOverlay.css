@@ -1,5 +1,7 @@
 /* Full-viewport match handoff. The layout mirrors the lobby's gold rail and
-   dark stage without pretending the connector exposes percentage progress. */
+   dark stage without pretending the connector exposes percentage progress.
+   The map loading screen (`--loading`, TransferLoadingView) wears the same
+   look, and its bar does fill: the loader reports its phases. */
 
 .connecting-overlay {
   --co-ink: var(--w-ink, hsl(246, 38%, 7%));
@@ -20,6 +22,11 @@
     linear-gradient(132deg, hsl(242, 44%, 8%), var(--co-stage) 58%, hsl(232, 45%, 8%));
   isolation: isolate;
   animation: co-enter 0.32s ease-out both;
+}
+
+/* The loading screen taking over from the handoff is the same screen moving on */
+.connecting-overlay--continued {
+  animation: none;
 }
 
 .connecting-overlay::before {
@@ -273,6 +280,18 @@
   pointer-events: none;
 }
 
+/* The map's levelshot behind the stage, fading in from the rail's side */
+.connecting-overlay__shot {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--co-shot, none) center / cover no-repeat;
+  opacity: 0.24;
+  filter: saturate(0.75) contrast(1.08);
+  mask-image: linear-gradient(100deg, transparent 6%, #000 48%, #000 78%, transparent);
+  pointer-events: none;
+}
+
 .connecting-overlay__stage-header,
 .connecting-overlay__status-header,
 .connecting-overlay__transfer-footer {
@@ -307,7 +326,7 @@
 .connecting-overlay__title {
   margin: 0;
   font-family: var(--w-font-display, "Orbitron", monospace);
-  font-size: clamp(3.7rem, 9.1vw, 10rem);
+  font-size: clamp(3.2rem, min(9.1vw, calc(66vw / var(--co-title-chars, 7))), 10rem);
   font-weight: 900;
   letter-spacing: -0.07em;
   line-height: 0.77;
@@ -404,8 +423,29 @@
   animation: co-bar-sweep 1.45s linear infinite;
 }
 
+/* The loading screen's bar fills as the loader moves through its phases */
+.connecting-overlay--loading .connecting-overlay__bar-fill {
+  inset: 0 auto 0 0;
+  width: calc(var(--co-progress, 0) * 100%);
+  background: linear-gradient(
+    90deg,
+    var(--w-cyan, hsl(180, 100%, 50%)),
+    var(--w-magenta, hsl(320, 100%, 60%)) 72%,
+    var(--w-gold, hsl(45, 100%, 55%))
+  );
+  animation: none;
+  transition: width 0.35s ease-out;
+}
+
 .connecting-overlay__transfer-footer {
   margin-top: 16px;
+}
+
+.connecting-overlay__detail {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .connecting-overlay__deco {
@@ -477,6 +517,20 @@
   animation: none;
 }
 
+/* The map is in; the game is still setting itself up */
+.connecting-overlay--loading[data-state="setting-up"] .connecting-overlay__bar-fill {
+  animation: co-step-pulse 0.9s ease-in-out infinite;
+}
+
+.connecting-overlay--loading[data-state="ready"] .connecting-overlay__bar-fill {
+  background: linear-gradient(90deg, var(--w-cyan, hsl(180, 100%, 50%)), var(--co-paper));
+}
+
+.connecting-overlay--loading[data-state="load-failed"] .connecting-overlay__bar-fill {
+  background: var(--w-magenta, hsl(320, 100%, 60%));
+  opacity: 0.72;
+}
+
 @keyframes co-enter {
   from {
     opacity: 0;
@@ -525,7 +579,7 @@
   }
 
   .connecting-overlay__title {
-    font-size: clamp(3.2rem, 8.5vw, 6rem);
+    font-size: clamp(2.8rem, min(8.5vw, calc(60vw / var(--co-title-chars, 7))), 6rem);
   }
 }
 
@@ -594,7 +648,7 @@
   }
 
   .connecting-overlay__title {
-    font-size: clamp(3.35rem, 18vw, 6rem);
+    font-size: clamp(2.6rem, min(18vw, calc(90vw / var(--co-title-chars, 5))), 6rem);
   }
 
   .connecting-overlay__lead {
@@ -611,6 +665,11 @@
 
   .connecting-overlay::after {
     bottom: 28px;
+  }
+
+  /* The screen scrolls here, so the word stays inside it */
+  .connecting-overlay__ambient-word {
+    bottom: 0;
   }
 }
 
@@ -638,7 +697,7 @@
   }
 
   .connecting-overlay__title {
-    font-size: clamp(3.2rem, 8vw, 6.6rem);
+    font-size: clamp(2.8rem, min(8vw, calc(58vw / var(--co-title-chars, 7))), 6.6rem);
   }
 
   .connecting-overlay__lead {
@@ -650,7 +709,12 @@
   .connecting-overlay,
   .connecting-overlay__title,
   .connecting-overlay__step.is-active .connecting-overlay__step-mark,
-  .connecting-overlay__bar-fill {
+  .connecting-overlay__bar-fill,
+  .connecting-overlay--loading[data-state="setting-up"] .connecting-overlay__bar-fill {
     animation: none;
+  }
+
+  .connecting-overlay--loading .connecting-overlay__bar-fill {
+    transition: none;
   }
 }
