@@ -335,3 +335,32 @@ describe("MatchLobbyView status stripes", () => {
     running.destroy();
   });
 });
+
+describe("MatchLobbyView layout", () => {
+  const partsOf = (element: Element | null) => [...(element?.children ?? [])].map((child) => child.classList[0]);
+
+  it("keeps the roster and the map vote in one body, between the status and the actions", () => {
+    const view = new MatchLobbyView("snd", new FakeLobbyClient() as never, lobby, "host");
+    expect(partsOf(view.root)).toEqual([
+      "match-lobby__top",
+      "match-lobby__status",
+      "match-lobby__body",
+      "match-lobby__actions",
+    ]);
+    expect(partsOf(view.root.querySelector(".match-lobby__body"))).toEqual([
+      "match-lobby__roster",
+      "match-lobby__vote",
+    ]);
+    view.destroy();
+  });
+
+  it("ends the action row with Rejoin and Ready, the pair the row pushes to the right", () => {
+    const view = new MatchLobbyView("snd", new FakeLobbyClient() as never, { ...lobby, activeMatchId: "m_1" }, "host");
+    const keys = [...(view.root.querySelector(".match-lobby__actions")?.children ?? [])];
+    const [rejoin, ready] = keys.slice(-2);
+    expect(rejoin.classList.contains("match-lobby__recover")).toBe(true);
+    expect(ready.classList.contains("raised-key--ready")).toBe(true);
+    expect(keys.every((key) => key.tagName === "BUTTON")).toBe(true);
+    view.destroy();
+  });
+});

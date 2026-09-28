@@ -342,7 +342,11 @@ export class MatchLobbyView {
   private build(): HTMLElement {
     const container = document.createElement("div");
     container.className = "match-lobby";
-    container.append(this.buildTopBar(), this.buildStatus(), this.buildRoster(), this.buildVote(), this.buildActions());
+    // Who is here and which map: the part that scrolls when the screen is too short
+    const body = document.createElement("div");
+    body.className = "match-lobby__body";
+    body.append(this.buildRoster(), this.buildVote());
+    container.append(this.buildTopBar(), this.buildStatus(), body, this.buildActions());
     this.startClock();
     return container;
   }
@@ -848,11 +852,8 @@ export class MatchLobbyView {
       this.shuffleBtn.disabled = this.phase === "starting";
     }
 
-    const spacer = document.createElement("span");
-    spacer.className = "match-lobby__spacer";
-    actions.appendChild(spacer);
-
     this.recoverBtn = createRaisedKey({ label: "Rejoin match", hint: "Unplayed seat", variants: ["act", "cream"] });
+    this.recoverBtn.classList.add("match-lobby__recover");
     this.recoverBtn.hidden = !this.activeMatchId;
     this.recoverBtn.addEventListener("click", () => void this.recoverSeat());
     actions.appendChild(this.recoverBtn);
