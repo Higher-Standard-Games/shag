@@ -3,11 +3,12 @@
  *
  * A dropped weapon and a map-spawned weapon are both a small box given a
  * velocity and stepped through the shared collision world until it comes to
- * rest. The server steps drops live. Map weapons are thrown to rest when a map
- * loads, identically on the server, the client and in bot map knowledge: all of
- * them run this code against the same SharedCollisionWorld over the same BSP,
- * so a map weapon's resting spot — and with it the pickup trigger, the model and
- * bot item goals — agrees everywhere without being replicated.
+ * rest. The server steps drops live. Map items come to rest when a map loads —
+ * weapons thrown, everything else dropped straight down — identically on the
+ * server, the client and in bot map knowledge: all of them run this code
+ * against the same SharedCollisionWorld over the same BSP, so an item's resting
+ * spot — and with it the pickup trigger and bot item goals — agrees everywhere
+ * without being replicated.
  */
 
 import type { PickupEntry } from "../bsp/PickupTable";
@@ -100,14 +101,19 @@ export function mapWeaponTossVelocity(pickupId: number): Vec3 {
 }
 
 /**
- * The pickup table with every weapon moved to where its spawn toss comes to
- * rest. Other pickups keep their authored spot, as does a weapon whose throw
- * never settles. Without a collision world the table is returned unchanged.
+ * The pickup table with every map item where it comes to rest: a weapon where
+ * its spawn toss lands, anything else dropped straight onto the floor beneath
+ * it. Maps often put armor or health some way above the floor for the game to
+ * drop, and a trigger left up there cannot be reached from where the item is
+ * drawn. An item the map marks suspended keeps its spot, as does one that never
+ * settles. Without a collision world the table is returned unchanged.
  */
 export function landMapPickups(entries: readonly PickupEntry[], collision: CollisionWorld | null): PickupEntry[] {
   return entries.map((entry) => {
-    if (!collision || entry.type !== "weapon") return entry;
-    const rest = landThrownItem(entry.position, mapWeaponTossVelocity(entry.id), collision);
+    if (!collision) return entry;
+    if (entry.type !== "weapon" && entry.suspended) return entry;
+    const velocity = entry.type === "weapon" ? mapWeaponTossVelocity(entry.id) : { x: 0, y: 0, z: 0 };
+    const rest = landThrownItem(entry.position, velocity, collision);
     return rest ? { ...entry, position: rest } : entry;
   });
 }
