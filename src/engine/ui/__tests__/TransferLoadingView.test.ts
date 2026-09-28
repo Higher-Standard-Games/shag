@@ -185,16 +185,21 @@ describe("TransferLoadingView on the loading overlay", () => {
     registerNetworkConnector({ isConnected: () => false, connect: () => new Promise<void>(() => {}) });
     void new ConnectingOverlay().show("ws://localhost:7777", false, "seat-ticket");
     await vi.advanceTimersByTimeAsync(0);
-    expect(document.querySelector(".connecting-overlay:not(.connecting-overlay--loading)")).not.toBeNull();
+    expect(document.querySelector(".connecting-overlay--handoff")).not.toBeNull();
 
     start();
 
-    expect(document.querySelector(".connecting-overlay:not(.connecting-overlay--loading)")).toBeNull();
+    expect(document.querySelector(".connecting-overlay--handoff")).toBeNull();
     expect(screen()?.classList.contains("connecting-overlay--continued")).toBe(true);
     expect(document.querySelector(".ui-map-loading-overlay--instant")).not.toBeNull();
   });
 
   it("fades in on its own when no handoff came before it", () => {
+    // A screen in the same look that is not the handoff, such as the join screen
+    const other = document.createElement("div");
+    other.className = "connecting-overlay connecting-overlay--join";
+    other.style.display = "none";
+    document.body.appendChild(other);
     start();
     expect(screen()?.classList.contains("connecting-overlay--continued")).toBe(false);
     expect(document.querySelector(".ui-map-loading-overlay--instant")).toBeNull();

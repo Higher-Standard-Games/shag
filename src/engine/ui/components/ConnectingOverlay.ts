@@ -144,7 +144,7 @@ export class ConnectingOverlay {
    */
   private build(serverUrl: string, asSpectator: boolean = false): HTMLElement {
     const overlay = document.createElement("div");
-    overlay.className = "connecting-overlay";
+    overlay.className = "connecting-overlay connecting-overlay--handoff";
     overlay.dataset.state = "preparing";
     overlay.setAttribute("role", "dialog");
     overlay.setAttribute("aria-modal", "true");

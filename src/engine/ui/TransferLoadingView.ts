@@ -106,7 +106,7 @@ export class TransferLoadingView implements MapLoadingView {
     this.root = root;
 
     // Taking over from the handoff: it is the same screen moving on, not a new one
-    if (document.querySelector(".connecting-overlay:not(.connecting-overlay--loading)")) {
+    if (document.querySelector(".connecting-overlay--handoff")) {
       container.classList.add("ui-map-loading-overlay--instant");
       root.classList.add("connecting-overlay--continued");
     }
