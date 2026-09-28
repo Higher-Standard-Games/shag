@@ -1,7 +1,8 @@
 /* Full-viewport match handoff. The layout mirrors the lobby's gold rail and
    dark stage without pretending the connector exposes percentage progress.
    The map loading screen (`--loading`, TransferLoadingView) wears the same
-   look, and its bar does fill: the loader reports its phases. */
+   look, and its bar does fill: the loader reports its phases. So does the
+   start-up screen (`--boot`, LoadingScreen), step by step through the boot. */
 
 .connecting-overlay {
   --co-ink: var(--w-ink, hsl(246, 38%, 7%));
@@ -584,10 +585,21 @@
 }
 
 @media (max-width: 650px) {
+  /* Scrolls down only: what drifts past the side (the start-up smoke) is cut */
   .connecting-overlay {
     grid-template-columns: 1fr;
     grid-template-rows: auto minmax(0, 1fr);
+    overflow-x: hidden;
     overflow-y: auto;
+  }
+
+  /* The stage's parts take the phone's width rather than their longest line */
+  .connecting-overlay__stage {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .connecting-overlay__stage > * {
+    min-width: 0;
   }
 
   .connecting-overlay__rail {
@@ -705,9 +717,181 @@
   }
 }
 
+/* The start-up screen (LoadingScreen): the boot's steps on the rail, and the
+   stage's ring made real — centred, with the engine's logo in it. Its sweep
+   turns while the engine boots; once it can take the click that starts the
+   game and turns the sound on, the ring pulses and says so. */
+.connecting-overlay--boot {
+  /* The first thing on the page: nothing to fade in from but a blank one */
+  animation: none;
+}
+
+/* The ring on the stage's right is decoration elsewhere; here it is the key */
+.connecting-overlay--boot .connecting-overlay__stage::before {
+  display: none;
+}
+
+.connecting-overlay--boot .connecting-overlay__hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-self: center;
+  text-align: center;
+}
+
+.connecting-overlay--boot .connecting-overlay__kicker {
+  margin-bottom: clamp(18px, 3vh, 30px);
+}
+
+.connecting-overlay--boot .connecting-overlay__lead {
+  margin-top: clamp(14px, 2.4vh, 24px);
+  padding-left: 0;
+  border-left: 0;
+}
+
+.connecting-overlay__ring {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: clamp(220px, min(38vh, 30vw), 460px);
+  aspect-ratio: 1;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  cursor: default;
+  background: radial-gradient(circle, hsla(238, 45%, 11%, 0.92) 56%, hsla(238, 45%, 8%, 0.5) 70%, transparent 71%);
+  border: 1px solid hsla(180, 100%, 50%, 0.22);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 34px hsla(320, 100%, 60%, 0.03),
+    0 0 0 88px hsla(180, 100%, 50%, 0.025);
+  transition:
+    transform 0.25s cubic-bezier(0.2, 0.9, 0.3, 1.3),
+    border-color 0.2s ease;
+}
+
+.connecting-overlay__ring:enabled {
+  cursor: pointer;
+}
+
+.connecting-overlay__ring:enabled:hover,
+.connecting-overlay__ring:focus-visible {
+  border-color: var(--co-paper);
+  outline: none;
+  transform: scale(1.03);
+}
+
+/* The sweep: a bright arc running round the ring's edge */
+.connecting-overlay__ring-sweep {
+  position: absolute;
+  inset: -1px;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0 64%,
+    hsla(180, 100%, 50%, 0.5) 90%,
+    var(--w-cyan, hsl(180, 100%, 50%)) 100%
+  );
+  -webkit-mask-image: radial-gradient(circle, transparent 64%, #000 65%);
+  mask-image: radial-gradient(circle, transparent 64%, #000 65%);
+  animation: co-ring-spin 1.4s linear infinite;
+  pointer-events: none;
+}
+
+/* Ready: the sweep slows and turns gold, and rings pulse outward to be clicked */
+.ui-loading-screen--ready .connecting-overlay__ring-sweep {
+  background: conic-gradient(from 0deg, transparent 0 58%, hsla(47, 100%, 57%, 0.45) 88%, var(--co-paper) 100%);
+  animation-duration: 3.2s;
+}
+
+.connecting-overlay__ring-pulse {
+  position: absolute;
+  inset: 0;
+  border: 3px solid var(--co-paper);
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ui-loading-screen--ready .connecting-overlay__ring-pulse {
+  animation: co-ring-ping 2.4s ease-out infinite;
+}
+
+.ui-loading-screen--ready .connecting-overlay__ring-pulse:nth-of-type(3) {
+  animation-delay: 1.2s;
+}
+
+/* Clicked: the ring holds still while the lobby comes up */
+.ui-loading-screen--started .connecting-overlay__ring-pulse {
+  animation: none;
+}
+
+/* Square, and sized before it has loaded, so nothing around it jumps */
+.connecting-overlay__logo {
+  position: relative;
+  display: block;
+  width: 76%;
+  height: auto;
+  aspect-ratio: 1;
+  filter: drop-shadow(8px 10px 0 hsla(250, 50%, 2%, 0.6));
+  pointer-events: none;
+}
+
+.connecting-overlay__ring-caption {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-top: clamp(20px, 3.6vh, 36px);
+  font-family: var(--w-font-display, "Orbitron", monospace);
+  font-size: clamp(1rem, 1.5vw, 1.45rem);
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--co-paper);
+  text-shadow: 3px 4px 0 hsla(250, 50%, 2%, 0.7);
+}
+
+.connecting-overlay__ring-caption small {
+  font-size: 0.5em;
+  letter-spacing: 0.2em;
+  color: var(--w-text-dim, hsl(220, 10%, 48%));
+  text-shadow: none;
+}
+
+.connecting-overlay__ring-caption[hidden] {
+  display: none;
+}
+
+@keyframes co-ring-spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@keyframes co-ring-ping {
+  from {
+    opacity: 0.75;
+    transform: scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(1.32);
+  }
+}
+
+@media (max-width: 650px) {
+  .connecting-overlay__ring {
+    width: min(64vw, 300px);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .connecting-overlay,
   .connecting-overlay__title,
+  .connecting-overlay__ring-sweep,
+  .ui-loading-screen--ready .connecting-overlay__ring-pulse,
   .connecting-overlay__step.is-active .connecting-overlay__step-mark,
   .connecting-overlay__bar-fill,
   .connecting-overlay--loading[data-state="setting-up"] .connecting-overlay__bar-fill {

@@ -124,7 +124,9 @@ async function main() {
   // Build PK3 index
   const pk3Index = PK3Index.getInstance();
   pk3Index.setSearchPaths(["data/"]);
+  loadingScreen.setStep("packages");
   await pk3Index.ensureIndex((msg) => loadingScreen.setStatus(msg));
+  loadingScreen.setStep("engine");
 
   // Initialize debug console
   const debugConsole = DebugConsole.getInstance();
@@ -242,6 +244,7 @@ async function main() {
 
   // ── Lobby (no 3D background — will use background image in future) ──
   // Every map is played on a server the lobby spawns; the client loads it on join.
+  loadingScreen.setStep("lobby");
   loadingScreen.setStatus("Loading lobby...");
   await userReadyPromise;
 
