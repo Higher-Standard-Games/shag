@@ -502,6 +502,12 @@ export class MatchLobbyView {
     const enough = this.enoughToStart();
     status.dataset.phase = this.phase === "starting" ? "starting" : enough ? "ready" : "searching";
     status.dataset.error = String(this.roomError !== null);
+    // The bar's stripes move only while the room is waiting on something other
+    // than you: a player to join, the rest to ready up, the server to start.
+    // When it is your move, they stand still.
+    status.dataset.waiting = String(
+      !this.roomError && !this.matchInProgress && (this.phase === "starting" || !enough || this.localReady),
+    );
 
     const readyCount = this.players.filter((p) => p.ready).length;
     const waiting = this.players.length - readyCount;

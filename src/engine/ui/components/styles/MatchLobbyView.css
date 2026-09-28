@@ -325,7 +325,8 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Stripes crawl while waiting; the fill is how full the room is */
+/* The fill is how full the room is. Its stripes crawl only while the room is
+   waiting on someone else, and pause where they are when it is your move */
 .match-lobby__status-bar {
   position: absolute;
   right: 0;
@@ -348,8 +349,17 @@
   background-size:
     28px 28px,
     100% 100%;
-  animation: match-lobby-crawl 0.8s linear infinite;
+  animation: match-lobby-crawl 0.8s linear infinite paused;
   transition: width 0.6s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+.match-lobby__status[data-waiting="true"] .match-lobby__status-fill {
+  animation-play-state: running;
+}
+
+/* The server is on its way: the one wait that is nearly over */
+.match-lobby__status[data-phase="starting"] .match-lobby__status-fill {
+  animation-duration: 0.4s;
 }
 
 @keyframes match-lobby-crawl {

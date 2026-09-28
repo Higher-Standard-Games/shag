@@ -301,3 +301,37 @@ describe("MatchLobbyView roster identity", () => {
     view.destroy();
   });
 });
+
+describe("MatchLobbyView status stripes", () => {
+  const waiting = (view: MatchLobbyView) =>
+    view.root.querySelector<HTMLElement>(".match-lobby__status")?.dataset.waiting;
+
+  it("move while the room waits for a player to join", () => {
+    const client = new FakeLobbyClient();
+    const view = new MatchLobbyView("snd", client as never, { ...lobby, players: [lobby.players[0]] }, "host");
+    expect(waiting(view)).toBe("true");
+    view.destroy();
+  });
+
+  it("stand still when the room is waiting on you, and move once you are ready", () => {
+    const client = new FakeLobbyClient();
+    const view = new MatchLobbyView("snd", client as never, lobby, "host");
+    expect(waiting(view)).toBe("false");
+
+    view.root.querySelector<HTMLButtonElement>(".raised-key--ready")?.click();
+    expect(waiting(view)).toBe("true");
+    view.destroy();
+  });
+
+  it("move while the server starts, and stop for a match already running", () => {
+    const client = new FakeLobbyClient();
+    const view = new MatchLobbyView("snd", client as never, lobby, "host");
+    client.emit("lobby:all_ready", {});
+    expect(waiting(view)).toBe("true");
+    view.destroy();
+
+    const running = new MatchLobbyView("snd", client as never, { ...lobby, activeMatchId: "m_1" }, "host");
+    expect(waiting(running)).toBe("false");
+    running.destroy();
+  });
+});
