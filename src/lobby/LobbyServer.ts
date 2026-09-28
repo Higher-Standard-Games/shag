@@ -365,6 +365,7 @@ class MatchLobby {
       shareUrl: `/?lobby=${encodeURIComponent(this.id)}${this.inviteToken ? `&invite=${this.inviteToken}` : ""}`,
       config: {
         maxPlayers: this.gametype.maxPlayers,
+        minPlayers: this.gametype.minPlayers ?? this.gametype.maxPlayers,
         hasTeams: this.gametype.hasTeams,
         teamNames: this.gametype.teamNames,
       },

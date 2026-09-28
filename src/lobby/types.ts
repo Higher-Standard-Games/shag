@@ -106,6 +106,8 @@ export interface MatchLobbyInfo {
   shareUrl: string;
   config: {
     maxPlayers: number;
+    /** Players needed to start. Absent on older servers, where it is `maxPlayers`. */
+    minPlayers?: number;
     hasTeams: boolean;
     teamNames?: TeamNames;
   };

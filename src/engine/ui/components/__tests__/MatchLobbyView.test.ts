@@ -108,7 +108,7 @@ describe("MatchLobbyView roster identity", () => {
     client.emit("lobby:all_ready", {});
     expect(view.root.querySelector(".match-lobby__status-head")?.textContent).toBe("Match starting");
     client.emit("match:ended", { matchId: "match-1" });
-    expect(view.root.querySelector(".match-lobby__status-head")?.textContent).toBe("Ready when you are");
+    expect(view.root.querySelector(".match-lobby__status-head")?.textContent).toBe("Ready up");
     expect(view.root.querySelector("[data-map='wbomb1']")?.getAttribute("aria-pressed")).toBe("false");
     expect(view.root.querySelector(".raised-key--ready .raised-key__label")?.textContent).toBe("Ready");
 
@@ -144,6 +144,28 @@ describe("MatchLobbyView roster identity", () => {
     view.root.querySelector<HTMLButtonElement>(".raised-key--ready")?.click();
     expect(status?.dataset.error).toBe("false");
     expect(detail?.getAttribute("role")).toBeNull();
+    view.destroy();
+  });
+
+  it("can start before it is full once each side has someone, and says so", () => {
+    const client = new FakeLobbyClient();
+    const bombRoom = { ...lobby, config: { maxPlayers: 10, minPlayers: 2, hasTeams: true } };
+    const view = new MatchLobbyView("snd", client as never, bombRoom, "host");
+    document.body.appendChild(view.root);
+    const text = (selector: string) => view.root.querySelector(selector)?.textContent;
+
+    expect(text(".match-lobby__meta")).toContain("Up to 5 vs 5 · starts at 2");
+    expect(text(".match-lobby__status-kicker")).toBe("Enough to start");
+    expect(text(".match-lobby__status-head")).toBe("Ready when you are");
+    expect(text(".match-lobby__status-sub")).toBe("0 / 2 ready · 8 seats stay open until it starts");
+    expect(text(".raised-key--ready .raised-key__hint")).toBe("0 / 2 ready");
+    expect(text(".match-lobby__actions")).toContain("8 seats open");
+
+    // With one side empty the server will not start it, whatever the count
+    client.emit("lobby:player_left", { playerId: "joiner" });
+    client.emit("lobby:player_joined", { player: { id: "other", name: "Other", team: "alpha", ready: true } });
+    expect(text(".match-lobby__status-head")).toBe("Waiting for players");
+    expect(text(".match-lobby__status-sub")).toBe("Each side needs a player. Switch sides, or add a bot.");
     view.destroy();
   });
 
@@ -271,7 +293,7 @@ describe("MatchLobbyView roster identity", () => {
     const view = new MatchLobbyView("snd", client as never, { ...lobby, activeMatchId: "m_running" }, "joiner");
     client.emit("match:ended", { type: "match:ended", matchId: "m_running", exitCode: 0 });
 
-    expect(view.root.querySelector(".match-lobby__status-head")?.textContent).toBe("Ready when you are");
+    expect(view.root.querySelector(".match-lobby__status-head")?.textContent).toBe("Ready up");
     expect([...view.root.querySelectorAll(".match-lobby__seat-state")].map((s) => s.textContent)).toEqual([
       "Not ready",
       "Not ready",
