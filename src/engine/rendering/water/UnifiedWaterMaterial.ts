@@ -137,6 +137,17 @@ uniform vec3 uProbeMin;
 uniform vec3 uProbeMax;
 uniform vec4 uImpulses[${MAX_WATER_IMPULSES * 2}];
 
+// Screen captures and visibility masks have one mip. Explicit LOD keeps these
+// samples valid inside per-pixel clipping/front-face branches on WebGPU.
+// Keep the WebGL path, including WebGL1 without shader_texture_lod, unchanged.
+#ifdef WEBGPU
+#define WATER_CAPTURE(s, uv) texture2DLodEXT(s, uv, 0.0)
+#define WATER_PANEL(s, ray) textureCubeLodEXT(s, ray, 0.0)
+#else
+#define WATER_CAPTURE(s, uv) texture2D(s, uv)
+#define WATER_PANEL(s, ray) textureCube(s, ray)
+#endif
+
 // Like Babylon WaterMaterial, this inexpensive stylised surface composes
 // display-space colours. The game image-processing pass expects LINEAR input;
 // sending these colours unchanged applies gamma twice and washes out the pool.
@@ -289,15 +300,15 @@ void main(void) {
     float distanceFade = 1.0 - smoothstep(140.0, 240.0, distance(uCameraPosition, vWorld));
     vec2 margin = uActorReflectionTexel * 6.0;
     if (projected.w > 0.0 && all(greaterThan(uv, margin)) && all(lessThan(uv, vec2(1.0) - margin))) {
-      float coverage = texture2D(uActorReflection, uv).a;
+      float coverage = WATER_CAPTURE(uActorReflection, uv).a;
       float softness = mix(0.65, 4.0, smoothstep(32.0, 200.0, distance(uCameraPosition, vWorld)));
       vec2 stepUv = uActorReflectionTexel * softness;
       vec2 warped = uv + clamp(slope, vec2(-0.6), vec2(0.6)) * uActorReflectionTexel * 2.0;
-      vec4 actor = texture2D(uActorReflection, warped) * 0.3;
-      actor += texture2D(uActorReflection, warped + vec2(stepUv.x, 0.0)) * 0.175;
-      actor += texture2D(uActorReflection, warped - vec2(stepUv.x, 0.0)) * 0.175;
-      actor += texture2D(uActorReflection, warped + vec2(0.0, stepUv.y)) * 0.175;
-      actor += texture2D(uActorReflection, warped - vec2(0.0, stepUv.y)) * 0.175;
+      vec4 actor = WATER_CAPTURE(uActorReflection, warped) * 0.3;
+      actor += WATER_CAPTURE(uActorReflection, warped + vec2(stepUv.x, 0.0)) * 0.175;
+      actor += WATER_CAPTURE(uActorReflection, warped - vec2(stepUv.x, 0.0)) * 0.175;
+      actor += WATER_CAPTURE(uActorReflection, warped + vec2(0.0, stepUv.y)) * 0.175;
+      actor += WATER_CAPTURE(uActorReflection, warped - vec2(0.0, stepUv.y)) * 0.175;
       actorColour = actor.rgb / max(actor.a, 0.0001);
       if (uActorReflectionLinear > 0.5) actorColour = pow(max(actorColour, vec3(0.0)), vec3(1.0 / 2.2));
       actorCoverage = min(coverage, actor.a) * distanceFade * 0.8;
@@ -335,7 +346,7 @@ void main(void) {
     // View-space Z in world units, straight out of the depth map. No
     // reconstruction: the renderer is asked to store camera-space Z precisely
     // so this line cannot be subtly wrong in a way that still renders.
-    float sceneDepth = texture2D(uSceneDepth, screenUv).r;
+    float sceneDepth = WATER_CAPTURE(uSceneDepth, screenUv).r;
     float rayAxis = max(0.05, dot(normalize(vWorld - uCameraPosition), normalize(uCameraForward)));
     thickness = sceneDepth > 0.0 ? max(0.0, sceneDepth - vViewDepth) / rayAxis : 0.0;
     validContactDepth = sceneDepth > vViewDepth + 0.05 ? 1.0 : 0.0;
@@ -388,7 +399,7 @@ void main(void) {
 
   if (uDebug > 2.5) {
     if (uDebug > 5.5) {
-      vec3 colour = texture2D(uSceneColour, gl_FragCoord.xy / uScreenSize).rgb;
+      vec3 colour = WATER_CAPTURE(uSceneColour, gl_FragCoord.xy / uScreenSize).rgb;
       if (uRefractionIsLinear > 0.5) colour = pow(max(colour, vec3(0.0)), vec3(1.0 / 2.2));
       gl_FragColor = waterOutput(uHasRefraction > 0.5 ? colour : vec3(1.0, 0.0, 0.0), 1.0);
       return;
@@ -451,7 +462,7 @@ void main(void) {
   vec3 lightHighlights = vec3(0.0);
   if (uCalmWater > 0.5 && gl_FrontFacing && uHighlightStrength > 0.0) {
     vec2 maskUv = (vWorld.xz - uLightMaskMin.xz) / max(uLightMaskMax.xz - uLightMaskMin.xz, vec2(1.0));
-    vec4 visibility = texture2D(uLightVisibility, clamp(maskUv, vec2(0.0), vec2(1.0)));
+    vec4 visibility = WATER_CAPTURE(uLightVisibility, clamp(maskUv, vec2(0.0), vec2(1.0)));
     float exponent = max(2.0, 2.0 / (uRoughness * uRoughness) - 2.0);
     for (int i = 0; i < ${MAX_WATER_LIGHTS}; i++) {
       vec4 source = uWaterLights[i];
@@ -469,7 +480,7 @@ void main(void) {
         // sun. Without a local capture we cannot identify that panel's colour.
         vec3 panelRay = source.xyz - uProbePosition;
         panelRay.y *= uEnvironmentYSign;
-        vec3 panelColour = textureCube(uEnvironment, panelRay).rgb;
+        vec3 panelColour = WATER_PANEL(uEnvironment, panelRay).rgb;
         if (uEnvironmentIsLinear > 0.5) panelColour = pow(max(panelColour, vec3(0.0)), vec3(1.0 / 2.2));
         lightColour *= panelColour * uLocalProbe;
       }
@@ -487,10 +498,10 @@ void main(void) {
     // Do not drag a foreground bank into the water, or sample outside the
     // current screen. A rejected displacement falls back to the exact pixel.
     vec2 margin = vec2(2.0) / uScreenSize;
-    float displacedDepth = texture2D(uSceneDepth, clamp(refractedUv, margin, vec2(1.0) - margin)).r;
+    float displacedDepth = WATER_CAPTURE(uSceneDepth, clamp(refractedUv, margin, vec2(1.0) - margin)).r;
     if (any(lessThan(refractedUv, margin)) || any(greaterThan(refractedUv, vec2(1.0) - margin)) ||
         displacedDepth <= vViewDepth + 0.5) refractedUv = screenUv;
-    vec3 transmittedScene = texture2D(uSceneColour, refractedUv).rgb;
+    vec3 transmittedScene = WATER_CAPTURE(uSceneColour, refractedUv).rgb;
     if (uRefractionIsLinear > 0.5) transmittedScene = pow(max(transmittedScene, vec3(0.0)), vec3(1.0 / 2.2));
     vec3 throughWater = transmittedScene * transmittance + body * (vec3(1.0) - transmittance);
     vec3 surfaceColour = reflected * fresnel + throughWater * (1.0 - fresnel) + surfaceSheen + lightHighlights;

@@ -86,6 +86,14 @@ describe("not sharing the scene's depth renderer", () => {
 });
 
 describe("following the active camera", () => {
+  it("disposes its privately owned render target", () => {
+    const cam = camera("owned");
+    const map = provider.mapFor(cam);
+    expect(scene.textures).toContain(map);
+    provider.dispose();
+    expect(cam.customRenderTargets).not.toContain(map);
+    expect(scene.textures).not.toContain(map);
+  });
   it("renders its target as part of the scene", () => {
     // Nothing else gathers it: the scene component's step only walks cameras
     // in `_depthRenderer`, and we are deliberately not one of them.

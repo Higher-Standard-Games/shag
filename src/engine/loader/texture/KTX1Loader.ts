@@ -1,8 +1,8 @@
 /**
- * KTX1Loader - Parse KTX v1 texture files for WebGL
+ * KTX1Loader - Parse KTX v1 textures for Babylon's rendering backends
  *
  * KTX (Khronos Texture) v1 is a container format for GPU-compressed textures.
- * Supports DXT/S3TC, ETC, ASTC formats via WebGL extensions.
+ * Uses negotiated Babylon capabilities for DXT/S3TC, ETC and ASTC formats.
  *
  * When GPU compressed texture support is missing, falls back to a software
  * DXT1/DXT3/DXT5 decoder that converts to RGBA on load.
@@ -65,6 +65,9 @@ export interface KTX1MipLevel {
 }
 
 export interface KTX1ParseResult {
+  /** Original container retained by Babylon for upload and context recovery. */
+  source: ArrayBuffer;
+  littleEndian: boolean;
   header: KTX1Header;
   mipLevels: KTX1MipLevel[];
   isCompressed: boolean;
@@ -75,6 +78,7 @@ export interface KTX1ParseResult {
  * Parse a KTX1 file from ArrayBuffer
  */
 export function parseKTX1(data: ArrayBuffer): KTX1ParseResult {
+  if (data.byteLength < KTX_HEADER_SIZE) throw new Error("Invalid KTX1 file: truncated header");
   const view = new DataView(data);
   const uint8 = new Uint8Array(data);
 
@@ -87,6 +91,7 @@ export function parseKTX1(data: ArrayBuffer): KTX1ParseResult {
 
   // Check endianness (offset 12)
   const endianness = view.getUint32(12, true);
+  if (endianness !== 0x04030201 && endianness !== 0x01020304) throw new Error("Invalid KTX1 byte order");
   const littleEndian = endianness === 0x04030201;
 
   // Parse header
@@ -107,6 +112,20 @@ export function parseKTX1(data: ArrayBuffer): KTX1ParseResult {
 
   // Determine if compressed
   const isCompressed = header.glType === 0;
+  if (
+    !header.pixelWidth ||
+    !header.pixelHeight ||
+    header.pixelDepth ||
+    header.numberOfArrayElements ||
+    header.numberOfFaces !== 1
+  ) {
+    throw new Error("KTX1 loader requires a non-array 2D texture with one face");
+  }
+  if (isCompressed && (header.glFormat !== 0 || header.glTypeSize !== 1)) {
+    throw new Error("Invalid compressed KTX1 type/format");
+  }
+  const fullMipCount = Math.floor(Math.log2(Math.max(header.pixelWidth, header.pixelHeight))) + 1;
+  if (header.numberOfMipmapLevels > fullMipCount) throw new Error("Invalid KTX1 mip count");
 
   // Get format name
   const formatName = getFormatName(header.glInternalFormat);
@@ -121,18 +140,20 @@ export function parseKTX1(data: ArrayBuffer): KTX1ParseResult {
 
   for (let level = 0; level < numMips; level++) {
     if (offset + 4 > data.byteLength) {
-      console.warn(`[KTX1Loader] Truncated KTX: no room for mip ${level} size header`);
-      break;
+      if (!isCompressed && mipLevels.length) break; // Legacy raw files may omit trailing mips; only mip 0 is uploaded.
+      throw new Error(`Truncated KTX1: missing mip ${level} size`);
     }
     const imageSize = view.getUint32(offset, littleEndian);
     offset += 4;
 
     // Bounds check: ensure we have enough data for this mip level
     if (offset + imageSize > data.byteLength) {
-      console.warn(
-        `[KTX1Loader] Truncated KTX: mip ${level} needs ${imageSize} bytes at offset ${offset}, but buffer is only ${data.byteLength} bytes`,
-      );
-      break;
+      if (!isCompressed && mipLevels.length) break;
+      throw new Error(`Truncated KTX1: incomplete mip ${level}`);
+    }
+    const block = isCompressed ? compressedBlock(header.glInternalFormat) : null;
+    if (block && imageSize !== Math.ceil(width / block.width) * Math.ceil(height / block.height) * block.bytes) {
+      throw new Error(`Invalid KTX1 compressed payload size at mip ${level}`);
     }
 
     const levelData = new Uint8Array(data, offset, imageSize);
@@ -144,14 +165,16 @@ export function parseKTX1(data: ArrayBuffer): KTX1ParseResult {
 
     // Align to 4 bytes
     offset += imageSize;
-    offset = (offset + 3) & ~3;
+    offset = Math.ceil(offset / 4) * 4;
 
     // Next mip size
-    width = Math.max(1, width >> 1);
-    height = Math.max(1, height >> 1);
+    width = Math.max(1, Math.floor(width / 2));
+    height = Math.max(1, Math.floor(height / 2));
   }
 
   return {
+    source: data,
+    littleEndian,
     header,
     mipLevels,
     isCompressed,
@@ -181,44 +204,101 @@ function getFormatName(glInternalFormat: number): string {
 }
 
 /**
- * Check if WebGL supports a given compressed format
+ * Check negotiated format support without reaching into a WebGL context.
  */
 export function isFormatSupported(engine: AbstractEngine, glInternalFormat: number): boolean {
-  // biome-ignore lint/suspicious/noExplicitAny: Babylon texture internals
-  const gl = (engine as any)._gl as WebGL2RenderingContext;
-  if (!gl) return false;
+  const caps = engine.getCaps();
 
   // Check for S3TC (DXT) support
   if (
     glInternalFormat >= GL_FORMATS.COMPRESSED_RGB_S3TC_DXT1_EXT &&
     glInternalFormat <= GL_FORMATS.COMPRESSED_RGBA_S3TC_DXT5_EXT
   ) {
-    const ext = gl.getExtension("WEBGL_compressed_texture_s3tc");
-    return !!ext;
+    return !!caps.s3tc;
   }
 
   // Check for ETC support
   if (glInternalFormat === GL_FORMATS.ETC1_RGB8_OES) {
-    const ext = gl.getExtension("WEBGL_compressed_texture_etc1");
-    return !!ext;
+    // Babylon's WebGPU uploader maps ETC1 blocks to its ETC2 RGB format.
+    return !!caps.etc1 || (engine.isWebGPU && !!caps.etc2);
   }
 
   if (
     glInternalFormat === GL_FORMATS.COMPRESSED_RGB8_ETC2 ||
     glInternalFormat === GL_FORMATS.COMPRESSED_RGBA8_ETC2_EAC
   ) {
-    const ext = gl.getExtension("WEBGL_compressed_texture_etc");
-    return !!ext;
+    return !!caps.etc2;
   }
 
   // Check for ASTC support
   if (glInternalFormat >= GL_FORMATS.COMPRESSED_RGBA_ASTC_4x4_KHR && glInternalFormat <= 0x93bd) {
     // ASTC range
-    const ext = gl.getExtension("WEBGL_compressed_texture_astc");
-    return !!ext;
+    return !!caps.astc;
   }
 
   return false;
+}
+
+function compressedBlock(format: number): { width: number; height: number; bytes: number } | null {
+  if (format >= 0x83f0 && format <= 0x83f3) return { width: 4, height: 4, bytes: format <= 0x83f1 ? 8 : 16 };
+  if (format === 0x8d64 || format === 0x9274) return { width: 4, height: 4, bytes: 8 };
+  if (format === 0x9278) return { width: 4, height: 4, bytes: 16 };
+  const astc = [
+    [4, 4],
+    [5, 4],
+    [5, 5],
+    [6, 5],
+    [6, 6],
+    [8, 5],
+    [8, 6],
+    [8, 8],
+    [10, 5],
+    [10, 6],
+    [10, 8],
+    [10, 10],
+    [12, 10],
+    [12, 12],
+  ][format - 0x93b0];
+  return astc ? { width: astc[0], height: astc[1], bytes: 16 } : null;
+}
+
+function canUploadCompressed(engine: AbstractEngine, ktx: KTX1ParseResult): boolean {
+  if (!ktx.littleEndian || !isFormatSupported(engine, ktx.header.glInternalFormat)) return false;
+  const { pixelWidth: width, pixelHeight: height } = ktx.header;
+  // Babylon 9's native KTX1 uploader halves mip dimensions without flooring.
+  // Keep NPOT mip chains on the software/fallback path.
+  if (ktx.mipLevels.length > 1 && (!Number.isInteger(Math.log2(width)) || !Number.isInteger(Math.log2(height))))
+    return false;
+  const block = compressedBlock(ktx.header.glInternalFormat);
+  // WebGPU compressed base extents must be block-aligned.
+  return !engine.isWebGPU || (!!block && width % block.width === 0 && height % block.height === 0);
+}
+
+async function uploadCompressed(engine: AbstractEngine, ktx: KTX1ParseResult, name: string): Promise<InternalTexture> {
+  const fullMipCount = Math.floor(Math.log2(Math.max(ktx.header.pixelWidth, ktx.header.pixelHeight))) + 1;
+  // Partial chains cannot be safely sampled with a mip filter on all backends.
+  const noMipmap = ktx.mipLevels.length !== fullMipCount || fullMipCount === 1;
+  let texture: InternalTexture | undefined;
+  try {
+    return await new Promise<InternalTexture>((resolve, reject) => {
+      texture = engine.createTexture(
+        `data:${name}`,
+        noMipmap,
+        false,
+        null,
+        noMipmap ? Constants.TEXTURE_BILINEAR_SAMPLINGMODE : Constants.TEXTURE_TRILINEAR_SAMPLINGMODE,
+        resolve,
+        (message, error) => reject(error ?? new Error(message ?? `KTX1 upload failed: ${name}`)),
+        ktx.source,
+        undefined,
+        undefined,
+        ".ktx",
+      );
+    });
+  } catch (error) {
+    texture?.dispose();
+    throw error;
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -506,11 +586,11 @@ export function softwareDecodeMip(data: Uint8Array, width: number, height: numbe
  * 3. Uncompressed KTX → upload raw data
  * 4. Unknown compressed → return null
  */
-export function createTextureFromKTX1(
+export async function createTextureFromKTX1(
   engine: AbstractEngine,
   ktx: KTX1ParseResult,
   name: string,
-): InternalTexture | null {
+): Promise<InternalTexture | null> {
   // ── Uncompressed KTX ───────────────────────────────────────────
   if (!ktx.isCompressed) {
     if (ktx.mipLevels.length > 0) {
@@ -598,47 +678,16 @@ export function createTextureFromKTX1(
   }
 
   const fmt = ktx.header.glInternalFormat;
-  // biome-ignore lint/suspicious/noExplicitAny: Babylon texture internals
-  const gl = (engine as any)._gl as WebGL2RenderingContext;
-
-  // ── Path 1: GPU supports compressed format → upload directly ───
-  if (gl && isFormatSupported(engine, fmt)) {
-    const internalTexture = engine.createRawTexture(
-      null,
-      ktx.header.pixelWidth,
-      ktx.header.pixelHeight,
-      Constants.TEXTUREFORMAT_RGBA,
-      false,
-      false,
-      Constants.TEXTURE_TRILINEAR_SAMPLINGMODE,
-      null,
-      Constants.TEXTURETYPE_UNSIGNED_BYTE,
-    );
-
-    // biome-ignore lint/suspicious/noExplicitAny: Babylon texture internals
-    gl.bindTexture(gl.TEXTURE_2D, (internalTexture as any)._webGLTexture);
-    for (let level = 0; level < ktx.mipLevels.length; level++) {
-      const mip = ktx.mipLevels[level];
-      gl.compressedTexImage2D(gl.TEXTURE_2D, level, fmt, mip.width, mip.height, 0, mip.data);
+  if (canUploadCompressed(engine, ktx)) {
+    try {
+      return await uploadCompressed(engine, ktx, name);
+    } catch (error) {
+      console.warn(`[KTX1Loader] Compressed upload failed for ${name}; trying software decode`, error);
     }
-    if (ktx.mipLevels.length > 1) {
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-    } else {
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    }
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    gl.bindTexture(gl.TEXTURE_2D, null);
-
-    internalTexture.isReady = true;
-    internalTexture.width = ktx.header.pixelWidth;
-    internalTexture.height = ktx.header.pixelHeight;
-    console.log(
-      `[KTX1Loader] GPU compressed: ${name} (${ktx.formatName}, ${ktx.header.pixelWidth}x${ktx.header.pixelHeight}, ${ktx.mipLevels.length} mips)`,
-    );
-    return internalTexture;
   }
 
-  // ── Path 2: Software decode DXT → RGBA ─────────────────────────
+  // Software decode remains available when the device or native uploader
+  // cannot use this container. Unsupported formats return null for PK3 fallback.
   if (canSoftwareDecode(fmt)) {
     console.log(`[KTX1Loader] Software decoding ${ktx.formatName} → RGBA: ${name}`);
     const mip = ktx.mipLevels[0];

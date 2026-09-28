@@ -44,6 +44,14 @@ The parser and BSP material path cover the compatibility features most maps depe
 
 Support is not a complete reimplementation of the original Q3 renderer. In particular, other vertex deforms such as `wave`, `bulge`, and `move` are currently skipped by the parser. Some uncommon multi-stage combinations are approximated by Babylon material paths.
 
+Brightness/alpha waves without `tcMod` preserve the texture's existing UV
+transform. Filter decals apply that transform when sampling, including loader
+orientation corrections. Glow overlays independently transform base and glow
+UVs after applying their animation offsets; BSP lightmaps keep their dedicated
+UV2 path. UV animation in StandardMaterial stages still needs a broader
+transform-composition audit; these fixes do not establish full
+WebGL/WebGPU visual parity.
+
 ## Debug workflow
 
 When a material looks wrong:
@@ -53,6 +61,24 @@ When a material looks wrong:
 3. Inspect parsed stages with `shader info <shader-name>`.
 4. Compare resolved flags with `shader resolve <shader-name>`.
 5. In the browser, use `shader aim 1` to identify the surface under the crosshair.
+
+For rendering differences between backends, aim at the broken area and run
+`shader surface`. It returns a `RENDERER_SURFACE_REPORT` with the nearest eight
+pickable mesh hits, authored shader names, UV/UV2 coordinates, material depth
+and alpha state, and texture sources/transforms. Hidden meshes and meshes outside
+the world camera's layer mask are excluded. This is CPU picking/state inspection;
+it does not prove which GPU fragment is visible or enumerate every triangle
+overlapping within one mesh.
+
+The latest complete snapshot is also available as `window.rendererSurfaceReport`.
+If console output is truncated, copy it from browser DevTools with:
+
+```js
+copy(JSON.stringify(window.rendererSurfaceReport, null, 2))
+```
+
+Capture separately for the floor and halo, and record the map name and backend.
+Use the same camera position/settings for a `?renderer=webgl2` comparison.
 
 Keep shader names normalized to forward-slash paths without file extensions.
 
@@ -66,6 +92,17 @@ Compatibility parsing and enhanced rendering should remain separate:
 - keep a fallback material path for unsupported hardware or disabled effects.
 
 This separation lets old content continue to load while selected surface classes receive modern Babylon rendering.
+
+## Shader warmup
+
+During gameplay map loading, `EffectPreloader` explicitly compiles seven effect
+fixtures and the scene's Standard/PBR materials through Babylon. Off-screen
+fixtures cannot rely on a render frame to compile them because they may be
+culled. Fixture resources are released after compilation; compilation errors
+reject the warmup and release its temporary lights. MapLoader logs a warmup
+failure before continuing to its existing scene-readiness gate. This process
+warms matching shader configurations on both backends; it does not validate GPU
+commands or guarantee every runtime variant is already cached.
 
 ## Source of truth
 

@@ -66,6 +66,7 @@ The console does not expose the old `camera controller`, `camera height`, or `ca
 | `shader load\|count` | Load or count parsed shaders |
 | `shader list [filter]` | List parsed shader names |
 | `shader info [name]` | Inspect a shader or the aimed surface |
+| `shader surface` | Snapshot aimed mesh layers, depth/alpha state and texture UV transforms |
 | `shader resolve <name>` | Show resolved material flags |
 | `shader deps <name>` | Trace archive dependencies |
 | `shader aim <0\|1>` | Highlight aimed surfaces |

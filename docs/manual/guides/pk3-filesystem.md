@@ -69,7 +69,40 @@ npm run cli:game -- --exec 'bsp load wdm2; bsp info; quit'
 
 Headless loading resolves the BSP through the same PK3 index. Do not add ad-hoc filesystem searches for map files.
 
-## Source of truth
+## KTX2 sidecar loading
+
+Generated `ktx2cache` sidecars use top-to-bottom rows, matching the TGA parser.
+The dedicated sidecar loader preserves that order for compressed and raw
+decoded textures on both WebGL and WebGPU. It retains base dimensions after
+uploading all mip levels, and device restoration selects the same loader.
+Decoder resources, including worker-side ZSTD, are served from bundled local
+assets. Failed sidecar loads fall back to the source image in the PK3.
+
+For visual diagnosis, `shader surface` reports the aimed texture's dimensions,
+source and orientation. Changing `r_ktx2` requires a fresh map/texture load to
+compare paths; it does not replace textures already held by materials.
+
+## KTX1 texture loading
+
+The 2D texture loader uses Babylon's negotiated DXT/S3TC, ETC and ASTC
+capabilities, including WebGPU's ETC2 support for ETC1 blocks. Compressed uploads
+go through Babylon's KTX loader, which retains the original bytes for context
+recovery. The public Texture wrapper applies compressed orientation before
+the texture is returned to material code.
+
+Complete compressed mip chains are preserved. Partial chains use their base
+level without mip filtering. Big-endian compressed containers, non-power-of-two
+mip chains, and WebGPU base dimensions that are not aligned to compression
+blocks use software decoding when available. DXT1/3/5 and ETC1 can decode to
+RGBA; that path regenerates mips from the base image. Other unsupported formats
+try the existing JPG/PNG/TGA alternative, then a placeholder.
+
+Compressed files with truncated blocks or mip data are rejected before native
+upload. Legacy uncompressed files may keep a valid base image when trailing
+mips are incomplete. Cube/array/volume containers are not accepted by this 2D
+loader. `createTextureFromKTX1` is asynchronous; callers must await it.
+
+## Implementation files
 
 - `src/engine/loader/pk3/PK3Index.ts`
 - `src/engine/loader/pk3/PK3Loader.ts`

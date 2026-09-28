@@ -62,8 +62,15 @@ export function applySafeMaxSimultaneousLights(material: Material | null | undef
   const budget = getSafeMaxSimultaneousLights(material);
   const target = material as Material & { maxSimultaneousLights?: number };
   if (materialUsesWebGPU(material)) {
+    // Babylon can keep drawing an old effect while its replacement compiles.
+    // After a light-count change, BindLights already uses the new count while
+    // that old layout still requires the removed LightN buffers. WebGPU rejects
+    // the bind group. Skip draws until the matching effect is ready instead.
+    material.allowShaderHotSwapping = false;
     if (target.maxSimultaneousLights !== budget) {
       target.maxSimultaneousLights = budget;
+      // Frozen StandardMaterial otherwise bypasses the dirty light defines.
+      if (material.isFrozen) material.markDirty(true);
     }
     return;
   }

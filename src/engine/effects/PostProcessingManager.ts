@@ -13,6 +13,7 @@
 
 import type { Camera } from "@babylonjs/core/Cameras/camera";
 import { Color4 } from "@babylonjs/core/Maths/math.color";
+import type { Observer } from "@babylonjs/core/Misc/observable";
 import { DefaultRenderingPipeline } from "@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/defaultRenderingPipeline";
 import { SSAO2RenderingPipeline } from "@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/ssao2RenderingPipeline";
 import type { Scene } from "@babylonjs/core/scene";
@@ -108,6 +109,7 @@ export class PostProcessingManager {
 
   /** Clear the cached singleton so ServiceLocator re-inits a fresh one (QA-WO13). */
   static resetInstance(): void {
+    PostProcessingManager.instance?.dispose();
     PostProcessingManager.instance = null as unknown as PostProcessingManager;
   }
 
@@ -116,10 +118,13 @@ export class PostProcessingManager {
   private pipeline: DefaultRenderingPipeline | null = null;
   private ssaoPipeline: SSAO2RenderingPipeline | null = null;
 
-  private settings: PostProcessingSettings = { ...DEFAULT_SETTINGS };
+  private settings: PostProcessingSettings = structuredClone(DEFAULT_SETTINGS);
   private initialized = false;
 
   private _cameraChangeUnsub: (() => void) | null = null;
+  private clockUnsub: (() => void) | null = null;
+  private cameraObserver: Observer<Scene> | null = null;
+  private frameObserver: Observer<Scene> | null = null;
 
   private constructor() {}
 
@@ -133,7 +138,7 @@ export class PostProcessingManager {
   /**
    * Initialize post-processing with scene and camera
    */
-  public init(scene: Scene, camera: Camera): void {
+  public init(scene: Scene, camera: Camera | null = scene.activeCameras?.[0] ?? scene.activeCamera): void {
     if (this.initialized) {
       console.warn("[PostProcessingManager] Already initialized");
       return;
@@ -141,12 +146,12 @@ export class PostProcessingManager {
 
     this.scene = scene;
     this.camera = camera;
+    this.initialized = true;
 
     this.createPipeline();
     this.setupEventListeners();
     this.initCelOutline(scene, camera);
 
-    this.initialized = true;
     console.log("[PostProcessingManager] Initialized with default settings");
   }
 
@@ -181,7 +186,7 @@ export class PostProcessingManager {
    * Rebind post-processing to a new active camera.
    * This is needed when the engine swaps scene.activeCamera (e.g. BSP/freefly).
    */
-  public setCamera(camera: Camera): void {
+  public setCamera(camera: Camera | null): void {
     if (!this.initialized) return;
     if (!this.scene) return;
     if (this.camera === camera) return;
@@ -237,6 +242,7 @@ export class PostProcessingManager {
       this.pipeline.bloomEnabled = false;
       this.pipeline.imageProcessingEnabled = false;
       this.pipeline.chromaticAberrationEnabled = false;
+      this.updateSSAO();
       return;
     }
 
@@ -283,11 +289,15 @@ export class PostProcessingManager {
    * Update SSAO pipeline
    */
   private updateSSAO(): void {
-    if (!this.scene || !this.camera) return;
-
     const s = this.settings.ssao;
+    const enabled = this.settings.enabled && s.enabled;
+    if (!enabled || !this.scene || !this.camera) {
+      this.ssaoPipeline?.dispose();
+      this.ssaoPipeline = null;
+      return;
+    }
 
-    if (s.enabled && !this.ssaoPipeline) {
+    if (!this.ssaoPipeline) {
       // Create SSAO2 pipeline (better quality than SSAO)
       this.ssaoPipeline = new SSAO2RenderingPipeline(
         "ssao",
@@ -302,12 +312,7 @@ export class PostProcessingManager {
       this.ssaoPipeline.totalStrength = s.intensity;
       this.ssaoPipeline.samples = s.samples;
       console.log("[PostProcessingManager] SSAO enabled");
-    } else if (!s.enabled && this.ssaoPipeline) {
-      // Dispose SSAO pipeline
-      this.ssaoPipeline.dispose();
-      this.ssaoPipeline = null;
-      console.log("[PostProcessingManager] SSAO disabled");
-    } else if (s.enabled && this.ssaoPipeline) {
+    } else {
       // Update existing SSAO settings
       this.ssaoPipeline.radius = s.radius;
       this.ssaoPipeline.totalStrength = s.intensity;
@@ -320,18 +325,22 @@ export class PostProcessingManager {
    */
   private setupEventListeners(): void {
     // Listen for time changes to adjust color grading
-    EventBus.on<{ hour: number; minute: number }>("clock:tick", (data) => {
+    this.clockUnsub = EventBus.on<{ hour: number; minute: number }>("clock:tick", (data) => {
       this.updateColorGradingForTime(data.hour, data.minute);
     });
+
+    const followCamera = () => {
+      if (this.scene) this.setCamera(this.scene.activeCameras?.[0] ?? this.scene.activeCamera);
+    };
+    this.cameraObserver = this.scene!.onActiveCameraChanged.add(followCamera);
+    // Babylon does not notify when activeCameras is replaced. Resolve the world
+    // camera before rendering too (e.g. entering/leaving demo playback).
+    this.frameObserver = this.scene!.onBeforeRenderObservable.add(followCamera);
 
     // Keep pipeline attached to the current active camera
     if (!this._cameraChangeUnsub) {
       this._cameraChangeUnsub = EventBus.on<{ type: string }>("camera:controller_changed", () => {
-        if (!this.scene) return;
-        const active = this.scene.activeCamera;
-        if (active) {
-          this.setCamera(active);
-        }
+        followCamera();
       });
     }
   }
@@ -340,7 +349,7 @@ export class PostProcessingManager {
    * Adjust color grading based on time of day
    */
   private updateColorGradingForTime(hour: number, minute: number): void {
-    if (!this.pipeline?.imageProcessing || !this.settings.colorGrading.enabled) return;
+    if (!this.settings.enabled || !this.pipeline?.imageProcessing || !this.settings.colorGrading.enabled) return;
 
     // Calculate time as decimal (0-24)
     const time = hour + minute / 60;
@@ -387,9 +396,7 @@ export class PostProcessingManager {
    */
   public setBloomEnabled(enabled: boolean): void {
     this.settings.bloom.enabled = enabled;
-    if (this.pipeline) {
-      this.pipeline.bloomEnabled = enabled;
-    }
+    this.applySettings();
   }
 
   /**
@@ -417,9 +424,7 @@ export class PostProcessingManager {
    */
   public setVignetteEnabled(enabled: boolean): void {
     this.settings.vignette.enabled = enabled;
-    if (this.pipeline?.imageProcessing) {
-      this.pipeline.imageProcessing.vignetteEnabled = enabled;
-    }
+    this.applySettings();
   }
 
   /**
@@ -455,23 +460,21 @@ export class PostProcessingManager {
    */
   public setChromaticAberrationEnabled(enabled: boolean): void {
     this.settings.chromaticAberration.enabled = enabled;
-    if (this.pipeline) {
-      this.pipeline.chromaticAberrationEnabled = enabled;
-    }
+    this.applySettings();
   }
 
   /**
    * Get current settings
    */
   public getSettings(): Readonly<PostProcessingSettings> {
-    return this.settings;
+    return structuredClone(this.settings);
   }
 
   /**
    * Update multiple settings at once
    */
   public updateSettings(partial: Partial<PostProcessingSettings>): void {
-    this.settings = { ...this.settings, ...partial };
+    this.settings = structuredClone({ ...this.settings, ...partial });
     this.applySettings();
   }
 
@@ -479,7 +482,7 @@ export class PostProcessingManager {
    * Reset to default settings
    */
   public resetToDefaults(): void {
-    this.settings = { ...DEFAULT_SETTINGS };
+    this.settings = structuredClone(DEFAULT_SETTINGS);
     this.applySettings();
     console.log("[PostProcessingManager] Reset to defaults");
   }
@@ -495,6 +498,12 @@ export class PostProcessingManager {
    * Dispose all resources
    */
   public dispose(): void {
+    this.clockUnsub?.();
+    this.clockUnsub = null;
+    if (this.scene && this.cameraObserver) this.scene.onActiveCameraChanged.remove(this.cameraObserver);
+    this.cameraObserver = null;
+    if (this.scene && this.frameObserver) this.scene.onBeforeRenderObservable.remove(this.frameObserver);
+    this.frameObserver = null;
     if (this.pipeline) {
       this.pipeline.dispose();
       this.pipeline = null;
@@ -509,6 +518,8 @@ export class PostProcessingManager {
       this._cameraChangeUnsub = null;
     }
     this.initialized = false;
+    this.scene = null;
+    this.camera = null;
     console.log("[PostProcessingManager] Disposed");
   }
 
@@ -517,7 +528,7 @@ export class PostProcessingManager {
   /**
    * Initialize cel outline post-process and register cvars
    */
-  private initCelOutline(scene: Scene, camera: Camera): void {
+  private initCelOutline(scene: Scene, camera: Camera | null): void {
     const cel = CelOutlinePostProcess.getInstance();
     cel.init(scene, camera);
 

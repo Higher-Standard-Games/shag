@@ -27,6 +27,8 @@ attribute vec2 uv2;
 
 // Uniforms
 uniform mat4 worldViewProjection;
+uniform mat4 baseMatrix;
+uniform mat4 glowMatrix;
 uniform vec2 uvOffset;    // For tcMod scroll animation
 uniform vec2 glowUvOffset; // Separate offset for glow (if needed)
 
@@ -36,10 +38,10 @@ varying vec2 vUV2;
 varying vec2 vGlowUV;
 
 void main() {
-  // Apply UV offset for animation
-  vUV = uv + uvOffset;
+  // Animate in authored UV space, then apply each texture's loader transform.
+  vUV = (baseMatrix * vec4(uv + uvOffset, 1.0, 0.0)).xy;
   vUV2 = uv2;
-  vGlowUV = uv + glowUvOffset;
+  vGlowUV = (glowMatrix * vec4(uv + glowUvOffset, 1.0, 0.0)).xy;
 
   gl_Position = worldViewProjection * vec4(position, 1.0);
 }
@@ -150,6 +152,8 @@ export class GlowOverlayShaderMaterial {
         attributes: ["position", "uv", "uv2"],
         uniforms: [
           "worldViewProjection",
+          "baseMatrix",
+          "glowMatrix",
           "uvOffset",
           "glowUvOffset",
           "lightmapIntensity",
@@ -164,6 +168,14 @@ export class GlowOverlayShaderMaterial {
     // Set textures
     material.setTexture("baseSampler", baseTexture);
     material.setTexture("glowSampler", glowTexture);
+    // Match the StandardMaterial UV contract, including independently oriented
+    // compressed textures. Rebind even when frozen; Babylon owns this observer's
+    // lifetime. BSP lightmaps retain their dedicated, untransformed UV2 path.
+    material.onBindObservable.add(() => {
+      const effect = material.getEffect();
+      effect?.setMatrix("baseMatrix", baseTexture.getTextureMatrix());
+      effect?.setMatrix("glowMatrix", glowTexture.getTextureMatrix());
+    });
 
     if (lightmapTexture) {
       material.setTexture("lightmapSampler", lightmapTexture);

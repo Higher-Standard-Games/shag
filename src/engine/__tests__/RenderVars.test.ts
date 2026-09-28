@@ -9,8 +9,11 @@
  */
 
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
+import { PointLight } from "@babylonjs/core/Lights/pointLight";
 import { PBRMaterial } from "@babylonjs/core/Materials/PBR/pbrMaterial";
+import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { RawTexture } from "@babylonjs/core/Materials/Textures/rawTexture";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import { Scene } from "@babylonjs/core/scene";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -67,6 +70,43 @@ function getRV(): RenderVars {
 // ─── Tests ──────────────────────────────────────────────────────
 
 describe("RenderVars", () => {
+  it.each([
+    [StandardMaterial, false],
+    [StandardMaterial, true],
+    [PBRMaterial, false],
+    [PBRMaterial, true],
+  ] as const)("preserves freeze ownership and dynamic light updates (%s, WGSL=%s)", async (MaterialType, webgpu) => {
+    const engine = new NullEngine();
+    if (webgpu) Object.defineProperty(engine, "isWebGPU", { value: true });
+    const scene = new Scene(engine);
+    try {
+      const mesh = MeshBuilder.CreateBox("dynamic", {}, scene);
+      const material = new MaterialType("dynamic", scene);
+      mesh.material = material;
+      const staticMesh = MeshBuilder.CreateBox("static", {}, scene);
+      const staticMaterial = new MaterialType("static", scene);
+      staticMesh.material = staticMaterial;
+      staticMaterial.freeze();
+      new PointLight("persistent", Vector3.Zero(), scene);
+      const temporary = new PointLight("temporary", Vector3.One(), scene);
+      await material.forceCompilationAsync(mesh);
+      expect(material.isReadyForSubMesh(mesh, mesh.subMeshes[0])).toBe(true);
+      expect(mesh.subMeshes[0].effect!.defines).toContain("#define LIGHT1");
+      const vars = getRV();
+      vars.setScene(scene);
+      vars.applyToScene();
+      expect(material.isFrozen).toBe(false);
+      expect(staticMaterial.isFrozen).toBe(true);
+      temporary.setEnabled(false);
+      scene.incrementRenderId();
+      await material.forceCompilationAsync(mesh);
+      expect(material.isReadyForSubMesh(mesh, mesh.subMeshes[0])).toBe(true);
+      expect(mesh.subMeshes[0].effect!.defines).not.toContain("#define LIGHT1");
+    } finally {
+      scene.dispose();
+      engine.dispose();
+    }
+  });
   it("enables actor reflections by default but still supports explicit opt-out/reset", () => {
     const vars = getRV();
     expect(vars.getVar("r_water_actors")?.defaultValue).toBe(1);

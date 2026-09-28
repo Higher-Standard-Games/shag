@@ -30,10 +30,15 @@ import { TextureManager, TextureMemoryManager } from "./engine/loader";
 import { PK3Index } from "./engine/loader/pk3/PK3Index";
 import { InstancedMeshManager } from "./engine/rendering/InstancedMeshManager";
 import {
+  installRendererRuntimeDiagnostics,
+  type RendererRuntimeReport,
+} from "./engine/rendering/RendererRuntimeDiagnostics";
+import {
+  type ActualRenderingBackend,
   createRenderingEngine,
-  type RenderingBackend,
   resolveRenderingBackend,
 } from "./engine/rendering/RenderingEngineFactory";
+import { applySceneRendererPolicy } from "./engine/rendering/SceneRendererPolicy";
 import { LoadingScreen } from "./engine/ui/LoadingScreen";
 import { MapLoadingOverlay } from "./engine/ui/MapLoadingOverlay";
 import { TransferLoadingView } from "./engine/ui/TransferLoadingView";
@@ -46,7 +51,8 @@ interface DebugWindow extends Window {
   __lobbyPanel?: LobbyPanel;
   engine?: AbstractEngine;
   player?: FPSPlayer;
-  rendererBackend?: RenderingBackend;
+  rendererBackend?: ActualRenderingBackend;
+  rendererRuntimeReport?: RendererRuntimeReport;
   scene?: Scene;
 }
 
@@ -55,6 +61,11 @@ interface DebugWindow extends Window {
  */
 async function main() {
   const debugWindow = window as DebugWindow;
+  if (new URLSearchParams(window.location.search).get("rendererqa") === "1") {
+    const { runRendererQA } = await import("./engine/rendering/RendererQA");
+    await runRendererQA(document.getElementById("renderCanvas") as HTMLCanvasElement, window.location.search);
+    return;
+  }
 
   // Platform classes, mobile CSS and the native lifecycle, before anything
   // draws. No-ops in a browser beyond the touch-device class.
@@ -77,7 +88,7 @@ async function main() {
   const qualityRecommendation = QualityDetector.getInstance().detectQuality();
   console.log(`[Main] Device: ${qualityRecommendation.deviceInfo.type}, Quality: ${qualityRecommendation.quality}`);
 
-  const canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
+  let canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
 
   // Show startup feedback before async WebGPU initialization or WebGL fallback.
   const loadingScreen = new LoadingScreen();
@@ -95,11 +106,17 @@ async function main() {
   // recover to the known-good renderer; ?renderer=webgpu still enables A/B.
   const requestedBackend = resolveRenderingBackend(false, window.location.search);
   const renderer = await createRenderingEngine(canvas, requestedBackend);
+  canvas = renderer.canvas;
   const engine = renderer.engine;
   if (renderer.fallbackReason) {
-    console.warn(`[Main] ${renderer.fallbackReason}; using WebGL2`);
+    console.warn(`[Main] ${renderer.fallbackReason}; using ${renderer.backend}`);
   }
   console.log(`[Main] Rendering backend: ${renderer.backend}`);
+  const rendererDiagnostics = installRendererRuntimeDiagnostics(engine, (report) => {
+    debugWindow.rendererRuntimeReport = report;
+    // Keep the console record copyable; the complete history remains on window.
+    console.error(`RENDERER_RUNTIME_REPORT ${JSON.stringify({ ...report, errors: report.errors.slice(-1) })}`);
+  });
 
   // Handle window resize
   window.addEventListener("resize", () => engine.resize());
@@ -145,6 +162,7 @@ async function main() {
   // Create scene
   console.log("[Main] Creating scene...");
   const scene = new Scene(engine);
+  applySceneRendererPolicy(scene);
   scene.clearColor = new Color4(0.1, 0.1, 0.1, 1);
   scene.ambientColor = new Color3(1, 1, 1); // Required for BSP lightmaps to render
   scene.collisionsEnabled = true;
@@ -268,12 +286,17 @@ async function main() {
 
   // Start render loop
   engine.runRenderLoop(() => {
-    const deltaTime = engine.getDeltaTime() / 1000.0;
+    try {
+      const deltaTime = engine.getDeltaTime() / 1000.0;
 
-    // Update game logic
-    player.update(deltaTime);
+      // Update game logic
+      player.update(deltaTime);
 
-    scene.render();
+      scene.render();
+    } catch (error) {
+      rendererDiagnostics.recordRenderError(error);
+      throw error;
+    }
   });
 
   // Expose for debug

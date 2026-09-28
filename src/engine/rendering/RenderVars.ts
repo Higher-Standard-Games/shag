@@ -963,23 +963,27 @@ export class RenderVars {
     // Update all meshes (skipping already-processed materials)
     for (const mesh of this.scene.meshes) {
       const mat = mesh.material;
+      const wasFrozen = mat?.isFrozen ?? false;
       if (mat) {
         if (processedMaterials.has(mat.uniqueId)) continue;
         processedMaterials.add(mat.uniqueId);
-        // Unfreeze so property changes take effect (frozen materials ignore mutations)
-        mat.unfreeze();
+        // Preserve the material owner's decision. Lightmapped/dynamic materials
+        // intentionally stay mutable so light membership can change at runtime.
+        if (wasFrozen) mat.unfreeze();
       }
-      this.applyToMesh(
-        mesh,
-        normalIntensity,
-        glossIntensity,
-        lightmapIntensity,
-        emissiveIntensity,
-        anisotropy,
-        wireframe,
-      );
-      // Re-freeze after applying changes
-      if (mat) mat.freeze();
+      try {
+        this.applyToMesh(
+          mesh,
+          normalIntensity,
+          glossIntensity,
+          lightmapIntensity,
+          emissiveIntensity,
+          anisotropy,
+          wireframe,
+        );
+      } finally {
+        if (wasFrozen) mat!.freeze();
+      }
     }
 
     // Update ambient color

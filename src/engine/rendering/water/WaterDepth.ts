@@ -166,6 +166,9 @@ export class WaterDepthProvider {
     const index = targets.indexOf(map);
     if (index !== -1) targets.splice(index, 1);
 
+    // This renderer is camera-owned, outside Babylon's scene registry. Its
+    // dispose method only frees targets found in that registry.
+    map.dispose();
     this.renderer.dispose();
     this.renderer = null;
     this.camera = null;

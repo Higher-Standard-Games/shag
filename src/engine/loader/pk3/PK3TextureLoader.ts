@@ -8,7 +8,7 @@
  * - Create PBR materials from texture sets
  */
 
-import type { Engine } from "@babylonjs/core/Engines/engine";
+import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine";
 import { PBRMaterial } from "@babylonjs/core/Materials/PBR/pbrMaterial";
 import { RawTexture } from "@babylonjs/core/Materials/Textures/rawTexture";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
@@ -17,6 +17,7 @@ import type { Scene } from "@babylonjs/core/scene";
 import { Cvar } from "../../core/Cvar";
 import { createTextureFromKTX1, parseKTX1 } from "../texture/KTX1Loader";
 import { ensureKTX2Decoder } from "../texture/KTX2DecoderRuntime";
+import { KTX2_SIDECAR_EXTENSION, registerKTX2SidecarLoader } from "../texture/KTX2SidecarLoader";
 import { PK3Loader } from "./PK3Loader";
 
 type KTX2ManifestEntry = string | { file: string };
@@ -55,7 +56,7 @@ export interface LoadedTextureSet {
 export class PK3TextureLoader {
   private static instance: PK3TextureLoader | null = null;
 
-  private engine: Engine | null = null;
+  private engine: AbstractEngine | null = null;
   private scene: Scene | null = null;
   private textureCache: Map<string, Texture> = new Map();
   private ktx2ManifestPromise: Promise<LocatedKTX2Manifest | null> | null = null;
@@ -73,7 +74,7 @@ export class PK3TextureLoader {
   /**
    * Initialize with BabylonJS engine and scene
    */
-  public init(engine: Engine, scene: Scene): void {
+  public init(engine: AbstractEngine, scene: Scene): void {
     this.engine = engine;
     this.scene = scene;
     console.log("[PK3TextureLoader] Initialized");
@@ -258,21 +259,21 @@ export class PK3TextureLoader {
     const url = `${located.baseUrl}ktx2cache/${normalizedRelativeFile}`;
     try {
       await ensureKTX2Decoder();
+      registerKTX2SidecarLoader();
       const texture = await new Promise<Texture | null>((resolve) => {
         let candidate: Texture;
-        candidate = new Texture(
-          url,
-          this.scene!,
-          false,
-          true,
-          Texture.TRILINEAR_SAMPLINGMODE,
-          () => resolve(candidate),
-          (message, exception) => {
+        candidate = new Texture(url, this.scene!, {
+          noMipmap: false,
+          invertY: false,
+          forcedExtension: KTX2_SIDECAR_EXTENSION,
+          samplingMode: Texture.TRILINEAR_SAMPLINGMODE,
+          onLoad: () => resolve(candidate),
+          onError: (message, exception) => {
             candidate.dispose();
             console.warn(`[PK3TextureLoader] KTX2 sidecar failed, using source texture: ${url}`, message, exception);
             resolve(null);
           },
-        );
+        });
         candidate.name = strippedPath;
       });
 
@@ -401,24 +402,32 @@ export class PK3TextureLoader {
       const ktx = parseKTX1(data);
 
       // Try createTextureFromKTX1 first — it handles:
-      // 1. GPU compressed upload (if extension present)
+      // 1. Babylon-managed compressed upload (if device supports it)
       // 2. Software decode (DXT1/3/5, ETC1)
       // 3. Uncompressed KTX data
-      const internalTexture = createTextureFromKTX1(this.engine, ktx, path);
+      const internalTexture = await createTextureFromKTX1(this.engine, ktx, path);
       if (!internalTexture) {
         console.warn(`[PK3TextureLoader] KTX format unsupported: ${ktx.formatName}, trying fallback for ${path}`);
         return this.loadKTXFallback(path);
       }
 
-      // Wrap in Texture
-      const texture = new Texture(null, this.scene);
-      texture.name = path;
-      // biome-ignore lint/suspicious/noExplicitAny: PK3 texture loader internals
-      (texture as any)._texture = internalTexture;
-
-      return texture;
+      // The public wrapper applies Babylon's compressed-texture orientation
+      // metadata. Wait for it before handing the texture to material factories.
+      return await new Promise<Texture>((resolve, reject) => {
+        const texture = new Texture(null, this.scene, {
+          internalTexture,
+          noMipmap: !internalTexture.generateMipMaps,
+          invertY: false,
+          onLoad: () => resolve(texture),
+          onError: (message) => {
+            texture.dispose();
+            reject(new Error(message));
+          },
+        });
+        texture.name = path;
+      });
     } catch (e) {
-      console.error(`[PK3TextureLoader] KTX parse error for ${path}:`, e);
+      console.error(`[PK3TextureLoader] KTX load error for ${path}:`, e);
       return this.loadKTXFallback(path);
     }
   }

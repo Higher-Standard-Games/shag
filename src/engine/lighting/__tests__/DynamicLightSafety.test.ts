@@ -12,6 +12,7 @@ import {
 function fakeMaterial(className: string, maxSimultaneousLights?: number, isWebGPU = false): any {
   return {
     maxSimultaneousLights,
+    allowShaderHotSwapping: true,
     getClassName: () => className,
     getScene: () => ({ getEngine: () => ({ isWebGPU }) }),
   };
@@ -22,6 +23,7 @@ describe("DynamicLightSafety (clustered-light budgets)", () => {
     const mat = fakeMaterial("StandardMaterial", 2);
     applySafeMaxSimultaneousLights(mat);
     expect(mat.maxSimultaneousLights).toBe(SAFE_MAX_SIMULTANEOUS_LIGHTS);
+    expect(mat.allowShaderHotSwapping).toBe(true);
   });
 
   it("raises PBR materials to the PBR budget", () => {
@@ -53,11 +55,13 @@ describe("DynamicLightSafety (clustered-light budgets)", () => {
     const mat = fakeMaterial("StandardMaterial", 6, true);
     applySafeMaxSimultaneousLights(mat);
     expect(mat.maxSimultaneousLights).toBe(WEBGPU_SAFE_MAX_SIMULTANEOUS_LIGHTS);
+    expect(mat.allowShaderHotSwapping).toBe(false);
   });
 
   it("clamps WebGPU PBR materials below the skinned-material UBO ceiling", () => {
     const mat = fakeMaterial("PBRMaterial", 4, true);
     applySafeMaxSimultaneousLights(mat);
     expect(mat.maxSimultaneousLights).toBe(WEBGPU_SAFE_PBR_MAX_SIMULTANEOUS_LIGHTS);
+    expect(mat.allowShaderHotSwapping).toBe(false);
   });
 });

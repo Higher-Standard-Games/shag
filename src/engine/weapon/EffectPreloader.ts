@@ -1,16 +1,16 @@
 /**
- * EffectPreloader — Warm up WebGL shader programs for all visual effects
+ * EffectPreloader — Warm up Babylon shader programs for visual effects
  *
  * Problem: The first time a StandardMaterial with a specific config
  * (emissive, alpha, disableLighting, lightmap, dynamic lights, etc.) is used,
- * WebGL must compile the corresponding shader program. This takes a frame or
+ * the renderer must compile the corresponding shader program. This takes a frame or
  * two, causing visible flicker on the first projectile, explosion, or impact.
  *
  * Solution: During map load (while the loading screen is still visible),
  * create tiny off-screen meshes with every material permutation used by
- * the effect systems AND the BSP rendering pipeline. Babylon renders them
- * once → shader compiled → dispose. All subsequent rendering uses cached
- * shaders instantly.
+ * the effect systems AND the BSP rendering pipeline. Explicitly compile their
+ * materials, then dispose the fixtures. Matching configurations can reuse the
+ * cached effects on either backend.
  *
  * Critical shader variants pre-compiled:
  * - StandardMaterial + lightmapTexture + useLightmapAsShadowmap (BSP surfaces)
@@ -39,7 +39,8 @@ interface Disposable {
  * Call this during map load, after lightmaps are applied but BEFORE
  * scene.whenReadyAsync() so the compiled shaders are included in readiness check.
  *
- * Returns a promise that resolves after one render frame (guaranteeing compilation).
+ * Resolves after explicit compilation and the scene-material settling frames.
+ * A shader compilation failure rejects; this is not a GPU validation/readback test.
  */
 export async function preloadEffectShaders(scene: Scene): Promise<void> {
   const warmupMeshes: Mesh[] = [];
@@ -106,6 +107,9 @@ export async function preloadEffectShaders(scene: Scene): Promise<void> {
     warmupLight.diffuse = new Color3(1, 0.8, 0.3);
     warmupLight.intensity = 1;
     warmupLight.range = 10;
+    // Range alone does not exclude a light from a mesh's shader defines.
+    // Only variant B should include this temporary light.
+    warmupLight.includedOnlyMeshes = [meshB];
     warmupDisposables.push(warmupLight);
   }
 
@@ -235,20 +239,17 @@ export async function preloadEffectShaders(scene: Scene): Promise<void> {
     `[EffectPreloader] Warming up ${warmupMeshes.length} shader permutations (incl. lightmap + PointLight variants)...`,
   );
 
-  // Wait for one render frame so all dummy shaders get compiled by WebGL
-  await new Promise<void>((resolve) => {
-    scene.onAfterRenderObservable.addOnce(() => {
-      // Cleanup all warm-up geometry, materials, textures, lights
-      for (const mesh of warmupMeshes) {
-        mesh.dispose();
-      }
-      for (const item of warmupDisposables) {
-        item.dispose();
-      }
-      console.log(`[EffectPreloader] Shader warm-up complete — ${warmupMeshes.length} permutations compiled`);
-      resolve();
-    });
-  });
+  // Off-screen fixtures may be culled. A rendered frame does not prove their
+  // effects compiled; request each fixture's effect explicitly on both backends.
+  try {
+    // Sequential fixtures also ensure cleanup cannot dispose another fixture
+    // while Babylon is still polling its compilation after an earlier failure.
+    for (const mesh of warmupMeshes) await mesh.material!.forceCompilationAsync(mesh, { clipPlane: false });
+    console.log(`[EffectPreloader] Shader warm-up complete — ${warmupMeshes.length} permutations compiled`);
+  } finally {
+    for (const mesh of warmupMeshes) mesh.dispose();
+    for (const item of warmupDisposables) item.dispose();
+  }
 
   // ─── PHASE 2: Force-compile ALL scene materials with PointLight variant ────
   // Each StandardMaterial instance needs its own "with dynamic light" shader
@@ -259,10 +260,8 @@ export async function preloadEffectShaders(scene: Scene): Promise<void> {
   // We target ALL StandardMaterials, not just BSP — pickup models, weapon
   // models, and other geometry also need the dynamic-light variant cached.
   //
-  // CRITICAL: After compilation, we must wait one render frame BEFORE
-  // disposing the PointLight. This ensures the GPU actually processes the
-  // compiled shaders. Disposing immediately can cause the GPU to discard
-  // the pending compilation work.
+  // Let visible materials bind the temporary-light variant for one frame before
+  // disposing the light. Frame callbacks do not prove GPU command validation.
   {
     // Create the effect dlight pool NOW, before force-compilation, so the
     // compiled shader variants include its 4 permanently-enabled lights.
@@ -306,34 +305,16 @@ export async function preloadEffectShaders(scene: Scene): Promise<void> {
         `[EffectPreloader] Force-compiling ${matMeshMap.size} StandardMaterials + ${pbrMatMeshMap.size} PBRMaterials with PointLight variant...`,
       );
 
-      // Force-compile all materials with the light active, using their actual meshes
-      const compilations: Promise<void>[] = [];
-      for (const [mat, mesh] of matMeshMap) {
-        compilations.push(
-          new Promise<void>((resolve) => {
-            mat.forceCompilation(mesh, () => resolve(), { clipPlane: false });
-          }),
+      try {
+        await Promise.all(
+          [...matMeshMap, ...pbrMatMeshMap].map(([mat, mesh]) => mat.forceCompilationAsync(mesh, { clipPlane: false })),
         );
+        await new Promise<void>((resolve) => {
+          scene.onAfterRenderObservable.addOnce(() => resolve());
+        });
+      } finally {
+        tmpLight.dispose();
       }
-      // PBR materials (GLB weapons) — same pattern
-      for (const [mat, mesh] of pbrMatMeshMap) {
-        compilations.push(
-          new Promise<void>((resolve) => {
-            mat.forceCompilation(mesh, () => resolve(), { clipPlane: false });
-          }),
-        );
-      }
-
-      await Promise.all(compilations);
-
-      // Wait one render frame WITH the light still active so the GPU
-      // fully processes all compiled shaders before we remove the light
-      await new Promise<void>((resolve) => {
-        scene.onAfterRenderObservable.addOnce(() => resolve());
-      });
-
-      // Dispose temporary light
-      tmpLight.dispose();
       console.log(
         `[EffectPreloader] Material force-compilation complete — ${matMeshMap.size + pbrMatMeshMap.size} materials`,
       );
@@ -437,30 +418,16 @@ export async function revalidateMaterials(scene: Scene): Promise<void> {
     tmpLight.range = 999999;
     tmpLight.diffuse = new Color3(1, 1, 1);
 
-    const compilations: Promise<void>[] = [];
-    for (const [mat, mesh] of matMeshMap) {
-      compilations.push(
-        new Promise<void>((resolve) => {
-          mat.forceCompilation(mesh, () => resolve(), { clipPlane: false });
-        }),
+    try {
+      await Promise.all(
+        [...matMeshMap, ...pbrMatMeshMap].map(([mat, mesh]) => mat.forceCompilationAsync(mesh, { clipPlane: false })),
       );
+      await new Promise<void>((resolve) => {
+        scene.onAfterRenderObservable.addOnce(() => resolve());
+      });
+    } finally {
+      tmpLight.dispose();
     }
-    for (const [mat, mesh] of pbrMatMeshMap) {
-      compilations.push(
-        new Promise<void>((resolve) => {
-          mat.forceCompilation(mesh, () => resolve(), { clipPlane: false });
-        }),
-      );
-    }
-
-    await Promise.all(compilations);
-
-    // Wait one render frame with light active
-    await new Promise<void>((resolve) => {
-      scene.onAfterRenderObservable.addOnce(() => resolve());
-    });
-
-    tmpLight.dispose();
 
     // Wait one settle frame
     await new Promise<void>((resolve) => {

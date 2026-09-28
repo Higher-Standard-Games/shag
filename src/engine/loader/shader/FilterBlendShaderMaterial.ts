@@ -24,12 +24,13 @@ attribute vec2 uv;
 
 // Uniforms
 uniform mat4 worldViewProjection;
+uniform mat4 diffuseMatrix;
 
 // Varyings
 varying vec2 vUV;
 
 void main() {
-  vUV = uv;
+  vUV = (diffuseMatrix * vec4(uv, 1.0, 0.0)).xy;
   gl_Position = worldViewProjection * vec4(position, 1.0);
 }
 `;
@@ -104,7 +105,14 @@ export function createFilterBlendMaterial(
     },
     {
       attributes: ["position", "uv"],
-      uniforms: ["worldViewProjection", "alphaThreshold", "alphaPower", "colorDarken", "alphaMultiplier"],
+      uniforms: [
+        "worldViewProjection",
+        "diffuseMatrix",
+        "alphaThreshold",
+        "alphaPower",
+        "colorDarken",
+        "alphaMultiplier",
+      ],
       samplers: ["diffuseTexture"],
       needAlphaBlending: true,
     },
@@ -112,6 +120,12 @@ export function createFilterBlendMaterial(
 
   // Set texture
   material.setTexture("diffuseTexture", texture);
+  // Match StandardMaterial's texture coordinates, including the loader's
+  // orientation transform. Bind the current matrix even when the material is
+  // frozen; this observer is owned and cleared by the material itself.
+  material.onBindObservable.add(() => {
+    material.getEffect()?.setMatrix("diffuseMatrix", texture.getTextureMatrix());
+  });
 
   // Set uniforms
   material.setFloat("alphaThreshold", alphaThreshold);

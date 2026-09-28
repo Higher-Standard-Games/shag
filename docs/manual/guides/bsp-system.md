@@ -68,6 +68,11 @@ Quake map coordinates are converted to Babylon coordinates by the BSP mesh helpe
 - IBSP and FBSP lightmap sizes and lightstyles are handled separately;
 - worldspawn, spawn points, brush entities, lights, and other supported entities are processed after geometry.
 
+Inline lift/door meshes group faces by both base texture and lightmap page,
+matching static-world batching. Faces with page-local UV2 coordinates must not
+share a material across different lightmap pages. Static and moving BSP surfaces
+use the same baked-light RGBA/gamma/overbright conversion.
+
 Not every classname has gameplay behavior. Confirm handlers in `BspEntityHandlers.ts` and the FPS entity layer before promising support.
 
 ## PVS culling

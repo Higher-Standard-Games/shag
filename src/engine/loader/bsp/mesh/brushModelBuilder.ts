@@ -1,7 +1,5 @@
-import { Engine } from "@babylonjs/core/Engines/engine";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
-import { RawTexture } from "@babylonjs/core/Materials/Textures/rawTexture";
-import { Texture } from "@babylonjs/core/Materials/Textures/texture";
+import type { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
@@ -9,13 +7,14 @@ import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
 import type { Scene } from "@babylonjs/core/scene";
 import { applySafeMaxSimultaneousLights } from "../../../lighting/DynamicLightSafety";
 import type { BspFile } from "../BspLoader";
+import { createBspLightmapTexture } from "./lightmaps";
 import { getVertexLightmapCoord } from "./vertices";
 
 /**
  * Build a mesh for a specific brush model (inline model like *5, *6, etc.).
  * Used for func_door, func_button, func_rotating, etc.
  *
- * Creates a parent mesh with child meshes per texture group for proper texturing.
+ * Creates children per texture/lightmap pair: UV2 addresses one specific page.
  */
 export async function buildBrushModel(
   bsp: BspFile,
@@ -35,7 +34,7 @@ export async function buildBrushModel(
   }
 
   const textureGroups = new Map<
-    number,
+    string,
     {
       textureIndex: number;
       textureName: string;
@@ -55,7 +54,9 @@ export async function buildBrushModel(
 
     if (face.faceType !== 1 && face.faceType !== 3) continue;
 
-    let group = textureGroups.get(face.textureIndex);
+    const lightmapIndex = face.lightmapIndex >= 0 ? face.lightmapIndex : -1;
+    const groupKey = `${face.textureIndex}_${lightmapIndex}`;
+    let group = textureGroups.get(groupKey);
     if (!group) {
       const textureName = bsp.textures[face.textureIndex]?.name || "";
       group = {
@@ -67,9 +68,9 @@ export async function buildBrushModel(
         uv2s: [],
         indices: [],
         vertexOffset: 0,
-        lightmapIndex: face.lightmapIndex,
+        lightmapIndex,
       };
-      textureGroups.set(face.textureIndex, group);
+      textureGroups.set(groupKey, group);
     }
 
     const vertexOffset = group.vertexOffset;
@@ -112,10 +113,11 @@ export async function buildBrushModel(
   let totalVertices = 0;
   let totalTriangles = 0;
 
-  for (const [texIndex, group] of textureGroups) {
+  for (const group of textureGroups.values()) {
     if (group.indices.length === 0) continue;
 
-    const childName = `${name}_tex${texIndex}`;
+    const texIndex = group.textureIndex;
+    const childName = `${name}_tex${texIndex}_lm${group.lightmapIndex}`;
     const childMesh = new Mesh(childName, scene);
 
     const vertexData = new VertexData();
@@ -183,17 +185,7 @@ export async function buildBrushModel(
           const lmData = bsp.lightmaps[group.lightmapIndex];
           if (lmData && lmData.length > 0) {
             const lmSize = bsp.lightmapSize;
-            const lmTex = new RawTexture(
-              lmData,
-              lmSize,
-              lmSize,
-              Engine.TEXTUREFORMAT_RGB,
-              scene,
-              false,
-              false,
-              Texture.BILINEAR_SAMPLINGMODE,
-            );
-            lmTex.name = `${childName}_lightmap`;
+            const lmTex = createBspLightmapTexture(lmData, lmSize, scene, `${childName}_lightmap`);
             mat.lightmapTexture = lmTex;
             mat.useLightmapAsShadowmap = true;
             mat.lightmapTexture.coordinatesIndex = 1;
