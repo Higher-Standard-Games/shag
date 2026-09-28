@@ -12,7 +12,7 @@ export interface RendererFailure {
 }
 
 export interface RendererQAReport {
-  scope: "standard-pbr-smoke" | "standard-pbr-lights" | "standard-pbr-lights-refresh";
+  scope: "standard-pbr-smoke" | "standard-pbr-lights" | "standard-pbr-lights-refresh" | "clustered-lighting";
   requestedBackend: RenderingBackend;
   actualBackend?: ActualRenderingBackend;
   babylonVersion: string;
@@ -26,6 +26,11 @@ export interface RendererQAReport {
     activeLights: number;
     compiledLights: number;
     frozen: boolean;
+    clusterLights?: number;
+    compiledClusters?: number;
+    rgb?: number[];
+    skinned?: boolean;
+    readbackFormat?: string;
   }[];
   fallbackReason?: string;
   fallbackStage?: string;
@@ -145,7 +150,7 @@ export class RendererDiagnostics {
   }
 
   fixture(result: RendererQAReport["fixtures"][number]): void {
-    if (this.state.fixtures.length < 10) this.state.fixtures.push({ ...result });
+    if (this.state.fixtures.length < 64) this.state.fixtures.push({ ...result });
     this.emit();
   }
 

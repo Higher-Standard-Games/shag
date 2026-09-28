@@ -34,7 +34,13 @@ export async function runRendererQA(canvas: HTMLCanvasElement, search: string): 
       output.textContent = JSON.stringify(report, null, 2);
       (window as Window & { rendererQAReport?: RendererQAReport }).rendererQAReport = report;
     },
-    refreshFrozen ? "standard-pbr-lights-refresh" : testLights ? "standard-pbr-lights" : "standard-pbr-smoke",
+    testCase === "clusters"
+      ? "clustered-lighting"
+      : refreshFrozen
+        ? "standard-pbr-lights-refresh"
+        : testLights
+          ? "standard-pbr-lights"
+          : "standard-pbr-smoke",
   );
   let engine: AbstractEngine | undefined;
   let scene: Scene | undefined;
@@ -60,103 +66,108 @@ export async function runRendererQA(canvas: HTMLCanvasElement, search: string): 
     diagnostics.attachEngine(engine, renderer.fallbackReason, renderer.fallbackStage);
     removeDeviceListener = observeRendererDevice(engine, (error) => diagnostics.fail(error));
     scene = new Scene(engine);
-    scene.clearColor = new Color4(0.03, 0.05, 0.08, 1);
-    applySceneRendererPolicy(scene);
-    const camera = new FreeCamera("qa-camera", new Vector3(0, 1, -5), scene);
-    camera.setTarget(Vector3.Zero());
-    scene.activeCamera = camera;
-    new HemisphericLight("qa-light", new Vector3(0, 1, -1), scene);
-    const extraLights = testLights
-      ? Array.from({ length: 10 }, (_, index) => {
-          const light = new PointLight(`qa-point-${index}`, new Vector3((index % 3) - 1, 2, -2), scene);
-          light.intensity = 0.1;
-          light.setEnabled(false);
-          return light;
-        })
-      : [];
-    const mesh = CreateBox("qa-box", { size: 1.5 }, scene);
-    const standard = new StandardMaterial("qa-standard", scene);
-    standard.diffuseColor = new Color3(0.15, 0.65, 0.95);
-    const pbr = new PBRMaterial("qa-pbr", scene);
-    pbr.albedoColor = new Color3(0.95, 0.5, 0.15);
-    pbr.metallic = 0;
-    pbr.roughness = 0.65;
-    applySceneRendererPolicy(scene);
-    for (const material of [standard, pbr]) {
-      mesh.material = material;
-      material.onError = (_effect, errors) => diagnostics.fail(errors);
-      const phases = testLights
-        ? ["one-light", "many-lights", "frozen-many", "frozen-one", "frozen-restored"]
-        : ["main"];
-      for (const phase of phases) {
-        if (phase === "one-light") for (const light of extraLights) light.setEnabled(false);
-        if (phase === "many-lights" || phase === "frozen-restored")
-          for (const light of extraLights) light.setEnabled(true);
-        if (phase === "frozen-many") material.freeze();
-        if (phase === "frozen-one") for (const light of extraLights) light.setEnabled(false);
-        // Explicit control experiment: Babylon's frozen readiness shortcut can
-        // retain old light defines even after the mesh's light list changes.
-        // The raw `lights` case deliberately leaves that behavior observable.
-        if (refreshFrozen && (phase === "frozen-one" || phase === "frozen-restored")) material.markDirty(true);
-        const context = { material: material.name, mesh: mesh.name, pass: phase };
-        const closeValidation = beginRendererValidation(engine);
-        try {
-          await diagnostics.runStage("shader-compilation", () => material.forceCompilationAsync(mesh), context);
-          const activeScene = scene;
-          const activeEngine = engine;
-          await diagnostics.runStage(
-            "render",
-            async () => {
-              for (let frame = 0; frame < 3; frame++) {
-                await new Promise<void>((resolve) => {
-                  frameHandle = requestAnimationFrame(() => {
-                    frameHandle = undefined;
-                    resolve();
+    if (testCase === "clusters") {
+      const { runClusteredLightingQA } = await import("./ClusteredLightingQA");
+      await runClusteredLightingQA(scene, diagnostics, () => stopped);
+    } else {
+      scene.clearColor = new Color4(0.03, 0.05, 0.08, 1);
+      applySceneRendererPolicy(scene);
+      const camera = new FreeCamera("qa-camera", new Vector3(0, 1, -5), scene);
+      camera.setTarget(Vector3.Zero());
+      scene.activeCamera = camera;
+      new HemisphericLight("qa-light", new Vector3(0, 1, -1), scene);
+      const extraLights = testLights
+        ? Array.from({ length: 10 }, (_, index) => {
+            const light = new PointLight(`qa-point-${index}`, new Vector3((index % 3) - 1, 2, -2), scene);
+            light.intensity = 0.1;
+            light.setEnabled(false);
+            return light;
+          })
+        : [];
+      const mesh = CreateBox("qa-box", { size: 1.5 }, scene);
+      const standard = new StandardMaterial("qa-standard", scene);
+      standard.diffuseColor = new Color3(0.15, 0.65, 0.95);
+      const pbr = new PBRMaterial("qa-pbr", scene);
+      pbr.albedoColor = new Color3(0.95, 0.5, 0.15);
+      pbr.metallic = 0;
+      pbr.roughness = 0.65;
+      applySceneRendererPolicy(scene);
+      for (const material of [standard, pbr]) {
+        mesh.material = material;
+        material.onError = (_effect, errors) => diagnostics.fail(errors);
+        const phases = testLights
+          ? ["one-light", "many-lights", "frozen-many", "frozen-one", "frozen-restored"]
+          : ["main"];
+        for (const phase of phases) {
+          if (phase === "one-light") for (const light of extraLights) light.setEnabled(false);
+          if (phase === "many-lights" || phase === "frozen-restored")
+            for (const light of extraLights) light.setEnabled(true);
+          if (phase === "frozen-many") material.freeze();
+          if (phase === "frozen-one") for (const light of extraLights) light.setEnabled(false);
+          // Explicit control experiment: Babylon's frozen readiness shortcut can
+          // retain old light defines even after the mesh's light list changes.
+          // The raw `lights` case deliberately leaves that behavior observable.
+          if (refreshFrozen && (phase === "frozen-one" || phase === "frozen-restored")) material.markDirty(true);
+          const context = { material: material.name, mesh: mesh.name, pass: phase };
+          const closeValidation = beginRendererValidation(engine);
+          try {
+            await diagnostics.runStage("shader-compilation", () => material.forceCompilationAsync(mesh), context);
+            const activeScene = scene;
+            const activeEngine = engine;
+            await diagnostics.runStage(
+              "render",
+              async () => {
+                for (let frame = 0; frame < 3; frame++) {
+                  await new Promise<void>((resolve) => {
+                    frameHandle = requestAnimationFrame(() => {
+                      frameHandle = undefined;
+                      resolve();
+                    });
                   });
+                  if (stopped || diagnostics.report.status === "failed") return;
+                  activeEngine.beginFrame();
+                  activeScene.render();
+                  activeEngine.endFrame();
+                  diagnostics.frame();
+                }
+                await waitForRendererGPU(activeEngine);
+                // Give uncaptured GPU validation errors a task turn to be delivered.
+                await new Promise<void>((resolve) => setTimeout(resolve, 0));
+              },
+              context,
+            );
+            await diagnostics.runStage("gpu-validation", closeValidation, context);
+            await diagnostics.runStage(
+              "fixture-evidence",
+              async () => {
+                const effect = mesh.subMeshes[0].effect;
+                if (!effect?.isReady()) throw new Error("Fixture has no ready draw effect");
+                const compiledLights = (effect.defines.match(/^#define LIGHT\d+\s*$/gm) ?? []).length;
+                diagnostics.fixture({
+                  material: material.name,
+                  phase,
+                  cap: material.maxSimultaneousLights,
+                  activeLights: mesh.lightSources.length,
+                  compiledLights,
+                  frozen: material.isFrozen,
                 });
-                if (stopped || diagnostics.report.status === "failed") return;
-                activeEngine.beginFrame();
-                activeScene.render();
-                activeEngine.endFrame();
-                diagnostics.frame();
-              }
-              await waitForRendererGPU(activeEngine);
-              // Give uncaptured GPU validation errors a task turn to be delivered.
-              await new Promise<void>((resolve) => setTimeout(resolve, 0));
-            },
-            context,
-          );
-          await diagnostics.runStage("gpu-validation", closeValidation, context);
-          await diagnostics.runStage(
-            "fixture-evidence",
-            async () => {
-              const effect = mesh.subMeshes[0].effect;
-              if (!effect?.isReady()) throw new Error("Fixture has no ready draw effect");
-              const compiledLights = (effect.defines.match(/^#define LIGHT\d+\s*$/gm) ?? []).length;
-              diagnostics.fixture({
-                material: material.name,
-                phase,
-                cap: material.maxSimultaneousLights,
-                activeLights: mesh.lightSources.length,
-                compiledLights,
-                frozen: material.isFrozen,
-              });
-              const expected = Math.min(mesh.lightSources.length, material.maxSimultaneousLights);
-              if (compiledLights !== expected) {
-                throw new Error(
-                  `Fixture compiled ${compiledLights} lights; expected ${expected} with cap ${material.maxSimultaneousLights}`,
-                );
-              }
-            },
-            context,
-          );
-        } finally {
-          // Pop even when compilation times out. Do not wait indefinitely while
-          // handling an earlier failure; the first failure remains authoritative.
-          void closeValidation().catch((error) => diagnostics.fail(error));
+                const expected = Math.min(mesh.lightSources.length, material.maxSimultaneousLights);
+                if (compiledLights !== expected) {
+                  throw new Error(
+                    `Fixture compiled ${compiledLights} lights; expected ${expected} with cap ${material.maxSimultaneousLights}`,
+                  );
+                }
+              },
+              context,
+            );
+          } finally {
+            // Pop even when compilation times out. Do not wait indefinitely while
+            // handling an earlier failure; the first failure remains authoritative.
+            void closeValidation().catch((error) => diagnostics.fail(error));
+          }
         }
+        material.unfreeze();
       }
-      material.unfreeze();
     }
     diagnostics.complete();
   } catch (error) {
