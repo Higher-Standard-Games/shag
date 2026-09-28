@@ -120,12 +120,6 @@ interface ActiveExplosion {
   light: PointLight | null;
 
   particles: ParticleSystem;
-
-  // Layer 6: Directional sparks
-  sparks: ParticleSystem;
-
-  // Layer 7: Debris particles
-  debris: ParticleSystem;
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -189,12 +183,6 @@ export class ExplosionEffect {
     // ─── Layer 5: Flash Light ──────────────────────────────
     const light = getPointLightPool().acquire(position.clone(), config.outerColor.clone(), 5 * s, 40 * s);
 
-    // ─── Layer 6 & 7: Directional Sparks & Debris (REMOVED) ──
-    // These didn't look good and had a first-hit-only rendering bug.
-    // Keep empty ParticleSystems to satisfy ActiveExplosion interface cleanup.
-    const sparks = new ParticleSystem(`${id}_sparks_noop`, 0, this.scene);
-    const debris = new ParticleSystem(`${id}_debris_noop`, 0, this.scene);
-
     this.explosions.push({
       id,
       config,
@@ -209,8 +197,6 @@ export class ExplosionEffect {
       shockwaveMat,
       light,
       particles,
-      sparks,
-      debris,
     });
 
     // ─── Camera Shake (distance-based) ──────────────────────
@@ -705,12 +691,6 @@ export class ExplosionEffect {
     exp.particles.stop();
     exp.particles.dispose();
 
-    exp.debris.stop();
-    exp.debris.dispose();
-
-    exp.sparks.stop();
-    exp.sparks.dispose();
-
     this.explosions.splice(idx, 1);
   }
 
@@ -730,10 +710,6 @@ export class ExplosionEffect {
       getPointLightPool().release(exp.light);
       exp.particles.stop();
       exp.particles.dispose();
-      exp.debris.stop();
-      exp.debris.dispose();
-      exp.sparks.stop();
-      exp.sparks.dispose();
     }
     this.explosions = [];
   }

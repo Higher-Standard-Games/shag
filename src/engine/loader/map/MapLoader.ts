@@ -74,6 +74,23 @@ export function lightmapIntensityFor(isFBSP: boolean, scale: number | undefined)
 
 export type ProgressCallback = (progress: MapLoadProgress) => void;
 
+/** How long a load waits for the scene to report ready before going on without it. */
+const SCENE_READY_TIMEOUT_MS = 15000;
+
+/** What is still keeping a scene from being ready, for the warning when the wait gives up. */
+function describeNotReady(scene: Scene): string {
+  const meshes = scene.meshes.filter((mesh) => !mesh.isReady(true)).map((mesh) => mesh.name);
+  const particles = scene.particleSystems.filter((system) => !system.isReady()).map((system) => system.name);
+  const textures = scene.textures.filter((texture) => !texture.isReady()).map((texture) => texture.name);
+  const list = (label: string, names: string[]) =>
+    names.length ? `${names.length} ${label} (${names.slice(0, 5).join(", ")}${names.length > 5 ? ", …" : ""})` : "";
+  return (
+    [list("meshes", meshes), list("particle systems", particles), list("textures", textures)]
+      .filter(Boolean)
+      .join("; ") || "nothing reported"
+  );
+}
+
 export class MapLoader {
   private static instance: MapLoader;
 
@@ -563,11 +580,22 @@ export class MapLoader {
         console.warn("[MapLoader] Effect shader warm-up failed, proceeding anyway:", e);
       }
 
-      // Final gate: Wait for scene to be fully ready
+      // Final gate: wait for the scene to be ready, but not forever. One object
+      // that never reports ready would otherwise hold the loading screen up for
+      // good, which is worse than a shader compiling on the first frame.
       progress("Finalizing", "Waiting for GPU readiness");
       try {
-        await scene.whenReadyAsync();
-        console.log("[MapLoader] Scene fully ready — all textures and shaders compiled");
+        const ready = await Promise.race([
+          scene.whenReadyAsync().then(() => true),
+          new Promise<boolean>((resolve) => setTimeout(() => resolve(false), SCENE_READY_TIMEOUT_MS)),
+        ]);
+        if (ready) {
+          console.log("[MapLoader] Scene fully ready — all textures and shaders compiled");
+        } else {
+          console.warn(
+            `[MapLoader] Scene not ready after ${SCENE_READY_TIMEOUT_MS / 1000}s, proceeding anyway: ${describeNotReady(scene)}`,
+          );
+        }
       } catch (e) {
         console.warn("[MapLoader] scene.whenReadyAsync() failed, proceeding anyway:", e);
       }
