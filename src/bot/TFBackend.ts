@@ -31,9 +31,30 @@ export async function initTF(): Promise<void> {
   return _initPromise;
 }
 
+/**
+ * @tensorflow/tfjs-node calls `util.isNullOrUndefined` from Node's own `util`,
+ * which Node 23 removed. It looks the function up at each call, so putting it
+ * back on the module before the backend runs is enough.
+ */
+async function restoreNodeUtil(): Promise<void> {
+  try {
+    const util = (await import("node:util")) as unknown as { default?: Record<string, unknown> } & Record<
+      string,
+      unknown
+    >;
+    const target = util.default ?? util;
+    if (typeof target.isNullOrUndefined !== "function") {
+      target.isNullOrUndefined = (value: unknown) => value === null || value === undefined;
+    }
+  } catch {
+    // Not Node: the native backend is not loadable here either
+  }
+}
+
 async function _doInit(): Promise<void> {
   // Try 1: Native C++ backend (@tensorflow/tfjs-node)
   try {
+    await restoreNodeUtil();
     const mod = await import("@tensorflow/tfjs-node");
     _tf = mod;
     _backend = (mod.getBackend?.() as typeof _backend) || "tensorflow";
