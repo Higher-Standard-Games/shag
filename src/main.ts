@@ -47,6 +47,9 @@ import { UITheme } from "./engine/ui/UITheme";
 import { LobbyPanel } from "./games/fps/client/LobbyPanel";
 import { FPSPlayer } from "./games/fps/FPSPlayer";
 
+/** How long past the player's click the start-up screen waits for the lobby to log them in */
+const LOBBY_ANSWER_WAIT_MS = 4000;
+
 interface DebugWindow extends Window {
   __lobbyPanel?: LobbyPanel;
   engine?: AbstractEngine;
@@ -244,9 +247,15 @@ async function main() {
 
   // ── Lobby (no 3D background — will use background image in future) ──
   // Every map is played on a server the lobby spawns; the client loads it on join.
+  // The lobby is built behind the start-up screen: it connects and logs in
+  // while the player is still looking at it, so it appears knowing who they
+  // are, and a new player sees the name screen at once instead of the lobby
+  // for a moment first. A lobby slow to answer is not waited on for long.
   loadingScreen.setStep("lobby");
-  loadingScreen.setStatus("Loading lobby...");
+  loadingScreen.setStatus("Connecting to the lobby...");
+  const lobby = new LobbyPanel();
   await userReadyPromise;
+  await Promise.race([lobby.connected, new Promise((resolve) => setTimeout(resolve, LOBBY_ANSWER_WAIT_MS))]);
 
   // Stop piping progress to splash screen
   unsubProgress();
@@ -256,11 +265,8 @@ async function main() {
   MapLoadingOverlay.configure({ view: () => new TransferLoadingView() });
   MapLoadingOverlay.enable();
 
-  // Hide splash → show lobby (seamless: both click AND map are ready)
+  // Hide splash → show lobby: the player has clicked, and the lobby has answered
   loadingScreen.hide();
-
-  // Show lobby UI — main menu on top of the 3D background
-  const lobby = new LobbyPanel();
   lobby.show();
 
   // Connect play button (Phase 1: just log; Phase 2+: real matchmaking)
