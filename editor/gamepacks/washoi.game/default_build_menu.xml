@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!--
+  Washoi / SHAG Engine build menu.
+
+  Toolchain: makebsp (BSP + VIS in one pass) then makelight (lighting).
+  makebsp/makelight replace q3map2's legacy -bsp / -vis / -light stages, so
+  each tier is exactly two commands.
+
+  -game washoi          loads ../../makebspdata/washoi.json
+  -fs_basepath          points at the engine/asset root (EnginePath in washoi.game,
+                        i.e. shag/public/data) so the pk3 archive chain resolves.
+                        The media is mounted at that root, so no -fs_game is passed:
+                        adding one would redirect the VFS to <basepath>/<game>/
+                        and find nothing.
+  -leaktest             abort the moment a leak is found (WIP tier only)
+  -fast                 skips edge chamfering in makebsp, uses rasterized
+                        voxelization + simplified radiosity in makelight
+  -upscale              makelight-only: maximise sample fidelity for release
+
+  No "-connect [MonitorAddress]": makebsp does not speak the q3map2 BSP monitor
+  protocol (hence no_bsp_monitor="1" in washoi.game).
+
+  The OBJ/ASE tiers are export-only helpers. The SHAG engine does not load
+  .map or .obj directly, so these exist purely to get geometry into DCC tools;
+  they read the compiled .bsp that the makebsp tiers produce. q3map2 is used
+  for the conversion because makebsp/makelight have no -convert stage.
+-->
+<project version="2.0">
+<var name="makebsp">&quot;[RadiantPath]makebsp.[ExecutableType]&quot; -game washoi -fs_basepath &quot;[EnginePath]&quot;</var>
+<var name="makelight">&quot;[RadiantPath]makelight.[ExecutableType]&quot; -game washoi -fs_basepath &quot;[EnginePath]&quot;</var>
+<var name="q3map2">&quot;[RadiantPath]q3map2.[ExecutableType]&quot; -game washoi -fs_basepath &quot;[EnginePath]&quot;</var>
+
+<build name="Makebsp: FAST (work-in-progress, low quality)">
+<command>[makebsp] -leaktest -fast -samplesize 8 &quot;[MapFile]&quot;</command>
+<command>[makelight] -fast &quot;[MapFile]&quot;</command>
+</build>
+
+<build name="Makebsp: DEFAULT (standard quality)">
+<command>[makebsp] &quot;[MapFile]&quot;</command>
+<command>[makelight] &quot;[MapFile]&quot;</command>
+</build>
+
+<build name="Makebsp: RELEASE (highest quality, for shipping)">
+<command>[makebsp] &quot;[MapFile]&quot;</command>
+<command>[makelight] -upscale &quot;[MapFile]&quot;</command>
+</build>
+
+<build name="Export to OBJ (from compiled bsp)">
+<command>[q3map2] -meta -patchmeta &quot;[MapFile]&quot;</command>
+<command>[q3map2] -convert -format obj -shadersasbitmap &quot;[BspFile]&quot;</command>
+</build>
+
+<build name="Export to ASE (from compiled bsp)">
+<command>[q3map2] -meta -patchmeta &quot;[MapFile]&quot;</command>
+<command>[q3map2] -convert -format ase -shadersasbitmap &quot;[BspFile]&quot;</command>
+</build>
+</project>

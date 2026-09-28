@@ -1,0 +1,339 @@
+﻿// =============================================================================
+//  Washoi -- texture browser seed list
+// =============================================================================
+//  Generated from the real pk3 chain under <EnginePath> (shag/public/data),
+//  capped at 10 diffuse/base entries per directory. Norm / gloss / glow /
+//  specular / emissive variants are filtered out, since the engine derives
+//  those from the compiled shader rather than shipping them as separate
+//  entries.
+//
+//  This list only registers shader NAMES. It carries no image data.
+//  NetRadiant does NOT read textures out of the pk3 chain: its texture browser
+//  walks the game directory (<enginepath>/<basegame>, i.e. public/data/basewashoi)
+//  for files matching texturetypes in washoi.game. So the images must be
+//  EXTRACTED from the pk3s to loose files under basewashoi/textures/ (and the
+//  .shader definitions to basewashoi/scripts/) or the browser stays empty.
+//
+//  Names are listed WITHOUT the "textures/" prefix, matching every other
+//  gamepack (basewsw lists "common | extra | world"). This matters for the
+//  compiler, not just cosmetics: makebsp prepends "textures/" to the shader
+//  name unconditionally when resolving the image, so a face written as
+//  "textures/blx/blx_dark" is looked up as "textures/textures/blx/blx_dark",
+//  the image goes missing, and the face is demoted to non-lightmapped -- the
+//  map compiles and loads, but silently receives no lightmap. NetRadiant
+//  copies these names verbatim into the .map brush faces, so keeping them
+//  unprefixed here is what keeps the compiled map correct.
+//
+//  Engine-side naming rules (Q3ShaderRegistry.ts), for reference:
+//    * "_" falls back to "/" (blx/wall_grey -> blx/wall/grey)
+//    * matching is case-insensitive
+//    * anything under "common/" is stripped from the compiled texture list
+//      (BspLoader.getBspUsedTextures)
+// =============================================================================
+
+
+// --- compiler / gameplay specials (all 20 ship in the assets) ----------------
+common/areaportal
+common/caulk
+common/donotenter
+common/fullclip
+common/hint
+common/invisible
+common/ladder
+common/mirror
+common/nodraw
+common/nodrawnonsolid
+common/nodrop
+common/noimpact
+common/nolightmap
+common/nowalljumpclip
+common/origin
+common/playerclip
+common/skip
+common/slick
+common/terrain
+common/trigger
+
+// --- textures/blx (46 total) -------------------------------------------------
+blx/blx_circle
+blx/blx_dark
+blx/blx_dark_ws
+blx/blx_dec
+blx/blx_display_1
+blx/blx_floor_1
+blx/blx_grid
+
+// --- textures/concrete (23 total) --------------------------------------------
+concrete/baseblue0060
+concrete/blueplaster
+concrete/concrete2
+concrete/concretebunker0068
+concrete/concreteclean
+concrete/concretecleanstriped
+concrete/concretecold01
+concrete/concretegrey
+
+// --- textures/concrete_techwalls (6 total) -----------------------------------
+concrete_techwalls/concrete_blx_tile
+concrete_techwalls/concreteclean
+concrete_techwalls/concreteclean_blx_wall1
+concrete_techwalls/concreteclean_blx_wall2
+
+// --- textures/metal (27 total) -----------------------------------------------
+metal/aluminium
+metal/bigtreadplateg
+metal/chrome
+metal/corrugated0023
+metal/corrugated0023green
+metal/metalbaseyellow0033
+metal/metalbulk
+
+// --- textures/bricks (6 total) -----------------------------------------------
+bricks/blackbricks_base_01
+bricks/bricks1
+bricks/bricks2
+bricks/redbricks_base_01
+bricks/redbricks_trim_01
+
+// --- textures/wood (8 total) -------------------------------------------------
+wood/woodold01
+wood/woodplank01
+wood/woodplank02
+wood/woodplank03
+wood/woodtables01
+
+// --- textures/plastic (10 total) ---------------------------------------------
+plastic/blue
+plastic/green
+plastic/grey35
+plastic/grey50
+plastic/grey75
+plastic/pvc_grey
+plastic/red
+
+// --- textures/tiles (5 total) ------------------------------------------------
+tiles/floor
+tiles/floor_tiled
+tiles/floorsregular0100
+tiles/floorsregular0100yellow
+
+// --- textures/hexagons (32 total) --------------------------------------------
+hexagons/blue
+hexagons/darkblue
+hexagons/hexagons
+hexagons/hexagons2
+hexagons/metalcollumn01
+hexagons/metalfloor01
+hexagons/metalwall01
+
+// --- textures/scifi_interior (67 total) --------------------------------------
+scifi_interior/01
+scifi_interior/02
+scifi_interior/03
+scifi_interior/aluminium_airvent
+scifi_interior/aluminium_clean
+scifi_interior/aluminium_panel
+scifi_interior/aluminium_panel_blue
+scifi_interior/aluminium_panel_orange
+
+// --- textures/supersymmetry (13 total) ---------------------------------------
+supersymmetry/jump_pad_2_team
+supersymmetry/lamp_01
+supersymmetry/ledge_01
+supersymmetry/ledge_01_team
+supersymmetry/ledge_02
+supersymmetry/neon_01
+supersymmetry/neon_01_team
+
+// --- textures/boqu (140 total) -----------------------------------------------
+boqu/bigfloor
+boqu/biglightfloor
+boqu/bigtiles
+boqu/boqu_window
+boqu/bright_metal
+boqu/cables
+boqu/ceilinglamp_w
+
+// --- textures/boqu2 (48 total) -----------------------------------------------
+boqu2/2neon_blue
+boqu2/3neon
+boqu2/bigwhitetiles3
+boqu2/blueblacktrim
+boqu2/brighttechpanel4
+boqu2/concrete_tile_dark
+
+// --- textures/blxbis (49 total) ----------------------------------------------
+blxbis/aluminium
+blxbis/blx_spacer
+blxbis/glass
+blxbis/grate
+blxbis/ground
+blxbis/iceline
+
+// --- textures/blx_tech2 (33 total) -------------------------------------------
+blx_tech2/tech2_base_bright
+blx_tech2/tech2_base_dark
+blx_tech2/tech2_base_edge
+blx_tech2/tech2_base_green
+blx_tech2/tech2_base_line
+blx_tech2/tech2_base_mid
+
+// --- textures/blx_grey (31 total) --------------------------------------------
+blx_grey/blx_grey_circuits_blue_512
+blx_grey/blx_grey_circuits_red_512
+blx_grey/blx_grey_circuits_white_512
+blx_grey/blx_grey_dark
+blx_grey/blx_grey_dark_ws
+blx_grey/blx_grey_dec
+
+// --- textures/blx_houses (12 total) ------------------------------------------
+blx_houses/blx_build1
+blx_houses/blx_house1
+blx_houses/blx_house3
+blx_houses/blx_house4
+blx_houses/bLx_cars1
+
+// --- textures/factory (49 total) ---------------------------------------------
+factory/ammo_base
+factory/armor_base
+factory/base
+factory/base_stripes_in
+factory/base_stripes_out
+factory/brick_wall
+
+// --- textures/wsw_city1 (58 total) -------------------------------------------
+wsw_city1/9techwall01
+wsw_city1/blue_beam1
+wsw_city1/blue_concret
+wsw_city1/cables1
+wsw_city1/chrome
+wsw_city1/circle1
+
+// --- textures/exwsw (81 total) -----------------------------------------------
+exwsw/eX_deswall_01
+exwsw/eX_metalplate_01
+exwsw/eX_metalSupp01
+exwsw/eX_metalwall02
+exwsw/eX_mtl_bigplate_04
+
+// --- textures/terrain (9 total) ----------------------------------------------
+terrain/rocks001_512x512
+terrain/rocks002_512x512
+terrain/rockwall01
+terrain/sand
+terrain/sand_dark
+terrain/soilsand0104
+
+// --- textures/noir (15 total) ------------------------------------------------
+noir/brickgrey
+noir/concrete1
+noir/door2
+noir/natsbar01
+noir/seka
+
+// --- textures/cha0s_ws (46 total) -------------------------------------------
+cha0s_ws/base_brown
+cha0s_ws/base_column
+cha0s_ws/base_floor
+cha0s_ws/base_grey
+cha0s_ws/base_wall
+cha0s_ws/base_yellow
+
+// --- textures/melee (9 total) ------------------------------------------------
+melee/glass
+melee/metal001
+melee/metal002
+melee/pure001
+melee/stone000
+
+// --- textures/cleansurface (10 total) ----------------------------------------
+cleansurface/black
+cleansurface/pantone2727c
+cleansurface/pantone361c
+cleansurface/pantone432c
+cleansurface/pantone7536c
+cleansurface/pantonecoolgray10c
+
+// --- textures/billboard (38 total) -------------------------------------------
+billboard/bigbill1
+billboard/bigbill2
+billboard/bullets
+billboard/bulletsblue
+
+// --- textures/jewels (4 total) -----------------------------------------------
+jewels/jumppad_dot
+jewels/jumppad_strip
+jewels/neon_blue
+jewels/neon_red
+
+// --- textures/neon (18 total) ------------------------------------------------
+neon/basskick1
+neon/basskick2
+neon/bosobosou_sign
+neon/jujitsu_sign1
+neon/jujitsu_sign2
+
+// --- textures/lights (66 total) ----------------------------------------------
+lights/01bluel
+lights/01bluem
+lights/01blues
+lights/01neutrel
+lights/blacktrim01
+lights/blue1
+lights/bluetrim
+
+// --- textures/decals (75 total) ----------------------------------------------
+decals/0080
+decals/decal_armor_ga
+decals/decal_armor_ra
+decals/decal_armor_ya
+decals/decal_danger
+decals/decal_dirt1
+
+// --- textures/window (5 total) -----------------------------------------------
+window/purple01
+window/window_dirty
+window/window_industrial
+window/window01
+window/windows_lit_1
+
+// --- textures/grates (5 total) -----------------------------------------------
+grates/fence01
+grates/fence02
+grates/fence03
+grates/grid02
+grates/simplegrid
+
+// --- textures/misc small sets ------------------------------------------------
+glass/melee
+leaves/leaves0108_s
+trees/barkdecidious048
+russus/cement-tiled_grey
+russus/spray_beta
+russus/transscreen_beta
+zone_neutre/beige
+zone_neutre/beige_dark
+zone_neutre/beige_contour01
+zone_neutre/orange_contour01
+zone_neutre/skyblue
+refly_bricks/bricks1
+refly_metal/metal17
+refly_wood/wood1
+refly_stone/concrete1
+refly_tiles/zadaztiles
+refly_trims/hazardline
+refly_crates/36dm2crate
+36_colours/545454
+36_colours/A8A8A8
+36_colours/FFFFFF
+36_lights/light-FFFFFF
+ETRtex/PERON32
+ETRtex/TEAMZISSOU32
+
+// --- textures/sky (10 total) -------------------------------------------------
+sky/indigosky1.blend
+sky/orangesky1.blend
+sky/pinksky1.blend
+sky/purplesky1.blend
+sky/violetsky1.blend
+
