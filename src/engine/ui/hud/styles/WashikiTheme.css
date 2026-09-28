@@ -1673,16 +1673,26 @@
    Frag Message (center screen)
    ============================================================================ */
 
+/* Above the crosshair, where the confirmation is seen without covering the aim */
+.fps-frag-container {
+  position: absolute;
+  top: 31%;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* FRAGGED <name>: the gold of the lobby's keys, in ink, rising as it fades */
 .fps-frag-message {
-  font-family: var(--w-font-display);
-  font-size: calc(22px * var(--ui-scale, 1));
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--w-gold);
-  text-shadow: var(--w-glow-gold);
-  animation: fps-float-up 2.5s ease-in-out forwards;
+  padding: calc(7px * var(--ui-scale, 1)) calc(26px * var(--ui-scale, 1)) calc(9px * var(--ui-scale, 1));
+  font: 900 calc(20px * var(--ui-scale, 1)) / 1 var(--w-font-display);
+  letter-spacing: 0.08em;
   text-align: center;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: hsl(250, 45%, 8%);
+  background: linear-gradient(180deg, hsl(51, 100%, 73%), hsl(46, 100%, 58%) 55%, hsl(42, 100%, 50%));
+  clip-path: polygon(3% 0, 100% 0, 97% 100%, 0 100%);
+  animation: fps-float-up 2.5s ease-in-out forwards;
 }
 
 /* Death Screen — see canonical version below (Death / Respawn Screen) */
@@ -1999,131 +2009,149 @@
 }
 
 /* ============================================================================
-   Spectator overlay — Washoi print-slab (freefly cue + spectating bar)
+   Spectator overlay — the ready room's ink slabs (freefly cue + spectating bar)
+
+   Both sit above the bottom HUD and clear of the scoreline, which the bar
+   used to cover. Keys are cream chips, as the lobby draws its keys.
    ============================================================================ */
 
-/* Freefly control cue — cyan cut-slab panel, bottom-left. */
+/* Both live outside .fps-hud-container, so they take its zoom themselves and
+   sit at the size of the HUD around them */
+.fps-spectator-cue,
+.fps-spectator-bar {
+  --ui-scale: calc(var(--ui-scale-root, 1) * var(--hud-zoom, 1));
+}
+
+/* Freefly controls: a cyan-edged ink card, bottom left */
 .fps-spectator-cue {
   position: absolute;
   bottom: calc(200px * var(--ui-scale, 1));
   left: calc(28px * var(--ui-scale, 1));
   display: none;
   flex-direction: column;
-  width: calc(420px * var(--ui-scale, 1));
+  gap: calc(12px * var(--ui-scale, 1));
   box-sizing: border-box;
-  padding: calc(14px * var(--ui-scale, 1)) calc(22px * var(--ui-scale, 1)) calc(16px * var(--ui-scale, 1));
-  background: linear-gradient(158deg, hsla(190, 92%, 52%, 0.16), var(--w-void) 56%), var(--w-scan-cyan);
-  clip-path: polygon(0 0, 100% 0, 97% 100%, 3% 100%);
-  box-shadow: inset 0 calc(1px * var(--ui-scale, 1)) 0 hsla(190, 95%, 75%, 0.3);
-  filter: var(--w-drop-print-sm);
-  transform: var(--w-tilt-bottom);
-  transform-origin: left bottom;
+  padding: calc(16px * var(--ui-scale, 1)) calc(30px * var(--ui-scale, 1)) calc(18px * var(--ui-scale, 1))
+    calc(20px * var(--ui-scale, 1));
+  background: linear-gradient(100deg, hsla(186, 70%, 16%, 0.94), hsla(250, 44%, 7%, 0.94) 62%);
+  border-left: calc(6px * var(--ui-scale, 1)) solid hsl(182, 95%, 52%);
+  clip-path: polygon(
+    0 0,
+    calc(100% - 16px * var(--ui-scale, 1)) 0,
+    100% calc(16px * var(--ui-scale, 1)),
+    100% 100%,
+    0 100%
+  );
   pointer-events: none;
 }
 
 .fps-spectator-cue-header {
-  font-family: var(--w-font-display);
-  font-size: calc(11px * var(--ui-scale, 1));
-  font-weight: 900;
-  letter-spacing: calc(3px * var(--ui-scale, 1));
+  font: 700 max(10px, calc(12px * var(--ui-scale, 1))) / 1 var(--w-font-body);
+  letter-spacing: 0.32em;
   text-transform: uppercase;
-  text-align: center;
-  color: hsl(45, 100%, 60%);
-  text-shadow: var(--w-ink-text-sm);
-  margin-bottom: calc(10px * var(--ui-scale, 1));
-}
-
-.fps-spectator-cue-divider {
-  width: 100%;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, hsla(190, 100%, 70%, 0.4), transparent);
-  margin-bottom: calc(10px * var(--ui-scale, 1));
+  color: hsl(182, 95%, 60%);
 }
 
 .fps-spectator-cue-grid {
   display: grid;
-  grid-template-columns:
-    calc(58px * var(--ui-scale, 1)) 1fr calc(20px * var(--ui-scale, 1))
-    calc(58px * var(--ui-scale, 1)) 1fr;
-  row-gap: calc(6px * var(--ui-scale, 1));
-  column-gap: calc(8px * var(--ui-scale, 1));
+  grid-template-columns: auto auto auto auto;
   align-items: center;
+  gap: calc(8px * var(--ui-scale, 1)) calc(12px * var(--ui-scale, 1));
+}
+
+/* The second key column stands off from the first column's actions */
+.fps-spectator-cue-grid > .fps-spectator-key:nth-child(4n + 3) {
+  margin-left: calc(18px * var(--ui-scale, 1));
 }
 
 .fps-spectator-key {
-  font-family: var(--w-font-display);
-  font-size: calc(10px * var(--ui-scale, 1));
-  font-weight: 800;
-  color: hsl(185, 98%, 68%);
-  letter-spacing: calc(1px * var(--ui-scale, 1));
-  text-align: right;
+  justify-self: start;
+  min-width: calc(28px * var(--ui-scale, 1));
+  padding: calc(4px * var(--ui-scale, 1)) calc(9px * var(--ui-scale, 1)) calc(5px * var(--ui-scale, 1));
+  box-sizing: border-box;
+  font: 800 max(10px, calc(12px * var(--ui-scale, 1))) / 1 var(--w-font-display);
+  letter-spacing: 0.06em;
+  text-align: center;
   white-space: nowrap;
+  color: hsl(250, 45%, 8%);
+  background: linear-gradient(180deg, hsl(45, 100%, 97%), hsl(42, 58%, 86%));
+  clip-path: polygon(8% 0, 100% 0, 92% 100%, 0 100%);
 }
 
 .fps-spectator-action {
-  font-family: var(--w-font-body);
-  font-size: calc(11px * var(--ui-scale, 1));
-  font-weight: 600;
-  color: var(--w-cream-dim);
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
+  font: 600 max(12px, calc(15px * var(--ui-scale, 1))) / 1.2 var(--w-font-body);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  color: hsla(45, 100%, 95%, 0.86);
 }
 
-.fps-spectator-sep {
-  width: 1px;
-  height: 100%;
-  justify-self: center;
-  background: hsla(190, 100%, 70%, 0.18);
-}
-
-/* Spectating bar — cyan slab, top-center, shown during first-person chase. */
+/* Spectating: whom you are watching, above the bottom HUD, between the keys
+   that step to the previous and next player */
 .fps-spectator-bar {
   position: absolute;
-  top: calc(10px * var(--ui-scale, 1));
+  bottom: calc(210px * var(--ui-scale, 1));
   left: 50%;
   transform: translateX(-50%);
   display: none;
   align-items: center;
-  gap: calc(12px * var(--ui-scale, 1));
-  padding: calc(6px * var(--ui-scale, 1)) calc(24px * var(--ui-scale, 1)) calc(8px * var(--ui-scale, 1));
-  background:
-    linear-gradient(115deg, hsla(190, 98%, 58%, 0.22), hsla(230, 60%, 10%, 0.85) 52%, var(--w-void)), var(--w-scan-cyan);
-  clip-path: polygon(3% 0, 97% 0, 100% 100%, 0 100%);
-  box-shadow: inset 0 calc(1px * var(--ui-scale, 1)) 0 hsla(190, 95%, 75%, 0.3);
-  filter: var(--w-drop-print-sm);
+  gap: calc(22px * var(--ui-scale, 1));
+  padding: calc(10px * var(--ui-scale, 1)) calc(18px * var(--ui-scale, 1));
+  background: linear-gradient(100deg, hsla(186, 70%, 16%, 0.94), hsla(250, 44%, 7%, 0.94) 62%);
+  border-left: calc(6px * var(--ui-scale, 1)) solid hsl(182, 95%, 52%);
+  clip-path: polygon(
+    0 0,
+    calc(100% - 14px * var(--ui-scale, 1)) 0,
+    100% calc(14px * var(--ui-scale, 1)),
+    100% 100%,
+    0 100%
+  );
   pointer-events: auto;
 }
 
+.fps-spectator-bar-who {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(6px * var(--ui-scale, 1));
+  min-width: calc(180px * var(--ui-scale, 1));
+}
+
 .fps-spectator-bar-label {
-  font-family: var(--w-font-body);
-  font-size: calc(12px * var(--ui-scale, 1));
-  font-weight: 800;
-  letter-spacing: calc(2px * var(--ui-scale, 1));
+  font: 700 max(10px, calc(11px * var(--ui-scale, 1))) / 1 var(--w-font-body);
+  letter-spacing: 0.32em;
   text-transform: uppercase;
-  color: hsl(45, 100%, 62%);
-  text-shadow: var(--w-ink-text-sm);
+  color: hsl(182, 95%, 60%);
 }
 
 .fps-spectator-bar-name {
-  font-family: var(--w-font-display);
-  font-size: calc(16px * var(--ui-scale, 1));
-  font-weight: 900;
+  max-width: calc(320px * var(--ui-scale, 1));
+  overflow: hidden;
+  font: 900 max(17px, calc(22px * var(--ui-scale, 1))) / 1.05 var(--w-font-display);
+  letter-spacing: 0.03em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--w-cream);
-  text-shadow: var(--w-ink-text-sm);
 }
 
 .fps-spectator-bar-nav {
-  font-family: var(--w-font-display);
-  font-size: calc(13px * var(--ui-scale, 1));
-  font-weight: 800;
-  color: hsl(185, 98%, 68%);
   cursor: pointer;
-  padding: 0 calc(6px * var(--ui-scale, 1));
   user-select: none;
 }
 
-.fps-spectator-bar-nav:hover {
-  color: hsl(45, 100%, 66%);
+.fps-spectator-bar-key {
+  display: grid;
+  place-items: center;
+  width: calc(34px * var(--ui-scale, 1));
+  height: calc(30px * var(--ui-scale, 1));
+  font: 900 calc(16px * var(--ui-scale, 1)) / 1 var(--w-font-display);
+  color: hsl(250, 45%, 8%);
+  background: linear-gradient(180deg, hsl(45, 100%, 97%), hsl(42, 58%, 86%));
+  clip-path: polygon(10% 0, 100% 0, 90% 100%, 0 100%);
+  transition: background 0.12s ease;
+}
+
+.fps-spectator-bar-nav:hover .fps-spectator-bar-key {
+  background: linear-gradient(180deg, hsl(51, 100%, 73%), hsl(46, 100%, 58%));
 }
 
 /* ============================================================================
@@ -2680,19 +2708,28 @@
 
 /* ============================================================================
    Death / Respawn Screen — "YOU GOT FRAGGED"
+
+   On the HUD's overlay area, so it covers the whole screen: a red vignette
+   closing in from the edges, the stamp, and a card in the ready room's cut —
+   who fragged you and how, then the way back, with the room's striped bar
+   counting down the respawn protection.
    ============================================================================ */
 
+/* The HUD's whole screen, for what covers the rest of it */
+.fps-hud-overlay {
+  inset: 0;
+}
+
 .fps-death-screen {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: hsla(0, 0%, 0%, 0.65);
+  position: absolute;
+  inset: 0;
+  z-index: 800;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 800;
+  background:
+    radial-gradient(ellipse at center, transparent 36%, hsla(352, 80%, 14%, 0.5) 76%, hsla(350, 85%, 8%, 0.8)),
+    hsla(250, 45%, 4%, 0.3);
   animation: fps-fade-in 0.3s ease-out;
   pointer-events: none;
 }
@@ -2701,10 +2738,9 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: calc(12px * var(--ui-scale, 1));
-  padding: calc(48px * var(--ui-scale, 1)) calc(96px * var(--ui-scale, 1));
+  gap: calc(26px * var(--ui-scale, 1));
+  max-width: 94vw;
   animation: fps-scale-in 0.35s cubic-bezier(0.22, 1, 0.36, 1);
-  white-space: nowrap;
 }
 
 /* YOU GOT FRAGGED — same blood-plate slam as the match-start FIGHT! stamp,
@@ -2725,50 +2761,165 @@
   animation: w-fight-stamp 0.4s steps(2, end);
 }
 
-.fps-death-separator {
-  width: calc(200px * var(--ui-scale, 1));
-  height: calc(3px * var(--ui-scale, 1));
-  background: linear-gradient(90deg, transparent, hsla(7, 85%, 52%, 0.7), transparent);
-  clip-path: polygon(4% 0, 100% 0, 96% 100%, 0 100%);
-  margin: calc(10px * var(--ui-scale, 1)) 0;
+/* The card: the room status slab's ink, border and cut corner, in blood red */
+.fps-death-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: calc(44px * var(--ui-scale, 1));
+  width: calc(620px * var(--ui-scale, 1));
+  max-width: 100%;
+  padding: calc(18px * var(--ui-scale, 1)) calc(34px * var(--ui-scale, 1)) calc(24px * var(--ui-scale, 1))
+    calc(26px * var(--ui-scale, 1));
+  box-sizing: border-box;
+  overflow: hidden;
+  background: linear-gradient(100deg, hsla(352, 70%, 17%, 0.96), hsla(250, 44%, 7%, 0.95) 58%);
+  border-left: calc(8px * var(--ui-scale, 1)) solid hsl(356, 88%, 56%);
+  clip-path: polygon(
+    0 0,
+    calc(100% - 20px * var(--ui-scale, 1)) 0,
+    100% calc(20px * var(--ui-scale, 1)),
+    100% 100%,
+    0 100%
+  );
+}
+
+/* Nothing named yet: the card is only the way back */
+.fps-death-card:not(.fps-death-card--named) {
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  width: auto;
+  min-width: calc(360px * var(--ui-scale, 1));
+}
+
+.fps-death-who {
+  display: flex;
+  flex-direction: column;
+  gap: calc(8px * var(--ui-scale, 1));
+  min-width: 0;
+}
+
+.fps-death-card:not(.fps-death-card--named) .fps-death-who {
+  display: none;
+}
+
+.fps-death-how {
+  font: 700 calc(13px * var(--ui-scale, 1)) / 1 var(--w-font-body);
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: hsl(356, 95%, 70%);
 }
 
 .fps-death-killer {
-  font-family: var(--w-font-body);
-  font-size: calc(20px * var(--ui-scale, 1));
-  font-weight: 600;
-  color: var(--w-text-muted);
+  overflow: hidden;
+  font: 900 calc(34px * var(--ui-scale, 1)) / 1.05 var(--w-font-display);
+  letter-spacing: 0.02em;
+  text-overflow: ellipsis;
   white-space: nowrap;
+  color: var(--w-cream);
+  text-shadow: calc(3px * var(--ui-scale, 1)) calc(4px * var(--ui-scale, 1)) 0 hsl(250, 50%, 3%);
 }
 
-.fps-death-killer-name {
-  color: var(--w-magenta);
-  font-weight: 700;
-  text-shadow: var(--w-glow-magenta-sm);
+.fps-death-next {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: calc(8px * var(--ui-scale, 1));
+}
+
+.fps-death-card:not(.fps-death-card--named) .fps-death-next {
+  align-items: center;
+}
+
+.fps-death-next-label {
+  font: 700 calc(12px * var(--ui-scale, 1)) / 1 var(--w-font-body);
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: hsla(45, 100%, 95%, 0.55);
 }
 
 .fps-death-timer {
-  font-family: var(--w-font-display);
-  font-size: calc(48px * var(--ui-scale, 1));
-  font-weight: 700;
+  font: 900 calc(50px * var(--ui-scale, 1)) / 0.9 var(--w-font-display);
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.1em;
-  color: var(--w-cyan);
-  text-shadow: var(--w-glow-cyan);
-  margin-top: calc(12px * var(--ui-scale, 1));
-  line-height: 1;
+  color: var(--w-cream);
+  text-shadow: calc(3px * var(--ui-scale, 1)) calc(4px * var(--ui-scale, 1)) 0 hsl(250, 50%, 3%);
 }
 
 .fps-death-respawn {
-  font-family: var(--w-font-display);
-  font-size: calc(18px * var(--ui-scale, 1));
-  font-weight: 700;
+  font: 800 calc(16px * var(--ui-scale, 1)) / 1.3 var(--w-font-display);
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  letter-spacing: 0.15em;
-  color: var(--w-cyan);
-  text-shadow: var(--w-glow-cyan-sm);
-  margin-top: calc(16px * var(--ui-scale, 1));
-  animation: fps-pulse-neon 1.5s ease-in-out infinite;
+  white-space: nowrap;
+  color: var(--w-cream);
+}
+
+/* Protection is over: the label goes green and the prompt calls for you */
+.fps-death-card[data-next="ready"] .fps-death-next-label {
+  color: hsl(96, 85%, 55%);
+}
+
+.fps-death-card[data-next="ready"] .fps-death-respawn {
+  animation: fps-death-call 1.1s ease-in-out infinite;
+}
+
+@keyframes fps-death-call {
+  50% {
+    opacity: 0.6;
+  }
+}
+
+/* The way back, drawn as the room's status bar: its stripes crawl while the
+   protection counts down, and stand still once it is over */
+.fps-death-bar {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: calc(6px * var(--ui-scale, 1));
+  background: hsla(0, 0%, 100%, 0.07);
+}
+
+.fps-death-fill {
+  width: 0;
+  height: 100%;
+  background:
+    repeating-linear-gradient(-45deg, transparent 0 10px, hsla(250, 60%, 5%, 0.3) 10px 20px),
+    linear-gradient(90deg, hsl(352, 80%, 42%), hsl(356, 95%, 64%));
+  background-size:
+    28px 28px,
+    100% 100%;
+  animation: fps-death-crawl 0.8s linear infinite;
+}
+
+.fps-death-card[data-next="ready"] .fps-death-fill {
+  background:
+    repeating-linear-gradient(-45deg, transparent 0 10px, hsla(250, 60%, 5%, 0.3) 10px 20px),
+    linear-gradient(90deg, hsl(96, 70%, 38%), hsl(96, 85%, 55%));
+  background-size:
+    28px 28px,
+    100% 100%;
+  animation: none;
+}
+
+/* A round mode has no respawn to count down to */
+.fps-death-card[data-next="round"] .fps-death-bar {
+  display: none;
+}
+
+@keyframes fps-death-crawl {
+  to {
+    background-position:
+      28px 0,
+      0 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fps-death-fill,
+  .fps-death-card[data-next="ready"] .fps-death-respawn {
+    animation: none;
+  }
 }
 
 /* ============================================================================
@@ -3285,14 +3436,18 @@
   text-shadow: calc(1px * var(--ui-scale, 1)) calc(1px * var(--ui-scale, 1)) 0 hsla(210, 60%, 10%, 0.8);
 }
 
+/* Who won, on the ready room's ink so it reads over any part of the map */
 .fps-round-result-text {
+  padding: calc(8px * var(--ui-scale, 1)) calc(28px * var(--ui-scale, 1)) calc(10px * var(--ui-scale, 1));
   font-family: var(--w-font-display);
   font-size: calc(20px * var(--ui-scale, 1));
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: hsl(210, 20%, 94%);
-  text-shadow: calc(2px * var(--ui-scale, 1)) calc(2px * var(--ui-scale, 1)) 0 hsla(250, 45%, 4%, 0.8);
+  white-space: nowrap;
+  color: var(--w-cream);
+  background: hsla(250, 44%, 7%, 0.92);
+  clip-path: polygon(2% 0, 100% 0, 98% 100%, 0 100%);
 }
 
 @keyframes fps-round-result-in {
