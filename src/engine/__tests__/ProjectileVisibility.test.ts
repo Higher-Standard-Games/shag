@@ -178,14 +178,18 @@ describe("projectile visibility", () => {
     expect(opacityOf(second)).toEqual([0]);
   });
 
-  it("fades shots in and draws their trails while no view weapon is loaded", async () => {
+  it("fades shots in and draws their trails with no view weapon at all, as a spectator has", async () => {
+    // Its particle texture needs a canvas, which this environment has not got
+    vi.spyOn(getExplosionEffect(), "init").mockImplementation(() => {});
+    manager.init(scene);
     await manager.preloadModel("rocket");
     const shot = fire();
     expect(opacityOf(shot)).toEqual([0]);
     now = 500;
 
-    // A weapon switch leaves no view weapon until the next model has loaded.
-    WeaponViewManager.getInstance().update(0.5);
+    // The manager ticks with the scene; nothing here loads or updates a view weapon
+    vi.spyOn(engine, "getDeltaTime").mockReturnValue(500);
+    scene.onBeforeRenderObservable.notifyObservers(scene);
 
     expect(opacityOf(shot)).toEqual([1]);
     expect(scene.getMeshByName(`${shot}_trail`)).not.toBeNull();

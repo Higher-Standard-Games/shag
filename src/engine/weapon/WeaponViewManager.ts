@@ -1479,12 +1479,6 @@ export class WeaponViewManager {
     this.holsterAnim.update(deltaTime);
     if (this.holsterAnim.isFullyHolstered !== wasStowed) this.applyVisibility();
 
-    // Projectiles and hitscan effects belong to the world, not the view weapon:
-    // they keep moving, fading and drawing trails while no weapon model is
-    // loaded, as during a weapon switch.
-    getProjectileManager().update(deltaTime);
-    getHitscanEffects().update(deltaTime);
-
     if (!this.currentWeapon) return;
 
     // Throttle CVar checking - 10 times per second max

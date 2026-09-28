@@ -17,6 +17,7 @@ import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
 import { Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
+import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
 import { mulberry32 } from "../../shared/SpreadUtils";
 import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
@@ -153,6 +154,8 @@ interface TravelingPellet {
 export class HitscanEffects {
   private static instance: HitscanEffects;
   private scene: Scene | null = null;
+  /** Its own per-frame tick: tracers and beams fade for a spectator, who has no view weapon */
+  private tickObserver: Observer<Scene> | null = null;
   private effects: ActiveEffect[] = [];
   private travelingPellets: TravelingPellet[] = [];
   private nextId = 0;
@@ -192,6 +195,8 @@ export class HitscanEffects {
   }
 
   init(scene: Scene): void {
+    if (this.tickObserver) this.scene?.onBeforeRenderObservable.remove(this.tickObserver);
+    this.tickObserver = scene.onBeforeRenderObservable.add(() => this.update(scene.getEngine().getDeltaTime() / 1000));
     if (this.scene !== scene) {
       this.voltaicRenderer?.dispose();
       this.voltaicRenderer = new VoltaicEffectRenderer(scene);

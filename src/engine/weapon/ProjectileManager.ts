@@ -16,6 +16,7 @@ import type { LinesMesh } from "@babylonjs/core/Meshes/linesMesh";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
+import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
 import { DEFAULT_PROJECTILE_BOUNCE_FACTOR, getEntityRegistry, type ProjectileDef } from "../../shared/entities";
 import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
@@ -77,6 +78,12 @@ interface ActiveImpact {
 export class ProjectileManager {
   private static instance: ProjectileManager;
   private scene: Scene | null = null;
+  /**
+   * Its own per-frame tick. Projectiles, impacts and explosions belong to the
+   * world: they have to move and clear for a spectator, who has no view
+   * weapon to tick them.
+   */
+  private tickObserver: Observer<Scene> | null = null;
   private projectiles: ActiveProjectile[] = [];
   private impacts: ActiveImpact[] = [];
   private nextId: number = 0;
@@ -136,9 +143,11 @@ export class ProjectileManager {
   }
 
   public init(scene: Scene): void {
+    if (this.tickObserver) this.scene?.onBeforeRenderObservable.remove(this.tickObserver);
     this.scene = scene;
     getPointLightPool().init(scene);
     getExplosionEffect().init(scene);
+    this.tickObserver = scene.onBeforeRenderObservable.add(() => this.update(scene.getEngine().getDeltaTime() / 1000));
     console.log("[ProjectileManager] Initialized");
   }
 
