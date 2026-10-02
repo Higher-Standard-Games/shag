@@ -35,6 +35,7 @@ export class DebugConsole {
   private outputEl: HTMLDivElement | null = null;
   private inputEl: HTMLInputElement | null = null;
   private autocompleteEl: HTMLDivElement | null = null;
+  private helpPopoverEl: HTMLDivElement | null = null;
 
   // State
   private commandHistory: string[] = [];
@@ -203,7 +204,12 @@ export class DebugConsole {
         <span class="debug-console-version">${EngineVersion.getInstance().getVersionString()} "${EngineVersion.getInstance().getRandomQuote()}"</span>
         <span class="debug-console-close" title="Close console">✕</span>
       </div>
-      <button class="console-inspect-btn" title="Run: inspect">inspect</button>
+      <div class="debug-console-actions">
+        <button class="console-action-btn console-inspect-btn" title="Run: inspect">inspect</button>
+        <button class="console-action-btn console-help-btn" title="Run: help">help</button>
+        <button class="console-action-btn console-size-btn" title="Cycle console size">size</button>
+        <button class="console-action-btn console-clear-btn" title="Run: clear">clear</button>
+      </div>
       <div class="debug-console-output"></div>
       <div class="debug-console-input-container">
         <span class="debug-console-prompt">></span>
@@ -234,6 +240,8 @@ export class DebugConsole {
       }
     });
 
+    this.setupHelpHover();
+
     // Apply saved console size
     this.applyConsoleSize();
 
@@ -251,11 +259,83 @@ export class DebugConsole {
           if (result) this.log("result", result);
         });
     });
+
+    // Help button — runs "help" (the full command listing)
+    const helpBtn = this.container.querySelector(".console-help-btn");
+    helpBtn?.addEventListener("click", () => this.executeCommand("help"));
+
+    // Clear button — runs "clear"
+    const clearBtn = this.container.querySelector(".console-clear-btn");
+    clearBtn?.addEventListener("click", () => this.executeCommand("clear"));
+
+    // Size button — cycles con_size through a few comfortable heights
+    const sizeBtn = this.container.querySelector(".console-size-btn");
+    sizeBtn?.addEventListener("click", () => {
+      const sizes = [0.5, 0.75, 1.0];
+      const current = sizes.findIndex((s) => Math.abs(s - this.consoleSize) < 0.01);
+      const next = sizes[(current + 1) % sizes.length];
+      this.log("command", `con_size ${next}`);
+      this.log("result", this.setSize(next));
+    });
+  }
+
+  /**
+   * Delegated hover help: a `.console-help-term[data-help-cmd]` element in
+   * the output or autocomplete dropdown shows that command's full
+   * `help <command>` text in a floating popover. One listener pair handles
+   * every such element, present or future, instead of attaching one per
+   * span — `mouseover`/`mouseout` are used (not `mouseenter`/`mouseleave`,
+   * which don't bubble) so delegation on a static container works.
+   */
+  private setupHelpHover(): void {
+    if (!this.container) return;
+
+    this.helpPopoverEl = document.createElement("div");
+    this.helpPopoverEl.className = "console-help-popover";
+    document.body.appendChild(this.helpPopoverEl);
+
+    this.container.addEventListener("mouseover", (e) => {
+      const target = (e.target as HTMLElement).closest<HTMLElement>(".console-help-term");
+      if (!target) return;
+      this.showHelpPopover(target);
+    });
+
+    this.container.addEventListener("mouseout", (e) => {
+      const target = (e.target as HTMLElement).closest<HTMLElement>(".console-help-term");
+      const related = (e.relatedTarget as HTMLElement | null)?.closest<HTMLElement>(".console-help-term");
+      if (target && target !== related) {
+        this.hideHelpPopover();
+      }
+    });
+  }
+
+  private showHelpPopover(term: HTMLElement): void {
+    const cmd = term.getAttribute("data-help-cmd");
+    if (!cmd || !this.helpPopoverEl) return;
+
+    const text = CommandRegistry.getInstance().getHelp(cmd);
+    if (!text) return;
+
+    this.helpPopoverEl.textContent = text;
+    this.helpPopoverEl.classList.add("visible");
+
+    const rect = term.getBoundingClientRect();
+    const popover = this.helpPopoverEl;
+    // Measure after making it visible so offsetWidth/Height are real.
+    const maxLeft = window.innerWidth - popover.offsetWidth - 8;
+    popover.style.left = `${Math.max(8, Math.min(rect.left, maxLeft))}px`;
+    popover.style.top = `${rect.bottom + 6}px`;
+  }
+
+  private hideHelpPopover(): void {
+    this.helpPopoverEl?.classList.remove("visible");
   }
 
   private destroyDOM(): void {
     this.container?.remove();
     this.container = null;
+    this.helpPopoverEl?.remove();
+    this.helpPopoverEl = null;
     this.outputEl = null;
     this.inputEl = null;
     this.autocompleteEl = null;
@@ -601,9 +681,13 @@ export class DebugConsole {
             ? def?.subcommands?.find((s) => s.name === parts[1])?.description || ""
             : def?.description || "";
 
+        const hasHelp = Boolean(def) || registry.isCvar(cmdName);
+        const nameClass = hasHelp ? "autocomplete-item-name console-help-term" : "autocomplete-item-name";
+        const helpAttr = hasHelp ? ` data-help-cmd="${cmdName}"` : "";
+
         return `
         <div class="autocomplete-item${i === this.autocompleteIndex ? " selected" : ""}" data-index="${i}">
-          <span class="autocomplete-item-name">${item}</span>
+          <span class="${nameClass}"${helpAttr}>${item}</span>
           <span class="autocomplete-item-desc">${desc}</span>
         </div>
       `;
@@ -937,7 +1021,7 @@ export class DebugConsole {
 
         help += `<span class="hl-label">▸ ${category}</span>\n`;
         for (const def of cmds) {
-          help += `  <span class="clickable-cmd" data-cmd="${def.name}" style="cursor:pointer;text-decoration:underline;color:#0ff;">${def.name.padEnd(14)}</span> ${def.description}\n`;
+          help += `  <span class="clickable-cmd console-help-term" data-cmd="${def.name}" data-help-cmd="${def.name}">${def.name.padEnd(14)}</span> ${def.description}\n`;
         }
         help += "\n";
       }

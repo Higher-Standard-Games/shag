@@ -23,7 +23,7 @@
   flex-direction: column;
   transform: translateY(-100%);
   transition: transform 0.2s ease-out;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--console-shadow, 0 4px 20px rgba(0, 0, 0, 0.5));
 }
 
 .debug-console.open {
@@ -58,6 +58,7 @@
 
 .debug-console-title {
   color: var(--console-primary, #2ec4b6);
+  font-family: var(--console-font-display, inherit);
   font-weight: bold;
   font-size: 11px;
   text-transform: uppercase;
@@ -250,6 +251,12 @@
   font-weight: bold;
 }
 
+.clickable-cmd {
+  color: var(--console-primary, #2ec4b6);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
 /* Help formatting */
 .help-command {
   color: var(--console-primary, #2ec4b6);
@@ -273,12 +280,17 @@
   margin-right: 8px;
 }
 
-/* Inspect button — fixed at top-right of output area */
-.console-inspect-btn {
+/* Action row — fixed at top-right of output area, one or more buttons */
+.debug-console-actions {
   position: absolute;
   top: 34px; /* just below the header bar */
   right: 10px;
   z-index: 1;
+  display: flex;
+  gap: 6px;
+}
+
+.console-action-btn {
   background: transparent;
   border: 1px solid var(--console-primary-dim, rgba(46, 196, 182, 0.4));
   color: var(--console-text-dim, rgba(255, 255, 255, 0.45));
@@ -296,35 +308,76 @@
     background 0.12s;
 }
 
-.console-inspect-btn::before {
+.console-action-btn::before {
   content: "[ ";
   color: var(--console-primary-dim, rgba(46, 196, 182, 0.4));
 }
 
-.console-inspect-btn::after {
+.console-action-btn::after {
   content: " ]";
   color: var(--console-primary-dim, rgba(46, 196, 182, 0.4));
 }
 
-.console-inspect-btn:hover {
+.console-action-btn:hover {
   color: var(--console-primary, #2ec4b6);
   border-color: var(--console-primary, #2ec4b6);
   background: rgba(46, 196, 182, 0.08);
 }
 
-.console-inspect-btn:hover::before,
-.console-inspect-btn:hover::after {
+.console-action-btn:hover::before,
+.console-action-btn:hover::after {
   color: var(--console-primary, #2ec4b6);
 }
 
-.console-inspect-btn:active {
+.console-action-btn:active {
   background: var(--console-primary, #2ec4b6);
   color: #0a0c10;
   border-color: var(--console-primary, #2ec4b6);
   transform: scale(0.94);
 }
 
-.console-inspect-btn:active::before,
-.console-inspect-btn:active::after {
+.console-action-btn:active::before,
+.console-action-btn:active::after {
   color: #0a0c10;
+}
+
+/* Keyword hover help — a command name in output or autocomplete that has a
+   popover with its full `help <command>` text. */
+.console-help-term {
+  border-bottom: 1px dashed var(--console-primary-dim, rgba(46, 196, 182, 0.5));
+  cursor: help;
+}
+
+/* A term that is also clickable (e.g. help's command list) keeps its own
+   cursor and drops the solid underline — the dashed one above is enough. */
+.clickable-cmd.console-help-term {
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.console-help-term:hover,
+.console-help-term.console-help-term--active {
+  border-bottom-color: var(--console-primary, #2ec4b6);
+}
+
+.console-help-popover {
+  position: fixed;
+  z-index: 100000;
+  max-width: 360px;
+  background: rgba(16, 18, 24, 0.98);
+  border: 1px solid var(--console-primary, #2ec4b6);
+  border-radius: 4px;
+  box-shadow: var(--console-shadow, 0 4px 16px rgba(0, 0, 0, 0.5));
+  padding: 8px 10px;
+  color: var(--console-text-bright, #e8e8e8);
+  font-family: "Share Tech Mono", "Consolas", "Monaco", "Courier New", monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  pointer-events: none;
+  display: none;
+}
+
+.console-help-popover.visible {
+  display: block;
 }
