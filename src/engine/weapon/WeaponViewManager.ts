@@ -458,9 +458,12 @@ export class WeaponViewManager {
     // Args: (groupId, autoClear, depth, stencil)
     scene.setRenderingAutoClearDepthStencil(1, true, true, false);
 
-    // Add dedicated weapon light for PBR GLB models
-    // Only affects rendering group 1 (weapons), not the world
+    // Add dedicated weapon light for PBR GLB models. Only the weapon layer: a
+    // light reaching the world would join every world material's light list
+    // the moment the view is built, and the world's fill lives with the map's
+    // lights (SkyLightSystem) instead.
     this.weaponLight = new HemisphericLight("weaponLight", new Vector3(0.3, 1, 0.5), scene);
+    this.weaponLight.includeOnlyWithLayerMask = WEAPON_LAYER_MASK;
     this.weaponLight.intensity = 1.2;
     this.weaponLight.diffuse = new Color3(1.0, 0.95, 0.9); // Slightly warm white
     this.weaponLight.groundColor = new Color3(0.3, 0.3, 0.35); // Cool fill from below
@@ -480,6 +483,9 @@ export class WeaponViewManager {
     // walls flickering invisible while their new effect compiles.
     if (this.muzzleFlashLight) this.muzzleFlashLight.dispose();
     this.muzzleFlashLight = new PointLight("muzzleFlash", Vector3.Zero(), scene);
+    // Weapon layer only, from the start: before a weapon loads there is no
+    // mesh list to scope it to (updateMuzzleFlashLightScope).
+    this.muzzleFlashLight.includeOnlyWithLayerMask = WEAPON_LAYER_MASK;
     this.muzzleFlashLight.intensity = 0;
     this.muzzleFlashLight.range = WeaponViewManager.MUZZLE_FLASH_RANGE;
     // Second-priority weapon light (below weaponLight, above transient projectile
@@ -1749,6 +1755,7 @@ export class WeaponViewManager {
     // defines and trigger shader recompilation (first-shot flicker bug).
     if (!this.muzzleFlashLight) {
       this.muzzleFlashLight = new PointLight("muzzleFlash", Vector3.Zero(), this.scene!);
+      this.muzzleFlashLight.includeOnlyWithLayerMask = WEAPON_LAYER_MASK;
       this.updateMuzzleFlashLightScope();
     }
 

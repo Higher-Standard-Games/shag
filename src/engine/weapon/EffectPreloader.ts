@@ -62,6 +62,11 @@ function nextRenderedFrame(scene: Scene): Promise<void> {
  */
 export async function retireTemporaryLight(scene: Scene, light: PointLight): Promise<void> {
   light.setEnabled(false);
+  // A frozen material ignores the light change and would keep binding this
+  // light's buffer after it is destroyed; force those to rebuild as well.
+  for (const material of scene.materials) {
+    if (material.isFrozen) material.markDirty(true);
+  }
   try {
     await nextRenderedFrame(scene);
     await nextRenderedFrame(scene);

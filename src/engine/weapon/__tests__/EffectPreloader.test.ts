@@ -144,6 +144,29 @@ describe("effect shader warmup", () => {
     }
   });
 
+  it("makes frozen materials rebuild without a retired compile light", async () => {
+    vi.useFakeTimers();
+    const engine = readyTextureEngine();
+    const scene = new Scene(engine);
+    const frozen = new StandardMaterial("frozen", scene);
+    frozen.freeze();
+    const live = new StandardMaterial("live", scene);
+    const frozenDirty = vi.spyOn(frozen, "markDirty");
+    const liveDirty = vi.spyOn(live, "markDirty");
+    const light = new PointLight("compile-light", Vector3.Zero(), scene);
+    try {
+      const retired = retireTemporaryLight(scene, light);
+      expect(frozenDirty).toHaveBeenCalledWith(true);
+      expect(liveDirty).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(500);
+      await retired;
+    } finally {
+      vi.useRealTimers();
+      scene.dispose();
+      engine.dispose();
+    }
+  });
+
   it("retires a compile light without frames when nothing renders", async () => {
     vi.useFakeTimers();
     const engine = readyTextureEngine();
