@@ -2,12 +2,16 @@ import { describe, expect, it } from "vitest";
 import { EditorDocument } from "../EditorDocument";
 import { EditorDraftStore, type EditorViewState } from "../EditorDraftStore";
 
-function memoryStorage(): Pick<Storage, "getItem" | "setItem"> {
+function memoryStorage(): Pick<Storage, "getItem" | "setItem" | "key" | "length"> {
   const values = new Map<string, string>();
   return {
     getItem: (key) => values.get(key) ?? null,
     setItem: (key, value) => {
       values.set(key, value);
+    },
+    key: (index) => Array.from(values.keys())[index] ?? null,
+    get length() {
+      return values.size;
     },
   };
 }
@@ -64,5 +68,26 @@ describe("editor local draft recovery", () => {
     storage.setItem("shagged:active-draft:v1", "another-id");
     storage.setItem("shagged:draft:v1:another-id", JSON.stringify(data));
     expect(() => store.load()).toThrow("Active draft ID does not match");
+  });
+
+  it("lists named drafts and activates an older valid draft", () => {
+    const storage = memoryStorage();
+    const store = new EditorDraftStore(storage);
+    const first = new EditorDocument().snapshot();
+    const second = new EditorDocument().snapshot();
+    store.save(first, { ...view, draftName: "First room" });
+    store.save(second, { ...view, draftName: "Second room" });
+    expect(store.list().map((draft) => [draft.name, draft.active])).toEqual([
+      ["Second room", true],
+      ["First room", false],
+    ]);
+    const restored = store.activate(first.draftId);
+    expect(restored.document.snapshot()).toEqual(first);
+    expect(restored.view?.draftName).toBe("First room");
+    expect(store.load().document.snapshot()).toEqual(first);
+    expect(() => store.activate("missing")).toThrow("missing from local storage");
+    expect(store.load().document.snapshot()).toEqual(first);
+    storage.setItem("shagged:draft:v1:damaged", "not json");
+    expect(store.list()).toHaveLength(2);
   });
 });

@@ -57,6 +57,7 @@ export class EditorSession {
   private readonly statusEl: HTMLElement;
   private readonly inspector: HTMLElement;
   private selectedId: string | null = null;
+  private draftName = "Untitled";
   private tool: "brush" | "select" = "brush";
   private grid = 16;
   private zoom = 1;
@@ -83,24 +84,7 @@ export class EditorSession {
     const pan = this.camera.movement.input.getEntry("pointer", "pan", { button: 2 });
     if (rotate) rotate.button = 2;
     if (pan) pan.button = 1;
-    if (restored.view) {
-      this.grid = restored.view.grid;
-      this.zoom = restored.view.zoom;
-      this.tool = restored.view.tool;
-      this.workPlanes = restored.view.workPlanes ?? this.workPlanes;
-      this.activePlane = restored.view.activePlane ?? this.activePlane;
-      this.selectedId = this.document.snapshot().brushes.some((brush) => brush.id === restored.view?.selectedId)
-        ? restored.view.selectedId
-        : null;
-      this.camera.alpha = restored.view.camera.alpha;
-      this.camera.beta = restored.view.camera.beta;
-      this.camera.radius = restored.view.camera.radius;
-      this.camera.target = new Vector3(
-        restored.view.camera.target.x,
-        restored.view.camera.target.z,
-        restored.view.camera.target.y,
-      );
-    }
+    this.restoreView(restored.view);
     this.camera.attachControl(canvas, true);
     this.camera.onViewMatrixChangedObservable.add(() => {
       if (this.viewSaveTimer) clearTimeout(this.viewSaveTimer);
@@ -116,7 +100,8 @@ export class EditorSession {
     this.root.innerHTML = `
       <header class="shagged__toolbar">
         <strong>SHAGGED <small>GENERAL EDITOR</small></strong>
-        <button data-action="new">New</button><button data-action="room">Room Template</button><button data-action="save">Save Draft</button>
+        <label>Draft <input data-draft-name type="text" maxlength="64" aria-label="Draft name"></label>
+        <button data-action="drafts">Drafts</button><button data-action="new">New</button><button data-action="room">Room Template</button><button data-action="save">Save Draft</button>
         <button data-action="export">Export .map</button>
         <button data-action="duplicate">Duplicate</button>
         <span class="shagged__separator"></span>
@@ -137,12 +122,17 @@ export class EditorSession {
         <section class="shagged__pane"><span>XZ FRONT</span><canvas data-plane="xz"></canvas></section>
         <section class="shagged__pane"><span>YZ SIDE</span><canvas data-plane="yz"></canvas></section>
       </main>
+      <section class="shagged__drafts" aria-label="Saved drafts" hidden>
+        <div class="shagged__drafts-head"><h2>Local drafts</h2><button data-action="close-drafts">Close</button></div>
+        <div data-draft-list></div>
+      </section>
       <aside class="shagged__inspector"></aside>
       <footer class="shagged__status"></footer>`;
     document.body.appendChild(this.root);
     this.statusEl = this.root.querySelector(".shagged__status")!;
     this.inspector = this.root.querySelector(".shagged__inspector")!;
     this.root.querySelector<HTMLSelectElement>("[data-grid]")!.value = String(this.grid);
+    this.root.querySelector<HTMLInputElement>("[data-draft-name]")!.value = this.draftName;
     this.updateWorkPlaneControl();
 
     for (const plane of ["xy", "xz", "yz"] as const) {
@@ -171,8 +161,8 @@ export class EditorSession {
     this.root.addEventListener(
       "click",
       (event) => {
-        const action = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-action]")?.dataset.action;
-        if (action) this.action(action);
+        const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-action]");
+        if (button?.dataset.action) this.action(button.dataset.action, button.dataset.draftId);
       },
       { signal: this.listeners.signal },
     );
@@ -181,6 +171,16 @@ export class EditorSession {
       (event) => {
         this.grid = Number((event.target as HTMLSelectElement).value);
         this.draw();
+        this.trySaveView();
+      },
+      { signal: this.listeners.signal },
+    );
+    this.root.querySelector<HTMLInputElement>("[data-draft-name]")!.addEventListener(
+      "change",
+      (event) => {
+        const input = event.target as HTMLInputElement;
+        this.draftName = input.value.trim() || "Untitled";
+        input.value = this.draftName;
         this.trySaveView();
       },
       { signal: this.listeners.signal },
@@ -253,6 +253,7 @@ export class EditorSession {
       zoom: this.zoom,
       tool: this.tool,
       selectedId: this.selectedId,
+      draftName: this.draftName,
       activePlane: this.activePlane,
       workPlanes: { ...this.workPlanes },
       camera: {
@@ -297,20 +298,85 @@ export class EditorSession {
     this.root.querySelector<HTMLInputElement>("[data-workplane]")!.value = String(this.workPlanes[hidden]);
   }
 
-  private action(action: string): void {
+  private restoreView(view: EditorViewState | null): void {
+    this.grid = view?.grid ?? 16;
+    this.zoom = view?.zoom ?? 1;
+    this.tool = view?.tool ?? "brush";
+    this.draftName = view?.draftName ?? "Untitled";
+    this.workPlanes = { ...(view?.workPlanes ?? { x: 0, y: 0, z: 0 }) };
+    this.activePlane = view?.activePlane ?? "xy";
+    this.selectedId = this.document.snapshot().brushes.some((brush) => brush.id === view?.selectedId)
+      ? (view?.selectedId ?? null)
+      : null;
+    this.camera.alpha = view?.camera.alpha ?? Math.PI / 4;
+    this.camera.beta = view?.camera.beta ?? Math.PI / 3;
+    this.camera.radius = view?.camera.radius ?? 650;
+    const target = view?.camera.target ?? { x: 0, y: 0, z: 0 };
+    this.camera.target = new Vector3(target.x, target.z, target.y);
+  }
+
+  private showDrafts(): void {
+    const list = this.root.querySelector<HTMLElement>("[data-draft-list]")!;
+    list.replaceChildren();
+    for (const draft of this.draftStore.list()) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.action = "open-draft";
+      button.dataset.draftId = draft.id;
+      button.disabled = draft.active;
+      button.textContent = `${draft.name} · ${draft.brushCount} brushes · r${draft.revision}${draft.active ? " · current" : ""}`;
+      list.appendChild(button);
+    }
+    if (!list.childElementCount) list.textContent = "No saved drafts yet.";
+    this.root.querySelector<HTMLElement>(".shagged__drafts")!.hidden = false;
+  }
+
+  private openDraft(id: string): void {
+    if (id === this.draftId) return;
+    this.save();
+    const restored = this.draftStore.activate(id);
+    if (this.viewSaveTimer) clearTimeout(this.viewSaveTimer);
+    this.viewSaveTimer = null;
+    this.cancelGesture();
+    this.document = restored.document;
+    this.restoreView(restored.view);
+    this.root.querySelector<HTMLSelectElement>("[data-grid]")!.value = String(this.grid);
+    this.root.querySelector<HTMLInputElement>("[data-draft-name]")!.value = this.draftName;
+    this.updateWorkPlaneControl();
+    this.rebuildMeshes();
+    this.draw();
+    this.root.querySelector<HTMLElement>(".shagged__drafts")!.hidden = true;
+    this.root.focus();
+  }
+
+  private action(action: string, draftId?: string): void {
     try {
       switch (action) {
         case "new":
           this.save();
           this.document = new EditorDocument();
           this.selectedId = null;
+          this.draftName = "Untitled";
+          this.root.querySelector<HTMLInputElement>("[data-draft-name]")!.value = this.draftName;
           this.changed();
           break;
         case "room":
           this.save();
           this.document = new EditorDocument(createRoomTemplate());
           this.selectedId = null;
+          this.draftName = "Room Template";
+          this.root.querySelector<HTMLInputElement>("[data-draft-name]")!.value = this.draftName;
           this.changed();
+          break;
+        case "drafts":
+          this.showDrafts();
+          break;
+        case "close-drafts":
+          this.root.querySelector<HTMLElement>(".shagged__drafts")!.hidden = true;
+          this.root.focus();
+          break;
+        case "open-draft":
+          if (draftId) this.openDraft(draftId);
           break;
         case "save":
           this.save();

@@ -7,7 +7,8 @@
 The first M1 slice now has the developer-gated `editor` command, a browser
 host that suspends/restores the lobby game view, four panes (Babylon perspective
 and XY/XZ/YZ canvas projections), grid-aligned box drawing and movement,
-selection, undo/redo, `localStorage` drafts, numeric XYZ bounds and shader
+selection, undo/redo, named `localStorage` drafts with a chooser to reopen older
+work, numeric XYZ bounds and shader
 editing, duplication, recovered grid/zoom/tool/selection/camera state, and
 deterministic `brushDef` export. Brush drags now capture an explicit work-plane
 coordinate and one-grid thickness; a transient box and dimension readout

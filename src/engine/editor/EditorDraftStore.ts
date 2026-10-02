@@ -1,6 +1,7 @@
 import { EditorDocument, type EditorDocumentData, type Vec3q } from "./EditorDocument";
 
 const ACTIVE_KEY = "shagged:active-draft:v1";
+const DRAFT_PREFIX = "shagged:draft:v1:";
 const draftKey = (id: string): string => `shagged:draft:v1:${id}`;
 const viewKey = (id: string): string => `shagged:view:v1:${id}`;
 
@@ -10,6 +11,7 @@ export interface EditorViewState {
   zoom: number;
   tool: "brush" | "select";
   selectedId: string | null;
+  draftName?: string;
   activePlane?: "xy" | "xz" | "yz";
   workPlanes?: Vec3q;
   camera: { alpha: number; beta: number; radius: number; target: Vec3q };
@@ -27,6 +29,8 @@ function validView(value: unknown): value is EditorViewState {
     state.zoom <= 4 &&
     ["brush", "select"].includes(state.tool) &&
     (state.selectedId === null || typeof state.selectedId === "string") &&
+    (state.draftName === undefined ||
+      (typeof state.draftName === "string" && state.draftName.trim().length > 0 && state.draftName.length <= 64)) &&
     (state.activePlane === undefined || ["xy", "xz", "yz"].includes(state.activePlane)) &&
     (state.workPlanes === undefined ||
       (!!state.workPlanes &&
@@ -48,11 +52,15 @@ function validView(value: unknown): value is EditorViewState {
 
 /** Versioned local recovery; the document stays independent from view state. */
 export class EditorDraftStore {
-  constructor(private readonly storage: Pick<Storage, "getItem" | "setItem">) {}
+  constructor(private readonly storage: Pick<Storage, "getItem" | "setItem" | "key" | "length">) {}
 
   load(): { document: EditorDocument; view: EditorViewState | null } {
     const id = this.storage.getItem(ACTIVE_KEY);
     if (!id) return { document: new EditorDocument(), view: null };
+    return this.read(id);
+  }
+
+  private read(id: string): { document: EditorDocument; view: EditorViewState | null } {
     const raw = this.storage.getItem(draftKey(id));
     if (!raw) throw new Error("Active draft is missing from local storage");
     const document = new EditorDocument(JSON.parse(raw) as EditorDocumentData);
@@ -67,6 +75,38 @@ export class EditorDraftStore {
       }
     }
     return { document, view: validView(parsed) ? parsed : null };
+  }
+
+  list(): Array<{ id: string; name: string; brushCount: number; revision: number; active: boolean }> {
+    const activeId = this.storage.getItem(ACTIVE_KEY);
+    const drafts: Array<{ id: string; name: string; brushCount: number; revision: number; active: boolean }> = [];
+    for (let index = 0; index < this.storage.length; index++) {
+      const key = this.storage.key(index);
+      if (!key?.startsWith(DRAFT_PREFIX)) continue;
+      const id = key.slice(DRAFT_PREFIX.length);
+      try {
+        const { document, view } = this.read(id);
+        const data = document.snapshot();
+        drafts.push({
+          id,
+          name: view?.draftName ?? `Untitled ${id.slice(0, 8)}`,
+          brushCount: data.brushes.length,
+          revision: data.revision,
+          active: id === activeId,
+        });
+      } catch {
+        // Keep damaged drafts untouched; they are excluded from the chooser.
+      }
+    }
+    return drafts.sort(
+      (a, b) => Number(b.active) - Number(a.active) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id),
+    );
+  }
+
+  activate(id: string): { document: EditorDocument; view: EditorViewState | null } {
+    const restored = this.read(id);
+    this.storage.setItem(ACTIVE_KEY, id);
+    return restored;
   }
 
   save(data: EditorDocumentData, view: EditorViewState): void {
