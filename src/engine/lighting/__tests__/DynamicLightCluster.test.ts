@@ -47,11 +47,11 @@ describe("DynamicLightCluster", () => {
     expect(supportsClusteredLighting(scene)).toBe(true);
   });
 
-  it("rejects clustered lighting on WebGPU until its bindings pass validation", () => {
+  it.each([false, true])("matches WebGPU texel-fetch support (%s)", (texelFetch) => {
     const webGPUScene = {
-      getEngine: () => ({ isWebGPU: true }),
+      getEngine: () => ({ isWebGPU: true, getCaps: () => ({ texelFetch }) }),
     } as Scene;
-    expect(supportsClusteredLighting(webGPUScene)).toBe(false);
+    expect(supportsClusteredLighting(webGPUScene)).toBe(texelFetch);
   });
 
   it("creates exactly one container per scene, lazily on first add", () => {

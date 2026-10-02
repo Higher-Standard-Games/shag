@@ -21,20 +21,50 @@ import { applySceneRendererPolicy } from "./SceneRendererPolicy";
 /** Isolated opt-in smoke test. No PK3, game services, input capture or saved settings. */
 export async function runRendererQA(canvas: HTMLCanvasElement, search: string): Promise<RendererQAReport> {
   const testCase = new URLSearchParams(search).get("rendererqacase");
+  const testClusters = testCase === "clusters" || testCase === "clusters-multi";
   const refreshFrozen = testCase === "lights-refresh";
   const testLights = testCase === "lights" || refreshFrozen;
   const output = document.createElement("pre");
   output.id = "renderer-qa-report";
   output.style.cssText =
-    "position:fixed;top:0;left:0;max-height:80vh;max-width:55vw;overflow:auto;z-index:10000;background:#111d;color:#eee;padding:12px;font:12px monospace;white-space:pre-wrap";
-  document.body.append(output);
+    "max-height:75vh;overflow:auto;margin:0;padding:12px;font:12px monospace;white-space:pre-wrap;user-select:text;cursor:text";
+  const panel = document.createElement("section");
+  panel.style.cssText =
+    "position:fixed;top:0;left:0;max-width:55vw;z-index:10000;background:#111d;color:#eee;pointer-events:auto";
+  const copy = document.createElement("button");
+  copy.textContent = "Copy JSON";
+  copy.onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(output.textContent ?? "");
+      copy.textContent = "Copied";
+    } catch {
+      const range = document.createRange();
+      range.selectNodeContents(output);
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+      copy.textContent = "Selected — press Ctrl+C";
+    }
+  };
+  const download = document.createElement("button");
+  download.textContent = "Download JSON";
+  download.onclick = () => {
+    const url = URL.createObjectURL(new Blob([output.textContent ?? ""], { type: "application/json" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `renderer-qa-${resolveRenderingBackend(false, search)}-${testCase ?? "smoke"}.json`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  };
+  panel.append(copy, download, output);
+  document.body.append(panel);
   const diagnostics = new RendererDiagnostics(
     resolveRenderingBackend(false, search),
     (report) => {
       output.textContent = JSON.stringify(report, null, 2);
       (window as Window & { rendererQAReport?: RendererQAReport }).rendererQAReport = report;
     },
-    testCase === "clusters"
+    testClusters
       ? "clustered-lighting"
       : refreshFrozen
         ? "standard-pbr-lights-refresh"
@@ -66,9 +96,9 @@ export async function runRendererQA(canvas: HTMLCanvasElement, search: string): 
     diagnostics.attachEngine(engine, renderer.fallbackReason, renderer.fallbackStage);
     removeDeviceListener = observeRendererDevice(engine, (error) => diagnostics.fail(error));
     scene = new Scene(engine);
-    if (testCase === "clusters") {
+    if (testClusters) {
       const { runClusteredLightingQA } = await import("./ClusteredLightingQA");
-      await runClusteredLightingQA(scene, diagnostics, () => stopped);
+      await runClusteredLightingQA(scene, diagnostics, () => stopped, testCase === "clusters-multi");
     } else {
       scene.clearColor = new Color4(0.03, 0.05, 0.08, 1);
       applySceneRendererPolicy(scene);

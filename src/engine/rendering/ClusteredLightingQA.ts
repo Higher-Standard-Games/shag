@@ -15,9 +15,10 @@ import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { Scene } from "@babylonjs/core/scene";
 import { beginRendererValidation, type RendererDiagnostics, waitForRendererGPU } from "./RendererDiagnostics";
+import { meanRGB } from "./RendererPixelReadback";
 
-/** Isolated experiment only: deliberately bypasses the gameplay cluster gate/caps. */
-export function createClusteredLightingFixture(scene: Scene) {
+/** Isolated experiment with explicit budgets, independent of gameplay services. */
+export function createClusteredLightingFixture(scene: Scene, multipleClusters = false) {
   scene.clearColor = new Color4(0.02, 0.02, 0.02, 1);
   const camera = new FreeCamera("cluster-qa-camera", new Vector3(0, 0, -9), scene);
   camera.minZ = 0.1;
@@ -52,6 +53,20 @@ export function createClusteredLightingFixture(scene: Scene) {
   first.intensity = 0;
   cluster.addLight(first);
   lights.push(first);
+  const clusters = [cluster];
+  let secondaryLight: PointLight | undefined;
+  if (multipleClusters) {
+    const secondary = new ClusteredLightContainer("cluster-qa-secondary", [], scene);
+    secondary.horizontalTiles = 16;
+    secondary.verticalTiles = 16;
+    secondary.depthSlices = 8;
+    secondary.maxRange = 40;
+    secondaryLight = new PointLight("cluster-qa-secondary-point", new Vector3(0, 2, -3), scene);
+    secondaryLight.range = 30;
+    secondaryLight.intensity = 0;
+    secondary.addLight(secondaryLight);
+    clusters.push(secondary);
+  }
 
   const fixtures = ["standard", "pbr", "skinned-pbr"].map((name, index) => {
     const mesh = CreateBox(`cluster-qa-${name}`, { size: 1.4 }, scene);
@@ -84,7 +99,7 @@ export function createClusteredLightingFixture(scene: Scene) {
     }
     return { mesh, material };
   });
-  return { camera, cluster, lights, fixtures, grow };
+  return { camera, cluster, clusters, secondaryLight, lights, fixtures, grow };
 }
 
 /** Babylon owns this proxy. Access is confined to the QA adapter for explicit warmup. */
@@ -92,31 +107,18 @@ function clusterProxy(cluster: ClusteredLightContainer) {
   return cluster as unknown as { _proxyMesh: Mesh; _proxyMaterial: ShaderMaterial };
 }
 
-export function meanRGB(bytes: ArrayBufferView, format = "rgba8unorm"): number[] {
-  if (!(bytes instanceof Uint8Array) || bytes.length === 0 || bytes.length % 4 !== 0) {
-    throw new Error("Expected non-empty RGBA8 GPU readback");
-  }
-  if (!/^(rgba|bgra)8unorm(-srgb)?$/.test(format)) throw new Error(`Unsupported QA readback format: ${format}`);
-  // Babylon's WebGPU readPixels copies the canvas bytes without BGRA swizzling.
-  const order = format.startsWith("bgra") ? [2, 1, 0] : [0, 1, 2];
-  const result = [0, 0, 0];
-  for (let i = 0; i < bytes.length; i += 4) {
-    for (let channel = 0; channel < 3; channel++) result[channel] += bytes[i + order[channel]];
-  }
-  return result.map((value) => value / (bytes.length / 4));
-}
-
 /** Compile AND read pixels; successful shader compilation alone cannot pass this case. */
 export async function runClusteredLightingQA(
   scene: Scene,
   diagnostics: RendererDiagnostics,
   stopped: () => boolean,
+  multipleClusters = false,
 ): Promise<void> {
   const engine = scene.getEngine();
   const setupValidation = beginRendererValidation(engine);
   const fixture = await diagnostics.runStage("cluster-setup", async () => {
     try {
-      const result = createClusteredLightingFixture(scene);
+      const result = createClusteredLightingFixture(scene, multipleClusters);
       await setupValidation();
       return result;
     } finally {
@@ -125,6 +127,7 @@ export async function runClusteredLightingQA(
   });
   const dark = new Map<string, number[]>();
   const phases = ["dark", "first-batch-red", "second-batch-green", "last-light-blue-frozen", "all-lights-frozen"];
+  if (multipleClusters) phases[3] = "second-container-blue-frozen";
   for (const [phaseIndex, phase] of phases.entries()) {
     if (stopped()) return;
     const context = { pass: phase };
@@ -134,11 +137,17 @@ export async function runClusteredLightingQA(
     try {
       if (phaseIndex === 2) fixture.grow();
       for (const light of fixture.lights) light.intensity = 0;
+      if (fixture.secondaryLight) fixture.secondaryLight.intensity = 0;
       if (phaseIndex > 0) {
         const index = phaseIndex === 1 ? 0 : phaseIndex === 2 ? 32 : 39;
         fixture.lights[index].diffuse =
           phaseIndex === 1 ? Color3.Red() : phaseIndex === 2 ? Color3.Green() : Color3.Blue();
         fixture.lights[index].intensity = 3;
+      }
+      if (phaseIndex === 3 && fixture.secondaryLight) {
+        fixture.lights[39].intensity = 0;
+        fixture.secondaryLight.diffuse = Color3.Blue();
+        fixture.secondaryLight.intensity = 3;
       }
       if (phaseIndex === 4)
         for (const light of fixture.lights) {
@@ -149,8 +158,10 @@ export async function runClusteredLightingQA(
       await diagnostics.runStage(
         "cluster-compilation",
         async () => {
-          const proxy = clusterProxy(fixture.cluster);
-          await proxy._proxyMaterial.forceCompilationAsync(proxy._proxyMesh, { useInstances: true });
+          for (const cluster of fixture.clusters) {
+            const proxy = clusterProxy(cluster);
+            await proxy._proxyMaterial.forceCompilationAsync(proxy._proxyMesh, { useInstances: true });
+          }
           for (const { material, mesh } of fixture.fixtures) await material.forceCompilationAsync(mesh);
         },
         context,
@@ -220,14 +231,14 @@ export async function runClusteredLightingQA(
               activeLights: mesh.lightSources.length,
               compiledLights,
               frozen: material.isFrozen,
-              clusterLights: fixture.lights.length,
+              clusterLights: fixture.lights.length + (fixture.secondaryLight ? 1 : 0),
               compiledClusters,
               rgb,
               skinned: !!mesh.skeleton,
               readbackFormat,
             });
-            if (compiledClusters !== 1 || compiledLights !== 3)
-              throw new Error(`${material.name}: expected ambient + sun + cluster`);
+            if (compiledClusters !== fixture.clusters.length || compiledLights !== 2 + fixture.clusters.length)
+              throw new Error(`${material.name}: expected ambient + sun + ${fixture.clusters.length} clusters`);
             if (phaseIndex === 0) dark.set(material.name, rgb);
             else {
               const channel = phaseIndex === 1 ? 0 : phaseIndex === 2 ? 1 : 2;

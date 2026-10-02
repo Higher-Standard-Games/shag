@@ -1,0 +1,276 @@
+{
+  "scope": "clustered-lighting",
+  "requestedBackend": "webgl2",
+  "babylonVersion": "9.17.0",
+  "status": "passed",
+  "stage": "complete",
+  "frames": 20,
+  "fixtures": [
+    {
+      "material": "standard",
+      "phase": "dark",
+      "cap": 6,
+      "activeLights": 4,
+      "compiledLights": 4,
+      "frozen": false,
+      "clusterLights": 2,
+      "compiledClusters": 2,
+      "rgb": [
+        15,
+        15,
+        15
+      ],
+      "skinned": false,
+      "readbackFormat": "rgba8unorm"
+    },
+    {
+      "material": "pbr",
+      "phase": "dark",
+      "cap": 4,
+      "activeLights": 4,
+      "compiledLights": 4,
+      "frozen": false,
+      "clusterLights": 2,
+      "compiledClusters": 2,
+      "rgb": [
+        56,
+        56,
+        56
+      ],
+      "skinned": false,
+      "readbackFormat": "rgba8unorm"
+    },
+    {
+      "material": "skinned-pbr",
+      "phase": "dark",
+      "cap": 4,
+      "activeLights": 4,
+      "compiledLights": 4,
+      "frozen": false,
+      "clusterLights": 2,
+      "compiledClusters": 2,
+      "rgb": [
+        56,
+        56,
+        56
+      ],
+      "skinned": true,
+      "readbackFormat": "rgba8unorm"
+    },
+    {
+      "material": "standard",
+      "phase": "first-batch-red",
+      "cap": 6,
+      "activeLights": 4,
+      "compiledLights": 4,
+      "frozen": false,
+      "clusterLights": 2,
+      "compiledClusters": 2,
+      "rgb": [
+        255,
+        15,
+        15
+      ],
+      "skinned": false,
+      "readbackFormat": "rgba8unorm"
+    },
+    {
+      "material": "pbr",
+      "phase": "first-batch-red",
+      "cap": 4,
+      "activeLights": 4,
+      "compiledLights": 4,
+      "frozen": false,
+      "clusterLights": 2,
+      "compiledClusters": 2,
+      "rgb": [
+        93.625,
+        56,
+        56
+      ],
+      "skinned": false,
+      "readbackFormat": "rgba8unorm"
+    },
+    {
+      "material": "skinned-pbr",
+      "phase": "first-batch-red",
+      "cap": 4,
+      "activeLights": 4,
+      "compiledLights": 4,
+      "frozen": false,
+      "clusterLights": 2,
+      "compiledClusters": 2,
+      "rgb": [
+        81.01171875,
+        56,
+        56
+      ],
+      "skinned": true,
+      "readbackFormat": "rgba8unorm"
+    },
+    {
+      "material": "standard",
+      "phase": "second-batch-green",
+      "cap": 6,
+      "activeLights": 4,
+      "compiledLights": 4,
+      "frozen": false,
+      "clusterLights": 41,
+      "compiledClusters": 2,
+      "rgb": [
+        15,
+        255,
+        15
+      ],
+      "skinned": false,
+      "readbackFormat": "rgba8unorm"
+    },
+    {
+      "material": "pbr",
+      "phase": "second-batch-green",
+      "cap": 4,
+      "activeLights": 4,
+      "compiledLights": 4,
+      "frozen": false,
+      "clusterLights": 41,
+      "compiledClusters": 2,
+      "rgb": [
+        56,
+        93.625,
+        56
+      ],
+      "skinned": false,
+      "readbackFormat": "rgba8unorm"
+    },
+    {
+      "material": "skinned-pbr",
+      "phase": "second-batch-green",
+      "cap": 4,
+      "activeLights": 4,
+      "compiledLights": 4,
+      "frozen": false,
+      "clusterLights": 41,
+      "compiledClusters": 2,
+      "rgb": [
+        56,
+        81.01171875,
+        56
+      ],
+      "skinned": true,
+      "readbackFormat": "rgba8unorm"
+    },
+    {
+      "material": "standard",
+      "phase": "second-container-blue-frozen",
+      "cap": 6,
+      "activeLights": 4,
+      "compiledLights": 4,
+      "frozen": true,
+      "clusterLights": 41,
+      "compiledClusters": 2,
+      "rgb": [
+        15,
+        15,
+        255
+      ],
+      "skinned": false,
+      "readbackFormat": "rgba8unorm"
+    },
+    {
+      "material": "pbr",
+      "phase": "second-container-blue-frozen",
+      "cap": 4,
+      "activeLights": 4,
+      "compiledLights": 4,
+      "frozen": true,
+      "clusterLights": 41,
+      "compiledClusters": 2,
+      "rgb": [
+        56,
+        56,
+        93.625
+      ],
+      "skinned": false,
+      "readbackFormat": "rgba8unorm"
+    },
+    {
+      "material": "skinned-pbr",
+      "phase": "second-container-blue-frozen",
+      "cap": 4,
+      "activeLights": 4,
+      "compiledLights": 4,
+      "frozen": true,
+      "clusterLights": 41,
+      "compiledClusters": 2,
+      "rgb": [
+        56,
+        56,
+        81.01171875
+      ],
+      "skinned": true,
+      "readbackFormat": "rgba8unorm"
+    },
+    {
+      "material": "standard",
+      "phase": "all-lights-frozen",
+      "cap": 6,
+      "activeLights": 4,
+      "compiledLights": 4,
+      "frozen": true,
+      "clusterLights": 41,
+      "compiledClusters": 2,
+      "rgb": [
+        255,
+        255,
+        255
+      ],
+      "skinned": false,
+      "readbackFormat": "rgba8unorm"
+    },
+    {
+      "material": "pbr",
+      "phase": "all-lights-frozen",
+      "cap": 4,
+      "activeLights": 4,
+      "compiledLights": 4,
+      "frozen": true,
+      "clusterLights": 41,
+      "compiledClusters": 2,
+      "rgb": [
+        93.625,
+        93.625,
+        93.625
+      ],
+      "skinned": false,
+      "readbackFormat": "rgba8unorm"
+    },
+    {
+      "material": "skinned-pbr",
+      "phase": "all-lights-frozen",
+      "cap": 4,
+      "activeLights": 4,
+      "compiledLights": 4,
+      "frozen": true,
+      "clusterLights": 41,
+      "compiledClusters": 2,
+      "rgb": [
+        81.01171875,
+        81.01171875,
+        81.01171875
+      ],
+      "skinned": true,
+      "readbackFormat": "rgba8unorm"
+    }
+  ],
+  "actualBackend": "webgl2",
+  "capabilities": {
+    "maxTexturesImageUnits": 16,
+    "maxTextureSize": 16384,
+    "textureFloatRender": true,
+    "textureHalfFloatRender": true,
+    "s3tc": true,
+    "etc1": false,
+    "etc2": false,
+    "astc": false
+  }
+}

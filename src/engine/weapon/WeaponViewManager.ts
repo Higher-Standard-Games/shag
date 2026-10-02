@@ -25,7 +25,7 @@ import type { Scene } from "@babylonjs/core/scene";
 import "@babylonjs/loaders/glTF";
 import { getEntityRegistry, type WeaponDef } from "../../shared/entities";
 import { canonicalWeaponId } from "../../shared/entities/definitions/weapons/WeaponsTable";
-import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
+import { applySafeMaxSimultaneousLights, getSafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
 import { getMD3Loader, MD3Coords, type MD3LoadResult } from "../loader/model/MD3Loader";
 import { PK3Loader } from "../loader/pk3/PK3Loader";
 import { PK3TextureLoader } from "../loader/pk3/PK3TextureLoader";
@@ -714,19 +714,16 @@ export class WeaponViewManager {
               pbr.alpha = 0.35;
               pbr.backFaceCulling = false;
               applySafeMaxSimultaneousLights(pbr);
-              pbr.maxSimultaneousLights = this.scene!.getEngine().isWebGPU ? 1 : 2;
+              pbr.maxSimultaneousLights = Math.min(2, getSafeMaxSimultaneousLights(pbr));
             } else {
               // Main body / sights: keep PBR for proper metallic/roughness.
               pbr.environmentIntensity = 2.0;
               pbr.directIntensity = 1.0;
               pbr.backFaceCulling = false;
               applySafeMaxSimultaneousLights(pbr); // Prevent shader overflow from projectile PointLights
-              // ...but the safe PBR cap is 1, and the weapon needs BOTH its dedicated
-              // hemispheric weaponLight AND the always-present muzzle-flash light, or
-              // one intensity-0 light wins the slot and the gun renders black (#2).
-              // WebGPU must retain the one-light cap to stay below the adapter's
-              // per-stage UBO limit; weaponLight wins via its render priority.
-              pbr.maxSimultaneousLights = this.scene!.getEngine().isWebGPU ? 1 : 2;
+              // Dedicated ambient + muzzle flash on both capable backends.
+              // Preserve the conservative cap on unsupported WebGPU devices.
+              pbr.maxSimultaneousLights = Math.min(2, getSafeMaxSimultaneousLights(pbr));
               console.log(`[WeaponViewManager] Gun: keeping PBR "${pbr.name}" (env=${pbr.environmentIntensity})`);
             }
           }

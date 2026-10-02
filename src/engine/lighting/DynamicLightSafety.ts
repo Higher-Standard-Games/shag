@@ -1,5 +1,6 @@
 import type { Material } from "@babylonjs/core/Materials/material";
 import type { Scene } from "@babylonjs/core/scene";
+import { supportsClusteredLighting } from "./DynamicLightCluster";
 
 /**
  * Per-material `maxSimultaneousLights` budgets.
@@ -20,18 +21,16 @@ import type { Scene } from "@babylonjs/core/scene";
  *
  * This is a small fixed slot count (clusters hold their many lights in textures,
  * not uniforms), so it stays comfortably within WebGL2 uniform limits.
- * WebGPU does not use these raised budgets; its compatibility path below
- * disables clustered containers and restores strict forward-light caps.
+ * WebGPU uses the same budgets when clustered lighting is supported, while
+ * retaining a strict upper bound after glTF imports and disabling hot swapping.
  */
 export const SAFE_MAX_SIMULTANEOUS_LIGHTS = 6;
 export const SAFE_PBR_MAX_SIMULTANEOUS_LIGHTS = 4;
 
 /**
  * WebGPU's guaranteed per-stage uniform-buffer limit is 12. Babylon allocates
- * one UBO per forward light in addition to Scene/Mesh/Material (and bones for
- * skinned meshes), so the WebGL clustered-light budgets above are not safe on
- * all WebGPU adapters. Keep the original conservative caps until clustered
- * lighting passes the WebGPU acceptance gate.
+ * one UBO per forward light in addition to material resources. Retain the
+ * conservative fallback for backends that cannot use clustered lighting.
  */
 export const WEBGPU_SAFE_MAX_SIMULTANEOUS_LIGHTS = 2;
 export const WEBGPU_SAFE_PBR_MAX_SIMULTANEOUS_LIGHTS = 1;
@@ -46,7 +45,7 @@ function materialUsesWebGPU(material: Material): boolean {
 
 export function getSafeMaxSimultaneousLights(material: Material): number {
   const isPBR = getMaterialClassName(material) === "PBRMaterial";
-  if (materialUsesWebGPU(material)) {
+  if (materialUsesWebGPU(material) && !supportsClusteredLighting(material.getScene())) {
     return isPBR ? WEBGPU_SAFE_PBR_MAX_SIMULTANEOUS_LIGHTS : WEBGPU_SAFE_MAX_SIMULTANEOUS_LIGHTS;
   }
   return isPBR ? SAFE_PBR_MAX_SIMULTANEOUS_LIGHTS : SAFE_MAX_SIMULTANEOUS_LIGHTS;

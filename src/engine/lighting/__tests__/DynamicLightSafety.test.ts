@@ -9,16 +9,25 @@ import {
 } from "../DynamicLightSafety";
 
 // biome-ignore lint/suspicious/noExplicitAny: minimal material stub for the light-budget helper
-function fakeMaterial(className: string, maxSimultaneousLights?: number, isWebGPU = false): any {
+function fakeMaterial(className: string, maxSimultaneousLights?: number, isWebGPU = false, texelFetch = false): any {
   return {
     maxSimultaneousLights,
     allowShaderHotSwapping: true,
     getClassName: () => className,
-    getScene: () => ({ getEngine: () => ({ isWebGPU }) }),
+    getScene: () => ({ getEngine: () => ({ isWebGPU, getCaps: () => ({ texelFetch }) }) }),
   };
 }
 
 describe("DynamicLightSafety (clustered-light budgets)", () => {
+  it.each([
+    "StandardMaterial",
+    "PBRMaterial",
+  ])("restores %s parity while clamping imported caps on capable WebGPU", (name) => {
+    const mat = fakeMaterial(name, 99, true, true);
+    applySafeMaxSimultaneousLights(mat);
+    expect(mat.maxSimultaneousLights).toBe(name === "PBRMaterial" ? 4 : 6);
+    expect(mat.allowShaderHotSwapping).toBe(false);
+  });
   it("raises standard-style materials to the standard budget (admits the clusters)", () => {
     const mat = fakeMaterial("StandardMaterial", 2);
     applySafeMaxSimultaneousLights(mat);

@@ -51,11 +51,14 @@ describe("shared scene renderer policy", () => {
     }
   });
   it.each([
-    false,
-    true,
-  ])("retains WebGPU world and imported light caps after glTF completes (frozen=%s)", async (frozen) => {
+    [false, false],
+    [true, false],
+    [false, true],
+    [true, true],
+  ])("retains WebGPU caps after glTF completes (frozen=%s, clusters=%s)", async (frozen, clusters) => {
     const engine = new NullEngine();
     Object.defineProperty(engine, "isWebGPU", { value: true });
+    engine.getCaps().texelFetch = clusters;
     const scene = new Scene(engine);
     try {
       for (let i = 0; i < 11; i++) new PointLight(`light-${i}`, Vector3.One(), scene);
@@ -69,14 +72,14 @@ describe("shared scene renderer policy", () => {
       // Includes imports that happen after the original map shader warmup.
       for (let i = 0; i < 2; i++) {
         const result = await ImportMeshAsync(triangleAsset(), scene, { pluginExtension: ".gltf" });
-        expect(world.maxSimultaneousLights).toBe(2);
+        expect(world.maxSimultaneousLights).toBe(clusters ? 6 : 2);
         const imported = result.meshes.find((mesh) => mesh.material)?.material as PBRMaterial;
-        expect(imported.maxSimultaneousLights).toBe(1);
+        expect(imported.maxSimultaneousLights).toBe(clusters ? 4 : 1);
         expect(world.isFrozen).toBe(frozen);
         scene.incrementRenderId();
         await world.forceCompilationAsync(worldMesh);
         expect(world.isReadyForSubMesh(worldMesh, worldMesh.subMeshes[0])).toBe(true);
-        expect(worldMesh.subMeshes[0].effect!.defines).not.toContain("#define LIGHT2");
+        expect(worldMesh.subMeshes[0].effect!.defines).not.toContain(`#define LIGHT${clusters ? 6 : 2}`);
       }
     } finally {
       scene.dispose();

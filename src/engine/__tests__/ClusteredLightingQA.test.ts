@@ -3,11 +3,15 @@ import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
 import { ShaderStore } from "@babylonjs/core/Engines/shaderStore";
 import { WebGPUShaderProcessingContext } from "@babylonjs/core/Engines/WebGPU/webgpuShaderProcessingContext";
 import { WebGPUShaderProcessorWGSL } from "@babylonjs/core/Engines/WebGPU/webgpuShaderProcessorsWGSL";
+import { ClusteredLightContainer } from "@babylonjs/core/Lights/Clustered/clusteredLightContainer";
+import { PointLight } from "@babylonjs/core/Lights/pointLight";
 import { _ProcessShaderCode } from "@babylonjs/core/Materials/effect.functions";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Scene } from "@babylonjs/core/scene";
 import { describe, expect, it, vi } from "vitest";
-import { createClusteredLightingFixture, meanRGB, runClusteredLightingQA } from "../rendering/ClusteredLightingQA";
+import { createClusteredLightingFixture, runClusteredLightingQA } from "../rendering/ClusteredLightingQA";
 import { RendererDiagnostics } from "../rendering/RendererDiagnostics";
+import { meanRGB } from "../rendering/RendererPixelReadback";
 
 function fixtureEngine(webgpu: boolean) {
   const engine = new NullEngine();
@@ -44,18 +48,28 @@ function fixtureEngine(webgpu: boolean) {
 
 describe("clustered lighting parity fixture", () => {
   it.each([
-    false,
-    true,
-  ])("keeps 40 point lights in one slot through growth and frozen/skinned compilation (WebGPU=%s)", async (webgpu) => {
+    [false, false],
+    [true, false],
+    [false, true],
+    [true, true],
+  ])("compiles grown clusters and frozen/skinned materials (WebGPU=%s, multiple=%s)", async (webgpu, multiple) => {
     const engine = fixtureEngine(webgpu);
     const scene = new Scene(engine);
     try {
-      const fixture = createClusteredLightingFixture(scene);
+      const fixture = createClusteredLightingFixture(scene, multiple);
       expect(fixture.cluster.lights).toHaveLength(1);
       fixture.grow();
-      fixture.cluster._updateBatches();
+      for (const cluster of fixture.clusters) cluster._updateBatches();
       expect(fixture.cluster.lights).toHaveLength(40);
-      expect(scene.lights).toHaveLength(3);
+      expect(scene.lights).toHaveLength(multiple ? 4 : 3);
+      // Fill Standard's remaining slots; PBR must retain both clusters within
+      // its four-slot cap even when later ordinary lights exist in the scene.
+      if (multiple) {
+        const street = new ClusteredLightContainer("street", [], scene);
+        street.addLight(new PointLight("street-point", Vector3.One(), scene));
+        street._updateBatches();
+        new PointLight("extra", Vector3.One(), scene);
+      }
       for (const { mesh, material } of fixture.fixtures) {
         await material.forceCompilationAsync(mesh);
         material.freeze();
@@ -64,8 +78,9 @@ describe("clustered lighting parity fixture", () => {
         const effect = mesh.subMeshes[0].effect!;
         expect(effect.defines).toContain("#define CLUSTLIGHT2");
         expect(effect.defines).toContain(`#define CLUSTLIGHT_BATCH ${webgpu ? 32 : 24}`);
-        expect(effect.defines).not.toContain("#define LIGHT3");
-        expect(mesh.lightSources).toHaveLength(3);
+        expect(effect.defines).not.toContain(`#define LIGHT${multiple ? material.maxSimultaneousLights : 3}`);
+        expect(mesh.lightSources).toHaveLength(multiple ? 6 : 3);
+        if (multiple) expect(effect.defines).toContain("#define CLUSTLIGHT3");
         if (mesh.skeleton) expect(effect.defines).toContain("#define NUM_BONE_INFLUENCERS 4");
         if (!webgpu) continue;
         const context = new WebGPUShaderProcessingContext(1);
@@ -96,6 +111,10 @@ describe("clustered lighting parity fixture", () => {
         });
         expect(context.availableBuffers).toHaveProperty("tileMaskBuffer2");
         expect(context.availableTextures).toHaveProperty("lightDataTexture2");
+        if (multiple) {
+          expect(context.availableBuffers).toHaveProperty("tileMaskBuffer3");
+          expect(context.availableTextures).toHaveProperty("lightDataTexture3");
+        }
         const entries = context.bindGroupLayoutEntries.flat();
         for (const stage of [1, 2]) {
           const uniforms = entries.filter(
@@ -103,8 +122,15 @@ describe("clustered lighting parity fixture", () => {
               (entry.visibility & stage) !== 0 && entry.buffer && (entry.buffer.type ?? "uniform") === "uniform",
           );
           expect(uniforms.length).toBeLessThanOrEqual(12);
+          expect(
+            entries.filter((entry) => (entry.visibility & stage) !== 0 && entry.texture).length,
+          ).toBeLessThanOrEqual(16);
+          expect(
+            entries.filter((entry) => (entry.visibility & stage) !== 0 && entry.sampler).length,
+          ).toBeLessThanOrEqual(16);
         }
-        expect(entries.filter((entry) => entry.buffer?.type === "read-only-storage")).toHaveLength(1);
+        const expectedClusters = multiple ? (material.maxSimultaneousLights === 6 ? 3 : 2) : 1;
+        expect(entries.filter((entry) => entry.buffer?.type === "read-only-storage")).toHaveLength(expectedClusters);
       }
       const retainedLights = [...fixture.lights];
       scene.dispose();
