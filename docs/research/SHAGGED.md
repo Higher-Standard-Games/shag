@@ -1,6 +1,6 @@
 # SHAGGED — SHAG General Editor
 
-**Status:** active M1 implementation, 2026-10-02. Closed-room MakeBSP compile acceptance, the light-grid warning's cause, real-browser interaction, and open/close/reopen hygiene are all now verified; see the checkpoint below for what remains (M2/M3 scope).
+**Status:** active M2/M3 implementation, 2026-10-03. Closed-room MakeBSP compile acceptance and real-browser editor interaction are verified. Point entities and the first server Save/Open/Compile backend slices have landed; browser wiring and playable BSP delivery remain.
 
 ## Implementation checkpoint
 
@@ -14,8 +14,8 @@ deterministic `brushDef` export. Brush drags now capture an explicit work-plane
 coordinate and one-grid thickness; a transient box and dimension readout
 appear in all three orthographic panes and the perspective scene. The Room Template creates six enclosing
 brushes and an `info_player_deathmatch` spawn for the eventual compiler check.
-Compile, status, and Playtest are visibly unavailable — correctly, since no
-compile service exists yet. A DOM/NullEngine smoke test covers perspective
+Compile, status, and Playtest remain unavailable in the editor UI while the
+new Node compile service is wired to it. A DOM/NullEngine smoke test covers perspective
 picking and the main editing controls.
 
 **Compiler acceptance, verified (2026-10-02):** a local NetRadiant Custom
@@ -139,9 +139,17 @@ brush entities not started.
     separate brush-entity item.
   - Brush resize and inspector shader edits still apply to brushes only.
 
-M1 plus point entities is in place; face/UV editing, brush entities, groups,
-and the server-side Compile/Playtest loop (M2/M3) have not landed. No open
-compiler-side question remains from the P0/M1 export-validity work above.
+M1 plus point entities is in place. Face/UV editing, brush entities, groups,
+and the playable build/return loop remain. The first M3 backend slices now
+store numbered `.map` revisions with optional matching editor sidecars and
+offer loopback Save/Open endpoints. `shagged:server` and `shagged:compile`
+share Washoi recipes and a MakeBSP/MakeLight job runner. A job becomes
+`compiled` only after both tools exit successfully and its output has an FBSP
+v1 header; it never reports `playable` yet. The browser controls and exact BSP
+delivery to client and game server remain separate work. Job status/logs live
+in server memory; saved source revisions survive restarts. The configured
+CLI-to-real-toolchain path has not been run in this backend slice because the
+binaries are absent from `PATH` in this workspace.
 
 Orthographic navigation now supports middle-drag pan and wheel zoom anchored
 under the cursor. M1 uses a shared Quake-space view center and zoom across the
@@ -374,7 +382,7 @@ The active application render loop currently always updates the player and rende
 
 Yes: a separate editor service is a good fit. `lobby:server` shows how this repo starts a long-running Node service; SHAGGED would have its own process and small API. The browser still owns the interactive document, four views, selection, and preview. The backend owns durable `.map` files, MakeBSP/MakeLight processes, job status/logs, and eventually the handoff that makes a compiled map playable. Do not put editor build endpoints inside the lobby server merely because the lobby later starts the playtest match.
 
-Proposed **future** package scripts (neither exists today):
+Available backend package scripts:
 
 ```text
 npm run shagged:server
@@ -383,14 +391,31 @@ npm run shagged:compile -- <mapname>
 
 `shagged:compile` reads a server-saved map by name and uses the same compile service as the API; it is useful for headless validation and CI. With npm, the `--` separator forwards `<mapname>` to the script. The HTTP server should call that shared compile service directly, not shell out to `npm run shagged:compile`, so logs, cancellation, and process ownership stay with one job manager. That service invokes MakeBSP and MakeLight using explicit argument arrays and the existing Washoi FAST recipe.
 
+The current service binds `127.0.0.1:9010` by default, writes beneath
+`server-data/shagged/maps`, and accepts only configured browser origins.
+`GET /api/status`, `GET /api/maps`, `GET /api/maps/:name`, and
+`PUT /api/maps/:name` work now. PUT requires `source` and `expectedRevision`,
+with an optional schema-versioned `sidecar`; a sidecar must serialize to the
+exact submitted `.map` bytes. The store writes an immutable source snapshot
+and replaces the current-revision pointer after the full write. Stale saves
+return HTTP 409. `POST /api/maps/:name/compile` and
+`GET /api/compiles/:jobId` use the shared job manager. Duplicate requests
+for one source revision/quality reuse a job; failed jobs may be retried.
+The API returns `compiled` after the FBSP v1 header check, with
+`runtimeMapName: null` until game-side delivery is implemented. Jobs and
+logs are not persisted across a server restart yet. A local `--check-config`
+reports the resolved compiler setup and exits nonzero when it cannot run;
+Save/Open can still run in that case.
+
 ### Compiler configuration and server boundary
 
 Resolve one Node-only `CompilerConfig` at process startup; both `shagged:server` and `shagged:compile` call the same resolver and shared job/recipe code. Proposed precedence is **CLI flag → `SHAGGED_*` environment variable → documented local default**. No browser setting or compile request may choose an executable, arbitrary command-line argument, media path, or output directory. Start with the Washoi profile only; other game profiles require their own compile proof later.
 
 | Setting | CLI flag / environment | Proposed default | Startup behavior |
 | --- | --- | --- | --- |
-| MakeBSP executable | `--makebsp-bin` / `SHAGGED_MAKEBSP_BIN` | `makebsp` resolved from the server's `PATH` (`makebsp.exe` on Windows) | Resolve and report availability; record a version if the selected binary exposes one. If missing, Save/Open still work but Compile is unavailable. |
+| MakeBSP executable | `--makebsp-bin` / `SHAGGED_MAKEBSP_BIN` | `makebsp` resolved from the server's `PATH` (`makebsp.exe` on Windows) | Resolve and report availability. If missing, Save/Open still work but Compile is unavailable. Binary version capture is still planned. |
 | MakeLight executable | `--makelight-bin` / `SHAGGED_MAKELIGHT_BIN` | `makelight` from `PATH` (`makelight.exe` on Windows) | Required for a full playable build; missing binary disables Compile/Playtest readiness. |
+| Toolchain root containing `makebspdata/washoi.json` | `--toolchain-root` / `SHAGGED_TOOLCHAIN_ROOT` | directory containing the resolved MakeBSP executable | Required for the Washoi profile; also used as each tool's working directory. |
 | Media root for `-fs_basepath` | `--media-root` / `SHAGGED_MEDIA_ROOT` | repository `public/data` | Resolve to an absolute directory and verify it exists; the clean checkout may lack external assets. Do not add `-fs_game` for the current Washoi layout. |
 | Canonical map store | `--maps-root` / `SHAGGED_MAPS_ROOT` | repository `server-data/shagged/maps` | Resolve outside browser-served assets; create/check the directory before accepting Save. |
 | Server listener | `--port` / `SHAGGED_PORT` | `9010` on loopback | API port only; independent of lobby port `9000`. CLI compile does not listen. |
@@ -418,7 +443,7 @@ The UI calls `GET /api/status` for `saveAvailable`, `compilerAvailable`, support
 
 For local browser development, `ShaggedApi` receives a base URL from the browser composition: proposed `VITE_SHAGGED_API_URL`, defaulting to `http://127.0.0.1:9010`. The Node service binds loopback and permits only the configured UI origin(s); a nonlocal browser or deployment needs an explicit URL/origin setup later. Keep this address out of the editable map document. If the service is offline, the editor still opens, edits, saves its local draft, and exports `.map`; Server Save/Compile/Playtest show a connection error and retry. The client must not silently substitute an older compiled build. A same-origin proxy can replace the direct local URL when the app's deployment path is designed, without changing map or job APIs.
 
-Minimal API shape to prototype:
+API shape (Save/Open and Compile/Status endpoints implemented; playable readiness still planned):
 
 | Request | Purpose |
 | --- | --- |

@@ -26,6 +26,7 @@
     "net:client": "npx vite-node src/cli/headless-netclient.ts --",
     "lobby:server": "npx vite-node src/cli/lobby-server.ts --",
     "shagged:server": "npx vite-node src/cli/shagged-server.ts --",
+    "shagged:compile": "npx vite-node src/cli/shagged-compile.ts --",
     "bot:server": "npx vite-node src/cli/bot-server.ts --",
     "bot:analyze": "vite-node src/cli/bot-analyze.ts",
     "bot:train": "npx vite-node src/cli/bot-train.ts --",

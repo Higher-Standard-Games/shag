@@ -1,7 +1,9 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { CompileJobs, type ToolRunner } from "../CompileJobs";
+import type { CompilerConfig } from "../CompilerConfig";
 import { MapStore } from "../MapStore";
 import { resolveServerConfig } from "../ServerConfig";
 import { createShaggedHttpServer } from "../ShaggedHttpServer";
@@ -69,5 +71,74 @@ describe("SHAGGED loopback API", () => {
     expect(config.mapsRoot).toBe(path.resolve("C:/workspace", "relative/maps"));
     expect(config.uiOrigins).toEqual(["http://localhost:4444"]);
     expect(() => resolveServerConfig(["--ui-origin", "*"])).toThrow();
+  });
+
+  it("starts a compile for the exact saved revision and reports completed source without claiming playability", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "shagged-http-build-"));
+    roots.push(root);
+    const store = new MapStore(path.join(root, "maps"));
+    await store.init();
+    await store.save("arena", "source", 0);
+    const compiler: CompilerConfig = {
+      makebspBin: "bsp",
+      makelightBin: "light",
+      mediaRoot: root,
+      toolchainRoot: root,
+      defaultQuality: "fast",
+      available: true,
+      reason: null,
+    };
+    const runner: ToolRunner = async (binary, args) => {
+      if (binary === "light") {
+        const header = Buffer.alloc(8);
+        header.write("FBSP", 0, "ascii");
+        header.writeInt32LE(1, 4);
+        await writeFile(args.at(-1)!.replace(/\.map$/, ".bsp"), Uint8Array.from(header));
+      }
+      return 0;
+    };
+    const jobs = new CompileJobs(store, compiler, path.join(root, "jobs"), runner);
+    const server = createShaggedHttpServer(
+      store,
+      {
+        mapsRoot: store.root,
+        port: 9010,
+        uiOrigins: ["http://localhost:3000"],
+      },
+      jobs,
+    );
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const address = server.address();
+      if (!address || typeof address === "string") throw new Error("Expected TCP address");
+      const base = `http://127.0.0.1:${address.port}`;
+      expect(await fetch(`${base}/api/status`).then((response) => response.json())).toMatchObject({
+        compilerAvailable: true,
+        playableAvailable: false,
+        reason: null,
+      });
+      const response = await fetch(`${base}/api/maps/arena/compile`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ revision: 1, quality: "fast" }),
+      });
+      expect(response.status).toBe(202);
+      const { jobId } = (await response.json()) as { jobId: string };
+      await jobs.wait(jobId);
+      expect(await fetch(`${base}/api/compiles/${jobId}`).then((result) => result.json())).toMatchObject({
+        state: "compiled",
+        buildId: jobId,
+        runtimeMapName: null,
+      });
+      const stale = await fetch(`${base}/api/maps/arena/compile`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ revision: 2, quality: "fast" }),
+      });
+      expect(stale.status).toBe(409);
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
+    }
   });
 });

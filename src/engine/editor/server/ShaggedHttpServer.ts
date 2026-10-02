@@ -1,5 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { EditorDocumentData } from "../EditorDocument";
+import { BUILD_QUALITIES, isBuildQuality } from "./BuildRecipe";
+import type { CompileJobs } from "./CompileJobs";
 import { MapConflictError, MapInputError, type MapStore } from "./MapStore";
 import type { ShaggedServerConfig } from "./ServerConfig";
 
@@ -26,7 +28,7 @@ async function body(request: IncomingMessage): Promise<unknown> {
   }
 }
 
-export function createShaggedHttpServer(store: MapStore, config: ShaggedServerConfig): Server {
+export function createShaggedHttpServer(store: MapStore, config: ShaggedServerConfig, jobs?: CompileJobs): Server {
   return createServer((request, response) => {
     void (async () => {
       const origin = request.headers.origin;
@@ -49,10 +51,10 @@ export function createShaggedHttpServer(store: MapStore, config: ShaggedServerCo
       if (url.pathname === "/api/status" && request.method === "GET") {
         json(response, 200, {
           saveAvailable: true,
-          compilerAvailable: false,
+          compilerAvailable: jobs?.available ?? false,
           playableAvailable: false,
-          supportedQualities: [],
-          reason: "Compile jobs are not connected yet",
+          supportedQualities: jobs?.available ? BUILD_QUALITIES : [],
+          reason: jobs?.available ? null : (jobs?.unavailableReason ?? "Compile jobs are not connected yet"),
         });
         return;
       }
@@ -77,6 +79,29 @@ export function createShaggedHttpServer(store: MapStore, config: ShaggedServerCo
           input.sidecar === undefined || input.sidecar === null ? null : (input.sidecar as EditorDocumentData);
         const saved = await store.save(match[1], input.source, input.expectedRevision, sidecar);
         json(response, 200, { name: saved.name, revision: saved.revision, sourceHash: saved.sourceHash });
+        return;
+      }
+      const compile = /^\/api\/maps\/([^/]+)\/compile$/.exec(url.pathname);
+      if (compile && request.method === "POST") {
+        if (!jobs?.available) {
+          json(response, 503, { error: jobs?.unavailableReason ?? "Compiler is unavailable" });
+          return;
+        }
+        const value = await body(request);
+        if (!value || typeof value !== "object") throw new MapInputError("Expected a compile request object");
+        const input = value as { revision?: unknown; quality?: unknown };
+        const quality = input.quality ?? jobs.defaultQuality;
+        if (!Number.isSafeInteger(input.revision) || !isBuildQuality(quality)) {
+          throw new MapInputError("Expected a saved revision and supported quality");
+        }
+        const job = await jobs.request(compile[1], input.revision as number, quality);
+        json(response, 202, { jobId: job.id, state: job.state, revision: job.revision });
+        return;
+      }
+      const jobMatch = /^\/api\/compiles\/([a-f0-9-]{36})$/.exec(url.pathname);
+      if (jobMatch && request.method === "GET") {
+        const job = jobs?.get(jobMatch[1]);
+        json(response, job ? 200 : 404, job ?? { error: "Compile job not found" });
         return;
       }
       json(response, 404, { error: "Unknown SHAGGED endpoint" });
