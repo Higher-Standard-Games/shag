@@ -508,6 +508,74 @@ Keep selection, active tool, cameras, work planes, pane sizes, and build status 
 
 One Quake-to-Babylon conversion module serves all four cameras, previews, picking, and editor annotations; the exporter never calls it. `FourViewLayout` owns CSS pane bounds and camera viewport rectangles. `ViewportInput` first checks the editor shell's hit regions, then maps the pointer into the chosen pane and Quake work plane. A focusable workspace root receives editor shortcuts and stops propagation for consumed keys before global game bindings; it yields to the console, text fields, and dialogs. The existing debug console keeps backquote/Escape precedence. Verify this event routing in a browser before adding all shortcuts.
 
+### Contracts that keep later tools possible
+
+M1 needs only boxes, but its internal boundaries should admit entities, patches,
+prefabs, diagnostics, and playtest data without replacing the document or
+writer. These are extension contracts, **not** a request to implement every
+future subsystem in M1.
+
+```mermaid
+flowchart LR
+    Gesture[Tool gesture or inspector] --> Proposal[Validated edit proposal]
+    Proposal --> History[One document transaction]
+    History --> Snapshot[Immutable content snapshot]
+    Snapshot --> Preview[Four derived views]
+    Snapshot --> Validate[Pure validators]
+    Snapshot --> Expand[Prefab and recipe expansion]
+    Expand --> Write[Canonical .map writer]
+    Write --> Source[.map bytes and source locations]
+    Source --> Build[Revision-bound MakeBSP job]
+    Build --> Result[Immutable build record]
+    Result --> Overlays[Diagnostics, ghost, notes]
+    Snapshot --> Overlays
+    Overlays --> Preview
+```
+
+| Contract to settle | M1 implementation | Later feature enabled | Failure if skipped |
+| --- | --- | --- | --- |
+| Stable authoring identity | Assign a never-reused ID at creation; boxes use six axis face keys. Keep IDs independent of array position and Babylon mesh identity. | Groups, face paint, source diff, diagnostics, notes. Arbitrary convex faces gain their own persistent IDs when introduced. | Selection and annotations drift after reorder, undo, or reload. |
+| Explicit ownership and references | `worldspawn` owns M1 boxes. Leave room in the next schema for brush-entity ownership and authoring-only group membership by ID; reject missing references and group cycles. | Doors/triggers, groups, entity links, reusable rooms. | A group transform or export silently changes which entity owns a brush. |
+| One validated edit path | Tools propose changes; `EditorDocument` validates and commits one transaction, emits changed IDs, and advances a local content revision. Preview drags remain transient. M1 history may store bounded snapshots. | Gizmos, numeric inspector, prefab placement, patch handles, multi-select. | Different tools bypass undo/validation or emit a history step per pointer move. |
+| Pure geometry and export | Keep Quake-space geometry operations, prefab expansion, validators, and `MapWriter` independent of Babylon/DOM/Node. The writer consumes an immutable expanded snapshot and emits bytes plus optional object/face-to-line ranges. | Alternate view modes, headless compile checks, clickable compiler errors, region builds. | Render mesh topology or pane state changes exported source. |
+| Derived view registry | Each pane projects the same snapshot and transient gesture. Read-only annotations carry a document ID, target ID or Quake-space position, and optional build ID. A pane may render or pick an annotation without changing the map. | Health tray, measurements, links, ghosts, heatmaps, playtest pins. | Analysis data contaminates `.map` or becomes stale without a visible warning. |
+| Versioned source and metadata | M1 draft schema has migrations; `.map` remains the standalone compiler source. M3 sidecar stores IDs, groups, recipes, and bookmarks next to the exact source revision. | Reopen editable server maps, prefab updates, build comparisons. | Reimport regenerates IDs; old notes and prefab parameters lose their targets. |
+| Exact build identity | M3 records source revision, a hash of the exported bytes, compiler profile/version, quality, and output artifact under one build ID. Job status and Playtest refer to that ID. | Diagnostics, draft-versus-build ghost, reproducible comparisons, telemetry. | A successful compile of an older same-name map appears current. |
+
+M1 can retain `brushes: BoxBrush[]` in schema version 1. Before general entities
+or prefabs ship, migrate to an authoring-object union keyed by stable ID. A
+brush entity owns brush IDs; a group references object IDs without taking map
+ownership. The exporter first resolves owner relationships, expands recipes,
+validates the resulting compiler objects, then writes them in deterministic
+order. Unknown entity keys survive unchanged. A prefab instance remains one
+editable source object; generated child IDs derive from the instance and part
+IDs and are **never** independently edited. Detach to Brushes is an explicit,
+undoable conversion. Pin a definition version and retain its data or an
+immutable library reference so removing a kit cannot reshape an old draft.
+
+Tool authors should implement a small gesture lifecycle: `begin` captures the
+base revision and targets, `preview` produces temporary geometry, `commit`
+submits one edit proposal, and `cancel` discards it. If the base revision or a
+target changed meanwhile, reject/rebase explicitly; do not apply stale pointer
+coordinates to new objects. Inspector edits and keyboard commands use the same
+proposal path. This gives future shape handles and Babylon gizmos identical
+undo, validation, and dirty-state behavior without making a gizmo authoritative.
+
+| Future slice | New data and pure operation | UI adapter | Proof before calling it complete |
+| --- | --- | --- | --- |
+| M2 entities and groups | Point/brush entity records, owner references, arbitrary key/value fields, group ID sets, link validation. | Markers, inspector, link overlay, multi-select transform. | Compile a map with one point entity and one brush entity; group/ungroup does not alter exported ownership or bytes. |
+| M2 materials and health | Stable face keys, shader catalog lookup, pure validation issues with target IDs and severity. | Face picker, textured/edge modes, clickable Health tray. | Paint one face, undo/reload/export; missing shader remains visible and blocks only where export truly fails. |
+| M2+ Block Builder | Versioned prefab definitions and instances; pure socket solver and deterministic expansion. | Palette, placement ghost, optional Babylon gizmo. | Mixed-size sockets, rotation, overlap, undo, reopen, and a sealed compiled room. |
+| M3 compile and review | Immutable save/build records, source-line provenance, document/build diff, build-bound annotations. | Status, clickable logs, ghost overlay, Playtest/Return notes. | Old logs and pins visibly retain their old build ID; Playtest never launches stale output. |
+| M4 patches and shape recipes | Control-grid IDs, `patchDef2` writer, deterministic arch/bevel recipe expansion. | Control handles and parameter inspector. | Round-trip editable recipe, compiler acceptance, and in-game collision walk/sweep. |
+| Later CSG and telemetry | Persistent plane/face IDs and robust convex validation; separately, aggregated build-bound event samples. | Vertex/edge tools or heatmap overlays. | Degenerate brushes cannot export; old telemetry cannot masquerade as current source. |
+
+The main technical risk beyond M1 is **topology change**. Box faces have stable
+axis keys, but clipping, subtraction, and arbitrary convex editing create and
+destroy faces. Do not promise persistent face painting or face-level diagnostic
+links for those tools until a face-ID transfer rule and invalid-brush repair
+strategy are tested. This is a later geometry project, not a hidden M1 task.
+
 ### Export, persistence, and failure behavior
 
 `BoxBrushPlanes` receives Quake-space bounds and returns the six face triples in a fixed order. `MapWriter` receives a validated snapshot and returns deterministic UTF-8 text with LF newlines, fixed numeric formatting, fixed face/object order, and no timestamps or Babylon data. Start with the MakeBSP-proven UV/shader convention from slice 0. It may also return face-to-line provenance for future clickable diagnostics; this metadata is not written into `.map`. The M1 download uses only the text result. A failed validation leaves the editor open with the offending brush selected and does not download a partial file.
