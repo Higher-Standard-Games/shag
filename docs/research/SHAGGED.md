@@ -7,12 +7,15 @@
 The first M1 slice now has the developer-gated `editor` command, a browser
 host that suspends/restores the lobby game view, four panes (Babylon perspective
 and XY/XZ/YZ canvas projections), grid-aligned box drawing and movement,
-selection, undo/redo, `localStorage` drafts, and deterministic `brushDef`
-export. Compile, status, and Playtest are visibly unavailable. A headless test
+selection, undo/redo, `localStorage` drafts, numeric XYZ bounds and shader
+editing, duplication, recovered grid/zoom/tool/selection/camera state, and
+deterministic `brushDef` export. The Room Template creates six enclosing
+brushes and an `info_player_deathmatch` spawn for the eventual compiler check.
+Compile, status, and Playtest are visibly unavailable. A headless test
 parses exported source, but no MakeBSP executable was found locally and no
 browser surface was available for the visual interaction check. M1 is **not
-complete**: resize/numeric editing, shader assignment UI, UI-state recovery,
-closed-room compiler acceptance, and browser input/render QA still need work.
+complete**: 3D picking, closed-room compiler acceptance, and browser
+input/render QA still need work.
 
 ## Decision
 

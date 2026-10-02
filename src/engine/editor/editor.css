@@ -107,6 +107,59 @@
   padding: 16px;
   background: #161e34;
   border-left: 2px solid #a348d6;
+  overflow-y: auto;
+  pointer-events: auto;
+}
+.shagged__inspector h2 {
+  margin: 0 0 14px;
+  color: #ffc61a;
+  font-size: 15px;
+}
+.shagged__inspector code {
+  color: #75d9e8;
+}
+.shagged__bounds-head,
+.shagged__bounds {
+  display: grid;
+  grid-template-columns: 35px minmax(0, 1fr) minmax(0, 1fr);
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 7px;
+}
+.shagged__bounds-head {
+  color: #75d9e8;
+  font-size: 11px;
+}
+.shagged__bounds input,
+.shagged__shader input {
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 5px;
+  background: #0d172b;
+  color: #e8fbff;
+  border: 1px solid #47768b;
+  font: inherit;
+}
+.shagged__shader {
+  display: block;
+  margin: 14px 0;
+}
+.shagged__shader input {
+  display: block;
+  margin-top: 5px;
+}
+.shagged__inspector button {
+  padding: 7px 9px;
+  background: #ffc61a;
+  color: #101022;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+}
+.shagged__inspector p {
+  color: #9fb5c5;
+  line-height: 1.35;
 }
 .shagged__status {
   grid-column: 1 / -1;

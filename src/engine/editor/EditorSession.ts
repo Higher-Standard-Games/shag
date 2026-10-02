@@ -8,12 +8,15 @@ import { Viewport } from "@babylonjs/core/Maths/math.viewport";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import { Scene } from "@babylonjs/core/scene";
-import { type BoxBrush, EditorDocument, type EditorDocumentData, type Vec3q } from "./EditorDocument";
+// Registers AbstractMesh.enableEdgesRendering for editor brush outlines.
+import "@babylonjs/core/Rendering/edgesRenderer";
+import { pickResizeEdge, type ResizeEdge, resizeBox } from "./EditorBoxTools";
+import { type BoxBrush, EditorDocument, type Vec3q } from "./EditorDocument";
+import { EditorDraftStore, type EditorViewState } from "./EditorDraftStore";
 import { writeMap } from "./MapWriter";
+import { createRoomTemplate } from "./RoomTemplate";
 import "./editor.css";
 
-const ACTIVE_KEY = "shagged:active-draft:v1";
-const draftKey = (id: string): string => `shagged:draft:v1:${id}`;
 type Plane = "xy" | "xz" | "yz";
 const AXES: Record<Plane, { u: keyof Vec3q; v: keyof Vec3q; hidden: keyof Vec3q }> = {
   xy: { u: "x", v: "y", hidden: "z" },
@@ -22,10 +25,11 @@ const AXES: Record<Plane, { u: keyof Vec3q; v: keyof Vec3q; hidden: keyof Vec3q 
 };
 type Gesture = {
   plane: Plane;
-  mode: "draw" | "move";
+  mode: "draw" | "move" | "resize";
   start: [number, number];
   current: [number, number];
   brush?: BoxBrush;
+  edge?: ResizeEdge;
 };
 
 function snap(n: number, grid: number): number {
@@ -35,14 +39,6 @@ function inRect(u: number, v: number, b: BoxBrush, plane: Plane): boolean {
   const axes = AXES[plane];
   return u >= b.min[axes.u] && u <= b.max[axes.u] && v >= b.min[axes.v] && v <= b.max[axes.v];
 }
-function savedDocument(): EditorDocument {
-  const id = localStorage.getItem(ACTIVE_KEY);
-  const raw = id ? localStorage.getItem(draftKey(id)) : null;
-  if (id && !raw) throw new Error("Active draft is missing from local storage");
-  if (!raw) return new EditorDocument();
-  return new EditorDocument(JSON.parse(raw) as EditorDocumentData);
-}
-
 export class EditorSession {
   document: EditorDocument;
   readonly root: HTMLDivElement;
@@ -51,6 +47,7 @@ export class EditorSession {
   private readonly panes = new Map<Plane, HTMLCanvasElement>();
   private readonly meshes = new Map<string, Mesh>();
   private readonly listeners = new AbortController();
+  private readonly draftStore = new EditorDraftStore(localStorage);
   private readonly statusEl: HTMLElement;
   private readonly inspector: HTMLElement;
   private selectedId: string | null = null;
@@ -58,19 +55,41 @@ export class EditorSession {
   private grid = 16;
   private zoom = 1;
   private gesture: Gesture | null = null;
+  private viewSaveTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     engine: AbstractEngine,
     private readonly canvas: HTMLCanvasElement,
     private readonly onExit: () => void,
   ) {
-    this.document = savedDocument();
+    const restored = this.draftStore.load();
+    this.document = restored.document;
     this.scene = new Scene(engine);
     this.scene.clearColor = new Color4(0.035, 0.045, 0.075, 1);
     this.camera = new ArcRotateCamera("shagged-perspective", Math.PI / 4, Math.PI / 3, 650, Vector3.Zero(), this.scene);
     this.camera.lowerRadiusLimit = 32;
     this.camera.upperRadiusLimit = 5000;
+    if (restored.view) {
+      this.grid = restored.view.grid;
+      this.zoom = restored.view.zoom;
+      this.tool = restored.view.tool;
+      this.selectedId = this.document.snapshot().brushes.some((brush) => brush.id === restored.view?.selectedId)
+        ? restored.view.selectedId
+        : null;
+      this.camera.alpha = restored.view.camera.alpha;
+      this.camera.beta = restored.view.camera.beta;
+      this.camera.radius = restored.view.camera.radius;
+      this.camera.target = new Vector3(
+        restored.view.camera.target.x,
+        restored.view.camera.target.z,
+        restored.view.camera.target.y,
+      );
+    }
     this.camera.attachControl(canvas, true);
+    this.camera.onViewMatrixChangedObservable.add(() => {
+      if (this.viewSaveTimer) clearTimeout(this.viewSaveTimer);
+      this.viewSaveTimer = setTimeout(() => this.trySaveView(), 400);
+    });
     this.scene.activeCamera = this.camera;
     const light = new HemisphericLight("shagged-light", new Vector3(0, 1, 0), this.scene);
     light.intensity = 1.1;
@@ -81,8 +100,9 @@ export class EditorSession {
     this.root.innerHTML = `
       <header class="shagged__toolbar">
         <strong>SHAGGED <small>GENERAL EDITOR</small></strong>
-        <button data-action="new">New</button><button data-action="save">Save Draft</button>
+        <button data-action="new">New</button><button data-action="room">Room Template</button><button data-action="save">Save Draft</button>
         <button data-action="export">Export .map</button>
+        <button data-action="duplicate">Duplicate</button>
         <span class="shagged__separator"></span>
         <button data-action="undo">Undo</button><button data-action="redo">Redo</button>
         <button data-action="brush">Brush (B)</button><button data-action="select">Select (V)</button>
@@ -105,6 +125,7 @@ export class EditorSession {
     document.body.appendChild(this.root);
     this.statusEl = this.root.querySelector(".shagged__status")!;
     this.inspector = this.root.querySelector(".shagged__inspector")!;
+    this.root.querySelector<HTMLSelectElement>("[data-grid]")!.value = String(this.grid);
 
     for (const plane of ["xy", "xz", "yz"] as const) {
       const pane = this.root.querySelector<HTMLCanvasElement>(`canvas[data-plane="${plane}"]`)!;
@@ -124,6 +145,7 @@ export class EditorSession {
           event.preventDefault();
           this.zoom = Math.max(0.25, Math.min(4, this.zoom * (event.deltaY > 0 ? 0.9 : 1.1)));
           this.draw();
+          this.trySaveView();
         },
         { passive: false, signal: this.listeners.signal },
       );
@@ -141,10 +163,14 @@ export class EditorSession {
       (event) => {
         this.grid = Number((event.target as HTMLSelectElement).value);
         this.draw();
+        this.trySaveView();
       },
       { signal: this.listeners.signal },
     );
     this.root.addEventListener("keydown", (event) => this.keyDown(event), { signal: this.listeners.signal });
+    this.inspector.addEventListener("submit", (event) => this.submitInspector(event), {
+      signal: this.listeners.signal,
+    });
     window.addEventListener("resize", () => this.draw(), { signal: this.listeners.signal });
     this.rebuildMeshes();
     this.draw();
@@ -172,15 +198,37 @@ export class EditorSession {
 
   save(): void {
     const data = this.document.snapshot();
-    localStorage.setItem(draftKey(data.draftId), JSON.stringify(data));
-    localStorage.setItem(ACTIVE_KEY, data.draftId);
+    this.draftStore.save(data, this.viewState());
     this.status("Draft saved locally");
+  }
+  private viewState(): EditorViewState {
+    return {
+      schemaVersion: 1,
+      grid: this.grid as EditorViewState["grid"],
+      zoom: this.zoom,
+      tool: this.tool,
+      selectedId: this.selectedId,
+      camera: {
+        alpha: this.camera.alpha,
+        beta: this.camera.beta,
+        radius: this.camera.radius,
+        target: { x: this.camera.target.x, y: this.camera.target.z, z: this.camera.target.y },
+      },
+    };
+  }
+  private trySaveView(): void {
+    try {
+      this.save();
+    } catch (error) {
+      this.status(`View save failed: ${String(error)}`);
+    }
   }
   showError(message: string): void {
     this.status(message);
   }
   dispose(): void {
     this.listeners.abort();
+    if (this.viewSaveTimer) clearTimeout(this.viewSaveTimer);
     this.camera.detachControl();
     this.scene.dispose();
     this.root.remove();
@@ -196,6 +244,12 @@ export class EditorSession {
         case "new":
           this.save();
           this.document = new EditorDocument();
+          this.selectedId = null;
+          this.changed();
+          break;
+        case "room":
+          this.save();
+          this.document = new EditorDocument(createRoomTemplate());
           this.selectedId = null;
           this.changed();
           break;
@@ -217,6 +271,20 @@ export class EditorSession {
         case "select":
           this.tool = action;
           this.draw();
+          this.trySaveView();
+          break;
+        case "duplicate":
+          if (this.selectedId) {
+            const original = this.document.snapshot().brushes.find((brush) => brush.id === this.selectedId);
+            if (!original) break;
+            const copy = structuredClone(original);
+            copy.id = crypto.randomUUID();
+            copy.min.x += this.grid;
+            copy.max.x += this.grid;
+            this.document.transact((data) => data.brushes.push(copy));
+            this.selectedId = copy.id;
+            this.changed();
+          }
           break;
         case "delete":
           if (this.selectedId) {
@@ -251,6 +319,9 @@ export class EditorSession {
       } else if (key === "s") {
         event.preventDefault();
         this.action("save");
+      } else if (key === "d") {
+        event.preventDefault();
+        this.action("duplicate");
       }
       return;
     }
@@ -288,8 +359,13 @@ export class EditorSession {
       .find((brush) => inRect(start[0], start[1], brush, plane));
     if (this.tool === "select") {
       this.selectedId = hit?.id ?? null;
-      this.gesture = hit ? { plane, mode: "move", start, current: start, brush: hit } : null;
+      const axes = AXES[plane];
+      const edge = hit ? pickResizeEdge(hit, axes.u, axes.v, start[0], start[1], 8 / this.zoom) : null;
+      this.gesture = hit
+        ? { plane, mode: edge ? "resize" : "move", start, current: start, brush: hit, edge: edge ?? undefined }
+        : null;
       this.rebuildMeshes();
+      this.trySaveView();
     } else this.gesture = { plane, mode: "draw", start, current: start };
     this.draw();
   }
@@ -331,6 +407,22 @@ export class EditorSession {
         data.brushes.push(brush);
       });
       this.selectedId = brush.id;
+    } else if (gesture.mode === "resize" && gesture.brush && gesture.edge) {
+      const edge = gesture.edge;
+      const value = edge.axis === axes.u ? u1 : v1;
+      const candidate = resizeBox(gesture.brush, edge, value, this.grid);
+      if (
+        candidate.min[edge.axis] === gesture.brush.min[edge.axis] &&
+        candidate.max[edge.axis] === gesture.brush.max[edge.axis]
+      ) {
+        this.draw();
+        return;
+      }
+      const id = gesture.brush.id;
+      this.document.transact((data) => {
+        const index = data.brushes.findIndex((item) => item.id === id);
+        data.brushes[index] = candidate;
+      });
     } else if (gesture.brush) {
       const du = u1 - u0;
       const dv = v1 - v0;
@@ -352,12 +444,37 @@ export class EditorSession {
   }
 
   private changed(): void {
+    if (this.selectedId && !this.document.snapshot().brushes.some((brush) => brush.id === this.selectedId)) {
+      this.selectedId = null;
+    }
     this.rebuildMeshes();
     this.draw();
     try {
       this.save();
     } catch (error) {
       this.status(`Autosave failed: ${String(error)}`);
+    }
+  }
+
+  private submitInspector(event: Event): void {
+    event.preventDefault();
+    const form = event.target as HTMLFormElement;
+    if (!form.matches("[data-brush-form]") || !this.selectedId) return;
+    const values = new FormData(form);
+    const id = this.selectedId;
+    try {
+      this.document.transact((data) => {
+        const brush = data.brushes.find((item) => item.id === id);
+        if (!brush) throw new Error("Selected brush no longer exists");
+        for (const axis of ["x", "y", "z"] as const) {
+          brush.min[axis] = Number(values.get(`min-${axis}`));
+          brush.max[axis] = Number(values.get(`max-${axis}`));
+        }
+        brush.shader = String(values.get("shader") ?? "").trim();
+      });
+      this.changed();
+    } catch (error) {
+      this.status(`Brush edit rejected: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -440,6 +557,16 @@ export class EditorSession {
         ctx.lineWidth = selected ? 2 : 1;
         ctx.fillRect(x, y, rw, rh);
         ctx.strokeRect(x, y, rw, rh);
+        if (selected) {
+          ctx.fillStyle = "#fff3bd";
+          for (const [hx, hy] of [
+            [x + rw / 2, y],
+            [x + rw / 2, y + rh],
+            [x, y + rh / 2],
+            [x + rw, y + rh / 2],
+          ])
+            ctx.fillRect(hx - 3, hy - 3, 6, 6);
+        }
       };
       for (const brush of data.brushes) {
         if (this.gesture?.mode === "move" && this.gesture.brush?.id === brush.id) {
@@ -457,6 +584,11 @@ export class EditorSession {
             [moveAxes.v]: brush.max[moveAxes.v] + dv,
           };
           paint(min, max, true);
+        } else if (this.gesture?.mode === "resize" && this.gesture.brush?.id === brush.id && this.gesture.edge) {
+          const moveAxes = AXES[this.gesture.plane];
+          const value = this.gesture.edge.axis === moveAxes.u ? this.gesture.current[0] : this.gesture.current[1];
+          const candidate = resizeBox(brush, this.gesture.edge, value, this.grid);
+          paint(candidate.min, candidate.max, true);
         } else paint(brush.min, brush.max, brush.id === this.selectedId);
       }
       if (this.gesture?.plane === plane && this.gesture.mode === "draw") {
@@ -471,9 +603,29 @@ export class EditorSession {
         paint(min, max, true);
       }
     }
-    this.inspector.textContent = this.selectedId
-      ? `Selected ${this.selectedId.slice(0, 8)} · ${data.brushes.find((brush) => brush.id === this.selectedId)?.shader ?? ""}`
-      : "Drag in an orthographic pane to draw a brush. Select (V) to move one.";
+    const selected = data.brushes.find((brush) => brush.id === this.selectedId);
+    if (selected) {
+      this.inspector.innerHTML = `<h2>Brush <code data-brush-id></code></h2>
+        <form data-brush-form>
+          <div class="shagged__bounds-head"><span>Axis</span><span>Min</span><span>Max</span></div>
+          ${(["x", "y", "z"] as const)
+            .map(
+              (axis) => `<label class="shagged__bounds"><span>${axis.toUpperCase()}</span>
+                <input name="min-${axis}" type="number" step="1" required>
+                <input name="max-${axis}" type="number" step="1" required></label>`,
+            )
+            .join("")}
+          <label class="shagged__shader">Shader <input name="shader" type="text" spellcheck="false" required></label>
+          <button type="submit">Apply Brush</button>
+        </form><p>Values use Quake units; Z is up. One Apply is one undo step.</p>`;
+      this.inspector.querySelector("[data-brush-id]")!.textContent = selected.id.slice(0, 8);
+      const form = this.inspector.querySelector<HTMLFormElement>("[data-brush-form]")!;
+      for (const axis of ["x", "y", "z"] as const) {
+        form.querySelector<HTMLInputElement>(`[name="min-${axis}"]`)!.value = String(selected.min[axis]);
+        form.querySelector<HTMLInputElement>(`[name="max-${axis}"]`)!.value = String(selected.max[axis]);
+      }
+      form.querySelector<HTMLInputElement>('[name="shader"]')!.value = selected.shader;
+    } else this.inspector.textContent = "Drag in an orthographic pane to draw a brush. Select (V) to move one.";
     for (const name of ["brush", "select"] as const)
       this.root.querySelector(`[data-action="${name}"]`)?.classList.toggle("active", this.tool === name);
     this.root.querySelector<HTMLButtonElement>('[data-action="undo"]')!.disabled = !this.document.canUndo;

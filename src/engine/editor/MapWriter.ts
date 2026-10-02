@@ -29,5 +29,9 @@ export function writeMap(data: EditorDocumentData): string {
   const lines = ["{", '"classname" "worldspawn"'];
   for (const brush of [...data.brushes].sort((a, b) => a.id.localeCompare(b.id))) lines.push(...boxLines(brush));
   lines.push("}");
+  if (data.testSpawn) {
+    const { x, y, z } = data.testSpawn;
+    lines.push("{", '"classname" "info_player_deathmatch"', `"origin" "${fmt(x)} ${fmt(y)} ${fmt(z)}"`, "}");
+  }
   return `${lines.join("\n")}\n`;
 }

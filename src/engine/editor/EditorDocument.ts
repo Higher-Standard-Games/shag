@@ -15,6 +15,7 @@ export interface EditorDocumentData {
   draftId: string;
   revision: number;
   brushes: BoxBrush[];
+  testSpawn?: Vec3q;
 }
 
 const SHADER = /^[a-zA-Z0-9_./-]+$/;
@@ -24,6 +25,13 @@ export function validateDocument(data: EditorDocumentData): void {
     throw new Error("Invalid editor document header");
   }
   if (!Array.isArray(data.brushes) || data.brushes.length > 20_000) throw new Error("Invalid brush list");
+  if (data.testSpawn) {
+    for (const axis of ["x", "y", "z"] as const) {
+      if (!Number.isFinite(data.testSpawn[axis]) || Math.abs(data.testSpawn[axis]) > 1_000_000) {
+        throw new Error(`Invalid test spawn ${axis}`);
+      }
+    }
+  }
   const ids = new Set<string>();
   for (const brush of data.brushes) {
     if (!brush.id || ids.has(brush.id)) throw new Error("Duplicate or missing brush ID");
