@@ -105,15 +105,15 @@ export class EditorSession {
       <header class="shagged__toolbar">
         <strong>SHAGGED <small>GENERAL EDITOR</small></strong>
         <label>Draft <input data-draft-name type="text" maxlength="64" aria-label="Draft name"></label>
-        <button data-action="drafts">Drafts</button><button data-action="new">New</button><button data-action="room">Room Template</button><button data-action="save">Save Draft</button>
-        <button data-action="export">Export .map</button>
-        <button data-action="duplicate">Duplicate</button>
+        <button data-action="drafts">Drafts</button><button data-action="new">New</button><button data-action="room">Room Template</button><button data-action="save" title="Ctrl/Cmd+S">Save Draft</button>
+        <button data-action="export" title="Ctrl/Cmd+Shift+S">Export .map</button>
+        <button data-action="duplicate" title="Ctrl/Cmd+D">Duplicate</button>
         <span class="shagged__separator"></span>
-        <button data-action="undo">Undo</button><button data-action="redo">Redo</button>
+        <button data-action="undo" title="Ctrl/Cmd+Z">Undo</button><button data-action="redo" title="Ctrl/Cmd+Shift+Z">Redo</button>
         <button data-action="brush">Brush (B)</button><button data-action="select">Select (V)</button>
-        <button data-action="delete">Delete</button>
+        <button data-action="delete" title="Delete">Delete</button>
         <button data-action="frame-selection">Frame (F)</button><button data-action="frame-all">Frame All (Shift+F)</button>
-        <label>Grid <select data-grid><option>8</option><option selected>16</option><option>32</option><option>64</option></select></label>
+        <label>Grid <select data-grid title="[ / ] to step"><option>8</option><option selected>16</option><option>32</option><option>64</option></select></label>
         <label>Work <span data-work-axis>Z</span> <input data-workplane type="number" step="1" value="0"></label>
         <span class="shagged__separator"></span>
         <button disabled title="MakeBSP service is not configured">Compile</button>
@@ -182,15 +182,11 @@ export class EditorSession {
       },
       { signal: this.listeners.signal },
     );
-    this.root.querySelector("[data-grid]")?.addEventListener(
-      "change",
-      (event) => {
-        this.grid = Number((event.target as HTMLSelectElement).value);
-        this.draw();
-        this.trySaveView();
-      },
-      { signal: this.listeners.signal },
-    );
+    this.root
+      .querySelector("[data-grid]")
+      ?.addEventListener("change", (event) => this.setGrid(Number((event.target as HTMLSelectElement).value)), {
+        signal: this.listeners.signal,
+      });
     this.root.querySelector<HTMLInputElement>("[data-draft-name]")!.addEventListener(
       "change",
       (event) => {
@@ -468,7 +464,7 @@ export class EditorSession {
         this.action("redo");
       } else if (key === "s") {
         event.preventDefault();
-        this.action("save");
+        this.action(event.shiftKey ? "export" : "save");
       } else if (key === "d") {
         event.preventDefault();
         this.action("duplicate");
@@ -482,7 +478,40 @@ export class EditorSession {
       event.preventDefault();
       event.stopPropagation();
       this.action(event.shiftKey ? "frame-all" : "frame-selection");
+    } else if (key === "[" || key === "]") {
+      this.stepGrid(key === "[" ? -1 : 1);
+    } else if (key === "escape") {
+      // Cancel an in-progress drag first; only once nothing is being
+      // dragged does Escape close the one popover the editor has.
+      event.preventDefault();
+      if (this.gesture) {
+        this.cancelGesture();
+        return;
+      }
+      const drafts = this.root.querySelector<HTMLElement>(".shagged__drafts");
+      if (drafts && !drafts.hidden) {
+        drafts.hidden = true;
+        this.root.focus();
+      }
     }
+  }
+
+  /** Move the grid-size select by one step (`[` smaller, `]` larger), in lockstep with the toolbar control. */
+  private stepGrid(direction: -1 | 1): void {
+    const select = this.root.querySelector<HTMLSelectElement>("[data-grid]");
+    if (!select) return;
+    const sizes = [...select.options].map((option) => Number(option.value));
+    const index = sizes.indexOf(this.grid);
+    const next = Math.min(sizes.length - 1, Math.max(0, (index === -1 ? 0 : index) + direction));
+    this.setGrid(sizes[next]);
+  }
+
+  private setGrid(size: number): void {
+    this.grid = size;
+    const select = this.root.querySelector<HTMLSelectElement>("[data-grid]");
+    if (select) select.value = String(size);
+    this.draw();
+    this.trySaveView();
   }
 
   private frame(all: boolean): void {

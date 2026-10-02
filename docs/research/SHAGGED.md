@@ -55,6 +55,14 @@ reason this holds up; not independently verified at the raw
 listener-count level (no DevTools `getEventListeners` access from a plain
 CDP `Runtime.evaluate`).
 
+**Toolbar shortcuts, fixed (2026-10-02):** checking the M1 shortcuts table
+below against `EditorSession.keyDown` found three it didn't match: `Ctrl/
+Cmd+Shift+S` ran Save instead of Export (no shift check), `[`/`]` did
+nothing (only the grid dropdown worked), and `Escape` did nothing (a drag
+could only be cancelled by `pointercancel`, and the drafts popover had no
+keyboard close). All three now work as documented; verified live and with
+new `EditorSession.test.ts` cases.
+
 **Real-browser interaction, verified (2026-10-02):** headless Edge over CDP
 confirmed `developer 1; editor open` opens the four-view editor from the
 console; a real pointer drag in the XY pane creates a grid-snapped box

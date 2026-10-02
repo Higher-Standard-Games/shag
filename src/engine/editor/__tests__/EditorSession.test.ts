@@ -159,4 +159,71 @@ describe("editor DOM shell", () => {
     session.dispose();
     engine.dispose();
   });
+
+  it("steps grid size with [ and ], cancels a drag with Escape, then closes the drafts popover", () => {
+    const engine = new NullEngine();
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    const session = new EditorSession(engine, canvas, vi.fn());
+    const grid = session.root.querySelector<HTMLSelectElement>("[data-grid]")!;
+    const key = (k: string) => session.root.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true }));
+
+    expect(grid.value).toBe("16");
+    key("[");
+    expect(grid.value).toBe("8");
+    key("[");
+    expect(grid.value).toBe("8"); // already the smallest option
+    key("]");
+    key("]");
+    expect(grid.value).toBe("32");
+
+    const pane = session.root.querySelector<HTMLCanvasElement>('[data-plane="xy"]')!;
+    pane.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, button: 0, clientX: 200, clientY: 150 }));
+    pane.dispatchEvent(new MouseEvent("pointermove", { bubbles: true, button: 0, clientX: 264, clientY: 86 }));
+    expect(engine.scenes[0].getMeshByName("shagged-gesture-preview")).not.toBeNull();
+    key("Escape");
+    expect(engine.scenes[0].getMeshByName("shagged-gesture-preview")).toBeNull();
+    pane.dispatchEvent(new MouseEvent("pointerup", { bubbles: true, button: 0, clientX: 264, clientY: 86 }));
+    expect(session.document.snapshot().brushes).toHaveLength(0); // the cancelled drag committed nothing
+
+    session.root.querySelector<HTMLButtonElement>('[data-action="drafts"]')!.click();
+    const drafts = session.root.querySelector<HTMLElement>(".shagged__drafts")!;
+    expect(drafts.hidden).toBe(false);
+    key("Escape");
+    expect(drafts.hidden).toBe(true);
+
+    session.dispose();
+    engine.dispose();
+  });
+
+  it("separates Save (Ctrl+S) from Export (Ctrl+Shift+S)", () => {
+    const engine = new NullEngine();
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    const session = new EditorSession(engine, canvas, vi.fn());
+    // jsdom has no Blob URL implementation at all, so these are defined fresh
+    // rather than spied on, and removed afterward instead of restored.
+    const createObjectURL = vi.fn().mockReturnValue("blob:shagged-test");
+    const revokeObjectURL = vi.fn();
+    URL.createObjectURL = createObjectURL;
+    URL.revokeObjectURL = revokeObjectURL;
+    const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+
+    session.root.dispatchEvent(new KeyboardEvent("keydown", { key: "s", ctrlKey: true, bubbles: true }));
+    expect(createObjectURL).not.toHaveBeenCalled();
+    expect(session.root.querySelector(".shagged__status")!.textContent).toContain("saved locally");
+
+    session.root.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "s", ctrlKey: true, shiftKey: true, bubbles: true }),
+    );
+    expect(createObjectURL).toHaveBeenCalledTimes(1);
+    expect(anchorClick).toHaveBeenCalledTimes(1);
+
+    // Removed rather than restored: jsdom never had these, this test added them.
+    delete (URL as { createObjectURL?: unknown }).createObjectURL;
+    delete (URL as { revokeObjectURL?: unknown }).revokeObjectURL;
+    anchorClick.mockRestore();
+    session.dispose();
+    engine.dispose();
+  });
 });
