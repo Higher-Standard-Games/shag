@@ -45,6 +45,18 @@ See [Map launching](../guides/map-launching.md).
 
 Press backquote/tilde. F1 is not a current default console binding. Enable restricted commands with `developer 1`.
 
+## What is the player key, and what happens if I lose it?
+
+Every player has an account, and the key is what opens it. A browser that
+reaches the lobby without one is given a new account and a key, kept in that
+browser's local storage; pasting the key into another browser opens the same
+account there. The lobby stores only the key's SHA-256, so nobody — including
+the server operator — can recover a lost key or tell you what it was. The
+Profile key at the foot of the menu opens it: copy it, save it as a file, or hand
+it to the browser's password manager. Lose it and the account is gone; make a new one.
+
+See the [Lobby server guide](../guides/lobby-server.md).
+
 ## How do I change rendering settings?
 
 Individual variables apply immediately:

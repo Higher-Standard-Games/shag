@@ -22,12 +22,15 @@
  */
 
 import * as fs from "node:fs";
+import { ensureClientKey } from "../games/fps/ClientEntityKey";
+import type { RecordedInput } from "../shared/demo/DemoInputs";
 import { type DemoFrame, type DemoHeader, DemoReader } from "../shared/demo/DemoReader";
 import { InputButtons } from "./BotConfig";
 import type { TrainingFrame } from "./BotEpisodeRecorder";
 import { BotGameState } from "./BotGameState";
-import { buildCombatInput, buildTacticalInput } from "./BotInputNormalizer";
 import { BotRewardComputer } from "./BotRewardComputer";
+import type { BotVision } from "./BotVision";
+import { buildModelInputs } from "./ModelInputs";
 
 // ── Types ───────────────────────────────────────────────────────────────
 
@@ -58,6 +61,96 @@ export interface PlayerTrainingData {
 
 // ── DemoTrainingExtractor ─────────────────────────────────────────────
 
+/** A player as the demo header describes them. */
+interface DemoPlayerInfo {
+  playerId: string;
+  name: string;
+  accountId?: number;
+}
+
+export interface ExtractOptions {
+  /**
+   * Take every player, bots included. For self-play datasets, where our own
+   * bot's behaviour is the point rather than the contamination.
+   */
+  includeBots?: boolean;
+  /**
+   * The demo's map, for line of sight and item distances. Each player gets their
+   * own fork of it, as each bot does. Without one, those features fall back the
+   * same way they do for a bot with no map — consistent, but blind.
+   */
+  vision?: BotVision | null;
+}
+
+/**
+ * Which players in a demo are worth learning from.
+ *
+ * A verified `accountId` comes from a lobby seat ticket, which only a person
+ * holds — bots carry no account. Version-1 demos predate accounts entirely, so
+ * nothing in them can be proven human.
+ */
+export function selectPlayers<T extends DemoPlayerInfo>(
+  players: readonly T[],
+  options: ExtractOptions = {},
+): { kept: T[]; dropped: number } {
+  if (options.includeBots) return { kept: [...players], dropped: 0 };
+  const kept = players.filter((player) => typeof player.accountId === "number" && player.accountId > 0);
+  return { kept, dropped: players.length - kept.length };
+}
+
+/** The action a training frame should carry. */
+export interface FrameAction {
+  buttons: number;
+  weaponSlot: number;
+  yaw: number;
+  pitch: number;
+  directionX: number;
+  directionZ: number;
+}
+
+/**
+ * Which action a frame gets: the recorded one, nothing, or a guess.
+ *
+ * On a version-3 demo the absence of a command is information — the player sent
+ * none over that interval, so they pressed nothing. Guessing from velocity
+ * there would label a falling or sliding player as holding keys they never
+ * touched. Only an older recording, which carries no commands at all, falls
+ * back to inference.
+ *
+ * Pressing nothing is not the same as holding no weapon, so `inferred` carries
+ * the slot the player was last seen with and the idle frame keeps it. Resetting
+ * it to zero would make the next command look like a deliberate switch.
+ */
+export function chooseAction(
+  recorded: RecordedInput | undefined,
+  inferred: FrameAction,
+  demoRecordsInputs: boolean,
+): FrameAction {
+  if (recorded) {
+    return {
+      buttons: recorded.buttons,
+      weaponSlot: recorded.weaponSlot,
+      yaw: recorded.yaw,
+      pitch: recorded.pitch,
+      directionX: recorded.right,
+      directionZ: recorded.forward,
+    };
+  }
+  if (demoRecordsInputs) {
+    // Idle: the view is wherever the state says it is, nothing is pressed, and
+    // the weapon stays where it was.
+    return {
+      buttons: 0,
+      weaponSlot: inferred.weaponSlot,
+      yaw: inferred.yaw,
+      pitch: inferred.pitch,
+      directionX: 0,
+      directionZ: 0,
+    };
+  }
+  return inferred;
+}
+
 export class DemoTrainingExtractor {
   private _rewardComputer: BotRewardComputer;
 
@@ -68,28 +161,59 @@ export class DemoTrainingExtractor {
   /**
    * Extract training data from a .shagdemo file on disk.
    */
-  async extractFromFile(filepath: string): Promise<DemoDataset> {
+  async extractFromFile(filepath: string, options: ExtractOptions = {}): Promise<DemoDataset> {
     const data = fs.readFileSync(filepath);
-    return this.extract(new Uint8Array(data));
+    return this.extract(new Uint8Array(data), options);
+  }
+
+  /**
+   * Decode a demo once: its header and every frame. Separate from extraction so
+   * a caller can look at the header — which map, which match — before deciding
+   * what to extract with, without decompressing the file twice.
+   */
+  static decode(demoData: Uint8Array): { header: DemoHeader; frames: DemoFrame[] } {
+    const reader = new DemoReader(demoData);
+    return { header: reader.readHeader(), frames: reader.readAllFrames() };
   }
 
   /**
    * Extract training data from raw demo bytes.
    */
-  extract(demoData: Uint8Array): DemoDataset {
-    const reader = new DemoReader(demoData);
-    const header = reader.readHeader();
-    const demoFrames = reader.readAllFrames();
+  extract(demoData: Uint8Array, options: ExtractOptions = {}): DemoDataset {
+    const { header, frames } = DemoTrainingExtractor.decode(demoData);
+    return this.extractDecoded(header, frames, options);
+  }
 
+  /**
+   * Extract training data from a demo that is already decoded.
+   */
+  extractDecoded(header: DemoHeader, demoFrames: DemoFrame[], options: ExtractOptions = {}): DemoDataset {
     console.log(`[DemoExtractor] Loaded: ${header.map} (${header.gametype})`);
     console.log(`[DemoExtractor] ${demoFrames.length} frames, ${header.players.length} players`);
+
+    // The point of training on demos is to learn from people. A seat with a
+    // verified account is a person; a bot has none, so training on every player
+    // in a bot match would teach the network the state machine it exists to
+    // grow beyond. Version-1 demos predate accounts and can prove nobody human,
+    // so they are refused rather than silently treated as human.
+    const selected = selectPlayers(header.players, options);
+    console.log(
+      `[DemoExtractor] ${selected.kept.length} of ${header.players.length} players kept` +
+        `${selected.dropped ? ` (${selected.dropped} without a verified account)` : ""}`,
+    );
 
     // Extract training data for each player
     const players: PlayerTrainingData[] = [];
     let totalFrames = 0;
 
-    for (const playerInfo of header.players) {
-      const playerData = this._extractPlayerData(playerInfo.playerId, playerInfo.name, demoFrames, header);
+    for (const playerInfo of selected.kept) {
+      const playerData = this._extractPlayerData(
+        playerInfo.playerId,
+        playerInfo.name,
+        demoFrames,
+        header,
+        options.vision?.fork() ?? null,
+      );
 
       if (playerData.frames.length > 0) {
         // Compute delayed rewards
@@ -120,7 +244,8 @@ export class DemoTrainingExtractor {
     playerId: string,
     name: string,
     demoFrames: DemoFrame[],
-    _header: DemoHeader,
+    header: DemoHeader,
+    perception: BotVision | null,
   ): PlayerTrainingData {
     // Create a BotGameState that "sees" from this player's perspective
     const gameState = new BotGameState();
@@ -131,13 +256,24 @@ export class DemoTrainingExtractor {
     // Track previous frame state for delta detection
     let prevHealth = 100;
     let prevArmor = 0;
+    /** The slot the player was last seen holding, carried across idle frames. */
+    let lastWeaponSlot = 0;
+
+    // One person, two names. The demo roster and the recorded commands use the
+    // bare player id ("1"), as the demo viewer and analyser expect; a snapshot
+    // keys players by the wire key (`player_1`), which is also what a bot is told
+    // it is called when it joins, and so what it looks its own team up by. The
+    // extractor used to look snapshots up by the roster id and found nobody in
+    // any real recording.
+    const wireKey = ensureClientKey(playerId);
+    let seen = 0;
 
     for (let i = 0; i < demoFrames.length; i++) {
       const demoFrame = demoFrames[i];
       const state = demoFrame.state;
 
       // Find this player's entity ID from the player roster in this frame
-      const playerState = state.players.get(playerId);
+      const playerState = state.players.get(wireKey);
       if (!playerState) continue;
 
       const entityId = playerState.entityId;
@@ -145,7 +281,8 @@ export class DemoTrainingExtractor {
 
       // Set up BotGameState to view from this player's perspective
       gameState.selfEntityId = entityId;
-      gameState.selfPlayerId = playerId;
+      gameState.selfPlayerId = wireKey;
+      seen++;
 
       // Update game state from the snapshot (this does all the heavy lifting:
       // extracts self position/health/armor, other players, pickups, events)
@@ -159,16 +296,15 @@ export class DemoTrainingExtractor {
         continue;
       }
 
-      // Build neural network inputs
-      const tacticalArr = buildTacticalInput(gameState, null);
-      const tacticalInput = Array.from(tacticalArr);
+      // The vectors a bot in this player's place would have been fed: this
+      // player's own perception, looking at this frame, through the same code.
+      const visionResult = perception ? perception.getVisibleState(gameState) : null;
+      const { tactical: tacticalInput, combat: combatInput } = buildModelInputs(gameState, perception, visionResult);
 
-      let combatInput: number[] | null = null;
-      const nearestEnemy = gameState.getNearestEnemy();
-      if (nearestEnemy) {
-        const combatArr = buildCombatInput(gameState, nearestEnemy);
-        combatInput = Array.from(combatArr);
-      }
+      // A version-3 demo records the command the server applied, which is what
+      // a person actually did. Prefer it: everything below this is guesswork
+      // kept only so older recordings still yield something.
+      const recorded = demoFrame.inputs.find((entry) => entry.playerId === playerId);
 
       // Extract player actions from entity state
       // Note: demos store state, not inputs. We infer actions from state changes.
@@ -239,7 +375,7 @@ export class DemoTrainingExtractor {
 
       // Check kill events
       for (const killEvent of gameState.recentKills) {
-        if (killEvent.killerId === playerId || killEvent.killerId === entityId) {
+        if (killEvent.killerId === wireKey || killEvent.killerId === entityId) {
           kill = true;
           kills++;
           damageDealt += 100;
@@ -265,14 +401,11 @@ export class DemoTrainingExtractor {
         tick: demoFrame.tick,
         tacticalInput,
         combatInput,
-        action: {
-          buttons,
-          weaponSlot: 0,
-          yaw,
-          pitch,
-          directionX: dirX,
-          directionZ: dirZ,
-        },
+        action: chooseAction(
+          recorded,
+          { buttons, weaponSlot: lastWeaponSlot, yaw, pitch, directionX: dirX, directionZ: dirZ },
+          header.version >= 3,
+        ),
         events: {
           damageDealt,
           damageTaken,
@@ -290,6 +423,14 @@ export class DemoTrainingExtractor {
       frames.push(frame);
       prevHealth = gameState.self.health;
       prevArmor = gameState.self.armor;
+      lastWeaponSlot = frame.action.weaponSlot;
+    }
+
+    if (seen === 0 && demoFrames.length > 0) {
+      console.warn(
+        `[DemoExtractor] ${name} (roster id "${playerId}", looked up as "${wireKey}") appears in none of ` +
+          `${demoFrames.length} snapshots — the recording and the extractor disagree about what players are called`,
+      );
     }
 
     return {

@@ -35,14 +35,15 @@ npm-debug.log*
 *.temp
 .agent/
 
-# NetRadiant Editor (exclude all except our gamepack)
+# NetRadiant Editor (exclude all except our gamepack and its compile settings)
 editor/*
 !editor/gamepacks/
+!editor/makebspdata/
 editor/gamepacks/*
 !editor/gamepacks/games/
-!editor/gamepacks/hsgengine.game/
+!editor/gamepacks/washoi.game/
 editor/gamepacks/games/*
-!editor/gamepacks/games/hsgengine.game
+!editor/gamepacks/games/washoi.game
 
 # KTX2 compressed textures (generated from source PNGs)
 public/textures-ktx2/

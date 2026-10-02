@@ -300,7 +300,7 @@ export class MessageCodec {
    * Encode a JoinGame message (Client → Server)
    * Sent when spectator wants to enter the game.
    */
-  static encodeJoinGame(teamId?: string, manualPick = false): Uint8Array {
+  static encodeJoinGame(teamId?: string, manualPick = false, admissionTicket?: string): Uint8Array {
     const encoder = new BinaryEncoder();
     encoder.writeUint8(MessageType.JoinGame);
     if (teamId) {
@@ -315,22 +315,28 @@ export class MessageCodec {
     } else {
       encoder.writeUint8(0);
     }
+    // A seat claimed by someone already connected as a spectator: a player
+    // dropping into a running lobby match. Trailing and optional, like the
+    // ticket in Join.
+    if (admissionTicket) encoder.writeString(admissionTicket);
     return encoder.getData();
   }
 
   /**
    * Decode a JoinGame message
    */
-  static decodeJoinGame(data: Uint8Array): { teamId?: string; manualPick: boolean } {
+  static decodeJoinGame(data: Uint8Array): { teamId?: string; manualPick: boolean; admissionTicket?: string } {
     const decoder = new BinaryDecoder(data);
     const messageType = decoder.readUint8();
     if (messageType !== MessageType.JoinGame) {
       throw new Error(`Expected JoinGame message, got 0x${messageType.toString(16)}`);
     }
     const teamFlag = decoder.readUint8();
+    const teamId = teamFlag > 0 ? decoder.readString() : undefined;
     return {
-      teamId: teamFlag > 0 ? decoder.readString() : undefined,
+      teamId,
       manualPick: teamFlag === 2,
+      admissionTicket: decoder.hasMore() ? decoder.readString() : undefined,
     };
   }
 

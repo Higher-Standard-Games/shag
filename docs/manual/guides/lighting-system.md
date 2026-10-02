@@ -54,6 +54,26 @@ The loader has focused integrations for emissive surfaces, area-light entities, 
 
 `StreetLampSystem` is used by the raw `MapRenderer` extension path. Do not assume a `street_lamp` text-map entity is automatically part of every playable BSP flow.
 
+### Shadow-map limitation
+
+`SkyLightSystem.init()` currently forces `enableShadows` off on both WebGL2 and
+WebGPU because of an unresolved large-map shadow artifact. It does not create a
+shadow generator. `shadow on` changes the scene's shadow toggle; it does not
+create missing generators. Use `shadow info` to distinguish an enabled toggle
+from an actual shadow-map setup. Baked BSP lightmaps remain active independently.
+
+### Screen-space reflection environment
+
+`r_ssr 1` enables the optional screen-space reflection pipeline. Its off-screen
+fallback prefers a cube `scene.environmentTexture`, then the current `skybox`
+material's cube reflection texture. It refreshes after `map:loaded` and explicit
+scene-environment changes, and drops textures when their owner disposes them.
+The pipeline borrows these textures; disabling SSR does not dispose map assets.
+This is separate from assigning environment lighting to every PBR material.
+
+SSR remains off by default. Runtime reflection quality and WebGL2/WebGPU pixel
+parity still require hardware comparison.
+
 ## API entry points
 
 - `src/engine/lighting/SkyLightSystem.ts`;

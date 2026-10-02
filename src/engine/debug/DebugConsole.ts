@@ -130,6 +130,8 @@ export class DebugConsole {
 
     if (this.container) {
       this.container.classList.toggle("open", this.isOpen);
+      // Closed, it sits above the screen: out of Tab's reach and the reading order
+      this.container.toggleAttribute("inert", !this.isOpen);
     }
 
     if (this.isOpen) {
@@ -210,6 +212,7 @@ export class DebugConsole {
       </div>
     `;
 
+    this.container.toggleAttribute("inert", !this.isOpen);
     document.body.appendChild(this.container);
 
     // Get references

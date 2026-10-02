@@ -6,13 +6,15 @@ SHAG has an in-game developer console and a shared command registry used by the 
 
 Press the backquote/tilde key (the key normally below Escape). The current input binding does not use F1.
 
-Enable developer-only commands before using renderer and inspection tools:
+Some commands are registered only in developer mode — `map`, `pk3`, `render`, `debug`, `physics`, `teleport`, `god`, `noclip` and around twenty more. The console refuses them with `requires developer mode` and hides them from completion until:
 
 ```text
 developer 1
 help
-help bsp
+help render
 ```
+
+`bsp`, `camera`, `shader`, `pvs` and `freefly_collision` are not gated, so map inspection works without developer mode.
 
 Useful commands include:
 
@@ -32,7 +34,7 @@ debug wireframe
 
 ## Adding a command
 
-Engine commands live in `src/engine/console/commands/`; FPS commands live in `src/games/fps/console/commands/`. Command modules in those directories are auto-discovered. Export a default class extending `Command`:
+Engine commands live in `src/engine/console/commands/`; FPS commands live in `src/games/fps/console/commands/`. Command modules in those directories are auto-discovered through Vite's `import.meta.glob`, so a file named `*Command.ts` with a default export needs no registration call. Export a default class extending `Command`:
 
 ```ts
 import { Command, type CommandDef } from '../../../../engine/console/Command';
@@ -50,6 +52,8 @@ export default class HelloCommand extends Command {
 }
 ```
 
+Add `developer: true` to the definition to gate a command behind developer mode.
+
 Use `fail(message)` from `Command.ts` when a failure must produce a non-zero headless/batch result. Returning a string is successful display output.
 
 For runtime-only integrations, the legacy registration overload remains available:
@@ -65,6 +69,19 @@ CommandRegistry.getInstance().register(
 ```
 
 Clean up runtime registrations with `unregister(name)`.
+
+## Key bindings
+
+`bind <key> <command>` runs a console command from a key press;
+`unbind <key>` and `unbind all` remove them. Bindings live in
+`src/engine/input/CommandBindings.ts`, persist per browser, and are attached to
+the window by `registerEngineCommands()`, so any composition with commands has
+them.
+
+They are not the action map: an action binding answers what a key means while
+it is held, a command binding fires once on the press, and a key can be both.
+A press is ignored while a text field has the keyboard, while the console is
+open, or when Ctrl, Alt or Meta is held.
 
 ## Programmatic execution
 

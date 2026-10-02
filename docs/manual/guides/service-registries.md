@@ -5,9 +5,13 @@ Small single-slot registries keep generic engine code from importing the active 
 ## Current seams
 
 - `GameplayMapLauncher`: engine console to browser game/lobby launch;
-- `NetworkConnector`: engine UI to the selected game network client.
+- `NetworkConnector`: engine UI to the selected game network client;
+- `GameFrameHook`: engine camera controllers to the game's per-frame work, so a
+  freefly or spectator camera can tick the network and draw remote players
+  without importing the game.
 
-Each exposes register, get, and clear operations. The application composition root owns registration:
+The first two expose register, get and clear; `GameFrameHook` uses
+`setGameFrameHook(hook)` and clears by passing `null`. The application composition root owns registration:
 
 ```ts
 // From src/main.ts
@@ -26,6 +30,7 @@ The engine consumer must handle a missing adapter and report a useful error rath
 afterEach(() => {
   clearGameplayMapLauncher();
   clearNetworkConnector();
+  setGameFrameHook(null);
 });
 ```
 

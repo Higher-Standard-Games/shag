@@ -21,9 +21,10 @@ import { Constants } from "@babylonjs/core/Engines/constants";
 import { Effect } from "@babylonjs/core/Materials/effect";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { PostProcess } from "@babylonjs/core/PostProcesses/postProcess";
+import { DepthRenderer } from "@babylonjs/core/Rendering/depthRenderer";
 import type { Scene } from "@babylonjs/core/scene";
 
-// Import depth renderer side-effects so scene.enableDepthRenderer() exists
+// Register the scene component required by DepthRenderer's constructor.
 import "@babylonjs/core/Rendering/depthRendererSceneComponent";
 
 // Fragment shader: depth-only edge detection with reconstructed normals
@@ -52,9 +53,6 @@ float getDepth(vec2 uv) {
 float depthEdge(vec2 uv, vec2 offset) {
     float center = getDepth(uv);
     
-    // Skip sky
-    if (center > 0.999) return 0.0;
-    
     // Sample 4 neighbors
     float left  = getDepth(uv - vec2(offset.x, 0.0));
     float right = getDepth(uv + vec2(offset.x, 0.0));
@@ -67,7 +65,9 @@ float depthEdge(vec2 uv, vec2 offset) {
     float dx = abs(right - left) * invDepth;
     float dy = abs(up - down) * invDepth;
     
-    return max(dx, dy);
+    // Keep implicit-derivative texture samples in uniform control flow.
+    // A depth-dependent early return before sampling is invalid in WebGPU.
+    return center > 0.999 ? 0.0 : max(dx, dy);
 }
 
 // Normal edge via depth-reconstructed normals (4-tap)
@@ -78,9 +78,6 @@ float normalEdge(vec2 uv, vec2 offset) {
     float cL = getDepth(uv - vec2(offset.x, 0.0));
     float cU = getDepth(uv + vec2(0.0, offset.y));
     float cD = getDepth(uv - vec2(0.0, offset.y));
-    
-    // Skip sky
-    if (c > 0.999) return 0.0;
     
     // Central normal
     vec3 n0 = normalize(vec3(cL - cR, cD - cU, 2.0 * length(offset)));
@@ -100,7 +97,8 @@ float normalEdge(vec2 uv, vec2 offset) {
     float d1 = 1.0 - abs(dot(n0, n1));
     float d2 = 1.0 - abs(dot(n0, n2));
     
-    return max(d1, d2);
+    // Apply the sky mask only after all depth samples have executed.
+    return c > 0.999 ? 0.0 : max(d1, d2);
 }
 
 void main(void) {
@@ -136,6 +134,8 @@ export class CelOutlinePostProcess {
   private scene: Scene | null = null;
   private camera: Camera | null = null;
   private postProcess: PostProcess | null = null;
+  private depthRenderer: DepthRenderer | null = null;
+  private depthCamera: Camera | null = null;
 
   // Settings
   private _enabled = true;
@@ -157,7 +157,8 @@ export class CelOutlinePostProcess {
   /**
    * Initialize the cel outline post-process
    */
-  public init(scene: Scene, camera: Camera): void {
+  public init(scene: Scene, camera: Camera | null): void {
+    this.destroyPostProcess();
     this.scene = scene;
     this.camera = camera;
 
@@ -174,7 +175,7 @@ export class CelOutlinePostProcess {
   /**
    * Rebind to a new camera (called when camera changes)
    */
-  public setCamera(camera: Camera): void {
+  public setCamera(camera: Camera | null): void {
     if (!this.scene) return;
     if (this.camera === camera) return;
 
@@ -193,14 +194,29 @@ export class CelOutlinePostProcess {
 
     const engine = this.scene.getEngine();
 
-    // Enable depth renderer — this is the ONLY dependency
-    const depthRenderer = this.scene.enableDepthRenderer(this.camera, false);
-    if (!depthRenderer) {
-      console.warn("[CelOutline] Failed to enable depth renderer");
-      return;
-    }
+    // Own this target: the scene's cached depth renderer may have a different
+    // encoding or render list and can belong to another effect.
+    const caps = engine.getCaps();
+    const type = caps.textureHalfFloatRender
+      ? Constants.TEXTURETYPE_HALF_FLOAT
+      : caps.textureFloatRender
+        ? Constants.TEXTURETYPE_FLOAT
+        : Constants.TEXTURETYPE_UNSIGNED_BYTE;
+    const depthRenderer = new DepthRenderer(
+      this.scene,
+      type,
+      this.camera,
+      false,
+      Constants.TEXTURE_TRILINEAR_SAMPLINGMODE,
+      false,
+      "cel-outline-depth",
+    );
+    this.depthRenderer = depthRenderer;
+    this.depthCamera = this.camera;
 
     const depthTex = depthRenderer.getDepthMap();
+    depthTex.forceLayerMaskCheck = true;
+    this.camera.customRenderTargets.push(depthTex);
     console.log(`[CelOutline] Depth texture ready: ${depthTex.getSize().width}x${depthTex.getSize().height}`);
 
     // Filter what writes to the depth buffer for outline detection.
@@ -269,6 +285,17 @@ export class CelOutlinePostProcess {
       this.postProcess.dispose();
       this.postProcess = null;
       console.log("[CelOutline] Post-process destroyed");
+    }
+    if (this.depthRenderer) {
+      const target = this.depthRenderer.getDepthMap();
+      const targets = this.depthCamera?.customRenderTargets;
+      const index = targets?.indexOf(target) ?? -1;
+      if (targets && index >= 0) targets.splice(index, 1);
+      // Babylon only disposes the target itself for scene-registered renderers.
+      target.dispose();
+      this.depthRenderer.dispose();
+      this.depthRenderer = null;
+      this.depthCamera = null;
     }
   }
 

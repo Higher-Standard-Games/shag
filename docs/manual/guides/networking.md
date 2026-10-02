@@ -218,17 +218,17 @@ Sending full state every snapshot wastes bandwidth. Delta compression sends only
 ```
 Full snapshot: all entities × (position + velocity + grounded) = ~200 bytes
 Delta snapshot: only changed entities = ~40 bytes
-
-At 60Hz = savings of 50-70% bandwidth
 ```
 
 **How it works:**
 
-1. Server maintains a 64-entry snapshot history ring buffer
+1. The server keeps the last 64 snapshots it sent each client
 2. Each client acknowledges received snapshots via `Ack` messages
-3. Server finds client's last acked snapshot as the **baseline**
-4. Only encode values that changed since baseline
-5. Client reconstructs full state from baseline + delta
+3. The server picks that client's last acked snapshot as the **baseline**
+4. Only values that changed since the baseline are encoded
+5. The snapshot **names** the baseline it used, and the client keeps its last
+   128 snapshots to decode against. A client that no longer holds the named
+   baseline cannot silently decode against the wrong one
 
 ### 7. ClockSync
 
@@ -289,7 +289,33 @@ Server-side knockback, replicated as state:
 
 Splash damage uses radius-based falloff with configurable `splashRadius`, `splashDamage`, and `knockbackScale` per weapon.
 
-### 11. Anti-Warp (MovementValidator)
+### 11. Lag Compensation (Hit Registration)
+
+A shot is judged against the world the shooter actually saw, not the world as
+it is when the packet lands. The server keeps a short history of player and
+mover positions and rewinds to the view that client had:
+
+1. The client reports the tick its input belongs to — the same tick it was
+   already sending for reconciliation.
+2. `LagCompensation.rewind()` converts that, or the client's ping, into a
+   target tick within the rewind budget, and returns the world at that tick —
+   the bodies being aimed at, and the movers that were or were not in the way.
+3. The hit is resolved against that view, then the present state is restored.
+
+The budget is `maxCompensationMs`, **100 ms**, for every server. Raising it
+favours the shooter, lowering it favours the target being shot at behind their
+own corner; there is no value that is fair to both, so it is one deliberate
+number rather than a per-match setting. A shot older than the budget gets the
+oldest view the budget allows rather than the present one. A server running at
+a different tick rate must override `tickRate` in the same config, because the
+ms-per-tick conversion depends on it.
+
+`src/engine/server/lagcomp/` owns this; `npm run net:viewlag` measures the lag
+a server actually observes over a real socket.
+
+---
+
+### 12. Anti-Warp (MovementValidator)
 
 Server-side protection against speed hacking via input flooding:
 
@@ -343,8 +369,8 @@ npm run net:server -- --map wdm2 --snapshotrate 30
 connect localhost:7777
 connect ws://192.168.1.100:7777
 
-# Status
-network status
+# Status: the NetGraph overlay is the status readout
+cl_netgraph 1
 
 # Disconnect
 disconnect
@@ -399,13 +425,15 @@ All messages use binary encoding for efficiency:
 | Welcome | 0x01 | Server info on connect |
 | JoinAccept | 0x02 | Player accepted, IDs assigned |
 | JoinReject | 0x03 | Connection refused |
-| Snapshot | 0x04 | Game state update (delta-compressed) |
+| LegacySnapshot | 0x04 | Pre-baseline snapshot envelope. It never said which state it was deltaed against, so it is unsafe to decode on the live network and is kept only for reading old data |
 | PlayerJoined | 0x05 | Another player connected |
 | PlayerLeft | 0x06 | Another player disconnected |
 | GameStart | 0x07 | Match started |
 | Ack | 0x08 | Command acknowledged |
-| Ping | 0x09 | ClockSync ping (server → client) |
-| Pong | 0x0A | ClockSync pong (client → server) |
+| ServerMessage | 0x09 | Server → client text: a queue position, a rejection, an informational line |
+| Pong | 0x0A | ClockSync pong (server → client) |
+| Snapshot | 0x0B | Game state update, delta-compressed against a **named** baseline |
+| ResumeToken | 0x0C | The token a dropped client presents to take its seat back |
 
 ### Client → Server (0x81-0x8F)
 
@@ -420,12 +448,18 @@ All messages use binary encoding for efficiency:
 | Spectate | 0x87 | Player → spectator |
 | RequestSpawn | 0x88 | Dead player requests respawn |
 | Chat | 0x89 | In-game chat text (server sanitizes + rate-limits, rebroadcasts as a `chat` snapshot event) |
+| SetLoadout | 0x8A | The kit chosen for the next round, in the modes that ask |
+| Resume | 0x8B | A reconnecting client claiming the session it was dropped from |
 
 Snapshot one-shot events include `weapon_fire`, `projectile_spawn` / `projectile_impact`, `damage`, `death`, `award`, `weapon_chain`, and `chat` — all carried in the events section and captured verbatim into demo recordings (the snapshot is built once and shared by the broadcaster and recorder).
 
 ### Snapshot Format
 
 ```
+Envelope (MessageCodec):
+  hasBaseline (uint8)  - 1 when this snapshot is a delta, 0 when it is complete
+  baselineTick (uint32) - Which snapshot it was deltaed against; 0 when complete
+
 Header:
   tick (uint32) - Server tick number
   timestamp (float64) - Server time (ms, for ClockSync interpolation)
@@ -457,6 +491,11 @@ Events:
   for each: type (uint8) + payload
     Types: projectile_spawn, damage, death, combat_state, ...
 ```
+
+The envelope is what makes a delta safe to apply: a client that no longer holds
+the named baseline asks for a complete snapshot instead of decoding against the
+wrong state. A decoder refuses a header that claims no baseline while naming a
+tick, or vice versa.
 
 ---
 
@@ -575,8 +614,7 @@ npm run net:client -- --name Bob
 2. Start game: `npm run dev`
 3. Open console: `~`
 4. Connect: `connect localhost:7777`
-5. Verify: `network status`
-6. NetGraph: `cl_netgraph 2`
+5. Verify with the NetGraph: `cl_netgraph 2`
 
 ---
 

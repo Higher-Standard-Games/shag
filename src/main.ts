@@ -22,6 +22,7 @@ import { CameraSystem } from "./engine/camera";
 import { FPSController } from "./engine/camera/controllers/FPSController";
 import { registerEngineCommands } from "./engine/console/commands";
 import { QualityDetector, registerEngineServices, ServiceLocator } from "./engine/core";
+import { CapacitorBridge } from "./engine/core/CapacitorBridge";
 import { EngineVersion } from "./engine/core/EngineVersion";
 import { GamePaths } from "./engine/core/GamePaths";
 import { DebugConsole } from "./engine/debug";
@@ -29,22 +30,32 @@ import { TextureManager, TextureMemoryManager } from "./engine/loader";
 import { PK3Index } from "./engine/loader/pk3/PK3Index";
 import { InstancedMeshManager } from "./engine/rendering/InstancedMeshManager";
 import {
+  installRendererRuntimeDiagnostics,
+  type RendererRuntimeReport,
+} from "./engine/rendering/RendererRuntimeDiagnostics";
+import {
+  type ActualRenderingBackend,
   createRenderingEngine,
-  type RenderingBackend,
   resolveRenderingBackend,
 } from "./engine/rendering/RenderingEngineFactory";
+import { applySceneRendererPolicy } from "./engine/rendering/SceneRendererPolicy";
 import { LoadingScreen } from "./engine/ui/LoadingScreen";
 import { MapLoadingOverlay } from "./engine/ui/MapLoadingOverlay";
+import { TransferLoadingView } from "./engine/ui/TransferLoadingView";
 import { UIScale } from "./engine/ui/UIScale";
 import { UITheme } from "./engine/ui/UITheme";
 import { LobbyPanel } from "./games/fps/client/LobbyPanel";
 import { FPSPlayer } from "./games/fps/FPSPlayer";
 
+/** How long past the player's click the start-up screen waits for the lobby to log them in */
+const LOBBY_ANSWER_WAIT_MS = 4000;
+
 interface DebugWindow extends Window {
   __lobbyPanel?: LobbyPanel;
   engine?: AbstractEngine;
   player?: FPSPlayer;
-  rendererBackend?: RenderingBackend;
+  rendererBackend?: ActualRenderingBackend;
+  rendererRuntimeReport?: RendererRuntimeReport;
   scene?: Scene;
 }
 
@@ -53,6 +64,17 @@ interface DebugWindow extends Window {
  */
 async function main() {
   const debugWindow = window as DebugWindow;
+  if (new URLSearchParams(window.location.search).get("rendererqa") === "1") {
+    const { runRendererQA } = await import("./engine/rendering/RendererQA");
+    await runRendererQA(document.getElementById("renderCanvas") as HTMLCanvasElement, window.location.search);
+    return;
+  }
+
+  // Platform classes, mobile CSS and the native lifecycle, before anything
+  // draws. No-ops in a browser beyond the touch-device class.
+  const capacitor = CapacitorBridge.getInstance();
+  await capacitor.init();
+
   // Initialize GamePaths
   await GamePaths.getInstance().init(gameJson.displayName);
 
@@ -69,23 +91,35 @@ async function main() {
   const qualityRecommendation = QualityDetector.getInstance().detectQuality();
   console.log(`[Main] Device: ${qualityRecommendation.deviceInfo.type}, Quality: ${qualityRecommendation.quality}`);
 
-  const canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
+  let canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
 
   // Show startup feedback before async WebGPU initialization or WebGL fallback.
   const loadingScreen = new LoadingScreen();
   loadingScreen.show();
   loadingScreen.setStatus("Initializing renderer...");
 
+  // The native splash is configured not to hide itself, so it waits for this.
+  // Now is the moment: our own loading screen is up and showing progress, and
+  // holding the splash any longer would hide that progress behind a still
+  // image. No-op off a device.
+  void capacitor.hideSplashScreen();
+
   // WebGPU remains an explicit test session while Babylon 9 pipeline parity is
   // incomplete. Ignore a previously persisted default-on r_webgpu=1 so users
   // recover to the known-good renderer; ?renderer=webgpu still enables A/B.
   const requestedBackend = resolveRenderingBackend(false, window.location.search);
   const renderer = await createRenderingEngine(canvas, requestedBackend);
+  canvas = renderer.canvas;
   const engine = renderer.engine;
   if (renderer.fallbackReason) {
-    console.warn(`[Main] ${renderer.fallbackReason}; using WebGL2`);
+    console.warn(`[Main] ${renderer.fallbackReason}; using ${renderer.backend}`);
   }
   console.log(`[Main] Rendering backend: ${renderer.backend}`);
+  const rendererDiagnostics = installRendererRuntimeDiagnostics(engine, (report) => {
+    debugWindow.rendererRuntimeReport = report;
+    // Keep the console record copyable; the complete history remains on window.
+    console.error(`RENDERER_RUNTIME_REPORT ${JSON.stringify({ ...report, errors: report.errors.slice(-1) })}`);
+  });
 
   // Handle window resize
   window.addEventListener("resize", () => engine.resize());
@@ -93,7 +127,9 @@ async function main() {
   // Build PK3 index
   const pk3Index = PK3Index.getInstance();
   pk3Index.setSearchPaths(["data/"]);
+  loadingScreen.setStep("packages");
   await pk3Index.ensureIndex((msg) => loadingScreen.setStatus(msg));
+  loadingScreen.setStep("engine");
 
   // Initialize debug console
   const debugConsole = DebugConsole.getInstance();
@@ -131,6 +167,7 @@ async function main() {
   // Create scene
   console.log("[Main] Creating scene...");
   const scene = new Scene(engine);
+  applySceneRendererPolicy(scene);
   scene.clearColor = new Color4(0.1, 0.1, 0.1, 1);
   scene.ambientColor = new Color3(1, 1, 1); // Required for BSP lightmaps to render
   scene.collisionsEnabled = true;
@@ -210,20 +247,26 @@ async function main() {
 
   // ── Lobby (no 3D background — will use background image in future) ──
   // Every map is played on a server the lobby spawns; the client loads it on join.
-  loadingScreen.setStatus("Loading lobby...");
+  // The lobby is built behind the start-up screen: it connects and logs in
+  // while the player is still looking at it, so it appears knowing who they
+  // are, and a new player sees the name screen at once instead of the lobby
+  // for a moment first. A lobby slow to answer is not waited on for long.
+  loadingScreen.setStep("lobby");
+  loadingScreen.setStatus("Connecting to the lobby...");
+  const lobby = new LobbyPanel();
   await userReadyPromise;
+  await Promise.race([lobby.connected, new Promise((resolve) => setTimeout(resolve, LOBBY_ANSWER_WAIT_MS))]);
 
   // Stop piping progress to splash screen
   unsubProgress();
 
-  // Enable overlay for future map loads (e.g., joining a match)
+  // Enable overlay for future map loads (e.g., joining a match), in the look of
+  // the match handoff that comes before it
+  MapLoadingOverlay.configure({ view: () => new TransferLoadingView() });
   MapLoadingOverlay.enable();
 
-  // Hide splash → show lobby (seamless: both click AND map are ready)
+  // Hide splash → show lobby: the player has clicked, and the lobby has answered
   loadingScreen.hide();
-
-  // Show lobby UI — main menu on top of the 3D background
-  const lobby = new LobbyPanel();
   lobby.show();
 
   // Connect play button (Phase 1: just log; Phase 2+: real matchmaking)
@@ -252,12 +295,17 @@ async function main() {
 
   // Start render loop
   engine.runRenderLoop(() => {
-    const deltaTime = engine.getDeltaTime() / 1000.0;
+    try {
+      const deltaTime = engine.getDeltaTime() / 1000.0;
 
-    // Update game logic
-    player.update(deltaTime);
+      // Update game logic
+      player.update(deltaTime);
 
-    scene.render();
+      scene.render();
+    } catch (error) {
+      rendererDiagnostics.recordRenderError(error);
+      throw error;
+    }
   });
 
   // Expose for debug

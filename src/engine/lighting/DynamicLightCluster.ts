@@ -33,13 +33,12 @@ import type { Scene } from "@babylonjs/core/scene";
 const containers = new WeakMap<Scene, ClusteredLightContainer>();
 
 /**
- * Babylon 9.17 clustered lights currently produce invalid texture/storage
- * bindings on our WebGPU path. A single invalid binding poisons the frame's
- * command encoder, so use ordinary forward lights there until the Babylon
- * clustered implementation passes browser validation.
+ * The paired GPU fixture validates Babylon's WebGPU clustered path. Match its
+ * texel-fetch prerequisite; retain the existing non-WebGPU/headless behavior.
  */
 export function supportsClusteredLighting(scene: Scene): boolean {
-  return !scene.getEngine().isWebGPU;
+  const engine = scene.getEngine();
+  return !engine.isWebGPU || engine.getCaps().texelFetch === true;
 }
 
 /**

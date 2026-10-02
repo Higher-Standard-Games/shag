@@ -19,11 +19,7 @@ npm run electron:build
 
 The intended output directory is `release/<version>/`, with electron-builder targets configured in `electron-builder.config.js`.
 
-### Known packaging blocker
-
-At the time of this audit, `electron-builder.config.js` requires `src/game/game.json`, but that path does not exist; active game metadata lives under the game modules. Update the packaging configuration to an existing, selected game manifest before expecting `electron:build` to complete.
-
-This is a repository configuration issue, not an extra Electron installation step.
+The config is `electron-builder.config.cjs`, and the extension matters: this package is `"type": "module"`, so a `.js` config's `module.exports` assigns nothing and electron-builder receives an empty object. It picks its game manifest the way `vite.config.ts` does — `GAME`, else `engine.json`'s `defaultGame` — and takes the app's name from that game's `displayName`.
 
 ## Security model
 

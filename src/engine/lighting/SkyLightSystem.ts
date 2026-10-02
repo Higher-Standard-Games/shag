@@ -161,6 +161,9 @@ const COLOR_STOPS: ColorStop[] = [
 // Moon color - cool blue
 const MOON_COLOR = new Color3(0.4, 0.45, 0.6);
 
+/** The first-person weapon's render layer; the world fill leaves it to the weapon's own light. */
+const WEAPON_LAYER_MASK = 0x10000000;
+
 // ==================== SkyLightSystem Class ====================
 
 export class SkyLightSystem {
@@ -175,6 +178,13 @@ export class SkyLightSystem {
   private sunLight: DirectionalLight | null = null;
   private moonLight: DirectionalLight | null = null;
   private ambientLight: HemisphericLight | null = null;
+  /**
+   * Warm fill over the world, at the same strength the weapon's own light
+   * used to add when it reached the world (about +38% mean brightness on
+   * wdm2). It belongs to the map, so it is in place from the first compile,
+   * for spectators and players alike, instead of arriving mid-game.
+   */
+  private worldFillLight: HemisphericLight | null = null;
   private shadowGenerator: ShadowGenerator | null = null;
 
   private config: Required<SkyLightConfig> = {
@@ -207,8 +217,19 @@ export class SkyLightSystem {
    * Initialize the sky light system
    */
   public init(scene: Scene, config?: SkyLightConfig): void {
-    // If we are re-initializing on the same scene or a new scene, clean up old lights first
-    if (this.scene || this.sunLight) {
+    // The same scene with its lights alive keeps them. Recreating them puts new
+    // lights at the end of the scene's list, which shifts the light slots of
+    // every material that outlives a map change, such as the view weapon. For
+    // a frame those still draw with their old layout, and on WebGPU a light
+    // bound into a slot of another size fails validation and the frame is lost.
+    const alive = (light: { isDisposed(): boolean } | null) => !!light && !light.isDisposed();
+    const keep =
+      this.scene === scene &&
+      alive(this.sunLight) &&
+      alive(this.moonLight) &&
+      alive(this.ambientLight) &&
+      alive(this.worldFillLight);
+    if (!keep && (this.scene || this.sunLight)) {
       console.log("[SkyLightSystem] Re-initializing lights for scene...");
       this.reinitLights();
     }
@@ -248,6 +269,8 @@ export class SkyLightSystem {
       this.ambientLight.groundColor = new Color3(0.2, 0.2, 0.25); // Darker ground bounce
       this.ambientLight.specular = Color3.Black(); // No specular from ambient
     }
+
+    if (!this.worldFillLight || this.worldFillLight.isDisposed()) this.createWorldFillLight(scene);
 
     // Subscribe to clock updates
     const clock = GameClock.getInstance();
@@ -313,6 +336,9 @@ export class SkyLightSystem {
     if (this.ambientLight && !this.ambientLight.isDisposed()) {
       this.ambientLight.dispose();
     }
+    if (this.worldFillLight && !this.worldFillLight.isDisposed()) {
+      this.worldFillLight.dispose();
+    }
     if (this.shadowGenerator) {
       this.shadowGenerator.dispose();
       this.shadowGenerator = null;
@@ -338,6 +364,8 @@ export class SkyLightSystem {
     this.ambientLight.groundColor = new Color3(0.2, 0.2, 0.25);
     this.ambientLight.specular = Color3.Black();
 
+    this.createWorldFillLight(this.scene);
+
     // Update lighting for current time
     const clock = GameClock.getInstance();
     this.updateLighting(clock.getTimeOfDay());
@@ -345,7 +373,17 @@ export class SkyLightSystem {
     console.log("[SkyLightSystem] Lights reinitialized");
   }
 
-  /**
+  private createWorldFillLight(scene: Scene): void {
+    const fill = new HemisphericLight("worldFillLight", new Vector3(0.3, 1, 0.5), scene);
+    fill.intensity = 1.2;
+    fill.diffuse = new Color3(1.0, 0.95, 0.9);
+    fill.groundColor = new Color3(0.3, 0.3, 0.35);
+    // Same slot priority it had, so capped materials keep the same light set.
+    fill.renderPriority = 1000;
+    fill.excludeWithLayerMask = WEAPON_LAYER_MASK;
+    this.worldFillLight = fill;
+  }
+
   /**
    * Update lighting based on time of day
    */

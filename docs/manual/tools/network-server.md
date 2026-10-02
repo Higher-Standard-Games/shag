@@ -22,7 +22,7 @@ npm run net:server -- [options]
 |--------|---------|-------------|
 | `--port <n>` | `7777` | Server port |
 | `--map <name>` | `wdm7` | Map to load (also accepts `--map=<name>`) |
-| `--gametype <name>` | `Deathmatch` | `Deathmatch`, `TeamDeathmatch`, `Duel` or `SnD` |
+| `--gametype <name>` | `Deathmatch` | `Deathmatch`, `TeamDeathmatch`, `Duel`, `Amphi` or `SnD`. An unknown name falls through to Deathmatch rather than failing |
 | `--name <s>` | `"SHAG Server v2"` | Server name shown to clients |
 | `--max <n>` | `16` | Maximum concurrent clients |
 | `--tickrate <n>` | `125` | Simulation tick rate in Hz |

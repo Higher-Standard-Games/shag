@@ -95,6 +95,18 @@ export class ShaderCommand extends Command {
         return lines.join("\n");
       }
 
+      case "surface": {
+        const { CameraSystem } = await import("../../camera/CameraSystem");
+        const camera = CameraSystem.getInstance().getCamera();
+        if (!camera) return "No scene/camera available";
+        const { inspectAimedSurfaces } = await import("../../rendering/SurfaceDiagnostics");
+        const report = inspectAimedSurfaces(camera.getScene(), camera);
+        if (typeof window !== "undefined") {
+          (window as Window & { rendererSurfaceReport?: typeof report }).rendererSurfaceReport = report;
+        }
+        return `RENDERER_SURFACE_REPORT ${JSON.stringify(report)}`;
+      }
+
       case "aim": {
         const { CameraSystem } = await import("../../camera/CameraSystem");
         const cameraSystem = CameraSystem.getInstance();
@@ -360,6 +372,7 @@ export class ShaderCommand extends Command {
           "  shader count             - Show loaded shader count",
           "  shader list [filter]     - List shaders",
           "  shader info [name]       - Show shader info (or aimed surface)",
+          "  shader surface           - Snapshot aimed layers, depth state and texture UVs",
           "  shader aim <0|1>         - Toggle aim highlight",
           "  shader resolve <name>    - Resolve material properties",
           "  shader pattern <name>    - Debug shader pattern",

@@ -2,6 +2,9 @@
  * MatchLobbyView.css — the ready room: who is here, which map, and the key
  * that starts it. Colours come from the stage's accent (--accent*), so the
  * room wears the mode's colour. Keys are RaisedKey.
+ *
+ * The room title, the status and the actions keep their size; the roster and
+ * the map vote share the rest, and scroll between them when it is not enough.
  */
 
 .match-lobby {
@@ -11,14 +14,42 @@
   --danger: hsl(356 88% 56%);
   --ink: hsl(250 45% 7%);
   --cream: hsl(45 100% 95%);
+  --room-gap: 20px;
 
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 20px;
+  gap: var(--room-gap);
   min-height: 0;
   color: var(--cream);
   font-family: var(--w-font-body, "Rajdhani", sans-serif);
+}
+
+.match-lobby__top,
+.match-lobby__status,
+.match-lobby__actions {
+  flex-shrink: 0;
+}
+
+/* The roster and the map vote. A key's face lifts up and left when it is
+   picked and its side and shadow fall to the right and below, so the scroll
+   box reaches past the room on those edges instead of cutting them off. Its
+   edges fade, as the rail's room list does, so content scrolled out of view
+   reads as more rather than as cut. */
+.match-lobby__body {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: var(--room-gap);
+  min-height: 0;
+  margin: -8px -24px -14px -8px;
+  padding: 8px 24px 14px 8px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-color: hsla(276, 90%, 64%, 0.45) transparent;
+  scrollbar-width: thin;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 8px, #000 calc(100% - 14px), transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 8px, #000 calc(100% - 14px), transparent);
 }
 
 /* ── Which room this is, and how to bring people in ── */
@@ -325,7 +356,8 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Stripes crawl while waiting; the fill is how full the room is */
+/* The fill is how full the room is. Its stripes crawl only while the room is
+   waiting on someone else, and pause where they are when it is your move */
 .match-lobby__status-bar {
   position: absolute;
   right: 0;
@@ -348,8 +380,17 @@
   background-size:
     28px 28px,
     100% 100%;
-  animation: match-lobby-crawl 0.8s linear infinite;
+  animation: match-lobby-crawl 0.8s linear infinite paused;
   transition: width 0.6s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+.match-lobby__status[data-waiting="true"] .match-lobby__status-fill {
+  animation-play-state: running;
+}
+
+/* The server is on its way: the one wait that is nearly over */
+.match-lobby__status[data-phase="starting"] .match-lobby__status-fill {
+  animation-duration: 0.4s;
 }
 
 @keyframes match-lobby-crawl {
@@ -364,6 +405,7 @@
 
 .match-lobby__roster {
   display: grid;
+  flex-shrink: 0;
   align-items: stretch;
   gap: 14px 22px;
 }
@@ -502,6 +544,11 @@
   color: hsla(45, 100%, 95%, 0.42);
   box-shadow: inset 0 0 0 1.5px hsla(45, 100%, 95%, 0.2);
   clip-path: polygon(8% 0, 100% 0, 92% 100%, 0 100%);
+}
+
+/* An open seat has no state to show */
+.match-lobby__seat-state:empty {
+  display: none;
 }
 
 .match-lobby__seat--ready .match-lobby__seat-state {
@@ -656,14 +703,64 @@
   background: none;
 }
 
+/* Teams: a narrow column takes the same two rows, so the name is never the
+   part that gives way to its chips */
+.match-lobby__team {
+  container-type: inline-size;
+}
+
+@container (max-width: 380px) {
+  .match-lobby__team .match-lobby__seat {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-content: center;
+    column-gap: 12px;
+    row-gap: 3px;
+  }
+
+  .match-lobby__team .match-lobby__seat-avatar {
+    grid-row: 1 / 3;
+  }
+
+  .match-lobby__team .match-lobby__seat-name {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .match-lobby__team .match-lobby__seat--open .match-lobby__seat-name {
+    grid-row: 1 / 3;
+    align-self: center;
+  }
+
+  .match-lobby__team .match-lobby__seat-tag {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .match-lobby__team .match-lobby__seat-state {
+    grid-column: 2 / 4;
+    grid-row: 2;
+    justify-self: start;
+    padding: 0;
+    font-size: 10px;
+    box-shadow: none;
+    clip-path: none;
+  }
+
+  .match-lobby__team .match-lobby__seat--ready .match-lobby__seat-state {
+    color: var(--go);
+    background: none;
+  }
+}
+
 /* ── Map vote ── */
 
+/* Grows into whatever the roster leaves, and never below a readable card */
 .match-lobby__vote {
   display: flex;
-  flex: 1;
+  flex: 1 0 auto;
   flex-direction: column;
   gap: 12px;
-  min-height: 0;
 }
 
 .match-lobby__vote-head {
@@ -840,18 +937,17 @@
 
 /* ── Actions ── */
 
+/* A team room's four keys and Ready can be wider than the stage: then Ready
+   takes a line of its own, still at the right */
 .match-lobby__actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-end;
   gap: clamp(12px, 1.1vw, 20px);
 }
 
 .match-lobby__actions [hidden] {
   display: none;
-}
-
-.match-lobby__spacer {
-  flex: 1;
 }
 
 .raised-key--act {
@@ -878,6 +974,15 @@
   font-size: 12px;
 }
 
+/* Ready sits at the right, with Rejoin beside it when there is one */
+.match-lobby__recover {
+  margin-left: auto;
+}
+
+.match-lobby__recover:not([hidden]) + .raised-key--ready {
+  margin-left: 0;
+}
+
 .raised-key--leave {
   --key-text: var(--danger);
   --key-sub: hsla(356, 70%, 38%, 0.7);
@@ -902,14 +1007,14 @@
   --key-sub: hsla(250, 45%, 8%, 0.62);
   flex: 0 0 auto;
   width: auto;
-  margin: 0 calc(var(--key-dx) + 4px) var(--key-d) 0;
+  margin: 0 calc(var(--key-dx) + 4px) var(--key-d) auto;
 }
 
 .raised-key--ready .raised-key__face {
   flex-direction: column;
   justify-content: center;
   gap: 8px;
-  min-width: clamp(230px, 17vw, 330px);
+  min-width: clamp(200px, 17vw, 330px);
   min-height: 100px;
   padding: 0 clamp(34px, 3.3vw, 64px) 0 clamp(30px, 3vw, 58px);
 }
@@ -1000,6 +1105,93 @@
   }
 }
 
+/* A short screen, which a laptop's browser window usually is: every part stays,
+   and spacing and size give way so the Ready key is in view without scrolling */
+@media (max-height: 820px) {
+  .match-lobby {
+    --room-gap: 14px;
+  }
+
+  .match-lobby__status {
+    gap: 20px;
+    padding: 12px 30px 18px 20px;
+  }
+
+  .match-lobby__radar {
+    zoom: 0.75;
+  }
+
+  .match-lobby__status-head {
+    margin-top: 6px;
+    font-size: clamp(22px, 2.1vw, 38px);
+  }
+
+  .match-lobby__status-sub {
+    margin-top: 6px;
+    font-size: 17px;
+  }
+
+  .match-lobby__count {
+    font-size: 48px;
+  }
+
+  .match-lobby__count-of {
+    font-size: 24px;
+  }
+
+  .match-lobby__roster--vs .match-lobby__seat {
+    min-height: 80px;
+    padding-block: 10px;
+  }
+
+  .match-lobby__roster--ffa .match-lobby__seat {
+    min-height: 50px;
+  }
+
+  .match-lobby__roster--ffa .match-lobby__seat-avatar {
+    width: 30px;
+    height: 30px;
+  }
+
+  .match-lobby__team {
+    gap: 6px;
+  }
+
+  .match-lobby__team-head {
+    padding-bottom: 2px;
+    font-size: 15px;
+  }
+
+  .match-lobby__team .match-lobby__seat {
+    min-height: 36px;
+    padding-block: 3px;
+  }
+
+  .match-lobby__team .match-lobby__seat-avatar {
+    flex-basis: 24px;
+    width: 24px;
+    height: 24px;
+    font-size: 12px;
+  }
+
+  .match-lobby__maps {
+    min-height: 124px;
+  }
+
+  .raised-key--act .raised-key__face {
+    min-height: 56px;
+  }
+
+  .raised-key--ready .raised-key__face {
+    gap: 6px;
+    min-height: 76px;
+  }
+
+  .raised-key--ready .raised-key__label {
+    font-size: clamp(22px, 1.7vw, 30px);
+  }
+}
+
 @media (max-width: 1100px) {
   .match-lobby__top {
     flex-wrap: wrap;
@@ -1035,9 +1227,32 @@
 }
 
 @media (max-width: 700px) {
+  /* A phone scrolls the whole page, so the room is as tall as what is in it */
+  .match-lobby {
+    min-height: auto;
+  }
+
+  .match-lobby__body {
+    flex: 0 0 auto;
+    margin: 0;
+    padding: 0;
+    overflow: visible;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+
   .match-lobby__radar,
   .match-lobby__invite-label {
     display: none;
+  }
+
+  /* Without the radar the status is one column, the count under the words */
+  .match-lobby__status {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .match-lobby__status-count {
+    grid-column: 1;
   }
 
   .match-lobby__roster--vs,
@@ -1048,10 +1263,6 @@
   .match-lobby__vs {
     justify-self: center;
     font-size: 28px;
-  }
-
-  .match-lobby__actions {
-    flex-wrap: wrap;
   }
 
   .raised-key--ready .raised-key__face {

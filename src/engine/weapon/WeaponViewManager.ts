@@ -25,7 +25,7 @@ import type { Scene } from "@babylonjs/core/scene";
 import "@babylonjs/loaders/glTF";
 import { getEntityRegistry, type WeaponDef } from "../../shared/entities";
 import { canonicalWeaponId } from "../../shared/entities/definitions/weapons/WeaponsTable";
-import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
+import { applySafeMaxSimultaneousLights, getSafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
 import { getMD3Loader, MD3Coords, type MD3LoadResult } from "../loader/model/MD3Loader";
 import { PK3Loader } from "../loader/pk3/PK3Loader";
 import { PK3TextureLoader } from "../loader/pk3/PK3TextureLoader";
@@ -51,8 +51,8 @@ export interface WeaponPosition {
   scale: number; // Uniform scale
 }
 
-/** Recorded-time movement state supplied by followed-player demo playback. */
-export interface DemoWeaponBobInput {
+/** The watched player's movement, for their weapon's sway (demo playback and live spectating). */
+export interface FollowedWeaponBobInput {
   deltaTime: number;
   grounded: boolean;
   horizontalSpeed: number;
@@ -110,7 +110,9 @@ export class WeaponViewManager {
 
   /** Check if the weapon view manager has been initialized */
   public get isReady(): boolean {
-    return this.scene !== null && this.weaponRoot !== null;
+    // A map unload disposes every scene node, this view's root included,
+    // while the instance itself lives on. That view is not ready; init() rebuilds it.
+    return this.scene !== null && this.weaponRoot !== null && !this.weaponRoot.isDisposed();
   }
 
   /** Returns true if init() has been called. Guards all demo-side WVM calls. */
@@ -119,18 +121,11 @@ export class WeaponViewManager {
   }
 
   /**
-   * Trigger first-person weapon recoil kick (used by DemoService for spectated fire events).
+   * Weapon bob for a watched player, in demo playback or live spectating.
+   * Driven from their movement instead of the local viewport state.
    */
-  public triggerRecoil(scale: number): void {
-    this.weaponRecoil.fire(scale, 0);
-  }
-
-  /**
-   * Weapon bob for demo spectator mode.
-   * Uses the reconstructed recorded-time phase instead of the live viewport state.
-   */
-  public updateDemoBob(input: DemoWeaponBobInput): void {
-    this.demoBobActive = true;
+  public updateFollowedBob(input: FollowedWeaponBobInput): void {
+    this.followedBobActive = true;
     this.weaponBob.update(
       input.deltaTime,
       input.grounded,
@@ -145,8 +140,8 @@ export class WeaponViewManager {
   }
 
   /** Return weapon bob ownership to the live FPS viewport-effects path. */
-  public clearDemoBob(): void {
-    this.demoBobActive = false;
+  public clearFollowedBob(): void {
+    this.followedBobActive = false;
     this.weaponBob.reset();
   }
 
@@ -324,7 +319,7 @@ export class WeaponViewManager {
 
   // Weapon bob (extracted)
   private weaponBob = new WeaponBob();
-  private demoBobActive = false;
+  private followedBobActive = false;
   private effectiveBasePosition: Vector3 = Vector3.Zero(); // Base position with handedness
 
   // ADS (Aiming Down Sights) state
@@ -410,10 +405,14 @@ export class WeaponViewManager {
     // Scene instance, otherwise every join adds another per-frame update.
     this.disposeViewInfrastructure();
     this.scene = scene;
+    // A rebuilt view shows nothing until a weapon is loaded into it; keeping
+    // the old id would make the next load look like a no-op.
+    this._intendedWeaponId = null;
+    this.currentWeaponDef = null;
     this._visible = true;
     this._movementHidden = false;
     this.holsterAnim.reset();
-    this.clearDemoBob();
+    this.clearFollowedBob();
     this.weaponRecoil.reset();
     this.weaponCharge.reset();
     this.reloadAnim.cancel();
@@ -459,9 +458,12 @@ export class WeaponViewManager {
     // Args: (groupId, autoClear, depth, stencil)
     scene.setRenderingAutoClearDepthStencil(1, true, true, false);
 
-    // Add dedicated weapon light for PBR GLB models
-    // Only affects rendering group 1 (weapons), not the world
+    // Add dedicated weapon light for PBR GLB models. Only the weapon layer: a
+    // light reaching the world would join every world material's light list
+    // the moment the view is built, and the world's fill lives with the map's
+    // lights (SkyLightSystem) instead.
     this.weaponLight = new HemisphericLight("weaponLight", new Vector3(0.3, 1, 0.5), scene);
+    this.weaponLight.includeOnlyWithLayerMask = WEAPON_LAYER_MASK;
     this.weaponLight.intensity = 1.2;
     this.weaponLight.diffuse = new Color3(1.0, 0.95, 0.9); // Slightly warm white
     this.weaponLight.groundColor = new Color3(0.3, 0.3, 0.35); // Cool fill from below
@@ -481,6 +483,9 @@ export class WeaponViewManager {
     // walls flickering invisible while their new effect compiles.
     if (this.muzzleFlashLight) this.muzzleFlashLight.dispose();
     this.muzzleFlashLight = new PointLight("muzzleFlash", Vector3.Zero(), scene);
+    // Weapon layer only, from the start: before a weapon loads there is no
+    // mesh list to scope it to (updateMuzzleFlashLightScope).
+    this.muzzleFlashLight.includeOnlyWithLayerMask = WEAPON_LAYER_MASK;
     this.muzzleFlashLight.intensity = 0;
     this.muzzleFlashLight.range = WeaponViewManager.MUZZLE_FLASH_RANGE;
     // Second-priority weapon light (below weaponLight, above transient projectile
@@ -721,19 +726,16 @@ export class WeaponViewManager {
               pbr.alpha = 0.35;
               pbr.backFaceCulling = false;
               applySafeMaxSimultaneousLights(pbr);
-              pbr.maxSimultaneousLights = this.scene!.getEngine().isWebGPU ? 1 : 2;
+              pbr.maxSimultaneousLights = Math.min(2, getSafeMaxSimultaneousLights(pbr));
             } else {
               // Main body / sights: keep PBR for proper metallic/roughness.
               pbr.environmentIntensity = 2.0;
               pbr.directIntensity = 1.0;
               pbr.backFaceCulling = false;
               applySafeMaxSimultaneousLights(pbr); // Prevent shader overflow from projectile PointLights
-              // ...but the safe PBR cap is 1, and the weapon needs BOTH its dedicated
-              // hemispheric weaponLight AND the always-present muzzle-flash light, or
-              // one intensity-0 light wins the slot and the gun renders black (#2).
-              // WebGPU must retain the one-light cap to stay below the adapter's
-              // per-stage UBO limit; weaponLight wins via its render priority.
-              pbr.maxSimultaneousLights = this.scene!.getEngine().isWebGPU ? 1 : 2;
+              // Dedicated ambient + muzzle flash on both capable backends.
+              // Preserve the conservative cap on unsupported WebGPU devices.
+              pbr.maxSimultaneousLights = Math.min(2, getSafeMaxSimultaneousLights(pbr));
               console.log(`[WeaponViewManager] Gun: keeping PBR "${pbr.name}" (env=${pbr.environmentIntensity})`);
             }
           }
@@ -1206,7 +1208,7 @@ export class WeaponViewManager {
    * instance is a separate object and is never touched (QA-8).
    */
   public dispose(): void {
-    this.clearDemoBob();
+    this.clearFollowedBob();
     this.weaponRecoil.reset();
     this.weaponCharge.reset();
     this.reloadAnim.cancel();
@@ -1479,12 +1481,6 @@ export class WeaponViewManager {
     this.holsterAnim.update(deltaTime);
     if (this.holsterAnim.isFullyHolstered !== wasStowed) this.applyVisibility();
 
-    // Projectiles and hitscan effects belong to the world, not the view weapon:
-    // they keep moving, fading and drawing trails while no weapon model is
-    // loaded, as during a weapon switch.
-    getProjectileManager().update(deltaTime);
-    getHitscanEffects().update(deltaTime);
-
     if (!this.currentWeapon) return;
 
     // Throttle CVar checking - 10 times per second max
@@ -1520,7 +1516,7 @@ export class WeaponViewManager {
     const state = viewportManager.getCurrentState();
 
     // Delegate walk bob, sprint tilt, jump/land to WeaponBob
-    if (!this.demoBobActive) {
+    if (!this.followedBobActive) {
       this.weaponBob.update(
         deltaTime,
         state.isGrounded,
@@ -1703,9 +1699,17 @@ export class WeaponViewManager {
    * Called by controller when logic permits (ammo, fire rate, etc.)
    */
   public fire(opts?: { isProjectileFire?: boolean }): void {
-    // this.lastFireTime = performance.now() / 1000;
+    this.presentFire(opts);
+    this.spawnShotEffects();
+  }
 
-    // FIRE! Trigger muzzle flash
+  /**
+   * What a shot looks like from behind the gun: muzzle flash and its light,
+   * recoil, and the melee slash. No tracers or pellets. For anyone but the
+   * local shooter those come from the server, so a watched player's shot drawn
+   * here as well would appear twice.
+   */
+  public presentFire(opts?: { isProjectileFire?: boolean }): void {
     const flashDef = this.currentWeaponDef?.muzzleFlash;
     const maxIntensity = flashDef?.intensity ?? WeaponViewManager.MUZZLE_FLASH_MAX_INTENSITY;
     this.muzzleFlashIntensity = maxIntensity;
@@ -1746,7 +1750,25 @@ export class WeaponViewManager {
       this.weaponSlash.trigger();
     }
 
-    // Spawn projectile OR hitscan effect
+    // Update light (created eagerly in init(); fallback covers legacy init paths).
+    // Intensity-only control — never setEnabled(), which would change material
+    // defines and trigger shader recompilation (first-shot flicker bug).
+    if (!this.muzzleFlashLight) {
+      this.muzzleFlashLight = new PointLight("muzzleFlash", Vector3.Zero(), this.scene!);
+      this.muzzleFlashLight.includeOnlyWithLayerMask = WEAPON_LAYER_MASK;
+      this.updateMuzzleFlashLightScope();
+    }
+
+    const color = flashDef?.color ?? { r: 1.0, g: 0.8, b: 0.3 };
+    const range = flashDef?.range ?? WeaponViewManager.MUZZLE_FLASH_RANGE;
+    this.muzzleFlashLight.diffuse = new Color3(color.r, color.g, color.b);
+    this.muzzleFlashLight.specular = new Color3(color.r * 0.5, color.g * 0.5, color.b * 0.5);
+    this.muzzleFlashLight.range = range;
+    this.muzzleFlashLight.intensity = 1.0;
+  }
+
+  /** The local shooter's predicted hitscan visuals, drawn from the camera. */
+  private spawnShotEffects(): void {
     if (this.mainCamera && this.currentWeaponDef) {
       const origin = this.mainCamera.position.clone();
       const forward = this.mainCamera.getDirection(Vector3.Forward());
@@ -1784,14 +1806,14 @@ export class WeaponViewManager {
           }
           case "beam":
             // Beam rendering is handled per-frame by FPSPlayer.updateFiring()
-            // Fire event only triggers muzzle flash (handled below)
+            // The shot itself is only the muzzle flash, from presentFire()
             break;
           case "bolt":
             // Rail rendering is driven by the authoritative electro_rail event
             // (WO-EB3) for both the local shooter and remote players, so the
             // visual endpoint always equals the damage endpoint (no through-wall
             // client-picked bolt, and no old-bolt double-draw under the rail).
-            // Fire event only triggers the muzzle flash (handled below).
+            // The shot itself is only the muzzle flash, from presentFire().
             break;
         }
       } else if (this.currentWeaponDef.projectileId) {
@@ -1799,21 +1821,6 @@ export class WeaponViewManager {
         // No local prediction needed — server snapshot drives projectile rendering
       }
     }
-
-    // Update light (created eagerly in init(); fallback covers legacy init paths).
-    // Intensity-only control — never setEnabled(), which would change material
-    // defines and trigger shader recompilation (first-shot flicker bug).
-    if (!this.muzzleFlashLight) {
-      this.muzzleFlashLight = new PointLight("muzzleFlash", Vector3.Zero(), this.scene!);
-      this.updateMuzzleFlashLightScope();
-    }
-
-    const color = flashDef?.color ?? { r: 1.0, g: 0.8, b: 0.3 };
-    const range = flashDef?.range ?? WeaponViewManager.MUZZLE_FLASH_RANGE;
-    this.muzzleFlashLight.diffuse = new Color3(color.r, color.g, color.b);
-    this.muzzleFlashLight.specular = new Color3(color.r * 0.5, color.g * 0.5, color.b * 0.5);
-    this.muzzleFlashLight.range = range;
-    this.muzzleFlashLight.intensity = 1.0;
   }
 
   /**
@@ -1965,6 +1972,14 @@ export class WeaponViewManager {
    */
   public isSwitching(): boolean {
     return this.switchAnim.isSwitching;
+  }
+
+  /**
+   * Drop a switch in progress, for a cut straight to a weapon already in hand.
+   * Left running, its pending load would land afterwards and replace the cut.
+   */
+  public cancelSwitch(): void {
+    this.switchAnim.reset();
   }
 
   // ==================== RELOAD ANIMATION ====================

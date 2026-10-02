@@ -10,7 +10,7 @@ The playable FPS path resolves a map through `PK3Index`, loads its dependencies,
 map wdm2 duel
 ```
 
-`MapLoader.getInstance().loadMap(mapName, scene, onProgress?)` is the high-level browser API. It currently resolves indexed BSP maps. Its local text-map branch is marked TODO.
+`MapLoader.getInstance().loadMap(mapName, scene, onProgress?, opts?)` is the high-level browser API. It currently resolves indexed BSP maps; its local text-map branch is marked TODO. `opts.backgroundOnly` loads a map as menu scenery, which is how a background map skips the gameplay setup that turns PVS on.
 
 ## Inspection flow
 
@@ -67,6 +67,11 @@ Quake map coordinates are converted to Babylon coordinates by the BSP mesh helpe
 - PVS cluster data enables static-world visibility culling by default on playable map loads;
 - IBSP and FBSP lightmap sizes and lightstyles are handled separately;
 - worldspawn, spawn points, brush entities, lights, and other supported entities are processed after geometry.
+
+Inline lift/door meshes group faces by both base texture and lightmap page,
+matching static-world batching. Faces with page-local UV2 coordinates must not
+share a material across different lightmap pages. Static and moving BSP surfaces
+use the same baked-light RGBA/gamma/overbright conversion.
 
 Not every classname has gameplay behavior. Confirm handlers in `BspEntityHandlers.ts` and the FPS entity layer before promising support.
 

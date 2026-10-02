@@ -242,6 +242,17 @@ describe("MessageCodec — all message types", () => {
       // With team: type + flag + string length (u16) + "red" = 2 + 2 + 3 = 7
       expect(withTeam.length).toBe(7);
     });
+
+    it("carries a drop-in seat ticket after the team, with or without one", () => {
+      const withTeam = MessageCodec.decodeJoinGame(MessageCodec.encodeJoinGame("red", true, "ticket-1"));
+      expect(withTeam).toEqual({ teamId: "red", manualPick: true, admissionTicket: "ticket-1" });
+      const noTeam = MessageCodec.decodeJoinGame(MessageCodec.encodeJoinGame(undefined, false, "ticket-2"));
+      expect(noTeam).toEqual({ teamId: undefined, manualPick: false, admissionTicket: "ticket-2" });
+    });
+
+    it("reads a message without a ticket as before", () => {
+      expect(MessageCodec.decodeJoinGame(MessageCodec.encodeJoinGame("red")).admissionTicket).toBeUndefined();
+    });
   });
 
   describe("Ready / Spectate / RequestSpawn", () => {

@@ -121,8 +121,9 @@ export class Cvar {
     // Check if we have a persisted value
     const existing = Cvar.cvars.get(lowerName);
     if (existing) {
-      // Keep the persisted/current value, update metadata
-      cvar.value = existing.value;
+      // Keep the persisted/current value, held to the type and bounds this
+      // registration declares — storage kept it before either was known.
+      cvar.value = Cvar.coerceValue(existing.value, type, options.min, options.max);
     }
 
     Cvar.cvars.set(lowerName, cvar);
@@ -193,6 +194,16 @@ export class Cvar {
     if (cvar.flags.readonly) {
       console.warn(`[Cvar] ${name} is read-only`);
       return false;
+    }
+
+    // A numeric cvar refuses text rather than reading it as zero: "r_bloom abc"
+    // is a typo, and silently turning bloom off is worse than saying no.
+    if ((cvar.type === "int" || cvar.type === "float") && typeof value === "string") {
+      const text = value.trim();
+      if (text === "" || !Number.isFinite(Number(text))) {
+        console.warn(`[Cvar] ${name} takes a number, not "${value}"`);
+        return false;
+      }
     }
 
     const oldValue = cvar.value;

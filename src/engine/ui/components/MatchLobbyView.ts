@@ -10,6 +10,7 @@
 
 import type { LobbyClient } from "../../../lobby/LobbyClient";
 import type { MatchLobbyInfo, TeamNames } from "../../../lobby/types";
+import { rememberMapTitle } from "../MapTitles";
 import { ConnectingOverlay } from "./ConnectingOverlay";
 import { createRaisedKey, setRaisedKeyText } from "./RaisedKey";
 
@@ -43,6 +44,8 @@ export interface MatchLobbyConfig {
   gametype: string;
   gametypeLabel: string;
   maxPlayers: number;
+  /** Players needed to start: the server's, or `maxPlayers` from an older one. */
+  minPlayers: number;
   hasTeams: boolean;
 }
 
@@ -87,6 +90,7 @@ export class MatchLobbyView {
       gametype: lobbyInfo.gametype,
       gametypeLabel: gametype === "duel" ? "DUEL 1v1" : gametype === "snd" ? "S&D" : gametype.toUpperCase(),
       maxPlayers: lobbyInfo.config.maxPlayers,
+      minPlayers: Math.min(lobbyInfo.config.minPlayers ?? lobbyInfo.config.maxPlayers, lobbyInfo.config.maxPlayers),
       hasTeams: lobbyInfo.config.hasTeams,
     };
     this.lobbyId = lobbyInfo.id;
@@ -105,6 +109,7 @@ export class MatchLobbyView {
       votes: m.votes,
       votedByLocal: false,
     }));
+    for (const map of lobbyInfo.maps) rememberMapTitle(map.name, map.displayName);
     this.players = lobbyInfo.players.map((p) => ({
       id: p.id,
       name: p.name,
@@ -337,7 +342,11 @@ export class MatchLobbyView {
   private build(): HTMLElement {
     const container = document.createElement("div");
     container.className = "match-lobby";
-    container.append(this.buildTopBar(), this.buildStatus(), this.buildRoster(), this.buildVote(), this.buildActions());
+    // Who is here and which map: the part that scrolls when the screen is too short
+    const body = document.createElement("div");
+    body.className = "match-lobby__body";
+    body.append(this.buildRoster(), this.buildVote());
+    container.append(this.buildTopBar(), this.buildStatus(), body, this.buildActions());
     this.startClock();
     return container;
   }
@@ -354,9 +363,7 @@ export class MatchLobbyView {
     chip.textContent = this.config.gametypeLabel;
     const meta = document.createElement("span");
     meta.className = "match-lobby__meta";
-    const shape =
-      this.config.maxPlayers === 2 ? "1 vs 1" : this.config.hasTeams ? "Teams" : `Up to ${this.config.maxPlayers}`;
-    meta.append(shape, document.createElement("br"));
+    meta.append(this.shape(), document.createElement("br"));
     const room = document.createElement("b");
     room.textContent = this.lobbyId;
     meta.append("Lobby ", room);
@@ -364,6 +371,29 @@ export class MatchLobbyView {
 
     top.append(who, this.buildInvite());
     return top;
+  }
+
+  /** "1 vs 1", "Up to 5 vs 5 · starts at 2", "Free for all · 8 players". */
+  private shape(): string {
+    const { maxPlayers, minPlayers, hasTeams } = this.config;
+    if (maxPlayers === 2) return "1 vs 1";
+    const starts = minPlayers < maxPlayers ? ` · starts at ${minPlayers}` : "";
+    if (hasTeams) {
+      const side = Math.ceil(maxPlayers / 2);
+      return `${minPlayers < maxPlayers ? "Up to " : ""}${side} vs ${side}${starts}`;
+    }
+    return `Free for all · ${minPlayers < maxPlayers ? "up to " : ""}${maxPlayers} players${starts}`;
+  }
+
+  /**
+   * Enough people to start: the server's minimum, and in a team mode someone on
+   * each side, since the server will not launch a match with an empty side.
+   */
+  private enoughToStart(): boolean {
+    if (this.players.length < this.config.minPlayers) return false;
+    if (!this.config.hasTeams) return true;
+    const teams = new Set(this.players.map((p) => p.team));
+    return teams.has("alpha") && teams.has("bravo");
   }
 
   private buildInvite(): HTMLElement {
@@ -473,17 +503,34 @@ export class MatchLobbyView {
   private refreshStatus(status = this.root?.querySelector<HTMLElement>(".match-lobby__status")): void {
     if (!status) return;
     const full = this.players.length >= this.config.maxPlayers;
-    status.dataset.phase = this.phase === "starting" ? "starting" : full ? "ready" : "searching";
+    const enough = this.enoughToStart();
+    status.dataset.phase = this.phase === "starting" ? "starting" : enough ? "ready" : "searching";
     status.dataset.error = String(this.roomError !== null);
+    // The bar's stripes move only while the room is waiting on something other
+    // than you: a player to join, the rest to ready up, the server to start.
+    // When it is your move, they stand still.
+    status.dataset.waiting = String(
+      !this.roomError && !this.matchInProgress && (this.phase === "starting" || !enough || this.localReady),
+    );
 
     const readyCount = this.players.filter((p) => p.ready).length;
     const waiting = this.players.length - readyCount;
+    const open = this.config.maxPlayers - this.players.length;
+    const kicker = status.querySelector<HTMLElement>(".match-lobby__status-kicker");
     const head = status.querySelector<HTMLElement>(".match-lobby__status-head");
     const sub = status.querySelector<HTMLElement>(".match-lobby__status-sub");
     const count = status.querySelector<HTMLElement>(".match-lobby__count");
     const fill = status.querySelector<HTMLElement>(".match-lobby__status-fill");
     const core = status.querySelector<HTMLElement>(".match-lobby__radar-core");
 
+    if (kicker) {
+      kicker.textContent =
+        this.roomError || this.matchInProgress || this.phase === "starting" || !enough
+          ? "Match lobby"
+          : full
+            ? "Lobby full"
+            : "Enough to start";
+    }
     if (head) {
       head.textContent = this.roomError
         ? "Room action failed"
@@ -491,13 +538,15 @@ export class MatchLobbyView {
           ? "Match in progress"
           : this.phase === "starting"
             ? "Match starting"
-            : !full
+            : !enough
               ? this.config.maxPlayers === 2
                 ? "Searching for an opponent"
                 : "Waiting for players"
               : this.localReady
                 ? "You're ready"
-                : "Ready when you are";
+                : full
+                  ? "Ready up"
+                  : "Ready when you are";
     }
     if (sub) {
       sub.textContent =
@@ -506,11 +555,15 @@ export class MatchLobbyView {
           ? "This room's match is still running. Rejoin your seat, or wait here for it to end."
           : this.phase === "starting"
             ? "Everyone is ready. Connecting when the game server is available."
-            : !full
-              ? "Share the invite, or add a bot to play right now."
+            : !enough
+              ? this.config.hasTeams && this.players.length >= this.config.minPlayers
+                ? "Each side needs a player. Switch sides, or add a bot."
+                : "Share the invite, or add a bot to play right now."
               : this.localReady
                 ? `${waiting} player${waiting === 1 ? "" : "s"} still to ready up.`
-                : `${readyCount} of ${this.players.length} ready.`);
+                : full
+                  ? `${readyCount} / ${this.players.length} ready · starts the moment everyone is`
+                  : `${readyCount} / ${this.players.length} ready · ${open} seat${open === 1 ? "" : "s"} stay open until it starts`);
       if (this.roomError) sub.setAttribute("role", "alert");
       else sub.removeAttribute("role");
     }
@@ -522,7 +575,8 @@ export class MatchLobbyView {
       count.appendChild(of);
     }
     if (fill) fill.style.width = `${Math.min(100, (this.players.length / this.config.maxPlayers) * 100)}%`;
-    if (core) core.textContent = full ? "✓" : String(this.config.maxPlayers - this.players.length);
+    // How many more before it can start; once it can, a call to ready up
+    if (core) core.textContent = enough ? "!" : String(Math.max(1, this.config.minPlayers - this.players.length));
     this.refreshReadyKey();
   }
 
@@ -626,7 +680,7 @@ export class MatchLobbyView {
       avatar.textContent = player.name.slice(0, 1).toUpperCase();
       name.textContent = player.name;
       // Ready flags belong to the next match; the one being played says so
-      state.textContent = this.matchInProgress ? "In match" : player.ready ? "Ready" : "Not ready";
+      state.textContent = this.matchInProgress ? "In match" : player.ready ? "✓ Ready" : "Not ready";
       seat.append(avatar, name);
       if (player.isLocal) {
         const you = document.createElement("span");
@@ -640,7 +694,8 @@ export class MatchLobbyView {
 
     seat.classList.add("match-lobby__seat--open");
     avatar.textContent = "?";
-    name.textContent = this.phase === "starting" ? "Empty seat" : "Waiting for a player";
+    name.textContent =
+      this.phase === "starting" ? "Empty seat" : this.config.maxPlayers === 2 ? "Waiting for a player" : "Open";
     seat.append(avatar, name, state);
     return seat;
   }
@@ -775,7 +830,9 @@ export class MatchLobbyView {
     actions.appendChild(this.inviteBotBtn);
     this.updateInviteBotState();
 
-    if (this.config.hasTeams) {
+    // Two seats are two players facing each other: which side is whose changes
+    // nothing, so there is nothing to switch or shuffle
+    if (this.config.hasTeams && this.config.maxPlayers > 2) {
       // Switch sides. Separate from shuffle, which is random and needs a
       // majority — this affects only you, so it needs neither, and it is the
       // only way to choose which half of a round mode you play.
@@ -795,11 +852,8 @@ export class MatchLobbyView {
       this.shuffleBtn.disabled = this.phase === "starting";
     }
 
-    const spacer = document.createElement("span");
-    spacer.className = "match-lobby__spacer";
-    actions.appendChild(spacer);
-
     this.recoverBtn = createRaisedKey({ label: "Rejoin match", hint: "Unplayed seat", variants: ["act", "cream"] });
+    this.recoverBtn.classList.add("match-lobby__recover");
     this.recoverBtn.hidden = !this.activeMatchId;
     this.recoverBtn.addEventListener("click", () => void this.recoverSeat());
     actions.appendChild(this.recoverBtn);
@@ -840,11 +894,12 @@ export class MatchLobbyView {
   private refreshReadyKey(): void {
     const key = this.readyBtn;
     if (!key) return;
-    const full = this.players.length >= this.config.maxPlayers;
+    const enough = this.enoughToStart();
+    const readyCount = this.players.filter((p) => p.ready).length;
     key.setAttribute("aria-pressed", String(this.localReady));
     key.disabled = this.phase === "starting";
-    // Only breathe when the room is only waiting on you
-    key.classList.toggle("match-lobby__ready--calling", full && !this.localReady && this.phase !== "starting");
+    // Only breathe once the room could start and is waiting on you
+    key.classList.toggle("match-lobby__ready--calling", enough && !this.localReady && this.phase !== "starting");
     setRaisedKeyText(
       key,
       this.localReady ? "Ready!" : "Ready",
@@ -852,9 +907,11 @@ export class MatchLobbyView {
         ? "Match running"
         : this.phase === "starting"
           ? "Starting"
-          : this.localReady
-            ? "Waiting for the rest"
-            : "Click when set",
+          : enough
+            ? `${readyCount} / ${this.players.length} ready`
+            : this.localReady
+              ? "Waiting for the rest"
+              : "Click when set",
     );
   }
 
@@ -907,8 +964,8 @@ export class MatchLobbyView {
       return;
     }
 
-    const full = this.players.length >= this.config.maxPlayers;
-    btn.disabled = full;
-    setRaisedKeyText(btn, "+ Add bot", full ? "Room is full" : "Fill a seat");
+    const open = this.config.maxPlayers - this.players.length;
+    btn.disabled = open <= 0;
+    setRaisedKeyText(btn, "+ Add bot", open <= 0 ? "Room is full" : `${open} seat${open === 1 ? "" : "s"} open`);
   }
 }

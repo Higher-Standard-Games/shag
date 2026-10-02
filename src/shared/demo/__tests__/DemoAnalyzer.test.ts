@@ -115,7 +115,7 @@ function makeFrame(tick: number, events: Array<Record<string, unknown>> = [], en
   for (const e of entities) {
     state.entities.set(e.id, e);
   }
-  return { tick, state };
+  return { tick, state, inputs: [] };
 }
 
 /**

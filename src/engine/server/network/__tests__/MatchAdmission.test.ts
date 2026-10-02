@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { issueMatchAdmission, MatchAdmission } from "../MatchAdmission";
+import { issueDropInSeat, issueMatchAdmission, MatchAdmission } from "../MatchAdmission";
 
 describe("match admission", () => {
   it("issues separate unguessable tickets and consumes them once before expiry", () => {
@@ -72,5 +72,49 @@ describe("match admission", () => {
     const played = new MatchAdmission(manifest);
     expect(played.consume(first, 1100)).not.toBeNull();
     expect(played.consume(fallback, 1201)).toBeNull(); // no pre-game release after JoinGame
+  });
+});
+
+describe("drop-in seats", () => {
+  const original = { lobbyPlayerId: "p1", accountId: 12, name: "Alice", team: "udon", isBot: false };
+  const late = { accountId: 30, name: "Bob", team: "soba", isBot: false };
+
+  it("admits a seat into a running match on its own clock, with its recovery ticket", () => {
+    // The manifest ran out long before the late player arrived.
+    const { manifest } = issueMatchAdmission("match-3", [original], 1000, 200);
+    const gate = new MatchAdmission(manifest);
+    const seat = issueDropInSeat(late, 50_000, 200, 5_000);
+
+    expect(JSON.stringify(seat.grants)).not.toContain(seat.ticket);
+    expect(gate.admit(seat.grants)).toBe(true);
+    expect(manifest.grants).toEqual(expect.arrayContaining(seat.grants));
+    expect(gate.consume(seat.ticket, 50_100)).toMatchObject({ accountId: 30, name: "Bob", team: "soba" });
+    expect(gate.consume(seat.ticket, 50_100)).toBeNull();
+    expect(seat.recovery).toMatchObject({ availableAt: 50_200, expiresAt: 55_000 });
+  });
+
+  it("lets a drop-in ticket expire like any other", () => {
+    const gate = new MatchAdmission(issueMatchAdmission("match-4", [original], 1000, 200).manifest);
+    const seat = issueDropInSeat(late, 50_000, 200);
+    expect(gate.admit(seat.grants)).toBe(true);
+    expect(gate.consume(seat.ticket, 50_201)).toBeNull();
+  });
+
+  it("never gives an account a second seat, or takes a malformed one", () => {
+    const gate = new MatchAdmission(issueMatchAdmission("match-5", [original], 1000, 200).manifest);
+    expect(gate.admit(issueDropInSeat({ ...late, accountId: 12 }, 50_000).grants)).toBe(false);
+
+    const seat = issueDropInSeat(late, 50_000);
+    expect(gate.admit([{ ...seat.grants[0], tokenHash: "not-a-hash" }])).toBe(false);
+    expect(gate.admit([{ ...seat.grants[0], isBot: true }])).toBe(false);
+    expect(gate.admit([])).toBe(false);
+    expect(gate.admit(seat.grants)).toBe(true);
+    expect(gate.admit(seat.grants)).toBe(false);
+    expect(gate.admit(issueDropInSeat(late, 50_000).grants)).toBe(false);
+  });
+
+  it("issues only human seats", () => {
+    expect(() => issueDropInSeat({ ...late, isBot: true, accountId: null })).toThrow("Invalid drop-in seat");
+    expect(() => issueDropInSeat({ ...late, accountId: null })).toThrow("Invalid drop-in seat");
   });
 });

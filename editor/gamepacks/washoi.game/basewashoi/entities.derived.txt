@@ -1,0 +1,443 @@
+// =============================================================================
+//  Washoi / SHAG Engine -- NetRadiant entity classes
+// =============================================================================
+//
+//  Every class below was derived from the engine's own readers, not guessed:
+//
+//    SpawnPointTable.ts            info_player_*, team_CTF_*spawn
+//    TriggerTable.ts               trigger_teleport, trigger_push + dest classes
+//    LiftSystem.ts                 func_door, func_plat, func_button,
+//                                  trigger_once, trigger_multiple
+//    BombSiteTable.ts              team_CTF_*flag, trigger_capture_area,
+//                                  misc_capture_area_indicator, target_explosion
+//    PickupTable.ts                weapon_*, ammo_*, item_armor_*, item_health_*
+//    MapAreaLightEntities.ts       light_area
+//    MapGodRayEntities.ts          light_volumetric, sun lights
+//    MapRenderer.ts (raw path)     misc_model, sprite*, npc_sprite, info_npc,
+//                                  street_lamp, build_zone, info_debris_zone
+//
+//  Two entity paths exist and are NOT interchangeable (docs/reference/entities.md):
+//    * compiled-BSP path  -- the FPS route. Everything in the first five
+//                            sections below is read out of the .bsp entity lump.
+//    * raw-.map path      -- editor / MapRenderer only, listed at the bottom.
+//  Only BSP-path classes affect gameplay.
+//
+//  SHAG coordinate convention: the .map is Z-up Quake style, converted
+//  X Y Z -> X Z Y on load. Author normally.
+//
+//  Engine quirks that will bite you, called out inline below:
+//    * BRUSH triggers/movers have NO reliable "origin". LiftSystem computes
+//      AABB = submodel AABB + origin, so the engine ADDS your origin to an
+//      already-world-space box. Leave origin at "0 0 0" for func_door,
+//      func_plat, func_button, trigger_once and trigger_multiple.
+//      trigger_teleport / trigger_push use the submodel AABB directly and
+//      ignore origin entirely.
+//    * The engine honours only SURF_SKY (0x4), SURF_NODRAW (0x80) and
+//      CONTENTS_DETAIL (0x8000000) from the BSP. nolightmap / nonsolid /
+//      trans must be expressed in the .shader, not in brush face flags.
+//    * SURF_HINT and SURF_SKIP are not filtered, so hint/skip brushes are
+//      meshed like anything else. Keep them out unless you mean it.
+//    * max 4 lightmap styles per surface (MAX_LIGHTMAPS). A surface needing
+//      more will not render correctly, and a surface must not straddle a
+//      lightmap page.
+// =============================================================================
+
+
+// -----------------------------------------------------------------------------
+//  WORLD
+// -----------------------------------------------------------------------------
+
+"worldspawn"
+{
+    // --- identity -----------------------------------------------------------
+    "message"      "Map Title"
+
+    // --- light grid ---------------------------------------------------------
+    // Must agree with "defaultGridSize" in makebspdata/washoi.json (64 64 128),
+    // otherwise the engine's grid origin is offset and dynamic model lighting
+    // drifts. Only override if you also change the profile.
+    "gridsize"     "Light Grid Size"        "64 64 128"
+
+    // --- lighting / global ambience ----------------------------------------
+    "ambient"                  "Macro Occlusion Ambient"       "0"
+    "color"                    "Global Ambient Color"          "1 1 1"
+    "ambient_sky"              "Sky Ambient Color"             "1 1 1"
+    "shading"                  "Shading Mode"                  "lambert"
+    "attenuation"              "Attenuation Model"             "standard"
+    "exposurefilter"           "Exposure Filter"               "reinhard"
+    "saturation"               "Saturation Multiplier"         "1.25"
+    "saturationramp"           "Saturation Ramp"               "halfpower"
+    "cutoff"                   "Light Cutoff"                  "0.1"
+    "fadeout"                  "Light Fadeout"                 "0.0"
+    "backsplashspot"           "Spot Backsplash"               "0.1"
+    "backsplashsurface"        "Surface Backsplash"            "0.0"
+    "haloshader"               "Halo Shader"                   "none"
+    "ambient_testradius"       "Ambient Test Radius"           "512"
+    "ambient_gatheradius"      "Ambient Gather Radius"         "256"
+    "grid_ambientbias"         "Grid Ambient Bias"             "1.5"
+    "grid_directbias"          "Grid Direct Bias"              "1.5"
+    "grid_smoothambient"       "Grid Smooth Ambient Radius"    "256"
+    "grid_smoothambient_passes" "Grid Smooth Ambient Passes"   "4"
+    "grid_smoothdirect"        "Grid Smooth Direct Radius"     "128"
+    "grid_smoothdirect_passes" "Grid Smooth Direct Passes"     "3"
+    "grid_minambient"          "Grid Min Ambient"              "0"
+    "grid_maxambient"          "Grid Max Ambient"              "0"
+    "_lightingIntensity"       "LDR Lightmap Intensity"        "1.75"
+
+    // --- lightmaps / rendering passes --------------------------------------
+    "samplesize"     "Lightmap Sample Size"    "8"
+    "deluxe"         "Deluxe Mapping"          "1"
+    "deluxe_minangle" "Deluxe Min Angle"       "15"
+    "supersample"    "Supersample Radius"      "0"
+    "smooth"         "Lightmap Smooth Radius"  "0.35"
+    "smoothpasses"   "Lightmap Smooth Passes"  "4"
+    "antialiasing"   "AA Passes"               "0"
+
+    // --- radiosity ----------------------------------------------------------
+    "radiosity"        "Bounce Light Intensity" "1.0"
+    "rad_color_ratio"  "Bounce Color Ratio"    "1.0"
+    "rad_interval"     "Bounce Interval"       "4"
+    "rad_ao_intensity" "Bounce AO Intensity"    "0.5"
+    "rad_ao_min"       "Bounce AO Min"         "0"
+    "rad_ao_max"       "Bounce AO Max"         "32"
+
+    // --- SHAG engine specific ----------------------------------------------
+    // Read by the engine, not by the compiler. God rays are driven by a
+    // "light" whose "target" names a marker entity (typically "sun" or
+    // "_sun"); the marker's origin sets the travel direction. Do NOT put
+    // q3map_sun / q3map_surfacelight in sky shaders -- the compiler already
+    // derives sky ambient from ambient_sky and they will double up.
+    "godrays"           "Enable God Rays"      "0"
+    "godrays_color"     "God Ray Color"        "1 1 1"
+    "_floodlight"       "Floodlight"           "255 255 240 768 170"
+}
+
+
+// -----------------------------------------------------------------------------
+//  PLAYER SPAWNS
+// -----------------------------------------------------------------------------
+
+"info_player_start"          { "origin" "angle" }
+"info_player_deathmatch"    { "origin" "angle" }
+"info_player_team1"         { "origin" "angle" }
+"info_player_team2"         { "origin" "angle" }
+"team_CTF_alphaspawn"       { "origin" "angle" }
+"team_CTF_betaspawn"        { "origin" "angle" }
+
+
+// -----------------------------------------------------------------------------
+//  TRIGGERS  (brush entities -- texture every face with textures/common/trigger)
+//
+//  The volume is BSP submodel *N's AABB. "model" and "target" are both
+//  mandatory; a trigger missing either is dropped silently at load.
+//  These have NO origin -- the submodel AABB is the volume.
+// -----------------------------------------------------------------------------
+
+"trigger_teleport"
+{
+    "model"     "Submodel (*N) -- required"
+    "target"    "Target Entity -- required"
+}
+
+"trigger_push"
+{
+    "model"     "Submodel (*N) -- required"
+    "target"    "Target Entity -- required"
+}
+
+// Lift callers. NOTE: the engine computes AABB = submodel AABB + origin, so
+// leave origin at "0 0 0" or you will double-count the offset.
+"trigger_once"
+{
+    "model"     "Submodel (*N) -- required"
+    "target"    "Target Name -- required"
+    "origin"    "Offset -- leave 0 0 0"
+    "wait"      "Hold Time (s)"    "0.5"
+}
+
+"trigger_multiple"
+{
+    "model"     "Submodel (*N) -- required"
+    "target"    "Target Name -- required"
+    "origin"    "Offset -- leave 0 0 0"
+    "wait"      "Hold Time (s)"    "0.5"
+}
+
+"func_button"
+{
+    "model"     "Submodel (*N) -- required"
+    "target"    "Target Name -- required"
+    "origin"    "Offset -- leave 0 0 0"
+    "wait"      "Hold Time (s)"    "1"
+}
+
+"trigger_hurt"
+{
+    "model"     "Submodel (*N) -- required"
+    "target"    "Target Name"
+    "origin"    "Offset -- leave 0 0 0"
+    "dmg"       "Damage"            "5"
+    "wait"      "Hold Time (s)"     "0.2"
+    "spawnflags" "1 = notouch"      "0"
+}
+
+
+// -----------------------------------------------------------------------------
+//  TRIGGER TARGETS  (point entities)
+//
+//  TriggerTable resolves target -> targetname against this allow-list only.
+//  A trigger pointing at any other classname is dropped with a console
+//  warning, so if your teleporter does nothing, check this list first.
+//  "G_PickTarget" itself does not filter by classname -- this is a safety
+//  allow-list, and it must stay a superset of what your maps use.
+// -----------------------------------------------------------------------------
+
+"target_position"            { "origin" "targetname" }
+"target_location"            { "origin" "targetname" }
+"misc_teleporter_dest"       { "origin" "angle" "targetname" }
+"info_teleport_destination"  { "origin" "angle" "targetname" }
+"info_notnull"               { "origin" "targetname" }
+"target_explosion"           { "origin" "targetname" "dmg" }
+
+
+// -----------------------------------------------------------------------------
+//  MOVERS  (brush entities)
+//
+//  Only func_plat and func_door are registered (BspEntityHandlers).
+//  func_door only moves when "angle" is -1 (up) or -2 (down).
+//  Authored at the UPPER stop; simulation starts one "height" below.
+//  NOTE: the engine computes AABB = submodel AABB + origin -- leave origin
+//  at "0 0 0" unless you deliberately want an offset.
+// -----------------------------------------------------------------------------
+
+"func_door"
+{
+    "model"     "Submodel (*N) -- required"
+    "origin"    "Offset -- leave 0 0 0"
+    "angle"     "-1 = up, -2 = down -- required"
+    "height"    "Travel Distance"
+    "lip"       "Lip (kept open)"       "8"
+    "speed"     "Speed (units/s)"        "100"
+    "wait"      "Wait Open (s)"          "2"
+    "dmg"       "Crush Damage"           "2"
+    "targetname" "Target Name"
+    "noise_start" "Start Sound"
+    "noise_stop"  "Stop Sound"
+    "spawnflags" "1 = reverse, 4 = crusher" "0"
+}
+
+"func_plat"
+{
+    "model"     "Submodel (*N) -- required"
+    "origin"    "Offset -- leave 0 0 0"
+    "height"    "Travel Distance -- required"
+    "speed"     "Speed (units/s)"        "200"
+    "wait"      "Wait (s)"               "1"
+    "dmg"       "Crush Damage"           "2"
+    "targetname" "Target Name"
+    "noise_start" "Move Sound"
+    "noise_stop"  "Stop Sound"
+    "spawnflags" "4 = crusher"           "0"
+}
+
+
+// -----------------------------------------------------------------------------
+//  CAPTURE POINTS / BOMBSITES
+// -----------------------------------------------------------------------------
+
+"team_CTF_redflag"   { "origin" "angle" "targetname" }
+"team_CTF_blueflag"  { "origin" "angle" "targetname" }
+
+"trigger_capture_area"
+{
+    "model"     "Submodel (*N) -- required"
+    "target"    "Indicator targetname"
+    "origin"    "Offset -- leave 0 0 0"
+    "spawnflags" "1 = neutral" "0"
+}
+
+"misc_capture_area_indicator" { "origin" "targetname" "angle" }
+
+
+// -----------------------------------------------------------------------------
+//  LIGHTS
+// -----------------------------------------------------------------------------
+
+"light"
+{
+    "origin"     "Position"
+    "light"      "Intensity"           "300"
+    "_color"     "Color"                "1 1 1"
+    "target"     "Target Entity -- names sun/_sun for a directional light"
+    "targetname" "Target Name"
+    "radius"     "Radius (for spot lights)"
+    "spawnflags" "1 = linear attenuation, 2 = no angle attenuation" "0"
+}
+
+"light_area"
+{
+    "origin"            "Position"
+    "_size"             "Size X Y"        "64 64"
+    "light"             "Intensity"
+    "_intensity"        "Intensity (alt)"
+    "_color"            "Color"           "1 1 1"
+    "_arealight_image"  "Projection Image"
+}
+
+"light_volumetric"
+{
+    "origin"            "Position"
+    "_color"            "Color"           "1 1 1"
+    "color"             "Color (alt)"
+    "godrays_exposure"  "Exposure"        "1"
+    "size"              "Size"
+}
+
+
+// -----------------------------------------------------------------------------
+//  WEAPONS
+// -----------------------------------------------------------------------------
+
+"weapon_machinegun"     { "origin" "angle" "spawnflags" }
+"weapon_riotgun"        { "origin" "angle" "spawnflags" }
+"weapon_grenadelauncher" { "origin" "angle" "spawnflags" }
+"weapon_rocketlauncher" { "origin" "angle" "spawnflags" }
+"weapon_plasmagun"      { "origin" "angle" "spawnflags" }
+"weapon_voltaic"        { "origin" "angle" "spawnflags" }
+"weapon_lasergun"       { "origin" "angle" "spawnflags" }
+"weapon_electrobolt"    { "origin" "angle" "spawnflags" }
+"weapon_instagun"       { "origin" "angle" "spawnflags" }
+
+
+// -----------------------------------------------------------------------------
+//  AMMO
+// -----------------------------------------------------------------------------
+
+"ammo_machinegun"     { "origin" "spawnflags" }
+"ammo_riotgun"        { "origin" "spawnflags" }
+"ammo_grenadelauncher" { "origin" "spawnflags" }
+"ammo_rocketlauncher" { "origin" "spawnflags" }
+"ammo_plasmagun"      { "origin" "spawnflags" }
+"ammo_lasergun"       { "origin" "spawnflags" }
+"ammo_electrobolt"    { "origin" "spawnflags" }
+"ammo_instagun"       { "origin" "spawnflags" }
+"ammo_bullets"        { "origin" "spawnflags" }
+"ammo_shells"         { "origin" "spawnflags" }
+"ammo_rockets"        { "origin" "spawnflags" }
+"ammo_cells"          { "origin" "spawnflags" }
+"ammo_grenades"       { "origin" "spawnflags" }
+"ammo_bolts"          { "origin" "spawnflags" }
+"ammo_instas"         { "origin" "spawnflags" }
+"ammo_lasers"         { "origin" "spawnflags" }
+
+
+// -----------------------------------------------------------------------------
+//  ARMOR / HEALTH / POWERUPS
+// -----------------------------------------------------------------------------
+
+"item_armor_shard" { "origin" "spawnflags" }
+"item_armor_ga"    { "origin" "spawnflags" }
+"item_armor_ya"    { "origin" "spawnflags" }
+"item_armor_ra"    { "origin" "spawnflags" }
+
+"item_health_small"  { "origin" "spawnflags" }
+"item_health_medium" { "origin" "spawnflags" }
+"item_health"        { "origin" "spawnflags" }
+"item_health_large"  { "origin" "spawnflags" }
+"item_health_mega"   { "origin" "spawnflags" }
+"item_health_ultra"  { "origin" "spawnflags" }
+
+"item_quad"      { "origin" "spawnflags" }
+"item_warshell"  { "origin" "spawnflags" }
+"item_regen"     { "origin" "spawnflags" }
+
+
+// -----------------------------------------------------------------------------
+//  COMPILER ENTITIES  (makebsp / makelight)
+//
+//  func_light generates brush-area lights; misc_decal / misc_text_decal place
+//  projected decals. See makebsp README sections "func_light", "misc_decal",
+//  "misc_text_decal" and "func_trim" for the full key list.
+// -----------------------------------------------------------------------------
+
+"func_group"   { "origin" }
+"func_trim"    { "origin" "script" }
+"func_trisoup" { "origin" "script" }
+"func_light"   { "origin" "light" "_color" "size" "shape" "attenuation" "chamfer" }
+
+"misc_decal"      { "origin" "angle" "shader" "width" "height" "rotation" "decal" }
+"misc_text_decal" { "origin" "angle" "text" "size" "color" "align" }
+
+
+// =============================================================================
+//  RAW-.MAP PATH ONLY  (src/engine/MapRenderer.ts)
+//
+//  These are read by the raw map renderer, NOT by the compiled-BSP gameplay
+//  path. They are kept here so the raw/preview workflow stays usable, clearly
+//  separated from the gameplay classes above. Placing them in a compiled map
+//  has no gameplay effect.
+// =============================================================================
+
+"misc_model"
+{
+    "origin"          "Position"
+    "model"           "Model / Prefab Path"
+    "angle"           "Y Rotation"          "0"
+    "scale"           "Uniform Scale"       "1"
+    "collision"       "Collision"           "1"
+    "receiveShadows"  "Receive Shadows"     "1"
+    "castShadows"     "Cast Shadows"        "0"
+    "visible"         "Visible"             "1"
+    "renderingGroup"  "Rendering Group"     "0"
+    "dropToGround"    "Drop To Ground"      "0"
+    "dropOffset"      "Drop Offset"         "0"
+}
+
+"street_lamp"
+{
+    "origin"       "Position"
+    "targetname"   "Target Name"
+    "light"        "Max Intensity"        "200"
+    "range"        "Range"                "100"
+    "_color"       "Color"                "255 200 150"
+    "fadeTime"     "Fade Time (s)"        "2"
+    "turnOnHour"   "Turn On Hour"         "18"
+    "turnOffHour"  "Turn Off Hour"        "6"
+    "flicker"      "Flicker"              "0"
+    "showBulb"     "Show Bulb"            "1"
+    "bulbSize"     "Bulb Size"            "3"
+}
+
+"sprite_building"
+{
+    "origin" "targetname" "texture" "width" "height" "billboard" "angle"
+    "emissive" "windowTarget" "triggerWidth" "triggerHeight" "triggerDepth"
+    "collisionWidth" "collisionHeight" "collisionDepth"
+}
+
+"misc_sprite"
+{
+    "origin" "sprite" "width" "height" "scale" "billboard" "angle"
+    "shadow" "shadowOpacity" "anchor"
+}
+
+"npc_sprite"
+{
+    "origin" "targetname" "sprite" "scale" "angle" "directions" "frames"
+    "frameRate" "frameWidth" "frameHeight" "color" "accentColor"
+    "receiveLighting" "ambientLevel" "castShadow" "shadowOpacity" "shadowScale"
+}
+
+"info_npc"
+{
+    "origin" "targetname" "name" "preset" "random" "angle" "scale"
+    "skinColor" "hairColor" "shirtColor" "pantsColor" "shoesColor"
+    "bodyType" "hairStyle" "gender" "accessory" "facialHair"
+}
+
+"build_zone"
+{
+    "origin" "targetname" "zoneType" "size" "color"
+}
+
+"info_debris_zone" { "origin" "targetname" "size" }

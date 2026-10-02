@@ -1,11 +1,22 @@
 import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine";
 import { Engine } from "@babylonjs/core/Engines/engine";
+import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
 
 export type RenderingBackend = "webgl2" | "webgpu";
+export type ActualRenderingBackend = RenderingBackend | "webgl1" | "null";
+
+export function getRenderingBackend(engine: AbstractEngine): ActualRenderingBackend {
+  if (engine instanceof NullEngine) return "null";
+  if (engine.isWebGPU) return "webgpu";
+  return engine.version >= 2 ? "webgl2" : "webgl1";
+}
 
 export interface RenderingEngineResult {
   engine: AbstractEngine;
-  backend: RenderingBackend;
+  backend: ActualRenderingBackend;
+  /** Controls must bind this canvas: recovery may replace the original. */
+  canvas: HTMLCanvasElement;
+  fallbackStage?: "support" | "initialization";
   fallbackReason?: string;
 }
 
@@ -13,20 +24,61 @@ export interface RenderingEngineFactories {
   createWebGL(canvas: HTMLCanvasElement): AbstractEngine;
   isWebGPUSupported(): Promise<boolean>;
   createWebGPU(canvas: HTMLCanvasElement): Promise<AbstractEngine>;
+  replaceCanvas?(canvas: HTMLCanvasElement): HTMLCanvasElement;
+}
+
+/** Startup only, before input listeners are installed. Keep attributes/layout. */
+function replaceCanvas(canvas: HTMLCanvasElement): HTMLCanvasElement {
+  const fresh = canvas.cloneNode(false) as HTMLCanvasElement;
+  canvas.replaceWith(fresh);
+  return fresh;
+}
+
+/** Preserve the primary error even if Babylon cannot dispose a partial engine. */
+export async function initializeWebGPUWithCleanup(
+  engine: AbstractEngine,
+  initialize: () => Promise<void>,
+): Promise<AbstractEngine> {
+  try {
+    await initialize();
+    return engine;
+  } catch (error) {
+    try {
+      engine.dispose();
+    } catch (cleanupError) {
+      console.warn("[Renderer] Partial WebGPU engine cleanup failed", cleanupError);
+    }
+    throw error;
+  }
 }
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+/**
+ * Babylon's modular WebGPU entry omits two extensions we use: DynamicTexture,
+ * and MultiRender, which the geometry buffer behind screen-space reflections
+ * needs (without it `r_ssr 1` fails to start on WebGPU only; WebGL gets its
+ * own multi-render extension through Babylon's imports).
+ */
+export async function loadWebGPUBackend() {
+  const [{ WebGPUEngine }] = await Promise.all([
+    import("@babylonjs/core/Engines/webgpuEngine"),
+    import("@babylonjs/core/Engines/WebGPU/Extensions/engine.dynamicTexture"),
+    import("@babylonjs/core/Engines/WebGPU/Extensions/engine.multiRender"),
+  ]);
+  return WebGPUEngine;
+}
+
 async function isWebGPUSupported(): Promise<boolean> {
-  const { WebGPUEngine } = await import("@babylonjs/core/Engines/webgpuEngine");
+  const WebGPUEngine = await loadWebGPUBackend();
   return WebGPUEngine.IsSupportedAsync;
 }
 
 async function createWebGPUEngine(canvas: HTMLCanvasElement): Promise<AbstractEngine> {
-  const [{ WebGPUEngine }, glslangJs, glslangWasm, twgslJs, twgslWasm] = await Promise.all([
-    import("@babylonjs/core/Engines/webgpuEngine"),
+  const [WebGPUEngine, glslangJs, glslangWasm, twgslJs, twgslWasm] = await Promise.all([
+    loadWebGPUBackend(),
     import("@babylonjs/core/assets/glslang/glslang.js?url"),
     import("@babylonjs/core/assets/glslang/glslang.wasm?url"),
     import("@babylonjs/core/assets/twgsl/twgsl.js?url"),
@@ -40,16 +92,12 @@ async function createWebGPUEngine(canvas: HTMLCanvasElement): Promise<AbstractEn
     powerPreference: "high-performance",
   });
 
-  try {
-    await engine.initAsync(
+  return initializeWebGPUWithCleanup(engine, () =>
+    engine.initAsync(
       { jsPath: glslangJs.default, wasmPath: glslangWasm.default },
       { jsPath: twgslJs.default, wasmPath: twgslWasm.default },
-    );
-    return engine;
-  } catch (error) {
-    engine.dispose();
-    throw error;
-  }
+    ),
+  );
 }
 
 const DEFAULT_FACTORIES: RenderingEngineFactories = {
@@ -71,34 +119,38 @@ export function resolveRenderingBackend(webGPUCvarEnabled: boolean, search = "")
 }
 
 /**
- * Create the requested renderer. WebGPU is experimental and must never make
- * startup fail: unsupported adapters and initialization/compiler failures all
- * fall back to the established WebGL2 engine.
+ * Recover from WebGPU support/initialization failures before scene creation.
+ * Later shader or device failures are outside this startup transaction.
+ * WebGL failure is terminal and is never retried on the same canvas.
  */
 export async function createRenderingEngine(
   canvas: HTMLCanvasElement,
   requestedBackend: RenderingBackend,
   factories: RenderingEngineFactories = DEFAULT_FACTORIES,
 ): Promise<RenderingEngineResult> {
+  const webgl = (target: HTMLCanvasElement): RenderingEngineResult => {
+    const engine = factories.createWebGL(target);
+    return { engine, backend: getRenderingBackend(engine), canvas: target };
+  };
   if (requestedBackend === "webgl2") {
-    return { engine: factories.createWebGL(canvas), backend: "webgl2" };
+    return webgl(canvas);
   }
 
+  let stage: "support" | "initialization" = "support";
+  let fallbackReason: string;
   try {
     if (!(await factories.isWebGPUSupported())) {
-      return {
-        engine: factories.createWebGL(canvas),
-        backend: "webgl2",
-        fallbackReason: "WebGPU is not supported by this browser or GPU adapter",
-      };
+      fallbackReason = "WebGPU is not supported by this browser or GPU adapter";
+    } else {
+      stage = "initialization";
+      const engine = await factories.createWebGPU(canvas);
+      return { engine, backend: getRenderingBackend(engine), canvas };
     }
-
-    return { engine: await factories.createWebGPU(canvas), backend: "webgpu" };
   } catch (error) {
-    return {
-      engine: factories.createWebGL(canvas),
-      backend: "webgl2",
-      fallbackReason: `WebGPU initialization failed: ${errorMessage(error)}`,
-    };
+    fallbackReason = `WebGPU ${stage} failed: ${errorMessage(error)}`;
   }
+  // A canvas cannot acquire a WebGL context after acquiring a WebGPU context.
+  // Conservatively replace it after any attempted WebGPU initialization.
+  const target = stage === "initialization" ? (factories.replaceCanvas ?? replaceCanvas)(canvas) : canvas;
+  return { ...webgl(target), fallbackReason, fallbackStage: stage };
 }

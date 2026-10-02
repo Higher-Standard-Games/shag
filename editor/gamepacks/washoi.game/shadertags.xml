@@ -1,0 +1,825 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Washoi texture browser tags.
+
+  Tag roots mirror the top-level texture directories that actually ship in
+  shag/public/data, plus the Q3 stock set. Untagged textures are hidden from
+  the browser, so new assets are added either by regenerating this file from
+  the pk3 chain or by dropping them into a "custom" group below.
+-->
+<root>
+
+	<custom>
+		<texture path="textures/common/areaportal">
+			<tag>Stock / Compiler</tag>
+		</texture>
+		<texture path="textures/common/caulk">
+			<tag>Stock / Compiler</tag>
+		</texture>
+		<texture path="textures/common/donotenter">
+			<tag>Stock / Compiler</tag>
+		</texture>
+		<texture path="textures/common/fullclip">
+			<tag>Stock / Compiler</tag>
+		</texture>
+		<texture path="textures/common/hint">
+			<tag>Stock / Compiler</tag>
+		</texture>
+		<texture path="textures/common/invisible">
+			<tag>Stock / Compiler</tag>
+		</texture>
+		<texture path="textures/common/ladder">
+			<tag>Stock / Compiler</tag>
+		</texture>
+		<texture path="textures/common/mirror">
+			<tag>Stock / Compiler</tag>
+		</texture>
+		<texture path="textures/common/nodraw">
+			<tag>Stock / Compiler</tag>
+		</texture>
+		<texture path="textures/common/nodrawnonsolid">
+			<tag>Stock / Compiler</tag>
+		</texture>
+		<texture path="textures/common/nodrop">
+			<tag>Stock / Compiler</tag>
+		</texture>
+		<texture path="textures/common/noimpact">
+			<tag>Stock / Compiler</tag>
+		</texture>
+		<texture path="textures/common/nolightmap">
+			<tag>Stock / Compiler</tag>
+		</texture>
+		<texture path="textures/common/nowalljumpclip">
+			<tag>Stock / Compiler</tag>
+		</texture>
+		<texture path="textures/common/origin">
+			<tag>Stock / Compiler</tag>
+		</texture>
+		<texture path="textures/common/playerclip">
+			<tag>Stock / Compiler</tag>
+		</texture>
+		<texture path="textures/common/skip">
+			<tag>Stock / Compiler</tag>
+		</texture>
+		<texture path="textures/common/slick">
+			<tag>Stock / Compiler</tag>
+		</texture>
+		<texture path="textures/common/terrain">
+			<tag>Stock / Compiler</tag>
+		</texture>
+		<texture path="textures/common/trigger">
+			<tag>Stock / Compiler</tag>
+		</texture>
+	</custom>
+
+	<blx>
+		<texture path="textures/blx/blx_circle">
+			<tag>BLX / Blur / Grille</tag>
+		</texture>
+		<texture path="textures/blx/blx_dark">
+			<tag>BLX / Blur / Grille</tag>
+		</texture>
+		<texture path="textures/blx/blx_dark_ws">
+			<tag>BLX / Warsow</tag>
+		</texture>
+		<texture path="textures/blx/blx_dec">
+			<tag>BLX / Blur / Grille</tag>
+		</texture>
+		<texture path="textures/blx/blx_display_1">
+			<tag>BLX / Detail</tag>
+		</texture>
+		<texture path="textures/blx/blx_floor_1">
+			<tag>BLX / Floor</tag>
+		</texture>
+		<texture path="textures/blx/blx_grid">
+			<tag>BLX / Blur / Grille</tag>
+		</texture>
+		<texture path="textures/blx/blx_ecel_bounce">
+			<tag>BLX / Ecel / Bounce</tag>
+		</texture>
+	</blx>
+
+	<blxbis>
+		<texture path="textures/blxbis/aluminium">
+			<tag>BLXbis / Metal</tag>
+		</texture>
+		<texture path="textures/blxbis/blx_spacer">
+			<tag>BLXbis / Detail</tag>
+		</texture>
+		<texture path="textures/blxbis/glass">
+			<tag>BLXbis / Glass</tag>
+		</texture>
+		<texture path="textures/blxbis/grate">
+			<tag>BLXbis / Grate</tag>
+		</texture>
+		<texture path="textures/blxbis/ground">
+			<tag>BLXbis / Natural</tag>
+		</texture>
+		<texture path="textures/blxbis/iceline">
+			<tag>BLXbis / Ice</tag>
+		</texture>
+	</blxbis>
+
+	<blx_tech2>
+		<texture path="textures/blx_tech2/tech2_base_bright">
+			<tag>BLX Tech 2 / Wall</tag>
+		</texture>
+		<texture path="textures/blx_tech2/tech2_base_dark">
+			<tag>BLX Tech 2 / Wall</tag>
+		</texture>
+		<texture path="textures/blx_tech2/tech2_base_edge">
+			<tag>BLX Tech 2 / Trim</tag>
+		</texture>
+		<texture path="textures/blx_tech2/tech2_base_green">
+			<tag>BLX Tech 2 / Wall</tag>
+		</texture>
+		<texture path="textures/blx_tech2/tech2_base_line">
+			<tag>BLX Tech 2 / Trim</tag>
+		</texture>
+		<texture path="textures/blx_tech2/tech2_base_mid">
+			<tag>BLX Tech 2 / Wall</tag>
+		</texture>
+	</blx_tech2>
+
+	<blx_grey>
+		<texture path="textures/blx_grey/blx_grey_circuits_blue_512">
+			<tag>BLX Grey / Circuits</tag>
+		</texture>
+		<texture path="textures/blx_grey/blx_grey_circuits_red_512">
+			<tag>BLX Grey / Circuits</tag>
+		</texture>
+		<texture path="textures/blx_grey/blx_grey_circuits_white_512">
+			<tag>BLX Grey / Circuits</tag>
+		</texture>
+		<texture path="textures/blx_grey/blx_grey_dark">
+			<tag>BLX Grey / Wall</tag>
+		</texture>
+		<texture path="textures/blx_grey/blx_grey_dark_ws">
+			<tag>BLX Grey / Warsow</tag>
+		</texture>
+		<texture path="textures/blx_grey/blx_grey_dec">
+			<tag>BLX Grey / Detail</tag>
+		</texture>
+	</blx_grey>
+
+	<blx_houses>
+		<texture path="textures/blx_houses/blx_build1">
+			<tag>BLX Houses / Build</tag>
+		</texture>
+		<texture path="textures/blx_houses/blx_house1">
+			<tag>BLX Houses / Wall</tag>
+		</texture>
+		<texture path="textures/blx_houses/blx_house3">
+			<tag>BLX Houses / Wall</tag>
+		</texture>
+		<texture path="textures/blx_houses/blx_house4">
+			<tag>BLX Houses / Wall</tag>
+		</texture>
+		<texture path="textures/blx_houses/bLx_cars1">
+			<tag>BLX Houses / Prop</tag>
+		</texture>
+	</blx_houses>
+
+	<concrete>
+		<texture path="textures/concrete/baseblue0060">
+			<tag>Concrete / Painted</tag>
+		</texture>
+		<texture path="textures/concrete/blueplaster">
+			<tag>Concrete / Painted</tag>
+		</texture>
+		<texture path="textures/concrete/concrete2">
+			<tag>Concrete / Wall</tag>
+		</texture>
+		<texture path="textures/concrete/concretebunker0068">
+			<tag>Concrete / Bunker</tag>
+		</texture>
+		<texture path="textures/concrete/concreteclean">
+			<tag>Concrete / Wall</tag>
+		</texture>
+		<texture path="textures/concrete/concretecleanstriped">
+			<tag>Concrete / Hazard</tag>
+		</texture>
+		<texture path="textures/concrete/concretecold01">
+			<tag>Concrete / Cold</tag>
+		</texture>
+		<texture path="textures/concrete/concretegrey">
+			<tag>Concrete / Wall</tag>
+		</texture>
+	</concrete>
+
+	<concrete_techwalls>
+		<texture path="textures/concrete_techwalls/concrete_blx_tile">
+			<tag>Concrete Techwalls / Tile</tag>
+		</texture>
+		<texture path="textures/concrete_techwalls/concreteclean">
+			<tag>Concrete Techwalls / Wall</tag>
+		</texture>
+		<texture path="textures/concrete_techwalls/concreteclean_blx_wall1">
+			<tag>Concrete Techwalls / Wall</tag>
+		</texture>
+		<texture path="textures/concrete_techwalls/concreteclean_blx_wall2">
+			<tag>Concrete Techwalls / Wall</tag>
+		</texture>
+	</concrete_techwalls>
+
+	<metal>
+		<texture path="textures/metal/aluminium">
+			<tag>Metal / Aluminium</tag>
+		</texture>
+		<texture path="textures/metal/bigtreadplateg">
+			<tag>Metal / Treadplate</tag>
+		</texture>
+		<texture path="textures/metal/chrome">
+			<tag>Metal / Chrome</tag>
+		</texture>
+		<texture path="textures/metal/corrugated0023">
+			<tag>Metal / Corrugated</tag>
+		</texture>
+		<texture path="textures/metal/corrugated0023green">
+			<tag>Metal / Corrugated</tag>
+		</texture>
+		<texture path="textures/metal/metalbaseyellow0033">
+			<tag>Metal / Painted</tag>
+		</texture>
+		<texture path="textures/metal/metalbulk">
+			<tag>Metal / Wall</tag>
+		</texture>
+	</metal>
+
+	<bricks>
+		<texture path="textures/bricks/blackbricks_base_01">
+			<tag>Bricks / Black</tag>
+		</texture>
+		<texture path="textures/bricks/bricks1">
+			<tag>Bricks / Wall</tag>
+		</texture>
+		<texture path="textures/bricks/bricks2">
+			<tag>Bricks / Wall</tag>
+		</texture>
+		<texture path="textures/bricks/redbricks_base_01">
+			<tag>Bricks / Red</tag>
+		</texture>
+		<texture path="textures/bricks/redbricks_trim_01">
+			<tag>Bricks / Trim</tag>
+		</texture>
+	</bricks>
+
+	<wood>
+		<texture path="textures/wood/woodold01">
+			<tag>Wood / Plank</tag>
+		</texture>
+		<texture path="textures/wood/woodplank01">
+			<tag>Wood / Plank</tag>
+		</texture>
+		<texture path="textures/wood/woodplank02">
+			<tag>Wood / Plank</tag>
+		</texture>
+		<texture path="textures/wood/woodplank03">
+			<tag>Wood / Plank</tag>
+		</texture>
+		<texture path="textures/wood/woodtables01">
+			<tag>Wood / Furniture</tag>
+		</texture>
+	</wood>
+
+	<plastic>
+		<texture path="textures/plastic/blue">
+			<tag>Plastic / Blue</tag>
+		</texture>
+		<texture path="textures/plastic/green">
+			<tag>Plastic / Green</tag>
+		</texture>
+		<texture path="textures/plastic/grey35">
+			<tag>Plastic / Grey</tag>
+		</texture>
+		<texture path="textures/plastic/grey50">
+			<tag>Plastic / Grey</tag>
+		</texture>
+		<texture path="textures/plastic/grey75">
+			<tag>Plastic / Grey</tag>
+		</texture>
+		<texture path="textures/plastic/pvc_grey">
+			<tag>Plastic / PVC</tag>
+		</texture>
+		<texture path="textures/plastic/red">
+			<tag>Plastic / Red</tag>
+		</texture>
+	</plastic>
+
+	<tiles>
+		<texture path="textures/tiles/floor">
+			<tag>Tile / Floor</tag>
+		</texture>
+		<texture path="textures/tiles/floor_tiled">
+			<tag>Tile / Floor</tag>
+		</texture>
+		<texture path="textures/tiles/floorsregular0100">
+			<tag>Tile / Floor</tag>
+		</texture>
+		<texture path="textures/tiles/floorsregular0100yellow">
+			<tag>Tile / Floor</tag>
+		</texture>
+	</tiles>
+
+	<hexagons>
+		<texture path="textures/hexagons/blue">
+			<tag>Hexagon / Wall</tag>
+		</texture>
+		<texture path="textures/hexagons/darkblue">
+			<tag>Hexagon / Wall</tag>
+		</texture>
+		<texture path="textures/hexagons/hexagons">
+			<tag>Hexagon / Wall</tag>
+		</texture>
+		<texture path="textures/hexagons/hexagons2">
+			<tag>Hexagon / Wall</tag>
+		</texture>
+		<texture path="textures/hexagons/metalcollumn01">
+			<tag>Hexagon / Detail</tag>
+		</texture>
+		<texture path="textures/hexagons/metalfloor01">
+			<tag>Hexagon / Floor</tag>
+		</texture>
+		<texture path="textures/hexagons/metalwall01">
+			<tag>Hexagon / Wall</tag>
+		</texture>
+	</hexagons>
+
+	<scifi_interior>
+		<texture path="textures/scifi_interior/01">
+			<tag>Scifi Interior / Panel</tag>
+		</texture>
+		<texture path="textures/scifi_interior/02">
+			<tag>Scifi Interior / Panel</tag>
+		</texture>
+		<texture path="textures/scifi_interior/03">
+			<tag>Scifi Interior / Panel</tag>
+		</texture>
+		<texture path="textures/scifi_interior/aluminium_airvent">
+			<tag>Scifi Interior / Vent</tag>
+		</texture>
+		<texture path="textures/scifi_interior/aluminium_clean">
+			<tag>Scifi Interior / Wall</tag>
+		</texture>
+		<texture path="textures/scifi_interior/aluminium_panel">
+			<tag>Scifi Interior / Panel</tag>
+		</texture>
+		<texture path="textures/scifi_interior/aluminium_panel_blue">
+			<tag>Scifi Interior / Panel</tag>
+		</texture>
+		<texture path="textures/scifi_interior/aluminium_panel_orange">
+			<tag>Scifi Interior / Panel</tag>
+		</texture>
+	</scifi_interior>
+
+	<supersymmetry>
+		<texture path="textures/supersymmetry/jump_pad_2_team">
+			<tag>Supersymmetry / Jumppad</tag>
+		</texture>
+		<texture path="textures/supersymmetry/lamp_01">
+			<tag>Supersymmetry / Light</tag>
+		</texture>
+		<texture path="textures/supersymmetry/ledge_01">
+			<tag>Supersymmetry / Ledge</tag>
+		</texture>
+		<texture path="textures/supersymmetry/ledge_01_team">
+			<tag>Supersymmetry / Ledge / Team</tag>
+		</texture>
+		<texture path="textures/supersymmetry/ledge_02">
+			<tag>Supersymmetry / Ledge</tag>
+		</texture>
+		<texture path="textures/supersymmetry/neon_01">
+			<tag>Supersymmetry / Neon</tag>
+		</texture>
+		<texture path="textures/supersymmetry/neon_01_team">
+			<tag>Supersymmetry / Neon / Team</tag>
+		</texture>
+	</supersymmetry>
+
+	<boqu>
+		<texture path="textures/boqu/bigfloor">
+			<tag>Boqu / Floor</tag>
+		</texture>
+		<texture path="textures/boqu/biglightfloor">
+			<tag>Boqu / Floor</tag>
+		</texture>
+		<texture path="textures/boqu/bigtiles">
+			<tag>Boqu / Tile</tag>
+		</texture>
+		<texture path="textures/boqu/boqu_window">
+			<tag>Boqu / Window</tag>
+		</texture>
+		<texture path="textures/boqu/bright_metal">
+			<tag>Boqu / Metal</tag>
+		</texture>
+		<texture path="textures/boqu/cables">
+			<tag>Boqu / Detail</tag>
+		</texture>
+		<texture path="textures/boqu/ceilinglamp_w">
+			<tag>Boqu / Light</tag>
+		</texture>
+	</boqu>
+
+	<boqu2>
+		<texture path="textures/boqu2/2neon_blue">
+			<tag>Boqu2 / Neon</tag>
+		</texture>
+		<texture path="textures/boqu2/3neon">
+			<tag>Boqu2 / Neon</tag>
+		</texture>
+		<texture path="textures/boqu2/bigwhitetiles3">
+			<tag>Boqu2 / Tile</tag>
+		</texture>
+		<texture path="textures/boqu2/blueblacktrim">
+			<tag>Boqu2 / Trim</tag>
+		</texture>
+		<texture path="textures/boqu2/brighttechpanel4">
+			<tag>Boqu2 / Panel</tag>
+		</texture>
+		<texture path="textures/boqu2/concrete_tile_dark">
+			<tag>Boqu2 / Tile</tag>
+		</texture>
+	</boqu2>
+
+	<factory>
+		<texture path="textures/factory/ammo_base">
+			<tag>Factory / Ammo</tag>
+		</texture>
+		<texture path="textures/factory/armor_base">
+			<tag>Factory / Armor</tag>
+		</texture>
+		<texture path="textures/factory/base">
+			<tag>Factory / Wall</tag>
+		</texture>
+		<texture path="textures/factory/base_stripes_in">
+			<tag>Factory / Trim</tag>
+		</texture>
+		<texture path="textures/factory/base_stripes_out">
+			<tag>Factory / Trim</tag>
+		</texture>
+		<texture path="textures/factory/brick_wall">
+			<tag>Factory / Wall</tag>
+		</texture>
+	</factory>
+
+	<wsw_city1>
+		<texture path="textures/wsw_city1/9techwall01">
+			<tag>WSW City 1 / Techwall</tag>
+		</texture>
+		<texture path="textures/wsw_city1/blue_beam1">
+			<tag>WSW City 1 / Beam</tag>
+		</texture>
+		<texture path="textures/wsw_city1/blue_concret">
+			<tag>WSW City 1 / Concrete</tag>
+		</texture>
+		<texture path="textures/wsw_city1/cables1">
+			<tag>WSW City 1 / Detail</tag>
+		</texture>
+		<texture path="textures/wsw_city1/chrome">
+			<tag>WSW City 1 / Metal</tag>
+		</texture>
+		<texture path="textures/wsw_city1/circle1">
+			<tag>WSW City 1 / Detail</tag>
+		</texture>
+	</wsw_city1>
+
+	<exwsw>
+		<texture path="textures/exwsw/eX_deswall_01">
+			<tag>ExWSW / Wall</tag>
+		</texture>
+		<texture path="textures/exwsw/eX_metalplate_01">
+			<tag>ExWSW / Metal</tag>
+		</texture>
+		<texture path="textures/exwsw/eX_metalSupp01">
+			<tag>ExWSW / Support</tag>
+		</texture>
+		<texture path="textures/exwsw/eX_metalwall02">
+			<tag>ExWSW / Metal</tag>
+		</texture>
+		<texture path="textures/exwsw/eX_mtl_bigplate_04">
+			<tag>ExWSW / Metal</tag>
+		</texture>
+	</exwsw>
+
+	<terrain>
+		<texture path="textures/terrain/rocks001_512x512">
+			<tag>Terrain / Rock</tag>
+		</texture>
+		<texture path="textures/terrain/rocks002_512x512">
+			<tag>Terrain / Rock</tag>
+		</texture>
+		<texture path="textures/terrain/rockwall01">
+			<tag>Terrain / Rock</tag>
+		</texture>
+		<texture path="textures/terrain/sand">
+			<tag>Terrain / Sand</tag>
+		</texture>
+		<texture path="textures/terrain/sand_dark">
+			<tag>Terrain / Sand</tag>
+		</texture>
+		<texture path="textures/terrain/soilsand0104">
+			<tag>Terrain / Soil</tag>
+		</texture>
+	</terrain>
+
+	<noir>
+		<texture path="textures/noir/brickgrey">
+			<tag>Noir / Bricks</tag>
+		</texture>
+		<texture path="textures/noir/concrete1">
+			<tag>Noir / Concrete</tag>
+		</texture>
+		<texture path="textures/noir/door2">
+			<tag>Noir / Door</tag>
+		</texture>
+		<texture path="textures/noir/natsbar01">
+			<tag>Noir / Detail</tag>
+		</texture>
+		<texture path="textures/noir/seka">
+			<tag>Noir / Detail</tag>
+		</texture>
+	</noir>
+
+	<cha0s_ws>
+		<texture path="textures/cha0s_ws/base_brown">
+			<tag>Cha0s WS / Wall</tag>
+		</texture>
+		<texture path="textures/cha0s_ws/base_column">
+			<tag>Cha0s WS / Column</tag>
+		</texture>
+		<texture path="textures/cha0s_ws/base_floor">
+			<tag>Cha0s WS / Floor</tag>
+		</texture>
+		<texture path="textures/cha0s_ws/base_grey">
+			<tag>Cha0s WS / Wall</tag>
+		</texture>
+		<texture path="textures/cha0s_ws/base_wall">
+			<tag>Cha0s WS / Wall</tag>
+		</texture>
+		<texture path="textures/cha0s_ws/base_yellow">
+			<tag>Cha0s WS / Painted</tag>
+		</texture>
+	</cha0s_ws>
+
+	<melee>
+		<texture path="textures/melee/glass">
+			<tag>Melee / Glass</tag>
+		</texture>
+		<texture path="textures/melee/metal001">
+			<tag>Melee / Metal</tag>
+		</texture>
+		<texture path="textures/melee/metal002">
+			<tag>Melee / Metal</tag>
+		</texture>
+		<texture path="textures/melee/pure001">
+			<tag>Melee / Detail</tag>
+		</texture>
+		<texture path="textures/melee/stone000">
+			<tag>Melee / Stone</tag>
+		</texture>
+	</melee>
+
+	<cleansurface>
+		<texture path="textures/cleansurface/black">
+			<tag>Clean Surface / Dark</tag>
+		</texture>
+		<texture path="textures/cleansurface/pantone2727c">
+			<tag>Clean Surface / Painted</tag>
+		</texture>
+		<texture path="textures/cleansurface/pantone361c">
+			<tag>Clean Surface / Painted</tag>
+		</texture>
+		<texture path="textures/cleansurface/pantone432c">
+			<tag>Clean Surface / Painted</tag>
+		</texture>
+		<texture path="textures/cleansurface/pantone7536c">
+			<tag>Clean Surface / Painted</tag>
+		</texture>
+		<texture path="textures/cleansurface/pantonecoolgray10c">
+			<tag>Clean Surface / Painted</tag>
+		</texture>
+	</cleansurface>
+
+	<billboard>
+		<texture path="textures/billboard/bigbill1">
+			<tag>Billboard / Sign</tag>
+		</texture>
+		<texture path="textures/billboard/bigbill2">
+			<tag>Billboard / Sign</tag>
+		</texture>
+		<texture path="textures/billboard/bullets">
+			<tag>Billboard / Ammo</tag>
+		</texture>
+		<texture path="textures/billboard/bulletsblue">
+			<tag>Billboard / Ammo</tag>
+		</texture>
+	</billboard>
+
+	<jewels>
+		<texture path="textures/jewels/jumppad_dot">
+			<tag>Jewels / Jumppad</tag>
+		</texture>
+		<texture path="textures/jewels/jumppad_strip">
+			<tag>Jewels / Jumppad</tag>
+		</texture>
+		<texture path="textures/jewels/neon_blue">
+			<tag>Jewels / Neon</tag>
+		</texture>
+		<texture path="textures/jewels/neon_red">
+			<tag>Jewels / Neon</tag>
+		</texture>
+	</jewels>
+
+	<neon>
+		<texture path="textures/neon/basskick1">
+			<tag>Neon / Sign</tag>
+		</texture>
+		<texture path="textures/neon/basskick2">
+			<tag>Neon / Sign</tag>
+		</texture>
+		<texture path="textures/neon/bosobosou_sign">
+			<tag>Neon / Sign</tag>
+		</texture>
+		<texture path="textures/neon/jujitsu_sign1">
+			<tag>Neon / Sign</tag>
+		</texture>
+		<texture path="textures/neon/jujitsu_sign2">
+			<tag>Neon / Sign</tag>
+		</texture>
+	</neon>
+
+	<lights>
+		<texture path="textures/lights/01bluel">
+			<tag>Lights / Emissive</tag>
+		</texture>
+		<texture path="textures/lights/01bluem">
+			<tag>Lights / Emissive</tag>
+		</texture>
+		<texture path="textures/lights/01blues">
+			<tag>Lights / Emissive</tag>
+		</texture>
+		<texture path="textures/lights/01neutrel">
+			<tag>Lights / Emissive</tag>
+		</texture>
+		<texture path="textures/lights/blacktrim01">
+			<tag>Lights / Trim</tag>
+		</texture>
+		<texture path="textures/lights/blue1">
+			<tag>Lights / Emissive</tag>
+		</texture>
+		<texture path="textures/lights/bluetrim">
+			<tag>Lights / Trim</tag>
+		</texture>
+	</lights>
+
+	<decals>
+		<texture path="textures/decals/0080">
+			<tag>Decals / Generic</tag>
+		</texture>
+		<texture path="textures/decals/decal_armor_ga">
+			<tag>Decals / Armor</tag>
+		</texture>
+		<texture path="textures/decals/decal_armor_ra">
+			<tag>Decals / Armor</tag>
+		</texture>
+		<texture path="textures/decals/decal_armor_ya">
+			<tag>Decals / Armor</tag>
+		</texture>
+		<texture path="textures/decals/decal_danger">
+			<tag>Decals / Hazard</tag>
+		</texture>
+		<texture path="textures/decals/decal_dirt1">
+			<tag>Decals / Grime</tag>
+		</texture>
+	</decals>
+
+	<window>
+		<texture path="textures/window/purple01">
+			<tag>Window / Coloured</tag>
+		</texture>
+		<texture path="textures/window/window_dirty">
+			<tag>Window / Dirty</tag>
+		</texture>
+		<texture path="textures/window/window_industrial">
+			<tag>Window / Industrial</tag>
+		</texture>
+		<texture path="textures/window/window01">
+			<tag>Window / Clear</tag>
+		</texture>
+		<texture path="textures/window/windows_lit_1">
+			<tag>Window / Lit</tag>
+		</texture>
+	</window>
+
+	<grates>
+		<texture path="textures/grates/fence01">
+			<tag>Grates / Fence</tag>
+		</texture>
+		<texture path="textures/grates/fence02">
+			<tag>Grates / Fence</tag>
+		</texture>
+		<texture path="textures/grates/fence03">
+			<tag>Grates / Fence</tag>
+		</texture>
+		<texture path="textures/grates/grid02">
+			<tag>Grates / Grid</tag>
+		</texture>
+		<texture path="textures/grates/simplegrid">
+			<tag>Grates / Grid</tag>
+		</texture>
+	</grates>
+
+	<misc>
+		<texture path="textures/glass/melee">
+			<tag>Glass</tag>
+		</texture>
+		<texture path="textures/leaves/leaves0108_s">
+			<tag>Natural / Foliage</tag>
+		</texture>
+		<texture path="textures/trees/barkdecidious048">
+			<tag>Natural / Bark</tag>
+		</texture>
+		<texture path="textures/russus/cement-tiled_grey">
+			<tag>Russus / Concrete</tag>
+		</texture>
+		<texture path="textures/russus/spray_beta">
+			<tag>Russus / Spray</tag>
+		</texture>
+		<texture path="textures/russus/transscreen_beta">
+			<tag>Russus / Screen</tag>
+		</texture>
+		<texture path="textures/zone_neutre/beige">
+			<tag>Zone Neutre / Paint</tag>
+		</texture>
+		<texture path="textures/zone_neutre/beige_dark">
+			<tag>Zone Neutre / Paint</tag>
+		</texture>
+		<texture path="textures/zone_neutre/beige_contour01">
+			<tag>Zone Neutre / Paint</tag>
+		</texture>
+		<texture path="textures/zone_neutre/orange_contour01">
+			<tag>Zone Neutre / Paint</tag>
+		</texture>
+		<texture path="textures/zone_neutre/skyblue">
+			<tag>Zone Neutre / Paint</tag>
+		</texture>
+		<texture path="textures/refly_bricks/bricks1">
+			<tag>Refly / Bricks</tag>
+		</texture>
+		<texture path="textures/refly_metal/metal17">
+			<tag>Refly / Metal</tag>
+		</texture>
+		<texture path="textures/refly_wood/wood1">
+			<tag>Refly / Wood</tag>
+		</texture>
+		<texture path="textures/refly_stone/concrete1">
+			<tag>Refly / Stone</tag>
+		</texture>
+		<texture path="textures/refly_tiles/zadaztiles">
+			<tag>Refly / Tile</tag>
+		</texture>
+		<texture path="textures/refly_trims/hazardline">
+			<tag>Refly / Hazard</tag>
+		</texture>
+		<texture path="textures/refly_crates/36dm2crate">
+			<tag>Refly / Crate</tag>
+		</texture>
+		<texture path="textures/36_colours/545454">
+			<tag>36 Colours / Grey</tag>
+		</texture>
+		<texture path="textures/36_colours/A8A8A8">
+			<tag>36 Colours / Grey</tag>
+		</texture>
+		<texture path="textures/36_colours/FFFFFF">
+			<tag>36 Colours / White</tag>
+		</texture>
+		<texture path="textures/36_lights/light-FFFFFF">
+			<tag>36 Colours / Light</tag>
+		</texture>
+		<texture path="textures/ETRtex/PERON32">
+			<tag>Team</tag>
+		</texture>
+		<texture path="textures/ETRtex/TEAMZISSOU32">
+			<tag>Team</tag>
+		</texture>
+	</misc>
+
+	<sky>
+		<texture path="textures/sky/indigosky1.blend">
+			<tag>Sky / Indigo</tag>
+		</texture>
+		<texture path="textures/sky/orangesky1.blend">
+			<tag>Sky / Orange</tag>
+		</texture>
+		<texture path="textures/sky/pinksky1.blend">
+			<tag>Sky / Pink</tag>
+		</texture>
+		<texture path="textures/sky/purplesky1.blend">
+			<tag>Sky / Purple</tag>
+		</texture>
+		<texture path="textures/sky/violetsky1.blend">
+			<tag>Sky / Violet</tag>
+		</texture>
+	</sky>
+
+</root>

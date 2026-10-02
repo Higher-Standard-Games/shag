@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Ganjawars</string>
-    <string name="title_activity_main">Ganjawars</string>
-    <string name="package_name">com.iwmengine.ganjawars</string>
-    <string name="custom_url_scheme">com.iwmengine.ganjawars</string>
+    <string name="app_name">Washiki Washoi!</string>
+    <string name="title_activity_main">Washiki Washoi!</string>
+    <string name="package_name">net.washoi.game</string>
+    <string name="custom_url_scheme">net.washoi.game</string>
 </resources>

@@ -104,6 +104,16 @@ describe("extractPickups", () => {
     expect(out.map((e) => e.kind)).toEqual(["medium", "medium"]);
   });
 
+  it("marks an item the map suspends (spawnflag 1), and no other", () => {
+    const table = extractPickups([
+      { classname: "item_quad", properties: { origin: "0 0 64", spawnflags: "1" } },
+      { classname: "item_armor_ra", properties: { origin: "0 0 64", spawnflags: "4" } },
+      { classname: "item_health_mega", properties: { origin: "0 0 64" } },
+    ]);
+
+    expect(table.map((entry) => entry.suspended)).toEqual([true, undefined, undefined]);
+  });
+
   it("skips entities with missing or malformed origin", () => {
     const out = extractPickups([
       ent("weapon_rocketlauncher"),

@@ -12,7 +12,7 @@ export default class PhysicsCommand extends Command {
     name: "physics",
     aliases: ["phys"],
     description: "Havok physics system control",
-    usage: "physics <init|on|off|gravity|info>",
+    usage: "physics <init|on|off|gravity|debug|info>",
     developer: true,
     subcommands: [
       { name: "init", description: "Initialize Havok physics engine" },

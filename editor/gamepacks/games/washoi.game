@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="iso-8859-1" standalone="yes"?>
+<!--
+  Washoi (SHAG Engine) game definition for NetRadiant.
+
+  BSP format: FBSP v1, 18-lump directory, little-endian.
+  See ../gamepacks/washoi.game/basewashoi/entities.def and ../../makebspdata/washoi.json.
+
+  makebsp/makelight do not implement the q3map2 BSP monitor protocol, so
+  no_bsp_monitor is set and the build menu omits "-connect [MonitorAddress]".
+
+  enginepath_win32 MUST be edited to point at your own checkout's public/data
+  directory (the engine/asset root, the folder holding the *.pk3 archives).
+  It cannot be relative: the build menu substitutes it into
+  "-fs_basepath", and NetRadiant resolves it against the Radiant install, not
+  against this pack. SHAG mounts its media directly at that root, so no
+  -fs_game is ever passed.
+-->
+<game
+  type="washoi"
+  q3map2_type="qfusion"
+  name="Washoi"
+  basegame="basewashoi"
+  basegamename="Washoi"
+  unknowngamename="Custom Washoi modification"
+  enginepath_win32="C:/Users/sundf/Desktop/wash/shag/public/data/"
+  shaderpath="scripts"
+  archivetypes="pk3"
+  texturetypes="tga jpg png ktx"
+  modeltypes="*"
+  maptypes="mapq3"
+  shaders="quake3"
+  entityclass="quake3"
+  entityclasstype="def xml"
+  entities="quake3"
+  brushtypes="quake3"
+  patchtypes="quake3"
+  default_scale="0.5"
+  common_shaders_name="Common"
+  common_shaders_dir="textures/common/"
+  shader_trigger="textures/common/trigger"
+  no_bsp_monitor="1"
+  no_patch="0"
+/>

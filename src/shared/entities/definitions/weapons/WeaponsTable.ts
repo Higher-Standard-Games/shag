@@ -32,8 +32,8 @@ export const WEAPONS: Record<string, WeaponDef> = {
   [ROCKET_LAUNCHER.id]: ROCKET_LAUNCHER,
   [PLASMAGUN.id]: PLASMAGUN,
   [VOLTAIC.id]: VOLTAIC,
-  // Warsow compatibility ID. This is the same object and gameplay definition,
-  // not a parallel Lasergun implementation.
+  // Compatibility ID carried by external map and mod data. The same object and
+  // gameplay definition, not a parallel implementation.
   lasergun: VOLTAIC,
   [ELECTROBOLT.id]: ELECTROBOLT,
   [INSTAGUN.id]: INSTAGUN,

@@ -1,0 +1,86 @@
+{
+  "game": "washoi",
+  "template": "qfusion",
+
+  /*
+   * Washoi / SHAG Engine game profile for makebsp + makelight.
+   *
+   * Inherits every structural and lighting decision from qfusion.json and
+   * overrides only what the SHAG engine actually requires differently.
+   *
+   * Why qfusion: the engine's BSP loader (src/engine/loader/bsp/BspLoader.ts)
+   * reads FBSP with magic 0x50534246 ("FBSP") and version 1, and the media set
+   * in shag/public/data ships stock Warsow maps (map_wctf1.pk3 -> FBSP v1,
+   * 18 lump directory entries, 512px lightmaps, 80-byte drawverts, 148-byte
+   * surfaces, 72-byte shader records, 12-byte brushsides). That is exactly
+   * what q3map2 -game qfusion emits, so qfusion.json is the byte-compatible
+   * baseline. Verified against maps/wctf1.bsp:
+   *
+   *   lump  entity shaders  planes  nodes leafs leafsurf leafbrsh models
+   *         brushes brsides drawverts drwidx  fogs   surf    lightmaps
+   *         lightgrid  vis       customdata
+   *   size  72B    148B    36B    48B   4B      4B       40B
+   *         12B     80B     4B     72B   148B    512^2x3  (engine: 8B)
+   *         8B+bitmatrix       52896B
+   *
+   * The engine reads the first 17 entries; lump 17 (customdata) is ignored.
+   */
+
+  /*
+   * The Washoi/Warsow media set is mounted at the ROOT of the fs_basepath
+   * (shag/public/data/*.pk3) -- there is no per-game subfolder. So gameDir is
+   * empty and the build menu must NOT pass "-fs_game basewashoi", which would
+   * point the VFS at <basepath>/basewashoi/ and find zero archives and zero
+   * shaders. "basewashoi" is only the NetRadiant-side gamepack folder name
+   * (entities.def etc.), which is unrelated to the VFS search path.
+   */
+  "rootDir": ".",
+  "userDir": "",
+  "gameDir": "",
+
+  /* ---- Structural: must match SHAG's BspLoader expectations exactly ---- */
+  "bspIdent": "FBSP",
+  "bspVersion": 1,
+  "lumpCount": 18,        /* 18 on disk (17 read + customdata) */
+  "lightmapSize": 512,    /* BspLoader.IBSP/FBSP_LIGHTMAP_SIZE = 128/512 */
+  "externalLightmaps": false, /* engine has no external .lm path; lump 14 is the only source */
+  "hdr": "rgb8",          /* engine slices lightmaps as size*size*3, i.e. RGB8 only */
+  "lightmapsRGB": true,
+
+  /* The engine resolves the volumetric light grid from the lump's record count
+   * and falls back to worldspawn "gridsize" 64 64 128 when that key is absent
+   * (BspLoader.calculateLightGrid). qfusion.json defaults to 64/64/64, which
+   * would offset the engine's assumed grid origin on Z. Match the engine. */
+  "defaultGridSize": [64.00, 64.00, 128.00],
+
+  /* The engine reads light, light_area and light_volumetric out of the compiled
+   * entity lump (MapAreaLightEntities, MapGodRayEntities). Stripping them would
+   * delete all runtime lighting from the map. */
+  "keepLights": true,
+
+  /* Lighting baseline. Sample size 8 matches the cmdline recorded in the
+   * shipping Warsow BSPs ("_q3map2_cmdline": -meta -samplesize 8 ...), so
+   * Washoi maps compile on the same budget the stock assets were built with. */
+  "sampleSize": 8,
+  "deluxeMap": true,
+  "forceUVGen": true,
+
+  /* Left false (qfusion sets it true) so -samplesize on the command line still
+   * wins. The FAST tier passes -samplesize 8 to match the documented recipe,
+   * but a mapper can hand-run "-samplesize 16" for a quicker WIP lightmap
+   * without editing this profile. */
+  "enforceSampleSize": false,
+
+  /* Inherited from qfusion and kept intentionally: the Warsow .shader scripts
+   * in the media set use "surfaceparm nowalljump", and makebsp only knows that
+   * name because it is declared here. Dropping it turns those materials into
+   * unknown-surfaceparm warnings. Note the engine itself does not read
+   * SURF_NODLIGHT, so nowalljump is currently compile-side bookkeeping only.
+   *
+   * The SHAG engine reads NO other SURF_* bit at runtime: only SKY (0x4) and
+   * NODRAW (0x80) are consumed, plus CONTENTS_DETAIL (0x8000000). Express
+   * nolightmap / nonsolid / trans in shader text, not in brush face flags. */
+  "customSurfaceParms": [
+    { "name": "nowalljump", "clearSolid": false, "surfaceFlags": 4194304, "contentFlags": 0 }
+  ]
+}

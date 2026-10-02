@@ -149,7 +149,10 @@ async function main(): Promise<void> {
   console.log(`[BIS] Default difficulty: ${config.difficulty}`);
   console.log("");
 
-  const server = new BotServer(config.port, { secret: loadBotSecret(resolveDataDir(config.dataDir)) });
+  const server = new BotServer(config.port, {
+    secret: loadBotSecret(resolveDataDir(config.dataDir)),
+    modelDir: config.modelDir,
+  });
   await server.start();
 
   // Auto-connect through lobby if --lobby flag

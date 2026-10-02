@@ -23,7 +23,7 @@ export async function loadClientMap(mapName: string): Promise<string> {
 
 export async function unloadClientMap(): Promise<void> {
   const { MapLoader } = await import("./MapLoader");
-  MapLoader.getInstance().disposeCurrentMap();
+  await MapLoader.getInstance().disposeCurrentMap();
 }
 
 async function loadClientMapWithSystems(

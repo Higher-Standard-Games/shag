@@ -32,7 +32,9 @@ Implemented systems include:
 - client prediction and reconciliation;
 - snapshot encoding, buffering, and remote interpolation;
 - clock synchronization and network diagnostics;
-- dedicated server, lobby, headless client, fuzz, and demo tools.
+- server-side lag compensation for hit registration, within a fixed rewind budget;
+- a lobby with accounts, rooms, match tickets and stored results;
+- dedicated server, headless client, fuzz, and demo tools.
 
 Rates and defaults are configuration, not permanent product claims. Inspect the server configuration and current [Networking guide](../guides/networking.md).
 
@@ -44,7 +46,8 @@ Built-in controllers:
 - freefly;
 - isometric;
 - sidescroll;
-- follow.
+- follow;
+- spectator, which the FPS `spectator` command drives rather than `camera mode`.
 
 The console syntax `camera mode <controller>` selects these built-ins. `CameraSystem` separately supports perspective, orthographic, and fake-orthographic projection modes through code.
 
@@ -60,6 +63,7 @@ Input is action-based. The FPS module registers the active default action map, i
 | `test:simulation` / `test:physics` | Deterministic movement/collision checks |
 | `server:tick` / `server:fuzz` | Server regression and fuzz runs |
 | `demo:record` / `demo:verify` | Demo capture and deterministic reconciliation |
+| `lobby:server` / `bot:server` | Lobby with accounts and rooms; the bot fleet it asks for players |
 | `docs:api` / `docs:build` | TypeDoc and manual builds |
 
 ## Platform status
@@ -68,8 +72,8 @@ Input is action-based. The FPS module registers the active default action map, i
 | --- | --- |
 | Web | Primary Vite build |
 | Headless Node | Active CLI/server/test tooling |
-| Android | Capacitor project exists; startup lifecycle needs device verification |
-| Electron | Shell exists; packaging config currently references stale game metadata |
+| Android | Capacitor project exists under its own identity, and the splash screen is dismissed by the app; the startup path still needs a device to confirm |
+| Electron | Shell exists; packaging config loads and names the selected game |
 | iOS | No committed native project |
 
 See [Deployment](../deployment/) for the verified workflow and known blockers.

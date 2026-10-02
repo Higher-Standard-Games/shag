@@ -4,6 +4,8 @@ import { createTextureFromKTX1, GL_FORMATS, type KTX1ParseResult } from "../load
 
 function rawKTX(baseFormat: number, data: number[], width = 1): KTX1ParseResult {
   return {
+    source: new ArrayBuffer(0),
+    littleEndian: true,
     header: {
       glType: 0x1401,
       glTypeSize: 1,
@@ -56,11 +58,11 @@ describe("KTX1Loader uncompressed uploads", () => {
       source: [1, 2, 3, 4],
       expected: [1, 2, 3, 4],
     },
-  ])("expands $name pixels to a WebGPU-compatible RGBA upload", ({ format, source, expected }) => {
+  ])("expands $name pixels to a WebGPU-compatible RGBA upload", async ({ format, source, expected }) => {
     const engine = new NullEngine();
     const createRawTexture = vi.spyOn(engine, "createRawTexture");
 
-    const texture = createTextureFromKTX1(engine, rawKTX(format, source, expected.length / 4), "test.ktx");
+    const texture = await createTextureFromKTX1(engine, rawKTX(format, source, expected.length / 4), "test.ktx");
 
     expect(texture).not.toBeNull();
     expect(createRawTexture).toHaveBeenCalledOnce();

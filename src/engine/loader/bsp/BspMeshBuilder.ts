@@ -13,7 +13,6 @@ import { Constants } from "@babylonjs/core/Engines/constants";
 import { PBRMaterial } from "@babylonjs/core/Materials/PBR/pbrMaterial";
 import { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
-import { RawTexture } from "@babylonjs/core/Materials/Textures/rawTexture";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import type { Vector3 } from "@babylonjs/core/Maths/math.vector";
@@ -28,6 +27,7 @@ import type { BspFile } from "./BspLoader";
 import { classifyLiquids, DEFAULT_LIQUID_OVERRIDES, liquidKindFromSurfaceParms } from "./LiquidClassifier";
 import { buildMeshFace, buildPatchFace, buildPolygonFace } from "./mesh/faceBuilders";
 import { createRadialGradientTexture, createSolidColorTexture } from "./mesh/fallbackTextures";
+import { createBspLightmapTexture } from "./mesh/lightmaps";
 import { buildFaceClusters } from "./mesh/pvs";
 import { faceSpatialCell, MIN_SPATIAL_BATCH_TRIANGLES, normalizeSpatialCellSize } from "./mesh/spatialBatching";
 import type { BspMeshBuildResult, BuildOptions } from "./mesh/types";
@@ -1817,30 +1817,7 @@ export class BspMeshBuilder {
     const size = this.bsp.lightmapSize;
 
     for (let i = 0; i < this.bsp.lightmaps.length; i++) {
-      const rgb = this.bsp.lightmaps[i];
-
-      // Convert RGB to RGBA (Babylon needs RGBA)
-      const rgba = new Uint8Array(size * size * 4);
-      for (let j = 0; j < size * size; j++) {
-        // Apply gamma correction (Q3 lightmaps are in linear space)
-        rgba[j * 4 + 0] = Math.min(255, (rgb[j * 3 + 0] / 255) ** 0.7 * 255 * 2);
-        rgba[j * 4 + 1] = Math.min(255, (rgb[j * 3 + 1] / 255) ** 0.7 * 255 * 2);
-        rgba[j * 4 + 2] = Math.min(255, (rgb[j * 3 + 2] / 255) ** 0.7 * 255 * 2);
-        rgba[j * 4 + 3] = 255;
-      }
-
-      const texture = RawTexture.CreateRGBATexture(
-        rgba,
-        size,
-        size,
-        this.scene,
-        false, // generateMipMaps
-        false, // invertY
-        Texture.BILINEAR_SAMPLINGMODE,
-      );
-      texture.name = `lightmap_${i}`;
-
-      textures.push(texture);
+      textures.push(createBspLightmapTexture(this.bsp.lightmaps[i], size, this.scene, `lightmap_${i}`));
     }
 
     console.log(`[BspMeshBuilder] Created ${textures.length} lightmap textures (${size}x${size})`);

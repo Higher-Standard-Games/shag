@@ -1,0 +1,780 @@
+// =============================================================================
+//  Washoi / SHAG Engine -- NetRadiant entity classes
+// =============================================================================
+//
+//  Every class below was derived from the engine's own readers, not guessed:
+//
+//    SpawnPointTable.ts            info_player_*, team_CTF_*spawn
+//    TriggerTable.ts               trigger_teleport, trigger_push + dest classes
+//    LiftSystem.ts                 func_door, func_plat, func_button,
+//                                  trigger_once, trigger_multiple
+//    BombSiteTable.ts              team_CTF_*flag, trigger_capture_area,
+//                                  misc_capture_area_indicator, target_explosion
+//    PickupTable.ts                weapon_*, ammo_*, item_armor_*, item_health_*
+//    MapAreaLightEntities.ts       light_area
+//    MapGodRayEntities.ts          light_volumetric, sun lights
+//    MapRenderer.ts (raw path)     misc_model, sprite*, npc_sprite, info_npc,
+//                                  street_lamp, build_zone, info_debris_zone
+//
+//  Two entity paths exist and are NOT interchangeable (docs/reference/entities.md):
+//    * compiled-BSP path  -- the FPS route. Everything in the first five
+//                            sections below is read out of the .bsp entity lump.
+//    * raw-.map path      -- editor / MapRenderer only, listed at the bottom.
+//  Only BSP-path classes affect gameplay.
+//
+//  SHAG coordinate convention: the .map is Z-up Quake style, converted
+//  X Y Z -> X Z Y on load. Author normally.
+//
+//  Engine quirks that will bite you, called out inline below:
+//    * BRUSH triggers/movers have NO reliable "origin". LiftSystem computes
+//      AABB = submodel AABB + origin, so the engine ADDS your origin to an
+//      already-world-space box. Leave origin at "0 0 0" for func_door,
+//      func_plat, func_button, trigger_once and trigger_multiple.
+//      trigger_teleport / trigger_push use the submodel AABB directly and
+//      ignore origin entirely.
+//    * The engine honours only SURF_SKY (0x4), SURF_NODRAW (0x80) and
+//      CONTENTS_DETAIL (0x8000000) from the BSP. nolightmap / nonsolid /
+//      trans must be expressed in the .shader, not in brush face flags.
+//    * SURF_HINT and SURF_SKIP are not filtered, so hint/skip brushes are
+//      meshed like anything else. Keep them out unless you mean it.
+//    * max 4 lightmap styles per surface (MAX_LIGHTMAPS). A surface needing
+//      more will not render correctly, and a surface must not straddle a
+//      lightmap page.
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+//  WORLD
+// -----------------------------------------------------------------------------
+/*QUAKED worldspawn (0 0 0) ?
+  identity
+  -------- KEYS --------
+  message: Map Title
+  --------
+  light grid
+  Must agree with "defaultGridSize" in makebspdata/washoi.json (64 64 128),
+  otherwise the engine's grid origin is offset and dynamic model lighting
+  drifts. Only override if you also change the profile.
+  gridsize: Light Grid Size (default: 64 64 128)
+  --------
+  lighting / global ambience
+  ambient: Macro Occlusion Ambient (default: 0)
+  color: Global Ambient Color (default: 1 1 1)
+  ambient_sky: Sky Ambient Color (default: 1 1 1)
+  shading: Shading Mode (default: lambert)
+  attenuation: Attenuation Model (default: standard)
+  exposurefilter: Exposure Filter (default: reinhard)
+  saturation: Saturation Multiplier (default: 1.25)
+  saturationramp: Saturation Ramp (default: halfpower)
+  cutoff: Light Cutoff (default: 0.1)
+  fadeout: Light Fadeout (default: 0.0)
+  backsplashspot: Spot Backsplash (default: 0.1)
+  backsplashsurface: Surface Backsplash (default: 0.0)
+  haloshader: Halo Shader (default: none)
+  ambient_testradius: Ambient Test Radius (default: 512)
+  ambient_gatheradius: Ambient Gather Radius (default: 256)
+  grid_ambientbias: Grid Ambient Bias (default: 1.5)
+  grid_directbias: Grid Direct Bias (default: 1.5)
+  grid_smoothambient: Grid Smooth Ambient Radius (default: 256)
+  grid_smoothambient_passes: Grid Smooth Ambient Passes (default: 4)
+  grid_smoothdirect: Grid Smooth Direct Radius (default: 128)
+  grid_smoothdirect_passes: Grid Smooth Direct Passes (default: 3)
+  grid_minambient: Grid Min Ambient (default: 0)
+  grid_maxambient: Grid Max Ambient (default: 0)
+  _lightingIntensity: LDR Lightmap Intensity (default: 1.75)
+  --------
+  lightmaps / rendering passes
+  samplesize: Lightmap Sample Size (default: 8)
+  deluxe: Deluxe Mapping (default: 1)
+  deluxe_minangle: Deluxe Min Angle (default: 15)
+  supersample: Supersample Radius (default: 0)
+  smooth: Lightmap Smooth Radius (default: 0.35)
+  smoothpasses: Lightmap Smooth Passes (default: 4)
+  antialiasing: AA Passes (default: 0)
+  --------
+  radiosity
+  radiosity: Bounce Light Intensity (default: 1.0)
+  rad_color_ratio: Bounce Color Ratio (default: 1.0)
+  rad_interval: Bounce Interval (default: 4)
+  rad_ao_intensity: Bounce AO Intensity (default: 0.5)
+  rad_ao_min: Bounce AO Min (default: 0)
+  rad_ao_max: Bounce AO Max (default: 32)
+  --------
+  SHAG engine specific
+  Read by the engine, not by the compiler. God rays are driven by a
+  "light" whose "target" names a marker entity (typically "sun" or
+  "_sun"); the marker's origin sets the travel direction. Do NOT put
+  q3map_sun / q3map_surfacelight in sky shaders -- the compiler already
+  derives sky ambient from ambient_sky and they will double up.
+  godrays: Enable God Rays (default: 0)
+  godrays_color: God Ray Color (default: 1 1 1)
+  _floodlight: Floodlight (default: 255 255 240 768 170)
+*/
+
+// -----------------------------------------------------------------------------
+//  PLAYER SPAWNS
+// -----------------------------------------------------------------------------
+/*QUAKED info_player_start (0 0 1) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  angle:
+*/
+
+/*QUAKED info_player_deathmatch (0 0 1) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  angle:
+*/
+
+/*QUAKED info_player_team1 (0 0 1) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  angle:
+*/
+
+/*QUAKED info_player_team2 (0 0 1) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  angle:
+*/
+
+/*QUAKED team_CTF_alphaspawn (0 1 1) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  angle:
+*/
+
+/*QUAKED team_CTF_betaspawn (0 1 1) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  angle:
+*/
+
+// -----------------------------------------------------------------------------
+//  TRIGGERS  (brush entities -- texture every face with textures/common/trigger)
+//
+//  The volume is BSP submodel *N's AABB. "model" and "target" are both
+//  mandatory; a trigger missing either is dropped silently at load.
+//  These have NO origin -- the submodel AABB is the volume.
+// -----------------------------------------------------------------------------
+/*QUAKED trigger_teleport (1 .5 0) ?
+  -------- KEYS --------
+  model: Submodel (*N) -- required
+  target: Target Entity -- required
+*/
+
+/*QUAKED trigger_push (1 .5 0) ?
+  -------- KEYS --------
+  model: Submodel (*N) -- required
+  target: Target Entity -- required
+*/
+
+// Lift callers. NOTE: the engine computes AABB = submodel AABB + origin, so
+// leave origin at "0 0 0" or you will double-count the offset.
+/*QUAKED trigger_once (1 .5 0) ?
+  -------- KEYS --------
+  model: Submodel (*N) -- required
+  target: Target Name -- required
+  origin: Offset -- leave 0 0 0
+  wait: Hold Time (s) (default: 0.5)
+*/
+
+/*QUAKED trigger_multiple (1 .5 0) ?
+  -------- KEYS --------
+  model: Submodel (*N) -- required
+  target: Target Name -- required
+  origin: Offset -- leave 0 0 0
+  wait: Hold Time (s) (default: 0.5)
+*/
+
+/*QUAKED func_button (0 .5 .8) ?
+  -------- KEYS --------
+  model: Submodel (*N) -- required
+  target: Target Name -- required
+  origin: Offset -- leave 0 0 0
+  wait: Hold Time (s) (default: 1)
+*/
+
+/*QUAKED trigger_hurt (1 .5 0) ? NOTOUCH
+  -------- KEYS --------
+  model: Submodel (*N) -- required
+  target: Target Name
+  origin: Offset -- leave 0 0 0
+  dmg: Damage (default: 5)
+  wait: Hold Time (s) (default: 0.2)
+*/
+
+// -----------------------------------------------------------------------------
+//  TRIGGER TARGETS  (point entities)
+//
+//  TriggerTable resolves target -> targetname against this allow-list only.
+//  A trigger pointing at any other classname is dropped with a console
+//  warning, so if your teleporter does nothing, check this list first.
+//  "G_PickTarget" itself does not filter by classname -- this is a safety
+//  allow-list, and it must stay a superset of what your maps use.
+// -----------------------------------------------------------------------------
+/*QUAKED target_position (.5 .5 0) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  targetname:
+*/
+
+/*QUAKED target_location (.5 .5 0) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  targetname:
+*/
+
+/*QUAKED misc_teleporter_dest (.5 .5 .5) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  angle:
+  targetname:
+*/
+
+/*QUAKED info_teleport_destination (0 0 1) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  angle:
+  targetname:
+*/
+
+/*QUAKED info_notnull (0 0 1) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  targetname:
+*/
+
+/*QUAKED target_explosion (.5 .5 0) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  targetname:
+  dmg:
+*/
+
+// -----------------------------------------------------------------------------
+//  MOVERS  (brush entities)
+//
+//  Only func_plat and func_door are registered (BspEntityHandlers).
+//  func_door only moves when "angle" is -1 (up) or -2 (down).
+//  Authored at the UPPER stop; simulation starts one "height" below.
+//  NOTE: the engine computes AABB = submodel AABB + origin -- leave origin
+//  at "0 0 0" unless you deliberately want an offset.
+// -----------------------------------------------------------------------------
+/*QUAKED func_door (0 .5 .8) ? REVERSE - CRUSHER
+  -------- KEYS --------
+  model: Submodel (*N) -- required
+  origin: Offset -- leave 0 0 0
+  angle: -1 = up, -2 = down -- required
+  height: Travel Distance
+  lip: Lip (kept open) (default: 8)
+  speed: Speed (units/s) (default: 100)
+  wait: Wait Open (s) (default: 2)
+  dmg: Crush Damage (default: 2)
+  targetname: Target Name
+  noise_start: Start Sound
+  noise_stop: Stop Sound
+*/
+
+/*QUAKED func_plat (0 .5 .8) ? - - CRUSHER
+  -------- KEYS --------
+  model: Submodel (*N) -- required
+  origin: Offset -- leave 0 0 0
+  height: Travel Distance -- required
+  speed: Speed (units/s) (default: 200)
+  wait: Wait (s) (default: 1)
+  dmg: Crush Damage (default: 2)
+  targetname: Target Name
+  noise_start: Move Sound
+  noise_stop: Stop Sound
+*/
+
+// -----------------------------------------------------------------------------
+//  CAPTURE POINTS / BOMBSITES
+// -----------------------------------------------------------------------------
+/*QUAKED team_CTF_redflag (0 1 1) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  angle:
+  targetname:
+*/
+
+/*QUAKED team_CTF_blueflag (0 1 1) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  angle:
+  targetname:
+*/
+
+/*QUAKED trigger_capture_area (1 .5 0) ? NEUTRAL
+  -------- KEYS --------
+  model: Submodel (*N) -- required
+  target: Indicator targetname
+  origin: Offset -- leave 0 0 0
+*/
+
+/*QUAKED misc_capture_area_indicator (.5 .5 .5) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  targetname:
+  angle:
+*/
+
+// -----------------------------------------------------------------------------
+//  LIGHTS
+// -----------------------------------------------------------------------------
+/*QUAKED light (1 1 .3) (-16 -16 -16) (16 16 32) ? - LINEAR NOANGLE
+  -------- KEYS --------
+  origin: Position
+  light: Intensity (default: 300)
+  _color: Color (default: 1 1 1)
+  target: Target Entity -- names sun/_sun for a directional light
+  targetname: Target Name
+  radius: Radius (for spot lights)
+*/
+
+/*QUAKED light_area (1 1 .3) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin: Position
+  _size: Size X Y (default: 64 64)
+  light: Intensity
+  _intensity: Intensity (alt)
+  _color: Color (default: 1 1 1)
+  _arealight_image: Projection Image
+*/
+
+/*QUAKED light_volumetric (1 1 .3) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin: Position
+  _color: Color (default: 1 1 1)
+  color: Color (alt)
+  godrays_exposure: Exposure (default: 1)
+  size: Size
+*/
+
+// -----------------------------------------------------------------------------
+//  WEAPONS
+// -----------------------------------------------------------------------------
+/*QUAKED weapon_machinegun (1 0 0) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  angle:
+  spawnflags:
+*/
+
+/*QUAKED weapon_riotgun (1 0 0) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  angle:
+  spawnflags:
+*/
+
+/*QUAKED weapon_grenadelauncher (1 0 0) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  angle:
+  spawnflags:
+*/
+
+/*QUAKED weapon_rocketlauncher (1 0 0) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  angle:
+  spawnflags:
+*/
+
+/*QUAKED weapon_plasmagun (1 0 0) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  angle:
+  spawnflags:
+*/
+
+/*QUAKED weapon_voltaic (1 0 0) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  angle:
+  spawnflags:
+*/
+
+/*QUAKED weapon_lasergun (1 0 0) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  angle:
+  spawnflags:
+*/
+
+/*QUAKED weapon_electrobolt (1 0 0) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  angle:
+  spawnflags:
+*/
+
+/*QUAKED weapon_instagun (1 0 0) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  angle:
+  spawnflags:
+*/
+
+// -----------------------------------------------------------------------------
+//  AMMO
+// -----------------------------------------------------------------------------
+/*QUAKED ammo_machinegun (1 1 0) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  spawnflags:
+*/
+
+/*QUAKED ammo_riotgun (1 1 0) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  spawnflags:
+*/
+
+/*QUAKED ammo_grenadelauncher (1 1 0) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  spawnflags:
+*/
+
+/*QUAKED ammo_rocketlauncher (1 1 0) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  spawnflags:
+*/
+
+/*QUAKED ammo_plasmagun (1 1 0) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  spawnflags:
+*/
+
+/*QUAKED ammo_lasergun (1 1 0) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  spawnflags:
+*/
+
+/*QUAKED ammo_electrobolt (1 1 0) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  spawnflags:
+*/
+
+/*QUAKED ammo_instagun (1 1 0) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  spawnflags:
+*/
+
+/*QUAKED ammo_bullets (1 1 0) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  spawnflags:
+*/
+
+/*QUAKED ammo_shells (1 1 0) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  spawnflags:
+*/
+
+/*QUAKED ammo_rockets (1 1 0) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  spawnflags:
+*/
+
+/*QUAKED ammo_cells (1 1 0) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  spawnflags:
+*/
+
+/*QUAKED ammo_grenades (1 1 0) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  spawnflags:
+*/
+
+/*QUAKED ammo_bolts (1 1 0) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  spawnflags:
+*/
+
+/*QUAKED ammo_instas (1 1 0) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  spawnflags:
+*/
+
+/*QUAKED ammo_lasers (1 1 0) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  spawnflags:
+*/
+
+// -----------------------------------------------------------------------------
+//  ARMOR / HEALTH / POWERUPS
+// -----------------------------------------------------------------------------
+/*QUAKED item_armor_shard (.3 .3 1) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  spawnflags:
+*/
+
+/*QUAKED item_armor_ga (.3 .3 1) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  spawnflags:
+*/
+
+/*QUAKED item_armor_ya (.3 .3 1) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  spawnflags:
+*/
+
+/*QUAKED item_armor_ra (.3 .3 1) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  spawnflags:
+*/
+
+/*QUAKED item_health_small (.3 .3 1) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  spawnflags:
+*/
+
+/*QUAKED item_health_medium (.3 .3 1) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  spawnflags:
+*/
+
+/*QUAKED item_health (.3 .3 1) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  spawnflags:
+*/
+
+/*QUAKED item_health_large (.3 .3 1) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  spawnflags:
+*/
+
+/*QUAKED item_health_mega (.3 .3 1) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  spawnflags:
+*/
+
+/*QUAKED item_health_ultra (.3 .3 1) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  spawnflags:
+*/
+
+/*QUAKED item_quad (.3 .3 1) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  spawnflags:
+*/
+
+/*QUAKED item_warshell (.3 .3 1) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  spawnflags:
+*/
+
+/*QUAKED item_regen (.3 .3 1) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  spawnflags:
+*/
+
+// -----------------------------------------------------------------------------
+//  COMPILER ENTITIES  (makebsp / makelight)
+//
+//  func_light generates brush-area lights; misc_decal / misc_text_decal place
+//  projected decals. See makebsp README sections "func_light", "misc_decal",
+//  "misc_text_decal" and "func_trim" for the full key list.
+// -----------------------------------------------------------------------------
+/*QUAKED func_group (0 .5 .8) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+*/
+
+/*QUAKED func_trim (0 .5 .8) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  script:
+*/
+
+/*QUAKED func_trisoup (0 .5 .8) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  script:
+*/
+
+/*QUAKED func_light (0 .5 .8) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  light:
+  _color:
+  size:
+  shape:
+  attenuation:
+  chamfer:
+*/
+
+/*QUAKED misc_decal (.5 .5 .5) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  angle:
+  shader:
+  width:
+  height:
+  rotation:
+  decal:
+*/
+
+/*QUAKED misc_text_decal (.5 .5 .5) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  angle:
+  text:
+  size:
+  color:
+  align:
+*/
+
+// =============================================================================
+//  RAW-.MAP PATH ONLY  (src/engine/MapRenderer.ts)
+//
+//  These are read by the raw map renderer, NOT by the compiled-BSP gameplay
+//  path. They are kept here so the raw/preview workflow stays usable, clearly
+//  separated from the gameplay classes above. Placing them in a compiled map
+//  has no gameplay effect.
+// =============================================================================
+/*QUAKED misc_model (.5 .5 .5) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin: Position
+  model: Model / Prefab Path
+  angle: Y Rotation (default: 0)
+  scale: Uniform Scale (default: 1)
+  collision: Collision (default: 1)
+  receiveShadows: Receive Shadows (default: 1)
+  castShadows: Cast Shadows (default: 0)
+  visible: Visible (default: 1)
+  renderingGroup: Rendering Group (default: 0)
+  dropToGround: Drop To Ground (default: 0)
+  dropOffset: Drop Offset (default: 0)
+*/
+
+/*QUAKED street_lamp (.5 .5 .5) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin: Position
+  targetname: Target Name
+  light: Max Intensity (default: 200)
+  range: Range (default: 100)
+  _color: Color (default: 255 200 150)
+  fadeTime: Fade Time (s) (default: 2)
+  turnOnHour: Turn On Hour (default: 18)
+  turnOffHour: Turn Off Hour (default: 6)
+  flicker: Flicker (default: 0)
+  showBulb: Show Bulb (default: 1)
+  bulbSize: Bulb Size (default: 3)
+*/
+
+/*QUAKED sprite_building (.5 .5 .5) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  targetname:
+  texture:
+  width:
+  height:
+  billboard:
+  angle:
+  emissive:
+  windowTarget:
+  triggerWidth:
+  triggerHeight:
+  triggerDepth:
+  collisionWidth: collisionHeight (default: collisionDepth)
+*/
+
+/*QUAKED misc_sprite (.5 .5 .5) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  sprite:
+  width:
+  height:
+  scale:
+  billboard:
+  angle:
+  shadow: shadowOpacity (default: anchor)
+*/
+
+/*QUAKED npc_sprite (.5 .5 .5) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  targetname:
+  sprite:
+  scale:
+  angle:
+  directions:
+  frames:
+  frameRate:
+  frameWidth:
+  frameHeight:
+  color:
+  accentColor:
+  receiveLighting:
+  ambientLevel:
+  castShadow:
+  shadowOpacity:
+  shadowScale:
+*/
+
+/*QUAKED info_npc (0 .5 .5) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  targetname:
+  name:
+  preset:
+  random:
+  angle:
+  scale:
+  skinColor:
+  hairColor:
+  shirtColor:
+  pantsColor:
+  shoesColor:
+  bodyType:
+  hairStyle:
+  gender:
+  accessory:
+  facialHair:
+*/
+
+/*QUAKED build_zone (.5 .5 .5) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  targetname:
+  zoneType:
+  size:
+  color:
+*/
+
+/*QUAKED info_debris_zone (0 .5 .5) (-16 -16 -16) (16 16 32) ?
+  -------- KEYS --------
+  origin:
+  targetname:
+  size:
+*/
+

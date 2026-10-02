@@ -17,6 +17,8 @@ npm run cli:bsp -- info path/to/map.bsp
 npm run cli:bsp -- liquids path/to/map.bsp
 ```
 
+`cli:bsp` also takes `entities`, `textures`, `collision`, `clipbrushes`, `effects` and `build`.
+
 This CLI takes an extracted filesystem BSP and calls the synchronous `BspLoader.load` API.
 
 ## Deterministic gameplay
@@ -24,7 +26,7 @@ This CLI takes an extracted filesystem BSP and calls the synchronous `BspLoader.
 ```bash
 npm run test:simulation
 npm run test:physics
-npm run cli:game -- --exec 'sim replay W+CROUCH 60; JUMP 1; W 30; quit'
+npm run cli:game -- --exec 'sim replay "W+CROUCH 60; JUMP 1; W 30"; quit'
 ```
 
 Prefer deterministic assertions over snapshots of volatile log output.

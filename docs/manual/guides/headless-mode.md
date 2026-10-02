@@ -4,6 +4,9 @@ SHAG provides CLI entry points for map inspection, deterministic simulation, ser
 
 ## Game console runner
 
+Beyond the engine commands, this runner registers `sim`, `anim`, `headless`,
+`leaktest` and `trace_test`, which exist nowhere else.
+
 Start an interactive REPL:
 
 ```bash
@@ -23,19 +26,27 @@ The headless composition registers engine commands but not the browser gameplay 
 ## Deterministic movement
 
 ```bash
-npm run cli:game -- --exec 'sim replay W+CROUCH 60; JUMP 1; W 30; quit'
+npm run cli:game -- --exec 'sim replay "W+CROUCH 60; JUMP 1; W 30"; quit'
 npm run test:simulation
 npm run test:physics
 ```
+
+A batch is split on semicolons and newlines, except inside double quotes — so a
+multi-sequence `sim replay` has to be quoted, as above, or its sequences are
+read as separate console commands.
 
 ## Dedicated server
 
 ```bash
 npm run net:server -- --map wdm2 --port 7777
-npm run net:client -- --host localhost --port 7777
+npm run net:client -- --connect ws://localhost:7777
 npm run server:tick
 npm run server:fuzz -- --ticks 1000
 ```
+
+The server takes `--port`, `--map`, `--gametype`, `--name`, `--maxclients`,
+`--tickrate`, `--snapshotrate`, `--game`, and `--cert`/`--key` for TLS. The
+client takes `--connect <url>` and `--name`; it has no `--host` or `--port`.
 
 The dedicated server is a different entry point from `cli:game`; it owns the authoritative simulation and network transport.
 
@@ -46,6 +57,12 @@ npm run demo:record -- --map wdm12 --bots 2 --seconds 30
 npm run demo:verify -- path/to/bundle.shagverify
 npm run anticheat:calibrate -- --trials 40 --ticks 1500
 ```
+
+`demo:record` starts a server, connects AI bots and records one match. It takes
+`--map`, `--bots`, `--seconds`, `--gametype`, `--difficulty`, `--port` and
+`--models <dir>`; with `--models` the bots play with those trained weights, which
+is how a trained model gets watched in a real match. Its recordings carry no
+verified players, so training reads them only with `--include-bots`.
 
 Treat synthetic anti-cheat calibration numbers as directional until calibrated against real player demos.
 

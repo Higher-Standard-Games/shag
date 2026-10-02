@@ -664,12 +664,16 @@ export class InputSystem {
     // Check overrides first
     const overrides = this.bindingOverrides.get(actionId);
     if (overrides) return overrides;
+    return this.getDefaultBindings(actionId);
+  }
 
-    // Check active context bindings
+  /**
+   * The bindings an action has when nothing overrides it: the active context's,
+   * else the action's own defaults.
+   */
+  getDefaultBindings(actionId: string): InputBinding[] {
     const ctx = this.contexts.get(this.getActiveContext());
     if (ctx?.bindings?.[actionId]) return ctx.bindings[actionId];
-
-    // Fall back to action defaults
     const action = this.actions.get(actionId);
     return action?.defaultBindings ?? [];
   }

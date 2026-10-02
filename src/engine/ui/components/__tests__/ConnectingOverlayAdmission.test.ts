@@ -93,4 +93,28 @@ describe("lobby match connection", () => {
     });
     expect(document.querySelector(".connecting-overlay")).toBeNull();
   });
+
+  it("takes a seat on the match already being watched instead of connecting again", async () => {
+    const connect = vi.fn();
+    const claimSeat = vi.fn(() => true);
+    registerNetworkConnector({ isConnected: () => true, connect, claimSeat });
+    await new ConnectingOverlay().show("ws://localhost:7781", false, "drop-in-ticket");
+    expect(claimSeat).toHaveBeenCalledWith("ws://localhost:7781", "drop-in-ticket");
+    expect(connect).not.toHaveBeenCalled();
+    // Nothing over the game: the player is already looking at the match.
+    expect(document.querySelector(".connecting-overlay")).toBeNull();
+  });
+
+  it("gives a spectator's connection the way to ask for a seat", async () => {
+    const connect = vi.fn().mockResolvedValue(undefined);
+    registerNetworkConnector({ isConnected: () => false, connect });
+    const requestSeat = vi.fn();
+    const shown = new ConnectingOverlay().show("ws://localhost:7781", true, undefined, undefined, requestSeat);
+    await vi.advanceTimersByTimeAsync(6000);
+    await shown;
+    expect(connect).toHaveBeenCalledWith(
+      "ws://localhost:7781",
+      expect.objectContaining({ watchOnly: true, requestSeat }),
+    );
+  });
 });

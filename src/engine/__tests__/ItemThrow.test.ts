@@ -177,8 +177,10 @@ describe("landMapPickups", () => {
     expect(landMapPickups([authored], collision)[0]).toBe(authored);
   });
 
-  it("leaves armor, health, ammo and powerups where the map put them", async () => {
-    const at = { x: -400, y: 152, z: 0 };
+  it("drops armor, health, ammo and powerups straight onto the floor beneath them", async () => {
+    // Authored 80 units above the floor, as the red armor on wdm17 is: a trigger
+    // left there was out of reach of a player standing where the item is drawn
+    const at = { x: -400, y: 208, z: 0 };
     const entries: PickupEntry[] = [
       { id: 0, classname: "item_armor_ra", type: "armor", kind: "ra", position: at },
       { id: 1, classname: "item_health_mega", type: "health", kind: "mega", position: at },
@@ -186,7 +188,24 @@ describe("landMapPickups", () => {
       { id: 3, classname: "item_quad", type: "powerup", kind: "quad", position: at },
     ];
 
-    expect(landMapPickups(entries, await level())).toEqual(entries);
+    for (const landed of landMapPickups(entries, await level())) {
+      expectRestingOn(landed.position.y, 128);
+      expect(landed.position.x).toBe(-400);
+      expect(landed.position.z).toBe(0);
+    }
+  });
+
+  it("keeps an item the map marks suspended where it hangs", async () => {
+    const hanging: PickupEntry = {
+      id: 0,
+      classname: "item_quad",
+      type: "powerup",
+      kind: "quad",
+      position: { x: -400, y: 208, z: 0 },
+      suspended: true,
+    };
+
+    expect(landMapPickups([hanging], await level())[0]).toBe(hanging);
   });
 
   it("lands every weapon identically in two separately built collision worlds, as client and server do", async () => {

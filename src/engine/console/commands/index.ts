@@ -10,6 +10,8 @@
  * 3. It will be auto-registered on startup
  */
 
+import { DebugConsole } from "../../debug/DebugConsole";
+import { CommandBindings } from "../../input/CommandBindings";
 import type { Command } from "../Command";
 import { CommandRegistry } from "../CommandRegistry";
 
@@ -36,4 +38,14 @@ export async function registerEngineCommands(): Promise<void> {
   }
 
   console.log(`[Console] Registered ${count} engine commands`);
+
+  // Bound keys run through the same registry. Attached here so every
+  // composition that has commands also has its bindings, without a separate
+  // wiring step to forget.
+  CommandBindings.attach({
+    run: (command) => {
+      void registry.execute(command);
+    },
+    isBlocked: () => DebugConsole.getInstance().getIsOpen(),
+  });
 }

@@ -340,6 +340,9 @@ export class ShaderAnimationSystem {
   }
 
   private applyTcMods(stage: AnimatedStage, deltaTime: number): void {
+    // Brightness/alpha waves do not own UVs. In particular, keep the loader's
+    // compressed-texture orientation instead of resetting it every frame.
+    if (stage.tcMods.length === 0) return;
     const state = stage.tcState;
 
     for (const tcMod of stage.tcMods) {

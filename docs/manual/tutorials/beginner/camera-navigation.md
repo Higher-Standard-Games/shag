@@ -8,6 +8,8 @@ camera mode freefly
 freefly_speed 300
 ```
 
+`camera` and `freefly_collision` work without developer mode; `freefly_speed` and `teleport` do not.
+
 After clicking the canvas:
 
 | Input | Action |
@@ -15,9 +17,11 @@ After clicking the canvas:
 | WASD | move |
 | Mouse | look |
 | Space | move up |
-| C or Ctrl | move down |
+| C, Ctrl or middle mouse | move down |
 | Shift | speed multiplier |
 | Escape | release pointer lock |
+
+These are the Jump, Crouch and Sprint actions, so they follow whatever those are bound to in Settings → Controls.
 
 The scroll wheel is used by FPS weapon selection and is not the documented freefly speed control. Use `freefly_speed <positive-number>`.
 

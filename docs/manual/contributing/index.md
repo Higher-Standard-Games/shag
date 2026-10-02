@@ -50,20 +50,27 @@ npm run check
 ```
 src/
 ├── engine/     # Core engine (reusable)
-├── game/       # Game-specific code
+├── shared/     # Deterministic client-server contracts, no Babylon or DOM
+├── games/      # Game modules; fps is a git submodule
+├── lobby/      # Matchmaking, accounts, results, server spawning
+├── bot/        # Bot service
 └── cli/        # Headless tools
 ```
 
-**Rule:** Engine code should not import from game code.
+**Rule:** Engine code should not import from game code. Where the engine needs
+something a game owns, it goes through a registry — see
+[Service registries](../guides/service-registries.md).
 
 ## Pull Request Process
 
 1. Update documentation if needed
 2. Add tests for new features
-3. Ensure `npm run lint` passes
-4. Ensure `npm run build` succeeds
-5. Write clear commit messages
-6. Open PR with description of changes
+3. Ensure `npm run typecheck` and `npm run test:run` pass
+4. Ensure `npm run gate:biome` stays at or below its baseline — a pre-commit
+   hook from `.githooks` runs it, so a commit that raises it is refused
+5. Ensure `npm run build` succeeds
+6. Write clear commit messages
+7. Open PR with description of changes
 
 ### Commit Messages
 

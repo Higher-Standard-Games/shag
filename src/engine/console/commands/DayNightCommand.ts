@@ -103,6 +103,9 @@ Commands:
   daynight on/off       - Enable/disable
   daynight noon         - Set to noon
   daynight midnight     - Set to midnight
+  daynight sunrise      - Set to sunrise
+  daynight sunset       - Set to sunset
+  daynight time <0-1>   - Set time of day
   daynight start/stop   - Animate cycle
   daynight cycle <min>  - Set cycle length`;
       }

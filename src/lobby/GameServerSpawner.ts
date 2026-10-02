@@ -12,7 +12,15 @@
 
 import { type ChildProcess, spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { issueMatchAdmission, type MatchSeat } from "../engine/server/network/MatchAdmission";
+import {
+  ADMIT_ACK_PREFIX,
+  ADMIT_COMMAND,
+  type AdmissionManifest,
+  issueDropInSeat,
+  issueMatchAdmission,
+  type MatchSeat,
+  type RecoveryTicket,
+} from "../engine/server/network/MatchAdmission";
 import { type MatchResultReport, RESULT_PREFIX, verifyMatchResult } from "../engine/server/network/MatchResultReport";
 
 // ============================================================================
@@ -83,12 +91,19 @@ export function abandonSpawnedChild(child: Pick<ChildProcess, "kill" | "killed" 
   forceKill.unref?.();
 }
 
+/** How long a running game server gets to confirm a drop-in seat. */
+const ADMIT_ACK_TIMEOUT_MS = 3_000;
+
 export class GameServerSpawner {
   /** Kept outside public SpawnedServer listings, removed on delivery or exit. */
-  private readonly recoveryByMatch = new Map<
-    string,
-    Map<number, { ticket: string; availableAt: number; expiresAt: number }>
-  >();
+  private readonly recoveryByMatch = new Map<string, Map<number, RecoveryTicket>>();
+  /**
+   * Each admitted match's manifest, as its results are verified against.
+   * Drop-in seats are added to it, so a player who joined late is counted.
+   */
+  private readonly manifestByMatch = new Map<string, AdmissionManifest>();
+  /** Drop-in seats sent to a child and not yet acknowledged, by seat id. */
+  private readonly pendingAdmits = new Map<string, () => void>();
   private nextPort: number;
   private activeServers: Map<string, SpawnedServer> = new Map();
   private projectRoot: string;
@@ -177,7 +192,10 @@ export class GameServerSpawner {
     }
 
     this.activeServers.set(matchId, server);
-    if (admission) this.recoveryByMatch.set(matchId, admission.recoveryTickets);
+    if (admission) {
+      this.recoveryByMatch.set(matchId, admission.recoveryTickets);
+      this.manifestByMatch.set(matchId, admission.manifest);
+    }
     console.log(`[Spawner] Server ready: ${server.url} (match: ${matchId})`);
 
     // Monitor process exit
@@ -185,6 +203,7 @@ export class GameServerSpawner {
       console.log(`[Spawner] Server exited: match=${matchId} code=${code} signal=${signal}`);
       this.activeServers.delete(matchId);
       this.recoveryByMatch.delete(matchId);
+      this.manifestByMatch.delete(matchId);
       this.onServerExit?.(matchId, code);
     });
 
@@ -196,6 +215,7 @@ export class GameServerSpawner {
     const server = this.activeServers.get(matchId);
     if (!server) {
       this.recoveryByMatch.delete(matchId);
+      this.manifestByMatch.delete(matchId);
       console.log(`[Spawner] No server found for match: ${matchId}`);
       return;
     }
@@ -206,6 +226,7 @@ export class GameServerSpawner {
       server.process.on("exit", () => {
         this.activeServers.delete(matchId);
         this.recoveryByMatch.delete(matchId);
+        this.manifestByMatch.delete(matchId);
         resolve();
       });
 
@@ -219,6 +240,7 @@ export class GameServerSpawner {
           server.process.kill("SIGKILL");
           this.activeServers.delete(matchId);
           this.recoveryByMatch.delete(matchId);
+          this.manifestByMatch.delete(matchId);
           resolve();
         }
       }, 5000);
@@ -248,6 +270,48 @@ export class GameServerSpawner {
     if (!server || !reserved || now < reserved.availableAt || now > reserved.expiresAt) return null;
     byAccount!.delete(accountId);
     return { admissionTicket: reserved.ticket, serverUrl: server.url };
+  }
+
+  /**
+   * Add a seat to a running match for a player dropping into free room, and
+   * resolve with their ticket once the game server holds its grants: a ticket
+   * handed out before then could reach the server ahead of its own seat. Null
+   * when the match is gone, the seat is refused or the server does not answer.
+   */
+  async admitDropIn(
+    matchId: string,
+    seat: Omit<MatchSeat, "lobbyPlayerId">,
+    now = Date.now(),
+  ): Promise<{ admissionTicket: string; serverUrl: string } | null> {
+    const server = this.activeServers.get(matchId);
+    const manifest = this.manifestByMatch.get(matchId);
+    const stdin = server?.process.stdin;
+    if (!server || !manifest || !stdin?.writable) return null;
+    let issued: ReturnType<typeof issueDropInSeat>;
+    try {
+      issued = issueDropInSeat(seat, now, 2 * 60_000, 30 * 60_000);
+    } catch {
+      return null;
+    }
+    const seatId = issued.grants[0].seatId ?? "";
+    const acknowledged = new Promise<boolean>((resolve) => {
+      const timer = setTimeout(() => {
+        this.pendingAdmits.delete(seatId);
+        resolve(false);
+      }, ADMIT_ACK_TIMEOUT_MS);
+      this.pendingAdmits.set(seatId, () => {
+        clearTimeout(timer);
+        this.pendingAdmits.delete(seatId);
+        resolve(true);
+      });
+    });
+    stdin.write(`${ADMIT_COMMAND} ${Buffer.from(JSON.stringify(issued.grants)).toString("base64url")}\n`);
+    if (!(await acknowledged) || !this.activeServers.has(matchId)) return null;
+    manifest.grants.push(...issued.grants);
+    if (issued.recovery && seat.accountId !== null) {
+      this.recoveryByMatch.get(matchId)?.set(seat.accountId, issued.recovery);
+    }
+    return { admissionTicket: issued.ticket, serverUrl: server.url };
   }
 
   /** Callback when a server exits (set by LobbyServer) */
@@ -293,6 +357,7 @@ export class GameServerSpawner {
           const line = pending.slice(0, end).trim();
           pending = pending.slice(end + 1);
           if (line.startsWith(RESULT_PREFIX)) onResult?.(line);
+          else if (line.startsWith(ADMIT_ACK_PREFIX)) this.pendingAdmits.get(line.slice(ADMIT_ACK_PREFIX.length))?.();
           else if (line) console.log(`  [Server:${port}] ${line}`);
           if (line.includes("Ready for connections") || line.includes("Server ready on")) {
             clearTimeout(timeout);

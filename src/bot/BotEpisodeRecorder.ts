@@ -15,8 +15,8 @@
 
 import type { BotInput } from "./BotBrain";
 import type { BotGameState } from "./BotGameState";
-import { buildCombatInput, buildTacticalInput } from "./BotInputNormalizer";
-import type { BotVision } from "./BotVision";
+import type { BotVision, VisionResult } from "./BotVision";
+import { buildModelInputs } from "./ModelInputs";
 
 // ── Training Frame ──────────────────────────────────────────────────
 
@@ -128,9 +128,15 @@ export class BotEpisodeRecorder {
    *
    * @param state - Current game state
    * @param input - The BotInput that was sent this tick
-   * @param vision - Vision system (for input normalization)
+   * @param vision - This bot's own vision, as the brain used it
+   * @param visionResult - What that vision saw this tick
    */
-  recordTick(state: BotGameState, input: BotInput, vision: BotVision | null): void {
+  recordTick(
+    state: BotGameState,
+    input: BotInput,
+    vision: BotVision | null,
+    visionResult: VisionResult | null = null,
+  ): void {
     if (!this._isRecording) return;
 
     // Record death frames (death is a critical training signal!)
@@ -140,16 +146,8 @@ export class BotEpisodeRecorder {
     const tick = state.tick;
     const self = state.self;
 
-    // Build neural inputs
-    const tacticalArr = buildTacticalInput(state, vision);
-    const tacticalInput = Array.from(tacticalArr);
-
-    let combatInput: number[] | null = null;
-    const enemy = state.getNearestEnemy();
-    if (enemy) {
-      const combatArr = buildCombatInput(state, enemy);
-      combatInput = Array.from(combatArr);
-    }
+    // The vectors the brain was fed, built by the same code that fed it
+    const { tactical: tacticalInput, combat: combatInput } = buildModelInputs(state, vision, visionResult);
 
     // Detect events by comparing with previous tick
     const healthDelta = self.health - this._prevHealth;

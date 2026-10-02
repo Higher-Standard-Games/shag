@@ -10,7 +10,7 @@ export default class ShowFpsCommand extends Command {
     name: "show_fps",
     aliases: ["fps"],
     description: "Toggle FPS display",
-    usage: "show_fps [0|1]",
+    usage: "show_fps [0|1|on|off]",
   };
 
   async execute(args: string[]): Promise<string | undefined> {

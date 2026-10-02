@@ -511,7 +511,13 @@ export class PK3Index {
   findByPattern(pattern: string): { file: string; pk3: string }[] {
     if (!this.index) return [];
 
-    const regex = new RegExp(`^${pattern.replace(/\*/g, ".*").replace(/\?/g, ".")}$`, "i");
+    // Escape the pattern first, then reopen only the two glob wildcards: a path
+    // pattern is full of regex metacharacters — "maps/*.bsp" would otherwise let
+    // its dot match anything, and a bracket or parenthesis in a texture name
+    // throws.
+    const escaped = pattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const source = escaped.replace(/\\\*/g, ".*").replace(/\\\?/g, ".");
+    const regex = new RegExp(`^${source}$`, "i");
 
     const results: { file: string; pk3: string }[] = [];
     for (const [file, pk3] of Object.entries(this.index.files)) {

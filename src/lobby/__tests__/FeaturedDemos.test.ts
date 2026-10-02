@@ -1,5 +1,5 @@
 import { once } from "node:events";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { WebSocket } from "ws";
 import { selectFeaturedDemos } from "../FeaturedDemos";
 import { GameServerSpawner } from "../GameServerSpawner";
@@ -22,6 +22,8 @@ function demo(filename: string, overrides: Partial<DemoInfo> = {}): DemoInfo {
     ...overrides,
   };
 }
+
+afterEach(() => vi.restoreAllMocks());
 
 describe("featured demo selection", () => {
   it("selects only recent substantial multiplayer recordings, newest first", () => {
@@ -83,6 +85,9 @@ describe("featured demo selection", () => {
   });
 
   it("advertises and serves featured picks over an authenticated lobby socket", async () => {
+    // The fixture cache below replaces the scan. Scanning this machine's demo
+    // folder would only make the test as slow as that folder is large.
+    vi.spyOn(LobbyServer.prototype as unknown as { _scanDemos(): void }, "_scanDemos").mockImplementation(() => {});
     const lobby = new LobbyServer(0, new GameServerSpawner());
     await lobby.start();
     const internal = lobby as unknown as { _demoCache: DemoInfo[]; wss: { address(): { port: number } } };

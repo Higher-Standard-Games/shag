@@ -110,6 +110,8 @@ export interface PickupEntry {
   amount?: number;
   /** Babylon-space position (Q3 Y↔Z swapped), matching the BSP origin. */
   position: { x: number; y: number; z: number };
+  /** Spawnflag 1: the map wants the item to hang where it is put, not drop to the floor. */
+  suspended?: true;
 }
 
 /** Back-compat alias — weapon pickups are PickupEntry with type "weapon". */
@@ -137,14 +139,16 @@ export function extractPickups(
     const [x, y, z] = origin.split(" ").map(Number);
     if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) continue;
 
-    out.push({
+    const entry: PickupEntry = {
       id: id++,
       classname: entity.classname,
       type: info.type,
       kind: info.kind,
       amount: info.amount,
       position: { x, y: z, z: y }, // Q3→Babylon coord swap
-    });
+    };
+    if ((Number(entity.properties.spawnflags) || 0) & 1) entry.suspended = true;
+    out.push(entry);
   }
 
   return out;

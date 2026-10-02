@@ -20,13 +20,7 @@ import { MessageCodec, MessageType } from "../engine/network/protocol/MessageCod
 import type { BotBrain, BotInput } from "./BotBrain";
 // HybridBrain is imported dynamically — requires @tensorflow/tfjs-node native addon
 // import { HybridBrain } from './HybridBrain';
-import {
-  type BotDifficulty,
-  type BotOptions,
-  defaultGoalArbiterMode,
-  getDifficultyModelDir,
-  resolveDifficulty,
-} from "./BotConfig";
+import { type BotDifficulty, type BotOptions, defaultGoalArbiterMode, resolveDifficulty } from "./BotConfig";
 import type { BotEpisodeRecorder } from "./BotEpisodeRecorder";
 import { applyFriendlyFireSafety } from "./BotFireSafety";
 import { BotGameState } from "./BotGameState";
@@ -140,19 +134,15 @@ export class BotClient extends EventEmitter {
    * Falls back to StateMachineBrain if @tensorflow/tfjs-node isn't available.
    */
   private _initHybridBrain(modelDir: string, difficulty: string | BotDifficulty): void {
-    import("./HybridBrain")
-      .then(({ HybridBrain }) => {
+    Promise.all([import("./HybridBrain"), import("./ModelMetadata")])
+      .then(([{ HybridBrain }, { resolveModelDir }]) => {
         const hybrid = new HybridBrain(this._difficulty);
         this._brain = hybrid;
-        // Resolve difficulty-specific model dir (e.g. ./models/hard/)
+        // This difficulty's own weights if self-play left some, else the base set
         const diffName = typeof difficulty === "string" ? difficulty : "medium";
-        const tierDir = getDifficultyModelDir(modelDir, diffName);
-        // Try tier-specific dir first, fall back to base dir
-        hybrid.loadModels(tierDir).catch(() => {
-          console.log(`${this._logPrefix} No tier "${diffName}" models, trying base dir`);
-          hybrid.loadModels(modelDir).catch((e) => {
-            console.error(`${this._logPrefix} Failed to load models:`, e);
-          });
+        const dir = resolveModelDir(modelDir, diffName);
+        hybrid.loadModels(dir).catch((e) => {
+          console.error(`${this._logPrefix} Failed to load models from ${dir}:`, e);
         });
       })
       .catch(() => {
@@ -439,7 +429,7 @@ export class BotClient extends EventEmitter {
             pitch: 0,
             weaponSlot: 0,
           };
-          this._recorder.recordTick(this._gameState, deathInput, this._vision);
+          this._recorder.recordTick(this._gameState, deathInput, this._vision, this._lastVisionResult);
         }
       }
 
@@ -485,7 +475,7 @@ export class BotClient extends EventEmitter {
 
       // Record training frame (if recorder is attached)
       if (this._recorder) {
-        this._recorder.recordTick(this._gameState, input, this._vision);
+        this._recorder.recordTick(this._gameState, input, this._vision, this._lastVisionResult);
       }
 
       // Periodic logging

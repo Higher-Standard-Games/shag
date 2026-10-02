@@ -26,13 +26,27 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { BotClient } from "./BotClient";
-import { getDifficultyTiers, getNextBotName, InputButtons, resetBotNameIndex } from "./BotConfig";
+import type { BotClient } from "./BotClient";
+import { getDifficultyTiers, getNextBotName, resetBotNameIndex } from "./BotConfig";
 import { BotEpisodeRecorder, type TrainingFrame } from "./BotEpisodeRecorder";
 import { COMBAT_INPUT_SIZE, TACTICAL_INPUT_SIZE } from "./BotInputNormalizer";
 import { BotRewardComputer } from "./BotRewardComputer";
+import { BotServer } from "./BotServer";
+import {
+  buildCorpusPairs,
+  COMBAT_OUTPUT_KINDS,
+  COMBAT_OUTPUT_NAMES,
+  resampleByWeight,
+  rewardWeights,
+  TACTICAL_OUTPUT_KINDS,
+  TACTICAL_OUTPUT_NAMES,
+  type TrainingPair,
+} from "./CloningTargets";
 import { HybridBrain } from "./HybridBrain";
+import { typicalInterval } from "./ModelInputs";
+import { describeCurrentFeatures, writeMetadata } from "./ModelMetadata";
 import { getTF } from "./TFBackend";
+import { LEARNED_SKILL, scoreModel, skillByName } from "./TrainingReport";
 
 // ── Training Configuration ──────────────────────────────────────────
 
@@ -102,6 +116,19 @@ export class BotTrainer {
   private _rewardComputer: BotRewardComputer;
   private _roundStats: RoundStats[] = [];
   private _startTime: number = 0;
+  /** Spawns each round's bots the way the bot server does: with the map and the weights. */
+  private _botServer: BotServer | null = null;
+  /** Whether the weights in the latest directory were trained, so bots may play them. */
+  private _playable = false;
+  private _roundsTrained = 0;
+  private _framesTrained = 0;
+  private _frameInterval: number | undefined;
+  /**
+   * Held-out skill of the weights, measured on each new round before training on
+   * it — play those weights have never seen. Saved beside them, so a bot acts on
+   * an output only as far as it was learned.
+   */
+  private _outputSkill: Record<string, number> | undefined;
 
   constructor(config?: Partial<TrainerConfig>) {
     this._config = { ...DEFAULT_TRAINER_CONFIG, ...config };
@@ -143,11 +170,21 @@ export class BotTrainer {
       await this._brain.loadModels(this._config.modelDir);
       if (!this._brain.hasModels) {
         console.log("[Trainer] No existing models found, creating fresh ones");
-        await this._brain.createFreshModels();
+        await this._brain.createFreshModels(this._config.learningRate);
       }
+      this._brain.prepareForTraining(this._config.learningRate);
     } else {
-      await this._brain.createFreshModels();
+      await this._brain.createFreshModels(this._config.learningRate);
     }
+
+    // Resumed weights were trained, so the first round may already play them.
+    // Fresh ones are random, and a random network at a coin-flip threshold
+    // fires at nothing: the first round of a new run plays the state machine.
+    if (this._config.resumeTraining && this._brain.hasModels) {
+      await this._saveWeights(this._latestDir);
+      this._playable = true;
+    }
+    this._botServer = new BotServer(this._config.serverPort + 100);
 
     // Ensure model directory exists
     fs.mkdirSync(path.resolve(this._config.modelDir), { recursive: true });
@@ -167,9 +204,28 @@ export class BotTrainer {
           this._rewardComputer.normalizeRewards(episode.frames);
         }
 
-        // 3. Train models on collected data
+        // 3. Train models on collected data. One episode is one bot playing one
+        // match, which is a run: the aim and weapon labels are differences
+        // between neighbouring frames, so two bots' frames must never meet.
+        const runs = episodes.map((episode) => episode.frames);
         const allFrames = episodes.flatMap((e) => e.frames);
-        const { tacticalLoss, combatLoss } = await this._trainOnFrames(allFrames);
+
+        // Before learning from this round, see how the weights do on it: none of
+        // it has been trained on yet, so this is the held-out measure a bot reads
+        if (this._roundsTrained > 0) this._measureSkill(runs);
+
+        const { tacticalLoss, combatLoss } = await this._trainOnRuns(runs);
+
+        // The next round's bots play what this round taught. Without this the
+        // bots never played the models being trained: every round was the state
+        // machine, and the network only ever learned to imitate it.
+        if (allFrames.length > 0) {
+          this._roundsTrained++;
+          this._framesTrained += allFrames.length;
+          this._frameInterval = typicalInterval(runs[0]?.map((frame) => frame.tick) ?? []) ?? this._frameInterval;
+          await this._saveWeights(this._latestDir);
+          this._playable = true;
+        }
 
         // 4. Log stats
         const totalKills = episodes.reduce((s, e) => s + e.summary.kills, 0);
@@ -207,7 +263,60 @@ export class BotTrainer {
 
     // Final save
     await this._saveCheckpoint(this._config.rounds);
+    await this._botServer?.stop();
+    this._botServer = null;
     this._printSummary();
+  }
+
+  /** Where each round's weights go, for the next round's bots to play. */
+  private get _latestDir(): string {
+    // Its own directory: a bot prefers its difficulty's subdirectory, and the
+    // trainer freezes one there at every tier boundary, so bots pointed at the
+    // base would lock onto that snapshot and stop playing anything newer.
+    return path.join(path.resolve(this._config.modelDir), "latest");
+  }
+
+  /** Save the weights with what they were trained on, so any bot can check them. */
+  private async _saveWeights(dir: string): Promise<void> {
+    fs.mkdirSync(dir, { recursive: true });
+    await this._brain.saveModels(dir);
+    writeMetadata(dir, {
+      ...describeCurrentFeatures(),
+      frameIntervalTicks: this._frameInterval,
+      trainedAt: new Date().toISOString(),
+      matches: this._roundsTrained,
+      trainFrames: this._framesTrained,
+      validationFrames: 0,
+      includedBots: true,
+      matchIds: [],
+      outputSkill: this._outputSkill,
+    });
+  }
+
+  /** Score the current weights on a round they have not trained on. */
+  private _measureSkill(runs: TrainingFrame[][]): void {
+    const tf = getTF();
+    const tactical = scoreModel(
+      tf,
+      this._brain.tacticalModel,
+      buildCorpusPairs(runs, "tactical", TACTICAL_INPUT_SIZE).pairs,
+      TACTICAL_OUTPUT_NAMES,
+      TACTICAL_OUTPUT_KINDS,
+    );
+    const combat = scoreModel(
+      tf,
+      this._brain.combatModel,
+      buildCorpusPairs(runs, "combat", COMBAT_INPUT_SIZE).pairs,
+      COMBAT_OUTPUT_NAMES,
+      COMBAT_OUTPUT_KINDS,
+    );
+    this._outputSkill = { ...skillByName(tactical), ...skillByName(combat) };
+    const learned = Object.entries(this._outputSkill).filter(([, skill]) => skill >= LEARNED_SKILL);
+    console.log(
+      `[Trainer] Held-out skill of last round's weights — what the next bots act on: ${
+        learned.length > 0 ? learned.map(([name, skill]) => `${name} ${skill.toFixed(2)}`).join(", ") : "nothing yet"
+      }`,
+    );
   }
 
   // ── Play Training Round ─────────────────────────────────────────
@@ -228,21 +337,25 @@ export class BotTrainer {
     // The trainer expects a running game server on the configured port
     const serverUrl = `ws://localhost:${this._config.serverPort}`;
     const bots: Array<{ client: BotClient; recorder: BotEpisodeRecorder }> = [];
+    const botServer = this._botServer;
+    if (!botServer) throw new Error("[Trainer] No bot server — train() creates one before the first round");
 
     for (let i = 0; i < this._config.botCount; i++) {
       const botName = getNextBotName();
       const recorder = new BotEpisodeRecorder(botName, this._config.map);
 
-      const client = new BotClient({
-        name: botName,
-        difficulty: this._config.difficulty,
-      });
-
-      // Wire recorder into client so recordTick() is called each snapshot
-      client.setRecorder(recorder);
-
       try {
-        await client.connect(serverUrl);
+        // Through the bot server, as a match's bots are made: with the map's
+        // vision and navigation, which a bare client lacks — without them two
+        // bots never found each other and a round had no fight in it — and,
+        // from the second round, with the weights the last round trained.
+        const client = await botServer.addBot(serverUrl, {
+          name: botName,
+          difficulty: this._config.difficulty,
+          modelDir: this._playable ? this._latestDir : undefined,
+        });
+        // Wire recorder into client so recordTick() is called each snapshot
+        client.setRecorder(recorder);
         recorder.startRecording(0);
         bots.push({ client, recorder });
       } catch (e) {
@@ -290,110 +403,62 @@ export class BotTrainer {
   // ── Model Training ──────────────────────────────────────────────
 
   /**
-   * Train both models on a batch of frames.
+   * Train both models on the runs a round produced.
+   *
+   * The labels are the same ones a human demo produces — what the player did —
+   * built by the one shared builder, so an output cannot come to mean one thing
+   * in self-play and another when cloning a person. Reward decides how often a
+   * frame is trained on: the best frames of a round appear most, the worst not at
+   * all. It used to be folded into the target itself, which said the bot had
+   * pressed a button halfway, something no player ever does.
+   *
    * Returns loss values for logging.
    */
-  private async _trainOnFrames(frames: TrainingFrame[]): Promise<{
+  private async _trainOnRuns(runs: TrainingFrame[][]): Promise<{
     tacticalLoss: number;
     combatLoss: number;
   }> {
-    if (frames.length === 0) {
+    if (runs.every((run) => run.length === 0)) {
       return { tacticalLoss: 0, combatLoss: 0 };
     }
 
-    let tacticalLoss = 0;
-    let combatLoss = 0;
+    const tactical = await this._fitHead(this._brain.tacticalModel, runs, "tactical", TACTICAL_INPUT_SIZE);
+    const combat = await this._fitHead(this._brain.combatModel, runs, "combat", COMBAT_INPUT_SIZE);
+    return { tacticalLoss: tactical, combatLoss: combat };
+  }
 
-    const tacticalModel = this._brain.tacticalModel;
-    const combatModel = this._brain.combatModel;
+  /** Fit one head on one round of play. Returns the final loss, or 0. */
+  private async _fitHead(
+    // biome-ignore lint/suspicious/noExplicitAny: tf.LayersModel, kept out of this module's types
+    model: any,
+    runs: TrainingFrame[][],
+    head: "tactical" | "combat",
+    inputSize: number,
+  ): Promise<number> {
+    if (!model) return 0;
 
-    // ── Train Tactical Model ────────────────────────────────────
-    if (tacticalModel) {
-      const tactInputs: number[][] = [];
-      const tactTargets: number[][] = [];
+    const { pairs: all } = buildCorpusPairs(runs, head, inputSize);
+    // The round's frames, drawn as often as their reward says they deserve.
+    // TensorFlow.js throws on per-sample weights, so this is how they apply.
+    const weights = rewardWeights(all.map((pair: TrainingPair) => pair.reward));
+    const pairs = resampleByWeight(all, weights, all.length, Math.random());
+    if (pairs.length === 0) return 0;
 
-      for (const frame of frames) {
-        if (frame.tacticalInput.length !== TACTICAL_INPUT_SIZE) continue;
+    const tf = getTF();
+    const inputTensor = tf.tensor2d(pairs.map((pair: TrainingPair) => pair.input));
+    const targetTensor = tf.tensor2d(pairs.map((pair: TrainingPair) => pair.target));
 
-        tactInputs.push(frame.tacticalInput);
+    const result = await model.fit(inputTensor, targetTensor, {
+      epochs: this._config.epochs,
+      batchSize: this._config.batchSize,
+      shuffle: true,
+      verbose: 0,
+    });
 
-        // Target: what the bot SHOULD have done, weighted by reward
-        // Higher reward → reinforce current action, lower → discourage
-        const rewardScale = (frame.reward + 1) / 2; // Map [-1,1] → [0,1]
+    inputTensor.dispose();
+    targetTensor.dispose();
 
-        // Create target from action: map buttons/slots to output indices
-        const target = new Array(8).fill(0.5); // Start at neutral
-        target[0] = rewardScale; // Fight confidence = reward
-        target[1] = 1 - rewardScale; // Retreat = inverse of reward
-        target[3] = frame.action.buttons & InputButtons.SPRINT ? rewardScale : 1 - rewardScale; // Sprint
-        target[5] = frame.action.buttons & InputButtons.JUMP ? rewardScale : 1 - rewardScale; // Jump
-
-        tactTargets.push(target);
-      }
-
-      if (tactInputs.length > 0) {
-        const tf = getTF();
-        const inputTensor = tf.tensor2d(tactInputs);
-        const targetTensor = tf.tensor2d(tactTargets);
-
-        const result = await tacticalModel.fit(inputTensor, targetTensor, {
-          epochs: this._config.epochs,
-          batchSize: this._config.batchSize,
-          shuffle: true,
-          verbose: 0,
-        });
-
-        tacticalLoss = result.history.loss ? (result.history.loss[result.history.loss.length - 1] as number) : 0;
-
-        inputTensor.dispose();
-        targetTensor.dispose();
-      }
-    }
-
-    // ── Train Combat Model ──────────────────────────────────────
-    if (combatModel) {
-      const combatInputs: number[][] = [];
-      const combatTargets: number[][] = [];
-
-      for (const frame of frames) {
-        if (!frame.combatInput || frame.combatInput.length !== COMBAT_INPUT_SIZE) continue;
-
-        combatInputs.push(frame.combatInput);
-
-        const rewardScale = (frame.reward + 1) / 2;
-
-        // Target from action
-        const target = new Array(6).fill(0.5);
-        target[0] = frame.action.buttons & InputButtons.FIRE ? rewardScale : 1 - rewardScale; // Fire
-        target[1] = frame.action.buttons & InputButtons.ALT_FIRE ? rewardScale : 1 - rewardScale; // ADS
-        target[2] = 0.5; // Aim yaw (neutral — actual aiming is complex)
-        target[3] = 0.5; // Aim pitch (neutral)
-        target[4] = frame.action.directionX < 0 ? rewardScale : 0.5; // Dodge left
-        target[5] = frame.action.directionX > 0 ? rewardScale : 0.5; // Dodge right
-
-        combatTargets.push(target);
-      }
-
-      if (combatInputs.length > 0) {
-        const tf = getTF();
-        const inputTensor = tf.tensor2d(combatInputs);
-        const targetTensor = tf.tensor2d(combatTargets);
-
-        const result = await combatModel.fit(inputTensor, targetTensor, {
-          epochs: this._config.epochs,
-          batchSize: this._config.batchSize,
-          shuffle: true,
-          verbose: 0,
-        });
-
-        combatLoss = result.history.loss ? (result.history.loss[result.history.loss.length - 1] as number) : 0;
-
-        inputTensor.dispose();
-        targetTensor.dispose();
-      }
-    }
-
-    return { tacticalLoss, combatLoss };
+    return result.history.loss ? (result.history.loss[result.history.loss.length - 1] as number) : 0;
   }
 
   // ── Checkpoint Management ───────────────────────────────────────
@@ -403,12 +468,11 @@ export class BotTrainer {
     fs.mkdirSync(dir, { recursive: true });
 
     // Save current models (latest)
-    await this._brain.saveModels(dir);
+    await this._saveWeights(dir);
 
     // Save checkpoint copy
     const checkpointDir = path.join(dir, "checkpoints", `round_${round}`);
-    fs.mkdirSync(checkpointDir, { recursive: true });
-    await this._brain.saveModels(checkpointDir);
+    await this._saveWeights(checkpointDir);
 
     // ── Difficulty Tier Snapshots ────────────────────────────────
     // When training reaches a tier boundary, save models to the
@@ -418,8 +482,7 @@ export class BotTrainer {
     for (const tier of tiers) {
       if (tier.rounds > 0 && round === tier.rounds) {
         const tierDir = path.join(dir, tier.name);
-        fs.mkdirSync(tierDir, { recursive: true });
-        await this._brain.saveModels(tierDir);
+        await this._saveWeights(tierDir);
         console.log(`[Trainer] 🏆 Difficulty tier "${tier.name}" saved (round ${round}) → ${tierDir}`);
       }
     }

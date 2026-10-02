@@ -383,7 +383,9 @@ export class LobbyClient {
   private emit(type: string, msg: any): void {
     const handlers = this.handlers.get(type);
     if (handlers) {
-      for (const handler of handlers) {
+      // A copy: a handler that unsubscribes itself (every once()) removes its
+      // entry mid-loop, and walking the live array would then skip the next.
+      for (const handler of [...handlers]) {
         try {
           handler(msg);
         } catch (err) {

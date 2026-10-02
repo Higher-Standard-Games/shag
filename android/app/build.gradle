@@ -1,10 +1,10 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace = "com.iwmengine.ganjawars"
+    namespace = "net.washoi.game"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.iwmengine.ganjawars"
+        applicationId "net.washoi.game"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

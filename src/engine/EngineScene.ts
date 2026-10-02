@@ -42,13 +42,13 @@ import { ScreenTransition } from "./effects/ScreenTransition";
 import { ThunderEffect } from "./effects/ThunderEffect";
 import { WindSystem } from "./effects/WindSystem";
 import { InputSystem } from "./input";
-import { applySafeMaxSimultaneousLights, applySafeSceneLightCaps } from "./lighting/DynamicLightSafety";
 import { SkyLightSystem } from "./lighting/SkyLightSystem";
 import { StreetLampSystem } from "./lighting/StreetLampSystem";
 import { TextureManager, TextureMemoryManager } from "./loader";
 import { MapLoader } from "./loader/map/MapLoader";
 import { MapRenderer } from "./MapRenderer";
 import { InstancedMeshManager } from "./rendering/InstancedMeshManager";
+import { applySceneRendererPolicy } from "./rendering/SceneRendererPolicy";
 import { SpriteManager } from "./sprites/SpriteManager";
 
 /**
@@ -214,21 +214,7 @@ export abstract class EngineScene {
     this.scene.skipPointerMovePicking = true;
     this.scene.blockMaterialDirtyMechanism = false;
 
-    // ═══════════════════════════════════════════════════════════════
-    // CRITICAL: Global light cap for ALL materials.
-    // WebGL2 has a limit of 12 uniform buffer blocks (UBOs).
-    // PBR + skeleton bones + scene already use 7+ UBOs. Each light
-    // adds 1 UBO. With 4 lights, complex materials (skeletal PBR)
-    // hit the 12-UBO ceiling — riotgun multi-pellet impacts with
-    // many simultaneous PointLights push shaders over the limit,
-    // breaking ALL textures to white.
-    // Cap = 2 means BabylonJS picks the 2 nearest lights — still
-    // provides dynamic lighting while staying safely under 12 UBOs.
-    // ═══════════════════════════════════════════════════════════════
-    this.scene.onNewMaterialAddedObservable.add((material) => {
-      applySafeMaxSimultaneousLights(material);
-    });
-    applySafeSceneLightCaps(this.scene);
+    applySceneRendererPolicy(this.scene);
 
     // Initialize Physics System
     try {

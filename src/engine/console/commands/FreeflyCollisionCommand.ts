@@ -244,8 +244,16 @@ export class FreeflyCollisionCommand extends Command {
       return this.handleClipviz(args);
     }
 
-    // Parse value as boolean
-    const enabled = value === "1" || value === "true" || value === "on";
+    // Only an explicit on or off toggles. Anything else is a typo or a
+    // subcommand this build does not have, and turning collision off silently
+    // is the worst possible answer to either.
+    const truthy = value === "1" || value === "true" || value === "on";
+    const falsy = value === "0" || value === "false" || value === "off";
+    if (!truthy && !falsy) {
+      return `Unknown option: ${value}\nUsage: ${this.definition.usage}\nRun freefly_collision with no argument for the current state.`;
+    }
+
+    const enabled = truthy;
     FreeflyController.setCollisionEnabled(enabled);
     (FreeflyController as any)._loggedState = false;
 

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="iso-8859-1" standalone="yes" ?>
+<!--
+  Help links for the Washoi (SHAG Engine) game pack.
+
+  These are absolute URLs on purpose. The pack is copied between Radiant
+  installations and source checkouts, so a relative path to the SHAG docs
+  would only resolve on the machine that authored it.
+-->
+<links>
+	<item name="SHAG Engine (source)" url="https://github.com/Higher-Standard-Games/shag" />
+	<item name="SHAG: BSP system" url="https://github.com/Higher-Standard-Games/shag/blob/main/docs/manual/guides/bsp-system.md" />
+	<item name="SHAG: entity reference" url="https://github.com/Higher-Standard-Games/shag/blob/main/docs/reference/entities.md" />
+	<item name="SHAG: map format" url="https://github.com/Higher-Standard-Games/shag/blob/main/docs/reference/MAP_FORMAT.md" />
+	<item name="makebsp (map compiler)" url="https://github.com/germangar/makebsp" />
+</links>

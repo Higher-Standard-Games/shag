@@ -163,4 +163,21 @@ describe("LobbyClient connections", () => {
     client.disconnect();
     await rejected;
   });
+
+  it("still delivers to every listener when one unsubscribes itself on the message", () => {
+    const client = new LobbyClient();
+    void client.connect("ws://lobby.invalid");
+    const socket = FakeSocket.open[0];
+    socket.accept();
+    const heard: string[] = [];
+    // A one-shot waiter registered first, then the room view's own listener:
+    // the waiter leaving the list must not make the room view miss the seat.
+    client.once("lobby:connect", () => heard.push("waiter"));
+    client.on("lobby:connect", () => heard.push("room"));
+
+    socket.onmessage?.({ data: JSON.stringify({ type: "lobby:connect", serverUrl: "ws://game.invalid" }) });
+    socket.onmessage?.({ data: JSON.stringify({ type: "lobby:connect", serverUrl: "ws://game.invalid" }) });
+
+    expect(heard).toEqual(["waiter", "room", "room"]);
+  });
 });

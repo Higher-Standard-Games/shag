@@ -388,6 +388,21 @@
     inset 5px 0 0 hsla(0, 0%, 100%, 0.34);
 }
 
+/* A tab raised into a menu key (the lobby's rail) draws itself. The tab's own
+   clip-path would cut away the key's side and cast shadow, and its lift and
+   inset stripe would fight the key's. */
+.game-panel__tab.raised-key,
+.game-panel__tab.raised-key:is(:hover, :active, .game-panel__tab--active) {
+  min-height: 0;
+  border: 0;
+  background: none;
+  clip-path: none;
+  box-shadow: none;
+  transform: none;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
 /* ============================================================================
    Content Area
    ============================================================================ */
@@ -494,183 +509,6 @@
   .game-panel--rail {
     flex-direction: column;
   }
-}
-
-/* ============================================================================
-   Settings-specific shared controls
-   ============================================================================ */
-
-.game-panel .fps-settings-section {
-  margin-bottom: 24px;
-}
-
-.game-panel .fps-settings-section-title {
-  display: inline-flex;
-  align-items: center;
-  margin: 0 0 16px;
-  padding: 5px 14px;
-  font-family: var(--w-font-display, "Orbitron", monospace);
-  font-size: 0.72rem;
-  font-weight: 900;
-  letter-spacing: 0.18em;
-  line-height: 1;
-  text-transform: uppercase;
-  color: var(--gp-ink);
-  background: var(--w-gold, hsl(45, 100%, 55%));
-  clip-path: polygon(7% 0, 100% 0, 93% 100%, 0 100%);
-  box-shadow: 3px 3px 0 hsla(320, 100%, 60%, 0.58);
-}
-
-.game-panel .fps-settings-section-title::before,
-.game-panel .fps-settings-section-title::after {
-  content: none;
-}
-
-.game-panel .fps-settings-row {
-  display: grid;
-  grid-template-columns: minmax(120px, 1fr) minmax(220px, 1.1fr);
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 8px;
-  padding: 10px 14px;
-  background:
-    linear-gradient(92deg, hsla(180, 100%, 50%, 0.07), hsla(0, 0%, 100%, 0.025) 62%), hsla(238, 38%, 8%, 0.62);
-  border: 1px solid hsla(180, 100%, 50%, 0.2);
-  clip-path: polygon(2% 0, 100% 0, 98% 100%, 0 100%);
-  box-shadow:
-    3px 4px 0 hsla(250, 45%, 4%, 0.34),
-    inset 4px 0 0 hsla(180, 100%, 50%, 0.34);
-}
-
-.game-panel .fps-settings-row::before {
-  content: none;
-}
-
-.game-panel .fps-settings-label {
-  grid-column: auto;
-  font-family: var(--w-font-display, "Orbitron", monospace);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-align: left;
-  text-transform: uppercase;
-  color: var(--w-text, hsl(180, 100%, 95%));
-}
-
-.game-panel .fps-settings-control {
-  grid-column: auto;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 12px;
-}
-
-.game-panel .fps-settings-value {
-  min-width: 42px;
-  font-family: var(--w-font-display, "Orbitron", monospace);
-  font-size: 0.78rem;
-  font-weight: 800;
-  text-align: left;
-  color: var(--w-gold, hsl(45, 100%, 55%));
-  text-shadow: 2px 2px 0 var(--gp-ink);
-}
-
-.game-panel .fps-settings-slider {
-  width: min(220px, 34vw);
-  height: 8px;
-  appearance: none;
-  -webkit-appearance: none;
-  background: hsla(238, 38%, 8%, 0.85);
-  border: 1px solid hsla(180, 100%, 50%, 0.24);
-  border-radius: 0;
-  outline: none;
-  box-shadow: 3px 3px 0 hsla(250, 45%, 4%, 0.32);
-}
-
-.game-panel .fps-settings-slider::-webkit-slider-thumb {
-  width: 18px;
-  height: 22px;
-  appearance: none;
-  -webkit-appearance: none;
-  background: var(--w-gold, hsl(45, 100%, 55%));
-  border: 2px solid var(--gp-ink);
-  border-radius: 0;
-  clip-path: polygon(18% 0, 100% 0, 82% 100%, 0 100%);
-  box-shadow: 3px 3px 0 hsla(320, 100%, 60%, 0.44);
-  cursor: pointer;
-}
-
-.game-panel .fps-settings-slider::-webkit-slider-thumb:hover {
-  background: var(--w-cyan, hsl(180, 100%, 50%));
-}
-
-.game-panel .fps-settings-toggle {
-  position: relative;
-  flex-shrink: 0;
-  width: 52px;
-  height: 26px;
-  background: hsla(238, 38%, 8%, 0.85);
-  border: 1.5px solid hsla(180, 100%, 50%, 0.28);
-  border-radius: 0;
-  box-shadow: 3px 3px 0 hsla(250, 45%, 4%, 0.36);
-  clip-path: polygon(10% 0, 100% 0, 90% 100%, 0 100%);
-  cursor: pointer;
-  transition: all 0.18s ease;
-}
-
-.game-panel .fps-settings-toggle::after {
-  content: "";
-  position: absolute;
-  top: 4px;
-  left: 6px;
-  width: 18px;
-  height: 16px;
-  background: hsla(180, 100%, 50%, 0.5);
-  clip-path: polygon(18% 0, 100% 0, 82% 100%, 0 100%);
-  transition: all 0.18s ease;
-}
-
-.game-panel .fps-settings-toggle--on {
-  border-color: hsla(45, 100%, 55%, 0.7);
-  background: hsla(45, 100%, 55%, 0.18);
-}
-
-.game-panel .fps-settings-toggle--on::after {
-  left: 27px;
-  background: var(--w-gold, hsl(45, 100%, 55%));
-  box-shadow: 2px 2px 0 hsla(320, 100%, 60%, 0.46);
-}
-
-.game-panel .fps-settings-keybind {
-  min-width: 66px;
-  padding: 7px 14px;
-  font-family: var(--w-font-display, "Orbitron", monospace);
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  text-align: center;
-  color: var(--w-text, hsl(180, 100%, 95%));
-  background: linear-gradient(92deg, hsla(180, 100%, 50%, 0.14), hsla(0, 0%, 100%, 0.04) 62%), hsla(238, 38%, 8%, 0.82);
-  border: 1.5px solid hsla(180, 100%, 50%, 0.32);
-  clip-path: polygon(8% 0, 100% 0, 92% 100%, 0 100%);
-  box-shadow: 3px 3px 0 hsla(250, 45%, 4%, 0.36);
-  cursor: pointer;
-  transition: all 0.16s ease;
-}
-
-.game-panel .fps-settings-keybind:hover {
-  transform: translate(-2px, -1px);
-  border-color: hsla(45, 100%, 55%, 0.6);
-  box-shadow: 5px 5px 0 hsla(250, 45%, 4%, 0.44);
-}
-
-.game-panel .fps-settings-keybind--listening {
-  color: hsl(320, 100%, 88%);
-  border-color: var(--w-magenta, hsl(320, 100%, 60%));
-  box-shadow:
-    4px 4px 0 hsla(250, 45%, 4%, 0.42),
-    inset 5px 0 0 hsla(320, 100%, 60%, 0.54);
-  animation: gp-pulse 1s ease-in-out infinite;
 }
 
 /* ============================================================================
@@ -818,15 +656,6 @@
   .game-panel__tab {
     padding: 9px 14px;
     font-size: 0.68rem;
-  }
-
-  .game-panel .fps-settings-row {
-    grid-template-columns: 1fr;
-    gap: 8px;
-  }
-
-  .game-panel .fps-settings-control {
-    justify-content: flex-start;
   }
 }
 
@@ -992,5 +821,24 @@
 
   100% {
     opacity: 0;
+  }
+}
+
+/* Asked for less motion: the panel appears and goes at once, and its drifting
+   frame, scan line and particles hold still. The panel keeps a near-instant
+   animation rather than none, because closing waits for it to end. */
+@media (prefers-reduced-motion: reduce) {
+  .game-panel,
+  .game-panel--closing {
+    animation-duration: 1ms;
+  }
+
+  .game-panel__blur-top,
+  .game-panel__blur-bot,
+  .game-panel__divider--top,
+  .game-panel__divider--bot,
+  .game-panel__scan,
+  .game-panel__particle {
+    animation: none;
   }
 }
