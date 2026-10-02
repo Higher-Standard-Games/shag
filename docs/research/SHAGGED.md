@@ -13,9 +13,10 @@ deterministic `brushDef` export. The Room Template creates six enclosing
 brushes and an `info_player_deathmatch` spawn for the eventual compiler check.
 Compile, status, and Playtest are visibly unavailable. A headless test
 parses exported source, but no MakeBSP executable was found locally and no
-browser surface was available for the visual interaction check. M1 is **not
-complete**: 3D picking, closed-room compiler acceptance, and browser
-input/render QA still need work.
+browser surface was available for the visual interaction check. A DOM/NullEngine
+smoke test covers perspective picking and the main editing controls. M1 is
+**not complete**: closed-room compiler acceptance and real-browser input/render
+QA still need work.
 
 ## Decision
 

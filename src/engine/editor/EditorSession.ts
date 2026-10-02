@@ -10,6 +10,8 @@ import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import { Scene } from "@babylonjs/core/scene";
 // Registers AbstractMesh.enableEdgesRendering for editor brush outlines.
 import "@babylonjs/core/Rendering/edgesRenderer";
+// Registers Scene.pick for perspective selection.
+import "@babylonjs/core/Culling/ray";
 import { pickResizeEdge, type ResizeEdge, resizeBox } from "./EditorBoxTools";
 import { type BoxBrush, EditorDocument, type Vec3q } from "./EditorDocument";
 import { EditorDraftStore, type EditorViewState } from "./EditorDraftStore";
@@ -55,6 +57,7 @@ export class EditorSession {
   private grid = 16;
   private zoom = 1;
   private gesture: Gesture | null = null;
+  private perspectiveStart: [number, number] | null = null;
   private viewSaveTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
@@ -69,6 +72,11 @@ export class EditorSession {
     this.camera = new ArcRotateCamera("shagged-perspective", Math.PI / 4, Math.PI / 3, 650, Vector3.Zero(), this.scene);
     this.camera.lowerRadiusLimit = 32;
     this.camera.upperRadiusLimit = 5000;
+    // Reserve left click for selection; right drag orbits and middle drag pans.
+    const rotate = this.camera.movement.input.getEntry("pointer", "rotate", { button: 0 });
+    const pan = this.camera.movement.input.getEntry("pointer", "pan", { button: 2 });
+    if (rotate) rotate.button = 2;
+    if (pan) pan.button = 1;
     if (restored.view) {
       this.grid = restored.view.grid;
       this.zoom = restored.view.zoom;
@@ -168,6 +176,17 @@ export class EditorSession {
       { signal: this.listeners.signal },
     );
     this.root.addEventListener("keydown", (event) => this.keyDown(event), { signal: this.listeners.signal });
+    this.canvas.addEventListener("pointerdown", (event) => this.perspectiveDown(event), {
+      signal: this.listeners.signal,
+    });
+    this.canvas.addEventListener("pointerup", (event) => this.perspectiveUp(event), { signal: this.listeners.signal });
+    this.canvas.addEventListener(
+      "contextmenu",
+      (event) => {
+        if (this.inPerspective(event)) event.preventDefault();
+      },
+      { signal: this.listeners.signal },
+    );
     this.inspector.addEventListener("submit", (event) => this.submitInspector(event), {
       signal: this.listeners.signal,
     });
@@ -347,6 +366,39 @@ export class EditorSession {
       snap((event.clientX - rect.left - rect.width / 2) / this.zoom, this.grid),
       snap((rect.height / 2 - (event.clientY - rect.top)) / this.zoom, this.grid),
     ];
+  }
+
+  private inPerspective(event: MouseEvent): boolean {
+    const rect = this.root.querySelector<HTMLElement>(".shagged__pane--perspective")!.getBoundingClientRect();
+    return (
+      event.clientX >= rect.left &&
+      event.clientX < rect.right &&
+      event.clientY >= rect.top &&
+      event.clientY < rect.bottom
+    );
+  }
+
+  private perspectiveDown(event: PointerEvent): void {
+    this.perspectiveStart = event.button === 0 && this.inPerspective(event) ? [event.clientX, event.clientY] : null;
+  }
+
+  private perspectiveUp(event: PointerEvent): void {
+    const start = this.perspectiveStart;
+    this.perspectiveStart = null;
+    if (!start || event.button !== 0 || !this.inPerspective(event)) return;
+    if (Math.hypot(event.clientX - start[0], event.clientY - start[1]) > 4) return;
+    const rect = this.canvas.getBoundingClientRect();
+    const pick = this.scene.pick(
+      event.clientX - rect.left,
+      event.clientY - rect.top,
+      (mesh) => this.meshes.has(mesh.name),
+      false,
+      this.camera,
+    );
+    this.selectedId = pick?.hit ? (pick.pickedMesh?.name ?? null) : null;
+    this.rebuildMeshes();
+    this.draw();
+    this.trySaveView();
   }
 
   private pointerDown(plane: Plane, event: PointerEvent): void {

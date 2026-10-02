@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+
+import type { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera";
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { EditorSession } from "../EditorSession";
@@ -44,9 +46,15 @@ describe("editor DOM shell", () => {
     const canvas = document.createElement("canvas");
     document.body.appendChild(canvas);
     const first = new EditorSession(engine, canvas, vi.fn());
+    const camera = engine.scenes[0].activeCamera as ArcRotateCamera;
+    expect(camera.movement.input.getEntry("pointer", "rotate", { button: 2 })?.button).toBe(2);
     first.root.querySelector<HTMLButtonElement>('[data-action="room"]')!.click();
     expect(first.document.snapshot().brushes).toHaveLength(6);
     expect(first.document.snapshot().testSpawn?.z).toBe(48);
+    first.render();
+    canvas.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, button: 0, clientX: 200, clientY: 150 }));
+    canvas.dispatchEvent(new MouseEvent("pointerup", { bubbles: true, button: 0, clientX: 200, clientY: 150 }));
+    expect(first.root.querySelector("[data-brush-form]")).toBeTruthy();
     const id = first.draftId;
     expect(
       localStorage.getItem("shagged:active-draft:v1"),
