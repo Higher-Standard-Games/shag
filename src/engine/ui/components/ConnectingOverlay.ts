@@ -30,15 +30,21 @@ export class ConnectingOverlay {
    *
    * @param serverUrl - WebSocket URL of the game server
    * @param asSpectator - If true, connect as spectator (autoJoin=false)
+   * @param requestSeat - For a spectator of a lobby match: how Join asks the lobby for a seat
    */
   async show(
     serverUrl: string = "ws://localhost:7777",
     asSpectator: boolean = false,
     admissionTicket?: string,
     recoverTicket?: () => Promise<string>,
+    requestSeat?: () => Promise<void>,
   ): Promise<void> {
     // Don't double-show
     if (this.el) return;
+
+    // Already watching this match: take the seat on the connection we have,
+    // rather than dropping it and loading the map again behind this screen.
+    if (!asSpectator && admissionTicket && getNetworkConnector()?.claimSeat?.(serverUrl, admissionTicket)) return;
 
     this.el = this.build(serverUrl, asSpectator);
 
@@ -88,7 +94,7 @@ export class ConnectingOverlay {
         return;
       }
 
-      const options = { autoJoin: !asSpectator, watchOnly: asSpectator, admissionTicket };
+      const options = { autoJoin: !asSpectator, watchOnly: asSpectator, admissionTicket, requestSeat };
       try {
         await connector.connect(serverUrl, options);
       } catch (error) {

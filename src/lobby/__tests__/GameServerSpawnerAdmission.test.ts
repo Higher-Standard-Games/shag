@@ -2,7 +2,7 @@ import type { ChildProcess } from "node:child_process";
 import { spawn } from "node:child_process";
 import { EventEmitter } from "node:events";
 import { describe, expect, it, vi } from "vitest";
-import { signMatchResult } from "../../engine/server/network/MatchResultReport";
+import { type MatchResultReport, signMatchResult } from "../../engine/server/network/MatchResultReport";
 import { GameServerSpawner } from "../GameServerSpawner";
 
 vi.mock("node:child_process", () => ({
@@ -101,5 +101,89 @@ describe("GameServerSpawner admission handoff", () => {
       Buffer.from(`${signMatchResult({ ...report, map: "fake" }, env!.SHAG_MATCH_RESULT_SECRET!)}\n`),
     );
     expect(results).toHaveBeenCalledTimes(1);
+  });
+
+  it("hands out a drop-in ticket only after the child holds its seat, and counts the late player", async () => {
+    const child = new EventEmitter() as ChildProcess;
+    const stdout = new EventEmitter();
+    const written: string[] = [];
+    const stdin = { writable: true, write: vi.fn((line: string) => written.push(line)) };
+    Object.assign(child, { stdout, stderr: new EventEmitter(), stdin });
+    vi.mocked(spawn).mockImplementationOnce(() => child);
+    const spawner = new GameServerSpawner(18780);
+    const results = vi.fn();
+    spawner.onServerResult = results;
+    const started = spawner.spawn({
+      map: "wdm2",
+      gametype: "ffa",
+      admissionSeats: [{ lobbyPlayerId: "one", accountId: 11, name: "One", team: "ffa", isBot: false }],
+    });
+    stdout.emit("data", Buffer.from("[Server] Ready for connections\n"));
+    const server = await started;
+    const env = vi.mocked(spawn).mock.calls.at(-1)?.[2]?.env;
+
+    let settled = false;
+    const pending = spawner
+      .admitDropIn(server.matchId, { accountId: 30, name: "Late", team: "ffa", isBot: false })
+      .then((seat) => {
+        settled = true;
+        return seat;
+      });
+    expect(written).toHaveLength(1);
+    const [command, payload] = written[0].trim().split(" ");
+    expect(command).toBe("admit");
+    const grants = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
+    await Promise.resolve();
+    expect(settled).toBe(false);
+
+    stdout.emit("data", Buffer.from(`SHAG_ADMITTED ${grants[0].seatId}\n`));
+    const seat = await pending;
+    expect(seat?.serverUrl).toBe(server.url);
+    expect(written[0]).not.toContain(seat?.admissionTicket);
+
+    // The late player's result verifies against the seat they were given.
+    const report: MatchResultReport = {
+      matchId: server.matchId,
+      gametype: "ffa",
+      map: "wdm2",
+      endedAt: Date.now(),
+      participants: [
+        {
+          tokenHash: JSON.parse(env!.SHAG_MATCH_ADMISSION!).grants[0].tokenHash,
+          accountId: 11,
+          outcome: "loss",
+          score: 1,
+        },
+        { tokenHash: grants[0].tokenHash, accountId: 30, outcome: "win", score: 5 },
+      ],
+    };
+    stdout.emit("data", Buffer.from(`${signMatchResult(report, env!.SHAG_MATCH_RESULT_SECRET!)}\n`));
+    expect(results).toHaveBeenCalledExactlyOnceWith(report);
+  });
+
+  it("gives no ticket when the child never confirms the seat", async () => {
+    vi.useFakeTimers();
+    try {
+      const child = new EventEmitter() as ChildProcess;
+      const stdout = new EventEmitter();
+      Object.assign(child, { stdout, stderr: new EventEmitter(), stdin: { writable: true, write: vi.fn() } });
+      vi.mocked(spawn).mockImplementationOnce(() => child);
+      const spawner = new GameServerSpawner(18781);
+      const started = spawner.spawn({
+        map: "wdm2",
+        gametype: "ffa",
+        admissionSeats: [{ lobbyPlayerId: "one", accountId: 11, name: "One", team: "ffa", isBot: false }],
+      });
+      stdout.emit("data", Buffer.from("[Server] Ready for connections\n"));
+      const server = await started;
+      const pending = spawner.admitDropIn(server.matchId, { accountId: 30, name: "Late", team: "ffa", isBot: false });
+      await vi.advanceTimersByTimeAsync(3_000);
+      expect(await pending).toBeNull();
+      expect(
+        await spawner.admitDropIn("no-such-match", { accountId: 31, name: "X", team: "ffa", isBot: false }),
+      ).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

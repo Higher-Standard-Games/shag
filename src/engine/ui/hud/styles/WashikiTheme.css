@@ -2544,7 +2544,8 @@
 
 .fps-chat {
   position: fixed;
-  bottom: calc(120px * var(--ui-scale, 1));
+  /* Clear of the bottom bar, whose vitals and weapon rack stand about 230px tall. */
+  bottom: calc(236px * var(--ui-scale, 1));
   left: calc(20px * var(--ui-scale, 1));
   width: calc(420px * var(--ui-scale, 1));
   max-width: 50vw;
@@ -2600,6 +2601,11 @@
 
 .fps-chat-message--fading {
   opacity: 0;
+}
+
+/* A line from the game, not a player: gold, with no sender stamp. */
+.fps-chat-message--notice {
+  color: var(--w-gold);
 }
 
 .fps-chat-sender {

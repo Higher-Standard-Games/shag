@@ -14,7 +14,7 @@
  */
 
 import * as fs from "node:fs";
-import type { AdmissionManifest } from "../engine/server/network/MatchAdmission";
+import { ADMIT_ACK_PREFIX, ADMIT_COMMAND, type AdmissionManifest } from "../engine/server/network/MatchAdmission";
 import { signMatchResult } from "../engine/server/network/MatchResultReport";
 import { GameServer, type GameServerConfig } from "../games/fps/server/GameServer";
 import { Amphi } from "../games/fps/server/gametypes/Amphi";
@@ -297,6 +297,23 @@ async function main(): Promise<void> {
       }
       case "status": {
         console.log(`[Server] Map: ${config.mapName}, Tick rate: ${config.tickRate}Hz`);
+        break;
+      }
+      case ADMIT_COMMAND: {
+        // The lobby adding a seat for a player dropping in. The acknowledgement
+        // is what lets it hand the player their ticket.
+        let grants: unknown;
+        try {
+          grants = JSON.parse(Buffer.from(parts[1] ?? "", "base64url").toString("utf8"));
+        } catch {
+          grants = null;
+        }
+        const seatId = Array.isArray(grants) ? (grants[0] as { seatId?: unknown })?.seatId : undefined;
+        if (Array.isArray(grants) && typeof seatId === "string" && server.admitSeat(grants)) {
+          console.log(`${ADMIT_ACK_PREFIX}${seatId}`);
+        } else {
+          console.log("[Server] Refused a drop-in seat");
+        }
         break;
       }
       case "help": {

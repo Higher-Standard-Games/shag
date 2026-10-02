@@ -19,6 +19,12 @@ export interface NetworkConnectOptions {
   watchOnly?: boolean;
   /** One-use seat ticket from the lobby, sent only in the binary Join. */
   admissionTicket?: string;
+  /**
+   * For a watcher of a lobby match: ask the lobby for a seat when they press
+   * Join. Rejects with the lobby's reason; the seat itself arrives through
+   * `claimSeat`.
+   */
+  requestSeat?: () => Promise<void>;
 }
 
 export interface NetworkConnector {
@@ -26,6 +32,11 @@ export interface NetworkConnector {
   isConnected(): boolean;
   /** Establish a network connection to the given server. */
   connect(serverUrl: string, options?: NetworkConnectOptions): Promise<void>;
+  /**
+   * Take a seat on the server already connected to, as a spectator joining.
+   * False when not watching that server, so the caller connects instead.
+   */
+  claimSeat?(serverUrl: string, admissionTicket: string): boolean;
 }
 
 let registered: NetworkConnector | null = null;

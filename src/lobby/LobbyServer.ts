@@ -880,7 +880,7 @@ export class LobbyServer {
     }
 
     if (lobby.state === "playing" && (player.accountId === null || !lobby.activeSeatTeams.has(player.accountId))) {
-      this.send(player, { type: "lobby:error", error: "This match is already in progress." });
+      void this.handleDropIn(player, lobby);
       return;
     }
 
@@ -933,6 +933,62 @@ export class LobbyServer {
     );
 
     // Broadcast updated matches list
+    this.broadcastMatchesUpdate();
+  }
+
+  /**
+   * Join a match already under way while it has room, as a Quake or Warsow
+   * server lets a spectator in mid-match. The player takes a room seat like
+   * any other member, and the running game server is given a seat for them
+   * before they are told where to connect.
+   */
+  private async handleDropIn(player: ConnectedPlayer, lobby: MatchLobby): Promise<void> {
+    const matchId = lobby.activeMatchId;
+    const accountId = player.accountId;
+    if (player.isBot || accountId === null || !player.authenticated || !matchId || !lobby.serverUrl) {
+      this.send(player, { type: "lobby:error", error: "This match is already in progress." });
+      return;
+    }
+    if (lobby.players.size >= lobby.gametype.maxPlayers) {
+      this.send(player, { type: "lobby:error", error: "This match is full." });
+      return;
+    }
+
+    // Held before the server is asked, so two players cannot both take the
+    // last seat while it answers. The room balances the side as for anyone.
+    const lobbyPlayer = lobby.addPlayer(player);
+    player.lobbyId = lobby.id;
+    const seat = await this.spawner.admitDropIn(matchId, {
+      accountId,
+      name: player.name,
+      team: lobbyPlayer.team,
+      isBot: false,
+    });
+
+    // The match may have ended, or the player left, while the server answered.
+    if (!seat || lobby.activeMatchId !== matchId || this.players.get(player.id) !== player) {
+      if (lobby.players.get(player.id) === lobbyPlayer) lobby.removePlayer(player.id);
+      if (player.lobbyId === lobby.id) player.lobbyId = null;
+      this.send(player, { type: "lobby:error", error: "Could not join the match." });
+      this.broadcastMatchesUpdate();
+      return;
+    }
+
+    lobby.activeSeatTeams.set(accountId, lobbyPlayer.team);
+    player.status = "in_match";
+    console.log(`[LobbyServer] ${player.name} dropped into match ${matchId} (${lobby.id})`);
+    this.send(player, { type: "lobby:created", lobby: lobby.toInfo() });
+    this.broadcastToLobby(lobby.id, { type: "lobby:player_joined", player: lobbyPlayer }, player.id);
+    // Private, like every seat ticket.
+    this.send(player, {
+      type: "lobby:connect",
+      matchId,
+      serverUrl: seat.serverUrl,
+      map: lobby.matchMap,
+      gametype: lobby.gametype.id,
+      admissionTicket: seat.admissionTicket,
+    });
+    this.broadcast({ type: "player:status", playerId: player.id, status: "in_match" });
     this.broadcastMatchesUpdate();
   }
 

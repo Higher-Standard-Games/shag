@@ -310,9 +310,9 @@ export class NetworkGameHost implements IGameHost {
    * @param manualPick True when the player chose this side in-game. A side the
    *   lobby assigned is delivered as-is; only an in-game pick is balanced.
    */
-  sendJoinGame(teamId?: string, manualPick = false): void {
+  sendJoinGame(teamId?: string, manualPick = false, admissionTicket?: string): void {
     if (!this._isConnected) return;
-    const data = MessageCodec.encodeJoinGame(teamId, manualPick);
+    const data = MessageCodec.encodeJoinGame(teamId, manualPick, admissionTicket);
     this.transport.send(data, true); // Reliable
     console.log(
       `[NetworkGameHost] Sent JoinGame request${teamId ? ` for team ${teamId}${manualPick ? " (picked)" : " (from lobby)"}` : ""}`,

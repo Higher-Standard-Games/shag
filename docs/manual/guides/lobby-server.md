@@ -77,13 +77,40 @@ alone and hands each player a ticket to it.
 4. A seat survives a dropped socket, so a reload before the match starts can
    claim the same seat rather than a new one. Mid-match, the game server holds
    a dropped player's seat for 20 seconds against a resume token.
-5. A connection with no ticket is allowed to watch; it cannot take a seat.
+5. A connection with no ticket is allowed to watch; it takes a seat only with a
+   ticket (see *Joining a match under way*).
 6. If the child does not report ready within `SHAG_SPAWN_TIMEOUT_MS` (45
    seconds by default), the lobby terminates it — SIGTERM, then SIGKILL — so
    the port is released, and tells the room why.
 
 When the child exits, the room returns to waiting with its ready flags cleared,
 and everyone in it is told the match ended.
+
+### Joining a match under way
+
+A running room takes players while it has fewer than its gametype's player
+count, as a Quake or Warsow server does. Joining it (`lobby:join` on a playing
+room) is a drop-in:
+
+1. The lobby seats the player in the room at once, on the smaller side, so two
+   players cannot both take the last place while the server answers.
+2. It issues the seat a ticket and a recovery ticket, and writes their hashes
+   to the game server's stdin as `admit <base64url JSON>`. Only the parent
+   process can write there, and the raw tickets never leave the lobby.
+3. The game server adds the grants and prints `SHAG_ADMITTED <seat id>`. Only
+   then is the player sent `lobby:connect` with the ticket: a ticket handed out
+   earlier could reach the game server before its own seat. No answer within
+   three seconds, and the seat is given back with "Could not join the match."
+4. A client already watching that server claims the seat on the connection it
+   has, with the ticket in its `JoinGame`; anyone else connects with it as a
+   normal player would.
+
+The drop-in seat is added to the manifest results are verified against, so a
+late player's result counts, and its recovery ticket serves **Rejoin match**
+like any other seat. A full room answers "This match is full."; bots and
+connections without an account cannot drop in. A Duel whose two sides are taken
+— including a side held for a player who dropped — puts the newcomer in the
+challengers queue, and the side is theirs when it frees.
 
 ## Results and ranking
 
