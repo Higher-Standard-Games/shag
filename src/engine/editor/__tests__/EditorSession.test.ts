@@ -160,6 +160,55 @@ describe("editor DOM shell", () => {
     engine.dispose();
   });
 
+  it("selects a brush that lies between coarse grid lines", () => {
+    const engine = new NullEngine();
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    const session = new EditorSession(engine, canvas, vi.fn());
+    session.document.transact((data) =>
+      data.brushes.push({
+        id: "narrow",
+        min: { x: 16, y: 16, z: 0 },
+        max: { x: 48, y: 48, z: 16 },
+        shader: "blx/blx_grid",
+      }),
+    );
+    session.root.querySelector<HTMLSelectElement>("[data-grid]")!.value = "64";
+    session.root.querySelector("[data-grid]")!.dispatchEvent(new Event("change"));
+    session.root.querySelector<HTMLButtonElement>('[data-action="select"]')!.click();
+    const pane = session.root.querySelector<HTMLCanvasElement>('[data-plane="xy"]')!;
+    // Pane centre is (200, 150) at zoom 1, so world (32, 32) is client (232, 118).
+    pane.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, button: 0, clientX: 232, clientY: 118 }));
+    pane.dispatchEvent(new MouseEvent("pointerup", { bubbles: true, button: 0, clientX: 232, clientY: 118 }));
+    expect(session.root.querySelector("[data-brush-id]")?.textContent).toBe("narrow");
+    session.dispose();
+    engine.dispose();
+  });
+
+  it("keeps an event's status message and an unsaved inspector edit across a redraw", () => {
+    const engine = new NullEngine();
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    const session = new EditorSession(engine, canvas, vi.fn());
+    const pane = session.root.querySelector<HTMLCanvasElement>('[data-plane="xy"]')!;
+    const status = () => session.root.querySelector(".shagged__status")!.textContent!;
+    // A one-cell-thin drag is rejected with a message; the redraw after it must not erase it.
+    pane.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, button: 0, clientX: 200, clientY: 150 }));
+    pane.dispatchEvent(new MouseEvent("pointerup", { bubbles: true, button: 0, clientX: 264, clientY: 150 }));
+    expect(status()).toContain("Drag at least one grid cell");
+
+    pane.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, button: 0, clientX: 200, clientY: 150 }));
+    pane.dispatchEvent(new MouseEvent("pointerup", { bubbles: true, button: 0, clientX: 264, clientY: 86 }));
+    const maxX = session.root.querySelector<HTMLInputElement>('[name="max-x"]')!;
+    maxX.value = "512";
+    pane.dispatchEvent(
+      new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: -1, clientX: 200, clientY: 150 }),
+    );
+    expect(session.root.querySelector<HTMLInputElement>('[name="max-x"]')!.value).toBe("512");
+    session.dispose();
+    engine.dispose();
+  });
+
   it("shows the hovered Quake coordinate in the status bar, and clears it on pointerleave", () => {
     const engine = new NullEngine();
     const canvas = document.createElement("canvas");

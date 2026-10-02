@@ -13,7 +13,7 @@ import "@babylonjs/core/Rendering/edgesRenderer";
 // Registers Scene.pick for perspective selection.
 import "@babylonjs/core/Culling/ray";
 import { pickResizeEdge, type ResizeEdge, resizeBox } from "./EditorBoxTools";
-import { type BoxBrush, EditorDocument, type Vec3q } from "./EditorDocument";
+import { type BoxBrush, EditorDocument, type EditorDocumentData, type Vec3q } from "./EditorDocument";
 import { EditorDraftStore, type EditorViewState } from "./EditorDraftStore";
 import { drawBounds, moveBox } from "./EditorGesture";
 import {
@@ -73,6 +73,7 @@ export class EditorSession {
   private hoverPlane: Plane | null = null;
   private hoverCoord: Vec3q | null = null;
   private lastMessage = "Local draft";
+  private inspectorKey = "";
 
   constructor(
     engine: AbstractEngine,
@@ -580,20 +581,25 @@ export class EditorSession {
     this.status("Exported source .map; compiler acceptance unverified");
   }
 
-  private coordinates(
-    plane: Plane,
-    canvas: HTMLCanvasElement,
-    event: PointerEvent,
-    grid = this.grid,
-  ): [number, number] {
+  /** The exact Quake point under the pointer; hit tests use this, not the snapped point. */
+  private worldAt(plane: Plane, canvas: HTMLCanvasElement, event: PointerEvent): [number, number] {
     const rect = canvas.getBoundingClientRect();
-    const [u, v] = paneToWorld(
+    return paneToWorld(
       plane,
       this.viewCenter,
       this.zoom,
       event.clientX - rect.left - rect.width / 2,
       event.clientY - rect.top - rect.height / 2,
     );
+  }
+
+  private coordinates(
+    plane: Plane,
+    canvas: HTMLCanvasElement,
+    event: PointerEvent,
+    grid = this.grid,
+  ): [number, number] {
+    const [u, v] = this.worldAt(plane, canvas, event);
     return [snap(u, grid), snap(v, grid)];
   }
 
@@ -645,13 +651,12 @@ export class EditorSession {
       return;
     }
     const start = this.coordinates(plane, pane, event);
-    const hit = [...this.document.snapshot().brushes]
-      .reverse()
-      .find((brush) => inRect(start[0], start[1], brush, plane));
+    const [u, v] = this.worldAt(plane, pane, event);
+    const hit = [...this.document.snapshot().brushes].reverse().find((brush) => inRect(u, v, brush, plane));
     if (this.tool === "select") {
       this.selectedId = hit?.id ?? null;
       const axes = AXES[plane];
-      const edge = hit ? pickResizeEdge(hit, axes.u, axes.v, start[0], start[1], 8 / this.zoom) : null;
+      const edge = hit ? pickResizeEdge(hit, axes.u, axes.v, u, v, 8 / this.zoom) : null;
       this.gesture = hit
         ? {
             plane,
@@ -966,6 +971,19 @@ export class EditorSession {
       if (this.gesture?.mode === "draw" && preview) paint(preview.min, preview.max, true);
     }
     this.syncGhost(preview);
+    this.renderInspector(data);
+    for (const name of ["brush", "select"] as const)
+      this.root.querySelector(`[data-action="${name}"]`)?.classList.toggle("active", this.tool === name);
+    this.root.querySelector<HTMLButtonElement>('[data-action="undo"]')!.disabled = !this.document.canUndo;
+    this.root.querySelector<HTMLButtonElement>('[data-action="redo"]')!.disabled = !this.document.canRedo;
+    this.renderStatus();
+  }
+
+  /** Rebuilt only when the selection or the document changes, so a pan or zoom keeps a half-typed value. */
+  private renderInspector(data: EditorDocumentData): void {
+    const key = `${data.draftId}|${this.selectedId ?? ""}|${data.revision}`;
+    if (key === this.inspectorKey) return;
+    this.inspectorKey = key;
     const selected = data.brushes.find((brush) => brush.id === this.selectedId);
     if (selected) {
       this.inspector.innerHTML = `<h2>Brush <code data-brush-id></code></h2>
@@ -989,10 +1007,5 @@ export class EditorSession {
       }
       form.querySelector<HTMLInputElement>('[name="shader"]')!.value = selected.shader;
     } else this.inspector.textContent = "Drag in an orthographic pane to draw a brush. Select (V) to move one.";
-    for (const name of ["brush", "select"] as const)
-      this.root.querySelector(`[data-action="${name}"]`)?.classList.toggle("active", this.tool === name);
-    this.root.querySelector<HTMLButtonElement>('[data-action="undo"]')!.disabled = !this.document.canUndo;
-    this.root.querySelector<HTMLButtonElement>('[data-action="redo"]')!.disabled = !this.document.canRedo;
-    this.status("Local draft");
   }
 }
