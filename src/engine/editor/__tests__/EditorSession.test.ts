@@ -52,7 +52,7 @@ describe("editor DOM shell", () => {
     expect(camera.movement.input.getEntry("pointer", "rotate", { button: 2 })?.button).toBe(2);
     first.root.querySelector<HTMLButtonElement>('[data-action="room"]')!.click();
     expect(first.document.snapshot().brushes).toHaveLength(6);
-    expect(first.document.snapshot().testSpawn?.z).toBe(48);
+    expect(first.document.snapshot().entities.find((e) => e.classname === "info_player_deathmatch")?.origin.z).toBe(48);
     first.render();
     canvas.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, button: 0, clientX: 200, clientY: 150 }));
     canvas.dispatchEvent(new MouseEvent("pointerup", { bubbles: true, button: 0, clientX: 200, clientY: 150 }));
@@ -67,9 +67,10 @@ describe("editor DOM shell", () => {
     expect(restored.draftId).toBe(id);
     expect(restored.document.snapshot().brushes).toHaveLength(6);
     restored.root.querySelector<HTMLButtonElement>('[data-action="select"]')!.click();
+    // World (100, 0): on the floor, clear of the spawn and light at the room's centre.
     restored.root
       .querySelector<HTMLCanvasElement>('[data-plane="xy"]')!
-      .dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, button: 0, clientX: 200, clientY: 150 }));
+      .dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, button: 0, clientX: 300, clientY: 150 }));
     const form = restored.root.querySelector<HTMLFormElement>("[data-brush-form]")!;
     expect(form).toBeTruthy();
     const selectedId = restored.root.querySelector("[data-brush-id]")!.textContent!;
@@ -156,6 +157,74 @@ describe("editor DOM shell", () => {
       viewCenter: saved.viewCenter,
       zoom: saved.zoom,
     });
+    session.dispose();
+    engine.dispose();
+  });
+
+  it("places, moves, edits, duplicates and deletes a point entity", () => {
+    const engine = new NullEngine();
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    const session = new EditorSession(engine, canvas, vi.fn());
+    const xy = session.root.querySelector<HTMLCanvasElement>('[data-plane="xy"]')!;
+    const pointer = (type: string, x: number, y: number) =>
+      xy.dispatchEvent(new MouseEvent(type, { bubbles: true, button: 0, clientX: x, clientY: y }));
+    const entities = () => session.document.snapshot().entities;
+
+    // Pick a light in the toolbar, then click world (64, 32) in the top view.
+    const picker = session.root.querySelector<HTMLSelectElement>("[data-entity-class]")!;
+    expect([...picker.querySelectorAll("optgroup")].map((group) => group.label)).toContain("LIGHTS");
+    picker.value = "light";
+    picker.dispatchEvent(new Event("change"));
+    expect(session.root.querySelector('[data-action="entity"]')!.classList.contains("active")).toBe(true);
+    pointer("pointerdown", 264, 118);
+    pointer("pointerup", 264, 118);
+    // The light's box (-16..32 on Z) stands on the work plane at Z=0.
+    expect(entities()).toMatchObject([{ classname: "light", origin: { x: 64, y: 32, z: 16 }, keys: {} }]);
+    const id = entities()[0].id;
+    expect(session.root.querySelector(".shagged__status")!.textContent).toContain("1 entities");
+
+    // Select and drag it 32 units along +X.
+    session.root.querySelector<HTMLButtonElement>('[data-action="select"]')!.click();
+    pointer("pointerdown", 264, 118);
+    pointer("pointermove", 296, 118);
+    expect(entities()[0].origin.x).toBe(64); // a preview, not yet a document change
+    pointer("pointerup", 296, 118);
+    expect(entities()[0].origin).toEqual({ x: 96, y: 32, z: 16 });
+
+    // The inspector lists documented keys, keeps an unknown one, and adds a new one.
+    session.document.transact((data) => {
+      data.entities[0].keys._mod_flag = "<b>kept</b>";
+    });
+    session.root.querySelector<HTMLButtonElement>('[data-action="undo"]')!.click();
+    session.root.querySelector<HTMLButtonElement>('[data-action="redo"]')!.click();
+    const form = session.root.querySelector<HTMLFormElement>("[data-entity-form]")!;
+    const unknown = form.querySelector<HTMLInputElement>('[name="key:_mod_flag"]')!;
+    expect(unknown.value).toBe("<b>kept</b>"); // a value, never parsed as markup
+    expect(form.querySelector("b")).toBeNull();
+    expect(form.querySelector<HTMLInputElement>('[name="key:light"]')!.placeholder).toBe("300");
+    form.querySelector<HTMLInputElement>('[name="key:light"]')!.value = "450";
+    form.querySelector<HTMLInputElement>('[name="new-key"]')!.value = "targetname";
+    form.querySelector<HTMLInputElement>('[name="new-value"]')!.value = "lamp1";
+    form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    expect(entities()[0].keys).toEqual({ light: "450", targetname: "lamp1", _mod_flag: "<b>kept</b>" });
+
+    // A value a .map can't hold is refused without changing the entity.
+    const again = session.root.querySelector<HTMLFormElement>("[data-entity-form]")!;
+    again.querySelector<HTMLInputElement>('[name="key:light"]')!.value = 'say "hi"';
+    again.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    expect(entities()[0].keys.light).toBe("450");
+    expect(session.root.querySelector(".shagged__status")!.textContent).toContain("Entity edit rejected");
+
+    session.root.dispatchEvent(new KeyboardEvent("keydown", { key: "d", ctrlKey: true, bubbles: true }));
+    expect(entities()).toHaveLength(2);
+    expect(entities()[1]).toMatchObject({ classname: "light", origin: { x: 112, y: 32, z: 16 } });
+    expect(entities()[1].keys).toEqual(entities()[0].keys);
+
+    session.root.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete", bubbles: true }));
+    expect(entities().map((entity) => entity.id)).toEqual([id]);
+    session.root.querySelector<HTMLButtonElement>('[data-action="undo"]')!.click();
+    expect(entities()).toHaveLength(2);
     session.dispose();
     engine.dispose();
   });
@@ -273,6 +342,7 @@ describe("editor DOM shell", () => {
   });
 
   it("separates Save (Ctrl+S) from Export (Ctrl+Shift+S)", () => {
+    vi.useFakeTimers();
     const engine = new NullEngine();
     const canvas = document.createElement("canvas");
     document.body.appendChild(canvas);
@@ -294,6 +364,11 @@ describe("editor DOM shell", () => {
     );
     expect(createObjectURL).toHaveBeenCalledTimes(1);
     expect(anchorClick).toHaveBeenCalledTimes(1);
+    // Export frees its Blob URL a second later. Let that happen now, while the
+    // stub still exists, not during whichever test file runs a second from now.
+    vi.advanceTimersByTime(1000);
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:shagged-test");
+    vi.useRealTimers();
 
     // Removed rather than restored: jsdom never had these, this test added them.
     delete (URL as { createObjectURL?: unknown }).createObjectURL;

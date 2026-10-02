@@ -9,7 +9,7 @@ export interface EditorViewState {
   schemaVersion: 1;
   grid: 8 | 16 | 32 | 64;
   zoom: number;
-  tool: "brush" | "select";
+  tool: "brush" | "select" | "entity";
   selectedId: string | null;
   draftName?: string;
   activePlane?: "xy" | "xz" | "yz";
@@ -28,7 +28,7 @@ function validView(value: unknown): value is EditorViewState {
     Number.isFinite(state.zoom) &&
     state.zoom >= 0.25 &&
     state.zoom <= 4 &&
-    ["brush", "select"].includes(state.tool) &&
+    ["brush", "select", "entity"].includes(state.tool) &&
     (state.selectedId === null || typeof state.selectedId === "string") &&
     (state.draftName === undefined ||
       (typeof state.draftName === "string" && state.draftName.trim().length > 0 && state.draftName.length <= 64)) &&
@@ -51,6 +51,15 @@ function validView(value: unknown): value is EditorViewState {
     !!camera.target &&
     (["x", "y", "z"] as const).every((axis) => Number.isFinite(camera.target[axis]))
   );
+}
+
+export interface DraftSummary {
+  id: string;
+  name: string;
+  brushCount: number;
+  entityCount: number;
+  revision: number;
+  active: boolean;
 }
 
 /** Versioned local recovery; the document stays independent from view state. */
@@ -80,9 +89,9 @@ export class EditorDraftStore {
     return { document, view: validView(parsed) ? parsed : null };
   }
 
-  list(): Array<{ id: string; name: string; brushCount: number; revision: number; active: boolean }> {
+  list(): DraftSummary[] {
     const activeId = this.storage.getItem(ACTIVE_KEY);
-    const drafts: Array<{ id: string; name: string; brushCount: number; revision: number; active: boolean }> = [];
+    const drafts: DraftSummary[] = [];
     for (let index = 0; index < this.storage.length; index++) {
       const key = this.storage.key(index);
       if (!key?.startsWith(DRAFT_PREFIX)) continue;
@@ -94,6 +103,7 @@ export class EditorDraftStore {
           id,
           name: view?.draftName ?? `Untitled ${id.slice(0, 8)}`,
           brushCount: data.brushes.length,
+          entityCount: data.entities.length,
           revision: data.revision,
           active: id === activeId,
         });

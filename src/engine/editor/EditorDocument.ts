@@ -10,7 +10,22 @@ export interface BoxBrush {
   max: Vec3q;
   shader: string;
 }
+/** A point entity. `keys` holds every key except classname and origin, unknown ones included. */
+export interface PointEntity {
+  id: string;
+  classname: string;
+  origin: Vec3q;
+  keys: Record<string, string>;
+}
 export interface EditorDocumentData {
+  schemaVersion: 2;
+  draftId: string;
+  revision: number;
+  brushes: BoxBrush[];
+  entities: PointEntity[];
+}
+/** Version 1 drafts had boxes and one optional test spawn. */
+export interface EditorDocumentDataV1 {
   schemaVersion: 1;
   draftId: string;
   revision: number;
@@ -19,19 +34,35 @@ export interface EditorDocumentData {
 }
 
 const SHADER = /^[a-zA-Z0-9_./-]+$/;
+/** Entity classnames and key names: what MakeBSP and the engine's entity lump readers accept. */
+export const ENTITY_KEY = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const RESERVED_KEYS = new Set(["classname", "origin"]);
+const MAX_KEYS = 64;
+const MAX_VALUE_LENGTH = 1024;
+
+/** Upgrades an older draft; a version 1 test spawn becomes an ordinary spawn entity. */
+export function migrateDocument(data: EditorDocumentData | EditorDocumentDataV1): EditorDocumentData {
+  if (data.schemaVersion !== 1) return data;
+  const { testSpawn, ...rest } = data;
+  return {
+    ...rest,
+    schemaVersion: 2,
+    entities: testSpawn
+      ? [{ id: "test-spawn", classname: "info_player_deathmatch", origin: { ...testSpawn }, keys: {} }]
+      : [],
+  };
+}
+
+function validCoordinate(value: number): boolean {
+  return Number.isFinite(value) && Math.abs(value) <= 1_000_000;
+}
 
 export function validateDocument(data: EditorDocumentData): void {
-  if (data.schemaVersion !== 1 || !data.draftId || !Number.isSafeInteger(data.revision) || data.revision < 0) {
+  if (data.schemaVersion !== 2 || !data.draftId || !Number.isSafeInteger(data.revision) || data.revision < 0) {
     throw new Error("Invalid editor document header");
   }
   if (!Array.isArray(data.brushes) || data.brushes.length > 20_000) throw new Error("Invalid brush list");
-  if (data.testSpawn) {
-    for (const axis of ["x", "y", "z"] as const) {
-      if (!Number.isFinite(data.testSpawn[axis]) || Math.abs(data.testSpawn[axis]) > 1_000_000) {
-        throw new Error(`Invalid test spawn ${axis}`);
-      }
-    }
-  }
+  if (!Array.isArray(data.entities) || data.entities.length > 20_000) throw new Error("Invalid entity list");
   const ids = new Set<string>();
   for (const brush of data.brushes) {
     if (!brush.id || ids.has(brush.id)) throw new Error("Duplicate or missing brush ID");
@@ -42,14 +73,28 @@ export function validateDocument(data: EditorDocumentData): void {
     for (const axis of ["x", "y", "z"] as const) {
       const lo = brush.min[axis];
       const hi = brush.max[axis];
-      if (
-        !Number.isFinite(lo) ||
-        !Number.isFinite(hi) ||
-        lo >= hi ||
-        Math.abs(lo) > 1_000_000 ||
-        Math.abs(hi) > 1_000_000
-      ) {
+      if (!validCoordinate(lo) || !validCoordinate(hi) || lo >= hi) {
         throw new Error(`Invalid ${axis} bounds on brush ${brush.id}`);
+      }
+    }
+  }
+  for (const entity of data.entities) {
+    if (!entity.id || ids.has(entity.id)) throw new Error("Duplicate or missing entity ID");
+    ids.add(entity.id);
+    if (!ENTITY_KEY.test(entity.classname) || entity.classname === "worldspawn") {
+      throw new Error(`Invalid classname on entity ${entity.id}`);
+    }
+    for (const axis of ["x", "y", "z"] as const) {
+      if (!validCoordinate(entity.origin?.[axis])) throw new Error(`Invalid origin ${axis} on entity ${entity.id}`);
+    }
+    const keys = Object.entries(entity.keys ?? {});
+    if (keys.length > MAX_KEYS) throw new Error(`Too many keys on entity ${entity.id}`);
+    for (const [key, value] of keys) {
+      if (!ENTITY_KEY.test(key) || RESERVED_KEYS.has(key))
+        throw new Error(`Invalid key "${key}" on entity ${entity.id}`);
+      // A .map value is a double-quoted string with no escape syntax.
+      if (typeof value !== "string" || value.length > MAX_VALUE_LENGTH || /["\r\n]/.test(value)) {
+        throw new Error(`Invalid value for "${key}" on entity ${entity.id}`);
       }
     }
   }
@@ -64,8 +109,10 @@ export class EditorDocument {
   private undoStack: EditorDocumentData[] = [];
   private redoStack: EditorDocumentData[] = [];
 
-  constructor(data?: EditorDocumentData) {
-    this.data = data ? copy(data) : { schemaVersion: 1, draftId: crypto.randomUUID(), revision: 0, brushes: [] };
+  constructor(data?: EditorDocumentData | EditorDocumentDataV1) {
+    this.data = data
+      ? copy(migrateDocument(data))
+      : { schemaVersion: 2, draftId: crypto.randomUUID(), revision: 0, brushes: [], entities: [] };
     validateDocument(this.data);
   }
 

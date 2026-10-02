@@ -1,4 +1,4 @@
-import type { BoxBrush, Vec3q } from "./EditorDocument";
+import type { Vec3q } from "./EditorDocument";
 
 export type EditorPlane = "xy" | "xz" | "yz";
 export const PLANE_AXES: Record<EditorPlane, { u: keyof Vec3q; v: keyof Vec3q; hidden: keyof Vec3q }> = {
@@ -31,7 +31,10 @@ export function zoomCenter(
   return { ...center, [axes.u]: anchor[0] - x / after, [axes.v]: anchor[1] + y / after };
 }
 
-export function brushBounds(brushes: readonly BoxBrush[]): { center: Vec3q; size: Vec3q } | null {
+/** Combined bounds of brushes, entity boxes, or anything else with a min and max. */
+export function brushBounds<T extends { min: Vec3q; max: Vec3q }>(
+  brushes: readonly T[],
+): { center: Vec3q; size: Vec3q } | null {
   if (!brushes.length) return null;
   const min = { ...brushes[0].min };
   const max = { ...brushes[0].max };

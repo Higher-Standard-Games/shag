@@ -187,7 +187,40 @@
   color: #75d9e8;
   font-size: 11px;
 }
+.shagged__origin {
+  display: grid;
+  grid-template-columns: 35px minmax(0, 1fr);
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 7px;
+}
+.shagged__keys {
+  margin: 14px 0 6px;
+  padding-top: 10px;
+  border-top: 1px solid #2c3a57;
+}
+.shagged__key {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1fr);
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.shagged__key > span {
+  overflow: hidden;
+  color: #75d9e8;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: help;
+}
+.shagged__key--new {
+  margin: 8px 0 14px;
+}
 .shagged__bounds input,
+.shagged__origin input,
+.shagged__key input,
+.shagged__shader select,
 .shagged__shader input {
   min-width: 0;
   width: 100%;
@@ -202,9 +235,13 @@
   display: block;
   margin: 14px 0;
 }
-.shagged__shader input {
+.shagged__shader input,
+.shagged__shader select {
   display: block;
   margin-top: 5px;
+}
+.shagged__toolbar select[data-entity-class] {
+  max-width: 170px;
 }
 .shagged__inspector button {
   padding: 7px 9px;

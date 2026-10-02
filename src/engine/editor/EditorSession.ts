@@ -13,7 +13,7 @@ import "@babylonjs/core/Rendering/edgesRenderer";
 // Registers Scene.pick for perspective selection.
 import "@babylonjs/core/Culling/ray";
 import { pickResizeEdge, type ResizeEdge, resizeBox } from "./EditorBoxTools";
-import { type BoxBrush, EditorDocument, type EditorDocumentData, type Vec3q } from "./EditorDocument";
+import { type BoxBrush, EditorDocument, type EditorDocumentData, type PointEntity, type Vec3q } from "./EditorDocument";
 import { EditorDraftStore, type EditorViewState } from "./EditorDraftStore";
 import { drawBounds, moveBox } from "./EditorGesture";
 import {
@@ -24,6 +24,7 @@ import {
   paneToWorld,
   zoomCenter,
 } from "./EditorViewTools";
+import { type EntityClassDef, entityClass, POINT_ENTITY_CLASSES } from "./EntityCatalog";
 import { writeMap } from "./MapWriter";
 import { createRoomTemplate } from "./RoomTemplate";
 import "./editor.css";
@@ -34,15 +35,63 @@ type Gesture = {
   start: [number, number];
   current: [number, number];
   brush?: BoxBrush;
+  entity?: PointEntity;
   edge?: ResizeEdge;
   workPlane: number;
   grid: number;
 };
 
+type Tool = "brush" | "select" | "entity";
+
+/** An entity's box in world space: its class's mins/maxs around the origin. */
+function entityBox(entity: PointEntity): { min: Vec3q; max: Vec3q } {
+  const def = entityClass(entity.classname);
+  const at = (offset: Vec3q): Vec3q => ({
+    x: entity.origin.x + offset.x,
+    y: entity.origin.y + offset.y,
+    z: entity.origin.z + offset.z,
+  });
+  return { min: at(def.mins), max: at(def.maxs) };
+}
+
+function cssColor([r, g, b]: EntityClassDef["color"], alpha = 1): string {
+  return `rgba(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)}, ${alpha})`;
+}
+
+/** Catalog classes grouped by their entities.def section; a classname outside the catalog is kept as its own option. */
+function fillClassOptions(select: HTMLSelectElement, selected: string): void {
+  select.replaceChildren();
+  const groups = new Map<string, HTMLOptGroupElement>();
+  const classes = POINT_ENTITY_CLASSES.some((def) => def.classname === selected)
+    ? POINT_ENTITY_CLASSES
+    : [...POINT_ENTITY_CLASSES, entityClass(selected)];
+  for (const def of classes) {
+    let group = groups.get(def.section);
+    if (!group) {
+      group = document.createElement("optgroup");
+      group.label = def.section;
+      groups.set(def.section, group);
+      select.appendChild(group);
+    }
+    const option = document.createElement("option");
+    option.value = def.classname;
+    option.textContent = def.classname;
+    group.appendChild(option);
+  }
+  select.value = selected;
+}
+
+function moveEntity(entity: PointEntity, axes: (typeof AXES)[Plane], du: number, dv: number): PointEntity {
+  const result = structuredClone(entity);
+  result.origin[axes.u] += du;
+  result.origin[axes.v] += dv;
+  return result;
+}
+
 function snap(n: number, grid: number): number {
   return Math.round(n / grid) * grid;
 }
-function inRect(u: number, v: number, b: BoxBrush, plane: Plane): boolean {
+function inRect(u: number, v: number, b: { min: Vec3q; max: Vec3q }, plane: Plane): boolean {
   const axes = AXES[plane];
   return u >= b.min[axes.u] && u <= b.max[axes.u] && v >= b.min[axes.v] && v <= b.max[axes.v];
 }
@@ -60,7 +109,8 @@ export class EditorSession {
   private readonly inspector: HTMLElement;
   private selectedId: string | null = null;
   private draftName = "Untitled";
-  private tool: "brush" | "select" = "brush";
+  private tool: Tool = "brush";
+  private entityClassname = "info_player_deathmatch";
   private grid = 16;
   private zoom = 1;
   private viewCenter: Vec3q = { x: 0, y: 0, z: 0 };
@@ -115,6 +165,7 @@ export class EditorSession {
         <span class="shagged__separator"></span>
         <button data-action="undo" title="Ctrl/Cmd+Z">Undo</button><button data-action="redo" title="Ctrl/Cmd+Shift+Z">Redo</button>
         <button data-action="brush">Brush (B)</button><button data-action="select">Select (V)</button>
+        <button data-action="entity">Entity (E)</button><select data-entity-class aria-label="Entity class" title="Class placed by the Entity tool"></select>
         <button data-action="delete" title="Delete">Delete</button>
         <button data-action="frame-selection">Frame (F)</button><button data-action="frame-all">Frame All (Shift+F)</button>
         <label>Grid <select data-grid title="[ / ] to step"><option>8</option><option selected>16</option><option>32</option><option>64</option></select></label>
@@ -143,6 +194,16 @@ export class EditorSession {
     this.root.querySelector<HTMLSelectElement>("[data-grid]")!.value = String(this.grid);
     this.root.querySelector<HTMLInputElement>("[data-draft-name]")!.value = this.draftName;
     this.updateWorkPlaneControl();
+    const classPicker = this.root.querySelector<HTMLSelectElement>("[data-entity-class]")!;
+    fillClassOptions(classPicker, this.entityClassname);
+    classPicker.addEventListener(
+      "change",
+      () => {
+        this.entityClassname = classPicker.value;
+        this.action("entity");
+      },
+      { signal: this.listeners.signal },
+    );
 
     for (const plane of ["xy", "xz", "yz"] as const) {
       const pane = this.root.querySelector<HTMLCanvasElement>(`canvas[data-plane="${plane}"]`)!;
@@ -251,6 +312,11 @@ export class EditorSession {
   get draftId(): string {
     return this.document.snapshot().draftId;
   }
+  private exists(id: string | null | undefined): boolean {
+    if (!id) return false;
+    const data = this.document.snapshot();
+    return data.brushes.some((brush) => brush.id === id) || data.entities.some((entity) => entity.id === id);
+  }
   get revision(): number {
     return this.document.snapshot().revision;
   }
@@ -327,7 +393,8 @@ export class EditorSession {
     const cursor = this.hoverCoord
       ? ` · cursor (${this.hoverCoord.x}, ${this.hoverCoord.y}, ${this.hoverCoord.z})`
       : "";
-    this.statusEl.textContent = `${this.lastMessage} · ${this.document.snapshot().brushes.length} brushes · revision ${this.revision} · ${this.activePlane.toUpperCase()} work ${hidden.toUpperCase()}=${this.workPlanes[hidden]} · grid ${this.grid}${dimensions}${cursor} · MakeBSP unavailable`;
+    const data = this.document.snapshot();
+    this.statusEl.textContent = `${this.lastMessage} · ${data.brushes.length} brushes · ${data.entities.length} entities · revision ${this.revision} · ${this.activePlane.toUpperCase()} work ${hidden.toUpperCase()}=${this.workPlanes[hidden]} · grid ${this.grid}${dimensions}${cursor} · MakeBSP unavailable`;
   }
 
   private updateWorkPlaneControl(): void {
@@ -344,9 +411,7 @@ export class EditorSession {
     this.draftName = view?.draftName ?? "Untitled";
     this.workPlanes = { ...(view?.workPlanes ?? { x: 0, y: 0, z: 0 }) };
     this.activePlane = view?.activePlane ?? "xy";
-    this.selectedId = this.document.snapshot().brushes.some((brush) => brush.id === view?.selectedId)
-      ? (view?.selectedId ?? null)
-      : null;
+    this.selectedId = this.exists(view?.selectedId) ? (view?.selectedId ?? null) : null;
     this.camera.alpha = view?.camera.alpha ?? Math.PI / 4;
     this.camera.beta = view?.camera.beta ?? Math.PI / 3;
     this.camera.radius = view?.camera.radius ?? 650;
@@ -363,7 +428,7 @@ export class EditorSession {
       button.dataset.action = "open-draft";
       button.dataset.draftId = draft.id;
       button.disabled = draft.active;
-      button.textContent = `${draft.name} · ${draft.brushCount} brushes · r${draft.revision}${draft.active ? " · current" : ""}`;
+      button.textContent = `${draft.name} · ${draft.brushCount} brushes · ${draft.entityCount} entities · r${draft.revision}${draft.active ? " · current" : ""}`;
       list.appendChild(button);
     }
     if (!list.childElementCount) list.textContent = "No saved drafts yet.";
@@ -439,29 +504,21 @@ export class EditorSession {
           break;
         case "brush":
         case "select":
+        case "entity":
           this.cancelGesture();
           this.tool = action;
           this.draw();
           this.trySaveView();
           break;
         case "duplicate":
-          if (this.selectedId) {
-            const original = this.document.snapshot().brushes.find((brush) => brush.id === this.selectedId);
-            if (!original) break;
-            const copy = structuredClone(original);
-            copy.id = crypto.randomUUID();
-            copy.min.x += this.grid;
-            copy.max.x += this.grid;
-            this.document.transact((data) => data.brushes.push(copy));
-            this.selectedId = copy.id;
-            this.changed();
-          }
+          this.duplicateSelection();
           break;
         case "delete":
           if (this.selectedId) {
             const id = this.selectedId;
             this.document.transact((data) => {
               data.brushes = data.brushes.filter((brush) => brush.id !== id);
+              data.entities = data.entities.filter((entity) => entity.id !== id);
             });
             this.selectedId = null;
             this.changed();
@@ -475,6 +532,28 @@ export class EditorSession {
     } catch (error) {
       this.status(error instanceof Error ? error.message : String(error));
     }
+  }
+
+  /** A copy one grid step along +X, keys and all, as one undo step. */
+  private duplicateSelection(): void {
+    const data = this.document.snapshot();
+    const brush = data.brushes.find((item) => item.id === this.selectedId);
+    const entity = data.entities.find((item) => item.id === this.selectedId);
+    const id = crypto.randomUUID();
+    if (brush) {
+      const copy = structuredClone(brush);
+      copy.id = id;
+      copy.min.x += this.grid;
+      copy.max.x += this.grid;
+      this.document.transact((draft) => draft.brushes.push(copy));
+    } else if (entity) {
+      const copy = structuredClone(entity);
+      copy.id = id;
+      copy.origin.x += this.grid;
+      this.document.transact((draft) => draft.entities.push(copy));
+    } else return;
+    this.selectedId = id;
+    this.changed();
   }
 
   private keyDown(event: KeyboardEvent): void {
@@ -498,6 +577,7 @@ export class EditorSession {
     }
     if (key === "b") this.action("brush");
     else if (key === "v") this.action("select");
+    else if (key === "e") this.action("entity");
     else if (key === "delete") this.action("delete");
     else if (key === "f") {
       event.preventDefault();
@@ -540,12 +620,14 @@ export class EditorSession {
   }
 
   private frame(all: boolean): void {
-    const brushes = this.document
-      .snapshot()
-      .brushes.filter((brush) => all || !this.selectedId || brush.id === this.selectedId);
-    const bounds = brushBounds(brushes);
+    const data = this.document.snapshot();
+    const boxes = [
+      ...data.brushes.map((brush) => ({ id: brush.id, min: brush.min, max: brush.max })),
+      ...data.entities.map((entity) => ({ id: entity.id, ...entityBox(entity) })),
+    ].filter((box) => all || !this.selectedId || box.id === this.selectedId);
+    const bounds = brushBounds(boxes);
     if (!bounds) {
-      this.status(all ? "No brushes to frame" : "Select a brush to frame");
+      this.status("Nothing to frame");
       return;
     }
     this.cancelGesture();
@@ -652,23 +734,32 @@ export class EditorSession {
     }
     const start = this.coordinates(plane, pane, event);
     const [u, v] = this.worldAt(plane, pane, event);
-    const hit = [...this.document.snapshot().brushes].reverse().find((brush) => inRect(u, v, brush, plane));
+    const axes = AXES[plane];
+    if (this.tool === "entity") {
+      this.placeEntity(plane, start);
+      return;
+    }
+    const data = this.document.snapshot();
+    // Entities are small and drawn on top of brushes, so they win a shared click.
+    const entityHit = [...data.entities].reverse().find((entity) => inRect(u, v, entityBox(entity), plane));
+    const hit = entityHit ? undefined : [...data.brushes].reverse().find((brush) => inRect(u, v, brush, plane));
     if (this.tool === "select") {
-      this.selectedId = hit?.id ?? null;
-      const axes = AXES[plane];
+      this.selectedId = entityHit?.id ?? hit?.id ?? null;
       const edge = hit ? pickResizeEdge(hit, axes.u, axes.v, u, v, 8 / this.zoom) : null;
-      this.gesture = hit
-        ? {
-            plane,
-            mode: edge ? "resize" : "move",
-            start,
-            current: start,
-            brush: hit,
-            edge: edge ?? undefined,
-            workPlane: this.workPlanes[axes.hidden],
-            grid: this.grid,
-          }
-        : null;
+      this.gesture =
+        entityHit || hit
+          ? {
+              plane,
+              mode: edge ? "resize" : "move",
+              start,
+              current: start,
+              brush: hit,
+              entity: entityHit,
+              edge: edge ?? undefined,
+              workPlane: this.workPlanes[axes.hidden],
+              grid: this.grid,
+            }
+          : null;
       this.rebuildMeshes();
       this.trySaveView();
     } else
@@ -682,6 +773,25 @@ export class EditorSession {
       };
     this.draw();
     this.trySaveView();
+  }
+
+  /**
+   * One click, one entity of the picked class at the snapped point. Seen from
+   * above, the hidden axis is height, so the entity stands on the work plane
+   * (its box's bottom on it) rather than sinking half into the floor.
+   */
+  private placeEntity(plane: Plane, [u, v]: [number, number]): void {
+    const axes = AXES[plane];
+    const def = entityClass(this.entityClassname);
+    const origin: Vec3q = { x: 0, y: 0, z: 0 };
+    origin[axes.u] = u;
+    origin[axes.v] = v;
+    const work = this.workPlanes[axes.hidden];
+    origin[axes.hidden] = axes.hidden === "z" ? work - def.mins.z : work;
+    const entity: PointEntity = { id: crypto.randomUUID(), classname: def.classname, origin, keys: {} };
+    this.document.transact((data) => data.entities.push(entity));
+    this.selectedId = entity.id;
+    this.changed();
   }
 
   private pointerMove(plane: Plane, event: PointerEvent): void {
@@ -763,6 +873,12 @@ export class EditorSession {
         const index = data.brushes.findIndex((item) => item.id === id);
         data.brushes[index] = candidate;
       });
+    } else if (gesture.entity) {
+      const moved = moveEntity(gesture.entity, axes, u1 - u0, v1 - v0);
+      this.document.transact((data) => {
+        const index = data.entities.findIndex((item) => item.id === moved.id);
+        data.entities[index] = moved;
+      });
     } else if (gesture.brush) {
       const du = u1 - u0;
       const dv = v1 - v0;
@@ -783,9 +899,7 @@ export class EditorSession {
   }
 
   private changed(): void {
-    if (this.selectedId && !this.document.snapshot().brushes.some((brush) => brush.id === this.selectedId)) {
-      this.selectedId = null;
-    }
+    if (this.selectedId && !this.exists(this.selectedId)) this.selectedId = null;
     this.rebuildMeshes();
     this.draw();
     try {
@@ -798,6 +912,10 @@ export class EditorSession {
   private submitInspector(event: Event): void {
     event.preventDefault();
     const form = event.target as HTMLFormElement;
+    if (form.matches("[data-entity-form]") && this.selectedId) {
+      this.submitEntity(form, this.selectedId);
+      return;
+    }
     if (!form.matches("[data-brush-form]") || !this.selectedId) return;
     const values = new FormData(form);
     const id = this.selectedId;
@@ -814,6 +932,31 @@ export class EditorSession {
       this.changed();
     } catch (error) {
       this.status(`Brush edit rejected: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  private submitEntity(form: HTMLFormElement, id: string): void {
+    const values = new FormData(form);
+    const keys: Record<string, string> = {};
+    for (const [name, value] of values) {
+      if (!name.startsWith("key:")) continue;
+      const text = String(value).trim();
+      if (text) keys[name.slice(4)] = text;
+    }
+    const newKey = String(values.get("new-key") ?? "").trim();
+    const newValue = String(values.get("new-value") ?? "").trim();
+    if (newKey && newValue) keys[newKey] = newValue;
+    try {
+      this.document.transact((data) => {
+        const entity = data.entities.find((item) => item.id === id);
+        if (!entity) throw new Error("Selected entity no longer exists");
+        entity.classname = String(values.get("classname") ?? "").trim();
+        for (const axis of ["x", "y", "z"] as const) entity.origin[axis] = Number(values.get(`origin-${axis}`));
+        entity.keys = keys;
+      });
+      this.changed();
+    } catch (error) {
+      this.status(`Entity edit rejected: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -846,6 +989,24 @@ export class EditorSession {
       mesh.edgesWidth = 2;
       mesh.edgesColor = new Color4(0.02, 0.02, 0.05, 1);
       this.meshes.set(brush.id, mesh);
+    }
+    for (const entity of this.document.snapshot().entities) {
+      const { min, max } = entityBox(entity);
+      const mesh = MeshBuilder.CreateBox(
+        entity.id,
+        { width: max.x - min.x, height: max.z - min.z, depth: max.y - min.y },
+        this.scene,
+      );
+      mesh.position = new Vector3((min.x + max.x) / 2, (min.z + max.z) / 2, (min.y + max.y) / 2);
+      const material = new StandardMaterial(`editor-${entity.id}`, this.scene);
+      const [r, g, b] = entityClass(entity.classname).color;
+      material.diffuseColor = entity.id === this.selectedId ? new Color3(1, 0.75, 0.2) : new Color3(r, g, b);
+      material.emissiveColor = new Color3(r * 0.35, g * 0.35, b * 0.35);
+      mesh.material = material;
+      mesh.enableEdgesRendering();
+      mesh.edgesWidth = 2;
+      mesh.edgesColor = new Color4(0.02, 0.02, 0.05, 1);
+      this.meshes.set(entity.id, mesh);
     }
   }
 
@@ -969,10 +1130,37 @@ export class EditorSession {
         );
       }
       if (this.gesture?.mode === "draw" && preview) paint(preview.min, preview.max, true);
+      const dragged = this.gesture?.entity;
+      for (const original of data.entities) {
+        const moving = dragged?.id === original.id && this.gesture;
+        const entity = moving
+          ? moveEntity(original, axes, moving.current[0] - moving.start[0], moving.current[1] - moving.start[1])
+          : original;
+        const { min, max } = entityBox(entity);
+        const selected = entity.id === this.selectedId || !!moving;
+        const color = entityClass(entity.classname).color;
+        const x = originX + min[axes.u] * this.zoom;
+        const y = originY - max[axes.v] * this.zoom;
+        const rw = (max[axes.u] - min[axes.u]) * this.zoom;
+        const rh = (max[axes.v] - min[axes.v]) * this.zoom;
+        ctx.fillStyle = cssColor(color, selected ? 0.45 : 0.28);
+        ctx.strokeStyle = selected ? "#ffc61a" : cssColor(color);
+        ctx.lineWidth = selected ? 2 : 1;
+        ctx.fillRect(x, y, rw, rh);
+        ctx.strokeRect(x, y, rw, rh);
+        const cx = originX + entity.origin[axes.u] * this.zoom;
+        const cy = originY - entity.origin[axes.v] * this.zoom;
+        ctx.beginPath();
+        ctx.moveTo(cx - 4, cy);
+        ctx.lineTo(cx + 4, cy);
+        ctx.moveTo(cx, cy - 4);
+        ctx.lineTo(cx, cy + 4);
+        ctx.stroke();
+      }
     }
     this.syncGhost(preview);
     this.renderInspector(data);
-    for (const name of ["brush", "select"] as const)
+    for (const name of ["brush", "select", "entity"] as const)
       this.root.querySelector(`[data-action="${name}"]`)?.classList.toggle("active", this.tool === name);
     this.root.querySelector<HTMLButtonElement>('[data-action="undo"]')!.disabled = !this.document.canUndo;
     this.root.querySelector<HTMLButtonElement>('[data-action="redo"]')!.disabled = !this.document.canRedo;
@@ -1006,6 +1194,70 @@ export class EditorSession {
         form.querySelector<HTMLInputElement>(`[name="max-${axis}"]`)!.value = String(selected.max[axis]);
       }
       form.querySelector<HTMLInputElement>('[name="shader"]')!.value = selected.shader;
-    } else this.inspector.textContent = "Drag in an orthographic pane to draw a brush. Select (V) to move one.";
+      return;
+    }
+    const entity = data.entities.find((item) => item.id === this.selectedId);
+    if (entity) {
+      this.renderEntityInspector(entity);
+      return;
+    }
+    this.inspector.textContent =
+      "Drag in an orthographic pane to draw a brush. Entity (E) places the class picked in the toolbar. Select (V) moves either.";
+  }
+
+  /**
+   * Class, origin, and one field per key: the class's documented keys plus any
+   * other key the entity already carries, so nothing the catalog doesn't know
+   * is dropped on Apply. Values are set through DOM properties, never markup.
+   */
+  private renderEntityInspector(entity: PointEntity): void {
+    const def = entityClass(entity.classname);
+    this.inspector.innerHTML = `<h2>Entity <code data-entity-id></code></h2>
+      <form data-entity-form>
+        <label class="shagged__shader">Class <select name="classname"></select></label>
+        <div class="shagged__bounds-head"><span>Axis</span><span>Origin</span></div>
+        ${(["x", "y", "z"] as const)
+          .map(
+            (axis) => `<label class="shagged__origin"><span>${axis.toUpperCase()}</span>
+              <input name="origin-${axis}" type="number" step="1" required></label>`,
+          )
+          .join("")}
+        <div class="shagged__keys" data-entity-keys></div>
+        <div class="shagged__key shagged__key--new">
+          <input name="new-key" type="text" spellcheck="false" placeholder="new key" aria-label="New key name">
+          <input name="new-value" type="text" spellcheck="false" placeholder="value" aria-label="New key value">
+        </div>
+        <button type="submit">Apply Entity</button>
+      </form><p>An empty value removes that key. Keys the class list doesn't document are kept as they are.</p>`;
+    this.inspector.querySelector("[data-entity-id]")!.textContent = `${entity.classname} ${entity.id.slice(0, 8)}`;
+    const form = this.inspector.querySelector<HTMLFormElement>("[data-entity-form]")!;
+    fillClassOptions(form.querySelector<HTMLSelectElement>('[name="classname"]')!, entity.classname);
+    for (const axis of ["x", "y", "z"] as const) {
+      form.querySelector<HTMLInputElement>(`[name="origin-${axis}"]`)!.value = String(entity.origin[axis]);
+    }
+    const rows = form.querySelector<HTMLElement>("[data-entity-keys]")!;
+    const documented = new Set(def.keys.map((key) => key.name));
+    const fields = [
+      ...def.keys,
+      ...Object.keys(entity.keys)
+        .filter((name) => !documented.has(name))
+        .sort()
+        .map((name) => ({ name, label: "Not in the class list", defaultValue: undefined })),
+    ];
+    for (const field of fields) {
+      const label = document.createElement("label");
+      label.className = "shagged__key";
+      const name = document.createElement("span");
+      name.textContent = field.name;
+      name.title = field.label;
+      const input = document.createElement("input");
+      input.type = "text";
+      input.spellcheck = false;
+      input.name = `key:${field.name}`;
+      input.value = entity.keys[field.name] ?? "";
+      if (field.defaultValue) input.placeholder = field.defaultValue;
+      label.append(name, input);
+      rows.appendChild(label);
+    }
   }
 }

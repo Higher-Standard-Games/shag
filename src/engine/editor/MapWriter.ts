@@ -1,8 +1,11 @@
-import { type BoxBrush, type EditorDocumentData, validateDocument } from "./EditorDocument";
+import { type BoxBrush, type EditorDocumentData, type PointEntity, validateDocument } from "./EditorDocument";
 
 const UV = "( ( 0.03125 0 0 ) ( 0 0.03125 0 ) )";
 const fmt = (n: number): string => Number(n.toFixed(6)).toString();
 const point = (x: number, y: number, z: number): string => `( ${fmt(x)} ${fmt(y)} ${fmt(z)} )`;
+// Code-unit order, not localeCompare: export bytes must not depend on the machine's locale.
+const codeOrder = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+const byId = (a: { id: string }, b: { id: string }): number => codeOrder(a.id, b.id);
 
 function boxLines(brush: BoxBrush): string[] {
   const { x: x0, y: y0, z: z0 } = brush.min;
@@ -23,15 +26,25 @@ function boxLines(brush: BoxBrush): string[] {
   ];
 }
 
-/** Deterministic source only; compile acceptance still needs the target MakeBSP binary. */
+/** classname, then origin, then every other key in name order. */
+function entityLines(entity: PointEntity): string[] {
+  const { x, y, z } = entity.origin;
+  const keys = Object.entries(entity.keys).sort(([a], [b]) => codeOrder(a, b));
+  return [
+    "{",
+    `"classname" "${entity.classname}"`,
+    `"origin" "${fmt(x)} ${fmt(y)} ${fmt(z)}"`,
+    ...keys.map(([key, value]) => `"${key}" "${value}"`),
+    "}",
+  ];
+}
+
+/** Deterministic source: objects in ID order, so selection and insertion order never change the bytes. */
 export function writeMap(data: EditorDocumentData): string {
   validateDocument(data);
   const lines = ["{", '"classname" "worldspawn"'];
-  for (const brush of [...data.brushes].sort((a, b) => a.id.localeCompare(b.id))) lines.push(...boxLines(brush));
+  for (const brush of [...data.brushes].sort(byId)) lines.push(...boxLines(brush));
   lines.push("}");
-  if (data.testSpawn) {
-    const { x, y, z } = data.testSpawn;
-    lines.push("{", '"classname" "info_player_deathmatch"', `"origin" "${fmt(x)} ${fmt(y)} ${fmt(z)}"`, "}");
-  }
+  for (const entity of [...data.entities].sort(byId)) lines.push(...entityLines(entity));
   return `${lines.join("\n")}\n`;
 }

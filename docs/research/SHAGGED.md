@@ -89,8 +89,58 @@ launch and mode lifecycle** below) — fixed by removing that call; the
 console's open/closed state is now left alone when the editor opens, like
 every other composition.
 
-M1 is **not fully complete**: general entity placement, face/UV editing, and
-the server-side Compile/Playtest loop (M2/M3 scope) have not started. No open
+**Review fixes (2026-10-03):** a read-through of `EditorSession` found three
+defects, each now covered by a DOM test that failed first. (1) Select-tool hit
+tests used the grid-snapped pointer, so a brush narrower than the grid could
+not be clicked (grid 64, brush x 16..48: a click at 32 snapped to 64). Hit
+tests now use the exact point; the gesture start stays snapped. (2) `draw()`
+reset the status message on every call, so a rejection message vanished in
+the same frame it was set. (3) The inspector was rebuilt on every `draw()`,
+so a pan or wheel zoom discarded a half-typed value; it is now rebuilt only
+when the draft, selection or revision changes. Export order also switched
+from `localeCompare` to code-unit order, so the bytes cannot depend on the
+machine's locale (ICU gives the hyphens in every UUID special treatment).
+
+**M2 point entities (2026-10-03).** Status: point-entity placement done;
+brush entities not started.
+- **Schema:** the document moves to schema version 2. `entities:
+  PointEntity[]` holds an `id`, `classname`, `origin`, and a `keys` map for
+  every other key, including keys the editor doesn't know. IDs are unique
+  across brushes and entities. A version 1 draft is migrated on load: its
+  `testSpawn` becomes an `info_player_deathmatch` entity.
+- **Validation:** classnames and keys must be identifiers. `classname` and
+  `origin` are structured fields, not free keys. A value with `"` or a newline
+  is rejected, because a `.map` value has no escape syntax.
+- **Catalog:** `EntityCatalog.ts` parses
+  `editor/gamepacks/washoi.game/basewashoi/entities.def`. That file is derived
+  from the engine's entity readers. The catalog keeps the point classes of
+  the gameplay sections (56 classes in 7 sections) and leaves out brush
+  classes and the compiler-only and raw-`.map`-only sections.
+- **Placing:** the Entity tool (`E`) and the toolbar class picker place one
+  entity per click. Seen from above, the entity's box stands on the work
+  plane.
+- **Editing:** Select picks entities ahead of brushes. Entities can be moved
+  with a preview, duplicated, deleted, undone and framed. They appear as
+  class-coloured boxes in every pane and are pickable in 3D.
+- **Inspector:** edits the class, the origin, the documented keys (with their
+  defaults as placeholders), any undocumented keys, and a new key. An empty
+  value removes a key. Values are set through DOM properties, never markup.
+- **Export:** classname, then origin, then keys in name order, with entities
+  in ID order.
+- **Room Template:** now has a `light` entity, so its compiled room is lit.
+- **Compiler proof:** the template plus an editor-placed
+  `weapon_rocketlauncher` compiled with MakeBSP/MakeLight FAST (exit 0, no
+  leak, peak lightmap intensity 361, against 0.000 unlit). All three entities
+  came back out of the BSP entity lump through SHAG's own loader.
+- **Browser check:** placement, markers and the inspector were checked in a
+  browser.
+- **Still open:**
+  - The M2 entities gate also asks for a compiled brush entity, which is the
+    separate brush-entity item.
+  - Brush resize and inspector shader edits still apply to brushes only.
+
+M1 plus point entities is in place; face/UV editing, brush entities, groups,
+and the server-side Compile/Playtest loop (M2/M3) have not landed. No open
 compiler-side question remains from the P0/M1 export-validity work above.
 
 Orthographic navigation now supports middle-drag pan and wheel zoom anchored
@@ -142,7 +192,7 @@ This matrix describes **editor features to build**, not features already availab
 | Textured, solid, wireframe, and textured+edge preview | M2 | Per-pane view modes; texture appearance in perspective, clear outlines in orthographic panes; selected edges remain visible over textures. | `BrushGenerator` and debug commands demonstrate wireframe; editor-specific materials/overlays, shader lookup, and UV fidelity are new. Scene-wide `forceWireframe` alone is insufficient for per-pane modes. |
 | Face material editing | M2 | Pick one or multiple faces, assign a Washoi shader name, adjust basic shift/scale/rotation, preview and export the result. | PK3/shader loaders exist; current raw parser discards brush primitive UV matrices and flags, so editor needs lossless face data. |
 | Multi-select and grouping | M2 | Shift-select, marquee-select, group/ungroup, move/duplicate a group, and preserve membership in the editable draft. | New editor-only hierarchy. `func_group` appears in Washoi `entities.def`, but its compiler semantics need proof before using it for persistence; grouping must not silently change game entity ownership. |
-| Point entity placement | M2 | Place a spawn, light, pickup, or target marker in 2D/3D; edit `classname`, origin, angle, and class-specific keys in an inspector. | `.map` parser reads key/value entities; `entities.def` lists Washoi classes; runtime supports selected classes. Editor needs a catalog/parser, markers, validation, and exact export. |
+| Point entity placement | M2 (**done 2026-10-03**) | Place a spawn, light, pickup, or target marker in 2D/3D; edit `classname`, origin, angle, and class-specific keys in an inspector. | Done: `EntityCatalog.ts` reads the gameplay point classes from `entities.def`; schema v2 `entities` with preserved unknown keys; markers in all panes; deterministic export; compiled and read back through `BspLoader`. |
 | Brush entity placement | M2/M3 | Convert selected brushes into a brush entity (for example trigger/door), set keys, and show entity bounds and links. | Washoi definitions include triggers and movers; compiled BSP handlers exist. Ownership, origin rules, target links, and round-trip compile tests are new and class-specific. |
 | Simplified modular Block Builder | Optional M2+ | Pick a sized room piece, snap compatible sockets/grid positions, rotate by quarter-turn, and detach it to editable brushes. | Babylon can preview/gizmo repeated pieces; pure Quake-space placement, versioned definitions, and deterministic expansion to `.map` are new. Its detailed proof is below. |
 | Raw map preview | M1/M2 | Inspect the editable `.map` through the editor's 3D and orthographic views, with textured/wireframe options as they arrive. | Raw brush and patch renderers exist; editor previews need their own lightweight scene objects. No separate raw gameplay mode is required. |
