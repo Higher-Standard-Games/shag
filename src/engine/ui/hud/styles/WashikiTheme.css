@@ -466,6 +466,11 @@
   z-index: 1;
 }
 
+/* A spectator flying free watches nobody: no health, weapon or ammo to show. */
+.fps-hud--subjectless .fps-hud-bottom-bar {
+  display: none;
+}
+
 /* Bottom zones override: must be static/relative to flow inside the bar */
 .fps-hud-bottom-bar > .fps-hud-area {
   position: relative;

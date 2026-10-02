@@ -51,8 +51,8 @@ export interface WeaponPosition {
   scale: number; // Uniform scale
 }
 
-/** Recorded-time movement state supplied by followed-player demo playback. */
-export interface DemoWeaponBobInput {
+/** The watched player's movement, for their weapon's sway (demo playback and live spectating). */
+export interface FollowedWeaponBobInput {
   deltaTime: number;
   grounded: boolean;
   horizontalSpeed: number;
@@ -119,18 +119,11 @@ export class WeaponViewManager {
   }
 
   /**
-   * Trigger first-person weapon recoil kick (used by DemoService for spectated fire events).
+   * Weapon bob for a watched player, in demo playback or live spectating.
+   * Driven from their movement instead of the local viewport state.
    */
-  public triggerRecoil(scale: number): void {
-    this.weaponRecoil.fire(scale, 0);
-  }
-
-  /**
-   * Weapon bob for demo spectator mode.
-   * Uses the reconstructed recorded-time phase instead of the live viewport state.
-   */
-  public updateDemoBob(input: DemoWeaponBobInput): void {
-    this.demoBobActive = true;
+  public updateFollowedBob(input: FollowedWeaponBobInput): void {
+    this.followedBobActive = true;
     this.weaponBob.update(
       input.deltaTime,
       input.grounded,
@@ -145,8 +138,8 @@ export class WeaponViewManager {
   }
 
   /** Return weapon bob ownership to the live FPS viewport-effects path. */
-  public clearDemoBob(): void {
-    this.demoBobActive = false;
+  public clearFollowedBob(): void {
+    this.followedBobActive = false;
     this.weaponBob.reset();
   }
 
@@ -324,7 +317,7 @@ export class WeaponViewManager {
 
   // Weapon bob (extracted)
   private weaponBob = new WeaponBob();
-  private demoBobActive = false;
+  private followedBobActive = false;
   private effectiveBasePosition: Vector3 = Vector3.Zero(); // Base position with handedness
 
   // ADS (Aiming Down Sights) state
@@ -413,7 +406,7 @@ export class WeaponViewManager {
     this._visible = true;
     this._movementHidden = false;
     this.holsterAnim.reset();
-    this.clearDemoBob();
+    this.clearFollowedBob();
     this.weaponRecoil.reset();
     this.weaponCharge.reset();
     this.reloadAnim.cancel();
@@ -1206,7 +1199,7 @@ export class WeaponViewManager {
    * instance is a separate object and is never touched (QA-8).
    */
   public dispose(): void {
-    this.clearDemoBob();
+    this.clearFollowedBob();
     this.weaponRecoil.reset();
     this.weaponCharge.reset();
     this.reloadAnim.cancel();
@@ -1514,7 +1507,7 @@ export class WeaponViewManager {
     const state = viewportManager.getCurrentState();
 
     // Delegate walk bob, sprint tilt, jump/land to WeaponBob
-    if (!this.demoBobActive) {
+    if (!this.followedBobActive) {
       this.weaponBob.update(
         deltaTime,
         state.isGrounded,
@@ -1697,9 +1690,17 @@ export class WeaponViewManager {
    * Called by controller when logic permits (ammo, fire rate, etc.)
    */
   public fire(opts?: { isProjectileFire?: boolean }): void {
-    // this.lastFireTime = performance.now() / 1000;
+    this.presentFire(opts);
+    this.spawnShotEffects();
+  }
 
-    // FIRE! Trigger muzzle flash
+  /**
+   * What a shot looks like from behind the gun: muzzle flash and its light,
+   * recoil, and the melee slash. No tracers or pellets. For anyone but the
+   * local shooter those come from the server, so a watched player's shot drawn
+   * here as well would appear twice.
+   */
+  public presentFire(opts?: { isProjectileFire?: boolean }): void {
     const flashDef = this.currentWeaponDef?.muzzleFlash;
     const maxIntensity = flashDef?.intensity ?? WeaponViewManager.MUZZLE_FLASH_MAX_INTENSITY;
     this.muzzleFlashIntensity = maxIntensity;
@@ -1740,7 +1741,24 @@ export class WeaponViewManager {
       this.weaponSlash.trigger();
     }
 
-    // Spawn projectile OR hitscan effect
+    // Update light (created eagerly in init(); fallback covers legacy init paths).
+    // Intensity-only control — never setEnabled(), which would change material
+    // defines and trigger shader recompilation (first-shot flicker bug).
+    if (!this.muzzleFlashLight) {
+      this.muzzleFlashLight = new PointLight("muzzleFlash", Vector3.Zero(), this.scene!);
+      this.updateMuzzleFlashLightScope();
+    }
+
+    const color = flashDef?.color ?? { r: 1.0, g: 0.8, b: 0.3 };
+    const range = flashDef?.range ?? WeaponViewManager.MUZZLE_FLASH_RANGE;
+    this.muzzleFlashLight.diffuse = new Color3(color.r, color.g, color.b);
+    this.muzzleFlashLight.specular = new Color3(color.r * 0.5, color.g * 0.5, color.b * 0.5);
+    this.muzzleFlashLight.range = range;
+    this.muzzleFlashLight.intensity = 1.0;
+  }
+
+  /** The local shooter's predicted hitscan visuals, drawn from the camera. */
+  private spawnShotEffects(): void {
     if (this.mainCamera && this.currentWeaponDef) {
       const origin = this.mainCamera.position.clone();
       const forward = this.mainCamera.getDirection(Vector3.Forward());
@@ -1778,14 +1796,14 @@ export class WeaponViewManager {
           }
           case "beam":
             // Beam rendering is handled per-frame by FPSPlayer.updateFiring()
-            // Fire event only triggers muzzle flash (handled below)
+            // The shot itself is only the muzzle flash, from presentFire()
             break;
           case "bolt":
             // Rail rendering is driven by the authoritative electro_rail event
             // (WO-EB3) for both the local shooter and remote players, so the
             // visual endpoint always equals the damage endpoint (no through-wall
             // client-picked bolt, and no old-bolt double-draw under the rail).
-            // Fire event only triggers the muzzle flash (handled below).
+            // The shot itself is only the muzzle flash, from presentFire().
             break;
         }
       } else if (this.currentWeaponDef.projectileId) {
@@ -1793,21 +1811,6 @@ export class WeaponViewManager {
         // No local prediction needed — server snapshot drives projectile rendering
       }
     }
-
-    // Update light (created eagerly in init(); fallback covers legacy init paths).
-    // Intensity-only control — never setEnabled(), which would change material
-    // defines and trigger shader recompilation (first-shot flicker bug).
-    if (!this.muzzleFlashLight) {
-      this.muzzleFlashLight = new PointLight("muzzleFlash", Vector3.Zero(), this.scene!);
-      this.updateMuzzleFlashLightScope();
-    }
-
-    const color = flashDef?.color ?? { r: 1.0, g: 0.8, b: 0.3 };
-    const range = flashDef?.range ?? WeaponViewManager.MUZZLE_FLASH_RANGE;
-    this.muzzleFlashLight.diffuse = new Color3(color.r, color.g, color.b);
-    this.muzzleFlashLight.specular = new Color3(color.r * 0.5, color.g * 0.5, color.b * 0.5);
-    this.muzzleFlashLight.range = range;
-    this.muzzleFlashLight.intensity = 1.0;
   }
 
   /**
@@ -1959,6 +1962,14 @@ export class WeaponViewManager {
    */
   public isSwitching(): boolean {
     return this.switchAnim.isSwitching;
+  }
+
+  /**
+   * Drop a switch in progress, for a cut straight to a weapon already in hand.
+   * Left running, its pending load would land afterwards and replace the cut.
+   */
+  public cancelSwitch(): void {
+    this.switchAnim.reset();
   }
 
   // ==================== RELOAD ANIMATION ====================

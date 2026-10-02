@@ -242,6 +242,77 @@ describe("SpectatorCycling", () => {
     });
   });
 
+  // ── Death, as the live server reports it ──────────────────────
+
+  describe("death from combat_state", () => {
+    /** Snapshot entities carry no health; the server reports death as an event. */
+    function withDead(state: GameState, ...entityIds: string[]): GameState {
+      for (const entityId of entityIds) {
+        state.events.push({ type: "combat_state", entityId, health: 0, armor: 0, dead: true } as never);
+      }
+      return state;
+    }
+
+    const four = () =>
+      makeGameState([
+        { id: "player_1", x: 0, y: 0, z: 0 },
+        { id: "player_2", x: 0, y: 0, z: 0 },
+        { id: "player_3", x: 0, y: 0, z: 0 },
+        { id: "player_4", x: 0, y: 0, z: 0 },
+      ]);
+
+    it("leaves dead players out of the cycle", () => {
+      cycling.updateFromGameState(withDead(four(), "player_2"));
+      expect(cycling.getAlivePlayerIds()).toEqual(["player_1", "player_3", "player_4"]);
+      expect(cycling.isAlive("player_2")).toBe(false);
+      expect(cycling.isAlive("player_3")).toBe(true);
+    });
+
+    it("keeps a target that died but is still in the snapshot", () => {
+      cycling.updateFromGameState(four());
+      cycling.setTarget("player_2");
+      cycling.updateFromGameState(withDead(four(), "player_2"));
+      expect(cycling.getTargetEntityId()).toBe("player_2");
+    });
+
+    it("keeps a dead target the snapshot no longer draws while they are still in the match", () => {
+      cycling.updateFromGameState(four());
+      cycling.setTarget("player_2");
+
+      // The server sends no entity for a dead player, only their player entry.
+      const state = makeGameState([
+        { id: "player_1", x: 0, y: 0, z: 0 },
+        { id: "player_3", x: 0, y: 0, z: 0 },
+      ]);
+      (state.players as unknown as Map<string, unknown>).set("2", { entityId: "player_2", name: "Two" });
+      cycling.updateFromGameState(withDead(state, "player_2"));
+
+      expect(cycling.getTargetEntityId()).toBe("player_2");
+      expect(cycling.isAlive("player_2")).toBe(false);
+    });
+
+    it("steps from a dead target's place in the order", () => {
+      cycling.updateFromGameState(four());
+      cycling.setTarget("player_2");
+      cycling.updateFromGameState(withDead(four(), "player_2"));
+      expect(cycling.next()).toBe("player_3");
+
+      cycling.setTarget("player_2");
+      expect(cycling.prev()).toBe("player_1");
+    });
+
+    it("falls back to a dead player when the target leaves and nobody is alive", () => {
+      cycling.updateFromGameState(four());
+      cycling.setTarget("player_4");
+      const state = makeGameState([
+        { id: "player_1", x: 0, y: 0, z: 0 },
+        { id: "player_2", x: 0, y: 0, z: 0 },
+      ]);
+      cycling.updateFromGameState(withDead(state, "player_1", "player_2"));
+      expect(cycling.getTargetEntityId()).toBe("player_1");
+    });
+  });
+
   // ── Name lookup ───────────────────────────────────────────────
 
   describe("name lookup", () => {

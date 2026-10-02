@@ -4,7 +4,9 @@
  * Pure logic module (no Babylon.js or DOM dependencies) that:
  * - Builds a sorted list of alive player entity IDs from GameState
  * - Cycles next/previous through the list
- * - Auto-selects a new target when the current one disappears
+ * - Auto-selects a new target when the current one leaves the match. A
+ *   target that dies is kept: whether to wait for their respawn
+ *   or move on is the game's call, not this list's.
  * - Resolves entity IDs to player display names
  *
  * Designed to be used by both live spectator (Game.ts) and DemoViewer.
@@ -28,6 +30,8 @@ export interface SpectatorCyclingState {
 export class SpectatorCycling {
   private targetEntityId: string | null = null;
   private alivePlayerIds: string[] = [];
+  /** Every player in the match, dead or alive. */
+  private presentIds = new Set<string>();
   private playerNames: Map<string, string> = new Map();
   private _aliveWorkBuffer: string[] = []; // reusable to avoid per-tick allocation
 
@@ -42,6 +46,16 @@ export class SpectatorCycling {
     // Reuse work buffer to avoid per-tick allocation
     const alive = this._aliveWorkBuffer;
     alive.length = 0;
+    this.presentIds.clear();
+
+    // Snapshot entities carry no health. Who is down comes from combat_state,
+    // which the server sends for every player in every snapshot.
+    const dead = new Set<string>();
+    for (const event of state.events ?? []) {
+      if (event.type === "combat_state" && (event as { dead?: boolean }).dead && event.entityId) {
+        dead.add(event.entityId);
+      }
+    }
 
     for (const [entityId, entity] of state.entities) {
       // Only player entities
@@ -56,9 +70,10 @@ export class SpectatorCycling {
         | undefined;
       if (!transform?.position) continue;
 
-      // Check if dead
+      this.presentIds.add(entityId);
+
       const health = entity.getComponent("health") as { dead?: boolean } | undefined;
-      if (health?.dead) continue;
+      if (health?.dead || dead.has(entityId)) continue;
 
       alive.push(entityId);
     }
@@ -80,13 +95,24 @@ export class SpectatorCycling {
         if (pd.entityId && pd.name) {
           this.playerNames.set(pd.entityId, pd.name);
         }
+        // A dead player is left out of the snapshot's entities until they
+        // respawn, but the player list carries them for as long as they are in
+        // the match.
+        if (pd.entityId?.startsWith("player_") && pd.entityId !== excludeEntityId) {
+          this.presentIds.add(pd.entityId);
+        }
       }
     }
 
-    // If current target is gone, auto-cycle
-    if (this.targetEntityId && !this.alivePlayerIds.includes(this.targetEntityId)) {
+    // If current target left the match, auto-cycle
+    if (this.targetEntityId && !this.presentIds.has(this.targetEntityId)) {
       this.autoSelectNext();
     }
+  }
+
+  /** True while `entityId` is in the snapshot and not dead. */
+  isAlive(entityId: string): boolean {
+    return this.alivePlayerIds.includes(entityId);
   }
 
   /**
@@ -102,9 +128,10 @@ export class SpectatorCycling {
       return this.targetEntityId;
     }
 
-    const idx = this.alivePlayerIds.indexOf(this.targetEntityId);
-    const nextIdx = (idx + 1) % this.alivePlayerIds.length;
-    this.targetEntityId = this.alivePlayerIds[nextIdx];
+    const ids = this.alivePlayerIds;
+    const idx = ids.indexOf(this.targetEntityId);
+    const nextIdx = idx === -1 ? this.slotAfter(this.targetEntityId) : (idx + 1) % ids.length;
+    this.targetEntityId = ids[nextIdx];
     return this.targetEntityId;
   }
 
@@ -121,23 +148,30 @@ export class SpectatorCycling {
       return this.targetEntityId;
     }
 
-    const idx = this.alivePlayerIds.indexOf(this.targetEntityId);
-    const prevIdx = (idx - 1 + this.alivePlayerIds.length) % this.alivePlayerIds.length;
-    this.targetEntityId = this.alivePlayerIds[prevIdx];
+    const ids = this.alivePlayerIds;
+    const idx = ids.indexOf(this.targetEntityId);
+    const from = idx === -1 ? this.slotAfter(this.targetEntityId) : idx;
+    this.targetEntityId = ids[(from - 1 + ids.length) % ids.length];
     return this.targetEntityId;
   }
 
   /**
-   * Auto-select the next available player when current target disappears.
-   * Tries to stay near the same index position.
+   * Index of the first living player sorted after `entityId`, wrapping to 0.
+   * A dead target is not in the list, so ← and → step from where it would sit
+   * rather than from the ends.
+   */
+  private slotAfter(entityId: string): number {
+    const at = this.alivePlayerIds.findIndex((id) => id > entityId);
+    return at === -1 ? 0 : at;
+  }
+
+  /**
+   * Pick a new target when the current one leaves the match: a living
+   * player first, failing that anyone still here, so a moment when everyone
+   * is down does not drop the chase.
    */
   private autoSelectNext(): void {
-    if (this.alivePlayerIds.length === 0) {
-      this.targetEntityId = null;
-      return;
-    }
-    // Just select the first available player
-    this.targetEntityId = this.alivePlayerIds[0];
+    this.targetEntityId = this.alivePlayerIds[0] ?? [...this.presentIds].sort()[0] ?? null;
   }
 
   /**
@@ -215,6 +249,7 @@ export class SpectatorCycling {
   reset(): void {
     this.targetEntityId = null;
     this.alivePlayerIds = [];
+    this.presentIds.clear();
     this.playerNames.clear();
   }
 }
