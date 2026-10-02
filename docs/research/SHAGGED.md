@@ -9,7 +9,9 @@ host that suspends/restores the lobby game view, four panes (Babylon perspective
 and XY/XZ/YZ canvas projections), grid-aligned box drawing and movement,
 selection, undo/redo, `localStorage` drafts, numeric XYZ bounds and shader
 editing, duplication, recovered grid/zoom/tool/selection/camera state, and
-deterministic `brushDef` export. The Room Template creates six enclosing
+deterministic `brushDef` export. Brush drags now capture an explicit work-plane
+coordinate and one-grid thickness; a transient box and dimension readout
+appear in all three orthographic panes and the perspective scene. The Room Template creates six enclosing
 brushes and an `info_player_deathmatch` spawn for the eventual compiler check.
 Compile, status, and Playtest are visibly unavailable. A headless test
 parses exported source, but no MakeBSP executable was found locally and no

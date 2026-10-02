@@ -15,6 +15,7 @@ import "@babylonjs/core/Culling/ray";
 import { pickResizeEdge, type ResizeEdge, resizeBox } from "./EditorBoxTools";
 import { type BoxBrush, EditorDocument, type Vec3q } from "./EditorDocument";
 import { EditorDraftStore, type EditorViewState } from "./EditorDraftStore";
+import { drawBounds, moveBox } from "./EditorGesture";
 import { writeMap } from "./MapWriter";
 import { createRoomTemplate } from "./RoomTemplate";
 import "./editor.css";
@@ -32,6 +33,8 @@ type Gesture = {
   current: [number, number];
   brush?: BoxBrush;
   edge?: ResizeEdge;
+  workPlane: number;
+  grid: number;
 };
 
 function snap(n: number, grid: number): number {
@@ -48,6 +51,7 @@ export class EditorSession {
   private readonly camera: ArcRotateCamera;
   private readonly panes = new Map<Plane, HTMLCanvasElement>();
   private readonly meshes = new Map<string, Mesh>();
+  private ghost: Mesh | null = null;
   private readonly listeners = new AbortController();
   private readonly draftStore = new EditorDraftStore(localStorage);
   private readonly statusEl: HTMLElement;
@@ -56,6 +60,8 @@ export class EditorSession {
   private tool: "brush" | "select" = "brush";
   private grid = 16;
   private zoom = 1;
+  private workPlanes: Vec3q = { x: 0, y: 0, z: 0 };
+  private activePlane: Plane = "xy";
   private gesture: Gesture | null = null;
   private perspectiveStart: [number, number] | null = null;
   private viewSaveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -81,6 +87,8 @@ export class EditorSession {
       this.grid = restored.view.grid;
       this.zoom = restored.view.zoom;
       this.tool = restored.view.tool;
+      this.workPlanes = restored.view.workPlanes ?? this.workPlanes;
+      this.activePlane = restored.view.activePlane ?? this.activePlane;
       this.selectedId = this.document.snapshot().brushes.some((brush) => brush.id === restored.view?.selectedId)
         ? restored.view.selectedId
         : null;
@@ -116,6 +124,7 @@ export class EditorSession {
         <button data-action="brush">Brush (B)</button><button data-action="select">Select (V)</button>
         <button data-action="delete">Delete</button>
         <label>Grid <select data-grid><option>8</option><option selected>16</option><option>32</option><option>64</option></select></label>
+        <label>Work <span data-work-axis>Z</span> <input data-workplane type="number" step="1" value="0"></label>
         <span class="shagged__separator"></span>
         <button disabled title="MakeBSP service is not configured">Compile</button>
         <button disabled title="No compile job yet">Status: unavailable</button>
@@ -134,6 +143,7 @@ export class EditorSession {
     this.statusEl = this.root.querySelector(".shagged__status")!;
     this.inspector = this.root.querySelector(".shagged__inspector")!;
     this.root.querySelector<HTMLSelectElement>("[data-grid]")!.value = String(this.grid);
+    this.updateWorkPlaneControl();
 
     for (const plane of ["xy", "xz", "yz"] as const) {
       const pane = this.root.querySelector<HTMLCanvasElement>(`canvas[data-plane="${plane}"]`)!;
@@ -170,6 +180,22 @@ export class EditorSession {
       "change",
       (event) => {
         this.grid = Number((event.target as HTMLSelectElement).value);
+        this.draw();
+        this.trySaveView();
+      },
+      { signal: this.listeners.signal },
+    );
+    this.root.querySelector<HTMLInputElement>("[data-workplane]")!.addEventListener(
+      "change",
+      (event) => {
+        const value = Number((event.target as HTMLInputElement).value);
+        if (!Number.isFinite(value) || Math.abs(value) > 1_000_000) {
+          this.status("Work plane must be a finite coordinate within one million units");
+          this.updateWorkPlaneControl();
+          return;
+        }
+        this.workPlanes[AXES[this.activePlane].hidden] = snap(value, this.grid);
+        this.updateWorkPlaneControl();
         this.draw();
         this.trySaveView();
       },
@@ -227,6 +253,8 @@ export class EditorSession {
       zoom: this.zoom,
       tool: this.tool,
       selectedId: this.selectedId,
+      activePlane: this.activePlane,
+      workPlanes: { ...this.workPlanes },
       camera: {
         alpha: this.camera.alpha,
         beta: this.camera.beta,
@@ -248,13 +276,25 @@ export class EditorSession {
   dispose(): void {
     this.listeners.abort();
     if (this.viewSaveTimer) clearTimeout(this.viewSaveTimer);
+    this.disposeGhost();
     this.camera.detachControl();
     this.scene.dispose();
     this.root.remove();
   }
 
   private status(message: string): void {
-    this.statusEl.textContent = `${message} · ${this.document.snapshot().brushes.length} brushes · revision ${this.revision} · grid ${this.grid} · MakeBSP unavailable`;
+    const hidden = AXES[this.activePlane].hidden;
+    const preview = this.previewBrush();
+    const dimensions = preview
+      ? ` · preview ${preview.max.x - preview.min.x}×${preview.max.y - preview.min.y}×${preview.max.z - preview.min.z}`
+      : "";
+    this.statusEl.textContent = `${message} · ${this.document.snapshot().brushes.length} brushes · revision ${this.revision} · ${this.activePlane.toUpperCase()} work ${hidden.toUpperCase()}=${this.workPlanes[hidden]} · grid ${this.grid}${dimensions} · MakeBSP unavailable`;
+  }
+
+  private updateWorkPlaneControl(): void {
+    const hidden = AXES[this.activePlane].hidden;
+    this.root.querySelector("[data-work-axis]")!.textContent = hidden.toUpperCase();
+    this.root.querySelector<HTMLInputElement>("[data-workplane]")!.value = String(this.workPlanes[hidden]);
   }
 
   private action(action: string): void {
@@ -288,6 +328,7 @@ export class EditorSession {
           break;
         case "brush":
         case "select":
+          this.cancelGesture();
           this.tool = action;
           this.draw();
           this.trySaveView();
@@ -360,11 +401,11 @@ export class EditorSession {
     this.status("Exported source .map; compiler acceptance unverified");
   }
 
-  private coordinates(canvas: HTMLCanvasElement, event: PointerEvent): [number, number] {
+  private coordinates(canvas: HTMLCanvasElement, event: PointerEvent, grid = this.grid): [number, number] {
     const rect = canvas.getBoundingClientRect();
     return [
-      snap((event.clientX - rect.left - rect.width / 2) / this.zoom, this.grid),
-      snap((rect.height / 2 - (event.clientY - rect.top)) / this.zoom, this.grid),
+      snap((event.clientX - rect.left - rect.width / 2) / this.zoom, grid),
+      snap((rect.height / 2 - (event.clientY - rect.top)) / this.zoom, grid),
     ];
   }
 
@@ -403,6 +444,8 @@ export class EditorSession {
 
   private pointerDown(plane: Plane, event: PointerEvent): void {
     if (event.button !== 0) return;
+    this.activePlane = plane;
+    this.updateWorkPlaneControl();
     const pane = this.panes.get(plane)!;
     pane.setPointerCapture(event.pointerId);
     const start = this.coordinates(pane, event);
@@ -414,24 +457,42 @@ export class EditorSession {
       const axes = AXES[plane];
       const edge = hit ? pickResizeEdge(hit, axes.u, axes.v, start[0], start[1], 8 / this.zoom) : null;
       this.gesture = hit
-        ? { plane, mode: edge ? "resize" : "move", start, current: start, brush: hit, edge: edge ?? undefined }
+        ? {
+            plane,
+            mode: edge ? "resize" : "move",
+            start,
+            current: start,
+            brush: hit,
+            edge: edge ?? undefined,
+            workPlane: this.workPlanes[axes.hidden],
+            grid: this.grid,
+          }
         : null;
       this.rebuildMeshes();
       this.trySaveView();
-    } else this.gesture = { plane, mode: "draw", start, current: start };
+    } else
+      this.gesture = {
+        plane,
+        mode: "draw",
+        start,
+        current: start,
+        workPlane: this.workPlanes[AXES[plane].hidden],
+        grid: this.grid,
+      };
     this.draw();
+    this.trySaveView();
   }
 
   private pointerMove(plane: Plane, event: PointerEvent): void {
     if (!this.gesture || this.gesture.plane !== plane) return;
-    this.gesture.current = this.coordinates(this.panes.get(plane)!, event);
+    this.gesture.current = this.coordinates(this.panes.get(plane)!, event, this.gesture.grid);
     this.draw();
   }
 
   private pointerUp(plane: Plane, event: PointerEvent): void {
     const gesture = this.gesture;
     if (!gesture || gesture.plane !== plane) return;
-    gesture.current = this.coordinates(this.panes.get(plane)!, event);
+    gesture.current = this.coordinates(this.panes.get(plane)!, event, gesture.grid);
     this.gesture = null;
     const [u0, v0] = gesture.start;
     const [u1, v1] = gesture.current;
@@ -441,20 +502,13 @@ export class EditorSession {
     }
     const axes = AXES[plane];
     if (gesture.mode === "draw") {
-      if (u0 === u1 || v0 === v1) {
+      const bounds = drawBounds(axes, gesture.start, gesture.current, gesture.workPlane, gesture.grid);
+      if (!bounds) {
         this.status("Drag at least one grid cell in both axes");
         this.draw();
         return;
       }
-      const min: Vec3q = { x: 0, y: 0, z: 0 };
-      const max: Vec3q = { x: 0, y: 0, z: 0 };
-      min[axes.u] = Math.min(u0, u1);
-      max[axes.u] = Math.max(u0, u1);
-      min[axes.v] = Math.min(v0, v1);
-      max[axes.v] = Math.max(v0, v1);
-      min[axes.hidden] = 0;
-      max[axes.hidden] = 64;
-      const brush: BoxBrush = { id: crypto.randomUUID(), min, max, shader: "blx/blx_grid" };
+      const brush: BoxBrush = { id: crypto.randomUUID(), ...bounds, shader: "blx/blx_grid" };
       this.document.transact((data) => {
         data.brushes.push(brush);
       });
@@ -480,11 +534,8 @@ export class EditorSession {
       const dv = v1 - v0;
       const id = gesture.brush.id;
       this.document.transact((data) => {
-        const brush = data.brushes.find((item) => item.id === id)!;
-        brush.min[axes.u] += du;
-        brush.max[axes.u] += du;
-        brush.min[axes.v] += dv;
-        brush.max[axes.v] += dv;
+        const index = data.brushes.findIndex((item) => item.id === id);
+        data.brushes[index] = moveBox(gesture.brush!, axes, du, dv);
       });
     }
     this.changed();
@@ -562,8 +613,59 @@ export class EditorSession {
     }
   }
 
+  private previewBrush(): BoxBrush | null {
+    const gesture = this.gesture;
+    if (!gesture) return null;
+    const axes = AXES[gesture.plane];
+    if (gesture.mode === "draw") {
+      const bounds = drawBounds(axes, gesture.start, gesture.current, gesture.workPlane, gesture.grid);
+      return bounds ? { id: "gesture-preview", ...bounds, shader: "blx/blx_grid" } : null;
+    }
+    if (!gesture.brush) return null;
+    if (gesture.mode === "resize" && gesture.edge) {
+      const value = gesture.edge.axis === axes.u ? gesture.current[0] : gesture.current[1];
+      return resizeBox(gesture.brush, gesture.edge, value, gesture.grid);
+    }
+    return moveBox(gesture.brush, axes, gesture.current[0] - gesture.start[0], gesture.current[1] - gesture.start[1]);
+  }
+
+  private disposeGhost(): void {
+    if (!this.ghost) return;
+    this.ghost.material?.dispose();
+    this.ghost.dispose();
+    this.ghost = null;
+  }
+
+  private syncGhost(preview: BoxBrush | null): void {
+    for (const [id, mesh] of this.meshes) {
+      mesh.isVisible = !(this.gesture?.mode !== "draw" && this.gesture?.brush?.id === id && preview);
+    }
+    if (!preview) {
+      this.disposeGhost();
+      return;
+    }
+    if (!this.ghost) {
+      this.ghost = MeshBuilder.CreateBox("shagged-gesture-preview", { size: 1 }, this.scene);
+      this.ghost.isPickable = false;
+      const material = new StandardMaterial("shagged-gesture-material", this.scene);
+      material.diffuseColor = new Color3(1, 0.78, 0.17);
+      material.alpha = 0.35;
+      this.ghost.material = material;
+      this.ghost.enableEdgesRendering();
+      this.ghost.edgesWidth = 3;
+      this.ghost.edgesColor = new Color4(1, 0.85, 0.28, 1);
+    }
+    this.ghost.scaling.set(preview.max.x - preview.min.x, preview.max.z - preview.min.z, preview.max.y - preview.min.y);
+    this.ghost.position.set(
+      (preview.min.x + preview.max.x) / 2,
+      (preview.min.z + preview.max.z) / 2,
+      (preview.min.y + preview.max.y) / 2,
+    );
+  }
+
   private draw(): void {
     const data = this.document.snapshot();
+    const preview = this.previewBrush();
     for (const [plane, canvas] of this.panes) {
       const rect = canvas.getBoundingClientRect();
       if (!rect.width || !rect.height) continue;
@@ -621,40 +723,16 @@ export class EditorSession {
         }
       };
       for (const brush of data.brushes) {
-        if (this.gesture?.mode === "move" && this.gesture.brush?.id === brush.id) {
-          const moveAxes = AXES[this.gesture.plane];
-          const du = this.gesture.current[0] - this.gesture.start[0];
-          const dv = this.gesture.current[1] - this.gesture.start[1];
-          const min = {
-            ...brush.min,
-            [moveAxes.u]: brush.min[moveAxes.u] + du,
-            [moveAxes.v]: brush.min[moveAxes.v] + dv,
-          };
-          const max = {
-            ...brush.max,
-            [moveAxes.u]: brush.max[moveAxes.u] + du,
-            [moveAxes.v]: brush.max[moveAxes.v] + dv,
-          };
-          paint(min, max, true);
-        } else if (this.gesture?.mode === "resize" && this.gesture.brush?.id === brush.id && this.gesture.edge) {
-          const moveAxes = AXES[this.gesture.plane];
-          const value = this.gesture.edge.axis === moveAxes.u ? this.gesture.current[0] : this.gesture.current[1];
-          const candidate = resizeBox(brush, this.gesture.edge, value, this.grid);
-          paint(candidate.min, candidate.max, true);
-        } else paint(brush.min, brush.max, brush.id === this.selectedId);
+        const edited = this.gesture?.mode !== "draw" && this.gesture?.brush?.id === brush.id && preview;
+        paint(
+          edited ? preview.min : brush.min,
+          edited ? preview.max : brush.max,
+          !!edited || brush.id === this.selectedId,
+        );
       }
-      if (this.gesture?.plane === plane && this.gesture.mode === "draw") {
-        const [u0, v0] = this.gesture.start;
-        const [u1, v1] = this.gesture.current;
-        const min: Vec3q = { x: 0, y: 0, z: 0 };
-        const max: Vec3q = { x: 64, y: 64, z: 64 };
-        min[axes.u] = Math.min(u0, u1);
-        max[axes.u] = Math.max(u0, u1);
-        min[axes.v] = Math.min(v0, v1);
-        max[axes.v] = Math.max(v0, v1);
-        paint(min, max, true);
-      }
+      if (this.gesture?.mode === "draw" && preview) paint(preview.min, preview.max, true);
     }
+    this.syncGhost(preview);
     const selected = data.brushes.find((brush) => brush.id === this.selectedId);
     if (selected) {
       this.inspector.innerHTML = `<h2>Brush <code data-brush-id></code></h2>

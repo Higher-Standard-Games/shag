@@ -10,6 +10,8 @@ export interface EditorViewState {
   zoom: number;
   tool: "brush" | "select";
   selectedId: string | null;
+  activePlane?: "xy" | "xz" | "yz";
+  workPlanes?: Vec3q;
   camera: { alpha: number; beta: number; radius: number; target: Vec3q };
 }
 
@@ -25,6 +27,12 @@ function validView(value: unknown): value is EditorViewState {
     state.zoom <= 4 &&
     ["brush", "select"].includes(state.tool) &&
     (state.selectedId === null || typeof state.selectedId === "string") &&
+    (state.activePlane === undefined || ["xy", "xz", "yz"].includes(state.activePlane)) &&
+    (state.workPlanes === undefined ||
+      (!!state.workPlanes &&
+        (["x", "y", "z"] as const).every(
+          (axis) => Number.isFinite(state.workPlanes![axis]) && Math.abs(state.workPlanes![axis]) <= 1_000_000,
+        ))) &&
     !!camera &&
     Number.isFinite(camera.alpha) &&
     Number.isFinite(camera.beta) &&

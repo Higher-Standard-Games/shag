@@ -41,13 +41,17 @@
   letter-spacing: 0.12em;
 }
 .shagged__toolbar button,
-.shagged__toolbar select {
+.shagged__toolbar select,
+.shagged__toolbar input {
   background: #21304c;
   color: #e8fbff;
   border: 1px solid #47768b;
   padding: 7px 9px;
   cursor: pointer;
   font: inherit;
+}
+.shagged__toolbar input[data-workplane] {
+  width: 68px;
 }
 .shagged__toolbar button:hover,
 .shagged__toolbar button.active {

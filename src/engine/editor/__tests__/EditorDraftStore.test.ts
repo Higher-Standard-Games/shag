@@ -18,6 +18,8 @@ const view: EditorViewState = {
   zoom: 2,
   tool: "select",
   selectedId: "box-1",
+  activePlane: "xz",
+  workPlanes: { x: 16, y: 128, z: 32 },
   camera: { alpha: 1, beta: 1.2, radius: 800, target: { x: 16, y: 32, z: 48 } },
 };
 

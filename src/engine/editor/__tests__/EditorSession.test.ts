@@ -80,6 +80,24 @@ describe("editor DOM shell", () => {
     expect(edited.shader).toBe("blx/blx_dark");
     restored.root.querySelector<HTMLButtonElement>('[data-action="undo"]')!.click();
     expect(restored.document.snapshot().brushes.find((brush) => brush.id === original.id)).toEqual(original);
+
+    restored.root.querySelector<HTMLButtonElement>('[data-action="new"]')!.click();
+    restored.root.querySelector<HTMLButtonElement>('[data-action="brush"]')!.click();
+    const work = restored.root.querySelector<HTMLInputElement>("[data-workplane]")!;
+    work.value = "128";
+    work.dispatchEvent(new Event("change"));
+    const xy = restored.root.querySelector<HTMLCanvasElement>('[data-plane="xy"]')!;
+    context.strokeRect.mockClear();
+    xy.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, button: 0, clientX: 200, clientY: 150 }));
+    xy.dispatchEvent(new MouseEvent("pointermove", { bubbles: true, button: 0, clientX: 264, clientY: 86 }));
+    expect(restored.document.snapshot().brushes).toHaveLength(0);
+    expect(context.strokeRect).toHaveBeenCalledTimes(3);
+    const ghost = engine.scenes[0].getMeshByName("shagged-gesture-preview");
+    expect(ghost?.position.y).toBe(136);
+    xy.dispatchEvent(new MouseEvent("pointerup", { bubbles: true, button: 0, clientX: 264, clientY: 86 }));
+    expect(restored.document.snapshot().brushes[0].min.z).toBe(128);
+    expect(restored.document.snapshot().brushes[0].max.z).toBe(144);
+    expect(engine.scenes[0].getMeshByName("shagged-gesture-preview")).toBeNull();
     restored.dispose();
     engine.dispose();
   });
