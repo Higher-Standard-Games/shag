@@ -6,7 +6,9 @@
  * can't reach.
  */
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { CommandRegistry } from "../../console/CommandRegistry";
+import HelpCommand from "../../console/commands/HelpCommand";
 import { DebugConsole } from "../DebugConsole";
 
 function buttons(console_: HTMLElement) {
@@ -17,6 +19,13 @@ function buttons(console_: HTMLElement) {
     clear: console_.querySelector<HTMLButtonElement>(".console-clear-btn")!,
   };
 }
+
+// "help" is registered by the commands/ auto-discovery loader
+// (registerEngineCommands()) in the running app, not by DebugConsole itself —
+// register it the same way here, since the hover-help tests below exercise it.
+beforeEach(() => {
+  CommandRegistry.getInstance().register(new HelpCommand());
+});
 
 afterEach(() => {
   DebugConsole.getInstance().disable();
@@ -33,6 +42,13 @@ describe("DebugConsole action buttons", () => {
     expect(row.contains(help)).toBe(true);
     expect(row.contains(size)).toBe(true);
     expect(row.contains(clear)).toBe(true);
+
+    // Same widget the main menu's own buttons use (RaisedKey), not a
+    // console-only <button> — the "ink" face for the console's dark bg.
+    for (const button of [inspect, help, size, clear]) {
+      expect(button.classList.contains("raised-key")).toBe(true);
+      expect(button.classList.contains("raised-key--ink")).toBe(true);
+    }
   });
 
   it("cycles con_size 50% → 75% → 100% → 50% on repeated clicks", () => {

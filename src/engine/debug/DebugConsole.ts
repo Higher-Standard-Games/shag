@@ -12,6 +12,7 @@
 import { CommandRegistry } from "../console/CommandRegistry";
 import { Cvar } from "../core/Cvar";
 import { EngineVersion } from "../core/EngineVersion";
+import { createRaisedKey } from "../ui/components/RaisedKey";
 import { DeveloperBar } from "./DeveloperBar";
 import "./debug-console.css";
 
@@ -200,15 +201,12 @@ export class DebugConsole {
     this.container.className = "debug-console";
     this.container.innerHTML = `
       <div class="debug-console-header">
-        <span class="debug-console-title">${EngineVersion.getInstance().getEngineName()} Console</span>
-        <span class="debug-console-version">${EngineVersion.getInstance().getVersionString()} "${EngineVersion.getInstance().getRandomQuote()}"</span>
-        <span class="debug-console-close" title="Close console">✕</span>
-      </div>
-      <div class="debug-console-actions">
-        <button class="console-action-btn console-inspect-btn" title="Run: inspect">inspect</button>
-        <button class="console-action-btn console-help-btn" title="Run: help">help</button>
-        <button class="console-action-btn console-size-btn" title="Cycle console size">size</button>
-        <button class="console-action-btn console-clear-btn" title="Run: clear">clear</button>
+        <div class="debug-console-header-top">
+          <span class="debug-console-title">${EngineVersion.getInstance().getEngineName()} Console</span>
+          <span class="debug-console-version">${EngineVersion.getInstance().getVersionString()} "${EngineVersion.getInstance().getRandomQuote()}"</span>
+          <span class="debug-console-close" title="Close console">✕</span>
+        </div>
+        <div class="debug-console-actions"></div>
       </div>
       <div class="debug-console-output"></div>
       <div class="debug-console-input-container">
@@ -249,9 +247,23 @@ export class DebugConsole {
     const closeBtn = this.container.querySelector(".debug-console-close");
     closeBtn?.addEventListener("click", () => this.toggle());
 
-    // Inspect button — runs "inspect" command
-    const inspectBtn = this.container.querySelector(".console-inspect-btn");
-    inspectBtn?.addEventListener("click", () => {
+    this.createActionButtons();
+  }
+
+  /**
+   * Action row: the same raised-key widget the main menu's own buttons use
+   * (`src/engine/ui/components/RaisedKey.ts`), so the console's buttons read
+   * as the same product instead of a themed `<button>` of their own. The
+   * "ink" variant is the dark, gold-lettered face — the one meant to sit on
+   * a dark background, which the console always is.
+   */
+  private createActionButtons(): void {
+    const row = this.container?.querySelector<HTMLDivElement>(".debug-console-actions");
+    if (!row) return;
+
+    const inspectBtn = createRaisedKey({ label: "Inspect", variants: ["sm", "inline", "ink"] });
+    inspectBtn.title = "Run: inspect";
+    inspectBtn.addEventListener("click", () => {
       this.log("command", "inspect");
       CommandRegistry.getInstance()
         .execute("inspect")
@@ -260,23 +272,28 @@ export class DebugConsole {
         });
     });
 
-    // Help button — runs "help" (the full command listing)
-    const helpBtn = this.container.querySelector(".console-help-btn");
-    helpBtn?.addEventListener("click", () => this.executeCommand("help"));
+    const helpBtn = createRaisedKey({ label: "Help", variants: ["sm", "inline", "ink"] });
+    helpBtn.classList.add("console-help-btn");
+    helpBtn.title = "Run: help";
+    helpBtn.addEventListener("click", () => this.executeCommand("help"));
 
-    // Clear button — runs "clear"
-    const clearBtn = this.container.querySelector(".console-clear-btn");
-    clearBtn?.addEventListener("click", () => this.executeCommand("clear"));
-
-    // Size button — cycles con_size through a few comfortable heights
-    const sizeBtn = this.container.querySelector(".console-size-btn");
-    sizeBtn?.addEventListener("click", () => {
+    const sizeBtn = createRaisedKey({ label: "Size", variants: ["sm", "inline", "ink"] });
+    sizeBtn.title = "Cycle console size";
+    sizeBtn.addEventListener("click", () => {
       const sizes = [0.5, 0.75, 1.0];
       const current = sizes.findIndex((s) => Math.abs(s - this.consoleSize) < 0.01);
       const next = sizes[(current + 1) % sizes.length];
       this.log("command", `con_size ${next}`);
       this.log("result", this.setSize(next));
     });
+
+    const clearBtn = createRaisedKey({ label: "Clear", variants: ["sm", "inline", "ink"] });
+    clearBtn.addEventListener("click", () => this.executeCommand("clear"));
+
+    inspectBtn.classList.add("console-inspect-btn");
+    sizeBtn.classList.add("console-size-btn");
+    clearBtn.classList.add("console-clear-btn");
+    row.append(inspectBtn, helpBtn, sizeBtn, clearBtn);
   }
 
   /**
@@ -907,135 +924,10 @@ export class DebugConsole {
   private registerBuiltinCommands(): void {
     const registry = CommandRegistry.getInstance();
 
-    // Help command
-    registry.register("help", (args) => {
-      if (args.length > 0) {
-        const name = args[0].toLowerCase();
-
-        // Check if it's a cvar - show detailed cvar info
-        if (registry.isCvar(name)) {
-          const cvar = Cvar.getCvar(name);
-          if (cvar) {
-            let help = `<span class="hl-command">${cvar.name}</span> - ${cvar.description || "Console variable"}\n`;
-            help += `<span class="hl-label">Type:</span> <span class="hl-string">${cvar.type}</span>\n`;
-            help += `<span class="hl-label">Value:</span> <span class="hl-number">${cvar.value}</span>`;
-            if (cvar.value !== cvar.defaultValue) {
-              help += ` <span class="hl-label">(default: ${cvar.defaultValue})</span>`;
-            }
-            help += "\n";
-            if (cvar.min !== undefined || cvar.max !== undefined) {
-              help += `<span class="hl-label">Range:</span> <span class="hl-number">${cvar.min ?? "-∞"}</span> to <span class="hl-number">${cvar.max ?? "∞"}</span>\n`;
-            }
-            help += `<span class="hl-label">Usage:</span> <span class="hl-string">${name} [value]</span>`;
-            return help;
-          }
-        }
-
-        const def = registry.getDefinition(name);
-        if (!def) {
-          return `Unknown command: ${name}`;
-        }
-
-        let help = `<span class="hl-command">${def.name}</span> - ${def.description}\n`;
-        if (def.usage) {
-          help += `<span class="hl-label">Usage:</span> <span class="hl-string">${def.usage}</span>\n`;
-        }
-        if (def.subcommands) {
-          help += '<span class="hl-label">Subcommands:</span>\n';
-          for (const sub of def.subcommands) {
-            help += `  <span class="hl-command">${sub.name.padEnd(12)}</span> ${sub.description}\n`;
-          }
-        }
-        return help.trim();
-      }
-
-      const defs = registry.getAllDefinitions();
-
-      // Sort commands alphabetically
-      const sortedDefs = [...defs].sort((a, b) => a.name.localeCompare(b.name));
-
-      // Group by category (infer from name patterns)
-      const categories: Record<string, typeof sortedDefs> = {
-        System: [],
-        Cvars: [],
-        Game: [],
-        Debug: [],
-        Other: [],
-      };
-
-      // Cvar management commands
-      const cvarCommands = ["cvarlist", "toggle", "reset", "resetall", "set", "cvarexport"];
-
-      for (const def of sortedDefs) {
-        const name = def.name.toLowerCase();
-
-        // Skip cvars in main help - too many. Show cvar management commands instead.
-        if (registry.isCvar(name)) {
-          continue;
-        }
-
-        if (["help", "clear", "version", "con_size", "console_debug"].includes(name)) {
-          categories.System.push(def);
-        } else if (cvarCommands.includes(name)) {
-          categories.Cvars.push(def);
-        } else if (
-          [
-            "debug",
-            "camera",
-            "map",
-            "weather",
-            "wind",
-            "audio",
-            "time",
-            "export",
-            "shader",
-            "bsp",
-            "pvs",
-            "fog",
-            "pk3",
-            "mem",
-            "scene",
-            "ui",
-            "hud",
-            "show_fps",
-            "freefly_speed",
-            "freefly_collision",
-          ].includes(name)
-        ) {
-          categories.Debug.push(def);
-        } else if (
-          ["game", "plant", "quest", "spawn", "give", "save", "load", "teleport", "unlock", "custom"].includes(name)
-        ) {
-          categories.Game.push(def);
-        } else {
-          categories.Other.push(def);
-        }
-      }
-
-      let help = '<span class="hl-label">═══════════════════════════════════════</span>\n';
-      help += '<span class="hl-string">           CONSOLE COMMANDS</span>\n';
-      help += '<span class="hl-label">═══════════════════════════════════════</span>\n\n';
-
-      for (const [category, cmds] of Object.entries(categories)) {
-        if (cmds.length === 0) continue;
-
-        help += `<span class="hl-label">▸ ${category}</span>\n`;
-        for (const def of cmds) {
-          help += `  <span class="clickable-cmd console-help-term" data-cmd="${def.name}" data-help-cmd="${def.name}">${def.name.padEnd(14)}</span> ${def.description}\n`;
-        }
-        help += "\n";
-      }
-
-      // Add cvar hint
-      help += '<span class="hl-label">▸ Console Variables</span>\n';
-      help += '  Use <span class="hl-command">cvarlist</span> to see all cvars (r_*, s_*, g_*)\n';
-      help += '  Use <span class="hl-command">help &lt;cvar&gt;</span> for cvar details\n\n';
-
-      help += '<span class="hl-label">───────────────────────────────────────</span>\n';
-      help += 'Type <span class="hl-command">help &lt;command&gt;</span> for detailed info.\n';
-      help += 'Use <span class="hl-command">Tab</span> for autocomplete.';
-      return help;
-    });
+    // "help" is HelpCommand.ts (commands/ auto-discovery), not registered
+    // here — see that file's header for why a second one here would be a
+    // silent no-op (CommandRegistry keeps one entry per name, and
+    // registerEngineCommands() runs after this method).
 
     // Clear command
     registry.register("clear", () => {
