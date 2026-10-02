@@ -598,6 +598,13 @@ export class ProjectileManager {
     const toRemove: string[] = [];
 
     for (const proj of this.projectiles) {
+      // A map unload disposes every scene mesh, ours included. A projectile
+      // whose node is gone is gone; ticking it would update a disposed ribbon.
+      if (proj.node.isDisposed()) {
+        toRemove.push(proj.id);
+        continue;
+      }
+
       // Check lifetime — but skip for server-driven projectiles, whose lifecycle
       // is controlled by snapshots (despawnByEntityId when entity disappears)
       const age = now - proj.spawnTime;

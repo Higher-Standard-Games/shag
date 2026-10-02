@@ -34,6 +34,47 @@ interface Disposable {
   dispose: () => void;
 }
 
+/** Longest wait for a rendered frame. A stopped render loop draws nothing that could still need a retired light. */
+const RETIRE_FRAME_TIMEOUT_MS = 250;
+
+/** The next rendered frame, or the timeout; the observer is removed either way. */
+function nextRenderedFrame(scene: Scene): Promise<void> {
+  return new Promise<void>((resolve) => {
+    const timer = setTimeout(() => {
+      scene.onAfterRenderObservable.remove(observer);
+      resolve();
+    }, RETIRE_FRAME_TIMEOUT_MS);
+    const observer = scene.onAfterRenderObservable.addOnce(() => {
+      clearTimeout(timer);
+      resolve();
+    });
+  });
+}
+
+/**
+ * Dispose a temporary compile light only once nothing on the GPU still uses it.
+ *
+ * Disposing destroys the light's uniform buffer at once. A draw already
+ * recorded with that buffer but not yet submitted then fails WebGPU validation
+ * ("used in submit while destroyed") and the frame is lost. Disabled first, the
+ * materials rebuild without the light while its buffer still exists. It is
+ * disposed after two rendered frames and the GPU's queue has drained.
+ */
+export async function retireTemporaryLight(scene: Scene, light: PointLight): Promise<void> {
+  light.setEnabled(false);
+  try {
+    await nextRenderedFrame(scene);
+    await nextRenderedFrame(scene);
+    const engine = scene.getEngine() as {
+      isWebGPU?: boolean;
+      _device?: { queue: { onSubmittedWorkDone(): Promise<void> } };
+    };
+    if (engine.isWebGPU) await engine._device?.queue.onSubmittedWorkDone();
+  } finally {
+    light.dispose();
+  }
+}
+
 /**
  * Pre-compile all effect shader permutations so they're cached before gameplay.
  * Call this during map load, after lightmaps are applied but BEFORE
@@ -260,8 +301,8 @@ export async function preloadEffectShaders(scene: Scene): Promise<void> {
   // We target ALL StandardMaterials, not just BSP — pickup models, weapon
   // models, and other geometry also need the dynamic-light variant cached.
   //
-  // Let visible materials bind the temporary-light variant for one frame before
-  // disposing the light. Frame callbacks do not prove GPU command validation.
+  // Let visible materials bind the temporary-light variant for one frame, then
+  // retire the light (retireTemporaryLight) so no submitted draw outlives it.
   {
     // Create the effect dlight pool NOW, before force-compilation, so the
     // compiled shader variants include its 4 permanently-enabled lights.
@@ -313,7 +354,7 @@ export async function preloadEffectShaders(scene: Scene): Promise<void> {
           scene.onAfterRenderObservable.addOnce(() => resolve());
         });
       } finally {
-        tmpLight.dispose();
+        await retireTemporaryLight(scene, tmpLight);
       }
       console.log(
         `[EffectPreloader] Material force-compilation complete — ${matMeshMap.size + pbrMatMeshMap.size} materials`,
@@ -426,7 +467,7 @@ export async function revalidateMaterials(scene: Scene): Promise<void> {
         scene.onAfterRenderObservable.addOnce(() => resolve());
       });
     } finally {
-      tmpLight.dispose();
+      await retireTemporaryLight(scene, tmpLight);
     }
 
     // Wait one settle frame

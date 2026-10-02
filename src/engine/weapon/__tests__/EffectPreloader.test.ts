@@ -1,9 +1,12 @@
+import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
+import { PointLight } from "@babylonjs/core/Lights/pointLight";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder";
 import { Scene } from "@babylonjs/core/scene";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { preloadEffectShaders, revalidateMaterials } from "../EffectPreloader";
+import { preloadEffectShaders, retireTemporaryLight, revalidateMaterials } from "../EffectPreloader";
 
 // The persistent gameplay light pool is outside fixture compilation ownership.
 vi.mock("../PointLightPool", () => ({ getPointLightPool: () => ({ init: vi.fn() }) }));
@@ -109,6 +112,51 @@ describe("effect shader warmup", () => {
       expect(scene.meshes).toEqual([mesh]);
       expect(scene.onAfterRenderObservable.hasObservers()).toBe(false);
     } finally {
+      scene.dispose();
+      engine.dispose();
+    }
+  });
+
+  it("retires a compile light: disabled at once, disposed only after two rendered frames", async () => {
+    const engine = readyTextureEngine();
+    const scene = new Scene(engine);
+    new FreeCamera("camera", new Vector3(0, 0, -5), scene);
+    const mesh = CreateBox("world", {}, scene);
+    mesh.material = new StandardMaterial("world", scene);
+    const light = new PointLight("compile-light", Vector3.Zero(), scene);
+    const dispose = vi.spyOn(light, "dispose");
+    try {
+      const retired = retireTemporaryLight(scene, light);
+      // Out of the light set straight away, so the next frame rebuilds every
+      // material without it while its uniform buffer still exists.
+      expect(light.isEnabled()).toBe(false);
+      expect(mesh.lightSources).not.toContain(light);
+      scene.render();
+      await Promise.resolve();
+      expect(dispose).not.toHaveBeenCalled();
+      scene.render();
+      await retired;
+      expect(dispose).toHaveBeenCalledTimes(1);
+      expect(scene.lights).not.toContain(light);
+    } finally {
+      scene.dispose();
+      engine.dispose();
+    }
+  });
+
+  it("retires a compile light without frames when nothing renders", async () => {
+    vi.useFakeTimers();
+    const engine = readyTextureEngine();
+    const scene = new Scene(engine);
+    const light = new PointLight("compile-light", Vector3.Zero(), scene);
+    try {
+      const retired = retireTemporaryLight(scene, light);
+      await vi.advanceTimersByTimeAsync(500);
+      await retired;
+      expect(scene.lights).toHaveLength(0);
+      expect(scene.onAfterRenderObservable.hasObservers()).toBe(false);
+    } finally {
+      vi.useRealTimers();
       scene.dispose();
       engine.dispose();
     }

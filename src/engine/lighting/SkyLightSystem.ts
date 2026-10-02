@@ -207,8 +207,14 @@ export class SkyLightSystem {
    * Initialize the sky light system
    */
   public init(scene: Scene, config?: SkyLightConfig): void {
-    // If we are re-initializing on the same scene or a new scene, clean up old lights first
-    if (this.scene || this.sunLight) {
+    // The same scene with its lights alive keeps them. Recreating them puts new
+    // lights at the end of the scene's list, which shifts the light slots of
+    // every material that outlives a map change, such as the view weapon. For
+    // a frame those still draw with their old layout, and on WebGPU a light
+    // bound into a slot of another size fails validation and the frame is lost.
+    const alive = (light: { isDisposed(): boolean } | null) => !!light && !light.isDisposed();
+    const keep = this.scene === scene && alive(this.sunLight) && alive(this.moonLight) && alive(this.ambientLight);
+    if (!keep && (this.scene || this.sunLight)) {
       console.log("[SkyLightSystem] Re-initializing lights for scene...");
       this.reinitLights();
     }

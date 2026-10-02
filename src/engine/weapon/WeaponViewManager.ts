@@ -110,7 +110,9 @@ export class WeaponViewManager {
 
   /** Check if the weapon view manager has been initialized */
   public get isReady(): boolean {
-    return this.scene !== null && this.weaponRoot !== null;
+    // A map unload disposes every scene node, this view's root included,
+    // while the instance itself lives on. That view is not ready; init() rebuilds it.
+    return this.scene !== null && this.weaponRoot !== null && !this.weaponRoot.isDisposed();
   }
 
   /** Returns true if init() has been called. Guards all demo-side WVM calls. */
@@ -403,6 +405,10 @@ export class WeaponViewManager {
     // Scene instance, otherwise every join adds another per-frame update.
     this.disposeViewInfrastructure();
     this.scene = scene;
+    // A rebuilt view shows nothing until a weapon is loaded into it; keeping
+    // the old id would make the next load look like a no-op.
+    this._intendedWeaponId = null;
+    this.currentWeaponDef = null;
     this._visible = true;
     this._movementHidden = false;
     this.holsterAnim.reset();

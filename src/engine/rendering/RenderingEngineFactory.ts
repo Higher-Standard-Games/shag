@@ -56,11 +56,17 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-/** Babylon's modular WebGPU entry omits the DynamicTexture extension. */
+/**
+ * Babylon's modular WebGPU entry omits two extensions we use: DynamicTexture,
+ * and MultiRender, which the geometry buffer behind screen-space reflections
+ * needs (without it `r_ssr 1` fails to start on WebGPU only; WebGL gets its
+ * own multi-render extension through Babylon's imports).
+ */
 export async function loadWebGPUBackend() {
   const [{ WebGPUEngine }] = await Promise.all([
     import("@babylonjs/core/Engines/webgpuEngine"),
     import("@babylonjs/core/Engines/WebGPU/Extensions/engine.dynamicTexture"),
+    import("@babylonjs/core/Engines/WebGPU/Extensions/engine.multiRender"),
   ]);
   return WebGPUEngine;
 }

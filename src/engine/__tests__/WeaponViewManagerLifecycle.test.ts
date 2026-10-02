@@ -114,4 +114,28 @@ describe("WeaponViewManager demo lifecycle", () => {
       engine.dispose();
     }
   });
+
+  it("is not ready once a map unload disposed its root, and rebuilds showing no weapon", () => {
+    const engine = new NullEngine();
+    const scene = new Scene(engine);
+    const camera = new FreeCamera("main", Vector3.Zero(), scene);
+    const manager = new WeaponViewManager();
+    try {
+      manager.init(scene, camera);
+      expect(manager.isReady).toBe(true);
+      (manager as unknown as { _intendedWeaponId: string | null })._intendedWeaponId = "rlauncher";
+
+      // What a map change does to every scene node; the instance itself survives it.
+      scene.getTransformNodeByName("weaponView")!.dispose();
+      expect(manager.isReady).toBe(false);
+
+      manager.init(scene, camera);
+      expect(manager.isReady).toBe(true);
+      expect(manager.getDisplayedWeaponId()).toBeNull();
+    } finally {
+      manager.dispose();
+      scene.dispose();
+      engine.dispose();
+    }
+  });
 });

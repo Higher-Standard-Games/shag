@@ -30,6 +30,12 @@ describe("RenderingEngineFactory", () => {
     expect(WebGPUEngine.prototype.updateDynamicTexture).toBeTypeOf("function");
   });
 
+  it("registers the multi-render targets screen-space reflections need on WebGPU", async () => {
+    const WebGPUEngine = await loadWebGPUBackend();
+    expect(WebGPUEngine.prototype.createMultipleRenderTarget).toBeTypeOf("function");
+    expect(WebGPUEngine.prototype.bindAttachments).toBeTypeOf("function");
+  });
+
   it("resolves the persisted preference and honors session URL overrides", () => {
     expect(resolveRenderingBackend(false)).toBe("webgl2");
     expect(resolveRenderingBackend(true)).toBe("webgpu");

@@ -197,7 +197,9 @@ export class AmmoCounterDisplay {
   /** Paint the digit string into the DynamicTexture — transparent LCD digits. */
   private draw(digits: string): void {
     if (!this.texture) return;
-    const ctx = this.texture.getContext() as CanvasRenderingContext2D;
+    // A disposed DynamicTexture (a map unload takes the weapon's with it) has no canvas.
+    const ctx = this.texture.getContext() as CanvasRenderingContext2D | null;
+    if (!ctx) return;
     const { width, height } = this.texture.getSize();
     // Transparent background: the quad overlays the gun's own display recess, so
     // the digits sit ON that dark screen rather than on a painted opaque panel.

@@ -19,6 +19,7 @@ import { SSRRenderingPipeline } from "@babylonjs/core/PostProcesses/RenderPipeli
 import type { Scene } from "@babylonjs/core/scene";
 import { EventBus } from "../core/EventBus";
 import { QualityDetector } from "../core/QualityDetector";
+import { fixGeometryShaderWGSL } from "../rendering/BabylonShaderFixes";
 import RenderVars from "../rendering/RenderVars";
 
 const DEFAULT_STRENGTH = 0.4;
@@ -104,6 +105,7 @@ export class SSREffect {
       // StandardMaterial's prepass output references an undeclared `specularMapColor`
       // (Babylon bug) — breaking our specular-textured BSP surfaces. The geometry
       // buffer path avoids that entirely.
+      fixGeometryShaderWGSL();
       const pipeline = new SSRRenderingPipeline("ssr", this.scene, [camera], true);
       if (!pipeline.isSupported) {
         console.warn("[SSREffect] SSR not supported on this device");
