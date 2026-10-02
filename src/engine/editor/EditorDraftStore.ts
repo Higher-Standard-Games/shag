@@ -14,6 +14,7 @@ export interface EditorViewState {
   draftName?: string;
   activePlane?: "xy" | "xz" | "yz";
   workPlanes?: Vec3q;
+  viewCenter?: Vec3q;
   camera: { alpha: number; beta: number; radius: number; target: Vec3q };
 }
 
@@ -32,6 +33,8 @@ function validView(value: unknown): value is EditorViewState {
     (state.draftName === undefined ||
       (typeof state.draftName === "string" && state.draftName.trim().length > 0 && state.draftName.length <= 64)) &&
     (state.activePlane === undefined || ["xy", "xz", "yz"].includes(state.activePlane)) &&
+    (state.viewCenter === undefined ||
+      (!!state.viewCenter && (["x", "y", "z"] as const).every((axis) => Number.isFinite(state.viewCenter![axis])))) &&
     (state.workPlanes === undefined ||
       (!!state.workPlanes &&
         (["x", "y", "z"] as const).every(

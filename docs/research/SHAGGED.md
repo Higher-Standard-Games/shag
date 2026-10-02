@@ -21,6 +21,16 @@ smoke test covers perspective picking and the main editing controls. M1 is
 **not complete**: closed-room compiler acceptance and real-browser input/render
 QA still need work.
 
+Orthographic navigation now supports middle-drag pan and wheel zoom anchored
+under the cursor. M1 uses a shared Quake-space view center and zoom across the
+three projections, saved per draft; panning a visible axis moves it in the
+companion panes too. Frame (`F`) centers all views on the selected brush, or all
+brushes when nothing is selected. Frame All (`Shift+F`) always uses the whole
+document. Framing respects the current zoom limits (0.25–4 pixels per unit)
+and perspective radius limits (32–5000 units), so very large bounds may extend
+outside the view. `EditorViewTools.ts` keeps projection, pan, zoom-anchor, and
+combined-bounds calculations independent of Babylon and DOM.
+
 ## Decision
 
 A focused brush editor inside SHAG is viable. The first useful version should provide NetRadiant's four-view workspace (perspective plus XY top, XZ front, and YZ side), create and edit axis-aligned box brushes on a grid, and export a deterministic Quake-family `.map` source file. MakeBSP remains the compiler; SHAGGED produces source and offers an editor preview. M1 should prove a closed-room export compiles with MakeBSP through an offline fixture check; M3 adds the server compile jobs and proves SHAG can play the exact result.
@@ -343,7 +353,7 @@ These are proposed defaults, displayed as tooltips and in a small Help panel. Sh
 | Select / Brush tools | `V` / `B` | Switch the left-drag behavior in orthographic panes; active tool is visibly selected. |
 | Delete / Duplicate selection | `Delete` / `Ctrl/Cmd+D` | Remove or duplicate the selected brush as one undoable edit; no action with no selection. |
 | Grid size / Snap | Toolbar control; `[` / `]` for grid size | Choose power-of-two grid spacing and toggle snap; show the active value in each orthographic pane. |
-| Frame selection | `F` | Center the active pane on the selected brush; with no selection, frame all brushes. |
+| Frame selection / all | `F` / `Shift+F` | Center all views on the selected brush / all brushes; with no selection, `F` also frames all. Fit within the editor's zoom and camera-distance limits. |
 | Reset Layout / Help | Buttons | Restore the default pane split and show the shortcut/gesture reference. |
 | Compile / Compile Status / Playtest | Buttons only | Visible from M1 with the truthful unavailable states described above. |
 | Exit Editor | Button or `editor close` | Flush draft state, dispose the editor session, and restore the previous composition. |
@@ -369,7 +379,7 @@ Use a calm, low-glare workspace surface so grids, brush edges, and shader previe
 | Orthographic pane, Brush tool | Left drag | Create a box from the two visible snapped corners; the third axis uses that pane's work plane and thickness. |
 | Orthographic pane, Select tool | Left click / left drag on brush body | Select a brush / translate the selection in the two visible axes. Click empty space to clear selection. |
 | Selected brush edge/handle in an orthographic pane | Left drag | Resize the corresponding visible-axis bound; the other axes stay fixed. Numeric min/max fields handle exact hidden-axis edits. |
-| Any orthographic pane | Middle drag / wheel | Pan / zoom that pane, keeping the world point under the cursor stable when zooming. |
+| Any orthographic pane | Middle drag / wheel | Pan the linked view center / zoom the linked projections, keeping the active pane's world point under the cursor stable when zooming. |
 | Perspective pane | Left click / right drag / wheel | Select a visible brush / orbit the editor camera / dolly. Brush creation stays in orthographic panes for M1. |
 | Any active drag | `Escape` or pointer cancel | Drop the preview and return to the pre-drag document without a history entry. |
 

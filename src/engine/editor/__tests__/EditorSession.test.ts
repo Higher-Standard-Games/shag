@@ -2,7 +2,7 @@
 
 import type { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera";
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EditorSession } from "../EditorSession";
 
 const context = {
@@ -26,22 +26,24 @@ afterEach(() => {
   document.body.innerHTML = "";
 });
 
+beforeEach(() => {
+  HTMLCanvasElement.prototype.getContext = (() => context) as unknown as typeof HTMLCanvasElement.prototype.getContext;
+  HTMLCanvasElement.prototype.setPointerCapture = vi.fn();
+  HTMLElement.prototype.getBoundingClientRect = (() => ({
+    x: 0,
+    y: 0,
+    left: 0,
+    top: 0,
+    right: 400,
+    bottom: 300,
+    width: 400,
+    height: 300,
+    toJSON: () => ({}),
+  })) as typeof HTMLElement.prototype.getBoundingClientRect;
+});
+
 describe("editor DOM shell", () => {
   it("creates a room from the toolbar and recovers its draft and view", () => {
-    HTMLCanvasElement.prototype.getContext = (() =>
-      context) as unknown as typeof HTMLCanvasElement.prototype.getContext;
-    HTMLCanvasElement.prototype.setPointerCapture = vi.fn();
-    HTMLElement.prototype.getBoundingClientRect = (() => ({
-      x: 0,
-      y: 0,
-      left: 0,
-      top: 0,
-      right: 400,
-      bottom: 300,
-      width: 400,
-      height: 300,
-      toJSON: () => ({}),
-    })) as typeof HTMLElement.prototype.getBoundingClientRect;
     const engine = new NullEngine();
     const canvas = document.createElement("canvas");
     document.body.appendChild(canvas);
@@ -118,6 +120,43 @@ describe("editor DOM shell", () => {
     expect(name.value).toBe("Practice room");
     expect(work.value).toBe("128");
     restored.dispose();
+    engine.dispose();
+  });
+
+  it("pans, draws at the new center, frames, and restores navigation without changing map history", () => {
+    const engine = new NullEngine();
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    let session = new EditorSession(engine, canvas, vi.fn());
+    const pane = session.root.querySelector<HTMLCanvasElement>('[data-plane="xy"]')!;
+    const pointer = (type: string, x: number, y: number, button = 0) =>
+      pane.dispatchEvent(new MouseEvent(type, { bubbles: true, button, clientX: x, clientY: y }));
+    pointer("pointerdown", 200, 150, 1);
+    pointer("pointermove", 264, 182, 1);
+    pointer("pointerup", 264, 182, 1);
+    expect(session.document.canUndo).toBe(false);
+    pointer("pointerdown", 200, 150);
+    pointer("pointerup", 264, 86);
+    expect(session.document.snapshot().brushes[0]).toMatchObject({
+      min: { x: -64, y: 32, z: 0 },
+      max: { x: 0, y: 96, z: 16 },
+    });
+    const data = session.document.snapshot();
+    session.root.dispatchEvent(new KeyboardEvent("keydown", { key: "f", bubbles: true }));
+    const camera = engine.scenes[0].activeCamera as ArcRotateCamera;
+    expect(camera.target.asArray()).toEqual([-32, 8, 64]);
+    expect(session.document.snapshot()).toEqual(data);
+    const saved = JSON.parse(localStorage.getItem(`shagged:view:v1:${session.draftId}`)!);
+    expect(saved.viewCenter).toEqual({ x: -32, y: 64, z: 8 });
+    const id = session.draftId;
+    session.dispose();
+    session = new EditorSession(engine, canvas, vi.fn());
+    session.save();
+    expect(JSON.parse(localStorage.getItem(`shagged:view:v1:${id}`)!)).toMatchObject({
+      viewCenter: saved.viewCenter,
+      zoom: saved.zoom,
+    });
+    session.dispose();
     engine.dispose();
   });
 });

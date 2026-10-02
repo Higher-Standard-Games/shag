@@ -16,16 +16,18 @@ import { pickResizeEdge, type ResizeEdge, resizeBox } from "./EditorBoxTools";
 import { type BoxBrush, EditorDocument, type Vec3q } from "./EditorDocument";
 import { EditorDraftStore, type EditorViewState } from "./EditorDraftStore";
 import { drawBounds, moveBox } from "./EditorGesture";
+import {
+  PLANE_AXES as AXES,
+  brushBounds,
+  type EditorPlane as Plane,
+  panCenter,
+  paneToWorld,
+  zoomCenter,
+} from "./EditorViewTools";
 import { writeMap } from "./MapWriter";
 import { createRoomTemplate } from "./RoomTemplate";
 import "./editor.css";
 
-type Plane = "xy" | "xz" | "yz";
-const AXES: Record<Plane, { u: keyof Vec3q; v: keyof Vec3q; hidden: keyof Vec3q }> = {
-  xy: { u: "x", v: "y", hidden: "z" },
-  xz: { u: "x", v: "z", hidden: "y" },
-  yz: { u: "y", v: "z", hidden: "x" },
-};
 type Gesture = {
   plane: Plane;
   mode: "draw" | "move" | "resize";
@@ -61,6 +63,8 @@ export class EditorSession {
   private tool: "brush" | "select" = "brush";
   private grid = 16;
   private zoom = 1;
+  private viewCenter: Vec3q = { x: 0, y: 0, z: 0 };
+  private pan: { plane: Plane; x: number; y: number; center: Vec3q } | null = null;
   private workPlanes: Vec3q = { x: 0, y: 0, z: 0 };
   private activePlane: Plane = "xy";
   private gesture: Gesture | null = null;
@@ -108,6 +112,7 @@ export class EditorSession {
         <button data-action="undo">Undo</button><button data-action="redo">Redo</button>
         <button data-action="brush">Brush (B)</button><button data-action="select">Select (V)</button>
         <button data-action="delete">Delete</button>
+        <button data-action="frame-selection">Frame (F)</button><button data-action="frame-all">Frame All (Shift+F)</button>
         <label>Grid <select data-grid><option>8</option><option selected>16</option><option>32</option><option>64</option></select></label>
         <label>Work <span data-work-axis>Z</span> <input data-workplane type="number" step="1" value="0"></label>
         <span class="shagged__separator"></span>
@@ -151,7 +156,18 @@ export class EditorSession {
         "wheel",
         (event) => {
           event.preventDefault();
-          this.zoom = Math.max(0.25, Math.min(4, this.zoom * (event.deltaY > 0 ? 0.9 : 1.1)));
+          if (this.gesture || this.pan) return;
+          const rect = pane.getBoundingClientRect();
+          const zoom = Math.max(0.25, Math.min(4, this.zoom * (event.deltaY > 0 ? 0.9 : 1.1)));
+          this.viewCenter = zoomCenter(
+            plane,
+            this.viewCenter,
+            this.zoom,
+            zoom,
+            event.clientX - rect.left - rect.width / 2,
+            event.clientY - rect.top - rect.height / 2,
+          );
+          this.zoom = zoom;
           this.draw();
           this.trySaveView();
         },
@@ -256,6 +272,7 @@ export class EditorSession {
       draftName: this.draftName,
       activePlane: this.activePlane,
       workPlanes: { ...this.workPlanes },
+      viewCenter: { ...this.viewCenter },
       camera: {
         alpha: this.camera.alpha,
         beta: this.camera.beta,
@@ -301,6 +318,7 @@ export class EditorSession {
   private restoreView(view: EditorViewState | null): void {
     this.grid = view?.grid ?? 16;
     this.zoom = view?.zoom ?? 1;
+    this.viewCenter = { ...(view?.viewCenter ?? { x: 0, y: 0, z: 0 }) };
     this.tool = view?.tool ?? "brush";
     this.draftName = view?.draftName ?? "Untitled";
     this.workPlanes = { ...(view?.workPlanes ?? { x: 0, y: 0, z: 0 }) };
@@ -352,8 +370,13 @@ export class EditorSession {
   private action(action: string, draftId?: string): void {
     try {
       switch (action) {
+        case "frame-selection":
+        case "frame-all":
+          this.frame(action === "frame-all");
+          break;
         case "new":
           this.save();
+          this.cancelGesture();
           this.document = new EditorDocument();
           this.selectedId = null;
           this.draftName = "Untitled";
@@ -362,6 +385,7 @@ export class EditorSession {
           break;
         case "room":
           this.save();
+          this.cancelGesture();
           this.document = new EditorDocument(createRoomTemplate());
           this.selectedId = null;
           this.draftName = "Room Template";
@@ -454,6 +478,42 @@ export class EditorSession {
     if (key === "b") this.action("brush");
     else if (key === "v") this.action("select");
     else if (key === "delete") this.action("delete");
+    else if (key === "f") {
+      event.preventDefault();
+      event.stopPropagation();
+      this.action(event.shiftKey ? "frame-all" : "frame-selection");
+    }
+  }
+
+  private frame(all: boolean): void {
+    const brushes = this.document
+      .snapshot()
+      .brushes.filter((brush) => all || !this.selectedId || brush.id === this.selectedId);
+    const bounds = brushBounds(brushes);
+    if (!bounds) {
+      this.status(all ? "No brushes to frame" : "Select a brush to frame");
+      return;
+    }
+    this.cancelGesture();
+    this.viewCenter = bounds.center;
+    let zoom = 4;
+    for (const [plane, pane] of this.panes) {
+      const { width, height } = pane.getBoundingClientRect();
+      const axes = AXES[plane];
+      if (width > 0 && height > 0)
+        zoom = Math.min(zoom, (width * 0.8) / bounds.size[axes.u], (height * 0.8) / bounds.size[axes.v]);
+    }
+    this.zoom = Math.max(0.25, zoom);
+    this.camera.target = new Vector3(bounds.center.x, bounds.center.z, bounds.center.y);
+    const rect = this.root.querySelector<HTMLElement>(".shagged__pane--perspective")!.getBoundingClientRect();
+    const aspect = rect.width / Math.max(1, rect.height);
+    const halfFov = Math.min(this.camera.fov / 2, Math.atan(Math.tan(this.camera.fov / 2) * Math.max(0.1, aspect)));
+    this.camera.radius = Math.max(
+      32,
+      Math.min(5000, (Math.hypot(bounds.size.x, bounds.size.y, bounds.size.z) * 0.6) / Math.sin(halfFov)),
+    );
+    this.draw();
+    this.trySaveView();
   }
 
   private exportMap(): void {
@@ -467,12 +527,21 @@ export class EditorSession {
     this.status("Exported source .map; compiler acceptance unverified");
   }
 
-  private coordinates(canvas: HTMLCanvasElement, event: PointerEvent, grid = this.grid): [number, number] {
+  private coordinates(
+    plane: Plane,
+    canvas: HTMLCanvasElement,
+    event: PointerEvent,
+    grid = this.grid,
+  ): [number, number] {
     const rect = canvas.getBoundingClientRect();
-    return [
-      snap((event.clientX - rect.left - rect.width / 2) / this.zoom, grid),
-      snap((rect.height / 2 - (event.clientY - rect.top)) / this.zoom, grid),
-    ];
+    const [u, v] = paneToWorld(
+      plane,
+      this.viewCenter,
+      this.zoom,
+      event.clientX - rect.left - rect.width / 2,
+      event.clientY - rect.top - rect.height / 2,
+    );
+    return [snap(u, grid), snap(v, grid)];
   }
 
   private inPerspective(event: MouseEvent): boolean {
@@ -502,6 +571,7 @@ export class EditorSession {
       false,
       this.camera,
     );
+    this.root.focus();
     this.selectedId = pick?.hit ? (pick.pickedMesh?.name ?? null) : null;
     this.rebuildMeshes();
     this.draw();
@@ -509,12 +579,19 @@ export class EditorSession {
   }
 
   private pointerDown(plane: Plane, event: PointerEvent): void {
-    if (event.button !== 0) return;
+    if (event.button !== 0 && event.button !== 1) return;
+    if (this.gesture || this.pan) return;
+    event.preventDefault();
+    this.root.focus();
     this.activePlane = plane;
     this.updateWorkPlaneControl();
     const pane = this.panes.get(plane)!;
     pane.setPointerCapture(event.pointerId);
-    const start = this.coordinates(pane, event);
+    if (event.button === 1) {
+      this.pan = { plane, x: event.clientX, y: event.clientY, center: { ...this.viewCenter } };
+      return;
+    }
+    const start = this.coordinates(plane, pane, event);
     const hit = [...this.document.snapshot().brushes]
       .reverse()
       .find((brush) => inRect(start[0], start[1], brush, plane));
@@ -550,15 +627,33 @@ export class EditorSession {
   }
 
   private pointerMove(plane: Plane, event: PointerEvent): void {
+    if (this.pan?.plane === plane) {
+      this.viewCenter = panCenter(
+        plane,
+        this.pan.center,
+        this.zoom,
+        event.clientX - this.pan.x,
+        event.clientY - this.pan.y,
+      );
+      this.draw();
+      return;
+    }
     if (!this.gesture || this.gesture.plane !== plane) return;
-    this.gesture.current = this.coordinates(this.panes.get(plane)!, event, this.gesture.grid);
+    this.gesture.current = this.coordinates(plane, this.panes.get(plane)!, event, this.gesture.grid);
     this.draw();
   }
 
   private pointerUp(plane: Plane, event: PointerEvent): void {
+    if (this.pan?.plane === plane && event.button === 1) {
+      this.pointerMove(plane, event);
+      this.pan = null;
+      this.trySaveView();
+      return;
+    }
+    if (event.button !== 0) return;
     const gesture = this.gesture;
     if (!gesture || gesture.plane !== plane) return;
-    gesture.current = this.coordinates(this.panes.get(plane)!, event, gesture.grid);
+    gesture.current = this.coordinates(plane, this.panes.get(plane)!, event, gesture.grid);
     this.gesture = null;
     const [u0, v0] = gesture.start;
     const [u1, v1] = gesture.current;
@@ -609,6 +704,8 @@ export class EditorSession {
 
   private cancelGesture(): void {
     this.gesture = null;
+    if (this.pan) this.viewCenter = this.pan.center;
+    this.pan = null;
     this.draw();
   }
 
@@ -742,18 +839,21 @@ export class EditorSession {
       ctx.scale(dpr, dpr);
       const w = rect.width;
       const h = rect.height;
+      const axes = AXES[plane];
+      const originX = w / 2 - this.viewCenter[axes.u] * this.zoom;
+      const originY = h / 2 + this.viewCenter[axes.v] * this.zoom;
       ctx.fillStyle = "#101b31";
       ctx.fillRect(0, 0, w, h);
       const cell = this.grid * this.zoom;
       ctx.strokeStyle = "rgba(70, 150, 180, .17)";
       ctx.lineWidth = 1;
-      for (let x = (w / 2) % cell; x < w; x += cell) {
+      for (let x = ((originX % cell) + cell) % cell; x < w; x += cell) {
         ctx.beginPath();
         ctx.moveTo(x, 0);
         ctx.lineTo(x, h);
         ctx.stroke();
       }
-      for (let y = (h / 2) % cell; y < h; y += cell) {
+      for (let y = ((originY % cell) + cell) % cell; y < h; y += cell) {
         ctx.beginPath();
         ctx.moveTo(0, y);
         ctx.lineTo(w, y);
@@ -761,15 +861,14 @@ export class EditorSession {
       }
       ctx.strokeStyle = "rgba(0, 255, 255, .55)";
       ctx.beginPath();
-      ctx.moveTo(w / 2, 0);
-      ctx.lineTo(w / 2, h);
-      ctx.moveTo(0, h / 2);
-      ctx.lineTo(w, h / 2);
+      ctx.moveTo(originX, 0);
+      ctx.lineTo(originX, h);
+      ctx.moveTo(0, originY);
+      ctx.lineTo(w, originY);
       ctx.stroke();
-      const axes = AXES[plane];
       const paint = (min: Vec3q, max: Vec3q, selected: boolean) => {
-        const x = w / 2 + min[axes.u] * this.zoom;
-        const y = h / 2 - max[axes.v] * this.zoom;
+        const x = originX + min[axes.u] * this.zoom;
+        const y = originY - max[axes.v] * this.zoom;
         const rw = (max[axes.u] - min[axes.u]) * this.zoom;
         const rh = (max[axes.v] - min[axes.v]) * this.zoom;
         ctx.fillStyle = selected ? "rgba(255,198,26,.36)" : "rgba(0,225,240,.25)";
