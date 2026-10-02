@@ -12,6 +12,7 @@
 import { CommandRegistry } from "../console/CommandRegistry";
 import { Cvar } from "../core/Cvar";
 import { EngineVersion } from "../core/EngineVersion";
+import { createRaisedKey } from "../ui/components/RaisedKey";
 import { DeveloperBar } from "./DeveloperBar";
 import "./debug-console.css";
 
@@ -35,6 +36,7 @@ export class DebugConsole {
   private outputEl: HTMLDivElement | null = null;
   private inputEl: HTMLInputElement | null = null;
   private autocompleteEl: HTMLDivElement | null = null;
+  private helpPopoverEl: HTMLDivElement | null = null;
 
   // State
   private commandHistory: string[] = [];
@@ -199,11 +201,13 @@ export class DebugConsole {
     this.container.className = "debug-console";
     this.container.innerHTML = `
       <div class="debug-console-header">
-        <span class="debug-console-title">${EngineVersion.getInstance().getEngineName()} Console</span>
-        <span class="debug-console-version">${EngineVersion.getInstance().getVersionString()} "${EngineVersion.getInstance().getRandomQuote()}"</span>
-        <span class="debug-console-close" title="Close console">✕</span>
+        <div class="debug-console-header-top">
+          <span class="debug-console-title">${EngineVersion.getInstance().getEngineName()} Console</span>
+          <span class="debug-console-version">${EngineVersion.getInstance().getVersionString()} "${EngineVersion.getInstance().getRandomQuote()}"</span>
+          <span class="debug-console-close" title="Close console">✕</span>
+        </div>
+        <div class="debug-console-actions"></div>
       </div>
-      <button class="console-inspect-btn" title="Run: inspect">inspect</button>
       <div class="debug-console-output"></div>
       <div class="debug-console-input-container">
         <span class="debug-console-prompt">></span>
@@ -234,6 +238,8 @@ export class DebugConsole {
       }
     });
 
+    this.setupHelpHover();
+
     // Apply saved console size
     this.applyConsoleSize();
 
@@ -241,9 +247,23 @@ export class DebugConsole {
     const closeBtn = this.container.querySelector(".debug-console-close");
     closeBtn?.addEventListener("click", () => this.toggle());
 
-    // Inspect button — runs "inspect" command
-    const inspectBtn = this.container.querySelector(".console-inspect-btn");
-    inspectBtn?.addEventListener("click", () => {
+    this.createActionButtons();
+  }
+
+  /**
+   * Action row: the same raised-key widget the main menu's own buttons use
+   * (`src/engine/ui/components/RaisedKey.ts`), so the console's buttons read
+   * as the same product instead of a themed `<button>` of their own. The
+   * "ink" variant is the dark, gold-lettered face — the one meant to sit on
+   * a dark background, which the console always is.
+   */
+  private createActionButtons(): void {
+    const row = this.container?.querySelector<HTMLDivElement>(".debug-console-actions");
+    if (!row) return;
+
+    const inspectBtn = createRaisedKey({ label: "Inspect", variants: ["sm", "inline", "ink"] });
+    inspectBtn.title = "Run: inspect";
+    inspectBtn.addEventListener("click", () => {
       this.log("command", "inspect");
       CommandRegistry.getInstance()
         .execute("inspect")
@@ -251,11 +271,88 @@ export class DebugConsole {
           if (result) this.log("result", result);
         });
     });
+
+    const helpBtn = createRaisedKey({ label: "Help", variants: ["sm", "inline", "ink"] });
+    helpBtn.classList.add("console-help-btn");
+    helpBtn.title = "Run: help";
+    helpBtn.addEventListener("click", () => this.executeCommand("help"));
+
+    const sizeBtn = createRaisedKey({ label: "Size", variants: ["sm", "inline", "ink"] });
+    sizeBtn.title = "Cycle console size";
+    sizeBtn.addEventListener("click", () => {
+      const sizes = [0.5, 0.75, 1.0];
+      const current = sizes.findIndex((s) => Math.abs(s - this.consoleSize) < 0.01);
+      const next = sizes[(current + 1) % sizes.length];
+      this.log("command", `con_size ${next}`);
+      this.log("result", this.setSize(next));
+    });
+
+    const clearBtn = createRaisedKey({ label: "Clear", variants: ["sm", "inline", "ink"] });
+    clearBtn.addEventListener("click", () => this.executeCommand("clear"));
+
+    inspectBtn.classList.add("console-inspect-btn");
+    sizeBtn.classList.add("console-size-btn");
+    clearBtn.classList.add("console-clear-btn");
+    row.append(inspectBtn, helpBtn, sizeBtn, clearBtn);
+  }
+
+  /**
+   * Delegated hover help: a `.console-help-term[data-help-cmd]` element in
+   * the output or autocomplete dropdown shows that command's full
+   * `help <command>` text in a floating popover. One listener pair handles
+   * every such element, present or future, instead of attaching one per
+   * span — `mouseover`/`mouseout` are used (not `mouseenter`/`mouseleave`,
+   * which don't bubble) so delegation on a static container works.
+   */
+  private setupHelpHover(): void {
+    if (!this.container) return;
+
+    this.helpPopoverEl = document.createElement("div");
+    this.helpPopoverEl.className = "console-help-popover";
+    document.body.appendChild(this.helpPopoverEl);
+
+    this.container.addEventListener("mouseover", (e) => {
+      const target = (e.target as HTMLElement).closest<HTMLElement>(".console-help-term");
+      if (!target) return;
+      this.showHelpPopover(target);
+    });
+
+    this.container.addEventListener("mouseout", (e) => {
+      const target = (e.target as HTMLElement).closest<HTMLElement>(".console-help-term");
+      const related = (e.relatedTarget as HTMLElement | null)?.closest<HTMLElement>(".console-help-term");
+      if (target && target !== related) {
+        this.hideHelpPopover();
+      }
+    });
+  }
+
+  private showHelpPopover(term: HTMLElement): void {
+    const cmd = term.getAttribute("data-help-cmd");
+    if (!cmd || !this.helpPopoverEl) return;
+
+    const text = CommandRegistry.getInstance().getHelp(cmd);
+    if (!text) return;
+
+    this.helpPopoverEl.textContent = text;
+    this.helpPopoverEl.classList.add("visible");
+
+    const rect = term.getBoundingClientRect();
+    const popover = this.helpPopoverEl;
+    // Measure after making it visible so offsetWidth/Height are real.
+    const maxLeft = window.innerWidth - popover.offsetWidth - 8;
+    popover.style.left = `${Math.max(8, Math.min(rect.left, maxLeft))}px`;
+    popover.style.top = `${rect.bottom + 6}px`;
+  }
+
+  private hideHelpPopover(): void {
+    this.helpPopoverEl?.classList.remove("visible");
   }
 
   private destroyDOM(): void {
     this.container?.remove();
     this.container = null;
+    this.helpPopoverEl?.remove();
+    this.helpPopoverEl = null;
     this.outputEl = null;
     this.inputEl = null;
     this.autocompleteEl = null;
@@ -601,9 +698,13 @@ export class DebugConsole {
             ? def?.subcommands?.find((s) => s.name === parts[1])?.description || ""
             : def?.description || "";
 
+        const hasHelp = Boolean(def) || registry.isCvar(cmdName);
+        const nameClass = hasHelp ? "autocomplete-item-name console-help-term" : "autocomplete-item-name";
+        const helpAttr = hasHelp ? ` data-help-cmd="${cmdName}"` : "";
+
         return `
         <div class="autocomplete-item${i === this.autocompleteIndex ? " selected" : ""}" data-index="${i}">
-          <span class="autocomplete-item-name">${item}</span>
+          <span class="${nameClass}"${helpAttr}>${item}</span>
           <span class="autocomplete-item-desc">${desc}</span>
         </div>
       `;
@@ -823,135 +924,10 @@ export class DebugConsole {
   private registerBuiltinCommands(): void {
     const registry = CommandRegistry.getInstance();
 
-    // Help command
-    registry.register("help", (args) => {
-      if (args.length > 0) {
-        const name = args[0].toLowerCase();
-
-        // Check if it's a cvar - show detailed cvar info
-        if (registry.isCvar(name)) {
-          const cvar = Cvar.getCvar(name);
-          if (cvar) {
-            let help = `<span class="hl-command">${cvar.name}</span> - ${cvar.description || "Console variable"}\n`;
-            help += `<span class="hl-label">Type:</span> <span class="hl-string">${cvar.type}</span>\n`;
-            help += `<span class="hl-label">Value:</span> <span class="hl-number">${cvar.value}</span>`;
-            if (cvar.value !== cvar.defaultValue) {
-              help += ` <span class="hl-label">(default: ${cvar.defaultValue})</span>`;
-            }
-            help += "\n";
-            if (cvar.min !== undefined || cvar.max !== undefined) {
-              help += `<span class="hl-label">Range:</span> <span class="hl-number">${cvar.min ?? "-∞"}</span> to <span class="hl-number">${cvar.max ?? "∞"}</span>\n`;
-            }
-            help += `<span class="hl-label">Usage:</span> <span class="hl-string">${name} [value]</span>`;
-            return help;
-          }
-        }
-
-        const def = registry.getDefinition(name);
-        if (!def) {
-          return `Unknown command: ${name}`;
-        }
-
-        let help = `<span class="hl-command">${def.name}</span> - ${def.description}\n`;
-        if (def.usage) {
-          help += `<span class="hl-label">Usage:</span> <span class="hl-string">${def.usage}</span>\n`;
-        }
-        if (def.subcommands) {
-          help += '<span class="hl-label">Subcommands:</span>\n';
-          for (const sub of def.subcommands) {
-            help += `  <span class="hl-command">${sub.name.padEnd(12)}</span> ${sub.description}\n`;
-          }
-        }
-        return help.trim();
-      }
-
-      const defs = registry.getAllDefinitions();
-
-      // Sort commands alphabetically
-      const sortedDefs = [...defs].sort((a, b) => a.name.localeCompare(b.name));
-
-      // Group by category (infer from name patterns)
-      const categories: Record<string, typeof sortedDefs> = {
-        System: [],
-        Cvars: [],
-        Game: [],
-        Debug: [],
-        Other: [],
-      };
-
-      // Cvar management commands
-      const cvarCommands = ["cvarlist", "toggle", "reset", "resetall", "set", "cvarexport"];
-
-      for (const def of sortedDefs) {
-        const name = def.name.toLowerCase();
-
-        // Skip cvars in main help - too many. Show cvar management commands instead.
-        if (registry.isCvar(name)) {
-          continue;
-        }
-
-        if (["help", "clear", "version", "con_size", "console_debug"].includes(name)) {
-          categories.System.push(def);
-        } else if (cvarCommands.includes(name)) {
-          categories.Cvars.push(def);
-        } else if (
-          [
-            "debug",
-            "camera",
-            "map",
-            "weather",
-            "wind",
-            "audio",
-            "time",
-            "export",
-            "shader",
-            "bsp",
-            "pvs",
-            "fog",
-            "pk3",
-            "mem",
-            "scene",
-            "ui",
-            "hud",
-            "show_fps",
-            "freefly_speed",
-            "freefly_collision",
-          ].includes(name)
-        ) {
-          categories.Debug.push(def);
-        } else if (
-          ["game", "plant", "quest", "spawn", "give", "save", "load", "teleport", "unlock", "custom"].includes(name)
-        ) {
-          categories.Game.push(def);
-        } else {
-          categories.Other.push(def);
-        }
-      }
-
-      let help = '<span class="hl-label">═══════════════════════════════════════</span>\n';
-      help += '<span class="hl-string">           CONSOLE COMMANDS</span>\n';
-      help += '<span class="hl-label">═══════════════════════════════════════</span>\n\n';
-
-      for (const [category, cmds] of Object.entries(categories)) {
-        if (cmds.length === 0) continue;
-
-        help += `<span class="hl-label">▸ ${category}</span>\n`;
-        for (const def of cmds) {
-          help += `  <span class="clickable-cmd" data-cmd="${def.name}" style="cursor:pointer;text-decoration:underline;color:#0ff;">${def.name.padEnd(14)}</span> ${def.description}\n`;
-        }
-        help += "\n";
-      }
-
-      // Add cvar hint
-      help += '<span class="hl-label">▸ Console Variables</span>\n';
-      help += '  Use <span class="hl-command">cvarlist</span> to see all cvars (r_*, s_*, g_*)\n';
-      help += '  Use <span class="hl-command">help &lt;cvar&gt;</span> for cvar details\n\n';
-
-      help += '<span class="hl-label">───────────────────────────────────────</span>\n';
-      help += 'Type <span class="hl-command">help &lt;command&gt;</span> for detailed info.\n';
-      help += 'Use <span class="hl-command">Tab</span> for autocomplete.';
-      return help;
-    });
+    // "help" is HelpCommand.ts (commands/ auto-discovery), not registered
+    // here — see that file's header for why a second one here would be a
+    // silent no-op (CommandRegistry keeps one entry per name, and
+    // registerEngineCommands() runs after this method).
 
     // Clear command
     registry.register("clear", () => {

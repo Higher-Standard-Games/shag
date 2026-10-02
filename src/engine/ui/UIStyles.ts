@@ -131,25 +131,32 @@ export class UIStyles {
   // ==================== Console Styles (SHAG Palette) ====================
 
   /**
-   * Console color scheme using SHAG logo palette.
-   * Games can override by calling UIStyles.setConsoleColors() before init.
+   * Console color scheme. Defaults are the Washiki HUD palette's hex
+   * equivalents (`--w-cyan`/`--w-magenta`/`--w-gold`, `WashikiTheme.css`) so
+   * the console matches the main menu and HUD without the two having to
+   * agree on a shared stylesheet. Each value below is also wrapped in
+   * `var(--w-*, <this value>)` by `getConsoleStyles()`, so once a game loads
+   * `WashikiTheme.css` the console re-themes automatically from the same
+   * `:root` tokens; the hex here is only the fallback for a host that never
+   * loads that theme. Games can still override directly with
+   * `UIStyles.setConsoleColors()` before `injectBase()`.
    */
   private static consoleColors = {
-    // Primary accent (teal from SHAG logo)
-    primary: "#2EC4B6",
-    primaryDim: "rgba(46, 196, 182, 0.4)",
-    primaryGlow: "rgba(46, 196, 182, 0.6)",
+    // Primary accent (Washiki cyan)
+    primary: "#00FFFF",
+    primaryDim: "rgba(0, 255, 255, 0.35)",
+    primaryGlow: "rgba(0, 255, 255, 0.6)",
 
-    // SHAG palette for variety
+    // Washiki palette for variety
     orange: "#E85D04",
-    yellow: "#FAC748",
-    teal: "#2EC4B6",
-    magenta: "#E040FB",
+    yellow: "#FFC61A",
+    teal: "#00FFFF",
+    magenta: "#FF33BB",
     green: "#4ADE80",
 
     // Semantic colors
     error: "#ff6b6b",
-    warn: "#FAC748",
+    warn: "#FFC61A",
     info: "#54a0ff",
     success: "#4ADE80",
 
@@ -159,8 +166,8 @@ export class UIStyles {
     textDim: "rgba(255, 255, 255, 0.4)",
 
     // Background
-    bg: "rgba(10, 12, 16, 0.95)",
-    bgHeader: "rgba(46, 196, 182, 0.15)",
+    bg: "rgba(10, 10, 15, 0.95)",
+    bgHeader: "rgba(0, 255, 255, 0.12)",
     bgInput: "rgba(0, 0, 0, 0.3)",
   };
 
@@ -181,31 +188,38 @@ export class UIStyles {
   private static getConsoleStyles(): string {
     const c = UIStyles.consoleColors;
     return `
-/* ==================== Console Color Variables ==================== */
+/* ==================== Console Color Variables ====================
+   Each wrapped in var(--w-*, <fallback>): once WashikiTheme.css sets the
+   --w-* tokens on :root, the console re-themes from them for free; a host
+   that never loads that theme keeps the fallback below. */
 :root {
-  /* Console primary accent */
-  --console-primary: ${c.primary};
+  /* Console primary accent (Washiki cyan) */
+  --console-primary: var(--w-cyan, ${c.primary});
   --console-primary-dim: ${c.primaryDim};
-  --console-primary-glow: ${c.primaryGlow};
-  
-  /* SHAG palette */
+  --console-primary-glow: var(--w-glow-cyan-sm, ${c.primaryGlow});
+
+  /* Washiki palette */
   --console-orange: ${c.orange};
-  --console-yellow: ${c.yellow};
-  --console-teal: ${c.teal};
-  --console-magenta: ${c.magenta};
+  --console-yellow: var(--w-gold, ${c.yellow});
+  --console-teal: var(--w-cyan, ${c.teal});
+  --console-magenta: var(--w-magenta, ${c.magenta});
   --console-green: ${c.green};
-  
+
   /* Semantic */
   --console-error: ${c.error};
-  --console-warn: ${c.warn};
+  --console-warn: var(--w-gold, ${c.warn});
   --console-info: ${c.info};
   --console-success: ${c.success};
-  
+
   /* Text */
   --console-text: ${c.text};
-  --console-text-bright: ${c.textBright};
-  --console-text-dim: ${c.textDim};
-  
+  --console-text-bright: var(--w-text, ${c.textBright});
+  --console-text-dim: var(--w-text-muted, ${c.textDim});
+
+  /* Chrome: font and the Washoi offset "print" shadow, at console scale */
+  --console-font-display: var(--w-font-display, "Share Tech Mono", monospace);
+  --console-shadow: var(--w-shadow-print-sm, 0 4px 20px rgba(0, 0, 0, 0.5));
+
   /* Backgrounds */
   --console-bg: ${c.bg};
   --console-bg-header: ${c.bgHeader};

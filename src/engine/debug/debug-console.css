@@ -23,7 +23,7 @@
   flex-direction: column;
   transform: translateY(-100%);
   transition: transform 0.2s ease-out;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--console-shadow, 0 4px 20px rgba(0, 0, 0, 0.5));
 }
 
 .debug-console.open {
@@ -45,36 +45,64 @@
   pointer-events: none;
 }
 
-/* Header bar */
+/* Header bar — a two-row toolbar: title/version/close, then the action row */
 .debug-console-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--console-bg-header, rgba(46, 196, 182, 0.15));
+  border-bottom: 2px solid var(--console-primary, #2ec4b6);
+  box-shadow: inset 0 -6px 10px -8px var(--console-primary-dim, rgba(46, 196, 182, 0.4));
+  flex-shrink: 0;
+  position: relative;
+}
+
+/* The gold/cyan/magenta print accent strip other Washiki panels open with */
+.debug-console-header::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    var(--console-yellow, #fac748),
+    var(--console-primary, #2ec4b6) 50%,
+    var(--console-magenta, #e040fb)
+  );
+}
+
+.debug-console-header-top {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 4px 10px;
-  background: var(--console-bg-header, rgba(46, 196, 182, 0.15));
-  border-bottom: 1px solid var(--console-primary-dim, rgba(46, 196, 182, 0.3));
-  flex-shrink: 0;
 }
 
 .debug-console-title {
   color: var(--console-primary, #2ec4b6);
-  font-weight: bold;
-  font-size: 11px;
+  font-family: var(--console-font-display, inherit);
+  font-weight: 900;
+  font-size: 15px;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 0.06em;
+  text-shadow: 1px 2px 0 rgba(0, 0, 0, 0.6);
 }
 
 .debug-console-version {
   color: var(--console-text-dim, rgba(255, 255, 255, 0.4));
   font-size: 10px;
   flex: 1;
+  margin-left: 10px;
 }
 
 .debug-console-close {
   color: var(--console-text-dim, rgba(255, 255, 255, 0.4));
-  font-size: 14px;
+  font-size: 16px;
+  font-weight: bold;
   cursor: pointer;
-  padding: 2px 6px;
+  padding: 2px 8px;
   border-radius: 3px;
   transition:
     color 0.15s,
@@ -86,6 +114,13 @@
 .debug-console-close:hover {
   color: var(--console-primary, #2ec4b6);
   background: rgba(255, 255, 255, 0.1);
+  box-shadow: var(--console-primary-glow, 0 0 8px rgba(46, 196, 182, 0.6));
+}
+
+.debug-console-actions {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
 }
 
 /* Output area */
@@ -159,16 +194,18 @@
 .debug-console-input-container {
   display: flex;
   align-items: center;
-  padding: 8px 10px;
+  padding: 10px 12px;
   background: var(--console-bg-input, rgba(0, 0, 0, 0.3));
-  border-top: 1px solid var(--console-primary-dim, rgba(46, 196, 182, 0.2));
+  border-top: 2px solid var(--console-primary, #2ec4b6);
   flex-shrink: 0;
 }
 
 .debug-console-prompt {
   color: var(--console-primary, #2ec4b6);
-  margin-right: 8px;
-  font-weight: bold;
+  margin-right: 10px;
+  font-size: 16px;
+  font-weight: 900;
+  text-shadow: 0 0 6px var(--console-primary-glow, rgba(46, 196, 182, 0.6));
 }
 
 .debug-console-input {
@@ -210,11 +247,13 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  border-left: 3px solid transparent;
 }
 
 .autocomplete-item:hover,
 .autocomplete-item.selected {
   background: var(--console-bg-header, rgba(46, 196, 182, 0.2));
+  border-left-color: var(--console-yellow, #fac748);
 }
 
 .autocomplete-item-name {
@@ -250,6 +289,12 @@
   font-weight: bold;
 }
 
+.clickable-cmd {
+  color: var(--console-primary, #2ec4b6);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
 /* Help formatting */
 .help-command {
   color: var(--console-primary, #2ec4b6);
@@ -273,58 +318,76 @@
   margin-right: 8px;
 }
 
-/* Inspect button — fixed at top-right of output area */
-.console-inspect-btn {
-  position: absolute;
-  top: 34px; /* just below the header bar */
-  right: 10px;
-  z-index: 1;
-  background: transparent;
-  border: 1px solid var(--console-primary-dim, rgba(46, 196, 182, 0.4));
-  color: var(--console-text-dim, rgba(255, 255, 255, 0.45));
-  font-family: "Share Tech Mono", "Consolas", "Monaco", "Courier New", monospace;
+/* The action row's own raised-key buttons read small, since four of them
+   share a header row; the "sm" variant is already compact, this trims it
+   further and keeps the row from growing the header too tall. */
+.debug-console-actions .raised-key--sm {
+  --key-d: 2.6px;
+  margin-bottom: 0;
+}
+
+.debug-console-actions .raised-key--sm .raised-key__face {
+  min-height: 30px;
+  padding: 6px 12px;
+}
+
+.debug-console-actions .raised-key--sm .raised-key__label {
   font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: lowercase;
-  padding: 2px 9px;
-  border-radius: 3px;
+}
+
+/* Keyword hover help — a command name in output or autocomplete that has a
+   popover with its full `help <command>` text. Gold, not the cyan used for
+   clickable things, so the two affordances read as different promises:
+   cyan runs it, gold explains it. */
+.console-help-term {
+  border-bottom: 1px dashed var(--console-yellow, #fac748);
+  cursor: help;
+  transition: text-shadow 0.12s;
+}
+
+/* A term that is also clickable (e.g. help's command list) keeps its own
+   cursor and drops the solid underline — the dashed one above is enough. */
+.clickable-cmd.console-help-term {
   cursor: pointer;
-  user-select: none;
-  transition:
-    color 0.12s,
-    border-color 0.12s,
-    background 0.12s;
+  text-decoration: none;
 }
 
-.console-inspect-btn::before {
-  content: "[ ";
-  color: var(--console-primary-dim, rgba(46, 196, 182, 0.4));
+.console-help-term:hover,
+.console-help-term.console-help-term--active {
+  text-shadow: 0 0 6px var(--console-yellow, #fac748);
 }
 
-.console-inspect-btn::after {
-  content: " ]";
-  color: var(--console-primary-dim, rgba(46, 196, 182, 0.4));
+.console-help-popover {
+  position: fixed;
+  z-index: 100000;
+  max-width: 360px;
+  background: linear-gradient(160deg, rgba(28, 24, 40, 0.98), rgba(12, 10, 18, 0.98));
+  border: 1px solid var(--console-yellow, #fac748);
+  border-radius: 4px;
+  box-shadow:
+    4px 5px 0 rgba(0, 0, 0, 0.5),
+    0 0 16px rgba(250, 199, 72, 0.15);
+  padding: 10px 12px;
+  color: var(--console-text-bright, #e8e8e8);
+  font-family: "Share Tech Mono", "Consolas", "Monaco", "Courier New", monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  pointer-events: none;
+  display: none;
 }
 
-.console-inspect-btn:hover {
-  color: var(--console-primary, #2ec4b6);
-  border-color: var(--console-primary, #2ec4b6);
-  background: rgba(46, 196, 182, 0.08);
+.console-help-popover::before {
+  content: "HELP";
+  display: block;
+  margin-bottom: 4px;
+  color: var(--console-yellow, #fac748);
+  font-family: var(--console-font-display, inherit);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.15em;
 }
 
-.console-inspect-btn:hover::before,
-.console-inspect-btn:hover::after {
-  color: var(--console-primary, #2ec4b6);
-}
-
-.console-inspect-btn:active {
-  background: var(--console-primary, #2ec4b6);
-  color: #0a0c10;
-  border-color: var(--console-primary, #2ec4b6);
-  transform: scale(0.94);
-}
-
-.console-inspect-btn:active::before,
-.console-inspect-btn:active::after {
-  color: #0a0c10;
+.console-help-popover.visible {
+  display: block;
 }
