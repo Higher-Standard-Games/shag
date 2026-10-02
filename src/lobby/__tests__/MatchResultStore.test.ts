@@ -156,6 +156,8 @@ describe("MatchResultStore", () => {
     expect(sent.at(-1)).toEqual({ type: "lobby:error", error: "Not authenticated. Send auth message first." });
   });
 
+  // Real lobby startup scans local demos and the socket must close cleanly;
+  // this round trip can exceed Vitest's 10-second default on a populated install.
   it("serves an authenticated ranking page over a real lobby WebSocket", async () => {
     results.record(match("socket-read", NOW, "win", "loss"));
     const lobby = new LobbyServer(0, new GameServerSpawner(), { players: accounts, results });
@@ -217,7 +219,7 @@ describe("MatchResultStore", () => {
       socket.close();
       await lobby.stop();
     }
-  });
+  }, 30_000);
 
   it("uses rolling 30 days, shared ranks, stable pages and current account names", () => {
     results.record(match("edge", NOW - 30 * DAY, "win", "loss"));
