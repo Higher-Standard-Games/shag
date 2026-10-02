@@ -1,6 +1,6 @@
 # SHAGGED — SHAG General Editor
 
-**Status:** active M1 implementation, 2026-10-02. Closed-room MakeBSP compile acceptance and real-browser interaction are now both verified; see the checkpoint below for what remains.
+**Status:** active M1 implementation, 2026-10-02. Closed-room MakeBSP compile acceptance, the light-grid warning's cause, real-browser interaction, and open/close/reopen hygiene are all now verified; see the checkpoint below for what remains (M2/M3 scope).
 
 ## Implementation checkpoint
 
@@ -27,13 +27,33 @@ end to end — `makebsp -game washoi -fs_basepath <public/data> -leaktest
 and the resulting `.bsp` loads cleanly through SHAG's own `BspLoader`
 (`npx vite-node src/cli/headless-bsp.ts info <file>` reports FBSP v1, 6
 faces, 1 model, as expected for a sealed six-brush room). This closes the
-M1 export-validity claim's compiler unknown. One finding to track rather
-than a blocker: `BspLoader` warns of a light-grid count mismatch (3 actual
-vs. 49 predicted from the map bounds) on this fixture, which has no light
-entities at all; the room still loads and the warning already exists for
-other maps, but it should be re-checked against a lit test room before
-fully closing the P0 gate, in case MakeLight's grid compression on an
-all-dark room is hiding a real exporter gap.
+M1 export-validity claim's compiler unknown.
+
+The light-grid count mismatch noted above is now explained and not an
+exporter defect: hand-adding one `"classname" "light"` entity to the same
+exported `.map` (SHAGGED has no light-entity authoring yet; this edit was
+made directly in the `.map` text, outside the editor) and recompiling
+changed `makelight`'s own log from `CompressGrid: 75 points compressed to
+1 unique points` to `75 points compressed to 75 unique points`, and
+`BspLoader`'s predicted-vs-actual gap narrowed from 3-vs-49 (94% off) to
+281-vs-294 (4% off) — a residual gap of the same size already seen on real
+shipped maps per prior `v0.9.25` validation notes, not something SHAGGED
+introduced. MakeLight collapses an all-dark room's grid to a single
+compressed sample; `BspLoader`'s dimension check doesn't know about that
+compression and warns, but the room still loads and lights correctly once
+it has any light source. No exporter change needed.
+
+**Open/close/reopen hygiene, verified (2026-10-02):** three full
+`editor open` → draw/Exit → `editor open` cycles in the same page left
+exactly one `.shagged` root and the expected five canvases (one main game
+canvas, one unrelated small lobby canvas, three orthographic panes) after
+each open, and exactly two after a final Exit — no duplicate roots or
+leaked canvases across repeated cycles. Every `EditorSession` listener is
+registered with `{ signal: this.listeners.signal }` against one
+`AbortController`, aborted once on `dispose()`, which is the code-level
+reason this holds up; not independently verified at the raw
+listener-count level (no DevTools `getEventListeners` access from a plain
+CDP `Runtime.evaluate`).
 
 **Real-browser interaction, verified (2026-10-02):** headless Edge over CDP
 confirmed `developer 1; editor open` opens the four-view editor from the
@@ -50,8 +70,8 @@ console's open/closed state is now left alone when the editor opens, like
 every other composition.
 
 M1 is **not fully complete**: general entity placement, face/UV editing, and
-the server-side Compile/Playtest loop (M2/M3 scope) have not started. The
-light-grid follow-up above is the one open compiler-side question.
+the server-side Compile/Playtest loop (M2/M3 scope) have not started. No open
+compiler-side question remains from the P0/M1 export-validity work above.
 
 Orthographic navigation now supports middle-drag pan and wheel zoom anchored
 under the cursor. M1 uses a shared Quake-space view center and zoom across the
