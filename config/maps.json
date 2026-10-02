@@ -14,6 +14,18 @@
       "ffa"
     ]
   },
+  "wdm11": {
+    "displayName": "WDM11",
+    "gametypes": [
+      "duel"
+    ]
+  },
+  "wdm12": {
+    "displayName": "WDM12",
+    "gametypes": [
+      "duel"
+    ]
+  },
   "wdm5": {
     "displayName": "Sinister",
     "gametypes": [
