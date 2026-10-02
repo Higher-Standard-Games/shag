@@ -131,6 +131,7 @@ export default defineConfig({
       '@babylonjs/core/Maths/math.frustum',
       '@babylonjs/core/Maths/math.plane',
       '@babylonjs/core/Maths/math.vector',
+      '@babylonjs/core/Maths/math.viewport',
       '@babylonjs/core/Maths/sphericalPolynomial',
       '@babylonjs/core/Meshes/Builders/boxBuilder',
       '@babylonjs/core/Meshes/Builders/cylinderBuilder',

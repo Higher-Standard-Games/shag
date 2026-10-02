@@ -1,6 +1,18 @@
 # SHAGGED — SHAG General Editor
 
-**Status:** viability study, 2026-10-02. No editor implementation or MakeBSP compile test has been performed.
+**Status:** viability study and active M1 implementation, 2026-10-02. MakeBSP compile acceptance remains unverified.
+
+## Implementation checkpoint
+
+The first M1 slice now has the developer-gated `editor` command, a browser
+host that suspends/restores the lobby game view, four panes (Babylon perspective
+and XY/XZ/YZ canvas projections), grid-aligned box drawing and movement,
+selection, undo/redo, `localStorage` drafts, and deterministic `brushDef`
+export. Compile, status, and Playtest are visibly unavailable. A headless test
+parses exported source, but no MakeBSP executable was found locally and no
+browser surface was available for the visual interaction check. M1 is **not
+complete**: resize/numeric editing, shader assignment UI, UI-state recovery,
+closed-room compiler acceptance, and browser input/render QA still need work.
 
 ## Decision
 
@@ -58,7 +70,7 @@ This matrix describes **editor features to build**, not features already availab
 
 ### Development milestone gates
 
-No SHAGGED implementation has begun as of this study. The table gives each milestone a reviewable outcome; the feature matrix above remains the detailed scope list. A gate is passed by the demonstrated behavior and evidence, not merely by files or UI controls existing.
+The table gives each milestone a reviewable outcome; the feature matrix above remains the detailed scope list. A gate is passed by the demonstrated behavior and evidence, not merely by files or UI controls existing. The implementation checkpoint above records current progress.
 
 | Gate | Depends on | User-visible result | Evidence required to call it done | Outside this gate |
 | --- | --- | --- | --- | --- |

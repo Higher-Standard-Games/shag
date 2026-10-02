@@ -1,0 +1,124 @@
+.shagged {
+  position: fixed;
+  inset: 0;
+  z-index: 850;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 240px;
+  grid-template-rows: 56px minmax(0, 1fr) 30px;
+  color: #e8fbff;
+  font:
+    13px "Rajdhani",
+    sans-serif;
+  pointer-events: none;
+}
+
+.shagged__toolbar,
+.shagged__inspector,
+.shagged__status {
+  pointer-events: auto;
+}
+.shagged__toolbar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  background: #111227;
+  border-bottom: 3px solid #ffc61a;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+.shagged__toolbar strong {
+  color: #ffc61a;
+  font:
+    900 17px "Orbitron",
+    monospace;
+  margin-right: 16px;
+}
+.shagged__toolbar strong small {
+  color: #75d9e8;
+  font-size: 8px;
+  letter-spacing: 0.12em;
+}
+.shagged__toolbar button,
+.shagged__toolbar select {
+  background: #21304c;
+  color: #e8fbff;
+  border: 1px solid #47768b;
+  padding: 7px 9px;
+  cursor: pointer;
+  font: inherit;
+}
+.shagged__toolbar button:hover,
+.shagged__toolbar button.active {
+  background: #ffc61a;
+  color: #101022;
+}
+.shagged__toolbar button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.shagged__separator {
+  height: 24px;
+  border-left: 1px solid #596379;
+  margin: 0 4px;
+}
+.shagged__workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+}
+.shagged__pane {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  border: 1px solid #4f617b;
+  pointer-events: auto;
+  overflow: hidden;
+}
+.shagged__pane--perspective {
+  pointer-events: none;
+}
+.shagged__pane > span {
+  position: absolute;
+  z-index: 1;
+  top: 8px;
+  left: 9px;
+  padding: 3px 6px;
+  color: #ffc61a;
+  background: #0b1424dd;
+  font:
+    900 10px "Orbitron",
+    monospace;
+  pointer-events: none;
+}
+.shagged__pane canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+  touch-action: none;
+}
+.shagged__inspector {
+  grid-column: 2;
+  grid-row: 2;
+  padding: 16px;
+  background: #161e34;
+  border-left: 2px solid #a348d6;
+}
+.shagged__status {
+  grid-column: 1 / -1;
+  padding: 6px 12px;
+  background: #0b1020;
+  border-top: 1px solid #476179;
+}
+@media (max-width: 850px) {
+  .shagged {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .shagged__inspector {
+    display: none;
+  }
+}
