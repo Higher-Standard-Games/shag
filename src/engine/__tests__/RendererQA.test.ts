@@ -107,4 +107,15 @@ describe("isolated renderer QA entry", () => {
     }
     expect(engine.scenes).toHaveLength(0);
   });
+
+  it("routes the environment case to its own fixture and scope", async () => {
+    // NullEngine cannot upload a raw cube, so the fixture fails inside its
+    // own setup stage: enough to show the case reached it.
+    const engine = new NullEngine();
+    createEngine.mockResolvedValue({ engine, canvas: document.createElement("canvas"), backend: "null" });
+    const report = await runRendererQA(document.createElement("canvas"), "?rendererqa=1&rendererqacase=environment");
+    expect(report.scope).toBe("environment-lighting");
+    expect(report.firstFailure?.stage).toBe("environment-setup");
+    expect(engine.scenes).toHaveLength(0);
+  });
 });

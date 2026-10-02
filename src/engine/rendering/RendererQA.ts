@@ -64,13 +64,15 @@ export async function runRendererQA(canvas: HTMLCanvasElement, search: string): 
       output.textContent = JSON.stringify(report, null, 2);
       (window as Window & { rendererQAReport?: RendererQAReport }).rendererQAReport = report;
     },
-    testClusters
-      ? "clustered-lighting"
-      : refreshFrozen
-        ? "standard-pbr-lights-refresh"
-        : testLights
-          ? "standard-pbr-lights"
-          : "standard-pbr-smoke",
+    testCase === "environment"
+      ? "environment-lighting"
+      : testClusters
+        ? "clustered-lighting"
+        : refreshFrozen
+          ? "standard-pbr-lights-refresh"
+          : testLights
+            ? "standard-pbr-lights"
+            : "standard-pbr-smoke",
   );
   let engine: AbstractEngine | undefined;
   let scene: Scene | undefined;
@@ -96,7 +98,10 @@ export async function runRendererQA(canvas: HTMLCanvasElement, search: string): 
     diagnostics.attachEngine(engine, renderer.fallbackReason, renderer.fallbackStage);
     removeDeviceListener = observeRendererDevice(engine, (error) => diagnostics.fail(error));
     scene = new Scene(engine);
-    if (testClusters) {
+    if (testCase === "environment") {
+      const { runEnvironmentLightingQA } = await import("./EnvironmentLightingQA");
+      await runEnvironmentLightingQA(scene, diagnostics, () => stopped);
+    } else if (testClusters) {
       const { runClusteredLightingQA } = await import("./ClusteredLightingQA");
       await runClusteredLightingQA(scene, diagnostics, () => stopped, testCase === "clusters-multi");
     } else {

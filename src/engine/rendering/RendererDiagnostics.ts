@@ -12,7 +12,12 @@ export interface RendererFailure {
 }
 
 export interface RendererQAReport {
-  scope: "standard-pbr-smoke" | "standard-pbr-lights" | "standard-pbr-lights-refresh" | "clustered-lighting";
+  scope:
+    | "standard-pbr-smoke"
+    | "standard-pbr-lights"
+    | "standard-pbr-lights-refresh"
+    | "clustered-lighting"
+    | "environment-lighting";
   requestedBackend: RenderingBackend;
   actualBackend?: ActualRenderingBackend;
   babylonVersion: string;
@@ -31,6 +36,9 @@ export interface RendererQAReport {
     rgb?: number[];
     skinned?: boolean;
     readbackFormat?: string;
+    roughness?: number;
+    expectedChannels?: number[];
+    viewport?: { width: number; height: number };
   }[];
   fallbackReason?: string;
   fallbackStage?: string;
