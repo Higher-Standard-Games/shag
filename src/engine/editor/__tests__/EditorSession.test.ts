@@ -160,6 +160,33 @@ describe("editor DOM shell", () => {
     engine.dispose();
   });
 
+  it("shows the hovered Quake coordinate in the status bar, and clears it on pointerleave", () => {
+    const engine = new NullEngine();
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    const session = new EditorSession(engine, canvas, vi.fn());
+    const pane = session.root.querySelector<HTMLCanvasElement>('[data-plane="xy"]')!;
+    const status = () => session.root.querySelector(".shagged__status")!.textContent!;
+
+    expect(status()).not.toContain("cursor");
+    pane.dispatchEvent(new MouseEvent("pointermove", { bubbles: true, clientX: 232, clientY: 118 }));
+    expect(status()).toContain("cursor (32, 32, 0)");
+
+    // A hover during an active drag doesn't overwrite it with stale coordinates.
+    pane.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, button: 0, clientX: 200, clientY: 150 }));
+    pane.dispatchEvent(new MouseEvent("pointermove", { bubbles: true, clientX: 264, clientY: 86 }));
+    expect(status()).not.toContain("cursor");
+    pane.dispatchEvent(new MouseEvent("pointerup", { bubbles: true, button: 0, clientX: 264, clientY: 86 }));
+
+    pane.dispatchEvent(new MouseEvent("pointermove", { bubbles: true, clientX: 232, clientY: 118 }));
+    expect(status()).toContain("cursor (32, 32, 0)");
+    pane.dispatchEvent(new MouseEvent("pointerleave", { bubbles: true }));
+    expect(status()).not.toContain("cursor");
+
+    session.dispose();
+    engine.dispose();
+  });
+
   it("steps grid size with [ and ], cancels a drag with Escape, then closes the drafts popover", () => {
     const engine = new NullEngine();
     const canvas = document.createElement("canvas");

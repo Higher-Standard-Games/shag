@@ -70,6 +70,9 @@ export class EditorSession {
   private gesture: Gesture | null = null;
   private perspectiveStart: [number, number] | null = null;
   private viewSaveTimer: ReturnType<typeof setTimeout> | null = null;
+  private hoverPlane: Plane | null = null;
+  private hoverCoord: Vec3q | null = null;
+  private lastMessage = "Local draft";
 
   constructor(
     engine: AbstractEngine,
@@ -152,6 +155,16 @@ export class EditorSession {
       pane.addEventListener("pointerup", (event) => this.pointerUp(plane, event), { signal: this.listeners.signal });
       pane.addEventListener("pointercancel", () => this.cancelGesture(), { signal: this.listeners.signal });
       pane.addEventListener("lostpointercapture", () => this.cancelGesture(), { signal: this.listeners.signal });
+      pane.addEventListener(
+        "pointerleave",
+        () => {
+          if (this.hoverPlane !== plane) return;
+          this.hoverPlane = null;
+          this.hoverCoord = null;
+          this.renderStatus();
+        },
+        { signal: this.listeners.signal },
+      );
       pane.addEventListener(
         "wheel",
         (event) => {
@@ -297,12 +310,23 @@ export class EditorSession {
   }
 
   private status(message: string): void {
+    this.lastMessage = message;
+    this.renderStatus();
+  }
+
+  /** Redraws the status bar from the last message plus whatever else changed
+   * (hover coordinates, a drag's preview size) without replacing that message —
+   * a plain mouse hover has something to show, but it isn't a new event. */
+  private renderStatus(): void {
     const hidden = AXES[this.activePlane].hidden;
     const preview = this.previewBrush();
     const dimensions = preview
       ? ` · preview ${preview.max.x - preview.min.x}×${preview.max.y - preview.min.y}×${preview.max.z - preview.min.z}`
       : "";
-    this.statusEl.textContent = `${message} · ${this.document.snapshot().brushes.length} brushes · revision ${this.revision} · ${this.activePlane.toUpperCase()} work ${hidden.toUpperCase()}=${this.workPlanes[hidden]} · grid ${this.grid}${dimensions} · MakeBSP unavailable`;
+    const cursor = this.hoverCoord
+      ? ` · cursor (${this.hoverCoord.x}, ${this.hoverCoord.y}, ${this.hoverCoord.z})`
+      : "";
+    this.statusEl.textContent = `${this.lastMessage} · ${this.document.snapshot().brushes.length} brushes · revision ${this.revision} · ${this.activePlane.toUpperCase()} work ${hidden.toUpperCase()}=${this.workPlanes[hidden]} · grid ${this.grid}${dimensions}${cursor} · MakeBSP unavailable`;
   }
 
   private updateWorkPlaneControl(): void {
@@ -667,7 +691,22 @@ export class EditorSession {
       this.draw();
       return;
     }
-    if (!this.gesture || this.gesture.plane !== plane) return;
+    if (!this.gesture || this.gesture.plane !== plane) {
+      const pane = this.panes.get(plane);
+      if (!pane) return;
+      const [u, v] = this.coordinates(plane, pane, event, this.grid);
+      const axes = AXES[plane];
+      const coord = { x: 0, y: 0, z: 0 } as Vec3q;
+      coord[axes.u] = u;
+      coord[axes.v] = v;
+      coord[axes.hidden] = this.workPlanes[axes.hidden];
+      this.hoverPlane = plane;
+      this.hoverCoord = coord;
+      this.renderStatus();
+      return;
+    }
+    this.hoverPlane = null;
+    this.hoverCoord = null;
     this.gesture.current = this.coordinates(plane, this.panes.get(plane)!, event, this.gesture.grid);
     this.draw();
   }

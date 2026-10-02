@@ -63,6 +63,18 @@ could only be cancelled by `pointercancel`, and the drafts popover had no
 keyboard close). All three now work as documented; verified live and with
 new `EditorSession.test.ts` cases.
 
+**Status bar cursor coordinates, added (2026-10-03):** the M1 status-bar
+contract below lists "cursor Quake coordinates" alongside the brush-preview
+dimensions it already showed while dragging, but a plain hover (no drag)
+never touched the status bar at all. `pointerMove` now tracks the hovered
+pane's snapped Quake coordinate (the two visible axes plus the active
+work-plane value for the hidden one) whenever no gesture or pan is in
+progress, clears it on `pointerleave` and while a drag is active (the
+preview-size readout already covers that case), and `status()` is split
+into a `lastMessage` field plus a `renderStatus()` redraw so a hover
+refresh doesn't overwrite whatever the last real event said. Verified live
+and with a new `EditorSession.test.ts` case.
+
 **Real-browser interaction, verified (2026-10-02):** headless Edge over CDP
 confirmed `developer 1; editor open` opens the four-view editor from the
 console; a real pointer drag in the XY pane creates a grid-snapped box
