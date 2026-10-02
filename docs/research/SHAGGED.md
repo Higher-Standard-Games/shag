@@ -1,6 +1,6 @@
 # SHAGGED — SHAG General Editor
 
-**Status:** viability study and active M1 implementation, 2026-10-02. MakeBSP compile acceptance remains unverified.
+**Status:** active M1 implementation, 2026-10-02. Closed-room MakeBSP compile acceptance and real-browser interaction are now both verified; see the checkpoint below for what remains.
 
 ## Implementation checkpoint
 
@@ -14,12 +14,44 @@ deterministic `brushDef` export. Brush drags now capture an explicit work-plane
 coordinate and one-grid thickness; a transient box and dimension readout
 appear in all three orthographic panes and the perspective scene. The Room Template creates six enclosing
 brushes and an `info_player_deathmatch` spawn for the eventual compiler check.
-Compile, status, and Playtest are visibly unavailable. A headless test
-parses exported source, but no MakeBSP executable was found locally and no
-browser surface was available for the visual interaction check. A DOM/NullEngine
-smoke test covers perspective picking and the main editing controls. M1 is
-**not complete**: closed-room compiler acceptance and real-browser input/render
-QA still need work.
+Compile, status, and Playtest are visibly unavailable — correctly, since no
+compile service exists yet. A DOM/NullEngine smoke test covers perspective
+picking and the main editing controls.
+
+**Compiler acceptance, verified (2026-10-02):** a local NetRadiant Custom
+install (`makebsp.exe`/`makelight.exe`, with this repository's own
+`editor/makebspdata/washoi.json` already installed into it) compiled the
+Room Template's exported `.map` with the documented Washoi FAST recipe
+end to end — `makebsp -game washoi -fs_basepath <public/data> -leaktest
+-fast -samplesize 8`, then the matching `makelight -fast` — with no leak,
+and the resulting `.bsp` loads cleanly through SHAG's own `BspLoader`
+(`npx vite-node src/cli/headless-bsp.ts info <file>` reports FBSP v1, 6
+faces, 1 model, as expected for a sealed six-brush room). This closes the
+M1 export-validity claim's compiler unknown. One finding to track rather
+than a blocker: `BspLoader` warns of a light-grid count mismatch (3 actual
+vs. 49 predicted from the map bounds) on this fixture, which has no light
+entities at all; the room still loads and the warning already exists for
+other maps, but it should be re-checked against a lit test room before
+fully closing the P0 gate, in case MakeLight's grid compression on an
+all-dark room is hiding a real exporter gap.
+
+**Real-browser interaction, verified (2026-10-02):** headless Edge over CDP
+confirmed `developer 1; editor open` opens the four-view editor from the
+console; a real pointer drag in the XY pane creates a grid-snapped box
+brush that renders correctly in all three orthographic panes and the 3D
+perspective view; the inspector shows its exact bounds and shader; and
+Exit/reopen round-trips the session (including recovering the same draft
+after a full page reload, via `localStorage`). This pass found that opening
+the editor silently closed the debug console (`src/main.ts`'s suspend-game
+callback called `debugConsole.close()`), contradicting this document's own
+"the console remains available in editor mode" contract (see **Console
+launch and mode lifecycle** below) — fixed by removing that call; the
+console's open/closed state is now left alone when the editor opens, like
+every other composition.
+
+M1 is **not fully complete**: general entity placement, face/UV editing, and
+the server-side Compile/Playtest loop (M2/M3 scope) have not started. The
+light-grid follow-up above is the one open compiler-side question.
 
 Orthographic navigation now supports middle-drag pan and wheel zoom anchored
 under the cursor. M1 uses a shared Quake-space view center and zoom across the

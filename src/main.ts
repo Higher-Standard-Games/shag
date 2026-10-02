@@ -306,7 +306,9 @@ async function main() {
       camera.detachControl();
       if (document.pointerLockElement) void document.exitPointerLock();
       if (wasLobbyVisible) lobby.hide();
-      debugConsole.close();
+      // Leave the console's own open/closed state alone: it stays usable
+      // while editing (~ still toggles it), so a mapper mid-command when
+      // they open the editor isn't met with it vanishing out from under them.
       return () => {
         camera.attachControl(canvas, true);
         controller.setEnabled(wasEnabled);
