@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { BoxBrush, BrushEntity, EditorDocumentData, PointEntity } from "../EditorDocument";
+import type { BoxBrush, BrushEntity, EditorDocumentData, PatchSurface, PointEntity } from "../EditorDocument";
 import { inspectMapHealth } from "../MapHealth";
 import type { TextureEntry } from "../TextureCatalog";
 
@@ -8,6 +8,15 @@ const brush = (id: string, shader = "blx/floor"): BoxBrush => ({
   min: { x: 0, y: 0, z: 0 },
   max: { x: 64, y: 64, z: 64 },
   shader,
+});
+const patch = (id: string, shader = "blx/floor"): PatchSurface => ({
+  id,
+  shader,
+  width: 3,
+  height: 3,
+  controlPoints: Array.from({ length: 3 }, (_, row) =>
+    Array.from({ length: 3 }, (_, col) => ({ x: col * 32, y: row * 32, z: 0, u: col / 2, v: row / 2 })),
+  ),
 });
 const point = (id: string, classname: string, keys: Record<string, string> = {}): PointEntity => ({
   id,
@@ -94,6 +103,16 @@ describe("map health", () => {
       expect.objectContaining({ code: "missing-shader-image", objectId: "box", face: "-X" }),
     );
     expect(issues.filter((issue) => issue.code === "unknown-shader")).toHaveLength(1);
+  });
+
+  it("diagnoses a patch surface's shader the same way as a brush face's", () => {
+    const data = document([point("spawn", "info_player_start")]);
+    data.patches = [patch("arch", "blx/broken")];
+    expect(inspectMapHealth(data).some((issue) => issue.code === "missing-shader-image")).toBe(false);
+    const issues = inspectMapHealth(data, [texture("blx/floor"), texture("blx/broken", true)]);
+    const issue = issues.find((item) => item.objectId === "arch");
+    expect(issue).toMatchObject({ code: "missing-shader-image", objectId: "arch" });
+    expect(issue?.face).toBeUndefined(); // a patch has one shader, not six faces
   });
 
   it("labels shared target names as advisory because multi-target patterns may be intentional", () => {

@@ -788,15 +788,16 @@ export class EditorSession {
 
   /**
    * Selects whatever a health issue points to, so Frame then centers it: a
-   * point entity or brush by its own ID, or a brush-entity issue's first
-   * owned brush (brush entities have no box of their own to select).
+   * point entity, brush or patch by its own ID, or a brush-entity issue's
+   * first owned brush (brush entities have no box of their own to select).
    */
   private selectHealthIssue(objectId: string, face?: MapHealthIssue["face"]): void {
     const data = this.document.snapshot();
     const isBrush = data.brushes.some((brush) => brush.id === objectId);
     const isEntity = data.entities.some((entity) => entity.id === objectId);
+    const isPatch = (data.patches ?? []).some((patch) => patch.id === objectId);
     const id =
-      isBrush || isEntity
+      isBrush || isEntity || isPatch
         ? objectId
         : (data.brushEntities?.find((entity) => entity.id === objectId)?.brushIds[0] ?? null);
     if (!id) {

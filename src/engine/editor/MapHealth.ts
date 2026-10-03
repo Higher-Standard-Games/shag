@@ -93,16 +93,17 @@ export function inspectMapHealth(data: EditorDocumentData, textures?: readonly T
 
   if (textures) {
     const shaders = new Map(textures.map((entry) => [entry.name.toLowerCase(), entry]));
+    const checkShader = (shader: string, objectId: string, face?: FaceKey) => {
+      const entry = shaders.get(shader.toLowerCase());
+      if (!entry)
+        add("unknown-shader", "warning", `Shader "${shader}" is absent from the mounted catalog.`, objectId, face);
+      else if (entry.missing)
+        add("missing-shader-image", "warning", `Shader "${shader}" references a missing image.`, objectId, face);
+    };
     for (const brush of data.brushes) {
-      for (const face of FACE_KEYS) {
-        const shader = brush.faces?.[face]?.shader ?? brush.shader;
-        const entry = shaders.get(shader.toLowerCase());
-        if (!entry)
-          add("unknown-shader", "warning", `Shader "${shader}" is absent from the mounted catalog.`, brush.id, face);
-        else if (entry.missing)
-          add("missing-shader-image", "warning", `Shader "${shader}" references a missing image.`, brush.id, face);
-      }
+      for (const face of FACE_KEYS) checkShader(brush.faces?.[face]?.shader ?? brush.shader, brush.id, face);
     }
+    for (const patch of data.patches ?? []) checkShader(patch.shader, patch.id);
   }
   return issues;
 }

@@ -959,7 +959,7 @@ describe("editor DOM shell", () => {
     engine.dispose();
   });
 
-  it("opens the Map Health tray (toolbar or H) and selects what a row points to", () => {
+  it("opens the Map Health tray (toolbar or H) and selects what a row points to", async () => {
     const engine = new NullEngine();
     const canvas = document.createElement("canvas");
     document.body.appendChild(canvas);
@@ -976,10 +976,23 @@ describe("editor DOM shell", () => {
         keys: {},
       });
       data.brushEntities = [{ id: "trigger-1", classname: "trigger_teleport", keys: {}, brushIds: ["far"] }];
+      data.patches = [
+        {
+          id: "arch",
+          shader: "not/in/catalog",
+          width: 3,
+          height: 3,
+          controlPoints: Array.from({ length: 3 }, (_, row) =>
+            Array.from({ length: 3 }, (_, col) => ({ x: col * 32, y: row * 32, z: 0, u: col / 2, v: row / 2 })),
+          ),
+        },
+      ];
     });
     const tray = () => session.root.querySelector<HTMLElement>(".shagged-health")!;
     const rows = () => [...tray().querySelectorAll<HTMLButtonElement>(".shagged-health__row")];
-    const selected = () => session.root.querySelector("[data-brush-id], [data-entity-id]")?.textContent ?? null;
+    const selected = () =>
+      session.root.querySelector("[data-brush-id], [data-entity-id], [data-patch-id]")?.textContent ?? null;
+    const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
     session.root.querySelector<HTMLButtonElement>('[data-action="health"]')!.click();
     expect(tray().hidden).toBe(false);
@@ -996,6 +1009,14 @@ describe("editor DOM shell", () => {
     const classRow = rows().find((row) => row.textContent?.includes("Unlisted point class"))!;
     classRow.click();
     expect(selected()).toContain("bogus_class_xyz");
+
+    // a patch issue selects the patch directly, once the catalog has loaded for the shader check
+    await flush();
+    await flush();
+    tray().querySelector<HTMLButtonElement>(".shagged-health__refresh")!.click();
+    const patchRow = rows().find((row) => row.textContent?.includes("not/in/catalog"))!;
+    patchRow.click();
+    expect(selected()).toContain("arch");
 
     // H re-opens; typing "h" with a text input focused must not trigger it
     tray().querySelector<HTMLButtonElement>(".shagged-health__close")!.click();
