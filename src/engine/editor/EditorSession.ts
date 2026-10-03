@@ -55,6 +55,7 @@ import { MapHealthTray } from "./MapHealthTray";
 import { writeMap } from "./MapWriter";
 import { indexedModelPaths, modelReferenceIssue } from "./ModelReference";
 import { flatPatch } from "./PatchGeometry";
+import { archPatch, bevelPatch } from "./PatchPresets";
 import { createPatchPreview, drawPatchLattice, patchBounds, patchLatticeHit } from "./PatchPreview";
 import { browserPreviewDeps, PreviewTextures } from "./PreviewTextures";
 import { createRoomTemplate } from "./RoomTemplate";
@@ -79,6 +80,9 @@ type Gesture = {
   plane: Plane;
   mode: "draw" | "move" | "resize";
   drawKind?: "brush" | "patch";
+  patchShape?: PatchShape;
+  patchDepth?: number;
+  patchReverse?: boolean;
   start: [number, number];
   current: [number, number];
   brush?: BoxBrush;
@@ -89,6 +93,7 @@ type Gesture = {
 };
 
 type Tool = "brush" | "patch" | "select" | "entity";
+type PatchShape = NonNullable<EditorViewState["patchShape"]>;
 
 /** An entity's box in world space: its class's mins/maxs around the origin. */
 function entityBox(entity: PointEntity): { min: Vec3q; max: Vec3q } {
@@ -252,6 +257,9 @@ export class EditorSession {
   private readonly inspector: HTMLElement;
   private selectedId: string | null = null;
   private patchPoint = 4;
+  private patchShape: PatchShape = "flat";
+  private patchDepth = 32;
+  private patchReverse = false;
   private draftName = "Untitled";
   private tool: Tool = "brush";
   private entityClassname = "info_player_deathmatch";
@@ -345,6 +353,13 @@ export class EditorSession {
         <div class="shagged__toolgroup" aria-label="Placement tools">
           <span class="shagged__group-label">TOOLS</span>
           <button data-action="select" title="V">Select</button><button data-action="brush" title="B">Brush</button><button data-action="patch" title="P">Patch</button>
+          <details class="shagged__menu shagged__menu--curves"><summary title="Curved patch surfaces">Curves</summary><div class="shagged__menu-panel">
+            <button data-action="patch">Free Patch</button><button data-action="curve-bevel">Bevel</button>
+            <button data-action="curve-inverted-bevel">Inverted Bevel</button><button data-action="curve-arch">Arch</button>
+            <span class="shagged__menu-rule" aria-hidden="true"></span>
+            <label>Depth <input data-patch-depth type="number" min="-4096" max="4096" step="1" value="32" title="Extrusion along the hidden work-plane axis"></label>
+            <label>Reverse winding <input data-patch-reverse type="checkbox" title="Face the other side of the surface"></label>
+          </div></details>
           <button data-action="entity" title="E">Entity</button><select data-entity-class aria-label="Entity class" title="Class placed by the Entity tool"></select>
           <button data-action="textures" title="Texture browser (T)">Textures</button><span class="shagged__current-texture" data-current-texture title="Texture new brushes get"></span>
           <button data-action="health" title="Map Health (H)">Health</button>
@@ -389,6 +404,8 @@ export class EditorSession {
     this.statusEl = this.root.querySelector(".shagged__status")!;
     this.inspector = this.root.querySelector(".shagged__inspector")!;
     this.root.querySelector<HTMLSelectElement>("[data-grid]")!.value = String(this.grid);
+    this.root.querySelector<HTMLInputElement>("[data-patch-depth]")!.value = String(this.patchDepth);
+    this.root.querySelector<HTMLInputElement>("[data-patch-reverse]")!.checked = this.patchReverse;
     this.updateDraftNameControl();
     this.updateWorkPlaneControl();
     this.renderCurrentTexture();
@@ -514,6 +531,29 @@ export class EditorSession {
       },
       { signal: this.listeners.signal },
     );
+    this.root.querySelector<HTMLInputElement>("[data-patch-depth]")!.addEventListener(
+      "change",
+      (event) => {
+        const input = event.target as HTMLInputElement;
+        const value = Number(input.value);
+        if (!Number.isFinite(value) || Math.abs(value) < 1 || Math.abs(value) > 4096) {
+          this.status("Curve depth must be between -4096 and 4096, excluding zero");
+          input.value = String(this.patchDepth);
+          return;
+        }
+        this.patchDepth = value;
+        this.trySaveView();
+      },
+      { signal: this.listeners.signal },
+    );
+    this.root.querySelector<HTMLInputElement>("[data-patch-reverse]")!.addEventListener(
+      "change",
+      (event) => {
+        this.patchReverse = (event.target as HTMLInputElement).checked;
+        this.trySaveView();
+      },
+      { signal: this.listeners.signal },
+    );
     this.root.addEventListener("keydown", (event) => this.keyDown(event), { signal: this.listeners.signal });
     this.root.addEventListener("keyup", (event) => this.flyCamera.keyUp(event), { signal: this.listeners.signal });
     this.root.addEventListener(
@@ -613,6 +653,9 @@ export class EditorSession {
       grid: this.grid as EditorViewState["grid"],
       zoom: this.zoom,
       tool: this.tool,
+      patchShape: this.patchShape,
+      patchDepth: this.patchDepth,
+      patchReverse: this.patchReverse,
       selectedId: this.selectedId,
       draftName: this.draftName,
       serverSave: this.serverSave,
@@ -1195,11 +1238,19 @@ export class EditorSession {
     this.root.querySelector<HTMLInputElement>("[data-workplane]")!.value = String(this.workPlanes[hidden]);
   }
 
+  private updatePatchControls(): void {
+    this.root.querySelector<HTMLInputElement>("[data-patch-depth]")!.value = String(this.patchDepth);
+    this.root.querySelector<HTMLInputElement>("[data-patch-reverse]")!.checked = this.patchReverse;
+  }
+
   private restoreView(view: EditorViewState | null): void {
     this.grid = view?.grid ?? 16;
     this.zoom = view?.zoom ?? 1;
     this.viewCenter = { ...(view?.viewCenter ?? { x: 0, y: 0, z: 0 }) };
     this.tool = view?.tool ?? "brush";
+    this.patchShape = view?.patchShape ?? "flat";
+    this.patchDepth = view?.patchDepth ?? 32;
+    this.patchReverse = view?.patchReverse ?? false;
     this.draftName = view?.draftName ?? "Untitled";
     this.serverSave = view?.serverSave;
     this.workPlanes = { ...(view?.workPlanes ?? { x: 0, y: 0, z: 0 }) };
@@ -1263,6 +1314,7 @@ export class EditorSession {
     this.document = restored.document;
     this.restoreView(restored.view);
     this.root.querySelector<HTMLSelectElement>("[data-grid]")!.value = String(this.grid);
+    this.updatePatchControls();
     this.updateDraftNameControl();
     this.updateWorkPlaneControl();
     this.rebuildMeshes();
@@ -1345,6 +1397,7 @@ export class EditorSession {
         this.draftName = asCopy ? `${name} copy` : name;
         this.updateDraftNameControl();
         this.root.querySelector<HTMLSelectElement>("[data-grid]")!.value = String(this.grid);
+        this.updatePatchControls();
         this.updateWorkPlaneControl();
         this.rebuildMeshes();
         this.draw();
@@ -1454,11 +1507,20 @@ export class EditorSession {
           this.toggleHealth();
           break;
         case "brush":
-        case "patch":
         case "select":
         case "entity":
           this.cancelGesture();
           this.tool = action;
+          this.draw();
+          this.trySaveView();
+          break;
+        case "patch":
+        case "curve-bevel":
+        case "curve-inverted-bevel":
+        case "curve-arch":
+          this.cancelGesture();
+          this.tool = "patch";
+          this.patchShape = action === "patch" ? "flat" : (action.slice("curve-".length) as PatchShape);
           this.draw();
           this.trySaveView();
           break;
@@ -1775,6 +1837,9 @@ export class EditorSession {
         plane,
         mode: "draw",
         drawKind: this.tool === "patch" ? "patch" : "brush",
+        patchShape: this.patchShape,
+        patchDepth: this.patchDepth,
+        patchReverse: this.patchReverse,
         start,
         current: start,
         workPlane: this.workPlanes[AXES[plane].hidden],
@@ -1870,15 +1935,11 @@ export class EditorSession {
     const axes = AXES[plane];
     if (gesture.mode === "draw") {
       if (gesture.drawKind === "patch") {
-        const patch = flatPatch(
-          crypto.randomUUID(),
-          axes,
-          gesture.start,
-          gesture.current,
-          gesture.workPlane,
-          this.currentTexture.name,
-        );
-        if (!patch) return;
+        const patch = this.patchFromGesture(crypto.randomUUID(), gesture);
+        if (!patch) {
+          this.status("Draw a nonzero curve footprint and depth inside map bounds");
+          return;
+        }
         this.document.transact((data) => {
           data.patches ??= [];
           data.patches.push(patch);
@@ -2335,15 +2396,26 @@ export class EditorSession {
   private previewPatch(): PatchSurface | null {
     const gesture = this.gesture;
     return gesture?.mode === "draw" && gesture.drawKind === "patch"
-      ? flatPatch(
-          "gesture-patch",
-          AXES[gesture.plane],
-          gesture.start,
-          gesture.current,
-          gesture.workPlane,
-          this.currentTexture.name,
-        )
+      ? this.patchFromGesture("gesture-patch", gesture)
       : null;
+  }
+
+  private patchFromGesture(id: string, gesture: Gesture): PatchSurface | null {
+    const axes = AXES[gesture.plane];
+    const shader = this.currentTexture.name;
+    if (!gesture.patchShape || gesture.patchShape === "flat") {
+      return flatPatch(id, axes, gesture.start, gesture.current, gesture.workPlane, shader);
+    }
+    const sweep = {
+      axes,
+      start: gesture.start,
+      end: gesture.current,
+      depth: [gesture.workPlane, gesture.workPlane + (gesture.patchDepth ?? 32)] as const,
+      reverse: gesture.patchReverse,
+    };
+    return gesture.patchShape === "arch"
+      ? archPatch(id, shader, sweep)
+      : bevelPatch(id, shader, sweep, gesture.patchShape === "bevel" ? "outer" : "inner");
   }
 
   private syncPatchGhost(preview: PatchSurface | null): void {
@@ -2558,7 +2630,22 @@ export class EditorSession {
     this.syncFaceOverlays(data);
     this.renderInspector(data);
     for (const name of ["brush", "patch", "select", "entity"] as const)
-      this.root.querySelector(`[data-action="${name}"]`)?.classList.toggle("active", this.tool === name);
+      this.root
+        .querySelector(`[data-action="${name}"]`)
+        ?.classList.toggle("active", this.tool === name && (name !== "patch" || this.patchShape === "flat"));
+    const curves = this.root.querySelector<HTMLDetailsElement>(".shagged__menu--curves")!;
+    curves.querySelector("summary")!.classList.toggle("active", this.tool === "patch" && this.patchShape !== "flat");
+    for (const [action, shape] of [
+      ["patch", "flat"],
+      ["curve-bevel", "bevel"],
+      ["curve-inverted-bevel", "inverted-bevel"],
+      ["curve-arch", "arch"],
+    ] as const) {
+      const button = curves.querySelector<HTMLButtonElement>(`[data-action="${action}"]`)!;
+      const active = this.tool === "patch" && this.patchShape === shape;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", String(active));
+    }
     this.root.querySelector<HTMLButtonElement>('[data-action="undo"]')!.disabled = !this.document.canUndo;
     this.root.querySelector<HTMLButtonElement>('[data-action="redo"]')!.disabled = !this.document.canRedo;
     this.renderStatus();

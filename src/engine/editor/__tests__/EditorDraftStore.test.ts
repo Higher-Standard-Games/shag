@@ -89,6 +89,16 @@ describe("editor local draft recovery", () => {
     expect(() => store.save(data, { ...fly, viewMode: "xray" as never })).toThrow("Invalid editor view state");
   });
 
+  it("persists curve placement settings and rejects invalid extrusion depth", () => {
+    const store = new EditorDraftStore(memoryStorage());
+    const data = new EditorDocument().snapshot();
+    const curves: EditorViewState = { ...view, tool: "patch", patchShape: "arch", patchDepth: -48, patchReverse: true };
+    store.save(data, curves);
+    expect(store.load().view).toEqual(curves);
+    expect(() => store.save(data, { ...curves, patchDepth: 0 })).toThrow("Invalid editor view state");
+    expect(() => store.save(data, { ...curves, patchShape: "tube" as never })).toThrow("Invalid editor view state");
+  });
+
   it("lists named drafts and activates an older valid draft", () => {
     const storage = memoryStorage();
     const store = new EditorDraftStore(storage);

@@ -30,6 +30,7 @@ describe("model preview lifecycle", () => {
       fillRect: vi.fn(),
       strokeRect: vi.fn(),
       beginPath: vi.fn(),
+      arc: vi.fn(),
       moveTo: vi.fn(),
       lineTo: vi.fn(),
       stroke: vi.fn(),

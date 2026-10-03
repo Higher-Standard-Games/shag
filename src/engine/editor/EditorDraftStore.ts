@@ -10,6 +10,9 @@ export interface EditorViewState {
   grid: 8 | 16 | 32 | 64;
   zoom: number;
   tool: "brush" | "patch" | "select" | "entity";
+  patchShape?: "flat" | "bevel" | "inverted-bevel" | "arch";
+  patchDepth?: number;
+  patchReverse?: boolean;
   selectedId: string | null;
   draftName?: string;
   activePlane?: "xy" | "xz" | "yz";
@@ -70,6 +73,10 @@ function validView(value: unknown): value is EditorViewState {
     state.zoom >= 0.25 &&
     state.zoom <= 4 &&
     ["brush", "patch", "select", "entity"].includes(state.tool) &&
+    (state.patchShape === undefined || ["flat", "bevel", "inverted-bevel", "arch"].includes(state.patchShape)) &&
+    (state.patchDepth === undefined ||
+      (Number.isFinite(state.patchDepth) && Math.abs(state.patchDepth) >= 1 && Math.abs(state.patchDepth) <= 4096)) &&
+    (state.patchReverse === undefined || typeof state.patchReverse === "boolean") &&
     (state.selectedId === null || typeof state.selectedId === "string") &&
     (state.draftName === undefined ||
       (typeof state.draftName === "string" && state.draftName.trim().length > 0 && state.draftName.length <= 64)) &&

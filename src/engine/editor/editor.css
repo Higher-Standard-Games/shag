@@ -104,6 +104,7 @@
 }
 .shagged__toolbar button:hover:not(:disabled),
 .shagged__toolbar button.active,
+.shagged__toolbar summary.active,
 .shagged__toolbar summary:hover,
 .shagged__menu[open] > summary {
   background: linear-gradient(180deg, #cc80ff, #9239d4 60%, #6b26aa);
@@ -140,6 +141,12 @@
 }
 .shagged__toolbar input[data-workplane] {
   width: 68px;
+}
+.shagged__toolbar input[data-patch-depth] {
+  width: 68px;
+}
+.shagged__toolbar input[data-patch-reverse] {
+  min-height: 0;
 }
 .shagged__toolbar input[data-draft-name] {
   width: 132px;

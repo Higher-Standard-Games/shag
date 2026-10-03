@@ -174,4 +174,48 @@ describe("editor patch preview", () => {
     restored.dispose();
     engine.dispose();
   });
+
+  it("places bevel, inverted bevel, and arch presets from Curves with a live ghost and saved settings", () => {
+    const engine = new NullEngine();
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    const session = new EditorSession(engine, canvas, vi.fn());
+    const xy = session.root.querySelector<HTMLCanvasElement>('[data-plane="xy"]')!;
+    const depth = session.root.querySelector<HTMLInputElement>("[data-patch-depth]")!;
+    depth.value = "48";
+    depth.dispatchEvent(new Event("change", { bubbles: true }));
+    const reverse = session.root.querySelector<HTMLInputElement>("[data-patch-reverse]")!;
+    reverse.checked = true;
+    reverse.dispatchEvent(new Event("change", { bubbles: true }));
+    const draw = (startX: number, endX: number) => {
+      xy.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, button: 0, clientX: startX, clientY: 150 }));
+      xy.dispatchEvent(new MouseEvent("pointermove", { bubbles: true, button: 0, clientX: endX, clientY: 86 }));
+      expect(engine.scenes[0].meshes.some((mesh) => mesh.name === "gesture-patch")).toBe(true);
+      xy.dispatchEvent(new MouseEvent("pointerup", { bubbles: true, button: 0, clientX: endX, clientY: 86 }));
+      expect(engine.scenes[0].meshes.some((mesh) => mesh.name === "gesture-patch")).toBe(false);
+    };
+    session.root.querySelector<HTMLButtonElement>('[data-action="curve-bevel"]')!.click();
+    draw(200, 264);
+    const bevel = session.document.snapshot().patches![0];
+    expect(bevel).toMatchObject({ width: 3, height: 3 });
+    expect(bevel.controlPoints[0][1]).toMatchObject({ x: 64, y: 0, z: 48 });
+    session.root.querySelector<HTMLButtonElement>('[data-action="undo"]')!.click();
+    expect(session.document.snapshot().patches).toEqual([]);
+    session.root.querySelector<HTMLButtonElement>('[data-action="redo"]')!.click();
+    session.root.querySelector<HTMLButtonElement>('[data-action="curve-inverted-bevel"]')!.click();
+    draw(296, 360);
+    const inverted = session.document.snapshot().patches![1];
+    expect(inverted.controlPoints[1][1].y).toBe(64);
+    session.root.querySelector<HTMLButtonElement>('[data-action="curve-arch"]')!.click();
+    draw(392, 456);
+    expect(session.document.snapshot().patches![2].width).toBe(5);
+    expect(writeMap(session.document.snapshot()).match(/patchDef2/g)).toHaveLength(3);
+    session.dispose();
+    const restored = new EditorSession(engine, canvas, vi.fn());
+    expect(restored.root.querySelector('[data-action="curve-arch"]')?.classList.contains("active")).toBe(true);
+    expect(restored.root.querySelector<HTMLInputElement>("[data-patch-depth]")!.value).toBe("48");
+    expect(restored.root.querySelector<HTMLInputElement>("[data-patch-reverse]")!.checked).toBe(true);
+    restored.dispose();
+    engine.dispose();
+  });
 });
