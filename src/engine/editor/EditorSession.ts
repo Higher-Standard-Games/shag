@@ -16,7 +16,7 @@ import "@babylonjs/loaders/glTF";
 import "@babylonjs/core/Rendering/edgesRenderer";
 // Registers Scene.pick for perspective selection.
 import "@babylonjs/core/Culling/ray";
-import { pickResizeEdge, type ResizeEdge, resizeBox } from "./EditorBoxTools";
+import { pickResizeEdge, type ResizeEdge, resizeBox, resizeCursor } from "./EditorBoxTools";
 import {
   type BoxBrush,
   EditorDocument,
@@ -1897,11 +1897,12 @@ export class EditorSession {
       this.selectedId = brush.id;
     } else if (gesture.mode === "resize" && gesture.brush && gesture.edge) {
       const edge = gesture.edge;
-      const value = edge.axis === axes.u ? u1 : v1;
-      const candidate = resizeBox(gesture.brush, edge, value, this.grid);
+      const candidate = resizeBox(gesture.brush, edge, { [axes.u]: u1, [axes.v]: v1 }, this.grid);
       if (
-        candidate.min[edge.axis] === gesture.brush.min[edge.axis] &&
-        candidate.max[edge.axis] === gesture.brush.max[edge.axis]
+        edge.faces.every(
+          ({ axis }) =>
+            candidate.min[axis] === gesture.brush?.min[axis] && candidate.max[axis] === gesture.brush?.max[axis],
+        )
       ) {
         this.draw();
         return;
@@ -1973,7 +1974,7 @@ export class EditorSession {
     }
     const [u, v] = this.worldAt(plane, pane, event);
     const { grabs, edge } = this.pressTarget(plane, u, v);
-    pane.style.cursor = edge ? (edge.axis === AXES[plane].u ? "ew-resize" : "ns-resize") : grabs ? "grab" : "";
+    pane.style.cursor = edge ? resizeCursor(edge, AXES[plane].u) : grabs ? "grab" : "";
   }
 
   private clickSelect(plane: Plane, event: PointerEvent): void {
@@ -2304,8 +2305,12 @@ export class EditorSession {
     }
     if (!gesture.brush) return null;
     if (gesture.mode === "resize" && gesture.edge) {
-      const value = gesture.edge.axis === axes.u ? gesture.current[0] : gesture.current[1];
-      return resizeBox(gesture.brush, gesture.edge, value, gesture.grid);
+      return resizeBox(
+        gesture.brush,
+        gesture.edge,
+        { [axes.u]: gesture.current[0], [axes.v]: gesture.current[1] },
+        gesture.grid,
+      );
     }
     return moveBox(gesture.brush, axes, gesture.current[0] - gesture.start[0], gesture.current[1] - gesture.start[1]);
   }
@@ -2431,10 +2436,16 @@ export class EditorSession {
         if (selected) {
           ctx.fillStyle = "#fff3bd";
           for (const [hx, hy] of [
+            // edge midpoints: drag one axis
             [x + rw / 2, y],
             [x + rw / 2, y + rh],
             [x, y + rh / 2],
             [x + rw, y + rh / 2],
+            // corners: drag both axes at once
+            [x, y],
+            [x + rw, y],
+            [x, y + rh],
+            [x + rw, y + rh],
           ])
             ctx.fillRect(hx - 3, hy - 3, 6, 6);
         }

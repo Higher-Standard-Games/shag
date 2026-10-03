@@ -933,7 +933,19 @@ describe("editor DOM shell", () => {
     expect(hover(232, 118)).toBe("grab");
     expect(hover(203, 118)).toBe("ew-resize"); // near its left edge
     expect(hover(232, 147)).toBe("ns-resize"); // near its bottom edge
+    expect(hover(203, 89)).toBe("nwse-resize"); // near its top-left corner: both axes at once
     expect(hover(20, 20)).toBe(""); // empty space: the tool's crosshair
+
+    // dragging a corner resizes both axes in one gesture
+    const before = session.document.snapshot().brushes[0];
+    pointer("pointerdown", 203, 89);
+    pointer("pointermove", 180, 70);
+    pointer("pointerup", 180, 70);
+    const after = session.document.snapshot().brushes[0];
+    expect(after.min.x).toBeLessThan(before.min.x);
+    expect(after.max.y).toBeGreaterThan(before.max.y);
+    expect(after.max.x).toBe(before.max.x);
+    expect(after.min.y).toBe(before.min.y);
 
     // the Brush tool only grabs the selection; elsewhere a drag draws
     pointer("pointerdown", 20, 20, 2);
