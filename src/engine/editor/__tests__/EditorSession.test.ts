@@ -337,6 +337,39 @@ describe("editor DOM shell", () => {
     engine.dispose();
   });
 
+  it("places a model prop, edits compiler keys, and reports an incomplete reference", () => {
+    const engine = new NullEngine();
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    const session = new EditorSession(engine, canvas, vi.fn());
+    const picker = session.root.querySelector<HTMLSelectElement>("[data-entity-class]")!;
+    picker.value = "misc_model";
+    picker.dispatchEvent(new Event("change"));
+    const xy = session.root.querySelector<HTMLCanvasElement>('[data-plane="xy"]')!;
+    const pointer = (type: string) =>
+      xy.dispatchEvent(new MouseEvent(type, { bubbles: true, button: 0, clientX: 264, clientY: 118 }));
+    pointer("pointerdown");
+    pointer("pointerup");
+    expect(session.document.snapshot().entities[0]).toMatchObject({
+      classname: "misc_model",
+      origin: { x: 64, y: 32, z: 0 },
+      keys: { model: "", modelscale: "1" },
+    });
+    expect(session.root.querySelector(".shagged__warning")!.textContent).toContain("models/...");
+    const form = session.root.querySelector<HTMLFormElement>("[data-entity-form]")!;
+    expect(form.querySelector<HTMLInputElement>('[name="key:model"]')!.getAttribute("list")).toBe(
+      "shagged-model-paths",
+    );
+    form.querySelector<HTMLInputElement>('[name="key:model"]')!.value = "models/mapobjects/crate/crate.md3";
+    form.querySelector<HTMLInputElement>('[name="key:angle"]')!.value = "90";
+    form.querySelector<HTMLInputElement>('[name="key:modelscale"]')!.value = "2";
+    form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    expect(writeMap(session.document.snapshot())).toContain('"modelscale" "2"');
+    expect(session.root.querySelector(".shagged__warning")!.textContent).toContain("preview for this format");
+    session.dispose();
+    engine.dispose();
+  });
+
   it("turns a brush into a trigger, warns about its required key, grows a door, and prunes on delete", () => {
     const engine = new NullEngine();
     const canvas = document.createElement("canvas");

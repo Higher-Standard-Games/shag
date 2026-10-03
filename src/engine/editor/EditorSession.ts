@@ -1,13 +1,16 @@
 import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera";
 import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine";
 import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
+import { ImportMeshAsync } from "@babylonjs/core/Loading/sceneLoader";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Viewport } from "@babylonjs/core/Maths/math.viewport";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
+import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import { Scene } from "@babylonjs/core/scene";
+import "@babylonjs/loaders/glTF";
 // Registers AbstractMesh.enableEdgesRendering for editor brush outlines.
 import "@babylonjs/core/Rendering/edgesRenderer";
 // Registers Scene.pick for perspective selection.
@@ -35,12 +38,13 @@ import {
 import {
   BRUSH_ENTITY_CLASSES,
   brushEntityShader,
+  EDITOR_POINT_CLASSES,
   type EntityClassDef,
   entityClass,
   missingRequiredKeys,
-  POINT_ENTITY_CLASSES,
 } from "./EntityCatalog";
 import { writeMap } from "./MapWriter";
+import { indexedModelPaths, modelReferenceIssue } from "./ModelReference";
 import { createRoomTemplate } from "./RoomTemplate";
 import { inspectServerMap, serverMapName } from "./ServerMapOpen";
 import type { EditorCompileJob, EditorServerStatus, ShaggedApi } from "./ShaggedApi";
@@ -79,7 +83,7 @@ function cssColor([r, g, b]: EntityClassDef["color"], alpha = 1): string {
 function fillClassOptions(
   select: HTMLSelectElement,
   selected: string,
-  catalog: readonly EntityClassDef[] = POINT_ENTITY_CLASSES,
+  catalog: readonly EntityClassDef[] = EDITOR_POINT_CLASSES,
 ): void {
   select.replaceChildren();
   const groups = new Map<string, HTMLOptGroupElement>();
@@ -125,6 +129,7 @@ function appendKeyRows(rows: HTMLElement, def: EntityClassDef, keys: Record<stri
     input.spellcheck = false;
     input.name = `key:${field.name}`;
     input.value = keys[field.name] ?? "";
+    if (def.classname === "misc_model" && field.name === "model") input.setAttribute("list", "shagged-model-paths");
     if (field.defaultValue) input.placeholder = field.defaultValue;
     label.append(name, input);
     rows.appendChild(label);
@@ -207,6 +212,8 @@ export class EditorSession {
   private readonly camera: ArcRotateCamera;
   private readonly panes = new Map<Plane, HTMLCanvasElement>();
   private readonly meshes = new Map<string, Mesh>();
+  private readonly modelPreviews = new Map<string, TransformNode>();
+  private previewGeneration = 0;
   private ghost: Mesh | null = null;
   private readonly listeners = new AbortController();
   private readonly draftStore = new EditorDraftStore(localStorage);
@@ -493,6 +500,7 @@ export class EditorSession {
     this.status(message);
   }
   dispose(): void {
+    this.previewGeneration++;
     this.serverGeneration++;
     if (this.pollTimer) clearTimeout(this.pollTimer);
     this.listeners.abort();
@@ -1053,7 +1061,13 @@ export class EditorSession {
   }
 
   private exportMap(): void {
-    const source = writeMap(this.document.snapshot());
+    let source: string;
+    try {
+      source = writeMap(this.document.snapshot());
+    } catch (error) {
+      this.status(`Export rejected: ${error instanceof Error ? error.message : String(error)}`);
+      return;
+    }
     const url = URL.createObjectURL(new Blob([source], { type: "text/plain;charset=utf-8" }));
     const link = document.createElement("a");
     link.href = url;
@@ -1108,12 +1122,12 @@ export class EditorSession {
     const pick = this.scene.pick(
       event.clientX - rect.left,
       event.clientY - rect.top,
-      (mesh) => this.meshes.has(mesh.name),
+      (mesh) => this.meshes.has(mesh.name) || typeof mesh.metadata?.editorEntityId === "string",
       false,
       this.camera,
     );
     this.root.focus();
-    this.selectedId = pick?.hit ? (pick.pickedMesh?.name ?? null) : null;
+    this.selectedId = pick?.hit ? (pick.pickedMesh?.metadata?.editorEntityId ?? pick.pickedMesh?.name ?? null) : null;
     this.rebuildMeshes();
     this.draw();
     this.trySaveView();
@@ -1188,7 +1202,12 @@ export class EditorSession {
     origin[axes.v] = v;
     const work = this.workPlanes[axes.hidden];
     origin[axes.hidden] = axes.hidden === "z" ? work - def.mins.z : work;
-    const entity: PointEntity = { id: crypto.randomUUID(), classname: def.classname, origin, keys: {} };
+    const entity: PointEntity = {
+      id: crypto.randomUUID(),
+      classname: def.classname,
+      origin,
+      keys: def.classname === "misc_model" ? { model: "", modelscale: "1" } : {},
+    };
     this.document.transact((data) => data.entities.push(entity));
     this.selectedId = entity.id;
     this.changed();
@@ -1367,13 +1386,26 @@ export class EditorSession {
   private submitEntity(form: HTMLFormElement, id: string): void {
     const values = new FormData(form);
     const keys = readKeys(values);
+    const next: PointEntity = {
+      id,
+      classname: String(values.get("classname") ?? "").trim(),
+      origin: {
+        x: Number(values.get("origin-x")),
+        y: Number(values.get("origin-y")),
+        z: Number(values.get("origin-z")),
+      },
+      keys,
+    };
+    const modelIssue = modelReferenceIssue(next);
+    if (modelIssue) {
+      this.status(`Model edit rejected: ${modelIssue}`);
+      return;
+    }
     try {
       this.document.transact((data) => {
         const entity = data.entities.find((item) => item.id === id);
         if (!entity) throw new Error("Selected entity no longer exists");
-        entity.classname = String(values.get("classname") ?? "").trim();
-        for (const axis of ["x", "y", "z"] as const) entity.origin[axis] = Number(values.get(`origin-${axis}`));
-        entity.keys = keys;
+        Object.assign(entity, next);
       });
       this.changed();
     } catch (error) {
@@ -1382,6 +1414,9 @@ export class EditorSession {
   }
 
   private rebuildMeshes(): void {
+    this.previewGeneration++;
+    for (const root of this.modelPreviews.values()) root.dispose(false, true);
+    this.modelPreviews.clear();
     for (const mesh of this.meshes.values()) {
       mesh.material?.dispose();
       mesh.dispose();
@@ -1436,6 +1471,43 @@ export class EditorSession {
       mesh.edgesWidth = 2;
       mesh.edgesColor = new Color4(0.02, 0.02, 0.05, 1);
       this.meshes.set(entity.id, mesh);
+      if (entity.classname === "misc_model" && !modelReferenceIssue(entity)) {
+        void this.loadModelPreview(entity, this.previewGeneration);
+      }
+    }
+  }
+
+  /** Loose GLB preview. The marker remains pickable when the browser cannot load the asset. */
+  private async loadModelPreview(entity: PointEntity, generation: number): Promise<void> {
+    const path = entity.keys.model;
+    if (!path?.toLowerCase().endsWith(".glb")) return;
+    let root: TransformNode | null = null;
+    try {
+      const slash = path.lastIndexOf("/");
+      const result = await ImportMeshAsync(path.slice(slash + 1), this.scene, {
+        rootUrl: `/data/${path.slice(0, slash + 1)}`,
+      });
+      root = new TransformNode(`preview-${entity.id}`, this.scene);
+      for (const node of result.transformNodes) if (!node.parent) node.parent = root;
+      for (const mesh of result.meshes) {
+        if (!mesh.parent) mesh.parent = root;
+        mesh.metadata = { ...mesh.metadata, editorEntityId: entity.id };
+        mesh.isPickable = true;
+      }
+      root.position.set(entity.origin.x, entity.origin.z, entity.origin.y);
+      root.rotation.y = (Number(entity.keys.angle ?? 0) * Math.PI) / 180;
+      const scale = Number(entity.keys.modelscale ?? 1);
+      root.scaling.setAll(scale);
+      if (generation !== this.previewGeneration || this.scene.isDisposed) {
+        root.dispose(false, true);
+        return;
+      }
+      this.modelPreviews.set(entity.id, root);
+    } catch (error) {
+      root?.dispose(false, true);
+      if (generation === this.previewGeneration) {
+        this.status(`Model preview unavailable for ${path}: ${error instanceof Error ? error.message : String(error)}`);
+      }
     }
   }
 
@@ -1690,5 +1762,24 @@ export class EditorSession {
       form.querySelector<HTMLInputElement>(`[name="origin-${axis}"]`)!.value = String(entity.origin[axis]);
     }
     appendKeyRows(form.querySelector<HTMLElement>("[data-entity-keys]")!, def, entity.keys);
+    if (entity.classname === "misc_model") {
+      const paths = document.createElement("datalist");
+      paths.id = "shagged-model-paths";
+      for (const path of indexedModelPaths()) {
+        const option = document.createElement("option");
+        option.value = path;
+        paths.appendChild(option);
+      }
+      form.appendChild(paths);
+      const note = document.createElement("p");
+      note.className = "shagged__warning";
+      const issue = modelReferenceIssue(entity);
+      note.textContent = issue
+        ? issue
+        : entity.keys.model.toLowerCase().endsWith(".glb")
+          ? "Loose GLB preview is attempted; MakeBSP decides the compiled result."
+          : "This model exports to MakeBSP; a 3D preview for this format is not available yet.";
+      form.after(note);
+    }
   }
 }

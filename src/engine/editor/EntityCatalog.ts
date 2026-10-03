@@ -123,9 +123,23 @@ function parseClasses(text: string): ParsedClass[] {
 }
 
 export const POINT_ENTITY_CLASSES: readonly EntityClassDef[] = parseEntityDefs(washoiEntityDefs);
+/** Compiler-baked model reference. The raw-map definition's `scale` and collision keys do not apply here. */
+const MISC_MODEL: EntityClassDef = {
+  classname: "misc_model",
+  section: "MODEL PROPS",
+  color: [0.62, 0.83, 0.45],
+  mins: { x: -16, y: -16, z: 0 },
+  maxs: { x: 16, y: 16, z: 32 },
+  keys: [
+    { name: "model", label: "Compiler VFS model path", required: true },
+    { name: "angle", label: "Yaw in degrees", defaultValue: "0" },
+    { name: "modelscale", label: "Uniform compiler scale", defaultValue: "1" },
+  ],
+};
+export const EDITOR_POINT_CLASSES: readonly EntityClassDef[] = [...POINT_ENTITY_CLASSES, MISC_MODEL];
 export const BRUSH_ENTITY_CLASSES: readonly EntityClassDef[] = parseBrushEntityDefs(washoiEntityDefs);
 
-const BY_NAME = new Map([...POINT_ENTITY_CLASSES, ...BRUSH_ENTITY_CLASSES].map((entity) => [entity.classname, entity]));
+const BY_NAME = new Map([...EDITOR_POINT_CLASSES, ...BRUSH_ENTITY_CLASSES].map((entity) => [entity.classname, entity]));
 
 /**
  * The shader a new brush entity's faces get. The definitions say to texture

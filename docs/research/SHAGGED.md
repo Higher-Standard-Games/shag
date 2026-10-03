@@ -237,7 +237,7 @@ This matrix describes **editor features to build**, not features already availab
 | Face material editing | M2 (**planned**, see "M2 materials") | Pick one or multiple faces, assign a Washoi shader name, adjust basic shift/scale/rotation, preview and export the result. | PK3/shader loaders exist; current raw parser discards brush primitive UV matrices and flags, so editor needs lossless face data. |
 | Multi-select and grouping | M2 | Shift-select, marquee-select, group/ungroup, move/duplicate a group, and preserve membership in the editable draft. | New editor-only hierarchy. `func_group` appears in Washoi `entities.def`, but its compiler semantics need proof before using it for persistence; grouping must not silently change game entity ownership. |
 | Point entity placement | M2 (**done 2026-10-03**) | Place a spawn, light, pickup, or target marker in 2D/3D; edit `classname`, origin, angle, and class-specific keys in an inspector. | Done: `EntityCatalog.ts` reads the gameplay point classes from `entities.def`; schema v2 `entities` with preserved unknown keys; markers in all panes; deterministic export; compiled and read back through `BspLoader`. |
-| Referenced model placement (`misc_model`) | M2+ (planned; see "Referenced models") | Pick an external prop, preview it in all views, place/rotate/scale copies, and export `misc_model` references for MakeBSP to bake into the BSP. | Generic point-entity storage/export exists; the catalog excludes `misc_model`, and model discovery, preview, compiler asset validation, and collision proof are missing. |
+| Referenced model placement (`misc_model`) | M2+ (**partial 2026-10-03**, see "Referenced models") | Place a model reference, edit its path/yaw/scale, and export compiler keys; loose GLB has an initial 3D preview. | Palette, indexed-path suggestions, validation, export and loose-GLB preview exist. MD3/PK3 preview, asset existence checks, compiled transform/material/collision proof remain. |
 | Brush entity placement | M2 (**done 2026-10-03**) | Convert selected brushes into a brush entity (for example trigger/door), set keys, and show entity bounds and links. | Done: ownership by brush ID, no origin/model keys, required-key warnings, class-coloured brushes; a teleporter and a two-brush door compiled to submodels `*1`/`*2`. Target-link overlays remain the separate entity-link idea. |
 | Simplified modular Block Builder | Optional M2+ | Pick a sized room piece, snap compatible sockets/grid positions, rotate by quarter-turn, and detach it to editable brushes. | Babylon can preview/gizmo repeated pieces; pure Quake-space placement, versioned definitions, and deterministic expansion to `.map` are new. Its detailed proof is below. |
 | Raw map preview | M1/M2 | Inspect the editable `.map` through the editor's 3D and orthographic views, with textured/wireframe options as they arrive. | Raw brush and patch renderers exist; editor previews need their own lightweight scene objects. No separate raw gameplay mode is required. |
@@ -343,6 +343,18 @@ separate collision proxy. A missing model must produce a visible editor issue
 and a reported compile warning/failure. Record whether a model's material
 names resolve to the expected Washoi shader paths; Q3Map2 derives shader names
 from the imported model's material or diffuse texture path.
+
+**Implementation checkpoint (2026-10-03):** `misc_model` is now an editor
+point class. Its inspector suggests model paths from the mounted PK3 index,
+also accepts manually entered loose paths, edits `angle`/`modelscale`, and
+preserves advanced keys. Export rejects missing, absolute, traversing, or
+malformed model paths and nonpositive scale. The 3D pane attempts to load a
+loose GLB from `/data/` and retains the selectable marker if preview fails;
+other formats currently show a marker and an explicit preview limitation.
+The model's rendered bounds are not yet used for 2D hit testing or framing.
+This is an authoring/export slice, not proof that an installed MakeBSP accepts
+our GLB or that preview transforms/materials match the compiled BSP. The
+server does not yet verify asset existence in its VFS.
 
 ## M2 materials: face selection and the texture browser (plan, 2026-10-03)
 

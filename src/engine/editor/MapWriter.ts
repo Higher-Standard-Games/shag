@@ -7,6 +7,7 @@ import {
   validateDocument,
 } from "./EditorDocument";
 import { FIXED_MATRIX, faceTexMatrix, type TexMatrix } from "./FaceUv";
+import { modelReferenceIssue } from "./ModelReference";
 
 // Ten decimals: 1/(0.5*256) = 0.0078125 must survive, and FIXED_MATRIX still prints as 0.03125.
 const fmtUv = (n: number): string => Number(n.toFixed(10)).toString();
@@ -68,6 +69,10 @@ function brushEntityLines(entity: BrushEntity, brushes: ReadonlyMap<string, BoxB
 /** Deterministic source: objects in ID order, so selection and insertion order never change the bytes. */
 export function writeMap(data: EditorDocumentData): string {
   validateDocument(data);
+  for (const entity of data.entities) {
+    const issue = modelReferenceIssue(entity);
+    if (issue) throw new Error(`misc_model ${entity.id}: ${issue}`);
+  }
   const brushEntities = data.brushEntities ?? [];
   const owned = new Set(brushEntities.flatMap((entity) => entity.brushIds));
   const brushes = new Map(data.brushes.map((brush) => [brush.id, brush]));
