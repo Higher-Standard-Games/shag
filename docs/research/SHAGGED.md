@@ -489,7 +489,7 @@ always stage by explicit path.
 | WO-T1 | Per-face materials in the document; pure UV function; `MapWriter` writes per-face shader and matrix | T0 | no | 3 | Opus 5.5 | done |
 | WO-T2 | `TextureCatalog`: pure catalog from the mounted index, `default_shaderlist.txt` and `shadertags.xml` | none | no | 2 | Sonnet 5 | done |
 | WO-T3 | `TextureThumbnails`: lazy decode from PK3 bytes, in-memory LRU, IndexedDB cache | T2 | no | 3 | Sonnet 5 | done |
-| WO-T4 | Texture browser drawer: search, groups, virtualised grid, apply to brush, current texture | T1, T2, T3 | yes | 3 | Opus 5.5 | todo |
+| WO-T4 | Texture browser drawer: search, groups, virtualised grid, apply to brush, current texture | T1, T2, T3 | yes | 3 | Opus 5.5 | done |
 | WO-T5 | Face selection: 3D pick by normal, overlay, six-face net in the inspector, eyedropper | T1 | yes | 3 | Opus 5.5 | todo |
 | WO-T6 | UV tools: shift/scale/rotation fields, Fit, Natural, match neighbour | T1, T5 | yes | 3 | Opus 5.5 | todo |
 | WO-T7 | Textured 3D preview: six quads per brush through the shared UV function; Solid/Textured toggle | T1, T3 | yes | 3 | Opus 5.5 | todo |
@@ -806,6 +806,38 @@ that MakeBSP adds to keep coordinates small (they don't change rendering).
     AGENTS.md renderer set was run. Simulation, physics, server tick
     (determinism checksums match), the 1,000-tick fuzz, and the headless
     `wdm2` BSP load all exit 0.
+- 2026-10-03: WO-T4 done.
+  - **Component** (`d43ca471`): `TextureBrowser.ts` with its own
+    `texture-browser.css`, built apart from `EditorSession.ts` while that
+    file was being edited for misc_model work.
+    - The drawer has search, a sidebar (All, Recent, In this map, tag
+      groups, folders with counts), and tiles with thumbnail, name and
+      badges. Missing textures and colour shaders get their own tiles.
+    - Plan deviation: tiles render in pages as the grid scrolls, rather than
+      in a fully virtualised grid. Each thumbnail loads while its tile is on
+      screen and is cancelled if the tile leaves first, which bounds the
+      up-front work as well and is testable in jsdom.
+    - Keyboard: arrows (extending the page), Enter, Escape, and typing goes
+      to search.
+  - **Editor hook:**
+    - A Textures (T) toolbar button and a current-texture label. The drawer
+      is created on first use, so opening the editor never loads the
+      catalog.
+    - Picking a texture with a brush selected sets the brush's shader and,
+      when the image size is known, natural alignment on all six faces, as
+      one undo step.
+    - The picked texture becomes the current texture, which newly drawn
+      brushes use instead of the hard-coded `blx/blx_grid`. Without a known
+      size, a brush keeps the fixed legacy alignment and the status says so.
+  - **Browser check** (headless Edge, real catalog): the `boqu` folder
+    showed 205 textures, the first page rendered 120 tiles with only the 20
+    on screen loaded, and applying `boqu/boqu_window` recorded 256×128 on
+    the selected brush.
+  - **Test harness:** it now waits for the editor launcher before opening,
+    because a lobby server on port 9000 races the console `editor open`
+    during page startup.
+  - **Follow-up:** the gamepack's many tags push the folder list far down
+    the sidebar; collapsible sections would help.
 
 ## Future map-author experience ideas
 

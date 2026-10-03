@@ -20,6 +20,7 @@ import {
   type BoxBrush,
   EditorDocument,
   type EditorDocumentData,
+  FACE_KEYS,
   ownerOf,
   type PointEntity,
   pruneBrushEntities,
@@ -43,11 +44,17 @@ import {
   entityClass,
   missingRequiredKeys,
 } from "./EntityCatalog";
+import { naturalFace } from "./FaceUv";
 import { writeMap } from "./MapWriter";
 import { indexedModelPaths, modelReferenceIssue } from "./ModelReference";
 import { createRoomTemplate } from "./RoomTemplate";
 import { inspectServerMap, serverMapName } from "./ServerMapOpen";
 import type { EditorCompileJob, EditorServerStatus, ShaggedApi } from "./ShaggedApi";
+import { TextureBrowser } from "./TextureBrowser";
+import type { TextureEntry } from "./TextureCatalog";
+import { loadTextureCatalog } from "./TextureCatalogLoader";
+import type { TextureThumbnails } from "./TextureThumbnails";
+import { createBrowserThumbnails } from "./TextureThumbnailsBrowser";
 import "./editor.css";
 
 type Gesture = {
@@ -224,6 +231,10 @@ export class EditorSession {
   private draftName = "Untitled";
   private tool: Tool = "brush";
   private entityClassname = "info_player_deathmatch";
+  /** Texture new brushes get; size is null until one is picked from the browser (fixed legacy alignment). */
+  private currentTexture: { name: string; size: [number, number] | null } = { name: "blx/blx_grid", size: null };
+  private textureBrowser: TextureBrowser | null = null;
+  private thumbnails: TextureThumbnails | null = null;
   private grid = 16;
   private zoom = 1;
   private viewCenter: Vec3q = { x: 0, y: 0, z: 0 };
@@ -286,6 +297,7 @@ export class EditorSession {
         <button data-action="undo" title="Ctrl/Cmd+Z">Undo</button><button data-action="redo" title="Ctrl/Cmd+Shift+Z">Redo</button>
         <button data-action="brush">Brush (B)</button><button data-action="select">Select (V)</button>
         <button data-action="entity">Entity (E)</button><select data-entity-class aria-label="Entity class" title="Class placed by the Entity tool"></select>
+        <button data-action="textures" title="Texture browser (T)">Textures (T)</button><span class="shagged__current-texture" data-current-texture title="Texture new brushes get"></span>
         <button data-action="delete" title="Delete">Delete</button>
         <button data-action="frame-selection">Frame (F)</button><button data-action="frame-all">Frame All (Shift+F)</button>
         <label>Grid <select data-grid title="[ / ] to step"><option>8</option><option selected>16</option><option>32</option><option>64</option></select></label>
@@ -324,6 +336,7 @@ export class EditorSession {
     this.root.querySelector<HTMLSelectElement>("[data-grid]")!.value = String(this.grid);
     this.root.querySelector<HTMLInputElement>("[data-draft-name]")!.value = this.draftName;
     this.updateWorkPlaneControl();
+    this.renderCurrentTexture();
     const classPicker = this.root.querySelector<HTMLSelectElement>("[data-entity-class]")!;
     fillClassOptions(classPicker, this.entityClassname);
     classPicker.addEventListener(
@@ -497,10 +510,77 @@ export class EditorSession {
       this.status(`View save failed: ${String(error)}`);
     }
   }
+  /** The drawer is built on first use, so opening the editor never loads the texture catalog. */
+  private async toggleTextures(): Promise<void> {
+    if (!this.textureBrowser) {
+      this.thumbnails = createBrowserThumbnails();
+      this.textureBrowser = new TextureBrowser({
+        catalog: loadTextureCatalog,
+        thumbnails: this.thumbnails,
+        inMap: () => this.texturesInMap(),
+        onApply: (entry, size) => this.applyTexture(entry, size),
+        onClose: () => this.root.focus(),
+      });
+      this.root.appendChild(this.textureBrowser.element);
+    }
+    await this.textureBrowser.toggle();
+  }
+
+  private texturesInMap(): string[] {
+    return this.document
+      .snapshot()
+      .brushes.flatMap((brush) => [brush.shader, ...Object.values(brush.faces ?? {}).map((face) => face.shader)]);
+  }
+
+  /** shader plus, when the image size is known, natural alignment on all six faces. */
+  private currentMaterial(): Pick<BoxBrush, "shader" | "faces"> {
+    const { name, size } = this.currentTexture;
+    if (!size) return { shader: name };
+    return { shader: name, faces: Object.fromEntries(FACE_KEYS.map((key) => [key, naturalFace(name, size)])) };
+  }
+
+  /**
+   * A picked texture becomes the current texture, and covers the selected
+   * brush's six faces as one undo step. Without a known image size the brush
+   * keeps the fixed legacy alignment, and the status says so.
+   */
+  private applyTexture(entry: TextureEntry, size: [number, number] | null): void {
+    this.currentTexture = { name: entry.name, size };
+    this.renderCurrentTexture();
+    const brushId = this.document.snapshot().brushes.some((brush) => brush.id === this.selectedId)
+      ? this.selectedId
+      : null;
+    const sized = size ? `${size[0]}×${size[1]}` : "size unknown, fixed alignment";
+    if (!brushId) {
+      this.status(`Current texture ${entry.name} (${sized}); select a brush to apply it`);
+      return;
+    }
+    try {
+      this.document.transact((data) => {
+        const brush = data.brushes.find((item) => item.id === brushId)!;
+        const material = this.currentMaterial();
+        brush.shader = material.shader;
+        if (material.faces) brush.faces = material.faces;
+        else delete brush.faces;
+      });
+      this.changed();
+      this.status(`Applied ${entry.name} (${sized})`);
+    } catch (error) {
+      this.status(`Texture rejected: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  private renderCurrentTexture(): void {
+    const label = this.root.querySelector<HTMLElement>("[data-current-texture]");
+    if (label) label.textContent = this.currentTexture.name;
+  }
+
   showError(message: string): void {
     this.status(message);
   }
   dispose(): void {
+    this.textureBrowser?.dispose();
+    this.thumbnails?.dispose();
     this.modelPreviewRequests.clear();
     this.serverGeneration++;
     if (this.pollTimer) clearTimeout(this.pollTimer);
@@ -906,6 +986,9 @@ export class EditorSession {
           this.document.redo();
           this.changed();
           break;
+        case "textures":
+          void this.toggleTextures();
+          break;
         case "brush":
         case "select":
         case "entity":
@@ -987,6 +1070,7 @@ export class EditorSession {
     if (key === "b") this.action("brush");
     else if (key === "v") this.action("select");
     else if (key === "e") this.action("entity");
+    else if (key === "t") this.action("textures");
     else if (key === "delete") this.action("delete");
     else if (key === "f") {
       event.preventDefault();
@@ -1272,7 +1356,7 @@ export class EditorSession {
         this.draw();
         return;
       }
-      const brush: BoxBrush = { id: crypto.randomUUID(), ...bounds, shader: "blx/blx_grid" };
+      const brush: BoxBrush = { id: crypto.randomUUID(), ...bounds, ...this.currentMaterial() };
       this.document.transact((data) => {
         data.brushes.push(brush);
       });

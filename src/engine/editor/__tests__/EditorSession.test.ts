@@ -4,6 +4,36 @@ import type { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera";
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EditorSession } from "../EditorSession";
+
+// The texture drawer's data sources: a fixed two-entry catalog and instant thumbnails.
+vi.mock("../TextureCatalogLoader", () => ({
+  loadTextureCatalog: async () =>
+    ["blx/blx_white_stripe", "boqu/floor"].map((name) => ({
+      name,
+      folder: name.split("/")[0],
+      image: `textures/${name}.tga`,
+      hasShader: false,
+      tags: [],
+      compiler: false,
+      sky: false,
+      transparent: false,
+      nolightmap: false,
+      fog: false,
+      solidColor: false,
+      missing: false,
+    })),
+}));
+vi.mock("../TextureThumbnailsBrowser", () => ({
+  createBrowserThumbnails: () => ({
+    request: async (path: string) =>
+      path.includes("stripe")
+        ? { url: "blob:stripe", width: 128, height: 32 }
+        : { url: "blob:floor", width: 256, height: 256 },
+    cancel: () => {},
+    dispose: () => {},
+  }),
+}));
+
 import { writeMap } from "../MapWriter";
 import { createRoomTemplate } from "../RoomTemplate";
 import { serverMapName } from "../ServerMapOpen";
@@ -430,6 +460,65 @@ describe("editor DOM shell", () => {
     expect(data().brushes).toHaveLength(0);
     expect(data().brushEntities).toEqual([]);
     session.dispose();
+    engine.dispose();
+  });
+
+  it("applies a texture from the browser to the selected brush and to brushes drawn after", async () => {
+    const engine = new NullEngine();
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    const session = new EditorSession(engine, canvas, vi.fn());
+    const xy = session.root.querySelector<HTMLCanvasElement>('[data-plane="xy"]')!;
+    const pointer = (type: string, x: number, y: number) =>
+      xy.dispatchEvent(new MouseEvent(type, { bubbles: true, button: 0, clientX: x, clientY: y }));
+    const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+    expect(session.root.querySelector("[data-current-texture]")!.textContent).toBe("blx/blx_grid");
+
+    pointer("pointerdown", 200, 150);
+    pointer("pointerup", 264, 86);
+    const first = session.document.snapshot().brushes[0];
+    expect(first.faces).toBeUndefined(); // drawn before any pick: fixed legacy alignment
+
+    session.root.dispatchEvent(new KeyboardEvent("keydown", { key: "t", bubbles: true }));
+    await flush();
+    await flush();
+    const drawer = session.root.querySelector<HTMLElement>(".shagged-tex")!;
+    expect(drawer.hidden).toBe(false);
+    const stripe = [...drawer.querySelectorAll<HTMLElement>(".shagged-tex__tile")].find((tile) =>
+      tile.title.startsWith("blx/blx_white_stripe"),
+    )!;
+    stripe.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 }));
+    await flush();
+
+    const painted = session.document.snapshot().brushes[0];
+    expect(painted.shader).toBe("blx/blx_white_stripe");
+    expect(Object.keys(painted.faces!).sort()).toEqual(["+X", "+Y", "+Z", "-X", "-Y", "-Z"]);
+    expect(painted.faces!["+Z"]).toEqual({
+      shader: "blx/blx_white_stripe",
+      shift: [0, 0],
+      scale: [0.5, 0.5],
+      rotation: 0,
+      size: [128, 32],
+    });
+    // 128×32 at 0.5 units per texel: 1/64 across, 1/16 down
+    expect(writeMap(session.document.snapshot())).toContain("( ( 0.015625 0 0 ) ( 0 0.0625 0 ) ) blx/blx_white_stripe");
+    expect(session.root.querySelector("[data-current-texture]")!.textContent).toBe("blx/blx_white_stripe");
+    expect(session.root.querySelector(".shagged__status")!.textContent).toContain(
+      "Applied blx/blx_white_stripe (128×32)",
+    );
+    session.root.querySelector<HTMLButtonElement>('[data-action="undo"]')!.click();
+    expect(session.document.snapshot().brushes[0].shader).toBe("blx/blx_grid"); // one undo step
+
+    // A brush drawn now gets the current texture with natural alignment.
+    drawer.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    expect(drawer.hidden).toBe(true);
+    pointer("pointerdown", 200, 214);
+    pointer("pointerup", 264, 182);
+    const drawn = session.document.snapshot().brushes.at(-1)!;
+    expect(drawn.shader).toBe("blx/blx_white_stripe");
+    expect(drawn.faces!["-X"]?.size).toEqual([128, 32]);
+    session.dispose();
+    expect(session.root.querySelector(".shagged-tex")).toBeNull();
     engine.dispose();
   });
 
