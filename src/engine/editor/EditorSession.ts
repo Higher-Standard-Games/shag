@@ -54,6 +54,7 @@ import { inspectMapHealth, type MapHealthIssue } from "./MapHealth";
 import { MapHealthTray } from "./MapHealthTray";
 import { writeMap } from "./MapWriter";
 import { indexedModelPaths, modelReferenceIssue } from "./ModelReference";
+import { flatPatch } from "./PatchGeometry";
 import { createPatchPreview, drawPatchLattice, patchBounds, patchLatticeHit } from "./PatchPreview";
 import { browserPreviewDeps, PreviewTextures } from "./PreviewTextures";
 import { createRoomTemplate } from "./RoomTemplate";
@@ -77,6 +78,7 @@ const VIEW_MODES: ReadonlyArray<[ViewMode, string, string]> = [
 type Gesture = {
   plane: Plane;
   mode: "draw" | "move" | "resize";
+  drawKind?: "brush" | "patch";
   start: [number, number];
   current: [number, number];
   brush?: BoxBrush;
@@ -86,7 +88,7 @@ type Gesture = {
   grid: number;
 };
 
-type Tool = "brush" | "select" | "entity";
+type Tool = "brush" | "patch" | "select" | "entity";
 
 /** An entity's box in world space: its class's mins/maxs around the origin. */
 function entityBox(entity: PointEntity): { min: Vec3q; max: Vec3q } {
@@ -243,11 +245,13 @@ export class EditorSession {
   private readonly modelPreviewRequests = new Map<string, string>();
   private readonly modelPreviewFailures = new Map<string, string>();
   private ghost: Mesh | null = null;
+  private patchGhost: Mesh | null = null;
   private readonly listeners = new AbortController();
   private readonly draftStore = new EditorDraftStore(localStorage);
   private readonly statusEl: HTMLElement;
   private readonly inspector: HTMLElement;
   private selectedId: string | null = null;
+  private patchPoint = 4;
   private draftName = "Untitled";
   private tool: Tool = "brush";
   private entityClassname = "info_player_deathmatch";
@@ -340,7 +344,7 @@ export class EditorSession {
         </div>
         <div class="shagged__toolgroup" aria-label="Placement tools">
           <span class="shagged__group-label">TOOLS</span>
-          <button data-action="select" title="V">Select</button><button data-action="brush" title="B">Brush</button>
+          <button data-action="select" title="V">Select</button><button data-action="brush" title="B">Brush</button><button data-action="patch" title="P">Patch</button>
           <button data-action="entity" title="E">Entity</button><select data-entity-class aria-label="Entity class" title="Class placed by the Entity tool"></select>
           <button data-action="textures" title="Texture browser (T)">Textures</button><span class="shagged__current-texture" data-current-texture title="Texture new brushes get"></span>
           <button data-action="health" title="Map Health (H)">Health</button>
@@ -552,6 +556,13 @@ export class EditorSession {
     this.inspector.addEventListener("submit", (event) => this.submitInspector(event), {
       signal: this.listeners.signal,
     });
+    this.inspector.addEventListener(
+      "change",
+      (event) => {
+        if ((event.target as HTMLElement).matches("[data-patch-point]")) this.loadPatchPointFields();
+      },
+      { signal: this.listeners.signal },
+    );
     window.addEventListener("resize", () => this.draw(), { signal: this.listeners.signal });
     this.rebuildMeshes();
     this.draw();
@@ -1002,6 +1013,7 @@ export class EditorSession {
     this.listeners.abort();
     if (this.viewSaveTimer) clearTimeout(this.viewSaveTimer);
     this.disposeGhost();
+    this.disposePatchGhost();
     this.scene.dispose();
     this.root.remove();
   }
@@ -1438,6 +1450,7 @@ export class EditorSession {
           this.toggleHealth();
           break;
         case "brush":
+        case "patch":
         case "select":
         case "entity":
           this.cancelGesture();
@@ -1533,6 +1546,7 @@ export class EditorSession {
       return;
     }
     if (key === "b") this.action("brush");
+    else if (key === "p") this.action("patch");
     else if (key === "v") this.action("select");
     else if (key === "e") this.action("entity");
     else if (key === "t") {
@@ -1732,7 +1746,7 @@ export class EditorSession {
       return;
     }
     const { entityHit, hit, patchHit, onSelection, edge } = this.pressTarget(plane, u, v);
-    if (this.tool === "select" || onSelection || patchHit) {
+    if (this.tool === "select" || (this.tool === "brush" && onSelection) || patchHit) {
       if (!onSelection) this.selectedFaces.clear();
       this.selectedId = entityHit?.id ?? patchHit?.id ?? hit?.id ?? null;
       this.gesture =
@@ -1756,6 +1770,7 @@ export class EditorSession {
       this.gesture = {
         plane,
         mode: "draw",
+        drawKind: this.tool === "patch" ? "patch" : "brush",
         start,
         current: start,
         workPlane: this.workPlanes[AXES[plane].hidden],
@@ -1850,6 +1865,24 @@ export class EditorSession {
     }
     const axes = AXES[plane];
     if (gesture.mode === "draw") {
+      if (gesture.drawKind === "patch") {
+        const patch = flatPatch(
+          crypto.randomUUID(),
+          axes,
+          gesture.start,
+          gesture.current,
+          gesture.workPlane,
+          this.currentTexture.name,
+        );
+        if (!patch) return;
+        this.document.transact((data) => {
+          data.patches ??= [];
+          data.patches.push(patch);
+        });
+        this.selectedId = patch.id;
+        this.changed();
+        return;
+      }
       const bounds = drawBounds(axes, gesture.start, gesture.current, gesture.workPlane, gesture.grid);
       if (!bounds) {
         this.status("Drag at least one grid cell in both axes");
@@ -1985,6 +2018,10 @@ export class EditorSession {
   private submitInspector(event: Event): void {
     event.preventDefault();
     const form = event.target as HTMLFormElement;
+    if (form.matches("[data-patch-form]") && this.selectedId) {
+      this.submitPatch(form, this.selectedId);
+      return;
+    }
     if (form.matches("[data-entity-form]") && this.selectedId) {
       this.submitEntity(form, this.selectedId);
       return;
@@ -2006,6 +2043,39 @@ export class EditorSession {
       this.changed();
     } catch (error) {
       this.status(`Brush edit rejected: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  private submitPatch(form: HTMLFormElement, id: string): void {
+    const values = new FormData(form);
+    const index = Number(values.get("point"));
+    try {
+      this.document.transact((data) => {
+        const patch = data.patches?.find((item) => item.id === id);
+        if (!patch || !Number.isSafeInteger(index) || index < 0 || index >= patch.width * patch.height) {
+          throw new Error("Selected patch control no longer exists");
+        }
+        const control = patch.controlPoints[Math.floor(index / patch.width)][index % patch.width];
+        for (const axis of ["x", "y", "z", "u", "v"] as const) control[axis] = Number(values.get(axis));
+        patch.shader = String(values.get("shader") ?? "").trim();
+      });
+      this.patchPoint = index;
+      this.changed();
+    } catch (error) {
+      this.status(`Patch edit rejected: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  private loadPatchPointFields(): void {
+    const form = this.inspector.querySelector<HTMLFormElement>("[data-patch-form]");
+    const patch = this.document.snapshot().patches?.find((item) => item.id === this.selectedId);
+    if (!form || !patch) return;
+    const index = Number(form.querySelector<HTMLSelectElement>("[data-patch-point]")!.value);
+    if (!Number.isSafeInteger(index) || index < 0 || index >= patch.width * patch.height) return;
+    this.patchPoint = index;
+    const control = patch.controlPoints[Math.floor(index / patch.width)][index % patch.width];
+    for (const axis of ["x", "y", "z", "u", "v"] as const) {
+      form.querySelector<HTMLInputElement>(`[name="${axis}"]`)!.value = String(control[axis]);
     }
   }
 
@@ -2227,6 +2297,7 @@ export class EditorSession {
     if (!gesture) return null;
     const axes = AXES[gesture.plane];
     if (gesture.mode === "draw") {
+      if (gesture.drawKind === "patch") return null;
       const bounds = drawBounds(axes, gesture.start, gesture.current, gesture.workPlane, gesture.grid);
       return bounds ? { id: "gesture-preview", ...bounds, shader: "blx/blx_grid" } : null;
     }
@@ -2243,6 +2314,35 @@ export class EditorSession {
     this.ghost.material?.dispose();
     this.ghost.dispose();
     this.ghost = null;
+  }
+
+  private disposePatchGhost(): void {
+    if (!this.patchGhost) return;
+    this.patchGhost.material?.dispose();
+    this.patchGhost.dispose();
+    this.patchGhost = null;
+  }
+
+  private previewPatch(): PatchSurface | null {
+    const gesture = this.gesture;
+    return gesture?.mode === "draw" && gesture.drawKind === "patch"
+      ? flatPatch(
+          "gesture-patch",
+          AXES[gesture.plane],
+          gesture.start,
+          gesture.current,
+          gesture.workPlane,
+          this.currentTexture.name,
+        )
+      : null;
+  }
+
+  private syncPatchGhost(preview: PatchSurface | null): void {
+    this.disposePatchGhost();
+    if (!preview) return;
+    this.patchGhost = createPatchPreview(preview, this.scene, true, this.viewMode === "wireframe");
+    this.patchGhost.isPickable = false;
+    if (this.patchGhost.material) this.patchGhost.material.alpha = 0.4;
   }
 
   private syncGhost(preview: BoxBrush | null): void {
@@ -2278,6 +2378,7 @@ export class EditorSession {
   private draw(): void {
     const data = this.document.snapshot();
     const preview = this.previewBrush();
+    const patchPreview = this.previewPatch();
     const ownerColors = brushOwnerColors(data);
     for (const [plane, canvas] of this.panes) {
       const rect = canvas.getBoundingClientRect();
@@ -2349,6 +2450,7 @@ export class EditorSession {
       for (const patch of data.patches ?? []) {
         drawPatchLattice(ctx, patch, plane, originX, originY, this.zoom, patch.id === this.selectedId);
       }
+      if (patchPreview) drawPatchLattice(ctx, patchPreview, plane, originX, originY, this.zoom, true);
       if (this.gesture?.mode === "draw" && preview) paint(preview.min, preview.max, true);
       // A selected face pointing at this pane's viewer is outlined, dashed, inside its brush.
       const faced = data.brushes.find((brush) => brush.id === this.selectedId);
@@ -2397,9 +2499,10 @@ export class EditorSession {
       }
     }
     this.syncGhost(preview);
+    this.syncPatchGhost(patchPreview);
     this.syncFaceOverlays(data);
     this.renderInspector(data);
-    for (const name of ["brush", "select", "entity"] as const)
+    for (const name of ["brush", "patch", "select", "entity"] as const)
       this.root.querySelector(`[data-action="${name}"]`)?.classList.toggle("active", this.tool === name);
     this.root.querySelector<HTMLButtonElement>('[data-action="undo"]')!.disabled = !this.document.canUndo;
     this.root.querySelector<HTMLButtonElement>('[data-action="redo"]')!.disabled = !this.document.canRedo;
@@ -2414,7 +2517,32 @@ export class EditorSession {
     const selected = data.brushes.find((brush) => brush.id === this.selectedId);
     const patch = (data.patches ?? []).find((item) => item.id === this.selectedId);
     if (patch) {
-      this.inspector.textContent = `Patch ${patch.id.slice(0, 8)} · ${patch.width}×${patch.height} controls · ${patch.shader}. Select, frame, duplicate, delete, and export are available; point editing comes next.`;
+      this.inspector.innerHTML = `<h2>Patch <code data-patch-id></code></h2>
+        <form data-patch-form>
+          <label class="shagged__shader">Control point <select name="point" data-patch-point></select></label>
+          ${(["x", "y", "z", "u", "v"] as const)
+            .map(
+              (axis) =>
+                `<label class="shagged__shader">${axis.toUpperCase()} <input name="${axis}" type="number" step="any" required></label>`,
+            )
+            .join("")}
+          <label class="shagged__shader">Shader <input name="shader" type="text" spellcheck="false" required></label>
+          <button type="submit">Apply Patch</button>
+        </form><p>Controls use Quake XYZ and texture UV. One Apply is one undo step.</p>`;
+      this.inspector.querySelector("[data-patch-id]")!.textContent =
+        `${patch.id.slice(0, 8)} · ${patch.width}×${patch.height}`;
+      const select = this.inspector.querySelector<HTMLSelectElement>("[data-patch-point]")!;
+      for (let row = 0; row < patch.height; row++) {
+        for (let col = 0; col < patch.width; col++) {
+          const option = document.createElement("option");
+          option.value = String(row * patch.width + col);
+          option.textContent = `Row ${row + 1}, column ${col + 1}`;
+          select.append(option);
+        }
+      }
+      select.value = String(Math.min(this.patchPoint, patch.width * patch.height - 1));
+      this.inspector.querySelector<HTMLInputElement>('[name="shader"]')!.value = patch.shader;
+      this.loadPatchPointFields();
       return;
     }
     if (selected) {

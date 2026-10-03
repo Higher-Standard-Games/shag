@@ -9,7 +9,7 @@ export interface EditorViewState {
   schemaVersion: 1;
   grid: 8 | 16 | 32 | 64;
   zoom: number;
-  tool: "brush" | "select" | "entity";
+  tool: "brush" | "patch" | "select" | "entity";
   selectedId: string | null;
   draftName?: string;
   activePlane?: "xy" | "xz" | "yz";
@@ -69,7 +69,7 @@ function validView(value: unknown): value is EditorViewState {
     Number.isFinite(state.zoom) &&
     state.zoom >= 0.25 &&
     state.zoom <= 4 &&
-    ["brush", "select", "entity"].includes(state.tool) &&
+    ["brush", "patch", "select", "entity"].includes(state.tool) &&
     (state.selectedId === null || typeof state.selectedId === "string") &&
     (state.draftName === undefined ||
       (typeof state.draftName === "string" && state.draftName.trim().length > 0 && state.draftName.length <= 64)) &&
