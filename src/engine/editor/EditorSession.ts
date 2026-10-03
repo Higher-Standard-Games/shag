@@ -287,6 +287,8 @@ export class EditorSession {
   private workPlanes: Vec3q = { x: 0, y: 0, z: 0 };
   private activePlane: Plane = "xy";
   private gesture: Gesture | null = null;
+  /** A typed exact size overriding the mouse, for a single-edge resize; see keyDown and commitNumericResize. */
+  private numericEntry: { buffer: string } | null = null;
   private perspectiveStart: [number, number] | null = null;
   private viewSaveTimer: ReturnType<typeof setTimeout> | null = null;
   private hoverPlane: Plane | null = null;
@@ -1594,6 +1596,7 @@ export class EditorSession {
       return;
     }
     if (menu && key !== "escape") return;
+    if (this.numericEntryKey(event)) return;
     if (this.flyCamera.keyDown(event)) return;
     if (event.ctrlKey || event.metaKey) {
       if (key === "z") {
@@ -2063,10 +2066,72 @@ export class EditorSession {
 
   private cancelGesture(): void {
     this.gesture = null;
+    this.numericEntry = null;
     for (const pane of this.panes.values()) pane.style.cursor = "";
     if (this.pan) this.viewCenter = this.pan.center;
     this.pan = null;
     this.draw();
+  }
+
+  /**
+   * While resizing a single edge, digits/period type an exact size, Backspace
+   * edits it, Enter commits it in place of wherever the mouse is (ending the
+   * gesture as pointerUp would), and Escape clears the typed buffer without
+   * cancelling the drag. Returns whether the key was consumed.
+   */
+  private numericEntryKey(event: KeyboardEvent): boolean {
+    const gesture = this.gesture;
+    const singleEdge = gesture?.mode === "resize" && gesture.brush && gesture.edge?.faces.length === 1;
+    if (!singleEdge) {
+      if (this.numericEntry) this.numericEntry = null;
+      return false;
+    }
+    if (/^[0-9.]$/.test(event.key)) {
+      event.preventDefault();
+      this.numericEntry = { buffer: (this.numericEntry?.buffer ?? "") + event.key };
+      this.draw();
+      return true;
+    }
+    if (event.key === "Backspace" && this.numericEntry) {
+      event.preventDefault();
+      const buffer = this.numericEntry.buffer.slice(0, -1);
+      this.numericEntry = buffer ? { buffer } : null;
+      this.draw();
+      return true;
+    }
+    if (event.key === "Escape" && this.numericEntry) {
+      event.preventDefault();
+      event.stopPropagation(); // keep the resize itself alive; don't let the outer Escape cancel it too
+      this.numericEntry = null;
+      this.draw();
+      return true;
+    }
+    if (event.key === "Enter" && this.numericEntry?.buffer) {
+      event.preventDefault();
+      this.commitNumericResize(gesture, Number(this.numericEntry.buffer));
+      this.numericEntry = null;
+      return true;
+    }
+    return false;
+  }
+
+  /** Resizes the dragged edge to exactly `size`, keeping the opposite face anchored, as pointerUp would commit it. */
+  private commitNumericResize(gesture: Gesture, size: number): void {
+    const brush = gesture.brush;
+    const face = gesture.edge?.faces[0];
+    if (!brush || !face || !Number.isFinite(size) || size <= 0) {
+      this.status("Enter a positive size");
+      return;
+    }
+    const value = face.side === "min" ? brush.max[face.axis] - size : brush.min[face.axis] + size;
+    const candidate = resizeBox(brush, gesture.edge!, { [face.axis]: value }, this.grid);
+    this.gesture = null;
+    this.document.transact((data) => {
+      const index = data.brushes.findIndex((item) => item.id === brush.id);
+      data.brushes[index] = candidate;
+    });
+    this.changed();
+    this.status(`Set ${face.axis.toUpperCase()} to exactly ${size}`);
   }
 
   private changed(): void {
@@ -2558,11 +2623,17 @@ export class EditorSession {
         ctx.lineTo(cx, cy + 9);
         ctx.stroke();
         // A live width×depth×height readout follows the same point while drawing or resizing, so the
-        // mapper doesn't have to find it in the status bar's much longer line.
+        // mapper doesn't have to find it in the status bar's much longer line. While typing an exact
+        // size (resize only, see numericEntryKey), it replaces the measured number, styled in lime to
+        // match the snap marker, so it reads as "this will commit", not "this is what the mouse says".
         if ((this.gesture.mode === "draw" || this.gesture.mode === "resize") && preview) {
-          const label = [axes.u, axes.v, axes.hidden]
-            .map((axis) => Math.round(preview.max[axis] - preview.min[axis]))
-            .join(" × ");
+          const typing = this.gesture.mode === "resize" ? this.numericEntry : null;
+          const label = typing
+            ? `${typing.buffer}_`
+            : [axes.u, axes.v, axes.hidden]
+                .map((axis) => Math.round(preview.max[axis] - preview.min[axis]))
+                .join(" × ");
+          const accent = typing ? "#baff39" : "#ffc61a";
           ctx.font = "bold 13px Rajdhani, sans-serif";
           ctx.textBaseline = "top";
           const padX = 7;
@@ -2572,10 +2643,10 @@ export class EditorSession {
           const by = cy - 14 - 13 - padY * 2;
           ctx.fillStyle = "rgba(10,16,30,.92)";
           ctx.fillRect(bx, by, textWidth + padX * 2, 13 + padY * 2);
-          ctx.strokeStyle = "#ffc61a";
+          ctx.strokeStyle = accent;
           ctx.lineWidth = 1;
           ctx.strokeRect(bx + 0.5, by + 0.5, textWidth + padX * 2 - 1, 13 + padY * 2 - 1);
-          ctx.fillStyle = "#ffc61a";
+          ctx.fillStyle = accent;
           ctx.fillText(label, bx + padX, by + padY);
         }
       }

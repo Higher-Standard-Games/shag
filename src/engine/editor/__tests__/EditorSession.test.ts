@@ -948,6 +948,68 @@ describe("editor DOM shell", () => {
     engine.dispose();
   });
 
+  it("types an exact size while resizing a single edge: digits, Backspace, Escape clears the buffer not the drag, Enter commits", () => {
+    const engine = new NullEngine();
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    const session = new EditorSession(engine, canvas, vi.fn());
+    const xy = session.root.querySelector<HTMLCanvasElement>('[data-plane="xy"]')!;
+    const pointer = (type: string, x: number, y: number) =>
+      xy.dispatchEvent(new MouseEvent(type, { bubbles: true, button: 0, clientX: x, clientY: y }));
+    const key = (value: string) =>
+      session.root.dispatchEvent(new KeyboardEvent("keydown", { key: value, bubbles: true, cancelable: true }));
+
+    // draw a brush, then grab its left (x) edge
+    pointer("pointerdown", 200, 150);
+    pointer("pointerup", 264, 86);
+    const before = session.document.snapshot().brushes[0];
+    pointer("pointerdown", 203, 118);
+    pointer("pointermove", 190, 118); // a live mouse-driven resize is in progress
+
+    key("1");
+    key("0");
+    key("0");
+    key("5"); // a typo
+    expect(session.root.querySelector(".shagged__status")!.textContent).not.toContain("Set X"); // not yet
+    key("Backspace"); // "1005" -> "100"
+    const enter = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
+    session.root.dispatchEvent(enter);
+    expect(enter.defaultPrevented).toBe(true);
+
+    const resized = session.document.snapshot().brushes[0];
+    expect(resized.max.x - resized.min.x).toBe(100); // exact, not whatever the mouse happened to be at
+    expect(resized.max.x).toBe(before.max.x); // the un-dragged face stays anchored
+    expect(session.root.querySelector(".shagged__status")!.textContent).toContain("Set X to exactly 100");
+
+    // the gesture ended with the Enter commit: a further mouse move does nothing more
+    pointer("pointermove", 50, 118);
+    pointer("pointerup", 50, 118);
+    expect(session.document.snapshot().brushes[0]).toEqual(resized);
+
+    // Escape while typing clears only the buffer, keeping the drag (and the un-committed numbers) alive.
+    // The left edge moved to resized.min.x on screen; the right edge (never touched) is still at 264.
+    pointer("pointerdown", 264, 118); // grab the untouched right edge
+    pointer("pointermove", 300, 118);
+    key("5");
+    const escapeEvent = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+    session.root.dispatchEvent(escapeEvent);
+    expect(escapeEvent.defaultPrevented).toBe(true);
+    pointer("pointerup", 300, 118); // the ordinary mouse-driven resize still finishes normally
+    const afterEscape = session.document.snapshot().brushes[0];
+    expect(afterEscape.max.x - afterEscape.min.x).not.toBe(5); // "5" never committed
+    expect(afterEscape.max.x - afterEscape.min.x).toBeGreaterThan(100); // the mouse drag did widen it
+
+    // typing during a draw (two axes, no single edge) does nothing
+    session.root.dispatchEvent(new KeyboardEvent("keydown", { key: "b", bubbles: true }));
+    pointer("pointerdown", 400, 300);
+    pointer("pointermove", 450, 350);
+    key("9");
+    pointer("pointerup", 450, 350);
+    expect(session.document.snapshot().brushes.some((b) => b.max.x - b.min.x === 9)).toBe(false);
+    session.dispose();
+    engine.dispose();
+  });
+
   it("shows a live width × depth × height label at the cursor while drawing or resizing, in the dragged pane only", () => {
     const engine = new NullEngine();
     const canvas = document.createElement("canvas");
