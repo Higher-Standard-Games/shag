@@ -13,7 +13,15 @@ import "@babylonjs/core/Rendering/edgesRenderer";
 // Registers Scene.pick for perspective selection.
 import "@babylonjs/core/Culling/ray";
 import { pickResizeEdge, type ResizeEdge, resizeBox } from "./EditorBoxTools";
-import { type BoxBrush, EditorDocument, type EditorDocumentData, type PointEntity, type Vec3q } from "./EditorDocument";
+import {
+  type BoxBrush,
+  EditorDocument,
+  type EditorDocumentData,
+  ownerOf,
+  type PointEntity,
+  pruneBrushEntities,
+  type Vec3q,
+} from "./EditorDocument";
 import { EditorDraftStore, type EditorViewState } from "./EditorDraftStore";
 import { drawBounds, moveBox } from "./EditorGesture";
 import {
@@ -24,7 +32,14 @@ import {
   paneToWorld,
   zoomCenter,
 } from "./EditorViewTools";
-import { type EntityClassDef, entityClass, POINT_ENTITY_CLASSES } from "./EntityCatalog";
+import {
+  BRUSH_ENTITY_CLASSES,
+  brushEntityShader,
+  type EntityClassDef,
+  entityClass,
+  missingRequiredKeys,
+  POINT_ENTITY_CLASSES,
+} from "./EntityCatalog";
 import { writeMap } from "./MapWriter";
 import { createRoomTemplate } from "./RoomTemplate";
 import type { EditorCompileJob, EditorServerStatus, ShaggedApi } from "./ShaggedApi";
@@ -60,12 +75,14 @@ function cssColor([r, g, b]: EntityClassDef["color"], alpha = 1): string {
 }
 
 /** Catalog classes grouped by their entities.def section; a classname outside the catalog is kept as its own option. */
-function fillClassOptions(select: HTMLSelectElement, selected: string): void {
+function fillClassOptions(
+  select: HTMLSelectElement,
+  selected: string,
+  catalog: readonly EntityClassDef[] = POINT_ENTITY_CLASSES,
+): void {
   select.replaceChildren();
   const groups = new Map<string, HTMLOptGroupElement>();
-  const classes = POINT_ENTITY_CLASSES.some((def) => def.classname === selected)
-    ? POINT_ENTITY_CLASSES
-    : [...POINT_ENTITY_CLASSES, entityClass(selected)];
+  const classes = catalog.some((def) => def.classname === selected) ? catalog : [...catalog, entityClass(selected)];
   for (const def of classes) {
     let group = groups.get(def.section);
     if (!group) {
@@ -81,6 +98,92 @@ function fillClassOptions(select: HTMLSelectElement, selected: string): void {
   }
   select.value = selected;
 }
+
+/**
+ * One field per key: the class's documented keys (required ones marked) plus
+ * any other key the entity already carries, so nothing the catalog doesn't
+ * know is dropped on Apply. Values go through DOM properties, never markup.
+ */
+function appendKeyRows(rows: HTMLElement, def: EntityClassDef, keys: Record<string, string>): void {
+  const documented = new Set(def.keys.map((key) => key.name));
+  const fields = [
+    ...def.keys,
+    ...Object.keys(keys)
+      .filter((name) => !documented.has(name))
+      .sort()
+      .map((name) => ({ name, label: "Not in the class list", defaultValue: undefined, required: undefined })),
+  ];
+  for (const field of fields) {
+    const label = document.createElement("label");
+    label.className = field.required ? "shagged__key shagged__key--required" : "shagged__key";
+    const name = document.createElement("span");
+    name.textContent = field.required ? `${field.name} *` : field.name;
+    name.title = field.required ? `${field.label} (required)` : field.label;
+    const input = document.createElement("input");
+    input.type = "text";
+    input.spellcheck = false;
+    input.name = `key:${field.name}`;
+    input.value = keys[field.name] ?? "";
+    if (field.defaultValue) input.placeholder = field.defaultValue;
+    label.append(name, input);
+    rows.appendChild(label);
+  }
+}
+
+/** The key fields of a submitted form, plus the new-key pair; an empty value removes a key. */
+function readKeys(values: FormData): Record<string, string> {
+  const keys: Record<string, string> = {};
+  for (const [name, value] of values) {
+    if (!name.startsWith("key:")) continue;
+    const text = String(value).trim();
+    if (text) keys[name.slice(4)] = text;
+  }
+  const newKey = String(values.get("new-key") ?? "").trim();
+  const newValue = String(values.get("new-value") ?? "").trim();
+  if (newKey && newValue) keys[newKey] = newValue;
+  return keys;
+}
+
+/** World, the map's existing brush entities, then every brush class as a new entity. */
+function fillOwnerOptions(select: HTMLSelectElement, data: EditorDocumentData, ownerId: string | undefined): void {
+  select.replaceChildren();
+  const option = (value: string, text: string) => {
+    const element = document.createElement("option");
+    element.value = value;
+    element.textContent = text;
+    return element;
+  };
+  select.appendChild(option("world", "World (worldspawn)"));
+  const existing = data.brushEntities ?? [];
+  if (existing.length) {
+    const group = document.createElement("optgroup");
+    group.label = "In this map";
+    for (const entity of existing) {
+      group.appendChild(option(`entity:${entity.id}`, `${entity.classname} ${entity.id.slice(0, 8)}`));
+    }
+    select.appendChild(group);
+  }
+  const fresh = document.createElement("optgroup");
+  fresh.label = "New brush entity";
+  for (const def of BRUSH_ENTITY_CLASSES) fresh.appendChild(option(`new:${def.classname}`, def.classname));
+  select.appendChild(fresh);
+  select.value = ownerId ? `entity:${ownerId}` : "world";
+}
+
+/** Brushes owned by a brush entity, coloured by that entity's class. */
+function brushOwnerColors(data: EditorDocumentData): Map<string, EntityClassDef["color"]> {
+  const colors = new Map<string, EntityClassDef["color"]>();
+  for (const entity of data.brushEntities ?? []) {
+    const color = entityClass(entity.classname).color;
+    for (const id of entity.brushIds) colors.set(id, color);
+  }
+  return colors;
+}
+
+const NEW_KEY_ROW = `<div class="shagged__key shagged__key--new">
+  <input name="new-key" type="text" spellcheck="false" placeholder="new key" aria-label="New key name">
+  <input name="new-value" type="text" spellcheck="false" placeholder="value" aria-label="New key value">
+</div>`;
 
 function moveEntity(entity: PointEntity, axes: (typeof AXES)[Plane], du: number, dv: number): PointEntity {
   const result = structuredClone(entity);
@@ -413,7 +516,7 @@ export class EditorSession {
     const data = this.document.snapshot();
     const saved =
       this.serverSave?.documentRevision === this.revision ? `server r${this.serverSave.revision}` : "server unsaved";
-    this.statusEl.textContent = `${this.lastMessage} · ${data.brushes.length} brushes · ${data.entities.length} entities · revision ${this.revision} · ${this.activePlane.toUpperCase()} work ${hidden.toUpperCase()}=${this.workPlanes[hidden]} · grid ${this.grid}${dimensions}${cursor} · ${saved}`;
+    this.statusEl.textContent = `${this.lastMessage} · ${data.brushes.length} brushes · ${data.entities.length + (data.brushEntities?.length ?? 0)} entities · revision ${this.revision} · ${this.activePlane.toUpperCase()} work ${hidden.toUpperCase()}=${this.workPlanes[hidden]} · grid ${this.grid}${dimensions}${cursor} · ${saved}`;
   }
 
   private updateServerButtons(): void {
@@ -695,6 +798,7 @@ export class EditorSession {
             this.document.transact((data) => {
               data.brushes = data.brushes.filter((brush) => brush.id !== id);
               data.entities = data.entities.filter((entity) => entity.id !== id);
+              pruneBrushEntities(data);
             });
             this.selectedId = null;
             this.changed();
@@ -711,7 +815,7 @@ export class EditorSession {
     }
   }
 
-  /** A copy one grid step along +X, keys and all, as one undo step. */
+  /** A copy one grid step along +X, keys and all, as one undo step. A brush copy joins its original's entity. */
   private duplicateSelection(): void {
     const data = this.document.snapshot();
     const brush = data.brushes.find((item) => item.id === this.selectedId);
@@ -722,7 +826,10 @@ export class EditorSession {
       copy.id = id;
       copy.min.x += this.grid;
       copy.max.x += this.grid;
-      this.document.transact((draft) => draft.brushes.push(copy));
+      this.document.transact((draft) => {
+        draft.brushes.push(copy);
+        ownerOf(draft, brush.id)?.brushIds.push(id);
+      });
     } else if (entity) {
       const copy = structuredClone(entity);
       copy.id = id;
@@ -1105,6 +1212,7 @@ export class EditorSession {
           brush.max[axis] = Number(values.get(`max-${axis}`));
         }
         brush.shader = String(values.get("shader") ?? "").trim();
+        this.applyOwner(data, brush, values);
       });
       this.changed();
     } catch (error) {
@@ -1112,17 +1220,37 @@ export class EditorSession {
     }
   }
 
+  /**
+   * The brush form's Entity choice, inside its transaction: keep the current
+   * entity (and apply its class and keys), move to another, return to
+   * worldspawn, or start a new entity of a brush class. Empty entities are
+   * pruned, so leaving the last brush removes the entity.
+   */
+  private applyOwner(data: EditorDocumentData, brush: BoxBrush, values: FormData): void {
+    data.brushEntities ??= [];
+    const choice = String(values.get("owner") ?? "world");
+    const current = ownerOf(data, brush.id);
+    if (current && choice === `entity:${current.id}`) {
+      current.classname = String(values.get("owner-classname") ?? current.classname).trim();
+      current.keys = readKeys(values);
+    } else {
+      if (current) current.brushIds = current.brushIds.filter((id) => id !== brush.id);
+      if (choice.startsWith("entity:")) {
+        const target = data.brushEntities.find((entity) => entity.id === choice.slice(7));
+        if (!target) throw new Error("That brush entity no longer exists");
+        target.brushIds.push(brush.id);
+      } else if (choice.startsWith("new:")) {
+        const classname = choice.slice(4);
+        data.brushEntities.push({ id: crypto.randomUUID(), classname, keys: {}, brushIds: [brush.id] });
+        brush.shader = brushEntityShader(classname) ?? brush.shader;
+      }
+    }
+    pruneBrushEntities(data);
+  }
+
   private submitEntity(form: HTMLFormElement, id: string): void {
     const values = new FormData(form);
-    const keys: Record<string, string> = {};
-    for (const [name, value] of values) {
-      if (!name.startsWith("key:")) continue;
-      const text = String(value).trim();
-      if (text) keys[name.slice(4)] = text;
-    }
-    const newKey = String(values.get("new-key") ?? "").trim();
-    const newValue = String(values.get("new-value") ?? "").trim();
-    if (newKey && newValue) keys[newKey] = newValue;
+    const keys = readKeys(values);
     try {
       this.document.transact((data) => {
         const entity = data.entities.find((item) => item.id === id);
@@ -1143,7 +1271,9 @@ export class EditorSession {
       mesh.dispose();
     }
     this.meshes.clear();
-    for (const brush of this.document.snapshot().brushes) {
+    const data = this.document.snapshot();
+    const ownerColors = brushOwnerColors(data);
+    for (const brush of data.brushes) {
       const mesh = MeshBuilder.CreateBox(
         brush.id,
         {
@@ -1159,7 +1289,13 @@ export class EditorSession {
         (brush.min.y + brush.max.y) / 2,
       );
       const material = new StandardMaterial(`editor-${brush.id}`, this.scene);
-      material.diffuseColor = brush.id === this.selectedId ? new Color3(1, 0.75, 0.2) : new Color3(0.1, 0.8, 0.9);
+      const owned = ownerColors.get(brush.id);
+      material.diffuseColor =
+        brush.id === this.selectedId
+          ? new Color3(1, 0.75, 0.2)
+          : owned
+            ? new Color3(...owned)
+            : new Color3(0.1, 0.8, 0.9);
       material.alpha = 0.82;
       mesh.material = material;
       mesh.enableEdgesRendering();
@@ -1167,7 +1303,7 @@ export class EditorSession {
       mesh.edgesColor = new Color4(0.02, 0.02, 0.05, 1);
       this.meshes.set(brush.id, mesh);
     }
-    for (const entity of this.document.snapshot().entities) {
+    for (const entity of data.entities) {
       const { min, max } = entityBox(entity);
       const mesh = MeshBuilder.CreateBox(
         entity.id,
@@ -1240,6 +1376,7 @@ export class EditorSession {
   private draw(): void {
     const data = this.document.snapshot();
     const preview = this.previewBrush();
+    const ownerColors = brushOwnerColors(data);
     for (const [plane, canvas] of this.panes) {
       const rect = canvas.getBoundingClientRect();
       if (!rect.width || !rect.height) continue;
@@ -1277,13 +1414,13 @@ export class EditorSession {
       ctx.moveTo(0, originY);
       ctx.lineTo(w, originY);
       ctx.stroke();
-      const paint = (min: Vec3q, max: Vec3q, selected: boolean) => {
+      const paint = (min: Vec3q, max: Vec3q, selected: boolean, color?: EntityClassDef["color"]) => {
         const x = originX + min[axes.u] * this.zoom;
         const y = originY - max[axes.v] * this.zoom;
         const rw = (max[axes.u] - min[axes.u]) * this.zoom;
         const rh = (max[axes.v] - min[axes.v]) * this.zoom;
-        ctx.fillStyle = selected ? "rgba(255,198,26,.36)" : "rgba(0,225,240,.25)";
-        ctx.strokeStyle = selected ? "#ffc61a" : "#41deeb";
+        ctx.fillStyle = selected ? "rgba(255,198,26,.36)" : color ? cssColor(color, 0.3) : "rgba(0,225,240,.25)";
+        ctx.strokeStyle = selected ? "#ffc61a" : color ? cssColor(color) : "#41deeb";
         ctx.lineWidth = selected ? 2 : 1;
         ctx.fillRect(x, y, rw, rh);
         ctx.strokeRect(x, y, rw, rh);
@@ -1304,6 +1441,7 @@ export class EditorSession {
           edited ? preview.min : brush.min,
           edited ? preview.max : brush.max,
           !!edited || brush.id === this.selectedId,
+          ownerColors.get(brush.id),
         );
       }
       if (this.gesture?.mode === "draw" && preview) paint(preview.min, preview.max, true);
@@ -1362,15 +1500,41 @@ export class EditorSession {
             )
             .join("")}
           <label class="shagged__shader">Shader <input name="shader" type="text" spellcheck="false" required></label>
+          <label class="shagged__shader">Entity <select name="owner"></select></label>
+          <div data-owner-section></div>
           <button type="submit">Apply Brush</button>
-        </form><p>Values use Quake units; Z is up. One Apply is one undo step.</p>`;
-      this.inspector.querySelector("[data-brush-id]")!.textContent = selected.id.slice(0, 8);
+        </form><p>Values use Quake units; Z is up. One Apply is one undo step. A brush in an entity leaves worldspawn; MakeBSP gives the entity its model.</p>`;
+      const owner = ownerOf(data, selected.id);
+      this.inspector.querySelector("[data-brush-id]")!.textContent = owner
+        ? `${selected.id.slice(0, 8)} · ${owner.classname}`
+        : selected.id.slice(0, 8);
       const form = this.inspector.querySelector<HTMLFormElement>("[data-brush-form]")!;
       for (const axis of ["x", "y", "z"] as const) {
         form.querySelector<HTMLInputElement>(`[name="min-${axis}"]`)!.value = String(selected.min[axis]);
         form.querySelector<HTMLInputElement>(`[name="max-${axis}"]`)!.value = String(selected.max[axis]);
       }
       form.querySelector<HTMLInputElement>('[name="shader"]')!.value = selected.shader;
+      fillOwnerOptions(form.querySelector<HTMLSelectElement>('[name="owner"]')!, data, owner?.id);
+      if (owner) {
+        const section = form.querySelector<HTMLElement>("[data-owner-section]")!;
+        section.innerHTML = `<label class="shagged__shader">Entity class <select name="owner-classname"></select></label>
+          <p class="shagged__warning" data-missing hidden></p>
+          <div class="shagged__keys" data-entity-keys></div>${NEW_KEY_ROW}`;
+        fillClassOptions(
+          section.querySelector<HTMLSelectElement>('[name="owner-classname"]')!,
+          owner.classname,
+          BRUSH_ENTITY_CLASSES,
+        );
+        appendKeyRows(
+          section.querySelector<HTMLElement>("[data-entity-keys]")!,
+          entityClass(owner.classname),
+          owner.keys,
+        );
+        const missing = missingRequiredKeys(owner.classname, owner.keys);
+        const warning = section.querySelector<HTMLElement>("[data-missing]")!;
+        warning.hidden = missing.length === 0;
+        warning.textContent = `Missing required ${missing.join(", ")}: the game drops this ${owner.classname} without it.`;
+      }
       return;
     }
     const entity = data.entities.find((item) => item.id === this.selectedId);
@@ -1400,10 +1564,7 @@ export class EditorSession {
           )
           .join("")}
         <div class="shagged__keys" data-entity-keys></div>
-        <div class="shagged__key shagged__key--new">
-          <input name="new-key" type="text" spellcheck="false" placeholder="new key" aria-label="New key name">
-          <input name="new-value" type="text" spellcheck="false" placeholder="value" aria-label="New key value">
-        </div>
+        ${NEW_KEY_ROW}
         <button type="submit">Apply Entity</button>
       </form><p>An empty value removes that key. Keys the class list doesn't document are kept as they are.</p>`;
     this.inspector.querySelector("[data-entity-id]")!.textContent = `${entity.classname} ${entity.id.slice(0, 8)}`;
@@ -1412,29 +1573,6 @@ export class EditorSession {
     for (const axis of ["x", "y", "z"] as const) {
       form.querySelector<HTMLInputElement>(`[name="origin-${axis}"]`)!.value = String(entity.origin[axis]);
     }
-    const rows = form.querySelector<HTMLElement>("[data-entity-keys]")!;
-    const documented = new Set(def.keys.map((key) => key.name));
-    const fields = [
-      ...def.keys,
-      ...Object.keys(entity.keys)
-        .filter((name) => !documented.has(name))
-        .sort()
-        .map((name) => ({ name, label: "Not in the class list", defaultValue: undefined })),
-    ];
-    for (const field of fields) {
-      const label = document.createElement("label");
-      label.className = "shagged__key";
-      const name = document.createElement("span");
-      name.textContent = field.name;
-      name.title = field.label;
-      const input = document.createElement("input");
-      input.type = "text";
-      input.spellcheck = false;
-      input.name = `key:${field.name}`;
-      input.value = entity.keys[field.name] ?? "";
-      if (field.defaultValue) input.placeholder = field.defaultValue;
-      label.append(name, input);
-      rows.appendChild(label);
-    }
+    appendKeyRows(form.querySelector<HTMLElement>("[data-entity-keys]")!, def, entity.keys);
   }
 }

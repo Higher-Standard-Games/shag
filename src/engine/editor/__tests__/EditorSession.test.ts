@@ -4,6 +4,7 @@ import type { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera";
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EditorSession } from "../EditorSession";
+import { writeMap } from "../MapWriter";
 import type { ShaggedApi } from "../ShaggedApi";
 
 const context = {
@@ -284,6 +285,69 @@ describe("editor DOM shell", () => {
     expect(entities().map((entity) => entity.id)).toEqual([id]);
     session.root.querySelector<HTMLButtonElement>('[data-action="undo"]')!.click();
     expect(entities()).toHaveLength(2);
+    session.dispose();
+    engine.dispose();
+  });
+
+  it("turns a brush into a trigger, warns about its required key, grows a door, and prunes on delete", () => {
+    const engine = new NullEngine();
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    const session = new EditorSession(engine, canvas, vi.fn());
+    const xy = session.root.querySelector<HTMLCanvasElement>('[data-plane="xy"]')!;
+    const pointer = (type: string, x: number, y: number) =>
+      xy.dispatchEvent(new MouseEvent(type, { bubbles: true, button: 0, clientX: x, clientY: y }));
+    const data = () => session.document.snapshot();
+    const submit = () =>
+      session.root
+        .querySelector<HTMLFormElement>("[data-brush-form]")!
+        .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    const owner = () => session.root.querySelector<HTMLSelectElement>('[name="owner"]')!;
+
+    // Draw a brush, then make it a new trigger_teleport from the inspector.
+    pointer("pointerdown", 200, 150);
+    pointer("pointerup", 264, 86);
+    const brushId = data().brushes[0].id;
+    expect(owner().value).toBe("world");
+    owner().value = "new:trigger_teleport";
+    submit();
+    expect(data().brushEntities).toMatchObject([{ classname: "trigger_teleport", keys: {}, brushIds: [brushId] }]);
+    expect(data().brushes[0].shader).toBe("common/trigger");
+    expect(session.root.querySelector(".shagged__status")!.textContent).toContain("1 entities");
+
+    // The game drops a teleporter without target; the inspector says so until it is set.
+    const warning = session.root.querySelector<HTMLElement>("[data-missing]")!;
+    expect(warning.hidden).toBe(false);
+    expect(warning.textContent).toContain("target");
+    expect(session.root.querySelector('[name="key:model"]')).toBeNull();
+    session.root.querySelector<HTMLInputElement>('[name="key:target"]')!.value = "dest1";
+    submit();
+    expect(data().brushEntities![0].keys).toEqual({ target: "dest1" });
+    expect(session.root.querySelector<HTMLElement>("[data-missing]")!.hidden).toBe(true);
+    expect(writeMap(data())).toContain('"classname" "trigger_teleport"\n"target" "dest1"\n{\nbrushDef');
+
+    // Back to worldspawn: the emptied entity disappears, the trigger texture stays.
+    owner().value = "world";
+    submit();
+    expect(data().brushEntities).toEqual([]);
+
+    // A door: one brush becomes func_door, a duplicate joins it, deleting one keeps the other.
+    owner().value = "new:func_door";
+    submit();
+    expect(data().brushes[0].shader).toBe("common/trigger"); // movers keep the brush's own shader
+    session.root.dispatchEvent(new KeyboardEvent("keydown", { key: "d", ctrlKey: true, bubbles: true }));
+    expect(data().brushes).toHaveLength(2);
+    expect(data().brushEntities![0].brushIds).toHaveLength(2);
+    session.root.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete", bubbles: true }));
+    expect(data().brushEntities![0].brushIds).toEqual([brushId]);
+
+    // Deleting the last brush removes the entity with it.
+    session.root.querySelector<HTMLButtonElement>('[data-action="select"]')!.click();
+    pointer("pointerdown", 232, 118);
+    pointer("pointerup", 232, 118);
+    session.root.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete", bubbles: true }));
+    expect(data().brushes).toHaveLength(0);
+    expect(data().brushEntities).toEqual([]);
     session.dispose();
     engine.dispose();
   });

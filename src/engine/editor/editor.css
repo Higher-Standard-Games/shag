@@ -285,3 +285,16 @@
     display: none;
   }
 }
+.shagged__key--required > span {
+  color: #ffc61a;
+}
+.shagged__inspector .shagged__warning {
+  margin: 8px 0;
+  padding: 6px 8px;
+  color: #ffd27a;
+  background: #3a2a0c;
+  border-left: 3px solid #ffc61a;
+}
+.shagged__inspector .shagged__warning[hidden] {
+  display: none;
+}

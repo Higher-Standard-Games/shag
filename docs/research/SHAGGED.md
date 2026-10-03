@@ -102,7 +102,7 @@ from `localeCompare` to code-unit order, so the bytes cannot depend on the
 machine's locale (ICU gives the hyphens in every UUID special treatment).
 
 **M2 point entities (2026-10-03).** Status: point-entity placement done;
-brush entities not started.
+brush entities followed the same day (below).
 - **Schema:** the document moves to schema version 2. `entities:
   PointEntity[]` holds an `id`, `classname`, `origin`, and a `keys` map for
   every other key, including keys the editor doesn't know. IDs are unique
@@ -134,12 +134,48 @@ brush entities not started.
   came back out of the BSP entity lump through SHAG's own loader.
 - **Browser check:** placement, markers and the inspector were checked in a
   browser.
-- **Still open:**
-  - The M2 entities gate also asks for a compiled brush entity, which is the
-    separate brush-entity item.
-  - Brush resize and inspector shader edits still apply to brushes only.
+- **Still open:** brush resize and inspector shader edits apply to brushes
+  only.
 
-M1 plus point entities is in place. Face/UV editing, brush entities, groups,
+**M2 brush entities (2026-10-03).** Status: done. With point entities above,
+this meets the M2 entities compile gate ("one point entity and one brush
+entity") except for groups, which are the separate multi-select item.
+- **Ownership:** a brush entity owns brushes by ID (`brushEntities: [{ id,
+  classname, keys, brushIds }]`); owned brushes stay in `brushes` and leave
+  worldspawn on export. Validation requires every owned brush to exist, no
+  brush to have two owners, and no entity to be empty. `pruneBrushEntities`
+  runs inside the same transaction as any delete or ownership change, so
+  deleting a brush or moving the last one out removes the entity.
+- **Keys:** `origin` and `model` are refused as keys. Per `entities.def`
+  the engine adds origin to the already world-space submodel box, and MakeBSP
+  assigns `model` (`*N`). Keys the definition marks "-- required" are
+  starred in the inspector, and a missing one shows a warning; for example, a
+  trigger without `target` "is dropped silently at load".
+- **Compatibility:** the field is optional and additive (schema version 2 is
+  unchanged). Drafts and server sidecars saved before it stay valid, and
+  `EditorDocument` normalises it to `[]`.
+- **Catalog:** brush classes come from the same gameplay sections:
+  `trigger_teleport`, `trigger_push`, `trigger_once`,
+  `trigger_multiple`, `func_button`, `trigger_hurt`, `func_door`,
+  `func_plat` and `trigger_capture_area`.
+- **Editor:**
+  - The brush inspector's Entity picker offers World, the map's existing
+    brush entities, and a new entity of any brush class. Starting a
+    `trigger_*` sets the brush to `common/trigger`, as the definitions
+    instruct; movers keep their material.
+  - For an owned brush, the inspector also edits the entity's class and keys.
+  - A duplicated owned brush joins the same entity, so a multi-brush door is
+    built brush by brush until multi-select exists.
+  - Owned brushes are drawn in their class colour in every pane.
+- **Compiler proof:** the Room Template plus a `trigger_teleport` (target
+  `dest1`, with a `misc_teleporter_dest` named `dest1`) and a two-brush
+  `func_door` compiled with exit 0 and no leak. `BspLoader` reads 3 models
+  (world plus 2 submodels); MakeBSP wrote `"model" "*1"` on the door and
+  `"model" "*2"` on the teleporter, and no origin.
+- **Browser check:** making a drawn brush a trigger, the warning, the trigger
+  shader and the class colour were checked in a browser.
+
+M1 plus point and brush entities is in place. Face/UV editing, groups,
 and the playable build/return loop remain. The first M3 backend slices now
 store numbered `.map` revisions with optional matching editor sidecars and
 offer loopback Save/Open endpoints. `shagged:server` and `shagged:compile`
@@ -201,7 +237,7 @@ This matrix describes **editor features to build**, not features already availab
 | Face material editing | M2 | Pick one or multiple faces, assign a Washoi shader name, adjust basic shift/scale/rotation, preview and export the result. | PK3/shader loaders exist; current raw parser discards brush primitive UV matrices and flags, so editor needs lossless face data. |
 | Multi-select and grouping | M2 | Shift-select, marquee-select, group/ungroup, move/duplicate a group, and preserve membership in the editable draft. | New editor-only hierarchy. `func_group` appears in Washoi `entities.def`, but its compiler semantics need proof before using it for persistence; grouping must not silently change game entity ownership. |
 | Point entity placement | M2 (**done 2026-10-03**) | Place a spawn, light, pickup, or target marker in 2D/3D; edit `classname`, origin, angle, and class-specific keys in an inspector. | Done: `EntityCatalog.ts` reads the gameplay point classes from `entities.def`; schema v2 `entities` with preserved unknown keys; markers in all panes; deterministic export; compiled and read back through `BspLoader`. |
-| Brush entity placement | M2/M3 | Convert selected brushes into a brush entity (for example trigger/door), set keys, and show entity bounds and links. | Washoi definitions include triggers and movers; compiled BSP handlers exist. Ownership, origin rules, target links, and round-trip compile tests are new and class-specific. |
+| Brush entity placement | M2 (**done 2026-10-03**) | Convert selected brushes into a brush entity (for example trigger/door), set keys, and show entity bounds and links. | Done: ownership by brush ID, no origin/model keys, required-key warnings, class-coloured brushes; a teleporter and a two-brush door compiled to submodels `*1`/`*2`. Target-link overlays remain the separate entity-link idea. |
 | Simplified modular Block Builder | Optional M2+ | Pick a sized room piece, snap compatible sockets/grid positions, rotate by quarter-turn, and detach it to editable brushes. | Babylon can preview/gizmo repeated pieces; pure Quake-space placement, versioned definitions, and deterministic expansion to `.map` are new. Its detailed proof is below. |
 | Raw map preview | M1/M2 | Inspect the editable `.map` through the editor's 3D and orthographic views, with textured/wireframe options as they arrive. | Raw brush and patch renderers exist; editor previews need their own lightweight scene objects. No separate raw gameplay mode is required. |
 | Compile and status | M3 | Save/submit a numbered `.map` snapshot to `shagged:server`, follow MakeBSP/MakeLight job status, and retain the last successful build. | Washoi build recipe exists; SHAGGED service, CLI process runner, and revision tracking are new. |
