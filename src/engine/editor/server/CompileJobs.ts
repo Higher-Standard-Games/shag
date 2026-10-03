@@ -5,6 +5,7 @@ import path from "node:path";
 import { type BuildQuality, buildRecipe } from "./BuildRecipe";
 import type { CompilerConfig } from "./CompilerConfig";
 import { MapConflictError, type MapStore } from "./MapStore";
+import { checkModelAssets } from "./ModelAssetPreflight";
 
 export type CompileState = "queued" | "running" | "failed" | "compiled";
 export type CompileStage = "queued" | "makebsp" | "makelight" | "verify" | "done";
@@ -113,6 +114,7 @@ export class CompileJobs {
 
   private async execute(job: CompileJob, source: string): Promise<void> {
     try {
+      await checkModelAssets(source, this.config.mediaRoot);
       const toolchainRoot = this.config.toolchainRoot!;
       const workspace = path.join(this.jobsRoot, job.id);
       await mkdir(workspace, { recursive: true });

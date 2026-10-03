@@ -356,7 +356,12 @@ Loaded loose-GLB previews are reused across selection/redraw and repositioned
 when the entity moves; an unchanged missing path is not fetched repeatedly.
 This is an authoring/export slice, not proof that an installed MakeBSP accepts
 our GLB or that preview transforms/materials match the compiled BSP. The
-server does not yet verify asset existence in its VFS.
+server now checks each `misc_model` path in the saved `.map` against loose
+files and PK3 entries under its configured media root before starting MakeBSP.
+Missing, empty, or unsafe paths fail the compile job with a diagnostic in the
+job log. This also covers source-only maps without an editor sidecar. The
+check establishes asset presence, not whether MakeBSP can decode the model or
+resolve its materials; that still requires a real compiler fixture.
 
 ## M2 materials: face selection and the texture browser (plan, 2026-10-03)
 

@@ -78,4 +78,22 @@ describe("SHAGGED compile jobs", () => {
     expect((await jobs.wait(retry.id))?.state).toBe("failed");
     await expect(jobs.request("arena", 2, "default")).rejects.toThrow("revision is 1");
   });
+
+  it("fails missing misc_model references before running MakeBSP", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "shagged-jobs-"));
+    roots.push(root);
+    const store = new MapStore(path.join(root, "maps"));
+    await store.init();
+    await store.save("arena", '{\n"classname" "misc_model"\n"model" "models/missing.md3"\n}\n', 0);
+    let calls = 0;
+    const jobs = new CompileJobs(store, { ...config, mediaRoot: root }, path.join(root, "jobs"), async () => {
+      calls++;
+      return 0;
+    });
+    const started = await jobs.request("arena", 1, "fast");
+    const failed = await jobs.wait(started.id);
+    expect(failed?.state).toBe("failed");
+    expect(failed?.logs.join(" ")).toContain("models/missing.md3");
+    expect(calls).toBe(0);
+  });
 });
