@@ -29,3 +29,46 @@ export function flatPatch(
   }
   return { id, shader, width: 3, height: 3, controlPoints };
 }
+
+/** Pick the nearest projected control, preferring the inspector's current point only when projections tie. */
+export function patchControlHit(
+  patch: PatchSurface,
+  axes: OrthoAxes,
+  u: number,
+  v: number,
+  tolerance: number,
+  preferredIndex = -1,
+): number | null {
+  let nearest: number | null = null;
+  let distance = tolerance;
+  for (let row = 0; row < patch.height; row++) {
+    for (let col = 0; col < patch.width; col++) {
+      const point = patch.controlPoints[row][col];
+      const next = Math.hypot(point[axes.u] - u, point[axes.v] - v);
+      if (next <= tolerance && (nearest === null || next < distance)) {
+        nearest = row * patch.width + col;
+        distance = next;
+      }
+    }
+  }
+  if (preferredIndex >= 0 && preferredIndex < patch.width * patch.height && nearest !== null) {
+    const point = patch.controlPoints[Math.floor(preferredIndex / patch.width)][preferredIndex % patch.width];
+    if (Math.abs(Math.hypot(point[axes.u] - u, point[axes.v] - v) - distance) < 1e-6) return preferredIndex;
+  }
+  return nearest;
+}
+
+/** A transient copy for drag preview. The hidden axis and UV of this control remain intact. */
+export function movedPatchControl(
+  patch: PatchSurface,
+  index: number,
+  axes: OrthoAxes,
+  u: number,
+  v: number,
+): PatchSurface {
+  const result = structuredClone(patch);
+  const point = result.controlPoints[Math.floor(index / patch.width)][index % patch.width];
+  point[axes.u] = u;
+  point[axes.v] = v;
+  return result;
+}

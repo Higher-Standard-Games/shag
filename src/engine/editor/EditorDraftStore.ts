@@ -9,7 +9,7 @@ export interface EditorViewState {
   schemaVersion: 1;
   grid: 8 | 16 | 32 | 64;
   zoom: number;
-  tool: "brush" | "patch" | "select" | "entity";
+  tool: "brush" | "patch" | "points" | "select" | "entity";
   patchShape?: "flat" | "bevel" | "inverted-bevel" | "arch";
   patchDepth?: number;
   patchReverse?: boolean;
@@ -72,7 +72,7 @@ function validView(value: unknown): value is EditorViewState {
     Number.isFinite(state.zoom) &&
     state.zoom >= 0.25 &&
     state.zoom <= 4 &&
-    ["brush", "patch", "select", "entity"].includes(state.tool) &&
+    ["brush", "patch", "points", "select", "entity"].includes(state.tool) &&
     (state.patchShape === undefined || ["flat", "bevel", "inverted-bevel", "arch"].includes(state.patchShape)) &&
     (state.patchDepth === undefined ||
       (Number.isFinite(state.patchDepth) && Math.abs(state.patchDepth) >= 1 && Math.abs(state.patchDepth) <= 4096)) &&

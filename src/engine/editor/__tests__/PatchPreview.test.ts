@@ -218,4 +218,49 @@ describe("editor patch preview", () => {
     restored.dispose();
     engine.dispose();
   });
+
+  it("drags one selected control across 2D panes, previews without committing, and cancels with Escape", () => {
+    const engine = new NullEngine();
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    const session = new EditorSession(engine, canvas, vi.fn());
+    const xy = session.root.querySelector<HTMLCanvasElement>('[data-plane="xy"]')!;
+    const xz = session.root.querySelector<HTMLCanvasElement>('[data-plane="xz"]')!;
+    const pointer = (pane: HTMLCanvasElement, type: string, x: number, y: number) =>
+      pane.dispatchEvent(new MouseEvent(type, { bubbles: true, button: 0, clientX: x, clientY: y }));
+    session.root.querySelector<HTMLButtonElement>('[data-action="patch"]')!.click();
+    pointer(xy, "pointerdown", 200, 150);
+    pointer(xy, "pointermove", 264, 86);
+    pointer(xy, "pointerup", 264, 86);
+    const before = session.document.snapshot();
+    session.root.querySelector<HTMLButtonElement>('[data-action="points"]')!.click();
+    pointer(xy, "pointerdown", 232, 118);
+    pointer(xy, "pointermove", 248, 102);
+    expect(engine.scenes[0].meshes.some((mesh) => mesh.name === "gesture-patch")).toBe(false);
+    expect(session.document.snapshot()).toEqual(before);
+    // The point ghost carries the original patch ID while the source mesh is hidden.
+    expect(engine.scenes[0].meshes.filter((mesh) => mesh.name === before.patches![0].id).length).toBe(2);
+    pointer(xy, "pointerup", 248, 102);
+    expect(session.document.snapshot().patches![0].controlPoints[1][1]).toMatchObject({ x: 48, y: 48, z: 0 });
+    expect(session.document.snapshot().patches![0].controlPoints[1][0]).toEqual(before.patches![0].controlPoints[1][0]);
+    session.root.querySelector<HTMLButtonElement>('[data-action="undo"]')!.click();
+    expect(session.document.snapshot().patches![0].controlPoints[1][1]).toMatchObject({ x: 32, y: 32, z: 0 });
+    session.root.querySelector<HTMLButtonElement>('[data-action="redo"]')!.click();
+    pointer(xy, "pointerdown", 248, 102);
+    pointer(xy, "pointermove", 264, 86);
+    session.root.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    pointer(xy, "pointerup", 264, 86);
+    expect(session.document.snapshot().patches![0].controlPoints[1][1]).toMatchObject({ x: 48, y: 48, z: 0 });
+    pointer(xz, "pointerdown", 248, 150);
+    pointer(xz, "pointermove", 248, 118);
+    pointer(xz, "pointerup", 248, 118);
+    expect(session.document.snapshot().patches![0].controlPoints[1][1]).toMatchObject({ x: 48, y: 48, z: 32 });
+    expect(session.root.querySelector<HTMLSelectElement>("[data-patch-point]")?.value).toBe("4");
+    session.dispose();
+    const restored = new EditorSession(engine, canvas, vi.fn());
+    expect(restored.root.querySelector('[data-action="points"]')?.classList.contains("active")).toBe(true);
+    expect(restored.document.snapshot().patches![0].controlPoints[1][1].z).toBe(32);
+    restored.dispose();
+    engine.dispose();
+  });
 });
