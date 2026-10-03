@@ -359,13 +359,13 @@ plan. Nothing in this section is implemented yet.
 | `Q3ShaderParser` reads `qer_editorimage` | A preview image for shaders with no same-named image (skies, effects). |
 | `editor/gamepacks/washoi.game/basewashoi/default_shaderlist.txt` | A curated seed list. It records the `textures/` prefix trap: a face named `textures/blx/blx_dark` is looked up as `textures/textures/...`, and the map compiles but gets no lightmap. |
 | `editor/gamepacks/washoi.game/shadertags.xml` | Tag groups (e.g. "Stock / Compiler") for the browser sidebar. |
-| Shipped assets | About 1,480 base images in 68 `textures/` folders across the PK3s, after dropping `_norm`/`_gloss`/`_glow`/`_spec` variants (largest: `boqu` 162, `exwsw` 81, `decals` 81). The grid must be virtualised and thumbnails lazy. |
+| Shipped assets | 1,283 base JPG/PNG/TGA images (1,161 of them TGA) in 45 PK3s, after dropping `_norm`/`_gloss`/`_glow`/`_spec` variants, plus KTX images (measured in WO-T0). The largest folders are `boqu`, `exwsw` and `decals`. The grid must be virtualised and thumbnails lazy. |
 
 The current document has one `shader` per brush, and `MapWriter` writes a fixed
 brush-primitive matrix `((0.03125 0 0) (0 0.03125 0))` on every face. In brush
 primitives, texture coordinates are normalised to the image, so that matrix
-should repeat every texture every 32 units whatever its size. This is an
-unverified reading of the format and is probe T0 below. New brushes are
+repeats every texture every 32 units whatever its size. WO-T0 measured this
+(see its results below). New brushes are
 hard-coded to `blx/blx_grid`.
 
 ### Data model (additive, no schema bump)
@@ -456,16 +456,249 @@ interface BoxBrush { /* ... */ shader: string; faces?: Partial<Record<FaceKey, F
     rule; a shader-only material shows its editor image.
   - Orthographic panes stay outline-based.
 
-### Slices and proof
+### Work orders
 
-| Slice | Outcome | Proof before moving on |
+Status: `todo` · `in progress` · `done` · `blocked`. Difficulty: 1
+(mechanical) to 5 (deep). The model column is a suggestion. "Touches
+session" marks work orders that edit `EditorSession.ts`/`editor.css`, which
+the M3 server work also edits. Schedule those after that work commits, and
+always stage by explicit path.
+
+| WO | Outcome | Depends on | Touches session | Diff | Model | Status |
+| --- | --- | --- | --- | --- | --- | --- |
+| WO-T0 | Probe: brush-primitive UV semantics measured from a compiled BSP; thumbnail decode cost measured | none | no | 2 | Opus 5.5 | done |
+| WO-T1 | Per-face materials in the document; pure UV function; `MapWriter` writes per-face shader and matrix | T0 | no | 3 | Opus 5.5 | todo |
+| WO-T2 | `TextureCatalog`: pure catalog from the mounted index, `default_shaderlist.txt` and `shadertags.xml` | none | no | 2 | Sonnet 5 | todo |
+| WO-T3 | `TextureThumbnails`: lazy decode from PK3 bytes, in-memory LRU, IndexedDB cache | T2 | no | 3 | Sonnet 5 | todo |
+| WO-T4 | Texture browser drawer: search, groups, virtualised grid, apply to brush, current texture | T1, T2, T3 | yes | 3 | Opus 5.5 | todo |
+| WO-T5 | Face selection: 3D pick by normal, overlay, six-face net in the inspector, eyedropper | T1 | yes | 3 | Opus 5.5 | todo |
+| WO-T6 | UV tools: shift/scale/rotation fields, Fit, Natural, match neighbour | T1, T5 | yes | 3 | Opus 5.5 | todo |
+| WO-T7 | Textured 3D preview: six quads per brush through the shared UV function; Solid/Textured toggle | T1, T3 | yes | 3 | Opus 5.5 | todo |
+| WO-T8 | Acceptance: painted, aligned faces compile; BSP shaders and texture coordinates match the editor; docs and changelog | T4–T7 | no | 2 | Sonnet 5 | todo |
+
+T0 and T2 can start at once. T1 follows T0, because its UV function encodes
+whatever T0 measures. T3 follows T2. T4–T7 are UI work, and T8 closes the
+group.
+
+#### WO-T0: probe
+
+- **Question:** what do the two rows of a `brushDef` face matrix mean to
+  MakeBSP? The candidates are normalised texture coordinates (independent of
+  the image size, as brush primitives are documented) or texels.
+- **Method:**
+  - Export one box with distinct, asymmetric matrices per face onto an
+    image whose width and height differ, so the axes can't be confused.
+  - Compile it with the Washoi FAST recipe.
+  - Read each face's drawvert ST values back with `BspLoader`.
+  - Derive repeats per world unit and the U/V orientation for all six
+    faces, and compare them with the matrix written.
+- **Decides:**
+  - What the fixed matrix `((0.03125 0 0) (0 0.03125 0))` really produces.
+  - Which scale convention the inspector exposes: Radiant-style "world units
+    per texel", with the default to be chosen from the measurement.
+  - The face axis basis the UV function must reproduce.
+- **Also:** time decoding all ~1,480 base images to 96 px thumbnails in
+  headless Edge. That sets whether T3 needs a worker or batching.
+- **Proof:** a recorded table of matrix → measured ST per face. The probe
+  script stays in the scratchpad; the result goes into this section.
+
+#### WO-T1: per-face materials and the UV function
+
+- **Data:**
+  - `BoxBrush.faces?: Partial<Record<FaceKey, FaceMaterial>>` (shader,
+    shift, scale, rotation, size), with `brush.shader` as the default.
+  - Additive, no schema bump; validation covers face keys, finite numbers,
+    positive size, and the shader-name rule. A `textures/`-prefixed name is
+    refused, because MakeBSP would look it up as `textures/textures/`.
+- **UV function:** `faceTexMatrix(face, key, size) → [[a, b, c], [d, e, f]]`
+  in a pure module, used by `MapWriter` now and by the T7 preview later.
+  With no override, output stays byte-identical to today, so earlier exports
+  and server revisions don't change.
+- **Proof:**
+  - Unit tests for every face key with shift, scale and rotation.
+  - Byte-identical re-export.
+  - A compile with two faces in different shaders, after which the BSP lists
+    both shaders, with no `textures/textures/` lookups.
+  - Measured ST values matching what T0's model predicts.
+
+#### WO-T2: texture catalog
+
+- **Sources:**
+  - Image files under `textures/` in `PK3Index`, with `_norm`, `_gloss`,
+    `_glow`, `_spec`, `_emissive` and `_bump` variants filtered out.
+  - Shader names from the index.
+  - Folder groups and the `common/` specials from `default_shaderlist.txt`.
+  - Tag groups from `shadertags.xml`.
+- **Entry fields:**
+  - unprefixed name, folder, image path or "shader-only", tags;
+  - flags for `common/` (compiler-special), sky and transparency where the
+    shader says so.
+- **Search:** a pure fuzzy match over name, folder and tags.
+- **Proof:** tests on the real PK3 data (the ~1,480 count, per-folder counts,
+  prefix normalisation, variant filtering) plus parser tests on small
+  fixtures.
+
+#### WO-T3: thumbnails
+
+- **Pipeline:** PK3 bytes → `createImageBitmap` (TGA through the existing
+  decoder) → a 96 px canvas → a blob.
+- **Caches:** an in-memory LRU, then IndexedDB keyed by package name, size
+  and path, so a changed PK3 refreshes.
+- **Scheduling:** requests come from visible tiles only, with bounded
+  concurrency.
+- **Proof:**
+  - Unit tests with a fake decoder and fake storage.
+  - A browser check: the largest folder scrolls smoothly, and a second open
+    is served from IndexedDB.
+
+#### WO-T4: browser drawer
+
+- **Layout:** `T` toggles a drawer over the inspector side.
+  - Search field.
+  - Sidebar: Recent, In this map, tag groups, folders with counts.
+  - A virtualised grid. Each tile shows the thumbnail, name and size, plus
+    badges and a "missing" state.
+- **Applying:**
+  - Click applies to the selected faces, or the whole brush, as one undo
+    step. Double-click applies and closes.
+  - The applied texture becomes the "current texture" used by new brushes.
+- **Keyboard:** arrow keys, Enter, Escape; typing goes to search.
+- **Proof:** DOM tests for search, apply-as-one-step and keyboard; a browser
+  check of the full catalog.
+
+#### WO-T5: face selection
+
+- **Picking:**
+  - A Face mode, or Ctrl+Shift+click in 3D.
+  - The face key comes from the picked world normal mapped to Quake axes.
+  - Shift adds faces. Selection is `brushId:faceKey` in UI state.
+- **Feedback:** an overlay quad in 3D, an outline in an orthographic pane
+  for a face pointing at the camera, and a clickable six-face net in the
+  inspector.
+- **Eyedropper:** Alt+click samples a face's texture.
+- **Proof:** a DOM test of normal → key for all six faces; a browser check.
+
+#### WO-T6: UV tools
+
+- **Fields:** shift U/V, scale U/V and rotation, with nudge buttons, applied
+  to every selected face as one step.
+- **Fit:** one repeat across the face.
+- **Natural:** back to the T0-derived default.
+- **Match neighbour:** copies the alignment of an adjacent face, so a texture
+  runs continuously around a corner.
+- **Proof:** unit tests on the pure operations, and a DOM test of
+  apply/undo.
+
+#### WO-T7: textured preview
+
+- **Toggle:** Solid/Textured on the 3D pane.
+- **Textured mode:**
+  - Six quads per brush, with UVs from `faceTexMatrix`.
+  - A plain diffuse material through `PK3TextureLoader`; a shader-only
+    material uses its editor image.
+  - Not the gameplay shader pipeline.
+- **Proof:** with a known texture, preview UVs equal the BSP ST values
+  measured in T0/T1 for the same face.
+
+#### WO-T8: acceptance
+
+- **Map:** a small room with different textures on several faces, a rotated
+  and shifted face, and a matched corner.
+- **Checks:**
+  - It compiles with no leak.
+  - The BSP shader list matches the editor.
+  - Drawvert ST values match `faceTexMatrix`.
+  - Every face is lightmapped.
+  - When M3 Playtest exists, an in-game screenshot.
+- **Docs:** update this section, the feature matrix and the changelog.
+
+#### WO-T0 results (2026-10-03)
+
+**Brush-primitive semantics, measured.**
+- **Method:** a floating 128×96×96 box was textured with
+  `blx/blx_white_stripe` (128×32 px), with a distinct matrix on each face,
+  and compiled with the Washoi FAST recipe. Each compiled face's drawvert
+  ST values were then fitted as linear functions of position.
+- **Scale test:** with `((1/64 0 c) (0 1/32 f))`, every face measured
+  exactly 1/64 per unit in S and 1/32 per unit in T. The image's pixel size
+  never enters: brush-primitive ST values are normalised (1.0 is one repeat
+  of the image).
+- **Rotation test:** with `((0 1/64 c) (−1/32 0 f))`, the off-diagonal terms
+  swapped and negated the axes exactly as predicted.
+- **Model:** MakeBSP computes **st = M · [p·texX, p·texY, 1]**, with
+  q3map2's `ComputeAxisBase` basis. Measured per face:
+
+| Face | texX | texY |
 | --- | --- | --- |
-| T0 probe | Brush-primitive matrix semantics confirmed | Compile a box with known shift/scale/rotation on a 256×128 texture; read the face's drawvert ST values from the BSP and check repeats per unit and orientation for all six faces. Decide whether the current fixed matrix is the intended density. Time thumbnail decoding over all ~1,480 images. |
-| T1 document + writer | Per-face materials export | Two faces, two shaders, non-default UVs; byte-identical re-export; MakeBSP compile; the BSP shader lump lists both, with no `textures/textures/` lookups and both faces lightmapped. |
-| T2 catalog | Pure catalog from the mounted index, the shader list and the tags | Test on the real PK3 data: counts per folder, prefix normalisation, variant filtering, shader-only entries resolving through `qer_editorimage`. |
-| T3 browser | Drawer, search, groups, lazy thumbnails, apply to brush, current texture | Browser check: scrolling the largest folder stays smooth, and thumbnails come from IndexedDB on a second open. |
-| T4 face selection | 3D face pick, overlay, inspector face net, eyedropper | DOM test of face picking by normal; browser check across all six faces. |
-| T5 UV + textured preview | Shift/scale/rotate/fit/natural; Solid/Textured toggle | The preview and an in-game screenshot of the compiled face match (with M3 Playtest, or by loading the compiled BSP). |
+| +X | (0, 1, 0) | (0, 0, −1) |
+| −X | (0, −1, 0) | (0, 0, −1) |
+| +Y | (−1, 0, 0) | (0, 0, −1) |
+| −Y | (1, 0, 0) | (0, 0, −1) |
+| +Z | (0, 1, 0) | (1, 0, 0) |
+| −Z | (0, 1, 0) | (−1, 0, 0) |
+
+Each face's constant terms matched its tag, apart from whole-number offsets
+that MakeBSP adds to keep coordinates small (they don't change rendering).
+
+**Consequence for today's export.**
+- The fixed `((0.03125 0 0) (0 0.03125 0))` squeezes every texture into
+  32×32 world units, whatever its size.
+- The gamepack's `default_scale="0.5"` (NetRadiant's 0.5 world units per
+  texel) would give a 256 px texture 128 units. So a 256 px texture exports
+  4× too dense, and any non-square texture is stretched.
+- WO-T1 fixes this for every face whose image size is known.
+
+**Thumbnail cost, measured in headless Edge on the dev server.**
+- **Packages:** the 45 PK3s that hold texture images (189 MB) open with the
+  engine's `PK3Loader` in about 0.3 s, because JSZip reads only the
+  directories.
+- **Image count:** there are 1,283 base images (variants filtered out).
+  The "about 1,480" counted earlier from the archives also included `.ktx`
+  entries.
+- **Formats:** 1,161 are TGA, which browsers cannot decode natively, and
+  122 are JPG/PNG.
+- **Timings:**
+  - JPG/PNG through `createImageBitmap` to 96 px: 0.8 ms each.
+  - TGA through the engine's `decodeTGA` (a PNG data URL), then to a 96 px
+    bitmap: 4.7 ms each, 5.5 s for all 1,161. Two thirds of that is
+    `decodeTGA`'s PNG re-encode.
+  - The first 60 thumbnails (a full grid page) are ready in 0.27 s.
+- **Conclusion:** no worker is needed for T3. Visible-first loading plus
+  IndexedDB is enough, and decoding TGA straight to pixels (skipping the PNG
+  step) is a worthwhile 3× optimisation.
+- **KTX:** the gamepack's `texturetypes` lists `ktx`, so the catalog
+  includes KTX images; their thumbnails go through the existing KTX loader.
+
+### Decisions so far
+
+- **Shader names:** unprefixed everywhere, as the gamepack's shader list
+  requires. A prefixed name is refused at validation, not silently fixed.
+- **Face identity:** the six axis keys of a box. Arbitrary convex faces wait
+  for the later geometry work, per "Contracts that keep later tools
+  possible".
+- **No hidden textures:** an untagged texture is listed under its folder,
+  never hidden.
+- **Preview:** a plain diffuse material only. The compiled BSP is the truth.
+- **Natural alignment** (settled by T0): the gamepack's `default_scale`
+  of 0.5 world units per texel, with no shift and no rotation, on the
+  measured axis basis.
+- **Faces with no recorded image size** (every brush made before T1)
+  keep today's fixed matrix, so their exports don't change silently.
+  Picking a texture from the browser records its size and switches the face
+  to the real alignment; the inspector says when a face is still on the
+  fixed matrix.
+- **UV parameters to matrix:** with image size w×h, scale su/sv (world
+  units per texel), rotation θ and shift (texels), the matrix is
+  `[[cosθ/(su·w), sinθ/(su·w), shiftU/w], [−sinθ/(sv·h), cosθ/(sv·h),
+  shiftV/h]]`, applied to `[p·texX, p·texY, 1]`. T1's tests check it
+  against the T0 measurements.
+
+### Progress log
+
+- 2026-10-03: plan written and broken into work orders T0–T8.
+- 2026-10-03: WO-T0 done. The brush-primitive model, the axis basis, the
+  fixed-matrix density defect and the thumbnail costs are measured and
+  recorded above.
 
 ## Future map-author experience ideas
 
