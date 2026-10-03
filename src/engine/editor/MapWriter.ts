@@ -2,11 +2,15 @@ import {
   type BoxBrush,
   type BrushEntity,
   type EditorDocumentData,
+  type FaceKey,
   type PointEntity,
   validateDocument,
 } from "./EditorDocument";
+import { FIXED_MATRIX, faceTexMatrix, type TexMatrix } from "./FaceUv";
 
-const UV = "( ( 0.03125 0 0 ) ( 0 0.03125 0 ) )";
+// Ten decimals: 1/(0.5*256) = 0.0078125 must survive, and FIXED_MATRIX still prints as 0.03125.
+const fmtUv = (n: number): string => Number(n.toFixed(10)).toString();
+const uvText = ([r0, r1]: TexMatrix): string => `( ( ${r0.map(fmtUv).join(" ")} ) ( ${r1.map(fmtUv).join(" ")} ) )`;
 const fmt = (n: number): string => Number(n.toFixed(6)).toString();
 const point = (x: number, y: number, z: number): string => `( ${fmt(x)} ${fmt(y)} ${fmt(z)} )`;
 // Code-unit order, not localeCompare: export bytes must not depend on the machine's locale.
@@ -16,17 +20,23 @@ const byId = (a: { id: string }, b: { id: string }): number => codeOrder(a.id, b
 function boxLines(brush: BoxBrush): string[] {
   const { x: x0, y: y0, z: z0 } = brush.min;
   const { x: x1, y: y1, z: z1 } = brush.max;
-  const face = (a: string, b: string, c: string) => `${a} ${b} ${c} ${UV} ${brush.shader} 0 0 0`;
+  // A face with a material override gets its own shader and alignment; the rest keep the brush's
+  // shader and the fixed legacy matrix, so brushes made before face materials export unchanged.
+  const face = (key: FaceKey, a: string, b: string, c: string) => {
+    const material = brush.faces?.[key];
+    const uv = uvText(material ? faceTexMatrix(material) : FIXED_MATRIX);
+    return `${a} ${b} ${c} ${uv} ${material?.shader ?? brush.shader} 0 0 0`;
+  };
   return [
     "{",
     "brushDef",
     "{",
-    face(point(x0, y0, z1), point(x0, y1, z1), point(x1, y0, z1)),
-    face(point(x0, y1, z0), point(x0, y0, z0), point(x1, y1, z0)),
-    face(point(x0, y0, z1), point(x1, y0, z1), point(x0, y0, z0)),
-    face(point(x1, y1, z1), point(x0, y1, z1), point(x1, y1, z0)),
-    face(point(x0, y1, z1), point(x0, y0, z1), point(x0, y1, z0)),
-    face(point(x1, y0, z1), point(x1, y1, z1), point(x1, y0, z0)),
+    face("+Z", point(x0, y0, z1), point(x0, y1, z1), point(x1, y0, z1)),
+    face("-Z", point(x0, y1, z0), point(x0, y0, z0), point(x1, y1, z0)),
+    face("-Y", point(x0, y0, z1), point(x1, y0, z1), point(x0, y0, z0)),
+    face("+Y", point(x1, y1, z1), point(x0, y1, z1), point(x1, y1, z0)),
+    face("-X", point(x0, y1, z1), point(x0, y0, z1), point(x0, y1, z0)),
+    face("+X", point(x1, y0, z1), point(x1, y1, z1), point(x1, y0, z0)),
     "}",
     "}",
   ];

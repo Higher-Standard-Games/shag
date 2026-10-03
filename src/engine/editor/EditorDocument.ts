@@ -4,11 +4,31 @@ export interface Vec3q {
   y: number;
   z: number;
 }
+export type FaceKey = "+X" | "-X" | "+Y" | "-Y" | "+Z" | "-Z";
+export const FACE_KEYS: readonly FaceKey[] = ["+X", "-X", "+Y", "-Y", "+Z", "-Z"];
+
+/** One box face's material and alignment; see FaceUv.ts for how it becomes the face matrix. */
+export interface FaceMaterial {
+  /** Unprefixed, e.g. "blx/blx_dark": MakeBSP adds "textures/" itself. */
+  shader: string;
+  /** Texels. */
+  shift: [number, number];
+  /** World units per texel; negative flips. */
+  scale: [number, number];
+  /** Degrees. */
+  rotation: number;
+  /** The image's size in texels, recorded when the texture is assigned. */
+  size: [number, number];
+}
+
 export interface BoxBrush {
   id: string;
   min: Vec3q;
   max: Vec3q;
+  /** Every face without an override uses this shader and the fixed legacy alignment. */
   shader: string;
+  /** Per-face overrides; absent in brushes made before face materials existed. */
+  faces?: Partial<Record<FaceKey, FaceMaterial>>;
 }
 /** A point entity. `keys` holds every key except classname and origin, unknown ones included. */
 export interface PointEntity {
@@ -85,6 +105,7 @@ export function validateDocument(data: EditorDocumentData): void {
     if (!SHADER.test(brush.shader) || brush.shader.startsWith("/") || brush.shader.includes("..")) {
       throw new Error(`Invalid shader on brush ${brush.id}`);
     }
+    validateFaces(brush);
     for (const axis of ["x", "y", "z"] as const) {
       const lo = brush.min[axis];
       const hi = brush.max[axis];
@@ -121,6 +142,35 @@ export function validateDocument(data: EditorDocumentData): void {
       const owner = owners.get(brushId);
       if (owner) throw new Error(`Brush ${brushId} is owned by both ${owner} and ${entity.id}`);
       owners.set(brushId, entity.id);
+    }
+  }
+}
+
+const MAX_TEXTURE_SIZE = 16_384;
+
+function validateFaces(brush: BoxBrush): void {
+  if (brush.faces === undefined) return;
+  if (!brush.faces || typeof brush.faces !== "object") throw new Error(`Invalid faces on brush ${brush.id}`);
+  for (const [key, face] of Object.entries(brush.faces)) {
+    const where = `face ${key} of brush ${brush.id}`;
+    if (!FACE_KEYS.includes(key as FaceKey) || !face) throw new Error(`Invalid ${where}`);
+    if (!SHADER.test(face.shader) || face.shader.startsWith("/") || face.shader.includes("..")) {
+      throw new Error(`Invalid shader on ${where}`);
+    }
+    // MakeBSP prepends textures/ itself; a prefixed name compiles but loses its image and lightmap.
+    if (face.shader.toLowerCase().startsWith("textures/")) {
+      throw new Error(`Shader on ${where} must not start with textures/`);
+    }
+    const numbers = [...face.shift, ...face.scale, face.rotation];
+    if (face.shift?.length !== 2 || face.scale?.length !== 2 || !numbers.every(Number.isFinite)) {
+      throw new Error(`Invalid alignment on ${where}`);
+    }
+    if (face.scale.some((value) => value === 0 || Math.abs(value) > 10_000)) {
+      throw new Error(`Invalid scale on ${where}`);
+    }
+    const [w, h] = face.size ?? [];
+    if (![w, h].every((n) => Number.isSafeInteger(n) && n > 0 && n <= MAX_TEXTURE_SIZE)) {
+      throw new Error(`Invalid image size on ${where}`);
     }
   }
 }

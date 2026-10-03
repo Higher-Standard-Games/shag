@@ -467,7 +467,7 @@ always stage by explicit path.
 | WO | Outcome | Depends on | Touches session | Diff | Model | Status |
 | --- | --- | --- | --- | --- | --- | --- |
 | WO-T0 | Probe: brush-primitive UV semantics measured from a compiled BSP; thumbnail decode cost measured | none | no | 2 | Opus 5.5 | done |
-| WO-T1 | Per-face materials in the document; pure UV function; `MapWriter` writes per-face shader and matrix | T0 | no | 3 | Opus 5.5 | todo |
+| WO-T1 | Per-face materials in the document; pure UV function; `MapWriter` writes per-face shader and matrix | T0 | no | 3 | Opus 5.5 | done |
 | WO-T2 | `TextureCatalog`: pure catalog from the mounted index, `default_shaderlist.txt` and `shadertags.xml` | none | no | 2 | Sonnet 5 | todo |
 | WO-T3 | `TextureThumbnails`: lazy decode from PK3 bytes, in-memory LRU, IndexedDB cache | T2 | no | 3 | Sonnet 5 | todo |
 | WO-T4 | Texture browser drawer: search, groups, virtualised grid, apply to brush, current texture | T1, T2, T3 | yes | 3 | Opus 5.5 | todo |
@@ -534,9 +534,16 @@ group.
   - flags for `common/` (compiler-special), sky and transparency where the
     shader says so.
 - **Search:** a pure fuzzy match over name, folder and tags.
-- **Proof:** tests on the real PK3 data (the ~1,480 count, per-folder counts,
-  prefix normalisation, variant filtering) plus parser tests on small
-  fixtures.
+- **Image size from the shader:** a texture's size (recorded into
+  `FaceMaterial.size`) must come from its shader's image when a shader
+  exists: `qer_editorimage`, then the first stage `map`. Only bare images
+  use their own file. WO-T1's proof found the case: `blx/blx_light_blue` has
+  a 256×32 same-named JPG, but its shader (`legacy.shader`) draws
+  `textures/lights/bluetrim.tga`. Alignment is normalised, so in-game
+  density follows the shader's image.
+- **Proof:** tests on the real PK3 data (the 1,283 base images, per-folder
+  counts, prefix normalisation, variant filtering, shader-image sizes) plus
+  parser tests on small fixtures.
 
 #### WO-T3: thumbnails
 
@@ -699,6 +706,24 @@ that MakeBSP adds to keep coordinates small (they don't change rendering).
 - 2026-10-03: WO-T0 done. The brush-primitive model, the axis basis, the
   fixed-matrix density defect and the thumbnail costs are measured and
   recorded above.
+- 2026-10-03: WO-T1 done.
+  - **Model:** `BoxBrush.faces` holds per-face `FaceMaterial`
+    overrides. Validation refuses a `textures/` prefix, a zero or huge
+    scale, a non-integer or oversized image size, and unknown face keys.
+  - **UV module:** `FaceUv.ts` holds the measured axis basis,
+    `faceTexMatrix`, `naturalFace` and `faceST`. Its tests pin both T0
+    gradient tables for all six faces.
+  - **Writer:** `MapWriter` writes each face's own shader and matrix to
+    ten decimals, so 0.0078125 survives. A face without an override is
+    byte-identical to before, which a golden line checks.
+  - **Compile proof:** a box with `blx_white_stripe` on +Z (shift
+    16/4, scale 0.5/0.25, rotated 30°) and `blx_light_blue` on +X
+    (shift −40, scale 1/0.5) compiled with no leak. The BSP lists both
+    shaders with a single `textures/` prefix, and every vertex's ST
+    matches `faceST` modulo 1 (worst error 0 and 1.5e-6).
+  - **Lightmaps:** the stripe face is lightmapped. The light-blue face
+    has none because its shader is `surfaceparm nolightmap` and a surface
+    light, which is correct.
 
 ## Future map-author experience ideas
 
