@@ -3,6 +3,7 @@ import {
   type BrushEntity,
   type EditorDocumentData,
   type FaceKey,
+  type PatchSurface,
   type PointEntity,
   validateDocument,
 } from "./EditorDocument";
@@ -43,6 +44,24 @@ function boxLines(brush: BoxBrush): string[] {
   ];
 }
 
+function patchLines(patch: PatchSurface): string[] {
+  return [
+    "{",
+    "patchDef2",
+    "{",
+    patch.shader,
+    `( ${patch.width} ${patch.height} 0 0 0 )`,
+    "(",
+    ...patch.controlPoints.map(
+      (row) =>
+        `( ${row.map((control) => `( ${fmt(control.x)} ${fmt(control.y)} ${fmt(control.z)} ${fmtUv(control.u)} ${fmtUv(control.v)} )`).join(" ")} )`,
+    ),
+    ")",
+    "}",
+    "}",
+  ];
+}
+
 const keyLines = (keys: Record<string, string>): string[] =>
   Object.entries(keys)
     .sort(([a], [b]) => codeOrder(a, b))
@@ -77,7 +96,13 @@ export function writeMap(data: EditorDocumentData): string {
   const owned = new Set(brushEntities.flatMap((entity) => entity.brushIds));
   const brushes = new Map(data.brushes.map((brush) => [brush.id, brush]));
   const lines = ["{", '"classname" "worldspawn"'];
-  for (const brush of [...data.brushes].sort(byId)) if (!owned.has(brush.id)) lines.push(...boxLines(brush));
+  const worldGeometry: Array<{ id: string; lines: () => string[] }> = [
+    ...data.brushes
+      .filter((brush) => !owned.has(brush.id))
+      .map((brush) => ({ id: brush.id, lines: () => boxLines(brush) })),
+    ...(data.patches ?? []).map((patch) => ({ id: patch.id, lines: () => patchLines(patch) })),
+  ];
+  for (const item of worldGeometry.sort(byId)) lines.push(...item.lines());
   lines.push("}");
   // Point and brush entities share one ID order.
   const entities: Array<{ id: string; lines: () => string[] }> = [

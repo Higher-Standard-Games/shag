@@ -30,6 +30,14 @@ export interface BoxBrush {
   /** Per-face overrides; absent in brushes made before face materials existed. */
   faces?: Partial<Record<FaceKey, FaceMaterial>>;
 }
+/** A Quake-space patchDef2 surface. Rows are V (height), columns are U (width). */
+export interface PatchSurface {
+  id: string;
+  shader: string;
+  width: number;
+  height: number;
+  controlPoints: Array<Array<Vec3q & { u: number; v: number }>>;
+}
 /** A point entity. `keys` holds every key except classname and origin, unknown ones included. */
 export interface PointEntity {
   id: string;
@@ -53,6 +61,8 @@ export interface EditorDocumentData {
   draftId: string;
   revision: number;
   brushes: BoxBrush[];
+  /** Additive to v2 so existing drafts and server sidecars remain readable. */
+  patches?: PatchSurface[];
   entities: PointEntity[];
   /** Absent in drafts saved before brush entities existed; read as empty. */
   brushEntities?: BrushEntity[];
@@ -76,11 +86,13 @@ const MAX_VALUE_LENGTH = 1024;
 
 /** Upgrades an older draft; a version 1 test spawn becomes an ordinary spawn entity. */
 export function migrateDocument(data: EditorDocumentData | EditorDocumentDataV1): EditorDocumentData {
-  if (data.schemaVersion !== 1) return { ...data, brushEntities: data.brushEntities ?? [] };
+  if (data.schemaVersion !== 1)
+    return { ...data, patches: data.patches ?? [], brushEntities: data.brushEntities ?? [] };
   const { testSpawn, ...rest } = data;
   return {
     ...rest,
     schemaVersion: 2,
+    patches: [],
     brushEntities: [],
     entities: testSpawn
       ? [{ id: "test-spawn", classname: "info_player_deathmatch", origin: { ...testSpawn }, keys: {} }]
@@ -97,6 +109,9 @@ export function validateDocument(data: EditorDocumentData): void {
     throw new Error("Invalid editor document header");
   }
   if (!Array.isArray(data.brushes) || data.brushes.length > 20_000) throw new Error("Invalid brush list");
+  if (data.patches !== undefined && (!Array.isArray(data.patches) || data.patches.length > 20_000)) {
+    throw new Error("Invalid patch list");
+  }
   if (!Array.isArray(data.entities) || data.entities.length > 20_000) throw new Error("Invalid entity list");
   const ids = new Set<string>();
   for (const brush of data.brushes) {
@@ -112,6 +127,50 @@ export function validateDocument(data: EditorDocumentData): void {
       if (!validCoordinate(lo) || !validCoordinate(hi) || lo >= hi) {
         throw new Error(`Invalid ${axis} bounds on brush ${brush.id}`);
       }
+    }
+  }
+  for (const patch of data.patches ?? []) {
+    if (!patch.id || ids.has(patch.id)) throw new Error("Duplicate or missing patch ID");
+    ids.add(patch.id);
+    if (
+      !SHADER.test(patch.shader) ||
+      patch.shader.startsWith("/") ||
+      patch.shader.includes("..") ||
+      patch.shader.toLowerCase().startsWith("textures/")
+    ) {
+      throw new Error(`Invalid shader on patch ${patch.id}`);
+    }
+    if (
+      !Number.isSafeInteger(patch.width) ||
+      !Number.isSafeInteger(patch.height) ||
+      patch.width < 3 ||
+      patch.height < 3 ||
+      patch.width > 31 ||
+      patch.height > 31 ||
+      patch.width % 2 !== 1 ||
+      patch.height % 2 !== 1
+    ) {
+      throw new Error(`Invalid dimensions on patch ${patch.id}`);
+    }
+    if (
+      !Array.isArray(patch.controlPoints) ||
+      patch.controlPoints.length !== patch.height ||
+      patch.controlPoints.some(
+        (row) =>
+          !Array.isArray(row) ||
+          row.length !== patch.width ||
+          row.some(
+            (control) =>
+              !control ||
+              !validCoordinate(control.x) ||
+              !validCoordinate(control.y) ||
+              !validCoordinate(control.z) ||
+              !validCoordinate(control.u) ||
+              !validCoordinate(control.v),
+          ),
+      )
+    ) {
+      throw new Error(`Invalid control grid on patch ${patch.id}`);
     }
   }
   for (const entity of data.entities) {
@@ -216,7 +275,15 @@ export class EditorDocument {
   constructor(data?: EditorDocumentData | EditorDocumentDataV1) {
     this.data = data
       ? copy(migrateDocument(data))
-      : { schemaVersion: 2, draftId: crypto.randomUUID(), revision: 0, brushes: [], entities: [], brushEntities: [] };
+      : {
+          schemaVersion: 2,
+          draftId: crypto.randomUUID(),
+          revision: 0,
+          brushes: [],
+          patches: [],
+          entities: [],
+          brushEntities: [],
+        };
     validateDocument(this.data);
   }
 
