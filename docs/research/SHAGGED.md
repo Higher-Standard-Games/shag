@@ -419,6 +419,62 @@ job log. This also covers source-only maps without an editor sidecar. The
 check establishes asset presence, not whether MakeBSP can decode the model or
 resolve its materials; that still requires a real compiler fixture.
 
+### Technical note: PK3-packed vs. loose-file asset lookup (2026-10-03)
+
+NetRadiant's long-standing pain point is that it needs game assets
+physically extracted to a filesystem path; a texture or model sealed
+inside a `.pk3` isn't found unless someone unzips it first. The goal for
+SHAGGED is that every asset lookup goes through the browser's `.pk3`-aware
+index (`PK3Index`/`PK3Loader`), so a mapper never has to extract
+anything. Surveying the current code, this holds for some asset kinds and
+not yet for others.
+
+**Already correct — reads through the PK3 index, packed or loose:**
+- **Textures**, both engine-side (`PK3TextureLoader.resolveAndLoadTexture`)
+  and editor-side (`TextureCatalog`/`TexturePixels.ts`, used by the
+  thumbnail cache and the Textured preview): resolved by `PK3Loader`
+  across every mounted package, with KTX2 sidecar and format fallback.
+- **Audio** (`AudioManager`) and **weapon/projectile textures**
+  (`WeaponCommand`, `ProjectileManager`): read via
+  `PK3Loader.getFile`/`getFileAsURL`, which hands Babylon a `blob:` URL
+  built from the archive bytes rather than a static path.
+- **MD3 models**: `ModelLoader.loadModel` explicitly tries
+  `PK3Loader.getFile(modelPath)` first and parses the buffer directly;
+  only a model it can't find in any package would need a loose fallback
+  (none is coded, since MD3s in this project always ship packed).
+- **Model-path suggestions**: the editor's `indexedModelPaths`
+  (`ModelReference.ts`) lists `models/*` from `PK3Index`, so the palette
+  already sees packed paths.
+- **The compile job's `misc_model` preflight** (`CompileJobs`) checks a
+  referenced model against both loose files and PK3 entries under the
+  configured media root before starting MakeBSP.
+
+**Not yet correct — assumes a loose file on disk:**
+- **GLB/glTF model loading**, in both places it happens: the editor's
+  `misc_model` preview (`EditorSession.loadModelPreview`) and gameplay's
+  own `ModelLoader.loadModel` (the non-MD3 branch). Both call Babylon's
+  `ImportMeshAsync` with a `rootUrl` built straight from the model path
+  (editor: `/data/<dir>/`), which only resolves a file the dev server (or
+  production host) serves directly from disk. A GLB sealed inside a
+  `.pk3` isn't found this way; Babylon's fetch fails and the editor
+  silently records it as a preview failure (loose files are documented as
+  working; this is why — see the "Referenced models" section above).
+  This is an engine-wide gap, not editor-only: nothing packs GLB/glTF
+  models into `.pk3`s on this project today, so it hasn't surfaced in
+  gameplay, but the suggestion list above will recommend a packed
+  `models/*.glb` path the preview then can't load.
+
+**Fix direction (not implemented in this pass):** before calling
+`ImportMeshAsync`, try `PK3Loader.getInstance().getFileAsURL(path,
+"model/gltf-binary")` and pass that `blob:` URL as the whole source
+(Babylon accepts a full URL in place of `rootUrl`+filename); fall back to
+the current loose `/data/` URL only when the package lookup returns
+`null`. This mirrors the pattern already used for audio and weapon
+textures, and would need updating in both `ModelLoader.ts` and
+`EditorSession.ts`'s model-preview path, plus a test that a model's bytes
+served only from a fake packed index decode correctly. Filed as a
+follow-up, not yet scheduled against a work order.
+
 ## M2 materials: face selection and the texture browser (plan, 2026-10-03)
 
 This turns the "Face material editing" and "Textured preview" rows of the
