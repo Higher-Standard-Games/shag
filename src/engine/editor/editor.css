@@ -109,6 +109,7 @@
   touch-action: none;
 }
 .shagged__drafts,
+.shagged__server-maps,
 .shagged__build {
   position: absolute;
   z-index: 3;
@@ -126,6 +127,7 @@
   pointer-events: auto;
 }
 .shagged__drafts[hidden],
+.shagged__server-maps[hidden],
 .shagged__build[hidden] {
   display: none;
 }
@@ -152,6 +154,7 @@
   color: #ffc61a;
 }
 .shagged__drafts button,
+.shagged__server-maps button,
 .shagged__build button {
   display: block;
   width: 100%;

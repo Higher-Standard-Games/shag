@@ -42,6 +42,7 @@ import {
 } from "./EntityCatalog";
 import { writeMap } from "./MapWriter";
 import { createRoomTemplate } from "./RoomTemplate";
+import { inspectServerMap, serverMapName } from "./ServerMapOpen";
 import type { EditorCompileJob, EditorServerStatus, ShaggedApi } from "./ShaggedApi";
 import "./editor.css";
 
@@ -282,6 +283,7 @@ export class EditorSession {
         <label>Grid <select data-grid title="[ / ] to step"><option>8</option><option selected>16</option><option>32</option><option>64</option></select></label>
         <label>Work <span data-work-axis>Z</span> <input data-workplane type="number" step="1" value="0"></label>
         <span class="shagged__separator"></span>
+        <button data-action="server-maps" disabled title="Open a server-saved SHAGGED map">Server Maps</button>
         <button data-action="server-save" disabled title="Connecting to SHAGGED server">Server Save</button>
         <button data-action="compile" disabled title="Connecting to SHAGGED server">Compile</button>
         <button data-action="compile-status" title="Check server and compile status">Status: offline</button>
@@ -297,6 +299,10 @@ export class EditorSession {
       <section class="shagged__drafts" aria-label="Saved drafts" hidden>
         <div class="shagged__drafts-head"><h2>Local drafts</h2><button data-action="close-drafts">Close</button></div>
         <div data-draft-list></div>
+      </section>
+      <section class="shagged__server-maps" aria-label="Server maps" hidden>
+        <div class="shagged__drafts-head"><h2>Server maps</h2><button data-action="close-server-maps">Close</button></div>
+        <div data-server-map-list></div>
       </section>
       <section class="shagged__build" aria-label="Compile status" hidden>
         <div class="shagged__drafts-head"><h2>Compile status</h2><button data-action="close-build">Close</button></div>
@@ -369,7 +375,8 @@ export class EditorSession {
       "click",
       (event) => {
         const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-action]");
-        if (button?.dataset.action) this.action(button.dataset.action, button.dataset.draftId);
+        if (button?.dataset.action)
+          this.action(button.dataset.action, button.dataset.draftId ?? button.dataset.mapName);
       },
       { signal: this.listeners.signal },
     );
@@ -520,11 +527,14 @@ export class EditorSession {
   }
 
   private updateServerButtons(): void {
+    const maps = this.root.querySelector<HTMLButtonElement>('[data-action="server-maps"]')!;
     const save = this.root.querySelector<HTMLButtonElement>('[data-action="server-save"]')!;
     const compile = this.root.querySelector<HTMLButtonElement>('[data-action="compile"]')!;
     const status = this.root.querySelector<HTMLButtonElement>('[data-action="compile-status"]')!;
+    maps.disabled = !this.serverStatus?.saveAvailable || this.serverBusy;
     save.disabled = !this.serverStatus?.saveAvailable || this.serverBusy;
     compile.disabled = !this.serverStatus?.compilerAvailable || this.serverBusy;
+    maps.title = this.serverStatus?.saveAvailable ? "Open a server-saved SHAGGED map" : "Start npm run shagged:server";
     save.title = this.serverStatus?.saveAvailable
       ? "Save an immutable .map revision on the editor server"
       : "Start npm run shagged:server";
@@ -581,7 +591,7 @@ export class EditorSession {
     if (!this.api || !this.serverStatus?.saveAvailable) throw new Error("Editor server is unavailable");
     const data = this.document.snapshot();
     this.save();
-    const name = `draft_${data.draftId.replace(/-/g, "")}`;
+    const name = serverMapName(data.draftId);
     const actualRevision = await this.api.mapRevision(name);
     if (actualRevision !== (this.serverSave?.revision ?? 0)) {
       throw new Error(
@@ -614,7 +624,7 @@ export class EditorSession {
     this.updateServerButtons();
     try {
       const revision = await this.saveCurrentToServer();
-      const name = `draft_${this.draftId.replace(/-/g, "")}`;
+      const name = serverMapName(this.draftId);
       const started = await this.api.compile(name, revision);
       this.resetCompileJob();
       const generation = this.serverGeneration;
@@ -711,6 +721,98 @@ export class EditorSession {
     this.root.focus();
   }
 
+  private async showServerMaps(): Promise<void> {
+    if (this.serverBusy || !this.api) return;
+    this.serverBusy = true;
+    this.updateServerButtons();
+    const generation = this.serverGeneration;
+    const panel = this.root.querySelector<HTMLElement>(".shagged__server-maps")!;
+    const list = this.root.querySelector<HTMLElement>("[data-server-map-list]")!;
+    list.textContent = "Loading server maps...";
+    panel.hidden = false;
+    try {
+      const maps = await this.api.maps();
+      if (generation !== this.serverGeneration) return;
+      list.replaceChildren();
+      for (const map of maps) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.dataset.action = "open-server-map";
+        button.dataset.mapName = map.name;
+        button.textContent = `${map.name} · server r${map.revision}`;
+        list.appendChild(button);
+      }
+      if (!maps.length) list.textContent = "No saved maps on this server.";
+    } finally {
+      this.serverBusy = false;
+      this.updateServerButtons();
+    }
+  }
+
+  private async openServerMap(name: string, asCopy = false): Promise<void> {
+    if (this.serverBusy || !this.api) return;
+    this.serverBusy = true;
+    this.updateServerButtons();
+    const generation = this.serverGeneration;
+    try {
+      this.save();
+      const map = await this.api.map(name);
+      if (generation !== this.serverGeneration) return;
+      const local = this.draftStore.get(map.sidecar?.draftId ?? "");
+      const decision = inspectServerMap(map, local?.document.snapshot());
+      const list = this.root.querySelector<HTMLElement>("[data-server-map-list]")!;
+      list.querySelector("[data-server-conflict]")?.remove();
+      if (decision.kind === "local-conflict" && !asCopy) {
+        const notice = document.createElement("div");
+        notice.dataset.serverConflict = "";
+        const message = document.createElement("p");
+        message.textContent = `${name} has a different local draft. The local version was kept. Open the server version as a separate copy?`;
+        const button = document.createElement("button");
+        button.type = "button";
+        button.dataset.action = "server-copy";
+        button.dataset.mapName = name;
+        button.textContent = "Open server as copy";
+        notice.append(message, button);
+        list.prepend(notice);
+        this.status("Server map differs from local draft; local work was kept");
+        return;
+      }
+      if (decision.kind === "already-local" && !asCopy) {
+        if (this.draftId !== decision.document.snapshot().draftId) this.openDraft(decision.document.snapshot().draftId);
+        this.serverSave = { revision: decision.revision, documentRevision: this.revision };
+        this.save();
+      } else {
+        const data = decision.document.snapshot();
+        if (asCopy) {
+          data.draftId = crypto.randomUUID();
+          data.revision = 0;
+        }
+        this.resetCompileJob();
+        this.cancelGesture();
+        this.document = new EditorDocument(data);
+        this.restoreView(null);
+        this.serverSave = asCopy ? undefined : { revision: decision.revision, documentRevision: data.revision };
+        this.draftName = asCopy ? `${name} copy` : name;
+        this.root.querySelector<HTMLInputElement>("[data-draft-name]")!.value = this.draftName;
+        this.root.querySelector<HTMLSelectElement>("[data-grid]")!.value = String(this.grid);
+        this.updateWorkPlaneControl();
+        this.rebuildMeshes();
+        this.draw();
+        this.save();
+      }
+      this.root.querySelector<HTMLElement>(".shagged__server-maps")!.hidden = true;
+      this.status(
+        asCopy
+          ? `Opened ${name} as a separate local draft`
+          : `Opened ${name}.map at server revision ${decision.revision}`,
+      );
+      this.root.focus();
+    } finally {
+      this.serverBusy = false;
+      this.updateServerButtons();
+    }
+  }
+
   private action(action: string, draftId?: string): void {
     try {
       switch (action) {
@@ -744,6 +846,20 @@ export class EditorSession {
           break;
         case "drafts":
           this.showDrafts();
+          break;
+        case "server-maps":
+          void this.showServerMaps().catch((error: unknown) => this.serverError(error));
+          break;
+        case "close-server-maps":
+          this.root.querySelector<HTMLElement>(".shagged__server-maps")!.hidden = true;
+          this.root.focus();
+          break;
+        case "open-server-map":
+        case "server-copy":
+          if (draftId)
+            void this.openServerMap(draftId, action === "server-copy").catch((error: unknown) =>
+              this.serverError(error),
+            );
           break;
         case "close-drafts":
           this.root.querySelector<HTMLElement>(".shagged__drafts")!.hidden = true;

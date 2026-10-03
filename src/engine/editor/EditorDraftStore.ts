@@ -129,6 +129,11 @@ export class EditorDraftStore {
     return restored;
   }
 
+  /** Read a saved draft without changing which draft is active. */
+  get(id: string): { document: EditorDocument; view: EditorViewState | null } | null {
+    return this.storage.getItem(draftKey(id)) ? this.read(id) : null;
+  }
+
   save(data: EditorDocumentData, view: EditorViewState): void {
     new EditorDocument(data);
     if (!validView(view)) throw new Error("Invalid editor view state");

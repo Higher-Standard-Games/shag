@@ -5,6 +5,8 @@ import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EditorSession } from "../EditorSession";
 import { writeMap } from "../MapWriter";
+import { createRoomTemplate } from "../RoomTemplate";
+import { serverMapName } from "../ServerMapOpen";
 import type { ShaggedApi } from "../ShaggedApi";
 
 const context = {
@@ -45,6 +47,52 @@ beforeEach(() => {
 });
 
 describe("editor DOM shell", () => {
+  it("opens a server map and keeps divergent local work when opening a server copy", async () => {
+    const engine = new NullEngine();
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    const sidecar = createRoomTemplate();
+    const name = serverMapName(sidecar.draftId);
+    const map = { name, revision: 4, sourceHash: "hash", source: writeMap(sidecar), sidecar };
+    const api = {
+      status: vi.fn(async () => ({
+        saveAvailable: true,
+        compilerAvailable: false,
+        playableAvailable: false,
+        supportedQualities: [],
+        reason: "Compiler unavailable",
+      })),
+      maps: vi.fn(async () => [{ name, revision: 4, sourceHash: "hash" }]),
+      map: vi.fn(async () => map),
+    } as unknown as ShaggedApi;
+    const session = new EditorSession(engine, canvas, vi.fn(), api);
+    await vi.waitFor(() =>
+      expect(session.root.querySelector<HTMLButtonElement>('[data-action="server-maps"]')?.disabled).toBe(false),
+    );
+    session.root.querySelector<HTMLButtonElement>('[data-action="server-maps"]')!.click();
+    await vi.waitFor(() => expect(session.root.querySelector(`[data-map-name="${name}"]`)).toBeTruthy());
+    session.root.querySelector<HTMLButtonElement>(`[data-map-name="${name}"]`)!.click();
+    await vi.waitFor(() => expect(session.draftId).toBe(sidecar.draftId));
+    expect(JSON.parse(localStorage.getItem(`shagged:view:v1:${sidecar.draftId}`)!)).toMatchObject({
+      serverSave: { revision: 4 },
+    });
+    session.document.transact((data) => {
+      data.brushes[0].max.x += 16;
+    });
+    session.save();
+    const localMax = session.document.snapshot().brushes[0].max.x;
+    session.root.querySelector<HTMLButtonElement>('[data-action="server-maps"]')!.click();
+    await vi.waitFor(() => expect(session.root.querySelector(`[data-map-name="${name}"]`)).toBeTruthy());
+    session.root.querySelector<HTMLButtonElement>(`[data-action="open-server-map"]`)!.click();
+    await vi.waitFor(() => expect(session.root.querySelector("[data-server-conflict]")).toBeTruthy());
+    expect(session.document.snapshot().brushes[0].max.x).toBe(localMax);
+    session.root.querySelector<HTMLButtonElement>('[data-action="server-copy"]')!.click();
+    await vi.waitFor(() => expect(session.draftId).not.toBe(sidecar.draftId));
+    expect(session.document.snapshot().brushes[0].max.x).toBe(sidecar.brushes[0].max.x);
+    expect(JSON.parse(localStorage.getItem(`shagged:draft:v1:${sidecar.draftId}`)!).brushes[0].max.x).toBe(localMax);
+    session.dispose();
+    engine.dispose();
+  });
   it("saves a revision before compiling and keeps a stale server revision from being overwritten", async () => {
     const engine = new NullEngine();
     const canvas = document.createElement("canvas");

@@ -82,6 +82,9 @@ describe("editor local draft recovery", () => {
       ["Second room", true],
       ["First room", false],
     ]);
+    expect(store.get(first.draftId)?.document.snapshot()).toEqual(first);
+    expect(store.get("missing")).toBeNull();
+    expect(store.load().document.snapshot()).toEqual(second);
     const restored = store.activate(first.draftId);
     expect(restored.document.snapshot()).toEqual(first);
     expect(restored.view?.draftName).toBe("First room");

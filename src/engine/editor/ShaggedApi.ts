@@ -18,6 +18,17 @@ export interface EditorCompileJob {
   runtimeMapName: string | null;
 }
 
+export interface ServerMapSummary {
+  name: string;
+  revision: number;
+  sourceHash: string;
+}
+
+export interface ServerMapSnapshot extends ServerMapSummary {
+  source: string;
+  sidecar: EditorDocumentData | null;
+}
+
 export class ShaggedApiError extends Error {
   constructor(
     message: string,
@@ -51,9 +62,18 @@ export class ShaggedApi {
     return this.request("/api/status");
   }
 
+  async maps(): Promise<ServerMapSummary[]> {
+    const result = await this.request<{ maps: ServerMapSummary[] }>("/api/maps");
+    return result.maps;
+  }
+
+  map(name: string): Promise<ServerMapSnapshot> {
+    return this.request(`/api/maps/${encodeURIComponent(name)}`);
+  }
+
   async mapRevision(name: string): Promise<number> {
     try {
-      const map = await this.request<{ revision: number }>(`/api/maps/${encodeURIComponent(name)}`);
+      const map = await this.map(name);
       return map.revision;
     } catch (error) {
       if (error instanceof ShaggedApiError && error.status === 404) return 0;
