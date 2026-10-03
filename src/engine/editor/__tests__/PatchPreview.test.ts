@@ -46,7 +46,10 @@ beforeEach(() => {
     beginPath: vi.fn(),
     moveTo: vi.fn(),
     lineTo: vi.fn(),
+    arc: vi.fn(),
     stroke: vi.fn(),
+    measureText: vi.fn(() => ({ width: 40 })),
+    fillText: vi.fn(),
   })) as unknown as typeof HTMLCanvasElement.prototype.getContext;
   HTMLCanvasElement.prototype.setPointerCapture = vi.fn();
   HTMLElement.prototype.getBoundingClientRect = (() => ({

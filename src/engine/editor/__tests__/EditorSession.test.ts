@@ -58,6 +58,7 @@ const context = {
   beginPath: vi.fn(),
   moveTo: vi.fn(),
   lineTo: vi.fn(),
+  arc: vi.fn(),
   stroke: vi.fn(),
   measureText: vi.fn(() => ({ width: 40 })),
   fillText: vi.fn(),
@@ -912,6 +913,37 @@ describe("editor DOM shell", () => {
     const migrated = JSON.parse(localStorage.getItem(key)!).camera;
     expect(migrated.yaw).toBeCloseTo(270, 9);
     expect(migrated.pitch).toBeCloseTo(0, 9);
+    session.dispose();
+    engine.dispose();
+  });
+
+  it("marks the snapped grid point while dragging, in every gesture mode, only in the dragged pane", () => {
+    const engine = new NullEngine();
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    const session = new EditorSession(engine, canvas, vi.fn());
+    const xy = session.root.querySelector<HTMLCanvasElement>('[data-plane="xy"]')!;
+    const xz = session.root.querySelector<HTMLCanvasElement>('[data-plane="xz"]')!;
+    const pointer = (pane: HTMLCanvasElement, type: string, x: number, y: number) =>
+      pane.dispatchEvent(new MouseEvent(type, { bubbles: true, button: 0, clientX: x, clientY: y }));
+
+    context.arc.mockClear();
+    expect(context.arc).not.toHaveBeenCalled(); // nothing dragging yet
+    pointer(xy, "pointerdown", 200, 150); // draw
+    pointer(xy, "pointermove", 264, 86);
+    expect(context.arc).toHaveBeenLastCalledWith(264, 86, 5, 0, Math.PI * 2);
+    pointer(xy, "pointerup", 264, 86);
+
+    session.root.dispatchEvent(new KeyboardEvent("keydown", { key: "v", bubbles: true }));
+    context.arc.mockClear();
+    pointer(xy, "pointerdown", 232, 118); // move
+    pointer(xy, "pointermove", 260, 140);
+    expect(context.arc).toHaveBeenCalled(); // a move snaps and marks too, just without a size label
+    pointer(xy, "pointerup", 260, 140);
+
+    context.arc.mockClear();
+    pointer(xz, "pointermove", 10, 10); // hovering an idle pane with no gesture: no marker anywhere
+    expect(context.arc).not.toHaveBeenCalled();
     session.dispose();
     engine.dispose();
   });

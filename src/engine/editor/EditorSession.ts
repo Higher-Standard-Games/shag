@@ -2467,32 +2467,45 @@ export class EditorSession {
       }
       if (patchPreview) drawPatchLattice(ctx, patchPreview, plane, originX, originY, this.zoom, true);
       if (this.gesture?.mode === "draw" && preview) paint(preview.min, preview.max, true);
-      // A live width×depth×height readout follows the cursor while drawing or resizing, so the
-      // mapper doesn't have to find it in the status bar's much longer line.
-      if (
-        this.gesture?.plane === plane &&
-        (this.gesture.mode === "draw" || this.gesture.mode === "resize") &&
-        preview
-      ) {
-        const label = [axes.u, axes.v, axes.hidden]
-          .map((axis) => Math.round(preview.max[axis] - preview.min[axis]))
-          .join(" × ");
+      if (this.gesture?.plane === plane) {
+        // The gesture's current point is already grid-snapped (coordinates() does that); marking it
+        // here, not just wherever the raw pointer sits, confirms exactly where the edit will land.
         const cx = originX + this.gesture.current[0] * this.zoom;
         const cy = originY - this.gesture.current[1] * this.zoom;
-        ctx.font = "bold 13px Rajdhani, sans-serif";
-        ctx.textBaseline = "top";
-        const padX = 7;
-        const padY = 4;
-        const textWidth = ctx.measureText(label).width;
-        const bx = cx + 14;
-        const by = cy - 14 - 13 - padY * 2;
-        ctx.fillStyle = "rgba(10,16,30,.92)";
-        ctx.fillRect(bx, by, textWidth + padX * 2, 13 + padY * 2);
-        ctx.strokeStyle = "#ffc61a";
-        ctx.lineWidth = 1;
-        ctx.strokeRect(bx + 0.5, by + 0.5, textWidth + padX * 2 - 1, 13 + padY * 2 - 1);
-        ctx.fillStyle = "#ffc61a";
-        ctx.fillText(label, bx + padX, by + padY);
+        ctx.strokeStyle = "#baff39";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+        ctx.moveTo(cx - 9, cy);
+        ctx.lineTo(cx - 5, cy);
+        ctx.moveTo(cx + 5, cy);
+        ctx.lineTo(cx + 9, cy);
+        ctx.moveTo(cx, cy - 9);
+        ctx.lineTo(cx, cy - 5);
+        ctx.moveTo(cx, cy + 5);
+        ctx.lineTo(cx, cy + 9);
+        ctx.stroke();
+        // A live width×depth×height readout follows the same point while drawing or resizing, so the
+        // mapper doesn't have to find it in the status bar's much longer line.
+        if ((this.gesture.mode === "draw" || this.gesture.mode === "resize") && preview) {
+          const label = [axes.u, axes.v, axes.hidden]
+            .map((axis) => Math.round(preview.max[axis] - preview.min[axis]))
+            .join(" × ");
+          ctx.font = "bold 13px Rajdhani, sans-serif";
+          ctx.textBaseline = "top";
+          const padX = 7;
+          const padY = 4;
+          const textWidth = ctx.measureText(label).width;
+          const bx = cx + 14;
+          const by = cy - 14 - 13 - padY * 2;
+          ctx.fillStyle = "rgba(10,16,30,.92)";
+          ctx.fillRect(bx, by, textWidth + padX * 2, 13 + padY * 2);
+          ctx.strokeStyle = "#ffc61a";
+          ctx.lineWidth = 1;
+          ctx.strokeRect(bx + 0.5, by + 0.5, textWidth + padX * 2 - 1, 13 + padY * 2 - 1);
+          ctx.fillStyle = "#ffc61a";
+          ctx.fillText(label, bx + padX, by + padY);
+        }
       }
       // A selected face pointing at this pane's viewer is outlined, dashed, inside its brush.
       const faced = data.brushes.find((brush) => brush.id === this.selectedId);
