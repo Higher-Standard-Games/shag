@@ -482,11 +482,15 @@
 .shagged__faces button.active b {
   color: #101022;
 }
-.shagged__view-mode {
+.shagged__view-modes {
   position: absolute;
   z-index: 1;
   top: 6px;
   right: 8px;
+  display: flex;
+  pointer-events: auto;
+}
+.shagged__view-modes button {
   padding: 3px 8px;
   background: #0b1424dd;
   color: #9fb5c5;
@@ -497,16 +501,17 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   cursor: pointer;
-  pointer-events: auto;
 }
-.shagged__view-mode.active {
+.shagged__view-modes button + button {
+  border-left: 0;
+}
+.shagged__view-modes button:hover {
+  color: #e8fbff;
+}
+.shagged__view-modes button.active {
   color: #101022;
   background: #ffc61a;
   border-color: #ffc61a;
-}
-.shagged__view-mode:disabled {
-  cursor: progress;
-  opacity: 0.6;
 }
 .shagged__inspector .shagged__faces-head {
   margin: 16px 0 0;

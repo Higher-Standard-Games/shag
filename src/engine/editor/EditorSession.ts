@@ -63,6 +63,13 @@ import type { TextureThumbnails } from "./TextureThumbnails";
 import { createBrowserThumbnails } from "./TextureThumbnailsBrowser";
 import "./editor.css";
 
+type ViewMode = "brush" | "textured" | "wireframe";
+const VIEW_MODES: ReadonlyArray<[ViewMode, string, string]> = [
+  ["brush", "Brush", "Solid boxes, coloured by owner"],
+  ["textured", "Textured", "Each face's image with its alignment"],
+  ["wireframe", "Wireframe", "Brush edges only, to see through walls"],
+];
+
 type Gesture = {
   plane: Plane;
   mode: "draw" | "move" | "resize";
@@ -243,11 +250,13 @@ export class EditorSession {
   /** Texture new brushes get; size is null until one is picked from the browser (fixed legacy alignment). */
   private currentTexture: { name: string; size: [number, number] | null } = { name: "blx/blx_grid", size: null };
   private textureBrowser: TextureBrowser | null = null;
-  /** Textured draws each face's image with its alignment; Solid colours brushes by owner. */
-  private textured = false;
+  /** Textured draws each face's image with its alignment; Brush colours boxes by owner; Wireframe shows edges only. */
+  private viewMode: ViewMode = "textured";
+  private previewLoading: Promise<void> | null = null;
   private previewTextures: PreviewTextures | null = null;
   private catalogEntries = new Map<string, TextureEntry>();
   private texturedMeshes: Mesh[] = [];
+  private wireframe: Mesh | null = null;
   private thumbnails: TextureThumbnails | null = null;
   /** Faces of the selected brush picked with Ctrl+Shift+click or the face net; UI state only. */
   private readonly selectedFaces = new Set<FaceKey>();
@@ -347,7 +356,7 @@ export class EditorSession {
         <button class="shagged__exit" data-action="exit">Exit</button>
       </header>
       <main class="shagged__workspace">
-        <section class="shagged__pane shagged__pane--perspective"><span>3D PERSPECTIVE</span><button class="shagged__view-mode" data-action="view-mode" title="Switch to the textured preview">Solid</button></section>
+        <section class="shagged__pane shagged__pane--perspective"><span>3D PERSPECTIVE</span><div class="shagged__view-modes" role="group" aria-label="3D view mode">${VIEW_MODES.map(([mode, label, title]) => `<button type="button" data-view-mode="${mode}" title="${title}">${label}</button>`).join("")}</div></section>
         <section class="shagged__pane"><span>XY TOP</span><canvas data-plane="xy"></canvas></section>
         <section class="shagged__pane"><span>XZ FRONT</span><canvas data-plane="xz"></canvas></section>
         <section class="shagged__pane"><span>YZ SIDE</span><canvas data-plane="yz"></canvas></section>
@@ -497,6 +506,16 @@ export class EditorSession {
     );
     this.root.addEventListener("keydown", (event) => this.keyDown(event), { signal: this.listeners.signal });
     this.root.addEventListener("keyup", (event) => this.flyCamera.keyUp(event), { signal: this.listeners.signal });
+    this.root.addEventListener(
+      "click",
+      (event) => {
+        const mode = (event.target as HTMLElement).closest<HTMLButtonElement>("[data-view-mode]")?.dataset.viewMode;
+        if (mode) this.setViewMode(mode as ViewMode);
+      },
+      { signal: this.listeners.signal },
+    );
+    this.renderViewModes();
+    if (this.viewMode === "textured") void this.ensurePreview();
     this.flyCamera = new FlyCameraController({
       element: this.canvas,
       isOver: (event) => this.inPerspective(event),
@@ -577,6 +596,7 @@ export class EditorSession {
       workPlanes: { ...this.workPlanes },
       viewCenter: { ...this.viewCenter },
       camera: { position: { ...this.pose.position }, yaw: this.pose.yaw, pitch: this.pose.pitch },
+      viewMode: this.viewMode,
     };
   }
   private trySaveView(): void {
@@ -586,38 +606,102 @@ export class EditorSession {
       this.status(`View save failed: ${String(error)}`);
     }
   }
-  /** The first switch to Textured loads the catalog, so opening the editor never does. */
-  private async toggleTextured(): Promise<void> {
-    const button = this.root.querySelector<HTMLButtonElement>('[data-action="view-mode"]')!;
-    if (!this.previewTextures) {
-      button.disabled = true;
-      this.status("Loading textures for the preview…");
+  private setViewMode(mode: ViewMode): void {
+    this.viewMode = mode;
+    this.renderViewModes();
+    if (mode === "textured") void this.ensurePreview();
+    this.rebuildMeshes();
+    this.draw();
+    this.trySaveView();
+    this.status(`${VIEW_MODES.find(([item]) => item === mode)![1]} view`);
+  }
+
+  private renderViewModes(): void {
+    for (const button of this.root.querySelectorAll<HTMLButtonElement>("[data-view-mode]")) {
+      const active = button.dataset.viewMode === this.viewMode;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", String(active));
+    }
+  }
+
+  /**
+   * Loads the catalog and preview materials once. Until they land, Textured
+   * shows the brush colours, so opening the editor never waits on them.
+   */
+  private ensurePreview(): Promise<void> {
+    this.previewLoading ??= (async () => {
       try {
         const [entries, deps] = await Promise.all([loadTextureCatalog(), browserPreviewDeps()]);
         if (this.listeners.signal.aborted) return;
         this.catalogEntries = new Map(entries.map((entry) => [entry.name.toLowerCase(), entry]));
         this.previewTextures = new PreviewTextures(this.scene, deps);
+        if (this.viewMode === "textured") {
+          this.rebuildMeshes();
+          this.draw();
+        }
       } catch (error) {
+        this.previewLoading = null; // a later switch to Textured retries
         this.status(`Textured preview unavailable: ${error instanceof Error ? error.message : String(error)}`);
-        return;
-      } finally {
-        button.disabled = false;
+      }
+    })();
+    return this.previewLoading;
+  }
+
+  private get texturedReady(): boolean {
+    return this.viewMode === "textured" && this.previewTextures !== null;
+  }
+
+  /** Wireframe mode: every brush's twelve edges as one line mesh, in the selection and owner colours. */
+  private syncWireframe(data: EditorDocumentData, ownerColors: Map<string, EntityClassDef["color"]>): void {
+    this.wireframe?.dispose();
+    this.wireframe = null;
+    if (this.viewMode !== "wireframe" || !data.brushes.length) return;
+    const lines: Vector3[][] = [];
+    const colors: Color4[][] = [];
+    for (const brush of data.brushes) {
+      const owned = ownerColors.get(brush.id);
+      const [r, g, b] = brush.id === this.selectedId ? [1, 0.75, 0.2] : (owned ?? [0.1, 0.8, 0.9]);
+      const color = new Color4(r, g, b, 1);
+      const corner = (x: number, y: number, z: number) => new Vector3(x, z, y);
+      const { min, max } = brush;
+      const c = [
+        corner(min.x, min.y, min.z),
+        corner(max.x, min.y, min.z),
+        corner(max.x, max.y, min.z),
+        corner(min.x, max.y, min.z),
+        corner(min.x, min.y, max.z),
+        corner(max.x, min.y, max.z),
+        corner(max.x, max.y, max.z),
+        corner(min.x, max.y, max.z),
+      ];
+      for (const [a, z] of [
+        [0, 1],
+        [1, 2],
+        [2, 3],
+        [3, 0],
+        [4, 5],
+        [5, 6],
+        [6, 7],
+        [7, 4],
+        [0, 4],
+        [1, 5],
+        [2, 6],
+        [3, 7],
+      ]) {
+        lines.push([c[a], c[z]]);
+        colors.push([color, color]);
       }
     }
-    this.textured = !this.textured;
-    button.textContent = this.textured ? "Textured" : "Solid";
-    button.title = this.textured ? "Switch to the solid view" : "Switch to the textured preview";
-    button.classList.toggle("active", this.textured);
-    this.rebuildMeshes();
-    this.draw();
-    this.status(this.textured ? "Textured preview: each face draws its image with its alignment" : "Solid view");
+    this.wireframe = MeshBuilder.CreateLineSystem("shagged-wireframe", { lines, colors }, this.scene);
+    this.wireframe.isPickable = false;
   }
 
   /** One mesh per shader in Textured mode; the brush boxes stay as the pick, edge and selection layer. */
   private syncTexturedMeshes(data: EditorDocumentData): void {
     for (const mesh of this.texturedMeshes) mesh.dispose();
     this.texturedMeshes = [];
-    if (!this.textured || !this.previewTextures) return;
+    const preview = this.previewTextures;
+    if (this.viewMode !== "textured" || !preview) return;
     for (const batch of shaderBatches(data.brushes)) {
       const mesh = new Mesh(`shagged-textured-${batch.shader}`, this.scene);
       const vertexData = new VertexData();
@@ -627,7 +711,7 @@ export class EditorSession {
       vertexData.indices = batch.indices;
       vertexData.applyToMesh(mesh);
       mesh.isPickable = false;
-      mesh.material = this.previewTextures.material(batch.shader, this.catalogEntries.get(batch.shader.toLowerCase()));
+      mesh.material = preview.material(batch.shader, this.catalogEntries.get(batch.shader.toLowerCase()));
       this.texturedMeshes.push(mesh);
     }
   }
@@ -780,7 +864,7 @@ export class EditorSession {
 
   /** Orange slabs on the selected faces in 3D, rebuilt only when the selection, the document or the view mode changes. */
   private syncFaceOverlays(data: EditorDocumentData): void {
-    const key = `${this.selectedId ?? ""}|${[...this.selectedFaces].sort().join(",")}|${data.revision}|${this.textured}`;
+    const key = `${this.selectedId ?? ""}|${[...this.selectedFaces].sort().join(",")}|${data.revision}|${this.viewMode}`;
     if (key === this.faceOverlayKey) return;
     this.faceOverlayKey = key;
     for (const mesh of this.faceOverlays) {
@@ -808,8 +892,9 @@ export class EditorSession {
       const material = new StandardMaterial(`shagged-face-material-${face}`, this.scene);
       material.diffuseColor = new Color3(1, 0.55, 0.05);
       // light enough in Textured mode to see the alignment being edited
-      material.emissiveColor = this.textured ? new Color3(0.25, 0.12, 0) : new Color3(0.7, 0.35, 0);
-      material.alpha = this.textured ? 0.18 : 0.6;
+      const light = this.viewMode !== "brush";
+      material.emissiveColor = light ? new Color3(0.25, 0.12, 0) : new Color3(0.7, 0.35, 0);
+      material.alpha = light ? 0.18 : 0.6;
       mesh.material = material;
       this.faceOverlays.push(mesh);
     }
@@ -1049,6 +1134,7 @@ export class EditorSession {
     this.workPlanes = { ...(view?.workPlanes ?? { x: 0, y: 0, z: 0 }) };
     this.activePlane = view?.activePlane ?? "xy";
     this.selectedId = this.exists(view?.selectedId) ? (view?.selectedId ?? null) : null;
+    this.viewMode = view?.viewMode ?? "textured";
     const camera = view?.camera;
     this.setPose(
       !camera
@@ -1292,9 +1378,6 @@ export class EditorSession {
           break;
         case "textures":
           void this.toggleTextures();
-          break;
-        case "view-mode":
-          void this.toggleTextured();
           break;
         case "brush":
         case "select":
@@ -1913,22 +1996,28 @@ export class EditorSession {
           : owned
             ? new Color3(...owned)
             : new Color3(0.1, 0.8, 0.9);
-      if (this.textured) {
+      const selected = brush.id === this.selectedId;
+      if (this.texturedReady) {
         // a tint over the textured faces for the selection and brush entities, pulled forward so it doesn't
         // z-fight; selected faces have their own overlay, so the brush tint steps aside for them
-        const selected = brush.id === this.selectedId && this.selectedFaces.size === 0;
-        material.alpha = selected ? 0.15 : owned ? 0.3 : 0;
+        material.alpha = selected && this.selectedFaces.size === 0 ? 0.15 : owned ? 0.3 : 0;
         material.zOffset = -1;
       } else {
         material.alpha = 0.82;
       }
       mesh.material = material;
-      mesh.enableEdgesRendering();
-      mesh.edgesWidth = 2;
-      mesh.edgesColor = new Color4(0.02, 0.02, 0.05, 1);
+      if (this.viewMode === "wireframe") {
+        // drawn by the line mesh below; the box stays for picking, which goes by predicate, not visibility
+        mesh.isVisible = false;
+      } else {
+        mesh.enableEdgesRendering();
+        mesh.edgesWidth = 2;
+        mesh.edgesColor = new Color4(0.02, 0.02, 0.05, 1);
+      }
       this.meshes.set(brush.id, mesh);
     }
     this.syncTexturedMeshes(data);
+    this.syncWireframe(data, ownerColors);
     for (const entity of data.entities) {
       const { min, max } = entityBox(entity);
       const mesh = MeshBuilder.CreateBox(
@@ -2030,8 +2119,11 @@ export class EditorSession {
   }
 
   private syncGhost(preview: BoxBrush | null): void {
+    // Wireframe draws brushes as lines, so their boxes stay hidden (entities keep theirs);
+    // otherwise the moving brush hides behind its ghost
+    const lines = this.viewMode === "wireframe" ? new Set(this.document.snapshot().brushes.map((b) => b.id)) : null;
     for (const [id, mesh] of this.meshes) {
-      mesh.isVisible = !(this.gesture?.mode !== "draw" && this.gesture?.brush?.id === id && preview);
+      mesh.isVisible = !lines?.has(id) && !(this.gesture?.mode !== "draw" && this.gesture?.brush?.id === id && preview);
     }
     if (!preview) {
       this.disposeGhost();

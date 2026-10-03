@@ -983,7 +983,8 @@ its meaning in 3D (select; Ctrl+Shift picks a face, Alt samples one).
 | Input | Where | Effect |
 | --- | --- | --- |
 | Middle or right drag | Anywhere in the 3D pane | Mouse look: yaw and pitch follow the mouse. |
-| Middle or right click (no drag) | 3D pane | Toggles free look: the pointer is captured and mouse movement looks around until another middle/right click or Escape. |
+| Middle click (no drag) | 3D pane | Toggles free look: the pointer is captured and mouse movement looks around until another middle click, a right click or Escape. |
+| Right click (no drag) | Any pane | Deselects (see Selection below). |
 | `W` / `S` | Pointer over the 3D pane, or free look | Fly forward / back along the view direction, held for continuous movement. |
 | `A` / `D` | Same | Strafe left / right. |
 | `Space` / `C` | Same | Rise / sink straight up and down, as in the game. |
@@ -999,6 +1000,21 @@ window focus, so the camera never keeps drifting.
 Pitch is clamped short of straight up and down so yaw stays well defined.
 Speed is in Quake units per second (400, or 1,200 with Shift), so movement
 matches the map's scale at any frame rate.
+
+### Selection
+
+Added on review, so drawing brushes works as in Radiant:
+
+- **Right click** without a drag deselects, in the 3D pane and in the
+  orthographic panes. In an orthographic pane a right drag pans, like a
+  middle drag, and the browser's context menu never opens.
+- **Escape** deselects once there is no drag to cancel and no menu or
+  popover to close.
+- **Brush tool:** a drag that starts on the selected brush or entity moves
+  it (or resizes it from an edge) instead of drawing over it; a drag
+  anywhere else draws a new brush, which becomes the selection. A click
+  that draws nothing selects what is under it, or clears the selection on
+  empty space. The Select tool keeps its behaviour.
 
 ### View modes
 
@@ -1021,10 +1037,10 @@ converted to a pose on load.
 
 | WO | Scope | Depends on | Parallel | Size | Agent | Status |
 | --- | --- | --- | --- | --- | --- | --- |
-| WO-N1 | Flycam math and controller: pose, look, fly, frame, orbit conversion; mouse look, free look, held keys, wheel | none | yes | 3 | Opus 5.5 | todo |
-| WO-N2 | Session hookup: replace the orbit camera, saved pose and migration, framing, per-frame movement | N1 | no | 3 | Opus 5.5 | todo |
-| WO-N3 | Brush / Textured / Wireframe switch, Textured by default, saved mode | none | yes | 2 | Opus 5.5 | todo |
-| WO-N4 | Browser check of navigation and modes; docs and changelog | N2, N3 | no | 1 | Opus 5.5 | todo |
+| WO-N1 | Flycam math and controller: pose, look, fly, frame, orbit conversion; mouse look, free look, held keys, wheel | none | yes | 3 | Opus 5.5 | done |
+| WO-N2 | Session hookup: replace the orbit camera, saved pose and migration, framing, per-frame movement; Radiant-style selection | N1 | no | 3 | Opus 5.5 | done |
+| WO-N3 | Brush / Textured / Wireframe switch, Textured by default, saved mode | none | yes | 2 | Opus 5.5 | done |
+| WO-N4 | Browser check of navigation and modes; docs and changelog | N2, N3 | no | 1 | Opus 5.5 | done |
 
 - **N1 proof:** unit tests on the pose math (look clamps, fly directions in
   Quake axes, framing keeps direction and fits the bounds, the orbit
@@ -1036,6 +1052,47 @@ converted to a pose on load.
 - **N3 proof:** DOM tests of the switch and each mode's materials.
 
 ### Progress log
+
+- 2026-10-03: WO-N1 done (`421323fa`). `FlyCamera.ts` holds the pose
+  math and `FlyCameraController`; 13 unit and DOM tests.
+  - Plan change on review: a right click deselects, as in Radiant, so only
+    the middle click toggles free look. A right click during free look
+    leaves it instead of deselecting.
+- 2026-10-03: WO-N2 done (`dfdf97c5`).
+  - The orbit `ArcRotateCamera` is replaced by a `FreeCamera` with
+    Babylon's inputs detached; `FlyCameraController` is its only driver.
+    Held keys advance in `render()` from the engine's frame time.
+  - The view saves the pose; an orbit view converts on load to the same
+    eye and direction. The default pose is the old default orbit converted,
+    so the face-picking tests hit the same faces as before.
+  - Framing keeps the look direction and backs off until the bounds fit.
+  - Radiant-style selection (see Selection above), with DOM tests for
+    right-click deselect in both kinds of pane, right-drag pan, Escape, and
+    the Brush tool's click-select and drag-to-move.
+- 2026-10-03: WO-N3 done.
+  - Brush / Textured / Wireframe buttons in the 3D pane's corner, Textured
+    by default and saved with the view. The catalog and preview materials
+    load in the background when the editor opens in Textured; until they
+    land, the pane shows the brush colours.
+  - Wireframe first drew the brush boxes' own edges over see-through boxes.
+    In the browser those edges came out as faint broken dots, because they
+    lose the depth test against the box faces they lie on. Wireframe is now
+    one line mesh with every brush's twelve edges, coloured by selection
+    and owner. The boxes are hidden but still take the pick, because the
+    pick goes by predicate rather than visibility. Entities keep their
+    boxes, which a mutation-checked test covers.
+- 2026-10-03: WO-N4 done. Browser check (headless Edge, Room Template, real
+  packages):
+  - The editor opened in Textured with the real `blx_grid` images.
+  - Holding W for 0.6 s with the pointer over the pane moved the camera
+    about 240 units (400 units per second); a right drag of 126 pixels
+    turned it 25° left.
+  - A left click picked `room-north`; a right click cleared it.
+  - Wireframe drew clean edges with the selected wall in orange; Brush
+    showed the solid boxes; the mode was saved.
+  - Not checked in the browser: pointer-locked free look, because headless
+    Edge doesn't grant pointer lock; its controller path is covered by the
+    DOM tests.
 
 
 

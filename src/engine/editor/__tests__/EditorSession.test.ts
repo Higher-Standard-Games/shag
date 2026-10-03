@@ -718,7 +718,7 @@ describe("editor DOM shell", () => {
     engine.dispose();
   });
 
-  it("switches the 3D view to a textured preview whose UVs are the faces' ST, and back", async () => {
+  it("opens textured, with UVs that are the faces' ST, and switches to Brush and Wireframe", async () => {
     const engine = new NullEngine();
     const canvas = document.createElement("canvas");
     document.body.appendChild(canvas);
@@ -737,18 +737,24 @@ describe("editor DOM shell", () => {
         faces: { "+Z": rotated },
       }),
     );
+    session.document.transact((data) =>
+      data.entities.push({
+        id: "spawn",
+        classname: "info_player_deathmatch",
+        origin: { x: 200, y: 200, z: 64 },
+        keys: {},
+      }),
+    );
     session.root.querySelector("[data-grid]")!.dispatchEvent(new Event("change"));
     session.root.querySelector<HTMLButtonElement>('[data-action="undo"]')!.click();
     session.root.querySelector<HTMLButtonElement>('[data-action="redo"]')!.click();
     const scene = engine.scenes[0];
-    const toggle = session.root.querySelector<HTMLButtonElement>('[data-action="view-mode"]')!;
+    const mode = (name: string) => session.root.querySelector<HTMLButtonElement>(`[data-view-mode="${name}"]`)!;
     const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
-    expect(toggle.textContent).toBe("Solid");
-    expect(scene.getMeshByName("shagged-textured-boqu/floor")).toBeNull();
-
-    toggle.click();
+    // Textured is the default; the catalog loads in the background
+    expect(mode("textured").classList.contains("active")).toBe(true);
+    expect(mode("textured").getAttribute("aria-pressed")).toBe("true");
     for (let i = 0; i < 4; i++) await flush();
-    expect(toggle.textContent).toBe("Textured");
     const floor = scene.getMeshByName("shagged-textured-boqu/floor")!;
     const grid = scene.getMeshByName("shagged-textured-blx/blx_grid")!;
     const expected = shaderBatches(session.document.snapshot().brushes);
@@ -770,13 +776,36 @@ describe("editor DOM shell", () => {
     expect(scene.getMeshByName("slab")!.material!.alpha).toBe(0);
     expect(scene.getMeshByName("shagged-face-+Z")!.material!.alpha).toBe(0.18);
 
-    toggle.click();
-    await flush();
-    expect(toggle.textContent).toBe("Solid");
+    mode("brush").click();
+    expect(mode("brush").classList.contains("active")).toBe(true);
+    expect(mode("textured").classList.contains("active")).toBe(false);
     expect(scene.getMeshByName("shagged-textured-boqu/floor")).toBeNull();
     expect(scene.getMeshByName("slab")!.material!.alpha).toBe(0.82);
     // switching with a face selected restyles its overlay too
     expect(scene.getMeshByName("shagged-face-+Z")!.material!.alpha).toBe(0.6);
+
+    // Wireframe: no faces, only the brush edges as lines, in the selection colour for the selected brush
+    mode("wireframe").click();
+    expect(scene.getMeshByName("slab")!.isVisible).toBe(false);
+    expect(scene.getMeshByName("spawn")!.isVisible).toBe(true); // entities keep their boxes
+    const wire = scene.getMeshByName("shagged-wireframe")!;
+    expect(wire.getTotalVertices()).toBe(12 * 2);
+    expect(wire.getVerticesData("color")!.slice(0, 4)).toEqual([1, 0.75, 0.2, 1]);
+    expect(scene.getMeshByName("shagged-textured-boqu/floor")).toBeNull();
+    // the invisible box still takes the pick: a right click clears, a left click selects again
+    const fire = (type: string, button: number) =>
+      canvas.dispatchEvent(new MouseEvent(type, { bubbles: true, button, clientX: 200, clientY: 150 }));
+    fire("pointerdown", 2);
+    fire("pointerup", 2);
+    expect(session.root.querySelector("[data-brush-id]")).toBeNull();
+    fire("pointerdown", 0);
+    fire("pointerup", 0);
+    expect(session.root.querySelector("[data-brush-id]")!.textContent).toBe("slab");
+    // the mode is part of the saved view
+    expect(JSON.parse(localStorage.getItem(`shagged:view:v1:${session.draftId}`)!).viewMode).toBe("wireframe");
+
+    mode("textured").click();
+    expect(scene.getMeshByName("shagged-textured-boqu/floor")).not.toBeNull();
     session.dispose();
     engine.dispose();
   });
