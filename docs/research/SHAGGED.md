@@ -481,7 +481,7 @@ always stage by explicit path.
 | WO-T0 | Probe: brush-primitive UV semantics measured from a compiled BSP; thumbnail decode cost measured | none | no | 2 | Opus 5.5 | done |
 | WO-T1 | Per-face materials in the document; pure UV function; `MapWriter` writes per-face shader and matrix | T0 | no | 3 | Opus 5.5 | done |
 | WO-T2 | `TextureCatalog`: pure catalog from the mounted index, `default_shaderlist.txt` and `shadertags.xml` | none | no | 2 | Sonnet 5 | done |
-| WO-T3 | `TextureThumbnails`: lazy decode from PK3 bytes, in-memory LRU, IndexedDB cache | T2 | no | 3 | Sonnet 5 | todo |
+| WO-T3 | `TextureThumbnails`: lazy decode from PK3 bytes, in-memory LRU, IndexedDB cache | T2 | no | 3 | Sonnet 5 | done |
 | WO-T4 | Texture browser drawer: search, groups, virtualised grid, apply to brush, current texture | T1, T2, T3 | yes | 3 | Opus 5.5 | todo |
 | WO-T5 | Face selection: 3D pick by normal, overlay, six-face net in the inspector, eyedropper | T1 | yes | 3 | Opus 5.5 | todo |
 | WO-T6 | UV tools: shift/scale/rotation fields, Fit, Natural, match neighbour | T1, T5 | yes | 3 | Opus 5.5 | todo |
@@ -761,6 +761,44 @@ that MakeBSP adds to keep coordinates small (they don't change rendering).
     shaders drew images from outside `textures/` (34 vs 31 missing).
   - **Not used:** `default_shaderlist.txt` isn't needed. It is a
     NetRadiant seed list, and the mounted index is the complete source.
+- 2026-10-03: WO-T3 done.
+  - **Service:** `TextureThumbnails.ts` (pure, injected I/O).
+    - Each thumbnail carries its source image's size, which becomes
+      `FaceMaterial.size` when a texture is applied.
+    - An in-memory LRU revokes evicted object URLs.
+    - IndexedDB entries are checked against a package version (name, size,
+      timestamp), so a changed PK3 refreshes.
+    - Concurrent requests for one path share one decode, and failures are
+      remembered rather than retried.
+    - A burst of requests (one render of the visible tiles) forms a batch.
+      The newest batch runs first, in request order, and a queued request
+      can be cancelled when its tile scrolls away.
+  - **Review:** the scheduling test caught that "newest first" was wrong both
+    ways: the first requests always took the free slots, and pure
+    newest-first would fill the screen bottom-up. Batching fixed both.
+  - **Browser wiring:** `TextureThumbnailsBrowser.ts`.
+    - TGA goes through the new DOM-free `decodeTGAPixels` (split out of
+      `TgaDecoder.ts`; `decodeTGA` now wraps it unchanged), skipping the
+      PNG re-encode.
+    - KTX goes through the engine's exported `parseKTX1` and
+      `softwareDecodeMip`, from the smallest mip at least 96 px wide.
+      All 271 KTX-only textures are ETC1 (0x8D64).
+    - 24 uncompressed KTX masks (luminance-alpha 0x8045, alpha 0x803C) are
+      expanded directly.
+    - The only entry without a preview is `env/wamphi3.ktx`, a six-face
+      cubemap.
+  - **Measured in headless Edge over the full catalog:** 2,050 of 2,051
+    entries with an image get a thumbnail.
+    - Cold, once per package version: 8.3–10.4 s for everything, and the
+      first 60 tiles in 0.23–0.37 s (the machine was shared).
+    - Warm reopen from IndexedDB: about 0.3 s for everything, and the first
+      page in about 20 ms.
+    - Recorded sizes check out: 128×32 for `blx_white_stripe`, 256×32 for
+      `bluetrim.tga`.
+  - **Regression set:** `TgaDecoder.ts` is under `src/engine/loader`, so the
+    AGENTS.md renderer set was run. Simulation, physics, server tick
+    (determinism checksums match), the 1,000-tick fuzz, and the headless
+    `wdm2` BSP load all exit 0.
 
 ## Future map-author experience ideas
 

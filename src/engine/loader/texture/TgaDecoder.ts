@@ -9,6 +9,28 @@
  * Decode a TGA file buffer and return a data URL
  */
 export async function decodeTGA(buffer: ArrayBuffer): Promise<string> {
+  const { width, height, pixels } = decodeTGAPixels(buffer);
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    throw new Error("Failed to get canvas context");
+  }
+  ctx.putImageData(new ImageData(pixels, width, height), 0, 0);
+  return canvas.toDataURL("image/png");
+}
+
+/**
+ * Decode a TGA file buffer to top-down RGBA pixels, without the DOM. Callers
+ * that only need pixels (e.g. thumbnails via createImageBitmap) skip the PNG
+ * re-encode that decodeTGA does.
+ */
+export function decodeTGAPixels(buffer: ArrayBuffer): {
+  width: number;
+  height: number;
+  pixels: Uint8ClampedArray<ArrayBuffer>;
+} {
   const data = new Uint8Array(buffer);
   const view = new DataView(buffer);
 
@@ -48,17 +70,7 @@ export async function decodeTGA(buffer: ArrayBuffer): Promise<string> {
     offset += colorMapLength * (colorMapDepth / 8);
   }
 
-  // Create canvas for output
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) {
-    throw new Error("Failed to get canvas context");
-  }
-
-  const imageData = ctx.createImageData(width, height);
-  const pixels = imageData.data;
+  const pixels = new Uint8ClampedArray(new ArrayBuffer(width * height * 4));
 
   // Decode pixels
   if (isGrayscale && imageType === 3) {
@@ -71,8 +83,7 @@ export async function decodeTGA(buffer: ArrayBuffer): Promise<string> {
     decodeRLE(data, offset, pixels, width, height, bytesPerPixel, descriptor);
   }
 
-  ctx.putImageData(imageData, 0, 0);
-  return canvas.toDataURL("image/png");
+  return { width, height, pixels };
 }
 
 function decodeGrayscaleUncompressed(
