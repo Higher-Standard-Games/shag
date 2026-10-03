@@ -96,10 +96,11 @@ export class TextureBrowser {
       if (tile) this.apply(Number(tile.dataset.index), event.detail >= 2);
     });
     this.grid.addEventListener("keydown", (event) => this.gridKey(event));
+    // The drawer owns its keys: typing to search from the grid must not reach the editor's shortcuts.
     this.element.addEventListener("keydown", (event) => {
+      event.stopPropagation();
       if (event.key === "Escape") {
         event.preventDefault();
-        event.stopPropagation();
         this.close();
       }
     });

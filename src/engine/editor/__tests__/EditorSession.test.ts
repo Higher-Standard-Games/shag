@@ -511,10 +511,18 @@ describe("editor DOM shell", () => {
     const first = session.document.snapshot().brushes[0];
     expect(first.faces).toBeUndefined(); // drawn before any pick: fixed legacy alignment
 
-    session.root.dispatchEvent(new KeyboardEvent("keydown", { key: "t", bubbles: true }));
+    const open = new KeyboardEvent("keydown", { key: "t", bubbles: true, cancelable: true });
+    session.root.dispatchEvent(open);
+    // the shortcut focuses the drawer's search box, so its own "t" must not be typed there
+    expect(open.defaultPrevented).toBe(true);
     await flush();
     await flush();
     const drawer = session.root.querySelector<HTMLElement>(".shagged-tex")!;
+    expect(drawer.hidden).toBe(false);
+    // typing "t" to search from the grid neither closes the drawer nor reaches other shortcuts
+    drawer
+      .querySelector(".shagged-tex__grid")!
+      .dispatchEvent(new KeyboardEvent("keydown", { key: "t", bubbles: true }));
     expect(drawer.hidden).toBe(false);
     const stripe = [...drawer.querySelectorAll<HTMLElement>(".shagged-tex__tile")].find((tile) =>
       tile.title.startsWith("blx/blx_white_stripe"),

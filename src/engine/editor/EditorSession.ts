@@ -1345,8 +1345,11 @@ export class EditorSession {
     if (key === "b") this.action("brush");
     else if (key === "v") this.action("select");
     else if (key === "e") this.action("entity");
-    else if (key === "t") this.action("textures");
-    else if (key === "delete") this.action("delete");
+    else if (key === "t") {
+      // the drawer focuses its search box during this keydown; without this the "t" is typed into it
+      event.preventDefault();
+      this.action("textures");
+    } else if (key === "delete") this.action("delete");
     else if (key === "f") {
       event.preventDefault();
       event.stopPropagation();

@@ -155,8 +155,13 @@ describe("texture browser", () => {
     grid.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
     await t.flush();
     expect(t.onApply).toHaveBeenLastCalledWith(expect.objectContaining({ name: "blx/blx_grid" }), [256, 256], false);
+    const outside = vi.fn();
+    document.body.addEventListener("keydown", outside);
     grid.dispatchEvent(new KeyboardEvent("keydown", { key: "s", bubbles: true }));
     expect(document.activeElement).toBe(t.browser.element.querySelector(".shagged-tex__search"));
+    // the drawer's keys stay in the drawer, away from the editor's shortcuts
+    expect(outside).not.toHaveBeenCalled();
+    document.body.removeEventListener("keydown", outside);
     t.browser.element.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     expect(t.browser.isOpen).toBe(false);
   });
