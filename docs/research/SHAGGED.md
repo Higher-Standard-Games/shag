@@ -233,8 +233,8 @@ This matrix describes **editor features to build**, not features already availab
 | Compile, status, and Playtest controls | M1 UI; M3 integration | Show all three controls. In M1, status accurately says when no compiler is configured and Playtest stays unavailable; M3 wires actual jobs and game launch. | Washoi build recipe and `map` launcher exist; packaging/discovery is deferred. |
 | Selection and object movement | M1 | Click in any pane to select one brush; drag or enter XYZ to move/resize it; duplicate/delete; selection is shared by all panes. | Babylon picking is available in principle; editor hit testing, grid snapping, handles, IDs, and undo transactions are new. |
 | Undo/redo and draft recovery | M1 | One gesture is one undo step; refresh restores a versioned draft and view state from `localStorage`. | New editor document/history work. Meshes must be regenerated from the document, never be the saved state; later server Save writes the canonical `.map`. |
-| Textured, solid, wireframe, and textured+edge preview | M2 | Per-pane view modes; texture appearance in perspective, clear outlines in orthographic panes; selected edges remain visible over textures. | `BrushGenerator` and debug commands demonstrate wireframe; editor-specific materials/overlays, shader lookup, and UV fidelity are new. Scene-wide `forceWireframe` alone is insufficient for per-pane modes. |
-| Face material editing | M2 | Pick one or multiple faces, assign a Washoi shader name, adjust basic shift/scale/rotation, preview and export the result. | PK3/shader loaders exist; current raw parser discards brush primitive UV matrices and flags, so editor needs lossless face data. |
+| Textured, solid, wireframe, and textured+edge preview | M2 (textured: **planned**, see "M2 materials") | Per-pane view modes; texture appearance in perspective, clear outlines in orthographic panes; selected edges remain visible over textures. | `BrushGenerator` and debug commands demonstrate wireframe; editor-specific materials/overlays, shader lookup, and UV fidelity are new. Scene-wide `forceWireframe` alone is insufficient for per-pane modes. |
+| Face material editing | M2 (**planned**, see "M2 materials") | Pick one or multiple faces, assign a Washoi shader name, adjust basic shift/scale/rotation, preview and export the result. | PK3/shader loaders exist; current raw parser discards brush primitive UV matrices and flags, so editor needs lossless face data. |
 | Multi-select and grouping | M2 | Shift-select, marquee-select, group/ungroup, move/duplicate a group, and preserve membership in the editable draft. | New editor-only hierarchy. `func_group` appears in Washoi `entities.def`, but its compiler semantics need proof before using it for persistence; grouping must not silently change game entity ownership. |
 | Point entity placement | M2 (**done 2026-10-03**) | Place a spawn, light, pickup, or target marker in 2D/3D; edit `classname`, origin, angle, and class-specific keys in an inspector. | Done: `EntityCatalog.ts` reads the gameplay point classes from `entities.def`; schema v2 `entities` with preserved unknown keys; markers in all panes; deterministic export; compiled and read back through `BspLoader`. |
 | Brush entity placement | M2 (**done 2026-10-03**) | Convert selected brushes into a brush entity (for example trigger/door), set keys, and show entity bounds and links. | Done: ownership by brush ID, no origin/model keys, required-key warnings, class-coloured brushes; a teleporter and a two-brush door compiled to submodels `*1`/`*2`. Target-link overlays remain the separate entity-link idea. |
@@ -264,6 +264,129 @@ The table gives each milestone a reviewable outcome; the feature matrix above re
 | **M4: authored curves and shape presets** | M1 geometry model and M3 playtest path for full gate | Editable patch curves, bevel/arch presets, export and preview. | Compile representative shapes, then verify collision and navigation in-game after Playtest. | Arbitrary convex CSG, true rounded solid edges, general external `.map` import. |
 
 P0 may run alongside the M1 host/console slice; an unavailable MakeBSP binary blocks the M1 **export validity claim**, not all useful browser-host work. M2 and M3 can be developed in parallel after M1. If patch tools are built before M3, label them experimental until the in-game M4 collision gate can run. Future ideas in the sections below do not silently expand these acceptance gates.
+
+## M2 materials: face selection and the texture browser (plan, 2026-10-03)
+
+This turns the "Face material editing" and "Textured preview" rows of the
+feature matrix, and the "Material brush and palette" idea, into one buildable
+plan. Nothing in this section is implemented yet.
+
+### What exists to build on (checked 2026-10-03)
+
+| Substrate | What it gives the browser |
+| --- | --- |
+| `PK3Index` (`findByPattern`, `getShaderNames`), built at startup in `main.ts` | The exact file and shader set the game will load. The browser lists what is really mounted, not a hand-kept list. |
+| `PK3Loader.getFile` / `PK3TextureLoader.loadTexture` | Image bytes (JPG, PNG, TGA, KTX) for thumbnails and for the textured 3D preview. |
+| `Q3ShaderParser` reads `qer_editorimage` | A preview image for shaders with no same-named image (skies, effects). |
+| `editor/gamepacks/washoi.game/basewashoi/default_shaderlist.txt` | A curated seed list. It records the `textures/` prefix trap: a face named `textures/blx/blx_dark` is looked up as `textures/textures/...`, and the map compiles but gets no lightmap. |
+| `editor/gamepacks/washoi.game/shadertags.xml` | Tag groups (e.g. "Stock / Compiler") for the browser sidebar. |
+| Shipped assets | About 1,480 base images in 68 `textures/` folders across the PK3s, after dropping `_norm`/`_gloss`/`_glow`/`_spec` variants (largest: `boqu` 162, `exwsw` 81, `decals` 81). The grid must be virtualised and thumbnails lazy. |
+
+The current document has one `shader` per brush, and `MapWriter` writes a fixed
+brush-primitive matrix `((0.03125 0 0) (0 0.03125 0))` on every face. In brush
+primitives, texture coordinates are normalised to the image, so that matrix
+should repeat every texture every 32 units whatever its size. This is an
+unverified reading of the format and is probe T0 below. New brushes are
+hard-coded to `blx/blx_grid`.
+
+### Data model (additive, no schema bump)
+
+```ts
+type FaceKey = "+X" | "-X" | "+Y" | "-Y" | "+Z" | "-Z";
+interface FaceMaterial {
+  shader: string;                 // unprefixed, e.g. "blx/blx_dark"
+  shift: [number, number];        // texels
+  scale: [number, number];        // world units per texel (Radiant convention)
+  rotation: number;               // degrees
+  size: [number, number];         // image size in texels, recorded at assignment
+}
+interface BoxBrush { /* ... */ shader: string; faces?: Partial<Record<FaceKey, FaceMaterial>> }
+```
+
+- **Defaults:** `brush.shader` stays the default for any face without an
+  override, so existing drafts and server sidecars stay valid. This follows
+  the six-face-keys contract in "Contracts that keep later tools possible",
+  without a migration.
+- **Recorded image size:** storing the image size when a texture is assigned
+  keeps `MapWriter` pure. It turns shift/scale/rotation into the
+  brush-primitive matrix without opening any image.
+- **One UV function:** export and the textured preview call the same pure
+  function, so the preview is exactly what MakeBSP receives.
+- **Shader names:** validation keeps the existing safe-name rule and warns
+  when a name starts with `textures/`.
+
+### Selecting faces
+
+- **3D pane:** Face-select mode, or Ctrl+Shift+click as in NetRadiant,
+  selects the face under the cursor; Shift adds faces. The face key comes
+  from the picked triangle's world normal, converted to Quake axes (dominant
+  axis and sign), not from the mesh's internal face order. It therefore
+  survives any change to how the preview mesh is built.
+- **Selection state:** a set of `brushId:faceKey` in UI state. It never enters
+  the document or the `.map`. Brush selection and face selection are distinct
+  modes, so applying a texture to a brush covers its six faces.
+- **Feedback:**
+  - Selected faces get a translucent overlay quad in 3D.
+  - In an orthographic pane, a selected face that faces the camera is
+    outlined.
+  - The inspector shows the selected brush as a small six-face net, also
+    clickable, which is how to reach faces hidden in 3D.
+
+### Texture browser
+
+- **Layout:** a drawer that slides over the inspector side, so the four panes
+  stay usable. `T` toggles it.
+  - **Search:** fuzzy matching over folder, name and tags.
+  - **Sidebar:** Recent, In this map, the tag groups from `shadertags.xml`,
+    then every folder with its count.
+  - **Grid:** virtualised. Each tile shows the thumbnail, its name, its pixel
+    size, and badges for shader-only, transparent, sky and compiler-special
+    (`common/*`). A shader or image that fails to resolve gets a visible
+    "missing" tile instead of disappearing.
+- **Thumbnails:**
+  - Loaded only when a tile scrolls into view (`IntersectionObserver`).
+  - The PK3 bytes are decoded with `createImageBitmap`, with TGA going through
+    the existing loader. The result is downscaled to about 96 px.
+  - Kept in an in-memory LRU and in IndexedDB, keyed by package and path, so
+    reopening the editor is instant. Shaders without a same-named image use
+    `qer_editorimage`, then their first `map` stage.
+- **Applying:**
+  - A click applies to the selected faces, or to the whole selected brush, as
+    one undo step. Double-click applies and closes. Hovering shows a larger
+    preview.
+  - Alt+click on a 3D face samples its texture (eyedropper).
+  - The applied texture becomes the toolbar's "current texture", which new
+    brushes then use instead of the hard-coded `blx/blx_grid`.
+- **Keyboard:** arrows move through the grid, Enter applies, Escape closes,
+  and typing goes to search.
+- **Tags:** the catalog takes them from the mounted index plus
+  `shadertags.xml`, so newly added PK3s appear without editing a list.
+  Untagged textures sit under their folder; they are never hidden, unlike
+  NetRadiant.
+
+### UV tools and textured preview
+
+- **Face inspector:** numeric shift U/V, scale U/V and rotation, with nudge
+  buttons, plus Fit (one repeat across the face), Natural (reset) and
+  "match neighbour" (copy alignment from an adjacent face).
+- **Textured preview:**
+  - The 3D pane gets a Solid/Textured toggle. Textured builds each brush from
+    six quads with the shared UV function and a plain diffuse material
+    through `PK3TextureLoader`.
+  - It deliberately doesn't use the full Q3 shader pipeline, per the preview
+    rule; a shader-only material shows its editor image.
+  - Orthographic panes stay outline-based.
+
+### Slices and proof
+
+| Slice | Outcome | Proof before moving on |
+| --- | --- | --- |
+| T0 probe | Brush-primitive matrix semantics confirmed | Compile a box with known shift/scale/rotation on a 256×128 texture; read the face's drawvert ST values from the BSP and check repeats per unit and orientation for all six faces. Decide whether the current fixed matrix is the intended density. Time thumbnail decoding over all ~1,480 images. |
+| T1 document + writer | Per-face materials export | Two faces, two shaders, non-default UVs; byte-identical re-export; MakeBSP compile; the BSP shader lump lists both, with no `textures/textures/` lookups and both faces lightmapped. |
+| T2 catalog | Pure catalog from the mounted index, the shader list and the tags | Test on the real PK3 data: counts per folder, prefix normalisation, variant filtering, shader-only entries resolving through `qer_editorimage`. |
+| T3 browser | Drawer, search, groups, lazy thumbnails, apply to brush, current texture | Browser check: scrolling the largest folder stays smooth, and thumbnails come from IndexedDB on a second open. |
+| T4 face selection | 3D face pick, overlay, inspector face net, eyedropper | DOM test of face picking by normal; browser check across all six faces. |
+| T5 UV + textured preview | Shift/scale/rotate/fit/natural; Solid/Textured toggle | The preview and an in-game screenshot of the compiled face match (with M3 Playtest, or by loading the compiled BSP). |
 
 ## Future map-author experience ideas
 
