@@ -34,10 +34,21 @@ vi.mock("../TextureThumbnailsBrowser", () => ({
   }),
 }));
 
+// The textured preview's image source: every file reads and decodes to a 2×2 image.
+vi.mock("../PreviewTextures", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../PreviewTextures")>()),
+  browserPreviewDeps: async () => ({
+    readFile: async () => new ArrayBuffer(4),
+    decode: async () => ({ pixels: new Uint8Array(16), width: 2, height: 2 }),
+  }),
+}));
+
+import { naturalFace } from "../FaceUv";
 import { writeMap } from "../MapWriter";
 import { createRoomTemplate } from "../RoomTemplate";
 import { serverMapName } from "../ServerMapOpen";
 import type { ShaggedApi } from "../ShaggedApi";
+import { shaderBatches } from "../TexturedPreview";
 
 const context = {
   scale: vi.fn(),
@@ -624,6 +635,122 @@ describe("editor DOM shell", () => {
     click();
     expect(net()).toEqual([]);
     expect(engine.scenes[0].getMeshByName("shagged-face-+Z")).toBeNull();
+    session.dispose();
+    engine.dispose();
+  });
+
+  it("aligns the selected faces from the inspector panel as one undo step, and wraps a texture around", () => {
+    const engine = new NullEngine();
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    const session = new EditorSession(engine, canvas, vi.fn());
+    session.document.transact((data) =>
+      data.brushes.push({
+        id: "slab",
+        min: { x: -256, y: -256, z: -16 },
+        max: { x: 256, y: 256, z: 16 },
+        shader: "blx/blx_grid",
+        faces: { "+Z": naturalFace("boqu/floor", [256, 256]), "+X": naturalFace("blx/blx_white_stripe", [128, 32]) },
+      }),
+    );
+    session.root.querySelector("[data-grid]")!.dispatchEvent(new Event("change"));
+    session.root.querySelector<HTMLButtonElement>('[data-action="undo"]')!.click();
+    session.root.querySelector<HTMLButtonElement>('[data-action="redo"]')!.click();
+    session.render();
+    for (const type of ["pointerdown", "pointerup"]) {
+      canvas.dispatchEvent(
+        new MouseEvent(type, { bubbles: true, button: 0, clientX: 200, clientY: 150, ctrlKey: true, shiftKey: true }),
+      );
+    }
+    session.root.querySelector<HTMLButtonElement>('[data-face-net] button[data-face="+X"]')!.click();
+    const faces = () => session.document.snapshot().brushes[0].faces!;
+    const status = () => session.root.querySelector(".shagged__status")!.textContent!;
+    const panel = (selector: string) =>
+      session.root.querySelector<HTMLButtonElement>(`[data-face-alignment] ${selector}`)!;
+
+    panel('[data-uv-nudge="shift-u:1"]').click();
+    expect(faces()["+Z"]!.shift).toEqual([8, 0]);
+    expect(faces()["+X"]!.shift).toEqual([8, 0]);
+    expect(status()).toContain("Shift U +8 on 2 faces");
+    session.root.querySelector<HTMLButtonElement>('[data-action="undo"]')!.click();
+    expect(faces()["+Z"]!.shift).toEqual([0, 0]);
+    expect(faces()["+X"]!.shift).toEqual([0, 0]);
+
+    // the panel survives undo with the faces still selected, and wraps from the first one picked
+    expect(panel('[data-uv-op="wrap"]').textContent).toBe("Wrap from +Z");
+    panel('[data-uv-op="wrap"]').click();
+    expect(faces()["+X"]).toMatchObject({ shader: "boqu/floor", size: [256, 256] });
+    expect(faces()["+Z"]).toEqual(naturalFace("boqu/floor", [256, 256]));
+
+    // a face still on the brush's fixed alignment locks the panel
+    session.root.querySelector<HTMLButtonElement>('[data-face-net] button[data-face="-Y"]')!.click();
+    expect(panel('[data-uv-op="fit"]').disabled).toBe(true);
+    expect(session.root.querySelector("[data-face-alignment]")!.textContent).toContain(
+      "Face -Y uses the brush's fixed alignment",
+    );
+    session.dispose();
+    engine.dispose();
+  });
+
+  it("switches the 3D view to a textured preview whose UVs are the faces' ST, and back", async () => {
+    const engine = new NullEngine();
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    const session = new EditorSession(engine, canvas, vi.fn());
+    const rotated = {
+      ...naturalFace("boqu/floor", [256, 256] as [number, number]),
+      rotation: 30,
+      shift: [5, 9] as [number, number],
+    };
+    session.document.transact((data) =>
+      data.brushes.push({
+        id: "slab",
+        min: { x: -256, y: -256, z: -16 },
+        max: { x: 256, y: 256, z: 16 },
+        shader: "blx/blx_grid",
+        faces: { "+Z": rotated },
+      }),
+    );
+    session.root.querySelector("[data-grid]")!.dispatchEvent(new Event("change"));
+    session.root.querySelector<HTMLButtonElement>('[data-action="undo"]')!.click();
+    session.root.querySelector<HTMLButtonElement>('[data-action="redo"]')!.click();
+    const scene = engine.scenes[0];
+    const toggle = session.root.querySelector<HTMLButtonElement>('[data-action="view-mode"]')!;
+    const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+    expect(toggle.textContent).toBe("Solid");
+    expect(scene.getMeshByName("shagged-textured-boqu/floor")).toBeNull();
+
+    toggle.click();
+    for (let i = 0; i < 4; i++) await flush();
+    expect(toggle.textContent).toBe("Textured");
+    const floor = scene.getMeshByName("shagged-textured-boqu/floor")!;
+    const grid = scene.getMeshByName("shagged-textured-blx/blx_grid")!;
+    const expected = shaderBatches(session.document.snapshot().brushes);
+    const uvs = (mesh: typeof floor) => [...(mesh.getVerticesData("uv") ?? [])];
+    expect(uvs(floor)).toEqual(expected[0].uvs);
+    expect(uvs(grid)).toHaveLength(5 * 4 * 2);
+    expect(floor.isPickable).toBe(false);
+    // the brush box stays as the pick and selection layer, see-through until selected
+    expect(scene.getMeshByName("slab")!.material!.alpha).toBe(0);
+
+    // picking still works through the textured faces
+    for (const type of ["pointerdown", "pointerup"]) {
+      canvas.dispatchEvent(
+        new MouseEvent(type, { bubbles: true, button: 0, clientX: 200, clientY: 150, ctrlKey: true, shiftKey: true }),
+      );
+    }
+    expect(session.root.querySelector(".shagged__status")!.textContent).toContain("Faces +Z selected");
+    // the picked face's own overlay marks it, light enough to see its texture
+    expect(scene.getMeshByName("slab")!.material!.alpha).toBe(0);
+    expect(scene.getMeshByName("shagged-face-+Z")!.material!.alpha).toBe(0.18);
+
+    toggle.click();
+    await flush();
+    expect(toggle.textContent).toBe("Solid");
+    expect(scene.getMeshByName("shagged-textured-boqu/floor")).toBeNull();
+    expect(scene.getMeshByName("slab")!.material!.alpha).toBe(0.82);
+    // switching with a face selected restyles its overlay too
+    expect(scene.getMeshByName("shagged-face-+Z")!.material!.alpha).toBe(0.6);
     session.dispose();
     engine.dispose();
   });

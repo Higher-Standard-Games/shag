@@ -467,3 +467,37 @@
 .shagged__faces button.active b {
   color: #101022;
 }
+.shagged__view-mode {
+  position: absolute;
+  z-index: 1;
+  top: 6px;
+  right: 8px;
+  padding: 3px 8px;
+  background: #0b1424dd;
+  color: #9fb5c5;
+  border: 1px solid #47768b;
+  font:
+    900 10px "Orbitron",
+    monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.shagged__view-mode.active {
+  color: #101022;
+  background: #ffc61a;
+  border-color: #ffc61a;
+}
+.shagged__view-mode:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
+.shagged__inspector .shagged__faces-head {
+  margin: 16px 0 0;
+  color: #75d9e8;
+  font:
+    900 11px "Orbitron",
+    monospace;
+  letter-spacing: 0.08em;
+}

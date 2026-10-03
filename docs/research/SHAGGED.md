@@ -491,8 +491,8 @@ always stage by explicit path.
 | WO-T3 | `TextureThumbnails`: lazy decode from PK3 bytes, in-memory LRU, IndexedDB cache | T2 | no | 3 | Sonnet 5 | done |
 | WO-T4 | Texture browser drawer: search, groups, virtualised grid, apply to brush, current texture | T1, T2, T3 | yes | 3 | Opus 5.5 | done |
 | WO-T5 | Face selection: 3D pick by normal, overlay, six-face net in the inspector, eyedropper | T1 | yes | 3 | Opus 5.5 | done |
-| WO-T6 | UV tools: shift/scale/rotation fields, Fit, Natural, match neighbour | T1, T5 | yes | 3 | Opus 5.5 | todo |
-| WO-T7 | Textured 3D preview: six quads per brush through the shared UV function; Solid/Textured toggle | T1, T3 | yes | 3 | Opus 5.5 | todo |
+| WO-T6 | UV tools: shift/scale/rotation fields, Fit, Natural, match neighbour | T1, T5 | yes | 3 | Opus 5.5 | done |
+| WO-T7 | Textured 3D preview: six quads per brush through the shared UV function; Solid/Textured toggle | T1, T3 | yes | 3 | Opus 5.5 | done |
 | WO-T8 | Acceptance: painted, aligned faces compile; BSP shaders and texture coordinates match the editor; docs and changelog | T4–T7 | no | 2 | Sonnet 5 | todo |
 
 T0 and T2 can start at once. T1 follows T0, because its UV function encodes
@@ -878,6 +878,73 @@ that MakeBSP adds to keep coordinates small (they don't change rendering).
     picked +Z on the ceiling's top, +X on the east wall and +Y on the north
     wall. The net marked the picked face, and the XZ pane drew the dashed
     outline for a +Y face.
+- 2026-10-03: WO-T6 done.
+  - **Operations** (`09a38b28`, in `FaceUv.ts`):
+    - `matrixToFace` reads shift, scale and rotation back out of a face
+      matrix, with shift reduced to one repeat and rotation to [0, 360).
+    - `fitFace` puts one repeat across a face from its projected extents.
+    - `matchFace` continues a face's texture over the edge it shares with
+      an adjacent face. It folds the target flat into the source's plane
+      around that edge and reads the resulting matrix back as parameters.
+      Every box face's axis basis has the same handedness relative to its
+      outward normal, so the folded matrix is always a scaled rotation and
+      decomposes exactly, at any rotation.
+    - `wrapFaces` chains matches around the box, reaching the opposite
+      face through a selected face between them.
+  - **Panel** (`ef7e0a17`, `FaceAlignmentPanel.ts`): built apart from
+    `EditorSession.ts` while the toolbar restyle was in that file.
+    - Fields: shift U/V (nudge 8 texels), scale U/V (nudge 0.05) and
+      rotation (nudge 15°). A field all selected faces agree on shows its
+      value; a differing one is blank ("mixed"), and typing a value sets
+      it on every face. A nudge adds its step to each face's own value.
+    - Fit, Natural, and Wrap from the first selected face. The panel
+      builds edits only; the session applies each to every selected face
+      as one undo step.
+    - A selected face still on the brush's fixed alignment has no image
+      size to align against, so the panel locks and says why.
+  - **Plan deviation:** "match neighbour" is Wrap, within one brush. Two
+    coplanar faces on different brushes already continue with identical
+    parameters, because ST is a world-space projection.
+  - **Inspector:** the face net and the panel moved below the brush form,
+    under a Faces heading, since forms can't nest.
+  - **Tests:** ST continuity along the shared edge for every adjacent pair
+    with a rotated, shifted, non-square source, and that the texture runs
+    on past the edge rather than mirroring. A mutation that flipped the
+    fold direction failed both. Panel and session DOM tests cover nudge,
+    typed values, undo as one step, wrap, and the lock.
+- 2026-10-03: WO-T7 done.
+  - **Geometry** (`3ba25f3e`, `TexturedPreview.ts`): every brush face
+    as a quad, batched by shader, with UVs straight from the face ST. The
+    engine draws BSP ST unflipped on textures uploaded top row first, so
+    the preview does the same.
+  - **Materials** (`PreviewTextures.ts`): one StandardMaterial per shader
+    in the editor's own scene. A material shows a flat colour at once
+    (magenta for a missing image) and gains the decoded image when it
+    lands. Transparent shaders alpha-test. Images are capped at 512 px to
+    bound GPU memory.
+    - Plan deviation: `PK3TextureLoader` is not used, because it is a
+      singleton bound to the game's scene and cache. Decoding moved from
+      the thumbnail module into a shared `TexturePixels.ts`.
+  - **Toggle:** a Solid/Textured button in the 3D pane's corner. Solid
+    stays the default, so opening the editor still never loads the
+    catalog. In Textured mode the brush boxes remain as the pick, edge and
+    selection layer: see-through, tinted for a selection or a brush entity,
+    and pulled forward so they don't z-fight.
+  - **Browser check** (headless Edge, Room Template, real packages):
+    `boqu/boqu_window` applied to the east wall, its +X face picked and
+    rotated 15°. The textured preview drew the real `blx_grid` and window
+    images with the rotation visible.
+    - The first shots showed the selected face as solid orange. Switching
+      view modes rebuilt the meshes but not the face overlays, which kept
+      the Solid-mode opacity. The toggle now redraws, the overlay is
+      lighter in Textured mode, and the brush tint steps aside while faces
+      are selected. The session test now switches modes with a face
+      selected.
+  - **Proof against MakeBSP:** a probe box with a rotated, shifted source
+    face, two faces wrapped from it, a fitted face, a 90° face and a
+    fixed-alignment face compiled with the local MakeBSP. All 24 compiled
+    vertices matched the preview vertex at the same position: worst
+    |UV − ST| modulo 1 was 1.05e-7.
 
 ## Future map-author experience ideas
 

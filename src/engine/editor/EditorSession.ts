@@ -6,7 +6,8 @@ import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Viewport } from "@babylonjs/core/Maths/math.viewport";
-import type { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import { Scene } from "@babylonjs/core/scene";
@@ -45,15 +46,18 @@ import {
   entityClass,
   missingRequiredKeys,
 } from "./EntityCatalog";
+import { type FaceUpdate, renderFaceAlignment } from "./FaceAlignmentPanel";
 import { faceKeyFromNormal, naturalFace } from "./FaceUv";
 import { writeMap } from "./MapWriter";
 import { indexedModelPaths, modelReferenceIssue } from "./ModelReference";
+import { browserPreviewDeps, PreviewTextures } from "./PreviewTextures";
 import { createRoomTemplate } from "./RoomTemplate";
 import { inspectServerMap, serverMapName } from "./ServerMapOpen";
 import type { EditorCompileJob, EditorServerStatus, ShaggedApi } from "./ShaggedApi";
 import { TextureBrowser } from "./TextureBrowser";
 import type { TextureEntry } from "./TextureCatalog";
 import { loadTextureCatalog } from "./TextureCatalogLoader";
+import { shaderBatches } from "./TexturedPreview";
 import type { TextureThumbnails } from "./TextureThumbnails";
 import { createBrowserThumbnails } from "./TextureThumbnailsBrowser";
 import "./editor.css";
@@ -235,6 +239,11 @@ export class EditorSession {
   /** Texture new brushes get; size is null until one is picked from the browser (fixed legacy alignment). */
   private currentTexture: { name: string; size: [number, number] | null } = { name: "blx/blx_grid", size: null };
   private textureBrowser: TextureBrowser | null = null;
+  /** Textured draws each face's image with its alignment; Solid colours brushes by owner. */
+  private textured = false;
+  private previewTextures: PreviewTextures | null = null;
+  private catalogEntries = new Map<string, TextureEntry>();
+  private texturedMeshes: Mesh[] = [];
   private thumbnails: TextureThumbnails | null = null;
   /** Faces of the selected brush picked with Ctrl+Shift+click or the face net; UI state only. */
   private readonly selectedFaces = new Set<FaceKey>();
@@ -335,7 +344,7 @@ export class EditorSession {
         <button class="shagged__exit" data-action="exit">Exit</button>
       </header>
       <main class="shagged__workspace">
-        <section class="shagged__pane shagged__pane--perspective"><span>3D PERSPECTIVE</span></section>
+        <section class="shagged__pane shagged__pane--perspective"><span>3D PERSPECTIVE</span><button class="shagged__view-mode" data-action="view-mode" title="Switch to the textured preview">Solid</button></section>
         <section class="shagged__pane"><span>XY TOP</span><canvas data-plane="xy"></canvas></section>
         <section class="shagged__pane"><span>XZ FRONT</span><canvas data-plane="xz"></canvas></section>
         <section class="shagged__pane"><span>YZ SIDE</span><canvas data-plane="yz"></canvas></section>
@@ -568,6 +577,81 @@ export class EditorSession {
       this.status(`View save failed: ${String(error)}`);
     }
   }
+  /** The first switch to Textured loads the catalog, so opening the editor never does. */
+  private async toggleTextured(): Promise<void> {
+    const button = this.root.querySelector<HTMLButtonElement>('[data-action="view-mode"]')!;
+    if (!this.previewTextures) {
+      button.disabled = true;
+      this.status("Loading textures for the preview…");
+      try {
+        const [entries, deps] = await Promise.all([loadTextureCatalog(), browserPreviewDeps()]);
+        if (this.listeners.signal.aborted) return;
+        this.catalogEntries = new Map(entries.map((entry) => [entry.name.toLowerCase(), entry]));
+        this.previewTextures = new PreviewTextures(this.scene, deps);
+      } catch (error) {
+        this.status(`Textured preview unavailable: ${error instanceof Error ? error.message : String(error)}`);
+        return;
+      } finally {
+        button.disabled = false;
+      }
+    }
+    this.textured = !this.textured;
+    button.textContent = this.textured ? "Textured" : "Solid";
+    button.title = this.textured ? "Switch to the solid view" : "Switch to the textured preview";
+    button.classList.toggle("active", this.textured);
+    this.rebuildMeshes();
+    this.draw();
+    this.status(this.textured ? "Textured preview: each face draws its image with its alignment" : "Solid view");
+  }
+
+  /** One mesh per shader in Textured mode; the brush boxes stay as the pick, edge and selection layer. */
+  private syncTexturedMeshes(data: EditorDocumentData): void {
+    for (const mesh of this.texturedMeshes) mesh.dispose();
+    this.texturedMeshes = [];
+    if (!this.textured || !this.previewTextures) return;
+    for (const batch of shaderBatches(data.brushes)) {
+      const mesh = new Mesh(`shagged-textured-${batch.shader}`, this.scene);
+      const vertexData = new VertexData();
+      vertexData.positions = batch.positions;
+      vertexData.normals = batch.normals;
+      vertexData.uvs = batch.uvs;
+      vertexData.indices = batch.indices;
+      vertexData.applyToMesh(mesh);
+      mesh.isPickable = false;
+      mesh.material = this.previewTextures.material(batch.shader, this.catalogEntries.get(batch.shader.toLowerCase()));
+      this.texturedMeshes.push(mesh);
+    }
+  }
+
+  /**
+   * One alignment change on every selected face, as one undo step. A face on
+   * the brush's fixed alignment has no image size to align against, so the
+   * panel locks for it; the check here covers a stale panel.
+   */
+  private alignFaces(describe: string, update: FaceUpdate): void {
+    const brushId = this.selectedId;
+    const keys = [...this.selectedFaces];
+    if (!brushId || !keys.length) return;
+    try {
+      this.document.transact((data) => {
+        const brush = data.brushes.find((item) => item.id === brushId);
+        if (!brush) throw new Error("Selected brush no longer exists");
+        const fixed = keys.filter((key) => !brush.faces?.[key]);
+        if (fixed.length) throw new Error(`pick a texture (T) for face ${fixed.join(", ")} first`);
+        const faces = brush.faces!;
+        // every update reads the faces as they were, so a wrap's source isn't changed under it
+        const next = keys.map((key) => update(faces[key]!, key, brush));
+        keys.forEach((key, index) => {
+          faces[key] = next[index];
+        });
+      });
+      this.changed();
+      this.status(`${describe} on ${keys.length} face${keys.length === 1 ? "" : "s"}`);
+    } catch (error) {
+      this.status(`Alignment rejected: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
   /** The drawer is built on first use, so opening the editor never loads the texture catalog. */
   private async toggleTextures(): Promise<void> {
     if (!this.textureBrowser) {
@@ -685,9 +769,9 @@ export class EditorSession {
     this.status(`Sampled ${this.currentTexture.name} from face ${key}`);
   }
 
-  /** Orange slabs on the selected faces in 3D, rebuilt only when the selection or document changes. */
+  /** Orange slabs on the selected faces in 3D, rebuilt only when the selection, the document or the view mode changes. */
   private syncFaceOverlays(data: EditorDocumentData): void {
-    const key = `${this.selectedId ?? ""}|${[...this.selectedFaces].sort().join(",")}|${data.revision}`;
+    const key = `${this.selectedId ?? ""}|${[...this.selectedFaces].sort().join(",")}|${data.revision}|${this.textured}`;
     if (key === this.faceOverlayKey) return;
     this.faceOverlayKey = key;
     for (const mesh of this.faceOverlays) {
@@ -714,8 +798,9 @@ export class EditorSession {
       mesh.isPickable = false;
       const material = new StandardMaterial(`shagged-face-material-${face}`, this.scene);
       material.diffuseColor = new Color3(1, 0.55, 0.05);
-      material.emissiveColor = new Color3(0.7, 0.35, 0);
-      material.alpha = 0.6;
+      // light enough in Textured mode to see the alignment being edited
+      material.emissiveColor = this.textured ? new Color3(0.25, 0.12, 0) : new Color3(0.7, 0.35, 0);
+      material.alpha = this.textured ? 0.18 : 0.6;
       mesh.material = material;
       this.faceOverlays.push(mesh);
     }
@@ -760,6 +845,7 @@ export class EditorSession {
   }
   dispose(): void {
     this.textureBrowser?.dispose();
+    this.previewTextures?.dispose();
     this.thumbnails?.dispose();
     this.modelPreviewRequests.clear();
     this.serverGeneration++;
@@ -1168,6 +1254,9 @@ export class EditorSession {
           break;
         case "textures":
           void this.toggleTextures();
+          break;
+        case "view-mode":
+          void this.toggleTextured();
           break;
         case "brush":
         case "select":
@@ -1753,13 +1842,22 @@ export class EditorSession {
           : owned
             ? new Color3(...owned)
             : new Color3(0.1, 0.8, 0.9);
-      material.alpha = 0.82;
+      if (this.textured) {
+        // a tint over the textured faces for the selection and brush entities, pulled forward so it doesn't
+        // z-fight; selected faces have their own overlay, so the brush tint steps aside for them
+        const selected = brush.id === this.selectedId && this.selectedFaces.size === 0;
+        material.alpha = selected ? 0.15 : owned ? 0.3 : 0;
+        material.zOffset = -1;
+      } else {
+        material.alpha = 0.82;
+      }
       mesh.material = material;
       mesh.enableEdgesRendering();
       mesh.edgesWidth = 2;
       mesh.edgesColor = new Color4(0.02, 0.02, 0.05, 1);
       this.meshes.set(brush.id, mesh);
     }
+    this.syncTexturedMeshes(data);
     for (const entity of data.entities) {
       const { min, max } = entityBox(entity);
       const mesh = MeshBuilder.CreateBox(
@@ -2033,11 +2131,13 @@ export class EditorSession {
             )
             .join("")}
           <label class="shagged__shader">Shader <input name="shader" type="text" spellcheck="false" required></label>
-          <div class="shagged__faces" data-face-net aria-label="Faces (Ctrl+Shift+click in 3D)"></div>
           <label class="shagged__shader">Entity <select name="owner"></select></label>
           <div data-owner-section></div>
           <button type="submit">Apply Brush</button>
-        </form><p>Values use Quake units; Z is up. One Apply is one undo step. A brush in an entity leaves worldspawn; MakeBSP gives the entity its model.</p>`;
+        </form><p>Values use Quake units; Z is up. One Apply is one undo step. A brush in an entity leaves worldspawn; MakeBSP gives the entity its model.</p>
+        <h3 class="shagged__faces-head">Faces</h3>
+        <div class="shagged__faces" data-face-net aria-label="Faces (Ctrl+Shift+click in 3D)"></div>
+        <div data-face-alignment></div>`;
       const owner = ownerOf(data, selected.id);
       this.inspector.querySelector("[data-brush-id]")!.textContent = owner
         ? `${selected.id.slice(0, 8)} · ${owner.classname}`
@@ -2049,7 +2149,13 @@ export class EditorSession {
       }
       form.querySelector<HTMLInputElement>('[name="shader"]')!.value = selected.shader;
       fillOwnerOptions(form.querySelector<HTMLSelectElement>('[name="owner"]')!, data, owner?.id);
-      this.renderFaceNet(form.querySelector<HTMLElement>("[data-face-net]")!, selected);
+      this.renderFaceNet(this.inspector.querySelector<HTMLElement>("[data-face-net]")!, selected);
+      renderFaceAlignment(
+        this.inspector.querySelector<HTMLElement>("[data-face-alignment]")!,
+        selected,
+        [...this.selectedFaces],
+        (describe, update) => this.alignFaces(describe, update),
+      );
       if (owner) {
         const section = form.querySelector<HTMLElement>("[data-owner-section]")!;
         section.innerHTML = `<label class="shagged__shader">Entity class <select name="owner-classname"></select></label>
