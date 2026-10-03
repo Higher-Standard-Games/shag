@@ -289,7 +289,22 @@ NetRadiant Custom constructs its [plane, cylinder, cone, sphere, bevel, and end-
 
 #### M4 implementation slices against the current editor
 
-**Current slice (2026-10-03):** P1 document validation and `patchDef2` export are implemented with additive schema-v2 `patches`, old-draft compatibility, deterministic mixed brush/patch ordering, and an asymmetric parser fixture. P2 renders saved patches as pickable solid surfaces in 3D and control lattices in the orthographic panes; selection, framing, duplication, and deletion work. P3 has begun: the Patch tool draws a flat 3×3 grid on the active orthographic work plane with a live four-view ghost, then its inspector edits any control's XYZ/UV and shader in one undoable transaction. Direct control-point dragging, textured patch preview, shape recipes, and MakeBSP patch acceptance remain open. The initial 31-control-per-axis limit is conservative pending the target compiler probe.
+**Current slice (2026-10-03):** P1 document validation and `patchDef2` export are implemented with additive schema-v2 `patches`, old-draft compatibility, deterministic mixed brush/patch ordering, and an asymmetric parser fixture. P2 renders saved patches as pickable solid surfaces in 3D and control lattices in the orthographic panes; selection, framing, duplication, and deletion work. P3 has begun: the Patch tool draws a flat 3×3 grid on the active orthographic work plane with a live four-view ghost, then its inspector edits any control's XYZ/UV and shader in one undoable transaction. Direct control-point dragging, textured patch preview, and shape recipes remain open. The initial 31-control-per-axis limit is conservative pending the target compiler probe.
+
+**Compile acceptance probe (2026-10-03, ahead of P4/P5):** a hand-built
+asymmetric 3×3 patch (an arch bulging up and sideways, distinct XYZ and
+UV on every control) exported inside the sealed Room Template and
+compiled with the local MakeBSP/MakeLight: no leak, MakeBSP reports
+`1 MST_PATCH surfaces`, the BSP has exactly one patch face whose shader
+and `patchSize` match the document, and all 9 control points' raw
+positions (not a tessellated approximation) survive into the compiled
+BSP with their distinct Z heights intact — ruling out a row/column swap
+or a flattening bug in the writer. The engine's own `faceBuilders.ts`
+already tessellates `FaceType.PATCH` faces, so a compiled patch should
+already render in-game, though that is not separately checked here.
+This de-risks the writer ahead of P4; P5's full scope (every preset
+shape, UV/normal/seam/cap checks, and an in-game walk/collide pass once
+Playtest exists) is still open.
 
 `EditorDocument.ts` remains schema v2 and now admits optional patches; `MapWriter.ts` writes `brushDef`, `patchDef2`, and entities. `EditorSession.ts` keeps one selected ID but its hit tests, drawing, inspector, and tool union are still brush/entity-specific. `EditorDraftStore.ts` validates the saved tool name separately. Server Save/Open checks that the sidecar serializes to the exact saved `.map` text. Thus the remaining patch UI must pass through draft/view state and session without changing the compiler service's geometry protocol: it already accepts saved source text.
 
