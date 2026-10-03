@@ -946,7 +946,77 @@ that MakeBSP adds to keep coordinates small (they don't change rendering).
     vertices matched the preview vertex at the same position: worst
     |UV − ST| modulo 1 was 1.05e-7.
 
-## Future map-author experience ideas
+## M2 3D view: flycam navigation and view modes (plan, 2026-10-03)
+
+The 3D pane used an orbit camera: right drag orbited a target point, middle
+drag panned, and the wheel zoomed toward that point. Getting into a room
+or along a corridor meant repeated orbit, pan and zoom, and the orbit point
+was rarely where the mapper was looking. Radiant-family editors fly the
+camera instead, and mappers expect that.
+
+### Controls
+
+The camera is a flycam: a position, a yaw and a pitch. Left click keeps
+its meaning in 3D (select; Ctrl+Shift picks a face, Alt samples one).
+
+| Input | Where | Effect |
+| --- | --- | --- |
+| Middle or right drag | Anywhere in the 3D pane | Mouse look: yaw and pitch follow the mouse. |
+| Middle or right click (no drag) | 3D pane | Toggles free look: the pointer is captured and mouse movement looks around until another middle/right click or Escape. |
+| `W` / `S` | Pointer over the 3D pane, or free look | Fly forward / back along the view direction, held for continuous movement. |
+| `A` / `D` | Same | Strafe left / right. |
+| `Space` / `C` | Same | Rise / sink straight up and down, as in the game. |
+| `Shift` | Held with the above | Fly three times faster. |
+| Wheel | 3D pane | Step forward / back along the view direction. |
+| `F` / `Shift+F` | Editor | Frame selection / all: the camera keeps its direction and backs off until the bounds fit. |
+
+The fly keys don't collide with the tool shortcuts (`B`, `V`, `E`, `T`,
+`F`, `Delete`): none of W, A, S, D, Space or C is bound. Holding a fly
+key while the pointer leaves the 3D pane stops the movement, as does losing
+window focus, so the camera never keeps drifting.
+
+Pitch is clamped short of straight up and down so yaw stays well defined.
+Speed is in Quake units per second (400, or 1,200 with Shift), so movement
+matches the map's scale at any frame rate.
+
+### View modes
+
+A three-way switch in the 3D pane's corner: **Brush | Textured |
+Wireframe**. Textured is the default; it draws each face's image with its
+alignment (WO-T7). Brush shows the solid owner-coloured boxes. Wireframe
+shows only brush edges, for seeing through walls; the selection and brush
+entities keep their colour in the edges. Until the catalog has loaded,
+Textured shows the brush colours, so opening the editor never waits on it.
+The mode is saved with the view.
+
+### Saved view
+
+The view state stores the flycam pose (position in Quake units, yaw and
+pitch in degrees) and the view mode. A draft saved with the old orbit
+camera keeps its view: the orbit's eye position and look direction are
+converted to a pose on load.
+
+### Work orders
+
+| WO | Scope | Depends on | Parallel | Size | Agent | Status |
+| --- | --- | --- | --- | --- | --- | --- |
+| WO-N1 | Flycam math and controller: pose, look, fly, frame, orbit conversion; mouse look, free look, held keys, wheel | none | yes | 3 | Opus 5.5 | todo |
+| WO-N2 | Session hookup: replace the orbit camera, saved pose and migration, framing, per-frame movement | N1 | no | 3 | Opus 5.5 | todo |
+| WO-N3 | Brush / Textured / Wireframe switch, Textured by default, saved mode | none | yes | 2 | Opus 5.5 | todo |
+| WO-N4 | Browser check of navigation and modes; docs and changelog | N2, N3 | no | 1 | Opus 5.5 | todo |
+
+- **N1 proof:** unit tests on the pose math (look clamps, fly directions in
+  Quake axes, framing keeps direction and fits the bounds, the orbit
+  conversion reproduces the old eye and direction) and DOM tests of the
+  controller's drag, click-to-toggle, keys and wheel.
+- **N2 proof:** the session's existing face-picking tests still hit the same
+  face from the default pose; framing and the saved pose round-trip; an old
+  orbit view loads.
+- **N3 proof:** DOM tests of the switch and each mode's materials.
+
+### Progress log
+
+
 
 These are proposals, not commitments or current SHAGGED features. [NetRadiant Custom](https://github.com/Garux/netradiant-custom#features) already offers capable texture painting, entity navigation, region builds, and 3D editing; the opportunity here is to connect authoring, compile diagnostics, and SHAG playtests in one UI. [Blender's asset browser](https://docs.blender.org/manual/en/4.4/editors/asset_browser.html) is a useful precedent for reusable authoring assets. “Earliest” below means the first sensible milestone after the required substrate exists, not a delivery promise.
 
@@ -1220,6 +1290,7 @@ These are proposed defaults, displayed as tooltips and in a small Help panel. Sh
 | Delete / Duplicate selection | `Delete` / `Ctrl/Cmd+D` | Remove or duplicate the selected brush as one undoable edit; no action with no selection. |
 | Grid size / Snap | Toolbar control; `[` / `]` for grid size | Choose power-of-two grid spacing and toggle snap; show the active value in each orthographic pane. |
 | Frame selection / all | `F` / `Shift+F` | Center all views on the selected brush / all brushes; with no selection, `F` also frames all. Fit within the editor's zoom and camera-distance limits. |
+| Fly the 3D camera | Middle/right drag or click, `W` `A` `S` `D` `Space` `C`, wheel | Flycam; see "M2 3D view: flycam navigation and view modes". |
 | Reset Layout / Help | Buttons | Restore the default pane split and show the shortcut/gesture reference. |
 | Compile / Compile Status / Playtest | Buttons only | Visible from M1 with the truthful unavailable states described above. |
 | Exit Editor | Button or `editor close` | Flush draft state, dispose the editor session, and restore the previous composition. |
