@@ -6,7 +6,15 @@
 
 import { describe, expect, it } from "vitest";
 import { EditorDocument, FACE_KEYS, type FaceKey, type FaceMaterial, type Vec3q } from "../EditorDocument";
-import { FIXED_MATRIX, faceST, faceTexMatrix, NATURAL_SCALE, naturalFace, type TexMatrix } from "../FaceUv";
+import {
+  FIXED_MATRIX,
+  faceKeyFromNormal,
+  faceST,
+  faceTexMatrix,
+  NATURAL_SCALE,
+  naturalFace,
+  type TexMatrix,
+} from "../FaceUv";
 import { writeMap } from "../MapWriter";
 
 /** dS/dp and dT/dp of faceST, by finite difference (it is linear, so this is exact). */
@@ -60,6 +68,18 @@ describe("face alignment matches the compiled BSP", () => {
       "+Z": { s: v(1 / 64, 0, 0), t: v(0, -1 / 32, 0) },
     };
     for (const key of FACE_KEYS) expect(gradients(key, matrix), key).toEqual(measured[key]);
+  });
+});
+
+describe("face key from a picked normal", () => {
+  it("maps each axis direction, and a tilted normal by its dominant axis", () => {
+    expect(faceKeyFromNormal(v(1, 0, 0))).toBe("+X");
+    expect(faceKeyFromNormal(v(-1, 0, 0))).toBe("-X");
+    expect(faceKeyFromNormal(v(0, 1, 0))).toBe("+Y");
+    expect(faceKeyFromNormal(v(0, -1, 0))).toBe("-Y");
+    expect(faceKeyFromNormal(v(0, 0, 1))).toBe("+Z");
+    expect(faceKeyFromNormal(v(0, 0, -1))).toBe("-Z");
+    expect(faceKeyFromNormal(v(0.2, -0.9, 0.1))).toBe("-Y");
   });
 });
 

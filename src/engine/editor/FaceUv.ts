@@ -63,3 +63,13 @@ export function faceST(key: FaceKey, matrix: TexMatrix, point: Vec3q): [number, 
   const v = dot(point, texY);
   return [matrix[0][0] * u + matrix[0][1] * v + matrix[0][2], matrix[1][0] * u + matrix[1][1] * v + matrix[1][2]];
 }
+
+/** The box face a Quake-space normal points out of: its dominant axis and sign. */
+export function faceKeyFromNormal(normal: Vec3q): FaceKey {
+  const ax = Math.abs(normal.x);
+  const ay = Math.abs(normal.y);
+  const az = Math.abs(normal.z);
+  if (ax >= ay && ax >= az) return normal.x >= 0 ? "+X" : "-X";
+  if (ay >= az) return normal.y >= 0 ? "+Y" : "-Y";
+  return normal.z >= 0 ? "+Z" : "-Z";
+}

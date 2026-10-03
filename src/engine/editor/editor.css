@@ -311,3 +311,40 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.shagged__faces {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: repeat(3, auto);
+  gap: 3px;
+  margin: 10px 0;
+}
+.shagged__inspector .shagged__faces button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+  padding: 3px 2px;
+  background: #0d172b;
+  color: #c9dde6;
+  border: 1px solid #47768b;
+  font-size: 10px;
+  line-height: 1.2;
+}
+.shagged__faces button b {
+  color: #75d9e8;
+  font-size: 11px;
+}
+.shagged__faces button span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.shagged__inspector .shagged__faces button.active {
+  background: #ff8a00;
+  color: #101022;
+  border-color: #ffc61a;
+}
+.shagged__faces button.active b {
+  color: #101022;
+}

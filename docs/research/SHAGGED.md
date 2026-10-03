@@ -490,7 +490,7 @@ always stage by explicit path.
 | WO-T2 | `TextureCatalog`: pure catalog from the mounted index, `default_shaderlist.txt` and `shadertags.xml` | none | no | 2 | Sonnet 5 | done |
 | WO-T3 | `TextureThumbnails`: lazy decode from PK3 bytes, in-memory LRU, IndexedDB cache | T2 | no | 3 | Sonnet 5 | done |
 | WO-T4 | Texture browser drawer: search, groups, virtualised grid, apply to brush, current texture | T1, T2, T3 | yes | 3 | Opus 5.5 | done |
-| WO-T5 | Face selection: 3D pick by normal, overlay, six-face net in the inspector, eyedropper | T1 | yes | 3 | Opus 5.5 | todo |
+| WO-T5 | Face selection: 3D pick by normal, overlay, six-face net in the inspector, eyedropper | T1 | yes | 3 | Opus 5.5 | done |
 | WO-T6 | UV tools: shift/scale/rotation fields, Fit, Natural, match neighbour | T1, T5 | yes | 3 | Opus 5.5 | todo |
 | WO-T7 | Textured 3D preview: six quads per brush through the shared UV function; Solid/Textured toggle | T1, T3 | yes | 3 | Opus 5.5 | todo |
 | WO-T8 | Acceptance: painted, aligned faces compile; BSP shaders and texture coordinates match the editor; docs and changelog | T4–T7 | no | 2 | Sonnet 5 | todo |
@@ -838,6 +838,46 @@ that MakeBSP adds to keep coordinates small (they don't change rendering).
     during page startup.
   - **Follow-up:** the gamepack's many tags push the folder list far down
     the sidebar; collapsible sections would help.
+- 2026-10-03: WO-T5 done.
+  - **Picking:** Ctrl+Shift+click in 3D adds a face of the clicked brush to
+    the face selection, or removes it. The face key is the picked normal's
+    dominant axis and sign (`faceKeyFromNormal` in `FaceUv.ts`), after
+    mapping Babylon's Y-up axes to Quake's Z-up ones.
+    - Plan deviation: there is no separate Face mode, and Ctrl+Shift
+      toggles rather than Shift adding. One chord covers adding and
+      removing, and a plain click keeps its brush-select meaning.
+    - Plan deviation: the selection is a set of face keys on the selected
+      brush rather than `brushId:faceKey` pairs. Picking a face on another
+      brush selects that brush and starts a new face set, so faces never
+      span brushes; T6's alignment fields act on one brush.
+    - A plain click in 3D, any ortho selection, or losing the selection
+      clears the faces.
+  - **Feedback:**
+    - Orange translucent slabs on the selected faces in 3D, rebuilt only
+      when the selection or the document changes.
+    - A dashed orange outline in an orthographic pane when a selected face
+      points along that pane's hidden axis.
+    - A six-face net in the inspector, laid out as an unfolded box. Each
+      cell shows the face key and its texture, and clicking a cell toggles
+      the face, which reaches faces the camera can't see.
+  - **Applying:** with faces selected, picking a texture changes only those
+    faces, as one undo step. A face that already has an alignment keeps it
+    and only its texture changes. A new face override starts at natural
+    alignment, so a texture without a known image size is refused with a
+    status message.
+  - **Eyedropper:** Alt+click makes the face's texture the current texture,
+    with its size when the face has an override. The face selection stays
+    as it was.
+  - **Tests:** `faceKeyFromNormal` for the six axis normals and a tilted
+    one; a DOM test that picks a face in 3D, adds one from the net,
+    textures just those two, keeps an existing rotation on retexture,
+    samples with Alt+click, and clears on a plain click. Writing the test
+    turned up a real bug: the view-save status overwrote the face-selection
+    message, so the status is now set after the save.
+  - **Browser check** (headless Edge, Room Template): Ctrl+Shift+click
+    picked +Z on the ceiling's top, +X on the east wall and +Y on the north
+    wall. The net marked the picked face, and the XZ pane drew the dashed
+    outline for a +Y face.
 
 ## Future map-author experience ideas
 

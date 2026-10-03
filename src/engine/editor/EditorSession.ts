@@ -21,6 +21,7 @@ import {
   EditorDocument,
   type EditorDocumentData,
   FACE_KEYS,
+  type FaceKey,
   ownerOf,
   type PointEntity,
   pruneBrushEntities,
@@ -44,7 +45,7 @@ import {
   entityClass,
   missingRequiredKeys,
 } from "./EntityCatalog";
-import { naturalFace } from "./FaceUv";
+import { faceKeyFromNormal, naturalFace } from "./FaceUv";
 import { writeMap } from "./MapWriter";
 import { indexedModelPaths, modelReferenceIssue } from "./ModelReference";
 import { createRoomTemplate } from "./RoomTemplate";
@@ -235,6 +236,10 @@ export class EditorSession {
   private currentTexture: { name: string; size: [number, number] | null } = { name: "blx/blx_grid", size: null };
   private textureBrowser: TextureBrowser | null = null;
   private thumbnails: TextureThumbnails | null = null;
+  /** Faces of the selected brush picked with Ctrl+Shift+click or the face net; UI state only. */
+  private readonly selectedFaces = new Set<FaceKey>();
+  private faceOverlays: Mesh[] = [];
+  private faceOverlayKey = "";
   private grid = 16;
   private zoom = 1;
   private viewCenter: Vec3q = { x: 0, y: 0, z: 0 };
@@ -444,6 +449,14 @@ export class EditorSession {
       },
       { signal: this.listeners.signal },
     );
+    this.inspector.addEventListener(
+      "click",
+      (event) => {
+        const face = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-face]")?.dataset.face;
+        if (face && this.selectedId) this.toggleFace(this.selectedId, face as FaceKey);
+      },
+      { signal: this.listeners.signal },
+    );
     this.inspector.addEventListener("submit", (event) => this.submitInspector(event), {
       signal: this.listeners.signal,
     });
@@ -555,6 +568,10 @@ export class EditorSession {
       this.status(`Current texture ${entry.name} (${sized}); select a brush to apply it`);
       return;
     }
+    if (this.selectedFaces.size) {
+      this.applyToFaces(brushId, entry, size);
+      return;
+    }
     try {
       this.document.transact((data) => {
         const brush = data.brushes.find((item) => item.id === brushId)!;
@@ -567,6 +584,124 @@ export class EditorSession {
       this.status(`Applied ${entry.name} (${sized})`);
     } catch (error) {
       this.status(`Texture rejected: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /**
+   * Texture on just the selected faces, as one undo step. A face that already
+   * has an alignment keeps it (only the texture changes, as in Radiant); a new
+   * face override starts at natural alignment, which needs the image size.
+   */
+  private applyToFaces(brushId: string, entry: TextureEntry, size: [number, number] | null): void {
+    if (!size) {
+      this.status(`${entry.name} has no known image size; a face texture needs one`);
+      return;
+    }
+    const keys = [...this.selectedFaces];
+    try {
+      this.document.transact((data) => {
+        const brush = data.brushes.find((item) => item.id === brushId)!;
+        brush.faces ??= {};
+        for (const key of keys) {
+          const existing = brush.faces[key];
+          brush.faces[key] = existing ? { ...existing, shader: entry.name, size } : naturalFace(entry.name, size);
+        }
+      });
+      this.changed();
+      this.status(
+        `Applied ${entry.name} (${size[0]}×${size[1]}) to ${keys.length} face${keys.length === 1 ? "" : "s"}`,
+      );
+    } catch (error) {
+      this.status(`Texture rejected: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /** Ctrl+Shift+click or the face net: a face of the selected brush joins or leaves the face selection. */
+  private toggleFace(brushId: string, key: FaceKey): void {
+    if (this.selectedId !== brushId) {
+      this.selectedFaces.clear();
+      this.selectedId = brushId;
+    }
+    if (this.selectedFaces.has(key)) this.selectedFaces.delete(key);
+    else this.selectedFaces.add(key);
+    this.rebuildMeshes();
+    this.draw();
+    this.trySaveView();
+    // After the save, whose own status message would otherwise replace this one.
+    const faces = [...this.selectedFaces].join(", ");
+    this.status(faces ? `Faces ${faces} selected; pick a texture (T) to apply it to them` : "No faces selected");
+  }
+
+  /** Alt+click: a face's texture becomes the current texture (eyedropper). */
+  private sampleFace(brush: BoxBrush, key: FaceKey): void {
+    const face = brush.faces?.[key];
+    this.currentTexture = face ? { name: face.shader, size: face.size } : { name: brush.shader, size: null };
+    this.renderCurrentTexture();
+    this.status(`Sampled ${this.currentTexture.name} from face ${key}`);
+  }
+
+  /** Orange slabs on the selected faces in 3D, rebuilt only when the selection or document changes. */
+  private syncFaceOverlays(data: EditorDocumentData): void {
+    const key = `${this.selectedId ?? ""}|${[...this.selectedFaces].sort().join(",")}|${data.revision}`;
+    if (key === this.faceOverlayKey) return;
+    this.faceOverlayKey = key;
+    for (const mesh of this.faceOverlays) {
+      mesh.material?.dispose();
+      mesh.dispose();
+    }
+    this.faceOverlays = [];
+    const brush = data.brushes.find((item) => item.id === this.selectedId);
+    if (!brush) return;
+    for (const face of this.selectedFaces) {
+      const axis = face[1].toLowerCase() as keyof Vec3q;
+      const outward = face[0] === "+";
+      const min = { ...brush.min };
+      const max = { ...brush.max };
+      const plane = outward ? brush.max[axis] : brush.min[axis];
+      min[axis] = outward ? plane : plane - 0.75;
+      max[axis] = outward ? plane + 0.75 : plane;
+      const mesh = MeshBuilder.CreateBox(
+        `shagged-face-${face}`,
+        { width: max.x - min.x, height: max.z - min.z, depth: max.y - min.y },
+        this.scene,
+      );
+      mesh.position = new Vector3((min.x + max.x) / 2, (min.z + max.z) / 2, (min.y + max.y) / 2);
+      mesh.isPickable = false;
+      const material = new StandardMaterial(`shagged-face-material-${face}`, this.scene);
+      material.diffuseColor = new Color3(1, 0.55, 0.05);
+      material.emissiveColor = new Color3(0.7, 0.35, 0);
+      material.alpha = 0.6;
+      mesh.material = material;
+      this.faceOverlays.push(mesh);
+    }
+  }
+
+  /** The selected brush's six faces as a net: click one to add it to or remove it from the face selection. */
+  private renderFaceNet(net: HTMLElement, brush: BoxBrush): void {
+    const layout: Array<[FaceKey, number, number]> = [
+      ["+Z", 2, 1],
+      ["-X", 1, 2],
+      ["-Y", 2, 2],
+      ["+X", 3, 2],
+      ["+Y", 4, 2],
+      ["-Z", 2, 3],
+    ];
+    for (const [key, column, row] of layout) {
+      const face = brush.faces?.[key];
+      const shader = face?.shader ?? brush.shader;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.face = key;
+      button.style.gridColumn = String(column);
+      button.style.gridRow = String(row);
+      button.classList.toggle("active", this.selectedFaces.has(key));
+      const label = document.createElement("b");
+      label.textContent = key;
+      const name = document.createElement("span");
+      name.textContent = shader.split("/").pop() ?? shader;
+      button.append(label, name);
+      button.title = face ? `${shader} · ${face.size[0]}×${face.size[1]}` : `${shader} · fixed alignment`;
+      net.appendChild(button);
     }
   }
 
@@ -1212,7 +1347,20 @@ export class EditorSession {
       this.camera,
     );
     this.root.focus();
-    this.selectedId = pick?.hit ? (pick.pickedMesh?.metadata?.editorEntityId ?? pick.pickedMesh?.name ?? null) : null;
+    const hitId: string | null = pick?.hit
+      ? (pick.pickedMesh?.metadata?.editorEntityId ?? pick.pickedMesh?.name ?? null)
+      : null;
+    const brush = hitId ? this.document.snapshot().brushes.find((item) => item.id === hitId) : undefined;
+    const normal = brush && (event.altKey || (event.ctrlKey && event.shiftKey)) ? pick?.getNormal(true, true) : null;
+    if (brush && normal) {
+      // Babylon is Y-up; the document is Quake Z-up.
+      const key = faceKeyFromNormal({ x: normal.x, y: normal.z, z: normal.y });
+      if (event.altKey) this.sampleFace(brush, key);
+      else this.toggleFace(brush.id, key);
+      return;
+    }
+    this.selectedFaces.clear();
+    this.selectedId = hitId;
     this.rebuildMeshes();
     this.draw();
     this.trySaveView();
@@ -1243,6 +1391,7 @@ export class EditorSession {
     const entityHit = [...data.entities].reverse().find((entity) => inRect(u, v, entityBox(entity), plane));
     const hit = entityHit ? undefined : [...data.brushes].reverse().find((brush) => inRect(u, v, brush, plane));
     if (this.tool === "select") {
+      this.selectedFaces.clear();
       this.selectedId = entityHit?.id ?? hit?.id ?? null;
       const edge = hit ? pickResizeEdge(hit, axes.u, axes.v, u, v, 8 / this.zoom) : null;
       this.gesture =
@@ -1404,6 +1553,7 @@ export class EditorSession {
 
   private changed(): void {
     if (this.selectedId && !this.exists(this.selectedId)) this.selectedId = null;
+    if (!this.selectedId) this.selectedFaces.clear();
     this.rebuildMeshes();
     this.draw();
     try {
@@ -1754,6 +1904,24 @@ export class EditorSession {
         );
       }
       if (this.gesture?.mode === "draw" && preview) paint(preview.min, preview.max, true);
+      // A selected face pointing at this pane's viewer is outlined, dashed, inside its brush.
+      const faced = data.brushes.find((brush) => brush.id === this.selectedId);
+      const facing = axes.hidden.toUpperCase();
+      if (
+        faced &&
+        (this.selectedFaces.has(`+${facing}` as FaceKey) || this.selectedFaces.has(`-${facing}` as FaceKey))
+      ) {
+        ctx.setLineDash?.([6, 4]);
+        ctx.strokeStyle = "#ff8a00";
+        ctx.lineWidth = 3;
+        ctx.strokeRect(
+          originX + faced.min[axes.u] * this.zoom + 3,
+          originY - faced.max[axes.v] * this.zoom + 3,
+          (faced.max[axes.u] - faced.min[axes.u]) * this.zoom - 6,
+          (faced.max[axes.v] - faced.min[axes.v]) * this.zoom - 6,
+        );
+        ctx.setLineDash?.([]);
+      }
       const dragged = this.gesture?.entity;
       for (const original of data.entities) {
         const moving = dragged?.id === original.id && this.gesture;
@@ -1783,6 +1951,7 @@ export class EditorSession {
       }
     }
     this.syncGhost(preview);
+    this.syncFaceOverlays(data);
     this.renderInspector(data);
     for (const name of ["brush", "select", "entity"] as const)
       this.root.querySelector(`[data-action="${name}"]`)?.classList.toggle("active", this.tool === name);
@@ -1793,7 +1962,7 @@ export class EditorSession {
 
   /** Rebuilt only when the selection or the document changes, so a pan or zoom keeps a half-typed value. */
   private renderInspector(data: EditorDocumentData): void {
-    const key = `${data.draftId}|${this.selectedId ?? ""}|${data.revision}`;
+    const key = `${data.draftId}|${this.selectedId ?? ""}|${data.revision}|${[...this.selectedFaces].sort().join(",")}`;
     if (key === this.inspectorKey) return;
     this.inspectorKey = key;
     const selected = data.brushes.find((brush) => brush.id === this.selectedId);
@@ -1809,6 +1978,7 @@ export class EditorSession {
             )
             .join("")}
           <label class="shagged__shader">Shader <input name="shader" type="text" spellcheck="false" required></label>
+          <div class="shagged__faces" data-face-net aria-label="Faces (Ctrl+Shift+click in 3D)"></div>
           <label class="shagged__shader">Entity <select name="owner"></select></label>
           <div data-owner-section></div>
           <button type="submit">Apply Brush</button>
@@ -1824,6 +1994,7 @@ export class EditorSession {
       }
       form.querySelector<HTMLInputElement>('[name="shader"]')!.value = selected.shader;
       fillOwnerOptions(form.querySelector<HTMLSelectElement>('[name="owner"]')!, data, owner?.id);
+      this.renderFaceNet(form.querySelector<HTMLElement>("[data-face-net]")!, selected);
       if (owner) {
         const section = form.querySelector<HTMLElement>("[data-owner-section]")!;
         section.innerHTML = `<label class="shagged__shader">Entity class <select name="owner-classname"></select></label>

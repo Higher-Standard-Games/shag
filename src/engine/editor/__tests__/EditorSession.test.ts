@@ -522,6 +522,91 @@ describe("editor DOM shell", () => {
     engine.dispose();
   });
 
+  it("picks faces in 3D and from the face net, textures just those faces, and samples a face", async () => {
+    const engine = new NullEngine();
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    const session = new EditorSession(engine, canvas, vi.fn());
+    // A wide, flat slab under the default camera: a ray through the view centre hits its top face.
+    session.document.transact((data) =>
+      data.brushes.push({
+        id: "slab",
+        min: { x: -256, y: -256, z: -16 },
+        max: { x: 256, y: 256, z: 16 },
+        shader: "blx/blx_grid",
+      }),
+    );
+    // Undo then redo goes through the editor's own change path, which rebuilds the 3D meshes;
+    // a grid change first redraws, which enables the Undo button.
+    session.root.querySelector("[data-grid]")!.dispatchEvent(new Event("change"));
+    session.root.querySelector<HTMLButtonElement>('[data-action="undo"]')!.click();
+    session.root.querySelector<HTMLButtonElement>('[data-action="redo"]')!.click();
+    session.render();
+    const click = (modifiers: { ctrlKey?: boolean; shiftKey?: boolean; altKey?: boolean } = {}) => {
+      for (const type of ["pointerdown", "pointerup"]) {
+        canvas.dispatchEvent(
+          new MouseEvent(type, { bubbles: true, button: 0, clientX: 200, clientY: 150, ...modifiers }),
+        );
+      }
+    };
+    const status = () => session.root.querySelector(".shagged__status")!.textContent!;
+    const net = () =>
+      [...session.root.querySelectorAll<HTMLButtonElement>("[data-face-net] button")]
+        .filter((b) => b.classList.contains("active"))
+        .map((b) => b.dataset.face);
+    const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+    click({ ctrlKey: true, shiftKey: true });
+    expect(status()).toContain("Faces +Z selected");
+    expect(net()).toEqual(["+Z"]);
+    expect(engine.scenes[0].getMeshByName("shagged-face-+Z")).not.toBeNull();
+    // the face net reaches faces the camera can't see
+    session.root.querySelector<HTMLButtonElement>('[data-face-net] button[data-face="-X"]')!.click();
+    expect(net().sort()).toEqual(["+Z", "-X"].sort());
+
+    session.root.dispatchEvent(new KeyboardEvent("keydown", { key: "t", bubbles: true }));
+    await flush();
+    await flush();
+    const stripe = [...session.root.querySelectorAll<HTMLElement>(".shagged-tex__tile")].find((tile) =>
+      tile.title.startsWith("blx/blx_white_stripe"),
+    )!;
+    stripe.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 }));
+    await flush();
+    const slab = session.document.snapshot().brushes[0];
+    expect(slab.shader).toBe("blx/blx_grid"); // only the picked faces change
+    expect(Object.keys(slab.faces!).sort()).toEqual(["+Z", "-X"].sort());
+    expect(slab.faces!["+Z"]).toMatchObject({ shader: "blx/blx_white_stripe", size: [128, 32], scale: [0.5, 0.5] });
+    expect(status()).toContain("to 2 faces");
+
+    // A face that already has an alignment keeps it when only its texture changes.
+    session.document.transact((data) => {
+      data.brushes[0].faces!["+Z"]!.rotation = 45;
+    });
+    const floor = [...session.root.querySelectorAll<HTMLElement>(".shagged-tex__tile")].find((tile) =>
+      tile.title.startsWith("boqu/floor"),
+    )!;
+    floor.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 }));
+    await flush();
+    expect(session.document.snapshot().brushes[0].faces!["+Z"]).toMatchObject({
+      shader: "boqu/floor",
+      rotation: 45,
+      size: [256, 256],
+    });
+
+    // Alt+click samples the face's texture as the current texture, without touching the selection.
+    click({ altKey: true });
+    expect(session.root.querySelector("[data-current-texture]")!.textContent).toBe("boqu/floor");
+    expect(status()).toContain("Sampled boqu/floor from face +Z");
+    expect(net().sort()).toEqual(["+Z", "-X"].sort());
+
+    // A plain click selects the brush and clears the faces.
+    click();
+    expect(net()).toEqual([]);
+    expect(engine.scenes[0].getMeshByName("shagged-face-+Z")).toBeNull();
+    session.dispose();
+    engine.dispose();
+  });
+
   it("selects a brush that lies between coarse grid lines", () => {
     const engine = new NullEngine();
     const canvas = document.createElement("canvas");
