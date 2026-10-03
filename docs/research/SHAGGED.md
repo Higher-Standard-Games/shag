@@ -224,32 +224,43 @@ NetRadiant Custom is a **behavior and format reference**, not a porting base. It
 
 ## Feature matrix and proposed order
 
-This matrix describes **editor features to build**, not features already available in the UI. Existing SHAG parsers/renderers are listed only as reusable substrate. M1 is the export milestone below and includes visible Compile/Status/Playtest controls; M2 makes the editor practical for ordinary maps; M3 connects compilation to normal game playtest and return; M4 adds authored curved geometry. M2 and M3 can progress independently after M1; M4 authoring work can start earlier, but its full compiled-collision acceptance needs M3's playtest path.
+This is a living feature matrix: **done** means implemented in the editor, **partial** means usable but incomplete, and **open** means planned. It separates source-map authoring and compilation from the still-open Playtest loop. M1 is the export milestone below and includes visible Compile/Status/Playtest controls; M2 makes the editor practical for ordinary maps; M3 connects compilation to normal game playtest and return; M4 adds authored curved geometry. M2 and M3 can progress independently after M1; M4 authoring work can start earlier, but its full compiled-collision acceptance needs M3's playtest path.
 
 | Feature | Target | First useful behavior | SHAG substrate / main gap |
 | --- | --- | --- | --- |
 | Console launch and four views | M1 (**done**) | `editor open` gives perspective, XY, XZ, YZ; `editor close` restores the prior view. | Done: console command, mode lifecycle, and pane input all shipped in M1. |
 | Box brush creation and `.map` export | M1 (**done**) | Drag snapped boxes, set hidden-axis extent, assign a shader, save deterministic `brushDef` source. | Done: editable document, writer, and a MakeBSP-verified fixture (Room Template) all shipped. |
-| 3D navigation (flycam) | M1/M2 (**done 2026-10-03**) | Middle/right drag looks around; a middle click toggles free look; W/A/S/D with Space/C fly (Shift for 3x speed); the wheel steps forward/back; F/Shift+F frame the selection or map keeping the current view direction. | Done: `FlyCamera.ts` (pose math) and `FlyCameraController` replace the old orbit camera; a view saved under the orbit camera converts to the same eye and direction on load. A thick yellow outline and a "Press ESC to release mouse" label mark the 3D pane while free look is active (2026-10-03), since it otherwise gave no clue the mouse was captured. |
-| Compile, status, and Playtest controls | M1 UI (**done**); M3 integration (**partial 2026-10-03**) | Show all three controls. In M1, status accurately says when no compiler is configured and Playtest stays unavailable; M3 wires actual jobs and game launch. | The job service (save/compile/poll) now runs a real compile end to end against the configured local MakeBSP/MakeLight over HTTP, not just unit tests with an injected tool runner. The browser editor still has no Compile button wired to this service, and Playtest (loading the compiled BSP into a playable game) does not exist yet. |
+| 3D navigation and capture cue | M1/M2 (**done**) | Middle/right drag looks around; middle click captures the pointer; Esc releases it; W/A/S/D, Space/C, wheel and F/Shift+F navigate. | Done: fly camera and saved pose. Captured mode shows a bold yellow inset outline and a persistent "Press ESC to release mouse" label. |
+| Compile, status, and Playtest controls | M1 UI (**done**); M3 compile (**done**), Playtest (**open**) | Save a revision, compile through the editor server and follow job status; eventually enter the compiled game and return. | Browser buttons call the editor server save/compile/job APIs and show logs. Playtest is present but disabled until BSP delivery and return flow are wired. |
 | Selection and object movement | M1 (**done**), usability polish (**2026-10-03**) | Click in any pane to select one brush; drag or enter XYZ to move/resize it; duplicate/delete; selection is shared by all panes. | Done, plus Radiant conventions added this cycle: a right click (no drag) deselects everywhere instead of only the Select tool doing anything; with the Brush tool, dragging the current selection moves/resizes it instead of drawing over it, and a click that draws nothing selects what's under it; the 2D-pane cursor shows a resize arrow on a draggable edge, an open hand where a press would move the piece, and a closed hand while actually dragging; a box brush also got four corner handles (2026-10-03) so both visible axes resize together in one diagonal drag, with a matching ↗↙/↖↘ cursor; a width × depth × height label now follows the cursor while drawing or resizing, instead of only appearing in the status bar; a small lime crosshair also marks the snapped point itself while drawing, moving, or resizing; while resizing a single edge, typing digits opens an exact-size override (Backspace edits it, Enter commits and ends the drag, Escape clears just the typed number); the label turns red and adds "(min)" when a resize (or a typed size) is held at the one-grid-unit floor, and drawing under one grid cell shows a red "min 1 grid cell" tag instead of nothing. |
 | Undo/redo and draft recovery | M1 (**done**) | One gesture is one undo step; refresh restores a versioned draft and view state from `localStorage`. | Done: editor document/history, regenerated meshes, and local draft/view persistence all shipped. |
 | Textured, solid, wireframe, and textured+edge preview | M2 (**done 2026-10-03**, see "M2 materials" and "M2 3D view") | A Brush/Textured/Wireframe switch in the 3D pane's corner, Textured by default; textured faces draw the real image with its alignment; Wireframe draws only brush edges (orange for the selection), so you can see through walls. | Done: `TexturedPreview.ts`/`PreviewTextures.ts` batch and draw real textures; Wireframe is one line mesh per map, not per-brush edge rendering (that showed as broken dots once brushes were see-through). The mode and camera are saved with the view. |
-| Face material editing | M2 (**done 2026-10-03**, see "M2 materials") | Ctrl+Shift+click a face in 3D (or click it in the inspector's six-face net) to select it; pick a texture from the browser to apply it to just the selected faces; shift/scale/rotation fields, Fit, Natural, and Wrap (continue a texture around a corner) align it. | Done: per-face materials in the document, a lossless `faceTexMatrix`, a texture browser with thumbnails and search, and a compile acceptance proof (BSP shader list and drawvert ST match the editor to float precision, every face lightmapped). |
-| Multi-select and grouping | M2 | Shift-select, marquee-select, group/ungroup, move/duplicate a group, and preserve membership in the editable draft. | New editor-only hierarchy. `func_group` appears in Washoi `entities.def`, but its compiler semantics need proof before using it for persistence; grouping must not silently change game entity ownership. |
+| Face material editing | M2 (**done**) | Shift+click a brush face in 3D (Ctrl+Shift+click still works), or use the six-face net; choose a texture to apply it only to those faces. | Done: per-face shader/UV data, preview, texture browser, alignment controls and MakeBSP acceptance proof. Selection is per brush; Shift+click toggles faces on that brush. |
+| Caulk-first texturing | M2 (**basic flow done**; quick action open) | Apply common/caulk to a whole selected brush, then Shift+click visible faces and assign their textures. | Whole-brush and per-face application already work. A one-click Caulk Brush command and clearer selected-face preview would streamline this common workflow. |
+| Multi-select and grouping | M2 (**open**) | Add objects to a selection, marquee-select, group/ungroup, and transform a group as one unit. | Needs editor-only hierarchy and compiler-safe flattening. Shift+click is currently assigned to 3D face selection; group shortcuts need their own interaction design. |
 | Point entity placement | M2 (**done 2026-10-03**) | Place a spawn, light, pickup, or target marker in 2D/3D; edit `classname`, origin, angle, and class-specific keys in an inspector. | Done: `EntityCatalog.ts` reads the gameplay point classes from `entities.def`; schema v2 `entities` with preserved unknown keys; markers in all panes; deterministic export; compiled and read back through `BspLoader`. |
 | Referenced model placement (`misc_model`) | M2+ (**partial 2026-10-03**, see "Referenced models") | Place a model reference, edit its path/yaw/scale, and export compiler keys; loose GLB has an initial 3D preview. | Palette, indexed-path suggestions, validation, export and loose-GLB preview exist. MD3/PK3 preview, asset existence checks, compiled transform/material/collision proof remain. |
 | Brush entity placement | M2 (**done 2026-10-03**) | Convert selected brushes into a brush entity (for example trigger/door), set keys, and show entity bounds and links. | Done: ownership by brush ID, no origin/model keys, required-key warnings, class-coloured brushes; a teleporter and a two-brush door compiled to submodels `*1`/`*2`. Target-link overlays remain the separate entity-link idea. |
 | Map Health tray | M2 (**done 2026-10-03**) | A docked panel lists missing spawns, required keys, broken target links, duplicate names, unknown classes, and unknown/missing shaders (brush faces and patches alike); clicking an issue selects and frames the object (or one of its owned brushes, for a brush-entity issue). | Done: `MapHealth.ts`'s pure analysis plus `MapHealthTray.ts`, wired into the toolbar (also `H`). |
 | Simplified modular Block Builder | Optional M2+ | Pick a sized room piece, snap compatible sockets/grid positions, rotate by quarter-turn, and detach it to editable brushes. | Babylon can preview/gizmo repeated pieces; pure Quake-space placement, versioned definitions, and deterministic expansion to `.map` are new. Its detailed proof is below. |
 | Raw map preview | M1/M2 (**done**, see "Textured, solid, wireframe" above) | Inspect the editable `.map` through the editor's 3D and orthographic views, with textured/wireframe options. | Done: the Brush/Textured/Wireframe switch covers this directly; no separate raw gameplay mode was needed. |
-| Compile and status | M3 (**server path proven 2026-10-03**) | Save/submit a numbered `.map` snapshot to `shagged:server`, follow MakeBSP/MakeLight job status, and retain the last successful build. | The Node service, CLI process runner, and revision tracking are built and now proven against the real local toolchain end to end over HTTP (save, queue, poll to `compiled`, no leak). The browser editor is still not connected to this service. |
+| Compile and status | M3 (**done for source compilation**) | Save a numbered .map revision, queue MakeBSP/MakeLight, poll status and retain logs. | The Node editor server and browser API are connected; real local compile has been verified. Delivery of a playable compiled BSP remains in Playtest scope. |
 | Playtest and return | M3 | Save the editor session, close the editor scene, make the compiled BSP available to the normal game path, run `map <name>`, then exit the match and restore the editor from `localStorage`. | Existing `map` is server-backed. Browser index, server asset discovery, and a return route need integration later. |
 | Curved patch surface editing | M4 (**P1-P3 done 2026-10-03**) | Create a 3×3 `patchDef2` by drawing on the active work plane, pick any control point in any view and edit its exact XYZ/UV, move/duplicate/delete the surface, and apply a shader. | Done: schema v2 `patches`, the `patchDef2` writer, 3D/orthographic preview and picking, and free control-point editing. A compile acceptance probe confirms a hand-built asymmetric patch compiles clean with its control points (and their distinct heights) intact in the BSP. Edit Points drags any selected control in an orthographic pane with snapped four-view preview, one undo step, and Escape cancel. Textured patch preview remains open. |
-| Bevel and arch tools | M4 (**generators in progress 2026-10-03**) | Presets create editable patch control grids for quarter-round bevels and semicircular arches; user can change radius, width, direction, segments, and shader. | Pure quarter-turn bevel and two-span arch generators exist, with reverse-winding and parser-readback tests, but are not yet wired into the toolbar/inspector. These are patch **surface** presets, not a general modifier that rounds arbitrary solid brush edges; their solids/collision need companion brushes or verified compiled patch collision. |
+| Bevel and arch tools | M4 (**partial**) | Draw quarter-round bevel, inverted bevel or two-span arch presets from Curves, then edit their patch controls. | Preset placement and four-view ghost are live; dimension, segment and cap controls, collision proof and recipe persistence remain. |
 | Cylinder, tube, cone, and cap tools | M4 | Draw an axis-aligned footprint and height, then create a cylindrical side, open tube, tapered cone, or matching end caps; adjust axis, radius, segment count, winding, and shader. | Generate one or more editable `patchDef2` surfaces from the same patch document model. A capped shape is several surfaces, not an automatically sealed structural brush. |
 | Arbitrary convex brush/CSG tools | Later | Plane clipping, vertex/edge editing, hollow/subtract, and true solid beveling. | Requires robust convex geometry, invalid-brush repair, UV preservation, and extensive compiler tests; separate scope from patch bevel/arch presets. |
 | `.map` import and faithful round trip | Later, before editing external maps | Open NetRadiant `.map` files without dropping unknown keys, face UVs, flags, patches, or unsupported entities. | Current `MapParser` is intentionally lossy for `brushDef`; a lossless parser and compatibility corpus are required. |
+
+**Usability follow-ups for map authors**
+
+| Interaction | Status | Next improvement |
+| --- | --- | --- |
+| Captured 3D mouse | Done | Keep the yellow frame and Escape label visible for the entire capture, including when focus or browser pointer lock changes. |
+| Face texturing | Done, polish open | Shift+click toggles a face; add a hovered-face preview so the target is clear before clicking. |
+| Caulk-first brushes | Basic flow done | Add a one-click Caulk Brush action that keeps authored face overrides only when explicitly requested. |
+| Selection clarity | Partial | Show a short selection summary near the cursor and make brush, face, patch control and entity selection visually distinct. |
+| Long operations | Partial | Keep compile status and logs visible, explain disabled Playtest, and offer an obvious return route after playtesting lands. |
 
 **Interaction rule:** brush, patch, point entity, brush entity, and group are different selection kinds with one shared selection model. Transforms must act in Quake coordinates and update every view in one undoable transaction. Groups are an authoring convenience; export should flatten editor-only group membership unless a compiler-tested `func_group` mapping is explicitly chosen. An entity is not merely a visual marker: the inspector must preserve arbitrary key/value pairs so the compiler and runtime can receive keys the editor does not yet understand.
 
@@ -527,20 +538,26 @@ interface BoxBrush { /* ... */ shader: string; faces?: Partial<Record<FaceKey, F
 
 ### Selecting faces
 
-- **3D pane:** Face-select mode, or Ctrl+Shift+click as in NetRadiant,
-  selects the face under the cursor; Shift adds faces. The face key comes
-  from the picked triangle's world normal, converted to Quake axes (dominant
-  axis and sign), not from the mesh's internal face order. It therefore
-  survives any change to how the preview mesh is built.
-- **Selection state:** a set of `brushId:faceKey` in UI state. It never enters
-  the document or the `.map`. Brush selection and face selection are distinct
-  modes, so applying a texture to a brush covers its six faces.
+- **3D pane:** Shift+click toggles the face under the cursor; Ctrl+Shift+click
+  remains available. Plain click selects the whole brush, while Alt+click
+  samples the face texture. The face key comes from the picked triangle's
+  world normal, converted to Quake axes (dominant axis and sign), rather
+  than the mesh's internal face order.
+- **Selection state:** the UI keeps face keys for one selected brush. It does
+  not enter the document or `.map`; picking a different brush starts a new
+  face set. With no faces selected, choosing a texture changes the whole
+  brush. With faces selected, it changes only those faces in one undo step.
 - **Feedback:**
   - Selected faces get a translucent overlay quad in 3D.
   - In an orthographic pane, a selected face that faces the camera is
     outlined.
   - The inspector shows the selected brush as a small six-face net, also
     clickable, which is how to reach faces hidden in 3D.
+
+**Caulk-first workflow:** select a brush and choose `common/caulk` in the
+texture browser. Then Shift+click its visible face and choose the final
+texture. Repeat for other visible faces. A dedicated Caulk Brush action and a
+hovered-face preview remain usability follow-ups.
 
 ### Texture browser
 
@@ -706,6 +723,8 @@ group.
 
 #### WO-T5: face selection
 
+- **As built:** Shift+click toggles a face in 3D; Ctrl+Shift+click is retained
+  for compatibility. The inspector face net reaches hidden sides.
 - **Picking:**
   - A Face mode, or Ctrl+Shift+click in 3D.
   - The face key comes from the picked world normal mapped to Quake axes.
@@ -950,14 +969,14 @@ that MakeBSP adds to keep coordinates small (they don't change rendering).
     during page startup.
   - **Follow-up:** the gamepack's many tags push the folder list far down
     the sidebar; collapsible sections would help.
-- 2026-10-03: WO-T5 done.
-  - **Picking:** Ctrl+Shift+click in 3D adds a face of the clicked brush to
+- 2026-10-03: WO-T5 done; Shift+click added in the usability pass.
+  - **Picking:** Shift+click in 3D adds a face of the clicked brush to
     the face selection, or removes it. The face key is the picked normal's
     dominant axis and sign (`faceKeyFromNormal` in `FaceUv.ts`), after
     mapping Babylon's Y-up axes to Quake's Z-up ones.
-    - Plan deviation: there is no separate Face mode, and Ctrl+Shift
-      toggles rather than Shift adding. One chord covers adding and
-      removing, and a plain click keeps its brush-select meaning.
+    - There is no separate Face mode. Shift+click toggles, and the earlier
+      Ctrl+Shift+click chord still works. A plain click keeps its
+      brush-select meaning.
     - Plan deviation: the selection is a set of face keys on the selected
       brush rather than `brushId:faceKey` pairs. Picking a face on another
       brush selects that brush and starts a new face set, so faces never
@@ -1086,13 +1105,15 @@ camera instead, and mappers expect that.
 
 ### Controls
 
-The camera is a flycam: a position, a yaw and a pitch. Left click keeps
-its meaning in 3D (select; Ctrl+Shift picks a face, Alt samples one).
+The camera is a flycam: a position, a yaw and a pitch. Left click selects an
+object in 3D; Shift+click selects a brush face, and Alt+click samples one.
 
 | Input | Where | Effect |
 | --- | --- | --- |
+| Shift+click (also Ctrl+Shift+click) | 3D pane | Toggle one face on the clicked brush for per-face texturing. |
+| Alt+click | 3D pane | Sample a face texture as the current texture. |
 | Middle or right drag | Anywhere in the 3D pane | Mouse look: yaw and pitch follow the mouse. |
-| Middle click (no drag) | 3D pane | Toggles free look: the pointer is captured and mouse movement looks around until another middle click, a right click or Escape. |
+| Middle click (no drag) | 3D pane | Toggles free look: the pointer is captured and mouse movement looks around until another middle click, a right click or Escape. A bold yellow inset border and Escape label remain visible while captured. |
 | Right click (no drag) | Any pane | Deselects (see Selection below). |
 | `W` / `S` | Pointer over the 3D pane, or free look | Fly forward / back along the view direction, held for continuous movement. |
 | `A` / `D` | Same | Strafe left / right. |

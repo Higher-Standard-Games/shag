@@ -619,10 +619,14 @@ describe("editor DOM shell", () => {
         .map((b) => b.dataset.face);
     const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-    click({ ctrlKey: true, shiftKey: true });
+    click({ shiftKey: true });
     expect(status()).toContain("Faces +Z selected");
     expect(net()).toEqual(["+Z"]);
     expect(engine.scenes[0].getMeshByName("shagged-face-+Z")).not.toBeNull();
+    click({ ctrlKey: true, shiftKey: true }); // old chord remains usable
+    expect(net()).toEqual([]);
+    click({ shiftKey: true });
+    expect(net()).toEqual(["+Z"]);
     // the face net reaches faces the camera can't see
     session.root.querySelector<HTMLButtonElement>('[data-face-net] button[data-face="-X"]')!.click();
     expect(net().sort()).toEqual(["+Z", "-X"].sort());
@@ -1085,7 +1089,14 @@ describe("editor DOM shell", () => {
     fire("pointerdown", 1); // a middle click toggles free look
     fire("pointerup", 1);
     expect(pane.classList.contains("shagged__pane--freelook")).toBe(true);
+    expect(pane.querySelector(".shagged__free-look-hint")?.textContent).toContain("Press ESC to release mouse");
 
+    session.root.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    expect(pane.classList.contains("shagged__pane--freelook")).toBe(false);
+
+    fire("pointerdown", 1);
+    fire("pointerup", 1);
+    expect(pane.classList.contains("shagged__pane--freelook")).toBe(true);
     fire("pointerdown", 1);
     fire("pointerup", 1);
     expect(pane.classList.contains("shagged__pane--freelook")).toBe(false);

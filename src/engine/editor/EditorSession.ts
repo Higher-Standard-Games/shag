@@ -964,7 +964,7 @@ export class EditorSession {
     }
   }
 
-  /** Ctrl+Shift+click or the face net: a face of the selected brush joins or leaves the face selection. */
+  /** Shift+click (also Ctrl+Shift+click) or the face net toggles one brush face. */
   private toggleFace(brushId: string, key: FaceKey): void {
     if (this.selectedId !== brushId) {
       this.selectedFaces.clear();
@@ -1784,7 +1784,7 @@ export class EditorSession {
       ? (pick.pickedMesh?.metadata?.editorEntityId ?? pick.pickedMesh?.name ?? null)
       : null;
     const brush = hitId ? this.document.snapshot().brushes.find((item) => item.id === hitId) : undefined;
-    const normal = brush && (event.altKey || (event.ctrlKey && event.shiftKey)) ? pick?.getNormal(true, true) : null;
+    const normal = brush && (event.altKey || event.shiftKey) ? pick?.getNormal(true, true) : null;
     if (brush && normal) {
       // Babylon is Y-up; the document is Quake Z-up.
       const key = faceKeyFromNormal({ x: normal.x, y: normal.z, z: normal.y });
