@@ -39,12 +39,6 @@
   margin-right: 6px;
   white-space: nowrap;
 }
-.shagged__toolbar strong small {
-  color: #75d9e8;
-  font-size: 8px;
-  letter-spacing: 0.12em;
-}
-.shagged__draft-name,
 .shagged__menu-panel label {
   display: flex;
   align-items: center;
@@ -166,6 +160,16 @@
   content: " ▾";
   margin-left: 3px;
 }
+.shagged__menu--map > summary {
+  max-width: 178px;
+}
+.shagged__menu--map [data-map-title] {
+  display: block;
+  min-width: 0;
+  max-width: 145px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .shagged__menu-panel {
   position: absolute;
   z-index: 8;
@@ -178,6 +182,17 @@
   background: #141b31;
   border: 1px solid #ffc61a;
   box-shadow: 0 12px 26px #000b;
+}
+.shagged__menu--map .shagged__menu-panel {
+  min-width: 205px;
+}
+.shagged__menu-panel input[data-draft-name] {
+  flex: 1;
+  min-width: 0;
+}
+.shagged__menu-rule {
+  height: 1px;
+  background: #40506b;
 }
 .shagged__menu-panel button {
   justify-content: flex-start;

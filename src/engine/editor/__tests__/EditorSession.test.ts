@@ -97,10 +97,19 @@ describe("editor DOM shell", () => {
       [...session.root.querySelectorAll(".shagged__toolgroup")].map((group) => group.getAttribute("aria-label")),
     ).toEqual(["Map actions", "Edit actions", "Placement tools", "View actions", "Build actions"]);
     const menu = session.root.querySelector<HTMLDetailsElement>(".shagged__toolgroup .shagged__menu")!;
+    expect(session.root.querySelector(".shagged__toolbar strong")?.textContent).toBe("SHAGGED");
+    expect(menu.querySelector("[data-map-title]")?.textContent).toBe("Untitled");
+    expect(menu.querySelector('[data-action="save"]')).toBeTruthy();
+    expect(session.root.querySelectorAll("[data-draft-name]")).toHaveLength(1);
     menu.open = true;
     menu.querySelector<HTMLButtonElement>('[data-action="room"]')!.click();
     expect(menu.open).toBe(false);
     expect(session.document.snapshot().brushes.length).toBeGreaterThan(0);
+    expect(menu.querySelector("[data-map-title]")?.textContent).toBe("Room Template");
+    const name = menu.querySelector<HTMLInputElement>("[data-draft-name]")!;
+    name.value = "Practice room";
+    name.dispatchEvent(new Event("change"));
+    expect(menu.querySelector("[data-map-title]")?.textContent).toBe("Practice room");
     menu.open = true;
     menu.querySelector("summary")!.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     expect(menu.open).toBe(false);

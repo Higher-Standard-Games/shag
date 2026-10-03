@@ -1227,12 +1227,19 @@ These are proposed defaults, displayed as tooltips and in a small Help panel. Sh
 Group the top bar as File (New, Save Draft, Export), Edit (Undo, Redo, Delete, Duplicate), Tools (Select, Brush, grid/snap), View (Frame, Reset Layout), Build (Compile, Status, Playtest), then Help and Exit. The narrow status bar shows active pane, cursor Quake coordinates, work-plane coordinate, grid/snap, selected brush bounds, draft saved/dirty state, and compile state. The M1 inspector exposes editable min/max X/Y/Z, the active pane's work plane, one shader applied to all six faces, and the optional numeric test spawn. Later milestones can add per-face shader/UV fields without changing the basic brush gesture. Wireframe/textured preview controls appear when their rendering modes work in M2; do not ship inert toggles as though they are implemented.
 
 **Toolbar checkpoint (2026-10-03):** the current shell groups Map, Edit,
-Tools, View, and Build. Save, Undo/Redo, placement tools, Compile/Status,
+Tools, View, and Build. Undo/Redo, placement tools, Compile/Status,
 Playtest, and Exit remain visible; Map/Edit/View put less frequent actions in
 keyboard-accessible disclosure menus. The compact buttons use editor-scoped
 raised gold/violet styling inspired by the main menu. Menus close on action,
 outside pointer press, or Escape. Help and Reset Layout still await their
 underlying features.
+
+The subsequent compact pass removes the redundant "GENERAL EDITOR" brand text
+and the permanent draft-name field. The Map menu trigger displays the current
+draft name (truncated visually if long); the menu contains its rename field,
+New/Room Template/Local Drafts, Save/Export, and Server Maps/Save. Ctrl/Cmd+S
+still saves directly. Renaming updates the trigger whenever a draft or server
+map is opened or a new/template map is created.
 
 ### Three styling and UX concepts to explore
 

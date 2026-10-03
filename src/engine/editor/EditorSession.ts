@@ -302,14 +302,16 @@ export class EditorSession {
     this.root.tabIndex = -1;
     this.root.innerHTML = `
       <header class="shagged__toolbar">
-        <strong>SHAGGED <small>GENERAL EDITOR</small></strong>
-        <label class="shagged__draft-name">Draft <input data-draft-name type="text" maxlength="64" aria-label="Draft name"></label>
+        <strong>SHAGGED</strong>
         <div class="shagged__toolgroup" aria-label="Map actions">
           <span class="shagged__group-label">MAP</span>
-          <button data-action="save" title="Ctrl/Cmd+S">Save Draft</button>
-          <details class="shagged__menu"><summary>More</summary><div class="shagged__menu-panel">
-            <button data-action="drafts">Local Drafts</button><button data-action="new">New Map</button>
-            <button data-action="room">Room Template</button><button data-action="export" title="Ctrl/Cmd+Shift+S">Export .map</button>
+          <details class="shagged__menu shagged__menu--map"><summary title="Current map and map actions"><span data-map-title></span></summary><div class="shagged__menu-panel">
+            <label>Map name <input data-draft-name type="text" maxlength="64" aria-label="Map name"></label>
+            <button data-action="new">New Map</button><button data-action="room">Room Template</button>
+            <button data-action="drafts">Local Drafts</button>
+            <span class="shagged__menu-rule" aria-hidden="true"></span>
+            <button data-action="save" title="Ctrl/Cmd+S">Save Draft</button>
+            <button data-action="export" title="Ctrl/Cmd+Shift+S">Export .map</button>
             <button data-action="server-maps" disabled title="Open a server-saved SHAGGED map">Server Maps</button>
             <button data-action="server-save" disabled title="Connecting to SHAGGED server">Server Save</button>
           </div></details>
@@ -367,7 +369,7 @@ export class EditorSession {
     this.statusEl = this.root.querySelector(".shagged__status")!;
     this.inspector = this.root.querySelector(".shagged__inspector")!;
     this.root.querySelector<HTMLSelectElement>("[data-grid]")!.value = String(this.grid);
-    this.root.querySelector<HTMLInputElement>("[data-draft-name]")!.value = this.draftName;
+    this.updateDraftNameControl();
     this.updateWorkPlaneControl();
     this.renderCurrentTexture();
     const classPicker = this.root.querySelector<HTMLSelectElement>("[data-entity-class]")!;
@@ -470,7 +472,7 @@ export class EditorSession {
       (event) => {
         const input = event.target as HTMLInputElement;
         this.draftName = input.value.trim() || "Untitled";
-        input.value = this.draftName;
+        this.updateDraftNameControl();
         this.trySaveView();
       },
       { signal: this.listeners.signal },
@@ -1018,6 +1020,13 @@ export class EditorSession {
     }
   }
 
+  private updateDraftNameControl(): void {
+    this.root.querySelector<HTMLInputElement>("[data-draft-name]")!.value = this.draftName;
+    const title = this.root.querySelector<HTMLElement>("[data-map-title]")!;
+    title.textContent = this.draftName;
+    title.parentElement!.title = `Current map: ${this.draftName}. Open map actions`;
+  }
+
   private updateWorkPlaneControl(): void {
     const hidden = AXES[this.activePlane].hidden;
     this.root.querySelector("[data-work-axis]")!.textContent = hidden.toUpperCase();
@@ -1068,7 +1077,7 @@ export class EditorSession {
     this.document = restored.document;
     this.restoreView(restored.view);
     this.root.querySelector<HTMLSelectElement>("[data-grid]")!.value = String(this.grid);
-    this.root.querySelector<HTMLInputElement>("[data-draft-name]")!.value = this.draftName;
+    this.updateDraftNameControl();
     this.updateWorkPlaneControl();
     this.rebuildMeshes();
     this.draw();
@@ -1148,7 +1157,7 @@ export class EditorSession {
         this.restoreView(null);
         this.serverSave = asCopy ? undefined : { revision: decision.revision, documentRevision: data.revision };
         this.draftName = asCopy ? `${name} copy` : name;
-        this.root.querySelector<HTMLInputElement>("[data-draft-name]")!.value = this.draftName;
+        this.updateDraftNameControl();
         this.root.querySelector<HTMLSelectElement>("[data-grid]")!.value = String(this.grid);
         this.updateWorkPlaneControl();
         this.rebuildMeshes();
@@ -1184,7 +1193,7 @@ export class EditorSession {
           this.serverSave = undefined;
           this.selectedId = null;
           this.draftName = "Untitled";
-          this.root.querySelector<HTMLInputElement>("[data-draft-name]")!.value = this.draftName;
+          this.updateDraftNameControl();
           this.changed();
           break;
         case "room":
@@ -1196,7 +1205,7 @@ export class EditorSession {
           this.serverSave = undefined;
           this.selectedId = null;
           this.draftName = "Room Template";
-          this.root.querySelector<HTMLInputElement>("[data-draft-name]")!.value = this.draftName;
+          this.updateDraftNameControl();
           this.changed();
           break;
         case "drafts":
