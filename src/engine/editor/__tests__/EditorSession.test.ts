@@ -59,6 +59,8 @@ const context = {
   moveTo: vi.fn(),
   lineTo: vi.fn(),
   stroke: vi.fn(),
+  measureText: vi.fn(() => ({ width: 40 })),
+  fillText: vi.fn(),
 };
 const originalContext = HTMLCanvasElement.prototype.getContext;
 const originalRect = HTMLElement.prototype.getBoundingClientRect;
@@ -276,7 +278,7 @@ describe("editor DOM shell", () => {
     xy.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, button: 0, clientX: 200, clientY: 150 }));
     xy.dispatchEvent(new MouseEvent("pointermove", { bubbles: true, button: 0, clientX: 264, clientY: 86 }));
     expect(restored.document.snapshot().brushes).toHaveLength(0);
-    expect(context.strokeRect).toHaveBeenCalledTimes(3);
+    expect(context.strokeRect).toHaveBeenCalledTimes(4); // the preview box, plus the live dimension label's border
     const ghost = engine.scenes[0].getMeshByName("shagged-gesture-preview");
     expect(ghost?.position.y).toBe(136);
     xy.dispatchEvent(new MouseEvent("pointerup", { bubbles: true, button: 0, clientX: 264, clientY: 86 }));
@@ -910,6 +912,68 @@ describe("editor DOM shell", () => {
     const migrated = JSON.parse(localStorage.getItem(key)!).camera;
     expect(migrated.yaw).toBeCloseTo(270, 9);
     expect(migrated.pitch).toBeCloseTo(0, 9);
+    session.dispose();
+    engine.dispose();
+  });
+
+  it("shows a live width × depth × height label at the cursor while drawing or resizing, in the dragged pane only", () => {
+    const engine = new NullEngine();
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    const session = new EditorSession(engine, canvas, vi.fn());
+    const xy = session.root.querySelector<HTMLCanvasElement>('[data-plane="xy"]')!;
+    const xz = session.root.querySelector<HTMLCanvasElement>('[data-plane="xz"]')!;
+    const pointer = (pane: HTMLCanvasElement, type: string, x: number, y: number) =>
+      pane.dispatchEvent(new MouseEvent(type, { bubbles: true, button: 0, clientX: x, clientY: y }));
+
+    context.fillText.mockClear();
+    pointer(xy, "pointerdown", 200, 150);
+    pointer(xy, "pointermove", 264, 86);
+    // the span used elsewhere in this file for (200,150)->(264,86): 64 wide (x), 64 deep (y), 16 tall (z)
+    expect(context.fillText).toHaveBeenLastCalledWith("64 × 64 × 16", expect.any(Number), expect.any(Number));
+    // only the pane actually being dragged gets a label
+    expect(context.fillText.mock.calls.filter((call) => call[0] === "64 × 64 × 16")).toHaveLength(1);
+    pointer(xy, "pointerup", 264, 86);
+
+    // resizing shows the same live label
+    pointer(xy, "pointerdown", 203, 118); // near the just-drawn brush's left edge: grabs that edge
+    context.fillText.mockClear();
+    pointer(xy, "pointermove", 180, 118); // drag it out
+    expect(context.fillText).toHaveBeenCalled();
+    pointer(xy, "pointerup", 180, 118);
+
+    // a move (not draw/resize) doesn't show a size label — the size isn't changing
+    session.root.dispatchEvent(new KeyboardEvent("keydown", { key: "v", bubbles: true }));
+    context.fillText.mockClear();
+    pointer(xy, "pointerdown", 232, 118);
+    pointer(xy, "pointermove", 260, 118);
+    expect(context.fillText).not.toHaveBeenCalled();
+    pointer(xy, "pointerup", 260, 118);
+
+    context.fillText.mockClear();
+    pointer(xz, "pointermove", 10, 10); // hovering an idle pane: no label anywhere
+    expect(context.fillText).not.toHaveBeenCalled();
+    session.dispose();
+    engine.dispose();
+  });
+
+  it("outlines the 3D pane and shows the Escape hint while free look is active", () => {
+    const engine = new NullEngine();
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    const session = new EditorSession(engine, canvas, vi.fn());
+    const pane = session.root.querySelector<HTMLElement>(".shagged__pane--perspective")!;
+    const fire = (type: string, button: number) =>
+      canvas.dispatchEvent(new MouseEvent(type, { bubbles: true, button, clientX: 200, clientY: 150 }));
+    expect(pane.classList.contains("shagged__pane--freelook")).toBe(false);
+
+    fire("pointerdown", 1); // a middle click toggles free look
+    fire("pointerup", 1);
+    expect(pane.classList.contains("shagged__pane--freelook")).toBe(true);
+
+    fire("pointerdown", 1);
+    fire("pointerup", 1);
+    expect(pane.classList.contains("shagged__pane--freelook")).toBe(false);
     session.dispose();
     engine.dispose();
   });

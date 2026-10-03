@@ -119,6 +119,8 @@ export interface FlyCameraHost {
   setPose(pose: FlyPose): void;
   /** A right click (no drag) outside free look: the editor deselects. */
   onRightClick(): void;
+  /** Free look turned on or off, whether by a click or the browser exiting pointer lock itself. */
+  onFreeLookChange?(active: boolean): void;
   /** Aborting it removes every listener. */
   signal: AbortSignal;
 }
@@ -246,7 +248,9 @@ export class FlyCameraController {
   }
 
   private setFreeLook(on: boolean): void {
+    if (this.freeLook === on) return;
     this.freeLook = on;
+    this.host.onFreeLookChange?.(on);
     if (on) {
       this.host.element.requestPointerLock?.();
     } else {

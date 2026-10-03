@@ -366,7 +366,7 @@ export class EditorSession {
         <button class="shagged__exit" data-action="exit">Exit</button>
       </header>
       <main class="shagged__workspace">
-        <section class="shagged__pane shagged__pane--perspective"><span>3D PERSPECTIVE</span><div class="shagged__view-modes" role="group" aria-label="3D view mode">${VIEW_MODES.map(([mode, label, title]) => `<button type="button" data-view-mode="${mode}" title="${title}">${label}</button>`).join("")}</div></section>
+        <section class="shagged__pane shagged__pane--perspective"><span>3D PERSPECTIVE</span><div class="shagged__view-modes" role="group" aria-label="3D view mode">${VIEW_MODES.map(([mode, label, title]) => `<button type="button" data-view-mode="${mode}" title="${title}">${label}</button>`).join("")}</div><div class="shagged__free-look-hint" aria-hidden="true">Press ESC to release mouse</div></section>
         <section class="shagged__pane"><span>XY TOP</span><canvas data-plane="xy"></canvas></section>
         <section class="shagged__pane"><span>XZ FRONT</span><canvas data-plane="xz"></canvas></section>
         <section class="shagged__pane"><span>YZ SIDE</span><canvas data-plane="yz"></canvas></section>
@@ -532,6 +532,9 @@ export class EditorSession {
       getPose: () => this.pose,
       setPose: (pose) => this.setPose(pose),
       onRightClick: () => this.deselect(),
+      onFreeLookChange: (active) => {
+        this.root.querySelector(".shagged__pane--perspective")!.classList.toggle("shagged__pane--freelook", active);
+      },
       signal: this.listeners.signal,
     });
     this.canvas.addEventListener("pointerdown", (event) => this.perspectiveDown(event), {
@@ -2464,6 +2467,33 @@ export class EditorSession {
       }
       if (patchPreview) drawPatchLattice(ctx, patchPreview, plane, originX, originY, this.zoom, true);
       if (this.gesture?.mode === "draw" && preview) paint(preview.min, preview.max, true);
+      // A live width×depth×height readout follows the cursor while drawing or resizing, so the
+      // mapper doesn't have to find it in the status bar's much longer line.
+      if (
+        this.gesture?.plane === plane &&
+        (this.gesture.mode === "draw" || this.gesture.mode === "resize") &&
+        preview
+      ) {
+        const label = [axes.u, axes.v, axes.hidden]
+          .map((axis) => Math.round(preview.max[axis] - preview.min[axis]))
+          .join(" × ");
+        const cx = originX + this.gesture.current[0] * this.zoom;
+        const cy = originY - this.gesture.current[1] * this.zoom;
+        ctx.font = "bold 13px Rajdhani, sans-serif";
+        ctx.textBaseline = "top";
+        const padX = 7;
+        const padY = 4;
+        const textWidth = ctx.measureText(label).width;
+        const bx = cx + 14;
+        const by = cy - 14 - 13 - padY * 2;
+        ctx.fillStyle = "rgba(10,16,30,.92)";
+        ctx.fillRect(bx, by, textWidth + padX * 2, 13 + padY * 2);
+        ctx.strokeStyle = "#ffc61a";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(bx + 0.5, by + 0.5, textWidth + padX * 2 - 1, 13 + padY * 2 - 1);
+        ctx.fillStyle = "#ffc61a";
+        ctx.fillText(label, bx + padX, by + padY);
+      }
       // A selected face pointing at this pane's viewer is outlined, dashed, inside its brush.
       const faced = data.brushes.find((brush) => brush.id === this.selectedId);
       const facing = axes.hidden.toUpperCase();
