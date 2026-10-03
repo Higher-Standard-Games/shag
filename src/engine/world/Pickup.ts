@@ -64,10 +64,8 @@ export interface PickupOptions {
   /** Drop to the floor after spawn (BSP raycast). */
   gravity?: boolean;
   /**
-   * The spawn position is already where this item rests, so skip the floor
-   * raycast. A map weapon is thrown to its resting spot by the shared landing
-   * that the server's trigger uses; raycasting again is a client-only guess that
-   * can seat the model below the floor, invisible where the trigger still is.
+   * The map pickup is already at the server trigger's position (landed or
+   * explicitly suspended), so skip a second, client-only floor raycast.
    */
   landedOnFloor?: boolean;
   /** Enable bobbing/rotation animation (default true). */
@@ -340,16 +338,15 @@ export class Pickup extends TransformNode {
   /**
    * Build a procedural visual from `options.visualFactory`. Returns true if a
    * visual was installed; false if the factory declined or threw, so the caller
-   * can fall back to the model path. Ground placement happens here (once) so the
-   * generated sculpture and its floor pedestal sit on the detected floor.
+   * can fall back to the model path. A standalone pickup without shared landing
+   * data retains the legacy floor probe.
    */
   private async installProceduralVisual(): Promise<boolean> {
     const factory = this.options.visualFactory;
     if (!factory) return false;
     try {
-      // Static map pickups (health/armor) are placed on the floor exactly like
-      // the model-backed map-spawn path: raycast down and offset above the floor.
-      this.dropToGround();
+      // Map pickups with shared landing data already match the server trigger.
+      if (!this.options.landedOnFloor) this.dropToGround();
       this.settled = true;
 
       const visual = factory({

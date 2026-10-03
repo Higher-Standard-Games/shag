@@ -94,6 +94,27 @@ describe("Pickup placement", () => {
     expect(pickup.position.y).toBe(50);
     expect(meshOf(pickup)?.position.y).toBe(50);
   });
+
+  it("keeps a procedural visual at the server's trigger without a second floor probe", async () => {
+    let visualY = NaN;
+    const pickup = new Pickup("item_health_mega", scene, new Vector3(0, 50, 0), {
+      id: "health_mega",
+      landedOnFloor: true,
+      visualFactory: ({ position }) => {
+        visualY = position.y;
+        return {
+          root: new TransformNode("procedural-anchor", scene),
+          update() {},
+          setActive() {},
+          dispose() {},
+        };
+      },
+    });
+    await pickup.whenReady();
+
+    expect(pickup.position.y).toBe(50);
+    expect(visualY).toBe(50);
+  });
 });
 
 describe("Pickup with nothing to render", () => {

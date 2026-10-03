@@ -89,7 +89,7 @@ export class EntityManager {
    */
   private pickupTable: PickupEntry[] = [];
 
-  /** The same table with each weapon where its spawn toss comes to rest, which is where the server's trigger is. */
+  /** The same landed pickup table the server uses for its triggers. */
   private landedPickups: PickupEntry[] = [];
 
   /** Stable identity lets EntityHandlerRegistry de-duplicate this hook across reloads. */
@@ -97,10 +97,10 @@ export class EntityManager {
     this.pickupTable = extractPickups(entities);
     const sweep = getCollisionManager().getSweepBackend();
     if (!sweep) {
-      console.warn("[EntityManager] Collision is not ready: weapons stay at authored spots the server does not use");
+      console.warn("[EntityManager] Collision is not ready: map pickups may not match server landing positions");
     }
-    // Without collision there is no landing to speak of: the authored spots stand,
-    // and each pickup finds the floor beneath it the way it always did.
+    // Without collision there is no landing to speak of. Non-suspended pickups
+    // retain the legacy client floor probe as a fallback.
     this.landedPickups = sweep
       ? landMapPickups(this.pickupTable, new SharedCollisionWorld(new SweepBackendAdapter(sweep)))
       : [];
@@ -275,12 +275,13 @@ export class EntityManager {
     // the recipe/toggle declines). Weapons/ammo keep the MD3 model path.
     const visualFactory = await resolvePickupVisualFactory(def, type);
 
-    // A weapon is drawn where its spawn toss comes to rest — the exact spot the
-    // server's trigger and bot goals use. It is placed there and left there: a
-    // floor raycast on top of that is a client-only guess which can disagree with
-    // the server, and did, seating models below the floor where the trigger stayed.
-    const landed = type === "weapon" ? this.landedPickups.find((e) => e.id === pickupId)?.position : undefined;
-    const spawnAt = landed ? new Vector3(landed.x, landed.y, landed.z) : position;
+    // Every map pickup uses the shared landing result, which also positions the
+    // server trigger and bot goal. A second client raycast can hit visual surfaces
+    // below a bridge and move the model away from its authoritative trigger.
+    // Suspended non-weapons keep their authored origin even without collision.
+    const landed = this.landedPickups.find((e) => e.id === pickupId)?.position;
+    const placed = landed ?? (type !== "weapon" && pickupEntry?.suspended ? pickupEntry.position : undefined);
+    const spawnAt = placed ? new Vector3(placed.x, placed.y, placed.z) : position;
 
     const pickup = new FPSPickup(name, scene, spawnAt, {
       id: def.id,
@@ -295,7 +296,7 @@ export class EntityManager {
       pickupId,
       visualFactory,
       yaw: type === "weapon" ? mapWeaponYaw(pickupId) : undefined,
-      landedOnFloor: landed !== undefined,
+      landedOnFloor: placed !== undefined,
     });
 
     // A map entity is not spawned until its visual construction has settled.
