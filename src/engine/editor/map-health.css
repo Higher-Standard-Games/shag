@@ -1,0 +1,107 @@
+/* SHAGGED Map Health tray: a compact panel docked bottom-left, above the
+   status bar, so it never covers the texture browser on the right. */
+.shagged-health {
+  position: fixed;
+  z-index: 850;
+  left: 0;
+  bottom: 30px;
+  width: min(420px, 42vw);
+  max-height: min(340px, 50vh);
+  display: flex;
+  flex-direction: column;
+  background: #10172b;
+  border-top: 2px solid #ffc61a;
+  border-right: 1px solid #2c3a57;
+  box-shadow: 10px -10px 30px #0009;
+  color: #e8fbff;
+  font:
+    13px "Rajdhani",
+    sans-serif;
+  pointer-events: auto;
+}
+.shagged-health[hidden] {
+  display: none;
+}
+.shagged-health__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid #2c3a57;
+}
+.shagged-health__head strong {
+  font:
+    900 11px "Orbitron",
+    monospace;
+  letter-spacing: 0.06em;
+  color: #ffc61a;
+  text-transform: uppercase;
+}
+.shagged-health__count {
+  flex: 1;
+  color: #9fb5c5;
+  font-size: 12px;
+}
+.shagged-health__refresh,
+.shagged-health__close {
+  padding: 3px 8px;
+  background: #0b1222;
+  color: #e8fbff;
+  border: 1px solid #47768b;
+  font: inherit;
+  cursor: pointer;
+}
+.shagged-health__refresh:hover,
+.shagged-health__close:hover {
+  border-color: #ffc61a;
+}
+.shagged-health__list {
+  overflow-y: auto;
+  min-height: 0;
+}
+.shagged-health__empty {
+  padding: 16px;
+  color: #6fcf8f;
+  text-align: center;
+}
+.shagged-health__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  background: none;
+  color: inherit;
+  border: 0;
+  border-bottom: 1px solid #1c2740;
+  font: inherit;
+  text-align: left;
+}
+button.shagged-health__row {
+  cursor: pointer;
+}
+button.shagged-health__row:hover {
+  background: #1a2744;
+}
+.shagged-health__badge {
+  flex: none;
+  padding: 1px 6px;
+  border-radius: 2px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+.shagged-health__row--warning .shagged-health__badge {
+  background: #3a2a0c;
+  color: #ffc61a;
+}
+.shagged-health__row--info .shagged-health__badge {
+  background: #16314a;
+  color: #7fc8e8;
+}
+.shagged-health__message {
+  min-width: 0;
+  color: #d7e6ee;
+}
