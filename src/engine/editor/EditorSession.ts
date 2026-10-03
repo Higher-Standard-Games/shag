@@ -1,4 +1,4 @@
-import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera";
+import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
 import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine";
 import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
 import { ImportMeshAsync } from "@babylonjs/core/Loading/sceneLoader";
@@ -48,6 +48,7 @@ import {
 } from "./EntityCatalog";
 import { type FaceUpdate, renderFaceAlignment } from "./FaceAlignmentPanel";
 import { faceKeyFromNormal, naturalFace } from "./FaceUv";
+import { DEFAULT_POSE, FlyCameraController, type FlyPose, forwardOf, framePose, poseFromOrbit } from "./FlyCamera";
 import { writeMap } from "./MapWriter";
 import { indexedModelPaths, modelReferenceIssue } from "./ModelReference";
 import { browserPreviewDeps, PreviewTextures } from "./PreviewTextures";
@@ -221,7 +222,10 @@ export class EditorSession {
   document: EditorDocument;
   readonly root: HTMLDivElement;
   private readonly scene: Scene;
-  private readonly camera: ArcRotateCamera;
+  private readonly camera: FreeCamera;
+  private pose: FlyPose = DEFAULT_POSE;
+  private flyCamera!: FlyCameraController;
+  private readonly engine: AbstractEngine;
   private readonly panes = new Map<Plane, HTMLCanvasElement>();
   private readonly meshes = new Map<string, Mesh>();
   private readonly modelPreviews = new Map<string, TransformNode>();
@@ -252,7 +256,8 @@ export class EditorSession {
   private grid = 16;
   private zoom = 1;
   private viewCenter: Vec3q = { x: 0, y: 0, z: 0 };
-  private pan: { plane: Plane; x: number; y: number; center: Vec3q } | null = null;
+  /** A middle or right drag in an orthographic pane; a right press that never moves is a deselect click. */
+  private pan: { plane: Plane; button: number; x: number; y: number; center: Vec3q; travel: number } | null = null;
   private workPlanes: Vec3q = { x: 0, y: 0, z: 0 };
   private activePlane: Plane = "xy";
   private gesture: Gesture | null = null;
@@ -275,20 +280,16 @@ export class EditorSession {
     private readonly onExit: () => void,
     private readonly api: ShaggedApi | null = null,
   ) {
+    this.engine = engine;
     const restored = this.draftStore.load();
     this.document = restored.document;
     this.scene = new Scene(engine);
     this.scene.clearColor = new Color4(0.035, 0.045, 0.075, 1);
-    this.camera = new ArcRotateCamera("shagged-perspective", Math.PI / 4, Math.PI / 3, 650, Vector3.Zero(), this.scene);
-    this.camera.lowerRadiusLimit = 32;
-    this.camera.upperRadiusLimit = 5000;
-    // Reserve left click for selection; right drag orbits and middle drag pans.
-    const rotate = this.camera.movement.input.getEntry("pointer", "rotate", { button: 0 });
-    const pan = this.camera.movement.input.getEntry("pointer", "pan", { button: 2 });
-    if (rotate) rotate.button = 2;
-    if (pan) pan.button = 1;
+    // A flycam driven by FlyCameraController; Babylon's own camera inputs stay detached.
+    this.camera = new FreeCamera("shagged-perspective", Vector3.Zero(), this.scene);
+    this.camera.minZ = 1;
+    this.camera.maxZ = 40_000;
     this.restoreView(restored.view);
-    this.camera.attachControl(canvas, true);
     this.camera.onViewMatrixChangedObservable.add(() => {
       if (this.viewSaveTimer) clearTimeout(this.viewSaveTimer);
       this.viewSaveTimer = setTimeout(() => this.trySaveView(), 400);
@@ -394,6 +395,7 @@ export class EditorSession {
       });
       pane.addEventListener("pointerup", (event) => this.pointerUp(plane, event), { signal: this.listeners.signal });
       pane.addEventListener("pointercancel", () => this.cancelGesture(), { signal: this.listeners.signal });
+      pane.addEventListener("contextmenu", (event) => event.preventDefault(), { signal: this.listeners.signal });
       pane.addEventListener("lostpointercapture", () => this.cancelGesture(), { signal: this.listeners.signal });
       pane.addEventListener(
         "pointerleave",
@@ -494,6 +496,15 @@ export class EditorSession {
       { signal: this.listeners.signal },
     );
     this.root.addEventListener("keydown", (event) => this.keyDown(event), { signal: this.listeners.signal });
+    this.root.addEventListener("keyup", (event) => this.flyCamera.keyUp(event), { signal: this.listeners.signal });
+    this.flyCamera = new FlyCameraController({
+      element: this.canvas,
+      isOver: (event) => this.inPerspective(event),
+      getPose: () => this.pose,
+      setPose: (pose) => this.setPose(pose),
+      onRightClick: () => this.deselect(),
+      signal: this.listeners.signal,
+    });
     this.canvas.addEventListener("pointerdown", (event) => this.perspectiveDown(event), {
       signal: this.listeners.signal,
     });
@@ -535,6 +546,7 @@ export class EditorSession {
     return this.document.snapshot().revision;
   }
   render(): void {
+    this.flyCamera.step(this.engine.getDeltaTime() / 1000);
     const pane = this.root.querySelector<HTMLElement>(".shagged__pane--perspective")!;
     const rect = pane.getBoundingClientRect();
     const canvasRect = this.canvas.getBoundingClientRect();
@@ -564,12 +576,7 @@ export class EditorSession {
       activePlane: this.activePlane,
       workPlanes: { ...this.workPlanes },
       viewCenter: { ...this.viewCenter },
-      camera: {
-        alpha: this.camera.alpha,
-        beta: this.camera.beta,
-        radius: this.camera.radius,
-        target: { x: this.camera.target.x, y: this.camera.target.z, z: this.camera.target.y },
-      },
+      camera: { position: { ...this.pose.position }, yaw: this.pose.yaw, pitch: this.pose.pitch },
     };
   }
   private trySaveView(): void {
@@ -855,7 +862,6 @@ export class EditorSession {
     this.listeners.abort();
     if (this.viewSaveTimer) clearTimeout(this.viewSaveTimer);
     this.disposeGhost();
-    this.camera.detachControl();
     this.scene.dispose();
     this.root.remove();
   }
@@ -1043,11 +1049,34 @@ export class EditorSession {
     this.workPlanes = { ...(view?.workPlanes ?? { x: 0, y: 0, z: 0 }) };
     this.activePlane = view?.activePlane ?? "xy";
     this.selectedId = this.exists(view?.selectedId) ? (view?.selectedId ?? null) : null;
-    this.camera.alpha = view?.camera.alpha ?? Math.PI / 4;
-    this.camera.beta = view?.camera.beta ?? Math.PI / 3;
-    this.camera.radius = view?.camera.radius ?? 650;
-    const target = view?.camera.target ?? { x: 0, y: 0, z: 0 };
-    this.camera.target = new Vector3(target.x, target.z, target.y);
+    const camera = view?.camera;
+    this.setPose(
+      !camera
+        ? DEFAULT_POSE
+        : "position" in camera
+          ? { position: { ...camera.position }, yaw: camera.yaw, pitch: camera.pitch }
+          : poseFromOrbit(camera.alpha, camera.beta, camera.radius, camera.target),
+    );
+  }
+
+  /** The flycam pose onto the Babylon camera: Quake Z-up becomes Babylon Y-up. */
+  private setPose(pose: FlyPose): void {
+    this.pose = pose;
+    const { x, y, z } = pose.position;
+    const f = forwardOf(pose);
+    this.camera.position = new Vector3(x, z, y);
+    this.camera.setTarget(new Vector3(x + f.x, z + f.z, y + f.y));
+  }
+
+  /** Right click, a plain click on nothing, or Escape with nothing else open: drop the selection. */
+  private deselect(): void {
+    if (!this.selectedId && !this.selectedFaces.size) return;
+    this.selectedFaces.clear();
+    this.selectedId = null;
+    this.rebuildMeshes();
+    this.draw();
+    this.trySaveView();
+    this.status("Selection cleared");
   }
 
   private showDrafts(): void {
@@ -1335,6 +1364,7 @@ export class EditorSession {
       return;
     }
     if (menu && key !== "escape") return;
+    if (this.flyCamera.keyDown(event)) return;
     if (event.ctrlKey || event.metaKey) {
       if (key === "z") {
         event.preventDefault();
@@ -1381,7 +1411,9 @@ export class EditorSession {
       if (drafts && !drafts.hidden) {
         drafts.hidden = true;
         this.root.focus();
+        return;
       }
+      this.deselect();
     }
   }
 
@@ -1424,14 +1456,10 @@ export class EditorSession {
         zoom = Math.min(zoom, (width * 0.8) / bounds.size[axes.u], (height * 0.8) / bounds.size[axes.v]);
     }
     this.zoom = Math.max(0.25, zoom);
-    this.camera.target = new Vector3(bounds.center.x, bounds.center.z, bounds.center.y);
     const rect = this.root.querySelector<HTMLElement>(".shagged__pane--perspective")!.getBoundingClientRect();
     const aspect = rect.width / Math.max(1, rect.height);
     const halfFov = Math.min(this.camera.fov / 2, Math.atan(Math.tan(this.camera.fov / 2) * Math.max(0.1, aspect)));
-    this.camera.radius = Math.max(
-      32,
-      Math.min(5000, (Math.hypot(bounds.size.x, bounds.size.y, bounds.size.z) * 0.6) / Math.sin(halfFov)),
-    );
+    this.setPose(framePose(this.pose, bounds.center, bounds.size, halfFov));
     this.draw();
     this.trySaveView();
   }
@@ -1523,7 +1551,7 @@ export class EditorSession {
   }
 
   private pointerDown(plane: Plane, event: PointerEvent): void {
-    if (event.button !== 0 && event.button !== 1) return;
+    if (event.button > 2) return;
     if (this.gesture || this.pan) return;
     event.preventDefault();
     this.root.focus();
@@ -1531,8 +1559,15 @@ export class EditorSession {
     this.updateWorkPlaneControl();
     const pane = this.panes.get(plane)!;
     pane.setPointerCapture(event.pointerId);
-    if (event.button === 1) {
-      this.pan = { plane, x: event.clientX, y: event.clientY, center: { ...this.viewCenter } };
+    if (event.button !== 0) {
+      this.pan = {
+        plane,
+        button: event.button,
+        x: event.clientX,
+        y: event.clientY,
+        center: { ...this.viewCenter },
+        travel: 0,
+      };
       return;
     }
     const start = this.coordinates(plane, pane, event);
@@ -1546,8 +1581,10 @@ export class EditorSession {
     // Entities are small and drawn on top of brushes, so they win a shared click.
     const entityHit = [...data.entities].reverse().find((entity) => inRect(u, v, entityBox(entity), plane));
     const hit = entityHit ? undefined : [...data.brushes].reverse().find((brush) => inRect(u, v, brush, plane));
-    if (this.tool === "select") {
-      this.selectedFaces.clear();
+    // With the Brush tool, a drag on the selection moves or resizes it, as in Radiant; elsewhere it draws.
+    const onSelection = (entityHit ?? hit)?.id === this.selectedId && this.selectedId !== null;
+    if (this.tool === "select" || onSelection) {
+      if (!onSelection) this.selectedFaces.clear();
       this.selectedId = entityHit?.id ?? hit?.id ?? null;
       const edge = hit ? pickResizeEdge(hit, axes.u, axes.v, u, v, 8 / this.zoom) : null;
       this.gesture =
@@ -1605,6 +1642,7 @@ export class EditorSession {
 
   private pointerMove(plane: Plane, event: PointerEvent): void {
     if (this.pan?.plane === plane) {
+      this.pan.travel = Math.max(this.pan.travel, Math.hypot(event.clientX - this.pan.x, event.clientY - this.pan.y));
       this.viewCenter = panCenter(
         plane,
         this.pan.center,
@@ -1636,10 +1674,12 @@ export class EditorSession {
   }
 
   private pointerUp(plane: Plane, event: PointerEvent): void {
-    if (this.pan?.plane === plane && event.button === 1) {
+    if (this.pan?.plane === plane && event.button === this.pan.button) {
       this.pointerMove(plane, event);
+      const click = this.pan.button === 2 && this.pan.travel <= 4;
       this.pan = null;
-      this.trySaveView();
+      if (click) this.deselect();
+      else this.trySaveView();
       return;
     }
     if (event.button !== 0) return;
@@ -1650,7 +1690,9 @@ export class EditorSession {
     const [u0, v0] = gesture.start;
     const [u1, v1] = gesture.current;
     if (u0 === u1 && v0 === v1) {
-      this.draw();
+      // A Brush-tool click that drew nothing selects what is under it, or clears the selection.
+      if (gesture.mode === "draw") this.clickSelect(plane, event);
+      else this.draw();
       return;
     }
     const axes = AXES[plane];
@@ -1698,6 +1740,23 @@ export class EditorSession {
       });
     }
     this.changed();
+  }
+
+  private clickSelect(plane: Plane, event: PointerEvent): void {
+    const [u, v] = this.worldAt(plane, this.panes.get(plane)!, event);
+    const data = this.document.snapshot();
+    const entityHit = [...data.entities].reverse().find((entity) => inRect(u, v, entityBox(entity), plane));
+    const hit = entityHit ?? [...data.brushes].reverse().find((brush) => inRect(u, v, brush, plane));
+    if (!hit) {
+      this.deselect();
+      this.draw();
+      return;
+    }
+    if (hit.id !== this.selectedId) this.selectedFaces.clear();
+    this.selectedId = hit.id;
+    this.rebuildMeshes();
+    this.draw();
+    this.trySaveView();
   }
 
   private cancelGesture(): void {

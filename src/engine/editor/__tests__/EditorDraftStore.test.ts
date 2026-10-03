@@ -71,6 +71,24 @@ describe("editor local draft recovery", () => {
     expect(() => store.load()).toThrow("Active draft ID does not match");
   });
 
+  it("keeps a flycam pose and view mode, still accepts an orbit camera, and refuses a bad pose", () => {
+    const store = new EditorDraftStore(memoryStorage());
+    const data = new EditorDocument().snapshot();
+    const fly: EditorViewState = {
+      ...view,
+      camera: { position: { x: 1, y: 2, z: 3 }, yaw: 270, pitch: -20 },
+      viewMode: "wireframe",
+    };
+    store.save(data, fly);
+    expect(store.load().view).toEqual(fly);
+    store.save(data, view); // orbit camera from before the flycam
+    expect(store.load().view?.camera).toEqual(view.camera);
+    expect(() => store.save(data, { ...fly, camera: { position: { x: 0, y: 0, z: 0 }, yaw: 0, pitch: 120 } })).toThrow(
+      "Invalid editor view state",
+    );
+    expect(() => store.save(data, { ...fly, viewMode: "xray" as never })).toThrow("Invalid editor view state");
+  });
+
   it("lists named drafts and activates an older valid draft", () => {
     const storage = memoryStorage();
     const store = new EditorDraftStore(storage);

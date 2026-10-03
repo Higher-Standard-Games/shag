@@ -15,8 +15,48 @@ export interface EditorViewState {
   activePlane?: "xy" | "xz" | "yz";
   workPlanes?: Vec3q;
   viewCenter?: Vec3q;
-  camera: { alpha: number; beta: number; radius: number; target: Vec3q };
+  /** The flycam pose; views saved before the flycam carry the orbit camera, converted on load. */
+  camera: FlyCameraView | OrbitCameraView;
+  /** The 3D pane's view mode. */
+  viewMode?: "brush" | "textured" | "wireframe";
   serverSave?: { revision: number; documentRevision: number };
+}
+
+export interface FlyCameraView {
+  position: Vec3q;
+  yaw: number;
+  pitch: number;
+}
+export interface OrbitCameraView {
+  alpha: number;
+  beta: number;
+  radius: number;
+  target: Vec3q;
+}
+
+const finiteVec = (value: Vec3q | undefined): boolean =>
+  !!value && (["x", "y", "z"] as const).every((axis) => Number.isFinite(value[axis]));
+
+function validCamera(camera: FlyCameraView | OrbitCameraView | undefined): boolean {
+  if (!camera) return false;
+  if ("position" in camera) {
+    return (
+      finiteVec(camera.position) &&
+      Number.isFinite(camera.yaw) &&
+      Number.isFinite(camera.pitch) &&
+      Math.abs(camera.pitch) <= 90
+    );
+  }
+  return (
+    Number.isFinite(camera.alpha) &&
+    Number.isFinite(camera.beta) &&
+    camera.beta > 0 &&
+    camera.beta < Math.PI &&
+    Number.isFinite(camera.radius) &&
+    camera.radius >= 32 &&
+    camera.radius <= 5000 &&
+    finiteVec(camera.target)
+  );
 }
 
 function validView(value: unknown): value is EditorViewState {
@@ -47,16 +87,8 @@ function validView(value: unknown): value is EditorViewState {
         state.serverSave.revision > 0 &&
         Number.isSafeInteger(state.serverSave.documentRevision) &&
         state.serverSave.documentRevision >= 0)) &&
-    !!camera &&
-    Number.isFinite(camera.alpha) &&
-    Number.isFinite(camera.beta) &&
-    camera.beta > 0 &&
-    camera.beta < Math.PI &&
-    Number.isFinite(camera.radius) &&
-    camera.radius >= 32 &&
-    camera.radius <= 5000 &&
-    !!camera.target &&
-    (["x", "y", "z"] as const).every((axis) => Number.isFinite(camera.target[axis]))
+    (state.viewMode === undefined || ["brush", "textured", "wireframe"].includes(state.viewMode)) &&
+    validCamera(camera)
   );
 }
 

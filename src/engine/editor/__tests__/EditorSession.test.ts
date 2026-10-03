@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 
-import type { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera";
+import type { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EditorSession } from "../EditorSession";
 
@@ -227,8 +228,10 @@ describe("editor DOM shell", () => {
     const canvas = document.createElement("canvas");
     document.body.appendChild(canvas);
     const first = new EditorSession(engine, canvas, vi.fn());
-    const camera = engine.scenes[0].activeCamera as ArcRotateCamera;
-    expect(camera.movement.input.getEntry("pointer", "rotate", { button: 2 })?.button).toBe(2);
+    // the flycam drives the camera; Babylon's own inputs stay detached so left click remains selection
+    const camera = engine.scenes[0].activeCamera as FreeCamera;
+    expect(camera.getClassName()).toBe("FreeCamera");
+    expect(camera.inputs.attachedToElement).toBe(false);
     first.root.querySelector<HTMLButtonElement>('[data-action="room"]')!.click();
     expect(first.document.snapshot().brushes).toHaveLength(6);
     expect(first.document.snapshot().entities.find((e) => e.classname === "info_player_deathmatch")?.origin.z).toBe(48);
@@ -323,8 +326,12 @@ describe("editor DOM shell", () => {
     });
     const data = session.document.snapshot();
     session.root.dispatchEvent(new KeyboardEvent("keydown", { key: "f", bubbles: true }));
-    const camera = engine.scenes[0].activeCamera as ArcRotateCamera;
-    expect(camera.target.asArray()).toEqual([-32, 8, 64]);
+    // framing keeps the look direction and puts the bounds' centre (Quake -32, 64, 8) on the view axis
+    const camera = engine.scenes[0].activeCamera as FreeCamera;
+    const toCenter = new Vector3(-32, 8, 64).subtract(camera.position).normalize();
+    camera.getViewMatrix(true);
+    const forward = camera.getDirection(Vector3.Forward()).normalize();
+    expect(Vector3.Distance(toCenter, forward)).toBeLessThan(1e-6);
     expect(session.document.snapshot()).toEqual(data);
     const saved = JSON.parse(localStorage.getItem(`shagged:view:v1:${session.draftId}`)!);
     expect(saved.viewCenter).toEqual({ x: -32, y: 64, z: 8 });
@@ -335,7 +342,9 @@ describe("editor DOM shell", () => {
     expect(JSON.parse(localStorage.getItem(`shagged:view:v1:${id}`)!)).toMatchObject({
       viewCenter: saved.viewCenter,
       zoom: saved.zoom,
+      camera: saved.camera,
     });
+    expect(saved.camera).toMatchObject({ yaw: expect.any(Number), pitch: expect.any(Number) });
     session.dispose();
     engine.dispose();
   });
@@ -768,6 +777,110 @@ describe("editor DOM shell", () => {
     expect(scene.getMeshByName("slab")!.material!.alpha).toBe(0.82);
     // switching with a face selected restyles its overlay too
     expect(scene.getMeshByName("shagged-face-+Z")!.material!.alpha).toBe(0.6);
+    session.dispose();
+    engine.dispose();
+  });
+
+  it("deselects with a right click or Escape, pans with a right drag, and selects or moves with the Brush tool", () => {
+    const engine = new NullEngine();
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    const session = new EditorSession(engine, canvas, vi.fn());
+    const pane = session.root.querySelector<HTMLCanvasElement>('[data-plane="xy"]')!;
+    const pointer = (type: string, x: number, y: number, button = 0) =>
+      pane.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, button, clientX: x, clientY: y }));
+    const click = (x: number, y: number, button = 0) => {
+      pointer("pointerdown", x, y, button);
+      pointer("pointerup", x, y, button);
+    };
+    const selected = () => session.root.querySelector("[data-brush-id]")?.textContent ?? null;
+    const status = () => session.root.querySelector(".shagged__status")!.textContent!;
+
+    // draw a brush with the Brush tool: it becomes the selection
+    pointer("pointerdown", 200, 150);
+    pointer("pointerup", 264, 86);
+    const drawn = session.document.snapshot().brushes[0];
+    expect(selected()).toBe(drawn.id.slice(0, 8));
+
+    // a right click deselects, in an orthographic pane
+    click(230, 120, 2);
+    expect(selected()).toBeNull();
+    expect(status()).toContain("Selection cleared");
+
+    // a Brush-tool click on a brush selects it rather than drawing
+    click(230, 120);
+    expect(selected()).toBe(drawn.id.slice(0, 8));
+    expect(session.document.snapshot().brushes).toHaveLength(1);
+
+    // dragging the selected brush with the Brush tool moves it instead of drawing a new one
+    pointer("pointerdown", 230, 120);
+    pointer("pointermove", 262, 120);
+    pointer("pointerup", 262, 120);
+    expect(session.document.snapshot().brushes).toHaveLength(1);
+    expect(session.document.snapshot().brushes[0].min.x).toBe(drawn.min.x + 32);
+
+    // a Brush-tool click on empty space clears the selection ("focus out")
+    click(20, 20);
+    expect(selected()).toBeNull();
+    expect(session.document.snapshot().brushes).toHaveLength(1);
+
+    // a right drag pans without deselecting or editing
+    click(262, 120);
+    const before = session.document.snapshot();
+    pointer("pointerdown", 100, 100, 2);
+    pointer("pointermove", 164, 100, 2);
+    pointer("pointerup", 164, 100, 2);
+    expect(selected()).not.toBeNull();
+    expect(session.document.snapshot()).toEqual(before);
+    const saved = JSON.parse(localStorage.getItem(`shagged:view:v1:${session.draftId}`)!);
+    expect(saved.viewCenter.x).toBeLessThan(0);
+
+    // Escape with nothing else open deselects
+    session.root.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    expect(selected()).toBeNull();
+
+    // the context menu never opens over a pane
+    const menu = new MouseEvent("contextmenu", { bubbles: true, cancelable: true });
+    pane.dispatchEvent(menu);
+    expect(menu.defaultPrevented).toBe(true);
+    session.dispose();
+    engine.dispose();
+  });
+
+  it("deselects with a right click in 3D and loads a view saved with the orbit camera", () => {
+    const engine = new NullEngine();
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    let session = new EditorSession(engine, canvas, vi.fn());
+    session.root.querySelector<HTMLButtonElement>('[data-action="room"]')!.click();
+    const id = session.draftId;
+    const fire = (type: string, button: number) =>
+      canvas.dispatchEvent(
+        new MouseEvent(type, { bubbles: true, cancelable: true, button, clientX: 200, clientY: 150 }),
+      );
+    fire("pointerdown", 0);
+    fire("pointerup", 0);
+    expect(session.root.querySelector("[data-brush-id]")).not.toBeNull();
+    fire("pointerdown", 2);
+    fire("pointerup", 2);
+    expect(session.root.querySelector("[data-brush-id]")).toBeNull();
+    session.dispose();
+
+    // a view saved before the flycam: the orbit's eye and look direction carry over
+    const key = `shagged:view:v1:${id}`;
+    const view = JSON.parse(localStorage.getItem(key)!);
+    view.camera = { alpha: Math.PI / 2, beta: Math.PI / 2, radius: 500, target: { x: 0, y: 0, z: 64 } };
+    localStorage.setItem(key, JSON.stringify(view));
+    session = new EditorSession(engine, canvas, vi.fn());
+    const camera = engine.scenes.at(-1)!.activeCamera as FreeCamera;
+    // Babylon alpha π/2, beta π/2 puts the eye on Babylon +Z (Quake +Y), level with the target
+    expect(camera.position.x).toBeCloseTo(0, 6);
+    expect(camera.position.y).toBeCloseTo(64, 6);
+    expect(camera.position.z).toBeCloseTo(500, 6);
+    session.save();
+    const migrated = JSON.parse(localStorage.getItem(key)!).camera;
+    expect(migrated.yaw).toBeCloseTo(270, 9);
+    expect(migrated.pitch).toBeCloseTo(0, 9);
     session.dispose();
     engine.dispose();
   });
