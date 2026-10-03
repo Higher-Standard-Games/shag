@@ -213,7 +213,8 @@ export class EditorSession {
   private readonly panes = new Map<Plane, HTMLCanvasElement>();
   private readonly meshes = new Map<string, Mesh>();
   private readonly modelPreviews = new Map<string, TransformNode>();
-  private previewGeneration = 0;
+  private readonly modelPreviewRequests = new Map<string, string>();
+  private readonly modelPreviewFailures = new Map<string, string>();
   private ghost: Mesh | null = null;
   private readonly listeners = new AbortController();
   private readonly draftStore = new EditorDraftStore(localStorage);
@@ -500,7 +501,7 @@ export class EditorSession {
     this.status(message);
   }
   dispose(): void {
-    this.previewGeneration++;
+    this.modelPreviewRequests.clear();
     this.serverGeneration++;
     if (this.pollTimer) clearTimeout(this.pollTimer);
     this.listeners.abort();
@@ -1414,15 +1415,31 @@ export class EditorSession {
   }
 
   private rebuildMeshes(): void {
-    this.previewGeneration++;
-    for (const root of this.modelPreviews.values()) root.dispose(false, true);
-    this.modelPreviews.clear();
+    const data = this.document.snapshot();
+    const wanted = new Map(
+      data.entities
+        .filter(
+          (entity) =>
+            entity.classname === "misc_model" &&
+            !modelReferenceIssue(entity) &&
+            entity.keys.model.toLowerCase().endsWith(".glb"),
+        )
+        .map((entity) => [entity.id, entity.keys.model]),
+    );
+    for (const [id, root] of this.modelPreviews) {
+      if (wanted.get(id) === root.metadata?.editorModelPath) continue;
+      root.dispose(false, true);
+      this.modelPreviews.delete(id);
+    }
+    for (const [id, path] of this.modelPreviewRequests)
+      if (wanted.get(id) !== path) this.modelPreviewRequests.delete(id);
+    for (const [id, path] of this.modelPreviewFailures)
+      if (wanted.get(id) !== path) this.modelPreviewFailures.delete(id);
     for (const mesh of this.meshes.values()) {
       mesh.material?.dispose();
       mesh.dispose();
     }
     this.meshes.clear();
-    const data = this.document.snapshot();
     const ownerColors = brushOwnerColors(data);
     for (const brush of data.brushes) {
       const mesh = MeshBuilder.CreateBox(
@@ -1471,41 +1488,61 @@ export class EditorSession {
       mesh.edgesWidth = 2;
       mesh.edgesColor = new Color4(0.02, 0.02, 0.05, 1);
       this.meshes.set(entity.id, mesh);
-      if (entity.classname === "misc_model" && !modelReferenceIssue(entity)) {
-        void this.loadModelPreview(entity, this.previewGeneration);
+      const path = wanted.get(entity.id);
+      if (path) {
+        const preview = this.modelPreviews.get(entity.id);
+        if (preview) this.positionModelPreview(preview, entity);
+        else if (
+          this.modelPreviewRequests.get(entity.id) !== path &&
+          this.modelPreviewFailures.get(entity.id) !== path
+        ) {
+          this.modelPreviewRequests.set(entity.id, path);
+          void this.loadModelPreview(entity.id, path);
+        }
       }
     }
   }
 
+  private positionModelPreview(root: TransformNode, entity: PointEntity): void {
+    root.position.set(entity.origin.x, entity.origin.z, entity.origin.y);
+    root.rotation.y = (Number(entity.keys.angle ?? 0) * Math.PI) / 180;
+    root.scaling.setAll(Number(entity.keys.modelscale ?? 1));
+  }
+
   /** Loose GLB preview. The marker remains pickable when the browser cannot load the asset. */
-  private async loadModelPreview(entity: PointEntity, generation: number): Promise<void> {
-    const path = entity.keys.model;
-    if (!path?.toLowerCase().endsWith(".glb")) return;
+  private async loadModelPreview(id: string, path: string): Promise<void> {
     let root: TransformNode | null = null;
     try {
       const slash = path.lastIndexOf("/");
       const result = await ImportMeshAsync(path.slice(slash + 1), this.scene, {
         rootUrl: `/data/${path.slice(0, slash + 1)}`,
       });
-      root = new TransformNode(`preview-${entity.id}`, this.scene);
+      if (this.modelPreviewRequests.get(id) !== path || this.scene.isDisposed) {
+        for (const mesh of result.meshes) mesh.dispose(false, true);
+        for (const node of result.transformNodes) node.dispose(false, true);
+        return;
+      }
+      root = new TransformNode(`preview-${id}`, this.scene);
+      root.metadata = { editorModelPath: path };
       for (const node of result.transformNodes) if (!node.parent) node.parent = root;
       for (const mesh of result.meshes) {
         if (!mesh.parent) mesh.parent = root;
-        mesh.metadata = { ...mesh.metadata, editorEntityId: entity.id };
+        mesh.metadata = { ...mesh.metadata, editorEntityId: id };
         mesh.isPickable = true;
       }
-      root.position.set(entity.origin.x, entity.origin.z, entity.origin.y);
-      root.rotation.y = (Number(entity.keys.angle ?? 0) * Math.PI) / 180;
-      const scale = Number(entity.keys.modelscale ?? 1);
-      root.scaling.setAll(scale);
-      if (generation !== this.previewGeneration || this.scene.isDisposed) {
+      const current = this.document.snapshot().entities.find((entity) => entity.id === id);
+      if (this.modelPreviewRequests.get(id) !== path || current?.keys.model !== path || this.scene.isDisposed) {
         root.dispose(false, true);
         return;
       }
-      this.modelPreviews.set(entity.id, root);
+      this.positionModelPreview(root, current);
+      this.modelPreviewRequests.delete(id);
+      this.modelPreviews.set(id, root);
     } catch (error) {
       root?.dispose(false, true);
-      if (generation === this.previewGeneration) {
+      if (this.modelPreviewRequests.get(id) === path) {
+        this.modelPreviewRequests.delete(id);
+        this.modelPreviewFailures.set(id, path);
         this.status(`Model preview unavailable for ${path}: ${error instanceof Error ? error.message : String(error)}`);
       }
     }

@@ -352,6 +352,8 @@ malformed model paths and nonpositive scale. The 3D pane attempts to load a
 loose GLB from `/data/` and retains the selectable marker if preview fails;
 other formats currently show a marker and an explicit preview limitation.
 The model's rendered bounds are not yet used for 2D hit testing or framing.
+Loaded loose-GLB previews are reused across selection/redraw and repositioned
+when the entity moves; an unchanged missing path is not fetched repeatedly.
 This is an authoring/export slice, not proof that an installed MakeBSP accepts
 our GLB or that preview transforms/materials match the compiled BSP. The
 server does not yet verify asset existence in its VFS.
