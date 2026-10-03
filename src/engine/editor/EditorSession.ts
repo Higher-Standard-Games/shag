@@ -24,6 +24,7 @@ import {
   FACE_KEYS,
   type FaceKey,
   ownerOf,
+  type PatchSurface,
   type PointEntity,
   pruneBrushEntities,
   type Vec3q,
@@ -51,6 +52,7 @@ import { faceKeyFromNormal, naturalFace } from "./FaceUv";
 import { DEFAULT_POSE, FlyCameraController, type FlyPose, forwardOf, framePose, poseFromOrbit } from "./FlyCamera";
 import { writeMap } from "./MapWriter";
 import { indexedModelPaths, modelReferenceIssue } from "./ModelReference";
+import { createPatchPreview, drawPatchLattice, patchBounds, patchLatticeHit } from "./PatchPreview";
 import { browserPreviewDeps, PreviewTextures } from "./PreviewTextures";
 import { createRoomTemplate } from "./RoomTemplate";
 import { inspectServerMap, serverMapName } from "./ServerMapOpen";
@@ -559,7 +561,11 @@ export class EditorSession {
   private exists(id: string | null | undefined): boolean {
     if (!id) return false;
     const data = this.document.snapshot();
-    return data.brushes.some((brush) => brush.id === id) || data.entities.some((entity) => entity.id === id);
+    return (
+      data.brushes.some((brush) => brush.id === id) ||
+      data.entities.some((entity) => entity.id === id) ||
+      (data.patches ?? []).some((patch) => patch.id === id)
+    );
   }
   get revision(): number {
     return this.document.snapshot().revision;
@@ -1395,6 +1401,7 @@ export class EditorSession {
             const id = this.selectedId;
             this.document.transact((data) => {
               data.brushes = data.brushes.filter((brush) => brush.id !== id);
+              data.patches = (data.patches ?? []).filter((patch) => patch.id !== id);
               data.entities = data.entities.filter((entity) => entity.id !== id);
               pruneBrushEntities(data);
             });
@@ -1417,6 +1424,7 @@ export class EditorSession {
   private duplicateSelection(): void {
     const data = this.document.snapshot();
     const brush = data.brushes.find((item) => item.id === this.selectedId);
+    const patch = (data.patches ?? []).find((item) => item.id === this.selectedId);
     const entity = data.entities.find((item) => item.id === this.selectedId);
     const id = crypto.randomUUID();
     if (brush) {
@@ -1433,6 +1441,14 @@ export class EditorSession {
       copy.id = id;
       copy.origin.x += this.grid;
       this.document.transact((draft) => draft.entities.push(copy));
+    } else if (patch) {
+      const copy = structuredClone(patch);
+      copy.id = id;
+      for (const row of copy.controlPoints) for (const control of row) control.x += this.grid;
+      this.document.transact((draft) => {
+        draft.patches ??= [];
+        draft.patches.push(copy);
+      });
     } else return;
     this.selectedId = id;
     this.changed();
@@ -1523,6 +1539,7 @@ export class EditorSession {
     const boxes = [
       ...data.brushes.map((brush) => ({ id: brush.id, min: brush.min, max: brush.max })),
       ...data.entities.map((entity) => ({ id: entity.id, ...entityBox(entity) })),
+      ...(data.patches ?? []).map((patch) => ({ id: patch.id, ...patchBounds(patch) })),
     ].filter((box) => all || !this.selectedId || box.id === this.selectedId);
     const bounds = brushBounds(boxes);
     if (!bounds) {
@@ -1661,10 +1678,10 @@ export class EditorSession {
       this.placeEntity(plane, start);
       return;
     }
-    const { entityHit, hit, onSelection, edge } = this.pressTarget(plane, u, v);
-    if (this.tool === "select" || onSelection) {
+    const { entityHit, hit, patchHit, onSelection, edge } = this.pressTarget(plane, u, v);
+    if (this.tool === "select" || onSelection || patchHit) {
       if (!onSelection) this.selectedFaces.clear();
-      this.selectedId = entityHit?.id ?? hit?.id ?? null;
+      this.selectedId = entityHit?.id ?? patchHit?.id ?? hit?.id ?? null;
       this.gesture =
         entityHit || hit
           ? {
@@ -1835,16 +1852,28 @@ export class EditorSession {
     plane: Plane,
     u: number,
     v: number,
-  ): { entityHit?: PointEntity; hit?: BoxBrush; onSelection: boolean; grabs: boolean; edge: ResizeEdge | null } {
+  ): {
+    entityHit?: PointEntity;
+    hit?: BoxBrush;
+    patchHit?: PatchSurface;
+    onSelection: boolean;
+    grabs: boolean;
+    edge: ResizeEdge | null;
+  } {
     const data = this.document.snapshot();
     const axes = AXES[plane];
     const entityHit = [...data.entities].reverse().find((entity) => inRect(u, v, entityBox(entity), plane));
-    const hit = entityHit ? undefined : [...data.brushes].reverse().find((brush) => inRect(u, v, brush, plane));
-    const target = entityHit ?? hit;
+    const patchHit = entityHit
+      ? undefined
+      : [...(data.patches ?? [])].reverse().find((patch) => patchLatticeHit(patch, plane, u, v, 8 / this.zoom));
+    const hit =
+      entityHit || patchHit ? undefined : [...data.brushes].reverse().find((brush) => inRect(u, v, brush, plane));
+    const target = entityHit ?? patchHit ?? hit;
     const onSelection = target !== undefined && target.id === this.selectedId;
-    const grabs = target !== undefined && (this.tool === "select" || (this.tool === "brush" && onSelection));
+    const grabs =
+      !patchHit && target !== undefined && (this.tool === "select" || (this.tool === "brush" && onSelection));
     const edge = grabs && hit ? pickResizeEdge(hit, axes.u, axes.v, u, v, 8 / this.zoom) : null;
-    return { entityHit, hit, onSelection, grabs, edge };
+    return { entityHit, hit, patchHit, onSelection, grabs, edge };
   }
 
   /** The hover cursor says what a press would do: resize along an edge, move (hand), or the tool's crosshair. */
@@ -1864,7 +1893,10 @@ export class EditorSession {
     const [u, v] = this.worldAt(plane, this.panes.get(plane)!, event);
     const data = this.document.snapshot();
     const entityHit = [...data.entities].reverse().find((entity) => inRect(u, v, entityBox(entity), plane));
-    const hit = entityHit ?? [...data.brushes].reverse().find((brush) => inRect(u, v, brush, plane));
+    const patchHit = entityHit
+      ? undefined
+      : [...(data.patches ?? [])].reverse().find((patch) => patchLatticeHit(patch, plane, u, v, 8 / this.zoom));
+    const hit = entityHit ?? patchHit ?? [...data.brushes].reverse().find((brush) => inRect(u, v, brush, plane));
     if (!hit) {
       this.deselect();
       this.draw();
@@ -2051,6 +2083,12 @@ export class EditorSession {
         mesh.edgesColor = new Color4(0.02, 0.02, 0.05, 1);
       }
       this.meshes.set(brush.id, mesh);
+    }
+    for (const patch of data.patches ?? []) {
+      this.meshes.set(
+        patch.id,
+        createPatchPreview(patch, this.scene, patch.id === this.selectedId, this.viewMode === "wireframe"),
+      );
     }
     this.syncTexturedMeshes(data);
     this.syncWireframe(data, ownerColors);
@@ -2255,6 +2293,9 @@ export class EditorSession {
           ownerColors.get(brush.id),
         );
       }
+      for (const patch of data.patches ?? []) {
+        drawPatchLattice(ctx, patch, plane, originX, originY, this.zoom, patch.id === this.selectedId);
+      }
       if (this.gesture?.mode === "draw" && preview) paint(preview.min, preview.max, true);
       // A selected face pointing at this pane's viewer is outlined, dashed, inside its brush.
       const faced = data.brushes.find((brush) => brush.id === this.selectedId);
@@ -2318,6 +2359,11 @@ export class EditorSession {
     if (key === this.inspectorKey) return;
     this.inspectorKey = key;
     const selected = data.brushes.find((brush) => brush.id === this.selectedId);
+    const patch = (data.patches ?? []).find((item) => item.id === this.selectedId);
+    if (patch) {
+      this.inspector.textContent = `Patch ${patch.id.slice(0, 8)} · ${patch.width}×${patch.height} controls · ${patch.shader}. Select, frame, duplicate, delete, and export are available; point editing comes next.`;
+      return;
+    }
     if (selected) {
       this.inspector.innerHTML = `<h2>Brush <code data-brush-id></code></h2>
         <form data-brush-form>

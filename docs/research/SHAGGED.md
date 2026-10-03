@@ -289,7 +289,7 @@ NetRadiant Custom constructs its [plane, cylinder, cone, sphere, bevel, and end-
 
 #### M4 implementation slices against the current editor
 
-**Current slice (2026-10-03):** P1 document validation and `patchDef2` export are implemented with additive schema-v2 `patches`, old-draft compatibility, deterministic mixed brush/patch ordering, and an asymmetric parser fixture. P2 preview, UI authoring, shape recipes, and MakeBSP patch acceptance remain open. The initial 31-control-per-axis limit is conservative pending the target compiler probe.
+**Current slice (2026-10-03):** P1 document validation and `patchDef2` export are implemented with additive schema-v2 `patches`, old-draft compatibility, deterministic mixed brush/patch ordering, and an asymmetric parser fixture. P2 now renders saved patches as pickable solid surfaces in 3D and control lattices in the orthographic panes; selection, framing, duplication, and deletion work, with a read-only inspector. Textured patch preview, UI authoring, shape recipes, and MakeBSP patch acceptance remain open. The initial 31-control-per-axis limit is conservative pending the target compiler probe.
 
 `EditorDocument.ts` remains schema v2 and now admits optional patches; `MapWriter.ts` writes `brushDef`, `patchDef2`, and entities. `EditorSession.ts` keeps one selected ID but its hit tests, drawing, inspector, and tool union are still brush/entity-specific. `EditorDraftStore.ts` validates the saved tool name separately. Server Save/Open checks that the sidecar serializes to the exact saved `.map` text. Thus the remaining patch UI must pass through draft/view state and session without changing the compiler service's geometry protocol: it already accepts saved source text.
 
