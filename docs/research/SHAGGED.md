@@ -291,7 +291,7 @@ NetRadiant Custom constructs its [plane, cylinder, cone, sphere, bevel, and end-
 
 #### M4 implementation slices against the current editor
 
-**Current slice (2026-10-03):** P1 document validation and `patchDef2` export are implemented with additive schema-v2 `patches`, old-draft compatibility, deterministic mixed brush/patch ordering, and an asymmetric parser fixture. P2 renders saved patches as pickable solid surfaces in 3D and control lattices in the orthographic panes; selection, framing, duplication, and deletion work. P3 has begun: the Patch tool draws a flat 3×3 grid on the active orthographic work plane with a live four-view ghost, then its inspector edits any control's XYZ/UV and shader in one undoable transaction. Direct control-point dragging, textured patch preview, and shape recipes remain open. The initial 31-control-per-axis limit is conservative pending the target compiler probe.
+**Current slice (2026-10-03):** P1 document validation and `patchDef2` export are implemented with additive schema-v2 `patches`, old-draft compatibility, deterministic mixed brush/patch ordering, and an asymmetric parser fixture. P2 renders saved patches as pickable solid surfaces in 3D and control lattices in the orthographic panes; selection, framing, duplication, and deletion work. P3 has begun: the Patch tool draws a flat 3×3 grid on the active orthographic work plane with a live four-view ghost, then its inspector edits any control's XYZ/UV and shader in one undoable transaction. P4 now has pure quarter-turn bevel and two-span arch generators, including reverse winding and parser readback tests; they are not connected to the UI. Direct control-point dragging, textured patch preview, recipe persistence, and the full P5 compiler/playtest proof set remain open. The initial 31-control-per-axis limit is conservative pending the target compiler probe.
 
 **Compile acceptance probe (2026-10-03, ahead of P4/P5):** a hand-built
 asymmetric 3×3 patch (an arch bulging up and sideways, distinct XYZ and
@@ -308,7 +308,7 @@ This de-risks the writer ahead of P4; P5's full scope (every preset
 shape, UV/normal/seam/cap checks, and an in-game walk/collide pass once
 Playtest exists) is still open.
 
-`EditorDocument.ts` remains schema v2 and now admits optional patches; `MapWriter.ts` writes `brushDef`, `patchDef2`, and entities. `EditorSession.ts` keeps one selected ID but its hit tests, drawing, inspector, and tool union are still brush/entity-specific. `EditorDraftStore.ts` validates the saved tool name separately. Server Save/Open checks that the sidecar serializes to the exact saved `.map` text. Thus the remaining patch UI must pass through draft/view state and session without changing the compiler service's geometry protocol: it already accepts saved source text.
+`EditorDocument.ts` remains schema v2 and now admits optional patches; `MapWriter.ts` writes `brushDef`, `patchDef2`, and entities. `EditorSession.ts` keeps one selected ID across brushes, entities, and patches; patch control values are edited through the inspector. `EditorDraftStore.ts` validates the saved tool name separately. Server Save/Open checks that the sidecar serializes to the exact saved `.map` text. Presets still need UI wiring and recipe metadata; the compiler service already accepts saved source text.
 
 | Slice | Exact code seam | Reviewable result and gate |
 | --- | --- | --- |
