@@ -1,6 +1,7 @@
 import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine";
 import type { EditorLauncher, EditorStatus } from "./EditorLauncher";
 import { EditorSession } from "./EditorSession";
+import { ShaggedApi } from "./ShaggedApi";
 
 /** Owns the reversible game/editor handoff; the app keeps one render loop. */
 export class BrowserEditorHost implements EditorLauncher {
@@ -28,11 +29,16 @@ export class BrowserEditorHost implements EditorLauncher {
     if (!this.canOpen()) throw new Error("Finish the active match and return to the lobby first");
     const restore = this.suspendGame();
     try {
-      this.session = new EditorSession(this.engine, this.canvas, () => {
-        void this.close().catch((error) => {
-          this.session?.showError(`Exit failed: ${error instanceof Error ? error.message : String(error)}`);
-        });
-      });
+      this.session = new EditorSession(
+        this.engine,
+        this.canvas,
+        () => {
+          void this.close().catch((error) => {
+            this.session?.showError(`Exit failed: ${error instanceof Error ? error.message : String(error)}`);
+          });
+        },
+        new ShaggedApi(),
+      );
       this.restoreGame = restore;
       return this.status();
     } catch (error) {

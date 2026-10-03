@@ -16,6 +16,7 @@ export interface EditorViewState {
   workPlanes?: Vec3q;
   viewCenter?: Vec3q;
   camera: { alpha: number; beta: number; radius: number; target: Vec3q };
+  serverSave?: { revision: number; documentRevision: number };
 }
 
 function validView(value: unknown): value is EditorViewState {
@@ -40,6 +41,12 @@ function validView(value: unknown): value is EditorViewState {
         (["x", "y", "z"] as const).every(
           (axis) => Number.isFinite(state.workPlanes![axis]) && Math.abs(state.workPlanes![axis]) <= 1_000_000,
         ))) &&
+    (state.serverSave === undefined ||
+      (!!state.serverSave &&
+        Number.isSafeInteger(state.serverSave.revision) &&
+        state.serverSave.revision > 0 &&
+        Number.isSafeInteger(state.serverSave.documentRevision) &&
+        state.serverSave.documentRevision >= 0)) &&
     !!camera &&
     Number.isFinite(camera.alpha) &&
     Number.isFinite(camera.beta) &&

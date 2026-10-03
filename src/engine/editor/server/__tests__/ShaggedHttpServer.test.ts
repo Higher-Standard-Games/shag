@@ -29,6 +29,12 @@ describe("SHAGGED loopback API", () => {
       const address = server.address();
       if (!address || typeof address === "string") throw new Error("Expected TCP address");
       const base = `http://127.0.0.1:${address.port}`;
+      const preflight = await fetch(`${base}/api/maps/arena/compile`, {
+        method: "OPTIONS",
+        headers: { origin: "http://localhost:3000", "access-control-request-method": "POST" },
+      });
+      expect(preflight.status).toBe(204);
+      expect(preflight.headers.get("access-control-allow-methods")).toContain("POST");
       const status = await fetch(`${base}/api/status`);
       expect(await status.json()).toMatchObject({ saveAvailable: true, compilerAvailable: false });
       const put = () =>

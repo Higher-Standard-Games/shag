@@ -4,6 +4,7 @@ import type { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera";
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EditorSession } from "../EditorSession";
+import type { ShaggedApi } from "../ShaggedApi";
 
 const context = {
   scale: vi.fn(),
@@ -43,6 +44,64 @@ beforeEach(() => {
 });
 
 describe("editor DOM shell", () => {
+  it("saves a revision before compiling and keeps a stale server revision from being overwritten", async () => {
+    const engine = new NullEngine();
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    let serverRevision = 0;
+    const savedSources: string[] = [];
+    const api = {
+      status: vi.fn(async () => ({
+        saveAvailable: true,
+        compilerAvailable: true,
+        playableAvailable: false,
+        supportedQualities: ["default"],
+        reason: null,
+      })),
+      save: vi.fn(async (_name: string, source: string, expectedRevision: number) => {
+        if (expectedRevision !== serverRevision) throw new Error("Map revision conflict");
+        savedSources.push(source);
+        return { revision: ++serverRevision };
+      }),
+      mapRevision: vi.fn(async () => serverRevision),
+      compile: vi.fn(async () => ({ jobId: "job-1" })),
+      job: vi.fn(async () => ({
+        id: "job-1",
+        mapName: "test",
+        revision: serverRevision,
+        state: "compiled",
+        stage: "complete",
+        logs: ["Build complete"],
+        runtimeMapName: null,
+      })),
+    } as unknown as ShaggedApi;
+    const session = new EditorSession(engine, canvas, vi.fn(), api);
+    await vi.waitFor(() =>
+      expect(session.root.querySelector<HTMLButtonElement>('[data-action="server-save"]')?.disabled).toBe(false),
+    );
+    session.root.querySelector<HTMLButtonElement>('[data-action="room"]')!.click();
+    session.root.querySelector<HTMLButtonElement>('[data-action="compile"]')!.click();
+    await vi.waitFor(() => expect(api.compile).toHaveBeenCalledWith(`draft_${session.draftId.replace(/-/g, "")}`, 1));
+    await vi.waitFor(() =>
+      expect(session.root.querySelector('[data-action="compile-status"]')?.textContent).toContain("compiled"),
+    );
+    expect(savedSources).toHaveLength(1);
+    expect(savedSources[0]).toContain('"classname" "worldspawn"');
+    expect(JSON.parse(localStorage.getItem(`shagged:view:v1:${session.draftId}`)!)).toMatchObject({
+      serverSave: { revision: 1, documentRevision: session.revision },
+    });
+    session.document.transact((data) => {
+      data.entities[0].origin.x += 16;
+    });
+    serverRevision = 2;
+    session.root.querySelector<HTMLButtonElement>('[data-action="server-save"]')!.click();
+    await vi.waitFor(() =>
+      expect(session.root.querySelector(".shagged__status")?.textContent).toContain("Server map is at revision 2"),
+    );
+    expect(savedSources).toHaveLength(1);
+    session.dispose();
+    engine.dispose();
+  });
   it("creates a room from the toolbar and recovers its draft and view", () => {
     const engine = new NullEngine();
     const canvas = document.createElement("canvas");

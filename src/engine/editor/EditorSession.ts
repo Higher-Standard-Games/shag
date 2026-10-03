@@ -27,6 +27,7 @@ import {
 import { type EntityClassDef, entityClass, POINT_ENTITY_CLASSES } from "./EntityCatalog";
 import { writeMap } from "./MapWriter";
 import { createRoomTemplate } from "./RoomTemplate";
+import type { EditorCompileJob, EditorServerStatus, ShaggedApi } from "./ShaggedApi";
 import "./editor.css";
 
 type Gesture = {
@@ -124,11 +125,18 @@ export class EditorSession {
   private hoverCoord: Vec3q | null = null;
   private lastMessage = "Local draft";
   private inspectorKey = "";
+  private serverSave: EditorViewState["serverSave"];
+  private serverStatus: EditorServerStatus | null = null;
+  private serverBusy = false;
+  private compileJob: EditorCompileJob | null = null;
+  private pollTimer: ReturnType<typeof setTimeout> | null = null;
+  private serverGeneration = 0;
 
   constructor(
     engine: AbstractEngine,
     private readonly canvas: HTMLCanvasElement,
     private readonly onExit: () => void,
+    private readonly api: ShaggedApi | null = null,
   ) {
     const restored = this.draftStore.load();
     this.document = restored.document;
@@ -171,8 +179,9 @@ export class EditorSession {
         <label>Grid <select data-grid title="[ / ] to step"><option>8</option><option selected>16</option><option>32</option><option>64</option></select></label>
         <label>Work <span data-work-axis>Z</span> <input data-workplane type="number" step="1" value="0"></label>
         <span class="shagged__separator"></span>
-        <button disabled title="MakeBSP service is not configured">Compile</button>
-        <button disabled title="No compile job yet">Status: unavailable</button>
+        <button data-action="server-save" disabled title="Connecting to SHAGGED server">Server Save</button>
+        <button data-action="compile" disabled title="Connecting to SHAGGED server">Compile</button>
+        <button data-action="compile-status" title="Check server and compile status">Status: offline</button>
         <button disabled title="A compiled, playable build is required">Playtest</button>
         <button data-action="exit">Exit</button>
       </header>
@@ -185,6 +194,10 @@ export class EditorSession {
       <section class="shagged__drafts" aria-label="Saved drafts" hidden>
         <div class="shagged__drafts-head"><h2>Local drafts</h2><button data-action="close-drafts">Close</button></div>
         <div data-draft-list></div>
+      </section>
+      <section class="shagged__build" aria-label="Compile status" hidden>
+        <div class="shagged__drafts-head"><h2>Compile status</h2><button data-action="close-build">Close</button></div>
+        <pre data-build-log></pre>
       </section>
       <aside class="shagged__inspector"></aside>
       <footer class="shagged__status"></footer>`;
@@ -307,6 +320,7 @@ export class EditorSession {
     this.rebuildMeshes();
     this.draw();
     this.root.focus();
+    if (this.api) void this.refreshServerStatus();
   }
 
   get draftId(): string {
@@ -346,6 +360,7 @@ export class EditorSession {
       tool: this.tool,
       selectedId: this.selectedId,
       draftName: this.draftName,
+      serverSave: this.serverSave,
       activePlane: this.activePlane,
       workPlanes: { ...this.workPlanes },
       viewCenter: { ...this.viewCenter },
@@ -368,6 +383,8 @@ export class EditorSession {
     this.status(message);
   }
   dispose(): void {
+    this.serverGeneration++;
+    if (this.pollTimer) clearTimeout(this.pollTimer);
     this.listeners.abort();
     if (this.viewSaveTimer) clearTimeout(this.viewSaveTimer);
     this.disposeGhost();
@@ -394,7 +411,143 @@ export class EditorSession {
       ? ` · cursor (${this.hoverCoord.x}, ${this.hoverCoord.y}, ${this.hoverCoord.z})`
       : "";
     const data = this.document.snapshot();
-    this.statusEl.textContent = `${this.lastMessage} · ${data.brushes.length} brushes · ${data.entities.length} entities · revision ${this.revision} · ${this.activePlane.toUpperCase()} work ${hidden.toUpperCase()}=${this.workPlanes[hidden]} · grid ${this.grid}${dimensions}${cursor} · MakeBSP unavailable`;
+    const saved =
+      this.serverSave?.documentRevision === this.revision ? `server r${this.serverSave.revision}` : "server unsaved";
+    this.statusEl.textContent = `${this.lastMessage} · ${data.brushes.length} brushes · ${data.entities.length} entities · revision ${this.revision} · ${this.activePlane.toUpperCase()} work ${hidden.toUpperCase()}=${this.workPlanes[hidden]} · grid ${this.grid}${dimensions}${cursor} · ${saved}`;
+  }
+
+  private updateServerButtons(): void {
+    const save = this.root.querySelector<HTMLButtonElement>('[data-action="server-save"]')!;
+    const compile = this.root.querySelector<HTMLButtonElement>('[data-action="compile"]')!;
+    const status = this.root.querySelector<HTMLButtonElement>('[data-action="compile-status"]')!;
+    save.disabled = !this.serverStatus?.saveAvailable || this.serverBusy;
+    compile.disabled = !this.serverStatus?.compilerAvailable || this.serverBusy;
+    save.title = this.serverStatus?.saveAvailable
+      ? "Save an immutable .map revision on the editor server"
+      : "Start npm run shagged:server";
+    compile.title = this.serverStatus?.compilerAvailable
+      ? "Save this draft, then compile with MakeBSP"
+      : (this.serverStatus?.reason ?? "Start npm run shagged:server");
+    status.textContent = this.compileJob
+      ? `Status: ${this.compileJob.state}`
+      : this.serverStatus?.compilerAvailable
+        ? "Status: ready"
+        : this.serverStatus
+          ? "Status: no compiler"
+          : "Status: offline";
+    const lines = this.compileJob
+      ? [
+          `${this.compileJob.mapName} · revision ${this.compileJob.revision} · ${this.compileJob.state} · ${this.compileJob.stage}`,
+          ...this.compileJob.logs,
+        ]
+      : [this.serverStatus?.reason ?? "No compile job. Start the editor server to save and compile maps."];
+    this.root.querySelector<HTMLElement>("[data-build-log]")!.textContent = lines.join("\n");
+  }
+
+  private async refreshServerStatus(): Promise<void> {
+    const generation = this.serverGeneration;
+    try {
+      const status = await this.api?.status();
+      if (generation !== this.serverGeneration) return;
+      this.serverStatus = status ?? null;
+      if (status) this.status(status.compilerAvailable ? "Editor server connected" : `Editor server: ${status.reason}`);
+    } catch (error) {
+      if (generation !== this.serverGeneration) return;
+      this.serverStatus = null;
+      this.serverError(error);
+    }
+    this.updateServerButtons();
+  }
+
+  private serverError(error: unknown): void {
+    this.status(error instanceof Error ? error.message : String(error));
+    this.updateServerButtons();
+  }
+
+  private resetCompileJob(): void {
+    this.serverGeneration++;
+    if (this.pollTimer) clearTimeout(this.pollTimer);
+    this.pollTimer = null;
+    this.compileJob = null;
+    this.root.querySelector<HTMLElement>(".shagged__build")!.hidden = true;
+    this.updateServerButtons();
+    if (!this.serverStatus && this.api) void this.refreshServerStatus();
+  }
+
+  private async saveCurrentToServer(): Promise<number> {
+    if (!this.api || !this.serverStatus?.saveAvailable) throw new Error("Editor server is unavailable");
+    const data = this.document.snapshot();
+    this.save();
+    const name = `draft_${data.draftId.replace(/-/g, "")}`;
+    const actualRevision = await this.api.mapRevision(name);
+    if (actualRevision !== (this.serverSave?.revision ?? 0)) {
+      throw new Error(
+        `Server map is at revision ${actualRevision}; this draft expects ${this.serverSave?.revision ?? 0}. Resolve the conflict before saving.`,
+      );
+    }
+    if (this.serverSave?.documentRevision === data.revision) return this.serverSave.revision;
+    const saved = await this.api.save(name, writeMap(data), this.serverSave?.revision ?? 0, data);
+    this.serverSave = { revision: saved.revision, documentRevision: data.revision };
+    this.save();
+    this.status(`Saved ${name}.map on server at revision ${saved.revision}`);
+    return saved.revision;
+  }
+
+  private async saveServer(): Promise<void> {
+    if (this.serverBusy) return;
+    this.serverBusy = true;
+    this.updateServerButtons();
+    try {
+      await this.saveCurrentToServer();
+    } finally {
+      this.serverBusy = false;
+      this.updateServerButtons();
+    }
+  }
+
+  private async startCompile(): Promise<void> {
+    if (this.serverBusy || !this.api || !this.serverStatus?.compilerAvailable) return;
+    this.serverBusy = true;
+    this.updateServerButtons();
+    try {
+      const revision = await this.saveCurrentToServer();
+      const name = `draft_${this.draftId.replace(/-/g, "")}`;
+      const started = await this.api.compile(name, revision);
+      this.resetCompileJob();
+      const generation = this.serverGeneration;
+      this.compileJob = {
+        id: started.jobId,
+        mapName: name,
+        revision,
+        state: "queued",
+        stage: "queued",
+        logs: [],
+        runtimeMapName: null,
+      };
+      this.status(`Compile queued for ${name}.map revision ${revision}`);
+      this.updateServerButtons();
+      void this.refreshJob(generation);
+    } finally {
+      this.serverBusy = false;
+      this.updateServerButtons();
+    }
+  }
+
+  private async refreshJob(generation: number): Promise<void> {
+    const id = this.compileJob?.id;
+    if (!id || !this.api) return;
+    try {
+      const job = await this.api.job(id);
+      if (generation !== this.serverGeneration || id !== this.compileJob?.id) return;
+      this.compileJob = job;
+      this.updateServerButtons();
+      this.status(`Compile ${job.state}: ${job.stage}`);
+      if (job.state === "queued" || job.state === "running") {
+        this.pollTimer = setTimeout(() => void this.refreshJob(generation), 1500);
+      }
+    } catch (error) {
+      if (generation === this.serverGeneration) this.serverError(error);
+    }
   }
 
   private updateWorkPlaneControl(): void {
@@ -409,6 +562,7 @@ export class EditorSession {
     this.viewCenter = { ...(view?.viewCenter ?? { x: 0, y: 0, z: 0 }) };
     this.tool = view?.tool ?? "brush";
     this.draftName = view?.draftName ?? "Untitled";
+    this.serverSave = view?.serverSave;
     this.workPlanes = { ...(view?.workPlanes ?? { x: 0, y: 0, z: 0 }) };
     this.activePlane = view?.activePlane ?? "xy";
     this.selectedId = this.exists(view?.selectedId) ? (view?.selectedId ?? null) : null;
@@ -437,6 +591,7 @@ export class EditorSession {
 
   private openDraft(id: string): void {
     if (id === this.draftId) return;
+    this.resetCompileJob();
     this.save();
     const restored = this.draftStore.activate(id);
     if (this.viewSaveTimer) clearTimeout(this.viewSaveTimer);
@@ -461,18 +616,24 @@ export class EditorSession {
           this.frame(action === "frame-all");
           break;
         case "new":
+          if (this.serverBusy) throw new Error("Wait for the server request to finish");
           this.save();
+          this.resetCompileJob();
           this.cancelGesture();
           this.document = new EditorDocument();
+          this.serverSave = undefined;
           this.selectedId = null;
           this.draftName = "Untitled";
           this.root.querySelector<HTMLInputElement>("[data-draft-name]")!.value = this.draftName;
           this.changed();
           break;
         case "room":
+          if (this.serverBusy) throw new Error("Wait for the server request to finish");
           this.save();
+          this.resetCompileJob();
           this.cancelGesture();
           this.document = new EditorDocument(createRoomTemplate());
+          this.serverSave = undefined;
           this.selectedId = null;
           this.draftName = "Room Template";
           this.root.querySelector<HTMLInputElement>("[data-draft-name]")!.value = this.draftName;
@@ -486,10 +647,25 @@ export class EditorSession {
           this.root.focus();
           break;
         case "open-draft":
+          if (this.serverBusy) throw new Error("Wait for the server request to finish");
           if (draftId) this.openDraft(draftId);
           break;
         case "save":
           this.save();
+          break;
+        case "server-save":
+          void this.saveServer().catch((error: unknown) => this.serverError(error));
+          break;
+        case "compile":
+          void this.startCompile().catch((error: unknown) => this.serverError(error));
+          break;
+        case "compile-status":
+          this.root.querySelector<HTMLElement>(".shagged__build")!.hidden = false;
+          if (this.compileJob) void this.refreshJob(this.serverGeneration);
+          else void this.refreshServerStatus();
+          break;
+        case "close-build":
+          this.root.querySelector<HTMLElement>(".shagged__build")!.hidden = true;
           break;
         case "export":
           this.exportMap();
@@ -525,6 +701,7 @@ export class EditorSession {
           }
           break;
         case "exit":
+          if (this.serverBusy) throw new Error("Wait for the server request to finish");
           this.save();
           this.onExit();
           break;

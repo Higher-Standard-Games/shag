@@ -39,7 +39,7 @@ export function createShaggedHttpServer(store: MapStore, config: ShaggedServerCo
       if (origin) {
         response.setHeader("access-control-allow-origin", origin);
         response.setHeader("vary", "Origin");
-        response.setHeader("access-control-allow-methods", "GET, PUT, OPTIONS");
+        response.setHeader("access-control-allow-methods", "GET, PUT, POST, OPTIONS");
         response.setHeader("access-control-allow-headers", "Content-Type");
       }
       if (request.method === "OPTIONS") {

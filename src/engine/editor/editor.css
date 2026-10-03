@@ -108,7 +108,8 @@
   cursor: crosshair;
   touch-action: none;
 }
-.shagged__drafts {
+.shagged__drafts,
+.shagged__build {
   position: absolute;
   z-index: 3;
   top: 70px;
@@ -124,8 +125,22 @@
   box-shadow: 0 20px 60px #000b;
   pointer-events: auto;
 }
-.shagged__drafts[hidden] {
+.shagged__drafts[hidden],
+.shagged__build[hidden] {
   display: none;
+}
+.shagged__build {
+  left: auto;
+  right: 16px;
+  transform: none;
+  width: min(620px, calc(100vw - 32px));
+}
+.shagged__build pre {
+  max-height: 55vh;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: 11px / 1.5 monospace;
 }
 .shagged__drafts-head {
   display: flex;
@@ -136,7 +151,8 @@
   margin: 0 0 12px;
   color: #ffc61a;
 }
-.shagged__drafts button {
+.shagged__drafts button,
+.shagged__build button {
   display: block;
   width: 100%;
   margin: 5px 0;
