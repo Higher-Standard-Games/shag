@@ -50,6 +50,8 @@ import {
 import { type FaceUpdate, renderFaceAlignment } from "./FaceAlignmentPanel";
 import { faceKeyFromNormal, naturalFace } from "./FaceUv";
 import { DEFAULT_POSE, FlyCameraController, type FlyPose, forwardOf, framePose, poseFromOrbit } from "./FlyCamera";
+import { inspectMapHealth, type MapHealthIssue } from "./MapHealth";
+import { MapHealthTray } from "./MapHealthTray";
 import { writeMap } from "./MapWriter";
 import { indexedModelPaths, modelReferenceIssue } from "./ModelReference";
 import { createPatchPreview, drawPatchLattice, patchBounds, patchLatticeHit } from "./PatchPreview";
@@ -252,6 +254,7 @@ export class EditorSession {
   /** Texture new brushes get; size is null until one is picked from the browser (fixed legacy alignment). */
   private currentTexture: { name: string; size: [number, number] | null } = { name: "blx/blx_grid", size: null };
   private textureBrowser: TextureBrowser | null = null;
+  private healthTray: MapHealthTray | null = null;
   /** Textured draws each face's image with its alignment; Brush colours boxes by owner; Wireframe shows edges only. */
   private viewMode: ViewMode = "textured";
   private previewLoading: Promise<void> | null = null;
@@ -340,6 +343,7 @@ export class EditorSession {
           <button data-action="select" title="V">Select</button><button data-action="brush" title="B">Brush</button>
           <button data-action="entity" title="E">Entity</button><select data-entity-class aria-label="Entity class" title="Class placed by the Entity tool"></select>
           <button data-action="textures" title="Texture browser (T)">Textures</button><span class="shagged__current-texture" data-current-texture title="Texture new brushes get"></span>
+          <button data-action="health" title="Map Health (H)">Health</button>
         </div>
         <div class="shagged__toolgroup" aria-label="View actions">
           <span class="shagged__group-label">VIEW</span>
@@ -751,6 +755,50 @@ export class EditorSession {
     }
   }
 
+  /** Pure analysis over the live document; texture checks are skipped until Textured mode has loaded the catalog. */
+  private healthIssues(): MapHealthIssue[] {
+    const textures = this.catalogEntries.size ? [...this.catalogEntries.values()] : undefined;
+    return inspectMapHealth(this.document.snapshot(), textures);
+  }
+
+  /** The tray is built on first use. Opening it also starts loading the catalog, for the shader checks, if idle. */
+  private toggleHealth(): void {
+    if (!this.healthTray) {
+      this.healthTray = new MapHealthTray({
+        issues: () => this.healthIssues(),
+        onSelect: (objectId, face) => this.selectHealthIssue(objectId, face),
+        onClose: () => this.root.focus(),
+      });
+      this.root.appendChild(this.healthTray.element);
+    }
+    this.healthTray.toggle();
+    if (this.healthTray.isOpen) void this.ensurePreview().then(() => this.healthTray?.refresh());
+  }
+
+  /**
+   * Selects whatever a health issue points to, so Frame then centers it: a
+   * point entity or brush by its own ID, or a brush-entity issue's first
+   * owned brush (brush entities have no box of their own to select).
+   */
+  private selectHealthIssue(objectId: string, face?: MapHealthIssue["face"]): void {
+    const data = this.document.snapshot();
+    const isBrush = data.brushes.some((brush) => brush.id === objectId);
+    const isEntity = data.entities.some((entity) => entity.id === objectId);
+    const id =
+      isBrush || isEntity
+        ? objectId
+        : (data.brushEntities?.find((entity) => entity.id === objectId)?.brushIds[0] ?? null);
+    if (!id) {
+      this.status("That object is no longer in the map");
+      return;
+    }
+    this.selectedId = id;
+    this.selectedFaces.clear();
+    if (face && isBrush) this.selectedFaces.add(face);
+    this.rebuildMeshes();
+    this.action("frame-selection");
+  }
+
   /** The drawer is built on first use, so opening the editor never loads the texture catalog. */
   private async toggleTextures(): Promise<void> {
     if (!this.textureBrowser) {
@@ -945,6 +993,7 @@ export class EditorSession {
   }
   dispose(): void {
     this.textureBrowser?.dispose();
+    this.healthTray?.dispose();
     this.previewTextures?.dispose();
     this.thumbnails?.dispose();
     this.modelPreviewRequests.clear();
@@ -1385,6 +1434,9 @@ export class EditorSession {
         case "textures":
           void this.toggleTextures();
           break;
+        case "health":
+          this.toggleHealth();
+          break;
         case "brush":
         case "select":
         case "entity":
@@ -1488,6 +1540,7 @@ export class EditorSession {
       event.preventDefault();
       this.action("textures");
     } else if (key === "delete") this.action("delete");
+    else if (key === "h") this.action("health");
     else if (key === "f") {
       event.preventDefault();
       event.stopPropagation();

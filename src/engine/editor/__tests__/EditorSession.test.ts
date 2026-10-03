@@ -959,6 +959,53 @@ describe("editor DOM shell", () => {
     engine.dispose();
   });
 
+  it("opens the Map Health tray (toolbar or H) and selects what a row points to", () => {
+    const engine = new NullEngine();
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    const session = new EditorSession(engine, canvas, vi.fn());
+    session.document.transact((data) => {
+      data.brushes.push(
+        { id: "box", min: { x: 0, y: 0, z: 0 }, max: { x: 64, y: 64, z: 64 }, shader: "blx/blx_grid" },
+        { id: "far", min: { x: 500, y: 500, z: 0 }, max: { x: 564, y: 564, z: 64 }, shader: "blx/blx_grid" },
+      );
+      data.entities.push({
+        id: "pad",
+        classname: "bogus_class_xyz",
+        origin: { x: 100, y: 100, z: 0 },
+        keys: {},
+      });
+      data.brushEntities = [{ id: "trigger-1", classname: "trigger_teleport", keys: {}, brushIds: ["far"] }];
+    });
+    const tray = () => session.root.querySelector<HTMLElement>(".shagged-health")!;
+    const rows = () => [...tray().querySelectorAll<HTMLButtonElement>(".shagged-health__row")];
+    const selected = () => session.root.querySelector("[data-brush-id], [data-entity-id]")?.textContent ?? null;
+
+    session.root.querySelector<HTMLButtonElement>('[data-action="health"]')!.click();
+    expect(tray().hidden).toBe(false);
+    expect(rows().length).toBeGreaterThan(0);
+    expect(tray().textContent).toContain("needs");
+
+    // a brush-entity issue selects one of its owned brushes, since the entity itself has no box
+    const linkRow = rows().find((row) => row.textContent?.includes("needs"))!;
+    linkRow.click();
+    expect(selected()).toContain("far".slice(0, 8));
+
+    // a point-entity issue selects the entity directly
+    tray().querySelector<HTMLButtonElement>(".shagged-health__refresh")!.click();
+    const classRow = rows().find((row) => row.textContent?.includes("Unlisted point class"))!;
+    classRow.click();
+    expect(selected()).toContain("bogus_class_xyz");
+
+    // H re-opens; typing "h" with a text input focused must not trigger it
+    tray().querySelector<HTMLButtonElement>(".shagged-health__close")!.click();
+    expect(tray().hidden).toBe(true);
+    session.root.dispatchEvent(new KeyboardEvent("keydown", { key: "h", bubbles: true }));
+    expect(tray().hidden).toBe(false);
+    session.dispose();
+    engine.dispose();
+  });
+
   it("selects a brush that lies between coarse grid lines", () => {
     const engine = new NullEngine();
     const canvas = document.createElement("canvas");
