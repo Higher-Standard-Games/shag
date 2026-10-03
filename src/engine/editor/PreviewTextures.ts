@@ -56,7 +56,7 @@ export class PreviewTextures {
     try {
       const bytes = await this.deps.readFile(path);
       const decoded = bytes && !this.disposed ? await this.deps.decode(path, bytes) : null;
-      if (!decoded || this.disposed || material.isDisposed) return;
+      if (!decoded || this.disposed) return;
       const texture = new RawTexture(
         decoded.pixels,
         decoded.width,
