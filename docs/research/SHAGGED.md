@@ -1159,6 +1159,14 @@ These are proposed defaults, displayed as tooltips and in a small Help panel. Sh
 
 Group the top bar as File (New, Save Draft, Export), Edit (Undo, Redo, Delete, Duplicate), Tools (Select, Brush, grid/snap), View (Frame, Reset Layout), Build (Compile, Status, Playtest), then Help and Exit. The narrow status bar shows active pane, cursor Quake coordinates, work-plane coordinate, grid/snap, selected brush bounds, draft saved/dirty state, and compile state. The M1 inspector exposes editable min/max X/Y/Z, the active pane's work plane, one shader applied to all six faces, and the optional numeric test spawn. Later milestones can add per-face shader/UV fields without changing the basic brush gesture. Wireframe/textured preview controls appear when their rendering modes work in M2; do not ship inert toggles as though they are implemented.
 
+**Toolbar checkpoint (2026-10-03):** the current shell groups Map, Edit,
+Tools, View, and Build. Save, Undo/Redo, placement tools, Compile/Status,
+Playtest, and Exit remain visible; Map/Edit/View put less frequent actions in
+keyboard-accessible disclosure menus. The compact buttons use editor-scoped
+raised gold/violet styling inspired by the main menu. Menus close on action,
+outside pointer press, or Escape. Help and Reset Layout still await their
+underlying features.
+
 ### Three styling and UX concepts to explore
 
 These are design proposals, not M1 acceptance gates. They keep the four-pane identity while making the editor feel less like a row of permanent forms. [Blender's maximized area](https://docs.blender.org/manual/en/5.2/interface/window_system/areas.html) and [Godot's distraction-free viewport](https://docs.godotengine.org/en/stable/getting_started/introduction/first_look_at_the_editor.html) show that temporary focus can coexist with a saved layout; [Substance 3D Modeler's contextual actions](https://helpx.adobe.com/substance-3d-modeler/desktop/interface/actions-menu.html) are a precedent for tools appearing near the work. The SHAGGED designs below are our proposed adaptations.

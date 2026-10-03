@@ -294,26 +294,45 @@ export class EditorSession {
     this.root.innerHTML = `
       <header class="shagged__toolbar">
         <strong>SHAGGED <small>GENERAL EDITOR</small></strong>
-        <label>Draft <input data-draft-name type="text" maxlength="64" aria-label="Draft name"></label>
-        <button data-action="drafts">Drafts</button><button data-action="new">New</button><button data-action="room">Room Template</button><button data-action="save" title="Ctrl/Cmd+S">Save Draft</button>
-        <button data-action="export" title="Ctrl/Cmd+Shift+S">Export .map</button>
-        <button data-action="duplicate" title="Ctrl/Cmd+D">Duplicate</button>
-        <span class="shagged__separator"></span>
-        <button data-action="undo" title="Ctrl/Cmd+Z">Undo</button><button data-action="redo" title="Ctrl/Cmd+Shift+Z">Redo</button>
-        <button data-action="brush">Brush (B)</button><button data-action="select">Select (V)</button>
-        <button data-action="entity">Entity (E)</button><select data-entity-class aria-label="Entity class" title="Class placed by the Entity tool"></select>
-        <button data-action="textures" title="Texture browser (T)">Textures (T)</button><span class="shagged__current-texture" data-current-texture title="Texture new brushes get"></span>
-        <button data-action="delete" title="Delete">Delete</button>
-        <button data-action="frame-selection">Frame (F)</button><button data-action="frame-all">Frame All (Shift+F)</button>
-        <label>Grid <select data-grid title="[ / ] to step"><option>8</option><option selected>16</option><option>32</option><option>64</option></select></label>
-        <label>Work <span data-work-axis>Z</span> <input data-workplane type="number" step="1" value="0"></label>
-        <span class="shagged__separator"></span>
-        <button data-action="server-maps" disabled title="Open a server-saved SHAGGED map">Server Maps</button>
-        <button data-action="server-save" disabled title="Connecting to SHAGGED server">Server Save</button>
-        <button data-action="compile" disabled title="Connecting to SHAGGED server">Compile</button>
-        <button data-action="compile-status" title="Check server and compile status">Status: offline</button>
-        <button disabled title="A compiled, playable build is required">Playtest</button>
-        <button data-action="exit">Exit</button>
+        <label class="shagged__draft-name">Draft <input data-draft-name type="text" maxlength="64" aria-label="Draft name"></label>
+        <div class="shagged__toolgroup" aria-label="Map actions">
+          <span class="shagged__group-label">MAP</span>
+          <button data-action="save" title="Ctrl/Cmd+S">Save Draft</button>
+          <details class="shagged__menu"><summary>More</summary><div class="shagged__menu-panel">
+            <button data-action="drafts">Local Drafts</button><button data-action="new">New Map</button>
+            <button data-action="room">Room Template</button><button data-action="export" title="Ctrl/Cmd+Shift+S">Export .map</button>
+            <button data-action="server-maps" disabled title="Open a server-saved SHAGGED map">Server Maps</button>
+            <button data-action="server-save" disabled title="Connecting to SHAGGED server">Server Save</button>
+          </div></details>
+        </div>
+        <div class="shagged__toolgroup" aria-label="Edit actions">
+          <span class="shagged__group-label">EDIT</span>
+          <button data-action="undo" title="Ctrl/Cmd+Z">Undo</button><button data-action="redo" title="Ctrl/Cmd+Shift+Z">Redo</button>
+          <details class="shagged__menu"><summary>More</summary><div class="shagged__menu-panel">
+            <button data-action="duplicate" title="Ctrl/Cmd+D">Duplicate</button><button data-action="delete" title="Delete">Delete</button>
+          </div></details>
+        </div>
+        <div class="shagged__toolgroup" aria-label="Placement tools">
+          <span class="shagged__group-label">TOOLS</span>
+          <button data-action="select" title="V">Select</button><button data-action="brush" title="B">Brush</button>
+          <button data-action="entity" title="E">Entity</button><select data-entity-class aria-label="Entity class" title="Class placed by the Entity tool"></select>
+          <button data-action="textures" title="Texture browser (T)">Textures</button><span class="shagged__current-texture" data-current-texture title="Texture new brushes get"></span>
+        </div>
+        <div class="shagged__toolgroup" aria-label="View actions">
+          <span class="shagged__group-label">VIEW</span>
+          <details class="shagged__menu"><summary>View</summary><div class="shagged__menu-panel">
+            <button data-action="frame-selection" title="F">Frame Selection</button><button data-action="frame-all" title="Shift+F">Frame All</button>
+            <label>Grid <select data-grid title="[ / ] to step"><option>8</option><option selected>16</option><option>32</option><option>64</option></select></label>
+            <label>Work <span data-work-axis>Z</span> <input data-workplane type="number" step="1" value="0"></label>
+          </div></details>
+        </div>
+        <div class="shagged__toolgroup" aria-label="Build actions">
+          <span class="shagged__group-label">BUILD</span>
+          <button data-action="compile" disabled title="Connecting to SHAGGED server">Compile</button>
+          <button data-action="compile-status" title="Check server and compile status">Status: offline</button>
+          <button disabled title="A compiled, playable build is required">Playtest</button>
+        </div>
+        <button class="shagged__exit" data-action="exit">Exit</button>
       </header>
       <main class="shagged__workspace">
         <section class="shagged__pane shagged__pane--perspective"><span>3D PERSPECTIVE</span></section>
@@ -401,11 +420,37 @@ export class EditorSession {
       "click",
       (event) => {
         const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-action]");
-        if (button?.dataset.action)
+        if (button?.dataset.action) {
+          const menu = button.closest<HTMLDetailsElement>("details.shagged__menu");
+          if (menu) {
+            menu.open = false;
+            menu.querySelector("summary")?.focus();
+          }
           this.action(button.dataset.action, button.dataset.draftId ?? button.dataset.mapName);
+        }
       },
       { signal: this.listeners.signal },
     );
+    this.root.addEventListener(
+      "pointerdown",
+      (event) => {
+        if ((event.target as HTMLElement).closest(".shagged__menu")) return;
+        for (const menu of this.root.querySelectorAll<HTMLDetailsElement>(".shagged__menu[open]")) menu.open = false;
+      },
+      { signal: this.listeners.signal },
+    );
+    for (const menu of this.root.querySelectorAll<HTMLDetailsElement>(".shagged__menu")) {
+      menu.addEventListener(
+        "toggle",
+        () => {
+          if (!menu.open) return;
+          for (const other of this.root.querySelectorAll<HTMLDetailsElement>(".shagged__menu[open]")) {
+            if (other !== menu) other.open = false;
+          }
+        },
+        { signal: this.listeners.signal },
+      );
+    }
     this.root
       .querySelector("[data-grid]")
       ?.addEventListener("change", (event) => this.setGrid(Number((event.target as HTMLSelectElement).value)), {
@@ -1184,8 +1229,14 @@ export class EditorSession {
   }
 
   private keyDown(event: KeyboardEvent): void {
-    if (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement) return;
     const key = event.key.toLowerCase();
+    const menu =
+      event.target instanceof HTMLElement ? event.target.closest<HTMLDetailsElement>(".shagged__menu") : null;
+    if (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement) {
+      if (key === "escape" && menu) menu.open = false;
+      return;
+    }
+    if (menu && key !== "escape") return;
     if (event.ctrlKey || event.metaKey) {
       if (key === "z") {
         event.preventDefault();
@@ -1214,11 +1265,15 @@ export class EditorSession {
     } else if (key === "[" || key === "]") {
       this.stepGrid(key === "[" ? -1 : 1);
     } else if (key === "escape") {
-      // Cancel an in-progress drag first; only once nothing is being
-      // dragged does Escape close the one popover the editor has.
+      // Cancel an in-progress drag first; then close the focused menu or popover.
       event.preventDefault();
       if (this.gesture) {
         this.cancelGesture();
+        return;
+      }
+      if (menu?.open) {
+        menu.open = false;
+        menu.querySelector("summary")?.focus();
         return;
       }
       const drafts = this.root.querySelector<HTMLElement>(".shagged__drafts");

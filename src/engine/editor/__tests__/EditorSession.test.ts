@@ -77,6 +77,27 @@ beforeEach(() => {
 });
 
 describe("editor DOM shell", () => {
+  it("groups toolbar actions and keeps menu actions usable", () => {
+    const engine = new NullEngine();
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    const session = new EditorSession(engine, canvas, vi.fn());
+    expect(
+      [...session.root.querySelectorAll(".shagged__toolgroup")].map((group) => group.getAttribute("aria-label")),
+    ).toEqual(["Map actions", "Edit actions", "Placement tools", "View actions", "Build actions"]);
+    const menu = session.root.querySelector<HTMLDetailsElement>(".shagged__toolgroup .shagged__menu")!;
+    menu.open = true;
+    menu.querySelector<HTMLButtonElement>('[data-action="room"]')!.click();
+    expect(menu.open).toBe(false);
+    expect(session.document.snapshot().brushes.length).toBeGreaterThan(0);
+    menu.open = true;
+    menu.querySelector("summary")!.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    expect(menu.open).toBe(false);
+    expect(session.root.querySelector('[data-action="compile-status"]')?.textContent).toContain("Status:");
+    session.dispose();
+    engine.dispose();
+  });
+
   it("opens a server map and keeps divergent local work when opening a server copy", async () => {
     const engine = new NullEngine();
     const canvas = document.createElement("canvas");
