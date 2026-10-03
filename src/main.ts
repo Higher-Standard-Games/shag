@@ -26,6 +26,8 @@ import { CapacitorBridge } from "./engine/core/CapacitorBridge";
 import { EngineVersion } from "./engine/core/EngineVersion";
 import { GamePaths } from "./engine/core/GamePaths";
 import { DebugConsole } from "./engine/debug";
+import { BrowserEditorHost } from "./engine/editor/BrowserEditorHost";
+import { registerEditorLauncher } from "./engine/editor/EditorLauncher";
 import { TextureManager, TextureMemoryManager } from "./engine/loader";
 import { PK3Index } from "./engine/loader/pk3/PK3Index";
 import { InstancedMeshManager } from "./engine/rendering/InstancedMeshManager";
@@ -293,15 +295,38 @@ async function main() {
     });
   });
 
+  const editorHost = new BrowserEditorHost(
+    engine,
+    canvas,
+    () => lobby.isVisible(),
+    () => {
+      const wasEnabled = controller.isEnabled();
+      const wasLobbyVisible = lobby.isVisible();
+      controller.setEnabled(false);
+      camera.detachControl();
+      if (document.pointerLockElement) void document.exitPointerLock();
+      if (wasLobbyVisible) lobby.hide();
+      // Leave the console's own open/closed state alone: it stays usable
+      // while editing (~ still toggles it), so a mapper mid-command when
+      // they open the editor isn't met with it vanishing out from under them.
+      return () => {
+        camera.attachControl(canvas, true);
+        controller.setEnabled(wasEnabled);
+        if (wasLobbyVisible) lobby.show();
+      };
+    },
+  );
+  registerEditorLauncher(editorHost);
+
   // Start render loop
   engine.runRenderLoop(() => {
     try {
       const deltaTime = engine.getDeltaTime() / 1000.0;
 
-      // Update game logic
-      player.update(deltaTime);
-
-      scene.render();
+      if (!editorHost.renderEditor()) {
+        player.update(deltaTime);
+        scene.render();
+      }
     } catch (error) {
       rendererDiagnostics.recordRenderError(error);
       throw error;

@@ -74,6 +74,7 @@ release/
 *.wasm
 public/games/
 public/data/
+server-data/shagged/
 temp/
 
 # Claude AI assistant settings

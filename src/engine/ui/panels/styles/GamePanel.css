@@ -388,12 +388,14 @@
     inset 5px 0 0 hsla(0, 0%, 100%, 0.34);
 }
 
-/* A tab raised into a menu key (the lobby's rail) draws itself. The tab's own
-   clip-path would cut away the key's side and cast shadow, and its lift and
-   inset stripe would fight the key's. */
+/* A tab raised into a menu key (the lobby's rail) draws itself. The tab's
+   padding leaves a thick frame around the key face when this stylesheet is
+   injected after RaisedKey.css; its clip, lift and inset stripe also fight
+   the key's own side and shadow. */
 .game-panel__tab.raised-key,
 .game-panel__tab.raised-key:is(:hover, :active, .game-panel__tab--active) {
   min-height: 0;
+  padding: 0;
   border: 0;
   background: none;
   clip-path: none;

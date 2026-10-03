@@ -1,0 +1,68 @@
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
+import { buildRecipe } from "../BuildRecipe";
+import { resolveCompilerConfig, splitCompilerOptions } from "../CompilerConfig";
+
+const roots: string[] = [];
+afterEach(async () => {
+  await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
+});
+
+describe("Washoi compiler configuration and recipe", () => {
+  it("maps quality tiers to the checked NetRadiant build menu", () => {
+    expect(buildRecipe("fast", "/media", "/job/map.map")).toEqual({
+      bsp: ["-game", "washoi", "-fs_basepath", "/media", "-leaktest", "-fast", "-samplesize", "8", "/job/map.map"],
+      light: ["-game", "washoi", "-fs_basepath", "/media", "-fast", "/job/map.map"],
+    });
+    expect(buildRecipe("default", "/media", "/job/map.map").bsp).toEqual([
+      "-game",
+      "washoi",
+      "-fs_basepath",
+      "/media",
+      "/job/map.map",
+    ]);
+    expect(buildRecipe("release", "/media", "/job/map.map").light).toEqual([
+      "-game",
+      "washoi",
+      "-fs_basepath",
+      "/media",
+      "-upscale",
+      "/job/map.map",
+    ]);
+  });
+
+  it("resolves configured binaries and requires the Washoi profile and media", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "shagged-config-"));
+    roots.push(root);
+    const toolchain = path.join(root, "toolchain");
+    const media = path.join(root, "media");
+    await mkdir(path.join(toolchain, "makebspdata"), { recursive: true });
+    await mkdir(media);
+    const makebsp = path.join(toolchain, "makebsp.exe");
+    const makelight = path.join(toolchain, "makelight.exe");
+    await writeFile(makebsp, "test", { mode: 0o755 });
+    await writeFile(makelight, "test", { mode: 0o755 });
+    await writeFile(path.join(toolchain, "makebspdata", "washoi.json"), "{}");
+    const { overrides, remaining } = splitCompilerOptions([
+      "--makebsp-bin",
+      makebsp,
+      "--makelight-bin",
+      makelight,
+      "--media-root",
+      media,
+      "--toolchain-root",
+      toolchain,
+      "--default-quality",
+      "release",
+      "--port",
+      "9011",
+    ]);
+    expect(remaining).toEqual(["--port", "9011"]);
+    const ready = await resolveCompilerConfig(overrides, { SHAGGED_DEFAULT_QUALITY: "fast" }, root);
+    expect(ready).toMatchObject({ available: true, reason: null, defaultQuality: "release" });
+    await rm(path.join(toolchain, "makebspdata", "washoi.json"));
+    expect((await resolveCompilerConfig(overrides, {}, root)).reason).toMatch(/profile or media/);
+  });
+});

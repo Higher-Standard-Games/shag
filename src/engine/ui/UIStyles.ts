@@ -22,12 +22,20 @@ export class UIStyles {
   private static mobileCSS: string = "";
 
   /**
-   * Inject CSS with a unique ID. Safe to call multiple times -
-   * styles with the same ID are only injected once.
+   * Inject CSS with a unique ID. Repeated calls update changed CSS in place,
+   * which also lets hot-reloaded raw styles reach an already open UI.
    * Mobile overrides are automatically re-appended to maintain priority.
    */
   public static injectCSS(id: string, css: string): void {
-    if (UIStyles.injectedIds.has(id)) return;
+    const existing = document.getElementById(`ui-styles-${id}`);
+    if (existing) {
+      if (existing.textContent !== css) {
+        existing.textContent = css;
+        UIStyles.reapplyMobileStyles();
+      }
+      UIStyles.injectedIds.add(id);
+      return;
+    }
 
     const style = document.createElement("style");
     style.id = `ui-styles-${id}`;

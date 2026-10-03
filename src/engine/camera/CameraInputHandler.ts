@@ -54,9 +54,15 @@ export class CameraInputHandler {
    *  a full disable, which would exit pointer lock and pop the pause menu).
    *  Used by the post-game screen to freeze aim while the board is up. */
   private _lookFrozen: boolean = false;
+  private captureEnabled = true;
 
   setLookFrozen(frozen: boolean): void {
     this._lookFrozen = frozen;
+  }
+
+  /** Suspend gameplay click-to-lock while another view owns the shared canvas. */
+  setCaptureEnabled(enabled: boolean): void {
+    this.captureEnabled = enabled;
   }
   private _onKeyDown: ((e: KeyboardEvent) => void) | null = null;
   private _onKeyUp: ((e: KeyboardEvent) => void) | null = null;
@@ -119,7 +125,7 @@ export class CameraInputHandler {
       if (e.target !== this.canvas) return;
       // Post-game "open up": the cursor is deliberately free (chat + return
       // button) — don't re-capture on a stray world click while look is frozen.
-      if (this._lookFrozen) return;
+      if (this._lookFrozen || !this.captureEnabled) return;
       if (!this._isPointerLocked && this.canvas) {
         this.canvas.requestPointerLock();
       }

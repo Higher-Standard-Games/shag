@@ -139,6 +139,7 @@ A numeric cvar refuses text: `r_bloom abc` fails and leaves the value alone rath
 | `scene [subcommand]` | Scene queries |
 | `dump_scene [filter]` **dev** | Dump the Babylon scene graph |
 | `console_debug [0\|1]` **dev** | Console diagnostics |
+| `editor [open\|close\|status]` **dev** | Open the SHAGGED four-view brush editor from the lobby; drafts save locally and can export `.map` source |
 | `animtest load\|play\|list\|stop\|dispose` **dev** | Animation harness |
 | `game info\|load\|switch\|reload` | Game module control |
 | `hud <subcommand>` / `ui <subcommand>` | HUD and UI control |
