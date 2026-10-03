@@ -532,7 +532,7 @@ always stage by explicit path.
 | WO-T5 | Face selection: 3D pick by normal, overlay, six-face net in the inspector, eyedropper | T1 | yes | 3 | Opus 5.5 | done |
 | WO-T6 | UV tools: shift/scale/rotation fields, Fit, Natural, match neighbour | T1, T5 | yes | 3 | Opus 5.5 | done |
 | WO-T7 | Textured 3D preview: six quads per brush through the shared UV function; Solid/Textured toggle | T1, T3 | yes | 3 | Opus 5.5 | done |
-| WO-T8 | Acceptance: painted, aligned faces compile; BSP shaders and texture coordinates match the editor; docs and changelog | T4–T7 | no | 2 | Sonnet 5 | todo |
+| WO-T8 | Acceptance: painted, aligned faces compile; BSP shaders and texture coordinates match the editor; docs and changelog | T4–T7 | no | 2 | Sonnet 5 | done |
 
 T0 and T2 can start at once. T1 follows T0, because its UV function encodes
 whatever T0 measures. T3 follows T2. T4–T7 are UI work, and T8 closes the
@@ -984,6 +984,24 @@ that MakeBSP adds to keep coordinates small (they don't change rendering).
     fixed-alignment face compiled with the local MakeBSP. All 24 compiled
     vertices matched the preview vertex at the same position: worst
     |UV − ST| modulo 1 was 1.05e-7.
+- 2026-10-03: WO-T8 done. Acceptance probe: the room plus a box with
+  `boqu/floor` rotated 30° and shifted on +X, `+Y` matched to it around
+  the corner, and `blx/blx_white_stripe` at natural alignment on +Z,
+  compiled with the local MakeBSP and MakeLight (FAST recipe).
+  - Compiles with no leak (the sealed Room Template, as in the T0/T1 and
+    brush-entity proofs).
+  - The BSP shader lump contains all three shaders, unprefixed, with no
+    `textures/textures/` duplication.
+  - Drawvert ST matches `faceTexMatrix` on all 12 checked vertices across
+    the three faces: worst error 4.77e-7.
+  - Every probe face is lightmapped (none of the three shaders carry
+    `surfaceparm nolightmap`); FBSP reports 2 lightmap pages for the map.
+  - Playtest doesn't exist yet (M3), so no in-game screenshot.
+  - The run repeats the lightgrid Predicted/Actual mismatch
+    (`245 vs 198`) already attributed to MakeLight's own grid compression
+    on a room with few light entities (WO-T0/T1 progress log), not an
+    export defect.
+  - This closes the M2 materials work-order group (T0-T8), all done.
 
 ## M2 3D view: flycam navigation and view modes (plan, 2026-10-03)
 
