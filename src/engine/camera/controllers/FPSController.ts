@@ -1418,6 +1418,7 @@ export class FPSController implements ICameraController {
 
   setEnabled(enabled: boolean): void {
     this.enabled = enabled;
+    this.inputHandler.setCaptureEnabled(enabled);
     if (!enabled) {
       this.keys.forward = false;
       this.keys.backward = false;

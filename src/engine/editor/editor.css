@@ -230,15 +230,23 @@
   pointer-events: none;
 }
 .shagged__pane--freelook {
-  /* outline, not border: it overlays inward without nudging the pane's layout */
-  outline: 6px solid #ffc61a;
-  outline-offset: -6px;
-  box-shadow: inset 0 0 32px #ffc61a99;
+  /* Keep the cue above the shared Babylon canvas without resizing the pane. */
+  isolation: isolate;
+}
+.shagged__pane--freelook::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 0 8px #ffc61a,
+    inset 0 0 28px 8px #ffc61a99;
 }
 .shagged__free-look-hint {
   display: none;
   position: absolute;
-  z-index: 1;
+  z-index: 3;
   left: 50%;
   bottom: 14px;
   transform: translateX(-50%);

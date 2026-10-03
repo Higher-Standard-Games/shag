@@ -1064,6 +1064,7 @@ export class EditorSession {
     this.status(message);
   }
   dispose(): void {
+    if (document.pointerLockElement === this.canvas) void document.exitPointerLock?.();
     this.textureBrowser?.dispose();
     this.healthTray?.dispose();
     this.previewTextures?.dispose();
