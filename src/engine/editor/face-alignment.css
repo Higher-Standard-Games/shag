@@ -1,0 +1,64 @@
+/* SHAGGED face alignment panel, under the inspector's face net. Selectors
+   start at the inspector so they outrank its generic button style. */
+.shagged__inspector .shagged-uv {
+  display: grid;
+  gap: 4px;
+  margin: 6px 0 12px;
+}
+.shagged__inspector .shagged-uv__row {
+  display: grid;
+  grid-template-columns: 62px 24px minmax(0, 1fr) 24px;
+  gap: 3px;
+  align-items: center;
+}
+.shagged__inspector .shagged-uv__row label {
+  color: #75d9e8;
+  font-size: 11px;
+}
+.shagged__inspector .shagged-uv__row input {
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 4px 5px;
+  background: #0d172b;
+  color: #e8fbff;
+  border: 1px solid #47768b;
+  font: inherit;
+  text-align: right;
+}
+.shagged__inspector .shagged-uv__row input::placeholder {
+  color: #6f8798;
+  font-style: italic;
+}
+.shagged__inspector .shagged-uv__row button {
+  height: 100%;
+  padding: 0;
+  background: #0d172b;
+  color: #ffc61a;
+  border: 1px solid #47768b;
+  font-weight: 700;
+}
+.shagged__inspector .shagged-uv__row button:hover:not(:disabled) {
+  border-color: #ffc61a;
+}
+.shagged__inspector .shagged-uv__ops {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.6fr;
+  gap: 4px;
+  margin-top: 4px;
+}
+.shagged__inspector .shagged-uv__ops button {
+  padding: 6px 4px;
+}
+.shagged__inspector .shagged-uv button:disabled,
+.shagged__inspector .shagged-uv input:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.shagged__inspector .shagged-uv__warning {
+  margin: 4px 0 0;
+  padding: 6px 8px;
+  color: #ffd27a;
+  background: #3a2a0c;
+  border-left: 3px solid #ffc61a;
+}
