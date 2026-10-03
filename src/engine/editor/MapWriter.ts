@@ -1,4 +1,10 @@
-import { type BoxBrush, type EditorDocumentData, type PointEntity, validateDocument } from "./EditorDocument";
+import {
+  type BoxBrush,
+  type BrushEntity,
+  type EditorDocumentData,
+  type PointEntity,
+  validateDocument,
+} from "./EditorDocument";
 
 const UV = "( ( 0.03125 0 0 ) ( 0 0.03125 0 ) )";
 const fmt = (n: number): string => Number(n.toFixed(6)).toString();
@@ -26,25 +32,43 @@ function boxLines(brush: BoxBrush): string[] {
   ];
 }
 
+const keyLines = (keys: Record<string, string>): string[] =>
+  Object.entries(keys)
+    .sort(([a], [b]) => codeOrder(a, b))
+    .map(([key, value]) => `"${key}" "${value}"`);
+
 /** classname, then origin, then every other key in name order. */
 function entityLines(entity: PointEntity): string[] {
   const { x, y, z } = entity.origin;
-  const keys = Object.entries(entity.keys).sort(([a], [b]) => codeOrder(a, b));
   return [
     "{",
     `"classname" "${entity.classname}"`,
     `"origin" "${fmt(x)} ${fmt(y)} ${fmt(z)}"`,
-    ...keys.map(([key, value]) => `"${key}" "${value}"`),
+    ...keyLines(entity.keys),
     "}",
   ];
+}
+
+/** classname, keys, then the owned brushes in ID order. No origin: MakeBSP assigns the submodel. */
+function brushEntityLines(entity: BrushEntity, brushes: ReadonlyMap<string, BoxBrush>): string[] {
+  const owned = [...entity.brushIds].sort(codeOrder).map((id) => brushes.get(id)!);
+  return ["{", `"classname" "${entity.classname}"`, ...keyLines(entity.keys), ...owned.flatMap(boxLines), "}"];
 }
 
 /** Deterministic source: objects in ID order, so selection and insertion order never change the bytes. */
 export function writeMap(data: EditorDocumentData): string {
   validateDocument(data);
+  const brushEntities = data.brushEntities ?? [];
+  const owned = new Set(brushEntities.flatMap((entity) => entity.brushIds));
+  const brushes = new Map(data.brushes.map((brush) => [brush.id, brush]));
   const lines = ["{", '"classname" "worldspawn"'];
-  for (const brush of [...data.brushes].sort(byId)) lines.push(...boxLines(brush));
+  for (const brush of [...data.brushes].sort(byId)) if (!owned.has(brush.id)) lines.push(...boxLines(brush));
   lines.push("}");
-  for (const entity of [...data.entities].sort(byId)) lines.push(...entityLines(entity));
+  // Point and brush entities share one ID order.
+  const entities: Array<{ id: string; lines: () => string[] }> = [
+    ...data.entities.map((entity) => ({ id: entity.id, lines: () => entityLines(entity) })),
+    ...brushEntities.map((entity) => ({ id: entity.id, lines: () => brushEntityLines(entity, brushes) })),
+  ];
+  for (const entity of entities.sort(byId)) lines.push(...entity.lines());
   return `${lines.join("\n")}\n`;
 }

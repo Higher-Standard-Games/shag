@@ -6,8 +6,23 @@
 
 import { describe, expect, it } from "vitest";
 import { MapParser } from "../../loader/map/MapParser";
-import { EditorDocument, type EditorDocumentDataV1, type PointEntity } from "../EditorDocument";
-import { entityClass, POINT_ENTITY_CLASSES, parseEntityDefs } from "../EntityCatalog";
+import {
+  type BoxBrush,
+  type BrushEntity,
+  EditorDocument,
+  type EditorDocumentDataV1,
+  ownerOf,
+  type PointEntity,
+  pruneBrushEntities,
+} from "../EditorDocument";
+import {
+  BRUSH_ENTITY_CLASSES,
+  brushEntityShader,
+  entityClass,
+  missingRequiredKeys,
+  POINT_ENTITY_CLASSES,
+  parseEntityDefs,
+} from "../EntityCatalog";
 import { writeMap } from "../MapWriter";
 
 const spawn = (id: string, keys: Record<string, string> = {}): PointEntity => ({
@@ -146,5 +161,113 @@ describe("entity export", () => {
     const parsed = MapParser.parse(source);
     expect(parsed.map((entity) => entity.classname)).toEqual(["worldspawn", "info_player_deathmatch", "light"]);
     expect(parsed[2].properties.light).toBe("300");
+  });
+});
+
+const box = (id: string, x = 0): BoxBrush => ({
+  id,
+  min: { x, y: 0, z: 0 },
+  max: { x: x + 64, y: 64, z: 64 },
+  shader: "blx/blx_grid",
+});
+
+describe("brush entities", () => {
+  it("lists the trigger and mover classes, with required keys and without model or origin", () => {
+    const names = BRUSH_ENTITY_CLASSES.map((entity) => entity.classname);
+    for (const name of ["trigger_teleport", "trigger_push", "trigger_hurt", "func_door", "func_plat"]) {
+      expect(names).toContain(name);
+    }
+    expect(names).not.toContain("worldspawn");
+    expect(names).not.toContain("light");
+    const teleport = entityClass("trigger_teleport");
+    expect(teleport.keys).toEqual([{ name: "target", label: "Target Entity", required: true }]);
+    const door = entityClass("func_door");
+    expect(door.keys.find((key) => key.name === "angle")).toMatchObject({ required: true });
+    expect(door.keys.some((key) => key.name === "model" || key.name === "origin")).toBe(false);
+    expect(missingRequiredKeys("trigger_teleport", {})).toEqual(["target"]);
+    expect(missingRequiredKeys("trigger_teleport", { target: "dest1" })).toEqual([]);
+    expect(brushEntityShader("trigger_push")).toBe("common/trigger");
+    expect(brushEntityShader("func_door")).toBeNull();
+  });
+
+  it("owns brushes by ID and refuses a missing brush, a second owner, an empty entity or a model key", () => {
+    const document = new EditorDocument();
+    document.transact((data) => data.brushes.push(box("a"), box("b", 64)));
+    const entity = (brushIds: string[], keys: Record<string, string> = {}): BrushEntity => ({
+      id: `door-${brushIds.join("")}`,
+      classname: "func_door",
+      keys,
+      brushIds,
+    });
+    const reject = (value: BrushEntity) =>
+      expect(() => document.transact((data) => data.brushEntities!.push(value))).toThrow();
+    reject(entity(["missing"]));
+    reject(entity([]));
+    reject(entity(["a"], { model: "*1" }));
+    reject(entity(["a"], { origin: "0 0 0" }));
+    document.transact((data) => data.brushEntities!.push(entity(["a"])));
+    reject({ ...entity(["a"]), id: "second" });
+    expect(ownerOf(document.snapshot(), "a")?.id).toBe("door-a");
+    expect(ownerOf(document.snapshot(), "b")).toBeUndefined();
+  });
+
+  it("prunes a deleted brush from its entity and drops an entity left empty", () => {
+    const document = new EditorDocument();
+    document.transact((data) => {
+      data.brushes.push(box("a"), box("b", 64), box("c", 128));
+      data.brushEntities!.push(
+        { id: "door", classname: "func_door", keys: { angle: "-1" }, brushIds: ["a", "b"] },
+        { id: "push", classname: "trigger_push", keys: {}, brushIds: ["c"] },
+      );
+    });
+    document.transact((data) => {
+      data.brushes = data.brushes.filter((brush) => brush.id !== "b" && brush.id !== "c");
+      pruneBrushEntities(data);
+    });
+    expect(document.snapshot().brushEntities).toEqual([
+      { id: "door", classname: "func_door", keys: { angle: "-1" }, brushIds: ["a"] },
+    ]);
+  });
+
+  it("reads a draft saved before brush entities existed", () => {
+    const data = new EditorDocument({
+      schemaVersion: 2,
+      draftId: "old",
+      revision: 3,
+      brushes: [box("a")],
+      entities: [],
+    }).snapshot();
+    expect(data.brushEntities).toEqual([]);
+  });
+
+  it("moves owned brushes out of worldspawn into their entity, with no origin or model", () => {
+    const document = new EditorDocument();
+    document.transact((data) => {
+      data.brushes.push(box("world"), box("tp", 64));
+      data.brushEntities!.push({
+        id: "e-tp",
+        classname: "trigger_teleport",
+        keys: { target: "dest1" },
+        brushIds: ["tp"],
+      });
+      data.entities.push({
+        id: "e-dest",
+        classname: "misc_teleporter_dest",
+        origin: { x: 512, y: 0, z: 24 },
+        keys: { targetname: "dest1" },
+      });
+    });
+    const source = writeMap(document.snapshot());
+    const parsed = MapParser.parse(source);
+    expect(parsed.map((entity) => entity.classname)).toEqual([
+      "worldspawn",
+      "misc_teleporter_dest",
+      "trigger_teleport",
+    ]);
+    expect(parsed[0].brushes).toHaveLength(1);
+    const trigger = parsed[2];
+    expect(trigger.brushes).toHaveLength(1);
+    expect(trigger.properties).toEqual({ classname: "trigger_teleport", target: "dest1" });
+    expect(source).toBe(writeMap(document.snapshot()));
   });
 });
