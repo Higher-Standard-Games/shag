@@ -1031,6 +1031,11 @@ Added on review, so drawing brushes works as in Radiant:
   anywhere else draws a new brush, which becomes the selection. A click
   that draws nothing selects what is under it, or clears the selection on
   empty space. The Select tool keeps its behaviour.
+- **Cursors** in the orthographic panes say what a press would do: a
+  resize arrow (↔ or ↕) on a draggable edge, an open hand where a press
+  moves the brush or entity, a closed hand while moving or panning, and
+  the crosshair where a drag draws. Hover and press share one hit test, so
+  they can't disagree.
 
 ### View modes
 

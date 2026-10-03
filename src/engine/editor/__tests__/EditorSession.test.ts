@@ -914,6 +914,51 @@ describe("editor DOM shell", () => {
     engine.dispose();
   });
 
+  it("shows a resize cursor on a draggable edge, a hand where a press moves, and a closed hand while moving", async () => {
+    const engine = new NullEngine();
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    const session = new EditorSession(engine, canvas, vi.fn());
+    const pane = session.root.querySelector<HTMLCanvasElement>('[data-plane="xy"]')!;
+    const pointer = (type: string, x: number, y: number, button = 0) =>
+      pane.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, button, clientX: x, clientY: y }));
+    const hover = (x: number, y: number) => {
+      pointer("pointermove", x, y);
+      return pane.style.cursor;
+    };
+    // a brush spanning screen x 200..264 and y 86..150, selected after drawing
+    pointer("pointerdown", 200, 150);
+    pointer("pointerup", 264, 86);
+
+    expect(hover(232, 118)).toBe("grab");
+    expect(hover(203, 118)).toBe("ew-resize"); // near its left edge
+    expect(hover(232, 147)).toBe("ns-resize"); // near its bottom edge
+    expect(hover(20, 20)).toBe(""); // empty space: the tool's crosshair
+
+    // the Brush tool only grabs the selection; elsewhere a drag draws
+    pointer("pointerdown", 20, 20, 2);
+    pointer("pointerup", 20, 20, 2);
+    expect(hover(232, 118)).toBe("");
+    // the Select tool grabs whatever is there
+    session.root.dispatchEvent(new KeyboardEvent("keydown", { key: "v", bubbles: true }));
+    expect(hover(232, 118)).toBe("grab");
+
+    pointer("pointerdown", 232, 118);
+    expect(pane.style.cursor).toBe("grabbing");
+    pointer("pointermove", 264, 118);
+    pointer("pointerup", 264, 118);
+    await Promise.resolve();
+    expect(pane.style.cursor).toBe("grab"); // still over the moved brush
+
+    // a pan shows the closed hand too
+    pointer("pointerdown", 20, 20, 1);
+    expect(pane.style.cursor).toBe("grabbing");
+    pointer("pointerup", 20, 20, 1);
+    expect(pane.style.cursor).toBe("");
+    session.dispose();
+    engine.dispose();
+  });
+
   it("selects a brush that lies between coarse grid lines", () => {
     const engine = new NullEngine();
     const canvas = document.createElement("canvas");

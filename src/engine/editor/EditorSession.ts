@@ -1651,6 +1651,7 @@ export class EditorSession {
         center: { ...this.viewCenter },
         travel: 0,
       };
+      pane.style.cursor = "grabbing";
       return;
     }
     const start = this.coordinates(plane, pane, event);
@@ -1660,16 +1661,10 @@ export class EditorSession {
       this.placeEntity(plane, start);
       return;
     }
-    const data = this.document.snapshot();
-    // Entities are small and drawn on top of brushes, so they win a shared click.
-    const entityHit = [...data.entities].reverse().find((entity) => inRect(u, v, entityBox(entity), plane));
-    const hit = entityHit ? undefined : [...data.brushes].reverse().find((brush) => inRect(u, v, brush, plane));
-    // With the Brush tool, a drag on the selection moves or resizes it, as in Radiant; elsewhere it draws.
-    const onSelection = (entityHit ?? hit)?.id === this.selectedId && this.selectedId !== null;
+    const { entityHit, hit, onSelection, edge } = this.pressTarget(plane, u, v);
     if (this.tool === "select" || onSelection) {
       if (!onSelection) this.selectedFaces.clear();
       this.selectedId = entityHit?.id ?? hit?.id ?? null;
-      const edge = hit ? pickResizeEdge(hit, axes.u, axes.v, u, v, 8 / this.zoom) : null;
       this.gesture =
         entityHit || hit
           ? {
@@ -1684,6 +1679,7 @@ export class EditorSession {
               grid: this.grid,
             }
           : null;
+      if (this.gesture?.mode === "move") pane.style.cursor = "grabbing";
       this.rebuildMeshes();
       this.trySaveView();
     } else
@@ -1747,6 +1743,7 @@ export class EditorSession {
       coord[axes.hidden] = this.workPlanes[axes.hidden];
       this.hoverPlane = plane;
       this.hoverCoord = coord;
+      this.updateCursor(plane, event);
       this.renderStatus();
       return;
     }
@@ -1761,6 +1758,7 @@ export class EditorSession {
       this.pointerMove(plane, event);
       const click = this.pan.button === 2 && this.pan.travel <= 4;
       this.pan = null;
+      this.updateCursor(plane, event);
       if (click) this.deselect();
       else this.trySaveView();
       return;
@@ -1770,6 +1768,8 @@ export class EditorSession {
     if (!gesture || gesture.plane !== plane) return;
     gesture.current = this.coordinates(plane, this.panes.get(plane)!, event, gesture.grid);
     this.gesture = null;
+    // after the edit below lands, the cursor shows what is under it now
+    queueMicrotask(() => this.updateCursor(plane, event));
     const [u0, v0] = gesture.start;
     const [u1, v1] = gesture.current;
     if (u0 === u1 && v0 === v1) {
@@ -1825,6 +1825,41 @@ export class EditorSession {
     this.changed();
   }
 
+  /**
+   * What a left press at (u, v) would take hold of. Entities are small and
+   * drawn on top of brushes, so they win a shared point. The Select tool
+   * grabs whatever is there; the Brush tool grabs only the selection (a drag
+   * elsewhere draws), as in Radiant.
+   */
+  private pressTarget(
+    plane: Plane,
+    u: number,
+    v: number,
+  ): { entityHit?: PointEntity; hit?: BoxBrush; onSelection: boolean; grabs: boolean; edge: ResizeEdge | null } {
+    const data = this.document.snapshot();
+    const axes = AXES[plane];
+    const entityHit = [...data.entities].reverse().find((entity) => inRect(u, v, entityBox(entity), plane));
+    const hit = entityHit ? undefined : [...data.brushes].reverse().find((brush) => inRect(u, v, brush, plane));
+    const target = entityHit ?? hit;
+    const onSelection = target !== undefined && target.id === this.selectedId;
+    const grabs = target !== undefined && (this.tool === "select" || (this.tool === "brush" && onSelection));
+    const edge = grabs && hit ? pickResizeEdge(hit, axes.u, axes.v, u, v, 8 / this.zoom) : null;
+    return { entityHit, hit, onSelection, grabs, edge };
+  }
+
+  /** The hover cursor says what a press would do: resize along an edge, move (hand), or the tool's crosshair. */
+  private updateCursor(plane: Plane, event: PointerEvent): void {
+    const pane = this.panes.get(plane);
+    if (!pane || this.gesture || this.pan) return;
+    if (this.tool === "entity") {
+      pane.style.cursor = "";
+      return;
+    }
+    const [u, v] = this.worldAt(plane, pane, event);
+    const { grabs, edge } = this.pressTarget(plane, u, v);
+    pane.style.cursor = edge ? (edge.axis === AXES[plane].u ? "ew-resize" : "ns-resize") : grabs ? "grab" : "";
+  }
+
   private clickSelect(plane: Plane, event: PointerEvent): void {
     const [u, v] = this.worldAt(plane, this.panes.get(plane)!, event);
     const data = this.document.snapshot();
@@ -1844,6 +1879,7 @@ export class EditorSession {
 
   private cancelGesture(): void {
     this.gesture = null;
+    for (const pane of this.panes.values()) pane.style.cursor = "";
     if (this.pan) this.viewCenter = this.pan.center;
     this.pan = null;
     this.draw();
