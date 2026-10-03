@@ -237,6 +237,7 @@ This matrix describes **editor features to build**, not features already availab
 | Face material editing | M2 (**planned**, see "M2 materials") | Pick one or multiple faces, assign a Washoi shader name, adjust basic shift/scale/rotation, preview and export the result. | PK3/shader loaders exist; current raw parser discards brush primitive UV matrices and flags, so editor needs lossless face data. |
 | Multi-select and grouping | M2 | Shift-select, marquee-select, group/ungroup, move/duplicate a group, and preserve membership in the editable draft. | New editor-only hierarchy. `func_group` appears in Washoi `entities.def`, but its compiler semantics need proof before using it for persistence; grouping must not silently change game entity ownership. |
 | Point entity placement | M2 (**done 2026-10-03**) | Place a spawn, light, pickup, or target marker in 2D/3D; edit `classname`, origin, angle, and class-specific keys in an inspector. | Done: `EntityCatalog.ts` reads the gameplay point classes from `entities.def`; schema v2 `entities` with preserved unknown keys; markers in all panes; deterministic export; compiled and read back through `BspLoader`. |
+| Referenced model placement (`misc_model`) | M2+ (planned; see "Referenced models") | Pick an external prop, preview it in all views, place/rotate/scale copies, and export `misc_model` references for MakeBSP to bake into the BSP. | Generic point-entity storage/export exists; the catalog excludes `misc_model`, and model discovery, preview, compiler asset validation, and collision proof are missing. |
 | Brush entity placement | M2 (**done 2026-10-03**) | Convert selected brushes into a brush entity (for example trigger/door), set keys, and show entity bounds and links. | Done: ownership by brush ID, no origin/model keys, required-key warnings, class-coloured brushes; a teleporter and a two-brush door compiled to submodels `*1`/`*2`. Target-link overlays remain the separate entity-link idea. |
 | Simplified modular Block Builder | Optional M2+ | Pick a sized room piece, snap compatible sockets/grid positions, rotate by quarter-turn, and detach it to editable brushes. | Babylon can preview/gizmo repeated pieces; pure Quake-space placement, versioned definitions, and deterministic expansion to `.map` are new. Its detailed proof is below. |
 | Raw map preview | M1/M2 | Inspect the editable `.map` through the editor's 3D and orthographic views, with textured/wireframe options as they arrive. | Raw brush and patch renderers exist; editor previews need their own lightweight scene objects. No separate raw gameplay mode is required. |
@@ -264,6 +265,84 @@ The table gives each milestone a reviewable outcome; the feature matrix above re
 | **M4: authored curves and shape presets** | M1 geometry model and M3 playtest path for full gate | Editable patch curves, bevel/arch presets, export and preview. | Compile representative shapes, then verify collision and navigation in-game after Playtest. | Arbitrary convex CSG, true rounded solid edges, general external `.map` import. |
 
 P0 may run alongside the M1 host/console slice; an unavailable MakeBSP binary blocks the M1 **export validity claim**, not all useful browser-host work. M2 and M3 can be developed in parallel after M1. If patch tools are built before M3, label them experimental until the in-game M4 collision gate can run. Future ideas in the sections below do not silently expand these acceptance gates.
+
+## Referenced models: `misc_model` (research, 2026-10-03)
+
+A high-poly prop stays in an external model file. The `.map` contains a point
+entity with its asset path and transform, not the model's vertices. NetRadiant
+Custom's [Q3Map2 model path](https://github.com/Garux/netradiant-custom/blob/master/tools/quake3/q3map2/model.cpp)
+reads each `misc_model`, loads the referenced model through the compiler's VFS,
+and inserts its surfaces into the BSP. A normal compiled playtest therefore
+renders the baked BSP surfaces; it does not need to spawn the source model from
+the `misc_model` entity at runtime. The optional
+[`-keepmodels` compiler flag](https://github.com/Garux/netradiant-custom/blob/master/tools/quake3/q3map2/bsp.cpp)
+retains those entities and needs separate runtime testing before use.
+
+An illustrative `.map` entity (the model path must refer to a real mounted
+asset when compiled):
+
+```text
+{
+"classname" "misc_model"
+"origin" "128 64 32"
+"model" "models/mapobjects/crate/crate.md3"
+"angle" "90"
+"modelscale" "1"
+}
+```
+
+| Stage | Required behavior |
+| --- | --- |
+| Author | Store `classname: misc_model`, the relative `model` path, Quake-space origin, and transform keys as normal point-entity data. Keep the mesh outside the editor document and `.map`. |
+| Preview | Resolve the same asset in the browser, show a selectable mesh in 3D and footprint/bounds in orthographic views, and cache repeated models. Show an explicit missing/unsupported-asset marker instead of a silent empty prop. |
+| Compile | Save the `.map` snapshot and let server-side MakeBSP resolve model and material dependencies from its mounted loose files/PK3s. Inspect compiler warnings and the resulting BSP surfaces. |
+| Playtest | Load the compiled BSP through the normal game path. Preserve source model files for future editing/compiles; package required shader/texture assets for the compiled appearance. |
+
+**Compiler keys are distinct from raw-preview keys.** In Q3Map2,
+`modelscale_vec` takes precedence over uniform `modelscale`; `angles` takes
+precedence over yaw-only `angle`. It also reads `_frame`/`frame`,
+`_skin`/`skin`, `_remap*`, `spawnflags`, and `_clipdepth` for advanced cases.
+These are visible in
+[`ModelGetTransform` and `AddTriangleModels`](https://github.com/Garux/netradiant-custom/blob/master/tools/quake3/q3map2/model.cpp).
+The first UI slice only needs `model`, `origin`, `angle`, and `modelscale`, while
+preserving all unknown keys. Validate forward-slash, VFS-relative paths: no
+absolute paths or `..`. Offer `angles` and `modelscale_vec` once preview and
+compile transforms have been compared.
+
+**Current SHAG gap.** [`entities.def`](../../editor/gamepacks/washoi.game/basewashoi/entities.def)
+labels `misc_model` as raw-.map-only, so [`EntityCatalog.ts`](../../src/engine/editor/EntityCatalog.ts)
+omits it from the palette, although the generic document and
+[`MapWriter.ts`](../../src/engine/editor/MapWriter.ts) can carry and export its
+keys. [`MapRenderer.ts`](../../src/engine/MapRenderer.ts) has a separate raw-map
+path that interprets `scale`, `collision`, and `dropToGround`; Q3Map2 does not
+use those as the model's compiler transform/collision controls. Its
+`ModelLoader.isModelFile` gate presently accepts GLB/glTF/OBJ/Babylon but not
+MD3, despite a separate MD3 load path. The editor needs its own explicit model
+catalog and transform adapter; reusing that raw path as-is would give a
+misleading preview. The server must check that the compiler can see the asset
+under its configured VFS root before reporting a clean compile.
+
+**Geometry and collision.** Model surfaces are decorative geometry, not a
+substitute for structural brushes that seal the map. SHAG's compiled collision
+path deliberately skips some type-3 triangle-soup surfaces with `models/` or
+`mapobjects` shaders, so a visible prop is not automatically solid. Use simple
+brush/playerclip proxies when collision is required, then verify in playtest.
+Q3Map2 has model autoclip options, but their shader/spawnflag behavior should
+be tested with our MakeBSP build before exposing a UI switch. A high-poly prop
+can also raise BSP size, lightmap cost, and compile time; editor preview
+instancing does not imply BSP instancing.
+
+**First implementation slice:** add `misc_model` to the editor's selectable
+point classes with a model picker backed by assets visible to both the browser
+and compiler; preview a bounded, cached mesh with Quake-to-Babylon transform;
+edit `angle`/`modelscale`; write the entity through the existing point writer.
+Choose one format proven in both browser and installed MakeBSP before claiming
+general format support. Compile a closed test room with two rotated/scaled
+copies, inspect their BSP geometry, shaders and lighting, and walk into a
+separate collision proxy. A missing model must produce a visible editor issue
+and a reported compile warning/failure. Record whether a model's material
+names resolve to the expected Washoi shader paths; Q3Map2 derives shader names
+from the imported model's material or diffuse texture path.
 
 ## M2 materials: face selection and the texture browser (plan, 2026-10-03)
 
