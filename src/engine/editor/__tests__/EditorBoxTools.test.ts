@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pickResizeEdge, resizeBox, resizeCursor } from "../EditorBoxTools";
+import { pickResizeEdge, type ResizeEdge, resizeBox, resizeClamped, resizeCursor } from "../EditorBoxTools";
 
 const brush = {
   id: "box",
@@ -101,5 +101,31 @@ describe("box edge tools", () => {
         "x",
       ),
     ).toBe("nesw-resize");
+  });
+
+  it("flags a resize that resizeBox had to clamp, for either face of a corner", () => {
+    // min.y=0, max.y=96, grid=16: a min-side drag can't push min.y past 80 (96 - 16)
+    const minEdge: ResizeEdge = { faces: [{ axis: "y", side: "min" }] };
+    expect(resizeClamped(brush, minEdge, { y: 80 }, 16)).toBe(false); // right at the floor: no further
+    expect(resizeClamped(brush, minEdge, { y: 81 }, 16)).toBe(true); // asked to shrink past it
+    expect(resizeClamped(brush, minEdge, { y: -50 }, 16)).toBe(false); // plenty of room
+
+    const maxEdge: ResizeEdge = { faces: [{ axis: "y", side: "max" }] };
+    expect(resizeClamped(brush, maxEdge, { y: 16 }, 16)).toBe(false); // right at the floor
+    expect(resizeClamped(brush, maxEdge, { y: 15 }, 16)).toBe(true);
+
+    // a corner is clamped if either face is, even when the other has room
+    const corner: ResizeEdge = {
+      faces: [
+        { axis: "x", side: "min" },
+        { axis: "y", side: "max" },
+      ],
+    };
+    expect(resizeClamped(brush, corner, { x: -200, y: 15 }, 16)).toBe(true); // y clamped, x has room
+    expect(resizeClamped(brush, corner, { x: 60, y: 200 }, 16)).toBe(true); // x clamped, y has room
+    expect(resizeClamped(brush, corner, { x: -200, y: 200 }, 16)).toBe(false); // neither clamped
+
+    // an axis the drag never touches can't be clamped
+    expect(resizeClamped(brush, minEdge, {}, 16)).toBe(false);
   });
 });

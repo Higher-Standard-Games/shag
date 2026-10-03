@@ -62,6 +62,29 @@ export function resizeBox(
   return result;
 }
 
+/** The coordinate on `face.axis` that gives the dragged face an exact `size`, keeping the opposite face anchored. */
+export function exactResizeValue(brush: BoxBrush, face: ResizeFace, size: number): number {
+  return face.side === "min" ? brush.max[face.axis] - size : brush.min[face.axis] + size;
+}
+
+/**
+ * Whether `resizeBox` would have to clamp any dragged face against the
+ * one-grid-unit floor for the same inputs — the mapper asked for smaller
+ * than that, or to invert the box, and didn't get it.
+ */
+export function resizeClamped(
+  brush: BoxBrush,
+  edge: ResizeEdge,
+  values: Partial<Record<keyof Vec3q, number>>,
+  grid: number,
+): boolean {
+  return edge.faces.some(({ axis, side }) => {
+    const value = values[axis];
+    if (value === undefined) return false;
+    return side === "min" ? value > brush.max[axis] - grid : value < brush.min[axis] + grid;
+  });
+}
+
 /** The CSS resize cursor for an edge (↔/↕) or a corner (↗↙/↖↘), in this pane's screen orientation. */
 export function resizeCursor(edge: ResizeEdge, uAxis: keyof Vec3q): string {
   if (edge.faces.length === 1) return edge.faces[0].axis === uAxis ? "ew-resize" : "ns-resize";

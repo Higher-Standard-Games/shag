@@ -279,7 +279,9 @@ describe("editor DOM shell", () => {
     xy.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, button: 0, clientX: 200, clientY: 150 }));
     xy.dispatchEvent(new MouseEvent("pointermove", { bubbles: true, button: 0, clientX: 264, clientY: 86 }));
     expect(restored.document.snapshot().brushes).toHaveLength(0);
-    expect(context.strokeRect).toHaveBeenCalledTimes(4); // the preview box, plus the live dimension label's border
+    // the "min 1 grid cell" warning at pointerdown (start === current, no preview yet), then the preview
+    // box and the live dimension label's border once pointermove gives it a real size
+    expect(context.strokeRect).toHaveBeenCalledTimes(5);
     const ghost = engine.scenes[0].getMeshByName("shagged-gesture-preview");
     expect(ghost?.position.y).toBe(136);
     xy.dispatchEvent(new MouseEvent("pointerup", { bubbles: true, button: 0, clientX: 264, clientY: 86 }));
@@ -917,33 +919,52 @@ describe("editor DOM shell", () => {
     engine.dispose();
   });
 
-  it("marks the snapped grid point while dragging, in every gesture mode, only in the dragged pane", () => {
+  it("warns when a resize or draw hits the one-grid-unit floor, instead of silently refusing to go smaller", () => {
     const engine = new NullEngine();
     const canvas = document.createElement("canvas");
     document.body.appendChild(canvas);
     const session = new EditorSession(engine, canvas, vi.fn());
     const xy = session.root.querySelector<HTMLCanvasElement>('[data-plane="xy"]')!;
-    const xz = session.root.querySelector<HTMLCanvasElement>('[data-plane="xz"]')!;
-    const pointer = (pane: HTMLCanvasElement, type: string, x: number, y: number) =>
-      pane.dispatchEvent(new MouseEvent(type, { bubbles: true, button: 0, clientX: x, clientY: y }));
+    const pointer = (type: string, x: number, y: number) =>
+      xy.dispatchEvent(new MouseEvent(type, { bubbles: true, button: 0, clientX: x, clientY: y }));
+    const lastLabel = () => context.fillText.mock.calls.at(-1)![0] as string;
 
-    context.arc.mockClear();
-    expect(context.arc).not.toHaveBeenCalled(); // nothing dragging yet
-    pointer(xy, "pointerdown", 200, 150); // draw
-    pointer(xy, "pointermove", 264, 86);
-    expect(context.arc).toHaveBeenLastCalledWith(264, 86, 5, 0, Math.PI * 2);
-    pointer(xy, "pointerup", 264, 86);
+    pointer("pointerdown", 200, 150);
+    pointer("pointerup", 264, 86); // brush x spans -64..0 on screen 200..264
 
-    session.root.dispatchEvent(new KeyboardEvent("keydown", { key: "v", bubbles: true }));
-    context.arc.mockClear();
-    pointer(xy, "pointerdown", 232, 118); // move
-    pointer(xy, "pointermove", 260, 140);
-    expect(context.arc).toHaveBeenCalled(); // a move snaps and marks too, just without a size label
-    pointer(xy, "pointerup", 260, 140);
+    // a small, still-valid resize: no floor warning
+    pointer("pointerdown", 203, 118); // the left (min.x) edge
+    context.fillText.mockClear();
+    pointer("pointermove", 210, 118);
+    expect(lastLabel()).not.toContain("(min)");
+    // dragging the same edge far past the opposite face: resizeBox clamps it, and the label says so
+    pointer("pointermove", 400, 118);
+    expect(lastLabel()).toContain("(min)");
+    pointer("pointerup", 400, 118);
+    // the brush itself never actually inverted or vanished
+    const clampedBrush = session.document.snapshot().brushes[0];
+    expect(clampedBrush.max.x - clampedBrush.min.x).toBeGreaterThanOrEqual(16);
 
-    context.arc.mockClear();
-    pointer(xz, "pointermove", 10, 10); // hovering an idle pane with no gesture: no marker anywhere
-    expect(context.arc).not.toHaveBeenCalled();
+    // typing a size smaller than one grid unit shows the same warning, and commits the clamped size, not the typo.
+    // The clamp above left the brush only 16 wide (-16..0); its untouched right edge is still at screen 264.
+    pointer("pointerdown", 261, 118);
+    pointer("pointermove", 255, 118);
+    context.fillText.mockClear();
+    session.root.dispatchEvent(new KeyboardEvent("keydown", { key: "1", bubbles: true }));
+    expect(lastLabel()).toContain("(min)");
+    session.root.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    expect(session.root.querySelector(".shagged__status")!.textContent).toContain("below the one-grid-unit floor");
+    const afterTyped = session.document.snapshot().brushes[0];
+    expect(afterTyped.max.x - afterTyped.min.x).toBe(16); // the floor, not "1"
+
+    // drawing less than one grid cell: no box exists yet, but the cursor still explains why
+    session.root.dispatchEvent(new KeyboardEvent("keydown", { key: "b", bubbles: true }));
+    context.fillText.mockClear();
+    pointer("pointerdown", 400, 300);
+    pointer("pointermove", 402, 300); // well under a grid cell at this zoom
+    expect(lastLabel()).toBe("min 1 grid cell");
+    pointer("pointerup", 402, 300);
+    expect(session.document.snapshot().brushes).toHaveLength(1); // still just the one brush: nothing new was drawn
     session.dispose();
     engine.dispose();
   });

@@ -16,7 +16,14 @@ import "@babylonjs/loaders/glTF";
 import "@babylonjs/core/Rendering/edgesRenderer";
 // Registers Scene.pick for perspective selection.
 import "@babylonjs/core/Culling/ray";
-import { pickResizeEdge, type ResizeEdge, resizeBox, resizeCursor } from "./EditorBoxTools";
+import {
+  exactResizeValue,
+  pickResizeEdge,
+  type ResizeEdge,
+  resizeBox,
+  resizeClamped,
+  resizeCursor,
+} from "./EditorBoxTools";
 import {
   type BoxBrush,
   EditorDocument,
@@ -2175,20 +2182,27 @@ export class EditorSession {
   /** Resizes the dragged edge to exactly `size`, keeping the opposite face anchored, as pointerUp would commit it. */
   private commitNumericResize(gesture: Gesture, size: number): void {
     const brush = gesture.brush;
-    const face = gesture.edge?.faces[0];
-    if (!brush || !face || !Number.isFinite(size) || size <= 0) {
+    const edge = gesture.edge;
+    const face = edge?.faces[0];
+    if (!brush || !edge || !face || !Number.isFinite(size) || size <= 0) {
       this.status("Enter a positive size");
       return;
     }
-    const value = face.side === "min" ? brush.max[face.axis] - size : brush.min[face.axis] + size;
-    const candidate = resizeBox(brush, gesture.edge!, { [face.axis]: value }, this.grid);
+    const clamped = resizeClamped(brush, edge, { [face.axis]: exactResizeValue(brush, face, size) }, this.grid);
+    const candidate = resizeBox(brush, edge, { [face.axis]: exactResizeValue(brush, face, size) }, this.grid);
+    const achieved = Math.round(candidate.max[face.axis] - candidate.min[face.axis]);
     this.gesture = null;
     this.document.transact((data) => {
       const index = data.brushes.findIndex((item) => item.id === brush.id);
       data.brushes[index] = candidate;
     });
     this.changed();
-    this.status(`Set ${face.axis.toUpperCase()} to exactly ${size}`);
+    // The typed size can itself be smaller than one grid unit; say what actually landed, not what was typed.
+    this.status(
+      clamped
+        ? `${size} was below the one-grid-unit floor; set ${face.axis.toUpperCase()} to ${achieved} instead`
+        : `Set ${face.axis.toUpperCase()} to exactly ${achieved}`,
+    );
   }
 
   private changed(): void {
@@ -2701,14 +2715,50 @@ export class EditorSession {
         // mapper doesn't have to find it in the status bar's much longer line. While typing an exact
         // size (resize only, see numericEntryKey), it replaces the measured number, styled in lime to
         // match the snap marker, so it reads as "this will commit", not "this is what the mouse says".
-        if ((this.gesture.mode === "draw" || this.gesture.mode === "resize") && preview) {
-          const typing = this.gesture.mode === "resize" ? this.numericEntry : null;
-          const label = typing
-            ? `${typing.buffer}_`
-            : [axes.u, axes.v, axes.hidden]
-                .map((axis) => Math.round(preview.max[axis] - preview.min[axis]))
-                .join(" × ");
-          const accent = typing ? "#baff39" : "#ffc61a";
+        // Red with "(min)" means the drag or the typed size is being held at the one-grid-unit floor —
+        // silently refusing to go smaller would look like nothing happened.
+        const gesture = this.gesture;
+        const typing = gesture.mode === "resize" ? this.numericEntry : null;
+        let clamped = false;
+        if (gesture.mode === "resize" && gesture.brush && gesture.edge) {
+          const { brush, edge } = gesture;
+          if (typing?.buffer) {
+            const size = Number(typing.buffer);
+            const face = edge.faces[0];
+            if (Number.isFinite(size) && size > 0) {
+              clamped = resizeClamped(brush, edge, { [face.axis]: exactResizeValue(brush, face, size) }, this.grid);
+            }
+          } else {
+            clamped = resizeClamped(
+              brush,
+              edge,
+              { [axes.u]: gesture.current[0], [axes.v]: gesture.current[1] },
+              this.grid,
+            );
+          }
+        }
+        if (gesture.mode === "draw" && !preview) {
+          // Below one grid cell on an axis, drawBounds gives no box at all; say why, instead of nothing visibly happening.
+          const label = "min 1 grid cell";
+          ctx.font = "bold 13px Rajdhani, sans-serif";
+          ctx.textBaseline = "top";
+          const padX = 7;
+          const padY = 4;
+          const textWidth = ctx.measureText(label).width;
+          const bx = cx + 14;
+          const by = cy - 14 - 13 - padY * 2;
+          ctx.fillStyle = "rgba(10,16,30,.92)";
+          ctx.fillRect(bx, by, textWidth + padX * 2, 13 + padY * 2);
+          ctx.strokeStyle = "#ff4d4d";
+          ctx.lineWidth = 1;
+          ctx.strokeRect(bx + 0.5, by + 0.5, textWidth + padX * 2 - 1, 13 + padY * 2 - 1);
+          ctx.fillStyle = "#ff4d4d";
+          ctx.fillText(label, bx + padX, by + padY);
+        } else if ((gesture.mode === "draw" || gesture.mode === "resize") && preview) {
+          const measured = () =>
+            [axes.u, axes.v, axes.hidden].map((axis) => Math.round(preview.max[axis] - preview.min[axis])).join(" × ");
+          const label = (typing ? `${typing.buffer}_` : measured()) + (clamped ? " (min)" : "");
+          const accent = clamped ? "#ff4d4d" : typing ? "#baff39" : "#ffc61a";
           ctx.font = "bold 13px Rajdhani, sans-serif";
           ctx.textBaseline = "top";
           const padX = 7;
