@@ -468,7 +468,7 @@ always stage by explicit path.
 | --- | --- | --- | --- | --- | --- | --- |
 | WO-T0 | Probe: brush-primitive UV semantics measured from a compiled BSP; thumbnail decode cost measured | none | no | 2 | Opus 5.5 | done |
 | WO-T1 | Per-face materials in the document; pure UV function; `MapWriter` writes per-face shader and matrix | T0 | no | 3 | Opus 5.5 | done |
-| WO-T2 | `TextureCatalog`: pure catalog from the mounted index, `default_shaderlist.txt` and `shadertags.xml` | none | no | 2 | Sonnet 5 | todo |
+| WO-T2 | `TextureCatalog`: pure catalog from the mounted index, `default_shaderlist.txt` and `shadertags.xml` | none | no | 2 | Sonnet 5 | done |
 | WO-T3 | `TextureThumbnails`: lazy decode from PK3 bytes, in-memory LRU, IndexedDB cache | T2 | no | 3 | Sonnet 5 | todo |
 | WO-T4 | Texture browser drawer: search, groups, virtualised grid, apply to brush, current texture | T1, T2, T3 | yes | 3 | Opus 5.5 | todo |
 | WO-T5 | Face selection: 3D pick by normal, overlay, six-face net in the inspector, eyedropper | T1 | yes | 3 | Opus 5.5 | todo |
@@ -724,6 +724,31 @@ that MakeBSP adds to keep coordinates small (they don't change rendering).
   - **Lightmaps:** the stripe face is lightmapped. The light-blue face
     has none because its shader is `surfaceparm nolightmap` and a surface
     light, which is correct.
+- 2026-10-03: WO-T2 done.
+  - **Catalog:** `TextureCatalog.ts` (pure) builds entries from the
+    mounted files and parsed `textures/` shaders. Each entry has the
+    unprefixed name, folder, the image the game draws (editor image, then
+    stage map, then same-named file, with extension swaps as the engine
+    does), tags, and flags for compiler, sky, transparent, nolightmap, fog
+    and solid colour.
+  - **Missing:** an entry is "missing" only when a stage map the game
+    draws is in no package. A fog volume, a `$whiteimage` colour, or an
+    absent editor image is "no preview".
+  - **Search:** `searchCatalog` ranks a whole word in the name first,
+    then a segment start, then letters in order (`bdark` finds
+    `blx/blx_dark`); tags are searched too.
+  - **Folders:** `catalogFolders` groups folders case-insensitively.
+  - **Loader:** `TextureCatalogLoader.ts` loads every package that holds
+    images or shader scripts (skipping loaded ones), parses the scripts and
+    `shadertags.xml`, and shares one promise per page.
+  - **Measured on the installed packages, identically in a Node test and in
+    the browser:** 2,101 entries, 100 folders, 1,235 shaders, 236 tagged
+    and 31 missing, built in 0.59 s in the browser.
+  - **Review:** the Node/browser comparison caught two adapter bugs, now
+    fixed: folders split by case (101 vs 100), and packages skipped when
+    shaders drew images from outside `textures/` (34 vs 31 missing).
+  - **Not used:** `default_shaderlist.txt` isn't needed. It is a
+    NetRadiant seed list, and the mounted index is the complete source.
 
 ## Future map-author experience ideas
 
