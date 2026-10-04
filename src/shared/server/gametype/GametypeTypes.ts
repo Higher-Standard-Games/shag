@@ -154,6 +154,10 @@ export interface MatchConfig {
   resetScoresEachRound?: boolean;
   /** Stop a round match after this many completed rounds even without a score-limit winner. */
   maxRounds?: number;
+  /** Extend a tied round when the gametype declines to name a winner at expiry. */
+  roundOvertimeOnDraw?: boolean;
+  /** Seconds per tied-round extension (default 60). */
+  roundOvertimeDuration?: number;
   /**
    * Rounds one side attacks before the sides swap. Round-based only.
    *
