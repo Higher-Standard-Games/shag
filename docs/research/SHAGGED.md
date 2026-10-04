@@ -1,6 +1,6 @@
 # SHAGGED — SHAG General Editor
 
-**Status:** active M2/M3 implementation, 2026-10-03. Closed-room MakeBSP compile acceptance and real-browser editor interaction are verified. Point entities and the first server Save/Open/Compile backend slices have landed; browser wiring and playable BSP delivery remain.
+**Status:** active M2/M3 implementation, 2026-10-04. Closed-room MakeBSP compile acceptance and real-browser editor interaction are verified. Server Save/Open/Compile works in the browser; playable BSP delivery and Playtest handoff remain.
 
 ## Implementation checkpoint
 
@@ -21,8 +21,8 @@ deterministic `brushDef` export. Brush drags now capture an explicit work-plane
 coordinate and one-grid thickness; a transient box and dimension readout
 appear in all three orthographic panes and the perspective scene. The Room Template creates six enclosing
 brushes and an `info_player_deathmatch` spawn for the eventual compiler check.
-Compile, status, and Playtest remain unavailable in the editor UI while the
-new Node compile service is wired to it. A DOM/NullEngine smoke test covers perspective
+Compile and status are now connected to the Node service; Playtest remains
+unavailable. A DOM/NullEngine smoke test covers perspective
 picking and the main editing controls.
 
 **Compiler acceptance, verified (2026-10-02):** a local NetRadiant Custom
@@ -1381,7 +1381,57 @@ Compile jobs use an immutable copy of a server-saved `.map` revision and a serve
 
 `map <name>` is not a local scene load: `FpsMapLauncher` asks the lobby to spawn a server and the client then joins it. The server-side CLI can own the MakeBSP build and compiled artifact, but the browser client and spawned game server must both be able to resolve that same revision before `map <name>` succeeds. SHAG currently indexes BSPs inside PK3s. The exact delivery/index step is **deferred from M1**, as requested; M3 must prove it before enabling Playtest. No browser-side MakeBSP execution or separate raw gameplay loader is planned.
 
-The active application render loop currently always updates the player and renders the FPS scene. Editor takeover still needs a small composition switch, plus reliable disposal/recreation on entry, Playtest, and return. It does **not** need two simultaneously live worlds, staged BSP replacement, or collision-backend hot swapping. A live match should be left before opening the editor; Playtest creates its own normal development match.
+### Playtest PK3 delivery investigation (2026-10-04)
+
+**Decision:** publish each successful build as an immutable numbered PK3 in `public/data`, with the internal entry `maps/<mapname>.bsp`. Keep the runtime map name `<mapname>`, so the console command remains `map <mapname> [gametype]`. For example, `map_whatevermap_00043.pk3` contains `maps/whatevermap.bsp`. The numbered suffix is an artifact identifier, **not** a BSP filename or a guarantee that the current loaders pick it. A small current-build pointer and explicit selection are required.
+
+| Existing path | Verified behavior | Work needed for the numbered-PK3 design |
+| --- | --- | --- |
+| `CompileJobs.ts` | MakeBSP and MakeLight write `<mapname>.bsp` into an isolated job workspace. `compiled` means an FBSP v1 header passed; `runtimeMapName` stays `null`. | After compile, zip the BSP, verify the ZIP entry and full BSP hash, then publish it. Add a distinct `playable` result only after delivery succeeds. Keep a failed publish from replacing the last good build. |
+| `scripts/generate-pk3-manifest.js`, `PK3Index.ts` | The browser discovers packages from `public/data/pk3_manifest.json`, caches the index in `localStorage`, and `MapLoader` uses `findMap(name)`. | Update the manifest atomically on publication and explicitly index/load the selected new package in the running browser. Merely placing a PK3 on disk does not refresh an open page. Unique filenames also avoid stale HTTP bytes. |
+| `NodePk3.ts` | The headless resolver tries `map_<name>.pk3` first; otherwise it scans `map_*.pk3` and stops at the **first** package containing the BSP. | Read the current-build pointer and ingest its exact package before resolving the map. Do not rely on directory enumeration or numeric sorting. A fresh dedicated-server process still needs this rule. |
+| `PK3Loader.ts` | Loaded packages override duplicate paths in alphabetical filename order. The browser may retain an older package in memory. | Ensure the selected build owns `maps/<name>.bsp` in the loader, or unload/rebuild conflicting entries. Verify the bytes/hash used for Playtest rather than trusting `findMap` alone. Reserve or reject map names colliding with existing installed maps. |
+| `FpsMapLauncher.ts`, `LobbyServer.ts`, `GameServerSpawner.ts` | `map <name>` asks the lobby for a loopback-only development server, then joins it. This path bypasses public map-pool membership. The lobby's public map-pool scan treats the entire `map_*.pk3` basename as a map name. | Use the development spawn for Playtest; do not add each revision to `config/maps.json`. Keep numbered editor builds out of the public voting pool until that separate feature is designed. |
+| `BrowserEditorHost.ts`, `EditorSession.ts` | The host already suspends/restores the game composition on editor open/close. Playtest is currently a permanently disabled button; `editor return` does not exist. | Flush draft/view state, close the editor, launch the normal map command, and add a Return to Editor action after leaving the match. On launch failure, reopen the editor and show the error. |
+| `ServerMapOpen.ts`, `MapStore.ts` | Server Save currently derives a stable `draft_<uuid>` name from the local draft ID; the visible draft title is only a label. MapStore accepts lowercase identifiers, not paths. | To support literal `map whatevermap`, add a durable, user-chosen server map slug and rename/conflict rules, or clearly launch the generated `draft_...` slug. Do not silently assume the draft title is the BSP name. |
+
+**Publication contract.** The editor server is the sole writer. Use a server-controlled, configurable output root defaulting to repository `public/data`; never let a browser request choose a path or filename. Allocate a monotonically increasing publication number per map (separate from source revision: the same revision may be rebuilt at another quality). Create the ZIP in a temporary file, validate its single expected BSP entry and digest, then rename to `map_<name>_<number>.pk3`. Atomically update a current-build record with `{ mapName, package, buildId, sourceRevision, sourceHash, bspHash, quality }` only after the package is complete. Update `pk3_manifest.json` by merging the existing file list with the new package and atomically replacing the manifest; do not drop unrelated PK3s. The pointer lives in the shared data root so both the browser and game server can resolve it; the server API exposes the same record. A failed compile or publication leaves the prior pointer untouched. Keep old builds for rollback, with a later retention policy that never deletes one used by a running match.
+
+**Exact-build handoff.** The job API should return the package filename and build ID along with `runtimeMapName: <name>` only when playable. On Playtest, compare that build's source revision with the current editor document, checkpoint `localStorage`, fetch/index/load the selected package in the browser, and verify `maps/<name>.bsp` resolves to the advertised hash. Then close the editor and invoke `map <name> [gametype]`. The lobby spawns a new game server; its headless map resolver reads the shared pointer and ingests that package before map initialization. The browser and server should each report the resolved build ID; refuse or visibly fail the launch if either differs from the selected build. A build-specific launch token/expected build ID passed through the dev-spawn request would prevent a newer publish between the two reads from silently changing the match. This is a small extension to the existing dev-spawn protocol, not a second gameplay map loader.
+
+```mermaid
+sequenceDiagram
+  actor Mapper
+  participant Editor as Browser editor
+  participant API as SHAGGED server
+  participant Data as public/data
+  participant Lobby as Lobby dev spawn
+  participant Game as Dedicated server
+  Mapper->>Editor: Compile saved revision
+  Editor->>API: POST compile
+  API->>API: MakeBSP / MakeLight; verify BSP
+  API->>Data: Atomically publish numbered PK3, manifest and current pointer
+  API-->>Editor: Playable build ID, package and source revision
+  Mapper->>Editor: Playtest
+  Editor->>Data: Index/load exact PK3; verify BSP hash
+  Editor->>Editor: Checkpoint draft and close editor
+  Editor->>Lobby: map <name> with expected build ID
+  Lobby->>Game: Spawn development match
+  Game->>Data: Resolve pointer and ingest exact PK3
+  Game-->>Editor: Ready with matching build ID
+  Mapper->>Editor: Return to Editor
+  Editor->>Editor: Leave match; reopen saved draft
+```
+
+| Implementation slice | Concrete change | Acceptance proof |
+| --- | --- | --- |
+| 1. Package and publish | Node-only publisher used by `CompileJobs`, configurable data root, immutable PK3, current pointer, manifest update, job metadata/API. | Compile two versions of one map; inspect both ZIPs and verify the pointer changes only on successful publication. |
+| 2. Exact map resolution | Browser targeted index/load and headless pointer-first ingestion. Include build identity in the dev-spawn handoff. | Without restarting the browser or lobby, `map <name>` loads version 2 on both client and fresh server; a deliberately mismatched build fails clearly. |
+| 3. Editor/game lifecycle | Enable Playtest only for the current saved revision; checkpoint and close editor; launch dev match; Return action in gameplay/escape menu and `editor return`. | Compile, play, return, edit and repeat; selection, cameras and view mode restore; failed spawn returns to the editor. |
+
+**Open integration checks:** confirm the published data root is the same filesystem tree served by Vite and read by lobby-spawned processes; verify MakeBSP's compiled BSP contains a usable spawn and references assets already available in mounted PK3s (custom assets need packaging later); test cache/index behavior and duplicate-map precedence in both loaders. The design assumes local, loopback development and the current `public/data` layout. Remote clients, public map voting and multi-host deployments need a shared artifact service and separate access rules.
+
+The application now uses `BrowserEditorHost` to give the editor the render loop and restore the lobby composition when it closes. Playtest still needs reliable disposal/recreation and input handoff across editor, game and return. It does **not** need two simultaneously live worlds, staged BSP replacement, or collision-backend hot swapping. A live match should be left before opening the editor; Playtest creates its own normal development match.
 
 **M3 acceptance:** build a room, save editor state, compile it, see the correct revision/status, enter it with Playtest using normal `map <name>`, exit through Return to Editor, and recover the same draft, selection, cameras, layout, and view mode. Repeat the cycle and verify no extra render loops, input listeners, servers, or scene resources remain. Test failed compile, stale revision, unavailable map, and `localStorage` quota failure with clear messages.
 
