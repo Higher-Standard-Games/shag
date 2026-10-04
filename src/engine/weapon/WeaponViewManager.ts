@@ -800,6 +800,7 @@ export class WeaponViewManager {
           this.scene!,
           loadGen,
           () => this._loadGeneration,
+          result.transformNodes,
         );
       }
 
@@ -1744,6 +1745,7 @@ export class WeaponViewManager {
     // ADS reduces recoil significantly (steadier aim)
     const recoilScale = this.currentWeaponDef?.recoilScale ?? 1.0;
     this.weaponRecoil.fire(recoilScale, this.adsProgress);
+    this.weaponBarrels.fire();
 
     // Trigger slash animation for melee weapons (skip for charged projectile fire)
     if (this.currentWeaponDef?.meleeRadius && !opts?.isProjectileFire) {

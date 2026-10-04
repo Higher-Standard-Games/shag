@@ -262,6 +262,8 @@ export interface WeaponDef extends EntityDef {
     offset?: { x: number; y: number; z: number };
     /** Spin axis: 'x' (default), 'y', or 'z' */
     spinAxis?: "x" | "y" | "z";
+    /** Degrees to rotate per shot instead of continuously spinning. */
+    fireStepDegrees?: number;
   }[];
 
   // === SOUNDS ===

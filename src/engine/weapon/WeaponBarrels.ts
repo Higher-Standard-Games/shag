@@ -2,8 +2,8 @@
  * WeaponBarrels — Loading and spinning of barrel sub-model attachments
  *
  * Handles GLB barrel sub-models (spinning chambers, rolling clips)
- * that attach to the main weapon model. Uses tags.txt for positioning
- * and weapon def `barrels` config for spin behavior.
+ * that attach to the main weapon model's authored GLB tags. Falls back to
+ * tags.txt/skeleton positioning for older models.
  *
  * Used by: WeaponViewManager
  */
@@ -24,6 +24,8 @@ export interface BarrelDef {
   offset?: { x: number; y: number; z: number };
   /** Spin axis: 'x' (default), 'y', or 'z' */
   spinAxis?: "x" | "y" | "z";
+  /** Degrees to index the barrel around its spin axis for each shot. */
+  fireStepDegrees?: number;
 }
 
 interface BarrelInstance {
@@ -32,6 +34,8 @@ interface BarrelInstance {
   spinDirection: number;
   spinAxis: "x" | "y" | "z";
   rotation: number;
+  targetRotation: number;
+  fireStepRadians: number;
 }
 
 /**
@@ -49,7 +53,13 @@ export class WeaponBarrels {
   /** Update barrel spin (call each frame) */
   update(deltaTime: number): void {
     for (const barrel of this.barrels) {
-      barrel.rotation += barrel.spinSpeed * barrel.spinDirection * deltaTime;
+      if (barrel.fireStepRadians) {
+        const remaining = barrel.targetRotation - barrel.rotation;
+        const maxTurn = (barrel.fireStepRadians / 0.16) * deltaTime;
+        barrel.rotation += Math.sign(remaining) * Math.min(Math.abs(remaining), maxTurn);
+      } else {
+        barrel.rotation += barrel.spinSpeed * barrel.spinDirection * deltaTime;
+      }
       switch (barrel.spinAxis) {
         case "y":
           barrel.root.rotation.y = barrel.rotation;
@@ -61,6 +71,13 @@ export class WeaponBarrels {
           barrel.root.rotation.x = barrel.rotation;
           break;
       }
+    }
+  }
+
+  /** Index shot-driven barrels once when a shot is presented. */
+  fire(): void {
+    for (const barrel of this.barrels) {
+      barrel.targetRotation += barrel.fireStepRadians * barrel.spinDirection;
     }
   }
 
@@ -81,6 +98,7 @@ export class WeaponBarrels {
     scene: Scene,
     loadGen: number,
     currentLoadGen: () => number,
+    attachmentNodes: readonly TransformNode[] = [],
   ): Promise<void> {
     const { ImportMeshAsync } = await import("@babylonjs/core/Loading/sceneLoader");
 
@@ -92,6 +110,7 @@ export class WeaponBarrels {
     // Load tags.txt from the weapon model directory
     const tags = await loadTags(modelDir);
     const barrelTag = findTag(tags, "tag_barrel");
+    const attachment = attachmentNodes.find((node) => node.name === (barrelTag?.boneName ?? "tag_barrel"));
 
     if (barrelTag) {
       console.log(
@@ -128,17 +147,16 @@ export class WeaponBarrels {
         const barrelRoot = result.meshes[0];
         if (!barrelRoot) continue;
 
-        // Always parent barrel to glbRoot (weapon view hierarchy).
-        // Bone transform nodes are at scene root, NOT under glbRoot,
-        // so parenting to them would break weapon camera rendering.
-        barrelRoot.parent = glbRoot;
+        // Authored GLB tags are children of the weapon's view hierarchy.
+        // Skeleton bone nodes can be at scene root, so the fallback uses glbRoot.
+        barrelRoot.parent = attachment ?? glbRoot;
         if (barrelRoot.rotationQuaternion) barrelRoot.rotationQuaternion = null;
 
         // Read bone position for offset (if tag references a bone)
         let boneOffX = 0,
           boneOffY = 0,
           boneOffZ = 0;
-        if (barrelTag?.boneName) {
+        if (!attachment && barrelTag?.boneName) {
           for (const skeleton of scene.skeletons) {
             const bone = skeleton.bones.find((b) => b.name === barrelTag.boneName);
             if (bone) {
@@ -165,7 +183,7 @@ export class WeaponBarrels {
           boneOffY + (tagOff?.y ?? 0) + (defOff?.y ?? 0),
           boneOffZ + (tagOff?.z ?? 0) + (defOff?.z ?? 0),
         );
-        if (tagOff) {
+        if (tagOff && !attachment) {
           // Barrel inherits glbRoot's rotation; only apply tag rotation delta
           barrelRoot.rotation.set(barrelTag!.rotation.x, barrelTag!.rotation.y, barrelTag!.rotation.z);
         } else {
@@ -197,6 +215,8 @@ export class WeaponBarrels {
           spinDirection: barrelDef.spinDirection ?? 1,
           spinAxis: barrelDef.spinAxis ?? "x",
           rotation: 0,
+          targetRotation: 0,
+          fireStepRadians: ((barrelDef.fireStepDegrees ?? 0) * Math.PI) / 180,
         });
 
         console.log(
