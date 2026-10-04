@@ -49,9 +49,16 @@ pk3 stats
 pk3 list
 pk3 find maps/wdm2.bsp
 pk3 index
+pk3 refresh map_mymap.pk3
 ```
 
 `pk3 list` lists indexed packages. Use `pk3 find <exact-path>` for ownership or `PK3Index.findByPattern` in code for wildcard file listings.
+`pk3 refresh <family.pk3>` reads the manifest and reindexes only matching
+`family*.pk3` packages, such as `map_mymap_00001.pk3`. It keeps the other
+indexed packages and avoids a full archive scan. The editor's Playtest handoff
+uses `PK3Index.refreshPackage(filename)` for its exact new build. Refreshing
+the index does not itself replace an already rendered map; launch `map <name>`
+to load the new BSP.
 
 ## Map loading
 

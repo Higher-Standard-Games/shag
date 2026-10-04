@@ -52,7 +52,7 @@ export function createShaggedHttpServer(store: MapStore, config: ShaggedServerCo
         json(response, 200, {
           saveAvailable: true,
           compilerAvailable: jobs?.available ?? false,
-          playableAvailable: false,
+          playableAvailable: jobs?.playableAvailable ?? false,
           supportedQualities: jobs?.available ? BUILD_QUALITIES : [],
           reason: jobs?.available ? null : (jobs?.unavailableReason ?? "Compile jobs are not connected yet"),
         });

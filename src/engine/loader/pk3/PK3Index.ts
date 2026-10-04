@@ -158,6 +158,13 @@ export class PK3Index {
     }
   }
 
+  private updateListChecksumFromPackages(): void {
+    if (!this.index) return;
+    const parts = this.index.packages.map((entry) => `${entry.pk3}:${entry.size || 0}`).sort();
+    this.index.listChecksum = simpleHash(parts.join("|"));
+    this.index.lastUpdated = Date.now();
+  }
+
   /**
    * Discover PK3 files in a directory by fetching a manifest or scanning
    * Since we can't list directories in browser, we need a manifest file
@@ -203,6 +210,39 @@ export class PK3Index {
     }
 
     return detected;
+  }
+
+  /** Index one newly published package without rebuilding the entire PK3 library. */
+  async refreshPackage(filename: string): Promise<boolean> {
+    if (!/^[a-z0-9][a-z0-9_.-]*\.pk3$/i.test(filename)) throw new Error("Invalid PK3 filename");
+    for (const basePath of this.searchPaths) {
+      if (await this.indexPK3(basePath, filename)) {
+        this.updateListChecksumFromPackages();
+        this.saveToStorage();
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** `pk3 refresh foo.pk3` updates the foo*.pk3 family from the manifest. */
+  async refreshFamily(input: string): Promise<string[]> {
+    const base = input.replace(/\*\.pk3$/i, "").replace(/\.pk3$/i, "");
+    if (!/^[a-z0-9][a-z0-9_-]*$/i.test(base)) throw new Error("Usage: pk3 refresh <family.pk3>");
+    const matches: string[] = [];
+    for (const basePath of this.searchPaths) {
+      const names = (await this.discoverPK3s(basePath))
+        .filter((name) => name.toLowerCase().startsWith(base.toLowerCase()) && name.toLowerCase().endsWith(".pk3"))
+        .sort();
+      for (const name of names) {
+        if (await this.indexPK3(basePath, name)) matches.push(name);
+      }
+    }
+    if (matches.length) {
+      this.updateListChecksumFromPackages();
+      this.saveToStorage();
+    }
+    return matches;
   }
 
   /**

@@ -21,6 +21,7 @@ describe("SHAGGED loopback API", () => {
     await store.init();
     const server = createShaggedHttpServer(store, {
       mapsRoot: root,
+      publishRoot: path.join(root, "data"),
       port: 9010,
       uiOrigins: ["http://localhost:3000"],
     });
@@ -69,12 +70,22 @@ describe("SHAGGED loopback API", () => {
 
   it("resolves flags before environment and validates origins", () => {
     const config = resolveServerConfig(
-      ["--port", "9020", "--maps-root", "relative/maps", "--ui-origin", "http://localhost:4444"],
+      [
+        "--port",
+        "9020",
+        "--maps-root",
+        "relative/maps",
+        "--publish-root",
+        "relative/data",
+        "--ui-origin",
+        "http://localhost:4444",
+      ],
       { SHAGGED_PORT: "9030", SHAGGED_MAPS_ROOT: "ignored" },
       "C:/workspace",
     );
     expect(config.port).toBe(9020);
     expect(config.mapsRoot).toBe(path.resolve("C:/workspace", "relative/maps"));
+    expect(config.publishRoot).toBe(path.resolve("C:/workspace", "relative/data"));
     expect(config.uiOrigins).toEqual(["http://localhost:4444"]);
     expect(() => resolveServerConfig(["--ui-origin", "*"])).toThrow();
   });
@@ -108,6 +119,7 @@ describe("SHAGGED loopback API", () => {
       store,
       {
         mapsRoot: store.root,
+        publishRoot: path.join(root, "data"),
         port: 9010,
         uiOrigins: ["http://localhost:3000"],
       },

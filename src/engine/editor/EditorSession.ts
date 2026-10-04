@@ -316,6 +316,7 @@ export class EditorSession {
     private readonly canvas: HTMLCanvasElement,
     private readonly onExit: () => void,
     private readonly api: ShaggedApi | null = null,
+    private readonly onPlaytest?: (job: EditorCompileJob) => Promise<void>,
   ) {
     this.engine = engine;
     const restored = this.draftStore.load();
@@ -387,7 +388,7 @@ export class EditorSession {
           <span class="shagged__group-label">BUILD</span>
           <button data-action="compile" disabled title="Connecting to SHAGGED server">Compile</button>
           <button data-action="compile-status" title="Check server and compile status">Status: offline</button>
-          <button disabled title="A compiled, playable build is required">Playtest</button>
+          <button data-action="playtest" disabled title="A compiled, playable build is required">Playtest</button>
         </div>
         <button class="shagged__exit" data-action="exit">Exit</button>
       </header>
@@ -1108,9 +1109,18 @@ export class EditorSession {
     const save = this.root.querySelector<HTMLButtonElement>('[data-action="server-save"]')!;
     const compile = this.root.querySelector<HTMLButtonElement>('[data-action="compile"]')!;
     const status = this.root.querySelector<HTMLButtonElement>('[data-action="compile-status"]')!;
+    const playtest = this.root.querySelector<HTMLButtonElement>('[data-action="playtest"]')!;
     maps.disabled = !this.serverStatus?.saveAvailable || this.serverBusy;
     save.disabled = !this.serverStatus?.saveAvailable || this.serverBusy;
     compile.disabled = !this.serverStatus?.compilerAvailable || this.serverBusy;
+    const currentBuild =
+      this.compileJob?.state === "playable" &&
+      this.compileJob.revision === this.serverSave?.revision &&
+      this.serverSave.documentRevision === this.revision;
+    playtest.disabled = !currentBuild || this.serverBusy || !this.onPlaytest;
+    playtest.title = currentBuild
+      ? `Playtest ${this.compileJob!.runtimeMapName} from ${this.compileJob!.packageName}`
+      : "Compile the current saved revision before playtesting";
     maps.title = this.serverStatus?.saveAvailable ? "Open a server-saved SHAGGED map" : "Start npm run shagged:server";
     save.title = this.serverStatus?.saveAvailable
       ? "Save an immutable .map revision on the editor server"
@@ -1213,6 +1223,8 @@ export class EditorSession {
         stage: "queued",
         logs: [],
         runtimeMapName: null,
+        packageName: null,
+        bspHash: null,
       };
       this.status(`Compile queued for ${name}.map revision ${revision}`);
       this.updateServerButtons();
@@ -1495,6 +1507,18 @@ export class EditorSession {
           break;
         case "compile":
           void this.startCompile().catch((error: unknown) => this.serverError(error));
+          break;
+        case "playtest":
+          if (
+            !this.compileJob ||
+            this.compileJob.state !== "playable" ||
+            this.compileJob.revision !== this.serverSave?.revision ||
+            this.serverSave.documentRevision !== this.revision ||
+            !this.onPlaytest
+          )
+            throw new Error("Compile the current saved revision before playtesting");
+          this.save();
+          void this.onPlaytest(this.compileJob).catch((error: unknown) => this.serverError(error));
           break;
         case "compile-status":
           this.root.querySelector<HTMLElement>(".shagged__build")!.hidden = false;

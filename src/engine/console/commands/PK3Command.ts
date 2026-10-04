@@ -14,6 +14,11 @@ export default class PK3Command extends Command {
     subcommands: [
       { name: "list", description: "List indexed PK3 files" },
       { name: "index", description: "Rebuild PK3 index" },
+      {
+        name: "refresh",
+        description: "Refresh one PK3 family",
+        args: [{ name: "family.pk3", type: "string", required: true }],
+      },
       { name: "find", description: "Find a file in PK3s", args: [{ name: "pattern", type: "string", required: true }] },
       { name: "stats", description: "Show index statistics" },
     ],
@@ -48,6 +53,18 @@ export default class PK3Command extends Command {
         return `Index rebuilt: ${count} files indexed`;
       }
 
+      case "refresh": {
+        if (!args[1]) return "Usage: pk3 refresh <family.pk3>";
+        try {
+          const refreshed = await pk3Index.refreshFamily(args[1]);
+          return refreshed.length
+            ? `Refreshed ${refreshed.length} PK3s: ${refreshed.join(", ")}`
+            : `No PK3s found for ${args[1]}`;
+        } catch (error) {
+          return error instanceof Error ? error.message : String(error);
+        }
+      }
+
       case "find": {
         const pattern = args[1];
         if (!pattern) {
@@ -75,7 +92,7 @@ export default class PK3Command extends Command {
 
   getCompletions(_input: string, args: string[]): string[] {
     if (args.length === 0) {
-      return ["list", "index", "find", "stats"];
+      return ["list", "index", "refresh", "find", "stats"];
     }
     return [];
   }

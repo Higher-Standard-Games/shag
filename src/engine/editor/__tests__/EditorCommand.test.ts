@@ -31,6 +31,9 @@ describe("editor console command", () => {
     expect(await command.execute([])).toContain("Editor open: draft");
     expect(await command.execute(["status"])).toContain("revision 3");
     expect(await command.execute(["close"])).toBe("Editor closed");
-    expect(await command.execute(["unknown"])).toEqual({ ok: false, output: "Usage: editor [open|close|status]" });
+    expect(await command.execute(["unknown"])).toEqual({
+      ok: false,
+      output: "Usage: editor [open|close|status|return]",
+    });
   });
 });

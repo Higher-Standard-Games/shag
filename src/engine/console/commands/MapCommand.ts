@@ -126,6 +126,10 @@ export default class MapCommand extends Command {
       return "No gameplay map launcher registered. Use bsp commands for map inspection.";
     }
 
+    if (typeof window !== "undefined") {
+      const { preparePublishedMap } = await import("../../editor/PublishedMapClient");
+      await preparePublishedMap(mapName.toLowerCase());
+    }
     const result = await launcher.launch(mapName, gametype || "duel");
     this.lastMapName = result.map;
     this.lastGametype = result.gametype;
