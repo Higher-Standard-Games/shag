@@ -11,7 +11,7 @@
 import type { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Scene } from "@babylonjs/core/scene";
 import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
-import { findTag, loadTags } from "../loader/model/TagsLoader";
+import { findTag, loadTags, type TagDef } from "../loader/model/TagsLoader";
 
 // Layer mask for weapon-only rendering (must match WeaponViewManager)
 const WEAPON_LAYER_MASK = 0x10000000;
@@ -36,6 +36,15 @@ interface BarrelInstance {
   rotation: number;
   targetRotation: number;
   fireStepRadians: number;
+}
+
+/** A tags.txt rule takes precedence over a same-named GLB node. */
+export function findViewBarrelSocket(
+  barrelTag: TagDef | undefined,
+  attachmentNodes: readonly TransformNode[],
+): TransformNode | null {
+  if (barrelTag) return null;
+  return attachmentNodes.find((node) => node.name === "tag_barrel") ?? null;
 }
 
 /**
@@ -110,14 +119,14 @@ export class WeaponBarrels {
     // Load tags.txt from the weapon model directory
     const tags = await loadTags(modelDir);
     const barrelTag = findTag(tags, "tag_barrel");
-    const attachment = attachmentNodes.find((node) => node.name === (barrelTag?.boneName ?? "tag_barrel"));
+    const attachment = findViewBarrelSocket(barrelTag, attachmentNodes);
 
     if (barrelTag) {
       console.log(
         `[WeaponBarrels] Found tag_barrel: bone="${barrelTag.boneName}" offset=(${barrelTag.offset.x},${barrelTag.offset.y},${barrelTag.offset.z})`,
       );
     } else {
-      console.log(`[WeaponBarrels] No tag_barrel in tags.txt, using model origin`);
+      console.log(`[WeaponBarrels] No tag_barrel in tags.txt, using GLB socket or model origin`);
     }
 
     // Debug: log all skeleton bones in scene to find IQM tags

@@ -2,9 +2,25 @@ import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import { Scene } from "@babylonjs/core/scene";
 import { describe, expect, it } from "vitest";
-import { WeaponBarrels } from "../WeaponBarrels";
+import { parseTags } from "../../loader/model/TagsLoader";
+import { findViewBarrelSocket, WeaponBarrels } from "../WeaponBarrels";
 
 describe("WeaponBarrels shot indexing", () => {
+  it("keeps authored plasma tags on the legacy root placement while using GLB sockets without tags.txt", () => {
+    const engine = new NullEngine();
+    const scene = new Scene(engine);
+    const glbSocket = new TransformNode("tag_barrel", scene);
+    const plasmaSocket = new TransformNode("tag_barrel2", scene);
+    const nodes = [glbSocket, plasmaSocket];
+    const [plasmaTag] = parseTags('tag "tag_barrel2" "tag_barrel" 0 0 0 0 0 0');
+
+    expect(findViewBarrelSocket(plasmaTag, nodes)).toBeNull();
+    expect(findViewBarrelSocket(undefined, nodes)).toBe(glbSocket);
+
+    scene.dispose();
+    engine.dispose();
+  });
+
   it("turns one 45 degree step per shot and leaves continuous barrels unchanged", () => {
     const engine = new NullEngine();
     const scene = new Scene(engine);
