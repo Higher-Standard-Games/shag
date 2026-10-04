@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { buildRecipe } from "../BuildRecipe";
-import { resolveCompilerConfig, splitCompilerOptions } from "../CompilerConfig";
+import { localCompilerBin, resolveCompilerConfig, splitCompilerOptions } from "../CompilerConfig";
 
 const roots: string[] = [];
 afterEach(async () => {
@@ -11,6 +11,38 @@ afterEach(async () => {
 });
 
 describe("Washoi compiler configuration and recipe", () => {
+  it("uses platform-specific names for the repository-local binaries", () => {
+    expect(localCompilerBin("/repo", "makebsp", "win32")).toBe(path.join("/repo", "tools", "makebsp", "makebsp.exe"));
+    expect(localCompilerBin("/repo", "makelight", "win32")).toBe(
+      path.join("/repo", "tools", "makebsp", "makelight.exe"),
+    );
+    expect(localCompilerBin("/repo", "makebsp", "linux")).toBe(path.join("/repo", "tools", "makebsp", "makebsp"));
+    expect(localCompilerBin("/repo", "makelight", "linux")).toBe(path.join("/repo", "tools", "makebsp", "makelight"));
+  });
+
+  it("resolves local tools, the tracked Washoi profile, and public/data outside the repository cwd", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "shagged-local-config-"));
+    roots.push(root);
+    const launchCwd = path.join(root, "launch");
+    await mkdir(launchCwd);
+    await mkdir(path.join(root, "tools", "makebsp"), { recursive: true });
+    await mkdir(path.join(root, "editor", "makebspdata"), { recursive: true });
+    await mkdir(path.join(root, "public", "data"), { recursive: true });
+    await writeFile(localCompilerBin(root, "makebsp"), "test", { mode: 0o755 });
+    await writeFile(localCompilerBin(root, "makelight"), "test", { mode: 0o755 });
+    await writeFile(path.join(root, "editor", "makebspdata", "washoi.json"), "{}");
+
+    const config = await resolveCompilerConfig({}, {}, launchCwd, root);
+    expect(config).toMatchObject({
+      available: true,
+      reason: null,
+      makebspBin: localCompilerBin(root, "makebsp"),
+      makelightBin: localCompilerBin(root, "makelight"),
+      mediaRoot: path.join(root, "public", "data"),
+      toolchainRoot: path.join(root, "editor"),
+    });
+  });
+
   it("maps quality tiers to the checked NetRadiant build menu", () => {
     expect(buildRecipe("fast", "/media", "/job/map.map")).toEqual({
       bsp: ["-game", "washoi", "-fs_basepath", "/media", "-leaktest", "-fast", "-samplesize", "8", "/job/map.map"],
@@ -62,6 +94,8 @@ describe("Washoi compiler configuration and recipe", () => {
     expect(remaining).toEqual(["--port", "9011"]);
     const ready = await resolveCompilerConfig(overrides, { SHAGGED_DEFAULT_QUALITY: "fast" }, root);
     expect(ready).toMatchObject({ available: true, reason: null, defaultQuality: "release" });
+    const adjacentProfile = await resolveCompilerConfig({ ...overrides, toolchainRoot: undefined }, {}, root);
+    expect(adjacentProfile).toMatchObject({ available: true, toolchainRoot: toolchain });
     await rm(path.join(toolchain, "makebspdata", "washoi.json"));
     expect((await resolveCompilerConfig(overrides, {}, root)).reason).toMatch(/profile or media/);
   });

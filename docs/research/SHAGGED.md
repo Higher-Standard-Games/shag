@@ -4,6 +4,13 @@
 
 ## Implementation checkpoint
 
+**Local compiler defaults, verified (2026-10-04):** the server and compile CLI
+resolve Windows binaries from `tools/makebsp`, the Washoi profile from
+`editor/makebspdata`, and media from `public/data` without flags. The shared
+CompileJobs runner compiled the Room Template through MakeBSP and MakeLight
+FAST using those defaults and verified its FBSP v1 output. The binaries are
+local, ignored files; Linux defaults use unsuffixed filenames but were not run.
+
 The first M1 slice now has the developer-gated `editor` command, a browser
 host that suspends/restores the lobby game view, four panes (Babylon perspective
 and XY/XZ/YZ canvas projections), grid-aligned box drawing and movement,
@@ -1413,10 +1420,10 @@ Resolve one Node-only `CompilerConfig` at process startup; both `shagged:server`
 
 | Setting | CLI flag / environment | Proposed default | Startup behavior |
 | --- | --- | --- | --- |
-| MakeBSP executable | `--makebsp-bin` / `SHAGGED_MAKEBSP_BIN` | `makebsp` resolved from the server's `PATH` (`makebsp.exe` on Windows) | Resolve and report availability. If missing, Save/Open still work but Compile is unavailable. Binary version capture is still planned. |
-| MakeLight executable | `--makelight-bin` / `SHAGGED_MAKELIGHT_BIN` | `makelight` from `PATH` (`makelight.exe` on Windows) | Required for a full playable build; missing binary disables Compile/Playtest readiness. |
-| Toolchain root containing `makebspdata/washoi.json` | `--toolchain-root` / `SHAGGED_TOOLCHAIN_ROOT` | directory containing the resolved MakeBSP executable | Required for the Washoi profile; also used as each tool's working directory. |
-| Media root for `-fs_basepath` | `--media-root` / `SHAGGED_MEDIA_ROOT` | repository `public/data` | Resolve to an absolute directory and verify it exists; the clean checkout may lack external assets. Do not add `-fs_game` for the current Washoi layout. |
+| MakeBSP executable | `--makebsp-bin` / `SHAGGED_MAKEBSP_BIN` | repository `tools/makebsp/makebsp.exe` on Windows, `tools/makebsp/makebsp` on Linux | Linux binaries are not currently bundled. A missing binary leaves Save/Open available but disables Compile. |
+| MakeLight executable | `--makelight-bin` / `SHAGGED_MAKELIGHT_BIN` | repository `tools/makebsp/makelight.exe` on Windows, `tools/makebsp/makelight` on Linux | Required for a full build; override or build locally when absent. |
+| Toolchain root containing `makebspdata/washoi.json` | `--toolchain-root` / `SHAGGED_TOOLCHAIN_ROOT` | repository `editor` for the local binaries; overridden external binaries default to their own directory | Required for the Washoi profile; also used as each tool's working directory. |
+| Media root for `-fs_basepath` | `--media-root` / `SHAGGED_MEDIA_ROOT` | repository `public/data` | Resolve to an absolute directory independent of process cwd and verify it exists; the clean checkout may lack external assets. Do not add `-fs_game` for the current Washoi layout. |
 | Canonical map store | `--maps-root` / `SHAGGED_MAPS_ROOT` | repository `server-data/shagged/maps` | Resolve outside browser-served assets; create/check the directory before accepting Save. |
 | Server listener | `--port` / `SHAGGED_PORT` | `9010` on loopback | API port only; independent of lobby port `9000`. CLI compile does not listen. |
 | Allowed browser origin | repeatable `--ui-origin` / comma-separated `SHAGGED_UI_ORIGIN` | local Vite origins `http://localhost:3000` and `http://127.0.0.1:3000` | Allow only configured origins for browser API calls; do not accept arbitrary cross-origin requests. |
@@ -1425,8 +1432,8 @@ Resolve one Node-only `CompilerConfig` at process startup; both `shagged:server`
 Example local override (proposed scripts, not yet implemented):
 
 ```text
-npm run shagged:server -- --makebsp-bin C:\tools\makebsp.exe --makelight-bin C:\tools\makelight.exe --media-root ./public/data --maps-root ./server-data/shagged/maps --port 9010
-npm run shagged:compile -- mymap --quality fast --makebsp-bin C:\tools\makebsp.exe --makelight-bin C:\tools\makelight.exe
+npm run shagged:server -- --check-config
+npm run shagged:compile -- mymap --quality fast
 ```
 
 The recipe follows `editor/gamepacks/washoi.game/default_build_menu.xml` rather than a browser-supplied command string:
