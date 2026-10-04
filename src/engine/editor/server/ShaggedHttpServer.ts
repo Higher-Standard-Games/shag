@@ -1,8 +1,10 @@
+import { access } from "node:fs/promises";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
+import path from "node:path";
 import type { EditorDocumentData } from "../EditorDocument";
 import { BUILD_QUALITIES, isBuildQuality } from "./BuildRecipe";
 import type { CompileJobs } from "./CompileJobs";
-import { MapConflictError, MapInputError, type MapStore } from "./MapStore";
+import { MapConflictError, MapInputError, type MapStore, validateMapName } from "./MapStore";
 import type { ShaggedServerConfig } from "./ServerConfig";
 
 const MAX_BODY_BYTES = 8 * 1024 * 1024;
@@ -77,6 +79,15 @@ export function createShaggedHttpServer(store: MapStore, config: ShaggedServerCo
         }
         const sidecar =
           input.sidecar === undefined || input.sidecar === null ? null : (input.sidecar as EditorDocumentData);
+        validateMapName(match[1]);
+        if (input.expectedRevision === 0) {
+          try {
+            await access(path.join(config.publishRoot, `map_${match[1]}.pk3`));
+            throw new MapConflictError(`Map ID ${match[1]} collides with an installed map package`);
+          } catch (error) {
+            if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+          }
+        }
         const saved = await store.save(match[1], input.source, input.expectedRevision, sidecar);
         json(response, 200, { name: saved.name, revision: saved.revision, sourceHash: saved.sourceHash });
         return;

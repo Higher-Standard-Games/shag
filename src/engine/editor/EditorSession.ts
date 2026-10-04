@@ -346,6 +346,7 @@ export class EditorSession {
           <span class="shagged__group-label">MAP</span>
           <details class="shagged__menu shagged__menu--map"><summary title="Current map and map actions"><span data-map-title></span></summary><div class="shagged__menu-panel">
             <label>Map name <input data-draft-name type="text" maxlength="64" aria-label="Map name"></label>
+            <label>Map ID <input data-map-id type="text" maxlength="48" aria-label="Runtime map ID" title="Name used by map <id> after compile"></label>
             <button data-action="new">New Map</button><button data-action="room">Room Template</button>
             <button data-action="drafts">Local Drafts</button>
             <span class="shagged__menu-rule" aria-hidden="true"></span>
@@ -524,6 +525,31 @@ export class EditorSession {
         this.draftName = input.value.trim() || "Untitled";
         this.updateDraftNameControl();
         this.trySaveView();
+      },
+      { signal: this.listeners.signal },
+    );
+    this.root.querySelector<HTMLInputElement>("[data-map-id]")!.addEventListener(
+      "change",
+      (event) => {
+        const input = event.target as HTMLInputElement;
+        if (this.serverSave) {
+          this.updateDraftNameControl();
+          this.status("Map ID is fixed after the first server save");
+          return;
+        }
+        const name = input.value.trim().toLowerCase();
+        if (name && !/^[a-z][a-z0-9_]{0,47}$/.test(name)) {
+          this.updateDraftNameControl();
+          this.status("Map ID must start with a letter and contain only lowercase letters, digits or underscores");
+          return;
+        }
+        this.document.transact((data) => {
+          if (name) data.mapName = name;
+          else delete data.mapName;
+        });
+        this.resetCompileJob();
+        this.updateDraftNameControl();
+        this.changed();
       },
       { signal: this.listeners.signal },
     );
@@ -1178,7 +1204,7 @@ export class EditorSession {
     if (!this.api || !this.serverStatus?.saveAvailable) throw new Error("Editor server is unavailable");
     const data = this.document.snapshot();
     this.save();
-    const name = serverMapName(data.draftId);
+    const name = serverMapName(data.draftId, data.mapName);
     const actualRevision = await this.api.mapRevision(name);
     if (actualRevision !== (this.serverSave?.revision ?? 0)) {
       throw new Error(
@@ -1188,6 +1214,7 @@ export class EditorSession {
     if (this.serverSave?.documentRevision === data.revision) return this.serverSave.revision;
     const saved = await this.api.save(name, writeMap(data), this.serverSave?.revision ?? 0, data);
     this.serverSave = { revision: saved.revision, documentRevision: data.revision };
+    this.updateDraftNameControl();
     this.save();
     this.status(`Saved ${name}.map on server at revision ${saved.revision}`);
     return saved.revision;
@@ -1211,7 +1238,7 @@ export class EditorSession {
     this.updateServerButtons();
     try {
       const revision = await this.saveCurrentToServer();
-      const name = serverMapName(this.draftId);
+      const name = serverMapName(this.draftId, this.document.snapshot().mapName);
       const started = await this.api.compile(name, revision);
       this.resetCompileJob();
       const generation = this.serverGeneration;
@@ -1254,6 +1281,9 @@ export class EditorSession {
 
   private updateDraftNameControl(): void {
     this.root.querySelector<HTMLInputElement>("[data-draft-name]")!.value = this.draftName;
+    const mapId = this.root.querySelector<HTMLInputElement>("[data-map-id]")!;
+    mapId.value = serverMapName(this.draftId, this.document.snapshot().mapName);
+    mapId.disabled = !!this.serverSave;
     const title = this.root.querySelector<HTMLElement>("[data-map-title]")!;
     title.textContent = this.draftName;
     title.parentElement!.title = `Current map: ${this.draftName}. Open map actions`;
@@ -1415,6 +1445,7 @@ export class EditorSession {
         if (asCopy) {
           data.draftId = crypto.randomUUID();
           data.revision = 0;
+          delete data.mapName;
         }
         this.resetCompileJob();
         this.cancelGesture();

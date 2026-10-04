@@ -59,6 +59,8 @@ indexed packages and avoids a full archive scan. The editor's Playtest handoff
 uses `PK3Index.refreshPackage(filename)` for its exact new build. Refreshing
 the index does not itself replace an already rendered map; launch `map <name>`
 to load the new BSP.
+If a package was deleted or files were removed from an existing archive, run
+`pk3 index` to rebuild ownership for paths that may fall back to other packages.
 
 ## Map loading
 

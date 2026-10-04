@@ -49,5 +49,9 @@ describe("SHAGGED published builds", () => {
     expect(manifest.files).toEqual(["basewsw.pk3", first.package, second.package]);
     await expect(publishBuild(root, { ...input, mapName: "../escape" }, Uint8Array.from([1]))).rejects.toThrow();
     expect(await readPublishedBuild(root, "arena")).toEqual(second);
+    await writeFile(path.join(root, "map_installed.pk3"), "existing");
+    await expect(publishBuild(root, { ...input, mapName: "installed" }, Uint8Array.from([1]))).rejects.toThrow(
+      "collides",
+    );
   });
 });

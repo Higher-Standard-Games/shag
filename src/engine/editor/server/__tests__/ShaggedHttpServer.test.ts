@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -62,6 +62,14 @@ describe("SHAGGED loopback API", () => {
           })
         ).status,
       ).toBe(400);
+      await mkdir(path.join(root, "data"));
+      await writeFile(path.join(root, "data", "map_installed.pk3"), "existing");
+      const collision = await fetch(`${base}/api/maps/installed`, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ source: "source", expectedRevision: 0 }),
+      });
+      expect(collision.status).toBe(409);
     } finally {
       server.closeAllConnections();
       await new Promise<void>((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));

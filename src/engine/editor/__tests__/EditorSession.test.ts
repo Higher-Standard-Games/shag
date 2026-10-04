@@ -204,8 +204,12 @@ describe("editor DOM shell", () => {
       expect(session.root.querySelector<HTMLButtonElement>('[data-action="server-save"]')?.disabled).toBe(false),
     );
     session.root.querySelector<HTMLButtonElement>('[data-action="room"]')!.click();
+    const mapId = session.root.querySelector<HTMLInputElement>("[data-map-id]")!;
+    mapId.value = "whatevermap";
+    mapId.dispatchEvent(new Event("change"));
     session.root.querySelector<HTMLButtonElement>('[data-action="compile"]')!.click();
-    await vi.waitFor(() => expect(api.compile).toHaveBeenCalledWith(`draft_${session.draftId.replace(/-/g, "")}`, 1));
+    await vi.waitFor(() => expect(api.compile).toHaveBeenCalledWith("whatevermap", 1));
+    expect(mapId.disabled).toBe(true);
     await vi.waitFor(() =>
       expect(session.root.querySelector('[data-action="compile-status"]')?.textContent).toContain("compiled"),
     );

@@ -64,6 +64,8 @@ export async function publishBuild(
   if (!lock) throw new Error(`Timed out waiting to publish ${input.mapName}`);
   try {
     const names = await readdir(dataRoot);
+    if (names.includes(`map_${input.mapName}.pk3`))
+      throw new Error(`Map ID ${input.mapName} collides with an installed map package`);
     const prefix = `map_${input.mapName}_`;
     const numbers = names
       .filter((name) => name.startsWith(prefix) && /^\d+\.pk3$/.test(name.slice(prefix.length)))

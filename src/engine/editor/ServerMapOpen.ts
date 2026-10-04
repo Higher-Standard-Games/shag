@@ -5,9 +5,9 @@ import type { ServerMapSnapshot } from "./ShaggedApi";
 const MAP_NAME = /^[a-z][a-z0-9_]{0,47}$/;
 
 /** A draft's server name is independent of its editable display name. */
-export function serverMapName(draftId: string): string {
-  const name = `draft_${draftId.replace(/-/g, "")}`;
-  if (!MAP_NAME.test(name)) throw new Error("This draft ID cannot be used as a server map name");
+export function serverMapName(draftId: string, mapName?: string): string {
+  const name = mapName ?? `draft_${draftId.replace(/-/g, "")}`;
+  if (!MAP_NAME.test(name)) throw new Error("Invalid server map ID");
   return name;
 }
 
@@ -22,7 +22,8 @@ export function inspectServerMap(map: ServerMapSnapshot, local?: EditorDocumentD
   if (!map.sidecar) throw new Error("This map has no editable SHAGGED sidecar");
   const document = new EditorDocument(map.sidecar);
   const data = document.snapshot();
-  if (serverMapName(data.draftId) !== map.name) throw new Error("Server map name does not match its draft ID");
+  if (serverMapName(data.draftId, data.mapName) !== map.name)
+    throw new Error("Server map name does not match its sidecar");
   if (writeMap(data) !== map.source) throw new Error("Server map source does not match its editable sidecar");
   if (!local) return { kind: "ready", document, revision: map.revision };
   const localData = new EditorDocument(local).snapshot();
