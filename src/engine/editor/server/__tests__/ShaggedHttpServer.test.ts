@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -21,6 +21,7 @@ describe("SHAGGED loopback API", () => {
     await store.init();
     const server = createShaggedHttpServer(store, {
       mapsRoot: root,
+      publishRoot: path.join(root, "data"),
       port: 9010,
       uiOrigins: ["http://localhost:3000"],
     });
@@ -61,6 +62,14 @@ describe("SHAGGED loopback API", () => {
           })
         ).status,
       ).toBe(400);
+      await mkdir(path.join(root, "data"));
+      await writeFile(path.join(root, "data", "map_installed.pk3"), "existing");
+      const collision = await fetch(`${base}/api/maps/installed`, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ source: "source", expectedRevision: 0 }),
+      });
+      expect(collision.status).toBe(409);
     } finally {
       server.closeAllConnections();
       await new Promise<void>((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
@@ -69,12 +78,22 @@ describe("SHAGGED loopback API", () => {
 
   it("resolves flags before environment and validates origins", () => {
     const config = resolveServerConfig(
-      ["--port", "9020", "--maps-root", "relative/maps", "--ui-origin", "http://localhost:4444"],
+      [
+        "--port",
+        "9020",
+        "--maps-root",
+        "relative/maps",
+        "--publish-root",
+        "relative/data",
+        "--ui-origin",
+        "http://localhost:4444",
+      ],
       { SHAGGED_PORT: "9030", SHAGGED_MAPS_ROOT: "ignored" },
       "C:/workspace",
     );
     expect(config.port).toBe(9020);
     expect(config.mapsRoot).toBe(path.resolve("C:/workspace", "relative/maps"));
+    expect(config.publishRoot).toBe(path.resolve("C:/workspace", "relative/data"));
     expect(config.uiOrigins).toEqual(["http://localhost:4444"]);
     expect(() => resolveServerConfig(["--ui-origin", "*"])).toThrow();
   });
@@ -108,6 +127,7 @@ describe("SHAGGED loopback API", () => {
       store,
       {
         mapsRoot: store.root,
+        publishRoot: path.join(root, "data"),
         port: 9010,
         uiOrigins: ["http://localhost:3000"],
       },

@@ -1,6 +1,14 @@
 import { access, constants } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { type BuildQuality, isBuildQuality } from "./BuildRecipe";
+
+const REPOSITORY_ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
+
+/** The local tool directory has .exe files on Windows and unsuffixed binaries on Linux. */
+export function localCompilerBin(repoRoot: string, name: "makebsp" | "makelight", platform = process.platform): string {
+  return path.join(repoRoot, "tools", "makebsp", `${name}${platform === "win32" ? ".exe" : ""}`);
+}
 
 export interface CompilerConfig {
   makebspBin: string | null;
@@ -72,18 +80,27 @@ export async function resolveCompilerConfig(
   overrides: CompilerOverrides = {},
   env: NodeJS.ProcessEnv = process.env,
   cwd = process.cwd(),
+  repoRoot = REPOSITORY_ROOT,
 ): Promise<CompilerConfig> {
   const quality = overrides.defaultQuality ?? env.SHAGGED_DEFAULT_QUALITY ?? "fast";
   if (!isBuildQuality(quality)) throw new Error(`Invalid SHAGGED default quality: ${quality}`);
-  const makebspBin = await executable(overrides.makebspBin ?? env.SHAGGED_MAKEBSP_BIN ?? "makebsp", env, cwd);
-  const makelightBin = await executable(overrides.makelightBin ?? env.SHAGGED_MAKELIGHT_BIN ?? "makelight", env, cwd);
-  const mediaRoot = path.resolve(cwd, overrides.mediaRoot ?? env.SHAGGED_MEDIA_ROOT ?? "public/data");
+  const configuredMakebsp = overrides.makebspBin ?? env.SHAGGED_MAKEBSP_BIN;
+  const makebspBin = await executable(configuredMakebsp ?? localCompilerBin(repoRoot, "makebsp"), env, cwd);
+  const makelightBin = await executable(
+    overrides.makelightBin ?? env.SHAGGED_MAKELIGHT_BIN ?? localCompilerBin(repoRoot, "makelight"),
+    env,
+    cwd,
+  );
+  const mediaRoot = path.resolve(
+    cwd,
+    overrides.mediaRoot ?? env.SHAGGED_MEDIA_ROOT ?? path.join(repoRoot, "public", "data"),
+  );
   const toolchainValue = overrides.toolchainRoot ?? env.SHAGGED_TOOLCHAIN_ROOT;
   const toolchainRoot = toolchainValue
     ? path.resolve(cwd, toolchainValue)
-    : makebspBin
+    : makebspBin && path.dirname(makebspBin) !== path.join(repoRoot, "tools", "makebsp")
       ? path.dirname(makebspBin)
-      : null;
+      : path.join(repoRoot, "editor");
   let reason: string | null = null;
   if (!makebspBin) reason = "MakeBSP executable was not found";
   else if (!makelightBin) reason = "MakeLight executable was not found";

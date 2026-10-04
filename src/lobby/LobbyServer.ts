@@ -55,7 +55,7 @@ const GAMETYPE_SHELLS: Omit<GametypeInfo, "mapPool">[] = [
   {
     id: "amphi",
     name: "AMPHI",
-    description: "1v1, first to three three-minute rounds",
+    description: "1v1 deathmatch, best of three 3-minute rounds",
     maxPlayers: 2,
     hasTeams: true,
     teamNames: { alpha: "Team Soba", bravo: "Team Udon" },

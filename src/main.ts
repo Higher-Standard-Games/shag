@@ -27,7 +27,7 @@ import { EngineVersion } from "./engine/core/EngineVersion";
 import { GamePaths } from "./engine/core/GamePaths";
 import { DebugConsole } from "./engine/debug";
 import { BrowserEditorHost } from "./engine/editor/BrowserEditorHost";
-import { registerEditorLauncher } from "./engine/editor/EditorLauncher";
+import { PLAYTEST_RETURN_KEY, registerEditorLauncher } from "./engine/editor/EditorLauncher";
 import { TextureManager, TextureMemoryManager } from "./engine/loader";
 import { PK3Index } from "./engine/loader/pk3/PK3Index";
 import { InstancedMeshManager } from "./engine/rendering/InstancedMeshManager";
@@ -315,8 +315,17 @@ async function main() {
         if (wasLobbyVisible) lobby.show();
       };
     },
+    () => lobby.show(),
   );
   registerEditorLauncher(editorHost);
+  if (sessionStorage.getItem(PLAYTEST_RETURN_KEY)) {
+    sessionStorage.removeItem(PLAYTEST_RETURN_KEY);
+    try {
+      await editorHost.open();
+    } catch (error) {
+      console.error("Could not restore SHAGGED after Playtest:", error);
+    }
+  }
 
   // Start render loop
   engine.runRenderLoop(() => {

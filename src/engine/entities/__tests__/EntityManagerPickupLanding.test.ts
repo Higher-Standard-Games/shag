@@ -1,7 +1,6 @@
 /**
- * EntityManager map weapon placement. A map weapon is drawn where its spawn toss
- * comes to rest — the spot the server's trigger and bot goals use — matched to
- * its pickup id by authored origin, with no client-side physics toss.
+ * EntityManager map pickup placement. All client visuals use the shared resting
+ * position of the server trigger, matched by pickup id and authored origin.
  *
  * WORLD (Q3 coords, z up): floor z <= 0; platform x <= 0 with its top at z = 128.
  */
@@ -117,14 +116,15 @@ const ROCKET_LAUNCHER = {
 } as EntityDef;
 
 /** One launcher on the platform, one authored over the lower floor at platform height. */
-const ENTITIES = [
+type MapEntity = { classname: string; properties: Record<string, string> };
+const ENTITIES: MapEntity[] = [
   { classname: "weapon_rocketlauncher", properties: { origin: "-400 0 152" } },
   { classname: "weapon_rocketlauncher", properties: { origin: "40 0 152" } },
 ];
 
 type Internals = {
-  rebuildPickupTable(entities: typeof ENTITIES): void;
-  spawnEntity(def: EntityDef, data: (typeof ENTITIES)[number], scene: Scene): Promise<unknown>;
+  rebuildPickupTable(entities: MapEntity[]): void;
+  spawnEntity(def: EntityDef, data: MapEntity, scene: Scene): Promise<unknown>;
 };
 
 const manager = () => EntityManager.getInstance() as unknown as Internals;
@@ -139,7 +139,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("EntityManager map weapon placement", () => {
+describe("EntityManager map pickup placement", () => {
   it("draws each map weapon where the server's trigger is, with no physics toss", async () => {
     vi.spyOn(CollisionManager.getInstance(), "getSweepBackend").mockReturnValue(await sweepBackend());
     manager().rebuildPickupTable(ENTITIES);
@@ -181,5 +181,60 @@ describe("EntityManager map weapon placement", () => {
     // No landing was computed, so the authored spot is a guess: let the pickup
     // find the floor beneath it as it always did.
     expect(spawned[0].options.landedOnFloor).toBe(false);
+  });
+
+  it("draws armor and mega health at the server's landed trigger, and preserves suspended items", async () => {
+    const entities: MapEntity[] = [
+      { classname: "item_armor_ya", properties: { origin: "-400 0 152" } },
+      { classname: "item_health_mega", properties: { origin: "40 0 152" } },
+      { classname: "item_armor_ya", properties: { origin: "100 0 152", spawnflags: "1" } },
+    ];
+    const armor = {
+      id: "armor_ya",
+      name: "Yellow Armor",
+      classname: "item_armor_ya",
+      type: EntityType.ARMOR,
+    } as EntityDef;
+    const mega = {
+      id: "health_mega",
+      name: "Mega Health",
+      classname: "item_health_mega",
+      type: EntityType.HEALTH,
+    } as EntityDef;
+    vi.spyOn(CollisionManager.getInstance(), "getSweepBackend").mockReturnValue(await sweepBackend());
+    manager().rebuildPickupTable(entities);
+    for (const entity of entities) {
+      await manager().spawnEntity(entity.classname === "item_health_mega" ? mega : armor, entity, {} as Scene);
+    }
+
+    const server = landMapPickups(
+      extractPickups(entities),
+      new SharedCollisionWorld(new SweepBackendAdapter(await sweepBackend())),
+    );
+    expect(spawned).toHaveLength(3);
+    spawned.forEach(({ position, options }, i) => {
+      expect(options.pickupId).toBe(server[i].id);
+      expect(options.landedOnFloor).toBe(true);
+      expect(position).toEqual(server[i].position);
+    });
+    expect(server[0].position.y).toBeLessThan(152);
+    expect(server[1].position.y).toBeLessThan(152);
+    expect(server[2].position.y).toBe(152);
+  });
+
+  it("keeps a suspended non-weapon at its authored origin without collision", async () => {
+    const entity: MapEntity = { classname: "item_armor_ya", properties: { origin: "100 0 152", spawnflags: "1" } };
+    const armor = {
+      id: "armor_ya",
+      name: "Yellow Armor",
+      classname: "item_armor_ya",
+      type: EntityType.ARMOR,
+    } as EntityDef;
+    vi.spyOn(CollisionManager.getInstance(), "getSweepBackend").mockReturnValue(null);
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    manager().rebuildPickupTable([entity]);
+    await manager().spawnEntity(armor, entity, {} as Scene);
+    expect(spawned[0].position).toEqual({ x: 100, y: 152, z: 0 });
+    expect(spawned[0].options.landedOnFloor).toBe(true);
   });
 });

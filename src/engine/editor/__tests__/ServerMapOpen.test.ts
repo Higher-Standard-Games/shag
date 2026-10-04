@@ -11,6 +11,13 @@ function savedMap(): ServerMapSnapshot {
 }
 
 describe("server map opening", () => {
+  it("keeps a user-chosen runtime map name with the editable sidecar", () => {
+    const sidecar = createRoomTemplate();
+    sidecar.mapName = "whatevermap";
+    const map = { name: "whatevermap", revision: 1, sourceHash: "hash", source: writeMap(sidecar), sidecar };
+    expect(serverMapName(sidecar.draftId, sidecar.mapName)).toBe("whatevermap");
+    expect(inspectServerMap(map).kind).toBe("ready");
+  });
   it("accepts a matching editable sidecar while preserving a divergent local draft", () => {
     const map = savedMap();
     expect(inspectServerMap(map)).toMatchObject({ kind: "ready", revision: 3 });

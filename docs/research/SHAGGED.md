@@ -1,8 +1,15 @@
 # SHAGGED — SHAG General Editor
 
-**Status:** active M2/M3 implementation, 2026-10-03. Closed-room MakeBSP compile acceptance and real-browser editor interaction are verified. Point entities and the first server Save/Open/Compile backend slices have landed; browser wiring and playable BSP delivery remain.
+**Status:** active M2/M3 implementation, 2026-10-04. Closed-room MakeBSP compile acceptance and real-browser editor interaction are verified. Server Save/Open/Compile and the Playtest delivery path are implemented; interactive browser Playtest acceptance remains.
 
 ## Implementation checkpoint
+
+**Local compiler defaults, verified (2026-10-04):** the server and compile CLI
+resolve Windows binaries from `tools/makebsp`, the Washoi profile from
+`editor/makebspdata`, and media from `public/data` without flags. The shared
+CompileJobs runner compiled the Room Template through MakeBSP and MakeLight
+FAST using those defaults and verified its FBSP v1 output. The binaries are
+local, ignored files; Linux defaults use unsuffixed filenames but were not run.
 
 The first M1 slice now has the developer-gated `editor` command, a browser
 host that suspends/restores the lobby game view, four panes (Babylon perspective
@@ -14,8 +21,8 @@ deterministic `brushDef` export. Brush drags now capture an explicit work-plane
 coordinate and one-grid thickness; a transient box and dimension readout
 appear in all three orthographic panes and the perspective scene. The Room Template creates six enclosing
 brushes and an `info_player_deathmatch` spawn for the eventual compiler check.
-Compile, status, and Playtest remain unavailable in the editor UI while the
-new Node compile service is wired to it. A DOM/NullEngine smoke test covers perspective
+Compile and status are now connected to the Node service; Playtest is enabled
+for a published build of the current saved revision. A DOM/NullEngine smoke test covers perspective
 picking and the main editing controls.
 
 **Compiler acceptance, verified (2026-10-02):** a local NetRadiant Custom
@@ -231,7 +238,7 @@ This is a living feature matrix: **done** means implemented in the editor, **par
 | Console launch and four views | M1 (**done**) | `editor open` gives perspective, XY, XZ, YZ; `editor close` restores the prior view. | Done: console command, mode lifecycle, and pane input all shipped in M1. |
 | Box brush creation and `.map` export | M1 (**done**) | Drag snapped boxes, set hidden-axis extent, assign a shader, save deterministic `brushDef` source. | Done: editable document, writer, and a MakeBSP-verified fixture (Room Template) all shipped. |
 | 3D navigation and capture cue | M1/M2 (**done**) | Middle/right drag looks around; middle click captures the pointer; Esc releases it; W/A/S/D, Space/C, wheel and F/Shift+F navigate. | Done: fly camera and saved pose. Captured mode shows a bold yellow inset outline and a persistent "Press ESC to release mouse" label. |
-| Compile, status, and Playtest controls | M1 UI (**done**); M3 compile (**done**), Playtest (**open**) | Save a revision, compile through the editor server and follow job status; eventually enter the compiled game and return. | Browser buttons call the editor server save/compile/job APIs and show logs. Playtest is present but disabled until BSP delivery and return flow are wired. |
+| Compile, status, and Playtest controls | M1 UI (**done**); M3 compile/Playtest (**implemented; browser acceptance pending**) | Save a revision, compile through the editor server and follow job status; enter the compiled game and return. | Browser buttons call the editor server save/compile/job APIs. Playtest requires a published build of the current saved revision. |
 | Selection and object movement | M1 (**done**), usability polish (**2026-10-03**) | Click in any pane to select one brush; drag or enter XYZ to move/resize it; duplicate/delete; selection is shared by all panes. | Done, plus Radiant conventions added this cycle: a right click (no drag) deselects everywhere instead of only the Select tool doing anything; with the Brush tool, dragging the current selection moves/resizes it instead of drawing over it, and a click that draws nothing selects what's under it; the 2D-pane cursor shows a resize arrow on a draggable edge, an open hand where a press would move the piece, and a closed hand while actually dragging; a box brush also got four corner handles (2026-10-03) so both visible axes resize together in one diagonal drag, with a matching ↗↙/↖↘ cursor; a width × depth × height label now follows the cursor while drawing or resizing, instead of only appearing in the status bar; a small lime crosshair also marks the snapped point itself while drawing, moving, or resizing; while resizing a single edge, typing digits opens an exact-size override (Backspace edits it, Enter commits and ends the drag, Escape clears just the typed number); the label turns red and adds "(min)" when a resize (or a typed size) is held at the one-grid-unit floor, and drawing under one grid cell shows a red "min 1 grid cell" tag instead of nothing. |
 | Undo/redo and draft recovery | M1 (**done**) | One gesture is one undo step; refresh restores a versioned draft and view state from `localStorage`. | Done: editor document/history, regenerated meshes, and local draft/view persistence all shipped. |
 | Textured, solid, wireframe, and textured+edge preview | M2 (**done 2026-10-03**, see "M2 materials" and "M2 3D view") | A Brush/Textured/Wireframe switch in the 3D pane's corner, Textured by default; textured faces draw the real image with its alignment; Wireframe draws only brush edges (orange for the selection), so you can see through walls. | Done: `TexturedPreview.ts`/`PreviewTextures.ts` batch and draw real textures; Wireframe is one line mesh per map, not per-brush edge rendering (that showed as broken dots once brushes were see-through). The mode and camera are saved with the view. |
@@ -245,7 +252,7 @@ This is a living feature matrix: **done** means implemented in the editor, **par
 | Simplified modular Block Builder | Optional M2+ | Pick a sized room piece, snap compatible sockets/grid positions, rotate by quarter-turn, and detach it to editable brushes. | Babylon can preview/gizmo repeated pieces; pure Quake-space placement, versioned definitions, and deterministic expansion to `.map` are new. Its detailed proof is below. |
 | Raw map preview | M1/M2 (**done**, see "Textured, solid, wireframe" above) | Inspect the editable `.map` through the editor's 3D and orthographic views, with textured/wireframe options. | Done: the Brush/Textured/Wireframe switch covers this directly; no separate raw gameplay mode was needed. |
 | Compile and status | M3 (**done for source compilation**) | Save a numbered .map revision, queue MakeBSP/MakeLight, poll status and retain logs. | The Node editor server and browser API are connected; real local compile has been verified. Delivery of a playable compiled BSP remains in Playtest scope. |
-| Playtest and return | M3 | Save the editor session, close the editor scene, make the compiled BSP available to the normal game path, run `map <name>`, then exit the match and restore the editor from `localStorage`. | Existing `map` is server-backed. Browser index, server asset discovery, and a return route need integration later. |
+| Playtest and return | M3 (**implemented; browser acceptance pending**) | Save the editor session, close the editor scene, make the compiled BSP available to the normal game path, run `map <name>`, then exit the match and restore the editor from `localStorage`. | The server publishes a numbered PK3 and pointer; the browser loads the exact package and the headless server resolves the pointer. The pause menu returns to the editor through the existing page reload path. |
 | Curved patch surface editing | M4 (**P1-P3 done 2026-10-03**) | Create a 3×3 `patchDef2` by drawing on the active work plane, pick any control point in any view and edit its exact XYZ/UV, move/duplicate/delete the surface, and apply a shader. | Done: schema v2 `patches`, the `patchDef2` writer, 3D/orthographic preview and picking, and free control-point editing. A compile acceptance probe confirms a hand-built asymmetric patch compiles clean with its control points (and their distinct heights) intact in the BSP. Edit Points drags any selected control in an orthographic pane with snapped four-view preview, one undo step, and Escape cancel. Textured patch preview remains open. |
 | Bevel and arch tools | M4 (**partial**) | Draw quarter-round bevel, inverted bevel or two-span arch presets from Curves, then edit their patch controls. | Preset placement and four-view ghost are live; dimension, segment and cap controls, collision proof and recipe persistence remain. |
 | Cylinder, tube, cone, and cap tools | M4 | Draw an axis-aligned footprint and height, then create a cylindrical side, open tube, tapered cone, or matching end caps; adjust axis, radius, segment count, winding, and shader. | Generate one or more editable `patchDef2` surfaces from the same patch document model. A capped shape is several surfaces, not an automatically sealed structural brush. |
@@ -1320,7 +1327,7 @@ flowchart LR
   Game -->|Return to Editor| Host
 ```
 
-The readiness gate is a **contract**, not a BSP delivery design: it must report the exact built revision, a runtime map identifier accepted by `map <name>`, and confirmation that the browser client and lobby-spawned game server will resolve that build. `MakeBSP` exit code 0 alone is only **compiled**. If indexing, delivery, or verification fails, status remains **compiled but not playable** and Playtest stays disabled. This also prevents a same-name map already in a PK3 or cache from being mistaken for the new build. M3 can choose immutable runtime names or explicit index/cache invalidation after a delivery spike.
+The readiness gate reports the exact built revision, a runtime map identifier accepted by `map <name>`, and a published numbered PK3. `MakeBSP` exit code 0 alone is only **compiled**. Packaging must finish before a job becomes **playable**; browser and headless loading each verify the selected BSP hash. A failed publish leaves Playtest disabled for that job. The implementation below uses immutable packages and targeted index refresh.
 
 Before compilation, the editor saves a snapshot to the server with an expected revision. The compile request names the returned saved revision, never the mutable in-memory draft. If saving conflicts or fails, compilation does not start. Before Playtest, checkpoint the draft and UI state to `localStorage`; if that write fails, keep the editor open and offer a fresh `.map` export or retry so the user can retain the working state. These gates make Save, Compile, and Playtest distinct operations with visible outcomes.
 
@@ -1374,7 +1381,78 @@ Compile jobs use an immutable copy of a server-saved `.map` revision and a serve
 
 `map <name>` is not a local scene load: `FpsMapLauncher` asks the lobby to spawn a server and the client then joins it. The server-side CLI can own the MakeBSP build and compiled artifact, but the browser client and spawned game server must both be able to resolve that same revision before `map <name>` succeeds. SHAG currently indexes BSPs inside PK3s. The exact delivery/index step is **deferred from M1**, as requested; M3 must prove it before enabling Playtest. No browser-side MakeBSP execution or separate raw gameplay loader is planned.
 
-The active application render loop currently always updates the player and renders the FPS scene. Editor takeover still needs a small composition switch, plus reliable disposal/recreation on entry, Playtest, and return. It does **not** need two simultaneously live worlds, staged BSP replacement, or collision-backend hot swapping. A live match should be left before opening the editor; Playtest creates its own normal development match.
+### Playtest PK3 delivery (implemented 2026-10-04; browser acceptance pending)
+
+The first local implementation now publishes `map_<name>_<number>.pk3`, a
+`shagged_<name>.json` current-build pointer, and an updated
+`pk3_manifest.json` under the configured publication root (normally
+`public/data`, independent of MakeBSP's media root).
+The ZIP contains `maps/<name>.bsp`. The server reports `playable` after
+publication; the browser refreshes just that package, loads it and checks the
+BSP hash before leaving the editor. The headless resolver reads the pointer
+before its conventional lazy scan and checks the same hash. `pk3 refresh
+map_<name>.pk3` explicitly indexes that map's numbered family without
+rebuilding all PK3s; the Playtest button uses the exact-package API. Ordinary
+browser `map <name>` also checks for a SHAGGED pointer and refreshes its package.
+Publication uses one data-root filesystem lock so simultaneous CLI/server builds
+cannot claim the same number or overwrite one another's manifest update; a
+crash leaving a lock requires local cleanup.
+The match pause menu says Return to Editor when a Playtest marker exists;
+reloading restores the last local draft/view state. `editor return` offers the
+same route from the console. A new draft may set a stable **Map ID** before its
+first server save; `whatevermap` then publishes `maps/whatevermap.bsp` and
+launches with `map whatevermap`. Older drafts without a Map ID retain their
+generated `draft_<id>` server name. The visible draft title remains separate.
+
+**Decision:** publish each successful build as an immutable numbered PK3 in `public/data`, with the internal entry `maps/<mapname>.bsp`. Keep the runtime map name `<mapname>`, so the console command remains `map <mapname> [gametype]`. For example, `map_whatevermap_00043.pk3` contains `maps/whatevermap.bsp`. The numbered suffix is an artifact identifier, **not** a BSP filename or a guarantee that the current loaders pick it. A small current-build pointer and explicit selection are required.
+
+| Existing path | Verified behavior | Work needed for the numbered-PK3 design |
+| --- | --- | --- |
+| `CompileJobs.ts` | MakeBSP and MakeLight write `<mapname>.bsp` into an isolated job workspace. `compiled` means an FBSP v1 header passed; `runtimeMapName` stays `null`. | After compile, zip the BSP, verify the ZIP entry and full BSP hash, then publish it. Add a distinct `playable` result only after delivery succeeds. Keep a failed publish from replacing the last good build. |
+| `scripts/generate-pk3-manifest.js`, `PK3Index.ts` | The browser discovers packages from `public/data/pk3_manifest.json`, caches the index in `localStorage`, and `MapLoader` uses `findMap(name)`. | Update the manifest atomically on publication and explicitly index/load the selected new package in the running browser. Merely placing a PK3 on disk does not refresh an open page. Unique filenames also avoid stale HTTP bytes. |
+| `NodePk3.ts` | The headless resolver tries `map_<name>.pk3` first; otherwise it scans `map_*.pk3` and stops at the **first** package containing the BSP. | Read the current-build pointer and ingest its exact package before resolving the map. Do not rely on directory enumeration or numeric sorting. A fresh dedicated-server process still needs this rule. |
+| `PK3Loader.ts` | Loaded packages override duplicate paths in alphabetical filename order. The browser may retain an older package in memory. | Ensure the selected build owns `maps/<name>.bsp` in the loader, or unload/rebuild conflicting entries. Verify the bytes/hash used for Playtest rather than trusting `findMap` alone. Reserve or reject map names colliding with existing installed maps. |
+| `FpsMapLauncher.ts`, `LobbyServer.ts`, `GameServerSpawner.ts` | `map <name>` asks the lobby for a loopback-only development server, then joins it. This path bypasses public map-pool membership. The lobby's public map-pool scan treats the entire `map_*.pk3` basename as a map name. | Use the development spawn for Playtest; do not add each revision to `config/maps.json`. Keep numbered editor builds out of the public voting pool until that separate feature is designed. |
+| `BrowserEditorHost.ts`, `EditorSession.ts` | The host suspends/restores the game composition. Playtest now checkpoints, verifies the selected package, closes the editor and launches a dev match; `editor return` and the match-menu return route reload into the saved editor. | Run an interactive browser acceptance pass, including launch failure and repeated edit/test/return cycles. |
+| `ServerMapOpen.ts`, `MapStore.ts` | New drafts can set a stable Map ID before first server save; older drafts default to `draft_<uuid>`. The Map ID is stored in the editable sidecar and validated as a lowercase identifier. The visible title remains a separate label. | A later Save As flow can support renaming an already saved map. Installed `map_<name>.pk3` collisions are rejected on publication. |
+
+**Publication contract.** The editor server is the sole writer. Use a server-controlled, configurable output root defaulting to repository `public/data`; never let a browser request choose a path or filename. Allocate a monotonically increasing publication number per map (separate from source revision: the same revision may be rebuilt at another quality). Create the ZIP in a temporary file, validate its single expected BSP entry and digest, then rename to `map_<name>_<number>.pk3`. Atomically update a current-build record with `{ mapName, package, buildId, sourceRevision, sourceHash, bspHash, quality }` only after the package is complete. Update `pk3_manifest.json` by merging the existing file list with the new package and atomically replacing the manifest; do not drop unrelated PK3s. The pointer lives in the shared data root so both the browser and game server can resolve it; the server API exposes the same record. A failed compile or publication leaves the prior pointer untouched. Keep old builds for rollback, with a later retention policy that never deletes one used by a running match.
+
+**Exact-build handoff.** The job API should return the package filename and build ID along with `runtimeMapName: <name>` only when playable. On Playtest, compare that build's source revision with the current editor document, checkpoint `localStorage`, fetch/index/load the selected package in the browser, and verify `maps/<name>.bsp` resolves to the advertised hash. Then close the editor and invoke `map <name> [gametype]`. The lobby spawns a new game server; its headless map resolver reads the shared pointer and ingests that package before map initialization. The browser and server should each report the resolved build ID; refuse or visibly fail the launch if either differs from the selected build. A build-specific launch token/expected build ID passed through the dev-spawn request would prevent a newer publish between the two reads from silently changing the match. This is a small extension to the existing dev-spawn protocol, not a second gameplay map loader.
+
+```mermaid
+sequenceDiagram
+  actor Mapper
+  participant Editor as Browser editor
+  participant API as SHAGGED server
+  participant Data as public/data
+  participant Lobby as Lobby dev spawn
+  participant Game as Dedicated server
+  Mapper->>Editor: Compile saved revision
+  Editor->>API: POST compile
+  API->>API: MakeBSP / MakeLight; verify BSP
+  API->>Data: Atomically publish numbered PK3, manifest and current pointer
+  API-->>Editor: Playable build ID, package and source revision
+  Mapper->>Editor: Playtest
+  Editor->>Data: Index/load exact PK3; verify BSP hash
+  Editor->>Editor: Checkpoint draft and close editor
+  Editor->>Lobby: map <name> with expected build ID
+  Lobby->>Game: Spawn development match
+  Game->>Data: Resolve pointer and ingest exact PK3
+  Game-->>Editor: Ready with matching build ID
+  Mapper->>Editor: Return to Editor
+  Editor->>Editor: Leave match; reopen saved draft
+```
+
+| Implementation slice | Concrete change | Acceptance proof |
+| --- | --- | --- |
+| 1. Package and publish | Node-only publisher used by `CompileJobs`, configurable data root, immutable PK3, current pointer, manifest update, job metadata/API. | Compile two versions of one map; inspect both ZIPs and verify the pointer changes only on successful publication. |
+| 2. Exact map resolution | Browser targeted index/load and headless pointer-first ingestion. Include build identity in the dev-spawn handoff. | Without restarting the browser or lobby, `map <name>` loads version 2 on both client and fresh server; a deliberately mismatched build fails clearly. |
+| 3. Editor/game lifecycle | Enable Playtest only for the current saved revision; checkpoint and close editor; launch dev match; Return action in gameplay/escape menu and `editor return`. | Compile, play, return, edit and repeat; selection, cameras and view mode restore; failed spawn returns to the editor. |
+
+**Open integration checks:** confirm the published data root is the same filesystem tree served by Vite and read by lobby-spawned processes; verify MakeBSP's compiled BSP contains a usable spawn and references assets already available in mounted PK3s (custom assets need packaging later); test cache/index behavior and duplicate-map precedence in both loaders. The design assumes local, loopback development and the current `public/data` layout. Remote clients, public map voting and multi-host deployments need a shared artifact service and separate access rules.
+
+The application now uses `BrowserEditorHost` to give the editor the render loop and restore the lobby composition when it closes. Playtest still needs reliable disposal/recreation and input handoff across editor, game and return. It does **not** need two simultaneously live worlds, staged BSP replacement, or collision-backend hot swapping. A live match should be left before opening the editor; Playtest creates its own normal development match.
 
 **M3 acceptance:** build a room, save editor state, compile it, see the correct revision/status, enter it with Playtest using normal `map <name>`, exit through Return to Editor, and recover the same draft, selection, cameras, layout, and view mode. Repeat the cycle and verify no extra render loops, input listeners, servers, or scene resources remain. Test failed compile, stale revision, unavailable map, and `localStorage` quota failure with clear messages.
 
@@ -1402,7 +1480,8 @@ return HTTP 409. `POST /api/maps/:name/compile` and
 `GET /api/compiles/:jobId` use the shared job manager. Duplicate requests
 for one source revision/quality reuse a job; failed jobs may be retried.
 The API returns `compiled` after the FBSP v1 header check, with
-`runtimeMapName: null` until game-side delivery is implemented. Jobs and
+`runtimeMapName: null` until publication succeeds, then reports `playable`
+with the package name and BSP hash. Jobs and
 logs are not persisted across a server restart yet. A local `--check-config`
 reports the resolved compiler setup and exits nonzero when it cannot run;
 Save/Open can still run in that case.
@@ -1413,11 +1492,12 @@ Resolve one Node-only `CompilerConfig` at process startup; both `shagged:server`
 
 | Setting | CLI flag / environment | Proposed default | Startup behavior |
 | --- | --- | --- | --- |
-| MakeBSP executable | `--makebsp-bin` / `SHAGGED_MAKEBSP_BIN` | `makebsp` resolved from the server's `PATH` (`makebsp.exe` on Windows) | Resolve and report availability. If missing, Save/Open still work but Compile is unavailable. Binary version capture is still planned. |
-| MakeLight executable | `--makelight-bin` / `SHAGGED_MAKELIGHT_BIN` | `makelight` from `PATH` (`makelight.exe` on Windows) | Required for a full playable build; missing binary disables Compile/Playtest readiness. |
-| Toolchain root containing `makebspdata/washoi.json` | `--toolchain-root` / `SHAGGED_TOOLCHAIN_ROOT` | directory containing the resolved MakeBSP executable | Required for the Washoi profile; also used as each tool's working directory. |
-| Media root for `-fs_basepath` | `--media-root` / `SHAGGED_MEDIA_ROOT` | repository `public/data` | Resolve to an absolute directory and verify it exists; the clean checkout may lack external assets. Do not add `-fs_game` for the current Washoi layout. |
+| MakeBSP executable | `--makebsp-bin` / `SHAGGED_MAKEBSP_BIN` | repository `tools/makebsp/makebsp.exe` on Windows, `tools/makebsp/makebsp` on Linux | Linux binaries are not currently bundled. A missing binary leaves Save/Open available but disables Compile. |
+| MakeLight executable | `--makelight-bin` / `SHAGGED_MAKELIGHT_BIN` | repository `tools/makebsp/makelight.exe` on Windows, `tools/makebsp/makelight` on Linux | Required for a full build; override or build locally when absent. |
+| Toolchain root containing `makebspdata/washoi.json` | `--toolchain-root` / `SHAGGED_TOOLCHAIN_ROOT` | repository `editor` for the local binaries; overridden external binaries default to their own directory | Required for the Washoi profile; also used as each tool's working directory. |
+| Media root for `-fs_basepath` | `--media-root` / `SHAGGED_MEDIA_ROOT` | repository `public/data` | Resolve to an absolute directory independent of process cwd and verify it exists; the clean checkout may lack external assets. Do not add `-fs_game` for the current Washoi layout. |
 | Canonical map store | `--maps-root` / `SHAGGED_MAPS_ROOT` | repository `server-data/shagged/maps` | Resolve outside browser-served assets; create/check the directory before accepting Save. |
+| Playtest publication root | `--publish-root` / `SHAGGED_PUBLISH_ROOT` | repository `public/data` | Must be served as browser `data/` and visible to lobby-spawned game servers. A custom root requires corresponding game-data serving/search-path configuration. |
 | Server listener | `--port` / `SHAGGED_PORT` | `9010` on loopback | API port only; independent of lobby port `9000`. CLI compile does not listen. |
 | Allowed browser origin | repeatable `--ui-origin` / comma-separated `SHAGGED_UI_ORIGIN` | local Vite origins `http://localhost:3000` and `http://127.0.0.1:3000` | Allow only configured origins for browser API calls; do not accept arbitrary cross-origin requests. |
 | Default build quality | `--default-quality` / `SHAGGED_DEFAULT_QUALITY` | `fast` | UI may request `fast`, `default`, or `release`; unknown values fail before spawning a process. |
@@ -1425,8 +1505,8 @@ Resolve one Node-only `CompilerConfig` at process startup; both `shagged:server`
 Example local override (proposed scripts, not yet implemented):
 
 ```text
-npm run shagged:server -- --makebsp-bin C:\tools\makebsp.exe --makelight-bin C:\tools\makelight.exe --media-root ./public/data --maps-root ./server-data/shagged/maps --port 9010
-npm run shagged:compile -- mymap --quality fast --makebsp-bin C:\tools\makebsp.exe --makelight-bin C:\tools\makelight.exe
+npm run shagged:server -- --check-config
+npm run shagged:compile -- mymap --quality fast
 ```
 
 The recipe follows `editor/gamepacks/washoi.game/default_build_menu.xml` rather than a browser-supplied command string:
@@ -1443,7 +1523,7 @@ The UI calls `GET /api/status` for `saveAvailable`, `compilerAvailable`, support
 
 For local browser development, `ShaggedApi` receives a base URL from `VITE_SHAGGED_API_URL`, defaulting to `http://127.0.0.1:9010`. The Node service binds loopback and permits only the configured UI origin(s); a nonlocal browser or deployment needs an explicit URL/origin setup later. Keep this address out of the editable map document. If the service is offline, the editor still opens, edits, saves its local draft, and exports `.map`; Server Save/Compile/Playtest show a connection error and retry. The client must not silently substitute an older compiled build. A same-origin proxy can replace the direct local URL when the app's deployment path is designed, without changing map or job APIs.
 
-Implementation status: the browser editor now has Server Save, Compile, and a polled status/log panel. A local draft's stable ID maps to `draft_<uuid without hyphens>` on the server, so renaming a draft does not rename its compiler source. The last server revision lives in the local view record and every save checks the current server revision before writing. Compile saves the exact current document first; a finished job remains `compiled`, with Playtest disabled until build delivery is implemented. Server Open and conflict resolution UI are later work.
+Implementation status: the browser editor has Server Save/Open, Compile, a polled status/log panel, and Playtest for a `playable` current revision. A new draft may set a Map ID such as `whatevermap` before first server save; an older draft without one retains `draft_<uuid without hyphens>`. The ID is fixed after server save, while the visible draft title can still change. The last server revision lives in the local view record and every save checks the current server revision before writing. Compile saves the exact current document first. Interactive browser acceptance and later map renaming remain.
 
 API shape (Save/Open and Compile/Status endpoints implemented; playable readiness still planned):
 

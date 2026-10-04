@@ -51,7 +51,7 @@ export interface PickupVisual {
 /** Context handed to a factory when `Pickup` builds a procedural visual. */
 export interface PickupVisualFactoryContext {
   scene: Scene;
-  /** Final ground-adjusted world position (the cosmetic hover center). */
+  /** Final server-aligned world position (the cosmetic hover center). */
   position: Vector3;
   /** The full pickup options (registry id, pickupId seed, serverManagedRespawn). */
   options: PickupOptions;

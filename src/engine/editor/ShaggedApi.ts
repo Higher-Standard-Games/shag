@@ -12,10 +12,12 @@ export interface EditorCompileJob {
   id: string;
   mapName: string;
   revision: number;
-  state: "queued" | "running" | "compiled" | "failed";
+  state: "queued" | "running" | "compiled" | "playable" | "failed";
   stage: string;
   logs: string[];
   runtimeMapName: string | null;
+  packageName: string | null;
+  bspHash: string | null;
 }
 
 export interface ServerMapSummary {

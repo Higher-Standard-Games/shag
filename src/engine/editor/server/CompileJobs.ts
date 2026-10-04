@@ -1,14 +1,15 @@
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { mkdir, open, writeFile } from "node:fs/promises";
+import { mkdir, open, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { type BuildQuality, buildRecipe } from "./BuildRecipe";
 import type { CompilerConfig } from "./CompilerConfig";
 import { MapConflictError, type MapStore } from "./MapStore";
 import { checkModelAssets } from "./ModelAssetPreflight";
+import { publishBuild } from "./PublishedBuild";
 
-export type CompileState = "queued" | "running" | "failed" | "compiled";
-export type CompileStage = "queued" | "makebsp" | "makelight" | "verify" | "done";
+export type CompileState = "queued" | "running" | "failed" | "compiled" | "playable";
+export type CompileStage = "queued" | "makebsp" | "makelight" | "verify" | "publish" | "done";
 
 export interface CompileJob {
   id: string;
@@ -20,7 +21,9 @@ export interface CompileJob {
   stage: CompileStage;
   logs: string[];
   buildId: string | null;
-  runtimeMapName: null;
+  runtimeMapName: string | null;
+  packageName: string | null;
+  bspHash: string | null;
 }
 
 export type ToolRunner = (binary: string, args: string[], cwd: string, log: (text: string) => void) => Promise<number>;
@@ -46,7 +49,12 @@ export class CompileJobs {
     private readonly config: CompilerConfig,
     private readonly jobsRoot: string,
     private readonly runner: ToolRunner = runTool,
+    private readonly publishRoot?: string,
   ) {}
+
+  get playableAvailable(): boolean {
+    return this.available && !!this.publishRoot;
+  }
 
   get available(): boolean {
     return this.config.available;
@@ -87,6 +95,8 @@ export class CompileJobs {
       logs: [],
       buildId: null,
       runtimeMapName: null,
+      packageName: null,
+      bspHash: null,
     };
     this.jobs.set(job.id, job);
     this.bySource.set(key, job.id);
@@ -150,11 +160,35 @@ export class CompileJobs {
         await file.close();
       }
       job.state = "compiled";
-      job.stage = "done";
       job.buildId = job.id;
-      this.log(job, "Compiled FBSP v1; runtime delivery is pending");
+      this.log(job, "Compiled FBSP v1");
+      if (this.publishRoot) {
+        job.stage = "publish";
+        const bsp = await readFile(path.join(workspace, `${job.mapName}.bsp`));
+        const published = await publishBuild(
+          this.publishRoot,
+          {
+            mapName: job.mapName,
+            buildId: job.id,
+            sourceRevision: job.revision,
+            sourceHash: job.sourceHash,
+            quality: job.quality,
+          },
+          Uint8Array.from(bsp),
+        );
+        job.state = "playable";
+        job.runtimeMapName = job.mapName;
+        job.packageName = published.package;
+        job.bspHash = published.bspHash;
+        this.log(job, `Published ${published.package}`);
+      } else this.log(job, "Runtime delivery is not configured");
+      job.stage = "done";
     } catch (error) {
       job.state = "failed";
+      job.buildId = null;
+      job.runtimeMapName = null;
+      job.packageName = null;
+      job.bspHash = null;
       this.log(job, error instanceof Error ? error.message : String(error));
     }
   }

@@ -58,7 +58,8 @@ describe("SHAGGED compile jobs", () => {
     const mapFile = calls[0].args.at(-1)!;
     expect(calls[0].args).toEqual(buildRecipe("fast", config.mediaRoot, mapFile).bsp);
     expect(calls[1].args).toEqual(buildRecipe("fast", config.mediaRoot, mapFile).light);
-    expect(completed?.logs).toContain("Compiled FBSP v1; runtime delivery is pending");
+    expect(completed?.logs).toContain("Compiled FBSP v1");
+    expect(completed?.logs).toContain("Runtime delivery is not configured");
   });
 
   it("reports tool failure and permits retry without marking a build playable", async () => {

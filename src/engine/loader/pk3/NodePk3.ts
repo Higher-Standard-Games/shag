@@ -9,8 +9,10 @@
  * + `PK3Index.indexPK3ArrayBuffer` (both in-memory, Node-friendly).
  */
 
+import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { readPublishedBuild } from "../../editor/server/PublishedBuild";
 import { PK3Index } from "./PK3Index";
 import { PK3Loader } from "./PK3Loader";
 
@@ -70,6 +72,19 @@ export async function resolveMapBspViaIndex(dirs: string[], mapName: string): Pr
   const index = PK3Index.getInstance();
   const loader = PK3Loader.getInstance();
   const name = mapName.toLowerCase();
+
+  // SHAGGED publishes immutable numbered packages. Resolve its current pointer
+  // before the conventional first-match scan, which would otherwise pick an old build.
+  for (const dir of dirs) {
+    const build = await readPublishedBuild(dir, name);
+    if (!build) continue;
+    if (!(await ingestPk3File(dir, build.package)))
+      throw new Error(`Published map package is missing: ${build.package}`);
+    const bsp = await loader.getFile(`maps/${name}.bsp`);
+    if (!bsp || createHash("sha256").update(new Uint8Array(bsp)).digest("hex") !== build.bspHash)
+      throw new Error(`Published map build mismatch: ${build.buildId}`);
+    return bsp;
+  }
 
   // 1. Fast path: the conventional map pk3 in each dir.
   for (const dir of dirs) {

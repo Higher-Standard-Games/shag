@@ -148,6 +148,16 @@ export interface MatchConfig {
    * See docs/research/Search_And_Destroy.md §5.1.
    */
   roundBased?: boolean;
+  /** Allow normal timed player respawns during a live round (arena DM). */
+  roundRespawns?: boolean;
+  /** Show per-round frag/death scores while retaining cumulative match stats. */
+  resetScoresEachRound?: boolean;
+  /** Stop a round match after this many completed rounds even without a score-limit winner. */
+  maxRounds?: number;
+  /** Extend a tied round when the gametype declines to name a winner at expiry. */
+  roundOvertimeOnDraw?: boolean;
+  /** Seconds per tied-round extension (default 60). */
+  roundOvertimeDuration?: number;
   /**
    * Rounds one side attacks before the sides swap. Round-based only.
    *

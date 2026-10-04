@@ -59,6 +59,8 @@ export interface BrushEntity {
 export interface EditorDocumentData {
   schemaVersion: 2;
   draftId: string;
+  /** Optional stable runtime name; older drafts retain their generated draft_<id> name. */
+  mapName?: string;
   revision: number;
   brushes: BoxBrush[];
   /** Additive to v2 so existing drafts and server sidecars remain readable. */
@@ -108,6 +110,8 @@ export function validateDocument(data: EditorDocumentData): void {
   if (data.schemaVersion !== 2 || !data.draftId || !Number.isSafeInteger(data.revision) || data.revision < 0) {
     throw new Error("Invalid editor document header");
   }
+  if (data.mapName !== undefined && !/^[a-z][a-z0-9_]{0,47}$/.test(data.mapName))
+    throw new Error("Map ID must be 1–48 lowercase letters, digits or underscores, starting with a letter");
   if (!Array.isArray(data.brushes) || data.brushes.length > 20_000) throw new Error("Invalid brush list");
   if (data.patches !== undefined && (!Array.isArray(data.patches) || data.patches.length > 20_000)) {
     throw new Error("Invalid patch list");

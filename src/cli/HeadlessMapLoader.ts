@@ -74,8 +74,8 @@ export async function loadBspCollision(mapName: string, gamePath = "./game"): Pr
   console.log(`[Map] Found ${spawnPoints.length} spawn points`);
 
   // Extract the authoritative pickup table (weapons/armor/health) — the shared
-  // extractor guarantees ids match the client — with each weapon moved to where
-  // its spawn toss comes to rest, the same spot clients draw it.
+  // extractor guarantees ids match the client — with every item landed where
+  // the server trigger and client visual belong (except suspended items).
   const pickups = landMapPickups(extractPickups(bsp.entities), collision);
   console.log(`[Map] Found ${pickups.length} tracked pickups (weapon/armor/health)`);
 

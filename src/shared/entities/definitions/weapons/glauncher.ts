@@ -62,7 +62,14 @@ export const GRENADE_LAUNCHER: WeaponDef = {
   },
 
   // Barrel sub-models (spinning chamber)
-  barrels: [{ modelPath: "/data/models/weapons/glauncher/glauncher_barrel.glb", spinSpeed: 6.28, spinDirection: 1 }],
+  barrels: [
+    {
+      modelPath: "/data/models/weapons/glauncher/glauncher_barrel.glb",
+      spinSpeed: 0,
+      spinDirection: 1,
+      fireStepDegrees: 45,
+    },
+  ],
 
   // ADS
   ads: {
