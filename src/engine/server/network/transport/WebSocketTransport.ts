@@ -92,6 +92,7 @@ export class WebSocketServerTransport implements Transport {
       certPath: config.certPath ?? "",
       keyPath: config.keyPath ?? "",
       maxDatagramSize: config.maxDatagramSize ?? 1200,
+      maxMessageBytes: config.maxMessageBytes ?? 64 * 1024,
     };
     this.events = events;
   }
@@ -111,6 +112,9 @@ export class WebSocketServerTransport implements Transport {
 
         this.wss = new WebSocketServer({
           server: this.httpServer,
+          // ws accepts up to 100 MiB by default. A larger frame closes the
+          // connection with 1009 (message too big).
+          maxPayload: this.config.maxMessageBytes,
         });
 
         this.wss.on("connection", (ws, req) => {
