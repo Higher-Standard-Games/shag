@@ -1419,11 +1419,12 @@ export class BinaryEncoder {
    * Write string using UTF-8 encoding (more efficient than UTF-16)
    */
   writeString(str: string): void {
-    const encoded = textEncoder.encode(str);
-    this.ensureSpace(2 + encoded.length);
-    this.writeUint16(encoded.length);
-    new Uint8Array(this.buffer, this.offset, encoded.length).set(encoded);
-    this.offset += encoded.length;
+    // UTF-8 is at most 3 bytes per UTF-16 code unit, so reserve that and encode straight into
+    // the buffer: no intermediate array per string. Output bytes are identical to encode().
+    this.ensureSpace(2 + str.length * 3);
+    const { written } = textEncoder.encodeInto(str, new Uint8Array(this.buffer, this.offset + 2));
+    this.view.setUint16(this.offset, written, true);
+    this.offset += 2 + written;
   }
 
   writeBool(value: boolean): void {
@@ -1440,7 +1441,7 @@ export class BinaryEncoder {
   }
 
   getData(): Uint8Array {
-    return new Uint8Array(this.buffer.slice(0, this.offset));
+    return new Uint8Array(this.buffer, 0, this.offset).slice();
   }
 
   /** Alias for getData() for compatibility */
