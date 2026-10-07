@@ -147,6 +147,11 @@ export interface DamageEvent {
   attackerId: string;
   damage: number;
   weaponId: string;
+  /**
+   * Where the hit landed. Present only for a head or leg hit: a body hit, an older server and a
+   * demo recorded before this field existed all leave it out, and absent means body.
+   */
+  hitLocation?: "head" | "legs" | "body";
   x: number;
   y: number;
   z: number;
