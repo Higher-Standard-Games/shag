@@ -1418,7 +1418,10 @@ export class BinaryEncoder {
   /**
    * Write string using UTF-8 encoding (more efficient than UTF-16)
    */
-  writeString(str: string): void {
+  writeString(value: string): void {
+    // TextEncoder.encode() coerced its argument (undefined to "", anything else through
+    // String()), and some events still put numeric ids here, so coerce the same way.
+    const str = value === undefined ? "" : String(value);
     // UTF-8 is at most 3 bytes per UTF-16 code unit, so reserve that and encode straight into
     // the buffer: no intermediate array per string. Output bytes are identical to encode().
     this.ensureSpace(2 + str.length * 3);

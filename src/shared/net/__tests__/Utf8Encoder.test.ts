@@ -17,4 +17,13 @@ describe("writeString bytes", () => {
       if (s.length < 5000) expect(new BinaryDecoder(out).readString()).toBe(new TextDecoder().decode(b));
     }
   });
+
+  // Some snapshot events put numeric entity ids where a string is declared (item_pickup,
+  // weapon_drop). TextEncoder.encode coerced them, so writeString must too, byte for byte.
+  it.each([50001, 0, undefined, null, true])("encodes %s the way TextEncoder.encode did", (value) => {
+    const e = new BinaryEncoder(8);
+    e.writeString(value as unknown as string);
+    const b = new TextEncoder().encode(value as unknown as string);
+    expect([...e.getData()]).toEqual([b.length & 0xff, b.length >> 8, ...b]);
+  });
 });
