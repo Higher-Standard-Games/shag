@@ -33,7 +33,7 @@ export interface WeaponStateEvent {
   entityId: string;
   currentWeapon: string;
   weapons: string[];
-  ammo: Record<string, number>;
+  ammo: Record<string, { clip: number; reserve: number }>;
   reloading: boolean;
   lastFireTick: number;
 }
