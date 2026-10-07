@@ -192,15 +192,9 @@ export class WebSocketServerTransport implements Transport {
     console.log(`[WebSocket] Client ${clientId} registered from ${address}`);
 
     // Set up message handler - use onDatagram for all game messages
-    let messageCount = 0;
     ws.on("message", (data: Buffer) => {
       client.updateLastMessage();
       const bytes = new Uint8Array(data);
-      messageCount++;
-      // Only log occasionally to avoid spam
-      if (messageCount % 1000 === 0) {
-        console.log(`[WebSocket] Client ${clientId}: ${messageCount} messages received`);
-      }
       this.events.onDatagram?.(client, bytes);
     });
 
