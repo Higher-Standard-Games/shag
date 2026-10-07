@@ -25,7 +25,6 @@ npm run net:server -- [options]
 | `--gametype <name>` | `Deathmatch` | `Deathmatch`, `TeamDeathmatch`, `Duel`, `Amphi` or `SnD`. An unknown name falls through to Deathmatch rather than failing |
 | `--name <s>` | `"SHAG Server v2"` | Server name shown to clients |
 | `--max <n>` | `16` | Maximum concurrent clients |
-| `--tickrate <n>` | `125` | Simulation tick rate in Hz |
 | `--snapshotrate <n>` | `60` | Snapshot broadcast rate in Hz |
 | `--game <path>` | `./game` | Game data path |
 | `--cert <path>` | `./certs/localhost.pem` | TLS certificate (WebTransport) |
@@ -91,10 +90,9 @@ GameServer
 ## Tick Rate
 
 The server simulates at **125 Hz** (8 ms per tick) and broadcasts snapshots at
-**60 Hz** — roughly every other tick. Both are configurable with `--tickrate`
-and `--snapshotrate`, but 125 Hz is what the movement and weapon timings are
-tuned against; changing it changes gameplay feel and invalidates demo re-sim
-checksums.
+**60 Hz** — roughly every other tick. The tick rate is fixed: movement and
+weapon timings are tuned against 125 Hz, and the game server refuses any other
+rate. The snapshot rate is configurable with `--snapshotrate`.
 
 - Physics runs one fixed `dt` per tick — no variable-step integration
 - Input is applied on the tick it belongs to, not on arrival

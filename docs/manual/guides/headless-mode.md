@@ -45,7 +45,7 @@ npm run server:fuzz -- --ticks 1000
 ```
 
 The server takes `--port`, `--map`, `--gametype`, `--name`, `--maxclients`,
-`--tickrate`, `--snapshotrate`, `--game`, and `--cert`/`--key` for TLS. The
+`--snapshotrate`, `--game`, and `--cert`/`--key` for TLS. The
 client takes `--connect <url>` and `--name`; it has no `--host` or `--port`.
 
 The dedicated server is a different entry point from `cli:game`; it owns the authoritative simulation and network transport.
