@@ -26,6 +26,7 @@ import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 // bare @babylonjs/core barrel imports; must be explicit with per-module imports.
 import "@babylonjs/core/Rendering/outlineRenderer";
 import type { Scene } from "@babylonjs/core/scene";
+import { disposeModelResources } from "../loader/model/ModelSourceCache";
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -657,20 +658,10 @@ export class PlayerModelManager {
 
   // ── Cleanup ──────────────────────────────────────────────────
 
-  /** Dispose a single instance */
+  /** Dispose a single instance, including a one-shot animation it is playing. */
   disposeInstance(instance: PlayerModelInstance): void {
     this.stopOneShot(instance, false);
-    if (instance.attachedWeapon) {
-      instance.attachedWeapon.dispose(false, true);
-      instance.attachedWeapon = null;
-    }
-    if (instance.masterGroup) {
-      instance.masterGroup.stop();
-      instance.masterGroup.dispose();
-    }
-    if (instance.mesh) instance.mesh.dispose();
-    if (instance.skeleton) instance.skeleton.dispose();
-    if (instance.anchor) instance.anchor.dispose();
+    disposePlayerModel(instance);
     console.log(`[PlayerModelManager] Disposed instance: ${instance.id}`);
   }
 
@@ -712,4 +703,42 @@ export class PlayerModelManager {
 
     return channels;
   }
+}
+
+/**
+ * Dispose a player model and everything it owns, on every path that removes one
+ * (death, leaving, ragdoll expiry, shutdown): its hand weapon with whatever only
+ * that used, its locomotion group, its nodes and skeleton, and the materials
+ * cloned for it by the visibility style. The model's source materials and
+ * textures are shared with every other instance and stay.
+ *
+ * A one-shot animation lives in the manager; `disposeInstance` stops it first.
+ */
+export function disposePlayerModel(instance: PlayerModelInstance): void {
+  if (instance.attachedWeapon) {
+    disposeModelResources([instance.attachedWeapon]);
+    instance.attachedWeapon = null;
+  }
+  if (instance.masterGroup) {
+    instance.masterGroup.stop();
+    instance.masterGroup.dispose();
+    instance.masterGroup = null;
+  }
+  const cloned = clonedMaterialsOf(instance);
+  if (instance.mesh && !instance.mesh.isDisposed()) instance.mesh.dispose();
+  instance.skeleton?.dispose();
+  if (instance.anchor && !instance.anchor.isDisposed()) instance.anchor.dispose();
+  for (const material of cloned) material.dispose(false, false);
+}
+
+/** The materials `applyVisualStyle` cloned for this instance alone (see ensureInstanceMaterial). */
+function clonedMaterialsOf(instance: PlayerModelInstance): Material[] {
+  if (!instance.mesh || instance.mesh.isDisposed()) return [];
+  const prefixes = [`playerMat_${instance.id}_`, `teamMat_${instance.id}_`];
+  const owned = new Set<Material>();
+  for (const mesh of [instance.mesh, ...instance.mesh.getChildMeshes()]) {
+    const material = mesh.material;
+    if (material && prefixes.some((prefix) => material.name.startsWith(prefix))) owned.add(material);
+  }
+  return [...owned];
 }
