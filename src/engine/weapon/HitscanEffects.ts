@@ -768,6 +768,10 @@ export class HitscanEffects {
       tp.material.dispose();
     }
     this.travelingPellets = [];
+    // Bullet holes belong to the map and moment they were made; the shared
+    // material stays for the next ones.
+    for (const mark of this.wallMarks) mark.mesh.dispose();
+    this.wallMarks = [];
     this.stopLightning();
     this.voltaicRenderer?.clear();
     this.railRenderer?.clear();

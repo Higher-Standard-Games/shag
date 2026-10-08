@@ -25,6 +25,7 @@ import { ContentFlags, SurfaceFlags } from "../../physics/ContentFlags";
 import { CameraInputHandler } from "../CameraInputHandler";
 import { getGameFrameHook } from "../GameFrameHook";
 import type { CameraControllerConfig, ICameraController } from "./ICameraController";
+import { reusableFreeCamera } from "./ReusableFreeCamera";
 
 export class FreeflyController implements ICameraController {
   readonly type = "freefly";
@@ -39,6 +40,8 @@ export class FreeflyController implements ICameraController {
   private static collisionMode: "bsp" | "native" = "native";
 
   private camera: FreeCamera | null = null;
+  /** The camera made here when attached to a non-FreeCamera, kept for the next attach. */
+  private ownCamera: FreeCamera | null = null;
   private scene: Scene | null = null;
 
   // State
@@ -154,7 +157,9 @@ export class FreeflyController implements ICameraController {
     }
 
     if (!(camera instanceof FreeCamera)) {
-      this.camera = new FreeCamera("freeflyCamera", startPos, scene);
+      // Once per controller, not once per attach (see reusableFreeCamera).
+      this.ownCamera = reusableFreeCamera(this.ownCamera, "freeflyCamera", startPos, scene);
+      this.camera = this.ownCamera;
     } else {
       this.camera = camera;
     }
