@@ -181,6 +181,11 @@ export class LagCompensation {
     this.clientLatencies.set(playerId, rttMs / 2);
   }
 
+  /** Forget a client that left the server, so the latency map does not grow with every join. */
+  forgetClient(playerId: PlayerId): void {
+    this.clientLatencies.delete(playerId);
+  }
+
   /**
    * Get client latency
    */
