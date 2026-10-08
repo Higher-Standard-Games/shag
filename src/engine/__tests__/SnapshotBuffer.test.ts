@@ -271,3 +271,53 @@ describe("SnapshotBuffer", () => {
     });
   });
 });
+
+describe("SnapshotBuffer frame sampling", () => {
+  function filled(clock: { now: number }) {
+    vi.spyOn(performance, "now").mockImplementation(() => clock.now);
+    const buffer = new SnapshotBuffer();
+    const at = (x: number, extra: Partial<EntitySnapshot> = {}) => makeEntity({ x, vx: 300, ...extra });
+    for (let i = 0; i < 6; i++) {
+      clock.now = 1000 + i * 16;
+      buffer.push(
+        i + 1,
+        new Map([
+          ["a", at(i * 10, { crouchViewOffset: -12 })],
+          ["b", at(i * 20, { grounded: i % 2 === 0, vy: 50, wallJumping: true })],
+          ...(i === 5 ? [["c", at(900)] as const] : []),
+        ]),
+      );
+    }
+    return buffer;
+  }
+
+  it("gives each entity what sample() gives at the same instant, between, past and before the snapshots", () => {
+    const clock = { now: 0 };
+    const buffer = filled(clock);
+    const out = {} as ReturnType<SnapshotBuffer["sample"]> & object;
+    // Between snapshots, past the newest (extrapolating), and on the newest only.
+    for (const now of [1060, 1068, 1200]) {
+      clock.now = now;
+      buffer.beginFrame();
+      for (const id of ["a", "b", "c", "missing"]) {
+        const fresh = buffer.sample(id);
+        const framed = buffer.sampleInFrame(id, out);
+        expect(framed === null ? null : { ...framed }).toEqual(fresh);
+        if (framed) expect(framed).toBe(out); // written in place, nothing allocated
+      }
+    }
+    vi.restoreAllMocks();
+  });
+
+  it("answers the latest entity ids with the same set until a snapshot arrives", () => {
+    const clock = { now: 0 };
+    const buffer = filled(clock);
+    const ids = buffer.getLatestEntityIds();
+    expect(buffer.getLatestEntityIds()).toBe(ids);
+    expect([...ids]).toEqual(["a", "b", "c"]);
+    clock.now += 16;
+    buffer.push(7, new Map([["a", makeEntity()]]));
+    expect([...buffer.getLatestEntityIds()]).toEqual(["a"]);
+    vi.restoreAllMocks();
+  });
+});

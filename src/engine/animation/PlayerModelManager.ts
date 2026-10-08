@@ -61,6 +61,14 @@ export interface PlayerModelInstance {
    * hip height above the feet), so it is restored rather than zeroed.
    */
   hipsBind?: { node: TransformNode; x: number; y: number; z: number } | null;
+  /**
+   * The root-motion nodes under the mesh (`RootNode`, `Armature`, `__root__`),
+   * found by `resetRootMotion` on its first call. The rig is cloned once per
+   * instance and never re-parented, so the same nodes are found every time;
+   * walking the skeleton per frame to find them again was most of the remote
+   * renderer's garbage (B12 stage 1).
+   */
+  rootMotionNodes?: TransformNode[];
 }
 
 export type PlayerModelTeamColor = "alpha" | "beta" | "bravo" | "ffa";
@@ -641,12 +649,8 @@ export class PlayerModelManager {
   resetRootMotion(instance: PlayerModelInstance): void {
     instance.mesh.position.set(0, 0, 0);
 
-    for (const node of instance.mesh.getChildTransformNodes(false)) {
-      // instantiateModelsToScene uses only id/sourceName, so ancestor names
-      // cannot accidentally classify ordinary joints as root-motion nodes.
-      const name = node.name.split("/").pop()!.toLowerCase();
-      if (name === "rootnode" || name === "armature" || name === "__root__") node.position.set(0, 0, 0);
-    }
+    instance.rootMotionNodes ??= findRootMotionNodes(instance.mesh);
+    for (const node of instance.rootMotionNodes) node.position.set(0, 0, 0);
 
     // Hips: restore the bind pose, killing both horizontal drift and the
     // vertical bob that would otherwise float the body off the ground.
@@ -714,6 +718,16 @@ export class PlayerModelManager {
  *
  * A one-shot animation lives in the manager; `disposeInstance` stops it first.
  */
+/** The nodes under a player mesh that carry root motion, by source name. */
+function findRootMotionNodes(mesh: Mesh): TransformNode[] {
+  return mesh.getChildTransformNodes(false).filter((node) => {
+    // instantiateModelsToScene uses only id/sourceName, so ancestor names
+    // cannot accidentally classify ordinary joints as root-motion nodes.
+    const name = node.name.split("/").pop()!.toLowerCase();
+    return name === "rootnode" || name === "armature" || name === "__root__";
+  });
+}
+
 export function disposePlayerModel(instance: PlayerModelInstance): void {
   if (instance.attachedWeapon) {
     disposeModelResources([instance.attachedWeapon]);
