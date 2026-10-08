@@ -78,6 +78,11 @@ export class FreeflyController implements ICameraController {
     return FreeflyController.defaultSpeed;
   }
 
+  /** The camera this controller drives while attached, or null. */
+  public getCamera(): FreeCamera | null {
+    return this.camera;
+  }
+
   /**
    * Force set camera position, updating internal physics state
    * @param position Target position

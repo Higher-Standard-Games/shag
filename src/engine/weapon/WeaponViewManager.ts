@@ -1241,8 +1241,13 @@ export class WeaponViewManager {
     }
     this.weaponRoot?.dispose();
     this.weaponRoot = null;
+    // Take out the pair init() put in, not just the weapon camera. A world
+    // camera left in the list is what Babylon draws from, so once the controller
+    // moved on, the view froze on it (a demo stopped, or cut to a flyby).
     if (oldScene?.activeCameras && this.weaponCamera) {
-      const remaining = oldScene.activeCameras.filter((camera) => camera !== this.weaponCamera);
+      const remaining = oldScene.activeCameras.filter(
+        (camera) => camera !== this.weaponCamera && camera !== this.mainCamera,
+      );
       oldScene.activeCameras = remaining.length > 0 ? remaining : null;
     }
     this.weaponCamera?.dispose();
