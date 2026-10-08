@@ -321,3 +321,47 @@ describe("SnapshotBuffer frame sampling", () => {
     vi.restoreAllMocks();
   });
 });
+
+describe("SnapshotBuffer with server timestamps", () => {
+  /**
+   * 60 Hz snapshots that each take `transitMs` to arrive. `x` is the tick, so a
+   * sample's `x` says which moment of the server's is being drawn.
+   */
+  function arriving(transitMs: number, clockErrorMs = 0) {
+    const clock = { now: 0 };
+    vi.spyOn(performance, "now").mockImplementation(() => clock.now);
+    const buffer = new SnapshotBuffer();
+    for (let i = 0; i < 30; i++) {
+      const sentAt = 1000 + i * (1000 / 60);
+      clock.now = sentAt + transitMs;
+      // ClockSync's conversion, off by whatever its offset estimate is off by.
+      buffer.push(i * 2, new Map([["a", makeEntity({ x: i * 2, vx: 125 })]]), sentAt + clockErrorMs);
+    }
+    return { buffer, clock };
+  }
+
+  it("draws behind the newest snapshot that has arrived, not ahead of it, however slow the link", () => {
+    for (const transit of [0, 50, 100]) {
+      const { buffer, clock } = arriving(transit);
+      clock.now += 4;
+      const drawn = buffer.sample("a")?.x ?? Number.NaN;
+      const newest = 58;
+      // About one snapshot interval behind (two ticks), interpolated rather than guessed.
+      expect(drawn).toBeLessThanOrEqual(newest);
+      expect(drawn).toBeGreaterThan(newest - 4);
+      vi.restoreAllMocks();
+    }
+  });
+
+  it("draws the same moment whatever the error in the clock offset", () => {
+    const at = (error: number) => {
+      const { buffer, clock } = arriving(50, error);
+      clock.now += 4;
+      const x = buffer.sample("a")?.x;
+      vi.restoreAllMocks();
+      return x;
+    };
+    expect(at(-200)).toBeCloseTo(at(0) ?? Number.NaN, 6);
+    expect(at(200)).toBeCloseTo(at(0) ?? Number.NaN, 6);
+  });
+});

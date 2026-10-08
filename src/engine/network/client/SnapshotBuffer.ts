@@ -7,7 +7,7 @@
  *
  * Architecture (from Q3/Warsow networking):
  * - Each snapshot arrives and is timestamped with local performance.now()
- * - Rendering happens at `now - interpDelay` (delayed to ensure buffer has data)
+ * - Rendering happens at `now - interpDelay` in arrival time (delayed to ensure buffer has data)
  * - Between two snapshots, positions/rotations are linearly interpolated
  * - If buffer runs dry, extrapolate using last known velocity
  *
@@ -128,6 +128,9 @@ const GRAVITY = -800;
  */
 const MAX_EXTRAPOLATION_SEC = 0.06;
 
+/** Past this gap between a server timestamp and its arrival, the clock sync is not trusted. */
+const MAX_CLOCK_DRIFT_MS = 500;
+
 /** Safe starting delay for 60Hz snapshots (~3 intervals) until jitter is measured. */
 const DEFAULT_INTERP_DELAY_MS = 50;
 
@@ -160,6 +163,14 @@ export class SnapshotBuffer {
       description: "Manual interpolation delay override in ms (0=auto)",
     });
   }
+
+  /**
+   * How long recent snapshots took to arrive, as measured against their server
+   * timestamps (receiveTime - serverLocalTime). The fastest of them is the
+   * network delay with no jitter on top.
+   */
+  private transitSamples: number[] = [];
+  private transit = 0;
 
   /** Adaptive jitter tracking */
   private lastReceiveTime: number = 0;
@@ -205,6 +216,12 @@ export class SnapshotBuffer {
     }
     this.lastReceiveTime = now;
 
+    if (serverLocalTime !== undefined && Math.abs(serverLocalTime - now) < MAX_CLOCK_DRIFT_MS) {
+      this.transitSamples.push(now - serverLocalTime);
+      if (this.transitSamples.length > this.maxJitterSamples) this.transitSamples.shift();
+      this.transit = Math.min(...this.transitSamples);
+    }
+
     this.buffer.push({
       receiveTime: now,
       tick,
@@ -230,6 +247,8 @@ export class SnapshotBuffer {
   reset(): void {
     this.buffer.length = 0;
     this.jitterSamples.length = 0;
+    this.transitSamples.length = 0;
+    this.transit = 0;
     this.lastReceiveTime = 0;
     this.lastTick = null;
     this.interpDelay = DEFAULT_INTERP_DELAY_MS;
@@ -418,11 +437,23 @@ export class SnapshotBuffer {
    * Sanity-checks serverLocalTime: if it drifts >500ms from receiveTime,
    * it's likely corrupted by clock conversion issues — fall back to receiveTime.
    */
+  /**
+   * When a snapshot counts as having arrived, on the clock render time is read from.
+   *
+   * The server timestamp spaces snapshots as the server sent them, free of the
+   * jitter in when each one arrived. It is shifted by the network's transit time,
+   * so it reads as an arrival time again: rendering `interpDelay` behind it then
+   * draws the newest snapshots that have actually arrived. Unshifted, render time
+   * ran a full network trip ahead of the newest snapshot, so every remote body
+   * was extrapolated, and a shot was judged a network trip earlier than what the
+   * shooter saw. Any error in the clock offset cancels out: the transit is
+   * measured with the same offset.
+   */
   private getSnapTime(snap: BufferedSnapshot): number {
     if (snap.serverLocalTime !== undefined) {
       const drift = Math.abs(snap.serverLocalTime - snap.receiveTime);
-      if (drift < 500) {
-        return snap.serverLocalTime;
+      if (drift < MAX_CLOCK_DRIFT_MS) {
+        return snap.serverLocalTime + this.transit;
       }
       // Drift too large — serverLocalTime is unreliable
     }
