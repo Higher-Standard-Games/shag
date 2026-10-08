@@ -10,6 +10,7 @@
  */
 
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
+import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Scene } from "@babylonjs/core/scene";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -52,5 +53,35 @@ describe("explosion particle systems", () => {
     effect.clear();
 
     expect(scene.particleSystems).toHaveLength(0);
+  });
+});
+
+describe("the sparks' shared texture", () => {
+  it("outlives every explosion that used it", () => {
+    const effect = getExplosionEffect();
+    const texture = new Texture(null, scene);
+    const dispose = vi.spyOn(texture, "dispose");
+    Object.assign(effect as object, { particleTexture: texture });
+
+    effect.spawn(new Vector3(0, 0, 0));
+    effect.spawn(new Vector3(64, 0, 0));
+    effect.clear();
+    effect.spawn(new Vector3(0, 0, 0));
+
+    expect(dispose).not.toHaveBeenCalled();
+    expect(scene.particleSystems[0]?.particleTexture).toBe(texture);
+  });
+
+  it("is let go when the effect is set up again", () => {
+    const effect = getExplosionEffect();
+    const old = new Texture(null, scene);
+    const dispose = vi.spyOn(old, "dispose");
+    Object.assign(effect as object, { particleTexture: old });
+    const fresh = new Texture(null, scene);
+    vi.spyOn(effect as unknown as { createParticleTexture(): Texture }, "createParticleTexture").mockReturnValue(fresh);
+
+    effect.init(scene);
+
+    expect(dispose).toHaveBeenCalledOnce();
   });
 });

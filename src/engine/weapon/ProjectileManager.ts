@@ -523,18 +523,6 @@ export class ProjectileManager {
       node.rotationQuaternion = node.rotationQuaternion.multiply(yRotation);
     }
 
-    // Acquire dynamic light from pool
-    let light: PointLight | null = null;
-    if (def.lightIntensity && def.lightIntensity > 0) {
-      light = getPointLightPool().acquire(
-        origin.clone(),
-        new Color3(color.r, color.g, color.b),
-        def.lightIntensity,
-        def.lightRange ?? 20,
-      );
-      if (light) light.parent = node;
-    }
-
     // Fade in through each mesh's own visibility. A cloned model shares its
     // material with every other shot of the same type, so fading the material
     // would restart the fade of shots already in flight.
@@ -546,7 +534,7 @@ export class ProjectileManager {
       id,
       defId,
       node,
-      light,
+      light: null,
       direction: normalDir,
       speed: def.speed,
       velocity: opts?.velocityOverride ? opts.velocityOverride.clone() : normalDir.scale(def.speed),
@@ -564,6 +552,25 @@ export class ProjectileManager {
       isServerDriven: opts?.isServerDriven ?? false,
       serverEntityId: opts?.serverEntityId,
     };
+
+    // Dynamic light from the pool, carried by the projectile. Once parented its
+    // position is relative to the node, so it sits at the node's origin: given
+    // the world position as well, the offset was applied twice and the glow lit
+    // a spot as far from the map origin again as the projectile was.
+    if (def.lightIntensity && def.lightIntensity > 0) {
+      const light = getPointLightPool().acquire(
+        origin,
+        new Color3(color.r, color.g, color.b),
+        def.lightIntensity,
+        def.lightRange ?? 20,
+        projectile,
+      );
+      if (light) {
+        light.parent = node;
+        light.position.setAll(0);
+      }
+      projectile.light = light;
+    }
 
     this.projectiles.push(projectile);
 
@@ -809,17 +816,17 @@ export class ProjectileManager {
     applySafeMaxSimultaneousLights(mat);
     mesh.material = mat;
 
-    // Small flash light from pool
-    const light = getPointLightPool().acquire(position, new Color3(0.4, 0.6, 1.0), 4, 15);
-
-    this.impacts.push({
+    const impact: ActiveImpact = {
       id,
       mesh,
       material: mat,
-      light,
+      light: null,
       spawnTime: performance.now() / 1000,
       duration: 0.12, // Very fast — just a spark
-    });
+    };
+    // Small flash light from pool
+    impact.light = getPointLightPool().acquire(position, new Color3(0.4, 0.6, 1.0), 4, 15, impact);
+    this.impacts.push(impact);
   }
 
   /**
@@ -925,18 +932,18 @@ export class ProjectileManager {
       mesh.material = mat;
     }
 
-    // Acquire bright flash light from pool
-    const light = getPointLightPool().acquire(position, new Color3(color.r, color.g, color.b), 10, 30);
-
     // Store for fade out
-    this.impacts.push({
+    const impact: ActiveImpact = {
       id,
       mesh,
       material: mat!,
-      light,
+      light: null,
       spawnTime: performance.now() / 1000,
       duration,
-    });
+    };
+    // Acquire bright flash light from pool
+    impact.light = getPointLightPool().acquire(position, new Color3(color.r, color.g, color.b), 10, 30, impact);
+    this.impacts.push(impact);
   }
 
   /**

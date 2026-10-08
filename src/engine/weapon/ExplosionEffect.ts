@@ -146,6 +146,8 @@ export class ExplosionEffect {
 
   init(scene: Scene): void {
     this.scene = scene;
+    // Every explosion's sparks share this one texture, so only a re-init lets it go.
+    this.particleTexture?.dispose();
     this.particleTexture = this.createParticleTexture(scene);
     console.log("[ExplosionEffect] Initialized");
   }
@@ -180,10 +182,7 @@ export class ExplosionEffect {
     // ─── Layer 4: Particle Sparks ──────────────────────────
     const particles = this.createParticles(id, position, s, config);
 
-    // ─── Layer 5: Flash Light ──────────────────────────────
-    const light = getPointLightPool().acquire(position.clone(), config.outerColor.clone(), 5 * s, 40 * s);
-
-    this.explosions.push({
+    const explosion: ActiveExplosion = {
       id,
       config,
       position: position.clone(),
@@ -195,9 +194,18 @@ export class ExplosionEffect {
       rays,
       shockwave,
       shockwaveMat,
-      light,
+      light: null,
       particles,
-    });
+    };
+    // ─── Layer 5: Flash Light ──────────────────────────────
+    explosion.light = getPointLightPool().acquire(
+      position.clone(),
+      config.outerColor.clone(),
+      5 * s,
+      40 * s,
+      explosion,
+    );
+    this.explosions.push(explosion);
 
     // ─── Camera Shake (distance-based) ──────────────────────
     this.triggerCameraShake(position, config);
@@ -673,24 +681,7 @@ export class ExplosionEffect {
     const idx = this.explosions.findIndex((e) => e.id === id);
     if (idx === -1) return;
 
-    const exp = this.explosions[idx];
-
-    exp.fireball.dispose();
-    exp.fireballMat.dispose();
-
-    for (const ray of exp.rays) {
-      ray.mesh.dispose();
-      ray.mat.dispose();
-    }
-
-    exp.shockwave.dispose();
-    exp.shockwaveMat.dispose();
-
-    getPointLightPool().release(exp.light);
-
-    exp.particles.stop();
-    exp.particles.dispose();
-
+    disposeExplosion(this.explosions[idx]);
     this.explosions.splice(idx, 1);
   }
 
@@ -698,19 +689,7 @@ export class ExplosionEffect {
    * Clear all active explosions
    */
   clear(): void {
-    for (const exp of this.explosions) {
-      exp.fireball.dispose();
-      exp.fireballMat.dispose();
-      for (const ray of exp.rays) {
-        ray.mesh.dispose();
-        ray.mat.dispose();
-      }
-      exp.shockwave.dispose();
-      exp.shockwaveMat.dispose();
-      getPointLightPool().release(exp.light);
-      exp.particles.stop();
-      exp.particles.dispose();
-    }
+    for (const exp of this.explosions) disposeExplosion(exp);
     this.explosions = [];
   }
 
@@ -759,6 +738,25 @@ function easeInQuad(t: number): number {
 // ═══════════════════════════════════════════════════════════════════
 // CONVENIENCE
 // ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Everything one explosion owns, and nothing it shares. The sparks' texture is
+ * shared by every explosion, and Babylon's `dispose()` takes the texture with it
+ * by default, so the first explosion to finish left the rest without sparks.
+ */
+function disposeExplosion(exp: ActiveExplosion): void {
+  exp.fireball.dispose();
+  exp.fireballMat.dispose();
+  for (const ray of exp.rays) {
+    ray.mesh.dispose();
+    ray.mat.dispose();
+  }
+  exp.shockwave.dispose();
+  exp.shockwaveMat.dispose();
+  getPointLightPool().release(exp.light);
+  exp.particles.stop();
+  exp.particles.dispose(false);
+}
 
 export function getExplosionEffect(): ExplosionEffect {
   return ExplosionEffect.getInstance();

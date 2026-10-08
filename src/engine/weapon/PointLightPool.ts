@@ -15,9 +15,13 @@
  * Usage:
  *   const pool = getPointLightPool();
  *   pool.init(scene);
- *   const light = pool.acquire(position, color, intensity, range);
- *   // ... use light ...
- *   pool.release(light);
+ *   effect.light = pool.acquire(position, color, intensity, range, effect);
+ *   // ... use effect.light while it is set ...
+ *   pool.release(effect.light);
+ *
+ * Passing the effect as owner matters once the pool runs out: the oldest light
+ * is then taken for the new effect, and the pool clears the old effect's
+ * `light`, so it stops dimming and moving a light that is someone else's now.
  */
 
 import { PointLight } from "@babylonjs/core/Lights/pointLight";
@@ -31,10 +35,16 @@ import { addToDynamicLightCluster, removeFromDynamicLightCluster } from "../ligh
 // sanity budget now (rocket + muzzle world glow + several impacts at once).
 const POOL_SIZE = 8;
 
+/** Whoever holds a pooled light. The pool sets `light` to null when it takes the light back. */
+export interface PooledLightOwner {
+  light: PointLight | null;
+}
+
 interface PoolEntry {
   light: PointLight;
   inUse: boolean;
   acquireTime: number; // for recycling oldest
+  owner: PooledLightOwner | null;
 }
 
 export class PointLightPool {
@@ -80,6 +90,7 @@ export class PointLightPool {
         light,
         inUse: false,
         acquireTime: 0,
+        owner: null,
       });
     }
 
@@ -90,9 +101,17 @@ export class PointLightPool {
   /**
    * Acquire a light from the pool.
    * Returns null only if pool is exhausted AND forceRecycle is false.
-   * With forceRecycle=true (default), steals the oldest active light.
+   * With forceRecycle=true (default), steals the oldest active light: its
+   * owner's `light` is cleared and the light is unparented from its node.
    */
-  acquire(position: Vector3, color: Color3, intensity: number, range: number, forceRecycle = true): PointLight | null {
+  acquire(
+    position: Vector3,
+    color: Color3,
+    intensity: number,
+    range: number,
+    owner: PooledLightOwner | null = null,
+    forceRecycle = true,
+  ): PointLight | null {
     // Find a free entry
     let entry = this.entries.find((e) => !e.inUse);
 
@@ -100,10 +119,13 @@ export class PointLightPool {
       if (!forceRecycle) return null;
       // Steal the oldest
       entry = this.entries.reduce((oldest, e) => (e.acquireTime < oldest.acquireTime ? e : oldest));
+      if (entry.owner?.light === entry.light) entry.owner.light = null;
+      entry.light.parent = null;
     }
 
     entry.inUse = true;
     entry.acquireTime = performance.now();
+    entry.owner = owner;
 
     const light = entry.light;
     light.position.copyFrom(position);
@@ -133,6 +155,7 @@ export class PointLightPool {
 
     entry.inUse = false;
     entry.acquireTime = 0;
+    entry.owner = null;
     // Detach from any effect node BEFORE that node is disposed — a parented
     // light is a child Node and node.dispose() recurses into children, which
     // would destroy the pooled light and silently break the pool.
