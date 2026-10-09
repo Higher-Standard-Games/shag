@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 
 /**
- * The start-up screen: the boot's steps on the rail, and the ring with the
+ * The start-up screen, built as the lobby's twin: the boot's steps as the
+ * rail's keys, a log where the lobby lists rooms, and the ring with the
  * engine's logo that starts the game and turns the sound on.
  */
 
@@ -10,17 +11,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const audio = vi.hoisted(() => ({ unlockAudio: vi.fn(), loadPlaylist: vi.fn() }));
 vi.mock("../../AudioManager", () => ({ AudioManager: { getInstance: () => audio } }));
 
+import { configureLobbyTwin } from "../components/LobbyTwin";
 import { LoadingScreen } from "../LoadingScreen";
 import { UIStyles } from "../UIStyles";
 
 const root = () => document.querySelector<HTMLElement>(".ui-loading-screen");
 const steps = () =>
-  [...(root()?.querySelectorAll(".connecting-overlay__step") ?? [])].map((step) =>
+  [...(root()?.querySelectorAll(".twin__steps .twin-key") ?? [])].map((step) =>
     [...step.classList].find((name) => name.startsWith("is-")),
   );
-const ring = () => root()?.querySelector<HTMLButtonElement>(".connecting-overlay__ring");
-const caption = () => root()?.querySelector<HTMLElement>(".connecting-overlay__ring-caption");
-const share = () => Number(root()?.style.getPropertyValue("--co-progress"));
+const ring = () => root()?.querySelector<HTMLButtonElement>(".boot__ring");
+const caption = () => root()?.querySelector<HTMLElement>(".boot__caption");
+const share = () => Number(root()?.style.getPropertyValue("--boot-progress"));
+const logLines = () => [...(root()?.querySelectorAll(".twin__log-line") ?? [])].map((line) => line.textContent);
 
 describe("start-up screen", () => {
   let screen: LoadingScreen;
@@ -42,7 +45,7 @@ describe("start-up screen", () => {
 
   it("starts on the renderer, with the other steps still to come", () => {
     expect(steps()).toEqual(["is-active", "is-pending", "is-pending", "is-pending"]);
-    expect(root()?.querySelector(".connecting-overlay__status")?.textContent).toBe("RENDERER");
+    expect(root()?.querySelector(".boot__status")?.textContent).toBe("RENDERER");
     expect(share()).toBe(0);
   });
 
@@ -55,9 +58,21 @@ describe("start-up screen", () => {
     expect(steps()).toEqual(["is-done", "is-done", "is-active", "is-pending"]);
   });
 
-  it("shows what it is doing now on the rail", () => {
+  it("latches the step in progress as the lobby latches the page you are on", () => {
+    screen.setStep("packages");
+    const keys = [...(root()?.querySelectorAll(".twin__steps .twin-key") ?? [])];
+    expect(keys.map((key) => key.getAttribute("aria-current"))).toEqual([null, "step", null, null]);
+    expect(keys.map((key) => key.querySelector(".twin-key__hint")?.textContent)).toEqual(["Done", "Loading", "", ""]);
+  });
+
+  it("logs what it is doing on the rail, newest last, once per line", () => {
     screen.setStatus("Indexing packages 3/12");
-    expect(root()?.querySelector(".connecting-overlay__server")?.textContent).toBe("Indexing packages 3/12");
+    screen.setStatus("Indexing packages 3/12");
+    screen.setStatus("Compiling shaders");
+    expect(logLines()).toEqual(["Indexing packages 3/12", "Compiling shaders"]);
+    for (let i = 0; i < 60; i++) screen.setStatus(`line ${i}`);
+    expect(logLines()).toHaveLength(40);
+    expect(logLines().at(-1)).toBe("line 59");
   });
 
   it("offers the ring once the engine can take the click, and says what it is for", () => {
@@ -114,5 +129,33 @@ describe("start-up screen", () => {
     expect(share()).toBe(1);
     vi.advanceTimersByTime(500);
     expect(root()).toBeNull();
+  });
+
+  it("wears the game's logo where the lobby does, with its name until the logo loads", () => {
+    configureLobbyTwin({ brand: { logo: "/data/logo.png", name: "WASHIKI WASHOI" } });
+    const branded = new LoadingScreen();
+    branded.show();
+    const brand = document.querySelectorAll<HTMLElement>(".twin__brand")[1];
+    const logo = brand.querySelector("img");
+    expect(logo?.getAttribute("src")).toBe("/data/logo.png");
+    expect(logo?.hidden).toBe(true);
+    expect(brand.querySelector("span")?.textContent).toBe("WASHIKI WASHOI");
+    branded.hide();
+  });
+
+  it("opens the console from the rail without taking it for the start click", async () => {
+    const onConsole = vi.fn();
+    configureLobbyTwin({ onConsole });
+    const withConsole = new LoadingScreen();
+    withConsole.show();
+    const ready = withConsole.waitForReady();
+    const keys = [...document.querySelectorAll<HTMLButtonElement>(".twin__utility .twin-key")].slice(-3);
+    expect(keys.map((key) => key.disabled)).toEqual([true, true, false]);
+    keys[2].click();
+    expect(onConsole).toHaveBeenCalledOnce();
+    expect(audio.unlockAudio).not.toHaveBeenCalled();
+    LoadingScreen.forceDismiss();
+    await ready;
+    withConsole.hide();
   });
 });

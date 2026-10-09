@@ -845,9 +845,8 @@ export class UIStyles {
   private static getLoadingScreen(): string {
     return `
 /* ==================== Loading Screen ==================== */
-/* The start-up screen wears the match handoff's look (ConnectingOverlay.css).
-   What stays here is its fade-out, and the smoke it shares with the map
-   loading screen. */
+/* The start-up screen is the lobby's twin (BootScreen.css). What stays here
+   is its fade-out, and the smoke it shares with the map loading screen. */
 .ui-loading-screen--hiding {
   opacity: 0;
   transition: opacity 0.5s ease;

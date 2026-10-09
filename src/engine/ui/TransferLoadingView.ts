@@ -1,17 +1,17 @@
 /**
- * TransferLoadingView — a map loading screen in the match handoff's look.
+ * TransferLoadingView — a map loading screen, built as the lobby's twin.
  *
- * The gold rail keeps the handoff's steps, the dark stage carries the map's
- * name over its levelshot, and the bar fills phase by phase. When the handoff
- * screen is still up as the map starts loading, this screen appears in its
- * place without a fade, so joining a match reads as one sequence from the
- * ready check to the arena.
+ * The lobby's rail (LobbyTwin) keeps the handoff's steps and logs the load's
+ * phases; the lobby's stage carries the map's name over its levelshot, and the
+ * bar fills phase by phase. When the handoff screen is still up as the map
+ * starts loading, this screen appears in its place without a fade, so joining
+ * a match reads as one sequence from the ready check to the arena.
  *
  * Usage:
  *   MapLoadingOverlay.configure({ view: () => new TransferLoadingView() });
  */
-import { EngineVersion } from "../core/EngineVersion";
 import type { LoadingCompleteEvent, LoadingProgressEvent, LoadingStartEvent } from "../core/LoadingEvents";
+import { buildTwinLight, buildTwinRail, TWIN_ROOT_CLASS, type TwinRail } from "./components/LobbyTwin";
 import { getNetworkConnector } from "./components/NetworkConnector";
 import type { MapLoadingView } from "./MapLoadingOverlay";
 import { mapTitle } from "./MapTitles";
@@ -42,9 +42,9 @@ const MAP_SHARE = 0.9;
 
 /** A local load's steps, by the index of the first phase each covers. */
 const LOCAL_STEPS: ReadonlyArray<readonly [label: string, firstPhase: number]> = [
-  ["MAP DATA", 0],
-  ["WORLD", 4],
-  ["GAME", 10],
+  ["Map data", 0],
+  ["World", 4],
+  ["Game", 10],
 ];
 
 /** A name on two lines where it has two words or more, split where the lines come out most even. */
@@ -79,7 +79,7 @@ export function phaseProgress(event: LoadingProgressEvent): number | null {
 
 export class TransferLoadingView implements MapLoadingView {
   private root: HTMLElement | null = null;
-  private stepEls: HTMLElement[] = [];
+  private rail: TwinRail | null = null;
   private statusEl: HTMLElement | null = null;
   private dotsEl: HTMLElement | null = null;
   private detailEl: HTMLElement | null = null;
@@ -87,9 +87,7 @@ export class TransferLoadingView implements MapLoadingView {
   private titleEl: HTMLElement | null = null;
   private kickerEl: HTMLElement | null = null;
   private leadEl: HTMLElement | null = null;
-  private ambientEl: HTMLElement | null = null;
   private shotEl: HTMLElement | null = null;
-  private mapEl: HTMLElement | null = null;
   private dotTimer: ReturnType<typeof setInterval> | null = null;
   private networked = false;
   private progressShare = 0;
@@ -99,7 +97,7 @@ export class TransferLoadingView implements MapLoadingView {
   mount(container: HTMLElement, map: LoadingStartEvent): void {
     this.networked = getNetworkConnector()?.isConnected() === true;
 
-    const root = element("div", "connecting-overlay connecting-overlay--loading");
+    const root = element("div", `connecting-overlay connecting-overlay--loading ${TWIN_ROOT_CLASS}`);
     root.setAttribute("role", "dialog");
     root.setAttribute("aria-modal", "true");
     root.setAttribute("aria-busy", "true");
@@ -111,10 +109,12 @@ export class TransferLoadingView implements MapLoadingView {
       root.classList.add("connecting-overlay--continued");
     }
 
-    this.ambientEl = element("div", "connecting-overlay__ambient-word");
-    this.ambientEl.setAttribute("aria-hidden", "true");
-
-    root.append(this.ambientEl, this.buildRail(), this.buildStage());
+    this.rail = buildTwinRail({
+      label: "Map load",
+      steps: this.networked ? ["Server", "Handshake", "Map load"] : LOCAL_STEPS.map(([label]) => label),
+      context: this.networked ? "Match handoff" : "Local map",
+    });
+    root.append(buildTwinLight(), this.rail.rail, this.buildStage());
     container.appendChild(root);
 
     this.dotTimer = setInterval(() => {
@@ -131,8 +131,7 @@ export class TransferLoadingView implements MapLoadingView {
     this.root?.setAttribute("aria-label", `Loading ${name}`);
     this.titleEl?.replaceChildren(...lines.map((line) => element("span", "", line)));
     this.titleEl?.style.setProperty("--co-title-chars", String(Math.max(6, ...lines.map((line) => line.length))));
-    if (this.ambientEl) this.ambientEl.textContent = map.id.toUpperCase();
-    if (this.mapEl) this.mapEl.textContent = map.id;
+    this.rail?.setFact("map", "Map", map.id);
     // A map with no levelshot installed keeps the stage's own gradient
     this.shotEl?.style.setProperty("--co-shot", `url("/data/levelshots/${encodeURIComponent(map.id)}.jpg")`);
     if (this.kickerEl) this.kickerEl.textContent = "NOW LOADING";
@@ -157,6 +156,7 @@ export class TransferLoadingView implements MapLoadingView {
     const label = index >= 0 ? PHASES[index][1] : event.phase;
     this.setStatus("loading", label.toUpperCase());
     this.setDetail(event.detail ?? "");
+    this.rail?.log(event.detail ? `${label}: ${event.detail}` : label);
     const share = phaseProgress(event);
     if (share !== null) this.setBar(share);
     this.refreshSteps("active");
@@ -179,6 +179,7 @@ export class TransferLoadingView implements MapLoadingView {
     this.phaseIndex = PHASES.length - 1;
     this.setBar(MAP_SHARE);
     this.setDetail(`Map loaded in ${(event.duration / 1000).toFixed(1)} s`);
+    this.rail?.log(`Map loaded in ${(event.duration / 1000).toFixed(1)} s`);
     if (waitingFor.length > 0) this.setStatus("setting-up", "SETTING UP");
     this.refreshSteps("active");
   }
@@ -198,66 +199,14 @@ export class TransferLoadingView implements MapLoadingView {
     this.dotTimer = null;
     this.root?.remove();
     this.root = null;
-    this.stepEls = [];
-  }
-
-  private buildRail(): HTMLElement {
-    const rail = element("aside", "connecting-overlay__rail");
-
-    const header = element("div", "connecting-overlay__rail-header");
-    const title = element("div", "connecting-overlay__rail-title");
-    title.append(element("span", "", "ARENA"), element("span", "", "INBOUND"));
-    header.append(
-      element("div", "connecting-overlay__brand", "WASHIKI // WASHOI"),
-      element("div", "connecting-overlay__rail-kicker", this.networked ? "MATCH HANDOFF" : "LOCAL MAP"),
-      title,
-    );
-
-    const steps = element("ol", "connecting-overlay__steps");
-    const labels = this.networked ? ["SERVER", "HANDSHAKE", "MAP LOAD"] : LOCAL_STEPS.map(([label]) => label);
-    this.stepEls = labels.map((label, index) => {
-      const step = element("li", "connecting-overlay__step");
-      const mark = element("span", "connecting-overlay__step-mark");
-      mark.setAttribute("aria-hidden", "true");
-      step.append(
-        element("span", "connecting-overlay__step-number", `0${index + 1}`),
-        element("span", "connecting-overlay__step-label", label),
-        mark,
-      );
-      steps.appendChild(step);
-      return step;
-    });
-
-    const endpoint = element("div", "connecting-overlay__endpoint");
-    this.mapEl = element("span", "connecting-overlay__server");
-    endpoint.append(element("span", "connecting-overlay__endpoint-label", "MAP"), this.mapEl);
-
-    const version = EngineVersion.getInstance();
-    const footer = element(
-      "div",
-      "connecting-overlay__rail-footer",
-      `${version.getEngineName()} // ${version.getVersionString()}`,
-    );
-
-    rail.append(header, steps, endpoint, footer);
-    return rail;
+    this.rail = null;
   }
 
   private buildStage(): HTMLElement {
-    const stage = element("main", "connecting-overlay__stage");
+    const stage = element("main", "twin__stage connecting-overlay__stage");
 
     this.shotEl = element("div", "connecting-overlay__shot");
     this.shotEl.setAttribute("aria-hidden", "true");
-
-    const header = element("div", "connecting-overlay__stage-header");
-    header.append(
-      element(
-        "div",
-        "connecting-overlay__sequence",
-        this.networked ? "MATCH TRANSFER // MAP LOAD" : "LOCAL SESSION // MAP LOAD",
-      ),
-      deco(),
-    );
 
     const hero = element("div", "connecting-overlay__hero");
     this.kickerEl = element("div", "connecting-overlay__kicker");
@@ -285,13 +234,13 @@ export class TransferLoadingView implements MapLoadingView {
 
     const footer = element("div", "connecting-overlay__transfer-footer");
     this.detailEl = element("span", "connecting-overlay__detail");
-    footer.append(deco(), this.detailEl);
+    footer.append(this.detailEl);
 
     this.noticeEl = element("div", "connecting-overlay__notices");
     this.noticeEl.setAttribute("aria-live", "assertive");
 
     transfer.append(statusHeader, bar, footer, this.noticeEl);
-    stage.append(this.shotEl, header, hero, transfer);
+    stage.append(this.shotEl, hero, transfer);
     return stage;
   }
 
@@ -319,16 +268,13 @@ export class TransferLoadingView implements MapLoadingView {
 
   /** `current` is the state of the step the load is on; the ones before it are done. */
   private refreshSteps(current: "active" | "done" | "error"): void {
-    let at = this.stepEls.length - 1;
+    const count = this.rail?.steps.length ?? 0;
+    let at = count - 1;
     if (!this.networked) {
       at = LOCAL_STEPS.reduce((step, [, first], index) => (this.phaseIndex >= first ? index : step), 0);
-      if (current === "done") at = this.stepEls.length - 1;
+      if (current === "done") at = count - 1;
     }
-    this.stepEls.forEach((step, index) => {
-      const state = index < at ? "done" : index === at ? current : "pending";
-      step.classList.remove("is-done", "is-active", "is-pending", "is-error");
-      step.classList.add(`is-${state}`);
-    });
+    this.rail?.setSteps(this.rail.steps.map((_, index) => (index < at ? "done" : index === at ? current : "pending")));
   }
 }
 
@@ -336,12 +282,5 @@ function element(tag: string, className: string, text?: string): HTMLElement {
   const node = document.createElement(tag);
   if (className) node.className = className;
   if (text !== undefined) node.textContent = text;
-  return node;
-}
-
-function deco(): HTMLElement {
-  const node = element("div", "connecting-overlay__deco");
-  node.setAttribute("aria-hidden", "true");
-  for (let index = 0; index < 5; index++) node.appendChild(document.createElement("span"));
   return node;
 }

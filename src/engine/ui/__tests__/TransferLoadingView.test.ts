@@ -24,8 +24,8 @@ const oneFrame = () => vi.advanceTimersByTime(16);
 const screen = () => document.querySelector<HTMLElement>(".connecting-overlay--loading");
 const text = (selector: string) => screen()?.querySelector(selector)?.textContent ?? null;
 const steps = () =>
-  [...(screen()?.querySelectorAll(".connecting-overlay__step") ?? [])].map((step) => ({
-    label: step.querySelector(".connecting-overlay__step-label")?.textContent,
+  [...(screen()?.querySelectorAll(".twin__steps .twin-key") ?? [])].map((step) => ({
+    label: step.querySelector(".twin-key__label")?.textContent,
     state: [...step.classList].find((name) => name.startsWith("is-")),
   }));
 const share = () => Number(screen()?.style.getPropertyValue("--co-progress"));
@@ -98,7 +98,7 @@ describe("TransferLoadingView on the loading overlay", () => {
     const lines = [...(screen()?.querySelectorAll(".connecting-overlay__title span") ?? [])].map((s) => s.textContent);
     expect(lines).toEqual(["PROVING", "GROUNDS"]);
     expect(screen()?.getAttribute("aria-label")).toBe("Loading Proving Grounds");
-    expect(text(".connecting-overlay__server")).toBe("wdm2");
+    expect(text('[data-fact="map"]')).toBe("wdm2");
     const shot = screen()?.querySelector<HTMLElement>(".connecting-overlay__shot");
     expect(shot?.style.getPropertyValue("--co-shot")).toBe('url("/data/levelshots/wdm2.jpg")');
   });
@@ -111,8 +111,8 @@ describe("TransferLoadingView on the loading overlay", () => {
 
   it("walks a local load through its own steps and fills the bar forward only", () => {
     start();
-    expect(text(".connecting-overlay__rail-kicker")).toBe("LOCAL MAP");
-    expect(steps().map((step) => step.label)).toEqual(["MAP DATA", "WORLD", "GAME"]);
+    expect(text(".twin__context")).toBe("Local map");
+    expect(steps().map((step) => step.label)).toEqual(["Map data", "World", "Game"]);
     expect(steps().map((step) => step.state)).toEqual(["is-active", "is-pending", "is-pending"]);
 
     progress("Textures", "Loading and applying");
@@ -133,11 +133,11 @@ describe("TransferLoadingView on the loading overlay", () => {
   it("shows a networked load as the handoff's last step", () => {
     registerNetworkConnector({ isConnected: () => true, connect: vi.fn() });
     start();
-    expect(text(".connecting-overlay__rail-kicker")).toBe("MATCH HANDOFF");
+    expect(text(".twin__context")).toBe("Match handoff");
     expect(steps()).toEqual([
-      { label: "SERVER", state: "is-done" },
-      { label: "HANDSHAKE", state: "is-done" },
-      { label: "MAP LOAD", state: "is-active" },
+      { label: "Server", state: "is-done" },
+      { label: "Handshake", state: "is-done" },
+      { label: "Map load", state: "is-active" },
     ]);
   });
 

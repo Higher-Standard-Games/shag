@@ -5,9 +5,15 @@
  * Displays a connecting animation, then triggers the actual server connection
  * via the registered `NetworkConnector` (game modules register one at boot).
  * When the server's map starts loading, the map loading screen takes over.
+ *
+ * Built as the lobby's twin (LobbyTwin): the lobby's rail with the handoff's
+ * steps and the server, and the lobby's stage with the match's title, its
+ * status and bar. The lobby is what it comes up over, so only the content
+ * changes.
  */
 import { EventBus } from "../../core/EventBus";
 import { LOADING_EVENTS, type LoadingStartEvent } from "../../core/LoadingEvents";
+import { buildTwinLight, buildTwinRail, TWIN_ROOT_CLASS, type TwinRail } from "./LobbyTwin";
 import { getNetworkConnector } from "./NetworkConnector";
 
 // Import CSS
@@ -18,7 +24,7 @@ export class ConnectingOverlay {
   private statusEl: HTMLElement | null = null;
   private dotsEl: HTMLElement | null = null;
   private noticeEl: HTMLElement | null = null;
-  private stepEls: HTMLElement[] = [];
+  private rail: TwinRail | null = null;
 
   private dotInterval: number | null = null;
   private unsubscribeLoading: (() => void) | null = null;
@@ -141,7 +147,7 @@ export class ConnectingOverlay {
       this.statusEl = null;
       this.dotsEl = null;
       this.noticeEl = null;
-      this.stepEls = [];
+      this.rail = null;
     }
   }
 
@@ -150,7 +156,7 @@ export class ConnectingOverlay {
    */
   private build(serverUrl: string, asSpectator: boolean = false): HTMLElement {
     const overlay = document.createElement("div");
-    overlay.className = "connecting-overlay connecting-overlay--handoff";
+    overlay.className = `connecting-overlay connecting-overlay--handoff ${TWIN_ROOT_CLASS}`;
     overlay.dataset.state = "preparing";
     overlay.setAttribute("role", "dialog");
     overlay.setAttribute("aria-modal", "true");
@@ -158,83 +164,17 @@ export class ConnectingOverlay {
     overlay.setAttribute("aria-label", asSpectator ? "Joining live match" : "Game starting");
     overlay.tabIndex = -1;
 
-    const ambientWord = document.createElement("div");
-    ambientWord.className = "connecting-overlay__ambient-word";
-    ambientWord.setAttribute("aria-hidden", "true");
-    ambientWord.textContent = asSpectator ? "WATCH" : "READY";
-
-    const rail = document.createElement("aside");
-    rail.className = "connecting-overlay__rail";
-
-    const railHeader = document.createElement("div");
-    railHeader.className = "connecting-overlay__rail-header";
-
-    const brand = document.createElement("div");
-    brand.className = "connecting-overlay__brand";
-    brand.textContent = "WASHIKI // WASHOI";
-
-    const railKicker = document.createElement("div");
-    railKicker.className = "connecting-overlay__rail-kicker";
-    railKicker.textContent = asSpectator ? "LIVE CHANNEL" : "MATCH HANDOFF";
-
-    const railTitle = document.createElement("div");
-    railTitle.className = "connecting-overlay__rail-title";
-    railTitle.append(this.makeTitleLine(asSpectator ? "VIEW" : "SEAT"), this.makeTitleLine("SECURED"));
-
-    railHeader.append(brand, railKicker, railTitle);
-
-    const steps = document.createElement("ol");
-    steps.className = "connecting-overlay__steps";
-    ["SERVER", "HANDSHAKE", "MAP LOAD"].forEach((label, index) => {
-      const step = document.createElement("li");
-      step.className = `connecting-overlay__step ${index === 0 ? "is-done" : index === 1 ? "is-active" : "is-pending"}`;
-
-      const number = document.createElement("span");
-      number.className = "connecting-overlay__step-number";
-      number.textContent = `0${index + 1}`;
-
-      const text = document.createElement("span");
-      text.className = "connecting-overlay__step-label";
-      text.textContent = label;
-
-      const mark = document.createElement("span");
-      mark.className = "connecting-overlay__step-mark";
-      mark.setAttribute("aria-hidden", "true");
-
-      step.append(number, text, mark);
-      steps.appendChild(step);
-      this.stepEls.push(step);
+    const rail = buildTwinRail({
+      label: asSpectator ? "Joining live match" : "Match handoff",
+      steps: ["Server", "Handshake", "Map load"],
+      context: asSpectator ? "Live channel" : "Match handoff",
     });
-
-    const endpoint = document.createElement("div");
-    endpoint.className = "connecting-overlay__endpoint";
-
-    const endpointLabel = document.createElement("span");
-    endpointLabel.className = "connecting-overlay__endpoint-label";
-    endpointLabel.textContent = "MATCH SERVER";
-
-    const endpointValue = document.createElement("span");
-    endpointValue.className = "connecting-overlay__server";
-    endpointValue.textContent = serverUrl;
-
-    endpoint.append(endpointLabel, endpointValue);
-
-    const railFooter = document.createElement("div");
-    railFooter.className = "connecting-overlay__rail-footer";
-    railFooter.textContent = "ONLINE // TRANSFER 01";
-
-    rail.append(railHeader, steps, endpoint, railFooter);
+    rail.setFact("server", "Server", serverUrl);
+    rail.setSteps(["done", "active", "pending"]);
+    this.rail = rail;
 
     const stage = document.createElement("main");
-    stage.className = "connecting-overlay__stage";
-
-    const stageHeader = document.createElement("div");
-    stageHeader.className = "connecting-overlay__stage-header";
-
-    const sequence = document.createElement("div");
-    sequence.className = "connecting-overlay__sequence";
-    sequence.textContent = asSpectator ? "LIVE MATCH // SPECTATOR LINK" : "READY CHECK // MATCH TRANSFER";
-    stageHeader.append(sequence, this.makeDeco());
+    stage.className = "twin__stage connecting-overlay__stage";
 
     const hero = document.createElement("div");
     hero.className = "connecting-overlay__hero";
@@ -294,8 +234,6 @@ export class ConnectingOverlay {
 
     const transferFooter = document.createElement("div");
     transferFooter.className = "connecting-overlay__transfer-footer";
-    transferFooter.append(this.makeDeco());
-
     const wait = document.createElement("span");
     wait.textContent = "KEEP THIS WINDOW OPEN";
     transferFooter.appendChild(wait);
@@ -306,9 +244,10 @@ export class ConnectingOverlay {
     this.noticeEl = notices;
 
     transfer.append(statusHeader, bar, transferFooter, notices);
-    stage.append(stageHeader, hero, transfer);
+    stage.append(hero, transfer);
 
-    overlay.append(ambientWord, rail, stage);
+    overlay.append(buildTwinLight(), rail.rail, stage);
+    rail.log("Preparing");
     return overlay;
   }
 
@@ -317,6 +256,7 @@ export class ConnectingOverlay {
 
     this.statusEl.textContent = text;
     if (this.dotsEl) this.statusEl.appendChild(this.dotsEl);
+    this.rail?.log(text.charAt(0) + text.slice(1).toLowerCase());
 
     const state = text.toLowerCase().replace(/ /g, "-");
     if (this.el) {
@@ -335,6 +275,7 @@ export class ConnectingOverlay {
     errorEl.setAttribute("role", "alert");
     errorEl.textContent = message;
     this.noticeEl.appendChild(errorEl);
+    this.rail?.log(message);
   }
 
   private startDots(): void {
@@ -365,32 +306,17 @@ export class ConnectingOverlay {
     return line;
   }
 
-  private makeDeco(): HTMLElement {
-    const deco = document.createElement("div");
-    deco.className = "connecting-overlay__deco";
-    deco.setAttribute("aria-hidden", "true");
-    for (let index = 0; index < 5; index++) deco.appendChild(document.createElement("span"));
-    return deco;
-  }
-
   private isCompleteStatus(status: string): boolean {
     return ["CONNECTED", "SPECTATING", "ALREADY CONNECTED", "CONNECTION FAILED", "NO NETWORK ADAPTER"].includes(status);
   }
 
   private updateSteps(status: string): void {
-    if (this.stepEls.length !== 3) return;
+    if (!this.rail) return;
 
     const success = ["CONNECTED", "SPECTATING", "ALREADY CONNECTED"].includes(status);
     const failure = ["CONNECTION FAILED", "NO NETWORK ADAPTER"].includes(status);
-    const states = success
-      ? ["done", "done", "active"]
-      : failure
-        ? ["done", "error", "pending"]
-        : ["done", "active", "pending"];
-
-    this.stepEls.forEach((step, index) => {
-      step.classList.remove("is-done", "is-active", "is-pending", "is-error");
-      step.classList.add(`is-${states[index]}`);
-    });
+    this.rail.setSteps(
+      success ? ["done", "done", "active"] : failure ? ["done", "error", "pending"] : ["done", "active", "pending"],
+    );
   }
 }

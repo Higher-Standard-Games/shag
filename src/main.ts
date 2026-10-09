@@ -41,6 +41,7 @@ import {
   resolveRenderingBackend,
 } from "./engine/rendering/RenderingEngineFactory";
 import { applySceneRendererPolicy } from "./engine/rendering/SceneRendererPolicy";
+import { configureLobbyTwin } from "./engine/ui/components/LobbyTwin";
 import { LoadingScreen } from "./engine/ui/LoadingScreen";
 import { MapLoadingOverlay } from "./engine/ui/MapLoadingOverlay";
 import { TransferLoadingView } from "./engine/ui/TransferLoadingView";
@@ -96,6 +97,12 @@ async function main() {
   let canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
 
   // Show startup feedback before async WebGPU initialization or WebGL fallback.
+  // The start-up, handoff and map loading screens are the lobby's twin, so they
+  // wear the game's logo where the lobby does.
+  configureLobbyTwin({
+    brand: { logo: "/data/washoi.png", name: "WASHIKI WASHOI" },
+    onConsole: () => DebugConsole.getInstance().toggle(),
+  });
   const loadingScreen = new LoadingScreen();
   loadingScreen.show();
   loadingScreen.setStatus("Initializing renderer...");

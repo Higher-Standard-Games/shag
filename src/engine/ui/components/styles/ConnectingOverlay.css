@@ -1,27 +1,17 @@
-/* Full-viewport match handoff. The layout mirrors the lobby's gold rail and
-   dark stage without pretending the connector exposes percentage progress.
-   The map loading screen (`--loading`, TransferLoadingView) wears the same
-   look, and its bar does fill: the loader reports its phases. So does the
-   start-up screen (`--boot`, LoadingScreen), step by step through the boot. */
+/* The match handoff (ConnectingOverlay), the map loading screen (`--loading`,
+   TransferLoadingView) and the join screen over a live match (`--join`).
+   All three are the lobby's twin: the rail and the stage's backdrop come from
+   LobbyTwin.css, and this sheet sets out what each puts on the stage — the
+   kicker, the title, its lead, and the status with its bar. The map loading
+   screen's bar fills: the loader reports its phases. The handoff's sweeps: the
+   connector reports none. */
 
 .connecting-overlay {
-  --co-ink: var(--w-ink, hsl(246, 38%, 7%));
-  --co-paper: hsl(47, 100%, 57%);
-  --co-stage: hsl(238, 42%, 6%);
+  --co-gold: hsl(46 100% 57%);
+  --co-cyan: hsl(182 95% 52%);
+  --co-violet: hsl(276 90% 64%);
+  --co-alarm: hsl(330 88% 58%);
 
-  position: fixed;
-  inset: 0;
-  z-index: 5000;
-  display: grid;
-  grid-template-columns: clamp(300px, 31vw, 520px) minmax(0, 1fr);
-  overflow: hidden;
-  font-family: var(--w-font-body, "Rajdhani", sans-serif);
-  color: var(--w-text, hsl(180, 100%, 95%));
-  background:
-    radial-gradient(circle at 72% 22%, hsla(320, 100%, 60%, 0.13), transparent 28%),
-    radial-gradient(circle at 54% 82%, hsla(180, 100%, 50%, 0.09), transparent 34%),
-    linear-gradient(132deg, hsl(242, 44%, 8%), var(--co-stage) 58%, hsl(232, 45%, 8%));
-  isolation: isolate;
   animation: co-enter 0.32s ease-out both;
 }
 
@@ -30,255 +20,13 @@
   animation: none;
 }
 
-.connecting-overlay::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background:
-    repeating-linear-gradient(0deg, hsla(180, 100%, 70%, 0.035) 0 1px, transparent 1px 7px),
-    linear-gradient(104deg, transparent 67%, hsla(45, 100%, 55%, 0.035) 67.2%, transparent 67.5%);
-  pointer-events: none;
-}
+/* ── Stage: the title in the middle, the status along the bottom ── */
 
-.connecting-overlay::after {
-  content: "";
-  position: absolute;
-  right: 0;
-  bottom: clamp(26px, 6vh, 70px);
-  left: 0;
-  z-index: 4;
-  height: 5px;
-  background: linear-gradient(
-    90deg,
-    var(--w-cyan, hsl(180, 100%, 50%)),
-    var(--w-magenta, hsl(320, 100%, 60%)) 52%,
-    var(--w-gold, hsl(45, 100%, 55%))
-  );
-  box-shadow: 0 5px 0 hsla(250, 45%, 2%, 0.62);
-  transform: rotate(-0.16deg);
-  pointer-events: none;
-}
-
-.connecting-overlay__ambient-word {
-  position: absolute;
-  right: -0.06em;
-  bottom: -0.12em;
-  z-index: -1;
-  font-family: var(--w-font-display, "Orbitron", monospace);
-  font-size: clamp(9rem, 24vw, 28rem);
-  font-weight: 900;
-  letter-spacing: -0.1em;
-  line-height: 0.75;
-  color: hsla(180, 100%, 64%, 0.025);
-  transform: skewX(-7deg);
-  pointer-events: none;
-  user-select: none;
-}
-
-/* Left handoff rail */
-
-.connecting-overlay__rail {
-  position: relative;
-  z-index: 3;
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  padding: clamp(28px, 5vh, 64px) clamp(46px, 4vw, 76px) clamp(44px, 7vh, 82px) clamp(26px, 3vw, 54px);
-  color: var(--co-ink);
-  background:
-    repeating-linear-gradient(-8deg, hsla(250, 40%, 5%, 0.045) 0 1px, transparent 1px 8px),
-    linear-gradient(152deg, hsl(50, 100%, 64%), var(--co-paper) 60%, hsl(42, 100%, 50%));
-  clip-path: polygon(0 0, 100% 0, calc(100% - 54px) 100%, 0 100%);
-  filter: drop-shadow(18px 0 0 hsla(320, 100%, 60%, 0.15));
-}
-
-.connecting-overlay__rail::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  right: 48px;
-  bottom: 0;
-  width: 5px;
-  background: var(--w-magenta, hsl(320, 100%, 60%));
-  box-shadow: 7px 0 0 hsla(180, 100%, 50%, 0.72);
-  transform: skewX(-3deg);
-  opacity: 0.78;
-}
-
-.connecting-overlay__rail-header {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-}
-
-.connecting-overlay__brand,
-.connecting-overlay__rail-kicker,
-.connecting-overlay__endpoint-label,
-.connecting-overlay__rail-footer,
-.connecting-overlay__sequence,
-.connecting-overlay__kicker,
-.connecting-overlay__status-label,
-.connecting-overlay__transfer-footer {
-  font-family: var(--w-font-display, "Orbitron", monospace);
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-.connecting-overlay__brand {
-  padding: 6px 10px 5px;
-  font-size: clamp(0.56rem, 0.7vw, 0.72rem);
-  color: var(--co-paper);
-  background: var(--co-ink);
-  clip-path: polygon(0 0, 100% 0, 94% 100%, 5% 100%);
-  box-shadow: 5px 6px 0 hsla(320, 100%, 60%, 0.48);
-}
-
-.connecting-overlay__rail-kicker {
-  margin-top: clamp(34px, 7vh, 76px);
-  font-size: clamp(0.62rem, 0.8vw, 0.78rem);
-}
-
-.connecting-overlay__rail-title {
-  margin-top: 7px;
-  font-family: var(--w-font-display, "Orbitron", monospace);
-  font-size: clamp(2rem, 4vw, 4.5rem);
-  font-weight: 900;
-  letter-spacing: -0.07em;
-  line-height: 0.82;
-  text-transform: uppercase;
-  text-shadow: 4px 5px 0 hsla(320, 100%, 60%, 0.45);
-  transform: skewX(-4deg);
-}
-
-.connecting-overlay__rail-title span,
-.connecting-overlay__title span {
-  display: block;
-}
-
-.connecting-overlay__steps {
+.connecting-overlay .connecting-overlay__stage {
   display: grid;
-  gap: 3px;
-  width: min(100%, 340px);
-  margin: auto 0;
-  padding: 0;
-  list-style: none;
-}
-
-.connecting-overlay__step {
-  display: grid;
-  grid-template-columns: 34px minmax(0, 1fr) 14px;
-  align-items: center;
-  gap: 10px;
-  min-height: 40px;
-  padding: 5px 18px 5px 9px;
-  font-family: var(--w-font-display, "Orbitron", monospace);
-  font-size: clamp(0.62rem, 0.8vw, 0.8rem);
-  font-weight: 900;
-  letter-spacing: 0.12em;
-  background: hsla(250, 40%, 5%, 0.08);
-  border-top: 1px solid hsla(250, 40%, 5%, 0.22);
-  clip-path: polygon(0 0, 100% 0, 96% 100%, 2% 100%);
-}
-
-.connecting-overlay__step-number {
-  opacity: 0.48;
-}
-
-.connecting-overlay__step-mark {
-  width: 9px;
-  height: 9px;
-  background: hsla(250, 40%, 5%, 0.18);
-  transform: rotate(45deg);
-}
-
-.connecting-overlay__step.is-done .connecting-overlay__step-mark {
-  background: var(--co-ink);
-}
-
-.connecting-overlay__step.is-active {
-  color: var(--co-paper);
-  background: var(--co-ink);
-  box-shadow: 7px 7px 0 hsla(320, 100%, 60%, 0.5);
-  transform: translateX(6px);
-}
-
-.connecting-overlay__step.is-active .connecting-overlay__step-mark {
-  background: var(--w-cyan, hsl(180, 100%, 50%));
-  box-shadow: 0 0 12px hsla(180, 100%, 50%, 0.68);
-  animation: co-step-pulse 0.9s ease-in-out infinite;
-}
-
-.connecting-overlay__step.is-error {
-  color: var(--co-paper);
-  background: hsl(322, 82%, 40%);
-}
-
-.connecting-overlay__step.is-error .connecting-overlay__step-mark {
-  background: var(--co-paper);
-}
-
-.connecting-overlay__step.is-pending {
-  opacity: 0.48;
-}
-
-.connecting-overlay__endpoint {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 4px;
-  width: min(100%, 340px);
-  padding-top: 16px;
-  border-top: 3px solid var(--co-ink);
-}
-
-.connecting-overlay__endpoint-label {
-  font-size: 0.56rem;
-  opacity: 0.58;
-}
-
-.connecting-overlay__server {
-  overflow: hidden;
-  font-family: var(--w-font-display, "Orbitron", monospace);
-  font-size: clamp(0.58rem, 0.78vw, 0.78rem);
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.connecting-overlay__rail-footer {
-  margin-top: clamp(20px, 4vh, 44px);
-  font-size: 0.52rem;
-  opacity: 0.54;
-}
-
-/* Main status stage */
-
-.connecting-overlay__stage {
-  position: relative;
-  z-index: 2;
-  display: grid;
-  min-width: 0;
-  grid-template-rows: auto 1fr auto;
-  padding: clamp(28px, 5vh, 64px) clamp(30px, 6vw, 104px) clamp(64px, 11vh, 126px) clamp(60px, 8vw, 148px);
-}
-
-.connecting-overlay__stage::before {
-  content: "";
-  position: absolute;
-  top: 20%;
-  right: 6%;
-  width: min(26vw, 390px);
-  aspect-ratio: 1;
-  border: 1px solid hsla(180, 100%, 50%, 0.1);
-  border-radius: 50%;
-  box-shadow:
-    0 0 0 34px hsla(320, 100%, 60%, 0.02),
-    0 0 0 88px hsla(180, 100%, 50%, 0.018);
-  opacity: 0.9;
-  pointer-events: none;
+  grid-template-rows: minmax(0, 1fr) auto;
+  padding: clamp(28px, 5vh, 64px) clamp(30px, 5vw, 96px) clamp(40px, 8vh, 96px)
+    calc(clamp(40px, 5vw, 96px) + var(--rail-skew));
 }
 
 /* The map's levelshot behind the stage, fading in from the rail's side */
@@ -287,13 +35,67 @@
   inset: 0;
   z-index: -1;
   background: var(--co-shot, none) center / cover no-repeat;
-  opacity: 0.24;
-  filter: saturate(0.75) contrast(1.08);
-  mask-image: linear-gradient(100deg, transparent 6%, #000 48%, #000 78%, transparent);
+  opacity: 0.3;
+  filter: saturate(0.85) contrast(1.05);
+  mask-image: linear-gradient(100deg, transparent 6%, #000 46%, #000 80%, transparent);
   pointer-events: none;
 }
 
-.connecting-overlay__stage-header,
+.connecting-overlay__hero {
+  align-self: center;
+  max-width: 980px;
+  min-width: 0;
+}
+
+/* The lobby's kicker plate */
+.connecting-overlay__kicker {
+  display: inline-block;
+  margin-bottom: 18px;
+  padding: 6px 28px 6px 12px;
+  font: 900 clamp(0.62rem, 0.85vw, 0.86rem) / 1.2 var(--w-font-display, "Orbitron", monospace);
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: hsl(250 45% 7%);
+  background: var(--co-gold);
+  clip-path: polygon(0 0, 100% 0, 92% 100%, 3% 100%);
+}
+
+.connecting-overlay__title {
+  margin: 0;
+  font-family: var(--w-font-display, "Orbitron", monospace);
+  font-size: clamp(3.2rem, min(9.1vw, calc(62vw / var(--co-title-chars, 7))), 9.5rem);
+  font-weight: 900;
+  letter-spacing: -0.06em;
+  line-height: 0.8;
+  text-transform: uppercase;
+  color: hsl(45 100% 95%);
+  text-shadow: 0.05em 0.06em 0 hsla(250, 50%, 4%, 0.55);
+  animation: co-title-arrive 0.55s 0.08s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.connecting-overlay__title span {
+  display: block;
+}
+
+.connecting-overlay__title span:last-child {
+  color: var(--co-gold);
+}
+
+.connecting-overlay__lead {
+  max-width: 590px;
+  margin: clamp(22px, 4vh, 40px) 0 0;
+  font: 600 clamp(1rem, 1.45vw, 1.4rem) / 1.35 var(--w-font-body, "Rajdhani", sans-serif);
+  color: hsla(45, 100%, 95%, 0.65);
+}
+
+/* ── Status and bar ── */
+
+.connecting-overlay__transfer {
+  position: relative;
+  align-self: end;
+  width: min(820px, 100%);
+}
+
 .connecting-overlay__status-header,
 .connecting-overlay__transfer-footer {
   display: flex;
@@ -302,86 +104,23 @@
   gap: 18px;
 }
 
-.connecting-overlay__sequence {
-  font-size: clamp(0.54rem, 0.7vw, 0.7rem);
-  color: var(--w-cyan, hsl(180, 100%, 50%));
-}
-
-.connecting-overlay__hero {
-  align-self: center;
-  max-width: 980px;
-  padding: clamp(28px, 6vh, 70px) 0;
-}
-
-.connecting-overlay__kicker {
-  display: inline-block;
-  margin-bottom: 18px;
-  padding: 6px 28px 6px 12px;
-  font-size: clamp(0.62rem, 0.85vw, 0.86rem);
-  color: var(--co-ink);
-  background: var(--w-cyan, hsl(180, 100%, 50%));
-  clip-path: polygon(0 0, 100% 0, 92% 100%, 3% 100%);
-  box-shadow: 6px 7px 0 hsla(320, 100%, 60%, 0.42);
-}
-
-.connecting-overlay__title {
-  margin: 0;
-  font-family: var(--w-font-display, "Orbitron", monospace);
-  font-size: clamp(3.2rem, min(9.1vw, calc(66vw / var(--co-title-chars, 7))), 10rem);
-  font-weight: 900;
-  letter-spacing: -0.07em;
-  line-height: 0.77;
-  text-transform: uppercase;
-  color: var(--w-text, hsl(180, 100%, 95%));
-  text-shadow:
-    0.035em 0.045em 0 hsla(320, 100%, 60%, 0.8),
-    0.07em 0.085em 0 hsla(250, 50%, 2%, 0.72);
-  transform: skewX(-4deg);
-  animation: co-title-arrive 0.55s 0.08s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-.connecting-overlay__title span:last-child {
-  color: var(--co-paper);
-  text-shadow:
-    0.035em 0.045em 0 hsla(180, 100%, 50%, 0.65),
-    0.07em 0.085em 0 hsla(250, 50%, 2%, 0.72);
-}
-
-.connecting-overlay__lead {
-  max-width: 590px;
-  margin: clamp(24px, 4vh, 46px) 0 0;
-  padding-left: 18px;
-  font-size: clamp(1rem, 1.45vw, 1.4rem);
-  font-weight: 600;
-  line-height: 1.35;
-  color: var(--w-text-muted, hsl(220, 10%, 64%));
-  border-left: 5px solid var(--w-magenta, hsl(320, 100%, 60%));
-}
-
-.connecting-overlay__transfer {
-  position: relative;
-  align-self: end;
-  width: min(820px, 100%);
-}
-
 .connecting-overlay__status-label,
 .connecting-overlay__transfer-footer {
-  font-size: clamp(0.5rem, 0.65vw, 0.66rem);
-  color: var(--w-text-dim, hsl(220, 10%, 48%));
+  font: 700 11px / 1 var(--w-font-body, "Rajdhani", sans-serif);
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: hsla(45, 100%, 95%, 0.55);
 }
 
 .connecting-overlay__status {
   min-width: 0;
-  font-family: var(--w-font-display, "Orbitron", monospace);
-  font-size: clamp(0.75rem, 1vw, 1rem);
-  font-weight: 900;
+  padding: 6px 16px;
+  font: 900 clamp(0.75rem, 1vw, 1rem) / 1 var(--w-font-display, "Orbitron", monospace);
   letter-spacing: 0.15em;
   text-align: right;
-  color: var(--co-ink);
-  background: var(--co-paper);
-  padding: 6px 16px;
+  color: hsl(250 45% 7%);
+  background: var(--co-gold);
   clip-path: polygon(5% 0, 100% 0, 94% 100%, 0 100%);
-  box-shadow: 5px 6px 0 hsla(320, 100%, 60%, 0.36);
 }
 
 .connecting-overlay__dots {
@@ -396,31 +135,16 @@
   margin-top: 14px;
   overflow: hidden;
   background: hsla(238, 38%, 12%, 0.92);
-  border: 1px solid hsla(180, 100%, 50%, 0.34);
+  border: 1px solid hsla(276, 90%, 64%, 0.32);
   clip-path: polygon(0 0, 100% 0, 99% 100%, 1% 100%);
-  box-shadow: 7px 8px 0 hsla(250, 50%, 2%, 0.56);
 }
 
-.connecting-overlay__bar::after {
-  content: "";
-  position: absolute;
-  inset: 3px;
-  background: repeating-linear-gradient(90deg, transparent 0 8%, hsla(238, 45%, 4%, 0.62) 8% 8.7%);
-  pointer-events: none;
-}
-
+/* The handoff knows no percentage: a sweep says it is working */
 .connecting-overlay__bar-fill {
   position: absolute;
   inset: 0 auto 0 -35%;
   width: 34%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    var(--w-cyan, hsl(180, 100%, 50%)) 24%,
-    var(--w-magenta, hsl(320, 100%, 60%)) 70%,
-    transparent
-  );
-  box-shadow: 0 0 18px hsla(180, 100%, 50%, 0.5);
+  background: linear-gradient(90deg, transparent, var(--co-cyan) 24%, var(--co-violet) 70%, transparent);
   animation: co-bar-sweep 1.45s linear infinite;
 }
 
@@ -428,12 +152,7 @@
 .connecting-overlay--loading .connecting-overlay__bar-fill {
   inset: 0 auto 0 0;
   width: calc(var(--co-progress, 0) * 100%);
-  background: linear-gradient(
-    90deg,
-    var(--w-cyan, hsl(180, 100%, 50%)),
-    var(--w-magenta, hsl(320, 100%, 60%)) 72%,
-    var(--w-gold, hsl(45, 100%, 55%))
-  );
+  background: linear-gradient(90deg, var(--co-cyan), var(--co-violet) 70%, var(--co-gold));
   animation: none;
   transition: width 0.35s ease-out;
 }
@@ -449,40 +168,6 @@
   white-space: nowrap;
 }
 
-.connecting-overlay__deco {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-
-.connecting-overlay__deco span:nth-child(1),
-.connecting-overlay__deco span:nth-child(3),
-.connecting-overlay__deco span:nth-child(5) {
-  width: 7px;
-  height: 7px;
-  transform: rotate(45deg);
-}
-
-.connecting-overlay__deco span:nth-child(2),
-.connecting-overlay__deco span:nth-child(4) {
-  width: clamp(20px, 3vw, 48px);
-  height: 2px;
-}
-
-.connecting-overlay__deco span:nth-child(1),
-.connecting-overlay__deco span:nth-child(2) {
-  background: var(--w-cyan, hsl(180, 100%, 50%));
-}
-
-.connecting-overlay__deco span:nth-child(3),
-.connecting-overlay__deco span:nth-child(4) {
-  background: var(--w-magenta, hsl(320, 100%, 60%));
-}
-
-.connecting-overlay__deco span:nth-child(5) {
-  background: var(--w-gold, hsl(45, 100%, 55%));
-}
-
 .connecting-overlay__notices {
   min-height: 0;
 }
@@ -491,13 +176,11 @@
   margin-top: 18px;
   padding: 10px 16px;
   overflow-wrap: anywhere;
-  font-family: var(--w-font-display, "Orbitron", monospace);
-  font-size: clamp(0.62rem, 0.8vw, 0.78rem);
-  font-weight: 800;
+  font: 800 clamp(0.62rem, 0.8vw, 0.78rem) / 1.4 var(--w-font-display, "Orbitron", monospace);
   letter-spacing: 0.06em;
-  color: hsl(320, 100%, 91%);
-  background: hsla(320, 100%, 60%, 0.13);
-  border-left: 5px solid var(--w-magenta, hsl(320, 100%, 60%));
+  color: hsl(330 100% 92%);
+  background: hsla(330, 88%, 58%, 0.14);
+  border-left: 5px solid var(--co-alarm);
 }
 
 .connecting-overlay[data-state="connected"] .connecting-overlay__bar-fill,
@@ -505,7 +188,7 @@
 .connecting-overlay[data-state="already-connected"] .connecting-overlay__bar-fill {
   inset: 0;
   width: 100%;
-  background: linear-gradient(90deg, var(--w-cyan, hsl(180, 100%, 50%)), var(--co-paper));
+  background: linear-gradient(90deg, var(--co-cyan), var(--co-gold));
   animation: co-complete 0.28s ease-out both;
 }
 
@@ -513,7 +196,7 @@
 .connecting-overlay[data-state="no-network-adapter"] .connecting-overlay__bar-fill {
   inset: 0;
   width: 100%;
-  background: var(--w-magenta, hsl(320, 100%, 60%));
+  background: var(--co-alarm);
   opacity: 0.72;
   animation: none;
 }
@@ -524,11 +207,11 @@
 }
 
 .connecting-overlay--loading[data-state="ready"] .connecting-overlay__bar-fill {
-  background: linear-gradient(90deg, var(--w-cyan, hsl(180, 100%, 50%)), var(--co-paper));
+  background: linear-gradient(90deg, var(--co-cyan), var(--co-gold));
 }
 
 .connecting-overlay--loading[data-state="load-failed"] .connecting-overlay__bar-fill {
-  background: var(--w-magenta, hsl(320, 100%, 60%));
+  background: var(--co-alarm);
   opacity: 0.72;
 }
 
@@ -541,7 +224,7 @@
 @keyframes co-title-arrive {
   from {
     opacity: 0;
-    transform: translateX(8vw) skewX(-4deg);
+    transform: translateX(8vw);
   }
 }
 
@@ -564,99 +247,16 @@
   }
 }
 
-@media (max-width: 900px) {
+/* Phones: the stage alone (LobbyTwin.css), scrolling down rather than across */
+@media (max-width: 700px) {
   .connecting-overlay {
-    grid-template-columns: minmax(230px, 36vw) minmax(0, 1fr);
-  }
-
-  .connecting-overlay__rail {
-    padding-right: 44px;
-    padding-left: 24px;
-  }
-
-  .connecting-overlay__stage {
-    padding-right: 28px;
-    padding-left: 58px;
-  }
-
-  .connecting-overlay__title {
-    font-size: clamp(2.8rem, min(8.5vw, calc(60vw / var(--co-title-chars, 7))), 6rem);
-  }
-}
-
-@media (max-width: 650px) {
-  /* Scrolls down only: what drifts past the side (the start-up smoke) is cut */
-  .connecting-overlay {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto minmax(0, 1fr);
     overflow-x: hidden;
     overflow-y: auto;
   }
 
-  /* The stage's parts take the phone's width rather than their longest line */
-  .connecting-overlay__stage {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .connecting-overlay__stage > * {
-    min-width: 0;
-  }
-
-  .connecting-overlay__rail {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 18px;
-    padding: 18px 28px 28px 20px;
-    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 18px), 0 100%);
-  }
-
-  .connecting-overlay__rail::before {
-    top: auto;
-    right: 0;
-    bottom: 16px;
-    left: 0;
-    width: auto;
-    height: 4px;
-    transform: rotate(-1deg);
-  }
-
-  .connecting-overlay__brand {
-    width: max-content;
-  }
-
-  .connecting-overlay__rail-kicker {
-    margin-top: 18px;
-  }
-
-  .connecting-overlay__rail-title {
-    font-size: clamp(1.7rem, 9vw, 2.7rem);
-  }
-
-  .connecting-overlay__steps {
-    align-self: end;
-    width: min(46vw, 220px);
-    margin: 0;
-  }
-
-  .connecting-overlay__step {
-    grid-template-columns: 25px minmax(0, 1fr) 10px;
-    min-height: 31px;
-    padding: 4px 10px 4px 6px;
-    font-size: 0.5rem;
-  }
-
-  .connecting-overlay__endpoint,
-  .connecting-overlay__rail-footer {
-    display: none;
-  }
-
-  .connecting-overlay__stage {
+  .connecting-overlay .connecting-overlay__stage {
     min-height: 520px;
-    padding: 22px 22px 70px;
-  }
-
-  .connecting-overlay__hero {
-    padding: 32px 0;
+    padding: 22px 22px 48px;
   }
 
   .connecting-overlay__title {
@@ -667,45 +267,15 @@
     font-size: 1rem;
   }
 
-  .connecting-overlay__sequence {
-    max-width: 54%;
-  }
-
   .connecting-overlay__transfer-footer > span {
     display: none;
   }
-
-  .connecting-overlay::after {
-    bottom: 28px;
-  }
-
-  /* The screen scrolls here, so the word stays inside it */
-  .connecting-overlay__ambient-word {
-    bottom: 0;
-  }
 }
 
-@media (max-height: 640px) and (min-width: 651px) {
-  .connecting-overlay__rail {
+@media (max-height: 640px) and (min-width: 701px) {
+  .connecting-overlay .connecting-overlay__stage {
     padding-top: 24px;
     padding-bottom: 40px;
-  }
-
-  .connecting-overlay__rail-kicker {
-    margin-top: 24px;
-  }
-
-  .connecting-overlay__rail-title {
-    font-size: clamp(1.8rem, 3.6vw, 3.2rem);
-  }
-
-  .connecting-overlay__stage {
-    padding-top: 24px;
-    padding-bottom: 56px;
-  }
-
-  .connecting-overlay__hero {
-    padding: 18px 0;
   }
 
   .connecting-overlay__title {
@@ -717,182 +287,9 @@
   }
 }
 
-/* The start-up screen (LoadingScreen): the boot's steps on the rail, and the
-   stage's ring made real — centred, with the engine's logo in it. Its sweep
-   turns while the engine boots; once it can take the click that starts the
-   game and turns the sound on, the ring pulses and says so. */
-.connecting-overlay--boot {
-  /* The first thing on the page: nothing to fade in from but a blank one */
-  animation: none;
-}
-
-/* The ring on the stage's right is decoration elsewhere; here it is the key */
-.connecting-overlay--boot .connecting-overlay__stage::before {
-  display: none;
-}
-
-.connecting-overlay--boot .connecting-overlay__hero {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-self: center;
-  text-align: center;
-}
-
-.connecting-overlay--boot .connecting-overlay__kicker {
-  margin-bottom: clamp(18px, 3vh, 30px);
-}
-
-.connecting-overlay--boot .connecting-overlay__lead {
-  margin-top: clamp(14px, 2.4vh, 24px);
-  padding-left: 0;
-  border-left: 0;
-}
-
-.connecting-overlay__ring {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: clamp(220px, min(38vh, 30vw), 460px);
-  aspect-ratio: 1;
-  padding: 0;
-  color: inherit;
-  font: inherit;
-  cursor: default;
-  background: radial-gradient(circle, hsla(238, 45%, 11%, 0.92) 56%, hsla(238, 45%, 8%, 0.5) 70%, transparent 71%);
-  border: 1px solid hsla(180, 100%, 50%, 0.22);
-  border-radius: 50%;
-  box-shadow:
-    0 0 0 34px hsla(320, 100%, 60%, 0.03),
-    0 0 0 88px hsla(180, 100%, 50%, 0.025);
-  transition:
-    transform 0.25s cubic-bezier(0.2, 0.9, 0.3, 1.3),
-    border-color 0.2s ease;
-}
-
-.connecting-overlay__ring:enabled {
-  cursor: pointer;
-}
-
-.connecting-overlay__ring:enabled:hover,
-.connecting-overlay__ring:focus-visible {
-  border-color: var(--co-paper);
-  outline: none;
-  transform: scale(1.03);
-}
-
-/* The sweep: a bright arc running round the ring's edge */
-.connecting-overlay__ring-sweep {
-  position: absolute;
-  inset: -1px;
-  border-radius: 50%;
-  background: conic-gradient(
-    from 0deg,
-    transparent 0 64%,
-    hsla(180, 100%, 50%, 0.5) 90%,
-    var(--w-cyan, hsl(180, 100%, 50%)) 100%
-  );
-  -webkit-mask-image: radial-gradient(circle, transparent 64%, #000 65%);
-  mask-image: radial-gradient(circle, transparent 64%, #000 65%);
-  animation: co-ring-spin 1.4s linear infinite;
-  pointer-events: none;
-}
-
-/* Ready: the sweep slows and turns gold, and rings pulse outward to be clicked */
-.ui-loading-screen--ready .connecting-overlay__ring-sweep {
-  background: conic-gradient(from 0deg, transparent 0 58%, hsla(47, 100%, 57%, 0.45) 88%, var(--co-paper) 100%);
-  animation-duration: 3.2s;
-}
-
-.connecting-overlay__ring-pulse {
-  position: absolute;
-  inset: 0;
-  border: 3px solid var(--co-paper);
-  border-radius: 50%;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.ui-loading-screen--ready .connecting-overlay__ring-pulse {
-  animation: co-ring-ping 2.4s ease-out infinite;
-}
-
-.ui-loading-screen--ready .connecting-overlay__ring-pulse:nth-of-type(3) {
-  animation-delay: 1.2s;
-}
-
-/* Clicked: the ring holds still while the lobby comes up */
-.ui-loading-screen--started .connecting-overlay__ring-pulse {
-  animation: none;
-}
-
-/* Square, and sized before it has loaded, so nothing around it jumps */
-.connecting-overlay__logo {
-  position: relative;
-  display: block;
-  width: 76%;
-  height: auto;
-  aspect-ratio: 1;
-  filter: drop-shadow(8px 10px 0 hsla(250, 50%, 2%, 0.6));
-  pointer-events: none;
-}
-
-.connecting-overlay__ring-caption {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  margin-top: clamp(20px, 3.6vh, 36px);
-  font-family: var(--w-font-display, "Orbitron", monospace);
-  font-size: clamp(1rem, 1.5vw, 1.45rem);
-  font-weight: 900;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--co-paper);
-  text-shadow: 3px 4px 0 hsla(250, 50%, 2%, 0.7);
-}
-
-.connecting-overlay__ring-caption small {
-  font-size: 0.5em;
-  letter-spacing: 0.2em;
-  color: var(--w-text-dim, hsl(220, 10%, 48%));
-  text-shadow: none;
-}
-
-.connecting-overlay__ring-caption[hidden] {
-  display: none;
-}
-
-@keyframes co-ring-spin {
-  to {
-    transform: rotate(1turn);
-  }
-}
-
-@keyframes co-ring-ping {
-  from {
-    opacity: 0.75;
-    transform: scale(1);
-  }
-
-  to {
-    opacity: 0;
-    transform: scale(1.32);
-  }
-}
-
-@media (max-width: 650px) {
-  .connecting-overlay__ring {
-    width: min(64vw, 300px);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .connecting-overlay,
   .connecting-overlay__title,
-  .connecting-overlay__ring-sweep,
-  .ui-loading-screen--ready .connecting-overlay__ring-pulse,
-  .connecting-overlay__step.is-active .connecting-overlay__step-mark,
   .connecting-overlay__bar-fill,
   .connecting-overlay--loading[data-state="setting-up"] .connecting-overlay__bar-fill {
     animation: none;

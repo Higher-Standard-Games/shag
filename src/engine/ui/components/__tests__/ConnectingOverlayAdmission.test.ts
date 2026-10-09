@@ -30,12 +30,14 @@ describe("lobby match connection", () => {
     expect(root?.getAttribute("role")).toBe("dialog");
     expect(root?.getAttribute("aria-label")).toBe("Joining live match");
     expect(document.activeElement).toBe(root);
-    expect(root?.querySelector(".connecting-overlay__rail")).not.toBeNull();
+    expect(root?.querySelector(".twin__rail")).not.toBeNull();
     expect(root?.querySelector(".connecting-overlay__stage")).not.toBeNull();
     expect(root?.querySelector(".connecting-overlay__content")).toBeNull();
-    expect(root?.querySelectorAll(".connecting-overlay__step")).toHaveLength(3);
-    expect(root?.querySelector(".connecting-overlay__server")?.textContent).toBe(serverUrl);
-    expect(root?.querySelector("img")).toBeNull();
+    expect(root?.querySelectorAll(".twin__steps .twin-key")).toHaveLength(3);
+    // The server's address is shown as text, never parsed as markup
+    const server = root?.querySelector('[data-fact="server"]');
+    expect(server?.textContent).toBe(serverUrl);
+    expect(server?.querySelector("img")).toBeNull();
     expect(root?.querySelector("[role='progressbar']")?.getAttribute("aria-label")).toBe("Connecting to match server");
 
     await vi.advanceTimersByTimeAsync(4000);

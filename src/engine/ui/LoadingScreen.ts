@@ -5,33 +5,38 @@
  * 1. Boot progress: the renderer, the packages, the engine, the lobby
  * 2. "Click to start" once the engine can take the click (unlocks browser audio)
  *
- * It wears the match handoff's look (ConnectingOverlay.css): a gold rail with
- * the boot's steps, and a stage whose ring holds the engine's logo. The ring
- * turns while the engine boots, and pulses once it can take the click that
- * starts the game, so the first screen a player sees is the same family as
- * every screen after it.
+ * It is built as the lobby's twin (LobbyTwin), because the lobby takes
+ * over from it: the gold rail at the lobby's width with the game's logo where
+ * the lobby has it, the boot's steps as the rail's keys (the current one
+ * latched in ink, as the lobby marks the page you are on), a log where the
+ * lobby lists rooms, the engine in the player card's place and the utility
+ * keys below; the stage is the lobby's blue, with a ring holding the engine's
+ * logo that turns while the engine boots and pulses once it can take the click
+ * that starts the game. When the lobby comes up, the rail stays where it is.
  *
- * This is an engine component - game-agnostic.
+ * This is an engine component - game-agnostic. The game names its brand with
+ * `configureLobbyTwin`.
  */
 
 import type { LoadProgress } from "../AssetLoader";
 import { AudioManager } from "../AudioManager";
 import { EngineVersion } from "../core/EngineVersion";
+import { buildTwinLight, buildTwinRail, TWIN_ROOT_CLASS, type TwinRail } from "./components/LobbyTwin";
 import { LoadingAnimation } from "./LoadingAnimation";
 import { SHAG_PALETTE } from "./LoadingPalettes";
 import { UIStyles } from "./UIStyles";
 
-import "./components/styles/ConnectingOverlay.css";
+import "./components/styles/BootScreen.css";
 
 /** The boot's steps in the order main runs them */
 export const BOOT_STEPS = ["renderer", "packages", "engine", "lobby"] as const;
 export type BootStep = (typeof BOOT_STEPS)[number];
 
 const STEP_LABELS: Record<BootStep, string> = {
-  renderer: "RENDERER",
-  packages: "PACKAGES",
-  engine: "ENGINE",
-  lobby: "LOBBY",
+  renderer: "Renderer",
+  packages: "Packages",
+  engine: "Engine",
+  lobby: "Lobby",
 };
 
 export class LoadingScreen {
@@ -40,12 +45,10 @@ export class LoadingScreen {
   private container: HTMLDivElement;
   private kickerEl: HTMLElement;
   private statusEl: HTMLElement;
-  private detailEl: HTMLElement;
-  private nowEl: HTMLElement;
+  private rail: TwinRail;
   private barEl: HTMLElement;
   private ringEl: HTMLButtonElement;
   private captionEl: HTMLElement;
-  private stepEls: HTMLElement[] = [];
   private stepIndex = 0;
 
   // For force-dismiss from console
@@ -69,106 +72,64 @@ export class LoadingScreen {
 
     this.container = document.createElement("div");
     this.container.id = "loading-screen";
-    this.container.className =
-      "ui-loading-screen connecting-overlay connecting-overlay--loading connecting-overlay--boot";
+    this.container.className = `ui-loading-screen ${TWIN_ROOT_CLASS} boot`;
     this.container.setAttribute("role", "dialog");
     this.container.setAttribute("aria-label", `${version.getEngineName()} is starting`);
     this.container.setAttribute("aria-busy", "true");
 
-    const ambient = element("div", "connecting-overlay__ambient-word", "SHAG");
-    ambient.setAttribute("aria-hidden", "true");
-
-    // ── Rail: the boot's steps ──
-    const rail = element("aside", "connecting-overlay__rail");
-    const header = element("div", "connecting-overlay__rail-header");
-    const railTitle = element("div", "connecting-overlay__rail-title");
-    railTitle.append(element("span", "", "POWER"), element("span", "", "UP"));
-    header.append(
-      element("div", "connecting-overlay__brand", version.getEngineName()),
-      element("div", "connecting-overlay__rail-kicker", "BOOT SEQUENCE"),
-      railTitle,
-    );
-
-    const steps = element("ol", "connecting-overlay__steps");
-    this.stepEls = BOOT_STEPS.map((step, index) => {
-      const item = element("li", "connecting-overlay__step");
-      const mark = element("span", "connecting-overlay__step-mark");
-      mark.setAttribute("aria-hidden", "true");
-      item.append(
-        element("span", "connecting-overlay__step-number", `0${index + 1}`),
-        element("span", "connecting-overlay__step-label", STEP_LABELS[step]),
-        mark,
-      );
-      steps.appendChild(item);
-      return item;
+    // ── Rail: the lobby's, with the boot in it ──
+    this.rail = buildTwinRail({
+      label: "Start-up",
+      steps: BOOT_STEPS.map((step) => STEP_LABELS[step]),
+      context: "Boot log",
     });
 
-    const endpoint = element("div", "connecting-overlay__endpoint");
-    this.nowEl = element("span", "connecting-overlay__server", "Initializing...");
-    endpoint.append(element("span", "connecting-overlay__endpoint-label", "NOW"), this.nowEl);
+    // ── Stage: the ring with the engine's logo, which starts the game ──
+    const stage = element("main", "twin__stage boot__stage");
 
-    const railFooter = element(
-      "div",
-      "connecting-overlay__rail-footer",
-      `${version.getEngineName()} // ${version.getVersionString()}`,
-    );
-    rail.append(header, steps, endpoint, railFooter);
-
-    // ── Stage: the ring with the logo, which starts the game ──
-    const stage = element("main", "connecting-overlay__stage");
-    const stageHeader = element("div", "connecting-overlay__stage-header");
-    stageHeader.append(element("div", "connecting-overlay__sequence", "HIGHER STANDARD GAMES // BOOT"), deco());
-
-    const hero = element("div", "connecting-overlay__hero");
-    this.kickerEl = element("div", "connecting-overlay__kicker", "STARTING UP");
+    const hero = element("div", "boot__hero");
+    this.kickerEl = element("div", "boot__kicker", "Starting up");
 
     this.ringEl = document.createElement("button");
     this.ringEl.type = "button";
-    this.ringEl.className = "connecting-overlay__ring";
+    this.ringEl.className = "boot__ring";
     this.ringEl.disabled = true;
     this.ringEl.setAttribute("aria-label", "Start");
-    const sweep = element("span", "connecting-overlay__ring-sweep");
-    const pulses = [
-      element("span", "connecting-overlay__ring-pulse"),
-      element("span", "connecting-overlay__ring-pulse"),
-    ];
+    const sweep = element("span", "boot__ring-sweep");
+    const pulses = [element("span", "boot__ring-pulse"), element("span", "boot__ring-pulse")];
     const logo = document.createElement("img");
     logo.src = "engine.png";
     logo.alt = "";
     logo.width = 512;
     logo.height = 512;
-    logo.className = "connecting-overlay__logo ui-loading-logo";
+    logo.className = "boot__logo ui-loading-logo";
     this.ringEl.append(sweep, ...pulses, logo);
 
     // A touch screen is tapped, and has no Enter to press
     const touch = window.matchMedia?.("(pointer: coarse)").matches === true;
-    this.captionEl = element("div", "connecting-overlay__ring-caption");
+    this.captionEl = element("div", "boot__caption");
     this.captionEl.append(element("span", "", touch ? "Tap to start" : "Click to start"));
     if (!touch) this.captionEl.append(element("small", "", "or press Enter"));
     this.captionEl.hidden = true;
 
-    const lead = element("p", "connecting-overlay__lead", version.getEngineTagline());
+    const lead = element("p", "boot__lead", version.getEngineTagline());
     hero.append(this.kickerEl, this.ringEl, this.captionEl, lead);
 
-    const transfer = element("section", "connecting-overlay__transfer");
-    transfer.setAttribute("aria-label", "Start-up progress");
-    const statusHeader = element("div", "connecting-overlay__status-header");
-    this.statusEl = element("div", "connecting-overlay__status", "RENDERER");
-    this.statusEl.setAttribute("aria-live", "polite");
-    statusHeader.append(element("span", "connecting-overlay__status-label", "BOOT STATUS"), this.statusEl);
-    this.barEl = element("div", "connecting-overlay__bar");
+    const progress = element("section", "boot__progress");
+    progress.setAttribute("aria-label", "Start-up progress");
+    const progressHead = element("div", "boot__progress-head");
+    this.statusEl = element("div", "boot__status", "RENDERER");
+    progressHead.append(element("span", "boot__progress-label", "Boot status"), this.statusEl);
+    this.barEl = element("div", "boot__bar");
     this.barEl.setAttribute("role", "progressbar");
     this.barEl.setAttribute("aria-label", "Starting up");
     this.barEl.setAttribute("aria-valuemin", "0");
     this.barEl.setAttribute("aria-valuemax", "100");
-    this.barEl.appendChild(element("div", "connecting-overlay__bar-fill"));
-    const transferFooter = element("div", "connecting-overlay__transfer-footer");
-    this.detailEl = element("span", "connecting-overlay__detail");
-    transferFooter.append(deco(), this.detailEl);
-    transfer.append(statusHeader, this.barEl, transferFooter);
+    this.barEl.appendChild(element("div", "boot__bar-fill"));
+    progress.append(progressHead, this.barEl);
 
-    stage.append(stageHeader, hero, transfer);
-    this.container.append(ambient, rail, stage);
+    stage.append(hero, progress);
+    this.container.append(buildTwinLight(), this.rail.rail, stage);
     this.setStep("renderer");
   }
 
@@ -198,12 +159,10 @@ export class LoadingScreen {
   /** Move the rail to a boot step; the ones before it are done */
   public setStep(step: BootStep): void {
     this.stepIndex = Math.max(this.stepIndex, BOOT_STEPS.indexOf(step));
-    this.stepEls.forEach((item, index) => {
-      const state = index < this.stepIndex ? "done" : index === this.stepIndex ? "active" : "pending";
-      item.classList.remove("is-done", "is-active", "is-pending");
-      item.classList.add(`is-${state}`);
-    });
-    this.statusEl.textContent = STEP_LABELS[BOOT_STEPS[this.stepIndex]];
+    this.rail.setSteps(
+      BOOT_STEPS.map((_, index) => (index < this.stepIndex ? "done" : index === this.stepIndex ? "active" : "pending")),
+    );
+    this.statusEl.textContent = STEP_LABELS[BOOT_STEPS[this.stepIndex]].toUpperCase();
     this.setBar(this.stepIndex / BOOT_STEPS.length);
   }
 
@@ -214,13 +173,11 @@ export class LoadingScreen {
   }
 
   /**
-   * Update the status text shown on the loading screen
+   * Add a line to the boot log: what the engine is doing now.
    * @param status - Status message to display (e.g., "Indexing packages...", "Loading textures...")
    */
   public setStatus(status: string): void {
-    this.nowEl.textContent = status;
-    this.nowEl.title = status;
-    this.detailEl.textContent = status;
+    this.rail.log(status);
   }
 
   /**
@@ -242,7 +199,7 @@ export class LoadingScreen {
       this.readyResolver = resolve;
 
       this.container.classList.add("ui-loading-screen--ready");
-      this.kickerEl.textContent = "READY";
+      this.kickerEl.textContent = "Ready";
       this.ringEl.disabled = false;
       this.captionEl.hidden = false;
       window.addEventListener("keydown", this.onKey);
@@ -270,7 +227,7 @@ export class LoadingScreen {
     AudioManager.getInstance().unlockAudio();
     AudioManager.getInstance().loadPlaylist("data/menu.playlist.json");
 
-    this.kickerEl.textContent = "STARTING";
+    this.kickerEl.textContent = "Starting";
     this.container.classList.add("ui-loading-screen--started");
     this.ringEl.disabled = true;
     this.captionEl.replaceChildren(element("span", "", "Starting"));
@@ -286,10 +243,7 @@ export class LoadingScreen {
       this.smokeAnimation = null;
     }
 
-    this.stepEls.forEach((item) => {
-      item.classList.remove("is-active", "is-pending");
-      item.classList.add("is-done");
-    });
+    this.rail.setSteps(BOOT_STEPS.map(() => "done"));
     this.setBar(1);
     this.container.setAttribute("aria-busy", "false");
     this.container.classList.add("ui-loading-screen--hiding");
@@ -300,7 +254,7 @@ export class LoadingScreen {
 
   private setBar(share: number): void {
     const clamped = Math.max(0, Math.min(1, share));
-    this.container.style.setProperty("--co-progress", clamped.toFixed(3));
+    this.container.style.setProperty("--boot-progress", clamped.toFixed(3));
     this.barEl.setAttribute("aria-valuenow", String(Math.round(clamped * 100)));
   }
 }
@@ -309,13 +263,5 @@ function element(tag: string, className: string, text?: string): HTMLElement {
   const node = document.createElement(tag);
   node.className = className;
   if (text !== undefined) node.textContent = text;
-  return node;
-}
-
-/** The handoff's diamond-and-dash ornament */
-function deco(): HTMLElement {
-  const node = element("div", "connecting-overlay__deco");
-  node.setAttribute("aria-hidden", "true");
-  for (let index = 0; index < 5; index++) node.appendChild(document.createElement("span"));
   return node;
 }

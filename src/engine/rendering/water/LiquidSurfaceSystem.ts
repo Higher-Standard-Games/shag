@@ -45,6 +45,17 @@ import { WaterRefractionProvider } from "./WaterRefraction";
 import { type WaterMapLight, WaterSurfaceLighting } from "./WaterSurfaceLighting";
 
 /**
+ * Whether a liquid gets the reactive surface: a probe patch, and with it the
+ * ripples and wakes of bodies moving through it, and players reflected in it.
+ * Water and slime do; slime is thick, but a body wading through it still pushes
+ * a wave. Lava does not: it crusts rather than ripples, and reflects nothing.
+ * Static light highlights stay calm water's alone, in the shader.
+ */
+export function hasReactiveSurface(kind: WaterKind): boolean {
+  return kind !== "lava";
+}
+
+/**
  * Frames without water drawn before the depth pass stops.
  *
  * A pillar briefly hiding a pool must not toggle a render target in and out of
@@ -145,14 +156,14 @@ export class LiquidSurfaceSystem {
       this.actorReflection.claim(root);
       this.probes.claim(
         root,
-        this.claimed.filter((surface) => surface.kind === "water").map((surface) => surface.mesh),
+        this.claimed.filter((surface) => hasReactiveSurface(surface.kind)).map((surface) => surface.mesh),
       );
       this.start();
       this.lighting.prepare(
         root,
         this.claimed.flatMap((surface) => {
           const patch = this.probes.patchFor(surface.mesh);
-          return surface.kind === "water" && patch ? [patch] : [];
+          return hasReactiveSurface(surface.kind) && patch ? [patch] : [];
         }),
         this.mapLights,
       );
@@ -234,8 +245,8 @@ export class LiquidSurfaceSystem {
           this.environments.get(kind)?.texture ?? this.fallbackEnvironment ?? waterFallbackCube(this.scene);
         this.probes.bind(effect, mesh, fallback);
         const patch = this.probes.patchFor(mesh);
-        this.actorReflection.bind(effect, kind === "water" ? patch : null);
-        this.lighting.bind(effect, kind === "water" ? patch : null);
+        this.actorReflection.bind(effect, hasReactiveSurface(kind) ? patch : null);
+        this.lighting.bind(effect, hasReactiveSurface(kind) ? patch : null);
         const impulses = waterDisturbancesFor(this.scene);
         effect.setFloatArray4(
           "uImpulses",
@@ -329,7 +340,7 @@ export class LiquidSurfaceSystem {
         camera,
         this.claimed.flatMap((surface) => {
           const patch = this.probes.patchFor(surface.mesh);
-          return surface.kind === "water" && patch ? [patch] : [];
+          return hasReactiveSurface(surface.kind) && patch ? [patch] : [];
         }),
         visible && quality >= 3 && !!RenderVars.getInstance().get("r_water_actors"),
         !RenderVars.getInstance().get("r_water_actors")

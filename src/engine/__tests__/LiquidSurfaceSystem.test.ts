@@ -15,11 +15,12 @@ import type { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder";
+import { CreateGround } from "@babylonjs/core/Meshes/Builders/groundBuilder";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { Scene } from "@babylonjs/core/scene";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import RenderVars from "../rendering/RenderVars";
-import { LiquidSurfaceSystem } from "../rendering/water/LiquidSurfaceSystem";
+import { hasReactiveSurface, LiquidSurfaceSystem } from "../rendering/water/LiquidSurfaceSystem";
 
 let engine: NullEngine;
 let scene: Scene;
@@ -184,6 +185,32 @@ describe("LiquidSurfaceSystem", () => {
     const materials = new Set(root.getChildMeshes(false).map((m) => m.material));
 
     expect(materials.size).toBe(1);
+  });
+
+  it("gives slime the reactive surface water has (ripples, reflections), and lava none", () => {
+    // wamphi1's floor is slime: it was drawn by the water material but never
+    // rippled, because only water got a surface patch to carry the waves.
+    // Three flat, separate pools: a patch needs a surface to lie on.
+    const root = new Mesh("bsp_world", scene);
+    const [water, slime, lava] = (["water", "slime", "lava"] as const).map((kind, i) => {
+      const pool = CreateGround(`bsp_pool_${kind}`, { width: 64, height: 64 }, scene);
+      pool.position.x = i * 200;
+      pool.bakeCurrentTransformIntoVertices();
+      pool.parent = root;
+      pool.material = new StandardMaterial(`legacy_pool_${kind}`, scene);
+      pool.metadata = { textureName: `textures/test/${kind}`, liquidKind: kind };
+      return pool;
+    });
+    const system = new LiquidSurfaceSystem(scene);
+    system.claim(root);
+
+    const probes = (system as unknown as { probes: { patchFor(mesh: unknown): unknown } }).probes;
+    expect(probes.patchFor(water)).toBeDefined();
+    expect(probes.patchFor(slime)).toBeDefined();
+    expect(probes.patchFor(lava)).toBeUndefined();
+    expect(hasReactiveSurface("slime")).toBe(true);
+    expect(hasReactiveSurface("lava")).toBe(false);
+    system.dispose();
   });
 
   it("gives different liquids different materials", () => {
