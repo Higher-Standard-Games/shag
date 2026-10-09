@@ -51,23 +51,74 @@ export function getSafeMaxSimultaneousLights(material: Material): number {
   return isPBR ? SAFE_PBR_MAX_SIMULTANEOUS_LIGHTS : SAFE_MAX_SIMULTANEOUS_LIGHTS;
 }
 
+type LightCapMaterial = Material & { maxSimultaneousLights?: number };
+
+/** Unguarded setters of materials whose cap writes are guarded; see guardLightCapRaises. */
+const policySetters = new WeakMap<Material, (value: number) => void>();
+
+/**
+ * On WebGPU only this policy may raise a material's light cap; any other write
+ * may only lower it.
+ *
+ * Babylon's glTF loader raises the cap of EVERY scene material to the scene's
+ * light count at the end of each import. Clamped back afterwards, every import
+ * toggled every material twice, and each change marks all its submeshes
+ * light-dirty: during first-person spectating, where weapon models keep
+ * loading, that re-prepared the whole scene's effects and bind groups every
+ * frame and stalled WebGPU. Ignoring the raise leaves the value unchanged, and
+ * Babylon's setter skips unchanged values, so nothing goes dirty.
+ *
+ * Only materials whose cap is an accessor (Babylon's Standard and PBR) are
+ * guarded; anything else keeps plain writes.
+ */
+function guardLightCapRaises(material: LightCapMaterial): void {
+  if (policySetters.has(material)) return;
+  let proto: object | null = Object.getPrototypeOf(material);
+  let accessor: PropertyDescriptor | undefined;
+  while (proto && !accessor) {
+    accessor = Object.getOwnPropertyDescriptor(proto, "maxSimultaneousLights");
+    proto = Object.getPrototypeOf(proto);
+  }
+  const { get, set } = accessor ?? {};
+  if (!get || !set) return;
+  Object.defineProperty(material, "maxSimultaneousLights", {
+    configurable: true,
+    enumerable: accessor?.enumerable ?? false,
+    get() {
+      return get.call(this);
+    },
+    set(value: number) {
+      if (value <= get.call(this)) set.call(this, value);
+    },
+  });
+  policySetters.set(material, (value) => set.call(material, value));
+}
+
+function setLightCap(material: LightCapMaterial, value: number): void {
+  const set = policySetters.get(material);
+  if (set) set(value);
+  else material.maxSimultaneousLights = value;
+}
+
 /**
  * Apply the backend-specific light budget. WebGL2 raises low caps to admit its
- * clustered containers; WebGPU clamps high caps to protect its command stream.
+ * clustered containers; WebGPU sets the budget exactly to protect its command
+ * stream, and from then on refuses raises from anywhere else.
  */
 export function applySafeMaxSimultaneousLights(material: Material | null | undefined): void {
   if (!material || !("maxSimultaneousLights" in material)) return;
 
   const budget = getSafeMaxSimultaneousLights(material);
-  const target = material as Material & { maxSimultaneousLights?: number };
+  const target = material as LightCapMaterial;
   if (materialUsesWebGPU(material)) {
     // Babylon can keep drawing an old effect while its replacement compiles.
     // After a light-count change, BindLights already uses the new count while
     // that old layout still requires the removed LightN buffers. WebGPU rejects
     // the bind group. Skip draws until the matching effect is ready instead.
     material.allowShaderHotSwapping = false;
+    guardLightCapRaises(target);
     if (target.maxSimultaneousLights !== budget) {
-      target.maxSimultaneousLights = budget;
+      setLightCap(target, budget);
       // Frozen StandardMaterial otherwise bypasses the dirty light defines.
       if (material.isFrozen) material.markDirty(true);
     }
@@ -81,5 +132,23 @@ export function applySafeMaxSimultaneousLights(material: Material | null | undef
 export function applySafeSceneLightCaps(scene: Scene): void {
   for (const material of scene.materials) {
     applySafeMaxSimultaneousLights(material);
+  }
+}
+
+/**
+ * After a glTF import on WebGPU: guard every material and only lower caps above
+ * the budget. Never raises, so a material deliberately kept under budget (the
+ * view weapon's) is not bumped back up and recompiled by each import.
+ */
+export function clampSceneLightCaps(scene: Scene): void {
+  for (const material of scene.materials) {
+    if (!("maxSimultaneousLights" in material) || !materialUsesWebGPU(material)) continue;
+    const target = material as LightCapMaterial;
+    guardLightCapRaises(target);
+    const budget = getSafeMaxSimultaneousLights(material);
+    if ((target.maxSimultaneousLights ?? 0) > budget) {
+      setLightCap(target, budget);
+      if (material.isFrozen) material.markDirty(true);
+    }
   }
 }

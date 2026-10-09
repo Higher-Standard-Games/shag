@@ -86,6 +86,41 @@ describe("shared scene renderer policy", () => {
       engine.dispose();
     }
   });
+  it("leaves existing WebGPU materials clean across glTF imports, and keeps lowered caps", async () => {
+    const engine = new NullEngine();
+    Object.defineProperty(engine, "isWebGPU", { value: true });
+    engine.getCaps().texelFetch = true;
+    const scene = new Scene(engine);
+    try {
+      for (let i = 0; i < 11; i++) new PointLight(`light-${i}`, Vector3.One(), scene);
+      applySceneRendererPolicy(scene);
+      const world = new StandardMaterial("bsp_mat_existing", scene);
+      const weapon = new PBRMaterial("view_weapon", scene);
+      scene.onNewMaterialAddedObservable.notifyObservers(world);
+      scene.onNewMaterialAddedObservable.notifyObservers(weapon);
+      // The view weapon deliberately runs under the PBR budget.
+      weapon.maxSimultaneousLights = 2;
+      const worldDirty = vi.spyOn(
+        world as unknown as { _markAllSubMeshesAsLightsDirty(): void },
+        "_markAllSubMeshesAsLightsDirty",
+      );
+      const weaponDirty = vi.spyOn(
+        weapon as unknown as { _markAllSubMeshesAsLightsDirty(): void },
+        "_markAllSubMeshesAsLightsDirty",
+      );
+      for (let i = 0; i < 3; i++) await ImportMeshAsync(triangleAsset(), scene, { pluginExtension: ".gltf" });
+      expect(world.maxSimultaneousLights).toBe(6);
+      expect(weapon.maxSimultaneousLights).toBe(2);
+      expect(worldDirty).not.toHaveBeenCalled();
+      expect(weaponDirty).not.toHaveBeenCalled();
+      // Writes other than the policy may still lower a cap.
+      world.maxSimultaneousLights = 3;
+      expect(world.maxSimultaneousLights).toBe(3);
+    } finally {
+      scene.dispose();
+      engine.dispose();
+    }
+  });
   it("caps existing and later WebGPU materials without duplicate observers", async () => {
     const engine = new NullEngine();
     // Policy only; never claim this is a WebGPU shader test.
