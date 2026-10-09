@@ -230,3 +230,52 @@ it("excludes temporarily blocked pickup ids from item planning", () => {
   const path = graph.findPathToItem({ x: 0, y: 0, z: 0 }, "health", [true, true], { blockedPickupIds: new Set([0]) });
   expect(path?.nodes[path.nodes.length - 1]?.pickupId).toBe(1);
 });
+
+/** A floor at y = 0 that answers downward traces from any height, as floor sampling casts from far above. */
+class GroundPlane extends NullCollisionWorld {
+  override trace(start: Vec3, end: Vec3, _bounds?: AABB): TraceResult {
+    if (start.y > 0 && end.y <= 0) {
+      const fraction = start.y / (start.y - end.y);
+      const at = (a: number, b: number) => a + (b - a) * fraction;
+      return {
+        hit: true,
+        fraction,
+        hitPoint: { x: at(start.x, end.x), y: 0, z: at(start.z, end.z) },
+        normal: { x: 0, y: 1, z: 0 },
+      };
+    }
+    return { hit: false, fraction: 1 };
+  }
+}
+
+describe("BotNavGraph walk edges", () => {
+  it("tests walks from standing height, so floor and item nodes on the surface connect", () => {
+    // The player hull reaches 24 units below its origin: a sweep whose origin is
+    // lower than that above the floor (y = 0) starts inside it and is never clear.
+    const hullClear = (from: Vec3, to: Vec3) => from.y >= 24 && to.y >= 24;
+    const vision = {
+      mapKnowledge: {
+        mapName: "walk-test",
+        mapFingerprint: "walk-bsp",
+        spawnPoints: [{ x: 0, y: 24, z: 0 }],
+        pickupPositions: [{ id: 0, classname: "item_health_mega", position: { x: 600, y: 3, z: 0 } }],
+        triggerVolumes: [],
+      },
+      collisionWorld: new GroundPlane(),
+      isPathClear: hullClear,
+      canSee: () => true,
+      isInsideSolid: () => false,
+    } as unknown as BotVision;
+    const graph = new BotNavGraph("walk-test");
+    graph.buildFromVision(vision);
+    const floor = new Set(graph.nodes.filter((n) => n.type === "floor").map((n) => n.id));
+    const item = graph.nodes.find((n) => n.type === "item")!;
+    const spawn = graph.nodes.find((n) => n.type === "spawn")!;
+    const walks = graph.edges.filter((e) => e.type === "walk");
+    expect(floor.size).toBeGreaterThan(0);
+    expect(walks.some((e) => floor.has(e.from) && floor.has(e.to))).toBe(true);
+    expect(walks.some((e) => e.from === spawn.id && e.to === item.id)).toBe(true);
+    // Stored positions stay on the surface: bots still steer to the same points.
+    expect(item.position.y).toBe(3);
+  });
+});

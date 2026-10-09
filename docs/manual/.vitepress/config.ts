@@ -143,6 +143,14 @@ export default defineConfig({
               ]
             },
             {
+              text: 'Map Editing',
+              collapsed: true,
+              items: [
+                { text: 'SHAGGED Editor', link: '/guides/shagged-editor' },
+                { text: 'SHAGGED Scripting API', link: '/guides/shagged-api' }
+              ]
+            },
+            {
               text: 'Multiplayer',
               collapsed: true,
               items: [

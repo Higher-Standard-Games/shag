@@ -150,6 +150,15 @@ const FLOOR_COLUMN_STEP = 8;
 /** How far outside the known node band a surface can be and still count. */
 const FLOOR_BAND_HEADROOM = 128;
 
+/**
+ * Floor and item nodes sit on the surface, but walk tests sweep the player
+ * hull, which reaches 24 units below its origin. Swept from the surface it
+ * starts inside the floor and nothing is ever clear, so the test sweeps from
+ * standing height instead. Spawn points are already stored at standing height.
+ */
+const WALK_TEST_LIFT = 24;
+const STANDS_ON_SURFACE: ReadonlySet<NavNodeType> = new Set(["floor", "item"]);
+
 /** Min distance between any two nodes (dedup threshold) */
 const MIN_NODE_DISTANCE = 64;
 
@@ -173,6 +182,8 @@ export const BOT_NAV_MOVEMENT_FINGERPRINT = [
   // single-trace version is a grid of roofs and must be rebuilt, not reused.
   `column:${FLOOR_SAMPLES_PER_COLUMN}:${FLOOR_COLUMN_STEP}:${FLOOR_BAND_HEADROOM}`,
   `trigger:${BOT_NAV_TRIGGER_RESOLVER_VERSION}:${TELEPORT_COST}:${JUMPPAD_COST_MULT}`,
+  // Caches built before walk tests swept from standing height have almost no walk edges.
+  `walk-origin:${WALK_TEST_LIFT}`,
   BOT_MOVEMENT_ANALYZER_FINGERPRINT,
 ].join("|");
 // ── BotNavGraph ─────────────────────────────────────────────────────
@@ -185,6 +196,12 @@ function emptyMovementAnalysis(): MovementAnalysisSummary {
     budgetExhausted: false,
     rejectionCounts: {},
   };
+}
+
+/** Where a walk test sweeps the player hull from for this node. */
+function walkOrigin(node: NavNode): Vec3 {
+  if (!STANDS_ON_SURFACE.has(node.type)) return node.position;
+  return { x: node.position.x, y: node.position.y + WALK_TEST_LIFT, z: node.position.z };
 }
 
 export class BotNavGraph {
@@ -590,7 +607,7 @@ export class BotNavGraph {
 
         // Walk edge: low height diff + path clear
         if (heightDiff < WALK_HEIGHT_MAX) {
-          if (vision.isPathClear(a.position, b.position)) {
+          if (vision.isPathClear(walkOrigin(a), walkOrigin(b))) {
             const cost = dist;
             this._edges.push({ from: a.id, to: b.id, type: "walk", cost });
             this._edges.push({ from: b.id, to: a.id, type: "walk", cost });

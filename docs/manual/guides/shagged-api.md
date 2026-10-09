@@ -1,6 +1,6 @@
 # SHAGGED scripting API
 
-Build Washoi maps from scripts or AI agents: typed edit operations on the SHAGGED map document, then compile, publish and check the result. The same document opens in the in-engine editor. Design and status: [SHAGGED_API research](../../research/SHAGGED_API.md).
+Build Washoi maps from scripts or AI agents: typed edit operations on the SHAGGED map document, then compile, publish and check the result. The same document opens in the in-engine editor. Design and status: `docs/research/SHAGGED_API.md` in the repository.
 
 ## Entry points
 

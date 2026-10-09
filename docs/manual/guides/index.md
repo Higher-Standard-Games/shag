@@ -32,6 +32,13 @@ In-depth explanations of SHAG Engine systems. These guides explain concepts and 
 | [Map Launching](./map-launching.md) | `bsp load` vs `map` — the two paths, lobby dev-spawn, env vars |
 | [Service Registries](./service-registries.md) | `NetworkConnector` / `GameplayMapLauncher` — how games inject behaviour into engine code |
 
+## Map Editing
+
+| Guide | Description |
+|-------|-------------|
+| [SHAGGED Editor](./shagged-editor.md) | The built-in four-view brush editor: building, texturing, entities, compile and playtest |
+| [SHAGGED Scripting API](./shagged-api.md) | Build maps from scripts or AI agents: operations, CLI, MCP server and mapping rules |
+
 ## Multiplayer
 
 | Guide | Description |

@@ -258,7 +258,27 @@ Evidence: a probe using the SDK's own `Client` and `StdioClientTransport` listed
 
 Not yet tried: an actual AI agent building a map from a brief through these tools (the P1 acceptance). The probe proves the plumbing, not the design quality.
 
-Next: run that acceptance with an agent, then add what it turns out to need (likely a texture lookup that supplies image sizes, a room-to-room connect helper, and stairs).
+### Acceptance run 1: a three-room FFA map from the guide (2026-10-10)
+
+Brief: "a small three-room FFA map". Built from `docs/manual/guides/shagged-api.md` alone (by the implementing agent, so a friendly test, not an unbiased one): a 768 × 768 × 384 arena with a 40-unit hop-up platform, two 512 × 512 side rooms joined by 96-unit corridors, 4 spawns, rocket launcher, electrobolt, yellow armour, health and mega health. 15 operations, applied first time with no issues; compiled sealed and playable.
+
+**The report then failed:** every arena item unreachable, every spawn reaching only its room-mate. Investigation showed **the map was fine and the bots' navigation graph was broken on every map**:
+
+- Floor-sample nodes are stored 1 unit above the surface, but the walk test sweeps the player hull, which reaches 24 units **below** its origin (`SweepCollisionBackend`: mins.z = -24 at height 64). Every walk test from a floor or item node therefore started inside the floor and failed; floor nodes only ever linked through jump edges to spawns, which are stored at standing height.
+- Measured on shipped maps before the fix: **wdm2**: 0 of 63 floor nodes had a walk edge, 4 walk edges in total; **wdm5**: 2 of 81, 14 walk edges. Bots were navigating on jump/fall/teleporter edges between spawns and items only.
+- Fix ([`BotNavGraph.ts`](../../src/bot/BotNavGraph.ts)): the walk test sweeps from standing height (`WALK_TEST_LIFT` = 24) for nodes that sit on a surface (floor and item); stored node positions, which bots steer to, are unchanged. The movement fingerprint gains `walk-origin:24`, so saved navigation caches rebuild.
+- After: **wdm2** 51 of 63 floor nodes walkable, **272** walk edges; **wdm5** 54 of 81, **270** walk edges; the three-room map 18 of 18, and its report passes (4 spawns, 5 items, all mutually reachable, 171 edges).
+- Test: `BotNavGraph.test.ts` "tests walks from standing height…" models the hull (clear only when both ends are at least 24 units up) and fails without the fix (verified).
+
+This is the first real payoff of the closed loop: an agent-facing check exposed a bug that had silently degraded bot navigation on every shipped map.
+
+Lessons for the API from this run:
+
+- Joining rooms by hand needs care: the corridor must start at the room wall's **outer** face, and the opening must match the corridor's cross-section. The guide's worked example made this possible; a `gen.connect` helper would remove the arithmetic.
+- `entity_classes` is essential: Washoi names differ from Quake 3 (`weapon_electrobolt`, not a railgun).
+- Still missing for richer maps: stairs (anything above a 44-unit hop), jump pads, and texture lookup with image sizes.
+
+Next: `gen.connect` and `gen.stairs`, then texture lookup; and an unbiased acceptance run with a fresh agent that has only the guide and the MCP tools.
 
 ## Risks and open questions
 
