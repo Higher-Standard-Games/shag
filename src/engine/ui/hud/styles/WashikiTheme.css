@@ -2343,32 +2343,36 @@
   color: var(--w-text-dim);
 }
 
-/* --- Post-game variant: the match-result board ---
-   Enlarged and winner-titled; locked open for the whole PostGame phase. The
-   gold title plate grows into the victory plate.
-   The overlay veil goes light and un-blurred so the 3D winner showcase (stood
-   in the left third of the view) stays readable; the board shifts right. */
+/* --- Post-game variant: the match-result screen ---
+   One composition, the same at every aspect ratio:
+   - Left 40%: the stage. PostGameShowcase frames the winner's 3D model at 30%
+     across, in the lower half; the stage caption (giant name, stat chips)
+     stands above it.
+   - Right column: the board, titled by the winner plate, its right edge on the
+     5vw gutter and its left edge never past 45vw, so it cannot cover the model.
+   - Under the board, on the same right edge: the way home. Its space is held
+     from the start, so the board does not move when the key appears.
+   The veil stays clear over the stage and darkens under the board; no blur,
+   since the model is world-rendered behind this DOM layer. */
 .fps-scoreboard-overlay--postgame {
-  /* Directional veil: LIGHT on the left (3D winner showcase shows through),
-     dark on the right where the board sits. No backdrop blur — the showcase
-     is world-rendered behind this DOM layer and must stay crisp. */
-  /* Spotlight column: fully clear over the showcase model (left ~30%), then a
-     dark stage veil under the board. The model reads as ABOVE the overlay. */
   background:
     radial-gradient(hsla(190, 100%, 72%, 0.03) 1px, transparent 1.5px) 0 0 / 7px 7px,
-    linear-gradient(100deg, transparent 0%, transparent 30%, hsla(248, 30%, 4%, 0.72) 52%, hsla(248, 30%, 4%, 0.92) 80%);
+    linear-gradient(100deg, transparent 0%, transparent 34%, hsla(248, 30%, 4%, 0.72) 50%, hsla(248, 30%, 4%, 0.92) 80%);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   justify-content: flex-end;
-  padding-right: 5vw;
+  align-items: center;
+  padding: 8vh 5vw calc(12vh + 108px) 0;
 }
 
 .fps-scoreboard--postgame {
-  width: calc(860px * var(--ui-scale, 1));
-  max-width: 54vw;
-  padding-top: calc(84px * var(--ui-scale, 1));
+  width: calc(820px * var(--ui-scale, 1));
+  max-width: 50vw;
+  max-height: 100%;
+  padding-top: calc(92px * var(--ui-scale, 1));
 }
 
+/* The winner plate: stamped in once when the screen opens, then still. */
 .fps-scoreboard--postgame .fps-scoreboard-title {
   padding: calc(12px * var(--ui-scale, 1)) calc(44px * var(--ui-scale, 1)) calc(14px * var(--ui-scale, 1))
     calc(28px * var(--ui-scale, 1));
@@ -2376,7 +2380,7 @@
   font-size: calc(30px * var(--ui-scale, 1));
   color: hsl(246, 42%, 10%);
   text-shadow: none;
-  animation: w-fight-stamp 0.45s cubic-bezier(0.16, 1.3, 0.3, 1);
+  animation: w-fight-stamp 0.45s cubic-bezier(0.16, 1.3, 0.3, 1) both;
 }
 
 .fps-scoreboard--postgame .fps-scoreboard-row {
@@ -2397,16 +2401,23 @@
   font-size: calc(14px * var(--ui-scale, 1));
 }
 
-/* Winner stat panel — stands beside the 3D showcase model (left third).
-   Cream print-slab stack; values in display face. */
-/* Winner nameplate — giant display text rising behind/above the showcase
-   model (low opacity so the model visually stands in front of it). */
-.fps-postgame-name {
+/* Stage caption: the winner's name, then their stat chips, above the model. */
+.fps-postgame-stage {
   position: absolute;
-  left: 3vw;
-  top: 10vh;
-  max-width: 34vw;
-  overflow: hidden;
+  left: 4vw;
+  top: 8vh;
+  max-width: 38vw;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: calc(18px * var(--ui-scale, 1));
+  pointer-events: none;
+}
+
+/* Giant nameplate, faint, so the model reads as standing in front of it. */
+.fps-postgame-name {
+  max-width: 100%;
+  overflow-wrap: anywhere;
   font-family: var(--w-font-display);
   font-size: calc(64px * var(--ui-scale, 1));
   font-weight: 900;
@@ -2416,25 +2427,20 @@
   color: hsla(45, 100%, 62%, 0.34);
   text-shadow: calc(2px * var(--ui-scale, 1)) calc(3px * var(--ui-scale, 1)) 0 hsla(250, 45%, 4%, 0.5);
   transform: skewX(-6deg);
-  pointer-events: none;
   animation: fps-fade-in 0.6s ease-out;
 }
 
+/* Winner stat chips: cream print slabs in a row. */
 .fps-postgame-stats {
-  position: absolute;
-  left: 4vw;
-  bottom: 34vh;
   display: flex;
-  flex-direction: column;
-  gap: calc(6px * var(--ui-scale, 1));
-  pointer-events: none;
+  flex-wrap: wrap;
+  gap: calc(10px * var(--ui-scale, 1));
 }
 
 .fps-postgame-stats-row {
   display: flex;
   align-items: baseline;
-  justify-content: space-between;
-  gap: calc(24px * var(--ui-scale, 1));
+  gap: calc(14px * var(--ui-scale, 1));
   padding: calc(6px * var(--ui-scale, 1)) calc(18px * var(--ui-scale, 1)) calc(8px * var(--ui-scale, 1));
   background: linear-gradient(178deg, var(--w-cream), hsl(41, 92%, 85%) 78%), var(--w-scan-cyan);
   clip-path: polygon(2% 0, 100% 0, 98% 100%, 0 100%);
@@ -2469,8 +2475,9 @@
   letter-spacing: 0.08em;
 }
 
-/* Back to the lobby — the single-match post-game exit. Sits on the overlay
-   (which is pointer-events: none); this key is the one interactive thing. */
+/* Back to the lobby — the single-match post-game exit, under the board's right
+   edge in the space the overlay holds for it. The one interactive thing on the
+   overlay (which is pointer-events: none). */
 .fps-scoreboard-return.raised-key {
   position: absolute;
   right: 5vw;
@@ -2482,6 +2489,110 @@
 .fps-scoreboard-return .raised-key__face {
   min-height: 76px;
   padding: 0 52px 0 46px;
+}
+
+/* --- Head-to-head (1v1) ---
+   One versus line: each side's name over their line of stats, and between them
+   the big figure with what it counts (rounds or frags). */
+.fps-scoreboard-versus {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: calc(20px * var(--ui-scale, 1));
+  padding: calc(10px * var(--ui-scale, 1)) 0 calc(6px * var(--ui-scale, 1));
+}
+
+.fps-versus-side {
+  --versus-side: var(--team-enemy, hsl(186, 98%, 58%));
+
+  display: flex;
+  flex-direction: column;
+  gap: calc(4px * var(--ui-scale, 1));
+  min-width: 0;
+  padding: calc(10px * var(--ui-scale, 1)) calc(16px * var(--ui-scale, 1));
+  font-family: var(--w-font-body);
+  color: var(--w-text);
+}
+
+.fps-versus-side--ally {
+  --versus-side: var(--team-ally, hsl(320, 100%, 60%));
+}
+
+.fps-versus-side--left {
+  border-left: 3px solid var(--versus-side);
+  text-align: left;
+}
+
+.fps-versus-side--right {
+  border-right: 3px solid var(--versus-side);
+  text-align: right;
+}
+
+.fps-versus-side--departed {
+  opacity: 0.45;
+}
+
+.fps-versus-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: calc(22px * var(--ui-scale, 1));
+  font-weight: 700;
+  color: var(--w-cream);
+}
+
+.fps-versus-side--self .fps-versus-name {
+  color: hsl(42, 96%, 62%);
+}
+
+.fps-versus-line {
+  font-size: calc(13px * var(--ui-scale, 1));
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+  color: var(--w-text-muted);
+}
+
+.fps-versus-ping {
+  font-size: calc(12px * var(--ui-scale, 1));
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+  color: var(--w-text-dim);
+}
+
+.fps-versus-score {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(2px * var(--ui-scale, 1));
+}
+
+.fps-versus-figure {
+  font-family: var(--w-font-display);
+  font-size: calc(44px * var(--ui-scale, 1));
+  font-weight: 900;
+  line-height: 1;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: var(--w-cream);
+  text-shadow: calc(2px * var(--ui-scale, 1)) calc(3px * var(--ui-scale, 1)) 0 var(--w-ink);
+}
+
+.fps-versus-label {
+  font-family: var(--w-font-body);
+  font-size: calc(11px * var(--ui-scale, 1));
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: hsl(45, 90%, 62%);
+}
+
+.fps-scoreboard--postgame .fps-versus-name {
+  font-size: calc(28px * var(--ui-scale, 1));
+}
+
+.fps-scoreboard--postgame .fps-versus-figure {
+  font-size: calc(64px * var(--ui-scale, 1));
 }
 
 /* --- Team Scoreboard Variants --- */
