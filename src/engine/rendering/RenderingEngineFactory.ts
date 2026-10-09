@@ -18,6 +18,13 @@ export interface RenderingEngineResult {
   canvas: HTMLCanvasElement;
   fallbackStage?: "support" | "initialization";
   fallbackReason?: string;
+  /** WebGPU render-bundle submission (Babylon non-compatibility mode) is active. */
+  nonCompatibilityMode: boolean;
+}
+
+export interface RenderingEngineOptions {
+  /** Request WebGPU non-compatibility mode. Ignored by every other backend. */
+  nonCompatibilityMode?: boolean;
 }
 
 export interface RenderingEngineFactories {
@@ -57,16 +64,20 @@ function errorMessage(error: unknown): string {
 }
 
 /**
- * Babylon's modular WebGPU entry omits two extensions we use: DynamicTexture,
- * and MultiRender, which the geometry buffer behind screen-space reflections
+ * Babylon's modular WebGPU entry omits extensions we use: DynamicTexture;
+ * MultiRender, which the geometry buffer behind screen-space reflections
  * needs (without it `r_ssr 1` fails to start on WebGPU only; WebGL gets its
- * own multi-render extension through Babylon's imports).
+ * own multi-render extension through Babylon's imports); and compute shaders
+ * plus the registered compute particle platform, which `GPUParticleSystem`
+ * selects on WebGPU in place of WebGL2 transform feedback.
  */
 export async function loadWebGPUBackend() {
   const [{ WebGPUEngine }] = await Promise.all([
     import("@babylonjs/core/Engines/webgpuEngine"),
     import("@babylonjs/core/Engines/WebGPU/Extensions/engine.dynamicTexture"),
     import("@babylonjs/core/Engines/WebGPU/Extensions/engine.multiRender"),
+    import("@babylonjs/core/Engines/WebGPU/Extensions/engine.computeShader"),
+    import("@babylonjs/core/Particles/computeShaderParticleSystem"),
   ]);
   return WebGPUEngine;
 }
@@ -119,6 +130,20 @@ export function resolveRenderingBackend(webGPUCvarEnabled: boolean, search = "")
 }
 
 /**
+ * Session-only opt-in to WebGPU non-compatibility mode, `?ncm=1`. Babylon then
+ * records and replays render bundles, trading bundle construction for cheaper
+ * submission. Startup only: materials read the mode when they are built.
+ */
+export function resolveWebGPUNonCompatibilityMode(search = ""): boolean {
+  return new URLSearchParams(search).get("ncm") === "1";
+}
+
+/** Whether materials may use `separateCullingPass`, which NCM cannot record. */
+export function supportsSeparateCullingPass(engine: AbstractEngine): boolean {
+  return engine.compatibilityMode !== false;
+}
+
+/**
  * Recover from WebGPU support/initialization failures before scene creation.
  * Later shader or device failures are outside this startup transaction.
  * WebGL failure is terminal and is never retried on the same canvas.
@@ -127,10 +152,11 @@ export async function createRenderingEngine(
   canvas: HTMLCanvasElement,
   requestedBackend: RenderingBackend,
   factories: RenderingEngineFactories = DEFAULT_FACTORIES,
+  options: RenderingEngineOptions = {},
 ): Promise<RenderingEngineResult> {
   const webgl = (target: HTMLCanvasElement): RenderingEngineResult => {
     const engine = factories.createWebGL(target);
-    return { engine, backend: getRenderingBackend(engine), canvas: target };
+    return { engine, backend: getRenderingBackend(engine), canvas: target, nonCompatibilityMode: false };
   };
   if (requestedBackend === "webgl2") {
     return webgl(canvas);
@@ -144,7 +170,13 @@ export async function createRenderingEngine(
     } else {
       stage = "initialization";
       const engine = await factories.createWebGPU(canvas);
-      return { engine, backend: getRenderingBackend(engine), canvas };
+      if (options.nonCompatibilityMode) engine.compatibilityMode = false;
+      return {
+        engine,
+        backend: getRenderingBackend(engine),
+        canvas,
+        nonCompatibilityMode: engine.compatibilityMode === false,
+      };
     }
   } catch (error) {
     fallbackReason = `WebGPU ${stage} failed: ${errorMessage(error)}`;

@@ -15,7 +15,11 @@ import {
   type RendererQAReport,
   waitForRendererGPU,
 } from "./RendererDiagnostics";
-import { createRenderingEngine, resolveRenderingBackend } from "./RenderingEngineFactory";
+import {
+  createRenderingEngine,
+  resolveRenderingBackend,
+  resolveWebGPUNonCompatibilityMode,
+} from "./RenderingEngineFactory";
 import { applySceneRendererPolicy } from "./SceneRendererPolicy";
 
 /** Isolated opt-in smoke test. No PK3, game services, input capture or saved settings. */
@@ -66,13 +70,15 @@ export async function runRendererQA(canvas: HTMLCanvasElement, search: string): 
     },
     testCase === "environment"
       ? "environment-lighting"
-      : testClusters
-        ? "clustered-lighting"
-        : refreshFrozen
-          ? "standard-pbr-lights-refresh"
-          : testLights
-            ? "standard-pbr-lights"
-            : "standard-pbr-smoke",
+      : testCase === "weather"
+        ? "weather-particles"
+        : testClusters
+          ? "clustered-lighting"
+          : refreshFrozen
+            ? "standard-pbr-lights-refresh"
+            : testLights
+              ? "standard-pbr-lights"
+              : "standard-pbr-smoke",
   );
   let engine: AbstractEngine | undefined;
   let scene: Scene | undefined;
@@ -85,7 +91,9 @@ export async function runRendererQA(canvas: HTMLCanvasElement, search: string): 
   window.addEventListener("unhandledrejection", onRejection);
   try {
     const renderer = await diagnostics.runStage("engine-initialization", async () => {
-      const result = await createRenderingEngine(canvas, diagnostics.report.requestedBackend);
+      const result = await createRenderingEngine(canvas, diagnostics.report.requestedBackend, undefined, {
+        nonCompatibilityMode: resolveWebGPUNonCompatibilityMode(search),
+      });
       // A timed-out initialization may finish later; never orphan its engine.
       if (stopped) {
         result.engine.dispose();
@@ -96,11 +104,15 @@ export async function runRendererQA(canvas: HTMLCanvasElement, search: string): 
     });
     engine = renderer.engine;
     diagnostics.attachEngine(engine, renderer.fallbackReason, renderer.fallbackStage);
+    diagnostics.noteNonCompatibilityMode(renderer.nonCompatibilityMode);
     removeDeviceListener = observeRendererDevice(engine, (error) => diagnostics.fail(error));
     scene = new Scene(engine);
     if (testCase === "environment") {
       const { runEnvironmentLightingQA } = await import("./EnvironmentLightingQA");
       await runEnvironmentLightingQA(scene, diagnostics, () => stopped);
+    } else if (testCase === "weather") {
+      const { runWeatherQA } = await import("./WeatherQA");
+      await runWeatherQA(scene, diagnostics, () => stopped);
     } else if (testClusters) {
       const { runClusteredLightingQA } = await import("./ClusteredLightingQA");
       await runClusteredLightingQA(scene, diagnostics, () => stopped, testCase === "clusters-multi");

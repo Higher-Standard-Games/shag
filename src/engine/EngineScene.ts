@@ -795,6 +795,7 @@ export abstract class EngineScene {
       debrisHeight: (v: number) => this.debrisEffect?.updateSettings({ height: v }),
       isRaining: () => this.precipitationEffect?.isRaining(),
       isSnowing: () => this.precipitationEffect?.isSnowing(),
+      precipitationBackend: () => this.precipitationEffect?.getSimulationBackend(),
       isStorming: () => this.thunderEffect?.isStorming(),
       isFoggy: () => this.fogEffect?.isFoggy(),
       isWindy: () => this.windSystem?.isWindy(),

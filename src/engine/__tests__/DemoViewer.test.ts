@@ -211,6 +211,11 @@ describe("DemoViewer", () => {
     // Only the last 250ms of recorded time is replayed, not 900 frames of events.
     expect(delivered[0]).toBe(0);
     expect(delivered.slice(1)).toEqual(Array.from({ length: 251 }, (_, i) => 650 + i));
+    expect(viewer.getInfo().skippedFrames).toBe(649);
+    viewer.seekToTick(0);
+    expect(viewer.getInfo().skippedFrames).toBe(649);
+    await viewer.load(new Uint8Array(10));
+    expect(viewer.getInfo().skippedFrames).toBe(0);
   });
 
   it("delivers every frame at 4x speed", async () => {

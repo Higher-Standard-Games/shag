@@ -6,6 +6,8 @@ import {
   loadWebGPUBackend,
   type RenderingEngineFactories,
   resolveRenderingBackend,
+  resolveWebGPUNonCompatibilityMode,
+  supportsSeparateCullingPass,
 } from "../rendering/RenderingEngineFactory";
 
 function fakeEngine(name: string): AbstractEngine {
@@ -41,6 +43,38 @@ describe("RenderingEngineFactory", () => {
     expect(resolveRenderingBackend(true)).toBe("webgpu");
     expect(resolveRenderingBackend(false, "?renderer=webgpu")).toBe("webgpu");
     expect(resolveRenderingBackend(true, "?renderer=webgl2")).toBe("webgl2");
+  });
+
+  it("registers the compute shader particle platform weather uses on WebGPU", async () => {
+    const WebGPUEngine = await loadWebGPUBackend();
+    expect(WebGPUEngine.prototype.computeDispatch).toBeTypeOf("function");
+    const { GetClass } = await import("@babylonjs/core/Misc/typeStore");
+    expect(GetClass("BABYLON.ComputeShaderParticleSystem")).toBeTypeOf("function");
+  });
+
+  it("opts into WebGPU non-compatibility mode only through the session URL", () => {
+    expect(resolveWebGPUNonCompatibilityMode("")).toBe(false);
+    expect(resolveWebGPUNonCompatibilityMode("?renderer=webgpu")).toBe(false);
+    expect(resolveWebGPUNonCompatibilityMode("?renderer=webgpu&ncm=1")).toBe(true);
+    expect(resolveWebGPUNonCompatibilityMode("?ncm=0")).toBe(false);
+  });
+
+  it("applies non-compatibility mode to WebGPU and never to WebGL", async () => {
+    const webgpu = { ...fakeEngine("webgpu"), compatibilityMode: true } as AbstractEngine;
+    const ncm = await createRenderingEngine(canvas, "webgpu", factories({ createWebGPU: async () => webgpu }), {
+      nonCompatibilityMode: true,
+    });
+    expect(ncm.nonCompatibilityMode).toBe(true);
+    expect(webgpu.compatibilityMode).toBe(false);
+    expect(supportsSeparateCullingPass(webgpu)).toBe(false);
+
+    const plain = { ...fakeEngine("webgpu"), compatibilityMode: true } as AbstractEngine;
+    const compat = await createRenderingEngine(canvas, "webgpu", factories({ createWebGPU: async () => plain }));
+    expect(compat.nonCompatibilityMode).toBe(false);
+    expect(supportsSeparateCullingPass(plain)).toBe(true);
+
+    const gl = await createRenderingEngine(canvas, "webgl2", factories(), { nonCompatibilityMode: true });
+    expect(gl.nonCompatibilityMode).toBe(false);
   });
 
   it("does not probe WebGPU when WebGL2 is requested", async () => {

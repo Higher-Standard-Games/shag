@@ -17,7 +17,8 @@ export interface RendererQAReport {
     | "standard-pbr-lights"
     | "standard-pbr-lights-refresh"
     | "clustered-lighting"
-    | "environment-lighting";
+    | "environment-lighting"
+    | "weather-particles";
   requestedBackend: RenderingBackend;
   actualBackend?: ActualRenderingBackend;
   babylonVersion: string;
@@ -39,9 +40,14 @@ export interface RendererQAReport {
     roughness?: number;
     expectedChannels?: number[];
     viewport?: { width: number; height: number };
+    particleBackend?: "gpu" | "cpu";
+    activeParticles?: number;
+    litPixels?: number;
   }[];
   fallbackReason?: string;
   fallbackStage?: string;
+  /** WebGPU render bundles (Babylon non-compatibility mode) were active. */
+  nonCompatibilityMode?: boolean;
   capabilities?: Record<string, number | boolean>;
   deviceLimits?: Record<string, number>;
   firstFailure?: RendererFailure;
@@ -103,6 +109,8 @@ export class RendererDiagnostics {
       etc1: !!caps.etc1,
       etc2: !!caps.etc2,
       astc: !!caps.astc,
+      supportTransformFeedbacks: !!caps.supportTransformFeedbacks,
+      supportComputeShaders: !!caps.supportComputeShaders,
     };
     if (engine.isWebGPU) {
       const limits = (engine as WebGPUEngine).currentLimits;
@@ -111,6 +119,11 @@ export class RendererDiagnostics {
         if (typeof limits?.[name] === "number") this.state.deviceLimits[name] = limits[name];
       }
     }
+    this.emit();
+  }
+
+  noteNonCompatibilityMode(active: boolean): void {
+    this.state.nonCompatibilityMode = active;
     this.emit();
   }
 

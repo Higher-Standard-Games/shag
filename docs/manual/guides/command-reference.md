@@ -151,7 +151,7 @@ There is no `debug fps` subcommand; use `show_fps`.
 
 Engine: `join`, `nettest <subcommand>`, `binarytest <subcommand>`.
 
-The FPS composition adds `connect`, `disconnect`, `loadout`, `demo`, `demolist`, `demoplay`, `netsim` (network condition simulation), `pickup_audit`, `camera_audit` and `water`.
+The FPS composition adds `connect`, `disconnect`, `loadout`, `demo`, `demolist`, `demoplay`, `timedemo`, `netsim` (network condition simulation), `pickup_audit`, `camera_audit` and `water`.
 
 ```text
 connect localhost:7777
@@ -161,6 +161,8 @@ demolist
 demo <number-or-file>
 demoplay
 ```
+
+For offline renderer benchmarking, see the [timedemo guide](./timedemo.md).
 
 Consult `help` in the actual FPS build: game commands and gametype options evolve independently from engine commands.
 

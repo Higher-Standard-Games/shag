@@ -39,6 +39,7 @@ import {
   type ActualRenderingBackend,
   createRenderingEngine,
   resolveRenderingBackend,
+  resolveWebGPUNonCompatibilityMode,
 } from "./engine/rendering/RenderingEngineFactory";
 import { applySceneRendererPolicy } from "./engine/rendering/SceneRendererPolicy";
 import { configureLobbyTwin } from "./engine/ui/components/LobbyTwin";
@@ -117,13 +118,17 @@ async function main() {
   // incomplete. Ignore a previously persisted default-on r_webgpu=1 so users
   // recover to the known-good renderer; ?renderer=webgpu still enables A/B.
   const requestedBackend = resolveRenderingBackend(false, window.location.search);
-  const renderer = await createRenderingEngine(canvas, requestedBackend);
+  const renderer = await createRenderingEngine(canvas, requestedBackend, undefined, {
+    nonCompatibilityMode: resolveWebGPUNonCompatibilityMode(window.location.search),
+  });
   canvas = renderer.canvas;
   const engine = renderer.engine;
   if (renderer.fallbackReason) {
     console.warn(`[Main] ${renderer.fallbackReason}; using ${renderer.backend}`);
   }
-  console.log(`[Main] Rendering backend: ${renderer.backend}`);
+  console.log(
+    `[Main] Rendering backend: ${renderer.backend}${renderer.nonCompatibilityMode ? " (non-compatibility mode)" : ""}`,
+  );
   const rendererDiagnostics = installRendererRuntimeDiagnostics(engine, (report) => {
     debugWindow.rendererRuntimeReport = report;
     // Keep the console record copyable; the complete history remains on window.

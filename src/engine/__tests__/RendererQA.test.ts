@@ -34,7 +34,7 @@ describe("isolated renderer QA entry", () => {
     expect(document.getElementById("renderer-qa-report")?.textContent).toContain("timed out");
     const engine = new NullEngine();
     const dispose = vi.spyOn(engine, "dispose");
-    resolve({ engine, canvas, backend: "null" });
+    resolve({ engine, canvas, backend: "null", nonCompatibilityMode: false });
     await vi.advanceTimersByTimeAsync(0);
     expect(dispose).toHaveBeenCalledOnce();
     expect(vi.getTimerCount()).toBe(0);

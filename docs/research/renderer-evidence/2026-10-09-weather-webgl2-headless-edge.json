@@ -1,0 +1,81 @@
+{
+  "scope": "weather-particles",
+  "requestedBackend": "webgl2",
+  "babylonVersion": "9.17.0",
+  "status": "passed",
+  "stage": "complete",
+  "frames": 126,
+  "fixtures": [
+    {
+      "material": "precipitation-rain",
+      "phase": "running",
+      "cap": 0,
+      "activeLights": 0,
+      "compiledLights": 0,
+      "frozen": false,
+      "particleBackend": "gpu",
+      "activeParticles": 77,
+      "litPixels": 702,
+      "viewport": {
+        "width": 1256,
+        "height": 581
+      }
+    },
+    {
+      "material": "precipitation-rain",
+      "phase": "stopped",
+      "cap": 0,
+      "activeLights": 0,
+      "compiledLights": 0,
+      "frozen": false,
+      "particleBackend": "gpu",
+      "litPixels": 0,
+      "viewport": {
+        "width": 1256,
+        "height": 581
+      }
+    },
+    {
+      "material": "precipitation-snow",
+      "phase": "running",
+      "cap": 0,
+      "activeLights": 0,
+      "compiledLights": 0,
+      "frozen": false,
+      "particleBackend": "gpu",
+      "activeParticles": 309,
+      "litPixels": 779,
+      "viewport": {
+        "width": 1256,
+        "height": 581
+      }
+    },
+    {
+      "material": "precipitation-snow",
+      "phase": "stopped",
+      "cap": 0,
+      "activeLights": 0,
+      "compiledLights": 0,
+      "frozen": false,
+      "particleBackend": "gpu",
+      "litPixels": 0,
+      "viewport": {
+        "width": 1256,
+        "height": 581
+      }
+    }
+  ],
+  "actualBackend": "webgl2",
+  "capabilities": {
+    "maxTexturesImageUnits": 16,
+    "maxTextureSize": 16384,
+    "textureFloatRender": true,
+    "textureHalfFloatRender": true,
+    "s3tc": true,
+    "etc1": false,
+    "etc2": false,
+    "astc": false,
+    "supportTransformFeedbacks": true,
+    "supportComputeShaders": false
+  }
+}

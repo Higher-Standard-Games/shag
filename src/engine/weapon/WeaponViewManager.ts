@@ -127,6 +127,11 @@ export class WeaponViewManager {
     return this.scene !== null && this.weaponRoot !== null && !this.weaponRoot.isDisposed();
   }
 
+  /** Playback diagnostics: initialization alone does not prove a gun was loaded. */
+  public get isWeaponModelLoaded(): boolean {
+    return !!this.currentWeapon && !this.currentWeapon.root.isDisposed() && this.currentWeapon.meshes.length > 0;
+  }
+
   /** Returns true if init() has been called. Guards all demo-side WVM calls. */
   public isInitialized(): boolean {
     return this.scene !== null;

@@ -2,8 +2,8 @@
  * PrecipitationEffect - Particle-based rain/snow system
  *
  * Creates rain drops or snowflakes that fall from above the camera down to the ground.
- * Uses Babylon.js GPUParticleSystem so WebGL2 handles both particle simulation
- * and rendering on the GPU.
+ * Uses Babylon.js GPUParticleSystem so particle simulation and rendering run on
+ * the GPU: transform feedback on WebGL2, compute shaders on WebGPU.
  */
 
 import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine";
@@ -13,6 +13,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Observer } from "@babylonjs/core/Misc/observable";
+import { GetClass } from "@babylonjs/core/Misc/typeStore";
 import { GPUParticleSystem } from "@babylonjs/core/Particles/gpuParticleSystem";
 import { ParticleSystem } from "@babylonjs/core/Particles/particleSystem";
 import "@babylonjs/core/Particles/webgl2ParticleSystem";
@@ -34,9 +35,14 @@ export interface PrecipitationSettings {
 // Legacy alias for backwards compatibility
 export type RainSettings = PrecipitationSettings;
 
-/** WebGPU precipitation stays on the compatibility path until that renderer returns. */
+/**
+ * GPU simulation needs transform feedback on WebGL2, or compute shaders plus
+ * the compute particle platform that the WebGPU backend loader registers.
+ */
 export function supportsGpuPrecipitation(engine: AbstractEngine): boolean {
-  return !engine.isWebGPU && engine.getCaps().supportTransformFeedbacks;
+  const caps = engine.getCaps();
+  if (engine.isWebGPU) return !!caps.supportComputeShaders && !!GetClass("BABYLON.ComputeShaderParticleSystem");
+  return !!caps.supportTransformFeedbacks;
 }
 
 const DEFAULT_RAIN_SETTINGS: PrecipitationSettings = {
@@ -295,9 +301,8 @@ export class PrecipitationEffect {
     // Initial position at camera target
     this.updateEmitterPosition();
 
-    // WebGL2 transform feedback updates precipitation entirely on the GPU.
-    // Retain a capability fallback so weather still works if Babylon had to
-    // create a WebGL1 context or while the experimental WebGPU path is used.
+    // GPU simulation where the active engine supports it. The CPU fallback
+    // keeps weather working on WebGL1 and on WebGPU adapters without compute.
     const capacity = Math.floor(2000 * this.settings.intensity);
     const engine = this.scene.getEngine();
     if (supportsGpuPrecipitation(engine)) {
@@ -569,6 +574,17 @@ export class PrecipitationEffect {
    */
   public isSnowing(): boolean {
     return this.isActive && this.currentType === "snow";
+  }
+
+  /** Where the running precipitation simulates, or null when stopped. */
+  public getSimulationBackend(): "gpu" | "cpu" | null {
+    if (!this.particleSystem) return null;
+    return this.particleSystem instanceof GPUParticleSystem ? "gpu" : "cpu";
+  }
+
+  /** The running particle system, for renderer QA fixtures. */
+  public getParticleSystem(): ParticleSystem | GPUParticleSystem | null {
+    return this.particleSystem;
   }
 
   /**

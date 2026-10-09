@@ -63,7 +63,8 @@ export default class WeatherCommand extends Command {
         const snowing = weather.isSnowing?.();
         const foggy = weather.isFoggy?.();
         const windy = weather.isWindy?.();
-        return `Weather: ${raining ? "raining" : snowing ? "snowing" : "clear"}${foggy ? ", foggy" : ""}${windy ? ", windy" : ""}`;
+        const backend = weather.precipitationBackend?.();
+        return `Weather: ${raining ? "raining" : snowing ? "snowing" : "clear"}${foggy ? ", foggy" : ""}${windy ? ", windy" : ""}${backend ? ` (particles: ${backend})` : ""}`;
       }
 
       default:

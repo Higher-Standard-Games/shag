@@ -15,9 +15,11 @@ import type { Animation } from "@babylonjs/core/Animations/animation";
 import { AnimationGroup } from "@babylonjs/core/Animations/animationGroup";
 import type { AssetContainer } from "@babylonjs/core/assetContainer";
 import type { Skeleton } from "@babylonjs/core/Bones/skeleton";
+import { BoundingInfo } from "@babylonjs/core/Culling/boundingInfo";
 import { LoadAssetContainerAsync } from "@babylonjs/core/Loading/sceneLoader";
 import type { Material } from "@babylonjs/core/Materials/material";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
+import { Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
@@ -25,7 +27,7 @@ import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 // mesh.renderOutline (team outlines) to draw. Previously loaded implicitly by
 // bare @babylonjs/core barrel imports; must be explicit with per-module imports.
 import "@babylonjs/core/Rendering/outlineRenderer";
-import type { Scene } from "@babylonjs/core/scene";
+import { type Scene, Scene as SceneClass } from "@babylonjs/core/scene";
 import { disposeModelResources } from "../loader/model/ModelSourceCache";
 
 // ─── Types ───────────────────────────────────────────────────────
@@ -34,6 +36,39 @@ import { disposeModelResources } from "../loader/model/ModelSourceCache";
 export interface StoredAnim {
   name: string;
   animations: { target: TransformNode; animation: Animation }[];
+}
+
+/**
+ * Seconds the scene's animations advance this frame: the same clamped engine
+ * delta and time scale Babylon applies, so a stepped clip keeps pace with the
+ * ones it plays itself.
+ */
+export function animationDeltaSeconds(scene: Scene): number {
+  const delta = scene.useConstantAnimationDeltaTime
+    ? 16
+    : Math.max(SceneClass.MinDeltaTime, Math.min(scene.getEngine().getDeltaTime(), SceneClass.MaxDeltaTime));
+  return (delta * scene.animationTimeScale) / 1000;
+}
+
+/**
+ * Babylon remembers a `goToFrame` until the group next animates, and while it
+ * remembers, every speed-ratio change re-poses the whole skeleton at that
+ * frame. A paused group never animates, and the renderer sets the speed ratio
+ * every frame, so a stepped player would be re-posed every frame after all.
+ * Forgetting the jump stops that; `leaveStepped` jumps again before playing,
+ * so resuming still starts at the right phase. (`_goToFrame` is Babylon 9.17
+ * internal; PlayerModelPoseStepping.test.ts fails if it stops working.)
+ */
+function forgetPendingJump(group: AnimationGroup): void {
+  for (const animatable of group.animatables)
+    (animatable as unknown as { _goToFrame: number | null })._goToFrame = null;
+}
+
+/** A looping clip's frame, wrapped into [from, to) in either direction. */
+export function wrapFrame(frame: number, from: number, to: number): number {
+  const range = to - from;
+  if (!(range > 0) || !Number.isFinite(frame)) return from;
+  return from + ((((frame - from) % range) + range) % range);
 }
 
 /** Per-entity instance returned to callers */
@@ -70,6 +105,15 @@ export interface PlayerModelInstance {
    */
   rootMotionNodes?: TransformNode[];
 }
+
+/**
+ * Anchor-space cylinder that holds every pose the player rig reaches, in world
+ * units (the anchor is unscaled and sits at the feet). Measured on vanguard.glb
+ * by CPU-skinning 9 actors through a minute of FFA demo playback: at most
+ * 41.3u from the vertical axis, -2.6u to 65.9u high. Padded by about half
+ * again so an unmeasured clip or a heavier model does not clip at a screen edge.
+ */
+export const PLAYER_POSE_BOUNDS = { radius: 64, minY: -32, maxY: 96 } as const;
 
 export type PlayerModelTeamColor = "alpha" | "beta" | "bravo" | "ffa";
 
@@ -139,6 +183,11 @@ export const DANCE_ANIMS = ["dance_1", "dance_2", "dance_3"];
 export class PlayerModelManager {
   private scene: Scene;
   private readonly activeOneShots = new Map<PlayerModelInstance, { group: AnimationGroup; baseSpeedRatio: number }>();
+  /** Clip phase kept by hand for instances whose pose is sampled at a reduced rate; see stepAnimation. */
+  private readonly stepped = new WeakMap<
+    PlayerModelInstance,
+    { group: AnimationGroup; frame: number; since: number }
+  >();
 
   private loaded = false;
   private disposed = false;
@@ -321,6 +370,52 @@ export class PlayerModelManager {
   }
 
   /**
+   * Let cameras and render passes frustum-cull the body.
+   *
+   * Imported skinned bounds describe the bind pose, not the animated one, which
+   * is why bodies are created always-selected. This replaces each part's local
+   * bounds (and its submeshes') with the part-space box around
+   * {@link PLAYER_POSE_BOUNDS}, then lets Babylon cull per camera: the main
+   * view, a water mirror and any other pass each test their own frustum, and
+   * the body stays enabled for all of them.
+   *
+   * The parts hang rigidly off the anchor (root motion is cancelled every
+   * frame), so a box computed once holds wherever the anchor moves or turns.
+   * Only for bodies standing on their anchor: a ragdoll moves the bones away
+   * from it and must go back to {@link selectAlways}.
+   */
+  useConservativeBounds(instance: PlayerModelInstance): void {
+    const { radius, minY, maxY } = PLAYER_POSE_BOUNDS;
+    const anchorToPart = new Matrix();
+    const corner = new Vector3();
+    const min = new Vector3();
+    const max = new Vector3();
+    const anchorWorld = instance.anchor.computeWorldMatrix(true);
+    for (const part of [instance.mesh, ...instance.mesh.getChildMeshes()]) {
+      if (!part.getTotalVertices()) continue;
+      part.computeWorldMatrix(true).invertToRef(anchorToPart);
+      anchorWorld.multiplyToRef(anchorToPart, anchorToPart);
+      min.setAll(Number.POSITIVE_INFINITY);
+      max.setAll(Number.NEGATIVE_INFINITY);
+      for (let i = 0; i < 8; i++) {
+        corner.set(i & 1 ? radius : -radius, i & 2 ? maxY : minY, i & 4 ? radius : -radius);
+        Vector3.TransformCoordinatesToRef(corner, anchorToPart, corner);
+        min.minimizeInPlace(corner);
+        max.maximizeInPlace(corner);
+      }
+      part.setBoundingInfo(new BoundingInfo(min, max, part.getWorldMatrix()));
+      for (const subMesh of part.subMeshes ?? [])
+        subMesh.setBoundingInfo(new BoundingInfo(min, max, part.getWorldMatrix()));
+      part.alwaysSelectAsActiveMesh = false;
+    }
+  }
+
+  /** Draw the body regardless of bounds, as created: for poses that leave the anchor. */
+  selectAlways(instance: PlayerModelInstance): void {
+    for (const part of [instance.mesh, ...instance.mesh.getChildMeshes()]) part.alwaysSelectAsActiveMesh = true;
+  }
+
+  /**
    * Switch an instance to a named animation. Skips if already playing.
    * @returns true if animation was changed
    */
@@ -338,12 +433,63 @@ export class PlayerModelManager {
   setAnimationActive(instance: PlayerModelInstance, active: boolean): void {
     const group = instance.masterGroup;
     if (!group) return;
+    this.leaveStepped(instance, group);
 
     if (active) {
       if (!group.isPlaying) group.play(true);
       return;
     }
     if (group.isPlaying) group.pause();
+  }
+
+  /**
+   * Run the locomotion clip at full speed but pose the skeleton only every
+   * `stepSeconds`.
+   *
+   * Babylon has no per-group update rate: a playing group is evaluated every
+   * rendered frame. So the group is paused and its phase kept here, advanced
+   * by the same clock Babylon uses (`dtSeconds` already includes the scene's
+   * time scale) times the group's speed ratio, which carries walking backwards,
+   * crouch-idle freezes and demo playback speed. The pose is written with
+   * `goToFrame` only when a step is due, which is also when the skeleton is
+   * re-prepared. Movement is untouched: the anchor still moves every frame.
+   *
+   * A one-shot owns the bones while it plays; the clip waits until it ends.
+   * Returning to {@link setAnimationActive} resumes from the stepped phase.
+   */
+  stepAnimation(instance: PlayerModelInstance, dtSeconds: number, stepSeconds: number): void {
+    const group = instance.masterGroup;
+    if (!group || this.activeOneShots.has(instance)) return;
+    let state = this.stepped.get(instance);
+    if (!state || state.group !== group) {
+      const frame = group.isPlaying ? group.getCurrentFrame() : group.from;
+      state = { group, frame, since: Number.POSITIVE_INFINITY };
+      this.stepped.set(instance, state);
+    }
+    if (group.isPlaying) group.pause();
+    const fps = group.targetedAnimations[0]?.animation.framePerSecond ?? 30;
+    state.frame = wrapFrame(state.frame + dtSeconds * fps * group.speedRatio, group.from, group.to);
+    state.since += dtSeconds;
+    if (state.since >= stepSeconds) {
+      // Carry the remainder so the rate holds on any frame clock, but never
+      // bank more than one step: a long hitch is followed by one pose, not a burst.
+      state.since = Number.isFinite(state.since) ? Math.min(state.since - stepSeconds, stepSeconds) : 0;
+      group.goToFrame(state.frame);
+      // Written after this frame's reset, so cancel root motion again.
+      this.resetRootMotion(instance);
+      forgetPendingJump(group);
+    }
+  }
+
+  /** Hand a stepped clip back to Babylon at the phase it reached. */
+  private leaveStepped(instance: PlayerModelInstance, group: AnimationGroup): void {
+    const state = this.stepped.get(instance);
+    if (!state) return;
+    this.stepped.delete(instance);
+    if (state.group === group) {
+      group.goToFrame(state.frame);
+      this.resetRootMotion(instance);
+    }
   }
 
   playAnimation(instance: PlayerModelInstance, name: string): boolean {
