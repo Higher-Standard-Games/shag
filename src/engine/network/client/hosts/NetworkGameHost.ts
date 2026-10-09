@@ -348,6 +348,11 @@ export class NetworkGameHost implements IGameHost {
    * Reliable, and fire-and-forget: the server validates the names and decides
    * when the choice applies, so there is nothing here to confirm or retry.
    */
+  /** Send an already encoded message over the reliable channel (ready, respawn requests). */
+  sendReliable(data: Uint8Array): void {
+    this.transport.send(data, true);
+  }
+
   sendLoadout(primary: string, secondary: string): void {
     if (!this._isConnected) return;
     this.transport.send(MessageCodec.encodeSetLoadout(primary, secondary), true);
