@@ -25,6 +25,8 @@ import type { Scene } from "@babylonjs/core/scene";
 import "@babylonjs/loaders/glTF";
 import { getEntityRegistry, type WeaponDef } from "../../shared/entities";
 import { canonicalWeaponId } from "../../shared/entities/definitions/weapons/WeaponsTable";
+import { fireIntervalTicks } from "../../shared/entities/WeaponDef";
+import { DEFAULT_PHYSICS_TICK_RATE } from "../../shared/server/simulation/physics/constants";
 import { applySafeMaxSimultaneousLights, getSafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
 import { getMD3Loader, MD3Coords, type MD3LoadResult } from "../loader/model/MD3Loader";
 import { PK3Loader } from "../loader/pk3/PK3Loader";
@@ -32,7 +34,7 @@ import { PK3TextureLoader } from "../loader/pk3/PK3TextureLoader";
 import { MovementVars } from "../movement/MovementVars";
 import { ViewportEffectsManager } from "../viewport/ViewportEffectsManager";
 import { AmmoCounterDisplay, parseAmmoCounter } from "./AmmoCounterDisplay";
-import { getHitscanEffects } from "./HitscanEffects";
+import { getHitscanEffects, serverPelletDirections } from "./HitscanEffects";
 import { getProjectileManager } from "./ProjectileManager";
 import { WeaponBarrels } from "./WeaponBarrels";
 import { WeaponBob } from "./WeaponBob";
@@ -43,6 +45,16 @@ import { WeaponRecoil } from "./WeaponRecoil";
 import { WeaponReloadAnim } from "./WeaponReloadAnim";
 import { WeaponSlash } from "./WeaponSlash";
 import { WeaponSwitchAnim } from "./WeaponSwitchAnim";
+
+/** Our own shot as the server fired it (`weapon_fire`). */
+export interface LocalShot {
+  origin: Vector3;
+  /** The shot's direction, spread included. */
+  direction: Vector3;
+  /** A pellet shot's seed and cone, to rebuild the server's pellets. */
+  pelletSeed?: number;
+  pelletSpread?: number;
+}
 
 // Weapon position presets
 export interface WeaponPosition {
@@ -1634,10 +1646,8 @@ export class WeaponViewManager {
 
     // Apply rotation (base + sprint: pitch X, yaw Y, roll Z + reload roll)
     // Reduce sprint effects when ADS (weapon should be more stable)
-    // FIX: Plasmagun is rotated -90 Y.
-    // - Local X aligns with World Z (Roll).
-    // - Local Z aligns with World X (Pitch).
-    // So recoil pitch must be applied to Z!
+    // Recoil is the backward punch (position Z, above) and the barrel's rise
+    // (pitch X); it never rolls the gun, which reads as a sideways kick.
     const sprintFactor = 1.0 - this.adsProgress * 0.8; // 80% reduction when fully ADS
     const baseRot = this.currentPosition.rotation;
     root.rotation.set(
@@ -1651,7 +1661,6 @@ export class WeaponViewManager {
         (bob.sprintRoll * sprintFactor * Math.PI) / 180 +
         reloadOffsets.roll +
         switchOffsets.roll +
-        this.weaponRecoil.offset * 0.06 +
         slashOffsets.roll +
         holsterOffsets.roll,
     );
@@ -1701,12 +1710,13 @@ export class WeaponViewManager {
   }
 
   /**
-   * Trigger weapon fire effect and projectile
-   * Called by controller when logic permits (ammo, fire rate, etc.)
+   * Trigger weapon fire effect and projectile, for our own shot as the server
+   * reports it. `shot` is that shot's ray (spread included) and, for pellets,
+   * its seed and cone; without it the shot is drawn down the view.
    */
-  public fire(opts?: { isProjectileFire?: boolean }): void {
+  public fire(opts?: { isProjectileFire?: boolean; shot?: LocalShot }): void {
     this.presentFire(opts);
-    this.spawnShotEffects();
+    this.spawnShotEffects(opts?.shot);
   }
 
   /**
@@ -1746,10 +1756,13 @@ export class WeaponViewManager {
       }
     }
 
-    // Trigger recoil (scaled per weapon — energy guns have very low recoil)
-    // ADS reduces recoil significantly (steadier aim)
-    const recoilScale = this.currentWeaponDef?.recoilScale ?? 1.0;
-    this.weaponRecoil.fire(recoilScale, this.adsProgress);
+    // Trigger recoil (scaled per weapon — energy guns have very low recoil),
+    // timed to the weapon's fire rate so it is back at rest for the next shot.
+    // Aiming scales the backward punch by the weapon's ADS factor.
+    const def = this.currentWeaponDef;
+    const recoilScale = def?.recoilScale ?? 1.0;
+    const refireSeconds = def?.fireRate ? fireIntervalTicks(def) / DEFAULT_PHYSICS_TICK_RATE : undefined;
+    this.weaponRecoil.fire(recoilScale, this.adsProgress, def?.adsRecoilScale, refireSeconds);
     this.weaponBarrels.fire();
 
     // Trigger slash animation for melee weapons (skip for charged projectile fire)
@@ -1774,12 +1787,19 @@ export class WeaponViewManager {
     this.muzzleFlashLight.intensity = 1.0;
   }
 
-  /** The local shooter's predicted hitscan visuals, drawn from the camera. */
-  private spawnShotEffects(): void {
+  /**
+   * Our own hitscan shot: tracers and pellets along the ray the server fired,
+   * drawn from the muzzle. The ray is the shot's, not the camera's: the event
+   * arrives a round trip after the shot, and by then the view may point
+   * elsewhere. Without a shot (an older server) the camera stands in.
+   */
+  private spawnShotEffects(shot?: LocalShot): void {
     if (this.mainCamera && this.currentWeaponDef) {
-      const origin = this.mainCamera.position.clone();
-      const forward = this.mainCamera.getDirection(Vector3.Forward());
-      origin.addInPlace(forward.scale(2)); // 2 units in front
+      const forward = shot?.direction ?? this.mainCamera.getDirection(Vector3.Forward());
+      const origin = shot?.origin ?? this.mainCamera.position.add(forward.scale(2));
+      // A point on the screen ray through the muzzle socket, far enough out to
+      // clear the near plane: the streak leaves the barrel on screen.
+      const start = this.getMuzzleWorldPosition(24) ?? origin;
 
       if (this.currentWeaponDef.hitscan && this.currentWeaponDef.hitscanType) {
         // Hitscan weapon → fire visual effect
@@ -1790,7 +1810,14 @@ export class WeaponViewManager {
 
         switch (this.currentWeaponDef.hitscanType) {
           case "tracer":
-            fx.fireTracer({ origin, direction: forward, maxRange: range, color });
+            fx.fireTracer({
+              origin,
+              start,
+              direction: forward,
+              maxRange: range,
+              color,
+              intensity: this.currentWeaponDef.muzzleFlash?.intensity,
+            });
             break;
           case "pellet": {
             // Check ADS state for spread angle
@@ -1801,13 +1828,19 @@ export class WeaponViewManager {
               isAiming && this.currentWeaponDef.adsSpread !== undefined
                 ? this.currentWeaponDef.adsSpread
                 : (this.currentWeaponDef.spread ?? 12);
+            const pelletCount = this.currentWeaponDef.pelletCount ?? this.currentWeaponDef.burstCount ?? 20;
             fx.firePellets({
               origin,
+              start,
               direction: forward,
               maxRange: range,
               color,
-              pelletCount: this.currentWeaponDef.burstCount ?? 20,
+              pelletCount,
               spreadAngle,
+              directions:
+                shot?.pelletSeed !== undefined
+                  ? serverPelletDirections(forward, shot.pelletSeed, pelletCount, shot.pelletSpread ?? spreadAngle)
+                  : undefined,
             });
             break;
           }

@@ -1,8 +1,8 @@
 /**
  * Machinegun - Weapon Definition
  *
- * Fast-firing hitscan weapon with small spread.
- * Stats from Warsow gs_weapondefs.c.
+ * Fast-firing hitscan weapon. Hip fire sprays wide and opens up the longer the
+ * trigger is held; aimed, it stays tight but kicks hard.
  */
 
 import { EntityType } from "../../EntityType";
@@ -33,13 +33,27 @@ export const MACHINEGUN: WeaponDef = {
   range: 6000,
   hitscan: true,
   hitscanType: "tracer",
-  spread: 1.5, // 1.5° hip-fire cone
-  adsSpread: 0.3, // 0.3° when ADS
+  // Cone half-angles. The first shots are tight; held, the cone opens to the
+  // maxima below and closes again in a little over half a second off the trigger.
+  spread: 2.5,
+  adsSpread: 0.4,
+  spreadBloom: {
+    maxSpread: 6,
+    adsMaxSpread: 1.2,
+    shotsToMax: 8,
+    recoverySeconds: 0.6,
+  },
   fireMode: "auto",
   pickupBounds: { x: 32, y: 32, z: 32 },
   knockbackScale: 2.0,
   useLagCompensation: true,
   crosshair: { style: "cross", baseGap: 4, lineLength: 6, lineWidth: 2 },
+
+  // Kick: a heavy view model and a camera that jumps on every shot, harder when
+  // aimed, so the gun reads as powerful. Visual only.
+  recoilScale: 1.6,
+  adsRecoilScale: 0.5,
+  viewKick: { pitch: 0.25, yaw: 0.12, adsPitch: 0.4, adsYaw: 0.15, recoverSeconds: 0.14 },
 
   // View Model — GLB format
   viewModel: {

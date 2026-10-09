@@ -120,3 +120,61 @@ export function generateSpreadDirections(
 
   return directions;
 }
+
+/**
+ * The look angles `generateSpreadDirections` takes, recovered from a unit look
+ * direction: yaw in radians, and pitch in the Babylon convention (negative =
+ * looking up). A client rebuilds the server's pellets from a `weapon_fire`
+ * event's direction and seed with these.
+ */
+export function yawPitchFromDirection(dir: SpreadDir): { yaw: number; pitch: number } {
+  const y = Math.max(-1, Math.min(1, dir.y));
+  return { yaw: Math.atan2(dir.x, dir.z), pitch: -Math.asin(y) };
+}
+
+/** What `spreadCone` needs of a weapon. */
+export interface SpreadSettings {
+  spread?: number;
+  adsSpread?: number;
+  spreadBloom?: { maxSpread: number; adsMaxSpread: number; shotsToMax: number; recoverySeconds: number };
+}
+
+/**
+ * The cone half-angle (degrees) a shot uses: the weapon's hip or ADS spread,
+ * opened toward its bloom maximum by `heat` (0 = cold, 1 = fully opened).
+ */
+export function spreadCone(weapon: SpreadSettings, heat: number, ads: boolean): number {
+  const base = ads && weapon.adsSpread !== undefined ? weapon.adsSpread : (weapon.spread ?? 0);
+  const bloom = weapon.spreadBloom;
+  if (!bloom) return base;
+  const max = ads ? bloom.adsMaxSpread : bloom.maxSpread;
+  const t = Math.max(0, Math.min(1, heat));
+  return base + (max - base) * t;
+}
+
+/**
+ * How long the trigger has been off, given the time since the last shot: what
+ * is left after the weapon's refire interval (with a quarter more, for a held
+ * trigger whose shots arrive unevenly). Held fire is never idle, so the heat
+ * builds; it drains only once the shots stop.
+ */
+export function bloomIdleSeconds(sinceLastShotSeconds: number, refireSeconds: number): number {
+  return Math.max(0, sinceLastShotSeconds - refireSeconds * 1.25);
+}
+
+/**
+ * A weapon's bloom heat after `idleSeconds` with the trigger off
+ * (`bloomIdleSeconds`): it drains from full to nothing over `recoverySeconds`.
+ */
+export function coolSpreadHeat(weapon: SpreadSettings, heat: number, idleSeconds: number): number {
+  const bloom = weapon.spreadBloom;
+  if (!bloom || bloom.recoverySeconds <= 0) return 0;
+  return Math.max(0, heat - idleSeconds / bloom.recoverySeconds);
+}
+
+/** A weapon's bloom heat after one more shot. */
+export function heatAfterShot(weapon: SpreadSettings, heat: number): number {
+  const bloom = weapon.spreadBloom;
+  if (!bloom || bloom.shotsToMax <= 0) return 0;
+  return Math.min(1, heat + 1 / bloom.shotsToMax);
+}

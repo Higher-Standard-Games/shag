@@ -13,19 +13,20 @@
 import { Ray } from "@babylonjs/core/Culling/ray";
 import type { PointLight } from "@babylonjs/core/Lights/pointLight";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
-import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
+import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
-import { mulberry32 } from "../../shared/SpreadUtils";
+import { generateSpreadDirections, mulberry32, yawPitchFromDirection } from "../../shared/SpreadUtils";
 import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
 import { ImpactSparkRenderer } from "./impact/ImpactSparkRenderer";
 import { MuzzleFlashRenderer, type MuzzleFlashSpawn } from "./muzzle/MuzzleFlashRenderer";
 import { getPointLightPool, type PooledLightOwner } from "./PointLightPool";
 import { RailEffectRenderer } from "./rail/RailEffectRenderer";
 import type { RailEffectSample } from "./rail/RailProfiles";
+import { StreakTracerRenderer } from "./tracer/StreakTracerRenderer";
 import { VoltaicEffectRenderer, type VoltaicRemoteStartResolver } from "./voltaic/VoltaicEffectRenderer";
 import type { VoltaicImpactKind } from "./voltaic/VoltaicProfiles";
 
@@ -43,12 +44,16 @@ export interface HitscanFireConfig {
   color?: Color3;
 }
 
-/** Bullet tracer (machinegun-style thin line that fades fast) */
+/**
+ * Bullet tracer (machinegun): a streak that travels from the muzzle to where the
+ * shot went. `origin` and `direction` are the shot's own ray, the one the
+ * server judged; `start` is where the streak is drawn from.
+ */
 export interface TracerConfig extends HitscanFireConfig {
-  /** Line width factor (1 = thin tracer, 3 = thick).  Default 1 */
-  width?: number;
-  /** How long the tracer stays visible (seconds). Default 0.08 */
-  duration?: number;
+  /** Where the streak starts (the muzzle). Default `origin`. */
+  start?: Vector3;
+  /** Brightness, matching the weapon's muzzle flash. Default 18. */
+  intensity?: number;
 }
 
 /** Continuous beam (lightning-gun-style held beam) */
@@ -97,6 +102,24 @@ export interface PelletConfig extends HitscanFireConfig {
   seed?: number;
   /** Number of visible traveling tracers (subset of pellets). Default 5 */
   visibleTracers?: number;
+  /**
+   * The server's pellets, exactly (built from the shot's seed with
+   * `generateSpreadDirections`). When given they replace the cone, and their
+   * number replaces `pelletCount`.
+   */
+  directions?: readonly Vector3[];
+  /** Where the visible tracers start (the muzzle). Default `origin`. */
+  start?: Vector3;
+}
+
+/**
+ * The pellets the server fired, rebuilt from a `weapon_fire` event's direction,
+ * seed and cone: the same call the server makes, so every pellet drawn is one
+ * that was judged.
+ */
+export function serverPelletDirections(direction: Vector3, seed: number, count: number, spreadDeg: number): Vector3[] {
+  const { yaw, pitch } = yawPitchFromDirection(direction);
+  return generateSpreadDirections(seed, count, spreadDeg, yaw, pitch).map((d) => new Vector3(d.x, d.y, d.z));
 }
 
 /** Bolt / rail trail (electrobolt/instagun-style thick beam) */
@@ -170,6 +193,10 @@ export class HitscanEffects {
   private muzzleFlashRenderer: MuzzleFlashRenderer | null = null;
   /** Procedural GPU impact sparks (ember scatter, plus a hit star on heavy contacts). */
   private impactSparkRenderer: ImpactSparkRenderer | null = null;
+  /** Procedural GPU bullet streaks (machinegun tracers). */
+  private streakRenderer: StreakTracerRenderer | null = null;
+  /** Impacts waiting for their streak to arrive, by the time it does. */
+  private pendingImpacts: { due: number; play: () => void }[] = [];
   private muzzleAnchorResolver: (() => Vector3 | null) | null = null;
   private remoteVoltaicStartResolver: VoltaicRemoteStartResolver | null = null;
   private readonly localVoltaicEndpoint = new Vector3();
@@ -223,6 +250,13 @@ export class HitscanEffects {
       void this.impactSparkRenderer.prewarm().catch((error) => {
         console.warn("[HitscanEffects] Impact spark shader prewarm failed; first use will retry compilation", error);
       });
+
+      this.streakRenderer?.dispose();
+      this.streakRenderer = new StreakTracerRenderer(scene);
+      void this.streakRenderer.prewarm().catch((error) => {
+        console.warn("[HitscanEffects] Tracer shader prewarm failed; first use will retry compilation", error);
+      });
+      this.pendingImpacts = [];
     }
     this.scene = scene;
     console.log("[HitscanEffects] Initialized");
@@ -231,55 +265,49 @@ export class HitscanEffects {
   // ── Public API ───────────────────────────────────────────────────
 
   /**
-   * Instant bullet tracer  (machinegun, generic hitscan)
-   * Thin line from origin → hit point, fades over `duration`.
+   * Bullet tracer  (machinegun, generic hitscan)
+   * A streak from the muzzle to where the shot's ray hits; the wall mark, sparks
+   * and impact flash play when the streak gets there.
    */
   fireTracer(cfg: TracerConfig): Vector3 | null {
     if (!this.scene) return null;
     const range = cfg.maxRange ?? 8192;
     const color = cfg.color ?? new Color3(1.0, 0.85, 0.3); // warm yellow
-    const duration = cfg.duration ?? 0.08;
-    const width = cfg.width ?? 1;
 
     const hit = this.traceRay(cfg.origin, cfg.direction, range);
     const endpoint = hit?.point ?? cfg.origin.add(cfg.direction.scale(range));
+    const travel =
+      this.streakRenderer?.fire({ start: cfg.start ?? cfg.origin, end: endpoint, color, intensity: cfg.intensity }) ??
+      0;
 
-    // Create thin line mesh
-    const id = `tracer_${this.nextId++}`;
-    const line = MeshBuilder.CreateLines(
-      id,
-      {
-        points: [cfg.origin.clone(), endpoint.clone()],
-        colors: [new Color4(color.r, color.g, color.b, 1), new Color4(color.r, color.g, color.b, 0.3)],
-      },
-      this.scene,
-    );
-    line.isPickable = false;
-    if (width > 1) {
-      line.enableEdgesRendering();
-      line.edgesWidth = width;
-      line.edgesColor = new Color4(color.r, color.g, color.b, 0.6);
-    }
-
-    const effect: ActiveEffect = {
-      id,
-      meshes: [line],
-      materials: [],
-      light: null,
-      spawnTime: performance.now() / 1000,
-      duration,
-    };
-    // Small impact flash at endpoint
-    effect.light = this.spawnImpactFlash(endpoint, color, hit?.normal, effect);
-    this.effects.push(effect);
-
-    // Leave a wall mark at hit point
     if (hit) {
-      this.spawnWallMark(hit.point, hit.normal, color, 0.3);
-      this.spawnImpactSparks(hit.point, hit.normal, cfg.direction, color, TRACER_SPARKS, false);
+      const direction = cfg.direction.clone();
+      this.afterDelay(travel, () => {
+        const effect: ActiveEffect = {
+          id: `tracer_flash_${this.nextId++}`,
+          meshes: [],
+          materials: [],
+          light: null,
+          spawnTime: performance.now() / 1000,
+          duration: 0.16,
+        };
+        effect.light = this.spawnImpactFlash(hit.point, color, hit.normal, effect);
+        this.effects.push(effect);
+        this.spawnWallMark(hit.point, hit.normal, color, 0.3);
+        this.spawnImpactSparks(hit.point, hit.normal, direction, color, TRACER_SPARKS, false);
+      });
     }
 
     return hit?.point ?? null;
+  }
+
+  /** Run `play` once `seconds` have passed, from the per-frame update; at once when 0. */
+  private afterDelay(seconds: number, play: () => void): void {
+    if (seconds <= 0) {
+      play();
+      return;
+    }
+    this.pendingImpacts.push({ due: performance.now() / 1000 + seconds, play });
   }
 
   // ── Procedural continuous Voltaic beam ───────────────────────────
@@ -417,7 +445,7 @@ export class HitscanEffects {
    */
   firePellets(cfg: PelletConfig): Vector3[] {
     if (!this.scene) return [];
-    const count = cfg.pelletCount ?? 20;
+    const count = cfg.directions?.length ?? cfg.pelletCount ?? 20;
     const spreadDeg = cfg.spreadAngle ?? 12;
     const duration = cfg.duration ?? 0.25;
     const color = cfg.color ?? new Color3(1.0, 0.9, 0.4); // warm yellow
@@ -439,9 +467,10 @@ export class HitscanEffects {
       tracerIndices.add(t * tracerStride);
     }
 
+    const start = cfg.start ?? cfg.origin;
     for (let i = 0; i < count; i++) {
-      // Deterministic spread direction using seeded RNG
-      const dir = this.spreadDirectionSeeded(cfg.direction, spreadRad, rng);
+      // The server's pellet when given; otherwise one drawn from the cone
+      const dir = cfg.directions?.[i] ?? this.spreadDirectionSeeded(cfg.direction, spreadRad, rng);
       const hit = this.traceRay(cfg.origin, dir, range);
       const endpoint = hit?.point ?? cfg.origin.add(dir.scale(range));
 
@@ -456,7 +485,7 @@ export class HitscanEffects {
 
       // Traveling tracer only for selected representative pellets (no per-pellet lights)
       if (tracerIndices.has(i)) {
-        this.spawnTravelingPellet(cfg.origin, endpoint, color, duration, now);
+        this.spawnTravelingPellet(start, endpoint, color, duration, now);
       }
     }
 
@@ -749,10 +778,20 @@ export class HitscanEffects {
       }
     }
 
+    // Impacts whose streak has arrived
+    if (this.pendingImpacts.length > 0) {
+      const due = this.pendingImpacts.filter((impact) => impact.due <= now);
+      if (due.length > 0) {
+        this.pendingImpacts = this.pendingImpacts.filter((impact) => impact.due > now);
+        for (const impact of due) impact.play();
+      }
+    }
+
     this.voltaicRenderer?.update(_deltaTime);
     this.railRenderer?.update(_deltaTime);
     this.muzzleFlashRenderer?.update(_deltaTime);
     this.impactSparkRenderer?.update(_deltaTime);
+    this.streakRenderer?.update(_deltaTime);
   }
 
   /** Cleanup everything */
@@ -777,6 +816,8 @@ export class HitscanEffects {
     this.railRenderer?.clear();
     this.muzzleFlashRenderer?.clear();
     this.impactSparkRenderer?.clear();
+    this.streakRenderer?.clear();
+    this.pendingImpacts = [];
   }
 
   /**

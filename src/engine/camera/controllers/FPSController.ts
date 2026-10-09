@@ -60,6 +60,7 @@ import {
 import { CameraInputHandler } from "../CameraInputHandler";
 import { currentBaseFov } from "../FovSettings";
 import type { CameraControllerConfig, ICameraController } from "./ICameraController";
+import { ViewKick } from "./ViewKick";
 
 // import { EntityManager } from "../../entities/EntityManager";
 // import { WeaponViewManager } from "../../weapon/WeaponViewManager";
@@ -291,6 +292,13 @@ export class FPSController implements ICameraController {
   private shakeYawOffset: number = 0;
   private shakeDecayRate: number = 6; // How fast shake decays (higher = faster)
 
+  // View kick from our own shots. Visual only: added to the rendered camera and
+  // taken back out of the aim we send.
+  private readonly viewKick = new ViewKick();
+  /** The kick in the camera's rotation as last set, removed from the aim we send. */
+  private appliedKickPitch: number = 0;
+  private appliedKickYaw: number = 0;
+
   // Death camera (Warsow-style: tilt sideways + drop to ground)
   private deathCamPhase: number = 0; // 0 = alive, 1 = fully dead effect
   private deathCamRoll: number = 0; // Current roll angle (radians)
@@ -426,6 +434,18 @@ export class FPSController implements ICameraController {
   }
 
   /**
+   * Kick the view for one of our own shots: up by `pitchDegrees`, sideways by
+   * `yawDegrees` (signed), settling back over about `recoverSeconds`.
+   *
+   * Visual only. The kick is added to the rendered camera and subtracted from
+   * the angles sent to the server, so the shot after it goes where the player
+   * aims, not where the camera jumped.
+   */
+  kickView(pitchDegrees: number, yawDegrees: number, recoverSeconds: number): void {
+    this.viewKick.kick(pitchDegrees, yawDegrees, recoverSeconds);
+  }
+
+  /**
    * Check if currently firing
    */
   isFiring(): boolean {
@@ -538,8 +558,10 @@ export class FPSController implements ICameraController {
           this.mouseRotationX = rotX;
           this.mouseRotationY = rotY;
           if (this.camera) {
-            this.camera.rotation.y = this.mouseRotationY;
-            this.camera.rotation.x = this.mouseRotationX + this.slidePitchOffset + this.ledgePitchOffset;
+            // Keep the view kick in, so the aim sent (rotation minus applied kick) stays the mouse's.
+            this.camera.rotation.y = this.mouseRotationY + this.appliedKickYaw;
+            this.camera.rotation.x =
+              this.mouseRotationX + this.slidePitchOffset + this.ledgePitchOffset + this.appliedKickPitch;
           }
         },
         extraPreventDefaultKeys: ["Ctrl", "Tab", "F4"],
@@ -944,8 +966,9 @@ export class FPSController implements ICameraController {
           altFire: this.keys.aim,
           reload: this.keys.reload,
           use: this.keys.use,
-          pitch: this.camera!.rotation.x,
-          yaw: this.camera!.rotation.y,
+          // Aim without our own view kick (visual only)
+          pitch: this.camera!.rotation.x - this.appliedKickPitch,
+          yaw: this.camera!.rotation.y - this.appliedKickYaw,
           weaponSlot,
         });
 
@@ -1093,9 +1116,17 @@ export class FPSController implements ICameraController {
     // === VIEWPORT EFFECTS ===
     if (this.viewportEffectsManager && this.viewportApplicator) {
       // Reset camera rotation to mouse-controlled values + slide/ledge offsets
+      // and the view kick of our own shots, which settles back each frame.
+      this.viewKick.settle(deltaTime);
+      this.appliedKickPitch = this.viewKick.pitch;
+      this.appliedKickYaw = this.viewKick.yaw;
       this.camera.rotation.x =
-        this.mouseRotationX + this.slidePitchOffset + this.ledgePitchOffset + this.shakePitchOffset;
-      this.camera.rotation.y = this.mouseRotationY + this.shakeYawOffset;
+        this.mouseRotationX +
+        this.slidePitchOffset +
+        this.ledgePitchOffset +
+        this.shakePitchOffset +
+        this.appliedKickPitch;
+      this.camera.rotation.y = this.mouseRotationY + this.shakeYawOffset + this.appliedKickYaw;
       this.camera.rotation.z = 0; // Roll is never user-controlled in FPS
 
       // === DEATH CAMERA ===
