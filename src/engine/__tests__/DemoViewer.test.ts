@@ -195,20 +195,62 @@ describe("DemoViewer", () => {
 
   it("catches up to the tick playhead while limiting stale frame delivery", async () => {
     setMockTimeline(
-      Array.from({ length: 101 }, (_, i) => i),
+      Array.from({ length: 1001 }, (_, i) => i),
       1000,
       60,
-      100,
+      1000,
     );
     await viewer.load(new Uint8Array(10));
     const delivered: number[] = [];
     viewer.onFrame((_state, tick) => delivered.push(tick));
     viewer.play();
 
-    viewer.update(90);
+    viewer.update(900); // a long browser stall
 
-    expect(viewer.getCurrentFrame()).toBe(90);
-    expect(delivered).toEqual([0, 87, 88, 89, 90]);
+    expect(viewer.getCurrentFrame()).toBe(900);
+    // Only the last 250ms of recorded time is replayed, not 900 frames of events.
+    expect(delivered[0]).toBe(0);
+    expect(delivered.slice(1)).toEqual(Array.from({ length: 251 }, (_, i) => 650 + i));
+  });
+
+  it("delivers every frame at 4x speed", async () => {
+    // A demo recorded every tick at 60Hz, watched at 30fps.
+    setMockTimeline(
+      Array.from({ length: 300 }, (_, i) => i),
+      60,
+      60,
+      5000,
+    );
+    await viewer.load(new Uint8Array(10));
+    const delivered: number[] = [];
+    viewer.onFrame((_state, tick) => delivered.push(tick));
+    viewer.setSpeed(4);
+    viewer.play();
+
+    // 33ms at 4x is eight recorded frames per update.
+    for (let i = 0; i < 10; i++) viewer.update(33);
+
+    // A cap of 4 frames per update skipped half of them, with their kills and sounds (D8).
+    expect(delivered).toEqual(Array.from({ length: delivered.length }, (_, i) => i));
+    expect(delivered.length).toBeGreaterThan(70);
+  });
+
+  it("does not replay the frame on screen when resumed", async () => {
+    await viewer.load(new Uint8Array(10));
+    const delivered: number[] = [];
+    viewer.onFrame((_state, tick) => delivered.push(tick));
+    viewer.play();
+    viewer.update(100);
+    viewer.pause();
+    const before = delivered.length;
+
+    viewer.play();
+    viewer.seekToFrame(40);
+    viewer.play();
+
+    // Resume redelivered frame 2 (its shots, deaths and kill feed again), and
+    // so did a play right after the seek had shown frame 40 (D3).
+    expect(delivered.slice(before)).toEqual([120]);
   });
 
   it("ends at last frame", async () => {

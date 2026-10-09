@@ -59,6 +59,35 @@ export function isModelSourceUsable(
   return true;
 }
 
+/** What a load left behind for a model whose meshes were moved off the loader's tree. */
+interface LoaderLeftovers {
+  roots: Node[];
+  animationGroups: AnimationGroup[];
+}
+
+const loaderLeftovers = new WeakMap<Node, LoaderLeftovers>();
+
+/**
+ * Keep a loader's leftovers with the model they came from, so disposing the
+ * model with `disposeModelResources` takes them too.
+ *
+ * Code that moves a loaded model's meshes onto something else (a hand bone, a
+ * physics root) is left with the loader's root: glTF's `__root__`, empty nodes,
+ * bones and animation groups. Those may still drive the moved meshes (a
+ * skinned weapon's bones live there), so they cannot go at once; left alone
+ * they stayed in the scene for good, one set per load.
+ */
+export function bindLoaderLeftovers(
+  model: Node,
+  root: Node | null | undefined,
+  animationGroups: readonly AnimationGroup[] = [],
+): void {
+  const bound = loaderLeftovers.get(model) ?? { roots: [], animationGroups: [] };
+  if (root && root !== model) bound.roots.push(root);
+  bound.animationGroups.push(...animationGroups);
+  loaderLeftovers.set(model, bound);
+}
+
 /**
  * Dispose a model's nodes, then whatever only they used.
  *
@@ -72,11 +101,20 @@ export function disposeModelResources(nodes: readonly (Node | null | undefined)[
   let scene: Scene | null = null;
   const materials = new Set<Material>();
   const skeletons = new Set<Skeleton>(owned.skeletons);
+  const animationGroups = [...(owned.animationGroups ?? [])];
+  const disposed: (Node | null | undefined)[] = [...nodes];
+  for (const node of nodes) {
+    const bound = node ? loaderLeftovers.get(node) : undefined;
+    if (!node || !bound) continue;
+    loaderLeftovers.delete(node);
+    disposed.push(...bound.roots);
+    animationGroups.push(...bound.animationGroups);
+  }
   for (const material of owned.materials ?? []) {
     if (material) materials.add(material);
   }
 
-  for (const node of nodes) {
+  for (const node of disposed) {
     if (!node || node.isDisposed()) continue;
     scene ??= node.getScene();
     const meshes = node.getChildMeshes(false);
@@ -87,7 +125,7 @@ export function disposeModelResources(nodes: readonly (Node | null | undefined)[
     }
     node.dispose(false, false);
   }
-  for (const group of owned.animationGroups ?? []) group.dispose();
+  for (const group of animationGroups) group.dispose();
 
   const activeScene = scene ?? [...materials][0]?.getScene() ?? [...skeletons][0]?.getScene() ?? null;
   if (!activeScene) return;

@@ -7,7 +7,7 @@
  *
  * Architecture (from Q3/Warsow networking):
  * - Each snapshot arrives and is timestamped with local performance.now()
- * - Rendering happens at `now - interpDelay` (delayed to ensure buffer has data)
+ * - Rendering happens at `now - interpDelay` in arrival time (delayed to ensure buffer has data)
  * - Between two snapshots, positions/rotations are linearly interpolated
  * - If buffer runs dry, extrapolate using last known velocity
  *
@@ -86,6 +86,29 @@ export interface InterpolatedEntity {
   onLadder?: boolean;
 }
 
+const EMPTY_IDS: ReadonlySet<string> = new Set();
+
+/** A snapshot's entity as a sample, into `out` when given, or a new object. */
+function copyEntity(entity: EntitySnapshot, out: InterpolatedEntity | null): InterpolatedEntity {
+  if (!out) return { ...entity };
+  out.x = entity.x;
+  out.y = entity.y;
+  out.z = entity.z;
+  out.yaw = entity.yaw;
+  out.vx = entity.vx;
+  out.vy = entity.vy;
+  out.vz = entity.vz;
+  out.grounded = entity.grounded;
+  out.crouching = entity.crouching;
+  out.sliding = entity.sliding;
+  out.wallJumping = entity.wallJumping;
+  out.crouchViewOffset = entity.crouchViewOffset;
+  out.waterLevel = entity.waterLevel;
+  out.onLadder = entity.onLadder;
+  out.powerupMask = entity.powerupMask;
+  return out;
+}
+
 /** Server gravity constant (must match server physics) */
 const GRAVITY = -800;
 
@@ -104,6 +127,9 @@ const GRAVITY = -800;
  * standing inside a wall.
  */
 const MAX_EXTRAPOLATION_SEC = 0.06;
+
+/** Past this gap between a server timestamp and its arrival, the clock sync is not trusted. */
+const MAX_CLOCK_DRIFT_MS = 500;
 
 /** Safe starting delay for 60Hz snapshots (~3 intervals) until jitter is measured. */
 const DEFAULT_INTERP_DELAY_MS = 50;
@@ -138,10 +164,23 @@ export class SnapshotBuffer {
     });
   }
 
+  /**
+   * How long recent snapshots took to arrive, as measured against their server
+   * timestamps (receiveTime - serverLocalTime). The fastest of them is the
+   * network delay with no jitter on top.
+   */
+  private transitSamples: number[] = [];
+  private transit = 0;
+
   /** Adaptive jitter tracking */
   private lastReceiveTime: number = 0;
   private jitterSamples: number[] = [];
   private readonly maxJitterSamples = 20;
+
+  /** The frame beginFrame() started: its render time and bracketing snapshots. */
+  private frame: { renderTime: number; before: BufferedSnapshot | null; after: BufferedSnapshot | null } | null = null;
+  /** getLatestEntityIds' answer, for the snapshot it was built from. */
+  private latestIds: { snapshot: BufferedSnapshot; ids: Set<string> } | null = null;
 
   /** Highest tick accepted in this session; null before the first push. */
   private lastTick: number | null = null;
@@ -177,6 +216,12 @@ export class SnapshotBuffer {
     }
     this.lastReceiveTime = now;
 
+    if (serverLocalTime !== undefined && Math.abs(serverLocalTime - now) < MAX_CLOCK_DRIFT_MS) {
+      this.transitSamples.push(now - serverLocalTime);
+      if (this.transitSamples.length > this.maxJitterSamples) this.transitSamples.shift();
+      this.transit = Math.min(...this.transitSamples);
+    }
+
     this.buffer.push({
       receiveTime: now,
       tick,
@@ -202,6 +247,10 @@ export class SnapshotBuffer {
   reset(): void {
     this.buffer.length = 0;
     this.jitterSamples.length = 0;
+    this.transitSamples.length = 0;
+    this.transit = 0;
+    this.frame = null;
+    this.latestIds = null;
     this.lastReceiveTime = 0;
     this.lastTick = null;
     this.interpDelay = DEFAULT_INTERP_DELAY_MS;
@@ -216,14 +265,49 @@ export class SnapshotBuffer {
    */
   sample(entityId: string, clInterpOverride?: number): InterpolatedEntity | null {
     if (this.buffer.length === 0) return null;
+    const renderTime = this.renderTime(clInterpOverride);
+    const { before, after } = this.bracket(renderTime);
+    return this.sampleBetween(entityId, renderTime, before, after, null);
+  }
 
+  /**
+   * Start sampling a frame: the settings, the render time and the two
+   * snapshots around it, found once for every entity `sampleInFrame` is asked
+   * for instead of once per entity. Every entity is then sampled at the same
+   * instant, as the server simulated them, where `sample` reads the clock anew
+   * for each.
+   */
+  beginFrame(): void {
+    if (this.buffer.length === 0) {
+      this.frame = null;
+      return;
+    }
+    const renderTime = this.renderTime();
+    const { before, after } = this.bracket(renderTime);
+    this.frame = { renderTime, before, after };
+  }
+
+  /**
+   * Sample an entity in the frame `beginFrame` started, into `out`, which is
+   * returned (null when the entity is not in the buffer). Nothing is
+   * allocated, so a caller sampling every player every frame makes no garbage;
+   * the caller must not keep `out` past its use, as the next call overwrites it.
+   */
+  sampleInFrame(entityId: string, out: InterpolatedEntity): InterpolatedEntity | null {
+    const frame = this.frame;
+    if (!frame) return null;
+    return this.sampleBetween(entityId, frame.renderTime, frame.before, frame.after, out);
+  }
+
+  private renderTime(clInterpOverride?: number): number {
     const clInterp = Cvar.getNumber("cl_interp");
     const delay = clInterpOverride ?? (clInterp > 0 ? clInterp : this.interpDelay);
     const timenudge = Cvar.getNumber("cl_timenudge");
-    const renderTime = performance.now() - delay + timenudge;
+    return performance.now() - delay + timenudge;
+  }
 
-    // Find the two snapshots bracketing renderTime
-    // Use serverLocalTime when available for more accurate timing
+  /** The two snapshots bracketing renderTime (serverLocalTime when available, for more accurate timing). */
+  private bracket(renderTime: number): { before: BufferedSnapshot | null; after: BufferedSnapshot | null } {
     let before: BufferedSnapshot | null = null;
     let after: BufferedSnapshot | null = null;
 
@@ -236,7 +320,17 @@ export class SnapshotBuffer {
         break;
       }
     }
+    return { before, after };
+  }
 
+  /** Sample between two snapshots, into `out` when given, or a new object. */
+  private sampleBetween(
+    entityId: string,
+    renderTime: number,
+    before: BufferedSnapshot | null,
+    after: BufferedSnapshot | null,
+    out: InterpolatedEntity | null,
+  ): InterpolatedEntity | null {
     // Case 1: We have both brackets — interpolate
     if (before && after) {
       const beforeEntity = before.entities.get(entityId);
@@ -245,12 +339,12 @@ export class SnapshotBuffer {
       if (beforeEntity && afterEntity) {
         const range = this.getSnapTime(after) - this.getSnapTime(before);
         const t = range > 0 ? (renderTime - this.getSnapTime(before)) / range : 0;
-        return this.lerpEntity(beforeEntity, afterEntity, t);
+        return this.lerpEntity(beforeEntity, afterEntity, t, out);
       }
 
       // Entity exists in only one snapshot — use whichever has it
-      if (beforeEntity) return { ...beforeEntity };
-      if (afterEntity) return { ...afterEntity };
+      if (beforeEntity) return copyEntity(beforeEntity, out);
+      if (afterEntity) return copyEntity(afterEntity, out);
       return null;
     }
 
@@ -265,29 +359,34 @@ export class SnapshotBuffer {
       const extraY = entity.grounded
         ? entity.y // Grounded: don't extrapolate Y (stay on surface)
         : entity.y + entity.vy * elapsed + 0.5 * GRAVITY * elapsed * elapsed;
-      return {
-        x: entity.x + entity.vx * elapsed,
-        y: extraY,
-        z: entity.z + entity.vz * elapsed,
-        yaw: entity.yaw,
-        vx: entity.vx,
-        vy: entity.grounded ? entity.vy : entity.vy + GRAVITY * elapsed,
-        vz: entity.vz,
-        grounded: entity.grounded,
-        crouching: entity.crouching,
-        sliding: entity.sliding,
-        wallJumping: entity.wallJumping,
-        waterLevel: entity.waterLevel,
-        onLadder: entity.onLadder,
-        powerupMask: entity.powerupMask,
-      };
+      const result = out ?? ({} as InterpolatedEntity);
+      result.x = entity.x + entity.vx * elapsed;
+      result.y = extraY;
+      result.z = entity.z + entity.vz * elapsed;
+      result.yaw = entity.yaw;
+      result.vx = entity.vx;
+      result.vy = entity.grounded ? entity.vy : entity.vy + GRAVITY * elapsed;
+      result.vz = entity.vz;
+      result.grounded = entity.grounded;
+      result.crouching = entity.crouching;
+      result.sliding = entity.sliding;
+      if (out) {
+        // Not carried over by extrapolation, as before frame sampling existed;
+        // carrying wallJumping would change the animation, so it is its own change.
+        out.wallJumping = undefined as unknown as boolean;
+        out.crouchViewOffset = undefined;
+      }
+      result.waterLevel = entity.waterLevel;
+      result.onLadder = entity.onLadder;
+      result.powerupMask = entity.powerupMask;
+      return result;
     }
 
     // Case 3: renderTime is before all snapshots — use earliest
     if (!before && after) {
       const entity = after.entities.get(entityId);
       if (!entity) return null;
-      return { ...entity };
+      return copyEntity(entity, out);
     }
 
     return null;
@@ -296,10 +395,14 @@ export class SnapshotBuffer {
   /**
    * Get all entity IDs present in the most recent snapshot.
    */
-  getLatestEntityIds(): Set<string> {
-    if (this.buffer.length === 0) return new Set();
+  getLatestEntityIds(): ReadonlySet<string> {
+    if (this.buffer.length === 0) return EMPTY_IDS;
     const latest = this.buffer[this.buffer.length - 1];
-    return new Set(latest.entities.keys());
+    // Built once per snapshot, not once per call: the renderer asks every frame.
+    if (this.latestIds?.snapshot !== latest) {
+      this.latestIds = { snapshot: latest, ids: new Set(latest.entities.keys()) };
+    }
+    return this.latestIds.ids;
   }
 
   /**
@@ -336,11 +439,23 @@ export class SnapshotBuffer {
    * Sanity-checks serverLocalTime: if it drifts >500ms from receiveTime,
    * it's likely corrupted by clock conversion issues — fall back to receiveTime.
    */
+  /**
+   * When a snapshot counts as having arrived, on the clock render time is read from.
+   *
+   * The server timestamp spaces snapshots as the server sent them, free of the
+   * jitter in when each one arrived. It is shifted by the network's transit time,
+   * so it reads as an arrival time again: rendering `interpDelay` behind it then
+   * draws the newest snapshots that have actually arrived. Unshifted, render time
+   * ran a full network trip ahead of the newest snapshot, so every remote body
+   * was extrapolated, and a shot was judged a network trip earlier than what the
+   * shooter saw. Any error in the clock offset cancels out: the transit is
+   * measured with the same offset.
+   */
   private getSnapTime(snap: BufferedSnapshot): number {
     if (snap.serverLocalTime !== undefined) {
       const drift = Math.abs(snap.serverLocalTime - snap.receiveTime);
-      if (drift < 500) {
-        return snap.serverLocalTime;
+      if (drift < MAX_CLOCK_DRIFT_MS) {
+        return snap.serverLocalTime + this.transit;
       }
       // Drift too large — serverLocalTime is unreliable
     }
@@ -350,7 +465,12 @@ export class SnapshotBuffer {
   /** Inter-snapshot jump beyond this = teleport: snap instead of streaking across the map. */
   private static readonly TELEPORT_SNAP_DIST = 256;
 
-  private lerpEntity(a: EntitySnapshot, b: EntitySnapshot, t: number): InterpolatedEntity {
+  private lerpEntity(
+    a: EntitySnapshot,
+    b: EntitySnapshot,
+    t: number,
+    out: InterpolatedEntity | null = null,
+  ): InterpolatedEntity {
     const clampedT = Math.max(0, Math.min(1, t));
 
     // Teleport discontinuity: interpolating across a huge inter-snapshot jump
@@ -358,7 +478,7 @@ export class SnapshotBuffer {
     // instead (same idea as Q3's EF_TELEPORT_BIT no-lerp).
     const jumpSq = (b.x - a.x) ** 2 + (b.y - a.y) ** 2 + (b.z - a.z) ** 2;
     if (jumpSq > SnapshotBuffer.TELEPORT_SNAP_DIST * SnapshotBuffer.TELEPORT_SNAP_DIST) {
-      return { ...b };
+      return copyEntity(b, out);
     }
 
     // Lerp position
@@ -377,24 +497,26 @@ export class SnapshotBuffer {
     const vy = a.vy + (b.vy - a.vy) * clampedT;
     const vz = a.vz + (b.vz - a.vz) * clampedT;
 
-    return {
-      x,
-      y,
-      z,
-      yaw,
-      vx,
-      vy,
-      vz,
-      grounded: clampedT < 0.5 ? a.grounded : b.grounded,
-      crouching: clampedT < 0.5 ? a.crouching : b.crouching,
-      sliding: clampedT < 0.5 ? a.sliding : b.sliding,
-      wallJumping: clampedT < 0.5 ? a.wallJumping : b.wallJumping,
-      waterLevel: clampedT < 0.5 ? a.waterLevel : b.waterLevel,
-      onLadder: clampedT < 0.5 ? a.onLadder : b.onLadder,
-      // Take the NEWER mask rather than the nearer one: a quad expiring or
-      // being grabbed should read the moment the server says so.
-      powerupMask: b.powerupMask ?? a.powerupMask,
-    };
+    const near = clampedT < 0.5 ? a : b;
+    const result = out ?? ({} as InterpolatedEntity);
+    result.x = x;
+    result.y = y;
+    result.z = z;
+    result.yaw = yaw;
+    result.vx = vx;
+    result.vy = vy;
+    result.vz = vz;
+    result.grounded = near.grounded;
+    result.crouching = near.crouching;
+    result.sliding = near.sliding;
+    result.wallJumping = near.wallJumping;
+    if (out) out.crouchViewOffset = undefined; // not interpolated, as before
+    result.waterLevel = near.waterLevel;
+    result.onLadder = near.onLadder;
+    // Take the NEWER mask rather than the nearer one: a quad expiring or
+    // being grabbed should read the moment the server says so.
+    result.powerupMask = b.powerupMask ?? a.powerupMask;
+    return result;
   }
 
   /**

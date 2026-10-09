@@ -28,6 +28,12 @@ export interface TransportConfig {
   keyPath?: string;
   /** Max datagram size in bytes (default: 1200 for QUIC) */
   maxDatagramSize?: number;
+  /**
+   * Largest message a client may send, in bytes (default 64 KiB). Every
+   * client-to-server game message is a few hundred bytes at most; the cap
+   * stops a client making the server buffer and parse megabytes.
+   */
+  maxMessageBytes?: number;
 }
 
 export interface ClientConnection {
@@ -115,6 +121,7 @@ export class WebTransportServerTransport implements Transport {
       certPath: "",
       keyPath: "",
       maxDatagramSize: 1200,
+      maxMessageBytes: 64 * 1024,
       ...config,
     };
     this.events = events;

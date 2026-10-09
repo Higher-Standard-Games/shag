@@ -15,8 +15,10 @@
 
 import { EventEmitter } from "node:events";
 import { WebSocket } from "ws";
+import { log } from "../engine/core/Log";
 import { SnapshotReceiver } from "../engine/network/client/SnapshotReceiver";
 import { MessageCodec, MessageType } from "../engine/network/protocol/MessageCodec";
+import { debugEnabled, debugLog } from "../games/fps/server/DebugLog";
 import type { BotBrain, BotInput } from "./BotBrain";
 // HybridBrain is imported dynamically — requires @tensorflow/tfjs-node native addon
 // import { HybridBrain } from './HybridBrain';
@@ -247,7 +249,7 @@ export class BotClient extends EventEmitter {
               resolve();
             }
           } catch (err) {
-            console.error(`${this._logPrefix} Message handling error:`, err);
+            log.errorRateLimited(`${this._logPrefix} message`, "Message handling error:", err);
           }
         });
 
@@ -418,7 +420,10 @@ export class BotClient extends EventEmitter {
         this._isDead = true;
         this._deathTime = Date.now();
         this._state = "dead";
-        console.log(`${this._logPrefix} Died! Waiting ${(this._respawnDelayMs / 1000).toFixed(1)}s to respawn...`);
+        debugLog(
+          "bot",
+          () => `${this._logPrefix} Died! Waiting ${(this._respawnDelayMs / 1000).toFixed(1)}s to respawn...`,
+        );
 
         // Record the death transition frame (critical training signal!)
         if (this._recorder) {
@@ -437,7 +442,7 @@ export class BotClient extends EventEmitter {
       if (this._isDead && !this._gameState.self.isDead) {
         this._isDead = false;
         this._state = "playing";
-        console.log(`${this._logPrefix} Respawned!`);
+        debugLog("bot", () => `${this._logPrefix} Respawned!`);
       }
 
       if (this._isDead) {
@@ -478,8 +483,8 @@ export class BotClient extends EventEmitter {
         this._recorder.recordTick(this._gameState, input, this._vision, this._lastVisionResult);
       }
 
-      // Periodic logging
-      if (this._tickCount % 300 === 0) {
+      // Status line every 300 snapshots, with SHAG_DEBUG=bot
+      if (this._tickCount % 300 === 0 && debugEnabled("bot")) {
         const brain = this._brain.getState();
         const navigationInfo = this._brain.getNavigationDebug();
         const hp = this._gameState.self.health;
@@ -500,7 +505,8 @@ export class BotClient extends EventEmitter {
         );
       }
     } catch (err) {
-      console.error(`${this._logPrefix} Snapshot processing error:`, err);
+      // A fault here repeats on every snapshot; once per 5 s per bot is enough to see it.
+      log.errorRateLimited(`${this._logPrefix} snapshot`, "Snapshot processing error:", err);
     }
   }
 
@@ -562,7 +568,7 @@ export class BotClient extends EventEmitter {
   }
 
   private _sendRequestSpawn(): void {
-    console.log(`${this._logPrefix} Requesting respawn...`);
+    debugLog("bot", () => `${this._logPrefix} Requesting respawn...`);
     this._send(MessageCodec.encodeRequestSpawn());
   }
 

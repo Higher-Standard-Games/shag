@@ -20,7 +20,7 @@ import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import { Scene } from "@babylonjs/core/scene";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { type PlayerModelInstance, PlayerModelManager } from "../animation/PlayerModelManager";
 
 /** Bind-pose hip height in model units (vanguard.glb: 1.061). */
@@ -136,5 +136,19 @@ describe("PlayerModelManager.resetRootMotion", () => {
     expect(hips.position.x).toBeCloseTo(0, 5);
     expect(hips.position.z).toBeCloseTo(0, 5);
     expect(hips.position.y).toBeCloseTo(HIPS_BIND_Y, 5);
+  });
+
+  it("finds the root-motion nodes once, not by walking the skeleton every frame", () => {
+    const { instance, rootNode } = makeInstance(scene);
+    const walk = vi.spyOn(instance.mesh, "getChildTransformNodes");
+
+    for (let frame = 0; frame < 10; frame++) {
+      rootNode.position.set(5, 0, 3);
+      manager.resetRootMotion(instance);
+      expect(rootNode.position.x).toBe(0);
+    }
+
+    // Each walk built an array of every joint and two strings per joint (B12 stage 1).
+    expect(walk).toHaveBeenCalledTimes(1);
   });
 });

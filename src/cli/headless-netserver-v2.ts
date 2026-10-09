@@ -23,6 +23,7 @@ import { Deathmatch } from "../games/fps/server/gametypes/Deathmatch";
 import { Duel } from "../games/fps/server/gametypes/Duel";
 import { SearchAndDestroy } from "../games/fps/server/gametypes/SearchAndDestroy";
 import { TeamDeathmatch } from "../games/fps/server/gametypes/TeamDeathmatch";
+import { DEFAULT_PHYSICS_TICK_RATE } from "../shared/server/simulation/physics/constants";
 import { runCli } from "./_runCli";
 import { loadBspCollision } from "./HeadlessMapLoader";
 
@@ -37,7 +38,7 @@ function parseArgs(): GameServerConfig & { gamePath: string; gametype: string } 
     serverName: "SHAG Server v2",
     mapName: "wdm7",
     maxClients: 16,
-    tickRate: 125,
+    tickRate: DEFAULT_PHYSICS_TICK_RATE,
     snapshotRate: 60,
     gamePath: "./game",
     certPath: process.env.SHAG_GAME_CERT_PATH || "./certs/localhost.pem",
@@ -75,9 +76,6 @@ function parseArgs(): GameServerConfig & { gamePath: string; gametype: string } 
       case "--max":
       case "--maxclients":
         config.maxClients = parseInt(args[++i], 10);
-        break;
-      case "--tickrate":
-        config.tickRate = parseInt(args[++i], 10);
         break;
       case "--snapshotrate":
         config.snapshotRate = parseInt(args[++i], 10);
@@ -152,7 +150,6 @@ Options:
   --gametype <name>      Gametype (Deathmatch, TeamDeathmatch, Duel, Amphi, SnD)
   --name <name>          Server name
   --max <n>              Max clients (default: 16)
-  --tickrate <n>         Tick rate in Hz (default: 125)
   --snapshotrate <n>     Snapshot rate in Hz (default: 60)
   --game <path>          Game data path (default: ./game)
   --cert <path>          TLS certificate path

@@ -26,6 +26,7 @@ import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 // bare @babylonjs/core barrel imports; must be explicit with per-module imports.
 import "@babylonjs/core/Rendering/outlineRenderer";
 import type { Scene } from "@babylonjs/core/scene";
+import { disposeModelResources } from "../loader/model/ModelSourceCache";
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -60,6 +61,14 @@ export interface PlayerModelInstance {
    * hip height above the feet), so it is restored rather than zeroed.
    */
   hipsBind?: { node: TransformNode; x: number; y: number; z: number } | null;
+  /**
+   * The root-motion nodes under the mesh (`RootNode`, `Armature`, `__root__`),
+   * found by `resetRootMotion` on its first call. The rig is cloned once per
+   * instance and never re-parented, so the same nodes are found every time;
+   * walking the skeleton per frame to find them again was most of the remote
+   * renderer's garbage (B12 stage 1).
+   */
+  rootMotionNodes?: TransformNode[];
 }
 
 export type PlayerModelTeamColor = "alpha" | "beta" | "bravo" | "ffa";
@@ -640,12 +649,8 @@ export class PlayerModelManager {
   resetRootMotion(instance: PlayerModelInstance): void {
     instance.mesh.position.set(0, 0, 0);
 
-    for (const node of instance.mesh.getChildTransformNodes(false)) {
-      // instantiateModelsToScene uses only id/sourceName, so ancestor names
-      // cannot accidentally classify ordinary joints as root-motion nodes.
-      const name = node.name.split("/").pop()!.toLowerCase();
-      if (name === "rootnode" || name === "armature" || name === "__root__") node.position.set(0, 0, 0);
-    }
+    instance.rootMotionNodes ??= findRootMotionNodes(instance.mesh);
+    for (const node of instance.rootMotionNodes) node.position.set(0, 0, 0);
 
     // Hips: restore the bind pose, killing both horizontal drift and the
     // vertical bob that would otherwise float the body off the ground.
@@ -657,20 +662,10 @@ export class PlayerModelManager {
 
   // ── Cleanup ──────────────────────────────────────────────────
 
-  /** Dispose a single instance */
+  /** Dispose a single instance, including a one-shot animation it is playing. */
   disposeInstance(instance: PlayerModelInstance): void {
     this.stopOneShot(instance, false);
-    if (instance.attachedWeapon) {
-      instance.attachedWeapon.dispose(false, true);
-      instance.attachedWeapon = null;
-    }
-    if (instance.masterGroup) {
-      instance.masterGroup.stop();
-      instance.masterGroup.dispose();
-    }
-    if (instance.mesh) instance.mesh.dispose();
-    if (instance.skeleton) instance.skeleton.dispose();
-    if (instance.anchor) instance.anchor.dispose();
+    disposePlayerModel(instance);
     console.log(`[PlayerModelManager] Disposed instance: ${instance.id}`);
   }
 
@@ -712,4 +707,52 @@ export class PlayerModelManager {
 
     return channels;
   }
+}
+
+/** The nodes under a player mesh that carry root motion, by source name. */
+function findRootMotionNodes(mesh: Mesh): TransformNode[] {
+  return mesh.getChildTransformNodes(false).filter((node) => {
+    // instantiateModelsToScene uses only id/sourceName, so ancestor names
+    // cannot accidentally classify ordinary joints as root-motion nodes.
+    const name = node.name.split("/").pop()!.toLowerCase();
+    return name === "rootnode" || name === "armature" || name === "__root__";
+  });
+}
+
+/**
+ * Dispose a player model and everything it owns, on every path that removes one
+ * (death, leaving, ragdoll expiry, shutdown): its hand weapon with whatever only
+ * that used, its locomotion group, its nodes and skeleton, and the materials
+ * cloned for it by the visibility style. The model's source materials and
+ * textures are shared with every other instance and stay.
+ *
+ * A one-shot animation lives in the manager; `disposeInstance` stops it first.
+ */
+export function disposePlayerModel(instance: PlayerModelInstance): void {
+  if (instance.attachedWeapon) {
+    disposeModelResources([instance.attachedWeapon]);
+    instance.attachedWeapon = null;
+  }
+  if (instance.masterGroup) {
+    instance.masterGroup.stop();
+    instance.masterGroup.dispose();
+    instance.masterGroup = null;
+  }
+  const cloned = clonedMaterialsOf(instance);
+  if (instance.mesh && !instance.mesh.isDisposed()) instance.mesh.dispose();
+  instance.skeleton?.dispose();
+  if (instance.anchor && !instance.anchor.isDisposed()) instance.anchor.dispose();
+  for (const material of cloned) material.dispose(false, false);
+}
+
+/** The materials `applyVisualStyle` cloned for this instance alone (see ensureInstanceMaterial). */
+function clonedMaterialsOf(instance: PlayerModelInstance): Material[] {
+  if (!instance.mesh || instance.mesh.isDisposed()) return [];
+  const prefixes = [`playerMat_${instance.id}_`, `teamMat_${instance.id}_`];
+  const owned = new Set<Material>();
+  for (const mesh of [instance.mesh, ...instance.mesh.getChildMeshes()]) {
+    const material = mesh.material;
+    if (material && prefixes.some((prefix) => material.name.startsWith(prefix))) owned.add(material);
+  }
+  return [...owned];
 }

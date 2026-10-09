@@ -19,6 +19,7 @@ import type { Scene } from "@babylonjs/core/scene";
 import { DEFAULT_VIEWHEIGHT } from "../../physics/PlayerPhysicsConstants";
 import { getGameFrameHook } from "../GameFrameHook";
 import type { CameraControllerConfig, ICameraController } from "./ICameraController";
+import { reusableFreeCamera } from "./ReusableFreeCamera";
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -63,6 +64,8 @@ export class SpectatorController implements ICameraController {
   readonly type = "spectator";
 
   private camera: FreeCamera | null = null;
+  /** The camera made here when attached to a non-FreeCamera, kept for the next attach. */
+  private ownCamera: FreeCamera | null = null;
   private scene: Scene | null = null;
   private enabled: boolean = true;
   private renderObserver: any = null; // Babylon Observer handle
@@ -88,8 +91,10 @@ export class SpectatorController implements ICameraController {
     if (camera instanceof FreeCamera) {
       this.camera = camera;
     } else {
-      // Create a FreeCamera if one doesn't exist
-      this.camera = new FreeCamera("spectatorCamera", camera.position.clone(), _scene);
+      // Create a FreeCamera if one doesn't exist, once: every attach made a
+      // new one and none was disposed, one per cut in a cinematic demo.
+      this.ownCamera = reusableFreeCamera(this.ownCamera, "spectatorCamera", camera.position, _scene);
+      this.camera = this.ownCamera;
     }
 
     this.scene = _scene;

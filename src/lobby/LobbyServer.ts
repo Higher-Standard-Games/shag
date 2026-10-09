@@ -643,7 +643,8 @@ export class LobbyServer {
         this.handleDevSpawnServer(player, msg.requestId, msg.map, msg.gametype);
         break;
       default:
-        console.log(`[LobbyServer] Unknown message type: ${msg.type}`);
+        // The type is whatever the client sent; a client sending junk gets one line per 5 s.
+        log.warnRateLimited("LobbyServer", `Unknown message type: ${String(msg.type).slice(0, 64)}`);
     }
   }
 

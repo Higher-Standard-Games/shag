@@ -23,7 +23,7 @@ import { mulberry32 } from "../../shared/SpreadUtils";
 import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
 import { ImpactSparkRenderer } from "./impact/ImpactSparkRenderer";
 import { MuzzleFlashRenderer, type MuzzleFlashSpawn } from "./muzzle/MuzzleFlashRenderer";
-import { getPointLightPool } from "./PointLightPool";
+import { getPointLightPool, type PooledLightOwner } from "./PointLightPool";
 import { RailEffectRenderer } from "./rail/RailEffectRenderer";
 import type { RailEffectSample } from "./rail/RailProfiles";
 import { VoltaicEffectRenderer, type VoltaicRemoteStartResolver } from "./voltaic/VoltaicEffectRenderer";
@@ -261,17 +261,17 @@ export class HitscanEffects {
       line.edgesColor = new Color4(color.r, color.g, color.b, 0.6);
     }
 
-    // Small impact flash at endpoint
-    const impactLight = this.spawnImpactFlash(endpoint, color, hit?.normal, duration * 2);
-
-    this.effects.push({
+    const effect: ActiveEffect = {
       id,
       meshes: [line],
       materials: [],
-      light: impactLight,
+      light: null,
       spawnTime: performance.now() / 1000,
       duration,
-    });
+    };
+    // Small impact flash at endpoint
+    effect.light = this.spawnImpactFlash(endpoint, color, hit?.normal, effect);
+    this.effects.push(effect);
 
     // Leave a wall mark at hit point
     if (hit) {
@@ -467,20 +467,21 @@ export class HitscanEffects {
       const centroid = hitPoints
         .reduce((acc, p) => acc.addInPlace(p), Vector3.Zero())
         .scaleInPlace(1 / hitPoints.length);
-      const impactLight = this.spawnImpactFlash(centroid, color, undefined, duration * 2);
+      // Tracked for cleanup via a lightweight effect entry
+      const flash: ActiveEffect = {
+        id: `pellet_flash_${this.nextId++}`,
+        meshes: [],
+        materials: [],
+        light: null,
+        spawnTime: now,
+        duration: duration * 2,
+      };
+      const impactLight = this.spawnImpactFlash(centroid, color, undefined, flash);
       if (impactLight) {
         impactLight.intensity = 40; // boosted (was 25 per pellet)
         impactLight.range = 80; // wider to cover spread area
-
-        // Track for cleanup via a lightweight effect entry
-        this.effects.push({
-          id: `pellet_flash_${this.nextId++}`,
-          meshes: [],
-          materials: [],
-          light: impactLight,
-          spawnTime: now,
-          duration: duration * 2,
-        });
+        flash.light = impactLight;
+        this.effects.push(flash);
       }
     }
 
@@ -600,17 +601,17 @@ export class HitscanEffects {
     this.orientCylinder(glow, cfg.origin, endpoint);
     meshes.push(glow);
 
-    // Bright impact flash
-    const impactLight = this.spawnImpactFlash(endpoint, color, hit?.normal, duration);
-
-    this.effects.push({
+    const effect: ActiveEffect = {
       id,
       meshes,
       materials: [coreMat, glowMat],
-      light: impactLight,
+      light: null,
       spawnTime: performance.now() / 1000,
       duration,
-    });
+    };
+    // Bright impact flash
+    effect.light = this.spawnImpactFlash(endpoint, color, hit?.normal, effect);
+    this.effects.push(effect);
 
     // Leave a scorch mark at impact
     if (hit) {
@@ -767,6 +768,10 @@ export class HitscanEffects {
       tp.material.dispose();
     }
     this.travelingPellets = [];
+    // Bullet holes belong to the map and moment they were made; the shared
+    // material stays for the next ones.
+    for (const mark of this.wallMarks) mark.mesh.dispose();
+    this.wallMarks = [];
     this.stopLightning();
     this.voltaicRenderer?.clear();
     this.railRenderer?.clear();
@@ -903,19 +908,19 @@ export class HitscanEffects {
     return forward.add(right.scale(offsetX)).add(up.scale(offsetY)).normalize();
   }
 
-  /** Spawn a small impact flash light + point, auto-cleaned up */
+  /** Spawn a small impact flash light for `owner`, which releases it. */
   private spawnImpactFlash(
     pos: Vector3,
     color: Color3,
     normal: Vector3 | undefined,
-    _duration: number,
+    owner: PooledLightOwner,
   ): PointLight | null {
     if (!this.scene) return null;
 
     // Offset slightly along normal to prevent Z-fighting
     const offset = normal ? normal.scale(0.05) : Vector3.Zero();
 
-    const light = getPointLightPool().acquire(pos.add(offset), color, 25, 60);
+    const light = getPointLightPool().acquire(pos.add(offset), color, 25, 60, owner);
 
     // Impact light is cleaned up by the effect that owns it
     return light;

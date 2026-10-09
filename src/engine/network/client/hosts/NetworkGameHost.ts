@@ -342,6 +342,11 @@ export class NetworkGameHost implements IGameHost {
     this.transport.send(MessageCodec.encodeChat(trimmed.slice(0, 128)), true); // Reliable
   }
 
+  /** Send an already encoded message over the reliable channel (ready, respawn requests). */
+  sendReliable(data: Uint8Array): void {
+    this.transport.send(data, true);
+  }
+
   /**
    * Tell the server which spawn kit this player wants.
    *

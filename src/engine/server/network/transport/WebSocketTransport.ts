@@ -92,6 +92,7 @@ export class WebSocketServerTransport implements Transport {
       certPath: config.certPath ?? "",
       keyPath: config.keyPath ?? "",
       maxDatagramSize: config.maxDatagramSize ?? 1200,
+      maxMessageBytes: config.maxMessageBytes ?? 64 * 1024,
     };
     this.events = events;
   }
@@ -111,6 +112,9 @@ export class WebSocketServerTransport implements Transport {
 
         this.wss = new WebSocketServer({
           server: this.httpServer,
+          // ws accepts up to 100 MiB by default. A larger frame closes the
+          // connection with 1009 (message too big).
+          maxPayload: this.config.maxMessageBytes,
         });
 
         this.wss.on("connection", (ws, req) => {
@@ -188,15 +192,9 @@ export class WebSocketServerTransport implements Transport {
     console.log(`[WebSocket] Client ${clientId} registered from ${address}`);
 
     // Set up message handler - use onDatagram for all game messages
-    let messageCount = 0;
     ws.on("message", (data: Buffer) => {
       client.updateLastMessage();
       const bytes = new Uint8Array(data);
-      messageCount++;
-      // Only log occasionally to avoid spam
-      if (messageCount % 1000 === 0) {
-        console.log(`[WebSocket] Client ${clientId}: ${messageCount} messages received`);
-      }
       this.events.onDatagram?.(client, bytes);
     });
 

@@ -806,7 +806,30 @@ export class BinaryProtocol {
     "agent_directives",
     "lift_state",
     "knockback_state",
+    // 23: a damage event that names where the hit landed. Same logical type as 10; see DAMAGE_LOCATED.
+    "damage",
   ];
+
+  /**
+   * Wire code of a `damage` event that carries a hit location (a head or leg hit).
+   *
+   * A damage event without one keeps its original code, 10, and its original layout, so a
+   * body hit costs nothing extra and every demo recorded before this existed decodes exactly
+   * as it did. Both codes decode to `type: "damage"`; only 23 sets `hitLocation`, and an
+   * event without it is a body hit.
+   */
+  private static readonly DAMAGE_LOCATED = 23;
+
+  /** Wire order of the hit location byte after code 23. Append only: the index is the encoding. */
+  private static readonly HIT_LOCATIONS = ["body", "head", "legs"] as const;
+
+  /** The code an event travels under: its type's code, or 23 for a damage event with a head or leg hit. */
+  private static eventTypeCode(event: GameState["events"][number]): number {
+    if (event.type === "damage" && (event.hitLocation === "head" || event.hitLocation === "legs")) {
+      return BinaryProtocol.DAMAGE_LOCATED;
+    }
+    return BinaryProtocol.EVT_TYPE_MAP[event.type];
+  }
 
   /** Wire order for LiftState.phase. Append only — the index is the encoding. */
   private static readonly LIFT_PHASES = ["bottom", "up", "top", "down"] as const;
@@ -815,7 +838,7 @@ export class BinaryProtocol {
     encoder.writeUint16(state.events.length);
 
     for (const event of state.events) {
-      const typeCode = BinaryProtocol.EVT_TYPE_MAP[event.type];
+      const typeCode = BinaryProtocol.eventTypeCode(event);
       encoder.writeUint8(typeCode);
 
       switch (typeCode) {
@@ -920,6 +943,7 @@ export class BinaryProtocol {
           break;
 
         case 10: // damage: entityId, attackerId, damage, weaponId, xyz
+        case 23: // damage with a hit location: the same fields, then one byte (HIT_LOCATIONS index)
           encoder.writeString(event.entityId);
           encoder.writeString(event.attackerId ?? "");
           encoder.writeUint16(event.damage ?? 0);
@@ -927,6 +951,9 @@ export class BinaryProtocol {
           encoder.writeFloat32(event.x ?? 0);
           encoder.writeFloat32(event.y ?? 0);
           encoder.writeFloat32(event.z ?? 0);
+          if (typeCode === BinaryProtocol.DAMAGE_LOCATED) {
+            encoder.writeUint8(Math.max(0, BinaryProtocol.HIT_LOCATIONS.indexOf(event.hitLocation)));
+          }
           break;
 
         case 11: // death: entityId, killerId, weaponId, damageType, finalDamage, xyz, vel xyz, kb dir xyz
@@ -1152,7 +1179,9 @@ export class BinaryProtocol {
           break;
 
         case 10: // damage
-          state.events.push({
+        case 23: {
+          // damage with a hit location (code 23); code 10 has none, which means a body hit
+          const damageEvent: GameState["events"][number] = {
             type,
             entityId: decoder.readString(),
             attackerId: decoder.readString(),
@@ -1161,8 +1190,13 @@ export class BinaryProtocol {
             x: decoder.readFloat32(),
             y: decoder.readFloat32(),
             z: decoder.readFloat32(),
-          });
+          };
+          if (typeCode === BinaryProtocol.DAMAGE_LOCATED) {
+            damageEvent.hitLocation = BinaryProtocol.HIT_LOCATIONS[decoder.readUint8()] ?? "body";
+          }
+          state.events.push(damageEvent);
           break;
+        }
 
         case 11: // death
           state.events.push({
@@ -1384,12 +1418,16 @@ export class BinaryEncoder {
   /**
    * Write string using UTF-8 encoding (more efficient than UTF-16)
    */
-  writeString(str: string): void {
-    const encoded = textEncoder.encode(str);
-    this.ensureSpace(2 + encoded.length);
-    this.writeUint16(encoded.length);
-    new Uint8Array(this.buffer, this.offset, encoded.length).set(encoded);
-    this.offset += encoded.length;
+  writeString(value: string): void {
+    // TextEncoder.encode() coerced its argument (undefined to "", anything else through
+    // String()), and some events still put numeric ids here, so coerce the same way.
+    const str = value === undefined ? "" : String(value);
+    // UTF-8 is at most 3 bytes per UTF-16 code unit, so reserve that and encode straight into
+    // the buffer: no intermediate array per string. Output bytes are identical to encode().
+    this.ensureSpace(2 + str.length * 3);
+    const { written } = textEncoder.encodeInto(str, new Uint8Array(this.buffer, this.offset + 2));
+    this.view.setUint16(this.offset, written, true);
+    this.offset += 2 + written;
   }
 
   writeBool(value: boolean): void {
@@ -1406,7 +1444,7 @@ export class BinaryEncoder {
   }
 
   getData(): Uint8Array {
-    return new Uint8Array(this.buffer.slice(0, this.offset));
+    return new Uint8Array(this.buffer, 0, this.offset).slice();
   }
 
   /** Alias for getData() for compatibility */
