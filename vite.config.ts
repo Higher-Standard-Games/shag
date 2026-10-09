@@ -68,6 +68,8 @@ export default defineConfig({
       '@babylonjs/core/Culling/boundingInfo',
       '@babylonjs/core/Culling/ray',
       '@babylonjs/core/Debug/physicsViewer',
+      '@babylonjs/core/Engines/AbstractEngine/abstractEngine.timeQuery',
+      '@babylonjs/core/Engines/Extensions/engine.query',
       '@babylonjs/core/Engines/WebGPU/Extensions/engine.computeShader',
       '@babylonjs/core/Engines/WebGPU/Extensions/engine.dynamicTexture',
       '@babylonjs/core/Engines/WebGPU/Extensions/engine.multiRender',
