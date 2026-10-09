@@ -156,6 +156,8 @@ export interface TimedemoSample {
   seconds: number;
   phase: string;
   wallMs: number;
+  /** Page performance.now() at the benchmark hook, before playback. Wall intervals end here. */
+  frameAtMs?: number;
   playbackCpuMs: number;
   sceneCpuMs: number;
   animationMs: number;
@@ -166,7 +168,9 @@ export interface TimedemoSample {
   loadedBodies: number;
   spectatorTarget: string | null;
   povWeaponLoaded: boolean;
-  sceneReady: boolean;
+  /** Full-scene readiness is not queried inside measurement; null means unobserved. */
+  sceneReady: boolean | null;
+  pendingSceneData?: number;
   skippedFrames: number;
   /** Whole engine-frame bundle submissions; null outside WebGPU NCM or when unavailable. */
   bundles: TimedemoBundleCounters | null;
@@ -198,7 +202,11 @@ export function summarizeTimedemoSamples(samples: TimedemoSample[], budgetMs = 1
     loadedBodies: stats("loadedBodies"),
     bundles: summarizeTimedemoBundles(samples),
     missingPovWeaponFrames: samples.filter((s) => s.spectatorTarget && !s.povWeaponLoaded).length,
-    unreadySceneFrames: samples.filter((s) => !s.sceneReady).length,
+    unreadySceneFrames: samples.filter((s) => s.sceneReady === false).length,
+    sceneReadinessObservedFrames: samples.filter((s) => typeof s.sceneReady === "boolean").length,
+    pendingSceneDataFrames: samples.some((s) => typeof s.pendingSceneData === "number")
+      ? samples.filter((s) => (s.pendingSceneData ?? 0) > 0).length
+      : null,
     frameBudgetMs: budgetMs,
     overBudgetPercent: samples.length
       ? (100 * samples.filter((s) => s.wallMs > budgetMs).length) / samples.length

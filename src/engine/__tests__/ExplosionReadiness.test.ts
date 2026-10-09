@@ -9,9 +9,12 @@
  * up for good.
  */
 
+import { VertexBuffer } from "@babylonjs/core/Buffers/buffer";
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
+import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import { Scene } from "@babylonjs/core/scene";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getExplosionEffect } from "../weapon/ExplosionEffect";
@@ -39,6 +42,36 @@ afterEach(() => {
 });
 
 describe("explosion particle systems", () => {
+  it("batches cold material setup and deforms the same buffer without dirtying shader attributes", () => {
+    const world = MeshBuilder.CreateBox("unrelated-world", {}, scene);
+    world.material = new StandardMaterial("unrelated-world", scene);
+    const visits = vi.spyOn(world.subMeshes[0], "getMaterial");
+    const effect = getExplosionEffect();
+    let now = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    effect.spawn(Vector3.Zero());
+    const materialCount = scene.materials.filter((m) => m.name.startsWith("explosion_")).length;
+    // One final readiness invalidation per configured material, instead of
+    // separate full-scene scans for its alpha, culling and light setters.
+    expect(visits.mock.calls.length).toBeLessThanOrEqual(materialCount + 1);
+    const fireball = scene.meshes.find((m) => m.name.endsWith("_fireball"))!;
+    const buffer = fireball.getVertexBuffer(VertexBuffer.PositionKind);
+    const before = [...fireball.getVerticesData(VertexBuffer.PositionKind)!];
+    const attributes = vi.spyOn(fireball, "_markSubMeshesAsAttributesDirty");
+    now = 120;
+    effect.update(0.12);
+    now = 240;
+    effect.update(0.12);
+    expect(fireball.getVertexBuffer(VertexBuffer.PositionKind)).toBe(buffer);
+    expect([...fireball.getVerticesData(VertexBuffer.PositionKind)!]).not.toEqual(before);
+    expect(attributes).not.toHaveBeenCalled();
+    const material = fireball.material as StandardMaterial;
+    expect(material.disableLighting).toBe(true);
+    expect(material.alpha).toBe(0.9);
+    now = 480;
+    effect.update(0.24);
+    expect(material.alpha).toBeLessThan(0.9);
+  });
   it("adds only the sparks it draws", () => {
     getExplosionEffect().spawn(new Vector3(0, 0, 0));
 

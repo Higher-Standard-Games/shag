@@ -1,0 +1,1212 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-10",
+  "purpose": "CPU attribution and bundle-counter evidence; no claimed unprofiled speedup",
+  "samplingIntervalUs": 1000,
+  "fixture": "wdm2-ffa10-v1-095f355747e8-f47d4c2a",
+  "limitations": [
+    "One profiled run per mode; no paired repeated unprofiled comparison.",
+    "Compatibility captures reject pre-roll event skips; counters/timing retain that validity flag.",
+    "NCM runner rejects a revision change; independently inspected commit changes only docs/research/SHAGGED_API.md.",
+    "Main-thread self times include program/idle/GC; inclusive caller totals in the research notes overlap.",
+    "Interior phase frame counts have approximately one-frame clock-boundary uncertainty.",
+    "Warmup screenshots are at observed playheads, not fixed-playhead route acceptance."
+  ],
+  "runs": [
+    {
+      "artifacts": "public/data/benchmarks/results/2026-10-10-codex-material-final/1-webgl2",
+      "actualBackend": "webgl2",
+      "environment": {
+        "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36 Edg/155.0.0.0",
+        "babylonVersion": "9.17.0",
+        "compatibilityMode": null,
+        "profile": {
+          "width": 1280,
+          "height": 720,
+          "fov": 90,
+          "requiredCvars": {
+            "r_ssr": 0,
+            "r_glow": 0,
+            "r_daynight": 0,
+            "cl_player_outline": 1
+          }
+        },
+        "poseHz": 30
+      },
+      "source": {
+        "before": {
+          "outer": "f3cd58282db24bb1c88a7418559f7f5434ab0ad5",
+          "fps": "face10cc2163115f628158fcf4cf8f322915c5a6",
+          "sourceChangeSha256": "44a357490e90dd54a6a4b9877f492fba37fda74bced367a8ed0e59ec205f8f5c"
+        },
+        "after": {
+          "outer": "f3cd58282db24bb1c88a7418559f7f5434ab0ad5",
+          "fps": "face10cc2163115f628158fcf4cf8f322915c5a6",
+          "sourceChangeSha256": "44a357490e90dd54a6a4b9877f492fba37fda74bced367a8ed0e59ec205f8f5c"
+        },
+        "runnerStableSource": true
+      },
+      "exceptions": 0,
+      "status": "complete",
+      "workloadValid": false,
+      "reasons": [
+        "Playback skipped recorded frames/events after a stall"
+      ],
+      "skippedEventsFirstLast": [
+        26,
+        26
+      ],
+      "frames": 4392,
+      "shaderCompiles": 28,
+      "readinessOutsideMeasurement": {
+        "before": false,
+        "after": false
+      },
+      "pendingDataFrames": 889,
+      "bundles": null,
+      "phases": {
+        "freefly-start": {
+          "observedInteriorFrames": 1321,
+          "interiorDurationMs": 11581.3,
+          "profileFile": "1-webgl2-freefly-start.cpuprofile",
+          "wallMs": {
+            "p50": 7.599999999627471,
+            "p95": 15.4800000000745,
+            "p99": 23.599999999925494
+          },
+          "drawCalls": {
+            "p50": 346,
+            "p95": 563.8,
+            "p99": 608
+          },
+          "bundles": null
+        },
+        "fps-gunplay-a": {
+          "observedInteriorFrames": 1151,
+          "interiorDurationMs": 11612.4,
+          "profileFile": "1-webgl2-fps-gunplay-a.cpuprofile",
+          "wallMs": {
+            "p50": 8.5,
+            "p95": 21.079999999701972,
+            "p99": 35.37200000010404
+          },
+          "drawCalls": {
+            "p50": 320,
+            "p95": 632,
+            "p99": 720.4399999999996
+          },
+          "bundles": null,
+          "shaderStrings": [
+            {
+              "function": "toString",
+              "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-5YKTZPXC.js?v=b6c00031",
+              "line": 199,
+              "selfMs": 82.013,
+              "selfPercent": 0.706,
+              "selfMsPerFrame": 0.0713
+            }
+          ],
+          "topSelf": [
+            {
+              "function": "(program)",
+              "url": "",
+              "line": 0,
+              "selfMs": 808.061,
+              "selfPercent": 6.959,
+              "selfMsPerFrame": 0.7021
+            },
+            {
+              "function": "_evaluateActiveMeshes",
+              "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-GWWN2JU2.js?v=b6c00031",
+              "line": 5707,
+              "selfMs": 675.385,
+              "selfPercent": 5.816,
+              "selfMsPerFrame": 0.5868
+            },
+            {
+              "function": "_update",
+              "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-Q6KRL26Q.js?v=b6c00031",
+              "line": 86,
+              "selfMs": 451.271,
+              "selfPercent": 3.886,
+              "selfMsPerFrame": 0.3921
+            },
+            {
+              "function": "render",
+              "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-PLL44WHZ.js?v=b6c00031",
+              "line": 3345,
+              "selfMs": 296.567,
+              "selfPercent": 2.554,
+              "selfMsPerFrame": 0.2577
+            },
+            {
+              "function": "(idle)",
+              "url": "",
+              "line": 0,
+              "selfMs": 291.157,
+              "selfPercent": 2.507,
+              "selfMsPerFrame": 0.253
+            },
+            {
+              "function": "_markAllSubMeshesAsDirty",
+              "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-KWLI76SW.js?v=b6c00031",
+              "line": 1430,
+              "selfMs": 232.237,
+              "selfPercent": 2,
+              "selfMsPerFrame": 0.2018
+            },
+            {
+              "function": "markDirty",
+              "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-KWLI76SW.js?v=b6c00031",
+              "line": 1048,
+              "selfMs": 225.813,
+              "selfPercent": 1.945,
+              "selfMsPerFrame": 0.1962
+            }
+          ],
+          "slowIntervals": {
+            "count": 59,
+            "thresholdMs": 21.079999999701972,
+            "summaryDurationMs": 1754.1000000000001,
+            "topSelf": [
+              {
+                "function": "(program)",
+                "url": "",
+                "line": 0,
+                "selfMs": 133.285,
+                "selfPercent": 7.598,
+                "selfMsPerFrame": 2.2591
+              },
+              {
+                "function": "_markAllSubMeshesAsDirty",
+                "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-KWLI76SW.js?v=b6c00031",
+                "line": 1430,
+                "selfMs": 125.191,
+                "selfPercent": 7.137,
+                "selfMsPerFrame": 2.1219
+              },
+              {
+                "function": "log",
+                "url": "http://127.0.0.1:3117/src/engine/debug/DebugConsole.ts",
+                "line": 619,
+                "selfMs": 101.431,
+                "selfPercent": 5.783,
+                "selfMsPerFrame": 1.7192
+              },
+              {
+                "function": "(garbage collector)",
+                "url": "",
+                "line": 0,
+                "selfMs": 58.906,
+                "selfPercent": 3.358,
+                "selfMsPerFrame": 0.9984
+              },
+              {
+                "function": "markDirty",
+                "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-KWLI76SW.js?v=b6c00031",
+                "line": 1048,
+                "selfMs": 53.393,
+                "selfPercent": 3.044,
+                "selfMsPerFrame": 0.905
+              },
+              {
+                "function": "ProcessIncludes",
+                "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-HK34V7KN.js?v=b6c00031",
+                "line": 734,
+                "selfMs": 44.057,
+                "selfPercent": 2.512,
+                "selfMsPerFrame": 0.7467
+              },
+              {
+                "function": "_evaluateActiveMeshes",
+                "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-GWWN2JU2.js?v=b6c00031",
+                "line": 5707,
+                "selfMs": 40.369,
+                "selfPercent": 2.301,
+                "selfMsPerFrame": 0.6842
+              }
+            ]
+          }
+        },
+        "freefly-return": {
+          "observedInteriorFrames": 830,
+          "interiorDurationMs": 8309.3,
+          "profileFile": "1-webgl2-freefly-return.cpuprofile",
+          "wallMs": {
+            "p50": 9.199999999254942,
+            "p95": 18.159999999403944,
+            "p99": 23.89599999912081
+          },
+          "drawCalls": {
+            "p50": 355,
+            "p95": 471,
+            "p99": 524.4799999999999
+          },
+          "bundles": null
+        },
+        "fps-gunplay-b": {
+          "observedInteriorFrames": 932,
+          "interiorDurationMs": 11660.5,
+          "profileFile": "1-webgl2-fps-gunplay-b.cpuprofile",
+          "wallMs": {
+            "p50": 11.400000000372529,
+            "p95": 21.34000000059603,
+            "p99": 31.21999999999997
+          },
+          "drawCalls": {
+            "p50": 397,
+            "p95": 542.1999999999999,
+            "p99": 572.7599999999998
+          },
+          "bundles": null,
+          "shaderStrings": [
+            {
+              "function": "toString",
+              "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-5YKTZPXC.js?v=b6c00031",
+              "line": 199,
+              "selfMs": 100.128,
+              "selfPercent": 0.859,
+              "selfMsPerFrame": 0.1074
+            }
+          ],
+          "topSelf": [
+            {
+              "function": "(program)",
+              "url": "",
+              "line": 0,
+              "selfMs": 912.931,
+              "selfPercent": 7.83,
+              "selfMsPerFrame": 0.9795
+            },
+            {
+              "function": "_evaluateActiveMeshes",
+              "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-GWWN2JU2.js?v=b6c00031",
+              "line": 5707,
+              "selfMs": 665.025,
+              "selfPercent": 5.704,
+              "selfMsPerFrame": 0.7135
+            },
+            {
+              "function": "_update",
+              "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-Q6KRL26Q.js?v=b6c00031",
+              "line": 86,
+              "selfMs": 348.118,
+              "selfPercent": 2.986,
+              "selfMsPerFrame": 0.3735
+            },
+            {
+              "function": "MultiplyMatricesToArray",
+              "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-B5ZYUHRB.js?v=b6c00031",
+              "line": 29,
+              "selfMs": 285.685,
+              "selfPercent": 2.45,
+              "selfMsPerFrame": 0.3065
+            },
+            {
+              "function": "render",
+              "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-PLL44WHZ.js?v=b6c00031",
+              "line": 3345,
+              "selfMs": 261.307,
+              "selfPercent": 2.241,
+              "selfMsPerFrame": 0.2804
+            },
+            {
+              "function": "_renderForCamera",
+              "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-GWWN2JU2.js?v=b6c00031",
+              "line": 5911,
+              "selfMs": 229.813,
+              "selfPercent": 1.971,
+              "selfMsPerFrame": 0.2466
+            },
+            {
+              "function": "_markAllSubMeshesAsDirty",
+              "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-KWLI76SW.js?v=b6c00031",
+              "line": 1430,
+              "selfMs": 217.876,
+              "selfPercent": 1.869,
+              "selfMsPerFrame": 0.2338
+            }
+          ],
+          "slowIntervals": {
+            "count": 48,
+            "thresholdMs": 21.34000000059603,
+            "summaryDurationMs": 1319,
+            "topSelf": [
+              {
+                "function": "(program)",
+                "url": "",
+                "line": 0,
+                "selfMs": 112.076,
+                "selfPercent": 8.497,
+                "selfMsPerFrame": 2.3349
+              },
+              {
+                "function": "_markAllSubMeshesAsDirty",
+                "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-KWLI76SW.js?v=b6c00031",
+                "line": 1430,
+                "selfMs": 75.906,
+                "selfPercent": 5.755,
+                "selfMsPerFrame": 1.5814
+              },
+              {
+                "function": "log",
+                "url": "http://127.0.0.1:3117/src/engine/debug/DebugConsole.ts",
+                "line": 619,
+                "selfMs": 65.234,
+                "selfPercent": 4.946,
+                "selfMsPerFrame": 1.359
+              },
+              {
+                "function": "toString",
+                "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-5YKTZPXC.js?v=b6c00031",
+                "line": 199,
+                "selfMs": 51.448,
+                "selfPercent": 3.901,
+                "selfMsPerFrame": 1.0718
+              },
+              {
+                "function": "(garbage collector)",
+                "url": "",
+                "line": 0,
+                "selfMs": 45.013,
+                "selfPercent": 3.413,
+                "selfMsPerFrame": 0.9378
+              },
+              {
+                "function": "_evaluateActiveMeshes",
+                "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-GWWN2JU2.js?v=b6c00031",
+                "line": 5707,
+                "selfMs": 39.353,
+                "selfPercent": 2.984,
+                "selfMsPerFrame": 0.8199
+              },
+              {
+                "function": "DeepCopy",
+                "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-Z2V45LLH.js?v=b6c00031",
+                "line": 46,
+                "selfMs": 32.884,
+                "selfPercent": 2.493,
+                "selfMsPerFrame": 0.6851
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "artifacts": "public/data/benchmarks/results/2026-10-10-codex-material-final/2-webgpu",
+      "actualBackend": "webgpu",
+      "environment": {
+        "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36 Edg/155.0.0.0",
+        "babylonVersion": "9.17.0",
+        "compatibilityMode": true,
+        "profile": {
+          "width": 1280,
+          "height": 720,
+          "fov": 90,
+          "requiredCvars": {
+            "r_ssr": 0,
+            "r_glow": 0,
+            "r_daynight": 0,
+            "cl_player_outline": 1
+          }
+        },
+        "poseHz": 30
+      },
+      "source": {
+        "before": {
+          "outer": "f3cd58282db24bb1c88a7418559f7f5434ab0ad5",
+          "fps": "face10cc2163115f628158fcf4cf8f322915c5a6",
+          "sourceChangeSha256": "44a357490e90dd54a6a4b9877f492fba37fda74bced367a8ed0e59ec205f8f5c"
+        },
+        "after": {
+          "outer": "f3cd58282db24bb1c88a7418559f7f5434ab0ad5",
+          "fps": "face10cc2163115f628158fcf4cf8f322915c5a6",
+          "sourceChangeSha256": "44a357490e90dd54a6a4b9877f492fba37fda74bced367a8ed0e59ec205f8f5c"
+        },
+        "runnerStableSource": true
+      },
+      "exceptions": 0,
+      "status": "complete",
+      "workloadValid": false,
+      "reasons": [
+        "Playback skipped recorded frames/events after a stall"
+      ],
+      "skippedEventsFirstLast": [
+        18,
+        18
+      ],
+      "frames": 3238,
+      "shaderCompiles": 11,
+      "readinessOutsideMeasurement": {
+        "before": false,
+        "after": false
+      },
+      "pendingDataFrames": 3238,
+      "bundles": null,
+      "phases": {
+        "freefly-start": {
+          "observedInteriorFrames": 939,
+          "interiorDurationMs": 11719.6,
+          "profileFile": "2-webgpu-freefly-start.cpuprofile",
+          "wallMs": {
+            "p50": 11.100000000558794,
+            "p95": 23.185000001173456,
+            "p99": 32.510999999959026
+          },
+          "drawCalls": {
+            "p50": 306,
+            "p95": 549.8499999999999,
+            "p99": 590
+          },
+          "bundles": null
+        },
+        "fps-gunplay-a": {
+          "observedInteriorFrames": 847,
+          "interiorDurationMs": 11707,
+          "profileFile": "2-webgpu-fps-gunplay-a.cpuprofile",
+          "wallMs": {
+            "p50": 11.650000000372529,
+            "p95": 30.129999999795103,
+            "p99": 43.78800000052891
+          },
+          "drawCalls": {
+            "p50": 237.5,
+            "p95": 603.3,
+            "p99": 697.43
+          },
+          "bundles": null,
+          "shaderStrings": [
+            {
+              "function": "toString",
+              "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-5YKTZPXC.js?v=b6c00031",
+              "line": 199,
+              "selfMs": 132.078,
+              "selfPercent": 1.128,
+              "selfMsPerFrame": 0.1559
+            }
+          ],
+          "topSelf": [
+            {
+              "function": "(program)",
+              "url": "",
+              "line": 0,
+              "selfMs": 831.082,
+              "selfPercent": 7.099,
+              "selfMsPerFrame": 0.9812
+            },
+            {
+              "function": "_evaluateActiveMeshes",
+              "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-GWWN2JU2.js?v=b6c00031",
+              "line": 5707,
+              "selfMs": 455.48,
+              "selfPercent": 3.891,
+              "selfMsPerFrame": 0.5378
+            },
+            {
+              "function": "render",
+              "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-PLL44WHZ.js?v=b6c00031",
+              "line": 3345,
+              "selfMs": 321.531,
+              "selfPercent": 2.747,
+              "selfMsPerFrame": 0.3796
+            },
+            {
+              "function": "_update",
+              "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-Q6KRL26Q.js?v=b6c00031",
+              "line": 86,
+              "selfMs": 283.093,
+              "selfPercent": 2.418,
+              "selfMsPerFrame": 0.3342
+            },
+            {
+              "function": "markDirty",
+              "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-KWLI76SW.js?v=b6c00031",
+              "line": 1048,
+              "selfMs": 246.904,
+              "selfPercent": 2.109,
+              "selfMsPerFrame": 0.2915
+            },
+            {
+              "function": "isReadyForSubMesh",
+              "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-H5CCTZCC.js?v=b6c00031",
+              "line": 953,
+              "selfMs": 223.512,
+              "selfPercent": 1.909,
+              "selfMsPerFrame": 0.2639
+            },
+            {
+              "function": "(garbage collector)",
+              "url": "",
+              "line": 0,
+              "selfMs": 217.639,
+              "selfPercent": 1.859,
+              "selfMsPerFrame": 0.257
+            }
+          ],
+          "slowIntervals": {
+            "count": 43,
+            "thresholdMs": 30.129999999795103,
+            "summaryDurationMs": 1619.4,
+            "topSelf": [
+              {
+                "function": "log",
+                "url": "http://127.0.0.1:3117/src/engine/debug/DebugConsole.ts",
+                "line": 619,
+                "selfMs": 115,
+                "selfPercent": 7.101,
+                "selfMsPerFrame": 2.6744
+              },
+              {
+                "function": "(program)",
+                "url": "",
+                "line": 0,
+                "selfMs": 93.768,
+                "selfPercent": 5.79,
+                "selfMsPerFrame": 2.1807
+              },
+              {
+                "function": "toString",
+                "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-5YKTZPXC.js?v=b6c00031",
+                "line": 199,
+                "selfMs": 80.696,
+                "selfPercent": 4.983,
+                "selfMsPerFrame": 1.8767
+              },
+              {
+                "function": "(garbage collector)",
+                "url": "",
+                "line": 0,
+                "selfMs": 74.774,
+                "selfPercent": 4.617,
+                "selfMsPerFrame": 1.7389
+              },
+              {
+                "function": "isReadyForSubMesh",
+                "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-H5CCTZCC.js?v=b6c00031",
+                "line": 953,
+                "selfMs": 51.386,
+                "selfPercent": 3.173,
+                "selfMsPerFrame": 1.195
+              },
+              {
+                "function": "markDirty",
+                "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-KWLI76SW.js?v=b6c00031",
+                "line": 1048,
+                "selfMs": 38.334,
+                "selfPercent": 2.367,
+                "selfMsPerFrame": 0.8915
+              },
+              {
+                "function": "_evaluateActiveMeshes",
+                "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-GWWN2JU2.js?v=b6c00031",
+                "line": 5707,
+                "selfMs": 32.692,
+                "selfPercent": 2.019,
+                "selfMsPerFrame": 0.7603
+              }
+            ]
+          }
+        },
+        "freefly-return": {
+          "observedInteriorFrames": 612,
+          "interiorDurationMs": 8352.8,
+          "profileFile": "2-webgpu-freefly-return.cpuprofile",
+          "wallMs": {
+            "p50": 12.400000000372529,
+            "p95": 26.33999999873341,
+            "p99": 36.785000000000025
+          },
+          "drawCalls": {
+            "p50": 337,
+            "p95": 442.55000000000007,
+            "p99": 508.1400000000001
+          },
+          "bundles": null
+        },
+        "fps-gunplay-b": {
+          "observedInteriorFrames": 762,
+          "interiorDurationMs": 11743,
+          "profileFile": "2-webgpu-fps-gunplay-b.cpuprofile",
+          "wallMs": {
+            "p50": 14.450000000186265,
+            "p95": 27.445000000204885,
+            "p99": 41.034999999627416
+          },
+          "drawCalls": {
+            "p50": 364.5,
+            "p95": 526,
+            "p99": 564.8999999999996
+          },
+          "bundles": null,
+          "shaderStrings": [
+            {
+              "function": "toString",
+              "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-5YKTZPXC.js?v=b6c00031",
+              "line": 199,
+              "selfMs": 156.879,
+              "selfPercent": 1.336,
+              "selfMsPerFrame": 0.2059
+            }
+          ],
+          "topSelf": [
+            {
+              "function": "(program)",
+              "url": "",
+              "line": 0,
+              "selfMs": 906.088,
+              "selfPercent": 7.717,
+              "selfMsPerFrame": 1.1891
+            },
+            {
+              "function": "_evaluateActiveMeshes",
+              "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-GWWN2JU2.js?v=b6c00031",
+              "line": 5707,
+              "selfMs": 417.197,
+              "selfPercent": 3.553,
+              "selfMsPerFrame": 0.5475
+            },
+            {
+              "function": "render",
+              "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-PLL44WHZ.js?v=b6c00031",
+              "line": 3345,
+              "selfMs": 389.043,
+              "selfPercent": 3.313,
+              "selfMsPerFrame": 0.5106
+            },
+            {
+              "function": "_update",
+              "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-Q6KRL26Q.js?v=b6c00031",
+              "line": 86,
+              "selfMs": 265.596,
+              "selfPercent": 2.262,
+              "selfMsPerFrame": 0.3486
+            },
+            {
+              "function": "markDirty",
+              "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-KWLI76SW.js?v=b6c00031",
+              "line": 1048,
+              "selfMs": 232.729,
+              "selfPercent": 1.982,
+              "selfMsPerFrame": 0.3054
+            },
+            {
+              "function": "(garbage collector)",
+              "url": "",
+              "line": 0,
+              "selfMs": 220.842,
+              "selfPercent": 1.881,
+              "selfMsPerFrame": 0.2898
+            },
+            {
+              "function": "writeBuffer",
+              "url": "",
+              "line": 0,
+              "selfMs": 205.463,
+              "selfPercent": 1.75,
+              "selfMsPerFrame": 0.2696
+            }
+          ],
+          "slowIntervals": {
+            "count": 39,
+            "thresholdMs": 27.445000000204885,
+            "summaryDurationMs": 1384.3999999999999,
+            "topSelf": [
+              {
+                "function": "(program)",
+                "url": "",
+                "line": 0,
+                "selfMs": 99.435,
+                "selfPercent": 7.183,
+                "selfMsPerFrame": 2.5496
+              },
+              {
+                "function": "toString",
+                "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-5YKTZPXC.js?v=b6c00031",
+                "line": 199,
+                "selfMs": 88.28,
+                "selfPercent": 6.377,
+                "selfMsPerFrame": 2.2636
+              },
+              {
+                "function": "log",
+                "url": "http://127.0.0.1:3117/src/engine/debug/DebugConsole.ts",
+                "line": 619,
+                "selfMs": 64.608,
+                "selfPercent": 4.667,
+                "selfMsPerFrame": 1.6566
+              },
+              {
+                "function": "PrepareDefinesForLight",
+                "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-Z6ESKNUW.js?v=b6c00031",
+                "line": 1020,
+                "selfMs": 63.433,
+                "selfPercent": 4.582,
+                "selfMsPerFrame": 1.6265
+              },
+              {
+                "function": "(garbage collector)",
+                "url": "",
+                "line": 0,
+                "selfMs": 50.329,
+                "selfPercent": 3.635,
+                "selfMsPerFrame": 1.2905
+              },
+              {
+                "function": "isReadyForSubMesh",
+                "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-H5CCTZCC.js?v=b6c00031",
+                "line": 953,
+                "selfMs": 37.397,
+                "selfPercent": 2.701,
+                "selfMsPerFrame": 0.9589
+              },
+              {
+                "function": "markDirty",
+                "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-KWLI76SW.js?v=b6c00031",
+                "line": 1048,
+                "selfMs": 35.077,
+                "selfPercent": 2.534,
+                "selfMsPerFrame": 0.8994
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "artifacts": "public/data/benchmarks/results/2026-10-10-codex-material-ncm/1-webgpu",
+      "actualBackend": "webgpu",
+      "environment": {
+        "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36 Edg/155.0.0.0",
+        "babylonVersion": "9.17.0",
+        "compatibilityMode": false,
+        "profile": {
+          "width": 1280,
+          "height": 720,
+          "fov": 90,
+          "requiredCvars": {
+            "r_ssr": 0,
+            "r_glow": 0,
+            "r_daynight": 0,
+            "cl_player_outline": 1
+          }
+        },
+        "poseHz": 30
+      },
+      "source": {
+        "before": {
+          "outer": "f3cd58282db24bb1c88a7418559f7f5434ab0ad5",
+          "fps": "face10cc2163115f628158fcf4cf8f322915c5a6",
+          "sourceChangeSha256": "44a357490e90dd54a6a4b9877f492fba37fda74bced367a8ed0e59ec205f8f5c"
+        },
+        "after": {
+          "outer": "7d9dd22eb42e79385640bdc35dc5584496dbaca7",
+          "fps": "face10cc2163115f628158fcf4cf8f322915c5a6",
+          "sourceChangeSha256": "44a357490e90dd54a6a4b9877f492fba37fda74bced367a8ed0e59ec205f8f5c"
+        },
+        "runnerStableSource": false,
+        "independentRevisionAudit": {
+          "changedCommittedFiles": [
+            "docs/research/SHAGGED_API.md"
+          ],
+          "sourceHashUnchanged": true,
+          "artifactFlagRetained": true
+        }
+      },
+      "exceptions": 0,
+      "status": "complete",
+      "workloadValid": true,
+      "reasons": [],
+      "skippedEventsFirstLast": [
+        0,
+        0
+      ],
+      "frames": 3911,
+      "shaderCompiles": 4,
+      "readinessOutsideMeasurement": {
+        "before": false,
+        "after": false
+      },
+      "pendingDataFrames": 857,
+      "bundles": {
+        "sampledFrames": 3911,
+        "missingFrames": 0,
+        "created": 224902,
+        "reused": 1032417,
+        "createdPerFrame": 57.504985937100486,
+        "reusedPerFrame": 263.97775504985935,
+        "creationSharePercent": 17.887425545943394,
+        "framesWithCreation": 3584,
+        "framesWithCreationPercent": 91.63896701610841
+      },
+      "phases": {
+        "freefly-start": {
+          "observedInteriorFrames": 1187,
+          "interiorDurationMs": 11579.099,
+          "profileFile": "1-webgpu-freefly-start.cpuprofile",
+          "wallMs": {
+            "p50": 8.599999999627471,
+            "p95": 17.390000000409792,
+            "p99": 25.53100000021972
+          },
+          "drawCalls": {
+            "p50": 319,
+            "p95": 551,
+            "p99": 589.1799999999998
+          },
+          "bundles": {
+            "sampledFrames": 1242,
+            "missingFrames": 0,
+            "created": 71891,
+            "reused": 330624,
+            "createdPerFrame": 57.88325281803543,
+            "reusedPerFrame": 266.2028985507246,
+            "creationSharePercent": 17.860452405500418,
+            "framesWithCreation": 1053,
+            "framesWithCreationPercent": 84.78260869565217
+          }
+        },
+        "fps-gunplay-a": {
+          "observedInteriorFrames": 997,
+          "interiorDurationMs": 11687.6,
+          "profileFile": "1-webgpu-fps-gunplay-a.cpuprofile",
+          "wallMs": {
+            "p50": 10,
+            "p95": 24.475000000372518,
+            "p99": 34.162000000309256
+          },
+          "drawCalls": {
+            "p50": 269.5,
+            "p95": 614.15,
+            "p99": 694.83
+          },
+          "bundles": {
+            "sampledFrames": 1018,
+            "missingFrames": 0,
+            "created": 65657,
+            "reused": 246014,
+            "createdPerFrame": 64.49607072691552,
+            "reusedPerFrame": 241.664047151277,
+            "creationSharePercent": 21.066124214315735,
+            "framesWithCreation": 1018,
+            "framesWithCreationPercent": 100
+          },
+          "shaderStrings": [
+            {
+              "function": "toString",
+              "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-5YKTZPXC.js?v=b6c00031",
+              "line": 199,
+              "selfMs": 65.161,
+              "selfPercent": 0.558,
+              "selfMsPerFrame": 0.0654
+            }
+          ],
+          "topSelf": [
+            {
+              "function": "(program)",
+              "url": "",
+              "line": 0,
+              "selfMs": 925.991,
+              "selfPercent": 7.923,
+              "selfMsPerFrame": 0.9288
+            },
+            {
+              "function": "_update",
+              "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-Q6KRL26Q.js?v=b6c00031",
+              "line": 86,
+              "selfMs": 452.331,
+              "selfPercent": 3.87,
+              "selfMsPerFrame": 0.4537
+            },
+            {
+              "function": "_evaluateActiveMeshes",
+              "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-GWWN2JU2.js?v=b6c00031",
+              "line": 5707,
+              "selfMs": 430.987,
+              "selfPercent": 3.688,
+              "selfMsPerFrame": 0.4323
+            },
+            {
+              "function": "render",
+              "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-PLL44WHZ.js?v=b6c00031",
+              "line": 3345,
+              "selfMs": 340.765,
+              "selfPercent": 2.916,
+              "selfMsPerFrame": 0.3418
+            },
+            {
+              "function": "markDirty",
+              "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-KWLI76SW.js?v=b6c00031",
+              "line": 1048,
+              "selfMs": 272.541,
+              "selfPercent": 2.332,
+              "selfMsPerFrame": 0.2734
+            },
+            {
+              "function": "(idle)",
+              "url": "",
+              "line": 0,
+              "selfMs": 233.519,
+              "selfPercent": 1.998,
+              "selfMsPerFrame": 0.2342
+            },
+            {
+              "function": "(garbage collector)",
+              "url": "",
+              "line": 0,
+              "selfMs": 232.342,
+              "selfPercent": 1.988,
+              "selfMsPerFrame": 0.233
+            }
+          ],
+          "slowIntervals": {
+            "count": 51,
+            "thresholdMs": 24.475000000372518,
+            "summaryDurationMs": 1554.561,
+            "topSelf": [
+              {
+                "function": "(program)",
+                "url": "",
+                "line": 0,
+                "selfMs": 134.803,
+                "selfPercent": 8.671,
+                "selfMsPerFrame": 2.6432
+              },
+              {
+                "function": "log",
+                "url": "http://127.0.0.1:3117/src/engine/debug/DebugConsole.ts",
+                "line": 619,
+                "selfMs": 107.901,
+                "selfPercent": 6.941,
+                "selfMsPerFrame": 2.1157
+              },
+              {
+                "function": "(garbage collector)",
+                "url": "",
+                "line": 0,
+                "selfMs": 76.945,
+                "selfPercent": 4.95,
+                "selfMsPerFrame": 1.5087
+              },
+              {
+                "function": "(idle)",
+                "url": "",
+                "line": 0,
+                "selfMs": 45.422,
+                "selfPercent": 2.922,
+                "selfMsPerFrame": 0.8906
+              },
+              {
+                "function": "markDirty",
+                "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-KWLI76SW.js?v=b6c00031",
+                "line": 1048,
+                "selfMs": 44.403,
+                "selfPercent": 2.856,
+                "selfMsPerFrame": 0.8706
+              },
+              {
+                "function": "toString",
+                "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-5YKTZPXC.js?v=b6c00031",
+                "line": 199,
+                "selfMs": 41.936,
+                "selfPercent": 2.698,
+                "selfMsPerFrame": 0.8223
+              },
+              {
+                "function": "_markAllSubMeshesAsDirty",
+                "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-KWLI76SW.js?v=b6c00031",
+                "line": 1430,
+                "selfMs": 40.421,
+                "selfPercent": 2.6,
+                "selfMsPerFrame": 0.7926
+              }
+            ]
+          }
+        },
+        "freefly-return": {
+          "observedInteriorFrames": 821,
+          "interiorDurationMs": 8329.999,
+          "profileFile": "1-webgpu-freefly-return.cpuprofile",
+          "wallMs": {
+            "p50": 9.300000000745058,
+            "p95": 18.869999999925486,
+            "p99": 24.772000000253346
+          },
+          "drawCalls": {
+            "p50": 337,
+            "p95": 451.69999999999993,
+            "p99": 528
+          },
+          "bundles": {
+            "sampledFrames": 867,
+            "missingFrames": 0,
+            "created": 40441,
+            "reused": 237687,
+            "createdPerFrame": 46.64475201845444,
+            "reusedPerFrame": 274.14878892733566,
+            "creationSharePercent": 14.540427429097393,
+            "framesWithCreation": 729,
+            "framesWithCreationPercent": 84.08304498269896
+          }
+        },
+        "fps-gunplay-b": {
+          "observedInteriorFrames": 763,
+          "interiorDurationMs": 11723.399,
+          "profileFile": "1-webgpu-fps-gunplay-b.cpuprofile",
+          "wallMs": {
+            "p50": 14,
+            "p95": 28.639999999478423,
+            "p99": 37.24800000006315
+          },
+          "drawCalls": {
+            "p50": 379.5,
+            "p95": 526.6999999999998,
+            "p99": 566.2099999999995
+          },
+          "bundles": {
+            "sampledFrames": 784,
+            "missingFrames": 0,
+            "created": 46913,
+            "reused": 218092,
+            "createdPerFrame": 59.838010204081634,
+            "reusedPerFrame": 278.17857142857144,
+            "creationSharePercent": 17.702684855002737,
+            "framesWithCreation": 784,
+            "framesWithCreationPercent": 100
+          },
+          "shaderStrings": [
+            {
+              "function": "toString",
+              "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-5YKTZPXC.js?v=b6c00031",
+              "line": 199,
+              "selfMs": 83.639,
+              "selfPercent": 0.713,
+              "selfMsPerFrame": 0.1096
+            }
+          ],
+          "topSelf": [
+            {
+              "function": "(program)",
+              "url": "",
+              "line": 0,
+              "selfMs": 1228.162,
+              "selfPercent": 10.477,
+              "selfMsPerFrame": 1.6096
+            },
+            {
+              "function": "_evaluateActiveMeshes",
+              "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-GWWN2JU2.js?v=b6c00031",
+              "line": 5707,
+              "selfMs": 433.177,
+              "selfPercent": 3.695,
+              "selfMsPerFrame": 0.5677
+            },
+            {
+              "function": "(garbage collector)",
+              "url": "",
+              "line": 0,
+              "selfMs": 368.898,
+              "selfPercent": 3.147,
+              "selfMsPerFrame": 0.4835
+            },
+            {
+              "function": "render",
+              "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-PLL44WHZ.js?v=b6c00031",
+              "line": 3345,
+              "selfMs": 349.677,
+              "selfPercent": 2.983,
+              "selfMsPerFrame": 0.4583
+            },
+            {
+              "function": "_update",
+              "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-Q6KRL26Q.js?v=b6c00031",
+              "line": 86,
+              "selfMs": 311.965,
+              "selfPercent": 2.661,
+              "selfMsPerFrame": 0.4089
+            },
+            {
+              "function": "markDirty",
+              "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-KWLI76SW.js?v=b6c00031",
+              "line": 1048,
+              "selfMs": 241.58,
+              "selfPercent": 2.061,
+              "selfMsPerFrame": 0.3166
+            },
+            {
+              "function": "writeBuffer",
+              "url": "",
+              "line": 0,
+              "selfMs": 232.287,
+              "selfPercent": 1.982,
+              "selfMsPerFrame": 0.3044
+            }
+          ],
+          "slowIntervals": {
+            "count": 40,
+            "thresholdMs": 28.639999999478423,
+            "summaryDurationMs": 1463.968,
+            "topSelf": [
+              {
+                "function": "(garbage collector)",
+                "url": "",
+                "line": 0,
+                "selfMs": 203.735,
+                "selfPercent": 13.917,
+                "selfMsPerFrame": 5.0934
+              },
+              {
+                "function": "(program)",
+                "url": "",
+                "line": 0,
+                "selfMs": 190.874,
+                "selfPercent": 13.038,
+                "selfMsPerFrame": 4.7718
+              },
+              {
+                "function": "log",
+                "url": "http://127.0.0.1:3117/src/engine/debug/DebugConsole.ts",
+                "line": 619,
+                "selfMs": 85.05,
+                "selfPercent": 5.81,
+                "selfMsPerFrame": 2.1263
+              },
+              {
+                "function": "toString",
+                "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-5YKTZPXC.js?v=b6c00031",
+                "line": 199,
+                "selfMs": 41.446,
+                "selfPercent": 2.831,
+                "selfMsPerFrame": 1.0361
+              },
+              {
+                "function": "_getData",
+                "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-DDDLT5E2.js?v=b6c00031",
+                "line": 1319,
+                "selfMs": 29.95,
+                "selfPercent": 2.046,
+                "selfMsPerFrame": 0.7487
+              },
+              {
+                "function": "_markAllSubMeshesAsDirty",
+                "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-KWLI76SW.js?v=b6c00031",
+                "line": 1430,
+                "selfMs": 27.677,
+                "selfPercent": 1.891,
+                "selfMsPerFrame": 0.6919
+              },
+              {
+                "function": "render",
+                "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-PLL44WHZ.js?v=b6c00031",
+                "line": 3345,
+                "selfMs": 26.462,
+                "selfPercent": 1.808,
+                "selfMsPerFrame": 0.6615
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

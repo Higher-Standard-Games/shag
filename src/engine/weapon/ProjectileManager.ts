@@ -23,6 +23,7 @@ import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
 import { getMD3Loader, type MD3LoadResult } from "../loader/model/MD3Loader";
 import { ModelSourceCache } from "../loader/model/ModelSourceCache";
 import { PK3Loader } from "../loader/pk3/PK3Loader";
+import { updateUnlitTrailRibbon } from "./EffectGeometry";
 import {
   BLADE_EXPLOSION,
   GRENADE_EXPLOSION,
@@ -1139,18 +1140,10 @@ export class ProjectileManager {
     // is created exactly once and updated in place ever after — same vertex
     // count guaranteed, no growth-phase recreation churn.
     if (proj.trailMesh) {
-      MeshBuilder.CreateRibbon(`${proj.id}_trail`, {
-        pathArray,
-        updatable: true,
-        sideOrientation: Mesh.DOUBLESIDE,
-        instance: proj.trailMesh as unknown as Mesh,
-      });
-      MeshBuilder.CreateRibbon(`${proj.id}_trailCross`, {
-        pathArray: pathArrayCross,
-        updatable: true,
-        sideOrientation: Mesh.DOUBLESIDE,
-        instance: proj.trailMeshCross as unknown as Mesh,
-      });
+      // Layout and indices stay fixed. The generic ribbon updater dirties
+      // shader attributes and recomputes normals that these unlit trails never use.
+      updateUnlitTrailRibbon(proj.trailMesh as unknown as Mesh, pathA, pathB);
+      updateUnlitTrailRibbon(proj.trailMeshCross as unknown as Mesh, pathC, pathD);
     } else {
       proj.trailMesh = MeshBuilder.CreateRibbon(
         `${proj.id}_trail`,
@@ -1184,11 +1177,13 @@ export class ProjectileManager {
         : new Color3(0.3, 0.5, 1.0);
 
       const mat = new StandardMaterial(`${proj.id}_trailMat`, this.scene);
-      mat.emissiveColor = trailColor;
-      mat.diffuseColor = Color3.Black();
-      mat.disableLighting = true;
-      mat.backFaceCulling = false;
-      mat.alpha = 0.6;
+      mat.atomicMaterialsUpdate(() => {
+        mat.emissiveColor = trailColor;
+        mat.diffuseColor = Color3.Black();
+        mat.disableLighting = true;
+        mat.backFaceCulling = false;
+        mat.alpha = 0.6;
+      });
       proj.trailMaterial = mat;
     }
     proj.trailMesh.material = proj.trailMaterial;

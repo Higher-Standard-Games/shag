@@ -22,6 +22,7 @@ import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import { ParticleSystem } from "@babylonjs/core/Particles/particleSystem";
 import type { Scene } from "@babylonjs/core/scene";
 import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
+import { updateEffectPositions } from "./EffectGeometry";
 import { getPointLightPool } from "./PointLightPool";
 
 // ═══════════════════════════════════════════════════════════════════
@@ -339,19 +340,22 @@ export class ExplosionEffect {
       deformed[i + 2] = nz * dist * spike;
     }
 
-    mesh.setVerticesData(VertexBuffer.PositionKind, deformed);
+    mesh.setVerticesData(VertexBuffer.PositionKind, deformed, true);
 
     // Store original deformed positions for animation
     const origPositions = new Float32Array(deformed);
 
     // Material: emissive, no lighting
     const mat = new StandardMaterial(`${id}_fireballMat`, this.scene!);
-    mat.emissiveColor = config.coreColor.clone();
-    mat.diffuseColor = Color3.Black();
-    mat.disableLighting = true;
-    mat.backFaceCulling = false;
-    mat.alpha = 0.9;
-    applySafeMaxSimultaneousLights(mat);
+    // Each dirty-enabling setter otherwise scans every submesh in the scene.
+    mat.atomicMaterialsUpdate(() => {
+      mat.emissiveColor = config.coreColor.clone();
+      mat.diffuseColor = Color3.Black();
+      mat.disableLighting = true;
+      mat.backFaceCulling = false;
+      mat.alpha = 0.9;
+      applySafeMaxSimultaneousLights(mat);
+    });
     mesh.material = mat;
 
     // Start small, will animate up
@@ -401,11 +405,13 @@ export class ExplosionEffect {
       const mat = new StandardMaterial(`${id}_rayMat_${i}`, this.scene!);
       // Mix between core and outer color randomly
       const blend = Math.random();
-      mat.emissiveColor = Color3.Lerp(config.coreColor, config.outerColor, blend);
-      mat.diffuseColor = Color3.Black();
-      mat.disableLighting = true;
-      mat.alpha = 0.8;
-      applySafeMaxSimultaneousLights(mat);
+      mat.atomicMaterialsUpdate(() => {
+        mat.emissiveColor = Color3.Lerp(config.coreColor, config.outerColor, blend);
+        mat.diffuseColor = Color3.Black();
+        mat.disableLighting = true;
+        mat.alpha = 0.8;
+        applySafeMaxSimultaneousLights(mat);
+      });
       mesh.material = mat;
 
       // Start small
@@ -452,12 +458,14 @@ export class ExplosionEffect {
     }
 
     const mat = new StandardMaterial(`${id}_shockwaveMat`, this.scene!);
-    mat.emissiveColor = config.outerColor.clone();
-    mat.diffuseColor = Color3.Black();
-    mat.disableLighting = true;
-    mat.backFaceCulling = false;
-    mat.alpha = 0.7;
-    applySafeMaxSimultaneousLights(mat);
+    mat.atomicMaterialsUpdate(() => {
+      mat.emissiveColor = config.outerColor.clone();
+      mat.diffuseColor = Color3.Black();
+      mat.disableLighting = true;
+      mat.backFaceCulling = false;
+      mat.alpha = 0.7;
+      applySafeMaxSimultaneousLights(mat);
+    });
     mesh.material = mat;
 
     return { mesh, material: mat };
@@ -618,7 +626,7 @@ export class ExplosionEffect {
           positions[i + 1] = vy;
           positions[i + 2] = vz;
         }
-        exp.fireball.setVerticesData(VertexBuffer.PositionKind, positions);
+        updateEffectPositions(exp.fireball, positions);
       }
     }
   }

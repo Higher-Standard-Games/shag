@@ -92,8 +92,15 @@ actors, not a claim that all ten bodies are visible in every view.
 Skipped recorded events, missing bodies, missing phases or a completely missing
 first-person gun mark a run invalid. Hidden tabs, renderer failures, replacement
 playback, changed required settings/dimensions and cancellation stop the run with a
-reason. Transient gun loading and scene readiness counts remain visible in raw
+reason. Transient gun loading and pending scene-data counts remain visible in raw
 samples and summaries; inspect them before accepting a reference fixture.
+
+Scene readiness is checked before and after measurement, not every frame:
+`scene.isReady()` scans meshes and can prepare materials, changing the workload
+being measured. Current samples therefore set `sceneReady: null` and record the
+passive `pendingSceneData` count instead. `sceneReadinessObservedFrames` distinguishes
+unobserved readiness from a ready scene; pending data does not establish shader
+readiness. Older reports with boolean readiness remain readable.
 
 GPU timing uses fresh asynchronous counter results when supported. It reports
 `unavailable` rather than inventing a zero and does not attribute delayed GPU samples
@@ -129,3 +136,43 @@ adapter and power state. Run three repetitions per actual backend in a quiet hea
 browser, export both reports and inspect camera/gun/body/effects checkpoints. The
 current implementation has headless validation; hardware/visual acceptance remains
 pending. See the [research status](../../research/v0.9.27-webgpu.md).
+
+## CPU profiling in Edge
+
+The [profiling runner](../../../scripts/benchmarks/profile-timedemo.mjs) starts a
+private localhost Vite server with HMR and file watching disabled, then a fresh
+visible Edge profile for each backend. It does not use your normal browser profile.
+Run from the repository root with the local benchmark fixture installed:
+
+```powershell
+npm run benchmark:profile -- --dry-run
+npm run benchmark:profile
+```
+
+It defaults to one WebGL2 run followed by one WebGPU compatibility-mode run, the
+ten-player `wdm2` fixture, the fixture's required settings, and
+`cl_player_pose_hz 30`. Options include `--backends webgpu`, `--ncm 1`,
+`--interval 1000` (microseconds), `--browser <executable>`, `--port 3117`,
+`--fixture <id>` and `--out <new-workspace-directory>`.
+
+Keep the desktop unlocked and leave the visible benchmark window alone. Avoid
+other tests, builds and profiling sessions during capture. The runner saves the
+timedemo report, complete main-thread `.cpuprofile`, per-phase CPU slices and
+summaries, first-person slow-frame summaries, warmup screenshots, and source/browser metadata under
+`public/data/benchmarks/results/` by default. Edge and the private server close
+afterward; raw results and the temporary browser data under `node_modules/.cache/`
+remain local.
+
+CPU sampling and polling add overhead. These captures explain hotspots; their
+frame times are not an unprofiled benchmark score. Profiling stays continuous
+through the measured tour and stops only afterward, avoiding expensive profiler
+serialization at camera cuts. Per-phase CPU slices retain the interior between
+observed same-phase playheads, excluding uncertain cut edges. Clock calibration,
+observed frames and workload-invalid reasons are saved alongside the profiles.
+Self times are exclusive; inclusive entries overlap and must not be added together.
+
+Each raw sample's `frameAtMs` is a page-clock timestamp at the frame hook before
+playback. Its `wallMs` interval ends there. The runner maps these timestamps to the
+CPU clock and summarizes same-phase first-person intervals at or above that phase's
+p95. These summaries include all main-thread work and waiting inside the selected
+wall intervals; they are not proof that the largest sampled function caused a stall.

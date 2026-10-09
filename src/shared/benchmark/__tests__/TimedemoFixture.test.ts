@@ -85,5 +85,9 @@ describe("timedemo fixture contract", () => {
     expect(report.wallMs.p95).toBeCloseTo(19.25);
     expect(report.overBudgetPercent).toBe(50);
     expect(summarizeTimedemoSamples([]).wallMs.p95).toBeNull();
+    const unknown = summarizeTimedemoSamples([{ ...samples[0], sceneReady: null }]);
+    expect(unknown.unreadySceneFrames).toBe(0);
+    expect(unknown.sceneReadinessObservedFrames).toBe(0);
+    expect(unknown.pendingSceneDataFrames).toBeNull();
   });
 });
