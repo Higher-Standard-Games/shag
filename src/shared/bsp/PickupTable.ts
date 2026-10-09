@@ -68,6 +68,9 @@ const AMMO_CLASSNAMES: Record<string, PickupClassInfo> = {
  * Legacy Warsow/Quake armor & health classnames are mapped onto the unified
  * plate-armor and health systems (see ItemGrants.ts).
  */
+/** Every map weapon's classname: what a mode with kits leaves off the map. */
+export const WEAPON_PICKUP_CLASSNAMES: readonly string[] = Object.keys(CLASSNAME_TO_WEAPON);
+
 export const PICKUP_CLASSNAMES: Record<string, PickupClassInfo> = {
   // Weapons (kind = weapon id)
   ...Object.fromEntries(

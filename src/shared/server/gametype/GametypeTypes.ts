@@ -6,6 +6,8 @@
  * Game logic stays server-only; these are just data shapes.
  */
 
+import type { LoadoutMode } from "./Loadout";
+
 // ============================================================================
 // Match Lifecycle
 // ============================================================================
@@ -148,6 +150,11 @@ export interface MatchConfig {
    * See docs/research/Search_And_Destroy.md §5.1.
    */
   roundBased?: boolean;
+  /**
+   * Player-chosen spawn kits (Loadout.ts), and when a change takes effect.
+   * Absent: the mode has no kits and spawns its own loadout.
+   */
+  loadouts?: LoadoutMode;
   /** Allow normal timed player respawns during a live round (arena DM). */
   roundRespawns?: boolean;
   /** Show per-round frag/death scores while retaining cumulative match stats. */
@@ -389,6 +396,8 @@ export interface MatchStateSnapshot {
   winner?: MatchWinner;
   /** Number of overtime extensions this match (0 = regulation). */
   overtime?: number;
+  /** Whether players choose a kit, and when a change takes effect. Absent: no kits. */
+  loadouts?: LoadoutMode;
   /** Match flow mode: "single" = per-match server, post-game is terminal
    *  (players return to the lobby); "continuous" = classic warmup loop. */
   flow?: "single" | "continuous";

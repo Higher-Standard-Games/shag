@@ -2,10 +2,10 @@
  * Player-chosen spawn kits, for modes that have them.
  *
  * Warsow Bomb is a pure loadout mode — it zeroes every item mask and lets you
- * pick two weapons at spawn. We keep the map items, so this is the Warsow idea
- * adapted to an engine that still has an item game: you spawn with a blade, one
- * primary and one secondary, and everything else is on the floor where you have
- * to go and take it.
+ * pick two weapons at spawn. Ours is close: in a mode with kits the map's
+ * weapons do not spawn, so the kit is your arsenal, but ammo, armor, health and
+ * powerups stay on the floor where you have to go and take them. You spawn with
+ * a blade, one primary and one secondary.
  *
  * The table is shared because three places need the same answer: the server
  * builds the kit from it, the client menu lists it, and bots pick from it.
@@ -122,8 +122,28 @@ function resolveAlias(value: string | undefined): string | null {
   return ALIASES[key] ?? key;
 }
 
+/**
+ * When a changed kit takes effect. `round`: at the next round, so a lost
+ * gunfight is not a free re-kit (S&D, Amphi). `respawn`: at the player's next
+ * spawn, which in a respawning mode comes within seconds (Deathmatch).
+ */
+export type LoadoutMode = "round" | "respawn";
+
+/**
+ * A bot's kit, picked from the table by a seed (its player id), so a bot is
+ * armed the same every time a match is replayed and the bots in a match do
+ * not all carry the default.
+ */
+export function botLoadout(seed: number): LoadoutChoice {
+  const mixed = Math.abs(Math.imul(seed | 0, 2654435761) | 0);
+  return {
+    primary: PRIMARY_CHOICES[mixed % PRIMARY_CHOICES.length],
+    secondary: SECONDARY_CHOICES[Math.floor(mixed / PRIMARY_CHOICES.length) % SECONDARY_CHOICES.length],
+  };
+}
+
 /** Build the spawn kit for a choice. The blade is not optional. */
-export function buildLoadout(choice: LoadoutChoice): WeaponLoadout {
+export function buildLoadout(choice: LoadoutChoice, armor = LOADOUT_SPAWN_ARMOR): WeaponLoadout {
   return {
     weapons: ["blade", choice.primary, choice.secondary],
     ammo: {
@@ -132,7 +152,7 @@ export function buildLoadout(choice: LoadoutChoice): WeaponLoadout {
       [choice.secondary]: SPAWN_AMMO[choice.secondary],
     },
     health: 100,
-    armor: LOADOUT_SPAWN_ARMOR,
+    armor,
   };
 }
 

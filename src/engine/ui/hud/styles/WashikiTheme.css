@@ -3783,6 +3783,25 @@
   pointer-events: none;
 }
 
+/* When a changed kit takes effect, under the heading */
+.fps-loadout-note {
+  margin-top: calc(6px * var(--ui-scale, 1));
+  font-family: var(--w-font-body);
+  font-size: calc(13px * var(--ui-scale, 1));
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: hsla(45, 100%, 95%, 0.7);
+}
+
+/* Back to the match menu, keeping the kit */
+.fps-loadout-back.raised-key {
+  display: inline-block;
+  width: auto;
+  margin-top: calc(10px * var(--ui-scale, 1));
+  pointer-events: auto;
+}
+
 .fps-loadout-confirm.raised-key {
   display: block;
   width: calc(100% - 12px);
