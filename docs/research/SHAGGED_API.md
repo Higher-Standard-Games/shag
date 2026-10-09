@@ -302,7 +302,6 @@ Tests: [`ConnectStairs.test.ts`](../../src/engine/editor/api/__tests__/ConnectSt
 Open:
 
 - Bots cannot route up stairs (bot graph limitation, separate from SHAGGED); the report surfaces it per map.
-- Jump pads and teleporter-pair generators.
 - An unbiased acceptance run with a fresh agent that has only the guide and the MCP tools.
 
 ### P1 slice 3: texture lookup (2026-10-10)
@@ -341,3 +340,14 @@ Feasible, and a genuine differentiator: few engines combine an in-engine level e
 - [A typed-tools Blender MCP server](https://glama.ai/mcp/servers/@ShirshovDIM/retopoflow_blender_mcp/blob/78358fedc1d6d47808d380d331e176370b479c59/src/tools/scene.py): typed tools instead of a code-execution catch-all.
 
 These are third-party listings and forks of the original `ahujasid/blender-mcp` project; tool sets differ between forks.
+
+### P1 slice 4: teleporters and jump pads (2026-10-10)
+
+**Status: working.**
+
+- `gen.teleporter` (`at`, `to`, `angle`, `size`, `height`): a `common/trigger` box on the floor as a `trigger_teleport` brush entity, and a `misc_teleporter_dest` at standing height (floor + 24) at `to`, linked by `target`/`targetname` (`<id>_dest`). `gen.jumppad` (`at`, `to`, `size`, `height`): the same with `trigger_push` and a `target_position` (`<id>_target`), which the game uses as the throw's landing target. Both are classes the game's trigger table resolves (`TriggerTable.ts`).
+- **Player reachability follows triggers.** When a reached position's hull overlaps a teleporter or jump pad volume, the destination joins the flood (a jump pad's target is taken as its landing point). Trigger volumes come from the same trigger table the game uses (`mapKnowledge.triggerVolumes`).
+- Real map: room A with two spawns, a jump pad up to a 160-unit ledge (far above jump height) holding the mega, and a teleporter to room B, a separate sealed room with no door holding a rocket launcher. 25 objects, no health issues, sealed. Report: **player reachability ok, bot navigation ok**. Control with both triggers deleted (their brush entities go with them): **mega and rocket launcher reachable from 0 spawns**.
+- Tests: [`Triggers.test.ts`](../../src/engine/editor/api/__tests__/Triggers.test.ts) (linking, Map Health clean, trigger on the floor with the trigger texture, destinations at standing height) and a teleporter case in `PlayerReach.test.ts`.
+
+Not modelled: a jump pad's actual arc (the flood assumes the throw arrives at its target, which is what the game aims for; a ceiling in the way would not be caught).

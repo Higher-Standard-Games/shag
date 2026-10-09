@@ -316,3 +316,85 @@ export function generateStairs(spec: StairsSpec): Generated {
   }
   return { brushes, entities: [] };
 }
+
+export interface TeleporterSpec {
+  id: string;
+  /** Floor point under the middle of the teleporter trigger. */
+  at: Vec3q;
+  /** Floor point where players arrive. */
+  to: Vec3q;
+  /** Facing on arrival, degrees (0 = +X, 90 = +Y). Default 0. */
+  angle?: number;
+  /** Trigger footprint (square) and height. Defaults 64 and 64. */
+  size?: number;
+  height?: number;
+}
+
+export interface JumpPadSpec {
+  id: string;
+  /** Floor point under the middle of the pad. */
+  at: Vec3q;
+  /** Floor point where players land; the pad throws them there. */
+  to: Vec3q;
+  /** Trigger footprint (square) and height. Defaults 64 and 16. */
+  size?: number;
+  height?: number;
+}
+
+export interface Linked {
+  /** Brushes that become the trigger brush entity. */
+  trigger: BoxBrush[];
+  classname: "trigger_teleport" | "trigger_push";
+  keys: Record<string, string>;
+  entities: PointEntity[];
+}
+
+/** Player origins sit this far above the floor, as spawn points do. */
+const STANDING_ORIGIN = 24;
+
+function triggerBox(id: string, at: Vec3q, size: number, height: number): BoxBrush {
+  return {
+    id: `${id}-trigger`,
+    min: { x: at.x - size / 2, y: at.y - size / 2, z: at.z },
+    max: { x: at.x + size / 2, y: at.y + size / 2, z: at.z + height },
+    shader: "common/trigger",
+  };
+}
+
+/** A teleporter: a trigger on the floor at `at` sending players to `to`. */
+export function generateTeleporter(spec: TeleporterSpec): Linked {
+  if (!spec.id) throw new Error("gen.teleporter needs an id");
+  const destination = `${spec.id}_dest`;
+  return {
+    trigger: [triggerBox(spec.id, spec.at, positive(spec.size ?? 64, "size"), positive(spec.height ?? 64, "height"))],
+    classname: "trigger_teleport",
+    keys: { target: destination },
+    entities: [
+      {
+        id: `${spec.id}-dest`,
+        classname: "misc_teleporter_dest",
+        origin: { x: spec.to.x, y: spec.to.y, z: spec.to.z + STANDING_ORIGIN },
+        keys: { targetname: destination, angle: String(spec.angle ?? 0) },
+      },
+    ],
+  };
+}
+
+/** A jump pad: a push trigger on the floor at `at` throwing players to `to`. */
+export function generateJumpPad(spec: JumpPadSpec): Linked {
+  if (!spec.id) throw new Error("gen.jumppad needs an id");
+  const target = `${spec.id}_target`;
+  return {
+    trigger: [triggerBox(spec.id, spec.at, positive(spec.size ?? 64, "size"), positive(spec.height ?? 16, "height"))],
+    classname: "trigger_push",
+    keys: { target },
+    entities: [
+      {
+        id: `${spec.id}-target`,
+        classname: "target_position",
+        origin: { x: spec.to.x, y: spec.to.y, z: spec.to.z + STANDING_ORIGIN },
+        keys: { targetname: target },
+      },
+    ],
+  };
+}

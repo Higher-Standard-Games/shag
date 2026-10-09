@@ -44,13 +44,15 @@ After `compile`, play the map with `map <mapName>` in the game console.
 | `gen.corridor` | `id`, `from`, `to`, `width?` (128), `height?` (128), `wall?`, `shader?`, `light?` (200) | Open-ended corridor between two floor-centre points along x **or** y, at the same z. |
 | `gen.connect` | `id`, `from` and `to` (rooms' interiors `{min, max}`), `width?` (128), `height?` (128), `wall?` (16), `offset?`, `shader?`, `light?` (200) | **Joins two rooms** that are apart along x or y, with floors at the same z: cuts a doorway through both walls and builds a sealed corridor between them. `offset` is the corridor's centre across its direction (default: the middle of the rooms' shared span). |
 | `gen.stairs` | `id`, `from` (bottom), `to` (top), `width?` (128), `step?` (16, at most 18), `shader?` | Solid steps standing on the floor at `from.z`, rising to `to.z` along x or y. |
+| `gen.teleporter` | `id`, `at` (floor point under the trigger), `to` (arrival floor point), `angle?` (degrees, 0 = +X), `size?` (64), `height?` (64) | A `trigger_teleport` brush on the floor and its `misc_teleporter_dest`, already linked. |
+| `gen.jumppad` | `id`, `at` (floor point under the pad), `to` (landing floor point), `size?` (64), `height?` (16) | A `trigger_push` brush on the floor and its `target_position`, already linked; the pad throws players to `to`. |
 | `brush.carve` | `min`, `max` | Subtracts a box from every brush it cuts; the pieces keep their material and brush-entity owner. |
 
 **Openings** (`gen.room`): `{ "side": "+X", "min": {...}, "max": {...} }`. The two in-wall axes of `min`/`max` give the hole (for `+X`/`-X`: y and z); the side's own axis is ignored. An opening must stay inside the room's interior span so the corners stay sealed.
 
 **Joining rooms:** use `gen.connect` with the two rooms' interiors; it works out the doorways and the corridor. (`gen.corridor` with hand-made openings also works: the corridor starts at the room wall's **outer** face and the opening equals the corridor's cross-section.)
 
-**Levels:** a ledge up to about 44 units is a hop; anything higher needs `gen.stairs` (or a jump pad). Build a balcony as a box and put stairs against it, with the top step ending at the balcony's edge.
+**Levels:** a ledge up to about 44 units is a hop; anything higher needs `gen.stairs` or `gen.jumppad`. `gen.teleporter` links any two places, even separate sealed rooms. Build a balcony as a box and put stairs against it, with the top step ending at the balcony's edge.
 
 Example: two rooms joined by a corridor, with spawns and a weapon:
 
@@ -89,7 +91,7 @@ Example: two rooms joined by a corridor, with spawns and a weapon:
 
 - At least one `info_player_deathmatch`, with `z` 24 or more above the floor. For free-for-all, several spread apart without direct line of sight between them; set `angle` to face into the room.
 - Every spawn should reach every weapon and item, and every other spawn: `report` checks this.
-- Teleporters and jump pads need a destination: the trigger's `target` equals the destination's `targetname`.
+- Teleporters and jump pads need a destination: the trigger's `target` equals the destination's `targetname`. `gen.teleporter` and `gen.jumppad` link them for you.
 
 **Performance:**
 
@@ -102,7 +104,7 @@ Example: two rooms joined by a corridor, with spawns and a weapon:
 
 - `health`: Map Health issues (missing spawns or required keys, broken target links, unknown classes, unknown shaders or shaders without an image), each with the object's ID.
 - `compile`: build state, `leak`, the published package and a log tail. An unchanged map reuses its last build (`reused: true`).
-- `reachability`: where a **player** can go in the compiled map, found by flooding it with the game's own movement from every spawn (walking, stairs, drops, and hops up to jump height). `unreachableItems` and `cutOffSpawns` list problems in Quake coordinates with the matching editor `objectId`. This decides `ok`.
+- `reachability`: where a **player** can go in the compiled map, found by flooding it with the game's own movement from every spawn (walking, stairs, drops, hops up to jump height, teleporters and jump pads). `unreachableItems` and `cutOffSpawns` list problems in Quake coordinates with the matching editor `objectId`. This decides `ok`.
 - `botNavigation`: the same question for the bots' navigation graph. Bots can't plan over everything a player can (stairs in particular), so a map can pass `reachability` and still list items here that bots won't go for.
 
 Fix what it reports and run it again.

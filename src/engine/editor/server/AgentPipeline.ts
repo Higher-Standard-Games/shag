@@ -210,6 +210,7 @@ export async function mapReachability(doc: EditorDocumentData, mapName: string) 
       world: vision.collisionWorld,
       spawns: knowledge.spawnPoints,
       items: knowledge.pickupPositions.map((p) => ({ classname: p.classname, position: p.position })),
+      triggers: knowledge.triggerVolumes,
     },
     doc,
   );

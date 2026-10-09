@@ -51,8 +51,27 @@ function settle(world: World, p: Vec3): Vec3 | null {
 
 const key = (p: Vec3) => `${Math.round(p.x / 16)},${Math.round(p.z / 16)},${Math.round(p.y / 8)}`;
 
-/** Every standing position a player starting at `start` can reach. */
-export function floodFrom(world: World, start: Vec3): Vec3[] {
+/** A teleporter or jump pad volume and where it sends a player (game space). */
+export interface ReachTrigger {
+  min: Vec3;
+  max: Vec3;
+  dest: Vec3;
+}
+
+const touches = (p: Vec3, t: ReachTrigger) =>
+  p.x + HULL.max.x > t.min.x &&
+  p.x + HULL.min.x < t.max.x &&
+  p.y + HULL.max.y > t.min.y &&
+  p.y + HULL.min.y < t.max.y &&
+  p.z + HULL.max.z > t.min.z &&
+  p.z + HULL.min.z < t.max.z;
+
+/**
+ * Every standing position a player starting at `start` can reach. Walking into
+ * a teleporter or jump pad adds its destination (a jump pad's target is where
+ * its throw lands).
+ */
+export function floodFrom(world: World, start: Vec3, triggers: readonly ReachTrigger[] = []): Vec3[] {
   const first = settle(world, start);
   if (!first) return [];
   const seen = new Set([key(first)]);
@@ -60,8 +79,20 @@ export function floodFrom(world: World, start: Vec3): Vec3[] {
   const queue = [first];
   const move = (from: Vec3, dir: { x: number; z: number }) =>
     world.stepSlideMove(from, { x: dir.x * STEP * 8, y: 0, z: dir.z * STEP * 8 }, 1 / 8, HULL).endPos;
+  const visit = (landed: Vec3) => {
+    const k = key(landed);
+    if (seen.has(k)) return;
+    seen.add(k);
+    reached.push(landed);
+    queue.push(landed);
+  };
   while (queue.length && reached.length < MAX_STATES) {
     const p = queue.shift()!;
+    for (const trigger of triggers) {
+      if (!touches(p, trigger)) continue;
+      const arrived = settle(world, trigger.dest);
+      if (arrived) visit(arrived);
+    }
     for (const dir of DIRECTIONS) {
       let end = move(p, dir);
       let moved = Math.hypot(end.x - p.x, end.z - p.z);
@@ -81,11 +112,7 @@ export function floodFrom(world: World, start: Vec3): Vec3[] {
       // The movement step can stair-step a further 18 units at the apex; count
       // only landings within jump height, so the report never overstates.
       if (hopped && landed.y - p.y > HOP) continue;
-      const k = key(landed);
-      if (seen.has(k)) continue;
-      seen.add(k);
-      reached.push(landed);
-      queue.push(landed);
+      visit(landed);
     }
   }
   return reached;
@@ -97,6 +124,8 @@ export interface PlayerReachInput {
   spawns: Vec3[];
   /** Pickup positions with classnames, game space. */
   items: Array<{ classname: string; position: Vec3 }>;
+  /** Teleporter and jump pad volumes. */
+  triggers?: readonly ReachTrigger[];
 }
 
 /** Spawn→item and spawn→spawn reachability for players, in the shared report shape. */
@@ -116,7 +145,7 @@ export function playerReachability(
   const edges: Array<{ from: number; to: number }> = [];
   let positions = 0;
   input.spawns.forEach((spawn, from) => {
-    const reached = floodFrom(input.world, spawn);
+    const reached = floodFrom(input.world, spawn, input.triggers);
     positions = Math.max(positions, reached.length);
     for (const node of nodes) {
       if (node.id === from) continue;

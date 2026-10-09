@@ -62,6 +62,14 @@ describe("floodFrom", () => {
     expect(standsAt(reached, 300, 60)).toBe(true);
   });
 
+  it("follows a teleporter to an area it cannot walk to", () => {
+    // A 200-unit wall at x 200..220 cuts off the far side; a teleporter at x 100 sends there.
+    const { world } = makeWorld((x) => (x >= 200 && x < 220 ? 200 : 0));
+    const trigger = { min: { x: 90, y: 0, z: -20 }, max: { x: 110, y: 64, z: 20 }, dest: { x: 350, y: 24, z: 0 } };
+    expect(standsAt(floodFrom(world, { x: 50, y: 24, z: 0 }), 350, 0)).toBe(false);
+    expect(standsAt(floodFrom(world, { x: 50, y: 24, z: 0 }, [trigger]), 350, 0)).toBe(true);
+  });
+
   it("never stands over the void", () => {
     const { world, ground } = makeWorld(() => 0);
     const reached = floodFrom(world, { x: 50, y: 24, z: 0 });
