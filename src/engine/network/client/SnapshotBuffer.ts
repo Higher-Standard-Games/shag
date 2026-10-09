@@ -249,6 +249,8 @@ export class SnapshotBuffer {
     this.jitterSamples.length = 0;
     this.transitSamples.length = 0;
     this.transit = 0;
+    this.frame = null;
+    this.latestIds = null;
     this.lastReceiveTime = 0;
     this.lastTick = null;
     this.interpDelay = DEFAULT_INTERP_DELAY_MS;

@@ -709,15 +709,6 @@ export class PlayerModelManager {
   }
 }
 
-/**
- * Dispose a player model and everything it owns, on every path that removes one
- * (death, leaving, ragdoll expiry, shutdown): its hand weapon with whatever only
- * that used, its locomotion group, its nodes and skeleton, and the materials
- * cloned for it by the visibility style. The model's source materials and
- * textures are shared with every other instance and stay.
- *
- * A one-shot animation lives in the manager; `disposeInstance` stops it first.
- */
 /** The nodes under a player mesh that carry root motion, by source name. */
 function findRootMotionNodes(mesh: Mesh): TransformNode[] {
   return mesh.getChildTransformNodes(false).filter((node) => {
@@ -728,6 +719,15 @@ function findRootMotionNodes(mesh: Mesh): TransformNode[] {
   });
 }
 
+/**
+ * Dispose a player model and everything it owns, on every path that removes one
+ * (death, leaving, ragdoll expiry, shutdown): its hand weapon with whatever only
+ * that used, its locomotion group, its nodes and skeleton, and the materials
+ * cloned for it by the visibility style. The model's source materials and
+ * textures are shared with every other instance and stay.
+ *
+ * A one-shot animation lives in the manager; `disposeInstance` stops it first.
+ */
 export function disposePlayerModel(instance: PlayerModelInstance): void {
   if (instance.attachedWeapon) {
     disposeModelResources([instance.attachedWeapon]);
