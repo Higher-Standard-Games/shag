@@ -48,6 +48,13 @@ export interface WeaponFireEvent {
   dirX: number;
   dirY: number;
   dirZ: number;
+  /**
+   * A pellet shot's seed and cone (half-angle, degrees): with the direction,
+   * enough to rebuild the server's pellets exactly (`generateSpreadDirections`).
+   * Absent for every other shot, and in demos recorded before this existed.
+   */
+  pelletSeed?: number;
+  pelletSpread?: number;
 }
 
 export interface WeaponChargeEvent {

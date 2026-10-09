@@ -808,6 +808,8 @@ export class BinaryProtocol {
     "knockback_state",
     // 23: a damage event that names where the hit landed. Same logical type as 10; see DAMAGE_LOCATED.
     "damage",
+    // 24: a weapon_fire event that carries a pellet seed. Same logical type as 4; see FIRE_SEEDED.
+    "weapon_fire",
   ];
 
   /**
@@ -823,10 +825,24 @@ export class BinaryProtocol {
   /** Wire order of the hit location byte after code 23. Append only: the index is the encoding. */
   private static readonly HIT_LOCATIONS = ["body", "head", "legs"] as const;
 
-  /** The code an event travels under: its type's code, or 23 for a damage event with a head or leg hit. */
+  /**
+   * Wire code of a `weapon_fire` event that carries a pellet seed and cone (a riotgun shot).
+   *
+   * Every other shot keeps code 4 and its layout, so a demo recorded before this existed decodes
+   * exactly as it did. Both codes decode to `type: "weapon_fire"`; only 24 sets the seed.
+   */
+  private static readonly FIRE_SEEDED = 24;
+
+  /**
+   * The code an event travels under: its type's code, 23 for a damage event with a head or leg
+   * hit, or 24 for a weapon_fire event with a pellet seed.
+   */
   private static eventTypeCode(event: GameState["events"][number]): number {
     if (event.type === "damage" && (event.hitLocation === "head" || event.hitLocation === "legs")) {
       return BinaryProtocol.DAMAGE_LOCATED;
+    }
+    if (event.type === "weapon_fire" && event.pelletSeed !== undefined) {
+      return BinaryProtocol.FIRE_SEEDED;
     }
     return BinaryProtocol.EVT_TYPE_MAP[event.type];
   }
@@ -877,6 +893,7 @@ export class BinaryProtocol {
           break;
 
         case 4: // weapon_fire: entityId, weaponId, origin xyz, dir xyz
+        case 24: // weapon_fire with a pellet seed: the same fields, then seed (int32) and cone (float32)
           encoder.writeString(event.entityId);
           encoder.writeString(event.weaponId ?? "");
           encoder.writeFloat32(event.originX ?? 0);
@@ -885,6 +902,10 @@ export class BinaryProtocol {
           encoder.writeFloat32(event.dirX ?? 0);
           encoder.writeFloat32(event.dirY ?? 0);
           encoder.writeFloat32(event.dirZ ?? 0);
+          if (typeCode === BinaryProtocol.FIRE_SEEDED) {
+            encoder.writeInt32(event.pelletSeed ?? 0);
+            encoder.writeFloat32(event.pelletSpread ?? 0);
+          }
           break;
 
         case 5: // weapon_charge: entityId, weaponId, charging
@@ -1096,7 +1117,9 @@ export class BinaryProtocol {
           break;
 
         case 4: // weapon_fire
-          state.events.push({
+        case 24: {
+          // weapon_fire with a pellet seed (code 24); code 4 has none
+          const fireEvent: GameState["events"][number] = {
             type,
             entityId: decoder.readString(),
             weaponId: decoder.readString(),
@@ -1106,8 +1129,14 @@ export class BinaryProtocol {
             dirX: decoder.readFloat32(),
             dirY: decoder.readFloat32(),
             dirZ: decoder.readFloat32(),
-          });
+          };
+          if (typeCode === BinaryProtocol.FIRE_SEEDED) {
+            fireEvent.pelletSeed = decoder.readInt32();
+            fireEvent.pelletSpread = decoder.readFloat32();
+          }
+          state.events.push(fireEvent);
           break;
+        }
 
         case 5: // weapon_charge
           state.events.push({

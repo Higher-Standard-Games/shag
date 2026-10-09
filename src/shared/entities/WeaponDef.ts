@@ -5,6 +5,7 @@
  * aiming, muzzle flash, and other weapon behaviors.
  */
 
+import { DEFAULT_PHYSICS_TICK_RATE } from "../server/simulation/physics/constants";
 import type { EntityDef } from "./EntityDef";
 import type { EntityType } from "./EntityType";
 
@@ -156,6 +157,18 @@ export interface WeaponDef extends EntityDef {
   spread?: number;
   /** ADS spread angle in degrees (typically tighter than hip spread) */
   adsSpread?: number;
+  /**
+   * Spread that opens up under sustained fire (single-ray hitscan). Each shot
+   * uses the current cone, between `spread`/`adsSpread` and the maxima here,
+   * then heats the weapon by 1 / `shotsToMax`; the heat drains to nothing over
+   * `recoverySeconds`. Angles are cone half-angles in degrees, like `spread`.
+   */
+  spreadBloom?: {
+    maxSpread: number;
+    adsMaxSpread: number;
+    shotsToMax: number;
+    recoverySeconds: number;
+  };
 
   /** Firing mode */
   fireMode: "auto" | "semi" | "burst";
@@ -234,6 +247,23 @@ export interface WeaponDef extends EntityDef {
 
   /** Recoil scale (1.0 = normal, 0.1 = minimal for energy weapons) */
   recoilScale?: number;
+  /**
+   * View model's backward punch when fully aimed, as a fraction of hip recoil.
+   * Default 0.2. The barrel's rise stays at 20% when aimed whatever this is.
+   */
+  adsRecoilScale?: number;
+  /**
+   * Camera kick per shot, in degrees: the view jumps up (and a random amount
+   * left or right, up to `yaw`) and settles back over `recoverSeconds`. Visual
+   * only: the angles sent to the server leave it out, so aim never moves.
+   */
+  viewKick?: {
+    pitch: number;
+    yaw: number;
+    adsPitch: number;
+    adsYaw: number;
+    recoverSeconds: number;
+  };
 
   /** Crosshair visual config */
   crosshair?: CrosshairConfig;
@@ -277,6 +307,17 @@ export interface WeaponDef extends EntityDef {
 }
 
 // ==================== DEFAULTS ====================
+
+/**
+ * Refire interval in ticks for a weapon. Prefers an explicit `fireIntervalTicks`
+ * override, else the *nearest* tick to the authored `fireRate`. Previously this
+ * was `Math.floor(125 / fireRate)`, which truncated and made every weapon whose
+ * rate doesn't divide 125 fire slightly fast (F1). `round` is the nearest
+ * representable cadence; min 1 tick.
+ */
+export function fireIntervalTicks(weapon: Pick<WeaponDef, "fireRate" | "fireIntervalTicks">): number {
+  return Math.max(1, weapon.fireIntervalTicks ?? Math.round(DEFAULT_PHYSICS_TICK_RATE / weapon.fireRate));
+}
 
 export const WEAPON_DEFAULTS: Partial<WeaponDef> = {
   damage: 10,
