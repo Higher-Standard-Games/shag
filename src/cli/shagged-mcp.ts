@@ -170,7 +170,7 @@ server.registerTool(
     title: "Edit a map",
     description: [
       "Applies a batch of operations as one all-or-nothing transaction and saves the map. An error names the failing operation and changes nothing.",
-      "Operations (fields in the guide): box.create, box.update, face.material, entity.place, entity.update, brushEntity.assign, object.move, object.duplicate, object.delete, gen.room, gen.corridor.",
+      "Operations (fields in the guide): box.create, box.update, face.material, entity.place, entity.update, brushEntity.assign, object.move, object.duplicate, object.delete, brush.carve, gen.room, gen.corridor, gen.connect (join two rooms), gen.stairs.",
       "Coordinates are Quake units with Z up. Returns created, changed and deleted IDs and Map Health issues.",
       "Use dryRun: true to preview without saving.",
     ].join(" "),
@@ -229,7 +229,7 @@ server.registerTool(
   {
     title: "Check a map end to end",
     description:
-      "Map Health, then compile, then reachability from the bots' navigation graph of the compiled map: items some spawn cannot reach and spawns cut off from others, in Quake coordinates with the editor object ID. ok: true means all three passed.",
+      "Map Health, then compile, then reachability of the compiled map: where a player can go from each spawn using the game's own movement (items some spawn cannot reach, spawns cut off from others), in Quake coordinates with the editor object ID. ok: true means all three passed. botNavigation reports the same for the bots' route graph, which misses stairs.",
     inputSchema: { mapName: MAP_NAME, quality: QUALITY },
   },
   async ({ mapName, quality }) => run(() => exclusive(mapName, () => mapReport(load(mapName), quality))),

@@ -20,7 +20,17 @@ import {
 import { brushEntityShader } from "../EntityCatalog";
 import { naturalFace } from "../FaceUv";
 import { inspectMapHealth, type MapHealthIssue } from "../MapHealth";
-import { type CorridorSpec, generateCorridor, generateRoom, type RoomSpec } from "./Generators";
+import { subtractBox } from "./BoxCsg";
+import {
+  type ConnectSpec,
+  type CorridorSpec,
+  generateConnect,
+  generateCorridor,
+  generateRoom,
+  generateStairs,
+  type RoomSpec,
+  type StairsSpec,
+} from "./Generators";
 
 export const DEFAULT_SHADER = "blx/blx_grid";
 
@@ -42,7 +52,10 @@ export type EditOp =
   | { op: "object.duplicate"; ids: string[]; delta: Vec3q; suffix?: string }
   | { op: "object.delete"; ids: string[] }
   | ({ op: "gen.room" } & RoomSpec)
-  | ({ op: "gen.corridor" } & CorridorSpec);
+  | { op: "brush.carve"; min: Vec3q; max: Vec3q }
+  | ({ op: "gen.corridor" } & CorridorSpec)
+  | ({ op: "gen.connect" } & ConnectSpec)
+  | ({ op: "gen.stairs" } & StairsSpec);
 
 export interface ApplyResult {
   doc: EditorDocumentData;
@@ -264,9 +277,63 @@ function applyOne(doc: EditorDocumentData, op: EditOp, changed: Set<string>): vo
       for (const e of out.entities) doc.entities.push({ ...e, id: claimId(doc, e.id, "ent") });
       return;
     }
+    case "brush.carve": {
+      for (const id of carve(doc, { min: vec(op.min, "min"), max: vec(op.max, "max") })) changed.add(id);
+      return;
+    }
+    case "gen.connect": {
+      const out = generateConnect(op);
+      carve(doc, out.carve);
+      for (const b of out.brushes) doc.brushes.push({ ...b, id: claimId(doc, b.id, "brush") });
+      for (const e of out.entities) doc.entities.push({ ...e, id: claimId(doc, e.id, "ent") });
+      return;
+    }
+    case "gen.stairs": {
+      for (const b of generateStairs(op).brushes) doc.brushes.push({ ...b, id: claimId(doc, b.id, "brush") });
+      return;
+    }
     default:
       throw new Error(`unknown operation "${(op as { op?: unknown }).op}"`);
   }
+}
+
+/**
+ * Subtract a box from every brush it cuts. A cut brush is replaced by the
+ * pieces left over, named `<id>`, `<id>-2`… and keeping its material and its
+ * brush-entity owner. Returns the IDs of the brushes that were cut.
+ */
+function carve(doc: EditorDocumentData, box: { min: Vec3q; max: Vec3q }): string[] {
+  for (const axis of ["x", "y", "z"] as const) {
+    if (!(box.min[axis] < box.max[axis])) throw new Error(`carve box ${axis}: min must be below max`);
+  }
+  const cut: string[] = [];
+  const result: BoxBrush[] = [];
+  for (const brush of doc.brushes) {
+    const pieces = subtractBox(brush, box);
+    if (
+      pieces.length === 1 &&
+      pieces[0].min.x === brush.min.x &&
+      pieces[0].max.x === brush.max.x &&
+      pieces[0].min.y === brush.min.y &&
+      pieces[0].max.y === brush.max.y &&
+      pieces[0].min.z === brush.min.z &&
+      pieces[0].max.z === brush.max.z
+    ) {
+      result.push(brush);
+      continue;
+    }
+    cut.push(brush.id);
+    const owner = doc.brushEntities?.find((e) => e.brushIds.includes(brush.id));
+    const ids: string[] = [];
+    pieces.forEach((piece, index) => {
+      const id = index === 0 ? brush.id : nextFree(doc, `${brush.id}-${index + 1}`, result);
+      ids.push(id);
+      result.push({ ...structuredClone(brush), id, min: piece.min, max: piece.max });
+    });
+    if (owner) owner.brushIds = owner.brushIds.flatMap((id) => (id === brush.id ? ids : [id]));
+  }
+  doc.brushes = result;
+  return cut;
 }
 
 function moveObject(doc: EditorDocumentData, id: string, delta: Vec3q): void {
@@ -325,9 +392,9 @@ function duplicateObject(doc: EditorDocumentData, id: string, delta: Vec3q, suff
   throw new Error(`no brush or entity "${id}" to duplicate`);
 }
 
-/** `<base>`, or `<base>-2`, `<base>-3`… if taken. */
-function nextFree(doc: EditorDocumentData, base: string): string {
-  const used = new Set(allIds(doc));
+/** `<base>`, or `<base>-2`, `<base>-3`… if taken (also by brushes not yet in the document). */
+function nextFree(doc: EditorDocumentData, base: string, pending: readonly BoxBrush[] = []): string {
+  const used = new Set([...allIds(doc), ...pending.map((b) => b.id)]);
   if (!used.has(base)) return base;
   for (let n = 2; ; n++) if (!used.has(`${base}-${n}`)) return `${base}-${n}`;
 }

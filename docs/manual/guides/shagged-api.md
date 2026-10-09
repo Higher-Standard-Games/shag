@@ -41,20 +41,25 @@ After `compile`, play the map with `map <mapName>` in the game console.
 | `object.delete` | `ids` | Deleting a brush entity's last brush removes the entity. |
 | `gen.room` | `id`, `min`, `max`, `wall?` (16), `shader?`, `floorShader?`, `ceilingShader?`, `openings?`, `light?` (300, or `false`) | Hollow room around the **interior** `min`..`max`; `min.z` is the floor surface. Adds a light. |
 | `gen.corridor` | `id`, `from`, `to`, `width?` (128), `height?` (128), `wall?`, `shader?`, `light?` (200) | Open-ended corridor between two floor-centre points along x **or** y, at the same z. |
+| `gen.connect` | `id`, `from` and `to` (rooms' interiors `{min, max}`), `width?` (128), `height?` (128), `wall?` (16), `offset?`, `shader?`, `light?` (200) | **Joins two rooms** that are apart along x or y, with floors at the same z: cuts a doorway through both walls and builds a sealed corridor between them. `offset` is the corridor's centre across its direction (default: the middle of the rooms' shared span). |
+| `gen.stairs` | `id`, `from` (bottom), `to` (top), `width?` (128), `step?` (16, at most 18), `shader?` | Solid steps standing on the floor at `from.z`, rising to `to.z` along x or y. |
+| `brush.carve` | `min`, `max` | Subtracts a box from every brush it cuts; the pieces keep their material and brush-entity owner. |
 
 **Openings** (`gen.room`): `{ "side": "+X", "min": {...}, "max": {...} }`. The two in-wall axes of `min`/`max` give the hole (for `+X`/`-X`: y and z); the side's own axis is ignored. An opening must stay inside the room's interior span so the corners stay sealed.
 
-**Joining a room and a corridor:** give the room an opening equal to the corridor's interior cross-section, and start the corridor at the room wall's **outer** face. Example: a room with interior `max.x = -128` and walls 16 thick has its outer east face at `x = -112`; a corridor from `x = -112` with width 128 at `y = 0` needs an opening `y -64..64`, `z 0..128` on `+X`.
+**Joining rooms:** use `gen.connect` with the two rooms' interiors; it works out the doorways and the corridor. (`gen.corridor` with hand-made openings also works: the corridor starts at the room wall's **outer** face and the opening equals the corridor's cross-section.)
+
+**Levels:** a ledge up to about 44 units is a hop; anything higher needs `gen.stairs` (or a jump pad). Build a balcony as a box and put stairs against it, with the top step ending at the balcony's edge.
 
 Example: two rooms joined by a corridor, with spawns and a weapon:
 
 ```json
 [
-  { "op": "gen.room", "id": "west", "min": { "x": -512, "y": -192, "z": 0 }, "max": { "x": -128, "y": 192, "z": 256 },
-    "openings": [{ "side": "+X", "min": { "x": 0, "y": -64, "z": 0 }, "max": { "x": 0, "y": 64, "z": 128 } }] },
-  { "op": "gen.room", "id": "east", "min": { "x": 128, "y": -192, "z": 0 }, "max": { "x": 512, "y": 192, "z": 256 },
-    "openings": [{ "side": "-X", "min": { "x": 0, "y": -64, "z": 0 }, "max": { "x": 0, "y": 64, "z": 128 } }] },
-  { "op": "gen.corridor", "id": "hall", "from": { "x": -112, "y": 0, "z": 0 }, "to": { "x": 112, "y": 0, "z": 0 } },
+  { "op": "gen.room", "id": "west", "min": { "x": -512, "y": -192, "z": 0 }, "max": { "x": -128, "y": 192, "z": 256 } },
+  { "op": "gen.room", "id": "east", "min": { "x": 128, "y": -192, "z": 0 }, "max": { "x": 512, "y": 192, "z": 256 } },
+  { "op": "gen.connect", "id": "hall",
+    "from": { "min": { "x": -512, "y": -192, "z": 0 }, "max": { "x": -128, "y": 192, "z": 256 } },
+    "to": { "min": { "x": 128, "y": -192, "z": 0 }, "max": { "x": 512, "y": 192, "z": 256 } } },
   { "op": "entity.place", "id": "spawn-west", "classname": "info_player_deathmatch", "origin": { "x": -400, "y": 0, "z": 24 } },
   { "op": "entity.place", "id": "spawn-east", "classname": "info_player_deathmatch", "origin": { "x": 400, "y": 0, "z": 24 }, "keys": { "angle": "180" } },
   { "op": "entity.place", "id": "rl", "classname": "weapon_rocketlauncher", "origin": { "x": 320, "y": 128, "z": 16 } }
@@ -94,6 +99,7 @@ Example: two rooms joined by a corridor, with spawns and a weapon:
 
 - `health`: Map Health issues (missing spawns or required keys, broken target links, unknown classes or shaders), each with the object's ID.
 - `compile`: build state, `leak`, the published package and a log tail. An unchanged map reuses its last build (`reused: true`).
-- `reachability`: from the bots' navigation graph of the compiled map. `unreachableItems` and `cutOffSpawns` list problems in Quake coordinates with the matching editor `objectId`.
+- `reachability`: where a **player** can go in the compiled map, found by flooding it with the game's own movement from every spawn (walking, stairs, drops, and hops up to jump height). `unreachableItems` and `cutOffSpawns` list problems in Quake coordinates with the matching editor `objectId`. This decides `ok`.
+- `botNavigation`: the same question for the bots' navigation graph. Bots can't plan over everything a player can (stairs in particular), so a map can pass `reachability` and still list items here that bots won't go for.
 
 Fix what it reports and run it again.

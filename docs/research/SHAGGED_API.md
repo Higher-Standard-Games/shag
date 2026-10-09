@@ -278,7 +278,32 @@ Lessons for the API from this run:
 - `entity_classes` is essential: Washoi names differ from Quake 3 (`weapon_electrobolt`, not a railgun).
 - Still missing for richer maps: stairs (anything above a 44-unit hop), jump pads, and texture lookup with image sizes.
 
-Next: `gen.connect` and `gen.stairs`, then texture lookup; and an unbiased acceptance run with a fresh agent that has only the guide and the MCP tools.
+### P1 slice 2: connect, stairs, carve, and player reachability (2026-10-10)
+
+**Status: working.** The acceptance map rebuilt with `gen.connect` needs no doorway or corridor arithmetic, and multi-level maps are checked correctly.
+
+- [`BoxCsg.ts`](../../src/engine/editor/api/BoxCsg.ts): exact axis-aligned box subtraction (up to six boxes, deterministic order).
+- New operations: **`brush.carve`** (subtract a box from every brush it cuts; pieces keep material and brush-entity owner, named `<id>`, `<id>-2`, …), **`gen.connect`** (from two rooms' interiors: carve the corridor's whole outer cross-section through both walls, then fill it with the corridor, so the join is sealed whatever the rooms' wall thickness; refuses different floor heights and corridors wider than the rooms' shared span), **`gen.stairs`** (solid steps on the floor, rising at most 18 per step, whole-unit treads).
+- **Player reachability** ([`PlayerReach.ts`](../../src/engine/editor/server/PlayerReach.ts)). The bot graph cannot plan over stairs (straight swept-box links, height difference under 40, 256-unit floor sampling), so a balcony reached only by stairs was reported unreachable. The report's verdict now comes from a flood fill using the game's own movement: `stepSlideMove` with the player hull from every spawn in 32-unit steps over 8 directions, settling onto whatever is below (drops), and hopping where blocked. A hop counts only when it lands within jump height (45): the movement step can stair-step a further 18 at the apex, and the report must not overstate. The bot graph's result is still reported, as `botNavigation`, because bots need it.
+
+Evidence (each `report` about 12–13 s on this machine):
+
+| Map | Player reachability | Bot navigation |
+| --- | --- | --- |
+| Three rooms via `gen.connect` + 96-unit balcony with stairs (62 objects, no arithmetic) | **ok**: 4 spawns, 4 items, 4,367 positions | mega unreachable (stairs) |
+| Same, stairs deleted (control) | **fails**: mega reachable from 0 spawns | mega unreachable |
+| First three-room map (40-unit hop-up platform) | ok | ok |
+| Two-room map | ok | ok |
+| Two-room map with the corridor plugged | **fails**: rocket launcher from 1 of 2 spawns, both spawns cut off | same |
+| The guide's own example, extracted from the guide and applied | ok, no leak | ok |
+
+Tests: [`ConnectStairs.test.ts`](../../src/engine/editor/api/__tests__/ConnectStairs.test.ts) (volume-exact subtraction, carve keeps material and ownership, connect leaves no overlaps and an open doorway, refusals, stairs never above 18 per step) and [`PlayerReach.test.ts`](../../src/engine/editor/server/__tests__/PlayerReach.test.ts) (a 40 ledge is hoppable, a 60 ledge is not, stairs climb to 60, never over the void).
+
+Open:
+
+- Bots cannot route up stairs (bot graph limitation, separate from SHAGGED); the report surfaces it per map.
+- Texture lookup with image sizes, jump pads and teleporter-pair generators.
+- An unbiased acceptance run with a fresh agent that has only the guide and the MCP tools.
 
 ## Risks and open questions
 

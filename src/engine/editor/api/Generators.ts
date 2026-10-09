@@ -188,3 +188,131 @@ export function generateCorridor(spec: CorridorSpec): Generated {
   room.brushes = room.brushes.filter((brush) => brush.min[along] < brush.max[along]);
   return room;
 }
+
+export interface ConnectSpec {
+  id: string;
+  /** Interiors of the two rooms, as given to gen.room. Their floors must be at the same z. */
+  from: { min: Vec3q; max: Vec3q };
+  to: { min: Vec3q; max: Vec3q };
+  /** Interior width and height. Defaults 128 and 128. */
+  width?: number;
+  height?: number;
+  /** Corridor wall thickness. Default 16. */
+  wall?: number;
+  /** Centre of the corridor across its direction. Default: the middle of the rooms' shared span. */
+  offset?: number;
+  shader?: string;
+  /** Default 200; false for none. */
+  light?: number | false;
+}
+
+/**
+ * A corridor between two rooms that face each other along x or y. The caller
+ * first carves `carve` out of the existing brushes (both rooms' walls and
+ * anything between), then adds `brushes`: the corridor fills that cut exactly,
+ * leaving a doorway into each room, so the join is sealed whatever the rooms'
+ * wall thickness.
+ */
+export function generateConnect(spec: ConnectSpec): Generated & { carve: { min: Vec3q; max: Vec3q } } {
+  const { id, from: a, to: b } = spec;
+  if (!id) throw new Error("gen.connect needs an id");
+  if (a?.min?.z !== b?.min?.z)
+    throw new Error("the rooms' floors (min.z) differ; join different heights with gen.stairs inside a room");
+  const width = positive(spec.width ?? 128, "width");
+  const height = positive(spec.height ?? 128, "height");
+  const t = positive(spec.wall ?? 16, "wall");
+  let along: Axis;
+  if (a.max.x <= b.min.x || b.max.x <= a.min.x) along = "x";
+  else if (a.max.y <= b.min.y || b.max.y <= a.min.y) along = "y";
+  else throw new Error("the rooms overlap; they must be apart along x or y");
+  const across: Axis = along === "x" ? "y" : "x";
+  const [first, second] = a.max[along] <= b.min[along] ? [a, b] : [b, a];
+  const shared = [Math.max(a.min[across], b.min[across]), Math.min(a.max[across], b.max[across])];
+  const centre = spec.offset ?? (shared[0] + shared[1]) / 2;
+  const half = width / 2 + t;
+  if (centre - half < shared[0] || centre + half > shared[1]) {
+    throw new Error(
+      `a ${width}-wide corridor with ${t}-unit walls needs ${2 * half} units of the rooms' shared ${across} span (${shared[0]}..${shared[1]}) around ${centre}`,
+    );
+  }
+  const floor = a.min.z;
+  if (floor + height > Math.min(a.max.z, b.max.z))
+    throw new Error(`corridor height ${height} is taller than the lower room`);
+  const start = first.max[along];
+  const end = second.min[along];
+  const box = (lo: Partial<Vec3q>, hi: Partial<Vec3q>): { min: Vec3q; max: Vec3q } => {
+    const min = { x: 0, y: 0, z: 0, ...lo };
+    const max = { x: 0, y: 0, z: 0, ...hi };
+    min[along] = start;
+    max[along] = end;
+    return { min, max };
+  };
+  const shader = spec.shader ?? DEFAULT_SHADER;
+  const c0 = centre - width / 2;
+  const c1 = centre + width / 2;
+  const brushes: BoxBrush[] = [
+    { id: `${id}-floor`, ...box({ [across]: c0 - t, z: floor - t }, { [across]: c1 + t, z: floor }), shader },
+    {
+      id: `${id}-ceiling`,
+      ...box({ [across]: c0 - t, z: floor + height }, { [across]: c1 + t, z: floor + height + t }),
+      shader,
+    },
+    { id: `${id}-side-1`, ...box({ [across]: c0 - t, z: floor }, { [across]: c0, z: floor + height }), shader },
+    { id: `${id}-side-2`, ...box({ [across]: c1, z: floor }, { [across]: c1 + t, z: floor + height }), shader },
+  ];
+  const entities: PointEntity[] = [];
+  const light = spec.light ?? 200;
+  if (light !== false) {
+    const origin = { x: 0, y: 0, z: floor + Math.max(height / 2, height - 32) };
+    origin[along] = (start + end) / 2;
+    origin[across] = centre;
+    entities.push({ id: `${id}-light`, classname: "light", origin, keys: { light: String(positive(light, "light")) } });
+  }
+  const carve = box({ [across]: c0 - t, z: floor - t }, { [across]: c1 + t, z: floor + height + t });
+  return { brushes, entities, carve };
+}
+
+export interface StairsSpec {
+  id: string;
+  /** Floor point at the bottom of the first step, and at the top of the last; they differ along x or y. */
+  from: Vec3q;
+  to: Vec3q;
+  /** Default 128. */
+  width?: number;
+  /** Rise per step; at most 18 (the game's step height). Default 16. */
+  step?: number;
+  shader?: string;
+}
+
+/** Solid steps from `from` up to `to`, standing on the floor at from.z. */
+export function generateStairs(spec: StairsSpec): Generated {
+  const { id, from, to } = spec;
+  if (!id) throw new Error("gen.stairs needs an id");
+  const rise = to.z - from.z;
+  if (!(rise > 0)) throw new Error("to.z must be above from.z; stairs go up from `from`");
+  const along: Axis | null = from.x !== to.x && from.y === to.y ? "x" : from.y !== to.y && from.x === to.x ? "y" : null;
+  if (!along) throw new Error("stairs must run along exactly one of x or y");
+  const across: Axis = along === "x" ? "y" : "x";
+  const stepHeight = positive(spec.step ?? 16, "step");
+  if (stepHeight > 18) throw new Error("step must be at most 18: players climb 18 units without jumping");
+  const count = Math.ceil(rise / stepHeight);
+  const run = to[along] - from[along];
+  const tread = Math.abs(run) / count;
+  if (tread < 8) throw new Error(`a ${Math.abs(run)}-unit run is too short for ${count} steps; make it longer`);
+  const width = positive(spec.width ?? 128, "width");
+  const dir = Math.sign(run);
+  const brushes: BoxBrush[] = [];
+  for (let i = 0; i < count; i++) {
+    // Whole units, so steps stay on integer coordinates.
+    const a = Math.round(from[along] + dir * tread * i);
+    const b = i === count - 1 ? to[along] : Math.round(from[along] + dir * tread * (i + 1));
+    const min = { x: 0, y: 0, z: from.z };
+    const max = { x: 0, y: 0, z: Math.min(to.z, from.z + stepHeight * (i + 1)) };
+    min[along] = Math.min(a, b);
+    max[along] = Math.max(a, b);
+    min[across] = from[across] - width / 2;
+    max[across] = from[across] + width / 2;
+    brushes.push({ id: `${id}-step-${i + 1}`, min, max, shader: spec.shader ?? DEFAULT_SHADER });
+  }
+  return { brushes, entities: [] };
+}

@@ -167,21 +167,42 @@ export async function compileDocument(doc: EditorDocumentData, quality?: string)
   };
 }
 
-/** The bot navigation graph of the published map: can every spawn reach every item and spawn? */
+/**
+ * Reachability of the published map. `player` floods the map with the
+ * game's own movement (steps, slides, drops, hops) and is the verdict;
+ * `bots` is the bots' navigation graph, which also needs to connect for bots
+ * to find their way, and misses stairs and other paths a player can take.
+ */
 export async function mapReachability(doc: EditorDocumentData, mapName: string) {
-  const [{ createBotVision }, { BotNavGraph }, { analyzeReachability }] = await Promise.all([
+  const [{ createBotVision }, { BotNavGraph }, { analyzeReachability }, { playerReachability }] = await Promise.all([
     import("../../../bot/BotVision"),
     import("../../../bot/BotNavGraph"),
     import("../api/Reachability"),
+    import("./PlayerReach"),
   ]);
   const vision = await createBotVision(mapName);
-  if (!vision) return { ok: false, error: `could not load the compiled map "${mapName}"` };
+  if (!vision) return { player: { ok: false, error: `could not load the compiled map "${mapName}"` }, bots: null };
+  const knowledge = vision.mapKnowledge;
+  const player = playerReachability(
+    {
+      world: vision.collisionWorld,
+      spawns: knowledge.spawnPoints,
+      items: knowledge.pickupPositions.map((p) => ({ classname: p.classname, position: p.position })),
+    },
+    doc,
+  );
   const graph = new BotNavGraph(mapName);
   graph.buildFromVision(vision);
+  const bots = analyzeReachability(graph.nodes, graph.edges, doc);
   return {
-    ...analyzeReachability(graph.nodes, graph.edges, doc),
-    navNodes: graph.nodeCount,
-    navEdges: graph.edgeCount,
+    player,
+    bots: {
+      ok: bots.ok,
+      unreachableItems: bots.unreachableItems.map((i) => i.objectId ?? i.classname),
+      cutOffSpawns: bots.cutOffSpawns.map((s) => s.objectId ?? s.classname),
+      navNodes: graph.nodeCount,
+      navEdges: graph.edgeCount,
+    },
   };
 }
 
@@ -189,8 +210,13 @@ export async function mapReachability(doc: EditorDocumentData, mapName: string) 
 export async function mapReport(doc: EditorDocumentData, quality?: string) {
   const health = healthOf(doc);
   const build = await quietly(() => compileDocument(doc, quality));
-  const reachability = build.ok
-    ? await quietly(() => mapReachability(doc, build.mapName))
-    : { ok: false, error: "skipped: the map did not compile" };
-  return { ok: health.ok && build.ok && reachability.ok === true, health, compile: build, reachability };
+  const reach = build.ok ? await quietly(() => mapReachability(doc, build.mapName)) : null;
+  const reachability = reach?.player ?? { ok: false, error: "skipped: the map did not compile" };
+  return {
+    ok: health.ok && build.ok && reachability.ok === true,
+    health,
+    compile: build,
+    reachability,
+    botNavigation: reach?.bots ?? null,
+  };
 }
