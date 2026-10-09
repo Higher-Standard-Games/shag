@@ -55,6 +55,16 @@ const DEFAULT_SPAWN_POINTS: Vec3[] = [
  * @returns Raw BSP ArrayBuffer, or null if not found
  */
 export async function loadBspBuffer(mapName: string): Promise<ArrayBuffer | null> {
+  // The pk3 index first, as the game server resolves maps: it also follows
+  // SHAGGED's current-build pointer to the exact published package.
+  const { resolveMapBspViaIndex } = await import("../../engine/loader/pk3/NodePk3");
+  try {
+    const indexed = await resolveMapBspViaIndex([path.resolve("./public/data"), path.resolve("./dist/data")], mapName);
+    if (indexed) return indexed;
+  } catch (error) {
+    console.warn(`[BspDataLoader] pk3 index could not resolve ${mapName}:`, error);
+  }
+
   const possiblePaths = [
     path.resolve("./public/data", `map_${mapName}.pk3`),
     path.resolve("./public/data/maps", `${mapName}.bsp`),

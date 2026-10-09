@@ -1,0 +1,196 @@
+/**
+ * The Node side of the SHAGGED scripting API, shared by the `shagged` CLI and
+ * the MCP server: describe a document, compile and publish it, and report on
+ * the compiled map. See docs/research/SHAGGED_API.md.
+ */
+import { existsSync } from "node:fs";
+import path from "node:path";
+import { type EditorDocumentData, validateDocument } from "../EditorDocument";
+import { inspectMapHealth, type MapHealthIssue } from "../MapHealth";
+import { writeMap } from "../MapWriter";
+import { isBuildQuality } from "./BuildRecipe";
+import { CompileJobs } from "./CompileJobs";
+import { resolveCompilerConfig } from "./CompilerConfig";
+import { MapStore } from "./MapStore";
+import { readPublishedBuild } from "./PublishedBuild";
+import { resolveServerConfig } from "./ServerConfig";
+
+export class PipelineError extends Error {
+  constructor(
+    message: string,
+    readonly details: Record<string, unknown> = {},
+  ) {
+    super(message);
+  }
+}
+
+/** Bot, map and compiler code log progress to stdout; keep a caller's stdout for its own output. */
+export async function quietly<T>(work: () => Promise<T>): Promise<T> {
+  const log = console.log;
+  console.log = () => {};
+  try {
+    return await work();
+  } finally {
+    console.log = log;
+  }
+}
+
+function bounds(doc: EditorDocumentData) {
+  const points = [
+    ...doc.brushes.flatMap((b) => [b.min, b.max]),
+    ...doc.entities.map((e) => e.origin),
+    ...(doc.patches ?? []).flatMap((p) => p.controlPoints.flat()),
+  ];
+  if (!points.length) return null;
+  const pick = (f: (...n: number[]) => number) => ({
+    x: f(...points.map((p) => p.x)),
+    y: f(...points.map((p) => p.y)),
+    z: f(...points.map((p) => p.z)),
+  });
+  return { min: pick(Math.min), max: pick(Math.max) };
+}
+
+/** Counts, bounds and entity classes; with `objects`, every object. */
+export function describeDocument(doc: EditorDocumentData, objects = false) {
+  const classes: Record<string, number> = {};
+  for (const e of [...doc.entities, ...(doc.brushEntities ?? [])])
+    classes[e.classname] = (classes[e.classname] ?? 0) + 1;
+  return {
+    ok: true,
+    mapName: doc.mapName ?? null,
+    revision: doc.revision,
+    counts: {
+      brushes: doc.brushes.length,
+      patches: doc.patches?.length ?? 0,
+      entities: doc.entities.length,
+      brushEntities: doc.brushEntities?.length ?? 0,
+    },
+    entityClasses: classes,
+    bounds: bounds(doc),
+    ...(objects
+      ? {
+          brushes: doc.brushes.map((b) => ({ id: b.id, min: b.min, max: b.max, shader: b.shader })),
+          entities: doc.entities.map((e) => ({ id: e.id, classname: e.classname, origin: e.origin, keys: e.keys })),
+          brushEntities: doc.brushEntities ?? [],
+        }
+      : {}),
+  };
+}
+
+export function healthOf(doc: EditorDocumentData): { ok: boolean; issues: MapHealthIssue[] } {
+  const issues = inspectMapHealth(doc);
+  return { ok: issues.every((issue) => issue.severity !== "warning"), issues };
+}
+
+export interface CompileOutcome {
+  ok: boolean;
+  state: string;
+  stage: string;
+  mapName: string;
+  revision: number;
+  quality: string;
+  runtimeMapName: string | null;
+  packageName: string | null;
+  bspHash: string | null;
+  leak: boolean;
+  /** True when the current published build already came from these source bytes. */
+  reused: boolean;
+  logTail: string[];
+}
+
+/**
+ * Save the document as a server revision, compile it with MakeBSP/MakeLight
+ * and publish it as a playable package. Reuses the current published build
+ * when it came from the same source bytes at the same quality.
+ */
+export async function compileDocument(doc: EditorDocumentData, quality?: string): Promise<CompileOutcome> {
+  validateDocument(doc);
+  if (!doc.mapName) throw new PipelineError('the document has no mapName; give it one (lowercase id, e.g. "arena1")');
+  const server = resolveServerConfig([]);
+  const compiler = await resolveCompilerConfig({});
+  if (!compiler.available) throw new PipelineError("the MakeBSP/MakeLight toolchain is not available", { compiler });
+  const level = quality ?? compiler.defaultQuality;
+  if (!isBuildQuality(level)) throw new PipelineError(`unsupported quality ${level}; use fast, default or release`);
+  const store = new MapStore(server.mapsRoot);
+  await store.init();
+  const name = doc.mapName;
+  const current = await store.load(name);
+  const source = writeMap(doc);
+  const saved =
+    current && current.source === source ? current : await store.save(name, source, current?.revision ?? 0, doc);
+  const published = await readPublishedBuild(server.publishRoot, name);
+  if (
+    published &&
+    published.sourceHash === saved.sourceHash &&
+    published.quality === level &&
+    existsSync(path.join(server.publishRoot, published.package))
+  ) {
+    return {
+      ok: true,
+      state: "playable",
+      stage: "done",
+      mapName: name,
+      revision: saved.revision,
+      quality: level,
+      runtimeMapName: name,
+      packageName: published.package,
+      bspHash: published.bspHash,
+      leak: false,
+      reused: true,
+      logTail: [],
+    };
+  }
+  const jobs = new CompileJobs(
+    store,
+    compiler,
+    path.resolve(server.mapsRoot, "..", "jobs"),
+    undefined,
+    server.publishRoot,
+  );
+  const requested = await jobs.request(name, saved.revision, level);
+  const job = await jobs.wait(requested.id);
+  if (!job) throw new PipelineError("compile job disappeared");
+  return {
+    ok: job.state === "playable",
+    state: job.state,
+    stage: job.stage,
+    mapName: name,
+    revision: saved.revision,
+    quality: level,
+    runtimeMapName: job.runtimeMapName,
+    packageName: job.packageName,
+    bspHash: job.bspHash,
+    // MakeBSP's leak test prints "LEAKED" and stops the build.
+    leak: /LEAKED/.test(job.logs.join("")),
+    reused: false,
+    logTail: job.logs.slice(-12).join("").split(/\r?\n/).filter(Boolean).slice(-20),
+  };
+}
+
+/** The bot navigation graph of the published map: can every spawn reach every item and spawn? */
+export async function mapReachability(doc: EditorDocumentData, mapName: string) {
+  const [{ createBotVision }, { BotNavGraph }, { analyzeReachability }] = await Promise.all([
+    import("../../../bot/BotVision"),
+    import("../../../bot/BotNavGraph"),
+    import("../api/Reachability"),
+  ]);
+  const vision = await createBotVision(mapName);
+  if (!vision) return { ok: false, error: `could not load the compiled map "${mapName}"` };
+  const graph = new BotNavGraph(mapName);
+  graph.buildFromVision(vision);
+  return {
+    ...analyzeReachability(graph.nodes, graph.edges, doc),
+    navNodes: graph.nodeCount,
+    navEdges: graph.edgeCount,
+  };
+}
+
+/** Health, compile, then reachability of the compiled map, as one verdict. */
+export async function mapReport(doc: EditorDocumentData, quality?: string) {
+  const health = healthOf(doc);
+  const build = await quietly(() => compileDocument(doc, quality));
+  const reachability = build.ok
+    ? await quietly(() => mapReachability(doc, build.mapName))
+    : { ok: false, error: "skipped: the map did not compile" };
+  return { ok: health.ok && build.ok && reachability.ok === true, health, compile: build, reachability };
+}

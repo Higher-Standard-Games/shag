@@ -220,7 +220,45 @@ Not yet done or verified:
 - The CLI's local documents do not round-trip through the browser editor's drafts yet; the server sidecar written by `compile` should open there with Server Open, but that was not tried.
 - Two test packages (`map_shaggedapi_test_00001.pk3`, `_00002.pk3`) and their pointer are in the gitignored `public/data`; a cleanup or retention policy for agent builds is open.
 
-Next: the map report (nav-graph reachability from the compiled BSP first), then the MCP server over the same operations.
+### P0 slice 2: the map report with reachability (2026-10-10)
+
+**Status: working.** `npm run shagged -- report <doc.json>` returns one JSON verdict: Map Health, compile, then reachability of the compiled map.
+
+- [`src/engine/editor/api/Reachability.ts`](../../src/engine/editor/api/Reachability.ts): `analyzeReachability(nodes, edges, doc)`. A directed breadth-first walk over the bot navigation graph (walk, jump, fall, jump-pad and teleporter edges) from every spawn. It reports items some spawn cannot reach (with how many spawns can) and spawns that cannot reach every other spawn. Findings are in Quake coordinates and matched back to editor IDs by classname and nearest origin (within 96 units, because items settle to the floor when compiled).
+- The CLI builds the graph exactly as bots do: `createBotVision(mapName)` then `BotNavGraph.buildFromVision`.
+- **Fix found on the way:** the bots' `loadBspBuffer` ([`BspDataLoader.ts`](../../src/shared/bsp/BspDataLoader.ts)) searched a fixed list of paths and could not see SHAGGED's numbered packages, so bots would never have loaded a SHAGGED-built map. It now resolves through the pk3 index first, as the game server and the AGENTS.md rule require (`resolveMapBspViaIndex`, which follows SHAGGED's current-build pointer), and keeps the old list as a fallback.
+- **No duplicate builds:** `compile` (and therefore `report`) reuses the current published build when its source hash and quality match, instead of publishing another identical package (`"reused": true`).
+- Library logging is silenced inside `report` so stdout is only the JSON result.
+
+Evidence:
+
+- Two-room fixture: `report` → `ok: true`; 2 spawns, 1 item, nothing unreachable; build reused.
+- Same map with a brush blocking the corridor (`shaggedapi_blocked`): `ok: false`. `weapon_rocketlauncher` (`objectId: "rl"`) is reachable from 1 of 2 spawns, and both `spawn-east` and `spawn-west` are reported cut off (`reaches: 0`).
+- Unit tests: [`Reachability.test.ts`](../../src/engine/editor/api/__tests__/Reachability.test.ts) (4), including that a one-way drop does not make the way back reachable.
+
+Not yet covered by the report: stuck spots (`audit:stuck`), PVS quality (`audit:pvs`), bot play and frame time.
+
+### P1 slice 1: the MCP server (2026-10-10)
+
+**Status: working with a real MCP client.** `npm run shagged:mcp` serves the operations, pipeline and guide over stdio.
+
+- Dependency: `@modelcontextprotocol/sdk` **1.30.1** as an exact-pinned **dev dependency** (it is a local authoring tool started through an npm script, never shipped in the browser bundle or the game server). It brings `zod` 4 for tool input schemas. An install without dev dependencies cannot run `shagged:mcp`, like the other vite-node tools.
+- [`src/cli/shagged-mcp.ts`](../../src/cli/shagged-mcp.ts): tools `shagged_guide`, `shagged_new_map` (empty or the sealed test room), `shagged_list_maps`, `shagged_map_info`, `shagged_apply` (with `dryRun`), `shagged_health`, `shagged_compile`, `shagged_report`, `shagged_entity_classes`; resource `shagged://guide`. Read-only tools carry `readOnlyHint`. Maps are documents in the gitignored `server-data/shagged/agent/<mapName>.json`, written atomically, with one edit at a time per map.
+- [`src/engine/editor/server/AgentPipeline.ts`](../../src/engine/editor/server/AgentPipeline.ts): describe, health, compile (with build reuse), reachability and report, shared by the CLI and the MCP server so both behave identically.
+- [`docs/manual/guides/shagged-api.md`](../manual/guides/shagged-api.md): the guide served to agents and humans alike: coordinates, every operation, a worked example, how to join rooms and corridors, the mapping rules, and how to read the report.
+- **stdout is the protocol channel.** vite-node prints a banner, and map/bot/compiler code logs to stdout, some of it at import time, before the server could redirect its console. [`scripts/shagged-mcp.mjs`](../../scripts/shagged-mcp.mjs) therefore launches the server under vite-node and forwards only JSON-RPC lines to stdout, everything else to stderr. The server also redirects its own console to stderr.
+
+Connecting a client, from the repository root (Claude Code shown; any stdio MCP client works the same way):
+
+```text
+claude mcp add shagged -- node scripts/shagged-mcp.mjs
+```
+
+Evidence: a probe using the SDK's own `Client` and `StdioClientTransport` listed the 9 tools and the guide resource; created `mcp_probe`; applied the two-room fixture (26 objects, no issues); got a clean error for a duplicate ID (`op 0 (box.create): id "west-floor" already exists`); found `weapon_rocketlauncher` through `shagged_entity_classes`; and `shagged_report` returned compile `playable`, no leak, reachability ok (2 spawns, 1 item). The CLI's `report` still returns `ok` after the pipeline refactor. Typecheck, the Biome gate and the editor tests (37 files, 197 tests) pass.
+
+Not yet tried: an actual AI agent building a map from a brief through these tools (the P1 acceptance). The probe proves the plumbing, not the design quality.
+
+Next: run that acceptance with an agent, then add what it turns out to need (likely a texture lookup that supplies image sizes, a room-to-room connect helper, and stairs).
 
 ## Risks and open questions
 
