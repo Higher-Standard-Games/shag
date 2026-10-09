@@ -183,6 +183,45 @@ The rulebook should live in the repository as a document the MCP server serves a
 
 P0 is mostly moving existing logic behind names: the document, validation, writer, health check and compile path are done.
 
+## Implementation log
+
+### P0 slice 1: operations, generators and CLI (2026-10-10)
+
+**Status: working end to end.** A JSON operations script builds a two-room map that compiles sealed with MakeBSP/MakeLight and is published as playable, without the browser editor.
+
+Files:
+
+- [`src/engine/editor/api/Operations.ts`](../../src/engine/editor/api/Operations.ts): `applyOperations(doc, ops)` and `emptyDocument()`. Operations: `box.create`, `box.update`, `face.material`, `entity.place`, `entity.update`, `brushEntity.assign`, `object.move`, `object.duplicate`, `object.delete`, `gen.room`, `gen.corridor`. Returns created/changed/deleted IDs and Map Health issues.
+- [`src/engine/editor/api/Generators.ts`](../../src/engine/editor/api/Generators.ts): `generateRoom` (hollow room around an interior, wall thickness, doorway openings on any side, optional light) and `generateCorridor` (open-ended room along x or y).
+- [`src/cli/shagged.ts`](../../src/cli/shagged.ts), `npm run shagged -- <command>`: `new`, `apply` (JSON array, `{ops: [...]}` or JSON Lines; `--dry-run`), `info` (`--objects`), `health`, `export`, `compile` (`--quality`). Output is JSON.
+- Tests: [`api/__tests__/Operations.test.ts`](../../src/engine/editor/api/__tests__/Operations.test.ts) with the fixture [`two-rooms.ops.json`](../../src/engine/editor/api/__tests__/fixtures/two-rooms.ops.json).
+
+Decisions made while building it:
+
+- **Readable, deterministic IDs.** The GUI uses random UUIDs; API objects get the caller's ID or the next free `brush-N`/`ent-N`/`bent-N`, and generated parts derive from the generator's ID (`west-floor`, `west-east-2`, `west-light`). Agents can refer to what they made, and the same script gives the same bytes.
+- **Validated after every operation**, so an error names the operation that caused it (`op 1 (box.create): Invalid x bounds on brush bad`), and a failing batch leaves the input untouched.
+- **`face.material` needs the image size** for UV alignment, except `common/*` tool shaders (caulk, trigger, clip), so caulk-first texturing works now; a texture-lookup tool should supply sizes later.
+- **Openings must lie inside the interior span** of their wall, so a room's corners stay sealed. A wall with a doorway becomes up to four pieces (strips either side, lintel, sill).
+- **Corridors stop at their own length.** Their open ends meet a room's outer wall face to face; the corner columns of the removed end walls are dropped, because the joined room's wall seals that corner. Joining is by coordinates today: the corridor's interior cross-section must equal the room's opening.
+- **`compile` uses the server's own `MapStore` and `CompileJobs` directly**, so no running `shagged:server` is needed. It saves the document as a revision (skipping the save when the source is unchanged), compiles, publishes to `public/data` and reports state, BSP hash, package and leak. The job runner left the process open after finishing, so the CLI now exits explicitly after printing.
+
+Evidence:
+
+- Fixture applied: 20 brushes, 3 lights, 2 spawns, 1 rocket launcher; Map Health reports no issues.
+- `compile --quality fast`: `playable`, no leak, MakeBSP + MakeLight under one second, published `map_shaggedapi_test_00002.pk3`.
+- `cli:bsp info` on the result: FBSP v1, 20 brushes, 120 brush sides, 7 entities (worldspawn, 3 lights, 2 spawns, weapon), 8 PVS clusters.
+- Applying the script to two fresh documents and exporting gives byte-identical `.map` files (13,089 bytes).
+- `npm run typecheck`, `npm run gate:biome`, and `vitest run src/engine/editor` (36 files, 193 tests) pass.
+
+Not yet done or verified:
+
+- Playing the compiled map (`map shaggedapi_test`) in the browser; no bots or reachability check yet.
+- A `gen.connect` helper that derives a corridor from two rooms' openings, stairs, and teleporter-pair generators.
+- The CLI's local documents do not round-trip through the browser editor's drafts yet; the server sidecar written by `compile` should open there with Server Open, but that was not tried.
+- Two test packages (`map_shaggedapi_test_00001.pk3`, `_00002.pk3`) and their pointer are in the gitignored `public/data`; a cleanup or retention policy for agent builds is open.
+
+Next: the map report (nav-graph reachability from the compiled BSP first), then the MCP server over the same operations.
+
 ## Risks and open questions
 
 - **Quality.** Agents are good at following rules and bad at taste. Expect valid but dull maps at first; the rulebook, generators and bot feedback have to carry the design quality. Human review stays essential.
