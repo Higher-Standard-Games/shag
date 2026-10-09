@@ -302,8 +302,21 @@ Tests: [`ConnectStairs.test.ts`](../../src/engine/editor/api/__tests__/ConnectSt
 Open:
 
 - Bots cannot route up stairs (bot graph limitation, separate from SHAGGED); the report surfaces it per map.
-- Texture lookup with image sizes, jump pads and teleporter-pair generators.
+- Jump pads and teleporter-pair generators.
 - An unbiased acceptance run with a fresh agent that has only the guide and the MCP tools.
+
+### P1 slice 3: texture lookup (2026-10-10)
+
+**Status: working.** Agents texture faces by name; the image size comes from the catalog.
+
+- [`ImageSize.ts`](../../src/engine/editor/ImageSize.ts): width and height from TGA, PNG, JPEG, KTX and KTX2 headers, without decoding the image.
+- [`server/TextureLookup.ts`](../../src/engine/editor/server/TextureLookup.ts): the editor's own `buildTextureCatalog` over every package in `public/data` (file lists and shader scripts, later packages overriding earlier ones, as in the game), plus the size of the image each texture actually draws. Building reads all 104 packages (510 MiB) in about 7.4 s, two passes so they are never all in memory at once; the result is cached in the gitignored `server-data/shagged/texture-catalog.json`, keyed by the packages' names, sizes and dates, and served from memory afterwards (2 ms). 2,101 textures; every one with an image has a size.
+- `npm run shagged -- textures <words> [--folder] [--limit]` and the MCP tool `shagged_textures`: the texture browser's search, with sizes, tags and tool/sky/transparent/missing flags.
+- `face.material` without `size` gets it from the catalog (`withTextureSizes` in the pipeline, used by CLI and MCP `apply`); an unknown texture is rejected and points to the search. Health in the CLI, MCP and report now passes the catalog, so unknown shaders and shaders without an image are reported.
+- Checked: a search for "metal floor" returns `factory/factory_metal_floor` (32 × 32) and others; caulking all of a wall then texturing its room-facing face `blx/blx_dark` by name stored size 32 × 32; a misspelt texture is rejected; health on the three-room maps is clean with the catalog (the generators' default `blx/blx_grid` resolves). Through MCP: 10 tools listed; search, apply by name and health all work.
+- Test: [`ImageSize.test.ts`](../../src/engine/editor/__tests__/ImageSize.test.ts) (5).
+
+Not done: comparing every catalog size with the browser's decoded size (the browser decodes images; this reads headers); per-map package textures are included, since the catalog reads every package.
 
 ## Risks and open questions
 

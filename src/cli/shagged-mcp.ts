@@ -30,7 +30,9 @@ import {
   healthOf,
   mapReport,
   PipelineError,
+  withTextureSizes,
 } from "../engine/editor/server/AgentPipeline";
+import { loadTextureCatalog, searchTextures } from "../engine/editor/server/TextureLookup";
 
 const ROOT = path.resolve("server-data/shagged/agent");
 const GUIDE = path.resolve("docs/manual/guides/shagged-api.md");
@@ -169,7 +171,7 @@ server.registerTool(
   {
     title: "Edit a map",
     description: [
-      "Applies a batch of operations as one all-or-nothing transaction and saves the map. An error names the failing operation and changes nothing.",
+      "Applies a batch of operations as one all-or-nothing transaction and saves the map. An error names the failing operation and changes nothing. face.material needs only the texture name; its image size is filled in from the catalog.",
       "Operations (fields in the guide): box.create, box.update, face.material, entity.place, entity.update, brushEntity.assign, object.move, object.duplicate, object.delete, brush.carve, gen.room, gen.corridor, gen.connect (join two rooms), gen.stairs.",
       "Coordinates are Quake units with Z up. Returns created, changed and deleted IDs and Map Health issues.",
       "Use dryRun: true to preview without saving.",
@@ -185,8 +187,8 @@ server.registerTool(
   },
   async ({ mapName, ops, dryRun }) =>
     run(() =>
-      exclusive(mapName, () => {
-        const result = applyOperations(load(mapName), ops as unknown as EditOp[]);
+      exclusive(mapName, async () => {
+        const result = applyOperations(load(mapName), await withTextureSizes(ops as unknown as EditOp[]));
         if (!dryRun) save(result.doc);
         return {
           ok: true,
@@ -210,7 +212,7 @@ server.registerTool(
     inputSchema: { mapName: MAP_NAME },
     annotations: { readOnlyHint: true },
   },
-  async ({ mapName }) => run(() => healthOf(load(mapName))),
+  async ({ mapName }) => run(async () => healthOf(load(mapName), await loadTextureCatalog())),
 );
 
 server.registerTool(
@@ -233,6 +235,23 @@ server.registerTool(
     inputSchema: { mapName: MAP_NAME, quality: QUALITY },
   },
   async ({ mapName, quality }) => run(() => exclusive(mapName, () => mapReport(load(mapName), quality))),
+);
+
+server.registerTool(
+  "shagged_textures",
+  {
+    title: "Find textures",
+    description:
+      "Texture names with their image sizes and tags. Use a name as given (no textures/ prefix) in box.create, gen.room or face.material; face.material fills in the size itself. common/* are tool textures (caulk, clip, trigger). The first call can take several seconds while the catalog is built.",
+    inputSchema: {
+      search: z.string().optional().describe("Words to match in the name or tags, e.g. 'metal floor' or 'blx dark'."),
+      folder: z.string().optional().describe("Only this folder, e.g. blx or common."),
+      limit: z.number().int().min(1).max(500).optional().describe("Default 50."),
+    },
+    annotations: { readOnlyHint: true },
+  },
+  async ({ search, folder, limit }) =>
+    run(async () => searchTextures(await loadTextureCatalog(), { search, folder, limit })),
 );
 
 server.registerTool(

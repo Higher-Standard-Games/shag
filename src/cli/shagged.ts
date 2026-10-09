@@ -10,6 +10,7 @@
  *   npm run shagged -- export <doc.json> [out.map]
  *   npm run shagged -- compile <doc.json> [--quality fast|default|release]
  *   npm run shagged -- report <doc.json> [--quality fast|default|release]
+ *   npm run shagged -- textures [search words] [--folder <name>] [--limit <n>]
  */
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { applyOperations, type EditOp, emptyDocument, OperationError } from "../engine/editor/api/Operations";
@@ -23,7 +24,9 @@ import {
   mapReport,
   PipelineError,
   quietly,
+  withTextureSizes,
 } from "../engine/editor/server/AgentPipeline";
+import { loadTextureCatalog, searchTextures } from "../engine/editor/server/TextureLookup";
 
 const USAGE = `Usage: npm run shagged -- <command> ...
   new <doc.json> [--name <mapid>] [--room] [--force]   create a document (optionally the sealed test room)
@@ -32,7 +35,8 @@ const USAGE = `Usage: npm run shagged -- <command> ...
   health <doc.json>                                    Map Health issues
   export <doc.json> [out.map]                          deterministic .map source (stdout without a file)
   compile <doc.json> [--quality fast|default|release]  save as a server revision, run MakeBSP/MakeLight, publish
-  report <doc.json> [--quality ...]                    health, compile, then reachability of the compiled map`;
+  report <doc.json> [--quality ...]                    health, compile, then reachability of the compiled map
+  textures [search words] [--folder f] [--limit n]     find texture names and their image sizes`;
 
 /** Writes stdout directly, so results still print while library logging is silenced. */
 function out(value: unknown): void {
@@ -87,11 +91,24 @@ async function main(): Promise<void> {
     return index >= 0 ? args[index + 1] : undefined;
   };
   const positional = args.filter(
-    (arg, index) => !arg.startsWith("--") && !args[index - 1]?.match(/^--(name|quality)$/),
+    (arg, index) => !arg.startsWith("--") && !args[index - 1]?.match(/^--(name|quality|folder|limit)$/),
   );
   const [command, file, third] = positional;
   if (!command || flag("--help") || flag("-h")) {
     console.log(USAGE);
+    return;
+  }
+  if (command === "textures") {
+    const catalog = await quietly(() => loadTextureCatalog());
+    const limit = value("--limit");
+    out({
+      ok: true,
+      ...searchTextures(catalog, {
+        search: positional.slice(1).join(" ") || undefined,
+        folder: value("--folder"),
+        limit: limit ? Number(limit) : undefined,
+      }),
+    });
     return;
   }
   if (!file) fail(`${command} needs a document path\n${USAGE}`);
@@ -111,7 +128,7 @@ async function main(): Promise<void> {
       if (!third) fail("apply needs an operations file, or - for stdin");
       const doc = readDoc(file);
       try {
-        const result = applyOperations(doc, readOps(third));
+        const result = applyOperations(doc, await withTextureSizes(readOps(third)));
         const dryRun = flag("--dry-run");
         if (!dryRun) writeDoc(file, result.doc);
         out({
@@ -133,7 +150,7 @@ async function main(): Promise<void> {
       out(describeDocument(readDoc(file), flag("--objects")));
       return;
     case "health":
-      out(healthOf(readDoc(file)));
+      out(healthOf(readDoc(file), await quietly(() => loadTextureCatalog())));
       return;
     case "export": {
       const source = writeMap(readDoc(file));

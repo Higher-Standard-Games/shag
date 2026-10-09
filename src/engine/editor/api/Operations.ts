@@ -197,7 +197,8 @@ function applyOne(doc: EditorDocumentData, op: EditOp, changed: Set<string>): vo
         throw new Error(`faces must be "all" or a list of ${FACE_KEYS.join(", ")}`);
       }
       const size = op.size ?? (isToolShader(op.shader) ? ([64, 64] as [number, number]) : undefined);
-      if (!size) throw new Error(`size [width, height] in texels is required for ${op.shader}`);
+      if (!size)
+        throw new Error(`unknown texture ${op.shader}: no image size; find texture names with the texture search`);
       target.faces ??= {};
       for (const face of faces) target.faces[face] = naturalFace(op.shader, size);
       changed.add(op.id);

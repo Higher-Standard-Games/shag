@@ -5,6 +5,7 @@
  */
 import { existsSync } from "node:fs";
 import path from "node:path";
+import type { EditOp } from "../api/Operations";
 import { type EditorDocumentData, validateDocument } from "../EditorDocument";
 import { inspectMapHealth, type MapHealthIssue } from "../MapHealth";
 import { writeMap } from "../MapWriter";
@@ -14,6 +15,7 @@ import { resolveCompilerConfig } from "./CompilerConfig";
 import { MapStore } from "./MapStore";
 import { readPublishedBuild } from "./PublishedBuild";
 import { resolveServerConfig } from "./ServerConfig";
+import { findTexture, loadTextureCatalog, type TextureInfo } from "./TextureLookup";
 
 export class PipelineError extends Error {
   constructor(
@@ -77,8 +79,28 @@ export function describeDocument(doc: EditorDocumentData, objects = false) {
   };
 }
 
-export function healthOf(doc: EditorDocumentData): { ok: boolean; issues: MapHealthIssue[] } {
-  const issues = inspectMapHealth(doc);
+/**
+ * Fill in the image size of every `face.material` that names a texture
+ * without one, from the texture catalog, so callers only have to name it.
+ * Unknown textures are left alone for the operation to reject.
+ */
+export async function withTextureSizes(ops: readonly EditOp[]): Promise<EditOp[]> {
+  const needs = ops.some((op) => op?.op === "face.material" && !op.size && !op.shader?.startsWith("common/"));
+  if (!needs) return [...ops];
+  const catalog = await quietly(() => loadTextureCatalog());
+  return ops.map((op) => {
+    if (op?.op !== "face.material" || op.size) return op;
+    const size = findTexture(catalog, op.shader)?.size;
+    return size ? { ...op, size } : op;
+  });
+}
+
+/** Map Health, with the texture catalog when given so unknown or imageless shaders are reported too. */
+export function healthOf(
+  doc: EditorDocumentData,
+  textures?: readonly TextureInfo[],
+): { ok: boolean; issues: MapHealthIssue[] } {
+  const issues = inspectMapHealth(doc, textures);
   return { ok: issues.every((issue) => issue.severity !== "warning"), issues };
 }
 
@@ -208,7 +230,7 @@ export async function mapReachability(doc: EditorDocumentData, mapName: string) 
 
 /** Health, compile, then reachability of the compiled map, as one verdict. */
 export async function mapReport(doc: EditorDocumentData, quality?: string) {
-  const health = healthOf(doc);
+  const health = healthOf(doc, await quietly(() => loadTextureCatalog()));
   const build = await quietly(() => compileDocument(doc, quality));
   const reach = build.ok ? await quietly(() => mapReachability(doc, build.mapName)) : null;
   const reachability = reach?.player ?? { ok: false, error: "skipped: the map did not compile" };

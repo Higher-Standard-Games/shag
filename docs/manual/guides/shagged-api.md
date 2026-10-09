@@ -14,6 +14,7 @@ npm run shagged -- health map.json                   # Map Health issues
 npm run shagged -- export map.json arena1.map        # deterministic .map source
 npm run shagged -- compile map.json --quality fast   # MakeBSP + MakeLight, publish a playable package
 npm run shagged -- report map.json                   # health + compile + reachability
+npm run shagged -- textures metal floor              # find texture names and image sizes
 ```
 
 After `compile`, play the map with `map <mapName>` in the game console.
@@ -32,7 +33,7 @@ After `compile`, play the map with `map <mapName>` in the game console.
 | --- | --- | --- |
 | `box.create` | `id?`, `min`, `max`, `shader?` | Axis-aligned brush. Default shader `blx/blx_grid`. `min` must be below `max` on every axis. |
 | `box.update` | `id`, `min?`, `max?`, `shader?` | |
-| `face.material` | `id`, `faces` (`"all"` or a list of `+X -X +Y -Y +Z -Z`), `shader`, `size?` | `size` is the image size in texels, required except for `common/*` tool shaders. |
+| `face.material` | `id`, `faces` (`"all"` or a list of `+X -X +Y -Y +Z -Z`), `shader`, `size?` | Textures the listed faces with natural alignment. Name the texture; the CLI and MCP server fill in its image size from the texture catalog. An unknown texture is rejected. |
 | `entity.place` | `id?`, `classname`, `origin`, `keys?` | Point entity. Keys are strings. |
 | `entity.update` | `id`, `classname?`, `origin?`, `keys?` | Keys merge; an empty string removes a key. |
 | `brushEntity.assign` | `id?`, `classname`, `brushIds`, `keys?` | Makes brushes a trigger/door/plat. `trigger_*` brushes get `common/trigger`. Never set `origin` or `model`. |
@@ -82,6 +83,8 @@ Example: two rooms joined by a corridor, with spawns and a weapon:
 - Shader names have no `textures/` prefix (`blx/blx_dark`, not `textures/blx/blx_dark`).
 - Give every room a light. An unlit compiled room is black.
 
+**Textures:** find names with `textures` (CLI) or `shagged_textures` (MCP); they search names and tags like the editor's texture browser and list each texture's image size. A brush's `shader` applies to all its faces; `face.material` overrides single faces. Typical flow: build with a wall texture, then `face.material` with `"faces": "all"` and `common/caulk` on brushes the player never sees from outside, then texture the faces facing the room.
+
 **Gameplay:**
 
 - At least one `info_player_deathmatch`, with `z` 24 or more above the floor. For free-for-all, several spread apart without direct line of sight between them; set `angle` to face into the room.
@@ -97,7 +100,7 @@ Example: two rooms joined by a corridor, with spawns and a weapon:
 
 `report` returns one JSON verdict with `ok` and three sections:
 
-- `health`: Map Health issues (missing spawns or required keys, broken target links, unknown classes or shaders), each with the object's ID.
+- `health`: Map Health issues (missing spawns or required keys, broken target links, unknown classes, unknown shaders or shaders without an image), each with the object's ID.
 - `compile`: build state, `leak`, the published package and a log tail. An unchanged map reuses its last build (`reused: true`).
 - `reachability`: where a **player** can go in the compiled map, found by flooding it with the game's own movement from every spawn (walking, stairs, drops, and hops up to jump height). `unreachableItems` and `cutOffSpawns` list problems in Quake coordinates with the matching editor `objectId`. This decides `ok`.
 - `botNavigation`: the same question for the bots' navigation graph. Bots can't plan over everything a player can (stairs in particular), so a map can pass `reachability` and still list items here that bots won't go for.
