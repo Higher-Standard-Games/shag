@@ -454,7 +454,33 @@ describe("editor DOM shell", () => {
     form.querySelector<HTMLInputElement>('[name="key:modelscale"]')!.value = "2";
     form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
     expect(writeMap(session.document.snapshot())).toContain('"modelscale" "2"');
-    expect(session.root.querySelector(".shagged__warning")!.textContent).toContain("preview for this format");
+    expect(session.root.querySelector(".shagged__warning")!.textContent).toContain("MakeBSP decides");
+    session.dispose();
+    engine.dispose();
+  });
+
+  it("drops a model picked from the browser on its base, and swaps the model of a selected prop", () => {
+    const engine = new NullEngine();
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    const session = new EditorSession(engine, canvas, vi.fn());
+    const bounds = { min: { x: -16, y: -16, z: -8 }, max: { x: 16, y: 16, z: 24 } };
+    session["pickModel"]("models/props/crate.glb", bounds);
+    expect(session.root.querySelector<HTMLSelectElement>("[data-entity-class]")!.value).toBe("misc_model");
+    expect(session.root.querySelector('[data-action="entity"]')!.classList.contains("active")).toBe(true);
+    const xy = session.root.querySelector<HTMLCanvasElement>('[data-plane="xy"]')!;
+    xy.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, button: 0, clientX: 264, clientY: 118 }));
+    xy.dispatchEvent(new MouseEvent("pointerup", { bubbles: true, button: 0, clientX: 264, clientY: 118 }));
+    expect(session.document.snapshot().entities[0]).toMatchObject({
+      classname: "misc_model",
+      origin: { x: 64, y: 32, z: 8 },
+      keys: { model: "models/props/crate.glb", modelscale: "1" },
+    });
+    session["pickModel"]("models/objects/misc/barrel.md3", null);
+    expect(session.document.snapshot().entities).toHaveLength(1);
+    expect(session.document.snapshot().entities[0].keys.model).toBe("models/objects/misc/barrel.md3");
+    session.document.undo();
+    expect(session.document.snapshot().entities[0].keys.model).toBe("models/props/crate.glb");
     session.dispose();
     engine.dispose();
   });

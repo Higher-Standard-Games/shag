@@ -1,0 +1,180 @@
+/* SHAGGED model browser drawer: sits over the inspector column like the
+   texture browser, with a preview stage above the model list. */
+.shagged-models {
+  position: fixed;
+  z-index: 860;
+  top: 56px;
+  right: 0;
+  bottom: 30px;
+  width: min(560px, 46vw);
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  grid-template-rows: auto minmax(160px, 38%) minmax(0, 1fr) auto;
+  background: #10172b;
+  border-left: 2px solid #ffc61a;
+  box-shadow: -18px 0 40px #0009;
+  color: #e8fbff;
+  font:
+    13px "Rajdhani",
+    sans-serif;
+  pointer-events: auto;
+}
+.shagged-models[hidden] {
+  display: none;
+}
+.shagged-models__head {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 6px;
+  padding: 8px;
+  border-bottom: 1px solid #2c3a57;
+}
+.shagged-models__search {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 9px;
+  background: #0b1222;
+  color: #e8fbff;
+  border: 1px solid #47768b;
+  font: inherit;
+}
+.shagged-models__search:focus {
+  outline: 2px solid #ffc61a;
+  outline-offset: -1px;
+}
+.shagged-models__close {
+  padding: 0 10px;
+  background: #21304c;
+  color: #e8fbff;
+  border: 1px solid #47768b;
+  cursor: pointer;
+}
+.shagged-models__groups {
+  grid-row: 2 / 4;
+  overflow-y: auto;
+  padding: 6px 4px 10px;
+  border-right: 1px solid #2c3a57;
+}
+.shagged-models__groups h3 {
+  margin: 12px 6px 4px;
+  color: #75d9e8;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.shagged-models__groups button {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+  padding: 4px 6px;
+  overflow: hidden;
+  background: none;
+  color: #c9dde6;
+  border: 0;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+  font: inherit;
+}
+.shagged-models__groups button span {
+  color: #6f8798;
+  font-size: 11px;
+}
+.shagged-models__groups button:hover {
+  background: #1b2742;
+}
+.shagged-models__groups button.active {
+  background: #ffc61a;
+  color: #101022;
+}
+.shagged-models__groups button.active span {
+  color: #101022;
+}
+.shagged-models__stage {
+  position: relative;
+  min-height: 0;
+  margin: 0;
+  border-bottom: 1px solid #2c3a57;
+}
+.shagged-models__canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  outline: none;
+  touch-action: none;
+}
+.shagged-models__caption {
+  position: absolute;
+  left: 8px;
+  right: 64px;
+  bottom: 6px;
+  overflow: hidden;
+  color: #c9dde6;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 1px 2px #000;
+  pointer-events: none;
+}
+.shagged-models__use {
+  position: absolute;
+  right: 8px;
+  bottom: 6px;
+  padding: 3px 12px;
+  background: #ffc61a;
+  color: #101022;
+  border: 0;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.shagged-models__use:disabled {
+  background: #2c3a57;
+  color: #6f8798;
+  cursor: default;
+}
+.shagged-models__list {
+  overflow-y: auto;
+  padding: 4px;
+}
+.shagged-models__list:focus {
+  outline: none;
+}
+.shagged-models__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+.shagged-models__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.shagged-models__folder {
+  flex-shrink: 0;
+  color: #6f8798;
+  font-size: 11px;
+}
+.shagged-models__row:hover,
+.shagged-models__row:focus {
+  background: #1b2742;
+  outline: none;
+}
+.shagged-models__row.selected {
+  border-color: #ffc61a;
+  background: #21304c;
+}
+.shagged-models__foot {
+  grid-column: 1 / -1;
+  padding: 6px 10px;
+  overflow: hidden;
+  color: #9fb5c5;
+  border-top: 1px solid #2c3a57;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

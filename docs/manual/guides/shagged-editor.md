@@ -42,6 +42,7 @@ The 3D view has three display modes in its corner: **Brush**, **Textured** (defa
 | `P` | **Patch**: draw a curved `patchDef2` surface. The **Curves** menu adds Bevel, Inverted Bevel, Arch and Edit Points. |
 | `E` | **Entity**: place the class picked in the toolbar list. |
 | `T` | **Texture browser**. Click a texture to make it current for new brushes, or to apply it to selected faces. |
+| `M` | **Model browser**. Click a model to preview it; double-click (or **Use**) to drop it as a `misc_model`. |
 | `H` | **Map Health**: problems in the map; click one to select and frame the object. |
 | `Ctrl+Z` / `Ctrl+Shift+Z` (or `Ctrl+Y`) | Undo / redo. |
 | `Ctrl+D` / `Delete` | Duplicate / delete the selection. |
@@ -63,6 +64,14 @@ The Entity tool places spawns, lights, weapons, items and other point entities f
 Brush entities (triggers, doors, plats) are made from brushes: select a brush and pick an entity class in its inspector. Triggers get the trigger texture automatically. A teleporter is a `trigger_teleport` brush whose `target` matches a `misc_teleporter_dest`'s `targetname`.
 
 Every room needs a `light` entity, and every map at least one `info_player_deathmatch`.
+
+### Models
+
+The model browser (`M`) lists every model in the game packages by folder, with **Recent** and **In this map** groups and a search box. Clicking a model turns it in the preview with its size in units; drag the preview to orbit it and use the wheel to zoom.
+
+Double-click a model, or press **Use** or `Enter`, to pick it. With a `misc_model` selected, the pick replaces its model in one undo step. Otherwise the Entity tool switches to `misc_model`, and each click in a 2D view drops the model with its base on the work plane. **Browse…** in a `misc_model`'s inspector opens the same browser.
+
+Placed models are drawn in the 3D view, and their boxes in every view follow the model's size, `modelscale` and `angle`. MD3 models show their image without shader effects; MakeBSP decides how the compiled model looks.
 
 ## Saving
 

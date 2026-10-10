@@ -1,7 +1,6 @@
 import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
 import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine";
 import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
-import { ImportMeshAsync } from "@babylonjs/core/Loading/sceneLoader";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
@@ -9,7 +8,7 @@ import { Viewport } from "@babylonjs/core/Maths/math.viewport";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
-import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
+import type { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import { Scene } from "@babylonjs/core/scene";
 import "@babylonjs/loaders/glTF";
 // Registers AbstractMesh.enableEdgesRendering for editor brush outlines.
@@ -38,6 +37,7 @@ import {
 } from "./EditorDocument";
 import { EditorDraftStore, type EditorViewState } from "./EditorDraftStore";
 import { drawBounds, moveBox } from "./EditorGesture";
+import { loadEditorModel, type ModelBounds, measureModel, placedBounds } from "./EditorModelAsset";
 import {
   PLANE_AXES as AXES,
   brushBounds,
@@ -60,7 +60,9 @@ import { DEFAULT_POSE, FlyCameraController, type FlyPose, forwardOf, framePose, 
 import { inspectMapHealth, type MapHealthIssue } from "./MapHealth";
 import { MapHealthTray } from "./MapHealthTray";
 import { writeMap } from "./MapWriter";
+import { ModelBrowser } from "./ModelBrowser";
 import { indexedModelPaths, modelReferenceIssue } from "./ModelReference";
+import { ModelTurntable } from "./ModelTurntable";
 import { flatPatch, movedPatchControl, patchControlHit } from "./PatchGeometry";
 import { archPatch, bevelPatch } from "./PatchPresets";
 import { createPatchPreview, drawPatchLattice, patchBounds, patchLatticeHit } from "./PatchPreview";
@@ -104,15 +106,15 @@ type Gesture = {
 type Tool = "brush" | "patch" | "points" | "select" | "entity";
 type PatchShape = NonNullable<EditorViewState["patchShape"]>;
 
-/** An entity's box in world space: its class's mins/maxs around the origin. */
-function entityBox(entity: PointEntity): { min: Vec3q; max: Vec3q } {
+/** An entity's box in world space: its class's mins/maxs around the origin, or a model's own extents. */
+function entityBox(entity: PointEntity, local?: ModelBounds | null): { min: Vec3q; max: Vec3q } {
   const def = entityClass(entity.classname);
   const at = (offset: Vec3q): Vec3q => ({
     x: entity.origin.x + offset.x,
     y: entity.origin.y + offset.y,
     z: entity.origin.z + offset.z,
   });
-  return { min: at(def.mins), max: at(def.maxs) };
+  return local ? { min: at(local.min), max: at(local.max) } : { min: at(def.mins), max: at(def.maxs) };
 }
 
 function cssColor([r, g, b]: EntityClassDef["color"], alpha = 1): string {
@@ -275,6 +277,11 @@ export class EditorSession {
   /** Texture new brushes get; size is null until one is picked from the browser (fixed legacy alignment). */
   private currentTexture: { name: string; size: [number, number] | null } = { name: "blx/blx_grid", size: null };
   private textureBrowser: TextureBrowser | null = null;
+  /** Model the Entity tool drops as a misc_model; bounds sit it on the work plane. */
+  private currentModel: { path: string; bounds: ModelBounds | null } | null = null;
+  private modelBrowser: ModelBrowser | null = null;
+  /** Each previewed model path's extents; a misc_model's box takes them once known. */
+  private readonly modelBounds = new Map<string, ModelBounds>();
   private healthTray: MapHealthTray | null = null;
   /** Textured draws each face's image with its alignment; Brush colours boxes by owner; Wireframe shows edges only. */
   private viewMode: ViewMode = "textured";
@@ -375,6 +382,7 @@ export class EditorSession {
           </div></details>
           <button data-action="entity" title="E">Entity</button><select data-entity-class aria-label="Entity class" title="Class placed by the Entity tool"></select>
           <button data-action="textures" title="Texture browser (T)">Textures</button><span class="shagged__current-texture" data-current-texture title="Texture new brushes get"></span>
+          <button data-action="models" title="Model browser (M)">Models</button>
           <button data-action="health" title="Map Health (H)">Health</button>
         </div>
         <div class="shagged__toolgroup" aria-label="View actions">
@@ -911,7 +919,67 @@ export class EditorSession {
       });
       this.root.appendChild(this.textureBrowser.element);
     }
+    // both drawers sit over the inspector; one at a time
+    this.modelBrowser?.close();
     await this.textureBrowser.toggle();
+  }
+
+  /** Built on first use like the texture drawer; its preview engine starts only then. */
+  private toggleModels(): void {
+    if (!this.modelBrowser) {
+      this.modelBrowser = new ModelBrowser({
+        paths: () => indexedModelPaths(),
+        inMap: () => this.modelsInMap(),
+        preview: (canvas) => new ModelTurntable(canvas),
+        onPick: (path, bounds) => this.pickModel(path, bounds),
+        onClose: () => this.root.focus(),
+      });
+      this.root.appendChild(this.modelBrowser.element);
+    }
+    this.textureBrowser?.close();
+    this.modelBrowser.toggle();
+  }
+
+  /** A misc_model whose model was measured is boxed by the model; every other entity by its class. */
+  private entityBox(entity: PointEntity): { min: Vec3q; max: Vec3q } {
+    const bounds = entity.classname === "misc_model" ? this.modelBounds.get(entity.keys.model ?? "") : undefined;
+    if (!bounds) return entityBox(entity);
+    const scale = Number(entity.keys.modelscale ?? 1);
+    const angle = Number(entity.keys.angle ?? 0);
+    return entityBox(
+      entity,
+      placedBounds(bounds, Number.isFinite(scale) && scale > 0 ? scale : 1, Number.isFinite(angle) ? angle : 0),
+    );
+  }
+
+  private modelsInMap(): string[] {
+    return this.document
+      .snapshot()
+      .entities.filter((entity) => entity.classname === "misc_model" && entity.keys.model)
+      .map((entity) => entity.keys.model);
+  }
+
+  /**
+   * A selected misc_model takes the picked model in one undo step; otherwise
+   * the Entity tool arms with misc_model, and each click drops the model.
+   */
+  private pickModel(path: string, bounds: ModelBounds | null): void {
+    this.currentModel = { path, bounds };
+    if (bounds) this.modelBounds.set(path, bounds);
+    this.root.querySelector<HTMLButtonElement>('[data-action="models"]')!.title = `Model browser (M) · ${path}`;
+    const selected = this.document.snapshot().entities.find((entity) => entity.id === this.selectedId);
+    if (selected?.classname === "misc_model") {
+      this.document.transact((data) => {
+        data.entities.find((entity) => entity.id === selected.id)!.keys.model = path;
+      });
+      this.changed();
+      this.status(`Model set to ${path}`);
+      return;
+    }
+    this.entityClassname = "misc_model";
+    this.root.querySelector<HTMLSelectElement>("[data-entity-class]")!.value = "misc_model";
+    this.action("entity");
+    this.status(`Click in a 2D view to drop ${path}`);
   }
 
   private texturesInMap(): string[] {
@@ -1093,6 +1161,7 @@ export class EditorSession {
   dispose(): void {
     if (document.pointerLockElement === this.canvas) void document.exitPointerLock?.();
     this.textureBrowser?.dispose();
+    this.modelBrowser?.dispose();
     this.healthTray?.dispose();
     this.previewTextures?.dispose();
     this.thumbnails?.dispose();
@@ -1573,6 +1642,9 @@ export class EditorSession {
         case "textures":
           void this.toggleTextures();
           break;
+        case "models":
+          this.toggleModels();
+          break;
         case "health":
           this.toggleHealth();
           break;
@@ -1691,6 +1763,9 @@ export class EditorSession {
       // the drawer focuses its search box during this keydown; without this the "t" is typed into it
       event.preventDefault();
       this.action("textures");
+    } else if (key === "m") {
+      event.preventDefault();
+      this.action("models");
     } else if (key === "delete") this.action("delete");
     else if (key === "h") this.action("health");
     else if (key === "f") {
@@ -1743,7 +1818,7 @@ export class EditorSession {
     const data = this.document.snapshot();
     const boxes = [
       ...data.brushes.map((brush) => ({ id: brush.id, min: brush.min, max: brush.max })),
-      ...data.entities.map((entity) => ({ id: entity.id, ...entityBox(entity) })),
+      ...data.entities.map((entity) => ({ id: entity.id, ...this.entityBox(entity) })),
       ...(data.patches ?? []).map((patch) => ({ id: patch.id, ...patchBounds(patch) })),
     ].filter((box) => all || !this.selectedId || box.id === this.selectedId);
     const bounds = brushBounds(boxes);
@@ -1954,21 +2029,24 @@ export class EditorSession {
   /**
    * One click, one entity of the picked class at the snapped point. Seen from
    * above, the hidden axis is height, so the entity stands on the work plane
-   * (its box's bottom on it) rather than sinking half into the floor.
+   * (its box's bottom on it) rather than sinking half into the floor. A
+   * misc_model gets the model picked in the browser, standing on its own base.
    */
   private placeEntity(plane: Plane, [u, v]: [number, number]): void {
     const axes = AXES[plane];
     const def = entityClass(this.entityClassname);
+    const model = def.classname === "misc_model" ? this.currentModel : null;
     const origin: Vec3q = { x: 0, y: 0, z: 0 };
     origin[axes.u] = u;
     origin[axes.v] = v;
     const work = this.workPlanes[axes.hidden];
-    origin[axes.hidden] = axes.hidden === "z" ? work - def.mins.z : work;
+    const floor = model?.bounds ? Math.round(model.bounds.min.z) : def.mins.z;
+    origin[axes.hidden] = axes.hidden === "z" ? work - floor : work;
     const entity: PointEntity = {
       id: crypto.randomUUID(),
       classname: def.classname,
       origin,
-      keys: def.classname === "misc_model" ? { model: "", modelscale: "1" } : {},
+      keys: def.classname === "misc_model" ? { model: model?.path ?? "", modelscale: "1" } : {},
     };
     this.document.transact((data) => data.entities.push(entity));
     this.selectedId = entity.id;
@@ -2131,7 +2209,7 @@ export class EditorSession {
   } {
     const data = this.document.snapshot();
     const axes = AXES[plane];
-    const entityHit = [...data.entities].reverse().find((entity) => inRect(u, v, entityBox(entity), plane));
+    const entityHit = [...data.entities].reverse().find((entity) => inRect(u, v, this.entityBox(entity), plane));
     const patchHit = entityHit
       ? undefined
       : [...(data.patches ?? [])].reverse().find((patch) => patchLatticeHit(patch, plane, u, v, 8 / this.zoom));
@@ -2167,7 +2245,7 @@ export class EditorSession {
   private clickSelect(plane: Plane, event: PointerEvent): void {
     const [u, v] = this.worldAt(plane, this.panes.get(plane)!, event);
     const data = this.document.snapshot();
-    const entityHit = [...data.entities].reverse().find((entity) => inRect(u, v, entityBox(entity), plane));
+    const entityHit = [...data.entities].reverse().find((entity) => inRect(u, v, this.entityBox(entity), plane));
     const patchHit = entityHit
       ? undefined
       : [...(data.patches ?? [])].reverse().find((patch) => patchLatticeHit(patch, plane, u, v, 8 / this.zoom));
@@ -2399,12 +2477,7 @@ export class EditorSession {
     const data = this.document.snapshot();
     const wanted = new Map(
       data.entities
-        .filter(
-          (entity) =>
-            entity.classname === "misc_model" &&
-            !modelReferenceIssue(entity) &&
-            entity.keys.model.toLowerCase().endsWith(".glb"),
-        )
+        .filter((entity) => entity.classname === "misc_model" && !modelReferenceIssue(entity))
         .map((entity) => [entity.id, entity.keys.model]),
     );
     for (const [id, root] of this.modelPreviews) {
@@ -2474,7 +2547,7 @@ export class EditorSession {
     this.syncTexturedMeshes(data);
     this.syncWireframe(data, ownerColors);
     for (const entity of data.entities) {
-      const { min, max } = entityBox(entity);
+      const { min, max } = this.entityBox(entity);
       const mesh = MeshBuilder.CreateBox(
         entity.id,
         { width: max.x - min.x, height: max.z - min.z, depth: max.y - min.y },
@@ -2485,6 +2558,8 @@ export class EditorSession {
       const [r, g, b] = entityClass(entity.classname).color;
       material.diffuseColor = entity.id === this.selectedId ? new Color3(1, 0.75, 0.2) : new Color3(r, g, b);
       material.emissiveColor = new Color3(r * 0.35, g * 0.35, b * 0.35);
+      // a loaded model shows through its box; the box stays for picking and the selection tint
+      if (this.modelPreviews.has(entity.id)) material.alpha = entity.id === this.selectedId ? 0.25 : 0.08;
       mesh.material = material;
       mesh.enableEdgesRendering();
       mesh.edgesWidth = 2;
@@ -2507,28 +2582,24 @@ export class EditorSession {
 
   private positionModelPreview(root: TransformNode, entity: PointEntity): void {
     root.position.set(entity.origin.x, entity.origin.z, entity.origin.y);
-    root.rotation.y = (Number(entity.keys.angle ?? 0) * Math.PI) / 180;
+    // Quake yaw turns X toward Y; with Y and Z swapped into Babylon's left-handed frame that is a negative turn
+    root.rotation.y = (-Number(entity.keys.angle ?? 0) * Math.PI) / 180;
     root.scaling.setAll(Number(entity.keys.modelscale ?? 1));
   }
 
-  /** Loose GLB preview. The marker remains pickable when the browser cannot load the asset. */
+  /** Packaged or loose model preview. The marker remains pickable when the browser cannot load the asset. */
   private async loadModelPreview(id: string, path: string): Promise<void> {
     let root: TransformNode | null = null;
     try {
-      const slash = path.lastIndexOf("/");
-      const result = await ImportMeshAsync(path.slice(slash + 1), this.scene, {
-        rootUrl: `/data/${path.slice(0, slash + 1)}`,
-      });
+      root = await loadEditorModel(this.scene, path, `preview-${id}`);
       if (this.modelPreviewRequests.get(id) !== path || this.scene.isDisposed) {
-        for (const mesh of result.meshes) mesh.dispose(false, true);
-        for (const node of result.transformNodes) node.dispose(false, true);
+        root.dispose(false, true);
         return;
       }
-      root = new TransformNode(`preview-${id}`, this.scene);
       root.metadata = { editorModelPath: path };
-      for (const node of result.transformNodes) if (!node.parent) node.parent = root;
-      for (const mesh of result.meshes) {
-        if (!mesh.parent) mesh.parent = root;
+      const bounds = measureModel(root);
+      if (bounds) this.modelBounds.set(path, bounds);
+      for (const mesh of root.getChildMeshes(false)) {
         mesh.metadata = { ...mesh.metadata, editorEntityId: id };
         mesh.isPickable = true;
       }
@@ -2540,6 +2611,9 @@ export class EditorSession {
       this.positionModelPreview(root, current);
       this.modelPreviewRequests.delete(id);
       this.modelPreviews.set(id, root);
+      // the box now follows the model's extents and turns see-through
+      this.rebuildMeshes();
+      this.draw();
     } catch (error) {
       root?.dispose(false, true);
       if (this.modelPreviewRequests.get(id) === path) {
@@ -2855,7 +2929,7 @@ export class EditorSession {
         const entity = moving
           ? moveEntity(original, axes, moving.current[0] - moving.start[0], moving.current[1] - moving.start[1])
           : original;
-        const { min, max } = entityBox(entity);
+        const { min, max } = this.entityBox(entity);
         const selected = entity.id === this.selectedId || !!moving;
         const color = entityClass(entity.classname).color;
         const x = originX + min[axes.u] * this.zoom;
@@ -3050,14 +3124,19 @@ export class EditorSession {
         paths.appendChild(option);
       }
       form.appendChild(paths);
+      const browse = document.createElement("button");
+      browse.type = "button";
+      browse.dataset.action = "models";
+      browse.textContent = "Browse…";
+      browse.title = "Pick a model for this entity (M)";
+      form.querySelector('[name="key:model"]')?.after(browse);
       const note = document.createElement("p");
       note.className = "shagged__warning";
-      const issue = modelReferenceIssue(entity);
-      note.textContent = issue
-        ? issue
-        : entity.keys.model.toLowerCase().endsWith(".glb")
-          ? "Loose GLB preview is attempted; MakeBSP decides the compiled result."
-          : "This model exports to MakeBSP; a 3D preview for this format is not available yet.";
+      note.textContent =
+        modelReferenceIssue(entity) ??
+        (this.modelPreviewFailures.has(entity.id)
+          ? "No 3D preview for this model; MakeBSP decides the compiled result."
+          : "Previewed from its package or /data/; MakeBSP decides the compiled result.");
       form.after(note);
     }
   }
