@@ -44,7 +44,9 @@ export class ShaggedApiError extends Error {
 export class ShaggedApi {
   constructor(
     private readonly baseUrl = import.meta.env.VITE_SHAGGED_API_URL ?? "http://127.0.0.1:9010",
-    private readonly fetcher: typeof fetch = fetch,
+    // A wrapper, not window.fetch itself: called as this.fetcher(...) the
+    // browser rejects the unbound function with "Illegal invocation".
+    private readonly fetcher: typeof fetch = (input, init) => fetch(input, init),
   ) {}
 
   private async request<T>(path: string, init?: RequestInit): Promise<T> {
