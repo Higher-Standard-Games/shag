@@ -12,8 +12,13 @@ export interface GameplayMapLaunchResult {
   matchId?: string;
 }
 
+export interface GameplayMapLaunchOptions {
+  /** Record a training demo under this name on the launched server. */
+  trainingDemo?: string;
+}
+
 export interface GameplayMapLauncher {
-  launch(mapName: string, gametype: string): Promise<GameplayMapLaunchResult>;
+  launch(mapName: string, gametype: string, options?: GameplayMapLaunchOptions): Promise<GameplayMapLaunchResult>;
   unload(): Promise<void> | void;
 }
 

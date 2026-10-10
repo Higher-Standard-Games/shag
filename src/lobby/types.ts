@@ -260,6 +260,8 @@ export interface DevSpawnServerMessage extends LobbyMessage {
   requestId: string;
   map: string;
   gametype: string;
+  /** Record a training demo under this name (letters, digits, `_` and `-`). */
+  trainingDemo?: string;
 }
 
 /** Public read-only rankings; request IDs correlate concurrent mode/period changes. */

@@ -23,6 +23,8 @@ This page is a workflow reference, not a generated exhaustive list. Engine comma
 | --- | --- |
 | `map <name> [gametype]` **dev** | Browser gameplay launch through the registered launcher |
 | `map list\|current\|reload\|unload` **dev** | Gameplay-map operations |
+| `training_demo <map> [name] [gametype]` **dev** | Launch a map on a server that stays in warmup and records every tick of your play, for bots to learn a movement route from |
+| `training_demo stop` **dev** | Leave the training server; it saves `public/data/demos/training/<map>_<name>.shagdemo` |
 | `bsp load\|unload <name>` | Parse an indexed BSP for inspection, or drop it |
 | `bsp render [all\|poly\|patch\|mesh]` | Build inspection geometry |
 | `bsp info\|faces\|entities\|textures\|worldspawn` | Inspect parsed data |
@@ -37,6 +39,9 @@ This page is a workflow reference, not a generated exhaustive list. Engine comma
 | `pvs on\|off\|status\|cluster` | PVS diagnostics |
 
 `map` needs a gameplay launcher, which the browser composition registers and `cli:game` does not; use `bsp load` there.
+
+`training_demo` records one trick per demo: do it, then `training_demo stop`. A
+name that already exists gets `_2`, `_3` and so on rather than being overwritten.
 
 ## Camera and position
 

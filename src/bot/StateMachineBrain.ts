@@ -19,7 +19,7 @@ import { type BotDifficulty, defaultGoalArbiterMode, type GoalArbiterMode, Input
 import type { BotGameState, Vec3, VisiblePlayer } from "./BotGameState";
 import { vec3Length, vec3Normalize, vec3Subtract } from "./BotGameState";
 import { canInitiateSlide, PHYSICS } from "./BotMovementProfile";
-import { type BotNavGraph, type NavPath, type NavStep, navEdgeKey } from "./BotNavGraph";
+import { type BotNavGraph, type NavPath, type NavPathOptions, type NavStep, navEdgeKey } from "./BotNavGraph";
 import { BotSequenceRegistry, BotSequenceRuntime, type BotSequenceRuntimeTick } from "./BotSequence";
 import type { BotVision, VisionResult } from "./BotVision";
 import { getWeaponProfile, selectBestWeapon, type WeaponProfile } from "./BotWeaponProfile";
@@ -1052,10 +1052,7 @@ export class StateMachineBrain extends BotBrain {
     return null;
   }
 
-  private _getNavPathOptions(tick: number): {
-    blockedEdgeKeys: ReadonlySet<string>;
-    blockedPickupIds: ReadonlySet<number>;
-  } {
+  private _getNavPathOptions(tick: number): NavPathOptions {
     for (const [key, retryTick] of this._blockedNavEdges) {
       if (tick >= retryTick) this._blockedNavEdges.delete(key);
     }
@@ -1065,6 +1062,7 @@ export class StateMachineBrain extends BotBrain {
     return {
       blockedEdgeKeys: new Set(this._blockedNavEdges.keys()),
       blockedPickupIds: new Set(this._blockedPickupIds.keys()),
+      canWalkTo: this._lastBotVision ? (from, to) => this._lastBotVision?.isWalkable(from, to) ?? true : undefined,
     };
   }
 

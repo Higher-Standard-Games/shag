@@ -46,6 +46,7 @@ function parseArgs(): GameServerConfig & { gamePath: string; gametype: string } 
     gametype: "Deathmatch",
     shutdownOnEmpty: false,
     singleMatch: false,
+    trainingDemo: undefined as string | undefined,
   };
 
   let positionalPos = 0;
@@ -94,6 +95,9 @@ function parseArgs(): GameServerConfig & { gamePath: string; gametype: string } 
         break;
       case "--single-match":
         config.singleMatch = true;
+        break;
+      case "--training-demo":
+        config.trainingDemo = args[++i];
         break;
       case "--help":
       case "-h":
@@ -155,6 +159,8 @@ Options:
   --cert <path>          TLS certificate path
   --key <path>           TLS key path
   --shutdown             Auto-exit when all clients disconnect
+  --training-demo <name> Record a training demo: warmup never ends, a frame per tick,
+                         saved to public/data/demos/training/<map>_<name>.shagdemo
   --single-match         One match per server: post-game is terminal, players
                          return to the lobby, bots are released, process exits
   --help, -h             Show this help
@@ -244,6 +250,14 @@ async function main(): Promise<void> {
       break;
   }
   console.log(`[Server] Gametype: ${gametypeInstance.name}`);
+
+  if (config.trainingDemo) {
+    // A training run is one player practising a trick: stay in warmup for good,
+    // and send a snapshot every tick so each demo frame holds exactly one input.
+    process.env.SHAG_WARMUP = "0";
+    config.snapshotRate = config.tickRate;
+    console.log(`[Server] Training demo: ${config.trainingDemo}`);
+  }
 
   const server = new GameServer(config, gametypeInstance);
 

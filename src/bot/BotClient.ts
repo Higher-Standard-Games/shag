@@ -29,6 +29,9 @@ import { BotGameState } from "./BotGameState";
 import type { BotVision, VisionResult } from "./BotVision";
 import { StateMachineBrain } from "./StateMachineBrain";
 
+/** Most script commands sent in one timer firing, well under the server's input buffer. */
+const MAX_SCRIPT_BURST = 4;
+
 // ── Types ───────────────────────────────────────────────────────────────
 
 interface ServerInfo {
@@ -80,6 +83,8 @@ export class BotClient extends EventEmitter {
   // 125Hz input loop (matches server tick rate)
   private _inputLoopTimer: ReturnType<typeof setInterval> | null = null;
   private _lastBotInput: BotInput | null = null; // Cached AI decision, re-sent at 125Hz
+  /** A scripted movement being sent, one command per server tick (see `BotInput.script`). */
+  private _script: { inputs: readonly BotInput[]; sent: number; startedAt: number } | null = null;
 
   // Death/respawn
   private _isDead: boolean = false;
@@ -301,6 +306,7 @@ export class BotClient extends EventEmitter {
     this._isDead = false;
     this._deathTime = 0;
     this._lastBotInput = null;
+    this._script = null;
     this._lastVisionResult = null;
   }
 
@@ -472,6 +478,9 @@ export class BotClient extends EventEmitter {
         this._friendlyFireSuppressions++;
       }
       this._lastBotInput = input;
+      if (input.script && input.script.length > 0 && this._script?.inputs !== input.script) {
+        this._script = { inputs: input.script, sent: 0, startedAt: performance.now() };
+      }
 
       // Start 125Hz input loop if not already running
       if (!this._inputLoopTimer) {
@@ -521,9 +530,22 @@ export class BotClient extends EventEmitter {
     if (this._inputLoopTimer) return;
     const TICK_MS = 8; // 125Hz = 1000/125 = 8ms
     this._inputLoopTimer = setInterval(() => {
-      if (this._lastBotInput && !this._isDead && this._state === "playing") {
-        this._sendInput(this._lastBotInput);
+      if (!this._lastBotInput || this._isDead || this._state !== "playing") {
+        this._script = null;
+        return;
       }
+      const script = this._script;
+      if (!script) {
+        this._sendInput(this._lastBotInput);
+        return;
+      }
+      // One script command per server tick. The timer fires late and unevenly
+      // (Windows timers tick at about 15.6 ms), so send every command owed by
+      // now; the server consumes them one per tick, in order.
+      const owed = Math.floor((performance.now() - script.startedAt) / TICK_MS) + 1;
+      const until = Math.min(script.inputs.length, owed, script.sent + MAX_SCRIPT_BURST);
+      while (script.sent < until) this._sendInput(script.inputs[script.sent++]);
+      if (script.sent >= script.inputs.length) this._script = null;
     }, TICK_MS);
     console.log(`${this._logPrefix} Started 125Hz input loop`);
   }

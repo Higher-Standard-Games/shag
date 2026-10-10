@@ -39,6 +39,8 @@ export interface SpawnConfig {
   singleMatch?: boolean;
   /** Verified lobby roster. Omitted for standalone/dev servers. */
   admissionSeats?: MatchSeat[];
+  /** Record a training demo under this name (dev spawns only). */
+  trainingDemo?: string;
 }
 
 export interface SpawnedServer {
@@ -145,6 +147,10 @@ export class GameServerSpawner {
 
     if (config.maxClients) {
       args.push("--max", String(config.maxClients));
+    }
+
+    if (config.trainingDemo) {
+      args.push("--training-demo", config.trainingDemo);
     }
 
     const childEnv = { ...process.env };

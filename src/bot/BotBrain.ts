@@ -27,6 +27,13 @@ export interface BotInput {
   buttons: number;
   /** Weapon slot to switch to (0 = no change, 1-indexed) */
   weaponSlot: number;
+  /**
+   * Exact inputs for the next server ticks, one per tick, in order. A movement
+   * found offline (a wall jump, say) replays only if every tick's buttons and
+   * yaw arrive as simulated, which re-sending the latest decision cannot
+   * guarantee. The client sends the script once, then returns to decisions.
+   */
+  script?: readonly BotInput[];
 }
 
 // ── Bot Brain States ────────────────────────────────────────────────────

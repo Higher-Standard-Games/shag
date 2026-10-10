@@ -123,6 +123,20 @@ const COVER_SEARCH_DISTANCE = 500;
 const COVER_OFFSET = 50;
 
 /** Player bounding box for walkability checks */
+/** Walk-edge floor check: sample spacing, and how far below the sweep the floor may be. */
+const FLOOR_SAMPLE_STEP = 64;
+const FLOOR_SAMPLE_DEPTH = 64;
+
+/**
+ * The standing hull around an origin 24 units above the feet, as walk sweeps
+ * use it: up to head height (40 above the origin), and clear of the bottom
+ * 18 units, which a step climbs.
+ */
+const WALK_SWEEP_BOUNDS: AABB = {
+  min: { x: -15, y: -6, z: -15 },
+  max: { x: 15, y: 40, z: 15 },
+};
+
 const PLAYER_BOUNDS: AABB = {
   min: { x: -16, y: 0, z: -16 },
   max: { x: 16, y: 64, z: 16 },
@@ -385,6 +399,29 @@ export class BotVision {
     const result = this._collisionWorld.trace(from, to, PLAYER_BOUNDS);
     // If fraction is close to 1, the path is mostly clear
     return result.fraction > 0.9;
+  }
+
+  /**
+   * Stricter than `isPathClear`, for building walk edges: the whole sweep of
+   * the standing hull must be clear, and there must be floor under it every
+   * `FLOOR_SAMPLE_STEP` units. `from` and `to` are origins 24 above the feet.
+   * `isPathClear` passes a sweep blocked over its last tenth, which on a
+   * 1,400-unit edge is a wall 140 units before the node; and a sweep at
+   * standing height says nothing about a pit beneath it.
+   */
+  isWalkable(from: Vec3, to: Vec3): boolean {
+    if (this._collisionWorld.trace(from, to, WALK_SWEEP_BOUNDS).fraction < 1) return false;
+    const length = Math.hypot(to.x - from.x, to.z - from.z);
+    const samples = Math.floor(length / FLOOR_SAMPLE_STEP);
+    for (let i = 1; i < samples; i++) {
+      const t = i / samples;
+      const x = from.x + (to.x - from.x) * t;
+      const y = from.y + (to.y - from.y) * t;
+      const z = from.z + (to.z - from.z) * t;
+      const floor = this._collisionWorld.trace({ x, y, z }, { x, y: y - FLOOR_SAMPLE_DEPTH, z });
+      if (!floor.hit || floor.fraction >= 1) return false;
+    }
+    return true;
   }
 
   // ── Cover Finding ───────────────────────────────────────────────────

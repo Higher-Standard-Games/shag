@@ -1,125 +1,37 @@
 /**
- * Where can a player actually go? A flood fill over the compiled map using the
- * game's own movement: `stepSlideMove` with the player hull (steps up to 18
- * units, slides along walls), drops onto whatever is below, and hops onto
- * ledges within jump height. Unlike the bots' navigation graph it walks stairs
- * and narrow doorways, so it answers the player's question, not the bot's.
+ * Where can a player actually go? The shared walk flood over the compiled map
+ * (`WalkFlood`), with standing hops onto ledges within jump height and
+ * teleporters and jump pads followed.
  *
  * Game space is Y up; findings are reported in Quake coordinates (Z up).
  */
 
+import { type FloodTrigger, type FloodVec3, type FloodWorld, walkFlood } from "../../../shared/collision/WalkFlood";
 import type { ReachabilityReport, ReachNode } from "../api/Reachability";
 import { analyzeReachability } from "../api/Reachability";
 import type { EditorDocumentData } from "../EditorDocument";
 
-interface Vec3 {
-  x: number;
-  y: number;
-  z: number;
-}
+type Vec3 = FloodVec3;
 
-interface World {
-  trace(start: Vec3, end: Vec3, bounds?: { min: Vec3; max: Vec3 }): { fraction: number; hitPoint?: Vec3 };
-  stepSlideMove(start: Vec3, velocity: Vec3, dt: number, bounds: { min: Vec3; max: Vec3 }): { endPos: Vec3 };
-}
-
-/** The player hull as the collision world expects it (its origin is 24 above the feet). */
-const HULL = { min: { x: -15, y: -24, z: -15 }, max: { x: 15, y: 40, z: 15 } };
-/** One flood step, in units. */
-const STEP = 32;
 /** Jump apex: velocity 270 against gravity 800 rises about 45.6 units. */
 const HOP = 45;
-/** Deepest drop followed before a fall counts as into the void. */
-const MAX_DROP = 1024;
 /** A position counts as at an item or spawn when this close. */
 const TOUCH = 48;
-/** Cap on visited positions per spawn, so a huge map cannot run forever. */
-const MAX_STATES = 60_000;
-
-const DIRECTIONS = Array.from({ length: 8 }, (_, i) => {
-  const angle = (i * Math.PI) / 4;
-  return { x: Math.cos(angle), z: Math.sin(angle) };
-});
-
-/** Lower a hull standing at `p` onto the surface below; null over the void. */
-function settle(world: World, p: Vec3): Vec3 | null {
-  const from = { x: p.x, y: p.y + 1, z: p.z };
-  const hit = world.trace(from, { x: p.x, y: p.y - MAX_DROP, z: p.z }, HULL);
-  if (hit.fraction >= 1 || !hit.hitPoint) return null;
-  return { x: hit.hitPoint.x, y: hit.hitPoint.y + 0.25, z: hit.hitPoint.z };
-}
-
-const key = (p: Vec3) => `${Math.round(p.x / 16)},${Math.round(p.z / 16)},${Math.round(p.y / 8)}`;
 
 /** A teleporter or jump pad volume and where it sends a player (game space). */
-export interface ReachTrigger {
-  min: Vec3;
-  max: Vec3;
-  dest: Vec3;
-}
-
-const touches = (p: Vec3, t: ReachTrigger) =>
-  p.x + HULL.max.x > t.min.x &&
-  p.x + HULL.min.x < t.max.x &&
-  p.y + HULL.max.y > t.min.y &&
-  p.y + HULL.min.y < t.max.y &&
-  p.z + HULL.max.z > t.min.z &&
-  p.z + HULL.min.z < t.max.z;
+export type ReachTrigger = FloodTrigger;
 
 /**
- * Every standing position a player starting at `start` can reach. Walking into
- * a teleporter or jump pad adds its destination (a jump pad's target is where
- * its throw lands).
+ * Every standing position a player starting at `start` can reach, hopping onto
+ * ledges within jump height. Walking into a teleporter or jump pad adds its
+ * destination (a jump pad's target is where its throw lands).
  */
-export function floodFrom(world: World, start: Vec3, triggers: readonly ReachTrigger[] = []): Vec3[] {
-  const first = settle(world, start);
-  if (!first) return [];
-  const seen = new Set([key(first)]);
-  const reached = [first];
-  const queue = [first];
-  const move = (from: Vec3, dir: { x: number; z: number }) =>
-    world.stepSlideMove(from, { x: dir.x * STEP * 8, y: 0, z: dir.z * STEP * 8 }, 1 / 8, HULL).endPos;
-  const visit = (landed: Vec3) => {
-    const k = key(landed);
-    if (seen.has(k)) return;
-    seen.add(k);
-    reached.push(landed);
-    queue.push(landed);
-  };
-  while (queue.length && reached.length < MAX_STATES) {
-    const p = queue.shift()!;
-    for (const trigger of triggers) {
-      if (!touches(p, trigger)) continue;
-      const arrived = settle(world, trigger.dest);
-      if (arrived) visit(arrived);
-    }
-    for (const dir of DIRECTIONS) {
-      let end = move(p, dir);
-      let moved = Math.hypot(end.x - p.x, end.z - p.z);
-      let hopped = false;
-      if (moved < STEP / 2) {
-        // Blocked: try a standing hop onto a ledge within jump height.
-        const up = world.trace(p, { x: p.x, y: p.y + HOP, z: p.z }, HULL);
-        const top = up.hitPoint ?? { x: p.x, y: p.y + HOP, z: p.z };
-        if (top.y - p.y < HOP / 2) continue;
-        end = move(top, dir);
-        moved = Math.hypot(end.x - p.x, end.z - p.z);
-        if (moved < STEP / 2) continue;
-        hopped = true;
-      }
-      const landed = settle(world, end);
-      if (!landed) continue;
-      // The movement step can stair-step a further 18 units at the apex; count
-      // only landings within jump height, so the report never overstates.
-      if (hopped && landed.y - p.y > HOP) continue;
-      visit(landed);
-    }
-  }
-  return reached;
+export function floodFrom(world: FloodWorld, start: Vec3, triggers: readonly ReachTrigger[] = []): Vec3[] {
+  return walkFlood(world, start, { hop: HOP, triggers });
 }
 
 export interface PlayerReachInput {
-  world: World;
+  world: FloodWorld;
   /** Spawn origins, game space (already at standing height). */
   spawns: Vec3[];
   /** Pickup positions with classnames, game space. */

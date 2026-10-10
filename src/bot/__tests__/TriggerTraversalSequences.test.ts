@@ -124,4 +124,35 @@ describe("authored trigger traversal sequences", () => {
     });
     expect(runtime.isActive).toBe(false);
   });
+
+  it("steers a pad that throws straight up onto the edge's landing, and counts landing there", () => {
+    // Target overhead; the edge lands on a ledge 200 units to the +z side.
+    const vertical: NavTriggerMetadata = { ...jumppad, dest: { x: 100, y: 400, z: 0 } };
+    const state = new BotGameState();
+    state.tick = 0;
+    state.self.position = { x: 100, y: 0, z: 0 };
+    state.self.isGrounded = true;
+    const navStep: NavStep = {
+      ...makeStep("jumppad", vertical),
+      to: { id: 1, type: "jumppad", position: { x: 100, y: 300, z: 200 } },
+    };
+    const context = { state, navStep };
+    const runtime = makeRuntime(new TraverseJumppadSequence());
+
+    expect(runtime.startBest(context)).toBe(true);
+    runtime.tick(context);
+    state.tick = 2;
+    state.self.position = { x: 100, y: 60, z: 0 };
+    state.self.velocity = { x: 0, y: 700, z: 0 };
+    state.self.isGrounded = false;
+    const flight = runtime.tick(context);
+    expect(flight).toMatchObject({ status: "running", phase: "airborne" });
+    expect(flight!.input.yaw).toBeCloseTo(0, 6); // +z
+
+    state.tick = 90;
+    state.self.position = { x: 100, y: 324, z: 190 };
+    state.self.velocity = { x: 0, y: 0, z: 0 };
+    state.self.isGrounded = true;
+    expect(runtime.tick(context)).toMatchObject({ status: "succeeded" });
+  });
 });

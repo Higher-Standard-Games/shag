@@ -640,7 +640,7 @@ export class LobbyServer {
         this.handleSeatReissue(player, msg.requestId, msg.matchId);
         break;
       case "dev:spawn_server":
-        this.handleDevSpawnServer(player, msg.requestId, msg.map, msg.gametype);
+        this.handleDevSpawnServer(player, msg.requestId, msg.map, msg.gametype, msg.trainingDemo);
         break;
       default:
         // The type is whatever the client sent; a client sending junk gets one line per 5 s.
@@ -1391,6 +1391,7 @@ export class LobbyServer {
     requestId: string,
     mapName: string,
     requestedGametype: string,
+    trainingDemo?: string,
   ): Promise<void> {
     if (!isLoopbackAddress(player.address)) {
       this.send(player, {
@@ -1409,6 +1410,16 @@ export class LobbyServer {
         type: "dev:server_spawn_failed",
         requestId,
         error: `Invalid map name: ${mapName}`,
+      });
+      return;
+    }
+
+    // The name becomes part of a file name and a command-line argument.
+    if (trainingDemo !== undefined && !/^[a-z0-9_-]{1,40}$/i.test(trainingDemo)) {
+      this.send(player, {
+        type: "dev:server_spawn_failed",
+        requestId,
+        error: `Invalid training demo name: ${trainingDemo} (letters, digits, _ and -)`,
       });
       return;
     }
@@ -1434,6 +1445,7 @@ export class LobbyServer {
         gametype: gametypeId,
         maxClients,
         shutdown: true,
+        ...(trainingDemo ? { trainingDemo } : {}),
       });
 
       this.devMatchToPlayer.set(server.matchId, player.id);

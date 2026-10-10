@@ -9,6 +9,10 @@ const FLIGHT_COMMIT_TICKS = 180;
 const TARGET_HORIZONTAL_TOLERANCE = 128;
 const TARGET_VERTICAL_TOLERANCE = 128;
 const MIN_LAUNCH_VERTICAL_SPEED = 80;
+/** Grounded this close to the edge's landing node, horizontally, counts as arrived. */
+const LANDING_HORIZONTAL_TOLERANCE = 96;
+/** Origin height above a node on the surface. */
+const LANDING_ORIGIN_LIFT = 24;
 
 function yawToward(from: Vec3, to: Vec3, fallback: number): number {
   const dx = to.x - from.x;
@@ -25,6 +29,13 @@ function forwardInput(context: BotSequenceContext, target: Vec3): BotInput {
     buttons: InputButtons.FORWARD,
     weaponSlot: 0,
   };
+}
+
+function landedAt(position: Vec3, landing: Vec3): boolean {
+  return (
+    Math.hypot(position.x - landing.x, position.z - landing.z) <= LANDING_HORIZONTAL_TOLERANCE &&
+    Math.abs(position.y - (landing.y + LANDING_ORIGIN_LIFT)) <= TARGET_VERTICAL_TOLERANCE
+  );
 }
 
 function triggerFrom(state: BotSequenceState): NavTriggerMetadata {
@@ -83,6 +94,10 @@ export class TraverseJumppadSequence implements BotSequence {
       commitUntilTick: context.state.tick,
       data: {
         trigger,
+        // Where this edge lands. A pad that throws straight up lands wherever
+        // the player steers, so the flight steers here, not at the pad's aim
+        // point overhead.
+        landing: context.navStep?.to.position ?? trigger.dest,
         enteredTick: null,
         launchTick: null,
         launchArmed: context.state.self.isGrounded && nearTrigger(context.state.self.position, trigger),
@@ -92,6 +107,7 @@ export class TraverseJumppadSequence implements BotSequence {
 
   tick(context: BotSequenceContext, state: BotSequenceState): BotSequenceTick {
     const trigger = triggerFrom(state);
+    const landing = state.data.landing as Vec3;
     const self = context.state.self;
     const source = triggerCenter(trigger);
     const launchTick = state.data.launchTick as number | null;
@@ -101,23 +117,23 @@ export class TraverseJumppadSequence implements BotSequence {
       state.data.launchArmed = true;
     }
     if (launchTick !== null) {
-      if (reachedTarget(self.position, trigger)) {
+      if (reachedTarget(self.position, trigger) || (self.isGrounded && landedAt(self.position, landing))) {
         return {
-          input: forwardInput(context, trigger.dest),
+          input: forwardInput(context, landing),
           status: "succeeded",
           phase: "target_verified",
         };
       }
       if (self.isGrounded && context.state.tick > launchTick) {
         return {
-          input: forwardInput(context, trigger.dest),
+          input: forwardInput(context, landing),
           status: "failed",
           phase: "airborne",
           reason: "jumppad_landed_short",
         };
       }
       return {
-        input: forwardInput(context, trigger.dest),
+        input: forwardInput(context, landing),
         status: "running",
         phase: "airborne",
       };
@@ -126,7 +142,7 @@ export class TraverseJumppadSequence implements BotSequence {
     if (state.data.launchArmed === true && !self.isGrounded && self.velocity.y >= MIN_LAUNCH_VERTICAL_SPEED) {
       state.data.launchTick = context.state.tick;
       return {
-        input: forwardInput(context, trigger.dest),
+        input: forwardInput(context, landing),
         status: "running",
         phase: "airborne",
         commitForTicks: FLIGHT_COMMIT_TICKS,

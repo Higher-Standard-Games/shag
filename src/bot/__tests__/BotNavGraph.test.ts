@@ -41,10 +41,8 @@ function makeVision(triggerType: "teleport" | "push"): BotVision {
         },
       ],
     },
-    collisionWorld: {
-      trace: () => ({ hit: false, fraction: 1 }),
-    },
-    isPathClear: () => true,
+    collisionWorld: new NullCollisionWorld(),
+    isWalkable: () => true,
     canSee: () => true,
     isInsideSolid: () => false,
   } as unknown as BotVision;
@@ -60,7 +58,7 @@ function makeJumpVision(): BotVision {
       triggerVolumes: [],
     },
     collisionWorld: new FlatFloorCollisionWorld(),
-    isPathClear: () => true,
+    isWalkable: () => true,
     canSee: () => true,
     isInsideSolid: () => false,
   } as unknown as BotVision;
@@ -76,7 +74,7 @@ function makeUnreachableJumpVision(): BotVision {
       triggerVolumes: [],
     },
     collisionWorld: new NullCollisionWorld(),
-    isPathClear: () => true,
+    isWalkable: () => true,
     canSee: () => true,
     isInsideSolid: () => false,
   } as unknown as BotVision;
@@ -262,7 +260,7 @@ describe("BotNavGraph walk edges", () => {
         triggerVolumes: [],
       },
       collisionWorld: new GroundPlane(),
-      isPathClear: hullClear,
+      isWalkable: hullClear,
       canSee: () => true,
       isInsideSolid: () => false,
     } as unknown as BotVision;

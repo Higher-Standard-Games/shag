@@ -13,6 +13,7 @@
 import { MatchPhase } from "@shared/server/gametype";
 import { BotServer } from "../bot/BotServer";
 import { GameServer, type GameServerConfig } from "../games/fps/server/GameServer";
+import { Amphi } from "../games/fps/server/gametypes/Amphi";
 import type { BaseGametype } from "../games/fps/server/gametypes/BaseGametype";
 import { Deathmatch } from "../games/fps/server/gametypes/Deathmatch";
 import { Duel } from "../games/fps/server/gametypes/Duel";
@@ -76,7 +77,7 @@ function parseArgs(): Args {
       case "--help":
       case "-h":
         console.log(
-          "Usage: npm run demo:record -- --map <name> --bots <N> --seconds <S> [--gametype duel|ffa|tdm] [--difficulty easy|medium|hard] [--models <dir>]",
+          "Usage: npm run demo:record -- --map <name> --bots <N> --seconds <S> [--gametype duel|amphi|ffa|snd|tdm] [--difficulty easy|medium|hard] [--models <dir>]",
         );
         process.exit(0);
     }
@@ -96,6 +97,8 @@ function makeGametype(name: string): BaseGametype {
     case "duel":
     case "1v1":
       return new Duel();
+    case "amphi":
+      return new Amphi();
     default:
       return new Deathmatch();
   }
@@ -156,15 +159,16 @@ async function main(): Promise<void> {
     }
   }
 
-  // 4. Give bots a moment to join as players, then force the match Active so
-  //    recording starts immediately (don't wait out the 2-minute warmup).
+  // 4. Give bots a moment to join as players, then run the warmup out so the
+  //    match starts without waiting the full two minutes. Expiring the timer
+  //    rather than jumping phases keeps the normal start: countdown, the
+  //    gametype's phase and round hooks, the round reset and respawns.
   await wait(2000);
   // biome-ignore lint/suspicious/noExplicitAny: reach into private match state
   const matchState = (server as any).gametypeController.matchState;
-  if (matchState.phase !== MatchPhase.Active) {
-    matchState.transition(MatchPhase.Active);
-    console.log(`[Record] Match forced Active — recording…`);
-  }
+  if (matchState.phase === MatchPhase.Warmup) matchState._timeRemaining = 0;
+  for (let i = 0; i < 100 && matchState.phase !== MatchPhase.Active; i++) await wait(100);
+  console.log(`[Record] Match ${matchState.phase === MatchPhase.Active ? "live" : "not live yet"} — recording…`);
 
   // 5. Play for the requested duration.
   console.log(`[Record] Recording ${args.seconds}s of play…`);

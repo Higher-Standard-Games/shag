@@ -174,6 +174,8 @@ export class LobbyClient {
     map: string,
     gametype: string,
     timeoutMs: number = 30000,
+    /** Name of a training demo to record on the spawned server. */
+    trainingDemo?: string,
   ): Promise<{
     serverUrl: string;
     map: string;
@@ -225,7 +227,7 @@ export class LobbyClient {
         }),
       );
 
-      this.send({ type: "dev:spawn_server", requestId, map, gametype });
+      this.send({ type: "dev:spawn_server", requestId, map, gametype, ...(trainingDemo ? { trainingDemo } : {}) });
     });
   }
 

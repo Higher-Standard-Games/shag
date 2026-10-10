@@ -23,6 +23,7 @@
  */
 
 import type { Vec3 } from "../shared/bsp/BspDataLoader";
+import { type FloodPosition, type FloodVec3, type FloodWorld, settle, walkFlood } from "../shared/collision/WalkFlood";
 import { vec3Distance } from "./BotGameState";
 import {
   BOT_MOVEMENT_ANALYZER_FINGERPRINT,
@@ -111,6 +112,13 @@ export interface NavGraphStaticData {
 export interface NavPathOptions {
   blockedEdgeKeys?: ReadonlySet<string>;
   blockedPickupIds?: ReadonlySet<number>;
+  /**
+   * Can a player at `from` walk straight to `to` (a node's standing origin)?
+   * When given, a route starts from the nearest node the player can walk to,
+   * not merely the nearest: a bot knocked onto a barricade must not start its
+   * route at a node on the far side of a wall.
+   */
+  canWalkTo?: (from: Vec3, to: Vec3) => boolean;
 }
 
 export function navEdgeKey(from: number, to: number, type: NavEdgeType): string {
@@ -162,6 +170,33 @@ const STANDS_ON_SURFACE: ReadonlySet<NavNodeType> = new Set(["floor", "item"]);
 /** Min distance between any two nodes (dedup threshold) */
 const MIN_NODE_DISTANCE = 64;
 
+/** Nearest nodes checked for a clear walk when choosing where a route starts. */
+const START_CANDIDATES = 8;
+
+/** A route's goal snaps to a reachable node this close to the target. */
+const GOAL_SNAP_RADIUS = 256;
+
+/** A landed origin is this far above the feet; nodes sit 1 unit above the surface. */
+const JUMPPAD_LANDING_FEET = 24;
+
+/** Node pairs this close horizontally are linked by a walk flood when the straight sweep fails. */
+const WALK_FLOOD_RADIUS = 400;
+/** Flooded when the rise is at most the horizontal distance plus this (stairs top out near 45°). */
+const WALK_FLOOD_RISE_SLACK = 32;
+/** Walk flood step and visited-cell size. */
+const WALK_FLOOD_STEP = 32;
+/**
+ * A step may drop this far: down stairs and off ledges, short of fall damage
+ * (`sv_falldamage_min` defaults to 256). The flood is one-way, so a drop never
+ * implies the climb back.
+ */
+const WALK_FLOOD_MAX_DROP = 255;
+/** Cap on positions per node's flood. */
+const WALK_FLOOD_MAX_STATES = 4000;
+/** The flood reaches a node when it stands this close to the node's standing origin. */
+const WALK_FLOOD_ARRIVAL = 32;
+const WALK_FLOOD_ARRIVAL_HEIGHT = 24;
+
 /** Teleporters are effectively instant, but keep a small cost so A* stays stable. */
 const TELEPORT_COST = 32;
 
@@ -184,6 +219,11 @@ export const BOT_NAV_MOVEMENT_FINGERPRINT = [
   `trigger:${BOT_NAV_TRIGGER_RESOLVER_VERSION}:${TELEPORT_COST}:${JUMPPAD_COST_MULT}`,
   // Caches built before walk tests swept from standing height have almost no walk edges.
   `walk-origin:${WALK_TEST_LIFT}`,
+  `walk-flood:${WALK_FLOOD_RADIUS}:${WALK_FLOOD_RISE_SLACK}:${WALK_FLOOD_STEP}:${WALK_FLOOD_MAX_DROP}:${WALK_FLOOD_MAX_STATES}:${WALK_FLOOD_ARRIVAL}:${WALK_FLOOD_ARRIVAL_HEIGHT}`,
+  // Walk sweeps must be wholly clear with floor beneath; caches with lenient sweeps hold edges into walls.
+  "walk-strict:2",
+  // Jump pad destination nodes moved from the aim point to the simulated landing.
+  "jumppad-landing:2",
   BOT_MOVEMENT_ANALYZER_FINGERPRINT,
 ].join("|");
 // ── BotNavGraph ─────────────────────────────────────────────────────
@@ -196,6 +236,70 @@ function emptyMovementAnalysis(): MovementAnalysisSummary {
     budgetExhausted: false,
     rejectionCounts: {},
   };
+}
+
+/**
+ * Walk floods from nodes, run once per node on first use. `distance(a, b)` is
+ * how far the flood from `a` walked to stand at `b`, or null if it never did.
+ */
+class WalkReach {
+  private readonly origins = new Map<number, FloodVec3 | null>();
+  private readonly floods = new Map<number, Map<string, FloodPosition[]>>();
+
+  constructor(private readonly world: FloodWorld) {}
+
+  distance(from: NavNode, to: NavNode): number | null {
+    const goal = this.origin(to);
+    if (!goal || !this.origin(from)) return null;
+    const cells = this.flood(from);
+    const cx = Math.round(goal.x / WALK_FLOOD_STEP);
+    const cz = Math.round(goal.z / WALK_FLOOD_STEP);
+    let best: number | null = null;
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dz = -1; dz <= 1; dz++) {
+        for (const p of cells.get(`${cx + dx},${cz + dz}`) ?? []) {
+          if (Math.hypot(p.x - goal.x, p.z - goal.z) > WALK_FLOOD_ARRIVAL) continue;
+          if (Math.abs(p.y - goal.y) > WALK_FLOOD_ARRIVAL_HEIGHT) continue;
+          if (best === null || p.distance < best) best = p.distance;
+        }
+      }
+    }
+    return best;
+  }
+
+  /** Standing origin of a node: its position lowered onto the floor beneath. */
+  private origin(node: NavNode): FloodVec3 | null {
+    let origin = this.origins.get(node.id);
+    if (origin === undefined) {
+      origin = settle(this.world, walkOrigin(node), WALK_FLOOD_MAX_DROP + WALK_TEST_LIFT);
+      this.origins.set(node.id, origin);
+    }
+    return origin;
+  }
+
+  private flood(node: NavNode): Map<string, FloodPosition[]> {
+    let cells = this.floods.get(node.id);
+    if (cells) return cells;
+    cells = new Map();
+    const start = this.origin(node);
+    if (start) {
+      const reached = walkFlood(this.world, start, {
+        step: WALK_FLOOD_STEP,
+        cell: WALK_FLOOD_STEP,
+        maxDrop: WALK_FLOOD_MAX_DROP,
+        radius: WALK_FLOOD_RADIUS + WALK_FLOOD_ARRIVAL,
+        maxStates: WALK_FLOOD_MAX_STATES,
+      });
+      for (const p of reached) {
+        const k = `${Math.round(p.x / WALK_FLOOD_STEP)},${Math.round(p.z / WALK_FLOOD_STEP)}`;
+        const list = cells.get(k);
+        if (list) list.push(p);
+        else cells.set(k, [p]);
+      }
+    }
+    this.floods.set(node.id, cells);
+    return cells;
+  }
 }
 
 /** Where a walk test sweeps the player hull from for this node. */
@@ -365,9 +469,10 @@ export class BotNavGraph {
    * Returns null if no path exists.
    */
   findPath(from: Vec3, to: Vec3, options: NavPathOptions = {}): NavPath | null {
-    const startNode = this.findNearestNode(from);
-    const goalNode = this.findNearestNode(to);
-    if (!startNode || !goalNode) return null;
+    const startNode = this._findStandingNode(from, options.canWalkTo);
+    if (!startNode) return null;
+    const goalNode = this._findReachableNodeNear(startNode, to) ?? this.findNearestNode(to);
+    if (!goalNode) return null;
     if (startNode.id === goalNode.id) {
       return { nodes: [startNode], steps: [], totalCost: 0, cursor: 0 };
     }
@@ -385,7 +490,7 @@ export class BotNavGraph {
     activeMask: readonly boolean[] = [],
     options: NavPathOptions = {},
   ): NavPath | null {
-    const startNode = this.findNearestNode(from);
+    const startNode = this._findStandingNode(from, options.canWalkTo);
     if (!startNode) return null;
 
     // Find all matching item nodes
@@ -425,6 +530,53 @@ export class BotNavGraph {
       }
     }
 
+    return best;
+  }
+
+  /**
+   * The node a player at `pos` is standing at. Height counts double: the
+   * nearest node by straight distance is often on a ledge just overhead, which
+   * a route cannot start from.
+   */
+  private _findStandingNode(pos: Vec3, canWalkTo?: NavPathOptions["canWalkTo"]): NavNode | null {
+    const standingOrigin = (node: NavNode): Vec3 =>
+      STANDS_ON_SURFACE.has(node.type) ? walkOrigin(node) : node.position;
+    const scored = this._nodes.map((node) => {
+      const origin = standingOrigin(node);
+      return {
+        node,
+        origin,
+        score: Math.hypot(pos.x - origin.x, pos.z - origin.z) + 2 * Math.abs(pos.y - origin.y),
+      };
+    });
+    scored.sort((a, b) => a.score - b.score);
+    if (canWalkTo) {
+      for (const candidate of scored.slice(0, START_CANDIDATES)) {
+        if (canWalkTo(pos, candidate.origin)) return candidate.node;
+      }
+    }
+    return scored[0]?.node ?? null;
+  }
+
+  /**
+   * The node nearest `target` that a route from `start` can reach, within
+   * `GOAL_SNAP_RADIUS`. Objectives are often marked in the air (a bomb site's
+   * indicator floats over its floor) and the plain nearest node can be on a
+   * ledge beside it that nothing walks to; the floor under it is the goal.
+   */
+  private _findReachableNodeNear(start: NavNode, target: Vec3): NavNode | null {
+    const costs = this._ensureDistanceMatrix()[start.id];
+    if (!costs) return null;
+    let best: NavNode | null = null;
+    let bestDist = GOAL_SNAP_RADIUS;
+    for (const node of this._nodes) {
+      if (!Number.isFinite(costs[node.id])) continue;
+      const dist = vec3Distance(target, node.position);
+      if (dist <= bestDist) {
+        bestDist = dist;
+        best = node;
+      }
+    }
     return best;
   }
 
@@ -487,24 +639,35 @@ export class BotNavGraph {
       addNode(sp, "spawn");
     }
 
-    // 3. Trigger volumes. Source nodes sit at trigger AABB centers; destination
-    // nodes sit at the resolved TriggerTable target so A* can route through them.
+    // 3. Trigger volumes. Source nodes sit at trigger AABB centers. A
+    // teleporter's destination node sits at its exit. A jump pad gets one
+    // destination node per place its flight can land, found by flying it:
+    // its target is the aim point of the throw, usually in mid-air, and a pad
+    // that throws straight up lands wherever the player steers.
+    const flights = new BotMovementAnalyzer(vision.collisionWorld);
     for (const trigger of knowledge.triggerVolumes ?? []) {
       const type = trigger.type === "push" ? "jumppad" : "teleporter";
       const source = addNode(this._triggerCenter(trigger), type, `trigger_${trigger.type}`);
-      const dest = addNode(trigger.dest, type, `trigger_${trigger.type}_dest`);
-      this._triggerLinks.push({
-        from: source.id,
-        to: dest.id,
-        type,
-        trigger: {
-          id: trigger.id,
-          min: { ...trigger.min },
-          max: { ...trigger.max },
-          dest: { ...trigger.dest },
-          destYaw: trigger.destYaw,
-        },
-      });
+      const landings = trigger.type === "push" ? flights.simulateJumppadLandings(trigger) : [];
+      const destinations = landings.length
+        ? landings.map((landing) => ({ x: landing.x, y: landing.y - JUMPPAD_LANDING_FEET + 1, z: landing.z }))
+        : [trigger.dest];
+      for (const destination of destinations) {
+        const dest = addNode(destination, type, `trigger_${trigger.type}_dest`);
+        if (dest.id === source.id) continue;
+        this._triggerLinks.push({
+          from: source.id,
+          to: dest.id,
+          type,
+          trigger: {
+            id: trigger.id,
+            min: { ...trigger.min },
+            max: { ...trigger.max },
+            dest: { ...trigger.dest },
+            destYaw: trigger.destYaw,
+          },
+        });
+      }
     }
 
     // 4. Floor grid sampling (fills gaps)
@@ -593,6 +756,7 @@ export class BotNavGraph {
   private _probeEdges(vision: BotVision): void {
     const nodeCount = this._nodes.length;
     const movementAnalyzer = new BotMovementAnalyzer(vision.collisionWorld);
+    const walks = new WalkReach(vision.collisionWorld);
 
     for (let i = 0; i < nodeCount; i++) {
       for (let j = i + 1; j < nodeCount; j++) {
@@ -606,14 +770,28 @@ export class BotNavGraph {
         const horizontalDist = Math.sqrt((a.position.x - b.position.x) ** 2 + (a.position.z - b.position.z) ** 2);
 
         // Walk edge: low height diff + path clear
-        if (heightDiff < WALK_HEIGHT_MAX) {
-          if (vision.isPathClear(walkOrigin(a), walkOrigin(b))) {
-            const cost = dist;
-            this._edges.push({ from: a.id, to: b.id, type: "walk", cost });
-            this._edges.push({ from: b.id, to: a.id, type: "walk", cost });
-          }
+        if (heightDiff < WALK_HEIGHT_MAX && vision.isWalkable(walkOrigin(a), walkOrigin(b))) {
+          const cost = dist;
+          this._edges.push({ from: a.id, to: b.id, type: "walk", cost });
+          this._edges.push({ from: b.id, to: a.id, type: "walk", cost });
           continue;
         }
+
+        // Neighbours the straight sweep cannot connect: stairs and ramps that
+        // climb more than a step between grid nodes, a crate in the way, a
+        // doorway off the line. A short walk flood from each node finds them,
+        // each way on its own, because a staircase that can be walked down
+        // can be walked up but a ledge cannot.
+        if (horizontalDist <= WALK_FLOOD_RADIUS && heightDiff <= horizontalDist + WALK_FLOOD_RISE_SLACK) {
+          for (const [from, to] of [
+            [a, b],
+            [b, a],
+          ] as const) {
+            const cost = walks.distance(from, to);
+            if (cost !== null) this._edges.push({ from: from.id, to: to.id, type: "walk", cost });
+          }
+        }
+        if (heightDiff < WALK_HEIGHT_MAX) continue;
 
         // Medium-height jump candidates are tested in both directions.
         if (heightDiff < JUMP_HEIGHT_MAX && horizontalDist < 400) {

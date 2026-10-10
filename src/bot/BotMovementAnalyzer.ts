@@ -9,6 +9,7 @@ import { InputButtons } from "../engine/network/components/InputComponent";
 import type { MovementInput } from "../engine/network/systems/movement/MovementProfile";
 import { MovementProfile } from "../games/fps/simulation/MovementProfile";
 import type { Vec3 } from "../shared/bsp/BspDataLoader";
+import type { TriggerVolume } from "../shared/bsp/TriggerTable";
 import type { CollisionWorld } from "../shared/collision/CollisionWorld";
 
 export type TraversalKind = "jump" | "strafe_jump" | "slide_jump" | "wall_jump" | "wall_jump_ledge_grab";
@@ -95,6 +96,16 @@ const MIN_WALK_NORMAL = 0.7;
 const MAX_ANALYZED_HEIGHT = 96;
 const MAX_ANALYZED_HORIZONTAL_DISTANCE = 480;
 const MAX_STORED_REJECTIONS = 256;
+/** Longest jump pad flight followed to its landing (4 s at 125 Hz). */
+const JUMPPAD_FLIGHT_TICKS = 500;
+/** Steering directions tried per jump pad, besides straight at its target. */
+const JUMPPAD_STEER_DIRECTIONS = 16;
+/** A landing must be this far beyond the pad's edge, horizontally. */
+const JUMPPAD_LANDING_CLEARANCE = 32;
+/** Landings closer than this are the same landing. */
+const JUMPPAD_LANDING_SPACING = 160;
+/** A flight steered at a landing must arrive this close to it. */
+const JUMPPAD_LANDING_TOLERANCE = 64;
 
 export const BOT_MOVEMENT_ANALYZER_VERSION = 2;
 
@@ -238,6 +249,88 @@ export class BotMovementAnalyzer {
     }
 
     return this.reject(id, fromNodeId, takeoff, toNodeId, landing, "rollout_missed_landing");
+  }
+
+  /**
+   * Where a jump pad can put a player. Each candidate flight steers one way
+   * from launch to landing with the game's own movement; a landing counts when
+   * it is clear of the pad and above it, and when a second flight that steers
+   * at the landing point itself (as a bot will) arrives there too. A pad that
+   * throws straight up has a landing on every ledge within reach; a pad aimed
+   * across a gap usually has one.
+   */
+  simulateJumppadLandings(pad: TriggerVolume): Vec3[] {
+    const padTop = pad.max.y;
+    const center = { x: (pad.min.x + pad.max.x) / 2, z: (pad.min.z + pad.max.z) / 2 };
+    const padRadius = Math.hypot(pad.max.x - pad.min.x, pad.max.z - pad.min.z) / 2;
+    const landings: Vec3[] = [];
+    const toTarget = Math.atan2(pad.dest.x - center.x, pad.dest.z - center.z);
+    const yaws = [
+      toTarget,
+      ...Array.from({ length: JUMPPAD_STEER_DIRECTIONS }, (_, i) => (i * 2 * Math.PI) / JUMPPAD_STEER_DIRECTIONS),
+    ];
+    for (const yaw of yaws) {
+      const heading = { x: Math.sin(yaw), y: 0, z: Math.cos(yaw) };
+      const landing = this.flyJumppad(pad, () => heading);
+      if (!landing) continue;
+      if (Math.hypot(landing.x - center.x, landing.z - center.z) <= padRadius + JUMPPAD_LANDING_CLEARANCE) continue;
+      if (landing.y - PLAYER_FEET_OFFSET < padTop) continue;
+      if (
+        landings.some(
+          (l) =>
+            Math.hypot(l.x - landing.x, l.z - landing.z) < JUMPPAD_LANDING_SPACING && Math.abs(l.y - landing.y) < 32,
+        )
+      )
+        continue;
+      const steered = this.flyJumppad(pad, (position) => {
+        const dx = landing.x - position.x;
+        const dz = landing.z - position.z;
+        const length = Math.hypot(dx, dz);
+        return length > 1 ? { x: dx / length, y: 0, z: dz / length } : null;
+      });
+      if (!steered || Math.hypot(steered.x - landing.x, steered.z - landing.z) > JUMPPAD_LANDING_TOLERANCE) continue;
+      if (Math.abs(steered.y - landing.y) > 32) continue;
+      landings.push(steered);
+    }
+    return landings;
+  }
+
+  /** One jump pad flight from standing in the pad until grounded again; null if it never lands. */
+  private flyJumppad(pad: TriggerVolume, steer: (position: Vec3) => Vec3 | null): Vec3 | null {
+    const profile = new MovementProfile();
+    profile.resetPhysicsState(true);
+    profile.setTriggerVolumes([pad]);
+    const center = {
+      x: (pad.min.x + pad.max.x) / 2,
+      y: Math.max(pad.min.y, pad.max.y - 8) + PLAYER_FEET_OFFSET,
+      z: (pad.min.z + pad.max.z) / 2,
+    };
+    const floor = this.collision.trace(center, { x: center.x, y: pad.min.y - SURFACE_PROBE_DOWN, z: center.z });
+    let position =
+      floor.hit && floor.hitPoint
+        ? { x: center.x, y: floor.hitPoint.y + PLAYER_FEET_OFFSET + STANDING_CLEARANCE, z: center.z }
+        : center;
+    let velocity = { x: 0, y: 0, z: 0 };
+    const deltaTime = 1 / this.config.tickRate;
+    let launched = false;
+    for (let tick = 1; tick <= JUMPPAD_FLIGHT_TICKS; tick++) {
+      const direction = launched ? steer(position) : null;
+      const input: MovementInput = {
+        direction: direction ?? { x: 0, y: 0, z: 0 },
+        viewAngles: { pitch: 0, yaw: direction ? Math.atan2(direction.x, direction.z) : 0 },
+        buttons: direction ? InputButtons.FORWARD : 0,
+        sequence: tick,
+        isPressed(button: number): boolean {
+          return (this.buttons & button) !== 0;
+        },
+      };
+      const result = profile.simulate(position, velocity, input, deltaTime, this.collision);
+      position = result.position;
+      velocity = result.velocity;
+      if (!result.grounded && velocity.y > 0) launched = true;
+      if (launched && result.grounded) return { ...position };
+    }
+    return null;
   }
 
   private resolveStandingOrigin(hint: Vec3): Vec3 | null {
