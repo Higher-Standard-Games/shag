@@ -1,0 +1,553 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-10",
+  "fixture": "wdm2-ffa10-v1-095f355747e8-f47d4c2a",
+  "purpose": "Remote held-weapon cache import reuse diagnostics; not an FPS comparison",
+  "runs": [
+    {
+      "artifacts": "public/data/benchmarks/results/2026-10-10-codex-weapon-cache/1-webgl2",
+      "backend": "webgl2",
+      "browser": "Edg/155.0.4283.45",
+      "environment": {
+        "engineClass": "_Engine",
+        "babylonVersion": "9.17.0",
+        "profile": {
+          "width": 1280,
+          "height": 720,
+          "fov": 90,
+          "requiredCvars": {
+            "r_ssr": 0,
+            "r_glow": 0,
+            "r_daynight": 0,
+            "cl_player_outline": 1
+          }
+        },
+        "poseHz": 30
+      },
+      "workloadValid": true,
+      "rejectionReasons": [],
+      "sourceStable": false,
+      "sourceBefore": {
+        "outer": "16acd6277be77ad2ea7939eec24ec062eb5950de",
+        "fps": "93c5a7a2b7ec4d0391aa2a915b59e6f8966955f1",
+        "sourceChangeSha256": "52a0458d4a38ba2d9fbcbbf86f6b89dd35e9198c368ab69776f30484c0ba970f"
+      },
+      "sourceAfter": {
+        "outer": "dbfb98e525cd844e220dd7128972450bdb07afcb",
+        "fps": "93c5a7a2b7ec4d0391aa2a915b59e6f8966955f1",
+        "sourceChangeSha256": "e597d689c263b6b8fc2e72b727fe9e5595d486c17f241b25f937df6f765f629e"
+      },
+      "exceptions": 0,
+      "frames": 4126,
+      "shaderCompiles": 28,
+      "measuredBoundsMs": [
+        91336.80000000075,
+        136323.80000000075
+      ],
+      "warmupObservedTourStartMs": 35672.300000000745,
+      "droppedRecords": {
+        "registrations": 0,
+        "checks": 0,
+        "pendingEvents": 0,
+        "activePending": 0
+      },
+      "heldImportStartsTotal": 16,
+      "heldImportStartsByProgress": {
+        "warmup 1/1": 8,
+        "measure 1/1": 8
+      },
+      "heldImportStartsAfterWarmupScreenshot": 2,
+      "measuredImportStarts": {
+        "heldWeapons": 2,
+        "droppedWeapons": 69,
+        "firstPersonWeapons": 9,
+        "firstPersonBarrels": 12
+      },
+      "heldImportEvents": [
+        {
+          "atMs": 31006,
+          "progress": "warmup 1/1"
+        },
+        {
+          "atMs": 31006.699999999255,
+          "progress": "warmup 1/1"
+        },
+        {
+          "atMs": 31006.89999999851,
+          "progress": "warmup 1/1"
+        },
+        {
+          "atMs": 32221.099999997765,
+          "progress": "warmup 1/1"
+        },
+        {
+          "atMs": 32236.599999997765,
+          "progress": "warmup 1/1"
+        },
+        {
+          "atMs": 33084.800000000745,
+          "progress": "warmup 1/1"
+        },
+        {
+          "atMs": 37408.5,
+          "progress": "warmup 1/1"
+        },
+        {
+          "atMs": 61973.5,
+          "progress": "warmup 1/1"
+        },
+        {
+          "atMs": 86527,
+          "progress": "measure 1/1"
+        },
+        {
+          "atMs": 86533.09999999776,
+          "progress": "measure 1/1"
+        },
+        {
+          "atMs": 86533.5,
+          "progress": "measure 1/1"
+        },
+        {
+          "atMs": 88032.39999999851,
+          "progress": "measure 1/1"
+        },
+        {
+          "atMs": 88077.5,
+          "progress": "measure 1/1"
+        },
+        {
+          "atMs": 88911.30000000075,
+          "progress": "measure 1/1"
+        },
+        {
+          "atMs": 93227.80000000075,
+          "progress": "measure 1/1"
+        },
+        {
+          "atMs": 117836.19999999925,
+          "progress": "measure 1/1"
+        }
+      ],
+      "representativeHeldImportStack": "Error: Pending data added\n    at _Scene.<anonymous> (<anonymous>:53:16)\n    at importMeshCoreAsync (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-BMXNYM7K.js?v=4ef6e116:418:9)\n    at ImportMeshAsync (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-BMXNYM7K.js?v=4ef6e116:407:16)\n    at ModelLoader.loadModel (http://127.0.0.1:3117/src/engine/loader/model/ModelLoader.ts:133:28)\n    at ModelInstanceCache.load (http://127.0.0.1:3117/src/games/fps/client/RemotePlayerRenderer.ts:1292:39)\n    at ModelInstanceCache.createInstance (http://127.0.0.1:3117/src/engine/loader/model/ModelInstanceCache.ts:30:24)\n    at http://127.0.0.1:3117/src/games/fps/client/RemotePlayerRenderer.ts:1299:50",
+      "readinessChecksDuringMeasurement": 0,
+      "missingPovWeaponFrames": 43,
+      "skippedFramesAtFirstSample": 0,
+      "skippedFramesAtLastSample": 0,
+      "skippedFrames": 0,
+      "screenshots": [
+        {
+          "phase": "freefly-start",
+          "progress": "warmup 1/1",
+          "status": "running",
+          "state": "playing",
+          "seconds": 0.17880000000074503,
+          "hidden": false,
+          "frameId": 1674,
+          "tick": 915.3500000000931,
+          "at": 35672.300000000745
+        },
+        {
+          "phase": "fps-gunplay-a",
+          "progress": "warmup 1/1",
+          "status": "running",
+          "state": "playing",
+          "seconds": 12.100400000002235,
+          "hidden": false,
+          "frameId": 2756,
+          "tick": 2405.5500000002794,
+          "at": 47670.5
+        },
+        {
+          "phase": "freefly-return",
+          "progress": "warmup 1/1",
+          "status": "running",
+          "state": "playing",
+          "seconds": 24.07860000000149,
+          "hidden": false,
+          "frameId": 3585,
+          "tick": 3902.8250000001863,
+          "at": 59575
+        },
+        {
+          "phase": "fps-gunplay-b",
+          "progress": "warmup 1/1",
+          "status": "running",
+          "state": "playing",
+          "seconds": 33.12060000000149,
+          "hidden": false,
+          "frameId": 4364,
+          "tick": 5033.075000000186,
+          "at": 68625.19999999925
+        }
+      ]
+    },
+    {
+      "artifacts": "public/data/benchmarks/results/2026-10-10-codex-weapon-cache/2-webgpu",
+      "backend": "webgpu",
+      "browser": "Edg/155.0.4283.45",
+      "environment": {
+        "engineClass": "_WebGPUEngine",
+        "babylonVersion": "9.17.0",
+        "profile": {
+          "width": 1280,
+          "height": 720,
+          "fov": 90,
+          "requiredCvars": {
+            "r_ssr": 0,
+            "r_glow": 0,
+            "r_daynight": 0,
+            "cl_player_outline": 1
+          }
+        },
+        "poseHz": 30
+      },
+      "workloadValid": false,
+      "rejectionReasons": [
+        "Playback skipped recorded frames/events after a stall"
+      ],
+      "sourceStable": false,
+      "sourceBefore": {
+        "outer": "dbfb98e525cd844e220dd7128972450bdb07afcb",
+        "fps": "93c5a7a2b7ec4d0391aa2a915b59e6f8966955f1",
+        "sourceChangeSha256": "e597d689c263b6b8fc2e72b727fe9e5595d486c17f241b25f937df6f765f629e"
+      },
+      "sourceAfter": {
+        "outer": "dbfb98e525cd844e220dd7128972450bdb07afcb",
+        "fps": "93c5a7a2b7ec4d0391aa2a915b59e6f8966955f1",
+        "sourceChangeSha256": "726759eb2aa56f963d6ebc170a2d57c8e8b2dac1080e5e24a7b240676ec59aed"
+      },
+      "exceptions": 0,
+      "frames": 2966,
+      "shaderCompiles": 4,
+      "measuredBoundsMs": [
+        69663.19999999925,
+        114640.29999999702
+      ],
+      "warmupObservedTourStartMs": 14779.39999999851,
+      "droppedRecords": {
+        "registrations": 0,
+        "checks": 0,
+        "pendingEvents": 0,
+        "activePending": 0
+      },
+      "heldImportStartsTotal": 16,
+      "heldImportStartsByProgress": {
+        "warmup 1/1": 8,
+        "measure 1/1": 8
+      },
+      "heldImportStartsAfterWarmupScreenshot": 2,
+      "measuredImportStarts": {
+        "heldWeapons": 2,
+        "droppedWeapons": 69,
+        "firstPersonWeapons": 9,
+        "firstPersonBarrels": 11
+      },
+      "heldImportEvents": [
+        {
+          "atMs": 9795.5,
+          "progress": "warmup 1/1"
+        },
+        {
+          "atMs": 9797.599999997765,
+          "progress": "warmup 1/1"
+        },
+        {
+          "atMs": 9797.699999999255,
+          "progress": "warmup 1/1"
+        },
+        {
+          "atMs": 11257.199999999255,
+          "progress": "warmup 1/1"
+        },
+        {
+          "atMs": 11309,
+          "progress": "warmup 1/1"
+        },
+        {
+          "atMs": 12103,
+          "progress": "warmup 1/1"
+        },
+        {
+          "atMs": 16492.5,
+          "progress": "warmup 1/1"
+        },
+        {
+          "atMs": 41103.29999999702,
+          "progress": "warmup 1/1"
+        },
+        {
+          "atMs": 65790.89999999851,
+          "progress": "measure 1/1"
+        },
+        {
+          "atMs": 65791.29999999702,
+          "progress": "measure 1/1"
+        },
+        {
+          "atMs": 65791.69999999925,
+          "progress": "measure 1/1"
+        },
+        {
+          "atMs": 66340,
+          "progress": "measure 1/1"
+        },
+        {
+          "atMs": 66341.29999999702,
+          "progress": "measure 1/1"
+        },
+        {
+          "atMs": 67247,
+          "progress": "measure 1/1"
+        },
+        {
+          "atMs": 71549.69999999925,
+          "progress": "measure 1/1"
+        },
+        {
+          "atMs": 96171.59999999776,
+          "progress": "measure 1/1"
+        }
+      ],
+      "representativeHeldImportStack": "Error: Pending data added\n    at _Scene.<anonymous> (<anonymous>:53:16)\n    at importMeshCoreAsync (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-BMXNYM7K.js?v=4ef6e116:418:9)\n    at ImportMeshAsync (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-BMXNYM7K.js?v=4ef6e116:407:16)\n    at ModelLoader.loadModel (http://127.0.0.1:3117/src/engine/loader/model/ModelLoader.ts:133:28)\n    at ModelInstanceCache.load (http://127.0.0.1:3117/src/games/fps/client/RemotePlayerRenderer.ts:1292:39)\n    at ModelInstanceCache.createInstance (http://127.0.0.1:3117/src/engine/loader/model/ModelInstanceCache.ts:30:24)\n    at http://127.0.0.1:3117/src/games/fps/client/RemotePlayerRenderer.ts:1299:50",
+      "readinessChecksDuringMeasurement": 0,
+      "missingPovWeaponFrames": 41,
+      "skippedFramesAtFirstSample": 29,
+      "skippedFramesAtLastSample": 29,
+      "skippedFrames": 29,
+      "screenshots": [
+        {
+          "phase": "freefly-start",
+          "progress": "warmup 1/1",
+          "status": "running",
+          "state": "playing",
+          "seconds": 0.17109999999776448,
+          "hidden": false,
+          "frameId": 868,
+          "tick": 914.3874999997206,
+          "at": 14779.39999999851
+        },
+        {
+          "phase": "fps-gunplay-a",
+          "progress": "warmup 1/1",
+          "status": "running",
+          "state": "playing",
+          "seconds": 12.09089999999851,
+          "hidden": false,
+          "frameId": 1837,
+          "tick": 2404.3624999998137,
+          "at": 26717.099999997765
+        },
+        {
+          "phase": "freefly-return",
+          "progress": "warmup 1/1",
+          "status": "running",
+          "state": "playing",
+          "seconds": 24.065699999999254,
+          "hidden": false,
+          "frameId": 2571,
+          "tick": 3901.212499999907,
+          "at": 38681.29999999702
+        },
+        {
+          "phase": "fps-gunplay-b",
+          "progress": "warmup 1/1",
+          "status": "running",
+          "state": "playing",
+          "seconds": 33.144599999997766,
+          "hidden": false,
+          "frameId": 3250,
+          "tick": 5036.074999999721,
+          "at": 47782
+        }
+      ]
+    },
+    {
+      "artifacts": "public/data/benchmarks/results/2026-10-10-codex-weapon-cache-retry/1-webgpu",
+      "backend": "webgpu",
+      "browser": "Edg/155.0.4283.45",
+      "environment": {
+        "engineClass": "_WebGPUEngine",
+        "babylonVersion": "9.17.0",
+        "profile": {
+          "width": 1280,
+          "height": 720,
+          "fov": 90,
+          "requiredCvars": {
+            "r_ssr": 0,
+            "r_glow": 0,
+            "r_daynight": 0,
+            "cl_player_outline": 1
+          }
+        },
+        "poseHz": 30
+      },
+      "workloadValid": false,
+      "rejectionReasons": [
+        "Playback skipped recorded frames/events after a stall"
+      ],
+      "sourceStable": false,
+      "sourceBefore": {
+        "outer": "dbfb98e525cd844e220dd7128972450bdb07afcb",
+        "fps": "93c5a7a2b7ec4d0391aa2a915b59e6f8966955f1",
+        "sourceChangeSha256": "726759eb2aa56f963d6ebc170a2d57c8e8b2dac1080e5e24a7b240676ec59aed"
+      },
+      "sourceAfter": {
+        "outer": "dbfb98e525cd844e220dd7128972450bdb07afcb",
+        "fps": "93c5a7a2b7ec4d0391aa2a915b59e6f8966955f1",
+        "sourceChangeSha256": "ee0713eb8ecb9fcf16cc0c5b3a980a69ddb33dd3e719667e3ceb937ba6c3d9dc"
+      },
+      "exceptions": 0,
+      "frames": 2815,
+      "shaderCompiles": 4,
+      "measuredBoundsMs": [
+        78231.5,
+        123220.89999999851
+      ],
+      "warmupObservedTourStartMs": 23301.199999999255,
+      "droppedRecords": {
+        "registrations": 0,
+        "checks": 0,
+        "pendingEvents": 0,
+        "activePending": 0
+      },
+      "heldImportStartsTotal": 16,
+      "heldImportStartsByProgress": {
+        "warmup 1/1": 8,
+        "measure 1/1": 8
+      },
+      "heldImportStartsAfterWarmupScreenshot": 2,
+      "measuredImportStarts": {
+        "heldWeapons": 2,
+        "droppedWeapons": 69,
+        "firstPersonWeapons": 9,
+        "firstPersonBarrels": 12
+      },
+      "heldImportEvents": [
+        {
+          "atMs": 18425.199999999255,
+          "progress": "warmup 1/1"
+        },
+        {
+          "atMs": 18425.60000000149,
+          "progress": "warmup 1/1"
+        },
+        {
+          "atMs": 18425.699999999255,
+          "progress": "warmup 1/1"
+        },
+        {
+          "atMs": 19841.300000000745,
+          "progress": "warmup 1/1"
+        },
+        {
+          "atMs": 19984.5,
+          "progress": "warmup 1/1"
+        },
+        {
+          "atMs": 20716.300000000745,
+          "progress": "warmup 1/1"
+        },
+        {
+          "atMs": 25094.89999999851,
+          "progress": "warmup 1/1"
+        },
+        {
+          "atMs": 49697.89999999851,
+          "progress": "warmup 1/1"
+        },
+        {
+          "atMs": 74077.80000000075,
+          "progress": "measure 1/1"
+        },
+        {
+          "atMs": 74078.10000000149,
+          "progress": "measure 1/1"
+        },
+        {
+          "atMs": 74078.39999999851,
+          "progress": "measure 1/1"
+        },
+        {
+          "atMs": 74921,
+          "progress": "measure 1/1"
+        },
+        {
+          "atMs": 74934,
+          "progress": "measure 1/1"
+        },
+        {
+          "atMs": 75814.5,
+          "progress": "measure 1/1"
+        },
+        {
+          "atMs": 80131.80000000075,
+          "progress": "measure 1/1"
+        },
+        {
+          "atMs": 104738.19999999925,
+          "progress": "measure 1/1"
+        }
+      ],
+      "representativeHeldImportStack": "Error: Pending data added\n    at _Scene.<anonymous> (<anonymous>:53:16)\n    at importMeshCoreAsync (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-BMXNYM7K.js?v=12a30fb4:418:9)\n    at ImportMeshAsync (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-BMXNYM7K.js?v=12a30fb4:407:16)\n    at ModelLoader.loadModel (http://127.0.0.1:3117/src/engine/loader/model/ModelLoader.ts:133:28)\n    at ModelInstanceCache.load (http://127.0.0.1:3117/src/games/fps/client/RemotePlayerRenderer.ts:1292:39)\n    at ModelInstanceCache.createInstance (http://127.0.0.1:3117/src/engine/loader/model/ModelInstanceCache.ts:30:24)\n    at http://127.0.0.1:3117/src/games/fps/client/RemotePlayerRenderer.ts:1299:50",
+      "readinessChecksDuringMeasurement": 0,
+      "missingPovWeaponFrames": 40,
+      "skippedFramesAtFirstSample": 23,
+      "skippedFramesAtLastSample": 23,
+      "skippedFrames": 23,
+      "screenshots": [
+        {
+          "phase": "freefly-start",
+          "progress": "warmup 1/1",
+          "status": "running",
+          "state": "playing",
+          "seconds": 0.11599999999999966,
+          "hidden": false,
+          "frameId": 775,
+          "tick": 907.5,
+          "at": 23301.199999999255
+        },
+        {
+          "phase": "fps-gunplay-a",
+          "progress": "warmup 1/1",
+          "status": "running",
+          "state": "playing",
+          "seconds": 12.21560000000149,
+          "hidden": false,
+          "frameId": 1546,
+          "tick": 2419.9500000001863,
+          "at": 35436.300000000745
+        },
+        {
+          "phase": "freefly-return",
+          "progress": "warmup 1/1",
+          "status": "running",
+          "state": "playing",
+          "seconds": 24.327900000002234,
+          "hidden": false,
+          "frameId": 2185,
+          "tick": 3933.9875000002794,
+          "at": 47510.699999999255
+        },
+        {
+          "phase": "fps-gunplay-b",
+          "progress": "warmup 1/1",
+          "status": "running",
+          "state": "playing",
+          "seconds": 33.37230000000074,
+          "hidden": false,
+          "frameId": 2803,
+          "tick": 5064.537500000093,
+          "at": 56591.10000000149
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "Only diagnostic profiled runs, with trace overhead; no repeated unprofiled cache-on/off timing.",
+    "Source-stability and skipped-event rejections are preserved; rejected runs are not benchmark scores.",
+    "Warmup tour counts start at the first saved screenshot, excluding earlier loading and pre-roll.",
+    "Import-start counters do not identify successful draws or unique source paths.",
+    "Screenshots cover recorded playheads, not complete visual parity, every weapon, or all corpse/muzzle poses."
+  ]
+}

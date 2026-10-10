@@ -1,0 +1,175 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-10",
+  "purpose": "Readiness registration and repeated model-import attribution; no benchmark score",
+  "artifacts": "public/data/benchmarks/results/2026-10-10-codex-readiness-trace/1-webgpu",
+  "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36 Edg/155.0.0.0",
+  "workloadValid": true,
+  "sourceStable": false,
+  "sourceBefore": {
+    "outer": "c1058fb5295baa3fe08040767d06fcf7aa38fae7",
+    "fps": "93c5a7a2b7ec4d0391aa2a915b59e6f8966955f1",
+    "sourceChangeSha256": "f368e6f1c1b852d10fac977b5321ef4a314c3d7b396e974433437175ff7aed55"
+  },
+  "sourceAfter": {
+    "outer": "c1058fb5295baa3fe08040767d06fcf7aa38fae7",
+    "fps": "93c5a7a2b7ec4d0391aa2a915b59e6f8966955f1",
+    "sourceChangeSha256": "8b238c589ae3c805b604df43d8c1808f38024818bc2aa7127fc0ad8685c8ed3b"
+  },
+  "exceptions": 0,
+  "frames": 3096,
+  "shaderCompiles": 4,
+  "measuredBoundsMs": [
+    82828.80000000075,
+    127820.5
+  ],
+  "warmupObservedTourStartMs": 27102.5,
+  "registrations": [
+    {
+      "atMs": 19415.5,
+      "progress": "warmup 1/1",
+      "scene": "scene-1",
+      "meshes": 239,
+      "pendingData": 0,
+      "readyObservers": 0,
+      "checkRenderTargets": false,
+      "stack": "Error: Readiness registration\n    at _Scene.<anonymous> (<anonymous>:33:16)\n    at http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-GWWN2JU2.js?v=b6c00031:4033:12\n    at new Promise (<anonymous>)\n    at _Scene.whenReadyAsync (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-GWWN2JU2.js?v=b6c00031:4032:18)\n    at MapLoader.loadBspMap (http://127.0.0.1:3117/src/engine/loader/map/MapLoader.ts:396:17)\n    at async MapLoader.loadMap (http://127.0.0.1:3117/src/engine/loader/map/MapLoader.ts:103:24)\n    at async loadClientMapWithSystems (http://127.0.0.1:3117/src/engine/loader/map/ClientMapLoader.ts:41:18)\n    at async DemoService.ensureDemoMapLoaded (http://127.0.0.1:3117/src/games/fps/client/DemoService.ts:380:20)\n    at async DemoService.loadAndPlayNormal (http://127.0.0.1:3117/src/games/fps/client/DemoService.ts:203:5)"
+    },
+    {
+      "atMs": 76184.10000000149,
+      "progress": "measure 1/1",
+      "scene": "scene-1",
+      "meshes": 239,
+      "pendingData": 0,
+      "readyObservers": 0,
+      "checkRenderTargets": false,
+      "stack": "Error: Readiness registration\n    at _Scene.<anonymous> (<anonymous>:33:16)\n    at http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-GWWN2JU2.js?v=b6c00031:4033:12\n    at new Promise (<anonymous>)\n    at _Scene.whenReadyAsync (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-GWWN2JU2.js?v=b6c00031:4032:18)\n    at MapLoader.loadBspMap (http://127.0.0.1:3117/src/engine/loader/map/MapLoader.ts:396:17)\n    at async MapLoader.loadMap (http://127.0.0.1:3117/src/engine/loader/map/MapLoader.ts:103:24)\n    at async loadClientMapWithSystems (http://127.0.0.1:3117/src/engine/loader/map/ClientMapLoader.ts:41:18)\n    at async DemoService.ensureDemoMapLoaded (http://127.0.0.1:3117/src/games/fps/client/DemoService.ts:380:20)\n    at async DemoService.loadAndPlayNormal (http://127.0.0.1:3117/src/games/fps/client/DemoService.ts:203:5)"
+    }
+  ],
+  "checks": [
+    {
+      "atMs": 19416.199999999255,
+      "progress": "warmup 1/1",
+      "scene": "scene-1",
+      "meshes": 239,
+      "pendingData": 0,
+      "readyObservers": 1,
+      "stack": "Error: Readiness check\n    at _Scene.<anonymous> (<anonymous>:38:47)\n    at _Scene._checkIsReady (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-GWWN2JU2.js?v=b6c00031:4056:14)\n    at _Scene.executeWhenReady (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-GWWN2JU2.js?v=b6c00031:4024:10)\n    at _Scene.<anonymous> (<anonymous>:35:23)\n    at http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-GWWN2JU2.js?v=b6c00031:4033:12\n    at new Promise (<anonymous>)\n    at _Scene.whenReadyAsync (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-GWWN2JU2.js?v=b6c00031:4032:18)\n    at MapLoader.loadBspMap (http://127.0.0.1:3117/src/engine/loader/map/MapLoader.ts:396:17)\n    at async MapLoader.loadMap (http://127.0.0.1:3117/src/engine/loader/map/MapLoader.ts:103:24)\n    at async loadClientMapWithSystems (http://127.0.0.1:3117/src/engine/loader/map/ClientMapLoader.ts:41:18)",
+      "ready": false,
+      "durationMs": 46.30000000074506,
+      "inMeasuredInterval": false
+    },
+    {
+      "atMs": 19564.199999999255,
+      "progress": "warmup 1/1",
+      "scene": "scene-1",
+      "meshes": 239,
+      "pendingData": 0,
+      "readyObservers": 1,
+      "stack": "Error: Readiness check\n    at _Scene.<anonymous> (<anonymous>:38:47)\n    at _Scene._checkIsReady (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-GWWN2JU2.js?v=b6c00031:4056:14)\n    at http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-GWWN2JU2.js?v=b6c00031:4067:12",
+      "ready": true,
+      "durationMs": 1.5,
+      "inMeasuredInterval": false
+    },
+    {
+      "atMs": 21718.60000000149,
+      "progress": "warmup 1/1",
+      "scene": "scene-1",
+      "meshes": 367,
+      "pendingData": 0,
+      "readyObservers": 0,
+      "stack": "Error: Readiness check\n    at _Scene.<anonymous> (<anonymous>:38:47)\n    at readSceneReadiness (http://127.0.0.1:3117/src/games/fps/client/TimedemoService.ts:190:22)\n    at TimedemoService.play (http://127.0.0.1:3117/src/games/fps/client/TimedemoService.ts:195:29)\n    at TimedemoService.run (http://127.0.0.1:3117/src/games/fps/client/TimedemoService.ts:148:34)",
+      "ready": false,
+      "durationMs": 167.09999999776483,
+      "inMeasuredInterval": false
+    },
+    {
+      "atMs": 71908.39999999851,
+      "progress": "warmup 1/1",
+      "scene": "scene-1",
+      "meshes": 959,
+      "pendingData": 1,
+      "readyObservers": 0,
+      "stack": "Error: Readiness check\n    at _Scene.<anonymous> (<anonymous>:38:47)\n    at readSceneReadiness (http://127.0.0.1:3117/src/games/fps/client/TimedemoService.ts:190:22)\n    at finish (http://127.0.0.1:3117/src/games/fps/client/TimedemoService.ts:271:61)\n    at Observer.callback (http://127.0.0.1:3117/src/games/fps/client/TimedemoService.ts:393:16)\n    at _Observable.notifyObservers (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-JCF3OHMC.js?v=b6c00031:247:39)\n    at _Scene.render (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-GWWN2JU2.js?v=b6c00031:6382:34)\n    at http://127.0.0.1:3117/src/main.ts:220:15\n    at _WebGPUEngine._renderFrame (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-RU47WXCG.js?v=b6c00031:1157:7)\n    at _WebGPUEngine._processFrame (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-RU47WXCG.js?v=b6c00031:1140:16)\n    at _WebGPUEngine._renderLoop (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-RU47WXCG.js?v=b6c00031:1148:10)",
+      "ready": false,
+      "durationMs": 64.80000000074506,
+      "inMeasuredInterval": false
+    },
+    {
+      "atMs": 76184.19999999925,
+      "progress": "measure 1/1",
+      "scene": "scene-1",
+      "meshes": 239,
+      "pendingData": 0,
+      "readyObservers": 1,
+      "stack": "Error: Readiness check\n    at _Scene.<anonymous> (<anonymous>:38:47)\n    at _Scene._checkIsReady (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-GWWN2JU2.js?v=b6c00031:4056:14)\n    at _Scene.executeWhenReady (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-GWWN2JU2.js?v=b6c00031:4024:10)\n    at _Scene.<anonymous> (<anonymous>:35:23)\n    at http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-GWWN2JU2.js?v=b6c00031:4033:12\n    at new Promise (<anonymous>)\n    at _Scene.whenReadyAsync (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-GWWN2JU2.js?v=b6c00031:4032:18)\n    at MapLoader.loadBspMap (http://127.0.0.1:3117/src/engine/loader/map/MapLoader.ts:396:17)\n    at async MapLoader.loadMap (http://127.0.0.1:3117/src/engine/loader/map/MapLoader.ts:103:24)\n    at async loadClientMapWithSystems (http://127.0.0.1:3117/src/engine/loader/map/ClientMapLoader.ts:41:18)",
+      "ready": true,
+      "durationMs": 29.900000002235174,
+      "inMeasuredInterval": false
+    },
+    {
+      "atMs": 77819.10000000149,
+      "progress": "measure 1/1",
+      "scene": "scene-1",
+      "meshes": 326,
+      "pendingData": 0,
+      "readyObservers": 0,
+      "stack": "Error: Readiness check\n    at _Scene.<anonymous> (<anonymous>:38:47)\n    at readSceneReadiness (http://127.0.0.1:3117/src/games/fps/client/TimedemoService.ts:190:22)\n    at TimedemoService.play (http://127.0.0.1:3117/src/games/fps/client/TimedemoService.ts:195:29)\n    at TimedemoService.run (http://127.0.0.1:3117/src/games/fps/client/TimedemoService.ts:148:34)",
+      "ready": false,
+      "durationMs": 6.800000000745058,
+      "inMeasuredInterval": false
+    },
+    {
+      "atMs": 127865.80000000075,
+      "progress": "measure 1/1",
+      "scene": "scene-1",
+      "meshes": 876,
+      "pendingData": 2,
+      "readyObservers": 0,
+      "stack": "Error: Readiness check\n    at _Scene.<anonymous> (<anonymous>:38:47)\n    at readSceneReadiness (http://127.0.0.1:3117/src/games/fps/client/TimedemoService.ts:190:22)\n    at finish (http://127.0.0.1:3117/src/games/fps/client/TimedemoService.ts:271:61)\n    at Observer.callback (http://127.0.0.1:3117/src/games/fps/client/TimedemoService.ts:393:16)\n    at _Observable.notifyObservers (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-JCF3OHMC.js?v=b6c00031:247:39)\n    at _Scene.render (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-GWWN2JU2.js?v=b6c00031:6382:34)\n    at http://127.0.0.1:3117/src/main.ts:220:15\n    at _WebGPUEngine._renderFrame (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-RU47WXCG.js?v=b6c00031:1157:7)\n    at _WebGPUEngine._processFrame (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-RU47WXCG.js?v=b6c00031:1140:16)\n    at _WebGPUEngine._renderLoop (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-RU47WXCG.js?v=b6c00031:1148:10)",
+      "ready": false,
+      "durationMs": 54.099999997764826,
+      "inMeasuredInterval": false
+    }
+  ],
+  "scenesAtEnd": [
+    {
+      "atMs": 128675.39999999851,
+      "progress": "complete",
+      "scene": "scene-1",
+      "meshes": 333,
+      "pendingData": 0,
+      "readyObservers": 0,
+      "cameras": [
+        "fpsCamera"
+      ],
+      "readinessTimeoutMs": 120000
+    }
+  ],
+  "pendingActiveAtEnd": 0,
+  "eventCapture": {
+    "limit": 4000,
+    "retained": 4000,
+    "dropped": 1683,
+    "lastRetainedAtMs": 85610.5
+  },
+  "observedImportStarts": {
+    "loading/preroll / other": 18,
+    "loading/preroll / remote-held-weapon": 60,
+    "loading/preroll / dropped-weapon": 18,
+    "warmup-tour-observed / remote-held-weapon": 178,
+    "warmup-tour-observed / dropped-weapon": 69,
+    "warmup-tour-observed / other": 9,
+    "warmup-tour-observed / view-barrel": 12,
+    "measured-retained / remote-held-weapon": 22,
+    "measured-retained / dropped-weapon": 2
+  },
+  "limitations": [
+    "Source/dependencies changed during this diagnostic capture; no controlled timing comparison.",
+    "Pending-event records are capped; import counts are lower bounds, not full measured-tour totals.",
+    "An import start is not a successful draw or a unique model file.",
+    "Warmup boundary comes from the first observed freefly screenshot, after playback starts.",
+    "Probe wrappers and stack capture add overhead.",
+    "Resources already pending before installation are not individually tracked."
+  ]
+}

@@ -8,9 +8,15 @@
  * Used by: WeaponViewManager
  */
 
-import type { TransformNode } from "@babylonjs/core/Meshes/transformNode";
+import { PBRMaterial } from "@babylonjs/core/Materials/PBR/pbrMaterial";
+import { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Scene } from "@babylonjs/core/scene";
-import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
+import { devLog, devLogEnabled } from "../core/DevLog";
+import { applySafeMaxSimultaneousLights, clampMaterialLightCap } from "../lighting/DynamicLightSafety";
+import { ModelInstanceCache } from "../loader/model/ModelInstanceCache";
+import type { ModelLoadResult } from "../loader/model/ModelLoader";
+import { disposeModelResources } from "../loader/model/ModelSourceCache";
 import { findTag, loadTags, type TagDef } from "../loader/model/TagsLoader";
 
 // Layer mask for weapon-only rendering (must match WeaponViewManager)
@@ -36,6 +42,7 @@ interface BarrelInstance {
   rotation: number;
   targetRotation: number;
   fireStepRadians: number;
+  resources?: ModelLoadResult;
 }
 
 /** A tags.txt rule takes precedence over a same-named GLB node. */
@@ -52,11 +59,56 @@ export function findViewBarrelSocket(
  */
 export class WeaponBarrels {
   private barrels: BarrelInstance[] = [];
+  private sources: ModelInstanceCache | null = null;
+  private sourceScene: Scene | null = null;
+  private generation = 0;
 
   /** Dispose all barrel meshes and clear state */
   dispose(): void {
-    for (const b of this.barrels) b.root.dispose();
+    ++this.generation;
+    for (const b of this.barrels) disposeModelResources([b.root, b.resources?.root], b.resources ?? {});
     this.barrels = [];
+  }
+
+  /** A switch retires clones; only view teardown/re-init retires sources. */
+  releaseSources(): void {
+    this.dispose();
+    this.sources?.dispose();
+    this.sources = null;
+    this.sourceScene = null;
+  }
+
+  private async loadSource(path: string, scene: Scene): Promise<ModelLoadResult> {
+    const { ImportMeshAsync } = await import("@babylonjs/core/Loading/sceneLoader");
+    const split = path.lastIndexOf("/");
+    const result = await ImportMeshAsync(path.substring(split + 1), scene, { rootUrl: path.substring(0, split + 1) });
+    const root = new TransformNode("viewBarrelSource", scene);
+    try {
+      for (const node of [...result.transformNodes, ...result.meshes]) if (!node.parent) node.parent = root;
+      for (const mesh of result.meshes) {
+        mesh.rotationQuaternion = null;
+        mesh.renderingGroupId = 1;
+        mesh.layerMask = WEAPON_LAYER_MASK;
+        if (mesh.material instanceof PBRMaterial) {
+          const pbr = mesh.material;
+          pbr.environmentIntensity = 2.0;
+          pbr.directIntensity = 1.0;
+          pbr.zOffset = -2;
+          pbr.backFaceCulling = false;
+          applySafeMaxSimultaneousLights(pbr);
+        }
+      }
+      return {
+        root,
+        meshes: result.meshes.filter((mesh): mesh is Mesh => mesh instanceof Mesh),
+        skeletons: result.skeletons,
+        animationGroups: result.animationGroups,
+        lights: [],
+      };
+    } catch (error) {
+      disposeModelResources([root, ...result.meshes, ...result.transformNodes], result);
+      throw error;
+    }
   }
 
   /** Update barrel spin (call each frame) */
@@ -109,7 +161,15 @@ export class WeaponBarrels {
     currentLoadGen: () => number,
     attachmentNodes: readonly TransformNode[] = [],
   ): Promise<void> {
-    const { ImportMeshAsync } = await import("@babylonjs/core/Loading/sceneLoader");
+    if (this.sourceScene !== scene) {
+      this.releaseSources();
+      this.sourceScene = scene;
+      this.sources = new ModelInstanceCache(scene, (path) => this.loadSource(path, scene));
+    }
+    const sources = this.sources!;
+    const generation = this.generation;
+    const stale = () =>
+      generation !== this.generation || currentLoadGen() !== loadGen || glbRoot.isDisposed() || scene.isDisposed;
 
     // Derive model directory from first barrel path for tags.txt lookup
     const firstPath = barrelDefs[0]?.modelPath;
@@ -122,43 +182,52 @@ export class WeaponBarrels {
     const attachment = findViewBarrelSocket(barrelTag, attachmentNodes);
 
     if (barrelTag) {
-      console.log(
+      devLog(
         `[WeaponBarrels] Found tag_barrel: bone="${barrelTag.boneName}" offset=(${barrelTag.offset.x},${barrelTag.offset.y},${barrelTag.offset.z})`,
       );
     } else {
-      console.log(`[WeaponBarrels] No tag_barrel in tags.txt, using GLB socket or model origin`);
+      devLog(`[WeaponBarrels] No tag_barrel in tags.txt, using GLB socket or model origin`);
     }
 
     // Debug: log all skeleton bones in scene to find IQM tags
-    for (const skeleton of scene.skeletons) {
-      const boneNames = skeleton.bones.map((b) => b.name);
-      console.log(`[WeaponBarrels] Skeleton "${skeleton.name}": ${boneNames.length} bones: [${boneNames.join(", ")}]`);
-    }
+    if (devLogEnabled())
+      for (const skeleton of scene.skeletons) {
+        const boneNames = skeleton.bones.map((b) => b.name);
+        devLog(`[WeaponBarrels] Skeleton "${skeleton.name}": ${boneNames.length} bones: [${boneNames.join(", ")}]`);
+      }
 
     for (let i = 0; i < barrelDefs.length; i++) {
       const barrelDef = barrelDefs[i];
       try {
         // Check if weapon was switched during async load
-        if (currentLoadGen() !== loadGen) return;
+        if (stale()) return;
 
         const lastSlash = barrelDef.modelPath.lastIndexOf("/");
-        const dir = barrelDef.modelPath.substring(0, lastSlash + 1);
         const file = barrelDef.modelPath.substring(lastSlash + 1);
 
-        const result = await ImportMeshAsync(file, scene, { rootUrl: dir });
+        const result = await sources.createInstance(barrelDef.modelPath, 1);
+        if (!result) continue;
+        for (const mesh of result.meshes) {
+          clampMaterialLightCap(mesh.material);
+          if (scene.getEngine().isWebGPU && mesh.material) mesh.material.allowShaderHotSwapping = false;
+        }
 
         // Check again after async
-        if (currentLoadGen() !== loadGen) {
-          result.meshes[0]?.dispose(false, false);
+        if (stale()) {
+          disposeModelResources([result.root], result);
           return;
         }
 
         const barrelRoot = result.meshes[0];
-        if (!barrelRoot) continue;
+        if (!barrelRoot) {
+          disposeModelResources([result.root], result);
+          continue;
+        }
 
         // Authored GLB tags are children of the weapon's view hierarchy.
         // Skeleton bone nodes can be at scene root, so the fallback uses glbRoot.
         barrelRoot.parent = attachment ?? glbRoot;
+        result.root.setEnabled(false);
         if (barrelRoot.rotationQuaternion) barrelRoot.rotationQuaternion = null;
 
         // Read bone position for offset (if tag references a bone)
@@ -170,12 +239,15 @@ export class WeaponBarrels {
             const bone = skeleton.bones.find((b) => b.name === barrelTag.boneName);
             if (bone) {
               const boneNode = bone.getTransformNode();
-              if (boneNode) {
+              if (
+                boneNode &&
+                (boneNode.isDescendantOf(glbRoot) || (glbRoot.parent && boneNode.isDescendantOf(glbRoot.parent)))
+              ) {
                 // Read the bone's local position (within skeleton space)
                 boneOffX = boneNode.position.x;
                 boneOffY = boneNode.position.y;
                 boneOffZ = boneNode.position.z;
-                console.log(
+                devLog(
                   `[WeaponBarrels] Bone ${barrelTag.boneName} position: (${boneOffX.toFixed(2)},${boneOffY.toFixed(2)},${boneOffZ.toFixed(2)})`,
                 );
                 break;
@@ -199,27 +271,9 @@ export class WeaponBarrels {
           barrelRoot.rotation.setAll(0);
         }
 
-        // Set weapon render layer for all barrel meshes
-        for (const mesh of result.meshes) {
-          mesh.renderingGroupId = 1;
-          mesh.layerMask = WEAPON_LAYER_MASK;
-          if (mesh.rotationQuaternion) mesh.rotationQuaternion = null;
-
-          // Boost PBR environment for self-lit look (same as main weapon)
-          if (mesh.material && mesh.material.getClassName() === "PBRMaterial") {
-            const pbr = mesh.material as any;
-            pbr.environmentIntensity = 2.0;
-            pbr.directIntensity = 1.0;
-            // zOffset pushes barrel forward in depth buffer so it shows
-            // through weapon body openings instead of being occluded
-            pbr.zOffset = -2;
-            pbr.backFaceCulling = false;
-            applySafeMaxSimultaneousLights(pbr);
-          }
-        }
-
         this.barrels.push({
           root: barrelRoot as TransformNode,
+          resources: result,
           spinSpeed: barrelDef.spinSpeed,
           spinDirection: barrelDef.spinDirection ?? 1,
           spinAxis: barrelDef.spinAxis ?? "x",
@@ -228,7 +282,7 @@ export class WeaponBarrels {
           fireStepRadians: ((barrelDef.fireStepDegrees ?? 0) * Math.PI) / 180,
         });
 
-        console.log(
+        devLog(
           `[WeaponBarrels] Loaded barrel ${i} for ${weaponName}: ${file} (${result.meshes.length} meshes, pos: (${barrelRoot.position.x.toFixed(1)},${barrelRoot.position.y.toFixed(1)},${barrelRoot.position.z.toFixed(1)}))`,
         );
       } catch (e) {

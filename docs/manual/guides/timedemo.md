@@ -171,8 +171,45 @@ observed same-phase playheads, excluding uncertain cut edges. Clock calibration,
 observed frames and workload-invalid reasons are saved alongside the profiles.
 Self times are exclusive; inclusive entries overlap and must not be added together.
 
+The sampler starts before issuing timedemo, so profiler initialization cannot
+interrupt an advancing demo. `profiling-start.json` records that boundary and
+its wall duration. The full raw CPU capture includes setup, loading and warmup;
+the phase/slow-frame summaries still use only measured playheads.
+
 Each raw sample's `frameAtMs` is a page-clock timestamp at the frame hook before
 playback. Its `wallMs` interval ends there. The runner maps these timestamps to the
 CPU clock and summarizes same-phase first-person intervals at or above that phase's
 p95. These summaries include all main-thread work and waiting inside the selected
 wall intervals; they are not proof that the largest sampled function caused a stall.
+
+For a diagnostic capture of readiness work, add `--trace-readiness`. This wraps
+Babylon's public scene readiness/pending-data methods in the owned browser and
+saves `readiness-trace.json` with registration stacks, actual checks and observed
+pending-resource lifetimes. It initiates no extra readiness checks and restores
+the methods after collection. Entries registered before installation are not
+individually tracked; bounded traces report dropped records. Method wrappers and
+stack capture add overhead, so use this option to investigate callers rather than
+to compare benchmark scores.
+
+Add `--trace-playback` to record long `DemoViewer.update` calls and the first
+increase of its skipped-frame counter, including during pre-roll. The saved
+`playback-trace.json` includes the supplied delta, update CPU duration, page
+timestamps, before/after playheads and skips, and the preceding update. Records
+are retained for the first update of each viewer, when the supplied delta exceeds 100 ms, the update takes over
+25 ms, frames are skipped, or the original update throws. The bounded trace
+reports drops and restores the original method after collection. It preserves
+the delta, callback delivery, exceptions and the 250 ms catch-up policy.
+
+```powershell
+npm run benchmark:profile -- --trace-readiness --trace-playback --interval 1000
+```
+
+Trace wrappers add diagnostic overhead. A long incoming delta can include native
+rendering or waiting between calls; it is not all CPU work in `update`. Correlate
+the recorded gap and skipped transition with the CPU profile instead of resetting
+pre-roll skips to make a workload appear valid.
+
+Manual timedemo playback anchors its clock at the first frame hook, with a zero
+initial advance. Setup/waiting before that hook is not playback time. Subsequent
+updates use the actual elapsed wall time, and skips during pre-roll or measurement
+still invalidate the workload. The regular demo player's catch-up policy is unchanged.

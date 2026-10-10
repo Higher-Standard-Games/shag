@@ -5,6 +5,8 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { sliceCpuProfile, summarizeCpuProfile } from './cpu-profile.mjs';
+import { installReadinessProbe } from './readiness-probe.mjs';
+import { installPlaybackProbe } from './playback-probe.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const options = {
@@ -14,6 +16,8 @@ const options = {
 for (let i = 2; i < process.argv.length; i++) {
   const name = process.argv[i].replace(/^--/, '');
   if (name === 'dry-run') { options.dryRun = true; continue; }
+  if (name === 'trace-readiness') { options.traceReadiness = true; continue; }
+  if (name === 'trace-playback') { options.tracePlayback = true; continue; }
   if (!['fixture', 'backends', 'port', 'interval', 'ncm', 'browser', 'out'].includes(name) || !process.argv[i + 1])
     throw new Error(`Unknown or incomplete option: ${process.argv[i]}`);
   options[name] = process.argv[++i];
@@ -112,7 +116,10 @@ const server = await createServer({ root, configFile: path.join(root, 'vite.conf
 let activeBrowser = null, interrupted = false;
 process.on('SIGINT', () => { interrupted = true; });
 const series = { createdAt: new Date().toISOString(), fixture: options.fixture, options,
-  harnessSha256: createHash('sha256').update(readFileSync(fileURLToPath(import.meta.url))).digest('hex'), runs: [] };
+  harnessSha256: createHash('sha256').update(readFileSync(fileURLToPath(import.meta.url))).digest('hex'),
+  readinessProbeSha256: options.traceReadiness ? createHash('sha256').update(installReadinessProbe.toString()).digest('hex') : null,
+  playbackProbeSha256: options.tracePlayback ? createHash('sha256').update(installPlaybackProbe.toString()).digest('hex') : null,
+  runs: [] };
 try {
   await server.listen();
   for (const [index, backend] of backends.entries()) {
@@ -171,6 +178,26 @@ try {
         if (!clock || candidate.uncertaintyMs < clock.uncertaintyMs) clock = candidate;
       }
       if (clock.uncertaintyMs > 25) throw new Error('CPU/page clock calibration is too uncertain');
+      if (options.traceReadiness) await page.evaluate(`(async () => {
+        const { CameraSystem } = await import('/src/engine/camera/CameraSystem.ts');
+        const engine = CameraSystem.getInstance().getCamera().getScene().getEngine();
+        window.__timedemoReadinessTrace = (${installReadinessProbe.toString()})(engine,
+          () => window.__timedemoProfileProbe?.().progress ?? 'setup');
+      })()`);
+      // Starting the sampler can pause/deopt the page. Do it before any demo
+      // advances, not during pre-roll; the full profile includes preparation
+      // and warmup, while the phase slices below still use measured playheads.
+      await page.send('Profiler.enable');
+      await page.send('Profiler.setSamplingInterval', { interval: options.interval });
+      const profilerBeforeMs = await page.evaluate('performance.now()');
+      const profilerStartWall = Date.now();
+      await page.send('Profiler.start');
+      recording = true;
+      const profilerAfterMs = await page.evaluate('performance.now()');
+      await fs.writeFile(path.join(directory, 'profiling-start.json'), JSON.stringify({
+        pageBeforeMs: profilerBeforeMs, pageAfterMs: profilerAfterMs,
+        wallDurationMs: Date.now() - profilerStartWall, beforeTimedemoCommand: true,
+      }, null, 2));
       const setup = await page.evaluate(`(async () => {
         const { CommandRegistry } = await import('/src/engine/console/CommandRegistry.ts');
         const { TimedemoService } = await import('/src/games/fps/client/TimedemoService.ts');
@@ -196,11 +223,11 @@ try {
             frameId: CameraSystem.getInstance().getCamera()?.getScene()?.getEngine().frameId,
             tick: info?.playheadTick, at: performance.now() };
         };
+        ${options.tracePlayback ? `const { DemoViewer } = await import('/src/games/fps/client/DemoViewer.ts');
+        window.__timedemoPlaybackTrace = (${installPlaybackProbe.toString()})(DemoViewer, () => window.__timedemoProfileProbe());` : ''}
         return await registry.executeChecked('timedemo ${options.fixture} --mode realtime --repeats 1');
       })()`);
       if (!setup.ok || !setup.output?.startsWith('Timedemo loading')) throw new Error(`Timedemo start failed: ${setup.output}`);
-      await page.send('Profiler.enable');
-      await page.send('Profiler.setSamplingInterval', { interval: options.interval });
       const until = Date.now() + 360000;
       let lastProgress = '';
       const probes = [];
@@ -212,10 +239,6 @@ try {
           await fs.writeFile(path.join(directory, `warmup-${probe.phase}.png`), Buffer.from(screenshot.data, 'base64'));
           await fs.writeFile(path.join(directory, `warmup-${probe.phase}.json`), JSON.stringify(probe, null, 2));
           screenshots.add(probe.phase);
-        }
-        if (probe.progress.startsWith('measure') && probe.state === 'playing' && !recording) {
-          await page.send('Profiler.start');
-          recording = true;
         }
         if (recording && probe.progress.startsWith('measure') && probe.phase) probes.push(probe);
         if (probe.status !== 'running') break;
@@ -267,6 +290,20 @@ try {
           }
           console.log(`[profile] ${name} ${phase.name}: ${(summary.durationMs / 1000).toFixed(1)}s, ${frames} frames`);
         }
+      }
+      if (options.traceReadiness) {
+        const readiness = await page.evaluate(`(() => {
+          const trace = window.__timedemoReadinessTrace;
+          try { return trace.snapshot(); } finally { trace.restore(); }
+        })()`);
+        await fs.writeFile(path.join(directory, 'readiness-trace.json'), JSON.stringify(readiness, null, 2));
+      }
+      if (options.tracePlayback) {
+        const playback = await page.evaluate(`(() => {
+          const trace = window.__timedemoPlaybackTrace;
+          try { return trace.snapshot(); } finally { trace.restore(); }
+        })()`);
+        await fs.writeFile(path.join(directory, 'playback-trace.json'), JSON.stringify(playback, null, 2));
       }
       const sourceAfter = sourceIdentity();
       const stableSource = sourceBefore.outer === sourceAfter.outer && sourceBefore.fps === sourceAfter.fps &&

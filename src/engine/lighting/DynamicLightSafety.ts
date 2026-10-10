@@ -142,13 +142,18 @@ export function applySafeSceneLightCaps(scene: Scene): void {
  */
 export function clampSceneLightCaps(scene: Scene): void {
   for (const material of scene.materials) {
-    if (!("maxSimultaneousLights" in material) || !materialUsesWebGPU(material)) continue;
-    const target = material as LightCapMaterial;
-    guardLightCapRaises(target);
-    const budget = getSafeMaxSimultaneousLights(material);
-    if ((target.maxSimultaneousLights ?? 0) > budget) {
-      setLightCap(target, budget);
-      if (material.isFrozen) material.markDirty(true);
-    }
+    clampMaterialLightCap(material);
+  }
+}
+
+/** Install the WebGPU guard on a clone without raising its deliberate lower cap. */
+export function clampMaterialLightCap(material: Material | null | undefined): void {
+  if (!material || !("maxSimultaneousLights" in material) || !materialUsesWebGPU(material)) return;
+  const target = material as LightCapMaterial;
+  guardLightCapRaises(target);
+  const budget = getSafeMaxSimultaneousLights(material);
+  if ((target.maxSimultaneousLights ?? 0) > budget) {
+    setLightCap(target, budget);
+    if (material.isFrozen) material.markDirty(true);
   }
 }

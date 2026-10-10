@@ -50,6 +50,7 @@ export default defineConfig({
      * cannot rot silently again.
      */
     include: [
+      '@babylonjs/core/Animations/animatable',
       '@babylonjs/core/Animations/animation',
       '@babylonjs/core/Animations/animationGroup',
       '@babylonjs/core/AudioV2/abstractAudio/audioBus',
@@ -153,6 +154,7 @@ export default defineConfig({
       '@babylonjs/core/Meshes/trailMesh',
       '@babylonjs/core/Meshes/transformNode',
       '@babylonjs/core/Misc/areaLightsTextureTools',
+      '@babylonjs/core/Misc/brdfTextureTools',
       '@babylonjs/core/Misc/khronosTextureContainer2',
       '@babylonjs/core/Misc/khronosTextureContainer2.js',
       '@babylonjs/core/Misc/khronosTextureContainer2Worker.js',

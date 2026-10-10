@@ -13,6 +13,7 @@
 import type { AnimationGroup } from "@babylonjs/core/Animations/animationGroup";
 import type { Skeleton } from "@babylonjs/core/Bones/skeleton";
 import type { Material } from "@babylonjs/core/Materials/material";
+import { MultiMaterial } from "@babylonjs/core/Materials/multiMaterial";
 import type { BaseTexture } from "@babylonjs/core/Materials/Textures/baseTexture";
 import { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import type { Node } from "@babylonjs/core/node";
@@ -100,6 +101,11 @@ export function bindLoaderLeftovers(
 export function disposeModelResources(nodes: readonly (Node | null | undefined)[], owned: ModelResources = {}): void {
   let scene: Scene | null = null;
   const materials = new Set<Material>();
+  const collectMaterial = (material: Material) => {
+    if (materials.has(material)) return;
+    materials.add(material);
+    if (material instanceof MultiMaterial) for (const child of material.subMaterials) if (child) collectMaterial(child);
+  };
   const skeletons = new Set<Skeleton>(owned.skeletons);
   const animationGroups = [...(owned.animationGroups ?? [])];
   const disposed: (Node | null | undefined)[] = [...nodes];
@@ -111,7 +117,7 @@ export function disposeModelResources(nodes: readonly (Node | null | undefined)[
     animationGroups.push(...bound.animationGroups);
   }
   for (const material of owned.materials ?? []) {
-    if (material) materials.add(material);
+    if (material) collectMaterial(material);
   }
 
   for (const node of disposed) {
@@ -120,7 +126,7 @@ export function disposeModelResources(nodes: readonly (Node | null | undefined)[
     const meshes = node.getChildMeshes(false);
     if (node instanceof AbstractMesh) meshes.push(node);
     for (const mesh of meshes) {
-      if (mesh.material) materials.add(mesh.material);
+      if (mesh.material) collectMaterial(mesh.material);
       if (mesh.skeleton) skeletons.add(mesh.skeleton);
     }
     node.dispose(false, false);
@@ -131,9 +137,14 @@ export function disposeModelResources(nodes: readonly (Node | null | undefined)[
   if (!activeScene) return;
 
   const renderedWith = new Set<Material>();
+  const markRendered = (material: Material) => {
+    if (renderedWith.has(material)) return;
+    renderedWith.add(material);
+    if (material instanceof MultiMaterial) for (const child of material.subMaterials) if (child) markRendered(child);
+  };
   const skinnedBy = new Set<Skeleton>();
   for (const mesh of activeScene.meshes) {
-    if (mesh.material) renderedWith.add(mesh.material);
+    if (mesh.material) markRendered(mesh.material);
     if (mesh.skeleton) skinnedBy.add(mesh.skeleton);
   }
   for (const skeleton of skeletons) {
@@ -141,7 +152,10 @@ export function disposeModelResources(nodes: readonly (Node | null | undefined)[
   }
 
   const released = [...materials].filter(
-    (material) => !renderedWith.has(material) && activeScene.materials.includes(material),
+    (material) =>
+      !renderedWith.has(material) &&
+      (activeScene.materials.includes(material) ||
+        (material instanceof MultiMaterial && activeScene.multiMaterials.includes(material))),
   );
   if (released.length === 0) return;
 

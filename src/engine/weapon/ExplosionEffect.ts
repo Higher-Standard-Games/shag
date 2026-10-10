@@ -19,6 +19,7 @@ import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
 import { Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
+import type { Observer } from "@babylonjs/core/Misc/observable";
 import { ParticleSystem } from "@babylonjs/core/Particles/particleSystem";
 import type { Scene } from "@babylonjs/core/scene";
 import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
@@ -132,6 +133,11 @@ export class ExplosionEffect {
   private scene: Scene | null = null;
   private explosions: ActiveExplosion[] = [];
   private nextId = 0;
+  /** Idle materials only; active explosions never have their materials stolen. */
+  private readonly rayMaterials: StandardMaterial[] = [];
+  private rayPoolScene: Scene | null = null;
+  private rayPoolObserver: Observer<Scene> | null = null;
+  private static readonly MAX_IDLE_RAY_MATERIALS = 128;
 
   // Procedural particle texture (generated once)
   private particleTexture: Texture | null = null;
@@ -146,6 +152,7 @@ export class ExplosionEffect {
   }
 
   init(scene: Scene): void {
+    this.clear();
     this.scene = scene;
     // Every explosion's sparks share this one texture, so only a re-init lets it go.
     this.particleTexture?.dispose();
@@ -162,7 +169,7 @@ export class ExplosionEffect {
    * @param normal - surface hit normal, used to orient the shockwave ring
    */
   spawn(position: Vector3, config: ExplosionConfig = ROCKET_EXPLOSION, normal: Vector3 = Vector3.Up()): void {
-    if (!this.scene) return;
+    if (!this.scene || this.scene.isDisposed) return;
 
     const id = `explosion_${this.nextId++}`;
     const now = performance.now() / 1000;
@@ -402,16 +409,13 @@ export class ExplosionEffect {
       }
 
       // Material
-      const mat = new StandardMaterial(`${id}_rayMat_${i}`, this.scene!);
       // Mix between core and outer color randomly
       const blend = Math.random();
-      mat.atomicMaterialsUpdate(() => {
-        mat.emissiveColor = Color3.Lerp(config.coreColor, config.outerColor, blend);
-        mat.diffuseColor = Color3.Black();
-        mat.disableLighting = true;
-        mat.alpha = 0.8;
-        applySafeMaxSimultaneousLights(mat);
-      });
+      const mat = this.acquireRayMaterial(`${id}_rayMat_${i}`);
+      Color3.LerpToRef(config.coreColor, config.outerColor, blend, mat.emissiveColor);
+      // Alpha remains below 1 throughout its lifetime, so reuse is a uniform
+      // change, not an opaque/translucent define transition or another batch.
+      mat.alpha = 0.8;
       mesh.material = mat;
 
       // Start small
@@ -421,6 +425,56 @@ export class ExplosionEffect {
     }
 
     return rays;
+  }
+
+  private acquireRayMaterial(name: string): StandardMaterial {
+    const scene = this.scene!;
+    if (this.rayPoolScene !== scene) {
+      this.disposeRayMaterialPool();
+      this.rayPoolScene = scene;
+      this.rayPoolObserver = scene.onDisposeObservable.addOnce(() => this.disposeRayMaterialPool());
+    }
+    while (this.rayMaterials.length) {
+      const material = this.rayMaterials.pop()!;
+      // A map clear can dispose scene materials before the effect is re-init'd.
+      if (scene.materials.includes(material)) {
+        material.name = name;
+        return material;
+      }
+    }
+    const material = new StandardMaterial(name, scene);
+    material.atomicMaterialsUpdate(() => {
+      material.diffuseColor = Color3.Black();
+      material.disableLighting = true;
+      material.alpha = 0.8;
+      applySafeMaxSimultaneousLights(material);
+    });
+    return material;
+  }
+
+  private releaseRayMaterial(material: StandardMaterial): void {
+    // Babylon leaves undefined meshMap entries after Mesh.dispose. Retained
+    // materials must not accumulate one dead binding key per reused ray.
+    const bindings = material.meshMap;
+    if (bindings) for (const id of Object.keys(bindings)) if (bindings[id] === undefined) delete bindings[id];
+    const scene = this.rayPoolScene;
+    if (
+      scene &&
+      !scene.isDisposed &&
+      material.getScene() === scene &&
+      scene.materials.includes(material) &&
+      this.rayMaterials.length < ExplosionEffect.MAX_IDLE_RAY_MATERIALS
+    )
+      this.rayMaterials.push(material);
+    else material.dispose();
+  }
+
+  private disposeRayMaterialPool(): void {
+    for (const material of this.rayMaterials) material.dispose();
+    this.rayMaterials.length = 0;
+    if (this.rayPoolObserver) this.rayPoolScene?.onDisposeObservable.remove(this.rayPoolObserver);
+    this.rayPoolObserver = null;
+    this.rayPoolScene = null;
   }
 
   /**
@@ -689,7 +743,7 @@ export class ExplosionEffect {
     const idx = this.explosions.findIndex((e) => e.id === id);
     if (idx === -1) return;
 
-    disposeExplosion(this.explosions[idx]);
+    disposeExplosion(this.explosions[idx], (material) => this.releaseRayMaterial(material));
     this.explosions.splice(idx, 1);
   }
 
@@ -697,8 +751,9 @@ export class ExplosionEffect {
    * Clear all active explosions
    */
   clear(): void {
-    for (const exp of this.explosions) disposeExplosion(exp);
+    for (const exp of this.explosions) disposeExplosion(exp, (material) => this.releaseRayMaterial(material));
     this.explosions = [];
+    this.disposeRayMaterialPool();
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -752,12 +807,12 @@ function easeInQuad(t: number): number {
  * shared by every explosion, and Babylon's `dispose()` takes the texture with it
  * by default, so the first explosion to finish left the rest without sparks.
  */
-function disposeExplosion(exp: ActiveExplosion): void {
+function disposeExplosion(exp: ActiveExplosion, releaseRay: (material: StandardMaterial) => void): void {
   exp.fireball.dispose();
   exp.fireballMat.dispose();
   for (const ray of exp.rays) {
     ray.mesh.dispose();
-    ray.mat.dispose();
+    releaseRay(ray.mat);
   }
   exp.shockwave.dispose();
   exp.shockwaveMat.dispose();

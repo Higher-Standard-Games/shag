@@ -1,0 +1,524 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-10",
+  "fixture": "wdm2-ffa10-v1-095f355747e8-f47d4c2a",
+  "purpose": "Dropped-model/barrel source reuse diagnostics; not an FPS comparison",
+  "precedingWebGL2Trace": {
+    "artifacts": "public/data/benchmarks/results/2026-10-10-codex-weapon-cache/1-webgl2",
+    "workloadValid": true,
+    "sourceStable": false,
+    "measuredImports": {
+      "main": 19,
+      "barrels": 50,
+      "heldWeapons": 2,
+      "firstPersonWeapons": 9,
+      "firstPersonBarrels": 12
+    },
+    "droppedRecords": {
+      "registrations": 0,
+      "checks": 0,
+      "pendingEvents": 0,
+      "activePending": 0
+    }
+  },
+  "runs": [
+    {
+      "artifacts": "public/data/benchmarks/results/2026-10-10-codex-dropped-cache/1-webgl2",
+      "backend": "webgl2",
+      "browser": "Edg/155.0.4283.45",
+      "environment": {
+        "engineClass": "_Engine",
+        "babylonVersion": "9.17.0",
+        "compatibilityMode": null,
+        "profile": {
+          "width": 1280,
+          "height": 720,
+          "fov": 90,
+          "requiredCvars": {
+            "r_ssr": 0,
+            "r_glow": 0,
+            "r_daynight": 0,
+            "cl_player_outline": 1
+          }
+        },
+        "poseHz": 30
+      },
+      "workloadValid": true,
+      "rejectionReasons": [],
+      "sourceStable": true,
+      "sourceBefore": {
+        "outer": "8017c00fc24d2fb0c913cd8d0016218e5169c186",
+        "fps": "93c5a7a2b7ec4d0391aa2a915b59e6f8966955f1",
+        "sourceChangeSha256": "0d978a5c262483504bec8ce3cc0cb463384c386b02c2a4ca68f3b54f16477d80"
+      },
+      "sourceAfter": {
+        "outer": "8017c00fc24d2fb0c913cd8d0016218e5169c186",
+        "fps": "93c5a7a2b7ec4d0391aa2a915b59e6f8966955f1",
+        "sourceChangeSha256": "0d978a5c262483504bec8ce3cc0cb463384c386b02c2a4ca68f3b54f16477d80"
+      },
+      "exceptions": 0,
+      "frames": 4748,
+      "shaderCompiles": 28,
+      "measuredBoundsMs": [
+        76474.30000000075,
+        121465.39999999851
+      ],
+      "warmupObservedTourStartMs": 21196.699999999255,
+      "droppedRecords": {
+        "registrations": 0,
+        "checks": 0,
+        "pendingEvents": 0,
+        "activePending": 0
+      },
+      "sessionImportStarts": {
+        "main": 2,
+        "barrels": 4
+      },
+      "importsByProgress": {
+        "warmup 1/1": {
+          "main": 1,
+          "barrels": 2
+        },
+        "measure 1/1": {
+          "main": 1,
+          "barrels": 2
+        }
+      },
+      "warmupObservedTourImports": {
+        "main": 0,
+        "barrels": 0
+      },
+      "measuredImports": {
+        "main": 0,
+        "barrels": 0,
+        "heldWeapons": 2,
+        "firstPersonWeapons": 9,
+        "firstPersonBarrels": 12
+      },
+      "sourceImportEvents": [
+        {
+          "atMs": 17069,
+          "progress": "warmup 1/1",
+          "stack": "Error: Pending data added\n    at _Scene.<anonymous> (<anonymous>:53:16)\n    at importMeshCoreAsync (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-BMXNYM7K.js?v=12a30fb4:418:9)\n    at ImportMeshAsync (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-BMXNYM7K.js?v=12a30fb4:407:16)\n    at ModelLoader.loadModel (http://127.0.0.1:3117/src/engine/loader/model/ModelLoader.ts:133:28)\n    at ModelInstanceCache.load (http://127.0.0.1:3117/src/games/fps/client/DroppedWeaponRenderer.ts:290:21)\n    at ModelInstanceCache.createInstance (http://127.0.0.1:3117/src/engine/loader/model/ModelInstanceCache.ts:30:24)\n    at DroppedWeaponRenderer.loadFallbackModel (http://127.0.0.1:3117/src/games/fps/client/DroppedWeaponRenderer.ts:297:31)\n    at async DroppedWeaponVisual.loadModel (http://127.0.0.1:3117/src/games/fps/client/DroppedWeaponRenderer.ts:60:18)"
+        },
+        {
+          "atMs": 17898.699999999255,
+          "progress": "warmup 1/1",
+          "stack": "Error: Pending data added\n    at _Scene.<anonymous> (<anonymous>:53:16)\n    at importMeshCoreAsync (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-BMXNYM7K.js?v=12a30fb4:418:9)\n    at ImportMeshAsync (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-BMXNYM7K.js?v=12a30fb4:407:16)\n    at ModelInstanceCache.load (http://127.0.0.1:3117/src/games/fps/client/DroppedWeaponRenderer.ts:305:28)\n    at async ModelInstanceCache.createInstance (http://127.0.0.1:3117/src/engine/loader/model/ModelInstanceCache.ts:45:18)\n    at async DroppedWeaponVisual.loadModel (http://127.0.0.1:3117/src/games/fps/client/DroppedWeaponRenderer.ts:128:38)"
+        },
+        {
+          "atMs": 20528.89999999851,
+          "progress": "warmup 1/1",
+          "stack": "Error: Pending data added\n    at _Scene.<anonymous> (<anonymous>:53:16)\n    at importMeshCoreAsync (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-BMXNYM7K.js?v=12a30fb4:418:9)\n    at ImportMeshAsync (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-BMXNYM7K.js?v=12a30fb4:407:16)\n    at ModelInstanceCache.load (http://127.0.0.1:3117/src/games/fps/client/DroppedWeaponRenderer.ts:305:28)\n    at async ModelInstanceCache.createInstance (http://127.0.0.1:3117/src/engine/loader/model/ModelInstanceCache.ts:45:18)\n    at async DroppedWeaponVisual.loadModel (http://127.0.0.1:3117/src/games/fps/client/DroppedWeaponRenderer.ts:128:38)"
+        },
+        {
+          "atMs": 72450.5,
+          "progress": "measure 1/1",
+          "stack": "Error: Pending data added\n    at _Scene.<anonymous> (<anonymous>:53:16)\n    at importMeshCoreAsync (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-BMXNYM7K.js?v=12a30fb4:418:9)\n    at ImportMeshAsync (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-BMXNYM7K.js?v=12a30fb4:407:16)\n    at ModelLoader.loadModel (http://127.0.0.1:3117/src/engine/loader/model/ModelLoader.ts:133:28)\n    at ModelInstanceCache.load (http://127.0.0.1:3117/src/games/fps/client/DroppedWeaponRenderer.ts:290:21)\n    at ModelInstanceCache.createInstance (http://127.0.0.1:3117/src/engine/loader/model/ModelInstanceCache.ts:30:24)\n    at DroppedWeaponRenderer.loadFallbackModel (http://127.0.0.1:3117/src/games/fps/client/DroppedWeaponRenderer.ts:297:31)\n    at async DroppedWeaponVisual.loadModel (http://127.0.0.1:3117/src/games/fps/client/DroppedWeaponRenderer.ts:60:18)"
+        },
+        {
+          "atMs": 73286.89999999851,
+          "progress": "measure 1/1",
+          "stack": "Error: Pending data added\n    at _Scene.<anonymous> (<anonymous>:53:16)\n    at importMeshCoreAsync (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-BMXNYM7K.js?v=12a30fb4:418:9)\n    at ImportMeshAsync (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-BMXNYM7K.js?v=12a30fb4:407:16)\n    at ModelInstanceCache.load (http://127.0.0.1:3117/src/games/fps/client/DroppedWeaponRenderer.ts:305:28)\n    at async ModelInstanceCache.createInstance (http://127.0.0.1:3117/src/engine/loader/model/ModelInstanceCache.ts:45:18)\n    at async DroppedWeaponVisual.loadModel (http://127.0.0.1:3117/src/games/fps/client/DroppedWeaponRenderer.ts:128:38)"
+        },
+        {
+          "atMs": 75968.09999999776,
+          "progress": "measure 1/1",
+          "stack": "Error: Pending data added\n    at _Scene.<anonymous> (<anonymous>:53:16)\n    at importMeshCoreAsync (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-BMXNYM7K.js?v=12a30fb4:418:9)\n    at ImportMeshAsync (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-BMXNYM7K.js?v=12a30fb4:407:16)\n    at ModelInstanceCache.load (http://127.0.0.1:3117/src/games/fps/client/DroppedWeaponRenderer.ts:305:28)\n    at async ModelInstanceCache.createInstance (http://127.0.0.1:3117/src/engine/loader/model/ModelInstanceCache.ts:45:18)\n    at async DroppedWeaponVisual.loadModel (http://127.0.0.1:3117/src/games/fps/client/DroppedWeaponRenderer.ts:128:38)"
+        }
+      ],
+      "readinessChecksDuringMeasurement": 0,
+      "skippedFramesAtFirstSample": 0,
+      "skippedFramesAtLastSample": 0,
+      "missingPovWeaponFrames": 42,
+      "screenshots": [
+        {
+          "phase": "freefly-start",
+          "progress": "warmup 1/1",
+          "status": "running",
+          "state": "playing",
+          "seconds": 0.1698999999985098,
+          "hidden": false,
+          "frameId": 1362,
+          "tick": 914.2374999998137,
+          "at": 21196.699999999255
+        },
+        {
+          "phase": "fps-gunplay-a",
+          "progress": "warmup 1/1",
+          "status": "running",
+          "state": "playing",
+          "seconds": 12.102100000001489,
+          "hidden": false,
+          "frameId": 2754,
+          "tick": 2405.7625000001863,
+          "at": 33196.5
+        },
+        {
+          "phase": "freefly-return",
+          "progress": "warmup 1/1",
+          "status": "running",
+          "state": "playing",
+          "seconds": 24.37189999999851,
+          "hidden": false,
+          "frameId": 3828,
+          "tick": 3939.4874999998137,
+          "at": 45403.800000000745
+        },
+        {
+          "phase": "fps-gunplay-b",
+          "progress": "warmup 1/1",
+          "status": "running",
+          "state": "playing",
+          "seconds": 33.30289999999851,
+          "hidden": false,
+          "frameId": 4798,
+          "tick": 5055.862499999814,
+          "at": 54346.39999999851
+        }
+      ]
+    },
+    {
+      "artifacts": "public/data/benchmarks/results/2026-10-10-codex-dropped-cache/2-webgpu",
+      "backend": "webgpu",
+      "browser": "Edg/155.0.4283.45",
+      "environment": {
+        "engineClass": "_WebGPUEngine",
+        "babylonVersion": "9.17.0",
+        "compatibilityMode": true,
+        "profile": {
+          "width": 1280,
+          "height": 720,
+          "fov": 90,
+          "requiredCvars": {
+            "r_ssr": 0,
+            "r_glow": 0,
+            "r_daynight": 0,
+            "cl_player_outline": 1
+          }
+        },
+        "poseHz": 30
+      },
+      "workloadValid": false,
+      "rejectionReasons": [
+        "Playback skipped recorded frames/events after a stall"
+      ],
+      "sourceStable": true,
+      "sourceBefore": {
+        "outer": "8017c00fc24d2fb0c913cd8d0016218e5169c186",
+        "fps": "93c5a7a2b7ec4d0391aa2a915b59e6f8966955f1",
+        "sourceChangeSha256": "0d978a5c262483504bec8ce3cc0cb463384c386b02c2a4ca68f3b54f16477d80"
+      },
+      "sourceAfter": {
+        "outer": "8017c00fc24d2fb0c913cd8d0016218e5169c186",
+        "fps": "93c5a7a2b7ec4d0391aa2a915b59e6f8966955f1",
+        "sourceChangeSha256": "0d978a5c262483504bec8ce3cc0cb463384c386b02c2a4ca68f3b54f16477d80"
+      },
+      "exceptions": 0,
+      "frames": 3620,
+      "shaderCompiles": 4,
+      "measuredBoundsMs": [
+        70691.5,
+        115690.79999999702
+      ],
+      "warmupObservedTourStartMs": 16171.29999999702,
+      "droppedRecords": {
+        "registrations": 0,
+        "checks": 0,
+        "pendingEvents": 0,
+        "activePending": 0
+      },
+      "sessionImportStarts": {
+        "main": 2,
+        "barrels": 4
+      },
+      "importsByProgress": {
+        "warmup 1/1": {
+          "main": 1,
+          "barrels": 2
+        },
+        "measure 1/1": {
+          "main": 1,
+          "barrels": 2
+        }
+      },
+      "warmupObservedTourImports": {
+        "main": 0,
+        "barrels": 0
+      },
+      "measuredImports": {
+        "main": 0,
+        "barrels": 0,
+        "heldWeapons": 2,
+        "firstPersonWeapons": 9,
+        "firstPersonBarrels": 11
+      },
+      "sourceImportEvents": [
+        {
+          "atMs": 12139,
+          "progress": "warmup 1/1",
+          "stack": "Error: Pending data added\n    at _Scene.<anonymous> (<anonymous>:53:16)\n    at importMeshCoreAsync (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-BMXNYM7K.js?v=12a30fb4:418:9)\n    at ImportMeshAsync (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-BMXNYM7K.js?v=12a30fb4:407:16)\n    at ModelLoader.loadModel (http://127.0.0.1:3117/src/engine/loader/model/ModelLoader.ts:133:28)\n    at ModelInstanceCache.load (http://127.0.0.1:3117/src/games/fps/client/DroppedWeaponRenderer.ts:290:21)\n    at ModelInstanceCache.createInstance (http://127.0.0.1:3117/src/engine/loader/model/ModelInstanceCache.ts:30:24)\n    at DroppedWeaponRenderer.loadFallbackModel (http://127.0.0.1:3117/src/games/fps/client/DroppedWeaponRenderer.ts:297:31)\n    at async DroppedWeaponVisual.loadModel (http://127.0.0.1:3117/src/games/fps/client/DroppedWeaponRenderer.ts:60:18)"
+        },
+        {
+          "atMs": 12856,
+          "progress": "warmup 1/1",
+          "stack": "Error: Pending data added\n    at _Scene.<anonymous> (<anonymous>:53:16)\n    at importMeshCoreAsync (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-BMXNYM7K.js?v=12a30fb4:418:9)\n    at ImportMeshAsync (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-BMXNYM7K.js?v=12a30fb4:407:16)\n    at ModelInstanceCache.load (http://127.0.0.1:3117/src/games/fps/client/DroppedWeaponRenderer.ts:305:28)\n    at async ModelInstanceCache.createInstance (http://127.0.0.1:3117/src/engine/loader/model/ModelInstanceCache.ts:45:18)\n    at async DroppedWeaponVisual.loadModel (http://127.0.0.1:3117/src/games/fps/client/DroppedWeaponRenderer.ts:128:38)"
+        },
+        {
+          "atMs": 15628.099999997765,
+          "progress": "warmup 1/1",
+          "stack": "Error: Pending data added\n    at _Scene.<anonymous> (<anonymous>:53:16)\n    at importMeshCoreAsync (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-BMXNYM7K.js?v=12a30fb4:418:9)\n    at ImportMeshAsync (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-BMXNYM7K.js?v=12a30fb4:407:16)\n    at ModelInstanceCache.load (http://127.0.0.1:3117/src/games/fps/client/DroppedWeaponRenderer.ts:305:28)\n    at async ModelInstanceCache.createInstance (http://127.0.0.1:3117/src/engine/loader/model/ModelInstanceCache.ts:45:18)\n    at async DroppedWeaponVisual.loadModel (http://127.0.0.1:3117/src/games/fps/client/DroppedWeaponRenderer.ts:128:38)"
+        },
+        {
+          "atMs": 66693.5,
+          "progress": "measure 1/1",
+          "stack": "Error: Pending data added\n    at _Scene.<anonymous> (<anonymous>:53:16)\n    at importMeshCoreAsync (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-BMXNYM7K.js?v=12a30fb4:418:9)\n    at ImportMeshAsync (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-BMXNYM7K.js?v=12a30fb4:407:16)\n    at ModelLoader.loadModel (http://127.0.0.1:3117/src/engine/loader/model/ModelLoader.ts:133:28)\n    at ModelInstanceCache.load (http://127.0.0.1:3117/src/games/fps/client/DroppedWeaponRenderer.ts:290:21)\n    at ModelInstanceCache.createInstance (http://127.0.0.1:3117/src/engine/loader/model/ModelInstanceCache.ts:30:24)\n    at DroppedWeaponRenderer.loadFallbackModel (http://127.0.0.1:3117/src/games/fps/client/DroppedWeaponRenderer.ts:297:31)\n    at async DroppedWeaponVisual.loadModel (http://127.0.0.1:3117/src/games/fps/client/DroppedWeaponRenderer.ts:60:18)"
+        },
+        {
+          "atMs": 67609.59999999776,
+          "progress": "measure 1/1",
+          "stack": "Error: Pending data added\n    at _Scene.<anonymous> (<anonymous>:53:16)\n    at importMeshCoreAsync (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-BMXNYM7K.js?v=12a30fb4:418:9)\n    at ImportMeshAsync (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-BMXNYM7K.js?v=12a30fb4:407:16)\n    at ModelInstanceCache.load (http://127.0.0.1:3117/src/games/fps/client/DroppedWeaponRenderer.ts:305:28)\n    at async ModelInstanceCache.createInstance (http://127.0.0.1:3117/src/engine/loader/model/ModelInstanceCache.ts:45:18)\n    at async DroppedWeaponVisual.loadModel (http://127.0.0.1:3117/src/games/fps/client/DroppedWeaponRenderer.ts:128:38)"
+        },
+        {
+          "atMs": 70251.09999999776,
+          "progress": "measure 1/1",
+          "stack": "Error: Pending data added\n    at _Scene.<anonymous> (<anonymous>:53:16)\n    at importMeshCoreAsync (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-BMXNYM7K.js?v=12a30fb4:418:9)\n    at ImportMeshAsync (http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-BMXNYM7K.js?v=12a30fb4:407:16)\n    at ModelInstanceCache.load (http://127.0.0.1:3117/src/games/fps/client/DroppedWeaponRenderer.ts:305:28)\n    at async ModelInstanceCache.createInstance (http://127.0.0.1:3117/src/engine/loader/model/ModelInstanceCache.ts:45:18)\n    at async DroppedWeaponVisual.loadModel (http://127.0.0.1:3117/src/games/fps/client/DroppedWeaponRenderer.ts:128:38)"
+        }
+      ],
+      "readinessChecksDuringMeasurement": 0,
+      "skippedFramesAtFirstSample": 18,
+      "skippedFramesAtLastSample": 18,
+      "missingPovWeaponFrames": 42,
+      "screenshots": [
+        {
+          "phase": "freefly-start",
+          "progress": "warmup 1/1",
+          "status": "running",
+          "state": "playing",
+          "seconds": 0.09160000000149005,
+          "hidden": false,
+          "frameId": 786,
+          "tick": 904.4500000001863,
+          "at": 16171.29999999702
+        },
+        {
+          "phase": "fps-gunplay-a",
+          "progress": "warmup 1/1",
+          "status": "running",
+          "state": "playing",
+          "seconds": 12.052699999999255,
+          "hidden": false,
+          "frameId": 1790,
+          "tick": 2399.587499999907,
+          "at": 28130.79999999702
+        },
+        {
+          "phase": "freefly-return",
+          "progress": "warmup 1/1",
+          "status": "running",
+          "state": "playing",
+          "seconds": 24.34139999999851,
+          "hidden": false,
+          "frameId": 2704,
+          "tick": 3935.6749999998137,
+          "at": 40423.29999999702
+        },
+        {
+          "phase": "fps-gunplay-b",
+          "progress": "warmup 1/1",
+          "status": "running",
+          "state": "playing",
+          "seconds": 33.3445,
+          "hidden": false,
+          "frameId": 3450,
+          "tick": 5061.0625,
+          "at": 49433.5
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "Import starts do not identify completed draws or unique model paths.",
+    "Profiling/trace overhead; no repeated unprofiled cache-on/off frame-time comparison.",
+    "Source-stability and playback-integrity rejections are retained.",
+    "Warmup observed-tour counts begin at the first saved screenshot, excluding earlier loading/pre-roll.",
+    "Screenshots are limited recorded-playhead evidence, not live Havok soak testing or all-weapon visual parity."
+  ],
+  "premeasurementDiagnostic": {
+    "artifacts": "public/data/benchmarks/results/2026-10-10-codex-dropped-cache/2-webgpu",
+    "durationMs": 4982.673,
+    "requestedPageBoundsMs": [
+      65191.5,
+      70691.5
+    ],
+    "cpuBoundsUs": [
+      22755820057,
+      22760802730
+    ],
+    "clippedToCaptureStart": true,
+    "clock": {
+      "lowerMs": 22690111.23,
+      "upperMs": 22690111.830000002,
+      "uncertaintyMs": 0.6000000014901161
+    },
+    "topSelf": [
+      {
+        "functionName": "(program)",
+        "scriptId": "0",
+        "url": "",
+        "lineNumber": -1,
+        "columnNumber": -1,
+        "selfMs": 929.2539999999998,
+        "inclusiveMs": 929.2539999999998,
+        "selfPercent": 18.6530367434638,
+        "inclusivePercent": 18.6530367434638,
+        "selfMsPerFrame": null,
+        "inclusiveMsPerFrame": null
+      },
+      {
+        "functionName": "(idle)",
+        "scriptId": "0",
+        "url": "",
+        "lineNumber": -1,
+        "columnNumber": -1,
+        "selfMs": 154.10400000000004,
+        "inclusiveMs": 154.10400000000004,
+        "selfPercent": 3.093349691596428,
+        "inclusivePercent": 3.093349691596428,
+        "selfMsPerFrame": null,
+        "inclusiveMsPerFrame": null
+      },
+      {
+        "functionName": "render",
+        "scriptId": "249",
+        "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-J2WIXA32.js?v=12a30fb4",
+        "lineNumber": 3344,
+        "columnNumber": 8,
+        "selfMs": 118.484,
+        "inclusiveMs": 1317.1420000000014,
+        "selfPercent": 2.3783447857233497,
+        "inclusivePercent": 26.439163159221728,
+        "selfMsPerFrame": null,
+        "inclusiveMsPerFrame": null
+      },
+      {
+        "functionName": "markDirty",
+        "scriptId": "252",
+        "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-MCGWJYNU.js?v=12a30fb4",
+        "lineNumber": 1047,
+        "columnNumber": 13,
+        "selfMs": 111.25800000000004,
+        "inclusiveMs": 111.25800000000004,
+        "selfPercent": 2.2332963452449994,
+        "inclusivePercent": 2.2332963452449994,
+        "selfMsPerFrame": null,
+        "inclusiveMsPerFrame": null
+      },
+      {
+        "functionName": "_evaluateActiveMeshes",
+        "scriptId": "97",
+        "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-WD5LFCN2.js?v=12a30fb4",
+        "lineNumber": 5706,
+        "columnNumber": 23,
+        "selfMs": 109.61899999999999,
+        "inclusiveMs": 704.0140000000002,
+        "selfPercent": 2.200396484472231,
+        "inclusivePercent": 14.13176484568582,
+        "selfMsPerFrame": null,
+        "inclusiveMsPerFrame": null
+      },
+      {
+        "functionName": "(garbage collector)",
+        "scriptId": "0",
+        "url": "",
+        "lineNumber": -1,
+        "columnNumber": -1,
+        "selfMs": 106.75500000000002,
+        "inclusiveMs": 106.75500000000002,
+        "selfPercent": 2.142907038924211,
+        "inclusivePercent": 2.142907038924211,
+        "selfMsPerFrame": null,
+        "inclusiveMsPerFrame": null
+      },
+      {
+        "functionName": "_update",
+        "scriptId": "260",
+        "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-Q6KRL26Q.js?v=12a30fb4",
+        "lineNumber": 85,
+        "columnNumber": 9,
+        "selfMs": 98.586,
+        "inclusiveMs": 98.586,
+        "selfPercent": 1.978929636451522,
+        "inclusivePercent": 1.978929636451522,
+        "selfMsPerFrame": null,
+        "inclusiveMsPerFrame": null
+      },
+      {
+        "functionName": "_markAllSubMeshesAsDirty",
+        "scriptId": "252",
+        "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-MCGWJYNU.js?v=12a30fb4",
+        "lineNumber": 1429,
+        "columnNumber": 28,
+        "selfMs": 94.662,
+        "inclusiveMs": 94.662,
+        "selfPercent": 1.9001626726489969,
+        "inclusivePercent": 1.9001626726489969,
+        "selfMsPerFrame": null,
+        "inclusiveMsPerFrame": null
+      },
+      {
+        "functionName": "DeepCopy",
+        "scriptId": "58",
+        "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-Z2V45LLH.js?v=12a30fb4",
+        "lineNumber": 45,
+        "columnNumber": 17,
+        "selfMs": 86.24099999999999,
+        "inclusiveMs": 89.28099999999999,
+        "selfPercent": 1.7311268413082557,
+        "inclusivePercent": 1.7921491578117412,
+        "selfMsPerFrame": null,
+        "inclusiveMsPerFrame": null
+      },
+      {
+        "functionName": "_getData",
+        "scriptId": "254",
+        "url": "http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-OO2OIYCJ.js?v=12a30fb4",
+        "lineNumber": 1318,
+        "columnNumber": 12,
+        "selfMs": 72.29100000000001,
+        "inclusiveMs": 181.47199999999998,
+        "selfPercent": 1.451106671826801,
+        "inclusivePercent": 3.642711125171227,
+        "selfMsPerFrame": null,
+        "inclusiveMsPerFrame": null
+      }
+    ],
+    "markDirtyCallerGroups": [
+      {
+        "stack": "set blockDirtyMechanism @ http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-MCGWJYNU.js?v=12a30fb4:452\ncreateRays @ http://127.0.0.1:3117/src/engine/weapon/ExplosionEffect.ts:248\nspawn @ http://127.0.0.1:3117/src/engine/weapon/ExplosionEffect.ts:101\n_processDemoEffects @ http://127.0.0.1:3117/src/games/fps/client/DemoService.ts:769\n @ http://127.0.0.1:3117/src/games/fps/client/DemoService.ts:449\ndeliverCurrentFrame @ http://127.0.0.1:3117/src/games/fps/client/DemoViewer.ts:212",
+        "inclusiveMs": 64.438
+      },
+      {
+        "stack": "set blockDirtyMechanism @ http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-MCGWJYNU.js?v=12a30fb4:452\nupdateTrail @ http://127.0.0.1:3117/src/engine/weapon/ProjectileManager.ts:720\nupdate @ http://127.0.0.1:3117/src/engine/weapon/ProjectileManager.ts:411\n @ http://127.0.0.1:3117/src/engine/weapon/ProjectileManager.ts:87\nnotifyObservers @ http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-JCF3OHMC.js?v=12a30fb4:221\nrender @ http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-WD5LFCN2.js?v=12a30fb4:6279",
+        "inclusiveMs": 17.012
+      },
+      {
+        "stack": "set blockDirtyMechanism @ http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-MCGWJYNU.js?v=12a30fb4:452\ncreateFireball @ http://127.0.0.1:3117/src/engine/weapon/ExplosionEffect.ts:194\nspawn @ http://127.0.0.1:3117/src/engine/weapon/ExplosionEffect.ts:101\n_processDemoEffects @ http://127.0.0.1:3117/src/games/fps/client/DemoService.ts:769\n @ http://127.0.0.1:3117/src/games/fps/client/DemoService.ts:449\ndeliverCurrentFrame @ http://127.0.0.1:3117/src/games/fps/client/DemoViewer.ts:212",
+        "inclusiveMs": 16.153
+      },
+      {
+        "stack": "set blockDirtyMechanism @ http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-MCGWJYNU.js?v=12a30fb4:452\natomicMaterialsUpdate @ http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-MCGWJYNU.js?v=12a30fb4:467\ncreateRays @ http://127.0.0.1:3117/src/engine/weapon/ExplosionEffect.ts:248\nspawn @ http://127.0.0.1:3117/src/engine/weapon/ExplosionEffect.ts:101\n_processDemoEffects @ http://127.0.0.1:3117/src/games/fps/client/DemoService.ts:769\n @ http://127.0.0.1:3117/src/games/fps/client/DemoService.ts:449",
+        "inclusiveMs": 12.139
+      },
+      {
+        "stack": "set blockDirtyMechanism @ http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-MCGWJYNU.js?v=12a30fb4:452\natomicMaterialsUpdate @ http://127.0.0.1:3117/node_modules/.vite-codex-profile/deps/chunk-MCGWJYNU.js?v=12a30fb4:467\ncreateShockwave @ http://127.0.0.1:3117/src/engine/weapon/ExplosionEffect.ts:292\nspawn @ http://127.0.0.1:3117/src/engine/weapon/ExplosionEffect.ts:101\n_processDemoEffects @ http://127.0.0.1:3117/src/games/fps/client/DemoService.ts:769\n @ http://127.0.0.1:3117/src/games/fps/client/DemoService.ts:449",
+        "inclusiveMs": 1.516
+      }
+    ],
+    "limitations": [
+      "Available CPU slice before the first measured sample, not a steady-frame comparison.",
+      "Caller group times are aggregate inclusive samples, not attribution of the exact skipped-frame transition.",
+      "The initial preparation before Profiler.start is outside this CPU capture."
+    ]
+  }
+}
