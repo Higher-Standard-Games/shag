@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "player-outline-proxy-v1",
+  "source": "public/games/default/animations/vanguard.glb",
+  "output": "public/data/benchmarks/outline-proxy/player-outline-proxy-v1.glb",
+  "ratio": 0.25,
+  "error": 0.01,
+  "lockBorder": false
+}

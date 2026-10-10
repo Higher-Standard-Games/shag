@@ -19,6 +19,7 @@ import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
 import { DEFAULT_PROJECTILE_BOUNCE_FACTOR, getEntityRegistry, type ProjectileDef } from "../../shared/entities";
+import { devLog } from "../core/DevLog";
 import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
 import { getMD3Loader, type MD3LoadResult } from "../loader/model/MD3Loader";
 import { ModelSourceCache } from "../loader/model/ModelSourceCache";
@@ -584,7 +585,7 @@ export class ProjectileManager {
       child.metadata.celOutlineExclude = true;
     }
 
-    console.log(`[ProjectileManager] Spawned ${defId} (${id}) with ${fadeMeshes.length} meshes fading in`);
+    devLog(`[ProjectileManager] Spawned ${defId} (${id}) with ${fadeMeshes.length} meshes fading in`);
 
     return id;
   }

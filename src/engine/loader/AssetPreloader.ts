@@ -12,6 +12,7 @@ import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Scene } from "@babylonjs/core/scene";
 import { EntityRegistry } from "../../shared/entities/EntityRegistry";
 import { EntityType } from "../../shared/entities/EntityType";
+import { devLog } from "../core/DevLog";
 import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
 import type { BspFile } from "./bsp/BspLoader";
 import {
@@ -249,7 +250,7 @@ export class AssetPreloader {
         }
       }
 
-      console.log(`[AssetPreloader] Cloned ${clonedMeshes.length} meshes from cache`);
+      devLog(`[AssetPreloader] Cloned ${clonedMeshes.length} meshes from cache`);
 
       return {
         root: clonedRoot,

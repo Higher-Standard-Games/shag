@@ -153,6 +153,16 @@ export function sampleTimedemoCamera(segment: TimedemoSegment, seconds: number) 
 }
 
 export interface TimedemoSample {
+  outlineProxy?: {
+    requested: boolean;
+    status: string;
+    attachedParts: number;
+    rejectedRoots: number;
+    routedPasses: number;
+    routedIndices: number;
+    fallbackPasses: number;
+    unsupportedPasses?: number;
+  } | null;
   seconds: number;
   phase: string;
   wallMs: number;
@@ -201,6 +211,18 @@ export function summarizeTimedemoSamples(samples: TimedemoSample[], budgetMs = 1
     alivePlayers: stats("alivePlayers"),
     loadedBodies: stats("loadedBodies"),
     bundles: summarizeTimedemoBundles(samples),
+    outlineProxy: samples.some((s) => s.outlineProxy)
+      ? {
+          sampledFrames: samples.filter((s) => s.outlineProxy).length,
+          requestedFrames: samples.filter((s) => s.outlineProxy?.requested).length,
+          unreadyFrames: samples.filter((s) => s.outlineProxy?.requested && s.outlineProxy.status !== "ready").length,
+          rejectedFrames: samples.filter((s) => (s.outlineProxy?.rejectedRoots ?? 0) > 0).length,
+          fallbackPasses: samples.reduce((n, s) => n + (s.outlineProxy?.fallbackPasses ?? 0), 0),
+          unsupportedPasses: samples.reduce((n, s) => n + (s.outlineProxy?.unsupportedPasses ?? 0), 0),
+          routedPasses: samples.reduce((n, s) => n + (s.outlineProxy?.routedPasses ?? 0), 0),
+          routedIndices: samples.reduce((n, s) => n + (s.outlineProxy?.routedIndices ?? 0), 0),
+        }
+      : null,
     missingPovWeaponFrames: samples.filter((s) => s.spectatorTarget && !s.povWeaponLoaded).length,
     unreadySceneFrames: samples.filter((s) => s.sceneReady === false).length,
     sceneReadinessObservedFrames: samples.filter((s) => typeof s.sceneReady === "boolean").length,

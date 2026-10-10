@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SHAG player crowd benchmark</title>
+    <style>
+      body { margin: 0; background: #10151d; color: #e6edf3; font: 15px system-ui; text-align: center; }
+      header { height: 48px; display: grid; place-content: center; }
+      canvas { display: block; width: 1280px; height: 720px; max-width: 100%; margin: auto; }
+    </style>
+  </head>
+  <body>
+    <header id="status">Loading player crowd benchmark · Escape to stop</header>
+    <canvas id="crowd" width="1280" height="720"></canvas>
+    <script type="module" src="/src/engine/rendering/crowd-benchmark-page.ts"></script>
+  </body>
+</html>

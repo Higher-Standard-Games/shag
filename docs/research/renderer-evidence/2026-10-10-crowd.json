@@ -1,0 +1,5476 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-10",
+  "purpose": "Fixed 0/2/5/10 actor render workload; outline cost attribution, no shipped optimization or gameplay FPS gain",
+  "recipeSha256": "262625791d0715b648b1191c1a56383fa675fe25e7297136ee5813e2f198a1a8",
+  "summary": {
+    "webgl2:0:outline-1": {
+      "validRuns": 5,
+      "rejectedRuns": 0,
+      "cpuP95Ms": {
+        "median": 0.20000000298023224,
+        "min": 0.20000000298023224,
+        "max": 0.4000000059604645
+      },
+      "wallP95Ms": {
+        "median": 8.100000008940697,
+        "min": 6.199999988079071,
+        "max": 8.200000002980232
+      },
+      "poseP95Ms": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "draws": {
+        "median": 2,
+        "min": 2,
+        "max": 2
+      },
+      "gpuP95Ms": {
+        "median": 0.1670144,
+        "min": 0.0985088,
+        "max": 0.16916479999999998
+      }
+    },
+    "webgl2:0:outline-0": {
+      "validRuns": 5,
+      "rejectedRuns": 0,
+      "cpuP95Ms": {
+        "median": 0.20000000298023224,
+        "min": 0.20000000298023224,
+        "max": 0.30000001192092896
+      },
+      "wallP95Ms": {
+        "median": 8.100000008940697,
+        "min": 6.200000002980232,
+        "max": 8.100000008940697
+      },
+      "poseP95Ms": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "draws": {
+        "median": 2,
+        "min": 2,
+        "max": 2
+      },
+      "gpuP95Ms": {
+        "median": 0.169984,
+        "min": 0.011264,
+        "max": 0.1731072
+      }
+    },
+    "webgl2:2:outline-1": {
+      "validRuns": 5,
+      "rejectedRuns": 0,
+      "cpuP95Ms": {
+        "median": 0.4000000059604645,
+        "min": 0.3999999910593033,
+        "max": 0.9000000059604645
+      },
+      "wallP95Ms": {
+        "median": 8.100000008940697,
+        "min": 6.200000002980232,
+        "max": 8.200000002980232
+      },
+      "poseP95Ms": {
+        "median": 0.10000000894069672,
+        "min": 0.10000000894069672,
+        "max": 0.20000000298023224
+      },
+      "draws": {
+        "median": 14,
+        "min": 14,
+        "max": 14
+      },
+      "gpuP95Ms": {
+        "median": 3.417088,
+        "min": 3.1697919999999997,
+        "max": 3.7626879999999994
+      }
+    },
+    "webgl2:2:outline-0": {
+      "validRuns": 5,
+      "rejectedRuns": 0,
+      "cpuP95Ms": {
+        "median": 0.4000000059604645,
+        "min": 0.29999999701976776,
+        "max": 0.6050000086426718
+      },
+      "wallP95Ms": {
+        "median": 8.099999995529652,
+        "min": 6.1999999895691875,
+        "max": 8.199999988079071
+      },
+      "poseP95Ms": {
+        "median": 0.10000000894069672,
+        "min": 0.10000000894069672,
+        "max": 0.20000000298023224
+      },
+      "draws": {
+        "median": 6,
+        "min": 6,
+        "max": 6
+      },
+      "gpuP95Ms": {
+        "median": 0.349184,
+        "min": 0.2842623999999999,
+        "max": 0.379392
+      }
+    },
+    "webgl2:5:outline-1": {
+      "validRuns": 5,
+      "rejectedRuns": 0,
+      "cpuP95Ms": {
+        "median": 0.7000000029802322,
+        "min": 0.5999999940395355,
+        "max": 0.8999999910593033
+      },
+      "wallP95Ms": {
+        "median": 8.099999995529652,
+        "min": 6.200000002980232,
+        "max": 8.100000008940697
+      },
+      "poseP95Ms": {
+        "median": 0.20000000298023224,
+        "min": 0.20000000298023224,
+        "max": 0.20000000298023224
+      },
+      "draws": {
+        "median": 32,
+        "min": 32,
+        "max": 32
+      },
+      "gpuP95Ms": {
+        "median": 3.7041151999999995,
+        "min": 3.4510335999999997,
+        "max": 4.620697599999978
+      }
+    },
+    "webgl2:5:outline-0": {
+      "validRuns": 5,
+      "rejectedRuns": 0,
+      "cpuP95Ms": {
+        "median": 0.7000000029802322,
+        "min": 0.6000000089406967,
+        "max": 1.3999999918043613
+      },
+      "wallP95Ms": {
+        "median": 8.099999994039536,
+        "min": 6.199999988079071,
+        "max": 8.100000008940697
+      },
+      "poseP95Ms": {
+        "median": 0.20000000298023224,
+        "min": 0.20000000298023224,
+        "max": 0.39999999180436135
+      },
+      "draws": {
+        "median": 12,
+        "min": 12,
+        "max": 12
+      },
+      "gpuP95Ms": {
+        "median": 0.446464,
+        "min": 0.04311039999999999,
+        "max": 1.8046464
+      }
+    },
+    "webgl2:10:outline-1": {
+      "validRuns": 5,
+      "rejectedRuns": 0,
+      "cpuP95Ms": {
+        "median": 1.2999999970197678,
+        "min": 1.0999999940395355,
+        "max": 2.0999999940395355
+      },
+      "wallP95Ms": {
+        "median": 6.200000002980232,
+        "min": 6.199999988079071,
+        "max": 8.100000008940697
+      },
+      "poseP95Ms": {
+        "median": 0.30000001192092896,
+        "min": 0.29999999701976776,
+        "max": 0.5
+      },
+      "draws": {
+        "median": 62,
+        "min": 62,
+        "max": 62
+      },
+      "gpuP95Ms": {
+        "median": 5.2383744,
+        "min": 3.6001791999999995,
+        "max": 6.519807999999999
+      }
+    },
+    "webgl2:10:outline-0": {
+      "validRuns": 5,
+      "rejectedRuns": 0,
+      "cpuP95Ms": {
+        "median": 1.2000000029802322,
+        "min": 1,
+        "max": 2.2050000026822074
+      },
+      "wallP95Ms": {
+        "median": 6.200000002980232,
+        "min": 6.100000008940697,
+        "max": 8.100000008940697
+      },
+      "poseP95Ms": {
+        "median": 0.3999999910593033,
+        "min": 0.29999999701976776,
+        "max": 0.6000000089406967
+      },
+      "draws": {
+        "median": 22,
+        "min": 22,
+        "max": 22
+      },
+      "gpuP95Ms": {
+        "median": 4.016486399999999,
+        "min": 3.713228799999999,
+        "max": 4.099788799999999
+      }
+    },
+    "webgpu:0:outline-1": {
+      "validRuns": 5,
+      "rejectedRuns": 0,
+      "cpuP95Ms": {
+        "median": 0.20000000298023224,
+        "min": 0.20000000298023224,
+        "max": 0.30000001192092896
+      },
+      "wallP95Ms": {
+        "median": 6.200000002980232,
+        "min": 6.199999988079071,
+        "max": 6.200000002980232
+      },
+      "poseP95Ms": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "draws": {
+        "median": 2,
+        "min": 2,
+        "max": 2
+      },
+      "gpuP95Ms": null
+    },
+    "webgpu:0:outline-0": {
+      "validRuns": 5,
+      "rejectedRuns": 0,
+      "cpuP95Ms": {
+        "median": 0.20000000298023224,
+        "min": 0.20000000298023224,
+        "max": 0.2050000026822073
+      },
+      "wallP95Ms": {
+        "median": 6.200000002980232,
+        "min": 6.100000008940697,
+        "max": 6.200000002980232
+      },
+      "poseP95Ms": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "draws": {
+        "median": 2,
+        "min": 2,
+        "max": 2
+      },
+      "gpuP95Ms": null
+    },
+    "webgpu:2:outline-1": {
+      "validRuns": 5,
+      "rejectedRuns": 0,
+      "cpuP95Ms": {
+        "median": 0.5999999940395355,
+        "min": 0.5999999940395355,
+        "max": 0.6000000089406967
+      },
+      "wallP95Ms": {
+        "median": 6.200000002980232,
+        "min": 6.100000008940697,
+        "max": 6.200000002980232
+      },
+      "poseP95Ms": {
+        "median": 0.10000000894069672,
+        "min": 0.10000000894069672,
+        "max": 0.10000000894069672
+      },
+      "draws": {
+        "median": 14,
+        "min": 14,
+        "max": 14
+      },
+      "gpuP95Ms": null
+    },
+    "webgpu:2:outline-0": {
+      "validRuns": 5,
+      "rejectedRuns": 0,
+      "cpuP95Ms": {
+        "median": 0.6000000089406967,
+        "min": 0.5999999940395355,
+        "max": 0.8999999910593033
+      },
+      "wallP95Ms": {
+        "median": 6.200000002980232,
+        "min": 6.200000002980232,
+        "max": 6.200000002980232
+      },
+      "poseP95Ms": {
+        "median": 0.10000000894069672,
+        "min": 0.10000000894069672,
+        "max": 0.20000000298023224
+      },
+      "draws": {
+        "median": 6,
+        "min": 6,
+        "max": 6
+      },
+      "gpuP95Ms": null
+    },
+    "webgpu:5:outline-1": {
+      "validRuns": 5,
+      "rejectedRuns": 0,
+      "cpuP95Ms": {
+        "median": 0.8999999910593033,
+        "min": 0.7999999970197678,
+        "max": 1.5
+      },
+      "wallP95Ms": {
+        "median": 6.200000002980232,
+        "min": 6.100000008940697,
+        "max": 6.200000002980232
+      },
+      "poseP95Ms": {
+        "median": 0.20000000298023224,
+        "min": 0.20000000298023224,
+        "max": 0.29999999701976776
+      },
+      "draws": {
+        "median": 32,
+        "min": 32,
+        "max": 32
+      },
+      "gpuP95Ms": null
+    },
+    "webgpu:5:outline-0": {
+      "validRuns": 5,
+      "rejectedRuns": 0,
+      "cpuP95Ms": {
+        "median": 0.9000000059604645,
+        "min": 0.7000000029802322,
+        "max": 1.4000000059604645
+      },
+      "wallP95Ms": {
+        "median": 6.200000002980232,
+        "min": 6.199999988079071,
+        "max": 6.200000002980232
+      },
+      "poseP95Ms": {
+        "median": 0.20000000298023224,
+        "min": 0.20000000298023224,
+        "max": 0.29999999701976776
+      },
+      "draws": {
+        "median": 12,
+        "min": 12,
+        "max": 12
+      },
+      "gpuP95Ms": null
+    },
+    "webgpu:10:outline-1": {
+      "validRuns": 5,
+      "rejectedRuns": 0,
+      "cpuP95Ms": {
+        "median": 1.2999999977648258,
+        "min": 1.2000000029802322,
+        "max": 2.504999999701975
+      },
+      "wallP95Ms": {
+        "median": 6.200000002980232,
+        "min": 6.1999999895691875,
+        "max": 6.200000002980232
+      },
+      "poseP95Ms": {
+        "median": 0.29999999701976776,
+        "min": 0.29999999701976776,
+        "max": 0.5
+      },
+      "draws": {
+        "median": 62,
+        "min": 62,
+        "max": 62
+      },
+      "gpuP95Ms": null
+    },
+    "webgpu:10:outline-0": {
+      "validRuns": 5,
+      "rejectedRuns": 0,
+      "cpuP95Ms": {
+        "median": 1.2999999977648258,
+        "min": 1.0999999940395355,
+        "max": 1.8999999910593033
+      },
+      "wallP95Ms": {
+        "median": 6.200000002980232,
+        "min": 6.1999999895691875,
+        "max": 6.200000002980232
+      },
+      "poseP95Ms": {
+        "median": 0.29999999701976776,
+        "min": 0.29999999701976776,
+        "max": 0.4000000059604645
+      },
+      "draws": {
+        "median": 22,
+        "min": 22,
+        "max": 22
+      },
+      "gpuP95Ms": null
+    }
+  },
+  "captures": [
+    {
+      "backend": "webgl2",
+      "browser": "Edg/155.0.4283.45",
+      "hardware": [
+        {
+          "vendorId": 4318,
+          "deviceId": 10115,
+          "subSysId": 1460672986,
+          "revision": 161,
+          "vendorString": "",
+          "deviceString": "NVIDIA GeForce RTX 4070 SUPER",
+          "driverVendor": "NVIDIA",
+          "driverVersion": "32.0.16.1656"
+        },
+        {
+          "vendorId": 4098,
+          "deviceId": 5710,
+          "subSysId": 2289504323,
+          "revision": 195,
+          "vendorString": "",
+          "deviceString": "AMD Radeon(TM) Graphics",
+          "driverVendor": "",
+          "driverVersion": "32.0.21043.5001"
+        },
+        {
+          "vendorId": 5140,
+          "deviceId": 140,
+          "subSysId": 0,
+          "revision": 0,
+          "vendorString": "",
+          "deviceString": "Microsoft Basic Render Driver",
+          "driverVendor": "",
+          "driverVersion": "10.0.26100.9278"
+        }
+      ],
+      "valid": true,
+      "sourceStable": true,
+      "sourceBefore": {
+        "outer": "21771827ab5badf39fc8a57afd71c283586bfadd",
+        "fps": "67f92a0cefb100c2ff4f1404d9ee67170521aaba",
+        "fingerprint": "6cf59306f77a69d48a1cef5c67cf1f6b2f56ee69c033a4261418012a5521f094"
+      },
+      "sourceAfter": {
+        "outer": "21771827ab5badf39fc8a57afd71c283586bfadd",
+        "fps": "67f92a0cefb100c2ff4f1404d9ee67170521aaba",
+        "fingerprint": "6cf59306f77a69d48a1cef5c67cf1f6b2f56ee69c033a4261418012a5521f094"
+      },
+      "exceptions": [],
+      "recipe": {
+        "schemaVersion": 1,
+        "id": "player-crowd-v1",
+        "model": {
+          "root": "/games/default/animations/",
+          "file": "vanguard.glb",
+          "scale": 36
+        },
+        "animation": {
+          "name": "run",
+          "file": "rifle run.glb",
+          "presentationHz": 60,
+          "poseHz": 30
+        },
+        "render": {
+          "width": 1280,
+          "height": 720,
+          "fov": 90
+        },
+        "camera": {
+          "position": [
+            0,
+            100,
+            -400
+          ],
+          "target": [
+            0,
+            42,
+            70
+          ]
+        },
+        "positions": [
+          [
+            -180,
+            0,
+            -160
+          ],
+          [
+            -80,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            80,
+            0,
+            0
+          ],
+          [
+            160,
+            0,
+            0
+          ],
+          [
+            -120,
+            0,
+            120
+          ],
+          [
+            -40,
+            0,
+            120
+          ],
+          [
+            40,
+            0,
+            120
+          ],
+          [
+            120,
+            0,
+            120
+          ],
+          [
+            200,
+            0,
+            120
+          ]
+        ],
+        "style": {
+          "tint": [
+            0.1,
+            1.15,
+            1.85
+          ],
+          "outlineColor": [
+            0.16,
+            1.35,
+            2.2
+          ],
+          "outlineWidth": 0.043402777777777776
+        },
+        "counts": [
+          0,
+          2,
+          5,
+          10
+        ],
+        "outlines": [
+          1,
+          0
+        ],
+        "warmupFrames": 120,
+        "measuredFrames": 240,
+        "repeats": 5
+      },
+      "assets": [
+        {
+          "file": "/games/default/animations/vanguard.glb",
+          "sha256": "423cbe9717c91509d61d9987f1e015ad3637e0fe071aada6045eda2f1054ae73"
+        },
+        {
+          "file": "/games/default/animations/rifle run.glb",
+          "sha256": "fd2e44ae37723c474b1df4c781a49ea04fa73922bbd6c00cbec2d13990d8dc8b"
+        }
+      ],
+      "environment": {
+        "requestedBackend": "webgl2",
+        "backend": "webgl2",
+        "babylonVersion": "9.17.0",
+        "viewport": [
+          1416,
+          808
+        ],
+        "render": [
+          1280,
+          720
+        ],
+        "dpr": 1,
+        "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36 Edg/155.0.0.0",
+        "compatibilityMode": true,
+        "timerQuery": true
+      },
+      "inventory": [
+        {
+          "actor": 0,
+          "name": "player_0/vanguard_visor",
+          "vertices": 386,
+          "indices": 570,
+          "bones": 65,
+          "material": "PBRMaterial"
+        },
+        {
+          "actor": 0,
+          "name": "player_0/vanguard_Mesh",
+          "vertices": 27457,
+          "indices": 33558,
+          "bones": 65,
+          "material": "PBRMaterial"
+        },
+        {
+          "actor": 1,
+          "name": "player_1/vanguard_visor",
+          "vertices": 386,
+          "indices": 570,
+          "bones": 65,
+          "material": "PBRMaterial"
+        },
+        {
+          "actor": 1,
+          "name": "player_1/vanguard_Mesh",
+          "vertices": 27457,
+          "indices": 33558,
+          "bones": 65,
+          "material": "PBRMaterial"
+        },
+        {
+          "actor": 2,
+          "name": "player_2/vanguard_visor",
+          "vertices": 386,
+          "indices": 570,
+          "bones": 65,
+          "material": "PBRMaterial"
+        },
+        {
+          "actor": 2,
+          "name": "player_2/vanguard_Mesh",
+          "vertices": 27457,
+          "indices": 33558,
+          "bones": 65,
+          "material": "PBRMaterial"
+        },
+        {
+          "actor": 3,
+          "name": "player_3/vanguard_visor",
+          "vertices": 386,
+          "indices": 570,
+          "bones": 65,
+          "material": "PBRMaterial"
+        },
+        {
+          "actor": 3,
+          "name": "player_3/vanguard_Mesh",
+          "vertices": 27457,
+          "indices": 33558,
+          "bones": 65,
+          "material": "PBRMaterial"
+        },
+        {
+          "actor": 4,
+          "name": "player_4/vanguard_visor",
+          "vertices": 386,
+          "indices": 570,
+          "bones": 65,
+          "material": "PBRMaterial"
+        },
+        {
+          "actor": 4,
+          "name": "player_4/vanguard_Mesh",
+          "vertices": 27457,
+          "indices": 33558,
+          "bones": 65,
+          "material": "PBRMaterial"
+        },
+        {
+          "actor": 5,
+          "name": "player_5/vanguard_visor",
+          "vertices": 386,
+          "indices": 570,
+          "bones": 65,
+          "material": "PBRMaterial"
+        },
+        {
+          "actor": 5,
+          "name": "player_5/vanguard_Mesh",
+          "vertices": 27457,
+          "indices": 33558,
+          "bones": 65,
+          "material": "PBRMaterial"
+        },
+        {
+          "actor": 6,
+          "name": "player_6/vanguard_visor",
+          "vertices": 386,
+          "indices": 570,
+          "bones": 65,
+          "material": "PBRMaterial"
+        },
+        {
+          "actor": 6,
+          "name": "player_6/vanguard_Mesh",
+          "vertices": 27457,
+          "indices": 33558,
+          "bones": 65,
+          "material": "PBRMaterial"
+        },
+        {
+          "actor": 7,
+          "name": "player_7/vanguard_visor",
+          "vertices": 386,
+          "indices": 570,
+          "bones": 65,
+          "material": "PBRMaterial"
+        },
+        {
+          "actor": 7,
+          "name": "player_7/vanguard_Mesh",
+          "vertices": 27457,
+          "indices": 33558,
+          "bones": 65,
+          "material": "PBRMaterial"
+        },
+        {
+          "actor": 8,
+          "name": "player_8/vanguard_visor",
+          "vertices": 386,
+          "indices": 570,
+          "bones": 65,
+          "material": "PBRMaterial"
+        },
+        {
+          "actor": 8,
+          "name": "player_8/vanguard_Mesh",
+          "vertices": 27457,
+          "indices": 33558,
+          "bones": 65,
+          "material": "PBRMaterial"
+        },
+        {
+          "actor": 9,
+          "name": "player_9/vanguard_visor",
+          "vertices": 386,
+          "indices": 570,
+          "bones": 65,
+          "material": "PBRMaterial"
+        },
+        {
+          "actor": 9,
+          "name": "player_9/vanguard_Mesh",
+          "vertices": 27457,
+          "indices": 33558,
+          "bones": 65,
+          "material": "PBRMaterial"
+        }
+      ],
+      "limitations": [
+        "Isolated actor render test, not map/gameplay FPS. No bots, network, weapons, postprocesses or reflections.",
+        "Refresh-paced fixed presentation ticks; animation sequence is identical, playback speed can differ with refresh rate.",
+        "CPU includes explicit pose updates and scene.render, excluding endFrame/present, polling and validation bookkeeping.",
+        "GPU counters are asynchronous fresh samples, not assigned to individual presentation ticks; boundary samples may come from warmup.",
+        "Active-body/draw coverage is not proof of pixel visibility or full outline/occlusion parity."
+      ],
+      "artifacts": "public/data/benchmarks/results/2026-10-10-crowd-series/webgl2",
+      "rawCaptureSha256": "e8a970ec9c0f5a1f5e0ff90d84208ab51e09db917d1c8b03eb7e80547266ee60",
+      "runs": [
+        {
+          "repetition": 1,
+          "count": 0,
+          "outline": 1,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 0,
+          "expectedDraws": 2,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 7.600000008940697,
+              "p95": 8.200000002980232,
+              "p99": 8.562000005543233
+            },
+            "cpuMs": {
+              "p50": 0.20000000298023224,
+              "p95": 0.4000000059604645,
+              "p99": 0.4000000059604645
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            },
+            "drawCalls": {
+              "p50": 2,
+              "p95": 2,
+              "p99": 2
+            },
+            "actors": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            },
+            "bodyParts": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "7a62edb055a7b93910ad5bcfa41db1eb6cd72678872284942319c0eca71170fa",
+          "gpu": {
+            "count": 120,
+            "p50": 0.16127999999999998,
+            "p95": 0.16896,
+            "min": 0.157696,
+            "max": 0.173056
+          }
+        },
+        {
+          "repetition": 1,
+          "count": 0,
+          "outline": 0,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 0,
+          "expectedDraws": 2,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 7.600000008940697,
+              "p95": 8.100000008940697,
+              "p99": 8.52399999856949
+            },
+            "cpuMs": {
+              "p50": 0.20000000298023224,
+              "p95": 0.30000001192092896,
+              "p99": 0.46100000232457966
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0.09999999403953552
+            },
+            "drawCalls": {
+              "p50": 2,
+              "p95": 2,
+              "p99": 2
+            },
+            "actors": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            },
+            "bodyParts": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "a3229d84dafddbb940f9d39e0acde68af89380844cc3f95c72450c0d4ce400db",
+          "gpu": {
+            "count": 120,
+            "p50": 0.160768,
+            "p95": 0.1731072,
+            "min": 0.137216,
+            "max": 0.300032
+          }
+        },
+        {
+          "repetition": 1,
+          "count": 2,
+          "outline": 1,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 4,
+          "expectedDraws": 14,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 7.5999999940395355,
+              "p95": 8.200000002980232,
+              "p99": 8.362000002563
+            },
+            "cpuMs": {
+              "p50": 0.5,
+              "p95": 0.9000000059604645,
+              "p99": 1.1000000031292438
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0.20000000298023224,
+              "p99": 0.29999999701976776
+            },
+            "drawCalls": {
+              "p50": 14,
+              "p95": 14,
+              "p99": 14
+            },
+            "actors": {
+              "p50": 2,
+              "p95": 2,
+              "p99": 2
+            },
+            "bodyParts": {
+              "p50": 4,
+              "p95": 4,
+              "p99": 4
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "b2e05512bde5860459b4431f28ef3ec83e484461e713090c262e91ae6fe5e3a8",
+          "gpu": {
+            "count": 120,
+            "p50": 2.476032,
+            "p95": 3.5278336,
+            "min": 0.464896,
+            "max": 6.358016
+          }
+        },
+        {
+          "repetition": 1,
+          "count": 2,
+          "outline": 0,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 4,
+          "expectedDraws": 6,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 7.700000002980232,
+              "p95": 8.199999988079071,
+              "p99": 8.599999994039536
+            },
+            "cpuMs": {
+              "p50": 0.30000001192092896,
+              "p95": 0.6050000086426718,
+              "p99": 0.9000000059604645
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0.20000000298023224,
+              "p99": 0.20000000298023224
+            },
+            "drawCalls": {
+              "p50": 6,
+              "p95": 6,
+              "p99": 6
+            },
+            "actors": {
+              "p50": 2,
+              "p95": 2,
+              "p99": 2
+            },
+            "bodyParts": {
+              "p50": 4,
+              "p95": 4,
+              "p99": 4
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "b2d1b62d9bf765b54a6d273035a006b0e4874dfabbb296b4059b27c2d27d6d87",
+          "gpu": {
+            "count": 120,
+            "p50": 0.35328,
+            "p95": 0.36254719999999996,
+            "min": 0.345088,
+            "max": 0.466944
+          }
+        },
+        {
+          "repetition": 1,
+          "count": 5,
+          "outline": 1,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 10,
+          "expectedDraws": 32,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 7.5999999940395355,
+              "p95": 8.099999995529652,
+              "p99": 8.462000002264977
+            },
+            "cpuMs": {
+              "p50": 0.5999999940395355,
+              "p95": 0.7999999977648258,
+              "p99": 0.9000000059604645
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0.20000000298023224,
+              "p99": 0.2609999993443474
+            },
+            "drawCalls": {
+              "p50": 32,
+              "p95": 32,
+              "p99": 32
+            },
+            "actors": {
+              "p50": 5,
+              "p95": 5,
+              "p99": 5
+            },
+            "bodyParts": {
+              "p50": 10,
+              "p95": 10,
+              "p99": 10
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "ff31835166b4dc644570a1d3395b6e09992f1924dbcb98cf384ea6ab7e923bbe",
+          "gpu": {
+            "count": 117,
+            "p50": 2.659328,
+            "p95": 4.620697599999978,
+            "min": 0.672768,
+            "max": 6.699008
+          }
+        },
+        {
+          "repetition": 1,
+          "count": 5,
+          "outline": 0,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 10,
+          "expectedDraws": 12,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 7.5,
+              "p95": 8.099999994039536,
+              "p99": 8.261999993622304
+            },
+            "cpuMs": {
+              "p50": 0.3999999910593033,
+              "p95": 0.6000000089406967,
+              "p99": 0.7000000029802322
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0.20000000298023224,
+              "p99": 0.20000000298023224
+            },
+            "drawCalls": {
+              "p50": 12,
+              "p95": 12,
+              "p99": 12
+            },
+            "actors": {
+              "p50": 5,
+              "p95": 5,
+              "p99": 5
+            },
+            "bodyParts": {
+              "p50": 10,
+              "p95": 10,
+              "p99": 10
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "c380efb26a396810e5aba4de6bdaad2bff0aad90c78f202144a7ebe7a612d4c1",
+          "gpu": {
+            "count": 120,
+            "p50": 0.43776000000000004,
+            "p95": 0.446464,
+            "min": 0.428032,
+            "max": 0.490496
+          }
+        },
+        {
+          "repetition": 1,
+          "count": 10,
+          "outline": 1,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 20,
+          "expectedDraws": 62,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 7.5999999940395355,
+              "p95": 8.099999994039536,
+              "p99": 8.299999997019768
+            },
+            "cpuMs": {
+              "p50": 0.8999999910593033,
+              "p95": 1.2999999970197678,
+              "p99": 1.4000000059604645
+            },
+            "poseCpuMs": {
+              "p50": 0.04999999701976776,
+              "p95": 0.30000001192092896,
+              "p99": 0.4000000001490116
+            },
+            "drawCalls": {
+              "p50": 62,
+              "p95": 62,
+              "p99": 62
+            },
+            "actors": {
+              "p50": 10,
+              "p95": 10,
+              "p99": 10
+            },
+            "bodyParts": {
+              "p50": 20,
+              "p95": 20,
+              "p99": 20
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "e786c161e51f8a1b4e0b6e8b2ec6994026369c29bb2e7cf7252dcdac203485d3",
+          "gpu": {
+            "count": 116,
+            "p50": 3.1334400000000002,
+            "p95": 6.473984000000001,
+            "min": 1.031168,
+            "max": 6.841344
+          }
+        },
+        {
+          "repetition": 1,
+          "count": 10,
+          "outline": 0,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 20,
+          "expectedDraws": 22,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 7.5999999940395355,
+              "p95": 8.100000008940697,
+              "p99": 8.5
+            },
+            "cpuMs": {
+              "p50": 0.7000000029802322,
+              "p95": 1,
+              "p99": 1.0999999940395355
+            },
+            "poseCpuMs": {
+              "p50": 0.09999999403953552,
+              "p95": 0.29999999701976776,
+              "p99": 0.3999999910593033
+            },
+            "drawCalls": {
+              "p50": 22,
+              "p95": 22,
+              "p99": 22
+            },
+            "actors": {
+              "p50": 10,
+              "p95": 10,
+              "p99": 10
+            },
+            "bodyParts": {
+              "p50": 20,
+              "p95": 20,
+              "p99": 20
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "73b655d5e02e221c625d84e0c2731f60ee732f54d60d8a8bf1b2568b3fef7174",
+          "gpu": {
+            "count": 118,
+            "p50": 2.613248,
+            "p95": 4.016486399999999,
+            "min": 0.637952,
+            "max": 6.825984
+          }
+        },
+        {
+          "repetition": 2,
+          "count": 10,
+          "outline": 0,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 20,
+          "expectedDraws": 22,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 7.5999999940395355,
+              "p95": 8.100000008940697,
+              "p99": 8.561999996304513
+            },
+            "cpuMs": {
+              "p50": 0.7999999970197678,
+              "p95": 1.2000000029802322,
+              "p99": 1.3610000082850442
+            },
+            "poseCpuMs": {
+              "p50": 0.09999999403953552,
+              "p95": 0.3999999910593033,
+              "p99": 0.4000000059604645
+            },
+            "drawCalls": {
+              "p50": 22,
+              "p95": 22,
+              "p99": 22
+            },
+            "actors": {
+              "p50": 10,
+              "p95": 10,
+              "p99": 10
+            },
+            "bodyParts": {
+              "p50": 20,
+              "p95": 20,
+              "p99": 20
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "c6856a0a0da3b76ab2f0b279ad0efcb25efa7cab8811c310f3cc9b5a7b92ff98",
+          "gpu": {
+            "count": 119,
+            "p50": 2.499584,
+            "p95": 3.713228799999999,
+            "min": 0.643072,
+            "max": 6.838272
+          }
+        },
+        {
+          "repetition": 2,
+          "count": 10,
+          "outline": 1,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 20,
+          "expectedDraws": 62,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 7.5999999940395355,
+              "p95": 8.100000008940697,
+              "p99": 8.462000002264977
+            },
+            "cpuMs": {
+              "p50": 0.7999999970197678,
+              "p95": 1.1000000089406967,
+              "p99": 1.2000000029802322
+            },
+            "poseCpuMs": {
+              "p50": 0.09999999403953552,
+              "p95": 0.29999999701976776,
+              "p99": 0.4000000059604645
+            },
+            "drawCalls": {
+              "p50": 62,
+              "p95": 62,
+              "p99": 62
+            },
+            "actors": {
+              "p50": 10,
+              "p95": 10,
+              "p99": 10
+            },
+            "bodyParts": {
+              "p50": 20,
+              "p95": 20,
+              "p99": 20
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "e9882265188873a87d4f86aeb473e8e81ab37547c616e3410435ab675f6d2f4f",
+          "gpu": {
+            "count": 117,
+            "p50": 3.105792,
+            "p95": 6.519807999999999,
+            "min": 1.027072,
+            "max": 9.539584
+          }
+        },
+        {
+          "repetition": 2,
+          "count": 5,
+          "outline": 0,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 10,
+          "expectedDraws": 12,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 7.5999999940395355,
+              "p95": 8.100000008940697,
+              "p99": 8.5
+            },
+            "cpuMs": {
+              "p50": 0.5,
+              "p95": 0.6050000078976138,
+              "p99": 0.7000000029802322
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0.20000000298023224,
+              "p99": 0.20000000298023224
+            },
+            "drawCalls": {
+              "p50": 12,
+              "p95": 12,
+              "p99": 12
+            },
+            "actors": {
+              "p50": 5,
+              "p95": 5,
+              "p99": 5
+            },
+            "bodyParts": {
+              "p50": 10,
+              "p95": 10,
+              "p99": 10
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "a447f7ff62aade49f6681b599100b14ead7864ba04d4ad0c3ad8dd9e46b302a8",
+          "gpu": {
+            "count": 120,
+            "p50": 0.436224,
+            "p95": 0.44958719999999996,
+            "min": 0.422912,
+            "max": 3.852288
+          }
+        },
+        {
+          "repetition": 2,
+          "count": 5,
+          "outline": 1,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 10,
+          "expectedDraws": 32,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 7.600000008940697,
+              "p95": 8.100000008940697,
+              "p99": 8.561999996304513
+            },
+            "cpuMs": {
+              "p50": 0.5,
+              "p95": 0.6999999888241291,
+              "p99": 0.7609999993443475
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0.20000000298023224,
+              "p99": 0.20000000298023224
+            },
+            "drawCalls": {
+              "p50": 32,
+              "p95": 32,
+              "p99": 32
+            },
+            "actors": {
+              "p50": 5,
+              "p95": 5,
+              "p99": 5
+            },
+            "bodyParts": {
+              "p50": 10,
+              "p95": 10,
+              "p99": 10
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "a17c2fad1fbec4afcda15ada9e1032f2ba1bbcac0d6903c8e1f144fb8d2508c9",
+          "gpu": {
+            "count": 120,
+            "p50": 2.376192,
+            "p95": 3.4510335999999997,
+            "min": 0.664576,
+            "max": 5.43744
+          }
+        },
+        {
+          "repetition": 2,
+          "count": 2,
+          "outline": 0,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 4,
+          "expectedDraws": 6,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 7.5999999940395355,
+              "p95": 8.099999995529652,
+              "p99": 8.561999996304513
+            },
+            "cpuMs": {
+              "p50": 0.29999999701976776,
+              "p95": 0.4000000059604645,
+              "p99": 0.5
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0.10000000894069672,
+              "p99": 0.1610000053048119
+            },
+            "drawCalls": {
+              "p50": 6,
+              "p95": 6,
+              "p99": 6
+            },
+            "actors": {
+              "p50": 2,
+              "p95": 2,
+              "p99": 2
+            },
+            "bodyParts": {
+              "p50": 4,
+              "p95": 4,
+              "p99": 4
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "c658dcb826f7a583d6c50918e68e7550cec9bf4ca09d6c7896f11989f4c58f72",
+          "gpu": {
+            "count": 120,
+            "p50": 0.339968,
+            "p95": 0.349184,
+            "min": 0.324608,
+            "max": 0.356352
+          }
+        },
+        {
+          "repetition": 2,
+          "count": 2,
+          "outline": 1,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 4,
+          "expectedDraws": 14,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 7.5999999940395355,
+              "p95": 8.100000008940697,
+              "p99": 8.5
+            },
+            "cpuMs": {
+              "p50": 0.29999999701976776,
+              "p95": 0.3999999910593033,
+              "p99": 0.4000000059604645
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0.10000000894069672,
+              "p99": 0.20000000298023224
+            },
+            "drawCalls": {
+              "p50": 14,
+              "p95": 14,
+              "p99": 14
+            },
+            "actors": {
+              "p50": 2,
+              "p95": 2,
+              "p99": 2
+            },
+            "bodyParts": {
+              "p50": 4,
+              "p95": 4,
+              "p99": 4
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "7418fd956a66e6aab06238346f5ef1e2fdbb082bd7464cf1ddaad12e08d8d91b",
+          "gpu": {
+            "count": 120,
+            "p50": 2.236416,
+            "p95": 3.1697919999999997,
+            "min": 0.384,
+            "max": 3.766272
+          }
+        },
+        {
+          "repetition": 2,
+          "count": 0,
+          "outline": 0,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 0,
+          "expectedDraws": 2,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 7.5999999940395355,
+              "p95": 8.100000008940697,
+              "p99": 8.100000008940697
+            },
+            "cpuMs": {
+              "p50": 0.09999999403953552,
+              "p95": 0.20000000298023224,
+              "p99": 0.20000000298023224
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            },
+            "drawCalls": {
+              "p50": 2,
+              "p95": 2,
+              "p99": 2
+            },
+            "actors": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            },
+            "bodyParts": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "423011e3ace587cc941728a41bed874d524a251826450b66047902dd676f5ca4",
+          "gpu": {
+            "count": 120,
+            "p50": 0.161792,
+            "p95": 0.169984,
+            "min": 0.13824,
+            "max": 0.176128
+          }
+        },
+        {
+          "repetition": 2,
+          "count": 0,
+          "outline": 1,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 0,
+          "expectedDraws": 2,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 7.600000008940697,
+              "p95": 8.100000008940697,
+              "p99": 8.5
+            },
+            "cpuMs": {
+              "p50": 0.09999999403953552,
+              "p95": 0.20000000298023224,
+              "p99": 0.20000000298023224
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            },
+            "drawCalls": {
+              "p50": 2,
+              "p95": 2,
+              "p99": 2
+            },
+            "actors": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            },
+            "bodyParts": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "9ed51a7250dd9a0dba059ccda4bc6a26d3df4bbc13fe7786943934308a7a6b3d",
+          "gpu": {
+            "count": 120,
+            "p50": 0.162816,
+            "p95": 0.1670144,
+            "min": 0.156672,
+            "max": 0.172032
+          }
+        },
+        {
+          "repetition": 3,
+          "count": 0,
+          "outline": 1,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 0,
+          "expectedDraws": 2,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 7.5999999940395355,
+              "p95": 8.100000008940697,
+              "p99": 8.386000001132489
+            },
+            "cpuMs": {
+              "p50": 0.09999999403953552,
+              "p95": 0.20000000298023224,
+              "p99": 0.20000000298023224
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            },
+            "drawCalls": {
+              "p50": 2,
+              "p95": 2,
+              "p99": 2
+            },
+            "actors": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            },
+            "bodyParts": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "42802e5a4f582882348cbb4b4a8c74612213af63bc24d30030f522beeb02f696",
+          "gpu": {
+            "count": 119,
+            "p50": 0.162816,
+            "p95": 0.16916479999999998,
+            "min": 0.156672,
+            "max": 0.191488
+          }
+        },
+        {
+          "repetition": 3,
+          "count": 0,
+          "outline": 0,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 0,
+          "expectedDraws": 2,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 7.600000008940697,
+              "p95": 8.100000008940697,
+              "p99": 8.462000002264977
+            },
+            "cpuMs": {
+              "p50": 0.09999999403953552,
+              "p95": 0.20000000298023224,
+              "p99": 0.20000000298023224
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            },
+            "drawCalls": {
+              "p50": 2,
+              "p95": 2,
+              "p99": 2
+            },
+            "actors": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            },
+            "bodyParts": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "01dc3c3a43048f79b8e36b110c95e1ade7d9a361ba767f7bd4019ea7371fcfe0",
+          "gpu": {
+            "count": 119,
+            "p50": 0.161792,
+            "p95": 0.169984,
+            "min": 0.137216,
+            "max": 0.263168
+          }
+        },
+        {
+          "repetition": 3,
+          "count": 2,
+          "outline": 1,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 4,
+          "expectedDraws": 14,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 7.5999999940395355,
+              "p95": 8.100000008940697,
+              "p99": 8.5
+            },
+            "cpuMs": {
+              "p50": 0.29999999701976776,
+              "p95": 0.4000000059604645,
+              "p99": 0.5
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0.10000000894069672,
+              "p99": 0.20000000298023224
+            },
+            "drawCalls": {
+              "p50": 14,
+              "p95": 14,
+              "p99": 14
+            },
+            "actors": {
+              "p50": 2,
+              "p95": 2,
+              "p99": 2
+            },
+            "bodyParts": {
+              "p50": 4,
+              "p95": 4,
+              "p99": 4
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "c61b1aae09a5629b87ea1a81286d2aca3ac608ce4e7263d76c45e29651f99b6c",
+          "gpu": {
+            "count": 119,
+            "p50": 2.250752,
+            "p95": 3.3377280000000003,
+            "min": 0.381952,
+            "max": 6.49728
+          }
+        },
+        {
+          "repetition": 3,
+          "count": 2,
+          "outline": 0,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 4,
+          "expectedDraws": 6,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 7.5999999940395355,
+              "p95": 8.100000008940697,
+              "p99": 8.599999994039536
+            },
+            "cpuMs": {
+              "p50": 0.29999999701976776,
+              "p95": 0.4000000059604645,
+              "p99": 0.5
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0.10000000894069672,
+              "p99": 0.20000000298023224
+            },
+            "drawCalls": {
+              "p50": 6,
+              "p95": 6,
+              "p99": 6
+            },
+            "actors": {
+              "p50": 2,
+              "p95": 2,
+              "p99": 2
+            },
+            "bodyParts": {
+              "p50": 4,
+              "p95": 4,
+              "p99": 4
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "24a7795bf8dc5b341efa57e3d424b06f57944add7631fbf748a41bc2e6a45b44",
+          "gpu": {
+            "count": 119,
+            "p50": 0.339968,
+            "p95": 0.346112,
+            "min": 0.324608,
+            "max": 0.412672
+          }
+        },
+        {
+          "repetition": 3,
+          "count": 5,
+          "outline": 1,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 10,
+          "expectedDraws": 32,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 7.5999999940395355,
+              "p95": 8.100000008940697,
+              "p99": 8.362000008225442
+            },
+            "cpuMs": {
+              "p50": 0.5999999940395355,
+              "p95": 0.7000000029802322,
+              "p99": 0.8000000061094761
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0.20000000298023224,
+              "p99": 0.20000000298023224
+            },
+            "drawCalls": {
+              "p50": 32,
+              "p95": 32,
+              "p99": 32
+            },
+            "actors": {
+              "p50": 5,
+              "p95": 5,
+              "p99": 5
+            },
+            "bodyParts": {
+              "p50": 10,
+              "p95": 10,
+              "p99": 10
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "82acc3926fe118910b99a2a0ce7c56406008ebb7f2fab6e74f638ffbb156c3e9",
+          "gpu": {
+            "count": 119,
+            "p50": 2.497536,
+            "p95": 3.7041151999999995,
+            "min": 0.668672,
+            "max": 6.419456
+          }
+        },
+        {
+          "repetition": 3,
+          "count": 5,
+          "outline": 0,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 10,
+          "expectedDraws": 12,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 7.5,
+              "p95": 8.100000008940697,
+              "p99": 10.164000004529964
+            },
+            "cpuMs": {
+              "p50": 0.7999999970197678,
+              "p95": 1.3999999918043613,
+              "p99": 1.7000000029802322
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0.39999999180436135,
+              "p99": 0.6219999927282304
+            },
+            "drawCalls": {
+              "p50": 12,
+              "p95": 12,
+              "p99": 12
+            },
+            "actors": {
+              "p50": 5,
+              "p95": 5,
+              "p99": 5
+            },
+            "bodyParts": {
+              "p50": 10,
+              "p95": 10,
+              "p99": 10
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "ab22876098a06732298f2f5c9465ee9f54cd2c8e31e24c67b8d4a5c674181a34",
+          "gpu": {
+            "count": 117,
+            "p50": 0.43008,
+            "p95": 0.4435968,
+            "min": 0.03584,
+            "max": 0.723968
+          }
+        },
+        {
+          "repetition": 3,
+          "count": 10,
+          "outline": 1,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 20,
+          "expectedDraws": 62,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.199999988079071,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 1,
+              "p95": 1.5,
+              "p99": 1.6609999962151036
+            },
+            "poseCpuMs": {
+              "p50": 0.09999999403953552,
+              "p95": 0.4000000059604645,
+              "p99": 0.46100000232457966
+            },
+            "drawCalls": {
+              "p50": 62,
+              "p95": 62,
+              "p99": 62
+            },
+            "actors": {
+              "p50": 10,
+              "p95": 10,
+              "p99": 10
+            },
+            "bodyParts": {
+              "p50": 20,
+              "p95": 20,
+              "p99": 20
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "f3f80125a25a9674bc45c78bbc0be4c502a78736bcbcdb2b52c95e225a9ed95f",
+          "gpu": {
+            "count": 119,
+            "p50": 2.673664,
+            "p95": 3.6001791999999995,
+            "min": 0.099328,
+            "max": 4.149248
+          }
+        },
+        {
+          "repetition": 3,
+          "count": 10,
+          "outline": 0,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 20,
+          "expectedDraws": 22,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.200000002980232,
+              "p99": 6.300000006258488
+            },
+            "cpuMs": {
+              "p50": 1.300000011920929,
+              "p95": 2.2050000026822074,
+              "p99": 2.900000000149012
+            },
+            "poseCpuMs": {
+              "p50": 0.14999999850988388,
+              "p95": 0.6000000089406967,
+              "p99": 0.9000000059604645
+            },
+            "drawCalls": {
+              "p50": 22,
+              "p95": 22,
+              "p99": 22
+            },
+            "actors": {
+              "p50": 10,
+              "p95": 10,
+              "p99": 10
+            },
+            "bodyParts": {
+              "p50": 20,
+              "p95": 20,
+              "p99": 20
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "420c1a70f2f1d94ad8bd14505af162f1573e17b9687a1e0f029f2f39107ede9f",
+          "gpu": {
+            "count": 118,
+            "p50": 2.8743679999999996,
+            "p95": 4.068864,
+            "min": 0.20992,
+            "max": 6.366208
+          }
+        },
+        {
+          "repetition": 4,
+          "count": 10,
+          "outline": 0,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 20,
+          "expectedDraws": 22,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.200000002980232,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 1.0499999970197678,
+              "p95": 1.8999999918043613,
+              "p99": 2.361000008285044
+            },
+            "poseCpuMs": {
+              "p50": 0.04999999701976776,
+              "p95": 0.5,
+              "p99": 0.6000000089406967
+            },
+            "drawCalls": {
+              "p50": 22,
+              "p95": 22,
+              "p99": 22
+            },
+            "actors": {
+              "p50": 10,
+              "p95": 10,
+              "p99": 10
+            },
+            "bodyParts": {
+              "p50": 20,
+              "p95": 20,
+              "p99": 20
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "897508d6b4eb7c955bef224bcd0be1718c6e2d445a7bc4280eba39c3ce24e935",
+          "gpu": {
+            "count": 117,
+            "p50": 2.42688,
+            "p95": 3.9090175999999994,
+            "min": 0.34304,
+            "max": 5.505024
+          }
+        },
+        {
+          "repetition": 4,
+          "count": 10,
+          "outline": 1,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 20,
+          "expectedDraws": 62,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.200000002980232,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 1.1999999955296516,
+              "p95": 2.0999999940395355,
+              "p99": 2.360999999195336
+            },
+            "poseCpuMs": {
+              "p50": 0.10000000149011612,
+              "p95": 0.5,
+              "p99": 0.661000005304812
+            },
+            "drawCalls": {
+              "p50": 62,
+              "p95": 62,
+              "p99": 62
+            },
+            "actors": {
+              "p50": 10,
+              "p95": 10,
+              "p99": 10
+            },
+            "bodyParts": {
+              "p50": 20,
+              "p95": 20,
+              "p99": 20
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "54a3bec6b9ff6d327e8ca0f16f555af6f9380f089a377a8373f449c2da7c6d89",
+          "gpu": {
+            "count": 118,
+            "p50": 2.834944,
+            "p95": 4.201676799999999,
+            "min": 0.503808,
+            "max": 5.400576
+          }
+        },
+        {
+          "repetition": 4,
+          "count": 5,
+          "outline": 0,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 10,
+          "expectedDraws": 12,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.200000002980232,
+              "p99": 6.299999997019768
+            },
+            "cpuMs": {
+              "p50": 0.6000000089406967,
+              "p95": 1,
+              "p99": 1.4000000001490116
+            },
+            "poseCpuMs": {
+              "p50": 0.04999999701976776,
+              "p95": 0.29999999701976776,
+              "p99": 0.30000001192092896
+            },
+            "drawCalls": {
+              "p50": 12,
+              "p95": 12,
+              "p99": 12
+            },
+            "actors": {
+              "p50": 5,
+              "p95": 5,
+              "p99": 5
+            },
+            "bodyParts": {
+              "p50": 10,
+              "p95": 10,
+              "p99": 10
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "5be9207a722cc7dd62264a4d3f5f9296a74f96001dd30d6687a939170a597616",
+          "gpu": {
+            "count": 120,
+            "p50": 0.036864,
+            "p95": 0.04311039999999999,
+            "min": 0.034816,
+            "max": 2.184192
+          }
+        },
+        {
+          "repetition": 4,
+          "count": 5,
+          "outline": 1,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 10,
+          "expectedDraws": 32,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.200000002980232,
+              "p99": 6.261999999284745
+            },
+            "cpuMs": {
+              "p50": 0.5,
+              "p95": 0.8999999910593033,
+              "p99": 1
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0.20000000298023224,
+              "p99": 0.29999999701976776
+            },
+            "drawCalls": {
+              "p50": 32,
+              "p95": 32,
+              "p99": 32
+            },
+            "actors": {
+              "p50": 5,
+              "p95": 5,
+              "p99": 5
+            },
+            "bodyParts": {
+              "p50": 10,
+              "p95": 10,
+              "p99": 10
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "b25b3099869db4df40c1f283537afbc59ef2193de9b9a4f1023bf3fbee8e1681",
+          "gpu": {
+            "count": 120,
+            "p50": 2.674688,
+            "p95": 3.6320767999999997,
+            "min": 0.07168,
+            "max": 4.025344
+          }
+        },
+        {
+          "repetition": 4,
+          "count": 2,
+          "outline": 0,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 4,
+          "expectedDraws": 6,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.200000002980232,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 0.20000000298023224,
+              "p95": 0.29999999701976776,
+              "p99": 0.30000001192092896
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0.10000000894069672,
+              "p99": 0.20000000298023224
+            },
+            "drawCalls": {
+              "p50": 6,
+              "p95": 6,
+              "p99": 6
+            },
+            "actors": {
+              "p50": 2,
+              "p95": 2,
+              "p99": 2
+            },
+            "bodyParts": {
+              "p50": 4,
+              "p95": 4,
+              "p99": 4
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "a312323662ae9d1181b8a29beda9724b01c617314f9237259fa1ecb2513400a8",
+          "gpu": {
+            "count": 120,
+            "p50": 0.15872,
+            "p95": 0.2842623999999999,
+            "min": 0.134144,
+            "max": 1.933312
+          }
+        },
+        {
+          "repetition": 4,
+          "count": 2,
+          "outline": 1,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 4,
+          "expectedDraws": 14,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.200000002980232,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 0.20000000298023224,
+              "p95": 0.4000000059604645,
+              "p99": 0.5
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0.10000000894069672,
+              "p99": 0.20000000298023224
+            },
+            "drawCalls": {
+              "p50": 14,
+              "p95": 14,
+              "p99": 14
+            },
+            "actors": {
+              "p50": 2,
+              "p95": 2,
+              "p99": 2
+            },
+            "bodyParts": {
+              "p50": 4,
+              "p95": 4,
+              "p99": 4
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "3959b89144e01848d9ec94f5994b49d479ea84e8ea69dd55f225d42c1fc7314b",
+          "gpu": {
+            "count": 119,
+            "p50": 2.624512,
+            "p95": 3.7626879999999994,
+            "min": 0.043008,
+            "max": 5.188608
+          }
+        },
+        {
+          "repetition": 4,
+          "count": 0,
+          "outline": 0,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 0,
+          "expectedDraws": 2,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.200000002980232,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 0.09999999403953552,
+              "p95": 0.20000000298023224,
+              "p99": 0.20000000298023224
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            },
+            "drawCalls": {
+              "p50": 2,
+              "p95": 2,
+              "p99": 2
+            },
+            "actors": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            },
+            "bodyParts": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "daa6436f04e5880c165660c9e1c488da384be4a1f8df8290b1eb3d980b1b70f3",
+          "gpu": {
+            "count": 120,
+            "p50": 0.008704,
+            "p95": 0.1126912,
+            "min": 0.00512,
+            "max": 0.136192
+          }
+        },
+        {
+          "repetition": 4,
+          "count": 0,
+          "outline": 1,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 0,
+          "expectedDraws": 2,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.200000002980232,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 0.09999999403953552,
+              "p95": 0.20000000298023224,
+              "p99": 0.20000000298023224
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            },
+            "drawCalls": {
+              "p50": 2,
+              "p95": 2,
+              "p99": 2
+            },
+            "actors": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            },
+            "bodyParts": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "9ea9ae9b654d1d26606b5f4a8827b5c4b7b1def1bc7971ecd4f6ae118b072f9a",
+          "gpu": {
+            "count": 120,
+            "p50": 0.032768,
+            "p95": 0.0985088,
+            "min": 0.024576,
+            "max": 0.24576
+          }
+        },
+        {
+          "repetition": 5,
+          "count": 0,
+          "outline": 1,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 0,
+          "expectedDraws": 2,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.199999988079071,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 0.09999999403953552,
+              "p95": 0.20000000298023224,
+              "p99": 0.20000000298023224
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            },
+            "drawCalls": {
+              "p50": 2,
+              "p95": 2,
+              "p99": 2
+            },
+            "actors": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            },
+            "bodyParts": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "990ec5733a9556119f72df6b8b9b089c3c1bb00fb088a6837f5137ceb4277d79",
+          "gpu": {
+            "count": 120,
+            "p50": 0.007168,
+            "p95": 0.100352,
+            "min": 0.00512,
+            "max": 0.113664
+          }
+        },
+        {
+          "repetition": 5,
+          "count": 0,
+          "outline": 0,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 0,
+          "expectedDraws": 2,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.200000002980232,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 0.09999999403953552,
+              "p95": 0.20000000298023224,
+              "p99": 0.20000000298023224
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            },
+            "drawCalls": {
+              "p50": 2,
+              "p95": 2,
+              "p99": 2
+            },
+            "actors": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            },
+            "bodyParts": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "b146ea2d22c9b02e4fd01072d7f42920615819f33d5000ea6aa01bf6abda6f6c",
+          "gpu": {
+            "count": 120,
+            "p50": 0.007168,
+            "p95": 0.011264,
+            "min": 0.006144,
+            "max": 0.014336
+          }
+        },
+        {
+          "repetition": 5,
+          "count": 2,
+          "outline": 1,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 4,
+          "expectedDraws": 14,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.200000002980232,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 0.29999999701976776,
+              "p95": 0.4000000059604645,
+              "p99": 0.5
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0.10000000894069672,
+              "p99": 0.10000000894069672
+            },
+            "drawCalls": {
+              "p50": 14,
+              "p95": 14,
+              "p99": 14
+            },
+            "actors": {
+              "p50": 2,
+              "p95": 2,
+              "p99": 2
+            },
+            "bodyParts": {
+              "p50": 4,
+              "p95": 4,
+              "p99": 4
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "2375712616197a1a02e3f094b1bf4777648745a955076d0e5f33c23ac574c88d",
+          "gpu": {
+            "count": 120,
+            "p50": 2.466304,
+            "p95": 3.417088,
+            "min": 0.248832,
+            "max": 4.105216
+          }
+        },
+        {
+          "repetition": 5,
+          "count": 2,
+          "outline": 0,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 4,
+          "expectedDraws": 6,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.1999999895691875,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 0.20000000298023224,
+              "p95": 0.4000000059604645,
+              "p99": 0.4000000059604645
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0.10000000894069672,
+              "p99": 0.10000000894069672
+            },
+            "drawCalls": {
+              "p50": 6,
+              "p95": 6,
+              "p99": 6
+            },
+            "actors": {
+              "p50": 2,
+              "p95": 2,
+              "p99": 2
+            },
+            "bodyParts": {
+              "p50": 4,
+              "p95": 4,
+              "p99": 4
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "1a5b5118251e1c2e8e7aacbd08633ac71f1679af67472b46ef96439b1ea67701",
+          "gpu": {
+            "count": 116,
+            "p50": 0.203776,
+            "p95": 0.379392,
+            "min": 0.161792,
+            "max": 2.07872
+          }
+        },
+        {
+          "repetition": 5,
+          "count": 5,
+          "outline": 1,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 10,
+          "expectedDraws": 32,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.200000002980232,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 0.3999999910593033,
+              "p95": 0.5999999940395355,
+              "p99": 0.661000005304812
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0.20000000298023224,
+              "p99": 0.20000000298023224
+            },
+            "drawCalls": {
+              "p50": 32,
+              "p95": 32,
+              "p99": 32
+            },
+            "actors": {
+              "p50": 5,
+              "p95": 5,
+              "p99": 5
+            },
+            "bodyParts": {
+              "p50": 10,
+              "p95": 10,
+              "p99": 10
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "c15839915758d5825bbf1dcb4254b5b182c757dd1611e9bf39f67b44c69289ef",
+          "gpu": {
+            "count": 117,
+            "p50": 2.249728,
+            "p95": 3.7330943999999997,
+            "min": 0.548864,
+            "max": 5.79072
+          }
+        },
+        {
+          "repetition": 5,
+          "count": 5,
+          "outline": 0,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 10,
+          "expectedDraws": 12,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.199999988079071,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 0.3999999910593033,
+              "p95": 0.7000000029802322,
+              "p99": 0.8000000061094761
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0.20000000298023224,
+              "p99": 0.20000000298023224
+            },
+            "drawCalls": {
+              "p50": 12,
+              "p95": 12,
+              "p99": 12
+            },
+            "actors": {
+              "p50": 5,
+              "p95": 5,
+              "p99": 5
+            },
+            "bodyParts": {
+              "p50": 10,
+              "p95": 10,
+              "p99": 10
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "cd28a3d0b2c9ccb57e7debf0c6f5bb4792b8f005582e148e16a66c4ab0e72fb0",
+          "gpu": {
+            "count": 120,
+            "p50": 0.35072000000000003,
+            "p95": 1.8046464,
+            "min": 0.319488,
+            "max": 2.74432
+          }
+        },
+        {
+          "repetition": 5,
+          "count": 10,
+          "outline": 1,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 20,
+          "expectedDraws": 62,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.199999988079071,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 0.7000000029802322,
+              "p95": 1.0999999940395355,
+              "p99": 1.2609999993443475
+            },
+            "poseCpuMs": {
+              "p50": 0.04999999701976776,
+              "p95": 0.29999999701976776,
+              "p99": 0.3999999910593033
+            },
+            "drawCalls": {
+              "p50": 62,
+              "p95": 62,
+              "p99": 62
+            },
+            "actors": {
+              "p50": 10,
+              "p95": 10,
+              "p99": 10
+            },
+            "bodyParts": {
+              "p50": 20,
+              "p95": 20,
+              "p99": 20
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "012ac293fb9b0e5730a72f76c431659029eb14d8fd709860d0beae853f4dcb41",
+          "gpu": {
+            "count": 113,
+            "p50": 2.936832,
+            "p95": 5.2383744,
+            "min": 0.8704,
+            "max": 6.813696
+          }
+        },
+        {
+          "repetition": 5,
+          "count": 10,
+          "outline": 0,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 20,
+          "expectedDraws": 22,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.100000008940697,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 0.5999999940395355,
+              "p95": 1.0999999947845935,
+              "p99": 1.2999999970197678
+            },
+            "poseCpuMs": {
+              "p50": 0.04999999701976776,
+              "p95": 0.29999999701976776,
+              "p99": 0.3609999991953358
+            },
+            "drawCalls": {
+              "p50": 22,
+              "p95": 22,
+              "p99": 22
+            },
+            "actors": {
+              "p50": 10,
+              "p95": 10,
+              "p99": 10
+            },
+            "bodyParts": {
+              "p50": 20,
+              "p95": 20,
+              "p99": 20
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "a06489cc9e7a5337d571758d0977420d5c02535f0321fe99c9bd4b5a1cf92176",
+          "gpu": {
+            "count": 119,
+            "p50": 2.83648,
+            "p95": 4.099788799999999,
+            "min": 0.408576,
+            "max": 6.004736
+          }
+        }
+      ],
+      "screenshots": [
+        {
+          "file": "public/data/benchmarks/results/2026-10-10-crowd-series/webgl2/crowd10-outline-0.png",
+          "sha256": "244b73198c54fa8d8c9271c5a0b5bf452381e4396fedec3fa7b0b7ae0f23a681",
+          "context": {
+            "status": "running",
+            "stage": "warmup",
+            "tick": 26,
+            "currentCase": {
+              "repetition": 1,
+              "count": 10,
+              "outline": 0
+            }
+          }
+        },
+        {
+          "file": "public/data/benchmarks/results/2026-10-10-crowd-series/webgl2/crowd10-outline-1.png",
+          "sha256": "a48ca4f95dda93ad69158d9c0ca8fdd6b673b9082136b817afdb0ea1d40ad209",
+          "context": {
+            "status": "running",
+            "stage": "warmup",
+            "tick": 34,
+            "currentCase": {
+              "repetition": 1,
+              "count": 10,
+              "outline": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "backend": "webgpu",
+      "browser": "Edg/155.0.4283.45",
+      "hardware": [
+        {
+          "vendorId": 4318,
+          "deviceId": 10115,
+          "subSysId": 1460672986,
+          "revision": 161,
+          "vendorString": "",
+          "deviceString": "NVIDIA GeForce RTX 4070 SUPER",
+          "driverVendor": "NVIDIA",
+          "driverVersion": "32.0.16.1656"
+        },
+        {
+          "vendorId": 4098,
+          "deviceId": 5710,
+          "subSysId": 2289504323,
+          "revision": 195,
+          "vendorString": "",
+          "deviceString": "AMD Radeon(TM) Graphics",
+          "driverVendor": "",
+          "driverVersion": "32.0.21043.5001"
+        },
+        {
+          "vendorId": 5140,
+          "deviceId": 140,
+          "subSysId": 0,
+          "revision": 0,
+          "vendorString": "",
+          "deviceString": "Microsoft Basic Render Driver",
+          "driverVendor": "",
+          "driverVersion": "10.0.26100.9278"
+        }
+      ],
+      "valid": true,
+      "sourceStable": true,
+      "sourceBefore": {
+        "outer": "21771827ab5badf39fc8a57afd71c283586bfadd",
+        "fps": "67f92a0cefb100c2ff4f1404d9ee67170521aaba",
+        "fingerprint": "6cf59306f77a69d48a1cef5c67cf1f6b2f56ee69c033a4261418012a5521f094"
+      },
+      "sourceAfter": {
+        "outer": "21771827ab5badf39fc8a57afd71c283586bfadd",
+        "fps": "67f92a0cefb100c2ff4f1404d9ee67170521aaba",
+        "fingerprint": "6cf59306f77a69d48a1cef5c67cf1f6b2f56ee69c033a4261418012a5521f094"
+      },
+      "exceptions": [],
+      "recipe": {
+        "schemaVersion": 1,
+        "id": "player-crowd-v1",
+        "model": {
+          "root": "/games/default/animations/",
+          "file": "vanguard.glb",
+          "scale": 36
+        },
+        "animation": {
+          "name": "run",
+          "file": "rifle run.glb",
+          "presentationHz": 60,
+          "poseHz": 30
+        },
+        "render": {
+          "width": 1280,
+          "height": 720,
+          "fov": 90
+        },
+        "camera": {
+          "position": [
+            0,
+            100,
+            -400
+          ],
+          "target": [
+            0,
+            42,
+            70
+          ]
+        },
+        "positions": [
+          [
+            -180,
+            0,
+            -160
+          ],
+          [
+            -80,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            80,
+            0,
+            0
+          ],
+          [
+            160,
+            0,
+            0
+          ],
+          [
+            -120,
+            0,
+            120
+          ],
+          [
+            -40,
+            0,
+            120
+          ],
+          [
+            40,
+            0,
+            120
+          ],
+          [
+            120,
+            0,
+            120
+          ],
+          [
+            200,
+            0,
+            120
+          ]
+        ],
+        "style": {
+          "tint": [
+            0.1,
+            1.15,
+            1.85
+          ],
+          "outlineColor": [
+            0.16,
+            1.35,
+            2.2
+          ],
+          "outlineWidth": 0.043402777777777776
+        },
+        "counts": [
+          0,
+          2,
+          5,
+          10
+        ],
+        "outlines": [
+          1,
+          0
+        ],
+        "warmupFrames": 120,
+        "measuredFrames": 240,
+        "repeats": 5
+      },
+      "assets": [
+        {
+          "file": "/games/default/animations/vanguard.glb",
+          "sha256": "423cbe9717c91509d61d9987f1e015ad3637e0fe071aada6045eda2f1054ae73"
+        },
+        {
+          "file": "/games/default/animations/rifle run.glb",
+          "sha256": "fd2e44ae37723c474b1df4c781a49ea04fa73922bbd6c00cbec2d13990d8dc8b"
+        }
+      ],
+      "environment": {
+        "requestedBackend": "webgpu",
+        "backend": "webgpu",
+        "babylonVersion": "9.17.0",
+        "viewport": [
+          1416,
+          808
+        ],
+        "render": [
+          1280,
+          720
+        ],
+        "dpr": 1,
+        "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36 Edg/155.0.0.0",
+        "compatibilityMode": true,
+        "timerQuery": false
+      },
+      "inventory": [
+        {
+          "actor": 0,
+          "name": "player_0/vanguard_visor",
+          "vertices": 386,
+          "indices": 570,
+          "bones": 65,
+          "material": "PBRMaterial"
+        },
+        {
+          "actor": 0,
+          "name": "player_0/vanguard_Mesh",
+          "vertices": 27457,
+          "indices": 33558,
+          "bones": 65,
+          "material": "PBRMaterial"
+        },
+        {
+          "actor": 1,
+          "name": "player_1/vanguard_visor",
+          "vertices": 386,
+          "indices": 570,
+          "bones": 65,
+          "material": "PBRMaterial"
+        },
+        {
+          "actor": 1,
+          "name": "player_1/vanguard_Mesh",
+          "vertices": 27457,
+          "indices": 33558,
+          "bones": 65,
+          "material": "PBRMaterial"
+        },
+        {
+          "actor": 2,
+          "name": "player_2/vanguard_visor",
+          "vertices": 386,
+          "indices": 570,
+          "bones": 65,
+          "material": "PBRMaterial"
+        },
+        {
+          "actor": 2,
+          "name": "player_2/vanguard_Mesh",
+          "vertices": 27457,
+          "indices": 33558,
+          "bones": 65,
+          "material": "PBRMaterial"
+        },
+        {
+          "actor": 3,
+          "name": "player_3/vanguard_visor",
+          "vertices": 386,
+          "indices": 570,
+          "bones": 65,
+          "material": "PBRMaterial"
+        },
+        {
+          "actor": 3,
+          "name": "player_3/vanguard_Mesh",
+          "vertices": 27457,
+          "indices": 33558,
+          "bones": 65,
+          "material": "PBRMaterial"
+        },
+        {
+          "actor": 4,
+          "name": "player_4/vanguard_visor",
+          "vertices": 386,
+          "indices": 570,
+          "bones": 65,
+          "material": "PBRMaterial"
+        },
+        {
+          "actor": 4,
+          "name": "player_4/vanguard_Mesh",
+          "vertices": 27457,
+          "indices": 33558,
+          "bones": 65,
+          "material": "PBRMaterial"
+        },
+        {
+          "actor": 5,
+          "name": "player_5/vanguard_visor",
+          "vertices": 386,
+          "indices": 570,
+          "bones": 65,
+          "material": "PBRMaterial"
+        },
+        {
+          "actor": 5,
+          "name": "player_5/vanguard_Mesh",
+          "vertices": 27457,
+          "indices": 33558,
+          "bones": 65,
+          "material": "PBRMaterial"
+        },
+        {
+          "actor": 6,
+          "name": "player_6/vanguard_visor",
+          "vertices": 386,
+          "indices": 570,
+          "bones": 65,
+          "material": "PBRMaterial"
+        },
+        {
+          "actor": 6,
+          "name": "player_6/vanguard_Mesh",
+          "vertices": 27457,
+          "indices": 33558,
+          "bones": 65,
+          "material": "PBRMaterial"
+        },
+        {
+          "actor": 7,
+          "name": "player_7/vanguard_visor",
+          "vertices": 386,
+          "indices": 570,
+          "bones": 65,
+          "material": "PBRMaterial"
+        },
+        {
+          "actor": 7,
+          "name": "player_7/vanguard_Mesh",
+          "vertices": 27457,
+          "indices": 33558,
+          "bones": 65,
+          "material": "PBRMaterial"
+        },
+        {
+          "actor": 8,
+          "name": "player_8/vanguard_visor",
+          "vertices": 386,
+          "indices": 570,
+          "bones": 65,
+          "material": "PBRMaterial"
+        },
+        {
+          "actor": 8,
+          "name": "player_8/vanguard_Mesh",
+          "vertices": 27457,
+          "indices": 33558,
+          "bones": 65,
+          "material": "PBRMaterial"
+        },
+        {
+          "actor": 9,
+          "name": "player_9/vanguard_visor",
+          "vertices": 386,
+          "indices": 570,
+          "bones": 65,
+          "material": "PBRMaterial"
+        },
+        {
+          "actor": 9,
+          "name": "player_9/vanguard_Mesh",
+          "vertices": 27457,
+          "indices": 33558,
+          "bones": 65,
+          "material": "PBRMaterial"
+        }
+      ],
+      "limitations": [
+        "Isolated actor render test, not map/gameplay FPS. No bots, network, weapons, postprocesses or reflections.",
+        "Refresh-paced fixed presentation ticks; animation sequence is identical, playback speed can differ with refresh rate.",
+        "CPU includes explicit pose updates and scene.render, excluding endFrame/present, polling and validation bookkeeping.",
+        "GPU counters are asynchronous fresh samples, not assigned to individual presentation ticks; boundary samples may come from warmup.",
+        "Active-body/draw coverage is not proof of pixel visibility or full outline/occlusion parity."
+      ],
+      "artifacts": "public/data/benchmarks/results/2026-10-10-crowd-series/webgpu",
+      "rawCaptureSha256": "7474c00e8fc78b7560f289b9cb9f12ad5682d0c951c32d694725a0fe8dc455ad",
+      "runs": [
+        {
+          "repetition": 1,
+          "count": 0,
+          "outline": 1,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 0,
+          "expectedDraws": 2,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.200000002980232,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 0.19999998807907104,
+              "p95": 0.30000001192092896,
+              "p99": 0.5
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            },
+            "drawCalls": {
+              "p50": 2,
+              "p95": 2,
+              "p99": 2
+            },
+            "actors": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            },
+            "bodyParts": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "c30240a3567f6706fd8557f28e7f8c9c55bfc3ec83868c174382beb201c22a0f",
+          "gpu": {
+            "count": 0,
+            "p50": null,
+            "p95": null,
+            "min": null,
+            "max": null
+          }
+        },
+        {
+          "repetition": 1,
+          "count": 0,
+          "outline": 0,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 0,
+          "expectedDraws": 2,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.100000008940697,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 0.10000000894069672,
+              "p95": 0.20000000298023224,
+              "p99": 0.29999999701976776
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0.06099999636411519
+            },
+            "drawCalls": {
+              "p50": 2,
+              "p95": 2,
+              "p99": 2
+            },
+            "actors": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            },
+            "bodyParts": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "a91179b1a75ad4701b9f4f8c8ac9fd6cac6ec238f100198fc6b8cfe84962dda7",
+          "gpu": {
+            "count": 0,
+            "p50": null,
+            "p95": null,
+            "min": null,
+            "max": null
+          }
+        },
+        {
+          "repetition": 1,
+          "count": 2,
+          "outline": 1,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 4,
+          "expectedDraws": 14,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.200000002980232,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 0.3500000014901161,
+              "p95": 0.5999999940395355,
+              "p99": 0.7000000029802322
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0.10000000894069672,
+              "p99": 0.20000000298023224
+            },
+            "drawCalls": {
+              "p50": 14,
+              "p95": 14,
+              "p99": 14
+            },
+            "actors": {
+              "p50": 2,
+              "p95": 2,
+              "p99": 2
+            },
+            "bodyParts": {
+              "p50": 4,
+              "p95": 4,
+              "p99": 4
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "47585abef079fb00cd5bef096044b0ce0fe89236677b927f4c3bb80fbbf3b21a",
+          "gpu": {
+            "count": 0,
+            "p50": null,
+            "p95": null,
+            "min": null,
+            "max": null
+          }
+        },
+        {
+          "repetition": 1,
+          "count": 2,
+          "outline": 0,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 4,
+          "expectedDraws": 6,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.200000002980232,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 0.29999999701976776,
+              "p95": 0.5999999940395355,
+              "p99": 0.7000000029802322
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0.10000000894069672,
+              "p99": 0.20000000298023224
+            },
+            "drawCalls": {
+              "p50": 6,
+              "p95": 6,
+              "p99": 6
+            },
+            "actors": {
+              "p50": 2,
+              "p95": 2,
+              "p99": 2
+            },
+            "bodyParts": {
+              "p50": 4,
+              "p95": 4,
+              "p99": 4
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "afc0bea7bd7cc321236dd878424191e40e556d2f9b370cc3fdb18d5431f0ee6e",
+          "gpu": {
+            "count": 0,
+            "p50": null,
+            "p95": null,
+            "min": null,
+            "max": null
+          }
+        },
+        {
+          "repetition": 1,
+          "count": 5,
+          "outline": 1,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 10,
+          "expectedDraws": 32,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.200000002980232,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 0.5,
+              "p95": 0.7999999970197678,
+              "p99": 0.9000000059604645
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0.20000000298023224,
+              "p99": 0.20000000298023224
+            },
+            "drawCalls": {
+              "p50": 32,
+              "p95": 32,
+              "p99": 32
+            },
+            "actors": {
+              "p50": 5,
+              "p95": 5,
+              "p99": 5
+            },
+            "bodyParts": {
+              "p50": 10,
+              "p95": 10,
+              "p99": 10
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "2910050211775e80b7569b70453e1730c37bc362e729b8a6a4f2921cdefa6dbb",
+          "gpu": {
+            "count": 0,
+            "p50": null,
+            "p95": null,
+            "min": null,
+            "max": null
+          }
+        },
+        {
+          "repetition": 1,
+          "count": 5,
+          "outline": 0,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 10,
+          "expectedDraws": 12,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.1999999895691875,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 0.4000000059604645,
+              "p95": 0.9000000059604645,
+              "p99": 1
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0.20000000298023224,
+              "p99": 0.20000000298023224
+            },
+            "drawCalls": {
+              "p50": 12,
+              "p95": 12,
+              "p99": 12
+            },
+            "actors": {
+              "p50": 5,
+              "p95": 5,
+              "p99": 5
+            },
+            "bodyParts": {
+              "p50": 10,
+              "p95": 10,
+              "p99": 10
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "93a68394ebcf97184d1ff3039558cd9cefd9743f511df2e2f82a68af6bdbf878",
+          "gpu": {
+            "count": 0,
+            "p50": null,
+            "p95": null,
+            "min": null,
+            "max": null
+          }
+        },
+        {
+          "repetition": 1,
+          "count": 10,
+          "outline": 1,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 20,
+          "expectedDraws": 62,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.200000002980232,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 0.8999999910593033,
+              "p95": 1.2999999977648258,
+              "p99": 1.5
+            },
+            "poseCpuMs": {
+              "p50": 0.04999999701976776,
+              "p95": 0.29999999701976776,
+              "p99": 0.3000000061094761
+            },
+            "drawCalls": {
+              "p50": 62,
+              "p95": 62,
+              "p99": 62
+            },
+            "actors": {
+              "p50": 10,
+              "p95": 10,
+              "p99": 10
+            },
+            "bodyParts": {
+              "p50": 20,
+              "p95": 20,
+              "p99": 20
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "b99cc54183cac480928a70f0018d262c2b521c03b1eff6cdd66785eb537c8ac3",
+          "gpu": {
+            "count": 0,
+            "p50": null,
+            "p95": null,
+            "min": null,
+            "max": null
+          }
+        },
+        {
+          "repetition": 1,
+          "count": 10,
+          "outline": 0,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 20,
+          "expectedDraws": 22,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.200000002980232,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 0.6000000089406967,
+              "p95": 1.2999999977648258,
+              "p99": 1.6000000031292438
+            },
+            "poseCpuMs": {
+              "p50": 0.04999999701976776,
+              "p95": 0.29999999701976776,
+              "p99": 0.4000000059604645
+            },
+            "drawCalls": {
+              "p50": 22,
+              "p95": 22,
+              "p99": 22
+            },
+            "actors": {
+              "p50": 10,
+              "p95": 10,
+              "p99": 10
+            },
+            "bodyParts": {
+              "p50": 20,
+              "p95": 20,
+              "p99": 20
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "fa7126f35bdb6781457da174673e63bed1cfe1ec19332739fff3dcdf2f29de12",
+          "gpu": {
+            "count": 0,
+            "p50": null,
+            "p95": null,
+            "min": null,
+            "max": null
+          }
+        },
+        {
+          "repetition": 2,
+          "count": 10,
+          "outline": 0,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 20,
+          "expectedDraws": 22,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.200000002980232,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 1.0999999940395355,
+              "p95": 1.5999999947845935,
+              "p99": 1.8610000082850442
+            },
+            "poseCpuMs": {
+              "p50": 0.04999999701976776,
+              "p95": 0.4000000059604645,
+              "p99": 0.46100000232457966
+            },
+            "drawCalls": {
+              "p50": 22,
+              "p95": 22,
+              "p99": 22
+            },
+            "actors": {
+              "p50": 10,
+              "p95": 10,
+              "p99": 10
+            },
+            "bodyParts": {
+              "p50": 20,
+              "p95": 20,
+              "p99": 20
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "937cc1cbedeeb2fd6218a963cdb25596d17d6abb5b3713d8ee1f696bf2b58c46",
+          "gpu": {
+            "count": 0,
+            "p50": null,
+            "p95": null,
+            "min": null,
+            "max": null
+          }
+        },
+        {
+          "repetition": 2,
+          "count": 10,
+          "outline": 1,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 20,
+          "expectedDraws": 62,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.200000002980232,
+              "p99": 6.299999997019768
+            },
+            "cpuMs": {
+              "p50": 1.5,
+              "p95": 2.504999999701975,
+              "p99": 3.521999992877242
+            },
+            "poseCpuMs": {
+              "p50": 0.14999999105930328,
+              "p95": 0.5,
+              "p99": 0.7000000029802322
+            },
+            "drawCalls": {
+              "p50": 62,
+              "p95": 62,
+              "p99": 62
+            },
+            "actors": {
+              "p50": 10,
+              "p95": 10,
+              "p99": 10
+            },
+            "bodyParts": {
+              "p50": 20,
+              "p95": 20,
+              "p99": 20
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "b7c0f2269018e0157d17ce83c695711e795e5115e962e56aa16b8422e0b48df7",
+          "gpu": {
+            "count": 0,
+            "p50": null,
+            "p95": null,
+            "min": null,
+            "max": null
+          }
+        },
+        {
+          "repetition": 2,
+          "count": 5,
+          "outline": 0,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 10,
+          "expectedDraws": 12,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.200000002980232,
+              "p99": 6.261999999284745
+            },
+            "cpuMs": {
+              "p50": 0.7999999970197678,
+              "p95": 1.4000000059604645,
+              "p99": 1.9610000023245797
+            },
+            "poseCpuMs": {
+              "p50": 0.09999999403953552,
+              "p95": 0.29999999701976776,
+              "p99": 0.46100000232457966
+            },
+            "drawCalls": {
+              "p50": 12,
+              "p95": 12,
+              "p99": 12
+            },
+            "actors": {
+              "p50": 5,
+              "p95": 5,
+              "p99": 5
+            },
+            "bodyParts": {
+              "p50": 10,
+              "p95": 10,
+              "p99": 10
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "b6637d7493a884f7238e87ae59578e35d2a06b135d1360f1141db9e3e38b0bdb",
+          "gpu": {
+            "count": 0,
+            "p50": null,
+            "p95": null,
+            "min": null,
+            "max": null
+          }
+        },
+        {
+          "repetition": 2,
+          "count": 5,
+          "outline": 1,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 10,
+          "expectedDraws": 32,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.200000002980232,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 0.8999999985098839,
+              "p95": 1.5,
+              "p99": 1.9219999988377066
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0.29999999701976776,
+              "p99": 0.4000000059604645
+            },
+            "drawCalls": {
+              "p50": 32,
+              "p95": 32,
+              "p99": 32
+            },
+            "actors": {
+              "p50": 5,
+              "p95": 5,
+              "p99": 5
+            },
+            "bodyParts": {
+              "p50": 10,
+              "p95": 10,
+              "p99": 10
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "c0197dcbabf83b362d9b08dbc5224c4a9e14bba0caf6b26a2f0e01d056ed09fe",
+          "gpu": {
+            "count": 0,
+            "p50": null,
+            "p95": null,
+            "min": null,
+            "max": null
+          }
+        },
+        {
+          "repetition": 2,
+          "count": 2,
+          "outline": 0,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 4,
+          "expectedDraws": 6,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.200000002980232,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 0.5,
+              "p95": 0.8999999910593033,
+              "p99": 1.0999999940395355
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0.20000000298023224,
+              "p99": 0.20000000298023224
+            },
+            "drawCalls": {
+              "p50": 6,
+              "p95": 6,
+              "p99": 6
+            },
+            "actors": {
+              "p50": 2,
+              "p95": 2,
+              "p99": 2
+            },
+            "bodyParts": {
+              "p50": 4,
+              "p95": 4,
+              "p99": 4
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "b11c4513103aa552cda1e3693f12b4c8c10cdb3f35fa2d71bba1878934fac3f6",
+          "gpu": {
+            "count": 0,
+            "p50": null,
+            "p95": null,
+            "min": null,
+            "max": null
+          }
+        },
+        {
+          "repetition": 2,
+          "count": 2,
+          "outline": 1,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 4,
+          "expectedDraws": 14,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.200000002980232,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 0.4000000059604645,
+              "p95": 0.6000000089406967,
+              "p99": 0.860999993383883
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0.10000000894069672,
+              "p99": 0.20000000298023224
+            },
+            "drawCalls": {
+              "p50": 14,
+              "p95": 14,
+              "p99": 14
+            },
+            "actors": {
+              "p50": 2,
+              "p95": 2,
+              "p99": 2
+            },
+            "bodyParts": {
+              "p50": 4,
+              "p95": 4,
+              "p99": 4
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "0866f11c21627221e824879cdf4794d23aace11c628397742d9b850bce0171e8",
+          "gpu": {
+            "count": 0,
+            "p50": null,
+            "p95": null,
+            "min": null,
+            "max": null
+          }
+        },
+        {
+          "repetition": 2,
+          "count": 0,
+          "outline": 0,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 0,
+          "expectedDraws": 2,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.200000002980232,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 0.10000000894069672,
+              "p95": 0.2050000026822073,
+              "p99": 0.4000000059604645
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            },
+            "drawCalls": {
+              "p50": 2,
+              "p95": 2,
+              "p99": 2
+            },
+            "actors": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            },
+            "bodyParts": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "4f76c9256a6f56a4ef969482cdb79b6321ae0fc7c4403dfa4721894bbd15d6ee",
+          "gpu": {
+            "count": 0,
+            "p50": null,
+            "p95": null,
+            "min": null,
+            "max": null
+          }
+        },
+        {
+          "repetition": 2,
+          "count": 0,
+          "outline": 1,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 0,
+          "expectedDraws": 2,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.200000002980232,
+              "p99": 6.262000008523465
+            },
+            "cpuMs": {
+              "p50": 0.10000000894069672,
+              "p95": 0.20000000298023224,
+              "p99": 0.29999999701976776
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            },
+            "drawCalls": {
+              "p50": 2,
+              "p95": 2,
+              "p99": 2
+            },
+            "actors": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            },
+            "bodyParts": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "7904d707592130bebcf2c246aadd27dcb018dcca70a453b490e91ec34ed9b78c",
+          "gpu": {
+            "count": 0,
+            "p50": null,
+            "p95": null,
+            "min": null,
+            "max": null
+          }
+        },
+        {
+          "repetition": 3,
+          "count": 0,
+          "outline": 1,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 0,
+          "expectedDraws": 2,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.200000002980232,
+              "p99": 6.262000008523465
+            },
+            "cpuMs": {
+              "p50": 0.09999999403953552,
+              "p95": 0.20000000298023224,
+              "p99": 0.29999999701976776
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            },
+            "drawCalls": {
+              "p50": 2,
+              "p95": 2,
+              "p99": 2
+            },
+            "actors": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            },
+            "bodyParts": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "0ef1b4c83142927683dc25a964149fcb8fb3261c820bfe4ce8913ec26e1c7aac",
+          "gpu": {
+            "count": 0,
+            "p50": null,
+            "p95": null,
+            "min": null,
+            "max": null
+          }
+        },
+        {
+          "repetition": 3,
+          "count": 0,
+          "outline": 0,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 0,
+          "expectedDraws": 2,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.100000008940697,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 0.09999999403953552,
+              "p95": 0.20000000298023224,
+              "p99": 0.20000000298023224
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            },
+            "drawCalls": {
+              "p50": 2,
+              "p95": 2,
+              "p99": 2
+            },
+            "actors": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            },
+            "bodyParts": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "01125502b4092d26b1cab4169c061f28c757faa4f2e58e5667cda469c41894e6",
+          "gpu": {
+            "count": 0,
+            "p50": null,
+            "p95": null,
+            "min": null,
+            "max": null
+          }
+        },
+        {
+          "repetition": 3,
+          "count": 2,
+          "outline": 1,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 4,
+          "expectedDraws": 14,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.100000008940697,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 0.30000001192092896,
+              "p95": 0.5999999940395355,
+              "p99": 0.7000000029802322
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0.10000000894069672,
+              "p99": 0.20000000298023224
+            },
+            "drawCalls": {
+              "p50": 14,
+              "p95": 14,
+              "p99": 14
+            },
+            "actors": {
+              "p50": 2,
+              "p95": 2,
+              "p99": 2
+            },
+            "bodyParts": {
+              "p50": 4,
+              "p95": 4,
+              "p99": 4
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "acfbe87d7042dd6c268b26be7490ca5140f602c87b877f4561566558cb2cf7a8",
+          "gpu": {
+            "count": 0,
+            "p50": null,
+            "p95": null,
+            "min": null,
+            "max": null
+          }
+        },
+        {
+          "repetition": 3,
+          "count": 2,
+          "outline": 0,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 4,
+          "expectedDraws": 6,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.200000002980232,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 0.30000001192092896,
+              "p95": 0.6000000089406967,
+              "p99": 0.7999999970197678
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0.10000000894069672,
+              "p99": 0.20000000298023224
+            },
+            "drawCalls": {
+              "p50": 6,
+              "p95": 6,
+              "p99": 6
+            },
+            "actors": {
+              "p50": 2,
+              "p95": 2,
+              "p99": 2
+            },
+            "bodyParts": {
+              "p50": 4,
+              "p95": 4,
+              "p99": 4
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "d0efbb46ed3e83261f53480ad1f626bd6a6e3036b177924799ce73a795ffd7fd",
+          "gpu": {
+            "count": 0,
+            "p50": null,
+            "p95": null,
+            "min": null,
+            "max": null
+          }
+        },
+        {
+          "repetition": 3,
+          "count": 5,
+          "outline": 1,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 10,
+          "expectedDraws": 32,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.100000008940697,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 0.5999999940395355,
+              "p95": 0.800000011920929,
+              "p99": 0.9610000023245797
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0.20000000298023224,
+              "p99": 0.20000000298023224
+            },
+            "drawCalls": {
+              "p50": 32,
+              "p95": 32,
+              "p99": 32
+            },
+            "actors": {
+              "p50": 5,
+              "p95": 5,
+              "p99": 5
+            },
+            "bodyParts": {
+              "p50": 10,
+              "p95": 10,
+              "p99": 10
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "a3800e28805ccaac2e6bfe6bf25904844bbb52b1a614e908b75725dc5f7114fa",
+          "gpu": {
+            "count": 0,
+            "p50": null,
+            "p95": null,
+            "min": null,
+            "max": null
+          }
+        },
+        {
+          "repetition": 3,
+          "count": 5,
+          "outline": 0,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 10,
+          "expectedDraws": 12,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.200000002980232,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 0.5,
+              "p95": 0.7000000029802322,
+              "p99": 0.9000000001490116
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0.20000000298023224,
+              "p99": 0.20000000298023224
+            },
+            "drawCalls": {
+              "p50": 12,
+              "p95": 12,
+              "p99": 12
+            },
+            "actors": {
+              "p50": 5,
+              "p95": 5,
+              "p99": 5
+            },
+            "bodyParts": {
+              "p50": 10,
+              "p95": 10,
+              "p99": 10
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "e0570055108dca03d3f11562b74b8ea8daba233193820ced0f131fd64e1de9b3",
+          "gpu": {
+            "count": 0,
+            "p50": null,
+            "p95": null,
+            "min": null,
+            "max": null
+          }
+        },
+        {
+          "repetition": 3,
+          "count": 10,
+          "outline": 1,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 20,
+          "expectedDraws": 62,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.200000002980232,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 1,
+              "p95": 1.2000000029802322,
+              "p99": 1.4610000023245797
+            },
+            "poseCpuMs": {
+              "p50": 0.09999999403953552,
+              "p95": 0.29999999701976776,
+              "p99": 0.36100000828504414
+            },
+            "drawCalls": {
+              "p50": 62,
+              "p95": 62,
+              "p99": 62
+            },
+            "actors": {
+              "p50": 10,
+              "p95": 10,
+              "p99": 10
+            },
+            "bodyParts": {
+              "p50": 20,
+              "p95": 20,
+              "p99": 20
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "baeb9cffbb211e507f292a942ce89950d7102de9dc48d46a21c7d81a69d40005",
+          "gpu": {
+            "count": 0,
+            "p50": null,
+            "p95": null,
+            "min": null,
+            "max": null
+          }
+        },
+        {
+          "repetition": 3,
+          "count": 10,
+          "outline": 0,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 20,
+          "expectedDraws": 22,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.200000002980232,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 0.7999999970197678,
+              "p95": 1.0999999940395355,
+              "p99": 1.2999999970197678
+            },
+            "poseCpuMs": {
+              "p50": 0.04999999701976776,
+              "p95": 0.29999999701976776,
+              "p99": 0.30000001192092896
+            },
+            "drawCalls": {
+              "p50": 22,
+              "p95": 22,
+              "p99": 22
+            },
+            "actors": {
+              "p50": 10,
+              "p95": 10,
+              "p99": 10
+            },
+            "bodyParts": {
+              "p50": 20,
+              "p95": 20,
+              "p99": 20
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "eadefb17a3555b850bf6636096afb50fd8efb5ad3bd2b9c86b76150862b99dd4",
+          "gpu": {
+            "count": 0,
+            "p50": null,
+            "p95": null,
+            "min": null,
+            "max": null
+          }
+        },
+        {
+          "repetition": 4,
+          "count": 10,
+          "outline": 0,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 20,
+          "expectedDraws": 22,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.1999999895691875,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 0.8999999910593033,
+              "p95": 1.2050000026822074,
+              "p99": 1.3999999910593033
+            },
+            "poseCpuMs": {
+              "p50": 0.04999999701976776,
+              "p95": 0.29999999701976776,
+              "p99": 0.36100000828504414
+            },
+            "drawCalls": {
+              "p50": 22,
+              "p95": 22,
+              "p99": 22
+            },
+            "actors": {
+              "p50": 10,
+              "p95": 10,
+              "p99": 10
+            },
+            "bodyParts": {
+              "p50": 20,
+              "p95": 20,
+              "p99": 20
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "e0747023d655009c4ccf6f07e279bea488ea8f8811bee6c846425819c6e41c03",
+          "gpu": {
+            "count": 0,
+            "p50": null,
+            "p95": null,
+            "min": null,
+            "max": null
+          }
+        },
+        {
+          "repetition": 4,
+          "count": 10,
+          "outline": 1,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 20,
+          "expectedDraws": 62,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.200000002980232,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 0.9000000059604645,
+              "p95": 1.2000000029802322,
+              "p99": 1.4000000059604645
+            },
+            "poseCpuMs": {
+              "p50": 0.09999999403953552,
+              "p95": 0.29999999701976776,
+              "p99": 0.30000001192092896
+            },
+            "drawCalls": {
+              "p50": 62,
+              "p95": 62,
+              "p99": 62
+            },
+            "actors": {
+              "p50": 10,
+              "p95": 10,
+              "p99": 10
+            },
+            "bodyParts": {
+              "p50": 20,
+              "p95": 20,
+              "p99": 20
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "4e3d89dee41ae2d375f95ffbaf26b93e4ad172fbaa0f9feb9de440d63f75ce20",
+          "gpu": {
+            "count": 0,
+            "p50": null,
+            "p95": null,
+            "min": null,
+            "max": null
+          }
+        },
+        {
+          "repetition": 4,
+          "count": 5,
+          "outline": 0,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 10,
+          "expectedDraws": 12,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.199999988079071,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 0.5999999940395355,
+              "p95": 0.7999999970197678,
+              "p99": 0.9000000059604645
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0.20000000298023224,
+              "p99": 0.20000000298023224
+            },
+            "drawCalls": {
+              "p50": 12,
+              "p95": 12,
+              "p99": 12
+            },
+            "actors": {
+              "p50": 5,
+              "p95": 5,
+              "p99": 5
+            },
+            "bodyParts": {
+              "p50": 10,
+              "p95": 10,
+              "p99": 10
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "df3aae12396083868bd0d451706e95e6eb016e78735ac4e5407817362b349cd6",
+          "gpu": {
+            "count": 0,
+            "p50": null,
+            "p95": null,
+            "min": null,
+            "max": null
+          }
+        },
+        {
+          "repetition": 4,
+          "count": 5,
+          "outline": 1,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 10,
+          "expectedDraws": 32,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.1999999895691875,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 0.6000000089406967,
+              "p95": 0.8999999910593033,
+              "p99": 0.9610000023245797
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0.20000000298023224,
+              "p99": 0.20000000298023224
+            },
+            "drawCalls": {
+              "p50": 32,
+              "p95": 32,
+              "p99": 32
+            },
+            "actors": {
+              "p50": 5,
+              "p95": 5,
+              "p99": 5
+            },
+            "bodyParts": {
+              "p50": 10,
+              "p95": 10,
+              "p99": 10
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "6ba6aa6e46f492a7164444d3300e958c8719fcce46bd32319ada6bab25db8171",
+          "gpu": {
+            "count": 0,
+            "p50": null,
+            "p95": null,
+            "min": null,
+            "max": null
+          }
+        },
+        {
+          "repetition": 4,
+          "count": 2,
+          "outline": 0,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 4,
+          "expectedDraws": 6,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.200000002980232,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 0.3999999910593033,
+              "p95": 0.5999999947845935,
+              "p99": 0.7000000029802322
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0.10000000894069672,
+              "p99": 0.20000000298023224
+            },
+            "drawCalls": {
+              "p50": 6,
+              "p95": 6,
+              "p99": 6
+            },
+            "actors": {
+              "p50": 2,
+              "p95": 2,
+              "p99": 2
+            },
+            "bodyParts": {
+              "p50": 4,
+              "p95": 4,
+              "p99": 4
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "e7d4232b76a775956aac6d8d14db7e7ab0dc81cf77af35998b340a294cbd47ec",
+          "gpu": {
+            "count": 0,
+            "p50": null,
+            "p95": null,
+            "min": null,
+            "max": null
+          }
+        },
+        {
+          "repetition": 4,
+          "count": 2,
+          "outline": 1,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 4,
+          "expectedDraws": 14,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.200000002980232,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 0.3999999910593033,
+              "p95": 0.6000000089406967,
+              "p99": 0.8000000061094761
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0.10000000894069672,
+              "p99": 0.20000000298023224
+            },
+            "drawCalls": {
+              "p50": 14,
+              "p95": 14,
+              "p99": 14
+            },
+            "actors": {
+              "p50": 2,
+              "p95": 2,
+              "p99": 2
+            },
+            "bodyParts": {
+              "p50": 4,
+              "p95": 4,
+              "p99": 4
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "8fc45939463e301d7966226919dad884c08dc611eb3698d03ef3fe3f5466fecb",
+          "gpu": {
+            "count": 0,
+            "p50": null,
+            "p95": null,
+            "min": null,
+            "max": null
+          }
+        },
+        {
+          "repetition": 4,
+          "count": 0,
+          "outline": 0,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 0,
+          "expectedDraws": 2,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.200000002980232,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 0.10000000894069672,
+              "p95": 0.20000000298023224,
+              "p99": 0.29999999701976776
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0.09999999403953552
+            },
+            "drawCalls": {
+              "p50": 2,
+              "p95": 2,
+              "p99": 2
+            },
+            "actors": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            },
+            "bodyParts": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "894a9e907db87ad74826ce3fcf50a4eb30747aa7cf350d28e00aaed55496ad3b",
+          "gpu": {
+            "count": 0,
+            "p50": null,
+            "p95": null,
+            "min": null,
+            "max": null
+          }
+        },
+        {
+          "repetition": 4,
+          "count": 0,
+          "outline": 1,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 0,
+          "expectedDraws": 2,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.199999988079071,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 0.09999999403953552,
+              "p95": 0.20000000298023224,
+              "p99": 0.20000000298023224
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            },
+            "drawCalls": {
+              "p50": 2,
+              "p95": 2,
+              "p99": 2
+            },
+            "actors": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            },
+            "bodyParts": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "c4b67d3d215b67653db07f3c192796a26ea994a4b4670ec03eaf149fa555f671",
+          "gpu": {
+            "count": 0,
+            "p50": null,
+            "p95": null,
+            "min": null,
+            "max": null
+          }
+        },
+        {
+          "repetition": 5,
+          "count": 0,
+          "outline": 1,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 0,
+          "expectedDraws": 2,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.200000002980232,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 0.09999999403953552,
+              "p95": 0.20000000298023224,
+              "p99": 0.2609999993443474
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            },
+            "drawCalls": {
+              "p50": 2,
+              "p95": 2,
+              "p99": 2
+            },
+            "actors": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            },
+            "bodyParts": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "5934092f6bbec59c84b1410d328a1684b088c73a76ce44178eb29fbdffb365c2",
+          "gpu": {
+            "count": 0,
+            "p50": null,
+            "p95": null,
+            "min": null,
+            "max": null
+          }
+        },
+        {
+          "repetition": 5,
+          "count": 0,
+          "outline": 0,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 0,
+          "expectedDraws": 2,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.200000002980232,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 0.10000000894069672,
+              "p95": 0.20000000298023224,
+              "p99": 0.2609999993443474
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            },
+            "drawCalls": {
+              "p50": 2,
+              "p95": 2,
+              "p99": 2
+            },
+            "actors": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            },
+            "bodyParts": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "a46dd33b7030dfdb1e96ba1528aa32769c5fc0db23248ff9e009c89ec7e0a99c",
+          "gpu": {
+            "count": 0,
+            "p50": null,
+            "p95": null,
+            "min": null,
+            "max": null
+          }
+        },
+        {
+          "repetition": 5,
+          "count": 2,
+          "outline": 1,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 4,
+          "expectedDraws": 14,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.200000002980232,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 0.30000001192092896,
+              "p95": 0.5999999940395355,
+              "p99": 0.7000000029802322
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0.10000000894069672,
+              "p99": 0.20000000298023224
+            },
+            "drawCalls": {
+              "p50": 14,
+              "p95": 14,
+              "p99": 14
+            },
+            "actors": {
+              "p50": 2,
+              "p95": 2,
+              "p99": 2
+            },
+            "bodyParts": {
+              "p50": 4,
+              "p95": 4,
+              "p99": 4
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "120789206863dffe680ab9920f50f5fcb833ee384fc822e89796cc161c65407c",
+          "gpu": {
+            "count": 0,
+            "p50": null,
+            "p95": null,
+            "min": null,
+            "max": null
+          }
+        },
+        {
+          "repetition": 5,
+          "count": 2,
+          "outline": 0,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 4,
+          "expectedDraws": 6,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.200000002980232,
+              "p99": 6.299999997019768
+            },
+            "cpuMs": {
+              "p50": 0.5,
+              "p95": 0.805000010877846,
+              "p99": 1.0610000054538236
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0.20000000298023224,
+              "p99": 0.2609999993443474
+            },
+            "drawCalls": {
+              "p50": 6,
+              "p95": 6,
+              "p99": 6
+            },
+            "actors": {
+              "p50": 2,
+              "p95": 2,
+              "p99": 2
+            },
+            "bodyParts": {
+              "p50": 4,
+              "p95": 4,
+              "p99": 4
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "2a3805971481eb4fa57fbe0644959c038fedb48610be678879595ea44fd4d226",
+          "gpu": {
+            "count": 0,
+            "p50": null,
+            "p95": null,
+            "min": null,
+            "max": null
+          }
+        },
+        {
+          "repetition": 5,
+          "count": 5,
+          "outline": 1,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 10,
+          "expectedDraws": 32,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.200000002980232,
+              "p99": 10.89199999332431
+            },
+            "cpuMs": {
+              "p50": 0.7000000029802322,
+              "p95": 1.0049999997019752,
+              "p99": 1.300000006109476
+            },
+            "poseCpuMs": {
+              "p50": 0,
+              "p95": 0.20000000298023224,
+              "p99": 0.30000001192092896
+            },
+            "drawCalls": {
+              "p50": 32,
+              "p95": 32,
+              "p99": 32
+            },
+            "actors": {
+              "p50": 5,
+              "p95": 5,
+              "p99": 5
+            },
+            "bodyParts": {
+              "p50": 10,
+              "p95": 10,
+              "p99": 10
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "f6715f58a107e93175a1963327cdae3640c2a02533cc6f6d8ba1b1cf759fb209",
+          "gpu": {
+            "count": 0,
+            "p50": null,
+            "p95": null,
+            "min": null,
+            "max": null
+          }
+        },
+        {
+          "repetition": 5,
+          "count": 5,
+          "outline": 0,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 10,
+          "expectedDraws": 12,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.200000002980232,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 0.7000000029802322,
+              "p95": 1.2000000029802322,
+              "p99": 1.5
+            },
+            "poseCpuMs": {
+              "p50": 0.04999999701976776,
+              "p95": 0.29999999701976776,
+              "p99": 0.3609999991953358
+            },
+            "drawCalls": {
+              "p50": 12,
+              "p95": 12,
+              "p99": 12
+            },
+            "actors": {
+              "p50": 5,
+              "p95": 5,
+              "p99": 5
+            },
+            "bodyParts": {
+              "p50": 10,
+              "p95": 10,
+              "p99": 10
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "ddd6d45f17165bef8c18559fc7e2320a5b2ece56da966fd8d587d05b00f1d67f",
+          "gpu": {
+            "count": 0,
+            "p50": null,
+            "p95": null,
+            "min": null,
+            "max": null
+          }
+        },
+        {
+          "repetition": 5,
+          "count": 10,
+          "outline": 1,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 20,
+          "expectedDraws": 62,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.1999999895691875,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 1.0999999940395355,
+              "p95": 1.605000008642672,
+              "p99": 2
+            },
+            "poseCpuMs": {
+              "p50": 0.09999999403953552,
+              "p95": 0.39999999180436135,
+              "p99": 0.5
+            },
+            "drawCalls": {
+              "p50": 62,
+              "p95": 62,
+              "p99": 62
+            },
+            "actors": {
+              "p50": 10,
+              "p95": 10,
+              "p99": 10
+            },
+            "bodyParts": {
+              "p50": 20,
+              "p95": 20,
+              "p99": 20
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "bef08e737deef74a50b87223e17a67cdd2f18814622cebae69d9a7c8a1c6c47b",
+          "gpu": {
+            "count": 0,
+            "p50": null,
+            "p95": null,
+            "min": null,
+            "max": null
+          }
+        },
+        {
+          "repetition": 5,
+          "count": 10,
+          "outline": 0,
+          "valid": true,
+          "reasons": [],
+          "expectedBodyParts": 20,
+          "expectedDraws": 22,
+          "shaderCompiles": 0,
+          "summary": {
+            "wallMs": {
+              "p50": 6.0999999940395355,
+              "p95": 6.200000002980232,
+              "p99": 6.200000002980232
+            },
+            "cpuMs": {
+              "p50": 1.0499999970197678,
+              "p95": 1.8999999910593033,
+              "p99": 2.2609999993443473
+            },
+            "poseCpuMs": {
+              "p50": 0.04999999701976776,
+              "p95": 0.4000000059604645,
+              "p99": 0.5999999940395355
+            },
+            "drawCalls": {
+              "p50": 22,
+              "p95": 22,
+              "p99": 22
+            },
+            "actors": {
+              "p50": 10,
+              "p95": 10,
+              "p99": 10
+            },
+            "bodyParts": {
+              "p50": 20,
+              "p95": 20,
+              "p99": 20
+            }
+          },
+          "samples": 240,
+          "firstTick": 0,
+          "lastTick": 239,
+          "sampleSha256": "af1f97be69730d85c2c7609b07145aca9b5e21d0b3092facffb577199fd28e1d",
+          "gpu": {
+            "count": 0,
+            "p50": null,
+            "p95": null,
+            "min": null,
+            "max": null
+          }
+        }
+      ],
+      "screenshots": [
+        {
+          "file": "public/data/benchmarks/results/2026-10-10-crowd-series/webgpu/crowd10-outline-0.png",
+          "sha256": "8e7d9bda5d81ba95dcf0bf4badd4ec02e8cecac2e3707e918e64000226047957",
+          "context": {
+            "status": "running",
+            "stage": "warmup",
+            "tick": 56,
+            "currentCase": {
+              "repetition": 1,
+              "count": 10,
+              "outline": 0
+            }
+          }
+        },
+        {
+          "file": "public/data/benchmarks/results/2026-10-10-crowd-series/webgpu/crowd10-outline-1.png",
+          "sha256": "1498f89ac0cf719002fe3ed9c4d237e0a414521867c3e456d9a6734de2f53168",
+          "context": {
+            "status": "running",
+            "stage": "warmup",
+            "tick": 23,
+            "currentCase": {
+              "repetition": 1,
+              "count": 10,
+              "outline": 1
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "pilot": {
+    "artifacts": "public/data/benchmarks/results/2026-10-10-crowd-pilot",
+    "valid": true,
+    "scope": "One repeat of 0/10 before the stagger/near layout adjustment; not pooled with final measurements"
+  },
+  "isolatedCheckout": ".cache/crowd-snapshot",
+  "limitations": [
+    "80 valid per-case workloads, not 80 fresh browser sessions: one fresh session per backend, alternating count/outline cases within it.",
+    "Ten clones remain loaded for every case; only the requested prefix renders. CPU includes explicit pose plus scene.render, not endFrame/present or full game logic.",
+    "Observed wall cadence changes from about 8.1 to 6.2 ms during the GL series. No FPS gain or backend-ranking conclusion.",
+    "GL timer values are fresh asynchronous whole-frame observations, not isolated vertex or outline-pass timers; WebGPU timer samples are unavailable.",
+    "CPU ranges mostly overlap; GL GPU outline cost is strong at 2/5 actors, but 10-actor GPU ranges overlap and have large spread.",
+    "Pixel visibility is not the draw coverage gate: screenshots show partially overlapping distant actors. Near silhouette/occlusion/every-pose acceptance remains future work.",
+    "All measured shader compile counts are zero. No CPU sampler or trace wrappers; 250 ms polling and passive counters remain.",
+    "Frozen source excludes unrelated root bot/CLI edits. Shared model/clip bytes are hashed; source/asset/renderer identity gates pass."
+  ]
+}

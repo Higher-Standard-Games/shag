@@ -64,6 +64,7 @@ function imported(file: string, target: Scene) {
 }
 const settle = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 const internals = () => view as unknown as Internals;
+const waitForBarrels = () => vi.waitFor(() => expect(internals().weaponBarrels.barrels).toHaveLength(2));
 const counts = () => [
   scene.meshes.length,
   scene.materials.length,
@@ -100,7 +101,7 @@ describe("first-person prepared model sources", () => {
     Object.defineProperty(engine, "isWebGPU", { value: true, configurable: true });
     vi.spyOn(engine, "getCaps").mockReturnValue({ ...engine.getCaps(), texelFetch: true });
     await view.loadWeapon("plasmagun");
-    await settle();
+    await waitForBarrels();
     const main = internals().currentWeapon.meshes.find((mesh) => mesh.material)!.material as PBRMaterial;
     expect(main.maxSimultaneousLights).toBe(2);
     expect(main.allowShaderHotSwapping).toBe(false);
@@ -147,7 +148,7 @@ describe("first-person prepared model sources", () => {
 
   it("imports each main/barrel source once across switches, preserves the rig/tags and bounds resources", async () => {
     expect(await view.loadWeapon("plasmagun")).toBe(true);
-    await settle();
+    await waitForBarrels();
     const first = internals().currentWeapon;
     const geometry = first.meshes.find((mesh) => mesh.getTotalVertices() > 0)!.geometry;
     expect(first.root.getChildMeshes(false)[0].scaling.z).toBe(-1);
@@ -165,13 +166,13 @@ describe("first-person prepared model sources", () => {
     for (let i = 0; i < 2; ++i) {
       await view.loadWeapon("riotgun");
       await view.loadWeapon("plasmagun");
-      await settle();
+      await waitForBarrels();
     }
     const warmed = counts();
     for (let i = 0; i < 5; ++i) {
       await view.loadWeapon("riotgun");
       await view.loadWeapon("plasmagun");
-      await settle();
+      await waitForBarrels();
     }
     expect(counts()).toEqual(warmed);
     expect(imports.mock.calls.map(([file]) => file).sort()).toEqual([
@@ -209,7 +210,7 @@ describe("first-person prepared model sources", () => {
     complete(imported("plasmagun.glb", scene));
     expect(await first).toBe(false);
     expect(await latest).toBe(true);
-    await settle();
+    await waitForBarrels();
     expect(imports.mock.calls.filter(([file]) => file === "plasmagun.glb")).toHaveLength(1);
     expect(view.getWeaponInfo()?.name).toBe("plasmagun");
   });
@@ -278,12 +279,13 @@ describe("first-person prepared model sources", () => {
         : Promise.resolve(imported(file, target)),
     );
     await view.loadWeapon("plasmagun");
-    await settle();
+    await vi.waitFor(() => expect(complete).toBeTypeOf("function"));
     view.dispose();
     complete(imported("plasmagun_barrel.glb", scene));
-    await settle();
-    expect(scene.meshes).toHaveLength(0);
-    expect(scene.skeletons).toHaveLength(0);
-    expect(scene.textures.filter((texture) => texture !== GetEnvironmentBRDFTexture(scene))).toHaveLength(0);
+    await vi.waitFor(() => {
+      expect(scene.meshes).toHaveLength(0);
+      expect(scene.skeletons).toHaveLength(0);
+      expect(scene.textures.filter((texture) => texture !== GetEnvironmentBRDFTexture(scene))).toHaveLength(0);
+    });
   });
 });

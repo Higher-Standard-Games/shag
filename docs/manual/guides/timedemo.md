@@ -150,8 +150,10 @@ npm run benchmark:profile
 ```
 
 It defaults to one WebGL2 run followed by one WebGPU compatibility-mode run, the
-ten-player `wdm2` fixture, the fixture's required settings, and
-`cl_player_pose_hz 30`. Options include `--backends webgpu`, `--ncm 1`,
+ten-player `wdm2` fixture, the fixture's required settings,
+`cl_player_pose_hz 30` and `developer 0`. Development diagnostics are explicitly
+disabled and their before/after state is saved in each `run.json`.
+Options include `--backends webgpu`, `--ncm 1`,
 `--interval 1000` (microseconds), `--browser <executable>`, `--port 3117`,
 `--fixture <id>` and `--out <new-workspace-directory>`.
 
@@ -209,7 +211,170 @@ rendering or waiting between calls; it is not all CPU work in `update`. Correlat
 the recorded gap and skipped transition with the CPU profile instead of resetting
 pre-roll skips to make a workload appear valid.
 
+## Compare player outlines
+
+```powershell
+npm run benchmark:outlines -- --dry-run
+npm run benchmark:outlines -- --prepare-only
+npm run benchmark:outlines -- --repeats 5 --out public/data/benchmarks/results/my-outline-series
+```
+
+The [comparison script](../../../scripts/benchmarks/outline-comparison.mjs) derives
+two immutable fixtures from the same saved recording, route and spectator schedule.
+Only the required `cl_player_outline` value changes (0/1); derived identities include
+the base manifest hash. It verifies the demo bytes, preserves existing fixtures,
+registers the variants in `timedemo list`, and saves the complete comparison plan.
+Recreating these variants needs no server or new recording.
+
+The default series alternates variant and backend order across five attempts per
+variant/backend: 20 fresh visible sessions, about 35–45 minutes including loading.
+Every attempt warms up and replays the same 45-second measured interval. CPU
+sampling and trace wrappers are disabled; production timedemo counters and 400 ms
+progress polling remain. `--repeats 1` is a pilot, not a reliable timing comparison.
+`--backends webgpu` limits the series to one backend; `--fixture <id>` selects a
+different installed base. Output directories must be new and inside the workspace.
+
+Raw reports and rejected attempts are retained. Summaries report valid/rejected
+counts and the median/min/max of run-level p95 values, rather than pooling frames.
+Changed source/browser/profile/route or failed workload gates exclude an attempt
+from comparisons. Fewer valid runs than requested produces exit 1; a bounded
+series does not silently rerun or discard stalls. Inspect body/gun/event coverage
+and spread before attributing a timing difference to outlines. Outline-off is a
+quality diagnostic, not an accepted optimization or a proposed default change.
+Powerup/weapon outlines may remain through their separate gameplay styling path.
+
+For separate pass attribution, use a derived outline-on fixture ID:
+
+```powershell
+npm run benchmark:profile -- --fixture <outline-on-id> --trace-outlines --interval 1000
+```
+
+`outline-trace.json` separates engine submissions for body colour/alpha/depth and
+outline colour/depth/stencil/overlay by camera. It retains mesh names, vertices,
+readiness attempts, actual engine draw API calls and inclusive outline CPU duration.
+It restores the diagnostic wrappers after capture and reports bounded trace drops.
+These counts are not native driver commands or GPU vertex invocation counts;
+render-bundle replay can bypass the wrapped API. Use compatibility mode for the
+first attribution capture. The wrappers/CPU clocks add overhead, so do not use
+their frame times as the primary comparison score.
+
+The existing Edge runner also accepts `--timing-only` for one unprofiled session
+per requested backend. This option rejects trace wrappers and saves reports and
+warmup screenshots without CPU profiles.
+
 Manual timedemo playback anchors its clock at the first frame hook, with a zero
 initial advance. Setup/waiting before that hook is not playback time. Subsequent
 updates use the actual elapsed wall time, and skips during pre-roll or measurement
 still invalidate the workload. The regular demo player's catch-up policy is unchanged.
+
+## Fixed player crowd benchmark
+
+```powershell
+npm run benchmark:crowd -- --dry-run
+npm run benchmark:crowd -- --repeats 1 --counts 0,10
+npm run benchmark:crowd -- --repeats 5 --out public/data/benchmarks/results/my-crowd-series
+```
+
+The [saved recipe](../../../benchmarks/recipes/player-crowd-v1.json) builds a fixed
+0/2/5/10-player scene through the production player manager, with independent rigs,
+normal FFA styling and a 30 Hz run pose driven by fixed 60 Hz presentation ticks.
+There is one near actor and a staggered distant group. No map, network connection,
+bot AI, weapons or game simulation runs. This isolates player drawing; its numbers
+are not gameplay FPS. Ten clones stay loaded across all cases, and the requested
+prefix of actors is enabled.
+
+The [runner](../../../scripts/benchmarks/crowd-benchmark.mjs) opens fresh private
+Edge sessions for each backend, repeats outline-on/off cases in alternating order,
+and records raw samples, run-level p95 summaries, assets/source hashes, browser/GPU
+metadata and warmup screenshots. It expects two background draws plus one ordinary
+and, when enabled, two outline draws per opaque body primitive. Missing active
+bodies, unexpected draws, shader compilation during measurement, renderer failure,
+hidden tabs or changed sources invalidate results. Actual pixel visibility and
+outline quality still require screenshot/manual acceptance.
+
+Each case warms 120 frames and measures 240; the default has 40 cases per backend.
+Animation content is fixed by tick rather than wall time, so refresh rate changes
+playback speed. CPU timing covers pose updates and `scene.render`; GPU samples are
+fresh asynchronous counters and may include the end of that case's warmup.
+Unavailable GPU timing remains null. Refresh-paced wall frames may hide GPU/CPU
+cost reductions when both cases fit inside the display budget. There is no CPU
+sampler; 250 ms status polling and passive draw/GPU counters remain.
+
+To inspect it manually, start `npm run dev`, then open
+`http://localhost:3000/benchmarks/crowd/index.html?renderer=webgpu&repeats=1&counts=0,10`
+(or `renderer=webgl2`). Escape stops the test; completion retires its scene/engine.
+This is a development-server benchmark entry, not a separate game mode or a
+default production page. Local `public/games/default/animations/vanguard.glb`
+and `rifle run.glb` are required; no recorded demo or server is needed. The JSON
+recipe is sufficient to rebuild the scene after model changes, with new asset
+hashes recorded for every series. Outline-off is a quality diagnostic, not a
+proposed gameplay setting change.
+
+### Experimental outline geometry comparison
+
+```powershell
+npm run benchmark:outline-proxy:build
+npm run benchmark:crowd -- --outline-proxy --repeats 1 --counts 0,10
+npm run benchmark:crowd -- --outline-proxy --visual --repeats 5 --out public/data/benchmarks/results/my-outline-proxy-series
+```
+
+The [proxy recipe](../../../benchmarks/recipes/player-outline-proxy-v1.json) and
+[generator](../../../scripts/benchmarks/build-outline-proxy.mjs) recreate a local
+outline-only GLB from Vanguard. UVs/tangents are removed, identical retained
+vertices welded, and triangles simplified to a target 25% with a 1% model-radius
+error limit. Original normals and skin weights are retained; rig hierarchy,
+joint order and bind matrices are checked. The generator saves provenance beside
+the GLB under ignored `public/data/benchmarks/outline-proxy/`. Re-run it after
+changing the source asset. It uses the repository's installed glTF Transform and
+Meshoptimizer dependencies. This is lossy geometry, requiring visual acceptance.
+
+`--outline-proxy` alternates full/proxy geometry inside every outline-on/off case
+(80 cases per backend at five repetitions). Both modes load the same proxy
+resources. Ordinary body geometry remains full detail; only the two opaque body
+outline passes use the proxy and live skeleton. Draw count stays unchanged.
+Measured samples expose `proxyPasses` and `proxyIndices`; unexpected pass coverage
+or full-geometry fallback invalidates the case. Unsupported alpha, instancing,
+morph and baked-animation paths retain normal outlines.
+
+`--visual` also captures overview, near and foreground-occluded views at identical
+pose tick 30, after measurement, without CPU sampling. Those captures change the
+camera temporarily and are outside the timing samples. Prefer them over warmup
+screenshots for visual comparisons, since warmup screenshots can show different
+poses. The runner advances each static capture automatically; do not use
+`visual=1` for unattended manual browsing without the runner. Ordinary manual
+experiments can append `&outlineProxy=1` to the crowd-page URL.
+
+### Player outline proxy in gameplay and timedemo
+
+After `npm run benchmark:outline-proxy:build`, the game console accepts:
+
+```text
+cl_player_outline 1
+cl_player_outline_proxy 1
+```
+
+`cl_player_outline_proxy` defaults to **0** and is not saved to configuration.
+It switches outline geometry in the shared live/demo player model path, retaining
+full body geometry, player colours and both outline passes. It also follows new
+spawns, corpse ownership and water-reflection bodies; held weapons are excluded.
+One source/adapter is shared per scene, and the last owning manager retires it.
+Turning it off retains prepared sources until their managers retire, allowing
+cheap subsequent toggles. Missing/mismatched assets keep full outlines with a
+warning; regenerate the proxy and reload the map to retry a failed import.
+
+To create immutable full/reduced profiles and run paired map timedemos:
+
+```powershell
+npm run benchmark:outlines -- --proxy --dry-run --repeats 3
+npm run benchmark:outlines -- --proxy --repeats 3
+```
+
+The saved combat and camera schedule stay identical; both profiles require
+`cl_player_outline 1`. The runner uses alternating fresh Edge sessions without
+CPU sampling. Reports include per-phase proxy pass/index coverage and source/
+proxy asset hashes. Unready/missing proxies, rejected rigs or unexpected shader
+fallback invalidate the reduced-geometry run. Transparent/unsupported passes
+deliberately use the original path and are reported separately, including fading
+corpses. Skipped gameplay events and the existing workload gates still invalidate
+runs. This remains experimental and off by default; neither the crowd experiment
+nor enabling the CVar alone establishes an FPS improvement or visual acceptance.

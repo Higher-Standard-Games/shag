@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { sliceCpuProfile, summarizeCpuProfile } from './cpu-profile.mjs';
 import { installReadinessProbe } from './readiness-probe.mjs';
 import { installPlaybackProbe } from './playback-probe.mjs';
+import { installOutlineProbe } from './outline-probe.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const options = {
@@ -18,6 +19,8 @@ for (let i = 2; i < process.argv.length; i++) {
   if (name === 'dry-run') { options.dryRun = true; continue; }
   if (name === 'trace-readiness') { options.traceReadiness = true; continue; }
   if (name === 'trace-playback') { options.tracePlayback = true; continue; }
+  if (name === 'trace-outlines') { options.traceOutlines = true; continue; }
+  if (name === 'timing-only') { options.timingOnly = true; continue; }
   if (!['fixture', 'backends', 'port', 'interval', 'ncm', 'browser', 'out'].includes(name) || !process.argv[i + 1])
     throw new Error(`Unknown or incomplete option: ${process.argv[i]}`);
   options[name] = process.argv[++i];
@@ -29,14 +32,16 @@ if (!/^[a-z0-9][a-z0-9._-]{0,127}$/i.test(options.fixture) ||
     !Number.isInteger(options.port) || options.port < 1024 || options.port > 65535 ||
     !Number.isInteger(options.interval) || options.interval < 100 || options.interval > 10000 ||
     ![0, 1].includes(options.ncm)) throw new Error('Invalid profiling options');
+if (options.timingOnly && (options.traceReadiness || options.tracePlayback || options.traceOutlines))
+  throw new Error('Timing-only captures cannot install diagnostic trace wrappers');
 const stamp = new Date().toISOString().replace(/[:.]/g, '-');
 const out = path.resolve(root, options.out ?? `public/data/benchmarks/results/${stamp}-codex-profile`);
 if (!out.startsWith(root) || out === root) throw new Error('Output must be inside this workspace');
 const fixture = JSON.parse(await fs.readFile(path.join(root, 'public/data/benchmarks', options.fixture, 'manifest.json'), 'utf8'));
 if (fixture.id !== options.fixture) throw new Error('Fixture identity mismatch');
 if (options.dryRun) {
-  console.log(JSON.stringify({ ...options, out, phases: fixture.segments.map(s => s.name),
-    mode: 'visible browser, one profiled timedemo per requested backend', profile: fixture.profile }, null, 2));
+  console.log(JSON.stringify({ ...options, developer: 0, out, phases: fixture.segments.map(s => s.name),
+    mode: options.timingOnly ? 'visible browser, unprofiled timedemo; 400ms progress polling' : 'visible browser, one profiled timedemo per requested backend', profile: fixture.profile }, null, 2));
   process.exit(0);
 }
 
@@ -61,6 +66,11 @@ function sourceIdentity() {
     for (const file of git(args, cwd).split('\n').filter(file => /\.(tsx?|json)$/.test(file)))
       digest.update(cwd + '/' + file).update(readFileSync(path.join(cwd, file)));
   }
+  if (fixture.profile.requiredCvars.cl_player_outline_proxy !== undefined) for (const file of [
+    'public/games/default/animations/vanguard.glb',
+    'public/data/benchmarks/outline-proxy/player-outline-proxy-v1.glb',
+    'public/data/benchmarks/outline-proxy/player-outline-proxy-v1.glb.json',
+  ]) digest.update(file).update(readFileSync(path.join(root, file)));
   return { outer: git(['rev-parse', 'HEAD']), fps: git(['rev-parse', 'HEAD'], fps),
     sourceChangeSha256: digest.digest('hex'),
     dirty: git(['status', '--short']), fpsDirty: git(['status', '--short'], fps) };
@@ -115,10 +125,12 @@ const server = await createServer({ root, configFile: path.join(root, 'vite.conf
   server: { host: '127.0.0.1', port: options.port, strictPort: true, hmr: false, watch: null } });
 let activeBrowser = null, interrupted = false;
 process.on('SIGINT', () => { interrupted = true; });
+process.on('message', message => { if (message === 'cancel') interrupted = true; });
 const series = { createdAt: new Date().toISOString(), fixture: options.fixture, options,
   harnessSha256: createHash('sha256').update(readFileSync(fileURLToPath(import.meta.url))).digest('hex'),
   readinessProbeSha256: options.traceReadiness ? createHash('sha256').update(installReadinessProbe.toString()).digest('hex') : null,
   playbackProbeSha256: options.tracePlayback ? createHash('sha256').update(installPlaybackProbe.toString()).digest('hex') : null,
+  outlineProbeSha256: options.traceOutlines ? createHash('sha256').update(installOutlineProbe.toString()).digest('hex') : null,
   runs: [] };
 try {
   await server.listen();
@@ -129,7 +141,7 @@ try {
     const dataDir = path.join(root, 'node_modules/.cache/shag-edge-profile', `${stamp}-${index}`);
     await fs.mkdir(dataDir, { recursive: true });
     const sourceBefore = sourceIdentity();
-    console.log(`[profile] ${name}: launch visible Edge; ${options.interval}us sampling`);
+    console.log(`[profile] ${name}: launch visible Edge; ${options.timingOnly ? 'CPU sampling disabled' : `${options.interval}us sampling`}`);
     const child = spawn(options.browser, [
       `--user-data-dir=${dataDir}`, '--remote-debugging-address=127.0.0.1', '--remote-debugging-port=0',
       '--no-first-run', '--no-default-browser-check', '--disable-sync',
@@ -187,23 +199,28 @@ try {
       // Starting the sampler can pause/deopt the page. Do it before any demo
       // advances, not during pre-roll; the full profile includes preparation
       // and warmup, while the phase slices below still use measured playheads.
-      await page.send('Profiler.enable');
-      await page.send('Profiler.setSamplingInterval', { interval: options.interval });
-      const profilerBeforeMs = await page.evaluate('performance.now()');
-      const profilerStartWall = Date.now();
-      await page.send('Profiler.start');
-      recording = true;
-      const profilerAfterMs = await page.evaluate('performance.now()');
-      await fs.writeFile(path.join(directory, 'profiling-start.json'), JSON.stringify({
-        pageBeforeMs: profilerBeforeMs, pageAfterMs: profilerAfterMs,
-        wallDurationMs: Date.now() - profilerStartWall, beforeTimedemoCommand: true,
+      if (!options.timingOnly) {
+        await page.send('Profiler.enable');
+        await page.send('Profiler.setSamplingInterval', { interval: options.interval });
+        const profilerBeforeMs = await page.evaluate('performance.now()');
+        const profilerStartWall = Date.now();
+        await page.send('Profiler.start');
+        recording = true;
+        const profilerAfterMs = await page.evaluate('performance.now()');
+        await fs.writeFile(path.join(directory, 'profiling-start.json'), JSON.stringify({
+          pageBeforeMs: profilerBeforeMs, pageAfterMs: profilerAfterMs,
+          wallDurationMs: Date.now() - profilerStartWall, beforeTimedemoCommand: true,
       }, null, 2));
+      }
       const setup = await page.evaluate(`(async () => {
         const { CommandRegistry } = await import('/src/engine/console/CommandRegistry.ts');
+        const { Cvar } = await import('/src/engine/core/Cvar.ts');
         const { TimedemoService } = await import('/src/games/fps/client/TimedemoService.ts');
         const { DemoService } = await import('/src/games/fps/client/DemoService.ts');
         const { CameraSystem } = await import('/src/engine/camera/CameraSystem.ts');
         const registry = CommandRegistry.getInstance();
+        const developer = await registry.executeChecked('developer 0');
+        if (!developer.ok || Cvar.getBool('developer')) throw new Error('Could not disable development diagnostics');
         for (const [name, value] of Object.entries(${JSON.stringify(fixture.profile.requiredCvars)})) {
           const result = await registry.executeChecked(name + ' ' + value);
           if (!result.ok) throw new Error('Profile setting failed: ' + name + ': ' + result.output);
@@ -225,7 +242,12 @@ try {
         };
         ${options.tracePlayback ? `const { DemoViewer } = await import('/src/games/fps/client/DemoViewer.ts');
         window.__timedemoPlaybackTrace = (${installPlaybackProbe.toString()})(DemoViewer, () => window.__timedemoProfileProbe());` : ''}
-        return await registry.executeChecked('timedemo ${options.fixture} --mode realtime --repeats 1');
+        ${options.traceOutlines ? `const scene = CameraSystem.getInstance().getCamera().getScene();
+        const OutlineRenderer = scene.getOutlineRenderer().constructor;
+        window.__timedemoOutlineTrace = (${installOutlineProbe.toString()})(scene.getEngine(), OutlineRenderer,
+          () => window.__timedemoProfileProbe());` : ''}
+        const result = await registry.executeChecked('timedemo ${options.fixture} --mode realtime --repeats 1');
+        return { ...result, developer: Cvar.getBool('developer') };
       })()`);
       if (!setup.ok || !setup.output?.startsWith('Timedemo loading')) throw new Error(`Timedemo start failed: ${setup.output}`);
       const until = Date.now() + 360000;
@@ -240,7 +262,7 @@ try {
           await fs.writeFile(path.join(directory, `warmup-${probe.phase}.json`), JSON.stringify(probe, null, 2));
           screenshots.add(probe.phase);
         }
-        if (recording && probe.progress.startsWith('measure') && probe.phase) probes.push(probe);
+        if (probe.progress.startsWith('measure') && probe.phase) probes.push(probe);
         if (probe.status !== 'running') break;
         await sleep(400);
       }
@@ -305,19 +327,34 @@ try {
         })()`);
         await fs.writeFile(path.join(directory, 'playback-trace.json'), JSON.stringify(playback, null, 2));
       }
+      let outlineTraceValid = true;
+      if (options.traceOutlines) {
+        const outline = await page.evaluate(`(() => {
+          const trace = window.__timedemoOutlineTrace;
+          try { return trace.snapshot(); } finally { trace.restore(); }
+        })()`);
+        await fs.writeFile(path.join(directory, 'outline-trace.json'), JSON.stringify(outline, null, 2));
+        outlineTraceValid = outline.meshDrawHookInstalled && outline.dropped === 0;
+      }
       const sourceAfter = sourceIdentity();
+      const developerAfter = await page.evaluate(`(async () => {
+        const { Cvar } = await import('/src/engine/core/Cvar.ts');
+        return Cvar.getBool('developer');
+      })()`);
       const stableSource = sourceBefore.outer === sourceAfter.outer && sourceBefore.fps === sourceAfter.fps &&
         sourceBefore.sourceChangeSha256 === sourceAfter.sourceChangeSha256;
       const result = { backend, version, sourceBefore, sourceAfter, stableSource,
+        captureMode: options.timingOnly ? 'timing-only' : 'cpu-profile', outlineTraceValid,
+        developer: { before: setup.developer, after: developerAfter },
         captures: captures.map(({ summary, ...capture }) => ({ ...capture, topSelf: summary.bySelf.slice(0, 15) })),
         exceptions: page.errors, reportFile: 'timedemo.json',
         complete: report?.status === 'complete', valid: report?.runs?.[0]?.valid === true,
-        limitations: ['Profiling overhead and 400ms polling; camera-cut edges omitted from CPU slices.',
+        limitations: [options.timingOnly ? 'No CPU sampler/trace wrappers; 400ms status polling and timedemo counters remain.' : 'Profiling overhead and 400ms polling; camera-cut edges omitted from CPU slices.',
           'Warmup screenshots are evidence at recorded playheads, not full camera-route acceptance.'] };
       await fs.writeFile(path.join(directory, 'run.json'), JSON.stringify(result, null, 2));
       series.runs.push(result);
       console.log(`[profile] ${name}: ${report?.status}, valid=${result.valid}, sourceStable=${stableSource}`);
-      if (!result.complete || !result.valid || !stableSource || captures.length !== fixture.segments.length)
+      if (!result.complete || !result.valid || !stableSource || !outlineTraceValid || setup.developer || developerAfter || (!options.timingOnly && captures.length !== fixture.segments.length))
         process.exitCode = 1;
     } catch (error) {
       await fs.writeFile(path.join(directory, 'failure.json'), JSON.stringify({ error: error.message, exceptions: page?.errors, sourceBefore }, null, 2));
@@ -334,4 +371,7 @@ try {
   await server.close();
   await fs.writeFile(path.join(out, 'series.json'), JSON.stringify(series, null, 2));
   console.log(`[profile] saved ${out}`);
+  // An IPC message listener keeps a spawned comparison child alive. Release
+  // the cancellation channel once its browser/server/artifacts are retired.
+  if (process.connected) process.disconnect();
 }

@@ -17,6 +17,7 @@
  */
 
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { devLog } from "../../core/DevLog";
 
 export interface TagDef {
   /** Bone name in the skeleton (empty string = model root) */
@@ -76,7 +77,7 @@ export async function loadTags(dirPath: string): Promise<TagDef[]> {
     const content = await response.text();
     const tags = parseTags(content);
     if (tags.length > 0) {
-      console.log(`[TagsLoader] Loaded ${tags.length} tags from ${url}`);
+      devLog(`[TagsLoader] Loaded ${tags.length} tags from ${url}`);
     }
     return tags;
   } catch {

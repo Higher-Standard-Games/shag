@@ -8,6 +8,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Scene } from "@babylonjs/core/scene";
+import { devLog, devLogEnabled } from "../../core/DevLog";
 import { applySafeMaxSimultaneousLights } from "../../lighting/DynamicLightSafety";
 import "@babylonjs/loaders/glTF";
 import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight";
@@ -185,7 +186,7 @@ export class ModelLoader {
       const rootUrl = fullPath.substring(0, lastSlash + 1);
       const fileName = fullPath.substring(lastSlash + 1);
 
-      console.log(`ModelLoader: Loading ${fileName} from ${rootUrl}`);
+      devLog(`ModelLoader: Loading ${fileName} from ${rootUrl}`);
 
       // Special handling for MD3 files (Quake 3 models)
       if (fileName.toLowerCase().endsWith(".md3")) {
@@ -310,25 +311,27 @@ export class ModelLoader {
       // Apply BSP LightGrid lighting (skip for small items to avoid exceeding light limits)
       const lights = applyLighting ? this.applyBspLighting(root.position, meshes) : [];
 
-      // Debug: Log mesh bounds
-      for (const mesh of meshes) {
-        const bounds = mesh.getBoundingInfo();
+      // Per-mesh detail is costly to build and repeats on every weapon load.
+      if (devLogEnabled()) {
+        for (const mesh of meshes) {
+          const bounds = mesh.getBoundingInfo();
+          console.log(
+            `  Mesh "${mesh.name}": min=${bounds.boundingBox.minimumWorld}, max=${bounds.boundingBox.maximumWorld}, visible=${mesh.isVisible}`,
+          );
+        }
+
+        // Log animation info if present
+        if (animationGroups.length > 0) {
+          console.log(`  Animations: ${animationGroups.map((a) => a.name).join(", ")}`);
+        }
+        if (skeletons.length > 0) {
+          console.log(`  Skeletons: ${skeletons.length}`);
+        }
+
         console.log(
-          `  Mesh "${mesh.name}": min=${bounds.boundingBox.minimumWorld}, max=${bounds.boundingBox.maximumWorld}, visible=${mesh.isVisible}`,
+          `Loaded model: ${modelPath} at ${position.toString()} (${meshes.length} meshes, ${animationGroups.length} animations)`,
         );
       }
-
-      // Log animation info if present
-      if (animationGroups.length > 0) {
-        console.log(`  Animations: ${animationGroups.map((a) => a.name).join(", ")}`);
-      }
-      if (skeletons.length > 0) {
-        console.log(`  Skeletons: ${skeletons.length}`);
-      }
-
-      console.log(
-        `Loaded model: ${modelPath} at ${position.toString()} (${meshes.length} meshes, ${animationGroups.length} animations)`,
-      );
 
       return { root, meshes, animationGroups, skeletons, lights, attachmentPoints };
     } catch (error) {

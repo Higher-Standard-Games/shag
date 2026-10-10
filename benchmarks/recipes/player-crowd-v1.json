@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "player-crowd-v1",
+  "model": { "root": "/games/default/animations/", "file": "vanguard.glb", "scale": 36 },
+  "animation": { "name": "run", "file": "rifle run.glb", "presentationHz": 60, "poseHz": 30 },
+  "render": { "width": 1280, "height": 720, "fov": 90 },
+  "camera": { "position": [0, 100, -400], "target": [0, 42, 70] },
+  "positions": [
+    [-180, 0, -160], [-80, 0, 0], [0, 0, 0], [80, 0, 0], [160, 0, 0],
+    [-120, 0, 120], [-40, 0, 120], [40, 0, 120], [120, 0, 120], [200, 0, 120]
+  ],
+  "style": { "tint": [0.1, 1.15, 1.85], "outlineColor": [0.16, 1.35, 2.2], "outlineWidth": 0.043402777777777776 },
+  "counts": [0, 2, 5, 10],
+  "outlines": [1, 0],
+  "warmupFrames": 120,
+  "measuredFrames": 240,
+  "repeats": 5
+}

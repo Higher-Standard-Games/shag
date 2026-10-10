@@ -95,3 +95,8 @@ or change the MD3 import/animation path. Routine view/barrel diagnostics use
 WebGPU clones receive their own light-cap guards, preserving deliberately lower
 view budgets, and disable shader hot swapping. Those safeguards are not copied
 by Babylon's material cloning.
+
+Routine cached pickup/drop clone and player-instance disposal/team-colour
+diagnostics and successful tag-load messages also require `developer 1`. Keep
+`developer 0` for normal-play profiling; map-loading summaries and warnings/errors
+remain visible.

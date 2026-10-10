@@ -28,7 +28,9 @@ import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 // bare @babylonjs/core barrel imports; must be explicit with per-module imports.
 import "@babylonjs/core/Rendering/outlineRenderer";
 import { type Scene, Scene as SceneClass } from "@babylonjs/core/scene";
+import { devLog } from "../core/DevLog";
 import { disposeModelResources } from "../loader/model/ModelSourceCache";
+import { PlayerOutlineProxyRuntime } from "../rendering/PlayerOutlineProxyRuntime";
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -193,6 +195,10 @@ export class PlayerModelManager {
   private disposed = false;
   private loadPromise: Promise<void> | null = null;
   private sourceContainer: AssetContainer | null = null;
+  private modelUrl = "/games/default/animations/vanguard.glb";
+  private outlineProxyWanted = false;
+  private outlineRuntime?: PlayerOutlineProxyRuntime;
+  private readonly instances = new Map<PlayerModelInstance, ReturnType<Mesh["onDisposeObservable"]["add"]>>();
 
   constructor(scene: Scene) {
     this.scene = scene;
@@ -215,6 +221,7 @@ export class PlayerModelManager {
     animFiles: AnimFileConfig[] = DEFAULT_ANIM_FILES,
   ): Promise<void> {
     if (this.disposed || this.loaded) return Promise.resolve();
+    this.modelUrl = modelPath + modelFile;
     this.loadPromise ??= this.loadAssets(modelPath, modelFile, animFiles).finally(() => {
       this.loadPromise = null;
     });
@@ -352,7 +359,7 @@ export class PlayerModelManager {
         child.alwaysSelectAsActiveMesh = true;
       }
       const hips = skeleton.bones.find((bone) => bone.name.toLowerCase().includes("hips"))?.getTransformNode();
-      return {
+      const instance: PlayerModelInstance = {
         id,
         anchor,
         mesh,
@@ -363,6 +370,15 @@ export class PlayerModelManager {
         oneshotUntil: 0,
         hipsBind: hips ? { node: hips, x: hips.position.x, y: hips.position.y, z: hips.position.z } : null,
       };
+      this.instances.set(
+        instance,
+        mesh.onDisposeObservable.add(() => {
+          this.outlineRuntime?.unregister(this, instance);
+          this.instances.delete(instance);
+        }),
+      );
+      if (this.outlineProxyWanted) this.outlineRuntime?.register(this, instance);
+      return instance;
     } catch (error) {
       entries.dispose();
       throw error;
@@ -768,7 +784,7 @@ export class PlayerModelManager {
       outlineWidth: 0,
     });
 
-    console.log(`[PlayerModelManager] Applied team color: ${team ?? "none"} to ${instance.id}`);
+    devLog(`[PlayerModelManager] Applied team color: ${team ?? "none"} to ${instance.id}`);
   }
 
   // ── Per-Frame Utilities ──────────────────────────────────────
@@ -809,15 +825,38 @@ export class PlayerModelManager {
   // ── Cleanup ──────────────────────────────────────────────────
 
   /** Dispose a single instance, including a one-shot animation it is playing. */
+  setOutlineProxyEnabled(enabled: boolean): Promise<void> {
+    if (this.disposed) return Promise.resolve();
+    PlayerOutlineProxyRuntime.existing(this.scene)?.setEnabled(enabled);
+    if (!enabled) {
+      this.outlineProxyWanted = false;
+      return Promise.resolve();
+    }
+    const runtime = PlayerOutlineProxyRuntime.acquire(this.scene);
+    runtime.setEnabled(true);
+    if (!this.outlineProxyWanted || this.outlineRuntime !== runtime) {
+      this.outlineProxyWanted = true;
+      this.outlineRuntime = runtime;
+      const ready = runtime.prepare(this, this.modelUrl);
+      for (const instance of this.instances.keys()) runtime.register(this, instance);
+      return ready;
+    }
+    return runtime.prepare(this, this.modelUrl);
+  }
+
   disposeInstance(instance: PlayerModelInstance): void {
     this.stopOneShot(instance, false);
     disposePlayerModel(instance);
-    console.log(`[PlayerModelManager] Disposed instance: ${instance.id}`);
+    devLog(`[PlayerModelManager] Disposed instance: ${instance.id}`);
   }
 
   /** Dispose the manager and source model */
   dispose(): void {
     this.disposed = true;
+    this.outlineRuntime?.release(this);
+    this.outlineRuntime = undefined;
+    for (const [instance, observer] of this.instances) instance.mesh.onDisposeObservable.remove(observer);
+    this.instances.clear();
     this.sourceContainer?.dispose();
     this.sourceContainer = null;
     this.loaded = false;
