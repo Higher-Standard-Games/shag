@@ -351,3 +351,27 @@ These are third-party listings and forks of the original `ahujasid/blender-mcp` 
 - Tests: [`Triggers.test.ts`](../../src/engine/editor/api/__tests__/Triggers.test.ts) (linking, Map Health clean, trigger on the floor with the trigger texture, destinations at standing height) and a teleporter case in `PlayerReach.test.ts`.
 
 Not modelled: a jump pad's actual arc (the flood assumes the throw arrives at its target, which is what the game aims for; a ceiling in the way would not be caught).
+
+### Acceptance run 2: a fresh agent over MCP (2026-10-10)
+
+A separate headless Claude Code session (`claude -p`), started from an empty folder (so no repository instructions), with only the `shagged` MCP server (`--strict-mcp-config`) and only `mcp__shagged__*` tools allowed. Brief: a small 4–6 player FFA map, `agent_arena1`, three connected areas, two height levels, textured, weapons/armour/health, spawns; read the guide, iterate with the report.
+
+**Harness note:** launched from inside a Claude Code session, the child inherited `MCP_CONNECTION_NONBLOCKING` and nested-session variables, and its MCP server never connected (`mcp_servers: []`); the model then guessed tool names. Clearing those variables (`env -u MCP_CONNECTION_NONBLOCKING -u CLAUDE_CODE_CHILD_SESSION -u CLAUDECODE …`) fixed it: all 10 tools connected.
+
+What the agent did (15 turns, 58 s):
+
+1. Read the guide, then searched textures (floor, wall, metal, dark) and entity classes (weapon, armor, health, spawn).
+2. One batch of 25 operations: a 512 × 512 main room, a west room joined with `gen.connect`, an upper room with its floor at z 128, stairs from the main room up to it, 6 spawns and 14 items, with six different wall and floor textures. No errors, no health issues.
+3. **Report:** compiled, no leak, but the upper room was sealed off: its spawn reached nothing and its three items were reachable only from it. Correct: the stairs ran through both rooms' walls with no doorways.
+4. It inspected the map and rebuilt the two walls by hand around a stairwell (9 operations). The run then stopped: the account's usage limit was reached.
+
+Checked afterwards with the CLI: the hand-built fix **leaks** (compile failed, `leak: true`): its stairwell ceiling is at z 256–272, while the opening it cut in the upper room's wall runs to that room's ceiling at z 384, leaving a gap to the void. The next report would have caught it.
+
+Findings:
+
+- The plumbing, the guide and the report work for an outside agent: it found every tool it needed, used texture and entity lookup unprompted, and the first report pointed at the real flaw.
+- **API gap: joining rooms on different floors.** `gen.connect` refuses different floor heights, so the agent hand-built a stairwell and leaked it. A connect with stairs (a sealed corridor that climbs between two floors) would make this a single operation.
+- The agent did not use `brush.carve`; the guide should show it in the doorway/stairwell workflow.
+- Tool names come out doubled under Claude Code's namespacing (`mcp__shagged__shagged_apply`); the `shagged_` prefix can go.
+
+Not done: a complete run to a passing report (blocked on the usage limit).
