@@ -4,6 +4,7 @@ import type { BotGameState, Vec3 } from "./BotGameState";
 import type { MovementOpportunity } from "./BotMovementAnalyzer";
 import type { BotNavGraph, NavStep } from "./BotNavGraph";
 import type { BotVision, VisionResult } from "./BotVision";
+import type { LearnedRoute } from "./LearnedRoutes";
 
 export type BotSequenceStatus = "running" | "succeeded" | "failed";
 
@@ -14,6 +15,8 @@ export interface BotSequenceContext {
   navGraph?: BotNavGraph | null;
   navStep?: NavStep | null;
   movementOpportunity?: MovementOpportunity | null;
+  /** The learned route a `jump` step follows, when it is one (see LearnedRoutes.ts). */
+  learnedRoute?: LearnedRoute | null;
   /** State-machine input that an optional movement sequence may take over. */
   proposedInput?: BotInput | null;
   difficulty?: BotDifficulty | null;

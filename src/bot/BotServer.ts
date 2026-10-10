@@ -38,6 +38,7 @@ import { BotLobbyClient } from "./BotLobbyClient";
 import { BotNavCacheStore } from "./BotNavCache";
 import { BotNavGraph } from "./BotNavGraph";
 import { type BotVision, createBotVision } from "./BotVision";
+import { loadLearnedRoutes } from "./LearnedRoutes";
 
 // ── Control API Message Types ───────────────────────────────────────────
 
@@ -282,8 +283,13 @@ export class BotServer {
             this._navCacheStore.save(navGraph, vision.mapKnowledge.mapFingerprint);
             console.log(`[BotServer] NavGraph cache ${this._navCacheStore.lastDiagnostic}`);
           }
+          // After the cache save: learned routes live in config/bot-routes and
+          // change without the map changing, so they are never cached.
+          const learned = navGraph.addLearnedRoutes(loadLearnedRoutes(mapName));
           this._navGraphCache.set(mapName, navGraph);
-          console.log(`[BotServer] NavGraph built → ${navGraph.nodeCount} nodes, ${navGraph.edgeCount} edges`);
+          console.log(
+            `[BotServer] NavGraph built → ${navGraph.nodeCount} nodes, ${navGraph.edgeCount} edges, ${learned} learned routes`,
+          );
         }
         bot.setNavGraph(navGraph);
 

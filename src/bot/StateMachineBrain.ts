@@ -26,6 +26,7 @@ import { getWeaponProfile, selectBestWeapon, type WeaponProfile } from "./BotWea
 import type { BotGoal } from "./goals/BotGoal";
 import { ItemGoalPlanner } from "./goals/ItemGoalPlanner";
 import { ItemSlideApproachSequence } from "./sequences/ItemSlideApproachSequence";
+import { LearnedRouteSequence } from "./sequences/LearnedRouteSequence";
 import { RouteCrouchslideSequence } from "./sequences/RouteCrouchslideSequence";
 import { RouteStrafeJumpSequence } from "./sequences/RouteStrafeJumpSequence";
 import { TraverseJumppadSequence } from "./sequences/TraverseJumppadSequence";
@@ -153,6 +154,7 @@ export class StateMachineBrain extends BotBrain {
     this._sequenceRegistry.register(new TraverseTeleporterSequence());
     this._sequenceRegistry.register(new RouteStrafeJumpSequence());
     this._sequenceRegistry.register(new TraverseJumppadSequence());
+    this._sequenceRegistry.register(new LearnedRouteSequence());
   }
 
   // ── Main Decision Loop ────────────────────────────────────────────
@@ -1087,6 +1089,7 @@ export class StateMachineBrain extends BotBrain {
       navGraph: this._navGraph,
       navStep: step,
       movementOpportunity: opportunity,
+      learnedRoute: this._navGraph?.getLearnedRoute(step?.opportunityId) ?? null,
       proposedInput,
       difficulty: this.difficulty,
       crouchslideReady,

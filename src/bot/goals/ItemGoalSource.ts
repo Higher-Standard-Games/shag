@@ -10,14 +10,24 @@
  *
  * Candidate generation is bounded (design doc §7.5): the nearest N by straight
  * line, since scoring is cheap but not free and a map can hold ~25 live items.
+ * Major items (armors, Mega Health, powerups) are always candidates while they
+ * are up, at any distance: they are what an item route is planned around, and
+ * the nearest twelve leave them out from most of a map.
  */
 
 import type { PickupEntry } from "../../shared/bsp/PickupTable";
 import { type BotGameState, type Vec3, vec3Distance } from "../BotGameState";
 import { type BotGoal, droppedItemGoalId, staticItemGoalId } from "./BotGoal";
 
-/** Upper bound on candidates scored per decision. */
+/** Upper bound on candidates scored per decision, besides major items. */
 export const MAX_ITEM_CANDIDATES = 12;
+
+/** Worth crossing the map for: always candidates while up. */
+function isMajorItem(entry: PickupEntry): boolean {
+  if (entry.type === "powerup") return true;
+  if (entry.type === "armor") return entry.kind === "ga" || entry.kind === "ya" || entry.kind === "ra";
+  return entry.type === "health" && (entry.kind === "mega" || entry.kind === "ultra");
+}
 
 export interface ItemGoalSourceOptions {
   /** Static pickup table for the loaded map (from BotVision.mapKnowledge). */
@@ -36,6 +46,7 @@ export interface ItemGoalSourceOptions {
 export function collectItemGoals(state: BotGameState, options: ItemGoalSourceOptions): BotGoal[] {
   const from = state.self.position;
   const goals: Array<{ goal: BotGoal; distance: number }> = [];
+  const majors: Array<{ goal: BotGoal; distance: number }> = [];
 
   for (const entry of options.pickupPositions) {
     // Authoritative availability. An absent mask (older payload) means unknown,
@@ -43,9 +54,10 @@ export function collectItemGoals(state: BotGameState, options: ItemGoalSourceOpt
     if (state.pickupActiveMask.length > entry.id && state.pickupActiveMask[entry.id] === false) continue;
 
     const distance = vec3Distance(from, entry.position);
-    if (distance > options.maxDistance) continue;
+    const major = isMajorItem(entry);
+    if (distance > options.maxDistance && !major) continue;
 
-    goals.push({
+    (major ? majors : goals).push({
       distance,
       goal: {
         id: staticItemGoalId(entry.id),
@@ -75,7 +87,7 @@ export function collectItemGoals(state: BotGameState, options: ItemGoalSourceOpt
   }
 
   goals.sort((a, b) => a.distance - b.distance);
-  return goals.slice(0, MAX_ITEM_CANDIDATES).map((c) => c.goal);
+  return [...majors, ...goals.slice(0, MAX_ITEM_CANDIDATES)].map((c) => c.goal);
 }
 
 /** Straight-line distance helper shared with the brain's fallbacks. */

@@ -33,6 +33,7 @@ import {
   type MovementRejection,
 } from "./BotMovementAnalyzer";
 import type { BotVision, MapKnowledgeData } from "./BotVision";
+import type { LearnedRoute } from "./LearnedRoutes";
 
 // ── Nav Types ───────────────────────────────────────────────────────
 
@@ -172,6 +173,13 @@ const MIN_NODE_DISTANCE = 64;
 
 /** Nearest nodes checked for a clear walk when choosing where a route starts. */
 const START_CANDIDATES = 8;
+
+/** Edge ids of learned routes carry this prefix. */
+const LEARNED_PREFIX = "learned:";
+/** A learned route lands on an existing node this close, or gets a node of its own. */
+const LEARNED_LANDING_SNAP = 96;
+/** Learned route cost: its ticks as distance at this speed. */
+const LEARNED_COST_SPEED = 320;
 
 /** A route's goal snaps to a reachable node this close to the target. */
 const GOAL_SNAP_RADIUS = 256;
@@ -322,6 +330,7 @@ export class BotNavGraph {
   private _mapName: string;
 
   private _movementOpportunities: MovementOpportunity[] = [];
+  private _learnedRoutes = new Map<string, LearnedRoute>();
   private _movementRejections: MovementRejection[] = [];
   private _movementAnalysis: MovementAnalysisSummary = emptyMovementAnalysis();
   constructor(mapName: string) {
@@ -346,6 +355,54 @@ export class BotNavGraph {
   // ── Graph Building ──────────────────────────────────────────────
   get mapName(): string {
     return this._mapName;
+  }
+
+  /** The learned route an edge's `opportunityId` names, if it names one. */
+  getLearnedRoute(id: string | undefined): LearnedRoute | null {
+    if (!id?.startsWith(LEARNED_PREFIX)) return null;
+    return this._learnedRoutes.get(id.slice(LEARNED_PREFIX.length)) ?? null;
+  }
+
+  /**
+   * Add routes learned from training demos (see LearnedRoutes.ts) as `jump`
+   * edges: from the node a player stands at the route's start, to the node at
+   * its landing, or a new node there when none is near. Replaces any learned
+   * routes added before, so loading twice does not duplicate edges.
+   */
+  addLearnedRoutes(routes: readonly LearnedRoute[]): number {
+    this._edges = this._edges.filter((edge) => !edge.opportunityId?.startsWith(LEARNED_PREFIX));
+    this._learnedRoutes.clear();
+    let added = 0;
+    for (const route of routes) {
+      const from = this._findStandingNode(route.start);
+      if (!from) continue;
+      let to = this._findStandingNode(route.landing);
+      const toOrigin = to && (STANDS_ON_SURFACE.has(to.type) ? walkOrigin(to) : to.position);
+      if (!to || !toOrigin || vec3Distance(toOrigin, route.landing) > LEARNED_LANDING_SNAP) {
+        to = {
+          id: this._nodes.length,
+          type: "floor",
+          position: { x: route.landing.x, y: route.landing.y - WALK_TEST_LIFT, z: route.landing.z },
+        };
+        this._nodes.push(to);
+      }
+      if (to.id === from.id) continue;
+      this._learnedRoutes.set(route.id, route);
+      this._edges.push({
+        from: from.id,
+        to: to.id,
+        type: "jump",
+        // Time in the air and on the run-up, as distance at running speed.
+        cost: (route.ticks / 125) * LEARNED_COST_SPEED,
+        opportunityId: `${LEARNED_PREFIX}${route.id}`,
+        expectedTicks: route.ticks,
+        validated: true,
+      });
+      added++;
+    }
+    this._buildAdjacency();
+    this._distanceMatrix = null;
+    return added;
   }
 
   getMovementOpportunity(id: string): MovementOpportunity | null {

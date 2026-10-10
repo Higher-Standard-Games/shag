@@ -173,7 +173,9 @@ export class LobbyClient {
   async spawnDevServer(
     map: string,
     gametype: string,
-    timeoutMs: number = 30000,
+    // Longer than the spawner gives a server to start (45 s by default): a
+    // shorter wait gives up on servers the lobby then reports ready.
+    timeoutMs: number = 60_000,
     /** Name of a training demo to record on the spawned server. */
     trainingDemo?: string,
   ): Promise<{
