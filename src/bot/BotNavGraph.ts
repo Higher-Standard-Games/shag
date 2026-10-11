@@ -178,6 +178,13 @@ const START_CANDIDATES = 8;
 const LEARNED_PREFIX = "learned:";
 /** A learned route lands on an existing node this close, or gets a node of its own. */
 const LEARNED_LANDING_SNAP = 96;
+/** A learned landing node links to same-floor nodes this close, horizontally... */
+const LEARNED_LANDING_LINK = 256;
+/** ...and this close in height. */
+const LEARNED_LANDING_STEP = 32;
+/** Marks the walk links of a learned landing node, so reloading routes drops them. */
+const LEARNED_LINK = `${LEARNED_PREFIX}link`;
+
 /** Learned route cost: its ticks as distance at this speed. */
 const LEARNED_COST_SPEED = 320;
 
@@ -342,6 +349,8 @@ export class BotNavGraph {
 
   private _movementOpportunities: MovementOpportunity[] = [];
   private _learnedRoutes = new Map<string, LearnedRoute>();
+  /** Nodes the graph had before any learned landing nodes were added. */
+  private _baseNodeCount: number | null = null;
   private _movementRejections: MovementRejection[] = [];
   private _movementAnalysis: MovementAnalysisSummary = emptyMovementAnalysis();
   constructor(mapName: string) {
@@ -383,6 +392,9 @@ export class BotNavGraph {
   addLearnedRoutes(routes: readonly LearnedRoute[]): number {
     this._edges = this._edges.filter((edge) => !edge.opportunityId?.startsWith(LEARNED_PREFIX));
     this._learnedRoutes.clear();
+    // Landing nodes from an earlier call go too; they sit after the graph's own.
+    if (this._baseNodeCount === null) this._baseNodeCount = this._nodes.length;
+    else this._nodes.length = this._baseNodeCount;
     let added = 0;
     for (const route of routes) {
       const from = this._findStandingNode(route.start);
@@ -390,12 +402,25 @@ export class BotNavGraph {
       let to = this._findStandingNode(route.landing);
       const toOrigin = to && (STANDS_ON_SURFACE.has(to.type) ? walkOrigin(to) : to.position);
       if (!to || !toOrigin || vec3Distance(toOrigin, route.landing) > LEARNED_LANDING_SNAP) {
-        to = {
+        const landing: NavNode = {
           id: this._nodes.length,
           type: "floor",
           position: { x: route.landing.x, y: route.landing.y - WALK_TEST_LIFT, z: route.landing.z },
         };
-        this._nodes.push(to);
+        this._nodes.push(landing);
+        // A player stood here, so it is floor: link it to the nodes on the
+        // same floor around it, or a route would arrive at a dead end.
+        for (const node of this._nodes) {
+          if (node.id === landing.id || !STANDS_ON_SURFACE.has(node.type)) continue;
+          const reach = Math.hypot(node.position.x - landing.position.x, node.position.z - landing.position.z);
+          if (reach > LEARNED_LANDING_LINK || Math.abs(node.position.y - landing.position.y) > LEARNED_LANDING_STEP) {
+            continue;
+          }
+          const cost = vec3Distance(node.position, landing.position);
+          this._edges.push({ from: landing.id, to: node.id, type: "walk", cost, opportunityId: LEARNED_LINK });
+          this._edges.push({ from: node.id, to: landing.id, type: "walk", cost, opportunityId: LEARNED_LINK });
+        }
+        to = landing;
       }
       if (to.id === from.id) continue;
       this._learnedRoutes.set(route.id, route);
@@ -439,6 +464,7 @@ export class BotNavGraph {
     console.log(`[NavGraph] Building nav graph for "${this._mapName}"...`);
 
     this._nodes = [];
+    this._baseNodeCount = null;
     this._edges = [];
     this._adjacency.clear();
     this._triggerLinks = [];
@@ -516,6 +542,7 @@ export class BotNavGraph {
     }
 
     this._nodes = nodes;
+    this._baseNodeCount = null;
     this._edges = edges;
     this._triggerLinks = [];
     this._movementOpportunities = opportunities;

@@ -57,6 +57,8 @@ export interface TrickSegment {
 const PLAIN_JUMP_RISE = 56;
 /** One tick of movement never covers this much; a teleport does. */
 const TELEPORT_STEP = 150;
+/** A flight with no floor this far below its takeoff, under its middle, crossed a gap. */
+const GAP_DEPTH = 64;
 /** A flight landing this far from where a teleporter put the player out is a trick. */
 const TELEPORT_CARRY = 160;
 /** Recorded ticks kept before takeoff at least, so the player's last steering stays. */
@@ -131,8 +133,23 @@ export function buildTimeline(frames: readonly DemoFrame[], playerId: string): T
   return { ticks, commands };
 }
 
-/** Flights worth learning: a wall jump, or a climb above a plain jump. */
-export function findTrickSegments(timeline: Timeline): TrickSegment[] {
+/**
+ * Did a flight cross a gap: no floor under its middle within `GAP_DEPTH` of
+ * where it took off? A jump over a pit lands no higher than it left, so it is
+ * found by what is under it, not by its height.
+ */
+function crossesGap(collision: CollisionWorld, takeoff: Vec3, flight: readonly TimelineTick[]): boolean {
+  const middle = flight[Math.floor(flight.length / 2)]?.position;
+  if (!middle) return false;
+  const floor = collision.trace(middle, { x: middle.x, y: takeoff.y - GAP_DEPTH, z: middle.z });
+  return !floor.hit || floor.fraction >= 1;
+}
+
+/**
+ * Flights worth learning: a wall jump, a climb above a plain jump, a jump over
+ * a gap (with `collision` to look under it), or a teleport flown out of.
+ */
+export function findTrickSegments(timeline: Timeline, collision?: CollisionWorld): TrickSegment[] {
   const { ticks } = timeline;
   const segments: TrickSegment[] = [];
   for (let i = 1; i < ticks.length; i++) {
@@ -152,7 +169,11 @@ export function findTrickSegments(timeline: Timeline): TrickSegment[] {
     // A teleport the player only rode is the graph's business; one they flew
     // out of to land somewhere else (a fast entry carried across a gap, a
     // ledge grabbed) is a trick.
-    const trick = exit ? horizontal(ticks[j].position, exit) > TELEPORT_CARRY : wallJumps > 0 || rise > PLAIN_JUMP_RISE;
+    const trick = exit
+      ? horizontal(ticks[j].position, exit) > TELEPORT_CARRY
+      : wallJumps > 0 ||
+        rise > PLAIN_JUMP_RISE ||
+        (collision !== undefined && crossesGap(collision, ticks[i - 1].position, ticks.slice(i, j)));
     if (trick) {
       segments.push({ takeoff: i - 1, landing: j, wallJumps, rise });
     }

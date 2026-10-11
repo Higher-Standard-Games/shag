@@ -4,7 +4,8 @@
  *   npm run bot:learn -- <demo> [<demo> ...] [--dry-run]
  *
  * A demo is a path or a name in public/data/demos/training/. Every trick in it
- * (a flight with a wall jump, or one that climbs higher than a plain jump) is
+ * (a flight with a wall jump, a climb higher than a plain jump, a jump over a
+ * gap, a teleport flown out of) is
  * re-simulated; the ones that replay reliably from a standstill are saved to
  * config/bot-routes/<map>.json, where the bots' navigation picks them up.
  */
@@ -55,7 +56,7 @@ async function main(): Promise<void> {
     byMap.set(header.map, learned);
     for (const player of header.players) {
       const timeline = buildTimeline(frames, player.playerId);
-      const segments = findTrickSegments(timeline);
+      const segments = findTrickSegments(timeline, vision.collisionWorld);
       console.log(`${demo} (${header.map}), ${player.name}: ${segments.length} tricks`);
       for (const segment of segments) {
         const outcome = learnSegment(timeline, segment, {
