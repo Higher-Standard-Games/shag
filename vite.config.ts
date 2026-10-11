@@ -11,6 +11,9 @@ const engineConfig = JSON.parse(fs.readFileSync(engineConfigPath, 'utf-8'));
 const selectedGame = process.env.GAME || engineConfig.defaultGame || 'default';
 console.log(`[Vite] Building game: ${selectedGame}`);
 
+/** True when loaded by vite-node rather than the dev server or a build. */
+const isViteNode = /vite-node/.test(process.argv[1] ?? "");
+
 export default defineConfig({
   resolve: {
     alias: {
@@ -23,6 +26,17 @@ export default defineConfig({
   server: {
     port: 3000,
     host: true, // Allow external access for Capacitor live reload
+    // vite-node (game servers, CLIs) runs code once and watches nothing. It
+    // asks for `watch: null`, but Vite's config merge drops nulls, so it is
+    // decided here: setting up watchers over this tree cost every spawned game
+    // server over half a minute before its first line of game code.
+    watch: isViteNode
+      ? null
+      : {
+          // Never source: game data (gigabytes of pk3s and demos), caches
+          // (full worktree snapshots), server state and docs.
+          ignored: ["**/.cache/**", "**/public/data/**", "**/server-data/**", "**/docs/**", "**/dist/**", "**/android/**"],
+        },
   },
   optimizeDeps: {
     /**
