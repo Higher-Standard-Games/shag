@@ -417,8 +417,9 @@ describe("item goal selection — Duel item timing", () => {
     const state = makeState({ health: 100, armor: 0, weapons: ["blade", "rlauncher", "plasmagun"], tick });
     state.matchState.gametypeName = "Duel";
     const armor = entry("item_armor_ra", "armor", "ra", 640);
-    state.pickupActiveMask = [];
-    state.pickupActiveMask[armor.id] = false;
+    const mask: boolean[] = [];
+    mask[armor.id] = false;
+    state.pickupActiveMask = mask;
     state.itemTakenTick.set(armor.id, 1000);
     return { state, armor };
   }
