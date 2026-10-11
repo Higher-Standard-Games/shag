@@ -10,7 +10,7 @@
  */
 
 import type { GameState } from "../engine/network/core/GameState";
-import type { AgentDirective } from "../shared/server/gametype";
+import { type AgentDirective, MatchPhase } from "../shared/server/gametype";
 
 // ── Vec3 helper (lightweight, no Babylon.js dependency) ─────────────────
 
@@ -226,6 +226,16 @@ export class BotGameState {
   pickupActiveMask: readonly boolean[] = [];
 
   /**
+   * Server tick at which each static pickup was last seen taken (its mask bit
+   * going from up to down), by PickupEntry.id. Cleared when it is back. With
+   * the shared respawn times this says when it returns: item timing.
+   */
+  itemTakenTick = new Map<number, number>();
+
+  /** Server tick the match last went live, or null before it has. */
+  liveSinceTick: number | null = null;
+
+  /**
    * Latest gametype/match context, from the `match_state` snapshot event.
    *
    * The server has always sent this — it is spread into an event once per
@@ -270,7 +280,12 @@ export class BotGameState {
     this.tick = snapshot.tick;
 
     // Clear per-tick data
+    const previousMask = this.pickupActiveMask;
     this.pickupActiveMask = [...snapshot.pickupActiveMask];
+    this.pickupActiveMask.forEach((up, id) => {
+      if (up) this.itemTakenTick.delete(id);
+      else if (previousMask[id] === true) this.itemTakenTick.set(id, snapshot.tick);
+    });
     const selfPlayer = snapshot.players.get(this.selfPlayerId);
     this.self.team = selfPlayer?.team || "";
     this.players = [];
@@ -394,9 +409,13 @@ export class BotGameState {
             teamRoles: unknown;
             roundState: unknown;
           }>;
+          const phase = typeof evt.phase === "number" ? evt.phase : 0;
+          if (phase === MatchPhase.Active && this.matchState.phase !== MatchPhase.Active) {
+            this.liveSinceTick = snapshot.tick;
+          }
           this.matchState = {
             gametypeName: typeof evt.gametypeName === "string" ? evt.gametypeName : "",
-            phase: typeof evt.phase === "number" ? evt.phase : 0,
+            phase,
             teamRoles:
               evt.teamRoles && typeof evt.teamRoles === "object"
                 ? (evt.teamRoles as Record<string, string>)

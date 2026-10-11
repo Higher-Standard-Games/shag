@@ -99,7 +99,8 @@ describe("selectWeightProfile", () => {
       for (const [field, value] of Object.entries(profile)) {
         expect(Number.isFinite(value), `${key}.${field}`).toBe(true);
         expect(value, `${key}.${field}`).toBeGreaterThanOrEqual(0);
-        expect(value, `${key}.${field}`).toBeLessThanOrEqual(1);
+        // majorItemBias is a multiplier on item value, not a 0..1 weight.
+        expect(value, `${key}.${field}`).toBeLessThanOrEqual(field === "majorItemBias" ? 2 : 1);
       }
     }
   });

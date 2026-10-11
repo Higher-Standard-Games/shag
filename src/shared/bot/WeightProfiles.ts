@@ -31,6 +31,19 @@ export interface BotWeightProfile {
    * deathmatch (take what you need) with no code difference.
    */
   itemDenial: number;
+  /**
+   * Multiplier on what the major items are worth: the armors, Mega Health and
+   * powerups. Duel is won by controlling them, so it raises this well above 1;
+   * a mode played for frags lowers it, so a bot fights rather than shops.
+   */
+  majorItemBias: number;
+  /**
+   * Item timing, 0..1: how far ahead a bot heads for a taken major item to be
+   * there when it comes back. 1 is a full lead window (Duel: lock the opponent
+   * out), 0 is off — round modes restore items per round, and a mode played
+   * for frags does not wait on a timer.
+   */
+  itemTiming: number;
   /** Advance and complete the gametype objective. Phase 4. */
   objectivePush: number;
   /** Stay within supporting distance of allies. Phase 4. */
@@ -56,6 +69,8 @@ export interface BotWeightProfile {
 export const DEFAULT_WEIGHT_PROFILE: BotWeightProfile = {
   itemGreed: 1.0,
   itemDenial: 0.3,
+  majorItemBias: 1.0,
+  itemTiming: 0,
   objectivePush: 0.0,
   teamCohesion: 0.0,
   carrierProtect: 0.0,
@@ -69,11 +84,23 @@ export const DEFAULT_WEIGHT_PROFILE: BotWeightProfile = {
  * Phase 4, a directive emitter — never a change to bot code.
  */
 export const WEIGHT_PROFILES: Readonly<Record<string, BotWeightProfile>> = {
+  // Amphi is played for frags: short rounds in a small arena, kits instead of
+  // map weapons. Fight; pick up what is on the way.
+  amphi: {
+    ...DEFAULT_WEIGHT_PROFILE,
+    itemGreed: 0.6,
+    itemDenial: 0.1,
+    majorItemBias: 0.5,
+    aggression: 1.0,
+    riskTolerance: 0.7,
+  },
+
   // Selfish and item-hungry: take what you need, contest only the big prizes.
   deathmatch: {
     ...DEFAULT_WEIGHT_PROFILE,
     itemGreed: 1.0,
     itemDenial: 0.3,
+    itemTiming: 0.5,
     aggression: 0.8,
     riskTolerance: 0.5,
   },
@@ -83,6 +110,7 @@ export const WEIGHT_PROFILES: Readonly<Record<string, BotWeightProfile>> = {
     ...DEFAULT_WEIGHT_PROFILE,
     itemGreed: 0.9,
     itemDenial: 0.4,
+    itemTiming: 0.5,
     teamCohesion: 0.5,
     mapControl: 0.4,
     aggression: 0.7,
@@ -105,6 +133,7 @@ export const WEIGHT_PROFILES: Readonly<Record<string, BotWeightProfile>> = {
     ...DEFAULT_WEIGHT_PROFILE,
     itemGreed: 0.7,
     itemDenial: 0.2,
+    majorItemBias: 0.7,
     objectivePush: 1.0,
     teamCohesion: 0.6,
     carrierProtect: 0.8,
@@ -120,6 +149,7 @@ export const WEIGHT_PROFILES: Readonly<Record<string, BotWeightProfile>> = {
     ...DEFAULT_WEIGHT_PROFILE,
     itemGreed: 0.6,
     itemDenial: 0.2,
+    majorItemBias: 0.7,
     objectivePush: 0.8,
     teamCohesion: 0.3,
     carrierProtect: 0.0,
@@ -159,13 +189,16 @@ export const WEIGHT_PROFILES: Readonly<Record<string, BotWeightProfile>> = {
     riskTolerance: 0.35,
   },
 
-  // Duel IS item control. Denying the opponent a Mega or Red Armor is worth as
-  // much as taking it, so denial is nearly as strong as personal need — and the
-  // bot plays tighter, because in a 1v1 a bad trade loses the round.
+  // Duel IS item control: the armors and Mega Health are the game, and locking
+  // the opponent out of them wins it. They are worth far more than a third gun,
+  // denial is nearly as strong as personal need, and the bot plays tighter,
+  // because in a 1v1 a bad trade loses the round.
   duel: {
     ...DEFAULT_WEIGHT_PROFILE,
     itemGreed: 1.0,
     itemDenial: 0.9,
+    majorItemBias: 1.8,
+    itemTiming: 1.0,
     mapControl: 0.9,
     aggression: 0.5,
     riskTolerance: 0.3,

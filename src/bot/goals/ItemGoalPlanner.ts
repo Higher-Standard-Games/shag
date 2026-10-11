@@ -14,6 +14,7 @@
 import { type BotWeightProfile, selectWeightProfile } from "../../shared/bot/WeightProfiles";
 import type { PickupEntry } from "../../shared/bsp/PickupTable";
 import { type ArmorKind, armorAfterPickup, type HealthKind, healthAfterPickup } from "../../shared/items/ItemGrants";
+import { DEFAULT_PHYSICS_TICK_RATE as TICK_RATE } from "../../shared/server/simulation/physics/constants";
 import type { BotGameState, Vec3 } from "../BotGameState";
 import type { BotGoal } from "./BotGoal";
 import type { ConsiderationContext } from "./Consideration";
@@ -92,8 +93,23 @@ function buildGates(blockedPickupIds: ReadonlySet<number>): GoalGate[] {
     // wbomb1, wbomb2 and wdm2. Gating objectives on that made bots ignore the
     // bomb entirely rather than approach it badly.
     (goal, ctx) => (ctx.routeCost === null && !goal.directive ? "unreachable" : null),
+
+    // Item timing: a down item is a goal only once leaving now gets the bot
+    // there within its lead window of the respawn — earlier, it would stand
+    // waiting for nothing while the game goes on elsewhere.
+    (goal, ctx) => {
+      if (goal.respawnTick === undefined || ctx.routeCost === null) return null;
+      const secondsLeft = (goal.respawnTick - ctx.state.tick) / TICK_RATE;
+      const travelSeconds = ctx.routeCost / TIMING_TRAVEL_SPEED;
+      return secondsLeft - travelSeconds > TIMING_LEAD_SECONDS * ctx.weights.itemTiming ? "not_yet" : null;
+    },
   ];
 }
+
+/** Lead window at full item timing: be at the item this long before it returns, at most. */
+const TIMING_LEAD_SECONDS = 5;
+/** Travel speed assumed for timing, units per second (running, not sprinting). */
+const TIMING_TRAVEL_SPEED = 320;
 
 export interface ItemGoalPlannerOptions {
   /** Static pickup table for the map. */
@@ -186,6 +202,7 @@ export class ItemGoalPlanner {
     let candidates = collectItemGoals(state, {
       pickupPositions: options.pickupPositions,
       maxDistance: options.maxDistance,
+      timing: weights.itemTiming > 0,
     });
     if (options.typeFilter) {
       const allowed = options.typeFilter;

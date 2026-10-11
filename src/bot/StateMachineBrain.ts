@@ -39,6 +39,8 @@ const LOW_HEALTH_THRESHOLD = 40;
 const RETREAT_HEALTH_THRESHOLD = 25;
 const FIGHT_RANGE = 2000;
 const PICKUP_SEEK_RANGE = 1500;
+/** A bot timing an item waits this close to it, inside its pickup reach. */
+const TIMED_ITEM_HOLD_RADIUS = 40;
 const DODGE_REACT_TICKS = 30; // React to damage within last 30 ticks
 const HUNT_DIRECTION_CHANGE_INTERVAL = 180; // Change hunt direction every ~3 sec at 60Hz
 
@@ -659,7 +661,7 @@ export class StateMachineBrain extends BotBrain {
     const goal = this._selectItemGoal(state);
     // Only a DIRECTIVE goal holds on arrival. An item goal has to be touched,
     // and a bot that stops next to a Red Armor never picks it up.
-    if (goal) return this._navigateTo(state, goal.position, false, goal.directive ? goal.radius : undefined);
+    if (goal) return this._navigateTo(state, goal.position, false, this._holdRadius(goal, state));
 
     // Try NavGraph path to nearest item (weapon > health > armor > ammo)
     // Uses cached _navigateToItem to avoid A* every tick
@@ -705,7 +707,7 @@ export class StateMachineBrain extends BotBrain {
     // through to HUNT but the arbiter still has something worth doing — an
     // objective, or an item that did not meet _shouldSeekItems' cruder bar.
     const goal = this._selectItemGoal(state);
-    if (goal) return this._navigateTo(state, goal.position, false, goal.directive ? goal.radius : undefined);
+    if (goal) return this._navigateTo(state, goal.position, false, this._holdRadius(goal, state));
 
     // Check if we know a last enemy position to investigate
     const huntTarget = this._getHuntTarget(state);
@@ -905,6 +907,16 @@ export class StateMachineBrain extends BotBrain {
    * Navigate to a target position using NavGraph pathfinding when available.
    * Falls back to direct movement when no graph exists.
    */
+  /**
+   * How close to a goal the bot stops and waits: a directive's own radius, or
+   * beside a timed item that is not back yet. Undefined for goals to touch.
+   */
+  private _holdRadius(goal: BotGoal, state: BotGameState): number | undefined {
+    if (goal.directive) return goal.radius;
+    if (goal.respawnTick !== undefined && goal.respawnTick > state.tick) return TIMED_ITEM_HOLD_RADIUS;
+    return undefined;
+  }
+
   private _navigateTo(state: BotGameState, target: Vec3, urgent: boolean, holdRadius?: number): BotInput {
     // Arrived, and the goal is a PLACE TO BE rather than a thing to touch.
     //
@@ -1194,6 +1206,15 @@ export class StateMachineBrain extends BotBrain {
       this._suppressTraversalAutomation = true;
       const target = distanceToStart > 56 ? step.from.position : (probe?.landing ?? step.to.position);
       return { status: "moving", input: this._moveTowardPrecise(state, target) };
+    }
+
+    // A learned route is a script, not a jump: run it or not at all. Falling
+    // through to the blind jump below drops the bot off the ledge it was
+    // meant to wall-jump from.
+    if (step.type === "jump" && this._navGraph?.getLearnedRoute(step.opportunityId)) {
+      const sequenceResult = this._startNavSequence(state, step, "nav_learned_route");
+      if (sequenceResult) return sequenceResult;
+      return { status: "blocked", reason: "learned_route:not_started" };
     }
 
     if (step.type === "jump" && step.validated && step.opportunityId) {

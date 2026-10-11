@@ -38,3 +38,48 @@ describe("collectItemGoals", () => {
     expect(goals.some((g) => g.pickupId === 20)).toBe(false);
   });
 });
+
+describe("item timing", () => {
+  const redArmor = entry(0, "item_armor_ra", "armor", "ra", 400);
+  const shells = entry(1, "ammo_riotgun", "ammo", "shells", 300);
+
+  /** A state that saw the Red Armor (and the shells) taken at tick 1000, now at `tick`. */
+  function takenAt1000(tick: number): BotGameState {
+    const state = stateAtOrigin();
+    state.pickupActiveMask = [false, false];
+    state.itemTakenTick.set(0, 1000);
+    state.itemTakenTick.set(1, 1000);
+    state.tick = tick;
+    return state;
+  }
+
+  it("offers a taken major item with the tick it returns, when timing", () => {
+    const goals = collectItemGoals(takenAt1000(2000), {
+      pickupPositions: [redArmor, shells],
+      maxDistance: 1500,
+      timing: true,
+    });
+    expect(goals).toHaveLength(1);
+    expect(goals[0].pickupId).toBe(0);
+    expect(goals[0].respawnTick).toBe(1000 + 25 * 125);
+  });
+
+  it("offers nothing that is down when not timing", () => {
+    const goals = collectItemGoals(takenAt1000(2000), { pickupPositions: [redArmor, shells], maxDistance: 1500 });
+    expect(goals).toHaveLength(0);
+  });
+
+  it("does not offer an item whose return is unknown", () => {
+    const state = takenAt1000(2000);
+    state.itemTakenTick.clear();
+    expect(collectItemGoals(state, { pickupPositions: [redArmor], maxDistance: 1500, timing: true })).toHaveLength(0);
+  });
+
+  it("times the first armor spawn from the match going live", () => {
+    const state = stateAtOrigin([false]);
+    state.liveSinceTick = 500;
+    state.tick = 600;
+    const goals = collectItemGoals(state, { pickupPositions: [redArmor], maxDistance: 1500, timing: true });
+    expect(goals[0]?.respawnTick).toBe(500 + 15 * 125);
+  });
+});

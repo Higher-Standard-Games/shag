@@ -16,24 +16,34 @@
  */
 
 import type { PickupEntry } from "../../shared/bsp/PickupTable";
+import { itemRespawnSeconds, MAJOR_ITEM_FIRST_SPAWN_SECONDS } from "../../shared/items/ItemRespawn";
+import { DEFAULT_PHYSICS_TICK_RATE as TICK_RATE } from "../../shared/server/simulation/physics/constants";
 import { type BotGameState, type Vec3, vec3Distance } from "../BotGameState";
 import { type BotGoal, droppedItemGoalId, staticItemGoalId } from "./BotGoal";
+import { isMajorItem } from "./considerations/ItemFacts";
 
 /** Upper bound on candidates scored per decision, besides major items. */
 export const MAX_ITEM_CANDIDATES = 12;
-
-/** Worth crossing the map for: always candidates while up. */
-function isMajorItem(entry: PickupEntry): boolean {
-  if (entry.type === "powerup") return true;
-  if (entry.type === "armor") return entry.kind === "ga" || entry.kind === "ya" || entry.kind === "ra";
-  return entry.type === "health" && (entry.kind === "mega" || entry.kind === "ultra");
-}
 
 export interface ItemGoalSourceOptions {
   /** Static pickup table for the loaded map (from BotVision.mapKnowledge). */
   pickupPositions: readonly PickupEntry[];
   /** Ignore candidates beyond this straight-line distance. */
   maxDistance: number;
+  /** Also offer major items that are down but known to return (item timing). */
+  timing?: boolean;
+}
+
+/**
+ * When a down pickup returns, as a server tick, or null if unknown: from when it
+ * was seen taken, or for an armor or Mega not yet spawned, from the match start.
+ */
+export function respawnTickOf(state: BotGameState, entry: PickupEntry): number | null {
+  const taken = state.itemTakenTick.get(entry.id);
+  if (taken !== undefined) return taken + Math.round(itemRespawnSeconds(entry.type, entry.kind) * TICK_RATE);
+  if (state.liveSinceTick === null) return null;
+  const first = state.liveSinceTick + Math.round(MAJOR_ITEM_FIRST_SPAWN_SECONDS * TICK_RATE);
+  return state.tick < first ? first : null;
 }
 
 /**
@@ -51,10 +61,15 @@ export function collectItemGoals(state: BotGameState, options: ItemGoalSourceOpt
   for (const entry of options.pickupPositions) {
     // Authoritative availability. An absent mask (older payload) means unknown,
     // and we optimistically allow it — the gate on arrival still applies.
-    if (state.pickupActiveMask.length > entry.id && state.pickupActiveMask[entry.id] === false) continue;
+    const major = isMajorItem(entry.type, entry.kind);
+    let respawnTick: number | undefined;
+    if (state.pickupActiveMask.length > entry.id && state.pickupActiveMask[entry.id] === false) {
+      const back = major && options.timing ? respawnTickOf(state, entry) : null;
+      if (back === null || back <= state.tick) continue;
+      respawnTick = back;
+    }
 
     const distance = vec3Distance(from, entry.position);
-    const major = isMajorItem(entry);
     if (distance > options.maxDistance && !major) continue;
 
     (major ? majors : goals).push({
@@ -65,6 +80,7 @@ export function collectItemGoals(state: BotGameState, options: ItemGoalSourceOpt
         position: entry.position,
         pickupId: entry.id,
         item: { type: entry.type, kind: entry.kind, amount: entry.amount },
+        respawnTick,
       },
     });
   }

@@ -56,6 +56,11 @@ export interface BotGoal {
   directive?: AgentDirective;
   /** How close counts as "there". Directive-supplied; items use pickup radius. */
   radius?: number;
+  /**
+   * For a major item that is down but known to come back: the server tick it
+   * returns. The bot goes to be there for it, and waits beside it.
+   */
+  respawnTick?: number;
 }
 
 /** Stable id for a static map pickup. */

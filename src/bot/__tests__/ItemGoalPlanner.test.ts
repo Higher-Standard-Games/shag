@@ -383,3 +383,57 @@ describe("the unreachable gate", () => {
     expect(result.goal).toBeNull();
   });
 });
+
+describe("item goal selection — the mode's policy on major items", () => {
+  // Armed with a working pair; a third gun close by, the Red Armor further off.
+  const armedState = (gametypeName: string) => {
+    const state = makeState({
+      health: 100,
+      armor: 0,
+      weapons: ["blade", "rlauncher", "plasmagun"],
+      ammo: { rlauncher: 10, plasmagun: 100 },
+    });
+    state.matchState.gametypeName = gametypeName;
+    return state;
+  };
+  const thirdGun = () => entry("weapon_lasergun", "weapon", "lasergun", 300);
+  const redArmor = () => entry("item_armor_ra", "armor", "ra", 700);
+
+  it("in Duel, takes the Red Armor over a third gun", () => {
+    const armor = redArmor();
+    expect(choose(armedState("Duel"), [thirdGun(), armor]).goal?.pickupId).toBe(armor.id);
+  });
+
+  it("in Amphi, played for frags, the armor counts for less", () => {
+    const duel = choose(armedState("Duel"), [redArmor()]).desire;
+    const amphi = choose(armedState("Amphi"), [redArmor()]).desire;
+    expect(amphi).toBeLessThan(duel);
+  });
+});
+
+describe("item goal selection — Duel item timing", () => {
+  // The Red Armor (gain 100) taken at tick 1000, back at 1000 + 25 s. 640 units off.
+  function duelBotWaitingOnArmor(tick: number) {
+    const state = makeState({ health: 100, armor: 0, weapons: ["blade", "rlauncher", "plasmagun"], tick });
+    state.matchState.gametypeName = "Duel";
+    const armor = entry("item_armor_ra", "armor", "ra", 640);
+    state.pickupActiveMask = [];
+    state.pickupActiveMask[armor.id] = false;
+    state.itemTakenTick.set(armor.id, 1000);
+    return { state, armor };
+  }
+
+  it("does not leave for a returning armor while it is still far off in time", () => {
+    const { state, armor } = duelBotWaitingOnArmor(1000 + 5 * 125);
+    const result = choose(state, [armor]);
+    expect(result.goal).toBeNull();
+    expect(result.traces.find((t) => t.goalId.endsWith(`:${armor.id}`))?.gateReason).toBe("not_yet");
+  });
+
+  it("heads for it in time to be there when it returns", () => {
+    const { state, armor } = duelBotWaitingOnArmor(1000 + 22 * 125);
+    const result = choose(state, [armor]);
+    expect(result.goal?.pickupId).toBe(armor.id);
+    expect(result.goal?.respawnTick).toBe(1000 + 25 * 125);
+  });
+});

@@ -96,3 +96,10 @@ export function denialValue(type: string, kind: string): number {
   if (type === "weapon") return 0.25;
   return 0.05;
 }
+
+/** The armors, Mega Health and powerups: what an item route is planned around. */
+export function isMajorItem(type: string, kind: string): boolean {
+  if (type === "powerup") return true;
+  if (type === "armor") return kind === "ga" || kind === "ya" || kind === "ra";
+  return type === "health" && (kind === "mega" || kind === "ultra");
+}
