@@ -181,8 +181,17 @@ const LEARNED_LANDING_SNAP = 96;
 /** Learned route cost: its ticks as distance at this speed. */
 const LEARNED_COST_SPEED = 320;
 
+/** A target this close to a node is that node's own (an item's), not one to snap. */
+const OWN_NODE_RADIUS = 32;
+
 /** A route's goal snaps to a reachable node this close to the target. */
 const GOAL_SNAP_RADIUS = 256;
+
+/** Same-height node pairs at least this far apart that walking cannot link get a jump test. */
+const GAP_JUMP_MIN = 64;
+
+/** A teleporter exit that carries the player further than this lands at a node of its own. */
+const TELEPORT_CARRY = 64;
 
 /** A landed origin is this far above the feet; nodes sit 1 unit above the surface. */
 const JUMPPAD_LANDING_FEET = 24;
@@ -232,6 +241,8 @@ export const BOT_NAV_MOVEMENT_FINGERPRINT = [
   "walk-strict:2",
   // Jump pad destination nodes moved from the aim point to the simulated landing.
   "jumppad-landing:2",
+  "teleport-carry:1",
+  `gap-jump:${GAP_JUMP_MIN}`,
   BOT_MOVEMENT_ANALYZER_FINGERPRINT,
 ].join("|");
 // ── BotNavGraph ─────────────────────────────────────────────────────
@@ -598,19 +609,30 @@ export class BotNavGraph {
   private _findStandingNode(pos: Vec3, canWalkTo?: NavPathOptions["canWalkTo"]): NavNode | null {
     const standingOrigin = (node: NavNode): Vec3 =>
       STANDS_ON_SURFACE.has(node.type) ? walkOrigin(node) : node.position;
+    const score = (origin: Vec3) => Math.hypot(pos.x - origin.x, pos.z - origin.z) + 2 * Math.abs(pos.y - origin.y);
+    if (!canWalkTo) {
+      let best: NavNode | null = null;
+      let bestScore = Number.POSITIVE_INFINITY;
+      for (const node of this._nodes) {
+        const value = score(standingOrigin(node));
+        if (value < bestScore) {
+          bestScore = value;
+          best = node;
+        }
+      }
+      return best;
+    }
     const scored = this._nodes.map((node) => {
       const origin = standingOrigin(node);
       return {
         node,
         origin,
-        score: Math.hypot(pos.x - origin.x, pos.z - origin.z) + 2 * Math.abs(pos.y - origin.y),
+        score: score(origin),
       };
     });
     scored.sort((a, b) => a.score - b.score);
-    if (canWalkTo) {
-      for (const candidate of scored.slice(0, START_CANDIDATES)) {
-        if (canWalkTo(pos, candidate.origin)) return candidate.node;
-      }
+    for (const candidate of scored.slice(0, START_CANDIDATES)) {
+      if (canWalkTo(pos, candidate.origin)) return candidate.node;
     }
     return scored[0]?.node ?? null;
   }
@@ -706,6 +728,13 @@ export class BotNavGraph {
       const type = trigger.type === "push" ? "jumppad" : "teleporter";
       const source = addNode(this._triggerCenter(trigger), type, `trigger_${trigger.type}`);
       const landings = trigger.type === "push" ? flights.simulateJumppadLandings(trigger) : [];
+      if (trigger.type === "teleport") {
+        // An exit that carries the player across a gap lands somewhere else.
+        const landing = flights.simulateTeleportLanding(trigger);
+        if (landing && Math.hypot(landing.x - trigger.dest.x, landing.z - trigger.dest.z) > TELEPORT_CARRY) {
+          landings.push(landing);
+        }
+      }
       const destinations = landings.length
         ? landings.map((landing) => ({ x: landing.x, y: landing.y - JUMPPAD_LANDING_FEET + 1, z: landing.z }))
         : [trigger.dest];
@@ -839,26 +868,32 @@ export class BotNavGraph {
         // doorway off the line. A short walk flood from each node finds them,
         // each way on its own, because a staircase that can be walked down
         // can be walked up but a ledge cannot.
+        const walked = new Set<NavNode>();
         if (horizontalDist <= WALK_FLOOD_RADIUS && heightDiff <= horizontalDist + WALK_FLOOD_RISE_SLACK) {
           for (const [from, to] of [
             [a, b],
             [b, a],
           ] as const) {
             const cost = walks.distance(from, to);
-            if (cost !== null) this._edges.push({ from: from.id, to: to.id, type: "walk", cost });
+            if (cost === null) continue;
+            this._edges.push({ from: from.id, to: to.id, type: "walk", cost });
+            walked.add(from);
           }
         }
-        if (heightDiff < WALK_HEIGHT_MAX) continue;
 
-        // Medium-height jump candidates are tested in both directions.
+        // Jumps: up or down a ledge walking cannot climb, and across a gap at
+        // about the same height (a pit, a hole in the floor) that walking
+        // cannot cross. Each direction is simulated on its own; a gap jump
+        // only where walking does not already go.
+        const gap = heightDiff < WALK_HEIGHT_MAX && horizontalDist >= GAP_JUMP_MIN && walked.size < 2;
+        if (heightDiff < WALK_HEIGHT_MAX && !gap) continue;
         if (heightDiff < JUMP_HEIGHT_MAX && horizontalDist < 400) {
-          // Visible directions are independently simulated before acceptance.
-          // Candidate generation is bidirectional; acceptance is not assumed.
           if (vision.canSee(a.position, b.position)) {
             for (const [from, to] of [
               [a, b],
               [b, a],
             ] as const) {
+              if (gap && walked.has(from)) continue;
               const result = movementAnalyzer.analyzeJump(from.id, from.position, to.id, to.position);
               const opportunity = result.opportunity;
               if (!opportunity) continue;
@@ -1001,9 +1036,16 @@ export class BotNavGraph {
    */
   estimateTravelCost(from: Vec3, to: Vec3): number | null {
     if (this._nodes.length === 0) return null;
-    const start = this.findNearestNode(from);
-    const goal = this.findNearestNode(to);
-    if (!start || !goal) return null;
+    // The same start a route would use (see findPath).
+    // Items have a node of their own at the item; only a target without one
+    // (an objective marker) snaps to a reachable node nearby.
+    const start = this._findStandingNode(from);
+    const nearest = this.findNearestNode(to);
+    if (!start || !nearest) return null;
+    const goal =
+      vec3Distance(nearest.position, to) <= OWN_NODE_RADIUS
+        ? nearest
+        : (this._findReachableNodeNear(start, to) ?? nearest);
 
     const approach = vec3Distance(from, start.position);
     const arrival = vec3Distance(goal.position, to);

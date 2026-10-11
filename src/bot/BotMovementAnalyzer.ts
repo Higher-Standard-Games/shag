@@ -96,6 +96,10 @@ const MIN_WALK_NORMAL = 0.7;
 const MAX_ANALYZED_HEIGHT = 96;
 const MAX_ANALYZED_HORIZONTAL_DISTANCE = 480;
 const MAX_STORED_REJECTIONS = 256;
+/** A teleporter exit's origin sits this far above its destination. */
+const TELEPORT_EXIT_LIFT = 25;
+/** Speed assumed going into a teleporter: running. */
+const TELEPORT_ENTRY_SPEED = 320;
 /** Longest jump pad flight followed to its landing (4 s at 125 Hz). */
 const JUMPPAD_FLIGHT_TICKS = 500;
 /** Steering directions tried per jump pad, besides straight at its target. */
@@ -112,7 +116,7 @@ export const BOT_MOVEMENT_ANALYZER_VERSION = 2;
 const DEFAULT_CONFIG: BotMovementAnalyzerConfig = {
   tickRate: 125,
   maxTicks: 150,
-  maxRollouts: 512,
+  maxRollouts: 4096,
   landingRadius: 48,
   stableGroundTicks: 2,
   candidateSpeeds: [0, 160, 280, 400],
@@ -293,6 +297,39 @@ export class BotMovementAnalyzer {
       landings.push(steered);
     }
     return landings;
+  }
+
+  /**
+   * Where a player leaving a teleporter lands. The exit keeps the speed the
+   * player went in with, along the destination's facing, so an exit can carry
+   * a running player across a gap a standstill never crosses. Simulated at
+   * running speed, holding forward along the exit facing. Null if it does not
+   * land within the tick budget.
+   */
+  simulateTeleportLanding(teleporter: TriggerVolume): Vec3 | null {
+    const yaw = teleporter.destYaw ?? 0;
+    const heading = { x: Math.sin(yaw), y: 0, z: Math.cos(yaw) };
+    const profile = new MovementProfile();
+    profile.resetPhysicsState(false);
+    let position = { x: teleporter.dest.x, y: teleporter.dest.y + TELEPORT_EXIT_LIFT, z: teleporter.dest.z };
+    let velocity = { x: heading.x * TELEPORT_ENTRY_SPEED, y: 0, z: heading.z * TELEPORT_ENTRY_SPEED };
+    const deltaTime = 1 / this.config.tickRate;
+    for (let tick = 1; tick <= JUMPPAD_FLIGHT_TICKS; tick++) {
+      const input: MovementInput = {
+        direction: heading,
+        viewAngles: { pitch: 0, yaw },
+        buttons: InputButtons.FORWARD,
+        sequence: tick,
+        isPressed(button: number): boolean {
+          return (this.buttons & button) !== 0;
+        },
+      };
+      const result = profile.simulate(position, velocity, input, deltaTime, this.collision);
+      position = result.position;
+      velocity = result.velocity;
+      if (result.grounded && tick > 1) return { ...position };
+    }
+    return null;
   }
 
   /** One jump pad flight from standing in the pad until grounded again; null if it never lands. */

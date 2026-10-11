@@ -57,6 +57,8 @@ export interface TrickSegment {
 const PLAIN_JUMP_RISE = 56;
 /** One tick of movement never covers this much; a teleport does. */
 const TELEPORT_STEP = 150;
+/** A flight landing this far from where a teleporter put the player out is a trick. */
+const TELEPORT_CARRY = 160;
 /** Recorded ticks kept before takeoff at least, so the player's last steering stays. */
 const LEAD_TICKS = 20;
 /** Furthest back the recording may start (3 s). */
@@ -137,17 +139,21 @@ export function findTrickSegments(timeline: Timeline): TrickSegment[] {
     if (!ticks[i - 1].grounded || ticks[i].grounded) continue;
     let j = i;
     let wallJumps = 0;
-    let teleported = false;
+    let exit: Vec3 | null = null;
     while (j < ticks.length && !ticks[j].grounded) {
       if (ticks[j].wallJumpState === "charging" && ticks[j - 1].wallJumpState !== "charging") wallJumps++;
       const step = ticks[j - 1].position;
       const here = ticks[j].position;
-      if (Math.hypot(here.x - step.x, here.y - step.y, here.z - step.z) > TELEPORT_STEP) teleported = true;
+      if (Math.hypot(here.x - step.x, here.y - step.y, here.z - step.z) > TELEPORT_STEP) exit = here;
       j++;
     }
     if (j >= ticks.length) break;
     const rise = ticks[j].position.y - ticks[i - 1].position.y;
-    if (!teleported && (wallJumps > 0 || rise > PLAIN_JUMP_RISE)) {
+    // A teleport the player only rode is the graph's business; one they flew
+    // out of to land somewhere else (a fast entry carried across a gap, a
+    // ledge grabbed) is a trick.
+    const trick = exit ? horizontal(ticks[j].position, exit) > TELEPORT_CARRY : wallJumps > 0 || rise > PLAIN_JUMP_RISE;
+    if (trick) {
       segments.push({ takeoff: i - 1, landing: j, wallJumps, rise });
     }
     i = j;
