@@ -257,7 +257,9 @@ export class LoadingScreen {
     this.kickerEl.textContent = "Starting";
     this.container.classList.add("ui-loading-screen--started");
     this.ringEl.disabled = true;
-    this.captionEl.replaceChildren(element("span", "", "Starting"));
+    // The button stays where it is, saying what happens now, so nothing moves
+    this.startEl.textContent = "Starting";
+    this.startEl.disabled = true;
     this.captionEl.hidden = false;
     resolve();
   }

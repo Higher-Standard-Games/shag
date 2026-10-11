@@ -104,14 +104,14 @@ describe("start-up screen", () => {
     expect(audio.unlockAudio).toHaveBeenCalledOnce();
   });
 
-  it("keeps a click made before everything has loaded, and does not then offer the button", async () => {
+  it("keeps a click made before everything has loaded, and then says it is starting", async () => {
     const ready = screen.waitForReady();
     ring()?.click();
     await ready;
     screen.markReady();
     expect(audio.unlockAudio).toHaveBeenCalledOnce();
-    expect(caption()?.textContent).toBe("Starting");
-    expect(root()?.querySelector(".boot__start")).toBeNull();
+    expect(start()?.textContent).toBe("Starting");
+    expect(start()?.disabled).toBe(true);
   });
 
   it("starts on a click on the ring, turning the sound on, and says so while boot finishes", async () => {
@@ -121,7 +121,8 @@ describe("start-up screen", () => {
 
     expect(audio.unlockAudio).toHaveBeenCalledOnce();
     expect(ring()?.disabled).toBe(true);
-    expect(caption()?.textContent).toBe("Starting");
+    expect(start()?.textContent).toBe("Starting");
+    expect(start()?.disabled).toBe(true);
     expect(LoadingScreen.isWaitingForReady()).toBe(false);
   });
 

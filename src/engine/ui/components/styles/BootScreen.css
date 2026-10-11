@@ -147,10 +147,16 @@
   animation: boot-start-breathe 1.6s ease-in-out infinite;
 }
 
-.boot__start:hover,
+.boot__start:enabled:hover,
 .boot__start:focus-visible {
   outline: none;
   background: hsl(47, 100%, 66%);
+}
+
+/* Clicked: it says "Starting" and holds still */
+.boot__start:disabled {
+  cursor: default;
+  animation: none;
 }
 
 .boot__caption small {
@@ -160,8 +166,15 @@
   text-shadow: none;
 }
 
+/* Clicked: the hint goes, keeping its room */
+.ui-loading-screen--started .boot__caption small {
+  visibility: hidden;
+}
+
+/* Hidden, but keeping its room, so nothing shifts when the button appears */
 .boot__caption[hidden] {
-  display: none;
+  display: flex;
+  visibility: hidden;
 }
 
 .boot__lead {
