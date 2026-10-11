@@ -77,10 +77,11 @@
   pointer-events: none;
 }
 
-/* Ready: the sweep slows and turns gold, and rings pulse outward to be clicked */
+/* Ready: the sweep stops and closes into a whole gold ring, and rings pulse
+   outward — loading is over, nothing is spinning any more */
 .ui-loading-screen--ready .boot__ring-sweep {
-  background: conic-gradient(from 0deg, transparent 0 58%, hsla(47, 100%, 57%, 0.45) 88%, var(--gold) 100%);
-  animation-duration: 3.2s;
+  background: var(--gold);
+  animation: none;
 }
 
 .boot__ring-pulse {
@@ -127,6 +128,29 @@
   text-transform: uppercase;
   color: var(--gold);
   text-shadow: 3px 4px 0 hsla(250, 50%, 2%, 0.7);
+}
+
+/* The start button: a gold key, as the lobby's, breathing so it is plain
+   what to click */
+.boot__start {
+  padding: 14px 44px 14px 34px;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: var(--ink);
+  cursor: pointer;
+  background: var(--gold);
+  border: 0;
+  clip-path: polygon(4% 0, 100% 0, 96% 100%, 0 100%);
+  filter: drop-shadow(4px 5px 0 hsla(250, 50%, 2%, 0.7));
+  text-shadow: none;
+  animation: boot-start-breathe 1.6s ease-in-out infinite;
+}
+
+.boot__start:hover,
+.boot__start:focus-visible {
+  outline: none;
+  background: hsl(47, 100%, 66%);
 }
 
 .boot__caption small {
@@ -199,6 +223,28 @@
   }
 }
 
+@keyframes boot-start-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.08);
+  }
+}
+
+@keyframes boot-start-glow {
+  0%,
+  100% {
+    filter: drop-shadow(4px 5px 0 hsla(250, 50%, 2%, 0.7)) brightness(1);
+  }
+
+  50% {
+    filter: drop-shadow(4px 5px 0 hsla(250, 50%, 2%, 0.7)) drop-shadow(0 0 14px var(--gold)) brightness(1.18);
+  }
+}
+
 @keyframes boot-ring-ping {
   from {
     opacity: 0.75;
@@ -222,9 +268,18 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .boot__ring-sweep,
+  /* The spin stays, slower: it is what says the screen is still loading */
+  .boot__ring-sweep {
+    animation-duration: 2.8s;
+  }
+
   .ui-loading-screen--ready .boot__ring-pulse {
     animation: none;
+  }
+
+  /* No growing and shrinking, but still plainly the thing to click: it glows */
+  .boot__start {
+    animation: boot-start-glow 1.6s ease-in-out infinite;
   }
 
   .boot__bar-fill {

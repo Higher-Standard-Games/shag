@@ -268,8 +268,11 @@ async function main() {
   loadingScreen.setStep("lobby");
   loadingScreen.setStatus("Connecting to the lobby...");
   const lobby = new LobbyPanel();
-  await userReadyPromise;
   await Promise.race([lobby.connected, new Promise((resolve) => setTimeout(resolve, LOBBY_ANSWER_WAIT_MS))]);
+  // Everything is loaded: the bar fills and the start button comes up (a
+  // player who clicked early goes straight on)
+  loadingScreen.markReady();
+  await userReadyPromise;
 
   // Stop piping progress to splash screen
   unsubProgress();

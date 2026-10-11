@@ -3,7 +3,7 @@
  *
  * Handles:
  * 1. Boot progress: the renderer, the packages, the engine, the lobby
- * 2. "Click to start" once the engine can take the click (unlocks browser audio)
+ * 2. "Click to start" once everything is loaded (the click unlocks browser audio)
  *
  * It is built as the lobby's twin (LobbyTwin), because the lobby takes
  * over from it: the gold rail at the lobby's width with the game's logo where
@@ -11,8 +11,9 @@
  * latched in ink, as the lobby marks the page you are on), a log where the
  * lobby lists rooms, the engine in the player card's place and the utility
  * keys below; the stage is the lobby's blue, with a ring holding the engine's
- * logo that turns while the engine boots and pulses once it can take the click
- * that starts the game. When the lobby comes up, the rail stays where it is.
+ * logo that spins while the engine boots and settles once everything is
+ * loaded, when a start button under it pulses to be clicked. When the lobby
+ * comes up, the rail stays where it is.
  *
  * This is an engine component - game-agnostic. The game names its brand with
  * `configureLobbyTwin`.
@@ -49,7 +50,12 @@ export class LoadingScreen {
   private barEl: HTMLElement;
   private ringEl: HTMLButtonElement;
   private captionEl: HTMLElement;
+  private startEl: HTMLButtonElement;
   private stepIndex = 0;
+  /** Everything has loaded and the start button is up */
+  private ready = false;
+  /** The player has clicked (possibly before everything had loaded) */
+  private started = false;
 
   // For force-dismiss from console
   private readyResolver: (() => void) | null = null;
@@ -57,7 +63,7 @@ export class LoadingScreen {
   // Smoke animation (shared component)
   private smokeAnimation: LoadingAnimation | null = null;
 
-  /** Enter or Space starts, as a click does, while the ring is offered */
+  /** Enter or Space starts, as a click does, while the screen waits for it */
   private readonly onKey = (event: KeyboardEvent): void => {
     if (event.key !== "Enter" && event.key !== " ") return;
     event.preventDefault();
@@ -108,7 +114,11 @@ export class LoadingScreen {
     // A touch screen is tapped, and has no Enter to press
     const touch = window.matchMedia?.("(pointer: coarse)").matches === true;
     this.captionEl = element("div", "boot__caption");
-    this.captionEl.append(element("span", "", touch ? "Tap to start" : "Click to start"));
+    this.startEl = document.createElement("button");
+    this.startEl.type = "button";
+    this.startEl.className = "boot__start";
+    this.startEl.textContent = touch ? "Tap to start" : "Click to start";
+    this.captionEl.append(this.startEl);
     if (!touch) this.captionEl.append(element("small", "", "or press Enter"));
     this.captionEl.hidden = true;
 
@@ -190,29 +200,45 @@ export class LoadingScreen {
   }
 
   /**
-   * Offer the ring and wait for the player's click, which unlocks the
-   * browser's audio. Boot carries on behind it.
+   * Wait for the player's click, which unlocks the browser's audio. Boot
+   * carries on behind it: a click before everything has loaded is kept, and
+   * the game follows as soon as loading is done. The start button itself is
+   * offered by `markReady`.
    */
   public waitForReady(): Promise<void> {
     return new Promise((resolve) => {
       // Store resolver for force-dismiss capability
       this.readyResolver = resolve;
-
-      this.container.classList.add("ui-loading-screen--ready");
-      this.kickerEl.textContent = "Ready";
       this.ringEl.disabled = false;
-      this.captionEl.hidden = false;
       window.addEventListener("keydown", this.onKey);
-
-      // Smoke effect - colored puffs rising and fading (using shared component)
-      this.smokeAnimation = new LoadingAnimation();
-      this.smokeAnimation.create(this.container, {
-        colors: SHAG_PALETTE,
-        puffCount: 30,
-      });
-
-      // Anywhere on the screen starts, not only the ring
+      // Anywhere on the screen starts, not only the ring or the button
       this.container.addEventListener("click", () => this.start(), { once: true });
+    });
+  }
+
+  /**
+   * Everything has loaded: fill the bar, mark every step done, stop the ring,
+   * and offer the start button. Before this the screen says it is loading, so
+   * a prompt never sits over a boot that is still running.
+   */
+  public markReady(): void {
+    if (this.ready) return;
+    this.ready = true;
+    this.stepIndex = BOOT_STEPS.length;
+    this.rail.setSteps(BOOT_STEPS.map(() => "done"));
+    this.statusEl.textContent = "READY";
+    this.setBar(1);
+    this.rail.log("Ready.");
+    this.container.classList.add("ui-loading-screen--ready");
+    if (this.started) return;
+    this.kickerEl.textContent = "Ready";
+    this.captionEl.hidden = false;
+
+    // Smoke effect - colored puffs rising and fading (using shared component)
+    this.smokeAnimation = new LoadingAnimation();
+    this.smokeAnimation.create(this.container, {
+      colors: SHAG_PALETTE,
+      puffCount: 30,
     });
   }
 
@@ -221,6 +247,7 @@ export class LoadingScreen {
     const resolve = this.readyResolver;
     if (!resolve) return;
     this.readyResolver = null;
+    this.started = true;
     window.removeEventListener("keydown", this.onKey);
 
     // Unlock browser audio context
@@ -231,6 +258,7 @@ export class LoadingScreen {
     this.container.classList.add("ui-loading-screen--started");
     this.ringEl.disabled = true;
     this.captionEl.replaceChildren(element("span", "", "Starting"));
+    this.captionEl.hidden = false;
     resolve();
   }
 

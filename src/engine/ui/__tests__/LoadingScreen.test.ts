@@ -3,7 +3,8 @@
 /**
  * The start-up screen, built as the lobby's twin: the boot's steps as the
  * rail's keys, a log where the lobby lists rooms, and the ring with the
- * engine's logo that starts the game and turns the sound on.
+ * engine's logo that spins while loading; once everything has loaded, a start
+ * button starts the game and turns the sound on.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -22,6 +23,7 @@ const steps = () =>
   );
 const ring = () => root()?.querySelector<HTMLButtonElement>(".boot__ring");
 const caption = () => root()?.querySelector<HTMLElement>(".boot__caption");
+const start = () => root()?.querySelector<HTMLButtonElement>(".boot__start");
 const share = () => Number(root()?.style.getPropertyValue("--boot-progress"));
 const logLines = () => [...(root()?.querySelectorAll(".twin__log-line") ?? [])].map((line) => line.textContent);
 
@@ -75,15 +77,41 @@ describe("start-up screen", () => {
     expect(logLines().at(-1)).toBe("line 59");
   });
 
-  it("offers the ring once the engine can take the click, and says what it is for", () => {
-    expect(ring()?.disabled).toBe(true);
+  it("says it is loading until everything is, and only then offers the start button", () => {
     expect(caption()?.hidden).toBe(true);
     void screen.waitForReady();
+    screen.setStep("lobby");
 
-    expect(ring()?.disabled).toBe(false);
+    // Still loading: no prompt, not ready, the bar short of full
+    expect(caption()?.hidden).toBe(true);
+    expect(root()?.classList.contains("ui-loading-screen--ready")).toBe(false);
+    expect(share()).toBeLessThan(1);
+
+    screen.markReady();
     expect(caption()?.hidden).toBe(false);
-    expect(caption()?.textContent).toContain("Click to start");
+    expect(start()?.textContent).toBe("Click to start");
     expect(root()?.classList.contains("ui-loading-screen--ready")).toBe(true);
+    expect(root()?.querySelector(".boot__kicker")?.textContent).toBe("Ready");
+    expect(steps()).toEqual(["is-done", "is-done", "is-done", "is-done"]);
+    expect(share()).toBe(1);
+  });
+
+  it("starts from the start button", async () => {
+    const ready = screen.waitForReady();
+    screen.markReady();
+    start()?.click();
+    await ready;
+    expect(audio.unlockAudio).toHaveBeenCalledOnce();
+  });
+
+  it("keeps a click made before everything has loaded, and does not then offer the button", async () => {
+    const ready = screen.waitForReady();
+    ring()?.click();
+    await ready;
+    screen.markReady();
+    expect(audio.unlockAudio).toHaveBeenCalledOnce();
+    expect(caption()?.textContent).toBe("Starting");
+    expect(root()?.querySelector(".boot__start")).toBeNull();
   });
 
   it("starts on a click on the ring, turning the sound on, and says so while boot finishes", async () => {
