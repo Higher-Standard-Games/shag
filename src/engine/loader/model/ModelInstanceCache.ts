@@ -1,12 +1,12 @@
 import { AssetContainer } from "@babylonjs/core/assetContainer";
 import "@babylonjs/core/Animations/animatable";
 import type { Material } from "@babylonjs/core/Materials/material";
-import { MultiMaterial } from "@babylonjs/core/Materials/multiMaterial";
 import { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
+import { cloneModelMaterial } from "../../rendering/MaterialCloneBatch";
 import type { ModelLoadResult } from "./ModelLoader";
 import { disposeModelResources, ModelSourceCache } from "./ModelSourceCache";
 
@@ -111,10 +111,7 @@ export class ModelInstanceCache {
         if (!original) continue;
         let material = materials.get(original);
         if (!material) {
-          material =
-            original instanceof MultiMaterial
-              ? original.clone(original.name, true)
-              : (original.clone(original.name) ?? undefined);
+          material = cloneModelMaterial(original, original.name, true) ?? undefined;
           if (!material) throw new Error(`Cannot clone material ${original.name}`);
           materials.set(original, material);
         }

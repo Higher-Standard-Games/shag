@@ -41,6 +41,7 @@ import { disposeModelResources } from "../loader/model/ModelSourceCache";
 import { PK3Loader } from "../loader/pk3/PK3Loader";
 import { PK3TextureLoader } from "../loader/pk3/PK3TextureLoader";
 import { MovementVars } from "../movement/MovementVars";
+import { installWeaponCameraCandidates } from "../rendering/WeaponCameraCandidates";
 import { ViewportEffectsManager } from "../viewport/ViewportEffectsManager";
 import { AmmoCounterDisplay, parseAmmoCounter } from "./AmmoCounterDisplay";
 import { getHitscanEffects, serverPelletDirections } from "./HitscanEffects";
@@ -303,6 +304,7 @@ export class WeaponViewManager {
    */
   public submersionAmount = 0;
   private weaponCamera: FreeCamera | null = null;
+  private releaseWeaponCandidates: (() => void) | null = null;
   private weaponLight: HemisphericLight | null = null;
   private mainCamera: FreeCamera | null = null; // The camera this instance was init()ed with
   private weaponRoot: TransformNode | null = null;
@@ -469,6 +471,7 @@ export class WeaponViewManager {
     this.weaponCamera.maxZ = 1000;
     this.weaponCamera.layerMask = WEAPON_LAYER_MASK; // Only sees weapon layer
     this.weaponCamera.parent = camera; // Follows main camera
+    this.releaseWeaponCandidates = installWeaponCameraCandidates(scene, this.weaponCamera);
 
     // Main camera should not see weapon layer
     camera.layerMask = camera.layerMask & ~WEAPON_LAYER_MASK;
@@ -1271,6 +1274,8 @@ export class WeaponViewManager {
   /** Dispose camera/root resources before init() installs a replacement set. */
   private disposeViewInfrastructure(): void {
     const oldScene = this.scene;
+    this.releaseWeaponCandidates?.();
+    this.releaseWeaponCandidates = null;
     if (this.updateObserver && oldScene) {
       oldScene.onBeforeRenderObservable.remove(this.updateObserver);
       this.updateObserver = null;

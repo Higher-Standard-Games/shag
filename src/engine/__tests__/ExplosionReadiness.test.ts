@@ -76,7 +76,9 @@ describe("explosion particle systems", () => {
     effect.spawn(Vector3.Zero(), PLASMA_EXPLOSION);
     const reused = rayMaterials();
     expect(reused.every((material) => first.includes(material))).toBe(true);
-    // Only fireball setup scans the world; the dummy shockwave has no setup.
+    // Only fireball setup scans the world; plasma allocates no shockwave.
+    expect(scene.meshes.some((mesh) => mesh.name.includes("shockwave"))).toBe(false);
+    expect(scene.materials.some((material) => material.name.includes("shockwave"))).toBe(false);
     expect(visits.mock.calls.length).toBeLessThanOrEqual(2);
     expect(reused[0].emissiveColor.asArray()).toEqual(
       Color3.Lerp(PLASMA_EXPLOSION.coreColor, PLASMA_EXPLOSION.outerColor, 0.5).asArray(),

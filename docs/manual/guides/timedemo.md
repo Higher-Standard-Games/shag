@@ -151,7 +151,8 @@ npm run benchmark:profile
 
 It defaults to one WebGL2 run followed by one WebGPU compatibility-mode run, the
 ten-player `wdm2` fixture, the fixture's required settings,
-`cl_player_pose_hz 30` and `developer 0`. Development diagnostics are explicitly
+`cl_player_pose_hz 30` (unless the fixture explicitly requires another pose rate)
+and `developer 0`. Development diagnostics are explicitly
 disabled and their before/after state is saved in each `run.json`.
 Options include `--backends webgpu`, `--ncm 1`,
 `--interval 1000` (microseconds), `--browser <executable>`, `--port 3117`,
@@ -378,3 +379,45 @@ deliberately use the original path and are reported separately, including fading
 corpses. Skipped gameplay events and the existing workload gates still invalidate
 runs. This remains experimental and off by default; neither the crowd experiment
 nor enabling the CVar alone establishes an FPS improvement or visual acceptance.
+
+### Experimental weapon-camera candidates
+
+`r_weapon_candidates 1` filters the registered first-person weapon camera's
+mesh candidates by its current layer mask before Babylon's readiness, world-matrix
+and LOD work. Other cameras retain their existing provider. Meshes with action
+managers remain candidates for intersection processing, and custom LOD selectors
+use the original provider. Membership is checked every pass, including new meshes
+and changed masks. Live and demo views share one scene provider with separate
+camera ownership; disposal restores the previous provider when still owned.
+
+The setting defaults to **0**, is not persisted, and can be required by an
+immutable fixture for an off/on comparison. Keep pose rate 30, normal outlines 1
+and outline proxy 0 in both profiles.
+
+For diagnostic attribution, add `--trace-cameras` to `benchmark:profile`.
+`camera-trace.json` records inclusive active-mesh evaluation CPU, candidate counts,
+matching layers and active meshes per camera. Sampling, clocks and counting add
+overhead; use separate `--timing-only` captures for FPS. The runner rejects mixing
+timing-only mode with diagnostic wrappers.
+
+### Material-clone setup comparison
+
+`r_material_clone_batch` defaults to **1** and is not persisted. Setting it to
+`0` restores the original clone setup for an A/B profile. The model-instance
+cache and player visibility-material clones batch fresh native PBR property
+copies and the managed scene's light policy. StandardMaterial, custom clone
+methods and unsupported MultiMaterial children use the original path. Each
+batch is synchronous, covers only newly constructed materials, and releases
+its per-material dirty block before returning. Later mutations remain enabled.
+
+Use immutable profiles requiring `r_material_clone_batch 0` or `1`, holding
+`r_weapon_candidates 0`, normal outlines 1, proxy 0 and pose rate 30 in both.
+Profiled CPU captures attribute setup work; separate timing-only pairs are
+required before reporting an FPS improvement.
+
+New `benchmark:profile` captures save `graphics.json` and include that data in
+`run.json`: Babylon's backend adapter description and Edge's GPU inventory.
+Descriptions may be privacy-limited or unavailable. A machine having two GPUs
+does not prove which one the backend used. For an integrated-GPU series, record
+the selected adapter and driver, keep source/fixture/settings fixed, and use a
+fresh output directory. Keep results separate from discrete-GPU captures.

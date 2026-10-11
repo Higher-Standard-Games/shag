@@ -1,0 +1,2836 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-11",
+  "kind": "quick-gameplay-outline-proxy-comparison",
+  "command": "npm.cmd run benchmark:outlines -- --proxy --repeats 1 --out public/data/benchmarks/results/2026-10-11-proxy-quick",
+  "workingDirectory": ".cache/outline-quick-2026-10-11",
+  "axis": "cl_player_outline_proxy",
+  "options": {
+    "fixture": "wdm2-ffa10-v1-095f355747e8-f47d4c2a",
+    "repeats": 1,
+    "backends": "webgl2,webgpu",
+    "proxy": true,
+    "out": "public/data/benchmarks/results/2026-10-11-proxy-quick"
+  },
+  "baseFixture": "wdm2-ffa10-v1-095f355747e8-f47d4c2a",
+  "baseManifestSha256": "044283d539ef8e1f805bebff9cb0a49567ce74d14d7b0ba7dd7638eec3a32b95",
+  "demoSha256": "095f355747e8a0fb9e73d0b87bdb87ef80e5c62db80c365a15519e9f6948a9f9",
+  "plan": [
+    {
+      "repetition": 1,
+      "backend": "webgl2",
+      "outline": 1
+    },
+    {
+      "repetition": 1,
+      "backend": "webgl2",
+      "outline": 0
+    },
+    {
+      "repetition": 1,
+      "backend": "webgpu",
+      "outline": 1
+    },
+    {
+      "repetition": 1,
+      "backend": "webgpu",
+      "outline": 0
+    }
+  ],
+  "summary": {
+    "webgl2:proxy-1": {
+      "validRuns": 1,
+      "rejectedRuns": 0,
+      "enoughRuns": true,
+      "acceptedArtifacts": [
+        "public\\data\\benchmarks\\results\\2026-10-11-proxy-quick\\01-webgl2-outline-1"
+      ],
+      "rejectedArtifacts": [],
+      "phases": {
+        "whole-tour": {
+          "wallMs": {
+            "median": 22.099999999976717,
+            "min": 22.099999999976717,
+            "max": 22.099999999976717
+          },
+          "sceneCpuMs": {
+            "median": 13.900000000139698,
+            "min": 13.900000000139698,
+            "max": 13.900000000139698
+          },
+          "animationMs": {
+            "median": 4.5,
+            "min": 4.5,
+            "max": 4.5
+          },
+          "drawCalls": {
+            "median": 544.5,
+            "min": 544.5,
+            "max": 544.5
+          },
+          "triangles": {
+            "median": 244817.5,
+            "min": 244817.5,
+            "max": 244817.5
+          }
+        },
+        "freefly-start": {
+          "wallMs": {
+            "median": 17.420000000111763,
+            "min": 17.420000000111763,
+            "max": 17.420000000111763
+          },
+          "sceneCpuMs": {
+            "median": 11.600000000093132,
+            "min": 11.600000000093132,
+            "max": 11.600000000093132
+          },
+          "animationMs": {
+            "median": 3.5,
+            "min": 3.5,
+            "max": 3.5
+          },
+          "drawCalls": {
+            "median": 551.4000000000001,
+            "min": 551.4000000000001,
+            "max": 551.4000000000001
+          },
+          "triangles": {
+            "median": 239530.6,
+            "min": 239530.6,
+            "max": 239530.6
+          }
+        },
+        "fps-gunplay-a": {
+          "wallMs": {
+            "median": 28.285000000032586,
+            "min": 28.285000000032586,
+            "max": 28.285000000032586
+          },
+          "sceneCpuMs": {
+            "median": 16.5,
+            "min": 16.5,
+            "max": 16.5
+          },
+          "animationMs": {
+            "median": 6.369999999913834,
+            "min": 6.369999999913834,
+            "max": 6.369999999913834
+          },
+          "drawCalls": {
+            "median": 637,
+            "min": 637,
+            "max": 637
+          },
+          "triangles": {
+            "median": 249558.39999999997,
+            "min": 249558.39999999997,
+            "max": 249558.39999999997
+          }
+        },
+        "freefly-return": {
+          "wallMs": {
+            "median": 20.68999999995575,
+            "min": 20.68999999995575,
+            "max": 20.68999999995575
+          },
+          "sceneCpuMs": {
+            "median": 11.400000000139698,
+            "min": 11.400000000139698,
+            "max": 11.400000000139698
+          },
+          "animationMs": {
+            "median": 4.400000000128057,
+            "min": 4.400000000128057,
+            "max": 4.400000000128057
+          },
+          "drawCalls": {
+            "median": 456.94999999999993,
+            "min": 456.94999999999993,
+            "max": 456.94999999999993
+          },
+          "triangles": {
+            "median": 191032,
+            "min": 191032,
+            "max": 191032
+          }
+        },
+        "fps-gunplay-b": {
+          "wallMs": {
+            "median": 22.60000000001164,
+            "min": 22.60000000001164,
+            "max": 22.60000000001164
+          },
+          "sceneCpuMs": {
+            "median": 13.5,
+            "min": 13.5,
+            "max": 13.5
+          },
+          "animationMs": {
+            "median": 4.529999999958086,
+            "min": 4.529999999958086,
+            "max": 4.529999999958086
+          },
+          "drawCalls": {
+            "median": 527,
+            "min": 527,
+            "max": 527
+          },
+          "triangles": {
+            "median": 254939.6,
+            "min": 254939.6,
+            "max": 254939.6
+          }
+        }
+      }
+    },
+    "webgl2:proxy-0": {
+      "validRuns": 1,
+      "rejectedRuns": 0,
+      "enoughRuns": true,
+      "acceptedArtifacts": [
+        "public\\data\\benchmarks\\results\\2026-10-11-proxy-quick\\02-webgl2-outline-0"
+      ],
+      "rejectedArtifacts": [],
+      "phases": {
+        "whole-tour": {
+          "wallMs": {
+            "median": 14.150000000023283,
+            "min": 14.150000000023283,
+            "max": 14.150000000023283
+          },
+          "sceneCpuMs": {
+            "median": 9.5,
+            "min": 9.5,
+            "max": 9.5
+          },
+          "animationMs": {
+            "median": 2.7000000001862645,
+            "min": 2.7000000001862645,
+            "max": 2.7000000001862645
+          },
+          "drawCalls": {
+            "median": 556,
+            "min": 556,
+            "max": 556
+          },
+          "triangles": {
+            "median": 324120.5,
+            "min": 324120.5,
+            "max": 324120.5
+          }
+        },
+        "freefly-start": {
+          "wallMs": {
+            "median": 15.100000000093132,
+            "min": 15.100000000093132,
+            "max": 15.100000000093132
+          },
+          "sceneCpuMs": {
+            "median": 9.899999999906868,
+            "min": 9.899999999906868,
+            "max": 9.899999999906868
+          },
+          "animationMs": {
+            "median": 3.0999999998603016,
+            "min": 3.0999999998603016,
+            "max": 3.0999999998603016
+          },
+          "drawCalls": {
+            "median": 558.2,
+            "min": 558.2,
+            "max": 558.2
+          },
+          "triangles": {
+            "median": 324888.20000000007,
+            "min": 324888.20000000007,
+            "max": 324888.20000000007
+          }
+        },
+        "fps-gunplay-a": {
+          "wallMs": {
+            "median": 15.100000000093132,
+            "min": 15.100000000093132,
+            "max": 15.100000000093132
+          },
+          "sceneCpuMs": {
+            "median": 10.199999999953434,
+            "min": 10.199999999953434,
+            "max": 10.199999999953434
+          },
+          "animationMs": {
+            "median": 2.800000000046566,
+            "min": 2.800000000046566,
+            "max": 2.800000000046566
+          },
+          "drawCalls": {
+            "median": 636,
+            "min": 636,
+            "max": 636
+          },
+          "triangles": {
+            "median": 325738,
+            "min": 325738,
+            "max": 325738
+          }
+        },
+        "freefly-return": {
+          "wallMs": {
+            "median": 12.780000000074502,
+            "min": 12.780000000074502,
+            "max": 12.780000000074502
+          },
+          "sceneCpuMs": {
+            "median": 7.800000000046566,
+            "min": 7.800000000046566,
+            "max": 7.800000000046566
+          },
+          "animationMs": {
+            "median": 2.5999999998603016,
+            "min": 2.5999999998603016,
+            "max": 2.5999999998603016
+          },
+          "drawCalls": {
+            "median": 454,
+            "min": 454,
+            "max": 454
+          },
+          "triangles": {
+            "median": 269727.39999999997,
+            "min": 269727.39999999997,
+            "max": 269727.39999999997
+          }
+        },
+        "fps-gunplay-b": {
+          "wallMs": {
+            "median": 12.689999999967391,
+            "min": 12.689999999967391,
+            "max": 12.689999999967391
+          },
+          "sceneCpuMs": {
+            "median": 8.900000000139698,
+            "min": 8.900000000139698,
+            "max": 8.900000000139698
+          },
+          "animationMs": {
+            "median": 2.5999999998603016,
+            "min": 2.5999999998603016,
+            "max": 2.5999999998603016
+          },
+          "drawCalls": {
+            "median": 522,
+            "min": 522,
+            "max": 522
+          },
+          "triangles": {
+            "median": 328979,
+            "min": 328979,
+            "max": 328979
+          }
+        }
+      }
+    },
+    "webgpu:proxy-1": {
+      "validRuns": 1,
+      "rejectedRuns": 0,
+      "enoughRuns": true,
+      "acceptedArtifacts": [
+        "public\\data\\benchmarks\\results\\2026-10-11-proxy-quick\\03-webgpu-outline-1"
+      ],
+      "rejectedArtifacts": [],
+      "phases": {
+        "whole-tour": {
+          "wallMs": {
+            "median": 19.399999999965075,
+            "min": 19.399999999965075,
+            "max": 19.399999999965075
+          },
+          "sceneCpuMs": {
+            "median": 13.199999999953434,
+            "min": 13.199999999953434,
+            "max": 13.199999999953434
+          },
+          "animationMs": {
+            "median": 3.6000000000931323,
+            "min": 3.6000000000931323,
+            "max": 3.6000000000931323
+          },
+          "drawCalls": {
+            "median": 547,
+            "min": 547,
+            "max": 547
+          },
+          "triangles": {
+            "median": 244614.5,
+            "min": 244614.5,
+            "max": 244614.5
+          }
+        },
+        "freefly-start": {
+          "wallMs": {
+            "median": 17.100000000093132,
+            "min": 17.100000000093132,
+            "max": 17.100000000093132
+          },
+          "sceneCpuMs": {
+            "median": 11.899999999906868,
+            "min": 11.899999999906868,
+            "max": 11.899999999906868
+          },
+          "animationMs": {
+            "median": 3.3749999999417923,
+            "min": 3.3749999999417923,
+            "max": 3.3749999999417923
+          },
+          "drawCalls": {
+            "median": 556,
+            "min": 556,
+            "max": 556
+          },
+          "triangles": {
+            "median": 238564.5,
+            "min": 238564.5,
+            "max": 238564.5
+          }
+        },
+        "fps-gunplay-a": {
+          "wallMs": {
+            "median": 22.100000000093132,
+            "min": 22.100000000093132,
+            "max": 22.100000000093132
+          },
+          "sceneCpuMs": {
+            "median": 15,
+            "min": 15,
+            "max": 15
+          },
+          "animationMs": {
+            "median": 4.459999999892889,
+            "min": 4.459999999892889,
+            "max": 4.459999999892889
+          },
+          "drawCalls": {
+            "median": 614.3,
+            "min": 614.3,
+            "max": 614.3
+          },
+          "triangles": {
+            "median": 252979.49999999994,
+            "min": 252979.49999999994,
+            "max": 252979.49999999994
+          }
+        },
+        "freefly-return": {
+          "wallMs": {
+            "median": 17.199999999953434,
+            "min": 17.199999999953434,
+            "max": 17.199999999953434
+          },
+          "sceneCpuMs": {
+            "median": 11.300000000046566,
+            "min": 11.300000000046566,
+            "max": 11.300000000046566
+          },
+          "animationMs": {
+            "median": 3.3999999999068677,
+            "min": 3.3999999999068677,
+            "max": 3.3999999999068677
+          },
+          "drawCalls": {
+            "median": 444.9,
+            "min": 444.9,
+            "max": 444.9
+          },
+          "triangles": {
+            "median": 190843,
+            "min": 190843,
+            "max": 190843
+          }
+        },
+        "fps-gunplay-b": {
+          "wallMs": {
+            "median": 19.290000000165318,
+            "min": 19.290000000165318,
+            "max": 19.290000000165318
+          },
+          "sceneCpuMs": {
+            "median": 12.5,
+            "min": 12.5,
+            "max": 12.5
+          },
+          "animationMs": {
+            "median": 3.5999999999650756,
+            "min": 3.5999999999650756,
+            "max": 3.5999999999650756
+          },
+          "drawCalls": {
+            "median": 522.45,
+            "min": 522.45,
+            "max": 522.45
+          },
+          "triangles": {
+            "median": 253434.70000000004,
+            "min": 253434.70000000004,
+            "max": 253434.70000000004
+          }
+        }
+      }
+    },
+    "webgpu:proxy-0": {
+      "validRuns": 1,
+      "rejectedRuns": 0,
+      "enoughRuns": true,
+      "acceptedArtifacts": [
+        "public\\data\\benchmarks\\results\\2026-10-11-proxy-quick\\04-webgpu-outline-0"
+      ],
+      "rejectedArtifacts": [],
+      "phases": {
+        "whole-tour": {
+          "wallMs": {
+            "median": 19.800000000046566,
+            "min": 19.800000000046566,
+            "max": 19.800000000046566
+          },
+          "sceneCpuMs": {
+            "median": 13.699999999953434,
+            "min": 13.699999999953434,
+            "max": 13.699999999953434
+          },
+          "animationMs": {
+            "median": 3.6000000000931323,
+            "min": 3.6000000000931323,
+            "max": 3.6000000000931323
+          },
+          "drawCalls": {
+            "median": 549,
+            "min": 549,
+            "max": 549
+          },
+          "triangles": {
+            "median": 322591.5,
+            "min": 322591.5,
+            "max": 322591.5
+          }
+        },
+        "freefly-start": {
+          "wallMs": {
+            "median": 17.45500000006286,
+            "min": 17.45500000006286,
+            "max": 17.45500000006286
+          },
+          "sceneCpuMs": {
+            "median": 12,
+            "min": 12,
+            "max": 12
+          },
+          "animationMs": {
+            "median": 3.4000000001396984,
+            "min": 3.4000000001396984,
+            "max": 3.4000000001396984
+          },
+          "drawCalls": {
+            "median": 560,
+            "min": 560,
+            "max": 560
+          },
+          "triangles": {
+            "median": 323026.1,
+            "min": 323026.1,
+            "max": 323026.1
+          }
+        },
+        "fps-gunplay-a": {
+          "wallMs": {
+            "median": 21.899999999953433,
+            "min": 21.899999999953433,
+            "max": 21.899999999953433
+          },
+          "sceneCpuMs": {
+            "median": 15.399999999906868,
+            "min": 15.399999999906868,
+            "max": 15.399999999906868
+          },
+          "animationMs": {
+            "median": 4.099999999906868,
+            "min": 4.099999999906868,
+            "max": 4.099999999906868
+          },
+          "drawCalls": {
+            "median": 623.1999999999999,
+            "min": 623.1999999999999,
+            "max": 623.1999999999999
+          },
+          "triangles": {
+            "median": 322658.8,
+            "min": 322658.8,
+            "max": 322658.8
+          }
+        },
+        "freefly-return": {
+          "wallMs": {
+            "median": 17.5,
+            "min": 17.5,
+            "max": 17.5
+          },
+          "sceneCpuMs": {
+            "median": 11.884999999927814,
+            "min": 11.884999999927814,
+            "max": 11.884999999927814
+          },
+          "animationMs": {
+            "median": 3.300000000046566,
+            "min": 3.300000000046566,
+            "max": 3.300000000046566
+          },
+          "drawCalls": {
+            "median": 454,
+            "min": 454,
+            "max": 454
+          },
+          "triangles": {
+            "median": 265861.14999999997,
+            "min": 265861.14999999997,
+            "max": 265861.14999999997
+          }
+        },
+        "fps-gunplay-b": {
+          "wallMs": {
+            "median": 20.0999999998603,
+            "min": 20.0999999998603,
+            "max": 20.0999999998603
+          },
+          "sceneCpuMs": {
+            "median": 13.400000000139698,
+            "min": 13.400000000139698,
+            "max": 13.400000000139698
+          },
+          "animationMs": {
+            "median": 3.6000000000931323,
+            "min": 3.6000000000931323,
+            "max": 3.6000000000931323
+          },
+          "drawCalls": {
+            "median": 524,
+            "min": 524,
+            "max": 524
+          },
+          "triangles": {
+            "median": 325614.2,
+            "min": 325614.2,
+            "max": 325614.2
+          }
+        }
+      }
+    }
+  },
+  "attempts": [
+    {
+      "backend": "webgl2",
+      "proxy": 1,
+      "repetition": 1,
+      "accepted": true,
+      "exitCode": 0,
+      "fixture": "player-outline-proxy-v1-044283d539ef8e1f-1",
+      "harnessSha256": "aa91b959b36b21daf1021cece3e49af6a9d5ac710f8369df7438715155ecc1ef",
+      "captureMode": "timing-only",
+      "complete": true,
+      "valid": true,
+      "stableSource": true,
+      "sourceBefore": {
+        "outer": "6cf64bc89324a8d92810fd626032831565adb557",
+        "fps": "992dfe93b679c3e666f38c5b4ae9fc72a8e95dd8",
+        "sourceChangeSha256": "2551a82310d2dfd2f9d0d8f78c8de29809a29cd8002c1d226cf29995b08eddb1",
+        "dirty": "",
+        "fpsDirty": ""
+      },
+      "sourceAfter": {
+        "outer": "6cf64bc89324a8d92810fd626032831565adb557",
+        "fps": "992dfe93b679c3e666f38c5b4ae9fc72a8e95dd8",
+        "sourceChangeSha256": "2551a82310d2dfd2f9d0d8f78c8de29809a29cd8002c1d226cf29995b08eddb1",
+        "dirty": "",
+        "fpsDirty": ""
+      },
+      "browser": {
+        "Browser": "Edg/155.0.4283.45",
+        "Protocol-Version": "1.3",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36 Edg/155.0.0.0",
+        "V8-Version": "15.5.9.4",
+        "WebKit-Version": "537.36 (@50f24ef2aa5369a074b8888b7db82d9c0652d642)",
+        "webSocketDebuggerUrl": "ws://127.0.0.1:61928/devtools/browser/5f67d3a8-0278-41b9-b89e-1a8fa9b3cff8"
+      },
+      "developer": {
+        "before": false,
+        "after": false
+      },
+      "exceptions": [],
+      "environment": {
+        "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36 Edg/155.0.0.0",
+        "babylonVersion": "9.17.0",
+        "engineClass": "_Engine",
+        "shagVersion": "0.9.28",
+        "buildLabel": "6cf64bc8-codex-profile",
+        "webgpuCompatibilityMode": null,
+        "viewport": [
+          1416,
+          808
+        ],
+        "devicePixelRatio": 1,
+        "profile": {
+          "width": 1280,
+          "height": 720,
+          "fov": 90,
+          "requiredCvars": {
+            "r_ssr": 0,
+            "r_glow": 0,
+            "r_daynight": 0,
+            "cl_player_outline": 1,
+            "cl_player_outline_proxy": 1
+          }
+        },
+        "cvars": {
+          "cl_ads_fov_reduction": 15,
+          "cl_ads_offset_y": 2,
+          "cl_ads_sensitivity": 0.5,
+          "cl_ads_time": 0.08,
+          "cl_animdebug": 0,
+          "cl_autorun": 1,
+          "cl_bobbing": 0,
+          "cl_crouchmult": 0.5,
+          "cl_debugbbox": 0,
+          "cl_debugbbox_offset": 100,
+          "cl_debugplayer": 0,
+          "cl_debugplayer_offset": 100,
+          "cl_debugplayer_run_speed": 400,
+          "cl_debugplayer_scale": 36,
+          "cl_debugplayer_walk_speed": 50,
+          "cl_flyspeed": 400,
+          "cl_fov": 90,
+          "cl_gunbob": 1,
+          "cl_gunbob_amplitude": 1.5,
+          "cl_gunbob_jump": 2,
+          "cl_gunbob_land": 3,
+          "cl_gunbob_speed": 1,
+          "cl_gunbob_sprint_inward": 30,
+          "cl_gunbob_sprint_tilt": 10,
+          "cl_interp": 0,
+          "cl_netgraph": 0,
+          "cl_player_fullbright": 0,
+          "cl_player_fullbright_intensity": 0.25,
+          "cl_player_outline": 1,
+          "cl_player_outline_proxy": 1,
+          "cl_player_outline_size": 25,
+          "cl_player_pose_hz": 30,
+          "cl_remotehitbox": 0,
+          "cl_showspeed": 0,
+          "cl_smoothfactor": 0.15,
+          "cl_smoothstairs": 1,
+          "cl_speed": 320,
+          "cl_speedfov": 0.38,
+          "cl_speedfovspeed": 5,
+          "cl_sprintmult": 1.5,
+          "cl_team_ally_color": "1.55 0.2 1.35",
+          "cl_team_ally_outline_color": "1.85 0.28 1.65",
+          "cl_team_enemy_color": "0.1 1.15 1.85",
+          "cl_team_enemy_outline_color": "0.16 1.35 2.2",
+          "cl_team_ffa_color": "0.1 1.15 1.85",
+          "cl_team_ffa_outline_color": "0.16 1.35 2.2",
+          "cl_timenudge": 0,
+          "cl_vieweffects": 1,
+          "cl_wep_ads_x": 0,
+          "cl_wep_ads_y": 0,
+          "cl_wep_ads_z": 0,
+          "cl_wep_hip_x": 0,
+          "cl_wep_hip_y": 0,
+          "cl_wep_hip_z": 0,
+          "cl_wep_scale": 0,
+          "r_ambient": 1,
+          "r_anisotropy": 8,
+          "r_arealights": 1,
+          "r_arealights_auto": 0,
+          "r_arealights_intensity": 1,
+          "r_arealights_max": 4,
+          "r_bloom": 1,
+          "r_bsp_cellsize": 0,
+          "r_bsp_freeze": 1,
+          "r_bsp_pbr": 1,
+          "r_cel_color": "0 0 0",
+          "r_cel_depth_threshold": 0.1,
+          "r_cel_normal_threshold": 0.3,
+          "r_cel_opacity": 1,
+          "r_cel_outlines": 0,
+          "r_cel_thickness": 1.5,
+          "r_cel_weapon_color": "0 0 0",
+          "r_cel_weapon_outlines": 1,
+          "r_cel_weapon_width": 25,
+          "r_contrast": 1,
+          "r_daynight": 0,
+          "r_daynight_animate": 0,
+          "r_daynight_length": 1440,
+          "r_daynight_lm_max": 1,
+          "r_daynight_lm_min": 0,
+          "r_daynight_moon_intensity": 0,
+          "r_daynight_sky_tint": 1,
+          "r_daynight_speed": 1,
+          "r_daynight_sun_intensity": 0.3,
+          "r_daynight_time": 1,
+          "r_deluxe": 1,
+          "r_emissive": 1,
+          "r_exposure": 1,
+          "r_glossmap": 1,
+          "r_glow": 0,
+          "r_godrays": 1,
+          "r_godrays_decay": 1,
+          "r_godrays_density": 1,
+          "r_godrays_exposure": 0.32,
+          "r_godrays_samples": 60,
+          "r_godrays_weight": 0.5,
+          "r_ktx2": 1,
+          "r_lightintensity": 1,
+          "r_lightmap": 1,
+          "r_lightmapscale": 1,
+          "r_normalmap": 1,
+          "r_pickupprocedural": 1,
+          "r_showtris": 0,
+          "r_ssr": 0,
+          "r_ssr_strength": 0.4,
+          "r_underwater_distortion": 1,
+          "r_water": 1,
+          "r_water_actors": 1,
+          "r_water_blur": 0.3,
+          "r_water_contact": 0.25,
+          "r_water_debug": 0,
+          "r_water_detail": 0.8,
+          "r_water_highlights": 0.6,
+          "r_water_probe_height": 64,
+          "r_water_quality": 3,
+          "r_water_reflection": 1.3,
+          "r_water_roughness": 0.3,
+          "r_webgpu": 0,
+          "r_wireframe": 0
+        },
+        "capabilities": {
+          "timerQuery": true,
+          "maxTextureSize": 16384
+        }
+      },
+      "runValid": true,
+      "reasons": [],
+      "fps": 85.58462454774133,
+      "meanWallMs": 11.684341729420966,
+      "summary": {
+        "frames": 3851,
+        "wallMs": {
+          "p50": 10.300000000046566,
+          "p95": 22.099999999976717,
+          "p99": 33.20000000006985
+        },
+        "playbackCpuMs": {
+          "p50": 0.6000000000931323,
+          "p95": 4.150000000023283,
+          "p99": 10.449999999953434
+        },
+        "sceneCpuMs": {
+          "p50": 8,
+          "p95": 13.900000000139698,
+          "p99": 19.20000000006985
+        },
+        "animationMs": {
+          "p50": 0.9000000001396984,
+          "p95": 4.5,
+          "p99": 10.699999999953434
+        },
+        "drawCalls": {
+          "p50": 333,
+          "p95": 544.5,
+          "p99": 654.5
+        },
+        "triangles": {
+          "p50": 141346,
+          "p95": 244817.5,
+          "p99": 262318.5
+        },
+        "alivePlayers": {
+          "p50": 6,
+          "p95": 8,
+          "p99": 9
+        },
+        "loadedBodies": {
+          "p50": 6,
+          "p95": 8,
+          "p99": 9
+        },
+        "bundles": null,
+        "outlineProxy": {
+          "sampledFrames": 3851,
+          "requestedFrames": 3851,
+          "unreadyFrames": 0,
+          "rejectedFrames": 0,
+          "fallbackPasses": 0,
+          "unsupportedPasses": 0,
+          "routedPasses": 38712,
+          "routedIndices": 168455268
+        },
+        "missingPovWeaponFrames": 23,
+        "unreadySceneFrames": 0,
+        "sceneReadinessObservedFrames": 0,
+        "pendingSceneDataFrames": 49,
+        "frameBudgetMs": 8.333333333333334,
+        "overBudgetPercent": 68.78732796676188
+      },
+      "phases": {
+        "freefly-start": {
+          "frames": 1257,
+          "wallMs": {
+            "p50": 8.5,
+            "p95": 17.420000000111763,
+            "p99": 22.600000000093132
+          },
+          "playbackCpuMs": {
+            "p50": 0.4000000001396984,
+            "p95": 3.2000000001862645,
+            "p99": 8.5
+          },
+          "sceneCpuMs": {
+            "p50": 6.600000000093132,
+            "p95": 11.600000000093132,
+            "p99": 13.599999999962748
+          },
+          "animationMs": {
+            "p50": 0.6999999999534339,
+            "p95": 3.5,
+            "p99": 8.70000000005588
+          },
+          "drawCalls": {
+            "p50": 319,
+            "p95": 551.4000000000001,
+            "p99": 589.2000000000003
+          },
+          "triangles": {
+            "p50": 130904,
+            "p95": 239530.6,
+            "p99": 265134
+          },
+          "alivePlayers": {
+            "p50": 6,
+            "p95": 7,
+            "p99": 7
+          },
+          "loadedBodies": {
+            "p50": 6,
+            "p95": 7,
+            "p99": 7
+          },
+          "bundles": null,
+          "outlineProxy": {
+            "sampledFrames": 1257,
+            "requestedFrames": 1257,
+            "unreadyFrames": 0,
+            "rejectedFrames": 0,
+            "fallbackPasses": 0,
+            "unsupportedPasses": 0,
+            "routedPasses": 14952,
+            "routedIndices": 65063628
+          },
+          "missingPovWeaponFrames": 0,
+          "unreadySceneFrames": 0,
+          "sceneReadinessObservedFrames": 0,
+          "pendingSceneDataFrames": 19,
+          "frameBudgetMs": 8.333333333333334,
+          "overBudgetPercent": 51.949085123309466
+        },
+        "fps-gunplay-a": {
+          "frames": 884,
+          "wallMs": {
+            "p50": 11.699999999953434,
+            "p95": 28.285000000032586,
+            "p99": 42.61699999991571
+          },
+          "playbackCpuMs": {
+            "p50": 0.8000000000465661,
+            "p95": 5.900000000139698,
+            "p99": 13.485000000100097
+          },
+          "sceneCpuMs": {
+            "p50": 8.79999999993015,
+            "p95": 16.5,
+            "p99": 25.517000000015827
+          },
+          "animationMs": {
+            "p50": 1.1000000000931323,
+            "p95": 6.369999999913834,
+            "p99": 13.685000000053531
+          },
+          "drawCalls": {
+            "p50": 252.5,
+            "p95": 637,
+            "p99": 703.17
+          },
+          "triangles": {
+            "p50": 94217.5,
+            "p95": 249558.39999999997,
+            "p99": 268384.63999999996
+          },
+          "alivePlayers": {
+            "p50": 6,
+            "p95": 8,
+            "p99": 8
+          },
+          "loadedBodies": {
+            "p50": 6,
+            "p95": 8,
+            "p99": 8
+          },
+          "bundles": null,
+          "outlineProxy": {
+            "sampledFrames": 884,
+            "requestedFrames": 884,
+            "unreadyFrames": 0,
+            "rejectedFrames": 0,
+            "fallbackPasses": 0,
+            "unsupportedPasses": 0,
+            "routedPasses": 5412,
+            "routedIndices": 23550318
+          },
+          "missingPovWeaponFrames": 13,
+          "unreadySceneFrames": 0,
+          "sceneReadinessObservedFrames": 0,
+          "pendingSceneDataFrames": 13,
+          "frameBudgetMs": 8.333333333333334,
+          "overBudgetPercent": 65.38461538461539
+        },
+        "freefly-return": {
+          "frames": 762,
+          "wallMs": {
+            "p50": 10.700000000186265,
+            "p95": 20.68999999995575,
+            "p99": 31.5
+          },
+          "playbackCpuMs": {
+            "p50": 0.7000000001862645,
+            "p95": 4.09499999986728,
+            "p99": 10.284999999953413
+          },
+          "sceneCpuMs": {
+            "p50": 8.199999999953434,
+            "p95": 11.400000000139698,
+            "p99": 16.894999999953427
+          },
+          "animationMs": {
+            "p50": 1.0999999998603016,
+            "p95": 4.400000000128057,
+            "p99": 10.446000000103357
+          },
+          "drawCalls": {
+            "p50": 340,
+            "p95": 456.94999999999993,
+            "p99": 525.17
+          },
+          "triangles": {
+            "p50": 151998.5,
+            "p95": 191032,
+            "p99": 215200
+          },
+          "alivePlayers": {
+            "p50": 6,
+            "p95": 8,
+            "p99": 8
+          },
+          "loadedBodies": {
+            "p50": 6,
+            "p95": 8,
+            "p99": 8
+          },
+          "bundles": null,
+          "outlineProxy": {
+            "sampledFrames": 762,
+            "requestedFrames": 762,
+            "unreadyFrames": 0,
+            "rejectedFrames": 0,
+            "fallbackPasses": 0,
+            "unsupportedPasses": 0,
+            "routedPasses": 9700,
+            "routedIndices": 42209550
+          },
+          "missingPovWeaponFrames": 0,
+          "unreadySceneFrames": 0,
+          "sceneReadinessObservedFrames": 0,
+          "pendingSceneDataFrames": 4,
+          "frameBudgetMs": 8.333333333333334,
+          "overBudgetPercent": 82.02099737532808
+        },
+        "fps-gunplay-b": {
+          "frames": 948,
+          "wallMs": {
+            "p50": 11.700000000186265,
+            "p95": 22.60000000001164,
+            "p99": 33.35900000008753
+          },
+          "playbackCpuMs": {
+            "p50": 0.8000000000465661,
+            "p95": 4.129999999969727,
+            "p99": 10.758999999994403
+          },
+          "sceneCpuMs": {
+            "p50": 9.199999999953434,
+            "p95": 13.5,
+            "p99": 20.399999999906868
+          },
+          "animationMs": {
+            "p50": 1.1999999999534339,
+            "p95": 4.529999999958086,
+            "p99": 11.105999999975314
+          },
+          "drawCalls": {
+            "p50": 370,
+            "p95": 527,
+            "p99": 550
+          },
+          "triangles": {
+            "p50": 155668,
+            "p95": 254939.6,
+            "p99": 258338.66999999998
+          },
+          "alivePlayers": {
+            "p50": 6,
+            "p95": 9,
+            "p99": 9
+          },
+          "loadedBodies": {
+            "p50": 6,
+            "p95": 9,
+            "p99": 9
+          },
+          "bundles": null,
+          "outlineProxy": {
+            "sampledFrames": 948,
+            "requestedFrames": 948,
+            "unreadyFrames": 0,
+            "rejectedFrames": 0,
+            "fallbackPasses": 0,
+            "unsupportedPasses": 0,
+            "routedPasses": 8648,
+            "routedIndices": 37631772
+          },
+          "missingPovWeaponFrames": 10,
+          "unreadySceneFrames": 0,
+          "sceneReadinessObservedFrames": 0,
+          "pendingSceneDataFrames": 13,
+          "frameBudgetMs": 8.333333333333334,
+          "overBudgetPercent": 83.64978902953587
+        }
+      },
+      "outlineProxyAssets": {
+        "sourceSha256": "423cbe9717c91509d61d9987f1e015ad3637e0fe071aada6045eda2f1054ae73",
+        "proxySha256": "ef7fbbf39e270efa6dcbee6ea41f802053887f8a189b9e59bf8a6cdc3b465e51"
+      },
+      "outlineProxyDiagnostic": {
+        "requested": true,
+        "status": "ready",
+        "error": null,
+        "assets": {
+          "sourceSha256": "423cbe9717c91509d61d9987f1e015ad3637e0fe071aada6045eda2f1054ae73",
+          "proxySha256": "ef7fbbf39e270efa6dcbee6ea41f802053887f8a189b9e59bf8a6cdc3b465e51"
+        },
+        "attachedParts": 12,
+        "rejectedRoots": 0,
+        "routedPasses": 8,
+        "routedIndices": 34812,
+        "fallbackPasses": 0,
+        "unsupportedPasses": 0
+      },
+      "gpuTiming": "Fresh asynchronous counter samples (ms), unassigned to phases",
+      "gpuMs": {
+        "p50": 4.134912,
+        "p95": 8.282112,
+        "p99": 13.979647999999987
+      },
+      "gpuSamples": 1921,
+      "shaderCompiles": 34,
+      "artifacts": [
+        {
+          "path": "public/data/benchmarks/results/2026-10-11-proxy-quick/01-webgl2-outline-1/1-webgl2/probes.json",
+          "bytes": 29701,
+          "sha256": "c1454d342191b7fb4cfd33963f29d38a613106135cf9b8ae20d46cdfb6155250"
+        },
+        {
+          "path": "public/data/benchmarks/results/2026-10-11-proxy-quick/01-webgl2-outline-1/1-webgl2/run.json",
+          "bytes": 1466,
+          "sha256": "0881049b3ffd778f331f4932539c0d2b5bf6cd8c8a673a3abbcb7bc351d81656"
+        },
+        {
+          "path": "public/data/benchmarks/results/2026-10-11-proxy-quick/01-webgl2-outline-1/1-webgl2/timedemo.json",
+          "bytes": 3768591,
+          "sha256": "a1ddfd61335cd3e0808aeb8df06abdd7685cb713bdf5f6f592cea31abae50329"
+        },
+        {
+          "path": "public/data/benchmarks/results/2026-10-11-proxy-quick/01-webgl2-outline-1/1-webgl2/warmup-fps-gunplay-a.json",
+          "bytes": 230,
+          "sha256": "5494af91a67acf55c140882646051f5349455c784e8e3ec2a2f4a750b17d4c10"
+        },
+        {
+          "path": "public/data/benchmarks/results/2026-10-11-proxy-quick/01-webgl2-outline-1/1-webgl2/warmup-fps-gunplay-a.png",
+          "bytes": 898517,
+          "sha256": "3f95d43fb15cb8b943224e24cc7af0afa7fff24fa9d40e4c901f094845e45420"
+        },
+        {
+          "path": "public/data/benchmarks/results/2026-10-11-proxy-quick/01-webgl2-outline-1/1-webgl2/warmup-fps-gunplay-b.json",
+          "bytes": 230,
+          "sha256": "9bfa24ca4dfd35fbb4078e2a6d0272448e0103f5575edafb6bb5e0ab185ca30a"
+        },
+        {
+          "path": "public/data/benchmarks/results/2026-10-11-proxy-quick/01-webgl2-outline-1/1-webgl2/warmup-fps-gunplay-b.png",
+          "bytes": 932990,
+          "sha256": "c9befa2bbdf8fc5ca8cf76ad3896b1b705ec0a675257286cc6836a4448cb565a"
+        },
+        {
+          "path": "public/data/benchmarks/results/2026-10-11-proxy-quick/01-webgl2-outline-1/1-webgl2/warmup-freefly-return.json",
+          "bytes": 206,
+          "sha256": "b86f7954e899135636b055953c7b59ecf729ce4d21ec92bf3a17d3fc7af01a0c"
+        },
+        {
+          "path": "public/data/benchmarks/results/2026-10-11-proxy-quick/01-webgl2-outline-1/1-webgl2/warmup-freefly-return.png",
+          "bytes": 1009166,
+          "sha256": "f642de399e7ec7d034a759504b4aeb38055024bb927d8c4f7b41561011e3e3c0"
+        },
+        {
+          "path": "public/data/benchmarks/results/2026-10-11-proxy-quick/01-webgl2-outline-1/1-webgl2/warmup-freefly-start.json",
+          "bytes": 217,
+          "sha256": "a85b1cc9864b3e20cd3adf032d32fcd3a62999be101ea922fc24cd17ab2654e5"
+        },
+        {
+          "path": "public/data/benchmarks/results/2026-10-11-proxy-quick/01-webgl2-outline-1/1-webgl2/warmup-freefly-start.png",
+          "bytes": 1072192,
+          "sha256": "dab8cba5f4ad9fccd440f20702e1529f3d7237e772987bcf86462ff5eef8c47f"
+        }
+      ]
+    },
+    {
+      "backend": "webgl2",
+      "proxy": 0,
+      "repetition": 1,
+      "accepted": true,
+      "exitCode": 0,
+      "fixture": "player-outline-proxy-v1-044283d539ef8e1f-0",
+      "harnessSha256": "aa91b959b36b21daf1021cece3e49af6a9d5ac710f8369df7438715155ecc1ef",
+      "captureMode": "timing-only",
+      "complete": true,
+      "valid": true,
+      "stableSource": true,
+      "sourceBefore": {
+        "outer": "6cf64bc89324a8d92810fd626032831565adb557",
+        "fps": "992dfe93b679c3e666f38c5b4ae9fc72a8e95dd8",
+        "sourceChangeSha256": "2551a82310d2dfd2f9d0d8f78c8de29809a29cd8002c1d226cf29995b08eddb1",
+        "dirty": "",
+        "fpsDirty": ""
+      },
+      "sourceAfter": {
+        "outer": "6cf64bc89324a8d92810fd626032831565adb557",
+        "fps": "992dfe93b679c3e666f38c5b4ae9fc72a8e95dd8",
+        "sourceChangeSha256": "2551a82310d2dfd2f9d0d8f78c8de29809a29cd8002c1d226cf29995b08eddb1",
+        "dirty": "",
+        "fpsDirty": ""
+      },
+      "browser": {
+        "Browser": "Edg/155.0.4283.45",
+        "Protocol-Version": "1.3",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36 Edg/155.0.0.0",
+        "V8-Version": "15.5.9.4",
+        "WebKit-Version": "537.36 (@50f24ef2aa5369a074b8888b7db82d9c0652d642)",
+        "webSocketDebuggerUrl": "ws://127.0.0.1:63914/devtools/browser/b7a75ea9-7728-4df3-a036-3016df5a2e01"
+      },
+      "developer": {
+        "before": false,
+        "after": false
+      },
+      "exceptions": [],
+      "environment": {
+        "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36 Edg/155.0.0.0",
+        "babylonVersion": "9.17.0",
+        "engineClass": "_Engine",
+        "shagVersion": "0.9.28",
+        "buildLabel": "6cf64bc8-codex-profile",
+        "webgpuCompatibilityMode": null,
+        "viewport": [
+          1416,
+          808
+        ],
+        "devicePixelRatio": 1,
+        "profile": {
+          "width": 1280,
+          "height": 720,
+          "fov": 90,
+          "requiredCvars": {
+            "r_ssr": 0,
+            "r_glow": 0,
+            "r_daynight": 0,
+            "cl_player_outline": 1,
+            "cl_player_outline_proxy": 0
+          }
+        },
+        "cvars": {
+          "cl_ads_fov_reduction": 15,
+          "cl_ads_offset_y": 2,
+          "cl_ads_sensitivity": 0.5,
+          "cl_ads_time": 0.08,
+          "cl_animdebug": 0,
+          "cl_autorun": 1,
+          "cl_bobbing": 0,
+          "cl_crouchmult": 0.5,
+          "cl_debugbbox": 0,
+          "cl_debugbbox_offset": 100,
+          "cl_debugplayer": 0,
+          "cl_debugplayer_offset": 100,
+          "cl_debugplayer_run_speed": 400,
+          "cl_debugplayer_scale": 36,
+          "cl_debugplayer_walk_speed": 50,
+          "cl_flyspeed": 400,
+          "cl_fov": 90,
+          "cl_gunbob": 1,
+          "cl_gunbob_amplitude": 1.5,
+          "cl_gunbob_jump": 2,
+          "cl_gunbob_land": 3,
+          "cl_gunbob_speed": 1,
+          "cl_gunbob_sprint_inward": 30,
+          "cl_gunbob_sprint_tilt": 10,
+          "cl_interp": 0,
+          "cl_netgraph": 0,
+          "cl_player_fullbright": 0,
+          "cl_player_fullbright_intensity": 0.25,
+          "cl_player_outline": 1,
+          "cl_player_outline_proxy": 0,
+          "cl_player_outline_size": 25,
+          "cl_player_pose_hz": 30,
+          "cl_remotehitbox": 0,
+          "cl_showspeed": 0,
+          "cl_smoothfactor": 0.15,
+          "cl_smoothstairs": 1,
+          "cl_speed": 320,
+          "cl_speedfov": 0.38,
+          "cl_speedfovspeed": 5,
+          "cl_sprintmult": 1.5,
+          "cl_team_ally_color": "1.55 0.2 1.35",
+          "cl_team_ally_outline_color": "1.85 0.28 1.65",
+          "cl_team_enemy_color": "0.1 1.15 1.85",
+          "cl_team_enemy_outline_color": "0.16 1.35 2.2",
+          "cl_team_ffa_color": "0.1 1.15 1.85",
+          "cl_team_ffa_outline_color": "0.16 1.35 2.2",
+          "cl_timenudge": 0,
+          "cl_vieweffects": 1,
+          "cl_wep_ads_x": 0,
+          "cl_wep_ads_y": 0,
+          "cl_wep_ads_z": 0,
+          "cl_wep_hip_x": 0,
+          "cl_wep_hip_y": 0,
+          "cl_wep_hip_z": 0,
+          "cl_wep_scale": 0,
+          "r_ambient": 1,
+          "r_anisotropy": 8,
+          "r_arealights": 1,
+          "r_arealights_auto": 0,
+          "r_arealights_intensity": 1,
+          "r_arealights_max": 4,
+          "r_bloom": 1,
+          "r_bsp_cellsize": 0,
+          "r_bsp_freeze": 1,
+          "r_bsp_pbr": 1,
+          "r_cel_color": "0 0 0",
+          "r_cel_depth_threshold": 0.1,
+          "r_cel_normal_threshold": 0.3,
+          "r_cel_opacity": 1,
+          "r_cel_outlines": 0,
+          "r_cel_thickness": 1.5,
+          "r_cel_weapon_color": "0 0 0",
+          "r_cel_weapon_outlines": 1,
+          "r_cel_weapon_width": 25,
+          "r_contrast": 1,
+          "r_daynight": 0,
+          "r_daynight_animate": 0,
+          "r_daynight_length": 1440,
+          "r_daynight_lm_max": 1,
+          "r_daynight_lm_min": 0,
+          "r_daynight_moon_intensity": 0,
+          "r_daynight_sky_tint": 1,
+          "r_daynight_speed": 1,
+          "r_daynight_sun_intensity": 0.3,
+          "r_daynight_time": 1,
+          "r_deluxe": 1,
+          "r_emissive": 1,
+          "r_exposure": 1,
+          "r_glossmap": 1,
+          "r_glow": 0,
+          "r_godrays": 1,
+          "r_godrays_decay": 1,
+          "r_godrays_density": 1,
+          "r_godrays_exposure": 0.32,
+          "r_godrays_samples": 60,
+          "r_godrays_weight": 0.5,
+          "r_ktx2": 1,
+          "r_lightintensity": 1,
+          "r_lightmap": 1,
+          "r_lightmapscale": 1,
+          "r_normalmap": 1,
+          "r_pickupprocedural": 1,
+          "r_showtris": 0,
+          "r_ssr": 0,
+          "r_ssr_strength": 0.4,
+          "r_underwater_distortion": 1,
+          "r_water": 1,
+          "r_water_actors": 1,
+          "r_water_blur": 0.3,
+          "r_water_contact": 0.25,
+          "r_water_debug": 0,
+          "r_water_detail": 0.8,
+          "r_water_highlights": 0.6,
+          "r_water_probe_height": 64,
+          "r_water_quality": 3,
+          "r_water_reflection": 1.3,
+          "r_water_roughness": 0.3,
+          "r_webgpu": 0,
+          "r_wireframe": 0
+        },
+        "capabilities": {
+          "timerQuery": true,
+          "maxTextureSize": 16384
+        }
+      },
+      "runValid": true,
+      "reasons": [],
+      "fps": 123.81073026328986,
+      "meanWallMs": 8.076844372644025,
+      "summary": {
+        "frames": 5571,
+        "wallMs": {
+          "p50": 6.900000000139698,
+          "p95": 14.150000000023283,
+          "p99": 20.899999999976718
+        },
+        "playbackCpuMs": {
+          "p50": 0.30000000004656613,
+          "p95": 2.5,
+          "p99": 6.729999999911542
+        },
+        "sceneCpuMs": {
+          "p50": 5.600000000093132,
+          "p95": 9.5,
+          "p99": 12.300000000046566
+        },
+        "animationMs": {
+          "p50": 0.5,
+          "p95": 2.7000000001862645,
+          "p99": 6.860000000032633
+        },
+        "drawCalls": {
+          "p50": 352,
+          "p95": 556,
+          "p99": 657.3000000000002
+        },
+        "triangles": {
+          "p50": 202077,
+          "p95": 324120.5,
+          "p99": 348505
+        },
+        "alivePlayers": {
+          "p50": 6,
+          "p95": 8,
+          "p99": 9
+        },
+        "loadedBodies": {
+          "p50": 6,
+          "p95": 8,
+          "p99": 9
+        },
+        "bundles": null,
+        "outlineProxy": null,
+        "missingPovWeaponFrames": 24,
+        "unreadySceneFrames": 0,
+        "sceneReadinessObservedFrames": 0,
+        "pendingSceneDataFrames": 46,
+        "frameBudgetMs": 8.333333333333334,
+        "overBudgetPercent": 32.32812780470292
+      },
+      "phases": {
+        "freefly-start": {
+          "frames": 1377,
+          "wallMs": {
+            "p50": 8,
+            "p95": 15.100000000093132,
+            "p99": 21.768000000026085
+          },
+          "playbackCpuMs": {
+            "p50": 0.39999999990686774,
+            "p95": 2.800000000046566,
+            "p99": 8
+          },
+          "sceneCpuMs": {
+            "p50": 6.300000000046566,
+            "p95": 9.899999999906868,
+            "p99": 11.899999999962747
+          },
+          "animationMs": {
+            "p50": 0.5999999998603016,
+            "p95": 3.0999999998603016,
+            "p99": 8.148000000026078
+          },
+          "drawCalls": {
+            "p50": 344,
+            "p95": 558.2,
+            "p99": 594.24
+          },
+          "triangles": {
+            "p50": 184489,
+            "p95": 324888.20000000007,
+            "p99": 366960.48
+          },
+          "alivePlayers": {
+            "p50": 6,
+            "p95": 7,
+            "p99": 7
+          },
+          "loadedBodies": {
+            "p50": 6,
+            "p95": 7,
+            "p99": 7
+          },
+          "bundles": null,
+          "outlineProxy": null,
+          "missingPovWeaponFrames": 0,
+          "unreadySceneFrames": 0,
+          "sceneReadinessObservedFrames": 0,
+          "pendingSceneDataFrames": 21,
+          "frameBudgetMs": 8.333333333333334,
+          "overBudgetPercent": 44.517066085693536
+        },
+        "fps-gunplay-a": {
+          "frames": 1406,
+          "wallMs": {
+            "p50": 7,
+            "p95": 15.100000000093132,
+            "p99": 25.690000000176962
+          },
+          "playbackCpuMs": {
+            "p50": 0.30000000004656613,
+            "p95": 2.699999999953434,
+            "p99": 7.665000000176983
+          },
+          "sceneCpuMs": {
+            "p50": 5.800000000046566,
+            "p95": 10.199999999953434,
+            "p99": 15.169999999948805
+          },
+          "animationMs": {
+            "p50": 0.5,
+            "p95": 2.800000000046566,
+            "p99": 7.865000000130417
+          },
+          "drawCalls": {
+            "p50": 340,
+            "p95": 636,
+            "p99": 709.7500000000002
+          },
+          "triangles": {
+            "p50": 166076,
+            "p95": 325738,
+            "p99": 346747.55
+          },
+          "alivePlayers": {
+            "p50": 6,
+            "p95": 8,
+            "p99": 8
+          },
+          "loadedBodies": {
+            "p50": 6,
+            "p95": 8,
+            "p99": 8
+          },
+          "bundles": null,
+          "outlineProxy": null,
+          "missingPovWeaponFrames": 13,
+          "unreadySceneFrames": 0,
+          "sceneReadinessObservedFrames": 0,
+          "pendingSceneDataFrames": 11,
+          "frameBudgetMs": 8.333333333333334,
+          "overBudgetPercent": 37.1977240398293
+        },
+        "freefly-return": {
+          "frames": 1225,
+          "wallMs": {
+            "p50": 6.399999999906868,
+            "p95": 12.780000000074502,
+            "p99": 17.82800000012852
+          },
+          "playbackCpuMs": {
+            "p50": 0.2999999998137355,
+            "p95": 2.3999999999068677,
+            "p99": 5.351999999918042
+          },
+          "sceneCpuMs": {
+            "p50": 5.100000000093132,
+            "p95": 7.800000000046566,
+            "p99": 9.875999999940394
+          },
+          "animationMs": {
+            "p50": 0.5,
+            "p95": 2.5999999998603016,
+            "p99": 5.5
+          },
+          "drawCalls": {
+            "p50": 344,
+            "p95": 454,
+            "p99": 516.76
+          },
+          "triangles": {
+            "p50": 207378,
+            "p95": 269727.39999999997,
+            "p99": 316664
+          },
+          "alivePlayers": {
+            "p50": 6,
+            "p95": 8,
+            "p99": 8
+          },
+          "loadedBodies": {
+            "p50": 6,
+            "p95": 8,
+            "p99": 8
+          },
+          "bundles": null,
+          "outlineProxy": null,
+          "missingPovWeaponFrames": 0,
+          "unreadySceneFrames": 0,
+          "sceneReadinessObservedFrames": 0,
+          "pendingSceneDataFrames": 4,
+          "frameBudgetMs": 8.333333333333334,
+          "overBudgetPercent": 20.73469387755102
+        },
+        "fps-gunplay-b": {
+          "frames": 1563,
+          "wallMs": {
+            "p50": 6.7000000001862645,
+            "p95": 12.689999999967391,
+            "p99": 18.5379999999469
+          },
+          "playbackCpuMs": {
+            "p50": 0.2999999998137355,
+            "p95": 2.300000000046566,
+            "p99": 6.176000000075414
+          },
+          "sceneCpuMs": {
+            "p50": 5.600000000093132,
+            "p95": 8.900000000139698,
+            "p99": 12.390000000186205
+          },
+          "animationMs": {
+            "p50": 0.5,
+            "p95": 2.5999999998603016,
+            "p99": 6.313999999971093
+          },
+          "drawCalls": {
+            "p50": 382,
+            "p95": 522,
+            "p99": 553
+          },
+          "triangles": {
+            "p50": 205869,
+            "p95": 328979,
+            "p99": 348505
+          },
+          "alivePlayers": {
+            "p50": 6,
+            "p95": 9,
+            "p99": 9
+          },
+          "loadedBodies": {
+            "p50": 6,
+            "p95": 9,
+            "p99": 9
+          },
+          "bundles": null,
+          "outlineProxy": null,
+          "missingPovWeaponFrames": 11,
+          "unreadySceneFrames": 0,
+          "sceneReadinessObservedFrames": 0,
+          "pendingSceneDataFrames": 10,
+          "frameBudgetMs": 8.333333333333334,
+          "overBudgetPercent": 26.295585412667947
+        }
+      },
+      "outlineProxyAssets": null,
+      "outlineProxyDiagnostic": null,
+      "gpuTiming": "Fresh asynchronous counter samples (ms), unassigned to phases",
+      "gpuMs": {
+        "p50": 3.502592,
+        "p95": 6.1273599999999995,
+        "p99": 8.596224
+      },
+      "gpuSamples": 2776,
+      "shaderCompiles": 34,
+      "artifacts": [
+        {
+          "path": "public/data/benchmarks/results/2026-10-11-proxy-quick/02-webgl2-outline-0/1-webgl2/probes.json",
+          "bytes": 29783,
+          "sha256": "e77e6f8c92231ded2269551864c09c51cb6e2e12337064e29a0cd9998f3fe86a"
+        },
+        {
+          "path": "public/data/benchmarks/results/2026-10-11-proxy-quick/02-webgl2-outline-0/1-webgl2/run.json",
+          "bytes": 1466,
+          "sha256": "8229c46dd4819bf3eb06e589a0246208aa0775f2bf272cd958987406728135f3"
+        },
+        {
+          "path": "public/data/benchmarks/results/2026-10-11-proxy-quick/02-webgl2-outline-0/1-webgl2/timedemo.json",
+          "bytes": 3890513,
+          "sha256": "cd5e16d991eade57c76de4a6b578c6af9683eddf06a5c6701cc367c42d2cea89"
+        },
+        {
+          "path": "public/data/benchmarks/results/2026-10-11-proxy-quick/02-webgl2-outline-0/1-webgl2/warmup-fps-gunplay-a.json",
+          "bytes": 230,
+          "sha256": "6cd1915a433b14a0e9f7f0a76fae34844038a094ba680dfae31534bd4c8bb9fe"
+        },
+        {
+          "path": "public/data/benchmarks/results/2026-10-11-proxy-quick/02-webgl2-outline-0/1-webgl2/warmup-fps-gunplay-a.png",
+          "bytes": 897040,
+          "sha256": "d41297a89420e7aa5248d8aca41b7cb5d1f2a9336a6f7ad4ae1e86324350548e"
+        },
+        {
+          "path": "public/data/benchmarks/results/2026-10-11-proxy-quick/02-webgl2-outline-0/1-webgl2/warmup-fps-gunplay-b.json",
+          "bytes": 229,
+          "sha256": "7f841e7659c18d20de9343aed84fc79fdbd810ff5862fd2c6362b435104864f0"
+        },
+        {
+          "path": "public/data/benchmarks/results/2026-10-11-proxy-quick/02-webgl2-outline-0/1-webgl2/warmup-fps-gunplay-b.png",
+          "bytes": 897541,
+          "sha256": "99d36411347ffd611e0a85eef04e28e82e4375d9252eb039fc33a999234a73a3"
+        },
+        {
+          "path": "public/data/benchmarks/results/2026-10-11-proxy-quick/02-webgl2-outline-0/1-webgl2/warmup-freefly-return.json",
+          "bytes": 220,
+          "sha256": "c75642c76131f5106724761c0685729754615c6efffe89aac86876deba89f4b0"
+        },
+        {
+          "path": "public/data/benchmarks/results/2026-10-11-proxy-quick/02-webgl2-outline-0/1-webgl2/warmup-freefly-return.png",
+          "bytes": 928771,
+          "sha256": "18b65cd4a48eae0add558641640f09e531995c3c0825eac5cd5c5e3684e1980e"
+        },
+        {
+          "path": "public/data/benchmarks/results/2026-10-11-proxy-quick/02-webgl2-outline-0/1-webgl2/warmup-freefly-start.json",
+          "bytes": 232,
+          "sha256": "fd980e2553ea59b4556967fce7bc5a1390c98273604a4872dcdc48e2d0982886"
+        },
+        {
+          "path": "public/data/benchmarks/results/2026-10-11-proxy-quick/02-webgl2-outline-0/1-webgl2/warmup-freefly-start.png",
+          "bytes": 1073657,
+          "sha256": "6eb8898df90969f3b18531e93a7af7add25b96a783f91c55d0b39f2f98533e4e"
+        }
+      ]
+    },
+    {
+      "backend": "webgpu",
+      "proxy": 1,
+      "repetition": 1,
+      "accepted": true,
+      "exitCode": 0,
+      "fixture": "player-outline-proxy-v1-044283d539ef8e1f-1",
+      "harnessSha256": "aa91b959b36b21daf1021cece3e49af6a9d5ac710f8369df7438715155ecc1ef",
+      "captureMode": "timing-only",
+      "complete": true,
+      "valid": true,
+      "stableSource": true,
+      "sourceBefore": {
+        "outer": "6cf64bc89324a8d92810fd626032831565adb557",
+        "fps": "992dfe93b679c3e666f38c5b4ae9fc72a8e95dd8",
+        "sourceChangeSha256": "2551a82310d2dfd2f9d0d8f78c8de29809a29cd8002c1d226cf29995b08eddb1",
+        "dirty": "",
+        "fpsDirty": ""
+      },
+      "sourceAfter": {
+        "outer": "6cf64bc89324a8d92810fd626032831565adb557",
+        "fps": "992dfe93b679c3e666f38c5b4ae9fc72a8e95dd8",
+        "sourceChangeSha256": "2551a82310d2dfd2f9d0d8f78c8de29809a29cd8002c1d226cf29995b08eddb1",
+        "dirty": "",
+        "fpsDirty": ""
+      },
+      "browser": {
+        "Browser": "Edg/155.0.4283.45",
+        "Protocol-Version": "1.3",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36 Edg/155.0.0.0",
+        "V8-Version": "15.5.9.4",
+        "WebKit-Version": "537.36 (@50f24ef2aa5369a074b8888b7db82d9c0652d642)",
+        "webSocketDebuggerUrl": "ws://127.0.0.1:50100/devtools/browser/4278475c-eae3-4d94-ac95-dc5dea491145"
+      },
+      "developer": {
+        "before": false,
+        "after": false
+      },
+      "exceptions": [],
+      "environment": {
+        "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36 Edg/155.0.0.0",
+        "babylonVersion": "9.17.0",
+        "engineClass": "_WebGPUEngine",
+        "shagVersion": "0.9.28",
+        "buildLabel": "6cf64bc8-codex-profile",
+        "webgpuCompatibilityMode": true,
+        "viewport": [
+          1416,
+          808
+        ],
+        "devicePixelRatio": 1,
+        "profile": {
+          "width": 1280,
+          "height": 720,
+          "fov": 90,
+          "requiredCvars": {
+            "r_ssr": 0,
+            "r_glow": 0,
+            "r_daynight": 0,
+            "cl_player_outline": 1,
+            "cl_player_outline_proxy": 1
+          }
+        },
+        "cvars": {
+          "cl_ads_fov_reduction": 15,
+          "cl_ads_offset_y": 2,
+          "cl_ads_sensitivity": 0.5,
+          "cl_ads_time": 0.08,
+          "cl_animdebug": 0,
+          "cl_autorun": 1,
+          "cl_bobbing": 0,
+          "cl_crouchmult": 0.5,
+          "cl_debugbbox": 0,
+          "cl_debugbbox_offset": 100,
+          "cl_debugplayer": 0,
+          "cl_debugplayer_offset": 100,
+          "cl_debugplayer_run_speed": 400,
+          "cl_debugplayer_scale": 36,
+          "cl_debugplayer_walk_speed": 50,
+          "cl_flyspeed": 400,
+          "cl_fov": 90,
+          "cl_gunbob": 1,
+          "cl_gunbob_amplitude": 1.5,
+          "cl_gunbob_jump": 2,
+          "cl_gunbob_land": 3,
+          "cl_gunbob_speed": 1,
+          "cl_gunbob_sprint_inward": 30,
+          "cl_gunbob_sprint_tilt": 10,
+          "cl_interp": 0,
+          "cl_netgraph": 0,
+          "cl_player_fullbright": 0,
+          "cl_player_fullbright_intensity": 0.25,
+          "cl_player_outline": 1,
+          "cl_player_outline_proxy": 1,
+          "cl_player_outline_size": 25,
+          "cl_player_pose_hz": 30,
+          "cl_remotehitbox": 0,
+          "cl_showspeed": 0,
+          "cl_smoothfactor": 0.15,
+          "cl_smoothstairs": 1,
+          "cl_speed": 320,
+          "cl_speedfov": 0.38,
+          "cl_speedfovspeed": 5,
+          "cl_sprintmult": 1.5,
+          "cl_team_ally_color": "1.55 0.2 1.35",
+          "cl_team_ally_outline_color": "1.85 0.28 1.65",
+          "cl_team_enemy_color": "0.1 1.15 1.85",
+          "cl_team_enemy_outline_color": "0.16 1.35 2.2",
+          "cl_team_ffa_color": "0.1 1.15 1.85",
+          "cl_team_ffa_outline_color": "0.16 1.35 2.2",
+          "cl_timenudge": 0,
+          "cl_vieweffects": 1,
+          "cl_wep_ads_x": 0,
+          "cl_wep_ads_y": 0,
+          "cl_wep_ads_z": 0,
+          "cl_wep_hip_x": 0,
+          "cl_wep_hip_y": 0,
+          "cl_wep_hip_z": 0,
+          "cl_wep_scale": 0,
+          "r_ambient": 1,
+          "r_anisotropy": 8,
+          "r_arealights": 1,
+          "r_arealights_auto": 0,
+          "r_arealights_intensity": 1,
+          "r_arealights_max": 4,
+          "r_bloom": 1,
+          "r_bsp_cellsize": 0,
+          "r_bsp_freeze": 1,
+          "r_bsp_pbr": 1,
+          "r_cel_color": "0 0 0",
+          "r_cel_depth_threshold": 0.1,
+          "r_cel_normal_threshold": 0.3,
+          "r_cel_opacity": 1,
+          "r_cel_outlines": 0,
+          "r_cel_thickness": 1.5,
+          "r_cel_weapon_color": "0 0 0",
+          "r_cel_weapon_outlines": 1,
+          "r_cel_weapon_width": 25,
+          "r_contrast": 1,
+          "r_daynight": 0,
+          "r_daynight_animate": 0,
+          "r_daynight_length": 1440,
+          "r_daynight_lm_max": 1,
+          "r_daynight_lm_min": 0,
+          "r_daynight_moon_intensity": 0,
+          "r_daynight_sky_tint": 1,
+          "r_daynight_speed": 1,
+          "r_daynight_sun_intensity": 0.3,
+          "r_daynight_time": 1,
+          "r_deluxe": 1,
+          "r_emissive": 1,
+          "r_exposure": 1,
+          "r_glossmap": 1,
+          "r_glow": 0,
+          "r_godrays": 1,
+          "r_godrays_decay": 1,
+          "r_godrays_density": 1,
+          "r_godrays_exposure": 0.32,
+          "r_godrays_samples": 60,
+          "r_godrays_weight": 0.5,
+          "r_ktx2": 1,
+          "r_lightintensity": 1,
+          "r_lightmap": 1,
+          "r_lightmapscale": 1,
+          "r_normalmap": 1,
+          "r_pickupprocedural": 1,
+          "r_showtris": 0,
+          "r_ssr": 0,
+          "r_ssr_strength": 0.4,
+          "r_underwater_distortion": 1,
+          "r_water": 1,
+          "r_water_actors": 1,
+          "r_water_blur": 0.3,
+          "r_water_contact": 0.25,
+          "r_water_debug": 0,
+          "r_water_detail": 0.8,
+          "r_water_highlights": 0.6,
+          "r_water_probe_height": 64,
+          "r_water_quality": 3,
+          "r_water_reflection": 1.3,
+          "r_water_roughness": 0.3,
+          "r_webgpu": 0,
+          "r_wireframe": 0
+        },
+        "capabilities": {
+          "timerQuery": false,
+          "maxTextureSize": 8192
+        }
+      },
+      "runValid": true,
+      "reasons": [],
+      "fps": 95.01736577908231,
+      "meanWallMs": 10.524391955098233,
+      "summary": {
+        "frames": 4276,
+        "wallMs": {
+          "p50": 9.399999999906868,
+          "p95": 19.399999999965075,
+          "p99": 27.32500000006985
+        },
+        "playbackCpuMs": {
+          "p50": 0.4000000001396984,
+          "p95": 3.3250000000116415,
+          "p99": 8.699999999953434
+        },
+        "sceneCpuMs": {
+          "p50": 7.599999999860302,
+          "p95": 13.199999999953434,
+          "p99": 16.899999999906868
+        },
+        "animationMs": {
+          "p50": 0.6999999999534339,
+          "p95": 3.6000000000931323,
+          "p99": 8.82500000006985
+        },
+        "drawCalls": {
+          "p50": 327,
+          "p95": 547,
+          "p99": 637.5
+        },
+        "triangles": {
+          "p50": 142717.5,
+          "p95": 244614.5,
+          "p99": 263581
+        },
+        "alivePlayers": {
+          "p50": 6,
+          "p95": 8,
+          "p99": 9
+        },
+        "loadedBodies": {
+          "p50": 6,
+          "p95": 8,
+          "p99": 9
+        },
+        "bundles": null,
+        "outlineProxy": {
+          "sampledFrames": 4276,
+          "requestedFrames": 4276,
+          "unreadyFrames": 0,
+          "rejectedFrames": 0,
+          "fallbackPasses": 0,
+          "unsupportedPasses": 0,
+          "routedPasses": 41944,
+          "routedIndices": 182519316
+        },
+        "missingPovWeaponFrames": 24,
+        "unreadySceneFrames": 0,
+        "sceneReadinessObservedFrames": 0,
+        "pendingSceneDataFrames": 44,
+        "frameBudgetMs": 8.333333333333334,
+        "overBudgetPercent": 60.219831618334894
+      },
+      "phases": {
+        "freefly-start": {
+          "frames": 1226,
+          "wallMs": {
+            "p50": 8.800000000046566,
+            "p95": 17.100000000093132,
+            "p99": 24.600000000034925
+          },
+          "playbackCpuMs": {
+            "p50": 0.39999999990686774,
+            "p95": 3.1000000000931323,
+            "p99": 9.050000000104774
+          },
+          "sceneCpuMs": {
+            "p50": 7.100000000093132,
+            "p95": 11.899999999906868,
+            "p99": 15.225000000034925
+          },
+          "animationMs": {
+            "p50": 0.6000000000931323,
+            "p95": 3.3749999999417923,
+            "p99": 9.174999999988358
+          },
+          "drawCalls": {
+            "p50": 321,
+            "p95": 556,
+            "p99": 598.75
+          },
+          "triangles": {
+            "p50": 131696,
+            "p95": 238564.5,
+            "p99": 264045.5
+          },
+          "alivePlayers": {
+            "p50": 6,
+            "p95": 7,
+            "p99": 7
+          },
+          "loadedBodies": {
+            "p50": 6,
+            "p95": 7,
+            "p99": 7
+          },
+          "bundles": null,
+          "outlineProxy": {
+            "sampledFrames": 1226,
+            "requestedFrames": 1226,
+            "unreadyFrames": 0,
+            "rejectedFrames": 0,
+            "fallbackPasses": 0,
+            "unsupportedPasses": 0,
+            "routedPasses": 14644,
+            "routedIndices": 63723366
+          },
+          "missingPovWeaponFrames": 0,
+          "unreadySceneFrames": 0,
+          "sceneReadinessObservedFrames": 0,
+          "pendingSceneDataFrames": 18,
+          "frameBudgetMs": 8.333333333333334,
+          "overBudgetPercent": 55.22022838499184
+        },
+        "fps-gunplay-a": {
+          "frames": 1035,
+          "wallMs": {
+            "p50": 9.900000000139698,
+            "p95": 22.100000000093132,
+            "p99": 31.12399999989192
+          },
+          "playbackCpuMs": {
+            "p50": 0.5999999998603016,
+            "p95": 4.229999999981369,
+            "p99": 10.266000000014898
+          },
+          "sceneCpuMs": {
+            "p50": 7.699999999953434,
+            "p95": 15,
+            "p99": 18.331999999922694
+          },
+          "animationMs": {
+            "p50": 0.8000000000465661,
+            "p95": 4.459999999892889,
+            "p99": 10.432000000015826
+          },
+          "drawCalls": {
+            "p50": 286,
+            "p95": 614.3,
+            "p99": 688
+          },
+          "triangles": {
+            "p50": 88824,
+            "p95": 252979.49999999994,
+            "p99": 268438
+          },
+          "alivePlayers": {
+            "p50": 6,
+            "p95": 8,
+            "p99": 8
+          },
+          "loadedBodies": {
+            "p50": 6,
+            "p95": 8,
+            "p99": 8
+          },
+          "bundles": null,
+          "outlineProxy": {
+            "sampledFrames": 1035,
+            "requestedFrames": 1035,
+            "unreadyFrames": 0,
+            "rejectedFrames": 0,
+            "fallbackPasses": 0,
+            "unsupportedPasses": 0,
+            "routedPasses": 6324,
+            "routedIndices": 27518886
+          },
+          "missingPovWeaponFrames": 14,
+          "unreadySceneFrames": 0,
+          "sceneReadinessObservedFrames": 0,
+          "pendingSceneDataFrames": 10,
+          "frameBudgetMs": 8.333333333333334,
+          "overBudgetPercent": 57.68115942028985
+        },
+        "freefly-return": {
+          "frames": 923,
+          "wallMs": {
+            "p50": 8.800000000046566,
+            "p95": 17.199999999953434,
+            "p99": 22.97799999997951
+          },
+          "playbackCpuMs": {
+            "p50": 0.39999999990686774,
+            "p95": 3.0999999998603016,
+            "p99": 7.7560000000568055
+          },
+          "sceneCpuMs": {
+            "p50": 7.399999999906868,
+            "p95": 11.300000000046566,
+            "p99": 13.778000000026074
+          },
+          "animationMs": {
+            "p50": 0.6000000000931323,
+            "p95": 3.3999999999068677,
+            "p99": 8
+          },
+          "drawCalls": {
+            "p50": 333,
+            "p95": 444.9,
+            "p99": 517.56
+          },
+          "triangles": {
+            "p50": 151306,
+            "p95": 190843,
+            "p99": 215200.8
+          },
+          "alivePlayers": {
+            "p50": 6,
+            "p95": 7,
+            "p99": 8
+          },
+          "loadedBodies": {
+            "p50": 6,
+            "p95": 7,
+            "p99": 8
+          },
+          "bundles": null,
+          "outlineProxy": {
+            "sampledFrames": 923,
+            "requestedFrames": 923,
+            "unreadyFrames": 0,
+            "rejectedFrames": 0,
+            "fallbackPasses": 0,
+            "unsupportedPasses": 0,
+            "routedPasses": 11308,
+            "routedIndices": 49206762
+          },
+          "missingPovWeaponFrames": 0,
+          "unreadySceneFrames": 0,
+          "sceneReadinessObservedFrames": 0,
+          "pendingSceneDataFrames": 4,
+          "frameBudgetMs": 8.333333333333334,
+          "overBudgetPercent": 56.87973997833153
+        },
+        "fps-gunplay-b": {
+          "frames": 1092,
+          "wallMs": {
+            "p50": 10.400000000023283,
+            "p95": 19.290000000165318,
+            "p99": 27.71700000007626
+          },
+          "playbackCpuMs": {
+            "p50": 0.5,
+            "p95": 3.2999999999185095,
+            "p99": 8.217999999949226
+          },
+          "sceneCpuMs": {
+            "p50": 8.5,
+            "p95": 12.5,
+            "p99": 17.418000000135493
+          },
+          "animationMs": {
+            "p50": 0.8000000000465661,
+            "p95": 3.5999999999650756,
+            "p99": 8.5
+          },
+          "drawCalls": {
+            "p50": 358,
+            "p95": 522.45,
+            "p99": 546
+          },
+          "triangles": {
+            "p50": 152390,
+            "p95": 253434.70000000004,
+            "p99": 259739.26999999981
+          },
+          "alivePlayers": {
+            "p50": 6,
+            "p95": 9,
+            "p99": 9
+          },
+          "loadedBodies": {
+            "p50": 6,
+            "p95": 9,
+            "p99": 9
+          },
+          "bundles": null,
+          "outlineProxy": {
+            "sampledFrames": 1092,
+            "requestedFrames": 1092,
+            "unreadyFrames": 0,
+            "rejectedFrames": 0,
+            "fallbackPasses": 0,
+            "unsupportedPasses": 0,
+            "routedPasses": 9668,
+            "routedIndices": 42070302
+          },
+          "missingPovWeaponFrames": 10,
+          "unreadySceneFrames": 0,
+          "sceneReadinessObservedFrames": 0,
+          "pendingSceneDataFrames": 12,
+          "frameBudgetMs": 8.333333333333334,
+          "overBudgetPercent": 71.06227106227107
+        }
+      },
+      "outlineProxyAssets": {
+        "sourceSha256": "423cbe9717c91509d61d9987f1e015ad3637e0fe071aada6045eda2f1054ae73",
+        "proxySha256": "ef7fbbf39e270efa6dcbee6ea41f802053887f8a189b9e59bf8a6cdc3b465e51"
+      },
+      "outlineProxyDiagnostic": {
+        "requested": true,
+        "status": "ready",
+        "error": null,
+        "assets": {
+          "sourceSha256": "423cbe9717c91509d61d9987f1e015ad3637e0fe071aada6045eda2f1054ae73",
+          "proxySha256": "ef7fbbf39e270efa6dcbee6ea41f802053887f8a189b9e59bf8a6cdc3b465e51"
+        },
+        "attachedParts": 12,
+        "rejectedRoots": 0,
+        "routedPasses": 8,
+        "routedIndices": 34812,
+        "fallbackPasses": 0,
+        "unsupportedPasses": 0
+      },
+      "gpuTiming": "unavailable",
+      "gpuMs": {
+        "p50": null,
+        "p95": null,
+        "p99": null
+      },
+      "gpuSamples": 0,
+      "shaderCompiles": 18,
+      "artifacts": [
+        {
+          "path": "public/data/benchmarks/results/2026-10-11-proxy-quick/03-webgpu-outline-1/1-webgpu/probes.json",
+          "bytes": 29504,
+          "sha256": "ebf3e4f962881373ccf9b8bef2a6ba0b2769a77b67bb938f73491f90cde119b9"
+        },
+        {
+          "path": "public/data/benchmarks/results/2026-10-11-proxy-quick/03-webgpu-outline-1/1-webgpu/run.json",
+          "bytes": 1466,
+          "sha256": "705f9aa58fb427a3972832e50b1c522834a1f2353564828f8690193adcff42ba"
+        },
+        {
+          "path": "public/data/benchmarks/results/2026-10-11-proxy-quick/03-webgpu-outline-1/1-webgpu/timedemo.json",
+          "bytes": 4127797,
+          "sha256": "968a541d0787ce72e700cec252e1532f34d3d12fe729889d9ee0bd3570cc193e"
+        },
+        {
+          "path": "public/data/benchmarks/results/2026-10-11-proxy-quick/03-webgpu-outline-1/1-webgpu/warmup-fps-gunplay-a.json",
+          "bytes": 232,
+          "sha256": "38e0d655453bb9a7a1a8083fd6dfdfa565514a2808655c6b17b0d7d903a4383c"
+        },
+        {
+          "path": "public/data/benchmarks/results/2026-10-11-proxy-quick/03-webgpu-outline-1/1-webgpu/warmup-fps-gunplay-a.png",
+          "bytes": 955592,
+          "sha256": "146c45927d4607c6d8b0afaefb75cea6e53eca1034e21e18399655e14bf52e7c"
+        },
+        {
+          "path": "public/data/benchmarks/results/2026-10-11-proxy-quick/03-webgpu-outline-1/1-webgpu/warmup-fps-gunplay-b.json",
+          "bytes": 229,
+          "sha256": "ea8ad54efd02d4de81963fbd789da82eb224f94fcaaad9414fc142100e874d81"
+        },
+        {
+          "path": "public/data/benchmarks/results/2026-10-11-proxy-quick/03-webgpu-outline-1/1-webgpu/warmup-fps-gunplay-b.png",
+          "bytes": 956425,
+          "sha256": "e8cb96c21390f97b11e610f910e313813fafba939fccf630c27fc73e781d3604"
+        },
+        {
+          "path": "public/data/benchmarks/results/2026-10-11-proxy-quick/03-webgpu-outline-1/1-webgpu/warmup-freefly-return.json",
+          "bytes": 232,
+          "sha256": "9c2200fe1f65abeb61a27dfc9726d10a8f1d412352467a4477cd36ba26b11556"
+        },
+        {
+          "path": "public/data/benchmarks/results/2026-10-11-proxy-quick/03-webgpu-outline-1/1-webgpu/warmup-freefly-return.png",
+          "bytes": 912247,
+          "sha256": "f2e71df2f96c2f586e34696bc3f40d5a23504c4cf88a70e7e66736ac6e410ed3"
+        },
+        {
+          "path": "public/data/benchmarks/results/2026-10-11-proxy-quick/03-webgpu-outline-1/1-webgpu/warmup-freefly-start.json",
+          "bytes": 231,
+          "sha256": "b80ff057356321abc94b73bc0f511d973bd4c0174bb946956d00154bfdd4d650"
+        },
+        {
+          "path": "public/data/benchmarks/results/2026-10-11-proxy-quick/03-webgpu-outline-1/1-webgpu/warmup-freefly-start.png",
+          "bytes": 1045820,
+          "sha256": "8ecc902aff76276b3da1c8906a08231af1e2d8a53e66ee912999bdd167c193f9"
+        }
+      ]
+    },
+    {
+      "backend": "webgpu",
+      "proxy": 0,
+      "repetition": 1,
+      "accepted": true,
+      "exitCode": 0,
+      "fixture": "player-outline-proxy-v1-044283d539ef8e1f-0",
+      "harnessSha256": "aa91b959b36b21daf1021cece3e49af6a9d5ac710f8369df7438715155ecc1ef",
+      "captureMode": "timing-only",
+      "complete": true,
+      "valid": true,
+      "stableSource": true,
+      "sourceBefore": {
+        "outer": "6cf64bc89324a8d92810fd626032831565adb557",
+        "fps": "992dfe93b679c3e666f38c5b4ae9fc72a8e95dd8",
+        "sourceChangeSha256": "2551a82310d2dfd2f9d0d8f78c8de29809a29cd8002c1d226cf29995b08eddb1",
+        "dirty": "",
+        "fpsDirty": ""
+      },
+      "sourceAfter": {
+        "outer": "6cf64bc89324a8d92810fd626032831565adb557",
+        "fps": "992dfe93b679c3e666f38c5b4ae9fc72a8e95dd8",
+        "sourceChangeSha256": "2551a82310d2dfd2f9d0d8f78c8de29809a29cd8002c1d226cf29995b08eddb1",
+        "dirty": "",
+        "fpsDirty": ""
+      },
+      "browser": {
+        "Browser": "Edg/155.0.4283.45",
+        "Protocol-Version": "1.3",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36 Edg/155.0.0.0",
+        "V8-Version": "15.5.9.4",
+        "WebKit-Version": "537.36 (@50f24ef2aa5369a074b8888b7db82d9c0652d642)",
+        "webSocketDebuggerUrl": "ws://127.0.0.1:55112/devtools/browser/cc94ca0d-fad0-4cbc-bade-ae486b85a035"
+      },
+      "developer": {
+        "before": false,
+        "after": false
+      },
+      "exceptions": [],
+      "environment": {
+        "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36 Edg/155.0.0.0",
+        "babylonVersion": "9.17.0",
+        "engineClass": "_WebGPUEngine",
+        "shagVersion": "0.9.28",
+        "buildLabel": "6cf64bc8-codex-profile",
+        "webgpuCompatibilityMode": true,
+        "viewport": [
+          1416,
+          808
+        ],
+        "devicePixelRatio": 1,
+        "profile": {
+          "width": 1280,
+          "height": 720,
+          "fov": 90,
+          "requiredCvars": {
+            "r_ssr": 0,
+            "r_glow": 0,
+            "r_daynight": 0,
+            "cl_player_outline": 1,
+            "cl_player_outline_proxy": 0
+          }
+        },
+        "cvars": {
+          "cl_ads_fov_reduction": 15,
+          "cl_ads_offset_y": 2,
+          "cl_ads_sensitivity": 0.5,
+          "cl_ads_time": 0.08,
+          "cl_animdebug": 0,
+          "cl_autorun": 1,
+          "cl_bobbing": 0,
+          "cl_crouchmult": 0.5,
+          "cl_debugbbox": 0,
+          "cl_debugbbox_offset": 100,
+          "cl_debugplayer": 0,
+          "cl_debugplayer_offset": 100,
+          "cl_debugplayer_run_speed": 400,
+          "cl_debugplayer_scale": 36,
+          "cl_debugplayer_walk_speed": 50,
+          "cl_flyspeed": 400,
+          "cl_fov": 90,
+          "cl_gunbob": 1,
+          "cl_gunbob_amplitude": 1.5,
+          "cl_gunbob_jump": 2,
+          "cl_gunbob_land": 3,
+          "cl_gunbob_speed": 1,
+          "cl_gunbob_sprint_inward": 30,
+          "cl_gunbob_sprint_tilt": 10,
+          "cl_interp": 0,
+          "cl_netgraph": 0,
+          "cl_player_fullbright": 0,
+          "cl_player_fullbright_intensity": 0.25,
+          "cl_player_outline": 1,
+          "cl_player_outline_proxy": 0,
+          "cl_player_outline_size": 25,
+          "cl_player_pose_hz": 30,
+          "cl_remotehitbox": 0,
+          "cl_showspeed": 0,
+          "cl_smoothfactor": 0.15,
+          "cl_smoothstairs": 1,
+          "cl_speed": 320,
+          "cl_speedfov": 0.38,
+          "cl_speedfovspeed": 5,
+          "cl_sprintmult": 1.5,
+          "cl_team_ally_color": "1.55 0.2 1.35",
+          "cl_team_ally_outline_color": "1.85 0.28 1.65",
+          "cl_team_enemy_color": "0.1 1.15 1.85",
+          "cl_team_enemy_outline_color": "0.16 1.35 2.2",
+          "cl_team_ffa_color": "0.1 1.15 1.85",
+          "cl_team_ffa_outline_color": "0.16 1.35 2.2",
+          "cl_timenudge": 0,
+          "cl_vieweffects": 1,
+          "cl_wep_ads_x": 0,
+          "cl_wep_ads_y": 0,
+          "cl_wep_ads_z": 0,
+          "cl_wep_hip_x": 0,
+          "cl_wep_hip_y": 0,
+          "cl_wep_hip_z": 0,
+          "cl_wep_scale": 0,
+          "r_ambient": 1,
+          "r_anisotropy": 8,
+          "r_arealights": 1,
+          "r_arealights_auto": 0,
+          "r_arealights_intensity": 1,
+          "r_arealights_max": 4,
+          "r_bloom": 1,
+          "r_bsp_cellsize": 0,
+          "r_bsp_freeze": 1,
+          "r_bsp_pbr": 1,
+          "r_cel_color": "0 0 0",
+          "r_cel_depth_threshold": 0.1,
+          "r_cel_normal_threshold": 0.3,
+          "r_cel_opacity": 1,
+          "r_cel_outlines": 0,
+          "r_cel_thickness": 1.5,
+          "r_cel_weapon_color": "0 0 0",
+          "r_cel_weapon_outlines": 1,
+          "r_cel_weapon_width": 25,
+          "r_contrast": 1,
+          "r_daynight": 0,
+          "r_daynight_animate": 0,
+          "r_daynight_length": 1440,
+          "r_daynight_lm_max": 1,
+          "r_daynight_lm_min": 0,
+          "r_daynight_moon_intensity": 0,
+          "r_daynight_sky_tint": 1,
+          "r_daynight_speed": 1,
+          "r_daynight_sun_intensity": 0.3,
+          "r_daynight_time": 1,
+          "r_deluxe": 1,
+          "r_emissive": 1,
+          "r_exposure": 1,
+          "r_glossmap": 1,
+          "r_glow": 0,
+          "r_godrays": 1,
+          "r_godrays_decay": 1,
+          "r_godrays_density": 1,
+          "r_godrays_exposure": 0.32,
+          "r_godrays_samples": 60,
+          "r_godrays_weight": 0.5,
+          "r_ktx2": 1,
+          "r_lightintensity": 1,
+          "r_lightmap": 1,
+          "r_lightmapscale": 1,
+          "r_normalmap": 1,
+          "r_pickupprocedural": 1,
+          "r_showtris": 0,
+          "r_ssr": 0,
+          "r_ssr_strength": 0.4,
+          "r_underwater_distortion": 1,
+          "r_water": 1,
+          "r_water_actors": 1,
+          "r_water_blur": 0.3,
+          "r_water_contact": 0.25,
+          "r_water_debug": 0,
+          "r_water_detail": 0.8,
+          "r_water_highlights": 0.6,
+          "r_water_probe_height": 64,
+          "r_water_quality": 3,
+          "r_water_reflection": 1.3,
+          "r_water_roughness": 0.3,
+          "r_webgpu": 0,
+          "r_wireframe": 0
+        },
+        "capabilities": {
+          "timerQuery": false,
+          "maxTextureSize": 8192
+        }
+      },
+      "runValid": true,
+      "reasons": [],
+      "fps": 90.62141669851843,
+      "meanWallMs": 11.034919077979378,
+      "summary": {
+        "frames": 4078,
+        "wallMs": {
+          "p50": 9.799999999813735,
+          "p95": 19.800000000046566,
+          "p99": 29.42299999992829
+        },
+        "playbackCpuMs": {
+          "p50": 0.5,
+          "p95": 3.300000000046566,
+          "p99": 8.200000000006986
+        },
+        "sceneCpuMs": {
+          "p50": 7.800000000046566,
+          "p95": 13.699999999953434,
+          "p99": 17.700000000006984
+        },
+        "animationMs": {
+          "p50": 0.7999999998137355,
+          "p95": 3.6000000000931323,
+          "p99": 8.423000000107569
+        },
+        "drawCalls": {
+          "p50": 329,
+          "p95": 549,
+          "p99": 641.69
+        },
+        "triangles": {
+          "p50": 186041,
+          "p95": 322591.5,
+          "p99": 345541.76
+        },
+        "alivePlayers": {
+          "p50": 6,
+          "p95": 8,
+          "p99": 9
+        },
+        "loadedBodies": {
+          "p50": 6,
+          "p95": 8,
+          "p99": 9
+        },
+        "bundles": null,
+        "outlineProxy": null,
+        "missingPovWeaponFrames": 25,
+        "unreadySceneFrames": 0,
+        "sceneReadinessObservedFrames": 0,
+        "pendingSceneDataFrames": 45,
+        "frameBudgetMs": 8.333333333333334,
+        "overBudgetPercent": 65.89014222658166
+      },
+      "phases": {
+        "freefly-start": {
+          "frames": 1150,
+          "wallMs": {
+            "p50": 9.600000000093132,
+            "p95": 17.45500000006286,
+            "p99": 26.704000000071243
+          },
+          "playbackCpuMs": {
+            "p50": 0.5,
+            "p95": 3.1550000000162934,
+            "p99": 8.003999999999065
+          },
+          "sceneCpuMs": {
+            "p50": 7.699999999953434,
+            "p95": 12,
+            "p99": 15
+          },
+          "animationMs": {
+            "p50": 0.6999999999534339,
+            "p95": 3.4000000001396984,
+            "p99": 8.204000000071243
+          },
+          "drawCalls": {
+            "p50": 318.5,
+            "p95": 560,
+            "p99": 599
+          },
+          "triangles": {
+            "p50": 180117,
+            "p95": 323026.1,
+            "p99": 362982
+          },
+          "alivePlayers": {
+            "p50": 6,
+            "p95": 7,
+            "p99": 7
+          },
+          "loadedBodies": {
+            "p50": 6,
+            "p95": 7,
+            "p99": 7
+          },
+          "bundles": null,
+          "outlineProxy": null,
+          "missingPovWeaponFrames": 0,
+          "unreadySceneFrames": 0,
+          "sceneReadinessObservedFrames": 0,
+          "pendingSceneDataFrames": 17,
+          "frameBudgetMs": 8.333333333333334,
+          "overBudgetPercent": 66.17391304347827
+        },
+        "fps-gunplay-a": {
+          "frames": 1017,
+          "wallMs": {
+            "p50": 10.099999999860302,
+            "p95": 21.899999999953433,
+            "p99": 31.651999999945993
+          },
+          "playbackCpuMs": {
+            "p50": 0.5999999998603016,
+            "p95": 3.800000000046566,
+            "p99": 9.968000000007457
+          },
+          "sceneCpuMs": {
+            "p50": 7.800000000046566,
+            "p95": 15.399999999906868,
+            "p99": 19.584000000078234
+          },
+          "animationMs": {
+            "p50": 0.8000000000465661,
+            "p95": 4.099999999906868,
+            "p99": 10.252000000039125
+          },
+          "drawCalls": {
+            "p50": 302,
+            "p95": 623.1999999999999,
+            "p99": 693
+          },
+          "triangles": {
+            "p50": 108236,
+            "p95": 322658.8,
+            "p99": 346342.56
+          },
+          "alivePlayers": {
+            "p50": 6,
+            "p95": 8,
+            "p99": 8
+          },
+          "loadedBodies": {
+            "p50": 6,
+            "p95": 8,
+            "p99": 8
+          },
+          "bundles": null,
+          "outlineProxy": null,
+          "missingPovWeaponFrames": 14,
+          "unreadySceneFrames": 0,
+          "sceneReadinessObservedFrames": 0,
+          "pendingSceneDataFrames": 10,
+          "frameBudgetMs": 8.333333333333334,
+          "overBudgetPercent": 59.09537856440512
+        },
+        "freefly-return": {
+          "frames": 884,
+          "wallMs": {
+            "p50": 9.300000000046566,
+            "p95": 17.5,
+            "p99": 23.35100000005447
+          },
+          "playbackCpuMs": {
+            "p50": 0.4000000001396984,
+            "p95": 3.0850000000791535,
+            "p99": 7.016999999976247
+          },
+          "sceneCpuMs": {
+            "p50": 7.599999999976717,
+            "p95": 11.884999999927814,
+            "p99": 14.299999999853316
+          },
+          "animationMs": {
+            "p50": 0.6999999999534339,
+            "p95": 3.300000000046566,
+            "p99": 7.216999999929681
+          },
+          "drawCalls": {
+            "p50": 336,
+            "p95": 454,
+            "p99": 525.17
+          },
+          "triangles": {
+            "p50": 202536.5,
+            "p95": 265861.14999999997,
+            "p99": 316800
+          },
+          "alivePlayers": {
+            "p50": 6,
+            "p95": 7,
+            "p99": 8
+          },
+          "loadedBodies": {
+            "p50": 6,
+            "p95": 7,
+            "p99": 8
+          },
+          "bundles": null,
+          "outlineProxy": null,
+          "missingPovWeaponFrames": 0,
+          "unreadySceneFrames": 0,
+          "sceneReadinessObservedFrames": 0,
+          "pendingSceneDataFrames": 4,
+          "frameBudgetMs": 8.333333333333334,
+          "overBudgetPercent": 64.36651583710407
+        },
+        "fps-gunplay-b": {
+          "frames": 1027,
+          "wallMs": {
+            "p50": 10.5,
+            "p95": 20.0999999998603,
+            "p99": 30.88799999996555
+          },
+          "playbackCpuMs": {
+            "p50": 0.5999999998603016,
+            "p95": 3.300000000046566,
+            "p99": 8.100000000032596
+          },
+          "sceneCpuMs": {
+            "p50": 8.400000000139698,
+            "p95": 13.400000000139698,
+            "p99": 18.073999999896625
+          },
+          "animationMs": {
+            "p50": 0.8999999999068677,
+            "p95": 3.6000000000931323,
+            "p99": 8.37399999994319
+          },
+          "drawCalls": {
+            "p50": 356,
+            "p95": 524,
+            "p99": 556.48
+          },
+          "triangles": {
+            "p50": 190592,
+            "p95": 325614.2,
+            "p99": 344267.08
+          },
+          "alivePlayers": {
+            "p50": 6,
+            "p95": 9,
+            "p99": 9
+          },
+          "loadedBodies": {
+            "p50": 6,
+            "p95": 9,
+            "p99": 9
+          },
+          "bundles": null,
+          "outlineProxy": null,
+          "missingPovWeaponFrames": 11,
+          "unreadySceneFrames": 0,
+          "sceneReadinessObservedFrames": 0,
+          "pendingSceneDataFrames": 14,
+          "frameBudgetMs": 8.333333333333334,
+          "overBudgetPercent": 73.61246348588121
+        }
+      },
+      "outlineProxyAssets": null,
+      "outlineProxyDiagnostic": null,
+      "gpuTiming": "unavailable",
+      "gpuMs": {
+        "p50": null,
+        "p95": null,
+        "p99": null
+      },
+      "gpuSamples": 0,
+      "shaderCompiles": 18,
+      "artifacts": [
+        {
+          "path": "public/data/benchmarks/results/2026-10-11-proxy-quick/04-webgpu-outline-0/1-webgpu/probes.json",
+          "bytes": 29443,
+          "sha256": "8248bac74347e4a6e6bff90855c833297e4d765cb000182916a1e5a664658caa"
+        },
+        {
+          "path": "public/data/benchmarks/results/2026-10-11-proxy-quick/04-webgpu-outline-0/1-webgpu/run.json",
+          "bytes": 1466,
+          "sha256": "5c2bd051b56d247cce5d84e58d510271de5c1846ca0d8e121f7f9f3e52132c80"
+        },
+        {
+          "path": "public/data/benchmarks/results/2026-10-11-proxy-quick/04-webgpu-outline-0/1-webgpu/timedemo.json",
+          "bytes": 2833640,
+          "sha256": "14b0f9d9bc641d725595e75924d67cdd3ad6d6108dd1cdf9c1b323a95ca88753"
+        },
+        {
+          "path": "public/data/benchmarks/results/2026-10-11-proxy-quick/04-webgpu-outline-0/1-webgpu/warmup-fps-gunplay-a.json",
+          "bytes": 231,
+          "sha256": "3ff74b072d95c3b4a76016b7ec5e772bc9b9cd58e65ef1875cd6aee8e0b25f7d"
+        },
+        {
+          "path": "public/data/benchmarks/results/2026-10-11-proxy-quick/04-webgpu-outline-0/1-webgpu/warmup-fps-gunplay-a.png",
+          "bytes": 890559,
+          "sha256": "3a8443713eddfc59e93fe63f590ee7c56caef5b3b5dda6e49672f9b6f790fb60"
+        },
+        {
+          "path": "public/data/benchmarks/results/2026-10-11-proxy-quick/04-webgpu-outline-0/1-webgpu/warmup-fps-gunplay-b.json",
+          "bytes": 206,
+          "sha256": "121074af39f092f2b0f6b7eee7740653466c5c76e3ffa34db2122a30fe3799c9"
+        },
+        {
+          "path": "public/data/benchmarks/results/2026-10-11-proxy-quick/04-webgpu-outline-0/1-webgpu/warmup-fps-gunplay-b.png",
+          "bytes": 780468,
+          "sha256": "6e12e6905e114bb2acb9267eafcdd1898f5b0b1a5b8a318f8d790f89f14feb03"
+        },
+        {
+          "path": "public/data/benchmarks/results/2026-10-11-proxy-quick/04-webgpu-outline-0/1-webgpu/warmup-freefly-return.json",
+          "bytes": 231,
+          "sha256": "9f2535ec847cf26b3a3b25692df67861abd35eb3c22e1a0fbfba63f110b618b8"
+        },
+        {
+          "path": "public/data/benchmarks/results/2026-10-11-proxy-quick/04-webgpu-outline-0/1-webgpu/warmup-freefly-return.png",
+          "bytes": 861126,
+          "sha256": "83794a7d3ab86e36fb5be3c5ae4759a69109ba468fc809af9dccfbc4664fa51d"
+        },
+        {
+          "path": "public/data/benchmarks/results/2026-10-11-proxy-quick/04-webgpu-outline-0/1-webgpu/warmup-freefly-start.json",
+          "bytes": 211,
+          "sha256": "92eb10a51b3e204c1db9d0501d87d97343bc0bcb69b558f109302e0b78c00491"
+        },
+        {
+          "path": "public/data/benchmarks/results/2026-10-11-proxy-quick/04-webgpu-outline-0/1-webgpu/warmup-freefly-start.png",
+          "bytes": 1063736,
+          "sha256": "8461e84e6a94975f420bfa4ad63d165a177d9d4f9fcf98d8ecbaa91d3cca33d5"
+        }
+      ]
+    }
+  ],
+  "fpsDefinition": "1000 * measured sample count / sum of measured sample wallMs",
+  "limitations": [
+    "Full/reduced outline geometry, normal player outlines remain enabled in both.",
+    "400ms status polling and production timedemo counters remain; CPU sampling/trace wrappers are disabled.",
+    "At least five valid runs per variant are recommended. Report insufficient valid runs and overlapping spread honestly.",
+    "Only one attempt per backend/variant; no repeatability or order-effect estimate.",
+    "GPU timings are asynchronous whole-frame measurements; no outline-only or phase attribution."
+  ],
+  "seriesArtifact": {
+    "path": "public/data/benchmarks/results/2026-10-11-proxy-quick/series.json",
+    "sha256": "5f7c01d7f36d2723881d8f6310158344a84c4858493645f124a77eca2ebd3655"
+  }
+}

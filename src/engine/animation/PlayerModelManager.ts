@@ -30,6 +30,7 @@ import "@babylonjs/core/Rendering/outlineRenderer";
 import { type Scene, Scene as SceneClass } from "@babylonjs/core/scene";
 import { devLog } from "../core/DevLog";
 import { disposeModelResources } from "../loader/model/ModelSourceCache";
+import { cloneModelMaterial } from "../rendering/MaterialCloneBatch";
 import { PlayerOutlineProxyRuntime } from "../rendering/PlayerOutlineProxyRuntime";
 
 // ─── Types ───────────────────────────────────────────────────────
@@ -687,7 +688,7 @@ export class PlayerModelManager {
       return material;
     }
 
-    const cloned = material.clone(visibilityCloneName);
+    const cloned = cloneModelMaterial(material, visibilityCloneName);
     if (!cloned) return null;
     mesh.material = cloned;
     return cloned;

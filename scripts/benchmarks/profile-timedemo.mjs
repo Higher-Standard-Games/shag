@@ -8,6 +8,8 @@ import { sliceCpuProfile, summarizeCpuProfile } from './cpu-profile.mjs';
 import { installReadinessProbe } from './readiness-probe.mjs';
 import { installPlaybackProbe } from './playback-probe.mjs';
 import { installOutlineProbe } from './outline-probe.mjs';
+import { installCameraProbe } from './camera-probe.mjs';
+import { readEngineGraphics } from './graphics-probe.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const options = {
@@ -20,6 +22,7 @@ for (let i = 2; i < process.argv.length; i++) {
   if (name === 'trace-readiness') { options.traceReadiness = true; continue; }
   if (name === 'trace-playback') { options.tracePlayback = true; continue; }
   if (name === 'trace-outlines') { options.traceOutlines = true; continue; }
+  if (name === 'trace-cameras') { options.traceCameras = true; continue; }
   if (name === 'timing-only') { options.timingOnly = true; continue; }
   if (!['fixture', 'backends', 'port', 'interval', 'ncm', 'browser', 'out'].includes(name) || !process.argv[i + 1])
     throw new Error(`Unknown or incomplete option: ${process.argv[i]}`);
@@ -32,7 +35,7 @@ if (!/^[a-z0-9][a-z0-9._-]{0,127}$/i.test(options.fixture) ||
     !Number.isInteger(options.port) || options.port < 1024 || options.port > 65535 ||
     !Number.isInteger(options.interval) || options.interval < 100 || options.interval > 10000 ||
     ![0, 1].includes(options.ncm)) throw new Error('Invalid profiling options');
-if (options.timingOnly && (options.traceReadiness || options.tracePlayback || options.traceOutlines))
+if (options.timingOnly && (options.traceReadiness || options.tracePlayback || options.traceOutlines || options.traceCameras))
   throw new Error('Timing-only captures cannot install diagnostic trace wrappers');
 const stamp = new Date().toISOString().replace(/[:.]/g, '-');
 const out = path.resolve(root, options.out ?? `public/data/benchmarks/results/${stamp}-codex-profile`);
@@ -131,6 +134,8 @@ const series = { createdAt: new Date().toISOString(), fixture: options.fixture, 
   readinessProbeSha256: options.traceReadiness ? createHash('sha256').update(installReadinessProbe.toString()).digest('hex') : null,
   playbackProbeSha256: options.tracePlayback ? createHash('sha256').update(installPlaybackProbe.toString()).digest('hex') : null,
   outlineProbeSha256: options.traceOutlines ? createHash('sha256').update(installOutlineProbe.toString()).digest('hex') : null,
+  cameraProbeSha256: options.traceCameras ? createHash('sha256').update(installCameraProbe.toString()).digest('hex') : null,
+  graphicsProbeSha256: createHash('sha256').update(readEngineGraphics.toString()).digest('hex'),
   runs: [] };
 try {
   await server.listen();
@@ -174,6 +179,15 @@ try {
         const engine = CameraSystem.getInstance().getCamera()?.getScene()?.getEngine();
         return !!engine && engine.frameId > 1 && CommandRegistry.getInstance().getCommands().has('timedemo');
       })()`), 120000, 'Game initialization');
+      const graphics = {
+        browser: await browser.send('SystemInfo.getInfo').then(info => info.gpu).catch(error => ({ unavailable: error.message })),
+        engine: await page.evaluate(`(async () => {
+          const { CameraSystem } = await import('/src/engine/camera/CameraSystem.ts');
+          const engine = CameraSystem.getInstance().getCamera().getScene().getEngine();
+          return (${readEngineGraphics.toString()})(engine);
+        })()`),
+      };
+      await fs.writeFile(path.join(directory, 'graphics.json'), JSON.stringify(graphics, null, 2));
       // Both CDP's Timestamp metric and CPU sample timestamps use Chromium's
       // monotonic clock. Bracket the metric with page clock readings and retain
       // the narrowest observed offset range rather than assuming a wall-clock origin.
@@ -221,12 +235,10 @@ try {
         const registry = CommandRegistry.getInstance();
         const developer = await registry.executeChecked('developer 0');
         if (!developer.ok || Cvar.getBool('developer')) throw new Error('Could not disable development diagnostics');
-        for (const [name, value] of Object.entries(${JSON.stringify(fixture.profile.requiredCvars)})) {
+        for (const [name, value] of Object.entries(${JSON.stringify({ cl_player_pose_hz: 30, ...fixture.profile.requiredCvars })})) {
           const result = await registry.executeChecked(name + ' ' + value);
           if (!result.ok) throw new Error('Profile setting failed: ' + name + ': ' + result.output);
         }
-        const pose = await registry.executeChecked('cl_player_pose_hz 30');
-        if (!pose.ok) throw new Error(pose.output);
         const fixture = ${JSON.stringify({ startSeconds: fixture.startSeconds, segments: fixture.segments.map(({ name, start, end }) => ({ name, start, end })) })};
         window.__timedemoProfileProbe = () => {
           const service = TimedemoService.getInstance(), demo = DemoService.getInstance();
@@ -246,6 +258,8 @@ try {
         const OutlineRenderer = scene.getOutlineRenderer().constructor;
         window.__timedemoOutlineTrace = (${installOutlineProbe.toString()})(scene.getEngine(), OutlineRenderer,
           () => window.__timedemoProfileProbe());` : ''}
+        ${options.traceCameras ? `window.__timedemoCameraTrace = (${installCameraProbe.toString()})(
+          CameraSystem.getInstance().getCamera().getScene(), () => window.__timedemoProfileProbe());` : ''}
         const result = await registry.executeChecked('timedemo ${options.fixture} --mode realtime --repeats 1');
         return { ...result, developer: Cvar.getBool('developer') };
       })()`);
@@ -337,14 +351,23 @@ try {
         outlineTraceValid = outline.meshDrawHookInstalled && outline.dropped === 0;
       }
       const sourceAfter = sourceIdentity();
+      let cameraTraceValid = true;
+      if (options.traceCameras) {
+        const cameraTrace = await page.evaluate(`(() => {
+          const trace = window.__timedemoCameraTrace;
+          try { return trace.snapshot(); } finally { trace.restore(); }
+        })()`);
+        await fs.writeFile(path.join(directory, 'camera-trace.json'), JSON.stringify(cameraTrace, null, 2));
+        cameraTraceValid = cameraTrace.dropped === 0 && cameraTrace.records.some(record => record.candidateCalls > 0);
+      }
       const developerAfter = await page.evaluate(`(async () => {
         const { Cvar } = await import('/src/engine/core/Cvar.ts');
         return Cvar.getBool('developer');
       })()`);
       const stableSource = sourceBefore.outer === sourceAfter.outer && sourceBefore.fps === sourceAfter.fps &&
         sourceBefore.sourceChangeSha256 === sourceAfter.sourceChangeSha256;
-      const result = { backend, version, sourceBefore, sourceAfter, stableSource,
-        captureMode: options.timingOnly ? 'timing-only' : 'cpu-profile', outlineTraceValid,
+      const result = { backend, version, graphics, sourceBefore, sourceAfter, stableSource,
+        captureMode: options.timingOnly ? 'timing-only' : 'cpu-profile', outlineTraceValid, cameraTraceValid,
         developer: { before: setup.developer, after: developerAfter },
         captures: captures.map(({ summary, ...capture }) => ({ ...capture, topSelf: summary.bySelf.slice(0, 15) })),
         exceptions: page.errors, reportFile: 'timedemo.json',
@@ -354,7 +377,7 @@ try {
       await fs.writeFile(path.join(directory, 'run.json'), JSON.stringify(result, null, 2));
       series.runs.push(result);
       console.log(`[profile] ${name}: ${report?.status}, valid=${result.valid}, sourceStable=${stableSource}`);
-      if (!result.complete || !result.valid || !stableSource || !outlineTraceValid || setup.developer || developerAfter || (!options.timingOnly && captures.length !== fixture.segments.length))
+      if (!result.complete || !result.valid || !stableSource || !outlineTraceValid || !cameraTraceValid || setup.developer || developerAfter || (!options.timingOnly && captures.length !== fixture.segments.length))
         process.exitCode = 1;
     } catch (error) {
       await fs.writeFile(path.join(directory, 'failure.json'), JSON.stringify({ error: error.message, exceptions: page?.errors, sourceBefore }, null, 2));

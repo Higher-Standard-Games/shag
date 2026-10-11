@@ -64,6 +64,7 @@ export default defineConfig({
      * cannot rot silently again.
      */
     include: [
+      '@babylonjs/core/Actions/actionManager',
       '@babylonjs/core/Animations/animatable',
       '@babylonjs/core/Animations/animation',
       '@babylonjs/core/Animations/animationGroup',

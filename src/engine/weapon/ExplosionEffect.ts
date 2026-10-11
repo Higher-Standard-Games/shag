@@ -116,8 +116,8 @@ interface ActiveExplosion {
 
   rays: { mesh: Mesh; mat: StandardMaterial; direction: Vector3 }[];
 
-  shockwave: Mesh;
-  shockwaveMat: StandardMaterial;
+  shockwave: Mesh | null;
+  shockwaveMat: StandardMaterial | null;
 
   light: PointLight | null;
 
@@ -183,9 +183,7 @@ export class ExplosionEffect {
 
     // ─── Layer 3: Shockwave Ring (skip for some weapons) ──
     const showShockwave = config.showShockwave !== false;
-    const { mesh: shockwave, material: shockwaveMat } = showShockwave
-      ? this.createShockwave(id, position, s, config, normal)
-      : this.createDummyShockwave(id);
+    const ring = showShockwave ? this.createShockwave(id, position, s, config, normal) : null;
 
     // ─── Layer 4: Particle Sparks ──────────────────────────
     const particles = this.createParticles(id, position, s, config);
@@ -200,8 +198,8 @@ export class ExplosionEffect {
       fireballMat,
       fireballOrigPositions: origPositions,
       rays,
-      shockwave,
-      shockwaveMat,
+      shockwave: ring?.mesh ?? null,
+      shockwaveMat: ring?.material ?? null,
       light: null,
       particles,
     };
@@ -526,28 +524,6 @@ export class ExplosionEffect {
   }
 
   /**
-   * Create an invisible dummy shockwave mesh (for weapons that skip shockwave)
-   */
-  private createDummyShockwave(id: string) {
-    const mesh = MeshBuilder.CreateDisc(
-      `${id}_shockwave_dummy`,
-      {
-        radius: 0.01,
-        tessellation: 4,
-      },
-      this.scene!,
-    );
-    mesh.setEnabled(false);
-    mesh.isPickable = false;
-
-    const mat = new StandardMaterial(`${id}_shockwaveDummyMat`, this.scene!);
-    mat.alpha = 0;
-    mesh.material = mat;
-
-    return { mesh, material: mat };
-  }
-
-  /**
    * Layer 4: Particle sparks
    */
   private createParticles(id: string, pos: Vector3, scale: number, config: ExplosionConfig): ParticleSystem {
@@ -711,6 +687,7 @@ export class ExplosionEffect {
    * Shockwave: expand to match splashRadius, 50% transparent, thin and fade
    */
   private updateShockwave(exp: ActiveExplosion, t: number): void {
+    if (!exp.shockwave || !exp.shockwaveMat) return;
     const ringT = Math.min(t / 0.7, 1.0);
     // Target diameter = splashRadius * 2, torus was created with diameter = 1*scale
     // So expandScale = (splashRadius * 2) / scale
@@ -814,8 +791,8 @@ function disposeExplosion(exp: ActiveExplosion, releaseRay: (material: StandardM
     ray.mesh.dispose();
     releaseRay(ray.mat);
   }
-  exp.shockwave.dispose();
-  exp.shockwaveMat.dispose();
+  exp.shockwave?.dispose();
+  exp.shockwaveMat?.dispose();
   getPointLightPool().release(exp.light);
   exp.particles.stop();
   exp.particles.dispose(false);

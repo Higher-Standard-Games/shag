@@ -8,6 +8,11 @@ import {
 
 const installed = new WeakSet<Scene>();
 
+/** Whether a synchronous fresh clone should receive this scene's existing policy. */
+export function isSceneRendererPolicyApplied(scene: Scene): boolean {
+  return installed.has(scene);
+}
+
 // Babylon 9.17 raises EVERY scene material's light cap to scene.lights.length
 // at the end of each glTF import, including existing BSP materials. Guarded
 // materials ignore that raise (see DynamicLightSafety); this hook runs right
