@@ -9,6 +9,8 @@ import WebSocket from "ws";
 import { MessageType } from "../../engine/network/protocol/BinaryProtocol";
 import { MessageCodec } from "../../engine/network/protocol/MessageCodec";
 import { ProtocolTestClient } from "../../games/fps/server/__tests__/_protocolTestClient";
+import { DemoReader } from "../../shared/demo/DemoReader";
+import { botReference } from "../../shared/ranking/__tests__/_botReference";
 import { GameServerSpawner } from "../GameServerSpawner";
 import { LobbyServer } from "../LobbyServer";
 import { MatchResultStore } from "../MatchResultStore";
@@ -63,9 +65,9 @@ class LobbyPeer {
 const hasInstalledWdm2 = fs.existsSync(path.join(process.cwd(), "public", "data", "map_wdm2.pk3"));
 
 describe("installed-map room to ranking", () => {
-  it.skipIf(!hasInstalledWdm2)(
-    "launches wdm2 from a real lobby room and serves its result to both accounts",
-    async () => {
+  it.skipIf(!hasInstalledWdm2).each(["public", "private"] as const)(
+    "launches wdm2 from a real %s lobby and serves only the selected ranking",
+    async (visibility) => {
       const dir = fs.mkdtempSync(path.join(os.tmpdir(), "shag-room-ranking-"));
       const target = path.resolve(dir);
       const root = path.resolve(os.tmpdir());
@@ -73,15 +75,19 @@ describe("installed-map room to ranking", () => {
         throw new Error(`Unsafe cleanup target: ${target}`);
       const accounts = PlayerStore.open(dir);
       const results = MatchResultStore.open(dir);
-      const members = [accounts.create(), accounts.create()];
+      const members = visibility === "private" ? [accounts.create()] : [accounts.create(), accounts.create()];
       const spawner = new GameServerSpawner(await unusedPort());
-      const lobby = new LobbyServer(0, spawner, { players: accounts, results });
+      const botSecret = "ranking-smoke-secret";
+      const lobby = new LobbyServer(0, spawner, { players: accounts, results, botSecret });
       const peers: LobbyPeer[] = [];
       const gameClients: ProtocolTestClient[] = [];
+      const demoDir = path.join(process.cwd(), "public", "data", "demos");
+      const priorDemos = new Set(fs.existsSync(demoDir) ? fs.readdirSync(demoDir) : []);
+      let recordedDemo: string | undefined;
       const priorTime = process.env.SHAG_TIMELIMIT;
       const priorWarmup = process.env.SHAG_WARMUP;
       try {
-        process.env.SHAG_TIMELIMIT = "1s";
+        process.env.SHAG_TIMELIMIT = visibility === "private" ? "11s" : "1s";
         process.env.SHAG_WARMUP = "10s";
         await lobby.start();
         // Keep the real room/server path but make this installed-map smoke two-seat and deterministic.
@@ -95,13 +101,23 @@ describe("installed-map room to ranking", () => {
           const peer = await LobbyPeer.connect(lobbyPort);
           peers.push(peer);
           peer.send({ type: "auth", key: member.key });
-          expect(await peer.waitFor("welcome")).toMatchObject({ identity: { id: String(member.account.id) } });
+          expect(await peer.waitFor("welcome")).toMatchObject({
+            identity: { id: String(member.account.id) },
+            features: { skillRatings: true },
+          });
+        }
+        if (visibility === "private") {
+          const peer = await LobbyPeer.connect(lobbyPort);
+          peers.push(peer);
+          peer.send({ type: "auth", isBot: true, botSecret, name: "Ranking Bot", botReference: botReference() });
+          await peer.waitFor("welcome");
         }
         const [first, second] = peers;
-        first.send({ type: "lobby:create", gametype: "ffa" });
+        first.send({ type: "lobby:create", gametype: "ffa", visibility });
         const room = (await first.waitFor("lobby:created")).lobby as MatchLobbyInfo;
         expect(room.maps).toMatchObject([{ name: "wdm2" }]);
-        second.send({ type: "lobby:join", lobbyId: room.id });
+        const inviteToken = new URL(room.shareUrl, "https://example.invalid").searchParams.get("invite") ?? undefined;
+        second.send({ type: "lobby:join", lobbyId: room.id, inviteToken });
         expect(await second.waitFor("lobby:created")).toMatchObject({ lobby: { id: room.id } });
         first.send({ type: "lobby:ready", lobbyId: room.id, ready: true });
         second.send({ type: "lobby:ready", lobbyId: room.id, ready: true });
@@ -112,6 +128,7 @@ describe("installed-map room to ranking", () => {
         expect(firstConnect).toMatchObject({ map: "wdm2", gametype: "ffa" });
         expect(secondConnect).toMatchObject({ matchId: firstConnect.matchId, serverUrl: firstConnect.serverUrl });
         expect(firstConnect.admissionTicket).not.toBe(secondConnect.admissionTicket);
+        expect(results.deliveries.has(String(firstConnect.matchId))).toBe(true);
         for (const [handoff, name] of [
           [firstConnect, "One"],
           [secondConnect, "Two"],
@@ -119,18 +136,119 @@ describe("installed-map room to ranking", () => {
           const port = Number(new URL(String(handoff.serverUrl)).port);
           const client = await ProtocolTestClient.connect(port);
           gameClients.push(client);
-          client.send(MessageCodec.encodeJoin(name, false, String(handoff.admissionTicket)));
+          client.send(
+            MessageCodec.encodeJoin(
+              name,
+              visibility === "private" && handoff === secondConnect,
+              String(handoff.admissionTicket),
+            ),
+          );
           await client.waitForType(MessageType.JoinAccept);
           client.send(MessageCodec.encodeJoinGame("ffa"));
         }
         for (const client of gameClients) client.send(MessageCodec.encodeReady());
         await vi.waitFor(
           () => {
-            expect(results.leaderboard({ gametype: "ffa", period: "all", offset: 0, limit: 10 }).total).toBe(2);
+            expect(
+              results.leaderboard({ gametype: "ffa", period: "all", offset: 0, limit: 10, scope: visibility }).total,
+            ).toBe(members.length);
           },
           { timeout: 30_000, interval: 100 },
         );
-        for (const [index, peer] of peers.entries()) {
+        expect(results.leaderboard({ gametype: "ffa", period: "all", offset: 0, limit: 10 }).total).toBe(
+          visibility === "private" ? 0 : 2,
+        );
+        const otherScope = visibility === "private" ? "public" : "private";
+        first.send({
+          type: "leaderboard:get",
+          requestId: "skill-live",
+          gametype: "ffa",
+          period: "all",
+          offset: 0,
+          limit: 10,
+          scope: visibility,
+          system: "trueskill",
+        });
+        expect(await first.waitFor("leaderboard:page", (message) => message.requestId === "skill-live")).toMatchObject({
+          system: "trueskill",
+          policyVersion: "shag-trueskill-v1",
+          scope: visibility,
+          total: visibility === "private" ? 0 : 2,
+          localProcessing: { pending: visibility === "private" ? 1 : 0, excluded: 0 },
+          ...(visibility === "public" ? { localPlayerEntry: { ratedMatches: 1, provisional: true } } : {}),
+        });
+        expect(results.deliveries.has(String(firstConnect.matchId))).toBe(false);
+        expect(fs.existsSync(path.join(dir, "result-outbox", `${firstConnect.matchId}.result`))).toBe(false);
+        expect(
+          results.leaderboard({ gametype: "ffa", period: "all", offset: 0, limit: 10, scope: otherScope }).total,
+        ).toBe(0);
+        expect(lobby.getResultDiagnostics()).toMatchObject({
+          storage: {
+            totalMatches: 1,
+            totalParticipants: members.length,
+            latestResult: { scope: visibility, bots: visibility === "private" ? 1 : 0 },
+          },
+          runtime: { totals: { stored: 1 }, recent: [{ status: "stored", reason: "stored", scope: visibility }] },
+        });
+        const reopened = MatchResultStore.open(dir);
+        try {
+          expect(
+            reopened.leaderboard({ gametype: "ffa", period: "all", offset: 0, limit: 10, scope: visibility }).total,
+          ).toBe(members.length);
+          expect(MatchResultStore.inspect(dir)).toMatchObject({
+            status: "ready",
+            statistics: { totalMatches: 1, totalParticipants: members.length },
+          });
+          const journal = reopened.ratings.getResult(firstConnect.matchId as string);
+          expect(journal?.receipt).toMatchObject({
+            recordStatus: "recorded",
+            ratingStatus: visibility === "private" ? "pending" : "applied",
+            ratingReason: visibility === "private" ? "bot_reference_pending" : "eligible",
+          });
+          expect(journal?.snapshot.scope).toBe(visibility);
+          expect(journal?.snapshot.startingRoster).toHaveLength(2);
+          expect(journal?.snapshot.seats).toHaveLength(2);
+          expect(journal?.snapshot.seats.every((seat) => seat.participationInterrupted === false)).toBe(true);
+          if (visibility === "private") {
+            expect(journal?.snapshot.seats.find((seat) => seat.accountId === null)?.botReference).toEqual(
+              botReference(),
+            );
+            expect(journal?.snapshot.startingRoster?.find((seat) => seat.isBot)?.botReference).toEqual(botReference());
+            expect(journal?.snapshot.botReferenceChanged).toBe(false);
+          }
+          expect(reopened.ratings.verifyReplay()).toEqual({
+            consistent: true,
+            matches: visibility === "private" ? 0 : 1,
+            updates: visibility === "private" ? 0 : 2,
+            ratings: visibility === "private" ? 0 : 2,
+          });
+          for (const member of members) {
+            expect(reopened.ratings.getRating(member.account.id, "ffa", visibility)?.state.ratedMatches).toBe(
+              visibility === "private" ? undefined : 1,
+            );
+            expect(reopened.ratings.getRating(member.account.id, "ffa", otherScope)).toBeNull();
+          }
+        } finally {
+          reopened.close();
+        }
+        if (visibility === "private") {
+          await vi.waitFor(
+            () => {
+              for (const filename of fs.readdirSync(demoDir)) {
+                if (priorDemos.has(filename) || !filename.endsWith(".shagdemo")) continue;
+                const file = path.join(demoDir, filename);
+                const reader = new DemoReader(new Uint8Array(fs.readFileSync(file)));
+                if (reader.readHeader().matchId !== firstConnect.matchId) continue;
+                recordedDemo = file;
+                expect(reader.readHeader()).toMatchObject({ private: true, version: 4 });
+                expect(reader.readAllFrames().length).toBeGreaterThan(0);
+              }
+              expect(recordedDemo).toBeDefined();
+            },
+            { timeout: 5000, interval: 100 },
+          );
+        }
+        for (const [index, peer] of peers.slice(0, members.length).entries()) {
           peer.send({
             type: "leaderboard:get",
             requestId: `rank_${index}`,
@@ -138,14 +256,27 @@ describe("installed-map room to ranking", () => {
             period: "all",
             offset: 0,
             limit: 10,
+            scope: visibility,
           });
           const page = await peer.waitFor("leaderboard:page", (message) => message.requestId === `rank_${index}`);
-          expect(page).toMatchObject({ total: 2, localPlayerRank: 1 });
+          expect(page).toMatchObject({ total: members.length, localPlayerRank: 1, scope: visibility });
           expect((page.entries as Array<{ playerId: string; draws: number }>).map((entry) => entry.playerId)).toEqual(
             members.map((member) => String(member.account.id)),
           );
           expect((page.entries as Array<{ draws: number }>).every((entry) => entry.draws === 1)).toBe(true);
         }
+        first.send({
+          type: "leaderboard:get",
+          requestId: "opposite",
+          gametype: "ffa",
+          period: "all",
+          offset: 0,
+          limit: 10,
+          scope: otherScope,
+        });
+        const opposite = await first.waitFor("leaderboard:page", (message) => message.requestId === "opposite");
+        expect(opposite).toMatchObject({ scope: otherScope, entries: [], total: 0 });
+        expect(opposite.localPlayerRank).toBeUndefined();
         // The dedicated server gives human clients a two-minute PostGame grace.
         // Leaving after the verified result exercises the normal empty-server return promptly.
         await Promise.all(gameClients.map((client) => client.close()));
@@ -161,6 +292,7 @@ describe("installed-map room to ranking", () => {
         await Promise.all(gameClients.map((client) => client.close()));
         await Promise.all(peers.map((peer) => peer.close()));
         await lobby.stop();
+        if (recordedDemo) fs.rmSync(recordedDemo, { force: true });
         results.close();
         accounts.close();
         fs.rmSync(target, { recursive: true, force: true });

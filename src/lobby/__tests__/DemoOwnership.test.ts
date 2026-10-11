@@ -9,6 +9,7 @@ import { LobbyServer } from "../LobbyServer";
 import { MatchResultStore } from "../MatchResultStore";
 import { PlayerStore } from "../PlayerStore";
 import type { DemoInfo } from "../types";
+import { humanSnapshot } from "./_humanSnapshot";
 
 it("publishes demo ownership only when ticketed accounts match a durable result", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "shag-demo-owner-"));
@@ -59,6 +60,30 @@ it("publishes demo ownership only when ticketed accounts match a durable result"
     namesOnly.recordFrame(state);
     await namesOnly.stop();
 
+    const privateDemo = new DemoRecorder({
+      map: "wdm2",
+      gametype: "ffa",
+      matchId: "private-match",
+      private: true,
+      tickRate: 125,
+      snapshotRate: 63,
+      outputDir: demoDir,
+      minDurationMs: 0,
+    });
+    privateDemo.addPlayer("1", first.name, "", first.id);
+    privateDemo.addPlayer("2", "Bot", "");
+    privateDemo.recordFrame(state);
+    const privatePath = await privateDemo.stop();
+    results.record({
+      matchId: "private-match",
+      gametype: "ffa",
+      map: "wdm2",
+      endedAt: Date.now(),
+      private: true,
+      bots: 1,
+      participants: [{ accountId: first.id, outcome: "loss", score: 0 }],
+    });
+
     const lobby = new LobbyServer(0, new GameServerSpawner(), { players: accounts, results });
     const scanner = lobby as unknown as {
       DEMO_DIR: string;
@@ -71,7 +96,9 @@ it("publishes demo ownership only when ticketed accounts match a durable result"
     scanner.DEMO_DIR = demoDir;
     scanner._scanDemos();
     expect(scanner._demoOwnership.get(path.basename(savedPath))).toEqual(new Set([first.id, second.id]));
-    expect(scanner._demoOwnership.size).toBe(1);
+    expect(scanner._demoOwnership.size).toBe(2);
+    expect(scanner._demoOwnership.get(path.basename(privatePath))).toEqual(new Set([first.id]));
+    expect(scanner._demoCache.find((demo) => demo.filename === path.basename(privatePath))?.private).toBe(true);
     expect(scanner._demoCache.find((demo) => demo.filename === path.basename(savedPath))).not.toHaveProperty(
       "verifiedAccountIds",
     );
@@ -83,23 +110,36 @@ it("publishes demo ownership only when ticketed accounts match a durable result"
       ws: { readyState: 1, send: (raw: string) => pages.push(JSON.parse(raw)) },
     });
     scanner.handleDemosList(reader(first.id), 64, "yours");
-    expect(pages.at(-1)).toMatchObject({ scope: "yours", demos: [{ filename: path.basename(savedPath) }] });
+    expect(pages.at(-1)?.demos.map((demo) => demo.filename)).toEqual(
+      expect.arrayContaining([path.basename(savedPath), path.basename(privatePath)]),
+    );
     expect(pages.at(-1)?.demos[0]).not.toHaveProperty("verifiedAccountIds");
     scanner.handleDemosList(reader(bystander.id), 64, "yours");
     expect(pages.at(-1)).toMatchObject({ scope: "yours", demos: [] });
     scanner.handleDemosList(reader(bystander.id), 64, "latest");
-    expect(pages.at(-1)?.demos).toHaveLength(2);
+    expect(pages.at(-1)?.demos).toHaveLength(3);
 
     const verified = scanner._demoCache.find((demo) => demo.filename === path.basename(savedPath));
     if (!verified) throw new Error("Expected the verified recording in the scan");
     verified.durationMs = 90_000;
     verified.date = Date.now() - 1_000;
+    const privateEntry = scanner._demoCache.find((demo) => demo.filename === path.basename(privatePath))!;
+    privateEntry.durationMs = 90_000;
+    privateEntry.date = Date.now();
+    // A durable legacy record alone proves ownership, but grants no skill rank.
+    scanner.handleFeaturedGet(reader(first.id), { type: "featured:get", requestId: "records-only", limit: 5 });
+    expect(pages.at(-1)).toMatchObject({ selection: "recent_multiplayer_week" });
+    results.ratings.ingest(humanSnapshot("skill-match", [first.id, second.id], Date.now(), "ffa"));
     scanner.handleFeaturedGet(reader(first.id), { type: "featured:get", requestId: "ranked", limit: 5 });
     expect(pages.at(-1)).toMatchObject({
       type: "featured:page",
       selection: "ranked_month_week",
       entries: [{ demo: { filename: path.basename(savedPath) }, reason: "Features a 30-day top 10 player" }],
     });
+    expect(pages.at(-1)).not.toHaveProperty("entries.1");
+    scanner._demoCache = [privateEntry];
+    scanner.handleFeaturedGet(reader(first.id), { type: "featured:get", requestId: "private-only", limit: 5 });
+    expect(pages.at(-1)).toMatchObject({ type: "featured:page", entries: [], selection: "recent_multiplayer_week" });
   } finally {
     results.close();
     accounts.close();

@@ -34,6 +34,7 @@ describe("featured demo selection", () => {
         demo("solo", { players: ["One"] }),
         demo("duplicate-name", { players: ["One", "one"] }),
         demo("future", { date: NOW + 1 }),
+        demo("private", { private: true, date: NOW }),
         demo("earlier", { date: NOW - 2 * DAY }),
         demo("latest", { date: NOW - DAY }),
         demo("latest", { date: NOW - DAY }),

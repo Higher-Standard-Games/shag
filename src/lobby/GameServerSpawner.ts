@@ -22,6 +22,8 @@ import {
   type RecoveryTicket,
 } from "../engine/server/network/MatchAdmission";
 import { type MatchResultReport, RESULT_PREFIX, verifyMatchResult } from "../engine/server/network/MatchResultReport";
+import type { ResultDeliveryStore } from "./ResultDeliveryStore";
+import type { ResultContext } from "./ResultSnapshot";
 
 // ============================================================================
 // Types
@@ -39,6 +41,10 @@ export interface SpawnConfig {
   singleMatch?: boolean;
   /** Verified lobby roster. Omitted for standalone/dev servers. */
   admissionSeats?: MatchSeat[];
+  /** Match visibility fixed by the lobby, also written into its demo. */
+  private?: boolean;
+  /** Lobby-owned policy captured before the child launches. Never client supplied. */
+  resultContext?: ResultContext;
   /** Record a training demo under this name (dev spawns only). */
   trainingDemo?: string;
 }
@@ -109,6 +115,11 @@ export class GameServerSpawner {
   private nextPort: number;
   private activeServers: Map<string, SpawnedServer> = new Map();
   private projectRoot: string;
+  private resultDelivery?: ResultDeliveryStore;
+
+  setResultDelivery(store: ResultDeliveryStore): void {
+    this.resultDelivery = store;
+  }
 
   constructor(startPort: number = 7777) {
     this.nextPort = startPort;
@@ -123,6 +134,15 @@ export class GameServerSpawner {
       ? issueMatchAdmission(matchId, config.admissionSeats, Date.now(), 2 * 60_000, 30 * 60_000)
       : null;
     const resultSecret = admission ? randomBytes(32).toString("base64url") : null;
+    const startedAt = Date.now();
+    const outboxFile =
+      admission && resultSecret && config.resultContext && this.resultDelivery
+        ? this.resultDelivery.prepare(
+            { matchId, map: config.map, gametype: config.gametype, startedAt, admission: admission.manifest },
+            resultSecret,
+            config.resultContext,
+          )
+        : undefined;
 
     console.log(`[Spawner] Starting game server: map=${config.map} gametype=${config.gametype} port=${port}`);
 
@@ -152,12 +172,15 @@ export class GameServerSpawner {
     if (config.trainingDemo) {
       args.push("--training-demo", config.trainingDemo);
     }
+    if (config.private) args.push("--private-match");
 
     const childEnv = { ...process.env };
     delete childEnv.SHAG_MATCH_ADMISSION;
     delete childEnv.SHAG_MATCH_RESULT_SECRET;
+    delete childEnv.SHAG_MATCH_RESULT_OUTBOX;
     if (admission) childEnv.SHAG_MATCH_ADMISSION = JSON.stringify(admission.manifest);
     if (resultSecret) childEnv.SHAG_MATCH_RESULT_SECRET = resultSecret;
+    if (outboxFile) childEnv.SHAG_MATCH_RESULT_OUTBOX = outboxFile;
     const child = spawn("npx", args, {
       cwd: this.projectRoot,
       stdio: ["pipe", "pipe", "pipe"],
@@ -172,7 +195,7 @@ export class GameServerSpawner {
       map: config.map,
       gametype: config.gametype,
       url: buildPublicGameServerUrl(port),
-      startedAt: Date.now(),
+      startedAt,
       admissionTickets: admission?.tickets,
     };
 
@@ -189,11 +212,15 @@ export class GameServerSpawner {
           admission: admission.manifest,
         });
         if (report) this.onServerResult?.(report);
-        else console.warn(`[Spawner] Rejected result for match ${matchId}`);
+        else {
+          console.warn(`[Spawner] Rejected result for match ${matchId}: verification_failed`);
+          this.onServerResultRejected?.(matchId);
+        }
       });
     } catch (error) {
       console.warn(`[Spawner] Abandoning match ${matchId} on port ${port}:`, (error as Error).message);
       abandonSpawnedChild(child);
+      this.resultDelivery?.closeMatch(matchId);
       throw error;
     }
 
@@ -206,6 +233,7 @@ export class GameServerSpawner {
 
     // Monitor process exit
     child.on("exit", (code, signal) => {
+      this.resultDelivery?.closeMatch(matchId);
       console.log(`[Spawner] Server exited: match=${matchId} code=${code} signal=${signal}`);
       this.activeServers.delete(matchId);
       this.recoveryByMatch.delete(matchId);
@@ -311,6 +339,7 @@ export class GameServerSpawner {
         resolve(true);
       });
     });
+    this.resultDelivery?.appendGrants(matchId, issued.grants);
     stdin.write(`${ADMIT_COMMAND} ${Buffer.from(JSON.stringify(issued.grants)).toString("base64url")}\n`);
     if (!(await acknowledged) || !this.activeServers.has(matchId)) return null;
     manifest.grants.push(...issued.grants);
@@ -324,6 +353,8 @@ export class GameServerSpawner {
   onServerExit: ((matchId: string, code: number | null) => void) | null = null;
   /** Only authenticated reports with an exact issued-seat roster reach the lobby. */
   onServerResult: ((result: MatchResultReport) => void) | null = null;
+  /** A rejection contains only the known spawned match ID, never the raw result line. */
+  onServerResultRejected: ((matchId: string) => void) | null = null;
 
   // ── Internal ─────────────────────────────────────────────────
 

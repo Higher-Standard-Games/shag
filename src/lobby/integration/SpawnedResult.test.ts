@@ -11,6 +11,7 @@ import { GameServerSpawner } from "../GameServerSpawner";
 import { LobbyServer } from "../LobbyServer";
 import { MatchResultStore } from "../MatchResultStore";
 import { PlayerStore } from "../PlayerStore";
+import type { ResultContext } from "../ResultSnapshot";
 
 async function unusedPort(): Promise<number> {
   const socket = net.createServer();
@@ -47,10 +48,15 @@ describe("spawned match result handoff", () => {
       // roster it started with was ranked (isRankedRoster; two humans here).
       const running = lobby as unknown as {
         matchToLobby: Map<string, string>;
-        rankedMatches: Map<string, boolean>;
+        matchRecords: Map<string, ResultContext>;
       };
       running.matchToLobby.set(server.matchId, "room-smoke");
-      running.rankedMatches.set(server.matchId, true);
+      running.matchRecords.set(server.matchId, {
+        ranked: true,
+        private: false,
+        bots: 0,
+        startingRoster: ids.map((accountId) => ({ accountId, isBot: false, team: "ffa" })),
+      });
       const first = await ProtocolTestClient.connect(server.port);
       const second = await ProtocolTestClient.connect(server.port);
       clients.push(first, second);
@@ -75,6 +81,13 @@ describe("spawned match result handoff", () => {
         { accountId: ids[0], draws: 1 },
         { accountId: ids[1], draws: 1 },
       ]);
+      expect(results.ratings.getResult(server.matchId)?.receipt).toMatchObject({
+        recordStatus: "recorded",
+        ratingStatus: "applied",
+        ratingReason: "eligible",
+      });
+      expect(results.ratings.getResult(server.matchId)?.snapshot.seats).toHaveLength(2);
+      expect(results.ratings.verifyReplay()).toEqual({ consistent: true, matches: 1, updates: 2, ratings: 2 });
     } finally {
       if (priorTime === undefined) delete process.env.SHAG_TIMELIMIT;
       else process.env.SHAG_TIMELIMIT = priorTime;

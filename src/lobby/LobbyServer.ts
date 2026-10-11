@@ -15,11 +15,15 @@ import { WebSocket, WebSocketServer } from "ws";
 import { log } from "../engine/core/Log";
 import type { MatchResultReport } from "../engine/server/network/MatchResultReport";
 import { DemoReader } from "../shared/demo/DemoReader";
+import { BOT_INVITE_PREPARATION_TIMEOUT_MS } from "../shared/ranking/BotPreparation";
+import { type BotReference, canonicalBotReference, sameBotReference } from "../shared/ranking/BotReference";
 import { selectFeaturedDemos } from "./FeaturedDemos";
 import { GameServerSpawner } from "./GameServerSpawner";
 import type { MatchResultStore } from "./MatchResultStore";
 import { PlayerStore } from "./PlayerStore";
 import { RateLimiter } from "./RateLimiter";
+import { type ResultDiagnostic, ResultDiagnostics } from "./ResultDiagnostics";
+import type { ResultContext } from "./ResultSnapshot";
 import { BOT_SECRET_HEADER, secretMatches } from "./ServerData";
 import type {
   AuthMessage,
@@ -212,6 +216,7 @@ interface ConnectedPlayer {
   isBot: boolean;
   /** The player account this connection is logged in to; null for bots and before login. */
   accountId: number | null;
+  botReference?: BotReference;
 }
 
 // ============================================================================
@@ -219,6 +224,7 @@ interface ConnectedPlayer {
 // ============================================================================
 
 class MatchLobby {
+  botReferenceChanged = false;
   id: string;
   visibility: "public" | "private";
   inviteToken: string | null;
@@ -401,9 +407,12 @@ export class LobbyServer {
   private port: number;
   private nextPlayerId = 1;
   private spawner: GameServerSpawner;
-  /** Map matchId → lobbyId for server exit cleanup */
-  /** Whether a running match's starting roster earns a place on the leaderboard. */
-  private rankedMatches = new Map<string, boolean>();
+  /**
+   * How each running match will be recorded, decided from its roster at the
+   * start: public matches only when ranked (enough humans), private ones always
+   * (friends, bots), each with its bot count.
+   */
+  private matchRecords = new Map<string, ResultContext>();
   private matchToLobby: Map<string, string> = new Map();
   /** Map dev-spawned matchId to the requesting player. */
   private devMatchToPlayer: Map<string, string> = new Map();
@@ -415,6 +424,8 @@ export class LobbyServer {
   /** Server-only verified ownership; account IDs never ride in public demo cards. */
   private _demoOwnership = new Map<string, Set<number>>();
   private _demoCacheTimer: ReturnType<typeof setInterval> | null = null;
+  private resultRetryTimer: ReturnType<typeof setInterval> | null = null;
+  private pendingBotInvites = new Map<string, Set<() => void>>();
   private readonly DEMO_DIR = path.join(process.cwd(), "public", "data", "demos");
   private readonly DEMO_CACHE_INTERVAL = 60_000; // 60s refresh
 
@@ -436,6 +447,7 @@ export class LobbyServer {
   private readonly renames = new RateLimiter(RENAME_LIMIT.limit, RENAME_LIMIT.windowMs);
   private readonly leaderboardReads = new RateLimiter(60, 60_000);
   private readonly featuredReads = new RateLimiter(60, 60_000);
+  private readonly resultDiagnostics = new ResultDiagnostics();
 
   constructor(
     port: number = 9000,
@@ -449,18 +461,23 @@ export class LobbyServer {
     this.ownsAccounts = !options.players;
     this.accounts = options.players ?? new PlayerStore(":memory:");
     this.results = options.results;
+    if (this.results) this.spawner.setResultDelivery(this.results.deliveries);
 
     // Handle game server exits
     this.spawner.onServerExit = (matchId, code) => {
       this.handleServerExit(matchId, code);
     };
     this.spawner.onServerResult = (result) => this.handleServerResult(result);
+    this.spawner.onServerResultRejected = (matchId) =>
+      this.noteResult({ matchId, status: "rejected", reason: "verification_failed" });
   }
 
   // ── Lifecycle ──────────────────────────────────────────────────
 
   async start(): Promise<void> {
     this._loadMapsConfig();
+    this.results?.deliveries.loseBotControl();
+    this.retryResults();
     return new Promise((resolve, reject) => {
       this.wss = new WebSocketServer({ port: this.port, host: "0.0.0.0" });
 
@@ -470,7 +487,12 @@ export class LobbyServer {
         reject(err);
       });
       this.wss.on("listening", () => {
+        const address = this.wss!.address();
+        if (typeof address === "object" && address) this.port = address.port;
         console.log(`[LobbyServer] Ready on ws://localhost:${this.port}`);
+        console.log(
+          `[LobbyServer] Result storage: ${JSON.stringify(this.results?.statistics() ?? { status: "unavailable" })}`,
+        );
         console.log(
           `[LobbyServer] ${this.gametypes.length} gametypes loaded: ${this.gametypes.map((g) => g.id).join(", ")}`,
         );
@@ -478,6 +500,7 @@ export class LobbyServer {
         // Initial demo scan + periodic refresh
         this._scanDemos();
         this._demoCacheTimer = setInterval(() => this._scanDemos(), this.DEMO_CACHE_INTERVAL);
+        if (this.results) this.resultRetryTimer = setInterval(() => this.retryResults(), 5_000);
 
         resolve();
       });
@@ -486,15 +509,21 @@ export class LobbyServer {
 
   async stop(): Promise<void> {
     if (!this.wss) return;
+    for (const id of this.pendingBotInvites.keys()) this.cancelBotInvites(id);
 
     // Stop demo scan timer
     if (this._demoCacheTimer) {
       clearInterval(this._demoCacheTimer);
       this._demoCacheTimer = null;
     }
+    if (this.resultRetryTimer) {
+      clearInterval(this.resultRetryTimer);
+      this.resultRetryTimer = null;
+    }
 
     // Shutdown all game servers
     await this.spawner.shutdownAll();
+    this.retryResults();
 
     // Close all connections
     for (const player of this.players.values()) {
@@ -503,6 +532,7 @@ export class LobbyServer {
     this.players.clear();
     this.lobbies.clear();
     this.matchToLobby.clear();
+    this.matchRecords.clear();
     this.devMatchToPlayer.clear();
 
     if (this.ownsAccounts) this.accounts.close();
@@ -584,6 +614,9 @@ export class LobbyServer {
       case "auth":
         this.handleAuth(player, msg as AuthMessage);
         break;
+      case "bot:reference":
+        this.handleBotReference(player, msg.reference);
+        break;
       case "identity:rename":
         this.handleIdentityRename(player, msg.name);
         break;
@@ -662,6 +695,14 @@ export class LobbyServer {
     const isBot =
       msg.isBot === true && isLoopbackAddress(player.address) && secretMatches(this.botSecret, msg.botSecret);
     if (isBot) {
+      if (msg.botReference !== undefined) {
+        try {
+          player.botReference = canonicalBotReference(msg.botReference);
+        } catch {
+          this.send(player, { type: "auth:error", code: "invalid_bot_reference" });
+          return;
+        }
+      }
       player.isBot = true;
       player.name = msg.name || `Bot${player.id.slice(2)}`;
       this.completeAuth(player, {});
@@ -699,6 +740,35 @@ export class LobbyServer {
   }
 
   /** Logged in: send the welcome, and tell everyone else. */
+  private handleBotReference(player: ConnectedPlayer, value: unknown): void {
+    if (!player.isBot) {
+      this.send(player, { type: "lobby:error", error: "Bot service only." });
+      return;
+    }
+    let reference: BotReference;
+    try {
+      reference = canonicalBotReference(value);
+    } catch {
+      this.markBotReferenceChanged(player);
+      this.send(player, { type: "lobby:error", error: "Invalid bot reference." });
+      return;
+    }
+    if (!sameBotReference(player.botReference, reference)) this.markBotReferenceChanged(player);
+    player.botReference = reference;
+  }
+
+  private markBotReferenceChanged(player: ConnectedPlayer): void {
+    if (!player.isBot || !player.lobbyId) return;
+    const lobby = this.lobbies.get(player.lobbyId);
+    if (!lobby || (!lobby.isStarting && lobby.state !== "playing")) return;
+    if (lobby.activeMatchId && this.results?.ratings.getResult(lobby.activeMatchId)) return;
+    lobby.botReferenceChanged = true;
+    const record = lobby.activeMatchId ? this.matchRecords.get(lobby.activeMatchId) : undefined;
+    if (record) record.botReferenceChanged = true;
+    if (lobby.activeMatchId) this.results?.deliveries.markBotReferenceChanged(lobby.activeMatchId);
+  }
+
+  /** Logged in: send the welcome, and tell everyone else. */
   private completeAuth(player: ConnectedPlayer, extra: { key?: string }): void {
     player.authenticated = true;
     const who = player.isBot ? "bot" : `account ${player.accountId}`;
@@ -709,6 +779,7 @@ export class LobbyServer {
       features: {
         privateLobbies: true,
         leaderboard: !!this.results,
+        skillRatings: !!this.results,
         featuredDemos: true,
         demoOwnership: !!this.results,
       },
@@ -1024,6 +1095,7 @@ export class LobbyServer {
     const lobby = this.lobbies.get(lobbyId);
     if (!lobby || player.lobbyId !== lobbyId || !lobby.players.has(player.id)) return;
 
+    this.markBotReferenceChanged(player);
     lobby.removePlayer(player.id);
     player.lobbyId = null;
     player.status = "online";
@@ -1045,6 +1117,7 @@ export class LobbyServer {
     // they reload back from the game; they rejoin via the ?lobby= deep link
     // moments later, so the lobby must survive being briefly empty.
     if (lobby.players.size === 0 && lobby.state !== "playing" && Date.now() >= lobby.keepAliveUntil) {
+      this.cancelBotInvites(lobbyId);
       this.lobbies.delete(lobbyId);
       console.log(`[LobbyServer] Lobby ${lobbyId} destroyed (empty)`);
     }
@@ -1250,12 +1323,16 @@ export class LobbyServer {
         return;
       }
       let settled = false;
+      let preparing = false;
       const ws = new WebSocket(this.botServerUrl, { headers: { [BOT_SECRET_HEADER]: this.botSecret } });
 
       const finish = (fn: () => void) => {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
+        const pending = this.pendingBotInvites.get(lobby.id);
+        pending?.delete(cancel);
+        if (pending?.size === 0) this.pendingBotInvites.delete(lobby.id);
         try {
           ws.close();
         } catch {
@@ -1264,7 +1341,11 @@ export class LobbyServer {
         fn();
       };
 
-      const timer = setTimeout(() => {
+      const cancel = () => finish(() => reject(new Error("Bot invite cancelled: the lobby closed or started.")));
+      const pending = this.pendingBotInvites.get(lobby.id) ?? new Set<() => void>();
+      pending.add(cancel);
+      this.pendingBotInvites.set(lobby.id, pending);
+      let timer = setTimeout(() => {
         finish(() => reject(new Error("Bot server did not respond (is bot:server running?)")));
       }, BOT_INVITE_TIMEOUT_MS);
 
@@ -1284,7 +1365,14 @@ export class LobbyServer {
       ws.on("message", (data: Buffer) => {
         try {
           const msg = JSON.parse(data.toString());
-          if (msg.type === "bot_added") {
+          if (msg.type === "bot_preparing" && !preparing && !settled) {
+            preparing = true;
+            clearTimeout(timer);
+            timer = setTimeout(
+              () => finish(() => reject(new Error("Bot model preparation or lobby join timed out."))),
+              BOT_INVITE_PREPARATION_TIMEOUT_MS,
+            );
+          } else if (msg.type === "bot_added") {
             finish(() => resolve(msg.name || "Bot"));
           } else if (msg.type === "error") {
             finish(() => reject(new Error(msg.error || "Bot server rejected the request")));
@@ -1302,6 +1390,11 @@ export class LobbyServer {
         finish(() => reject(new Error("Bot server closed the connection")));
       });
     });
+  }
+
+  private cancelBotInvites(lobbyId: string): void {
+    for (const cancel of this.pendingBotInvites.get(lobbyId) ?? []) cancel();
+    this.pendingBotInvites.delete(lobbyId);
   }
 
   // ── Matchmaking Queue ───────────────────────────────────────
@@ -1517,6 +1610,8 @@ export class LobbyServer {
 
     // Mark lobby as starting/playing immediately so others can see it
     lobby.isStarting = true;
+    this.cancelBotInvites(lobby.id);
+    lobby.botReferenceChanged = false;
     lobby.state = "playing";
     lobby.matchMap = map;
     this.broadcastMatchesUpdate();
@@ -1531,21 +1626,38 @@ export class LobbyServer {
           name: player.name,
           team: lp.team,
           isBot: player.isBot,
+          ...(player.botReference === undefined ? {} : { botReference: canonicalBotReference(player.botReference) }),
         };
       });
-      // Spawn game server as child process
+      const resultContext: ResultContext = {
+        ranked: isRankedRoster(lobby.gametype, admissionSeats),
+        private: lobby.visibility === "private",
+        bots: admissionSeats.filter((seat) => seat.isBot).length,
+        startingRoster: admissionSeats.map(({ accountId, isBot, team, botReference }) => ({
+          accountId,
+          isBot,
+          team,
+          ...(botReference === undefined ? {} : { botReference }),
+        })),
+        botReferenceChanged: false,
+      };
+      // Persist policy and verification context before launching the child.
       const server = await this.spawner.spawn({
         map,
         gametype: gametypeId,
         maxClients: lobby.gametype.maxPlayers,
         admissionSeats,
+        private: lobby.visibility === "private",
+        resultContext,
       });
 
       // Track matchId → lobbyId mapping for cleanup
       this.matchToLobby.set(server.matchId, lobby.id);
       // Ranked or not is decided by the roster that starts the match, not by
       // whoever is still connected when it ends.
-      this.rankedMatches.set(server.matchId, isRankedRoster(lobby.gametype, admissionSeats));
+      resultContext.botReferenceChanged = lobby.botReferenceChanged;
+      this.matchRecords.set(server.matchId, resultContext);
+      if (lobby.botReferenceChanged) this.results?.deliveries.markBotReferenceChanged(server.matchId);
       lobby.activeMatchId = server.matchId;
       lobby.activeSeatTeams = new Map(
         admissionSeats.flatMap((seat) => (seat.accountId === null ? [] : [[seat.accountId, seat.team] as const])),
@@ -1617,33 +1729,52 @@ export class LobbyServer {
 
   // ── Game Server Exit Handling ────────────────────────────
 
+  /** Server/admin diagnostics, never exposed through an unauthenticated browser endpoint. */
+  getResultDiagnostics() {
+    return { storage: this.results?.statistics() ?? null, runtime: this.resultDiagnostics.snapshot() };
+  }
+
+  private noteResult(event: Omit<ResultDiagnostic, "observedAt">): void {
+    console.log(`[LobbyServer] Result: ${JSON.stringify(this.resultDiagnostics.record(event))}`);
+  }
+
   private handleServerResult(report: MatchResultReport): void {
-    if (!this.results || !this.matchToLobby.has(report.matchId)) return;
-    // A room the bots outnumbered is played for fun: every human still gets
-    // their match, but it never reaches the leaderboard.
-    if (!this.rankedMatches.get(report.matchId)) {
-      console.log(`[LobbyServer] Match ${report.matchId} was not ranked: too few humans in the room`);
+    const record = this.matchRecords.get(report.matchId);
+    const note = (status: ResultDiagnostic["status"], reason: ResultDiagnostic["reason"]) =>
+      this.noteResult({
+        matchId: report.matchId,
+        status,
+        reason,
+        gametype: report.gametype,
+        ...(record ? { scope: record.private ? "private" : "public" } : {}),
+      });
+    if (!this.results) {
+      note("skipped", "storage_unavailable");
       return;
     }
-    const participants = report.participants.flatMap(({ accountId, outcome, score }) =>
-      accountId === null ? [] : [{ accountId, outcome, score }],
-    );
-    // Incomplete/abandoned or bot-decided matches do not create rankings.
-    if (participants.length < 2 || !participants.some((p) => p.outcome === "win" || p.outcome === "draw")) return;
-    try {
-      if (
-        this.results.record({
-          matchId: report.matchId,
-          gametype: report.gametype,
-          map: report.map,
-          endedAt: report.endedAt,
-          participants,
-        })
-      )
-        console.log(`[LobbyServer] Stored final result: ${report.matchId}`);
-    } catch (error) {
-      console.warn(`[LobbyServer] Skipped unrankable match ${report.matchId}:`, error);
+    if (!this.matchToLobby.has(report.matchId)) {
+      note("skipped", "unknown_match");
+      return;
     }
+    if (!record) {
+      note("skipped", "missing_match_context");
+      return;
+    }
+    try {
+      const receipt = this.results.recordVerified(report, record);
+      this.results.deliveries.acknowledge(report.matchId);
+      if (receipt.status === "duplicate") note("duplicate", "duplicate");
+      else if (receipt.recordReason === "eligible") note("stored", "stored");
+      else note("skipped", receipt.recordReason);
+    } catch {
+      note("failed", "store_error");
+    }
+  }
+
+  private retryResults(): void {
+    const summary = this.results?.deliveries.retryAll();
+    if (summary && (summary.delivered || summary.failed))
+      console.log(`[LobbyServer] Result delivery: ${JSON.stringify(summary)}`);
   }
 
   private handleLeaderboardGet(player: ConnectedPlayer, msg: LeaderboardRequest): void {
@@ -1659,7 +1790,10 @@ export class LobbyServer {
       msg.offset > 1000 ||
       !Number.isSafeInteger(msg.limit) ||
       msg.limit < 1 ||
-      msg.limit > 100
+      msg.limit > 100 ||
+      (msg.scope !== undefined && msg.scope !== "public" && msg.scope !== "private") ||
+      (msg.system !== undefined && msg.system !== "trueskill") ||
+      msg.includePrivate !== undefined
     ) {
       this.send(player, { type: "leaderboard:error", requestId, reason: "invalid_query" });
       return;
@@ -1672,18 +1806,24 @@ export class LobbyServer {
       this.send(player, { type: "leaderboard:error", requestId, reason: "rate_limited" });
       return;
     }
-    const page = this.results.leaderboard({
+    const query = {
       gametype: msg.gametype,
       period: msg.period,
       offset: msg.offset,
       limit: msg.limit,
       accountId: player.accountId ?? undefined,
-    });
+      scope: msg.scope ?? "public",
+    };
+    const page = msg.system === "trueskill" ? this.results.skillLeaderboard(query) : this.results.leaderboard(query);
     this.send(player, {
       type: "leaderboard:page",
       requestId,
       gametype: msg.gametype,
       period: msg.period,
+      scope: msg.scope ?? "public",
+      system: page.system,
+      policyVersion: page.policyVersion,
+      localProcessing: page.localProcessing,
       entries: page.entries.map(({ accountId, ...row }) => ({ ...row, playerId: String(accountId) })),
       total: page.total,
       localPlayerRank: page.localPlayerRank,
@@ -1710,7 +1850,7 @@ export class LobbyServer {
   private handleServerExit(matchId: string, code: number | null): void {
     const lobbyId = this.matchToLobby.get(matchId);
     this.matchToLobby.delete(matchId);
-    this.rankedMatches.delete(matchId);
+    this.matchRecords.delete(matchId);
 
     console.log(`[LobbyServer] Game server exited: match=${matchId} lobby=${lobbyId} code=${code}`);
 
@@ -1932,7 +2072,7 @@ export class LobbyServer {
       if (!top) {
         top = new Set(
           this.results
-            ?.leaderboard({ gametype: mode, period: "month", offset: 0, limit: 10, now })
+            ?.skillLeaderboard({ gametype: mode, period: "month", offset: 0, limit: 10, now })
             .entries.map((entry) => entry.accountId) ?? [],
         );
         topByMode.set(mode, top);
@@ -2005,6 +2145,7 @@ export class LobbyServer {
               map: header.map,
               mapDisplayName: this.mapNames[header.map] || header.map,
               gametype: header.gametype,
+              private: header.private === true,
               players: header.players.map((p) => p.name),
               durationMs,
               date: header.startTime,
@@ -2069,6 +2210,7 @@ export class LobbyServer {
     const now = Date.now();
     for (const [lobbyId, lobby] of this.lobbies) {
       if (lobby.players.size === 0 && lobby.state !== "playing" && now >= lobby.keepAliveUntil) {
+        this.cancelBotInvites(lobbyId);
         this.lobbies.delete(lobbyId);
         console.log(`[LobbyServer] Lobby ${lobbyId} destroyed (return window expired)`);
       }

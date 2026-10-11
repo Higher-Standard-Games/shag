@@ -12,14 +12,26 @@
 import { LobbyServer } from "../lobby/LobbyServer";
 import { MatchResultStore } from "../lobby/MatchResultStore";
 import { PlayerStore } from "../lobby/PlayerStore";
+import { RatingStore } from "../lobby/RatingStore";
 import { loadBotSecret, resolveDataDir } from "../lobby/ServerData";
 
 // Parse arguments
 const args = process.argv.slice(2);
 let port = 9000;
 let dataDirArg: string | undefined;
+let resultsInfo = false;
+let ratingsInfo = false;
+let ratingsVerify = false;
+let resultsRecover = false;
 
 for (let i = 0; i < args.length; i++) {
+  if (args[i] === "--results-info") resultsInfo = true;
+  if (args[i] === "--results-recover") resultsRecover = true;
+  if (args[i] === "--ratings-info") ratingsInfo = true;
+  if (args[i] === "--ratings-verify") {
+    ratingsInfo = true;
+    ratingsVerify = true;
+  }
   if (args[i] === "--port" && args[i + 1]) {
     port = parseInt(args[i + 1], 10);
     i++;
@@ -41,9 +53,49 @@ Options:
                       the secret shared with the bot server
                       (default: SERVER_DATA_DIR, else ./server-data)
   --help, -h          Show this help
+  --results-info     Read result counts/latest result without starting or changing the server
+  --ratings-info     Read ranking journal counts and processing reasons without changing storage
+  --ratings-verify   Also replay the applied rating journal read-only; fails if unavailable or divergent
+  --results-recover  Retry signed result outbox reports into existing storage; requires explicit --data-dir
 `);
     process.exit(0);
   }
+}
+
+if (resultsRecover) {
+  if (!dataDirArg || resultsInfo || ratingsInfo) {
+    console.error("Recovery requires an explicit --data-dir and cannot be combined with read-only inspection.");
+    process.exit(1);
+  }
+  const dataDirectory = resolveDataDir(dataDirArg);
+  if (RatingStore.inspect(dataDirectory, true).status !== "ready") {
+    console.error("Initialized, consistent ranking storage is required for result recovery.");
+    process.exit(1);
+  }
+  const store = MatchResultStore.open(dataDirectory);
+  let recoveryExit = 0;
+  try {
+    store.deliveries.loseBotControl();
+    const delivery = store.deliveries.retryAll(0);
+    console.log(JSON.stringify({ dataDirectory, delivery }, null, 2));
+    recoveryExit = delivery.failed || delivery.rejected ? 1 : 0;
+  } finally {
+    store.close();
+  }
+  process.exit(recoveryExit);
+}
+
+if (ratingsInfo) {
+  const dataDirectory = resolveDataDir(dataDirArg);
+  const inspection = RatingStore.inspect(dataDirectory, ratingsVerify);
+  console.log(JSON.stringify({ dataDirectory, ratingStore: inspection }, null, 2));
+  process.exit(ratingsVerify && inspection.status !== "ready" ? 1 : 0);
+}
+
+if (resultsInfo) {
+  const dataDirectory = resolveDataDir(dataDirArg);
+  console.log(JSON.stringify({ dataDirectory, resultStore: MatchResultStore.inspect(dataDirectory) }, null, 2));
+  process.exit(0);
 }
 
 // Banner

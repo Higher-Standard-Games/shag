@@ -19,7 +19,7 @@
 
 import type { BotInput } from "./BotBrain";
 import { BotBrain, BotState } from "./BotBrain";
-import type { BotDifficulty } from "./BotConfig";
+import type { BotDifficulty, GoalArbiterMode } from "./BotConfig";
 import { InputButtons } from "./BotConfig";
 import type { BotGameState } from "./BotGameState";
 import { canInitiateSlide } from "./BotMovementProfile";
@@ -147,9 +147,9 @@ export class HybridBrain extends BotBrain {
    * @param random Where sampled decisions draw from — `Math.random` in a match,
    *   something fixed in a test.
    */
-  constructor(difficulty: BotDifficulty, random: () => number = Math.random) {
+  constructor(difficulty: BotDifficulty, random: () => number = Math.random, goalArbiter?: GoalArbiterMode) {
     super(difficulty);
-    this._stateMachine = new StateMachineBrain(difficulty);
+    this._stateMachine = new StateMachineBrain(difficulty, goalArbiter);
     this._random = random;
   }
 

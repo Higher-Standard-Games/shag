@@ -114,13 +114,41 @@ describe("LobbyClient connections", () => {
     const request = JSON.parse(socket.sent.at(-1)!);
     socket.onmessage?.({ data: JSON.stringify({ type: "leaderboard:page", requestId: "other" }) });
     socket.onmessage?.({
-      data: JSON.stringify({ type: "leaderboard:page", requestId: request.requestId, entries: [], total: 0 }),
+      data: JSON.stringify({
+        type: "leaderboard:page",
+        requestId: request.requestId,
+        scope: "public",
+        entries: [],
+        total: 0,
+      }),
     });
     await expect(first).resolves.toMatchObject({ requestId: request.requestId, entries: [] });
     const second = client.requestLeaderboard(query);
     const rejected = expect(second).rejects.toThrow("Lobby disconnected");
     client.disconnect();
     await rejected;
+  });
+
+  it.each([undefined, "public"])("rejects a private ranking reply with scope %s", async (scope) => {
+    const client = new LobbyClient();
+    void client.connect("ws://lobby.invalid");
+    const socket = FakeSocket.open[0];
+    socket.accept();
+    const pending = client.requestLeaderboard({
+      gametype: "duel",
+      period: "all",
+      offset: 0,
+      limit: 10,
+      scope: "private",
+    });
+    const request = JSON.parse(socket.sent.at(-1)!);
+    const rejected = expect(pending).rejects.toThrow("ranking_scope_mismatch");
+    socket.onmessage?.({
+      data: JSON.stringify({ type: "leaderboard:page", requestId: request.requestId, scope, entries: [], total: 0 }),
+    });
+    await rejected;
+    expect(vi.getTimerCount()).toBe(0);
+    client.disconnect();
   });
 
   it("correlates a private seat recovery reply and rejects it on disconnect", async () => {
@@ -145,6 +173,34 @@ describe("LobbyClient connections", () => {
     const rejected = expect(second).rejects.toThrow("Lobby disconnected");
     client.disconnect();
     await rejected;
+  });
+  it("refuses a records response to a skill request and releases the waiter", async () => {
+    const client = new LobbyClient();
+    void client.connect("ws://lobby.invalid");
+    const socket = FakeSocket.open[0];
+    socket.accept();
+    const pending = client.requestLeaderboard({
+      gametype: "duel",
+      period: "all",
+      offset: 0,
+      limit: 10,
+      system: "trueskill",
+    });
+    const request = JSON.parse(socket.sent.at(-1)!);
+    expect(request.system).toBe("trueskill");
+    const rejected = expect(pending).rejects.toThrow("ranking_system_mismatch");
+    socket.onmessage?.({
+      data: JSON.stringify({
+        type: "leaderboard:page",
+        requestId: request.requestId,
+        scope: "public",
+        entries: [],
+        total: 0,
+      }),
+    });
+    await rejected;
+    expect(vi.getTimerCount()).toBe(0);
+    client.disconnect();
   });
 
   it("correlates featured picks and releases its reply listeners", async () => {

@@ -25,6 +25,11 @@
     "net:server": "npx vite-node src/cli/headless-netserver-v2.ts --",
     "net:client": "npx vite-node src/cli/headless-netclient.ts --",
     "lobby:server": "npx vite-node src/cli/lobby-server.ts --",
+    "ranking:simulate": "npx vite-node src/cli/ranking-simulate.ts",
+    "ranking:references": "npx vite-node src/cli/ranking-references.ts --",
+    "ranking:delivery": "npx vite-node src/cli/ranking-delivery.ts --",
+    "ranking:pilot": "npx vite-node src/cli/ranking-pilot.ts --",
+    "ranking:acceptance": "vitest run src/shared/ranking src/lobby src/engine/server/network/__tests__/MatchResultReport.test.ts src/engine/server/network/__tests__/MatchAdmission.test.ts src/bot/__tests__/BotLobbyReference.test.ts src/bot/__tests__/BotServerControlAuth.test.ts src/games/fps/server/__tests__/PlayedMatchResult.test.ts src/games/fps/client/__tests__/LeaderboardView.test.ts src/games/fps/client/__tests__/NewUiApiLeaderboard.test.ts src/games/fps/client/__tests__/ProfileRecord.test.ts",
     "shagged": "npx vite-node src/cli/shagged.ts --",
     "shagged:mcp": "node scripts/shagged-mcp.mjs",
     "shagged:server": "npx vite-node src/cli/shagged-server.ts --",
@@ -124,6 +129,7 @@
     "@capacitor/status-bar": "^8.0.0",
     "@tensorflow/tfjs-node": "^4.22.0",
     "jszip": "^3.10.1",
-    "pngjs": "^7.0.0"
+    "pngjs": "^7.0.0",
+    "ts-trueskill": "5.1.0"
   }
 }

@@ -1,7 +1,23 @@
 import { describe, expect, it } from "vitest";
+import { botReference } from "../../../../shared/ranking/__tests__/_botReference";
 import { issueDropInSeat, issueMatchAdmission, MatchAdmission } from "../MatchAdmission";
 
 describe("match admission", () => {
+  it("copies bot metadata into its verified seat and rejects human bot-reference claims", () => {
+    const reference = botReference();
+    const seat = {
+      lobbyPlayerId: "bot",
+      accountId: null,
+      name: "Bot",
+      team: "soba",
+      isBot: true,
+      botReference: reference,
+    };
+    const { manifest } = issueMatchAdmission("bot-metadata", [seat]);
+    reference.difficulty.aimAccuracy = 0;
+    expect(manifest.grants[0].botReference).toEqual(botReference());
+    expect(() => issueMatchAdmission("human", [{ ...seat, accountId: 1, isBot: false }])).toThrow();
+  });
   it("issues separate unguessable tickets and consumes them once before expiry", () => {
     const { manifest, tickets } = issueMatchAdmission(
       "match-1",

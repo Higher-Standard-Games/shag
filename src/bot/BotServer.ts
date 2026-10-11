@@ -53,6 +53,7 @@ export class BotServer {
   private _wss: WebSocketServer | null = null;
   private _bots: Map<string, BotClient> = new Map();
   private _lobbyBots: Map<string, BotLobbyClient> = new Map();
+  private _pendingLobbyBots = new Set<BotLobbyClient>();
   private _port: number;
   /** Trained models a bot inherits unless its request names another directory.
    *  Without this, a bot asked for over the control socket — which is what the
@@ -132,15 +133,11 @@ export class BotServer {
     console.log(`[BotServer] Shutting down...`);
 
     // Disconnect all bots
-    const disconnectPromises: Promise<void>[] = [];
-    for (const [, bot] of this._bots) {
-      disconnectPromises.push(bot.disconnect());
-    }
-    await Promise.all(disconnectPromises);
-    this._bots.clear();
+    await this.removeAllBots();
 
     // Close control server
     if (this._wss) {
+      for (const ws of this._wss.clients) ws.close();
       this._wss.close();
       this._wss = null;
     }
@@ -159,6 +156,7 @@ export class BotServer {
       difficulty: options?.difficulty || "medium",
       team: options?.team,
       modelDir: options?.modelDir ?? this._modelDir,
+      goalArbiter: options?.goalArbiter,
     };
 
     const bot = new BotClient(botOptions);
@@ -193,6 +191,7 @@ export class BotServer {
     options?: Partial<BotOptions>,
     joinLobbyId?: string,
     inviteToken?: string,
+    signal?: AbortSignal,
   ): Promise<BotLobbyClient> {
     const lobbyBot = new BotLobbyClient(
       {
@@ -200,6 +199,7 @@ export class BotServer {
         difficulty: options?.difficulty || "medium",
         team: options?.team,
         modelDir: options?.modelDir ?? this._modelDir,
+        goalArbiter: options?.goalArbiter,
       },
       this._secret,
     );
@@ -223,14 +223,19 @@ export class BotServer {
     };
 
     try {
-      await lobbyBot.connect(lobbyUrl, gametype, joinLobbyId, inviteToken);
+      this._pendingLobbyBots.add(lobbyBot);
+      await lobbyBot.connect(lobbyUrl, gametype, joinLobbyId, inviteToken, signal);
+      if (signal?.aborted) throw new Error("Bot invite cancelled");
       this._lobbyBots.set(lobbyBot.id, lobbyBot);
       const where = joinLobbyId ? `lobby ${joinLobbyId}` : `queue ${gametype}`;
       console.log(`[BotServer] Lobby bot ${lobbyBot.name} (${lobbyBot.id}) → ${where}`);
       return lobbyBot;
     } catch (err: any) {
+      await lobbyBot.disconnect();
       console.error(`[BotServer] Failed to spawn lobby bot:`, err.message);
       throw err;
+    } finally {
+      this._pendingLobbyBots.delete(lobbyBot);
     }
   }
 
@@ -319,7 +324,7 @@ export class BotServer {
 
     // Remove from map first to prevent the 'disconnected' handler from also deleting
     this._bots.delete(botId);
-    await bot.disconnect();
+    await bot.dispose();
     console.log(`[BotServer] Bot ${bot.name} (${botId}) removed`);
     return true;
   }
@@ -328,22 +333,24 @@ export class BotServer {
    * Remove all bots (direct + lobby).
    */
   async removeAllBots(): Promise<number> {
+    const count = this._bots.size + this._lobbyBots.size + this._pendingLobbyBots.size;
     const promises: Promise<void>[] = [];
 
     // Disconnect direct bots
     for (const [, bot] of this._bots) {
-      promises.push(bot.disconnect());
+      promises.push(bot.dispose());
     }
 
     // Disconnect lobby bots (also disconnects their game bots)
     for (const [, lobbyBot] of this._lobbyBots) {
       promises.push(lobbyBot.disconnect());
     }
+    for (const lobbyBot of this._pendingLobbyBots) promises.push(lobbyBot.disconnect());
 
     await Promise.all(promises);
-    const count = this._bots.size + this._lobbyBots.size;
     this._bots.clear();
     this._lobbyBots.clear();
+    this._pendingLobbyBots.clear();
     console.log(`[BotServer] Removed all ${count} bots`);
     return count;
   }
@@ -399,6 +406,10 @@ export class BotServer {
       }
 
       case "add_lobby_bot": {
+        const controller = new AbortController();
+        const cancel = () => controller.abort();
+        ws.once("close", cancel);
+        this._sendResponse(ws, { type: "bot_preparing" });
         try {
           const bot = await this.addLobbyBot(
             msg.lobbyUrl,
@@ -406,6 +417,7 @@ export class BotServer {
             msg.options,
             msg.lobbyId,
             msg.inviteToken,
+            controller.signal,
           );
           this._sendResponse(ws, {
             type: "bot_added",
@@ -417,6 +429,8 @@ export class BotServer {
             type: "error",
             error: `Failed to add lobby bot: ${err.message}`,
           });
+        } finally {
+          ws.off("close", cancel);
         }
         break;
       }

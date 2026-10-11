@@ -1,5 +1,6 @@
 /** Server-only match seat credentials. Names sent by clients never identify accounts. */
 import { createHash, randomBytes } from "node:crypto";
+import { type BotReference, canonicalBotReference } from "../../../shared/ranking/BotReference";
 
 export interface MatchSeat {
   /** Lobby connection id, used only to address its private ticket. */
@@ -8,6 +9,7 @@ export interface MatchSeat {
   name: string;
   team: string;
   isBot: boolean;
+  botReference?: BotReference;
 }
 
 export interface AdmissionGrant extends Omit<MatchSeat, "lobbyPlayerId"> {
@@ -56,6 +58,10 @@ function grantSeat(
 ): { ticket: string; grants: AdmissionGrant[]; recovery: RecoveryTicket | null } {
   const ticket = randomBytes(32).toString("base64url");
   const seatId = randomBytes(16).toString("base64url");
+  if (seat.botReference !== undefined) {
+    if (!seat.isBot) throw new Error("Human seat cannot carry a bot reference");
+    seat = { ...seat, botReference: canonicalBotReference(seat.botReference) };
+  }
   const grants: AdmissionGrant[] = [{ ...seat, seatId, tokenHash: hash(ticket) }];
   if (recoveryLifetimeMs <= 0 || seat.isBot) return { ticket, grants, recovery: null };
   const fallback = randomBytes(32).toString("base64url");
@@ -153,6 +159,7 @@ function isDropInGrant(value: unknown): value is AdmissionGrant {
     typeof grant.seatId === "string" &&
     grant.seatId.length > 0 &&
     grant.isBot === false &&
+    grant.botReference === undefined &&
     Number.isSafeInteger(grant.accountId) &&
     (grant.accountId ?? 0) > 0 &&
     typeof grant.name === "string" &&
@@ -171,6 +178,11 @@ export class MatchAdmission {
   private readonly issued: Map<string, AdmissionGrant>;
 
   constructor(readonly manifest: AdmissionManifest) {
+    for (const grant of manifest.grants)
+      if (grant.botReference !== undefined) {
+        if (!grant.isBot) throw new Error("Human seat cannot carry a bot reference");
+        grant.botReference = canonicalBotReference(grant.botReference);
+      }
     this.issued = new Map(manifest.grants.map((grant) => [grant.tokenHash, grant]));
     this.grants = new Map(this.issued);
     if (this.grants.size !== manifest.grants.length) throw new Error("Duplicate match seat credential");

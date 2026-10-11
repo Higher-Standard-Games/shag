@@ -2,6 +2,7 @@ import type { ChildProcess } from "node:child_process";
 import { spawn } from "node:child_process";
 import { EventEmitter } from "node:events";
 import { describe, expect, it, vi } from "vitest";
+import { resultReport } from "../../engine/server/network/__tests__/_resultReport";
 import { type MatchResultReport, signMatchResult } from "../../engine/server/network/MatchResultReport";
 import { GameServerSpawner } from "../GameServerSpawner";
 
@@ -16,6 +17,7 @@ describe("GameServerSpawner admission handoff", () => {
     const server = await spawner.spawn({
       map: "wdm2",
       gametype: "duel",
+      private: true,
       admissionSeats: [
         { lobbyPlayerId: "human", accountId: 7, name: "Player", team: "alpha", isBot: false },
         { lobbyPlayerId: "bot", accountId: null, name: "Bot", team: "bravo", isBot: true },
@@ -23,6 +25,7 @@ describe("GameServerSpawner admission handoff", () => {
     });
 
     const options = vi.mocked(spawn).mock.calls.at(-1)?.[2];
+    expect(vi.mocked(spawn).mock.calls.at(-1)?.[1]).toContain("--private-match");
     const rawManifest = options?.env?.SHAG_MATCH_ADMISSION;
     expect(rawManifest).toBeTruthy();
     const manifest = JSON.parse(rawManifest as string);
@@ -55,6 +58,7 @@ describe("GameServerSpawner admission handoff", () => {
     vi.spyOn(spawner as never, "waitForReady").mockResolvedValue(undefined);
     const server = await spawner.spawn({ map: "wdm2", gametype: "duel" });
     expect(server.admissionTickets).toBeUndefined();
+    expect(vi.mocked(spawn).mock.calls.at(-1)?.[1]).not.toContain("--private-match");
     expect(vi.mocked(spawn).mock.calls.at(-1)?.[2]?.env?.SHAG_MATCH_ADMISSION).toBeUndefined();
   });
 
@@ -66,6 +70,8 @@ describe("GameServerSpawner admission handoff", () => {
     const spawner = new GameServerSpawner(18779);
     const results = vi.fn();
     spawner.onServerResult = results;
+    const rejected = vi.fn();
+    spawner.onServerResultRejected = rejected;
     const started = spawner.spawn({
       map: "wamphi1",
       gametype: "amphi",
@@ -78,20 +84,23 @@ describe("GameServerSpawner admission handoff", () => {
     const server = await started;
     const env = vi.mocked(spawn).mock.calls.at(-1)?.[2]?.env;
     const manifest = JSON.parse(env!.SHAG_MATCH_ADMISSION!);
-    const report = {
-      matchId: server.matchId,
-      gametype: "amphi",
-      map: "wamphi1",
-      endedAt: Date.now(),
-      participants: manifest.grants
-        .filter((g: { notBefore?: number }) => !g.notBefore)
-        .map((g: { tokenHash: string; accountId: number }, i: number) => ({
-          tokenHash: g.tokenHash,
-          accountId: g.accountId,
-          outcome: i ? "loss" : "win",
-          score: i ? 0 : 3,
-        })),
-    };
+    const report = resultReport(
+      {
+        matchId: server.matchId,
+        gametype: "amphi",
+        map: "wamphi1",
+        endedAt: Date.now(),
+        participants: manifest.grants
+          .filter((g: { notBefore?: number }) => !g.notBefore)
+          .map((g: { tokenHash: string; accountId: number }, i: number) => ({
+            tokenHash: g.tokenHash,
+            accountId: g.accountId,
+            outcome: i ? "loss" : "win",
+            score: i ? 0 : 3,
+          })),
+      },
+      manifest,
+    );
     const line = signMatchResult(report, env!.SHAG_MATCH_RESULT_SECRET!);
     stdout.emit("data", Buffer.from(`${line.slice(0, 25)}`));
     stdout.emit("data", Buffer.from(`${line.slice(25)}\n`));
@@ -101,6 +110,7 @@ describe("GameServerSpawner admission handoff", () => {
       Buffer.from(`${signMatchResult({ ...report, map: "fake" }, env!.SHAG_MATCH_RESULT_SECRET!)}\n`),
     );
     expect(results).toHaveBeenCalledTimes(1);
+    expect(rejected).toHaveBeenCalledExactlyOnceWith(server.matchId);
   });
 
   it("hands out a drop-in ticket only after the child holds its seat, and counts the late player", async () => {
@@ -142,21 +152,27 @@ describe("GameServerSpawner admission handoff", () => {
     expect(written[0]).not.toContain(seat?.admissionTicket);
 
     // The late player's result verifies against the seat they were given.
-    const report: MatchResultReport = {
-      matchId: server.matchId,
-      gametype: "ffa",
-      map: "wdm2",
-      endedAt: Date.now(),
-      participants: [
-        {
-          tokenHash: JSON.parse(env!.SHAG_MATCH_ADMISSION!).grants[0].tokenHash,
-          accountId: 11,
-          outcome: "loss",
-          score: 1,
-        },
-        { tokenHash: grants[0].tokenHash, accountId: 30, outcome: "win", score: 5 },
-      ],
-    };
+    const report: MatchResultReport = resultReport(
+      {
+        matchId: server.matchId,
+        gametype: "ffa",
+        map: "wdm2",
+        endedAt: Date.now(),
+        participants: [
+          {
+            tokenHash: JSON.parse(env!.SHAG_MATCH_ADMISSION!).grants[0].tokenHash,
+            accountId: 11,
+            outcome: "loss",
+            score: 1,
+          },
+          { tokenHash: grants[0].tokenHash, accountId: 30, outcome: "win", score: 5 },
+        ],
+      },
+      {
+        ...JSON.parse(env!.SHAG_MATCH_ADMISSION!),
+        grants: [...JSON.parse(env!.SHAG_MATCH_ADMISSION!).grants, ...grants],
+      },
+    );
     stdout.emit("data", Buffer.from(`${signMatchResult(report, env!.SHAG_MATCH_RESULT_SECRET!)}\n`));
     expect(results).toHaveBeenCalledExactlyOnceWith(report);
   });

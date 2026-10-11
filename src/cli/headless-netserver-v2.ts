@@ -23,6 +23,7 @@ import { Deathmatch } from "../games/fps/server/gametypes/Deathmatch";
 import { Duel } from "../games/fps/server/gametypes/Duel";
 import { SearchAndDestroy } from "../games/fps/server/gametypes/SearchAndDestroy";
 import { TeamDeathmatch } from "../games/fps/server/gametypes/TeamDeathmatch";
+import { persistFinalResult } from "../lobby/ResultOutbox";
 import { DEFAULT_PHYSICS_TICK_RATE } from "../shared/server/simulation/physics/constants";
 import { runCli } from "./_runCli";
 import { loadBspCollision } from "./HeadlessMapLoader";
@@ -46,6 +47,7 @@ function parseArgs(): GameServerConfig & { gamePath: string; gametype: string } 
     gametype: "Deathmatch",
     shutdownOnEmpty: false,
     singleMatch: false,
+    privateMatch: false,
     trainingDemo: undefined as string | undefined,
   };
 
@@ -96,6 +98,9 @@ function parseArgs(): GameServerConfig & { gamePath: string; gametype: string } 
       case "--single-match":
         config.singleMatch = true;
         break;
+      case "--private-match":
+        config.privateMatch = true;
+        break;
       case "--training-demo":
         config.trainingDemo = args[++i];
         break;
@@ -129,6 +134,7 @@ function parseArgs(): GameServerConfig & { gamePath: string; gametype: string } 
     throw new Error("Invalid match admission manifest");
   }
   const resultSecret = process.env.SHAG_MATCH_RESULT_SECRET;
+  const resultOutbox = process.env.SHAG_MATCH_RESULT_OUTBOX;
   if (matchAdmission && !resultSecret) throw new Error("Missing match result secret");
   return {
     ...config,
@@ -136,8 +142,19 @@ function parseArgs(): GameServerConfig & { gamePath: string; gametype: string } 
     matchGametype: config.gametype,
     onFinalResult:
       matchAdmission && resultSecret
-        ? (report: Parameters<typeof signMatchResult>[0]) =>
-            process.stdout.write(`${signMatchResult(report, resultSecret)}\n`)
+        ? (report: Parameters<typeof signMatchResult>[0]) => {
+            const line = signMatchResult(report, resultSecret);
+            if (resultOutbox) {
+              try {
+                persistFinalResult(resultOutbox, line);
+              } catch {
+                console.error(
+                  "[GameServer] Final report outbox failed; restart recovery is unavailable for this report.",
+                );
+              }
+            }
+            process.stdout.write(`${line}\n`);
+          }
         : undefined,
   };
 }
@@ -152,6 +169,7 @@ Options:
   --port <n>             Server port (default: 7777)
   --map <name>           Map to load (default: wdm7)
   --gametype <name>      Gametype (Deathmatch, TeamDeathmatch, Duel, Amphi, SnD)
+  --private-match       Mark recorded demos as private (set by the lobby)
   --name <name>          Server name
   --max <n>              Max clients (default: 16)
   --snapshotrate <n>     Snapshot rate in Hz (default: 60)
@@ -225,6 +243,7 @@ async function main(): Promise<void> {
 
   // Load BSP
   const bspData = await loadBspCollision(config.mapName, config.gamePath);
+  config.matchMapDigest = bspData?.bspSha256;
 
   // Create game server with selected gametype
   let gametypeInstance: BaseGametype;

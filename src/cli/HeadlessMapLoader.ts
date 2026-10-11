@@ -4,6 +4,7 @@
  * uses (see NodePk3). Shared by the dedicated server CLI and the demo recorder.
  */
 
+import { createHash } from "node:crypto";
 import * as path from "node:path";
 import type { BspEntity, BspModel } from "../engine/loader/bsp/BspLoader";
 import { resolveMapBspViaIndex } from "../engine/loader/pk3/NodePk3";
@@ -16,6 +17,8 @@ import { extractTriggerVolumes } from "../shared/bsp/TriggerTable";
 import { landMapPickups } from "../shared/items/ItemThrow";
 
 export interface BspData {
+  /** Exact map bytes used for this match, not a hash computed later during export. */
+  bspSha256?: string;
   collision: CollisionWorld;
   spawnPoints: Array<{ x: number; y: number; z: number }>;
   /** Team-tagged spawns (Warsow team_CTF_*spawn), empty on non-team maps. */
@@ -100,6 +103,7 @@ export async function loadBspCollision(mapName: string, gamePath = "./game"): Pr
   // Raw lumps, so gametypes can extract their own authoring (S&D reads
   // bombsites from them). Cheap: these are already parsed and held by `bsp`.
   return {
+    bspSha256: createHash("sha256").update(new Uint8Array(bspBuffer)).digest("hex"),
     collision,
     spawnPoints,
     teamSpawnPoints,

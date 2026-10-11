@@ -110,7 +110,8 @@ afterAll(() => {
 describe("a recorded match, all the way to training labels", () => {
   it("keeps the person and drops the bot, by verified account", async () => {
     const dataset = await new DemoTrainingExtractor().extractFromFile(demoFile);
-    expect(dataset.header.version).toBe(3);
+    expect(dataset.header.version).toBe(4);
+    expect(dataset.header.private).toBe(false);
     expect(dataset.players.map((player) => player.name)).toEqual(["Person"]);
 
     const both = await new DemoTrainingExtractor().extractFromFile(demoFile, { includeBots: true });

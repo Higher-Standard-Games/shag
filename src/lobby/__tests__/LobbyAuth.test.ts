@@ -12,6 +12,7 @@
 import type { IncomingMessage } from "node:http";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { WebSocket } from "ws";
+import { botReference } from "../../shared/ranking/__tests__/_botReference";
 import { clientAddress, LobbyServer } from "../LobbyServer";
 
 const SECRET = "test-bot-secret";
@@ -258,6 +259,65 @@ describe("LobbyServer bot login", () => {
     await expect(server.requestBotForLobby({ id: "l_1", gametype: { id: "duel" } })).rejects.toThrow(
       /secret not configured/,
     );
+  });
+});
+
+describe("trusted bot reference handoff", () => {
+  it("accepts bounded metadata only for an authenticated local bot", () => {
+    const server = makeServer();
+    const bot = connect(server);
+    const reference = botReference();
+    server.handleAuth(bot.player, { type: "auth", isBot: true, botSecret: SECRET, botReference: reference });
+    reference.difficulty.aimAccuracy = 0;
+    expect(bot.player.botReference.difficulty.aimAccuracy).toBe(0.5);
+    const human = connect(server);
+    server.handleAuth(human.player, { type: "auth", botReference: reference });
+    expect(human.player.botReference).toBeUndefined();
+    server.handleMessage(human.player, { type: "bot:reference", reference });
+    expect(last(human.sent)).toMatchObject({ type: "lobby:error" });
+    expect(human.player.botReference).toBeUndefined();
+  });
+
+  it("refuses malformed service metadata without authenticating or copying it", () => {
+    const server = makeServer();
+    const bot = connect(server);
+    server.handleAuth(bot.player, { type: "auth", isBot: true, botSecret: SECRET, botReference: { path: "private" } });
+    expect(last(bot.sent)).toEqual({ type: "auth:error", code: "invalid_bot_reference" });
+    expect(bot.player.authenticated).toBe(false);
+    expect(bot.player.botReference).toBeUndefined();
+  });
+
+  it("allows waiting-room changes but latches changes and reversions after handoff", () => {
+    const server = makeServer();
+    const bot = connect(server);
+    server.handleAuth(bot.player, { type: "auth", isBot: true, botSecret: SECRET, botReference: botReference() });
+    const lobby = { state: "waiting", isStarting: false, activeMatchId: "match", botReferenceChanged: false };
+    const context = { private: true, ranked: false, bots: 1, botReferenceChanged: false };
+    bot.player.lobbyId = "room";
+    server.lobbies.set("room", lobby);
+    server.matchRecords.set("match", context);
+    const changed = { ...botReference(), goalArbiter: "legacy" };
+    server.handleMessage(bot.player, { type: "bot:reference", reference: changed });
+    expect(context.botReferenceChanged).toBe(false);
+    lobby.state = "playing";
+    server.handleMessage(bot.player, { type: "bot:reference", reference: changed });
+    expect(context.botReferenceChanged).toBe(false); // Identical retries do not disqualify a match.
+    server.handleMessage(bot.player, { type: "bot:reference", reference: botReference() });
+    server.handleMessage(bot.player, { type: "bot:reference", reference: changed });
+    expect(context.botReferenceChanged).toBe(true);
+    expect(lobby.botReferenceChanged).toBe(true);
+  });
+
+  it("detects changes while spawning and failed metadata updates", () => {
+    const server = makeServer();
+    const bot = connect(server);
+    server.handleAuth(bot.player, { type: "auth", isBot: true, botSecret: SECRET, botReference: botReference() });
+    const lobby = { state: "playing", isStarting: true, activeMatchId: null, botReferenceChanged: false };
+    bot.player.lobbyId = "room";
+    server.lobbies.set("room", lobby);
+    server.handleMessage(bot.player, { type: "bot:reference", reference: {} });
+    expect(lobby.botReferenceChanged).toBe(true);
+    expect(bot.player.botReference).toEqual(botReference());
   });
 });
 

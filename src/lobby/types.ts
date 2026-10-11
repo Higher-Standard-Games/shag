@@ -136,6 +136,8 @@ export interface LiveMatchInfo {
 // ============================================================================
 
 export interface DemoInfo {
+  /** Absent on older recordings, treated as public. */
+  private?: boolean;
   filename: string; // "wdm14_duel_20260319_092800.shagdemo"
   map: string; // "wdm14"
   mapDisplayName: string; // "Aerowalk"
@@ -173,6 +175,8 @@ export interface AuthMessage extends LobbyMessage {
   isBot?: boolean;
   /** The secret the lobby shares with its bot server. */
   botSecret?: string;
+  /** Service-owned configuration. Ignored for human connections. */
+  botReference?: import("../shared/ranking/BotReference").BotReference;
 }
 
 /** Change your account's name. Not while in a room: the room and its match keep the name they were given. */
@@ -264,7 +268,9 @@ export interface DevSpawnServerMessage extends LobbyMessage {
   trainingDemo?: string;
 }
 
-/** Public read-only rankings; request IDs correlate concurrent mode/period changes. */
+export type RankingScope = "public" | "private";
+
+/** Read-only rankings; request IDs correlate concurrent scope/mode/period changes. */
 export interface LeaderboardRequest extends LobbyMessage {
   type: "leaderboard:get";
   requestId: string;
@@ -272,6 +278,23 @@ export interface LeaderboardRequest extends LobbyMessage {
   period: "month" | "all";
   offset: number;
   limit: number;
+  /** Omitted means public. Each board contains only its own lobby visibility. */
+  scope?: RankingScope;
+  /** Older clients omit this and receive records. New clients explicitly request skill. */
+  system?: "trueskill";
+}
+
+export interface LeaderboardEntry {
+  rank: number;
+  playerId: string;
+  name: string;
+  wins: number;
+  losses: number;
+  draws: number;
+  rating?: number;
+  conservativeScore?: number;
+  provisional?: boolean;
+  ratedMatches?: number;
 }
 
 export interface LeaderboardResponse extends LobbyMessage {
@@ -279,7 +302,11 @@ export interface LeaderboardResponse extends LobbyMessage {
   requestId: string;
   gametype: string;
   period: "month" | "all";
-  entries: Array<{ rank: number; playerId: string; name: string; wins: number; losses: number; draws: number }>;
+  scope: RankingScope;
+  entries: LeaderboardEntry[];
+  system?: "trueskill";
+  policyVersion?: string;
+  localProcessing?: { pending: number; excluded: number };
   total: number;
   localPlayerRank?: number;
   /** The authenticated account's actual row, even when it is outside this page. */
@@ -326,7 +353,13 @@ export interface PlayerIdentityInfo {
 export interface WelcomeMessage extends LobbyMessage {
   type: "welcome";
   /** Older servers omit this; clients must keep Private disabled then. */
-  features?: { privateLobbies: boolean; leaderboard?: boolean; featuredDemos?: boolean; demoOwnership?: boolean };
+  features?: {
+    privateLobbies: boolean;
+    leaderboard?: boolean;
+    skillRatings?: boolean;
+    featuredDemos?: boolean;
+    demoOwnership?: boolean;
+  };
   /** This connection's id, used by rooms and chat. Not the account id. */
   playerId: string;
   /** The account this connection is logged in to; absent for bots. */

@@ -283,7 +283,14 @@ export class LobbyClient {
 
   /** A bounded, account-scoped ranking read; listeners are released on every outcome. */
   requestLeaderboard(
-    query: { gametype: string; period: "month" | "all"; offset: number; limit: number },
+    query: {
+      gametype: string;
+      period: "month" | "all";
+      offset: number;
+      limit: number;
+      scope?: "public" | "private";
+      system?: "trueskill";
+    },
     timeoutMs = 10_000,
   ): Promise<LeaderboardResponse> {
     if (!this.connected) return Promise.reject(new Error("Lobby is offline"));
@@ -301,7 +308,13 @@ export class LobbyClient {
       const timer = setTimeout(() => finish(() => reject(new Error("Leaderboard request timed out"))), timeoutMs);
       cleanup.push(
         this.on("leaderboard:page", (msg: LeaderboardResponse) => {
-          if (msg.requestId === requestId) finish(() => resolve(msg));
+          if (msg.requestId !== requestId) return;
+          finish(() => {
+            if (msg.scope !== (query.scope ?? "public")) reject(new Error("Leaderboard: ranking_scope_mismatch"));
+            else if (query.system && msg.system !== query.system)
+              reject(new Error("Leaderboard: ranking_system_mismatch"));
+            else resolve(msg);
+          });
         }),
       );
       cleanup.push(

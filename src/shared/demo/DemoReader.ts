@@ -40,6 +40,8 @@ export interface DemoHeader {
   startTime: number;
   /** Version 2 only: lobby-issued match ID. Absent for legacy/direct recordings. */
   matchId?: string;
+  /** Version 4: lobby visibility. Older recordings have no privacy metadata. */
+  private?: boolean;
   /** Player roster */
   players: DemoPlayerInfo[];
 }
@@ -126,7 +128,7 @@ export class DemoReader {
     // Version
     const version = view.getUint8(offset);
     offset += 1;
-    if (version !== 1 && version !== 2 && version !== 3) {
+    if (version !== 1 && version !== 2 && version !== 3 && version !== 4) {
       throw new Error(`Unsupported demo version: ${version}`);
     }
 
@@ -160,6 +162,13 @@ export class DemoReader {
       matchId = value || undefined;
     }
 
+    let privateMatch: boolean | undefined;
+    if (version >= 4) {
+      const visibility = view.getUint8(offset++);
+      if (visibility > 1) throw new Error("Invalid demo visibility");
+      privateMatch = visibility === 1;
+    }
+
     // Player roster
     const playerCount = view.getUint8(offset);
     offset += 1;
@@ -183,7 +192,17 @@ export class DemoReader {
     }
 
     // headerEndOffset = offset (for sequential frame reading)
-    this._header = { version, map, gametype, tickRate, snapshotRate, startTime, matchId, players };
+    this._header = {
+      version,
+      map,
+      gametype,
+      tickRate,
+      snapshotRate,
+      startTime,
+      matchId,
+      players,
+      ...(privateMatch === undefined ? {} : { private: privateMatch }),
+    };
     return this._header;
   }
 

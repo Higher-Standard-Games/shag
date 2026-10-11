@@ -15,6 +15,8 @@
  */
 
 import WebSocket from "ws";
+import { BOT_LOBBY_JOIN_TIMEOUT_MS, waitForBotPreparation } from "../shared/ranking/BotPreparation";
+import type { BotReference } from "../shared/ranking/BotReference";
 import { BotClient } from "./BotClient";
 import { type BotOptions, getNextBotName } from "./BotConfig";
 
@@ -39,6 +41,14 @@ export class BotLobbyClient {
 
   // The game bot client created when match starts
   private _botClient: BotClient | null = null;
+  private _preparedBot: BotClient | null = null;
+  private _readyTimer: ReturnType<typeof setTimeout> | null = null;
+  private _generation = 0;
+  private _cancelConnect: (() => void) | null = null;
+  private _referenceListener = (reference: BotReference) => {
+    this._botOptions.difficulty = reference.preset === "custom" ? { ...reference.difficulty } : reference.preset;
+    this._send({ type: "bot:reference", reference });
+  };
 
   // Callback for BotServer to track the spawned BotClient
   onGameBotCreated: ((bot: BotClient) => void) | null = null;
@@ -57,6 +67,7 @@ export class BotLobbyClient {
       difficulty: this._difficulty,
       team: options?.team,
       modelDir: options?.modelDir,
+      goalArbiter: options?.goalArbiter,
     };
   }
 
@@ -75,11 +86,42 @@ export class BotLobbyClient {
    * (used by the in-lobby "Invite AI Bot" button); otherwise join the queue
    * for `gametype`.
    */
-  async connect(lobbyUrl: string, gametype: string, joinLobbyId?: string, inviteToken?: string): Promise<void> {
+  async connect(
+    lobbyUrl: string,
+    gametype: string,
+    joinLobbyId?: string,
+    inviteToken?: string,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    if (this._state !== "disconnected" || signal?.aborted)
+      throw new Error("Bot lobby connection unavailable or cancelled");
+    const generation = ++this._generation;
     this._gametype = gametype;
     this._joinLobbyId = joinLobbyId || "";
     this._inviteToken = inviteToken || "";
     this._state = "connecting";
+    // Authenticate the resolved runtime, never just a requested model directory.
+    const prepared = new BotClient(this._botOptions);
+    this._preparedBot = prepared;
+    const preparation = new AbortController();
+    const cancel = () => preparation.abort();
+    this._cancelConnect = cancel;
+    signal?.addEventListener("abort", cancel, { once: true });
+    try {
+      await waitForBotPreparation(prepared.referenceReady, preparation.signal);
+    } catch (error) {
+      if (this._preparedBot === prepared) {
+        this._preparedBot = null;
+        this._state = "disconnected";
+      }
+      void prepared.dispose();
+      throw error;
+    } finally {
+      signal?.removeEventListener("abort", cancel);
+      if (this._cancelConnect === cancel) this._cancelConnect = null;
+    }
+    if (generation !== this._generation || !this._preparedBot) throw new Error("Bot lobby connection cancelled");
+    this._preparedBot.on("ratingReferenceChanged", this._referenceListener);
 
     return new Promise<void>((resolve, reject) => {
       const ws = new WebSocket(lobbyUrl);
@@ -90,30 +132,52 @@ export class BotLobbyClient {
         if (settled) return;
         settled = true;
         clearTimeout(connectTimeout);
+        signal?.removeEventListener("abort", abort);
+        this._cancelConnect = null;
         resolve();
       };
       const fail = (error: Error) => {
         if (settled) return;
         settled = true;
         clearTimeout(connectTimeout);
+        signal?.removeEventListener("abort", abort);
+        this._cancelConnect = null;
         this._state = "disconnected";
+        if (this._preparedBot === prepared) this._preparedBot = null;
+        prepared.removeListener("ratingReferenceChanged", this._referenceListener);
+        void prepared.dispose();
         ws.close();
         reject(error);
       };
+      const abort = () => fail(new Error("Bot lobby connection cancelled"));
+      this._cancelConnect = abort;
+      signal?.addEventListener("abort", abort, { once: true });
 
       const connectTimeout = setTimeout(() => {
         fail(new Error(`Lobby join timeout: ${lobbyUrl}`));
-      }, 10000);
+      }, BOT_LOBBY_JOIN_TIMEOUT_MS);
+      if (signal?.aborted || generation !== this._generation) abort();
 
       ws.on("open", () => {
+        if (generation !== this._generation || signal?.aborted || settled) {
+          ws.close();
+          return;
+        }
         console.log(`[LobbyBot:${this.name}] Connected to lobby ${lobbyUrl}`);
 
         // Step 1: Authenticate as a bot. The lobby believes the flag only with
         // the shared secret, from its own machine.
-        this._send({ type: "auth", name: this.name, isBot: true, botSecret: this._botSecret });
+        this._send({
+          type: "auth",
+          name: this.name,
+          isBot: true,
+          botSecret: this._botSecret,
+          botReference: this._preparedBot!.ratingReference,
+        });
       });
 
       ws.on("message", (data: Buffer) => {
+        if (generation !== this._generation || (settled && this._state === "disconnected")) return;
         try {
           const msg = JSON.parse(data.toString());
           this._handleMessage(msg, succeed, fail);
@@ -124,9 +188,17 @@ export class BotLobbyClient {
 
       ws.on("close", () => {
         fail(new Error("Lobby connection closed before bot joined"));
+        if (generation !== this._generation) return;
         console.log(`[LobbyBot:${this.name}] Lobby connection closed`);
         this._state = "disconnected";
         this._ws = null;
+        if (this._readyTimer) clearTimeout(this._readyTimer);
+        this._readyTimer = null;
+        const prepared = this._preparedBot;
+        this._preparedBot = null;
+        prepared?.removeListener("ratingReferenceChanged", this._referenceListener);
+        void prepared?.dispose();
+        this._botClient?.removeListener("ratingReferenceChanged", this._referenceListener);
         this.onDisconnected?.();
       });
 
@@ -171,8 +243,10 @@ export class BotLobbyClient {
         onJoined?.();
 
         // Small delay before readying up (human-feel)
-        setTimeout(
+        if (this._readyTimer) clearTimeout(this._readyTimer);
+        this._readyTimer = setTimeout(
           () => {
+            this._readyTimer = null;
             if (this._state === "in_lobby" && this._lobbyId) {
               this._send({ type: "lobby:ready", lobbyId: this._lobbyId, ready: true });
               console.log(`[LobbyBot:${this.name}] Ready!`);
@@ -268,6 +342,7 @@ export class BotLobbyClient {
   }
 
   private async _connectToGameServer(serverUrl: string, admissionTicket?: string): Promise<void> {
+    const generation = this._generation;
     const MAX_RETRIES = 5;
     const INITIAL_DELAY_MS = 2000; // Wait for game server to start
     const RETRY_DELAY_MS = 1500;
@@ -277,12 +352,25 @@ export class BotLobbyClient {
     await new Promise((r) => setTimeout(r, INITIAL_DELAY_MS));
 
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      if (generation !== this._generation || this._state !== "in_match") return;
+      let bot: BotClient | null = null;
       try {
-        const bot = new BotClient(this._botOptions);
+        bot = this._preparedBot ?? new BotClient(this._botOptions);
+        if (bot !== this._preparedBot) bot.on("ratingReferenceChanged", this._referenceListener);
+        this._preparedBot = null;
+        await bot.referenceReady;
+        if (generation !== this._generation || this._state !== "in_match") {
+          await bot.dispose();
+          return;
+        }
+        this._send({ type: "bot:reference", reference: bot.ratingReference });
+        bot.setTeam(this._lobbyTeam ?? this._botOptions.team);
 
         bot.on("disconnected", () => {
           console.log(`[LobbyBot:${this.name}] Game bot disconnected`);
-          this._botClient = null;
+          bot?.removeListener("ratingReferenceChanged", this._referenceListener);
+          if (this._botClient === bot) this._botClient = null;
+          void bot?.dispose();
         });
 
         await bot.connect(serverUrl, admissionTicket);
@@ -293,6 +381,8 @@ export class BotLobbyClient {
         this.onGameBotCreated?.(bot);
         return;
       } catch (err: any) {
+        bot?.removeListener("ratingReferenceChanged", this._referenceListener);
+        await bot?.dispose();
         if (attempt < MAX_RETRIES) {
           console.log(
             `[LobbyBot:${this.name}] Connection attempt ${attempt}/${MAX_RETRIES} failed, retrying in ${RETRY_DELAY_MS}ms...`,
@@ -309,10 +399,21 @@ export class BotLobbyClient {
    * Disconnect from lobby and game.
    */
   async disconnect(): Promise<void> {
+    this._generation++;
+    this._cancelConnect?.();
+    this._cancelConnect = null;
+    if (this._readyTimer) clearTimeout(this._readyTimer);
+    this._readyTimer = null;
     // Disconnect game bot first
     if (this._botClient) {
-      await this._botClient.disconnect();
+      this._botClient.removeListener("ratingReferenceChanged", this._referenceListener);
+      await this._botClient.dispose();
       this._botClient = null;
+    }
+    if (this._preparedBot) {
+      this._preparedBot.removeListener("ratingReferenceChanged", this._referenceListener);
+      await this._preparedBot.dispose();
+      this._preparedBot = null;
     }
 
     // Leave lobby
