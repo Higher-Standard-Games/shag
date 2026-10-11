@@ -84,4 +84,47 @@ describe("private room bot invite", () => {
       await lobby.stop();
     }
   }, 20_000);
+
+  it("refuses a bot in a public room: bots are for private rooms only", async () => {
+    const secret = "public-bot-integration-secret";
+    const botServer = new BotServer(0, { secret });
+    await botServer.start();
+    const lobbyPort = await unusedPort();
+    const lobby = new LobbyServer(lobbyPort, new GameServerSpawner(), {
+      botSecret: secret,
+      botServerUrl: `ws://127.0.0.1:${botServer.port}`,
+    });
+    const messages: Array<Record<string, unknown>> = [];
+    let host: WebSocket | undefined;
+    try {
+      await lobby.start();
+      host = new WebSocket(`ws://127.0.0.1:${lobbyPort}`);
+      host.on("message", (data) => messages.push(JSON.parse(data.toString())));
+      await once(host, "open");
+      const waitFor = (type: string) =>
+        vi.waitFor(() => {
+          const message = messages.find((candidate) => candidate.type === type);
+          if (!message) throw new Error(`Waiting for ${type}`);
+          return message;
+        });
+
+      host.send(JSON.stringify({ type: "auth" }));
+      await waitFor("welcome");
+      host.send(JSON.stringify({ type: "lobby:create", gametype: "duel", visibility: "public" }));
+      const room = (await waitFor("lobby:created")).lobby as MatchLobbyInfo;
+
+      host.send(JSON.stringify({ type: "lobby:invite_bot", lobbyId: room.id }));
+      expect(await waitFor("lobby:bot_invite_failed")).toMatchObject({
+        lobbyId: room.id,
+        error: "Bots can be added in private lobbies only.",
+      });
+      expect(messages.some((message) => message.type === "lobby:player_joined")).toBe(false);
+      expect(botServer.getStatus()).toHaveLength(0);
+    } finally {
+      host?.close();
+      await botServer.removeAllBots();
+      await botServer.stop();
+      await lobby.stop();
+    }
+  }, 20_000);
 });

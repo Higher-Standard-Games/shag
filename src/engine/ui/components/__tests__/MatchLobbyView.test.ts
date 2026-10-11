@@ -149,7 +149,12 @@ describe("MatchLobbyView roster identity", () => {
 
   it("can start before it is full once each side has someone, and says so", () => {
     const client = new FakeLobbyClient();
-    const bombRoom = { ...lobby, config: { maxPlayers: 10, minPlayers: 2, hasTeams: true } };
+    const bombRoom = {
+      ...lobby,
+      visibility: "private" as const,
+      shareUrl: "/?lobby=snd-room&invite=secret-token",
+      config: { maxPlayers: 10, minPlayers: 2, hasTeams: true },
+    };
     const view = new MatchLobbyView("snd", client as never, bombRoom, "host");
     document.body.appendChild(view.root);
     const text = (selector: string) => view.root.querySelector(selector)?.textContent;
@@ -360,7 +365,39 @@ describe("MatchLobbyView layout", () => {
     const [rejoin, ready] = keys.slice(-2);
     expect(rejoin.classList.contains("match-lobby__recover")).toBe(true);
     expect(ready.classList.contains("raised-key--ready")).toBe(true);
-    expect(keys.every((key) => key.tagName === "BUTTON")).toBe(true);
+    // Every key is a button; in a public room the bot key sits in the span
+    // that explains why it is off
+    expect(keys.every((key) => key.tagName === "BUTTON" || key.querySelector(":scope > button"))).toBe(true);
+    view.destroy();
+  });
+});
+
+describe("MatchLobbyView bots", () => {
+  it("offers bots in a private lobby", () => {
+    const client = new FakeLobbyClient();
+    // One seat open, so a bot has somewhere to sit
+    const room = {
+      ...lobby,
+      players: [lobby.players[0]],
+      visibility: "private" as const,
+      shareUrl: "/?lobby=r&invite=t",
+    };
+    const view = new MatchLobbyView("duel", client as never, room, "host");
+    const bot = [...view.root.querySelectorAll<HTMLButtonElement>(".match-lobby__actions button")].find((b) =>
+      b.textContent?.includes("Add bot"),
+    );
+    expect(bot?.disabled).toBe(false);
+    view.destroy();
+  });
+
+  it("shows the bot key off in a public lobby, and says where bots can be added", () => {
+    const client = new FakeLobbyClient();
+    const view = new MatchLobbyView("duel", client as never, { ...lobby, visibility: "public" as const }, "host");
+    const gate = view.root.querySelector<HTMLElement>(".match-lobby-view__bot-gate");
+    const bot = gate?.querySelector("button");
+    expect(bot?.disabled).toBe(true);
+    expect(bot?.textContent).toContain("Private lobbies only");
+    expect(gate?.title).toBe("Start a private lobby to add bots");
     view.destroy();
   });
 });

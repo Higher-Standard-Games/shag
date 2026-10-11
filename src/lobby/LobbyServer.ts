@@ -1205,6 +1205,17 @@ export class LobbyServer {
       return;
     }
 
+    // Bots are for private rooms: in a public one they would fill seats other
+    // players are queueing for, and change who a ranked result is against.
+    if (lobby.visibility !== "private") {
+      this.send(player, {
+        type: "lobby:bot_invite_failed",
+        lobbyId,
+        error: "Bots can be added in private lobbies only.",
+      });
+      return;
+    }
+
     if (lobby.state !== "waiting" || lobby.isStarting) {
       this.send(player, { type: "lobby:bot_invite_failed", lobbyId, error: "Match is already starting." });
       return;

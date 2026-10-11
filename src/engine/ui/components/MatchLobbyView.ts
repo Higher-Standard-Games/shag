@@ -58,6 +58,8 @@ export class MatchLobbyView {
 
   private config: MatchLobbyConfig;
   private lobbyId: string;
+  /** Bots can be added only in a private lobby (the lobby server enforces it). */
+  private readonly privateLobby: boolean;
   private readonly shareUrl: string;
   private maps: MatchLobbyMapOption[];
   private players: MatchLobbyPlayer[];
@@ -94,6 +96,7 @@ export class MatchLobbyView {
       hasTeams: lobbyInfo.config.hasTeams,
     };
     this.lobbyId = lobbyInfo.id;
+    this.privateLobby = lobbyInfo.visibility === "private";
     this.activeMatchId = lobbyInfo.activeMatchId ?? null;
     if (this.activeMatchId) {
       this.phase = "starting";
@@ -557,8 +560,12 @@ export class MatchLobbyView {
             ? "Everyone is ready. Connecting when the game server is available."
             : !enough
               ? this.config.hasTeams && this.players.length >= this.config.minPlayers
-                ? "Each side needs a player. Switch sides, or add a bot."
-                : "Share the invite, or add a bot to play right now."
+                ? this.privateLobby
+                  ? "Each side needs a player. Switch sides, or add a bot."
+                  : "Each side needs a player. Switch sides, or wait for someone to join."
+                : this.privateLobby
+                  ? "Share the invite, or add a bot to play right now."
+                  : "Share the room's link; it starts as soon as someone joins."
               : this.localReady
                 ? `${waiting} player${waiting === 1 ? "" : "s"} still to ready up.`
                 : full
@@ -827,7 +834,17 @@ export class MatchLobbyView {
     // each bot lands on whichever side is short.
     this.inviteBotBtn = createRaisedKey({ label: "+ Add bot", hint: "Fill a seat", variants: ["act", "cream"] });
     this.inviteBotBtn.addEventListener("click", () => this.requestBot());
-    actions.appendChild(this.inviteBotBtn);
+    if (this.privateLobby) {
+      actions.appendChild(this.inviteBotBtn);
+    } else {
+      // Shown, but off: a public room is for people. The wrapper carries the
+      // explanation, because a browser shows no title over a disabled button.
+      const wrap = document.createElement("span");
+      wrap.className = "match-lobby-view__bot-gate";
+      wrap.title = "Start a private lobby to add bots";
+      wrap.appendChild(this.inviteBotBtn);
+      actions.appendChild(wrap);
+    }
     this.updateInviteBotState();
 
     // Two seats are two players facing each other: which side is whose changes
@@ -954,10 +971,16 @@ export class MatchLobbyView {
     }, 9000);
   }
 
-  /** Enable/disable the invite-bot button based on lobby capacity + pending state. */
+  /** Enable/disable the invite-bot button: private lobbies only, by capacity and pending state. */
   private updateInviteBotState(): void {
     const btn = this.inviteBotBtn;
     if (!btn) return;
+
+    if (!this.privateLobby) {
+      btn.disabled = true;
+      setRaisedKeyText(btn, "+ Add bot", "Private lobbies only");
+      return;
+    }
 
     if (this.inviteBotPending || this.phase === "starting") {
       btn.disabled = true;
