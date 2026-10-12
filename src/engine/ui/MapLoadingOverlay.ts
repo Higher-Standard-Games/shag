@@ -234,6 +234,12 @@ export class MapLoadingOverlay {
     return MapLoadingOverlay.getInstance().enabled;
   }
 
+  /** Whether the loading screen covers the game; false once it starts fading out. */
+  static isShowing(): boolean {
+    const state = MapLoadingOverlay.instance?.state ?? "idle";
+    return state !== "idle" && state !== "fading";
+  }
+
   // ==================== Event Handlers ====================
 
   private onLoadingStart(event: LoadingStartEvent): void {

@@ -545,12 +545,14 @@ export interface DevServerSpawnFailedMessage extends LobbyMessage {
 
 export interface DemosListRequest extends LobbyMessage {
   type: "demos:list";
+  requestId?: string;
   limit?: number; // max demos to return (default 64)
   scope?: "latest" | "yours";
 }
 
 export interface DemosListResponse extends LobbyMessage {
   type: "demos:list_response";
+  requestId?: string;
   demos: DemoInfo[];
   scope?: "latest" | "yours";
 }

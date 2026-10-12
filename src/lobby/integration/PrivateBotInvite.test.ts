@@ -66,7 +66,7 @@ describe("private room bot invite", () => {
       await vi.waitFor(() =>
         expect(controlReplies.at(-1)).toMatchObject({
           type: "error",
-          error: "Failed to add lobby bot: Lobby not found or invite invalid.",
+          error: "Failed to add lobby bot: That room is gone, or the invite link is wrong.",
         }),
       );
       expect(messages.some((message) => message.type === "lobby:player_joined")).toBe(false);

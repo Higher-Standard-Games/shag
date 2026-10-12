@@ -177,6 +177,31 @@
   visibility: hidden;
 }
 
+.ui-loading-screen--failed .boot__ring-sweep,
+.ui-loading-screen--failed .boot__ring-pulse,
+.ui-loading-screen--failed .boot__start {
+  animation: none;
+}
+
+.boot__failure {
+  color: hsl(45, 100%, 95%);
+  font-size: 1rem;
+}
+
+.boot__diagnostic {
+  white-space: pre-wrap;
+  user-select: text;
+  font-size: 0.85rem;
+}
+
+.boot__copy {
+  padding: 0.6em 1em;
+  color: var(--ink);
+  background: var(--gold);
+  border: 0;
+  cursor: pointer;
+}
+
 .boot__lead {
   margin: clamp(14px, 2.4vh, 24px) 0 0;
   font: 600 clamp(1rem, 1.45vw, 1.4rem) / 1.35 var(--w-font-body, "Rajdhani", sans-serif);

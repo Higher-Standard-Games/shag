@@ -52,10 +52,12 @@ export class LoadingScreen {
   private captionEl: HTMLElement;
   private startEl: HTMLButtonElement;
   private stepIndex = 0;
+  private failureStep: BootStep | "initialization" = "renderer";
   /** Everything has loaded and the start button is up */
   private ready = false;
   /** The player has clicked (possibly before everything had loaded) */
   private started = false;
+  private failed = false;
 
   // For force-dismiss from console
   private readyResolver: (() => void) | null = null;
@@ -173,6 +175,7 @@ export class LoadingScreen {
       BOOT_STEPS.map((_, index) => (index < this.stepIndex ? "done" : index === this.stepIndex ? "active" : "pending")),
     );
     this.statusEl.textContent = STEP_LABELS[BOOT_STEPS[this.stepIndex]].toUpperCase();
+    this.failureStep = BOOT_STEPS[this.stepIndex];
     this.setBar(this.stepIndex / BOOT_STEPS.length);
   }
 
@@ -186,7 +189,8 @@ export class LoadingScreen {
    * Add a line to the boot log: what the engine is doing now.
    * @param status - Status message to display (e.g., "Indexing packages...", "Loading textures...")
    */
-  public setStatus(status: string): void {
+  public setStatus(status: string, phase?: BootStep | "initialization"): void {
+    if (phase) this.failureStep = phase;
     this.rail.log(status);
   }
 
@@ -197,6 +201,62 @@ export class LoadingScreen {
     if (LoadingScreen.instance) {
       LoadingScreen.instance.setStatus(status);
     }
+  }
+
+  /** Keep fatal boot errors visible, even when they precede renderer creation. */
+  public static failBoot(error: unknown): void {
+    const screen = LoadingScreen.instance ?? new LoadingScreen();
+    if (!screen.container.isConnected) screen.show();
+    screen.fail(error);
+  }
+
+  public fail(error: unknown, reload: () => void = () => window.location.reload()): void {
+    if (this.failed) return;
+    this.failed = true;
+    this.readyResolver = null;
+    window.removeEventListener("keydown", this.onKey);
+    this.smokeAnimation?.destroy();
+    this.smokeAnimation = null;
+    this.container.classList.add("ui-loading-screen--failed");
+    this.container.setAttribute("aria-busy", "false");
+    this.container.setAttribute("aria-label", "Game could not start");
+    this.kickerEl.textContent = "Could not start";
+    this.statusEl.textContent = "FAILED";
+    this.ringEl.disabled = true;
+    this.captionEl.hidden = false;
+    this.startEl.disabled = false;
+    this.startEl.textContent = "Reload";
+    this.startEl.addEventListener("click", reload);
+    this.captionEl.replaceChildren(this.startEl);
+
+    const step = this.failureStep;
+    const message = element(
+      "p",
+      "boot__failure",
+      step === "renderer"
+        ? "The renderer could not start. Check that hardware acceleration and WebGL are enabled in your browser, then reload."
+        : "The game could not finish loading. Check your connection, then reload. If it keeps happening, share the diagnostic below.",
+    );
+    message.setAttribute("role", "alert");
+    // Error messages and URLs can contain an invite or account key. Copy only
+    // controlled metadata; the original exception remains in the developer console.
+    const kind = error instanceof TypeError ? "TypeError" : error instanceof RangeError ? "RangeError" : "Error";
+    const diagnostic = `SHAG ${EngineVersion.getInstance().getVersion()}\nBoot step: ${step}\nFailure: ${kind}`;
+    const details = element("pre", "boot__diagnostic", diagnostic);
+    const copy = document.createElement("button");
+    copy.type = "button";
+    copy.className = "boot__copy";
+    copy.textContent = "Copy diagnostic";
+    copy.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(diagnostic);
+        copy.textContent = "Copied";
+      } catch {
+        copy.textContent = "Select and copy the diagnostic above";
+      }
+    });
+    this.barEl.parentElement?.append(message, details, copy);
+    this.startEl.focus();
   }
 
   /**
@@ -222,6 +282,7 @@ export class LoadingScreen {
    * a prompt never sits over a boot that is still running.
    */
   public markReady(): void {
+    if (this.failed) return;
     if (this.ready) return;
     this.ready = true;
     this.stepIndex = BOOT_STEPS.length;

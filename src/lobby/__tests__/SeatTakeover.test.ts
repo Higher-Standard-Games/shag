@@ -155,7 +155,7 @@ describe("a room that really is full", () => {
     const third = makePlayer();
     join(server, third, lobby.id);
 
-    expect(errors(third.sent)).toEqual(["Lobby is full."]);
+    expect(errors(third.sent)).toEqual(["That room is full."]);
     expect(lobby.players.size).toBe(2);
   });
 

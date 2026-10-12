@@ -15,6 +15,8 @@ import {
   currentIdentity,
   LoginError,
   logIn,
+  loginFailureText,
+  playerKeyIsSessionOnly,
   renameAccount,
   resetAccountSessionForTests,
   restoreAccount,
@@ -109,6 +111,44 @@ afterEach(() => {
 });
 
 describe("AccountSession.logIn", () => {
+  it("distinguishes account restore capacity errors from rate limiting", () => {
+    expect(loginFailureText("lobby_full")).toContain("Servers are full");
+    expect(loginFailureText("lobby_full")).toContain("key is unchanged");
+    expect(loginFailureText("rate_limited")).toContain("Too many tries");
+    expect(loginFailureText("unknown_key")).toContain("No player has that key");
+  });
+  it("keeps an exportable session key through reconnect when storage writes fail, then saves it when available", async () => {
+    const storage = memoryStorage();
+    vi.stubGlobal("localStorage", storage);
+    const write = vi.spyOn(storage, "setItem").mockImplementation(() => {
+      throw new Error("Storage full");
+    });
+    const server = makeServer();
+    const first = await logIn(connectTo(server).client);
+    expect(storedPlayerKey()).toBe(first.key);
+    expect(playerKeyIsSessionOnly()).toBe(true);
+    const reconnect = connectTo(server, "198.51.100.21");
+    expect((await logIn(reconnect.client)).identity).toEqual(first.identity);
+    expect(reconnect.sent[0]).toEqual({ type: "auth", key: first.key });
+    write.mockRestore();
+    await logIn(connectTo(server, "198.51.100.22").client);
+    expect(playerKeyIsSessionOnly()).toBe(false);
+    expect(storage.getItem("shag_player_key")).toBe(first.key);
+  });
+
+  it("keeps a cached key if storage reads become blocked", async () => {
+    const server = makeServer();
+    const first = await logIn(connectTo(server).client);
+    vi.spyOn(localStorage, "getItem").mockImplementation(() => {
+      throw new Error("Blocked");
+    });
+    vi.spyOn(localStorage, "setItem").mockImplementation(() => {
+      throw new Error("Blocked");
+    });
+    expect((await logIn(connectTo(server, "198.51.100.21").client)).identity).toEqual(first.identity);
+    expect(storedPlayerKey()).toBe(first.key);
+    expect(playerKeyIsSessionOnly()).toBe(true);
+  });
   it("makes a new browser an account, stores its key and shows its name", async () => {
     const server = makeServer();
     const { client, sent } = connectTo(server);
@@ -216,6 +256,24 @@ describe("AccountSession.logIn", () => {
 });
 
 describe("AccountSession.restoreAccount", () => {
+  it("keeps an accepted restored key when storage still contains the previous account", async () => {
+    const storage = memoryStorage();
+    vi.stubGlobal("localStorage", storage);
+    const server = makeServer();
+    const first = await logIn(connectTo(server).client);
+    const second = server.accounts.create();
+    vi.spyOn(storage, "setItem").mockImplementation(() => {
+      throw new Error("Storage full");
+    });
+    const restored = await restoreAccount(connectTo(server, "198.51.100.23").client, second.key);
+    expect(restored.identity?.id).not.toBe(first.identity?.id);
+    expect(storedPlayerKey()).toBe(second.key);
+    expect(playerKeyIsSessionOnly()).toBe(true);
+    const reconnect = connectTo(server, "198.51.100.24");
+    const welcome = await logIn(reconnect.client);
+    expect(welcome.identity?.id).toBe(restored.identity?.id);
+    expect(reconnect.sent[0]).toEqual({ type: "auth", key: second.key });
+  });
   it("restores an account in another browser from its pasted key", async () => {
     const server = makeServer();
     await logIn(connectTo(server).client);

@@ -51,6 +51,28 @@ describe("start-up screen", () => {
     expect(share()).toBe(0);
   });
 
+  it("offers reload after a fatal renderer failure without leaking the exception into diagnostics", async () => {
+    void screen.waitForReady();
+    const reload = vi.fn();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { clipboard: { writeText } });
+    screen.fail(new TypeError("private-key-and-invite"), reload);
+    expect(root()?.getAttribute("aria-busy")).toBe("false");
+    expect(root()?.querySelector("[role=alert]")?.textContent).toContain("hardware acceleration");
+    expect(root()?.textContent).not.toContain("private-key-and-invite");
+    expect(LoadingScreen.isWaitingForReady()).toBe(false);
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+    expect(audio.unlockAudio).not.toHaveBeenCalled();
+    start()?.click();
+    expect(reload).toHaveBeenCalledOnce();
+    root()?.querySelector<HTMLButtonElement>(".boot__copy")?.click();
+    await Promise.resolve();
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining("Boot step: renderer\nFailure: TypeError"));
+    screen.markReady();
+    expect(root()?.querySelector(".boot__status")?.textContent).toBe("FAILED");
+    vi.unstubAllGlobals();
+  });
+
   it("moves through the boot's steps, and never back", () => {
     screen.setStep("engine");
     expect(steps()).toEqual(["is-done", "is-done", "is-active", "is-pending"]);

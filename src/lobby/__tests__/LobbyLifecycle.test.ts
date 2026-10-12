@@ -174,7 +174,7 @@ describe("LobbyServer lifecycle", () => {
     server.handleLobbyJoin(third.player, lobby.id);
 
     expect(lobby.players.size).toBe(2); // still full at maxPlayers
-    expect(lastMessage(third.sent)).toEqual({ type: "lobby:error", error: "Lobby is full." });
+    expect(lastMessage(third.sent)).toEqual({ type: "lobby:error", error: "That room is full." });
     expect(third.player.lobbyId).toBeNull();
   });
 

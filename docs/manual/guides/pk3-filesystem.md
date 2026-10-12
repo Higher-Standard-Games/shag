@@ -4,13 +4,29 @@ SHAG reads Quake 3 and Warsow assets from PK3 archives through a shared virtual 
 
 ## Data location and index
 
-Game archives belong under `public/data/` and are intentionally excluded from Git. The manifest script scans that directory so the browser can discover the archives.
+Game archives belong under `public/data/` and are intentionally excluded from Git.
+The generator scans that directory and publishes two matched files: discovery
+in `pk3_manifest.json` and file/shader/map ownership in `pk3_index.json`.
 
 ```bash
 npm run tools:manifest
+# Equivalent explicit command:
+npm run tools:pk3-index
+# Generate from the curated directory you intend to deploy:
+npm run tools:pk3-index -- --data-dir ./release-data
 ```
 
-At runtime, `PK3Index` builds or restores the searchable file index:
+`npm run build` generates both files automatically before Vite copies the public
+assets. Deploy the JSON files with the same archives they describe; direct
+`vite build` users must generate them first. The generator uses the runtime
+indexer, preserving alphabetical overrides and shader/map lookup behavior.
+It fails without replacing published metadata if an archive is corrupt or
+changes while indexing. An empty data directory is valid for source-only builds.
+
+At runtime, `PK3Index` first loads and validates the published searchable index.
+This fetches the two small metadata files with HTTP revalidation and avoids
+downloading every archive or sending a HEAD request per archive at boot.
+Packages still download lazily for the selected map and its dependencies:
 
 ```ts
 import { PK3Index } from '../../../src/engine/loader/pk3/PK3Index';
@@ -24,6 +40,14 @@ const maps = index.findByPattern('maps/*.bsp');
 ```
 
 `PK3Index` owns discovery and lookup. There is no `indexDirectory` runtime API.
+
+Missing/stale/unsupported metadata and older files-only manifests retain the
+archive-scan/cache-validation path. The manifest's `indexHash` is a consistency
+fingerprint of the index payload, not a signature or PK3 integrity guarantee.
+Package URLs from the snapshot are ignored and rebased to the configured search
+paths. Blocked localStorage does not prevent using the in-memory index.
+The generator does not curate or remove packages: prepare the desired release
+directory first. Regenerate metadata after changing its contents.
 
 ## HTTP mirror
 
@@ -151,7 +175,10 @@ loader. `createTextureFromKTX1` is asynchronous; callers must await it.
 ## Implementation files
 
 - `src/engine/loader/pk3/PK3Index.ts`
+- `src/engine/loader/pk3/PK3PublishedIndex.ts`
 - `src/engine/loader/pk3/PK3Loader.ts`
 - `src/engine/loader/pk3/Pk3Mirror.ts`
 - `src/engine/loader/pk3/NodePk3.ts`
 - `scripts/generate-pk3-index.mjs`
+- `src/cli/generate-pk3-index.ts`
+- `src/cli/pk3-index-build.ts`

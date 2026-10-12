@@ -498,7 +498,9 @@ export class LobbyServer {
     this.results?.deliveries.loseBotControl();
     this.retryResults();
     return new Promise((resolve, reject) => {
-      this.wss = new WebSocketServer({ port: this.port, host: "0.0.0.0" });
+      // Lobby commands are small JSON messages, including bot control. Bound
+      // incoming frames before ws allocates its default 100 MiB payload.
+      this.wss = new WebSocketServer({ port: this.port, host: "0.0.0.0", maxPayload: 64 * 1024 });
 
       this.wss.on("connection", (ws, req) => this.handleConnection(ws, clientAddress(req)));
       this.wss.on("error", (err) => {
@@ -684,7 +686,7 @@ export class LobbyServer {
         this.send(player, { type: "queue:left" });
         break;
       case "demos:list":
-        this.handleDemosList(player, msg.limit ?? 64, msg.scope);
+        this.handleDemosList(player, msg.limit ?? 64, msg.scope, msg.requestId);
         break;
       case "featured:get":
         this.handleFeaturedGet(player, msg as FeaturedDemosRequest);
@@ -901,8 +903,8 @@ export class LobbyServer {
 
   // ── Chat ─────────────────────────────────────────────────────
 
-  private handleChatSend(player: ConnectedPlayer, text: string): void {
-    if (!text || text.trim().length === 0) return;
+  private handleChatSend(player: ConnectedPlayer, text: unknown): void {
+    if (typeof text !== "string" || text.trim().length === 0) return;
 
     const chatMsg: ChatMsg = {
       from: player.name,
@@ -955,7 +957,7 @@ export class LobbyServer {
   ): void {
     // Already in a lobby?
     if (player.lobbyId) {
-      this.send(player, { type: "lobby:error", error: "Already in a lobby. Leave first." });
+      this.send(player, { type: "lobby:error", error: "You're already in a room. Leave it first." });
       return;
     }
 
@@ -1003,13 +1005,13 @@ export class LobbyServer {
 
   private handleLobbyJoin(player: ConnectedPlayer, lobbyId: string, inviteToken?: string): void {
     if (player.lobbyId) {
-      this.send(player, { type: "lobby:error", error: "Already in a lobby." });
+      this.send(player, { type: "lobby:error", error: "You're already in a room. Leave it first." });
       return;
     }
 
     const lobby = this.lobbies.get(lobbyId);
     if (!lobby || (lobby.visibility === "private" && inviteToken !== lobby.inviteToken)) {
-      this.send(player, { type: "lobby:error", error: "Lobby not found or invite invalid." });
+      this.send(player, { type: "lobby:error", error: "That room is gone, or the invite link is wrong." });
       return;
     }
 
@@ -1026,7 +1028,7 @@ export class LobbyServer {
     if (stale) this.releaseSeat(lobby, stale);
 
     if (lobby.players.size >= lobby.gametype.maxPlayers) {
-      this.send(player, { type: "lobby:error", error: "Lobby is full." });
+      this.send(player, { type: "lobby:error", error: "That room is full." });
       return;
     }
 
@@ -1357,7 +1359,7 @@ export class LobbyServer {
     }
 
     if (lobby.playerCount >= lobby.gametype.maxPlayers) {
-      this.send(player, { type: "lobby:bot_invite_failed", lobbyId, error: "Lobby is full." });
+      this.send(player, { type: "lobby:bot_invite_failed", lobbyId, error: "That room is full." });
       return;
     }
 
@@ -1464,7 +1466,7 @@ export class LobbyServer {
   private handleQueueJoin(player: ConnectedPlayer, gametypeId: string): void {
     // Already in queue or lobby?
     if (player.lobbyId) {
-      this.send(player, { type: "lobby:error", error: "Already in a lobby. Leave first." });
+      this.send(player, { type: "lobby:error", error: "You're already in a room. Leave it first." });
       return;
     }
 
@@ -1771,7 +1773,7 @@ export class LobbyServer {
 
       this.broadcastToLobby(lobby.id, {
         type: "lobby:error",
-        error: `Failed to start game server: ${(err as Error).message}`,
+        error: "Couldn't start the match server. Try again in a moment.",
       });
 
       // Reset all players to not-ready
@@ -2121,7 +2123,8 @@ export class LobbyServer {
 
   // ── Demo Scanning ────────────────────────────────────────────
 
-  private handleDemosList(player: ConnectedPlayer, limit: number, requestedScope?: string): void {
+  private handleDemosList(player: ConnectedPlayer, limit: number, requestedScope?: string, requestId?: string): void {
+    if (requestId !== undefined && (typeof requestId !== "string" || !/^[A-Za-z0-9_-]{1,64}$/.test(requestId))) return;
     const scope = requestedScope === "yours" ? "yours" : "latest";
     const source =
       scope === "yours"
@@ -2130,7 +2133,12 @@ export class LobbyServer {
           )
         : this._demoCache;
     const size = Number.isSafeInteger(limit) ? Math.max(1, Math.min(limit, 64)) : 64;
-    this.send(player, { type: "demos:list_response", demos: source.slice(0, size), scope });
+    this.send(player, {
+      type: "demos:list_response",
+      demos: source.slice(0, size),
+      scope,
+      ...(requestId ? { requestId } : {}),
+    });
   }
 
   private handleFeaturedGet(player: ConnectedPlayer, query: FeaturedDemosRequest): void {

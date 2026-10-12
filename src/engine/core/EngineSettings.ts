@@ -66,7 +66,9 @@ export class EngineSettings {
     try {
       const settingsPath = GamePaths.getInstance().engineSettingsPath();
       const response = await fetch(settingsPath);
-      if (!response.ok) {
+      // A server without the file can answer with its index page instead of 404
+      const isJson = (response.headers.get("content-type") ?? "").includes("json");
+      if (!response.ok || !isJson) {
         console.log("[EngineSettings] No engine-settings.json found, using defaults");
         this.loaded = true;
         return;

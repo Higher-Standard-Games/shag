@@ -91,7 +91,7 @@ describe("private match rooms", () => {
     expect((last(stranger.sent, "matches:update")?.matches as unknown[]) ?? []).toEqual([]);
 
     send(server, stranger.player, { type: "lobby:join", lobbyId: room.id });
-    expect(last(stranger.sent, "lobby:error")?.error).toBe("Lobby not found or invite invalid.");
+    expect(last(stranger.sent, "lobby:error")?.error).toBe("That room is gone, or the invite link is wrong.");
     send(server, stranger.player, { type: "lobby:join", lobbyId: room.id, inviteToken: "wrong" });
     expect(stranger.player.lobbyId).toBeNull();
 
@@ -101,7 +101,7 @@ describe("private match rooms", () => {
     expect((server as unknown as { getLiveMatches: () => unknown[] }).getLiveMatches()).toEqual([]);
 
     send(server, stranger.player, { type: "lobby:join", lobbyId: room.id, inviteToken: invite });
-    expect(last(stranger.sent, "lobby:error")?.error).toBe("Lobby is full.");
+    expect(last(stranger.sent, "lobby:error")?.error).toBe("That room is full.");
   });
 
   it("keeps the invite usable for reconnect while the room exists and expires it when empty", () => {
@@ -120,7 +120,7 @@ describe("private match rooms", () => {
     send(server, invited.player, { type: "lobby:leave", lobbyId: room.id });
     send(server, host.player, { type: "lobby:leave", lobbyId: room.id });
     send(server, invited.player, { type: "lobby:join", lobbyId: room.id, inviteToken });
-    expect(last(invited.sent, "lobby:error")?.error).toBe("Lobby not found or invite invalid.");
+    expect(last(invited.sent, "lobby:error")?.error).toBe("That room is gone, or the invite link is wrong.");
   });
 
   it("places public queue traffic in a separate room", () => {

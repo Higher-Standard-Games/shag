@@ -7,6 +7,7 @@
   "scripts": {
     "postinstall": "node scripts/postinstall.mjs",
     "dev": "vite",
+    "prebuild": "npm run tools:pk3-index",
     "build": "tsc && vite build",
     "postbuild": "node scripts/relocate-sourcemaps.mjs",
     "build:prod": "npm run tools:textures && npm run build",
@@ -60,6 +61,7 @@
     "tools:textures:clean": "node scripts/convert-ktx2.js --clean",
     "tools:optimize": "gltf-transform optimize --texture-compress webp --compress meshopt",
     "tools:manifest": "node scripts/generate-pk3-manifest.js",
+    "tools:pk3-index": "node scripts/generate-pk3-index.mjs",
     "tools:map": "npx vite-node src/tools/generate-map.ts",
     "dev:agents": "node --experimental-strip-types scripts/dev-agents.ts",
     "dev:agents:list": "node --experimental-strip-types scripts/dev-agents.ts list",

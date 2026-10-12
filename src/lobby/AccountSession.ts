@@ -58,6 +58,17 @@ export class LoginError extends Error {
   }
 }
 
+/** Keep welcome and Profile consistent about why an account restore failed. */
+export function loginFailureText(code: AuthErrorCode): string {
+  const messages: Record<AuthErrorCode, string> = {
+    unknown_key: "No player has that key. Check it, or keep the player you have.",
+    rate_limited: "Too many tries. Wait a minute, then try again.",
+    lobby_full: "Servers are full. Your current player key is unchanged. Try again shortly.",
+    already_authenticated: "This connection is already logged in. Try again.",
+  };
+  return messages[code];
+}
+
 /** The lobby's answer as a LoginError. */
 function refused(answer: AuthErrorMessage): LoginError {
   return new LoginError(answer.code, answer.retryAfterSec);
@@ -67,27 +78,40 @@ let identity: PlayerIdentityInfo | null = null;
 let activeClient: LobbyClient | null = null;
 let newAccount = false;
 const watchedClients = new WeakSet<LobbyClient>();
+const sessionValues = new Map<string, string | null>();
+const sessionOnly = new Set<string>();
 
 function readStorage(name: string): string | null {
+  if (sessionOnly.has(name)) return sessionValues.get(name) ?? null;
   try {
-    return localStorage.getItem(name);
+    const value = localStorage.getItem(name);
+    sessionValues.set(name, value);
+    return value;
   } catch {
-    return null;
+    sessionOnly.add(name);
+    return sessionValues.get(name) ?? null;
   }
 }
 
 function writeStorage(name: string, value: string | null): void {
+  sessionValues.set(name, value);
   try {
     if (value === null) localStorage.removeItem(name);
     else localStorage.setItem(name, value);
+    sessionOnly.delete(name);
   } catch {
-    // Storage unavailable (private window, blocked site data): the key lives only this session
+    sessionOnly.add(name);
   }
 }
 
 /** The key this browser logs in with, if it has one. */
 export function storedPlayerKey(): string | null {
   return readStorage(KEY_STORAGE);
+}
+
+/** Whether the accepted key is available here but could not be kept for a reload. */
+export function playerKeyIsSessionOnly(): boolean {
+  return storedPlayerKey() !== null && sessionOnly.has(KEY_STORAGE);
 }
 
 /** The key the lobby last refused as unknown, if any. */
@@ -165,6 +189,8 @@ export async function logIn(client: LobbyClient): Promise<WelcomeMessage> {
   if (key) {
     const answer = await sendAuth(client, key);
     if (answer.type === "welcome") {
+      // Retry saving a session key when storage becomes available again.
+      writeStorage(KEY_STORAGE, key);
       if (answer.identity) adopt(answer.identity);
       return answer;
     }
@@ -235,4 +261,6 @@ export function resetAccountSessionForTests(): void {
   identity = null;
   activeClient = null;
   newAccount = false;
+  sessionValues.clear();
+  sessionOnly.clear();
 }

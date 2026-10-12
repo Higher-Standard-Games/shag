@@ -50,6 +50,43 @@ afterEach(() => {
 });
 
 describe("LobbyClient connections", () => {
+  it("rejects close before open and permits a subsequent connection", async () => {
+    const client = new LobbyClient();
+    const first = client.connect("ws://lobby.invalid");
+    const rejected = expect(first).rejects.toThrow("closed before opening");
+    FakeSocket.open[0].close(1006, "Lost during handshake");
+    await rejected;
+    expect(vi.getTimerCount()).toBe(0);
+    const next = client.connect("ws://lobby.invalid");
+    FakeSocket.open[1].accept();
+    await next;
+    expect(client.connected).toBe(true);
+  });
+
+  it("rejects explicit cancellation before open without waiting for timeout", async () => {
+    const client = new LobbyClient();
+    const connecting = client.connect("ws://lobby.invalid");
+    const rejected = expect(connecting).rejects.toThrow("cancelled");
+    client.disconnect();
+    await rejected;
+    expect(vi.getTimerCount()).toBe(0);
+    FakeSocket.open[0].accept();
+    expect(client.connected).toBe(false);
+  });
+
+  it("rejects a replaced pending attempt and ignores its late close/open", async () => {
+    const client = new LobbyClient();
+    const first = client.connect("ws://lobby.invalid");
+    const rejected = expect(first).rejects.toThrow("cancelled");
+    const second = client.connect("ws://other.invalid");
+    await rejected;
+    FakeSocket.open[1].accept();
+    await second;
+    FakeSocket.open[0].accept();
+    FakeSocket.open[0].close();
+    expect(client.connected).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+  });
   it("correlates scoped stats replies and cleans history listeners on timeout/disconnect", async () => {
     const client = new LobbyClient();
     void client.connect("ws://lobby.invalid");

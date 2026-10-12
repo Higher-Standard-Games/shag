@@ -63,6 +63,21 @@ waiting in the lobby costs next to nothing, and what fills a server's memory
 is running matches. Size it from the capacity matrix in the deployment notes.
 The lobby logs its cap at start and every player it turns away.
 
+## Connection recovery
+
+An unavailable lobby shows **Lobby offline** with **Try now**. The browser
+automatically retries after approximately 2, 5, 10, then 30 seconds, with jitter
+to spread returning clients. Only one connection attempt runs at a time. This
+is separate from the longer full-server admission wait above. A reconnect tries
+to rejoin the remembered room only if the logged-in account is unchanged; a
+server restart may have removed that room.
+
+If browser storage fails, the accepted account key remains available for this
+page's lifetime. Welcome/Profile warn the player to copy or save it before
+reloading. Incoming WebSocket messages are limited to 64 KiB; outbound welcome
+and archive responses may be larger. Demo archive requests include a request ID
+for stale-response protection and show **Try again** after a 10-second timeout.
+
 ## Rooms
 
 A room is one gametype, one map vote and up to that gametype's player count.

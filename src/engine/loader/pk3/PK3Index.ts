@@ -1,15 +1,21 @@
 /**
  * PK3Index - Index PK3 contents for fast lookup without loading
  *
- * Scans PK3 files from game paths, indexes their contents to localStorage,
- * and provides quick lookup to find which PK3 contains a specific file.
+ * Loads published lookup metadata at boot, retaining archive scans for old
+ * deployments and explicit rebuilds. Optional localStorage caches the lookups.
  */
 
 import JSZip from "jszip";
+import {
+  hasPublishedIndex,
+  PK3_INDEX_VERSION as INDEX_VERSION,
+  mergePublishedIndexes,
+  parsePublishedIndex,
+  pk3IndexHash as simpleHash,
+} from "./PK3PublishedIndex";
 import { fetchPk3 } from "./Pk3Mirror";
 
 const STORAGE_KEY = "pk3_index";
-const INDEX_VERSION = 2; // v2: Added shaders, maps indexes and listChecksum
 
 export interface PK3IndexEntry {
   /** PK3 filename */
@@ -38,17 +44,6 @@ export interface PK3IndexData {
   packages: PK3IndexEntry[];
   /** When the index was last updated */
   lastUpdated: number;
-}
-
-/**
- * Simple hash function for checksum (djb2)
- */
-function simpleHash(str: string): string {
-  let hash = 5381;
-  for (let i = 0; i < str.length; i++) {
-    hash = ((hash << 5) + hash) ^ str.charCodeAt(i);
-  }
-  return (hash >>> 0).toString(16);
 }
 
 /**
@@ -119,7 +114,11 @@ export class PK3Index {
    * Check if localStorage is available (browser only, not Node.js)
    */
   private hasLocalStorage(): boolean {
-    return typeof localStorage !== "undefined";
+    try {
+      return typeof localStorage !== "undefined";
+    } catch {
+      return false;
+    }
   }
 
   /**
@@ -653,6 +652,19 @@ export class PK3Index {
     return this.index?.packages || [];
   }
 
+  /** Portable build-time metadata from the same file/shader/map indexer as runtime. */
+  exportSnapshot(): PK3IndexData {
+    this.updateListChecksumFromPackages();
+    const data = this.index ?? mergePublishedIndexes([]);
+    return {
+      ...data,
+      files: { ...data.files },
+      shaders: { ...data.shaders },
+      maps: { ...data.maps },
+      packages: data.packages.map((entry) => ({ ...entry, path: entry.pk3 })),
+    };
+  }
+
   /**
    * Get the full URL path for a PK3 filename
    * Returns the path where it was indexed from (prefers entries with files)
@@ -673,7 +685,11 @@ export class PK3Index {
   clear(): void {
     this.index = null;
     if (this.hasLocalStorage()) {
-      localStorage.removeItem(STORAGE_KEY);
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+      } catch {
+        /* Cache storage is optional. */
+      }
     }
     console.log("[PK3Index] Index cleared");
   }
@@ -713,14 +729,48 @@ export class PK3Index {
     return simpleHash(checksumParts.join("|"));
   }
 
-  /**
-   * Ensure index is up to date - validates cache and rebuilds if needed.
-   * Call this during startup to ensure index is ready.
-   *
-   * @param progressCallback Optional callback for progress updates (e.g., loading screen)
-   * @returns true if index was rebuilt, false if cache was valid
-   */
+  /** All configured paths must validate before any published lookup is adopted. */
+  private async loadPublishedIndex(): Promise<PK3IndexData | null> {
+    const snapshots: PK3IndexData[] = [];
+    if (this.searchPaths.length === 0) return null;
+    try {
+      for (const basePath of this.searchPaths) {
+        // Revalidate both small metadata files on deploy; archives stay lazy.
+        const manifestResponse = await fetch(`${basePath}pk3_manifest.json`, { cache: "no-cache" });
+        if (!manifestResponse.ok) return null;
+        const manifest: unknown = await manifestResponse.json();
+        if (!hasPublishedIndex(manifest)) return null;
+        const response = await fetch(`${basePath}pk3_index.json`, { cache: "no-cache" });
+        if (!response.ok) return null;
+        const snapshot = parsePublishedIndex(await response.text(), manifest, basePath);
+        if (!snapshot) {
+          console.warn(`[PK3Index] Published index is stale or invalid in ${basePath}; using archive validation`);
+          return null;
+        }
+        snapshots.push(snapshot);
+      }
+      return mergePublishedIndexes(snapshots);
+    } catch {
+      // Old deployments, offline metadata and SPA fallbacks retain the scan path.
+      return null;
+    }
+  }
+
+  /** Load published metadata, or validate/rebuild the legacy cache. True when lookups changed. */
   async ensureIndex(progressCallback?: (msg: string) => void): Promise<boolean> {
+    progressCallback?.("Loading published PK3 index...");
+    const published = await this.loadPublishedIndex();
+    if (published) {
+      const replaced =
+        !this.hasIndex() ||
+        this.index?.listChecksum !== published.listChecksum ||
+        this.index?.lastUpdated !== published.lastUpdated;
+      this.index = published;
+      this.saveToStorage();
+      const stats = this.getStats();
+      progressCallback?.(`Index ready: ${stats.fileCount} files, ${stats.shaderCount} shaders, ${stats.mapCount} maps`);
+      return replaced;
+    }
     // 1. If no cached index, build fresh
     if (!this.hasIndex()) {
       progressCallback?.("Building PK3 index...");

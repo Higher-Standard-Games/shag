@@ -19,10 +19,14 @@ const CONNECT_TIMEOUT_MS = 20_000;
 
 type MessageHandler = (msg: any) => void;
 
+/** `_disconnected` reason when this client closed the connection itself, as when switching accounts. */
+export const CLIENT_DISCONNECT_REASON = "Client disconnect";
+
 export class LobbyClient {
   private ws: WebSocket | null = null;
   private handlers: Map<string, MessageHandler[]> = new Map();
-  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private cancelConnect: ((error: Error) => void) | null = null;
+  private demoRequestSerial = 0;
 
   private _connected: boolean = false;
 
@@ -39,15 +43,27 @@ export class LobbyClient {
    * while; callers get an error rather than a promise that never settles.
    */
   async connect(url: string, timeoutMs: number = CONNECT_TIMEOUT_MS): Promise<void> {
+    this.disconnect();
     return new Promise((resolve, reject) => {
       try {
         const ws = new WebSocket(url);
         this.ws = ws;
+        let settled = false;
+        const settle = (error?: Error) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          if (this.cancelConnect === cancel) this.cancelConnect = null;
+          if (error) reject(error);
+          else resolve();
+        };
+        const cancel = (error: Error) => settle(error);
+        this.cancelConnect = cancel;
         const timer = setTimeout(() => {
           if (this.ws !== ws) return;
           this.ws = null;
+          settle(new Error(`Lobby server did not answer in ${Math.round(timeoutMs / 1000)}s`));
           ws.close();
-          reject(new Error(`Lobby server did not answer in ${Math.round(timeoutMs / 1000)}s`));
         }, timeoutMs);
         // A socket this client has since replaced or closed speaks no more:
         // its late close must not report the new connection as lost
@@ -55,11 +71,10 @@ export class LobbyClient {
 
         ws.onopen = () => {
           if (!current()) return;
-          clearTimeout(timer);
           this._connected = true;
           console.log("[LobbyClient] Connected to lobby server");
           this.emit("_connected", {});
-          resolve();
+          settle();
         };
 
         ws.onmessage = (event) => {
@@ -74,19 +89,19 @@ export class LobbyClient {
 
         ws.onclose = (event) => {
           if (!current()) return;
-          clearTimeout(timer);
+          this.ws = null;
           this._connected = false;
+          settle(new Error(`Lobby connection closed before opening: ${event.reason || event.code}`));
           console.log(`[LobbyClient] Disconnected: ${event.reason || event.code}`);
           this.emit("_disconnected", { reason: event.reason, code: event.code });
         };
 
         ws.onerror = () => {
           if (!current()) return;
-          clearTimeout(timer);
           const err = new Error("WebSocket connection error");
           this._connected = false;
           this.emit("_error", { error: err.message });
-          reject(err);
+          settle(err);
         };
       } catch (err) {
         reject(err);
@@ -96,17 +111,16 @@ export class LobbyClient {
 
   /** Close the connection. Listeners hear `_disconnected` now, not when the socket finishes closing. */
   disconnect(): void {
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
-    }
+    const cancel = this.cancelConnect;
+    this.cancelConnect = null;
     const ws = this.ws;
     const wasConnected = this._connected;
     this.ws = null;
     this._connected = false;
+    cancel?.(new Error("Lobby connection cancelled"));
     console.log("[LobbyClient] Closing the connection");
-    ws?.close(1000, "Client disconnect");
-    if (wasConnected) this.emit("_disconnected", { reason: "Client disconnect", code: 1000 });
+    ws?.close(1000, CLIENT_DISCONNECT_REASON);
+    if (wasConnected) this.emit("_disconnected", { reason: CLIENT_DISCONNECT_REASON, code: 1000 });
   }
 
   // ── Auth ─────────────────────────────────────────────────────
@@ -246,8 +260,10 @@ export class LobbyClient {
 
   // ── Demo Archive ────────────────────────────────────────────
 
-  requestDemoList(limit: number = 64, scope: "latest" | "yours" = "latest"): void {
-    this.send({ type: "demos:list", limit, scope });
+  requestDemoList(limit: number = 64, scope: "latest" | "yours" = "latest"): string {
+    const requestId = `demos_${++this.demoRequestSerial}`;
+    this.send({ type: "demos:list", limit, scope, requestId });
+    return requestId;
   }
 
   requestFeaturedDemos(

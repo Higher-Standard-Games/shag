@@ -891,7 +891,8 @@ export class FPSController implements ICameraController {
         // Network mode already enabled by enableNetworkMode() - skip initialization
         console.log(`[FPS] Network mode already enabled, skipping initialization`);
       } else {
-        console.warn("[FPS] No authoritative server connection. Use 'developer 1' and 'map <mapname> [gametype]'.");
+        // The menu, before any match: normal, so not a warning
+        console.log("[FPS] No match server connection yet");
         this.useNetworkMovement = false;
         this.networkReady = false;
       }

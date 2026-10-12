@@ -32,6 +32,20 @@ import { PK3Index } from "../pk3/PK3Index";
 import { PK3Loader } from "../pk3/PK3Loader";
 import { Q3ShaderRegistry } from "../shader/Q3ShaderRegistry";
 
+/**
+ * Entities the client draws or plays nothing for: map markers that only the
+ * server or other entities read, and triggers the client takes from the
+ * collision world. Anything else without a handler is reported once per map.
+ */
+const NEEDS_NO_CLIENT_HANDLER = new Set([
+  "worldspawn",
+  "target_position",
+  "target_location",
+  "misc_teleporter_dest",
+  "trigger_teleport",
+  "trigger_push",
+]);
+
 export interface MapLoadResult {
   success: boolean;
   mapName: string;
@@ -873,6 +887,7 @@ export class MapLoader {
 
     // Process each entity through registered handlers
     let handledCount = 0;
+    const unhandled = new Map<string, number>();
     for (const entity of entityDataList) {
       const handler = EntityHandlerRegistry.getHandler(entity.classname);
       if (handler) {
@@ -889,12 +904,13 @@ export class MapLoader {
         } catch (e) {
           console.warn(`[MapLoader] Entity handler failed for '${entity.classname}':`, e);
         }
-      } else {
-        // DEBUG: Log unhandled non-worldspawn entities
-        if (entity.classname !== "worldspawn" && !entity.classname.startsWith("info_")) {
-          console.warn(`[MapLoader] No handler for entity: ${entity.classname}`);
-        }
+      } else if (!NEEDS_NO_CLIENT_HANDLER.has(entity.classname) && !entity.classname.startsWith("info_")) {
+        unhandled.set(entity.classname, (unhandled.get(entity.classname) ?? 0) + 1);
       }
+    }
+    if (unhandled.size > 0) {
+      const list = [...unhandled].map(([classname, count]) => `${classname} ×${count}`).join(", ");
+      console.warn(`[MapLoader] No client handler for: ${list}`);
     }
 
     if (handledCount > 0) {

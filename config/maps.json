@@ -2,26 +2,24 @@
   "wdm1": {
     "displayName": "The Edge",
     "gametypes": [
-      "ffa",
-      "tdm"
+      "ffa"
     ]
   },
   "wdm2": {
     "displayName": "Proving Grounds",
     "gametypes": [
       "duel",
-      "tdm",
       "ffa"
     ]
   },
   "wdm11": {
-    "displayName": "WDM11",
+    "displayName": "Warehouse C",
     "gametypes": [
       "duel"
     ]
   },
   "wdm12": {
-    "displayName": "WDM12",
+    "displayName": "Courtyard",
     "gametypes": [
       "duel"
     ]
@@ -29,14 +27,12 @@
   "wdm5": {
     "displayName": "Sinister",
     "gametypes": [
-      "ffa",
-      "tdm"
+      "ffa"
     ]
   },
   "wdm7": {
     "displayName": "Brimstone",
     "gametypes": [
-      "tdm",
       "ffa"
     ]
   },
@@ -49,7 +45,6 @@
   "wdm14": {
     "displayName": "Aerowalk",
     "gametypes": [
-      "tdm",
       "ffa"
     ]
   },

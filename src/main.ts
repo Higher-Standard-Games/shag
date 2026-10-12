@@ -74,6 +74,15 @@ async function main() {
     return;
   }
 
+  // Show progress before any asynchronous initialization can fail.
+  configureLobbyTwin({
+    brand: { logo: "/data/washoi.png", name: "WASHIKI WASHOI" },
+    onConsole: () => DebugConsole.getInstance().toggle(),
+  });
+  const loadingScreen = new LoadingScreen();
+  loadingScreen.show();
+  loadingScreen.setStatus("Initializing engine...", "initialization");
+
   // Platform classes, mobile CSS and the native lifecycle, before anything
   // draws. No-ops in a browser beyond the touch-device class.
   const capacitor = CapacitorBridge.getInstance();
@@ -100,13 +109,7 @@ async function main() {
   // Show startup feedback before async WebGPU initialization or WebGL fallback.
   // The start-up, handoff and map loading screens are the lobby's twin, so they
   // wear the game's logo where the lobby does.
-  configureLobbyTwin({
-    brand: { logo: "/data/washoi.png", name: "WASHIKI WASHOI" },
-    onConsole: () => DebugConsole.getInstance().toggle(),
-  });
-  const loadingScreen = new LoadingScreen();
-  loadingScreen.show();
-  loadingScreen.setStatus("Initializing renderer...");
+  loadingScreen.setStatus("Initializing renderer...", "renderer");
 
   // The native splash is configured not to hide itself, so it waits for this.
   // Now is the moment: our own loading screen is up and showing progress, and
@@ -368,4 +371,7 @@ async function main() {
 
 // showPlaceholderUI replaced by LobbyPanel (see above)
 
-main().catch(console.error);
+main().catch((error) => {
+  console.error(error);
+  LoadingScreen.failBoot(error);
+});
