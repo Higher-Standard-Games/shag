@@ -1,4 +1,5 @@
 import JSZip from "jszip";
+import { fetchPk3, pk3MirrorBase } from "./Pk3Mirror";
 
 export interface PK3LoaderConfig {
   basePath: string; // e.g., "games/default/"
@@ -79,10 +80,14 @@ export class PK3Loader {
    * ZIP files always start with magic bytes PK\x03\x04 (0x504B0304).
    * If the download is truncated (e.g. by Vite HMR restart), magic or size
    * check will fail and trigger a retry after a brief delay.
+   * The first try goes through the pk3 mirror (Pk3Mirror); a mirror copy that
+   * fails these checks is retried from the origin.
    */
   private async fetchAndValidatePK3(url: string, filename: string, maxRetries = 2): Promise<ArrayBuffer> {
+    let mirrorBase = pk3MirrorBase();
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      const response = await fetch(url);
+      const { response, source } = await fetchPk3(url, mirrorBase);
+      if (source === "mirror") mirrorBase = null;
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText} for ${filename}`);
       }

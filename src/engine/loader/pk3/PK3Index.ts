@@ -6,6 +6,7 @@
  */
 
 import JSZip from "jszip";
+import { fetchPk3 } from "./Pk3Mirror";
 
 const STORAGE_KEY = "pk3_index";
 const INDEX_VERSION = 2; // v2: Added shaders, maps indexes and listChecksum
@@ -253,7 +254,7 @@ export class PK3Index {
 
     try {
       console.log(`[PK3Index] Indexing ${url}...`);
-      const response = await fetch(url);
+      const { response } = await fetchPk3(url);
       if (!response.ok) {
         return null;
       }

@@ -25,6 +25,43 @@ const maps = index.findByPattern('maps/*.bsp');
 
 `PK3Index` owns discovery and lookup. There is no `indexDirectory` runtime API.
 
+## HTTP mirror
+
+The pk3 packages are most of what a browser downloads, so they can come from
+an HTTP mirror instead of the server that serves the game. Build the client
+with the mirror's address:
+
+```bash
+VITE_PK3_MIRROR_URL=https://mirror.example.net/washoi/ npm run build
+```
+
+The mirror holds a copy of `public/data/`'s pk3 files at the same paths:
+`data/map_wdm2.pk3` is `<mirror>/map_wdm2.pk3`. For every pk3 the index or
+the loader downloads, the client asks the mirror for it and, at the same time,
+sends a HEAD request to the game's own server. It takes the mirror's copy
+when the mirror has the file and its size matches the server's. Otherwise,
+when the mirror lacks the file, holds another size (stale, or half
+uploaded), answers with a web page or can't be reached, the file comes from
+the game's server as before, with a `[Pk3Mirror]` warning in the console. A
+file the game's server doesn't have is never taken from the mirror.
+
+What the mirror has to do:
+
+- **Allow the game's origin:** `Access-Control-Allow-Origin` with the game's
+  address, or `*`.
+- **Send `Content-Length`, and don't compress pk3s:** the size check compares
+  the two servers' `Content-Length`. pk3s are zip files and gain nothing from
+  compression.
+- **Redirect to spread load, if it wants:** one mirror is configured, and the
+  client follows redirects, so the mirror can send requests on to others.
+
+Keep it in step by copying `public/data/*.pk3` after every change, for example
+with `rsync`. A file missing on the mirror only costs the game's server that
+one download.
+
+Only pk3 packages are mirrored. Loose files under `data/` (levelshots, KTX2
+sidecars, demos) still come from the game's server.
+
 ## Loading file contents
 
 ```ts
@@ -115,5 +152,6 @@ loader. `createTextureFromKTX1` is asynchronous; callers must await it.
 
 - `src/engine/loader/pk3/PK3Index.ts`
 - `src/engine/loader/pk3/PK3Loader.ts`
+- `src/engine/loader/pk3/Pk3Mirror.ts`
 - `src/engine/loader/pk3/NodePk3.ts`
 - `scripts/generate-pk3-index.mjs`

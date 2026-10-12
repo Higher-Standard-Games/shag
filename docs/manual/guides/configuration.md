@@ -68,6 +68,7 @@ Copy and review `.env.example`, which lists every variable below.
 | Variable | Owner | What it does |
 | --- | --- | --- |
 | `VITE_LOBBY_URL` | browser | Lobby socket the client connects to |
+| `VITE_PK3_MIRROR_URL` | browser | HTTP mirror pk3 packages are downloaded from when it has them; unset, they come from the game's own server ([PK3 filesystem](./pk3-filesystem.md#http-mirror)) |
 | `SHAG_PUBLIC_GAME_PROTOCOL` / `SHAG_PUBLIC_GAME_HOST` | lobby | The address the lobby advertises for spawned game servers |
 | `SERVER_DATA_DIR` | lobby, bot server | Where `players.db` and the shared bot secret live; `--data-dir` wins over it |
 | `BOT_SECRET` | lobby, bot server | Proves a bot connection; written into the data directory when unset |

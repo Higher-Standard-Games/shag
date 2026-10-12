@@ -2,6 +2,8 @@
 
 interface ImportMetaEnv {
   readonly VITE_LOBBY_URL?: string;
+  /** Base URL of the HTTP mirror pk3 packages are downloaded from when it has them (Pk3Mirror). */
+  readonly VITE_PK3_MIRROR_URL?: string;
 }
 
 // CSS module imports with ?raw suffix
