@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { resultReport } from "../../engine/server/network/__tests__/_resultReport";
 import { issueMatchAdmission } from "../../engine/server/network/MatchAdmission";
 import { signMatchResult, verifyMatchResult } from "../../engine/server/network/MatchResultReport";
+import { matchStats } from "../../shared/ranking/__tests__/_matchStats";
+import { matchRatingGroups } from "../../shared/ranking/MatchRatingGroups";
 import { canonicalSnapshot, normalizeResult } from "../ResultSnapshot";
 
 function fixture() {
@@ -27,6 +29,22 @@ function fixture() {
 }
 
 describe("verified V2 result normalization", () => {
+  it.each(["duel", "amphi", "snd"] as const)("keeps lobby display sides eligible in %s", (gametype) => {
+    const { report, context } = fixture();
+    report.gametype = gametype;
+    const snapshot = normalizeResult(report, context);
+    expect(snapshot.seats.find((seat) => seat.accountId === 1)?.team).toBe("soba");
+    expect(snapshot.seats.find((seat) => seat.accountId === 2)?.team).toBe("udon");
+    expect(matchRatingGroups(snapshot).status).toBe("applied");
+  });
+  it("preserves canonical gameplay totals and rejects invalid persisted counters", () => {
+    const { report, context } = fixture();
+    report.details.seats[0].stats = matchStats();
+    const snapshot = normalizeResult(report, context);
+    expect(snapshot.seats.find((s) => s.accountId === 1)?.stats).toEqual(matchStats());
+    snapshot.seats.find((s) => s.accountId === 1)!.stats!.damageGiven = -1;
+    expect(() => canonicalSnapshot(snapshot)).toThrow("match stats");
+  });
   it("preserves the authenticated snapshot and initial roster without authentication material", () => {
     const { report, context, admission } = fixture();
     const verified = verifyMatchResult(
@@ -48,8 +66,8 @@ describe("verified V2 result normalization", () => {
       scope: "public",
       record: { status: "recorded", reason: "eligible" },
       startingRoster: [
-        { accountId: 1, isBot: false, team: "udon" },
-        { accountId: 2, isBot: false, team: "soba" },
+        { accountId: 1, isBot: false, team: "soba" },
+        { accountId: 2, isBot: false, team: "udon" },
       ],
     });
     const text = JSON.stringify(snapshot);
@@ -60,8 +78,8 @@ describe("verified V2 result normalization", () => {
     for (const grant of admission.manifest.grants) expect(text).not.toContain(grant.tokenHash);
     for (const ticket of admission.tickets.values()) expect(text).not.toContain(ticket);
     expect(snapshot.seats.find((s) => s.accountId === 1)?.seatId).toBe(admission.manifest.grants[0].seatId);
-    report.details.teams[0].score = 42;
-    expect(snapshot.teams.find((t) => t.id === "udon")?.score).toBe(3);
+    report.details.teams.find((t) => t.id === "soba")!.score = 42;
+    expect(snapshot.teams.find((t) => t.id === "soba")?.score).toBe(3);
   });
 
   it("canonicalizes roster/member order and discards extra properties", () => {
@@ -130,8 +148,8 @@ describe("verified V2 result normalization", () => {
   it("uses a valid forfeit outcome even if the departed player led on score", () => {
     const { report, context } = fixture();
     report.details.completion = "forfeit";
-    report.details.teams[0] = { id: "udon", score: 9, placement: 2 };
-    report.details.teams[1] = { id: "soba", score: 0, placement: 1 };
+    report.details.teams[0] = { id: "udon", score: 0, placement: 1 };
+    report.details.teams[1] = { id: "soba", score: 9, placement: 2 };
     report.participants[0].score = 9;
     report.participants[0].outcome = "loss";
     report.participants[1].outcome = "win";

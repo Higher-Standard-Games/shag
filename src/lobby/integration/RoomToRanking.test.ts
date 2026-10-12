@@ -77,6 +77,7 @@ describe("installed-map room to ranking", () => {
       const results = MatchResultStore.open(dir);
       const members = visibility === "private" ? [accounts.create()] : [accounts.create(), accounts.create()];
       const spawner = new GameServerSpawner(await unusedPort());
+      const spawn = vi.spyOn(spawner, "spawn");
       const botSecret = "ranking-smoke-secret";
       const lobby = new LobbyServer(0, spawner, { players: accounts, results, botSecret });
       const peers: LobbyPeer[] = [];
@@ -90,12 +91,12 @@ describe("installed-map room to ranking", () => {
         process.env.SHAG_TIMELIMIT = visibility === "private" ? "11s" : "1s";
         process.env.SHAG_WARMUP = "10s";
         await lobby.start();
-        // Keep the real room/server path but make this installed-map smoke two-seat and deterministic.
+        // Keep the shipped capacity/start threshold; select one installed map for determinism.
         const internal = lobby as unknown as { gametypes: GametypeInfo[]; wss: { address(): { port: number } } };
         const ffa = internal.gametypes.find((mode) => mode.id === "ffa")!;
+        expect(ffa).toMatchObject({ maxPlayers: 8, minPlayers: 2 });
         expect(ffa.mapPool).toContain("wdm2");
         ffa.mapPool = ["wdm2"];
-        ffa.maxPlayers = 2;
         const lobbyPort = internal.wss.address().port;
         for (const member of members) {
           const peer = await LobbyPeer.connect(lobbyPort);
@@ -115,7 +116,11 @@ describe("installed-map room to ranking", () => {
         const [first, second] = peers;
         first.send({ type: "lobby:create", gametype: "ffa", visibility });
         const room = (await first.waitFor("lobby:created")).lobby as MatchLobbyInfo;
+        expect(room.config).toMatchObject({ maxPlayers: 8, minPlayers: 2 });
         expect(room.maps).toMatchObject([{ name: "wdm2" }]);
+        first.send({ type: "lobby:ready", lobbyId: room.id, ready: true });
+        await first.waitFor("lobby:player_updated", (message) => message.ready === true);
+        expect(spawn).not.toHaveBeenCalled();
         const inviteToken = new URL(room.shareUrl, "https://example.invalid").searchParams.get("invite") ?? undefined;
         second.send({ type: "lobby:join", lobbyId: room.id, inviteToken });
         expect(await second.waitFor("lobby:created")).toMatchObject({ lobby: { id: room.id } });
@@ -126,6 +131,7 @@ describe("installed-map room to ranking", () => {
           second.waitFor("lobby:connect", () => true, 45_000),
         ]);
         expect(firstConnect).toMatchObject({ map: "wdm2", gametype: "ffa" });
+        expect(spawn).toHaveBeenCalledTimes(1);
         expect(secondConnect).toMatchObject({ matchId: firstConnect.matchId, serverUrl: firstConnect.serverUrl });
         expect(firstConnect.admissionTicket).not.toBe(secondConnect.admissionTicket);
         expect(results.deliveries.has(String(firstConnect.matchId))).toBe(true);
@@ -192,6 +198,32 @@ describe("installed-map room to ranking", () => {
         });
         const reopened = MatchResultStore.open(dir);
         try {
+          // The real child's gameplay counters survive persistence, separately
+          // from skill eligibility for an uncalibrated private bot match.
+          const statsQuery = { gametype: "ffa" as const, scope: visibility, period: "all" as const };
+          const summary = reopened.playerStats.summary(members[0].account.id, statsQuery);
+          expect(summary).toMatchObject({ matches: 1, draws: 1, statsMatches: 1, totals: { frags: 0 } });
+          expect(summary.totals!.activeTimeMs).toBeGreaterThan(0);
+          expect(summary.rating).toEqual(
+            visibility === "private" ? null : expect.objectContaining({ ratedMatches: 1 }),
+          );
+          const history = reopened.playerStats.history(members[0].account.id, statsQuery);
+          expect(history.entries).toHaveLength(1);
+          expect(history.entries[0]).toMatchObject({
+            matchId: firstConnect.matchId,
+            stats: { version: 1, ...summary.totals },
+            ratingStatus: visibility === "private" ? "pending" : "applied",
+          });
+          expect(history.entries[0].ratingChange).toEqual(
+            visibility === "private" ? null : expect.objectContaining({ delta: expect.any(Number) }),
+          );
+          expect(
+            reopened.playerStats.summary(members[0].account.id, { ...statsQuery, scope: otherScope }),
+          ).toMatchObject({
+            matches: 0,
+            totals: null,
+            rating: null,
+          });
           expect(
             reopened.leaderboard({ gametype: "ffa", period: "all", offset: 0, limit: 10, scope: visibility }).total,
           ).toBe(members.length);

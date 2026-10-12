@@ -50,6 +50,35 @@ afterEach(() => {
 });
 
 describe("LobbyClient connections", () => {
+  it("correlates scoped stats replies and cleans history listeners on timeout/disconnect", async () => {
+    const client = new LobbyClient();
+    void client.connect("ws://lobby.invalid");
+    const socket = FakeSocket.open[0];
+    socket.accept();
+    const query = { gametype: "duel" as const, scope: "private" as const, period: "all" as const };
+    const pending = client.requestPlayerStats(query);
+    const request = JSON.parse(socket.sent.at(-1)!);
+    const rejected = expect(pending).rejects.toThrow("mismatch");
+    socket.onmessage?.({
+      data: JSON.stringify({
+        type: "stats:summary",
+        requestId: request.requestId,
+        gametype: "duel",
+        scope: "public",
+        data: { ...query },
+      }),
+    });
+    await rejected;
+    const history = client.requestMatchHistory(query, 100);
+    const timedOut = expect(history).rejects.toThrow("timed out");
+    await vi.advanceTimersByTimeAsync(100);
+    await timedOut;
+    const waiting = client.requestPlayerStats(query);
+    const lost = expect(waiting).rejects.toThrow("disconnected");
+    client.disconnect();
+    await lost;
+    expect(vi.getTimerCount()).toBe(0);
+  });
   it("reports a lost connection as soon as it is closed, not when the socket finishes", () => {
     const client = new LobbyClient();
     const lost: unknown[] = [];

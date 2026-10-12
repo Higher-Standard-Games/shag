@@ -97,6 +97,11 @@ reload that drops every socket at once still finds it.
 When everyone is ready, the lobby spawns a dedicated game server for that match
 alone and hands each player a ticket to it.
 
+FFA can start with two players and holds up to eight. S&D can start with two
+players, with both teams populated, and holds up to ten. Every player present
+must be ready; the minimum does not allow a room to launch past unready players.
+Duel and Amphi require their two seats.
+
 1. The lobby picks the winning map and spawns a game server on a free port.
 2. It builds a seat manifest — one entry per player, each with its own secret
    token — and passes it to the child as `SHAG_MATCH_ADMISSION`, along with the
@@ -184,6 +189,11 @@ after rejoining; a reconnect-held entity continues participating. A valid final
 Duel/Amphi forfeit is eligible. S&D uses team standings; FFA uses every placement,
 including ties. Uncalibrated private bot games wait with `bot_reference_pending`.
 Older pending receipts are not activated by retries.
+
+Lobby display sides use the same mapping as gameplay and result normalization:
+`alpha` is Soba and `bravo` is Udon. Duel retains the assigned side independent
+of connection order. Upgrade/restart the lobby together with the game-server
+code so an old result normalizer cannot incorrectly exclude unchanged teams.
 
 New clients request the TrueSkill ladder explicitly, using the advertised
 `features.skillRatings` capability and `system: "trueskill"`. Podium, rows,
@@ -340,6 +350,44 @@ Private recordings remain in the archive and in their verified participants'
 restrict access to demo files.
 
 ## What it keeps
+
+### Player gameplay stats and recent results
+
+Updated lobbies advertise `features.playerStats`. In **Profile**, select Public
+or Private to see independent records and career gameplay totals for each mode.
+These record totals do not require a skill rating: uncalibrated bot games can
+show W/L/D and gameplay totals while their skill update remains pending.
+Select a mode name to open the ten most recent own-account results. **Older
+matches** uses a stable sequence cursor; **Latest matches** returns to the first
+page. History shows personal score, frags/deaths, enemy damage and the committed
+display-rating change or a readable exclusion/pending reason. In windows up to
+1100px wide, account controls and records stack in a single scrollable Profile.
+Record rows wrap to fit the available space, including smaller desktop sidebars.
+
+The server captures personal mode score, enemy frags, team frags, deaths,
+enemy/friendly damage, plants, defuses and active participation milliseconds.
+Warmup, countdown, round intermission, spectator and permanently departed time
+are excluded; being dead in an active S&D round still occupies a playing seat.
+Damage follows the existing server counter (before armor); self-damage is not
+enemy damage. Team standings and personal score are separate values.
+
+Stats are versioned, whitelisted and included in the signed V2 result and its
+canonical snapshot. Ranking schema **2** adds the `ranking_stats` projection
+and an account/sequence index in an additive transaction from schema 1. It
+creates no historical stats: missing fields remain unavailable. Profile shows
+the number of results covered if only some counted matches have gameplay data.
+Aborted/excluded receipts retain their captured stats for own history/audit but
+do not add career gameplay totals when they have no eligible record.
+
+Protocol: `stats:get`/`stats:summary` reads a mode/scope summary (`period: all`
+or `month`, a rolling 30 days for records/gameplay; rating/rank remain career).
+`stats:history`/`stats:history_page` reads own-mode/scope receipts (limit 1–50,
+optional exclusive `beforeSequence`), including `ratingChange` when available.
+The authenticated connection determines the account; requests cannot select
+another account. Reads share the existing ranking rate limit and return no
+admission credentials or other players' private match details. Older lobbies
+retain the existing rating-only Profile behavior. Weapon accuracy and assists
+are outside this initial stats capture.
 
 For repeatable ranking acceptance, run `npm run ranking:acceptance` before live
 browser testing. It includes isolated real lobby/child-server result handoffs.

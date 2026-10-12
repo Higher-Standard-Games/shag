@@ -1,3 +1,4 @@
+import { normalizeTeamId } from "../../../../shared/server/gametype";
 import type { AdmissionManifest } from "../MatchAdmission";
 import type { MatchResultReport, ResultTeam } from "../MatchResultReport";
 
@@ -9,13 +10,7 @@ export function resultReport(
   const ffa = report.gametype === "ffa";
   const seats = report.participants.map((player) => {
     const grant = admission.grants.find((grant) => grant.tokenHash === player.tokenHash)!;
-    const team: ResultTeam = ffa
-      ? "ffa"
-      : grant.team === "alpha"
-        ? "udon"
-        : grant.team === "bravo"
-          ? "soba"
-          : (grant.team as ResultTeam);
+    const team: ResultTeam = ffa ? "ffa" : (normalizeTeamId(grant.team) as ResultTeam);
     return {
       seatId: grant.seatId ?? grant.tokenHash,
       tokenHash: player.tokenHash,

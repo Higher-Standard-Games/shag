@@ -39,6 +39,7 @@ import type {
   MapOption,
   MatchLobbyInfo,
   PlayerInfo,
+  PlayerStatsRequest,
   PlayerStatus,
 } from "./types";
 
@@ -64,7 +65,7 @@ const GAMETYPE_SHELLS: Omit<GametypeInfo, "mapPool">[] = [
     hasTeams: true,
     teamNames: { alpha: "Team Soba", bravo: "Team Udon" },
   },
-  { id: "ffa", name: "FFA", description: "Free For All", maxPlayers: 8, hasTeams: false },
+  { id: "ffa", name: "FFA", description: "Free For All", maxPlayers: 8, minPlayers: 2, hasTeams: false },
   {
     id: "snd",
     name: "S&D",
@@ -691,6 +692,10 @@ export class LobbyServer {
       case "leaderboard:get":
         this.handleLeaderboardGet(player, msg as LeaderboardRequest);
         break;
+      case "stats:get":
+      case "stats:history":
+        this.handlePlayerStats(player, msg as PlayerStatsRequest);
+        break;
       case "match:seat_reissue":
         this.handleSeatReissue(player, msg.requestId, msg.matchId);
         break;
@@ -836,6 +841,7 @@ export class LobbyServer {
         privateLobbies: true,
         leaderboard: !!this.results,
         skillRatings: !!this.results,
+        playerStats: !!this.results,
         featuredDemos: true,
         demoOwnership: !!this.results,
       },
@@ -1831,6 +1837,45 @@ export class LobbyServer {
     const summary = this.results?.deliveries.retryAll();
     if (summary && (summary.delivered || summary.failed))
       console.log(`[LobbyServer] Result delivery: ${JSON.stringify(summary)}`);
+  }
+
+  private handlePlayerStats(player: ConnectedPlayer, msg: PlayerStatsRequest): void {
+    const requestId =
+      typeof msg.requestId === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(msg.requestId) ? msg.requestId : "";
+    if (
+      !requestId ||
+      !["duel", "amphi", "ffa", "snd"].includes(msg.gametype) ||
+      !["public", "private"].includes(msg.scope) ||
+      (msg.period !== undefined && !["month", "all"].includes(msg.period)) ||
+      (msg.limit !== undefined && (!Number.isSafeInteger(msg.limit) || msg.limit < 1 || msg.limit > 50)) ||
+      (msg.beforeSequence !== undefined && (!Number.isSafeInteger(msg.beforeSequence) || msg.beforeSequence < 1))
+    ) {
+      this.send(player, { type: "stats:error", requestId, reason: "invalid_query" });
+      return;
+    }
+    if (!this.results || player.isBot || player.accountId === null) {
+      this.send(player, { type: "stats:error", requestId, reason: "unavailable" });
+      return;
+    }
+    if (!this.leaderboardReads.tryRecord(player.id)) {
+      this.send(player, { type: "stats:error", requestId, reason: "rate_limited" });
+      return;
+    }
+    try {
+      const query = { gametype: msg.gametype, scope: msg.scope };
+      const data =
+        msg.type === "stats:get"
+          ? this.results.playerStats.summary(player.accountId, { ...query, period: msg.period ?? "all" })
+          : this.results.playerStats.history(player.accountId, query, msg.limit ?? 20, msg.beforeSequence);
+      this.send(player, {
+        type: msg.type === "stats:get" ? "stats:summary" : "stats:history_page",
+        requestId,
+        ...query,
+        data,
+      });
+    } catch {
+      this.send(player, { type: "stats:error", requestId, reason: "unavailable" });
+    }
   }
 
   private handleLeaderboardGet(player: ConnectedPlayer, msg: LeaderboardRequest): void {

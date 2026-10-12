@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { botReference } from "../../../../shared/ranking/__tests__/_botReference";
+import { matchStats } from "../../../../shared/ranking/__tests__/_matchStats";
 import { issueMatchAdmission } from "../MatchAdmission";
 import { type MatchResultReport, signMatchResult, verifyMatchResult } from "../MatchResultReport";
 import { resultReport } from "./_resultReport";
@@ -39,6 +40,11 @@ describe("authenticated match result", () => {
     };
     const verify = () => verifyMatchResult(signMatchResult(report, "secret"), "secret", expected, now);
     expect(verify()).toEqual(report);
+    report.details.seats[0].stats = matchStats();
+    expect(verify()?.details.seats[0].stats).toEqual(matchStats());
+    report.details.seats[0].stats.frags = -1;
+    expect(verify()).toBeNull();
+    delete report.details.seats[0].stats;
     report.details.mapDigest = "b".repeat(64);
     expect(verify()?.details.mapDigest).toBe(report.details.mapDigest);
     report.details.mapDigest = "invalid-map-hash";

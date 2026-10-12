@@ -61,6 +61,7 @@ describe("damage event hit location", () => {
   });
 
   it("sends a body hit in exactly the bytes an event without a location takes", () => {
+    vi.spyOn(Date, "now").mockReturnValue(1700000000000);
     expect(hex(encode([damage({ hitLocation: "body" })]))).toBe(hex(encode([damage()])));
   });
 

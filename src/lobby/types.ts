@@ -270,6 +270,24 @@ export interface DevSpawnServerMessage extends LobbyMessage {
 
 export type RankingScope = "public" | "private";
 
+/** Own-account only: the lobby supplies the authenticated account, never the request. */
+export interface PlayerStatsRequest extends LobbyMessage {
+  type: "stats:get" | "stats:history";
+  requestId: string;
+  gametype: import("../shared/ranking/RatingPolicy").RatingMode;
+  scope: RankingScope;
+  period?: "month" | "all";
+  limit?: number;
+  beforeSequence?: number;
+}
+export interface PlayerStatsResponse extends LobbyMessage {
+  type: "stats:summary" | "stats:history_page";
+  requestId: string;
+  gametype: import("../shared/ranking/RatingPolicy").RatingMode;
+  scope: RankingScope;
+  data: import("./PlayerStatsStore").StatsSummary | import("./PlayerStatsStore").HistoryPage;
+}
+
 /** Read-only rankings; request IDs correlate concurrent scope/mode/period changes. */
 export interface LeaderboardRequest extends LobbyMessage {
   type: "leaderboard:get";
@@ -357,6 +375,7 @@ export interface WelcomeMessage extends LobbyMessage {
     privateLobbies: boolean;
     leaderboard?: boolean;
     skillRatings?: boolean;
+    playerStats?: boolean;
     featuredDemos?: boolean;
     demoOwnership?: boolean;
   };

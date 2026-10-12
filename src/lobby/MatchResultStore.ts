@@ -12,6 +12,7 @@ import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import type { MatchResultReport } from "../engine/server/network/MatchResultReport";
 import { displayRating, isProvisional, RATING_POLICY } from "../shared/ranking/RatingPolicy";
+import { PlayerStatsStore } from "./PlayerStatsStore";
 import { RatingStore } from "./RatingStore";
 import { ResultDeliveryStore } from "./ResultDeliveryStore";
 import { normalizeResult, type ResultContext } from "./ResultSnapshot";
@@ -164,6 +165,7 @@ export class MatchResultStore {
   private readonly db: DatabaseSync;
   readonly ratings: RatingStore;
   readonly deliveries: ResultDeliveryStore;
+  readonly playerStats: PlayerStatsStore;
 
   /** Diagnose a running installation without creating a database or migrating old results. */
   static inspect(dataDir: string) {
@@ -236,6 +238,7 @@ export class MatchResultStore {
     if (!columns.has("bots")) this.db.exec("ALTER TABLE matches ADD COLUMN bots INTEGER NOT NULL DEFAULT 0");
     try {
       this.ratings = new RatingStore(this.db);
+      this.playerStats = new PlayerStatsStore(this.db, this);
       this.deliveries = new ResultDeliveryStore(this.db, file, (report, context) =>
         this.recordVerified(report, context),
       );

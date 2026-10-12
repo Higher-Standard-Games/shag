@@ -5,7 +5,9 @@ import type {
   ResultTeam,
 } from "../engine/server/network/MatchResultReport";
 import { type BotReference, canonicalBotReference } from "../shared/ranking/BotReference";
+import { canonicalMatchStats } from "../shared/ranking/MatchStats";
 import type { RatingMode } from "../shared/ranking/RatingPolicy";
+import { normalizeTeamId } from "../shared/server/gametype";
 import type { RankingScope } from "./types";
 
 export type RecordExclusionReason =
@@ -62,8 +64,8 @@ function placement(score: number, scores: number[]): number {
   return 1 + scores.filter((other) => other > score).length;
 }
 function teamOf(team: string, ffa: boolean): ResultTeam {
-  const value = ffa ? "ffa" : team === "alpha" ? "udon" : team === "bravo" ? "soba" : team;
-  if (!["ffa", "udon", "soba"].includes(value)) throw new Error("Invalid result team");
+  const value = ffa ? "ffa" : normalizeTeamId(team);
+  if (value === null || !["ffa", "udon", "soba"].includes(value)) throw new Error("Invalid result team");
   return value as ResultTeam;
 }
 
@@ -108,6 +110,7 @@ export function normalizeResult(report: MatchResultReport, context: ResultContex
       if (!p) throw new Error("Result seat has no participant");
       return {
         seatId: seat.seatId,
+        ...(seat.stats === undefined ? {} : { stats: canonicalMatchStats(seat.stats) }),
         ...(seat.botReference === undefined ? {} : { botReference: canonicalBotReference(seat.botReference) }),
         accountId: p.accountId,
         outcome: p.outcome,
@@ -202,6 +205,7 @@ export function canonicalSnapshot(value: ResultSnapshot): ResultSnapshot {
       if (p.accountId !== null) accounts.add(p.accountId);
       return {
         seatId: p.seatId,
+        ...(p.stats === undefined ? {} : { stats: canonicalMatchStats(p.stats) }),
         ...(p.botReference === undefined ? {} : { botReference: canonicalBotReference(p.botReference) }),
         accountId: p.accountId,
         outcome: p.outcome,

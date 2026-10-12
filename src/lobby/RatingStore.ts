@@ -17,7 +17,7 @@ import { BotCalibrationStore } from "./BotCalibrationStore";
 import { canonicalSnapshot, type RecordExclusionReason, type ResultSnapshot } from "./ResultSnapshot";
 import type { RankingScope } from "./types";
 
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 
 export type { AccountRatingGroup } from "../shared/ranking/MatchRatingGroups";
 export type RatingDecision =
@@ -91,11 +91,18 @@ export class RatingStore {
     if (existing.length > 0) {
       if (
         !existing.some((row) => row.name === "ranking_schema") ||
-        this.db.prepare("SELECT version FROM ranking_schema WHERE id = 1").get()?.version !== SCHEMA_VERSION ||
+        ![1, SCHEMA_VERSION].includes(
+          Number(this.db.prepare("SELECT version FROM ranking_schema WHERE id = 1").get()?.version),
+        ) ||
         existing.length !== 6
       ) {
         throw new Error("Unsupported or incomplete ranking schema; no automatic reset or legacy import");
       }
+      if (
+        Number(this.db.prepare("SELECT version FROM ranking_schema WHERE id = 1").get()?.version) === SCHEMA_VERSION &&
+        !this.db.prepare("SELECT name FROM sqlite_master WHERE name = 'ranking_stats'").get()
+      )
+        throw new Error("Incomplete ranking stats schema");
     }
     this.db.exec("BEGIN IMMEDIATE");
     try {
@@ -136,9 +143,16 @@ export class RatingStore {
         CREATE INDEX IF NOT EXISTS ranking_results_pool ON ranking_results(gametype, scope, sequence);
         CREATE INDEX IF NOT EXISTS rating_updates_pool ON rating_updates(gametype, scope, policy_version, sequence);
         CREATE INDEX IF NOT EXISTS ratings_pool ON ratings(gametype, scope, policy_version);
+        CREATE INDEX IF NOT EXISTS ranking_seats_account_sequence ON ranking_seats(account_id, sequence);
         CREATE INDEX IF NOT EXISTS rating_updates_account_pool ON rating_updates(account_id, gametype, scope, policy_version, sequence);
+        CREATE TABLE IF NOT EXISTS ranking_stats (
+          sequence INTEGER NOT NULL, seat_id TEXT NOT NULL, stats TEXT NOT NULL,
+          PRIMARY KEY(sequence, seat_id),
+          FOREIGN KEY(sequence, seat_id) REFERENCES ranking_seats(sequence, seat_id)
+        );
       `);
       this.db.prepare("INSERT OR IGNORE INTO ranking_schema (id, version) VALUES (1, ?)").run(SCHEMA_VERSION);
+      this.db.prepare("UPDATE ranking_schema SET version = ? WHERE id = 1").run(SCHEMA_VERSION);
       const parameters = JSON.stringify(RATING_POLICY);
       this.db
         .prepare("INSERT OR IGNORE INTO ranking_policies (version, parameters) VALUES (?, ?)")
@@ -242,6 +256,11 @@ export class RatingStore {
     const seats = this.db.prepare("SELECT * FROM ranking_seats WHERE sequence = ?").all(sequence);
     const byId = new Map(seats.map((seat) => [String(seat.seat_id), seat]));
     if (seats.length !== snapshot.seats.length) throw new Error("Normalized result seats diverged from snapshot");
+    if (
+      Number(this.db.prepare("SELECT COUNT(*) AS n FROM ranking_stats WHERE sequence = ?").get(sequence)?.n) !==
+      snapshot.seats.filter((s) => s.stats !== undefined).length
+    )
+      throw new Error("Normalized match stats diverged from snapshot");
     for (const seat of snapshot.seats) {
       const row = byId.get(seat.seatId);
       const expected = {
@@ -259,6 +278,14 @@ export class RatingStore {
       };
       if (!row || Object.entries(expected).some(([column, value]) => row[column] !== value))
         throw new Error("Normalized result seats diverged from snapshot");
+      const stats = this.db
+        .prepare("SELECT stats FROM ranking_stats WHERE sequence = ? AND seat_id = ?")
+        .get(sequence, seat.seatId);
+      if (
+        (seat.stats === undefined && stats) ||
+        (seat.stats !== undefined && stats?.stats !== JSON.stringify(seat.stats))
+      )
+        throw new Error("Normalized match stats diverged from snapshot");
     }
     const record = this.db.prepare("SELECT * FROM matches WHERE id = ?").get(snapshot.matchId);
     if (snapshot.record.status === "excluded") {
@@ -375,6 +402,11 @@ export class RatingStore {
           Number(seat.forfeited),
           Number(seat.lateJoin),
         );
+      for (const seat of snapshot.seats)
+        if (seat.stats !== undefined)
+          this.db
+            .prepare("INSERT INTO ranking_stats (sequence, seat_id, stats) VALUES (?, ?, ?)")
+            .run(sequence, seat.seatId, JSON.stringify(seat.stats));
       if (snapshot.record.status === "recorded") this.insertRecords(snapshot);
       for (const update of updates) this.insertUpdate(snapshot, sequence, update);
       this.verifyProjection(snapshot, sequence);

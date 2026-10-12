@@ -388,7 +388,7 @@ export interface MatchStateSnapshot {
    * spectator roster. These come from the match's own tally and survive the
    * entities they describe.
    */
-  standings?: Array<{ playerId: string; name: string; score: number; deaths: number; ping: number }>;
+  standings?: Array<{ playerId: string; name: string; score: number; frags?: number; deaths: number; ping: number }>;
   /** Spectator roster (no sim entity) — for the scoreboard. Populated by
    *  SnapshotBuilder; client-consumed. */
   spectators?: Array<{ playerId: string; name: string; ping: number }>;

@@ -11,6 +11,7 @@
  *   client.on('chat:message', (data) => { ... });
  */
 
+import type { HistoryPage, StatsQuery, StatsSummary } from "./PlayerStatsStore";
 import type { FeaturedDemosResponse, LeaderboardResponse, LobbyMessage, SeatReissueResponse } from "./types";
 
 /** How long to wait for a connection before telling the caller it failed. */
@@ -324,6 +325,59 @@ export class LobbyClient {
       );
       cleanup.push(this.on("_disconnected", () => finish(() => reject(new Error("Lobby disconnected")))));
       this.send({ type: "leaderboard:get", requestId, ...query });
+    });
+  }
+
+  requestPlayerStats(query: StatsQuery, timeoutMs = 10_000): Promise<StatsSummary> {
+    return this.requestStatsData("stats:get", query, timeoutMs);
+  }
+  requestMatchHistory(
+    query: Pick<StatsQuery, "gametype" | "scope"> & { limit?: number; beforeSequence?: number },
+    timeoutMs = 10_000,
+  ): Promise<HistoryPage> {
+    return this.requestStatsData("stats:history", query, timeoutMs);
+  }
+  private requestStatsData<T>(
+    type: "stats:get" | "stats:history",
+    query: { gametype: string; scope: string; period?: string; limit?: number; beforeSequence?: number },
+    timeoutMs: number,
+  ): Promise<T> {
+    if (!this.connected) return Promise.reject(new Error("Lobby is offline"));
+    const requestId = `stats_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+    return new Promise((resolve, reject) => {
+      const cleanup: Array<() => void> = [];
+      let settled = false;
+      const finish = (fn: () => void) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        for (const unsub of cleanup) unsub();
+        fn();
+      };
+      const timer = setTimeout(() => finish(() => reject(new Error("Player stats request timed out"))), timeoutMs);
+      cleanup.push(
+        this.on(type === "stats:get" ? "stats:summary" : "stats:history_page", (msg) => {
+          if (msg.requestId !== requestId) return;
+          finish(() => {
+            if (
+              msg.scope !== query.scope ||
+              msg.gametype !== query.gametype ||
+              msg.data?.scope !== query.scope ||
+              msg.data?.gametype !== query.gametype ||
+              (type === "stats:get" && msg.data?.period !== query.period)
+            )
+              reject(new Error("Player stats response mismatch"));
+            else resolve(msg.data as T);
+          });
+        }),
+      );
+      cleanup.push(
+        this.on("stats:error", (msg) => {
+          if (msg.requestId === requestId) finish(() => reject(new Error(`Player stats: ${msg.reason}`)));
+        }),
+      );
+      cleanup.push(this.on("_disconnected", () => finish(() => reject(new Error("Lobby disconnected")))));
+      this.send({ type, requestId, ...query });
     });
   }
 

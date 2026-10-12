@@ -129,7 +129,7 @@ describe("fresh transactional rating journal", () => {
 
   it("initializes empty tables and pins a separate ranking schema/policy without changing account user_version", () => {
     expect(sql.prepare("PRAGMA user_version").get()?.user_version).toBe(1);
-    expect(sql.prepare("SELECT version FROM ranking_schema WHERE id = 1").get()?.version).toBe(1);
+    expect(sql.prepare("SELECT version FROM ranking_schema WHERE id = 1").get()?.version).toBe(2);
     expect(JSON.parse(String(sql.prepare("SELECT parameters FROM ranking_policies").get()?.parameters))).toEqual(
       RATING_POLICY,
     );
@@ -530,7 +530,7 @@ describe("fresh transactional rating journal", () => {
     const before = sql.prepare("SELECT * FROM ranking_results").all();
     expect(RatingStore.inspect(dir, true)).toMatchObject({
       status: "ready",
-      version: 1,
+      version: 2,
       receipts: 1,
       ratings: 2,
       updates: 2,

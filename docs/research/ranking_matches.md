@@ -1,6 +1,6 @@
 # Ranking matches: public and private
 
-**Status:** Basic ranking implementation through RM-09 plus pilot, preparation and recovery checks passed 4,509 tests / 527 files, typecheck, Biome, build and required networking regressions. Alpha readiness/schema matrix below. Real human bot calibration, browser layout and deployment acceptance remain pending. No production bot strengths are shipped.
+**Status:** Basic ranking implementation through RM-09, gameplay stats, profile history, team mapping fixes and two-player FFA passed 4,545 tests / 532 files, typecheck, Biome, application build and required networking regressions. Localhost Public/Private Duel, Amphi, FFA and short S&D matches, native private bot records, service restart and isolated backup restore checked. Real human bot calibration, deployed browser combat/objective play with normal match lengths and normal release asset packaging remain pending. No production bot strengths are shipped.
 
 ## Goal
 
@@ -22,6 +22,126 @@ rankings.
 
 ## Initial alpha release boundary and readiness matrix
 
+### Gameplay stats completion after the ranking foundation commit
+
+The next code slice implements the five concrete gaps identified after the
+foundation commits (`04fcd9c` FPS, `47716fe4` engine):
+
+| Gap | Implementation |
+| --- | --- |
+| Durable gameplay counters | Version-1 per-seat stats: personal score, frags/team frags/deaths, enemy/friendly damage, plants/defuses and active participation ms. Signed result → canonical snapshot → transactional `ranking_stats` projection. Single-match removal retains stats until final reporting. |
+| Misleading post-game frags | Reliable standings add actual frags and use whole-match deaths; HUD uses them for post-game chips even before all sim entities disappear. Score remains separately labelled. Older snapshots omit Frags/K/D instead of guessing. |
+| Records independent of ratings | Authenticated own-account summary API and Profile totals use recorded results, including pending bot games. Rating/rank are nullable. Missing gameplay coverage is explicit; no fabricated historical zeros. |
+| Recent match history | Own-account mode/scope pages in commit-sequence order, with exclusive cursors and a bounded page size. Profile mode keys open recent matches with older/latest navigation. Scope/page sequence guards discard late replies. |
+| Rating feedback | History reads saved before/after states and displays their rounded rating difference, including full uncertainty changes. Unrated games show readable stored reasons. No hypothetical recalculation or rating mutation. |
+
+Ranking schema advances to **2** through an additive initialization transaction
+from v1. `ranking_stats(sequence, seat_id, stats)` references normalized played
+seats and stores canonical versioned stats JSON for extensible counters; SQL
+aggregation computes career totals without loading every match into JavaScript.
+An account/sequence index supports these reads. Snapshots without stats retain
+their original digest and remain stats-unavailable; no result/demo backfill.
+Unsupported/partial current schemas fail rather than recreating lost stats.
+
+Totals follow record eligibility rather than skill eligibility. A complete
+private bot game with pending calibration adds its verified gameplay totals;
+an aborted receipt keeps its captured counters in history but adds no career
+record/totals. Scope and mode remain independent. Active time counts occupying
+an active roster seat, including a dead S&D player; excludes warmup, freezes,
+intermission, spectator and removed time. Native weapon accuracy telemetry only
+covers single-ray hitscan today, so it was deliberately not relabelled as
+all-weapon accuracy. Assists, weapon breakdowns and analytics graphs are deferred.
+
+Access is through Profile and `stats:get`/`stats:history` on the advertised
+`features.playerStats` capability. The lobby derives the account from auth,
+bounds/rate-limits requests and never returns admission tickets, keys, raw
+snapshots or another account's private rows. New clients validate numeric data,
+scope/mode, history ordering and rating deltas; request listeners release on
+reply, error, timeout and disconnect. Older lobbies keep the existing Profile
+fallback. The subsequent responsive pass below resolves the Profile stage's
+former hidden record area below 1100px. Deployed browser acceptance remains open.
+
+Files in this slice (relative to the outer repo; FPS paths are submodule files):
+
+| Area | Exact files |
+| --- | --- |
+| Canonical stats and result contract | `src/shared/ranking/MatchStats.ts`, `src/engine/server/network/MatchResultReport.ts`, `src/lobby/ResultSnapshot.ts` |
+| Persistence and own-account reads | `src/lobby/RatingStore.ts`, `src/lobby/MatchResultStore.ts`, `src/lobby/PlayerStatsStore.ts`, `src/lobby/types.ts`, `src/lobby/LobbyServer.ts`, `src/lobby/LobbyClient.ts` |
+| Gameplay lifetime and reliable standings | `src/shared/server/gametype/GametypeTypes.ts`, `src/games/fps/server/gametypes/MatchState.ts`, `src/games/fps/server/GameServer.ts`, `src/games/fps/server/SnapshotBuilder.ts` |
+| Profile/history and scoreboard | `src/games/fps/client/LobbyPanel.ts`, `src/games/fps/client/NewUiApi.ts`, `src/games/fps/client/ProfileView.ts`, `src/games/fps/client/RatingFeedback.ts`, `src/games/fps/client/styles/Identity.css`, `src/games/fps/client/HUDState.ts`, `src/games/fps/client/MatchStateManager.ts`, `src/games/fps/client/hud/widgets/Scoreboard.ts` |
+| Root tests/fixture | `src/shared/ranking/__tests__/_matchStats.ts`, `src/engine/server/network/__tests__/MatchResultReport.test.ts`, `src/engine/__tests__/DamageHitLocation.test.ts`, `src/lobby/__tests__/RatingStore.test.ts`, `src/lobby/__tests__/ResultSnapshot.test.ts`, `src/lobby/__tests__/LobbyClientConnection.test.ts`, `src/lobby/__tests__/PlayerStatsStore.test.ts`, `src/lobby/__tests__/LobbyBotPreparation.test.ts` |
+| FPS tests | `src/games/fps/server/gametypes/__tests__/MatchStats.test.ts`, `src/games/fps/server/__tests__/PlayedMatchResult.test.ts`, `src/games/fps/server/__tests__/SnapshotGolden.test.ts`, `src/games/fps/client/__tests__/ScoreboardPostGame.test.ts`, `src/games/fps/client/__tests__/ProfileGameplayStats.test.ts` |
+| Documentation | `docs/research/ranking_matches.md`, `docs/manual/guides/lobby-server.md`, `docs/changelog/v0.9.28.md` |
+
+The combined focused run passed **113 tests / 10 files**. The reviewed snapshot,
+round lifecycle and scoreboard cases passed **44 tests / 4 files**. Added
+coverage checks atomic rollback/duplicate ingestion, schema-1 additive upgrade,
+partial-schema refusal, missing-stat coverage, private pending records, own-account
+authorization, cursor stability with new arrivals, replay divergence and late
+scope replies. Updated the golden snapshot only for the intended two `frags: 0`
+fields in reliable standings. Full validation also caught a live roster regression:
+live reliable standings must retain the round death counter for change/ACK tracking;
+only PostGame uses the whole-match death total. Corrected that branch and checked
+the required enum import. The affected snapshot/protocol and previously failing
+cases passed **60 tests / 11 files** on focused recheck.
+
+Two initial complete runs exposed timer failures that isolated runs did not.
+An ignored one-test reproduction confirmed that a spy on **fake** global
+`setTimeout` can be restored again by a later `vi.restoreAllMocks()`, reinstalling
+the stopped fake clock after real timers were restored. Replaced that spy in
+`LobbyBotPreparation.test.ts` with a scoped wrapper restored before uninstalling
+fake timers, and asserted repeated mock restoration leaves the native timer
+unchanged. Kept the real control socket and the 75-second non-extending deadline
+checks. The timer/async/remote-weapon recheck passed **19 tests / 4 files**; no
+timeouts or lint baselines were increased. Froze the clock only in the existing
+damage-event byte-comparison fixture, whose header includes a timestamp.
+Final validation for this gameplay-stats continuation (2026-10-12):
+
+| Check | Result |
+| --- | --- |
+| Full repository suite | **4,522 tests / 530 files passed**, 216.53 seconds. |
+| Typecheck | Passed. |
+| Biome gate | Passed: 0 errors, 322 warnings against the existing 0/339 baseline. |
+| Application build and postbuild | Passed; Vite built in 1m 4s, 49 source maps relocated. |
+| Simulation and physics probes | Both exited 0. Physics retains the existing wdm7 lightgrid-count mismatch and StepSlideMove position warning; this is not evidence that those warnings are resolved. |
+| Server tick determinism | Passed; final checksum `2768943778`. |
+| 1,000-tick fuzz | Zero errors, deterministic checksum `2620815328`; seed `1791801344196`. |
+| Headless map and movement | wdm2 loaded through the PK3 index; scripted movement replay completed 91 ticks. |
+| Whitespace checks | Passed in both repositories. |
+
+Exact final commands, run from the outer repository using PowerShell:
+
+```powershell
+npm.cmd run test:run
+npm.cmd run typecheck
+npm.cmd run gate:biome
+npm.cmd run build -- --config .cache/ranking-build.config.ts
+npm.cmd run test:simulation
+npm.cmd run test:physics
+npm.cmd run server:tick
+npm.cmd run server:fuzz -- --ticks 1000
+npm.cmd run cli:game -- -- --exec "bsp load wdm2; bsp info; quit"
+npm.cmd run cli:game -- --exec 'sim replay \"W+CROUCH 60; JUMP 1; W 30\"; quit'
+git diff --check
+git -C src/games/fps diff --check
+```
+
+Logs are local ignored `.cache/stats-full-tests-clean.log`,
+`.cache/stats-final-{typecheck,biome}.log`, `.cache/stats-build.log`, and
+`.cache/stats-{simulation,physics,tick,fuzz,bsp,replay}.log`. The build uses
+the existing local config with a linked public-assets view that excludes large
+local profiling archives; application compilation/bundling and postbuild ran,
+but normal release asset packaging remains unverified.
+
+Assumptions: existing FPS modes Duel, Amphi, FFA and S&D, authenticated lobby
+accounts, independent Public/Private pools, and the current signed result
+contract. Migration/restart tests used isolated test databases and signed
+fixtures. No live service was restarted, no actual account database was reset
+or migrated, and no production bot reference was installed. Browser appearance,
+the narrow Profile layout, native AI gameplay and deployed persistence after a
+real service restart still require acceptance. These changes remain uncommitted
+in the outer repository and FPS submodule.
+
 The release goal is a dependable basic ladder: finish a match, save it once,
 update the correct rating pool, and show the player an understandable result.
 Seasons, matchmaking, badges, elaborate operator dashboards and historical
@@ -31,13 +151,14 @@ later work-log sections describe earlier stages and their then-open tasks.
 | Area | Current implementation | Minimum remaining for alpha |
 | --- | --- | --- |
 | Public/private separation | Independent board queries, records, profiles, caches and rating pools. Bots are private-only. | Confirm the deployed browser and lobby use the same build and data directory. |
-| Human skill rating | Pinned classic TrueSkill for Duel, Amphi, FFA and S&D; placements/ties, team results and eligible forfeits; provisional after the first eligible match. | Live acceptance with real accounts for each offered mode. No further rating algorithm is required. |
+| Human skill rating | Pinned classic TrueSkill for Duel, Amphi, FFA and S&D; placements/ties, team results and eligible forfeits; provisional after the first eligible match. Localhost account/ticket/result checks passed for Public/Private Duel, Amphi, FFA and short S&D matches. | Real browser combat/objective play with normal match lengths. No further rating algorithm is required. |
 | Leaderboards and profiles | Skill order, rating/provisional display, W/L/D, month/all-time views, pagination/local row and explicit unavailable/pending/excluded states. | Browser layout and interaction check; finish real matches and verify persistence after restart. |
-| Result authenticity and eligibility | Signed server results tied to authenticated admission/played seats; late joins, side changes, interruptions and aborts cannot silently create eligible skill updates. | Live disconnect/reconnect and forfeit smoke checks. |
+| Result authenticity and eligibility | Signed server results tied to authenticated admission/played seats; late joins, side changes, interruptions and aborts cannot silently create eligible skill updates. Localhost disconnect/resume and eligible Duel/Amphi forfeits passed. | Real browser gunplay acceptance; no additional core eligibility code identified. |
 | Durable delivery | Private signed outbox, persisted verification context, atomic journal/state/records, duplicate protection and startup/periodic/offline recovery. Live retries use a bounded rotating cursor. | Exercise deployment restart/recovery and database backup/restore in the target environment. |
 | Database foundation | Versioned ranking schema, immutable policy/reference identity, complete canonical match snapshots, normalized participants and before/after updates. | No additional core tables are required for the agreed alpha scope; retain a backed-up fresh production directory. |
-| Private human matches | Use the independent private rating pool through the same verified path. | Live acceptance, as for Public. |
-| Private bot records | Human wins, draws and losses are recorded even before bot strength is available. | Live AI match to verify the actual service/model configuration. |
+| Gameplay stats and recent matches | Schema 2, verified per-player counters, own-account summaries/history and committed rating changes. Responsive Profile passes ten headless Edge sizes; real-child public/private FFA cases also verify stats after reopen. | Deployed browser acceptance and real player gunplay; the former narrow-viewport layout gap is resolved. |
+| Private human matches | Independent private rating pool; localhost Duel, Amphi, normal FFA and short S&D results persisted through restart without changing Public. | Real browser combat/objective play with normal match lengths, as for Public. |
+| Private bot records | Human wins, draws and losses are recorded even before bot strength is available. Native easy-bot private Duel recorded a human loss, deaths and active time with skill pending. | Real human gameplay quality check; no further record-storage code identified. |
 | Private bot skill | Fixed-reference solver and exact configuration/model/build bindings implemented. No invented default strengths. Pilot export, draft analysis and explicit reviewed-artifact tooling are available. | **Real human calibration and reference installation for every bot configuration/mode/map advertised as skill-rated.** Until then, records work and skill stays pending. |
 | Bot invitation lifecycle | Preparation is bounded at 60 seconds, lobby join at 10; an authenticated progress message grants the requester a 75-second budget once. Cancellation disposes late resources and prevents late authentication. | Cold-load acceptance with the deployed native TensorFlow weights; mocked slow loads do not prove native runtime behavior. |
 | Recovery maintenance | Secret-free paginated inspection, cleanup preview and explicit application; unresolved reports and unknown/running contexts survive. | Choose a retention schedule. No archive/restore UI or automatic destructive cleanup is needed for alpha. |
@@ -47,6 +168,390 @@ Human leaderboards do not depend on completing bot calibration. If alpha promise
 skill changes from bot games, calibration is a release requirement, not more
 solver implementation. Otherwise explicitly label bot skill pending; do not
 claim those games are already skill-rated.
+
+### Responsive Profile and isolated acceptance continuation
+
+The first remaining essential code gap is implemented: `Identity.css` now stacks
+the Profile account panel and record stage into one scrollable view at widths up
+to 1100px. Profile-specific rules keep the stage visible below 700px, remove the
+slanted panel clipping in the stacked layout, and fit the key plate/actions.
+Container queries let record rows use two lines when their own sidebar is narrow,
+including desktop widths above the stacking breakpoint. History text wraps and
+the record padding accommodates raised navigation buttons' offset sides.
+
+The browser connector failed twice during initialization with `failed to write
+kernel assets` / OS error 3. An isolated **headless Edge** application check used
+the actual `ProfileView`, repository styles/fonts and synthetic records, with no
+lobby connection. All ten sizes passed: 1920x1080, 1366x768, 1101x768, 1100x768,
+1024x600, 768x600, 700x600, 390x720, 320x568 and 844x390. Every size retained all
+four mode controls and ten history rows, supported scrolling, and had no measured
+horizontal overflow. Scope switching and older/latest history paging also passed.
+Inspected desktop and narrow screenshots; keyboard focus scrolls to record controls.
+
+Headless validation preceded the browser check: **20 tests / 4 files passed**,
+plus simulation, physics, indexed wdm2 loading and the 91-tick movement replay.
+Typecheck and Biome passed (0 errors / 322 warnings). The first build passed
+(55.35s, 49 source maps relocated). A final build rerun exhausted disk space
+copying public map assets; an interrupted test edit was restored from its verified
+unchanged HEAD version before adding the intended assertions. Only generated
+PK3 copies under the resolved workspace `dist/data` directory were removed
+(30 files, 213,891,588 bytes); original `public/data` assets were retained.
+The retry validates application bundling with `publicDir: false` to avoid
+duplicating installed game data; normal release asset packaging is still unverified.
+
+The next acceptance pass extends the existing real-lobby/child-server wdm2 FFA
+integration cases: both public human-account and private uncalibrated-bot results
+must reopen with stats, positive active time and own-account history; stored rating
+feedback must agree with eligibility, and the opposite scope remains empty.
+These are scripted clients using isolated accounts, not human calibration evidence.
+
+Exact files changed in this continuation: `src/games/fps/client/styles/Identity.css`,
+`src/lobby/integration/RoomToRanking.test.ts`, `docs/changelog/v0.9.28.md`,
+`docs/manual/guides/lobby-server.md` and this document. Local fixtures, the browser
+script, screenshots and reports remain ignored under `.cache/profile-responsive*`.
+
+```powershell
+npm.cmd run test:run -- src/games/fps/client/__tests__/ProfileGameplayStats.test.ts src/games/fps/client/__tests__/ProfileRecord.test.ts src/games/fps/client/__tests__/IdentityFields.test.ts src/engine/ui/__tests__/UIStyles.test.ts
+npm.cmd run test:simulation
+npm.cmd run test:physics
+npm.cmd run cli:game -- -- --exec "bsp load wdm2; bsp info; quit"
+npm.cmd run cli:game -- --exec 'sim replay \"W+CROUCH 60; JUMP 1; W 30\"; quit'
+npm.cmd run typecheck
+npm.cmd run gate:biome
+node .cache/profile-responsive-check.mjs
+npm.cmd run build -- --config .cache/ranking-build.config.ts
+npm.cmd run build -- --config .cache/profile-build.config.ts
+npm.cmd run ranking:acceptance
+git diff --check
+git -C src/games/fps diff --check
+```
+
+Final results: **486 acceptance tests / 51 files passed** in 162.85 seconds,
+including the added public/private real-child stats assertions. Typecheck and
+Biome passed again after those assertions. Final application build with public
+asset copying disabled passed in **52.84 seconds**, with 49 source maps relocated.
+Both repository whitespace checks passed. The previous full suite's 4,522-test
+result remains recorded above; this CSS/test-only continuation used focused UI
+checks and ranking acceptance rather than repeating unrelated full-suite tests.
+The physics probes retain their previously documented warnings.
+
+Local evidence: `.cache/profile-responsive-evidence/report.json` and desktop/narrow
+PNGs, `.cache/profile-responsive-tests.log`,
+`.cache/profile-responsive-{simulation,physics,bsp,replay}.log`,
+`.cache/profile-final-{typecheck,biome}.log`,
+`.cache/profile-responsive-build-code.log` and
+`.cache/profile-ranking-acceptance-final.log`.
+
+Essentials status: responsive Profile implemented and visually checked; isolated
+real-result/reopen/delivery checks passed. The remaining deployed-match acceptance
+needs the target lobby WebSocket URL. Deployment restart and backup/restore still
+need a target-environment rehearsal. Bot skill needs real human calibration and
+reviewed reference installation; pending records already work.
+
+Actual user services, complete deployed UI navigation, human gunplay, other browser
+engines, native AI behavior and bot rating calibration remain unverified. No
+production accounts/results were reset, and no production service was restarted.
+
+### Live localhost acceptance and team mapping correction
+
+Target supplied by the user: `ws://localhost:9000`. The running service advertises
+both `features.playerStats` and `features.skillRatings`. Fresh test accounts 100
+and 101 were used; their keys are kept only in an ignored private local fixture.
+The existing `server-data/players.db` was positively identified by matching the
+test accounts' key hashes without printing hashes or keys. No other account was
+used to play test matches.
+
+Public and Private Duel checks initially passed: a genuine disconnect/resume
+kept the player identity; a subsequent expired 20-second grace produced one
+eligible forfeit, win/loss records, gameplay totals and saved rating feedback.
+The opposite scope stayed unchanged, and a fresh authenticated lobby connection
+read the same summary. Those reports are in `.cache/ranking-live-matches.json`.
+
+Amphi exposed a production mismatch: the unchanged players' forfeit retained
+records/stats but was excluded with `team_changed`. The immutable snapshot showed
+the starting roster assigned account 100 to Udon and 101 to Soba, while actual
+played seats were 100 Soba and 101 Udon. `ResultSnapshot.teamOf` independently
+mapped lobby `alpha` to Udon, opposite the shared gameplay normalizer. Duel's
+auto-assignment ignored its lobby side and happened to mask the error in the
+initial connection order. The first Amphi driver also omitted required kit
+selection; corrected that fixture before observing the actual rating exclusion.
+
+Production fixes reuse `normalizeTeamId` for incoming result teams, honor a free
+requested Duel side, and keep the two-seat limit/fallback for occupied sides.
+Canonical historical snapshots already use Soba/Udon, so replay retains their
+stored decisions; previously excluded results are not retroactively rated.
+Tests now cover literal lobby aliases in Duel/Amphi/S&D, both Duel connection
+orders, full-side fallback, and real-socket Duel/Amphi forfeits carried through
+normalization and skill eligibility. **48 tests / 4 files passed** in the targeted
+pipeline run. A fixture still expected the old first-seat Udon score; updated
+that snapshot-copy assertion to use the correct Soba score. Full gates and a
+post-restart live rerun follow below.
+
+Database-only backup/restore rehearsal: SQLite's online backup API captured the
+running WAL database, restored into a new isolated `.cache` directory, and passed
+`integrity_check`, `foreign_key_check` and read-only rating-journal replay.
+At that snapshot it contained the two initial Duel results, four seats/stats rows
+and four rating updates; replay reported two applied matches/four ratings.
+This copy is not yet a complete operational backup: unresolved delivery files and
+the shared bot secret also need preserving together with the database when
+rehearsing a full stopped-service restore. The actual service has not been
+restored from the copy or reset.
+
+Files in this correction: `src/lobby/ResultSnapshot.ts`,
+`src/engine/server/network/__tests__/_resultReport.ts`,
+`src/lobby/__tests__/ResultSnapshot.test.ts`,
+`src/games/fps/server/gametypes/GametypeController.ts`,
+`src/games/fps/server/gametypes/MatchState.ts`,
+`src/games/fps/server/gametypes/__tests__/TeamBalanceOnJoin.test.ts`,
+`src/games/fps/server/gametypes/__tests__/TeamSpawnStrategy.test.ts`,
+`src/games/fps/server/__tests__/PlayedMatchResult.test.ts`, this document,
+`docs/manual/guides/lobby-server.md`, and `docs/changelog/v0.9.28.md`.
+
+Final gates for this correction: **4,530 tests / 530 files passed** in **226.47s**;
+typecheck passed; Biome passed with **0 errors / 321 warnings** (baseline 0/339);
+application build with public copying disabled passed in **48.03s**, relocating
+49 source maps. Required networking probes all exited 0: simulation, physics,
+server tick, 1,000-tick fuzz, indexed wdm2 load and 91-tick movement replay.
+Tick checksum `2768943778`; fuzz checksum `96284469`, seed `1791805135944`.
+Existing physics lightgrid/StepSlideMove warnings and the normal release asset
+packaging limitation remain. Both repository whitespace checks passed.
+
+Restart rehearsal completed after confirming no other players and no playing
+matches (only empty waiting rooms from tests remained). Verified the exact lobby
+listener/process, stopped it, copied **the complete existing `server-data/`
+directory** including database/WAL/shared secret/delivery files into an ignored
+backup, then restarted port 9000 using the same data directory and current source.
+No bot-server or unrelated game-server process was stopped. Existing records and
+rating replay remained unchanged. Restoring the complete backup into a separate
+directory passed read-only journal replay too; actual working storage was never
+replaced by a backup. The restarted lobby is left running for the user.
+
+The post-fix live matrix passed all four cases: **Public Duel, Private Duel,
+Public Amphi, Private Amphi**. Each used actual lobby authentication, a spawned
+dedicated server, ticketed protocol clients, a real reconnect preserving identity,
+and a subsequent expired-grace forfeit. Each saved exactly one new W/L/D record,
+stats row and rated match per test account; saved rating feedback was present,
+the opposite pool stayed unchanged, and new lobby sockets read identical data.
+An initial post-restart driver request timed out; bounded direct protocol and
+read-only store diagnostics succeeded, and the driver rerun completed all cases.
+No application change was made for that transient request timeout.
+
+The native bot server on localhost:9100 also passed a real **easy bot / private
+Duel** invitation and game on `wdm12`. A scripted human occupied the active seat
+for 12 seconds, then disconnected for a controlled forfeit. The loss and gameplay
+stats (including one death, 32,024ms active-seat time including resume grace) were
+recorded. Skill stayed `pending: bot_reference_pending`, with no rating delta;
+the established private human rating and Public pool stayed unchanged. This proves
+native invite/load and pending-record handling, not human skill calibration.
+
+Final live journal replay is consistent: **8 receipts**, comprising **6 applied
+human matches / 12 updates / 8 rating states**, the earlier Amphi `team_changed`
+exclusion retained as evidence, and the native bot result pending calibration.
+Test accounts **100 / 101** are labelled **StatsTest100 / StatsTest101**, and their
+test results remain in the local service. No existing account was used or reset.
+
+Exact final commands (PowerShell, outer repository):
+
+```powershell
+npm.cmd run test:run -- src/games/fps/server/__tests__/PlayedMatchResult.test.ts src/lobby/__tests__/ResultSnapshot.test.ts src/games/fps/server/gametypes/__tests__/TeamSpawnStrategy.test.ts src/games/fps/server/gametypes/__tests__/TeamBalanceOnJoin.test.ts
+npm.cmd run test:run
+npm.cmd run typecheck
+npm.cmd run gate:biome
+npm.cmd run build -- --config .cache/profile-build.config.ts
+npm.cmd run test:simulation
+npm.cmd run test:physics
+npm.cmd run server:tick
+npm.cmd run server:fuzz -- --ticks 1000
+npm.cmd run cli:game -- -- --exec "bsp load wdm2; bsp info; quit"
+npm.cmd run cli:game -- --exec 'sim replay \"W+CROUCH 60; JUMP 1; W 30\"; quit'
+node .cache/ranking-live-probe.mjs --require-idle
+node .cache/ranking-live-backup.mjs
+npm.cmd run lobby:server -- --port 9000 --data-dir ./server-data
+npm.cmd exec -- vite-node .cache/ranking-live-match.ts
+npm.cmd exec -- vite-node .cache/ranking-live-bot.ts
+npm.cmd run lobby:server -- --ratings-verify --data-dir ./server-data
+# Read-only verify was also run against each isolated restored directory.
+git diff --check
+git -C src/games/fps diff --check
+```
+
+Evidence/logs stay ignored and local: `.cache/ranking-team-alias-*.log`,
+`.cache/ranking-live-matches.json`, `.cache/ranking-live-match-fixed-final.log`,
+`.cache/ranking-live-amphi-history.json`, `.cache/ranking-live-bot-result.json`,
+`.cache/ranking-live-bot.log`, `.cache/ranking-live-final-replay.log`,
+`.cache/ranking-service-restart.json`, `.cache/ranking-service-restored-replay.log`
+and the private backup/restore directories recorded there. The ignored account
+fixture contains test credentials and is not a publishable research artifact.
+This continuation is included in the gameplay stats feature commits in both repositories.
+
+Remaining essentials: human gunplay and full-match FFA/S&D acceptance through the
+deployed browser, normal release asset packaging with sufficient disk space, and
+real-human calibration before advertising bot skill updates. The current running
+FFA lobby configuration at that point advertised eight required seats (no lower
+`minPlayers`), so that pass did not attempt a two-player FFA room; the follow-up
+below removes that start barrier. S&D advertises two minimum
+players but requires a full round match; its shared-side mapping is covered by
+headless regressions, not a completed live human S&D match in this pass.
+
+### Two-player FFA follow-up
+
+FFA now has `minPlayers: 2` while retaining `maxPlayers: 8`, in both Public and
+Private rooms. The existing room UI consumes the minimum separately and shows
+"up to 8 players · starts at 2". Every player present still needs to be ready.
+
+`RoomToRanking.test.ts` no longer reduces FFA capacity to two. It checks the
+shipped eight-seat/two-player configuration, confirms that one ready human does
+not spawn a child, then starts a real child when the second seat is ready. Its
+Public human match saves records, active-time counters and ratings; its Private
+human/bot match saves records and counters with skill pending calibration. Both
+cases reopen storage and verify pool isolation. The targeted installed-map and
+lobby lifecycle run passed 24 tests across two files.
+
+Files changed in this follow-up: `src/lobby/LobbyServer.ts`,
+`src/lobby/integration/RoomToRanking.test.ts`,
+`docs/manual/guides/lobby-server.md`, `docs/changelog/v0.9.28.md` and this document.
+Concurrent lobby player-cap changes are separate work and were preserved.
+
+Validation after the FFA change: full suite **4,545 tests / 532 files** passed;
+typecheck and Biome passed (0 errors, 321 warnings against the 0/339 baseline).
+Application build passed in 47.12 seconds and postbuild relocated 49 source maps.
+As in the earlier pass, `publicDir: false` avoids recopying installed assets on
+this nearly full disk; normal release asset packaging remains unverified.
+Simulation, physics, server tick, 1,000-tick fuzz, indexed wdm2 loading and
+91-tick movement replay all exited 0. Tick checksum: `2768943778`; fuzz seed:
+`1791807064595`, deterministic checksum: `514411605`, zero errors. Existing
+physics diagnostic warnings remain. Whitespace checks passed in both repos.
+
+Exact commands for this follow-up (PowerShell, outer repository):
+
+```powershell
+npm.cmd exec -- vitest run src/lobby/integration/RoomToRanking.test.ts src/lobby/__tests__/LobbyLifecycle.test.ts
+npm.cmd run test:run
+npm.cmd run typecheck
+npm.cmd run gate:biome
+npm.cmd run build -- --config .cache/profile-build.config.ts
+npm.cmd run test:simulation
+npm.cmd run test:physics
+npm.cmd run server:tick
+npm.cmd run server:fuzz -- --ticks 1000
+npm.cmd run cli:game -- -- --exec "bsp load wdm2; bsp info; quit"
+npm.cmd run cli:game -- --exec 'sim replay \"W+CROUCH 60; JUMP 1; W 30\"; quit'
+git diff --check
+git -C src/games/fps diff --check
+```
+
+Local logs: `.cache/ranking-ffa-{targeted,full,typecheck,biome,build,simulation,physics,tick,fuzz,bsp,replay}.log`.
+
+Live localhost follow-up also completed **Public and Private FFA** with two fresh
+test accounts (100/101), default eight-seat capacity and the normal signed
+result/admission path. The offered/voted map was `wdm1`. Both accounts tied at
+zero frags: each received a recorded draw, positive active time and one committed
+rating update in the selected pool. Queries before/after each match verified the
+opposite pool was unchanged. These static clients verify the result path; they
+do not establish human gunplay quality or performance.
+
+The idle service was backed up before replacement. An eight-second timer and
+ten-second warmup were enabled **only for this controlled acceptance run**. The
+service was then restarted on `ws://localhost:9000` with those overrides removed,
+using the same data directory. An independent event-driven WebSocket client read
+both accounts' Public and Private results after restart. Read-only journal replay
+passed: 10 receipts, eight applied matches, 16 updates and 12 rating states.
+Existing accounts and earlier results were retained; the native bot server was
+left running. The normal lobby remains running for local testing.
+
+The original polling helper missed a final fresh-socket reply, despite receipt
+being visible in its message log. Its ignored `Peer.query` helper now registers
+request-correlated response/error/close listeners before sending and removes
+them on completion or timeout. The corrected helper also read both pools after
+restart. This was a local acceptance-harness change; no production stats change
+was needed to complete these reads.
+
+Additional exact validation commands:
+
+```powershell
+node .cache/ranking-live-probe.mjs --require-idle
+# Temporary acceptance service only; normal service restored afterwards.
+$env:SHAG_TIMELIMIT='8s'; $env:SHAG_WARMUP='10s'
+npm.cmd run lobby:server -- --port 9000 --data-dir ./server-data
+npm.cmd exec -- vite-node .cache/ranking-live-ffa.ts
+# Remove pacing overrides before restoring the normal service.
+Remove-Item Env:SHAG_TIMELIMIT -ErrorAction SilentlyContinue
+Remove-Item Env:SHAG_WARMUP -ErrorAction SilentlyContinue
+npm.cmd run lobby:server -- --port 9000 --data-dir ./server-data
+node .cache/ranking-ffa-read.mjs
+npm.cmd exec -- vite-node .cache/ranking-ffa-restored-read.ts
+npm.cmd run lobby:server -- --ratings-verify --data-dir ./server-data
+```
+
+Evidence is ignored/local: `.cache/ranking-live-ffa.log`,
+`.cache/ranking-live-ffa-result.json`, `.cache/ranking-ffa-restored-native.log`,
+`.cache/ranking-ffa-restored-read-fixed.log`, `.cache/ranking-ffa-restored-read.json`,
+`.cache/ranking-ffa-final-replay.log`, `.cache/ranking-ffa-service-restart.json`,
+and `.cache/ranking-ffa-{short,normal}-lobby.log`. The backup and account fixture
+contain private credentials and must not be published. Implementation and these
+research notes are included in the gameplay stats feature commits.
+
+### Short S&D localhost follow-up
+
+Continued directly to the remaining mode's result path. Public and Private S&D
+rooms on `wbomb2` each completed with two test accounts on opposite teams. The
+clients connected in reverse lobby order, chose valid kits and readied. Two
+round timeouts awarded a 2–0 team win: exactly one win and one loss were recorded,
+both ratings were applied with saved before/after values, active participation
+time was positive, and actual frags stayed zero while the winning team's mode
+score was two. The opposite pool was unchanged. New lobby sockets read the same
+summaries immediately after each match.
+
+For bounded automated acceptance, the temporary service used
+`SHAG_TIMELIMIT=1s`, `SHAG_SCORELIMIT=2` and `SHAG_WARMUP=10s`; the existing
+round freeze/intermission remained in effect. These are complete short matches,
+not evidence of a normal ten-win human match, bomb planting/defusing, combat
+damage or browser presentation. No production code change was needed for S&D.
+
+The idle service was backed up before replacement and restored again with all
+three overrides removed. An independent WebSocket client verified both accounts'
+Public and Private S&D records, counters and ratings after that restart. Final
+read-only replay was consistent: **12 receipts, 10 applied matches, 20 updates
+and 16 rating states**. The one earlier excluded receipt and one pending bot
+receipt remain intact. The normal lobby is running at `ws://localhost:9000`.
+
+Exact additional commands, using ignored local harnesses and fresh test accounts:
+
+```powershell
+node .cache/ranking-live-probe.mjs --require-idle
+# Temporary acceptance service only, after backing up the idle data directory.
+$env:SHAG_TIMELIMIT='1s'; $env:SHAG_WARMUP='10s'; $env:SHAG_SCORELIMIT='2'
+npm.cmd run lobby:server -- --port 9000 --data-dir ./server-data
+npm.cmd exec -- vite-node .cache/ranking-live-snd.ts
+# Stop the idle temporary service, then restore normal pacing.
+Remove-Item Env:SHAG_TIMELIMIT -ErrorAction SilentlyContinue
+Remove-Item Env:SHAG_WARMUP -ErrorAction SilentlyContinue
+Remove-Item Env:SHAG_SCORELIMIT -ErrorAction SilentlyContinue
+npm.cmd run lobby:server -- --port 9000 --data-dir ./server-data
+node .cache/ranking-snd-read.mjs
+npm.cmd run lobby:server -- --ratings-verify --data-dir ./server-data
+```
+
+Evidence: `.cache/ranking-live-snd.log`, `.cache/ranking-live-snd-result.json`,
+`.cache/ranking-snd-restored-read.{log,json}`, `.cache/ranking-snd-final-replay.log`,
+`.cache/ranking-snd-service-restart.json` and
+`.cache/ranking-snd-{short,normal}-lobby.log`. Backup/test keys remain private.
+Only local harnesses and this status document changed after the 4,545-test pass;
+no further production code changes require a repeated full suite.
+
+No additional essential stats implementation gap was found by these passes.
+Before release, verify real browser combat and bomb interactions at normal match
+lengths, finish normal asset packaging with sufficient disk space, and calibrate
+any bot configurations promised to alter skill ratings. Human leaderboards and
+private bot records work independently of that calibration.
+
+Commit handoff: FPS `e257dc6` (`feat(stats): capture gameplay counters and show
+profile match history`), followed by the outer engine's `feat(stats): persist
+gameplay stats and verify scoped match results` commit, which pins that FPS tip.
+The separate lobby player-cap commits were retained. The final pre-commit
+`npm.cmd run gate:biome` passed at 0 errors / 321 warnings; staged whitespace
+checks passed. Local service data, test account keys, backups and profiling
+artifacts are not part of either feature commit.
 
 ### Schema review: information to preserve before real results
 

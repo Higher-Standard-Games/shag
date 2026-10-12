@@ -1,6 +1,7 @@
 /** Private, authenticated child-server result line. Never sent to game clients. */
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { type BotReference, canonicalBotReference, sameBotReference } from "../../../shared/ranking/BotReference";
+import { canonicalMatchStats, type MatchStats } from "../../../shared/ranking/MatchStats";
 import type { AdmissionManifest } from "./MatchAdmission";
 
 export const RESULT_PREFIX = "SHAG_MATCH_RESULT_V2 ";
@@ -9,6 +10,7 @@ export type ResultTeam = "ffa" | "udon" | "soba";
 export type MatchCompletion = "normal" | "forfeit" | "aborted";
 
 export interface PlayedSeatResult {
+  stats?: MatchStats;
   botReference?: BotReference;
   seatId: string;
   tokenHash: string;
@@ -121,6 +123,7 @@ function validDetails(
     const grant = grants.get(seat.tokenHash);
     const player = participants.get(seat.tokenHash);
     try {
+      if (seat.stats !== undefined) canonicalMatchStats(seat.stats);
       if (seat.botReference !== undefined) canonicalBotReference(seat.botReference);
       if (!sameBotReference(seat.botReference, grant?.botReference)) return false;
       if (seat.botReference !== undefined && !grant?.isBot) return false;
