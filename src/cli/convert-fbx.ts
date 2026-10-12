@@ -6,13 +6,14 @@
  *
  * Usage:
  *   npm run tools:convert -- slide.fbx                         # single file
- *   npm run tools:convert -- public/games/default/animations   # whole folder
+ *   npm run tools:convert -- assets-source/players/vanguard   # whole folder
  *   npm run tools:convert -- *.fbx                             # glob
  */
 
 import { execSync } from "node:child_process";
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { basename, dirname, extname, join } from "node:path";
+import playerRecipe from "../../config/player-model-vanguard.json";
 
 const TOOL_DIR = join(process.cwd(), "tools");
 const FBX2GLTF_EXE = join(TOOL_DIR, "FBX2glTF-windows-x86_64", "FBX2glTF-windows-x86_64.exe");
@@ -74,7 +75,7 @@ Usage:
 
 Examples:
   npm run tools:convert -- slide.fbx
-  npm run tools:convert -- public/games/default/animations
+  npm run tools:convert -- assets-source/players/vanguard
   npm run tools:convert -- --all
 `);
     process.exit(0);
@@ -85,7 +86,7 @@ Examples:
   let files: string[] = [];
 
   if (args[0] === "--all") {
-    const animDir = join(process.cwd(), "public", "games", "default", "animations");
+    const animDir = join(process.cwd(), playerRecipe.sourceDir);
     if (!existsSync(animDir)) {
       console.error(`[convert] Animation directory not found: ${animDir}`);
       process.exit(1);

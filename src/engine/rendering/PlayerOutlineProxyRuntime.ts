@@ -2,6 +2,7 @@ import type { AssetContainer } from "@babylonjs/core/assetContainer";
 import { LoadAssetContainerAsync } from "@babylonjs/core/Loading/sceneLoader";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { Scene } from "@babylonjs/core/scene";
+import { readPlayerModelAsset } from "../animation/PlayerModelAssets";
 import type { PlayerModelInstance } from "../animation/PlayerModelManager";
 import { PlayerOutlineProxy } from "./PlayerOutlineProxy";
 
@@ -59,18 +60,14 @@ export class PlayerOutlineProxyRuntime {
   private async load(modelUrl: string): Promise<void> {
     let container: AssetContainer | undefined;
     try {
-      const [manifestResponse, proxyResponse, sourceResponse] = await Promise.all([
+      const [manifestResponse, proxyResponse, sourceBytes] = await Promise.all([
         fetch(`${PLAYER_OUTLINE_PROXY_URL}.json`),
         fetch(PLAYER_OUTLINE_PROXY_URL),
-        fetch(modelUrl),
+        readPlayerModelAsset(modelUrl),
       ]);
-      if (![manifestResponse, proxyResponse, sourceResponse].every((r) => r.ok))
+      if (![manifestResponse, proxyResponse].every((r) => r.ok) || !sourceBytes)
         throw new Error("Missing outline proxy/source asset; run benchmark:outline-proxy:build");
-      const [manifest, proxyBytes, sourceBytes] = await Promise.all([
-        manifestResponse.json(),
-        proxyResponse.arrayBuffer(),
-        sourceResponse.arrayBuffer(),
-      ]);
+      const [manifest, proxyBytes] = await Promise.all([manifestResponse.json(), proxyResponse.arrayBuffer()]);
       const [proxyHash, sourceHash] = await Promise.all([sha256(proxyBytes), sha256(sourceBytes)]);
       if (manifest.proxySha256 !== proxyHash || manifest.sourceSha256 !== sourceHash)
         throw new Error("Outline proxy provenance does not match the player asset");

@@ -6,9 +6,18 @@ import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 import { simplify, weld } from '@gltf-transform/functions';
 import { MeshoptSimplifier } from 'meshoptimizer';
+import JSZip from 'jszip';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
+
+export async function readProxySource(recipe) {
+  const bytes = await fs.readFile(path.resolve(root, recipe.source));
+  if (!recipe.sourceEntry) return bytes;
+  const entry = (await JSZip.loadAsync(bytes)).file(recipe.sourceEntry);
+  if (!entry) throw new Error(`Outline proxy source missing: ${recipe.sourceEntry}`);
+  return entry.async('nodebuffer');
+}
 
 // Geometry may change; hierarchy, bind matrices and joint ordering may not.
 export function rigIdentity(document) {
@@ -80,7 +89,7 @@ async function main() {
   const recipe = JSON.parse(await fs.readFile(path.join(root, 'benchmarks/recipes/player-outline-proxy-v1.json'), 'utf8'));
   const source = path.resolve(root, recipe.source), output = path.resolve(root, recipe.output);
   if (!source.startsWith(root) || !output.startsWith(path.join(root, 'public/data/benchmarks/outline-proxy/'))) throw new Error('Invalid proxy path');
-  const io = new NodeIO().registerExtensions(ALL_EXTENSIONS), sourceBytes = await fs.readFile(source);
+  const io = new NodeIO().registerExtensions(ALL_EXTENSIONS), sourceBytes = await readProxySource(recipe);
   const document = await io.readBinary(sourceBytes), inventory = await reduceOutlineGeometry(document, recipe);
   // Outline rendering uses the original body's material. Keep the authored rig and geometry only.
   for (const mesh of document.getRoot().listMeshes()) for (const primitive of mesh.listPrimitives()) primitive.setMaterial(null);

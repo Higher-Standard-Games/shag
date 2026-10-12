@@ -14,6 +14,7 @@ import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Scene } from "@babylonjs/core/scene";
 import "@babylonjs/loaders";
+import { resolvePlayerModelAsset, VANGUARD_MODEL, VANGUARD_ROOT } from "../../animation/PlayerModelAssets";
 import { Command, type CommandDef } from "../Command";
 
 interface StoredAnimation {
@@ -74,7 +75,9 @@ export default class AnimTestCommand extends Command {
     try {
       console.log("[AnimTest] Loading vanguard.glb...");
 
-      const result = await ImportMeshAsync("vanguard.glb", this.scene, { rootUrl: "games/default/animations/" });
+      const model = await resolvePlayerModelAsset(VANGUARD_ROOT, VANGUARD_MODEL);
+      if (!model) return "Player model missing";
+      const result = await ImportMeshAsync(model.source, this.scene, model.options);
 
       if (result.meshes.length === 0) return "No meshes found";
 
@@ -137,7 +140,10 @@ export default class AnimTestCommand extends Command {
         try {
           console.log(`[AnimTest] Loading ${anim.file}...`);
 
-          await ImportAnimationsAsync(`games/default/animations/${anim.file}`, this.scene, {
+          const asset = await resolvePlayerModelAsset(VANGUARD_ROOT, anim.file);
+          if (!asset) continue;
+          await ImportAnimationsAsync(asset.source, this.scene, {
+            ...asset.options,
             overwriteAnimations: false,
           });
 

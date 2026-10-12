@@ -1,8 +1,11 @@
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
 import { Scene } from "@babylonjs/core/scene";
 import "@babylonjs/loaders/glTF";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import JSZip from "jszip";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { VANGUARD_ANIMATIONS, VANGUARD_MODEL, VANGUARD_ROOT } from "../animation/PlayerModelAssets";
 import { PlayerModelManager } from "../animation/PlayerModelManager";
+import { PK3Loader } from "../loader/pk3/PK3Loader";
 
 /**
  * Minimal skinned glTF with a Spine rotation clip; exercises the actual loader.
@@ -77,6 +80,55 @@ describe("player model loading in a shared scene", () => {
   afterEach(() => {
     scene.dispose();
     engine.dispose();
+  });
+
+  it("loads the default player and ghost from PK3 bytes, retaining independently owned clips", async () => {
+    const json = Buffer.from(modelAsset(3).slice("data:".length));
+    const length = Math.ceil(json.length / 4) * 4;
+    const glb = Buffer.alloc(20 + length, 32);
+    glb.writeUInt32LE(0x46546c67, 0);
+    glb.writeUInt32LE(2, 4);
+    glb.writeUInt32LE(glb.length, 8);
+    glb.writeUInt32LE(length, 12);
+    glb.writeUInt32LE(0x4e4f534a, 16);
+    glb.set(json, 20);
+    const glbBytes = new Uint8Array(glb.buffer, glb.byteOffset, glb.byteLength);
+    const zip = new JSZip();
+    zip.file(VANGUARD_ROOT + VANGUARD_MODEL, glbBytes);
+    for (const clip of VANGUARD_ANIMATIONS.filter((clip) => !clip.optional))
+      zip.file(VANGUARD_ROOT + clip.file, glbBytes);
+    const bytes = await zip.generateAsync({ type: "arraybuffer" });
+    const fetchMock = vi.fn(async () => new Response(bytes));
+    const loader = PK3Loader.getInstance();
+    loader.unloadAll();
+    loader.configure({ basePath: "data/", additionalPaths: [] });
+    vi.stubGlobal("fetch", fetchMock);
+    const players = new PlayerModelManager(scene);
+    const ghosts = new PlayerModelManager(scene);
+    try {
+      await Promise.all([
+        players.loadModel(),
+        ghosts.loadModel(undefined, undefined, [{ name: "idle", file: "rifle aiming idle.glb" }]),
+      ]);
+      expect(players.isLoaded).toBe(true);
+      expect(ghosts.isLoaded).toBe(true);
+      const player = players.createInstance("player")!;
+      const ghost = ghosts.createInstance("ghost")!;
+      expect(player.anims).toHaveLength(18);
+      expect(ghost.anims).toHaveLength(2);
+      players.playAnimation(player, "idle");
+      ghosts.playAnimation(ghost, "idle");
+      expect(player.anims[1].animations[0].target).not.toBe(ghost.anims[1].animations[0].target);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      ghosts.dispose();
+      expect(player.masterGroup!.isPlaying).toBe(true);
+      players.disposeInstance(player);
+    } finally {
+      players.dispose();
+      ghosts.dispose();
+      loader.unloadAll();
+      vi.unstubAllGlobals();
+    }
   });
 
   it("loading the teleport ghost manager leaves an existing player's animation alive", async () => {

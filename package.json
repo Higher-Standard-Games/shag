@@ -55,6 +55,7 @@
     "audit:pvs": "npx vite-node src/cli/audit-pvs.ts --",
     "audit:stuck": "npx vite-node src/cli/audit-stuck.ts --",
     "tools:convert": "npx vite-node src/cli/convert-fbx.ts --",
+    "tools:player-model": "node scripts/package-player-model.mjs",
     "tools:fbx2gltf": "npx vite-node scripts/download-fbx2gltf.ts",
     "tools:textures": "node scripts/convert-ktx2.js",
     "tools:textures:audit": "node scripts/convert-ktx2.js --dry-run",

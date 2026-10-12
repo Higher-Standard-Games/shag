@@ -5,6 +5,9 @@ SHAG reads Quake 3 and Warsow assets from PK3 archives through a shared virtual 
 ## Data location and index
 
 Game archives belong under `public/data/` and are intentionally excluded from Git.
+The Vanguard player model and animation GLBs are shipped in
+`player_model_vanguard.pk3`; see [packaged player models](model-loading.md#packaged-player-model)
+for rebuilding it from the unserved asset sources.
 The generator scans that directory and publishes two matched files: discovery
 in `pk3_manifest.json` and file/shader/map ownership in `pk3_index.json`.
 

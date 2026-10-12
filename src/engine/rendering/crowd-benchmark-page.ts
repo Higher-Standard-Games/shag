@@ -16,6 +16,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder";
 import { Scene } from "@babylonjs/core/scene";
 import { timedemoPercentiles } from "../../shared/benchmark/TimedemoFixture";
+import { readPlayerModelAsset } from "../animation/PlayerModelAssets";
 import { PlayerModelManager } from "../animation/PlayerModelManager";
 import { CrowdActors, type CrowdRecipe, crowdSchedule, validateCrowdRecipe } from "./CrowdBenchmark";
 import { PlayerOutlineProxy } from "./PlayerOutlineProxy";
@@ -260,9 +261,9 @@ async function run(): Promise<void> {
       recipe.model.root + recipe.animation.file,
       ...(recipe.outlineGeometry ? [proxyFile, `${proxyFile}.json`] : []),
     ]) {
-      const asset = await fetch(file);
-      if (!asset.ok) throw new Error(`Missing crowd asset ${file}`);
-      const hash = new Uint8Array(await crypto.subtle.digest("SHA-256", await asset.arrayBuffer()));
+      const bytes = await readPlayerModelAsset(file);
+      if (!bytes) throw new Error(`Missing crowd asset ${file}`);
+      const hash = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
       report.assets.push({ file, sha256: [...hash].map((n) => n.toString(16).padStart(2, "0")).join("") });
     }
     const requested = resolveRenderingBackend(false, location.search);

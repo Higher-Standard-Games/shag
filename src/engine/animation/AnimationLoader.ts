@@ -10,6 +10,7 @@ import type { Skeleton } from "@babylonjs/core/Bones/skeleton";
 import { ImportAnimationsAsync } from "@babylonjs/core/Loading/sceneLoader";
 import type { Scene } from "@babylonjs/core/scene";
 import "@babylonjs/loaders/glTF";
+import { resolvePlayerModelAsset, VANGUARD_ROOT } from "./PlayerModelAssets";
 
 /**
  * Animation clip metadata
@@ -23,7 +24,7 @@ export interface AnimationClipInfo {
 
 /**
  * Standard animation set for humanoid characters
- * Mapped to actual Mixamo filenames in public/games/default/animations/
+ * Mapped to Mixamo GLBs in player_model_vanguard.pk3.
  */
 export const STANDARD_ANIMATIONS: AnimationClipInfo[] = [
   { name: "idle", path: "rifle aiming idle.glb", loop: true, speed: 1.0 },
@@ -52,7 +53,7 @@ export class AnimationLoader {
   private static instance: AnimationLoader;
 
   private scene: Scene | null = null;
-  private animationsPath: string = "/games/default/animations/";
+  private animationsPath: string = VANGUARD_ROOT;
   private loadedAnimations: Map<string, AnimationGroup[]> = new Map();
   private loading: Map<string, Promise<AnimationGroup[]>> = new Map();
 
@@ -115,7 +116,10 @@ export class AnimationLoader {
     try {
       console.log(`[AnimationLoader] Loading animation: ${name} from ${fullPath}`);
 
-      await ImportAnimationsAsync(fullPath, this.scene!, {
+      const asset = await resolvePlayerModelAsset(this.animationsPath, filename);
+      if (!asset) return [];
+      await ImportAnimationsAsync(asset.source, this.scene!, {
+        ...asset.options,
         overwriteAnimations: false, // Don't overwrite existing animations
       });
 

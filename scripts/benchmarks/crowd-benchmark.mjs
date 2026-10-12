@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { spawn, execFileSync } from 'node:child_process';
+import JSZip from 'jszip';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -90,12 +91,20 @@ async function main() {
       !backends.length || new Set(backends).size !== backends.length || backends.some(b => !['webgl2', 'webgpu'].includes(b)) ||
       !counts.length || new Set(counts).size !== counts.length || counts.some(n => ![0, 2, 5, 10].includes(n))) throw new Error('Invalid crowd workload');
   const recipeFile = path.join(root, 'benchmarks/recipes/player-crowd-v1.json'), recipeBytes = await fs.readFile(recipeFile), recipe = JSON.parse(recipeBytes);
+  const playerRecipe = JSON.parse(await fs.readFile(path.join(root, 'config/player-model-vanguard.json'), 'utf8'));
+  const playerArchivePath = path.join(root, 'public/data', playerRecipe.package);
+  const playerZip = await JSZip.loadAsync(await fs.readFile(playerArchivePath));
   const assetFiles = [recipe.model.root + recipe.model.file, recipe.model.root + recipe.animation.file];
   if (options.outlineProxy) {
     recipe.outlineGeometry = ['full', 'proxy'];
     assetFiles.push('/data/benchmarks/outline-proxy/player-outline-proxy-v1.glb', '/data/benchmarks/outline-proxy/player-outline-proxy-v1.glb.json');
   }
-  const assets = await Promise.all(assetFiles.map(async file => ({ file, sha256: hash(await fs.readFile(path.join(root, 'public', file.slice(1)))) })));
+  const assets = await Promise.all(assetFiles.map(async file => {
+    const entry = file.startsWith(playerRecipe.root) ? playerZip.file(file) : null;
+    if (file.startsWith(playerRecipe.root) && !entry) throw new Error(`Crowd player asset missing from package: ${file}`);
+    const bytes = entry ? await entry.async('nodebuffer') : await fs.readFile(path.join(root, 'public', file.replace(/^\//, '')));
+    return { file, sha256: hash(bytes) };
+  }));
   const expectedRuns = counts.length * 2 * options.repeats * (options.outlineProxy ? 2 : 1);
   if (options.dryRun) { console.log(JSON.stringify({ options, recipe, assets, cases: backends.length * expectedRuns,
     mode: 'fixed crowd, fresh backend sessions; no CPU sampler, no game server or bot AI' }, null, 2)); return; }
@@ -109,11 +118,12 @@ async function main() {
     digest.update(git(['diff', '--binary', 'HEAD', '--', 'src', 'package.json', 'vite.config.ts'])).update(git(['diff', '--binary', 'HEAD'], fps));
     for (const file of git(['ls-files', '--others', '--exclude-standard', 'src']).split('\n').filter(f => /\.(ts|json)$/.test(f)))
       digest.update(file).update(readFileSync(path.join(root, file)));
-    for (const file of ['scripts/benchmarks/crowd-benchmark.mjs', 'benchmarks/crowd/index.html', 'benchmarks/recipes/player-crowd-v1.json'])
+    for (const file of ['scripts/benchmarks/crowd-benchmark.mjs', 'benchmarks/crowd/index.html', 'benchmarks/recipes/player-crowd-v1.json', 'config/player-model-vanguard.json'])
       digest.update(file).update(readFileSync(path.join(root, file)));
     if (options.outlineProxy) for (const file of ['scripts/benchmarks/build-outline-proxy.mjs', 'benchmarks/recipes/player-outline-proxy-v1.json'])
       digest.update(file).update(readFileSync(path.join(root, file)));
-    for (const file of assetFiles) digest.update(file).update(readFileSync(path.join(root, 'public', file.slice(1))));
+    for (const file of new Set(assetFiles.map(file => file.startsWith(playerRecipe.root) ? playerArchivePath : path.join(root, 'public', file.replace(/^\//, '')))))
+      digest.update(file).update(readFileSync(file));
     return { outer: git(['rev-parse', 'HEAD']), fps: git(['rev-parse', 'HEAD'], fps), fingerprint: digest.digest('hex') };
   };
   const { createServer } = await import('vite');

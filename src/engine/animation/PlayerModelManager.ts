@@ -32,6 +32,7 @@ import { devLog } from "../core/DevLog";
 import { disposeModelResources } from "../loader/model/ModelSourceCache";
 import { cloneModelMaterial } from "../rendering/MaterialCloneBatch";
 import { PlayerOutlineProxyRuntime } from "../rendering/PlayerOutlineProxyRuntime";
+import { resolvePlayerModelAsset, VANGUARD_ANIMATIONS, VANGUARD_MODEL, VANGUARD_ROOT } from "./PlayerModelAssets";
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -144,39 +145,14 @@ export interface PlayerModelVisualStyle {
 export interface AnimFileConfig {
   name: string;
   file: string;
+  optional?: boolean;
 }
 
 // ─── Default animation set ──────────────────────────────────────
 
-export const DEFAULT_ANIM_FILES: AnimFileConfig[] = [
-  { name: "idle", file: "rifle aiming idle.glb" },
-  { name: "run", file: "rifle run.glb" },
-  { name: "strafe_l", file: "strafe left.glb" },
-  { name: "strafe_r", file: "strafe right.glb" },
-  { name: "jump", file: "rifle jump.glb" },
-  { name: "walk", file: "walking.glb" },
-  { name: "reload", file: "reloading.glb" },
-  { name: "blade_slash", file: "blade_slash.glb" },
-  { name: "slide", file: "slide.glb" },
-  { name: "crouch_walk", file: "crouch_walk_forward.glb" },
-  { name: "crouch_walk_back", file: "crouch_walk_backward.glb" },
-  { name: "crouch_strafe_l", file: "crouch_walk_left.glb" },
-  { name: "crouch_strafe_r", file: "crouch_walk_right.glb" },
-  { name: "walljump", file: "wallrun.glb" },
-  // Swimming. The moving clip lays the body flat; the idle one treads upright.
-  // The hull follows suit — see RemotePlayerRenderer and the swim hull in
-  // MovementProfile — so the two must stay paired.
-  { name: "swim", file: "swimming.glb" },
-  { name: "swim_idle", file: "swimming_idle.glb" },
-  { name: "climb", file: "climbing_ladder.glb" },
-  // Victory dances (post-game winner showcase) — Mixamo dance clips exported
-  // as GLB into public/games/default/animations/. Missing files are tolerated
-  // (per-file try/catch above; playAnimation falls back to idle), so ship as
-  // many or as few as are downloaded.
-  { name: "dance_1", file: "dance_1.glb" },
-  { name: "dance_2", file: "dance_2.glb" },
-  { name: "dance_3", file: "dance_3.glb" },
-];
+// Shared with the package builder. Missing optional victory dances fall back
+// to idle without HTTP errors or re-downloading the archive for every clip.
+export const DEFAULT_ANIM_FILES: AnimFileConfig[] = VANGUARD_ANIMATIONS;
 
 /** Victory-dance pool for the post-game winner showcase (random pick). */
 export const DANCE_ANIMS = ["dance_1", "dance_2", "dance_3"];
@@ -196,7 +172,7 @@ export class PlayerModelManager {
   private disposed = false;
   private loadPromise: Promise<void> | null = null;
   private sourceContainer: AssetContainer | null = null;
-  private modelUrl = "/games/default/animations/vanguard.glb";
+  private modelUrl = VANGUARD_ROOT + VANGUARD_MODEL;
   private outlineProxyWanted = false;
   private outlineRuntime?: PlayerOutlineProxyRuntime;
   private readonly instances = new Map<PlayerModelInstance, ReturnType<Mesh["onDisposeObservable"]["add"]>>();
@@ -217,8 +193,8 @@ export class PlayerModelManager {
    * Idempotent — calling multiple times is safe; only loads once.
    */
   loadModel(
-    modelPath: string = "/games/default/animations/",
-    modelFile: string = "vanguard.glb",
+    modelPath: string = VANGUARD_ROOT,
+    modelFile: string = VANGUARD_MODEL,
     animFiles: AnimFileConfig[] = DEFAULT_ANIM_FILES,
   ): Promise<void> {
     if (this.disposed || this.loaded) return Promise.resolve();
@@ -235,8 +211,10 @@ export class PlayerModelManager {
       // Keep both model and clip imports out of the live scene. ImportAnimationsAsync
       // defaults to Clean even with overwriteAnimations:false, destroying OTHER
       // managers' animation groups (e.g. players when the teleport pool loads).
-      const options = { rootUrl: modelPath, pluginOptions: { gltf: { animationStartMode: 0 } } };
-      container = await LoadAssetContainerAsync(modelFile, this.scene, options);
+      const model = await resolvePlayerModelAsset(modelPath, modelFile);
+      if (!model || this.disposed) return;
+      const pluginOptions = { gltf: { animationStartMode: 0 } };
+      container = await LoadAssetContainerAsync(model.source, this.scene, { ...model.options, pluginOptions });
       if (this.disposed) return;
       // One skeleton per SKIN, and an exporter emits a skin per skinned submesh:
       // vanguard.glb ships three over one 65-joint rig. They share the joint
@@ -259,7 +237,9 @@ export class PlayerModelManager {
       for (const anim of animFiles) {
         let clip: AssetContainer | null = null;
         try {
-          clip = await LoadAssetContainerAsync(anim.file, this.scene, options);
+          const asset = await resolvePlayerModelAsset(modelPath, anim.file, anim.optional);
+          if (!asset || this.disposed) continue;
+          clip = await LoadAssetContainerAsync(asset.source, this.scene, { ...asset.options, pluginOptions });
           if (this.disposed) return;
           if (!clip.animationGroups[0]) throw new Error(`No animation group in ${anim.file}`);
           this.storeAnimation(container, clip.animationGroups[0], anim.name, boneMap);

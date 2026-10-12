@@ -20,10 +20,12 @@ import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Scene } from "@babylonjs/core/scene";
+import { VANGUARD_MODEL, VANGUARD_ROOT } from "../engine/animation/PlayerModelAssets";
 import { fail } from "../engine/console/Command";
 // Static imports for command system
 import { registerEngineCommands } from "../engine/console/commands";
 import type { EngineConfig } from "../engine/core/GamePaths";
+import { PK3Loader } from "../engine/loader/pk3/PK3Loader";
 import { formatPreflight, preflightGameAssets, resolveGameAssetDir } from "./_assetPreflight";
 import { runCli } from "./_runCli";
 
@@ -590,21 +592,15 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
 
     if (sub === "inspect") {
       const fileName = args[1];
-      const animDir = path.join(process.cwd(), "public/games/default/animations");
+      const loader = PK3Loader.getInstance();
 
       // Determine files to inspect
       let files: string[];
       if (!fileName || fileName === "all") {
-        if (!fs.existsSync(animDir)) {
-          return `Animation directory not found: ${animDir}`;
-        }
-        files = fs
-          .readdirSync(animDir)
-          .filter((f) => f.endsWith(".glb"))
-          .map((f) => path.join(animDir, f));
+        files = loader.listFiles().filter((file) => file.startsWith(VANGUARD_ROOT) && file.endsWith(".glb"));
       } else {
-        const fullPath = fileName.includes("/") || fileName.includes("\\") ? fileName : path.join(animDir, fileName);
-        if (!fs.existsSync(fullPath)) {
+        const fullPath = fileName.includes("/") || fileName.includes("\\") ? fileName : VANGUARD_ROOT + fileName;
+        if (!loader.hasFile(fullPath) && !fs.existsSync(fullPath)) {
           return `File not found: ${fullPath}`;
         }
         files = [fullPath];
@@ -622,10 +618,9 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
       const inspectScene = new Scene(inspectEngine);
 
       // Try loading the model first for bone names
-      const modelPath = path.join(animDir, "vanguard.glb");
-      if (fs.existsSync(modelPath)) {
+      const modelBuf = await loader.getFile(VANGUARD_ROOT + VANGUARD_MODEL);
+      if (modelBuf) {
         try {
-          const modelBuf = fs.readFileSync(modelPath);
           const modelB64 = Buffer.from(new Uint8Array(modelBuf)).toString("base64");
           await ImportMeshAsync(`data:;base64,${modelB64}`, inspectScene, { pluginExtension: ".glb" });
           // Stop embedded animations
@@ -643,7 +638,8 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
 
       for (const file of files) {
         try {
-          const buf = fs.readFileSync(file);
+          const buf = loader.hasFile(file) ? await loader.getFile(file) : fs.readFileSync(file);
+          if (!buf) throw new Error(`Player asset missing: ${file}`);
           const b64 = Buffer.from(new Uint8Array(buf)).toString("base64");
           await ImportAnimationsAsync(`data:;base64,${b64}`, inspectScene, {
             overwriteAnimations: false,
@@ -696,10 +692,9 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
 
     if (sub === "bones") {
       // List skeleton bones from model
-      const animDir = path.join(process.cwd(), "public/games/default/animations");
-      const modelPath = path.join(animDir, "vanguard.glb");
-      if (!fs.existsSync(modelPath)) {
-        return "Model not found: vanguard.glb";
+      const modelBuf = await PK3Loader.getInstance().getFile(VANGUARD_ROOT + VANGUARD_MODEL);
+      if (!modelBuf) {
+        return "Model not found in player_model_vanguard.pk3";
       }
 
       const { NullEngine } = await import("@babylonjs/core/Engines/nullEngine");
@@ -710,7 +705,6 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
       const inspectEngine = new NullEngine();
       const inspectScene = new Scene(inspectEngine);
 
-      const modelBuf = fs.readFileSync(modelPath);
       const modelB64 = Buffer.from(new Uint8Array(modelBuf)).toString("base64");
       const result = await ImportMeshAsync(`data:;base64,${modelB64}`, inspectScene, { pluginExtension: ".glb" });
 

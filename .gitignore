@@ -75,6 +75,7 @@ release/
 *.wasm
 public/games/
 public/data/
+assets-source/
 server-data/shagged/
 temp/
 

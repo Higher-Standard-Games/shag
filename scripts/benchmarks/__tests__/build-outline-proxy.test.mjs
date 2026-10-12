@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
-import { reduceOutlineGeometry, rigIdentity, preserveNodeTransforms } from '../build-outline-proxy.mjs';
+import { reduceOutlineGeometry, rigIdentity, preserveNodeTransforms, readProxySource } from '../build-outline-proxy.mjs';
 
 test('outline simplification preserves the real rig and retained skin/normal tuples and regenerates deterministically', async t => {
-  const source = new URL('../../../public/games/default/animations/vanguard.glb', import.meta.url);
-  let bytes; try { bytes = await fs.readFile(source); } catch (e) { if (e.code === 'ENOENT') { t.skip('Optional local Vanguard asset unavailable'); return; } throw e; }
+  const sourceRecipe = JSON.parse(await fs.readFile(new URL('../../../benchmarks/recipes/player-outline-proxy-v1.json', import.meta.url), 'utf8'));
+  let bytes; try { bytes = await readProxySource(sourceRecipe); } catch (e) { if (e.code === 'ENOENT') { t.skip('Optional local Vanguard package unavailable'); return; } throw e; }
   const io = new NodeIO().registerExtensions(ALL_EXTENSIONS), recipe = { ratio: .25, error: .01, lockBorder: false };
   const regenerate = async () => {
     const d = await io.readBinary(bytes), before = rigIdentity(d), inventory = await reduceOutlineGeometry(d, recipe);

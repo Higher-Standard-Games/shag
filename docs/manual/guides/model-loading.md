@@ -2,6 +2,45 @@
 
 `ModelLoader` loads glTF/GLB and integrates PK3/MD3 paths used by the engine. Use `spawnmodel` for browser inspection.
 
+## Packaged player model
+
+Live players, bots, demo playback and teleport ghosts use `PlayerModelManager`
+with the embedded GLBs in `public/data/player_model_vanguard.pk3`. Its virtual
+root is `models/players/vanguard/`; that is a PK3 entry prefix, not a loose HTTP
+directory. The archive is fetched lazily through the regular mirror-aware PK3
+loader, once for concurrent imports, and the GLB bytes are passed to Babylon.
+Each manager still owns its containers, skeletons and animation groups.
+
+The shared recipe is `config/player-model-vanguard.json`. Original FBX files,
+conversion intermediates and the exported GLBs live in the ignored, unserved
+`assets-source/players/vanguard/` directory. The package and source media are
+external assets and must be copied separately from a clean Git checkout.
+
+```bash
+# Optional: convert updated FBX sources first.
+npm run tools:convert -- --all
+# Package all exported GLBs, validating the required model/clips.
+npm run tools:player-model
+# Publish archive discovery after changing packages (also runs before build).
+npm run tools:pk3-index
+```
+
+The builder accepts `--source-dir <directory>` for an alternate export folder,
+validates that GLBs embed their image/buffer dependencies, and excludes FBX,
+PNG/BIN export trees and other authoring files. Fixed ZIP timestamps and sorted
+entries make unchanged inputs reproduce the same package. The package includes
+`models/players/vanguard/manifest.json` with hashes and available clip metadata.
+Missing optional victory dances are skipped; required clips must exist when
+building the package. Standard builds consume an existing package and do not
+require the authoring directory.
+
+Headless `anim bones` and `anim inspect [file|all]` inspect the packaged GLBs.
+Browser `developer 1; animtest load` uses the same package. Explicit custom URL
+or data-source arguments to `PlayerModelManager.loadModel()` remain available.
+The optional outline proxy stays a separate loose pair; its build recipe now
+extracts its model source from this package, and benchmark hashes cover the
+packaged player inputs.
+
 ## Developer command
 
 ```text

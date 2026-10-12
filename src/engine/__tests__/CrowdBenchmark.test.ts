@@ -32,6 +32,7 @@ describe("fixed player crowd benchmark", () => {
     ]);
     expect(JSON.stringify(recipe)).toBe(before);
     for (const change of [
+      { model: { ...recipe.model, root: "models/players/unknown/" } },
       { counts: [11] },
       { counts: [5, 5] },
       { repeats: 0 },

@@ -2,6 +2,7 @@ import { Color3 } from "@babylonjs/core/Maths/math.color";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { Scene } from "@babylonjs/core/scene";
+import { VANGUARD_ROOT } from "../animation/PlayerModelAssets";
 import { type PlayerModelInstance, type PlayerModelManager, wrapFrame } from "../animation/PlayerModelManager";
 
 export interface CrowdRecipe {
@@ -29,7 +30,7 @@ export function validateCrowdRecipe(value: unknown): asserts value is CrowdRecip
     !r ||
     r.schemaVersion !== 1 ||
     !/^[a-z0-9-]+$/.test(r.id) ||
-    !r.model?.root?.startsWith("/games/") ||
+    (r.model?.root !== VANGUARD_ROOT && !r.model?.root?.startsWith("/games/")) ||
     !/^[\w-]+\.glb$/.test(r.model.file) ||
     !Number.isFinite(r.model.scale) ||
     r.model.scale <= 0 ||

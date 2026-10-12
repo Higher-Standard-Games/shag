@@ -1,0 +1,28 @@
+{
+  "package": "player_model_vanguard.pk3",
+  "root": "models/players/vanguard/",
+  "sourceDir": "assets-source/players/vanguard",
+  "model": "vanguard.glb",
+  "animations": [
+    { "name": "idle", "file": "rifle aiming idle.glb" },
+    { "name": "run", "file": "rifle run.glb" },
+    { "name": "strafe_l", "file": "strafe left.glb" },
+    { "name": "strafe_r", "file": "strafe right.glb" },
+    { "name": "jump", "file": "rifle jump.glb" },
+    { "name": "walk", "file": "walking.glb" },
+    { "name": "reload", "file": "reloading.glb" },
+    { "name": "blade_slash", "file": "blade_slash.glb" },
+    { "name": "slide", "file": "slide.glb" },
+    { "name": "crouch_walk", "file": "crouch_walk_forward.glb" },
+    { "name": "crouch_walk_back", "file": "crouch_walk_backward.glb" },
+    { "name": "crouch_strafe_l", "file": "crouch_walk_left.glb" },
+    { "name": "crouch_strafe_r", "file": "crouch_walk_right.glb" },
+    { "name": "walljump", "file": "wallrun.glb" },
+    { "name": "swim", "file": "swimming.glb" },
+    { "name": "swim_idle", "file": "swimming_idle.glb" },
+    { "name": "climb", "file": "climbing_ladder.glb" },
+    { "name": "dance_1", "file": "dance_1.glb", "optional": true },
+    { "name": "dance_2", "file": "dance_2.glb", "optional": true },
+    { "name": "dance_3", "file": "dance_3.glb", "optional": true }
+  ]
+}

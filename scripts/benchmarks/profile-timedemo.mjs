@@ -69,11 +69,16 @@ function sourceIdentity() {
     for (const file of git(args, cwd).split('\n').filter(file => /\.(tsx?|json)$/.test(file)))
       digest.update(cwd + '/' + file).update(readFileSync(path.join(cwd, file)));
   }
-  if (fixture.profile.requiredCvars.cl_player_outline_proxy !== undefined) for (const file of [
-    'public/games/default/animations/vanguard.glb',
+  const playerRecipePath = 'config/player-model-vanguard.json';
+  const playerRecipeBytes = readFileSync(path.join(root, playerRecipePath));
+  const playerRecipe = JSON.parse(playerRecipeBytes);
+  digest.update(playerRecipePath).update(playerRecipeBytes);
+  const playerAssets = [`public/data/${playerRecipe.package}`];
+  if (fixture.profile.requiredCvars.cl_player_outline_proxy !== undefined) playerAssets.push(
     'public/data/benchmarks/outline-proxy/player-outline-proxy-v1.glb',
     'public/data/benchmarks/outline-proxy/player-outline-proxy-v1.glb.json',
-  ]) digest.update(file).update(readFileSync(path.join(root, file)));
+  );
+  for (const file of playerAssets) digest.update(file).update(readFileSync(path.join(root, file)));
   return { outer: git(['rev-parse', 'HEAD']), fps: git(['rev-parse', 'HEAD'], fps),
     sourceChangeSha256: digest.digest('hex'),
     dirty: git(['status', '--short']), fpsDirty: git(['status', '--short'], fps) };

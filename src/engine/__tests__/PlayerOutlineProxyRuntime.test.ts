@@ -10,8 +10,11 @@ import { Matrix } from "@babylonjs/core/Maths/math.vector";
 import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import { Scene } from "@babylonjs/core/scene";
+import JSZip from "jszip";
 import { afterEach, expect, it, vi } from "vitest";
+import { VANGUARD_MODEL, VANGUARD_ROOT } from "../animation/PlayerModelAssets";
 import { disposePlayerModel, PlayerModelManager } from "../animation/PlayerModelManager";
+import { PK3Loader } from "../loader/pk3/PK3Loader";
 import { PlayerOutlineProxyRuntime } from "../rendering/PlayerOutlineProxyRuntime";
 
 vi.mock("@babylonjs/core/Loading/sceneLoader", async (original) => ({
@@ -19,6 +22,7 @@ vi.mock("@babylonjs/core/Loading/sceneLoader", async (original) => ({
   LoadAssetContainerAsync: vi.fn(),
 }));
 afterEach(() => {
+  PK3Loader.getInstance().unloadAll();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -52,11 +56,20 @@ async function assets(scene: Scene) {
   const hash = [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))]
     .map((v) => v.toString(16).padStart(2, "0"))
     .join("");
+  const zip = new JSZip();
+  zip.file(VANGUARD_ROOT + VANGUARD_MODEL, bytes);
+  const packageBytes = await zip.generateAsync({ type: "arraybuffer" });
   vi.stubGlobal(
     "fetch",
     vi.fn(
       async (url: string) =>
-        new Response(url.endsWith(".json") ? JSON.stringify({ sourceSha256: hash, proxySha256: hash }) : bytes),
+        new Response(
+          url.endsWith(".pk3")
+            ? packageBytes
+            : url.endsWith(".json")
+              ? JSON.stringify({ sourceSha256: hash, proxySha256: hash })
+              : bytes,
+        ),
     ),
   );
   const proxy = model(scene);
