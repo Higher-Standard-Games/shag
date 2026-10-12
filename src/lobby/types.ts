@@ -373,12 +373,20 @@ export interface WelcomeMessage extends LobbyMessage {
   recentDemos: DemoInfo[];
 }
 
-export type AuthErrorCode = "unknown_key" | "rate_limited" | "already_authenticated";
+export type AuthErrorCode = "unknown_key" | "rate_limited" | "already_authenticated" | "lobby_full";
 
-/** Login failed; the connection stays open and may send `auth` again. */
+/**
+ * Login failed; the connection stays open and may send `auth` again, except
+ * after `lobby_full`, when the lobby closes it.
+ */
 export interface AuthErrorMessage extends LobbyMessage {
   type: "auth:error";
   code: AuthErrorCode;
+  /** `lobby_full`: players online, and the most the lobby takes. */
+  online?: number;
+  maxPlayers?: number;
+  /** `lobby_full`: seconds to wait before trying again. */
+  retryAfterSec?: number;
 }
 
 export interface IdentityRenamedMessage extends LobbyMessage {

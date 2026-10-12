@@ -34,6 +34,35 @@ browser opens the same account.
 The design, including what a lost key means, is in
 `docs/research/PLAYER_IDENTITY.md`.
 
+## Player cap
+
+The lobby takes at most 64 players online at once. A player over the cap is
+told so at login, before an account is opened or created, and disconnected:
+
+```bash
+npm run lobby:server -- --max-players 40     # or SHAG_LOBBY_MAX_PLAYERS=40
+npm run lobby:server -- --max-players 0      # no cap
+```
+
+- **Who counts:** connections that have logged in. Bots don't count and are
+  never turned away; connections still logging in don't count.
+- **The answer** is `auth:error` with code `lobby_full`, the number online, the
+  cap, and `retryAfterSec` (60), then close code 4008.
+- **Coming back:** an account that disconnected within the last minute gets back
+  in over the cap, once. "Return to lobby" reloads the page, and the slot it
+  frees must not go to someone else in between. The lobby can briefly hold a
+  few more than the cap because of this.
+- **In the browser** a "Servers are full" card sits over the lobby chat, which
+  is closed meanwhile. It counts down to the next try, the lobby's wait give or
+  take ten seconds so the players turned away don't all return at once, and
+  has a **Try now** key. Settings, demos and the rest of the menu still work.
+  The Find key reads "Servers full".
+
+The cap is per lobby, so per region. It counts players, not matches: a player
+waiting in the lobby costs next to nothing, and what fills a server's memory
+is running matches. Size it from the capacity matrix in the deployment notes.
+The lobby logs its cap at start and every player it turns away.
+
 ## Rooms
 
 A room is one gametype, one map vote and up to that gametype's player count.

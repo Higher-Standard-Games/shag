@@ -161,6 +161,18 @@ export function clientAddress(req: IncomingMessage): string {
 const ACCOUNT_CREATION_LIMIT = { limit: 30, windowMs: 60 * 60_000 };
 const KEY_FAILURE_LIMIT = { limit: 20, windowMs: 60_000 };
 const RENAME_LIMIT = { limit: 10, windowMs: 60_000 };
+/** Players online at once when the operator sets no cap. Bots don't count. */
+export const DEFAULT_MAX_PLAYERS = 64;
+/** How long a player turned away at the cap waits before the client tries again. */
+const LOBBY_FULL_RETRY_SEC = 60;
+/**
+ * An account that disconnected this recently gets back in over the cap:
+ * "Return to lobby" reloads the page, and the slot it frees must not go to
+ * someone else in between.
+ */
+const RETURN_GRACE_MS = 60_000;
+/** WebSocket close code after a `lobby_full` answer. */
+export const LOBBY_FULL_CLOSE_CODE = 4008;
 
 /**
  * Bot Intelligence Server (BIS) control API URL. The lobby relays
@@ -190,6 +202,8 @@ export interface LobbyServerOptions {
   players?: PlayerStore;
   /** Durable results; omitted in ephemeral test/dev lobbies. */
   results?: MatchResultStore;
+  /** Players online at once; 0 for no cap. Default DEFAULT_MAX_PLAYERS. */
+  maxPlayers?: number;
 }
 
 /** Shape of config/maps.json */
@@ -448,6 +462,9 @@ export class LobbyServer {
   private readonly leaderboardReads = new RateLimiter(60, 60_000);
   private readonly featuredReads = new RateLimiter(60, 60_000);
   private readonly resultDiagnostics = new ResultDiagnostics();
+  private readonly maxPlayers: number;
+  /** Account id → when it disconnected, for RETURN_GRACE_MS. */
+  private readonly recentlyLeft = new Map<number, number>();
 
   constructor(
     port: number = 9000,
@@ -461,6 +478,7 @@ export class LobbyServer {
     this.ownsAccounts = !options.players;
     this.accounts = options.players ?? new PlayerStore(":memory:");
     this.results = options.results;
+    this.maxPlayers = options.maxPlayers ?? DEFAULT_MAX_PLAYERS;
     if (this.results) this.spawner.setResultDelivery(this.results.deliveries);
 
     // Handle game server exits
@@ -490,6 +508,7 @@ export class LobbyServer {
         const address = this.wss!.address();
         if (typeof address === "object" && address) this.port = address.port;
         console.log(`[LobbyServer] Ready on ws://localhost:${this.port}`);
+        console.log(`[LobbyServer] Players online at most: ${this.maxPlayers > 0 ? this.maxPlayers : "no cap"}`);
         console.log(
           `[LobbyServer] Result storage: ${JSON.stringify(this.results?.statistics() ?? { status: "unavailable" })}`,
         );
@@ -594,6 +613,9 @@ export class LobbyServer {
     }
 
     this.players.delete(player.id);
+    if (player.authenticated && !player.isBot && player.accountId !== null) {
+      this.recentlyLeft.set(player.accountId, Date.now());
+    }
 
     // Broadcast to others
     if (player.authenticated) {
@@ -722,12 +744,14 @@ export class LobbyServer {
         this.send(player, { type: "auth:error", code: "unknown_key" });
         return;
       }
+      if (this.refuseWhenFull(player, account.id)) return;
       player.accountId = account.id;
       player.name = account.name;
       this.completeAuth(player, {});
       return;
     }
 
+    if (this.refuseWhenFull(player, null)) return;
     if (!this.accountCreations.tryRecord(player.address)) {
       this.send(player, { type: "auth:error", code: "rate_limited" });
       return;
@@ -766,6 +790,38 @@ export class LobbyServer {
     const record = lobby.activeMatchId ? this.matchRecords.get(lobby.activeMatchId) : undefined;
     if (record) record.botReferenceChanged = true;
     if (lobby.activeMatchId) this.results?.deliveries.markBotReferenceChanged(lobby.activeMatchId);
+  }
+
+  /** Players online now: logged-in connections that are not bots. */
+  private onlinePlayerCount(): number {
+    let count = 0;
+    for (const p of this.players.values()) if (p.authenticated && !p.isBot) count++;
+    return count;
+  }
+
+  /**
+   * At the cap, answer `lobby_full` and close the connection. An account that
+   * left within RETURN_GRACE_MS gets back in regardless.
+   */
+  private refuseWhenFull(player: ConnectedPlayer, accountId: number | null): boolean {
+    if (this.maxPlayers <= 0) return false;
+    const now = Date.now();
+    for (const [id, leftAt] of this.recentlyLeft) {
+      if (now - leftAt > RETURN_GRACE_MS) this.recentlyLeft.delete(id);
+    }
+    if (accountId !== null && this.recentlyLeft.delete(accountId)) return false;
+    const online = this.onlinePlayerCount();
+    if (online < this.maxPlayers) return false;
+    console.log(`[LobbyServer] Lobby full (${online}/${this.maxPlayers}): turned away ${player.id}`);
+    this.send(player, {
+      type: "auth:error",
+      code: "lobby_full",
+      online,
+      maxPlayers: this.maxPlayers,
+      retryAfterSec: LOBBY_FULL_RETRY_SEC,
+    });
+    player.ws.close(LOBBY_FULL_CLOSE_CODE, "Lobby full");
+    return true;
   }
 
   /** Logged in: send the welcome, and tell everyone else. */

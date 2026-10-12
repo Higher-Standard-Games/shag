@@ -7,9 +7,10 @@
  *   npm run lobby:server
  *   npm run lobby:server -- --port 9001
  *   npm run lobby:server -- --data-dir /srv/washoi
+ *   npm run lobby:server -- --max-players 64
  */
 
-import { LobbyServer } from "../lobby/LobbyServer";
+import { DEFAULT_MAX_PLAYERS, LobbyServer } from "../lobby/LobbyServer";
 import { MatchResultStore } from "../lobby/MatchResultStore";
 import { PlayerStore } from "../lobby/PlayerStore";
 import { RatingStore } from "../lobby/RatingStore";
@@ -19,6 +20,7 @@ import { loadBotSecret, resolveDataDir } from "../lobby/ServerData";
 const args = process.argv.slice(2);
 let port = 9000;
 let dataDirArg: string | undefined;
+let maxPlayersArg: string | undefined = process.env.SHAG_LOBBY_MAX_PLAYERS;
 let resultsInfo = false;
 let ratingsInfo = false;
 let ratingsVerify = false;
@@ -40,6 +42,10 @@ for (let i = 0; i < args.length; i++) {
     dataDirArg = args[i + 1];
     i++;
   }
+  if (args[i] === "--max-players" && args[i + 1]) {
+    maxPlayersArg = args[i + 1];
+    i++;
+  }
   if (args[i] === "--help" || args[i] === "-h") {
     console.log(`
 Washoi Lobby Server
@@ -52,6 +58,9 @@ Options:
   --data-dir <dir>    Server data directory: player accounts (players.db) and
                       the secret shared with the bot server
                       (default: SERVER_DATA_DIR, else ./server-data)
+  --max-players <n>   Players online at once, bots not counted; 0 for no cap.
+                      Players over it are told to try again later.
+                      (default: SHAG_LOBBY_MAX_PLAYERS, else ${DEFAULT_MAX_PLAYERS})
   --help, -h          Show this help
   --results-info     Read result counts/latest result without starting or changing the server
   --ratings-info     Read ranking journal counts and processing reasons without changing storage
@@ -107,10 +116,16 @@ console.log();
 const dataDir = resolveDataDir(dataDirArg);
 const players = PlayerStore.open(dataDir);
 const results = MatchResultStore.open(dataDir);
+const maxPlayers = maxPlayersArg === undefined || maxPlayersArg === "" ? DEFAULT_MAX_PLAYERS : Number(maxPlayersArg);
+if (!Number.isInteger(maxPlayers) || maxPlayers < 0) {
+  console.error(`--max-players must be a whole number, 0 for no cap (got "${maxPlayersArg}").`);
+  process.exit(1);
+}
 const server = new LobbyServer(port, undefined, {
   botSecret: loadBotSecret(dataDir),
   players,
   results,
+  maxPlayers,
 });
 console.log(`  Data directory: ${dataDir}`);
 

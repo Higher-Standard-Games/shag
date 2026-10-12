@@ -74,6 +74,7 @@ Copy and review `.env.example`, which lists every variable below.
 | `BOT_SERVER_URL` | lobby | Bot control socket the lobby asks for bots |
 | `LOBBY_BOT_CONNECT_URL` | lobby | Lobby URL a spawned bot connects back to |
 | `SHAG_SPAWN_TIMEOUT_MS` | lobby | How long to wait for a spawned server to report ready (default 45s, clamped to 5s–5min) |
+| `SHAG_LOBBY_MAX_PLAYERS` | lobby | Players online at once, bots not counted; `0` for no cap (default 64). `--max-players` wins over it |
 | `SHAG_MATCH_ADMISSION` / `SHAG_MATCH_RESULT_SECRET` | spawned server | That match's seat manifest, and the secret its result line is signed with; the lobby sets both per match |
 | `SHAG_TIMELIMIT` / `SHAG_WARMUP` / `SHAG_SCORELIMIT` | game server | Match rule overrides; a bare number is minutes for the time limit and seconds for warmup, and either takes an `s`/`m` suffix |
 | `SHAG_GAME_CERT_PATH` / `SHAG_GAME_KEY_PATH` | spawned server | TLS files for a direct `wss://` socket |

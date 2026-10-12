@@ -49,9 +49,18 @@ export function renameFailureText(code: RenameFailure): string {
 
 /** Login failed with an answer from the lobby, as opposed to a lost connection. */
 export class LoginError extends Error {
-  constructor(readonly code: AuthErrorCode) {
+  constructor(
+    readonly code: AuthErrorCode,
+    /** `lobby_full`: seconds the lobby asks the client to wait before trying again. */
+    readonly retryAfterSec?: number,
+  ) {
     super(`Lobby refused the login: ${code}`);
   }
+}
+
+/** The lobby's answer as a LoginError. */
+function refused(answer: AuthErrorMessage): LoginError {
+  return new LoginError(answer.code, answer.retryAfterSec);
 }
 
 let identity: PlayerIdentityInfo | null = null;
@@ -159,13 +168,13 @@ export async function logIn(client: LobbyClient): Promise<WelcomeMessage> {
       if (answer.identity) adopt(answer.identity);
       return answer;
     }
-    if (answer.code !== "unknown_key") throw new LoginError(answer.code);
+    if (answer.code !== "unknown_key") throw refused(answer);
     writeStorage(UNKNOWN_KEY_STORAGE, key);
     writeStorage(KEY_STORAGE, null);
   }
 
   const answer = await sendAuth(client, undefined);
-  if (answer.type !== "welcome") throw new LoginError(answer.code);
+  if (answer.type !== "welcome") throw refused(answer);
   if (answer.key) writeStorage(KEY_STORAGE, answer.key);
 
   const earlierName = PlayerProfile.load().name;
@@ -189,7 +198,7 @@ export async function restoreAccount(client: LobbyClient, pastedKey: string): Pr
   const key = normalizeKey(pastedKey);
   if (!key) throw new LoginError("unknown_key");
   const answer = await sendAuth(client, key);
-  if (answer.type !== "welcome") throw new LoginError(answer.code);
+  if (answer.type !== "welcome") throw refused(answer);
   attach(client);
   newAccount = false;
   writeStorage(KEY_STORAGE, key);

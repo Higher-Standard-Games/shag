@@ -60,6 +60,7 @@ function connectTo(server: any, address = "198.51.100.20"): { client: LobbyClien
           const msg = JSON.parse(data);
           for (const handler of handlers.get(msg.type) ?? []) handler(msg);
         }),
+      close: vi.fn(),
     },
     name: "",
     status: "online",
@@ -194,6 +195,23 @@ describe("AccountSession.logIn", () => {
     }
     vi.stubGlobal("localStorage", memoryStorage());
     await expect(logIn(connectTo(server, "203.0.113.30").client)).rejects.toEqual(new LoginError("rate_limited"));
+  });
+
+  it("rejects a full lobby with its wait, and keeps the stored key for the next try", async () => {
+    const server = makeServer();
+    await logIn(connectTo(server).client);
+    vi.stubGlobal("localStorage", memoryStorage());
+    await logIn(connectTo(server, "198.51.100.21").client);
+    const key = storedPlayerKey();
+
+    // Full: the same browser in another tab is turned away
+    server.maxPlayers = 2;
+    const error = await logIn(connectTo(server, "198.51.100.21").client).catch((err) => err);
+    expect(error).toBeInstanceOf(LoginError);
+    expect(error.code).toBe("lobby_full");
+    expect(error.retryAfterSec).toBe(60);
+    expect(storedPlayerKey()).toBe(key);
+    expect(unknownPlayerKey()).toBeNull();
   });
 });
 
