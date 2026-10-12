@@ -88,6 +88,36 @@ Map ambience is client-only (`AmbientEntityHandlers.ts`) and ends with the map:
   2 reverses. A model built with an origin brush turns about its `origin`. One
   with a `targetname` stands still unless START_ON (1) is set.
 
+### World fog
+
+Warfork maps set atmospheric fog in worldspawn (`fog`, `fog_height`, `fog_sun`,
+`fog_sky`, each also with a leading `_`); `WorldFog.ts` reads them as Warfork
+does and `WorldFogController` draws them. The format, the math and the design
+are in `docs/research/fog_worldspawn.md`. In short:
+
+- `fog "fog_dist r g b [mindist]"`: about 95% opaque at `fog_dist` (density
+  `3 / fog_dist`), clear inside `mindist`.
+- Babylon's EXP fog carries it to every material (with a one-line shader
+  patch so EXP fog starts at `fogStart`); `AtmosphericFogPlugin` draws the full
+  Warfork fog on Standard and PBR materials: additive surfaces fade to black,
+  filters toward white, the sky at its shader's height, the height band, sun
+  glow and sky tint.
+- BSP Z is engine Y: heights become Y and the sun direction swaps its last two
+  components.
+- Fog volumes, the underwater view and weather fog borrow the scene fog and
+  hand it back (`suspend` / `resume`).
+- A shader with `nofog` keeps world fog off its surfaces.
+
+### Sky portals
+
+`misc_skyportal` (or `props_skyportal`) makes the sky show the map seen from the
+portal's origin (`SkyPortal.ts`): the portal camera takes the player's view
+angles (plus `angles` as rotation speeds), the `fov` override and the `scale`
+offset from the world centre, with its own PVS, and renders into a screen-sized
+target drawn behind the main view; the sky meshes move to a layer only that
+camera sees. `noents` leaves entities out. World fog inside the portal is
+scaled as Warfork scales it.
+
 A map logs the classnames it has no client handler for in one line,
 `No client handler for: …`, leaving out markers that need none.
 

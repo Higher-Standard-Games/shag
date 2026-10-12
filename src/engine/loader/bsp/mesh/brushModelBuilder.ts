@@ -150,6 +150,8 @@ export async function buildBrushModel(
 
       const pathsToTry: string[] = [];
       const shader = shaderRegistry.getShader(texName);
+      // `nofog` keeps world fog off this surface
+      if (shader?.noFog) childMesh.applyFog = false;
       if (shader && shader.stages.length > 0) {
         const firstStage = shader.stages[0];
         if (firstStage.map && firstStage.map !== "$lightmap" && firstStage.map !== "$whiteimage") {

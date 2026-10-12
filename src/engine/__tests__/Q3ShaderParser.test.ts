@@ -381,6 +381,45 @@ textures/base/floor
 
   // ── rgbGen ────────────────────────────────────────────────
 
+  describe("sky height", () => {
+    const sky = (line: string) =>
+      parseShaderFile(`textures/sky/test
+{
+  surfaceparm sky
+  ${line}
+}`)[0].skyParms;
+
+    it("reads Warfork's skyparmssides: six sides by image or by name, then the height", () => {
+      expect(sky("skyparmssides env/36sky rt rt rt rt rt 1500 -")).toEqual({
+        farbox: "env/36sky",
+        cloudHeight: 1500,
+        nearbox: "",
+        skyHeight: 1500,
+        sides: Array(6).fill("env/36sky"),
+      });
+      expect(sky("skyparmssides env/starsky rt rt rt env/starsky_up rt - -")?.sides).toEqual([
+        "env/starsky",
+        "env/starsky",
+        "env/starsky",
+        "env/starsky",
+        "env/starsky_up",
+        "env/starsky",
+      ]);
+    });
+
+    it("reads nofog, which keeps world fog off a surface", () => {
+      expect(parseShaderFile("textures/glass/clear\n{\n  nofog\n}")[0].noFog).toBe(true);
+      expect(parseShaderFile("textures/glass/clear\n{\n}")[0].noFog).toBeUndefined();
+    });
+
+    it("puts a sky without a height at 2048, as Warfork does", () => {
+      expect(sky("skyparmssides env/starsky rt rt rt env/starsky_up rt - -")?.skyHeight).toBe(2048);
+      expect(sky("skyParms - 512 -")?.skyHeight).toBe(512);
+      expect(sky("skyParms env/sky - -")?.skyHeight).toBe(2048);
+      expect(sky("skyParms env/sky 0 -")?.skyHeight).toBe(2048);
+    });
+  });
+
   describe("rgbGen", () => {
     const stageWith = (line: string) => `textures/sky/test
 {

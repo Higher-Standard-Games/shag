@@ -1,5 +1,6 @@
 import type { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
+import type { SkyParms } from "../../shader/Q3ShaderTypes";
 import type { SkyCloudLayer } from "../../texture/SkyboxLoader";
 import type { BspFile } from "../BspLoader";
 
@@ -15,7 +16,7 @@ export interface BspMeshBuildResult {
   /** Sky shader names found in the map (for skybox creation) */
   skyShaders: {
     textureName: string;
-    skyParms?: { farbox: string; cloudHeight: number; nearbox: string };
+    skyParms?: SkyParms;
     /** Stage textures for sky shaders without skyparms (for textured skybox) */
     stageTextures?: string[];
     /** Editor image (qer_editorimage) - fallback when cubemap and stage textures are missing */

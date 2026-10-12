@@ -107,7 +107,12 @@ A numeric cvar refuses text: `r_bloom abc` fails and leaves the value alone rath
 | `shadow on\|off\|quality [value]` **dev** | Shadow control |
 | `godrays [sun\|here\|off]` | Volumetric light shafts |
 | `skybox load\|clear\|info [name]` **dev** | Skybox control |
-| `fog on\|off\|color\|density` **dev** | Scene fog |
+| `fog` **dev** | Show the world fog: its source (map or cvars), distance, start, colour, height band, sun, sky tint and sky height |
+| `r_fog 0\|1` | World fog from the map's worldspawn on or off (saved) |
+| `r_fog_distance <d>` **dev** | Fog ~95% opaque at `d`; above 0 the `r_fog_*` cvars replace the map's fog, on any map |
+| `r_fog_color "r g b"`, `r_fog_mindist <d>` **dev** | Override colour (default 0.75 grey) and start distance (-1 keeps the map's) |
+| `r_fog_height_clear <y>`, `r_fog_height_full <y>` **dev** | Height band (99999 / -99999 keep the map's) |
+| `r_fog_sun_dir "x y z"`, `r_fog_sun_color "r g b [exp]"`, `r_fog_sun_inscatter <i>`, `r_fog_sky_blend <0\|1>` **dev** | Sun glow and sky horizon tint (-1 or empty keeps the map's) |
 | `daynight on\|off\|noon\|midnight\|start\|stop\|info` **dev** | Day/night cycle |
 | `weather rain\|snow\|clear\|fog\|thunder [intensity]` | Weather |
 | `wind on\|off\|strength\|direction [value]` | Wind |

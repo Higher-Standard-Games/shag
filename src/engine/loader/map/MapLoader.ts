@@ -23,11 +23,14 @@ import { LOADING_EVENTS, type LoadingCompleteEvent, type LoadingProgressEvent } 
 import { EntityManager } from "../../entities/EntityManager";
 import { extractEmissiveSurfaces } from "../../lighting/MapEmissiveSurfaces";
 import RenderVars from "../../rendering/RenderVars";
+import { parseSkyPortal, SkyPortalView } from "../../rendering/SkyPortal";
+import { WorldFogController } from "../../rendering/WorldFogController";
 import { LiquidSurfaceSystem } from "../../rendering/water/LiquidSurfaceSystem";
 import { waterMapLights, waterSurfaceLights } from "../../rendering/water/WaterSurfaceLighting";
 import { registerBspEntityHandlers, setCurrentBspForHandlers } from "../bsp/BspEntityHandlers";
 import { type BspFile, BspLoader } from "../bsp/BspLoader";
 import { BspMeshBuilder, type BspMeshBuildResult } from "../bsp/BspMeshBuilder";
+import { parseWorldFog } from "../bsp/WorldFog";
 import { PK3Index } from "../pk3/PK3Index";
 import { PK3Loader } from "../pk3/PK3Loader";
 import { Q3ShaderRegistry } from "../shader/Q3ShaderRegistry";
@@ -44,6 +47,9 @@ const NEEDS_NO_CLIENT_HANDLER = new Set([
   "misc_teleporter_dest",
   "trigger_teleport",
   "trigger_push",
+  // Drawn by SkyPortalView, which the map loader starts after the entities
+  "misc_skyportal",
+  "props_skyportal",
 ]);
 
 export interface MapLoadResult {
@@ -118,6 +124,8 @@ export class MapLoader {
   private currentMeshResult: BspMeshBuildResult | null = null;
   /** Owns the unified water materials for the loaded map; disposed with it. */
   private liquidSurfaces: LiquidSurfaceSystem | null = null;
+  /** The sky portal's view while the map has one. */
+  private skyPortal: SkyPortalView | null = null;
 
   /** True while a BSP map is being loaded */
   private isLoadingMap: boolean = false;
@@ -131,6 +139,7 @@ export class MapLoader {
     this.pk3Loader = PK3Loader.getInstance();
     this.shaderRegistry = Q3ShaderRegistry.getInstance();
     this.renderVars = RenderVars.getInstance();
+    WorldFogController.getInstance().registerCvars();
 
     this.renderVars.onChange("r_deluxe", (value) => {
       if (!this.currentMeshResult) return;
@@ -420,6 +429,18 @@ export class MapLoader {
       progress("Skybox", "Skipped (NullEngine)");
     }
 
+    // World fog from worldspawn; the sky stands at its shader's height for it
+    const worldspawn = bsp.entities.find((e) => e.classname === "worldspawn");
+    const skyHeight = meshResult.skyShaders.find((s) => s.skyParms)?.skyParms?.skyHeight;
+    const worldFog = parseWorldFog(worldspawn?.properties ?? {});
+    WorldFogController.getInstance().setMap(scene, worldFog, skyHeight);
+    if (worldFog) {
+      const fogDist = worldFog.density > 0 ? (3 / worldFog.density).toFixed(0) : "none";
+      console.log(
+        `[MapLoader] World fog: 95% at ${fogDist}, from ${worldFog.minDist}, colour ${worldFog.color.join(" ")}`,
+      );
+    }
+
     // Phase 7: Apply lightmaps (baked lighting)
     progress("Lighting", "Applying lightmaps");
     try {
@@ -670,6 +691,21 @@ export class MapLoader {
       const { BspManager } = await import("../bsp/BspManager");
       console.log(`[MapLoader] ${await BspManager.getInstance().enablePVS(scene)}`);
 
+      // A sky portal draws the sky from its own camera, with its own PVS
+      const portal = isHeadlessNullEngine ? null : parseSkyPortal(bsp.entities);
+      const world = bsp.models[0];
+      if (portal && world) {
+        const worldMesh = meshResult.worldMesh;
+        this.skyPortal = new SkyPortalView(scene, portal, world, {
+          setVisibilityFrom: (position) => BspManager.getInstance().getPvsCuller()?.update(position),
+          setFogScale: (fogScale) => WorldFogController.getInstance().setPortalScale(fogScale),
+          isMapMesh: (mesh) => mesh === worldMesh || mesh.isDescendantOf(worldMesh) || mesh.metadata?.mapOwned === true,
+        });
+        console.log(
+          `[MapLoader] Sky portal at ${portal.origin.join(" ")}${portal.scale ? `, scale ${portal.scale}` : ""}`,
+        );
+      }
+
       // A world mesh still not ready when the loading screen goes renders as a
       // hole until it is. Name those meshes and what each is waiting on.
       this.readinessCheck?.();
@@ -801,6 +837,11 @@ export class MapLoader {
     if (this.currentMap) {
       EventBus.emit("map:unloading", { mapName: this.currentMap });
     }
+
+    // The map's fog and sky portal go with it
+    WorldFogController.getInstance().setMap(null, null);
+    this.skyPortal?.dispose();
+    this.skyPortal = null;
 
     // Gameplay entities use independent root meshes, so disposing the BSP world
     // hierarchy alone does not remove them.

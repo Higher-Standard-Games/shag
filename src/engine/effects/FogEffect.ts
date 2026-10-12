@@ -10,6 +10,7 @@
 
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { Scene } from "@babylonjs/core/scene";
+import { WorldFogController } from "../rendering/WorldFogController";
 
 export type FogMode = "none" | "linear" | "exp" | "exp2";
 
@@ -62,6 +63,8 @@ export class FogEffect {
     if (settings) {
       this.settings = { ...this.settings, ...settings };
     }
+    // Weather fog borrows the scene fog from the map's world fog
+    if (!this.isActive) WorldFogController.getInstance().suspend("weather");
 
     this.applyFog();
     this.isActive = true;
@@ -83,6 +86,7 @@ export class FogEffect {
     }
 
     this.isActive = false;
+    WorldFogController.getInstance().resume("weather");
     console.log("[FogEffect] Stopped");
   }
 

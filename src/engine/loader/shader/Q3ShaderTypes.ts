@@ -244,9 +244,20 @@ export interface DeformVertexes {
  */
 export interface SkyParms {
   farbox: string;
+  /** The height the shader gives, 0 when it gives none. */
   cloudHeight: number;
   nearbox: string;
+  /**
+   * The sky's height as Warfork uses it: for the cloud dome and as the sky's
+   * distance for world fog. The shader's height, else 2048.
+   */
+  skyHeight: number;
+  /** `skyparmssides`: the image for each side, in Quake order rt bk lf ft up dn. */
+  sides?: string[];
 }
+
+/** Warfork's sky height when a shader gives none (`-` or 0). */
+export const DEFAULT_SKY_HEIGHT = 2048;
 
 /**
  * A complete Q3 shader definition
@@ -296,6 +307,9 @@ export interface Q3Shader {
 
   /** No picmip (texture quality reduction) */
   nopicmip?: boolean;
+
+  /** `nofog`: world fog leaves this surface alone (Warfork). */
+  noFog?: boolean;
 
   /** Polygon offset for decals */
   polygonOffset?: boolean;

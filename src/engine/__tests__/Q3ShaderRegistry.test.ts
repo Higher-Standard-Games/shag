@@ -169,7 +169,7 @@ describe("Q3ShaderRegistry", () => {
       injectShader(
         makeShader("textures/skies/blue", {
           surfaceParms: new Set(["sky"]),
-          skyParms: { farbox: "env/sky", cloudHeight: 200, nearbox: "" },
+          skyParms: { farbox: "env/sky", cloudHeight: 200, nearbox: "", skyHeight: 200 },
         }),
       );
       const props = getRegistry().resolveMaterialProps("textures/skies/blue");

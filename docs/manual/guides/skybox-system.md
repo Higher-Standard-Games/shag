@@ -55,6 +55,19 @@ does not (`skyParms - 2048 -`).
 The layers are meshes named `skybox_cloud_<n>`; `disposeSkybox()` removes them
 with the far box.
 
+## Sky height
+
+A sky shader's height is the cloud dome's height and, for world fog, how far
+away the sky is: Warfork draws the sky as a box scaled to it, so a sky at 512
+stays clear inside a 700-unit fog start while one at 1500 hazes. A shader
+without a height (`-` or 0) is at **2048**, Warfork's default. `skyparmssides`
+reads Warfork's six sides, each an image or the name of an earlier side, then
+the height: `skyparmssides env/36sky rt rt rt rt rt 1500 -` is `env/36sky` on
+every side at height 1500.
+
+With a sky portal in the map, the sky meshes draw only in the portal's view;
+see the BSP guide.
+
 ## Coordinate convention
 
 Babylon and Quake sky-face naming use different viewing conventions. Keep the mapping centralized in `SkyboxLoader`; use the debug skybox before changing face order or rotations.

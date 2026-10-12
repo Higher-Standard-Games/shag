@@ -1,94 +1,46 @@
 /**
- * FogCommand - Scene fog control
+ * FogCommand - what world fog is drawing, and why
+ *
+ * World fog comes from the map's worldspawn and the r_fog cvars; this command
+ * reads it out. Change it with r_fog (on/off) and, in developer mode, the
+ * r_fog_* overrides.
  */
 
-import type { Scene } from "@babylonjs/core/scene";
-import { Command, type CommandDef } from "../Command";
+import { Cvar } from "../../core/Cvar";
+import { WorldFogController } from "../../rendering/WorldFogController";
+import type { CommandDef } from "../Command";
+import { Command } from "../Command";
 
 export default class FogCommand extends Command {
   readonly definition: CommandDef = {
     name: "fog",
-    description: "Scene fog control",
-    usage: "fog <on|off|color|density> [args]",
+    description: "Show the world fog: the map's, the cvars' and what is drawn",
+    usage: "fog",
     developer: true,
-    subcommands: [
-      { name: "on", description: "Enable fog" },
-      { name: "off", description: "Disable fog" },
-      { name: "color", description: "Set fog color (hex)", args: [{ name: "hex", type: "string" }] },
-      { name: "density", description: "Set fog density", args: [{ name: "value", type: "number" }] },
-      { name: "info", description: "Show fog info" },
-    ],
   };
 
-  async execute(args: string[]): Promise<string | undefined> {
-    const subcommand = args[0]?.toLowerCase();
-
-    // Get scene
-    let scene: Scene | null | undefined;
-    try {
-      const { CameraSystem } = await import("../../camera/CameraSystem");
-      scene = CameraSystem.getInstance().getCamera()?.getScene();
-    } catch {
-      return "Scene not available";
+  async execute(): Promise<string | undefined> {
+    const controller = WorldFogController.getInstance();
+    const fog = controller.getActive();
+    const lines = ["World fog:"];
+    if (!Cvar.getBool("r_fog")) lines.push("  off (r_fog 0)");
+    else if (!fog) lines.push('  none: the map sets no fog (worldspawn "fog")');
+    else {
+      const source = Cvar.getBool("developer") && Cvar.getNumber("r_fog_distance") > 0 ? "r_fog_* cvars" : "map";
+      lines.push(`  source: ${source}${controller.isDrawing() ? "" : " (lent to a fog volume, water or weather)"}`);
+      lines.push(
+        `  ~95% opaque at ${fog.density > 0 ? (3 / fog.density).toFixed(0) : "never"}, starting at ${fog.minDist}`,
+      );
+      lines.push(`  colour ${fog.color.map((c) => c.toFixed(3)).join(" ")}`);
+      if (fog.height) lines.push(`  height band: clear at ${fog.height.clear}, full at ${fog.height.full}`);
+      if (fog.sun) lines.push(`  sun: intensity ${fog.sun.intensity}, exponent ${fog.sun.exponent}`);
+      if (fog.sky)
+        lines.push(`  sky horizon tint: ${fog.sky.horizonBias} ${fog.sky.horizonScale} ${fog.sky.zenithFalloff}`);
     }
-
-    if (!scene) {
-      return "No active scene";
-    }
-
-    switch (subcommand) {
-      case "on":
-        scene.fogEnabled = true;
-        if (!scene.fogMode) {
-          scene.fogMode = 3; // Exponential2
-          scene.fogDensity = 0.01;
-        }
-        return "Fog enabled";
-
-      case "off":
-        scene.fogEnabled = false;
-        return "Fog disabled";
-
-      case "color": {
-        const hex = args[1];
-        if (!hex) {
-          const current = scene.fogColor;
-          return `Current fog color: rgb(${current.r.toFixed(2)}, ${current.g.toFixed(2)}, ${current.b.toFixed(2)})`;
-        }
-        try {
-          const { Color3 } = await import("@babylonjs/core/Maths/math.color");
-          scene.fogColor = Color3.FromHexString(hex.startsWith("#") ? hex : `#${hex}`);
-          return `Fog color set to ${hex}`;
-        } catch {
-          return "Invalid hex color";
-        }
-      }
-
-      case "density": {
-        const value = parseFloat(args[1]);
-        if (Number.isNaN(value)) {
-          return `Current fog density: ${scene.fogDensity}`;
-        }
-        scene.fogDensity = value;
-        scene.fogMode = 3; // Exponential2
-        return `Fog density set to ${value}`;
-      }
-      default: {
-        return (
-          `Fog Info:\n` +
-          `  Enabled: ${scene.fogEnabled ? "yes" : "no"}\n` +
-          `  Mode: ${scene.fogMode} (0=none, 1=exp, 2=exp2, 3=linear)\n` +
-          `  Density: ${scene.fogDensity}\n` +
-          `  Color: rgb(${scene.fogColor.r.toFixed(2)}, ${scene.fogColor.g.toFixed(2)}, ${scene.fogColor.b.toFixed(2)})`
-        );
-      }
-    }
-  }
-
-  getCompletions(_input: string, args: string[]): string[] {
-    if (args.length === 0) {
-      return ["on", "off", "color", "density", "info"];
-    }
-    return [];
+    lines.push(`  sky height: ${controller.getSkyHeight()}`);
+    lines.push(
+      "Change: r_fog 0/1; developer 1 and r_fog_distance, r_fog_color, r_fog_mindist, r_fog_height_*, r_fog_sun_*, r_fog_sky_blend",
+    );
+    return lines.join("\n");
   }
 }

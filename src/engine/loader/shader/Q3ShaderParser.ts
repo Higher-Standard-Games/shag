@@ -28,6 +28,7 @@ import type {
   TcMod,
   WaveFunc,
 } from "./Q3ShaderTypes";
+import { DEFAULT_SKY_HEIGHT } from "./Q3ShaderTypes";
 
 /**
  * Template storage - maps template name to raw body tokens
@@ -293,6 +294,11 @@ function parseShaderBody(name: string, tokens: string[], startPos: number): { sh
         pos++;
         break;
 
+      case "nofog":
+        shader.noFog = true;
+        pos++;
+        break;
+
       case "polygonoffset":
         shader.polygonOffset = true;
         pos++;
@@ -425,37 +431,36 @@ function parseShaderBody(name: string, tokens: string[], startPos: number): { sh
           pos++;
         }
 
+        const cloudHeight = cloudHeightStr !== "-" ? Number.parseFloat(cloudHeightStr) || 0 : 0;
         shader.skyParms = {
           farbox: farbox !== "-" ? farbox : "",
-          cloudHeight: cloudHeightStr !== "-" ? parseFloat(cloudHeightStr) : 0,
+          cloudHeight,
           nearbox: nearbox !== "-" ? nearbox : "",
+          skyHeight: cloudHeight > 0 ? cloudHeight : DEFAULT_SKY_HEIGHT,
         };
         break;
       }
 
       case "skyparmssides": {
-        // Warsow/QFusion extension: skyparmssides <basename> <rt> <bk> <lf> <ft> <up> <dn> [- -]
-        // Example: skyparmssides env/starsky rt rt rt env/starsky_up rt - -
-        // We extract the basename for cubemap loading
+        // Warsow/Warfork: skyparmssides <rt> <bk> <lf> <ft> <up> <dn> <height> [nearbox]
+        // Each side is an image, or the name of an earlier side to reuse:
+        //   skyparmssides env/36sky rt rt rt rt rt 1500 -
+        // is env/36sky on every side, at height 1500.
         pos++;
-
-        let skyBaseName = "-";
-
-        // Read basename
-        if (pos < tokens.length && tokens[pos] !== "{" && tokens[pos] !== "}" && !isDirective(tokens[pos])) {
-          skyBaseName = tokens[pos];
-          pos++;
-        }
-
-        // Skip remaining parameters (face suffixes and trailing dashes)
+        const words: string[] = [];
         while (pos < tokens.length && tokens[pos] !== "{" && tokens[pos] !== "}" && !isDirective(tokens[pos])) {
+          words.push(tokens[pos]);
           pos++;
         }
-
+        const sides = resolveSkySides(words.slice(0, 6));
+        const heightWord = words[6];
+        const cloudHeight = heightWord && heightWord !== "-" ? Number.parseFloat(heightWord) || 0 : 0;
         shader.skyParms = {
-          farbox: skyBaseName !== "-" ? skyBaseName : "",
-          cloudHeight: 0,
-          nearbox: "",
+          farbox: sides?.[0] ?? "",
+          cloudHeight,
+          nearbox: words[7] && words[7] !== "-" ? words[7] : "",
+          skyHeight: cloudHeight > 0 ? cloudHeight : DEFAULT_SKY_HEIGHT,
+          ...(sides ? { sides } : {}),
         };
         break;
       }
@@ -899,6 +904,20 @@ function parseBlendFactor(token?: string): BlendFactor {
   }
 
   return "GL_ONE";
+}
+
+const SKY_SIDE_NAMES = ["rt", "bk", "lf", "ft", "up", "dn"];
+
+/**
+ * The six `skyparmssides` sides as images: a side named `rt`, `bk`, … takes
+ * that side's image. Null unless all six resolve, as Warfork drops the box then.
+ */
+export function resolveSkySides(words: string[]): string[] | null {
+  if (words.length < 6) return null;
+  const refs = words.map((word) => SKY_SIDE_NAMES.indexOf(word.toLowerCase()));
+  const images = words.map((word, i) => (refs[i] < 0 ? word : ""));
+  const sides = images.map((image, i) => image || images[refs[i]] || "");
+  return sides.every(Boolean) ? sides : null;
 }
 
 /**

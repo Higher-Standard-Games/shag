@@ -22,7 +22,7 @@ import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
 import type { Scene } from "@babylonjs/core/scene";
 import { applySafeMaxSimultaneousLights } from "../../lighting/DynamicLightSafety";
 import { Q3ShaderRegistry } from "../shader/Q3ShaderRegistry";
-import type { ResolvedMaterialProps } from "../shader/Q3ShaderTypes";
+import { DEFAULT_SKY_HEIGHT, type ResolvedMaterialProps } from "../shader/Q3ShaderTypes";
 import type { BspFile } from "./BspLoader";
 import { classifyLiquids, DEFAULT_LIQUID_OVERRIDES, liquidKindFromSurfaceParms } from "./LiquidClassifier";
 import { buildMeshFace, buildPatchFace, buildPolygonFace } from "./mesh/faceBuilders";
@@ -819,6 +819,13 @@ export class BspMeshBuilder {
       }
     }
 
+    // Surfaces whose shader says `nofog` stay clear of world fog
+    for (const mesh of worldMesh.getChildMeshes()) {
+      const index = /^bsp_(?:tex|sprite)_(\d+)/.exec(mesh.name)?.[1];
+      const name = index === undefined ? undefined : this.bsp.textures[Number(index)]?.name;
+      if (name && shaderRegistry.getShader(name)?.noFog) mesh.applyFog = false;
+    }
+
     if (skyShaders.length > 0) {
       const hasCubemap = skyShaders.some((s) => s.skyParms?.farbox);
       const hasTextured = skyShaders.some((s) => !s.skyParms?.farbox && s.stageTextures?.length);
@@ -1587,7 +1594,7 @@ export class BspMeshBuilder {
       if (loadResult.success) {
         console.log(`[BspMeshBuilder] Created cubemap skybox from: ${cubemapShader.textureName}`);
         if (cubemapShader.cloudLayers?.length) {
-          await skyboxLoader.loadCloudLayers(cubemapShader.cloudLayers, cubemapShader.skyParms.cloudHeight);
+          await skyboxLoader.loadCloudLayers(cubemapShader.cloudLayers, cubemapShader.skyParms.skyHeight);
         }
         return loadResult;
       }
@@ -1598,7 +1605,7 @@ export class BspMeshBuilder {
     if (cloudShader?.cloudLayers?.length) {
       const loadResult = await skyboxLoader.loadCloudLayers(
         cloudShader.cloudLayers,
-        cloudShader.skyParms?.cloudHeight ?? 512,
+        cloudShader.skyParms?.skyHeight ?? DEFAULT_SKY_HEIGHT,
       );
       if (loadResult.success) {
         console.log(`[BspMeshBuilder] Created cloud sky from: ${cloudShader.textureName}`);

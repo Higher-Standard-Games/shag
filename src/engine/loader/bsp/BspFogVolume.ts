@@ -12,9 +12,13 @@ import { Plane } from "@babylonjs/core/Maths/math.plane";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
-import type { Scene } from "@babylonjs/core/scene";
+import { Scene } from "@babylonjs/core/scene";
+import { WorldFogController } from "../../rendering/WorldFogController";
 import { Q3ShaderRegistry } from "../shader/Q3ShaderRegistry";
 import type { BspFile, BspPlane } from "./BspLoader";
+
+/** Fog volumes borrow the scene fog from world fog under this name. */
+const FOG_VOLUME_OWNER = "fog-volume";
 
 // ============================================================================
 // Fog Volume Data Types
@@ -662,8 +666,8 @@ export class CamFog {
       this.observer = null;
     }
 
-    // Clear fog
-    this.scene.fogMode = 0;
+    // Hand the scene fog back to world fog
+    if (this.currentFogVolume) WorldFogController.getInstance().resume(FOG_VOLUME_OWNER);
     this.currentFogVolume = null;
 
     console.log("[CamFog] Disabled");
@@ -692,8 +696,8 @@ export class CamFog {
       this.applyFog(insideVolume);
       this.currentFogVolume = insideVolume;
     } else if (!insideVolume && this.currentFogVolume) {
-      // Left fog volume - disable fog
-      this.scene.fogMode = 0;
+      // Left the fog volume: world fog (or none) again
+      WorldFogController.getInstance().resume(FOG_VOLUME_OWNER);
       this.currentFogVolume = null;
       console.log("[CamFog] Left fog volume");
     }
@@ -730,7 +734,8 @@ export class CamFog {
     const scaledDepth = vol.depthForOpaque * this.fogScale;
     const density = 1.73 / scaledDepth;
 
-    this.scene.fogMode = 3; // FOGMODE_EXP2
+    WorldFogController.getInstance().suspend(FOG_VOLUME_OWNER);
+    this.scene.fogMode = Scene.FOGMODE_EXP2;
     this.scene.fogColor = new Color3(vol.fogColor[0], vol.fogColor[1], vol.fogColor[2]);
     this.scene.fogDensity = density;
 

@@ -892,7 +892,7 @@ export class SkyboxLoader {
   async loadCloudLayers(layers: SkyCloudLayer[], cloudHeight: number, size = 10000): Promise<SkyboxLoadResult> {
     if (!this.scene) return { success: false, error: "SkyboxLoader not initialized" };
     const scene = this.scene;
-    const height = cloudHeight > 0 ? cloudHeight : 512;
+    const height = cloudHeight > 0 ? cloudHeight : 2048;
     const loadedFaces: string[] = [];
     let first: Mesh | undefined;
 
