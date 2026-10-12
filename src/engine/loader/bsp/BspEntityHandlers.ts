@@ -14,6 +14,11 @@ import { extractLifts, type LiftSystem } from "../../../shared/bsp/LiftSystem";
 import { AudioManager } from "../../AudioManager";
 import { type EntityData, EntityHandlerRegistry, type EntityHandlerResult } from "../../core/EntityHandlerRegistry";
 import { getCollisionManager } from "../../physics/CollisionManager";
+import {
+  registerAmbientEntityHandlers,
+  setAmbientEntityBsp,
+  unregisterAmbientEntityHandlers,
+} from "./AmbientEntityHandlers";
 import type { BspFile } from "./BspLoader";
 import { buildBrushModel } from "./BspMeshBuilder";
 
@@ -25,6 +30,7 @@ let currentBsp: BspFile | null = null;
  */
 export function setCurrentBspForHandlers(bsp: BspFile | null): void {
   currentBsp = bsp;
+  setAmbientEntityBsp(bsp);
 }
 
 /**
@@ -264,7 +270,10 @@ async function handleFuncDoor(entity: EntityData, scene: Scene): Promise<EntityH
 export function registerBspEntityHandlers(): void {
   EntityHandlerRegistry.register("func_plat", handleLift);
   EntityHandlerRegistry.register("func_door", handleFuncDoor);
-  console.log("[BspEntityHandlers] Registered BSP entity handlers: func_door, func_plat");
+  registerAmbientEntityHandlers();
+  console.log(
+    "[BspEntityHandlers] Registered BSP entity handlers: func_door, func_plat, func_rotating, target_speaker",
+  );
 }
 
 /**
@@ -273,6 +282,7 @@ export function registerBspEntityHandlers(): void {
 export function unregisterBspEntityHandlers(): void {
   EntityHandlerRegistry.unregister("func_plat");
   EntityHandlerRegistry.unregister("func_door");
+  unregisterAmbientEntityHandlers();
   doorGroups.clear();
 }
 

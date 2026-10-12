@@ -548,7 +548,8 @@ export class MapLoader {
             skippedCount++;
             continue;
           }
-          if (mesh.name === "skybox") {
+          // Sky layers animate their texture offsets every frame
+          if (mesh.name.startsWith("skybox")) {
             skippedCount++;
             continue;
           }

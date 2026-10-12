@@ -29,6 +29,7 @@ import { buildMeshFace, buildPatchFace, buildPolygonFace } from "./mesh/faceBuil
 import { createRadialGradientTexture, createSolidColorTexture } from "./mesh/fallbackTextures";
 import { createBspLightmapTexture } from "./mesh/lightmaps";
 import { buildFaceClusters } from "./mesh/pvs";
+import { cloudLayersFromStages } from "./mesh/skyClouds";
 import { faceSpatialCell, MIN_SPATIAL_BATCH_TRIANGLES, normalizeSpatialCellSize } from "./mesh/spatialBatching";
 import type { BspMeshBuildResult, BuildOptions } from "./mesh/types";
 
@@ -256,6 +257,7 @@ export class BspMeshBuilder {
             skyParms: shaderProps.skyParms,
             stageTextures,
             editorImage: shader?.editorImage,
+            cloudLayers: cloudLayersFromStages(shader?.stages),
           });
           if (shaderProps.skyParms?.farbox) {
             console.log(`[BspMeshBuilder] Found sky shader: ${textureName} -> farbox: ${shaderProps.skyParms.farbox}`);
@@ -1577,12 +1579,29 @@ export class BspMeshBuilder {
     // Dispose existing skybox
     skyboxLoader.disposeSkybox();
 
-    // Try cubemap skybox first (skyparms farbox)
+    // Try cubemap skybox first (skyparms farbox), with the shader's cloud
+    // layers over it as Quake 3 draws them
     const cubemapShader = result.skyShaders.find((s) => s.skyParms?.farbox);
     if (cubemapShader?.skyParms?.farbox) {
       const loadResult = await skyboxLoader.loadSkybox(cubemapShader.skyParms.farbox);
       if (loadResult.success) {
         console.log(`[BspMeshBuilder] Created cubemap skybox from: ${cubemapShader.textureName}`);
+        if (cubemapShader.cloudLayers?.length) {
+          await skyboxLoader.loadCloudLayers(cubemapShader.cloudLayers, cubemapShader.skyParms.cloudHeight);
+        }
+        return loadResult;
+      }
+    }
+
+    // A sky with cloud layers and no far box: the layers are the sky
+    const cloudShader = result.skyShaders.find((s) => s.cloudLayers?.length);
+    if (cloudShader?.cloudLayers?.length) {
+      const loadResult = await skyboxLoader.loadCloudLayers(
+        cloudShader.cloudLayers,
+        cloudShader.skyParms?.cloudHeight ?? 512,
+      );
+      if (loadResult.success) {
+        console.log(`[BspMeshBuilder] Created cloud sky from: ${cloudShader.textureName}`);
         return loadResult;
       }
     }

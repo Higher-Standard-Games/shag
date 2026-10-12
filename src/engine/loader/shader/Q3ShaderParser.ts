@@ -902,6 +902,22 @@ function parseBlendFactor(token?: string): BlendFactor {
 }
 
 /**
+ * Up to `count` numbers from `start`, with or without Quake's brackets:
+ * `const ( 1 0 0 )` and `const 1 0 0` read the same. Zero stays zero.
+ */
+function constNumbers(tokens: string[], start: number, count: number): number[] {
+  const values: number[] = [];
+  for (let i = start; i < tokens.length && values.length < count; i++) {
+    if (tokens[i] === "(") continue;
+    if (tokens[i] === ")") break;
+    const value = Number.parseFloat(tokens[i]);
+    if (!Number.isFinite(value)) break;
+    values.push(value);
+  }
+  return values;
+}
+
+/**
  * Parse rgbGen directive
  */
 function parseRgbGen(tokens: string[], pos: number): RgbGen {
@@ -924,11 +940,10 @@ function parseRgbGen(tokens: string[], pos: number): RgbGen {
       return { type: "lightingDiffuse" };
     case "wave":
       return { type: "wave", wave: parseWaveFunc(tokens, pos + 1) };
-    case "const":
-      return {
-        type: "const",
-        color: [parseFloat(tokens[pos + 2]) || 1, parseFloat(tokens[pos + 3]) || 1, parseFloat(tokens[pos + 4]) || 1],
-      };
+    case "const": {
+      const color = constNumbers(tokens, pos + 1, 3);
+      return { type: "const", color: color.length === 3 ? [color[0], color[1], color[2]] : [1, 1, 1] };
+    }
     default:
       return { type: "identity" };
   }
@@ -957,11 +972,10 @@ function parseAlphaGen(tokens: string[], pos: number): AlphaGen {
       return { type: "portal" };
     case "wave":
       return { type: "wave", wave: parseWaveFunc(tokens, pos + 1) };
-    case "const":
-      return {
-        type: "const",
-        value: parseFloat(tokens[pos + 1]) || 1,
-      };
+    case "const": {
+      const [value] = constNumbers(tokens, pos + 1, 1);
+      return { type: "const", value: value ?? 1 };
+    }
     default:
       return { type: "identity" };
   }

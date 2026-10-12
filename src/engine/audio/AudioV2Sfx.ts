@@ -22,6 +22,11 @@ export interface SpatialSfxPlayOptions extends SfxPlayOptions {
   rolloffFactor?: number;
 }
 
+/** A looping sound until `stop()`, as for a map's ambient speaker. */
+export interface SfxLoop {
+  stop(): void;
+}
+
 const SOUND_EXTENSIONS = [".ogg", ".wav", ".mp3"] as const;
 const MAX_ACTIVE_SPATIAL_SOUNDS = 48;
 
@@ -58,6 +63,9 @@ export class AudioV2Sfx {
   private readonly soundPromises = new Map<string, Promise<StaticSound | null>>();
   private readonly packageLoads = new Map<string, Promise<void>>();
   private readonly activeSpatialSounds: StaticSound[] = [];
+  /** Looping sounds with the volume each was started at, kept until stopped. */
+  private readonly loops = new Map<StaticSound, number>();
+  private loopsMuted = false;
   private readonly warnedMissing = new Set<string>();
 
   async init(scene?: Scene): Promise<void> {
@@ -137,12 +145,70 @@ export class AudioV2Sfx {
     return true;
   }
 
+  /**
+   * Loop `path` at an engine-world position until the returned handle stops it,
+   * or play it everywhere at once when `position` is null. Resolves to null when
+   * the sound cannot play (no audio, missing file); a handle stopped before the
+   * sound has loaded never starts it.
+   */
+  async playLoop3D(
+    path: string,
+    position: Vector3 | null,
+    options: SpatialSfxPlayOptions = {},
+  ): Promise<SfxLoop | null> {
+    if (!(await this.ensureInitialized()) || !this.engine || !this.sfxBus) return null;
+    this.syncListener();
+
+    const generation = this.generation;
+    const buffer = await this.getBuffer(path);
+    if (!buffer || generation !== this.generation || !this.engine || !this.sfxBus) return null;
+
+    const volume = Math.max(0, options.volume ?? 1);
+    const sound = await this.engine.createSoundAsync(`loop:${normalizePath(path)}`, buffer, {
+      outBus: this.sfxBus,
+      loop: true,
+      maxInstances: 1,
+      ...(position
+        ? {
+            spatialEnabled: true,
+            spatialPosition: position,
+            spatialDistanceModel: "linear" as const,
+            spatialMinDistance: options.minDistance ?? 96,
+            spatialMaxDistance: options.maxDistance ?? 2400,
+            spatialRolloffFactor: options.rolloffFactor ?? 1,
+          }
+        : {}),
+    });
+    if (generation !== this.generation || this.disposed) {
+      sound.dispose();
+      return null;
+    }
+
+    this.loops.set(sound, volume);
+    sound.play({ volume: this.loopsMuted ? 0 : volume });
+    return {
+      stop: () => {
+        if (!this.loops.delete(sound)) return;
+        sound.stop();
+        sound.dispose();
+      },
+    };
+  }
+
+  /** Silence or restore every running loop without stopping them; SFX off mutes them. */
+  setLoopsMuted(muted: boolean): void {
+    this.loopsMuted = muted;
+    for (const [sound, volume] of this.loops) sound.volume = muted ? 0 : volume;
+  }
+
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
     this.generation++;
 
     for (const sound of this.activeSpatialSounds.splice(0)) sound.dispose();
+    for (const sound of this.loops.keys()) sound.dispose();
+    this.loops.clear();
     this.soundPromises.clear();
     this.bufferPromises.clear();
     this.packageLoads.clear();

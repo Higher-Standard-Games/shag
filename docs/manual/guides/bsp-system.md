@@ -75,6 +75,22 @@ use the same baked-light RGBA/gamma/overbright conversion.
 
 Not every classname has gameplay behavior. Confirm handlers in `BspEntityHandlers.ts` and the FPS entity layer before promising support.
 
+Map ambience is client-only (`AmbientEntityHandlers.ts`) and ends with the map:
+
+- `target_speaker` with spawnflag 1 (LOOPED_ON) loops its `noise` where it
+  stands, at full volume within 80 units and silent past
+  80 + 1000 / `attenuation`, as in Quake; spawnflag 4 (GLOBAL) or attenuation 0
+  plays it everywhere. An untriggered speaker with `wait` plays every `wait` ±
+  `random` seconds. Speakers with a `targetname` wait for triggering, which the
+  client does not have yet, and are reported as unhandled.
+- `func_rotating` builds its inline model and spins it at `speed` degrees a
+  second (default 100) about the vertical axis, or X/Y with spawnflags 4/8;
+  2 reverses. A model built with an origin brush turns about its `origin`. One
+  with a `targetname` stands still unless START_ON (1) is set.
+
+A map logs the classnames it has no client handler for in one line,
+`No client handler for: …`, leaving out markers that need none.
+
 ## PVS culling
 
 PVS activates automatically after a playable map finishes setup. Use the console to inspect it or compare performance:

@@ -1,7 +1,7 @@
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Scene } from "@babylonjs/core/scene";
 import { AssetLoader } from "./AssetLoader";
-import { AudioV2Sfx, type SpatialSfxPlayOptions } from "./audio/AudioV2Sfx";
+import { AudioV2Sfx, type SfxLoop, type SpatialSfxPlayOptions } from "./audio/AudioV2Sfx";
 import { Cvar } from "./core/Cvar";
 import { PK3Index } from "./loader/pk3/PK3Index";
 import { PK3Loader } from "./loader/pk3/PK3Loader";
@@ -297,6 +297,20 @@ export class AudioManager {
   }
 
   /**
+   * Loop a sound at an engine-world position (or everywhere, when `position` is
+   * null) until the handle stops it: a map's ambient speakers. Loops keep
+   * running while SFX is off, silenced, so turning SFX back on restores them.
+   */
+  public playLoop3D(
+    path: string,
+    position: { x: number; y: number; z: number } | null,
+    options: SpatialSfxPlayOptions = {},
+  ): Promise<SfxLoop | null> {
+    const at = position ? new Vector3(position.x, position.y, position.z) : null;
+    return this.sfxBackend.playLoop3D(path, at, options);
+  }
+
+  /**
    * Play general UI click sound (for taps, selections, etc.)
    */
   public playClick(): void {
@@ -317,6 +331,7 @@ export class AudioManager {
 
   public setSfxEnabled(enabled: boolean): void {
     this.sfxEnabled = enabled;
+    this.sfxBackend.setLoopsMuted(!enabled);
   }
 
   public getSfxVolume(): number {

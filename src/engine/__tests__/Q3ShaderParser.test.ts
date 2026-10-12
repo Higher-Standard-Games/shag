@@ -382,6 +382,29 @@ textures/base/floor
   // ── rgbGen ────────────────────────────────────────────────
 
   describe("rgbGen", () => {
+    const stageWith = (line: string) => `textures/sky/test
+{
+  {
+    map textures/sky/clouds.tga
+    ${line}
+  }
+}`;
+
+    it("reads rgbGen const with or without brackets, keeping zeros", () => {
+      expect(parseShaderFile(stageWith("rgbgen const 0.25 0.25 0.275"))[0].stages[0].rgbGen).toEqual({
+        type: "const",
+        color: [0.25, 0.25, 0.275],
+      });
+      expect(parseShaderFile(stageWith("rgbGen const ( 1 0 0 )"))[0].stages[0].rgbGen).toEqual({
+        type: "const",
+        color: [1, 0, 0],
+      });
+    });
+
+    it("reads alphaGen const 0 as zero", () => {
+      expect(parseShaderFile(stageWith("alphaGen const 0"))[0].stages[0].alphaGen).toEqual({ type: "const", value: 0 });
+    });
+
     it("parses identity", () => {
       const content = `textures/base/floor
 {

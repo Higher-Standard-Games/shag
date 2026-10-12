@@ -1,5 +1,6 @@
 import type { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
+import type { SkyCloudLayer } from "../../texture/SkyboxLoader";
 import type { BspFile } from "../BspLoader";
 
 export interface BspMeshBuildResult {
@@ -19,6 +20,8 @@ export interface BspMeshBuildResult {
     stageTextures?: string[];
     /** Editor image (qer_editorimage) - fallback when cubemap and stage textures are missing */
     editorImage?: string;
+    /** The shader's stages as Quake 3 cloud layers, drawn over the far box or on their own */
+    cloudLayers?: SkyCloudLayer[];
   }[];
   /** Statistics */
   stats: {

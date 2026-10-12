@@ -7,16 +7,62 @@
  * - Creates Babylon.js skybox mesh with proper coordinate mapping
  */
 
+import { VertexBuffer } from "@babylonjs/core/Buffers/buffer";
 import { Constants } from "@babylonjs/core/Engines/constants";
+import { Material } from "@babylonjs/core/Materials/material";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { RawCubeTexture } from "@babylonjs/core/Materials/Textures/rawCubeTexture";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
-import type { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Scene } from "@babylonjs/core/scene";
 import { PK3Loader } from "../pk3/PK3Loader";
 import { canSoftwareDecode, parseKTX1, softwareDecodeMip } from "./KTX1Loader";
+
+/** One stage of a cloud sky: a texture tiled over the cloud dome, as Quake 3 draws it. */
+export interface SkyCloudLayer {
+  texture: string;
+  /** tcMod scale (s, t). */
+  scale: [number, number];
+  /** tcMod scroll (s, t), texture widths per second. */
+  scroll: [number, number];
+  /** rgbGen const, else white. */
+  color: [number, number, number];
+  /** How the layer combines with what is behind it. */
+  blend: "opaque" | "add" | "multiply" | "alpha";
+}
+
+/** Quake 3's world radius for the cloud dome (tr_sky.c). */
+const CLOUD_WORLD_RADIUS = 4096;
+const CLOUD_MESH_PREFIX = "skybox_cloud_";
+
+/**
+ * Quake 3's cloud texture coordinates for a sky direction (Q3 axes, Z up): the
+ * point where the direction meets a sphere `cloudHeight` above a world of
+ * radius 4096, as two angles in radians. tcMod scale then tiles them.
+ */
+export function cloudTexCoord(dir: [number, number, number], cloudHeight: number): [number, number] {
+  const [x, y, z] = dir;
+  const r = CLOUD_WORLD_RADIUS;
+  const h = cloudHeight;
+  const dot = x * x + y * y + z * z;
+  const root = Math.sqrt(
+    z * z * r * r +
+      2 * x * x * r * h +
+      x * x * h * h +
+      2 * y * y * r * h +
+      y * y * h * h +
+      2 * z * z * r * h +
+      z * z * h * h,
+  );
+  const p = (1 / (2 * dot)) * (-2 * z * r + 2 * root);
+  const vx = x * p;
+  const vy = y * p;
+  const vz = z * p + r;
+  const length = Math.hypot(vx, vy, vz) || 1;
+  return [Math.acos(vx / length), Math.acos(vy / length)];
+}
 
 // Q3 skybox face suffixes - MUST match Q3 tr_shader.c order!
 // From Q3 source: static char *suf[6] = {"rt", "bk", "lf", "ft", "up", "dn"};
@@ -329,9 +375,16 @@ export class SkyboxLoader {
     const pk3 = PK3Loader.getInstance();
     const extensions = [".ktx", ".tga", ".jpg", ".png", ".jpeg"];
 
-    // Try to load the texture from PK3
+    // Try to load the texture from PK3; a named extension is a hint, as in Quake
     let fileData = await pk3.getFile(texturePath);
     let actualPath = texturePath;
+    if (!fileData) {
+      const found = await this.findImage(texturePath);
+      if (found) {
+        fileData = await pk3.getFile(found.path);
+        actualPath = found.path;
+      }
+    }
 
     // If path has no extension, try common image extensions
     if (!fileData && !texturePath.match(/\.(ktx|tga|jpg|jpeg|png)$/i)) {
@@ -828,6 +881,124 @@ export class SkyboxLoader {
       existing.dispose();
       console.log(`[SkyboxLoader] Disposed existing skybox`);
     }
+    for (const mesh of this.scene.meshes.filter((m) => m.name.startsWith(CLOUD_MESH_PREFIX))) mesh.dispose();
+  }
+
+  /**
+   * Draw a sky shader's stages as Quake 3 cloud layers: one dome per stage,
+   * tiled and scrolled by its tcMods, tinted by rgbGen const and blended in
+   * order. Over a far box when there is one; on their own otherwise.
+   */
+  async loadCloudLayers(layers: SkyCloudLayer[], cloudHeight: number, size = 10000): Promise<SkyboxLoadResult> {
+    if (!this.scene) return { success: false, error: "SkyboxLoader not initialized" };
+    const scene = this.scene;
+    const height = cloudHeight > 0 ? cloudHeight : 512;
+    const loadedFaces: string[] = [];
+    let first: Mesh | undefined;
+
+    for (const [index, layer] of layers.entries()) {
+      const image = await this.findImage(layer.texture);
+      if (!image) {
+        console.warn(`[SkyboxLoader] Cloud layer texture not found: ${layer.texture}`);
+        continue;
+      }
+      const texture = this.textureFromRGBA(image.rgba, `sky_cloud_${index}`);
+      texture.wrapU = Texture.WRAP_ADDRESSMODE;
+      texture.wrapV = Texture.WRAP_ADDRESSMODE;
+      texture.uScale = layer.scale[0];
+      texture.vScale = layer.scale[1];
+
+      const dome = MeshBuilder.CreateSphere(
+        `${CLOUD_MESH_PREFIX}${index}`,
+        { diameter: size, segments: 48, sideOrientation: Mesh.BACKSIDE },
+        scene,
+      );
+      const positions = dome.getVerticesData(VertexBuffer.PositionKind) ?? [];
+      const uvs: number[] = [];
+      for (let i = 0; i < positions.length; i += 3) {
+        // Engine (x, y up, z) is Quake (x, z, y up)
+        uvs.push(...cloudTexCoord([positions[i], positions[i + 2], positions[i + 1]], height));
+      }
+      dome.setVerticesData(VertexBuffer.UVKind, uvs);
+      dome.infiniteDistance = true;
+      dome.isPickable = false;
+      dome.renderingGroupId = 0;
+      // Drawn in stage order, before anything else that blends
+      dome.alphaIndex = index;
+      dome.metadata = { celOutlineExclude: true };
+
+      const material = new StandardMaterial(`skyCloudMat_${index}`, scene);
+      material.backFaceCulling = false;
+      material.disableLighting = true;
+      material.disableDepthWrite = true;
+      material.diffuseTexture = texture;
+      // Unlit, a StandardMaterial draws emissive × texture: the tint goes there
+      material.diffuseColor = new Color3(0, 0, 0);
+      material.emissiveColor = new Color3(...layer.color);
+      material.ambientColor = new Color3(0, 0, 0);
+      material.specularColor = new Color3(0, 0, 0);
+      // Every layer goes in the blended pass so the stages keep their order
+      material.transparencyMode = Material.MATERIAL_ALPHABLEND;
+      material.alphaMode = {
+        opaque: Constants.ALPHA_DISABLE,
+        add: Constants.ALPHA_ONEONE,
+        multiply: Constants.ALPHA_MULTIPLY,
+        alpha: Constants.ALPHA_COMBINE,
+      }[layer.blend];
+      if (layer.blend === "alpha") {
+        texture.hasAlpha = true;
+        material.useAlphaFromDiffuseTexture = true;
+      }
+      dome.material = material;
+
+      const [ds, dt] = layer.scroll;
+      if (ds !== 0 || dt !== 0) {
+        const observer = scene.onBeforeRenderObservable.add(() => {
+          const seconds = scene.getEngine().getDeltaTime() / 1000;
+          texture.uOffset = (texture.uOffset + ds * seconds) % 1;
+          texture.vOffset = (texture.vOffset + dt * seconds) % 1;
+        });
+        dome.onDisposeObservable.addOnce(() => scene.onBeforeRenderObservable.remove(observer));
+      }
+      first ??= dome;
+      loadedFaces.push(image.path);
+    }
+
+    if (!first) return { success: false, error: "No cloud layer textures found" };
+    console.log(`[SkyboxLoader] Created ${loadedFaces.length} cloud layer(s) at height ${height}`);
+    return { success: true, skybox: first, loadedFaces };
+  }
+
+  /**
+   * Find a sky image in the packages. The extension a shader names is a hint,
+   * as in Quake: `foo.tga` is also found as `foo.ktx`, `foo.jpg` or `foo.png`.
+   */
+  private async findImage(path: string): Promise<{ rgba: { data: Uint8Array; size: number }; path: string } | null> {
+    const pk3 = PK3Loader.getInstance();
+    const base = path.replace(/\.(ktx|tga|jpe?g|png)$/i, "");
+    const named = path !== base ? [path] : [];
+    const candidates = [...named, ...[".ktx", ".tga", ".jpg", ".png", ".jpeg"].map((ext) => base + ext)];
+    const prefixed = base.startsWith("textures/") ? [] : candidates.map((candidate) => `textures/${candidate}`);
+    for (const candidate of [...candidates, ...prefixed]) {
+      const data = await pk3.getFile(candidate);
+      if (!data) continue;
+      const ext = candidate.substring(candidate.lastIndexOf(".")).toLowerCase();
+      const rgba = await this.parseImageToRGBA(new Uint8Array(data), ext);
+      if (rgba) return { rgba, path: candidate };
+    }
+    return null;
+  }
+
+  /** A texture from decoded RGBA, through a canvas as the sky sphere does. */
+  private textureFromRGBA(rgba: { data: Uint8Array; size: number }, name: string): Texture {
+    const canvas = document.createElement("canvas");
+    canvas.width = rgba.size;
+    canvas.height = rgba.size;
+    const image = new ImageData(new Uint8ClampedArray(rgba.data), rgba.size, rgba.size);
+    canvas.getContext("2d")?.putImageData(image, 0, 0);
+    const texture = new Texture(canvas.toDataURL(), this.scene, false, true, Texture.TRILINEAR_SAMPLINGMODE);
+    texture.name = name;
+    return texture;
   }
 
   /**
