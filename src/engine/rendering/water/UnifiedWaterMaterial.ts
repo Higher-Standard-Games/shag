@@ -27,6 +27,7 @@ import type { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { Vector2, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Scene } from "@babylonjs/core/scene";
+import { ATM_FOG_GLSL, ATM_FOG_SHADER_UNIFORMS, bindAtmosphericFog } from "../AtmosphericFogShader";
 import { MAX_WATER_IMPULSES } from "./WaterDisturbances";
 import { generateWaterNormalMap, WATER_NOISE_SIZE } from "./WaterNoise";
 import { MAX_WATER_LIGHTS } from "./WaterSurfaceLighting";
@@ -151,7 +152,11 @@ uniform vec4 uImpulses[${MAX_WATER_IMPULSES * 2}];
 // Like Babylon WaterMaterial, this inexpensive stylised surface composes
 // display-space colours. The game image-processing pass expects LINEAR input;
 // sending these colours unchanged applies gamma twice and washes out the pool.
+${ATM_FOG_GLSL}
 vec4 waterOutput(vec3 color, float alpha) {
+  // World fog, mixed in display space like the rest of the surface
+  vec4 atmFog = atmFogEvaluate(vWorld, atmFogEye);
+  color = mix(color, atmFog.rgb, atmFog.a);
   return vec4(uOutputLinear > 0.5 ? pow(max(color, vec3(0.0)), vec3(2.2)) : color, alpha);
 }
 
@@ -805,6 +810,7 @@ export function createUnifiedWaterMaterial(
       {
         attributes: ["position", "normal"],
         uniforms: [
+          ...ATM_FOG_SHADER_UNIFORMS,
           "world",
           "view",
           "viewProjection",
@@ -940,6 +946,7 @@ export function createUnifiedWaterMaterial(
     material.alpha = profile.alpha;
     material.backFaceCulling = false;
     material.needDepthPrePass = false;
+    bindAtmosphericFog(material);
 
     return material;
   } catch (error) {

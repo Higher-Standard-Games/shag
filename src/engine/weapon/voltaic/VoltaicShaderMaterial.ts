@@ -4,6 +4,12 @@ import { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial";
 import type { Scene } from "@babylonjs/core/scene";
 import "@babylonjs/core/Shaders/ShadersInclude/instancesDeclaration";
 import "@babylonjs/core/Shaders/ShadersInclude/instancesVertex";
+import {
+  ATM_FOG_GLSL,
+  ATM_FOG_SHADER_UNIFORMS,
+  atmFogFadeGlsl,
+  bindAtmosphericFog,
+} from "../../rendering/AtmosphericFogShader";
 import { VOLTAIC_REMOTE_FADE_START, VOLTAIC_REMOTE_REMOVE_TIME } from "./VoltaicProfiles";
 
 const BEAM_VERTEX_SHADER = `
@@ -36,6 +42,7 @@ uniform vec4 uParams;
 #endif
 
 varying float vSide;
+varying vec3 vAtmWorld;
 varying float vPart;
 varying float vEnergy;
 varying float vLife;
@@ -252,6 +259,7 @@ void main() {
   vec3 worldPosition = center + ribbonSide * position.y * halfWidth;
   worldPosition = (finalWorld * vec4(worldPosition, 1.0)).xyz;
   gl_Position = viewProjection * vec4(worldPosition, 1.0);
+  vAtmWorld = worldPosition;
 
   vSide = position.y;
   vPart = part;
@@ -269,12 +277,14 @@ const BEAM_FRAGMENT_SHADER = `
 precision highp float;
 
 varying float vSide;
+varying vec3 vAtmWorld;
 varying float vPart;
 varying float vEnergy;
 varying float vLife;
 varying float vVolumeWeight;
 varying vec3 vColor;
 
+${ATM_FOG_GLSL}
 void main() {
   float d = abs(vSide);
   float aa = max(fwidth(d), 0.001);
@@ -312,6 +322,7 @@ void main() {
   float alpha = clamp(shape * energy * alphaScale, 0.0, 0.96);
   vec3 rgb = color * shape * energy * hdrScale * alpha;
   gl_FragColor = vec4(rgb, alpha);
+  ${atmFogFadeGlsl("gl_FragColor", "vAtmWorld")}
 }
 `;
 
@@ -347,6 +358,7 @@ uniform vec4 uNormal;
 #endif
 
 varying vec2 vImpactUv;
+varying vec3 vAtmWorld;
 varying float vImpactPart;
 varying float vImpactKind;
 varying float vImpactEnergy;
@@ -491,6 +503,7 @@ void main() {
 
   worldPosition = (finalWorld * vec4(worldPosition, 1.0)).xyz;
   gl_Position = viewProjection * vec4(worldPosition, 1.0);
+  vAtmWorld = worldPosition;
 
   vImpactUv = uv;
   vImpactPart = orientedPart;
@@ -509,6 +522,7 @@ const IMPACT_FRAGMENT_SHADER = `
 precision highp float;
 
 varying vec2 vImpactUv;
+varying vec3 vAtmWorld;
 varying float vImpactPart;
 varying float vImpactKind;
 varying float vImpactEnergy;
@@ -527,6 +541,7 @@ float hash11(float p) {
   return fract(p);
 }
 
+${ATM_FOG_GLSL}
 void main() {
   float r = length(vImpactUv);
   float angle = atan(vImpactUv.y, vImpactUv.x);
@@ -546,6 +561,7 @@ void main() {
     vec3 sparkColor = mix(ember, vec3(1.0, 0.98, 0.76), hotHead);
     float alpha = clamp(shape * energy * vSparkLife * 0.96, 0.0, 0.98);
     gl_FragColor = vec4(sparkColor * shape * energy * vSparkLife * 4.1 * alpha, alpha);
+    ${atmFogFadeGlsl("gl_FragColor", "vAtmWorld")}
     return;
   }
 
@@ -572,6 +588,7 @@ void main() {
     vec3 muzzleColor = mix(muzzleEdge, vec3(1.0, 0.985, 0.88), max(muzzleNucleus, muzzleNeedles * 0.58));
     float muzzleAlpha = clamp(muzzleShape * energy * 0.86, 0.0, 0.97);
     gl_FragColor = vec4(muzzleColor * muzzleShape * energy * 2.9 * muzzleAlpha, muzzleAlpha);
+    ${atmFogFadeGlsl("gl_FragColor", "vAtmWorld")}
     return;
   }
 
@@ -615,6 +632,7 @@ void main() {
   float alpha = clamp(shape * energy * alphaScale, 0.0, 0.97);
   vec3 rgb = color * shape * energy * hdrScale * alpha;
   gl_FragColor = vec4(rgb, alpha);
+  ${atmFogFadeGlsl("gl_FragColor", "vAtmWorld")}
 }
 `;
 
@@ -652,7 +670,7 @@ function createMaterial(
     { vertex: shaderName, fragment: shaderName },
     {
       attributes: ["position", "uv", ...(worldBatch ? instanceAttributes : [])],
-      uniforms: [...COMMON_UNIFORMS, ...(worldBatch ? [] : sampleUniforms)],
+      uniforms: [...COMMON_UNIFORMS, ...(worldBatch ? [] : sampleUniforms), ...ATM_FOG_SHADER_UNIFORMS],
       defines: worldBatch ? ["WORLD_BATCH"] : [],
       needAlphaBlending: true,
     },
@@ -660,6 +678,7 @@ function createMaterial(
   material.alphaMode = Constants.ALPHA_PREMULTIPLIED;
   material.backFaceCulling = false;
   material.disableDepthWrite = true;
+  bindAtmosphericFog(material);
   return material;
 }
 

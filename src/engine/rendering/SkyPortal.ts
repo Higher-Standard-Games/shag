@@ -168,18 +168,8 @@ export class SkyPortalView {
     );
 
     // The player's view rotation, turned by the portal's rotation speeds
-    const rotation = view.absoluteRotation.clone();
-    const [pitchSpeed, yawSpeed, rollSpeed] = this.config.rotationSpeed;
-    if (pitchSpeed || yawSpeed || rollSpeed) {
-      const seconds = (performance.now() - this.startTime) / 1000;
-      const toRad = Math.PI / 180;
-      // Quake yaw turns about up; the axis swap mirrors it
-      const yaw = Quaternion.RotationAxis(Vector3.Up(), -yawSpeed * seconds * toRad);
-      const local = Quaternion.RotationYawPitchRoll(0, pitchSpeed * seconds * toRad, rollSpeed * seconds * toRad);
-      yaw.multiplyToRef(rotation, rotation);
-      rotation.multiplyInPlace(local);
-    }
-    this.camera.rotationQuaternion = rotation;
+    const seconds = (performance.now() - this.startTime) / 1000;
+    this.camera.rotationQuaternion = skyPortalViewRotation(view.absoluteRotation, this.config.rotationSpeed, seconds);
 
     this.camera.minZ = view.minZ;
     this.camera.maxZ = view.maxZ;
@@ -196,6 +186,26 @@ export class SkyPortalView {
     this.target.dispose();
     this.camera.dispose();
   }
+}
+
+/**
+ * The portal camera's rotation: the player's, turned by the portal's rotation
+ * speeds after `seconds`. Warfork adds the speeds to the view's Quake angles:
+ * yaw turns about up (positive turns left, from Quake +X toward +Y), pitch and
+ * roll about the view's own axes (positive pitch looks down).
+ */
+export function skyPortalViewRotation(
+  base: Quaternion,
+  [pitchSpeed, yawSpeed, rollSpeed]: readonly number[],
+  seconds: number,
+): Quaternion {
+  const rotation = base.clone();
+  if (!pitchSpeed && !yawSpeed && !rollSpeed) return rotation;
+  const toRad = Math.PI / 180;
+  // Quake +Y is engine +Z, so a Quake left turn is a negative turn about engine up
+  const yaw = Quaternion.RotationAxis(Vector3.Up(), -yawSpeed * seconds * toRad);
+  const local = Quaternion.RotationYawPitchRoll(0, pitchSpeed * seconds * toRad, rollSpeed * seconds * toRad);
+  return yaw.multiply(rotation).multiply(local);
 }
 
 /** A horizontal fov in degrees as Babylon's vertical fov in radians, for the screen's aspect. */

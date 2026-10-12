@@ -240,6 +240,8 @@ export class DebrisEffect {
     // Calculate capacity based on density
     const capacity = Math.floor(300 * this.settings.density);
     this.particleSystem = new ParticleSystem("debris", capacity, this.scene);
+    // World fog, through Babylon's particle fog: debris blends normally
+    this.particleSystem.applyFog = true;
 
     // Create texture based on type
     this.particleSystem.particleTexture = this.createDebrisTexture();

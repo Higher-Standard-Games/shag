@@ -23,6 +23,7 @@ import type { Observer } from "@babylonjs/core/Misc/observable";
 import { ParticleSystem } from "@babylonjs/core/Particles/particleSystem";
 import type { Scene } from "@babylonjs/core/scene";
 import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
+import { atmFogFactorAt } from "../rendering/AtmosphericFogShader";
 import { updateEffectPositions } from "./EffectGeometry";
 import { getPointLightPool } from "./PointLightPool";
 
@@ -565,6 +566,14 @@ export class ExplosionEffect {
 
     // Blending
     ps.blendMode = ParticleSystem.BLENDMODE_ADD;
+
+    // World fog: an additive burst fades with the fog where it goes off, as
+    // Warfork's additive passes do (all its sparks are emitted here, at once)
+    const fogFade = 1 - atmFogFactorAt(pos, this.scene!.activeCamera?.globalPosition);
+    if (fogFade < 1) {
+      ps.color1.scaleInPlace(fogFade);
+      ps.color2.scaleInPlace(fogFade);
+    }
 
     ps.start();
 

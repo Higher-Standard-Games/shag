@@ -12,6 +12,12 @@ import { Effect } from "@babylonjs/core/Materials/effect";
 import { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial";
 import type { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import type { Scene } from "@babylonjs/core/scene";
+import {
+  ATM_FOG_GLSL,
+  ATM_FOG_SHADER_UNIFORMS,
+  atmFogMixGlsl,
+  bindAtmosphericFog,
+} from "../../rendering/AtmosphericFogShader";
 
 // ============================================================================
 // GLSL Shaders
@@ -27,6 +33,7 @@ attribute vec2 uv2;
 
 // Uniforms
 uniform mat4 worldViewProjection;
+uniform mat4 world;
 uniform mat4 baseMatrix;
 uniform mat4 glowMatrix;
 uniform vec2 uvOffset;    // For tcMod scroll animation
@@ -36,8 +43,10 @@ uniform vec2 glowUvOffset; // Separate offset for glow (if needed)
 varying vec2 vUV;
 varying vec2 vUV2;
 varying vec2 vGlowUV;
+varying vec3 vAtmWorld;
 
 void main() {
+  vAtmWorld = (world * vec4(position, 1.0)).xyz;
   // Animate in authored UV space, then apply each texture's loader transform.
   vUV = (baseMatrix * vec4(uv + uvOffset, 1.0, 0.0)).xy;
   vUV2 = uv2;
@@ -66,6 +75,7 @@ uniform float glowIntensity;
 uniform float hasLightmap;  // 0.0 or 1.0 (GLSL bool from float uniform)
 uniform float glowBlendMode; // 0.0 = additive, 1.0 = alpha blend
 
+${ATM_FOG_GLSL}
 void main() {
   // Sample textures
   vec4 baseColor = texture2D(baseSampler, vUV);
@@ -94,6 +104,7 @@ void main() {
   }
 
   gl_FragColor = vec4(finalColor, baseColor.a);
+  ${atmFogMixGlsl("gl_FragColor", "vAtmWorld")}
 }
 `;
 
@@ -152,6 +163,8 @@ export class GlowOverlayShaderMaterial {
         attributes: ["position", "uv", "uv2"],
         uniforms: [
           "worldViewProjection",
+          "world",
+          ...ATM_FOG_SHADER_UNIFORMS,
           "baseMatrix",
           "glowMatrix",
           "uvOffset",
@@ -196,6 +209,7 @@ export class GlowOverlayShaderMaterial {
     // Default settings
     material.backFaceCulling = true;
 
+    bindAtmosphericFog(material);
     return material;
   }
 

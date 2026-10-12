@@ -4,6 +4,12 @@ import { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial";
 import type { Scene } from "@babylonjs/core/scene";
 import "@babylonjs/core/Shaders/ShadersInclude/instancesDeclaration";
 import "@babylonjs/core/Shaders/ShadersInclude/instancesVertex";
+import {
+  ATM_FOG_GLSL,
+  ATM_FOG_SHADER_UNIFORMS,
+  atmFogFadeGlsl,
+  bindAtmosphericFog,
+} from "../../rendering/AtmosphericFogShader";
 
 // A bullet streak: a white-hot core in a weapon-coloured glow, laid along the
 // shot and turned to face the camera about its own axis, so it keeps its width
@@ -32,6 +38,7 @@ uniform float uTime;
 
 varying vec2 vUv;
 varying vec3 vColor;
+varying vec3 vAtmWorld;
 varying float vIntensity;
 
 vec3 safeNormalize(vec3 value, vec3 fallback) {
@@ -75,6 +82,7 @@ void main() {
   vec3 side = safeNormalize(cross(dir, cameraPosition - center), vec3(1.0, 0.0, 0.0));
   vec3 worldPosition = (finalWorld * vec4(center + side * (position.y * halfWidth), 1.0)).xyz;
   gl_Position = viewProjection * vec4(worldPosition, 1.0);
+  vAtmWorld = worldPosition;
 
   vUv = uv;
   vColor = iColorLength.rgb;
@@ -87,8 +95,10 @@ precision highp float;
 
 varying vec2 vUv;
 varying vec3 vColor;
+varying vec3 vAtmWorld;
 varying float vIntensity;
 
+${ATM_FOG_GLSL}
 void main() {
   vec3 white = vec3(1.0, 0.97, 0.9);
   float along = clamp(vUv.x * 0.5 + 0.5, 0.0, 1.0);
@@ -105,6 +115,8 @@ void main() {
   float energy = 0.8 + 0.4 * clamp(vIntensity / 20.0, 0.0, 2.0);
   float alpha = clamp(shape, 0.0, 1.0);
   gl_FragColor = vec4(color * shape * energy * 2.2 * alpha, alpha);
+  // World fog: a glow fades with the fog, as Warfork's additive passes
+  ${atmFogFadeGlsl("gl_FragColor", "vAtmWorld")}
 }
 `;
 
@@ -125,12 +137,22 @@ export function createStreakTracerMaterial(name: string, scene: Scene): ShaderMa
     { vertex: "streakTracer", fragment: "streakTracer" },
     {
       attributes: ["position", "uv", "iStartSpawn", "iEndSpeed", "iColorLength", "iParams"],
-      uniforms: ["world", "view", "projection", "viewProjection", "cameraPosition", "uViewport", "uTime"],
+      uniforms: [
+        "world",
+        "view",
+        "projection",
+        "viewProjection",
+        "cameraPosition",
+        "uViewport",
+        "uTime",
+        ...ATM_FOG_SHADER_UNIFORMS,
+      ],
       needAlphaBlending: true,
     },
   );
   material.alphaMode = Constants.ALPHA_PREMULTIPLIED;
   material.backFaceCulling = false;
   material.disableDepthWrite = true;
+  bindAtmosphericFog(material);
   return material;
 }

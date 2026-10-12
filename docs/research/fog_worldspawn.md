@@ -201,14 +201,33 @@ scene fog, borrowing), `SkyPortalAndFogPasses.test.ts` (portal parsing and
 camera origin, pass kinds, portal fog scale), `Q3ShaderParser.test.ts`
 (`skyparmssides`, sky height, `nofog`), `BabylonShaderFixes.test.ts` (EXP patch).
 
+### Effects (2026-10-13)
+
+The engine's own shaders take world fog through `AtmosphericFogShader.ts`
+(one GLSL evaluation, shared with the plugin through `AtmosphericFogGlsl.ts`,
+uniforms bound per draw for the camera drawing, so the portal pass too):
+
+| Effect | Rule |
+|---|---|
+| Muzzle flash, impact sparks, tracers, rail (beam + impact), voltaic (beam + impact, every output) | Premultiplied glows fade whole with the fog, Warfork's additive rule |
+| BSP glow overlays (opaque lightmapped surfaces) | Mix toward the fog colour |
+| Filter-blend decals (darkening, alpha-blended) | Alpha fades with the fog: toward no change, Warfork's filter rule |
+| Liquid surfaces (`UnifiedWaterMaterial`), splash droplets | Mix toward the fog colour in display space, before their linear output |
+| Explosion sparks (additive particles) | Faded at spawn by the fog at the explosion (the burst is emitted at once) |
+| Debris particles (standard blend) | Babylon's particle fog (`applyFog`) |
+| `nofog` | Also honoured by these shaders (the mesh's `applyFog`) |
+
+Checked: every effect shader compiles on WebGL and WebGPU (compiled directly
+on the WebGPU engine with each material's own options), water included on
+wbomb2; no shader errors in play on either backend.
+
+Portal rotation speeds: `skyPortalViewRotation` is tested against Quake's
+convention: positive yaw turns left (Quake +X toward +Y), positive pitch
+looks down.
+
 ### Known gaps
 
-- **Effects** drawn with custom `ShaderMaterial`s (projectiles, beams,
-  explosions, liquid surfaces, voltaic) are not fogged; Warfork fades additive
-  effects with distance. Each needs fog in its own shader.
-- **Babylon particle systems** are not fogged by the plugin.
-- **Portal rotation speeds** (`angles`) follow Warfork's description; no map
-  here uses them, so their direction is unchecked.
+- **Rain** (weather, additive particles) stays unfogged.
 - **Real Warfork maps**: everything above was checked with cvars on older maps.
   Check the new maps' fog, sky heights and sky portals when they arrive.
 

@@ -13,6 +13,7 @@ import { Effect } from "@babylonjs/core/Materials/effect";
 import { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial";
 import type { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import type { Scene } from "@babylonjs/core/scene";
+import { ATM_FOG_GLSL, ATM_FOG_SHADER_UNIFORMS, bindAtmosphericFog } from "../../rendering/AtmosphericFogShader";
 
 // Register the custom shader
 Effect.ShadersStore.filterBlendVertexShader = `
@@ -24,12 +25,15 @@ attribute vec2 uv;
 
 // Uniforms
 uniform mat4 worldViewProjection;
+uniform mat4 world;
 uniform mat4 diffuseMatrix;
 
 // Varyings
 varying vec2 vUV;
+varying vec3 vAtmWorld;
 
 void main() {
+  vAtmWorld = (world * vec4(position, 1.0)).xyz;
   vUV = (diffuseMatrix * vec4(uv, 1.0, 0.0)).xy;
   gl_Position = worldViewProjection * vec4(position, 1.0);
 }
@@ -48,6 +52,7 @@ uniform float alphaPower;
 uniform float colorDarken;
 uniform float alphaMultiplier;
 
+${ATM_FOG_GLSL}
 void main() {
   vec4 texColor = texture2D(diffuseTexture, vUV);
   
@@ -71,6 +76,8 @@ void main() {
   float finalAlpha = alpha * alphaMultiplier;
   
   gl_FragColor = vec4(darkenedColor, finalAlpha);
+  // World fog: a filter fades toward no change, as Warfork's filter passes
+  gl_FragColor.a *= 1.0 - atmFogEvaluate(vAtmWorld, atmFogEye).a;
 }
 `;
 
@@ -107,6 +114,8 @@ export function createFilterBlendMaterial(
       attributes: ["position", "uv"],
       uniforms: [
         "worldViewProjection",
+        "world",
+        ...ATM_FOG_SHADER_UNIFORMS,
         "diffuseMatrix",
         "alphaThreshold",
         "alphaPower",
@@ -143,6 +152,7 @@ export function createFilterBlendMaterial(
   // Z-offset to prevent z-fighting with underlying wall
   material.zOffset = -4;
 
+  bindAtmosphericFog(material);
   return material;
 }
 

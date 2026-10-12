@@ -4,6 +4,12 @@ import { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial";
 import type { Scene } from "@babylonjs/core/scene";
 import "@babylonjs/core/Shaders/ShadersInclude/instancesDeclaration";
 import "@babylonjs/core/Shaders/ShadersInclude/instancesVertex";
+import {
+  ATM_FOG_GLSL,
+  ATM_FOG_SHADER_UNIFORMS,
+  atmFogFadeGlsl,
+  bindAtmosphericFog,
+} from "../../rendering/AtmosphericFogShader";
 
 // One shared procedural muzzle-flash effect, styled per weapon by a float:
 //   0 = burst (hot radial star), 1 = plume (fiery puff), 2 = arcs (electric).
@@ -35,6 +41,7 @@ varying float vStyle;
 varying float vSeed;
 varying float vState;
 varying vec3 vColor;
+varying vec3 vAtmWorld;
 
 vec3 safeNormalize(vec3 value, vec3 fallback) {
   float ls = dot(value, value);
@@ -69,6 +76,7 @@ void main() {
   vec3 worldPosition = center + (cameraRight * position.x + cameraUp * position.y) * radius;
   worldPosition = (finalWorld * vec4(worldPosition, 1.0)).xyz;
   gl_Position = viewProjection * vec4(worldPosition, 1.0);
+  vAtmWorld = worldPosition;
 
   vUv = uv;
   vLife = life;
@@ -92,6 +100,7 @@ varying float vStyle;
 varying float vSeed;
 varying float vState;
 varying vec3 vColor;
+varying vec3 vAtmWorld;
 
 const float PI = 3.141592653589793;
 
@@ -102,6 +111,7 @@ float hash11(float p) {
   return fract(p);
 }
 
+${ATM_FOG_GLSL}
 void main() {
   float r = length(vUv);
   float angle = atan(vUv.y, vUv.x);
@@ -159,6 +169,8 @@ void main() {
   float alpha = clamp(shape * energy, 0.0, 0.97);
   vec3 rgb = color * shape * energy * hdr * alpha;
   gl_FragColor = vec4(rgb, alpha);
+  // World fog: a glow fades with the fog, as Warfork's additive passes
+  ${atmFogFadeGlsl("gl_FragColor", "vAtmWorld")}
 }
 `;
 
@@ -179,7 +191,7 @@ export function createMuzzleFlashMaterial(name: string, scene: Scene): ShaderMat
     { vertex: "muzzleFlash", fragment: "muzzleFlash" },
     {
       attributes: ["position", "uv", "iCenterSeed", "iColorSpawn", "iParams"],
-      uniforms: ["world", "view", "projection", "viewProjection", "uViewport", "uTime"],
+      uniforms: ["world", "view", "projection", "viewProjection", "uViewport", "uTime", ...ATM_FOG_SHADER_UNIFORMS],
       defines: ["WORLD_BATCH"],
       needAlphaBlending: true,
     },
@@ -187,5 +199,6 @@ export function createMuzzleFlashMaterial(name: string, scene: Scene): ShaderMat
   material.alphaMode = Constants.ALPHA_PREMULTIPLIED;
   material.backFaceCulling = false;
   material.disableDepthWrite = true;
+  bindAtmosphericFog(material);
   return material;
 }

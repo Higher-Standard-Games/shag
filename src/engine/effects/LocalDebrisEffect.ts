@@ -126,6 +126,8 @@ export class LocalDebrisEffect {
     const capacity = Math.floor(150 * density * areaFactor);
 
     this.particleSystem = new ParticleSystem(`debris_${this.id}`, capacity, this.scene);
+    // World fog, through Babylon's particle fog: debris blends normally
+    this.particleSystem.applyFog = true;
     this.particleSystem.particleTexture = this.createDebrisTexture();
     this.particleSystem.emitter = this.emitter;
 

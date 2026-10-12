@@ -7,13 +7,13 @@
 import { Constants } from "@babylonjs/core/Engines/constants";
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
-import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { Scene } from "@babylonjs/core/scene";
 import { afterEach, describe, expect, it } from "vitest";
 import { parseWorldFog } from "../../loader/bsp/WorldFog";
 import { fogPassKind, isSkyMesh } from "../AtmosphericFogPlugin";
-import { parseSkyPortal, skyPortalCameraOrigin } from "../SkyPortal";
+import { parseSkyPortal, skyPortalCameraOrigin, skyPortalViewRotation } from "../SkyPortal";
 import { WorldFogController } from "../WorldFogController";
 
 describe("parseSkyPortal", () => {
@@ -98,5 +98,32 @@ describe("portal fog scale", () => {
     controller.setPortalScale(0);
     expect(controller.getActive()?.minDist).toBe(700);
     expect(scene.fogStart).toBe(700);
+  });
+});
+
+describe("skyPortalViewRotation", () => {
+  // A Babylon camera looks along its local +Z
+  const forward = (q: Quaternion) => {
+    const v = new Vector3(0, 0, 1);
+    v.rotateByQuaternionToRef(q, v);
+    return v;
+  };
+  // Facing Quake +X, which is engine +X
+  const facingQuakeX = Quaternion.RotationAxis(Vector3.Up(), Math.PI / 2);
+
+  it("keeps the player's view without speeds", () => {
+    expect(forward(skyPortalViewRotation(facingQuakeX, [0, 0, 0], 5)).x).toBeCloseTo(1);
+  });
+
+  it("turns left with positive yaw, as Quake: from Quake +X toward +Y (engine +Z)", () => {
+    const f = forward(skyPortalViewRotation(facingQuakeX, [0, 90, 0], 1));
+    expect(f.x).toBeCloseTo(0);
+    expect(f.z).toBeCloseTo(1);
+  });
+
+  it("looks down with positive pitch", () => {
+    const f = forward(skyPortalViewRotation(facingQuakeX, [45, 0, 0], 1));
+    expect(f.y).toBeCloseTo(-Math.SQRT1_2);
+    expect(f.x).toBeCloseTo(Math.SQRT1_2);
   });
 });

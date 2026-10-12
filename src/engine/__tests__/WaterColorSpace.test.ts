@@ -11,7 +11,10 @@ it("feeds linear output to image processing even for a frozen water material", (
   const material = createUnifiedWaterMaterial(scene, "water")!;
   const mesh = CreateGround("water", {}, scene);
   const setFloat = vi.fn();
-  const effect = vi.spyOn(material, "getEffect").mockReturnValue({ setFloat } as unknown as Effect);
+  // The material also binds world fog (setFloat4 / setFloat3)
+  const effect = vi
+    .spyOn(material, "getEffect")
+    .mockReturnValue({ setFloat, setFloat4: vi.fn(), setFloat3: vi.fn() } as unknown as Effect);
   try {
     material.freeze();
     for (const enabled of [false, true, false]) {

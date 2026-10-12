@@ -28,6 +28,7 @@ import { ShaderLanguage } from "@babylonjs/core/Materials/shaderLanguage";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import type { UniformBuffer } from "@babylonjs/core/Materials/uniformBuffer";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
+import { ATM_FOG_EVALUATE_GLSL, ATM_FOG_UNIFORMS } from "./AtmosphericFogGlsl";
 import type { WorldFogController } from "./WorldFogController";
 
 const ADDITIVE_MODES = new Set<number>([Constants.ALPHA_ADD, Constants.ALPHA_ONEONE, Constants.ALPHA_SCREENMODE]);
@@ -45,34 +46,11 @@ export function fogPassKind(material: Material, mesh: AbstractMesh): "mix" | "ad
   return "mix";
 }
 
-const UNIFORMS = ["atmFogColor", "atmFogDist", "atmFogHeight", "atmFogSky", "atmFogSunColor", "atmFogSunParams"];
+const UNIFORMS = ATM_FOG_UNIFORMS;
 
 const GLSL_EVALUATE = `
 #ifdef ATMFOG
-vec4 atmFogEvaluate(vec3 worldPos, vec3 eye) {
-  vec3 dir = worldPos - eye;
-  float dist = length(dir);
-  if (dist <= 0.0001) return vec4(0.0);
-  vec3 viewDir = dir / dist;
-#ifdef ATMFOG_SKY
-  // The sky stands at its height, on a box like Warfork's scaled sky
-  dist = atmFogDist.y / max(max(abs(viewDir.x), abs(viewDir.y)), abs(viewDir.z));
-  worldPos = eye + viewDir * dist;
-#endif
-  float factor = 1.0 - exp(-max(0.0, dist - atmFogDist.x) * atmFogDist.w);
-  if (atmFogHeight.w > 0.5) factor *= clamp((worldPos.y - atmFogHeight.x) * atmFogHeight.z, 0.0, 1.0);
-  factor = clamp(factor, 0.0, 1.0);
-  vec3 fogColor = atmFogColor.rgb;
-  if (atmFogSunParams.w > 0.0) {
-    float sunDot = max(0.0, dot(viewDir, atmFogSunParams.xyz));
-    fogColor += atmFogSunColor.rgb * pow(sunDot, atmFogSunColor.w) * atmFogSunParams.w * factor;
-  }
-  if (atmFogSky.w > 0.5) {
-    float zenith = max(0.0, viewDir.y + atmFogSky.x);
-    fogColor = mix(fogColor, atmFogColor.rgb, clamp(pow(zenith, atmFogSky.z) * atmFogSky.y, 0.0, 1.0));
-  }
-  return vec4(fogColor, factor * atmFogColor.a);
-}
+${ATM_FOG_EVALUATE_GLSL}
 #endif
 `;
 

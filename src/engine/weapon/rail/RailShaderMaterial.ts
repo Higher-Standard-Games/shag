@@ -4,6 +4,12 @@ import { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial";
 import type { Scene } from "@babylonjs/core/scene";
 import "@babylonjs/core/Shaders/ShadersInclude/instancesDeclaration";
 import "@babylonjs/core/Shaders/ShadersInclude/instancesVertex";
+import {
+  ATM_FOG_GLSL,
+  ATM_FOG_SHADER_UNIFORMS,
+  atmFogFadeGlsl,
+  bindAtmosphericFog,
+} from "../../rendering/AtmosphericFogShader";
 import { RAIL_HELIX_TURNS } from "./RailProfiles";
 
 // How fast the helix rotates about the axis while it fades (radians/second).
@@ -30,6 +36,7 @@ uniform vec2 uViewport;
 uniform float uTime;
 
 varying float vSide;
+varying vec3 vAtmWorld;
 varying float vPart;
 varying float vEnergy;
 varying float vLife;
@@ -113,6 +120,7 @@ void main() {
   vec3 worldPosition = center + ribbonSide * side * halfWidth;
   worldPosition = (finalWorld * vec4(worldPosition, 1.0)).xyz;
   gl_Position = viewProjection * vec4(worldPosition, 1.0);
+  vAtmWorld = worldPosition;
 
   vSide = side;
   vPart = part;
@@ -127,11 +135,13 @@ const BEAM_FRAGMENT_SHADER = `
 precision highp float;
 
 varying float vSide;
+varying vec3 vAtmWorld;
 varying float vPart;
 varying float vEnergy;
 varying float vLife;
 varying vec3 vColor;
 
+${ATM_FOG_GLSL}
 void main() {
   float d = abs(vSide);
   float aa = max(fwidth(d), 0.001);
@@ -167,6 +177,7 @@ void main() {
   float alpha = clamp(shape * energy * alphaScale, 0.0, 0.96);
   vec3 rgb = color * shape * energy * hdrScale * alpha;
   gl_FragColor = vec4(rgb, alpha);
+  ${atmFogFadeGlsl("gl_FragColor", "vAtmWorld")}
 }
 `;
 
@@ -192,6 +203,7 @@ uniform vec2 uViewport;
 uniform float uTime;
 
 varying vec2 vImpactUv;
+varying vec3 vAtmWorld;
 varying float vOrientedPart;
 varying float vKind;
 varying float vEnergy;
@@ -256,6 +268,7 @@ void main() {
 
   worldPosition = (finalWorld * vec4(worldPosition, 1.0)).xyz;
   gl_Position = viewProjection * vec4(worldPosition, 1.0);
+  vAtmWorld = worldPosition;
 
   vImpactUv = uv;
   vOrientedPart = orientedPart;
@@ -272,6 +285,7 @@ const IMPACT_FRAGMENT_SHADER = `
 precision highp float;
 
 varying vec2 vImpactUv;
+varying vec3 vAtmWorld;
 varying float vOrientedPart;
 varying float vKind;
 varying float vEnergy;
@@ -288,6 +302,7 @@ float hash11(float p) {
   return fract(p);
 }
 
+${ATM_FOG_GLSL}
 void main() {
   float r = length(vImpactUv);
   float angle = atan(vImpactUv.y, vImpactUv.x);
@@ -330,6 +345,7 @@ void main() {
   float alpha = clamp(shape * energy * alphaScale, 0.0, 0.97);
   vec3 rgb = color * shape * energy * hdrScale * alpha;
   gl_FragColor = vec4(rgb, alpha);
+  ${atmFogFadeGlsl("gl_FragColor", "vAtmWorld")}
 }
 `;
 
@@ -357,7 +373,7 @@ function createMaterial(name: string, scene: Scene, shaderName: "railBeam" | "ra
     { vertex: shaderName, fragment: shaderName },
     {
       attributes: ["position", "uv", ...(isImpact ? IMPACT_INSTANCE_ATTRIBUTES : BEAM_INSTANCE_ATTRIBUTES)],
-      uniforms: COMMON_UNIFORMS,
+      uniforms: [...COMMON_UNIFORMS, ...ATM_FOG_SHADER_UNIFORMS],
       defines: ["WORLD_BATCH"],
       needAlphaBlending: true,
     },
@@ -365,6 +381,7 @@ function createMaterial(name: string, scene: Scene, shaderName: "railBeam" | "ra
   material.alphaMode = Constants.ALPHA_PREMULTIPLIED;
   material.backFaceCulling = false;
   material.disableDepthWrite = true;
+  bindAtmosphericFog(material);
   return material;
 }
 
