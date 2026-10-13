@@ -100,6 +100,12 @@ describe("private bot games rated through preset accounts", () => {
     const seat = input.seats.find((p) => p.accountId === null)!;
     const row = privateBoard(mode).entries.find((e) => e.accountId === bot);
     expect(row?.name).toBe(botAccountName("medium"));
+    expect(row?.bot).toBe(true);
+    expect(
+      privateBoard(mode)
+        .entries.filter((e) => e.accountId !== bot)
+        .every((e) => !e.bot),
+    ).toBe(true);
     expect(row && (seat.outcome === "win" ? row.wins : row.losses)).toBe(1);
     results.close();
     results = MatchResultStore.open(dir);
