@@ -90,7 +90,7 @@ describe("PlayerStore renames", () => {
     const { account } = store.create();
     expect(store.rename(account.id, "a")).toEqual({ ok: false, code: "name_invalid" });
     expect(store.rename(account.id, "Player_42")).toEqual({ ok: false, code: "name_reserved" });
-    expect(store.rename(account.id, "Reaper_3")).toEqual({ ok: false, code: "name_reserved" });
+    expect(store.rename(account.id, "Gyoza_3")).toEqual({ ok: false, code: "name_reserved" });
   });
 
   it("lets you change only the capitals of your own name, even a default one", () => {

@@ -179,7 +179,7 @@ describe("LobbyServer renames", () => {
     server.handleIdentityRename(first.player, "Sundflux");
     server.handleIdentityRename(second.player, "sundflux");
     expect(last(second.sent)).toEqual({ type: "identity:error", code: "name_taken" });
-    server.handleIdentityRename(second.player, "Nova");
+    server.handleIdentityRename(second.player, "Ramen");
     expect(last(second.sent)).toEqual({ type: "identity:error", code: "name_reserved" });
     server.handleIdentityRename(second.player, "no spaces");
     expect(last(second.sent)).toEqual({ type: "identity:error", code: "name_invalid" });
@@ -208,10 +208,10 @@ describe("LobbyServer bot login", () => {
   it("takes a connection from this machine with the secret for a bot, with no account", () => {
     const server = makeServer();
     const { player, sent } = connect(server);
-    server.handleAuth(player, { type: "auth", name: "Nova", isBot: true, botSecret: SECRET });
+    server.handleAuth(player, { type: "auth", name: "Ramen", isBot: true, botSecret: SECRET });
     expect(player.authenticated).toBe(true);
     expect(player.isBot).toBe(true);
-    expect(player.name).toBe("Nova");
+    expect(player.name).toBe("Ramen");
     expect(player.accountId).toBeNull();
     expect(last(sent).identity).toBeUndefined();
     expect(last(sent).key).toBeUndefined();
@@ -220,9 +220,9 @@ describe("LobbyServer bot login", () => {
   it("gives a bot claim with the wrong secret, or none, a player account", () => {
     const server = makeServer();
     const wrong = connect(server);
-    server.handleAuth(wrong.player, { type: "auth", name: "Nova", isBot: true, botSecret: "guess" });
+    server.handleAuth(wrong.player, { type: "auth", name: "Ramen", isBot: true, botSecret: "guess" });
     const none = connect(server);
-    server.handleAuth(none.player, { type: "auth", name: "Nova", isBot: true });
+    server.handleAuth(none.player, { type: "auth", name: "Ramen", isBot: true });
     for (const { player, sent } of [wrong, none]) {
       expect(player.isBot).toBe(false);
       expect(welcomeOf(sent).identity.name).toMatch(/^Player_\d+$/);
@@ -232,7 +232,7 @@ describe("LobbyServer bot login", () => {
   it("gives a bot claim from another machine a player account, even with the secret", () => {
     const server = makeServer();
     const { player } = connect(server, "203.0.113.7");
-    server.handleAuth(player, { type: "auth", name: "Nova", isBot: true, botSecret: SECRET });
+    server.handleAuth(player, { type: "auth", name: "Ramen", isBot: true, botSecret: SECRET });
     expect(player.isBot).toBe(false);
     expect(player.accountId).not.toBeNull();
   });
@@ -240,18 +240,18 @@ describe("LobbyServer bot login", () => {
   it("has no bots at all when no secret is configured", () => {
     const server = makeServer({});
     const { player } = connect(server);
-    server.handleAuth(player, { type: "auth", name: "Nova", isBot: true, botSecret: "" });
+    server.handleAuth(player, { type: "auth", name: "Ramen", isBot: true, botSecret: "" });
     expect(player.isBot).toBe(false);
   });
 
   it("ignores a rename from a bot", () => {
     const server = makeServer();
     const { player, sent } = connect(server);
-    server.handleAuth(player, { type: "auth", name: "Nova", isBot: true, botSecret: SECRET });
+    server.handleAuth(player, { type: "auth", name: "Ramen", isBot: true, botSecret: SECRET });
     const before = sent.length;
     server.handleIdentityRename(player, "Sundflux");
     expect(sent.length).toBe(before);
-    expect(player.name).toBe("Nova");
+    expect(player.name).toBe("Ramen");
   });
 
   it("fails a bot invite without calling the bot server when no secret is configured", async () => {

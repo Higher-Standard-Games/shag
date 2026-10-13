@@ -88,9 +88,9 @@ describe("player names", () => {
   });
 
   it("reserves bot names, numbered copies included", () => {
-    expect(checkPlayerName("Nova")).toBe("name_reserved");
-    expect(checkPlayerName("nova")).toBe("name_reserved");
-    expect(checkPlayerName("Nova_2")).toBe("name_reserved");
-    expect(checkPlayerName("Novak")).toBeNull();
+    expect(checkPlayerName("Ramen")).toBe("name_reserved");
+    expect(checkPlayerName("ramen")).toBe("name_reserved");
+    expect(checkPlayerName("Ramen_2")).toBe("name_reserved");
+    expect(checkPlayerName("Ramenya")).toBeNull();
   });
 });

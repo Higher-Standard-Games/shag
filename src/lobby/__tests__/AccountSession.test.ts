@@ -319,7 +319,7 @@ describe("AccountSession.renameAccount", () => {
   it("passes on the lobby's reason for a refusal", async () => {
     const server = makeServer();
     await logIn(connectTo(server).client);
-    expect(await renameAccount("Nova")).toEqual({ ok: false, code: "name_reserved" });
+    expect(await renameAccount("Ramen")).toEqual({ ok: false, code: "name_reserved" });
   });
 
   it("says so when not logged in", async () => {

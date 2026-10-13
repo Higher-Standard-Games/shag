@@ -5,7 +5,7 @@
  * and other parameters that make them feel more or less human.
  */
 
-import { BOT_NAMES } from "./BotNames";
+import { BOT_NAMES } from "../shared/bot/BotNames";
 
 // Re-export InputButtons for convenience (bots use these to construct button bitmasks)
 export { InputButtons } from "../engine/network/components/InputComponent";

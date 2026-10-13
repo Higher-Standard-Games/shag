@@ -293,7 +293,7 @@ export interface MatchWinner {
   kind: "player" | "team" | "draw";
   /** PlayerId (as string) or TeamId, absent for a draw. */
   id?: string;
-  /** Display name for the banner ("Wraith", "Team Udon"). */
+  /** Display name for the banner ("Ramen", "Team Udon"). */
   name?: string;
 }
 
