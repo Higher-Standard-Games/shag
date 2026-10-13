@@ -30,8 +30,7 @@ describe("speakerPlan", () => {
     if (plan.kind === "skip") return;
     expect(plan.position?.asArray()).toEqual([-662, 276, -152]);
     expect(plan.volume).toBe(0.5);
-    expect(plan.minDistance).toBe(80);
-    expect(plan.maxDistance).toBeCloseTo(80 + 1000 / 3);
+    expect(plan.attenuation).toBe(3);
   });
 
   it("plays a GLOBAL speaker everywhere", () => {

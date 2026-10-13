@@ -25,11 +25,6 @@ const ROTATING_REVERSE = 2;
 const ROTATING_X_AXIS = 4;
 const ROTATING_Y_AXIS = 8;
 
-/** Distance (Quake units) a speaker plays at full volume, as in Quake. */
-const FULL_VOLUME_DISTANCE = 80;
-/** Quake's nominal clip distance: a sound fades to nothing over 1000 / attenuation. */
-const NOMINAL_CLIP_DISTANCE = 1000;
-
 function parseQ3Vector(value: string | undefined): [number, number, number] | null {
   const parts = value?.trim().split(/\s+/).map(Number);
   if (!parts || parts.length !== 3 || parts.some((n) => !Number.isFinite(n))) return null;
@@ -50,8 +45,8 @@ export type SpeakerPlan =
       /** Engine-world position, or null for a sound heard everywhere. */
       position: Vector3 | null;
       volume: number;
-      minDistance: number;
-      maxDistance: number;
+      /** The speaker's `attenuation`, on the engine's distance curve. */
+      attenuation: number;
       /** `periodic`: seconds between plays, and how much each wait may vary. */
       wait: number;
       random: number;
@@ -74,8 +69,7 @@ export function speakerPlan(entity: EntityData): SpeakerPlan {
     path,
     position: global ? null : q3ToEngine(origin!),
     volume: Math.max(0, number(p.volume, 1)),
-    minDistance: FULL_VOLUME_DISTANCE,
-    maxDistance: FULL_VOLUME_DISTANCE + NOMINAL_CLIP_DISTANCE / Math.max(attenuation, 0.001),
+    attenuation,
     wait: Math.max(0, number(p.wait, 0)),
     random: Math.max(0, number(p.random, 0)),
   };
@@ -130,11 +124,7 @@ async function handleTargetSpeaker(entity: EntityData, scene: Scene): Promise<En
   if (plan.position) node.position.copyFrom(plan.position);
   node.metadata = { mapOwned: true, isMover: true, entityType: "target_speaker" };
   const audio = AudioManager.getInstance();
-  const options = {
-    volume: plan.volume,
-    minDistance: plan.minDistance,
-    maxDistance: plan.maxDistance,
-  };
+  const options = { volume: plan.volume, attenuation: plan.attenuation };
 
   if (plan.kind === "loop") {
     let loop: SfxLoop | null = null;

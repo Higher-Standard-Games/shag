@@ -16,7 +16,12 @@ const engine = {
   }),
   unlockAsync: vi.fn(async () => {}),
   dispose: vi.fn(),
-  listener: { attach: vi.fn() },
+  listener: {
+    isAttached: false,
+    attach: vi.fn(function (this: { isAttached: boolean }, node: unknown) {
+      this.isAttached = !!node;
+    }),
+  },
 };
 
 vi.mock("@babylonjs/core/AudioV2/webAudio/webAudioEngine", () => ({
@@ -40,7 +45,8 @@ vi.mock("../loader/pk3/PK3Index", () => ({
 }));
 
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
-import { AudioV2Sfx } from "../audio/AudioV2Sfx";
+import { Observable } from "@babylonjs/core/Misc/observable";
+import { Attenuation, AudioV2Sfx } from "../audio/AudioV2Sfx";
 
 describe("AudioV2Sfx", () => {
   beforeEach(() => {
@@ -74,12 +80,40 @@ describe("AudioV2Sfx", () => {
     const spatialOptions = engine.createSoundAsync.mock.calls[1][2];
     expect(spatialOptions).toMatchObject({
       spatialEnabled: true,
-      spatialDistanceModel: "linear",
-      spatialMinDistance: 96,
-      spatialMaxDistance: 2400,
+      spatialDistanceModel: "inverse",
+      spatialMinDistance: 125,
+      spatialRolloffFactor: Attenuation.Normal,
     });
 
     audio.dispose();
     expect(engine.dispose).toHaveBeenCalledOnce();
+  });
+
+  it("fades by attenuation class on the inverse curve", async () => {
+    const audio = new AudioV2Sfx();
+    await audio.init();
+    await audio.play3D("a.ogg", new Vector3(), { attenuation: Attenuation.Static });
+    await audio.play3D("a.ogg", new Vector3(), { attenuation: Attenuation.None });
+    const rolloffs = engine.createSoundAsync.mock.calls.map(([, , options]) => options?.spatialRolloffFactor);
+    expect(rolloffs).toEqual([5, 0]);
+    audio.dispose();
+  });
+
+  it("keeps the listener on the view camera, not the weapon camera drawn after it", async () => {
+    const scene = { onBeforeRenderObservable: new Observable(), activeCameras: [] as object[], activeCamera: null };
+    const audio = new AudioV2Sfx();
+    await audio.init(scene as never);
+    const eye = { name: "eye" };
+    scene.activeCameras = [eye, { name: "weapon" }];
+    scene.onBeforeRenderObservable.notifyObservers(scene);
+    expect(engine.listener.attach).toHaveBeenLastCalledWith(eye);
+
+    // A replaced camera is followed on the next frame, with no sound played
+    const respawned = { name: "eye after respawn" };
+    scene.activeCameras = [respawned];
+    scene.onBeforeRenderObservable.notifyObservers(scene);
+    expect(engine.listener.attach).toHaveBeenLastCalledWith(respawned);
+    audio.dispose();
+    expect(scene.onBeforeRenderObservable.hasObservers()).toBe(false);
   });
 });

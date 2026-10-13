@@ -12,6 +12,7 @@ import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { Scene } from "@babylonjs/core/scene";
 import { extractLifts, type LiftSystem } from "../../../shared/bsp/LiftSystem";
 import { AudioManager } from "../../AudioManager";
+import { Attenuation } from "../../audio/AudioV2Sfx";
 import { type EntityData, EntityHandlerRegistry, type EntityHandlerResult } from "../../core/EntityHandlerRegistry";
 import { getCollisionManager } from "../../physics/CollisionManager";
 import {
@@ -311,11 +312,7 @@ async function handleLift(entity: EntityData, scene: Scene): Promise<EntityHandl
     if (phase && heardPhase && phase !== heardPhase) {
       const path = phase === "up" || phase === "down" ? definition.sound : definition.soundStop;
       if (path)
-        AudioManager.getInstance().playSfx3D(path, mesh.position, {
-          volume: 0.7,
-          minDistance: 128,
-          maxDistance: 3000,
-        });
+        AudioManager.getInstance().playSfx3D(path, mesh.position, { volume: 0.7, attenuation: Attenuation.Static });
     }
     heardPhase = phase;
   };

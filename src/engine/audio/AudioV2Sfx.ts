@@ -5,6 +5,7 @@ import type { StaticSoundBuffer } from "@babylonjs/core/AudioV2/abstractAudio/st
 import { CreateAudioEngineAsync } from "@babylonjs/core/AudioV2/webAudio/webAudioEngine";
 import { EngineStore } from "@babylonjs/core/Engines/engineStore";
 import type { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
 import { PK3Index } from "../loader/pk3/PK3Index";
 import { PK3Loader } from "../loader/pk3/PK3Loader";
@@ -16,10 +17,23 @@ export interface SfxPlayOptions {
   maxInstances?: number;
 }
 
+/**
+ * How fast a sound fades with distance, Quake's attenuation classes. On the
+ * inverse curve below, a Normal sound is at half volume 250 units away and an
+ * eighth at 1000; None plays at full volume everywhere.
+ */
+export const Attenuation = {
+  None: 0,
+  Distant: 0.5,
+  Normal: 1,
+  Idle: 2.5,
+  Static: 5,
+  Whisper: 10,
+} as const;
+
 export interface SpatialSfxPlayOptions extends SfxPlayOptions {
-  minDistance?: number;
-  maxDistance?: number;
-  rolloffFactor?: number;
+  /** An `Attenuation` class, or a map's own value; Normal when absent. */
+  attenuation?: number;
 }
 
 /** A looping sound until `stop()`, as for a map's ambient speaker. */
@@ -29,6 +43,25 @@ export interface SfxLoop {
 
 const SOUND_EXTENSIONS = [".ogg", ".wav", ".mp3"] as const;
 const MAX_ACTIVE_SPATIAL_SOUNDS = 48;
+/**
+ * gain = REFERENCE / (REFERENCE + attenuation * (distance - REFERENCE)), full
+ * volume inside REFERENCE: WebAudio's inverse model with the attenuation as its
+ * rolloff. The far distance only matters to a linear model; it is kept at the
+ * one the curve was tuned with.
+ */
+const REFERENCE_DISTANCE = 125;
+const FAR_DISTANCE = 8000;
+
+function spatialOptions(position: Vector3, options: SpatialSfxPlayOptions) {
+  return {
+    spatialEnabled: true,
+    spatialPosition: position,
+    spatialDistanceModel: "inverse" as const,
+    spatialMinDistance: REFERENCE_DISTANCE,
+    spatialMaxDistance: FAR_DISTANCE,
+    spatialRolloffFactor: Math.max(0, options.attenuation ?? Attenuation.Normal),
+  };
+}
 
 function normalizePath(path: string): string {
   return path.replace(/\\/g, "/").replace(/^\/+/, "").toLowerCase();
@@ -54,6 +87,8 @@ export class AudioV2Sfx {
   private sfxBus: AudioBus | null = null;
   private scene: Scene | null = null;
   private listenerNode: object | null = null;
+  private listenerScene: Scene | null = null;
+  private listenerObserver: Observer<Scene> | null = null;
   private initPromise: Promise<boolean> | null = null;
   private disposed = false;
   private generation = 0;
@@ -71,6 +106,7 @@ export class AudioV2Sfx {
   async init(scene?: Scene): Promise<void> {
     if (scene) this.scene = scene;
     await this.ensureInitialized();
+    this.followView();
   }
 
   setVolume(volume: number): void {
@@ -122,12 +158,7 @@ export class AudioV2Sfx {
     const sound = await this.engine.createSoundAsync(`spatial:${normalizePath(path)}`, buffer, {
       outBus: this.sfxBus,
       maxInstances: 1,
-      spatialEnabled: true,
-      spatialPosition: position,
-      spatialDistanceModel: "linear",
-      spatialMinDistance: options.minDistance ?? 96,
-      spatialMaxDistance: options.maxDistance ?? 2400,
-      spatialRolloffFactor: options.rolloffFactor ?? 1,
+      ...spatialOptions(position, options),
     });
 
     if (generation !== this.generation || this.disposed) {
@@ -168,16 +199,7 @@ export class AudioV2Sfx {
       outBus: this.sfxBus,
       loop: true,
       maxInstances: 1,
-      ...(position
-        ? {
-            spatialEnabled: true,
-            spatialPosition: position,
-            spatialDistanceModel: "linear" as const,
-            spatialMinDistance: options.minDistance ?? 96,
-            spatialMaxDistance: options.maxDistance ?? 2400,
-            spatialRolloffFactor: options.rolloffFactor ?? 1,
-          }
-        : {}),
+      ...(position ? spatialOptions(position, options) : {}),
     });
     if (generation !== this.generation || this.disposed) {
       sound.dispose();
@@ -213,6 +235,7 @@ export class AudioV2Sfx {
     this.bufferPromises.clear();
     this.packageLoads.clear();
     this.warnedMissing.clear();
+    this.stopFollowingView();
     this.listenerNode = null;
     this.sfxBus = null;
     this.engine?.dispose();
@@ -246,6 +269,7 @@ export class AudioV2Sfx {
           }
           this.engine = engine;
           this.sfxBus = bus;
+          this.followView();
           this.syncListener();
           console.log("[AudioManager] Babylon Audio V2 SFX backend ready");
           return true;
@@ -259,11 +283,33 @@ export class AudioV2Sfx {
     return this.initPromise;
   }
 
+  /**
+   * Keep the listener on the view every frame. Attaching only when a sound
+   * played left it on a camera that had since been replaced — a respawn,
+   * spectating, a demo — so the next sounds were placed against where that
+   * camera last stood.
+   */
+  private followView(): void {
+    const scene = this.scene ?? EngineStore.LastCreatedScene;
+    if (!scene || scene === this.listenerScene) return;
+    this.stopFollowingView();
+    this.listenerScene = scene;
+    this.listenerObserver = scene.onBeforeRenderObservable.add(() => this.syncListener());
+  }
+
+  private stopFollowingView(): void {
+    if (this.listenerScene && this.listenerObserver)
+      this.listenerScene.onBeforeRenderObservable.remove(this.listenerObserver);
+    this.listenerScene = null;
+    this.listenerObserver = null;
+  }
+
+  /** The eye: the first of several cameras (the weapon draws second), or the one. */
   private syncListener(): void {
     if (!this.engine) return;
-    const scene = this.scene ?? EngineStore.LastCreatedScene;
-    const camera = scene?.activeCamera ?? null;
-    if (!camera || camera === this.listenerNode) return;
+    const scene = this.listenerScene ?? this.scene ?? EngineStore.LastCreatedScene;
+    const camera = (scene?.activeCameras?.length ? scene.activeCameras[0] : scene?.activeCamera) ?? null;
+    if (!camera || (camera === this.listenerNode && this.engine.listener.isAttached)) return;
     this.engine.listener.attach(camera);
     this.listenerNode = camera;
   }
