@@ -44,6 +44,7 @@ precision highp float;
 
 // Varyings
 varying vec2 vUV;
+varying vec3 vAtmWorld;
 
 // Uniforms
 uniform sampler2D diffuseTexture;

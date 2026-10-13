@@ -63,6 +63,7 @@ precision highp float;
 varying vec2 vUV;
 varying vec2 vUV2;
 varying vec2 vGlowUV;
+varying vec3 vAtmWorld;
 
 // Samplers
 uniform sampler2D baseSampler;
