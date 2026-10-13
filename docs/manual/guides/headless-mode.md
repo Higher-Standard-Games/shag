@@ -112,16 +112,12 @@ Ranking development/operations:
 
 ```bash
 npm run ranking:simulate
-npm run ranking:references -- --check path/to/calibration.json
-npm run ranking:references -- --list --data-dir ./server-data
-npm run ranking:references -- --install path/to/calibration.json --data-dir ./server-data
 npm run lobby:server -- --results-recover --data-dir ./server-data
 npm run lobby:server -- --ratings-verify --data-dir ./server-data
 ```
 
-No bot strengths are shipped. Install requires an operator-reviewed human pilot
-and existing consistent ranking storage; simulation fixtures do not calibrate
-real bots. Recovery retries private signed outbox files into receipts without
+Bots are rated as their preset accounts in the Private pools; see the lobby
+guide. Recovery retries private signed outbox files into receipts without
 starting a service, requires an explicit data directory and cannot invent a
 finish for an unfinished child. See [Lobby server](./lobby-server.md#delivery-recovery).
 

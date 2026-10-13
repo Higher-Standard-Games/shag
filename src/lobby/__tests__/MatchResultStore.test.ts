@@ -345,9 +345,10 @@ describe("MatchResultStore", () => {
     expect(board().total).toBe(0);
     expect(board("private").entries).toMatchObject([{ accountId: ids[0], wins: 1, losses: 1, draws: 1 }]);
     expect(results.ratings.statistics()).toMatchObject({ receipts: 3, seats: 6, ratings: 0 });
+    // A bot that names no preset stands for no account: its games are records only.
     expect(results.ratings.getResult("private-bot-0")?.receipt).toMatchObject({
-      ratingStatus: "pending",
-      ratingReason: "bot_reference_pending",
+      ratingStatus: "excluded",
+      ratingReason: "bot_reference_missing",
     });
     const publicId = "unranked-public";
     running.matchToLobby.set(publicId, "public-room");

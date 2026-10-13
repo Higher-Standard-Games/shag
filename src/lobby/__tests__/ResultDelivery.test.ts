@@ -8,7 +8,6 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { resultReport } from "../../engine/server/network/__tests__/_resultReport";
 import { issueDropInSeat, issueMatchAdmission } from "../../engine/server/network/MatchAdmission";
 import { signMatchResult } from "../../engine/server/network/MatchResultReport";
-import { botCalibration } from "../../shared/ranking/__tests__/_botCalibration";
 import { botReference } from "../../shared/ranking/__tests__/_botReference";
 import { MatchResultStore } from "../MatchResultStore";
 import { PlayerStore } from "../PlayerStore";
@@ -201,12 +200,12 @@ describe("private durable result outbox", () => {
       ratingStatus: "excluded",
       ratingReason: "bot_reference_changed",
     });
+    // The human's record and the bot preset account's.
     expect(results.leaderboard({ gametype: "duel", scope: "private", period: "all", offset: 0, limit: 10 }).total).toBe(
-      1,
+      2,
     );
   });
   it("excludes uncommitted bot skill after lost control but preserves an already committed bot receipt", () => {
-    results.ratings.calibrations.register(botCalibration());
     const c = prepare("control-lost", true);
     persistFinalResult(c.file, c.line);
     results.deliveries.loseBotControl();

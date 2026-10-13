@@ -47,8 +47,10 @@ export type HumanRatingExclusion =
 
 export type MatchRatingDecision =
   | { status: "excluded"; reason: string }
-  | { status: "pending"; reason: "bot_reference_pending" }
   | { status: "applied"; groups: AccountRatingGroup[] };
+
+/** A private match with bot seats: rated once its bots stand for their preset accounts. */
+export const UNMAPPED_BOT_SEATS = "bot_seats_unmapped";
 
 /**
  * Conservative initial eligibility: the original humans played on unchanged
@@ -66,9 +68,7 @@ export function matchRatingGroups(input: MatchRatingInput): MatchRatingDecision 
   if (hasBots && input.scope === "private" && input.botReferenceChanged)
     return { status: "excluded", reason: "bot_reference_changed" };
   if (hasBots)
-    return input.scope === "private"
-      ? { status: "pending", reason: "bot_reference_pending" }
-      : { status: "excluded", reason: "public_roster_ineligible" };
+    return { status: "excluded", reason: input.scope === "private" ? UNMAPPED_BOT_SEATS : "public_roster_ineligible" };
   if (!input.startingRoster) return exclude("starting_roster_unavailable");
   const allowedTeams = input.gametype === "ffa" ? ["ffa"] : ["udon", "soba"];
   const roster = new Map<number, PlayedTeam>();

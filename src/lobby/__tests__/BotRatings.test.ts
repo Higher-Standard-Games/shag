@@ -3,22 +3,21 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { botCalibration } from "../../shared/ranking/__tests__/_botCalibration";
 import { botReference } from "../../shared/ranking/__tests__/_botReference";
-import { canonicalCalibration } from "../../shared/ranking/BotRatingReferences";
 import type { RatingMode } from "../../shared/ranking/RatingPolicy";
+import { botAccountName } from "../BotAccountStore";
 import { MatchResultStore } from "../MatchResultStore";
 import { PlayerStore } from "../PlayerStore";
 import { canonicalSnapshot, type ResultSnapshot } from "../ResultSnapshot";
 
-describe("transactional calibrated private bot ratings", () => {
+describe("private bot games rated through preset accounts", () => {
   let dir: string;
   let players: PlayerStore;
   let results: MatchResultStore;
   let sql: DatabaseSync;
   let ids: number[];
   beforeEach(() => {
-    dir = fs.mkdtempSync(path.join(os.tmpdir(), "shag-fixed-bots-"));
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), "shag-bot-accounts-"));
     players = PlayerStore.open(dir);
     ids = [players.create().account.id, players.create().account.id];
     results = MatchResultStore.open(dir);
@@ -31,11 +30,12 @@ describe("transactional calibrated private bot ratings", () => {
     const target = path.resolve(dir);
     if (
       !target.startsWith(`${path.resolve(os.tmpdir())}${path.sep}`) ||
-      !path.basename(target).startsWith("shag-fixed-bots-")
+      !path.basename(target).startsWith("shag-bot-accounts-")
     )
       throw new Error("Unsafe cleanup");
     fs.rmSync(target, { recursive: true, force: true });
   });
+  /** Humans on even seats, Medium bots on odd ones; the humans' side wins. */
   function match(mode: RatingMode = "duel", matchId = "bot-game"): ResultSnapshot {
     const count = mode === "snd" || mode === "ffa" ? 4 : 2;
     const ffa = mode === "ffa";
@@ -83,121 +83,61 @@ describe("transactional calibrated private bot ratings", () => {
       })),
     });
   }
-  it.each([
-    "duel",
-    "amphi",
-    "snd",
-    "ffa",
-  ] as const)("applies %s only to private humans and replays with fixed references", (mode) => {
-    const c = botCalibration(mode);
-    expect(results.ratings.calibrations.register(c)).toBe("registered");
+  const privateBoard = (mode: RatingMode = "duel", accountId?: number) =>
+    results.skillLeaderboard({ gametype: mode, scope: "private", period: "all", offset: 0, limit: 10, accountId });
+
+  it.each(["duel", "amphi", "snd", "ffa"] as const)("rates %s humans and the Medium account, and replays", (mode) => {
     const input = match(mode);
     expect(results.ratings.ingest(input)).toMatchObject({ ratingStatus: "applied", ratingReason: "eligible" });
     expect(results.ratings.ingest(input)).toMatchObject({ status: "duplicate", ratingStatus: "applied" });
-    const humans = input.seats.filter((p) => p.accountId !== null);
-    for (const p of humans) {
-      expect(results.ratings.getRating(p.accountId!, mode, "private")?.state.ratedMatches).toBe(1);
-      expect(results.ratings.getRating(p.accountId!, mode, "public")).toBeNull();
+    const bot = results.ratings.bots.get("medium");
+    const humans = input.seats.flatMap((p) => (p.accountId === null ? [] : [p.accountId]));
+    for (const id of [...humans, bot]) {
+      expect(results.ratings.getRating(id, mode, "private")?.state.ratedMatches).toBe(1);
+      expect(results.ratings.getRating(id, mode, "public")).toBeNull();
     }
-    expect(results.ratings.calibrations.get(c.id)).toEqual(c);
-    expect(results.ratings.statistics()).toMatchObject({
-      calibrations: 1,
-      ratings: humans.length,
-      updates: humans.length,
-    });
+    // The account's record is its first seat's.
+    const seat = input.seats.find((p) => p.accountId === null)!;
+    const row = privateBoard(mode).entries.find((e) => e.accountId === bot);
+    expect(row?.name).toBe(botAccountName("medium"));
+    expect(row && (seat.outcome === "win" ? row.wins : row.losses)).toBe(1);
     results.close();
     results = MatchResultStore.open(dir);
+    // A second Medium (S&D, FFA) plays fixed: only the first seat's account updates.
     expect(results.ratings.verifyReplay()).toEqual({
       consistent: true,
       matches: 1,
-      updates: humans.length,
-      ratings: humans.length,
+      updates: humans.length + 1,
+      ratings: humans.length + 1,
     });
-    const plan = JSON.parse(String(sql.prepare("SELECT groups_json FROM ranking_results").get()?.groups_json));
-    expect(JSON.stringify(plan)).toContain(c.id);
-    expect(JSON.stringify(plan)).toContain('"mu":10');
-    expect(sql.prepare("SELECT COUNT(*) AS n FROM players").get()?.n).toBe(2);
   });
-  it("keeps earlier pending receipts pending after registration, but applies new contests", () => {
-    const input = match();
-    expect(results.ratings.ingest(input).ratingStatus).toBe("pending");
-    expect(
-      results.skillLeaderboard({
-        gametype: "duel",
-        scope: "private",
-        period: "all",
-        offset: 0,
-        limit: 10,
-        accountId: ids[0],
-      }),
-    ).toMatchObject({
-      entries: [],
-      total: 0,
-      localProcessing: { pending: 1, excluded: 0 },
-    });
-    results.ratings.calibrations.register(botCalibration());
-    expect(results.ratings.ingest(input)).toMatchObject({ status: "duplicate", ratingStatus: "pending" });
-    expect(results.ratings.ingest({ ...input, matchId: "new-game" }).ratingStatus).toBe("applied");
-    expect(
-      results.skillLeaderboard({
-        gametype: "duel",
-        scope: "private",
-        period: "all",
-        offset: 0,
-        limit: 10,
-        accountId: ids[0],
-      }),
-    ).toMatchObject({
-      total: 1,
-      localPlayerEntry: { ratedMatches: 1, provisional: true, wins: 2 },
-      localProcessing: { pending: 1, excluded: 0 },
-    });
-    expect(results.ratings.verifyReplay()).toEqual({ consistent: true, matches: 1, updates: 1, ratings: 1 });
+
+  it("makes one keyless account per preset, named for it", () => {
+    results.ratings.ingest(match("duel", "one"));
+    results.ratings.ingest(match("duel", "two"));
+    expect(results.ratings.bots.list()).toEqual([{ preset: "medium", accountId: results.ratings.bots.get("medium") }]);
+    expect(sql.prepare("SELECT name FROM players WHERE id = ?").get(results.ratings.bots.get("medium"))?.name).toBe(
+      "Bot · Medium",
+    );
+    expect(results.ratings.getRating(results.ratings.bots.get("medium"), "duel", "private")?.state.ratedMatches).toBe(
+      2,
+    );
   });
-  it("allows exact artifact retries and independent modes but refuses overwritten versions or strengths", () => {
-    const c = botCalibration();
-    results.ratings.calibrations.register(c);
-    expect(results.ratings.calibrations.register(structuredClone(c))).toBe("duplicate");
-    expect(() => results.ratings.calibrations.register({ ...c, mu: 11 })).toThrow("cannot be overwritten");
-    expect(() => results.ratings.calibrations.register({ ...c, id: "revision", mu: 11 })).toThrow("new rating policy");
-    expect(results.ratings.calibrations.register(botCalibration("snd"))).toBe("registered");
-    expect(results.ratings.calibrations.get(c.id)).toEqual(c);
-  });
-  it("rolls back all human updates, records and receipt if the second human update fails", () => {
-    results.ratings.calibrations.register(botCalibration("snd"));
+
+  it("rolls back every update, record and receipt if one update fails", () => {
     sql.exec(
-      `CREATE TRIGGER fail_fixed_update BEFORE INSERT ON rating_updates WHEN NEW.account_id = ${ids[1]} BEGIN SELECT RAISE(ABORT, 'fixed-stage-failure'); END`,
+      `CREATE TRIGGER fail_update BEFORE INSERT ON rating_updates WHEN NEW.account_id = ${ids[1]} BEGIN SELECT RAISE(ABORT, 'update-failure'); END`,
     );
     const input = match("snd");
-    expect(() => results.ratings.ingest(input)).toThrow("fixed-stage-failure");
-    expect(results.ratings.statistics()).toMatchObject({
-      receipts: 0,
-      seats: 0,
-      ratings: 0,
-      updates: 0,
-      calibrations: 1,
-    });
+    expect(() => results.ratings.ingest(input)).toThrow("update-failure");
+    expect(results.ratings.statistics()).toMatchObject({ receipts: 0, seats: 0, ratings: 0, updates: 0 });
     expect(results.statistics().totalMatches).toBe(0);
-    sql.exec("DROP TRIGGER fail_fixed_update");
+    sql.exec("DROP TRIGGER fail_update");
     expect(results.ratings.ingest(input).ratingStatus).toBe("applied");
-    expect(results.ratings.verifyReplay().updates).toBe(2);
+    expect(results.ratings.verifyReplay().updates).toBe(3);
   });
-  it("detects deleted or altered calibration states during replay", () => {
-    const c = botCalibration();
-    results.ratings.calibrations.register(c);
-    results.ratings.ingest(match());
-    sql
-      .prepare("UPDATE bot_calibrations SET artifact = ? WHERE id = ?")
-      .run(JSON.stringify(canonicalCalibration({ ...c, mu: 11 })), c.id);
-    expect(() => results.ratings.verifyReplay()).toThrow("fixed references");
-    sql.prepare("DELETE FROM bot_calibrations WHERE id = ?").run(c.id);
-    expect(() => results.ratings.verifyReplay()).toThrow("fixed references");
-  });
-  it("keeps unpiloted maps, changed/missing identities and custom bots pending or excluded", () => {
-    results.ratings.calibrations.register(botCalibration());
-    const unknownMap = match("duel", "map");
-    unknownMap.map = "other";
-    expect(results.ratings.ingest(unknownMap).ratingStatus).toBe("pending");
+
+  it("excludes changed, missing and custom bots, keeping their records", () => {
     const changed = match("duel", "changed");
     changed.botReferenceChanged = true;
     expect(results.ratings.ingest(changed)).toMatchObject({
@@ -206,10 +146,44 @@ describe("transactional calibrated private bot ratings", () => {
     });
     const absent = match("duel", "absent");
     delete absent.seats[1].botReference;
-    expect(results.ratings.ingest(absent).ratingStatus).toBe("pending");
+    for (const p of absent.startingRoster!) delete p.botReference;
+    expect(results.ratings.ingest(absent)).toMatchObject({
+      ratingStatus: "excluded",
+      ratingReason: "bot_reference_missing",
+    });
     const custom = match("duel", "custom");
     custom.seats[1].botReference!.preset = "custom";
-    expect(results.ratings.ingest(custom).ratingStatus).toBe("pending");
+    for (const p of custom.startingRoster!) if (p.botReference) p.botReference.preset = "custom";
+    expect(results.ratings.ingest(custom)).toMatchObject({ ratingStatus: "excluded", ratingReason: "bot_custom" });
     expect(results.ratings.statistics().ratings).toBe(0);
+    expect(results.leaderboard({ gametype: "duel", scope: "private", period: "all", offset: 0, limit: 10 }).total).toBe(
+      2,
+    );
+  });
+
+  it("rates the bot games a calibration-era store kept pending, on reopening", () => {
+    results.ratings.ingest(match("duel", "waited"));
+    // As schema 2 left it: the receipt pending, no ratings, no bot account.
+    const medium = results.ratings.bots.get("medium");
+    sql.exec("DELETE FROM rating_updates; DELETE FROM ratings");
+    sql.prepare("DELETE FROM match_participants WHERE account_id = ?").run(medium);
+    sql.exec(
+      "UPDATE ranking_results SET rating_status = 'pending', rating_reason = 'bot_reference_pending', groups_json = NULL",
+    );
+    sql.exec("DROP TABLE bot_accounts");
+    sql.prepare("DELETE FROM players WHERE id = ?").run(medium);
+    sql.exec("UPDATE ranking_schema SET version = 2");
+    sql.exec("CREATE TABLE bot_calibrations (id TEXT PRIMARY KEY)");
+    results.close();
+    results = MatchResultStore.open(dir);
+    expect(results.ratings.getResult("waited")?.receipt).toMatchObject({
+      ratingStatus: "applied",
+      ratingReason: "eligible",
+    });
+    const bot = results.ratings.bots.get("medium");
+    expect(privateBoard("duel", ids[0])).toMatchObject({ total: 2, localPlayerEntry: { wins: 1, ratedMatches: 1 } });
+    expect(privateBoard().entries.find((e) => e.accountId === bot)).toMatchObject({ losses: 1 });
+    expect(results.ratings.verifyReplay()).toMatchObject({ consistent: true, matches: 1, updates: 2 });
+    expect(sql.prepare("SELECT name FROM sqlite_master WHERE name = 'bot_calibrations'").get()).toBeUndefined();
   });
 });

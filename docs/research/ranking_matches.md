@@ -2,6 +2,11 @@
 
 **Status:** Basic ranking implementation through RM-09, gameplay stats, profile history, team mapping fixes and two-player FFA passed 4,545 tests / 532 files, typecheck, Biome, application build and required networking regressions. Localhost Public/Private Duel, Amphi, FFA and short S&D matches, native private bot records, service restart and isolated backup restore checked. Real human bot calibration, deployed browser combat/objective play with normal match lengths and normal release asset packaging remain pending. No production bot strengths are shipped.
 
+> **Superseded for bots (v0.9.29):** private bot games are no longer rated
+> against calibrated fixed references. Each bot preset is a rated account; see
+> [v0.9.29-bot-ratings.md](v0.9.29-bot-ratings.md). The calibration and pilot
+> sections below are history.
+
 ## Goal
 
 Two independent rankings, one leaderboard screen:

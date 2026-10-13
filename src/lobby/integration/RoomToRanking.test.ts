@@ -153,11 +153,13 @@ describe("installed-map room to ranking", () => {
           client.send(MessageCodec.encodeJoinGame("ffa"));
         }
         for (const client of gameClients) client.send(MessageCodec.encodeReady());
+        // A private room's bot plays as its preset account: one more row.
+        const rows = members.length + (visibility === "private" ? 1 : 0);
         await vi.waitFor(
           () => {
             expect(
               results.leaderboard({ gametype: "ffa", period: "all", offset: 0, limit: 10, scope: visibility }).total,
-            ).toBe(members.length);
+            ).toBe(rows);
           },
           { timeout: 30_000, interval: 100 },
         );
@@ -179,9 +181,9 @@ describe("installed-map room to ranking", () => {
           system: "trueskill",
           policyVersion: "shag-trueskill-v1",
           scope: visibility,
-          total: visibility === "private" ? 0 : 2,
-          localProcessing: { pending: visibility === "private" ? 1 : 0, excluded: 0 },
-          ...(visibility === "public" ? { localPlayerEntry: { ratedMatches: 1, provisional: true } } : {}),
+          total: 2,
+          localProcessing: { pending: 0, excluded: 0 },
+          localPlayerEntry: { ratedMatches: 1, provisional: true },
         });
         expect(results.deliveries.has(String(firstConnect.matchId))).toBe(false);
         expect(fs.existsSync(path.join(dir, "result-outbox", `${firstConnect.matchId}.result`))).toBe(false);
@@ -191,32 +193,28 @@ describe("installed-map room to ranking", () => {
         expect(lobby.getResultDiagnostics()).toMatchObject({
           storage: {
             totalMatches: 1,
-            totalParticipants: members.length,
+            totalParticipants: rows,
             latestResult: { scope: visibility, bots: visibility === "private" ? 1 : 0 },
           },
           runtime: { totals: { stored: 1 }, recent: [{ status: "stored", reason: "stored", scope: visibility }] },
         });
         const reopened = MatchResultStore.open(dir);
         try {
-          // The real child's gameplay counters survive persistence, separately
-          // from skill eligibility for an uncalibrated private bot match.
+          // The real child's gameplay counters survive persistence, and a
+          // private bot match rates against the bot's preset account.
           const statsQuery = { gametype: "ffa" as const, scope: visibility, period: "all" as const };
           const summary = reopened.playerStats.summary(members[0].account.id, statsQuery);
           expect(summary).toMatchObject({ matches: 1, draws: 1, statsMatches: 1, totals: { frags: 0 } });
           expect(summary.totals!.activeTimeMs).toBeGreaterThan(0);
-          expect(summary.rating).toEqual(
-            visibility === "private" ? null : expect.objectContaining({ ratedMatches: 1 }),
-          );
+          expect(summary.rating).toEqual(expect.objectContaining({ ratedMatches: 1 }));
           const history = reopened.playerStats.history(members[0].account.id, statsQuery);
           expect(history.entries).toHaveLength(1);
           expect(history.entries[0]).toMatchObject({
             matchId: firstConnect.matchId,
             stats: { version: 1, ...summary.totals },
-            ratingStatus: visibility === "private" ? "pending" : "applied",
+            ratingStatus: "applied",
           });
-          expect(history.entries[0].ratingChange).toEqual(
-            visibility === "private" ? null : expect.objectContaining({ delta: expect.any(Number) }),
-          );
+          expect(history.entries[0].ratingChange).toEqual(expect.objectContaining({ delta: expect.any(Number) }));
           expect(
             reopened.playerStats.summary(members[0].account.id, { ...statsQuery, scope: otherScope }),
           ).toMatchObject({
@@ -226,16 +224,16 @@ describe("installed-map room to ranking", () => {
           });
           expect(
             reopened.leaderboard({ gametype: "ffa", period: "all", offset: 0, limit: 10, scope: visibility }).total,
-          ).toBe(members.length);
+          ).toBe(rows);
           expect(MatchResultStore.inspect(dir)).toMatchObject({
             status: "ready",
-            statistics: { totalMatches: 1, totalParticipants: members.length },
+            statistics: { totalMatches: 1, totalParticipants: rows },
           });
           const journal = reopened.ratings.getResult(firstConnect.matchId as string);
           expect(journal?.receipt).toMatchObject({
             recordStatus: "recorded",
-            ratingStatus: visibility === "private" ? "pending" : "applied",
-            ratingReason: visibility === "private" ? "bot_reference_pending" : "eligible",
+            ratingStatus: "applied",
+            ratingReason: "eligible",
           });
           expect(journal?.snapshot.scope).toBe(visibility);
           expect(journal?.snapshot.startingRoster).toHaveLength(2);
@@ -250,14 +248,12 @@ describe("installed-map room to ranking", () => {
           }
           expect(reopened.ratings.verifyReplay()).toEqual({
             consistent: true,
-            matches: visibility === "private" ? 0 : 1,
-            updates: visibility === "private" ? 0 : 2,
-            ratings: visibility === "private" ? 0 : 2,
+            matches: 1,
+            updates: 2,
+            ratings: 2,
           });
           for (const member of members) {
-            expect(reopened.ratings.getRating(member.account.id, "ffa", visibility)?.state.ratedMatches).toBe(
-              visibility === "private" ? undefined : 1,
-            );
+            expect(reopened.ratings.getRating(member.account.id, "ffa", visibility)?.state.ratedMatches).toBe(1);
             expect(reopened.ratings.getRating(member.account.id, "ffa", otherScope)).toBeNull();
           }
         } finally {
@@ -291,10 +287,13 @@ describe("installed-map room to ranking", () => {
             scope: visibility,
           });
           const page = await peer.waitFor("leaderboard:page", (message) => message.requestId === `rank_${index}`);
-          expect(page).toMatchObject({ total: members.length, localPlayerRank: 1, scope: visibility });
-          expect((page.entries as Array<{ playerId: string; draws: number }>).map((entry) => entry.playerId)).toEqual(
-            members.map((member) => String(member.account.id)),
-          );
+          expect(page).toMatchObject({ total: rows, localPlayerRank: 1, scope: visibility });
+          // Equal records order by account: the people, then the bot's later preset account.
+          expect(
+            (page.entries as Array<{ playerId: string; draws: number }>)
+              .map((entry) => entry.playerId)
+              .slice(0, members.length),
+          ).toEqual(members.map((member) => String(member.account.id)));
           expect((page.entries as Array<{ draws: number }>).every((entry) => entry.draws === 1)).toBe(true);
         }
         first.send({

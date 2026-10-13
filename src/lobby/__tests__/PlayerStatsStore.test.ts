@@ -70,8 +70,8 @@ describe("durable own-account gameplay stats", () => {
     expect(results.ratings.statistics().receipts).toBe(0);
     expect(results.playerStats.summary(ids[0], query).matches).toBe(0);
   });
-  it("shows records/totals for pending bot games without inventing a skill rating", () => {
-    const input = played("pending", "private");
+  it("shows records, totals and the rating change for a bot game", () => {
+    const input = played("bot", "private");
     input.bots = 1;
     input.botReferenceChanged = false;
     input.seats[1].accountId = null;
@@ -83,14 +83,13 @@ describe("durable own-account gameplay stats", () => {
     expect(results.playerStats.summary(ids[0], { ...query, scope: "private" })).toMatchObject({
       matches: 1,
       wins: 1,
-      pending: 1,
-      rating: null,
+      pending: 0,
+      rating: { ratedMatches: 1 },
       totals: { frags: 4 },
     });
-    expect(results.playerStats.history(ids[0], { ...query, scope: "private" }).entries[0]).toMatchObject({
-      ratingStatus: "pending",
-      ratingChange: null,
-    });
+    const entry = results.playerStats.history(ids[0], { ...query, scope: "private" }).entries[0];
+    expect(entry).toMatchObject({ ratingStatus: "applied" });
+    expect(entry.ratingChange!.delta).toBeGreaterThan(0);
   });
   it("uses keyset history pages, saved rating changes and account/scope/mode isolation", () => {
     for (let i = 0; i < 4; i++) results.ratings.ingest(played(`m-${i}`));
@@ -137,12 +136,12 @@ describe("durable own-account gameplay stats", () => {
       await lobby.stop();
     }
   });
-  it("adds schema v2 without backfilling legacy receipts and rejects missing current tables", () => {
+  it("moves an old schema forward without backfilling legacy stats, and rejects missing current tables", () => {
     results.ratings.ingest(played("legacy", "public", false));
     results.close();
     sql.exec("DROP TABLE ranking_stats; UPDATE ranking_schema SET version = 1");
     results = MatchResultStore.open(dir);
-    expect(sql.prepare("SELECT version FROM ranking_schema").get()?.version).toBe(2);
+    expect(sql.prepare("SELECT version FROM ranking_schema").get()?.version).toBe(3);
     expect(results.ratings.verifyReplay().matches).toBe(1);
     expect(results.playerStats.summary(ids[0], query)).toMatchObject({ matches: 1, statsMatches: 0, totals: null });
     sql.exec("DROP TABLE ranking_stats");

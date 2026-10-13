@@ -115,8 +115,9 @@ describe("fresh transactional rating journal", () => {
     });
     expect(results.ratings.statistics()).toMatchObject({ ratings: 0, updates: 0 });
     expect(results.ratings.verifyReplay()).toEqual({ consistent: true, matches: 0, updates: 0, ratings: 0 });
+    // The human's record, and the Medium account's: a record needs no rating.
     expect(results.leaderboard({ gametype: "duel", scope: "private", period: "all", offset: 0, limit: 10 }).total).toBe(
-      1,
+      2,
     );
   });
   const tableCount = (table: string) => Number(sql.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get()?.n);
@@ -129,7 +130,7 @@ describe("fresh transactional rating journal", () => {
 
   it("initializes empty tables and pins a separate ranking schema/policy without changing account user_version", () => {
     expect(sql.prepare("PRAGMA user_version").get()?.user_version).toBe(1);
-    expect(sql.prepare("SELECT version FROM ranking_schema WHERE id = 1").get()?.version).toBe(2);
+    expect(sql.prepare("SELECT version FROM ranking_schema WHERE id = 1").get()?.version).toBe(3);
     expect(JSON.parse(String(sql.prepare("SELECT parameters FROM ranking_policies").get()?.parameters))).toEqual(
       RATING_POLICY,
     );
@@ -373,35 +374,35 @@ describe("fresh transactional rating journal", () => {
     expect(results.ratings.verifyReplay()).toEqual({ consistent: true, matches: 9, updates: 18, ratings: 16 });
   });
 
-  it("retains a pending human receipt without inventing skill, and duplicates cannot activate it", () => {
-    const receipt = results.ratings.ingest(match(), { status: "pending", reason: "mode_adapter_pending" });
-    expect(receipt).toMatchObject({ ratingStatus: "pending", ratingReason: "mode_adapter_pending" });
+  it("retains an excluded human receipt without inventing skill, and duplicates cannot activate it", () => {
+    const receipt = results.ratings.ingest(match(), { status: "excluded", reason: "mode_adapter_pending" });
+    expect(receipt).toMatchObject({ ratingStatus: "excluded", ratingReason: "mode_adapter_pending" });
     expect(board().total).toBe(2);
     expect(results.ratings.ingest(match(), { status: "applied", groups: groups() })).toMatchObject({
       status: "duplicate",
-      ratingStatus: "pending",
+      ratingStatus: "excluded",
     });
     expect(tableCount("ratings")).toBe(0);
     expect(results.ratings.verifyReplay().matches).toBe(0);
   });
 
-  it("keeps private bot seats and human records while skill waits for calibration", () => {
+  it("rates a private bot game against the bot's preset account, keeping the seat's snapshot", () => {
     const input = match("bot", "duel", "private");
     input.bots = 1;
+    input.botReferenceChanged = false;
     input.seats[0].accountId = null;
-    input.startingRoster![0] = { accountId: null, isBot: true, team: "udon" };
-    expect(results.ratings.ingest(input)).toMatchObject({
-      ratingStatus: "pending",
-      ratingReason: "bot_reference_pending",
-    });
+    input.seats[0].botReference = botReference();
+    input.startingRoster![0] = { accountId: null, isBot: true, team: "udon", botReference: botReference() };
+    expect(results.ratings.ingest(input)).toMatchObject({ ratingStatus: "applied", ratingReason: "eligible" });
     expect(results.ratings.getResult("bot")?.snapshot.seats[0].accountId).toBeNull();
-    expect(board("private").entries).toMatchObject([{ accountId: ids[1], losses: 1 }]);
-    input.matchId = "bot-skill";
-    expect(() => results.ratings.ingest(input, { status: "applied", groups: groups() })).toThrow(
-      "calibrated fixed references",
-    );
-    expect(tableCount("ranking_results")).toBe(1);
-    expect(results.ratings.verifyReplay().matches).toBe(0);
+    const bot = results.ratings.bots.get("medium");
+    expect(results.ratings.getRating(bot, "duel", "private")?.state.ratedMatches).toBe(1);
+    expect(
+      board("private")
+        .entries.map((e) => e.accountId)
+        .sort(),
+    ).toEqual([ids[1], bot].sort());
+    expect(results.ratings.verifyReplay()).toMatchObject({ consistent: true, matches: 1, updates: 2 });
   });
 
   it.each([
@@ -530,7 +531,7 @@ describe("fresh transactional rating journal", () => {
     const before = sql.prepare("SELECT * FROM ranking_results").all();
     expect(RatingStore.inspect(dir, true)).toMatchObject({
       status: "ready",
-      version: 2,
+      version: 3,
       receipts: 1,
       ratings: 2,
       updates: 2,

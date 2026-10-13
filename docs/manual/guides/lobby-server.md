@@ -91,7 +91,8 @@ A room is one gametype, one map vote and up to that gametype's player count.
 - **Maps.** Three are drawn from the gametype's pool, and only maps that are
   actually installed are offered. Most votes wins, ties are random.
 - **Bots** are invited in private rooms through the bot server, at `easy`, `medium` (the
-  default), `hard` or `insane`. A bot carries no account. Once the last human
+  default), `hard` or `insane`. A bot plays its ratings as its preset's account
+  (see "Bots are rated accounts"). Once the last human
   leaves, the room's bots are evicted so a bot-only room can never linger or
   start a match.
 - **Chat** belongs to the room: members only, the last 50 messages handed over
@@ -202,8 +203,8 @@ Late joins, missing participation evidence and interrupted play keep their
 records with an explicit skill exclusion. A spectator departure stays marked
 after rejoining; a reconnect-held entity continues participating. A valid final
 Duel/Amphi forfeit is eligible. S&D uses team standings; FFA uses every placement,
-including ties. Uncalibrated private bot games wait with `bot_reference_pending`.
-Older pending receipts are not activated by retries.
+including ties. Private bot games are rated through the bots' preset accounts
+(below).
 
 Lobby display sides use the same mapping as gameplay and result normalization:
 `alpha` is Soba and `bravo` is Udon. Duel retains the assigned side independent
@@ -218,36 +219,35 @@ rated-match count. Last 30 days filters active rated accounts and record totals;
 it does not reset or recalculate career skill. Old requests retain the record
 endpoint; a records-only server does not supply an invented skill ladder.
 
-Private bots now carry service-owned calibration metadata: effective preset or
-custom difficulty, goal arbiter, behavior build and loaded model content identity.
-The lobby accepts it only from the authenticated local bot service; the admission
-manifest and signed result bind it to the played seat. Names/process IDs and model
-directory names do not identify opponent strength. Bots await model preparation
-before lobby authentication. Configuration changes after match handoff are latched
-as `bot_reference_changed`: records remain, skill is excluded even if settings are
-changed back. Fixed-reference private ratings are implemented, but the registry
-ships empty. Eligible private contests update only human posteriors when an
-immutable calibration covers the exact mode/configuration and piloted map.
-Bots never get accounts or mutable ratings. Upgrade bot, lobby and child-server
-code together.
+### Bots are rated accounts
 
-Operator-reviewed human pilots are required before installing production strengths:
+Each bot preset is an account: **Bot · Easy**, **Bot · Medium**, **Bot · Hard**
+and **Bot · Insane**, rated in each mode's Private pool like a player and
+listed on the Private board. A private match rates every seat, people and
+bots, under the same participation rules. The first bot of a preset in a match
+is that account; a second one of the same preset plays at the account's
+current rating and leaves it unchanged, since one account takes one seat. The
+first bot seat of each preset also carries the account's win, loss or draw.
 
-```bash
-npm run ranking:references -- --check path/to/calibration.json
-npm run ranking:references -- --list --data-dir ./server-data
-npm run ranking:references -- --install path/to/calibration.json --data-dir ./server-data
-```
+The account is made the first time its preset plays and has no key, so no one
+can log in to it. `bot_accounts` in `players.db` maps each preset to its
+account.
 
-An artifact contains version 1, immutable `id`, current `policyVersion`, `mode`,
-canonical `reference`, finite `mu`, positive `sigma` and `evidence` with
-`kind: "human_pilot"`, match/human counts, covered `maps`, report location and
-`createdAt`. The validator checks structure, not the truth or adequacy of a pilot.
-Custom/fallback/unstable references are refused. Check/list do not initialize
-storage. Install requires existing consistent ranking storage and an explicit
-directory. Exact retries are safe; changing active strengths requires a new
-policy/replay. Old pending results stay pending. Synthetic `ranking:simulate`
-fixed-opponent numbers are illustrations only and establish no production strength.
+The bot service supplies each bot's reference — preset or custom difficulty,
+goal arbiter, behavior build and loaded model — and the lobby accepts it only
+from the authenticated local bot service; the admission manifest and signed
+result bind it to the played seat. Not rated, with their records kept:
+
+| Reason | When |
+| --- | --- |
+| `bot_reference_changed` | A bot's configuration changed after the match handoff, even if changed back, or its control connection was lost before the result committed. |
+| `bot_custom` | A bot played with a custom difficulty: it names no account. |
+| `bot_reference_missing` | A bot's reference is absent from the result. |
+
+Ranking schema **3** introduced the accounts. Opening a schema 1 or 2 store
+rates every stored result again in sequence order, private bot games included,
+and drops the old `bot_calibrations` table; the stored snapshots are the
+source and are not changed. Upgrade bot, lobby and child-server code together.
 
 ### Delivery recovery
 
@@ -295,13 +295,10 @@ and the result still comes only from the authenticated game-server report.
 
 The leaderboard opens on **Public** matches. **Public / Private**, left of the
 gametype selector, selects independent boards: Private contains only private
-matches, including bot games. This setting applies to every mode and is
-remembered in that browser. The board, your pinned row and the ranks in the
-rail all use the same selection. There is no rating number yet; these boards
-count wins, losses and draws. A versioned, tested TrueSkill math adapter is
-available; `npm run ranking:simulate` exercises it headlessly. Transactional
-Human skill storage and live updates are implemented; bot calibration and leaderboard integration remain pending in
-`docs/research/ranking_matches.md`.
+matches, including bot games and the bots' preset accounts. This setting
+applies to every mode and is remembered in that browser. The board, your pinned
+row and the ranks in the rail all use the same selection.
+`npm run ranking:simulate` exercises the TrueSkill adapter headlessly.
 
 Leaderboard queries are authenticated, bounded and read-only: a mode, a period
 of the last 30 days or all time, an offset and a page of at most 100. The
@@ -370,12 +367,12 @@ restrict access to demo files.
 
 Updated lobbies advertise `features.playerStats`. In **Profile**, select Public
 or Private to see independent records and career gameplay totals for each mode.
-These record totals do not require a skill rating: uncalibrated bot games can
-show W/L/D and gameplay totals while their skill update remains pending.
+These record totals do not require a skill rating: a match excluded from rating
+still shows its W/L/D and gameplay totals.
 Select a mode name to open the ten most recent own-account results. **Older
 matches** uses a stable sequence cursor; **Latest matches** returns to the first
 page. History shows personal score, frags/deaths, enemy damage and the committed
-display-rating change or a readable exclusion/pending reason. In windows up to
+display-rating change or a readable exclusion reason. In windows up to
 1100px wide, account controls and records stack in a single scrollable Profile.
 Record rows wrap to fit the available space, including smaller desktop sidebars.
 
@@ -407,23 +404,6 @@ are outside this initial stats capture.
 For repeatable ranking acceptance, run `npm run ranking:acceptance` before live
 browser testing. It includes isolated real lobby/child-server result handoffs.
 
-Private bot skill requires reviewed human calibration; no bot strengths ship by
-default. The saved recipe, verified read-only export and offline draft workflow:
-
-```bash
-npm run ranking:pilot -- --plan --output pilot-plan.json
-npm run ranking:pilot -- --export --mode duel --data-dir ./server-data --output pilot.json
-npm run ranking:pilot -- --analyze pilot.json --output analysis.json
-npm run ranking:pilot -- --artifact pilot.json --reference <digest> --id duel-medium-v1 --report analysis.json --reviewed --output calibration.json
-```
-
-Export requires one bot and established same-mode pre-match human anchors.
-`--anchor-scope public` is an explicit offline option; live public/private pools
-remain separate. Draft analysis is not automatic approval. Review actual human
-evidence and the report, then check/install using `ranking:references`. Outputs
-refuse overwrites. Newly generated artifacts bind played BSP fingerprints;
-changed map bytes remain pending. Earlier pending games are not backfilled.
-
 Bot invitations give an unavailable service eight seconds to respond. A verified
 preparation announcement extends that budget once to 75 seconds, covering a
 60-second model preparation and ten-second lobby join. Closing/starting a room
@@ -449,7 +429,7 @@ else `server-data/` beside the repo:
 
 | File | Contents |
 | --- | --- |
-| `players.db` | Accounts, records, verified V2 snapshots, rating policy/state/update journal, fixed bot references and private pending verification contexts, in `node:sqlite` |
+| `players.db` | Accounts, records, verified V2 snapshots, rating policy/state/update journal, bot preset accounts and private pending verification contexts, in `node:sqlite` |
 | `result-outbox/` | Signed completed reports awaiting committed receipt/acknowledgement; separate from public demos |
 | `bot-secret` | The secret shared with the bot server, written by whichever starts first |
 

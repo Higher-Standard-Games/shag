@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type MatchRatingInput, matchRatingGroups } from "../MatchRatingGroups";
+import { type MatchRatingInput, matchRatingGroups, UNMAPPED_BOT_SEATS } from "../MatchRatingGroups";
 
 type Fixture = Omit<MatchRatingInput, "seats" | "teams" | "startingRoster"> & {
   seats: MatchRatingInput["seats"][number][];
@@ -245,14 +245,14 @@ describe("human mode rating decisions", () => {
     expect(matchRatingGroups(input)).toEqual({ status: "excluded", reason: "invalid_starting_roster" });
   });
 
-  it("keeps private bot and mixed-team skill pending calibration", () => {
+  it("leaves private bot seats to the preset-account mapping, and never rates public bots", () => {
     const input = match("snd", 4);
     input.scope = "private";
     input.bots = 1;
     input.startingRoster![0].accountId = null;
     input.startingRoster![0].isBot = true;
     input.seats[0].accountId = null;
-    expect(matchRatingGroups(input)).toEqual({ status: "pending", reason: "bot_reference_pending" });
+    expect(matchRatingGroups(input)).toEqual({ status: "excluded", reason: UNMAPPED_BOT_SEATS });
     input.scope = "public";
     expect(matchRatingGroups(input)).toEqual({ status: "excluded", reason: "public_roster_ineligible" });
   });
