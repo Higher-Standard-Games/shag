@@ -13,7 +13,13 @@ import { Scene } from "@babylonjs/core/scene";
 import { afterEach, describe, expect, it } from "vitest";
 import { parseWorldFog } from "../../loader/bsp/WorldFog";
 import { fogPassKind, isSkyMesh } from "../AtmosphericFogPlugin";
-import { parseSkyPortal, skyPortalCameraOrigin, skyPortalViewRotation } from "../SkyPortal";
+import {
+  parseSkyPortal,
+  type SkyPortalConfig,
+  SkyPortalView,
+  skyPortalCameraOrigin,
+  skyPortalViewRotation,
+} from "../SkyPortal";
 import { WorldFogController } from "../WorldFogController";
 
 describe("parseSkyPortal", () => {
@@ -125,5 +131,41 @@ describe("skyPortalViewRotation", () => {
     const f = forward(skyPortalViewRotation(facingQuakeX, [45, 0, 0], 1));
     expect(f.y).toBeCloseTo(-Math.SQRT1_2);
     expect(f.x).toBeCloseTo(Math.SQRT1_2);
+  });
+});
+
+describe("portal pass contents", () => {
+  const portal: SkyPortalConfig = { origin: [0, 0, 0], fov: 0, scale: 0, noEnts: false, rotationSpeed: [0, 0, 0] };
+  const bounds = { mins: [-64, -64, -64], maxs: [64, 64, 64] };
+
+  it("draws the map and the entities its PVS sees, never the weapon, without dirtying lights", () => {
+    const scene = new Scene(new NullEngine());
+    const map = new Mesh("bsp_tex_1", scene);
+    const seen = new Mesh("item_seen", scene);
+    const hidden = new Mesh("item_hidden", scene);
+    hidden.position.x = 1000;
+    hidden.computeWorldMatrix(true);
+    const weapon = new Mesh("weapon", scene);
+    weapon.layerMask = 0x10000000;
+    const view = new SkyPortalView(scene, portal, bounds, {
+      isMapMesh: (mesh) => mesh === map,
+      isPositionVisible: (position) => position.x < 500,
+    });
+    const target = scene.customRenderTargets[0];
+    expect(target.renderListPredicate).toBeFalsy();
+    let lightsDirtied = 0;
+    for (const mesh of scene.meshes) {
+      const mark = mesh._markSubMeshesAsLightDirty.bind(mesh);
+      mesh._markSubMeshesAsLightDirty = () => {
+        lightsDirtied++;
+        mark();
+      };
+    }
+    const drawn = target.getCustomRenderList?.(0, null, 0) ?? [];
+    expect(drawn).toEqual([map, seen]);
+    target.getCustomRenderList?.(0, null, 0);
+    expect(lightsDirtied).toBe(0);
+    view.dispose();
+    scene.dispose();
   });
 });

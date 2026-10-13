@@ -22,6 +22,7 @@ import "@babylonjs/core/Layers/layerSceneComponent";
 import { RenderTargetTexture } from "@babylonjs/core/Materials/Textures/renderTargetTexture";
 import { Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
+import type { IParticleSystem } from "@babylonjs/core/Particles/IParticleSystem";
 import type { Scene } from "@babylonjs/core/scene";
 import { leadingNumbers } from "../loader/bsp/WorldFog";
 import { isSkyMesh } from "./AtmosphericFogPlugin";
@@ -86,6 +87,8 @@ export interface SkyPortalHooks {
   setFogScale?: (scale: number) => void;
   /** Meshes that belong to the map, for `noents`. */
   isMapMesh?: (mesh: AbstractMesh) => boolean;
+  /** Whether the PVS shown by setVisibilityFrom sees a position (engine space). */
+  isPositionVisible?: (position: Vector3) => boolean;
 }
 
 export class SkyPortalView {
@@ -117,9 +120,25 @@ export class SkyPortalView {
     const resized = engine.onResizeObservable.add(() => this.target.resize(screen()));
     this.cleanups.push(() => engine.onResizeObservable.remove(resized));
     this.target.activeCamera = this.camera;
-    this.target.renderList = null;
-    this.target.renderListPredicate = (mesh) =>
-      !(mesh.layerMask & WEAPON_LAYER) && (!config.noEnts || isSkyMesh(mesh) || (hooks.isMapMesh?.(mesh) ?? true));
+    // A plain array, refilled each pass. A renderListPredicate refills the
+    // observed renderList instead, and every refill marks the lights of every
+    // mesh in the scene dirty, rebuilding all material defines each frame.
+    const drawn: AbstractMesh[] = [];
+    const draws = (mesh: AbstractMesh) => {
+      if (mesh.layerMask & WEAPON_LAYER || !mesh.isVisible || !mesh.isEnabled()) return false;
+      if (isSkyMesh(mesh) || (hooks.isMapMesh?.(mesh) ?? true)) return true;
+      // Entities the portal camera's PVS sees, as the map's own surfaces
+      return !config.noEnts && (hooks.isPositionVisible?.(mesh.getBoundingInfo().boundingSphere.centerWorld) ?? true);
+    };
+    this.target.getCustomRenderList = () => {
+      drawn.length = 0;
+      for (const mesh of scene.meshes) if (draws(mesh)) drawn.push(mesh);
+      return drawn;
+    };
+    const particles: IParticleSystem[] = [];
+    this.target.particleSystemList = particles;
+    const emitterAt = (emitter: AbstractMesh | Vector3 | null) =>
+      emitter instanceof Vector3 ? emitter : (emitter?.getAbsolutePosition() ?? null);
     scene.customRenderTargets.push(this.target);
 
     const before = this.target.onBeforeRenderObservable.add(() => {
@@ -127,6 +146,13 @@ export class SkyPortalView {
       this.hooks.setVisibilityFrom?.(this.camera.position);
       this.hooks.setFogScale?.(config.scale ? 1 / config.scale : 0);
       scene.resetCachedMaterial();
+      particles.length = 0;
+      if (!config.noEnts) {
+        for (const system of scene.particleSystems) {
+          const at = emitterAt(system.emitter);
+          if (!at || (hooks.isPositionVisible?.(at) ?? true)) particles.push(system);
+        }
+      }
     });
     const after = this.target.onAfterRenderObservable.add(() => {
       this.hooks.setFogScale?.(0);

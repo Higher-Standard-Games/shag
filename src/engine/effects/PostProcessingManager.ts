@@ -330,7 +330,13 @@ export class PostProcessingManager {
     });
 
     const followCamera = () => {
-      if (this.scene) this.setCamera(this.scene.activeCameras?.[0] ?? this.scene.activeCamera);
+      const scene = this.scene;
+      if (!scene) return;
+      const camera = scene.activeCameras?.[0] ?? scene.activeCamera;
+      // A render target with its own camera (the sky portal) swaps
+      // scene.activeCamera while it draws; the pipeline stays on the view camera.
+      if (camera && scene.customRenderTargets.some((rt) => rt.activeCamera === camera)) return;
+      this.setCamera(camera);
     };
     this.cameraObserver = this.scene!.onActiveCameraChanged.add(followCamera);
     // Babylon does not notify when activeCameras is replaced. Resolve the world

@@ -188,6 +188,7 @@ export default defineConfig({
       '@babylonjs/core/Misc/typeStore',
       '@babylonjs/core/Misc/workerPool',
       '@babylonjs/core/Misc/workerPool.js',
+      '@babylonjs/core/Particles/IParticleSystem',
       '@babylonjs/core/Particles/computeShaderParticleSystem',
       '@babylonjs/core/Particles/gpuParticleSystem',
       '@babylonjs/core/Particles/particleSystem',

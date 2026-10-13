@@ -1,5 +1,6 @@
 import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
+import { RenderTargetTexture } from "@babylonjs/core/Materials/Textures/renderTargetTexture";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Scene } from "@babylonjs/core/scene";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -123,6 +124,20 @@ describe("postprocessing ownership", () => {
     scene.onBeforeRenderObservable.notifyObservers(scene);
     expect(pipelines.defaults[0].disposed).toBe(true);
     expect(pipelines.defaults[1].cameras).toEqual([demo]);
+  });
+
+  it("stays on the view camera while a render target draws through its own camera", () => {
+    const world = new FreeCamera("world", Vector3.Zero(), scene);
+    scene.activeCamera = world;
+    manager.init(scene);
+    const portal = new FreeCamera("portal", Vector3.Zero(), scene);
+    scene.customRenderTargets.push(new RenderTargetTexture("portal", 4, scene));
+    scene.customRenderTargets[0].activeCamera = portal;
+    scene.activeCamera = portal;
+    scene.onBeforeRenderObservable.notifyObservers(scene);
+    scene.activeCamera = world;
+    expect(pipelines.defaults).toHaveLength(1);
+    expect(pipelines.defaults[0].disposed).toBe(false);
   });
 
   it("restores independent nested defaults", () => {

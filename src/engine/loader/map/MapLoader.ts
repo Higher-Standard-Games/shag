@@ -700,6 +700,7 @@ export class MapLoader {
           setVisibilityFrom: (position) => BspManager.getInstance().getPvsCuller()?.update(position),
           setFogScale: (fogScale) => WorldFogController.getInstance().setPortalScale(fogScale),
           isMapMesh: (mesh) => mesh === worldMesh || mesh.isDescendantOf(worldMesh) || mesh.metadata?.mapOwned === true,
+          isPositionVisible: (position) => BspManager.getInstance().getPvsCuller()?.isPositionVisible(position) ?? true,
         });
         console.log(
           `[MapLoader] Sky portal at ${portal.origin.join(" ")}${portal.scale ? `, scale ${portal.scale}` : ""}`,
