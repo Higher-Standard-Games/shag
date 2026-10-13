@@ -37,6 +37,11 @@ export class MyPickup extends Pickup {
 
 Hooks allow game presentation without adding a weapon/ammo/resource enum to engine code.
 
+FPS procedural pickups use a cosmetic hover offset of 30 world units above the
+fixed anchor. Clearance accounts for server-landed anchors (about 4 units above
+the floor), model size and the full downward bob. The bob runs at 1.2 times the
+recipe frequency; pickup positions and collection ranges remain authoritative.
+
 ## Authority
 
 The server decides whether a player collected a pickup, applies the effect, and replicates active state. The client should not grant inventory based only on visual proximity. `deactivateFromServer()` is the presentation entry point after authoritative confirmation.
