@@ -84,9 +84,4 @@ export const MACHINEGUN: WeaponDef = {
     range: 30,
     duration: 0.075,
   },
-
-  // Sounds
-  sounds: {
-    fire: "sounds/weapons/machinegun_fire.ogg",
-  },
 };

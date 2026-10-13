@@ -295,15 +295,6 @@ export interface WeaponDef extends EntityDef {
     /** Degrees to rotate per shot instead of continuously spinning. */
     fireStepDegrees?: number;
   }[];
-
-  // === SOUNDS ===
-  sounds: {
-    fire: string;
-    reload?: string;
-    empty?: string;
-    switchTo?: string;
-    switchAway?: string;
-  };
 }
 
 // ==================== DEFAULTS ====================

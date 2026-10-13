@@ -80,9 +80,4 @@ export const RIOTGUN: WeaponDef = {
     style: "plume",
     scale: 1.4,
   },
-
-  // Sounds
-  sounds: {
-    fire: "sounds/weapons/riotgun_fire_strong.ogg",
-  },
 };

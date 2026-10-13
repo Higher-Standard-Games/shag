@@ -76,9 +76,4 @@ export const ELECTROBOLT: WeaponDef = {
     style: "arcs",
     scale: 2.3,
   },
-
-  // Sounds
-  sounds: {
-    fire: "sounds/weapons/electrobolt_strong.ogg",
-  },
 };

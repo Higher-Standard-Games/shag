@@ -38,8 +38,6 @@ export interface EntityDef {
   scale?: number;
 
   // === SOUNDS ===
-  /** Named sounds (e.g., { "spawn": "sounds/spawn.wav" }) */
-  sounds?: Record<string, string>;
 
   // === EFFECTS ===
   /** Named effects (e.g., { "trail": "effects/plasma_trail" }) */

@@ -54,16 +54,6 @@ export interface ProjectileDef extends EntityDef {
   impactScale?: number;
   /** Impact duration in seconds */
   impactDuration?: number;
-
-  // === SOUNDS ===
-  sounds?: {
-    /** Looping fly sound */
-    fly?: string;
-    /** Impact sound */
-    impact?: string;
-    /** Bounce sound */
-    bounce?: string;
-  };
 }
 
 // ==================== DEFAULTS ====================

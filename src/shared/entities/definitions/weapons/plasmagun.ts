@@ -98,10 +98,4 @@ export const PLASMAGUN: WeaponDef = {
     duration: 0.09,
     scale: 1.4,
   },
-
-  // Sounds
-  sounds: {
-    fire: "sounds/weapons/plasmagun/fire.wav",
-    reload: "sounds/weapons/plasmagun/reload.wav",
-  },
 };

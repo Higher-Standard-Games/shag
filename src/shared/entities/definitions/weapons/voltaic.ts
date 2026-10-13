@@ -85,9 +85,4 @@ export const VOLTAIC: WeaponDef = {
     range: 25,
     duration: 0.03,
   },
-
-  // Sounds (reuse lasergun sounds for now)
-  sounds: {
-    fire: "sounds/weapons/laser_strong_fire.ogg",
-  },
 };

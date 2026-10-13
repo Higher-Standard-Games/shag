@@ -41,10 +41,4 @@ export const GRENADE: ProjectileDef = {
 
   trailEffect: "grenade_trail",
   impactEffect: "grenade_impact",
-
-  // Sounds
-  sounds: {
-    bounce: "sounds/weapons/gren_strong_bounce1.ogg",
-    impact: "sounds/weapons/grenade_impact.ogg",
-  },
 };

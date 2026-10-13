@@ -41,9 +41,4 @@ export const BLADE_BLAST: ProjectileDef = {
 
   trailEffect: "blade_trail",
   impactEffect: "blade_impact",
-
-  // Sounds — reuse gunblade sounds for now
-  sounds: {
-    impact: "sounds/weapons/gunblade_impact.ogg",
-  },
 };

@@ -77,9 +77,4 @@ export const INSTAGUN: WeaponDef = {
     style: "arcs",
     scale: 2.0,
   },
-
-  // Sounds
-  sounds: {
-    fire: "sounds/weapons/instagun_strong.ogg",
-  },
 };

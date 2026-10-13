@@ -83,9 +83,4 @@ export const BLADE: WeaponDef = {
     range: 40,
     duration: 0.08,
   },
-
-  // Sounds
-  sounds: {
-    fire: "sounds/weapons/gunblade_fire.ogg", // TODO: custom blade swing sound
-  },
 };

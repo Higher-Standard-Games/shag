@@ -78,9 +78,4 @@ export const ROCKET_LAUNCHER: WeaponDef = {
     style: "plume",
     scale: 2.4,
   },
-
-  // Sounds
-  sounds: {
-    fire: "sounds/weapons/rlauncher_fire.ogg",
-  },
 };

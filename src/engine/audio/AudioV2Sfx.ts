@@ -44,6 +44,11 @@ export const Attenuation = {
 export interface SpatialSfxPlayOptions extends SfxPlayOptions {
   /** An `Attenuation` class, or a map's own value; Normal when absent. */
   attenuation?: number;
+  /**
+   * One sound at a time per slot, as Quake's entity channels: a new sound in
+   * a player's pain slot cuts the last instead of playing over it.
+   */
+  slot?: string;
 }
 
 /** A looping sound until `stop()`, as for a map's ambient speaker. */
@@ -109,7 +114,8 @@ export class AudioV2Sfx {
   private readonly bufferPromises = new Map<string, Promise<StaticSoundBuffer | null>>();
   private readonly soundPromises = new Map<string, Promise<StaticSound | null>>();
   private readonly packageLoads = new Map<string, Promise<void>>();
-  private readonly activeSpatialSounds: StaticSound[] = [];
+  /** Playing 3D one-shots, with when each ends (ms, `performance.now`). */
+  private readonly activeSpatialSounds: Array<{ sound: StaticSound; endsAt: number; slot?: string }> = [];
   /** Looping sounds with the volume each was started at, kept until stopped. */
   private readonly loops = new Map<StaticSound, number>();
   private loopsMuted = false;
@@ -191,9 +197,16 @@ export class AudioV2Sfx {
       return false;
     }
 
-    this.activeSpatialSounds.push(sound);
+    if (options.slot) {
+      const previous = this.activeSpatialSounds.find((active) => active.slot === options.slot);
+      if (previous) this.releaseSpatialSound(previous.sound);
+    }
+    this.activeSpatialSounds.push({ sound, endsAt: performance.now() + buffer.duration * 1000, slot: options.slot });
+    // Over the cap, cut the sound nearest its end: a footstep's last moment
+    // before an explosion's long tail.
     while (this.activeSpatialSounds.length > MAX_ACTIVE_SPATIAL_SOUNDS) {
-      this.activeSpatialSounds.shift()?.dispose();
+      const nearestEnd = this.activeSpatialSounds.reduce((a, b) => (b.endsAt < a.endsAt ? b : a));
+      this.releaseSpatialSound(nearestEnd.sound);
     }
 
     sound.onEndedObservable.addOnce(() => this.releaseSpatialSound(sound));
@@ -253,7 +266,7 @@ export class AudioV2Sfx {
     this.disposed = true;
     this.generation++;
 
-    for (const sound of this.activeSpatialSounds.splice(0)) sound.dispose();
+    for (const { sound } of this.activeSpatialSounds.splice(0)) sound.dispose();
     for (const sound of this.loops.keys()) sound.dispose();
     this.loops.clear();
     this.soundPromises.clear();
@@ -415,8 +428,9 @@ export class AudioV2Sfx {
   }
 
   private releaseSpatialSound(sound: StaticSound): void {
-    const index = this.activeSpatialSounds.indexOf(sound);
-    if (index >= 0) this.activeSpatialSounds.splice(index, 1);
+    const index = this.activeSpatialSounds.findIndex((active) => active.sound === sound);
+    if (index < 0) return;
+    this.activeSpatialSounds.splice(index, 1);
     sound.dispose();
   }
 }

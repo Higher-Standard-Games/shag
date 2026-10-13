@@ -88,9 +88,4 @@ export const GRENADE_LAUNCHER: WeaponDef = {
     style: "plume",
     scale: 2.2,
   },
-
-  // Sounds
-  sounds: {
-    fire: "sounds/weapons/grenlaunch_strong.ogg",
-  },
 };

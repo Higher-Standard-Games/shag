@@ -40,10 +40,4 @@ export const ROCKET: ProjectileDef = {
 
   trailEffect: "rocket_trail",
   impactEffect: "rocket_impact",
-
-  // Sounds
-  sounds: {
-    fly: "sounds/weapons/rocket_fly.ogg",
-    impact: "sounds/weapons/rocket_impact.ogg",
-  },
 };

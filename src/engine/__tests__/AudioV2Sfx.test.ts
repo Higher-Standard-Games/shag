@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const buffer = { duration: 1 };
+let bufferSeconds = 1;
 const createdSounds: Array<{
   play: ReturnType<typeof vi.fn>;
   dispose: ReturnType<typeof vi.fn>;
@@ -13,7 +13,7 @@ const engine = {
     outBus: options?.outBus,
     dispose: vi.fn(),
   })),
-  createSoundBufferAsync: vi.fn(async () => buffer),
+  createSoundBufferAsync: vi.fn(async () => ({ duration: bufferSeconds })),
   createSoundAsync: vi.fn(async (_name: string, _source: unknown, _options?: Record<string, unknown>) => {
     const sound = { play: vi.fn(), dispose: vi.fn(), onEndedObservable: { addOnce: vi.fn() } };
     createdSounds.push(sound);
@@ -111,6 +111,36 @@ describe("AudioV2Sfx", () => {
 
     audio.setChannelVolume("hits", 0.25);
     expect(hits?.volume).toBe(0.25);
+    audio.dispose();
+  });
+
+  it("cuts a slot's last sound when the next one starts", async () => {
+    const audio = new AudioV2Sfx();
+    await audio.init();
+    await audio.play3D("pain.ogg", new Vector3(), { slot: "p1:pain" });
+    await audio.play3D("pain.ogg", new Vector3(), { slot: "p2:pain" });
+    await audio.play3D("death.ogg", new Vector3(), { slot: "p1:pain" });
+    expect(createdSounds.map((sound) => sound.dispose.mock.calls.length)).toEqual([1, 0, 0]);
+    audio.dispose();
+  });
+
+  it("over the cap, cuts the sound nearest its end", async () => {
+    const audio = new AudioV2Sfx();
+    await audio.init();
+    const now = vi.spyOn(performance, "now");
+    now.mockReturnValue(0);
+    bufferSeconds = 3;
+    await audio.play3D("explosion.ogg", new Vector3());
+    bufferSeconds = 0.3;
+    for (let i = 1; i <= 48; i++) {
+      now.mockReturnValue(i);
+      await audio.play3D("step.ogg", new Vector3());
+    }
+    // The explosion started first but ends last; the first step ends soonest
+    expect(createdSounds[0].dispose).not.toHaveBeenCalled();
+    expect(createdSounds[1].dispose).toHaveBeenCalledOnce();
+    now.mockRestore();
+    bufferSeconds = 1;
     audio.dispose();
   });
 

@@ -42,10 +42,4 @@ export const PLASMA_BOLT: ProjectileDef = {
 
   trailEffect: "plasma_trail",
   impactEffect: "plasma_impact",
-
-  // Sounds
-  sounds: {
-    fly: "sounds/weapons/plasmagun/fly.wav",
-    impact: "sounds/weapons/plasmagun/impact.wav",
-  },
 };
