@@ -107,6 +107,10 @@ export class SpectatorController implements ICameraController {
 
     // Reset rotation quaternion (Euler angles only)
     this.camera.rotationQuaternion = null;
+    // Roll comes through the up vector, which Babylon otherwise recomputes
+    // only on frames where the roll changes: a roll that settles at zero keeps
+    // that frame's pitch in the up vector, and turning tilts the view sideways.
+    this.camera.updateUpVectorFromRotation = true;
 
     // Reset smoothing state
     this.hasInitialPosition = false;

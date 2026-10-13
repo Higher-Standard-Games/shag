@@ -511,6 +511,10 @@ export class FPSController implements ICameraController {
 
     // Always set as active camera (fixes blue screen when switching controllers)
     scene.activeCamera = this.camera;
+    // Roll comes through the up vector, which Babylon otherwise recomputes
+    // only on frames where the roll changes: a roll that settles at zero keeps
+    // that frame's pitch in the up vector, and turning tilts the view sideways.
+    this.camera.updateUpVectorFromRotation = true;
 
     // Weapon initialization is now handled by FPSPlayer
     // WeaponViewManager.getInstance().init(scene, this.camera);

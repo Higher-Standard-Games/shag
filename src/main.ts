@@ -194,6 +194,9 @@ async function main() {
 
   // Create FPS camera
   const camera = new FreeCamera("fpsCamera", new Vector3(0, 50, 0), scene);
+  // The view's roll goes through its up vector; rebuild it from the rotation
+  // every frame, or a roll that stops changing leaves the view tilted.
+  camera.updateUpVectorFromRotation = true;
   camera.attachControl(canvas, true);
   camera.minZ = 1.0; // Match EngineScene default to prevent depth issues
   camera.maxZ = 10000;
