@@ -24,6 +24,7 @@ import { EntityManager } from "../../entities/EntityManager";
 import { extractEmissiveSurfaces } from "../../lighting/MapEmissiveSurfaces";
 import RenderVars from "../../rendering/RenderVars";
 import { parseSkyPortal, SkyPortalView } from "../../rendering/SkyPortal";
+import { SkyVisibility, skyClusterBounds } from "../../rendering/SkyVisibility";
 import { WorldFogController } from "../../rendering/WorldFogController";
 import { LiquidSurfaceSystem } from "../../rendering/water/LiquidSurfaceSystem";
 import { waterMapLights, waterSurfaceLights } from "../../rendering/water/WaterSurfaceLighting";
@@ -696,11 +697,13 @@ export class MapLoader {
       const world = bsp.models[0];
       if (portal && world) {
         const worldMesh = meshResult.worldMesh;
+        const sky = new SkyVisibility(meshResult.bspData, skyClusterBounds(meshResult.bspData, meshResult.skyFaces));
         this.skyPortal = new SkyPortalView(scene, portal, world, {
           setVisibilityFrom: (position) => BspManager.getInstance().getPvsCuller()?.update(position),
           setFogScale: (fogScale) => WorldFogController.getInstance().setPortalScale(fogScale),
           isMapMesh: (mesh) => mesh === worldMesh || mesh.isDescendantOf(worldMesh) || mesh.metadata?.mapOwned === true,
           isPositionVisible: (position) => BspManager.getInstance().getPvsCuller()?.isPositionVisible(position) ?? true,
+          isSkyInView: (view) => sky.inView(view),
         });
         console.log(
           `[MapLoader] Sky portal at ${portal.origin.join(" ")}${portal.scale ? `, scale ${portal.scale}` : ""}`,

@@ -82,6 +82,7 @@ export default defineConfig({
       '@babylonjs/core/Cameras/freeCamera',
       '@babylonjs/core/Cameras/targetCamera',
       '@babylonjs/core/Collisions/collisionCoordinator',
+      '@babylonjs/core/Culling/boundingBox',
       '@babylonjs/core/Culling/boundingInfo',
       '@babylonjs/core/Culling/ray',
       '@babylonjs/core/Debug/physicsViewer',

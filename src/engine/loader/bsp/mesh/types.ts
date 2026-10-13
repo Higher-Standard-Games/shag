@@ -24,6 +24,8 @@ export interface BspMeshBuildResult {
     /** The shader's stages as Quake 3 cloud layers, drawn over the far box or on their own */
     cloudLayers?: SkyCloudLayer[];
   }[];
+  /** World faces drawn as sky, which the map's geometry leaves open */
+  skyFaces: number[];
   /** Statistics */
   stats: {
     totalFaces: number;

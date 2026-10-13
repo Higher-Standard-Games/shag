@@ -197,6 +197,7 @@ export class BspMeshBuilder {
     // Track sky shaders found
     const skyShaders: BspMeshBuildResult["skyShaders"] = [];
     const foundSkyTextures = new Set<number>();
+    const skyFaces: number[] = [];
 
     // Build first model only (model 0 = world geometry)
     const worldModel = this.bsp.models[0];
@@ -267,6 +268,7 @@ export class BspMeshBuilder {
             console.log(`[BspMeshBuilder] Found sky shader: ${textureName} (no skybox textures)`);
           }
         }
+        skyFaces.push(i);
         stats.skippedSkyFaces++;
         continue; // Skip sky faces - will be rendered as skybox
       }
@@ -847,6 +849,7 @@ export class BspMeshBuilder {
       lightmapTextures,
       textureGroups: allTextureGroups,
       skyShaders,
+      skyFaces,
       stats,
       bspData: this.bsp,
       clusterInfo: {

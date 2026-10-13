@@ -4,6 +4,7 @@
  * portal pass.
  */
 
+import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
 import { Constants } from "@babylonjs/core/Engines/constants";
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
@@ -165,6 +166,23 @@ describe("portal pass contents", () => {
     expect(drawn).toEqual([map, seen]);
     target.getCustomRenderList?.(0, null, 0);
     expect(lightsDirtied).toBe(0);
+    view.dispose();
+    scene.dispose();
+  });
+
+  it("is drawn only while the view sees sky", () => {
+    const scene = new Scene(new NullEngine());
+    scene.activeCamera = new FreeCamera("view", Vector3.Zero(), scene);
+    let sky = false;
+    const view = new SkyPortalView(scene, portal, bounds, { isSkyInView: () => sky });
+    const target = scene.customRenderTargets[0];
+    scene.onBeforeRenderObservable.notifyObservers(scene);
+    expect(view.isDrawing()).toBe(false);
+    expect(scene.customRenderTargets).not.toContain(target);
+    sky = true;
+    scene.onBeforeRenderObservable.notifyObservers(scene);
+    expect(view.isDrawing()).toBe(true);
+    expect(scene.customRenderTargets).toEqual([target]);
     view.dispose();
     scene.dispose();
   });

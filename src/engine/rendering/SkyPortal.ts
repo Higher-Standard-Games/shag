@@ -89,6 +89,8 @@ export interface SkyPortalHooks {
   isMapMesh?: (mesh: AbstractMesh) => boolean;
   /** Whether the PVS shown by setVisibilityFrom sees a position (engine space). */
   isPositionVisible?: (position: Vector3) => boolean;
+  /** Whether the view sees any sky; the portal is drawn only for a view that does. */
+  isSkyInView?: (view: Camera) => boolean;
 }
 
 export class SkyPortalView {
@@ -99,6 +101,7 @@ export class SkyPortalView {
   private readonly worldCentre: Vector3;
   private readonly startTime = performance.now();
   private readonly cleanups: (() => void)[] = [];
+  private drawing = true;
 
   constructor(
     private readonly scene: Scene,
@@ -168,6 +171,12 @@ export class SkyPortalView {
     this.layer.texture = this.target;
     this.layer.layerMask = 0x0fffffff;
 
+    const decide = scene.onBeforeRenderObservable.add(() => {
+      const view = this.mainCamera();
+      this.setDrawing(!view || (hooks.isSkyInView?.(view) ?? true));
+    });
+    this.cleanups.push(() => scene.onBeforeRenderObservable.remove(decide));
+
     this.moveSkyToPortalLayer();
     const added = scene.onNewMeshAddedObservable.add((mesh) => {
       if (isSkyMesh(mesh)) mesh.layerMask = SKY_PORTAL_LAYER;
@@ -179,6 +188,21 @@ export class SkyPortalView {
   private mainCamera(): Camera | null {
     const cameras = this.scene.activeCameras?.length ? this.scene.activeCameras : [this.scene.activeCamera];
     return cameras.find((c) => c && c !== this.camera && (c.layerMask & ~WEAPON_LAYER) !== 0) ?? null;
+  }
+
+  /** Whether the portal is drawn this frame. */
+  isDrawing(): boolean {
+    return this.drawing;
+  }
+
+  private setDrawing(drawing: boolean): void {
+    if (drawing === this.drawing) return;
+    this.drawing = drawing;
+    this.layer.isEnabled = drawing;
+    const targets = this.scene.customRenderTargets;
+    const index = targets.indexOf(this.target);
+    if (drawing && index < 0) targets.push(this.target);
+    if (!drawing && index >= 0) targets.splice(index, 1);
   }
 
   private moveSkyToPortalLayer(): void {
