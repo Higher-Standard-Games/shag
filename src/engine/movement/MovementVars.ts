@@ -6,6 +6,7 @@
  */
 
 import { Cvar } from "../core/Cvar";
+import { writePreference } from "../core/PreferenceStorage";
 
 // ==================== Types ====================
 
@@ -415,11 +416,11 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, "name">> = {
     developerOnly: false,
   },
   cl_showspeed: {
-    value: 0,
-    defaultValue: 0,
+    value: 1,
+    defaultValue: 1,
     min: 0,
     max: 1,
-    description: "Show optional movement speed readout on screen",
+    description: "Show movement speed readout on screen",
     category: "camera",
     developerOnly: false,
   },
@@ -803,7 +804,7 @@ export class MovementVars {
 
       // Register cvar with developer flag if needed
       // Always use 'float' type since all movement vars are numeric with potential decimal values
-      Cvar.register(name, varConfig.value, {
+      const cvar = Cvar.register(name, varConfig.value, {
         type: "float",
         min: varConfig.min,
         max: varConfig.max,
@@ -811,6 +812,9 @@ export class MovementVars {
         persist: true,
         onChange,
       });
+      // A saved preference is the current value, not the Reset default.
+      cvar.defaultValue = varConfig.defaultValue;
+      varConfig.value = Number(cvar.value);
     }
   }
 
@@ -861,7 +865,16 @@ export class MovementVars {
   private loadFromStorage(): Record<string, number> {
     try {
       const data = localStorage.getItem(STORAGE_KEY);
-      return data ? JSON.parse(data) : {};
+      const parsed: unknown = data ? JSON.parse(data) : {};
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+      const valid: Record<string, number> = {};
+      for (const [name, value] of Object.entries(parsed)) {
+        const config = DEFAULT_VARS[name];
+        if (config && typeof value === "number" && Number.isFinite(value)) {
+          valid[name] = Math.max(config.min, Math.min(config.max, value));
+        }
+      }
+      return valid;
     } catch {
       return {};
     }
@@ -874,11 +887,7 @@ export class MovementVars {
         data[name] = v.value;
       }
     }
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    } catch {
-      // Storage full or unavailable
-    }
+    writePreference(STORAGE_KEY, JSON.stringify(data));
   }
 
   // ==================== Debug ====================

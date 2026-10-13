@@ -52,6 +52,18 @@ paths. Blocked localStorage does not prevent using the in-memory index.
 The generator does not curate or remove packages: prepare the desired release
 directory first. Regenerate metadata after changing its contents.
 
+Asset requests have a 15-second header deadline. Archive bodies have a 60-second
+idle deadline, renewed by incoming chunks, and a generous 15-minute total limit.
+Metadata bodies use 15 seconds idle / 60 seconds total. Timed-out mirror requests
+release origin fallback; unavailable optional KTX2 metadata releases the ordinary
+texture path. These are application deadlines in addition to browser networking.
+
+Downloaded archives are structurally parsed inside the retry operation. Corrupt
+or interrupted downloads retry up to twice, using origin after the first attempt;
+ordinary permanent HTTP errors such as 404 do not incur retries. The parsed ZIP
+is reused on success. Final errors retain the loading/corruption cause instead of
+reporting every failure as a missing package.
+
 ## HTTP mirror
 
 The pk3 packages are most of what a browser downloads, so they can come from

@@ -1,3 +1,4 @@
+import { fetchAsset, readAssetBuffer, readAssetJson, readAssetText } from "./AssetRequest";
 /**
  * PK3Index - Index PK3 contents for fast lookup without loading
  *
@@ -172,10 +173,10 @@ export class PK3Index {
   async discoverPK3s(basePath: string): Promise<string[]> {
     const manifestUrl = `${basePath}pk3_manifest.json`;
     try {
-      const response = await fetch(manifestUrl);
+      const response = await fetchAsset(manifestUrl);
       if (response.ok) {
-        const manifest = await response.json();
-        if (Array.isArray(manifest.files)) {
+        const manifest = await readAssetJson(response);
+        if (manifest && typeof manifest === "object" && "files" in manifest && Array.isArray(manifest.files)) {
           return manifest.files as string[];
         }
         if (Array.isArray(manifest)) {
@@ -200,7 +201,7 @@ export class PK3Index {
 
     for (const pattern of patterns) {
       try {
-        const response = await fetch(`${basePath}${pattern}`, { method: "HEAD" });
+        const response = await fetchAsset(`${basePath}${pattern}`, { method: "HEAD" });
         if (response.ok) {
           detected.push(pattern);
         }
@@ -258,7 +259,7 @@ export class PK3Index {
         return null;
       }
 
-      const arrayBuffer = await response.arrayBuffer();
+      const arrayBuffer = await readAssetBuffer(response);
       const zip = await JSZip.loadAsync(arrayBuffer);
 
       const files: string[] = [];
@@ -714,7 +715,7 @@ export class PK3Index {
       for (const pk3 of pk3Files) {
         const url = `${basePath}${pk3}`;
         try {
-          const response = await fetch(url, { method: "HEAD" });
+          const response = await fetchAsset(url, { method: "HEAD" });
           if (response.ok) {
             const size = response.headers.get("content-length") || "0";
             checksumParts.push(`${pk3}:${size}`);
@@ -736,13 +737,13 @@ export class PK3Index {
     try {
       for (const basePath of this.searchPaths) {
         // Revalidate both small metadata files on deploy; archives stay lazy.
-        const manifestResponse = await fetch(`${basePath}pk3_manifest.json`, { cache: "no-cache" });
+        const manifestResponse = await fetchAsset(`${basePath}pk3_manifest.json`, { cache: "no-cache" });
         if (!manifestResponse.ok) return null;
-        const manifest: unknown = await manifestResponse.json();
+        const manifest: unknown = await readAssetJson(manifestResponse);
         if (!hasPublishedIndex(manifest)) return null;
-        const response = await fetch(`${basePath}pk3_index.json`, { cache: "no-cache" });
+        const response = await fetchAsset(`${basePath}pk3_index.json`, { cache: "no-cache" });
         if (!response.ok) return null;
-        const snapshot = parsePublishedIndex(await response.text(), manifest, basePath);
+        const snapshot = parsePublishedIndex(await readAssetText(response), manifest, basePath);
         if (!snapshot) {
           console.warn(`[PK3Index] Published index is stale or invalid in ${basePath}; using archive validation`);
           return null;

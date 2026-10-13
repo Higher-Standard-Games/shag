@@ -97,10 +97,12 @@ export class NetGraph {
 
   // Packet loss tracking (tick gap detection)
   private lastSnapshotTick = -1;
-  private ticksPerSnapshot = 4; // auto-detected from first gap
+  private ticksPerSnapshot = 4; // refined from recent gaps unless explicitly configured
   private tickStepDetected = false;
-  /** Circular buffer: true = received, false = gap (lost) */
-  private lossWindow: boolean[] = [];
+  /** Bounded recent gaps; recomputed when the inferred cadence changes. */
+  private snapshotGaps: number[] = [];
+  private lastDrawTime = -Infinity;
+  private lastDrawLevel = 0;
   private packetLossPct = 0;
 
   // Graph data (sampled at fixed intervals)
@@ -136,6 +138,13 @@ export class NetGraph {
 
     // Register interpolation CVars (cl_timenudge, cl_interp)
     SnapshotBuffer.registerCVars();
+  }
+
+  /** Forget the prior connection's timings and histories. Visibility remains a preference. */
+  static reset(): void {
+    if (!NetGraph.instance) return;
+    NetGraph.instance.destroyCanvas();
+    NetGraph.instance = new NetGraph();
   }
 
   static getInstance(): NetGraph | null {
@@ -180,7 +189,7 @@ export class NetGraph {
 
   /** Configure expected ticks-per-snapshot for accurate loss detection */
   static setTicksPerSnapshot(tps: number): void {
-    if (NetGraph.instance) {
+    if (NetGraph.instance && Number.isFinite(tps) && tps > 0) {
       NetGraph.instance.ticksPerSnapshot = tps;
       NetGraph.instance.tickStepDetected = true;
     }
@@ -209,6 +218,9 @@ export class NetGraph {
 
     // Sample graph data at fixed intervals
     const now = performance.now();
+    if (level === inst.lastDrawLevel && now - inst.lastDrawTime < SAMPLE_INTERVAL_MS) return;
+    inst.lastDrawTime = now;
+    inst.lastDrawLevel = level;
     if (now - inst.lastSampleTime > SAMPLE_INTERVAL_MS) {
       inst.lastSampleTime = now;
       inst.pingGraph.push(inst.currentPing);
@@ -227,8 +239,10 @@ export class NetGraph {
     const panelWidth = GRAPH_WIDTH + GRAPH_PADDING * 2;
 
     // Resize canvas to panel
-    inst.canvas.width = panelWidth;
-    inst.canvas.height = panelHeight;
+    if (inst.canvas.width !== panelWidth) inst.canvas.width = panelWidth;
+    if (inst.canvas.height !== panelHeight) inst.canvas.height = panelHeight;
+    ctx.clearRect(0, 0, panelWidth, panelHeight);
+    ctx.beginPath();
 
     // Background
     ctx.fillStyle = BG_COLOR;
@@ -259,7 +273,7 @@ export class NetGraph {
     // Packet loss on same line
     const loss = inst.packetLossPct;
     ctx.fillStyle = loss > 5 ? RECON_COLOR : loss > 1 ? LOSS_COLOR : TEXT_COLOR;
-    ctx.fillText(`loss: ${loss.toFixed(1)}%`, x + 120, y);
+    ctx.fillText(`gaps: ${loss.toFixed(1)}%`, x + 120, y);
     y += lineHeight;
 
     // Interp delay
@@ -325,6 +339,7 @@ export class NetGraph {
       this.canvas.remove();
       this.canvas = null;
       this.ctx = null;
+      this.lastDrawTime = -Infinity;
     }
   }
 
@@ -392,37 +407,23 @@ export class NetGraph {
     }
 
     const gap = tick - this.lastSnapshotTick;
+    if (gap <= 0) return;
     this.lastSnapshotTick = tick;
+    this.snapshotGaps.push(gap);
+    if (this.snapshotGaps.length > LOSS_WINDOW_SIZE) this.snapshotGaps.shift();
 
-    if (gap <= 0) return; // Ignore out-of-order or duplicate
-
-    // Auto-detect tick step from first valid gap
-    if (!this.tickStepDetected && gap > 0) {
-      this.ticksPerSnapshot = gap;
-      this.tickStepDetected = true;
+    // Welcome currently carries simulation rate, not snapshot cadence. Infer
+    // from the smallest recent gap; an initially lost snapshot must not latch it.
+    const step = this.tickStepDetected ? this.ticksPerSnapshot : Math.min(...this.snapshotGaps);
+    this.ticksPerSnapshot = step;
+    let samples = 0;
+    let lost = 0;
+    for (let i = this.snapshotGaps.length - 1; i >= 0 && samples < LOSS_WINDOW_SIZE; i--) {
+      const expected = Math.max(1, Math.round(this.snapshotGaps[i] / step));
+      const count = Math.min(expected, LOSS_WINDOW_SIZE - samples);
+      samples += count;
+      lost += count - 1;
     }
-
-    const step = this.ticksPerSnapshot;
-    // How many snapshots were expected in this gap?
-    const expected = Math.round(gap / step);
-    // We received 1, so lost = expected - 1
-    const lost = Math.max(0, expected - 1);
-
-    // Push received + lost into circular buffer
-    for (let i = 0; i < lost; i++) {
-      this.lossWindow.push(false);
-    }
-    this.lossWindow.push(true); // This snapshot arrived
-
-    // Trim to window size
-    while (this.lossWindow.length > LOSS_WINDOW_SIZE) {
-      this.lossWindow.shift();
-    }
-
-    // Recalculate loss %
-    if (this.lossWindow.length > 0) {
-      const lostCount = this.lossWindow.filter((v) => !v).length;
-      this.packetLossPct = (lostCount / this.lossWindow.length) * 100;
-    }
+    this.packetLossPct = samples ? (lost / samples) * 100 : 0;
   }
 }

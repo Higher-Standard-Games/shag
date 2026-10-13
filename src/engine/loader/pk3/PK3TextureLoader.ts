@@ -1,3 +1,4 @@
+import { fetchAsset, readAssetBuffer, readAssetJson } from "./AssetRequest";
 /**
  * PK3TextureLoader - Load textures from PK3 packages into BabylonJS
  *
@@ -199,11 +200,11 @@ export class PK3TextureLoader {
     this.ktx2ManifestPromise = (async () => {
       for (const baseUrl of PK3Loader.getInstance().getSearchPaths()) {
         try {
-          const response = await fetch(`${baseUrl}ktx2cache/manifest.json`);
+          const response = await fetchAsset(`${baseUrl}ktx2cache/manifest.json`);
           if (!response.ok || (response.headers.get("Content-Type") || "").includes("text/html")) {
             continue;
           }
-          const manifest = (await response.json()) as Partial<KTX2Manifest>;
+          const manifest = (await readAssetJson(response)) as Partial<KTX2Manifest>;
           if (manifest.version === 1 && manifest.textures && typeof manifest.textures === "object") {
             return { baseUrl, manifest: manifest as KTX2Manifest };
           }
@@ -334,13 +335,13 @@ export class PK3TextureLoader {
       ];
       for (const url of candidateUrls) {
         try {
-          const response = await fetch(url);
+          const response = await fetchAsset(url);
           if (!response.ok) continue;
           // Vite dev server returns 200 OK with HTML for non-existent files (SPA
           // fallback), so reject HTML to avoid treating a page as texture data.
           const contentType = response.headers.get("Content-Type") || "";
           if (contentType.includes("text/html")) continue;
-          data = await response.arrayBuffer();
+          data = await readAssetBuffer(response);
           break;
         } catch {
           // try the next candidate

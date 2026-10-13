@@ -48,6 +48,7 @@ import { MapLoadingOverlay } from "./engine/ui/MapLoadingOverlay";
 import { TransferLoadingView } from "./engine/ui/TransferLoadingView";
 import { UIScale } from "./engine/ui/UIScale";
 import { UITheme } from "./engine/ui/UITheme";
+import { FrameRateDisplay } from "./games/fps/client/hud/FrameRateDisplay";
 import { LobbyPanel } from "./games/fps/client/LobbyPanel";
 import { FPSPlayer } from "./games/fps/FPSPlayer";
 
@@ -184,6 +185,8 @@ async function main() {
   // Create scene
   console.log("[Main] Creating scene...");
   const scene = new Scene(engine);
+  const frameRateDisplay = new FrameRateDisplay(() => engine.getFps());
+  scene.onDisposeObservable.addOnce(() => frameRateDisplay.destroy());
   applySceneRendererPolicy(scene);
   scene.clearColor = new Color4(0.1, 0.1, 0.1, 1);
   scene.ambientColor = new Color3(1, 1, 1); // Required for BSP lightmaps to render

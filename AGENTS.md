@@ -308,12 +308,15 @@ Run these before asking for manual browser tests:
 
 ```bash
 npm run cli:game -- -- --exec "bsp load wdm2; bsp info; quit"
-npm run cli:game -- -- --exec "sim replay W+CROUCH 60; JUMP 1; W 30; quit"
+npm run cli:game -- -- --exec 'sim replay "W+CROUCH 60; JUMP 1; W 30"; quit'
 npm run test:simulation
 npm run test:physics
 ```
 
 Useful command groups:
+
+Windows PowerShell through `npm.cmd` needs escaped inner quotes for the replay:
+`npm.cmd run cli:game -- -- --exec 'sim replay \"W+CROUCH 60; JUMP 1; W 30\"; quit'`.
 
 - REPL: `npm run cli:game`, `npm run cli:bsp`
 - Network: `npm run net:server`, `npm run net:client`, `npm run lobby:server`

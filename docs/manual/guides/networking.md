@@ -33,6 +33,20 @@ SHAG Engine uses Q3-style server-authoritative multiplayer networking. If you've
 
 ## Core Concepts
 
+### Slow readers and diagnostics
+
+The game server caps each WebSocket's queued output at approximately 8 MiB. A
+reader that falls behind that limit is disconnected instead of receiving an
+ever-growing backlog of stale snapshots. Admitted clients use the existing
+session-resume path; healthy connections keep receiving broadcasts. This is a
+resource bound, not a change to snapshot delta encoding or gameplay simulation.
+
+`cl_netgraph` labels snapshot gaps as **gaps**, an estimate rather than a wire
+packet-loss measurement. It learns cadence from recent arrivals and clears its
+history on reconnect/resume. Welcome currently sends the simulation tick rate,
+not the snapshot rate, so consistently missing every other snapshot remains
+ambiguous. The overlay paints at 10 Hz and resizes only when dimensions change.
+
 ### Supported network timing
 
 The FPS browser client supports **125Hz simulation (8ms steps)**. Input sampling

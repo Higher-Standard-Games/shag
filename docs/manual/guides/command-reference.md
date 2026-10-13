@@ -90,7 +90,8 @@ The console does not expose the old `camera controller`, `camera height`, or `ca
 | `cvarexport` | Copy modified cvars |
 | `render list\|reset\|export\|apply` **dev** | Render-variable group operations |
 | `pp <effect> [value]` **dev** | Post-processing control |
-| `show_fps [0\|1\|on\|off]` | FPS counter |
+| `show_fps [0\|1\|on\|off]` | FPS counter (default on; saved preference) |
+| `cl_showspeed <0\|1>` | Movement speed readout (default on) |
 | `perf capture [seconds]` | Performance capture and summary |
 | `export <all\|cvars\|camera\|fx>` | Copy current state as config text |
 | `settings export\|import\|list` | Settings file operations |

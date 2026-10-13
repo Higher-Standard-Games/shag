@@ -1,4 +1,5 @@
 import JSZip from "jszip";
+import { readAssetBuffer } from "./AssetRequest";
 import { fetchPk3, pk3MirrorBase } from "./Pk3Mirror";
 
 export interface PK3LoaderConfig {
@@ -77,56 +78,32 @@ export class PK3Loader {
 
   /**
    * Fetch a PK3 and validate ZIP integrity. Retries on truncation/corruption.
-   * ZIP files always start with magic bytes PK\x03\x04 (0x504B0304).
-   * If the download is truncated (e.g. by Vite HMR restart), magic or size
-   * check will fail and trigger a retry after a brief delay.
+   * Structural ZIP parsing is inside the retry operation, including truncation
+   * of the directory at the end of an otherwise intact archive.
    * The first try goes through the pk3 mirror (Pk3Mirror); a mirror copy that
    * fails these checks is retried from the origin.
    */
-  private async fetchAndValidatePK3(url: string, filename: string, maxRetries = 2): Promise<ArrayBuffer> {
+  private async fetchAndValidatePK3(url: string, filename: string, maxRetries = 2): Promise<JSZip> {
     let mirrorBase = pk3MirrorBase();
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      const { response, source } = await fetchPk3(url, mirrorBase);
-      if (source === "mirror") mirrorBase = null;
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText} for ${filename}`);
-      }
-
-      const arrayBuffer = await response.arrayBuffer();
-
-      // Validate minimum ZIP size (empty ZIP end-of-central-directory is 22 bytes)
-      if (arrayBuffer.byteLength < 22) {
-        if (attempt < maxRetries) {
-          console.warn(
-            `[PK3Loader] ${filename}: too small (${arrayBuffer.byteLength} bytes), retrying (${attempt + 1}/${maxRetries})...`,
-          );
-          await new Promise((r) => setTimeout(r, 500));
-          continue;
+    for (let attempt = 0; ; attempt++) {
+      let retryable = true;
+      try {
+        const { response, source } = await fetchPk3(url, mirrorBase);
+        if (source === "mirror") mirrorBase = null;
+        if (!response.ok) {
+          void response.body?.cancel().catch(() => {});
+          retryable = response.status >= 500 || response.status === 408 || response.status === 429;
+          throw new Error(`HTTP ${response.status}: ${response.statusText} for ${filename}`);
         }
-        throw new Error(`PK3 file too small (${arrayBuffer.byteLength} bytes): ${filename}`);
+        const bytes = await readAssetBuffer(response);
+        // Parse here: an intact ZIP header does not prove the directory survived.
+        return await JSZip.loadAsync(bytes);
+      } catch (error) {
+        if (!retryable || attempt >= maxRetries) throw new Error(`Could not load ${filename}: ${String(error)}`);
+        mirrorBase = null;
+        await new Promise((resolve) => setTimeout(resolve, 500));
       }
-
-      // Validate ZIP magic bytes: PK\x03\x04
-      const magic = new Uint8Array(arrayBuffer, 0, 4);
-      if (magic[0] !== 0x50 || magic[1] !== 0x4b || magic[2] !== 0x03 || magic[3] !== 0x04) {
-        if (attempt < maxRetries) {
-          console.warn(
-            `[PK3Loader] ${filename}: invalid ZIP magic [${magic.join(",")}], retrying (${attempt + 1}/${maxRetries})...`,
-          );
-          await new Promise((r) => setTimeout(r, 500));
-          continue;
-        }
-        throw new Error(`Invalid PK3 file (bad ZIP magic): ${filename}`);
-      }
-
-      if (attempt > 0) {
-        console.log(`[PK3Loader] ${filename}: valid on retry ${attempt}`);
-      }
-      return arrayBuffer;
     }
-
-    // Unreachable, but TypeScript needs it
-    throw new Error(`PK3 fetch failed after ${maxRetries} retries: ${filename}`);
   }
 
   /**
@@ -140,8 +117,8 @@ export class PK3Loader {
 
     console.log(`[PK3Loader] Loading ${filename} from ${url}...`);
 
-    const arrayBuffer = await this.fetchAndValidatePK3(url, filename);
-    await this.processPK3ArrayBuffer(filename, arrayBuffer);
+    const zip = await this.fetchAndValidatePK3(url, filename);
+    this.processPK3(filename, zip);
   }
 
   /**
@@ -151,31 +128,35 @@ export class PK3Loader {
    */
   public async loadPK3(filename: string): Promise<void> {
     const searchPaths = this.getSearchPaths();
+    let lastError: unknown;
 
     // Try each search path until we find a valid PK3
     for (const basePath of searchPaths) {
       const url = `${basePath}${filename}`;
       try {
-        const arrayBuffer = await this.fetchAndValidatePK3(url, filename);
+        const zip = await this.fetchAndValidatePK3(url, filename);
         console.log(`[PK3Loader] Loading ${filename} from ${url}...`);
-        await this.processPK3ArrayBuffer(filename, arrayBuffer);
+        this.processPK3(filename, zip);
         return;
-      } catch {
+      } catch (error) {
+        lastError = error;
         // Try next path
       }
     }
 
     const pathsStr = searchPaths.join(", ");
-    throw new Error(`PK3 not found in any search path: ${filename} (searched: ${pathsStr})`);
+    throw new Error(`Could not load PK3 ${filename} (searched: ${pathsStr}): ${String(lastError)}`);
   }
 
   /**
-   * Process a loaded PK3 ArrayBuffer
+   * Ingest bytes from Node's indexed local filesystem without HTTP retries.
    */
-  private async processPK3ArrayBuffer(filename: string, arrayBuffer: ArrayBuffer): Promise<void> {
-    try {
-      const zip = await JSZip.loadAsync(arrayBuffer);
+  public async processPK3ArrayBuffer(filename: string, arrayBuffer: ArrayBuffer): Promise<void> {
+    this.processPK3(filename, await JSZip.loadAsync(arrayBuffer));
+  }
 
+  private processPK3(filename: string, zip: JSZip): void {
+    try {
       // Determine priority from filename
       const priority = this.getPriorityFromFilename(filename);
 

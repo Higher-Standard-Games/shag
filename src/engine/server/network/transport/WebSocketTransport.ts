@@ -17,6 +17,9 @@ import type { ClientConnection, Transport, TransportConfig, TransportEvents } fr
 // Re-export interfaces for convenience
 export type { ClientConnection, Transport, TransportConfig, TransportEvents };
 
+/** A stalled reader must not retain an unbounded history of obsolete snapshots. */
+export const MAX_WEBSOCKET_QUEUED_BYTES = 8 * 1024 * 1024;
+
 // ═══════════════════════════════════════════════════════════════════
 // WEBSOCKET CLIENT CONNECTION
 // ═══════════════════════════════════════════════════════════════════
@@ -40,17 +43,26 @@ class WebSocketClientConnection implements ClientConnection {
   }
 
   sendDatagram(data: Uint8Array): void {
-    // WebSocket doesn't distinguish - treat as regular message
-    if (this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(data);
-    }
+    if (!this.canSend(data)) throw new Error("WebSocket unavailable or output queue full");
+    this.ws.send(data);
   }
 
   sendReliable(data: Uint8Array): void {
     // WebSocket is always reliable
-    if (this.ws.readyState === WebSocket.OPEN) {
+    if (this.canSend(data)) {
       this.ws.send(data);
     }
+  }
+
+  private canSend(data: Uint8Array): boolean {
+    if (this.ws.readyState !== WebSocket.OPEN) return false;
+    // Terminate instead of appending a close frame behind a stalled queue.
+    // The ordinary disconnect/resume path preserves an admitted player's seat.
+    if (this.ws.bufferedAmount + data.byteLength > MAX_WEBSOCKET_QUEUED_BYTES) {
+      this.ws.terminate();
+      return false;
+    }
+    return true;
   }
 
   close(reason?: string): void {
@@ -216,7 +228,11 @@ export class WebSocketServerTransport implements Transport {
   broadcastDatagram(data: Uint8Array, exclude?: Set<string>): void {
     for (const [id, client] of this.clients) {
       if (exclude?.has(id)) continue;
-      client.sendDatagram(data);
+      try {
+        client.sendDatagram(data);
+      } catch (error) {
+        this.events.onError?.(client, error instanceof Error ? error : new Error(String(error)));
+      }
     }
   }
 

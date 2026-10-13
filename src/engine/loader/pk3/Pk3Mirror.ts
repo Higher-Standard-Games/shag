@@ -14,6 +14,8 @@
  * either case, and whenever the mirror fails, the file comes from the origin.
  */
 
+import { fetchAsset } from "./AssetRequest";
+
 /** The mirror's base URL, ending in "/", or null when no mirror is configured. */
 export function pk3MirrorBase(configured: string | undefined = import.meta.env.VITE_PK3_MIRROR_URL): string | null {
   const value = configured?.trim();
@@ -55,7 +57,7 @@ export async function fetchPk3(
   fetchImpl: typeof fetch = (input, init) => fetch(input, init),
 ): Promise<Pk3Download> {
   const mirrorUrl = mirrorBase ? mirrorUrlFor(originUrl, mirrorBase) : null;
-  if (!mirrorUrl) return { response: await fetchImpl(originUrl), source: "origin" };
+  if (!mirrorUrl) return { response: await fetchAsset(originUrl, {}, fetchImpl), source: "origin" };
 
   if (!announced) {
     announced = true;
@@ -63,8 +65,8 @@ export async function fetchPk3(
   }
 
   const [mirror, head] = await Promise.all([
-    fetchImpl(mirrorUrl).catch(() => null),
-    fetchImpl(originUrl, { method: "HEAD" }).catch(() => null),
+    fetchAsset(mirrorUrl, {}, fetchImpl).catch(() => null),
+    fetchAsset(originUrl, { method: "HEAD" }, fetchImpl).catch(() => null),
   ]);
 
   const miss = judgeMirror(mirror, head);
@@ -73,7 +75,7 @@ export async function fetchPk3(
   void mirror?.body?.cancel().catch(() => undefined);
   // A file the origin doesn't have is answered as the origin answers it, without a warning
   if (miss !== "not_on_origin") console.warn(`[Pk3Mirror] ${originUrl} from the origin: ${miss}`);
-  return { response: await fetchImpl(originUrl), source: "origin", miss };
+  return { response: await fetchAsset(originUrl, {}, fetchImpl), source: "origin", miss };
 }
 
 const isWebPage = (response: Response) => (response.headers.get("content-type") ?? "").includes("text/html");

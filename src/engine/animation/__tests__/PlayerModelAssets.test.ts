@@ -44,12 +44,13 @@ describe("packaged player assets", () => {
   });
 
   it("releases failed downloads for retry and reloads after the PK3 filesystem is cleared", async () => {
-    fetchMock.mockRejectedValueOnce(new Error("offline"));
-    await expect(readPlayerModelAsset(`${VANGUARD_ROOT}vanguard.glb`)).rejects.toThrow("PK3 not found");
+    // Exhaust the loader's initial attempt and two automatic retries.
+    for (let attempt = 0; attempt < 3; attempt++) fetchMock.mockRejectedValueOnce(new Error("offline"));
+    await expect(readPlayerModelAsset(`${VANGUARD_ROOT}vanguard.glb`)).rejects.toThrow("offline");
     await readPlayerModelAsset(`${VANGUARD_ROOT}vanguard.glb`);
     loader.unloadAll();
     await readPlayerModelAsset(`${VANGUARD_ROOT}vanguard.glb`);
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock).toHaveBeenCalledTimes(5);
   });
 
   it("uses an indexed replacement archive rather than assuming the default filename owns the model", async () => {

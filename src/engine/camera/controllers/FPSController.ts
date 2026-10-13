@@ -1069,8 +1069,7 @@ export class FPSController implements ICameraController {
         }
       }
 
-      // Opt-in speed readout (cl_showspeed, default 0 to keep the combat HUD
-      // clear; the developer bar always shows speed).
+      // Movement speed readout (cl_showspeed, enabled by default).
       const showSpeed = mv.get("cl_showspeed") > 0;
       this.updateSpeedDisplay(showSpeed, this.actualHorizSpeed);
 

@@ -44,6 +44,7 @@ import { MessageCodec, MessageType } from "../../protocol/MessageCodec";
 import { ClockSync } from "../ClockSync";
 import { ConnectionWatchdog } from "../ConnectionWatchdog";
 import { InterpolationBuffer } from "../InterpolationBuffer";
+import { NetGraph } from "../NetGraph";
 import { SmoothCorrection } from "../SmoothCorrection";
 import { SnapshotReceiver } from "../SnapshotReceiver";
 import type { Transport } from "../transport/Transport";
@@ -235,6 +236,7 @@ export class NetworkGameHost implements IGameHost {
 
   async connect(url?: string, playerName?: string, admissionTicket?: string): Promise<void> {
     this.snapshotReceiver.reset();
+    NetGraph.reset();
     this._serverInfo = null;
     this._isConnected = false;
     this.connectionRejected = false;
@@ -288,6 +290,7 @@ export class NetworkGameHost implements IGameHost {
     this.stopWatchdog();
     this.clockSync.stop();
     this.snapshotReceiver.reset();
+    NetGraph.reset();
     await this.transport.disconnect();
   }
 
@@ -537,6 +540,7 @@ export class NetworkGameHost implements IGameHost {
       this.clockSync.stop();
       this.lastMatchPhase = null;
       this.snapshotReceiver.reset();
+      NetGraph.reset();
       AudioManager.getInstance().loadPlaylist("data/menu.playlist.json");
       // A connection that drops mid-match leaves a seat waiting; take it back
       // rather than making the player rejoin as someone new.
@@ -594,6 +598,7 @@ export class NetworkGameHost implements IGameHost {
           if (this.resumeToken !== token) return;
           this._serverInfo = null;
           this.snapshotReceiver.reset();
+          NetGraph.reset();
           this.acceptingMessages = true;
           await this.transport.connect(this.serverUrl);
           if (!this.acceptingMessages || this.resumeToken !== token) return;
