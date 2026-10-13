@@ -7,7 +7,12 @@ const createdSounds: Array<{
   onEndedObservable: { addOnce: ReturnType<typeof vi.fn> };
 }> = [];
 const engine = {
-  createBusAsync: vi.fn(async () => ({ volume: 0.7, dispose: vi.fn() })),
+  createBusAsync: vi.fn(async (name: string, options?: { volume?: number; outBus?: unknown }) => ({
+    name,
+    volume: options?.volume ?? 1,
+    outBus: options?.outBus,
+    dispose: vi.fn(),
+  })),
   createSoundBufferAsync: vi.fn(async () => buffer),
   createSoundAsync: vi.fn(async (_name: string, _source: unknown, _options?: Record<string, unknown>) => {
     const sound = { play: vi.fn(), dispose: vi.fn(), onEndedObservable: { addOnce: vi.fn() } };
@@ -87,6 +92,26 @@ describe("AudioV2Sfx", () => {
 
     audio.dispose();
     expect(engine.dispose).toHaveBeenCalledOnce();
+  });
+
+  it("routes each channel through its own bus into the effects bus", async () => {
+    const audio = new AudioV2Sfx();
+    await audio.init();
+    const buses = await Promise.all(engine.createBusAsync.mock.results.map((r) => r.value));
+    const sfx = buses.find((bus) => bus.name === "sfx");
+    const hits = buses.find((bus) => bus.name === "sfx-hits");
+    expect(hits?.outBus).toBe(sfx);
+
+    await audio.play2D("hit.wav", { channel: "hits" });
+    await audio.play3D("step.ogg", new Vector3(), { channel: "players" });
+    const outBuses = engine.createSoundAsync.mock.calls.map(
+      ([, , options]) => (options?.outBus as { name: string }).name,
+    );
+    expect(outBuses).toEqual(["sfx-hits", "sfx-players"]);
+
+    audio.setChannelVolume("hits", 0.25);
+    expect(hits?.volume).toBe(0.25);
+    audio.dispose();
   });
 
   it("fades by attenuation class on the inverse curve", async () => {

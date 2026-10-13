@@ -1,7 +1,7 @@
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Scene } from "@babylonjs/core/scene";
 import { AssetLoader } from "./AssetLoader";
-import { AudioV2Sfx, type SfxLoop, type SpatialSfxPlayOptions } from "./audio/AudioV2Sfx";
+import { AudioV2Sfx, type SfxChannel, type SfxLoop, type SpatialSfxPlayOptions } from "./audio/AudioV2Sfx";
 import { Cvar } from "./core/Cvar";
 import { PK3Index } from "./loader/pk3/PK3Index";
 import { PK3Loader } from "./loader/pk3/PK3Loader";
@@ -18,6 +18,14 @@ export interface Playlist {
   shuffle?: boolean;
   tracks: PlaylistTrack[];
 }
+
+/** The channel volumes: Warsow's cvars, each a share of `s_sfxvolume`. */
+const CHANNEL_CVARS: ReadonlyArray<readonly [string, SfxChannel, string]> = [
+  ["cg_volume_effects", "effects", "Weapons, impacts and the world (0-1)"],
+  ["cg_volume_players", "players", "Other players' voices and steps (0-1)"],
+  ["cg_volume_hitsound", "hits", "Hit and kill confirmation (0-1)"],
+  ["cg_volume_announcer", "announcer", "The announcer (0-1)"],
+];
 
 export class AudioManager {
   private static instance: AudioManager;
@@ -106,7 +114,19 @@ export class AudioManager {
       onChange: (v) => this.setSfxEnabled(v as boolean),
     });
 
-    console.log("[AudioManager] Registered 4 cvars");
+    // Each channel's share of the effects volume, under Warsow's names
+    for (const [name, channel, description] of CHANNEL_CVARS) {
+      Cvar.register(name, 1, {
+        type: "float",
+        min: 0,
+        max: 1,
+        description,
+        onChange: (v) => this.sfxBackend.setChannelVolume(channel, v as number),
+      });
+      this.sfxBackend.setChannelVolume(channel, Cvar.getNumber(name));
+    }
+
+    console.log(`[AudioManager] Registered ${4 + CHANNEL_CVARS.length} cvars`);
   }
 
   /**
@@ -281,9 +301,9 @@ export class AudioManager {
   }
 
   /** Play a listener-relative sound without HTMLAudioElement cloning. */
-  public playSfx2D(path: string, volumeMultiplier = 1.0, maxInstances = 8): void {
+  public playSfx2D(path: string, volumeMultiplier = 1.0, maxInstances = 8, channel?: SfxChannel): void {
     if (!this.sfxEnabled) return;
-    void this.sfxBackend.play2D(path, { volume: volumeMultiplier, maxInstances });
+    void this.sfxBackend.play2D(path, { volume: volumeMultiplier, maxInstances, channel });
   }
 
   /** Play a bounded one-shot at an engine-world position. */

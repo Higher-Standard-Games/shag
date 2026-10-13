@@ -10,11 +10,21 @@ import type { Scene } from "@babylonjs/core/scene";
 import { PK3Index } from "../loader/pk3/PK3Index";
 import { PK3Loader } from "../loader/pk3/PK3Loader";
 
+/**
+ * The mix a sound belongs to, each with its own volume under the effects
+ * volume, as Warsow's: hit confirmations and the announcer can then stay
+ * clear of everything else.
+ */
+export type SfxChannel = "effects" | "players" | "hits" | "announcer";
+export const SFX_CHANNELS: readonly SfxChannel[] = ["effects", "players", "hits", "announcer"];
+
 export interface SfxPlayOptions {
-  /** Per-play gain multiplied by the global SFX bus volume. */
+  /** Per-play gain multiplied by the channel's and the effects volume. */
   volume?: number;
   /** Maximum simultaneous instances for cached non-spatial sounds. */
   maxInstances?: number;
+  /** Effects when absent. */
+  channel?: SfxChannel;
 }
 
 /**
@@ -85,6 +95,8 @@ function isDirectUrl(path: string): boolean {
 export class AudioV2Sfx {
   private engine: AudioEngineV2 | null = null;
   private sfxBus: AudioBus | null = null;
+  private readonly channelBuses = new Map<SfxChannel, AudioBus>();
+  private readonly channelVolumes: Record<SfxChannel, number> = { effects: 1, players: 1, hits: 1, announcer: 1 };
   private scene: Scene | null = null;
   private listenerNode: object | null = null;
   private listenerScene: Scene | null = null;
@@ -114,6 +126,16 @@ export class AudioV2Sfx {
     if (this.sfxBus) this.sfxBus.volume = this.volume;
   }
 
+  setChannelVolume(channel: SfxChannel, volume: number): void {
+    this.channelVolumes[channel] = Math.max(0, Math.min(1, volume));
+    const bus = this.channelBuses.get(channel);
+    if (bus) bus.volume = this.channelVolumes[channel];
+  }
+
+  private busFor(channel: SfxChannel | undefined): AudioBus | null {
+    return this.channelBuses.get(channel ?? "effects") ?? this.sfxBus;
+  }
+
   async unlock(): Promise<void> {
     if (!(await this.ensureInitialized()) || !this.engine) return;
     await this.engine.unlockAsync();
@@ -127,14 +149,17 @@ export class AudioV2Sfx {
   async play2D(path: string, options: SfxPlayOptions = {}): Promise<boolean> {
     if (!(await this.ensureInitialized()) || !this.engine || !this.sfxBus) return false;
 
-    const key = normalizePath(path);
+    // A sound's bus is fixed when it is made, so each channel has its own
+    const channel = options.channel ?? "effects";
+    const key = `${channel}:${normalizePath(path)}`;
     let soundPromise = this.soundPromises.get(key);
     if (!soundPromise) {
       const generation = this.generation;
       soundPromise = this.getBuffer(path).then(async (buffer) => {
-        if (!buffer || generation !== this.generation || !this.engine || !this.sfxBus) return null;
+        const outBus = this.busFor(channel);
+        if (!buffer || generation !== this.generation || !this.engine || !outBus) return null;
         return this.engine.createSoundAsync(`sfx:${key}`, buffer, {
-          outBus: this.sfxBus,
+          outBus,
           maxInstances: options.maxInstances ?? 8,
         });
       });
@@ -156,7 +181,7 @@ export class AudioV2Sfx {
     if (!buffer || generation !== this.generation || !this.engine || !this.sfxBus) return false;
 
     const sound = await this.engine.createSoundAsync(`spatial:${normalizePath(path)}`, buffer, {
-      outBus: this.sfxBus,
+      outBus: this.busFor(options.channel) ?? this.sfxBus,
       maxInstances: 1,
       ...spatialOptions(position, options),
     });
@@ -196,7 +221,7 @@ export class AudioV2Sfx {
 
     const volume = Math.max(0, options.volume ?? 1);
     const sound = await this.engine.createSoundAsync(`loop:${normalizePath(path)}`, buffer, {
-      outBus: this.sfxBus,
+      outBus: this.busFor(options.channel) ?? this.sfxBus,
       loop: true,
       maxInstances: 1,
       ...(position ? spatialOptions(position, options) : {}),
@@ -237,6 +262,8 @@ export class AudioV2Sfx {
     this.warnedMissing.clear();
     this.stopFollowingView();
     this.listenerNode = null;
+    for (const channelBus of this.channelBuses.values()) channelBus.dispose();
+    this.channelBuses.clear();
     this.sfxBus = null;
     this.engine?.dispose();
     this.engine = null;
@@ -263,6 +290,20 @@ export class AudioV2Sfx {
           }
           const bus = await engine.createBusAsync("sfx", { volume: this.volume });
           if (generation !== this.generation || this.disposed) {
+            bus.dispose();
+            engine.dispose();
+            return false;
+          }
+          for (const channel of SFX_CHANNELS) {
+            const channelBus = await engine.createBusAsync(`sfx-${channel}`, {
+              volume: this.channelVolumes[channel],
+              outBus: bus,
+            });
+            this.channelBuses.set(channel, channelBus);
+          }
+          if (generation !== this.generation || this.disposed) {
+            for (const channelBus of this.channelBuses.values()) channelBus.dispose();
+            this.channelBuses.clear();
             bus.dispose();
             engine.dispose();
             return false;
