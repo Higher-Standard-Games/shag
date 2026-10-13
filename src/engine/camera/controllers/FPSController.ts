@@ -47,16 +47,7 @@ import {
   PLAYER_RADIUS,
 } from "../../physics/PlayerPhysicsConstants";
 // Viewport effects system imports
-import {
-  FPSApplicator,
-  IdleBreathingEffect,
-  LandingImpactEffect,
-  type PlayerState,
-  SpeedFOVEffect,
-  StrafeLeanEffect,
-  ViewportEffectsManager,
-  WalkBobEffect,
-} from "../../viewport";
+import { createFirstPersonEffects, FPSApplicator, type PlayerState, ViewportEffectsManager } from "../../viewport";
 import { CameraInputHandler } from "../CameraInputHandler";
 import { currentBaseFov } from "../FovSettings";
 import type { CameraControllerConfig, ICameraController } from "./ICameraController";
@@ -599,12 +590,8 @@ export class FPSController implements ICameraController {
     this.viewportEffectsManager = ViewportEffectsManager.getInstance();
     this.viewportEffectsManager.init();
 
-    // Register all movement-based effects
-    this.viewportEffectsManager.registerEffect(new WalkBobEffect());
-    this.viewportEffectsManager.registerEffect(new LandingImpactEffect());
-    this.viewportEffectsManager.registerEffect(new StrafeLeanEffect());
-    this.viewportEffectsManager.registerEffect(new SpeedFOVEffect());
-    this.viewportEffectsManager.registerEffect(new IdleBreathingEffect());
+    // The same movement effects a watched first-person view runs
+    for (const effect of createFirstPersonEffects()) this.viewportEffectsManager.registerEffect(effect);
 
     this.viewportApplicator = new FPSApplicator();
     console.log("[FPSController] Viewport effects initialized");

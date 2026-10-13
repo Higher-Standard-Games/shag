@@ -28,6 +28,7 @@ export type { EasingFunction } from "./Easing";
 export { Easing, ease, getEasing } from "./Easing";
 // Effects
 export * from "./effects";
+export { createFirstPersonEffects, FirstPersonEffectStack } from "./FirstPersonEffects";
 export type { PlayerState } from "./PlayerState";
 export { createNeutralPlayerState } from "./PlayerState";
 // Speed constants (shared across effects)
