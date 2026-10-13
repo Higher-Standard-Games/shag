@@ -227,7 +227,7 @@ looks down.
 
 ### Known gaps
 
-- **Rain** (weather, additive particles) stays unfogged.
+- **Rain** stays unfogged by design: it belongs to another game, not these maps.
 - **Real Warfork maps**: everything above was checked with cvars on older maps.
   Check the new maps' fog, sky heights and sky portals when they arrive.
 
