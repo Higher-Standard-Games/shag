@@ -22,6 +22,8 @@ export interface EntitySnapshot {
   y: number;
   z: number;
   yaw: number;
+  /** View pitch in radians, as the player aims; absent from an older recording. */
+  pitch?: number;
   vx: number;
   vy: number;
   vz: number;
@@ -63,6 +65,8 @@ export interface InterpolatedEntity {
   y: number;
   z: number;
   yaw: number;
+  /** View pitch in radians, as the player aims; absent from an older recording. */
+  pitch?: number;
   vx: number;
   vy: number;
   vz: number;
@@ -88,6 +92,12 @@ export interface InterpolatedEntity {
 
 const EMPTY_IDS: ReadonlySet<string> = new Set();
 
+/** Pitch stays within ±90°, so it never wraps; either end missing holds the other. */
+export function lerpPitch(a: number | undefined, b: number | undefined, t: number): number | undefined {
+  if (a === undefined || b === undefined) return b ?? a;
+  return a + (b - a) * t;
+}
+
 /** A snapshot's entity as a sample, into `out` when given, or a new object. */
 function copyEntity(entity: EntitySnapshot, out: InterpolatedEntity | null): InterpolatedEntity {
   if (!out) return { ...entity };
@@ -95,6 +105,7 @@ function copyEntity(entity: EntitySnapshot, out: InterpolatedEntity | null): Int
   out.y = entity.y;
   out.z = entity.z;
   out.yaw = entity.yaw;
+  out.pitch = entity.pitch;
   out.vx = entity.vx;
   out.vy = entity.vy;
   out.vz = entity.vz;
@@ -364,6 +375,7 @@ export class SnapshotBuffer {
       result.y = extraY;
       result.z = entity.z + entity.vz * elapsed;
       result.yaw = entity.yaw;
+      result.pitch = entity.pitch;
       result.vx = entity.vx;
       result.vy = entity.grounded ? entity.vy : entity.vy + GRAVITY * elapsed;
       result.vz = entity.vz;
@@ -503,6 +515,7 @@ export class SnapshotBuffer {
     result.y = y;
     result.z = z;
     result.yaw = yaw;
+    result.pitch = lerpPitch(a.pitch, b.pitch, clampedT);
     result.vx = vx;
     result.vy = vy;
     result.vz = vz;

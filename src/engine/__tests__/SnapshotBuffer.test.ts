@@ -6,7 +6,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { type EntitySnapshot, SnapshotBuffer } from "../network/client/SnapshotBuffer";
+import { type EntitySnapshot, lerpPitch, SnapshotBuffer } from "../network/client/SnapshotBuffer";
 
 // Mock Cvar to avoid dependency on console variable system
 vi.mock("../../core/Cvar", () => ({
@@ -363,5 +363,14 @@ describe("SnapshotBuffer with server timestamps", () => {
     };
     expect(at(-200)).toBeCloseTo(at(0) ?? Number.NaN, 6);
     expect(at(200)).toBeCloseTo(at(0) ?? Number.NaN, 6);
+  });
+});
+
+describe("pitch interpolation", () => {
+  it("is linear, never wrapping, and holds a known end when the other is missing", () => {
+    expect(lerpPitch(-1.2, 1.2, 0.25)).toBeCloseTo(-0.6);
+    expect(lerpPitch(undefined, 0.3, 0.5)).toBe(0.3);
+    expect(lerpPitch(0.3, undefined, 0.5)).toBe(0.3);
+    expect(lerpPitch(undefined, undefined, 0.5)).toBeUndefined();
   });
 });
