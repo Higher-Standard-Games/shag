@@ -171,8 +171,8 @@ describe("RenderVars", () => {
       expect(rv.get("r_anisotropy")).toBe(8);
       expect(rv.get("r_webgpu")).toBe(0);
       expect(rv.get("r_wireframe")).toBe(0);
-      expect(rv.get("r_water_quality")).toBe(3);
-      expect(rv.getVar("r_water_quality")!.defaultValue).toBe(3);
+      expect(rv.get("r_water_quality")).toBe(2);
+      expect(rv.getVar("r_water_quality")!.defaultValue).toBe(2);
       expect(rv.get("r_water_probe_height")).toBe(64);
       expect(rv.get("r_water_blur")).toBe(0.3);
       expect(rv.get("r_water_detail")).toBe(0.8);

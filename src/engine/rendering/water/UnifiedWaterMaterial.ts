@@ -25,7 +25,7 @@ import { RawCubeTexture } from "@babylonjs/core/Materials/Textures/rawCubeTextur
 import { RawTexture } from "@babylonjs/core/Materials/Textures/rawTexture";
 import type { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
-import { Vector2, Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { Vector2, Vector3, Vector4 } from "@babylonjs/core/Maths/math.vector";
 import type { Scene } from "@babylonjs/core/scene";
 import { ATM_FOG_GLSL, ATM_FOG_SHADER_UNIFORMS, bindAtmosphericFog } from "../AtmosphericFogShader";
 import { MAX_WATER_IMPULSES } from "./WaterDisturbances";
@@ -113,6 +113,9 @@ uniform float uReflectivity;
 uniform float uCameraFar;
 uniform float uAbsorb;
 uniform float uHasDepth;
+// x near, y far (0 for an infinite far plane), z 1 when NDC depth runs 0..1;
+// w 1 when uSceneDepth is the hardware depth of the colour capture.
+uniform vec4 uDepthProjection;
 uniform float uDebug;
 uniform float uFoam;
 uniform float uFoamWidth;
@@ -148,6 +151,20 @@ uniform vec4 uImpulses[${MAX_WATER_IMPULSES * 2}];
 #define WATER_CAPTURE(s, uv) texture2D(s, uv)
 #define WATER_PANEL(s, ray) textureCube(s, ray)
 #endif
+
+// View-space Z in world units behind this pixel, 0 where nothing was drawn.
+// The depth pass stores it directly; the colour capture's own depth buffer
+// holds the projection's depth, turned back here with the same near and far.
+float sceneViewDepth(vec2 uv) {
+  float d = WATER_CAPTURE(uSceneDepth, uv).r;
+  if (uDepthProjection.w < 0.5) return d;
+  if (d >= 1.0) return 0.0;
+  float n = uDepthProjection.x;
+  float f = uDepthProjection.y;
+  float z = uDepthProjection.z > 0.5 ? d : d * 2.0 - 1.0;
+  if (f <= 0.0) return uDepthProjection.z > 0.5 ? n / (1.0 - z) : 2.0 * n / (1.0 - z);
+  return uDepthProjection.z > 0.5 ? n * f / (f - z * (f - n)) : 2.0 * n * f / (f + n - z * (f - n));
+}
 
 // Like Babylon WaterMaterial, this inexpensive stylised surface composes
 // display-space colours. The game image-processing pass expects LINEAR input;
@@ -348,10 +365,7 @@ void main(void) {
   vec3 transmittance = vec3(1.0) - absorbedRgb;
   if (uHasDepth > 0.5) {
     vec2 screenUv = gl_FragCoord.xy / uScreenSize;
-    // View-space Z in world units, straight out of the depth map. No
-    // reconstruction: the renderer is asked to store camera-space Z precisely
-    // so this line cannot be subtly wrong in a way that still renders.
-    float sceneDepth = WATER_CAPTURE(uSceneDepth, screenUv).r;
+    float sceneDepth = sceneViewDepth(screenUv);
     float rayAxis = max(0.05, dot(normalize(vWorld - uCameraPosition), normalize(uCameraForward)));
     thickness = sceneDepth > 0.0 ? max(0.0, sceneDepth - vViewDepth) / rayAxis : 0.0;
     validContactDepth = sceneDepth > vViewDepth + 0.05 ? 1.0 : 0.0;
@@ -503,7 +517,7 @@ void main(void) {
     // Do not drag a foreground bank into the water, or sample outside the
     // current screen. A rejected displacement falls back to the exact pixel.
     vec2 margin = vec2(2.0) / uScreenSize;
-    float displacedDepth = WATER_CAPTURE(uSceneDepth, clamp(refractedUv, margin, vec2(1.0) - margin)).r;
+    float displacedDepth = sceneViewDepth(clamp(refractedUv, margin, vec2(1.0) - margin));
     if (any(lessThan(refractedUv, margin)) || any(greaterThan(refractedUv, vec2(1.0) - margin)) ||
         displacedDepth <= vViewDepth + 0.5) refractedUv = screenUv;
     vec3 transmittedScene = WATER_CAPTURE(uSceneColour, refractedUv).rgb;
@@ -832,6 +846,7 @@ export function createUnifiedWaterMaterial(
           "uCameraFar",
           "uAbsorb",
           "uHasDepth",
+          "uDepthProjection",
           "uHasRefraction",
           "uHasActorReflection",
           "uActorReflectionMatrix",
@@ -924,6 +939,7 @@ export function createUnifiedWaterMaterial(
     material.setFloat("uTime", 0);
     // Missing depth uses a mild, uniform transmission approximation.
     material.setFloat("uHasDepth", 0);
+    material.setVector4("uDepthProjection", new Vector4(1, 0, 0, 0));
     material.setFloat("uDebug", 0);
     material.setFloat("uFoam", kind === "water" ? 0 : profile.foam);
     material.setFloat("uFoamWidth", profile.foamWidth);

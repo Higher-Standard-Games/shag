@@ -133,14 +133,16 @@ configuration file. It does not create or modify a swimmable collision volume.
 All quality levels use cached room reflections and player-driven wave normals:
 
 - `r_water_quality 1`: no recurring depth/reflection pass.
-- `r_water_quality 2`: adds depth-based transmission/tint.
+- `r_water_quality 2`: adds depth-based transmission/tint (default; the
+  Balanced video preset).
 - `r_water_quality 3`: adds a half-resolution opaque world-colour capture for
-  depth-guarded refraction (default). Both 2 and 3 enable the gameplay system's existing splash
-  detail when it initializes on map load. Depth quality changes live; reload to
-  change splash allocation.
+  depth-guarded refraction (the Pretty preset). Both 2 and 3 enable the gameplay
+  system's existing splash detail when it initializes on map load. Depth quality
+  changes live; reload to change splash allocation.
 
-Saved settings override the default; explicitly set `r_water_quality 3` once
-if your existing config still selects 2.
+The depth and colour passes run only while a liquid surface is drawn, which an
+occlusion query decides, and seen from above flat water they leave out meshes
+wholly above it. Saved settings override the default.
 
 Water's background motion uses three slow, broad analytic waves plus a smaller
 capillary wave. Two procedural normal samples provide detail (up to 80% slope weight,

@@ -410,8 +410,8 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, "name">> = {
     category: "lighting",
   },
   r_water_quality: {
-    value: 3,
-    defaultValue: 3,
+    value: 2,
+    defaultValue: 2,
     min: 1,
     max: 3,
     description:

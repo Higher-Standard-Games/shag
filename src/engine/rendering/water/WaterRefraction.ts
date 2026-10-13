@@ -1,6 +1,11 @@
-/** Camera-scoped, half-resolution world colour for Epic water transmission. */
+/**
+ * Camera-scoped, half-resolution world colour for Epic water transmission, and
+ * the depth of the same capture, so Epic needs no separate depth pass.
+ */
 import type { Camera } from "@babylonjs/core/Cameras/camera";
 import { Constants } from "@babylonjs/core/Engines/constants";
+import { BaseTexture } from "@babylonjs/core/Materials/Textures/baseTexture";
+import type { InternalTexture } from "@babylonjs/core/Materials/Textures/internalTexture";
 import { RenderTargetTexture } from "@babylonjs/core/Materials/Textures/renderTargetTexture";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import type { Scene } from "@babylonjs/core/scene";
@@ -10,6 +15,8 @@ export class WaterRefractionProvider {
   private camera: Camera | null = null;
   private unavailable = false;
   private readonly candidates: AbstractMesh[] = [];
+  private depth: BaseTexture | null = null;
+  private depthSource: InternalTexture | null = null;
   private ceiling: number | null = null;
 
   constructor(private readonly scene: Scene) {}
@@ -43,6 +50,26 @@ export class WaterRefractionProvider {
         generateDepthBuffer: true,
         generateStencilBuffer: false,
       });
+      // A sampleable depth buffer instead of a render buffer, made again after
+      // every resize, which rebuilds the target without it. Float depth is not
+      // filterable in WebGL2, so it is read nearest. A device that cannot make
+      // one keeps its render buffer, and water falls back to the depth pass.
+      const withDepth = () => {
+        try {
+          map.createDepthStencilTexture(
+            0,
+            false,
+            false,
+            1,
+            Constants.TEXTUREFORMAT_DEPTH32_FLOAT,
+            "water-scene-colour-depth",
+          );
+        } catch (error) {
+          console.warn("[Water] No depth texture for the colour capture; using the depth pass", error);
+        }
+      };
+      withDepth();
+      map.onResizeObservable.add(withDepth);
       this.map = map;
       this.camera = camera;
       map.activeCamera = camera;
@@ -84,6 +111,21 @@ export class WaterRefractionProvider {
   }
 
   /**
+   * The capture's own depth buffer, null when there is none. It holds the
+   * projection's depth, not view-space Z, and is rebuilt with the target.
+   */
+  depthTexture(): BaseTexture | null {
+    const source = this.map?.depthStencilTexture ?? null;
+    if (source !== this.depthSource) {
+      // Made on the engine, not the scene: the target owns the texture, and a
+      // wrapper the scene disposed would release it under the target
+      this.depth = source ? new BaseTexture(this.scene.getEngine(), source) : null;
+      this.depthSource = source;
+    }
+    return this.depth;
+  }
+
+  /**
    * Meshes wholly above this height are left out of the capture: seen from
    * above a flat surface, the water shows only what lies below it. null
    * captures everything.
@@ -102,6 +144,8 @@ export class WaterRefractionProvider {
 
   private release(): void {
     this.setRendering(false);
+    this.depth = null;
+    this.depthSource = null;
     this.map?.dispose();
     this.map = null;
     this.camera = null;

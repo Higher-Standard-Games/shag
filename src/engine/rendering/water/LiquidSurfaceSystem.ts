@@ -26,7 +26,7 @@ import type { Camera } from "@babylonjs/core/Cameras/camera";
 import type { Material } from "@babylonjs/core/Materials/material";
 import type { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial";
 import type { BaseTexture } from "@babylonjs/core/Materials/Textures/baseTexture";
-import { Vector2, Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { Vector2, Vector3, Vector4 } from "@babylonjs/core/Maths/math.vector";
 import "@babylonjs/core/Engines/AbstractEngine/abstractEngine.query";
 import "@babylonjs/core/Engines/Extensions/engine.query";
 import { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
@@ -98,6 +98,7 @@ export class LiquidSurfaceSystem {
   private elapsed = 0;
   /** Reused so the per-frame uniform write does not allocate. */
   private readonly screenSize = new Vector2(1920, 1080);
+  private readonly depthProjection = new Vector4(0, 0, 0, 0);
   /** Owns water's own depth pass; see WaterDepth for why it is not shared. */
   private readonly depth: WaterDepthProvider;
   private readonly refraction: WaterRefractionProvider;
@@ -351,8 +352,12 @@ export class LiquidSurfaceSystem {
       // describes a view nobody is looking through.
       const debug = RenderVars.getInstance().get("r_water_debug") ?? 0;
       const quality = RenderVars.getInstance().get("r_water_quality") ?? 3;
-      const depthMap = quality >= 2 ? this.depth.mapFor(camera) : null;
-      const colourMap = quality >= 3 && depthMap ? this.refraction.mapFor(camera) : null;
+      // Epic reads depth from its colour capture's own depth buffer, one scene
+      // pass for both; Medium, or a device without that buffer, has the depth pass
+      const colourMap = quality >= 3 ? this.refraction.mapFor(camera) : null;
+      const colourDepth = colourMap ? this.refraction.depthTexture() : null;
+      const depthMap = quality >= 2 && !colourDepth ? this.depth.mapFor(camera) : null;
+      const sceneDepth = colourDepth ?? depthMap;
 
       // The depth pass resubmits the world camera's visible geometry; suspend
       // it after the water leaves view.
@@ -360,8 +365,8 @@ export class LiquidSurfaceSystem {
       const ceiling = this.captureCeiling(camera);
       this.depth.setCaptureCeiling(ceiling);
       this.refraction.setCaptureCeiling(ceiling);
-      this.depth.setRendering(visible && quality >= 2);
-      this.refraction.setRendering(visible && colourMap !== null);
+      this.depth.setRendering(visible && depthMap !== null);
+      this.refraction.setRendering(visible && colourMap !== null && sceneDepth !== null);
 
       if (visible) this.probes.update(camera);
       this.actorReflection.update(
@@ -379,7 +384,7 @@ export class LiquidSurfaceSystem {
       );
       this.reportState(
         visible,
-        depthMap !== null,
+        sceneDepth !== null,
         quality,
         this.probes.entries.some((entry) => entry.ready),
       );
@@ -393,7 +398,7 @@ export class LiquidSurfaceSystem {
         material.setFloat("uReflectionBlur", RenderVars.getInstance().get("r_water_blur") ?? 0.3);
         material.setFloat("uDetailStrength", RenderVars.getInstance().get("r_water_detail") ?? 0.8);
         material.setFloat("uContactStrength", RenderVars.getInstance().get("r_water_contact") ?? 0.25);
-        material.setFloat("uHasRefraction", colourMap && visible ? 1 : 0);
+        material.setFloat("uHasRefraction", colourMap && sceneDepth && visible ? 1 : 0);
         if (colourMap) {
           material.setTexture("uSceneColour", colourMap);
           const processing = this.scene.imageProcessingConfiguration;
@@ -410,9 +415,11 @@ export class LiquidSurfaceSystem {
         this.screenSize.set(engine.getRenderWidth(), engine.getRenderHeight());
         material.setVector2("uScreenSize", this.screenSize);
 
-        if (depthMap && visible) {
-          material.setTexture("uSceneDepth", depthMap);
+        if (sceneDepth && visible) {
+          material.setTexture("uSceneDepth", sceneDepth);
           material.setFloat("uHasDepth", 1);
+          this.depthProjection.set(camera.minZ, camera.maxZ, engine.isNDCHalfZRange ? 1 : 0, colourDepth ? 1 : 0);
+          material.setVector4("uDepthProjection", this.depthProjection);
         } else {
           material.setFloat("uHasDepth", 0);
         }
