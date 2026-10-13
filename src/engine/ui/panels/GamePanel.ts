@@ -41,6 +41,7 @@ export class GamePanel {
   private particles: HTMLElement[] = [];
   private kanjiElements: HTMLElement[] = [];
   private onCloseCallback: (() => void) | null = null;
+  private closingHandler: ((event: AnimationEvent) => void) | null = null;
   private escHandler: (e: KeyboardEvent) => void;
   private tabs: { id: string; label: string; content: HTMLElement; btn: HTMLElement }[] = [];
 
@@ -155,6 +156,7 @@ export class GamePanel {
 
   public open(): void {
     if (this.visible) return;
+    this.cancelCloseAnimation();
     this.visible = true;
 
     // Spawn particles if not already present
@@ -181,8 +183,9 @@ export class GamePanel {
 
     // Exit animation then hide
     this.root.classList.add("game-panel--closing");
-    const onEnd = () => {
-      this.root.removeEventListener("animationend", onEnd);
+    const onEnd = (event: AnimationEvent) => {
+      if (event.target !== this.root) return;
+      this.cancelCloseAnimation();
       this.root.style.display = "none";
       this.root.classList.remove("game-panel--closing");
       document.body.classList.remove("show-ui-bg");
@@ -194,10 +197,16 @@ export class GamePanel {
         this.onCloseCallback();
       }
     };
+    this.closingHandler = onEnd;
     this.root.addEventListener("animationend", onEnd);
 
     // Pause logo rendering
     this.logoCanvas?.pause();
+  }
+
+  private cancelCloseAnimation(): void {
+    if (this.closingHandler) this.root.removeEventListener("animationend", this.closingHandler);
+    this.closingHandler = null;
   }
 
   public isOpen(): boolean {
@@ -213,6 +222,7 @@ export class GamePanel {
   }
 
   public destroy(): void {
+    this.cancelCloseAnimation();
     document.removeEventListener("keydown", this.escHandler, true);
     clearParticles(this.particles);
     for (const el of this.kanjiElements) el.remove();
