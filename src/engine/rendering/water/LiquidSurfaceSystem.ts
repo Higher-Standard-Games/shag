@@ -22,6 +22,7 @@
  * Splash geometry is owned by the gameplay interaction system (tiers 2/3).
  */
 
+import type { Camera } from "@babylonjs/core/Cameras/camera";
 import type { Material } from "@babylonjs/core/Materials/material";
 import type { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial";
 import type { BaseTexture } from "@babylonjs/core/Materials/Textures/baseTexture";
@@ -68,6 +69,8 @@ export function hasReactiveSurface(kind: WaterKind): boolean {
 const DRY_FRAMES_BEFORE_STOPPING = 10;
 /** Units added around a surface's bounds for its occlusion query. */
 const OCCLUSION_PAD = 4;
+/** Height a liquid surface may span and still count as flat. */
+const FLAT_TOLERANCE = 2;
 
 /** Local forward, reused so the per-frame camera query does not allocate. */
 const FORWARD = new Vector3(0, 0, 1);
@@ -354,6 +357,9 @@ export class LiquidSurfaceSystem {
       // The depth pass resubmits the world camera's visible geometry; suspend
       // it after the water leaves view.
       const visible = this.anyLiquidVisible();
+      const ceiling = this.captureCeiling(camera);
+      this.depth.setCaptureCeiling(ceiling);
+      this.refraction.setCaptureCeiling(ceiling);
       this.depth.setRendering(visible && quality >= 2);
       this.refraction.setRendering(visible && colourMap !== null);
 
@@ -431,6 +437,24 @@ export class LiquidSurfaceSystem {
     if (line === this.lastReport) return;
     this.lastReport = line;
     console.log(`[Water] ${line}`);
+  }
+
+  /**
+   * The top of the water, when every surface is flat and the view is above
+   * it all; null otherwise. Through a flat surface seen from above only what
+   * lies below it shows, so the depth and colour passes need nothing higher.
+   * A view under the surface looks up through it, and a waterfall has no top.
+   */
+  private captureCeiling(camera: Camera): number | null {
+    let top = Number.NEGATIVE_INFINITY;
+    for (const { mesh } of this.claimed) {
+      if (mesh.isDisposed()) continue;
+      const box = mesh.getBoundingInfo().boundingBox;
+      if (box.maximumWorld.y - box.minimumWorld.y > 2 * OCCLUSION_PAD + FLAT_TOLERANCE) return null;
+      top = Math.max(top, box.maximumWorld.y);
+    }
+    if (!Number.isFinite(top) || camera.globalPosition.y <= top) return null;
+    return top;
   }
 
   /** Did the renderer actually draw a liquid surface last frame? */

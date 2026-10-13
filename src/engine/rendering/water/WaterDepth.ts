@@ -35,6 +35,7 @@ const WEAPON_LAYER_MASK = 0x10000000;
 
 export class WaterDepthProvider {
   private readonly candidates: AbstractMesh[] = [];
+  private ceiling: number | null = null;
   private renderer: DepthRenderer | null = null;
   private camera: Camera | null = null;
   /** null once we know this device cannot give us a usable depth format. */
@@ -116,7 +117,17 @@ export class WaterDepthProvider {
     if (mesh.metadata?.liquidKind) return false;
     if (mesh.metadata?.effectOwned || mesh.metadata?.excludeFromWaterCapture || mesh.infiniteDistance) return false;
     if ((mesh.layerMask & WEAPON_LAYER_MASK) !== 0) return false;
+    if (this.ceiling !== null && mesh.getBoundingInfo().boundingBox.minimumWorld.y > this.ceiling) return false;
     return true;
+  }
+
+  /**
+   * Meshes wholly above this height are left out of the capture: seen from
+   * above a flat surface, the water shows only what lies below it. null
+   * captures everything.
+   */
+  setCaptureCeiling(height: number | null): void {
+    this.ceiling = height;
   }
 
   /**

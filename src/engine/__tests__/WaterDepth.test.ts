@@ -264,3 +264,18 @@ describe("what the depth pass draws", () => {
     expect(captured()).not.toContain(gun);
   });
 });
+
+describe("capture ceiling", () => {
+  it("leaves out meshes wholly above it, and everything comes back without one", () => {
+    const map = provider.mapFor(camera("world")) as RenderTargetTexture;
+    const below = CreateBox("below", {}, scene);
+    const above = CreateBox("above", {}, scene);
+    above.position.y = 200;
+    for (const mesh of [below, above]) mesh.computeWorldMatrix(true);
+    const meshes = [below, above];
+    provider.setCaptureCeiling(60);
+    expect(map.getCustomRenderList!(0, meshes, meshes.length)).toEqual([below]);
+    provider.setCaptureCeiling(null);
+    expect(map.getCustomRenderList!(0, meshes, meshes.length)).toEqual(meshes);
+  });
+});

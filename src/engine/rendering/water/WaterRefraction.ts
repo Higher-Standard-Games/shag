@@ -10,6 +10,7 @@ export class WaterRefractionProvider {
   private camera: Camera | null = null;
   private unavailable = false;
   private readonly candidates: AbstractMesh[] = [];
+  private ceiling: number | null = null;
 
   constructor(private readonly scene: Scene) {}
 
@@ -59,6 +60,7 @@ export class WaterRefractionProvider {
           if (mesh.metadata?.liquidKind || mesh.metadata?.effectOwned || mesh.metadata?.excludeFromWaterCapture)
             continue;
           if (mesh.layerMask & 0x10000000) continue;
+          if (this.ceiling !== null && mesh.getBoundingInfo().boundingBox.minimumWorld.y > this.ceiling) continue;
           // Opaque and alpha-tested world geometry only: never recursively
           // sample water, or duplicate muzzle flashes / translucent particles.
           if (mesh.material?.needAlphaBlendingForMesh(mesh)) continue;
@@ -79,6 +81,15 @@ export class WaterRefractionProvider {
       console.warn("[Water] Refraction unavailable; using transparent water", error);
       return null;
     }
+  }
+
+  /**
+   * Meshes wholly above this height are left out of the capture: seen from
+   * above a flat surface, the water shows only what lies below it. null
+   * captures everything.
+   */
+  setCaptureCeiling(height: number | null): void {
+    this.ceiling = height;
   }
 
   setRendering(enabled: boolean): void {

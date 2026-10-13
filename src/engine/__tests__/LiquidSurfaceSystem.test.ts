@@ -136,6 +136,35 @@ describe("LiquidSurfaceSystem", () => {
     expect(pool.occlusionType).toBe(AbstractMesh.OCCLUSION_TYPE_NONE);
   });
 
+  it("captures only below flat water seen from above", () => {
+    const root = new Mesh("bsp_world", scene);
+    const pool = CreateGround("bsp_tex_pool", { width: 256, height: 128 }, scene);
+    pool.parent = root;
+    pool.position.y = 56;
+    pool.computeWorldMatrix(true);
+    pool.material = new StandardMaterial("legacy_pool", scene);
+    pool.metadata = { textureName: "textures/test/pool", liquidKind: "water" };
+    const system = new LiquidSurfaceSystem(scene);
+    system.claim(root);
+    const ceiling = (y: number) => {
+      const view = new FreeCamera("view", new Vector3(0, y, 0), scene);
+      view.computeWorldMatrix();
+      return (system as unknown as { captureCeiling(camera: FreeCamera): number | null }).captureCeiling(view);
+    };
+
+    expect(ceiling(200)).toBeCloseTo(60);
+    // Under the surface the view looks up through it
+    expect(ceiling(40)).toBeNull();
+    // A waterfall has no top to cut at
+    const fall = CreateBox("bsp_tex_fall", { height: 200 }, scene);
+    fall.parent = root;
+    fall.material = new StandardMaterial("legacy_fall", scene);
+    fall.metadata = { textureName: "textures/test/fall", liquidKind: "water" };
+    system.claim(root);
+    expect(ceiling(400)).toBeNull();
+    system.dispose();
+  });
+
   it("hands the original material back on dispose", () => {
     // A map unload disposes the water materials; a mesh left pointing at one
     // renders as nothing at all. Toggling water off mid-session has to leave

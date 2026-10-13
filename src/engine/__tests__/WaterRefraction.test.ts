@@ -84,3 +84,18 @@ it("preserves viewport proportions on resize rather than rounding each axis to a
   width.mockRestore();
   height.mockRestore();
 });
+
+it("leaves out meshes wholly above the capture ceiling", () => {
+  const below = CreateBox("below", {}, scene);
+  const straddling = CreateBox("straddling", { height: 40 }, scene);
+  straddling.position.y = 60;
+  const above = CreateBox("above", {}, scene);
+  above.position.y = 200;
+  const meshes = [below, straddling, above];
+  for (const mesh of meshes) mesh.computeWorldMatrix(true);
+  const map = provider.mapFor(camera())!;
+  provider.setCaptureCeiling(60);
+  expect(map.getCustomRenderList!(0, meshes, meshes.length)).toEqual([below, straddling]);
+  provider.setCaptureCeiling(null);
+  expect(map.getCustomRenderList!(0, meshes, meshes.length)).toEqual(meshes);
+});
