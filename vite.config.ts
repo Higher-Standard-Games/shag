@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import { visualizer } from 'rollup-plugin-visualizer';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -14,7 +14,58 @@ console.log(`[Vite] Building game: ${selectedGame}`);
 /** True when loaded by vite-node rather than the dev server or a build. */
 const isViteNode = /vite-node/.test(process.argv[1] ?? "");
 
+/**
+ * Serve `public/data` from disk as it is now, in the dev server.
+ *
+ * The watcher ignores `public/data`, so Vite knows only the files that were
+ * there when it started: a demo recorded or a pk3 added after that fell
+ * through to the app's index.html, and the demo player read the HTML as a demo
+ * ("bad magic bytes"). A file that exists on disk is served from it; anything
+ * else goes on to Vite.
+ */
+const DATA_TYPES: Record<string, string> = {
+  ".json": "application/json",
+  ".txt": "text/plain",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".tga": "image/x-tga",
+  ".ogg": "audio/ogg",
+  ".wav": "audio/wav",
+  ".mp3": "audio/mpeg",
+  ".m3u": "audio/x-mpegurl",
+};
+
+function liveGameData(): Plugin {
+  const root = path.resolve(__dirname, "public/data");
+  return {
+    name: "live-game-data",
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const url = req.url?.split("?")[0] ?? "";
+        if ((req.method !== "GET" && req.method !== "HEAD") || !url.startsWith("/data/")) return next();
+        let file: string;
+        try {
+          file = path.resolve(root, decodeURIComponent(url.slice("/data/".length)));
+        } catch {
+          return next();
+        }
+        if (!file.startsWith(root + path.sep)) return next();
+        fs.stat(file, (error, stat) => {
+          if (error || !stat.isFile()) return next();
+          res.setHeader("Content-Type", DATA_TYPES[path.extname(file).toLowerCase()] ?? "application/octet-stream");
+          res.setHeader("Content-Length", stat.size);
+          res.setHeader("Cache-Control", "no-cache");
+          if (req.method === "HEAD") return res.end();
+          fs.createReadStream(file).on("error", next).pipe(res);
+        });
+      });
+    },
+  };
+}
+
 export default defineConfig({
+  plugins: [liveGameData()],
   resolve: {
     alias: {
       '@game': path.resolve(__dirname, `src/games/${selectedGame}`),
