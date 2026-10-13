@@ -11,7 +11,9 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import type { MatchResultReport } from "../engine/server/network/MatchResultReport";
-import { displayRating, isProvisional, RATING_POLICY } from "../shared/ranking/RatingPolicy";
+import type { BotPreset } from "../shared/ranking/BotMatchRatingGroups";
+import { chooseBotPreset } from "../shared/ranking/BotPresetChoice";
+import { displayRating, isProvisional, RATING_POLICY, type RatingMode } from "../shared/ranking/RatingPolicy";
 import { PlayerStatsStore } from "./PlayerStatsStore";
 import { RatingStore } from "./RatingStore";
 import { ResultDeliveryStore } from "./ResultDeliveryStore";
@@ -406,6 +408,18 @@ export class MatchResultStore {
     } finally {
       this.db.exec("ROLLBACK");
     }
+  }
+
+  /**
+   * The bot preset to field against this account in a private room of this
+   * mode: the one whose Private rating is nearest theirs.
+   */
+  botPresetFor(accountId: number | null, gametype: string): BotPreset {
+    if (!(gametype in RATING_POLICY.drawProbability)) return "medium";
+    const mode = gametype as RatingMode;
+    const muOf = (id: number | null) =>
+      id === null ? null : (this.ratings.getRating(id, mode, "private")?.state.mu ?? null);
+    return chooseBotPreset(muOf(accountId), (preset) => muOf(this.ratings.bots.find(preset)));
   }
 
   /** Accounts proved by a stored result for this exact match, mode and map. */

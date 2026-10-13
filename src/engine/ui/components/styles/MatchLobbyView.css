@@ -535,6 +535,11 @@
   clip-path: polygon(10% 0, 100% 0, 90% 100%, 0 100%);
 }
 
+/* A bot's level: the leaderboard's bot cyan */
+.match-lobby__seat-tag--bot {
+  background: hsl(186, 90%, 46%);
+}
+
 .match-lobby__seat-state {
   flex: 0 0 auto;
   padding: 5px 11px;

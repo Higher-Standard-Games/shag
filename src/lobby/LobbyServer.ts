@@ -15,6 +15,7 @@ import { WebSocket, WebSocketServer } from "ws";
 import { log } from "../engine/core/Log";
 import type { MatchResultReport } from "../engine/server/network/MatchResultReport";
 import { DemoReader } from "../shared/demo/DemoReader";
+import { BOT_ACCOUNT_PRESETS as BOT_PRESETS, type BotPreset } from "../shared/ranking/BotMatchRatingGroups";
 import { BOT_INVITE_PREPARATION_TIMEOUT_MS } from "../shared/ranking/BotPreparation";
 import { type BotReference, canonicalBotReference, sameBotReference } from "../shared/ranking/BotReference";
 import { selectFeaturedDemos } from "./FeaturedDemos";
@@ -290,11 +291,13 @@ class MatchLobby {
       team = alphaCount <= bravoCount ? "alpha" : "bravo";
     }
 
+    const preset = player.isBot ? player.botReference?.preset : undefined;
     const lobbyPlayer: LobbyPlayerInfo = {
       id: player.id,
       name: player.name,
       team,
       ready: false,
+      ...(preset && preset !== "custom" ? { botLevel: preset } : {}),
     };
     this.players.set(player.id, lobbyPlayer);
     return lobbyPlayer;
@@ -1363,11 +1366,16 @@ export class LobbyServer {
       return;
     }
 
+    // No difficulty asked for: the bot whose rating is nearest the inviter's,
+    // so the bots get harder as they get better.
+    const preset = BOT_PRESETS.includes(difficulty as BotPreset)
+      ? (difficulty as BotPreset)
+      : (this.results?.botPresetFor(player.accountId, lobby.gametype.id) ?? "medium");
     try {
-      const name = await this.requestBotForLobby(lobby, difficulty);
-      console.log(`[LobbyServer] Bot "${name}" invited into lobby ${lobbyId} by ${player.name}`);
+      const name = await this.requestBotForLobby(lobby, preset);
+      console.log(`[LobbyServer] Bot "${name}" (${preset}) invited into lobby ${lobbyId} by ${player.name}`);
       // The bot will appear via lobby:player_joined; this is just requester feedback.
-      this.send(player, { type: "lobby:bot_invited", lobbyId, name });
+      this.send(player, { type: "lobby:bot_invited", lobbyId, name, difficulty: preset });
     } catch (err) {
       const error = (err as Error).message;
       console.warn(`[LobbyServer] Bot invite failed for lobby ${lobbyId}: ${error}`);
@@ -1380,7 +1388,7 @@ export class LobbyServer {
    * ask it to spawn a lobby bot that joins `lobby` by id. Resolves with the
    * bot's name once the BIS acknowledges, or rejects on timeout/error.
    */
-  private requestBotForLobby(lobby: MatchLobby, difficulty?: string): Promise<string> {
+  private requestBotForLobby(lobby: MatchLobby, difficulty: BotPreset): Promise<string> {
     return new Promise<string>((resolve, reject) => {
       if (!this.botSecret) {
         reject(new Error("Bot server secret not configured"));
@@ -1421,7 +1429,7 @@ export class LobbyServer {
             lobbyId: lobby.id,
             ...(lobby.inviteToken ? { inviteToken: lobby.inviteToken } : {}),
             gametype: lobby.gametype.id,
-            options: { difficulty: difficulty || "medium" },
+            options: { difficulty },
           }),
         );
       });

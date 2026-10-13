@@ -90,6 +90,8 @@ export interface LobbyPlayerInfo {
   name: string;
   team: string; // 'alpha', 'bravo', or 'ffa'
   ready: boolean;
+  /** A bot's preset (easy, medium, hard, insane), as its service reported it. */
+  botLevel?: string;
 }
 
 export interface MatchLobbyInfo {
@@ -247,7 +249,8 @@ export interface LobbySwitchTeamMessage extends LobbyMessage {
 export interface LobbyInviteBotMessage extends LobbyMessage {
   type: "lobby:invite_bot";
   lobbyId: string;
-  difficulty?: string; // easy | medium | hard | insane (default: medium)
+  /** easy | medium | hard | insane; absent, the preset nearest the inviter's Private rating. */
+  difficulty?: string;
 }
 
 export interface QueueJoinMessage extends LobbyMessage {
@@ -518,6 +521,8 @@ export interface LobbyBotInvitedMessage extends LobbyMessage {
   type: "lobby:bot_invited";
   lobbyId: string;
   name: string; // bot name that is joining
+  /** The preset fielded: the one asked for, or the one matched to the inviter's rating. */
+  difficulty?: string;
 }
 
 export interface LobbyBotInviteFailedMessage extends LobbyMessage {

@@ -29,6 +29,8 @@ export interface MatchLobbyPlayer {
   team: "alpha" | "bravo" | "ffa";
   ready: boolean;
   isLocal: boolean;
+  /** A bot's level, shown on its seat. */
+  botLevel?: string;
 }
 
 export interface MatchLobbyMapOption {
@@ -119,6 +121,7 @@ export class MatchLobbyView {
       team: p.team as "alpha" | "bravo" | "ffa",
       ready: p.ready,
       isLocal: p.id === this.localPlayerId,
+      ...(p.botLevel ? { botLevel: p.botLevel } : {}),
     }));
     this.localReady = this.players.find((p) => p.isLocal)?.ready ?? false;
 
@@ -161,6 +164,7 @@ export class MatchLobbyView {
           team: msg.player.team as "alpha" | "bravo" | "ffa",
           ready: msg.player.ready,
           isLocal: msg.player.id === this.localPlayerId,
+          ...(msg.player.botLevel ? { botLevel: msg.player.botLevel } : {}),
         };
         // One seat per id: a join for someone the roster already has replaces
         // them rather than seating them twice.
@@ -694,6 +698,12 @@ export class MatchLobbyView {
         you.className = "match-lobby__seat-tag";
         you.textContent = "You";
         seat.appendChild(you);
+      }
+      if (player.botLevel) {
+        const level = document.createElement("span");
+        level.className = "match-lobby__seat-tag match-lobby__seat-tag--bot";
+        level.textContent = `Bot · ${player.botLevel[0].toUpperCase()}${player.botLevel.slice(1)}`;
+        seat.appendChild(level);
       }
       seat.appendChild(state);
       return seat;

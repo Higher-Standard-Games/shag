@@ -90,9 +90,13 @@ A room is one gametype, one map vote and up to that gametype's player count.
   may switch without a vote; a shuffle needs `ceil(players / 2)` votes.
 - **Maps.** Three are drawn from the gametype's pool, and only maps that are
   actually installed are offered. Most votes wins, ties are random.
-- **Bots** are invited in private rooms through the bot server, at `easy`, `medium` (the
-  default), `hard` or `insane`. A bot plays its ratings as its preset's account
-  (see "Bots are rated accounts"). Once the last human
+- **Bots** are invited in private rooms through the bot server, at `easy`,
+  `medium`, `hard` or `insane`. An invite that names no level (the room's
+  **+ Add bot**) fields the preset whose Private rating in the room's mode is
+  nearest the inviter's, so bots get harder as a player gets better; a player
+  with no rating yet meets Medium, and a preset not yet rated is placed by its
+  order. The room shows each bot's level on its seat. A bot plays its ratings
+  as its preset's account (see "Bots are rated accounts"). Once the last human
   leaves, the room's bots are evicted so a bot-only room can never linger or
   start a match.
 - **Chat** belongs to the room: members only, the last 50 messages handed over

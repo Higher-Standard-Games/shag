@@ -64,6 +64,21 @@ describe("MatchLobbyView roster identity", () => {
     view.destroy();
   });
 
+  it("shows a bot's level on its seat, for a bot already seated and one joining", () => {
+    const client = new FakeLobbyClient();
+    const seated = { ...lobby, players: [lobby.players[0], { ...lobby.players[1], name: "Gyoza", botLevel: "hard" }] };
+    const view = new MatchLobbyView("snd", client as never, seated, "host");
+    document.body.appendChild(view.root);
+    const tags = () => [...view.root.querySelectorAll(".match-lobby__seat-tag--bot")].map((t) => t.textContent);
+    expect(tags()).toEqual(["Bot · Hard"]);
+    client.emit("lobby:player_left", { lobbyId: "snd-room", playerId: "joiner" });
+    client.emit("lobby:player_joined", {
+      lobbyId: "snd-room",
+      player: { id: "bot2", name: "Ramen", team: "bravo", ready: true, botLevel: "easy" },
+    });
+    expect(tags()).toEqual(["Bot · Easy"]);
+  });
+
   it("shows a rejoin action for an original seat returning to a running match", () => {
     const client = new FakeLobbyClient();
     const view = new MatchLobbyView("snd", client as never, { ...lobby, activeMatchId: "m_1" }, "host");

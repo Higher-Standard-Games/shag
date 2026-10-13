@@ -51,7 +51,8 @@ export class BotAccountStore {
       .map((row) => ({ preset: row.preset as BotPreset, accountId: Number(row.account_id) }));
   }
 
-  private find(preset: BotPreset): number | null {
+  /** The preset's account, or null before it has played. */
+  find(preset: BotPreset): number | null {
     if (!this.exists()) return null;
     const row = this.db.prepare("SELECT account_id FROM bot_accounts WHERE preset = ?").get(preset);
     return row ? Number(row.account_id) : null;

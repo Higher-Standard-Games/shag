@@ -192,4 +192,19 @@ describe("private bot games rated through preset accounts", () => {
     expect(results.ratings.verifyReplay()).toMatchObject({ consistent: true, matches: 1, updates: 2 });
     expect(sql.prepare("SELECT name FROM sqlite_master WHERE name = 'bot_calibrations'").get()).toBeUndefined();
   });
+
+  it("fields the preset nearest the inviter's Private rating", () => {
+    // No rating yet: Medium.
+    expect(results.botPresetFor(ids[0], "duel")).toBe("medium");
+    expect(results.botPresetFor(null, "duel")).toBe("medium");
+    // Five wins over Medium push the human above it and Medium below: the
+    // next bot is the one above Medium, in this mode only.
+    for (const id of ["w1", "w2", "w3", "w4", "w5"]) results.ratings.ingest(match("duel", id));
+    const human = results.ratings.getRating(ids[0], "duel", "private")!.state.mu;
+    const medium = results.ratings.getRating(results.ratings.bots.get("medium"), "duel", "private")!.state.mu;
+    expect(human).toBeGreaterThan(medium);
+    expect(results.botPresetFor(ids[0], "duel")).toBe("hard");
+    expect(results.botPresetFor(ids[0], "amphi")).toBe("medium");
+    expect(results.botPresetFor(ids[0], "not-a-mode")).toBe("medium");
+  });
 });
