@@ -343,8 +343,7 @@ export class LiquidSurfaceSystem {
       waterDisturbancesFor(this.scene).update(dt);
       const camera = this.scene.activeCameras?.[0] ?? this.scene.activeCamera;
       if (!camera) return;
-      // The view's own pass asks; other passes that draw the water reuse its answer
-      for (const surface of this.claimed) surface.mesh.occlusionForRenderPassId = camera.renderPassId;
+      for (const surface of this.claimed) this.occlusionFor(surface.mesh, camera);
 
       const engine = this.scene.getEngine();
       // Asked per frame with the live camera: it swaps on death, spectate and
@@ -444,6 +443,28 @@ export class LiquidSurfaceSystem {
     if (line === this.lastReport) return;
     this.lastReport = line;
     console.log(`[Water] ${line}`);
+  }
+
+  /**
+   * The view's own pass asks the query; other passes that draw the water reuse
+   * its answer. The query draws the surface's bounds, and from inside them no
+   * face of the box is drawn, so a view inside the bounds — a map whose pools
+   * are one mesh spanning most of it — would find the water hidden for good.
+   * There the query is off and the surface is drawn.
+   */
+  private occlusionFor(mesh: AbstractMesh, camera: Camera): void {
+    mesh.occlusionForRenderPassId = camera.renderPassId;
+    const { minimumWorld: min, maximumWorld: max } = mesh.getBoundingInfo().boundingBox;
+    const eye = camera.globalPosition;
+    const margin = camera.minZ + 1;
+    const inside =
+      eye.x > min.x - margin &&
+      eye.x < max.x + margin &&
+      eye.y > min.y - margin &&
+      eye.y < max.y + margin &&
+      eye.z > min.z - margin &&
+      eye.z < max.z + margin;
+    mesh.occlusionType = inside ? AbstractMesh.OCCLUSION_TYPE_NONE : AbstractMesh.OCCLUSION_TYPE_STRICT;
   }
 
   /**

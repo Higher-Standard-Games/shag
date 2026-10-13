@@ -136,6 +136,30 @@ describe("LiquidSurfaceSystem", () => {
     expect(pool.occlusionType).toBe(AbstractMesh.OCCLUSION_TYPE_NONE);
   });
 
+  it("turns the query off while the view is inside the surface's bounds", () => {
+    // wdm17's slime pools are one mesh spanning most of the map; from inside
+    // its bounds the query draws nothing and the slime would never show
+    const root = new Mesh("bsp_world", scene);
+    const slime = CreateBox("bsp_tex_slime", { width: 1000, height: 400, depth: 1000 }, scene);
+    slime.parent = root;
+    slime.material = new StandardMaterial("legacy_slime", scene);
+    slime.metadata = { textureName: "textures/world/slime", liquidKind: "slime" };
+    const system = new LiquidSurfaceSystem(scene);
+    system.claim(root);
+    const camera = new FreeCamera("view", new Vector3(0, 0, 0), scene);
+    scene.activeCamera = camera;
+
+    camera.computeWorldMatrix();
+    scene.onBeforeRenderObservable.notifyObservers(scene);
+    expect(slime.occlusionType).toBe(AbstractMesh.OCCLUSION_TYPE_NONE);
+
+    camera.position.set(0, 0, 2000);
+    camera.computeWorldMatrix();
+    scene.onBeforeRenderObservable.notifyObservers(scene);
+    expect(slime.occlusionType).toBe(AbstractMesh.OCCLUSION_TYPE_STRICT);
+    system.dispose();
+  });
+
   it("captures only below flat water seen from above", () => {
     const root = new Mesh("bsp_world", scene);
     const pool = CreateGround("bsp_tex_pool", { width: 256, height: 128 }, scene);
