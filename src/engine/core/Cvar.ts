@@ -20,6 +20,8 @@
  * - sv_*  Server (future)
  */
 
+import { writePreference } from "./PreferenceStorage";
+
 const CVAR_STORAGE_KEY = "engine_cvars";
 
 export type CvarType = "bool" | "int" | "float" | "string";
@@ -120,7 +122,7 @@ export class Cvar {
 
     // Check if we have a persisted value
     const existing = Cvar.cvars.get(lowerName);
-    if (existing) {
+    if (existing && Cvar.validValue(existing.value, type)) {
       // Keep the persisted/current value, held to the type and bounds this
       // registration declares — storage kept it before either was known.
       cvar.value = Cvar.coerceValue(existing.value, type, options.min, options.max);
@@ -185,6 +187,7 @@ export class Cvar {
    * Set a cvar's value
    */
   static set(name: string, value: CvarValue): boolean {
+    if (!Cvar.validValue(value)) return false;
     const cvar = Cvar.cvars.get(name.toLowerCase());
     if (!cvar) {
       console.warn(`[Cvar] Unknown cvar: ${name}`);
@@ -347,9 +350,11 @@ export class Cvar {
       const stored = localStorage.getItem(CVAR_STORAGE_KEY);
       if (!stored) return;
 
-      const data = JSON.parse(stored) as Record<string, CvarValue>;
+      const data: unknown = JSON.parse(stored);
+      if (!data || typeof data !== "object" || Array.isArray(data)) return;
       for (const [name, value] of Object.entries(data)) {
         const cvar = Cvar.cvars.get(name);
+        if (!Cvar.validValue(value, cvar?.type)) continue;
         if (cvar?.flags.persist) {
           cvar.value = Cvar.coerceValue(value, cvar.type, cvar.min, cvar.max);
         } else if (!cvar) {
@@ -381,13 +386,21 @@ export class Cvar {
           data[cvar.name] = cvar.value;
         }
       }
-      localStorage.setItem(CVAR_STORAGE_KEY, JSON.stringify(data));
+      writePreference(CVAR_STORAGE_KEY, JSON.stringify(data));
     } catch (e) {
       console.warn("[Cvar] Failed to save to storage:", e);
     }
   }
 
   // ==================== Helpers ====================
+
+  private static validValue(value: unknown, type?: CvarType): value is CvarValue {
+    if (typeof value === "number") return Number.isFinite(value);
+    if (typeof value === "boolean") return true;
+    if (typeof value !== "string") return false;
+    if (type === "int" || type === "float") return value.trim() !== "" && Number.isFinite(Number(value));
+    return true;
+  }
 
   /**
    * Detect type from value

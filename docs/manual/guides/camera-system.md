@@ -67,6 +67,16 @@ freefly_collision mode bsp
 
 Freefly uses the player's own FPS action bindings rather than fixed keys: move is WASD, rise is Jump (Space), sink is Crouch (C, Ctrl or middle mouse), and the speed multiplier is Sprint (Shift). Mouse look needs pointer lock. Rebinding those actions rebinds freefly with them.
 
+Held controls reset when the page loses focus, the tab becomes hidden or mouse
+capture is released. Returning and capturing again requires fresh presses;
+saved bindings are preserved. Mouse releases outside the canvas and cancelled
+touches are handled too.
+
+If the browser denies mouse capture, a dismissible notice explains how to retry.
+Both rejected capture promises and legacy `pointerlockerror` events are handled.
+Fullscreen failures also show feedback, through Settings or Alt+Enter; the
+Settings toggle continues to reflect the actual fullscreen state.
+
 ## Custom controller
 
 ```ts

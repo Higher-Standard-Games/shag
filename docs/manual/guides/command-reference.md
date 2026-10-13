@@ -174,6 +174,12 @@ demoplay
 
 For offline renderer benchmarking, see the [timedemo guide](./timedemo.md).
 
+Recording file downloads have a 60-second idle deadline, renewed as body data
+arrives, and a 15-minute total limit. The Demos menu offers Cancel during the
+transfer and Try again after errors. Leaving that view cancels its pending
+selection; `demoplay stop` also cancels pending DemoService file loads. File
+validation finishes before playback replaces a live session.
+
 Consult `help` in the actual FPS build: game commands and gametype options evolve independently from engine commands.
 
 ## Key bindings

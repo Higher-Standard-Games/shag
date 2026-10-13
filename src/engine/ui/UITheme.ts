@@ -7,6 +7,7 @@
  */
 
 import { GamePaths } from "../core/GamePaths";
+import { writePreference } from "../core/PreferenceStorage";
 
 export type ThemeMode = "light" | "dark";
 
@@ -158,7 +159,12 @@ export class UITheme {
 
   private constructor() {
     // Load saved theme preference
-    const saved = localStorage.getItem(STORAGE_KEY) as ThemeMode | null;
+    let saved: string | null = null;
+    try {
+      saved = localStorage.getItem(STORAGE_KEY);
+    } catch {
+      // A theme preference is optional; restricted storage must not stop boot.
+    }
     this.themeMode = saved === "dark" ? "dark" : "light";
     this.theme = this.themeMode === "dark" ? { ...DARK_THEME } : { ...LIGHT_THEME };
   }
@@ -241,7 +247,7 @@ export class UITheme {
     this.theme = mode === "dark" ? { ...DARK_THEME } : { ...LIGHT_THEME };
 
     // Persist preference
-    localStorage.setItem(STORAGE_KEY, mode);
+    writePreference(STORAGE_KEY, mode);
 
     // Inject updated styles
     this.injectStyles();

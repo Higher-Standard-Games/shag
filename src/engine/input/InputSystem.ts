@@ -24,6 +24,9 @@
 import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
 import { EventBus } from "../core/EventBus";
+import { writePreference } from "../core/PreferenceStorage";
+import { requestBrowserFullscreen } from "../ui/BrowserControlFeedback";
+import { validatedBindingOverrides } from "./BindingValidation";
 import type {
   ActionDefinition,
   ActionState,
@@ -118,6 +121,7 @@ export class InputSystem {
   private contextStack: string[] = ["gameplay"];
   private actionStates: Map<string, ActionState> = new Map();
   private rawState: RawInputState;
+  private pendingReleases = new Set<string>();
 
   // Binding overrides (from game config)
   private bindingOverrides: Map<string, InputBinding[]> = new Map();
@@ -133,6 +137,16 @@ export class InputSystem {
   private boundTouchMove: (e: TouchEvent) => void;
   private boundTouchEnd: (e: TouchEvent) => void;
   private boundContextMenu: (e: Event) => void;
+  private boundBlur = () => this.releaseHeldInput();
+  private boundVisibilityChange = () => {
+    if (document.visibilityState === "hidden") this.releaseHeldInput();
+  };
+  private pointerLocked = false;
+  private boundPointerLockChange = () => {
+    const locked = document.pointerLockElement === this.canvas;
+    if (this.pointerLocked && !locked) this.releaseHeldInput();
+    this.pointerLocked = locked;
+  };
 
   // Babylon render-loop observers — stored so dispose() can detach them
   // from the scene cleanly (otherwise they survive scene-handoff scenarios).
@@ -180,17 +194,23 @@ export class InputSystem {
 
     this.scene = scene;
     this.canvas = canvas;
+    this.pointerLocked = document.pointerLockElement === canvas;
 
     // Add event listeners
     document.addEventListener("keydown", this.boundKeyDown);
     document.addEventListener("keyup", this.boundKeyUp);
+    window.addEventListener("blur", this.boundBlur);
+    document.addEventListener("visibilitychange", this.boundVisibilityChange);
+    document.addEventListener("pointerlockchange", this.boundPointerLockChange);
     canvas.addEventListener("mousedown", this.boundMouseDown);
-    canvas.addEventListener("mouseup", this.boundMouseUp);
+    // A release outside the canvas still belongs to a press begun on it.
+    window.addEventListener("mouseup", this.boundMouseUp, true);
     canvas.addEventListener("mousemove", this.boundMouseMove);
     canvas.addEventListener("wheel", this.boundWheel);
     canvas.addEventListener("touchstart", this.boundTouchStart, { passive: false });
     canvas.addEventListener("touchmove", this.boundTouchMove, { passive: false });
     canvas.addEventListener("touchend", this.boundTouchEnd);
+    canvas.addEventListener("touchcancel", this.boundTouchEnd);
     canvas.addEventListener("contextmenu", this.boundContextMenu);
 
     // Update action states BEFORE render (so controllers can query them)
@@ -245,7 +265,7 @@ export class InputSystem {
 
     // Apply binding overrides
     if (config.bindings) {
-      for (const [actionId, bindings] of Object.entries(config.bindings)) {
+      for (const [actionId, bindings] of validatedBindingOverrides(config.bindings)) {
         this.bindingOverrides.set(actionId, bindings);
       }
     }
@@ -434,6 +454,31 @@ export class InputSystem {
     };
   }
 
+  /** Drop holds immediately; report one release on the next input frame. */
+  private releaseHeldInput(): void {
+    for (const key of this.rawState.keys) this.rawState.keysReleased.add(key);
+    this.rawState.keys.clear();
+    this.rawState.keysPressed.clear();
+    for (const button of this.rawState.mouse.buttons) this.rawState.mouse.buttonsReleased.add(button);
+    this.rawState.mouse.buttons.clear();
+    this.rawState.mouse.buttonsPressed.clear();
+    this.rawState.mouse.deltaX = 0;
+    this.rawState.mouse.deltaY = 0;
+    this.rawState.mouse.wheel = 0;
+    this.rawState.touch.pointsEnded.push(...this.rawState.touch.points);
+    this.rawState.touch.points = [];
+    this.rawState.touch.pointsStarted = [];
+    for (const [id, state] of this.actionStates) {
+      // Preserve releases for modified binds even after their modifier is gone.
+      if (state.active) this.pendingReleases.add(id);
+      state.active = false;
+      state.pressed = false;
+      state.released = this.pendingReleases.has(id);
+      state.value = 0;
+      state.delta = { x: 0, y: 0 };
+    }
+  }
+
   /**
    * Clear per-frame state after all systems have had a chance to query
    */
@@ -448,6 +493,7 @@ export class InputSystem {
     this.rawState.mouse.wheel = 0;
     this.rawState.touch.pointsStarted = [];
     this.rawState.touch.pointsEnded = [];
+    this.pendingReleases.clear();
 
     // Clear pressed/released on action states (keep active)
     for (const state of this.actionStates.values()) {
@@ -517,7 +563,7 @@ export class InputSystem {
 
       state.active = isActive;
       state.pressed = wasPressed;
-      state.released = wasReleased;
+      state.released = wasReleased || this.pendingReleases.has(actionId);
 
       // For pan action, also track delta
       if (actionId === "camera_pan" && isActive) {
@@ -547,11 +593,7 @@ export class InputSystem {
     // Alt+Enter → toggle fullscreen
     if (e.altKey && e.code === "Enter") {
       e.preventDefault();
-      if (document.fullscreenElement) {
-        document.exitFullscreen().catch(() => {});
-      } else {
-        document.documentElement.requestFullscreen().catch(() => {});
-      }
+      void requestBrowserFullscreen();
       return;
     }
 
@@ -577,7 +619,7 @@ export class InputSystem {
 
   private onMouseUp(e: MouseEvent): void {
     const button = this.getMouseButton(e.button);
-    this.rawState.mouse.buttons.delete(button);
+    if (!this.rawState.mouse.buttons.delete(button)) return;
     this.rawState.mouse.buttonsReleased.add(button);
   }
 
@@ -631,6 +673,9 @@ export class InputSystem {
       if (index !== -1) {
         const point = this.rawState.touch.points.splice(index, 1)[0];
         this.rawState.touch.pointsEnded.push(point);
+        if (e.type === "touchcancel") {
+          this.rawState.touch.pointsStarted = this.rawState.touch.pointsStarted.filter((p) => p.id !== point.id);
+        }
       }
     }
   }
@@ -682,7 +727,9 @@ export class InputSystem {
    * Rebind an action at runtime. Persists to localStorage.
    */
   rebind(actionId: string, bindings: InputBinding[]): void {
-    this.bindingOverrides.set(actionId, bindings);
+    const valid = validatedBindingOverrides({ [actionId]: bindings }).get(actionId);
+    if (!valid) return;
+    this.bindingOverrides.set(actionId, valid);
     this.saveBindingsToStorage();
   }
 
@@ -709,11 +756,11 @@ export class InputSystem {
     try {
       const saved = localStorage.getItem("shag_keybindings");
       if (!saved) return;
-      const data = JSON.parse(saved) as Record<string, InputBinding[]>;
-      for (const [actionId, bindings] of Object.entries(data)) {
+      const data = validatedBindingOverrides(JSON.parse(saved));
+      for (const [actionId, bindings] of data) {
         this.bindingOverrides.set(actionId, bindings);
       }
-      console.log(`[InputSystem] Loaded ${Object.keys(data).length} binding overrides`);
+      console.log(`[InputSystem] Loaded ${data.size} binding overrides`);
     } catch {
       // Silently ignore corrupt data
     }
@@ -725,7 +772,7 @@ export class InputSystem {
       for (const [actionId, bindings] of this.bindingOverrides) {
         data[actionId] = bindings;
       }
-      localStorage.setItem("shag_keybindings", JSON.stringify(data));
+      writePreference("shag_keybindings", JSON.stringify(data));
     } catch {
       // localStorage might be unavailable
     }
@@ -747,13 +794,13 @@ export class InputSystem {
    * Import binding overrides from a JSON object (e.g. from PlayerAPI or settings import).
    * Replaces all current overrides and persists to localStorage.
    */
-  importBindings(data: Record<string, InputBinding[]>): void {
+  importBindings(data: unknown): void {
     this.bindingOverrides.clear();
-    for (const [actionId, bindings] of Object.entries(data)) {
+    for (const [actionId, bindings] of validatedBindingOverrides(data)) {
       this.bindingOverrides.set(actionId, bindings);
     }
     this.saveBindingsToStorage();
-    console.log(`[InputSystem] Imported ${Object.keys(data).length} binding overrides`);
+    console.log(`[InputSystem] Imported ${this.bindingOverrides.size} binding overrides`);
   }
 
   // ==================== Accessors ====================
@@ -769,13 +816,17 @@ export class InputSystem {
     if (this.canvas) {
       document.removeEventListener("keydown", this.boundKeyDown);
       document.removeEventListener("keyup", this.boundKeyUp);
+      window.removeEventListener("blur", this.boundBlur);
+      document.removeEventListener("visibilitychange", this.boundVisibilityChange);
+      document.removeEventListener("pointerlockchange", this.boundPointerLockChange);
       this.canvas.removeEventListener("mousedown", this.boundMouseDown);
-      this.canvas.removeEventListener("mouseup", this.boundMouseUp);
+      window.removeEventListener("mouseup", this.boundMouseUp, true);
       this.canvas.removeEventListener("mousemove", this.boundMouseMove);
       this.canvas.removeEventListener("wheel", this.boundWheel);
       this.canvas.removeEventListener("touchstart", this.boundTouchStart);
       this.canvas.removeEventListener("touchmove", this.boundTouchMove);
       this.canvas.removeEventListener("touchend", this.boundTouchEnd);
+      this.canvas.removeEventListener("touchcancel", this.boundTouchEnd);
       this.canvas.removeEventListener("contextmenu", this.boundContextMenu);
     }
     // Detach Babylon scene observers explicitly. Scene disposal would clean
@@ -793,6 +844,10 @@ export class InputSystem {
     this.afterRenderObserver = null;
     this.scene = null;
     this.canvas = null;
+    this.pointerLocked = false;
+    this.rawState = this.createEmptyRawState();
+    this.pendingReleases.clear();
+    for (const state of this.actionStates.values()) Object.assign(state, this.createEmptyActionState());
     this._initialized = false;
   }
 }

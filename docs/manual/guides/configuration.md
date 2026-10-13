@@ -15,6 +15,17 @@ This is only partly generic today. `tsconfig.json` still maps `@game/*` to `src/
 
 Engine code should not import `@game`; keep that dependency in application/game composition.
 
+## Game-owned HUD styling
+
+The FPS HUD theme lives in `src/games/fps/client/hud/styles/WashikiTheme.css`.
+`FPSHud` imports it as a raw stylesheet and injects it through `UIStyles` before
+creating the widgets. Edit game HUD appearance there. The engine's generic HUD
+manager separately loads `src/engine/ui/hud/styles/HUD.css`.
+
+Shared font assets remain under `/engine/fonts/`. Engine UI components can consume
+the game's CSS variables through their existing fallbacks; the engine does not
+import the FPS stylesheet.
+
 ## engine.json and GamePaths
 
 `public/engine.json` is required by browser startup and is injected explicitly by the headless composition:
@@ -60,6 +71,15 @@ npm run tools:textures
 ```
 
 `public/data/`, `public/games/`, PK3 files, and generated media are ignored. A clean checkout needs external compatible assets.
+
+## Browser preferences
+
+Saved cvars and binding overrides are validated when loaded. Invalid entries
+fall back to declared defaults; other valid preferences remain usable. Explicit
+empty binding arrays still mean unbound. Storage failures leave changes working
+for the session, and Settings displays "Session only · could not save" until
+the affected preferences can be saved successfully. These preferences are
+separate from account-key recovery; heed Profile's account-key warning too.
 
 ## Networking environment
 

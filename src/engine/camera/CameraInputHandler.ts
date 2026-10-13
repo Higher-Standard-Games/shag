@@ -9,6 +9,7 @@
 
 import type { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
 import { Cvar } from "../core/Cvar";
+import { clearBrowserControlFailure, showBrowserControlFailure } from "../ui/BrowserControlFeedback";
 import type { CameraControllerConfig } from "./controllers/ICameraController";
 
 export interface MouseLookState {
@@ -48,6 +49,9 @@ export class CameraInputHandler {
   // Bound event handlers for cleanup
   private _onCanvasClick: ((e: MouseEvent) => void) | null = null;
   private _onPointerLockChange: (() => void) | null = null;
+  private _onPointerLockError: (() => void) | null = null;
+  private captureGeneration = 0;
+  private capturePending = false;
   private _onMouseMove: ((e: MouseEvent) => void) | null = null;
 
   /** While true, mouse-look is ignored WITHOUT releasing pointer lock (unlike
@@ -126,21 +130,39 @@ export class CameraInputHandler {
       // Post-game "open up": the cursor is deliberately free (chat + return
       // button) — don't re-capture on a stray world click while look is frozen.
       if (this._lookFrozen || !this.captureEnabled) return;
-      if (!this._isPointerLocked && this.canvas) {
-        this.canvas.requestPointerLock();
+      if (!this._isPointerLocked && this.canvas && !this.capturePending) {
+        this.capturePending = true;
+        const generation = ++this.captureGeneration;
+        try {
+          const request = this.canvas.requestPointerLock();
+          void request?.catch(() => {
+            if (generation === this.captureGeneration) this._onPointerLockError?.();
+          });
+        } catch {
+          this._onPointerLockError?.();
+        }
       }
     };
 
     // Pointer lock state change
     this._onPointerLockChange = () => {
+      this.capturePending = false;
       this._isPointerLocked = document.pointerLockElement === this.canvas;
       if (this._isPointerLocked) {
+        clearBrowserControlFailure("pointer");
         console.log(`[${this.controllerName}] Mouse captured - WASD to move, ESC to release`);
         this.callbacks.onLocked?.();
       } else {
         console.log(`[${this.controllerName}] Mouse released - Click to capture`);
         this.callbacks.onUnlocked?.();
       }
+    };
+
+    this._onPointerLockError = () => {
+      if (!this.capturePending) return;
+      this.capturePending = false;
+      if (!this.captureEnabled || this._lookFrozen || !this.canvas) return;
+      showBrowserControlFailure("Your browser did not capture the mouse. Click the game to try again.", "pointer");
     };
 
     // Mouse look (only when pointer is locked)
@@ -201,6 +223,7 @@ export class CameraInputHandler {
     // Attach listeners
     canvas.addEventListener("click", this._onCanvasClick);
     document.addEventListener("pointerlockchange", this._onPointerLockChange);
+    document.addEventListener("pointerlockerror", this._onPointerLockError);
     document.addEventListener("mousemove", this._onMouseMove);
     document.addEventListener("keydown", this._onKeyDown);
     document.addEventListener("keyup", this._onKeyUp);
@@ -211,6 +234,8 @@ export class CameraInputHandler {
    * Remove all event listeners and release pointer lock.
    */
   teardown(): void {
+    this.captureGeneration++;
+    this.capturePending = false;
     if (this._isPointerLocked) {
       document.exitPointerLock();
     }
@@ -220,12 +245,14 @@ export class CameraInputHandler {
       if (this._onContextMenu) this.canvas.removeEventListener("contextmenu", this._onContextMenu);
     }
     if (this._onPointerLockChange) document.removeEventListener("pointerlockchange", this._onPointerLockChange);
+    if (this._onPointerLockError) document.removeEventListener("pointerlockerror", this._onPointerLockError);
     if (this._onMouseMove) document.removeEventListener("mousemove", this._onMouseMove);
     if (this._onKeyDown) document.removeEventListener("keydown", this._onKeyDown);
     if (this._onKeyUp) document.removeEventListener("keyup", this._onKeyUp);
 
     this._onCanvasClick = null;
     this._onPointerLockChange = null;
+    this._onPointerLockError = null;
     this._onMouseMove = null;
     this._onKeyDown = null;
     this._onKeyUp = null;

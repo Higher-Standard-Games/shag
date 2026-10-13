@@ -283,7 +283,9 @@ describe("Cvar", () => {
 
       Cvar.register("r_scale", "not a number" as unknown as CvarValue, { persist: false });
       Cvar.register("r_scale", 1, { type: "float", min: 0.5, max: 2, persist: false });
-      expect(Cvar.get("r_scale")).toBe(0.5);
+      // Invalid stored numeric text uses the declared default, rather than
+      // coercing to zero and clamping to the minimum graphics setting.
+      expect(Cvar.get("r_scale")).toBe(1);
     });
   });
 
