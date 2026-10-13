@@ -810,6 +810,8 @@ export class BinaryProtocol {
     "damage",
     // 24: a weapon_fire event that carries a pellet seed. Same logical type as 4; see FIRE_SEEDED.
     "weapon_fire",
+    // 25: a damage event that carries the victim's pain tier. Same logical type as 10; see DAMAGE_PAINED.
+    "damage",
   ];
 
   /**
@@ -834,10 +836,21 @@ export class BinaryProtocol {
   private static readonly FIRE_SEEDED = 24;
 
   /**
-   * The code an event travels under: its type's code, 23 for a damage event with a head or leg
-   * hit, or 24 for a weapon_fire event with a pellet seed.
+   * Wire code of a `damage` event that carries the victim's pain tier: code 23's layout, the
+   * hit location byte included, then one byte for the tier (0-3).
+   *
+   * Codes 10 and 23 keep their layouts, so a demo recorded before this existed decodes exactly
+   * as it did, with no tier. All three decode to `type: "damage"`.
+   */
+  private static readonly DAMAGE_PAINED = 25;
+
+  /**
+   * The code an event travels under: its type's code, 25 for a damage event with a pain tier,
+   * 23 for one without but with a head or leg hit, or 24 for a weapon_fire event with a pellet
+   * seed.
    */
   private static eventTypeCode(event: GameState["events"][number]): number {
+    if (event.type === "damage" && event.painTier !== undefined) return BinaryProtocol.DAMAGE_PAINED;
     if (event.type === "damage" && (event.hitLocation === "head" || event.hitLocation === "legs")) {
       return BinaryProtocol.DAMAGE_LOCATED;
     }
@@ -965,6 +978,7 @@ export class BinaryProtocol {
 
         case 10: // damage: entityId, attackerId, damage, weaponId, xyz
         case 23: // damage with a hit location: the same fields, then one byte (HIT_LOCATIONS index)
+        case 25: // damage with a pain tier: code 23's fields, then one byte (0-3)
           encoder.writeString(event.entityId);
           encoder.writeString(event.attackerId ?? "");
           encoder.writeUint16(event.damage ?? 0);
@@ -972,9 +986,10 @@ export class BinaryProtocol {
           encoder.writeFloat32(event.x ?? 0);
           encoder.writeFloat32(event.y ?? 0);
           encoder.writeFloat32(event.z ?? 0);
-          if (typeCode === BinaryProtocol.DAMAGE_LOCATED) {
+          if (typeCode === BinaryProtocol.DAMAGE_LOCATED || typeCode === BinaryProtocol.DAMAGE_PAINED) {
             encoder.writeUint8(Math.max(0, BinaryProtocol.HIT_LOCATIONS.indexOf(event.hitLocation)));
           }
+          if (typeCode === BinaryProtocol.DAMAGE_PAINED) encoder.writeUint8(event.painTier);
           break;
 
         case 11: // death: entityId, killerId, weaponId, damageType, finalDamage, xyz, vel xyz, kb dir xyz
@@ -1208,8 +1223,10 @@ export class BinaryProtocol {
           break;
 
         case 10: // damage
-        case 23: {
-          // damage with a hit location (code 23); code 10 has none, which means a body hit
+        case 23:
+        case 25: {
+          // damage with a hit location (codes 23 and 25); code 10 has none, which means a body
+          // hit. Only 25 carries the pain tier.
           const damageEvent: GameState["events"][number] = {
             type,
             entityId: decoder.readString(),
@@ -1222,7 +1239,12 @@ export class BinaryProtocol {
           };
           if (typeCode === BinaryProtocol.DAMAGE_LOCATED) {
             damageEvent.hitLocation = BinaryProtocol.HIT_LOCATIONS[decoder.readUint8()] ?? "body";
+          } else if (typeCode === BinaryProtocol.DAMAGE_PAINED) {
+            // A body hit is left without a location, as code 10 leaves it
+            const location = BinaryProtocol.HIT_LOCATIONS[decoder.readUint8()];
+            if (location && location !== "body") damageEvent.hitLocation = location;
           }
+          if (typeCode === BinaryProtocol.DAMAGE_PAINED) damageEvent.painTier = Math.min(3, decoder.readUint8());
           state.events.push(damageEvent);
           break;
         }

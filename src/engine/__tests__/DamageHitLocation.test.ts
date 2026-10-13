@@ -3,7 +3,8 @@
  *
  * A head or leg hit travels under its own event code (23) with one extra byte; a body hit
  * keeps the original code and layout, so it costs nothing extra and every demo recorded
- * before the location existed decodes exactly as it did.
+ * before the location existed decodes exactly as it did. A hit carrying the victim's pain
+ * tier travels under code 25: the location byte and a tier byte.
  */
 
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -92,5 +93,26 @@ describe("damage event hit location", () => {
     expect(events.map((e) => e.entityId)).toEqual(["a", "b", "c", "a"]);
     expect(events.map((e) => e.hitLocation)).toEqual(["head", undefined, "legs", undefined]);
     expect(events[3]).toMatchObject({ health: 60, armor: 5, dead: false });
+  });
+});
+
+describe("damage event pain tier", () => {
+  it.each([0, 1, 2, 3])("round-trips pain tier %i, with a body hit", (painTier) => {
+    const [event] = roundTrip([damage({ painTier })]);
+    expect(event).toMatchObject({ type: "damage", entityId: "player_2", damage: 44, painTier });
+    expect(event.hitLocation).toBeUndefined();
+  });
+
+  it("carries the hit location along with the tier", () => {
+    const [event] = roundTrip([damage({ painTier: 1, hitLocation: "head" })]);
+    expect(event).toMatchObject({ painTier: 1, hitLocation: "head" });
+  });
+
+  it("costs two bytes over a plain hit, and leaves events without a tier as they were", () => {
+    expect(encode([damage({ painTier: 2 })]).length).toBe(encode([damage()]).length + 2);
+    const [plain, located] = roundTrip([damage(), damage({ hitLocation: "legs" })]);
+    expect(plain.painTier).toBeUndefined();
+    expect(located).toMatchObject({ hitLocation: "legs" });
+    expect(located.painTier).toBeUndefined();
   });
 });

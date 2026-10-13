@@ -159,6 +159,12 @@ export interface DamageEvent {
    * demo recorded before this field existed all leave it out, and absent means body.
    */
   hitLocation?: "head" | "legs" | "body";
+  /**
+   * How hurt the victim is after the hit, Warsow's pain levels: 0 at 20 health or less, 1 up
+   * to 35, 2 up to 60, 3 above. Absent from an older server or demo; the pain sound then goes
+   * by the damage.
+   */
+  painTier?: 0 | 1 | 2 | 3;
   x: number;
   y: number;
   z: number;
