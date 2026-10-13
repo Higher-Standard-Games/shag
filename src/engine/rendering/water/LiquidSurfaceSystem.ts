@@ -17,7 +17,8 @@
  *
  * All tiers use cached static room cubemaps and reactive normals. Medium/Epic
  * add camera-scoped depth; Epic also captures half-resolution world colour.
- * Both passes are suspended off-screen.
+ * Both passes are suspended off-screen, and behind walls: a surface the view's
+ * occlusion query finds hidden is not drawn.
  * Splash geometry is owned by the gameplay interaction system (tiers 2/3).
  */
 
@@ -25,9 +26,12 @@ import type { Material } from "@babylonjs/core/Materials/material";
 import type { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial";
 import type { BaseTexture } from "@babylonjs/core/Materials/Textures/baseTexture";
 import { Vector2, Vector3 } from "@babylonjs/core/Maths/math.vector";
-import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
+import "@babylonjs/core/Engines/AbstractEngine/abstractEngine.query";
+import "@babylonjs/core/Engines/Extensions/engine.query";
+import { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { Observer } from "@babylonjs/core/Misc/observable";
+import "@babylonjs/core/Rendering/boundingBoxRenderer";
 import type { Scene } from "@babylonjs/core/scene";
 import RenderVars from "../RenderVars";
 import {
@@ -62,6 +66,8 @@ export function hasReactiveSurface(kind: WaterKind): boolean {
  * the scene; a few frames of grace costs far less than the churn.
  */
 const DRY_FRAMES_BEFORE_STOPPING = 10;
+/** Units added around a surface's bounds for its occlusion query. */
+const OCCLUSION_PAD = 4;
 
 /** Local forward, reused so the per-frame camera query does not allocate. */
 const FORWARD = new Vector3(0, 0, 1);
@@ -147,6 +153,17 @@ export class LiquidSurfaceSystem {
       this.claimed.push({ mesh, kind, key, original: mesh.material });
       this.claimedMeshes.add(mesh);
       mesh.material = material;
+      // Water behind a wall is in the frustum and the PVS all the same. Its
+      // bounds go through an occlusion query, and a hidden surface is not drawn,
+      // so the depth and colour passes it needs are not drawn either. Strict
+      // keeps the last answer while the next is in flight.
+      mesh.occlusionType = AbstractMesh.OCCLUSION_TYPE_STRICT;
+      mesh.occlusionQueryAlgorithmType = AbstractMesh.OCCLUSION_ALGORITHM_TYPE_CONSERVATIVE;
+      // A flat pool has flat bounds, and an accurate query never sees a box
+      // without thickness
+      const bounds = mesh.getBoundingInfo();
+      const pad = new Vector3(OCCLUSION_PAD, OCCLUSION_PAD, OCCLUSION_PAD);
+      bounds.reConstruct(bounds.minimum.subtract(pad), bounds.maximum.add(pad), mesh.getWorldMatrix());
       console.log(`[Water] Bound ${mesh.name}: kind=${kind} profile=${profile}`);
       this.watchDraws(mesh);
       count++;
@@ -275,7 +292,10 @@ export class LiquidSurfaceSystem {
       for (let i = this.claimed.length - 1; i >= 0; i--) {
         const surface = this.claimed[i];
         if (surface.key !== key) continue;
-        if (!surface.mesh.isDisposed()) surface.mesh.material = surface.original;
+        if (!surface.mesh.isDisposed()) {
+          surface.mesh.material = surface.original;
+          surface.mesh.occlusionType = AbstractMesh.OCCLUSION_TYPE_NONE;
+        }
         restoredMeshes.add(surface.mesh);
         this.probes.remove(surface.mesh);
         this.claimedMeshes.delete(surface.mesh);
@@ -319,6 +339,8 @@ export class LiquidSurfaceSystem {
       waterDisturbancesFor(this.scene).update(dt);
       const camera = this.scene.activeCameras?.[0] ?? this.scene.activeCamera;
       if (!camera) return;
+      // The view's own pass asks; other passes that draw the water reuse its answer
+      for (const surface of this.claimed) surface.mesh.occlusionForRenderPassId = camera.renderPassId;
 
       const engine = this.scene.getEngine();
       // Asked per frame with the live camera: it swaps on death, spectate and
@@ -457,7 +479,10 @@ export class LiquidSurfaceSystem {
     this.dryFrames = 0;
 
     for (const surface of this.claimed) {
-      if (!surface.mesh.isDisposed()) surface.mesh.material = surface.original;
+      if (!surface.mesh.isDisposed()) {
+        surface.mesh.material = surface.original;
+        surface.mesh.occlusionType = AbstractMesh.OCCLUSION_TYPE_NONE;
+      }
     }
     this.claimed.length = 0;
     this.claimedMeshes.clear();

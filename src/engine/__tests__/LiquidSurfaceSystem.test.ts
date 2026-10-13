@@ -14,6 +14,7 @@ import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
 import type { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder";
 import { CreateGround } from "@babylonjs/core/Meshes/Builders/groundBuilder";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
@@ -116,6 +117,23 @@ describe("LiquidSurfaceSystem", () => {
     system.claim(root);
 
     expect(dry.material).toBe(before);
+  });
+
+  it("asks an occlusion query whether the water is hidden, on bounds with thickness", () => {
+    const root = new Mesh("bsp_world", scene);
+    const pool = CreateGround("bsp_tex_pool", { width: 256, height: 128 }, scene);
+    pool.parent = root;
+    pool.material = new StandardMaterial("legacy_pool", scene);
+    pool.metadata = { textureName: "textures/test/pool", liquidKind: "water" };
+    const system = new LiquidSurfaceSystem(scene);
+    system.claim(root);
+
+    expect(pool.occlusionType).toBe(AbstractMesh.OCCLUSION_TYPE_STRICT);
+    const { minimum, maximum } = pool.getBoundingInfo();
+    expect(maximum.y - minimum.y).toBeGreaterThan(0);
+
+    system.dispose();
+    expect(pool.occlusionType).toBe(AbstractMesh.OCCLUSION_TYPE_NONE);
   });
 
   it("hands the original material back on dispose", () => {
