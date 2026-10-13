@@ -230,3 +230,21 @@ describe("SequenceBuilder", () => {
     expect(base?.durationMs).toBe(1000);
   });
 });
+
+describe("SequenceBuilder killer or victim view", () => {
+  it("shows the victim's eyes when they saw it coming, never twice running", () => {
+    const highlights = [0, 1, 2].map((i) =>
+      makeHighlight({
+        startTick: 1000 + i * 2000,
+        peakTick: 1010 + i * 2000,
+        endTick: 1050 + i * 2000,
+        victimFacedKiller: true,
+      }),
+    );
+    highlights.push(makeHighlight({ startTick: 9000, peakTick: 9010, endTick: 9050, victimFacedKiller: false }));
+    const reel = new SequenceBuilder().build(makeAnalysis(highlights, 20000), 5, TICK_RATE, HEADER);
+    const shots = reel.segments.filter((s) => !s.isReplay).map((s) => s.cameraPreset);
+    expect(shots).toEqual(["victim_pov", "chase_hero", "victim_pov", "chase_hero"]);
+    expect(reel.segments.find((s) => s.cameraPreset === "victim_pov")?.cameraTarget).toBe("player_2");
+  });
+});

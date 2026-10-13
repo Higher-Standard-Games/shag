@@ -52,6 +52,8 @@ export interface HighlightCandidate {
   killerPos?: { x: number; y: number; z: number };
   victimPos?: { x: number; y: number; z: number };
   killerVelocity?: { x: number; y: number; z: number };
+  /** The victim was looking at the killer when the frag landed: they saw it coming. */
+  victimFacedKiller?: boolean;
 }
 
 export interface DemoAnalysis {
@@ -72,8 +74,12 @@ interface Vec3 {
 
 interface TransformComponent {
   position: Vec3;
-  rotation: { x: number; y: number; z: number; w: number };
+  /** View angles in radians: x pitch, y yaw. */
+  rotation: { x: number; y: number; z: number };
 }
+
+/** How far off the line to the killer the victim may look and still have seen them. */
+const FACING_CONE = Math.cos(Math.PI / 4);
 
 interface VelocityComponent {
   x: number;
@@ -178,6 +184,8 @@ export class DemoAnalyzer {
 
     // ── 3. Main pass — collect raw frag candidates ────────────────────
     const rawFrags: HighlightCandidate[] = [];
+    /** Each player's view yaw as last drawn: a victim has left the frame that carries their death. */
+    const lastYaw = new Map<string, number>();
 
     for (const frame of frames) {
       const { tick, state } = frame;
@@ -248,6 +256,22 @@ export class DemoAnalyzer {
               y: velocity.linear?.y ?? velocity.y ?? 0,
               z: velocity.linear?.z ?? velocity.z ?? 0,
             };
+          }
+        }
+
+        // Did the victim see it coming: looking at the killer, within the cone
+        let victimFacedKiller: boolean | undefined;
+        const victimTransform = state.entities.get(victimId)?.getComponent("transform") as
+          | TransformComponent
+          | undefined;
+        const victimYaw = victimTransform?.rotation?.y ?? lastYaw.get(victimId);
+        if (killerPos && typeof victimYaw === "number") {
+          const toX = killerPos.x - victimPos.x;
+          const toZ = killerPos.z - victimPos.z;
+          const length = Math.hypot(toX, toZ);
+          if (length > 0) {
+            const yaw = victimYaw;
+            victimFacedKiller = (Math.sin(yaw) * toX + Math.cos(yaw) * toZ) / length >= FACING_CONE;
           }
         }
 
@@ -333,6 +357,7 @@ export class DemoAnalyzer {
           killerPos,
           victimPos,
           killerVelocity,
+          ...(victimFacedKiller === undefined ? {} : { victimFacedKiller }),
         };
 
         rawFrags.push(candidate);
@@ -350,6 +375,8 @@ export class DemoAnalyzer {
       // -- 3d. Per-entity movement tracking --
       for (const [entityId, entity] of state.entities) {
         if (!entityId.startsWith("player_")) continue;
+        const yaw = (entity.getComponent("transform") as TransformComponent | undefined)?.rotation?.y;
+        if (typeof yaw === "number") lastYaw.set(entityId, yaw);
         const velocity = entity.getComponent("velocity") as VelocityComponent | undefined;
         if (!velocity) continue;
 

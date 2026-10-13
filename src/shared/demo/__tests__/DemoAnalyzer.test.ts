@@ -555,3 +555,26 @@ describe("DemoAnalyzer", () => {
     });
   });
 });
+
+describe("DemoAnalyzer — did the victim see it coming", () => {
+  /** The victim at the origin looking along `yaw`; the killer 200 units down +z. */
+  function fragFacing(yaw: number, victimInDeathFrame: boolean): boolean | undefined {
+    const victim = makeEntity("player_2");
+    (victim.getComponent("transform") as unknown as TransformStub).rotation = { x: 0, y: yaw, z: 0, w: 1 };
+    const killer = () => makeEntity("player_1", { posZ: 200 });
+    const frames = [
+      makeFrame(10, [], [killer(), victim]),
+      makeFrame(13, [deathEvent("player_1", "player_2")], victimInDeathFrame ? [killer(), victim] : [killer()]),
+    ];
+    return new DemoAnalyzer().analyze(frames, makeHeader(), 1000).highlights[0]?.victimFacedKiller;
+  }
+
+  it("is yes when the victim looked at the killer, no when they looked away", () => {
+    expect(fragFacing(0, true)).toBe(true);
+    expect(fragFacing(Math.PI, true)).toBe(false);
+  });
+
+  it("reads the victim's last view when they are already gone from the death frame", () => {
+    expect(fragFacing(0.3, false)).toBe(true);
+  });
+});

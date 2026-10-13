@@ -169,4 +169,18 @@ describe("interpolatePath", () => {
     expect(result.position.x).toBeCloseTo(100);
     expect(result.fov).toBeCloseTo(70);
   });
+
+  it("curves through every keyframe when asked for Catmull-Rom, with no kink at one", () => {
+    const keyframes = [0, 100, 200, 300].map((tick, i) => ({
+      tick,
+      position: { x: tick, y: i % 2 ? 50 : 0, z: 0 },
+      lookAt: { x: 0, y: 0, z: 0 },
+    }));
+    expect(interpolatePath(keyframes, 100, "catmull_rom").position).toEqual({ x: 100, y: 50, z: 0 });
+    // Equal steps either side of a keyframe leave it at the same slope.
+    const before = interpolatePath(keyframes, 99, "catmull_rom").position;
+    const after = interpolatePath(keyframes, 101, "catmull_rom").position;
+    const at = interpolatePath(keyframes, 100, "catmull_rom").position;
+    expect(at.y - before.y).toBeCloseTo(after.y - at.y, 1);
+  });
 });

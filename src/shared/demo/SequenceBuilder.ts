@@ -72,7 +72,10 @@ export class SequenceBuilder {
     );
 
     // ── 2. Build base segments ────────────────────────────────────────
-    const baseSegments = selected.map((h) => this._buildBaseSegment(h, effectiveTickRate));
+    const baseSegments: CinematicSegment[] = [];
+    for (const h of selected) {
+      baseSegments.push(this._buildBaseSegment(h, effectiveTickRate, baseSegments.at(-1)?.cameraPreset));
+    }
 
     // ── 3. Insert instant replays ────────────────────────────────────
     const withReplays = this._insertReplays(baseSegments, targetMs, effectiveTickRate);
@@ -131,8 +134,8 @@ export class SequenceBuilder {
 
   // ── Private: base segment construction ───────────────────────────────────
 
-  private _buildBaseSegment(h: HighlightCandidate, tickRate: number): CinematicSegment {
-    const preset = this._assignPreset(h);
+  private _buildBaseSegment(h: HighlightCandidate, tickRate: number, previous?: CameraPresetId): CinematicSegment {
+    const preset = this._assignPreset(h, previous);
     const { playbackSpeed, speedKeyframes } = this._assignSpeed(preset, h, tickRate);
     const durationMs = this._computeDurationMs(h.startTick, h.endTick, tickRate, playbackSpeed);
 
@@ -166,7 +169,7 @@ export class SequenceBuilder {
 
   // ── Private: camera preset assignment ────────────────────────────────────
 
-  private _assignPreset(h: HighlightCandidate): CameraPresetId {
+  private _assignPreset(h: HighlightCandidate, previous?: CameraPresetId): CameraPresetId {
     if (h.tags.includes("rocket_jump") || h.tags.includes("height_gain")) {
       return "rocket_jump_hero";
     }
@@ -176,7 +179,10 @@ export class SequenceBuilder {
     if (h.tags.includes("long_range")) {
       return "dramatic_zoom";
     }
-    if (h.peakTick % 5 === 0 && h.victimPlayer !== undefined) {
+    // The victim's eyes are worth watching when they saw it coming. Never two
+    // in a row: in a duel nearly every victim faces their killer, and a reel
+    // seen only from the losing side stops being about the plays.
+    if (h.victimFacedKiller && h.victimPlayer !== undefined && previous !== "victim_pov") {
       return "victim_pov";
     }
     return "chase_hero";

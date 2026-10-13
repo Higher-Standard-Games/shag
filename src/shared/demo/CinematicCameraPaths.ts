@@ -69,6 +69,19 @@ function vec3Distance(a: Vec3, b: Vec3): number {
   return Math.sqrt(dx * dx + dy * dy + dz * dz);
 }
 
+/** Catmull-Rom between p1 and p2: a curve through every keyframe with no kink at any. */
+function catmullRom(p0: Vec3, p1: Vec3, p2: Vec3, p3: Vec3, t: number): Vec3 {
+  const t2 = t * t;
+  const t3 = t2 * t;
+  const axis = (a: number, b: number, c: number, d: number) =>
+    0.5 * (2 * b + (c - a) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (3 * b - a - 3 * c + d) * t3);
+  return {
+    x: axis(p0.x, p1.x, p2.x, p3.x),
+    y: axis(p0.y, p1.y, p2.y, p3.y),
+    z: axis(p0.z, p1.z, p2.z, p3.z),
+  };
+}
+
 // ── lerp helpers ─────────────────────────────────────────────────────────────
 
 function lerpTick(a: number, b: number, t: number): number {
@@ -215,6 +228,7 @@ function _replayOrbit(highlight: HighlightCandidate, startTick: number, endTick:
 export function interpolatePath(
   keyframes: CameraKeyframe[],
   tick: number,
+  interpolation: CameraPathResult["interpolation"] = "linear",
 ): { position: Vec3; lookAt: Vec3; fov: number } {
   if (keyframes.length === 0) {
     return {
@@ -256,8 +270,18 @@ export function interpolatePath(
   const fovA = kfA.fov ?? 90;
   const fovB = kfB.fov ?? 90;
 
+  const position =
+    interpolation === "catmull_rom"
+      ? catmullRom(
+          keyframes[Math.max(0, lo - 1)].position,
+          kfA.position,
+          kfB.position,
+          keyframes[Math.min(keyframes.length - 1, hi + 1)].position,
+          t,
+        )
+      : vec3Lerp(kfA.position, kfB.position, t);
   return {
-    position: vec3Lerp(kfA.position, kfB.position, t),
+    position,
     lookAt: vec3Lerp(kfA.lookAt, kfB.lookAt, t),
     fov: fovA + (fovB - fovA) * t,
   };
