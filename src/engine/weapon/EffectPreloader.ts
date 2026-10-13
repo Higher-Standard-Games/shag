@@ -37,6 +37,14 @@ interface Disposable {
 /** Longest wait for a rendered frame. A stopped render loop draws nothing that could still need a retired light. */
 const RETIRE_FRAME_TIMEOUT_MS = 250;
 
+/**
+ * How long the material pass waits for every material to compile. One that
+ * never reports ready (a texture disposed under it) would otherwise hold the
+ * loading screen up for good; past this, the map loads and that material
+ * compiles on first use.
+ */
+const FORCE_COMPILE_TIMEOUT_MS = 10000;
+
 /** The next rendered frame, or the timeout; the observer is removed either way. */
 function nextRenderedFrame(scene: Scene): Promise<void> {
   return new Promise<void>((resolve) => {
@@ -352,9 +360,22 @@ export async function preloadEffectShaders(scene: Scene): Promise<void> {
       );
 
       try {
-        await Promise.all(
-          [...matMeshMap, ...pbrMatMeshMap].map(([mat, mesh]) => mat.forceCompilationAsync(mesh, { clipPlane: false })),
-        );
+        const compiled = await Promise.race([
+          Promise.all(
+            [...matMeshMap, ...pbrMatMeshMap].map(([mat, mesh]) =>
+              mat.forceCompilationAsync(mesh, { clipPlane: false }),
+            ),
+          ).then(() => true),
+          new Promise<boolean>((resolve) => setTimeout(() => resolve(false), FORCE_COMPILE_TIMEOUT_MS)),
+        ]);
+        if (!compiled) {
+          const waiting = [...matMeshMap, ...pbrMatMeshMap]
+            .filter(([mat, mesh]) => !mat.isReady(mesh))
+            .map(([mat]) => mat.name);
+          console.warn(
+            `[EffectPreloader] ${waiting.length} materials not ready after ${FORCE_COMPILE_TIMEOUT_MS / 1000}s, going on: ${waiting.slice(0, 8).join(", ")}`,
+          );
+        }
         await new Promise<void>((resolve) => {
           scene.onAfterRenderObservable.addOnce(() => resolve());
         });

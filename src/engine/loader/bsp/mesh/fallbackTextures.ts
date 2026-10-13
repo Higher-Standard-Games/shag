@@ -7,14 +7,26 @@ import type { Scene } from "@babylonjs/core/scene";
 const fallbackTextureCache: Map<string, RawTexture> = new Map();
 
 /**
+ * A cached texture, if it can still be drawn in this scene. Unloading a map
+ * disposes the textures its materials hold, these included; handed out again,
+ * a disposed texture never becomes ready, and the next map's shader warm-up
+ * waits on it for good.
+ */
+function cached(key: string, scene: Scene): RawTexture | null {
+  const texture = fallbackTextureCache.get(key);
+  if (texture && texture.getScene() === scene && texture.getInternalTexture()) return texture;
+  fallbackTextureCache.delete(key);
+  return null;
+}
+
+/**
  * Create a radial gradient texture for additive halos/flares.
  * White center fading to transparent edges.
  */
 export function createRadialGradientTexture(scene: Scene, size: number = 64): RawTexture {
   const cacheKey = `radial_${size}`;
-  if (fallbackTextureCache.has(cacheKey)) {
-    return fallbackTextureCache.get(cacheKey)!;
-  }
+  const existing = cached(cacheKey, scene);
+  if (existing) return existing;
 
   const data = new Uint8Array(size * size * 4);
   const center = size / 2;
@@ -59,9 +71,8 @@ export function createRadialGradientTexture(scene: Scene, size: number = 64): Ra
  */
 export function createSolidColorTexture(scene: Scene, r: number, g: number, b: number, a: number = 255): RawTexture {
   const cacheKey = `solid_${r}_${g}_${b}_${a}`;
-  if (fallbackTextureCache.has(cacheKey)) {
-    return fallbackTextureCache.get(cacheKey)!;
-  }
+  const existing = cached(cacheKey, scene);
+  if (existing) return existing;
 
   const size = 8;
   const data = new Uint8Array(size * size * 4);
