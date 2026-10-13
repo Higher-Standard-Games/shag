@@ -145,7 +145,7 @@ describe("signed human results to transactional skill", () => {
         ],
         localPlayerRank: 2,
         localPlayerEntry: { accountId: ids[1], rank: 2, ratedMatches: 1 },
-        localProcessing: { pending: 0, excluded: 0 },
+        localProcessing: { excluded: 0 },
       });
     }
     results.close();

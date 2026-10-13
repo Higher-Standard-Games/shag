@@ -77,6 +77,8 @@ export interface RankingRow {
   conservativeScore?: number;
   provisional?: boolean;
   ratedMatches?: number;
+  /** A bot preset's account, rated in the Private pools. */
+  bot?: boolean;
 }
 
 export interface RankingPage {
@@ -86,7 +88,7 @@ export interface RankingPage {
   localPlayerEntry?: RankingRow;
   system?: "trueskill";
   policyVersion?: string;
-  localProcessing?: { pending: number; excluded: number };
+  localProcessing?: { excluded: number };
 }
 
 export interface RankingQuery {
@@ -104,6 +106,7 @@ const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 const RECORDS = `
   WITH records AS (
     SELECT p.id AS account_id, p.name,
+      EXISTS (SELECT 1 FROM bot_accounts b WHERE b.account_id = p.id) AS bot,
       SUM(CASE WHEN mp.outcome = 'win' THEN 1 ELSE 0 END) AS wins,
       SUM(CASE WHEN mp.outcome = 'loss' THEN 1 ELSE 0 END) AS losses,
       SUM(CASE WHEN mp.outcome = 'draw' THEN 1 ELSE 0 END) AS draws
@@ -124,6 +127,7 @@ const RANKED = `${RECORDS}, ranked AS (
 // career posterior in this exact pool; rounded display values never sort it.
 const SKILL_RANKED = `${RECORDS}, active AS (
     SELECT r.account_id, p.name, r.mu, r.sigma, r.matches AS rated_matches,
+      EXISTS (SELECT 1 FROM bot_accounts b WHERE b.account_id = r.account_id) AS bot,
       COALESCE(records.wins, 0) AS wins, COALESCE(records.losses, 0) AS losses,
       COALESCE(records.draws, 0) AS draws, r.mu - ? * r.sigma AS skill_score
     FROM ratings r JOIN players p ON p.id = r.account_id
@@ -158,6 +162,7 @@ function rowOf(row: Record<string, unknown>): RankingRow {
     wins: Number(row.wins),
     losses: Number(row.losses),
     draws: Number(row.draws),
+    ...(Number(row.bot) ? { bot: true } : {}),
   };
 }
 
@@ -384,7 +389,6 @@ export class MatchResultStore {
       const processing = query.accountId
         ? this.db
             .prepare(`SELECT
-        COUNT(DISTINCT CASE WHEN rr.rating_status = 'pending' THEN rr.sequence END) AS pending,
         COUNT(DISTINCT CASE WHEN rr.rating_status = 'excluded' THEN rr.sequence END) AS excluded
         FROM ranking_results rr JOIN ranking_seats s ON s.sequence = rr.sequence
         WHERE s.account_id = ? AND rr.gametype = ? AND rr.scope = ? AND rr.policy_version = ?
@@ -397,9 +401,7 @@ export class MatchResultStore {
         entries,
         total,
         ...(local ? { localPlayerRank: Number(local.rank), localPlayerEntry: skillRowOf(local) } : {}),
-        ...(processing
-          ? { localProcessing: { pending: Number(processing.pending), excluded: Number(processing.excluded) } }
-          : {}),
+        ...(processing ? { localProcessing: { excluded: Number(processing.excluded) } } : {}),
       };
     } finally {
       this.db.exec("ROLLBACK");

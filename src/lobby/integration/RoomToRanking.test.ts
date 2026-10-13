@@ -182,7 +182,7 @@ describe("installed-map room to ranking", () => {
           policyVersion: "shag-trueskill-v1",
           scope: visibility,
           total: 2,
-          localProcessing: { pending: 0, excluded: 0 },
+          localProcessing: { excluded: 0 },
           localPlayerEntry: { ratedMatches: 1, provisional: true },
         });
         expect(results.deliveries.has(String(firstConnect.matchId))).toBe(false);

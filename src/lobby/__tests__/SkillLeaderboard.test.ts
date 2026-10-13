@@ -92,7 +92,7 @@ describe("career skill ladder reads", () => {
     const incomplete = humanSnapshot("interrupted", ids.slice(0, 2), now);
     incomplete.seats[0].participationInterrupted = true;
     results.ratings.ingest(incomplete);
-    expect(board()).toMatchObject({ entries: [], total: 0, localProcessing: { pending: 0, excluded: 1 } });
+    expect(board()).toMatchObject({ entries: [], total: 0, localProcessing: { excluded: 1 } });
     expect(board().localPlayerEntry).toBeUndefined();
   });
 

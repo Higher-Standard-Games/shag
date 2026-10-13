@@ -313,6 +313,8 @@ export interface LeaderboardEntry {
   conservativeScore?: number;
   provisional?: boolean;
   ratedMatches?: number;
+  /** A bot preset's account, rated in the Private pools. */
+  bot?: boolean;
 }
 
 export interface LeaderboardResponse extends LobbyMessage {
@@ -324,7 +326,7 @@ export interface LeaderboardResponse extends LobbyMessage {
   entries: LeaderboardEntry[];
   system?: "trueskill";
   policyVersion?: string;
-  localProcessing?: { pending: number; excluded: number };
+  localProcessing?: { excluded: number };
   total: number;
   localPlayerRank?: number;
   /** The authenticated account's actual row, even when it is outside this page. */

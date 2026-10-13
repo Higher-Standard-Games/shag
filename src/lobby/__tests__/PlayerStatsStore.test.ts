@@ -83,7 +83,6 @@ describe("durable own-account gameplay stats", () => {
     expect(results.playerStats.summary(ids[0], { ...query, scope: "private" })).toMatchObject({
       matches: 1,
       wins: 1,
-      pending: 0,
       rating: { ratedMatches: 1 },
       totals: { frags: 4 },
     });

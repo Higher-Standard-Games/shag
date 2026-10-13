@@ -18,7 +18,6 @@ export interface StatsSummary extends StatsQuery {
   statsMatches: number;
   totals: Omit<MatchStats, "version"> | null;
   rating: { rank: number; value: number; provisional: boolean; ratedMatches: number } | null;
-  pending: number;
   excluded: number;
 }
 export interface HistoryEntry {
@@ -91,7 +90,6 @@ export class PlayerStatsStore {
         SUM(CASE WHEN rr.record_status = 'recorded' AND s.outcome = 'loss' THEN 1 ELSE 0 END) AS losses,
         SUM(CASE WHEN rr.record_status = 'recorded' AND s.outcome = 'draw' THEN 1 ELSE 0 END) AS draws,
         COUNT(CASE WHEN rr.record_status = 'recorded' AND st.stats IS NOT NULL THEN 1 END) AS stats_matches,
-        COUNT(CASE WHEN rr.rating_status = 'pending' THEN 1 END) AS pending,
         COUNT(CASE WHEN rr.rating_status = 'excluded' THEN 1 END) AS excluded, ${sums}
         FROM ranking_seats s JOIN ranking_results rr ON rr.sequence = s.sequence
         LEFT JOIN ranking_stats st ON st.sequence = s.sequence AND st.seat_id = s.seat_id
@@ -101,7 +99,6 @@ export class PlayerStatsStore {
         losses = Number(row.losses ?? 0),
         draws = Number(row.draws ?? 0);
       const statsMatches = Number(row.stats_matches),
-        pending = Number(row.pending),
         excluded = Number(row.excluded);
       const { version: _version, ...totals } = canonicalMatchStats({
         version: 1,
@@ -133,7 +130,6 @@ export class PlayerStatsStore {
         rating: state
           ? { rank, value: displayRating(state), provisional: isProvisional(state), ratedMatches: state.ratedMatches }
           : null,
-        pending,
         excluded,
       };
     } finally {
