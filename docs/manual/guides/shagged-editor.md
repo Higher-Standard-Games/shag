@@ -100,6 +100,6 @@ The same compile runs from the command line with `npm run shagged:compile -- <ma
 
 ## Limits
 
-- Brushes are axis-aligned boxes; curved surfaces are patches. Angled brushes and boolean (CSG) operations are not available yet.
-- Importing arbitrary NetRadiant `.map` files is not supported yet.
-- Selection is one object at a time; multi-select and groups are planned.
+- Brushes are axis-aligned boxes; curved surfaces are patches. The editor has no angled brushes or boolean (CSG) operations; the scripting API's `brush.carve` subtracts boxes.
+- Arbitrary NetRadiant `.map` files cannot be imported.
+- Selection is one object at a time, with no multi-select or groups.

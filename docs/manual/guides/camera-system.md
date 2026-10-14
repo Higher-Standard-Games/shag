@@ -12,7 +12,7 @@ cameras.init(scene, canvas, {
 cameras.setCamera(camera);
 ```
 
-`init` requires both the scene and canvas in browser code. Headless code passes its own controlled substitute. Select the controller explicitly after registration; the current implementation does not act on `defaultController`.
+`init` requires both the scene and canvas in browser code. Headless code passes its own controlled substitute. Select a controller explicitly with `setController` after registration; the `defaultController` config field is not read.
 
 ## Controllers
 
@@ -42,7 +42,7 @@ camera fov 100
 camera info
 ```
 
-The console subcommand is named `mode`, but its current implementation selects a controller. `iso` is accepted as a short form of `isometric`. With no argument it reports the active controller by its own type name and lists the names it takes.
+`camera mode` selects a controller. `iso` is accepted as a short form of `isometric`. With no argument it reports the active controller by its own type name and lists the names it takes.
 
 `camera fov` does not write the camera: viewport effects rewrite that every frame from `cl_fov`, so the subcommand sets `cl_fov` instead, and reports the range rather than silently clamping a value outside it.
 
@@ -54,7 +54,7 @@ The console subcommand is named `mode`, but its current implementation selects a
 - `orthographic`;
 - `fake_ortho`.
 
-Use `createCamera(mode)` or `applyCameraMode(mode)` in code. The console does not expose the older `camera mode orthographic` projection syntax.
+Use `createCamera(mode)` or `applyCameraMode(mode)` in code; the console has no projection command.
 
 ## Freefly
 
@@ -73,7 +73,6 @@ saved bindings are preserved. Mouse releases outside the canvas and cancelled
 touches are handled too.
 
 If the browser denies mouse capture, a dismissible notice explains how to retry.
-Both rejected capture promises and legacy `pointerlockerror` events are handled.
 Fullscreen failures also show feedback, through Settings or Alt+Enter; the
 Settings toggle continues to reflect the actual fullscreen state.
 
@@ -85,7 +84,7 @@ cameras.registerController(controller.type, controller);
 cameras.setController(controller.type);
 ```
 
-`ICameraController` requires `attach(camera, scene, canvas)`, `detach`, `update`, configuration accessors, enable state, and `dispose`. Optional target/follow methods are available.
+`ICameraController` requires `attach(camera, scene, canvas)`, `detach`, `update`, configuration accessors, enable state, and `dispose`. `setTarget`, `getTarget` and `setFollowTarget` are optional.
 
 Always remove observers, input contexts, and DOM listeners in `detach`. Do not dispose the shared camera there.
 
@@ -97,7 +96,28 @@ pos copy
 teleport 0 128 0
 ```
 
-The old `camera target` command is not a teleport API.
+## First-person views
+
+The local FPS camera and every view behind another player's eyes (live
+spectating and demo playback) are built the same way, so a watched screen moves
+the way the player's own did:
+
+- `createFirstPersonEffects()` in `src/engine/viewport/FirstPersonEffects.ts`
+  lists the movement effects a first-person view runs: walk bob, landing
+  impact, strafe lean, speed FOV and idle breathing. The FPS controller
+  registers these; a watched view runs its own `FirstPersonEffectStack`, so it
+  never disturbs the local camera's state. A demo steps its stack on the demo
+  clock, and a step of zero (a paused demo) holds the last frame.
+- `src/engine/camera/FirstPersonMotion.ts` holds the eye's own motion: the dip
+  into a slide (`slidePitch`), the lift through a ledge grab (`easeLedgePitch`)
+  and the ease up a step (`smoothStepUp`).
+- `applyFirstPersonPose()` in `src/engine/camera/FirstPersonPose.ts` writes an
+  eye position, view angles and the effects into a camera through the same
+  applicator the local camera uses.
+
+A watched view needs the player's keys, slide and ledge-grab phases and crouch
+eye height; snapshots carry them for each player (see
+[Networking](./networking.md#snapshot-format)).
 
 ## FPS integration
 

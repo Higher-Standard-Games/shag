@@ -10,7 +10,7 @@ The playable FPS path resolves a map through `PK3Index`, loads its dependencies,
 map wdm2 duel
 ```
 
-`MapLoader.getInstance().loadMap(mapName, scene, onProgress?, opts?)` is the high-level browser API. It currently resolves indexed BSP maps; its local text-map branch is marked TODO. `opts.backgroundOnly` loads a map as menu scenery, which is how a background map skips the gameplay setup that turns PVS on.
+`MapLoader.getInstance().loadMap(mapName, scene, onProgress?, opts?)` is the high-level browser API. It loads indexed BSP maps; it does not load local `.map` text files. `opts.backgroundOnly` loads a map as menu scenery, which is how a background map skips the gameplay setup that turns PVS on.
 
 ## Inspection flow
 
@@ -53,7 +53,7 @@ const result = BspMeshBuilder.build(bsp, scene, {
 });
 ```
 
-`BspLoader.load` and `BspMeshBuilder.build` are static. The mesh builder constructor is private. Parsed entities are already available as `bsp.entities`; a separate `EntityParser` is not required.
+`BspLoader.load` and `BspMeshBuilder.build` are static. The mesh builder constructor is private. Parsed entities are available as `bsp.entities`.
 
 The result includes the world mesh and mesh/material bookkeeping needed by map cleanup and animation systems. Treat its exact shape as an internal loader contract and import the `BspMeshBuildResult` type when extending it.
 

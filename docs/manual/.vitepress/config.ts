@@ -12,7 +12,7 @@ export default defineConfig({
   ignoreDeadLinks: [/^https?:\/\/localhost/],
   
   head: [
-    ['link', { rel: 'icon', href: '/favicon.ico' }],
+    ['link', { rel: 'icon', href: '/logo.png' }],
     ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
     ['link', { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' }],
     ['link', { href: 'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap', rel: 'stylesheet' }]
@@ -26,7 +26,7 @@ export default defineConfig({
       { text: 'Getting Started', link: '/getting-started/' },
       { text: 'Tutorials', link: '/tutorials/' },
       { text: 'Guides', link: '/guides/' },
-      { text: 'API', link: '/api/' }
+      { text: 'Tools', link: '/tools/' }
     ],
 
     sidebar: {
@@ -202,7 +202,7 @@ export default defineConfig({
 
     footer: {
       message: 'Released under the MIT License.',
-      copyright: 'Copyright © 2024-present'
+      copyright: 'Copyright © 2026 Higher Standard Games'
     }
   }
 })

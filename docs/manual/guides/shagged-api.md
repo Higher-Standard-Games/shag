@@ -73,9 +73,9 @@ Example: two rooms joined by a corridor, with spawns and a weapon:
 
 **The player** (from the game's movement constants):
 
-- The player box is 30 × 30 units and 64 tall (32 crouched). Give corridors at least 96 × 96 of clear space; 128 is comfortable to fight in.
-- A step is at most 18 units. A standing jump rises about 45 units: a 32-unit ledge is a hop; anything over about 44 needs stairs, a jump pad or a teleporter.
-- Run speed is 320 units per second: a 1,024-unit room takes about three seconds to cross.
+- The player box is 32 × 32 units and 56 tall (32 crouched). Give corridors at least 96 × 96 of clear space; 128 is comfortable to fight in.
+- A step is at most 18 units. A standing jump rises about 51 units, but `report` counts a ledge as a hop only up to 45 units: keep hop ledges at 44 or lower, and use stairs, a jump pad or a teleporter above that.
+- Ground speed is 280 units per second (400 sprinting forward): a 1,024-unit room takes three to four seconds to cross.
 
 **Geometry and compiling:**
 
@@ -100,7 +100,7 @@ Example: two rooms joined by a corridor, with spawns and a weapon:
 
 ## The report
 
-`report` returns one JSON verdict with `ok` and three sections:
+`report` returns one JSON verdict with `ok` and four sections:
 
 - `health`: Map Health issues (missing spawns or required keys, broken target links, unknown classes, unknown shaders or shaders without an image), each with the object's ID.
 - `compile`: build state, `leak`, the published package and a log tail. An unchanged map reuses its last build (`reused: true`).

@@ -17,9 +17,7 @@ npm run electron:preview
 npm run electron:build
 ```
 
-The intended output directory is `release/<version>/`, with electron-builder targets configured in `electron-builder.config.js`.
-
-The config is `electron-builder.config.cjs`, and the extension matters: this package is `"type": "module"`, so a `.js` config's `module.exports` assigns nothing and electron-builder receives an empty object. It picks its game manifest the way `vite.config.ts` does — `GAME`, else `engine.json`'s `defaultGame` — and takes the app's name from that game's `displayName`.
+Installers are written to `release/<version>/`, with the electron-builder targets configured in `electron-builder.config.cjs`. The `.cjs` extension matters: this package is `"type": "module"`, so a `.js` config's `module.exports` would assign nothing and electron-builder would receive an empty object. The config picks its game manifest the way `vite.config.ts` does — `GAME`, else `engine.json`'s `defaultGame` — and takes the app's name from that game's `displayName`.
 
 ## Security model
 
@@ -28,7 +26,7 @@ The renderer receives a small API from `preload.ts`; keep Node integration disab
 ## Release checklist
 
 - make `electron:preview` pass on the target OS;
-- fix and verify the selected game-metadata source;
+- confirm the installer carries the selected game's name;
 - provide icons under `build-resources/`;
 - sign platform artifacts where required;
 - confirm production asset paths and native fullscreen behavior;

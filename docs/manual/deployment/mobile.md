@@ -1,6 +1,6 @@
 # Android with Capacitor
 
-The repository currently includes a Capacitor 8 Android project under `android/`. It does not include an iOS project.
+The repository includes a Capacitor 8 Android project under `android/`. It does not include an iOS project.
 
 ## Build and open
 
@@ -28,7 +28,7 @@ Live reload exposes a development server to the device. Use it only on a trusted
 
 `src/engine/core/CapacitorBridge.ts` contains platform detection, mobile CSS, safe-area setup, status-bar handling, splash-screen control, and app lifecycle events.
 
-`src/main.ts` initializes the bridge before anything draws and calls `hideSplashScreen()` as soon as the engine's own loading screen is up — `launchAutoHide: false` means the native splash waits for the app, and holding it to the end of the boot would hide the loading screen's progress behind a still image. Both calls no-op in a browser. **None of this is verified on a device yet**; that is the remaining check before the native startup path can be called complete.
+`src/main.ts` initializes the bridge before anything draws and calls `hideSplashScreen()` as soon as the engine's own loading screen is up — `launchAutoHide: false` means the native splash waits for the app, and holding it to the end of the boot would hide the loading screen's progress behind a still image. Both calls do nothing in a browser. **This has not been verified on a device**; that is the remaining check before the native startup path can be called complete.
 
 ## Configuration
 

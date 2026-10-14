@@ -58,7 +58,7 @@ render export
 render apply
 ```
 
-`render apply` exists for compatibility; render-variable callbacks already apply changes immediately.
+Render-variable changes apply immediately; `render apply` is accepted but has nothing left to commit.
 
 ## Configuration text
 
@@ -67,7 +67,7 @@ const config = Cvar.exportConfig();
 Cvar.execConfig(config);
 ```
 
-`execConfig`, not `importConfig`, is the current import API. The `exec` console command loads configuration files through the virtual filesystem.
+`execConfig` applies configuration text and returns the number of accepted lines and the rejected ones, with reasons. The `exec` console command loads configuration files through the virtual filesystem.
 
 ## Current ownership
 

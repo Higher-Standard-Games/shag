@@ -29,4 +29,4 @@ if (!result.success) {
 loader.disposeSkybox();
 ```
 
-The standalone `skybox load` command is not a general loader at present; it directs users back to map loading.
+Skyboxes load with their map. The `skybox` command reports (`skybox info`) and clears (`skybox clear`) the current one; `skybox load` does not load an arbitrary sky.

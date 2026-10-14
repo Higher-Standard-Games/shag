@@ -10,7 +10,7 @@ export default class DayNightCommand extends Command {
   readonly definition: CommandDef = {
     name: "daynight",
     description: "Day/night cycle control for BSP maps",
-    usage: "daynight <on|off|noon|midnight|start|stop|info>",
+    usage: "daynight <on|off|noon|midnight|sunrise|sunset|time <0-1>|cycle <minutes>|start|stop|info>",
     developer: true,
     subcommands: [
       { name: "on", description: "Enable day/night cycle" },

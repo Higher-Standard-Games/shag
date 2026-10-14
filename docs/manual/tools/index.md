@@ -26,8 +26,6 @@ bsp info
 mem
 ```
 
-Use `show_fps`, not `debug fps`.
-
 ## Documentation
 
 ```bash

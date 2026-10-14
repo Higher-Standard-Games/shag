@@ -21,8 +21,8 @@ bots. It uses the existing local bot secret; it never prints it. Change the port
 with `--port 7788` if necessary. Omit `--bot-control` to own in-process bots instead.
 Ctrl+C requests graceful cleanup. An occupied port fails without replacing a server.
 
-The checked-in [recipe](../../../benchmarks/recipes/wdm2-ffa10.json) and
-[launcher](../../../scripts/benchmarks/create-fixture.mjs) preserve the sequence.
+The checked-in [recipe](https://github.com/Higher-Standard-Games/shag/blob/main/benchmarks/recipes/wdm2-ffa10.json) and
+[launcher](https://github.com/Higher-Standard-Games/shag/blob/main/scripts/benchmarks/create-fixture.mjs) preserve the sequence.
 FFA's authoring score limit is disabled so a fast bot cannot end recording early.
 The match itself remains ordinary FFA; ten is a population baseline, not a team setup.
 
@@ -80,7 +80,7 @@ timedemo export
 
 `timedemo abort` or Escape cancels. Input while measuring invalidates the attempt;
 opening the console to inspect progress during measurement therefore interrupts it.
-The final report is also available as `window.timedemoReport` for a future runner.
+The final report is also available as `window.timedemoReport` for automation.
 
 ## Interpret results
 
@@ -134,12 +134,12 @@ establish a speedup: inspect timing, body/effects coverage and pixels as well.
 For comparisons, use the same fixture ID, quality settings, dimensions, browser,
 adapter and power state. Run three repetitions per actual backend in a quiet headed
 browser, export both reports and inspect camera/gun/body/effects checkpoints. The
-current implementation has headless validation; hardware/visual acceptance remains
-pending. See the [research status](../../research/v0.9.27-webgpu.md).
+runner is validated headlessly; acceptance on real hardware is still to be done. See
+the [WebGPU research notes](https://github.com/Higher-Standard-Games/shag/blob/main/docs/research/v0.9.27-webgpu.md).
 
 ## CPU profiling in Edge
 
-The [profiling runner](../../../scripts/benchmarks/profile-timedemo.mjs) starts a
+The [profiling runner](https://github.com/Higher-Standard-Games/shag/blob/main/scripts/benchmarks/profile-timedemo.mjs) starts a
 private localhost Vite server with HMR and file watching disabled, then a fresh
 visible Edge profile for each backend. It does not use your normal browser profile.
 Run from the repository root with the local benchmark fixture installed:
@@ -220,7 +220,7 @@ npm run benchmark:outlines -- --prepare-only
 npm run benchmark:outlines -- --repeats 5 --out public/data/benchmarks/results/my-outline-series
 ```
 
-The [comparison script](../../../scripts/benchmarks/outline-comparison.mjs) derives
+The [comparison script](https://github.com/Higher-Standard-Games/shag/blob/main/scripts/benchmarks/outline-comparison.mjs) derives
 two immutable fixtures from the same saved recording, route and spectator schedule.
 Only the required `cl_player_outline` value changes (0/1); derived identities include
 the base manifest hash. It verifies the demo bytes, preserves existing fixtures,
@@ -259,7 +259,7 @@ render-bundle replay can bypass the wrapped API. Use compatibility mode for the
 first attribution capture. The wrappers/CPU clocks add overhead, so do not use
 their frame times as the primary comparison score.
 
-The existing Edge runner also accepts `--timing-only` for one unprofiled session
+The Edge runner also accepts `--timing-only` for one unprofiled session
 per requested backend. This option rejects trace wrappers and saves reports and
 warmup screenshots without CPU profiles.
 
@@ -276,7 +276,7 @@ npm run benchmark:crowd -- --repeats 1 --counts 0,10
 npm run benchmark:crowd -- --repeats 5 --out public/data/benchmarks/results/my-crowd-series
 ```
 
-The [saved recipe](../../../benchmarks/recipes/player-crowd-v1.json) builds a fixed
+The [saved recipe](https://github.com/Higher-Standard-Games/shag/blob/main/benchmarks/recipes/player-crowd-v1.json) builds a fixed
 0/2/5/10-player scene through the production player manager, with independent rigs,
 normal FFA styling and a 30 Hz run pose driven by fixed 60 Hz presentation ticks.
 There is one near actor and a staggered distant group. No map, network connection,
@@ -284,7 +284,7 @@ bot AI, weapons or game simulation runs. This isolates player drawing; its numbe
 are not gameplay FPS. Ten clones stay loaded across all cases, and the requested
 prefix of actors is enabled.
 
-The [runner](../../../scripts/benchmarks/crowd-benchmark.mjs) opens fresh private
+The [runner](https://github.com/Higher-Standard-Games/shag/blob/main/scripts/benchmarks/crowd-benchmark.mjs) opens fresh private
 Edge sessions for each backend, repeats outline-on/off cases in alternating order,
 and records raw samples, run-level p95 summaries, assets/source hashes, browser/GPU
 metadata and warmup screenshots. It expects two background draws plus one ordinary
@@ -305,8 +305,9 @@ To inspect it manually, start `npm run dev`, then open
 `http://localhost:3000/benchmarks/crowd/index.html?renderer=webgpu&repeats=1&counts=0,10`
 (or `renderer=webgl2`). Escape stops the test; completion retires its scene/engine.
 This is a development-server benchmark entry, not a separate game mode or a
-default production page. Local `public/games/default/animations/vanguard.glb`
-and `rifle run.glb` are required; no recorded demo or server is needed. The JSON
+default production page. It needs `player_model_vanguard.pk3` in `public/data/`
+(see [Model loading](./model-loading.md#packaged-player-model)); no recorded demo
+or server is needed. The JSON
 recipe is sufficient to rebuild the scene after model changes, with new asset
 hashes recorded for every series. Outline-off is a quality diagnostic, not a
 proposed gameplay setting change.
@@ -319,8 +320,8 @@ npm run benchmark:crowd -- --outline-proxy --repeats 1 --counts 0,10
 npm run benchmark:crowd -- --outline-proxy --visual --repeats 5 --out public/data/benchmarks/results/my-outline-proxy-series
 ```
 
-The [proxy recipe](../../../benchmarks/recipes/player-outline-proxy-v1.json) and
-[generator](../../../scripts/benchmarks/build-outline-proxy.mjs) recreate a local
+The [proxy recipe](https://github.com/Higher-Standard-Games/shag/blob/main/benchmarks/recipes/player-outline-proxy-v1.json) and
+[generator](https://github.com/Higher-Standard-Games/shag/blob/main/scripts/benchmarks/build-outline-proxy.mjs) recreate a local
 outline-only GLB from Vanguard. UVs/tangents are removed, identical retained
 vertices welded, and triangles simplified to a target 25% with a 1% model-radius
 error limit. Original normals and skin weights are retained; rig hierarchy,
@@ -403,7 +404,7 @@ timing-only mode with diagnostic wrappers.
 ### Material-clone setup comparison
 
 `r_material_clone_batch` defaults to **1** and is not persisted. Setting it to
-`0` restores the original clone setup for an A/B profile. The model-instance
+`0` uses per-material clone setup instead, for an A/B profile. The model-instance
 cache and player visibility-material clones batch fresh native PBR property
 copies and the managed scene's light policy. StandardMaterial, custom clone
 methods and unsupported MultiMaterial children use the original path. Each
@@ -415,7 +416,7 @@ Use immutable profiles requiring `r_material_clone_batch 0` or `1`, holding
 Profiled CPU captures attribute setup work; separate timing-only pairs are
 required before reporting an FPS improvement.
 
-New `benchmark:profile` captures save `graphics.json` and include that data in
+`benchmark:profile` captures save `graphics.json` and include that data in
 `run.json`: Babylon's backend adapter description and Edge's GPU inventory.
 Descriptions may be privacy-limited or unavailable. A machine having two GPUs
 does not prove which one the backend used. For an integrated-GPU series, record

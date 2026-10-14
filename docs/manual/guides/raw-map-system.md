@@ -7,9 +7,9 @@ SHAG contains a parser and renderer for Quake-family text `.map` data. This is a
 - `MapParser` parses entity properties, classic brush planes, Valve-style planes, `brushDef`, and `patchDef2`.
 - `MapRenderer` can turn supported raw-map entities and brushes into Babylon scene objects.
 - `EntityHandlerRegistry` lets game code add handlers without introducing engine-to-game imports.
-- The active `MapLoader.loadMap` path currently resolves indexed BSP maps; its local text-map branch is TODO.
+- `MapLoader.loadMap` loads indexed BSP maps only; it does not load a local `.map` file, so a raw map is not a playable FPS map.
 
-Do not describe raw maps as hot-reloadable playable FPS maps until that composition path is wired and tested.
+For playable maps, compile with the [SHAGGED editor](./shagged-editor.md) or an external idTech3 toolchain.
 
 ## Parsing
 
@@ -35,7 +35,7 @@ EntityHandlerRegistry.register('example_marker', async (entity, scene) => {
 EntityHandlerRegistry.unregister('example_marker');
 ```
 
-The registry API is static; there is no `getInstance()`. A handler receives the entity, scene, and optional render options, and returns an object containing at least `handled`.
+The registry API is static. A handler receives the entity, scene, and optional render options, and returns an object containing at least `handled`.
 
 Pre- and post-render hooks are also available. Remove registrations or call the registry cleanup method when a game composition is disposed.
 

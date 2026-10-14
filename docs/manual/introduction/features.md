@@ -9,7 +9,8 @@ This page describes current capability boundaries. Exact commands, defaults, and
 | BSP | Q3 IBSP v46 and Warsow/qfusion FBSP v1, all four face types, lightmaps, lightgrid, PVS | Entity presence does not imply gameplay behavior |
 | PK3 | Manifest discovery, runtime index, archive overrides, browser/headless lookup | External data is not committed |
 | Q3 shaders | Stages, blending, alpha/depth/cull flags, tcMod, environment tcGen, wave color/alpha, animation, autosprites | Not full renderer parity; most non-sprite vertex deforms are skipped |
-| Text maps | Parser, brush/patch handling, raw `MapRenderer`, custom entity registry | Active high-level `MapLoader` local-map branch is TODO |
+| Text maps | Parser, brush/patch handling, raw `MapRenderer`, custom entity registry | `MapLoader` does not load local `.map` files |
+| Map editor | SHAGGED: four-view brush editor, MakeBSP/MakeLight compile, playtest, scripting API and MCP server | Axis-aligned brushes and patches; no NetRadiant import |
 | Models/textures | Babylon loader integration, PK3 assets, compressed-texture tooling | Availability depends on shipped media and target decoder support |
 
 ## Rendering
@@ -80,8 +81,8 @@ See [Deployment](../deployment/) for the verified workflow and known blockers.
 
 ## Known limits
 
-- no built-in map editor;
+- the SHAGGED editor builds axis-aligned brushes and patches only, and cannot import arbitrary NetRadiant maps;
 - incomplete Q3 shader parity;
-- raw text maps are not yet a first-class playable FPS load path;
+- raw text maps are not a playable FPS load path;
 - platform wrappers do not have equal release readiness;
 - external media licensing and redistribution remain the game developer’s responsibility.

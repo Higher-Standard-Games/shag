@@ -1,18 +1,16 @@
-# Network Server
+# Network server
 
-Dedicated game server for multiplayer testing and deployment.
+The dedicated game server, for multiplayer testing and deployment.
 
-## Quick Start
+## Quick start
 
 ```bash
 npm run net:server
 ```
 
-The entry point is `src/cli/headless-netserver-v2.ts`. It boots a `GameServer`
-with a BSP collision world, a gametype, and a WebSocket (or WebTransport)
-listener.
+The entry point is `src/cli/headless-netserver-v2.ts`. It boots a `GameServer` with a BSP collision world, a gametype and a WebSocket listener.
 
-## Command Line Options
+## Command-line options
 
 ```bash
 npm run net:server -- [options]
@@ -21,20 +19,23 @@ npm run net:server -- [options]
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--port <n>` | `7777` | Server port |
-| `--map <name>` | `wdm7` | Map to load (also accepts `--map=<name>`) |
-| `--gametype <name>` | `Deathmatch` | `Deathmatch`, `TeamDeathmatch`, `Duel`, `Amphi` or `SnD`. An unknown name falls through to Deathmatch rather than failing |
-| `--name <s>` | `"SHAG Server v2"` | Server name shown to clients |
-| `--max <n>` | `16` | Maximum concurrent clients |
+| `--map <name>` | `wdm7` | Map to load (also `--map=<name>`) |
+| `--gametype <name>`, `-g` | `Deathmatch` | `Deathmatch`, `TeamDeathmatch`, `Duel`, `Amphi` or `SnD`. An unknown name falls back to Deathmatch |
+| `--name <s>`, `--hostname` | `SHAG Server v2` | Server name shown to clients |
+| `--max <n>`, `--maxclients` | `16` | Maximum players; up to eight spectators connect beyond it |
 | `--snapshotrate <n>` | `60` | Snapshot broadcast rate in Hz |
 | `--game <path>` | `./game` | Game data path |
-| `--cert <path>` | `./certs/localhost.pem` | TLS certificate (WebTransport) |
-| `--key <path>` | `./certs/localhost-key.pem` | TLS private key (WebTransport) |
-| `--shutdown` | off | Auto-exit when all clients disconnect |
-| `--single-match` | off | One match per server: post-game is terminal, players return to the lobby, bots are released, process exits |
+| `--cert <path>` | `./certs/localhost.pem` | TLS certificate for `wss://` |
+| `--key <path>` | `./certs/localhost-key.pem` | TLS private key for `wss://` |
+| `--shutdown` | off | Exit when the last client disconnects |
+| `--single-match` | off | One match per server: post-game is final, players return to the lobby, bots are released and the process exits |
+| `--private-match` | off | Mark recorded demos as private; the lobby sets this for private rooms |
+| `--training-demo <name>` | – | Record a training demo: warmup never ends and every tick is recorded, saved to `public/data/demos/training/<map>_<name>.shagdemo` |
 | `--help`, `-h` | – | Show help |
 
-`SHAG_GAME_CERT_PATH` and `SHAG_GAME_KEY_PATH` override the default TLS paths
-for servers spawned by the lobby.
+The first two bare arguments are read as the map and the gametype, so `npm run net:server -- wdm2 Duel` also works.
+
+`SHAG_GAME_CERT_PATH` and `SHAG_GAME_KEY_PATH` replace the default certificate paths, which is how servers spawned by the lobby find them.
 
 ## Examples
 
@@ -52,98 +53,94 @@ npm run net:server -- --map wbomb1 --gametype SnD --max 10
 npm run net:server -- --map wdm2 --gametype Duel --single-match
 ```
 
-## WebTransport Setup
+## TLS
 
-WebTransport needs TLS certificates. For development:
+When both certificate files exist, the server accepts secure WebSocket (`wss://`) connections, which a page served over HTTPS requires. When either file is missing, the server prints a warning and serves plain `ws://`, which is enough for local development.
+
+To create development certificates:
 
 ```bash
 mkcert -install && mkcert localhost
 # move localhost.pem and localhost-key.pem into ./certs/
 ```
 
-Without certificates the server still serves WebSocket clients, which is the
-default transport.
+## Server output
 
-## Server Output
+The server logs each connection and join, for example:
 
-The server logs connection events:
-
-```
-[Server] Client client_1 connected from ::1
-[Server] Client client_1 joined (1/16)
-[Server] Stats: 1 clients
+```text
+[GameServer] WebSocket connected: client_1
+[GameServer] Join request from: Alice
 ```
 
 ## Architecture
 
-```
+```text
 GameServer
 ├── Simulation           # Authoritative world state, 125 Hz fixed tick
 ├── GametypeController   # Match state, scoring, respawn, spawn selection
 ├── ClientManager        # Connected players, input queues
 ├── SnapshotBuilder      # Per-client snapshot assembly (PVS-scoped)
-├── SnapshotBroadcaster  # Delta-compressed fan-out at 60 Hz
+├── SnapshotBroadcaster  # Delta-compressed fan-out at the snapshot rate
 ├── LagCompensation      # Server-side rewind for hit detection
-└── Transport            # WebSocket (default) or WebTransport
+└── Transport            # WebSocket (ws:// or wss://)
 ```
 
-## Tick Rate
+## Tick rate
 
-The server simulates at **125 Hz** (8 ms per tick) and broadcasts snapshots at
-**60 Hz** — roughly every other tick. The tick rate is fixed: movement and
-weapon timings are tuned against 125 Hz, and the game server refuses any other
-rate. The snapshot rate is configurable with `--snapshotrate`.
+The server simulates at **125 Hz** (8 ms per tick) and broadcasts snapshots at **60 Hz** by default, roughly every other tick. The tick rate is fixed: movement and weapon timings are tuned against 125 Hz, and the game server refuses any other rate. The snapshot rate is configurable with `--snapshotrate`.
 
-- Physics runs one fixed `dt` per tick — no variable-step integration
-- Input is applied on the tick it belongs to, not on arrival
-- Snapshots are delta-compressed per client against their last acknowledged state
+- Physics runs one fixed `dt` per tick, with no variable-step integration.
+- Input is applied on the tick it belongs to, not on arrival.
+- Snapshots are delta-compressed per client against the last state that client acknowledged.
 
-## Stopping the Server
+## Stopping the server
 
-Press `Ctrl+C` for graceful shutdown:
+Press `Ctrl+C` for a graceful shutdown:
 
-```
+```text
 ^C
 [Server] Shutting down...
 ```
 
-Or start it with `--shutdown` to exit automatically once the last client
-leaves, and `--single-match` to exit after one completed match.
+Alternatively, start it with `--shutdown` to exit once the last client leaves, or with `--single-match` to exit after one completed match.
 
 ## Testing
 
-### Single Client Test
+### Single client
 
 Terminal 1:
+
 ```bash
 npm run net:server
 ```
 
 Terminal 2:
+
 ```bash
 npm run net:client
 ```
 
-### Multiple Clients
+### Multiple clients
 
 ```bash
-# Terminal 1: Server
+# Terminal 1: server
 npm run net:server
 
-# Terminal 2-4: Clients
+# Terminals 2-4: clients
 npm run net:client -- --name Alice
 npm run net:client -- --name Bob
 npm run net:client -- --name Charlie
 ```
 
-### In-Game Connection
+### From the game
 
-1. Start server: `npm run net:server`
-2. Start game: `npm run dev`
-3. Open console: `~`
-4. Type: `connect ws://localhost:7777`
+1. Start the server: `npm run net:server`
+2. Start the game: `npm run dev`
+3. Open the console with backquote/tilde
+4. Type `connect ws://localhost:7777`
 
-## See Also
+## See also
 
-- [Network Client](./network-client.md) - Headless client tool
-- [Networking Guide](../guides/networking.md) - Full networking documentation
+- [Network client](./network-client.md): the headless client tool
+- [Networking guide](../guides/networking.md): the full networking documentation

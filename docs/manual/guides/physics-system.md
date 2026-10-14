@@ -14,8 +14,6 @@ Client prediction and the authoritative server consume the same shared BSP colli
 - `q3` for BSP/Quake tracing;
 - `babylon` for Babylon scene collision.
 
-There are no `brush` or `clipbrush` selectable backends.
-
 The collision API provides point-contents tests, box traces, ground queries, and sliding movement. Prefer the Babylon-free contracts under `src/shared/collision/` and the existing FPS movement profile for gameplay code that must remain deterministic.
 
 Useful diagnostics:
@@ -25,7 +23,7 @@ developer 1
 bsp collision point
 freefly_collision
 freefly_collision test
-debug collision
+freefly_collision clipviz
 ```
 
 `freefly_collision` with no argument reports the current state and backend; it

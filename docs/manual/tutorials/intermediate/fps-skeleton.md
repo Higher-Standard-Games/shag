@@ -8,11 +8,12 @@ SHAG already contains the active arena-FPS composition. New FPS features should 
 src/games/fps/
   Game.ts              client game orchestration
   FPSPlayer.ts         local player integration
-  client/              input, presentation, prediction helpers
+  client/              input, presentation, HUD, demos, prediction helpers
   simulation/          FPS movement profile and shared-facing logic
   server/              authoritative game/server systems
+  world/               pickups and inventory
+  liquid/              liquid volumes
   console/commands/    FPS-specific commands
-  ui/                  HUD and menus
 ```
 
 Deterministic contracts used by both sides live under `src/shared/`. Keep authoritative decisions on the server and make client prediction consume the same simulation rules where possible.

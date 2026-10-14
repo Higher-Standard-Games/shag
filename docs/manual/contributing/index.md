@@ -2,52 +2,36 @@
 
 How to contribute to SHAG Engine development.
 
-## Getting Started
-
-1. Fork the repository
-2. Clone your fork
-3. Install dependencies: `npm install`
-4. Create a branch: `git checkout -b feature/my-feature`
-
-## Development Setup
+## Getting started
 
 ```bash
-# Install dependencies
+git clone --recurse-submodules https://github.com/<your-fork>/shag.git
+cd shag
 npm install
-
-# Start dev server
 npm run dev
-
-# Run linter
-npm run lint
-
-# Run tests
-npm run test
 ```
 
-## Code Style
+The FPS game in `src/games/fps` is a Git submodule with its own history. A change that spans both carries the same branch name in both repositories, for example `v0.9.29-my-feature`, created from `main` in each.
 
-We use [Biome](https://biomejs.dev/) for linting and formatting.
+Read the repository `AGENTS.md` before changing code: it records the architecture rules, the validation commands and the release process the project follows.
+
+## Code style
+
+[Biome](https://biomejs.dev/) lints and formats the code.
 
 ```bash
-# Check code
-npm run lint
-
-# Auto-fix
-npm run check
+npm run lint     # report problems
+npm run check    # apply safe fixes and formatting
 ```
 
-### Guidelines
+- TypeScript strict mode throughout.
+- Babylon.js imports are modular (`@babylonjs/core/...`), never the UMD bundle.
+- Comments describe the code as it is; how it used to be belongs in the commit message.
+- Remove every EventBus subscription, scene observer and timer you add when its owner is disposed.
 
-- Use TypeScript strict mode
-- Prefer `const` over `let`
-- Use meaningful variable names
-- Add JSDoc comments for public APIs
-- Keep functions small and focused
+## Project structure
 
-## Project Structure
-
-```
+```text
 src/
 ├── engine/     # Core engine (reusable)
 ├── shared/     # Deterministic client-server contracts, no Babylon or DOM
@@ -57,79 +41,72 @@ src/
 └── cli/        # Headless tools
 ```
 
-**Rule:** Engine code should not import from game code. Where the engine needs
-something a game owns, it goes through a registry — see
+**Rule:** engine code does not import game code. Where the engine needs
+something a game owns, it goes through a registry; see
 [Service registries](../guides/service-registries.md).
 
-## Pull Request Process
+## Before opening a pull request
 
-1. Update documentation if needed
-2. Add tests for new features
-3. Ensure `npm run typecheck` and `npm run test:run` pass
-4. Ensure `npm run gate:biome` stays at or below its baseline — a pre-commit
-   hook from `.githooks` runs it, so a commit that raises it is refused
-5. Ensure `npm run build` succeeds
-6. Write clear commit messages
-7. Open PR with description of changes
+1. Update the documentation the change affects, and the living changelog in `docs/changelog/`.
+2. Add tests for new behavior.
+3. `npm run typecheck` and `npm run test:run` pass.
+4. `npm run gate:biome` stays at or below its baseline. A pre-commit hook from
+   `.githooks` runs it, so a commit that raises it is refused.
+5. `npm run build` succeeds.
+6. Renderer and networking changes also pass the regression set in `AGENTS.md`:
+   `test:simulation`, `test:physics`, `server:tick`, `server:fuzz -- --ticks 1000`
+   and the headless `bsp load wdm2` check.
 
-### Commit Messages
+### Commit messages
 
-Follow conventional commits:
+Commits follow conventional-commit types, with an optional scope and a
+lowercase summary of what changed:
 
-```
-feat: Add custom camera controller
-fix: Resolve skybox loading issue
-docs: Update camera system guide
-refactor: Simplify BSP loader
+```text
+feat(net): snapshots carry each player's view
+fix(console): settings import counts what it applied
+docs(manual): bring the engine guides up to date
+refactor(bsp): share face batching between world and movers
 ```
 
 ## Testing
 
 ```bash
-# Run all tests
-npm run test
-
-# Run specific test
-npm run test -- camera
-
-# Watch mode
-npm run test -- --watch
+npm run test:run            # the whole suite, once
+npm run test:run -- camera  # files matching "camera"
+npm run test                # watch mode
 ```
+
+Headless checks come before browser testing; see
+[Headless testing](../tutorials/advanced/headless-testing.md).
 
 ## Documentation
 
-Documentation lives in `docs/manual/`. Use Markdown.
+This manual lives in `docs/manual/`, written in Markdown.
 
 ```bash
-# Serve this manual locally with hot reload
-npm run docs:dev
-
-# Build the manual
-npm run docs:build
-
-# Generate TypeDoc API reference
-npm run docs:api
+npm run docs:dev     # serve with hot reload
+npm run docs:build   # build; fails on a dead link
+npm run docs:api     # generate the TypeDoc API reference into docs/api/
 ```
 
-New pages must be added to the sidebar in `docs/manual/.vitepress/config.ts`,
-otherwise they are unreachable in the built site.
+Add new pages to the sidebar in `docs/manual/.vitepress/config.ts`, or they
+are unreachable in the built site. Link files outside the manual by their
+GitHub URL: the built site does not serve them.
 
-## Roadmap
+Player-facing documentation for the FPS game is a separate manual in
+`src/games/fps/docs/manual` (`npm run docs:fps:dev`).
 
-Check GitHub Issues for planned features and good first issues.
+## Issues
 
-### Priority Areas
+Report problems and look for open work in the
+[GitHub issues](https://github.com/Higher-Standard-Games/shag/issues).
 
-- [ ] MD3 model loading
-- [ ] Skeletal animation
-- [ ] Audio system
-- [ ] Multiplayer networking
-- [ ] Physics integration
+## Code of conduct
 
-## Code of Conduct
-
-Be respectful and constructive. We're all here to build something cool.
+Be respectful and constructive in issues, reviews and discussion.
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the same license as the project.
+By contributing, you agree that your contributions are licensed under the
+project's [MIT License](https://github.com/Higher-Standard-Games/shag/blob/main/LICENSE).

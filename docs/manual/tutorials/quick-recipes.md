@@ -56,7 +56,7 @@ commands.register(
 commands.unregister('hello_runtime');
 ```
 
-For a permanent command, add a `Command` subclass to an auto-discovered command directory.
+For a permanent command, add a `Command` subclass to a command directory; see [Custom commands](./intermediate/custom-commands.md).
 
 ## Toggle wireframe
 
@@ -82,7 +82,7 @@ const unsubscribe = EventBus.on(eventName, handler);
 unsubscribe();
 ```
 
-Use event names and payload types already defined by the subsystem. Do not invent global gameplay events as an integration contract.
+Use the event names and payload types the subsystem already defines rather than introducing new global events as an integration contract.
 
 ## Camera inspection
 

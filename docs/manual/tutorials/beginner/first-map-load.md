@@ -78,4 +78,3 @@ npm run cli:game -- --exec 'bsp load wdm2; bsp info; quit'
 - Run `npm run tools:manifest` after adding a PK3.
 - Use `pk3 stats` and `pk3 find maps/wdm2.bsp` to check discovery.
 - Use `render list` for current renderer variables; changes apply immediately.
-- Do not use `pk3 list maps/` or `r_apply`; those are not current commands.

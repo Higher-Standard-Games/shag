@@ -1,6 +1,6 @@
 # Networking System
 
-SHAG Engine uses Q3-style server-authoritative multiplayer networking. If you've ever wondered why Quake felt so good over dial-up while modern games feel laggy over fiber—this is why.
+SHAG uses Quake 3-style server-authoritative networking: the server runs the one true simulation, each client predicts its own movement so input feels immediate, and remote players are interpolated between snapshots. This is the model that kept Quake responsive on high-latency connections.
 
 ---
 
@@ -33,34 +33,6 @@ SHAG Engine uses Q3-style server-authoritative multiplayer networking. If you've
 
 ## Core Concepts
 
-### Slow readers and diagnostics
-
-The game server caps each WebSocket's queued output at approximately 8 MiB. A
-reader that falls behind that limit is disconnected instead of receiving an
-ever-growing backlog of stale snapshots. Admitted clients use the existing
-session-resume path; healthy connections keep receiving broadcasts. This is a
-resource bound, not a change to snapshot delta encoding or gameplay simulation.
-
-`cl_netgraph` labels snapshot gaps as **gaps**, an estimate rather than a wire
-packet-loss measurement. It learns cadence from recent arrivals and clears its
-history on reconnect/resume. Welcome currently sends the simulation tick rate,
-not the snapshot rate, so consistently missing every other snapshot remains
-ambiguous. The overlay paints at 10 Hz and resizes only when dimensions change.
-
-### Supported network timing
-
-The FPS browser client supports **125Hz simulation (8ms steps)**. Input sampling
-and prediction use the same rate. `initializeNetwork` rejects other client rate
-settings, and `NetworkGameHost` checks the server's Welcome before map loading,
-seat acceptance or snapshot delivery. A mismatch rejects the connection with an
-error naming the advertised and required rates; resumed connections are checked
-again. Early snapshot datagrams are discarded until the handshake completes.
-
-Server timing experiments at other integer rates remain available, but a 60Hz
-or 250Hz server cannot be joined by this FPS client. Welcome represents tick rate
-as one byte, so server configuration is limited to 1–255Hz. Arbitrary-rate FPS
-prediction requires further work on tick-based gameplay constants.
-
 ### 1. Tick-Based Simulation
 
 The game runs in discrete time steps called **ticks**, not continuous real-time.
@@ -84,7 +56,7 @@ At **125Hz** tick rate, each tick is **8ms**. All game logic happens in ticks:
 
 **Why ticks?** Determinism. Given the same inputs in the same order, the simulation produces identical results on every machine. This is essential for multiplayer.
 
-### 2. Command Batching (Critical!)
+### 2. Command Batching
 
 Network packets arrive asynchronously. If we processed each command the moment it arrived, the simulation would be non-deterministic.
 
@@ -164,7 +136,7 @@ The server advances each player's physics **exactly one `dt` per server tick**, 
 - The input buffer is capped, so a fast/flooding client can't bank extra physics steps.
 - It acks the last **simulated** sequence (`input.lastProcessedSeq`), not the last received, so reconciliation replays exactly the un-simulated inputs.
 
-This closes an authority hole where a slow, laggy, throttled, or malicious client that halved its command rate would get *reduced* gravity and speed ("moon jump"). Input *content* still matters; input *rate* cannot change the physics.
+A slow, throttled or malicious client that sends fewer commands therefore cannot get reduced gravity or speed (a "moon jump"). Input *content* matters; input *rate* cannot change the physics.
 
 Movement effect timers (slide, wall-jump charge, ledge grab, crouch view) are all derived from an **absolute sim clock** (`sequence × dt`), so reconciliation replays recompute identical timelines instead of double-advancing — replay-idempotent by construction.
 
@@ -272,12 +244,12 @@ Render at 60fps between snapshots:
 
 **Features:**
 
-- **Auto-adjusting interp delay** — Based on snapshot arrival jitter (1× stddev), clamped to 16-150ms
+- **Auto-adjusting interp delay** — One average snapshot interval plus one standard deviation of arrival jitter, clamped to 16-150ms
 - **Velocity-based extrapolation** — On packet loss, extrapolate using last known velocity
 - **`cl_interp` CVar** — Manual interpolation delay (0 = auto-adjust)
-- **`cl_timenudge` CVar** — Render time offset for competitive advantage
+- **`cl_timenudge` CVar** — Render-time offset: negative values show remote players more recently, at the cost of smoothness
 
-Default interpolation delay: **~50ms** (down from 100ms in earlier versions).
+The interpolation delay starts at **50ms** until enough snapshots have arrived to measure jitter.
 
 ### 9. Server-Authoritative Projectiles
 
@@ -338,6 +310,33 @@ Server-side protection against speed hacking via input flooding:
 - **Silent drops** — Rejected inputs silently dropped (no disconnect)
 - **Strike counter** — Tracks violations for server-side monitoring
 
+### 13. Supported Network Timing
+
+The FPS game runs at **125Hz (8ms steps)** on both sides. `GameServer` refuses
+any other tick rate, because gameplay timers and the shared simulation assume
+it. The client checks the server's Welcome before map loading, seat acceptance
+or snapshot delivery: a mismatch rejects the connection with an error naming
+the advertised and required rates, resumed connections are checked again, and
+snapshot datagrams that arrive before the handshake completes are discarded.
+
+The engine's `ServerTiming` itself accepts any integer rate from 1 to 255Hz,
+since Welcome carries the rate in one byte, for games that tune their constants
+to another rate.
+
+### 14. Slow Readers and the NetGraph
+
+The game server caps each WebSocket's queued output at approximately 8 MiB. A
+reader that falls behind that limit is disconnected instead of receiving an
+ever-growing backlog of stale snapshots. Admitted clients use the existing
+session-resume path; healthy connections keep receiving broadcasts. This is a
+resource bound, not a change to snapshot delta encoding or gameplay simulation.
+
+`cl_netgraph` labels snapshot gaps as **gaps**, an estimate rather than a wire
+packet-loss measurement. It learns cadence from recent arrivals and clears its
+history on reconnect/resume. Welcome carries the simulation tick rate, not the
+snapshot rate, so a client that misses exactly every other snapshot cannot be
+told apart from a server sending at half the rate. The overlay paints at 10 Hz.
+
 ---
 
 ## Server Architecture
@@ -355,7 +354,7 @@ GameServer
 │   ├── DroppedWeaponSystem (death drops, pickup)
 │   ├── PickupSystem (item spawns, respawn timers)
 │   └── MovementValidator (anti-warp)
-├── GametypeController (deathmatch rules, spawns)
+├── GametypeController (match rules, scoring, spawns)
 └── Tick Loop (125Hz, snapshots every 2nd tick = 60Hz)
 ```
 
@@ -417,8 +416,8 @@ Client                              Server
    │                                   │
    │<──── SNAPSHOT ────────────────────│  Initial game state (full, no delta)
    │                                   │
-   │<──── Ping ────────────────────────│  ClockSync burst (×5)
-   │──── Pong ────────────────────────>│
+   │──── Ping ────────────────────────>│  ClockSync burst (×5)
+   │<──── Pong ────────────────────────│
    │                                   │
    │──── INPUT ───────────────────────>│  (continuous, 125Hz)
    │<──── SNAPSHOT ────────────────────│  (60Hz, delta-compressed)
@@ -443,7 +442,7 @@ All messages use binary encoding for efficiency:
 | PlayerJoined | 0x05 | Another player connected |
 | PlayerLeft | 0x06 | Another player disconnected |
 | GameStart | 0x07 | Match started |
-| Ack | 0x08 | Command acknowledged |
+| Ack | 0x08 | Snapshot acknowledgement. Numbered in this range, but sent by the **client**: it names the last snapshot received, which the server uses as the next delta baseline |
 | ServerMessage | 0x09 | Server → client text: a queue position, a rejection, an informational line |
 | Pong | 0x0A | ClockSync pong (server → client) |
 | Snapshot | 0x0B | Game state update, delta-compressed against a **named** baseline |
@@ -533,27 +532,36 @@ The `V2NetworkClient` provides Q3-style client prediction for FPS games:
 ```typescript
 import { V2NetworkClient } from '@game/client/V2NetworkClient';
 
-const v2Client = new V2NetworkClient(tickRate);
+const v2Client = new V2NetworkClient({ tickRate: 125 });
 
-// On each frame
-v2Client.update(deltaTime, inputState);
+// When a snapshot arrives: keep it for the next reconcile
+v2Client.bufferSnapshot(snapshot);
 
-// Get predicted position for rendering (with visual smoothing)
+// Each fixed step: predict the local input and keep it for replay
+const seq = v2Client.processInput({ direction, pitch, yaw, buttons, clientTick });
+
+// Each frame: reconcile against buffered snapshots, then smooth corrections
+v2Client.processBufferedSnapshots();
+v2Client.decayVisualOffset(dt);
+
+// Predicted position for rendering (with visual smoothing)
 const pos = v2Client.getVisualPosition();
 
-// Get raw predicted position (without smoothing)
+// Raw predicted position (without smoothing)
 const rawPos = v2Client.getPosition();
 
-// Check if we have valid server data
+// False until the first snapshot has given the client a position
 if (v2Client.hasValidPosition()) {
   // Safe to use position
 }
 
-// Get predicted movement state for visual effects
+// Predicted movement state for visual effects
 const ms = v2Client.getMovementState();
 // { isSliding, isCrouching, crouchViewOffset, wallJumpState,
-//   ledgeGrabState, actualHorizSpeed, slidePhase, ledgeGrabPhase }
+//   ledgeGrabState, actualHorizSpeed, slidePhase, ledgeGrabPhase, ... }
 ```
+
+`src/games/fps/Game.ts` shows the full per-frame order.
 
 ### Features
 
@@ -563,7 +571,7 @@ const ms = v2Client.getMovementState();
 - **Snap correction** for major desyncs (respawn, teleport, knockback > 50 units)
 - **Grounded state protection** when no inputs need replay
 - **Predicted movement state** for visual effects (crouchslide, wall jump, ledge grab)
-- **Client-side knockback prediction** for instant self-damage feedback
+- **Knockback drag** replayed with the server's own `applyKnockbackDrag`; the impulse itself always comes from the server
 
 ### Reconciliation Flow
 
@@ -590,17 +598,18 @@ cl_netgraph 1         # Text-only stats
 cl_netgraph 2         # Text + rolling history graph
 ```
 
-**Displayed metrics (7 total):**
+**Displayed metrics:**
 
-| Metric | Description |
+| Label | Description |
 |--------|-------------|
-| Ping | Round-trip time to server |
-| Snapshot Rate | Snapshots received per second |
-| Packet Loss % | Estimated from tick gaps |
-| Interp Delay | Current interpolation buffer delay |
-| Command Rate | Inputs sent per second |
-| Reconciliation | Reconciliation events per second |
-| Clock Offset | ClockSync time offset to server |
+| `ping` | Round-trip time to the server |
+| `avg` | Average ping over the recent window |
+| `snap` | Snapshots received per second |
+| `gaps` | Estimated share of missed snapshots, from gaps in arrival cadence |
+| `interp` | Current interpolation delay |
+| `cmd` | Inputs sent per second |
+| `recon` | Reconciliations per second |
+| `clock` | ClockSync offset to the server |
 
 ---
 
@@ -657,12 +666,12 @@ npm run net:client -- --name Bob
 
 - The grounded flag must be transmitted in snapshots
 - Client must read and apply grounded state from velocity component
-- Server must set grounded=true when player touches ground
+- Server must set grounded=true when the player touches the ground
 
 ### "Players teleport/snap"
 
 - Check visual offset smoothing is working (`getVisualPosition()` not `getPosition()`)
-- Verify reconciliation isn't replaying too many inputs (max 32 cap)
+- Look for `Resynchronising` warnings: more than 32 unacknowledged inputs makes the client adopt the server state and discard them
 - Check for large knockback events (> 50 units triggers snap)
 
 ### "High bandwidth usage"
@@ -673,15 +682,13 @@ npm run net:client -- --name Bob
 
 ### "Jittery remote players"
 
-- Check `cl_netgraph 2` for packet loss %
+- Check `cl_netgraph 2` for snapshot gaps
 - Increase `cl_interp` for smoother interpolation (trade-off: more visual latency)
 - Verify ClockSync is active (clock offset should be stable)
 
 ---
 
-## For AI Assistants
-
-Key files to understand the networking system:
+## Key Files
 
 | File | Purpose |
 |------|---------|

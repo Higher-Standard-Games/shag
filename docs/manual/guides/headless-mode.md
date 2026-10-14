@@ -44,50 +44,43 @@ npm run server:tick
 npm run server:fuzz -- --ticks 1000
 ```
 
-The server takes `--port`, `--map`, `--gametype`, `--name`, `--maxclients`,
-`--snapshotrate`, `--game`, and `--cert`/`--key` for TLS. The
-client takes `--connect <url>` and `--name`; it has no `--host` or `--port`.
+The server's options are listed in the [network server reference](../tools/network-server.md). The
+client takes `--connect <url>` and `--name`.
 
 The dedicated server is a different entry point from `cli:game`; it owns the authoritative simulation and network transport.
 
-## Ranking math simulation
+## Ranking tools
 
 ```bash
 npm run ranking:simulate
+npm run ranking:acceptance
 ```
 
-This runs reproducible synthetic human Duel, ten-player FFA and shuffled 5v5
-matches. It prints the versioned TrueSkill policy, rating/uncertainty checkpoints
-and the match where each simulated player first leaves provisional status.
-It uses seed 927 and 500 matches per scenario, without opening a database or
-starting a server. These are numerical checks, not calibrated player or bot
-ratings. The transactional journal and human mode eligibility/live updates are
-implemented; bot calibration and skill leaderboard integration remain pending.
+`ranking:simulate` runs reproducible synthetic Duel, ten-player FFA and shuffled
+5v5 matches (seed 927, 500 matches per scenario) without opening a database or
+starting a server. It prints the versioned TrueSkill policy, rating and
+uncertainty checkpoints, and the match where each simulated player leaves
+provisional status. These are numerical checks of the policy, not real player
+or bot ratings. `ranking:acceptance` runs real lobby and game-server result
+handoffs in isolation.
 
-To inspect persisted result/rating processing and verify applied updates:
-
-```bash
-npm run lobby:server -- --ratings-info --data-dir ./server-data
-npm run lobby:server -- --ratings-verify --data-dir ./server-data
-```
-
-Both commands open storage read-only and start no service. Verification returns
-an error if storage is unavailable or replay diverges; it compares snapshots,
-record projections, every before/after update and current rating states in
-durable ingestion order. A consistent empty/applied-zero journal does not mean
-that live skill updates are enabled. Check the applied/pending counts and reasons.
-
-## Demos and anti-cheat tools
-
-To inspect lobby result storage without starting or changing the service:
+The lobby's stored results and ratings can be inspected without starting it:
 
 ```bash
 npm run lobby:server -- --results-info --data-dir ./server-data
+npm run lobby:server -- --ratings-info --data-dir ./server-data
+npm run lobby:server -- --ratings-verify --data-dir ./server-data
+npm run lobby:server -- --results-recover --data-dir ./server-data
 ```
 
-This reports the resolved directory and result schema status, with scoped
-counts/latest match when available. Standalone game/demo tools do not produce
-account-backed lobby rankings. See [Lobby server](./lobby-server.md#diagnosing-empty-boards).
+The first three open storage read-only; `--ratings-verify` replays every applied
+rating update and exits non-zero if the replay diverges. `--results-recover`
+commits signed results still waiting in the result outbox. Standalone game and
+demo tools do not produce account-backed results. See
+[Lobby server](./lobby-server.md#diagnosing-empty-boards) for what each reports,
+and how bots are rated as their preset accounts in the Private pools.
+
+## Demos and anti-cheat tools
 
 ```bash
 npm run demo:record -- --map wdm12 --bots 2 --seconds 30
@@ -101,26 +94,17 @@ npm run anticheat:calibrate -- --trials 40 --ticks 1500
 is how a trained model gets watched in a real match. Its recordings carry no
 verified players, so training reads them only with `--include-bots`.
 
-Treat synthetic anti-cheat calibration numbers as directional until calibrated against real player demos.
+`demo:verify` replays a re-simulation bundle (`.shagverify`, distinct from a
+`.shagdemo` playback file) through the deterministic simulation and checks that
+its recorded per-tick checksums reconcile: exit 0 when they do, 1 when they
+diverge. Treat `anticheat:calibrate` numbers as directional until they are
+calibrated against real player demos.
 
-Lobby-spawned private matches pass `--private-match` to `net:server`; the game
-server writes this visibility into the demo header (format v4 and later). New
+Lobby-spawned private matches pass `--private-match` to `net:server`, and the
+game server writes that privacy into the demo header (format v4 and later). New
 recordings are v5, whose frames also carry each player's view. Standalone
-recordings default to public. The current reader supports v1–v5; an older
-browser build needs updating before it can play newer recordings.
-
-Ranking development/operations:
-
-```bash
-npm run ranking:simulate
-npm run lobby:server -- --results-recover --data-dir ./server-data
-npm run lobby:server -- --ratings-verify --data-dir ./server-data
-```
-
-Bots are rated as their preset accounts in the Private pools; see the lobby
-guide. Recovery retries private signed outbox files into receipts without
-starting a service, requires an explicit data directory and cannot invent a
-finish for an unfinished child. See [Lobby server](./lobby-server.md#delivery-recovery).
+recordings are public. The reader accepts v1–v5; an older browser build cannot
+play a newer recording until it is updated.
 
 ## Exit status
 

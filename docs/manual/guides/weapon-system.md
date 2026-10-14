@@ -36,8 +36,8 @@ does not steer an already spawned shot.
 The viewmodel camera is parented at the main camera's local origin. Projectile
 renderers receive an explicit visual muzzle instead of using `scene.activeCamera`,
 which may refer to the last weapon-camera pass. Demo POV uses its own view manager.
-Projectile ownership is still inferred from nearby position/forward velocity;
-reliable owner metadata is a tracked follow-up in the v0.9.23 QA ledger.
+Which local shot a projectile belongs to is inferred from its position and
+forward velocity; projectiles do not carry an explicit owner for this.
 
 ## Console inspection
 
@@ -58,7 +58,7 @@ giveweapon <weapon_id|all> [amount]
 cl_wep_reset
 ```
 
-`weapon` itself is not developer-gated; `giveweapon` and `cl_wep_reset` are not either.
+None of `weapon`, `giveweapon` or `cl_wep_reset` requires developer mode.
 
 Use `help weapon` for the active command metadata.
 

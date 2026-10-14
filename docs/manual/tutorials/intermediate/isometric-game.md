@@ -37,7 +37,7 @@ Only run this after the camera system and built-in controllers have been initial
 
 ## Projection
 
-Controller type and projection mode are separate concepts. `CameraSystem.applyCameraMode('orthographic')` is a code API; the current console `camera mode` command selects controllers rather than projection.
+Controller type and projection mode are separate. Set the projection in code with `CameraSystem.applyCameraMode('orthographic')`; the console `camera mode` command selects a controller only.
 
 ## Map loading
 

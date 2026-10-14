@@ -32,7 +32,8 @@ Use this generic class only when building an engine-level controller. Existing F
 Common movement variables include:
 
 ```text
-cl_speed
+sv_movementSpeed
+sv_runSpeed
 sv_topspeed
 sv_jumpheight
 sv_gravity
@@ -40,11 +41,13 @@ sv_aircontrol
 sv_autohop
 ```
 
-Ground speed is `cl_speed`, with `sv_topspeed` and `sv_maxairspeed` as the
-server's caps; there is no `sv_speed`. Fall damage, ledge grabs, wall jumps and
-the weapon-bob and ADS groups are all registered here too.
+FPS ground speed is `sv_movementSpeed` (280 units per second) and sprinting
+forward is `sv_runSpeed` (400); `sv_topspeed` and `sv_maxairspeed` cap
+movement. `cl_speed` belongs to the generic `CharacterController`, not to the
+FPS simulation. Fall damage, ledge grabs, wall jumps and the weapon-bob and ADS
+groups are registered in `MovementVars.ts` too.
 
-Run `cvarlist sv_` or inspect `MovementVars.ts` for the current registered set and bounds. Avoid copying old default values into game design documents; profiles and gametypes may override them.
+Run `cvarlist sv_` or inspect `MovementVars.ts` for the registered set and bounds. Profiles and gametypes may override the defaults, so check them before quoting a value in design documents.
 
 ## Features
 

@@ -12,7 +12,7 @@ In-depth explanations of SHAG Engine systems. These guides explain concepts and 
 | [PK3 Filesystem](./pk3-filesystem.md) | Virtual filesystem and archive loading |
 | [Camera System](./camera-system.md) | Camera controllers and modes |
 | [Physics System](./physics-system.md) | Collision detection and backends |
-| [Raw .map System](./raw-map-system.md) | **Prototyping without compiling** (NetRadiant workflow) |
+| [Raw .map System](./raw-map-system.md) | Parsing and rendering text `.map` files (an extension path, not a playable map route) |
 | [Movement System](./movement-system.md) | Player movement and physics cvars |
 | [Pickup System](./pickup-system.md) | Engine-generic in-world collectibles + how to subclass for your game |
 | [Viewport Effects](./viewport-effects.md) | View bob, screen shake, FOV effects |
@@ -45,7 +45,6 @@ In-depth explanations of SHAG Engine systems. These guides explain concepts and 
 |-------|-------------|
 | [Networking System](./networking.md) | Multiplayer architecture and API |
 | [Lobby Server](./lobby-server.md) | Accounts, rooms, match spawning, results and ranking |
-| [Map Launching](./map-launching.md) | Lobby dev-spawn flow used by the developer `map` command |
 
 ## Advanced Topics
 

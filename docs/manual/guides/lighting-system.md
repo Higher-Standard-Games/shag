@@ -56,8 +56,8 @@ The loader has focused integrations for emissive surfaces, area-light entities, 
 
 ### Shadow-map limitation
 
-`SkyLightSystem.init()` currently forces `enableShadows` off on both WebGL2 and
-WebGPU because of an unresolved large-map shadow artifact. It does not create a
+`SkyLightSystem.init()` turns `enableShadows` off on both WebGL2 and WebGPU
+because of an unresolved shadow artifact on large maps. It does not create a
 shadow generator. `shadow on` changes the scene's shadow toggle; it does not
 create missing generators. Use `shadow info` to distinguish an enabled toggle
 from an actual shadow-map setup. Baked BSP lightmaps remain active independently.

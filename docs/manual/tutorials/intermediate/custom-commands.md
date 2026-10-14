@@ -1,10 +1,10 @@
 # Adding a console command
 
-Commands are class modules under an auto-discovered command directory.
+Commands are classes in a command directory that the console discovers automatically.
 
 ## Game-specific command
 
-Create `src/games/fps/console/commands/HelloCommand.ts`:
+Create `src/games/fps/console/commands/HelloCommand.ts` (the file name must end in `Command.ts` to be discovered):
 
 ```ts
 import { Command, type CommandDef, fail } from '../../../../engine/console/Command';
@@ -54,7 +54,7 @@ Return `fail(message)` when automation must see a failure. An ordinary returned 
 
 ## Cleanup for dynamic commands
 
-Auto-discovered command classes live for the registry lifetime. A runtime integration may instead use the legacy overload:
+Discovered command classes stay registered for the registry's lifetime. A runtime integration can register a handler function instead and remove it on teardown:
 
 ```ts
 const registry = CommandRegistry.getInstance();

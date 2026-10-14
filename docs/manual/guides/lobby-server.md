@@ -168,60 +168,78 @@ challengers queue, and the side is theirs when it frees.
 
 ## Results and ranking
 
+### The result report
+
 The game server prints one signed line when the match ends, naming each seat's
 ticket and how it finished. The lobby refuses anything malformed, oversized,
 forged, or naming a seat that was never on the roster, and stores the result
 once, keyed by match id.
 
-The current child-to-lobby result contract is **V2**. It binds played seats to
-stable admission IDs and captures match start/end, join/leave ticks, teams played,
-final team scores, placements and completion reason. Initial/recovery credentials
-and resumed sockets cannot create two result participants for one seat. Upgrade
-the lobby and spawned game-server code together; V1 result lines are not accepted.
+The child-to-lobby result contract is **V2**. It binds played seats to stable
+admission IDs and records match start and end, join and leave ticks, the teams
+played, final team scores, placements and the completion reason. Initial and
+recovery credentials and resumed sockets cannot create two result participants
+for one seat. The lobby does not accept V1 result lines, so upgrade the lobby
+and the game-server code together.
 
 A player who disconnects remains in the final played roster. In FFA their last
-score survives permanent departure, and equal scores share a placement at any
-position. Tied leaders receive draws; lower placements receive losses. A client
-who only watched or permanently left before the match started creates no played entry.
+score survives a permanent departure, and equal scores share a placement at any
+position: tied leaders receive draws, lower placements receive losses. A client
+who only watched, or left for good before the match started, creates no played
+entry.
 
-In a started single-match Duel/Amphi game, a human's expired **20-second** resume
-grace triggers a forfeit only when the original two opponents played from the
-start, stayed on their respective sides, and the other is still playing on a
-connected socket. Both seats and actual scores are retained; the forfeit decides
-the outcome even when the departed player was leading. Simultaneous departures,
-an empty match and a graceful mid-match server stop are aborted, with no invented
-win/draw. FFA and S&D have no disconnect-forfeit rule in this slice.
+In a started single-match Duel or Amphi game, a human whose **20-second** resume
+grace expires forfeits, provided the original two opponents played from the
+start, stayed on their sides, and the other is still playing on a connected
+socket. Both seats and the actual scores are kept, and the forfeit decides the
+outcome even when the departed player was leading. Simultaneous departures, an
+empty match and a graceful mid-match server stop are aborted, with no invented
+win or draw. FFA and S&D have no disconnect-forfeit rule.
 
-Aborted reports are diagnosed as `skipped: aborted` and do not change the record
-board. Verified reports now save a durable normalized V2 snapshot, played seats,
-starting roster and record/rating processing reasons. The snapshot and eligible
-W/L/D projection commit in one SQLite transaction. Aborted/ineligible receipts
-remain excluded from record statistics. Ticket fields and authentication secrets
-are omitted from the journal. Changed results under an existing match ID fail;
-equivalent reordered duplicates preserve the original receipt.
+A verified report is saved as a normalized V2 snapshot with its played seats,
+starting roster and the reasons for how it was processed. The snapshot and its
+win/loss/draw record commit in one SQLite transaction. Aborted reports are
+logged as `skipped: aborted` and change no record. Ticket fields and
+authentication secrets are left out of the journal. A different result under an
+existing match ID fails; an equivalent duplicate in another order keeps the
+original receipt.
 
-Complete eligible human results now atomically apply TrueSkill updates and their
-before/after states in separate public/private pools for Duel, Amphi, S&D and FFA.
-The original roster must play from the first Active tick on unchanged sides.
-Late joins, missing participation evidence and interrupted play keep their
-records with an explicit skill exclusion. A spectator departure stays marked
-after rejoining; a reconnect-held entity continues participating. A valid final
-Duel/Amphi forfeit is eligible. S&D uses team standings; FFA uses every placement,
-including ties. Private bot games are rated through the bots' preset accounts
-(below).
+### Which matches count
+
+A public match is ranked from the roster it starts with:
+
+| Mode | Ranked when |
+| --- | --- |
+| Duel, Amphi | Both players are people |
+| Team modes | More than half the room is people, **and** each side has at least one |
+| Free for all | More than half the room is people |
+
+Two people is the floor in every mode. The team rule needs its second half
+because a majority alone would rank four people against three bots, which is
+people farming bots. The rule lives in `isRankedRoster()` in
+`src/lobby/LobbyServer.ts`.
+
+Private matches are kept separately from the public record. Against bots, one
+verified account is enough, and a loss to a bot counts too. A private
+human-only match still needs two verified accounts and consistent outcomes. The
+visibility and the bot-seat count are fixed from the room's starting roster,
+and the result comes only from the authenticated game-server report.
+
+### Skill ratings
+
+Each complete, eligible result updates TrueSkill ratings atomically, storing
+every player's before and after state, in separate Public and Private pools for
+Duel, Amphi, S&D and FFA. The original roster must play from the first active
+tick on unchanged sides. Late joins, missing participation evidence and
+interrupted play keep their records but are excluded from skill, with the
+reason stored. A spectator departure stays marked after rejoining; an entity
+held through a reconnect keeps participating. A valid final Duel or Amphi
+forfeit is eligible. S&D rates by team standings; FFA rates every placement,
+including ties.
 
 Lobby display sides use the same mapping as gameplay and result normalization:
-`alpha` is Soba and `bravo` is Udon. Duel retains the assigned side independent
-of connection order. Upgrade/restart the lobby together with the game-server
-code so an old result normalizer cannot incorrectly exclude unchanged teams.
-
-New clients request the TrueSkill ladder explicitly, using the advertised
-`features.skillRatings` capability and `system: "trueskill"`. Podium, rows,
-rail and profile use career skill in the selected public/private mode pool.
-Rows retain W/L/D and matches and show Rating, provisional status and career
-rated-match count. Last 30 days filters active rated accounts and record totals;
-it does not reset or recalculate career skill. Old requests retain the record
-endpoint; a records-only server does not supply an invented skill ladder.
+`alpha` is Soba and `bravo` is Udon. Duel keeps the assigned side regardless of
+connection order.
 
 ### Bots are rated accounts
 
@@ -237,10 +255,11 @@ The account is made the first time its preset plays and has no key, so no one
 can log in to it. `bot_accounts` in `players.db` maps each preset to its
 account.
 
-The bot service supplies each bot's reference — preset or custom difficulty,
-goal arbiter, behavior build and loaded model — and the lobby accepts it only
-from the authenticated local bot service; the admission manifest and signed
-result bind it to the played seat. Not rated, with their records kept:
+The bot service supplies each bot's reference (preset or custom difficulty,
+goal arbiter, behavior build and loaded model), and the lobby accepts it only
+from the authenticated local bot service; the admission manifest and the signed
+result bind it to the played seat. These bot games keep their records but are
+not rated:
 
 | Reason | When |
 | --- | --- |
@@ -251,65 +270,115 @@ result bind it to the played seat. Not rated, with their records kept:
 Ranking schema **3** introduced the accounts. Opening a schema 1 or 2 store
 rates every stored result again in sequence order, private bot games included,
 and drops the old `bot_calibrations` table; the stored snapshots are the
-source and are not changed. Upgrade bot, lobby and child-server code together.
+source and are not changed. Upgrade the bot server, the lobby and the
+game-server code together.
+
+Bot invitations give an unavailable bot service eight seconds to respond. A
+verified preparation announcement extends that once to 75 seconds, covering a
+60-second model preparation and a ten-second lobby join. Closing or starting
+the room, or losing the requesting control connection, cancels the preparation
+and prevents a late bot join.
+
+### Leaderboard
+
+The leaderboard opens on **Public** matches. **Public / Private**, left of the
+gametype selector, selects independent boards: Private contains only private
+matches, including bot games and the bots' preset accounts. The selection
+applies to every mode and is remembered in that browser; the board, your pinned
+row and the ranks in the rail all follow it.
+
+The podium, rows, rail and profile rank by career skill in the selected pool.
+Rows also show wins, losses, draws and matches, the rating, provisional status
+and the number of rated matches. **Last 30 days** lists accounts active in that
+window with their record over it; it does not reset or recalculate career
+skill.
+
+Clients ask for the skill ladder explicitly, using the advertised
+`features.skillRatings` capability and `system: "trueskill"`; a lobby without
+skill ratings answers with records only. Leaderboard queries are authenticated,
+bounded and read-only: a mode, a period of the last 30 days or all time, an
+offset and a page of at most 100. The answer carries the asking account's own
+rank and row even when that row falls outside the page. `scope` is `public` or
+`private`, defaulting to `public`; `leaderboard:page` echoes the resolved scope,
+and clients reject a reply with a missing or different scope. Requests that use
+the obsolete `includePrivate` field are rejected.
+
+### Player stats and recent results
+
+Lobbies that advertise `features.playerStats` show, in **Profile**, separate
+Public and Private records and career gameplay totals for each mode. These do
+not require a skill rating: a match excluded from rating still shows its
+win/loss/draw and gameplay totals. Selecting a mode name opens that account's
+ten most recent results; **Older matches** pages back through a stable sequence
+cursor and **Latest matches** returns to the first page. Each entry shows the
+personal score, frags and deaths, enemy damage, and the rating change or the
+reason the match was not rated. In windows up to 1100px wide, the account
+controls and records stack in one scrollable Profile.
+
+The server records personal mode score, enemy frags, team frags, deaths, enemy
+and friendly damage, plants, defuses and active participation time. Warmup,
+countdown, round intermission, spectating and time after leaving for good are
+excluded; being dead in an active S&D round still counts as playing. Damage is
+counted before armor, and self-damage is not enemy damage. Team standings and
+personal score are separate values. Weapon accuracy and assists are not
+recorded.
+
+Stats are versioned, whitelisted and part of the signed V2 result and its
+snapshot. Ranking schema **2** added the `ranking_stats` table. Results stored
+before it have no stats, and Profile says how many of the counted matches have
+gameplay data when only some do. Aborted and excluded results keep their stats
+for the player's own history but add nothing to career totals unless they have
+an eligible record.
+
+`stats:get` / `stats:summary` reads a mode and scope summary (`period: all`, or
+`month` for a rolling 30 days of records and gameplay; rating and rank are
+always career). `stats:history` / `stats:history_page` reads the account's own
+results for a mode and scope (limit 1–50, optional exclusive `beforeSequence`),
+including `ratingChange` when there is one. The connection's account decides
+whose stats are read; a request cannot name another account. Reads share the
+ranking rate limit and never return admission credentials or other players'
+private match details.
 
 ### Delivery recovery
 
-Supervised matches persist private verification context before child launch.
-The child flushes a signed final report into `<data-dir>/result-outbox/` before
-stdout delivery. Startup, five-second retries and graceful shutdown recover
-valid completed reports into the journal. A committed receipt precedes file/
-context cleanup, so retrying after a crash cannot rate the match twice.
-Failed/rejected reports remain available for retry/inspection. No completion
-is invented for a child killed before writing its final report.
+Supervised matches save their private verification context before the child
+server starts. The child writes its signed final report into
+`<data-dir>/result-outbox/` before printing it. On startup, every five seconds,
+and on a graceful shutdown, the lobby collects valid completed reports from
+there into the journal. The receipt commits before the files are cleaned up,
+so a retry after a crash cannot rate a match twice. Failed and rejected reports
+stay for retry and inspection. Nothing is invented for a child killed before it
+wrote its final report.
 
 ```bash
 npm run lobby:server -- --results-recover --data-dir ./server-data
 ```
 
-This explicit offline command writes recovered receipts without starting the
-lobby. It requires existing consistent storage, reports delivered/waiting/
-rejected/failed counts, and exits nonzero on error/rejection. After a lobby
-restart, uncommitted bot matches retain records but are excluded from skill
-because the prior bot-control session cannot be proved continuous. Existing
-committed bot receipts remain unchanged. This restores finished results, not
-running lobby rooms. Protect the data directory: pending verification contexts
-contain signing secrets, while the normalized ranking journal does not.
-Outbox failure still attempts stdout and logs that restart recovery is unavailable.
-Machine power-loss durability and automatic retention cleanup are unverified.
+This offline command writes recovered receipts without starting the lobby. It
+requires existing, consistent storage, reports delivered, waiting, rejected and
+failed counts, and exits non-zero on an error or rejection. Bot matches still
+uncommitted when the lobby restarted keep their records but are excluded from
+skill, because the earlier bot control session cannot be proved continuous.
+Recovery restores finished results, not running rooms. Protect the data
+directory: pending verification contexts contain signing secrets, while the
+ranking journal does not. If the outbox cannot be written, the server still
+prints the result and logs that restart recovery is unavailable. Durability
+across a machine power loss is not verified.
 
-A public match is ranked from the roster it starts with:
+Delivery maintenance:
 
-| Mode | Ranked when |
-| --- | --- |
-| Duel, Amphi | Both players are people |
-| Team modes | More than half the room is people, **and** each side has at least one |
-| Free for all | More than half the room is people |
+```bash
+npm run ranking:delivery -- --info --data-dir ./server-data
+npm run ranking:delivery -- --cleanup --data-dir ./server-data --older-than-hours 168
+```
 
-Two people is the floor in every mode. The team rule needs its second half
-because a majority alone would rank four people against three bots, which is
-people farming bots. The rule lives in `isRankedRoster()` in
-`src/lobby/LobbyServer.ts`.
-
-Private matches are stored separately from that public record. Against bots,
-one verified account is enough, and a human loss to a bot counts too. A private
-human-only match still needs two verified accounts and consistent outcomes.
-The visibility and bot-seat count are fixed from the room's starting roster,
-and the result still comes only from the authenticated game-server report.
-
-The leaderboard opens on **Public** matches. **Public / Private**, left of the
-gametype selector, selects independent boards: Private contains only private
-matches, including bot games and the bots' preset accounts. This setting
-applies to every mode and is remembered in that browser. The board, your pinned
-row and the ranks in the rail all use the same selection.
-`npm run ranking:simulate` exercises the TrueSkill adapter headlessly.
-
-Leaderboard queries are authenticated, bounded and read-only: a mode, a period
-of the last 30 days or all time, an offset and a page of at most 100. The
-answer carries the asking account's own rank and exact row even when that row
-falls outside the page. `scope` is `public` or `private`, defaulting to `public`;
-`leaderboard:page` echoes the resolved scope. Clients reject replies with a
-missing or different scope. Obsolete `includePrivate` requests are rejected.
+Inspection is paginated (`--offset N`), read-only, and leaves out private
+verification keys, tickets and raw reports. Cleanup only previews unless given
+`--apply`; stop the lobby first. It keeps unresolved reports and unknown or
+running contexts, and removes only committed leftovers, old closed contexts
+without reports, and old temporary files it owns. Linked paths are refused. A
+running lobby retries 100 contexts at a time in rotation; offline recovery
+drains the whole backlog.
 
 ### Diagnosing empty boards
 
@@ -317,126 +386,67 @@ missing or different scope. Obsolete `includePrivate` requests are rejected.
 npm run lobby:server -- --results-info --data-dir ./server-data
 ```
 
-This command prints the resolved data directory, total match/participant row
-counts, counts per scope/gametype, and latest stored match. It opens SQLite
-read-only and exits without starting a server, creating storage, or migrating
-old results. `missing_database` means the file is absent; `schema_unavailable`
-means that file does not yet have the current result columns. Confirm the
-browser's `VITE_LOBBY_URL` and the running service's `--data-dir` or
-`SERVER_DATA_DIR` before interpreting counts from a local default directory.
+This prints the resolved data directory, total match and participant counts,
+counts per scope and gametype, and the latest stored match. It opens SQLite
+read-only and exits without starting a server, creating storage or migrating
+results. `missing_database` means the file is absent; `schema_unavailable`
+means the file lacks the current result columns. Confirm the browser's
+`VITE_LOBBY_URL` and the running service's `--data-dir` or `SERVER_DATA_DIR`
+before reading counts from a local default directory.
 
 On startup the lobby logs its storage summary. Each received result logs one
-status (`stored`, `duplicate`, `skipped`, `rejected`, `failed`) and reason,
+status (`stored`, `duplicate`, `skipped`, `rejected`, `failed`) and a reason
 such as `verification_failed`, `unknown_match`, `public_roster_ineligible`,
-`too_few_accounts` or `store_error`. Logs include bounded match/mode identifiers
-and known scope, without keys, tickets or participant payloads. The server's
-`getResultDiagnostics()` method exposes process-local counters and the last
-32 outcomes for admin code/tests; this is not a browser endpoint. Durable
-counts come from SQLite; runtime counters reset when the process restarts.
+`too_few_accounts` or `store_error`. Logs carry match and mode identifiers and
+the scope, never keys, tickets or participant payloads. `getResultDiagnostics()`
+exposes process-local counters and the last 32 outcomes to admin code and
+tests; it is not a browser endpoint, and its counters reset when the process
+restarts.
 
-For the new ranking journal:
+For the ranking journal:
 
 ```bash
 npm run lobby:server -- --ratings-info --data-dir ./server-data
 npm run lobby:server -- --ratings-verify --data-dir ./server-data
 ```
 
-`--ratings-info` reports schema/policy version, receipt/seat/update/rating counts,
-processing reasons grouped by mode/scope and the latest committed receipt.
-`--ratings-verify` additionally replays applied receipts read-only, comparing
-the stored snapshots, seat/record projections, every journal update and current
-pool state. It exits nonzero on unavailable storage or divergence. A WAL read
-snapshot keeps this check consistent if another connection commits a match.
-The commands never create tables, backfill results or start the lobby.
+`--ratings-info` reports the schema and policy version, receipt, seat, update
+and rating counts, processing reasons by mode and scope, and the latest
+committed receipt. `--ratings-verify` also replays the applied receipts
+read-only, comparing the stored snapshots, record projections, every journal
+update and the current pool state, and exits non-zero when storage is
+unavailable or the replay diverges. A WAL read snapshot keeps the check
+consistent while another connection commits. Neither command creates tables,
+backfills results or starts the lobby.
 
-The ranking schema has its own version, separate from account `user_version`.
-It initializes empty journal/rating tables and pins the numerical policy;
-unsupported/partial schemas or a changed policy fail without an automatic reset.
-Existing development records are not imported into ratings. Production will
-start fresh as planned; no reset is performed merely by starting these tools.
+The ranking schema has its own version, separate from the account database's
+`user_version`, and pins the numerical rating policy. An unsupported or partial
+schema, or a changed policy, fails without an automatic reset.
+
+`npm run ranking:simulate` exercises the TrueSkill policy on synthetic matches,
+and `npm run ranking:acceptance` runs real lobby and game-server result
+handoffs in isolation; run it before live browser testing.
 
 ### Demo privacy
 
 Demo format v4 added the room's privacy flag to the header; v5 keeps that
 header and adds each player's view to the frames (their keys, slide and ledge
 grab phases and crouch eye height, so a watched view leans, dips and crouches
-as their screen did). The reader still accepts v1–v3 recordings; those have no privacy flag
-and remain eligible as legacy public demos. Featured picks exclude recordings
-marked private, including recordings featuring a public top-ten account.
-Private recordings remain in the archive and in their verified participants'
-**Your demos** list. The privacy flag filters featured picks; it does not
-restrict access to demo files.
+as their screen did). The reader still accepts v1–v3 recordings, which have no
+privacy flag and count as public. Featured picks leave out recordings marked
+private, even those featuring a public top-ten account. Private recordings
+stay in the archive and in their verified participants' **Your demos** list:
+the flag filters featured picks and does not restrict access to demo files.
 
 ## What it keeps
-
-### Player gameplay stats and recent results
-
-Updated lobbies advertise `features.playerStats`. In **Profile**, select Public
-or Private to see independent records and career gameplay totals for each mode.
-These record totals do not require a skill rating: a match excluded from rating
-still shows its W/L/D and gameplay totals.
-Select a mode name to open the ten most recent own-account results. **Older
-matches** uses a stable sequence cursor; **Latest matches** returns to the first
-page. History shows personal score, frags/deaths, enemy damage and the committed
-display-rating change or a readable exclusion reason. In windows up to
-1100px wide, account controls and records stack in a single scrollable Profile.
-Record rows wrap to fit the available space, including smaller desktop sidebars.
-
-The server captures personal mode score, enemy frags, team frags, deaths,
-enemy/friendly damage, plants, defuses and active participation milliseconds.
-Warmup, countdown, round intermission, spectator and permanently departed time
-are excluded; being dead in an active S&D round still occupies a playing seat.
-Damage follows the existing server counter (before armor); self-damage is not
-enemy damage. Team standings and personal score are separate values.
-
-Stats are versioned, whitelisted and included in the signed V2 result and its
-canonical snapshot. Ranking schema **2** adds the `ranking_stats` projection
-and an account/sequence index in an additive transaction from schema 1. It
-creates no historical stats: missing fields remain unavailable. Profile shows
-the number of results covered if only some counted matches have gameplay data.
-Aborted/excluded receipts retain their captured stats for own history/audit but
-do not add career gameplay totals when they have no eligible record.
-
-Protocol: `stats:get`/`stats:summary` reads a mode/scope summary (`period: all`
-or `month`, a rolling 30 days for records/gameplay; rating/rank remain career).
-`stats:history`/`stats:history_page` reads own-mode/scope receipts (limit 1–50,
-optional exclusive `beforeSequence`), including `ratingChange` when available.
-The authenticated connection determines the account; requests cannot select
-another account. Reads share the existing ranking rate limit and return no
-admission credentials or other players' private match details. Older lobbies
-retain the existing rating-only Profile behavior. Weapon accuracy and assists
-are outside this initial stats capture.
-
-For repeatable ranking acceptance, run `npm run ranking:acceptance` before live
-browser testing. It includes isolated real lobby/child-server result handoffs.
-
-Bot invitations give an unavailable service eight seconds to respond. A verified
-preparation announcement extends that budget once to 75 seconds, covering a
-60-second model preparation and ten-second lobby join. Closing/starting a room
-or losing the requesting control connection cancels preparation and prevents a
-late bot join. Native loading itself can finish later, with resources disposed.
-
-Minimal delivery maintenance:
-
-```bash
-npm run ranking:delivery -- --info --data-dir ./server-data
-npm run ranking:delivery -- --cleanup --data-dir ./server-data --older-than-hours 168
-```
-
-Inspection is paginated (`--offset N`), read-only and excludes private verification
-keys, tickets and raw reports. Cleanup previews by default; stop the lobby before
-adding `--apply`. It preserves unresolved reports and unknown/running contexts,
-and removes only committed leftovers, old known-closed contexts without reports,
-and old owned temporary files. Linked paths are refused. Live retries process a
-rotating budget of 100 contexts; explicit offline recovery drains the backlog.
 
 Everything lives in the data directory — `--data-dir`, else `SERVER_DATA_DIR`,
 else `server-data/` beside the repo:
 
 | File | Contents |
 | --- | --- |
-| `players.db` | Accounts, records, verified V2 snapshots, rating policy/state/update journal, bot preset accounts and private pending verification contexts, in `node:sqlite` |
-| `result-outbox/` | Signed completed reports awaiting committed receipt/acknowledgement; separate from public demos |
+| `players.db` | Accounts, records, verified V2 snapshots, the rating policy, states and update journal, bot preset accounts and pending private verification contexts, in `node:sqlite` |
+| `result-outbox/` | Signed completed reports awaiting a committed receipt; separate from public demos |
 | `bot-secret` | The secret shared with the bot server, written by whichever starts first |
 
 Demo recordings are not kept here: the lobby scans the game servers'

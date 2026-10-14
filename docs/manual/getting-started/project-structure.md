@@ -33,7 +33,7 @@ src/
   tools/             source-side content tooling
 ```
 
-The codebase is currently FPS-centric. `src/main.ts` composes FPS classes directly and TypeScript maps `@game/*` to `src/games/fps/*`.
+The codebase is FPS-centric. `src/main.ts` composes FPS classes directly and TypeScript maps `@game/*` to `src/games/fps/*`.
 
 ## Engine areas
 

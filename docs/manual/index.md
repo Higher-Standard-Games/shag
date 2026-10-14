@@ -7,7 +7,7 @@ It provides BSP/PK3 loading, Quake shader compatibility, deterministic movement 
 ## Current boundaries
 
 - Indexed Q3 IBSP and Warsow/qfusion FBSP maps are the primary playable content path.
-- A raw text-map parser and renderer exist, but local `.map` loading is not yet wired into the active high-level FPS loader.
+- SHAGGED, the built-in map editor, builds, compiles and playtests maps. A raw text-map parser and renderer also exist, but a local `.map` file is not a playable map.
 - Web and Node/headless flows are active.
 - Android and Electron projects exist but have documented integration/packaging work remaining.
 - External game media belongs under `public/data/` and is not committed.

@@ -53,8 +53,6 @@ render reset
 render export
 ```
 
-The old `r_list` and `r_reset` names are not current commands.
-
 ## Debugging
 
 ```text
@@ -65,7 +63,7 @@ shader aim 1
 shader info
 ```
 
-There is no `debug fps` subcommand in the current `DebugCommand`.
+`show_fps` toggles the frame-rate counter.
 
 ## Quoting and batches
 
@@ -81,4 +79,4 @@ Headless batches are semicolon-separated:
 npm run cli:game -- --exec 'bsp load wdm2; bsp info; quit'
 ```
 
-Custom alias creation is not currently implemented. Add repeatable behavior as a command class or an `exec` configuration instead.
+The console has no user-defined aliases. Put repeatable sequences in a configuration file and run it with `exec`, or add a command class.

@@ -1,12 +1,12 @@
 # Deployment
 
-The repository has three delivery paths, but they are not at the same maturity level.
+The repository has three delivery paths, at different levels of maturity.
 
 | Target | Current path | Status |
 | --- | --- | --- |
 | Web | Vite static build | Primary and directly buildable |
-| Android | Capacitor 8 project in `android/` | Project exists; native lifecycle wiring needs verification |
-| Desktop | Electron 40 and electron-builder | Shell exists; packaging metadata path is currently stale |
+| Android | Capacitor 8 project in `android/` | Project exists; native startup and lifecycle need verifying on a device |
+| Desktop | Electron 40 and electron-builder | Shell and packaging config exist; installers need testing per platform |
 | iOS | Capacitor | No iOS project is committed |
 
 Start with a clean web build:

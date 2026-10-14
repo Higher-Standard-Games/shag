@@ -13,8 +13,8 @@
   "categorizeByGroup": true,
   "categoryOrder": ["Core", "UI", "Rendering", "Audio", "Debug", "*"],
   "navigationLinks": {
-    "SHAG Engine": "https://github.com/your-repo",
-    "Changelog": "./changelog/README.md"
+    "SHAG Engine": "https://github.com/Higher-Standard-Games/shag",
+    "Changelog": "https://github.com/Higher-Standard-Games/shag/tree/main/docs/changelog"
   },
   "customCss": "docs/api-theme.css",
   "gitRevision": "main",

@@ -26,8 +26,6 @@ const shader = registry.getShader('textures/liquids/pool3d_3c');
 const props = registry.resolveMaterialProps('textures/liquids/pool3d_3c');
 ```
 
-The current method is `loadShaders()`; there is no `loadFromPK3()`.
-
 ## Supported material behavior
 
 The parser and BSP material path cover the compatibility features most maps depend on:
@@ -38,19 +36,19 @@ The parser and BSP material path cover the compatibility features most maps depe
 - `tcMod` animation;
 - `tcGen environment`;
 - wave-driven `rgbGen` and `alphaGen`;
-- `deformVertexes autosprite` and `autosprite2`.
+- `deformVertexes autosprite` and `autosprite2`;
 - QFusion/Warsow `cubemap` sources are preserved as appearance hints for the
   unified liquid renderer, including inside `if textureCubeMap` blocks.
 
-Support is not a complete reimplementation of the original Q3 renderer. In particular, other vertex deforms such as `wave`, `bulge`, and `move` are currently skipped by the parser. Some uncommon multi-stage combinations are approximated by Babylon material paths.
+Support is not a complete reimplementation of the original Q3 renderer. Other vertex deforms, such as `wave`, `bulge` and `move`, are skipped by the parser. Some uncommon multi-stage combinations are approximated by Babylon material paths.
 
 Brightness/alpha waves without `tcMod` preserve the texture's existing UV
 transform. Filter decals apply that transform when sampling, including loader
 orientation corrections. Glow overlays independently transform base and glow
 UVs after applying their animation offsets; BSP lightmaps keep their dedicated
-UV2 path. UV animation in StandardMaterial stages still needs a broader
-transform-composition audit; these fixes do not establish full
-WebGL/WebGPU visual parity.
+UV2 path. How UV animation composes with other transforms in StandardMaterial
+stages has not been audited across all content, and WebGL/WebGPU visual parity
+is not established.
 
 ## Debug workflow
 
@@ -77,7 +75,7 @@ If console output is truncated, copy it from browser DevTools with:
 copy(JSON.stringify(window.rendererSurfaceReport, null, 2))
 ```
 
-Capture separately for the floor and halo, and record the map name and backend.
+Capture each problem surface separately, and record the map name and backend.
 Use the same camera position/settings for a `?renderer=webgl2` comparison.
 
 Keep shader names normalized to forward-slash paths without file extensions.
@@ -91,16 +89,17 @@ Compatibility parsing and enhanced rendering should remain separate:
 - add specialized rendering systems, such as unified liquid surfaces, at the map-loading boundary;
 - keep a fallback material path for unsupported hardware or disabled effects.
 
-This separation lets old content continue to load while selected surface classes receive modern Babylon rendering.
+This separation keeps existing content loading while selected surface classes receive modern Babylon rendering.
 
 ## Shader warmup
 
-During gameplay map loading, `EffectPreloader` explicitly compiles seven effect
-fixtures and the scene's Standard/PBR materials through Babylon. Off-screen
+During gameplay map loading, `EffectPreloader` explicitly compiles small off-screen
+fixtures for each effect material variant and the scene's Standard/PBR materials through Babylon. Off-screen
 fixtures cannot rely on a render frame to compile them because they may be
 culled. Fixture resources are released after compilation; compilation errors
 reject the warmup and release its temporary lights. MapLoader logs a warmup
-failure before continuing to its existing scene-readiness gate. This process
+failure, or a warmup that has not finished within ten seconds, and continues to
+its scene-readiness gate. This process
 warms matching shader configurations on both backends; it does not validate GPU
 commands or guarantee every runtime variant is already cached.
 
@@ -110,119 +109,149 @@ commands or guarantee every runtime variant is already cached.
 - `src/engine/loader/shader/Q3ShaderRegistry.ts`
 - `src/engine/loader/shader/Q3ShaderMaterialFactory.ts`
 - `src/engine/loader/shader/ShaderAnimationSystem.ts`
+- `src/engine/loader/bsp/BspMeshBuilder.ts`
 
-## Engine water replacement
+## Engine water
 
-`r_water 1` replaces classified liquid surfaces on the next map load; `r_water 0`
-keeps their legacy shaders. Classification uses compiled contents, shader
-`surfaceparm`, and exact-name compatibility overrides, not name substrings.
+With `r_water 1` (the default), liquid surfaces are drawn with the engine's
+unified water material instead of their map shaders; `r_water 0` keeps the map
+shaders. Either change applies on the next map load.
 
-To bind a specific legacy shader to an engine appearance, add its normalized,
-extensionless name to `DEFAULT_LIQUID_OVERRIDES` in
-`src/engine/loader/bsp/LiquidClassifier.ts`, then rebuild/reload the map:
+### Which surfaces are water
+
+Classification uses compiled contents, shader `surfaceparm`, and exact-name
+overrides, never name substrings. To bind a specific map shader to an engine
+appearance, add its normalized, extensionless name to
+`DEFAULT_LIQUID_OVERRIDES` in `src/engine/loader/bsp/LiquidClassifier.ts`, then
+reload the map:
 
 ```ts
 "textures/example/pool": { include: true, kind: "water", profile: "clear" },
 ```
 
-Available water profiles are `default`, `clear`, and `deep`. Unknown profiles log
-a warning and use `default`. An override with `exclude: true` preserves the
-legacy appearance. This is an engine compatibility table, not a runtime JSON
-configuration file. It does not create or modify a swimmable collision volume.
+The profiles are `default`, `clear` and `deep`, which differ in how strongly
+they absorb light; an unknown profile logs a warning and uses `default`. An
+override with `exclude: true` keeps the map's own shader. The table is engine
+source, not a runtime configuration file, and it never changes the swimmable
+collision volume.
 
-All quality levels use cached room reflections and player-driven wave normals:
+### Quality
 
-- `r_water_quality 1`: no recurring depth/reflection pass.
-- `r_water_quality 2`: adds depth-based transmission/tint (default; the
-  Balanced video preset).
-- `r_water_quality 3`: adds a half-resolution opaque world-colour capture for
-  depth-guarded refraction (the Pretty preset). Both 2 and 3 enable the gameplay
-  system's existing splash detail when it initializes on map load. Depth quality
-  changes live; reload to change splash allocation.
+Every quality level uses cached room reflections and player-driven wave
+normals.
 
-The depth and colour passes run only while a liquid surface is drawn, which an
-occlusion query decides, and seen from above flat water they leave out meshes
-wholly above it. Saved settings override the default.
+| `r_water_quality` | Adds |
+| --- | --- |
+| `1` | Nothing beyond the cached reflection: no recurring depth or capture pass |
+| `2` (default, Balanced preset) | Depth-based transmission and tint, bank contact shading, and splash detail |
+| `3` (Pretty preset) | A half-resolution capture of the opaque world for depth-guarded refraction, and nearby player reflections |
 
-Water's background motion uses three slow, broad analytic waves plus a smaller
-capillary wave. Two procedural normal samples provide detail (up to 80% slope weight,
-drifting at 2 rather than 13 world units/sec), not legacy coloured shader layers.
-A faint normal-driven ambient sheen helps the surface read in dark rooms; this
-is an artistic cue, not additional traced lighting. At quality 3, normals and player ripples
-distort transmitted scene colour as well as cached reflections. Default water is
-clearer; `clear` and `deep` profiles retain distinct absorption strengths.
+Depth quality changes live; splash detail is allocated on map load, so changing
+it needs a reload. The depth and colour passes run only while an occlusion query
+says a liquid surface is drawn, and seen from above flat water they skip meshes
+wholly above it.
 
-Fine texture/capillary slopes fade between 192 and 768 world units from the eye
-and at grazing angles. The three broad waves and player ripples remain intact.
-This reduces fine striping in distant reflections; it is a heuristic, not temporal
-antialiasing. `r_water_detail 0` isolates broad waves and player ripples.
+Refraction at quality 3 costs one more world submission, at half width and
+height, while water is visible. It leaves out liquid, particles, weapon geometry
+and other transparent effects, and falls back to plain transparency below the
+surface or without a usable depth target. It is screen-space distortion, not
+traced refraction: foreground-depth and screen-edge guards reduce smearing along
+banks, but objects off screen and transparent effects under water cannot be
+reconstructed.
 
-Refraction costs one additional world submission, at half width/height, while
-water is visible. It excludes liquid, particles, weapon geometry and other
-transparent effects, and it falls back to regular transparency below the surface
-or without a usable depth target. It is screen-space distortion, not physically
-traced refraction. Foreground-depth and screen-edge guards reduce bank smearing;
-offscreen objects and submerged transparent effects cannot be reconstructed.
-Use quality 2 when that extra rendering cost is not worthwhile.
+### Surface and reflection controls
 
-The renderer captures up to four horizontal, connected water regions at 256px
-per cube face, once per map load. Adjacent faces with shared vertices share a
-region. Sloped, multi-height, or disconnected batches fall back to authored/sky
-reflection; regions beyond the capture budget also use that fallback. A neutral
-cube keeps missing assets from breaking shader sampling. Captures contain static
-map geometry, not reflected players, weapons, or transient effects. Reload the
-map to regenerate captures after changing static scenery or lighting.
+These update live unless noted. Saved settings override the defaults.
 
-Captures start only after lightmaps and BSP scene lighting have been configured.
-`r_water_probe_height 64` lifts the capture above its waterline anchor to see more
-of the room beyond dark retaining walls. Opaque geometry limits the lift, keeping
-four units of ceiling clearance; the projection bounds still include the pool.
-This setting requires a map reload; 0 restores the old waterline viewpoint and
-128 is the maximum lift. Lighting is **not** disabled for capture. The raised,
-box-projected cubemap is approximate, especially around interior islands; it is
-not a geometrically exact planar mirror.
+| Variable | Default | Range | Effect |
+| --- | --- | --- | --- |
+| `r_water_reflection` | 1.3 | 0–2 | Fresnel weight of the cached reflection, capped at 0.95; 0 removes it. A higher weight can darken the floor seen through the water, so it is not a brightness control |
+| `r_water_highlights` | 0.6 | 0–2 | Highlights from authored static lights; 0 disables |
+| `r_water_roughness` | 0.3 | 0.12–0.8 | Width of the point highlights (it does not blur the reflection) |
+| `r_water_blur` | 0.3 | 0–1 | Softens the reflection with a five-tap angular filter; 0 takes one sharp sample |
+| `r_water_detail` | 0.8 | 0–1 | Fine wave strength; 0 leaves the broad waves and player ripples |
+| `r_water_contact` | 0.25 | 0–1 | Neutral shading in a narrow band where water meets geometry; 0 disables |
+| `r_water_probe_height` | 64 | 0–128 | Lift of the reflection capture above the waterline; needs a map reload |
+| `r_water_actors` | 1 | 0–1 | Nearby player reflections at quality 3 |
+| `r_underwater_distortion` | 1 | 0–1 | Underwater view warp; at 0 the tint, fog and audio still mark being underwater |
 
-Reflection and surface-light controls update live:
+The surface moves with three slow, broad waves and a smaller capillary wave,
+with two procedural normal samples for detail. Fine slopes fade between 192 and
+768 world units from the eye and at grazing angles, which reduces striping in
+distant reflections. A faint normal-driven sheen helps the surface read in dark
+rooms; it is an artistic cue, not traced lighting.
 
-```text
-r_water_reflection 1.3
-r_water_highlights 0.6
-r_water_roughness 0.3
-r_water_blur 0.3
-r_water_detail 0.8
-r_water_contact 0.25
-```
+Highlights come from at most four authored point lights or light-emitting panels
+per pool, with coarse static visibility masks for up to four pools. Weapon and
+projectile lights are excluded, a map without eligible lights gets no invented
+sun, and moving doors and players do not update the masks. Panel colours are
+approximated from the cached room, so a dark or occluded panel can add nothing.
 
-Reflection defaults to 1.3 (30% more Fresnel weight than the previous 1.0 baseline,
-still capped at 0.95). Set 1 for the previous weighting or 0 to disable reflected
-contribution. This is not a 30% increase in final pixel brightness: dark room
-reflections can darken the transmitted floor. Highlights use at most four authored
-point lights or shader-emitting panels per supported pool, with cached 16x16 static
-visibility masks for up to four pools. Weapon/projectile lights are excluded.
-Roughness broadens the point-highlight lobe; it does not blur the cubemap.
-The separate `r_water_blur` control softens the cubemap with a normalized five-tap
-angular filter, averaged in linear colour. Zero restores one sharp sample. This
-adds four cubemap lookups per water pixel, not an additional scene submission;
-it is a small artistic filter, not physically prefiltered roughness. High settings
-can lose detail or reveal the sparse filter. Reflection strength is unchanged.
+The reflection blur adds four cubemap lookups per water pixel but no scene pass;
+high values can lose detail. Contact shading darkens all colour channels equally
+within four world units of view-ray depth, at most 6.25% at the default
+strength, and needs valid depth, quality 2 or 3 and a view from above the
+surface. It depends on the viewpoint and cannot draw a fixed shoreline.
 
-`r_water_contact` adds a subtle neutral shade in a narrow four-world-unit
-view-ray depth band. It multiplies the existing water contribution equally in
-each colour channel, without changing alpha. At the default 0.25 strength the
-maximum display-space attenuation is 6.25%. No coloured patches, repeated dots or
-foam are added. It is an artistic contact cue, not simulated wetting or a physical
-meniscus. Requires valid depth, quality
-2/3, and the front side of the water. It is disabled below the surface and without
-depth. Screen-depth contact changes with viewpoint and cannot represent submerged
-transparent objects or a persistent world-space shoreline. Set 0 to disable.
-Blur, detail and contact each range from 0 to 1 and update live.
-Saved settings override defaults: explicitly set `r_water_detail 0.8` if your
-existing configuration still selects 0.5.
+### Room reflections
 
-Panel colours are approximated from the cached room; dark/occluded panel samples
-can contribute no visible highlight. No eligible light means no invented sun.
-These approximations add shader work and map-load visibility tracing, not another
-scene render. Masks are coarse and static; moving doors/actors do not update them.
+The renderer captures up to four flat, connected water regions at 256px per cube
+face, once per map load, after lightmaps and scene lighting are set up. Faces
+that share vertices share a region. Sloped, multi-height or disconnected
+batches, and regions past the budget, use the authored or sky reflection
+instead, and a neutral cube stands in for missing assets. Captures contain the
+static map only, not players, weapons or effects; reload the map to capture
+again after changing scenery or lighting.
+
+`r_water_probe_height` lifts the capture point to see more of the room over dark
+retaining walls, keeping four units below the ceiling, while the projection
+bounds still include the pool. The box-projected cubemap is approximate,
+especially around islands; it is not an exact planar mirror.
+
+### Player reflections
+
+At quality 3, `r_water_actors 1` adds a soft reflection of up to two nearby
+players over the room reflection: remote players and your own body, which uses
+the same model and locomotion animation. Your body is loaded when you come near
+water and drawn only into the reflection, never into the main, depth or
+refraction view. No weapon model or hitbox is created, and it stops updating
+when you are dead, spectating, in a non-FPS camera, out of range or below
+quality 3.
+
+The reflection renders one quarter-resolution view, at most 320 pixels on its
+longest side, for one visible pool. The camera must be above the water and
+within 240 world units of the pool, and a player's centre within 160 units.
+Reflections fade between 140 and 240 units from the eye and stay soft and
+wave-distorted even close up. Where a player covers the water, a small minimum
+reflection weight keeps them readable from above; `r_water_reflection 0` still
+removes it. Static scenery occludes the reflection; outlines, particles, sprites
+and first-person weapons are left out.
+
+Limits: occluder geometry is drawn on every active frame, players can pop in at
+the range limits and when switching pools, alpha-tested occluders count as
+solid, and only opaque body parts are reflected. To see your own reflection,
+stand in shallow water with your head above the surface and look down.
+
+### Ripples, wakes and splashes
+
+Wading or swimming near the surface, splashes and projectile crossings feed
+ripples into the shader. Moving through water leaves a trailing V-shaped wake
+whose size grows with speed, smaller when wading than when swimming; fully
+submerged movement leaves none. Impacts send out a radial wave with a softer one
+behind it, faster for stronger impacts, and lasting at most two seconds. Splash
+radius scales with strength from 48 to 112 world units. All of this shares a
+budget of twelve impulses and adds no replicated state. Ripples are cosmetic
+normals, not displaced collision geometry or fluid simulation.
+
+Splash detail draws soft, velocity-aligned spray quads from one pooled mesh, at
+most 220 droplets. Spray fades near the camera and as it falls back to the
+water, and is left out of water captures. Weak crossings throw fewer, lower
+droplets, and leaving the water throws 55% of the spray of entering it. A hard
+droplet re-entry can add a small 24-unit ripple, at most one every 120ms. The
+quads use regular depth testing, so they can intersect scenery sharply.
+Surfaces that keep their map shader also keep the older splash disc.
+
+### Debugging water
 
 ```text
 developer 1
@@ -232,88 +261,23 @@ map acidwdm2 duel
 r_water_debug 4
 ```
 
-Debug `4` shows only the cached room reflection (red means unavailable), `5`
-shows reactive wave slopes, `2` shows thickness bands, and `0` restores normal
-rendering. Debug `6` shows undistorted captured world colour for refraction
-alignment checks (red means unavailable). Wading/swimming near the surface and existing splash/projectile
-crossings feed the shader; fully submerged motion does not produce a wake.
-These are cosmetic normals, not displaced collision geometry or fluid simulation.
+| `r_water_debug` | Shows |
+| --- | --- |
+| `0` | Normal rendering |
+| `1` | Absorption |
+| `2` | Thickness bands |
+| `3` | Environment |
+| `4` | The cached room reflection (red where unavailable) |
+| `5` | Reactive wave slopes (neutral grey when idle) |
+| `6` | The undistorted refraction capture (red where unavailable) |
 
-Movement wakes now carry a world-space travel direction and form trailing V-shaped
-wave packets. Their radius grows with speed; level-1 wading uses smaller/weaker
-wakes than level-2 surface swimming. Fully submerged motion and cancelling position
-jitter do not emit wakes. Ordinary splash impulses remain radial.
-Both use the same twelve-impulse budget, with no additional replicated state.
+The `water` command checks interaction directly. Aim at the pool, run `water
+ripple` and close the console: it injects a shader ripple only. `water splash`
+runs the gameplay crossing path at your feet and says if no ripple was emitted.
+`water render` reports the water surface count, the impulse state with running
+accepted and rejected counts, and whether player reflections are active,
+disabled, waiting for a model, out of range or over budget. The water state log
+also includes `reflectedActors`.
 
-For an unambiguous interaction check, aim at the visible pool, run `water ripple`,
-and close the console promptly. This injects only a shader ripple, never a ring
-mesh. `water splash` uses the gameplay crossing path at your feet instead; it
-now reports if no replacement ripple was emitted. `water render` reports the
-replacement surface count, resolver presence, active impulses, and persistent
-acceptance/rejection counts, so a faded wave does not erase the diagnostic.
-Debug `5` is neutral grey while idle and coloured where a reactive slope exists;
-it is not a water beauty view. Return to `r_water_debug 0` for normal rendering.
-Supported replacement water no longer overlays the old splash disc; legacy and
-unsupported surfaces retain that fallback. Gameplay splash radius scales with
-strength (48..112 world units); the direct debug ripple retains its 96-unit default.
-Radial impacts include a softer trailing wave within the same impulse. Stronger
-impacts propagate faster, and overlapping reactive slopes are smoothly bounded.
-Lifetime remains at most two seconds.
-
-Splash detail uses one pooled mesh of soft, velocity-aligned spray quads instead
-of faceted sphere particles. Spray fades near the camera and on its final descent
-to the waterline; it is excluded from water captures. It adds no render target or
-fluid postprocess. It is still a cosmetic approximation: the quads use regular
-depth testing, not depth-softened intersections with scenery.
-
-Weak crossings throw fewer, lower droplets; exiting uses 55% of the equivalent
-entry's visual strength (audio is unchanged). Spray is finer and shrinks during
-actual descent, not only near a lifetime timeout. Hard droplet re-entries can
-emit a small 24-unit ripple, limited to one every 120ms per interaction system,
-without spawning more spray. The existing 220-droplet/12-impulse budgets remain.
-
-See the appended implementation checkpoint in
-[`WATER.md`](https://github.com/Higher-Standard-Games/shag/blob/main/docs/research/WATER.md) for validation, comparison captures, and
-remaining limitations.
-- `src/engine/loader/bsp/BspMeshBuilder.ts`
-
-### Experimental nearby player reflections
-
-At quality 3, `r_water_actors 1` enables a separate soft player-reflection layer
-over the existing cached room cubemap. It defaults to **1 for testing**;
-`r_water_actors 0` disables it. An existing saved zero is preserved.
-It reflects remote players and a local world-space body using the same model and
-locomotion animation path. The local body is loaded lazily near water and is visible
-only during the reflection capture, never in the main, depth or refraction view.
-No first-person weapon or extra gameplay hitbox is created. Local-body updates stop
-when dead, spectating, using a non-FPS camera, out of range or below quality 3.
-
-For a solo check, stand in shallow water with your head above the surface and look
-down. Standing on a bank does not guarantee your reflected body falls on water.
-`water render` reports whether the capture is active, disabled, waiting for a model,
-out of range or over budget. The water state log also includes `reflectedActors`.
-
-The prototype uses one quarter-resolution reflected view, capped at 320 pixels
-on its longest side, for one nearby visible pool and at most two actors. The
-camera must be above and within 240 world units of the pool bounds; actor bounds
-centres must be within 160 units. Surface fragments fade between 140 and 240
-units from the eye and become blurrier with distance. Even close reflections
-remain soft and wave-distorted.
-Actor-covered pixels use a small stylised minimum reflection weight when viewed
-from above, so the body remains readable at angles where the room's Fresnel blend
-is weak. The room cubemap outside those pixels is unchanged; `r_water_reflection 0`
-still suppresses the reflection contribution.
-
-Static scenery supplies reflected-view depth/zero coverage, while the cached
-cubemap still supplies environment colour. Gameplay outlines, particles, sprites,
-marked effects, and first-person weapon layers are excluded. Blur retains the
-unwarped coverage mask to avoid spreading actor colour across occluders.
-
-This is a testing-default visual prototype, not a finished performance tier. It still
-submits occluder geometry every active frame. Actor admission and switching
-between pools can pop; alpha-tested occluders are conservatively solid, and only
-opaque actor parts are included. The local body uses locomotion animation, not a
-complete first-person aiming/weapon pose, and shares the two-actor budget.
-See the latest `WATER.md` checkpoint for tests,
-cost measurements, and remaining work. Restart the dev server and refresh after
-updating these renderer imports if Vite hot reload produces shader errors.
+Design notes, validation captures and remaining limitations are in
+[`WATER.md`](https://github.com/Higher-Standard-Games/shag/blob/main/docs/research/WATER.md).

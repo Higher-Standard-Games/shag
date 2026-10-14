@@ -17,7 +17,7 @@ bsp sky debug
 
 `bsp sky debug` creates labeled colored faces for checking axis orientation.
 
-The standalone `skybox` command currently supports inspection and clearing. Its `skybox load <name>` branch only directs the user to map loading; it is not a general arbitrary-sky loader.
+The standalone `skybox` command inspects (`skybox info`) and clears (`skybox clear`) the current sky. Skies load with their map; `skybox load <name>` does not load an arbitrary sky.
 
 ## API
 

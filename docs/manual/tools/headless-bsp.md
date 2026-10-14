@@ -24,8 +24,6 @@ If the first argument is a path rather than a command, `info` is used.
 | `liquids` | Audit liquid surfaces and contents |
 | `test` | Run the tool self-test |
 
-There is no `validate` subcommand.
-
 For a map that remains inside a PK3, use:
 
 ```bash

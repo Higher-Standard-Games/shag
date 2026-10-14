@@ -4,9 +4,9 @@ SHAG has an in-game developer console and a shared command registry used by the 
 
 ## Opening the console
 
-Press the backquote/tilde key (the key normally below Escape). The current input binding does not use F1.
+Press the backquote/tilde key (the key normally below Escape).
 
-Some commands are registered only in developer mode — `map`, `pk3`, `render`, `debug`, `physics`, `teleport`, `god`, `noclip` and around twenty more. The console refuses them with `requires developer mode` and hides them from completion until:
+Some commands require developer mode, among them `map`, `pk3`, `render`, `debug`, `physics`, `teleport`, `god` and `noclip`. The console refuses them with `requires developer mode` and hides them from completion until developer mode is on:
 
 ```text
 developer 1
@@ -56,7 +56,7 @@ Add `developer: true` to the definition to gate a command behind developer mode.
 
 Use `fail(message)` from `Command.ts` when a failure must produce a non-zero headless/batch result. Returning a string is successful display output.
 
-For runtime-only integrations, the legacy registration overload remains available:
+A runtime integration can register a handler function instead of a class:
 
 ```ts
 import { CommandRegistry } from './engine/console/CommandRegistry';

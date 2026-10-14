@@ -4,8 +4,8 @@ This setup runs the browser client and verifies the engine without requiring a G
 
 ## Requirements
 
-- Node.js 22, pinned by `.nvmrc`
-- npm or pnpm
+- Node.js 22.13 or later (`.nvmrc` pins major version 22); the lobby stores accounts and results with the built-in `node:sqlite` module
+- npm, which the continuous-integration build also uses
 - Git, including submodule support
 - a current WebGL2-capable browser
 

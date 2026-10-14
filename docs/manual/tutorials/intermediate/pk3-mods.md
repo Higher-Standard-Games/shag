@@ -25,7 +25,7 @@ pk3 stats
 pk3 list
 ```
 
-There is no runtime `indexDirectory` method. Browser discovery starts from `pk3_manifest.json`.
+Browser discovery starts from `pk3_manifest.json`, which `tools:manifest` writes.
 
 ## Override order
 
@@ -47,7 +47,7 @@ shader load
 shader info textures/example/wall
 ```
 
-The registry API is `loadShaders()`, not `loadFromPK3()`.
+In code, the same step is `Q3ShaderRegistry.loadShaders()`.
 
 ## Packaging advice
 

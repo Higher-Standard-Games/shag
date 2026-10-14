@@ -23,7 +23,7 @@ After clicking the canvas:
 
 These are the Jump, Crouch and Sprint actions, so they follow whatever those are bound to in Settings → Controls.
 
-The scroll wheel is used by FPS weapon selection and is not the documented freefly speed control. Use `freefly_speed <positive-number>`.
+The scroll wheel selects weapons in FPS play and does not change freefly speed; use `freefly_speed <positive-number>`.
 
 ## Collision
 
@@ -46,7 +46,7 @@ camera mode sidescroll
 camera mode follow
 ```
 
-Despite its name, the console `camera mode` subcommand selects a registered controller. Projection configuration is an internal `CameraSystem.applyCameraMode` API and is not exposed as the old `camera mode orthographic` command.
+`camera mode` selects a registered controller. Projection (perspective or orthographic) is set in code through `CameraSystem.applyCameraMode`; it has no console command.
 
 ## Position and teleport
 
@@ -56,7 +56,7 @@ pos copy
 teleport 0 128 0
 ```
 
-`teleport` requires developer mode. `camera target` is not the teleport command.
+`teleport` (aliases `tp`, `goto`) requires developer mode.
 
 ## Useful inspection
 

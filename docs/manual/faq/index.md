@@ -43,7 +43,7 @@ See [Map launching](../guides/map-launching.md).
 
 ## How do I open the console?
 
-Press backquote/tilde. F1 is not a current default console binding. Enable restricted commands with `developer 1`.
+Press backquote/tilde. Enable developer commands with `developer 1`.
 
 ## What is the player key, and what happens if I lose it?
 
@@ -69,11 +69,11 @@ render list
 render reset
 ```
 
-`r_apply` is not a standalone command. `render apply` remains as a compatibility message because changes already apply through callbacks.
+`render list` shows every renderer variable with its range and description. A few, such as material-path switches, apply on the next map load; their descriptions say so.
 
 ## Does SHAG support raw .map files?
 
-The parser and renderer exist, but the active high-level `MapLoader` currently resolves indexed BSPs and marks local text-map loading TODO. Treat raw maps as an engine extension path, not as a complete FPS workflow.
+The parser and renderer exist, but `MapLoader` loads indexed BSP maps only, so a raw `.map` is not playable. Build playable maps in the [SHAGGED editor](../guides/shagged-editor.md), which compiles them, or with an external idTech3 toolchain. See [Raw .map system](../guides/raw-map-system.md).
 
 ## How should I test a change?
 

@@ -24,7 +24,7 @@ Use real shader text from a redistributable map fixture. Preserve the original s
 For enhanced water, portals, or other surface classes:
 
 - detect the surface from parsed shader/content semantics first;
-- allow a small compatibility override list for broken legacy media;
+- allow a small override list for media whose shaders are known to be wrong;
 - adapt the existing BSP mesh instead of reparsing the map;
 - own all materials, render targets, observers, and emitters in one disposable per-map system;
 - fall back to the ordinary resolved Q3 material when disabled or unsupported;

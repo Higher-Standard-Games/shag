@@ -2,20 +2,20 @@
 
 Press backquote/tilde to open the browser console. Run `help` for the commands registered in the current composition and `help <command>` for its usage and subcommands.
 
-This page is a workflow reference, not a generated exhaustive list. Engine commands are auto-discovered from `src/engine/console/commands/`; the active FPS module adds commands from `src/games/fps/console/commands/`. Commands marked **dev** are registered only while `developer 1` is set — the console answers `Command 'x' requires developer mode` otherwise, and they are hidden from completion.
+This page is organized by task rather than generated from source. Engine commands are discovered from `src/engine/console/commands/`; the FPS module adds commands from `src/games/fps/console/commands/`. Commands marked **dev** require `developer 1`: without it the console answers `Command 'x' requires developer mode` and leaves them out of completion.
 
 ## Setup and help
 
 | Command | Purpose |
 | --- | --- |
 | `help [command]` | List commands or show one command's usage and subcommands |
-| `developer [0\|1]` | Turn developer mode on or off (aliases: `dev`) |
-| `version` | Show build version |
-| `clear` | Clear console output |
+| `developer [0\|1]` | Turn developer mode on or off (alias `dev`) |
+| `version` | Show the build version (alias `ver`) |
+| `clear` | Clear console output (alias `cls`) |
 | `echo <text>` | Print text |
 | `exec <filename>` | Run a config file through the virtual filesystem |
-| `quit` | Exit supported CLI/app compositions |
-| `writeconsole` | Write the console log to a file |
+| `quit` | Exit the CLI or desktop app (aliases `exit`, `q`) |
+| `writeconsole` | Write the console log to a file (alias `condump`) |
 
 ## Maps and BSP inspection
 
@@ -47,18 +47,16 @@ name that already exists gets `_2`, `_3` and so on rather than being overwritten
 
 | Command | Purpose |
 | --- | --- |
-| `camera mode <iso\|fps\|freefly\|follow\|sidescroll>` | Select a built-in controller |
+| `camera mode <isometric\|iso\|fps\|freefly\|follow\|sidescroll>` | Select a built-in controller |
 | `camera fov <degrees>` | Get or set FOV |
 | `camera pos` / `camera info` | Inspect camera |
-| `pos [copy]` | Show or copy position |
-| `teleport <x> <y> <z>` **dev** | Move the camera |
+| `pos [copy]` | Show or copy position (aliases `position`, `getpos`) |
+| `teleport <x> <y> <z>` **dev** | Move the camera (aliases `tp`, `goto`) |
 | `freefly_speed [value]` **dev** | Get or set freefly speed |
 | `freefly_collision [0\|1]` | Turn freefly collision on or off |
 | `freefly_collision mode [native\|bsp]` | Select the collision path |
 | `freefly_collision test\|draw\|clear` | Probe and visualise collision geometry |
 | `freefly_collision clipviz\|clipdump\|cliptrace` | Inspect clip brushes |
-
-The console does not expose the old `camera controller`, `camera height`, or `camera target` forms.
 
 ## PK3 and shaders
 
@@ -119,8 +117,9 @@ string values; simple `name value` and `name "value"` configs remain supported.
 | `r_fog_color "r g b"`, `r_fog_mindist <d>` **dev** | Override colour (default 0.75 grey) and start distance (-1 keeps the map's) |
 | `r_fog_height_clear <y>`, `r_fog_height_full <y>` **dev** | Height band (99999 / -99999 keep the map's) |
 | `r_fog_sun_dir "x y z"`, `r_fog_sun_color "r g b [exp]"`, `r_fog_sun_inscatter <i>`, `r_fog_sky_blend <0\|1>` **dev** | Sun glow and sky horizon tint (-1 or empty keeps the map's) |
-| `daynight on\|off\|noon\|midnight\|start\|stop\|info` **dev** | Day/night cycle |
-| `weather rain\|snow\|clear\|fog\|thunder [intensity]` | Weather |
+| `daynight on\|off\|noon\|midnight\|sunrise\|sunset\|start\|stop\|info` **dev** | Day/night cycle |
+| `daynight time <0-1>`, `daynight cycle <minutes>` **dev** | Set the time of day, or the length of a full cycle |
+| `weather rain\|snow\|clear\|fog\|thunder\|status [intensity]` | Weather |
 | `wind on\|off\|strength\|direction [value]` | Wind |
 | `debris leaves\|trash\|dust\|mixed\|off\|density\|size\|speed` | Ambient debris |
 | `time [subcommand]` | Time of day |
@@ -148,8 +147,9 @@ string values; simple `name value` and `name "value"` configs remain supported.
 | Command | Purpose |
 | --- | --- |
 | `physics init\|on\|off\|gravity\|debug\|info` **dev** | Havok scene-physics control |
-| `debug collision\|wireframe\|bounds\|player\|info` **dev** | Debug toggles |
-| `stats [detailed]` / `mem` **dev** | Runtime statistics |
+| `debug wireframe\|bounds\|player\|info` **dev** | Debug toggles and a scene summary |
+| `stats [detailed]` | Runtime statistics |
+| `mem [subcommand]` **dev** | Memory statistics |
 | `inspect` **dev** | Inspect the aimed scene object |
 | `entity list\|info\|count` **dev** | Inspect entities |
 | `scene [subcommand]` | Scene queries |
@@ -161,32 +161,31 @@ string values; simple `name value` and `name "value"` configs remain supported.
 | `hud <subcommand>` / `ui <subcommand>` | HUD and UI control |
 | `audio <subcommand>` | Audio control |
 
-There is no `debug fps` subcommand; use `show_fps`.
-
 ## Networking and FPS game commands
 
 Engine: `join`, `nettest <subcommand>`, `binarytest <subcommand>`.
 
-The FPS composition adds `connect`, `disconnect`, `loadout`, `demo`, `demolist`, `demoplay`, `timedemo`, `netsim` (network condition simulation), `pickup_audit`, `camera_audit` and `water`.
+The FPS module adds `connect`, `disconnect`, `loadout`, `demo`, `demolist`, `demoplay`, `timedemo`, `netsim` (network condition simulation), `pickup_audit` **dev**, `camera_audit` **dev** and `water`.
 
 ```text
 connect localhost:7777
 disconnect
 cl_netgraph 2
-demolist
-demo <number-or-file>
-demoplay
 ```
 
-For offline renderer benchmarking, see the [timedemo guide](./timedemo.md).
+| Command | Purpose |
+| --- | --- |
+| `demolist [filter]` | List recorded demos |
+| `demo <number\|filename>` | Load a demo |
+| `demoplay` | Play the loaded demo |
+| `demoplay cinematic <minutes>` | Play a highlight reel of the given length |
+| `demoplay hud on\|off\|toggle` | Show or hide the demo overlays |
+| `demoplay analyze` | Print the highlight analysis |
+| `demoplay stop` | Stop playback, or cancel a demo that is still loading |
 
-Recording file downloads have a 60-second idle deadline, renewed as body data
-arrives, and a 15-minute total limit. The Demos menu offers Cancel during the
-transfer and Try again after errors. Leaving that view cancels its pending
-selection; `demoplay stop` also cancels pending DemoService file loads. File
-validation finishes before playback replaces a live session.
+A demo download is abandoned after 60 seconds without data, or after 15 minutes in total. The Demos menu offers Cancel during the transfer and Try again after an error, and a demo is fully validated before its playback replaces a live session.
 
-Consult `help` in the actual FPS build: game commands and gametype options evolve independently from engine commands.
+For offline renderer benchmarking, see the [timedemo guide](./timedemo.md). Game commands change independently of engine commands, so `help` in the running build is the final word.
 
 ## Key bindings
 
@@ -200,7 +199,7 @@ Consult `help` in the actual FPS build: game commands and gametype options evolv
 
 ```text
 bind f screenshot
-bind 5 "give all"
+bind 5 "giveweapon all"
 bind ` clear
 unbind f
 ```

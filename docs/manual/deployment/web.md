@@ -18,7 +18,7 @@ Deploy the contents of `dist/` to a static HTTPS host. Vite copies files from `p
 - do not deploy source maps: the build emits hidden maps and then moves them out of `dist/` into `sourcemaps/`, which is for symbolicating reports, not for serving;
 - avoid caching `index.html` indefinitely while using long immutable caching for hashed assets.
 
-Large PK3 files may be more practical on a CDN. The current loaders resolve assets through `GamePaths`, `PK3Index`, and generated manifests; there is no `PK3Loader.setBasePath` API. Configure the public paths rather than documenting a nonexistent loader setter.
+Large PK3 files may be more practical on a CDN: build with `VITE_PK3_MIRROR_URL` and the client downloads packages from that mirror when it has an up-to-date copy, falling back to this origin otherwise. See [PK3 filesystem](../guides/pk3-filesystem.md#http-mirror). Loose assets resolve through `GamePaths`, `PK3Index` and the generated manifests.
 
 ## Verification
 
@@ -27,7 +27,7 @@ Test the deployed origin, not just the Vite preview:
 1. open browser developer tools and check for 404 or MIME errors;
 2. confirm the PK3 index and a representative map resolve;
 3. load `wdm2` through the normal gameplay flow;
-4. test WebSocket/WebTransport endpoints through the production proxy;
+4. test the lobby and game-server WebSocket (`wss://`) endpoints through the production proxy;
 5. confirm cache invalidation with a second deployment.
 
 ## Related configuration

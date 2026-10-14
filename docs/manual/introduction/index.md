@@ -10,6 +10,7 @@ It is more than an asset viewer. The repository includes:
 - BSP collision and deterministic FPS movement;
 - server-authoritative multiplayer, prediction, and snapshots;
 - the active FPS game, lobby, bot, HUD, weapon, pickup, and gametype layers;
+- SHAGGED, a built-in brush map editor with a scripting API;
 - browser, headless, Android, and Electron compositions at different maturity levels.
 
 ## Architecture
@@ -37,7 +38,7 @@ The repository can select a build game through `GAME`, but it is still architect
 
 External PK3s live under `public/data/` and are not committed. Browser discovery starts from a generated manifest; the runtime index resolves maps, shader scripts, textures, models, and sounds.
 
-Use NetRadiant or another compatible idTech3 toolchain for authored map content. SHAG does not include a map editor.
+Maps can be built in SHAGGED, the brush editor built into the engine, which compiles them with MakeBSP/MakeLight and launches a playtest; scripts and AI agents can build them through its [scripting API](../guides/shagged-api.md). NetRadiant and other idTech3 toolchains work too, compiling to BSP.
 
 ## Testing philosophy
 

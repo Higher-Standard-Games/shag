@@ -19,7 +19,9 @@ The caller applies the combined position, rotation, FOV, and shake values to pre
 
 ## Built-in behavior
 
-The FPS composition registers effects such as walk bob, landing impact, speed FOV, strafe lean, and idle breathing. ADS FOV is also blended by the manager from movement variables.
+The FPS controller registers the list from `createFirstPersonEffects()`: walk bob, landing impact, strafe lean, speed FOV and idle breathing. ADS FOV is also blended by the manager from movement variables.
+
+Views behind another player's eyes (spectating, demo playback) run the same list through their own `FirstPersonEffectStack`, fed with that player's recorded state; see [Camera system](./camera-system.md#first-person-views). `cl_vieweffects 0` turns the effects off for those views too.
 
 Damage tint is a HUD overlay, not a viewport delta.
 

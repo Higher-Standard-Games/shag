@@ -37,7 +37,7 @@ At the lower level, `PVSCuller` requires:
 2. registered cluster/mesh assignments;
 3. `update(cameraPosition)` calls.
 
-Its `update` method returns stats and applies visibility. It does not expose an old `getVisibleMeshes` API.
+`update` applies visibility and returns the culling statistics.
 
 ## Renderer controls
 

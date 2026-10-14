@@ -64,7 +64,7 @@ export class OrbitDebugController implements ICameraController {
 }
 ```
 
-Controllers may implement optional target/follow methods as needed.
+The interface also declares optional `setTarget`, `getTarget` and `setFollowTarget` methods; implement them when the controller follows something.
 
 ## Register and select
 
@@ -84,4 +84,4 @@ cameras.setController('orbit-debug');
 - use `InputSystem` actions rather than adding duplicate key listeners;
 - keep game-specific selection or combat behavior outside the controller.
 
-To expose it in the console, add its name to a game-specific command or extend `CameraCommand`; the current built-in enum only lists built-in controllers.
+`camera mode` accepts only the built-in controller names. To select a custom controller from the console, add a game-specific command that calls `setController`.

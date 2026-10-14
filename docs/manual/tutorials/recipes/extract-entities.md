@@ -22,6 +22,6 @@ for (const entity of triggers) {
 }
 ```
 
-`bsp.entities` is already parsed into `{ classname, properties }` objects. There is no separate `EntityParser` step.
+`bsp.entities` is already parsed into `{ classname, properties }` objects.
 
 The presence of an entity in the BSP does not prove that the active game implements its behavior.

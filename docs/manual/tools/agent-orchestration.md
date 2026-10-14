@@ -1,6 +1,6 @@
 # Agent Orchestration
 
-Run a low-friction multi-agent research pass against a single document from the local CLI setup.
+Run a multi-agent research pass over one document, using the agent CLIs installed on this machine.
 
 ## Quick Start
 
@@ -66,8 +66,7 @@ This keeps token usage biased toward cheaper workers instead of splitting work e
 
 Before running the workflow, make sure:
 
-- Node.js is installed and `npm run dev:agents:list` works
-- Node.js is installed and `npm run dev:research:agents-list` works
+- `npm run dev:research:agents-list` runs and lists the agent CLIs it can find
 - the relevant agent CLIs are installed and available on `PATH`
 - each CLI is already authenticated on this machine
 

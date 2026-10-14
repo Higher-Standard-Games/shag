@@ -37,7 +37,7 @@ require the authoring directory.
 Headless `anim bones` and `anim inspect [file|all]` inspect the packaged GLBs.
 Browser `developer 1; animtest load` uses the same package. Explicit custom URL
 or data-source arguments to `PlayerModelManager.loadModel()` remain available.
-The optional outline proxy stays a separate loose pair; its build recipe now
+The optional outline proxy stays a separate loose pair; its build recipe
 extracts its model source from this package, and benchmark hashes cover the
 packaged player inputs.
 

@@ -42,7 +42,7 @@ const owner = index.findFile('scripts/common.shader');
 const maps = index.findByPattern('maps/*.bsp');
 ```
 
-`PK3Index` owns discovery and lookup. There is no `indexDirectory` runtime API.
+`PK3Index` owns discovery and lookup.
 
 Missing/stale/unsupported metadata and older files-only manifests retain the
 archive-scan/cache-validation path. The manifest's `indexHash` is a consistency
@@ -81,7 +81,7 @@ sends a HEAD request to the game's own server. It takes the mirror's copy
 when the mirror has the file and its size matches the server's. Otherwise,
 when the mirror lacks the file, holds another size (stale, or half
 uploaded), answers with a web page or can't be reached, the file comes from
-the game's server as before, with a `[Pk3Mirror]` warning in the console. A
+the game's server, with a `[Pk3Mirror]` warning in the console. A
 file the game's server doesn't have is never taken from the mirror.
 
 What the mirror has to do:
@@ -115,7 +115,7 @@ if (loader.hasFile('scripts/common.shader')) {
 }
 ```
 
-`loadPK3(filename)` accepts a filename; it does not take a numeric priority argument. When multiple indexed packages contain the same path, packages are processed alphabetically and a later package wins. Name override packages accordingly and verify the winning archive with `pk3 find`.
+`loadPK3(filename)` takes a filename only. When multiple indexed packages contain the same path, packages are processed alphabetically and a later package wins. Name override packages accordingly and verify the winning archive with `pk3 find`.
 
 ## Console diagnostics
 

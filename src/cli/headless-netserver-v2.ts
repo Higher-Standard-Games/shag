@@ -169,13 +169,13 @@ Options:
   --port <n>             Server port (default: 7777)
   --map <name>           Map to load (default: wdm7)
   --gametype <name>      Gametype (Deathmatch, TeamDeathmatch, Duel, Amphi, SnD)
-  --private-match       Mark recorded demos as private (set by the lobby)
+  --private-match        Mark recorded demos as private (set by the lobby)
   --name <name>          Server name
   --max <n>              Max clients (default: 16)
   --snapshotrate <n>     Snapshot rate in Hz (default: 60)
   --game <path>          Game data path (default: ./game)
-  --cert <path>          TLS certificate path
-  --key <path>           TLS key path
+  --cert <path>          TLS certificate for wss:// (default: ./certs/localhost.pem)
+  --key <path>           TLS private key for wss:// (default: ./certs/localhost-key.pem)
   --shutdown             Auto-exit when all clients disconnect
   --training-demo <name> Record a training demo: warmup never ends, a frame per tick,
                          saved to public/data/demos/training/<map>_<name>.shagdemo
@@ -183,8 +183,9 @@ Options:
                          return to the lobby, bots are released, process exits
   --help, -h             Show this help
 
-WebTransport Setup:
-  WebTransport requires TLS certificates. For development:
+TLS:
+  With both certificate files present the server accepts wss://; without
+  them it serves plain ws://. For development certificates:
     1. Install mkcert: https://github.com/FiloSottile/mkcert
     2. Run: mkcert -install && mkcert localhost
     3. Move localhost.pem and localhost-key.pem to ./certs/

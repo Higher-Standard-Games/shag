@@ -15,7 +15,7 @@ r_bloom 1.0
 r_exposure 1.1
 ```
 
-Changes with live callbacks apply immediately. `render apply` remains a compatibility command and does not perform a separate commit step.
+Changes with live callbacks apply immediately; there is no separate commit step.
 
 Some variables, including material-path switches such as `r_deluxe`, `r_bsp_pbr`, and static BSP freezing, apply on the next map/material build. Read the description printed by `render list`.
 
