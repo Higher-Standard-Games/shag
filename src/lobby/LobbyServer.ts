@@ -13,6 +13,7 @@ import type { IncomingMessage } from "node:http";
 import * as path from "node:path";
 import { WebSocket, WebSocketServer } from "ws";
 import { log } from "../engine/core/Log";
+import { filterChatText } from "../engine/server/ChatFilter";
 import type { MatchResultReport } from "../engine/server/network/MatchResultReport";
 import { DemoReader } from "../shared/demo/DemoReader";
 import { BOT_ACCOUNT_PRESETS as BOT_PRESETS, type BotPreset } from "../shared/ranking/BotMatchRatingGroups";
@@ -912,7 +913,7 @@ export class LobbyServer {
     const chatMsg: ChatMsg = {
       from: player.name,
       fromId: player.id,
-      text: text.trim().slice(0, 500), // Limit length
+      text: filterChatText(text.trim(), 500),
       ts: Date.now(),
     };
 
@@ -945,7 +946,7 @@ export class LobbyServer {
     const clean = text.trim().slice(0, 500);
     if (!clean) return;
 
-    const message: ChatMsg = { from: player.name, fromId: player.id, text: clean, ts: Date.now() };
+    const message: ChatMsg = { from: player.name, fromId: player.id, text: filterChatText(clean, 500), ts: Date.now() };
     lobby.chatHistory.push(message);
     if (lobby.chatHistory.length > this.MAX_CHAT_HISTORY) lobby.chatHistory.shift();
     this.broadcastToLobby(lobbyId, { type: "lobby:chat_message", lobbyId, ...message });

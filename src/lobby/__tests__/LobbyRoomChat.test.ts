@@ -72,6 +72,34 @@ afterEach(() => {
 });
 
 describe("room chat", () => {
+  it("masks lobby chat for everyone including the sender and stores only the masked history", () => {
+    const server = makeServer();
+    const alice = connect(server, "Alice");
+    const bob = connect(server, "Bob");
+    send(server, alice.player, { type: "chat:send", text: "  fuckj shot  " });
+    for (const peer of [alice, bob]) {
+      expect(messages(peer.sent, "chat:message")).toMatchObject([{ from: "Alice", text: "***j shot" }]);
+    }
+    const history = (server as unknown as { chatHistory: Array<{ text: string }> }).chatHistory;
+    expect(history).toMatchObject([{ text: "***j shot" }]);
+  });
+
+  it("masks room chat and returning-member history without leaking to outsiders", () => {
+    const server = makeServer();
+    const alice = connect(server, "Alice");
+    const bob = connect(server, "Bob");
+    send(server, alice.player, { type: "lobby:create", gametype: "duel", visibility: "private" });
+    const created = messages(alice.sent, "lobby:created").at(-1)?.lobby as { id: string; shareUrl: string };
+    const room = created.id;
+    send(server, alice.player, { type: "lobby:chat_send", lobbyId: room, text: "shit shot" });
+    expect(messages(alice.sent, "lobby:chat_message")).toMatchObject([{ text: "*** shot" }]);
+    expect(messages(bob.sent, "lobby:chat_message")).toEqual([]);
+    const inviteToken = new URL(created.shareUrl, "https://example.invalid").searchParams.get("invite");
+    send(server, bob.player, { type: "lobby:join", lobbyId: room, inviteToken });
+    const snapshot = messages(bob.sent, "lobby:created").at(-1)?.lobby as { chatHistory: Array<{ text: string }> };
+    expect(snapshot.chatHistory).toMatchObject([{ text: "*** shot" }]);
+  });
+
   it("delivers messages only to members and rejects cross-room sends", () => {
     const server = makeServer();
     const alice = connect(server, "Alice");

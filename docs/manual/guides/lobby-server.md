@@ -12,6 +12,15 @@ npm run lobby:server -- --port 9000 --data-dir ./server-data
 Browsers reach it through `VITE_LOBBY_URL`. The environment variables it reads
 are listed in [Configuration](./configuration.md).
 
+## Chat filtering
+
+Lobby and room chat mask recognized English profanity as `***` before delivery
+and history storage, including private rooms. Match servers apply the same filter
+to global, team and spectator chat. The general dictionary uses whole words with
+Unicode boundaries; a small list of strong terms also matches inside words to
+catch added-letter bypasses. Player names are unchanged. It does not issue
+penalties and does not cover every language or deliberate spelling bypass.
+
 ## Accounts
 
 Every connection has an account — there are no guests. A browser that connects
