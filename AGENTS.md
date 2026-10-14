@@ -25,22 +25,27 @@
 
 ## Quick Reference
 
+There is no `@/` import alias: import with relative paths (`../../engine/...`).
+The aliases that exist are `@game/*` (the FPS module), `@engine/server`,
+`@shared/server` and `@games/fps/server`.
+
 | I want to... | Do this |
 |--------------|---------|
-| Launch a gameplay map | `await ConsoleSystem.getInstance().execute('developer 1; map wdm2 duel')` |
-| Inspect a BSP map | `await ConsoleSystem.getInstance().execute('bsp load wdm2; bsp info')` |
-| Change camera mode | `CameraSystem.getInstance().setMode('fps')` |
-| Play a sound | `AudioManager.getInstance().playSound('weapons/rocket/fire')` |
-| Spawn pickups/entities | `EntityManager.getInstance().spawn(...)` or console `spawnpickup ...` |
-| Add a console command | `CommandRegistry.getInstance().register(...)` |
-| Read keyboard input | `InputSystem.getInstance().isKeyDown('w')` |
-| Connect to a server | `await ConsoleSystem.getInstance().execute('connect localhost:7777')` |
+| Run a console command | `await CommandRegistry.getInstance().executeChecked('map wdm2 duel')` (one command per call; `ok` tells failure from output) |
+| Inspect a BSP map | `executeChecked('bsp load wdm2')`, then `executeChecked('bsp info')`; or headless `npm run cli:game -- --exec "bsp load wdm2; bsp info; quit"` |
+| Load a map in code | `await MapLoader.getInstance().loadMap('wdm2', scene)` |
+| Change camera controller | `CameraSystem.getInstance().setController('freefly')` |
+| Play a one-shot sound | `AudioManager.getInstance().playSfx(path)` |
+| Spawn an entity by id | `EntityManager.getInstance().spawnEntityById(id, position, scene)`, or console `spawn_pickable_entity <id>` |
+| Add a console command | A `*Command.ts` class in `src/games/fps/console/commands/` (discovered automatically) |
+| Read input | `InputSystem.getInstance().isActive(actionId)` / `wasPressed(actionId)`; raw keys with `isKeyDown(key)` |
+| Connect to a server | console `connect localhost:7777` |
 
 ## Agent Workflow (Do This First)
 
 1. Confirm scope from prompt: game mode, win condition, map, single-player vs networked.
 2. Choose implementation strategy:
-   - Preferred: extend `src/games/fps` with a new mode/system.
+   - Preferred: extend `src/games/fps` with a new system, command or HUD widget.
    - Full new game module only when prompt explicitly requires a separate game package.
 3. Implement iteratively in small patches (commands, systems, HUD/events).
 4. Validate in headless mode first (required before asking for browser testing).
@@ -64,23 +69,51 @@ When handing off or reporting:
 
 ## Architecture Reality Check (Important)
 
-The codebase is currently FPS-centric:
+The codebase is FPS-centric:
 
-- `@game/*` path alias in `tsconfig.json` points to `src/games/fps/*`.
-- `src/main.ts` directly wires `FPSPlayer` and FPS-focused flow.
-- Multiple engine/console/ui paths import from `src/games/fps` directly.
+- `@game/*` in `tsconfig.json` points to `src/games/fps/*`.
+- `src/main.ts` directly wires `FPSPlayer` and the FPS flow.
+- A few engine files (`FPSController`, `FreeflyController`, `EntityManager`) still import from `src/games/fps`. New engine code must not: where the engine needs something a game owns, use the service registries (`GameplayMapLauncher`, `NetworkConnector`, `GameFrameHook`; see `docs/manual/guides/service-registries.md`).
+- `src/shared/` holds deterministic client/server contracts and must not use Babylon or browser APIs.
 
 Implication:
 
-- For most requests, implement inside `src/games/fps` (new gametype, command, subsystem, HUD widget).
+- For most requests, implement inside `src/games/fps` (command, subsystem, HUD widget).
 - Creating a truly separate game under `src/games/<newgame>` is possible, but requires additional wiring/refactor work.
+
+## Project Conventions
+
+- **Gametypes for 1.0 are fixed:** Duel, Amphi, FFA and S&D, with the same core rules in every mode. Do not add a gametype unless asked.
+- **Accounts are key + name only:** there are no guests; every connection gets an account (`Player_<number>` by default). See `docs/manual/guides/lobby-server.md`.
+- **Comments describe the code as it is.** What it used to do, and where an idea came from, belong in the commit message.
+- **Prefer a better default to an optional toggle** in player-facing settings.
+- **Keep the WebTransport transport.** `WebTransportTransport.ts` is never instantiated today, but WebTransport is the preferred future transport, waiting on Node library support. Do not delete it as dead code.
+- **`docs/known_bugs.md` is stale.** Treat each entry as a rumour: read the code that would make it true before acting, then fix or delete the entry.
+- **`public/ui-proto/*.html` are static mockups** (page-switcher bar, invented players), not the live UI. The live UI shows only data the game or server actually has.
+
+## Procedures (skills)
+
+Step-by-step procedures live in `.claude/skills/<name>/SKILL.md`. Claude Code
+loads them automatically when a task matches; other agents should read the
+relevant file before doing that job.
+
+| Skill | Use it for |
+| --- | --- |
+| `merge-and-release` | Merging a branch to `main` in both repositories, re-pinning fps, cutting a release |
+| `regression-check` | Running and reporting the gates and the renderer/networking regression set |
+| `browser-probe` | Verifying in a headless browser on the real GPU: private Vite server, CDP driver, demo probe, lobby QA |
+| `docs-edit` | Writing docs, the changelog and `AGENTS.md` with every claim checked against the source |
+| `shared-worktree` | Safe git in a two-repository tree that several agents edit at once |
+| `protocol-change` | Every place a snapshot, message or demo-format change touches, and how to keep old demos playing |
+| `local-stack` | Running the lobby, bot server and game servers locally, with a scratch data directory |
+| `ranking-change` | Changing results, ratings or their schema, tested on a copy of real `players.db` first |
 
 ## Critical Systems: Renderer and Networking
 
 Renderer and networking are high-value and high-risk systems. Edit with extra caution.
 
 - Renderer-sensitive areas include: `src/engine/loader`, `src/engine/rendering`, `src/engine/lighting`, map/material/shader paths.
-- Networking-sensitive areas include: `src/engine/network`, `src/engine/server`, `src/games/fps/server`, prediction/replication code.
+- Networking-sensitive areas include: `src/engine/network`, `src/engine/server`, `src/shared/net`, `src/games/fps/server`, prediction/replication code.
 
 If either area is edited, always run targeted regressions after changes:
 
@@ -89,8 +122,11 @@ npm run test:simulation
 npm run test:physics
 npm run server:tick
 npm run server:fuzz -- --ticks 1000
-npm run cli:game -- -- --exec "bsp load wdm2; bsp info; quit"
+npm run cli:game -- --exec "bsp load wdm2; bsp info; quit"
 ```
+
+`test:physics` prints a position warning on a passing run; read its pass/fail
+line rather than the warning.
 
 Do not ship renderer/networking edits without test results in the final report.
 
@@ -98,91 +134,67 @@ Do not ship renderer/networking edits without test results in the final report.
 
 SHAG Engine is a Babylon.js engine for Quake 3 / Warsow-style gameplay:
 
-- BSP map loading (Q3, FBSP/Warsow)
-- PK3 virtual filesystem
+- BSP map loading (Q3 IBSP, Warsow FBSP)
+- PK3 virtual filesystem with a published index
 - Quake shader workflows
-- Server-authoritative multiplayer
-- High-skill FPS movement (strafe jump, bunny hop, wall jump)
+- Server-authoritative multiplayer at 125 Hz, with a lobby, accounts and TrueSkill ratings
+- High-skill FPS movement (strafe jump, bunny hop, wall jump, slide, ledge grab)
+- Demos, highlight reels and bots
+- SHAGGED, a built-in brush map editor with a scripting API
 
-Full manual: `docs/manual/`
+Full manual: `docs/manual/` (`npm run docs:dev`). The player-facing game manual
+is `src/games/fps/docs/manual` (`npm run docs:fps:dev`).
 
 ## Directory Structure
 
 ```text
 src/
 |- engine/           # Game-agnostic engine code
-|  |- core/          # GamePaths, EventBus, GameTimer
-|  |- camera/        # Camera controllers
-|  |- console/       # Commands, cvars
-|  |- loader/        # BSP, PK3, textures, models
-|  |- network/       # Client networking
-|  |- server/        # Headless server, ECS
-|  |- physics/       # BSP collision, Havok
-|  |- movement/      # Character controllers
-|  `- ui/            # HUD, menus
+|  |- core/          # GamePaths, EventBus, GameTimer, Cvar
+|  |- camera/        # CameraSystem, controllers, first-person pose/motion
+|  |- viewport/      # View effects (bob, lean, landing, speed FOV)
+|  |- console/       # Commands, command registry
+|  |- input/         # Action-based InputSystem
+|  |- loader/        # BSP, PK3, shaders, textures, models, MapLoader
+|  |- network/       # Client networking, snapshot buffer, clock sync
+|  |- server/        # Reusable server support, lag compensation
+|  |- physics/       # Collision backends, Havok
+|  |- movement/      # MovementVars, generic CharacterController
+|  |- editor/        # SHAGGED map editor
+|  `- ui/            # Shared HUD/menu components
+|- shared/           # Deterministic client/server contracts (no Babylon/DOM)
 |- games/
-|  |- fps/           # Main active gameplay module
+|  |- fps/           # Active game module (git submodule)
 |  `- tower/         # Secondary module
+|- lobby/            # Lobby server: accounts, rooms, results, ratings
+|- bot/              # Bot service and training
 `- cli/              # Headless tools
 
 public/
 |- engine/           # Engine assets
-|- data/             # Game data (gitignored)
+|- data/             # Game data and PK3s (gitignored)
 `- wasm/             # Havok wasm (auto-copied)
 ```
 
 ## Creating a New Game Module (When Explicitly Needed)
 
-### Minimal template
-
-```typescript
-// src/games/mygame/MyGame.ts
-import { Scene } from "@babylonjs/core/scene";
-import { CameraSystem } from "@/engine/camera";
-import { ConsoleSystem } from "@/engine/console";
-import { CommandRegistry } from "@/engine/console/CommandRegistry";
-
-export class MyGame {
-  private scene: Scene;
-
-  constructor(scene: Scene) {
-    this.scene = scene;
-  }
-
-  async init(): Promise<void> {
-    CameraSystem.getInstance().setMode("freefly");
-    await ConsoleSystem.getInstance().execute("developer 1; map wdm2 duel");
-    this.registerCommands();
-  }
-
-  private registerCommands(): void {
-    CommandRegistry.getInstance().register(
-      "hello",
-      async () => "Hello from MyGame!",
-      { description: "Say hello", category: "game" },
-    );
-  }
-}
-```
-
-```typescript
-// src/games/mygame/index.ts
-export { MyGame } from "./MyGame";
-```
+A game module is a folder under `src/games/<name>/` with a `game.json`, selected
+at build time with `GAME=<name>` (else `public/engine.json`'s `defaultGame`).
 
 ```json
 // src/games/mygame/game.json
 {
   "name": "mygame",
-  "title": "My Awesome Game",
+  "displayName": "My Game",
   "version": "0.1.0"
 }
 ```
 
-### Additional wiring usually required
+Additional wiring is required:
 
-- Update aliasing/entry wiring if `@game/*` should target the new module.
-- Update app bootstrap where FPS-specific classes are imported.
+- Point `@game/*` in `tsconfig.json` at the new module (Vite's `@game` alias already follows `GAME`).
+- Replace the FPS-specific bootstrap in `src/main.ts`.
+- Register the game's adapters with the service registries.
 - Verify CLI/server scripts if the new mode requires them.
 
 Guide: `docs/manual/guides/configuration.md`
@@ -191,69 +203,87 @@ Guide: `docs/manual/guides/configuration.md`
 
 ### Camera
 
-Modes: `fps`, `freefly`, `isometric`, `sidescroll`, `follow`
+Controllers: `fps`, `freefly`, `isometric`, `sidescroll`, `follow`, and
+`spectator` (driven by the FPS `spectator` command).
 
 ```typescript
-const cam = CameraSystem.getInstance();
-cam.setMode("fps");
-cam.setFOV(90);
-const camera = cam.getCamera();
+const cameras = CameraSystem.getInstance();
+cameras.setController("freefly");
+const camera = cameras.getCamera();
 ```
+
+Field of view is the `cl_fov` cvar (console `camera fov 100`); view effects
+rewrite `camera.fov` every frame, so do not set it directly. The local camera
+and every watched view (spectating, demos) share the first-person effects and
+pose code in `src/engine/viewport/FirstPersonEffects.ts` and
+`src/engine/camera/FirstPersonPose.ts`.
 
 Guide: `docs/manual/guides/camera-system.md`
 
 ### Input
 
+Input is action-based; the FPS module registers the default action map.
+
 ```typescript
+import { FPS } from "@game/client/FPSActions";
+
 const input = InputSystem.getInstance();
-if (input.isKeyDown("w")) {
-  // move forward
+if (input.isActive(FPS.JUMP)) {
+  // held
 }
-if (input.wasKeyPressed("space")) {
-  // jump
+if (input.wasPressed(FPS.FIRE)) {
+  // pressed this frame
 }
 const delta = input.getMouseDelta();
 ```
 
-Keys: `w`, `a`, `s`, `d`, `space`, `shift`, `control`, `escape`, `tab`, `enter`, `1`-`9`
+Action IDs are the constants in `src/games/fps/client/FPSActions.ts`
+(`FPS.JUMP` is `"fps_jump"`).
 
 ### Console Commands
 
-```typescript
-import { CommandRegistry } from "@/engine/console/CommandRegistry";
-
-CommandRegistry.getInstance().register(
-  "mycommand",
-  async (args) => {
-    const sub = args[0];
-    if (sub === "start") return "Game started!";
-    if (sub === "stop") return "Game stopped!";
-    return "Usage: mycommand <start|stop>";
-  },
-  {
-    description: "My custom command",
-    usage: "mycommand <start|stop>",
-    category: "game",
-  },
-);
-```
+Commands are classes discovered from `src/engine/console/commands/` and
+`src/games/fps/console/commands/`; the file name must end in `Command.ts`.
 
 ```typescript
-await ConsoleSystem.getInstance().execute("developer 1; map wdm2 duel");
-await ConsoleSystem.getInstance().execute("noclip");
+// src/games/fps/console/commands/HelloCommand.ts
+import { Command, type CommandDef, fail } from "../../../../engine/console/Command";
+
+export default class HelloCommand extends Command {
+  readonly definition: CommandDef = {
+    name: "hello",
+    description: "Print a greeting",
+    usage: "hello [name]",
+    // developer: true,  // gate it behind `developer 1`
+  };
+
+  async execute(args: string[]) {
+    if (args[0] === "error") return fail("Asked to fail");
+    return `Hello, ${args[0] ?? "player"}!`;
+  }
+}
 ```
 
-Guide: `docs/manual/guides/command-reference.md`
+Return `fail(message)` for a failure automation must see; a plain string is
+success. `executeChecked` runs one command; the console and the headless
+`--exec` runner split semicolon batches. A runtime-only handler can use
+`CommandRegistry.getInstance().register(name, handler, description)` and
+`unregister(name)`.
+
+Guide: `docs/manual/guides/console-system.md`, `docs/manual/guides/command-reference.md`
 
 ### Assets and BSP
 
 ```typescript
-import { PK3Loader } from "@/engine/loader/pk3";
-import { MapRenderer } from "@/engine/MapRenderer";
+const index = PK3Index.getInstance();
+await index.ensureIndex();
+const owner = index.findFile("scripts/common.shader");   // which pk3 has it
+const bytes = await PK3Loader.getInstance().getFile("scripts/common.shader");
 
-const texture = await PK3Loader.getInstance().loadTexture("textures/base/floor");
-const collision = MapRenderer.getInstance().getCollisionWorld();
+await MapLoader.getInstance().loadMap("wdm2", scene);
 ```
+
+After adding PK3s under `public/data/`, run `npm run tools:manifest`.
 
 Guides:
 - `docs/manual/guides/pk3-filesystem.md`
@@ -261,71 +291,72 @@ Guides:
 
 ### Movement (Q3-style)
 
-```typescript
-import { FPSMovementProfile } from "@game/simulation/FPSMovementProfile";
+The authoritative movement rules are `MovementProfile` in
+`src/games/fps/simulation/MovementProfile.ts`, shared by client prediction and
+the server; its defaults are `DEFAULT_FPS_MOVEMENT_CONFIG`.
 
-const movement = new FPSMovementProfile();
-movement.maxSpeed = 320;
-movement.jumpVelocity = 270;
-movement.gravity = 800;
-movement.airControl = 150;
+```typescript
+import { MovementProfile } from "@game/simulation/MovementProfile";
+
+const movement = new MovementProfile({ gravity: 1000, jumpVelocity: 320 });
 ```
 
-Common CVars: `sv_speed`, `sv_jumpheight`, `sv_gravity`, `sv_aircontrol`, `sv_autohop`
+Common cvars: `sv_movementSpeed` (280), `sv_runSpeed` (400), `sv_jumpheight`,
+`sv_gravity`, `sv_aircontrol`, `sv_autohop`. Run `cvarlist sv_` for the full set.
 
 Guide: `docs/manual/guides/movement-system.md`
 
 ### Networking
 
-```typescript
-await ConsoleSystem.getInstance().execute("connect localhost:7777");
-```
-
-Server:
-
 ```bash
 npm run net:server -- --map wdm2 --port 7777
 ```
 
-Guide: `docs/manual/guides/networking.md`
+Then `connect localhost:7777` in the browser console. Normal play goes through
+the lobby (`npm run lobby:server`), which spawns one game server per match.
+
+Guides: `docs/manual/guides/networking.md`, `docs/manual/guides/lobby-server.md`
 
 ### EventBus
 
 ```typescript
-import { EventBus } from "@/engine/core/EventBus";
+import { EventBus } from "../../engine/core/EventBus";
 
-const unsub = EventBus.on("player:spawn", (data) => {
-  console.log(data.position);
+const unsub = EventBus.on<{ mapName: string }>("map:loaded", ({ mapName }) => {
+  console.log(mapName);
 });
-
-EventBus.emit("player:death", { playerId: 1 });
-unsub(); // always cleanup subscriptions
+unsub(); // always clean up subscriptions
 ```
+
+Typed event names are declared in `src/engine/core/EventBus.ts`; use existing
+events rather than inventing global ones.
 
 ## Headless-First Validation (Required)
 
 Run these before asking for manual browser tests:
 
 ```bash
-npm run cli:game -- -- --exec "bsp load wdm2; bsp info; quit"
-npm run cli:game -- -- --exec 'sim replay "W+CROUCH 60; JUMP 1; W 30"; quit'
+npm run cli:game -- --exec "bsp load wdm2; bsp info; quit"
+npm run cli:game -- --exec 'sim replay "W+CROUCH 60; JUMP 1; W 30"; quit'
 npm run test:simulation
 npm run test:physics
 ```
 
+Windows PowerShell through `npm.cmd` needs escaped inner quotes for the replay:
+`npm.cmd run cli:game -- --exec 'sim replay \"W+CROUCH 60; JUMP 1; W 30\"; quit'`.
+
 Useful command groups:
 
-Windows PowerShell through `npm.cmd` needs escaped inner quotes for the replay:
-`npm.cmd run cli:game -- -- --exec 'sim replay \"W+CROUCH 60; JUMP 1; W 30\"; quit'`.
-
 - REPL: `npm run cli:game`, `npm run cli:bsp`
-- Network: `npm run net:server`, `npm run net:client`, `npm run lobby:server`
+- Network: `npm run net:server`, `npm run net:client`, `npm run lobby:server`, `npm run bot:server`
 - Server tests: `npm run server:tick`, `npm run server:fuzz -- --ticks 1000`
 - Debug: `npm run debug:textures -- wdm2`, `npm run debug:spawn`
-- Unit tests: `npm test`
-- Demos: `npm run demo:record -- --map wdm12 --bots 2 --seconds 30` (one-shot: server + AI bots + record). See [headless-mode guide](docs/manual/guides/headless-mode.md#recording-demos).
-- Verify re-sim: `npm run demo:verify -- <bundle.shagverify>` — replays a re-sim bundle's usercmds through the deterministic sim and checks the recorded per-tick checksums reconcile (tamper-evident; anti-cheat WO-AC4). Exit 0 = reconciled, 1 = diverged.
-- Calibrate anti-cheat: `npm run anticheat:calibrate -- [--trials 40] [--ticks 1500]` — runs synthetic aimbot-vs-human combat trials and prints the accuracy signal's detection% vs false-positive% per threshold (the §0.3 guardrail before any signal gates; anti-cheat WO-AC3). Numbers are directional until calibrated on real player demos (risk R2). See [ANTICHEAT_FEATURES.md](docs/research/ANTICHEAT_FEATURES.md).
+- Unit tests: `npm run test:run` (once), `npm test` (watch)
+- Demos: `npm run demo:record -- --map wdm12 --bots 2 --seconds 30` (one-shot: server + AI bots + record). See the [headless-mode guide](docs/manual/guides/headless-mode.md#demos-and-anti-cheat-tools).
+- Verify re-sim: `npm run demo:verify -- <bundle.shagverify>` — replays a re-sim bundle's usercmds through the deterministic sim and checks the recorded per-tick checksums reconcile. Exit 0 = reconciled, 1 = diverged.
+- Calibrate anti-cheat: `npm run anticheat:calibrate -- [--trials 40] [--ticks 1500]` — synthetic aimbot-vs-human trials; prints detection% vs false-positive% per threshold. Numbers are directional until calibrated on real player demos. See [ANTICHEAT_FEATURES.md](docs/research/ANTICHEAT_FEATURES.md).
+- Ranking: `npm run ranking:simulate`, `npm run ranking:acceptance`, `npm run lobby:server -- --ratings-verify --data-dir ./server-data`
+- Maps: `npm run shagged -- report <map.json>` (see `docs/manual/guides/shagged-api.md`)
 
 Headless map loading goes through the pk3 index (`src/engine/loader/pk3/NodePk3.ts` — `resolveMapBspViaIndex`), the same database the game uses. Do NOT re-introduce ad-hoc BSP path searches.
 
@@ -339,6 +370,7 @@ A feature is done only when all are true:
 4. New EventBus listeners/timers are cleaned up (no obvious leak).
 5. User-facing summary includes run instructions and caveats.
 6. If renderer/networking was touched, required regression suite was run and reported.
+7. The living changelog and the affected manual pages are updated.
 
 ## Branches, Changelog and Releases
 
@@ -358,40 +390,26 @@ Each cycle keeps `docs/changelog/v0.9.X.md` with `**Release Date:** unreleased
 the end. Write it for a player or a developer reading later: what changed, and
 what was wrong before. A cycle's research notes live in `docs/research/`.
 
-### Merge order (always fps first)
+### Merging and releasing
 
-1. Commit in `src/games/fps`, merge its branch into its `main`, push.
-2. In the outer repo, merge the feature branch into `main`, then `git add
-   src/games/fps` to re-pin the submodule at its merged `main` tip and commit
-   that.
-3. Push the outer `main`.
+Always fps first: commit and merge in `src/games/fps`, then merge the outer
+branch, re-pin `src/games/fps` at the fps `main` tip and commit that, then push
+outer `main`. Push only when asked. A release bumps `src/engine/version.txt` and
+`package.json` (outer repo only) to the *next* version in one commit, `chore:
+release v0.9.X, bump version to v0.9.X+1`, with an annotated tag `v0.9.X` on it.
 
-Merging the outer branch can leave `UU src/games/fps` when the pins diverge:
-check out the fps `main` tip inside the submodule, `git add src/games/fps`, and
-continue.
-
-### Release ritual
-
-1. Finalize the date in the living changelog (replace the unreleased line, drop
-   the trailing unreleased marker).
-2. Bump `src/engine/version.txt` and `package.json` — **outer repo only** — to
-   the *next* version.
-3. Commit as `chore: release v0.9.X, bump version to v0.9.X+1`.
-4. Annotated tag `v0.9.X` on that commit: `git tag -a v0.9.X -m "..."`.
-5. Push the branch and the tag: `git push origin main && git push origin v0.9.X`.
-6. Open the next cycle's living changelog stub, `docs/changelog/v0.9.X+1.md`.
-
-Because the release and the bump are one commit, `version.txt` at the tag
-already reads the next version. That is the accepted artifact, not a mistake.
-Tags are annotated, on the release commit, and recent releases are tagged in
-the **outer repo only**.
+The full steps, including resolving `UU src/games/fps`, are in
+`.claude/skills/merge-and-release/SKILL.md`. Shared-tree git practice (absolute `cd`
+before git, staging explicit paths, never committing another agent's files
+unasked) is in `.claude/skills/shared-worktree/SKILL.md`.
 
 ### Gates
 
 `npm run typecheck`, `npm run test:run`, `npm run build`, and
 `npm run gate:biome` — the last is also a pre-commit hook from `.githooks`, so
 a commit that raises the Biome baseline is refused. Renderer or networking
-edits additionally need the regression set in "Critical Systems" above.
+edits additionally need the regression set in "Critical Systems" above. Manual
+edits must keep `npm run docs:build` passing; it fails on a dead link.
 
 ## Common Gotchas
 
@@ -408,24 +426,22 @@ edits additionally need the regression set in "Critical Systems" above.
 mesh.metadata = { mapOwned: true };
 ```
 
+5. Quake coordinates are Z-up; Babylon is Y-up. Convert at the loader boundary
+   (`q3ToBabylonVec3`), never with local axis swaps.
+6. Most debugging commands (`map`, `pk3`, `render`, `teleport`, `noclip`, ...)
+   need `developer 1` first; without it the console refuses them.
+
 ## Documentation Pointers
 
 - Commands: `docs/manual/guides/command-reference.md`
-- BSP/PK3: `docs/manual/guides/bsp-system.md`
+- BSP/PK3: `docs/manual/guides/bsp-system.md`, `docs/manual/guides/pk3-filesystem.md`
 - Camera: `docs/manual/guides/camera-system.md`
 - Movement: `docs/manual/guides/movement-system.md`
 - Networking: `docs/manual/guides/networking.md`
 - Headless: `docs/manual/guides/headless-mode.md`
-- Configuration: `docs/manual/guides/configuration.md`
-- Shader system: `docs/manual/guides/shader-system.md`
-- Lobby, accounts, results: `docs/manual/guides/lobby-server.md`
+- Configuration and environment variables: `docs/manual/guides/configuration.md`
+- Shader system and water: `docs/manual/guides/shader-system.md`
+- Lobby, accounts, results, ratings: `docs/manual/guides/lobby-server.md`
+- Map editor: `docs/manual/guides/shagged-editor.md`, `docs/manual/guides/shagged-api.md`
 - Research notes: `docs/research/`
 - Changelog: `docs/changelog/`
-
-## Fast Game Ideas
-
-1. Bunny Hop Racer: checkpoint routing + timer + PB ghosts
-2. Gun Game: weapon progression per frag
-3. Trick Arena: score chains for movement skill
-4. Hide and Seek: seeker phase + spectator flow
-5. Rocket Arena: rockets-only duel ruleset
