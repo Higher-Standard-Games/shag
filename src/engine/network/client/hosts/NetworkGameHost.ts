@@ -338,11 +338,11 @@ export class NetworkGameHost implements IGameHost {
    * rebroadcasts it as a `chat` snapshot event (no local echo — the message
    * appears when it round-trips, Q3-style).
    */
-  sendChat(text: string): void {
+  sendChat(text: string, teamOnly = false): void {
     if (!this._isConnected) return;
     const trimmed = text.trim();
     if (!trimmed) return;
-    this.transport.send(MessageCodec.encodeChat(trimmed.slice(0, 128)), true); // Reliable
+    this.transport.send(MessageCodec.encodeChat(`${teamOnly ? "/say_team " : ""}${trimmed.slice(0, 128)}`), true); // Reliable
   }
 
   /** Send an already encoded message over the reliable channel (ready, respawn requests). */
