@@ -104,9 +104,10 @@ verified players, so training reads them only with `--include-bots`.
 Treat synthetic anti-cheat calibration numbers as directional until calibrated against real player demos.
 
 Lobby-spawned private matches pass `--private-match` to `net:server`; the game
-server writes this visibility into demo format v4. Standalone recordings
-default to public. The current reader supports v1–v4; an older browser build
-needs updating before it can play v4 recordings.
+server writes this visibility into the demo header (format v4 and later). New
+recordings are v5, whose frames also carry each player's view. Standalone
+recordings default to public. The current reader supports v1–v5; an older
+browser build needs updating before it can play newer recordings.
 
 Ranking development/operations:
 

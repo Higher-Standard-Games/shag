@@ -49,6 +49,7 @@ import {
 // Viewport effects system imports
 import { createFirstPersonEffects, FPSApplicator, type PlayerState, ViewportEffectsManager } from "../../viewport";
 import { CameraInputHandler } from "../CameraInputHandler";
+import { easeLedgePitch, slidePitch, smoothStepUp } from "../FirstPersonMotion";
 import { currentBaseFov } from "../FovSettings";
 import type { CameraControllerConfig, ICameraController } from "./ICameraController";
 import { ViewKick } from "./ViewKick";
@@ -1008,7 +1009,6 @@ export class FPSController implements ICameraController {
         // creating the jerky warping pattern during falls.
         const stepHeight = mv.get("sv_stepheight");
         const smoothFactor = mv.get("cl_smoothfactor");
-        const yDelta = pos.y - this.smoothedY; // positive = going up, negative = going down
 
         // Track post-grab grace period: keep snapping smoothedY for a few frames
         // after grab ends so the post-grab boost (vel.y=50) doesn't cause a lerp warp
@@ -1019,19 +1019,13 @@ export class FPSController implements ICameraController {
           this.ledgeGrabSnapFrames--;
         }
 
-        // Determine if we should smooth or snap
-        const shouldSnap =
-          Math.abs(yDelta) > stepHeight * 2 || // Large height change / teleport
-          inGrab ||
-          this.ledgeGrabSnapFrames > 0 || // Ledge grab (+grace)
-          yDelta < -0.5; // Falling — camera must track physics exactly
-
-        // Only lerp for small UPWARD movement (actual stair climbing)
-        if (shouldSnap) {
-          this.smoothedY = pos.y;
-        } else {
-          this.smoothedY = this.smoothedY + yDelta * smoothFactor;
-        }
+        // Only small upward movement eases (stair climbing); a fall, a big
+        // change and a ledge grab (with its grace) are followed exactly
+        this.smoothedY = smoothStepUp(this.smoothedY, pos.y, {
+          stepHeight,
+          factor: smoothFactor,
+          snap: !!inGrab || this.ledgeGrabSnapFrames > 0,
+        });
 
         // Apply to camera with smoothed Y
         this.camera.position.x = pos.x;
@@ -1087,12 +1081,8 @@ export class FPSController implements ICameraController {
 
       // === NETWORK CAMERA EFFECTS ===
       // Compute absolute pitch offsets (NOT additive to mouseRotationX — that would accumulate per-frame)
-      this.slidePitchOffset = this.slidePhase > 0.01 ? this.slidePhase * -0.22 : 0; // ~12° down
-      // Smooth the ledge grab pitch offset — phase drops from 1→0 instantly on completion,
-      // so lerp toward the target to avoid an 8.6° camera snap that looks like a warp
-      const targetLedgePitch = this.ledgeGrabPhase > 0.01 ? this.ledgeGrabPhase * 0.15 : 0;
-      const lerpSpeed = 8; // decay speed (higher = faster return to normal)
-      this.ledgePitchOffset += (targetLedgePitch - this.ledgePitchOffset) * Math.min(1, deltaTime * lerpSpeed);
+      this.slidePitchOffset = slidePitch(this.slidePhase); // ~12° down
+      this.ledgePitchOffset = easeLedgePitch(this.ledgePitchOffset, this.ledgeGrabPhase, deltaTime);
       // (debug log removed — was firing every frame during crouchslide, causing 60fps drop)
     }
 

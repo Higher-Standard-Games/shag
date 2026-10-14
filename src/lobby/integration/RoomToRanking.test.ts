@@ -268,7 +268,7 @@ describe("installed-map room to ranking", () => {
                 const reader = new DemoReader(new Uint8Array(fs.readFileSync(file)));
                 if (reader.readHeader().matchId !== firstConnect.matchId) continue;
                 recordedDemo = file;
-                expect(reader.readHeader()).toMatchObject({ private: true, version: 4 });
+                expect(reader.readHeader()).toMatchObject({ private: true, version: 5 });
                 expect(reader.readAllFrames().length).toBeGreaterThan(0);
               }
               expect(recordedDemo).toBeDefined();

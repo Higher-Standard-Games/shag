@@ -488,10 +488,23 @@ Entities:
       0x02 = velocity changed
       0x04 = grounded changed
       0x08 = rotation changed (yaw/pitch)
+      0x10 = movement state (every snapshot for a player)
+      0x20 = weaponMeta (item entities)
+      0x40 = powerup mask (every snapshot)
     if 0x01: x, y, z (float32 × 3)
     if 0x02: vx, vy, vz (float32 × 3)
     if 0x04: grounded (uint8)
     if 0x08: yaw, pitch (float32 × 2)
+    if 0x10: movement (uint8: bit 0 crouching, 1 sliding, 2 wall-jumping,
+             7 view follows); if bit 7, the player's view (4 bytes):
+               keys (uint8: bits 0-1 strafe, 2-3 forward; 0 none,
+                     1 right/forward, 2 left/back)
+               slidePhase, ledgeGrabPhase (uint8 each, 0-255 for 0-1)
+               crouchViewOffset (int8, quarter units)
+             What a watcher needs to rebuild that player's screen: the
+             strafe lean, the slide dip and ledge lift, the crouch eye.
+    if 0x20: weaponId (string), settled (uint8)
+    if 0x40: powerup mask (uint8)
 
 Players:
   count (uint16)

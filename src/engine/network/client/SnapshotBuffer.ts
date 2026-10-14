@@ -33,6 +33,14 @@ export interface EntitySnapshot {
   wallJumping: boolean;
   /** Recorded camera offset from the entity origin (0 standing, negative crouched). */
   crouchViewOffset?: number;
+  /** Strafe keys: -1 left, 0 none, 1 right. Stepped, never interpolated. */
+  strafeInput?: -1 | 0 | 1;
+  /** Forward keys: -1 back, 0 none, 1 forward. Stepped, never interpolated. */
+  forwardInput?: -1 | 0 | 1;
+  /** Slide camera dip, 0 – 1. */
+  slidePhase?: number;
+  /** Ledge grab camera phase, 0 – 1. */
+  ledgeGrabPhase?: number;
   /**
    * Held powerups as a bitmask over POWERUP_KINDS (shared/items/Powerups).
    * Never interpolated — it is stepped, like `crouching`.
@@ -76,6 +84,14 @@ export interface InterpolatedEntity {
   wallJumping: boolean;
   /** Recorded camera offset from the entity origin (0 standing, negative crouched). */
   crouchViewOffset?: number;
+  /** Strafe keys: -1 left, 0 none, 1 right. Stepped, never interpolated. */
+  strafeInput?: -1 | 0 | 1;
+  /** Forward keys: -1 back, 0 none, 1 forward. Stepped, never interpolated. */
+  forwardInput?: -1 | 0 | 1;
+  /** Slide camera dip, 0 – 1. */
+  slidePhase?: number;
+  /** Ledge grab camera phase, 0 – 1. */
+  ledgeGrabPhase?: number;
   /**
    * Held powerups as a bitmask over POWERUP_KINDS (shared/items/Powerups).
    * Never interpolated — it is stepped, like `crouching`.
@@ -94,6 +110,11 @@ const EMPTY_IDS: ReadonlySet<string> = new Set();
 
 /** Pitch stays within ±90°, so it never wraps; either end missing holds the other. */
 export function lerpPitch(a: number | undefined, b: number | undefined, t: number): number | undefined {
+  return lerpOptional(a, b, t);
+}
+
+/** A value either end may lack: interpolated when both have it, else the one that does. */
+export function lerpOptional(a: number | undefined, b: number | undefined, t: number): number | undefined {
   if (a === undefined || b === undefined) return b ?? a;
   return a + (b - a) * t;
 }
@@ -114,6 +135,10 @@ function copyEntity(entity: EntitySnapshot, out: InterpolatedEntity | null): Int
   out.sliding = entity.sliding;
   out.wallJumping = entity.wallJumping;
   out.crouchViewOffset = entity.crouchViewOffset;
+  out.strafeInput = entity.strafeInput;
+  out.forwardInput = entity.forwardInput;
+  out.slidePhase = entity.slidePhase;
+  out.ledgeGrabPhase = entity.ledgeGrabPhase;
   out.waterLevel = entity.waterLevel;
   out.onLadder = entity.onLadder;
   out.powerupMask = entity.powerupMask;
@@ -386,8 +411,13 @@ export class SnapshotBuffer {
         // Not carried over by extrapolation, as before frame sampling existed;
         // carrying wallJumping would change the animation, so it is its own change.
         out.wallJumping = undefined as unknown as boolean;
-        out.crouchViewOffset = undefined;
       }
+      // A watched view holds its last eye and keys through the extrapolation
+      result.crouchViewOffset = entity.crouchViewOffset;
+      result.strafeInput = entity.strafeInput;
+      result.forwardInput = entity.forwardInput;
+      result.slidePhase = entity.slidePhase;
+      result.ledgeGrabPhase = entity.ledgeGrabPhase;
       result.waterLevel = entity.waterLevel;
       result.onLadder = entity.onLadder;
       result.powerupMask = entity.powerupMask;
@@ -523,7 +553,11 @@ export class SnapshotBuffer {
     result.crouching = near.crouching;
     result.sliding = near.sliding;
     result.wallJumping = near.wallJumping;
-    if (out) out.crouchViewOffset = undefined; // not interpolated, as before
+    result.crouchViewOffset = lerpOptional(a.crouchViewOffset, b.crouchViewOffset, clampedT);
+    result.slidePhase = lerpOptional(a.slidePhase, b.slidePhase, clampedT);
+    result.ledgeGrabPhase = lerpOptional(a.ledgeGrabPhase, b.ledgeGrabPhase, clampedT);
+    result.strafeInput = near.strafeInput;
+    result.forwardInput = near.forwardInput;
     result.waterLevel = near.waterLevel;
     result.onLadder = near.onLadder;
     // Take the NEWER mask rather than the nearer one: a quad expiring or

@@ -21,7 +21,13 @@
  * - 0x02 = velocity changed (12 bytes: 3 floats)
  * - 0x04 = grounded state changed (1 byte: boolean) - CRITICAL for jump logic!
  * - 0x08 = rotation changed (8 bytes: 2 floats — yaw + pitch)
- * - 0x10 = movement state changed (1 byte: bit 0=crouching, bit 1=sliding, bit 2=wallJumping)
+ * - 0x10 = movement state (1 byte: bit 0=crouching, bit 1=sliding, bit 2=wallJumping,
+ *          bit 7=view follows). The view is 4 bytes for a player: their keys
+ *          (bits 0-1 strafe, 2-3 forward: 0 none, 1 right/forward, 2
+ *          left/back), slide phase and ledge grab phase (0-255 for 0-1), and
+ *          the crouch view offset in quarter units (int8). It is what a
+ *          watcher needs to rebuild that player's screen. A recording made
+ *          before it never sets bit 7.
  * - 0x20 = weaponMeta changed (string + 1 byte — for item_ entities)
  * - 0x40 = powerup mask (1 byte: bit per POWERUP_KINDS entry) — sent for EVERY
  *          player every snapshot (not delta-compressed) for the same reason as
@@ -84,7 +90,17 @@ interface MovementStateShape {
   isCrouching: boolean;
   isSliding: boolean;
   wallJumpState: string;
+  crouchViewOffset?: number;
+  strafeInput?: number;
+  forwardInput?: number;
+  slidePhase?: number;
+  ledgeGrabPhase?: number;
 }
+
+/** A key's two bits: 0 none, 1 right/forward, 2 left/back. */
+const keyBits = (value: number | undefined) => (value === 1 ? 1 : value === -1 ? 2 : 0);
+const keyOf = (bits: number): -1 | 0 | 1 => (bits === 1 ? 1 : bits === 2 ? -1 : 0);
+const phaseByte = (value: number | undefined) => Math.round(Math.max(0, Math.min(1, value ?? 0)) * 255);
 
 interface WeaponMetaShape {
   weaponId: string;
@@ -433,7 +449,15 @@ export class BinaryProtocol {
         if (isCrouching) movFlags |= 1;
         if (isSliding) movFlags |= 2;
         if (isWallJumping) movFlags |= 4;
+        const view = movState?.strafeInput !== undefined;
+        if (view) movFlags |= 0x80;
         encoder.writeUint8(movFlags);
+        if (view && movState) {
+          encoder.writeUint8(keyBits(movState.strafeInput) | (keyBits(movState.forwardInput) << 2));
+          encoder.writeUint8(phaseByte(movState.slidePhase));
+          encoder.writeUint8(phaseByte(movState.ledgeGrabPhase));
+          encoder.writeInt8(Math.max(-128, Math.min(127, Math.round((movState.crouchViewOffset ?? 0) * 4))));
+        }
       }
 
       // Flag 0x20: WeaponMeta (string weaponId + 1 byte settled)
@@ -579,11 +603,22 @@ export class BinaryProtocol {
       let isCrouching = false;
       let isSliding = false;
       let isWallJumping = false;
+      let view: Partial<MovementStateShape> = {};
       if (flags & 0x10) {
         const movFlags = decoder.readUint8();
         isCrouching = (movFlags & 1) !== 0;
         isSliding = (movFlags & 2) !== 0;
         isWallJumping = (movFlags & 4) !== 0;
+        if (movFlags & 0x80) {
+          const keys = decoder.readUint8();
+          view = {
+            strafeInput: keyOf(keys & 3),
+            forwardInput: keyOf((keys >> 2) & 3),
+            slidePhase: decoder.readUint8() / 255,
+            ledgeGrabPhase: decoder.readUint8() / 255,
+            crouchViewOffset: decoder.readInt8() / 4,
+          };
+        }
       } else if (baselineEntity) {
         // Carry forward from baseline
         const baselineMovState = baselineEntity.getComponent("movementState") as unknown as
@@ -618,6 +653,7 @@ export class BinaryProtocol {
           isCrouching,
           isSliding,
           wallJumpState: isWallJumping ? "charging" : "none",
+          ...view,
           serialize: _noopSerialize,
           deserialize: _noopDeserialize,
           clone: _shallowClone,

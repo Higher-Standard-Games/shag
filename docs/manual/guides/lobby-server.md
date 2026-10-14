@@ -357,8 +357,10 @@ start fresh as planned; no reset is performed merely by starting these tools.
 
 ### Demo privacy
 
-New demo recordings use format v4, which adds the room's privacy flag to the
-header. The reader still accepts v1–v3 recordings; those have no privacy flag
+Demo format v4 added the room's privacy flag to the header; v5 keeps that
+header and adds each player's view to the frames (their keys, slide and ledge
+grab phases and crouch eye height, so a watched view leans, dips and crouches
+as their screen did). The reader still accepts v1–v3 recordings; those have no privacy flag
 and remain eligible as legacy public demos. Featured picks exclude recordings
 marked private, including recordings featuring a public top-ten account.
 Private recordings remain in the archive and in their verified participants'

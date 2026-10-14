@@ -37,6 +37,17 @@ export interface PhysicsComponent {
   /** Actual horizontal speed (for HUD, effects) */
   actualHorizSpeed: number;
 
+  // === What a watcher needs to rebuild this player's screen (players only) ===
+
+  /** Strafe keys this step: -1 left, 0 none, 1 right. Leans their view. */
+  strafeInput?: -1 | 0 | 1;
+  /** Forward keys this step: -1 back, 0 none, 1 forward. */
+  forwardInput?: -1 | 0 | 1;
+  /** Slide camera dip, 0 – 1, as the slide eases in and out. */
+  slidePhase?: number;
+  /** Ledge grab camera phase, 0 – 1 through the grab and pull. */
+  ledgeGrabPhase?: number;
+
   // === Liquid state ===
 
   /**
@@ -83,6 +94,10 @@ export function clonePhysics(p: PhysicsComponent): PhysicsComponent {
     wallJumpState: p.wallJumpState,
     ledgeGrabState: p.ledgeGrabState,
     actualHorizSpeed: p.actualHorizSpeed,
+    strafeInput: p.strafeInput,
+    forwardInput: p.forwardInput,
+    slidePhase: p.slidePhase,
+    ledgeGrabPhase: p.ledgeGrabPhase,
     waterLevel: p.waterLevel,
     liquidContents: p.liquidContents,
   };
