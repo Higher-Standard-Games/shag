@@ -81,6 +81,8 @@ export interface FollowedWeaponBobInput {
   velocityY: number;
   landingVelocity: number;
   bobCycle: number;
+  /** Whether they are aiming down sights (holding alt fire). */
+  aiming?: boolean;
 }
 
 // Note: MD3 models are in Quake units (~1 unit = 1 inch)
@@ -153,6 +155,7 @@ export class WeaponViewManager {
    */
   public updateFollowedBob(input: FollowedWeaponBobInput): void {
     this.followedBobActive = true;
+    this.followedAiming = input.aiming ?? false;
     this.weaponBob.update(
       input.deltaTime,
       input.grounded,
@@ -169,6 +172,7 @@ export class WeaponViewManager {
   /** Return weapon bob ownership to the live FPS viewport-effects path. */
   public clearFollowedBob(): void {
     this.followedBobActive = false;
+    this.followedAiming = false;
     this.weaponBob.reset();
   }
 
@@ -350,6 +354,8 @@ export class WeaponViewManager {
   // Weapon bob (extracted)
   private weaponBob = new WeaponBob();
   private followedBobActive = false;
+  /** A watched player's aim, standing in for local input while they are followed. */
+  private followedAiming = false;
   private effectiveBasePosition: Vector3 = Vector3.Zero(); // Base position with handedness
 
   // ADS (Aiming Down Sights) state
@@ -1603,7 +1609,9 @@ export class WeaponViewManager {
     // Lerp ADS progress based on aim state
     // Force ADS off during reload
     const adsSpeed = 1.0 / Math.max(0.05, adsTime); // Inverse of time = speed
-    const targetAds = state.isAiming && !this.reloadAnim.isReloading ? 1.0 : 0.0;
+    // A watched player's own aim, not the viewer's mouse
+    const aiming = this.followedBobActive ? this.followedAiming : state.isAiming;
+    const targetAds = aiming && !this.reloadAnim.isReloading ? 1.0 : 0.0;
     const adsLerp = Math.min(1.0, deltaTime * adsSpeed);
     this.adsProgress += (targetAds - this.adsProgress) * adsLerp;
 
@@ -1624,7 +1632,7 @@ export class WeaponViewManager {
     const adsZ = (adsTargetZ - basePos.z) * this.adsProgress; // Delta from base
 
     // === Blade charge effects (delegated) ===
-    const isBladeCharging = !!(state.isAiming && this.currentWeaponDef?.meleeRadius);
+    const isBladeCharging = !!(aiming && this.currentWeaponDef?.meleeRadius);
     const chargeResult = this.weaponCharge.update(
       isBladeCharging,
       this.currentWeaponDef?.chargeTime || 1.0,

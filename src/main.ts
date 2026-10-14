@@ -78,7 +78,6 @@ async function main() {
   // Show progress before any asynchronous initialization can fail.
   configureLobbyTwin({
     brand: { logo: "/data/washoi.png", name: "WASHIKI WASHOI" },
-    onConsole: () => DebugConsole.getInstance().toggle(),
   });
   const loadingScreen = new LoadingScreen();
   loadingScreen.show();

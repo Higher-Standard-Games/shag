@@ -22,12 +22,21 @@
   display: flex;
   flex-direction: column;
   transform: translateY(-100%);
-  transition: transform 0.2s ease-out;
+  /* Closed, it is hidden once it has slid away: its shadow would otherwise
+     reach down into the top of the screen as a dark line. */
+  visibility: hidden;
+  transition:
+    transform 0.2s ease-out,
+    visibility 0s linear 0.2s;
   box-shadow: var(--console-shadow, 0 4px 20px rgba(0, 0, 0, 0.5));
 }
 
 .debug-console.open {
   transform: translateY(0);
+  visibility: visible;
+  transition:
+    transform 0.2s ease-out,
+    visibility 0s;
 }
 
 /* Background image placeholder - for future engine branding */

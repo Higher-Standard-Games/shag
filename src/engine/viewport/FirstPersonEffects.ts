@@ -8,6 +8,7 @@
  */
 
 import { Cvar } from "../core/Cvar";
+import { MovementVars } from "../movement/MovementVars";
 import { IdleBreathingEffect } from "./effects/IdleBreathingEffect";
 import { LandingImpactEffect } from "./effects/LandingImpactEffect";
 import { SpeedFOVEffect } from "./effects/SpeedFOVEffect";
@@ -29,11 +30,35 @@ export function createFirstPersonEffects(): ViewportEffect[] {
 }
 
 /**
+ * The zoom while aiming down sights: eases in over `cl_ads_time` and narrows
+ * the view by `cl_ads_fov_reduction` percent at full aim. One per view.
+ */
+export class AdsZoom {
+  /** 0 at the hip, 1 fully aimed. */
+  progress = 0;
+
+  /** Ease toward `aiming` by `deltaTime` seconds; returns the FOV multiplier. */
+  step(deltaTime: number, aiming: boolean): number {
+    const mv = MovementVars.getInstance();
+    const speed = 1 / Math.max(0.05, mv.get("cl_ads_time"));
+    this.progress += ((aiming ? 1 : 0) - this.progress) * Math.min(1, deltaTime * speed);
+    if (this.progress <= 0.001) return 1;
+    // Never narrower than 40% of the base FOV
+    return Math.max(0.4, 1 - (mv.get("cl_ads_fov_reduction") / 100) * this.progress);
+  }
+
+  reset(): void {
+    this.progress = 0;
+  }
+}
+
+/**
  * The effects for a watched player's screen: one stack per watched view, with
  * its own state, so it never disturbs the local camera's.
  */
 export class FirstPersonEffectStack {
   private readonly effects = createFirstPersonEffects();
+  private readonly ads = new AdsZoom();
   private last: ViewportDelta = createNeutralDelta();
 
   /**
@@ -50,12 +75,15 @@ export class FirstPersonEffectStack {
         if (effect.enabled) combineDelta(combined, effect.update(deltaTime, state));
       }
     }
+    // Aiming zooms whatever the view effects switch says, as on the local camera
+    combined.fovMultiplier *= this.ads.step(deltaTime, !!state.isAiming);
     this.last = combined;
     return combined;
   }
 
   reset(): void {
     for (const effect of this.effects) effect.reset();
+    this.ads.reset();
     this.last = createNeutralDelta();
   }
 }

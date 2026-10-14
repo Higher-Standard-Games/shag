@@ -194,19 +194,12 @@ describe("start-up screen", () => {
     branded.hide();
   });
 
-  it("opens the console from the rail without taking it for the start click", async () => {
-    const onConsole = vi.fn();
-    configureLobbyTwin({ onConsole });
-    const withConsole = new LoadingScreen();
-    withConsole.show();
-    const ready = withConsole.waitForReady();
+  it("shows the lobby's utility keys disabled until the lobby takes over", () => {
+    const screen = new LoadingScreen();
+    screen.show();
     const keys = [...document.querySelectorAll<HTMLButtonElement>(".twin__utility .twin-key")].slice(-3);
-    expect(keys.map((key) => key.disabled)).toEqual([true, true, false]);
-    keys[2].click();
-    expect(onConsole).toHaveBeenCalledOnce();
-    expect(audio.unlockAudio).not.toHaveBeenCalled();
-    LoadingScreen.forceDismiss();
-    await ready;
-    withConsole.hide();
+    expect(keys.map((key) => key.textContent)).toEqual(["Profile", "Settings", "Console"]);
+    expect(keys.map((key) => key.disabled)).toEqual([true, true, true]);
+    screen.hide();
   });
 });

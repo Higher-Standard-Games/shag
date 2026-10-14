@@ -7,8 +7,8 @@
  * screen should only change what the rail and stage hold, never where they are.
  * Each screen builds the rail here and puts its own content on the stage.
  *
- * Engine code, game-agnostic: the game names its brand and the console once, at
- * boot, with `configureLobbyTwin`.
+ * Engine code, game-agnostic: the game names its brand once, at boot, with
+ * `configureLobbyTwin`.
  */
 
 import { EngineVersion } from "../../core/EngineVersion";
@@ -23,12 +23,10 @@ export interface LobbyTwinBrand {
 }
 
 let brand: LobbyTwinBrand | null = null;
-let openConsole: (() => void) | null = null;
 
-/** Set by the game at boot: its logo, and how the rail's Console key opens the console. */
-export function configureLobbyTwin(options: { brand?: LobbyTwinBrand; onConsole?: () => void }): void {
+/** Set by the game at boot: its logo. */
+export function configureLobbyTwin(options: { brand?: LobbyTwinBrand }): void {
   if (options.brand) brand = options.brand;
-  if (options.onConsole) openConsole = options.onConsole;
 }
 
 export type TwinStepState = "done" | "active" | "pending" | "error";
@@ -109,17 +107,13 @@ export function buildTwinRail(options: { label: string; steps: readonly string[]
 
   // The lobby's utility row, so nothing shifts when it takes over
   const utility = element("div", "twin__utility");
+  // Its keys wait for the lobby; the console key (backquote) works on every screen.
   const keys = ["Profile", "Settings", "Console"].map((label) => {
     const key = twinKey("button", label) as HTMLButtonElement;
     key.type = "button";
     key.classList.add("twin-key--util");
-    key.disabled = label !== "Console" || !openConsole;
+    key.disabled = true;
     return key;
-  });
-  keys[2].addEventListener("click", (event) => {
-    // Not a click on the screen behind it: a screen that starts on a click must not start
-    event.stopPropagation();
-    openConsole?.();
   });
   utility.append(...keys);
 

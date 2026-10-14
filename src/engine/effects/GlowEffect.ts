@@ -17,6 +17,12 @@ import { GlowLayer } from "@babylonjs/core/Layers/glowLayer";
 import type { Scene } from "@babylonjs/core/scene";
 import RenderVars from "../rendering/RenderVars";
 
+/**
+ * The glow's blur, in pixels. Babylon's default of 32 spreads every lamp into a
+ * soft blob a hand wide; 16 keeps the glow close to what is lit.
+ */
+export const GLOW_BLUR_KERNEL = 16;
+
 export class GlowEffect {
   private static instance: GlowEffect;
 
@@ -53,6 +59,10 @@ export class GlowEffect {
     return this.glow?.intensity ?? 0;
   }
 
+  get blurKernelSize(): number {
+    return this.glow?.blurKernelSize ?? 0;
+  }
+
   private requested(): boolean {
     return (RenderVars.getInstance().get("r_glow") ?? 0) > 0;
   }
@@ -69,7 +79,7 @@ export class GlowEffect {
 
   private createLayer(): void {
     if (!this.scene || this.glow) return;
-    this.glow = new GlowLayer("glow", this.scene);
+    this.glow = new GlowLayer("glow", this.scene, { blurKernelSize: GLOW_BLUR_KERNEL });
     this.applyIntensity();
   }
 

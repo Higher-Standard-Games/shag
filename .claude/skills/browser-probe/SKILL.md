@@ -52,6 +52,16 @@ To import from the copy, point its import at
   `demo <file>.shagdemo` then `demoplay`. Demo names need the `.shagdemo`
   extension; files are in `public/data/demos`. Don't await `demoplay`: its
   promise can stay pending while playback runs.
+- **One `ev` call lasts at most 60 seconds.** The driver gives up on a CDP call
+  after that and returns `undefined`. Keep a measurement window to about 50
+  seconds, or split it into several calls.
+- **Start the server with an absolute path** when running it in the background
+  (`node C:/.../.claude/skills/browser-probe/scripts/private-vite.mjs`): the
+  shell's working directory may have drifted into `src/games/fps`.
+- **Prove a fix by reverting it once.** Measure with the fix, revert it, restart
+  the server (watching is off), measure again, restore it. A count that drops
+  from "every frame" to zero is evidence; a zero alone may mean the case never
+  came up.
 - **Read the camera that renders.** When `scene.activeCameras` is set, the frame
   comes from `activeCameras[0]`, not `scene.activeCamera`.
 - **Import engine modules by source path** inside `ev`, for example

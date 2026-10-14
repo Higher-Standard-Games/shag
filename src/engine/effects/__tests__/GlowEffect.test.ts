@@ -10,7 +10,7 @@ import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
 import { Scene } from "@babylonjs/core/scene";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import RenderVars from "../../rendering/RenderVars";
-import { GlowEffect } from "../GlowEffect";
+import { GLOW_BLUR_KERNEL, GlowEffect } from "../GlowEffect";
 
 // requestAnimationFrame isn't available in the Node test env; RenderVars.set
 // schedules its live scene-apply through it, so no-op it (running the callback
@@ -51,6 +51,7 @@ describe("GlowEffect", () => {
     glow.init(scene);
     expect(glow.isEnabled()).toBe(true);
     expect(glow.intensity).toBe(RenderVars.getInstance().get("r_glow"));
+    expect(glow.blurKernelSize).toBe(GLOW_BLUR_KERNEL);
 
     // Turning it off disposes the layer; turning it back on re-creates it.
     RenderVars.getInstance().set("r_glow", 0);
