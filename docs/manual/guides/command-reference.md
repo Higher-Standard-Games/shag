@@ -94,10 +94,15 @@ The console does not expose the old `camera controller`, `camera height`, or `ca
 | `cl_showspeed <0\|1>` | Movement speed readout (default on) |
 | `perf capture [seconds]` | Performance capture and summary |
 | `export <all\|cvars\|camera\|fx>` | Copy current state as config text |
-| `settings export\|import\|list` | Settings file operations |
+| `settings export\|import\|list` | Copy/import cvars through the clipboard, or list modified values |
 | `screenshot [filename]` | Save a screenshot |
 
 A numeric cvar refuses text: `r_bloom abc` fails and leaves the value alone rather than reading the typo as zero. A number outside the cvar's range is clamped, not refused.
+
+`settings import` reports accepted settings and rejected line numbers. Unknown,
+read-only and invalid entries are not counted as imported; valid entries still
+apply. Blank lines and `//` or `#` comments are ignored. Exports quote and escape
+string values; simple `name value` and `name "value"` configs remain supported.
 
 ## World, lighting and weather
 

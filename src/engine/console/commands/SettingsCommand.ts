@@ -37,18 +37,20 @@ export default class SettingsCommand extends Command {
       }
 
       case "import": {
+        let config: string;
         try {
-          const config = await navigator.clipboard.readText();
-          if (!config.trim()) {
-            return "Clipboard is empty";
-          }
-
-          Cvar.execConfig(config);
-          const lineCount = config.split("\n").filter((l) => l.trim() && !l.startsWith("//")).length;
-          return `Imported ${lineCount} settings from clipboard`;
+          config = await navigator.clipboard.readText();
         } catch (e) {
           return `Failed to read clipboard: ${e}`;
         }
+        if (!config.trim()) return "Clipboard is empty";
+        const result = Cvar.execConfig(config);
+        if (!result.accepted && !result.rejected.length) return "No settings found in clipboard";
+        const summary = `Imported ${result.accepted} settings from clipboard`;
+        if (!result.rejected.length) return summary;
+        return `${summary}; rejected ${result.rejected.length}\n${result.rejected
+          .map(({ line, reason }) => `Line ${line}: ${reason}`)
+          .join("\n")}`;
       }
       default: {
         const cvars = Cvar.list();

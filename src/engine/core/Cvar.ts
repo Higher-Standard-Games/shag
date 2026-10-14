@@ -482,7 +482,7 @@ export class Cvar {
     const lines: string[] = [];
     for (const cvar of Cvar.cvars.values()) {
       if (cvar.value !== cvar.defaultValue && !cvar.flags.hidden) {
-        lines.push(`${cvar.name} "${cvar.value}"`);
+        lines.push(`${cvar.name} ${JSON.stringify(String(cvar.value))}`);
       }
     }
     return lines.sort().join("\n");
@@ -491,19 +491,35 @@ export class Cvar {
   /**
    * Execute a config string (set multiple cvars)
    */
-  static execConfig(config: string): void {
+  static execConfig(config: string): { accepted: number; rejected: Array<{ line: number; reason: string }> } {
+    const result = { accepted: 0, rejected: [] as Array<{ line: number; reason: string }> };
     const lines = config.split("\n");
-    for (const line of lines) {
+    for (const [index, line] of lines.entries()) {
       const trimmed = line.trim();
       if (!trimmed || trimmed.startsWith("//") || trimmed.startsWith("#")) continue;
 
       // Parse: name "value" or name value
-      const match = trimmed.match(/^(\S+)\s+(?:"([^"]*)"|(\S+))$/);
-      if (match) {
-        const name = match[1];
-        const value = match[2] ?? match[3];
-        Cvar.set(name, value);
+      const match = trimmed.match(/^(\S+)\s+("(?:[^"\\]|\\.)*"|[^"\s]+)$/);
+      if (!match) {
+        result.rejected.push({ line: index + 1, reason: "Expected a setting name and value" });
+        continue;
       }
+      const name = match[1];
+      let value = match[2];
+      if (value.startsWith('"')) {
+        try {
+          value = JSON.parse(value) as string;
+        } catch {
+          // Legacy quoted strings allowed literal backslashes (e.g. asset paths).
+          value = value.slice(1, -1);
+        }
+      }
+      const cvar = Cvar.getCvar(name);
+      const reason = !cvar ? "Unknown setting" : cvar.flags.readonly ? "Read-only setting" : null;
+      if (reason || !Cvar.set(name, value)) {
+        result.rejected.push({ line: index + 1, reason: reason ?? "Invalid value" });
+      } else result.accepted++;
     }
+    return result;
   }
 }
