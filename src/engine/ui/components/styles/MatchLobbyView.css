@@ -1276,16 +1276,3 @@
     padding: 0 28px;
   }
 }
-
-@media (prefers-reduced-motion: reduce) {
-  .match-lobby__status::before,
-  .match-lobby__radar-sweep,
-  .match-lobby__radar-blip,
-  .match-lobby__radar-ring,
-  .match-lobby__seat--open::after,
-  .match-lobby__seat--open .match-lobby__seat-avatar,
-  .match-lobby__status-fill,
-  .match-lobby__ready--calling::before {
-    animation: none;
-  }
-}

@@ -238,10 +238,3 @@
 .raised-key:disabled :is(.raised-key__label, .raised-key__hint) {
   opacity: 0.5;
 }
-
-@media (prefers-reduced-motion: reduce) {
-  .raised-key,
-  .raised-key__face {
-    transition: none;
-  }
-}

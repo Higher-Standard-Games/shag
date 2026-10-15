@@ -1608,12 +1608,21 @@ export class WeaponViewManager {
 
     // Lerp ADS progress based on aim state
     // Force ADS off during reload
-    const adsSpeed = 1.0 / Math.max(0.05, adsTime); // Inverse of time = speed
+    const adsDuration = this.currentWeaponDef?.adsRequireReady ? (this.currentWeaponDef.ads?.time ?? adsTime) : adsTime;
+    const adsSpeed = 1.0 / Math.max(0.05, adsDuration);
     // A watched player's own aim, not the viewer's mouse
     const aiming = this.followedBobActive ? this.followedAiming : state.isAiming;
     const targetAds = aiming && !this.reloadAnim.isReloading ? 1.0 : 0.0;
-    const adsLerp = Math.min(1.0, deltaTime * adsSpeed);
-    this.adsProgress += (targetAds - this.adsProgress) * adsLerp;
+    if (this.currentWeaponDef?.adsRequireReady) {
+      const step = deltaTime * adsSpeed;
+      this.adsProgress =
+        targetAds > this.adsProgress
+          ? Math.min(targetAds, this.adsProgress + step)
+          : Math.max(targetAds, this.adsProgress - step);
+    } else {
+      const adsLerp = Math.min(1.0, deltaTime * adsSpeed);
+      this.adsProgress += (targetAds - this.adsProgress) * adsLerp;
+    }
 
     // Get ADS target position from weapon def (or use CVar fallback)
     const defAdsOffset = this.currentWeaponDef?.viewModel?.adsOffset;

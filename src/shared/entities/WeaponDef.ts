@@ -175,6 +175,8 @@ export interface WeaponDef extends EntityDef {
   /** When true, firing from hip forces ADS transition before shot.
    *  Server delays fire by ads.time; client auto-enters ADS on fire press. */
   hipfireBlocked?: boolean;
+  /** Manual ADS accuracy requires the full ads.time; blocked hipfire waits too. */
+  adsRequireReady?: boolean;
   /** Shots per burst (if fireMode is 'burst') */
   burstCount?: number;
 

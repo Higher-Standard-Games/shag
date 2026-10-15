@@ -304,23 +304,3 @@
     width: min(64vw, 300px);
   }
 }
-
-@media (prefers-reduced-motion: reduce) {
-  /* The spin stays, slower: it is what says the screen is still loading */
-  .boot__ring-sweep {
-    animation-duration: 2.8s;
-  }
-
-  .ui-loading-screen--ready .boot__ring-pulse {
-    animation: none;
-  }
-
-  /* No growing and shrinking, but still plainly the thing to click: it glows */
-  .boot__start {
-    animation: boot-start-glow 1.6s ease-in-out infinite;
-  }
-
-  .boot__bar-fill {
-    transition: none;
-  }
-}

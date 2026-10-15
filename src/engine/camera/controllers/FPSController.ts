@@ -721,6 +721,7 @@ export class FPSController implements ICameraController {
 
   update(deltaTime: number): void {
     if (!this.enabled || !this.camera) return;
+    let autoAds = false;
 
     // When pointer lock is lost (e.g. pause menu), zero out inputs to prevent moving
     // but DO NOT return early so we still process networking and render remote players.
@@ -757,6 +758,7 @@ export class FPSController implements ICameraController {
           const wDef = weapons[weaponId];
           if (wDef?.hipfireBlocked) {
             this.keys.aim = true; // Forces ADS visual + server ALT_FIRE
+            autoAds = true;
           }
         }
       }
@@ -957,6 +959,7 @@ export class FPSController implements ICameraController {
           sprint: sprintForServer,
           fire: this.keys.fire,
           altFire: this.keys.aim,
+          autoAds,
           reload: this.keys.reload,
           use: this.keys.use,
           // Aim without our own view kick (visual only)

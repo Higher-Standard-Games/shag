@@ -286,16 +286,3 @@
     margin-top: 20px;
   }
 }
-
-@media (prefers-reduced-motion: reduce) {
-  .connecting-overlay,
-  .connecting-overlay__title,
-  .connecting-overlay__bar-fill,
-  .connecting-overlay--loading[data-state="setting-up"] .connecting-overlay__bar-fill {
-    animation: none;
-  }
-
-  .connecting-overlay--loading .connecting-overlay__bar-fill {
-    transition: none;
-  }
-}

@@ -33,6 +33,9 @@ export const ELECTROBOLT: WeaponDef = {
   range: 10000,
   hitscan: true,
   hitscanType: "bolt",
+  adsRequireReady: true,
+  spread: 20,
+  adsSpread: 0,
   fireMode: "semi",
   pickupBounds: { x: 32, y: 32, z: 32 },
   knockbackScale: 3.5,
@@ -40,6 +43,7 @@ export const ELECTROBOLT: WeaponDef = {
   useLagCompensation: true,
   crosshair: { style: "cross_dot", baseGap: 2, lineLength: 5, lineWidth: 1 },
   speedBonus: -25, // Heavy sniper: -25 speed (375 run)
+  recoilScale: 4.0, // Heavy upward/backward kick, matching Riotgun; ADS reduces it to 20%.
 
   // View Model — GLB format
   viewModel: {
@@ -61,7 +65,7 @@ export const ELECTROBOLT: WeaponDef = {
 
   // ADS
   ads: {
-    time: 0.08,
+    time: 0.375,
     fovReduction: 25, // More zoom for sniper
     sensitivity: 0.3,
     movementPenalty: 0.7,

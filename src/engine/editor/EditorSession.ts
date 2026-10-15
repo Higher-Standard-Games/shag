@@ -347,6 +347,7 @@ export class EditorSession {
     this.root.className = "shagged";
     this.root.tabIndex = -1;
     this.root.innerHTML = `
+      <button type="button" class="shagged__exit" data-action="exit" aria-label="Leave editor" title="Leave editor">✕</button>
       <header class="shagged__toolbar">
         <strong>SHAGGED</strong>
         <div class="shagged__toolgroup" aria-label="Map actions">
@@ -386,7 +387,6 @@ export class EditorSession {
           <button data-action="health" title="Map Health (H)">Health</button>
         </div>
         <div class="shagged__toolgroup" aria-label="View actions">
-          <span class="shagged__group-label">VIEW</span>
           <details class="shagged__menu"><summary>View</summary><div class="shagged__menu-panel">
             <button data-action="frame-selection" title="F">Frame Selection</button><button data-action="frame-all" title="Shift+F">Frame All</button>
             <label>Grid <select data-grid title="[ / ] to step"><option>8</option><option selected>16</option><option>32</option><option>64</option></select></label>
@@ -399,7 +399,6 @@ export class EditorSession {
           <button data-action="compile-status" title="Check server and compile status">Status: offline</button>
           <button data-action="playtest" disabled title="A compiled, playable build is required">Playtest</button>
         </div>
-        <button class="shagged__exit" data-action="exit">Exit</button>
       </header>
       <main class="shagged__workspace">
         <section class="shagged__pane shagged__pane--perspective"><span>3D PERSPECTIVE</span><div class="shagged__view-modes" role="group" aria-label="3D view mode">${VIEW_MODES.map(([mode, label, title]) => `<button type="button" data-view-mode="${mode}" title="${title}">${label}</button>`).join("")}</div><div class="shagged__free-look-hint" aria-hidden="true">Press ESC to release mouse</div></section>

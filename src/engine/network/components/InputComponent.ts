@@ -21,8 +21,10 @@ export const InputButtons = {
   ALT_FIRE: 1 << 9,
   RELOAD: 1 << 10,
   USE: 1 << 11,
+  /** ADS requested by primary fire, rather than the player's aim button. */
+  AUTO_ADS: 1 << 12,
 
-  // Game-specific can use higher bits
+  // ACTION1 aliases AUTO_ADS; games using automatic aim reserve that bit.
   ACTION1: 1 << 12,
   ACTION2: 1 << 13,
   ACTION3: 1 << 14,

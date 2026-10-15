@@ -144,6 +144,14 @@ Movement effect timers (slide, wall-jump charge, ledge grab, crouch view) are al
 
 Every usercmd is clamped at a single ingest choke point (`InputSanitizer`): reject non-finite direction/pitch/yaw, clamp look pitch to ±90°, wrap yaw, unit-clamp the wish direction, bound the weapon slot. The **same** clamp runs in client prediction, so predicted and simulated states can't diverge at steep pitch. A frozen/silent client also stops firing and jumping after a short grace (its repeated input has action buttons stripped).
 
+Input button bit 12 (`InputButtons.AUTO_ADS`, alias `ACTION1`) distinguishes
+primary-fire automatic aiming from the manual aim button. Automatic aiming also
+sets `ALT_FIRE` so movement and watched views retain their aiming behavior.
+RL/GL firing waits for the configured ADS duration; manual accuracy on RL, GL
+and Electrobolt requires uninterrupted manual ADS for that duration. This uses
+the existing button bitmask without changing packet or demo layouts. Client and
+server builds should agree on these input semantics.
+
 Detection telemetry (uplink jitter/loss, view-flick histograms, accuracy/headshot, impossible-input counters) sits on top of this and is **strictly log-only** — it produces signals, never verdicts, until calibrated. The simulation is RNG-deterministic, enabling tamper-evident demo re-simulation (`demo:verify`).
 
 ### 4. Client Prediction

@@ -34,6 +34,9 @@ export const ROCKET_LAUNCHER: WeaponDef = {
   hitscan: false,
   fireMode: "semi",
   hipfireBlocked: true,
+  adsRequireReady: true,
+  spread: 1,
+  adsSpread: 0,
   pickupBounds: { x: 32, y: 32, z: 32 },
   projectileId: "rocket",
   projectileSpeed: 1814,
@@ -63,7 +66,7 @@ export const ROCKET_LAUNCHER: WeaponDef = {
 
   // ADS
   ads: {
-    time: 0.08,
+    time: 0.16,
     fovReduction: 15,
     sensitivity: 0.5,
     movementPenalty: 0.5,

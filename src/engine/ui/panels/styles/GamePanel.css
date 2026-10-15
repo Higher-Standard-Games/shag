@@ -825,22 +825,3 @@
     opacity: 0;
   }
 }
-
-/* Asked for less motion: the panel appears and goes at once, and its drifting
-   frame, scan line and particles hold still. The panel keeps a near-instant
-   animation rather than none, because closing waits for it to end. */
-@media (prefers-reduced-motion: reduce) {
-  .game-panel,
-  .game-panel--closing {
-    animation-duration: 1ms;
-  }
-
-  .game-panel__blur-top,
-  .game-panel__blur-bot,
-  .game-panel__divider--top,
-  .game-panel__divider--bot,
-  .game-panel__scan,
-  .game-panel__particle {
-    animation: none;
-  }
-}

@@ -13,7 +13,7 @@ developer 1
 editor open
 ```
 
-`editor close` (or the **Exit** button) saves the draft and returns to the lobby; `editor status` reports whether it is open and which draft is loaded. Leave a running match before opening the editor. The console stays available while you edit.
+`editor close` (or the gold **✕** button in the top-left corner) saves the draft and returns to the lobby; `editor status` reports whether it is open and which draft is loaded. Leave a running match before opening the editor. The console stays available while you edit.
 
 ## The workspace
 

@@ -36,7 +36,6 @@ export const PLASMAGUN: WeaponDef = {
   range: 1500,
   hitscan: false,
   fireMode: "auto",
-  hipfireBlocked: true,
   spread: 3, // 3° random spread when hip-firing
   adsSpread: 0, // Perfectly accurate when ADS
   pickupBounds: { x: 32, y: 32, z: 32 },

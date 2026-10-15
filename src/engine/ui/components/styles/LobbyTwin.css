@@ -539,14 +539,3 @@ button.twin-key:disabled {
     padding-block: 8px;
   }
 }
-
-@media (prefers-reduced-motion: reduce) {
-  .twin__orb {
-    animation: none;
-  }
-
-  .twin-key,
-  .twin-key__face {
-    transition: none;
-  }
-}
