@@ -76,6 +76,8 @@ release/
 public/games/
 public/data/
 assets-source/
+/data/archive/
+__pycache__/
 server-data/shagged/
 temp/
 

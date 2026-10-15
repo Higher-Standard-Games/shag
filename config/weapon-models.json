@@ -1,0 +1,19 @@
+{
+  "package": "z_weapons.pk3",
+  "root": "models/weapons/",
+  "sourceDir": "assets-source/weapons/exports",
+  "basePackage": "assets-source/weapons/z_weapons-source.pk3",
+  "required": [
+    "blade/blade.glb",
+    "electrobolt/electrobolt.glb",
+    "glauncher/glauncher.glb",
+    "glauncher/glauncher_barrel.glb",
+    "lasergun/lasergun.glb",
+    "machinegun/machinegun.glb",
+    "plasmagun/plasmagun.glb",
+    "plasmagun/plasmagun_barrel.glb",
+    "plasmagun/tags.txt",
+    "riotgun/riotgun.glb",
+    "rlauncher/rlauncher.glb"
+  ]
+}

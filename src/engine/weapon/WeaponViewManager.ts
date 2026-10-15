@@ -35,6 +35,7 @@ import {
   getSafeMaxSimultaneousLights,
 } from "../lighting/DynamicLightSafety";
 import { getMD3Loader, MD3Coords, type MD3LoadResult } from "../loader/model/MD3Loader";
+import { readIndexedModelAsset, resolveModelAsset } from "../loader/model/ModelAsset";
 import { ModelInstanceCache } from "../loader/model/ModelInstanceCache";
 import type { ModelLoadResult } from "../loader/model/ModelLoader";
 import { disposeModelResources } from "../loader/model/ModelSourceCache";
@@ -704,17 +705,14 @@ export class WeaponViewManager {
 
   /** Configure the authored source once; active views clone its rig/materials. */
   private async loadGlbSource(weaponName: string, modelPath: string, scene: Scene): Promise<ModelLoadResult> {
-    const lastSlash = modelPath.lastIndexOf("/");
-    const dir = modelPath.substring(0, lastSlash + 1);
-    const file = modelPath.substring(lastSlash + 1);
-
     // Save scene state — SceneLoader can add cameras/lights and set
     // scene.activeCamera, which breaks our dual-camera weapon rendering.
     const savedActiveCameras = scene.activeCameras ? [...scene.activeCameras] : null;
     const cameraCountBefore = scene.cameras.length;
     const viewRoot = this.weaponRoot;
 
-    const result = await ImportMeshAsync(file, scene, { rootUrl: dir });
+    const asset = await resolveModelAsset(modelPath);
+    const result = await ImportMeshAsync(asset.source, scene, asset.options);
     const weaponNode = new TransformNode(`weapon_${weaponName}`, scene);
 
     try {
@@ -1349,12 +1347,13 @@ export class WeaponViewManager {
       // lasergun model dir, so weaponName ("voltaic") != the model directory and
       // /data/models/weapons/voltaic/voltaic.cfg 404s — the counter never appears.
       const cfgPath = modelPath.replace(/\.glb$/i, ".cfg");
-      const res = await fetch(cfgPath);
-      if (!res.ok) {
+      const bytes = await readIndexedModelAsset(cfgPath);
+      const res = bytes ? null : await fetch(cfgPath);
+      if (res && !res.ok) {
         devLog(`[AmmoCounter] no cfg for ${weaponName} (${res.status}) — skipping`);
         return;
       }
-      const config = parseAmmoCounter(await res.text());
+      const config = parseAmmoCounter(bytes ? new TextDecoder().decode(bytes) : await res!.text());
       if (!config) return; // weapon declares no ammoCounter — normal for most guns
       devLog(`[AmmoCounter] ${weaponName}: cfg ammoCounter =`, config);
 

@@ -6,7 +6,7 @@
  * - FBSP v1 (Warsow/qfusion) - primary target
  *
  * FBSP differences from IBSP:
- * - 512x512 lightmaps (vs 128x128)
+ * - Authored lightmap dimensions, defaulting to 512x512 (vs 128x128)
  * - Up to 4 lightmaps per surface (lightstyles)
  * - RBSP-style vertex format
  */
@@ -219,7 +219,7 @@ export interface BspFile {
   visData: BspVisData | null;
 
   // Metadata
-  lightmapSize: number; // 128 for IBSP, 512 for FBSP
+  lightmapSize: number; // IBSP: 128; FBSP: authored size or 512
 
   // LightGrid Metadata (for model lighting)
   lightGridOrigin?: [number, number, number];
@@ -269,10 +269,9 @@ export class BspLoader {
 
     console.log(`[BspLoader] Parsing ${header.isFBSP ? "FBSP" : "IBSP"} v${header.version}`);
 
-    const lightmapSize = header.isFBSP ? FBSP_LIGHTMAP_SIZE : IBSP_LIGHTMAP_SIZE;
-
     // Parse all lumps into local variables
     const entities = this.parseEntities();
+    const lightmapSize = this.resolveLightmapSize(header.isFBSP, entities);
     const textures = this.parseTextures();
     const planes = this.parsePlanes();
     const nodes = this.parseNodes();
@@ -995,9 +994,31 @@ export class BspLoader {
     return faces;
   }
 
+  private resolveLightmapSize(isFBSP: boolean, entities: BspEntity[]): number {
+    if (!isFBSP) return IBSP_LIGHTMAP_SIZE;
+    const worldspawn = entities.find((entity) => entity.classname === "worldspawn");
+    const declaration = Object.entries(worldspawn?.properties ?? {}).find(
+      ([key]) => key.toLowerCase() === "_lightmapimagesize",
+    );
+    if (!declaration) return FBSP_LIGHTMAP_SIZE;
+    const size = Number(declaration[1]);
+    if (!Number.isSafeInteger(size) || size <= 0 || !Number.isInteger(Math.log2(size))) {
+      throw new Error(`[BspLoader] Invalid _lightmapImageSize: ${declaration[1]}`);
+    }
+    if (!Number.isSafeInteger(size * size * 3)) {
+      throw new Error(`[BspLoader] _lightmapImageSize is too large: ${size}`);
+    }
+    return size;
+  }
+
   private parseLightmaps(lightmapSize: number): Uint8Array[] {
     const lump = this.getLump(LumpIndex.LIGHTMAPS);
     const LIGHTMAP_BYTES = lightmapSize * lightmapSize * 3; // RGB
+    if (lump.length % LIGHTMAP_BYTES !== 0) {
+      throw new Error(
+        `[BspLoader] Lightmap lump (${lump.length} bytes) does not contain complete ${lightmapSize}x${lightmapSize} RGB pages`,
+      );
+    }
     const count = Math.floor(lump.length / LIGHTMAP_BYTES);
     const lightmaps: Uint8Array[] = [];
 

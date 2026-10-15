@@ -80,6 +80,9 @@ describe("installed-map room to ranking", () => {
       const spawn = vi.spyOn(spawner, "spawn");
       const botSecret = "ranking-smoke-secret";
       const lobby = new LobbyServer(0, spawner, { players: accounts, results, botSecret });
+      const mapConfig = path.join(dir, "maps.json");
+      fs.writeFileSync(mapConfig, JSON.stringify({ wdm2: { displayName: "Test Arena", gametypes: ["ffa"] } }));
+      (lobby as unknown as { MAP_CONFIG_PATH: string }).MAP_CONFIG_PATH = mapConfig;
       const peers: LobbyPeer[] = [];
       const gameClients: ProtocolTestClient[] = [];
       const demoDir = path.join(process.cwd(), "public", "data", "demos");
@@ -95,8 +98,7 @@ describe("installed-map room to ranking", () => {
         const internal = lobby as unknown as { gametypes: GametypeInfo[]; wss: { address(): { port: number } } };
         const ffa = internal.gametypes.find((mode) => mode.id === "ffa")!;
         expect(ffa).toMatchObject({ maxPlayers: 8, minPlayers: 2 });
-        expect(ffa.mapPool).toContain("wdm2");
-        ffa.mapPool = ["wdm2"];
+        expect(ffa.mapPool).toEqual(["wdm2"]);
         const lobbyPort = internal.wss.address().port;
         for (const member of members) {
           const peer = await LobbyPeer.connect(lobbyPort);

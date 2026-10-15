@@ -157,6 +157,9 @@ Headless loading resolves the BSP through the same PK3 index. Do not add ad-hoc 
 ## KTX2 sidecar loading
 
 Generated `ktx2cache` sidecars use top-to-bottom rows, matching the TGA parser.
+Sidecars whose base width or height is not divisible by four decode to RGBA
+so the authored dimensions and UVs remain valid on both renderers. Aligned
+images retain the normal compressed-format selection.
 The dedicated sidecar loader preserves that order for compressed and raw
 decoded textures on both WebGL and WebGPU. It retains base dimensions after
 uploading all mip levels, and device restoration selects the same loader.

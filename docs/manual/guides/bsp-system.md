@@ -68,6 +68,12 @@ Quake map coordinates are converted to Babylon coordinates by the BSP mesh helpe
 - IBSP and FBSP lightmap sizes and lightstyles are handled separately;
 - worldspawn, spawn points, brush entities, lights, and other supported entities are processed after geometry.
 
+IBSP lightmap pages are 128×128. FBSP defaults to 512×512 when worldspawn has
+no `_lightmapImageSize` key; a declared positive power of two selects the authored
+page dimensions (including 1024 and 2048). Key lookup is case-insensitive.
+Invalid dimensions and incomplete RGB lightmap pages fail loading with a
+diagnostic rather than silently splitting or truncating the lighting data.
+
 Inline lift/door meshes group faces by both base texture and lightmap page,
 matching static-world batching. Faces with page-local UV2 coordinates must not
 share a material across different lightmap pages. Static and moving BSP surfaces

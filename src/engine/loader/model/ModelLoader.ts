@@ -17,6 +17,7 @@ import { InstancedMeshManager, type InstanceTransform } from "../../rendering/In
 import { BspManager } from "../bsp/BspManager";
 import { PK3Loader } from "../pk3/PK3Loader";
 import { MD3Loader } from "./MD3Loader";
+import { resolveModelAsset } from "./ModelAsset";
 
 /**
  * Options for loading a 3D model
@@ -245,7 +246,8 @@ export class ModelLoader {
       }
 
       // Load the model (GLB/GLTF/OBJ) — all meshes (no meshNames filter)
-      const result = await ImportMeshAsync(fileName, this.scene, { rootUrl });
+      const asset = await resolveModelAsset(fullPath);
+      const result = await ImportMeshAsync(asset.source, this.scene, asset.options);
 
       if (!result.meshes || result.meshes.length === 0) {
         console.error(`No meshes found in model: ${modelPath}`);

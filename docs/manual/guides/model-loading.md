@@ -41,6 +41,40 @@ The optional outline proxy stays a separate loose pair; its build recipe
 extracts its model source from this package, and benchmark hashes cover the
 packaged player inputs.
 
+## Packaged weapon models
+
+Weapon GLBs and their configs live inside `public/data/z_weapons.pk3`, alongside
+the original IQM/MD3 models and textures. First-person weapons, pickups, dropped
+weapons and remote weapons resolve indexed GLBs to embedded bytes; the ordinary
+PK3 loader handles lazy downloads and mirrors. Unindexed custom URLs retain
+normal file loading. Ammo counters read their packaged `.cfg` sidecars too.
+Attachment rules read packaged `tags.txt` before trying a loose/custom URL.
+Plasma's `tag_barrel2` rule is required to place its two barrels correctly.
+
+`config/weapon-models.json` defines the original source archive, export directory
+and required main/barrel GLBs. The original bank is preserved at
+`assets-source/weapons/z_weapons-source.pk3`; exports and authoring intermediates
+live in `assets-source/weapons/exports/`. These ignored inputs must be supplied
+separately to rebuild; a normal game build consumes the existing runtime PK3.
+
+```bash
+# Optional: regenerate IQM-derived GLBs and embed their textures.
+# Requires Python 3 and Pillow; PYTHON can select the Python executable.
+npm run convert:weapons
+# Package existing exports, retaining the original source bank entries.
+npm run tools:weapon-models
+npm run tools:pk3-index
+```
+
+Conversion writes to the unserved export directory; it does not publish the
+package. Custom FBX-derived exports, such as the Blade, need their own export
+step and are preserved by the IQM conversion. Packaging accepts `--source-dir`,
+`--base-package` and `--output` overrides, validates required GLBs and embedded
+image/buffer resources, and records export hashes in
+`models/weapons/manifest.json`. Only GLB/config exports and `tags.txt` attachment rules are added to the bank;
+loose authoring files are excluded. Reload the page after installing a rebuilt
+package so the browser replaces any already-mounted old copy.
+
 ## Developer command
 
 ```text

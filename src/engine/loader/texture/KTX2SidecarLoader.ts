@@ -39,6 +39,20 @@ export class KTX2SidecarLoader extends _KTXTextureLoader {
     // This also avoids Babylon 9.17 WebGPU's cached mip-0 invert-Y bind group
     // being reused for every raw mip, replacing distant mips with base crops.
     texture.invertY = false;
+    // Block-compressed base levels must be aligned to their 4x4 blocks.
+    // Keep authored extents/UVs for images such as 554x554 by transcoding to
+    // RGBA instead of submitting an invalid compressed upload marked ready.
+    if (data.byteLength >= 28) {
+      const header = new DataView(data.buffer, data.byteOffset, data.byteLength);
+      const width = header.getUint32(20, true);
+      const height = header.getUint32(24, true);
+      if (width % 4 !== 0 || height % 4 !== 0) {
+        // Babylon types this as an input/output object; decoded fields are
+        // populated by _uploadAsync, not required from its caller.
+        options = { ...options, forceRGBA: true, forceR8: false, forceRG8: false } as IKTX2DecoderOptions &
+          IDecodedData;
+      }
+    }
     const container = new SidecarContainer(texture.getEngine());
     void container._uploadAsync(data, texture, options).then(
       () => callback(texture.width, texture.height, texture.generateMipMaps, true, () => {}, false),

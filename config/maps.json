@@ -1,58 +1,39 @@
 {
   "wdm1": {
     "displayName": "The Edge",
-    "gametypes": [
-      "ffa"
-    ]
+    "gametypes": []
   },
   "wdm2": {
     "displayName": "Proving Grounds",
-    "gametypes": [
-      "duel",
-      "ffa"
-    ]
+    "gametypes": []
   },
   "wdm11": {
     "displayName": "Warehouse C",
-    "gametypes": [
-      "duel"
-    ]
+    "gametypes": []
   },
   "wdm12": {
     "displayName": "Courtyard",
-    "gametypes": [
-      "duel"
-    ]
+    "gametypes": []
   },
   "wdm5": {
     "displayName": "Sinister",
-    "gametypes": [
-      "ffa"
-    ]
+    "gametypes": []
   },
   "wdm7": {
     "displayName": "Brimstone",
-    "gametypes": [
-      "ffa"
-    ]
+    "gametypes": []
   },
   "acidwdm2": {
     "displayName": "Acid Warehouse",
-    "gametypes": [
-      "duel"
-    ]
+    "gametypes": []
   },
   "wdm14": {
     "displayName": "Aerowalk",
-    "gametypes": [
-      "ffa"
-    ]
+    "gametypes": []
   },
   "wdm17": {
     "displayName": "Le Toxiquet",
-    "gametypes": [
-      "duel"
-    ]
+    "gametypes": []
   },
   "wamphi1": {
     "displayName": "Amphitheatre",
@@ -82,6 +63,20 @@
     "displayName": "Depot",
     "gametypes": [
       "snd"
+    ]
+  },
+  "wfdm1": {
+    "displayName": "Flew over (Warfork)",
+    "gametypes": [
+      "duel",
+      "ffa"
+    ]
+  },
+  "wfdm11": {
+    "displayName": "Warehouse C (Warfork)",
+    "gametypes": [
+      "duel",
+      "ffa"
     ]
   }
 }

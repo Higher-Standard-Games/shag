@@ -14,6 +14,7 @@ import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Scene } from "@babylonjs/core/scene";
 import { devLog, devLogEnabled } from "../core/DevLog";
 import { applySafeMaxSimultaneousLights, clampMaterialLightCap } from "../lighting/DynamicLightSafety";
+import { resolveModelAsset } from "../loader/model/ModelAsset";
 import { ModelInstanceCache } from "../loader/model/ModelInstanceCache";
 import type { ModelLoadResult } from "../loader/model/ModelLoader";
 import { disposeModelResources } from "../loader/model/ModelSourceCache";
@@ -80,8 +81,8 @@ export class WeaponBarrels {
 
   private async loadSource(path: string, scene: Scene): Promise<ModelLoadResult> {
     const { ImportMeshAsync } = await import("@babylonjs/core/Loading/sceneLoader");
-    const split = path.lastIndexOf("/");
-    const result = await ImportMeshAsync(path.substring(split + 1), scene, { rootUrl: path.substring(0, split + 1) });
+    const asset = await resolveModelAsset(path);
+    const result = await ImportMeshAsync(asset.source, scene, asset.options);
     const root = new TransformNode("viewBarrelSource", scene);
     try {
       for (const node of [...result.transformNodes, ...result.meshes]) if (!node.parent) node.parent = root;

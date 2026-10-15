@@ -225,6 +225,7 @@ describe("first-person prepared model sources", () => {
     );
     const load = view.loadWeapon("riotgun");
     view.clear();
+    await vi.waitFor(() => expect(complete).toBeTypeOf("function"));
     complete(imported("riotgun.glb", scene));
     expect(await load).toBe(false);
     expect(view.isWeaponModelLoaded).toBe(false);
@@ -244,6 +245,7 @@ describe("first-person prepared model sources", () => {
     const camera = new FreeCamera("replacement", Vector3.Zero(), scene);
     view.init(scene, camera);
     const pair = [...scene.activeCameras!];
+    await vi.waitFor(() => expect(complete).toBeTypeOf("function"));
     complete(imported("riotgun.glb", scene));
     expect(await load).toBe(false);
     expect(view.isWeaponModelLoaded).toBe(false);

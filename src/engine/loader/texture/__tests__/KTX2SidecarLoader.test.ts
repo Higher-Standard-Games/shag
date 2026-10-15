@@ -69,6 +69,23 @@ function load(loader: _KTXTextureLoader, texture: InternalTexture, bytes = ident
 }
 
 describe("KTX2 sidecar uploads", () => {
+  it.each([
+    [554, 554, true],
+    [512, 510, true],
+    [1024, 512, false],
+  ])("keeps %ix%i authored dimensions on a valid transcode target", async (width, height, raw) => {
+    decodedFixture();
+    const bytes = new Uint8Array(80);
+    bytes.set(identifier);
+    const header = new DataView(bytes.buffer);
+    header.setUint32(20, width, true);
+    header.setUint32(24, height, true);
+    const upload = vi.spyOn(KhronosTextureContainer2.prototype, "_uploadAsync").mockResolvedValue();
+    const texture = new InternalTexture(engine, InternalTextureSource.Url);
+    await load(new KTX2SidecarLoader(), texture, bytes);
+    expect(upload.mock.calls[0][2]).toEqual(raw ? { forceRGBA: true, forceR8: false, forceRG8: false } : undefined);
+  });
+
   it("reproduces upstream's last-mip extent and invert-Y request", async () => {
     decodedFixture();
     const texture = new InternalTexture(engine, InternalTextureSource.Url);

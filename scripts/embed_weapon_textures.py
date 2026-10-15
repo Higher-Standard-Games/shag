@@ -10,11 +10,14 @@ Usage:
 """
 
 import os, sys, struct, json, io, zipfile
+import argparse
 from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PK3_PATH = os.path.join(ROOT, 'public', 'data', 'z_weapons.pk3')
-WEAPONS_DIR = os.path.join(ROOT, 'public', 'data', 'models', 'weapons')
+with open(os.path.join(ROOT, 'config', 'weapon-models.json'), encoding='utf-8') as recipe_file:
+    RECIPE = json.load(recipe_file)
+PK3_PATH = os.path.join(ROOT, RECIPE['basePackage'])
+WEAPONS_DIR = os.path.join(ROOT, RECIPE['sourceDir'])
 
 # ══════════════════════════════════════════════════════════════
 #  KTX1 Parser + ETC1 Decoder (ported from KTX1Loader.ts)
@@ -347,6 +350,12 @@ def embed_textures(glb_path: str, texture_map: dict) -> int:
 # ══════════════════════════════════════════════════════════════
 
 def main():
+    global PK3_PATH, WEAPONS_DIR
+    args = argparse.ArgumentParser(description='Embed weapon textures in GLB exports')
+    args.add_argument('--package', default=PK3_PATH)
+    args.add_argument('--output-dir', default=WEAPONS_DIR)
+    parsed = args.parse_args()
+    PK3_PATH, WEAPONS_DIR = parsed.package, parsed.output_dir
     if not os.path.exists(PK3_PATH):
         print(f'❌ PK3 not found: {PK3_PATH}')
         sys.exit(1)
