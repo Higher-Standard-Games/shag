@@ -12,6 +12,10 @@ map wdm2 duel
 
 `MapLoader.getInstance().loadMap(mapName, scene, onProgress?, opts?)` is the high-level browser API. It loads indexed BSP maps; it does not load local `.map` text files. `opts.backgroundOnly` loads a map as menu scenery, which is how a background map skips the gameplay setup that turns PVS on.
 
+The world stays disabled while asynchronous texture loading, fog and baked-light
+material setup run. This prevents partially configured material layouts from
+reaching the GPU during a map switch.
+
 ## Inspection flow
 
 `BspManager` and the `bsp` command expose a lower-level path that is useful in the developer console and headless runner:

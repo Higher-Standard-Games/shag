@@ -345,6 +345,10 @@ export interface ResolvedMaterialProps {
   glossExponent?: number;
   /** Authored rgbGen requires the mesh RGB channel, independently of alpha. */
   usesVertexRgb?: boolean;
+  /** alphaGen vertex consumes the BSP color buffer's alpha channel. */
+  usesVertexAlpha?: boolean;
+  /** Color generator of the representative material/base stage. */
+  rgbGen?: RgbGen;
   /** Primary diffuse texture path */
   diffuseTexture?: string;
 
@@ -356,6 +360,8 @@ export interface ResolvedMaterialProps {
 
   /** Structured glow/emissive texture path resolved from `material`, when present */
   glowTexture?: string;
+  /** Additional additive stage combined as emissive over a material stage. */
+  glowStage?: Q3ShaderStage;
 
   /** Raw `material` payload tokens after normalization */
   materialTokens?: string[];

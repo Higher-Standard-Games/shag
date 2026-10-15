@@ -545,6 +545,7 @@ export class BspMeshBuilder {
       }
       meshVertexData.indices = group.indices;
       meshVertexData.applyToMesh(mesh);
+      mesh.hasVertexAlpha = group.shaderProps.usesVertexAlpha ?? false;
 
       // Create material with shader properties
       const meshMaterial = this.createMaterialFromShaderProps(
@@ -1308,6 +1309,48 @@ export class BspMeshBuilder {
               mesh.metadata.preserveEmissive = true;
               console.log(`[BspMeshBuilder] Loaded glow map for: ${texName}`);
             }
+            const registerGlowAnimation = async (material: StandardMaterial | PBRMaterial) => {
+              const stage = shaderProps.glowStage;
+              if (!glowTexture || !stage) return;
+              if (shaderProps.alphaMode === "blend" && mesh instanceof Mesh) {
+                // Qfusion adds shine after the base alpha blend: the base image's
+                // transparent portal cutout must not mask the luminous rim.
+                const overlay = mesh.clone(`${mesh.name}_shine`, mesh.parent, true);
+                const shine = new StandardMaterial(`${material.name}_shine`, scene);
+                shine.disableLighting = true;
+                shine.diffuseColor.set(0, 0, 0);
+                shine.emissiveTexture = glowTexture;
+                shine.emissiveColor.set(0, 0, 0);
+                shine.useEmissiveAsIllumination = true;
+                shine.transparencyMode = 2;
+                shine.alphaMode = Constants.ALPHA_ONEONE;
+                shine.disableDepthWrite = true;
+                shine.backFaceCulling = material.backFaceCulling;
+                shine.zOffset = -1;
+                overlay.material = shine;
+                overlay.onDisposeObservable.addOnce(() => shine.dispose());
+                overlay.isPickable = false;
+                overlay.hasVertexAlpha = false;
+                overlay.metadata = { ...mesh.metadata, lightmapIndex: -1, isFullbright: true, preserveEmissive: true };
+                material.emissiveTexture = null;
+                material.emissiveColor.set(0, 0, 0);
+                material = shine;
+              }
+              if (stage.rgbGen?.type === "const" && stage.rgbGen.color)
+                material.emissiveColor.set(...stage.rgbGen.color);
+              const { ShaderAnimationSystem } = await import("../shader/ShaderAnimationSystem");
+              const animations = ShaderAnimationSystem.getInstance();
+              animations.init(scene);
+              animations.registerMaterial(
+                `${texName}:${material.uniqueId}:glow`,
+                material,
+                glowTexture,
+                stage.tcMod ?? [],
+                stage.rgbGen,
+                undefined,
+                "emissive",
+              );
+            };
 
             if (options?.pbr && BspMeshBuilder.shouldUseGeneratedPBR(shaderProps, hasNormalMap, hasGlossMap)) {
               const pbrMat = BspMeshBuilder.createGeneratedPBRMaterial(
@@ -1320,6 +1363,7 @@ export class BspMeshBuilder {
                 glowTexture,
               );
               mesh.material = pbrMat;
+              await registerGlowAnimation(pbrMat);
               if (!mesh.metadata) mesh.metadata = {};
               mesh.metadata.usesBspPbr = true;
               if (glowTexture) {
@@ -1355,14 +1399,9 @@ export class BspMeshBuilder {
               mesh.metadata.preserveEmissive = true;
             } else if (shaderProps.alphaMode === "multiply") {
               // Multiply/filter blending for decals (blendFunc filter = GL_DST_COLOR, GL_ZERO)
-              // Use custom shader that computes alpha from luminance (white = transparent)
+              // Preserve authored RGB with true multiplicative framebuffer blending.
               const { createFilterBlendMaterial } = await import("../shader/FilterBlendShaderMaterial");
-              const filterMat = createFilterBlendMaterial(`filterBlend_${texName}`, scene, texture, {
-                alphaThreshold: 0.85,
-                alphaPower: 1.2,
-                colorDarken: 0.5,
-                alphaMultiplier: 0.6,
-              });
+              const filterMat = createFilterBlendMaterial(`filterBlend_${texName}`, scene, texture);
               mesh.material = filterMat;
               // Skip the rest of the texture application for this mesh
               loadedCount++;
@@ -1386,6 +1425,13 @@ export class BspMeshBuilder {
               mat.emissiveColor = new Color3(1, 1, 1);
               mat.diffuseColor = new Color3(1, 1, 1);
               mat.disableLighting = true; // Immune to scene lights — renders at full brightness
+              const constant = shaderProps.rgbGen?.type === "const" ? shaderProps.rgbGen.color : undefined;
+              const grayConstant = constant && constant[0] === constant[1] && constant[1] === constant[2];
+              if (!shaderProps.usesVertexRgb && (shaderProps.alphaMode === "opaque" || grayConstant)) {
+                mat.useEmissiveAsIllumination = true;
+                mat.emissiveColor.set(0, 0, 0);
+                if (grayConstant) (mat.emissiveTexture as Texture).level = constant[0];
+              }
               // Mark mesh to skip lightmap application
               if (mesh.metadata) {
                 mesh.metadata.isFullbright = true;
@@ -1397,6 +1443,7 @@ export class BspMeshBuilder {
             }
 
             // tcGen environment - spherical environment mapping for reflective surfaces
+            await registerGlowAnimation(mat);
             if (shaderProps.tcGen?.mode === "environment") {
               // Use texture as reflection texture with spherical coordinates
               mat.reflectionTexture = texture;
@@ -1424,6 +1471,9 @@ export class BspMeshBuilder {
                   firstStage.tcMod || [],
                   firstStage.rgbGen,
                   firstStage.alphaGen,
+                  shaderProps.isFullbright && !shaderProps.usesVertexRgb && shaderProps.alphaMode === "opaque"
+                    ? "emissive"
+                    : "diffuse",
                 );
               }
             }
@@ -1772,6 +1822,9 @@ export class BspMeshBuilder {
     },
     props?: ResolvedMaterialProps,
   ): void {
+    // OpenGL normals use the opposite V direction in Babylon's derivative tangent frame.
+    mat.invertNormalMapX = mat.getScene().useRightHandedSystem;
+    mat.invertNormalMapY = !mat.getScene().useRightHandedSystem;
     if (options.hasGlossMap && mat.specularTexture) {
       mat.specularTexture.level = 1;
       const specularStrength = props?.glossIntensity ?? 1.5;
@@ -1825,6 +1878,8 @@ export class BspMeshBuilder {
     if (normalTexture) {
       mat.bumpTexture = normalTexture;
       mat.bumpTexture.level = 1.0;
+      mat.invertNormalMapX = scene.useRightHandedSystem;
+      mat.invertNormalMapY = !scene.useRightHandedSystem;
     }
 
     if (glossTexture) {

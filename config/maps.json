@@ -67,6 +67,10 @@
   },
   "wfdm1": {
     "displayName": "Flew over (Warfork)",
+    "gametypes": []
+  },
+  "wfdm5": {
+    "displayName": "viciious' lair (Warfork)",
     "gametypes": [
       "duel",
       "ffa"

@@ -4,8 +4,7 @@
  * Q3's blendFunc filter (GL_DST_COLOR, GL_ZERO) multiplies source with destination.
  * White becomes transparent (1 * dst = dst), colored pixels tint the background.
  *
- * Since Babylon.js doesn't have a direct equivalent, this shader computes
- * alpha from inverse luminance: white = transparent, dark/colored = opaque.
+ * The source RGB is passed unchanged to Babylon's multiplicative blend mode.
  */
 
 import { Constants } from "@babylonjs/core/Engines/constants";
@@ -48,62 +47,21 @@ varying vec3 vAtmWorld;
 
 // Uniforms
 uniform sampler2D diffuseTexture;
-uniform float alphaThreshold;
-uniform float alphaPower;
-uniform float colorDarken;
-uniform float alphaMultiplier;
 
 ${ATM_FOG_GLSL}
 void main() {
   vec4 texColor = texture2D(diffuseTexture, vUV);
   
-  // Compute luminance (how bright/white the pixel is)
-  float luminance = dot(texColor.rgb, vec3(0.299, 0.587, 0.114));
-  
-  // Invert: white (high luminance) = transparent, dark/colored = opaque
-  // Apply power curve to control falloff
-  float alpha = pow(1.0 - luminance, alphaPower);
-  
-  // Apply threshold to cut off near-white pixels completely
-  if (luminance > alphaThreshold) {
-    alpha = 0.0;
-  }
-  
-  // Darken colors to simulate Q3 multiply blend effect
-  // In Q3, graffiti multiplies with wall, making it darker
-  vec3 darkenedColor = texColor.rgb * colorDarken;
-  
-  // Reduce overall alpha to make effect more subtle like Q3
-  float finalAlpha = alpha * alphaMultiplier;
-  
-  gl_FragColor = vec4(darkenedColor, finalAlpha);
-  // World fog: a filter fades toward no change, as Warfork's filter passes
-  gl_FragColor.a *= 1.0 - atmFogEvaluate(vAtmWorld, atmFogEye).a;
+  // Multiplication ignores source alpha. Fog tends to white, its identity.
+  float fog = atmFogEvaluate(vAtmWorld, atmFogEye).a;
+  gl_FragColor = vec4(mix(texColor.rgb, vec3(1.0), fog), 1.0);
 }
 `;
-
-export interface FilterBlendOptions {
-  /** Luminance threshold above which pixels are fully transparent (default: 0.9) */
-  alphaThreshold?: number;
-  /** Power curve for alpha falloff (default: 1.5) */
-  alphaPower?: number;
-  /** Color darkening multiplier - lower = darker (default: 0.6) */
-  colorDarken?: number;
-  /** Alpha multiplier for overall opacity (default: 0.7) */
-  alphaMultiplier?: number;
-}
 
 /**
  * Create a filter blend shader material
  */
-export function createFilterBlendMaterial(
-  name: string,
-  scene: Scene,
-  texture: Texture,
-  options: FilterBlendOptions = {},
-): ShaderMaterial {
-  const { alphaThreshold = 0.9, alphaPower = 1.5, colorDarken = 0.6, alphaMultiplier = 0.7 } = options;
-
+export function createFilterBlendMaterial(name: string, scene: Scene, texture: Texture): ShaderMaterial {
   const material = new ShaderMaterial(
     name,
     scene,
@@ -113,16 +71,7 @@ export function createFilterBlendMaterial(
     },
     {
       attributes: ["position", "uv"],
-      uniforms: [
-        "worldViewProjection",
-        "world",
-        ...ATM_FOG_SHADER_UNIFORMS,
-        "diffuseMatrix",
-        "alphaThreshold",
-        "alphaPower",
-        "colorDarken",
-        "alphaMultiplier",
-      ],
+      uniforms: ["worldViewProjection", "world", ...ATM_FOG_SHADER_UNIFORMS, "diffuseMatrix"],
       samplers: ["diffuseTexture"],
       needAlphaBlending: true,
     },
@@ -137,14 +86,8 @@ export function createFilterBlendMaterial(
     material.getEffect()?.setMatrix("diffuseMatrix", texture.getTextureMatrix());
   });
 
-  // Set uniforms
-  material.setFloat("alphaThreshold", alphaThreshold);
-  material.setFloat("alphaPower", alphaPower);
-  material.setFloat("colorDarken", colorDarken);
-  material.setFloat("alphaMultiplier", alphaMultiplier);
-
-  // Enable alpha blending
-  material.alphaMode = Constants.ALPHA_COMBINE;
+  // GL_DST_COLOR, GL_ZERO: source RGB times the framebuffer RGB.
+  material.alphaMode = Constants.ALPHA_MULTIPLY;
   material.backFaceCulling = false;
 
   // Disable depth write for proper overlay

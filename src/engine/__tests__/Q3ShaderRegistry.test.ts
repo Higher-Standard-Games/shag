@@ -52,6 +52,49 @@ function makeShader(name: string, overrides: Partial<Q3Shader> = {}): Q3Shader {
 // ─── Tests ──────────────────────────────────────────────────────
 
 describe("Q3ShaderRegistry", () => {
+  it("retains an authored additive shine stage after a Qfusion material stage", () => {
+    const [shader] = parseShaderFile(`models/qa/teleporter {
+      { map env/void.png tcGen environment }
+      { material models/qa/base.png blendfunc blend }
+      { map models/qa/shine.png blendfunc add rgbgen wave sin .5 .4 0 5 }
+    }`);
+    injectShader(shader);
+    const props = getRegistry().resolveMaterialProps(shader.name);
+    expect(props.diffuseTexture).toBe("models/qa/base.png");
+    expect(props.glowTexture).toBe("models/qa/shine.png");
+    expect(props.glowStage?.rgbGen?.wave?.frequency).toBe(5);
+    expect(props.alphaMode).toBe("blend");
+    expect(props.tcGen).toBeUndefined();
+  });
+  it("preserves vertex alpha for Qfusion material decals", () => {
+    const [shader] = parseShaderFile(`textures/qa/decal {
+      surfaceparm trans
+      polygonOffset
+      { material textures/qa/decal textures/flatnorm.png
+        blendFunc blend
+        alphaGen vertex
+      }
+    }`);
+    injectShader(shader);
+    expect(getRegistry().resolveMaterialProps(shader.name)).toMatchObject({
+      usesVertexAlpha: true,
+      alphaMode: "blend",
+      isTransparent: true,
+      polygonOffset: true,
+    });
+  });
+  it("preserves authored dim additive decal color", () => {
+    const [shader] = parseShaderFile(`textures/qa/dim_decal {
+      surfaceparm nolightmap
+      { map textures/qa/decal.png rgbgen const .12 .12 .12 alphagen vertex blendfunc GL_SRC_ALPHA GL_ONE }
+    }`);
+    injectShader(shader);
+    expect(getRegistry().resolveMaterialProps(shader.name)).toMatchObject({
+      alphaMode: "add",
+      rgbGen: { type: "const", color: [0.12, 0.12, 0.12] },
+      usesVertexAlpha: true,
+    });
+  });
   it("preserves authored Qfusion gloss scalars across parser and material resolution", () => {
     const [shader] = parseShaderFile(`textures/qa/gloss {
       q3map_chamfer_convexwidth 1

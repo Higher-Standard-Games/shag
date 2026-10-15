@@ -27,6 +27,9 @@ import { atmFogFactorAt } from "../rendering/AtmosphericFogShader";
 import { updateEffectPositions } from "./EffectGeometry";
 import { getPointLightPool } from "./PointLightPool";
 
+// Flash gain is independent of the procedural fireball's world-unit size.
+const FLASH_LIGHT_GAIN = 0.1;
+
 // ═══════════════════════════════════════════════════════════════════
 // TYPES
 // ═══════════════════════════════════════════════════════════════════
@@ -208,7 +211,7 @@ export class ExplosionEffect {
     explosion.light = getPointLightPool().acquire(
       position.clone(),
       config.outerColor.clone(),
-      5 * s,
+      FLASH_LIGHT_GAIN * s,
       40 * s,
       explosion,
     );
@@ -716,7 +719,7 @@ export class ExplosionEffect {
   private updateLight(exp: ActiveExplosion, t: number): void {
     // Fade over the full effect duration
     if (exp.light) {
-      exp.light.intensity = 5 * exp.config.scale * (1.0 - easeInQuad(t));
+      exp.light.intensity = FLASH_LIGHT_GAIN * exp.config.scale * (1.0 - easeInQuad(t));
       exp.light.range = 40 * exp.config.scale * (1.0 - t * 0.5);
     }
   }

@@ -92,9 +92,14 @@ export class BspBakedLightingPlugin extends MaterialPluginBase {
       200,
       { BSP_BAKED: true, BSP_DELUXE: !!direction, BSP_GLOSS: !!gloss && !!direction },
       true,
-      true,
+      false,
     );
     this.pbr = material instanceof PBRMaterial;
+    this.registerForExtraEvents = true;
+    this._enable(true);
+    // Old effects have a different sampler/UBO layout during map-light changes.
+    material.allowShaderHotSwapping = false;
+    material.markDirty(true);
   }
 
   override getClassName(): string {
@@ -130,7 +135,7 @@ export class BspBakedLightingPlugin extends MaterialPluginBase {
           : "uniform vec4 bspLighting;\nuniform vec4 bspAmbient;\nuniform mat4 bspWorld;\n",
     };
   }
-  override bindForSubMesh(buffer: UniformBuffer, _scene: Scene, _engine: AbstractEngine, subMesh: SubMesh): void {
+  override hardBindForSubMesh(buffer: UniformBuffer, _scene: Scene, _engine: AbstractEngine, subMesh: SubMesh): void {
     buffer.updateFloat4(
       "bspLighting",
       this.profile.gain * this.lightmapScale,

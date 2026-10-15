@@ -11,6 +11,7 @@
 
 import { VertexBuffer } from "@babylonjs/core/Buffers/buffer";
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
+import { PointLight } from "@babylonjs/core/Lights/pointLight";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
@@ -43,6 +44,24 @@ afterEach(() => {
 });
 
 describe("explosion particle systems", () => {
+  it("keeps the flash below two light units and fades it from the same initial gain", () => {
+    let now = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const light = new PointLight("flash", Vector3.Zero(), scene);
+    vi.mocked(getPointLightPool().acquire).mockImplementation((_position, _color, intensity) => {
+      light.intensity = intensity;
+      return light;
+    });
+    const effect = getExplosionEffect();
+    effect.spawn(Vector3.Zero(), ROCKET_EXPLOSION);
+    const peak = light.intensity;
+    expect(peak).toBeGreaterThan(0);
+    expect(peak).toBeLessThan(2);
+    now = 50;
+    effect.update(0.05);
+    expect(light.intensity).toBeLessThan(peak);
+    expect(light.intensity).toBeGreaterThan(0);
+  });
   it("reuses retired ray materials without setup scans, resetting color and fade while keeping active rays independent", () => {
     vi.spyOn(Math, "random").mockReturnValue(0.5);
     let now = 0;

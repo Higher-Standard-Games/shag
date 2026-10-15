@@ -38,11 +38,24 @@ The parser and BSP material path cover the compatibility features most maps depe
 - `tcMod` animation;
 - `tcGen environment`;
 - wave-driven `rgbGen` and `alphaGen`;
+- `alphaGen vertex` on blended BSP meshes and true multiplicative
+  `blendFunc filter` decals (white leaves the framebuffer unchanged);
+- the first additive shine stage following a Qfusion `material` stage,
+  including its brightness wave and UV animation;
 - `deformVertexes autosprite` and `autosprite2`;
 - QFusion/Warsow `cubemap` sources are preserved as appearance hints for the
   unified liquid renderer, including inside `if textureCubeMap` blocks.
 
 Support is not a complete reimplementation of the original Q3 renderer. Other vertex deforms, such as `wave`, `bulge` and `move`, are skipped by the parser. Some uncommon multi-stage combinations are approximated by Babylon material paths.
+
+Material stages retain their own UV and blend state when an earlier pass uses
+environment coordinates. A blended material's additive shine uses a separate
+pass so the base image's alpha does not mask it. Arbitrary environment backgrounds
+and additional glow layers are still approximated.
+
+PK3 PNG/JPG, TGA and KTX images share a top-to-bottom upload convention. BSP
+diffuse maps use UV0 and baked lightmaps use UV2, including type-3 triangle soups.
+OpenGL normal maps are adjusted for Babylon's derivative tangent frame.
 
 Brightness/alpha waves without `tcMod` preserve the texture's existing UV
 transform. Filter decals apply that transform when sampling, including loader

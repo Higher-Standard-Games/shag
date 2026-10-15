@@ -272,14 +272,18 @@ export class Q3ShaderRegistry {
 
     const props: ResolvedMaterialProps = { ...defaults };
     const { stages: activeStages, branch } = this.getResolvedStages(shader, deluxe);
-    const primaryStage = this.getPrimaryStage(activeStages);
     const materialStage = activeStages.find((stage) => stage.material !== undefined);
+    // A collapsed material uses its own UV/blend state. An earlier environment
+    // background pass must not turn the material's diffuse map into a reflection.
+    const primaryStage = materialStage ?? this.getPrimaryStage(activeStages);
     const isClassicLightmapComposition = this.isClassicLightmapComposition(activeStages);
 
     props.resolvedBranch = branch;
     props.glossIntensity = shader.glossIntensity;
     props.glossExponent = shader.glossExponent;
     props.usesVertexRgb = activeStages.some((stage) => ["vertex", "oneMinusVertex"].includes(stage.rgbGen?.type ?? ""));
+    props.usesVertexAlpha = activeStages.some((stage) => stage.alphaGen?.type === "vertex");
+    props.rgbGen = primaryStage?.rgbGen;
 
     // Sky detection - surfaceparm sky or has skyparms
     if (shader.surfaceParms.has("sky") || shader.skyParms) {
@@ -325,6 +329,20 @@ export class Q3ShaderRegistry {
     // Normalize structured material metadata before any stage-map fallback.
     if (materialStage?.material) {
       this.applyNormalizedMaterialToProps(props, this.normalizeMaterialDirective(materialStage.material));
+      const glow = activeStages
+        .slice(activeStages.indexOf(materialStage) + 1)
+        .find(
+          (stage) =>
+            stage.map &&
+            !isLightmapStage(stage) &&
+            stage.blendFunc?.[0] === "GL_ONE" &&
+            stage.blendFunc?.[1] === "GL_ONE",
+        );
+      if (glow && !props.glowTexture) {
+        props.glowTexture = normalizeTextureReference(glow.map);
+        props.glowTextureExplicitlyBlank = false;
+        props.glowStage = glow;
+      }
     }
 
     if (activeStages.length > 0) {

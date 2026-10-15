@@ -1,4 +1,6 @@
+import { Constants } from "@babylonjs/core/Engines/constants";
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
+import { PBRMaterial } from "@babylonjs/core/Materials/PBR/pbrMaterial";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector";
@@ -23,6 +25,38 @@ afterEach(() => {
 });
 
 describe("texture transform ownership", () => {
+  it.each([
+    StandardMaterial,
+    PBRMaterial,
+  ])("animates additive emission independently of base color: %s", (MaterialType) => {
+    const animation = ShaderAnimationSystem.getInstance();
+    animation.init(scene);
+    const material = new MaterialType("shine", scene);
+    material.emissiveColor.set(1, 1, 1);
+    const texture = new Texture(null, scene);
+    const base = "diffuseColor" in material ? material.diffuseColor : material.albedoColor;
+    const original = base.clone();
+    texture.vOffset = 0.25;
+    animation.registerMaterial(
+      "shine",
+      material,
+      texture,
+      [],
+      { type: "wave", wave: { func: "sin", base: 0.5, amplitude: 0, phase: 0, frequency: 5 } },
+      undefined,
+      "emissive",
+    );
+    material.freeze();
+    scene.onBeforeRenderObservable.notifyObservers(scene);
+    expect(material.isFrozen).toBe(false);
+    if (material instanceof StandardMaterial) {
+      expect(material.emissiveColor.r).toBe(0);
+      expect(material.useEmissiveAsIllumination).toBe(true);
+      expect(texture.level).toBe(0.5);
+    } else expect(material.emissiveColor.r).toBe(0.5);
+    expect(base.equals(original)).toBe(true);
+    expect(texture.vOffset).toBe(0.25);
+  });
   it("binds independent base/glow transforms without changing BSP lightmap coordinates", async () => {
     const base = new Texture(null, scene);
     const glow = new Texture(null, scene);
@@ -97,6 +131,7 @@ describe("texture transform ownership", () => {
     texture.vScale = -1;
     texture.vOffset = 1;
     const material = createFilterBlendMaterial("decal", scene, texture);
+    expect(material.alphaMode).toBe(Constants.ALPHA_MULTIPLY);
     const mesh = CreatePlane("decal", {}, scene);
     mesh.material = material;
     await material.forceCompilationAsync(mesh);

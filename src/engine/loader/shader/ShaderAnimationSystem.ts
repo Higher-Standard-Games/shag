@@ -5,9 +5,10 @@
  * for BSP materials. Runs as a centralized system with one render observer.
  */
 
+import type { PBRMaterial } from "@babylonjs/core/Materials/PBR/pbrMaterial";
 import type { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import type { Texture } from "@babylonjs/core/Materials/Textures/texture";
-import { Color3 } from "@babylonjs/core/Maths/math.color";
+import type { Color3 } from "@babylonjs/core/Maths/math.color";
 import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
 import type { AlphaGen, RgbGen, TcMod, WaveFunc } from "./Q3ShaderTypes";
@@ -33,12 +34,13 @@ export interface AnimatedStage {
   rgbGen?: RgbGen;
   alphaGen?: AlphaGen;
   baseColor?: Color3; // Original color for wave modulation
+  colorTarget?: "diffuse" | "emissive";
 }
 
 /** Entry for a material with animation */
 export interface AnimatedMaterialEntry {
   id: string;
-  material: StandardMaterial;
+  material: StandardMaterial | PBRMaterial;
   stages: AnimatedStage[];
 }
 
@@ -168,11 +170,12 @@ export class ShaderAnimationSystem {
    */
   registerMaterial(
     id: string,
-    material: StandardMaterial,
+    material: StandardMaterial | PBRMaterial,
     texture: Texture,
     tcMods: TcMod[],
     rgbGen?: RgbGen,
     alphaGen?: AlphaGen,
+    colorTarget: "diffuse" | "emissive" = "diffuse",
   ): void {
     // Check if we actually have anything to animate
     const hasAnimation = tcMods.length > 0 || rgbGen?.type === "wave" || alphaGen?.type === "wave";
@@ -204,8 +207,19 @@ export class ShaderAnimationSystem {
       tcState,
       rgbGen,
       alphaGen,
-      baseColor: material.diffuseColor.clone(),
+      baseColor: (colorTarget === "emissive"
+        ? material.emissiveColor
+        : "diffuseColor" in material
+          ? material.diffuseColor
+          : material.albedoColor
+      ).clone(),
+      colorTarget,
     };
+    if (colorTarget === "emissive" && "diffuseColor" in material) {
+      // StandardMaterial adds emissiveColor to the sampled image; PBR multiplies it.
+      material.emissiveColor.set(0, 0, 0);
+      material.useEmissiveAsIllumination = true;
+    }
 
     // Check if entry exists
     const existing = this.entries.get(id);
@@ -311,6 +325,7 @@ export class ShaderAnimationSystem {
   }
 
   private updateEntry(entry: AnimatedMaterialEntry, deltaTime: number): void {
+    if (entry.material.isFrozen) entry.material.unfreeze();
     for (const stage of entry.stages) {
       // Apply tcMods
       this.applyTcMods(stage, deltaTime);
@@ -320,14 +335,20 @@ export class ShaderAnimationSystem {
         const waveValue = evaluateWaveFunc(stage.rgbGen.wave, this.totalTime);
         const clampedValue = Math.max(0, Math.min(1, waveValue));
 
-        if (stage.baseColor) {
-          entry.material.diffuseColor = new Color3(
-            stage.baseColor.r * clampedValue,
-            stage.baseColor.g * clampedValue,
-            stage.baseColor.b * clampedValue,
-          );
+        if (stage.colorTarget === "emissive" && "diffuseColor" in entry.material) {
+          stage.texture.level = clampedValue;
         } else {
-          entry.material.diffuseColor = new Color3(clampedValue, clampedValue, clampedValue);
+          const color =
+            stage.colorTarget === "emissive"
+              ? entry.material.emissiveColor
+              : "diffuseColor" in entry.material
+                ? entry.material.diffuseColor
+                : entry.material.albedoColor;
+          color.set(
+            (stage.baseColor?.r ?? 1) * clampedValue,
+            (stage.baseColor?.g ?? 1) * clampedValue,
+            (stage.baseColor?.b ?? 1) * clampedValue,
+          );
         }
       }
 

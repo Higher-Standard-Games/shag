@@ -506,7 +506,9 @@ export class PK3TextureLoader {
     const url = URL.createObjectURL(blob);
 
     try {
-      const texture = new Texture(url, this.scene);
+      // PK3 UVs address top-to-bottom image rows, matching TGA and KTX uploads.
+      // Babylon's default flip breaks atlas regions on baked map models.
+      const texture = new Texture(url, this.scene, { invertY: false });
       texture.name = path;
 
       // Clean up blob URL after texture loads

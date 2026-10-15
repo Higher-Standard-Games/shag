@@ -53,6 +53,8 @@ describe("BspMeshBuilder generated PBR materials", () => {
     );
     expect(material.specularColor).toEqual(new Color3(0.2, 0.2, 0.2));
     expect(material.specularPower).toBe(100);
+    expect(material.invertNormalMapX).toBe(false);
+    expect(material.invertNormalMapY).toBe(true);
     expect(material.specularTexture.level).toBe(1);
     // A normal map alone does not author specular lighting.
     material.specularTexture = null;
@@ -84,6 +86,8 @@ describe("BspMeshBuilder generated PBR materials", () => {
 
     expect(material.albedoTexture).toBe(diffuse);
     expect(material.bumpTexture).toBe(normal);
+    expect(material.invertNormalMapX).toBe(false);
+    expect(material.invertNormalMapY).toBe(true);
     expect(material.microSurfaceTexture).toBeNull();
     expect(material.reflectivityTexture).toBe(gloss);
     expect(material.metallic).toBeNull();

@@ -399,6 +399,9 @@ export class MapLoader {
       spatialCellSize: this.renderVars.get("r_bsp_cellsize") ?? 0,
     });
     this.currentMeshResult = meshResult;
+    // Texture loading yields between materials. Keep incomplete materials out
+    // of the render loop until fog and baked-lighting plugins own their layouts.
+    meshResult.worldMesh.setEnabled(false);
 
     // Phase 6: Apply textures
     progress("Textures", "Loading and applying");
@@ -459,7 +462,7 @@ export class MapLoader {
       console.warn(`[MapLoader] Failed to apply lightmaps:`, e);
     }
 
-    // (Post-Lightmap pause removed to reduce noise)
+    meshResult.worldMesh.setEnabled(true);
 
     // Disable dynamic day/night cycle for BSP maps - they use baked lightmaps
     // Import and configure SkyLightSystem to not interfere with lightmaps
