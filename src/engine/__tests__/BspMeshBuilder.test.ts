@@ -1,4 +1,5 @@
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
+import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { RawTexture } from "@babylonjs/core/Materials/Textures/rawTexture";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { Scene } from "@babylonjs/core/scene";
@@ -39,7 +40,30 @@ function makeProps(overrides: Partial<ResolvedMaterialProps> = {}): ResolvedMate
 }
 
 describe("BspMeshBuilder generated PBR materials", () => {
-  it("treats gloss maps as microsurface input instead of metallic input", () => {
+  it("honors authored strength and exponent on the Standard path", () => {
+    const engine = new NullEngine();
+    const scene = new Scene(engine);
+    const material = new StandardMaterial("classic", scene);
+    material.specularTexture = RawTexture.CreateRGBATexture(new Uint8Array([32, 32, 32, 255]), 1, 1, scene);
+    // biome-ignore lint/suspicious/noExplicitAny: testing private compatibility tuning directly
+    (BspMeshBuilder as any).tuneCompanionSurfaceMaterial(
+      material,
+      { hasNormalMap: true, hasGlossMap: true },
+      makeProps({ glossIntensity: 0.2, glossExponent: 100 }),
+    );
+    expect(material.specularColor).toEqual(new Color3(0.2, 0.2, 0.2));
+    expect(material.specularPower).toBe(100);
+    expect(material.specularTexture.level).toBe(1);
+    // A normal map alone does not author specular lighting.
+    material.specularTexture = null;
+    // biome-ignore lint/suspicious/noExplicitAny: testing private compatibility tuning directly
+    (BspMeshBuilder as any).tuneCompanionSurfaceMaterial(material, { hasNormalMap: true, hasGlossMap: false });
+    expect(material.specularColor).toEqual(Color3.Black());
+    scene.dispose();
+    engine.dispose();
+  });
+
+  it("uses authored RGB specular strength independently of the highlight lobe", () => {
     const engine = new NullEngine();
     const scene = new Scene(engine);
 
@@ -51,7 +75,7 @@ describe("BspMeshBuilder generated PBR materials", () => {
     const material = (BspMeshBuilder as any).createGeneratedPBRMaterial(
       "test_pbr",
       scene,
-      makeProps(),
+      makeProps({ glossIntensity: 0.2, glossExponent: 100 }),
       diffuse,
       normal,
       gloss,
@@ -60,12 +84,12 @@ describe("BspMeshBuilder generated PBR materials", () => {
 
     expect(material.albedoTexture).toBe(diffuse);
     expect(material.bumpTexture).toBe(normal);
-    expect(material.microSurfaceTexture).toBe(gloss);
-    expect(material.reflectivityTexture).toBeNull();
-    expect(material.metallic).toBe(0);
-    expect(material.roughness).toBeCloseTo(0.78);
-    expect(material.microSurface).toBeCloseTo(0.9);
-    expect(material.reflectivityColor).toEqual(new Color3(0.62, 0.62, 0.62));
+    expect(material.microSurfaceTexture).toBeNull();
+    expect(material.reflectivityTexture).toBe(gloss);
+    expect(material.metallic).toBeNull();
+    expect(material.roughness).toBeNull();
+    expect(material.microSurface).toBeCloseTo(1 - Math.sqrt(2 / 102));
+    expect(material.reflectivityColor).toEqual(new Color3(0.2, 0.2, 0.2));
     expect(material.environmentIntensity).toBe(0);
 
     scene.dispose();

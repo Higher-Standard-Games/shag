@@ -277,6 +277,9 @@ export class Q3ShaderRegistry {
     const isClassicLightmapComposition = this.isClassicLightmapComposition(activeStages);
 
     props.resolvedBranch = branch;
+    props.glossIntensity = shader.glossIntensity;
+    props.glossExponent = shader.glossExponent;
+    props.usesVertexRgb = activeStages.some((stage) => ["vertex", "oneMinusVertex"].includes(stage.rgbGen?.type ?? ""));
 
     // Sky detection - surfaceparm sky or has skyparms
     if (shader.surfaceParms.has("sky") || shader.skyParms) {
@@ -330,7 +333,9 @@ export class Q3ShaderRegistry {
       }
 
       // Check for lightmap stage in the selected stage stack
-      props.useLightmap = activeStages.some((stage) => isLightmapStage(stage));
+      props.useLightmap =
+        !shader.surfaceParms.has("nolightmap") &&
+        (materialStage !== undefined || activeStages.some((stage) => isLightmapStage(stage)));
 
       // Determine alpha mode from the representative stage, unless this is just
       // the classic Q3 base * lightmap composition we already map to lightmapTexture.

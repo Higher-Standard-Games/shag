@@ -323,6 +323,29 @@ describe("RenderVars", () => {
   });
 
   describe("PBR gloss tuning", () => {
+    it("keeps specular/gloss materials in that workflow when gloss intensity changes", () => {
+      const rv = getRV();
+      const engine = new NullEngine();
+      const scene = new Scene(engine);
+      try {
+        const mesh = MeshBuilder.CreateBox("compatibility", {}, scene);
+        const material = new PBRMaterial("specular-gloss", scene);
+        material.metallic = null;
+        material.roughness = null;
+        mesh.material = material;
+        rv.setScene(scene);
+        rv.set("r_glossmap", 0.5);
+        rv.applyToScene();
+        expect(material.metallic).toBeNull();
+        expect(material.roughness).toBeNull();
+        rv.set("r_glossmap", 1);
+        rv.applyToScene();
+        expect(material.roughness).toBeNull();
+      } finally {
+        scene.dispose();
+        engine.dispose();
+      }
+    });
     it("scales microSurfaceTexture on PBR materials when r_glossmap changes", () => {
       const rv = getRV();
       const engine = new NullEngine();

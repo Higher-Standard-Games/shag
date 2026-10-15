@@ -6,6 +6,9 @@ import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
 import type { Scene } from "@babylonjs/core/scene";
 import { applySafeMaxSimultaneousLights } from "../../../lighting/DynamicLightSafety";
+import { RenderVars } from "../../../rendering/RenderVars";
+import { configureBspBakedLighting } from "../BspBakedLightingPlugin";
+import { bspLightingProfile, scaleBspLighting } from "../BspLightingProfile";
 import type { BspFile } from "../BspLoader";
 import { createBspLightmapTexture } from "./lightmaps";
 import { getVertexLightmapCoord } from "./vertices";
@@ -187,13 +190,32 @@ export async function buildBrushModel(
           const lmData = bsp.lightmaps[group.lightmapIndex];
           if (lmData && lmData.length > 0) {
             const lmSize = bsp.lightmapSize;
-            const lmTex = createBspLightmapTexture(lmData, lmSize, scene, `${childName}_lightmap`);
+            const fbsp = bsp.header?.isFBSP === true;
+            const lmTex = createBspLightmapTexture(lmData, lmSize, scene, `${childName}_lightmap`, fbsp);
             mat.lightmapTexture = lmTex;
             mat.useLightmapAsShadowmap = true;
             mat.lightmapTexture.coordinatesIndex = 1;
+            if (fbsp) {
+              let profile = bspLightingProfile(bsp);
+              const scale = RenderVars.getInstance().get("r_lightmapscale");
+              if (scale !== undefined && Number.isFinite(scale) && scale > 0)
+                profile = scaleBspLighting(profile, profile.gain * scale);
+              const direction =
+                profile.deluxe && (RenderVars.getInstance().get("r_deluxe") ?? 1) >= 0.5
+                  ? createBspLightmapTexture(
+                      bsp.lightmaps[group.lightmapIndex + 1],
+                      lmSize,
+                      scene,
+                      `${childName}_direction`,
+                      true,
+                      true,
+                    )
+                  : null;
+              configureBspBakedLighting(mat, childMesh, profile, direction);
+            }
           }
         }
-        mat.emissiveColor = new Color3(0.15, 0.15, 0.15);
+        mat.emissiveColor = bsp.header?.isFBSP ? Color3.Black() : new Color3(0.15, 0.15, 0.15);
       } else {
         mat.diffuseColor = new Color3(0.6, 0.6, 0.6);
         mat.emissiveColor = new Color3(0.3, 0.3, 0.3);

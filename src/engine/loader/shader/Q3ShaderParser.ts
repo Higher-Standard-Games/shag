@@ -284,6 +284,17 @@ function parseShaderBody(name: string, tokens: string[], startPos: number): { sh
         pos += 2;
         break;
 
+      case "glossintensity":
+      case "glossexponent": {
+        const value = Number(tokens[pos + 1]);
+        if (Number.isFinite(value) && value > 0) {
+          if (token === "glossintensity") shader.glossIntensity = value;
+          else shader.glossExponent = value;
+        }
+        pos += Number.isFinite(value) ? 2 : 1;
+        break;
+      }
+
       case "nomipmaps":
         shader.nomipmaps = true;
         pos++;
@@ -520,6 +531,8 @@ function parseShaderBody(name: string, tokens: string[], startPos: number): { sh
 function isDirective(token: string): boolean {
   const directives = [
     "surfaceparm",
+    "glossintensity",
+    "glossexponent",
     "cull",
     "sort",
     "nomipmaps",
@@ -948,6 +961,8 @@ function parseRgbGen(tokens: string[], pos: number): RgbGen {
     case "identitylighting":
       return { type: "identityLighting" };
     case "vertex":
+      return { type: "vertex" };
+    case "exactvertex":
       return { type: "vertex" };
     case "oneminusvertex":
       return { type: "oneMinusVertex" };

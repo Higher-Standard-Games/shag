@@ -77,7 +77,35 @@ diagnostic rather than silently splitting or truncating the lighting data.
 Inline lift/door meshes group faces by both base texture and lightmap page,
 matching static-world batching. Faces with page-local UV2 coordinates must not
 share a material across different lightmap pages. Static and moving BSP surfaces
-use the same baked-light RGBA/gamma/overbright conversion.
+use the same format-specific upload: FBSP preserves authored bytes; IBSP retains
+the legacy gamma/overbright conversion.
+
+### Baked lighting
+
+For FBSP maps, worldspawn's `_lightingIntensity` supplies lightmap gain (default
+2). `_ambient` / `ambient` and `_color` / `color` supply ambient compensation;
+underscored keys take precedence and names are case-insensitive.
+`_lightintensity` is a different compiler key, not an alias. `r_lightmapscale`
+multiplies the map gain on load.
+
+Ordinary opaque lightmapped Standard/PBR surfaces use baked light directly,
+without a second fallback vertex-RGB or synthetic sun/fill multiplier. Authored
+vertex RGB, alpha, fullbright, transparent and custom shader behavior is retained.
+Dynamic game lights remain additive. Gain belongs to each material, so shared
+pages cannot receive conflicting PBR/Standard gains.
+
+With paired color/direction pages, `r_deluxe 1` uses baked directions for
+normal-map relief, ambient compensation and highlights. `r_deluxe 0` selects
+plain baked lighting after a map reload. `glossIntensity` controls RGB specular
+strength and `glossExponent` controls the highlight lobe; gloss RGB is not a
+roughness map. Both Standard and generated PBR paths support this on WebGL2 and
+WebGPU. The translated path uses the primary lightstyle; animated additional
+lightstyles are not implemented.
+
+FBSP model lighting decodes 30-byte lightgrid records and the separate uint16
+site table. Sample bounds round inward, and invalid sites are omitted with
+interpolation weights renormalized. Models/weapons retain their existing artistic
+scaling; this is not a complete reproduction of Qfusion's entity lighting.
 
 Not every classname has gameplay behavior. Confirm handlers in `BspEntityHandlers.ts` and the FPS entity layer before promising support.
 

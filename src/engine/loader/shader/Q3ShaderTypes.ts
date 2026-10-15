@@ -272,6 +272,10 @@ export interface Q3Shader {
   /** `q3map_surfacelight <value>` — radiosity surface-light emission strength. */
   surfaceLight?: number;
 
+  /** Qfusion RGB specular scale and Blinn-Phong exponent. */
+  glossIntensity?: number;
+  glossExponent?: number;
+
   /** Face culling mode */
   cull: CullMode;
 
@@ -337,6 +341,10 @@ export interface ResolveMaterialOptions {
  * This is what BspMeshBuilder uses to configure materials
  */
 export interface ResolvedMaterialProps {
+  glossIntensity?: number;
+  glossExponent?: number;
+  /** Authored rgbGen requires the mesh RGB channel, independently of alpha. */
+  usesVertexRgb?: boolean;
   /** Primary diffuse texture path */
   diffuseTexture?: string;
 

@@ -14,6 +14,7 @@ import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import type { Scene } from "@babylonjs/core/scene";
 import { Cvar } from "../core/Cvar";
 import { PostProcessingManager } from "../effects/PostProcessingManager";
+import type { BspBakedLightingPlugin } from "../loader/bsp/BspBakedLightingPlugin";
 
 // ==================== Babylon Property Helpers ====================
 // Babylon.js objects don't expose all properties in their public TypeScript API.
@@ -137,7 +138,7 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, "name">> = {
     defaultValue: 1,
     min: 0,
     max: 1,
-    description: "Resolve Warsow deluxe shader branches at next map/material build (0/1)",
+    description: "Use paired FBSP light directions and deluxe shader branches at next map load (0/1)",
     category: "material",
   },
   r_bsp_pbr: {
@@ -972,6 +973,10 @@ export class RenderVars {
         if (wasFrozen) mat.unfreeze();
       }
       try {
+        const bakedLighting = mat?.pluginManager?.getPlugin("BspBakedLighting") as BspBakedLightingPlugin | undefined;
+        bakedLighting?.setGlossScale(glossIntensity);
+        bakedLighting?.setAmbientScale(ambientIntensity);
+        bakedLighting?.setLightmapScale(lightmapIntensity);
         this.applyToMesh(
           mesh,
           normalIntensity,
@@ -1185,7 +1190,7 @@ export class RenderVars {
       }
 
       const hasOriginalRoughness = getStashed<number>(mat, "_originalRoughness") !== undefined;
-      if (shouldApplyGloss) {
+      if (shouldApplyGloss && mat.roughness !== null) {
         if (!hasOriginalRoughness) {
           setStashed(mat, "_originalRoughness", mat.roughness);
         }

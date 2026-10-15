@@ -87,8 +87,8 @@ const LIGHTMAP_INTENSITY_FBSP = 2.0;
 const LIGHTMAP_INTENSITY_IBSP = 3.0;
 
 /** Resolve the lightmap gain for a map, with the user's scale applied. */
-export function lightmapIntensityFor(isFBSP: boolean, scale: number | undefined): number {
-  const base = isFBSP ? LIGHTMAP_INTENSITY_FBSP : LIGHTMAP_INTENSITY_IBSP;
+export function lightmapIntensityFor(isFBSP: boolean, scale: number | undefined, authoredGain?: number): number {
+  const base = isFBSP ? (authoredGain ?? LIGHTMAP_INTENSITY_FBSP) : LIGHTMAP_INTENSITY_IBSP;
   // A missing or nonsensical scale means "leave it alone" rather than "black".
   return base * (scale !== undefined && Number.isFinite(scale) && scale > 0 ? scale : 1);
 }
@@ -445,7 +445,12 @@ export class MapLoader {
     // Phase 7: Apply lightmaps (baked lighting)
     progress("Lighting", "Applying lightmaps");
     try {
-      const intensity = lightmapIntensityFor(bsp.header.isFBSP, this.renderVars.get("r_lightmapscale"));
+      const { bspLightingProfile } = await import("../bsp/BspLightingProfile");
+      const intensity = lightmapIntensityFor(
+        bsp.header.isFBSP,
+        this.renderVars.get("r_lightmapscale"),
+        bspLightingProfile(bsp).gain,
+      );
       const lmCount = BspMeshBuilder.applyLightmaps(meshResult, { intensity });
       console.log(
         `[MapLoader] Applied ${lmCount} lightmaps (${bsp.header.isFBSP ? "FBSP" : "IBSP"}, intensity ${intensity.toFixed(2)})`,

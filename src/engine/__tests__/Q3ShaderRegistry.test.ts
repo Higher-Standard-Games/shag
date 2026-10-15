@@ -7,6 +7,7 @@
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { PK3Loader } from "../loader/pk3/PK3Loader";
+import { parseShaderFile } from "../loader/shader/Q3ShaderParser";
 import { Q3ShaderRegistry } from "../loader/shader/Q3ShaderRegistry";
 import type { Q3Shader } from "../loader/shader/Q3ShaderTypes";
 
@@ -51,6 +52,27 @@ function makeShader(name: string, overrides: Partial<Q3Shader> = {}): Q3Shader {
 // ─── Tests ──────────────────────────────────────────────────────
 
 describe("Q3ShaderRegistry", () => {
+  it("preserves authored Qfusion gloss scalars across parser and material resolution", () => {
+    const [shader] = parseShaderFile(`textures/qa/gloss {
+      q3map_chamfer_convexwidth 1
+      glossIntensity 0.2
+      glossExponent 100
+      { material textures/qa/base textures/qa/normal textures/qa/spec }
+    }`);
+    injectShader(shader);
+    expect(getRegistry().resolveMaterialProps(shader.name)).toMatchObject({
+      glossIntensity: 0.2,
+      glossExponent: 100,
+      useLightmap: true,
+    });
+  });
+
+  it.each(["vertex", "exactVertex", "oneMinusVertex"])("preserves authored rgbGen %s", (mode) => {
+    const [shader] = parseShaderFile(`textures/qa/vertex { { map textures/qa/base rgbGen ${mode} } }`);
+    injectShader(shader);
+    expect(getRegistry().resolveMaterialProps(shader.name).usesVertexRgb).toBe(true);
+  });
+
   beforeEach(() => {
     getRegistry().clear();
     PK3Loader.getInstance().unloadAll();
@@ -423,7 +445,7 @@ describe("Q3ShaderRegistry", () => {
 
       const deluxe = getRegistry().resolveMaterialProps("textures/test/deluxe", { deluxe: true });
       expect(deluxe.resolvedBranch).toBe("deluxe");
-      expect(deluxe.useLightmap).toBe(false);
+      expect(deluxe.useLightmap).toBe(true);
       expect(deluxe.diffuseTexture).toBe("textures/test/deluxe.tga");
       expect(deluxe.normalTexture).toBe("textures/test/deluxe_norm.tga");
       expect(deluxe.glossTexture).toBe("textures/test/deluxe_gloss.tga");

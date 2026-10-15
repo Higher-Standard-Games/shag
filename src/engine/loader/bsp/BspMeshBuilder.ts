@@ -21,13 +21,16 @@ import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
 import type { Scene } from "@babylonjs/core/scene";
 import { applySafeMaxSimultaneousLights } from "../../lighting/DynamicLightSafety";
+import { RenderVars } from "../../rendering/RenderVars";
 import { Q3ShaderRegistry } from "../shader/Q3ShaderRegistry";
 import { DEFAULT_SKY_HEIGHT, type ResolvedMaterialProps } from "../shader/Q3ShaderTypes";
+import { configureBspBakedLighting } from "./BspBakedLightingPlugin";
+import { bspLightingProfile, scaleBspLighting } from "./BspLightingProfile";
 import type { BspFile } from "./BspLoader";
 import { classifyLiquids, DEFAULT_LIQUID_OVERRIDES, liquidKindFromSurfaceParms } from "./LiquidClassifier";
 import { buildMeshFace, buildPatchFace, buildPolygonFace } from "./mesh/faceBuilders";
 import { createRadialGradientTexture, createSolidColorTexture } from "./mesh/fallbackTextures";
-import { createBspLightmapTexture } from "./mesh/lightmaps";
+import { createBspLightmapTexture, neutralizeFallbackVertexRgb } from "./mesh/lightmaps";
 import { buildFaceClusters } from "./mesh/pvs";
 import { cloudLayersFromStages } from "./mesh/skyClouds";
 import { faceSpatialCell, MIN_SPATIAL_BATCH_TRIANGLES, normalizeSpatialCellSize } from "./mesh/spatialBatching";
@@ -557,6 +560,11 @@ export class BspMeshBuilder {
       const liquid = liquidByTextureIndex.get(group.textureIndex);
       mesh.metadata = {
         textureName: group.textureName,
+        usesVertexRgb: group.shaderProps.usesVertexRgb ?? false,
+        usesLightmap: group.shaderProps.useLightmap,
+        glossIntensity: group.shaderProps.glossIntensity,
+        glossExponent: group.shaderProps.glossExponent,
+        preserveVertexLighting: group.shaderProps.isTransparent || group.shaderProps.alphaMode !== "opaque",
         textureIndex: group.textureIndex,
         lightmapIndex: group.lightmapIndex,
         // Only model-0 surfaces carry this annotation; movers stay outside
@@ -1285,7 +1293,7 @@ export class BspMeshBuilder {
               console.log(`[BspMeshBuilder] Loaded gloss map for: ${texName}`);
             }
 
-            BspMeshBuilder.tuneCompanionSurfaceMaterial(mat, { hasNormalMap, hasGlossMap });
+            BspMeshBuilder.tuneCompanionSurfaceMaterial(mat, { hasNormalMap, hasGlossMap }, shaderProps);
 
             const glowTexture = await loadOptionalTexture(
               shaderProps.glowTexture,
@@ -1481,6 +1489,8 @@ export class BspMeshBuilder {
   public static applyLightmaps(result: BspMeshBuildResult, options?: { intensity?: number }): number {
     const { intensity = 2.0 } = options || {};
     const lightmaps = result.lightmapTextures;
+    const fbsp = result.bspData?.header?.isFBSP === true;
+    const profile = fbsp ? scaleBspLighting(bspLightingProfile(result.bspData), intensity) : null;
 
     if (lightmaps.length === 0) {
       console.log("[BspMeshBuilder] No lightmaps to apply");
@@ -1503,13 +1513,26 @@ export class BspMeshBuilder {
 
       const lightmapTex = lightmaps[lightmapIndex];
       const mat = mesh.material;
+      if (
+        profile &&
+        (mat instanceof StandardMaterial || mat instanceof PBRMaterial) &&
+        !mesh.metadata?.preserveVertexLighting &&
+        mesh.metadata?.usesLightmap !== false
+      ) {
+        const direction =
+          profile.deluxe && (RenderVars.getInstance().get("r_deluxe") ?? 1) >= 0.5
+            ? lightmaps[lightmapIndex + 1]
+            : null;
+        configureBspBakedLighting(mat, mesh, profile, direction);
+      }
 
       if (mat instanceof StandardMaterial) {
+        if (mesh instanceof Mesh) neutralizeFallbackVertexRgb(mesh);
         // Q3 lighting formula: finalColor = diffuseTexture × lightmap × overbright
         // Babylon.js lightmapTexture with useLightmapAsShadowmap=true does texture × lightmap
         mat.lightmapTexture = lightmapTex;
         mat.lightmapTexture.coordinatesIndex = 1; // Use UV2 (lightmap UVs)
-        mat.lightmapTexture.level = intensity;
+        mat.lightmapTexture.level = fbsp ? 1 : intensity;
         mat.useLightmapAsShadowmap = true; // Multiplicative — set immediately
 
         // Pre-allocate light slots so dynamic PointLights (projectiles, explosions)
@@ -1531,12 +1554,12 @@ export class BspMeshBuilder {
 
         appliedCount++;
       } else if (mat instanceof PBRMaterial) {
+        if (mesh instanceof Mesh) neutralizeFallbackVertexRgb(mesh);
         mat.lightmapTexture = lightmapTex;
         mat.lightmapTexture.coordinatesIndex = 1; // Use UV2 (lightmap UVs)
-        // PBR surfaces already respond more strongly to scene lighting than the
-        // classic StandardMaterial BSP path, so use a softer lightmap gain to
-        // avoid washing out normal/spec detail on metallic Warsow materials.
-        mat.lightmapTexture.level = intensity * 0.6;
+        // A page is shared by all materials. FBSP gain belongs to each baked
+        // lighting plugin, not to this shared texture's level.
+        mat.lightmapTexture.level = fbsp ? 1 : intensity;
         const pbrWithShadowmap = mat as PBRMaterial & { useLightmapAsShadowmap?: boolean };
         pbrWithShadowmap.useLightmapAsShadowmap = true;
 
@@ -1739,9 +1762,7 @@ export class BspMeshBuilder {
   }
 
   /**
-   * Tune StandardMaterial response for filename- or material-driven companion maps.
-   * Warsow-style `_norm`/`_gloss` sets often expect a punchier metal response than
-   * Babylon's conservative defaults provide out of the box.
+   * Qfusion gloss RGB controls strength; its exponent controls the lobe.
    */
   private static tuneCompanionSurfaceMaterial(
     mat: StandardMaterial,
@@ -1749,23 +1770,17 @@ export class BspMeshBuilder {
       hasNormalMap: boolean;
       hasGlossMap: boolean;
     },
+    props?: ResolvedMaterialProps,
   ): void {
     if (options.hasGlossMap && mat.specularTexture) {
-      // Boost gloss contribution and broaden highlights so dark grayscale gloss maps
-      // still read as metal in the BSP + lightmap pipeline.
-      mat.specularTexture.level = options.hasNormalMap ? 1.4 : 1.2;
-      const specularStrength = options.hasNormalMap ? 0.65 : 0.5;
+      mat.specularTexture.level = 1;
+      const specularStrength = props?.glossIntensity ?? 1.5;
       mat.specularColor = new Color3(specularStrength, specularStrength, specularStrength);
-      mat.specularPower = options.hasNormalMap ? 24 : 32;
+      mat.specularPower = props?.glossExponent ?? 24;
       return;
     }
 
-    if (options.hasNormalMap) {
-      // Even without an explicit gloss map, a small specular term helps the relief
-      // from companion normal maps show up on worn metal/concrete surfaces.
-      mat.specularColor = new Color3(0.18, 0.18, 0.18);
-      mat.specularPower = 48;
-    }
+    mat.specularColor = Color3.Black();
   }
 
   private static shouldUseGeneratedPBR(
@@ -1800,12 +1815,12 @@ export class BspMeshBuilder {
     // sun. Synthetic environment lighting tends to over-brighten and flatten
     // these materials, so keep it off for the generated path.
     mat.environmentIntensity = 0.0;
-    mat.metallic = 0;
-    // These assets are authored closer to an old spec/gloss workflow than a
-    // modern metallic/roughness one. Keep metalness at 0 and let the gloss map
-    // shape surface response instead of pretending it is a metalness map.
-    mat.roughness = 0.78;
-    mat.microSurface = 0.9;
+    // Null metallic/roughness selects Babylon's actual specular/gloss workflow.
+    // RGB strength must not multiply roughness in the metallic workflow.
+    mat.metallic = null;
+    mat.roughness = null;
+    const exponent = props.glossExponent ?? 24;
+    mat.microSurface = 1 - Math.sqrt(2 / (exponent + 2));
 
     if (normalTexture) {
       mat.bumpTexture = normalTexture;
@@ -1813,11 +1828,9 @@ export class BspMeshBuilder {
     }
 
     if (glossTexture) {
-      // Babylon treats microSurfaceTexture as grayscale glossiness in its
-      // spec/gloss workflow, which is a closer fit for Warsow `_gloss` maps.
-      mat.microSurfaceTexture = glossTexture;
-      mat.microSurfaceTexture.level = 1.0;
-      mat.reflectivityColor = new Color3(0.62, 0.62, 0.62);
+      mat.reflectivityTexture = glossTexture;
+      const intensity = props.glossIntensity ?? 1.5;
+      mat.reflectivityColor = new Color3(intensity, intensity, intensity);
       const pbrAny = mat as PBRMaterial & {
         useMicroSurfaceFromReflectivityMapAlpha?: boolean;
         useAutoMicroSurfaceFromReflectivityMap?: boolean;
@@ -1844,9 +1857,19 @@ export class BspMeshBuilder {
   private buildLightmapTextures(): Texture[] {
     const textures: Texture[] = [];
     const size = this.bsp.lightmapSize;
+    const profile = bspLightingProfile(this.bsp);
 
     for (let i = 0; i < this.bsp.lightmaps.length; i++) {
-      textures.push(createBspLightmapTexture(this.bsp.lightmaps[i], size, this.scene, `lightmap_${i}`));
+      textures.push(
+        createBspLightmapTexture(
+          this.bsp.lightmaps[i],
+          size,
+          this.scene,
+          `lightmap_${i}`,
+          this.bsp.header.isFBSP,
+          profile.deluxe && i % 2 === 1,
+        ),
+      );
     }
 
     console.log(`[BspMeshBuilder] Created ${textures.length} lightmap textures (${size}x${size})`);

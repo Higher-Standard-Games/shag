@@ -226,6 +226,7 @@ export default defineConfig({
       '@babylonjs/core/Meshes/mesh',
       '@babylonjs/core/Meshes/mesh.vertexData',
       '@babylonjs/core/Meshes/meshBuilder',
+      '@babylonjs/core/Meshes/subMesh',
       '@babylonjs/core/Meshes/thinInstanceMesh',
       '@babylonjs/core/Meshes/trailMesh',
       '@babylonjs/core/Meshes/transformNode',

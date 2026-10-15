@@ -33,6 +33,8 @@ The parser and BSP material path cover the compatibility features most maps depe
 - stage maps, animated maps, blend and alpha functions;
 - culling, depth-write, polygon offset, surface/content parameters;
 - lightmap and base-texture stages;
+- implicit baked lighting for Qfusion `material` stages, authored
+  `glossIntensity` / `glossExponent`, and `rgbGen exactVertex`;
 - `tcMod` animation;
 - `tcGen environment`;
 - wave-driven `rgbGen` and `alphaGen`;

@@ -40,6 +40,7 @@ enum LumpIndex {
   LIGHTMAPS = 14,
   LIGHTVOLS = 15,
   VISDATA = 16,
+  LIGHTARRAY = 17,
 }
 
 const LUMP_COUNT = 17;
@@ -180,6 +181,8 @@ export interface BspVisData {
 }
 
 export interface BspLightVol {
+  /** Unreachable compressed-grid sites are excluded from interpolation. */
+  valid?: boolean;
   ambient: [number, number, number];
   directional: [number, number, number];
   direction: [number, number]; // phi, theta
@@ -333,23 +336,23 @@ export class BspLoader {
     let gridsize: [number, number, number] = [64, 64, 128];
     if (worldspawn?.properties.gridsize) {
       const parts = worldspawn.properties.gridsize.split(/\s+/).map(parseFloat);
-      if (parts.length === 3 && !parts.some(Number.isNaN)) {
+      if (parts.length === 3 && parts.every((n) => Number.isFinite(n) && n >= 1)) {
         gridsize = [parts[0], parts[1], parts[2]];
       }
     }
 
     // Calculate grid dimensions
-    // Lightgrid origin is the mins of the world model rounded down to gridsize
+    // Sample sites are inside the unpadded BSP bounds, as in Qfusion.
     const origin: [number, number, number] = [
-      Math.floor(worldModel.mins[0] / gridsize[0]) * gridsize[0],
-      Math.floor(worldModel.mins[1] / gridsize[1]) * gridsize[1],
-      Math.floor(worldModel.mins[2] / gridsize[2]) * gridsize[2],
+      Math.ceil(worldModel.mins[0] / gridsize[0]) * gridsize[0],
+      Math.ceil(worldModel.mins[1] / gridsize[1]) * gridsize[1],
+      Math.ceil(worldModel.mins[2] / gridsize[2]) * gridsize[2],
     ];
 
     const maxs: [number, number, number] = [
-      Math.ceil(worldModel.maxs[0] / gridsize[0]) * gridsize[0],
-      Math.ceil(worldModel.maxs[1] / gridsize[1]) * gridsize[1],
-      Math.ceil(worldModel.maxs[2] / gridsize[2]) * gridsize[2],
+      Math.floor(worldModel.maxs[0] / gridsize[0]) * gridsize[0],
+      Math.floor(worldModel.maxs[1] / gridsize[1]) * gridsize[1],
+      Math.floor(worldModel.maxs[2] / gridsize[2]) * gridsize[2],
     ];
 
     // Base float dimensions
@@ -361,9 +364,9 @@ export class BspLoader {
 
     // Calculate size using naive approach
     const size: [number, number, number] = [
-      Math.floor(baseSize[0]) + 1,
-      Math.floor(baseSize[1]) + 1,
-      Math.ceil(lightVolCount / ((Math.floor(baseSize[0]) + 1) * (Math.floor(baseSize[1]) + 1))),
+      Math.max(0, Math.floor(baseSize[0])) + 1,
+      Math.max(0, Math.floor(baseSize[1])) + 1,
+      Math.max(0, Math.floor(baseSize[2])) + 1,
     ];
 
     const predictedCount = size[0] * size[1] * size[2];
@@ -424,7 +427,7 @@ export class BspLoader {
     const lumps: BspLump[] = [];
     let offset = 8; // After header
 
-    for (let i = 0; i < LUMP_COUNT; i++) {
+    for (let i = 0; i < LUMP_COUNT + (this.isFBSP ? 1 : 0); i++) {
       const lumpOffset = this.data.getInt32(offset, true);
       const lumpLength = this.data.getInt32(offset + 4, true);
       lumps.push({ offset: lumpOffset, length: lumpLength });
@@ -1034,6 +1037,38 @@ export class BspLoader {
 
   private parseLightVols(): BspLightVol[] {
     const lump = this.getLump(LumpIndex.LIGHTVOLS);
+
+    if (this.isFBSP) {
+      if (lump.length % 30 !== 0) throw new Error("[BspLoader] Invalid FBSP lightgrid record size");
+      const records: BspLightVol[] = [];
+      for (let offset = 0; offset < lump.length; offset += 30) {
+        const ambient: [number, number, number] = [0, 0, 0];
+        const directional: [number, number, number] = [0, 0, 0];
+        for (let style = 0; style < 4; style++) {
+          if (lump.data.getUint8(offset + 24 + style) === 255) continue;
+          for (let channel = 0; channel < 3; channel++) {
+            ambient[channel] += lump.data.getUint8(offset + style * 3 + channel);
+            directional[channel] += lump.data.getUint8(offset + 12 + style * 3 + channel);
+          }
+        }
+        records.push({
+          ambient,
+          directional,
+          direction: [lump.data.getUint8(offset + 28), lump.data.getUint8(offset + 29)],
+        });
+      }
+      const array = this.getLump(LumpIndex.LIGHTARRAY);
+      if (array.length % 2 !== 0) throw new Error("[BspLoader] Invalid FBSP lightarray size");
+      const sites: BspLightVol[] = [];
+      const invalid: BspLightVol = { valid: false, ambient: [0, 0, 0], directional: [0, 0, 0], direction: [0, 0] };
+      for (let offset = 0; offset < array.length; offset += 2) {
+        const index = array.data.getUint16(offset, true);
+        if (index === 0xffff) sites.push(invalid);
+        else if (index < records.length) sites.push(records[index]);
+        else throw new Error(`[BspLoader] FBSP lightarray index ${index} exceeds ${records.length} records`);
+      }
+      return sites;
+    }
 
     const LIGHTVOL_SIZE = 8;
     const count = Math.floor(lump.length / LIGHTVOL_SIZE);
