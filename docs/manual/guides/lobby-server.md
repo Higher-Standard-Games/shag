@@ -12,6 +12,16 @@ npm run lobby:server -- --port 9000 --data-dir ./server-data
 Browsers reach it through `VITE_LOBBY_URL`. The environment variables it reads
 are listed in [Configuration](./configuration.md).
 
+## Map pools
+
+`config/maps.json` assigns display names and gametypes to maps. The lobby reads
+it at startup and filters the pools against installed `map_*.pk3` packages in
+`public/data/`. Numbered SHAGGED packages such as `map_solamphi1_00008.pk3`
+also advertise their base map name, `solamphi1`.
+
+The experiment's Amphi pool contains `wamphi1` and Relay Yard (`solamphi1`);
+the DA arenas are excluded. Restart the lobby after changing the configuration.
+
 ## Chat filtering
 
 Lobby and room chat mask recognized English profanity as `***` before delivery

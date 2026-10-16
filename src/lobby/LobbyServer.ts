@@ -2085,7 +2085,13 @@ export class LobbyServer {
     try {
       if (fs.existsSync(this.PK3_DIR)) {
         const files = fs.readdirSync(this.PK3_DIR);
-        const mapPk3Names = files.filter((f) => f.startsWith("map_") && f.endsWith(".pk3")).map((f) => f.slice(4, -4)); // "map_wdm2.pk3" → "wdm2"
+        const mapPk3Names = files
+          .filter((f) => f.startsWith("map_") && f.endsWith(".pk3"))
+          .flatMap((f) => {
+            const name = f.slice(4, -4);
+            // SHAGGED publishes map_<name>_<revision>.pk3 with the base BSP name.
+            return [name, name.replace(/_\d{5,}$/, "")];
+          });
         if (mapPk3Names.length > 0) {
           availableOnDisk = new Set(mapPk3Names);
           console.log(`[LobbyServer] Found ${availableOnDisk.size} map PK3s in ${this.PK3_DIR}`);

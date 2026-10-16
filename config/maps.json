@@ -43,12 +43,14 @@
   },
   "wda1": {
     "displayName": "Arena One",
-    "gametypes": [
-      "amphi"
-    ]
+    "gametypes": []
   },
   "wda2": {
     "displayName": "Arena Two",
+    "gametypes": []
+  },
+  "solamphi1": {
+    "displayName": "Relay Yard (Sol Amphi)",
     "gametypes": [
       "amphi"
     ]

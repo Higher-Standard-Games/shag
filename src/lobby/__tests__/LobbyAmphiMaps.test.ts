@@ -35,6 +35,7 @@ describe("Amphi lobby advertisement", () => {
       JSON.stringify({
         wamphi1: { displayName: "Amphitheatre", gametypes: ["amphi"] },
         wda1: { displayName: "Arena One", gametypes: ["amphi"] },
+        solamphi1: { displayName: "Relay Yard", gametypes: ["amphi"] },
       }),
     );
     const server = new LobbyServer(0, { onServerExit: undefined, spawn: vi.fn(), shutdownAll: vi.fn() } as never);
@@ -54,5 +55,9 @@ describe("Amphi lobby advertisement", () => {
     fs.writeFileSync(path.join(pk3Dir, "map_wamphi1.pk3"), "fixture name only");
     internal._loadMapsConfig();
     expect(internal.gametypes.find((mode) => mode.id === "amphi")?.mapPool).toEqual(["wamphi1"]);
+
+    fs.writeFileSync(path.join(pk3Dir, "map_solamphi1_00008.pk3"), "fixture name only");
+    internal._loadMapsConfig();
+    expect(internal.gametypes.find((mode) => mode.id === "amphi")?.mapPool).toEqual(["wamphi1", "solamphi1"]);
   });
 });

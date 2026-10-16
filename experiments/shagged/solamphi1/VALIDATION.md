@@ -70,3 +70,11 @@ Map experiment files, all under `experiments/shagged/solamphi1/`:
 - `preview-overview.png`, `preview-gallery.png`, `preview-ground.png`
 
 Local generated media: the published `map_solamphi1_*.pk3` builds, publish pointer/index updates, `solamphi1_compile_props.pk3`, and the executable-adjacent Washoi profile. These are workspace build artifacts, excluded from Git. Scratch probe scripts, raw logs and test output remain in `.cache/`.
+
+## Lobby testing pool follow-up, 2026-10-17
+
+The Amphi pool in `config/maps.json` now contains `wamphi1` and `solamphi1` (Relay Yard); `wda1` and `wda2` have no lobby gametype assignment. Lobby disk discovery recognizes numbered SHAGGED packages by their base map name. The lobby reads its configuration at startup, so a running instance needs a restart. Live lobby restart and browser selection were not performed for this change.
+
+Changed files in this follow-up: `config/maps.json`, `src/lobby/LobbyServer.ts`, `src/lobby/__tests__/LobbyAmphiMaps.test.ts`, `docs/manual/guides/lobby-server.md`, `docs/changelog/v0.9.31.md`, `docs/research/SHAGGED_NEEEDED_FEATURES.md`, and this file.
+
+Validation reran `npm run typecheck`, `npm run test:run`, `npm run build`, `npm run gate:biome`, `npm run docs:build`, `npm run test:simulation`, `npm run test:physics`, `npm run server:tick`, `npm run server:fuzz -- --ticks 1000`, and `npm run cli:game -- --exec "bsp load wdm2; bsp info; quit"`. The focused command was `npx vitest run src/lobby/__tests__/LobbyAmphiMaps.test.ts`; it passed, including installed numbered builds and absent maps. The full suite passed 4,990 tests with one skipped; all gates and regression commands passed.
