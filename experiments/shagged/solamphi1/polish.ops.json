@@ -1,0 +1,616 @@
+[
+  {
+    "op": "box.update",
+    "id": "reactor-clip",
+    "shader": "common/fullclip"
+  },
+  {
+    "op": "box.create",
+    "id": "service-x--1-door",
+    "min": {
+      "x": -1104,
+      "y": -112,
+      "z": 256
+    },
+    "max": {
+      "x": -1088,
+      "y": 112,
+      "z": 440
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "service-x--1-jamb--120",
+    "min": {
+      "x": -1104,
+      "y": -120,
+      "z": 256
+    },
+    "max": {
+      "x": -1088,
+      "y": -112,
+      "z": 448
+    },
+    "shader": "lights/blue1"
+  },
+  {
+    "op": "box.create",
+    "id": "service-x--1-jamb-112",
+    "min": {
+      "x": -1104,
+      "y": 112,
+      "z": 256
+    },
+    "max": {
+      "x": -1088,
+      "y": 120,
+      "z": 448
+    },
+    "shader": "lights/blue1"
+  },
+  {
+    "op": "box.create",
+    "id": "service-x--1-lintel",
+    "min": {
+      "x": -1104,
+      "y": -112,
+      "z": 440
+    },
+    "max": {
+      "x": -1088,
+      "y": 112,
+      "z": 448
+    },
+    "shader": "lights/blue1"
+  },
+  {
+    "op": "box.create",
+    "id": "service-y--1-door",
+    "min": {
+      "x": -112,
+      "y": -1104,
+      "z": 256
+    },
+    "max": {
+      "x": 112,
+      "y": -1088,
+      "z": 440
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "service-y--1-jamb--120",
+    "min": {
+      "x": -120,
+      "y": -1104,
+      "z": 256
+    },
+    "max": {
+      "x": -112,
+      "y": -1088,
+      "z": 448
+    },
+    "shader": "jewels/neon_red"
+  },
+  {
+    "op": "box.create",
+    "id": "service-y--1-jamb-112",
+    "min": {
+      "x": 112,
+      "y": -1104,
+      "z": 256
+    },
+    "max": {
+      "x": 120,
+      "y": -1088,
+      "z": 448
+    },
+    "shader": "jewels/neon_red"
+  },
+  {
+    "op": "box.create",
+    "id": "service-y--1-lintel",
+    "min": {
+      "x": -112,
+      "y": -1104,
+      "z": 440
+    },
+    "max": {
+      "x": 112,
+      "y": -1088,
+      "z": 448
+    },
+    "shader": "jewels/neon_red"
+  },
+  {
+    "op": "box.create",
+    "id": "service-x-1-door",
+    "min": {
+      "x": 1088,
+      "y": -112,
+      "z": 256
+    },
+    "max": {
+      "x": 1104,
+      "y": 112,
+      "z": 440
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "service-x-1-jamb--120",
+    "min": {
+      "x": 1088,
+      "y": -120,
+      "z": 256
+    },
+    "max": {
+      "x": 1104,
+      "y": -112,
+      "z": 448
+    },
+    "shader": "lights/blue1"
+  },
+  {
+    "op": "box.create",
+    "id": "service-x-1-jamb-112",
+    "min": {
+      "x": 1088,
+      "y": 112,
+      "z": 256
+    },
+    "max": {
+      "x": 1104,
+      "y": 120,
+      "z": 448
+    },
+    "shader": "lights/blue1"
+  },
+  {
+    "op": "box.create",
+    "id": "service-x-1-lintel",
+    "min": {
+      "x": 1088,
+      "y": -112,
+      "z": 440
+    },
+    "max": {
+      "x": 1104,
+      "y": 112,
+      "z": 448
+    },
+    "shader": "lights/blue1"
+  },
+  {
+    "op": "box.create",
+    "id": "service-y-1-door",
+    "min": {
+      "x": -112,
+      "y": 1088,
+      "z": 256
+    },
+    "max": {
+      "x": 112,
+      "y": 1104,
+      "z": 440
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "service-y-1-jamb--120",
+    "min": {
+      "x": -120,
+      "y": 1088,
+      "z": 256
+    },
+    "max": {
+      "x": -112,
+      "y": 1104,
+      "z": 448
+    },
+    "shader": "jewels/neon_red"
+  },
+  {
+    "op": "box.create",
+    "id": "service-y-1-jamb-112",
+    "min": {
+      "x": 112,
+      "y": 1088,
+      "z": 256
+    },
+    "max": {
+      "x": 120,
+      "y": 1104,
+      "z": 448
+    },
+    "shader": "jewels/neon_red"
+  },
+  {
+    "op": "box.create",
+    "id": "service-y-1-lintel",
+    "min": {
+      "x": -112,
+      "y": 1088,
+      "z": 440
+    },
+    "max": {
+      "x": 112,
+      "y": 1104,
+      "z": 448
+    },
+    "shader": "jewels/neon_red"
+  },
+  {
+    "op": "entity.place",
+    "id": "barrel--1--1-0",
+    "classname": "misc_model",
+    "origin": {
+      "x": -1024,
+      "y": -1024,
+      "z": 256
+    },
+    "keys": {
+      "model": "models/mapobjects/industrial/barrel_2.obj",
+      "collisiontype": "none",
+      "spawnflags": "12",
+      "angle": "0",
+      "modelscale": "1"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "barrel--1--1-1",
+    "classname": "misc_model",
+    "origin": {
+      "x": -960,
+      "y": -1024,
+      "z": 256
+    },
+    "keys": {
+      "model": "models/mapobjects/industrial/barrel_2.obj",
+      "collisiontype": "none",
+      "spawnflags": "12",
+      "angle": "33",
+      "modelscale": "1"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "barrel--1--1-2",
+    "classname": "misc_model",
+    "origin": {
+      "x": -896,
+      "y": -1024,
+      "z": 256
+    },
+    "keys": {
+      "model": "models/mapobjects/industrial/barrel_2.obj",
+      "collisiontype": "none",
+      "spawnflags": "12",
+      "angle": "66",
+      "modelscale": "1"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "crate--1--1",
+    "classname": "misc_model",
+    "origin": {
+      "x": -1000,
+      "y": -940,
+      "z": 256
+    },
+    "keys": {
+      "model": "models/mapobjects/industrial/crate_color.obj",
+      "collisiontype": "none",
+      "spawnflags": "12",
+      "angle": "15",
+      "modelscale": "1"
+    }
+  },
+  {
+    "op": "box.create",
+    "id": "crate-clip--1--1",
+    "min": {
+      "x": -1040,
+      "y": -980,
+      "z": 256
+    },
+    "max": {
+      "x": -960,
+      "y": -900,
+      "z": 320
+    },
+    "shader": "common/fullclip"
+  },
+  {
+    "op": "entity.place",
+    "id": "barrel--1-1-0",
+    "classname": "misc_model",
+    "origin": {
+      "x": -1024,
+      "y": 1024,
+      "z": 256
+    },
+    "keys": {
+      "model": "models/mapobjects/industrial/barrel_2.obj",
+      "collisiontype": "none",
+      "spawnflags": "12",
+      "angle": "0",
+      "modelscale": "1"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "barrel--1-1-1",
+    "classname": "misc_model",
+    "origin": {
+      "x": -960,
+      "y": 1024,
+      "z": 256
+    },
+    "keys": {
+      "model": "models/mapobjects/industrial/barrel_2.obj",
+      "collisiontype": "none",
+      "spawnflags": "12",
+      "angle": "33",
+      "modelscale": "1"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "barrel--1-1-2",
+    "classname": "misc_model",
+    "origin": {
+      "x": -896,
+      "y": 1024,
+      "z": 256
+    },
+    "keys": {
+      "model": "models/mapobjects/industrial/barrel_2.obj",
+      "collisiontype": "none",
+      "spawnflags": "12",
+      "angle": "66",
+      "modelscale": "1"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "crate--1-1",
+    "classname": "misc_model",
+    "origin": {
+      "x": -1000,
+      "y": 940,
+      "z": 256
+    },
+    "keys": {
+      "model": "models/mapobjects/industrial/crate_color.obj",
+      "collisiontype": "none",
+      "spawnflags": "12",
+      "angle": "-15",
+      "modelscale": "1"
+    }
+  },
+  {
+    "op": "box.create",
+    "id": "crate-clip--1-1",
+    "min": {
+      "x": -1040,
+      "y": 900,
+      "z": 256
+    },
+    "max": {
+      "x": -960,
+      "y": 980,
+      "z": 320
+    },
+    "shader": "common/fullclip"
+  },
+  {
+    "op": "entity.place",
+    "id": "barrel-1--1-0",
+    "classname": "misc_model",
+    "origin": {
+      "x": 1024,
+      "y": -1024,
+      "z": 256
+    },
+    "keys": {
+      "model": "models/mapobjects/industrial/barrel_2.obj",
+      "collisiontype": "none",
+      "spawnflags": "12",
+      "angle": "0",
+      "modelscale": "1"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "barrel-1--1-1",
+    "classname": "misc_model",
+    "origin": {
+      "x": 960,
+      "y": -1024,
+      "z": 256
+    },
+    "keys": {
+      "model": "models/mapobjects/industrial/barrel_2.obj",
+      "collisiontype": "none",
+      "spawnflags": "12",
+      "angle": "33",
+      "modelscale": "1"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "barrel-1--1-2",
+    "classname": "misc_model",
+    "origin": {
+      "x": 896,
+      "y": -1024,
+      "z": 256
+    },
+    "keys": {
+      "model": "models/mapobjects/industrial/barrel_2.obj",
+      "collisiontype": "none",
+      "spawnflags": "12",
+      "angle": "66",
+      "modelscale": "1"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "crate-1--1",
+    "classname": "misc_model",
+    "origin": {
+      "x": 1000,
+      "y": -940,
+      "z": 256
+    },
+    "keys": {
+      "model": "models/mapobjects/industrial/crate_color.obj",
+      "collisiontype": "none",
+      "spawnflags": "12",
+      "angle": "-15",
+      "modelscale": "1"
+    }
+  },
+  {
+    "op": "box.create",
+    "id": "crate-clip-1--1",
+    "min": {
+      "x": 960,
+      "y": -980,
+      "z": 256
+    },
+    "max": {
+      "x": 1040,
+      "y": -900,
+      "z": 320
+    },
+    "shader": "common/fullclip"
+  },
+  {
+    "op": "entity.place",
+    "id": "barrel-1-1-0",
+    "classname": "misc_model",
+    "origin": {
+      "x": 1024,
+      "y": 1024,
+      "z": 256
+    },
+    "keys": {
+      "model": "models/mapobjects/industrial/barrel_2.obj",
+      "collisiontype": "none",
+      "spawnflags": "12",
+      "angle": "0",
+      "modelscale": "1"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "barrel-1-1-1",
+    "classname": "misc_model",
+    "origin": {
+      "x": 960,
+      "y": 1024,
+      "z": 256
+    },
+    "keys": {
+      "model": "models/mapobjects/industrial/barrel_2.obj",
+      "collisiontype": "none",
+      "spawnflags": "12",
+      "angle": "33",
+      "modelscale": "1"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "barrel-1-1-2",
+    "classname": "misc_model",
+    "origin": {
+      "x": 896,
+      "y": 1024,
+      "z": 256
+    },
+    "keys": {
+      "model": "models/mapobjects/industrial/barrel_2.obj",
+      "collisiontype": "none",
+      "spawnflags": "12",
+      "angle": "66",
+      "modelscale": "1"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "crate-1-1",
+    "classname": "misc_model",
+    "origin": {
+      "x": 1000,
+      "y": 940,
+      "z": 256
+    },
+    "keys": {
+      "model": "models/mapobjects/industrial/crate_color.obj",
+      "collisiontype": "none",
+      "spawnflags": "12",
+      "angle": "15",
+      "modelscale": "1"
+    }
+  },
+  {
+    "op": "box.create",
+    "id": "crate-clip-1-1",
+    "min": {
+      "x": 960,
+      "y": 900,
+      "z": 256
+    },
+    "max": {
+      "x": 1040,
+      "y": 980,
+      "z": 320
+    },
+    "shader": "common/fullclip"
+  },
+  {
+    "op": "box.create",
+    "id": "nats-sign",
+    "min": {
+      "x": -1118,
+      "y": 448,
+      "z": 368
+    },
+    "max": {
+      "x": -1100,
+      "y": 704,
+      "z": 496
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "nats-sign",
+    "faces": [
+      "+X"
+    ],
+    "shader": "noir/natsbar"
+  },
+  {
+    "op": "entity.place",
+    "id": "nats-sign-glow",
+    "classname": "light",
+    "origin": {
+      "x": -1024,
+      "y": 576,
+      "z": 408
+    },
+    "keys": {
+      "_color": "1 0.08 0.42",
+      "light": "240"
+    }
+  }
+]

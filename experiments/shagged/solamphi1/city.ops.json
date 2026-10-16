@@ -1,0 +1,1732 @@
+[
+  {
+    "op": "object.delete",
+    "ids": [
+      "shell-ceiling",
+      "ceiling-rib--416",
+      "ceiling-rib-0",
+      "ceiling-rib-416"
+    ]
+  },
+  {
+    "op": "box.update",
+    "id": "shell-west",
+    "max": {
+      "x": -1120,
+      "y": 1152,
+      "z": 512
+    }
+  },
+  {
+    "op": "box.update",
+    "id": "shell-east",
+    "max": {
+      "x": 1152,
+      "y": 1152,
+      "z": 512
+    }
+  },
+  {
+    "op": "box.update",
+    "id": "shell-north",
+    "max": {
+      "x": 1120,
+      "y": 1152,
+      "z": 512
+    }
+  },
+  {
+    "op": "box.update",
+    "id": "shell-south",
+    "max": {
+      "x": 1120,
+      "y": -1120,
+      "z": 512
+    }
+  },
+  {
+    "op": "gen.room",
+    "id": "city-sky",
+    "min": {
+      "x": -2048,
+      "y": -2048,
+      "z": -64
+    },
+    "max": {
+      "x": 2048,
+      "y": 2048,
+      "z": 1792
+    },
+    "wall": 32,
+    "shader": "sky/stars",
+    "floorShader": "common/caulk",
+    "ceilingShader": "sky/stars",
+    "light": false
+  },
+  {
+    "op": "box.create",
+    "id": "arena-boundary-x--1",
+    "min": {
+      "x": -1136,
+      "y": -1120,
+      "z": 512
+    },
+    "max": {
+      "x": -1120,
+      "y": 1120,
+      "z": 1792
+    },
+    "shader": "common/playerclip"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-x--1-0",
+    "min": {
+      "x": -1776,
+      "y": -1168,
+      "z": -32
+    },
+    "max": {
+      "x": -1280,
+      "y": -880,
+      "z": 1056
+    },
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-x--1-0",
+    "faces": "all",
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-x--1-0-windows-560",
+    "min": {
+      "x": -1280,
+      "y": -1128,
+      "z": 560
+    },
+    "max": {
+      "x": -1276,
+      "y": -920,
+      "z": 624
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-x--1-0-windows-560",
+    "faces": [
+      "+X"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-x--1-0-windows-720",
+    "min": {
+      "x": -1280,
+      "y": -1128,
+      "z": 720
+    },
+    "max": {
+      "x": -1276,
+      "y": -920,
+      "z": 784
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-x--1-0-windows-720",
+    "faces": [
+      "+X"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-x--1-0-windows-880",
+    "min": {
+      "x": -1280,
+      "y": -1128,
+      "z": 880
+    },
+    "max": {
+      "x": -1276,
+      "y": -920,
+      "z": 944
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-x--1-0-windows-880",
+    "faces": [
+      "+X"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-x--1-0-coping",
+    "min": {
+      "x": -1776,
+      "y": -1176,
+      "z": 1056
+    },
+    "max": {
+      "x": -1280,
+      "y": -872,
+      "z": 1072
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-x--1-0-coping",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-x--1-1",
+    "min": {
+      "x": -1776,
+      "y": -528,
+      "z": -32
+    },
+    "max": {
+      "x": -1280,
+      "y": -240,
+      "z": 864
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-x--1-1",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-x--1-1-windows-560",
+    "min": {
+      "x": -1280,
+      "y": -488,
+      "z": 560
+    },
+    "max": {
+      "x": -1276,
+      "y": -280,
+      "z": 624
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-x--1-1-windows-560",
+    "faces": [
+      "+X"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-x--1-1-windows-720",
+    "min": {
+      "x": -1280,
+      "y": -488,
+      "z": 720
+    },
+    "max": {
+      "x": -1276,
+      "y": -280,
+      "z": 784
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-x--1-1-windows-720",
+    "faces": [
+      "+X"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-x--1-1-coping",
+    "min": {
+      "x": -1776,
+      "y": -536,
+      "z": 864
+    },
+    "max": {
+      "x": -1280,
+      "y": -232,
+      "z": 880
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-x--1-1-coping",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-x--1-2",
+    "min": {
+      "x": -1776,
+      "y": 240,
+      "z": -32
+    },
+    "max": {
+      "x": -1280,
+      "y": 528,
+      "z": 1280
+    },
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-x--1-2",
+    "faces": "all",
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-x--1-2-windows-560",
+    "min": {
+      "x": -1280,
+      "y": 280,
+      "z": 560
+    },
+    "max": {
+      "x": -1276,
+      "y": 488,
+      "z": 624
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-x--1-2-windows-560",
+    "faces": [
+      "+X"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-x--1-2-windows-720",
+    "min": {
+      "x": -1280,
+      "y": 280,
+      "z": 720
+    },
+    "max": {
+      "x": -1276,
+      "y": 488,
+      "z": 784
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-x--1-2-windows-720",
+    "faces": [
+      "+X"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-x--1-2-windows-880",
+    "min": {
+      "x": -1280,
+      "y": 280,
+      "z": 880
+    },
+    "max": {
+      "x": -1276,
+      "y": 488,
+      "z": 944
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-x--1-2-windows-880",
+    "faces": [
+      "+X"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-x--1-2-windows-1040",
+    "min": {
+      "x": -1280,
+      "y": 280,
+      "z": 1040
+    },
+    "max": {
+      "x": -1276,
+      "y": 488,
+      "z": 1104
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-x--1-2-windows-1040",
+    "faces": [
+      "+X"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-x--1-2-coping",
+    "min": {
+      "x": -1776,
+      "y": 232,
+      "z": 1280
+    },
+    "max": {
+      "x": -1280,
+      "y": 536,
+      "z": 1296
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-x--1-2-coping",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-x--1-3",
+    "min": {
+      "x": -1776,
+      "y": 880,
+      "z": -32
+    },
+    "max": {
+      "x": -1280,
+      "y": 1168,
+      "z": 720
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-x--1-3",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-x--1-3-windows-560",
+    "min": {
+      "x": -1280,
+      "y": 920,
+      "z": 560
+    },
+    "max": {
+      "x": -1276,
+      "y": 1128,
+      "z": 624
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-x--1-3-windows-560",
+    "faces": [
+      "+X"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-x--1-3-coping",
+    "min": {
+      "x": -1776,
+      "y": 872,
+      "z": 720
+    },
+    "max": {
+      "x": -1280,
+      "y": 1176,
+      "z": 736
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-x--1-3-coping",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "arena-boundary-x-1",
+    "min": {
+      "x": 1120,
+      "y": -1120,
+      "z": 512
+    },
+    "max": {
+      "x": 1136,
+      "y": 1120,
+      "z": 1792
+    },
+    "shader": "common/playerclip"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-x-1-0",
+    "min": {
+      "x": 1280,
+      "y": -1168,
+      "z": -32
+    },
+    "max": {
+      "x": 1776,
+      "y": -880,
+      "z": 864
+    },
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-x-1-0",
+    "faces": "all",
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-x-1-0-windows-560",
+    "min": {
+      "x": 1276,
+      "y": -1128,
+      "z": 560
+    },
+    "max": {
+      "x": 1280,
+      "y": -920,
+      "z": 624
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-x-1-0-windows-560",
+    "faces": [
+      "-X"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-x-1-0-windows-720",
+    "min": {
+      "x": 1276,
+      "y": -1128,
+      "z": 720
+    },
+    "max": {
+      "x": 1280,
+      "y": -920,
+      "z": 784
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-x-1-0-windows-720",
+    "faces": [
+      "-X"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-x-1-0-coping",
+    "min": {
+      "x": 1280,
+      "y": -1176,
+      "z": 864
+    },
+    "max": {
+      "x": 1776,
+      "y": -872,
+      "z": 880
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-x-1-0-coping",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-x-1-1",
+    "min": {
+      "x": 1280,
+      "y": -528,
+      "z": -32
+    },
+    "max": {
+      "x": 1776,
+      "y": -240,
+      "z": 1280
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-x-1-1",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-x-1-1-windows-560",
+    "min": {
+      "x": 1276,
+      "y": -488,
+      "z": 560
+    },
+    "max": {
+      "x": 1280,
+      "y": -280,
+      "z": 624
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-x-1-1-windows-560",
+    "faces": [
+      "-X"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-x-1-1-windows-720",
+    "min": {
+      "x": 1276,
+      "y": -488,
+      "z": 720
+    },
+    "max": {
+      "x": 1280,
+      "y": -280,
+      "z": 784
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-x-1-1-windows-720",
+    "faces": [
+      "-X"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-x-1-1-windows-880",
+    "min": {
+      "x": 1276,
+      "y": -488,
+      "z": 880
+    },
+    "max": {
+      "x": 1280,
+      "y": -280,
+      "z": 944
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-x-1-1-windows-880",
+    "faces": [
+      "-X"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-x-1-1-windows-1040",
+    "min": {
+      "x": 1276,
+      "y": -488,
+      "z": 1040
+    },
+    "max": {
+      "x": 1280,
+      "y": -280,
+      "z": 1104
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-x-1-1-windows-1040",
+    "faces": [
+      "-X"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-x-1-1-coping",
+    "min": {
+      "x": 1280,
+      "y": -536,
+      "z": 1280
+    },
+    "max": {
+      "x": 1776,
+      "y": -232,
+      "z": 1296
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-x-1-1-coping",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-x-1-2",
+    "min": {
+      "x": 1280,
+      "y": 240,
+      "z": -32
+    },
+    "max": {
+      "x": 1776,
+      "y": 528,
+      "z": 720
+    },
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-x-1-2",
+    "faces": "all",
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-x-1-2-windows-560",
+    "min": {
+      "x": 1276,
+      "y": 280,
+      "z": 560
+    },
+    "max": {
+      "x": 1280,
+      "y": 488,
+      "z": 624
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-x-1-2-windows-560",
+    "faces": [
+      "-X"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-x-1-2-coping",
+    "min": {
+      "x": 1280,
+      "y": 232,
+      "z": 720
+    },
+    "max": {
+      "x": 1776,
+      "y": 536,
+      "z": 736
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-x-1-2-coping",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-x-1-3",
+    "min": {
+      "x": 1280,
+      "y": 880,
+      "z": -32
+    },
+    "max": {
+      "x": 1776,
+      "y": 1168,
+      "z": 1056
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-x-1-3",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-x-1-3-windows-560",
+    "min": {
+      "x": 1276,
+      "y": 920,
+      "z": 560
+    },
+    "max": {
+      "x": 1280,
+      "y": 1128,
+      "z": 624
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-x-1-3-windows-560",
+    "faces": [
+      "-X"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-x-1-3-windows-720",
+    "min": {
+      "x": 1276,
+      "y": 920,
+      "z": 720
+    },
+    "max": {
+      "x": 1280,
+      "y": 1128,
+      "z": 784
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-x-1-3-windows-720",
+    "faces": [
+      "-X"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-x-1-3-windows-880",
+    "min": {
+      "x": 1276,
+      "y": 920,
+      "z": 880
+    },
+    "max": {
+      "x": 1280,
+      "y": 1128,
+      "z": 944
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-x-1-3-windows-880",
+    "faces": [
+      "-X"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-x-1-3-coping",
+    "min": {
+      "x": 1280,
+      "y": 872,
+      "z": 1056
+    },
+    "max": {
+      "x": 1776,
+      "y": 1176,
+      "z": 1072
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-x-1-3-coping",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "arena-boundary-y--1",
+    "min": {
+      "x": -1136,
+      "y": -1136,
+      "z": 512
+    },
+    "max": {
+      "x": 1136,
+      "y": -1120,
+      "z": 1792
+    },
+    "shader": "common/playerclip"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-y--1-0",
+    "min": {
+      "x": -1168,
+      "y": -1776,
+      "z": -32
+    },
+    "max": {
+      "x": -880,
+      "y": -1280,
+      "z": 720
+    },
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-y--1-0",
+    "faces": "all",
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-y--1-0-windows-560",
+    "min": {
+      "x": -1128,
+      "y": -1280,
+      "z": 560
+    },
+    "max": {
+      "x": -920,
+      "y": -1276,
+      "z": 624
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-y--1-0-windows-560",
+    "faces": [
+      "+Y"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-y--1-0-coping",
+    "min": {
+      "x": -1176,
+      "y": -1776,
+      "z": 720
+    },
+    "max": {
+      "x": -872,
+      "y": -1280,
+      "z": 736
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-y--1-0-coping",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-y--1-1",
+    "min": {
+      "x": -528,
+      "y": -1776,
+      "z": -32
+    },
+    "max": {
+      "x": -240,
+      "y": -1280,
+      "z": 1056
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-y--1-1",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-y--1-1-windows-560",
+    "min": {
+      "x": -488,
+      "y": -1280,
+      "z": 560
+    },
+    "max": {
+      "x": -280,
+      "y": -1276,
+      "z": 624
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-y--1-1-windows-560",
+    "faces": [
+      "+Y"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-y--1-1-windows-720",
+    "min": {
+      "x": -488,
+      "y": -1280,
+      "z": 720
+    },
+    "max": {
+      "x": -280,
+      "y": -1276,
+      "z": 784
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-y--1-1-windows-720",
+    "faces": [
+      "+Y"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-y--1-1-windows-880",
+    "min": {
+      "x": -488,
+      "y": -1280,
+      "z": 880
+    },
+    "max": {
+      "x": -280,
+      "y": -1276,
+      "z": 944
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-y--1-1-windows-880",
+    "faces": [
+      "+Y"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-y--1-1-coping",
+    "min": {
+      "x": -536,
+      "y": -1776,
+      "z": 1056
+    },
+    "max": {
+      "x": -232,
+      "y": -1280,
+      "z": 1072
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-y--1-1-coping",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-y--1-2",
+    "min": {
+      "x": 240,
+      "y": -1776,
+      "z": -32
+    },
+    "max": {
+      "x": 528,
+      "y": -1280,
+      "z": 864
+    },
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-y--1-2",
+    "faces": "all",
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-y--1-2-windows-560",
+    "min": {
+      "x": 280,
+      "y": -1280,
+      "z": 560
+    },
+    "max": {
+      "x": 488,
+      "y": -1276,
+      "z": 624
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-y--1-2-windows-560",
+    "faces": [
+      "+Y"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-y--1-2-windows-720",
+    "min": {
+      "x": 280,
+      "y": -1280,
+      "z": 720
+    },
+    "max": {
+      "x": 488,
+      "y": -1276,
+      "z": 784
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-y--1-2-windows-720",
+    "faces": [
+      "+Y"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-y--1-2-coping",
+    "min": {
+      "x": 232,
+      "y": -1776,
+      "z": 864
+    },
+    "max": {
+      "x": 536,
+      "y": -1280,
+      "z": 880
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-y--1-2-coping",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-y--1-3",
+    "min": {
+      "x": 880,
+      "y": -1776,
+      "z": -32
+    },
+    "max": {
+      "x": 1168,
+      "y": -1280,
+      "z": 1280
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-y--1-3",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-y--1-3-windows-560",
+    "min": {
+      "x": 920,
+      "y": -1280,
+      "z": 560
+    },
+    "max": {
+      "x": 1128,
+      "y": -1276,
+      "z": 624
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-y--1-3-windows-560",
+    "faces": [
+      "+Y"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-y--1-3-windows-720",
+    "min": {
+      "x": 920,
+      "y": -1280,
+      "z": 720
+    },
+    "max": {
+      "x": 1128,
+      "y": -1276,
+      "z": 784
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-y--1-3-windows-720",
+    "faces": [
+      "+Y"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-y--1-3-windows-880",
+    "min": {
+      "x": 920,
+      "y": -1280,
+      "z": 880
+    },
+    "max": {
+      "x": 1128,
+      "y": -1276,
+      "z": 944
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-y--1-3-windows-880",
+    "faces": [
+      "+Y"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-y--1-3-windows-1040",
+    "min": {
+      "x": 920,
+      "y": -1280,
+      "z": 1040
+    },
+    "max": {
+      "x": 1128,
+      "y": -1276,
+      "z": 1104
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-y--1-3-windows-1040",
+    "faces": [
+      "+Y"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-y--1-3-coping",
+    "min": {
+      "x": 872,
+      "y": -1776,
+      "z": 1280
+    },
+    "max": {
+      "x": 1176,
+      "y": -1280,
+      "z": 1296
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-y--1-3-coping",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "arena-boundary-y-1",
+    "min": {
+      "x": -1136,
+      "y": 1120,
+      "z": 512
+    },
+    "max": {
+      "x": 1136,
+      "y": 1136,
+      "z": 1792
+    },
+    "shader": "common/playerclip"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-y-1-0",
+    "min": {
+      "x": -1168,
+      "y": 1280,
+      "z": -32
+    },
+    "max": {
+      "x": -880,
+      "y": 1776,
+      "z": 1056
+    },
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-y-1-0",
+    "faces": "all",
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-y-1-0-windows-560",
+    "min": {
+      "x": -1128,
+      "y": 1276,
+      "z": 560
+    },
+    "max": {
+      "x": -920,
+      "y": 1280,
+      "z": 624
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-y-1-0-windows-560",
+    "faces": [
+      "-Y"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-y-1-0-windows-720",
+    "min": {
+      "x": -1128,
+      "y": 1276,
+      "z": 720
+    },
+    "max": {
+      "x": -920,
+      "y": 1280,
+      "z": 784
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-y-1-0-windows-720",
+    "faces": [
+      "-Y"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-y-1-0-windows-880",
+    "min": {
+      "x": -1128,
+      "y": 1276,
+      "z": 880
+    },
+    "max": {
+      "x": -920,
+      "y": 1280,
+      "z": 944
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-y-1-0-windows-880",
+    "faces": [
+      "-Y"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-y-1-0-coping",
+    "min": {
+      "x": -1176,
+      "y": 1280,
+      "z": 1056
+    },
+    "max": {
+      "x": -872,
+      "y": 1776,
+      "z": 1072
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-y-1-0-coping",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-y-1-1",
+    "min": {
+      "x": -528,
+      "y": 1280,
+      "z": -32
+    },
+    "max": {
+      "x": -240,
+      "y": 1776,
+      "z": 864
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-y-1-1",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-y-1-1-windows-560",
+    "min": {
+      "x": -488,
+      "y": 1276,
+      "z": 560
+    },
+    "max": {
+      "x": -280,
+      "y": 1280,
+      "z": 624
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-y-1-1-windows-560",
+    "faces": [
+      "-Y"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-y-1-1-windows-720",
+    "min": {
+      "x": -488,
+      "y": 1276,
+      "z": 720
+    },
+    "max": {
+      "x": -280,
+      "y": 1280,
+      "z": 784
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-y-1-1-windows-720",
+    "faces": [
+      "-Y"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-y-1-1-coping",
+    "min": {
+      "x": -536,
+      "y": 1280,
+      "z": 864
+    },
+    "max": {
+      "x": -232,
+      "y": 1776,
+      "z": 880
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-y-1-1-coping",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-y-1-2",
+    "min": {
+      "x": 240,
+      "y": 1280,
+      "z": -32
+    },
+    "max": {
+      "x": 528,
+      "y": 1776,
+      "z": 1280
+    },
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-y-1-2",
+    "faces": "all",
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-y-1-2-windows-560",
+    "min": {
+      "x": 280,
+      "y": 1276,
+      "z": 560
+    },
+    "max": {
+      "x": 488,
+      "y": 1280,
+      "z": 624
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-y-1-2-windows-560",
+    "faces": [
+      "-Y"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-y-1-2-windows-720",
+    "min": {
+      "x": 280,
+      "y": 1276,
+      "z": 720
+    },
+    "max": {
+      "x": 488,
+      "y": 1280,
+      "z": 784
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-y-1-2-windows-720",
+    "faces": [
+      "-Y"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-y-1-2-windows-880",
+    "min": {
+      "x": 280,
+      "y": 1276,
+      "z": 880
+    },
+    "max": {
+      "x": 488,
+      "y": 1280,
+      "z": 944
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-y-1-2-windows-880",
+    "faces": [
+      "-Y"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-y-1-2-windows-1040",
+    "min": {
+      "x": 280,
+      "y": 1276,
+      "z": 1040
+    },
+    "max": {
+      "x": 488,
+      "y": 1280,
+      "z": 1104
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-y-1-2-windows-1040",
+    "faces": [
+      "-Y"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-y-1-2-coping",
+    "min": {
+      "x": 232,
+      "y": 1280,
+      "z": 1280
+    },
+    "max": {
+      "x": 536,
+      "y": 1776,
+      "z": 1296
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-y-1-2-coping",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-y-1-3",
+    "min": {
+      "x": 880,
+      "y": 1280,
+      "z": -32
+    },
+    "max": {
+      "x": 1168,
+      "y": 1776,
+      "z": 720
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-y-1-3",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-y-1-3-windows-560",
+    "min": {
+      "x": 920,
+      "y": 1276,
+      "z": 560
+    },
+    "max": {
+      "x": 1128,
+      "y": 1280,
+      "z": 624
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-y-1-3-windows-560",
+    "faces": [
+      "-Y"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-building-y-1-3-coping",
+    "min": {
+      "x": 872,
+      "y": 1280,
+      "z": 720
+    },
+    "max": {
+      "x": 1176,
+      "y": 1776,
+      "z": 736
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-building-y-1-3-coping",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "entity.place",
+    "id": "sky-cool-fill",
+    "classname": "light",
+    "origin": {
+      "x": 0,
+      "y": 0,
+      "z": 1400
+    },
+    "keys": {
+      "_color": "0.25 0.35 0.65",
+      "light": "1000"
+    }
+  }
+]

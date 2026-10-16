@@ -1,0 +1,3286 @@
+[
+  {
+    "op": "box.create",
+    "id": "bay-x--1-0-brick",
+    "min": {
+      "x": -1120,
+      "y": -1096,
+      "z": 16
+    },
+    "max": {
+      "x": -1104,
+      "y": -824,
+      "z": 216
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-x--1-0-upright",
+    "min": {
+      "x": -1120,
+      "y": -968,
+      "z": 256
+    },
+    "max": {
+      "x": -1104,
+      "y": -952,
+      "z": 736
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-x--1-0-light",
+    "min": {
+      "x": -1120,
+      "y": -1048,
+      "z": 476
+    },
+    "max": {
+      "x": -1104,
+      "y": -872,
+      "z": 484
+    },
+    "shader": "lights/blue1"
+  },
+  {
+    "op": "entity.place",
+    "id": "bay-x--1-0-glow",
+    "classname": "light",
+    "origin": {
+      "x": -1064,
+      "y": -960,
+      "z": 440
+    },
+    "keys": {
+      "_color": "0.15 0.6 1",
+      "light": "180"
+    }
+  },
+  {
+    "op": "box.create",
+    "id": "bay-y--1-0-brick",
+    "min": {
+      "x": -1096,
+      "y": -1120,
+      "z": 16
+    },
+    "max": {
+      "x": -824,
+      "y": -1104,
+      "z": 216
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-y--1-0-upright",
+    "min": {
+      "x": -968,
+      "y": -1120,
+      "z": 256
+    },
+    "max": {
+      "x": -952,
+      "y": -1104,
+      "z": 736
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-y--1-0-light",
+    "min": {
+      "x": -1048,
+      "y": -1120,
+      "z": 476
+    },
+    "max": {
+      "x": -872,
+      "y": -1104,
+      "z": 484
+    },
+    "shader": "lights/blue1"
+  },
+  {
+    "op": "entity.place",
+    "id": "bay-y--1-0-glow",
+    "classname": "light",
+    "origin": {
+      "x": -960,
+      "y": -1064,
+      "z": 440
+    },
+    "keys": {
+      "_color": "0.15 0.6 1",
+      "light": "180"
+    }
+  },
+  {
+    "op": "box.create",
+    "id": "bay-x--1-1-brick",
+    "min": {
+      "x": -1120,
+      "y": -776,
+      "z": 16
+    },
+    "max": {
+      "x": -1104,
+      "y": -504,
+      "z": 216
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-x--1-1-upright",
+    "min": {
+      "x": -1120,
+      "y": -648,
+      "z": 256
+    },
+    "max": {
+      "x": -1104,
+      "y": -632,
+      "z": 736
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-x--1-1-light",
+    "min": {
+      "x": -1120,
+      "y": -728,
+      "z": 476
+    },
+    "max": {
+      "x": -1104,
+      "y": -552,
+      "z": 484
+    },
+    "shader": "jewels/neon_red"
+  },
+  {
+    "op": "entity.place",
+    "id": "bay-x--1-1-glow",
+    "classname": "light",
+    "origin": {
+      "x": -1064,
+      "y": -640,
+      "z": 440
+    },
+    "keys": {
+      "_color": "0.15 0.6 1",
+      "light": "180"
+    }
+  },
+  {
+    "op": "box.create",
+    "id": "bay-y--1-1-brick",
+    "min": {
+      "x": -776,
+      "y": -1120,
+      "z": 16
+    },
+    "max": {
+      "x": -504,
+      "y": -1104,
+      "z": 216
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-y--1-1-upright",
+    "min": {
+      "x": -648,
+      "y": -1120,
+      "z": 256
+    },
+    "max": {
+      "x": -632,
+      "y": -1104,
+      "z": 736
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-y--1-1-light",
+    "min": {
+      "x": -728,
+      "y": -1120,
+      "z": 476
+    },
+    "max": {
+      "x": -552,
+      "y": -1104,
+      "z": 484
+    },
+    "shader": "jewels/neon_red"
+  },
+  {
+    "op": "entity.place",
+    "id": "bay-y--1-1-glow",
+    "classname": "light",
+    "origin": {
+      "x": -640,
+      "y": -1064,
+      "z": 440
+    },
+    "keys": {
+      "_color": "0.15 0.6 1",
+      "light": "180"
+    }
+  },
+  {
+    "op": "box.create",
+    "id": "bay-x--1-2-brick",
+    "min": {
+      "x": -1120,
+      "y": -456,
+      "z": 16
+    },
+    "max": {
+      "x": -1104,
+      "y": -184,
+      "z": 216
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-x--1-2-upright",
+    "min": {
+      "x": -1120,
+      "y": -328,
+      "z": 256
+    },
+    "max": {
+      "x": -1104,
+      "y": -312,
+      "z": 736
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-x--1-2-light",
+    "min": {
+      "x": -1120,
+      "y": -408,
+      "z": 476
+    },
+    "max": {
+      "x": -1104,
+      "y": -232,
+      "z": 484
+    },
+    "shader": "baxandall/neon_07"
+  },
+  {
+    "op": "entity.place",
+    "id": "bay-x--1-2-glow",
+    "classname": "light",
+    "origin": {
+      "x": -1064,
+      "y": -320,
+      "z": 440
+    },
+    "keys": {
+      "_color": "0.15 0.6 1",
+      "light": "180"
+    }
+  },
+  {
+    "op": "box.create",
+    "id": "bay-y--1-2-brick",
+    "min": {
+      "x": -456,
+      "y": -1120,
+      "z": 16
+    },
+    "max": {
+      "x": -184,
+      "y": -1104,
+      "z": 216
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-y--1-2-upright",
+    "min": {
+      "x": -328,
+      "y": -1120,
+      "z": 256
+    },
+    "max": {
+      "x": -312,
+      "y": -1104,
+      "z": 736
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-y--1-2-light",
+    "min": {
+      "x": -408,
+      "y": -1120,
+      "z": 476
+    },
+    "max": {
+      "x": -232,
+      "y": -1104,
+      "z": 484
+    },
+    "shader": "baxandall/neon_07"
+  },
+  {
+    "op": "entity.place",
+    "id": "bay-y--1-2-glow",
+    "classname": "light",
+    "origin": {
+      "x": -320,
+      "y": -1064,
+      "z": 440
+    },
+    "keys": {
+      "_color": "0.15 0.6 1",
+      "light": "180"
+    }
+  },
+  {
+    "op": "box.create",
+    "id": "bay-x--1-3-brick",
+    "min": {
+      "x": -1120,
+      "y": -136,
+      "z": 16
+    },
+    "max": {
+      "x": -1104,
+      "y": 136,
+      "z": 216
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-x--1-3-upright",
+    "min": {
+      "x": -1120,
+      "y": -8,
+      "z": 256
+    },
+    "max": {
+      "x": -1104,
+      "y": 8,
+      "z": 736
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-x--1-3-light",
+    "min": {
+      "x": -1120,
+      "y": -88,
+      "z": 476
+    },
+    "max": {
+      "x": -1104,
+      "y": 88,
+      "z": 484
+    },
+    "shader": "neon/neon_square"
+  },
+  {
+    "op": "entity.place",
+    "id": "bay-x--1-3-glow",
+    "classname": "light",
+    "origin": {
+      "x": -1064,
+      "y": 0,
+      "z": 440
+    },
+    "keys": {
+      "_color": "0.15 0.6 1",
+      "light": "180"
+    }
+  },
+  {
+    "op": "box.create",
+    "id": "bay-y--1-3-brick",
+    "min": {
+      "x": -136,
+      "y": -1120,
+      "z": 16
+    },
+    "max": {
+      "x": 136,
+      "y": -1104,
+      "z": 216
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-y--1-3-upright",
+    "min": {
+      "x": -8,
+      "y": -1120,
+      "z": 256
+    },
+    "max": {
+      "x": 8,
+      "y": -1104,
+      "z": 736
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-y--1-3-light",
+    "min": {
+      "x": -88,
+      "y": -1120,
+      "z": 476
+    },
+    "max": {
+      "x": 88,
+      "y": -1104,
+      "z": 484
+    },
+    "shader": "neon/neon_square"
+  },
+  {
+    "op": "entity.place",
+    "id": "bay-y--1-3-glow",
+    "classname": "light",
+    "origin": {
+      "x": 0,
+      "y": -1064,
+      "z": 440
+    },
+    "keys": {
+      "_color": "0.15 0.6 1",
+      "light": "180"
+    }
+  },
+  {
+    "op": "box.create",
+    "id": "bay-x--1-4-brick",
+    "min": {
+      "x": -1120,
+      "y": 184,
+      "z": 16
+    },
+    "max": {
+      "x": -1104,
+      "y": 456,
+      "z": 216
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-x--1-4-upright",
+    "min": {
+      "x": -1120,
+      "y": 312,
+      "z": 256
+    },
+    "max": {
+      "x": -1104,
+      "y": 328,
+      "z": 736
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-x--1-4-light",
+    "min": {
+      "x": -1120,
+      "y": 232,
+      "z": 476
+    },
+    "max": {
+      "x": -1104,
+      "y": 408,
+      "z": 484
+    },
+    "shader": "lights/blue1"
+  },
+  {
+    "op": "entity.place",
+    "id": "bay-x--1-4-glow",
+    "classname": "light",
+    "origin": {
+      "x": -1064,
+      "y": 320,
+      "z": 440
+    },
+    "keys": {
+      "_color": "0.15 0.6 1",
+      "light": "180"
+    }
+  },
+  {
+    "op": "box.create",
+    "id": "bay-y--1-4-brick",
+    "min": {
+      "x": 184,
+      "y": -1120,
+      "z": 16
+    },
+    "max": {
+      "x": 456,
+      "y": -1104,
+      "z": 216
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-y--1-4-upright",
+    "min": {
+      "x": 312,
+      "y": -1120,
+      "z": 256
+    },
+    "max": {
+      "x": 328,
+      "y": -1104,
+      "z": 736
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-y--1-4-light",
+    "min": {
+      "x": 232,
+      "y": -1120,
+      "z": 476
+    },
+    "max": {
+      "x": 408,
+      "y": -1104,
+      "z": 484
+    },
+    "shader": "lights/blue1"
+  },
+  {
+    "op": "entity.place",
+    "id": "bay-y--1-4-glow",
+    "classname": "light",
+    "origin": {
+      "x": 320,
+      "y": -1064,
+      "z": 440
+    },
+    "keys": {
+      "_color": "0.15 0.6 1",
+      "light": "180"
+    }
+  },
+  {
+    "op": "box.create",
+    "id": "bay-x--1-5-brick",
+    "min": {
+      "x": -1120,
+      "y": 504,
+      "z": 16
+    },
+    "max": {
+      "x": -1104,
+      "y": 776,
+      "z": 216
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-x--1-5-upright",
+    "min": {
+      "x": -1120,
+      "y": 632,
+      "z": 256
+    },
+    "max": {
+      "x": -1104,
+      "y": 648,
+      "z": 736
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-x--1-5-light",
+    "min": {
+      "x": -1120,
+      "y": 552,
+      "z": 476
+    },
+    "max": {
+      "x": -1104,
+      "y": 728,
+      "z": 484
+    },
+    "shader": "jewels/neon_red"
+  },
+  {
+    "op": "entity.place",
+    "id": "bay-x--1-5-glow",
+    "classname": "light",
+    "origin": {
+      "x": -1064,
+      "y": 640,
+      "z": 440
+    },
+    "keys": {
+      "_color": "0.15 0.6 1",
+      "light": "180"
+    }
+  },
+  {
+    "op": "box.create",
+    "id": "bay-y--1-5-brick",
+    "min": {
+      "x": 504,
+      "y": -1120,
+      "z": 16
+    },
+    "max": {
+      "x": 776,
+      "y": -1104,
+      "z": 216
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-y--1-5-upright",
+    "min": {
+      "x": 632,
+      "y": -1120,
+      "z": 256
+    },
+    "max": {
+      "x": 648,
+      "y": -1104,
+      "z": 736
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-y--1-5-light",
+    "min": {
+      "x": 552,
+      "y": -1120,
+      "z": 476
+    },
+    "max": {
+      "x": 728,
+      "y": -1104,
+      "z": 484
+    },
+    "shader": "jewels/neon_red"
+  },
+  {
+    "op": "entity.place",
+    "id": "bay-y--1-5-glow",
+    "classname": "light",
+    "origin": {
+      "x": 640,
+      "y": -1064,
+      "z": 440
+    },
+    "keys": {
+      "_color": "0.15 0.6 1",
+      "light": "180"
+    }
+  },
+  {
+    "op": "box.create",
+    "id": "bay-x--1-6-brick",
+    "min": {
+      "x": -1120,
+      "y": 824,
+      "z": 16
+    },
+    "max": {
+      "x": -1104,
+      "y": 1096,
+      "z": 216
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-x--1-6-upright",
+    "min": {
+      "x": -1120,
+      "y": 952,
+      "z": 256
+    },
+    "max": {
+      "x": -1104,
+      "y": 968,
+      "z": 736
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-x--1-6-light",
+    "min": {
+      "x": -1120,
+      "y": 872,
+      "z": 476
+    },
+    "max": {
+      "x": -1104,
+      "y": 1048,
+      "z": 484
+    },
+    "shader": "baxandall/neon_07"
+  },
+  {
+    "op": "entity.place",
+    "id": "bay-x--1-6-glow",
+    "classname": "light",
+    "origin": {
+      "x": -1064,
+      "y": 960,
+      "z": 440
+    },
+    "keys": {
+      "_color": "0.15 0.6 1",
+      "light": "180"
+    }
+  },
+  {
+    "op": "box.create",
+    "id": "bay-y--1-6-brick",
+    "min": {
+      "x": 824,
+      "y": -1120,
+      "z": 16
+    },
+    "max": {
+      "x": 1096,
+      "y": -1104,
+      "z": 216
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-y--1-6-upright",
+    "min": {
+      "x": 952,
+      "y": -1120,
+      "z": 256
+    },
+    "max": {
+      "x": 968,
+      "y": -1104,
+      "z": 736
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-y--1-6-light",
+    "min": {
+      "x": 872,
+      "y": -1120,
+      "z": 476
+    },
+    "max": {
+      "x": 1048,
+      "y": -1104,
+      "z": 484
+    },
+    "shader": "baxandall/neon_07"
+  },
+  {
+    "op": "entity.place",
+    "id": "bay-y--1-6-glow",
+    "classname": "light",
+    "origin": {
+      "x": 960,
+      "y": -1064,
+      "z": 440
+    },
+    "keys": {
+      "_color": "0.15 0.6 1",
+      "light": "180"
+    }
+  },
+  {
+    "op": "box.create",
+    "id": "bay-x-1-0-brick",
+    "min": {
+      "x": 1104,
+      "y": -1096,
+      "z": 16
+    },
+    "max": {
+      "x": 1120,
+      "y": -824,
+      "z": 216
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-x-1-0-upright",
+    "min": {
+      "x": 1104,
+      "y": -968,
+      "z": 256
+    },
+    "max": {
+      "x": 1120,
+      "y": -952,
+      "z": 736
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-x-1-0-light",
+    "min": {
+      "x": 1104,
+      "y": -1048,
+      "z": 476
+    },
+    "max": {
+      "x": 1120,
+      "y": -872,
+      "z": 484
+    },
+    "shader": "jewels/neon_red"
+  },
+  {
+    "op": "entity.place",
+    "id": "bay-x-1-0-glow",
+    "classname": "light",
+    "origin": {
+      "x": 1064,
+      "y": -960,
+      "z": 440
+    },
+    "keys": {
+      "_color": "1 0.2 0.48",
+      "light": "180"
+    }
+  },
+  {
+    "op": "box.create",
+    "id": "bay-y-1-0-brick",
+    "min": {
+      "x": -1096,
+      "y": 1104,
+      "z": 16
+    },
+    "max": {
+      "x": -824,
+      "y": 1120,
+      "z": 216
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-y-1-0-upright",
+    "min": {
+      "x": -968,
+      "y": 1104,
+      "z": 256
+    },
+    "max": {
+      "x": -952,
+      "y": 1120,
+      "z": 736
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-y-1-0-light",
+    "min": {
+      "x": -1048,
+      "y": 1104,
+      "z": 476
+    },
+    "max": {
+      "x": -872,
+      "y": 1120,
+      "z": 484
+    },
+    "shader": "jewels/neon_red"
+  },
+  {
+    "op": "entity.place",
+    "id": "bay-y-1-0-glow",
+    "classname": "light",
+    "origin": {
+      "x": -960,
+      "y": 1064,
+      "z": 440
+    },
+    "keys": {
+      "_color": "1 0.2 0.48",
+      "light": "180"
+    }
+  },
+  {
+    "op": "box.create",
+    "id": "bay-x-1-1-brick",
+    "min": {
+      "x": 1104,
+      "y": -776,
+      "z": 16
+    },
+    "max": {
+      "x": 1120,
+      "y": -504,
+      "z": 216
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-x-1-1-upright",
+    "min": {
+      "x": 1104,
+      "y": -648,
+      "z": 256
+    },
+    "max": {
+      "x": 1120,
+      "y": -632,
+      "z": 736
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-x-1-1-light",
+    "min": {
+      "x": 1104,
+      "y": -728,
+      "z": 476
+    },
+    "max": {
+      "x": 1120,
+      "y": -552,
+      "z": 484
+    },
+    "shader": "baxandall/neon_07"
+  },
+  {
+    "op": "entity.place",
+    "id": "bay-x-1-1-glow",
+    "classname": "light",
+    "origin": {
+      "x": 1064,
+      "y": -640,
+      "z": 440
+    },
+    "keys": {
+      "_color": "1 0.2 0.48",
+      "light": "180"
+    }
+  },
+  {
+    "op": "box.create",
+    "id": "bay-y-1-1-brick",
+    "min": {
+      "x": -776,
+      "y": 1104,
+      "z": 16
+    },
+    "max": {
+      "x": -504,
+      "y": 1120,
+      "z": 216
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-y-1-1-upright",
+    "min": {
+      "x": -648,
+      "y": 1104,
+      "z": 256
+    },
+    "max": {
+      "x": -632,
+      "y": 1120,
+      "z": 736
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-y-1-1-light",
+    "min": {
+      "x": -728,
+      "y": 1104,
+      "z": 476
+    },
+    "max": {
+      "x": -552,
+      "y": 1120,
+      "z": 484
+    },
+    "shader": "baxandall/neon_07"
+  },
+  {
+    "op": "entity.place",
+    "id": "bay-y-1-1-glow",
+    "classname": "light",
+    "origin": {
+      "x": -640,
+      "y": 1064,
+      "z": 440
+    },
+    "keys": {
+      "_color": "1 0.2 0.48",
+      "light": "180"
+    }
+  },
+  {
+    "op": "box.create",
+    "id": "bay-x-1-2-brick",
+    "min": {
+      "x": 1104,
+      "y": -456,
+      "z": 16
+    },
+    "max": {
+      "x": 1120,
+      "y": -184,
+      "z": 216
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-x-1-2-upright",
+    "min": {
+      "x": 1104,
+      "y": -328,
+      "z": 256
+    },
+    "max": {
+      "x": 1120,
+      "y": -312,
+      "z": 736
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-x-1-2-light",
+    "min": {
+      "x": 1104,
+      "y": -408,
+      "z": 476
+    },
+    "max": {
+      "x": 1120,
+      "y": -232,
+      "z": 484
+    },
+    "shader": "neon/neon_square"
+  },
+  {
+    "op": "entity.place",
+    "id": "bay-x-1-2-glow",
+    "classname": "light",
+    "origin": {
+      "x": 1064,
+      "y": -320,
+      "z": 440
+    },
+    "keys": {
+      "_color": "1 0.2 0.48",
+      "light": "180"
+    }
+  },
+  {
+    "op": "box.create",
+    "id": "bay-y-1-2-brick",
+    "min": {
+      "x": -456,
+      "y": 1104,
+      "z": 16
+    },
+    "max": {
+      "x": -184,
+      "y": 1120,
+      "z": 216
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-y-1-2-upright",
+    "min": {
+      "x": -328,
+      "y": 1104,
+      "z": 256
+    },
+    "max": {
+      "x": -312,
+      "y": 1120,
+      "z": 736
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-y-1-2-light",
+    "min": {
+      "x": -408,
+      "y": 1104,
+      "z": 476
+    },
+    "max": {
+      "x": -232,
+      "y": 1120,
+      "z": 484
+    },
+    "shader": "neon/neon_square"
+  },
+  {
+    "op": "entity.place",
+    "id": "bay-y-1-2-glow",
+    "classname": "light",
+    "origin": {
+      "x": -320,
+      "y": 1064,
+      "z": 440
+    },
+    "keys": {
+      "_color": "1 0.2 0.48",
+      "light": "180"
+    }
+  },
+  {
+    "op": "box.create",
+    "id": "bay-x-1-3-brick",
+    "min": {
+      "x": 1104,
+      "y": -136,
+      "z": 16
+    },
+    "max": {
+      "x": 1120,
+      "y": 136,
+      "z": 216
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-x-1-3-upright",
+    "min": {
+      "x": 1104,
+      "y": -8,
+      "z": 256
+    },
+    "max": {
+      "x": 1120,
+      "y": 8,
+      "z": 736
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-x-1-3-light",
+    "min": {
+      "x": 1104,
+      "y": -88,
+      "z": 476
+    },
+    "max": {
+      "x": 1120,
+      "y": 88,
+      "z": 484
+    },
+    "shader": "lights/blue1"
+  },
+  {
+    "op": "entity.place",
+    "id": "bay-x-1-3-glow",
+    "classname": "light",
+    "origin": {
+      "x": 1064,
+      "y": 0,
+      "z": 440
+    },
+    "keys": {
+      "_color": "1 0.2 0.48",
+      "light": "180"
+    }
+  },
+  {
+    "op": "box.create",
+    "id": "bay-y-1-3-brick",
+    "min": {
+      "x": -136,
+      "y": 1104,
+      "z": 16
+    },
+    "max": {
+      "x": 136,
+      "y": 1120,
+      "z": 216
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-y-1-3-upright",
+    "min": {
+      "x": -8,
+      "y": 1104,
+      "z": 256
+    },
+    "max": {
+      "x": 8,
+      "y": 1120,
+      "z": 736
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-y-1-3-light",
+    "min": {
+      "x": -88,
+      "y": 1104,
+      "z": 476
+    },
+    "max": {
+      "x": 88,
+      "y": 1120,
+      "z": 484
+    },
+    "shader": "lights/blue1"
+  },
+  {
+    "op": "entity.place",
+    "id": "bay-y-1-3-glow",
+    "classname": "light",
+    "origin": {
+      "x": 0,
+      "y": 1064,
+      "z": 440
+    },
+    "keys": {
+      "_color": "1 0.2 0.48",
+      "light": "180"
+    }
+  },
+  {
+    "op": "box.create",
+    "id": "bay-x-1-4-brick",
+    "min": {
+      "x": 1104,
+      "y": 184,
+      "z": 16
+    },
+    "max": {
+      "x": 1120,
+      "y": 456,
+      "z": 216
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-x-1-4-upright",
+    "min": {
+      "x": 1104,
+      "y": 312,
+      "z": 256
+    },
+    "max": {
+      "x": 1120,
+      "y": 328,
+      "z": 736
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-x-1-4-light",
+    "min": {
+      "x": 1104,
+      "y": 232,
+      "z": 476
+    },
+    "max": {
+      "x": 1120,
+      "y": 408,
+      "z": 484
+    },
+    "shader": "jewels/neon_red"
+  },
+  {
+    "op": "entity.place",
+    "id": "bay-x-1-4-glow",
+    "classname": "light",
+    "origin": {
+      "x": 1064,
+      "y": 320,
+      "z": 440
+    },
+    "keys": {
+      "_color": "1 0.2 0.48",
+      "light": "180"
+    }
+  },
+  {
+    "op": "box.create",
+    "id": "bay-y-1-4-brick",
+    "min": {
+      "x": 184,
+      "y": 1104,
+      "z": 16
+    },
+    "max": {
+      "x": 456,
+      "y": 1120,
+      "z": 216
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-y-1-4-upright",
+    "min": {
+      "x": 312,
+      "y": 1104,
+      "z": 256
+    },
+    "max": {
+      "x": 328,
+      "y": 1120,
+      "z": 736
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-y-1-4-light",
+    "min": {
+      "x": 232,
+      "y": 1104,
+      "z": 476
+    },
+    "max": {
+      "x": 408,
+      "y": 1120,
+      "z": 484
+    },
+    "shader": "jewels/neon_red"
+  },
+  {
+    "op": "entity.place",
+    "id": "bay-y-1-4-glow",
+    "classname": "light",
+    "origin": {
+      "x": 320,
+      "y": 1064,
+      "z": 440
+    },
+    "keys": {
+      "_color": "1 0.2 0.48",
+      "light": "180"
+    }
+  },
+  {
+    "op": "box.create",
+    "id": "bay-x-1-5-brick",
+    "min": {
+      "x": 1104,
+      "y": 504,
+      "z": 16
+    },
+    "max": {
+      "x": 1120,
+      "y": 776,
+      "z": 216
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-x-1-5-upright",
+    "min": {
+      "x": 1104,
+      "y": 632,
+      "z": 256
+    },
+    "max": {
+      "x": 1120,
+      "y": 648,
+      "z": 736
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-x-1-5-light",
+    "min": {
+      "x": 1104,
+      "y": 552,
+      "z": 476
+    },
+    "max": {
+      "x": 1120,
+      "y": 728,
+      "z": 484
+    },
+    "shader": "baxandall/neon_07"
+  },
+  {
+    "op": "entity.place",
+    "id": "bay-x-1-5-glow",
+    "classname": "light",
+    "origin": {
+      "x": 1064,
+      "y": 640,
+      "z": 440
+    },
+    "keys": {
+      "_color": "1 0.2 0.48",
+      "light": "180"
+    }
+  },
+  {
+    "op": "box.create",
+    "id": "bay-y-1-5-brick",
+    "min": {
+      "x": 504,
+      "y": 1104,
+      "z": 16
+    },
+    "max": {
+      "x": 776,
+      "y": 1120,
+      "z": 216
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-y-1-5-upright",
+    "min": {
+      "x": 632,
+      "y": 1104,
+      "z": 256
+    },
+    "max": {
+      "x": 648,
+      "y": 1120,
+      "z": 736
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-y-1-5-light",
+    "min": {
+      "x": 552,
+      "y": 1104,
+      "z": 476
+    },
+    "max": {
+      "x": 728,
+      "y": 1120,
+      "z": 484
+    },
+    "shader": "baxandall/neon_07"
+  },
+  {
+    "op": "entity.place",
+    "id": "bay-y-1-5-glow",
+    "classname": "light",
+    "origin": {
+      "x": 640,
+      "y": 1064,
+      "z": 440
+    },
+    "keys": {
+      "_color": "1 0.2 0.48",
+      "light": "180"
+    }
+  },
+  {
+    "op": "box.create",
+    "id": "bay-x-1-6-brick",
+    "min": {
+      "x": 1104,
+      "y": 824,
+      "z": 16
+    },
+    "max": {
+      "x": 1120,
+      "y": 1096,
+      "z": 216
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-x-1-6-upright",
+    "min": {
+      "x": 1104,
+      "y": 952,
+      "z": 256
+    },
+    "max": {
+      "x": 1120,
+      "y": 968,
+      "z": 736
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-x-1-6-light",
+    "min": {
+      "x": 1104,
+      "y": 872,
+      "z": 476
+    },
+    "max": {
+      "x": 1120,
+      "y": 1048,
+      "z": 484
+    },
+    "shader": "neon/neon_square"
+  },
+  {
+    "op": "entity.place",
+    "id": "bay-x-1-6-glow",
+    "classname": "light",
+    "origin": {
+      "x": 1064,
+      "y": 960,
+      "z": 440
+    },
+    "keys": {
+      "_color": "1 0.2 0.48",
+      "light": "180"
+    }
+  },
+  {
+    "op": "box.create",
+    "id": "bay-y-1-6-brick",
+    "min": {
+      "x": 824,
+      "y": 1104,
+      "z": 16
+    },
+    "max": {
+      "x": 1096,
+      "y": 1120,
+      "z": 216
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-y-1-6-upright",
+    "min": {
+      "x": 952,
+      "y": 1104,
+      "z": 256
+    },
+    "max": {
+      "x": 968,
+      "y": 1120,
+      "z": 736
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "bay-y-1-6-light",
+    "min": {
+      "x": 872,
+      "y": 1104,
+      "z": 476
+    },
+    "max": {
+      "x": 1048,
+      "y": 1120,
+      "z": 484
+    },
+    "shader": "neon/neon_square"
+  },
+  {
+    "op": "entity.place",
+    "id": "bay-y-1-6-glow",
+    "classname": "light",
+    "origin": {
+      "x": 960,
+      "y": 1064,
+      "z": 440
+    },
+    "keys": {
+      "_color": "1 0.2 0.48",
+      "light": "180"
+    }
+  },
+  {
+    "op": "box.create",
+    "id": "fascia-x--1",
+    "min": {
+      "x": -848,
+      "y": -816,
+      "z": 208
+    },
+    "max": {
+      "x": -832,
+      "y": 816,
+      "z": 232
+    },
+    "shader": "metal/metalrust_iron6"
+  },
+  {
+    "op": "box.create",
+    "id": "support-x--1--704",
+    "min": {
+      "x": -964,
+      "y": -724,
+      "z": 0
+    },
+    "max": {
+      "x": -924,
+      "y": -684,
+      "z": 232
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "support-x--1-704",
+    "min": {
+      "x": -964,
+      "y": 684,
+      "z": 0
+    },
+    "max": {
+      "x": -924,
+      "y": 724,
+      "z": 232
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "rail-x--1--800",
+    "min": {
+      "x": -848,
+      "y": -800,
+      "z": 304
+    },
+    "max": {
+      "x": -832,
+      "y": -112,
+      "z": 312
+    },
+    "shader": "metal/metalrust_iron6"
+  },
+  {
+    "op": "box.create",
+    "id": "post-x--1--800",
+    "min": {
+      "x": -848,
+      "y": -800,
+      "z": 256
+    },
+    "max": {
+      "x": -832,
+      "y": -792,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "post-x--1--628",
+    "min": {
+      "x": -848,
+      "y": -628,
+      "z": 256
+    },
+    "max": {
+      "x": -832,
+      "y": -620,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "post-x--1--456",
+    "min": {
+      "x": -848,
+      "y": -456,
+      "z": 256
+    },
+    "max": {
+      "x": -832,
+      "y": -448,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "post-x--1--284",
+    "min": {
+      "x": -848,
+      "y": -284,
+      "z": 256
+    },
+    "max": {
+      "x": -832,
+      "y": -276,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "post-x--1--112",
+    "min": {
+      "x": -848,
+      "y": -112,
+      "z": 256
+    },
+    "max": {
+      "x": -832,
+      "y": -104,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "rail-x--1-112",
+    "min": {
+      "x": -848,
+      "y": 112,
+      "z": 304
+    },
+    "max": {
+      "x": -832,
+      "y": 800,
+      "z": 312
+    },
+    "shader": "metal/metalrust_iron6"
+  },
+  {
+    "op": "box.create",
+    "id": "post-x--1-112",
+    "min": {
+      "x": -848,
+      "y": 112,
+      "z": 256
+    },
+    "max": {
+      "x": -832,
+      "y": 120,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "post-x--1-284",
+    "min": {
+      "x": -848,
+      "y": 284,
+      "z": 256
+    },
+    "max": {
+      "x": -832,
+      "y": 292,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "post-x--1-456",
+    "min": {
+      "x": -848,
+      "y": 456,
+      "z": 256
+    },
+    "max": {
+      "x": -832,
+      "y": 464,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "post-x--1-628",
+    "min": {
+      "x": -848,
+      "y": 628,
+      "z": 256
+    },
+    "max": {
+      "x": -832,
+      "y": 636,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "post-x--1-800",
+    "min": {
+      "x": -848,
+      "y": 800,
+      "z": 256
+    },
+    "max": {
+      "x": -832,
+      "y": 808,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "fascia-y--1",
+    "min": {
+      "x": -1120,
+      "y": -848,
+      "z": 208
+    },
+    "max": {
+      "x": 1120,
+      "y": -832,
+      "z": 232
+    },
+    "shader": "metal/metalrust_iron6"
+  },
+  {
+    "op": "box.create",
+    "id": "support-y--1--704",
+    "min": {
+      "x": -724,
+      "y": -964,
+      "z": 0
+    },
+    "max": {
+      "x": -684,
+      "y": -924,
+      "z": 232
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "support-y--1-704",
+    "min": {
+      "x": 684,
+      "y": -964,
+      "z": 0
+    },
+    "max": {
+      "x": 724,
+      "y": -924,
+      "z": 232
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "rail-y--1--800",
+    "min": {
+      "x": -800,
+      "y": -848,
+      "z": 304
+    },
+    "max": {
+      "x": -112,
+      "y": -832,
+      "z": 312
+    },
+    "shader": "metal/metalrust_iron6"
+  },
+  {
+    "op": "box.create",
+    "id": "post-y--1--800",
+    "min": {
+      "x": -800,
+      "y": -848,
+      "z": 256
+    },
+    "max": {
+      "x": -792,
+      "y": -832,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "post-y--1--628",
+    "min": {
+      "x": -628,
+      "y": -848,
+      "z": 256
+    },
+    "max": {
+      "x": -620,
+      "y": -832,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "post-y--1--456",
+    "min": {
+      "x": -456,
+      "y": -848,
+      "z": 256
+    },
+    "max": {
+      "x": -448,
+      "y": -832,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "post-y--1--284",
+    "min": {
+      "x": -284,
+      "y": -848,
+      "z": 256
+    },
+    "max": {
+      "x": -276,
+      "y": -832,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "post-y--1--112",
+    "min": {
+      "x": -112,
+      "y": -848,
+      "z": 256
+    },
+    "max": {
+      "x": -104,
+      "y": -832,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "rail-y--1-112",
+    "min": {
+      "x": 112,
+      "y": -848,
+      "z": 304
+    },
+    "max": {
+      "x": 800,
+      "y": -832,
+      "z": 312
+    },
+    "shader": "metal/metalrust_iron6"
+  },
+  {
+    "op": "box.create",
+    "id": "post-y--1-112",
+    "min": {
+      "x": 112,
+      "y": -848,
+      "z": 256
+    },
+    "max": {
+      "x": 120,
+      "y": -832,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "post-y--1-284",
+    "min": {
+      "x": 284,
+      "y": -848,
+      "z": 256
+    },
+    "max": {
+      "x": 292,
+      "y": -832,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "post-y--1-456",
+    "min": {
+      "x": 456,
+      "y": -848,
+      "z": 256
+    },
+    "max": {
+      "x": 464,
+      "y": -832,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "post-y--1-628",
+    "min": {
+      "x": 628,
+      "y": -848,
+      "z": 256
+    },
+    "max": {
+      "x": 636,
+      "y": -832,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "post-y--1-800",
+    "min": {
+      "x": 800,
+      "y": -848,
+      "z": 256
+    },
+    "max": {
+      "x": 808,
+      "y": -832,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "fascia-x-1",
+    "min": {
+      "x": 832,
+      "y": -816,
+      "z": 208
+    },
+    "max": {
+      "x": 848,
+      "y": 816,
+      "z": 232
+    },
+    "shader": "metal/metalrust_iron6"
+  },
+  {
+    "op": "box.create",
+    "id": "support-x-1--704",
+    "min": {
+      "x": 924,
+      "y": -724,
+      "z": 0
+    },
+    "max": {
+      "x": 964,
+      "y": -684,
+      "z": 232
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "support-x-1-704",
+    "min": {
+      "x": 924,
+      "y": 684,
+      "z": 0
+    },
+    "max": {
+      "x": 964,
+      "y": 724,
+      "z": 232
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "rail-x-1--800",
+    "min": {
+      "x": 832,
+      "y": -800,
+      "z": 304
+    },
+    "max": {
+      "x": 848,
+      "y": -112,
+      "z": 312
+    },
+    "shader": "metal/metalrust_iron6"
+  },
+  {
+    "op": "box.create",
+    "id": "post-x-1--800",
+    "min": {
+      "x": 832,
+      "y": -800,
+      "z": 256
+    },
+    "max": {
+      "x": 848,
+      "y": -792,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "post-x-1--628",
+    "min": {
+      "x": 832,
+      "y": -628,
+      "z": 256
+    },
+    "max": {
+      "x": 848,
+      "y": -620,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "post-x-1--456",
+    "min": {
+      "x": 832,
+      "y": -456,
+      "z": 256
+    },
+    "max": {
+      "x": 848,
+      "y": -448,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "post-x-1--284",
+    "min": {
+      "x": 832,
+      "y": -284,
+      "z": 256
+    },
+    "max": {
+      "x": 848,
+      "y": -276,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "post-x-1--112",
+    "min": {
+      "x": 832,
+      "y": -112,
+      "z": 256
+    },
+    "max": {
+      "x": 848,
+      "y": -104,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "rail-x-1-112",
+    "min": {
+      "x": 832,
+      "y": 112,
+      "z": 304
+    },
+    "max": {
+      "x": 848,
+      "y": 800,
+      "z": 312
+    },
+    "shader": "metal/metalrust_iron6"
+  },
+  {
+    "op": "box.create",
+    "id": "post-x-1-112",
+    "min": {
+      "x": 832,
+      "y": 112,
+      "z": 256
+    },
+    "max": {
+      "x": 848,
+      "y": 120,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "post-x-1-284",
+    "min": {
+      "x": 832,
+      "y": 284,
+      "z": 256
+    },
+    "max": {
+      "x": 848,
+      "y": 292,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "post-x-1-456",
+    "min": {
+      "x": 832,
+      "y": 456,
+      "z": 256
+    },
+    "max": {
+      "x": 848,
+      "y": 464,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "post-x-1-628",
+    "min": {
+      "x": 832,
+      "y": 628,
+      "z": 256
+    },
+    "max": {
+      "x": 848,
+      "y": 636,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "post-x-1-800",
+    "min": {
+      "x": 832,
+      "y": 800,
+      "z": 256
+    },
+    "max": {
+      "x": 848,
+      "y": 808,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "fascia-y-1",
+    "min": {
+      "x": -1120,
+      "y": 832,
+      "z": 208
+    },
+    "max": {
+      "x": 1120,
+      "y": 848,
+      "z": 232
+    },
+    "shader": "metal/metalrust_iron6"
+  },
+  {
+    "op": "box.create",
+    "id": "support-y-1--704",
+    "min": {
+      "x": -724,
+      "y": 924,
+      "z": 0
+    },
+    "max": {
+      "x": -684,
+      "y": 964,
+      "z": 232
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "support-y-1-704",
+    "min": {
+      "x": 684,
+      "y": 924,
+      "z": 0
+    },
+    "max": {
+      "x": 724,
+      "y": 964,
+      "z": 232
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "rail-y-1--800",
+    "min": {
+      "x": -800,
+      "y": 832,
+      "z": 304
+    },
+    "max": {
+      "x": -112,
+      "y": 848,
+      "z": 312
+    },
+    "shader": "metal/metalrust_iron6"
+  },
+  {
+    "op": "box.create",
+    "id": "post-y-1--800",
+    "min": {
+      "x": -800,
+      "y": 832,
+      "z": 256
+    },
+    "max": {
+      "x": -792,
+      "y": 848,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "post-y-1--628",
+    "min": {
+      "x": -628,
+      "y": 832,
+      "z": 256
+    },
+    "max": {
+      "x": -620,
+      "y": 848,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "post-y-1--456",
+    "min": {
+      "x": -456,
+      "y": 832,
+      "z": 256
+    },
+    "max": {
+      "x": -448,
+      "y": 848,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "post-y-1--284",
+    "min": {
+      "x": -284,
+      "y": 832,
+      "z": 256
+    },
+    "max": {
+      "x": -276,
+      "y": 848,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "post-y-1--112",
+    "min": {
+      "x": -112,
+      "y": 832,
+      "z": 256
+    },
+    "max": {
+      "x": -104,
+      "y": 848,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "rail-y-1-112",
+    "min": {
+      "x": 112,
+      "y": 832,
+      "z": 304
+    },
+    "max": {
+      "x": 800,
+      "y": 848,
+      "z": 312
+    },
+    "shader": "metal/metalrust_iron6"
+  },
+  {
+    "op": "box.create",
+    "id": "post-y-1-112",
+    "min": {
+      "x": 112,
+      "y": 832,
+      "z": 256
+    },
+    "max": {
+      "x": 120,
+      "y": 848,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "post-y-1-284",
+    "min": {
+      "x": 284,
+      "y": 832,
+      "z": 256
+    },
+    "max": {
+      "x": 292,
+      "y": 848,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "post-y-1-456",
+    "min": {
+      "x": 456,
+      "y": 832,
+      "z": 256
+    },
+    "max": {
+      "x": 464,
+      "y": 848,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "post-y-1-628",
+    "min": {
+      "x": 628,
+      "y": 832,
+      "z": 256
+    },
+    "max": {
+      "x": 636,
+      "y": 848,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "post-y-1-800",
+    "min": {
+      "x": 800,
+      "y": 832,
+      "z": 256
+    },
+    "max": {
+      "x": 808,
+      "y": 848,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "reactor-clip",
+    "min": {
+      "x": -80,
+      "y": -80,
+      "z": 256
+    },
+    "max": {
+      "x": 80,
+      "y": 80,
+      "z": 560
+    },
+    "shader": "common/clip"
+  },
+  {
+    "op": "patch.create",
+    "id": "reactor-glass-0",
+    "shader": "lights/blue1",
+    "width": 3,
+    "height": 3,
+    "controlPoints": [
+      [
+        {
+          "x": 104,
+          "y": 0,
+          "z": 288,
+          "u": 0,
+          "v": 0
+        },
+        {
+          "x": 104,
+          "y": 104,
+          "z": 288,
+          "u": 0.125,
+          "v": 0
+        },
+        {
+          "x": 0,
+          "y": 104,
+          "z": 288,
+          "u": 0.25,
+          "v": 0
+        }
+      ],
+      [
+        {
+          "x": 104,
+          "y": 0,
+          "z": 408,
+          "u": 0,
+          "v": 0.5
+        },
+        {
+          "x": 104,
+          "y": 104,
+          "z": 408,
+          "u": 0.125,
+          "v": 0.5
+        },
+        {
+          "x": 0,
+          "y": 104,
+          "z": 408,
+          "u": 0.25,
+          "v": 0.5
+        }
+      ],
+      [
+        {
+          "x": 104,
+          "y": 0,
+          "z": 528,
+          "u": 0,
+          "v": 1
+        },
+        {
+          "x": 104,
+          "y": 104,
+          "z": 528,
+          "u": 0.125,
+          "v": 1
+        },
+        {
+          "x": 0,
+          "y": 104,
+          "z": 528,
+          "u": 0.25,
+          "v": 1
+        }
+      ]
+    ]
+  },
+  {
+    "op": "patch.create",
+    "id": "reactor-glass-1",
+    "shader": "lights/blue1",
+    "width": 3,
+    "height": 3,
+    "controlPoints": [
+      [
+        {
+          "x": 0,
+          "y": 104,
+          "z": 288,
+          "u": 0.25,
+          "v": 0
+        },
+        {
+          "x": -104,
+          "y": 104,
+          "z": 288,
+          "u": 0.375,
+          "v": 0
+        },
+        {
+          "x": -104,
+          "y": 0,
+          "z": 288,
+          "u": 0.5,
+          "v": 0
+        }
+      ],
+      [
+        {
+          "x": 0,
+          "y": 104,
+          "z": 408,
+          "u": 0.25,
+          "v": 0.5
+        },
+        {
+          "x": -104,
+          "y": 104,
+          "z": 408,
+          "u": 0.375,
+          "v": 0.5
+        },
+        {
+          "x": -104,
+          "y": 0,
+          "z": 408,
+          "u": 0.5,
+          "v": 0.5
+        }
+      ],
+      [
+        {
+          "x": 0,
+          "y": 104,
+          "z": 528,
+          "u": 0.25,
+          "v": 1
+        },
+        {
+          "x": -104,
+          "y": 104,
+          "z": 528,
+          "u": 0.375,
+          "v": 1
+        },
+        {
+          "x": -104,
+          "y": 0,
+          "z": 528,
+          "u": 0.5,
+          "v": 1
+        }
+      ]
+    ]
+  },
+  {
+    "op": "patch.create",
+    "id": "reactor-glass-2",
+    "shader": "lights/blue1",
+    "width": 3,
+    "height": 3,
+    "controlPoints": [
+      [
+        {
+          "x": -104,
+          "y": 0,
+          "z": 288,
+          "u": 0.5,
+          "v": 0
+        },
+        {
+          "x": -104,
+          "y": -104,
+          "z": 288,
+          "u": 0.625,
+          "v": 0
+        },
+        {
+          "x": 0,
+          "y": -104,
+          "z": 288,
+          "u": 0.75,
+          "v": 0
+        }
+      ],
+      [
+        {
+          "x": -104,
+          "y": 0,
+          "z": 408,
+          "u": 0.5,
+          "v": 0.5
+        },
+        {
+          "x": -104,
+          "y": -104,
+          "z": 408,
+          "u": 0.625,
+          "v": 0.5
+        },
+        {
+          "x": 0,
+          "y": -104,
+          "z": 408,
+          "u": 0.75,
+          "v": 0.5
+        }
+      ],
+      [
+        {
+          "x": -104,
+          "y": 0,
+          "z": 528,
+          "u": 0.5,
+          "v": 1
+        },
+        {
+          "x": -104,
+          "y": -104,
+          "z": 528,
+          "u": 0.625,
+          "v": 1
+        },
+        {
+          "x": 0,
+          "y": -104,
+          "z": 528,
+          "u": 0.75,
+          "v": 1
+        }
+      ]
+    ]
+  },
+  {
+    "op": "patch.create",
+    "id": "reactor-glass-3",
+    "shader": "lights/blue1",
+    "width": 3,
+    "height": 3,
+    "controlPoints": [
+      [
+        {
+          "x": 0,
+          "y": -104,
+          "z": 288,
+          "u": 0.75,
+          "v": 0
+        },
+        {
+          "x": 104,
+          "y": -104,
+          "z": 288,
+          "u": 0.875,
+          "v": 0
+        },
+        {
+          "x": 104,
+          "y": 0,
+          "z": 288,
+          "u": 1,
+          "v": 0
+        }
+      ],
+      [
+        {
+          "x": 0,
+          "y": -104,
+          "z": 408,
+          "u": 0.75,
+          "v": 0.5
+        },
+        {
+          "x": 104,
+          "y": -104,
+          "z": 408,
+          "u": 0.875,
+          "v": 0.5
+        },
+        {
+          "x": 104,
+          "y": 0,
+          "z": 408,
+          "u": 1,
+          "v": 0.5
+        }
+      ],
+      [
+        {
+          "x": 0,
+          "y": -104,
+          "z": 528,
+          "u": 0.75,
+          "v": 1
+        },
+        {
+          "x": 104,
+          "y": -104,
+          "z": 528,
+          "u": 0.875,
+          "v": 1
+        },
+        {
+          "x": 104,
+          "y": 0,
+          "z": 528,
+          "u": 1,
+          "v": 1
+        }
+      ]
+    ]
+  },
+  {
+    "op": "box.create",
+    "id": "reactor-collar-256",
+    "min": {
+      "x": -128,
+      "y": -128,
+      "z": 256
+    },
+    "max": {
+      "x": 128,
+      "y": 128,
+      "z": 288
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "reactor-band-256--1",
+    "min": {
+      "x": -112,
+      "y": -132,
+      "z": 268
+    },
+    "max": {
+      "x": 112,
+      "y": -128,
+      "z": 276
+    },
+    "shader": "lights/blue1"
+  },
+  {
+    "op": "box.create",
+    "id": "reactor-band-256-1",
+    "min": {
+      "x": -112,
+      "y": 128,
+      "z": 268
+    },
+    "max": {
+      "x": 112,
+      "y": 132,
+      "z": 276
+    },
+    "shader": "lights/blue1"
+  },
+  {
+    "op": "box.create",
+    "id": "reactor-collar-528",
+    "min": {
+      "x": -128,
+      "y": -128,
+      "z": 528
+    },
+    "max": {
+      "x": 128,
+      "y": 128,
+      "z": 560
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "reactor-band-528--1",
+    "min": {
+      "x": -112,
+      "y": -132,
+      "z": 540
+    },
+    "max": {
+      "x": 112,
+      "y": -128,
+      "z": 548
+    },
+    "shader": "lights/blue1"
+  },
+  {
+    "op": "box.create",
+    "id": "reactor-band-528-1",
+    "min": {
+      "x": -112,
+      "y": 128,
+      "z": 540
+    },
+    "max": {
+      "x": 112,
+      "y": 132,
+      "z": 548
+    },
+    "shader": "lights/blue1"
+  },
+  {
+    "op": "box.create",
+    "id": "reactor-strut--120--120",
+    "min": {
+      "x": -120,
+      "y": -120,
+      "z": 288
+    },
+    "max": {
+      "x": -112,
+      "y": -112,
+      "z": 528
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "reactor-strut--120-112",
+    "min": {
+      "x": -120,
+      "y": 112,
+      "z": 288
+    },
+    "max": {
+      "x": -112,
+      "y": 120,
+      "z": 528
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "reactor-strut-112--120",
+    "min": {
+      "x": 112,
+      "y": -120,
+      "z": 288
+    },
+    "max": {
+      "x": 120,
+      "y": -112,
+      "z": 528
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "reactor-strut-112-112",
+    "min": {
+      "x": 112,
+      "y": 112,
+      "z": 288
+    },
+    "max": {
+      "x": 120,
+      "y": 120,
+      "z": 528
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "entity.place",
+    "id": "reactor-cyan",
+    "classname": "light",
+    "origin": {
+      "x": 0,
+      "y": 0,
+      "z": 600
+    },
+    "keys": {
+      "_color": "0.08 1 0.85",
+      "light": "1000"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "reactor-base--208--208",
+    "classname": "light",
+    "origin": {
+      "x": -208,
+      "y": -208,
+      "z": 300
+    },
+    "keys": {
+      "_color": "0.1 0.8 1",
+      "light": "200"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "reactor-base--208-208",
+    "classname": "light",
+    "origin": {
+      "x": -208,
+      "y": 208,
+      "z": 300
+    },
+    "keys": {
+      "_color": "0.1 0.8 1",
+      "light": "200"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "reactor-base-208--208",
+    "classname": "light",
+    "origin": {
+      "x": 208,
+      "y": -208,
+      "z": 300
+    },
+    "keys": {
+      "_color": "0.1 0.8 1",
+      "light": "200"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "reactor-base-208-208",
+    "classname": "light",
+    "origin": {
+      "x": 208,
+      "y": 208,
+      "z": 300
+    },
+    "keys": {
+      "_color": "0.1 0.8 1",
+      "light": "200"
+    }
+  },
+  {
+    "op": "box.create",
+    "id": "ceiling-rib--832",
+    "min": {
+      "x": -1120,
+      "y": -844,
+      "z": 720
+    },
+    "max": {
+      "x": 1120,
+      "y": -820,
+      "z": 752
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "ceiling-rib--416",
+    "min": {
+      "x": -1120,
+      "y": -428,
+      "z": 720
+    },
+    "max": {
+      "x": 1120,
+      "y": -404,
+      "z": 752
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "ceiling-rib-0",
+    "min": {
+      "x": -1120,
+      "y": -12,
+      "z": 720
+    },
+    "max": {
+      "x": 1120,
+      "y": 12,
+      "z": 752
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "ceiling-rib-416",
+    "min": {
+      "x": -1120,
+      "y": 404,
+      "z": 720
+    },
+    "max": {
+      "x": 1120,
+      "y": 428,
+      "z": 752
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "ceiling-rib-832",
+    "min": {
+      "x": -1120,
+      "y": 820,
+      "z": 720
+    },
+    "max": {
+      "x": 1120,
+      "y": 844,
+      "z": 752
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "brushEntity.assign",
+    "id": "chamfered-trim",
+    "classname": "func_group",
+    "brushIds": [
+      "bay-x--1-0-upright",
+      "bay-y--1-0-upright",
+      "bay-x--1-1-upright",
+      "bay-y--1-1-upright",
+      "bay-x--1-2-upright",
+      "bay-y--1-2-upright",
+      "bay-x--1-3-upright",
+      "bay-y--1-3-upright",
+      "bay-x--1-4-upright",
+      "bay-y--1-4-upright",
+      "bay-x--1-5-upright",
+      "bay-y--1-5-upright",
+      "bay-x--1-6-upright",
+      "bay-y--1-6-upright",
+      "bay-x-1-0-upright",
+      "bay-y-1-0-upright",
+      "bay-x-1-1-upright",
+      "bay-y-1-1-upright",
+      "bay-x-1-2-upright",
+      "bay-y-1-2-upright",
+      "bay-x-1-3-upright",
+      "bay-y-1-3-upright",
+      "bay-x-1-4-upright",
+      "bay-y-1-4-upright",
+      "bay-x-1-5-upright",
+      "bay-y-1-5-upright",
+      "bay-x-1-6-upright",
+      "bay-y-1-6-upright",
+      "fascia-x--1",
+      "support-x--1--704",
+      "support-x--1-704",
+      "rail-x--1--800",
+      "post-x--1--800",
+      "post-x--1--628",
+      "post-x--1--456",
+      "post-x--1--284",
+      "post-x--1--112",
+      "rail-x--1-112",
+      "post-x--1-112",
+      "post-x--1-284",
+      "post-x--1-456",
+      "post-x--1-628",
+      "post-x--1-800",
+      "fascia-y--1",
+      "support-y--1--704",
+      "support-y--1-704",
+      "rail-y--1--800",
+      "post-y--1--800",
+      "post-y--1--628",
+      "post-y--1--456",
+      "post-y--1--284",
+      "post-y--1--112",
+      "rail-y--1-112",
+      "post-y--1-112",
+      "post-y--1-284",
+      "post-y--1-456",
+      "post-y--1-628",
+      "post-y--1-800",
+      "fascia-x-1",
+      "support-x-1--704",
+      "support-x-1-704",
+      "rail-x-1--800",
+      "post-x-1--800",
+      "post-x-1--628",
+      "post-x-1--456",
+      "post-x-1--284",
+      "post-x-1--112",
+      "rail-x-1-112",
+      "post-x-1-112",
+      "post-x-1-284",
+      "post-x-1-456",
+      "post-x-1-628",
+      "post-x-1-800",
+      "fascia-y-1",
+      "support-y-1--704",
+      "support-y-1-704",
+      "rail-y-1--800",
+      "post-y-1--800",
+      "post-y-1--628",
+      "post-y-1--456",
+      "post-y-1--284",
+      "post-y-1--112",
+      "rail-y-1-112",
+      "post-y-1-112",
+      "post-y-1-284",
+      "post-y-1-456",
+      "post-y-1-628",
+      "post-y-1-800",
+      "reactor-collar-256",
+      "reactor-collar-528",
+      "reactor-strut--120--120",
+      "reactor-strut--120-112",
+      "reactor-strut-112--120",
+      "reactor-strut-112-112",
+      "ceiling-rib--832",
+      "ceiling-rib--416",
+      "ceiling-rib-0",
+      "ceiling-rib-416",
+      "ceiling-rib-832"
+    ],
+    "keys": {
+      "chamfer_concavewidth": "5",
+      "chamfer_convexwidth": "2.2"
+    }
+  }
+]

@@ -1,0 +1,2366 @@
+[
+  {
+    "op": "entity.update",
+    "id": "fill--768--768",
+    "keys": {
+      "light": "550",
+      "_color": "0.45 0.55 0.72"
+    }
+  },
+  {
+    "op": "entity.update",
+    "id": "fill--768-0",
+    "keys": {
+      "light": "550",
+      "_color": "0.45 0.55 0.72"
+    }
+  },
+  {
+    "op": "entity.update",
+    "id": "fill--768-768",
+    "keys": {
+      "light": "550",
+      "_color": "0.45 0.55 0.72"
+    }
+  },
+  {
+    "op": "entity.update",
+    "id": "fill-0--768",
+    "keys": {
+      "light": "550",
+      "_color": "0.45 0.55 0.72"
+    }
+  },
+  {
+    "op": "entity.update",
+    "id": "fill-0-0",
+    "keys": {
+      "light": "550",
+      "_color": "0.45 0.55 0.72"
+    }
+  },
+  {
+    "op": "entity.update",
+    "id": "fill-0-768",
+    "keys": {
+      "light": "550",
+      "_color": "0.45 0.55 0.72"
+    }
+  },
+  {
+    "op": "entity.update",
+    "id": "fill-768--768",
+    "keys": {
+      "light": "550",
+      "_color": "0.45 0.55 0.72"
+    }
+  },
+  {
+    "op": "entity.update",
+    "id": "fill-768-0",
+    "keys": {
+      "light": "550",
+      "_color": "0.45 0.55 0.72"
+    }
+  },
+  {
+    "op": "entity.update",
+    "id": "fill-768-768",
+    "keys": {
+      "light": "550",
+      "_color": "0.45 0.55 0.72"
+    }
+  },
+  {
+    "op": "patch.create",
+    "id": "graffiti--1--736",
+    "shader": "decals/graffiti_01",
+    "width": 3,
+    "height": 3,
+    "controlPoints": [
+      [
+        {
+          "x": -1098,
+          "y": -880,
+          "z": 48,
+          "u": 0,
+          "v": 1
+        },
+        {
+          "x": -1098,
+          "y": -736,
+          "z": 48,
+          "u": 0.5,
+          "v": 1
+        },
+        {
+          "x": -1098,
+          "y": -592,
+          "z": 48,
+          "u": 1,
+          "v": 1
+        }
+      ],
+      [
+        {
+          "x": -1098,
+          "y": -880,
+          "z": 128,
+          "u": 0,
+          "v": 0.5
+        },
+        {
+          "x": -1098,
+          "y": -736,
+          "z": 128,
+          "u": 0.5,
+          "v": 0.5
+        },
+        {
+          "x": -1098,
+          "y": -592,
+          "z": 128,
+          "u": 1,
+          "v": 0.5
+        }
+      ],
+      [
+        {
+          "x": -1098,
+          "y": -880,
+          "z": 208,
+          "u": 0,
+          "v": 0
+        },
+        {
+          "x": -1098,
+          "y": -736,
+          "z": 208,
+          "u": 0.5,
+          "v": 0
+        },
+        {
+          "x": -1098,
+          "y": -592,
+          "z": 208,
+          "u": 1,
+          "v": 0
+        }
+      ]
+    ]
+  },
+  {
+    "op": "patch.create",
+    "id": "graffiti--1--352",
+    "shader": "decals/graffiti_01",
+    "width": 3,
+    "height": 3,
+    "controlPoints": [
+      [
+        {
+          "x": -1098,
+          "y": -496,
+          "z": 48,
+          "u": 0,
+          "v": 1
+        },
+        {
+          "x": -1098,
+          "y": -352,
+          "z": 48,
+          "u": 0.5,
+          "v": 1
+        },
+        {
+          "x": -1098,
+          "y": -208,
+          "z": 48,
+          "u": 1,
+          "v": 1
+        }
+      ],
+      [
+        {
+          "x": -1098,
+          "y": -496,
+          "z": 128,
+          "u": 0,
+          "v": 0.5
+        },
+        {
+          "x": -1098,
+          "y": -352,
+          "z": 128,
+          "u": 0.5,
+          "v": 0.5
+        },
+        {
+          "x": -1098,
+          "y": -208,
+          "z": 128,
+          "u": 1,
+          "v": 0.5
+        }
+      ],
+      [
+        {
+          "x": -1098,
+          "y": -496,
+          "z": 208,
+          "u": 0,
+          "v": 0
+        },
+        {
+          "x": -1098,
+          "y": -352,
+          "z": 208,
+          "u": 0.5,
+          "v": 0
+        },
+        {
+          "x": -1098,
+          "y": -208,
+          "z": 208,
+          "u": 1,
+          "v": 0
+        }
+      ]
+    ]
+  },
+  {
+    "op": "patch.create",
+    "id": "graffiti--1-352",
+    "shader": "decals/graffiti_02",
+    "width": 3,
+    "height": 3,
+    "controlPoints": [
+      [
+        {
+          "x": -1098,
+          "y": 208,
+          "z": 48,
+          "u": 0,
+          "v": 1
+        },
+        {
+          "x": -1098,
+          "y": 352,
+          "z": 48,
+          "u": 0.5,
+          "v": 1
+        },
+        {
+          "x": -1098,
+          "y": 496,
+          "z": 48,
+          "u": 1,
+          "v": 1
+        }
+      ],
+      [
+        {
+          "x": -1098,
+          "y": 208,
+          "z": 128,
+          "u": 0,
+          "v": 0.5
+        },
+        {
+          "x": -1098,
+          "y": 352,
+          "z": 128,
+          "u": 0.5,
+          "v": 0.5
+        },
+        {
+          "x": -1098,
+          "y": 496,
+          "z": 128,
+          "u": 1,
+          "v": 0.5
+        }
+      ],
+      [
+        {
+          "x": -1098,
+          "y": 208,
+          "z": 208,
+          "u": 0,
+          "v": 0
+        },
+        {
+          "x": -1098,
+          "y": 352,
+          "z": 208,
+          "u": 0.5,
+          "v": 0
+        },
+        {
+          "x": -1098,
+          "y": 496,
+          "z": 208,
+          "u": 1,
+          "v": 0
+        }
+      ]
+    ]
+  },
+  {
+    "op": "patch.create",
+    "id": "graffiti--1-736",
+    "shader": "decals/graffiti_02",
+    "width": 3,
+    "height": 3,
+    "controlPoints": [
+      [
+        {
+          "x": -1098,
+          "y": 592,
+          "z": 48,
+          "u": 0,
+          "v": 1
+        },
+        {
+          "x": -1098,
+          "y": 736,
+          "z": 48,
+          "u": 0.5,
+          "v": 1
+        },
+        {
+          "x": -1098,
+          "y": 880,
+          "z": 48,
+          "u": 1,
+          "v": 1
+        }
+      ],
+      [
+        {
+          "x": -1098,
+          "y": 592,
+          "z": 128,
+          "u": 0,
+          "v": 0.5
+        },
+        {
+          "x": -1098,
+          "y": 736,
+          "z": 128,
+          "u": 0.5,
+          "v": 0.5
+        },
+        {
+          "x": -1098,
+          "y": 880,
+          "z": 128,
+          "u": 1,
+          "v": 0.5
+        }
+      ],
+      [
+        {
+          "x": -1098,
+          "y": 592,
+          "z": 208,
+          "u": 0,
+          "v": 0
+        },
+        {
+          "x": -1098,
+          "y": 736,
+          "z": 208,
+          "u": 0.5,
+          "v": 0
+        },
+        {
+          "x": -1098,
+          "y": 880,
+          "z": 208,
+          "u": 1,
+          "v": 0
+        }
+      ]
+    ]
+  },
+  {
+    "op": "patch.create",
+    "id": "graffiti-1--736",
+    "shader": "decals/graffiti_01",
+    "width": 3,
+    "height": 3,
+    "controlPoints": [
+      [
+        {
+          "x": 1098,
+          "y": -880,
+          "z": 208,
+          "u": 0,
+          "v": 0
+        },
+        {
+          "x": 1098,
+          "y": -736,
+          "z": 208,
+          "u": 0.5,
+          "v": 0
+        },
+        {
+          "x": 1098,
+          "y": -592,
+          "z": 208,
+          "u": 1,
+          "v": 0
+        }
+      ],
+      [
+        {
+          "x": 1098,
+          "y": -880,
+          "z": 128,
+          "u": 0,
+          "v": 0.5
+        },
+        {
+          "x": 1098,
+          "y": -736,
+          "z": 128,
+          "u": 0.5,
+          "v": 0.5
+        },
+        {
+          "x": 1098,
+          "y": -592,
+          "z": 128,
+          "u": 1,
+          "v": 0.5
+        }
+      ],
+      [
+        {
+          "x": 1098,
+          "y": -880,
+          "z": 48,
+          "u": 0,
+          "v": 1
+        },
+        {
+          "x": 1098,
+          "y": -736,
+          "z": 48,
+          "u": 0.5,
+          "v": 1
+        },
+        {
+          "x": 1098,
+          "y": -592,
+          "z": 48,
+          "u": 1,
+          "v": 1
+        }
+      ]
+    ]
+  },
+  {
+    "op": "patch.create",
+    "id": "graffiti-1--352",
+    "shader": "decals/graffiti_01",
+    "width": 3,
+    "height": 3,
+    "controlPoints": [
+      [
+        {
+          "x": 1098,
+          "y": -496,
+          "z": 208,
+          "u": 0,
+          "v": 0
+        },
+        {
+          "x": 1098,
+          "y": -352,
+          "z": 208,
+          "u": 0.5,
+          "v": 0
+        },
+        {
+          "x": 1098,
+          "y": -208,
+          "z": 208,
+          "u": 1,
+          "v": 0
+        }
+      ],
+      [
+        {
+          "x": 1098,
+          "y": -496,
+          "z": 128,
+          "u": 0,
+          "v": 0.5
+        },
+        {
+          "x": 1098,
+          "y": -352,
+          "z": 128,
+          "u": 0.5,
+          "v": 0.5
+        },
+        {
+          "x": 1098,
+          "y": -208,
+          "z": 128,
+          "u": 1,
+          "v": 0.5
+        }
+      ],
+      [
+        {
+          "x": 1098,
+          "y": -496,
+          "z": 48,
+          "u": 0,
+          "v": 1
+        },
+        {
+          "x": 1098,
+          "y": -352,
+          "z": 48,
+          "u": 0.5,
+          "v": 1
+        },
+        {
+          "x": 1098,
+          "y": -208,
+          "z": 48,
+          "u": 1,
+          "v": 1
+        }
+      ]
+    ]
+  },
+  {
+    "op": "patch.create",
+    "id": "graffiti-1-352",
+    "shader": "decals/graffiti_02",
+    "width": 3,
+    "height": 3,
+    "controlPoints": [
+      [
+        {
+          "x": 1098,
+          "y": 208,
+          "z": 208,
+          "u": 0,
+          "v": 0
+        },
+        {
+          "x": 1098,
+          "y": 352,
+          "z": 208,
+          "u": 0.5,
+          "v": 0
+        },
+        {
+          "x": 1098,
+          "y": 496,
+          "z": 208,
+          "u": 1,
+          "v": 0
+        }
+      ],
+      [
+        {
+          "x": 1098,
+          "y": 208,
+          "z": 128,
+          "u": 0,
+          "v": 0.5
+        },
+        {
+          "x": 1098,
+          "y": 352,
+          "z": 128,
+          "u": 0.5,
+          "v": 0.5
+        },
+        {
+          "x": 1098,
+          "y": 496,
+          "z": 128,
+          "u": 1,
+          "v": 0.5
+        }
+      ],
+      [
+        {
+          "x": 1098,
+          "y": 208,
+          "z": 48,
+          "u": 0,
+          "v": 1
+        },
+        {
+          "x": 1098,
+          "y": 352,
+          "z": 48,
+          "u": 0.5,
+          "v": 1
+        },
+        {
+          "x": 1098,
+          "y": 496,
+          "z": 48,
+          "u": 1,
+          "v": 1
+        }
+      ]
+    ]
+  },
+  {
+    "op": "patch.create",
+    "id": "graffiti-1-736",
+    "shader": "decals/graffiti_02",
+    "width": 3,
+    "height": 3,
+    "controlPoints": [
+      [
+        {
+          "x": 1098,
+          "y": 592,
+          "z": 208,
+          "u": 0,
+          "v": 0
+        },
+        {
+          "x": 1098,
+          "y": 736,
+          "z": 208,
+          "u": 0.5,
+          "v": 0
+        },
+        {
+          "x": 1098,
+          "y": 880,
+          "z": 208,
+          "u": 1,
+          "v": 0
+        }
+      ],
+      [
+        {
+          "x": 1098,
+          "y": 592,
+          "z": 128,
+          "u": 0,
+          "v": 0.5
+        },
+        {
+          "x": 1098,
+          "y": 736,
+          "z": 128,
+          "u": 0.5,
+          "v": 0.5
+        },
+        {
+          "x": 1098,
+          "y": 880,
+          "z": 128,
+          "u": 1,
+          "v": 0.5
+        }
+      ],
+      [
+        {
+          "x": 1098,
+          "y": 592,
+          "z": 48,
+          "u": 0,
+          "v": 1
+        },
+        {
+          "x": 1098,
+          "y": 736,
+          "z": 48,
+          "u": 0.5,
+          "v": 1
+        },
+        {
+          "x": 1098,
+          "y": 880,
+          "z": 48,
+          "u": 1,
+          "v": 1
+        }
+      ]
+    ]
+  },
+  {
+    "op": "box.create",
+    "id": "hazard--1--800",
+    "min": {
+      "x": -800,
+      "y": -864,
+      "z": 256
+    },
+    "max": {
+      "x": -688,
+      "y": -848,
+      "z": 258
+    },
+    "shader": "refly_trims/36hazard"
+  },
+  {
+    "op": "box.create",
+    "id": "hazard--1--464",
+    "min": {
+      "x": -464,
+      "y": -864,
+      "z": 256
+    },
+    "max": {
+      "x": -112,
+      "y": -848,
+      "z": 258
+    },
+    "shader": "refly_trims/36hazard"
+  },
+  {
+    "op": "box.create",
+    "id": "hazard--1-112",
+    "min": {
+      "x": 112,
+      "y": -864,
+      "z": 256
+    },
+    "max": {
+      "x": 464,
+      "y": -848,
+      "z": 258
+    },
+    "shader": "refly_trims/36hazard"
+  },
+  {
+    "op": "box.create",
+    "id": "hazard--1-688",
+    "min": {
+      "x": 688,
+      "y": -864,
+      "z": 256
+    },
+    "max": {
+      "x": 800,
+      "y": -848,
+      "z": 258
+    },
+    "shader": "refly_trims/36hazard"
+  },
+  {
+    "op": "box.create",
+    "id": "hazard-1--800",
+    "min": {
+      "x": -800,
+      "y": 848,
+      "z": 256
+    },
+    "max": {
+      "x": -688,
+      "y": 864,
+      "z": 258
+    },
+    "shader": "refly_trims/36hazard"
+  },
+  {
+    "op": "box.create",
+    "id": "hazard-1--464",
+    "min": {
+      "x": -464,
+      "y": 848,
+      "z": 256
+    },
+    "max": {
+      "x": -112,
+      "y": 864,
+      "z": 258
+    },
+    "shader": "refly_trims/36hazard"
+  },
+  {
+    "op": "box.create",
+    "id": "hazard-1-112",
+    "min": {
+      "x": 112,
+      "y": 848,
+      "z": 256
+    },
+    "max": {
+      "x": 464,
+      "y": 864,
+      "z": 258
+    },
+    "shader": "refly_trims/36hazard"
+  },
+  {
+    "op": "box.create",
+    "id": "hazard-1-688",
+    "min": {
+      "x": 688,
+      "y": 848,
+      "z": 256
+    },
+    "max": {
+      "x": 800,
+      "y": 864,
+      "z": 258
+    },
+    "shader": "refly_trims/36hazard"
+  },
+  {
+    "op": "face.material",
+    "id": "shell-floor",
+    "faces": "all",
+    "shader": "tiles/concrete_tiles"
+  },
+  {
+    "op": "face.material",
+    "id": "shell-ceiling",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "shell-west",
+    "faces": "all",
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "face.material",
+    "id": "shell-east",
+    "faces": "all",
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "face.material",
+    "id": "shell-south",
+    "faces": "all",
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "face.material",
+    "id": "shell-north",
+    "faces": "all",
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "face.material",
+    "id": "gallery-north",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "gallery-south",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "gallery-east",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "gallery-west",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "reactor-dais",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "bridge-north",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "bridge-south",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "bridge-east",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "bridge-west",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs--576--1-step-1",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs--576--1-step-2",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs--576--1-step-3",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs--576--1-step-4",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs--576--1-step-5",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs--576--1-step-6",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs--576--1-step-7",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs--576--1-step-8",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs--576--1-step-9",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs--576--1-step-10",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs--576--1-step-11",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs--576--1-step-12",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs--576--1-step-13",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs--576--1-step-14",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs--576--1-step-15",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs--576--1-step-16",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs--576-1-step-1",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs--576-1-step-2",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs--576-1-step-3",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs--576-1-step-4",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs--576-1-step-5",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs--576-1-step-6",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs--576-1-step-7",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs--576-1-step-8",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs--576-1-step-9",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs--576-1-step-10",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs--576-1-step-11",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs--576-1-step-12",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs--576-1-step-13",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs--576-1-step-14",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs--576-1-step-15",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs--576-1-step-16",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs-576--1-step-1",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs-576--1-step-2",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs-576--1-step-3",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs-576--1-step-4",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs-576--1-step-5",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs-576--1-step-6",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs-576--1-step-7",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs-576--1-step-8",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs-576--1-step-9",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs-576--1-step-10",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs-576--1-step-11",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs-576--1-step-12",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs-576--1-step-13",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs-576--1-step-14",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs-576--1-step-15",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs-576--1-step-16",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs-576-1-step-1",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs-576-1-step-2",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs-576-1-step-3",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs-576-1-step-4",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs-576-1-step-5",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs-576-1-step-6",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs-576-1-step-7",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs-576-1-step-8",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs-576-1-step-9",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs-576-1-step-10",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs-576-1-step-11",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs-576-1-step-12",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs-576-1-step-13",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs-576-1-step-14",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs-576-1-step-15",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "stairs-576-1-step-16",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "spawn-baffle--1--1",
+    "faces": "all",
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "face.material",
+    "id": "spawn-baffle--1-1",
+    "faces": "all",
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "face.material",
+    "id": "spawn-baffle-1--1",
+    "faces": "all",
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "face.material",
+    "id": "spawn-baffle-1-1",
+    "faces": "all",
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-x--1-0-brick",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-x--1-0-upright",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-x--1-0-light",
+    "faces": "all",
+    "shader": "lights/blue1"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-y--1-0-brick",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-y--1-0-upright",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-y--1-0-light",
+    "faces": "all",
+    "shader": "lights/blue1"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-x--1-1-brick",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-x--1-1-upright",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-x--1-1-light",
+    "faces": "all",
+    "shader": "jewels/neon_red"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-y--1-1-brick",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-y--1-1-upright",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-y--1-1-light",
+    "faces": "all",
+    "shader": "jewels/neon_red"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-x--1-2-brick",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-x--1-2-upright",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-x--1-2-light",
+    "faces": "all",
+    "shader": "baxandall/neon_07"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-y--1-2-brick",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-y--1-2-upright",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-y--1-2-light",
+    "faces": "all",
+    "shader": "baxandall/neon_07"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-x--1-3-brick",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-x--1-3-upright",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-x--1-3-light",
+    "faces": "all",
+    "shader": "neon/neon_square"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-y--1-3-brick",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-y--1-3-upright",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-y--1-3-light",
+    "faces": "all",
+    "shader": "neon/neon_square"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-x--1-4-brick",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-x--1-4-upright",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-x--1-4-light",
+    "faces": "all",
+    "shader": "lights/blue1"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-y--1-4-brick",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-y--1-4-upright",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-y--1-4-light",
+    "faces": "all",
+    "shader": "lights/blue1"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-x--1-5-brick",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-x--1-5-upright",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-x--1-5-light",
+    "faces": "all",
+    "shader": "jewels/neon_red"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-y--1-5-brick",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-y--1-5-upright",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-y--1-5-light",
+    "faces": "all",
+    "shader": "jewels/neon_red"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-x--1-6-brick",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-x--1-6-upright",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-x--1-6-light",
+    "faces": "all",
+    "shader": "baxandall/neon_07"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-y--1-6-brick",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-y--1-6-upright",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-y--1-6-light",
+    "faces": "all",
+    "shader": "baxandall/neon_07"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-x-1-0-brick",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-x-1-0-upright",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-x-1-0-light",
+    "faces": "all",
+    "shader": "jewels/neon_red"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-y-1-0-brick",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-y-1-0-upright",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-y-1-0-light",
+    "faces": "all",
+    "shader": "jewels/neon_red"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-x-1-1-brick",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-x-1-1-upright",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-x-1-1-light",
+    "faces": "all",
+    "shader": "baxandall/neon_07"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-y-1-1-brick",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-y-1-1-upright",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-y-1-1-light",
+    "faces": "all",
+    "shader": "baxandall/neon_07"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-x-1-2-brick",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-x-1-2-upright",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-x-1-2-light",
+    "faces": "all",
+    "shader": "neon/neon_square"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-y-1-2-brick",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-y-1-2-upright",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-y-1-2-light",
+    "faces": "all",
+    "shader": "neon/neon_square"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-x-1-3-brick",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-x-1-3-upright",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-x-1-3-light",
+    "faces": "all",
+    "shader": "lights/blue1"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-y-1-3-brick",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-y-1-3-upright",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-y-1-3-light",
+    "faces": "all",
+    "shader": "lights/blue1"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-x-1-4-brick",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-x-1-4-upright",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-x-1-4-light",
+    "faces": "all",
+    "shader": "jewels/neon_red"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-y-1-4-brick",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-y-1-4-upright",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-y-1-4-light",
+    "faces": "all",
+    "shader": "jewels/neon_red"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-x-1-5-brick",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-x-1-5-upright",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-x-1-5-light",
+    "faces": "all",
+    "shader": "baxandall/neon_07"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-y-1-5-brick",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-y-1-5-upright",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-y-1-5-light",
+    "faces": "all",
+    "shader": "baxandall/neon_07"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-x-1-6-brick",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-x-1-6-upright",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-x-1-6-light",
+    "faces": "all",
+    "shader": "neon/neon_square"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-y-1-6-brick",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-y-1-6-upright",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "bay-y-1-6-light",
+    "faces": "all",
+    "shader": "neon/neon_square"
+  },
+  {
+    "op": "face.material",
+    "id": "fascia-x--1",
+    "faces": "all",
+    "shader": "metal/metalrust_iron6"
+  },
+  {
+    "op": "face.material",
+    "id": "support-x--1--704",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "support-x--1-704",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "rail-x--1--800",
+    "faces": "all",
+    "shader": "metal/metalrust_iron6"
+  },
+  {
+    "op": "face.material",
+    "id": "post-x--1--800",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "post-x--1--628",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "post-x--1--456",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "post-x--1--284",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "post-x--1--112",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "rail-x--1-112",
+    "faces": "all",
+    "shader": "metal/metalrust_iron6"
+  },
+  {
+    "op": "face.material",
+    "id": "post-x--1-112",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "post-x--1-284",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "post-x--1-456",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "post-x--1-628",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "post-x--1-800",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "fascia-y--1",
+    "faces": "all",
+    "shader": "metal/metalrust_iron6"
+  },
+  {
+    "op": "face.material",
+    "id": "support-y--1--704",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "support-y--1-704",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "fascia-x-1",
+    "faces": "all",
+    "shader": "metal/metalrust_iron6"
+  },
+  {
+    "op": "face.material",
+    "id": "support-x-1--704",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "support-x-1-704",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "rail-x-1--800",
+    "faces": "all",
+    "shader": "metal/metalrust_iron6"
+  },
+  {
+    "op": "face.material",
+    "id": "post-x-1--800",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "post-x-1--628",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "post-x-1--456",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "post-x-1--284",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "post-x-1--112",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "rail-x-1-112",
+    "faces": "all",
+    "shader": "metal/metalrust_iron6"
+  },
+  {
+    "op": "face.material",
+    "id": "post-x-1-112",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "post-x-1-284",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "post-x-1-456",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "post-x-1-628",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "post-x-1-800",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "fascia-y-1",
+    "faces": "all",
+    "shader": "metal/metalrust_iron6"
+  },
+  {
+    "op": "face.material",
+    "id": "support-y-1--704",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "support-y-1-704",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "reactor-collar-256",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "reactor-band-256--1",
+    "faces": "all",
+    "shader": "lights/blue1"
+  },
+  {
+    "op": "face.material",
+    "id": "reactor-band-256-1",
+    "faces": "all",
+    "shader": "lights/blue1"
+  },
+  {
+    "op": "face.material",
+    "id": "reactor-collar-528",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "reactor-band-528--1",
+    "faces": "all",
+    "shader": "lights/blue1"
+  },
+  {
+    "op": "face.material",
+    "id": "reactor-band-528-1",
+    "faces": "all",
+    "shader": "lights/blue1"
+  },
+  {
+    "op": "face.material",
+    "id": "reactor-strut--120--120",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "reactor-strut--120-112",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "reactor-strut-112--120",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "reactor-strut-112-112",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "ceiling-rib--832",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "ceiling-rib--416",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "ceiling-rib-0",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "ceiling-rib-416",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "ceiling-rib-832",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "service-x--1-door",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "service-x--1-jamb--120",
+    "faces": "all",
+    "shader": "lights/blue1"
+  },
+  {
+    "op": "face.material",
+    "id": "service-x--1-jamb-112",
+    "faces": "all",
+    "shader": "lights/blue1"
+  },
+  {
+    "op": "face.material",
+    "id": "service-x--1-lintel",
+    "faces": "all",
+    "shader": "lights/blue1"
+  },
+  {
+    "op": "face.material",
+    "id": "service-y--1-door",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "service-y--1-jamb--120",
+    "faces": "all",
+    "shader": "jewels/neon_red"
+  },
+  {
+    "op": "face.material",
+    "id": "service-y--1-jamb-112",
+    "faces": "all",
+    "shader": "jewels/neon_red"
+  },
+  {
+    "op": "face.material",
+    "id": "service-y--1-lintel",
+    "faces": "all",
+    "shader": "jewels/neon_red"
+  },
+  {
+    "op": "face.material",
+    "id": "service-x-1-door",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "service-x-1-jamb--120",
+    "faces": "all",
+    "shader": "lights/blue1"
+  },
+  {
+    "op": "face.material",
+    "id": "service-x-1-jamb-112",
+    "faces": "all",
+    "shader": "lights/blue1"
+  },
+  {
+    "op": "face.material",
+    "id": "service-x-1-lintel",
+    "faces": "all",
+    "shader": "lights/blue1"
+  },
+  {
+    "op": "face.material",
+    "id": "service-y-1-door",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "service-y-1-jamb--120",
+    "faces": "all",
+    "shader": "jewels/neon_red"
+  },
+  {
+    "op": "face.material",
+    "id": "service-y-1-jamb-112",
+    "faces": "all",
+    "shader": "jewels/neon_red"
+  },
+  {
+    "op": "face.material",
+    "id": "service-y-1-lintel",
+    "faces": "all",
+    "shader": "jewels/neon_red"
+  },
+  {
+    "op": "face.material",
+    "id": "open-rail--1--800",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "open-post--1--800--800",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "open-post--1--800--696",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "open-rail--1--464",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "open-post--1--464--464",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "open-post--1--464--120",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "open-rail--1-112",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "open-post--1-112-112",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "open-post--1-112-456",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "open-rail--1-688",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "open-post--1-688-688",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "open-post--1-688-792",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "open-rail-1--800",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "open-post-1--800--800",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "open-post-1--800--696",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "open-rail-1--464",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "open-post-1--464--464",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "open-post-1--464--120",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "open-rail-1-112",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "open-post-1-112-112",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "open-post-1-112-456",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "open-rail-1-688",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "open-post-1-688-688",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "open-post-1-688-792",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  }
+]

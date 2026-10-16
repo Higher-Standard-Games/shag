@@ -1,0 +1,562 @@
+[
+  {
+    "op": "gen.room",
+    "id": "shell",
+    "min": {
+      "x": -1120,
+      "y": -1120,
+      "z": 0
+    },
+    "max": {
+      "x": 1120,
+      "y": 1120,
+      "z": 768
+    },
+    "wall": 32,
+    "shader": "concrete/concretebunker0068",
+    "floorShader": "tiles/concrete_tiles",
+    "ceilingShader": "exwsw/matte_eX_surf_metaldarkgrey",
+    "light": false
+  },
+  {
+    "op": "box.create",
+    "id": "gallery-north",
+    "min": {
+      "x": -1120,
+      "y": 832,
+      "z": 232
+    },
+    "max": {
+      "x": 1120,
+      "y": 1120,
+      "z": 256
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "gallery-south",
+    "min": {
+      "x": -1120,
+      "y": -1120,
+      "z": 232
+    },
+    "max": {
+      "x": 1120,
+      "y": -832,
+      "z": 256
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "gallery-east",
+    "min": {
+      "x": 832,
+      "y": -832,
+      "z": 232
+    },
+    "max": {
+      "x": 1120,
+      "y": 832,
+      "z": 256
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "gallery-west",
+    "min": {
+      "x": -1120,
+      "y": -832,
+      "z": 232
+    },
+    "max": {
+      "x": -832,
+      "y": 832,
+      "z": 256
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "reactor-dais",
+    "min": {
+      "x": -256,
+      "y": -256,
+      "z": 0
+    },
+    "max": {
+      "x": 256,
+      "y": 256,
+      "z": 256
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "bridge-north",
+    "min": {
+      "x": -96,
+      "y": 256,
+      "z": 232
+    },
+    "max": {
+      "x": 96,
+      "y": 832,
+      "z": 256
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "bridge-south",
+    "min": {
+      "x": -96,
+      "y": -832,
+      "z": 232
+    },
+    "max": {
+      "x": 96,
+      "y": -256,
+      "z": 256
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "bridge-east",
+    "min": {
+      "x": 256,
+      "y": -96,
+      "z": 232
+    },
+    "max": {
+      "x": 832,
+      "y": 96,
+      "z": 256
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "bridge-west",
+    "min": {
+      "x": -832,
+      "y": -96,
+      "z": 232
+    },
+    "max": {
+      "x": -256,
+      "y": 96,
+      "z": 256
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "gen.stairs",
+    "id": "stairs--576--1",
+    "from": {
+      "x": -576,
+      "y": -320,
+      "z": 0
+    },
+    "to": {
+      "x": -576,
+      "y": -832,
+      "z": 256
+    },
+    "width": 192,
+    "step": 16,
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "gen.stairs",
+    "id": "stairs--576-1",
+    "from": {
+      "x": -576,
+      "y": 320,
+      "z": 0
+    },
+    "to": {
+      "x": -576,
+      "y": 832,
+      "z": 256
+    },
+    "width": 192,
+    "step": 16,
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "gen.stairs",
+    "id": "stairs-576--1",
+    "from": {
+      "x": 576,
+      "y": -320,
+      "z": 0
+    },
+    "to": {
+      "x": 576,
+      "y": -832,
+      "z": 256
+    },
+    "width": 192,
+    "step": 16,
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "gen.stairs",
+    "id": "stairs-576-1",
+    "from": {
+      "x": 576,
+      "y": 320,
+      "z": 0
+    },
+    "to": {
+      "x": 576,
+      "y": 832,
+      "z": 256
+    },
+    "width": 192,
+    "step": 16,
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "spawn-baffle--1--1",
+    "min": {
+      "x": -960,
+      "y": -608,
+      "z": 0
+    },
+    "max": {
+      "x": -800,
+      "y": -576,
+      "z": 144
+    },
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "entity.place",
+    "id": "spawn--1--1",
+    "classname": "info_player_deathmatch",
+    "origin": {
+      "x": -992,
+      "y": -704,
+      "z": 32
+    },
+    "keys": {
+      "angle": "45"
+    }
+  },
+  {
+    "op": "box.create",
+    "id": "spawn-baffle--1-1",
+    "min": {
+      "x": -960,
+      "y": 576,
+      "z": 0
+    },
+    "max": {
+      "x": -800,
+      "y": 608,
+      "z": 144
+    },
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "entity.place",
+    "id": "spawn--1-1",
+    "classname": "info_player_deathmatch",
+    "origin": {
+      "x": -992,
+      "y": 704,
+      "z": 32
+    },
+    "keys": {
+      "angle": "-45"
+    }
+  },
+  {
+    "op": "box.create",
+    "id": "spawn-baffle-1--1",
+    "min": {
+      "x": 800,
+      "y": -608,
+      "z": 0
+    },
+    "max": {
+      "x": 960,
+      "y": -576,
+      "z": 144
+    },
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "entity.place",
+    "id": "spawn-1--1",
+    "classname": "info_player_deathmatch",
+    "origin": {
+      "x": 992,
+      "y": -704,
+      "z": 32
+    },
+    "keys": {
+      "angle": "135"
+    }
+  },
+  {
+    "op": "box.create",
+    "id": "spawn-baffle-1-1",
+    "min": {
+      "x": 800,
+      "y": 576,
+      "z": 0
+    },
+    "max": {
+      "x": 960,
+      "y": 608,
+      "z": 144
+    },
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "entity.place",
+    "id": "spawn-1-1",
+    "classname": "info_player_deathmatch",
+    "origin": {
+      "x": 992,
+      "y": 704,
+      "z": 32
+    },
+    "keys": {
+      "angle": "-135"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "armor-upper",
+    "classname": "item_armor_ya",
+    "origin": {
+      "x": 0,
+      "y": 640,
+      "z": 280
+    },
+    "keys": {}
+  },
+  {
+    "op": "entity.place",
+    "id": "health-lower",
+    "classname": "item_health_mega",
+    "origin": {
+      "x": 0,
+      "y": -640,
+      "z": 24
+    },
+    "keys": {}
+  },
+  {
+    "op": "entity.place",
+    "id": "health--1",
+    "classname": "item_health",
+    "origin": {
+      "x": -688,
+      "y": 0,
+      "z": 24
+    },
+    "keys": {}
+  },
+  {
+    "op": "entity.place",
+    "id": "health-1",
+    "classname": "item_health",
+    "origin": {
+      "x": 688,
+      "y": 0,
+      "z": 24
+    },
+    "keys": {}
+  },
+  {
+    "op": "entity.place",
+    "id": "fill--768--768",
+    "classname": "light",
+    "origin": {
+      "x": -768,
+      "y": -768,
+      "z": 620
+    },
+    "keys": {
+      "_color": "0.62 0.70 1",
+      "light": "1500"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "fill--768-0",
+    "classname": "light",
+    "origin": {
+      "x": -768,
+      "y": 0,
+      "z": 620
+    },
+    "keys": {
+      "_color": "0.62 0.70 1",
+      "light": "1500"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "fill--768-768",
+    "classname": "light",
+    "origin": {
+      "x": -768,
+      "y": 768,
+      "z": 620
+    },
+    "keys": {
+      "_color": "0.62 0.70 1",
+      "light": "1500"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "fill-0--768",
+    "classname": "light",
+    "origin": {
+      "x": 0,
+      "y": -768,
+      "z": 620
+    },
+    "keys": {
+      "_color": "0.62 0.70 1",
+      "light": "1500"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "fill-0-0",
+    "classname": "light",
+    "origin": {
+      "x": 0,
+      "y": 0,
+      "z": 620
+    },
+    "keys": {
+      "_color": "0.62 0.70 1",
+      "light": "1500"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "fill-0-768",
+    "classname": "light",
+    "origin": {
+      "x": 0,
+      "y": 768,
+      "z": 620
+    },
+    "keys": {
+      "_color": "0.62 0.70 1",
+      "light": "1500"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "fill-768--768",
+    "classname": "light",
+    "origin": {
+      "x": 768,
+      "y": -768,
+      "z": 620
+    },
+    "keys": {
+      "_color": "0.62 0.70 1",
+      "light": "1500"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "fill-768-0",
+    "classname": "light",
+    "origin": {
+      "x": 768,
+      "y": 0,
+      "z": 620
+    },
+    "keys": {
+      "_color": "0.62 0.70 1",
+      "light": "1500"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "fill-768-768",
+    "classname": "light",
+    "origin": {
+      "x": 768,
+      "y": 768,
+      "z": 620
+    },
+    "keys": {
+      "_color": "0.62 0.70 1",
+      "light": "1500"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "under-gallery--928--640",
+    "classname": "light",
+    "origin": {
+      "x": -928,
+      "y": -640,
+      "z": 144
+    },
+    "keys": {
+      "_color": "0.8 0.65 0.5",
+      "light": "450"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "under-gallery--928-640",
+    "classname": "light",
+    "origin": {
+      "x": -928,
+      "y": 640,
+      "z": 144
+    },
+    "keys": {
+      "_color": "0.8 0.65 0.5",
+      "light": "450"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "under-gallery-928--640",
+    "classname": "light",
+    "origin": {
+      "x": 928,
+      "y": -640,
+      "z": 144
+    },
+    "keys": {
+      "_color": "0.8 0.65 0.5",
+      "light": "450"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "under-gallery-928-640",
+    "classname": "light",
+    "origin": {
+      "x": 928,
+      "y": 640,
+      "z": 144
+    },
+    "keys": {
+      "_color": "0.8 0.65 0.5",
+      "light": "450"
+    }
+  }
+]

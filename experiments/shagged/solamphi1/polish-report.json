@@ -1,0 +1,16 @@
+{
+  "ok": true,
+  "state": "playable",
+  "stage": "done",
+  "mapName": "solamphi1",
+  "revision": 2,
+  "quality": "fast",
+  "runtimeMapName": "solamphi1",
+  "packageName": "map_solamphi1_00002.pk3",
+  "bspHash": "8f133dc31cbf01b4ba7f7bca24f983c89b8a02417794551af49ddeaed7cefe42",
+  "leak": false,
+  "reused": false,
+  "logTail": [
+    "DownConvert: 786432 Lightmap pixelsDownConvert: 637935 pixels marked in alpha maskDownConvert: 786432 DeluxeMap pixels (interleaving as stride 2 for QFusion)DownConvert: Done--- WriteBSPFile ------ CompressGrid ---4693 points compressed to 2468 unique pointsBSP written to C:\\Users\\sundf\\Desktop\\wash\\shag\\server-data\\shagged\\jobs\\d838fd2c-4562-495e-8e93-a69f9040c4d0\\solamphi1.bspClearing cache directory: C:/Users/sundf/Desktop/wash/shag/public/data/basewf/maps/solamphi1/cacheTotal time elapsed: 00:00:05Compiled FBSP v1Published map_solamphi1_00002.pk3"
+  ]
+}

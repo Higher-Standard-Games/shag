@@ -1,0 +1,396 @@
+[
+  {
+    "op": "object.delete",
+    "ids": [
+      "rail-y--1--800",
+      "rail-y--1-112",
+      "post-y--1--800",
+      "post-y--1--628",
+      "post-y--1--456",
+      "post-y--1--284",
+      "post-y--1--112",
+      "post-y--1-112",
+      "post-y--1-284",
+      "post-y--1-456",
+      "post-y--1-628",
+      "post-y--1-800"
+    ]
+  },
+  {
+    "op": "box.create",
+    "id": "open-rail--1--800",
+    "min": {
+      "x": -800,
+      "y": -848,
+      "z": 304
+    },
+    "max": {
+      "x": -688,
+      "y": -832,
+      "z": 312
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "open-post--1--800--800",
+    "min": {
+      "x": -800,
+      "y": -848,
+      "z": 256
+    },
+    "max": {
+      "x": -792,
+      "y": -832,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "open-post--1--800--696",
+    "min": {
+      "x": -696,
+      "y": -848,
+      "z": 256
+    },
+    "max": {
+      "x": -688,
+      "y": -832,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "open-rail--1--464",
+    "min": {
+      "x": -464,
+      "y": -848,
+      "z": 304
+    },
+    "max": {
+      "x": -112,
+      "y": -832,
+      "z": 312
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "open-post--1--464--464",
+    "min": {
+      "x": -464,
+      "y": -848,
+      "z": 256
+    },
+    "max": {
+      "x": -456,
+      "y": -832,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "open-post--1--464--120",
+    "min": {
+      "x": -120,
+      "y": -848,
+      "z": 256
+    },
+    "max": {
+      "x": -112,
+      "y": -832,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "open-rail--1-112",
+    "min": {
+      "x": 112,
+      "y": -848,
+      "z": 304
+    },
+    "max": {
+      "x": 464,
+      "y": -832,
+      "z": 312
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "open-post--1-112-112",
+    "min": {
+      "x": 112,
+      "y": -848,
+      "z": 256
+    },
+    "max": {
+      "x": 120,
+      "y": -832,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "open-post--1-112-456",
+    "min": {
+      "x": 456,
+      "y": -848,
+      "z": 256
+    },
+    "max": {
+      "x": 464,
+      "y": -832,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "open-rail--1-688",
+    "min": {
+      "x": 688,
+      "y": -848,
+      "z": 304
+    },
+    "max": {
+      "x": 800,
+      "y": -832,
+      "z": 312
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "open-post--1-688-688",
+    "min": {
+      "x": 688,
+      "y": -848,
+      "z": 256
+    },
+    "max": {
+      "x": 696,
+      "y": -832,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "open-post--1-688-792",
+    "min": {
+      "x": 792,
+      "y": -848,
+      "z": 256
+    },
+    "max": {
+      "x": 800,
+      "y": -832,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "object.delete",
+    "ids": [
+      "rail-y-1--800",
+      "rail-y-1-112",
+      "post-y-1--800",
+      "post-y-1--628",
+      "post-y-1--456",
+      "post-y-1--284",
+      "post-y-1--112",
+      "post-y-1-112",
+      "post-y-1-284",
+      "post-y-1-456",
+      "post-y-1-628",
+      "post-y-1-800"
+    ]
+  },
+  {
+    "op": "box.create",
+    "id": "open-rail-1--800",
+    "min": {
+      "x": -800,
+      "y": 832,
+      "z": 304
+    },
+    "max": {
+      "x": -688,
+      "y": 848,
+      "z": 312
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "open-post-1--800--800",
+    "min": {
+      "x": -800,
+      "y": 832,
+      "z": 256
+    },
+    "max": {
+      "x": -792,
+      "y": 848,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "open-post-1--800--696",
+    "min": {
+      "x": -696,
+      "y": 832,
+      "z": 256
+    },
+    "max": {
+      "x": -688,
+      "y": 848,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "open-rail-1--464",
+    "min": {
+      "x": -464,
+      "y": 832,
+      "z": 304
+    },
+    "max": {
+      "x": -112,
+      "y": 848,
+      "z": 312
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "open-post-1--464--464",
+    "min": {
+      "x": -464,
+      "y": 832,
+      "z": 256
+    },
+    "max": {
+      "x": -456,
+      "y": 848,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "open-post-1--464--120",
+    "min": {
+      "x": -120,
+      "y": 832,
+      "z": 256
+    },
+    "max": {
+      "x": -112,
+      "y": 848,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "open-rail-1-112",
+    "min": {
+      "x": 112,
+      "y": 832,
+      "z": 304
+    },
+    "max": {
+      "x": 464,
+      "y": 848,
+      "z": 312
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "open-post-1-112-112",
+    "min": {
+      "x": 112,
+      "y": 832,
+      "z": 256
+    },
+    "max": {
+      "x": 120,
+      "y": 848,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "open-post-1-112-456",
+    "min": {
+      "x": 456,
+      "y": 832,
+      "z": 256
+    },
+    "max": {
+      "x": 464,
+      "y": 848,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "open-rail-1-688",
+    "min": {
+      "x": 688,
+      "y": 832,
+      "z": 304
+    },
+    "max": {
+      "x": 800,
+      "y": 848,
+      "z": 312
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "open-post-1-688-688",
+    "min": {
+      "x": 688,
+      "y": 832,
+      "z": 256
+    },
+    "max": {
+      "x": 696,
+      "y": 848,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "open-post-1-688-792",
+    "min": {
+      "x": 792,
+      "y": 832,
+      "z": 256
+    },
+    "max": {
+      "x": 800,
+      "y": 848,
+      "z": 304
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  }
+]
