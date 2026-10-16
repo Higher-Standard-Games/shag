@@ -1,7 +1,7 @@
 import { PK3Index } from "../loader/pk3/PK3Index";
 import type { PointEntity } from "./EditorDocument";
 
-const MODEL_PATH = /^models\/[a-zA-Z0-9_./-]+\.(?:md3|glb|gltf|obj)$/i;
+const MODEL_PATH = /^models\/[a-zA-Z0-9_./-]+\.(?:md3|glb|gltf|obj|ase)$/i;
 
 /** Paths are compiler VFS paths, never URLs or paths on the author's disk. */
 export function validModelPath(path: string): boolean {
@@ -11,7 +11,7 @@ export function validModelPath(path: string): boolean {
 export function modelReferenceIssue(entity: PointEntity): string | null {
   if (entity.classname !== "misc_model") return null;
   const path = entity.keys.model ?? "";
-  if (!validModelPath(path)) return "Set a models/... path to an MD3, GLB, glTF, or OBJ asset.";
+  if (!validModelPath(path)) return "Set a models/... path to an MD3, GLB, glTF, OBJ, or ASE asset.";
   const scale = entity.keys.modelscale;
   if (scale !== undefined && (!Number.isFinite(Number(scale)) || Number(scale) <= 0)) {
     return "modelscale must be a positive number.";

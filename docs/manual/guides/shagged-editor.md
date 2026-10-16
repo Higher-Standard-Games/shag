@@ -73,6 +73,11 @@ Double-click a model, or press **Use** or `Enter`, to pick it. With a `misc_mode
 
 Placed models are drawn in the 3D view, and their boxes in every view follow the model's size, `modelscale` and `angle`. MD3 models show their image without shader effects; MakeBSP decides how the compiled model looks.
 
+Compiler-native ASE model references can also be placed and exported, including
+the Warfork map prop collection. ASE has no browser mesh preview; review its
+appearance, orientation and bounds in a compiled playtest. Use `collisiontype`
+according to the compiler's rules and prefer simple collision proxies for detail.
+
 ## Saving
 
 - **Save Draft** (`Ctrl+S`) keeps the map in the browser's local storage. **Local Drafts** reopens older ones. Drafts survive a page reload.

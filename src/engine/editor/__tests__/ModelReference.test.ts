@@ -47,15 +47,31 @@ describe("misc_model references", () => {
     ).toContain("modelscale");
   });
 
+  it("exports compiler-native ASE props and preserves their placement keys", () => {
+    const document = new EditorDocument();
+    document.transact((data) => data.entities.push(prop("models/mapobjects/wdm5/wdm5_WallLamp1.ase")));
+    expect(MapParser.parse(writeMap(document.snapshot()))[1].properties).toMatchObject({
+      model: "models/mapobjects/wdm5/wdm5_WallLamp1.ase",
+      angle: "90",
+      modelscale: "1.5",
+    });
+    expect(validModelPath("models/../outside.ase")).toBe(false);
+  });
+
   it("lists mounted model paths once and keeps loose paths enterable by hand", () => {
     const index = {
       findByPattern: () => [
         { file: "models/props/crate.md3", pk3: "a.pk3" },
         { file: "models/props/crate.md3", pk3: "b.pk3" },
         { file: "models/props/chair.glb", pk3: "a.pk3" },
+        { file: "models/props/lamp.ase", pk3: "a.pk3" },
         { file: "models/../bad.md3", pk3: "a.pk3" },
       ],
     };
-    expect(indexedModelPaths(index as never)).toEqual(["models/props/chair.glb", "models/props/crate.md3"]);
+    expect(indexedModelPaths(index as never)).toEqual([
+      "models/props/chair.glb",
+      "models/props/crate.md3",
+      "models/props/lamp.ase",
+    ]);
   });
 });
