@@ -21,6 +21,7 @@ import {
   type TraceOptions,
   type TraceResult,
 } from "./CollisionBackend";
+import { type CollisionBounds, CollisionSpatialIndex, planeBounds } from "./CollisionSpatialIndex";
 import { buildFacetPlanes, type FacetPlane } from "./FacetBevels";
 import { PatchTessellator } from "./PatchTessellator";
 import { PLAYER_HEIGHT, PLAYER_MINS_Z, PLAYER_RADIUS, STEPSIZE } from "./PlayerPhysicsConstants";
@@ -169,6 +170,8 @@ export class SweepCollisionBackend implements CollisionBackend {
   private faceVisits = new Uint32Array(0);
   private traceGeneration = 0;
   private collisionTextures: CollisionTexture[] = [];
+  private brushBounds: (CollisionBounds | null)[] = [];
+  private clipIndex: CollisionSpatialIndex | null = null;
 
   // Pooled trace state to avoid per-trace allocations
   private readonly _pooledState: TraceState = {
@@ -240,6 +243,16 @@ export class SweepCollisionBackend implements CollisionBackend {
       return { name: texture.name || "", contentFlags: flags, surfaceFlags, collisionMask };
     });
 
+    this.brushBounds = bsp.brushes.map((brush) => {
+      const planes: number[] = [];
+      for (let i = 0; i < brush.numSides; i++) {
+        const side = bsp.brushSides[brush.firstSide + i];
+        const plane = side && bsp.planes[side.planeIndex];
+        if (!plane) return null;
+        planes.push(...plane.normal, plane.dist);
+      }
+      return planeBounds(planes);
+    });
     this.processFaces();
     this.buildClipBrushIndex();
     this.buildLadderBrushIndex();
@@ -327,6 +340,20 @@ export class SweepCollisionBackend implements CollisionBackend {
         this.clipBrushIndices.push(bi);
       }
     }
+    this.clipIndex = new CollisionSpatialIndex(
+      this.clipBrushIndices.map((id) => ({ id, bounds: this.brushBounds[id] })),
+    );
+  }
+
+  private sweptBounds(state: TraceState): CollisionBounds {
+    return [
+      Math.min(state.start[0], state.end[0]) + state.mins[0],
+      Math.min(state.start[1], state.end[1]) + state.mins[1],
+      Math.min(state.start[2], state.end[2]) + state.mins[2],
+      Math.max(state.start[0], state.end[0]) + state.maxs[0],
+      Math.max(state.start[1], state.end[1]) + state.maxs[1],
+      Math.max(state.start[2], state.end[2]) + state.maxs[2],
+    ];
   }
 
   private processFaces(): void {
@@ -960,7 +987,7 @@ export class SweepCollisionBackend implements CollisionBackend {
     const wantsPlayerclip = (state.contentMask & ContentFlags.PLAYERCLIP) !== 0;
     if (!wantsPlayerclip) return;
 
-    for (const bi of this.clipBrushIndices) {
+    for (const bi of this.clipIndex?.query(this.sweptBounds(state)) ?? this.clipBrushIndices) {
       if (this.brushVisits[bi] === this.traceGeneration) continue;
       this.brushVisits[bi] = this.traceGeneration;
       const brush = this.bsp.brushes[bi];
@@ -983,6 +1010,17 @@ export class SweepCollisionBackend implements CollisionBackend {
     state: TraceState,
   ): void {
     if (!this.bsp) return;
+
+    const bounds = this.brushBounds[brushIndex];
+    if (bounds) {
+      for (let axis = 0; axis < 3; axis++) {
+        if (
+          Math.max(state.start[axis], state.end[axis]) + state.maxs[axis] < bounds[axis] ||
+          Math.min(state.start[axis], state.end[axis]) + state.mins[axis] > bounds[axis + 3]
+        )
+          return;
+      }
+    }
 
     let enterFraction = -1.0;
     let leaveFraction = 1.0;
@@ -1589,6 +1627,8 @@ export class SweepCollisionBackend implements CollisionBackend {
       backendStats: {
         brushCount: this.bsp?.brushes?.length || 0,
         isFBSP: this.isFBSP ? 1 : 0,
+        boundedBrushCount: this.brushBounds.filter(Boolean).length,
+        clipBrushCount: this.clipBrushIndices.length,
       },
     };
   }
@@ -1606,6 +1646,8 @@ export class SweepCollisionBackend implements CollisionBackend {
     this.faceCollisionMeshes = [];
     this.clipBrushIndices = [];
     this.collisionTextures = [];
+    this.brushBounds = [];
+    this.clipIndex = null;
     this.traceGeneration = 0;
     this.bsp = null;
     this.stats = { traceCount: 0, hitCount: 0, totalTraceTime: 0 };

@@ -411,6 +411,19 @@ async function soupBackend(shaderName: string): Promise<SweepCollisionBackend> {
 }
 
 describe("SweepCollisionBackend — per-query visits", () => {
+  it("spatially finds unreferenced clip brushes without scanning distant clips", async () => {
+    const bsp = buildBsp([
+      { ...FLOOR, name: "textures/common/fullclip" },
+      { min: [9000, 9000, 9000], max: [9100, 9100, 9100], name: "textures/common/fullclip" },
+    ]);
+    bsp.leafs[0].numLeafBrushes = 0;
+    const backend = new SweepCollisionBackend();
+    await backend.init(bsp);
+    const spy = vi.spyOn(backend as unknown as { traceBrush: (...args: unknown[]) => void }, "traceBrush");
+    expect(backend.trace(new Vector3(0, 100, 0), new Vector3(0, -100, 0)).fraction).toBeLessThan(1);
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
   it("checks face contents once before its facet loop", async () => {
     const backend = await soupBackend("textures/world");
     const spy = vi.spyOn(

@@ -221,8 +221,10 @@ npm run test:physics
 Sweep collision retrieves brush/face candidates from BSP leaves touched by the
 swept hull. Rendering PVS visibility is not a collision filter. Repeated leaf
 references are deduplicated per query, except embedded contacts whose recovery
-normal depends on visit order. Clip brushes also have a fallback scan for brushes
-not reached through the leaf lists.
+normal depends on visit order. Static brush queries reject nonoverlapping bounds
+before plane tests. The clip-brush fallback uses a spatial index, including
+brushes not reached through leaf lists. Bounds are derived from exact axial
+collision planes with a numeric margin; missing constraints remain unculled.
 
 The Node benchmark exercises `SweepCollisionBackend` at recorded player positions:
 
