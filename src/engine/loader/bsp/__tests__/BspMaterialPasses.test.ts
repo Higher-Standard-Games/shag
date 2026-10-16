@@ -69,3 +69,65 @@ it("loads ordered passes without whitening the base vertex colour or sharing mut
     engine.dispose();
   }
 });
+
+it("retains cutout blending and authored depth writes after BSP texture binding", async () => {
+  const engine = new NullEngine(),
+    scene = new Scene(engine);
+  const registry = Q3ShaderRegistry.getInstance();
+  registry.clear();
+  const [cable, cutout, additive, transparent] = parseShaderFile(`
+    qa/cable { surfaceparm nolightmap { map qa/cable rgbGen vertex alphaFunc GT0 blendFunc blend depthWrite } }
+    qa/cutout { { map qa/cutout alphaFunc GE128 } }
+    qa/additive { { map qa/additive alphaFunc GT0 blendFunc GL_SRC_ALPHA GL_ONE } }
+    qa/transparent { { map qa/transparent alphaFunc GT0 blendFunc blend } }
+  `);
+  const shaders = [cable, cutout, additive, transparent];
+  for (const shader of shaders)
+    (registry as unknown as { shaders: Map<string, Q3Shader> }).shaders.set(shader.name, shader);
+  const source = RawTexture.CreateRGBATexture(new Uint8Array([64, 32, 16, 128]), 1, 1, scene);
+  const loader = PK3TextureLoader.getInstance();
+  const init = vi.spyOn(loader, "init").mockImplementation(() => {});
+  const load = vi.spyOn(loader, "resolveAndLoadTexture").mockResolvedValue(source);
+  try {
+    const root = new Mesh("world", scene);
+    const factory = BspMeshBuilder as unknown as {
+      createMaterialFromProps(
+        name: string,
+        scene: Scene,
+        props: ReturnType<typeof registry.resolveMaterialProps>,
+      ): StandardMaterial;
+    };
+    const meshes = shaders.map((shader, i) => {
+      const mesh = CreatePlane(`bsp_tex_${i}`, {}, scene);
+      const props = registry.resolveMaterialProps(shader.name);
+      mesh.parent = root;
+      mesh.metadata = { textureName: shader.name, lightmapIndex: -1, usesVertexRgb: true };
+      mesh.setVerticesData("color", Array.from({ length: 4 }, () => [0.2, 0.4, 0.6, 1]).flat());
+      mesh.material = factory.createMaterialFromProps(`mat_${i}`, scene, props);
+      expect(mesh.material.transparencyMode).toBe(i === 1 ? 1 : 3);
+      return mesh;
+    });
+    const result = {
+      worldMesh: root,
+      textureGroups: shaders.map((s, i) => ({ textureIndex: i, textureName: s.name })),
+      lightmapTextures: [],
+      shaderRegistry: registry,
+    } as unknown as BspMeshBuildResult;
+    await BspMeshBuilder.applyTextures(result, result.bspData, scene);
+    const materials = meshes.map((m) => m.material as StandardMaterial);
+    expect(materials.map((m) => m.transparencyMode)).toEqual([3, 1, 3, 3]);
+    expect(materials.map((m) => m.needAlphaBlending())).toEqual([true, false, true, true]);
+    expect(materials.map((m) => m.needAlphaTesting())).toEqual([true, true, true, true]);
+    expect(materials.map((m) => m.forceDepthWrite)).toEqual([true, false, false, false]);
+    expect(materials.map((m) => m.alphaMode)).toEqual([2, 0, 1, 2]);
+    expect(materials[0].disableDepthWrite).toBe(false);
+    expect(materials[2].disableDepthWrite).toBe(true);
+    expect(meshes[0].getVerticesData("color")?.slice(0, 4)).toEqual([0.2, 0.4, 0.6, 1]);
+  } finally {
+    init.mockRestore();
+    load.mockRestore();
+    registry.clear();
+    scene.dispose();
+    engine.dispose();
+  }
+});

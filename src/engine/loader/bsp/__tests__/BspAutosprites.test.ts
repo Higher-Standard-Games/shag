@@ -7,6 +7,7 @@ import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import { Scene } from "@babylonjs/core/scene";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BspMeshBuilder, type BspMeshBuildResult } from "../BspMeshBuilder";
+import { createAutosprite2Geometry, updateAutosprite2Geometry } from "../mesh/autosprite2";
 
 let engine: NullEngine;
 let scene: Scene;
@@ -26,7 +27,8 @@ function billboard(isAutosprite2 = false) {
   const worldMesh = new Mesh("world", scene);
   const mesh = new Mesh("sprite", scene);
   mesh.parent = worldMesh;
-  mesh.setVerticesData(VertexBuffer.PositionKind, [-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0], true);
+  const h = isAutosprite2 ? 2 : 1;
+  mesh.setVerticesData(VertexBuffer.PositionKind, [-1, -h, 0, 1, -h, 0, 1, h, 0, -1, h, 0], true);
   mesh.setIndices([0, 1, 2, 0, 2, 3]);
   const result = {
     worldMesh,
@@ -35,7 +37,7 @@ function billboard(isAutosprite2 = false) {
         mesh,
         center: [0, 0, 0],
         halfWidth: 1,
-        halfHeight: 1,
+        halfHeight: h,
         isAutosprite2,
         vertexOffsets: [
           [-1, -1],
@@ -99,19 +101,20 @@ describe("cached BSP billboards", () => {
   it.each([false, true])("preserves full/cylindrical billboard geometry (autosprite2=%s)", (cylindrical) => {
     const { mesh, result } = billboard(cylindrical);
     BspMeshBuilder.updateAutosprites(result, new Vector3(10, 0, 0));
-    const z = cylindrical ? -1 : 1;
+    const z = 1,
+      h = cylindrical ? 2 : 1;
     expect(Array.from(mesh.getVerticesData(VertexBuffer.PositionKind)!)).toEqual([
       0,
-      -1,
+      -h,
       z,
       0,
-      -1,
+      -h,
       -z,
       0,
-      1,
+      h,
       -z,
       0,
-      1,
+      h,
       z,
     ]);
     expect(Array.from(mesh.getIndices()!)).toEqual([0, 1, 2, 0, 2, 3]);
@@ -192,5 +195,70 @@ describe("map-owned billboard callbacks", () => {
     expect(second.upload).toHaveBeenCalledTimes(1);
     scene.dispose();
     expect(count()).toBe(0);
+  });
+});
+
+describe("Qfusion autosprite2 authored axes", () => {
+  const cases = [
+    { name: "vertical", up: [0, 0, 1], right: [1, 0, 0] },
+    { name: "horizontal", up: [1, 0, 0], right: [0, 1, 0] },
+    { name: "tilted", up: [1, 2, 3], right: [2, -1, 0] },
+  ];
+  const convert = (v: Vector3) => new Vector3(v.x, v.z, v.y);
+  for (const { name, up: u, right: r } of cases) {
+    it(`retains the ${name} long axis, centre and UV orientation across views`, () => {
+      const up = Vector3.FromArray(u).normalize(),
+        right = Vector3.FromArray(r).normalize();
+      const center = new Vector3(13, -7, 23);
+      const normal = Vector3.Cross(right, up).normalize();
+      const signs = [
+        [-1, -3],
+        [1, -3],
+        [1, 3],
+        [-1, 3],
+      ];
+      const original = signs.flatMap(([x, y]) => convert(center.add(right.scale(x)).add(up.scale(y))).asArray());
+      const geometry = createAutosprite2Geometry(original, [0, 2, 1, 0, 3, 2]);
+      const positions = [...original],
+        normals = Array(12).fill(0);
+      expect(geometry.quads).toHaveLength(1);
+      const referenceEye = convert(center.add(normal.scale(10)));
+      updateAutosprite2Geometry(geometry, positions, normals, referenceEye);
+      positions.forEach((v, i) => {
+        expect(v).toBeCloseTo(original[i]);
+      });
+      // Move along the fixed axis as well: only the transverse view matters.
+      const sideEye = convert(center.add(right.scale(10)).add(up.scale(17)));
+      updateAutosprite2Geometry(geometry, positions, normals, sideEye);
+      const newRight = Vector3.Cross(up, right);
+      signs.forEach(([x, y], i) => {
+        const expected = convert(center.add(newRight.scale(x)).add(up.scale(y)));
+        expected.asArray().forEach((v, j) => {
+          expect(positions[i * 3 + j]).toBeCloseTo(v);
+        });
+      });
+      convert(right)
+        .asArray()
+        .forEach((v, i) => {
+          expect(normals[i]).toBeCloseTo(v);
+        });
+      expect(updateAutosprite2Geometry(geometry, positions, normals, convert(center.add(up.scale(20))))).toBe(false);
+      expect(positions.every(Number.isFinite)).toBe(true);
+      updateAutosprite2Geometry(geometry, positions, normals, referenceEye);
+      positions.forEach((v, i) => {
+        expect(v).toBeCloseTo(original[i]);
+      });
+    });
+  }
+  it("handles distinct quads independently and ignores degenerate triangles", () => {
+    const original = [-1, -3, 0, 1, -3, 0, 1, 3, 0, -1, 3, 0, 7, 0, -1, 13, 0, -1, 13, 0, 1, 7, 0, 1];
+    const geometry = createAutosprite2Geometry(original, [0, 2, 1, 0, 3, 2, 4, 6, 5, 4, 7, 6]);
+    expect(geometry.quads).toHaveLength(2);
+    expect(Math.abs(geometry.quads[0].axis[1])).toBe(1);
+    expect(Math.abs(geometry.quads[1].axis[0])).toBe(1);
+    const positions = [...original];
+    updateAutosprite2Geometry(geometry, positions, null, new Vector3(5, 10, 10));
+    expect(positions.every(Number.isFinite)).toBe(true);
+    expect(createAutosprite2Geometry([0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 1, 2, 0, 2, 1]).quads).toHaveLength(0);
   });
 });

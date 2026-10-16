@@ -53,6 +53,7 @@ export interface BspMeshBuildResult {
     halfWidth: number;
     halfHeight: number;
     isAutosprite2: boolean;
+    axisGeometry?: import("./autosprite2").Autosprite2Geometry;
     // Normalized offsets for each vertex: [rightFrac, upFrac] where -1 to 1 maps to -halfWidth/halfHeight to +halfWidth/halfHeight
     vertexOffsets: [number, number][];
   }[];

@@ -22,7 +22,7 @@ import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
 import type { Scene } from "@babylonjs/core/scene";
 import { applySafeMaxSimultaneousLights } from "../../lighting/DynamicLightSafety";
 import { RenderVars } from "../../rendering/RenderVars";
-import { q3AlphaMode } from "../shader/Q3Blend";
+import { configureQ3Alpha, q3AlphaMode } from "../shader/Q3Blend";
 import { configureQ3DistanceRamp } from "../shader/Q3DistanceRampPlugin";
 import { Q3ShaderRegistry } from "../shader/Q3ShaderRegistry";
 import { DEFAULT_SKY_HEIGHT, type ResolvedMaterialProps } from "../shader/Q3ShaderTypes";
@@ -32,6 +32,7 @@ import { configureBspBakedLighting } from "./BspBakedLightingPlugin";
 import { bspLightingProfile, scaleBspLighting } from "./BspLightingProfile";
 import type { BspFile } from "./BspLoader";
 import { classifyLiquids, DEFAULT_LIQUID_OVERRIDES, liquidKindFromSurfaceParms } from "./LiquidClassifier";
+import { createAutosprite2Geometry, updateAutosprite2Geometry } from "./mesh/autosprite2";
 import { buildMeshFace, buildPatchFace, buildPolygonFace } from "./mesh/faceBuilders";
 import { createRadialGradientTexture, createSolidColorTexture } from "./mesh/fallbackTextures";
 import { createBspLightmapTexture, neutralizeFallbackVertexRgb, scaleBspVertexColors } from "./mesh/lightmaps";
@@ -772,6 +773,9 @@ export class BspMeshBuilder {
         halfWidth,
         halfHeight,
         isAutosprite2: sprite.shaderProps.autosprite2,
+        axisGeometry: sprite.shaderProps.autosprite2
+          ? createAutosprite2Geometry(sprite.positions, sprite.indices)
+          : undefined,
         vertexOffsets,
       });
     }
@@ -900,7 +904,7 @@ export class BspMeshBuilder {
   /**
    * Update autosprite meshes to face the camera (call each frame)
    * Q3 autosprite: full billboard, always faces camera
-   * Q3 autosprite2: cylindrical billboard, rotates around Y axis only
+   * Q3 autosprite2: rotates authored quads around their longest edge axis
    * Returns the number of position-buffer uploads, for headless auditing.
    */
   public static updateAutosprites(result: BspMeshBuildResult, cameraPosition: Vector3): number {
@@ -925,6 +929,20 @@ export class BspMeshBuilder {
       )
         continue;
 
+      if (isAutosprite2) {
+        const positions = mesh.getVerticesData(VertexBuffer.PositionKind);
+        if (!positions) continue;
+        sprite.axisGeometry ??= createAutosprite2Geometry(positions, mesh.getIndices() ?? []);
+        const normals = mesh.getVerticesData(VertexBuffer.NormalKind);
+        if (!updateAutosprite2Geometry(sprite.axisGeometry, positions, normals, cameraPosition)) continue;
+        mesh.updateVerticesData(VertexBuffer.PositionKind, positions);
+        if (normals) mesh.updateVerticesData(VertexBuffer.NormalKind, normals);
+        mesh.refreshBoundingInfo();
+        BspMeshBuilder.autospriteCameraPositions.set(mesh, [cameraPosition.x, cameraPosition.y, cameraPosition.z]);
+        uploads++;
+        continue;
+      }
+
       // Calculate direction from sprite center to camera
       const cx = center[0],
         cy = center[1],
@@ -944,26 +962,7 @@ export class BspMeshBuilder {
       let rightX: number, rightY: number, rightZ: number;
       let upX: number, upY: number, upZ: number;
 
-      if (isAutosprite2) {
-        // Autosprite2: cylindrical billboard (rotate around Y axis only)
-        // Right vector is perpendicular to camera direction in XZ plane
-        const horizDist = Math.sqrt(dx * dx + dz * dz);
-        if (horizDist < 0.001) {
-          // Looking straight up/down, use default right
-          rightX = 1;
-          rightY = 0;
-          rightZ = 0;
-        } else {
-          // Right = cross(up, forward) where up = (0,1,0)
-          rightX = -dz / horizDist;
-          rightY = 0;
-          rightZ = dx / horizDist;
-        }
-        // Up is always world up for autosprite2
-        upX = 0;
-        upY = 1;
-        upZ = 0;
-      } else {
+      {
         // Autosprite: full billboard (face camera on all axes)
         // Up vector: world up projected onto plane perpendicular to view direction
         // Right = cross(worldUp, viewDir), then Up = cross(viewDir, right)
@@ -1020,15 +1019,12 @@ export class BspMeshBuilder {
       mesh.updateVerticesData(VertexBuffer.PositionKind, positions);
       const normals = mesh.getVerticesData(VertexBuffer.NormalKind);
       if (normals) {
-        const length = isAutosprite2 ? Math.hypot(dx, dz) : 1;
-        if (length > 0.001) {
-          for (let v = 0; v < numVerts; v++) {
-            normals[v * 3] = dx / length;
-            normals[v * 3 + 1] = isAutosprite2 ? 0 : dy;
-            normals[v * 3 + 2] = dz / length;
-          }
-          mesh.updateVerticesData(VertexBuffer.NormalKind, normals);
+        for (let v = 0; v < numVerts; v++) {
+          normals[v * 3] = dx;
+          normals[v * 3 + 1] = dy;
+          normals[v * 3 + 2] = dz;
         }
+        mesh.updateVerticesData(VertexBuffer.NormalKind, normals);
       }
       if (previous) {
         previous[0] = cameraPosition.x;
@@ -1515,12 +1511,9 @@ export class BspMeshBuilder {
               continue;
             }
 
+            configureQ3Alpha(mat, shaderProps);
             if (shaderProps.alphaCutoff !== undefined && shaderProps.alphaCutoff > 0) {
-              // Alpha testing mode - needs texture to be loaded
-              mat.transparencyMode = 1; // MATERIAL_ALPHATEST
-              mat.alphaCutOff = shaderProps.alphaCutoff;
-              mat.useAlphaFromDiffuseTexture = true;
-              // Force material to recognize the new texture's alpha
+              // Cutout stages can also blend their surviving texture alpha.
               texture.hasAlpha = true;
             } else if (shaderProps.alphaMode === "blend") {
               mat.transparencyMode = 2; // MATERIAL_ALPHABLEND
@@ -1885,52 +1878,11 @@ export class BspMeshBuilder {
     mat.backFaceCulling = props.backFaceCulling;
     mat.twoSidedLighting = props.twoSidedLighting;
 
-    // Alpha testing (for things like plant leaves with alpha cutout)
-    if (props.alphaCutoff !== undefined && props.alphaCutoff > 0) {
-      // Use alpha test mode - pixels below cutoff are discarded
-      mat.transparencyMode = 1; // MATERIAL_ALPHATEST
-      mat.alphaCutOff = props.alphaCutoff;
-      mat.useAlphaFromDiffuseTexture = true;
-      // Don't set alphaMode for alpha test - it uses the cutoff instead
-    } else {
-      // Alpha blending modes
-      switch (props.alphaMode) {
-        case "add":
-          // Additive blending (GL_ONE, GL_ONE)
-          mat.transparencyMode = 2; // MATERIAL_ALPHABLEND — enables alpha pipeline
-          mat.alphaMode = q3AlphaMode(props);
-          mat.alpha = 1;
-          // Make emissive for additive glow effect
-          mat.emissiveColor = new Color3(1, 1, 1);
-          mat.diffuseColor = new Color3(0, 0, 0);
-          mat.useAlphaFromDiffuseTexture = true;
-          break;
-        case "blend":
-          // Standard alpha blending
-          mat.transparencyMode = 2; // MATERIAL_ALPHABLEND
-          mat.alphaMode = Constants.ALPHA_COMBINE;
-          mat.alpha = 1;
-          mat.useAlphaFromDiffuseTexture = true;
-          break;
-        case "multiply":
-          // Multiply/filter blending (GL_DST_COLOR, GL_ZERO) - for decals
-          // Multiplication uses destination RGB, independently of source alpha.
-          mat.transparencyMode = 2; // MATERIAL_ALPHABLEND
-          mat.alphaMode = Constants.ALPHA_MULTIPLY;
-          mat.alpha = 1;
-          mat.useAlphaFromDiffuseTexture = true;
-          break;
-        default:
-          // Opaque
-          mat.transparencyMode = 0; // MATERIAL_OPAQUE
-          mat.alphaMode = Constants.ALPHA_DISABLE;
-          break;
-      }
+    configureQ3Alpha(mat, props);
+    if (props.alphaMode === "add") {
+      mat.emissiveColor = new Color3(1, 1, 1);
+      mat.diffuseColor = new Color3(0, 0, 0);
     }
-
-    // Depth write
-    mat.disableDepthWrite = !props.depthWrite;
-
     // Cap light slots to avoid shader uniform block overflow (WebGL2 limit)
     applySafeMaxSimultaneousLights(mat);
 

@@ -65,6 +65,12 @@ projection uses the deformed surface normal; billboard normals turn with their
 geometry. These ramps depend on camera position rather than elapsed time.
 Custom shader overlays outside the Standard/PBR path do not implement this ramp.
 
+For BSP `autosprite2`, each authored quad rotates around its own longest edge
+axis. The camera-facing direction is projected perpendicular to that axis;
+the original centre, length and vertex/UV association are retained. This covers
+horizontal and tilted halos as well as vertical cones. A view directly along
+the axis retains the previous orientation, and normals/bounds follow the deform.
+
 `softParticle` fades effects against opaque scene depth, including alpha-tested
 cutouts. It uses Qfusion's softness curve and default scale of 0.02 (full
 strength at 50 world units of separation). Source-alpha blends fade their alpha;
@@ -93,6 +99,10 @@ directions on floors and walls.
 alpha. The explicit `GL_SRC_ALPHA GL_ONE` form attenuates the source by alpha.
 `blendFunc blend` uses texture alpha multiplied by authored vertex alpha;
 `blendFunc filter` multiplies destination RGB by the source image.
+On BSP and MD3 Standard materials, `alphaFunc` and `blendFunc` apply together:
+the cutoff rejects pixels, then the surviving pixels retain their blend alpha.
+Cutout-only stages remain alpha-tested without blending. An explicit stage
+`depthWrite` also writes depth from the transparent queue.
 FBSP vertex RGB receives the map lighting gain and hue normalization while
 vertex alpha remains unchanged. Lightmapped vertex-coloured material stages
 use direct baked lighting rather than an additional synthetic fill multiplier.

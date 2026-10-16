@@ -444,7 +444,7 @@ export interface ResolvedMaterialProps {
   /** Autosprite - full billboard, always faces camera */
   autosprite: boolean;
 
-  /** Autosprite2 - cylindrical billboard, rotates around vertical axis only */
+  /** Autosprite2 - billboard rotation constrained to each quad's longest edge axis. */
   autosprite2: boolean;
 
   /** Texture coordinate generation mode (environment mapping, etc.) */

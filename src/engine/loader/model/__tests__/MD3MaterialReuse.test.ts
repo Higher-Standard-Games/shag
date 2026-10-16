@@ -50,6 +50,20 @@ function texture(): RawTexture {
 }
 
 describe("MD3Loader material reuse", () => {
+  it("retains alpha testing, alpha blending and explicit depth writes together", () => {
+    vi.mocked(Q3ShaderRegistry.getInstance().resolveMaterialProps).mockReturnValue({
+      alphaMode: "blend",
+      alphaCutoff: 0.01,
+      isTransparent: true,
+      depthWrite: true,
+      primaryStage: { map: "textures/cable", depthWrite: true },
+    } as never);
+    const { material } = createMaterial(SHADER, "alpha_cable");
+    expect(material.transparencyMode).toBe(3);
+    expect(material.needAlphaBlending()).toBe(true);
+    expect(material.forceDepthWrite).toBe(true);
+    expect(material.disableDepthWrite).toBe(false);
+  });
   it("uses authored ONE/ONE emission without a white constant or alpha attenuation", async () => {
     const image = texture();
     vi.mocked(PK3TextureLoader.getInstance().resolveAndLoadTexture).mockResolvedValue(image);
