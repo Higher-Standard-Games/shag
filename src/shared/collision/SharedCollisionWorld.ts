@@ -91,13 +91,10 @@ export class SharedCollisionWorld implements CollisionWorld {
     const result = this.backend.stepSlideMove(start, movement, traceOpts);
 
     // ── GROUND DETECTION ──
-    // Three-path system:
-    //   Path 1: downward movement was blocked → grounded (original)
-    //   Path 2: nearly level movement → trace for floor (original)
-    //   Path 3: uphill movement that HIT something → on a ramp (new, for ramp walking)
-    // The unconditional trace broke crouch slides: during small bumps, the player
-    // lifts 0.5u above floor (movement.y > 0.1), but a 2u trace still found the
-    // floor → falsely grounded → friction oscillation → shaking + camera loss.
+    // Downward blocking and nearly level motion use the floor checks below.
+    // Uphill motion can remain tangent to a ramp without hitting it this frame.
+    // Nearby support alone is insufficient: jumps and slide bumps must be
+    // moving along/into the support plane, rather than away from it.
     const expectedYMove = movement.y;
     const actualYMove = result.endPos.y - start.y;
     let grounded = false;
@@ -110,13 +107,15 @@ export class SharedCollisionWorld implements CollisionWorld {
       const groundCheckEnd = { x: result.endPos.x, y: result.endPos.y - 2, z: result.endPos.z };
       const groundTrace = this.backend.trace(result.endPos, groundCheckEnd, traceOpts);
       grounded = groundTrace.fraction < 1.0;
-    } else if (movement.y > 0.1 && result.hitCount > 0) {
-      // Path 3: moving uphill AND hit a surface → on a ramp
-      // hitCount > 0 distinguishes ramp walking (hit the ramp) from
-      // jumping/bumps (no collision, just moving through air)
+    } else if (movement.y > 0.1) {
       const groundCheckEnd = { x: result.endPos.x, y: result.endPos.y - 2, z: result.endPos.z };
       const groundTrace = this.backend.trace(result.endPos, groundCheckEnd, traceOpts);
-      grounded = groundTrace.fraction < 1.0;
+      const normal = groundTrace.normal;
+      if (groundTrace.fraction < 1 && normal && normal.y >= 0.7) {
+        const separation = result.velocity.x * normal.x + result.velocity.y * normal.y + result.velocity.z * normal.z;
+        // Backend velocity is a displacement; allow only a small clipping error.
+        grounded = separation <= 0.01;
+      }
     }
 
     // ── VELOCITY CONVERSION ──

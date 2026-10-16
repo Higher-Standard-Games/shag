@@ -12,6 +12,11 @@ SHAG combines an engine character/collision layer with an FPS movement profile a
 
 Client prediction and the authoritative server should consume the same rule inputs. Do not implement a latency-sensitive movement rule only in the browser controller.
 
+The shared collision world retains uphill support when a short downward hull
+probe finds a walkable plane and resolved movement is tangent to or into that
+plane. A fresh impact is not required each tick. Movement separating from the
+plane remains airborne, including jumps and upward slide bumps.
+
 ## Generic controller
 
 ```ts
