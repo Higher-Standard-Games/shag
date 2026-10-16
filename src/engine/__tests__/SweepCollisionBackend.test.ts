@@ -411,6 +411,26 @@ async function soupBackend(shaderName: string): Promise<SweepCollisionBackend> {
 }
 
 describe("SweepCollisionBackend — per-query visits", () => {
+  it("checks face contents once before its facet loop", async () => {
+    const backend = await soupBackend("textures/world");
+    const spy = vi.spyOn(
+      backend as unknown as { shouldCollideWith: (...args: unknown[]) => boolean },
+      "shouldCollideWith",
+    );
+    backend.trace(new Vector3(0, 100, 0), new Vector3(0, -100, 0));
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([0x4000, 0x100])("keeps excluded face flags out of the facet loop (%i)", async (surfaceFlags) => {
+    const bsp = buildSoupBsp("textures/world");
+    bsp.textures[0].surfaceFlags = surfaceFlags;
+    const backend = new SweepCollisionBackend();
+    await backend.init(bsp);
+    const spy = vi.spyOn(backend as unknown as { traceFacet: (...args: unknown[]) => void }, "traceFacet");
+    expect(backend.trace(new Vector3(0, 100, 0), new Vector3(0, -100, 0)).fraction).toBe(1);
+    expect(spy).not.toHaveBeenCalled();
+  });
+
   it("retains repeated embedded-face visits for recovery-normal ordering", async () => {
     const backend = await soupBackend("textures/world");
     const spy = vi.spyOn(backend as unknown as { traceFacet: (...args: unknown[]) => void }, "traceFacet");

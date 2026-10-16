@@ -65,6 +65,13 @@ const SurfaceFlags = {
 // Default content mask for player collision
 const PLAYER_CONTENTS = ContentFlags.SOLID | ContentFlags.PLAYERCLIP;
 
+interface CollisionTexture {
+  name: string;
+  contentFlags: number;
+  surfaceFlags: number;
+  collisionMask: number;
+}
+
 // Face collision geometry
 export interface FaceCollisionGeometry {
   vertices: Vector3[];
@@ -161,6 +168,7 @@ export class SweepCollisionBackend implements CollisionBackend {
   private brushVisits = new Uint32Array(0);
   private faceVisits = new Uint32Array(0);
   private traceGeneration = 0;
+  private collisionTextures: CollisionTexture[] = [];
 
   // Pooled trace state to avoid per-trace allocations
   private readonly _pooledState: TraceState = {
@@ -215,6 +223,22 @@ export class SweepCollisionBackend implements CollisionBackend {
     this.brushVisits = new Uint32Array(bsp.brushes.length);
     this.faceVisits = new Uint32Array(bsp.faces.length);
     this.traceGeneration = 0;
+    this.collisionTextures = bsp.textures.map((texture) => {
+      const name = (texture.name || "").toLowerCase();
+      const flags = texture.contentFlags || 0;
+      const surfaceFlags = texture.surfaceFlags || 0;
+      let collisionMask = 0;
+      if (!(surfaceFlags & (SurfaceFlags.NONSOLID | SurfaceFlags.HINT))) {
+        if (
+          flags & ContentFlags.SOLID ||
+          name.includes("fullclip") ||
+          (name.includes("clip") && !name.includes("playerclip"))
+        )
+          collisionMask |= ContentFlags.SOLID;
+        if (flags & ContentFlags.PLAYERCLIP || name.includes("playerclip")) collisionMask |= ContentFlags.PLAYERCLIP;
+      }
+      return { name: texture.name || "", contentFlags: flags, surfaceFlags, collisionMask };
+    });
 
     this.processFaces();
     this.buildClipBrushIndex();
@@ -781,7 +805,8 @@ export class SweepCollisionBackend implements CollisionBackend {
         continue;
       }
 
-      const texture = this.bsp.textures[this.bsp.faces[faceIndex].textureIndex];
+      const texture = this.collisionTextures[this.bsp.faces[faceIndex].textureIndex];
+      if (!texture || !this.shouldCollideWith(texture, state.contentMask)) continue;
 
       // Sweep each triangle as a convex facet. Testing the triangle's own plane
       // alone leaves the box unblocked near every edge, which is how a hull
@@ -817,7 +842,7 @@ export class SweepCollisionBackend implements CollisionBackend {
     texture: { name: string; contentFlags: number; surfaceFlags: number } | undefined,
     state: TraceState,
   ): void {
-    if (!texture || !this.shouldCollideWith(texture, state.contentMask)) return;
+    if (!texture) return;
 
     let enterFraction = -1.0;
     let leaveFraction = 1.0;
@@ -911,75 +936,18 @@ export class SweepCollisionBackend implements CollisionBackend {
   /**
    * Check if we should collide with this brush based on content flags AND texture name
    */
-  private shouldCollideWith(
-    texture: { name: string; contentFlags: number; surfaceFlags: number },
-    contentMask: number,
-  ): boolean {
-    const contentFlags = texture.contentFlags;
-    const surfaceFlags = texture.surfaceFlags;
-    const name = (texture.name || "").toLowerCase();
-
-    // Skip non-solid surfaces
-    if (surfaceFlags & SurfaceFlags.NONSOLID) return false;
-
-    // Skip hint brushes
-    if (surfaceFlags & SurfaceFlags.HINT) return false;
-
-    // NOTE: CONTENTS_DETAIL is NOT a non-solid flag. Detail brushes are fully solid
-    // in Q3/Warsow — "detail" only excludes a brush from BSP/vis portalization, not
-    // from collision. Skipping them here made SOLID|DETAIL geometry (e.g. wbomb1's
-    // and wdm12's glass panels / railings — SOLID|DETAIL|TRANS) walk-through. Their
-    // SOLID content is honored by the checks below.
-
-    // Check by content flags
-    const hasSolid = (contentFlags & ContentFlags.SOLID) !== 0;
-    const hasPlayerclip = (contentFlags & ContentFlags.PLAYERCLIP) !== 0;
-    const wantsSolid = (contentMask & ContentFlags.SOLID) !== 0;
-    const wantsPlayerclip = (contentMask & ContentFlags.PLAYERCLIP) !== 0;
-
-    // Also check by texture name (playerclip/fullclip are often identified by name)
-    const isFullclipByName = name.includes("fullclip") || (name.includes("clip") && !name.includes("playerclip"));
-    const isPlayerclipByName = name.includes("playerclip");
-
-    // Fullclip and playerclip should both block players
-    if (wantsSolid && hasSolid) return true;
-    if (wantsSolid && isFullclipByName) return true;
-    if (wantsPlayerclip && hasPlayerclip) return true;
-    if (wantsPlayerclip && isPlayerclipByName) return true;
-
-    return false;
+  private shouldCollideWith(texture: CollisionTexture, contentMask: number): boolean {
+    return (texture.collisionMask & contentMask) !== 0;
   }
 
-  /**
-   * Get texture info for a brush
-   */
-  private getBrushTexture(brush: BspBrush): { name: string; contentFlags: number; surfaceFlags: number } | null {
+  /** Immutable texture properties shared by brush and face queries. */
+  private getBrushTexture(brush: BspBrush): CollisionTexture | null {
     if (!this.bsp) return null;
-
-    // Try brush.shaderIndex first
-    let texture = this.bsp.textures[brush.shaderIndex];
-    if (texture) {
-      return {
-        name: texture.name || "",
-        contentFlags: texture.contentFlags || 0,
-        surfaceFlags: texture.surfaceFlags || 0,
-      };
-    }
-
-    // Fallback to first brush side
-    const firstSide = this.bsp.brushSides[brush.firstSide];
-    if (firstSide) {
-      texture = this.bsp.textures[firstSide.shaderIndex];
-      if (texture) {
-        return {
-          name: texture.name || "",
-          contentFlags: texture.contentFlags || 0,
-          surfaceFlags: texture.surfaceFlags || 0,
-        };
-      }
-    }
-
-    return null;
+    return (
+      this.collisionTextures[brush.shaderIndex] ??
+      this.collisionTextures[this.bsp.brushSides[brush.firstSide]?.shaderIndex] ??
+      null
+    );
   }
 
   /**
@@ -1637,6 +1605,7 @@ export class SweepCollisionBackend implements CollisionBackend {
     this.faceVisits = new Uint32Array(0);
     this.faceCollisionMeshes = [];
     this.clipBrushIndices = [];
+    this.collisionTextures = [];
     this.traceGeneration = 0;
     this.bsp = null;
     this.stats = { traceCount: 0, hitCount: 0, totalTraceTime: 0 };
