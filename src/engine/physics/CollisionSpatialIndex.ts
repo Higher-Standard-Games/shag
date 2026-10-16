@@ -1,7 +1,12 @@
 /** Q3-space conservative collision bounds. Missing constraints stay unculled. */
 export type CollisionBounds = [number, number, number, number, number, number];
 
-export function planeBounds(planes: ArrayLike<number>, first = 0, last = planes.length / 4): CollisionBounds | null {
+export function planeBounds(
+  planes: ArrayLike<number>,
+  first = 0,
+  last = planes.length / 4,
+  allowPartial = false,
+): CollisionBounds | null {
   const bounds: CollisionBounds = [-Infinity, -Infinity, -Infinity, Infinity, Infinity, Infinity];
   for (let i = first; i < last; i++) {
     const n = [planes[i * 4], planes[i * 4 + 1], planes[i * 4 + 2]];
@@ -16,7 +21,9 @@ export function planeBounds(planes: ArrayLike<number>, first = 0, last = planes.
       else bounds[axis] = Math.max(bounds[axis], limit);
     }
   }
-  return bounds.every(Number.isFinite) && bounds.slice(0, 3).every((v, i) => v <= bounds[i + 3]) ? bounds : null;
+  const valid = bounds.slice(0, 3).every((v, i) => v <= bounds[i + 3]);
+  const constrained = allowPartial ? bounds.some(Number.isFinite) : bounds.every(Number.isFinite);
+  return valid && constrained ? bounds : null;
 }
 
 export function boundsOverlap(a: CollisionBounds, b: CollisionBounds): boolean {
@@ -32,6 +39,14 @@ interface Node {
   left?: Node;
   right?: Node;
   items?: CollisionBoundItem[];
+}
+
+/** Finite partition anchor for full boxes and half-infinite slabs alike. */
+function splitPosition(bounds: CollisionBounds, axis: number): number {
+  const low = bounds[axis],
+    high = bounds[axis + 3];
+  if (Number.isFinite(low)) return Number.isFinite(high) ? low / 2 + high / 2 : low;
+  return Number.isFinite(high) ? high : 0;
 }
 
 /** Static median-split BVH. Results retain source order for equal-time contacts. */
@@ -50,10 +65,21 @@ export class CollisionSpatialIndex {
         }
       if (entries.length <= 8) return { bounds, items: entries };
       let axis = 0;
-      for (let j = 1; j < 3; j++) if (bounds[j + 3] - bounds[j] > bounds[axis + 3] - bounds[axis]) axis = j;
-      entries.sort(
-        (a, b) => a.bounds![axis] + a.bounds![axis + 3] - (b.bounds![axis] + b.bounds![axis + 3]) || a.id - b.id,
-      );
+      let widest = -1;
+      for (let j = 0; j < 3; j++) {
+        let low = Infinity,
+          high = -Infinity;
+        for (const entry of entries) {
+          const anchor = splitPosition(entry.bounds!, j);
+          low = Math.min(low, anchor);
+          high = Math.max(high, anchor);
+        }
+        if (high - low > widest) {
+          widest = high - low;
+          axis = j;
+        }
+      }
+      entries.sort((a, b) => splitPosition(a.bounds!, axis) - splitPosition(b.bounds!, axis) || a.id - b.id);
       const mid = entries.length >>> 1;
       return { bounds, left: build(entries.slice(0, mid)), right: build(entries.slice(mid)) };
     };

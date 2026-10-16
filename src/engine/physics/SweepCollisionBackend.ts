@@ -166,6 +166,7 @@ export class SweepCollisionBackend implements CollisionBackend {
   private clipIndex: CollisionSpatialIndex | null = null;
   private collisionTriangleCount = 0;
   private boundedTriangleCount = 0;
+  private partiallyBoundedTriangleCount = 0;
   private brushParents = new Int32Array(0);
   private prunedBrushTests = 0;
 
@@ -251,6 +252,7 @@ export class SweepCollisionBackend implements CollisionBackend {
     });
     this.collisionTriangleCount = 0;
     this.boundedTriangleCount = 0;
+    this.partiallyBoundedTriangleCount = 0;
     this.processFaces();
     this.buildClipBrushIndex();
     this.buildLadderBrushIndex();
@@ -508,10 +510,13 @@ export class SweepCollisionBackend implements CollisionBackend {
     const items = [];
     for (let i = 0; i < triangleCount; i++) {
       if (ranges[i + 1] <= ranges[i]) continue;
-      const bounds = planeBounds(packed, ranges[i], ranges[i + 1]);
+      const bounds = planeBounds(packed, ranges[i], ranges[i + 1], true);
       items.push({ id: i, bounds });
       this.collisionTriangleCount++;
-      if (bounds) this.boundedTriangleCount++;
+      if (bounds) {
+        if (bounds.every(Number.isFinite)) this.boundedTriangleCount++;
+        else this.partiallyBoundedTriangleCount++;
+      }
     }
     mesh.facetIndex = new CollisionSpatialIndex(items);
   }
@@ -1664,6 +1669,7 @@ export class SweepCollisionBackend implements CollisionBackend {
         clipBrushCount: this.clipBrushIndices.length,
         collisionTriangleCount: this.collisionTriangleCount,
         boundedTriangleCount: this.boundedTriangleCount,
+        partiallyBoundedTriangleCount: this.partiallyBoundedTriangleCount,
         redundantBrushCount: this.brushParents.filter((id) => id >= 0).length,
         prunedBrushTests: this.prunedBrushTests,
       },
@@ -1687,6 +1693,7 @@ export class SweepCollisionBackend implements CollisionBackend {
     this.clipIndex = null;
     this.collisionTriangleCount = 0;
     this.boundedTriangleCount = 0;
+    this.partiallyBoundedTriangleCount = 0;
     this.brushParents = new Int32Array(0);
     this.prunedBrushTests = 0;
     this.traceGeneration = 0;

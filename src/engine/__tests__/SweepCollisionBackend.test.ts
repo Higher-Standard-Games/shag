@@ -519,7 +519,7 @@ describe("SweepCollisionBackend — per-query visits", () => {
     const spy = vi.spyOn(backend as unknown as { traceFacet: (...args: unknown[]) => void }, "traceFacet");
     const result = backend.trace(new Vector3(0, 24, 0), new Vector3(0, 80, 0));
     expect(result.startSolid).toBe(true);
-    expect(spy).toHaveBeenCalledTimes(96);
+    expect(spy).toHaveBeenCalledTimes(52);
   });
 
   it("tests a face once across overlapping leaves, including generation wrap", async () => {
@@ -529,14 +529,14 @@ describe("SweepCollisionBackend — per-query visits", () => {
     const start = new Vector3(0, 100, 0),
       end = new Vector3(0, -100, 0);
     const reference = backend.trace(start, end);
-    expect(spy).toHaveBeenCalledTimes(48);
+    expect(spy).toHaveBeenCalledTimes(26);
     spy.mockClear();
     internals.traceGeneration = 0xffffffff;
     expect(backend.trace(start, end)).toEqual(reference);
-    expect(spy).toHaveBeenCalledTimes(48);
+    expect(spy).toHaveBeenCalledTimes(26);
     spy.mockClear();
     expect(backend.trace(start, end)).toEqual(reference);
-    expect(spy).toHaveBeenCalledTimes(48);
+    expect(spy).toHaveBeenCalledTimes(26);
   });
 
   it("does not retest a leaf clip brush in the global fallback", async () => {

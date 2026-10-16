@@ -22,6 +22,33 @@ describe("conservative collision bounds", () => {
     expect(index.query([10, 10, 10, 10, 10, 10])).toEqual([1, 3]);
     expect(index.query([50, 50, 50, 51, 51, 51])).toEqual([3]);
   });
+  it("retains proven slab constraints without treating near-axial planes as axial", () => {
+    const skewed = [...box];
+    skewed[1] = 0.000001;
+    expect(planeBounds(skewed, 0, 6, true)).toEqual([-10.125, -10.125, -10.125, Infinity, 10.125, 10.125]);
+    expect(planeBounds([0.1, 0.2, 0.3, 10], 0, 1, true)).toBeNull();
+    expect(planeBounds([NaN, 0, 0, 10], 0, 1, true)).toBeNull();
+  });
+  it("matches a linear oracle for mixed finite, half-infinite and unknown bounds", () => {
+    const items = Array.from({ length: 200 }, (_, id) => ({
+      id,
+      bounds:
+        id % 13 === 0
+          ? null
+          : ([id % 2 ? -Infinity : id * 2, -id, 0, id * 2 + 3, -id + 5, id % 3 ? 8 : Infinity] as CollisionBounds),
+    }));
+    const index = new CollisionSpatialIndex(items);
+    for (let i = 0; i < 200; i++) {
+      const q: CollisionBounds = [i, -100, -1, i + 20, -20, 1];
+      const expected = items
+        .filter(
+          ({ bounds: b }) =>
+            !b || (b[0] <= q[3] && b[3] >= q[0] && b[1] <= q[4] && b[4] >= q[1] && b[2] <= q[5] && b[5] >= q[2]),
+        )
+        .map((x) => x.id);
+      expect(index.query(q)).toEqual(expected);
+    }
+  });
   it("matches a linear overlap oracle across tree partitions", () => {
     const items = Array.from({ length: 200 }, (_, id) => ({
       id,

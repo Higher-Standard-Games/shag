@@ -231,8 +231,10 @@ before plane tests. The clip-brush fallback uses a spatial index, including
 brushes not reached through leaf lists. Bounds are derived from exact axial
 collision planes with a numeric margin; missing constraints remain unculled.
 Triangle facets have per-surface BVHs built from the same collision-plane
-constraints. Queries retain source ordering and fall back conservatively for
-facets without finite bounds. No visual triangles are simplified by this index.
+constraints. Partial bounds retain their proven axial sides, leaving uncertain
+directions infinite. Facets without any proven bounds remain unconditional
+candidates within their surface. Queries retain source ordering. No visual
+triangles are simplified by this index.
 Strictly contained compatible static brushes can skip plane solving when the
 hull starts outside their container. The container must be reachable through
 the same leaf/fallback paths. Touching or uncertain pairs remain, as do embedded
