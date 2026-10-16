@@ -225,6 +225,9 @@ normal depends on visit order. Static brush queries reject nonoverlapping bounds
 before plane tests. The clip-brush fallback uses a spatial index, including
 brushes not reached through leaf lists. Bounds are derived from exact axial
 collision planes with a numeric margin; missing constraints remain unculled.
+Triangle facets have per-surface BVHs built from the same collision-plane
+constraints. Queries retain source ordering and fall back conservatively for
+facets without finite bounds. No visual triangles are simplified by this index.
 
 The Node benchmark exercises `SweepCollisionBackend` at recorded player positions:
 

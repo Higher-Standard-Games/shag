@@ -93,6 +93,7 @@ export interface FaceCollisionGeometry {
   facetPlanes?: Float32Array;
   /** Start index into {@link facetPlanes} per triangle, plus a final end marker. */
   facetRanges?: Int32Array;
+  facetIndex?: CollisionSpatialIndex;
 }
 
 // Trace type
@@ -172,6 +173,8 @@ export class SweepCollisionBackend implements CollisionBackend {
   private collisionTextures: CollisionTexture[] = [];
   private brushBounds: (CollisionBounds | null)[] = [];
   private clipIndex: CollisionSpatialIndex | null = null;
+  private collisionTriangleCount = 0;
+  private boundedTriangleCount = 0;
 
   // Pooled trace state to avoid per-trace allocations
   private readonly _pooledState: TraceState = {
@@ -253,6 +256,8 @@ export class SweepCollisionBackend implements CollisionBackend {
       }
       return planeBounds(planes);
     });
+    this.collisionTriangleCount = 0;
+    this.boundedTriangleCount = 0;
     this.processFaces();
     this.buildClipBrushIndex();
     this.buildLadderBrushIndex();
@@ -453,6 +458,15 @@ export class SweepCollisionBackend implements CollisionBackend {
 
     mesh.facetPlanes = packed;
     mesh.facetRanges = ranges;
+    const items = [];
+    for (let i = 0; i < triangleCount; i++) {
+      if (ranges[i + 1] <= ranges[i]) continue;
+      const bounds = planeBounds(packed, ranges[i], ranges[i + 1]);
+      items.push({ id: i, bounds });
+      this.collisionTriangleCount++;
+      if (bounds) this.boundedTriangleCount++;
+    }
+    mesh.facetIndex = new CollisionSpatialIndex(items);
   }
 
   private buildMeshFace(face: BspFace): FaceCollisionGeometry | null {
@@ -842,8 +856,13 @@ export class SweepCollisionBackend implements CollisionBackend {
       const ranges = mesh.facetRanges;
       if (!planes || !ranges) continue;
       state.faceIndex = faceIndex;
-      for (let ti = 0; ti + 1 < ranges.length; ti++) {
-        if (ranges[ti + 1] > ranges[ti]) this.traceFacet(planes, ranges[ti], ranges[ti + 1], texture, state);
+      const candidates = mesh.facetIndex?.query(this.sweptBounds(state));
+      if (candidates) {
+        for (const ti of candidates) this.traceFacet(planes, ranges[ti], ranges[ti + 1], texture, state);
+      } else {
+        for (let ti = 0; ti + 1 < ranges.length; ti++) {
+          if (ranges[ti + 1] > ranges[ti]) this.traceFacet(planes, ranges[ti], ranges[ti + 1], texture, state);
+        }
       }
     }
   }
@@ -1629,6 +1648,8 @@ export class SweepCollisionBackend implements CollisionBackend {
         isFBSP: this.isFBSP ? 1 : 0,
         boundedBrushCount: this.brushBounds.filter(Boolean).length,
         clipBrushCount: this.clipBrushIndices.length,
+        collisionTriangleCount: this.collisionTriangleCount,
+        boundedTriangleCount: this.boundedTriangleCount,
       },
     };
   }
@@ -1648,6 +1669,8 @@ export class SweepCollisionBackend implements CollisionBackend {
     this.collisionTextures = [];
     this.brushBounds = [];
     this.clipIndex = null;
+    this.collisionTriangleCount = 0;
+    this.boundedTriangleCount = 0;
     this.traceGeneration = 0;
     this.bsp = null;
     this.stats = { traceCount: 0, hitCount: 0, totalTraceTime: 0 };

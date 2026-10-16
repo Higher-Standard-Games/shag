@@ -411,6 +411,36 @@ async function soupBackend(shaderName: string): Promise<SweepCollisionBackend> {
 }
 
 describe("SweepCollisionBackend — per-query visits", () => {
+  it("indexes distant facets while preserving linear-scan results at edges and embedded starts", async () => {
+    const bsp = buildSoupBsp("textures/world");
+    const quad = bsp.vertices.slice();
+    bsp.vertices = [];
+    bsp.meshVerts = [];
+    for (let i = 0; i < 64; i++) {
+      for (const v of quad)
+        bsp.vertices.push({ ...v, position: [v.position[0] + i * 200, v.position[1], v.position[2]] });
+      bsp.meshVerts.push(...[0, 1, 2, 0, 2, 3].map((v) => v + i * 4));
+    }
+    bsp.faces[0].numVertices = bsp.vertices.length;
+    bsp.faces[0].numMeshVerts = bsp.meshVerts.length;
+    const backend = new SweepCollisionBackend();
+    await backend.init(bsp);
+    const mesh = backend.getFaceCollision(0)!;
+    const index = mesh.facetIndex;
+    const spy = vi.spyOn(backend as unknown as { traceFacet: (...args: unknown[]) => void }, "traceFacet");
+    backend.trace(new Vector3(0, 100, 0), new Vector3(0, -100, 0));
+    expect(spy.mock.calls.length).toBeLessThanOrEqual(2);
+    for (let i = 0; i < 40; i++) {
+      const start = new Vector3(i * 200 + (i % 3 === 0 ? 64 : 0), i % 2 ? 24 : 100, 0);
+      const end = start.add(new Vector3(20, -100, 3));
+      const indexed = backend.trace(start, end);
+      mesh.facetIndex = undefined;
+      const linear = backend.trace(start, end);
+      mesh.facetIndex = index;
+      expect(indexed).toEqual(linear);
+    }
+  });
+
   it("spatially finds unreferenced clip brushes without scanning distant clips", async () => {
     const bsp = buildBsp([
       { ...FLOOR, name: "textures/common/fullclip" },
