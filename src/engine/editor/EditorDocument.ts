@@ -61,6 +61,8 @@ export interface EditorDocumentData {
   draftId: string;
   /** Optional stable runtime name; older drafts retain their generated draft_<id> name. */
   mapName?: string;
+  /** Compiler and runtime worldspawn settings, excluding structural identity keys. */
+  worldKeys?: Record<string, string>;
   revision: number;
   brushes: BoxBrush[];
   /** Additive to v2 so existing drafts and server sidecars remain readable. */
@@ -112,6 +114,11 @@ export function validateDocument(data: EditorDocumentData): void {
   }
   if (data.mapName !== undefined && !/^[a-z][a-z0-9_]{0,47}$/.test(data.mapName))
     throw new Error("Map ID must be 1–48 lowercase letters, digits or underscores, starting with a letter");
+  if (data.worldKeys !== undefined) {
+    if (!data.worldKeys || typeof data.worldKeys !== "object" || Array.isArray(data.worldKeys))
+      throw new Error("Invalid worldspawn keys");
+    validateKeys("worldspawn", data.worldKeys, RESERVED_BRUSH_ENTITY_KEYS);
+  }
   if (!Array.isArray(data.brushes) || data.brushes.length > 20_000) throw new Error("Invalid brush list");
   if (data.patches !== undefined && (!Array.isArray(data.patches) || data.patches.length > 20_000)) {
     throw new Error("Invalid patch list");

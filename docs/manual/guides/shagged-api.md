@@ -37,6 +37,7 @@ the process working directory does not change native profile lookup.
 
 | Operation | Fields | Notes |
 | --- | --- | --- |
+| `world.keys` | `keys` | Merge worldspawn compiler/runtime settings such as `message`, `ambient`, `_color` and `fog`. Values are strings; an empty value removes a key. `classname`, `origin` and `model` are reserved. Quotes and newlines in values are rejected. Map inspection returns `worldKeys`; apply reports `worldChanged`. |
 | `box.create` | `id?`, `min`, `max`, `shader?` | Axis-aligned brush. Default shader `blx/blx_grid`. `min` must be below `max` on every axis. |
 | `box.update` | `id`, `min?`, `max?`, `shader?` | |
 | `patch.create` | `id?`, `shader`, `width`, `height`, `controlPoints` | Quadratic `patchDef2` surface. Width and height must be odd, from 3 through 31. Supply `height` rows of `width` controls, each `{x,y,z,u,v}` in Quake coordinates with texture UVs. Winding follows row/column order; reverse rows to reverse the facing. Shader names have no `textures/` prefix. Patches do not seal the map; use structural brushes. Collision follows compiler/shader rules. |

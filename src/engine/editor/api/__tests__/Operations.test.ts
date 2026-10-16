@@ -17,6 +17,32 @@ function assertNoOverlaps(brushes: BoxBrush[]): void {
 }
 
 describe("SHAGGED operations", () => {
+  it("merges and removes worldspawn keys, preserving them through deterministic export", () => {
+    const { doc, worldChanged } = applyOperations(emptyDocument(), [
+      { op: "world.keys", keys: { message: "Relay Yard", ambient: "7", fog: "1900 0.05 0.065 0.09" } },
+      { op: "world.keys", keys: { ambient: "", _color: "0.45 0.5 0.65" } },
+    ]);
+    expect(worldChanged).toBe(true);
+    expect(doc.worldKeys).toEqual({ message: "Relay Yard", fog: "1900 0.05 0.065 0.09", _color: "0.45 0.5 0.65" });
+    expect(writeMap(doc)).toContain('"message" "Relay Yard"');
+    expect(writeMap(doc)).not.toContain('"ambient"');
+    expect(applyOperations(doc, [{ op: "world.keys", keys: { message: "Relay Yard" } }]).worldChanged).toBe(false);
+  });
+
+  it("rejects worldspawn identity overrides and injected source atomically", () => {
+    const invalid: Record<string, string>[] = [
+      { classname: "light" },
+      { origin: "0 0 0" },
+      { model: "*1" },
+      { fog: 'bad"\n}' },
+    ];
+    for (const keys of invalid) {
+      const input = emptyDocument();
+      expect(() => applyOperations(input, [{ op: "world.keys", keys }])).toThrow();
+      expect(input.worldKeys).toBeUndefined();
+    }
+  });
+
   const curvedPatch: EditOp = {
     op: "patch.create",
     id: "reactor",

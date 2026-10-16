@@ -60,6 +60,7 @@ export function describeDocument(doc: EditorDocumentData, objects = false) {
   return {
     ok: true,
     mapName: doc.mapName ?? null,
+    worldKeys: doc.worldKeys ?? {},
     revision: doc.revision,
     counts: {
       brushes: doc.brushes.length,

@@ -41,6 +41,7 @@ import {
 export const DEFAULT_SHADER = "blx/blx_grid";
 
 export type EditOp =
+  | { op: "world.keys"; keys: Record<string, string> }
   | ({ op: "patch.create" } & Omit<PatchSurface, "id"> & { id?: string })
   | { op: "box.create"; id?: string; min: Vec3q; max: Vec3q; shader?: string }
   | { op: "box.update"; id: string; min?: Vec3q; max?: Vec3q; shader?: string }
@@ -72,6 +73,7 @@ export interface ApplyResult {
   changed: string[];
   deleted: string[];
   issues: MapHealthIssue[];
+  worldChanged: boolean;
 }
 
 export class OperationError extends Error {
@@ -120,6 +122,7 @@ export function applyOperations(input: EditorDocumentData, ops: readonly EditOp[
     changed: [...changed].filter((id) => before.has(id) && after.has(id)),
     deleted: [...before].filter((id) => !after.has(id)),
     issues: inspectMapHealth(doc),
+    worldChanged: JSON.stringify(input.worldKeys ?? {}) !== JSON.stringify(doc.worldKeys ?? {}),
   };
 }
 
@@ -185,6 +188,11 @@ const add = (a: Vec3q, b: Vec3q): Vec3q => ({ x: a.x + b.x, y: a.y + b.y, z: a.z
 
 function applyOne(doc: EditorDocumentData, op: EditOp, changed: Set<string>): void {
   switch (op.op) {
+    case "world.keys": {
+      doc.worldKeys ??= {};
+      mergeKeys(doc.worldKeys, op.keys);
+      return;
+    }
     case "patch.create": {
       const id = claimId(doc, op.id, "patch");
       const { shader, width, height, controlPoints } = op;

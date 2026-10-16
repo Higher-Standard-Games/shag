@@ -95,7 +95,7 @@ export function writeMap(data: EditorDocumentData): string {
   const brushEntities = data.brushEntities ?? [];
   const owned = new Set(brushEntities.flatMap((entity) => entity.brushIds));
   const brushes = new Map(data.brushes.map((brush) => [brush.id, brush]));
-  const lines = ["{", '"classname" "worldspawn"'];
+  const lines = ["{", '"classname" "worldspawn"', ...keyLines(data.worldKeys ?? {})];
   const worldGeometry: Array<{ id: string; lines: () => string[] }> = [
     ...data.brushes
       .filter((brush) => !owned.has(brush.id))
