@@ -172,7 +172,7 @@ server.registerTool(
     title: "Edit a map",
     description: [
       "Applies a batch of operations as one all-or-nothing transaction and saves the map. An error names the failing operation and changes nothing. face.material needs only the texture name; its image size is filled in from the catalog.",
-      "Operations (fields in the guide): box.create, box.update, face.material, entity.place, entity.update, brushEntity.assign, object.move, object.duplicate, object.delete, brush.carve, gen.room, gen.corridor, gen.connect (join two rooms), gen.stairs, gen.teleporter, gen.jumppad.",
+      "Operations (fields in the guide): box.create, box.update, patch.create, face.material, entity.place, entity.update, brushEntity.assign, object.move, object.duplicate, object.delete, brush.carve, gen.room, gen.corridor, gen.connect (join two rooms), gen.stairs, gen.teleporter, gen.jumppad.",
       "Coordinates are Quake units with Z up. Returns created, changed and deleted IDs and Map Health issues.",
       "Use dryRun: true to preview without saving.",
     ].join(" "),

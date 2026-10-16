@@ -33,6 +33,7 @@ After `compile`, play the map with `map <mapName>` in the game console.
 | --- | --- | --- |
 | `box.create` | `id?`, `min`, `max`, `shader?` | Axis-aligned brush. Default shader `blx/blx_grid`. `min` must be below `max` on every axis. |
 | `box.update` | `id`, `min?`, `max?`, `shader?` | |
+| `patch.create` | `id?`, `shader`, `width`, `height`, `controlPoints` | Quadratic `patchDef2` surface. Width and height must be odd, from 3 through 31. Supply `height` rows of `width` controls, each `{x,y,z,u,v}` in Quake coordinates with texture UVs. Winding follows row/column order; reverse rows to reverse the facing. Shader names have no `textures/` prefix. Patches do not seal the map; use structural brushes. Collision follows compiler/shader rules. |
 | `face.material` | `id`, `faces` (`"all"` or a list of `+X -X +Y -Y +Z -Z`), `shader`, `size?` | Textures the listed faces with natural alignment. Name the texture; the CLI and MCP server fill in its image size from the texture catalog. An unknown texture is rejected. |
 | `entity.place` | `id?`, `classname`, `origin`, `keys?` | Point entity. Keys are strings. |
 | `entity.update` | `id`, `classname?`, `origin?`, `keys?` | Keys merge; an empty string removes a key. |

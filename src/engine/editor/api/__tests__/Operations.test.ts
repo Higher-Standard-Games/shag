@@ -17,6 +17,43 @@ function assertNoOverlaps(brushes: BoxBrush[]): void {
 }
 
 describe("SHAGGED operations", () => {
+  const curvedPatch: EditOp = {
+    op: "patch.create",
+    id: "reactor",
+    shader: "blx/blx_grid",
+    width: 3,
+    height: 3,
+    controlPoints: [0, 32, 64].map((z) =>
+      [
+        [0, 0],
+        [32, 0],
+        [32, 32],
+      ].map(([x, y], col) => ({ x, y, z, u: col / 2, v: z / 64 })),
+    ),
+  };
+
+  it("creates exportable curved patches without retaining caller-owned controls", () => {
+    const operation = structuredClone(curvedPatch);
+    const { doc, created } = applyOperations(emptyDocument(), [operation]);
+    expect(created).toEqual(["reactor"]);
+    expect(writeMap(doc)).toContain("patchDef2");
+    if (operation.op !== "patch.create") throw new Error("patch fixture expected");
+    operation.controlPoints[0][0].x = 999;
+    expect(doc.patches?.[0].controlPoints[0][0].x).toBe(0);
+    expect(() => applyOperations(doc, [curvedPatch])).toThrow(/already exists/);
+  });
+
+  it("rejects invalid patch grids atomically", () => {
+    const input = emptyDocument();
+    expect(() => applyOperations(input, [curvedPatch, { ...curvedPatch, id: "broken", width: 4 } as EditOp])).toThrow(
+      /Invalid dimensions/,
+    );
+    expect(input.patches).toEqual([]);
+    expect(() => applyOperations(input, [{ ...curvedPatch, controlPoints: [] } as EditOp])).toThrow(
+      /Invalid control grid/,
+    );
+  });
+
   it("builds the two-room fixture with no health issues and identical bytes every time", () => {
     const first = applyOperations(emptyDocument("fixture"), twoRooms);
     const second = applyOperations({ ...emptyDocument("fixture"), draftId: first.doc.draftId }, twoRooms);

@@ -13,6 +13,7 @@ import {
   FACE_KEYS,
   type FaceKey,
   migrateDocument,
+  type PatchSurface,
   pruneBrushEntities,
   type Vec3q,
   validateDocument,
@@ -40,6 +41,7 @@ import {
 export const DEFAULT_SHADER = "blx/blx_grid";
 
 export type EditOp =
+  | ({ op: "patch.create" } & Omit<PatchSurface, "id"> & { id?: string })
   | { op: "box.create"; id?: string; min: Vec3q; max: Vec3q; shader?: string }
   | { op: "box.update"; id: string; min?: Vec3q; max?: Vec3q; shader?: string }
   | {
@@ -183,6 +185,13 @@ const add = (a: Vec3q, b: Vec3q): Vec3q => ({ x: a.x + b.x, y: a.y + b.y, z: a.z
 
 function applyOne(doc: EditorDocumentData, op: EditOp, changed: Set<string>): void {
   switch (op.op) {
+    case "patch.create": {
+      const id = claimId(doc, op.id, "patch");
+      const { shader, width, height, controlPoints } = op;
+      doc.patches ??= [];
+      doc.patches.push({ id, shader, width, height, controlPoints: structuredClone(controlPoints) });
+      return;
+    }
     case "box.create": {
       const id = claimId(doc, op.id, "brush");
       doc.brushes.push({ id, min: vec(op.min, "min"), max: vec(op.max, "max"), shader: op.shader ?? DEFAULT_SHADER });
