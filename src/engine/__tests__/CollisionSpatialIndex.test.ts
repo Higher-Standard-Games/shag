@@ -66,4 +66,21 @@ describe("conservative collision bounds", () => {
       expect(index.query(q)).toEqual(expected);
     }
   });
+  it("reuses output storage without stale candidates or aliasing ordinary query results", () => {
+    const index = new CollisionSpatialIndex([
+      { id: 1, bounds: [0, 0, 0, 10, 10, 10] },
+      { id: 2, bounds: [100, 100, 100, 110, 110, 110] },
+    ]);
+    const near: CollisionBounds = [0, 0, 0, 1, 1, 1];
+    const far: CollisionBounds = [100, 100, 100, 101, 101, 101];
+    const independent = index.query(near);
+    const buffer = [99, 98];
+    expect(index.queryInto(near, buffer)).toBe(buffer);
+    expect(buffer).toEqual([1]);
+    index.queryInto(far, buffer);
+    expect(buffer).toEqual([2]);
+    expect(independent).toEqual([1]);
+    index.queryInto([500, 500, 500, 501, 501, 501], buffer);
+    expect(buffer).toEqual([]);
+  });
 });

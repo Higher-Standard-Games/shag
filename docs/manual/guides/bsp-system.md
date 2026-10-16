@@ -235,6 +235,10 @@ constraints. Partial bounds retain their proven axial sides, leaving uncertain
 directions infinite. Facets without any proven bounds remain unconditional
 candidates within their surface. Queries retain source ordering. No visual
 triangles are simplified by this index.
+The sweep backend reuses its candidate and query-bound storage within each
+backend instance. Public trace results retain independent position/normal
+vectors, and candidate lists are rebuilt for every query rather than cached
+across movement frames.
 Strictly contained compatible static brushes can skip plane solving when the
 hull starts outside their container. The container must be reachable through
 the same leaf/fallback paths. Touching or uncertain pairs remain, as do embedded

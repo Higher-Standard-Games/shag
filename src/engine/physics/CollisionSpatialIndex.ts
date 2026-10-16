@@ -49,6 +49,8 @@ function splitPosition(bounds: CollisionBounds, axis: number): number {
   return Number.isFinite(high) ? high : 0;
 }
 
+const sourceOrder = (a: number, b: number): number => a - b;
+
 /** Static median-split BVH. Results retain source order for equal-time contacts. */
 export class CollisionSpatialIndex {
   private root?: Node;
@@ -86,17 +88,24 @@ export class CollisionSpatialIndex {
     this.root = build(items.filter((item) => item.bounds));
   }
   query(bounds: CollisionBounds): number[] {
-    const result = [...this.unbounded];
-    const visit = (node?: Node) => {
-      if (!node || !boundsOverlap(bounds, node.bounds)) return;
-      if (node.items) {
-        for (const item of node.items) if (boundsOverlap(bounds, item.bounds!)) result.push(item.id);
-      } else {
-        visit(node.left);
-        visit(node.right);
-      }
-    };
-    visit(this.root);
-    return result.sort((a, b) => a - b);
+    return this.queryInto(bounds, []);
+  }
+
+  /** Clears and reuses caller-owned storage; results remain in source order. */
+  queryInto(bounds: CollisionBounds, result: number[]): number[] {
+    result.length = 0;
+    for (const id of this.unbounded) result.push(id);
+    this.visit(this.root, bounds, result);
+    return result.sort(sourceOrder);
+  }
+
+  private visit(node: Node | undefined, bounds: CollisionBounds, result: number[]): void {
+    if (!node || !boundsOverlap(bounds, node.bounds)) return;
+    if (node.items) {
+      for (const item of node.items) if (boundsOverlap(bounds, item.bounds!)) result.push(item.id);
+    } else {
+      this.visit(node.left, bounds, result);
+      this.visit(node.right, bounds, result);
+    }
   }
 }

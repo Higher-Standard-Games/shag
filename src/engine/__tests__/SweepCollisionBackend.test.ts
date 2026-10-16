@@ -148,6 +148,18 @@ describe("SweepCollisionBackend — uninitialised", () => {
 // ── Plane crossing / enter fraction ─────────────────────────────────
 
 describe("SweepCollisionBackend — trace against a floor", () => {
+  it("keeps returned contacts independent of later traces and caller mutation", async () => {
+    const backend = await makeBackend([FLOOR]);
+    const start = new Vector3(0, 100, 0),
+      end = new Vector3(0, -100, 0);
+    const first = backend.trace(start, end);
+    const snapshot = { ...first, endPos: first.endPos.clone(), normal: first.normal?.clone() };
+    backend.trace(new Vector3(0, -50, 0), new Vector3(20, -30, 0));
+    expect(first).toEqual(snapshot);
+    first.normal!.set(9, 9, 9);
+    first.endPos.set(9, 9, 9);
+    expect(backend.trace(start, end)).toEqual(snapshot);
+  });
   it("stops a downward trace on the floor with an upward normal", async () => {
     const backend = await makeBackend([FLOOR]);
     // Drop the player from y=100 straight down through the floor plane (y=0).

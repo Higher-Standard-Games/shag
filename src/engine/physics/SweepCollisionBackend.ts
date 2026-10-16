@@ -164,6 +164,9 @@ export class SweepCollisionBackend implements CollisionBackend {
   private collisionTextures: CollisionTexture[] = [];
   private brushBounds: (CollisionBounds | null)[] = [];
   private clipIndex: CollisionSpatialIndex | null = null;
+  private readonly facetCandidates: number[] = [];
+  private readonly clipCandidates: number[] = [];
+  private readonly queryBounds: CollisionBounds = [0, 0, 0, 0, 0, 0];
   private collisionTriangleCount = 0;
   private boundedTriangleCount = 0;
   private partiallyBoundedTriangleCount = 0;
@@ -420,14 +423,12 @@ export class SweepCollisionBackend implements CollisionBackend {
   }
 
   private sweptBounds(state: TraceState): CollisionBounds {
-    return [
-      Math.min(state.start[0], state.end[0]) + state.mins[0],
-      Math.min(state.start[1], state.end[1]) + state.mins[1],
-      Math.min(state.start[2], state.end[2]) + state.mins[2],
-      Math.max(state.start[0], state.end[0]) + state.maxs[0],
-      Math.max(state.start[1], state.end[1]) + state.maxs[1],
-      Math.max(state.start[2], state.end[2]) + state.maxs[2],
-    ];
+    const bounds = this.queryBounds;
+    for (let axis = 0; axis < 3; axis++) {
+      bounds[axis] = Math.min(state.start[axis], state.end[axis]) + state.mins[axis];
+      bounds[axis + 3] = Math.max(state.start[axis], state.end[axis]) + state.maxs[axis];
+    }
+    return bounds;
   }
 
   private processFaces(): void {
@@ -824,17 +825,7 @@ export class SweepCollisionBackend implements CollisionBackend {
   private traceLeafFaces(leaf: BspLeaf, state: TraceState): void {
     if (!this.bsp || !this.faceCollisionMeshes || leaf.numLeafFaces === 0) return;
 
-    // Calculate trace AABB for broadphase (Q3 coords)
-    const traceMin: [number, number, number] = [
-      Math.min(state.start[0], state.end[0]) + state.mins[0],
-      Math.min(state.start[1], state.end[1]) + state.mins[1],
-      Math.min(state.start[2], state.end[2]) + state.mins[2],
-    ];
-    const traceMax: [number, number, number] = [
-      Math.max(state.start[0], state.end[0]) + state.maxs[0],
-      Math.max(state.start[1], state.end[1]) + state.maxs[1],
-      Math.max(state.start[2], state.end[2]) + state.maxs[2],
-    ];
+    const bounds = this.sweptBounds(state);
 
     for (let i = 0; i < leaf.numLeafFaces; i++) {
       const faceIndex = this.bsp.leafFaces[leaf.firstLeafFace + i];
@@ -843,21 +834,16 @@ export class SweepCollisionBackend implements CollisionBackend {
       if (this.faceVisits[faceIndex] === this.traceGeneration) continue;
       this.faceVisits[faceIndex] = this.traceGeneration;
 
-      // Broadphase: AABB check (Babylon coords in mesh, Q3 coords in trace)
-      // Convert mesh AABB to Q3 for comparison
-      const meshMinQ3: [number, number, number] = [mesh.mins.x, mesh.mins.z, mesh.mins.y];
-      const meshMaxQ3: [number, number, number] = [mesh.maxs.x, mesh.maxs.z, mesh.maxs.y];
-
+      // Bounds are Q3-space; mesh bounds are Babylon-space (Y/Z swap).
       if (
-        traceMax[0] < meshMinQ3[0] ||
-        traceMin[0] > meshMaxQ3[0] ||
-        traceMax[1] < meshMinQ3[1] ||
-        traceMin[1] > meshMaxQ3[1] ||
-        traceMax[2] < meshMinQ3[2] ||
-        traceMin[2] > meshMaxQ3[2]
-      ) {
+        bounds[3] < mesh.mins.x ||
+        bounds[0] > mesh.maxs.x ||
+        bounds[4] < mesh.mins.z ||
+        bounds[1] > mesh.maxs.z ||
+        bounds[5] < mesh.mins.y ||
+        bounds[2] > mesh.maxs.y
+      )
         continue;
-      }
 
       const texture = this.collisionTextures[this.bsp.faces[faceIndex].textureIndex];
       if (!texture || !this.shouldCollideWith(texture, state.contentMask)) continue;
@@ -869,7 +855,7 @@ export class SweepCollisionBackend implements CollisionBackend {
       const ranges = mesh.facetRanges;
       if (!planes || !ranges) continue;
       state.faceIndex = faceIndex;
-      const candidates = mesh.facetIndex?.query(this.sweptBounds(state));
+      const candidates = mesh.facetIndex?.queryInto(bounds, this.facetCandidates);
       if (candidates) {
         for (const ti of candidates) this.traceFacet(planes, ranges[ti], ranges[ti + 1], texture, state);
       } else {
@@ -1019,7 +1005,7 @@ export class SweepCollisionBackend implements CollisionBackend {
     const wantsPlayerclip = (state.contentMask & ContentFlags.PLAYERCLIP) !== 0;
     if (!wantsPlayerclip) return;
 
-    for (const bi of this.clipIndex?.query(this.sweptBounds(state)) ?? this.clipBrushIndices) {
+    for (const bi of this.clipIndex?.queryInto(this.sweptBounds(state), this.clipCandidates) ?? this.clipBrushIndices) {
       if (this.brushVisits[bi] === this.traceGeneration) continue;
       this.brushVisits[bi] = this.traceGeneration;
       const brush = this.bsp.brushes[bi];
@@ -1076,27 +1062,21 @@ export class SweepCollisionBackend implements CollisionBackend {
       // Calculate distances with box offset
       let startDist: number, endDist: number;
 
-      // Calculate offset based on box size and plane normal
-      const offset: [number, number, number] = [0, 0, 0];
-      for (let j = 0; j < 3; j++) {
-        if (plane.normal[j] < 0) {
-          offset[j] = state.maxs[j];
-        } else {
-          offset[j] = state.mins[j];
-        }
-      }
+      const offsetX = plane.normal[0] < 0 ? state.maxs[0] : state.mins[0];
+      const offsetY = plane.normal[1] < 0 ? state.maxs[1] : state.mins[1];
+      const offsetZ = plane.normal[2] < 0 ? state.maxs[2] : state.mins[2];
 
       // Distance from plane (adjusted for box)
       startDist =
-        (state.start[0] + offset[0]) * plane.normal[0] +
-        (state.start[1] + offset[1]) * plane.normal[1] +
-        (state.start[2] + offset[2]) * plane.normal[2] -
+        (state.start[0] + offsetX) * plane.normal[0] +
+        (state.start[1] + offsetY) * plane.normal[1] +
+        (state.start[2] + offsetZ) * plane.normal[2] -
         plane.dist;
 
       endDist =
-        (state.end[0] + offset[0]) * plane.normal[0] +
-        (state.end[1] + offset[1]) * plane.normal[1] +
-        (state.end[2] + offset[2]) * plane.normal[2] -
+        (state.end[0] + offsetX) * plane.normal[0] +
+        (state.end[1] + offsetY) * plane.normal[1] +
+        (state.end[2] + offsetZ) * plane.normal[2] -
         plane.dist;
 
       if (startDist > 0) startOut = true;
@@ -1114,7 +1094,7 @@ export class SweepCollisionBackend implements CollisionBackend {
         const fraction = (startDist - 0.03125) / (startDist - endDist);
         if (fraction > enterFraction) {
           enterFraction = fraction;
-          hitPlaneNormal = [...plane.normal] as [number, number, number];
+          hitPlaneNormal = plane.normal;
         }
       } else {
         // Leaving the brush
@@ -1139,26 +1119,19 @@ export class SweepCollisionBackend implements CollisionBackend {
         const plane = this.bsp.planes[side.planeIndex];
         if (!plane) continue;
 
-        // Calculate how far inside this plane the start point is
-        // (same offset logic as above)
-        const offset: [number, number, number] = [0, 0, 0];
-        for (let j = 0; j < 3; j++) {
-          if (plane.normal[j] < 0) {
-            offset[j] = state.maxs[j];
-          } else {
-            offset[j] = state.mins[j];
-          }
-        }
+        const offsetX = plane.normal[0] < 0 ? state.maxs[0] : state.mins[0];
+        const offsetY = plane.normal[1] < 0 ? state.maxs[1] : state.mins[1];
+        const offsetZ = plane.normal[2] < 0 ? state.maxs[2] : state.mins[2];
         const dist =
-          (state.start[0] + offset[0]) * plane.normal[0] +
-          (state.start[1] + offset[1]) * plane.normal[1] +
-          (state.start[2] + offset[2]) * plane.normal[2] -
+          (state.start[0] + offsetX) * plane.normal[0] +
+          (state.start[1] + offsetY) * plane.normal[1] +
+          (state.start[2] + offsetZ) * plane.normal[2] -
           plane.dist;
 
         // dist < 0 means inside; the LEAST negative is closest to escape
         if (dist > bestDist) {
           bestDist = dist;
-          bestNormal = [...plane.normal] as [number, number, number];
+          bestNormal = plane.normal;
         }
       }
 
@@ -1691,6 +1664,8 @@ export class SweepCollisionBackend implements CollisionBackend {
     this.collisionTextures = [];
     this.brushBounds = [];
     this.clipIndex = null;
+    this.facetCandidates.length = 0;
+    this.clipCandidates.length = 0;
     this.collisionTriangleCount = 0;
     this.boundedTriangleCount = 0;
     this.partiallyBoundedTriangleCount = 0;
