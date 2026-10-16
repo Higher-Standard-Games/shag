@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -41,6 +41,11 @@ describe("Washoi compiler configuration and recipe", () => {
       mediaRoot: path.join(root, "public", "data"),
       toolchainRoot: path.join(root, "editor"),
     });
+    const deployed = path.join(root, "tools", "makebsp", "makebspdata", "washoi.json");
+    expect(await readFile(deployed, "utf8")).toBe("{}");
+    await writeFile(path.join(root, "editor", "makebspdata", "washoi.json"), '{"gameDir":""}');
+    await resolveCompilerConfig({}, {}, launchCwd, root);
+    expect(await readFile(deployed, "utf8")).toBe('{"gameDir":""}');
   });
 
   it("maps quality tiers to the checked NetRadiant build menu", () => {
@@ -96,7 +101,11 @@ describe("Washoi compiler configuration and recipe", () => {
     expect(ready).toMatchObject({ available: true, reason: null, defaultQuality: "release" });
     const adjacentProfile = await resolveCompilerConfig({ ...overrides, toolchainRoot: undefined }, {}, root);
     expect(adjacentProfile).toMatchObject({ available: true, toolchainRoot: toolchain });
+    const other = path.join(root, "other");
+    await mkdir(path.join(other, "makebspdata"), { recursive: true });
+    await writeFile(path.join(other, "makebspdata", "washoi.json"), "{}");
     await rm(path.join(toolchain, "makebspdata", "washoi.json"));
+    expect((await resolveCompilerConfig({ ...overrides, toolchainRoot: other }, {}, root)).available).toBe(false);
     expect((await resolveCompilerConfig(overrides, {}, root)).reason).toMatch(/profile or media/);
   });
 });

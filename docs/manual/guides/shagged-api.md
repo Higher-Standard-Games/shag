@@ -19,6 +19,12 @@ npm run shagged -- textures metal floor              # find texture names and im
 
 After `compile`, play the map with `map <mapName>` in the game console.
 
+Repository-local MakeBSP/MakeLight binaries receive a copy of the tracked
+Washoi profile beside their executables, where the native tools resolve it.
+External compiler installations must have `makebspdata/washoi.json` beside
+each executable as well as in the configured toolchain root. Changing only
+the process working directory does not change native profile lookup.
+
 **MCP server**, for AI clients: `npm run shagged:mcp` (stdio). It exposes the same operations and checks as tools, and this guide as resources.
 
 ## Coordinates and IDs

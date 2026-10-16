@@ -1,4 +1,4 @@
-import { access, constants } from "node:fs/promises";
+import { access, constants, copyFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { type BuildQuality, isBuildQuality } from "./BuildRecipe";
@@ -109,8 +109,24 @@ export async function resolveCompilerConfig(
     try {
       await access(path.join(toolchainRoot, "makebspdata", "washoi.json"), constants.R_OK);
       await access(mediaRoot, constants.R_OK);
+      // Native tools resolve profiles beside the executable, independently of cwd.
+      // Install our tracked profile only into repository-local tools; external
+      // installations must provide their own adjacent profile.
+      for (const binary of [makebspBin, makelightBin]) {
+        const directory = path.dirname(binary);
+        if (directory === path.join(repoRoot, "tools", "makebsp")) {
+          const profileDirectory = path.join(directory, "makebspdata");
+          await mkdir(profileDirectory, { recursive: true });
+          await copyFile(
+            path.join(toolchainRoot, "makebspdata", "washoi.json"),
+            path.join(profileDirectory, "washoi.json"),
+          );
+        }
+        await access(path.join(directory, "makebspdata", "washoi.json"), constants.R_OK);
+      }
     } catch {
-      reason = "Washoi toolchain profile or media root is missing";
+      reason =
+        "Washoi toolchain profile or media root is missing, or the executable-adjacent profile could not be prepared";
     }
   }
   return { makebspBin, makelightBin, mediaRoot, toolchainRoot, defaultQuality: quality, available: !reason, reason };
