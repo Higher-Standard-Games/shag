@@ -22,6 +22,7 @@
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { describe, expect, it, vi } from "vitest";
 import type { BspBrushSide, BspFile, BspPlane } from "../loader/bsp/BspLoader";
+import { PatchTessellator } from "../physics/PatchTessellator";
 import { SweepCollisionBackend } from "../physics/SweepCollisionBackend";
 
 // Q3 content flags (mirror the private table in SweepCollisionBackend).
@@ -334,23 +335,10 @@ describe("SweepCollisionBackend — stats & dispose", () => {
 
 // ── triangle-soup collision (world vs. baked decoration) ────────────
 
-/**
- * Build a BSP whose only collision geometry is a single horizontal triangle-soup
- * quad (faceType 3) at Q3 z=0, spanning x/y ∈ [-64, 64], on the given shader.
- *
- * Regression guard for v0.9.21: dropping collision for ALL triangle soup (the
- * Q3-authentic rule — CMod_LoadPatches only loads MST_PATCH) opened holes in
- * 336 walkable surfaces across 10 shipping maps, because q3map2 emits
- * MST_TRIANGLE_SOUP for vertex-lit WORLD geometry too, not just misc_models.
- * World soup must stay solid; only `models/`|`mapobjects` decorations are skipped.
- */
-function buildSoupBsp(shaderName: string): BspFile {
-  const quad: Vec3[] = [
-    [-64, -64, 0],
-    [64, -64, 0],
-    [64, 64, 0],
-    [-64, 64, 0],
-  ];
+/** A planar 3x3 patch at Q3 z=0, spanning x/y [-64, 64]. */
+function buildPatchBsp(shaderName: string): BspFile {
+  const quad: Vec3[] = [];
+  for (const y of [-64, 0, 64]) for (const x of [-64, 0, 64]) quad.push([x, y, 0]);
   const big: Vec3 = [1e6, 1e6, 1e6];
   const negBig: Vec3 = [-1e6, -1e6, -1e6];
 
@@ -385,14 +373,14 @@ function buildSoupBsp(shaderName: string): BspFile {
       {
         textureIndex: 0,
         effectIndex: -1,
-        faceType: 3,
+        faceType: 2,
         firstVertex: 0,
-        numVertices: 4,
+        numVertices: 9,
         firstMeshVert: 0,
         numMeshVerts: 6,
         lightmapIndex: -1,
         normal: [0, 0, 1],
-        patchSize: [0, 0],
+        patchSize: [3, 3],
       },
     ],
     lightmaps: [],
@@ -404,9 +392,9 @@ function buildSoupBsp(shaderName: string): BspFile {
   return bsp as unknown as BspFile;
 }
 
-async function soupBackend(shaderName: string): Promise<SweepCollisionBackend> {
+async function patchBackend(shaderName: string): Promise<SweepCollisionBackend> {
   const backend = new SweepCollisionBackend();
-  await backend.init(buildSoupBsp(shaderName));
+  await backend.init(buildPatchBsp(shaderName));
   return backend;
 }
 
@@ -455,19 +443,28 @@ describe("SweepCollisionBackend — per-query visits", () => {
   });
 
   it("indexes distant facets while preserving linear-scan results at edges and embedded starts", async () => {
-    const bsp = buildSoupBsp("textures/world");
-    const quad = bsp.vertices.slice();
-    bsp.vertices = [];
-    bsp.meshVerts = [];
+    const bsp = buildPatchBsp("textures/world");
+    const vertices: Vector3[] = [],
+      indices: number[] = [];
     for (let i = 0; i < 64; i++) {
-      for (const v of quad)
-        bsp.vertices.push({ ...v, position: [v.position[0] + i * 200, v.position[1], v.position[2]] });
-      bsp.meshVerts.push(...[0, 1, 2, 0, 2, 3].map((v) => v + i * 4));
+      for (const [x, z] of [
+        [-64, -64],
+        [64, -64],
+        [64, 64],
+        [-64, 64],
+      ])
+        vertices.push(new Vector3(x + i * 200, 0, z));
+      indices.push(...[0, 2, 1, 0, 3, 2].map((v) => v + i * 4));
     }
-    bsp.faces[0].numVertices = bsp.vertices.length;
-    bsp.faces[0].numMeshVerts = bsp.meshVerts.length;
+    const builder = vi.spyOn(PatchTessellator, "buildPatch").mockReturnValueOnce({
+      vertices,
+      indices,
+      mins: new Vector3(-64, 0, -64),
+      maxs: new Vector3(12664, 0, 64),
+    });
     const backend = new SweepCollisionBackend();
     await backend.init(bsp);
+    builder.mockRestore();
     const mesh = backend.getFaceCollision(0)!;
     const index = mesh.facetIndex;
     const spy = vi.spyOn(backend as unknown as { traceFacet: (...args: unknown[]) => void }, "traceFacet");
@@ -498,7 +495,7 @@ describe("SweepCollisionBackend — per-query visits", () => {
   });
 
   it("checks face contents once before its facet loop", async () => {
-    const backend = await soupBackend("textures/world");
+    const backend = await patchBackend("textures/world");
     const spy = vi.spyOn(
       backend as unknown as { shouldCollideWith: (...args: unknown[]) => boolean },
       "shouldCollideWith",
@@ -508,7 +505,7 @@ describe("SweepCollisionBackend — per-query visits", () => {
   });
 
   it.each([0x4000, 0x100])("keeps excluded face flags out of the facet loop (%i)", async (surfaceFlags) => {
-    const bsp = buildSoupBsp("textures/world");
+    const bsp = buildPatchBsp("textures/world");
     bsp.textures[0].surfaceFlags = surfaceFlags;
     const backend = new SweepCollisionBackend();
     await backend.init(bsp);
@@ -518,28 +515,28 @@ describe("SweepCollisionBackend — per-query visits", () => {
   });
 
   it("retains repeated embedded-face visits for recovery-normal ordering", async () => {
-    const backend = await soupBackend("textures/world");
+    const backend = await patchBackend("textures/world");
     const spy = vi.spyOn(backend as unknown as { traceFacet: (...args: unknown[]) => void }, "traceFacet");
     const result = backend.trace(new Vector3(0, 24, 0), new Vector3(0, 80, 0));
     expect(result.startSolid).toBe(true);
-    expect(spy).toHaveBeenCalledTimes(4);
+    expect(spy).toHaveBeenCalledTimes(96);
   });
 
   it("tests a face once across overlapping leaves, including generation wrap", async () => {
-    const backend = await soupBackend("textures/world");
+    const backend = await patchBackend("textures/world");
     const internals = backend as unknown as { traceFacet: (...args: unknown[]) => void; traceGeneration: number };
     const spy = vi.spyOn(internals, "traceFacet");
     const start = new Vector3(0, 100, 0),
       end = new Vector3(0, -100, 0);
     const reference = backend.trace(start, end);
-    expect(spy).toHaveBeenCalledTimes(2);
+    expect(spy).toHaveBeenCalledTimes(48);
     spy.mockClear();
     internals.traceGeneration = 0xffffffff;
     expect(backend.trace(start, end)).toEqual(reference);
-    expect(spy).toHaveBeenCalledTimes(2);
+    expect(spy).toHaveBeenCalledTimes(48);
     spy.mockClear();
     expect(backend.trace(start, end)).toEqual(reference);
-    expect(spy).toHaveBeenCalledTimes(2);
+    expect(spy).toHaveBeenCalledTimes(48);
   });
 
   it("does not retest a leaf clip brush in the global fallback", async () => {
@@ -550,44 +547,51 @@ describe("SweepCollisionBackend — per-query visits", () => {
   });
 
   it("resets visits when initialized on a new map", async () => {
-    const backend = await soupBackend("textures/world");
+    const backend = await patchBackend("textures/world");
     const start = new Vector3(0, 100, 0),
       end = new Vector3(0, -100, 0);
     const reference = backend.trace(start, end);
-    await backend.init(buildSoupBsp("textures/world"));
+    await backend.init(buildPatchBsp("textures/world"));
     expect(backend.trace(start, end)).toEqual(reference);
   });
 });
 
-describe("SweepCollisionBackend — triangle-soup faces", () => {
-  it("collides world triangle soup so vertex-lit walkways stay solid", async () => {
-    const backend = await soupBackend("textures/plastic_vertex/vertex_grey65");
-    const r = backend.trace(new Vector3(0, 100, 0), new Vector3(0, -100, 0));
-
-    expect(r.fraction).toBeLessThan(1);
-    expect(r.endPos.y).toBeGreaterThan(23);
-    expect(r.endPos.y).toBeLessThan(25);
-    expect(r.normal?.y).toBeGreaterThan(0.9);
+describe("SweepCollisionBackend authored collision sources", () => {
+  it.each([
+    "textures/plastic_vertex/vertex_grey65",
+    "models/mapobjects/light",
+    "mapobjects_decor",
+  ])("does not generate collision from draw soup regardless of shader (%s)", async (shader) => {
+    const bsp = buildPatchBsp(shader);
+    bsp.faces[0].faceType = 3;
+    const backend = new SweepCollisionBackend();
+    await backend.init(bsp);
+    expect(backend.getFaceCollision(0)).toBeNull();
+    expect(backend.trace(new Vector3(0, 100, 0), new Vector3(0, -100, 0)).fraction).toBe(1);
+    expect(backend.getStats().backendStats?.collisionTriangleCount).toBe(0);
   });
 
-  it("does not collide baked misc_model decorations (models/ shader)", async () => {
-    const backend = await soupBackend("models/mapobjects/lights/coldlight_01");
-    const r = backend.trace(new Vector3(0, 100, 0), new Vector3(0, -100, 0));
-
-    expect(r.fraction).toBe(1);
-  });
-
-  it("does not collide decorations authored under the mapobjects_ prefix", async () => {
-    const backend = await soupBackend("mapobjects_decor_misc_spanner");
-    const r = backend.trace(new Vector3(0, 100, 0), new Vector3(0, -100, 0));
-
-    expect(r.fraction).toBe(1);
+  it("preserves authored brush support beneath softened draw geometry", async () => {
+    const bsp = buildBsp([FLOOR]);
+    const draw = buildPatchBsp("textures/world");
+    draw.faces[0].faceType = 3;
+    bsp.faces = draw.faces;
+    bsp.vertices = draw.vertices.map((v) => ({ ...v, position: [v.position[0], v.position[1], 8] }));
+    bsp.meshVerts = draw.meshVerts;
+    bsp.leafFaces = [0];
+    bsp.leafs[0].numLeafFaces = 1;
+    const backend = new SweepCollisionBackend();
+    await backend.init(bsp);
+    const reference = await makeBackend([FLOOR]);
+    const start = new Vector3(0, 100, 0),
+      end = new Vector3(0, -100, 0);
+    expect(backend.trace(start, end)).toEqual(reference.trace(start, end));
   });
 });
 
 describe("SweepCollisionBackend — face hull is asymmetric like the brush hull", () => {
-  it("rests the origin 24u above a soup floor, not max(24, 40)=40", async () => {
-    const soup = await soupBackend("textures/plastic_vertex/vertex_grey65");
+  it("rests the origin 24u above a patch floor, not max(24, 40)=40", async () => {
+    const soup = await patchBackend("textures/plastic_vertex/vertex_grey65");
     const brush = await makeBackend([FLOOR]);
 
     const onSoup = soup.trace(new Vector3(0, 100, 0), new Vector3(0, -100, 0));
@@ -599,8 +603,8 @@ describe("SweepCollisionBackend — face hull is asymmetric like the brush hull"
     expect(onSoup.endPos.y - onBrush.endPos.y).toBeLessThan(0.5);
   });
 
-  it("still stops the head against a soup ceiling at the full 40u", async () => {
-    const backend = await soupBackend("textures/plastic_vertex/vertex_grey65");
+  it("still stops the head against a patch ceiling at the full 40u", async () => {
+    const backend = await patchBackend("textures/plastic_vertex/vertex_grey65");
     // Rise from well below the surface; the head (+40) should hit it.
     const r = backend.trace(new Vector3(0, -100, 0), new Vector3(0, 100, 0));
 

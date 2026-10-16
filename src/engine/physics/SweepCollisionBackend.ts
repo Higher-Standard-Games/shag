@@ -13,7 +13,7 @@
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Scene } from "@babylonjs/core/scene";
 import { extractLifts, LiftSystem } from "../../shared/bsp/LiftSystem";
-import type { BspBrush, BspFace, BspFile, BspLeaf } from "../loader/bsp/BspLoader";
+import type { BspBrush, BspFile, BspLeaf } from "../loader/bsp/BspLoader";
 import {
   type CollisionBackend,
   type CollisionStats,
@@ -25,11 +25,6 @@ import { type CollisionBounds, CollisionSpatialIndex, planeBounds } from "./Coll
 import { buildFacetPlanes, type FacetPlane } from "./FacetBevels";
 import { PatchTessellator } from "./PatchTessellator";
 import { PLAYER_HEIGHT, PLAYER_MINS_Z, PLAYER_RADIUS, STEPSIZE } from "./PlayerPhysicsConstants";
-
-/** Shader-prefix exclusions for the triangle-soup compatibility collider.
- * Shader names do not establish the original entity or authored collision intent.
- */
-const DECORATION_SHADER_RE = /^(models\/|mapobjects)/i;
 
 // Content flags (Q3-compatible)
 const ContentFlags = {
@@ -441,6 +436,9 @@ export class SweepCollisionBackend implements CollisionBackend {
     for (let i = 0; i < this.bsp.faces.length; i++) {
       if (this.liftFaces.has(i)) continue;
       const face = this.bsp.faces[i];
+      // Planar and triangle-soup draw surfaces have independent authored brushes.
+      // Only patches need collision facets generated from their control points.
+      if (face.faceType !== 2) continue;
 
       // Filter by flags: Must be SOLID or PLAYERCLIP
       const texture = this.bsp.textures[face.textureIndex];
@@ -459,20 +457,6 @@ export class SweepCollisionBackend implements CollisionBackend {
       if (face.faceType === 2) {
         // Use higher tessellation (5) to match visual mesh and prevent holes
         const mesh = PatchTessellator.buildPatch(this.bsp, face, 5);
-        if (mesh) {
-          this.buildFacets(mesh);
-          this.faceCollisionMeshes[i] = mesh;
-        }
-      }
-      // Type 3: Mesh (Triangle Soup)
-      else if (face.faceType === 3) {
-        // Triangle-soup compatibility collision is separate from authored BSP
-        // brushes and patches. Decoration prefixes are a heuristic exclusion;
-        // draw-surface shaders alone do not establish collision intent.
-        if (DECORATION_SHADER_RE.test(texture.name || "")) {
-          continue;
-        }
-        const mesh = this.buildMeshFace(face);
         if (mesh) {
           this.buildFacets(mesh);
           this.faceCollisionMeshes[i] = mesh;
@@ -530,44 +514,6 @@ export class SweepCollisionBackend implements CollisionBackend {
       if (bounds) this.boundedTriangleCount++;
     }
     mesh.facetIndex = new CollisionSpatialIndex(items);
-  }
-
-  private buildMeshFace(face: BspFace): FaceCollisionGeometry | null {
-    if (!this.bsp) return null;
-
-    const vertices: Vector3[] = [];
-    const indices: number[] = [];
-    const min = new Vector3(Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_VALUE);
-    const max = new Vector3(-Number.MAX_VALUE, -Number.MAX_VALUE, -Number.MAX_VALUE);
-
-    // Get vertices (Q3 to Babylon coords)
-    for (let i = 0; i < face.numVertices; i++) {
-      const v = this.bsp.vertices[face.firstVertex + i];
-      const pos = new Vector3(v.position[0], v.position[2], v.position[1]); // Q3 to Babylon
-      vertices.push(pos);
-
-      min.x = Math.min(min.x, pos.x);
-      min.y = Math.min(min.y, pos.y);
-      min.z = Math.min(min.z, pos.z);
-      max.x = Math.max(max.x, pos.x);
-      max.y = Math.max(max.y, pos.y);
-      max.z = Math.max(max.z, pos.z);
-    }
-
-    // Get indices and reverse winding
-    for (let i = 0; i < face.numMeshVerts; i += 3) {
-      const i0 = this.bsp.meshVerts[face.firstMeshVert + i];
-      const i1 = this.bsp.meshVerts[face.firstMeshVert + i + 1];
-      const i2 = this.bsp.meshVerts[face.firstMeshVert + i + 2];
-      indices.push(i0, i2, i1); // Reverse winding
-    }
-
-    return {
-      vertices,
-      indices,
-      mins: min,
-      maxs: max,
-    };
   }
 
   /**

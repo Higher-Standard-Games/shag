@@ -218,6 +218,11 @@ npm run test:physics
 
 ### Collision route comparisons
 
+Sweep collision uses authored BSP collision brushes and tessellated patches.
+Planar and triangle-soup draw surfaces do not generate additional colliders;
+their shader names and visible corner softening do not define gameplay solidity.
+Solid models need collision brushes supplied by the map compiler or mapper.
+
 Sweep collision retrieves brush/face candidates from BSP leaves touched by the
 swept hull. Rendering PVS visibility is not a collision filter. Repeated leaf
 references are deduplicated per query, except embedded contacts whose recovery
