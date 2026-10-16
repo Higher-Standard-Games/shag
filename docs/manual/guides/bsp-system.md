@@ -228,6 +228,11 @@ collision planes with a numeric margin; missing constraints remain unculled.
 Triangle facets have per-surface BVHs built from the same collision-plane
 constraints. Queries retain source ordering and fall back conservatively for
 facets without finite bounds. No visual triangles are simplified by this index.
+Strictly contained compatible static brushes can skip plane solving when the
+hull starts outside their container. The container must be reachable through
+the same leaf/fallback paths. Touching or uncertain pairs remain, as do embedded
+contacts, ladders and moving models. This does not delete canonical BSP brushes
+or alter point-content queries.
 
 The Node benchmark exercises `SweepCollisionBackend` at recorded player positions:
 

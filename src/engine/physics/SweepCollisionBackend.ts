@@ -175,6 +175,8 @@ export class SweepCollisionBackend implements CollisionBackend {
   private clipIndex: CollisionSpatialIndex | null = null;
   private collisionTriangleCount = 0;
   private boundedTriangleCount = 0;
+  private brushParents = new Int32Array(0);
+  private prunedBrushTests = 0;
 
   // Pooled trace state to avoid per-trace allocations
   private readonly _pooledState: TraceState = {
@@ -261,6 +263,80 @@ export class SweepCollisionBackend implements CollisionBackend {
     this.processFaces();
     this.buildClipBrushIndex();
     this.buildLadderBrushIndex();
+    this.buildBrushContainment();
+  }
+
+  /** Strict containment only; keep original BSP data for contents and entities. */
+  private buildBrushContainment(): void {
+    if (!this.bsp) return;
+    const bsp = this.bsp;
+    this.brushParents = new Int32Array(bsp.brushes.length).fill(-1);
+    this.prunedBrushTests = 0;
+    const inline = new Set<number>();
+    for (const model of bsp.models.slice(1)) {
+      for (let i = model.firstBrush; i < model.firstBrush + model.numBrushes; i++) inline.add(i);
+    }
+    const ladders = new Set(this.ladderBrushes);
+    const clips = new Set(this.clipBrushIndices);
+    const leaves = bsp.brushes.map(() => new Set<number>());
+    const leafBrushes = bsp.leafs.map((leaf, li) => {
+      const references = new Set<number>();
+      for (let i = 0; i < leaf.numLeafBrushes; i++) {
+        const bi = bsp.leafBrushes[leaf.firstLeafBrush + i];
+        references.add(bi);
+        leaves[bi]?.add(li);
+      }
+      return references;
+    });
+    const eligible = bsp.brushes
+      .map((brush, id) => ({ id, bounds: this.brushBounds[id], texture: this.getBrushTexture(brush) }))
+      .filter(({ id, bounds, texture }) => bounds && texture?.collisionMask && !inline.has(id) && !ladders.has(id));
+    const index = new CollisionSpatialIndex(eligible);
+    for (const inner of eligible) {
+      for (const id of index.query(inner.bounds!)) {
+        if (id === inner.id || !this.brushBounds[id]) continue;
+        const outer = bsp.brushes[id],
+          texture = this.getBrushTexture(outer)!;
+        if (
+          texture.contentFlags !== inner.texture!.contentFlags ||
+          texture.collisionMask !== inner.texture!.collisionMask
+        )
+          continue;
+        // The containing brush must be encountered wherever the child could
+        // be tested, including the independent clip fallback and unusual masks.
+        if (clips.has(inner.id) && !clips.has(id)) continue;
+        if (!leaves[inner.id].size && !clips.has(inner.id)) continue;
+        if ([...leaves[inner.id]].some((li) => !leafBrushes[li].has(id))) continue;
+        let contained = true;
+        for (let i = 0; i < outer.numSides; i++) {
+          const plane = bsp.planes[bsp.brushSides[outer.firstSide + i].planeIndex];
+          let distance = 0;
+          for (let axis = 0; axis < 3; axis++)
+            distance += plane.normal[axis] * inner.bounds![axis + (plane.normal[axis] < 0 ? 0 : 3)];
+          if (!(distance < plane.dist - 0.125)) {
+            contained = false;
+            break;
+          }
+        }
+        if (contained) {
+          this.brushParents[inner.id] = id;
+          break;
+        }
+      }
+    }
+  }
+
+  private hullStartsOutsideBrush(brush: BspBrush, state: TraceState): boolean {
+    if (!this.bsp) return false;
+    for (let i = 0; i < brush.numSides; i++) {
+      const plane = this.bsp.planes[this.bsp.brushSides[brush.firstSide + i].planeIndex];
+      let distance = -plane.dist;
+      for (let axis = 0; axis < 3; axis++)
+        distance +=
+          (state.start[axis] + (plane.normal[axis] < 0 ? state.maxs[axis] : state.mins[axis])) * plane.normal[axis];
+      if (distance > 0) return true;
+    }
+    return false;
   }
 
   /** Collect SURF_LADDER brushes once; see {@link ladderBrushes}. */
@@ -1040,6 +1116,12 @@ export class SweepCollisionBackend implements CollisionBackend {
           return;
       }
     }
+    const parent = this.brushParents[brushIndex] ?? -1;
+    // Starting embedded can expose the child's recovery normal. Preserve it.
+    if (parent >= 0 && this.hullStartsOutsideBrush(this.bsp.brushes[parent], state)) {
+      this.prunedBrushTests++;
+      return;
+    }
 
     let enterFraction = -1.0;
     let leaveFraction = 1.0;
@@ -1650,6 +1732,8 @@ export class SweepCollisionBackend implements CollisionBackend {
         clipBrushCount: this.clipBrushIndices.length,
         collisionTriangleCount: this.collisionTriangleCount,
         boundedTriangleCount: this.boundedTriangleCount,
+        redundantBrushCount: this.brushParents.filter((id) => id >= 0).length,
+        prunedBrushTests: this.prunedBrushTests,
       },
     };
   }
@@ -1671,6 +1755,8 @@ export class SweepCollisionBackend implements CollisionBackend {
     this.clipIndex = null;
     this.collisionTriangleCount = 0;
     this.boundedTriangleCount = 0;
+    this.brushParents = new Int32Array(0);
+    this.prunedBrushTests = 0;
     this.traceGeneration = 0;
     this.bsp = null;
     this.stats = { traceCount: 0, hitCount: 0, totalTraceTime: 0 };

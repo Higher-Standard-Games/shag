@@ -411,6 +411,49 @@ async function soupBackend(shaderName: string): Promise<SweepCollisionBackend> {
 }
 
 describe("SweepCollisionBackend — per-query visits", () => {
+  it("prunes strictly contained brushes only for non-embedded hulls", async () => {
+    const bsp = buildBsp([
+      { min: [-100, -100, -100], max: [100, 100, 100] },
+      { min: [-10, -10, -10], max: [10, 10, 10] },
+    ]);
+    const backend = new SweepCollisionBackend();
+    await backend.init(bsp);
+    expect(backend.getStats().backendStats?.redundantBrushCount).toBe(1);
+    const internals = backend as unknown as { brushParents: Int32Array };
+    for (const start of [new Vector3(200, 0, 0), new Vector3(0, 0, 0), new Vector3(0, 110, 0)]) {
+      const end = new Vector3(-200, -5, 0);
+      const accelerated = backend.trace(start, end, { radius: 0, height: 0 });
+      const parents = internals.brushParents;
+      internals.brushParents = new Int32Array(parents.length).fill(-1);
+      const original = backend.trace(start, end, { radius: 0, height: 0 });
+      internals.brushParents = parents;
+      expect(accelerated).toEqual(original);
+    }
+    expect(backend.getStats().backendStats?.prunedBrushTests).toBeGreaterThan(0);
+    expect(bsp.brushes).toHaveLength(2);
+    expect(backend.pointContents(Vector3.Zero())).toBe(SOLID);
+  });
+
+  it("retains touching, differently masked and insufficiently referenced brush pairs", async () => {
+    for (const variant of ["touching", "mask", "references"] as const) {
+      const bsp = buildBsp([
+        { min: [-100, -100, -100], max: [100, 100, 100] },
+        {
+          min: [-10, -10, -10],
+          max: [variant === "touching" ? 100 : 10, 10, 10],
+          contentFlags: variant === "mask" ? PLAYERCLIP : SOLID,
+        },
+      ]);
+      if (variant === "references") {
+        bsp.leafBrushes = [1];
+        bsp.leafs[0].numLeafBrushes = 1;
+      }
+      const backend = new SweepCollisionBackend();
+      await backend.init(bsp);
+      expect(backend.getStats().backendStats?.redundantBrushCount).toBe(0);
+    }
+  });
+
   it("indexes distant facets while preserving linear-scan results at edges and embedded starts", async () => {
     const bsp = buildSoupBsp("textures/world");
     const quad = bsp.vertices.slice();
