@@ -21,7 +21,9 @@ import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Scene } from "@babylonjs/core/scene";
 import { PK3TextureLoader } from "../pk3/PK3TextureLoader";
 import { q3AlphaMode } from "../shader/Q3Blend";
+import { configureQ3DistanceRamp } from "../shader/Q3DistanceRampPlugin";
 import { Q3ShaderRegistry } from "../shader/Q3ShaderRegistry";
+import { configureQ3SoftParticle } from "../shader/Q3SoftParticlePlugin";
 import { ShaderAnimationSystem } from "../shader/ShaderAnimationSystem";
 import { isTextureReleased } from "./ModelSourceCache";
 
@@ -543,6 +545,8 @@ export class MD3Loader {
     }
 
     // Apply material properties from shader
+    configureQ3DistanceRamp(mat, props.primaryStage);
+    configureQ3SoftParticle(mat, props);
     mat.transparencyMode = props.alphaCutoff !== undefined ? 1 : props.isTransparent ? 2 : 0;
     mat.alphaMode = q3AlphaMode(props);
     mat.alphaCutOff = props.alphaCutoff ?? 0.5;

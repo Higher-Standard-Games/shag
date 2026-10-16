@@ -42,6 +42,11 @@ fixed anchor. Clearance accounts for server-landed anchors (about 4 units above
 the floor), model size and the full downward bob. The bob runs at 1.2 times the
 recipe frequency; pickup positions and collection ranges remain authoritative.
 
+Procedural health shells use opacity Fresnel alone: 12% opacity at the centre,
+rising to 90% at the rim. The transparent centre keeps the inner cross visible.
+Mega and ultra health cross bodies and their caps share camera alignment and
+scale. These settings affect presentation only.
+
 ## Authority
 
 The server decides whether a player collected a pickup, applies the effect, and replicates active state. The client should not grant inventory based only on visual proximity. `deactivateFromServer()` is the presentation entry point after authoritative confirmation.

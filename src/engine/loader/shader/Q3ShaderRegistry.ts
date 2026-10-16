@@ -227,7 +227,7 @@ export class Q3ShaderRegistry {
   resolveMaterialProps(textureName: string, options: ResolveMaterialOptions = {}): ResolvedMaterialProps {
     const deluxe = options.deluxe ?? false;
     const normalizedTextureName = normalizeShaderName(textureName);
-    const cacheKey = `${normalizedTextureName}|deluxe=${deluxe ? 1 : 0}`;
+    const cacheKey = `${normalizedTextureName}|deluxe=${deluxe ? 1 : 0}|pass=${options.passIndex ?? "all"}`;
 
     // Check cache first (same texture + deluxe mode resolves to the same props)
     const cached = this.resolvedCache.get(cacheKey);
@@ -271,7 +271,12 @@ export class Q3ShaderRegistry {
     }
 
     const props: ResolvedMaterialProps = { ...defaults };
-    const { stages: activeStages, branch } = this.getResolvedStages(shader, deluxe);
+    const resolved = this.getResolvedStages(shader, deluxe);
+    const branch = resolved.branch;
+    const activeStages =
+      options.passIndex === undefined
+        ? resolved.stages
+        : resolved.stages.slice(options.passIndex, options.passIndex + 1);
     const materialStage = activeStages.find((stage) => stage.material !== undefined);
     // A collapsed material uses its own UV/blend state. An earlier environment
     // background pass must not turn the material's diffuse map into a reflection.
@@ -279,6 +284,7 @@ export class Q3ShaderRegistry {
     const isClassicLightmapComposition = this.isClassicLightmapComposition(activeStages);
 
     props.resolvedBranch = branch;
+    props.softParticle = shader.softParticle;
     props.glossIntensity = shader.glossIntensity;
     props.glossExponent = shader.glossExponent;
     props.primaryStage = primaryStage;
@@ -454,8 +460,37 @@ export class Q3ShaderRegistry {
       }
     }
 
+    if (options.passIndex !== undefined) {
+      if (options.passIndex > 0) props.depthWrite = primaryStage?.depthWrite ?? false;
+      if (!props.useLightmap) props.isFullbright = true;
+    }
     this.resolvedCache.set(cacheKey, props);
     return props;
+  }
+
+  /** Keep repeated material layers in script order instead of dropping later layers. */
+  resolveMaterialPasses(textureName: string, options: ResolveMaterialOptions = {}): ResolvedMaterialProps[] {
+    const shader = this.getShader(textureName);
+    const stages = shader ? this.getResolvedStages(shader, options.deluxe ?? false).stages : [];
+    if (
+      stages.filter((stage) => stage.material).length < 2 ||
+      !stages[0]?.material ||
+      !stages.every(
+        (stage, index) =>
+          (stage.material || stage.map || stage.animMap) &&
+          !isLightmapStage(stage) &&
+          (index === 0
+            ? !stage.blendFunc || (stage.blendFunc[0] === "GL_ONE" && stage.blendFunc[1] === "GL_ZERO")
+            : stage.material
+              ? stage.blendFunc?.[0] === "GL_SRC_ALPHA" && stage.blendFunc[1] === "GL_ONE_MINUS_SRC_ALPHA"
+              : (stage.blendFunc?.[0] === "GL_ONE" || stage.blendFunc?.[0] === "GL_SRC_ALPHA") &&
+                stage.blendFunc[1] === "GL_ONE") &&
+          (!stage.tcGen || stage.tcGen.mode === "base"),
+      )
+    ) {
+      return [this.resolveMaterialProps(textureName, options)];
+    }
+    return stages.map((_, passIndex) => this.resolveMaterialProps(textureName, { ...options, passIndex }));
   }
 
   private getResolvedStages(shader: Q3Shader, deluxe: boolean): { stages: Q3ShaderStage[]; branch: ResolvedBranch } {

@@ -109,11 +109,19 @@ export interface WaveFunc {
 /**
  * RGB generation modes
  */
+export interface DistanceRamp {
+  from: number;
+  to: number;
+  near: number;
+  far: number;
+}
+
 export interface RgbGen {
   type:
     | "identity"
     | "identityLighting"
     | "wave"
+    | "distanceRamp"
     | "entity"
     | "oneMinusEntity"
     | "vertex"
@@ -121,6 +129,7 @@ export interface RgbGen {
     | "lightingDiffuse"
     | "const";
   wave?: WaveFunc;
+  distanceRamp?: DistanceRamp;
   color?: [number, number, number];
 }
 
@@ -131,6 +140,7 @@ export interface AlphaGen {
   type:
     | "identity"
     | "wave"
+    | "distanceRamp"
     | "entity"
     | "oneMinusEntity"
     | "vertex"
@@ -139,6 +149,7 @@ export interface AlphaGen {
     | "portal"
     | "const";
   wave?: WaveFunc;
+  distanceRamp?: DistanceRamp;
   value?: number;
 }
 
@@ -263,6 +274,8 @@ export const DEFAULT_SKY_HEIGHT = 2048;
  * A complete Q3 shader definition
  */
 export interface Q3Shader {
+  /** Fade transparent intersections against opaque scene depth. */
+  softParticle?: boolean;
   /** Shader name (texture path without extension) */
   name: string;
 
@@ -332,6 +345,8 @@ export interface Q3Shader {
 }
 
 export interface ResolveMaterialOptions {
+  /** Resolve one stage of the selected branch for ordered material passes. */
+  passIndex?: number;
   /** Select Warsow/QFusion deluxe branches when present */
   deluxe?: boolean;
 }
@@ -341,6 +356,7 @@ export interface ResolveMaterialOptions {
  * This is what BspMeshBuilder uses to configure materials
  */
 export interface ResolvedMaterialProps {
+  softParticle?: boolean;
   primaryStage?: Q3ShaderStage;
   blendFunc?: [BlendFactor, BlendFactor];
   glossIntensity?: number;

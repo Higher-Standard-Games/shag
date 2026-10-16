@@ -535,20 +535,24 @@ describe("default PVS through gameplay MapLoader", () => {
     const sprites = loaded.meshResult!.autospriteMeshes!;
     expect(sprites).toHaveLength(2);
     const uploads = sprites.map(({ mesh }) => vi.spyOn(mesh, "updateVerticesData"));
+    const expectUploads = (counts: number[]) => {
+      for (const kind of [VertexBuffer.PositionKind, VertexBuffer.NormalKind])
+        expect(uploads.map((upload) => upload.mock.calls.filter(([buffer]) => buffer === kind).length)).toEqual(counts);
+    };
     const frame = () => {
       scene.onBeforeRenderObservable.notifyObservers(scene);
       scene.onBeforeCameraRenderObservable.notifyObservers(camera);
     };
     frame();
-    expect(uploads.map((upload) => upload.mock.calls.length)).toEqual([1, 0]);
+    expectUploads([1, 0]);
     camera.position.x = -0.1;
     frame();
-    expect(uploads.map((upload) => upload.mock.calls.length)).toEqual([1, 1]);
+    expectUploads([1, 1]);
     frame();
-    expect(uploads.map((upload) => upload.mock.calls.length)).toEqual([1, 1]);
+    expectUploads([1, 1]);
     BspManager.getInstance().disablePVS(scene);
     frame();
-    expect(uploads.map((upload) => upload.mock.calls.length)).toEqual([2, 1]);
+    expectUploads([2, 1]);
   });
 
   it("enables PVS after setup, supports off, and re-enables on the next map", async () => {

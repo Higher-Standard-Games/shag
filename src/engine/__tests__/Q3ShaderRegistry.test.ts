@@ -52,6 +52,43 @@ function makeShader(name: string, overrides: Partial<Q3Shader> = {}): Q3Shader {
 // ─── Tests ──────────────────────────────────────────────────────
 
 describe("Q3ShaderRegistry", () => {
+  it("resolves authored soft-particle blending", () => {
+    const [shader] = parseShaderFile(`halo {
+      softParticle
+      surfaceparm trans
+      { map textures/halo.tga blendFunc GL_SRC_ALPHA GL_ONE }
+    }`);
+    injectShader(shader);
+    const props = getRegistry().resolveMaterialProps("halo");
+    expect(props.softParticle).toBe(true);
+    expect(props.isTransparent).toBe(true);
+    expect(props.blendFunc).toEqual(["GL_SRC_ALPHA", "GL_ONE"]);
+    expect(getRegistry().resolveMaterialProps("unrelated").softParticle).toBeUndefined();
+  });
+  it("retains independent material colour, alpha blend and additive gain in script order", () => {
+    const shaders = parseShaderFile(`textures/qa/layers {
+      { material textures/qa/base textures/qa/norm textures/qa/gloss
+        rgbGen vertex }
+      { material textures/qa/tint textures/qa/norm textures/qa/gloss
+        rgbGen identity
+        blendFunc blend }
+      { map textures/qa/ao
+        rgbGen const 0.05 0.025 0.01
+        blendFunc add }
+    }`);
+    for (const shader of shaders) injectShader(shader);
+    const registry = getRegistry();
+    const passes = registry.resolveMaterialPasses("textures/qa/layers");
+    expect(passes).toHaveLength(3);
+    expect(passes.map((p) => p.alphaMode)).toEqual(["opaque", "blend", "add"]);
+    expect(passes.map((p) => p.usesVertexRgb)).toEqual([true, false, false]);
+    expect(passes.map((p) => p.useLightmap)).toEqual([true, true, false]);
+    expect(passes.map((p) => p.depthWrite)).toEqual([true, false, false]);
+    expect(passes[1].diffuseTexture).toBe("textures/qa/tint");
+    expect(passes[2].rgbGen?.color).toEqual([0.05, 0.025, 0.01]);
+    expect(passes.every((p) => !p.glowTexture)).toBe(true);
+    expect(registry.resolveMaterialProps("textures/qa/layers").glowTexture).toBe("textures/qa/ao");
+  });
   it("retains an authored additive shine stage after a Qfusion material stage", () => {
     const [shader] = parseShaderFile(`models/qa/teleporter {
       { map env/void.png tcGen environment }

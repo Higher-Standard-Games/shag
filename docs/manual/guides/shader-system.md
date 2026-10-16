@@ -38,20 +38,50 @@ The parser and BSP material path cover the compatibility features most maps depe
 - `tcMod` animation;
 - `tcGen environment`;
 - wave-driven `rgbGen` and `alphaGen`;
+- Qfusion `rgbGen wave distanceramp` and `alphaGen wave distanceramp` on
+  primary Standard/PBR material stages;
 - `alphaGen vertex` on blended BSP meshes and true multiplicative
   `blendFunc filter` decals (white leaves the framebuffer unchanged);
 - the first additive shine stage following a Qfusion `material` stage,
   including its brightness wave and UV animation;
 - `deformVertexes autosprite` and `autosprite2`;
+- `softParticle` intersection fading on transparent Standard/PBR primary stages;
 - QFusion/Warsow `cubemap` sources are preserved as appearance hints for the
   unified liquid renderer, including inside `if textureCubeMap` blocks.
 
 Support is not a complete reimplementation of the original Q3 renderer. Other vertex deforms, such as `wave`, `bulge` and `move`, are skipped by the parser. Some uncommon multi-stage combinations are approximated by Babylon material paths.
 
+Repeated material stages support an opaque base followed by alpha-blended
+material layers and additive image stages. Each pass retains its own texture,
+vertex RGB/alpha selection, constant RGB gain, UV animation and depth-write
+state. This covers Warfork's industrial supports and vertex-coloured crates.
+The passes draw separately; they are not combined into one shader. Environment
+backgrounds, explicit lightmap stacks and other blend combinations retain the
+existing compatibility path.
+
+`wave distanceramp from to near far` interpolates between `from` and `to`
+with a smoothstep over the projected camera distance at each vertex. The
+projection uses the deformed surface normal; billboard normals turn with their
+geometry. These ramps depend on camera position rather than elapsed time.
+Custom shader overlays outside the Standard/PBR path do not implement this ramp.
+
+`softParticle` fades effects against opaque scene depth, including alpha-tested
+cutouts. It uses Qfusion's softness curve and default scale of 0.02 (full
+strength at 50 world units of separation). Source-alpha blends fade their alpha;
+pure additive stages fade their RGB contribution. Clear background depth leaves
+the effect at full strength.
+
+Soft particles share a separate camera-space depth capture. It runs when a
+registered effect is enabled and in the world camera frustum, excluding sky,
+viewmodels and alpha-blended geometry. Camera changes replace the capture;
+disposing the last material releases it. This costs an additional depth pass
+while visible. Devices without float render targets retain the authored effect
+without intersection fading. Custom overlay shaders are outside this path.
+
 Material stages retain their own UV and blend state when an earlier pass uses
-environment coordinates. A blended material's additive shine uses a separate
+environment coordinates. An authored additive shine stage uses a separate
 pass so the base image's alpha does not mask it. Arbitrary environment backgrounds
-and additional glow layers are still approximated.
+are still approximated outside the repeated-material path.
 
 PK3 PNG/JPG, TGA and KTX images share a top-to-bottom upload convention. BSP
 diffuse maps use UV0 and baked lightmaps use UV2, including type-3 triangle soups.

@@ -50,6 +50,15 @@ function billboard(isAutosprite2 = false) {
 }
 
 describe("cached BSP billboards", () => {
+  it.each([false, true])("updates normals for projected-distance fades (autosprite2=%s)", (cylindrical) => {
+    const { mesh, result } = billboard(cylindrical);
+    mesh.setVerticesData(VertexBuffer.NormalKind, Array.from({ length: 4 }, () => [0, 0, 1]).flat(), true);
+    BspMeshBuilder.updateAutosprites(result, new Vector3(3, 4, 0));
+    const normal = Array.from(mesh.getVerticesData(VertexBuffer.NormalKind)!).slice(0, 3);
+    expect(normal[0]).toBeCloseTo(cylindrical ? 1 : 0.6);
+    expect(normal[1]).toBeCloseTo(cylindrical ? 0 : 0.8);
+    expect(normal[2]).toBe(0);
+  });
   it("does no vertex reads or uploads for an unchanged eye, then catches even tiny motion", () => {
     const { mesh, result, upload } = billboard();
     const eye = new Vector3(0, 0, 10);

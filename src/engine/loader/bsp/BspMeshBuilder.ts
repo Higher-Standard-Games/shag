@@ -23,8 +23,11 @@ import type { Scene } from "@babylonjs/core/scene";
 import { applySafeMaxSimultaneousLights } from "../../lighting/DynamicLightSafety";
 import { RenderVars } from "../../rendering/RenderVars";
 import { q3AlphaMode } from "../shader/Q3Blend";
+import { configureQ3DistanceRamp } from "../shader/Q3DistanceRampPlugin";
 import { Q3ShaderRegistry } from "../shader/Q3ShaderRegistry";
 import { DEFAULT_SKY_HEIGHT, type ResolvedMaterialProps } from "../shader/Q3ShaderTypes";
+import { configureQ3SoftParticle } from "../shader/Q3SoftParticlePlugin";
+import { Q3StageColorPlugin } from "../shader/Q3StageColorPlugin";
 import { configureBspBakedLighting } from "./BspBakedLightingPlugin";
 import { bspLightingProfile, scaleBspLighting } from "./BspLightingProfile";
 import type { BspFile } from "./BspLoader";
@@ -1015,6 +1018,18 @@ export class BspMeshBuilder {
 
       // Update mesh vertices
       mesh.updateVerticesData(VertexBuffer.PositionKind, positions);
+      const normals = mesh.getVerticesData(VertexBuffer.NormalKind);
+      if (normals) {
+        const length = isAutosprite2 ? Math.hypot(dx, dz) : 1;
+        if (length > 0.001) {
+          for (let v = 0; v < numVerts; v++) {
+            normals[v * 3] = dx / length;
+            normals[v * 3 + 1] = isAutosprite2 ? 0 : dy;
+            normals[v * 3 + 2] = dz / length;
+          }
+          mesh.updateVerticesData(VertexBuffer.NormalKind, normals);
+        }
+      }
       if (previous) {
         previous[0] = cameraPosition.x;
         previous[1] = cameraPosition.y;
@@ -1167,19 +1182,75 @@ export class BspMeshBuilder {
       return texture;
     };
 
-    for (const group of result.textureGroups) {
+    const privateTextures = new Set<Texture>();
+    const ownTexture = (texture: Texture | null): Texture | null => {
+      if (!texture) return null;
+      const copy = texture.clone();
+      copy.name = texture.name;
+      privateTextures.add(copy);
+      return copy;
+    };
+    result.worldMesh.onDisposeObservable.addOnce(() => {
+      for (const texture of privateTextures) texture.dispose();
+      privateTextures.clear();
+    });
+    const textureJobs = result.textureGroups.flatMap((group) => {
+      const originals = meshes.filter(
+        (m) => m.name === `bsp_tex_${group.textureIndex}` || m.name.startsWith(`bsp_sprite_${group.textureIndex}_`),
+      );
+      const passes = shaderRegistry.resolveMaterialPasses(group.textureName, { deluxe: options?.deluxe });
+      return passes.map((props, passIndex) => {
+        const targets =
+          passes.length === 1
+            ? originals
+            : originals.map((original) => {
+                if (!(original instanceof Mesh)) return original;
+                const mesh =
+                  passIndex === 0
+                    ? original
+                    : original.clone(`${original.name}_pass_${passIndex}`, original.parent, true);
+                if (passIndex > 0) {
+                  mesh.makeGeometryUnique();
+                  mesh.isPickable = false;
+                  mesh.checkCollisions = false;
+                }
+                if (passIndex === 0) mesh.material?.dispose();
+                mesh.material = BspMeshBuilder.createMaterialFromProps(
+                  `${mesh.name}_material_pass_${passIndex}`,
+                  scene,
+                  props,
+                );
+                mesh.onDisposeObservable.addOnce(() => mesh.material?.dispose());
+                mesh.hasVertexAlpha = props.usesVertexAlpha ?? false;
+                mesh.metadata = {
+                  ...original.metadata,
+                  materialPass: passIndex,
+                  usesLightmap: props.useLightmap,
+                  isFullbright: props.isFullbright,
+                  usesVertexRgb: props.usesVertexRgb,
+                  preserveVertexLighting: props.usesVertexRgb,
+                  preserveEmissive: false,
+                };
+                mesh.alphaIndex = passIndex;
+                return mesh;
+              });
+        return { ...group, props, targets, layered: passes.length > 1 };
+      });
+    });
+    for (const group of textureJobs) {
       const texName = group.textureName;
       if (!texName || texName.toLowerCase().includes("common/")) continue;
 
       progressCallback?.(loadedCount, total, texName);
 
-      const shaderProps = shaderRegistry.resolveMaterialProps(texName, { deluxe: options?.deluxe });
+      const shaderProps = group.props;
       const shader = shaderRegistry.getShader(texName);
       const diffuseCandidates = buildDiffuseCandidates(texName, shaderProps);
       let texture: Texture | null = null;
       let foundCleanPath = "";
       const diffuseResult = await loadFirstTexture(diffuseCandidates);
       texture = diffuseResult.texture;
+      if (group.layered) texture = ownTexture(texture);
       foundCleanPath = diffuseResult.resolvedBasePath;
 
       // If no texture found, check if we should generate a fallback
@@ -1198,9 +1269,7 @@ export class BspMeshBuilder {
       if (texture) {
         // Find ALL meshes for this texture index (there may be multiple with different lightmaps)
         // Also include sprite meshes which have names like bsp_sprite_${textureIndex}_*
-        const meshName = `bsp_tex_${group.textureIndex}`;
-        const spritePrefix = `bsp_sprite_${group.textureIndex}_`;
-        const matchingMeshes = meshes.filter((m) => m.name === meshName || m.name.startsWith(spritePrefix));
+        const matchingMeshes = group.targets;
 
         if (matchingMeshes.length === 0) continue;
 
@@ -1216,6 +1285,7 @@ export class BspMeshBuilder {
           // Check if this shader needs special material (glow overlay, etc.)
           if (
             shader &&
+            !group.layered &&
             !shaderProps.hasMaterialMetadata &&
             shaderProps.resolvedBranch === "default" &&
             !shader.conditionalBlocks?.length
@@ -1272,12 +1342,13 @@ export class BspMeshBuilder {
             let hasNormalMap = false;
             let hasGlossMap = false;
 
-            const normalTexture = await loadOptionalTexture(
+            let normalTexture = await loadOptionalTexture(
               shaderProps.normalTexture,
               shaderProps.normalTextureExplicitlyBlank,
               foundCleanPath,
               ["_norm", "_normal", "_bump"],
             );
+            if (group.layered) normalTexture = ownTexture(normalTexture);
             if (normalTexture) {
               if (mesh instanceof Mesh && !mesh.isVerticesDataPresent(VertexBuffer.TangentKind)) {
                 const positions = mesh.getVerticesData(VertexBuffer.PositionKind);
@@ -1293,12 +1364,13 @@ export class BspMeshBuilder {
               console.log(`[BspMeshBuilder] Loaded normal map for: ${texName}`);
             }
 
-            const glossTexture = await loadOptionalTexture(
+            let glossTexture = await loadOptionalTexture(
               shaderProps.glossTexture,
               shaderProps.glossTextureExplicitlyBlank,
               foundCleanPath,
               ["_gloss", "_spec"],
             );
+            if (group.layered) glossTexture = ownTexture(glossTexture);
             if (glossTexture) {
               mat.specularTexture = glossTexture;
               hasGlossMap = true;
@@ -1307,12 +1379,13 @@ export class BspMeshBuilder {
 
             BspMeshBuilder.tuneCompanionSurfaceMaterial(mat, { hasNormalMap, hasGlossMap }, shaderProps);
 
-            const glowTexture = await loadOptionalTexture(
+            let glowTexture = await loadOptionalTexture(
               shaderProps.glowTexture,
               shaderProps.glowTextureExplicitlyBlank,
               "",
               [],
             );
+            if (shaderProps.glowStage) glowTexture = ownTexture(glowTexture);
             if (glowTexture) {
               mat.emissiveTexture = glowTexture;
               mat.emissiveColor = new Color3(0, 0, 0);
@@ -1324,7 +1397,7 @@ export class BspMeshBuilder {
             const registerGlowAnimation = async (material: StandardMaterial | PBRMaterial) => {
               const stage = shaderProps.glowStage;
               if (!glowTexture || !stage) return;
-              if (shaderProps.alphaMode === "blend" && mesh instanceof Mesh) {
+              if (mesh instanceof Mesh) {
                 // Qfusion adds shine after the base alpha blend: the base image's
                 // transparent portal cutout must not mask the luminous rim.
                 const overlay = mesh.clone(`${mesh.name}_shine`, mesh.parent, true);
@@ -1349,7 +1422,7 @@ export class BspMeshBuilder {
                 material = shine;
               }
               if (stage.rgbGen?.type === "const" && stage.rgbGen.color)
-                material.emissiveColor.set(...stage.rgbGen.color);
+                new Q3StageColorPlugin(material, stage.rgbGen.color);
               const { ShaderAnimationSystem } = await import("../shader/ShaderAnimationSystem");
               const animations = ShaderAnimationSystem.getInstance();
               animations.init(scene);
@@ -1358,8 +1431,8 @@ export class BspMeshBuilder {
                     frequency: stage.animMap.frequency,
                     textures: (
                       await Promise.all(
-                        stage.animMap.frames.map(
-                          async (path) => (await loadFirstTexture(addTexturePrefixes(path))).texture,
+                        stage.animMap.frames.map(async (path) =>
+                          ownTexture((await loadFirstTexture(addTexturePrefixes(path))).texture),
                         ),
                       )
                     ).filter((tex): tex is Texture => !!tex),
@@ -1375,8 +1448,47 @@ export class BspMeshBuilder {
                 "emissive",
                 frames,
               );
+              const animationId = `${texName}:${material.uniqueId}:glow`;
+              material.onDisposeObservable.addOnce(() => animations.unregisterMaterial(animationId));
             };
 
+            const registerBaseAnimation = async (material: StandardMaterial | PBRMaterial) => {
+              const stage = shaderProps.primaryStage;
+              configureQ3DistanceRamp(material, stage);
+              configureQ3SoftParticle(material, shaderProps);
+              if (stage?.alphaGen?.type === "const") material.alpha = stage.alphaGen.value ?? 1;
+              if (!shaderProps.needsAnimation || !stage) return;
+              const { ShaderAnimationSystem } = await import("../shader/ShaderAnimationSystem");
+              const animations = ShaderAnimationSystem.getInstance();
+              animations.init(scene);
+              const frames = stage.animMap
+                ? {
+                    frequency: stage.animMap.frequency,
+                    textures: (
+                      await Promise.all(
+                        stage.animMap.frames.map(async (path) =>
+                          ownTexture((await loadFirstTexture(addTexturePrefixes(path))).texture),
+                        ),
+                      )
+                    ).filter((image): image is Texture => !!image),
+                  }
+                : undefined;
+              const id = `${texName}:${material.uniqueId}:base`;
+              animations.registerMaterial(
+                id,
+                material,
+                texture,
+                stage.tcMod ?? [],
+                stage.rgbGen,
+                stage.alphaGen,
+                shaderProps.alphaMode === "add" ||
+                  (shaderProps.isFullbright && !shaderProps.usesVertexRgb && shaderProps.alphaMode === "opaque")
+                  ? "emissive"
+                  : "diffuse",
+                frames,
+              );
+              material.onDisposeObservable.addOnce(() => animations.unregisterMaterial(id));
+            };
             if (options?.pbr && BspMeshBuilder.shouldUseGeneratedPBR(shaderProps, hasNormalMap, hasGlossMap)) {
               const pbrMat = BspMeshBuilder.createGeneratedPBRMaterial(
                 `${mesh.name}_pbr`,
@@ -1388,7 +1500,11 @@ export class BspMeshBuilder {
                 glowTexture,
               );
               mesh.material = pbrMat;
+              mat.dispose();
+              if (shaderProps.rgbGen?.type === "const" && shaderProps.rgbGen.color)
+                new Q3StageColorPlugin(pbrMat, shaderProps.rgbGen.color);
               await registerGlowAnimation(pbrMat);
+              await registerBaseAnimation(pbrMat);
               if (!mesh.metadata) mesh.metadata = {};
               mesh.metadata.usesBspPbr = true;
               if (glowTexture) {
@@ -1461,7 +1577,6 @@ export class BspMeshBuilder {
               ) {
                 mat.useEmissiveAsIllumination = true;
                 mat.emissiveColor.set(0, 0, 0);
-                if (grayConstant) (mat.emissiveTexture as Texture).level = constant[0];
               }
               // Mark mesh to skip lightmap application
               if (mesh.metadata) {
@@ -1486,42 +1601,12 @@ export class BspMeshBuilder {
               console.log(`[BspMeshBuilder] Environment mapping: ${texName}`);
             }
 
-            // Register for shader animation if needed (tcMod, rgbGen wave, alphaGen wave)
-            if (shaderProps.needsAnimation && shader) {
-              const { ShaderAnimationSystem } = await import("../shader/ShaderAnimationSystem");
-              const animSystem = ShaderAnimationSystem.getInstance();
-              animSystem.init(scene);
+            if (shaderProps.rgbGen?.type === "const" && shaderProps.rgbGen.color)
+              new Q3StageColorPlugin(mat, shaderProps.rgbGen.color);
+            else if (shaderProps.alphaMode === "add" && shaderProps.usesVertexRgb)
+              new Q3StageColorPlugin(mat, [1, 1, 1], true);
 
-              // Get animation data from first stage
-              const firstStage = shaderProps.primaryStage;
-              if (firstStage) {
-                const frames = firstStage.animMap
-                  ? {
-                      frequency: firstStage.animMap.frequency,
-                      textures: (
-                        await Promise.all(
-                          firstStage.animMap.frames.map(
-                            async (path) => (await loadFirstTexture(addTexturePrefixes(path))).texture,
-                          ),
-                        )
-                      ).filter((tex): tex is Texture => !!tex),
-                    }
-                  : undefined;
-                animSystem.registerMaterial(
-                  `${texName}:${mat.uniqueId}:base`,
-                  mat,
-                  texture,
-                  firstStage.tcMod || [],
-                  firstStage.rgbGen,
-                  firstStage.alphaGen,
-                  shaderProps.alphaMode === "add" ||
-                    (shaderProps.isFullbright && !shaderProps.usesVertexRgb && shaderProps.alphaMode === "opaque")
-                    ? "emissive"
-                    : "diffuse",
-                  frames,
-                );
-              }
-            }
+            await registerBaseAnimation(mat);
 
             loadedCount++;
           }
@@ -1785,7 +1870,11 @@ export class BspMeshBuilder {
     props: ResolvedMaterialProps,
     _textureName: string, // Will be used for texture loading later
   ): StandardMaterial {
-    const mat = new StandardMaterial(name, this.scene);
+    return BspMeshBuilder.createMaterialFromProps(name, this.scene, props);
+  }
+
+  private static createMaterialFromProps(name: string, scene: Scene, props: ResolvedMaterialProps): StandardMaterial {
+    const mat = new StandardMaterial(name, scene);
 
     // Base color - white so texture shows properly
     mat.diffuseColor = new Color3(1, 1, 1);

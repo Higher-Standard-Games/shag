@@ -310,6 +310,11 @@ function parseShaderBody(name: string, tokens: string[], startPos: number): { sh
         pos++;
         break;
 
+      case "softparticle":
+        shader.softParticle = true;
+        pos++;
+        break;
+
       case "polygonoffset":
         shader.polygonOffset = true;
         pos++;
@@ -538,6 +543,7 @@ function isDirective(token: string): boolean {
     "nomipmaps",
     "nopicmip",
     "polygonoffset",
+    "softparticle",
     "portal",
     "entitymergable",
     "deformvertexes",
@@ -973,6 +979,10 @@ function parseRgbGen(tokens: string[], pos: number): RgbGen {
     case "lightingdiffuse":
       return { type: "lightingDiffuse" };
     case "wave":
+      if (tokens[pos + 1]?.toLowerCase() === "distanceramp") {
+        const [from = 0, to = 1, near = 0, far = 1] = constNumbers(tokens, pos + 2, 4);
+        return { type: "distanceRamp", distanceRamp: { from, to, near, far } };
+      }
       return { type: "wave", wave: parseWaveFunc(tokens, pos + 1) };
     case "const": {
       const color = constNumbers(tokens, pos + 1, 3);
@@ -1005,6 +1015,10 @@ function parseAlphaGen(tokens: string[], pos: number): AlphaGen {
     case "portal":
       return { type: "portal" };
     case "wave":
+      if (tokens[pos + 1]?.toLowerCase() === "distanceramp") {
+        const [from = 0, to = 1, near = 0, far = 1] = constNumbers(tokens, pos + 2, 4);
+        return { type: "distanceRamp", distanceRamp: { from, to, near, far } };
+      }
       return { type: "wave", wave: parseWaveFunc(tokens, pos + 1) };
     case "const": {
       const [value] = constNumbers(tokens, pos + 1, 1);

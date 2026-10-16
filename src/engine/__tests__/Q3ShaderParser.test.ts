@@ -9,6 +9,31 @@ import { describe, expect, it } from "vitest";
 import { parseShaderFile } from "../loader/shader/Q3ShaderParser";
 
 describe("Q3ShaderParser", () => {
+  it("preserves softParticle without consuming the following shader directives", () => {
+    const [shader] = parseShaderFile(`halo {
+      softParticle
+      cull none
+      { clampmap textures/halo.tga blendFunc GL_SRC_ALPHA GL_ONE }
+    }`);
+    expect(shader.softParticle).toBe(true);
+    expect(shader.cull).toBe("none");
+    expect(shader.stages[0].blendFunc).toEqual(["GL_SRC_ALPHA", "GL_ONE"]);
+  });
+  it("keeps Qfusion distance ramps separate from time waves, including zero endpoints", () => {
+    const [shader] = parseShaderFile(`halo {
+      { map textures/halo.tga
+        rgbGen wave distanceramp 1 0 300 600
+        alphaGen wave distanceramp 0 1 80 400 }
+    }`);
+    expect(shader.stages[0].rgbGen).toEqual({
+      type: "distanceRamp",
+      distanceRamp: { from: 1, to: 0, near: 300, far: 600 },
+    });
+    expect(shader.stages[0].alphaGen).toEqual({
+      type: "distanceRamp",
+      distanceRamp: { from: 0, to: 1, near: 80, far: 400 },
+    });
+  });
   // ── Basic Parsing ─────────────────────────────────────────
 
   describe("basic parsing", () => {
