@@ -39,6 +39,11 @@ which may refer to the last weapon-camera pass. Demo POV uses its own view manag
 Which local shot a projectile belongs to is inferred from its position and
 forward velocity; projectiles do not carry an explicit owner for this.
 
+Machinegun tracers spawn a warm impact light when their streak reaches the hit.
+The light peaks at 0.25 intensity, uses a 60-unit range and expires with the
+0.16-second impact effect. Local and remote machinegun presentation share this
+tracer path.
+
 ## Console inspection
 
 ```text

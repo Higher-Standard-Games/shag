@@ -19,6 +19,7 @@ import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
+
 import { generateSpreadDirections, mulberry32, yawPitchFromDirection } from "../../shared/SpreadUtils";
 import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
 import { ImpactSparkRenderer } from "./impact/ImpactSparkRenderer";
@@ -29,6 +30,8 @@ import type { RailEffectSample } from "./rail/RailProfiles";
 import { StreakTracerRenderer } from "./tracer/StreakTracerRenderer";
 import { VoltaicEffectRenderer, type VoltaicRemoteStartResolver } from "./voltaic/VoltaicEffectRenderer";
 import type { VoltaicImpactKind } from "./voltaic/VoltaicProfiles";
+
+const TRACER_IMPACT_LIGHT_INTENSITY = 0.25;
 
 // ── Config types ─────────────────────────────────────────────────────
 
@@ -291,7 +294,7 @@ export class HitscanEffects {
           spawnTime: performance.now() / 1000,
           duration: 0.16,
         };
-        effect.light = this.spawnImpactFlash(hit.point, color, hit.normal, effect);
+        effect.light = this.spawnImpactFlash(hit.point, color, hit.normal, effect, TRACER_IMPACT_LIGHT_INTENSITY);
         this.effects.push(effect);
         this.spawnWallMark(hit.point, hit.normal, color, 0.3);
         this.spawnImpactSparks(hit.point, hit.normal, direction, color, TRACER_SPARKS, false);
@@ -955,13 +958,14 @@ export class HitscanEffects {
     color: Color3,
     normal: Vector3 | undefined,
     owner: PooledLightOwner,
+    intensity = 25,
   ): PointLight | null {
     if (!this.scene) return null;
 
     // Offset slightly along normal to prevent Z-fighting
     const offset = normal ? normal.scale(0.05) : Vector3.Zero();
 
-    const light = getPointLightPool().acquire(pos.add(offset), color, 25, 60, owner);
+    const light = getPointLightPool().acquire(pos.add(offset), color, intensity, 60, owner);
 
     // Impact light is cleaned up by the effect that owns it
     return light;
