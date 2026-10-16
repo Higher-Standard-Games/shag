@@ -1,5 +1,12 @@
 # BSP triangle-soup collision — misc_models are wrongly solid (v0.9.21 investigation)
 
+**2026-10-16 review:** the historical claim below that unsupported draw-surface
+centroids prove required gameplay collision is being re-evaluated. Probes can
+start embedded or sample decorative/sky-portal geometry. See the
+[collision-authority investigation](./v0.9.31-collision-authority.md) before using
+these counts to justify triangle-soup collision. The old implementation decision
+is preserved here as history, not a verified current requirement.
+
 ## Symptom
 Small decorative geometry baked into maps — e.g. the little lamp/decor "models" on
 the wdm2 floor — collide with players and shots. In Q3/Warsow they are non-solid;

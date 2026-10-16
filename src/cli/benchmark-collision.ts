@@ -1,6 +1,7 @@
 /** Recorded-position collision benchmark; this does not replay gameplay inputs. */
 import { createHash } from "node:crypto";
 import * as fs from "node:fs";
+import * as path from "node:path";
 import { gunzipSync } from "node:zlib";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { BspLoader } from "../engine/loader/bsp/BspLoader";
@@ -10,12 +11,19 @@ import { SweepCollisionBackend } from "../engine/physics/SweepCollisionBackend";
 import { DemoReader } from "../shared/demo/DemoReader";
 
 const args = process.argv.slice(2);
-const value = (key: string) => args[args.indexOf(key) + 1];
+const value = (key: string) => {
+  const argument = args[args.indexOf(key) + 1];
+  if (!argument || argument.startsWith("--")) throw new Error(`Missing value for ${key}`);
+  return argument;
+};
 const demoPath = args.includes("--demo")
   ? value("--demo")
   : "public/data/demos/training/wfdm11_performance_investigation_1.shagdemo";
 const output = args.includes("--out") ? value("--out") : ".cache/collision-benchmark.json";
 const baselinePath = args.includes("--baseline") ? value("--baseline") : undefined;
+if (baselinePath && path.resolve(baselinePath) === path.resolve(output)) {
+  throw new Error("Baseline and output must be different files");
+}
 const stride = args.includes("--stride") ? Number(value("--stride")) : 8;
 if (!Number.isSafeInteger(stride) || stride < 1) throw new Error("--stride must be a positive integer");
 const hash = (data: Uint8Array) => createHash("sha256").update(data).digest("hex");
@@ -98,11 +106,13 @@ const report = {
   results,
   limitations: "Node, recorded displacements; not full simulation, prediction replay or GPU/FPS measurement",
 };
+fs.mkdirSync(path.dirname(output), { recursive: true });
 fs.writeFileSync(output, JSON.stringify(report, null, 2));
 console.log(JSON.stringify({ ...report, results: undefined, times: undefined }));
 if (baselinePath) {
   const baseline = JSON.parse(fs.readFileSync(baselinePath, "utf8")) as typeof report;
   if (JSON.stringify(baseline.identity) !== JSON.stringify(identity)) throw new Error("Baseline identity mismatch");
+  if (baseline.results.length !== results.length) throw new Error("Baseline sample count mismatch");
   const differences = results.filter((r, i) => JSON.stringify(r) !== JSON.stringify(baseline.results[i]));
   console.log(`Differential: ${differences.length}/${results.length} changed samples`);
   if (differences.length) process.exitCode = 1;

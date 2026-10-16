@@ -26,12 +26,8 @@ import { buildFacetPlanes, type FacetPlane } from "./FacetBevels";
 import { PatchTessellator } from "./PatchTessellator";
 import { PLAYER_HEIGHT, PLAYER_MINS_Z, PLAYER_RADIUS, STEPSIZE } from "./PlayerPhysicsConstants";
 
-/**
- * Shaders that identify a triangle-soup surface as a baked `misc_model`
- * decoration rather than world geometry. q3map2 bakes misc_model meshes into the
- * BSP with their model shader path intact, so the prefix is a reliable marker.
- * See `processFaces` for why decoration is matched by shader rather than by
- * dropping triangle-soup collision wholesale.
+/** Shader-prefix exclusions for the triangle-soup compatibility collider.
+ * Shader names do not establish the original entity or authored collision intent.
  */
 const DECORATION_SHADER_RE = /^(models\/|mapobjects)/i;
 
@@ -470,18 +466,9 @@ export class SweepCollisionBackend implements CollisionBackend {
       }
       // Type 3: Mesh (Triangle Soup)
       else if (face.faceType === 3) {
-        // Q3 builds its collision model from brushes + patches only
-        // (CMod_LoadPatches skips everything that isn't MST_PATCH), so colliding
-        // soup at all is a deviation — but one these maps depend on. q3map2 emits
-        // MST_TRIANGLE_SOUP for any surface that can't be a lightmapped planar
-        // face, which here includes vertex-lit WORLD geometry (`textures/…_vertex`
-        // walkways, platforms, floors). Measured over the shipping pack, 336
-        // walkable surfaces across 10 maps (wbomb1-6, wctf2, wdm1, wdm17,
-        // wtutorial1) are held up by nothing but their soup face — dropping all
-        // soup collision opens holes straight out of the world. So only baked
-        // misc_model decorations are skipped: that is what was wrongly solid
-        // (wdm2's floor lamps, jumppad flames/rings, teleporter shells) and it
-        // carries no walkable surface anywhere in the pack (measured: 0 of 36 maps).
+        // Triangle-soup compatibility collision is separate from authored BSP
+        // brushes and patches. Decoration prefixes are a heuristic exclusion;
+        // draw-surface shaders alone do not establish collision intent.
         if (DECORATION_SHADER_RE.test(texture.name || "")) {
           continue;
         }
@@ -667,8 +654,7 @@ export class SweepCollisionBackend implements CollisionBackend {
     // Traverse BSP tree for solid brushes
     if (onlyModel < 0) this.traceNode(0, 0.0, 1.0, state.start, state.end, state);
 
-    // ALSO check ALL clip brushes directly (they may not be in BSP tree leaves)
-    // This is how Q3/clipviz handles clip brushes - iterate all, not just BSP traversal
+    // Spatial fallback for named clip brushes not reached through BSP leaves.
     if (onlyModel < 0) this.traceAllClipBrushes(state);
 
     // Inline brushes use model-local traces; retain the earliest world/model hit.
@@ -1056,7 +1042,7 @@ export class SweepCollisionBackend implements CollisionBackend {
   }
 
   /**
-   * Check if we should collide with this brush based on content flags AND texture name
+   * Apply the query mask to precomputed per-shader collision rules.
    */
   private shouldCollideWith(texture: CollisionTexture, contentMask: number): boolean {
     return (texture.collisionMask & contentMask) !== 0;

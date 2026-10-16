@@ -49,6 +49,7 @@ describe("input focus recovery", () => {
     input.dispose();
     scene.dispose();
     engine.dispose();
+    document.body.replaceChildren();
     vi.restoreAllMocks();
   });
 
