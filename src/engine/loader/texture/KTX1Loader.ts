@@ -74,6 +74,47 @@ export interface KTX1ParseResult {
   formatName: string;
 }
 
+/** Split a six-face KTX1 into validated 2D faces, retaining each authored mip chain. */
+export function parseKTX1CubeFaces(data: ArrayBuffer): KTX1ParseResult[] {
+  if (data.byteLength < 64) throw new Error("Truncated KTX1 cube header");
+  const source = new DataView(data);
+  const endian = source.getUint32(12, true);
+  if (endian !== 0x04030201 && endian !== 0x01020304) throw new Error("Invalid KTX1 cube byte order");
+  const little = endian === 0x04030201;
+  if (source.getUint32(52, little) !== 6 || source.getUint32(36, little) !== source.getUint32(40, little))
+    throw new Error("KTX1 cube requires six square faces");
+  const levels = Math.max(1, source.getUint32(56, little));
+  if (levels > 32) throw new Error("Invalid KTX1 cube mip count");
+  const headerSize = 64 + source.getUint32(60, little);
+  if (headerSize > data.byteLength) throw new Error("Truncated KTX1 cube metadata");
+  const chunks: Uint8Array[][] = Array.from({ length: 6 }, () => []);
+  let offset = headerSize;
+  for (let level = 0; level < levels; level++) {
+    if (offset + 4 > data.byteLength) throw new Error("Truncated KTX1 cube mip size");
+    const size = source.getUint32(offset, little);
+    const sizeBytes = new Uint8Array(data, offset, 4);
+    offset += 4;
+    for (const face of chunks) {
+      if (offset + size > data.byteLength) throw new Error("Truncated KTX1 cube face");
+      const padded = Math.ceil(size / 4) * 4;
+      if (offset + padded > data.byteLength) throw new Error("Truncated KTX1 cube padding");
+      face.push(sizeBytes, new Uint8Array(data, offset, padded));
+      offset += padded;
+    }
+  }
+  return chunks.map((face) => {
+    const buffer = new Uint8Array(headerSize + face.reduce((sum, chunk) => sum + chunk.length, 0));
+    buffer.set(new Uint8Array(data, 0, headerSize));
+    new DataView(buffer.buffer).setUint32(52, 1, little);
+    let cursor = headerSize;
+    for (const chunk of face) {
+      buffer.set(chunk, cursor);
+      cursor += chunk.length;
+    }
+    return parseKTX1(buffer.buffer);
+  });
+}
+
 /**
  * Parse a KTX1 file from ArrayBuffer
  */

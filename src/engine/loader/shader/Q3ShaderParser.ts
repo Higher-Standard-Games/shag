@@ -602,7 +602,7 @@ function parseConditionalBlock(
 function parseConditionalCondition(
   tokens: string[],
   startPos: number,
-): { condition: "deluxe" | "!deluxe"; newPos: number } {
+): { condition: Q3ShaderConditionalBlock["condition"]; newPos: number } {
   const first = tokens[startPos]?.toLowerCase();
   const second = tokens[startPos + 1]?.toLowerCase();
 
@@ -618,7 +618,10 @@ function parseConditionalCondition(
     return { condition: "deluxe", newPos: startPos + 1 };
   }
 
-  return { condition: "deluxe", newPos: startPos };
+  if (first === "texturecubemap") return { condition: "textureCubeMap", newPos: startPos + 1 };
+  if (first === "!texturecubemap") return { condition: "!textureCubeMap", newPos: startPos + 1 };
+  if (first === "!" && second === "texturecubemap") return { condition: "!textureCubeMap", newPos: startPos + 2 };
+  return { condition: "unsupported", newPos: startPos + 1 };
 }
 
 /**
@@ -650,12 +653,14 @@ function parseStage(tokens: string[], startPos: number): { stage: Q3ShaderStage;
         pos += 2;
         break;
 
+      case "surroundmap":
       case "cubemap":
         // QFusion/Warsow stage source. Preserve it as an appearance hint even
         // when its surrounding `if textureCubeMap` condition is not a branch
         // the legacy material resolver understands.
         if (tokens[pos + 1]) {
           stage.cubeMap = tokens[pos + 1];
+          stage.tcGen = { mode: token === "surroundmap" ? "surround" : "environment" };
         }
         pos += 2;
         break;
@@ -833,6 +838,7 @@ function isStageDirective(token: string): boolean {
     "map",
     "clampmap",
     "cubemap",
+    "surroundmap",
     "animmap",
     "animclampmap",
     "material",

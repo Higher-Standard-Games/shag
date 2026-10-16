@@ -178,7 +178,7 @@ ${variable("bspSpec", v3, `${v3}(0.0)`)}
 ${variable("bspEncoded", v3, `${sample("bspDirectionSampler", `${f}vLightmapUV`)}.rgb - ${v3}(0.5)`)}
 ${variable("bspDir", v3, `bspEncoded / max(length(bspEncoded), 0.0001)`)}
 ${variable("bspWorldDir", v3, `normalize((${u}bspWorld * ${wgsl ? "vec4f" : "vec4"}(bspDir, 0.0)).xyz)`)}
-${variable("bspNdotL", wgsl ? "f32" : "float", "max(dot(normalW, bspWorldDir), 0.0)")}
+${variable("bspNdotL", wgsl ? "f32" : "float", (this._material as StandardMaterial | PBRMaterial).twoSidedLighting ? "abs(dot(normalW, bspWorldDir))" : "max(dot(normalW, bspWorldDir), 0.0)")}
 bspLight = bspLight * bspNdotL + ${u}bspAmbient.rgb * (1.0 - bspNdotL);
 #if defined(BSP_GLOSS) && defined(${baseDefine})
 ${variable("bspGloss", v3, `${sample("bspGlossSampler", `${f}${baseUV} + uvOffset`)}.rgb`)}

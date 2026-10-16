@@ -94,7 +94,9 @@ function isLightmapStage(stage: Q3ShaderStage): boolean {
 }
 
 function isRenderableStage(stage: Q3ShaderStage): boolean {
-  return Boolean(stage.material?.diffuse || stage.animMap?.frames.length || (stage.map && !isLightmapStage(stage)));
+  return Boolean(
+    stage.cubeMap || stage.material?.diffuse || stage.animMap?.frames.length || (stage.map && !isLightmapStage(stage)),
+  );
 }
 
 function hasFilterBlend(stage: Q3ShaderStage): boolean {
@@ -227,7 +229,7 @@ export class Q3ShaderRegistry {
   resolveMaterialProps(textureName: string, options: ResolveMaterialOptions = {}): ResolvedMaterialProps {
     const deluxe = options.deluxe ?? false;
     const normalizedTextureName = normalizeShaderName(textureName);
-    const cacheKey = `${normalizedTextureName}|deluxe=${deluxe ? 1 : 0}|pass=${options.passIndex ?? "all"}`;
+    const cacheKey = `${normalizedTextureName}|deluxe=${deluxe ? 1 : 0}|cube=${options.textureCubeMap !== false ? 1 : 0}|world=${options.worldSurface ? 1 : 0}|pass=${options.passIndex ?? "all"}`;
 
     // Check cache first (same texture + deluxe mode resolves to the same props)
     const cached = this.resolvedCache.get(cacheKey);
@@ -271,7 +273,7 @@ export class Q3ShaderRegistry {
     }
 
     const props: ResolvedMaterialProps = { ...defaults };
-    const resolved = this.getResolvedStages(shader, deluxe);
+    const resolved = this.getResolvedStages(shader, deluxe, options.textureCubeMap !== false);
     const branch = resolved.branch;
     const activeStages =
       options.passIndex === undefined
@@ -289,9 +291,12 @@ export class Q3ShaderRegistry {
     props.glossExponent = shader.glossExponent;
     props.primaryStage = primaryStage;
     props.blendFunc = primaryStage?.blendFunc;
-    props.usesVertexRgb = ["vertex", "oneMinusVertex"].includes(primaryStage?.rgbGen?.type ?? "");
+    props.usesVertexRgb =
+      ["vertex", "oneMinusVertex"].includes(primaryStage?.rgbGen?.type ?? "") ||
+      (options.worldSurface === true && primaryStage?.rgbGen?.type === "lightingDiffuse");
     props.usesVertexAlpha = primaryStage?.alphaGen?.type === "vertex";
     props.rgbGen = primaryStage?.rgbGen;
+    props.environmentMap = primaryStage?.cubeMap;
 
     // Sky detection - surfaceparm sky or has skyparms
     if (shader.surfaceParms.has("sky") || shader.skyParms) {
@@ -471,13 +476,16 @@ export class Q3ShaderRegistry {
   /** Keep repeated material layers in script order instead of dropping later layers. */
   resolveMaterialPasses(textureName: string, options: ResolveMaterialOptions = {}): ResolvedMaterialProps[] {
     const shader = this.getShader(textureName);
-    const stages = shader ? this.getResolvedStages(shader, options.deluxe ?? false).stages : [];
+    const stages = shader
+      ? this.getResolvedStages(shader, options.deluxe ?? false, options.textureCubeMap !== false).stages
+      : [];
+    const environmentBackground = stages[0]?.cubeMap || stages[0]?.tcGen?.mode === "environment";
     if (
-      stages.filter((stage) => stage.material).length < 2 ||
-      !stages[0]?.material ||
+      (!environmentBackground && stages.filter((stage) => stage.material).length < 2) ||
+      (!environmentBackground && !stages[0]?.material) ||
       !stages.every(
         (stage, index) =>
-          (stage.material || stage.map || stage.animMap) &&
+          (stage.cubeMap || stage.material || stage.map || stage.animMap) &&
           !isLightmapStage(stage) &&
           (index === 0
             ? !stage.blendFunc || (stage.blendFunc[0] === "GL_ONE" && stage.blendFunc[1] === "GL_ZERO")
@@ -485,7 +493,7 @@ export class Q3ShaderRegistry {
               ? stage.blendFunc?.[0] === "GL_SRC_ALPHA" && stage.blendFunc[1] === "GL_ONE_MINUS_SRC_ALPHA"
               : (stage.blendFunc?.[0] === "GL_ONE" || stage.blendFunc?.[0] === "GL_SRC_ALPHA") &&
                 stage.blendFunc[1] === "GL_ONE") &&
-          (!stage.tcGen || stage.tcGen.mode === "base"),
+          (!stage.tcGen || stage.tcGen.mode === "base" || (index === 0 && !!environmentBackground)),
       )
     ) {
       return [this.resolveMaterialProps(textureName, options)];
@@ -493,7 +501,11 @@ export class Q3ShaderRegistry {
     return stages.map((_, passIndex) => this.resolveMaterialProps(textureName, { ...options, passIndex }));
   }
 
-  private getResolvedStages(shader: Q3Shader, deluxe: boolean): { stages: Q3ShaderStage[]; branch: ResolvedBranch } {
+  private getResolvedStages(
+    shader: Q3Shader,
+    deluxe: boolean,
+    textureCubeMap = true,
+  ): { stages: Q3ShaderStage[]; branch: ResolvedBranch } {
     const unconditionalStages = shader.unconditionalStages ?? shader.stages;
 
     if (!shader.conditionalBlocks || shader.conditionalBlocks.length === 0) {
@@ -501,17 +513,23 @@ export class Q3ShaderRegistry {
     }
 
     const requestedBranch: Exclude<ResolvedBranch, "default"> = deluxe ? "deluxe" : "!deluxe";
-    const branchStages = shader.conditionalBlocks
-      .filter((block) => block.condition === requestedBranch)
-      .flatMap((block) => block.stages);
-
-    if (branchStages.length === 0) {
-      return { stages: unconditionalStages, branch: "default" };
+    const selected = new Set(unconditionalStages);
+    let selectedDeluxe = false;
+    for (const block of shader.conditionalBlocks) {
+      if (
+        block.condition === requestedBranch ||
+        block.condition === (textureCubeMap ? "textureCubeMap" : "!textureCubeMap")
+      ) {
+        for (const stage of block.stages) selected.add(stage);
+        if (block.condition === requestedBranch) selectedDeluxe = true;
+      }
     }
-
     return {
-      stages: [...unconditionalStages, ...branchStages],
-      branch: requestedBranch,
+      stages: [
+        ...shader.stages.filter((stage) => selected.has(stage)),
+        ...[...selected].filter((stage) => !shader.stages.includes(stage)),
+      ],
+      branch: selectedDeluxe ? requestedBranch : "default",
     };
   }
 

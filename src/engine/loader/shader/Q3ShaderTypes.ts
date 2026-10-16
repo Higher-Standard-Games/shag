@@ -83,7 +83,7 @@ export type TcMod = TcModScroll | TcModScale | TcModRotate | TcModStretch | TcMo
 /**
  * Texture coordinate generation modes
  */
-export type TcGenMode = "base" | "lightmap" | "environment" | "vector";
+export type TcGenMode = "base" | "lightmap" | "environment" | "surround" | "vector";
 
 export interface TcGenVector {
   sVector: [number, number, number]; // S direction in world space
@@ -183,7 +183,7 @@ export interface Q3MaterialDirective {
  * Phase 1 stores branch structure without changing downstream resolution yet.
  */
 export interface Q3ShaderConditionalBlock {
-  condition: "deluxe" | "!deluxe";
+  condition: "deluxe" | "!deluxe" | "textureCubeMap" | "!textureCubeMap" | "unsupported";
   stages: Q3ShaderStage[];
 }
 
@@ -345,10 +345,14 @@ export interface Q3Shader {
 }
 
 export interface ResolveMaterialOptions {
+  /** Static BSP surfaces interpret lightingDiffuse as baked vertex lighting. */
+  worldSurface?: boolean;
   /** Resolve one stage of the selected branch for ordered material passes. */
   passIndex?: number;
   /** Select Warsow/QFusion deluxe branches when present */
   deluxe?: boolean;
+  /** Select the six-face source instead of the authored 2D fallback. */
+  textureCubeMap?: boolean;
 }
 
 /**
@@ -356,6 +360,7 @@ export interface ResolveMaterialOptions {
  * This is what BspMeshBuilder uses to configure materials
  */
 export interface ResolvedMaterialProps {
+  environmentMap?: string;
   softParticle?: boolean;
   primaryStage?: Q3ShaderStage;
   blendFunc?: [BlendFactor, BlendFactor];

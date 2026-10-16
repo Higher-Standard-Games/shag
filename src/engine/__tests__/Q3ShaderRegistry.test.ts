@@ -38,6 +38,49 @@ function injectPk3Files(paths: string[]): void {
   }
 }
 
+it("retains the teleporter environment, blended shell and shine in source order", () => {
+  const registry = getRegistry();
+  registry.clear();
+  const [shader] = parseShaderFile(`qa/teleporter {
+    if textureCubeMap
+    { surroundmap env/televoid/void rgbGen identity }
+    endif
+    if ! textureCubeMap
+    { map env/televoid/void_env tcGen environment rgbGen identity }
+    endif
+    { material qa/shell blendFunc blend }
+    { map qa/shine blendFunc add rgbGen wave sin .5 .4 0 5 }
+  }`);
+  injectShader(shader);
+  for (const deluxe of [true, false]) {
+    const passes = registry.resolveMaterialPasses(shader.name, { deluxe });
+    expect(passes).toHaveLength(3);
+    expect(passes.map((pass) => pass.alphaMode)).toEqual(["opaque", "blend", "add"]);
+    expect(passes[0].environmentMap).toBe("env/televoid/void");
+    expect(passes[0].tcGen?.mode).toBe("surround");
+    expect(passes[0].useLightmap).toBe(false);
+    expect(passes[1].diffuseTexture).toBe("qa/shell");
+    expect(passes[2].diffuseTexture).toBe("qa/shine");
+    expect(passes[2].primaryStage?.rgbGen?.type).toBe("wave");
+  }
+  const fallback = registry.resolveMaterialPasses(shader.name, { textureCubeMap: false });
+  expect(fallback).toHaveLength(3);
+  expect(fallback[0].environmentMap).toBeUndefined();
+  expect(fallback[0].diffuseTexture).toBe("env/televoid/void_env");
+  expect(fallback[0].tcGen?.mode).toBe("environment");
+  registry.clear();
+});
+
+it("treats lightingDiffuse as baked vertex lighting on BSP surfaces", () => {
+  const registry = getRegistry();
+  registry.clear();
+  const [shader] = parseShaderFile("qa/vertex { surfaceparm nolightmap { material qa/metal rgbGen lightingDiffuse } }");
+  injectShader(shader);
+  expect(registry.resolveMaterialProps(shader.name, { worldSurface: true }).usesVertexRgb).toBe(true);
+  expect(registry.resolveMaterialProps(shader.name).usesVertexRgb).toBe(false);
+  registry.clear();
+});
+
 /** Create a minimal shader */
 function makeShader(name: string, overrides: Partial<Q3Shader> = {}): Q3Shader {
   return {

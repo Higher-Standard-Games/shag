@@ -252,7 +252,10 @@ export class BspMeshBuilder {
       // Sky shader detection - track for skybox creation
       // Check both Q3 shader registry (surfaceparm sky / skyparms) and BSP surface flags (SURF_SKY = 0x4)
       const textureName = this.bsp.textures[face.textureIndex]?.name || "";
-      const shaderProps = shaderRegistry.resolveMaterialProps(textureName, { deluxe: this.options.deluxe });
+      const shaderProps = shaderRegistry.resolveMaterialProps(textureName, {
+        deluxe: this.options.deluxe,
+        worldSurface: true,
+      });
       const bspSurfaceFlags = this.bsp.textures[face.textureIndex]?.surfaceFlags ?? 0;
       const isSkyFace = shaderProps.isSky || (bspSurfaceFlags & 0x4) !== 0;
       if (isSkyFace) {
@@ -1194,7 +1197,10 @@ export class BspMeshBuilder {
       const originals = meshes.filter(
         (m) => m.name === `bsp_tex_${group.textureIndex}` || m.name.startsWith(`bsp_sprite_${group.textureIndex}_`),
       );
-      const passes = shaderRegistry.resolveMaterialPasses(group.textureName, { deluxe: options?.deluxe });
+      const passes = shaderRegistry.resolveMaterialPasses(group.textureName, {
+        deluxe: options?.deluxe,
+        worldSurface: true,
+      });
       return passes.map((props, passIndex) => {
         const targets =
           passes.length === 1
@@ -1240,6 +1246,27 @@ export class BspMeshBuilder {
       progressCallback?.(loadedCount, total, texName);
 
       const shaderProps = group.props;
+      if (shaderProps.environmentMap) {
+        const { SkyboxLoader } = await import("../texture/SkyboxLoader");
+        const { Q3EnvironmentPlugin } = await import("../shader/Q3EnvironmentPlugin");
+        const loader = SkyboxLoader.getInstance();
+        loader.init(scene);
+        const environment = await loader.loadEnvironmentCubemap(shaderProps.environmentMap);
+        if (environment.texture) {
+          const cube = environment.texture;
+          result.worldMesh.onDisposeObservable.addOnce(() => cube.dispose());
+          for (const mesh of group.targets) {
+            const mat = mesh.material;
+            if (!(mat instanceof StandardMaterial)) continue;
+            mat.disableLighting = true;
+            new Q3EnvironmentPlugin(mat, cube, shaderProps.tcGen?.mode === "surround");
+            mesh.metadata = { ...mesh.metadata, isFullbright: true, usesLightmap: false };
+          }
+          loadedCount++;
+          continue;
+        }
+        console.warn(`[BspMeshBuilder] ${environment.error}`);
+      }
       const shader = shaderRegistry.getShader(texName);
       const diffuseCandidates = buildDiffuseCandidates(texName, shaderProps);
       let texture: Texture | null = null;
@@ -1579,6 +1606,21 @@ export class BspMeshBuilder {
                 mesh.metadata = { isFullbright: true, preserveEmissive: true };
               }
               console.log(`[BspMeshBuilder] Fullbright surface: ${texName}`);
+            }
+
+            if (
+              shaderProps.hasMaterialMetadata &&
+              shaderProps.usesVertexRgb &&
+              shaderProps.isFullbright &&
+              shaderProps.alphaMode === "opaque"
+            ) {
+              const { BspVertexLightingPlugin } = await import("./BspVertexLightingPlugin");
+              const { excludeBspFillLights } = await import("./BspBakedLightingPlugin");
+              mat.disableLighting = false;
+              mat.emissiveTexture = glowTexture;
+              mat.emissiveColor.set(glowTexture ? 1 : 0, glowTexture ? 1 : 0, glowTexture ? 1 : 0);
+              excludeBspFillLights(mesh);
+              new BspVertexLightingPlugin(mat);
             }
 
             // tcGen environment - spherical environment mapping for reflective surfaces

@@ -18,7 +18,7 @@ import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Scene } from "@babylonjs/core/scene";
 import { PK3Loader } from "../pk3/PK3Loader";
-import { canSoftwareDecode, parseKTX1, softwareDecodeMip } from "./KTX1Loader";
+import { canSoftwareDecode, parseKTX1, parseKTX1CubeFaces, softwareDecodeMip } from "./KTX1Loader";
 
 /** One stage of a cloud sky: a texture tiled over the cloud dome, as Quake 3 draws it. */
 export interface SkyCloudLayer {
@@ -313,6 +313,39 @@ export class SkyboxLoader {
   async loadEnvironmentCubemap(basePath: string): Promise<EnvironmentCubeLoadResult> {
     if (!this.scene) {
       return { success: false, error: "SkyboxLoader not initialized" };
+    }
+
+    const containerPath = basePath.replace(/\.ktx$/i, "") + ".ktx";
+    const container = await PK3Loader.getInstance().getFile(containerPath);
+    if (container && container.byteLength >= 64 && new DataView(container).getUint32(52, true) === 6) {
+      try {
+        const faces = parseKTX1CubeFaces(container);
+        const pixels = faces.map((face) => {
+          const decoded = this.parseKTXToRGBA(new Uint8Array(face.source));
+          if (!decoded) throw new Error("Unsupported environment KTX cube format");
+          return decoded.data;
+        });
+        // KTX uses +X,-X,+Y,-Y,+Z,-Z in Q3 space; reuse the sky face conversion.
+        const q3Faces = [pixels[0], pixels[3], pixels[1], pixels[2], pixels[4], pixels[5]];
+        const size = faces[0].header.pixelWidth;
+        const converted = Q3_TO_BABYLON_FACE_MAP.map((mapping) =>
+          this.transformFace(q3Faces[mapping.index], size, mapping.transform),
+        );
+        const texture = new RawCubeTexture(
+          this.scene,
+          converted,
+          size,
+          Constants.TEXTUREFORMAT_RGBA,
+          Constants.TEXTURETYPE_UNSIGNED_INT,
+          false,
+          false,
+          Texture.BILINEAR_SAMPLINGMODE,
+        );
+        texture.name = `environment_${basePath.replace(/\//g, "_")}`;
+        return { success: true, texture, loadedFaces: [containerPath] };
+      } catch (error) {
+        console.warn(`[SkyboxLoader] Cannot load environment cube ${containerPath}:`, error);
+      }
     }
 
     for (const suffixes of [Q3_FACE_SUFFIXES, QF_FACE_SUFFIXES]) {

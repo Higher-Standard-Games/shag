@@ -55,9 +55,21 @@ Repeated material stages support an opaque base followed by alpha-blended
 material layers and additive image stages. Each pass retains its own texture,
 vertex RGB/alpha selection, constant RGB gain, UV animation and depth-write
 state. This covers Warfork's industrial supports and vertex-coloured crates.
-The passes draw separately; they are not combined into one shader. Environment
-backgrounds, explicit lightmap stacks and other blend combinations retain the
-existing compatibility path.
+The passes draw separately; they are not combined into one shader. An initial
+`surroundmap` or `cubemap` pass can precede a blended material and additive shine.
+`if textureCubeMap` selects the six-face source; its negated branch supplies the
+authored 2D fallback. Selected passes retain their script order. `surroundmap`
+samples the view ray, while `cubemap` reflects it around the surface normal.
+Explicit lightmap stacks and other blend combinations retain the existing
+compatibility path.
+
+Opaque vertex-lit `material` stages without lightmaps retain baked vertex RGB
+and accept additive game lights and gloss, excluding the synthetic world fill.
+Black baked colours remain valid shadows; the renderer does not whiten them.
+On BSP surfaces, `rgbGen lightingDiffuse` uses the baked vertex channel, matching
+Qfusion's static-surface interpretation. Two-sided deluxe diffuse lighting uses
+the absolute normal/light dot product so reversing a fence does not extinguish
+its baked light.
 
 `wave distanceramp from to near far` interpolates between `from` and `to`
 with a smoothstep over the projected camera distance at each vertex. The
