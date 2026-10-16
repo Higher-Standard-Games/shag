@@ -216,6 +216,25 @@ npm run test:physics
 
 ## Source of truth
 
+### Collision route comparisons
+
+The Node benchmark exercises `SweepCollisionBackend` at recorded player positions:
+
+```bash
+npx vite-node src/cli/benchmark-collision.ts --demo public/data/demos/training/wfdm11_performance_investigation_1.shagdemo --out .cache/collision-baseline.json
+npx vite-node src/cli/benchmark-collision.ts --baseline .cache/collision-baseline.json --out .cache/collision-candidate.json
+```
+
+The default demo is the wfdm11 investigation recording. `--stride` defaults to 8;
+use 1 for every recorded interval. A baseline comparison checks demo/BSP hashes,
+stride, and exact trace/movement results, returning failure on any difference.
+The output includes initialization time and median/p95/p99 sampled query-batch
+times. This uses recorded displacements, not full movement-input re-simulation,
+and does not measure browser FPS or reconciliation cost. Record a reference on
+the baseline revision before comparing an implementation.
+
+### Loader sources
+
 - `src/engine/loader/map/MapLoader.ts`
 - `src/engine/loader/bsp/BspLoader.ts`
 - `src/engine/loader/bsp/BspMeshBuilder.ts`
