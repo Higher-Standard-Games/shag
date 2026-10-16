@@ -72,7 +72,13 @@ export function describeDocument(doc: EditorDocumentData, objects = false) {
     bounds: bounds(doc),
     ...(objects
       ? {
-          brushes: doc.brushes.map((b) => ({ id: b.id, min: b.min, max: b.max, shader: b.shader })),
+          brushes: doc.brushes.map((b) => ({
+            id: b.id,
+            min: b.min,
+            max: b.max,
+            shader: b.shader,
+            ...(b.detail === undefined ? {} : { detail: b.detail }),
+          })),
           entities: doc.entities.map((e) => ({ id: e.id, classname: e.classname, origin: e.origin, keys: e.keys })),
           brushEntities: doc.brushEntities ?? [],
         }

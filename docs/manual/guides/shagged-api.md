@@ -38,8 +38,8 @@ the process working directory does not change native profile lookup.
 | Operation | Fields | Notes |
 | --- | --- | --- |
 | `world.keys` | `keys` | Merge worldspawn compiler/runtime settings such as `message`, `ambient`, `_color` and `fog`. Values are strings; an empty value removes a key. `classname`, `origin` and `model` are reserved. Quotes and newlines in values are rejected. Map inspection returns `worldKeys`; apply reports `worldChanged`. |
-| `box.create` | `id?`, `min`, `max`, `shader?` | Axis-aligned brush. Default shader `blx/blx_grid`. `min` must be below `max` on every axis. |
-| `box.update` | `id`, `min?`, `max?`, `shader?` | |
+| `box.create` | `id?`, `min`, `max`, `shader?`, `detail?` | Axis-aligned brush. Default shader `blx/blx_grid`. `min` must be below `max` on every axis. `detail: true` exports the Q3 detail content flag. |
+| `box.update` | `id`, `min?`, `max?`, `shader?`, `detail?` | Set `detail: false` to restore structural treatment. |
 | `patch.create` | `id?`, `shader`, `width`, `height`, `controlPoints` | Quadratic `patchDef2` surface. Width and height must be odd, from 3 through 31. Supply `height` rows of `width` controls, each `{x,y,z,u,v}` in Quake coordinates with texture UVs. Winding follows row/column order; reverse rows to reverse the facing. Shader names have no `textures/` prefix. Patches do not seal the map; use structural brushes. Collision follows compiler/shader rules. |
 | `face.material` | `id`, `faces` (`"all"` or a list of `+X -X +Y -Y +Z -Z`), `shader`, `size?` | Textures the listed faces with natural alignment. Name the texture; the CLI and MCP server fill in its image size from the texture catalog. An unknown texture is rejected. |
 | `entity.place` | `id?`, `classname`, `origin`, `keys?` | Point entity. Keys are strings. |
@@ -102,6 +102,8 @@ Example: two rooms joined by a corridor, with spawns and a weapon:
 - Teleporters and jump pads need a destination: the trigger's `target` equals the destination's `targetname`. `gen.teleporter` and `gen.jumppad` link them for you.
 
 **Performance:**
+
+- Use `detail: true` for trim, railings, service fixtures and other decorative brushes that should not split the visibility tree. Detail brushes cannot seal the map; keep the enclosing shell structural. Detail is not nonsolid: collision still follows the material's contents.
 
 - Frame time grows with draw calls. Prefer fewer, larger brushes; avoid many small detail brushes in view at once.
 - Let the visibility data cull: join rooms with bends and doorways rather than building one big open space.

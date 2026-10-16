@@ -27,6 +27,8 @@ export interface BoxBrush {
   max: Vec3q;
   /** Every face without an override uses this shader and the fixed legacy alignment. */
   shader: string;
+  /** Detail geometry does not partition visibility or seal the map; collision follows the shader. */
+  detail?: boolean;
   /** Per-face overrides; absent in brushes made before face materials existed. */
   faces?: Partial<Record<FaceKey, FaceMaterial>>;
 }
@@ -126,6 +128,8 @@ export function validateDocument(data: EditorDocumentData): void {
   if (!Array.isArray(data.entities) || data.entities.length > 20_000) throw new Error("Invalid entity list");
   const ids = new Set<string>();
   for (const brush of data.brushes) {
+    if (brush.detail !== undefined && typeof brush.detail !== "boolean")
+      throw new Error(`Invalid detail flag on brush ${brush.id}`);
     if (!brush.id || ids.has(brush.id)) throw new Error("Duplicate or missing brush ID");
     ids.add(brush.id);
     if (!SHADER.test(brush.shader) || brush.shader.startsWith("/") || brush.shader.includes("..")) {

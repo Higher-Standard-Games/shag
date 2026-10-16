@@ -43,8 +43,8 @@ export const DEFAULT_SHADER = "blx/blx_grid";
 export type EditOp =
   | { op: "world.keys"; keys: Record<string, string> }
   | ({ op: "patch.create" } & Omit<PatchSurface, "id"> & { id?: string })
-  | { op: "box.create"; id?: string; min: Vec3q; max: Vec3q; shader?: string }
-  | { op: "box.update"; id: string; min?: Vec3q; max?: Vec3q; shader?: string }
+  | { op: "box.create"; id?: string; min: Vec3q; max: Vec3q; shader?: string; detail?: boolean }
+  | { op: "box.update"; id: string; min?: Vec3q; max?: Vec3q; shader?: string; detail?: boolean }
   | {
       op: "face.material";
       id: string;
@@ -203,6 +203,7 @@ function applyOne(doc: EditorDocumentData, op: EditOp, changed: Set<string>): vo
     case "box.create": {
       const id = claimId(doc, op.id, "brush");
       doc.brushes.push({ id, min: vec(op.min, "min"), max: vec(op.max, "max"), shader: op.shader ?? DEFAULT_SHADER });
+      if (op.detail !== undefined) doc.brushes[doc.brushes.length - 1].detail = op.detail;
       return;
     }
     case "box.update": {
@@ -210,6 +211,7 @@ function applyOne(doc: EditorDocumentData, op: EditOp, changed: Set<string>): vo
       if (op.min) target.min = vec(op.min, "min");
       if (op.max) target.max = vec(op.max, "max");
       if (op.shader) target.shader = op.shader;
+      if (op.detail !== undefined) target.detail = op.detail;
       changed.add(op.id);
       return;
     }

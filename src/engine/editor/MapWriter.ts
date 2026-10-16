@@ -27,7 +27,7 @@ function boxLines(brush: BoxBrush): string[] {
   const face = (key: FaceKey, a: string, b: string, c: string) => {
     const material = brush.faces?.[key];
     const uv = uvText(material ? faceTexMatrix(material) : FIXED_MATRIX);
-    return `${a} ${b} ${c} ${uv} ${material?.shader ?? brush.shader} 0 0 0`;
+    return `${a} ${b} ${c} ${uv} ${material?.shader ?? brush.shader} ${brush.detail ? 0x8000000 : 0} 0 0`;
   };
   return [
     "{",

@@ -17,6 +17,28 @@ function assertNoOverlaps(brushes: BoxBrush[]): void {
 }
 
 describe("SHAGGED operations", () => {
+  it("exports detail contents and preserves the flag through carving", () => {
+    const { doc } = applyOperations(emptyDocument(), [
+      {
+        op: "box.create",
+        id: "trim",
+        min: { x: 0, y: 0, z: 0 },
+        max: { x: 96, y: 32, z: 64 },
+        shader: "blx/blx_grid",
+        detail: true,
+      },
+      { op: "brush.carve", min: { x: 32, y: 0, z: 0 }, max: { x: 64, y: 32, z: 64 } },
+    ]);
+    expect(doc.brushes).toHaveLength(2);
+    expect(doc.brushes.every((b) => b.detail === true)).toBe(true);
+    expect(writeMap(doc)).toContain("blx/blx_grid 134217728 0 0");
+    const reverted = applyOperations(
+      doc,
+      doc.brushes.map((b) => ({ op: "box.update", id: b.id, detail: false })),
+    );
+    expect(writeMap(reverted.doc)).not.toContain("134217728");
+  });
+
   it("merges and removes worldspawn keys, preserving them through deterministic export", () => {
     const { doc, worldChanged } = applyOperations(emptyDocument(), [
       { op: "world.keys", keys: { message: "Relay Yard", ambient: "7", fog: "1900 0.05 0.065 0.09" } },
