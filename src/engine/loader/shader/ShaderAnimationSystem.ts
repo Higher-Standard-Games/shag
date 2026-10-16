@@ -28,6 +28,7 @@ export interface TcState {
 
 /** Animated stage within a material */
 export interface AnimatedStage {
+  frames?: { frequency: number; textures: Texture[] };
   texture: Texture;
   tcMods: TcMod[];
   tcState: TcState;
@@ -176,9 +177,11 @@ export class ShaderAnimationSystem {
     rgbGen?: RgbGen,
     alphaGen?: AlphaGen,
     colorTarget: "diffuse" | "emissive" = "diffuse",
+    frames?: { frequency: number; textures: Texture[] },
   ): void {
     // Check if we actually have anything to animate
-    const hasAnimation = tcMods.length > 0 || rgbGen?.type === "wave" || alphaGen?.type === "wave";
+    const hasAnimation =
+      tcMods.length > 0 || rgbGen?.type === "wave" || alphaGen?.type === "wave" || !!frames?.textures.length;
 
     if (!hasAnimation) {
       return;
@@ -214,6 +217,7 @@ export class ShaderAnimationSystem {
           : material.albedoColor
       ).clone(),
       colorTarget,
+      frames,
     };
     if (colorTarget === "emissive" && "diffuseColor" in material) {
       // StandardMaterial adds emissiveColor to the sampled image; PBR multiplies it.
@@ -327,6 +331,18 @@ export class ShaderAnimationSystem {
   private updateEntry(entry: AnimatedMaterialEntry, deltaTime: number): void {
     if (entry.material.isFrozen) entry.material.unfreeze();
     for (const stage of entry.stages) {
+      if (stage.frames?.textures.length) {
+        const index = Math.floor(this.totalTime * stage.frames.frequency) % stage.frames.textures.length;
+        const texture = stage.frames.textures[index];
+        const material = entry.material;
+        if (stage.colorTarget === "emissive") {
+          if ("diffuseTexture" in material && material.diffuseTexture === stage.texture)
+            material.diffuseTexture = texture;
+          material.emissiveTexture = texture;
+        } else if ("diffuseTexture" in material) material.diffuseTexture = texture;
+        else material.albedoTexture = texture;
+        stage.texture = texture;
+      }
       // Apply tcMods
       this.applyTcMods(stage, deltaTime);
 

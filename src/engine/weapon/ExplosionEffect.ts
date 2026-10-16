@@ -441,6 +441,7 @@ export class ExplosionEffect {
       // A map clear can dispose scene materials before the effect is re-init'd.
       if (scene.materials.includes(material)) {
         material.name = name;
+        if (material.isFrozen) material.unfreeze();
         return material;
       }
     }
@@ -593,6 +594,7 @@ export class ExplosionEffect {
    * along the surface plane — fire "slides" across the wall/floor.
    */
   private updateFireball(exp: ActiveExplosion, t: number): void {
+    if (exp.fireballMat.isFrozen) exp.fireballMat.unfreeze();
     // Scale: expand in sync with the shockwave ring (70% of fire lifetime)
     const expandPhase = Math.min(t / 0.7, 1.0);
 
@@ -678,6 +680,7 @@ export class ExplosionEffect {
    */
   private updateRays(exp: ActiveExplosion, t: number): void {
     for (const ray of exp.rays) {
+      if (ray.mat.isFrozen) ray.mat.unfreeze();
       // Scale up fast, then hold
       const rayScale = easeOutQuad(Math.min(t / 0.15, 1.0));
       ray.mesh.scaling.setAll(rayScale);
@@ -688,6 +691,7 @@ export class ExplosionEffect {
 
       // Fade out after halfway
       ray.mat.alpha = t < 0.25 ? 0.8 : 0.8 * Math.max(0, 1.0 - (t - 0.25) / 0.35);
+      ray.mesh.isVisible = ray.mat.alpha > 0;
 
       // Color shift
       const colorT = Math.min(t * 3, 1.0);
@@ -700,6 +704,7 @@ export class ExplosionEffect {
    */
   private updateShockwave(exp: ActiveExplosion, t: number): void {
     if (!exp.shockwave || !exp.shockwaveMat) return;
+    if (exp.shockwaveMat.isFrozen) exp.shockwaveMat.unfreeze();
     const ringT = Math.min(t / 0.7, 1.0);
     // Target diameter = splashRadius * 2, torus was created with diameter = 1*scale
     // So expandScale = (splashRadius * 2) / scale

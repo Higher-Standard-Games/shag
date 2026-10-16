@@ -11,7 +11,6 @@
  * - Surfaces: mesh data with vertices, triangles, UVs
  */
 
-import { Engine } from "@babylonjs/core/Engines/engine";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
@@ -21,7 +20,9 @@ import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Scene } from "@babylonjs/core/scene";
 import { PK3TextureLoader } from "../pk3/PK3TextureLoader";
+import { q3AlphaMode } from "../shader/Q3Blend";
 import { Q3ShaderRegistry } from "../shader/Q3ShaderRegistry";
+import { ShaderAnimationSystem } from "../shader/ShaderAnimationSystem";
 import { isTextureReleased } from "./ModelSourceCache";
 
 // MD3 Constants
@@ -155,6 +156,7 @@ export interface MD3LoadResult {
  * MD3Loader singleton class
  */
 export class MD3Loader {
+  private readonly animationCleanup = new WeakSet<StandardMaterial>();
   private static instance: MD3Loader;
   private scene: Scene | null = null;
 
@@ -362,14 +364,14 @@ export class MD3Loader {
     }
 
     // Read texture coordinates (same for all frames)
-    // Quake uses bottom-left UV origin, Babylon uses top-left, so flip V
+    // PK3 textures upload top-to-bottom for both BSP and MD3 meshes.
     const texCoords: number[] = [];
     offset = surfaceStart + header.ofsST;
     for (let i = 0; i < header.numVerts; i++) {
       const u = view.getFloat32(offset, true);
       const v = view.getFloat32(offset + 4, true);
       texCoords.push(u);
-      texCoords.push(1.0 - v); // Flip V coordinate
+      texCoords.push(v);
       offset += 8;
     }
 
@@ -479,7 +481,7 @@ export class MD3Loader {
 
       textureLoadPromise = texLoader
         .resolveAndLoadTexture(texturePath)
-        .then((tex) => {
+        .then(async (tex) => {
           if (tex) {
             console.log(`[MD3] Texture loaded via PK3TextureLoader: ${texturePath}`);
             tex.hasAlpha = props.isTransparent ?? false;
@@ -487,8 +489,49 @@ export class MD3Loader {
             if (props.isTransparent) {
               mat.useAlphaFromDiffuseTexture = true;
             }
-            if (props.alphaMode === "add") {
+            if (props.alphaMode === "add" || props.isFullbright) {
               mat.emissiveTexture = tex;
+            }
+            const glow = props.glowTexture ? await texLoader.resolveAndLoadTexture(props.glowTexture) : null;
+            if (glow) {
+              mat.emissiveTexture = glow;
+              mat.emissiveColor.set(0, 0, 0);
+              mat.useEmissiveAsIllumination = true;
+            }
+            const animations = ShaderAnimationSystem.getInstance();
+            animations.init(this.scene!);
+            for (const [stage, image, target] of [
+              [props.primaryStage, tex, props.alphaMode === "add" || props.isFullbright ? "emissive" : "diffuse"],
+              [props.glowStage, glow, "emissive"],
+            ] as const) {
+              if (!stage || !image) continue;
+              const frames = stage.animMap
+                ? {
+                    frequency: stage.animMap.frequency,
+                    textures: (
+                      await Promise.all(stage.animMap.frames.map((path) => texLoader.resolveAndLoadTexture(path)))
+                    ).filter((image): image is Texture => !!image),
+                  }
+                : undefined;
+              const id = `${materialName}:${mat.uniqueId}:${target}`;
+              animations.unregisterMaterial(id);
+              animations.registerMaterial(
+                id,
+                mat,
+                image,
+                stage.tcMod ?? [],
+                stage.rgbGen,
+                stage.alphaGen,
+                target,
+                frames,
+              );
+              if (!this.animationCleanup.has(mat)) {
+                this.animationCleanup.add(mat);
+                mat.onDisposeObservable.addOnce(() => {
+                  animations.unregisterMaterial(`${materialName}:${mat.uniqueId}:diffuse`);
+                  animations.unregisterMaterial(`${materialName}:${mat.uniqueId}:emissive`);
+                });
+              }
             }
           } else {
             console.warn(`[MD3] No texture found for: ${texturePath}`);
@@ -500,18 +543,22 @@ export class MD3Loader {
     }
 
     // Apply material properties from shader
+    mat.transparencyMode = props.alphaCutoff !== undefined ? 1 : props.isTransparent ? 2 : 0;
+    mat.alphaMode = q3AlphaMode(props);
+    mat.alphaCutOff = props.alphaCutoff ?? 0.5;
     if (props.isTransparent) {
       mat.alpha = 1.0;
       if (props.alphaMode === "add") {
         // Additive blending - set emissive and disable lighting
-        mat.alphaMode = Engine.ALPHA_ADD;
-        mat.emissiveColor = new Color3(1, 1, 1);
+        mat.emissiveColor = new Color3(0, 0, 0);
+        mat.useEmissiveAsIllumination = true;
         mat.disableLighting = true;
       }
     }
 
     if (props.isFullbright) {
-      mat.emissiveColor = new Color3(1, 1, 1);
+      mat.emissiveColor = new Color3(0, 0, 0);
+      mat.useEmissiveAsIllumination = true;
       mat.disableLighting = true;
     }
 
@@ -560,7 +607,7 @@ export class MD3Loader {
         if (options?.textureUrl) {
           // Use explicit texture URL if provided
           const mat = new StandardMaterial(`${name}_mat`, this.scene);
-          mat.diffuseTexture = new Texture(options.textureUrl, this.scene);
+          mat.diffuseTexture = new Texture(options.textureUrl, this.scene, { invertY: false });
           mat.specularColor.set(0.1, 0.1, 0.1);
           mesh.material = mat;
         } else if (surface.shaders.length > 0) {
@@ -601,10 +648,6 @@ export class MD3Loader {
               mesh.billboardMode = Mesh.BILLBOARDMODE_ALL;
             }
             // If just isFlash (no autosprite), we still aligned it Forward, which is good.
-          }
-
-          if (props.tcMod) {
-            this.applyTcMod(mesh, props.tcMod);
           }
         }
       }
@@ -688,53 +731,6 @@ export class MD3Loader {
     vertexData.applyToMesh(mesh, true);
 
     return mesh;
-  }
-
-  /**
-   * Apply Quake 3 tcMod (texture coordinate modifications)
-   */
-  // biome-ignore lint/suspicious/noExplicitAny: Babylon.js internal API access
-  private applyTcMod(mesh: Mesh, tcMods: any[]) {
-    if (!tcMods || tcMods.length === 0) return;
-
-    const mat = mesh.material as StandardMaterial;
-    if (!mat || !mat.diffuseTexture) return;
-
-    const texture = mat.diffuseTexture as Texture;
-
-    // Quake rotations are around center (0.5, 0.5)
-    texture.uRotationCenter = 0.5;
-    texture.vRotationCenter = 0.5;
-
-    // Static mods
-    for (const mod of tcMods) {
-      if (mod.type === "scale") {
-        texture.uScale = mod.uScale;
-        texture.vScale = mod.vScale;
-      }
-    }
-
-    // Animated mods
-    const animatedMods = tcMods.filter((m) => ["rotate", "scroll", "stretch", "turb"].includes(m.type));
-
-    if (animatedMods.length > 0) {
-      mesh.onBeforeRenderObservable.add(() => {
-        const time = performance.now() / 1000;
-
-        for (const mod of animatedMods) {
-          if (mod.type === "rotate") {
-            // Quake rotate is deg/sec
-            // Negative because Quake is CCW? Or maybe Babylon texture rotation logic differs.
-            // StandardMaterial wAng is radians.
-            const rad = mod.degreesPerSecond * (Math.PI / 180) * time;
-            texture.wAng = rad;
-          } else if (mod.type === "scroll") {
-            texture.uOffset = (time * mod.uSpeed) % 1;
-            texture.vOffset = (time * mod.vSpeed) % 1;
-          }
-        }
-      });
-    }
   }
 }
 

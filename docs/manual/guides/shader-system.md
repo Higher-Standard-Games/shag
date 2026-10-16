@@ -55,7 +55,21 @@ and additional glow layers are still approximated.
 
 PK3 PNG/JPG, TGA and KTX images share a top-to-bottom upload convention. BSP
 diffuse maps use UV0 and baked lightmaps use UV2, including type-3 triangle soups.
-OpenGL normal maps are adjusted for Babylon's derivative tangent frame.
+Normal-mapped BSP meshes use an explicit Qfusion tangent frame built from UV0,
+including mirrored UV handedness, so OpenGL normal maps agree with baked light
+directions on floors and walls.
+
+`blendFunc add` uses source RGB plus destination RGB independently of texture
+alpha. The explicit `GL_SRC_ALPHA GL_ONE` form attenuates the source by alpha.
+`blendFunc blend` uses texture alpha multiplied by authored vertex alpha;
+`blendFunc filter` multiplies destination RGB by the source image.
+FBSP vertex RGB receives the map lighting gain and hue normalization while
+vertex alpha remains unchanged. Lightmapped vertex-coloured material stages
+use direct baked lighting rather than an additional synthetic fill multiplier.
+
+Primary `animMap` stages and the supported additive material shine can cycle
+loaded frames. MD3 materials retain authored texture V coordinates with the
+same PK3 image upload convention and support primary stage UV/colour animation.
 
 Brightness/alpha waves without `tcMod` preserve the texture's existing UV
 transform. Filter decals apply that transform when sampling, including loader

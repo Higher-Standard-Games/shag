@@ -22,6 +22,7 @@ import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
 import type { Scene } from "@babylonjs/core/scene";
 import { applySafeMaxSimultaneousLights } from "../../lighting/DynamicLightSafety";
 import { RenderVars } from "../../rendering/RenderVars";
+import { q3AlphaMode } from "../shader/Q3Blend";
 import { Q3ShaderRegistry } from "../shader/Q3ShaderRegistry";
 import { DEFAULT_SKY_HEIGHT, type ResolvedMaterialProps } from "../shader/Q3ShaderTypes";
 import { configureBspBakedLighting } from "./BspBakedLightingPlugin";
@@ -30,10 +31,11 @@ import type { BspFile } from "./BspLoader";
 import { classifyLiquids, DEFAULT_LIQUID_OVERRIDES, liquidKindFromSurfaceParms } from "./LiquidClassifier";
 import { buildMeshFace, buildPatchFace, buildPolygonFace } from "./mesh/faceBuilders";
 import { createRadialGradientTexture, createSolidColorTexture } from "./mesh/fallbackTextures";
-import { createBspLightmapTexture, neutralizeFallbackVertexRgb } from "./mesh/lightmaps";
+import { createBspLightmapTexture, neutralizeFallbackVertexRgb, scaleBspVertexColors } from "./mesh/lightmaps";
 import { buildFaceClusters } from "./mesh/pvs";
 import { cloudLayersFromStages } from "./mesh/skyClouds";
 import { faceSpatialCell, MIN_SPATIAL_BATCH_TRIANGLES, normalizeSpatialCellSize } from "./mesh/spatialBatching";
+import { buildBspTangents } from "./mesh/tangents";
 import type { BspMeshBuildResult, BuildOptions } from "./mesh/types";
 
 export { buildBrushModel } from "./mesh/brushModelBuilder";
@@ -108,6 +110,7 @@ export class BspMeshBuilder {
 
   private buildAll(): BspMeshBuildResult {
     console.log(`[BspMeshBuilder] Building meshes from ${this.bsp.faces.length} faces`);
+    const vertexGain = this.bsp.header.isFBSP ? bspLightingProfile(this.bsp).gain : 1;
 
     const stats = {
       totalFaces: this.bsp.faces.length,
@@ -541,7 +544,7 @@ export class BspMeshBuilder {
         meshVertexData.uvs2 = group.uv2s;
       }
       if (group.colors.length > 0) {
-        meshVertexData.colors = group.colors;
+        meshVertexData.colors = scaleBspVertexColors(group.colors, vertexGain);
       }
       meshVertexData.indices = group.indices;
       meshVertexData.applyToMesh(mesh);
@@ -565,7 +568,7 @@ export class BspMeshBuilder {
         usesLightmap: group.shaderProps.useLightmap,
         glossIntensity: group.shaderProps.glossIntensity,
         glossExponent: group.shaderProps.glossExponent,
-        preserveVertexLighting: group.shaderProps.isTransparent || group.shaderProps.alphaMode !== "opaque",
+        preserveVertexLighting: group.shaderProps.usesVertexRgb ?? false,
         textureIndex: group.textureIndex,
         lightmapIndex: group.lightmapIndex,
         // Only model-0 surfaces carry this annotation; movers stay outside
@@ -677,7 +680,7 @@ export class BspMeshBuilder {
         spriteVertexData.uvs2 = sprite.uv2s;
       }
       if (sprite.colors.length > 0) {
-        spriteVertexData.colors = sprite.colors;
+        spriteVertexData.colors = scaleBspVertexColors(sprite.colors, vertexGain);
       }
       spriteVertexData.indices = sprite.indices;
       spriteVertexData.applyToMesh(spriteMesh, true); // updatable = true
@@ -1276,6 +1279,14 @@ export class BspMeshBuilder {
               ["_norm", "_normal", "_bump"],
             );
             if (normalTexture) {
+              if (mesh instanceof Mesh && !mesh.isVerticesDataPresent(VertexBuffer.TangentKind)) {
+                const positions = mesh.getVerticesData(VertexBuffer.PositionKind);
+                const normals = mesh.getVerticesData(VertexBuffer.NormalKind);
+                const uvs = mesh.getVerticesData(VertexBuffer.UVKind);
+                const indices = mesh.getIndices();
+                if (positions && normals && uvs && indices)
+                  mesh.setVerticesData(VertexBuffer.TangentKind, buildBspTangents(positions, normals, uvs, indices));
+              }
               mat.bumpTexture = normalTexture;
               mat.bumpTexture.level = 1.0;
               hasNormalMap = true;
@@ -1304,7 +1315,8 @@ export class BspMeshBuilder {
             );
             if (glowTexture) {
               mat.emissiveTexture = glowTexture;
-              mat.emissiveColor = new Color3(1, 1, 1);
+              mat.emissiveColor = new Color3(0, 0, 0);
+              mat.useEmissiveAsIllumination = true;
               if (!mesh.metadata) mesh.metadata = {};
               mesh.metadata.preserveEmissive = true;
               console.log(`[BspMeshBuilder] Loaded glow map for: ${texName}`);
@@ -1341,6 +1353,18 @@ export class BspMeshBuilder {
               const { ShaderAnimationSystem } = await import("../shader/ShaderAnimationSystem");
               const animations = ShaderAnimationSystem.getInstance();
               animations.init(scene);
+              const frames = stage.animMap
+                ? {
+                    frequency: stage.animMap.frequency,
+                    textures: (
+                      await Promise.all(
+                        stage.animMap.frames.map(
+                          async (path) => (await loadFirstTexture(addTexturePrefixes(path))).texture,
+                        ),
+                      )
+                    ).filter((tex): tex is Texture => !!tex),
+                  }
+                : undefined;
               animations.registerMaterial(
                 `${texName}:${material.uniqueId}:glow`,
                 material,
@@ -1349,6 +1373,7 @@ export class BspMeshBuilder {
                 stage.rgbGen,
                 undefined,
                 "emissive",
+                frames,
               );
             };
 
@@ -1389,11 +1414,14 @@ export class BspMeshBuilder {
             } else if (shaderProps.alphaMode === "add") {
               // Additive blending for glow effects (halos, flares, glass)
               mat.transparencyMode = 2; // MATERIAL_ALPHABLEND — enables alpha pipeline
-              mat.alphaMode = Constants.ALPHA_ADD;
+              mat.alphaMode = q3AlphaMode(shaderProps);
               mat.useAlphaFromDiffuseTexture = true;
               texture.hasAlpha = true;
               // Emissive makes bright pixels glow, diffuse=0 prevents double lighting
-              mat.emissiveColor = new Color3(1, 1, 1);
+              mat.emissiveTexture = glowTexture ?? texture;
+              mat.emissiveColor = new Color3(0, 0, 0);
+              mat.useEmissiveAsIllumination = true;
+              mat.disableLighting = true;
               mat.diffuseColor = new Color3(0, 0, 0);
               if (!mesh.metadata) mesh.metadata = {};
               mesh.metadata.preserveEmissive = true;
@@ -1427,7 +1455,10 @@ export class BspMeshBuilder {
               mat.disableLighting = true; // Immune to scene lights — renders at full brightness
               const constant = shaderProps.rgbGen?.type === "const" ? shaderProps.rgbGen.color : undefined;
               const grayConstant = constant && constant[0] === constant[1] && constant[1] === constant[2];
-              if (!shaderProps.usesVertexRgb && (shaderProps.alphaMode === "opaque" || grayConstant)) {
+              if (
+                !shaderProps.usesVertexRgb &&
+                (shaderProps.alphaMode === "opaque" || shaderProps.alphaMode === "add" || grayConstant)
+              ) {
                 mat.useEmissiveAsIllumination = true;
                 mat.emissiveColor.set(0, 0, 0);
                 if (grayConstant) (mat.emissiveTexture as Texture).level = constant[0];
@@ -1462,18 +1493,32 @@ export class BspMeshBuilder {
               animSystem.init(scene);
 
               // Get animation data from first stage
-              const firstStage = shader.stages[0];
+              const firstStage = shaderProps.primaryStage;
               if (firstStage) {
+                const frames = firstStage.animMap
+                  ? {
+                      frequency: firstStage.animMap.frequency,
+                      textures: (
+                        await Promise.all(
+                          firstStage.animMap.frames.map(
+                            async (path) => (await loadFirstTexture(addTexturePrefixes(path))).texture,
+                          ),
+                        )
+                      ).filter((tex): tex is Texture => !!tex),
+                    }
+                  : undefined;
                 animSystem.registerMaterial(
-                  texName,
+                  `${texName}:${mat.uniqueId}:base`,
                   mat,
                   texture,
                   firstStage.tcMod || [],
                   firstStage.rgbGen,
                   firstStage.alphaGen,
-                  shaderProps.isFullbright && !shaderProps.usesVertexRgb && shaderProps.alphaMode === "opaque"
+                  shaderProps.alphaMode === "add" ||
+                    (shaderProps.isFullbright && !shaderProps.usesVertexRgb && shaderProps.alphaMode === "opaque")
                     ? "emissive"
                     : "diffuse",
+                  frames,
                 );
               }
             }
@@ -1556,7 +1601,7 @@ export class BspMeshBuilder {
       if (meshLightmapIndex === undefined || meshLightmapIndex === null || meshLightmapIndex < 0) continue;
 
       // Skip fullbright surfaces - they should not receive lightmap darkening
-      if (mesh.metadata?.isFullbright) continue;
+      if (mesh.metadata?.isFullbright || mesh.metadata?.usesLightmap === false) continue;
 
       const lightmapIndex = meshLightmapIndex;
       if (lightmapIndex >= lightmaps.length) continue;
@@ -1566,7 +1611,6 @@ export class BspMeshBuilder {
       if (
         profile &&
         (mat instanceof StandardMaterial || mat instanceof PBRMaterial) &&
-        !mesh.metadata?.preserveVertexLighting &&
         mesh.metadata?.usesLightmap !== false
       ) {
         const direction =
@@ -1765,7 +1809,7 @@ export class BspMeshBuilder {
         case "add":
           // Additive blending (GL_ONE, GL_ONE)
           mat.transparencyMode = 2; // MATERIAL_ALPHABLEND — enables alpha pipeline
-          mat.alphaMode = Constants.ALPHA_ADD;
+          mat.alphaMode = q3AlphaMode(props);
           mat.alpha = 1;
           // Make emissive for additive glow effect
           mat.emissiveColor = new Color3(1, 1, 1);
@@ -1781,9 +1825,9 @@ export class BspMeshBuilder {
           break;
         case "multiply":
           // Multiply/filter blending (GL_DST_COLOR, GL_ZERO) - for decals
-          // Use alpha blend - decal textures should have alpha for transparency
+          // Multiplication uses destination RGB, independently of source alpha.
           mat.transparencyMode = 2; // MATERIAL_ALPHABLEND
-          mat.alphaMode = Constants.ALPHA_COMBINE;
+          mat.alphaMode = Constants.ALPHA_MULTIPLY;
           mat.alpha = 1;
           mat.useAlphaFromDiffuseTexture = true;
           break;
@@ -1822,9 +1866,9 @@ export class BspMeshBuilder {
     },
     props?: ResolvedMaterialProps,
   ): void {
-    // OpenGL normals use the opposite V direction in Babylon's derivative tangent frame.
-    mat.invertNormalMapX = mat.getScene().useRightHandedSystem;
-    mat.invertNormalMapY = !mat.getScene().useRightHandedSystem;
+    // BSP meshes supply Qfusion's explicit image-space tangent frame.
+    mat.invertNormalMapX = false;
+    mat.invertNormalMapY = false;
     if (options.hasGlossMap && mat.specularTexture) {
       mat.specularTexture.level = 1;
       const specularStrength = props?.glossIntensity ?? 1.5;
@@ -1878,8 +1922,8 @@ export class BspMeshBuilder {
     if (normalTexture) {
       mat.bumpTexture = normalTexture;
       mat.bumpTexture.level = 1.0;
-      mat.invertNormalMapX = scene.useRightHandedSystem;
-      mat.invertNormalMapY = !scene.useRightHandedSystem;
+      mat.invertNormalMapX = false;
+      mat.invertNormalMapY = false;
     }
 
     if (glossTexture) {

@@ -25,6 +25,29 @@ afterEach(() => {
 });
 
 describe("texture transform ownership", () => {
+  it("cycles glow frames without replacing the opaque base image", () => {
+    let now = 1000;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const animation = ShaderAnimationSystem.getInstance();
+    animation.init(scene);
+    const material = new StandardMaterial("pad", scene);
+    const base = new Texture(null, scene);
+    const frames = [new Texture(null, scene), new Texture(null, scene)];
+    material.diffuseTexture = base;
+    material.emissiveTexture = frames[0];
+    animation.registerMaterial("pad", material, frames[0], [], undefined, undefined, "emissive", {
+      frequency: 2,
+      textures: frames,
+    });
+    now += 600;
+    scene.onBeforeRenderObservable.notifyObservers(scene);
+    expect(material.emissiveTexture).toBe(frames[1]);
+    expect(material.diffuseTexture).toBe(base);
+    now += 500;
+    scene.onBeforeRenderObservable.notifyObservers(scene);
+    expect(material.emissiveTexture).toBe(frames[0]);
+    expect(material.diffuseTexture).toBe(base);
+  });
   it.each([
     StandardMaterial,
     PBRMaterial,

@@ -5,6 +5,7 @@
  * released texture must not stay bound, or model caches drop the fresh model.
  */
 
+import { Constants } from "@babylonjs/core/Engines/constants";
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
 import type { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { RawTexture } from "@babylonjs/core/Materials/Textures/rawTexture";
@@ -49,6 +50,23 @@ function texture(): RawTexture {
 }
 
 describe("MD3Loader material reuse", () => {
+  it("uses authored ONE/ONE emission without a white constant or alpha attenuation", async () => {
+    const image = texture();
+    vi.mocked(PK3TextureLoader.getInstance().resolveAndLoadTexture).mockResolvedValue(image);
+    vi.mocked(Q3ShaderRegistry.getInstance().resolveMaterialProps).mockReturnValue({
+      alphaMode: "add",
+      isTransparent: true,
+      blendFunc: ["GL_ONE", "GL_ONE"],
+      backFaceCulling: false,
+    } as never);
+    const result = createMaterial(SHADER, "mega_ball");
+    await result.textureLoadPromise;
+    expect(result.material.alphaMode).toBe(Constants.ALPHA_ONEONE);
+    expect(result.material.emissiveTexture).toBe(image);
+    expect(result.material.emissiveColor.asArray()).toEqual([0, 0, 0]);
+    expect(result.material.useEmissiveAsIllumination).toBe(true);
+    expect(result.material.needAlphaBlending()).toBe(true);
+  });
   it("unbinds released textures from a reused material while the refresh loads", () => {
     const { material } = createMaterial(SHADER, "rocket_rocket");
     const released = texture();

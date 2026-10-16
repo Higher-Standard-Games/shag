@@ -44,6 +44,23 @@ afterEach(() => {
 });
 
 describe("explosion particle systems", () => {
+  it("thaws fading rays and hides retired geometry even if map warmup froze their materials", () => {
+    let now = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const effect = getExplosionEffect();
+    effect.spawn(Vector3.Zero(), ROCKET_EXPLOSION);
+    const rays = scene.meshes.filter((m) => /_ray_\d+$/.test(m.name));
+    expect(rays.length).toBeGreaterThan(0);
+    for (const mesh of rays) mesh.material!.freeze();
+    now = 500;
+    effect.update(0.5);
+    expect(rays.every((m) => !m.material!.isFrozen)).toBe(true);
+    now = 700;
+    effect.update(0.2);
+    expect(rays.every((m) => !m.isVisible)).toBe(true);
+    effect.clear();
+    expect(rays.every((m) => m.isDisposed())).toBe(true);
+  });
   it("keeps the flash below two light units and fades it from the same initial gain", () => {
     let now = 0;
     vi.spyOn(performance, "now").mockImplementation(() => now);

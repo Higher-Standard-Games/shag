@@ -569,7 +569,7 @@ export class MapLoader {
       let frozenCount = 0;
       let skippedCount = 0;
       const frozenMats = new Set<number>();
-      for (const mesh of scene.meshes) {
+      for (const mesh of [meshResult.worldMesh, ...meshResult.worldMesh.getChildMeshes()]) {
         // biome-ignore lint/suspicious/noExplicitAny: Babylon loader internals
         const mat = mesh.material as any;
         if (mat && !frozenMats.has(mat.uniqueId)) {

@@ -5,6 +5,16 @@ import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { Scene } from "@babylonjs/core/scene";
 import { q3ToBabylon } from "./coordinates";
 
+/** Qfusion scales and hue-normalizes baked vertex RGB, leaving opacity untouched. */
+export function scaleBspVertexColors(colors: number[], gain: number): number[] {
+  return colors.map((value, i) => {
+    if (i % 4 === 3) return value;
+    const start = i - (i % 4);
+    const peak = Math.max(1, colors[start] * gain, colors[start + 1] * gain, colors[start + 2] * gain);
+    return (value * gain) / peak;
+  });
+}
+
 /** Keep authored alpha while removing a second baked RGB lighting factor. */
 export function neutralizeFallbackVertexRgb(mesh: Mesh): void {
   if (mesh.metadata?.usesVertexRgb || mesh.metadata?.preserveVertexLighting) return;

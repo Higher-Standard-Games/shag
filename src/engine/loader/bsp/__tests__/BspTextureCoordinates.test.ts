@@ -76,6 +76,7 @@ describe("FBSP texture coordinates and vertex-alpha decals", () => {
       expect(Array.from(mesh.getVerticesData("uv")!)).toEqual(uv.flat());
       expect(Array.from(mesh.getVerticesData("uv2")!)).toEqual(uv2.flat());
       expect(mesh.hasVertexAlpha).toBe(true);
+      expect(mesh.metadata.preserveVertexLighting).toBe(false);
       expect(mesh.material!.needAlphaBlendingForMesh(mesh)).toBe(true);
       const colors = mesh.getVerticesData("color")!;
       expect(colors[3]).toBe(0);

@@ -5,8 +5,14 @@ import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { Scene } from "@babylonjs/core/scene";
 import { describe, expect, it } from "vitest";
 import { BspMeshBuilder, type BspMeshBuildResult } from "../BspMeshBuilder";
+import { scaleBspVertexColors } from "../mesh/lightmaps";
 
 describe("baked lightmap versus vertex lighting", () => {
+  it("applies Qfusion vertex gain with hue normalization and unchanged alpha", () => {
+    expect(scaleBspVertexColors([0.4, 0.2, 0.1, 0.3, 0.8, 0.4, 0.2, 0.6], 2)).toEqual([
+      0.8, 0.4, 0.2, 0.3, 1, 0.5, 0.25, 0.6,
+    ]);
+  });
   it.each([
     { page: 0, authored: false, translucent: false, neutral: true },
     { page: 0, authored: true, translucent: false, neutral: false },

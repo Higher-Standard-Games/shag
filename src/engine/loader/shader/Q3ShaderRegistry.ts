@@ -94,7 +94,7 @@ function isLightmapStage(stage: Q3ShaderStage): boolean {
 }
 
 function isRenderableStage(stage: Q3ShaderStage): boolean {
-  return Boolean(stage.material?.diffuse || (stage.map && !isLightmapStage(stage)));
+  return Boolean(stage.material?.diffuse || stage.animMap?.frames.length || (stage.map && !isLightmapStage(stage)));
 }
 
 function hasFilterBlend(stage: Q3ShaderStage): boolean {
@@ -281,8 +281,10 @@ export class Q3ShaderRegistry {
     props.resolvedBranch = branch;
     props.glossIntensity = shader.glossIntensity;
     props.glossExponent = shader.glossExponent;
-    props.usesVertexRgb = activeStages.some((stage) => ["vertex", "oneMinusVertex"].includes(stage.rgbGen?.type ?? ""));
-    props.usesVertexAlpha = activeStages.some((stage) => stage.alphaGen?.type === "vertex");
+    props.primaryStage = primaryStage;
+    props.blendFunc = primaryStage?.blendFunc;
+    props.usesVertexRgb = ["vertex", "oneMinusVertex"].includes(primaryStage?.rgbGen?.type ?? "");
+    props.usesVertexAlpha = primaryStage?.alphaGen?.type === "vertex";
     props.rgbGen = primaryStage?.rgbGen;
 
     // Sky detection - surfaceparm sky or has skyparms
@@ -333,13 +335,13 @@ export class Q3ShaderRegistry {
         .slice(activeStages.indexOf(materialStage) + 1)
         .find(
           (stage) =>
-            stage.map &&
+            (stage.map || stage.animMap?.frames.length) &&
             !isLightmapStage(stage) &&
             stage.blendFunc?.[0] === "GL_ONE" &&
             stage.blendFunc?.[1] === "GL_ONE",
         );
       if (glow && !props.glowTexture) {
-        props.glowTexture = normalizeTextureReference(glow.map);
+        props.glowTexture = normalizeTextureReference(glow.map || glow.animMap!.frames[0]);
         props.glowTextureExplicitlyBlank = false;
         props.glowStage = glow;
       }
@@ -349,6 +351,8 @@ export class Q3ShaderRegistry {
       if (!props.diffuseTexture && primaryStage?.map && !isLightmapStage(primaryStage)) {
         props.diffuseTexture = normalizeTextureReference(primaryStage.map);
       }
+      if (!props.diffuseTexture && primaryStage?.animMap?.frames[0])
+        props.diffuseTexture = normalizeTextureReference(primaryStage.animMap.frames[0]);
 
       // Check for lightmap stage in the selected stage stack
       props.useLightmap =
@@ -426,6 +430,7 @@ export class Q3ShaderRegistry {
       if (primaryStage?.animMap) {
         props.needsAnimation = true;
       }
+      if (primaryStage?.rgbGen?.type === "wave" || primaryStage?.alphaGen?.type === "wave") props.needsAnimation = true;
 
       // Texture coordinate generation mode (environment mapping, etc.)
       if (primaryStage?.tcGen) {

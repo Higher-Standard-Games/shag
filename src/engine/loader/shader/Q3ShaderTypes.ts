@@ -341,6 +341,8 @@ export interface ResolveMaterialOptions {
  * This is what BspMeshBuilder uses to configure materials
  */
 export interface ResolvedMaterialProps {
+  primaryStage?: Q3ShaderStage;
+  blendFunc?: [BlendFactor, BlendFactor];
   glossIntensity?: number;
   glossExponent?: number;
   /** Authored rgbGen requires the mesh RGB channel, independently of alpha. */

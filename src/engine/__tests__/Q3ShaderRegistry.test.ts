@@ -66,6 +66,20 @@ describe("Q3ShaderRegistry", () => {
     expect(props.alphaMode).toBe("blend");
     expect(props.tcGen).toBeUndefined();
   });
+  it("resolves an animated additive sign without substituting its editor image", () => {
+    const [shader] = parseShaderFile(`textures/qa/sign {
+      qer_editorimage textures/qa/editor.png
+      surfaceparm nolightmap
+      { animmap 1 textures/qa/a.png textures/qa/b.png blendfunc add }
+    }`);
+    injectShader(shader);
+    expect(getRegistry().resolveMaterialProps(shader.name)).toMatchObject({
+      diffuseTexture: "textures/qa/a.png",
+      blendFunc: ["GL_ONE", "GL_ONE"],
+      alphaMode: "add",
+      needsAnimation: true,
+    });
+  });
   it("preserves vertex alpha for Qfusion material decals", () => {
     const [shader] = parseShaderFile(`textures/qa/decal {
       surfaceparm trans

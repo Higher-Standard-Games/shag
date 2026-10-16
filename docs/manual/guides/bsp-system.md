@@ -94,7 +94,10 @@ multiplies the map gain on load.
 
 Ordinary opaque lightmapped Standard/PBR surfaces use baked light directly,
 without a second fallback vertex-RGB or synthetic sun/fill multiplier. Authored
-vertex RGB, alpha, fullbright, transparent and custom shader behavior is retained.
+vertex RGB receives Qfusion's map gain and hue normalization; alpha is retained
+without that gain. Lightmapped alpha-tested and alpha-blended material stages
+share the direct baked-lighting path. Fullbright and custom shader behavior is
+retained.
 Dynamic game lights remain additive. Gain belongs to each material, so shared
 pages cannot receive conflicting PBR/Standard gains.
 
