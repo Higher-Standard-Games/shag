@@ -99,6 +99,7 @@ interface TraceState {
   maxs: [number, number, number];
   extents: [number, number, number];
   contentMask: number;
+  faceIndex: number;
   result: InternalTraceResult;
   debug: boolean;
 }
@@ -157,6 +158,9 @@ export class SweepCollisionBackend implements CollisionBackend {
 
   // Pre-filtered clip brush indices (built once during init, avoids per-trace full scan)
   private clipBrushIndices: number[] = [];
+  private brushVisits = new Uint32Array(0);
+  private faceVisits = new Uint32Array(0);
+  private traceGeneration = 0;
 
   // Pooled trace state to avoid per-trace allocations
   private readonly _pooledState: TraceState = {
@@ -167,6 +171,7 @@ export class SweepCollisionBackend implements CollisionBackend {
     maxs: [0, 0, 0],
     extents: [0, 0, 0],
     contentMask: 0,
+    faceIndex: -1,
     result: {
       fraction: 1.0,
       endPos: [0, 0, 0],
@@ -207,6 +212,9 @@ export class SweepCollisionBackend implements CollisionBackend {
       };
     });
     this.isFBSP = (bsp as any).header?.isFBSP ?? false;
+    this.brushVisits = new Uint32Array(bsp.brushes.length);
+    this.faceVisits = new Uint32Array(bsp.faces.length);
+    this.traceGeneration = 0;
 
     this.processFaces();
     this.buildClipBrushIndex();
@@ -444,6 +452,12 @@ export class SweepCollisionBackend implements CollisionBackend {
 
     const startTime = performance.now();
     this.stats.traceCount++;
+    this.traceGeneration = (this.traceGeneration + 1) >>> 0;
+    if (this.traceGeneration === 0) {
+      this.brushVisits.fill(0);
+      this.faceVisits.fill(0);
+      this.traceGeneration = 1;
+    }
 
     // Convert Babylon coords to Q3 coords (swap Y and Z)
     const q3Start: [number, number, number] = [start.x, start.z, start.y];
@@ -704,6 +718,7 @@ export class SweepCollisionBackend implements CollisionBackend {
     for (let i = 0; i < leaf.numLeafBrushes; i++) {
       const brushIndex = this.bsp.leafBrushes[leaf.firstLeafBrush + i];
       if (this.liftBrushes.has(brushIndex)) continue;
+      if (this.brushVisits[brushIndex] === this.traceGeneration) continue;
       const brush = this.bsp.brushes[brushIndex];
       if (!brush || brush.numSides < 1) continue;
 
@@ -715,6 +730,7 @@ export class SweepCollisionBackend implements CollisionBackend {
       if (!this.shouldCollideWith(texture, state.contentMask)) {
         continue;
       }
+      this.brushVisits[brushIndex] = this.traceGeneration;
 
       // Check collision with brush
       this.traceBrush(brush, brushIndex, texture, state);
@@ -746,6 +762,8 @@ export class SweepCollisionBackend implements CollisionBackend {
       const faceIndex = this.bsp.leafFaces[leaf.firstLeafFace + i];
       const mesh = this.faceCollisionMeshes[faceIndex];
       if (!mesh) continue;
+      if (this.faceVisits[faceIndex] === this.traceGeneration) continue;
+      this.faceVisits[faceIndex] = this.traceGeneration;
 
       // Broadphase: AABB check (Babylon coords in mesh, Q3 coords in trace)
       // Convert mesh AABB to Q3 for comparison
@@ -771,6 +789,7 @@ export class SweepCollisionBackend implements CollisionBackend {
       const planes = mesh.facetPlanes;
       const ranges = mesh.facetRanges;
       if (!planes || !ranges) continue;
+      state.faceIndex = faceIndex;
       for (let ti = 0; ti + 1 < ranges.length; ti++) {
         if (ranges[ti + 1] > ranges[ti]) this.traceFacet(planes, ranges[ti], ranges[ti + 1], texture, state);
       }
@@ -841,6 +860,9 @@ export class SweepCollisionBackend implements CollisionBackend {
     }
 
     if (!startOut) {
+      // Embedded contacts overwrite the recovery normal in visit order. Keep
+      // their repeated visits; only non-embedded surfaces are order-independent.
+      this.faceVisits[state.faceIndex] = 0;
       // Already inside. Report the plane the body is closest to escaping
       // through, which is the one that actually pushes it out — the flat face
       // of a facet is usually the wrong answer for an edge contact.
@@ -971,6 +993,8 @@ export class SweepCollisionBackend implements CollisionBackend {
     if (!wantsPlayerclip) return;
 
     for (const bi of this.clipBrushIndices) {
+      if (this.brushVisits[bi] === this.traceGeneration) continue;
+      this.brushVisits[bi] = this.traceGeneration;
       const brush = this.bsp.brushes[bi];
       if (!brush || brush.numSides < 4) continue;
 
@@ -1059,6 +1083,7 @@ export class SweepCollisionBackend implements CollisionBackend {
 
     // Check results
     if (!startOut) {
+      this.brushVisits[brushIndex] = 0;
       // Started inside brush — compute least-penetrated plane normal
       // (the plane we're closest to escaping through, Q3 CM_TraceThroughBrush behavior)
       let bestDist = -Infinity;
@@ -1608,6 +1633,11 @@ export class SweepCollisionBackend implements CollisionBackend {
     this.liftBrushes.clear();
     this.liftFaces.clear();
     this.ladderBrushes = [];
+    this.brushVisits = new Uint32Array(0);
+    this.faceVisits = new Uint32Array(0);
+    this.faceCollisionMeshes = [];
+    this.clipBrushIndices = [];
+    this.traceGeneration = 0;
     this.bsp = null;
     this.stats = { traceCount: 0, hitCount: 0, totalTraceTime: 0 };
   }

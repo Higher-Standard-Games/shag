@@ -20,7 +20,7 @@
  */
 
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { BspBrushSide, BspFile, BspPlane } from "../loader/bsp/BspLoader";
 import { SweepCollisionBackend } from "../physics/SweepCollisionBackend";
 
@@ -409,6 +409,49 @@ async function soupBackend(shaderName: string): Promise<SweepCollisionBackend> {
   await backend.init(buildSoupBsp(shaderName));
   return backend;
 }
+
+describe("SweepCollisionBackend — per-query visits", () => {
+  it("retains repeated embedded-face visits for recovery-normal ordering", async () => {
+    const backend = await soupBackend("textures/world");
+    const spy = vi.spyOn(backend as unknown as { traceFacet: (...args: unknown[]) => void }, "traceFacet");
+    const result = backend.trace(new Vector3(0, 24, 0), new Vector3(0, 80, 0));
+    expect(result.startSolid).toBe(true);
+    expect(spy).toHaveBeenCalledTimes(4);
+  });
+
+  it("tests a face once across overlapping leaves, including generation wrap", async () => {
+    const backend = await soupBackend("textures/world");
+    const internals = backend as unknown as { traceFacet: (...args: unknown[]) => void; traceGeneration: number };
+    const spy = vi.spyOn(internals, "traceFacet");
+    const start = new Vector3(0, 100, 0),
+      end = new Vector3(0, -100, 0);
+    const reference = backend.trace(start, end);
+    expect(spy).toHaveBeenCalledTimes(2);
+    spy.mockClear();
+    internals.traceGeneration = 0xffffffff;
+    expect(backend.trace(start, end)).toEqual(reference);
+    expect(spy).toHaveBeenCalledTimes(2);
+    spy.mockClear();
+    expect(backend.trace(start, end)).toEqual(reference);
+    expect(spy).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not retest a leaf clip brush in the global fallback", async () => {
+    const backend = await makeBackend([{ ...FLOOR, name: "textures/common/fullclip" }]);
+    const spy = vi.spyOn(backend as unknown as { traceBrush: (...args: unknown[]) => void }, "traceBrush");
+    expect(backend.trace(new Vector3(0, 100, 0), new Vector3(0, -100, 0)).fraction).toBeLessThan(1);
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  it("resets visits when initialized on a new map", async () => {
+    const backend = await soupBackend("textures/world");
+    const start = new Vector3(0, 100, 0),
+      end = new Vector3(0, -100, 0);
+    const reference = backend.trace(start, end);
+    await backend.init(buildSoupBsp("textures/world"));
+    expect(backend.trace(start, end)).toEqual(reference);
+  });
+});
 
 describe("SweepCollisionBackend — triangle-soup faces", () => {
   it("collides world triangle soup so vertex-lit walkways stay solid", async () => {

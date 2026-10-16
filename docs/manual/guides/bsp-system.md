@@ -218,6 +218,12 @@ npm run test:physics
 
 ### Collision route comparisons
 
+Sweep collision retrieves brush/face candidates from BSP leaves touched by the
+swept hull. Rendering PVS visibility is not a collision filter. Repeated leaf
+references are deduplicated per query, except embedded contacts whose recovery
+normal depends on visit order. Clip brushes also have a fallback scan for brushes
+not reached through the leaf lists.
+
 The Node benchmark exercises `SweepCollisionBackend` at recorded player positions:
 
 ```bash
