@@ -17,6 +17,12 @@ probe finds a walkable plane and resolved movement is tangent to or into that
 plane. A fresh impact is not required each tick. Movement separating from the
 plane remains airborne, including jumps and upward slide bumps.
 
+Ledge grabbing derives its destination from the wall contact and the standing
+hull's projected width, so diagonal and curved walls use the same clearance
+rules as grid-aligned walls. Pull-up lifts the hull clear of the lip before
+moving inward. Both route legs are validated at detection and swept during the
+pull. An obstruction releases the grab with a short retry delay.
+
 ## Generic controller
 
 ```ts
