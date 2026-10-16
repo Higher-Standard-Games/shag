@@ -9,6 +9,8 @@
 
 import type { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
+import { RawTexture } from "@babylonjs/core/Materials/Textures/rawTexture";
+import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
@@ -102,6 +104,7 @@ interface TrailInstance {
 
 export class WeaponSlash {
   private static readonly TRAIL_FADE_MS = 800;
+  private static readonly TRAIL_ALPHA = 0.22;
 
   // Slash animation state
   private slashActive = false;
@@ -282,11 +285,11 @@ export class WeaponSlash {
         const fadeProgress = (now - trail.fadeStart) / WeaponSlash.TRAIL_FADE_MS;
         if (fadeProgress >= 1.0) {
           if (trail.mesh) trail.mesh.dispose();
-          if (trail.material) trail.material.dispose();
+          if (trail.material) trail.material.dispose(false, true);
           this.trails.splice(i, 1);
         } else {
           if (trail.material) {
-            trail.material.alpha = 0.7 * (1.0 - fadeProgress);
+            trail.material.alpha = WeaponSlash.TRAIL_ALPHA * (1.0 - fadeProgress);
           }
         }
       }
@@ -315,14 +318,39 @@ export class WeaponSlash {
 
     if (!trail.material) {
       const mat = new StandardMaterial("slashTrailMat", scene);
-      mat.emissiveColor = new Color3(1.0, 0.15, 0.05);
+      mat.emissiveColor = new Color3(0.75, 0.8, 0.8);
       mat.diffuseColor = Color3.Black();
       mat.disableLighting = true;
       mat.backFaceCulling = false;
-      mat.alpha = 0.7;
+      // A smooth opacity envelope feathers every ribbon edge without a
+      // full-screen blur pass or sampling the world behind the weapon.
+      const width = 64,
+        height = 32;
+      const pixels = new Uint8Array(width * height * 4);
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const envelope = Math.sin((Math.PI * x) / (width - 1)) * Math.sin((Math.PI * y) / (height - 1));
+          pixels.set([255, 255, 255, Math.round(255 * envelope * envelope)], (y * width + x) * 4);
+        }
+      }
+      const texture = RawTexture.CreateRGBATexture(
+        pixels,
+        width,
+        height,
+        scene,
+        false,
+        false,
+        Texture.BILINEAR_SAMPLINGMODE,
+      );
+      texture.name = "slashTrailFeather";
+      texture.hasAlpha = true;
+      texture.wrapU = texture.wrapV = Texture.CLAMP_ADDRESSMODE;
+      mat.diffuseTexture = texture;
+      mat.useAlphaFromDiffuseTexture = true;
+      mat.alpha = WeaponSlash.TRAIL_ALPHA;
       trail.material = mat;
     }
-    trail.material.alpha = 0.7;
+    trail.material.alpha = WeaponSlash.TRAIL_ALPHA;
     trail.mesh.material = trail.material;
   }
 
@@ -330,7 +358,7 @@ export class WeaponSlash {
   dispose(): void {
     for (const trail of this.trails) {
       if (trail.mesh) trail.mesh.dispose();
-      if (trail.material) trail.material.dispose();
+      if (trail.material) trail.material.dispose(false, true);
     }
     this.trails = [];
   }

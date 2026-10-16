@@ -3,8 +3,8 @@
  *
  * New default melee weapon replacing gunblade.
  * Primary fire: fast melee slash (80 damage, 100 unit range, ~500ms cooldown)
- * Charged fire: hold attack 1s → releases red energy projectile (50 damage, large splash)
- * Uses GLB model from public/data/models/weapons/blade/blade.glb
+ * Charged fire: hold attack 1s → releases teal energy projectile (50 damage, large splash)
+ * Uses the packaged Arc Blade GLB, normalized to the established blade length.
  */
 
 import { EntityType } from "../../EntityType";
@@ -18,11 +18,11 @@ export const BLADE: WeaponDef = {
   classname: "weapon_blade",
 
   // Model (world/pickup)
-  modelPath: "/data/models/weapons/blade/blade.glb",
+  modelPath: "/data/models/weapons/blade/arc_blade.glb",
   scale: 1.0,
 
-  // Pickup glow — red energy
-  glowColor: { r: 1.0, g: 0.2, b: 0.15 },
+  // Pickup glow — teal energy
+  glowColor: { r: 0.05, g: 1.0, b: 0.9 },
 
   // Gameplay (server-authoritative) — primary fire: melee slash
   damage: 80, // Big hit for close range
@@ -44,7 +44,7 @@ export const BLADE: WeaponDef = {
   // Melee-specific
   meleeRadius: 48, // Wide cone check radius (players within this of ray center count)
   meleeDamageDelay: 0.075, // 75ms delay before damage check (dodge window)
-  meleeDashDistance: 48, // Server-authoritative step-in lunge on each accepted swing
+  meleeDashDistance: 48, // Server-authoritative step-in while holding forward and advancing
 
   // Charged attack — hold ALT_FIRE to charge, release to fire projectile
   chargeTime: 1.0, // Max charge time (seconds)
@@ -55,7 +55,7 @@ export const BLADE: WeaponDef = {
 
   // View Model — GLB format
   viewModel: {
-    modelPath: "/data/models/weapons/blade/blade.glb",
+    modelPath: "/data/models/weapons/blade/arc_blade.glb",
     viewModelFormat: "glb",
 
     // Blade has no ADS — hip and ads positions are identical
@@ -76,11 +76,11 @@ export const BLADE: WeaponDef = {
     movementPenalty: 0,
   },
 
-  // Muzzle Flash — red energy burst on charged release
+  // Teal energy flash on swing and charged release
   muzzleFlash: {
-    color: { r: 1.0, g: 0.15, b: 0.1 },
+    color: { r: 0.05, g: 1.0, b: 0.9 },
     intensity: 25,
     range: 40,
-    duration: 0.08,
+    duration: 0.16,
   },
 };

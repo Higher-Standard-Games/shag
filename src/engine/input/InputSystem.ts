@@ -25,8 +25,13 @@ import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
 import { EventBus } from "../core/EventBus";
 import { writePreference } from "../core/PreferenceStorage";
-import { requestBrowserFullscreen } from "../ui/BrowserControlFeedback";
+import {
+  clearBrowserControlFailure,
+  requestBrowserFullscreen,
+  showBrowserControlFailure,
+} from "../ui/BrowserControlFeedback";
 import { validatedBindingOverrides } from "./BindingValidation";
+import { FullscreenKeyboardLock } from "./FullscreenKeyboardLock";
 import type {
   ActionDefinition,
   ActionState,
@@ -47,10 +52,34 @@ const DEFAULT_ACTIONS: ActionDefinition[] = [
   { id: "camera_zoom_out", type: "button", name: "Zoom Out", defaultBindings: [{ key: "Minus" }] },
 
   // Movement actions
-  { id: "move_forward", type: "button", name: "Move Forward", defaultBindings: [{ key: "KeyW" }, { key: "ArrowUp" }] },
-  { id: "move_back", type: "button", name: "Move Back", defaultBindings: [{ key: "KeyS" }, { key: "ArrowDown" }] },
-  { id: "move_left", type: "button", name: "Move Left", defaultBindings: [{ key: "KeyA" }, { key: "ArrowLeft" }] },
-  { id: "move_right", type: "button", name: "Move Right", defaultBindings: [{ key: "KeyD" }, { key: "ArrowRight" }] },
+  {
+    id: "move_forward",
+    type: "button",
+    name: "Move Forward",
+    lockInFullscreen: true,
+    defaultBindings: [{ key: "KeyW" }, { key: "ArrowUp" }],
+  },
+  {
+    id: "move_back",
+    type: "button",
+    name: "Move Back",
+    lockInFullscreen: true,
+    defaultBindings: [{ key: "KeyS" }, { key: "ArrowDown" }],
+  },
+  {
+    id: "move_left",
+    type: "button",
+    name: "Move Left",
+    lockInFullscreen: true,
+    defaultBindings: [{ key: "KeyA" }, { key: "ArrowLeft" }],
+  },
+  {
+    id: "move_right",
+    type: "button",
+    name: "Move Right",
+    lockInFullscreen: true,
+    defaultBindings: [{ key: "KeyD" }, { key: "ArrowRight" }],
+  },
   { id: "move_up", type: "button", name: "Move Up", defaultBindings: [{ key: "Space" }] },
   { id: "move_down", type: "button", name: "Move Down", defaultBindings: [{ key: "ShiftLeft" }] },
 
@@ -137,15 +166,31 @@ export class InputSystem {
   private boundTouchMove: (e: TouchEvent) => void;
   private boundTouchEnd: (e: TouchEvent) => void;
   private boundContextMenu: (e: Event) => void;
-  private boundBlur = () => this.releaseHeldInput();
+  private keyboardLock = new FullscreenKeyboardLock(
+    (message) => showBrowserControlFailure(message, "keyboard"),
+    () => clearBrowserControlFailure("keyboard"),
+  );
+  private windowFocused = true;
+  private boundKeyboardLockChange = () => this.updateKeyboardLock();
+  private boundFocus = () => {
+    this.windowFocused = true;
+    this.updateKeyboardLock();
+  };
+  private boundBlur = () => {
+    this.windowFocused = false;
+    this.releaseHeldInput();
+    this.keyboardLock.update([]);
+  };
   private boundVisibilityChange = () => {
     if (document.visibilityState === "hidden") this.releaseHeldInput();
+    this.updateKeyboardLock();
   };
   private pointerLocked = false;
   private boundPointerLockChange = () => {
     const locked = document.pointerLockElement === this.canvas;
     if (this.pointerLocked && !locked) this.releaseHeldInput();
     this.pointerLocked = locked;
+    this.updateKeyboardLock();
   };
 
   // Babylon render-loop observers — stored so dispose() can detach them
@@ -195,11 +240,16 @@ export class InputSystem {
     this.scene = scene;
     this.canvas = canvas;
     this.pointerLocked = document.pointerLockElement === canvas;
+    this.windowFocused = document.hasFocus();
 
     // Add event listeners
     document.addEventListener("keydown", this.boundKeyDown);
     document.addEventListener("keyup", this.boundKeyUp);
     window.addEventListener("blur", this.boundBlur);
+    window.addEventListener("focus", this.boundFocus);
+    document.addEventListener("fullscreenchange", this.boundKeyboardLockChange);
+    document.addEventListener("focusin", this.boundKeyboardLockChange);
+    document.addEventListener("focusout", this.boundKeyboardLockChange);
     document.addEventListener("visibilitychange", this.boundVisibilityChange);
     document.addEventListener("pointerlockchange", this.boundPointerLockChange);
     canvas.addEventListener("mousedown", this.boundMouseDown);
@@ -241,6 +291,7 @@ export class InputSystem {
             name: partial.name,
             description: partial.description,
             defaultBindings: partial.defaultBindings || [],
+            lockInFullscreen: partial.lockInFullscreen,
           });
         }
       }
@@ -301,6 +352,7 @@ export class InputSystem {
       return;
     }
     this.contextStack.push(contextId);
+    this.updateKeyboardLock();
     EventBus.emit("input:context_changed", { context: contextId, action: "push" });
   }
 
@@ -313,6 +365,7 @@ export class InputSystem {
       return undefined;
     }
     const popped = this.contextStack.pop();
+    this.updateKeyboardLock();
     EventBus.emit("input:context_changed", {
       context: this.getActiveContext(),
       action: "pop",
@@ -340,6 +393,7 @@ export class InputSystem {
    */
   setContext(contextId: string): void {
     this.contextStack = [contextId];
+    this.updateKeyboardLock();
     EventBus.emit("input:context_changed", { context: contextId, action: "set" });
   }
 
@@ -503,7 +557,31 @@ export class InputSystem {
     }
   }
 
+  private updateKeyboardLock(): void {
+    if (!this._initialized) return;
+    const fullscreen = document.fullscreenElement;
+    if (
+      !this.canvas ||
+      !this.windowFocused ||
+      document.visibilityState === "hidden" ||
+      !fullscreen?.contains(this.canvas) ||
+      document.pointerLockElement !== this.canvas ||
+      InputSystem.isTextInputFocused()
+    ) {
+      this.keyboardLock.update([]);
+      return;
+    }
+    const context = this.contexts.get(this.getActiveContext());
+    const keys: string[] = [];
+    for (const id of context?.actions ?? []) {
+      if (!this.actions.get(id)?.lockInFullscreen) continue;
+      for (const binding of this.getBindingsForAction(id)) if (binding.key) keys.push(binding.key);
+    }
+    this.keyboardLock.update(keys);
+  }
+
   private updateActionStates(): void {
+    this.updateKeyboardLock();
     const activeContext = this.contexts.get(this.getActiveContext());
     if (!activeContext) return;
 
@@ -588,6 +666,7 @@ export class InputSystem {
   }
 
   private onKeyDown(e: KeyboardEvent): void {
+    if (this.keyboardLock.captures(e.code) && (e.ctrlKey || e.metaKey)) e.preventDefault();
     if (e.repeat) return;
 
     // Alt+Enter → toggle fullscreen
@@ -813,10 +892,15 @@ export class InputSystem {
   // ==================== Cleanup ====================
 
   dispose(): void {
+    this.keyboardLock.dispose();
     if (this.canvas) {
       document.removeEventListener("keydown", this.boundKeyDown);
       document.removeEventListener("keyup", this.boundKeyUp);
       window.removeEventListener("blur", this.boundBlur);
+      window.removeEventListener("focus", this.boundFocus);
+      document.removeEventListener("fullscreenchange", this.boundKeyboardLockChange);
+      document.removeEventListener("focusin", this.boundKeyboardLockChange);
+      document.removeEventListener("focusout", this.boundKeyboardLockChange);
       document.removeEventListener("visibilitychange", this.boundVisibilityChange);
       document.removeEventListener("pointerlockchange", this.boundPointerLockChange);
       this.canvas.removeEventListener("mousedown", this.boundMouseDown);

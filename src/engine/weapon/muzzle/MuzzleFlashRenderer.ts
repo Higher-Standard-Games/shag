@@ -22,6 +22,7 @@ const STYLE_TO_FLOAT: Record<MuzzleFlashStyle, number> = { burst: 0, plume: 1, a
 interface FlashSlot {
   spawnTime: number;
   duration: number;
+  anchorResolver?: () => Vector3 | null;
 }
 
 function defaultClock(): number {
@@ -39,6 +40,8 @@ export interface MuzzleFlashSpawn {
   intensity?: number;
   /** Lifetime in seconds. */
   duration?: number;
+  /** Override the shared muzzle anchor for an independently moving flash. */
+  anchorResolver?: () => Vector3 | null;
 }
 
 /**
@@ -154,7 +157,7 @@ export class MuzzleFlashRenderer {
 
     const index = this.slots.length;
     const duration = flash.duration ?? 0.06;
-    this.slots.push({ spawnTime: now, duration });
+    this.slots.push({ spawnTime: now, duration, anchorResolver: flash.anchorResolver });
 
     this.seedCounter = (this.seedCounter + 1) % 8191;
     const seed = this.seedCounter + 1;
@@ -195,16 +198,17 @@ export class MuzzleFlashRenderer {
       return;
     }
 
-    // Re-anchor live flashes to the current muzzle so they ride the barrel.
-    if (this.anchorResolver) {
-      const anchor = this.anchorResolver();
+    // Independent anchors let a blade-tip flash follow the swing while other
+    // flashes keep tracking the shared live muzzle.
+    const sharedAnchor = this.anchorResolver?.();
+    for (let i = 0; i < this.slots.length; i++) {
+      const resolver = this.slots[i].anchorResolver;
+      const anchor = resolver ? resolver() : sharedAnchor;
       if (anchor) {
-        for (let i = 0; i < this.slots.length; i++) {
-          const o = i * 4;
-          this.centerSeed[o] = anchor.x;
-          this.centerSeed[o + 1] = anchor.y;
-          this.centerSeed[o + 2] = anchor.z;
-        }
+        const o = i * 4;
+        this.centerSeed[o] = anchor.x;
+        this.centerSeed[o + 1] = anchor.y;
+        this.centerSeed[o + 2] = anchor.z;
         this.dirtyMask |= CENTER_SEED_DIRTY;
       }
     }

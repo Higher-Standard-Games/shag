@@ -76,6 +76,19 @@ If the browser denies mouse capture, a dismissible notice explains how to retry.
 Fullscreen failures also show feedback, through Settings or Alt+Enter; the
 Settings toggle continues to reflect the actual fullscreen state.
 
+Fullscreen gameplay requests browser Keyboard Lock for movement keys when the
+game canvas also owns pointer lock. The keys come from the active context's
+actions marked `lockInFullscreen`, including binding overrides. FPS marks its
+four horizontal movement actions, protecting combinations such as Ctrl+W while
+retaining their movement input. Escape is never requested.
+
+Keyboard capture releases on pointer unlock, fullscreen exit, menus without
+movement actions, text-field focus, window blur, hidden tabs and input-system
+disposal. Supported browsers require a secure context and may ask permission.
+Use Alt+Enter or the game's Fullscreen setting; browser F11 fullscreen alone
+does not enable this protection. Unsupported browsers retain normal input.
+A denied request shows a dismissible notice and is not retried every frame.
+
 ## Custom controller
 
 ```ts

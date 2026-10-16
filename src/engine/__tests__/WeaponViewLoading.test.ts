@@ -21,6 +21,7 @@ import { parseTags } from "../loader/model/TagsLoader";
 import { WeaponViewManager } from "../weapon/WeaponViewManager";
 
 const imports = vi.hoisted(() => vi.fn());
+const muzzleFlash = vi.hoisted(() => vi.fn());
 vi.mock("@babylonjs/core/Loading/sceneLoader", () => ({ ImportMeshAsync: imports }));
 vi.mock("../weapon/HitscanEffects", () => ({
   getHitscanEffects: () => ({
@@ -28,6 +29,7 @@ vi.mock("../weapon/HitscanEffects", () => ({
     stopBeam: vi.fn(),
     stopLightning: vi.fn(),
     setMuzzleAnchorResolver: vi.fn(),
+    fireMuzzleFlash: muzzleFlash,
   }),
 }));
 vi.mock("../weapon/ProjectileManager", () => ({ getProjectileManager: () => ({ init: vi.fn() }) }));
@@ -80,6 +82,7 @@ beforeEach(() => {
   EntityRegistry.getInstance().clear();
   for (const weapon of [PLASMAGUN, RIOTGUN, BLADE]) EntityRegistry.getInstance().register(weapon);
   imports.mockReset();
+  muzzleFlash.mockReset();
   imports.mockImplementation(async (file, target) => imported(file, target));
   vi.stubGlobal(
     "fetch",
@@ -97,6 +100,25 @@ afterEach(async () => {
 });
 
 describe("first-person prepared model sources", () => {
+  it("adds the longer-lived teal tip spark only to blade swings", async () => {
+    await view.loadWeapon("blade");
+    const tip = new Vector3(2, 3, 5);
+    vi.spyOn(view as unknown as { getBladeTipWorldPosition(): Vector3 }, "getBladeTipWorldPosition").mockReturnValue(
+      tip,
+    );
+    view.presentFire();
+    expect(muzzleFlash).toHaveBeenCalledTimes(2);
+    expect(muzzleFlash.mock.calls[1][0]).toMatchObject({ position: tip, duration: 0.16, scale: 0.4 });
+    expect(muzzleFlash.mock.calls[1][0].color.g).toBe(1);
+    muzzleFlash.mockClear();
+    view.presentFire({ isProjectileFire: true });
+    expect(muzzleFlash).toHaveBeenCalledTimes(1);
+    expect(
+      internals()
+        .currentWeapon.root.getDescendants()
+        .some((node) => node.name === "tag_blade_tip"),
+    ).toBe(true);
+  });
   it("guards cloned WebGPU view/barrel caps against later glTF raises and disables shader hot swapping", async () => {
     Object.defineProperty(engine, "isWebGPU", { value: true, configurable: true });
     vi.spyOn(engine, "getCaps").mockReturnValue({ ...engine.getCaps(), texelFetch: true });
@@ -255,6 +277,17 @@ describe("first-person prepared model sources", () => {
   });
 
   it("reuses blade appearance while keeping hidden-on-death state and powerup outlines", async () => {
+    imports.mockImplementation(async (file, target) => {
+      const result = imported(file, target);
+      if (file === "arc_blade.glb") {
+        const material = result.meshes[1].material as PBRMaterial;
+        material.emissiveTexture = RawTexture.CreateRGBATexture(new Uint8Array([0, 255, 255, 255]), 1, 1, target);
+        material.metallicTexture = material.albedoTexture;
+        material.bumpTexture = material.albedoTexture;
+        material.emissiveIntensity = 10;
+      }
+      return result;
+    });
     view.setVisible(false);
     expect(await view.loadWeapon("blade")).toBe(true);
     expect(internals().currentWeapon.root.isEnabled()).toBe(false);
@@ -262,13 +295,28 @@ describe("first-person prepared model sources", () => {
       internals()
         .currentWeapon.meshes.find((mesh) => mesh.material)!
         .material!.getClassName(),
-    ).toBe("StandardMaterial");
+    ).toBe("PBRMaterial");
+    const bladeMaterial = internals().currentWeapon.meshes.find((mesh) => mesh.material)!.material as PBRMaterial;
+    expect(bladeMaterial.emissiveTexture).toBeTruthy();
+    expect(bladeMaterial.metallicTexture).toBeTruthy();
+    expect(bladeMaterial.bumpTexture).toBeTruthy();
+    expect(bladeMaterial.emissiveIntensity).toBe(10);
+    const fill = scene.getLightByName("bladeLight")!;
+    const bladeMesh = internals().currentWeapon.meshes.find((mesh) => mesh.material)!;
+    expect(bladeMesh.lightSources[0]).toBe(fill);
+    expect(fill.canAffectMesh(bladeMesh)).toBe(true);
+    const worldMesh = MeshBuilder.CreateBox("world", {}, scene);
+    expect(fill.canAffectMesh(worldMesh)).toBe(false);
     view.setPowerupOutlineOverride(true, new Color3(1, 0.3, 0), 0.3);
     await view.loadWeapon("riotgun");
+    expect(fill.isEnabled()).toBe(false);
     await view.loadWeapon("blade");
+    expect(fill.isEnabled()).toBe(true);
+    expect(internals().currentWeapon.meshes.find((mesh) => mesh.material)!.lightSources[0]).toBe(fill);
+    expect(fill.canAffectMesh(internals().currentWeapon.meshes.find((mesh) => mesh.material)!)).toBe(true);
     expect(internals().currentWeapon.meshes.every((mesh) => mesh.renderOutline)).toBe(true);
     expect(internals().currentWeapon.root.getChildMeshes(false)[0].rotation.x).toBeCloseTo(Math.PI);
-    expect(imports.mock.calls.filter(([file]) => file === "blade.glb")).toHaveLength(1);
+    expect(imports.mock.calls.filter(([file]) => file === "arc_blade.glb")).toHaveLength(1);
   });
 
   it("cancels a barrel import on disposal and leaves no imported resources", async () => {

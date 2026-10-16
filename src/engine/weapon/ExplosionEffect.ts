@@ -90,13 +90,13 @@ export const PLASMA_EXPLOSION: ExplosionConfig = {
   shakeMaxRange: 360, // half of default (close range only)
 };
 
-/** Preset for blade blast explosions — 50% of rocket, red-themed */
+/** Preset for blade blast explosions — 50% of rocket, teal-themed */
 export const BLADE_EXPLOSION: ExplosionConfig = {
   scale: 6.5, // 50% of rocket (13)
   speed: 1.1, // slightly faster than rocket
-  coreColor: new Color3(1.0, 0.8, 0.5), // white-hot center
-  outerColor: new Color3(1.0, 0.15, 0.05), // deep red flames
-  smokeColor: new Color3(0.3, 0.1, 0.1), // dark red-tinted smoke
+  coreColor: new Color3(0.7, 1.0, 0.95),
+  outerColor: new Color3(0.05, 1.0, 0.9),
+  smokeColor: new Color3(0.08, 0.2, 0.18),
   splashRadius: 90, // matches blade_blast def
   shakeIntensity: 0.5, // 50% of rocket shake
   shakeMaxRange: 270, // 50% of rocket range (540)

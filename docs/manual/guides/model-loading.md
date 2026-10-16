@@ -75,6 +75,35 @@ image/buffer resources, and records export hashes in
 loose authoring files are excluded. Reload the page after installing a rebuilt
 package so the browser replaces any already-mounted old copy.
 
+The Blade uses `models/weapons/blade/arc_blade.glb` (Arc Blade). To import its
+original embedded GLB and normalize length/orientation against the retained
+`exports/blade/blade.glb` reference before packaging:
+
+```bash
+node scripts/import-arc-blade.mjs /path/to/source.glb
+npm run tools:weapon-models
+npm run tools:pk3-index
+```
+
+The importer retains mesh/image bytes and material extensions, adding a parent
+transform that matches the old blade's length and export-space centre. It
+preserves an original copy under `assets-source/weapons/arc-blade/arc_blade.glb`.
+First-person loading preserves the authored PBR metal, normal and emissive
+channels. Its first-person metal receives a camera-relative specular light,
+tinted by the BSP lightgrid with the weapon lighting visibility floor, plus a
+small neutral reflection environment for the broad metallic face. Both apply
+only to the Blade; the specular light is disabled for other weapons.
+Charging uses a turquoise outline growing from 0.6 to 4.8 world units before
+view-model scale normalization; swing trails are light grey with 22% peak
+opacity and a smooth texture envelope fading their edges to transparent.
+
+Arc Blade is adapted from **Neo-Arc Blade – Sci-Fi Energy Sword** by
+[SURVIVED](https://sketchfab.com/survivedua),
+[source model](https://sketchfab.com/3d-models/neo-arc-blade-sci-fi-energy-sword-54e0845b1054497698093a72110ba73e),
+under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+Changes: runtime name, export-space rotation, uniform scale and positioning.
+Attribution is retained in the GLB and the packaged weapon manifest.
+
 ## Developer command
 
 ```text

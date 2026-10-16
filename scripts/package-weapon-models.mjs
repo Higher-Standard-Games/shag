@@ -41,7 +41,7 @@ export async function buildWeaponModelPackage(sourceDir, basePackage) {
     files.set(recipe.root + name, bytes);
     exports[name] = { bytes: bytes.length, sha256: sha256(bytes) };
   }
-  const manifest = { version: 1, baseSha256: sha256(baseBytes), files: exports };
+  const manifest = { version: 1, baseSha256: sha256(baseBytes), files: exports, credits: recipe.credits ?? [] };
   files.set(recipe.root + 'manifest.json', Buffer.from(JSON.stringify(manifest, null, 2) + '\n'));
   for (const [name, bytes] of [...files].sort(([a], [b]) => a.localeCompare(b))) output.file(name, bytes, options);
   const bytes = await output.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE', compressionOptions: { level: 9 } });

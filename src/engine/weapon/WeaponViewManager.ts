@@ -5,16 +5,19 @@
  * attached to the camera for first-person view.
  */
 
+import { VertexBuffer } from "@babylonjs/core/Buffers/buffer";
 import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
 import "@babylonjs/core/Culling/ray";
+import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight";
 import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
 import { PointLight } from "@babylonjs/core/Lights/pointLight";
 import { ImportMeshAsync } from "@babylonjs/core/Loading/sceneLoader";
+import type { RawCubeTexture } from "@babylonjs/core/Materials/Textures/rawCubeTexture";
 // Side effect: registers the OutlineRenderer scene component — required for
 // mesh.renderOutline (weapon outline / charge flash) to draw.
 import "@babylonjs/core/Rendering/outlineRenderer";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
-import { Texture } from "@babylonjs/core/Materials/Textures/texture";
+import type { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import "@babylonjs/core/Materials/Textures/Loaders/tgaTextureLoader"; // enable .tga glow maps
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { Matrix, Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector";
@@ -45,6 +48,7 @@ import { MovementVars } from "../movement/MovementVars";
 import { installWeaponCameraCandidates } from "../rendering/WeaponCameraCandidates";
 import { ViewportEffectsManager } from "../viewport/ViewportEffectsManager";
 import { AmmoCounterDisplay, parseAmmoCounter } from "./AmmoCounterDisplay";
+import { createBladeEnvironment } from "./BladeEnvironment";
 import { getHitscanEffects, serverPelletDirections } from "./HitscanEffects";
 import { getProjectileManager } from "./ProjectileManager";
 import { WeaponBarrels } from "./WeaponBarrels";
@@ -311,6 +315,8 @@ export class WeaponViewManager {
   private weaponCamera: FreeCamera | null = null;
   private releaseWeaponCandidates: (() => void) | null = null;
   private weaponLight: HemisphericLight | null = null;
+  private bladeLight: DirectionalLight | null = null;
+  private bladeEnvironment: RawCubeTexture | null = null;
   private mainCamera: FreeCamera | null = null; // The camera this instance was init()ed with
   private weaponRoot: TransformNode | null = null;
   private currentWeapon: MD3LoadResult | null = null;
@@ -510,6 +516,14 @@ export class WeaponViewManager {
     // same slots — if one of those wins over this light the gun renders black
     // ("lights off"). A high render priority keeps this light selected every frame.
     this.weaponLight.renderPriority = 1000;
+
+    // Metallic surfaces need a specular source; hemispheric fill alone has none.
+    this.bladeLight = new DirectionalLight("bladeLight", new Vector3(0.3, -0.4, 1), scene);
+    this.bladeLight.parent = this.weaponCamera;
+    this.bladeLight.includeOnlyWithLayerMask = WEAPON_LAYER_MASK;
+    this.bladeLight.setEnabled(false);
+    this.bladeLight.intensity = 3;
+    this.bladeLight.renderPriority = 1100;
 
     // Initialize hitscan effects system
     getHitscanEffects().init(scene);
@@ -750,50 +764,26 @@ export class WeaponViewManager {
       // the negative Z is needed for correct orientation. Use backFaceCulling=false
       // on materials to handle the flipped winding order.
 
-      // Convert shared PBR materials to StandardMaterial ONCE per material
-      const convertedMaterials = new Map<string, StandardMaterial>();
       const pbrMaterialsToDispose: any[] = [];
 
       for (const mesh of result.meshes) {
         if (mesh.rotationQuaternion) mesh.rotationQuaternion = null;
 
-        // For blade: convert PBR → StandardMaterial (hand-tuned emissive textures)
-        // For guns: keep PBR material as-is, just boost environment for self-lit look
+        // Authored blade PBR channels remain intact; converted gun passes are tuned below.
         if (mesh.material && mesh.material.getClassName() === "PBRMaterial") {
           const pbr = mesh.material as any;
 
           if (weaponName === "blade") {
-            // Blade uses StandardMaterial with custom emissive
-            const matId = pbr.uniqueId || pbr.name;
-            if (!convertedMaterials.has(matId)) {
-              const stdMat = new StandardMaterial(`${pbr.name}_std`, scene);
-              stdMat.disableLighting = true;
-              stdMat.diffuseColor = new Color3(1, 1, 1);
-
-              let albedoTex = pbr.albedoTexture;
-              if (!albedoTex) {
-                const baseColorPath = `data/models/weapons/${weaponName}/textures/${weaponName}_BaseColor.png`;
-                albedoTex = new Texture(baseColorPath, scene);
-              }
-              stdMat.diffuseTexture = albedoTex;
-              stdMat.emissiveTexture = pbr.emissiveTexture || albedoTex;
-              stdMat.emissiveColor = new Color3(1, 1, 1);
-              stdMat.backFaceCulling = false;
-              convertedMaterials.set(matId, stdMat);
-
-              // Null out PBR texture refs before disposal
-              pbr.albedoTexture = null;
-              pbr.emissiveTexture = null;
-              pbr.metallicTexture = null;
-              pbr.reflectivityTexture = null;
-              pbr.microSurfaceTexture = null;
-              pbr.bumpTexture = null;
-              pbr.ambientTexture = null;
-              pbrMaterialsToDispose.push(pbr);
-
-              devLog(`[WeaponViewManager] Blade: converted PBR "${pbr.name}" → StandardMaterial`);
+            applySafeMaxSimultaneousLights(pbr);
+            pbr.maxSimultaneousLights = Math.min(2, getSafeMaxSimultaneousLights(pbr));
+            if (
+              scene.getEngine().getClassName() !== "NullEngine" &&
+              scene.getEngine().constructor.name !== "NullEngine"
+            ) {
+              this.bladeEnvironment ??= createBladeEnvironment(scene);
+              pbr.reflectionTexture = this.bladeEnvironment;
+              pbr.environmentIntensity = 1.5;
             }
-            mesh.material = convertedMaterials.get(matId)!;
           } else {
             // Warsow weapon materials are multi-pass, but the IQM→GLB conversion
             // baked every pass as an OPAQUE, scene-lit base texture. Fix them up by
@@ -848,7 +838,29 @@ export class WeaponViewManager {
         mesh.layerMask = WEAPON_LAYER_MASK;
       }
 
-      // Dispose old PBR materials for blade (texture refs already nulled)
+      // Resolve the normalized model's +X tip once; cloned sockets follow its pose.
+      if (weaponName === "blade") {
+        glbRoot.computeWorldMatrix(true);
+        const inverse = glbRoot.getWorldMatrix().clone().invert();
+        let tip: Vector3 | null = null;
+        for (const mesh of result.meshes) {
+          const positions = mesh.getVerticesData(VertexBuffer.PositionKind);
+          if (!positions) continue;
+          mesh.computeWorldMatrix(true);
+          const toRoot = mesh.getWorldMatrix().multiply(inverse);
+          for (let i = 0; i < positions.length; i += 3) {
+            const point = Vector3.TransformCoordinates(Vector3.FromArray(positions, i), toRoot);
+            if (!tip || point.x > tip.x) tip = point;
+          }
+        }
+        if (tip) {
+          const socket = new TransformNode("tag_blade_tip", scene);
+          socket.parent = glbRoot;
+          socket.position.copyFrom(tip);
+        }
+      }
+
+      // Converted gun passes relinquish their original PBR materials.
       for (const pbr of pbrMaterialsToDispose) {
         pbr.dispose(false, false);
       }
@@ -1124,6 +1136,13 @@ export class WeaponViewManager {
       mesh.layerMask = WEAPON_LAYER_MASK;
     }
     this.updateMuzzleFlashLightScope();
+    if (this.bladeLight) {
+      this.bladeLight.includedOnlyMeshes = this.currentWeapon.meshes;
+      this.bladeLight.setEnabled(weaponName === "blade");
+      // Enabling a light appends it to mesh lists; rebuild in scene priority order
+      // so the specular source actually fits the material's limited light slots.
+      for (const mesh of this.currentWeapon.meshes) mesh._resyncLightSources();
+    }
 
     // Apply position — GLB weapons use their viewModel offsets,
     // MD3 weapons reset to default hip position
@@ -1244,6 +1263,7 @@ export class WeaponViewManager {
   }
 
   private clearCurrentWeapon(): void {
+    this.bladeLight?.setEnabled(false);
     this.disposeAmmoCounter();
     this.muzzleSocket = null;
     this.currentGlowTexture?.dispose();
@@ -1311,6 +1331,10 @@ export class WeaponViewManager {
     this.muzzleFlashLight = null;
     this.weaponLight?.dispose();
     this.weaponLight = null;
+    this.bladeLight?.dispose();
+    this.bladeLight = null;
+    this.bladeEnvironment?.dispose();
+    this.bladeEnvironment = null;
     this.mainCamera = null;
   }
 
@@ -1727,7 +1751,7 @@ export class WeaponViewManager {
 
   private updateLightingFromBsp(deltaTime: number): void {
     if (!this.currentWeapon || !this.scene) return;
-    this.weaponLighting.update(deltaTime, this.scene, this.currentWeapon.meshes);
+    this.weaponLighting.update(deltaTime, this.scene, this.currentWeapon.meshes, this.bladeLight);
   }
 
   private checkCVarChanges(): void {
@@ -1802,6 +1826,21 @@ export class WeaponViewManager {
           intensity: flashDef.intensity,
           duration: flashDef.duration,
         });
+        if (this.currentWeaponDef?.id === "blade" && !opts?.isProjectileFire) {
+          const jitterX = (Math.random() - 0.5) * 8;
+          const jitterY = (Math.random() - 0.5) * 8;
+          const tip = this.getBladeTipWorldPosition(jitterX, jitterY);
+          if (tip)
+            getHitscanEffects().fireMuzzleFlash({
+              position: tip,
+              color: new Color3(flashDef.color.r, flashDef.color.g, flashDef.color.b),
+              style: flashDef.style,
+              scale: (flashDef.scale ?? 1) * 0.4,
+              intensity: flashDef.intensity,
+              duration: flashDef.duration,
+              anchorResolver: () => this.getBladeTipWorldPosition(jitterX, jitterY),
+            });
+        }
       }
     }
 
@@ -1925,12 +1964,51 @@ export class WeaponViewManager {
   /**
    * Update muzzle flash effect decay and recoil recovery
    */
+  private getBladeTipWorldPosition(jitterX = 0, jitterY = 0): Vector3 | null {
+    if (
+      this.currentWeaponDef?.id !== "blade" ||
+      !this.currentWeapon ||
+      !this.weaponCamera ||
+      !this.mainCamera ||
+      !this.scene
+    )
+      return null;
+    const socket = this.currentWeapon.root.getDescendants(false).find((node) => node.name === "tag_blade_tip");
+    if (!(socket instanceof TransformNode)) return null;
+    this.weaponCamera.getViewMatrix(true);
+    this.weaponCamera.getProjectionMatrix(true);
+    this.mainCamera.getViewMatrix(true);
+    this.mainCamera.getProjectionMatrix(true);
+    socket.computeWorldMatrix(true);
+    const engine = this.scene.getEngine();
+    const viewport = this.weaponCamera.viewport.toGlobal(engine.getRenderWidth(), engine.getRenderHeight());
+    const screen = Vector3.Project(
+      socket.getAbsolutePosition(),
+      WeaponViewManager.IDENTITY_MATRIX,
+      this.weaponCamera.getTransformationMatrix(),
+      viewport,
+    );
+    // Small variation stays close to the projected tip, independent of weapon FOV.
+    screen.x += jitterX;
+    screen.y += jitterY;
+    if (!Number.isFinite(screen.x + screen.y + screen.z) || screen.z < 0 || screen.z > 1) return null;
+    const ray = this.scene.createPickingRay(
+      screen.x,
+      screen.y,
+      WeaponViewManager.IDENTITY_MATRIX,
+      this.mainCamera,
+      false,
+    );
+    return this.mainCamera.globalPosition.add(ray.direction.scale(5));
+  }
+
   private updateMuzzleFlash(deltaTime: number): void {
     if (!this.scene) return;
 
     // Decay flash intensity
     if (this.muzzleFlashIntensity > 0) {
-      this.muzzleFlashIntensity -= WeaponViewManager.MUZZLE_FLASH_DECAY * deltaTime;
+      const decay = WeaponViewManager.MUZZLE_FLASH_DECAY * (this.currentWeaponDef?.id === "blade" ? 0.5 : 1);
+      this.muzzleFlashIntensity -= decay * deltaTime;
       if (this.muzzleFlashIntensity < 0) this.muzzleFlashIntensity = 0;
 
       const max = WeaponViewManager.MUZZLE_FLASH_MAX_INTENSITY;

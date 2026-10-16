@@ -19,6 +19,29 @@ function flash(style: MuzzleFlashStyle) {
 }
 
 describe("MuzzleFlashRenderer lifecycle", () => {
+  it("keeps a moving tip flash separate from the shared muzzle anchor", () => {
+    const engine = new NullEngine();
+    const scene = new Scene(engine);
+    const renderer = new MuzzleFlashRenderer(scene, () => 1);
+    try {
+      const tip = new Vector3(20, 30, 40);
+      renderer.setAnchorResolver(() => new Vector3(1, 2, 3));
+      renderer.spawn(flash("burst"));
+      renderer.spawn({ ...flash("burst"), anchorResolver: () => tip });
+      renderer.update(0.016);
+      const centres = (renderer as unknown as { centerSeed: Float32Array }).centerSeed;
+      expect([...centres.slice(0, 3)]).toEqual([1, 2, 3]);
+      expect([...centres.slice(4, 7)]).toEqual([20, 30, 40]);
+      tip.x = 50;
+      renderer.update(0.016);
+      expect(centres[4]).toBe(50);
+      expect(centres[0]).toBe(1);
+    } finally {
+      renderer.dispose();
+      scene.dispose();
+      engine.dispose();
+    }
+  });
   it("spawns, renders, and expires flashes without leaking meshes/materials", () => {
     const engine = new NullEngine();
     const scene = new Scene(engine);

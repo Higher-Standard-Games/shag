@@ -57,6 +57,8 @@ export interface ActionDefinition {
   description?: string;
   /** Default bindings */
   defaultBindings: InputBinding[];
+  /** Capture this action's keys during fullscreen mouse-controlled gameplay. */
+  lockInFullscreen?: boolean;
 }
 
 // ==================== Contexts ====================

@@ -7,7 +7,7 @@
  * Manages:
  *   - Charge progress tracking (0 → 1 over chargeTime)
  *   - Sinusoidal weapon shake (intensity scales with charge)
- *   - Red pulsing outline on weapon meshes during charge
+ *   - Turquoise pulsing outline on weapon meshes during charge
  *   - Outline state save/restore on charge start/end
  */
 
@@ -93,19 +93,19 @@ export class WeaponCharge {
       shakeX = Math.sin(now * 0.001 * shakeFreq) * shakeIntensity;
       shakeY = Math.cos(now * 0.001 * shakeFreq * 1.3) * shakeIntensity * 0.7;
 
-      // Red pulsing outline
-      const outlineMin = 0.3,
-        outlineMax = 0.8;
+      // Turquoise pulsing outline
+      const outlineMin = 0.6,
+        outlineMax = 4.8;
       const scaledWidth = outlineMin + this.progress * (outlineMax - outlineMin);
       const scale = rootScaleX || 1;
       const pulseRate = 4 + this.progress * 8;
       const pulse = 0.6 + 0.4 * Math.sin(now * 0.001 * pulseRate * Math.PI * 2);
-      const red = new Color3(1.0 * pulse, 0.1 * pulse, 0.05 * pulse);
+      const turquoise = new Color3(0.05 * pulse, 1.0 * pulse, 0.9 * pulse);
 
       for (const mesh of meshes) {
         mesh.renderOutline = true;
         mesh.outlineWidth = scaledWidth / scale;
-        mesh.outlineColor = red;
+        mesh.outlineColor = turquoise;
       }
     } else if (this.active) {
       // Charge released — signal outline restore needed

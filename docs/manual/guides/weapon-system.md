@@ -14,6 +14,22 @@ Weapons cross shared definitions, authoritative server combat, client input/pred
 
 The server remains authoritative. A muzzle flash or predicted projectile must not apply damage locally.
 
+The Blade's 48-unit step-in dash requires an accepted primary swing, forward
+input without back input, and positive horizontal velocity along the view's
+forward direction. Stationary, sideways-only and backward motion still allow
+the melee attack but do not queue a dash. Forward diagonals qualify; vertical
+velocity and view pitch do not affect eligibility. The server evaluates this
+at swing acceptance and uses the existing collision-clamped displacement.
+
+Blade energy effects use teal: pickup glow, swing/release flashes, charged
+projectile light and trail, and its impact burst. First-person swings emit the
+central flash plus a smaller flash within four screen pixels of the model's
+tip. Both flashes fade over 0.16 seconds; the tip is resolved once from the
+normalized model geometry and follows the viewmodel pose and weapon FOV.
+The first-person swing ribbon has 22% peak opacity and feathered edges.
+The charged projectile uses its original glow texture as an additive brightness
+mask, recoloured teal. Black texture pixels contribute no visible light.
+
 ## View presentation
 
 `src/engine/weapon/WeaponViewManager.ts` owns the first-person weapon scene resources and presentation lifecycle. It is integrated by the FPS controller/game; do not initialize a second manager in a feature.

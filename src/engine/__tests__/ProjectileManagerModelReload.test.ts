@@ -5,6 +5,7 @@
  * texture. Only the trail and light remained.
  */
 
+import { Constants } from "@babylonjs/core/Engines/constants";
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { RawTexture } from "@babylonjs/core/Materials/Textures/rawTexture";
@@ -14,6 +15,7 @@ import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import { Scene } from "@babylonjs/core/scene";
 import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from "vitest";
 import { getEntityRegistry } from "../../shared/entities";
+import { BLADE_BLAST } from "../../shared/entities/definitions/projectiles/blade_blast";
 import { getMD3Loader, type MD3LoadResult } from "../loader/model/MD3Loader";
 import { PK3Loader } from "../loader/pk3/PK3Loader";
 import { ProjectileManager } from "../weapon/ProjectileManager";
@@ -76,6 +78,20 @@ afterEach(() => {
 });
 
 describe("ProjectileManager model cache", () => {
+  it("keeps a cached blade projectile body teal when its definition supplies the energy colour", async () => {
+    vi.mocked(getEntityRegistry().get).mockReturnValue(BLADE_BLAST);
+    await manager.preloadModel("blade_blast");
+    const model = createMeshes.mock.results[0].value as MD3LoadResult;
+    const material = model.meshes[0].material as StandardMaterial;
+    expect(material.emissiveColor.asArray()).toEqual([0.05, 1, 0.9]);
+    expect(material.disableLighting).toBe(true);
+    expect(material.opacityTexture?.getAlphaFromRGB).toBe(true);
+    expect(material.diffuseTexture).toBeNull();
+    expect(material.emissiveTexture).toBeNull();
+    expect(material.useEmissiveAsIllumination).toBe(false);
+    expect(material.alphaMode).toBe(Constants.ALPHA_ADD);
+    expect(material.disableDepthWrite).toBe(true);
+  });
   it("loads a projectile model again after the scene clear disposed it", async () => {
     await manager.preloadModel("rocket");
     expect(bodyVertices(fire())).toBeGreaterThan(0);

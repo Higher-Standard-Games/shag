@@ -1,7 +1,7 @@
 /**
  * Blade Blast - Projectile Definition
  *
- * Charged blade energy projectile with red glow and trail.
+ * Charged blade energy projectile with teal glow and trail.
  * Fires when player holds attack for 1 second.
  * Double plasma splash radius for area denial.
  */
@@ -16,7 +16,7 @@ export const BLADE_BLAST: ProjectileDef = {
   type: EntityType.PROJECTILE,
   classname: "projectile_blade",
 
-  // Projectile model — reuse gunblade blast model for now (TODO: custom red energy ball)
+  // Projectile model
   modelPath: "models/objects/projectile/gunblade/proj_gunbladeblast.md3",
   scale: 1.5,
 
@@ -29,8 +29,8 @@ export const BLADE_BLAST: ProjectileDef = {
   gravity: 0,
   bounces: 0,
 
-  // Light — deep red energy
-  lightColor: { r: 1.0, g: 0.15, b: 0.1 },
+  // Light and trail — teal energy
+  lightColor: { r: 0.05, g: 1.0, b: 0.9 },
   lightIntensity: 12,
   lightRange: 35,
 

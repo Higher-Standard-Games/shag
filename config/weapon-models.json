@@ -3,8 +3,20 @@
   "root": "models/weapons/",
   "sourceDir": "assets-source/weapons/exports",
   "basePackage": "assets-source/weapons/z_weapons-source.pk3",
+  "credits": [
+    {
+      "asset": "blade/arc_blade.glb",
+      "title": "Neo-Arc Blade – Sci-Fi Energy Sword",
+      "author": "SURVIVED",
+      "authorUrl": "https://sketchfab.com/survivedua",
+      "source": "https://sketchfab.com/3d-models/neo-arc-blade-sci-fi-energy-sword-54e0845b1054497698093a72110ba73e",
+      "license": "CC-BY-4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "changes": "Renamed Arc Blade; added export-space rotation, uniform scale and positioning to match the previous blade."
+    }
+  ],
   "required": [
-    "blade/blade.glb",
+    "blade/arc_blade.glb",
     "electrobolt/electrobolt.glb",
     "glauncher/glauncher.glb",
     "glauncher/glauncher_barrel.glb",

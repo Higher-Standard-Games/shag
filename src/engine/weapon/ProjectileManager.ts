@@ -6,7 +6,9 @@
  */
 
 import { Ray } from "@babylonjs/core/Culling/ray";
+import { Constants } from "@babylonjs/core/Engines/constants";
 import type { PointLight } from "@babylonjs/core/Lights/pointLight";
+import { Material } from "@babylonjs/core/Materials/material";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
@@ -313,6 +315,33 @@ export class ProjectileManager {
         const parsed = md3Loader.parseMD3(modelData);
         const model = md3Loader.createMeshes(parsed, def.id);
         if (model) {
+          if (defId === "blade_blast" && def.lightColor) {
+            await Promise.all(model.textureLoadPromises ?? []);
+            const color = def.lightColor;
+            for (const mesh of model.meshes) {
+              if (mesh.material instanceof StandardMaterial) {
+                const material = mesh.material;
+                // The source glow is orange on black. Its brightness masks the
+                // teal tint; a constant additive emissive term exposes the quad.
+                const mask = material.emissiveTexture ?? material.diffuseTexture;
+                if (mask) {
+                  mask.getAlphaFromRGB = true;
+                  mask.wrapU = mask.wrapV = Texture.CLAMP_ADDRESSMODE;
+                  material.opacityTexture = mask;
+                }
+                material.emissiveTexture = null;
+                material.diffuseTexture = null;
+                material.useEmissiveAsIllumination = false;
+                material.emissiveColor.set(color.r, color.g, color.b);
+                material.diffuseColor.set(0, 0, 0);
+                material.disableLighting = true;
+                material.alphaMode = Constants.ALPHA_ADD;
+                material.transparencyMode = Material.MATERIAL_ALPHABLEND;
+                material.disableDepthWrite = true;
+                material.backFaceCulling = false;
+              }
+            }
+          }
           model.root.setEnabled(false);
           this.modelCache.set(defId, model);
           console.log(`[ProjectileManager] Cached model: ${defId}`);

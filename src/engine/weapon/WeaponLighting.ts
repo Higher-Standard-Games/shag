@@ -7,6 +7,8 @@
  * baked lighting so it looks embedded in the environment.
  */
 
+import type { DirectionalLight } from "@babylonjs/core/Lights/directionalLight";
+import type { PBRMaterial } from "@babylonjs/core/Materials/PBR/pbrMaterial";
 import type { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import type { Scene } from "@babylonjs/core/scene";
@@ -32,7 +34,7 @@ export class WeaponLighting {
    * @param scene     Active scene
    * @param meshes    Weapon meshes whose diffuseColor should be tinted
    */
-  update(deltaTime: number, scene: Scene, meshes: AbstractMesh[]): void {
+  update(deltaTime: number, scene: Scene, meshes: AbstractMesh[], bladeLight?: DirectionalLight | null): void {
     try {
       const cameras = scene.activeCameras;
       if (!cameras || cameras.length === 0) return;
@@ -70,11 +72,20 @@ export class WeaponLighting {
       this.g += (targetG - this.g) * lf;
       this.b += (targetB - this.b) * lf;
 
+      if (bladeLight) {
+        bladeLight.diffuse.set(this.r, this.g, this.b);
+        bladeLight.specular.set(this.r, this.g, this.b);
+      }
+
       // Apply to weapon materials
       for (const mesh of meshes) {
         const mat = mesh.material as StandardMaterial;
         if (mat?.diffuseColor) {
           mat.diffuseColor.set(this.r, this.g, this.b);
+        }
+        const pbr = mesh.material as PBRMaterial | null;
+        if (pbr?.getClassName() === "PBRMaterial" && pbr.reflectionTexture?.name === "blade-reflection-fill") {
+          pbr.reflectionColor.set(this.r, this.g, this.b);
         }
       }
     } catch {

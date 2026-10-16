@@ -1,7 +1,10 @@
 import { createRaisedKey, injectRaisedKeyStyles } from "./components/RaisedKey";
 
 /** One dismissible notice, with no global listeners or timers to retain. */
-export function showBrowserControlFailure(message: string, control: "pointer" | "fullscreen" = "fullscreen"): void {
+export function showBrowserControlFailure(
+  message: string,
+  control: "pointer" | "fullscreen" | "keyboard" = "fullscreen",
+): void {
   injectRaisedKeyStyles();
   document.getElementById("browser-control-feedback")?.remove();
   const notice = document.createElement("div");
@@ -18,7 +21,7 @@ export function showBrowserControlFailure(message: string, control: "pointer" | 
   document.body.append(notice);
 }
 
-export function clearBrowserControlFailure(control: "pointer" | "fullscreen"): void {
+export function clearBrowserControlFailure(control: "pointer" | "fullscreen" | "keyboard"): void {
   const notice = document.getElementById("browser-control-feedback");
   if (notice?.dataset.control === control) notice.remove();
 }
