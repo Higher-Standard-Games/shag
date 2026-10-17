@@ -1,0 +1,1189 @@
+[
+  {
+    "op": "brush.carve",
+    "min": {
+      "x": -64,
+      "y": -192,
+      "z": 0
+    },
+    "max": {
+      "x": 64,
+      "y": 192,
+      "z": 144
+    }
+  },
+  {
+    "op": "brush.carve",
+    "min": {
+      "x": -192,
+      "y": -64,
+      "z": 0
+    },
+    "max": {
+      "x": 192,
+      "y": 64,
+      "z": 144
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "exchange-underlight",
+    "classname": "light",
+    "origin": {
+      "x": 0,
+      "y": 0,
+      "z": 96
+    },
+    "keys": {
+      "_color": "0.25 0.65 0.44",
+      "light": "180"
+    }
+  },
+  {
+    "op": "face.material",
+    "id": "reactor-dais",
+    "faces": "all",
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "box.create",
+    "id": "dais-vent--1--128",
+    "min": {
+      "x": -168,
+      "y": -194,
+      "z": 40
+    },
+    "max": {
+      "x": -88,
+      "y": -192,
+      "z": 104
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "dais-vent--1--128",
+    "faces": [
+      "-Y"
+    ],
+    "shader": "hazelh/flat/ventpanel1"
+  },
+  {
+    "op": "box.create",
+    "id": "dais-vent--1-128",
+    "min": {
+      "x": 88,
+      "y": -194,
+      "z": 40
+    },
+    "max": {
+      "x": 168,
+      "y": -192,
+      "z": 104
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "dais-vent--1-128",
+    "faces": [
+      "-Y"
+    ],
+    "shader": "hazelh/flat/ventpanel1"
+  },
+  {
+    "op": "box.create",
+    "id": "portal-lintel--1",
+    "min": {
+      "x": -72,
+      "y": -196,
+      "z": 136
+    },
+    "max": {
+      "x": 72,
+      "y": -190,
+      "z": 144
+    },
+    "shader": "lights/blue1"
+  },
+  {
+    "op": "box.create",
+    "id": "dais-vent-1--128",
+    "min": {
+      "x": -168,
+      "y": 192,
+      "z": 40
+    },
+    "max": {
+      "x": -88,
+      "y": 194,
+      "z": 104
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "dais-vent-1--128",
+    "faces": [
+      "+Y"
+    ],
+    "shader": "hazelh/flat/ventpanel1"
+  },
+  {
+    "op": "box.create",
+    "id": "dais-vent-1-128",
+    "min": {
+      "x": 88,
+      "y": 192,
+      "z": 40
+    },
+    "max": {
+      "x": 168,
+      "y": 194,
+      "z": 104
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "dais-vent-1-128",
+    "faces": [
+      "+Y"
+    ],
+    "shader": "hazelh/flat/ventpanel1"
+  },
+  {
+    "op": "box.create",
+    "id": "portal-lintel-1",
+    "min": {
+      "x": -72,
+      "y": 190,
+      "z": 136
+    },
+    "max": {
+      "x": 72,
+      "y": 196,
+      "z": 144
+    },
+    "shader": "lights/blue1"
+  },
+  {
+    "op": "box.create",
+    "id": "console--148--148",
+    "min": {
+      "x": -172,
+      "y": -172,
+      "z": 192
+    },
+    "max": {
+      "x": -124,
+      "y": -124,
+      "z": 212
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "console--148--148",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "console--148--148",
+    "faces": [
+      "+Z"
+    ],
+    "shader": "boqu/fusebox_front"
+  },
+  {
+    "op": "box.create",
+    "id": "console--148-148",
+    "min": {
+      "x": -172,
+      "y": 124,
+      "z": 192
+    },
+    "max": {
+      "x": -124,
+      "y": 172,
+      "z": 212
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "console--148-148",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "console--148-148",
+    "faces": [
+      "+Z"
+    ],
+    "shader": "boqu/fusebox_front"
+  },
+  {
+    "op": "box.create",
+    "id": "console-148--148",
+    "min": {
+      "x": 124,
+      "y": -172,
+      "z": 192
+    },
+    "max": {
+      "x": 172,
+      "y": -124,
+      "z": 212
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "console-148--148",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "console-148--148",
+    "faces": [
+      "+Z"
+    ],
+    "shader": "boqu/fusebox_front"
+  },
+  {
+    "op": "box.create",
+    "id": "console-148-148",
+    "min": {
+      "x": 124,
+      "y": 124,
+      "z": 192
+    },
+    "max": {
+      "x": 172,
+      "y": 172,
+      "z": 212
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "console-148-148",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "console-148-148",
+    "faces": [
+      "+Z"
+    ],
+    "shader": "boqu/fusebox_front"
+  },
+  {
+    "op": "entity.place",
+    "id": "dumpster-west",
+    "classname": "misc_model",
+    "origin": {
+      "x": -824,
+      "y": 96,
+      "z": 53
+    },
+    "keys": {
+      "model": "models/mapobjects/city/trash_container_1.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.6",
+      "angle": "0",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "dumpster-east",
+    "classname": "misc_model",
+    "origin": {
+      "x": 824,
+      "y": -96,
+      "z": 53
+    },
+    "keys": {
+      "model": "models/mapobjects/city/trash_container_1.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.6",
+      "angle": "180",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "box.create",
+    "id": "dumpster-west-clip",
+    "min": {
+      "x": -828,
+      "y": 92,
+      "z": 0
+    },
+    "max": {
+      "x": -704,
+      "y": 174,
+      "z": 66
+    },
+    "shader": "common/fullclip"
+  },
+  {
+    "op": "box.create",
+    "id": "dumpster-east-clip",
+    "min": {
+      "x": 704,
+      "y": -174,
+      "z": 0
+    },
+    "max": {
+      "x": 828,
+      "y": -92,
+      "z": 66
+    },
+    "shader": "common/fullclip"
+  },
+  {
+    "op": "entity.place",
+    "id": "loose-paver--240--552",
+    "classname": "misc_model",
+    "origin": {
+      "x": -244,
+      "y": -556,
+      "z": 1
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/floor_tile_concrete_1.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.72",
+      "angle": "-3",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "loose-paver--240--456",
+    "classname": "misc_model",
+    "origin": {
+      "x": -241,
+      "y": -454,
+      "z": 1
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/floor_tile_concrete_1.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.72",
+      "angle": "-3",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "loose-paver--240-456",
+    "classname": "misc_model",
+    "origin": {
+      "x": -244,
+      "y": 453,
+      "z": 1
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/floor_tile_concrete_1.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.72",
+      "angle": "4",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "loose-paver--240-552",
+    "classname": "misc_model",
+    "origin": {
+      "x": -238,
+      "y": 554,
+      "z": 1
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/floor_tile_concrete_1.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.72",
+      "angle": "4",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "loose-paver--144--552",
+    "classname": "misc_model",
+    "origin": {
+      "x": -145,
+      "y": -557,
+      "z": 1
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/floor_tile_concrete_1.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.72",
+      "angle": "1",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "loose-paver--144--456",
+    "classname": "misc_model",
+    "origin": {
+      "x": -142,
+      "y": -455,
+      "z": 1
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/floor_tile_concrete_1.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.72",
+      "angle": "1",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "loose-paver--144-456",
+    "classname": "misc_model",
+    "origin": {
+      "x": -142,
+      "y": 454,
+      "z": 1
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/floor_tile_concrete_1.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.72",
+      "angle": "0",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "loose-paver--144-552",
+    "classname": "misc_model",
+    "origin": {
+      "x": -145,
+      "y": 555,
+      "z": 1
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/floor_tile_concrete_1.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.72",
+      "angle": "0",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "loose-paver--48--552",
+    "classname": "misc_model",
+    "origin": {
+      "x": -46,
+      "y": -547,
+      "z": 1
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/floor_tile_concrete_1.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.72",
+      "angle": "5",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "loose-paver--48--456",
+    "classname": "misc_model",
+    "origin": {
+      "x": -52,
+      "y": -456,
+      "z": 1
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/floor_tile_concrete_1.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.72",
+      "angle": "5",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "loose-paver--48-456",
+    "classname": "misc_model",
+    "origin": {
+      "x": -49,
+      "y": 455,
+      "z": 1
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/floor_tile_concrete_1.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.72",
+      "angle": "-4",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "loose-paver--48-552",
+    "classname": "misc_model",
+    "origin": {
+      "x": -52,
+      "y": 556,
+      "z": 1
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/floor_tile_concrete_1.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.72",
+      "angle": "-4",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "loose-paver-48--552",
+    "classname": "misc_model",
+    "origin": {
+      "x": 44,
+      "y": -548,
+      "z": 1
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/floor_tile_concrete_1.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.72",
+      "angle": "-4",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "loose-paver-48--456",
+    "classname": "misc_model",
+    "origin": {
+      "x": 47,
+      "y": -457,
+      "z": 1
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/floor_tile_concrete_1.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.72",
+      "angle": "-4",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "loose-paver-48-456",
+    "classname": "misc_model",
+    "origin": {
+      "x": 44,
+      "y": 456,
+      "z": 1
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/floor_tile_concrete_1.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.72",
+      "angle": "5",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "loose-paver-48-552",
+    "classname": "misc_model",
+    "origin": {
+      "x": 50,
+      "y": 557,
+      "z": 1
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/floor_tile_concrete_1.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.72",
+      "angle": "5",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "loose-paver-144--552",
+    "classname": "misc_model",
+    "origin": {
+      "x": 143,
+      "y": -549,
+      "z": 1
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/floor_tile_concrete_1.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.72",
+      "angle": "0",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "loose-paver-144--456",
+    "classname": "misc_model",
+    "origin": {
+      "x": 146,
+      "y": -458,
+      "z": 1
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/floor_tile_concrete_1.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.72",
+      "angle": "0",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "loose-paver-144-456",
+    "classname": "misc_model",
+    "origin": {
+      "x": 146,
+      "y": 457,
+      "z": 1
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/floor_tile_concrete_1.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.72",
+      "angle": "1",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "loose-paver-144-552",
+    "classname": "misc_model",
+    "origin": {
+      "x": 143,
+      "y": 547,
+      "z": 1
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/floor_tile_concrete_1.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.72",
+      "angle": "1",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "loose-paver-240--552",
+    "classname": "misc_model",
+    "origin": {
+      "x": 242,
+      "y": -550,
+      "z": 1
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/floor_tile_concrete_1.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.72",
+      "angle": "4",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "loose-paver-240--456",
+    "classname": "misc_model",
+    "origin": {
+      "x": 236,
+      "y": -459,
+      "z": 1
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/floor_tile_concrete_1.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.72",
+      "angle": "4",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "loose-paver-240-456",
+    "classname": "misc_model",
+    "origin": {
+      "x": 239,
+      "y": 458,
+      "z": 1
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/floor_tile_concrete_1.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.72",
+      "angle": "-3",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "loose-paver-240-552",
+    "classname": "misc_model",
+    "origin": {
+      "x": 236,
+      "y": 548,
+      "z": 1
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/floor_tile_concrete_1.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.72",
+      "angle": "-3",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "basin-warning--432--248",
+    "classname": "misc_decal",
+    "origin": {
+      "x": -432,
+      "y": -248,
+      "z": 12
+    },
+    "keys": {
+      "shader": "textures/decals/decal_danger",
+      "width": "64",
+      "height": "64",
+      "angles": "90 0 0",
+      "distance": "24",
+      "vertexalpha": "0.8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "basin-warning--432-248",
+    "classname": "misc_decal",
+    "origin": {
+      "x": -432,
+      "y": 248,
+      "z": 12
+    },
+    "keys": {
+      "shader": "textures/decals/decal_danger",
+      "width": "64",
+      "height": "64",
+      "angles": "90 0 0",
+      "distance": "24",
+      "vertexalpha": "0.8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "basin-warning-432--248",
+    "classname": "misc_decal",
+    "origin": {
+      "x": 432,
+      "y": -248,
+      "z": 12
+    },
+    "keys": {
+      "shader": "textures/decals/decal_danger",
+      "width": "64",
+      "height": "64",
+      "angles": "90 0 0",
+      "distance": "24",
+      "vertexalpha": "0.8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "basin-warning-432-248",
+    "classname": "misc_decal",
+    "origin": {
+      "x": 432,
+      "y": 248,
+      "z": 12
+    },
+    "keys": {
+      "shader": "textures/decals/decal_danger",
+      "width": "64",
+      "height": "64",
+      "angles": "90 0 0",
+      "distance": "24",
+      "vertexalpha": "0.8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "pavement-grime-0",
+    "classname": "misc_decal",
+    "origin": {
+      "x": -204,
+      "y": -420,
+      "z": 12
+    },
+    "keys": {
+      "shader": "textures/decals/dirt_01",
+      "width": "176",
+      "height": "128",
+      "angles": "90 0 0",
+      "distance": "24",
+      "vertexalpha": "0.5"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "pavement-grime-1",
+    "classname": "misc_decal",
+    "origin": {
+      "x": 192,
+      "y": 420,
+      "z": 12
+    },
+    "keys": {
+      "shader": "textures/decals/dirt_01",
+      "width": "176",
+      "height": "128",
+      "angles": "90 0 0",
+      "distance": "24",
+      "vertexalpha": "0.5"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "pavement-grime-2",
+    "classname": "misc_decal",
+    "origin": {
+      "x": -744,
+      "y": -168,
+      "z": 12
+    },
+    "keys": {
+      "shader": "textures/decals/dirt_01",
+      "width": "176",
+      "height": "128",
+      "angles": "90 0 0",
+      "distance": "24",
+      "vertexalpha": "0.5"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "pavement-grime-3",
+    "classname": "misc_decal",
+    "origin": {
+      "x": 744,
+      "y": 168,
+      "z": 12
+    },
+    "keys": {
+      "shader": "textures/decals/dirt_01",
+      "width": "176",
+      "height": "128",
+      "angles": "90 0 0",
+      "distance": "24",
+      "vertexalpha": "0.5"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "pavement-grime-4",
+    "classname": "misc_decal",
+    "origin": {
+      "x": 84,
+      "y": 0,
+      "z": 12
+    },
+    "keys": {
+      "shader": "textures/decals/dirt_01",
+      "width": "176",
+      "height": "128",
+      "angles": "90 0 0",
+      "distance": "24",
+      "vertexalpha": "0.5"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "pavement-grime-5",
+    "classname": "misc_decal",
+    "origin": {
+      "x": -84,
+      "y": 0,
+      "z": 12
+    },
+    "keys": {
+      "shader": "textures/decals/dirt_01",
+      "width": "176",
+      "height": "128",
+      "angles": "90 0 0",
+      "distance": "24",
+      "vertexalpha": "0.5"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "wall-tag-0",
+    "classname": "misc_decal",
+    "origin": {
+      "x": -440,
+      "y": 804,
+      "z": 112
+    },
+    "keys": {
+      "shader": "textures/decals/graffiti_04_blend",
+      "width": "256",
+      "height": "144",
+      "angles": "0 90 0",
+      "distance": "24",
+      "vertexalpha": "0.92"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "wall-tag-1",
+    "classname": "misc_decal",
+    "origin": {
+      "x": 440,
+      "y": 804,
+      "z": 112
+    },
+    "keys": {
+      "shader": "textures/decals/graffitilercho",
+      "width": "256",
+      "height": "144",
+      "angles": "0 90 0",
+      "distance": "24",
+      "vertexalpha": "0.92"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "wall-tag-2",
+    "classname": "misc_decal",
+    "origin": {
+      "x": -440,
+      "y": -804,
+      "z": 112
+    },
+    "keys": {
+      "shader": "textures/decals/graffiti_04_blend",
+      "width": "256",
+      "height": "144",
+      "angles": "0 -90 0",
+      "distance": "24",
+      "vertexalpha": "0.92"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "wall-tag-3",
+    "classname": "misc_decal",
+    "origin": {
+      "x": 440,
+      "y": -804,
+      "z": 112
+    },
+    "keys": {
+      "shader": "textures/decals/graffitilercho",
+      "width": "256",
+      "height": "144",
+      "angles": "0 -90 0",
+      "distance": "24",
+      "vertexalpha": "0.92"
+    }
+  },
+  {
+    "op": "box.create",
+    "id": "yard-nameboard",
+    "min": {
+      "x": -200,
+      "y": 808,
+      "z": 340
+    },
+    "max": {
+      "x": 200,
+      "y": 816,
+      "z": 382
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "yard-nameboard",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "entity.place",
+    "id": "yard-name",
+    "classname": "misc_text_decal",
+    "origin": {
+      "x": 0,
+      "y": 796,
+      "z": 362
+    },
+    "keys": {
+      "text": "RELAY YARD  /  07",
+      "font": "textures/decals/fonts/relay_yard",
+      "height": "22",
+      "align": "center",
+      "valign": "center",
+      "tracking": "1",
+      "angles": "0 90 0",
+      "distance": "24",
+      "vertexcolor": "0.95 0.82 0.5",
+      "vertexalpha": "0.9"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "exchange-label",
+    "classname": "misc_text_decal",
+    "origin": {
+      "x": 0,
+      "y": -206,
+      "z": 170
+    },
+    "keys": {
+      "text": "COOLANT EXCHANGE",
+      "font": "textures/decals/fonts/relay_yard",
+      "height": "13",
+      "align": "center",
+      "valign": "center",
+      "tracking": "1",
+      "angles": "0 90 0",
+      "distance": "24",
+      "vertexcolor": "0.95 0.82 0.5",
+      "vertexalpha": "0.9"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "coolant-stencil-WEST",
+    "classname": "misc_text_decal",
+    "origin": {
+      "x": -432,
+      "y": -252,
+      "z": 12
+    },
+    "keys": {
+      "text": "COOLANT",
+      "font": "textures/decals/fonts/relay_yard",
+      "height": "16",
+      "align": "center",
+      "valign": "center",
+      "tracking": "1",
+      "angles": "90 0 0",
+      "distance": "24",
+      "vertexcolor": "0.95 0.82 0.5",
+      "vertexalpha": "0.9"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "coolant-stencil-EAST",
+    "classname": "misc_text_decal",
+    "origin": {
+      "x": 432,
+      "y": -252,
+      "z": 12
+    },
+    "keys": {
+      "text": "COOLANT",
+      "font": "textures/decals/fonts/relay_yard",
+      "height": "16",
+      "align": "center",
+      "valign": "center",
+      "tracking": "1",
+      "angles": "90 0 0",
+      "distance": "24",
+      "vertexcolor": "0.95 0.82 0.5",
+      "vertexalpha": "0.9"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "maintenance-bay-label",
+    "classname": "misc_text_decal",
+    "origin": {
+      "x": -540,
+      "y": 792,
+      "z": 220
+    },
+    "keys": {
+      "text": "MAINTENANCE",
+      "font": "textures/decals/fonts/relay_yard",
+      "height": "14",
+      "align": "center",
+      "valign": "center",
+      "tracking": "1",
+      "angles": "0 90 0",
+      "distance": "24",
+      "vertexcolor": "0.55 0.85 1",
+      "vertexalpha": "0.9"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "loading-bay-label",
+    "classname": "misc_text_decal",
+    "origin": {
+      "x": 540,
+      "y": -792,
+      "z": 220
+    },
+    "keys": {
+      "text": "LOADING BAY",
+      "font": "textures/decals/fonts/relay_yard",
+      "height": "14",
+      "align": "center",
+      "valign": "center",
+      "tracking": "1",
+      "angles": "0 -90 0",
+      "distance": "24",
+      "vertexcolor": "1 0.65 0.26",
+      "vertexalpha": "0.9"
+    }
+  }
+]

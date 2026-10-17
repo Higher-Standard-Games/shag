@@ -1,0 +1,4481 @@
+[
+  {
+    "op": "object.delete",
+    "ids": [
+      "ase-lamp-probe",
+      "nats-sign"
+    ]
+  },
+  {
+    "op": "entity.place",
+    "id": "nats-bar-shaped",
+    "classname": "misc_model",
+    "origin": {
+      "x": -826,
+      "y": 432,
+      "z": 316
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/wdm5_SignNatsBar.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "1.25",
+      "angle": "0",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "box.update",
+    "id": "reactor-clip",
+    "min": {
+      "x": -104,
+      "y": -104,
+      "z": 192
+    },
+    "max": {
+      "x": 104,
+      "y": 104,
+      "z": 420
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "reactor-leg--88--88",
+    "classname": "misc_model",
+    "origin": {
+      "x": -88,
+      "y": -88,
+      "z": 300
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/wdm5_pillar1.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "1",
+      "angle": "0",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "reactor-leg--88-88",
+    "classname": "misc_model",
+    "origin": {
+      "x": -88,
+      "y": 88,
+      "z": 300
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/wdm5_pillar1.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "1",
+      "angle": "180",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "reactor-leg-88--88",
+    "classname": "misc_model",
+    "origin": {
+      "x": 88,
+      "y": -88,
+      "z": 300
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/wdm5_pillar1.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "1",
+      "angle": "0",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "reactor-leg-88-88",
+    "classname": "misc_model",
+    "origin": {
+      "x": 88,
+      "y": 88,
+      "z": 300
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/wdm5_pillar1.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "1",
+      "angle": "180",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "box.create",
+    "id": "masonry-x--1--720",
+    "min": {
+      "x": -840,
+      "y": -732,
+      "z": 0
+    },
+    "max": {
+      "x": -816,
+      "y": -708,
+      "z": 408
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-x--1--720",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "masonry-x--1--480",
+    "min": {
+      "x": -840,
+      "y": -492,
+      "z": 0
+    },
+    "max": {
+      "x": -816,
+      "y": -468,
+      "z": 408
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-x--1--480",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "masonry-x--1--240",
+    "min": {
+      "x": -840,
+      "y": -252,
+      "z": 0
+    },
+    "max": {
+      "x": -816,
+      "y": -228,
+      "z": 408
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-x--1--240",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "masonry-x--1-0",
+    "min": {
+      "x": -840,
+      "y": -12,
+      "z": 0
+    },
+    "max": {
+      "x": -816,
+      "y": 12,
+      "z": 408
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-x--1-0",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "masonry-x--1-240",
+    "min": {
+      "x": -840,
+      "y": 228,
+      "z": 0
+    },
+    "max": {
+      "x": -816,
+      "y": 252,
+      "z": 408
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-x--1-240",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "masonry-x--1-480",
+    "min": {
+      "x": -840,
+      "y": 468,
+      "z": 0
+    },
+    "max": {
+      "x": -816,
+      "y": 492,
+      "z": 408
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-x--1-480",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "masonry-x--1-720",
+    "min": {
+      "x": -840,
+      "y": 708,
+      "z": 0
+    },
+    "max": {
+      "x": -816,
+      "y": 732,
+      "z": 408
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-x--1-720",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "plinth-x--1",
+    "min": {
+      "x": -840,
+      "y": -816,
+      "z": 0
+    },
+    "max": {
+      "x": -816,
+      "y": 816,
+      "z": 40
+    },
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "box.create",
+    "id": "coping-x--1",
+    "min": {
+      "x": -844,
+      "y": -840,
+      "z": 384
+    },
+    "max": {
+      "x": -812,
+      "y": 840,
+      "z": 400
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "entity.place",
+    "id": "lamp-x--1--600",
+    "classname": "misc_model",
+    "origin": {
+      "x": -820,
+      "y": -600,
+      "z": 300
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/wdm5_WallLamp1.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.75",
+      "angle": "-90",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "lamp-pool-x--1--600",
+    "classname": "light",
+    "origin": {
+      "x": -768,
+      "y": -600,
+      "z": 280
+    },
+    "keys": {
+      "_color": "1 0.69 0.39",
+      "light": "145"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "lamp-x--1--120",
+    "classname": "misc_model",
+    "origin": {
+      "x": -820,
+      "y": -120,
+      "z": 300
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/wdm5_WallLamp1.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.75",
+      "angle": "-90",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "lamp-pool-x--1--120",
+    "classname": "light",
+    "origin": {
+      "x": -768,
+      "y": -120,
+      "z": 280
+    },
+    "keys": {
+      "_color": "1 0.69 0.39",
+      "light": "145"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "lamp-x--1-360",
+    "classname": "misc_model",
+    "origin": {
+      "x": -820,
+      "y": 360,
+      "z": 300
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/wdm5_WallLamp1.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.75",
+      "angle": "-90",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "lamp-pool-x--1-360",
+    "classname": "light",
+    "origin": {
+      "x": -768,
+      "y": 360,
+      "z": 280
+    },
+    "keys": {
+      "_color": "1 0.69 0.39",
+      "light": "145"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "factory-window-x--1--360",
+    "classname": "misc_model",
+    "origin": {
+      "x": -824,
+      "y": -360,
+      "z": 320
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/wdm5_MiddleAreaRooftopWindow.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.8",
+      "angle": "-90",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "factory-window-x--1-120",
+    "classname": "misc_model",
+    "origin": {
+      "x": -824,
+      "y": 120,
+      "z": 320
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/wdm5_MiddleAreaRooftopWindow.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.8",
+      "angle": "-90",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "factory-window-x--1-600",
+    "classname": "misc_model",
+    "origin": {
+      "x": -824,
+      "y": 600,
+      "z": 320
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/wdm5_MiddleAreaRooftopWindow.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.8",
+      "angle": "-90",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "aircon-x--1",
+    "classname": "misc_model",
+    "origin": {
+      "x": -824,
+      "y": 216,
+      "z": 366
+    },
+    "keys": {
+      "model": "models/mapobjects/decor_misc/aircondition_01.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.8",
+      "angle": "-90",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "box.create",
+    "id": "shutter-jamb-x--1--96",
+    "min": {
+      "x": -816,
+      "y": -96,
+      "z": 192
+    },
+    "max": {
+      "x": -804,
+      "y": -90,
+      "z": 336
+    },
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "box.create",
+    "id": "shutter-jamb-x--1-90",
+    "min": {
+      "x": -816,
+      "y": 90,
+      "z": 192
+    },
+    "max": {
+      "x": -804,
+      "y": 96,
+      "z": 336
+    },
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "box.create",
+    "id": "shutter-cap-x--1",
+    "min": {
+      "x": -816,
+      "y": -96,
+      "z": 336
+    },
+    "max": {
+      "x": -804,
+      "y": 96,
+      "z": 348
+    },
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "box.create",
+    "id": "masonry-x-1--720",
+    "min": {
+      "x": 816,
+      "y": -732,
+      "z": 0
+    },
+    "max": {
+      "x": 840,
+      "y": -708,
+      "z": 408
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-x-1--720",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "masonry-x-1--480",
+    "min": {
+      "x": 816,
+      "y": -492,
+      "z": 0
+    },
+    "max": {
+      "x": 840,
+      "y": -468,
+      "z": 408
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-x-1--480",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "masonry-x-1--240",
+    "min": {
+      "x": 816,
+      "y": -252,
+      "z": 0
+    },
+    "max": {
+      "x": 840,
+      "y": -228,
+      "z": 408
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-x-1--240",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "masonry-x-1-0",
+    "min": {
+      "x": 816,
+      "y": -12,
+      "z": 0
+    },
+    "max": {
+      "x": 840,
+      "y": 12,
+      "z": 408
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-x-1-0",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "masonry-x-1-240",
+    "min": {
+      "x": 816,
+      "y": 228,
+      "z": 0
+    },
+    "max": {
+      "x": 840,
+      "y": 252,
+      "z": 408
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-x-1-240",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "masonry-x-1-480",
+    "min": {
+      "x": 816,
+      "y": 468,
+      "z": 0
+    },
+    "max": {
+      "x": 840,
+      "y": 492,
+      "z": 408
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-x-1-480",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "masonry-x-1-720",
+    "min": {
+      "x": 816,
+      "y": 708,
+      "z": 0
+    },
+    "max": {
+      "x": 840,
+      "y": 732,
+      "z": 408
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-x-1-720",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "plinth-x-1",
+    "min": {
+      "x": 816,
+      "y": -816,
+      "z": 0
+    },
+    "max": {
+      "x": 840,
+      "y": 816,
+      "z": 40
+    },
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "box.create",
+    "id": "coping-x-1",
+    "min": {
+      "x": 812,
+      "y": -840,
+      "z": 384
+    },
+    "max": {
+      "x": 844,
+      "y": 840,
+      "z": 400
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "entity.place",
+    "id": "lamp-x-1--600",
+    "classname": "misc_model",
+    "origin": {
+      "x": 820,
+      "y": -600,
+      "z": 300
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/wdm5_WallLamp1.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.75",
+      "angle": "90",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "lamp-pool-x-1--600",
+    "classname": "light",
+    "origin": {
+      "x": 768,
+      "y": -600,
+      "z": 280
+    },
+    "keys": {
+      "_color": "1 0.69 0.39",
+      "light": "145"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "lamp-x-1--120",
+    "classname": "misc_model",
+    "origin": {
+      "x": 820,
+      "y": -120,
+      "z": 300
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/wdm5_WallLamp1.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.75",
+      "angle": "90",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "lamp-pool-x-1--120",
+    "classname": "light",
+    "origin": {
+      "x": 768,
+      "y": -120,
+      "z": 280
+    },
+    "keys": {
+      "_color": "1 0.69 0.39",
+      "light": "145"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "lamp-x-1-360",
+    "classname": "misc_model",
+    "origin": {
+      "x": 820,
+      "y": 360,
+      "z": 300
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/wdm5_WallLamp1.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.75",
+      "angle": "90",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "lamp-pool-x-1-360",
+    "classname": "light",
+    "origin": {
+      "x": 768,
+      "y": 360,
+      "z": 280
+    },
+    "keys": {
+      "_color": "1 0.69 0.39",
+      "light": "145"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "factory-window-x-1--360",
+    "classname": "misc_model",
+    "origin": {
+      "x": 824,
+      "y": -360,
+      "z": 320
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/wdm5_MiddleAreaRooftopWindow.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.8",
+      "angle": "90",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "factory-window-x-1-120",
+    "classname": "misc_model",
+    "origin": {
+      "x": 824,
+      "y": 120,
+      "z": 320
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/wdm5_MiddleAreaRooftopWindow.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.8",
+      "angle": "90",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "factory-window-x-1-600",
+    "classname": "misc_model",
+    "origin": {
+      "x": 824,
+      "y": 600,
+      "z": 320
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/wdm5_MiddleAreaRooftopWindow.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.8",
+      "angle": "90",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "aircon-x-1",
+    "classname": "misc_model",
+    "origin": {
+      "x": 824,
+      "y": 216,
+      "z": 366
+    },
+    "keys": {
+      "model": "models/mapobjects/decor_misc/aircondition_01.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.8",
+      "angle": "90",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "box.create",
+    "id": "shutter-jamb-x-1--96",
+    "min": {
+      "x": 804,
+      "y": -96,
+      "z": 192
+    },
+    "max": {
+      "x": 816,
+      "y": -90,
+      "z": 336
+    },
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "box.create",
+    "id": "shutter-jamb-x-1-90",
+    "min": {
+      "x": 804,
+      "y": 90,
+      "z": 192
+    },
+    "max": {
+      "x": 816,
+      "y": 96,
+      "z": 336
+    },
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "box.create",
+    "id": "shutter-cap-x-1",
+    "min": {
+      "x": 804,
+      "y": -96,
+      "z": 336
+    },
+    "max": {
+      "x": 816,
+      "y": 96,
+      "z": 348
+    },
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "box.create",
+    "id": "masonry-y--1--720",
+    "min": {
+      "x": -732,
+      "y": -840,
+      "z": 0
+    },
+    "max": {
+      "x": -708,
+      "y": -816,
+      "z": 408
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-y--1--720",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "masonry-y--1--480",
+    "min": {
+      "x": -492,
+      "y": -840,
+      "z": 0
+    },
+    "max": {
+      "x": -468,
+      "y": -816,
+      "z": 408
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-y--1--480",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "masonry-y--1--240",
+    "min": {
+      "x": -252,
+      "y": -840,
+      "z": 0
+    },
+    "max": {
+      "x": -228,
+      "y": -816,
+      "z": 408
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-y--1--240",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "masonry-y--1-0",
+    "min": {
+      "x": -12,
+      "y": -840,
+      "z": 0
+    },
+    "max": {
+      "x": 12,
+      "y": -816,
+      "z": 408
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-y--1-0",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "masonry-y--1-240",
+    "min": {
+      "x": 228,
+      "y": -840,
+      "z": 0
+    },
+    "max": {
+      "x": 252,
+      "y": -816,
+      "z": 408
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-y--1-240",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "masonry-y--1-480",
+    "min": {
+      "x": 468,
+      "y": -840,
+      "z": 0
+    },
+    "max": {
+      "x": 492,
+      "y": -816,
+      "z": 408
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-y--1-480",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "masonry-y--1-720",
+    "min": {
+      "x": 708,
+      "y": -840,
+      "z": 0
+    },
+    "max": {
+      "x": 732,
+      "y": -816,
+      "z": 408
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-y--1-720",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "plinth-y--1",
+    "min": {
+      "x": -840,
+      "y": -840,
+      "z": 0
+    },
+    "max": {
+      "x": 840,
+      "y": -816,
+      "z": 40
+    },
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "box.create",
+    "id": "coping-y--1",
+    "min": {
+      "x": -840,
+      "y": -844,
+      "z": 384
+    },
+    "max": {
+      "x": 840,
+      "y": -812,
+      "z": 400
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "entity.place",
+    "id": "lamp-y--1--600",
+    "classname": "misc_model",
+    "origin": {
+      "x": -600,
+      "y": -820,
+      "z": 300
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/wdm5_WallLamp1.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.75",
+      "angle": "0",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "lamp-pool-y--1--600",
+    "classname": "light",
+    "origin": {
+      "x": -600,
+      "y": -768,
+      "z": 280
+    },
+    "keys": {
+      "_color": "1 0.69 0.39",
+      "light": "145"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "lamp-y--1--120",
+    "classname": "misc_model",
+    "origin": {
+      "x": -120,
+      "y": -820,
+      "z": 300
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/wdm5_WallLamp1.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.75",
+      "angle": "0",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "lamp-pool-y--1--120",
+    "classname": "light",
+    "origin": {
+      "x": -120,
+      "y": -768,
+      "z": 280
+    },
+    "keys": {
+      "_color": "1 0.69 0.39",
+      "light": "145"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "lamp-y--1-360",
+    "classname": "misc_model",
+    "origin": {
+      "x": 360,
+      "y": -820,
+      "z": 300
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/wdm5_WallLamp1.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.75",
+      "angle": "0",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "lamp-pool-y--1-360",
+    "classname": "light",
+    "origin": {
+      "x": 360,
+      "y": -768,
+      "z": 280
+    },
+    "keys": {
+      "_color": "1 0.69 0.39",
+      "light": "145"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "factory-window-y--1--360",
+    "classname": "misc_model",
+    "origin": {
+      "x": -360,
+      "y": -824,
+      "z": 320
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/wdm5_MiddleAreaRooftopWindow.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.8",
+      "angle": "0",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "factory-window-y--1-120",
+    "classname": "misc_model",
+    "origin": {
+      "x": 120,
+      "y": -824,
+      "z": 320
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/wdm5_MiddleAreaRooftopWindow.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.8",
+      "angle": "0",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "factory-window-y--1-600",
+    "classname": "misc_model",
+    "origin": {
+      "x": 600,
+      "y": -824,
+      "z": 320
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/wdm5_MiddleAreaRooftopWindow.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.8",
+      "angle": "0",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "aircon-y--1",
+    "classname": "misc_model",
+    "origin": {
+      "x": 216,
+      "y": -824,
+      "z": 366
+    },
+    "keys": {
+      "model": "models/mapobjects/decor_misc/aircondition_01.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.8",
+      "angle": "0",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "box.create",
+    "id": "shutter-jamb-y--1--96",
+    "min": {
+      "x": -96,
+      "y": -816,
+      "z": 192
+    },
+    "max": {
+      "x": -90,
+      "y": -804,
+      "z": 336
+    },
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "box.create",
+    "id": "shutter-jamb-y--1-90",
+    "min": {
+      "x": 90,
+      "y": -816,
+      "z": 192
+    },
+    "max": {
+      "x": 96,
+      "y": -804,
+      "z": 336
+    },
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "box.create",
+    "id": "shutter-cap-y--1",
+    "min": {
+      "x": -96,
+      "y": -816,
+      "z": 336
+    },
+    "max": {
+      "x": 96,
+      "y": -804,
+      "z": 348
+    },
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "box.create",
+    "id": "masonry-y-1--720",
+    "min": {
+      "x": -732,
+      "y": 816,
+      "z": 0
+    },
+    "max": {
+      "x": -708,
+      "y": 840,
+      "z": 408
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-y-1--720",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "masonry-y-1--480",
+    "min": {
+      "x": -492,
+      "y": 816,
+      "z": 0
+    },
+    "max": {
+      "x": -468,
+      "y": 840,
+      "z": 408
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-y-1--480",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "masonry-y-1--240",
+    "min": {
+      "x": -252,
+      "y": 816,
+      "z": 0
+    },
+    "max": {
+      "x": -228,
+      "y": 840,
+      "z": 408
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-y-1--240",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "masonry-y-1-0",
+    "min": {
+      "x": -12,
+      "y": 816,
+      "z": 0
+    },
+    "max": {
+      "x": 12,
+      "y": 840,
+      "z": 408
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-y-1-0",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "masonry-y-1-240",
+    "min": {
+      "x": 228,
+      "y": 816,
+      "z": 0
+    },
+    "max": {
+      "x": 252,
+      "y": 840,
+      "z": 408
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-y-1-240",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "masonry-y-1-480",
+    "min": {
+      "x": 468,
+      "y": 816,
+      "z": 0
+    },
+    "max": {
+      "x": 492,
+      "y": 840,
+      "z": 408
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-y-1-480",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "masonry-y-1-720",
+    "min": {
+      "x": 708,
+      "y": 816,
+      "z": 0
+    },
+    "max": {
+      "x": 732,
+      "y": 840,
+      "z": 408
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-y-1-720",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "plinth-y-1",
+    "min": {
+      "x": -840,
+      "y": 816,
+      "z": 0
+    },
+    "max": {
+      "x": 840,
+      "y": 840,
+      "z": 40
+    },
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "box.create",
+    "id": "coping-y-1",
+    "min": {
+      "x": -840,
+      "y": 812,
+      "z": 384
+    },
+    "max": {
+      "x": 840,
+      "y": 844,
+      "z": 400
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "entity.place",
+    "id": "lamp-y-1--600",
+    "classname": "misc_model",
+    "origin": {
+      "x": -600,
+      "y": 820,
+      "z": 300
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/wdm5_WallLamp1.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.75",
+      "angle": "180",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "lamp-pool-y-1--600",
+    "classname": "light",
+    "origin": {
+      "x": -600,
+      "y": 768,
+      "z": 280
+    },
+    "keys": {
+      "_color": "1 0.69 0.39",
+      "light": "145"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "lamp-y-1--120",
+    "classname": "misc_model",
+    "origin": {
+      "x": -120,
+      "y": 820,
+      "z": 300
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/wdm5_WallLamp1.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.75",
+      "angle": "180",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "lamp-pool-y-1--120",
+    "classname": "light",
+    "origin": {
+      "x": -120,
+      "y": 768,
+      "z": 280
+    },
+    "keys": {
+      "_color": "1 0.69 0.39",
+      "light": "145"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "lamp-y-1-360",
+    "classname": "misc_model",
+    "origin": {
+      "x": 360,
+      "y": 820,
+      "z": 300
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/wdm5_WallLamp1.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.75",
+      "angle": "180",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "lamp-pool-y-1-360",
+    "classname": "light",
+    "origin": {
+      "x": 360,
+      "y": 768,
+      "z": 280
+    },
+    "keys": {
+      "_color": "1 0.69 0.39",
+      "light": "145"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "factory-window-y-1--360",
+    "classname": "misc_model",
+    "origin": {
+      "x": -360,
+      "y": 824,
+      "z": 320
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/wdm5_MiddleAreaRooftopWindow.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.8",
+      "angle": "180",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "factory-window-y-1-120",
+    "classname": "misc_model",
+    "origin": {
+      "x": 120,
+      "y": 824,
+      "z": 320
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/wdm5_MiddleAreaRooftopWindow.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.8",
+      "angle": "180",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "factory-window-y-1-600",
+    "classname": "misc_model",
+    "origin": {
+      "x": 600,
+      "y": 824,
+      "z": 320
+    },
+    "keys": {
+      "model": "models/mapobjects/wdm5/wdm5_MiddleAreaRooftopWindow.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.8",
+      "angle": "180",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "aircon-y-1",
+    "classname": "misc_model",
+    "origin": {
+      "x": 216,
+      "y": 824,
+      "z": 366
+    },
+    "keys": {
+      "model": "models/mapobjects/decor_misc/aircondition_01.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.8",
+      "angle": "180",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "box.create",
+    "id": "shutter-jamb-y-1--96",
+    "min": {
+      "x": -96,
+      "y": 804,
+      "z": 192
+    },
+    "max": {
+      "x": -90,
+      "y": 816,
+      "z": 336
+    },
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "box.create",
+    "id": "shutter-jamb-y-1-90",
+    "min": {
+      "x": 90,
+      "y": 804,
+      "z": 192
+    },
+    "max": {
+      "x": 96,
+      "y": 816,
+      "z": 336
+    },
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "box.create",
+    "id": "shutter-cap-y-1",
+    "min": {
+      "x": -96,
+      "y": 804,
+      "z": 336
+    },
+    "max": {
+      "x": 96,
+      "y": 816,
+      "z": 348
+    },
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "patch.create",
+    "id": "downpipe--1--624-0",
+    "shader": "metal/metalrust_iron6",
+    "width": 3,
+    "height": 3,
+    "controlPoints": [
+      [
+        {
+          "x": -768,
+          "y": -624,
+          "z": 8,
+          "u": 0,
+          "v": 0
+        },
+        {
+          "x": -768,
+          "y": -616,
+          "z": 8,
+          "u": 0.125,
+          "v": 0
+        },
+        {
+          "x": -776,
+          "y": -616,
+          "z": 8,
+          "u": 0.25,
+          "v": 0
+        }
+      ],
+      [
+        {
+          "x": -768,
+          "y": -624,
+          "z": 188,
+          "u": 0,
+          "v": 2
+        },
+        {
+          "x": -768,
+          "y": -616,
+          "z": 188,
+          "u": 0.125,
+          "v": 2
+        },
+        {
+          "x": -776,
+          "y": -616,
+          "z": 188,
+          "u": 0.25,
+          "v": 2
+        }
+      ],
+      [
+        {
+          "x": -768,
+          "y": -624,
+          "z": 368,
+          "u": 0,
+          "v": 4
+        },
+        {
+          "x": -768,
+          "y": -616,
+          "z": 368,
+          "u": 0.125,
+          "v": 4
+        },
+        {
+          "x": -776,
+          "y": -616,
+          "z": 368,
+          "u": 0.25,
+          "v": 4
+        }
+      ]
+    ]
+  },
+  {
+    "op": "patch.create",
+    "id": "downpipe--1--624-1",
+    "shader": "metal/metalrust_iron6",
+    "width": 3,
+    "height": 3,
+    "controlPoints": [
+      [
+        {
+          "x": -776,
+          "y": -616,
+          "z": 8,
+          "u": 0.25,
+          "v": 0
+        },
+        {
+          "x": -784,
+          "y": -616,
+          "z": 8,
+          "u": 0.375,
+          "v": 0
+        },
+        {
+          "x": -784,
+          "y": -624,
+          "z": 8,
+          "u": 0.5,
+          "v": 0
+        }
+      ],
+      [
+        {
+          "x": -776,
+          "y": -616,
+          "z": 188,
+          "u": 0.25,
+          "v": 2
+        },
+        {
+          "x": -784,
+          "y": -616,
+          "z": 188,
+          "u": 0.375,
+          "v": 2
+        },
+        {
+          "x": -784,
+          "y": -624,
+          "z": 188,
+          "u": 0.5,
+          "v": 2
+        }
+      ],
+      [
+        {
+          "x": -776,
+          "y": -616,
+          "z": 368,
+          "u": 0.25,
+          "v": 4
+        },
+        {
+          "x": -784,
+          "y": -616,
+          "z": 368,
+          "u": 0.375,
+          "v": 4
+        },
+        {
+          "x": -784,
+          "y": -624,
+          "z": 368,
+          "u": 0.5,
+          "v": 4
+        }
+      ]
+    ]
+  },
+  {
+    "op": "patch.create",
+    "id": "downpipe--1--624-2",
+    "shader": "metal/metalrust_iron6",
+    "width": 3,
+    "height": 3,
+    "controlPoints": [
+      [
+        {
+          "x": -784,
+          "y": -624,
+          "z": 8,
+          "u": 0.5,
+          "v": 0
+        },
+        {
+          "x": -784,
+          "y": -632,
+          "z": 8,
+          "u": 0.625,
+          "v": 0
+        },
+        {
+          "x": -776,
+          "y": -632,
+          "z": 8,
+          "u": 0.75,
+          "v": 0
+        }
+      ],
+      [
+        {
+          "x": -784,
+          "y": -624,
+          "z": 188,
+          "u": 0.5,
+          "v": 2
+        },
+        {
+          "x": -784,
+          "y": -632,
+          "z": 188,
+          "u": 0.625,
+          "v": 2
+        },
+        {
+          "x": -776,
+          "y": -632,
+          "z": 188,
+          "u": 0.75,
+          "v": 2
+        }
+      ],
+      [
+        {
+          "x": -784,
+          "y": -624,
+          "z": 368,
+          "u": 0.5,
+          "v": 4
+        },
+        {
+          "x": -784,
+          "y": -632,
+          "z": 368,
+          "u": 0.625,
+          "v": 4
+        },
+        {
+          "x": -776,
+          "y": -632,
+          "z": 368,
+          "u": 0.75,
+          "v": 4
+        }
+      ]
+    ]
+  },
+  {
+    "op": "patch.create",
+    "id": "downpipe--1--624-3",
+    "shader": "metal/metalrust_iron6",
+    "width": 3,
+    "height": 3,
+    "controlPoints": [
+      [
+        {
+          "x": -776,
+          "y": -632,
+          "z": 8,
+          "u": 0.75,
+          "v": 0
+        },
+        {
+          "x": -768,
+          "y": -632,
+          "z": 8,
+          "u": 0.875,
+          "v": 0
+        },
+        {
+          "x": -768,
+          "y": -624,
+          "z": 8,
+          "u": 1,
+          "v": 0
+        }
+      ],
+      [
+        {
+          "x": -776,
+          "y": -632,
+          "z": 188,
+          "u": 0.75,
+          "v": 2
+        },
+        {
+          "x": -768,
+          "y": -632,
+          "z": 188,
+          "u": 0.875,
+          "v": 2
+        },
+        {
+          "x": -768,
+          "y": -624,
+          "z": 188,
+          "u": 1,
+          "v": 2
+        }
+      ],
+      [
+        {
+          "x": -776,
+          "y": -632,
+          "z": 368,
+          "u": 0.75,
+          "v": 4
+        },
+        {
+          "x": -768,
+          "y": -632,
+          "z": 368,
+          "u": 0.875,
+          "v": 4
+        },
+        {
+          "x": -768,
+          "y": -624,
+          "z": 368,
+          "u": 1,
+          "v": 4
+        }
+      ]
+    ]
+  },
+  {
+    "op": "box.create",
+    "id": "pipe-collar--1--624-16",
+    "min": {
+      "x": -788,
+      "y": -636,
+      "z": 16
+    },
+    "max": {
+      "x": -764,
+      "y": -612,
+      "z": 24
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "pipe-collar--1--624-176",
+    "min": {
+      "x": -788,
+      "y": -636,
+      "z": 176
+    },
+    "max": {
+      "x": -764,
+      "y": -612,
+      "z": 184
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "pipe-collar--1--624-336",
+    "min": {
+      "x": -788,
+      "y": -636,
+      "z": 336
+    },
+    "max": {
+      "x": -764,
+      "y": -612,
+      "z": 344
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "patch.create",
+    "id": "downpipe--1-624-0",
+    "shader": "metal/metalrust_iron6",
+    "width": 3,
+    "height": 3,
+    "controlPoints": [
+      [
+        {
+          "x": -768,
+          "y": 624,
+          "z": 8,
+          "u": 0,
+          "v": 0
+        },
+        {
+          "x": -768,
+          "y": 632,
+          "z": 8,
+          "u": 0.125,
+          "v": 0
+        },
+        {
+          "x": -776,
+          "y": 632,
+          "z": 8,
+          "u": 0.25,
+          "v": 0
+        }
+      ],
+      [
+        {
+          "x": -768,
+          "y": 624,
+          "z": 188,
+          "u": 0,
+          "v": 2
+        },
+        {
+          "x": -768,
+          "y": 632,
+          "z": 188,
+          "u": 0.125,
+          "v": 2
+        },
+        {
+          "x": -776,
+          "y": 632,
+          "z": 188,
+          "u": 0.25,
+          "v": 2
+        }
+      ],
+      [
+        {
+          "x": -768,
+          "y": 624,
+          "z": 368,
+          "u": 0,
+          "v": 4
+        },
+        {
+          "x": -768,
+          "y": 632,
+          "z": 368,
+          "u": 0.125,
+          "v": 4
+        },
+        {
+          "x": -776,
+          "y": 632,
+          "z": 368,
+          "u": 0.25,
+          "v": 4
+        }
+      ]
+    ]
+  },
+  {
+    "op": "patch.create",
+    "id": "downpipe--1-624-1",
+    "shader": "metal/metalrust_iron6",
+    "width": 3,
+    "height": 3,
+    "controlPoints": [
+      [
+        {
+          "x": -776,
+          "y": 632,
+          "z": 8,
+          "u": 0.25,
+          "v": 0
+        },
+        {
+          "x": -784,
+          "y": 632,
+          "z": 8,
+          "u": 0.375,
+          "v": 0
+        },
+        {
+          "x": -784,
+          "y": 624,
+          "z": 8,
+          "u": 0.5,
+          "v": 0
+        }
+      ],
+      [
+        {
+          "x": -776,
+          "y": 632,
+          "z": 188,
+          "u": 0.25,
+          "v": 2
+        },
+        {
+          "x": -784,
+          "y": 632,
+          "z": 188,
+          "u": 0.375,
+          "v": 2
+        },
+        {
+          "x": -784,
+          "y": 624,
+          "z": 188,
+          "u": 0.5,
+          "v": 2
+        }
+      ],
+      [
+        {
+          "x": -776,
+          "y": 632,
+          "z": 368,
+          "u": 0.25,
+          "v": 4
+        },
+        {
+          "x": -784,
+          "y": 632,
+          "z": 368,
+          "u": 0.375,
+          "v": 4
+        },
+        {
+          "x": -784,
+          "y": 624,
+          "z": 368,
+          "u": 0.5,
+          "v": 4
+        }
+      ]
+    ]
+  },
+  {
+    "op": "patch.create",
+    "id": "downpipe--1-624-2",
+    "shader": "metal/metalrust_iron6",
+    "width": 3,
+    "height": 3,
+    "controlPoints": [
+      [
+        {
+          "x": -784,
+          "y": 624,
+          "z": 8,
+          "u": 0.5,
+          "v": 0
+        },
+        {
+          "x": -784,
+          "y": 616,
+          "z": 8,
+          "u": 0.625,
+          "v": 0
+        },
+        {
+          "x": -776,
+          "y": 616,
+          "z": 8,
+          "u": 0.75,
+          "v": 0
+        }
+      ],
+      [
+        {
+          "x": -784,
+          "y": 624,
+          "z": 188,
+          "u": 0.5,
+          "v": 2
+        },
+        {
+          "x": -784,
+          "y": 616,
+          "z": 188,
+          "u": 0.625,
+          "v": 2
+        },
+        {
+          "x": -776,
+          "y": 616,
+          "z": 188,
+          "u": 0.75,
+          "v": 2
+        }
+      ],
+      [
+        {
+          "x": -784,
+          "y": 624,
+          "z": 368,
+          "u": 0.5,
+          "v": 4
+        },
+        {
+          "x": -784,
+          "y": 616,
+          "z": 368,
+          "u": 0.625,
+          "v": 4
+        },
+        {
+          "x": -776,
+          "y": 616,
+          "z": 368,
+          "u": 0.75,
+          "v": 4
+        }
+      ]
+    ]
+  },
+  {
+    "op": "patch.create",
+    "id": "downpipe--1-624-3",
+    "shader": "metal/metalrust_iron6",
+    "width": 3,
+    "height": 3,
+    "controlPoints": [
+      [
+        {
+          "x": -776,
+          "y": 616,
+          "z": 8,
+          "u": 0.75,
+          "v": 0
+        },
+        {
+          "x": -768,
+          "y": 616,
+          "z": 8,
+          "u": 0.875,
+          "v": 0
+        },
+        {
+          "x": -768,
+          "y": 624,
+          "z": 8,
+          "u": 1,
+          "v": 0
+        }
+      ],
+      [
+        {
+          "x": -776,
+          "y": 616,
+          "z": 188,
+          "u": 0.75,
+          "v": 2
+        },
+        {
+          "x": -768,
+          "y": 616,
+          "z": 188,
+          "u": 0.875,
+          "v": 2
+        },
+        {
+          "x": -768,
+          "y": 624,
+          "z": 188,
+          "u": 1,
+          "v": 2
+        }
+      ],
+      [
+        {
+          "x": -776,
+          "y": 616,
+          "z": 368,
+          "u": 0.75,
+          "v": 4
+        },
+        {
+          "x": -768,
+          "y": 616,
+          "z": 368,
+          "u": 0.875,
+          "v": 4
+        },
+        {
+          "x": -768,
+          "y": 624,
+          "z": 368,
+          "u": 1,
+          "v": 4
+        }
+      ]
+    ]
+  },
+  {
+    "op": "box.create",
+    "id": "pipe-collar--1-624-16",
+    "min": {
+      "x": -788,
+      "y": 612,
+      "z": 16
+    },
+    "max": {
+      "x": -764,
+      "y": 636,
+      "z": 24
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "pipe-collar--1-624-176",
+    "min": {
+      "x": -788,
+      "y": 612,
+      "z": 176
+    },
+    "max": {
+      "x": -764,
+      "y": 636,
+      "z": 184
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "pipe-collar--1-624-336",
+    "min": {
+      "x": -788,
+      "y": 612,
+      "z": 336
+    },
+    "max": {
+      "x": -764,
+      "y": 636,
+      "z": 344
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "patch.create",
+    "id": "downpipe-1--624-0",
+    "shader": "metal/metalrust_iron6",
+    "width": 3,
+    "height": 3,
+    "controlPoints": [
+      [
+        {
+          "x": 784,
+          "y": -624,
+          "z": 8,
+          "u": 0,
+          "v": 0
+        },
+        {
+          "x": 784,
+          "y": -616,
+          "z": 8,
+          "u": 0.125,
+          "v": 0
+        },
+        {
+          "x": 776,
+          "y": -616,
+          "z": 8,
+          "u": 0.25,
+          "v": 0
+        }
+      ],
+      [
+        {
+          "x": 784,
+          "y": -624,
+          "z": 188,
+          "u": 0,
+          "v": 2
+        },
+        {
+          "x": 784,
+          "y": -616,
+          "z": 188,
+          "u": 0.125,
+          "v": 2
+        },
+        {
+          "x": 776,
+          "y": -616,
+          "z": 188,
+          "u": 0.25,
+          "v": 2
+        }
+      ],
+      [
+        {
+          "x": 784,
+          "y": -624,
+          "z": 368,
+          "u": 0,
+          "v": 4
+        },
+        {
+          "x": 784,
+          "y": -616,
+          "z": 368,
+          "u": 0.125,
+          "v": 4
+        },
+        {
+          "x": 776,
+          "y": -616,
+          "z": 368,
+          "u": 0.25,
+          "v": 4
+        }
+      ]
+    ]
+  },
+  {
+    "op": "patch.create",
+    "id": "downpipe-1--624-1",
+    "shader": "metal/metalrust_iron6",
+    "width": 3,
+    "height": 3,
+    "controlPoints": [
+      [
+        {
+          "x": 776,
+          "y": -616,
+          "z": 8,
+          "u": 0.25,
+          "v": 0
+        },
+        {
+          "x": 768,
+          "y": -616,
+          "z": 8,
+          "u": 0.375,
+          "v": 0
+        },
+        {
+          "x": 768,
+          "y": -624,
+          "z": 8,
+          "u": 0.5,
+          "v": 0
+        }
+      ],
+      [
+        {
+          "x": 776,
+          "y": -616,
+          "z": 188,
+          "u": 0.25,
+          "v": 2
+        },
+        {
+          "x": 768,
+          "y": -616,
+          "z": 188,
+          "u": 0.375,
+          "v": 2
+        },
+        {
+          "x": 768,
+          "y": -624,
+          "z": 188,
+          "u": 0.5,
+          "v": 2
+        }
+      ],
+      [
+        {
+          "x": 776,
+          "y": -616,
+          "z": 368,
+          "u": 0.25,
+          "v": 4
+        },
+        {
+          "x": 768,
+          "y": -616,
+          "z": 368,
+          "u": 0.375,
+          "v": 4
+        },
+        {
+          "x": 768,
+          "y": -624,
+          "z": 368,
+          "u": 0.5,
+          "v": 4
+        }
+      ]
+    ]
+  },
+  {
+    "op": "patch.create",
+    "id": "downpipe-1--624-2",
+    "shader": "metal/metalrust_iron6",
+    "width": 3,
+    "height": 3,
+    "controlPoints": [
+      [
+        {
+          "x": 768,
+          "y": -624,
+          "z": 8,
+          "u": 0.5,
+          "v": 0
+        },
+        {
+          "x": 768,
+          "y": -632,
+          "z": 8,
+          "u": 0.625,
+          "v": 0
+        },
+        {
+          "x": 776,
+          "y": -632,
+          "z": 8,
+          "u": 0.75,
+          "v": 0
+        }
+      ],
+      [
+        {
+          "x": 768,
+          "y": -624,
+          "z": 188,
+          "u": 0.5,
+          "v": 2
+        },
+        {
+          "x": 768,
+          "y": -632,
+          "z": 188,
+          "u": 0.625,
+          "v": 2
+        },
+        {
+          "x": 776,
+          "y": -632,
+          "z": 188,
+          "u": 0.75,
+          "v": 2
+        }
+      ],
+      [
+        {
+          "x": 768,
+          "y": -624,
+          "z": 368,
+          "u": 0.5,
+          "v": 4
+        },
+        {
+          "x": 768,
+          "y": -632,
+          "z": 368,
+          "u": 0.625,
+          "v": 4
+        },
+        {
+          "x": 776,
+          "y": -632,
+          "z": 368,
+          "u": 0.75,
+          "v": 4
+        }
+      ]
+    ]
+  },
+  {
+    "op": "patch.create",
+    "id": "downpipe-1--624-3",
+    "shader": "metal/metalrust_iron6",
+    "width": 3,
+    "height": 3,
+    "controlPoints": [
+      [
+        {
+          "x": 776,
+          "y": -632,
+          "z": 8,
+          "u": 0.75,
+          "v": 0
+        },
+        {
+          "x": 784,
+          "y": -632,
+          "z": 8,
+          "u": 0.875,
+          "v": 0
+        },
+        {
+          "x": 784,
+          "y": -624,
+          "z": 8,
+          "u": 1,
+          "v": 0
+        }
+      ],
+      [
+        {
+          "x": 776,
+          "y": -632,
+          "z": 188,
+          "u": 0.75,
+          "v": 2
+        },
+        {
+          "x": 784,
+          "y": -632,
+          "z": 188,
+          "u": 0.875,
+          "v": 2
+        },
+        {
+          "x": 784,
+          "y": -624,
+          "z": 188,
+          "u": 1,
+          "v": 2
+        }
+      ],
+      [
+        {
+          "x": 776,
+          "y": -632,
+          "z": 368,
+          "u": 0.75,
+          "v": 4
+        },
+        {
+          "x": 784,
+          "y": -632,
+          "z": 368,
+          "u": 0.875,
+          "v": 4
+        },
+        {
+          "x": 784,
+          "y": -624,
+          "z": 368,
+          "u": 1,
+          "v": 4
+        }
+      ]
+    ]
+  },
+  {
+    "op": "box.create",
+    "id": "pipe-collar-1--624-16",
+    "min": {
+      "x": 764,
+      "y": -636,
+      "z": 16
+    },
+    "max": {
+      "x": 788,
+      "y": -612,
+      "z": 24
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "pipe-collar-1--624-176",
+    "min": {
+      "x": 764,
+      "y": -636,
+      "z": 176
+    },
+    "max": {
+      "x": 788,
+      "y": -612,
+      "z": 184
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "pipe-collar-1--624-336",
+    "min": {
+      "x": 764,
+      "y": -636,
+      "z": 336
+    },
+    "max": {
+      "x": 788,
+      "y": -612,
+      "z": 344
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "patch.create",
+    "id": "downpipe-1-624-0",
+    "shader": "metal/metalrust_iron6",
+    "width": 3,
+    "height": 3,
+    "controlPoints": [
+      [
+        {
+          "x": 784,
+          "y": 624,
+          "z": 8,
+          "u": 0,
+          "v": 0
+        },
+        {
+          "x": 784,
+          "y": 632,
+          "z": 8,
+          "u": 0.125,
+          "v": 0
+        },
+        {
+          "x": 776,
+          "y": 632,
+          "z": 8,
+          "u": 0.25,
+          "v": 0
+        }
+      ],
+      [
+        {
+          "x": 784,
+          "y": 624,
+          "z": 188,
+          "u": 0,
+          "v": 2
+        },
+        {
+          "x": 784,
+          "y": 632,
+          "z": 188,
+          "u": 0.125,
+          "v": 2
+        },
+        {
+          "x": 776,
+          "y": 632,
+          "z": 188,
+          "u": 0.25,
+          "v": 2
+        }
+      ],
+      [
+        {
+          "x": 784,
+          "y": 624,
+          "z": 368,
+          "u": 0,
+          "v": 4
+        },
+        {
+          "x": 784,
+          "y": 632,
+          "z": 368,
+          "u": 0.125,
+          "v": 4
+        },
+        {
+          "x": 776,
+          "y": 632,
+          "z": 368,
+          "u": 0.25,
+          "v": 4
+        }
+      ]
+    ]
+  },
+  {
+    "op": "patch.create",
+    "id": "downpipe-1-624-1",
+    "shader": "metal/metalrust_iron6",
+    "width": 3,
+    "height": 3,
+    "controlPoints": [
+      [
+        {
+          "x": 776,
+          "y": 632,
+          "z": 8,
+          "u": 0.25,
+          "v": 0
+        },
+        {
+          "x": 768,
+          "y": 632,
+          "z": 8,
+          "u": 0.375,
+          "v": 0
+        },
+        {
+          "x": 768,
+          "y": 624,
+          "z": 8,
+          "u": 0.5,
+          "v": 0
+        }
+      ],
+      [
+        {
+          "x": 776,
+          "y": 632,
+          "z": 188,
+          "u": 0.25,
+          "v": 2
+        },
+        {
+          "x": 768,
+          "y": 632,
+          "z": 188,
+          "u": 0.375,
+          "v": 2
+        },
+        {
+          "x": 768,
+          "y": 624,
+          "z": 188,
+          "u": 0.5,
+          "v": 2
+        }
+      ],
+      [
+        {
+          "x": 776,
+          "y": 632,
+          "z": 368,
+          "u": 0.25,
+          "v": 4
+        },
+        {
+          "x": 768,
+          "y": 632,
+          "z": 368,
+          "u": 0.375,
+          "v": 4
+        },
+        {
+          "x": 768,
+          "y": 624,
+          "z": 368,
+          "u": 0.5,
+          "v": 4
+        }
+      ]
+    ]
+  },
+  {
+    "op": "patch.create",
+    "id": "downpipe-1-624-2",
+    "shader": "metal/metalrust_iron6",
+    "width": 3,
+    "height": 3,
+    "controlPoints": [
+      [
+        {
+          "x": 768,
+          "y": 624,
+          "z": 8,
+          "u": 0.5,
+          "v": 0
+        },
+        {
+          "x": 768,
+          "y": 616,
+          "z": 8,
+          "u": 0.625,
+          "v": 0
+        },
+        {
+          "x": 776,
+          "y": 616,
+          "z": 8,
+          "u": 0.75,
+          "v": 0
+        }
+      ],
+      [
+        {
+          "x": 768,
+          "y": 624,
+          "z": 188,
+          "u": 0.5,
+          "v": 2
+        },
+        {
+          "x": 768,
+          "y": 616,
+          "z": 188,
+          "u": 0.625,
+          "v": 2
+        },
+        {
+          "x": 776,
+          "y": 616,
+          "z": 188,
+          "u": 0.75,
+          "v": 2
+        }
+      ],
+      [
+        {
+          "x": 768,
+          "y": 624,
+          "z": 368,
+          "u": 0.5,
+          "v": 4
+        },
+        {
+          "x": 768,
+          "y": 616,
+          "z": 368,
+          "u": 0.625,
+          "v": 4
+        },
+        {
+          "x": 776,
+          "y": 616,
+          "z": 368,
+          "u": 0.75,
+          "v": 4
+        }
+      ]
+    ]
+  },
+  {
+    "op": "patch.create",
+    "id": "downpipe-1-624-3",
+    "shader": "metal/metalrust_iron6",
+    "width": 3,
+    "height": 3,
+    "controlPoints": [
+      [
+        {
+          "x": 776,
+          "y": 616,
+          "z": 8,
+          "u": 0.75,
+          "v": 0
+        },
+        {
+          "x": 784,
+          "y": 616,
+          "z": 8,
+          "u": 0.875,
+          "v": 0
+        },
+        {
+          "x": 784,
+          "y": 624,
+          "z": 8,
+          "u": 1,
+          "v": 0
+        }
+      ],
+      [
+        {
+          "x": 776,
+          "y": 616,
+          "z": 188,
+          "u": 0.75,
+          "v": 2
+        },
+        {
+          "x": 784,
+          "y": 616,
+          "z": 188,
+          "u": 0.875,
+          "v": 2
+        },
+        {
+          "x": 784,
+          "y": 624,
+          "z": 188,
+          "u": 1,
+          "v": 2
+        }
+      ],
+      [
+        {
+          "x": 776,
+          "y": 616,
+          "z": 368,
+          "u": 0.75,
+          "v": 4
+        },
+        {
+          "x": 784,
+          "y": 616,
+          "z": 368,
+          "u": 0.875,
+          "v": 4
+        },
+        {
+          "x": 784,
+          "y": 624,
+          "z": 368,
+          "u": 1,
+          "v": 4
+        }
+      ]
+    ]
+  },
+  {
+    "op": "box.create",
+    "id": "pipe-collar-1-624-16",
+    "min": {
+      "x": 764,
+      "y": 612,
+      "z": 16
+    },
+    "max": {
+      "x": 788,
+      "y": 636,
+      "z": 24
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "pipe-collar-1-624-176",
+    "min": {
+      "x": 764,
+      "y": 612,
+      "z": 176
+    },
+    "max": {
+      "x": 788,
+      "y": 636,
+      "z": 184
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "pipe-collar-1-624-336",
+    "min": {
+      "x": 764,
+      "y": 612,
+      "z": 336
+    },
+    "max": {
+      "x": 788,
+      "y": 636,
+      "z": 344
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "box.create",
+    "id": "city-infill-x--1-0",
+    "min": {
+      "x": -1332,
+      "y": -660,
+      "z": -24
+    },
+    "max": {
+      "x": -960,
+      "y": -396,
+      "z": 420
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-x--1-0",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "city-infill-x--1-0-window-292",
+    "min": {
+      "x": -960,
+      "y": -636,
+      "z": 292
+    },
+    "max": {
+      "x": -952,
+      "y": -420,
+      "z": 332
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-x--1-0-window-292",
+    "faces": [
+      "+X"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-infill-x--1-0-window-364",
+    "min": {
+      "x": -960,
+      "y": -636,
+      "z": 364
+    },
+    "max": {
+      "x": -952,
+      "y": -420,
+      "z": 404
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-x--1-0-window-364",
+    "faces": [
+      "+X"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-infill-x--1-1",
+    "min": {
+      "x": -1332,
+      "y": -180,
+      "z": -24
+    },
+    "max": {
+      "x": -960,
+      "y": 180,
+      "z": 516
+    },
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-x--1-1",
+    "faces": "all",
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "box.create",
+    "id": "city-infill-x--1-1-window-292",
+    "min": {
+      "x": -960,
+      "y": -156,
+      "z": 292
+    },
+    "max": {
+      "x": -952,
+      "y": 156,
+      "z": 332
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-x--1-1-window-292",
+    "faces": [
+      "+X"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-infill-x--1-1-window-364",
+    "min": {
+      "x": -960,
+      "y": -156,
+      "z": 364
+    },
+    "max": {
+      "x": -952,
+      "y": 156,
+      "z": 404
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-x--1-1-window-364",
+    "faces": [
+      "+X"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-infill-x--1-2",
+    "min": {
+      "x": -1332,
+      "y": 396,
+      "z": -24
+    },
+    "max": {
+      "x": -960,
+      "y": 660,
+      "z": 456
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-x--1-2",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "city-infill-x--1-2-window-292",
+    "min": {
+      "x": -960,
+      "y": 420,
+      "z": 292
+    },
+    "max": {
+      "x": -952,
+      "y": 636,
+      "z": 332
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-x--1-2-window-292",
+    "faces": [
+      "+X"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-infill-x--1-2-window-364",
+    "min": {
+      "x": -960,
+      "y": 420,
+      "z": 364
+    },
+    "max": {
+      "x": -952,
+      "y": 636,
+      "z": 404
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-x--1-2-window-364",
+    "faces": [
+      "+X"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-infill-x-1-0",
+    "min": {
+      "x": 960,
+      "y": -660,
+      "z": -24
+    },
+    "max": {
+      "x": 1332,
+      "y": -396,
+      "z": 420
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-x-1-0",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "city-infill-x-1-0-window-292",
+    "min": {
+      "x": 952,
+      "y": -636,
+      "z": 292
+    },
+    "max": {
+      "x": 960,
+      "y": -420,
+      "z": 332
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-x-1-0-window-292",
+    "faces": [
+      "-X"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-infill-x-1-0-window-364",
+    "min": {
+      "x": 952,
+      "y": -636,
+      "z": 364
+    },
+    "max": {
+      "x": 960,
+      "y": -420,
+      "z": 404
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-x-1-0-window-364",
+    "faces": [
+      "-X"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-infill-x-1-1",
+    "min": {
+      "x": 960,
+      "y": -180,
+      "z": -24
+    },
+    "max": {
+      "x": 1332,
+      "y": 180,
+      "z": 516
+    },
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-x-1-1",
+    "faces": "all",
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "box.create",
+    "id": "city-infill-x-1-1-window-292",
+    "min": {
+      "x": 952,
+      "y": -156,
+      "z": 292
+    },
+    "max": {
+      "x": 960,
+      "y": 156,
+      "z": 332
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-x-1-1-window-292",
+    "faces": [
+      "-X"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-infill-x-1-1-window-364",
+    "min": {
+      "x": 952,
+      "y": -156,
+      "z": 364
+    },
+    "max": {
+      "x": 960,
+      "y": 156,
+      "z": 404
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-x-1-1-window-364",
+    "faces": [
+      "-X"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-infill-x-1-2",
+    "min": {
+      "x": 960,
+      "y": 396,
+      "z": -24
+    },
+    "max": {
+      "x": 1332,
+      "y": 660,
+      "z": 456
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-x-1-2",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "city-infill-x-1-2-window-292",
+    "min": {
+      "x": 952,
+      "y": 420,
+      "z": 292
+    },
+    "max": {
+      "x": 960,
+      "y": 636,
+      "z": 332
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-x-1-2-window-292",
+    "faces": [
+      "-X"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-infill-x-1-2-window-364",
+    "min": {
+      "x": 952,
+      "y": 420,
+      "z": 364
+    },
+    "max": {
+      "x": 960,
+      "y": 636,
+      "z": 404
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-x-1-2-window-364",
+    "faces": [
+      "-X"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-infill-y--1-0",
+    "min": {
+      "x": -660,
+      "y": -1332,
+      "z": -24
+    },
+    "max": {
+      "x": -396,
+      "y": -960,
+      "z": 420
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-y--1-0",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "city-infill-y--1-0-window-292",
+    "min": {
+      "x": -636,
+      "y": -960,
+      "z": 292
+    },
+    "max": {
+      "x": -420,
+      "y": -952,
+      "z": 332
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-y--1-0-window-292",
+    "faces": [
+      "+Y"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-infill-y--1-0-window-364",
+    "min": {
+      "x": -636,
+      "y": -960,
+      "z": 364
+    },
+    "max": {
+      "x": -420,
+      "y": -952,
+      "z": 404
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-y--1-0-window-364",
+    "faces": [
+      "+Y"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-infill-y--1-1",
+    "min": {
+      "x": -180,
+      "y": -1332,
+      "z": -24
+    },
+    "max": {
+      "x": 180,
+      "y": -960,
+      "z": 516
+    },
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-y--1-1",
+    "faces": "all",
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "box.create",
+    "id": "city-infill-y--1-1-window-292",
+    "min": {
+      "x": -156,
+      "y": -960,
+      "z": 292
+    },
+    "max": {
+      "x": 156,
+      "y": -952,
+      "z": 332
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-y--1-1-window-292",
+    "faces": [
+      "+Y"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-infill-y--1-1-window-364",
+    "min": {
+      "x": -156,
+      "y": -960,
+      "z": 364
+    },
+    "max": {
+      "x": 156,
+      "y": -952,
+      "z": 404
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-y--1-1-window-364",
+    "faces": [
+      "+Y"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-infill-y--1-2",
+    "min": {
+      "x": 396,
+      "y": -1332,
+      "z": -24
+    },
+    "max": {
+      "x": 660,
+      "y": -960,
+      "z": 456
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-y--1-2",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "city-infill-y--1-2-window-292",
+    "min": {
+      "x": 420,
+      "y": -960,
+      "z": 292
+    },
+    "max": {
+      "x": 636,
+      "y": -952,
+      "z": 332
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-y--1-2-window-292",
+    "faces": [
+      "+Y"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-infill-y--1-2-window-364",
+    "min": {
+      "x": 420,
+      "y": -960,
+      "z": 364
+    },
+    "max": {
+      "x": 636,
+      "y": -952,
+      "z": 404
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-y--1-2-window-364",
+    "faces": [
+      "+Y"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-infill-y-1-0",
+    "min": {
+      "x": -660,
+      "y": 960,
+      "z": -24
+    },
+    "max": {
+      "x": -396,
+      "y": 1332,
+      "z": 420
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-y-1-0",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "city-infill-y-1-0-window-292",
+    "min": {
+      "x": -636,
+      "y": 952,
+      "z": 292
+    },
+    "max": {
+      "x": -420,
+      "y": 960,
+      "z": 332
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-y-1-0-window-292",
+    "faces": [
+      "-Y"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-infill-y-1-0-window-364",
+    "min": {
+      "x": -636,
+      "y": 952,
+      "z": 364
+    },
+    "max": {
+      "x": -420,
+      "y": 960,
+      "z": 404
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-y-1-0-window-364",
+    "faces": [
+      "-Y"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-infill-y-1-1",
+    "min": {
+      "x": -180,
+      "y": 960,
+      "z": -24
+    },
+    "max": {
+      "x": 180,
+      "y": 1332,
+      "z": 516
+    },
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-y-1-1",
+    "faces": "all",
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "box.create",
+    "id": "city-infill-y-1-1-window-292",
+    "min": {
+      "x": -156,
+      "y": 952,
+      "z": 292
+    },
+    "max": {
+      "x": 156,
+      "y": 960,
+      "z": 332
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-y-1-1-window-292",
+    "faces": [
+      "-Y"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-infill-y-1-1-window-364",
+    "min": {
+      "x": -156,
+      "y": 952,
+      "z": 364
+    },
+    "max": {
+      "x": 156,
+      "y": 960,
+      "z": 404
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-y-1-1-window-364",
+    "faces": [
+      "-Y"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-infill-y-1-2",
+    "min": {
+      "x": 396,
+      "y": 960,
+      "z": -24
+    },
+    "max": {
+      "x": 660,
+      "y": 1332,
+      "z": 456
+    },
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-y-1-2",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "box.create",
+    "id": "city-infill-y-1-2-window-292",
+    "min": {
+      "x": 420,
+      "y": 952,
+      "z": 292
+    },
+    "max": {
+      "x": 636,
+      "y": 960,
+      "z": 332
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-y-1-2-window-292",
+    "faces": [
+      "-Y"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "box.create",
+    "id": "city-infill-y-1-2-window-364",
+    "min": {
+      "x": 420,
+      "y": 952,
+      "z": 364
+    },
+    "max": {
+      "x": 636,
+      "y": 960,
+      "z": 404
+    },
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-y-1-2-window-364",
+    "faces": [
+      "-Y"
+    ],
+    "shader": "noir/window4"
+  },
+  {
+    "op": "entity.place",
+    "id": "stack-west",
+    "classname": "misc_model",
+    "origin": {
+      "x": -1112,
+      "y": -288,
+      "z": 912
+    },
+    "keys": {
+      "model": "models/mapobjects/decor_misc/factory_chimney_01.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.5",
+      "angle": "0",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "roof-ac-west",
+    "classname": "misc_model",
+    "origin": {
+      "x": -1048,
+      "y": -288,
+      "z": 712
+    },
+    "keys": {
+      "model": "models/mapobjects/decor_misc/aircondition_01.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "1",
+      "angle": "0",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "stack-east",
+    "classname": "misc_model",
+    "origin": {
+      "x": 1112,
+      "y": 768,
+      "z": 1056
+    },
+    "keys": {
+      "model": "models/mapobjects/decor_misc/factory_chimney_01.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.5",
+      "angle": "0",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "roof-ac-east",
+    "classname": "misc_model",
+    "origin": {
+      "x": 1176,
+      "y": 768,
+      "z": 856
+    },
+    "keys": {
+      "model": "models/mapobjects/decor_misc/aircondition_01.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "1",
+      "angle": "0",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "stack-north",
+    "classname": "misc_model",
+    "origin": {
+      "x": -768,
+      "y": 1112,
+      "z": 1056
+    },
+    "keys": {
+      "model": "models/mapobjects/decor_misc/factory_chimney_01.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.5",
+      "angle": "0",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "roof-ac-north",
+    "classname": "misc_model",
+    "origin": {
+      "x": -704,
+      "y": 1112,
+      "z": 856
+    },
+    "keys": {
+      "model": "models/mapobjects/decor_misc/aircondition_01.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "1",
+      "angle": "0",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "stack-south",
+    "classname": "misc_model",
+    "origin": {
+      "x": 288,
+      "y": -1112,
+      "z": 912
+    },
+    "keys": {
+      "model": "models/mapobjects/decor_misc/factory_chimney_01.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "0.5",
+      "angle": "0",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "entity.place",
+    "id": "roof-ac-south",
+    "classname": "misc_model",
+    "origin": {
+      "x": 352,
+      "y": -1112,
+      "z": 712
+    },
+    "keys": {
+      "model": "models/mapobjects/decor_misc/aircondition_01.ase",
+      "collisiontype": "none",
+      "spawnflags": "4",
+      "modelscale": "1",
+      "angle": "0",
+      "samplesize": "8"
+    }
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-x--1--720",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-x--1--480",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-x--1--240",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-x--1-0",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-x--1-240",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-x--1-480",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-x--1-720",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "plinth-x--1",
+    "faces": "all",
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "face.material",
+    "id": "coping-x--1",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "shutter-jamb-x--1--96",
+    "faces": "all",
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "face.material",
+    "id": "shutter-jamb-x--1-90",
+    "faces": "all",
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "face.material",
+    "id": "shutter-cap-x--1",
+    "faces": "all",
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-x-1--720",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-x-1--480",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-x-1--240",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-x-1-0",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-x-1-240",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-x-1-480",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-x-1-720",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "plinth-x-1",
+    "faces": "all",
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "face.material",
+    "id": "coping-x-1",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "shutter-jamb-x-1--96",
+    "faces": "all",
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "face.material",
+    "id": "shutter-jamb-x-1-90",
+    "faces": "all",
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "face.material",
+    "id": "shutter-cap-x-1",
+    "faces": "all",
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-y--1--720",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-y--1--480",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-y--1--240",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-y--1-0",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-y--1-240",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-y--1-480",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-y--1-720",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "plinth-y--1",
+    "faces": "all",
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "face.material",
+    "id": "coping-y--1",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "shutter-jamb-y--1--96",
+    "faces": "all",
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "face.material",
+    "id": "shutter-jamb-y--1-90",
+    "faces": "all",
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "face.material",
+    "id": "shutter-cap-y--1",
+    "faces": "all",
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-y-1--720",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-y-1--480",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-y-1--240",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-y-1-0",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-y-1-240",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-y-1-480",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "masonry-y-1-720",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "plinth-y-1",
+    "faces": "all",
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "face.material",
+    "id": "coping-y-1",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "shutter-jamb-y-1--96",
+    "faces": "all",
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "face.material",
+    "id": "shutter-jamb-y-1-90",
+    "faces": "all",
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "face.material",
+    "id": "shutter-cap-y-1",
+    "faces": "all",
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "face.material",
+    "id": "pipe-collar--1--624-16",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "pipe-collar--1--624-176",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "pipe-collar--1--624-336",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "pipe-collar--1-624-16",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "pipe-collar--1-624-176",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "pipe-collar--1-624-336",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "pipe-collar-1--624-16",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "pipe-collar-1--624-176",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "pipe-collar-1--624-336",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "pipe-collar-1-624-16",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "pipe-collar-1-624-176",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "pipe-collar-1-624-336",
+    "faces": "all",
+    "shader": "exwsw/matte_eX_surf_metaldarkgrey"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-x--1-0",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-x--1-1",
+    "faces": "all",
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-x--1-2",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-x-1-0",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-x-1-1",
+    "faces": "all",
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-x-1-2",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-y--1-0",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-y--1-1",
+    "faces": "all",
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-y--1-2",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-y-1-0",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-y-1-1",
+    "faces": "all",
+    "shader": "concrete/concretebunker0068"
+  },
+  {
+    "op": "face.material",
+    "id": "city-infill-y-1-2",
+    "faces": "all",
+    "shader": "bricks/redbricks_base_01"
+  }
+]

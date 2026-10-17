@@ -1,0 +1,2147 @@
+[
+  {
+    "op": "box.update",
+    "id": "spawn-baffle--1--1",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "spawn-baffle--1-1",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "spawn-baffle-1--1",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "spawn-baffle-1-1",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-x--1-0-brick",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-x--1-0-upright",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-x--1-0-light",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-y--1-0-brick",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-y--1-0-upright",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-y--1-0-light",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-x--1-1-brick",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-x--1-1-upright",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-x--1-1-light",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-y--1-1-brick",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-y--1-1-upright",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-y--1-1-light",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-x--1-2-brick",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-x--1-2-upright",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-x--1-2-light",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-y--1-2-brick",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-y--1-2-upright",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-y--1-2-light",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-x--1-3-brick",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-x--1-3-upright",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-x--1-3-light",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-y--1-3-brick",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-y--1-3-upright",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-y--1-3-light",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-x--1-4-brick",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-x--1-4-upright",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-x--1-4-light",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-y--1-4-brick",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-y--1-4-upright",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-y--1-4-light",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-x--1-5-brick",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-x--1-5-upright",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-x--1-5-light",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-y--1-5-brick",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-y--1-5-upright",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-y--1-5-light",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-x--1-6-brick",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-x--1-6-upright",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-x--1-6-light",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-y--1-6-brick",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-y--1-6-upright",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-y--1-6-light",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-x-1-0-brick",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-x-1-0-upright",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-x-1-0-light",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-y-1-0-brick",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-y-1-0-upright",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-y-1-0-light",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-x-1-1-brick",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-x-1-1-upright",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-x-1-1-light",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-y-1-1-brick",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-y-1-1-upright",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-y-1-1-light",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-x-1-2-brick",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-x-1-2-upright",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-x-1-2-light",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-y-1-2-brick",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-y-1-2-upright",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-y-1-2-light",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-x-1-3-brick",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-x-1-3-upright",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-x-1-3-light",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-y-1-3-brick",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-y-1-3-upright",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-y-1-3-light",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-x-1-4-brick",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-x-1-4-upright",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-x-1-4-light",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-y-1-4-brick",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-y-1-4-upright",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-y-1-4-light",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-x-1-5-brick",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-x-1-5-upright",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-x-1-5-light",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-y-1-5-brick",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-y-1-5-upright",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-y-1-5-light",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-x-1-6-brick",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-x-1-6-upright",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-x-1-6-light",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-y-1-6-brick",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-y-1-6-upright",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "bay-y-1-6-light",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "fascia-x--1",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "support-x--1--704",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "support-x--1-704",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "rail-x--1--800",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "post-x--1--800",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "post-x--1--628",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "post-x--1--456",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "post-x--1--284",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "post-x--1--112",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "rail-x--1-112",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "post-x--1-112",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "post-x--1-284",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "post-x--1-456",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "post-x--1-628",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "post-x--1-800",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "fascia-y--1",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "support-y--1--704",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "support-y--1-704",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "fascia-x-1",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "support-x-1--704",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "support-x-1-704",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "rail-x-1--800",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "post-x-1--800",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "post-x-1--628",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "post-x-1--456",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "post-x-1--284",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "post-x-1--112",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "rail-x-1-112",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "post-x-1-112",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "post-x-1-284",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "post-x-1-456",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "post-x-1-628",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "post-x-1-800",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "fascia-y-1",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "support-y-1--704",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "support-y-1-704",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "reactor-collar-256",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "reactor-band-256--1",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "reactor-band-256-1",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "reactor-collar-528",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "reactor-band-528--1",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "reactor-band-528-1",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "reactor-strut--120--120",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "reactor-strut--120-112",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "reactor-strut-112--120",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "reactor-strut-112-112",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "ceiling-rib--832",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "ceiling-rib-832",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "service-x--1-door",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "service-x--1-jamb--120",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "service-x--1-jamb-112",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "service-x--1-lintel",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "service-y--1-door",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "service-y--1-jamb--120",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "service-y--1-jamb-112",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "service-y--1-lintel",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "service-x-1-door",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "service-x-1-jamb--120",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "service-x-1-jamb-112",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "service-x-1-lintel",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "service-y-1-door",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "service-y-1-jamb--120",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "service-y-1-jamb-112",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "service-y-1-lintel",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "open-rail--1--800",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "open-post--1--800--800",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "open-post--1--800--696",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "open-rail--1--464",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "open-post--1--464--464",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "open-post--1--464--120",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "open-rail--1-112",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "open-post--1-112-112",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "open-post--1-112-456",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "open-rail--1-688",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "open-post--1-688-688",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "open-post--1-688-792",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "open-rail-1--800",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "open-post-1--800--800",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "open-post-1--800--696",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "open-rail-1--464",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "open-post-1--464--464",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "open-post-1--464--120",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "open-rail-1-112",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "open-post-1-112-112",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "open-post-1-112-456",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "open-rail-1-688",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "open-post-1-688-688",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "open-post-1-688-792",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "hazard--1--800",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "hazard--1--464",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "hazard--1-112",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "hazard--1-688",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "hazard-1--800",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "hazard-1--464",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "hazard-1-112",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "hazard-1-688",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "maintenance-canopy",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "maintenance-pillar--812",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "maintenance-pillar--372",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "maintenance-screen",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "north-bulkhead",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "loading-cover",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "loading-deck-screen",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "canopy-neon",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "vent--1--704",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "vent--1-704",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "vent-1--704",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "vent-1-704",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "cabinet--1--320",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "cabinet-slot--1--320-24",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "cabinet-slot--1--320-64",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "cabinet-slot--1--320-104",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "cabinet--1-320",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "cabinet-slot--1-320-24",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "cabinet-slot--1-320-64",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "cabinet-slot--1-320-104",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "cabinet-1--320",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "cabinet-slot-1--320-24",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "cabinet-slot-1--320-64",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "cabinet-slot-1--320-104",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "cabinet-1-320",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "cabinet-slot-1-320-24",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "cabinet-slot-1-320-64",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "cabinet-slot-1-320-104",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "dais-light--248",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "dais-light-240",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-x--1-0",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-x--1-0-windows-560",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-x--1-0-windows-720",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-x--1-0-windows-880",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-x--1-0-coping",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-x--1-1",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-x--1-1-windows-560",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-x--1-1-windows-720",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-x--1-1-coping",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-x--1-2",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-x--1-2-windows-560",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-x--1-2-windows-720",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-x--1-2-windows-880",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-x--1-2-windows-1040",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-x--1-2-coping",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-x--1-3",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-x--1-3-windows-560",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-x--1-3-coping",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-x-1-0",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-x-1-0-windows-560",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-x-1-0-windows-720",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-x-1-0-coping",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-x-1-1",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-x-1-1-windows-560",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-x-1-1-windows-720",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-x-1-1-windows-880",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-x-1-1-windows-1040",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-x-1-1-coping",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-x-1-2",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-x-1-2-windows-560",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-x-1-2-coping",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-x-1-3",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-x-1-3-windows-560",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-x-1-3-windows-720",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-x-1-3-windows-880",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-x-1-3-coping",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-y--1-0",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-y--1-0-windows-560",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-y--1-0-coping",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-y--1-1",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-y--1-1-windows-560",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-y--1-1-windows-720",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-y--1-1-windows-880",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-y--1-1-coping",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-y--1-2",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-y--1-2-windows-560",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-y--1-2-windows-720",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-y--1-2-coping",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-y--1-3",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-y--1-3-windows-560",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-y--1-3-windows-720",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-y--1-3-windows-880",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-y--1-3-windows-1040",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-y--1-3-coping",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-y-1-0",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-y-1-0-windows-560",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-y-1-0-windows-720",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-y-1-0-windows-880",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-y-1-0-coping",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-y-1-1",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-y-1-1-windows-560",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-y-1-1-windows-720",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-y-1-1-coping",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-y-1-2",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-y-1-2-windows-560",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-y-1-2-windows-720",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-y-1-2-windows-880",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-y-1-2-windows-1040",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-y-1-2-coping",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-y-1-3",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-y-1-3-windows-560",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-building-y-1-3-coping",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "masonry-x--1--720",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "masonry-x--1--480",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "masonry-x--1--240",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "masonry-x--1-0",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "masonry-x--1-240",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "masonry-x--1-480",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "masonry-x--1-720",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "plinth-x--1",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "coping-x--1",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "shutter-jamb-x--1--96",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "shutter-jamb-x--1-90",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "shutter-cap-x--1",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "masonry-x-1--720",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "masonry-x-1--480",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "masonry-x-1--240",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "masonry-x-1-0",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "masonry-x-1-240",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "masonry-x-1-480",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "masonry-x-1-720",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "plinth-x-1",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "coping-x-1",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "shutter-jamb-x-1--96",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "shutter-jamb-x-1-90",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "shutter-cap-x-1",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "masonry-y--1--720",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "masonry-y--1--480",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "masonry-y--1--240",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "masonry-y--1-0",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "masonry-y--1-240",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "masonry-y--1-480",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "masonry-y--1-720",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "plinth-y--1",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "coping-y--1",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "shutter-jamb-y--1--96",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "shutter-jamb-y--1-90",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "shutter-cap-y--1",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "masonry-y-1--720",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "masonry-y-1--480",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "masonry-y-1--240",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "masonry-y-1-0",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "masonry-y-1-240",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "masonry-y-1-480",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "masonry-y-1-720",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "plinth-y-1",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "coping-y-1",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "shutter-jamb-y-1--96",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "shutter-jamb-y-1-90",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "shutter-cap-y-1",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "pipe-collar--1--624-16",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "pipe-collar--1--624-176",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "pipe-collar--1--624-336",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "pipe-collar--1-624-16",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "pipe-collar--1-624-176",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "pipe-collar--1-624-336",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "pipe-collar-1--624-16",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "pipe-collar-1--624-176",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "pipe-collar-1--624-336",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "pipe-collar-1-624-16",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "pipe-collar-1-624-176",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "pipe-collar-1-624-336",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-infill-x--1-0",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-infill-x--1-0-window-292",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-infill-x--1-0-window-364",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-infill-x--1-1",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-infill-x--1-1-window-292",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-infill-x--1-1-window-364",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-infill-x--1-2",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-infill-x--1-2-window-292",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-infill-x--1-2-window-364",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-infill-x-1-0",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-infill-x-1-0-window-292",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-infill-x-1-0-window-364",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-infill-x-1-1",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-infill-x-1-1-window-292",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-infill-x-1-1-window-364",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-infill-x-1-2",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-infill-x-1-2-window-292",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-infill-x-1-2-window-364",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-infill-y--1-0",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-infill-y--1-0-window-292",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-infill-y--1-0-window-364",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-infill-y--1-1",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-infill-y--1-1-window-292",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-infill-y--1-1-window-364",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-infill-y--1-2",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-infill-y--1-2-window-292",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-infill-y--1-2-window-364",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-infill-y-1-0",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-infill-y-1-0-window-292",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-infill-y-1-0-window-364",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-infill-y-1-1",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-infill-y-1-1-window-292",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-infill-y-1-1-window-364",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-infill-y-1-2",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-infill-y-1-2-window-292",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "city-infill-y-1-2-window-364",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "dais-vent--1--128",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "dais-vent--1-128",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "portal-lintel--1",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "dais-vent-1--128",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "dais-vent-1-128",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "portal-lintel-1",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "console--148--148",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "console--148-148",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "console-148--148",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "console-148-148",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "yard-nameboard",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "vent-mount-vent--1--704",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "vent-mount-vent--1-704",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "vent-mount-vent-1--704",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "vent-mount-vent-1-704",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "pipe-hanger--1--720-438",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "pipe-hanger--1--720-474",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "pipe-hanger--1--480-438",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "pipe-hanger--1--480-474",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "pipe-hanger--1--240-438",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "pipe-hanger--1--240-474",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "pipe-hanger--1-0-438",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "pipe-hanger--1-0-474",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "pipe-hanger--1-240-438",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "pipe-hanger--1-240-474",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "pipe-hanger--1-480-438",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "pipe-hanger--1-480-474",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "pipe-hanger--1-720-438",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "pipe-hanger--1-720-474",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "pipe-hanger-1--720-438",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "pipe-hanger-1--720-474",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "pipe-hanger-1--480-438",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "pipe-hanger-1--480-474",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "pipe-hanger-1--240-438",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "pipe-hanger-1--240-474",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "pipe-hanger-1-0-438",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "pipe-hanger-1-0-474",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "pipe-hanger-1-240-438",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "pipe-hanger-1-240-474",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "pipe-hanger-1-480-438",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "pipe-hanger-1-480-474",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "pipe-hanger-1-720-438",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "pipe-hanger-1-720-474",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "gantry-bearing--828--624",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "gantry-bearing--828-624",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "gantry-bearing-828--624",
+    "detail": true
+  },
+  {
+    "op": "box.update",
+    "id": "gantry-bearing-828-624",
+    "detail": true
+  }
+]

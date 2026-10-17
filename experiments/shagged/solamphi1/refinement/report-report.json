@@ -1,0 +1,164 @@
+{
+  "ok": true,
+  "health": {
+    "ok": true,
+    "issues": [
+      {
+        "code": "unknown-class",
+        "severity": "info",
+        "message": "Unlisted point class: misc_decal.",
+        "objectId": "basin-warning--432--248"
+      },
+      {
+        "code": "unknown-class",
+        "severity": "info",
+        "message": "Unlisted point class: misc_decal.",
+        "objectId": "basin-warning--432-248"
+      },
+      {
+        "code": "unknown-class",
+        "severity": "info",
+        "message": "Unlisted point class: misc_decal.",
+        "objectId": "basin-warning-432--248"
+      },
+      {
+        "code": "unknown-class",
+        "severity": "info",
+        "message": "Unlisted point class: misc_decal.",
+        "objectId": "basin-warning-432-248"
+      },
+      {
+        "code": "unknown-class",
+        "severity": "info",
+        "message": "Unlisted point class: misc_decal.",
+        "objectId": "pavement-grime-0"
+      },
+      {
+        "code": "unknown-class",
+        "severity": "info",
+        "message": "Unlisted point class: misc_decal.",
+        "objectId": "pavement-grime-1"
+      },
+      {
+        "code": "unknown-class",
+        "severity": "info",
+        "message": "Unlisted point class: misc_decal.",
+        "objectId": "pavement-grime-2"
+      },
+      {
+        "code": "unknown-class",
+        "severity": "info",
+        "message": "Unlisted point class: misc_decal.",
+        "objectId": "pavement-grime-3"
+      },
+      {
+        "code": "unknown-class",
+        "severity": "info",
+        "message": "Unlisted point class: misc_decal.",
+        "objectId": "pavement-grime-4"
+      },
+      {
+        "code": "unknown-class",
+        "severity": "info",
+        "message": "Unlisted point class: misc_decal.",
+        "objectId": "pavement-grime-5"
+      },
+      {
+        "code": "unknown-class",
+        "severity": "info",
+        "message": "Unlisted point class: misc_decal.",
+        "objectId": "wall-tag-0"
+      },
+      {
+        "code": "unknown-class",
+        "severity": "info",
+        "message": "Unlisted point class: misc_decal.",
+        "objectId": "wall-tag-1"
+      },
+      {
+        "code": "unknown-class",
+        "severity": "info",
+        "message": "Unlisted point class: misc_decal.",
+        "objectId": "wall-tag-2"
+      },
+      {
+        "code": "unknown-class",
+        "severity": "info",
+        "message": "Unlisted point class: misc_decal.",
+        "objectId": "wall-tag-3"
+      },
+      {
+        "code": "unknown-class",
+        "severity": "info",
+        "message": "Unlisted point class: misc_text_decal.",
+        "objectId": "yard-name"
+      },
+      {
+        "code": "unknown-class",
+        "severity": "info",
+        "message": "Unlisted point class: misc_text_decal.",
+        "objectId": "exchange-label"
+      },
+      {
+        "code": "unknown-class",
+        "severity": "info",
+        "message": "Unlisted point class: misc_text_decal.",
+        "objectId": "coolant-stencil-WEST"
+      },
+      {
+        "code": "unknown-class",
+        "severity": "info",
+        "message": "Unlisted point class: misc_text_decal.",
+        "objectId": "coolant-stencil-EAST"
+      },
+      {
+        "code": "unknown-class",
+        "severity": "info",
+        "message": "Unlisted point class: misc_text_decal.",
+        "objectId": "maintenance-bay-label"
+      },
+      {
+        "code": "unknown-class",
+        "severity": "info",
+        "message": "Unlisted point class: misc_text_decal.",
+        "objectId": "loading-bay-label"
+      },
+      {
+        "code": "unknown-class",
+        "severity": "info",
+        "message": "Unlisted brush class: func_group.",
+        "objectId": "chamfered-trim"
+      }
+    ]
+  },
+  "compile": {
+    "ok": true,
+    "state": "playable",
+    "stage": "done",
+    "mapName": "solamphi1",
+    "revision": 16,
+    "quality": "default",
+    "runtimeMapName": "solamphi1",
+    "packageName": "map_solamphi1_00017.pk3",
+    "bspHash": "8124eaf9a23da86bcf8f7479de74c1d2ea8179476df59fa8ca9f26f26768c413",
+    "leak": false,
+    "reused": true,
+    "logTail": []
+  },
+  "reachability": {
+    "ok": true,
+    "spawns": 4,
+    "items": 4,
+    "unreachableItems": [],
+    "cutOffSpawns": [],
+    "positions": 17698
+  },
+  "botNavigation": {
+    "ok": true,
+    "unreachableItems": [],
+    "cutOffSpawns": [],
+    "navNodes": 98,
+    "navEdges": 1006
+  },
+  "compileCallMs": 10356
+}

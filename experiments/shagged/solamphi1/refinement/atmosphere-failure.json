@@ -1,0 +1,16 @@
+{
+  "ok": false,
+  "state": "failed",
+  "stage": "makebsp",
+  "mapName": "solamphi1",
+  "revision": 12,
+  "quality": "fast",
+  "runtimeMapName": null,
+  "packageName": null,
+  "bspHash": null,
+  "leak": false,
+  "reused": false,
+  "logTail": [
+    " (0) 0...1...2...3...4...5...6...7...8...9...MakeBSP exited with code 4294967295"
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "backend": "webgl2",
+  "headless": true,
+  "package": "map_solamphi1_00017.pk3",
+  "bspHash": "8124eaf9a23da86bcf8f7479de74c1d2ea8179476df59fa8ca9f26f26768c413",
+  "sourceRevision": 17,
+  "stats": {
+    "fps": 164.9257833920676,
+    "meshes": 176,
+    "activeMeshes": 132,
+    "faces": 139355
+  },
+  "errors": [],
+  "failed": [],
+  "views": [
+    "overview",
+    "gallery",
+    "ground",
+    "slime"
+  ],
+  "note": "Idle review views, not a gameplay performance benchmark."
+}

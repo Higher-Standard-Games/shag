@@ -1,0 +1,170 @@
+[
+  {
+    "model": "models/mapobjects/wdm5/wdm5_WallLamp1.ase",
+    "vertices": 373,
+    "min": [
+      -15.999758,
+      0,
+      -32
+    ],
+    "max": [
+      16.000246,
+      83.999817,
+      36
+    ]
+  },
+  {
+    "model": "models/mapobjects/wdm5/floor_tile_concrete_1.ase",
+    "vertices": 20,
+    "min": [
+      -32,
+      -32,
+      -8
+    ],
+    "max": [
+      32,
+      32,
+      0
+    ]
+  },
+  {
+    "model": "models/mapobjects/wdm5/wdm5_pillar1.ase",
+    "vertices": 232,
+    "min": [
+      -16,
+      -8,
+      -96
+    ],
+    "max": [
+      16,
+      32,
+      96
+    ]
+  },
+  {
+    "model": "models/mapobjects/wdm5/wdm5_SignNatsBar.ase",
+    "vertices": 81,
+    "min": [
+      0,
+      -61,
+      -50
+    ],
+    "max": [
+      8,
+      68,
+      44
+    ]
+  },
+  {
+    "model": "models/mapobjects/wdm5/wdm5_MiddleAreaRooftopWindow.ase",
+    "vertices": 729,
+    "min": [
+      -68,
+      -10,
+      -52
+    ],
+    "max": [
+      68,
+      16,
+      20
+    ]
+  },
+  {
+    "model": "models/mapobjects/wdm5/wdm5_BlueNeonLight.ase",
+    "vertices": 60,
+    "min": [
+      -64,
+      -10,
+      -4
+    ],
+    "max": [
+      64,
+      10,
+      2
+    ]
+  },
+  {
+    "model": "models/mapobjects/decor_misc/aircondition_01.ase",
+    "vertices": 319,
+    "min": [
+      -57.4775,
+      -30.2,
+      -51.1
+    ],
+    "max": [
+      30.8,
+      16.7,
+      28
+    ]
+  },
+  {
+    "model": "models/mapobjects/decor_misc/airshaft.ase",
+    "vertices": 196,
+    "min": [
+      15,
+      -40,
+      -72
+    ],
+    "max": [
+      64,
+      40,
+      8
+    ]
+  },
+  {
+    "model": "models/mapobjects/decor_misc/factory_chimney_01.ase",
+    "vertices": 352,
+    "min": [
+      -84,
+      -84,
+      -504
+    ],
+    "max": [
+      84,
+      84,
+      0
+    ]
+  },
+  {
+    "model": "models/mapobjects/decor_misc/concrete_street_barrier_1.ase",
+    "vertices": 272,
+    "min": [
+      -18,
+      -56,
+      -16
+    ],
+    "max": [
+      18,
+      56,
+      40
+    ]
+  },
+  {
+    "model": "models/mapobjects/city/trash_container_1.ase",
+    "vertices": 572,
+    "min": [
+      -4,
+      -4,
+      -88
+    ],
+    "max": [
+      196,
+      128,
+      21
+    ]
+  },
+  {
+    "model": "models/mapobjects/city/fence_3.ase",
+    "vertices": 514,
+    "min": [
+      -4,
+      -128,
+      -128
+    ],
+    "max": [
+      4,
+      128,
+      128
+    ]
+  }
+]

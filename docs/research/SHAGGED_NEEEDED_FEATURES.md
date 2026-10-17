@@ -117,3 +117,36 @@ Final normal-quality build: `map_solamphi1_00008.pk3`, BSP SHA-256 `1faee40a9da7
 ### Lobby discovery of compiled maps: fixed, 2026-10-17
 
 Adding the arena to the Amphi pool exposed an integration gap: the lobby's installed-package filter treated `map_solamphi1_00008.pk3` as map `solamphi1_00008`, while SHAGGED publishes a BSP named `solamphi1`. The disk filter now recognizes the base name of numbered packages as well as ordinary package names. The Amphi advertisement test covers an installed numbered build and missing maps. Pool membership remains explicit in `config/maps.json`, read at lobby startup; publication does not choose a gametype or automatically edit the pool.
+
+### Detail refinement: scale and actual gameplay space
+
+The user's size concern was justified. Matching the 2304-unit outer envelope did not match usable traversal: the prototype's outer spawn diagonal was about 2433 units, compared with about 1991 for wamphi1, roughly 22% longer. The refined source uniformly scales geometry and entity positions by 0.75, with model scales and light power adjusted too. The court interior is now 1680 square, upper deck 192 units high. These measurements do not establish equivalent combat pacing.
+
+The lower level uses wamphi1's actual `ETRtex/slime2` shader in four recessed basins, with dry cross routes and escape steps. Slime damage already exists in the shared liquid world effects; no overlapping hurt triggers were added. Reactor underpasses provide another lower route.
+
+### Compiler-native ASE props: implemented
+
+Checkpoint `96c7884b` accepts ASE references through model validation, discovery and map export. A native probe compiled the original wfdm5 lamp and produced its material surfaces. The refined map uses original ASE lamps, windows, pillar supports, Nat's Bar signage, air conditioners, chimneys, loose paving and dumpsters. Browser ASE mesh preview remains unsupported: inspect the compiled BSP.
+
+### Worldspawn atmosphere: implemented
+
+Checkpoint `6f736974` adds validated `world.keys` editing, persistence, inspection and export. Reserved identity keys and source-breaking quotes/newlines are rejected atomically. This lets MCP author fog, ambient and compiler lighting settings without injecting another worldspawn. The map's flood-lighting settings follow wfdm5's actual source conventions.
+
+### Structural versus detail brushes: implemented
+
+Checkpoint `1da62e45` exposes `detail` on box creation/update and map inspection, exports Q3 content flag 134217728, and preserves it through carving. wfdm5 uses that flag on decorative source brushes. Keep sealing geometry structural; detail is not a nonsolid flag. The compiler consumes the detail classification during construction and shares material flags in the final BSP. A native trace against an authored detail pilaster confirmed solidity at its actual face; testing for a final shader DETAIL bit would be incorrect.
+
+The optimized fast build completed its MCP compile call in about 16 seconds. This is an observation from one local job, not a controlled performance comparison. Full-quality compilation retains chamfering and costs more.
+
+### Projected lettering: available, needs easier discovery
+
+The installed native MakeBSP `-fontatlas` command emits a JSON descriptor with a `.font` suffix, despite README examples referring to `.json`. The experiment packages the descriptor, atlas and a vertex-color/alpha shader, then uses `misc_text_decal`. Native BSP inspection and GPU review verify that the lettering really baked. Projection depth must be limited to avoid stamping glyphs across adjacent perpendicular faces.
+
+`misc_decal`, `misc_text_decal` and `func_group` appear as unlisted classes at informational severity in editor health, although the compiler handles them. Catalog support should distinguish compiler-only entities from genuinely unknown classes.
+
+### Remaining MCP/compiler integration gaps
+
+- Map inspection exposes patch counts but not control points. The refiner reads the canonical snapshot and checks its revision against live MCP before building patch operations. A supported full document read would remove this workaround.
+- Compile output tails can lose useful phase names and warnings behind progress output. Keep durable complete native logs and expose progress, warning summaries and log paths in reports.
+- Separate stdio MCP processes only have local job coordination. Concurrent builds for the same map can race publication and share the native cache directory. Add a cross-process map lock or isolated native cache roots. During this experiment an overlapping atmosphere compile was deliberately canceled; its saved edits were incorporated in a later sequential build. Final validation must reference the latest source after all earlier jobs finish.
+- Native model, texture and shader warnings should influence publication health. A successful compiler exit alone is insufficient; retain explicit BSP material and collision checks.

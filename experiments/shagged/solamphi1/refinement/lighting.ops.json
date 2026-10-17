@@ -1,0 +1,150 @@
+[
+  {
+    "op": "world.keys",
+    "keys": {
+      "ambient": "10",
+      "_color": "0.6 0.68 0.9",
+      "_lightingIntensity": "2.5",
+      "_floodlight": "240 255 255 768 30"
+    }
+  },
+  {
+    "op": "entity.update",
+    "id": "yard-name",
+    "keys": {
+      "distance": "14"
+    }
+  },
+  {
+    "op": "entity.update",
+    "id": "exchange-label",
+    "keys": {
+      "distance": "14"
+    }
+  },
+  {
+    "op": "entity.update",
+    "id": "coolant-stencil-WEST",
+    "keys": {
+      "distance": "14"
+    }
+  },
+  {
+    "op": "entity.update",
+    "id": "coolant-stencil-EAST",
+    "keys": {
+      "distance": "14"
+    }
+  },
+  {
+    "op": "entity.update",
+    "id": "maintenance-bay-label",
+    "keys": {
+      "distance": "14"
+    }
+  },
+  {
+    "op": "entity.update",
+    "id": "loading-bay-label",
+    "keys": {
+      "distance": "14"
+    }
+  },
+  {
+    "op": "entity.update",
+    "id": "exchange-label",
+    "origin": {
+      "x": 0,
+      "y": -198,
+      "z": 169
+    },
+    "keys": {
+      "height": "11",
+      "distance": "8"
+    }
+  },
+  {
+    "op": "entity.update",
+    "id": "lamp-pool-x--1--600",
+    "keys": {
+      "light": "240"
+    }
+  },
+  {
+    "op": "entity.update",
+    "id": "lamp-pool-x--1--120",
+    "keys": {
+      "light": "240"
+    }
+  },
+  {
+    "op": "entity.update",
+    "id": "lamp-pool-x--1-360",
+    "keys": {
+      "light": "240"
+    }
+  },
+  {
+    "op": "entity.update",
+    "id": "lamp-pool-x-1--600",
+    "keys": {
+      "light": "240"
+    }
+  },
+  {
+    "op": "entity.update",
+    "id": "lamp-pool-x-1--120",
+    "keys": {
+      "light": "240"
+    }
+  },
+  {
+    "op": "entity.update",
+    "id": "lamp-pool-x-1-360",
+    "keys": {
+      "light": "240"
+    }
+  },
+  {
+    "op": "entity.update",
+    "id": "lamp-pool-y--1--600",
+    "keys": {
+      "light": "240"
+    }
+  },
+  {
+    "op": "entity.update",
+    "id": "lamp-pool-y--1--120",
+    "keys": {
+      "light": "240"
+    }
+  },
+  {
+    "op": "entity.update",
+    "id": "lamp-pool-y--1-360",
+    "keys": {
+      "light": "240"
+    }
+  },
+  {
+    "op": "entity.update",
+    "id": "lamp-pool-y-1--600",
+    "keys": {
+      "light": "240"
+    }
+  },
+  {
+    "op": "entity.update",
+    "id": "lamp-pool-y-1--120",
+    "keys": {
+      "light": "240"
+    }
+  },
+  {
+    "op": "entity.update",
+    "id": "lamp-pool-y-1-360",
+    "keys": {
+      "light": "240"
+    }
+  }
+]
