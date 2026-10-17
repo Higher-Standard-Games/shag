@@ -4,7 +4,7 @@
  * the compiled map. See docs/research/SHAGGED_API.md.
  */
 import path from "node:path";
-import type { EditOp } from "../api/Operations";
+import { DEFAULT_SHADER, type EditOp } from "../api/Operations";
 import { type EditorDocumentData, validateDocument } from "../EditorDocument";
 import { inspectMapHealth, type MapHealthIssue } from "../MapHealth";
 import { writeMap } from "../MapWriter";
@@ -81,18 +81,57 @@ export function describeDocument(doc: EditorDocumentData, objects = false) {
 }
 
 /**
- * Fill in the image size of every `face.material` that names a texture
- * without one, from the texture catalog, so callers only have to name it.
- * Unknown textures are left alone for the operation to reject.
+ * Resolve missing image sizes for face edits and natural creation alignment.
+ * Explicit sizes take precedence; unknown textures remain for atomic validation.
  */
 export async function withTextureSizes(ops: readonly EditOp[]): Promise<EditOp[]> {
-  const needs = ops.some((op) => op?.op === "face.material" && !op.size && !op.shader?.startsWith("common/"));
+  const wanted = ops.map((op): string[] => {
+    if (!op || !("alignment" in op) || op.alignment !== "natural") return [];
+    switch (op.op) {
+      case "box.create":
+      case "gen.corridor":
+      case "gen.connect":
+      case "gen.stairs":
+        return [op.shader ?? DEFAULT_SHADER];
+      case "gen.room":
+        return [
+          ...new Set([
+            op.shader ?? DEFAULT_SHADER,
+            op.floorShader ?? op.shader ?? DEFAULT_SHADER,
+            op.ceilingShader ?? op.shader ?? DEFAULT_SHADER,
+          ]),
+        ];
+      default:
+        return [];
+    }
+  });
+  const missing = wanted.map((names, i) =>
+    names.filter(
+      (shader) =>
+        !shader.startsWith("common/") &&
+        !(
+          "textureSizes" in ops[i] &&
+          Object.keys(ops[i].textureSizes ?? {}).some((key) => key.toLowerCase() === shader.toLowerCase())
+        ),
+    ),
+  );
+  const needs =
+    missing.some((names) => names.length > 0) ||
+    ops.some((op) => op?.op === "face.material" && !op.size && !op.shader?.startsWith("common/"));
   if (!needs) return [...ops];
-  const catalog = await quietly(() => loadTextureCatalog());
-  return ops.map((op) => {
-    if (op?.op !== "face.material" || op.size) return op;
-    const size = findTexture(catalog, op.shader)?.size;
-    return size ? { ...op, size } : op;
+  const catalog = await quietly(() => loadTextureCatalog(resolveServerConfig([]).publishRoot));
+  return ops.map((op, i) => {
+    if (op?.op === "face.material" && !op.size) {
+      const size = findTexture(catalog, op.shader)?.size;
+      return size ? { ...op, size: [...size] as [number, number] } : op;
+    }
+    if (!op || !("alignment" in op) || op.alignment !== "natural" || !missing[i].length) return op;
+    const textureSizes = { ...op.textureSizes };
+    for (const shader of missing[i]) {
+      const size = findTexture(catalog, shader)?.size;
+      if (size) textureSizes[shader] = [...size];
+    }
+    return { ...op, textureSizes };
   });
 }
 

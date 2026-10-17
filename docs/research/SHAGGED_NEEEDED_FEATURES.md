@@ -153,6 +153,17 @@ The installed native MakeBSP `-fontatlas` command emits a JSON descriptor with a
 
 ## Implementation follow-up: diagnostics
 
+### Natural creation alignment: implemented
+
+Box and generator operations accept `alignment: "natural"`. MCP/CLI resolve
+the required image sizes; pure callers provide `textureSizes`. New brushes
+store normal face materials at the gamepack's 0.5 world units per texel.
+Legacy calls keep their fixed repeats, and connection carving preserves old
+wall UVs. Missing/invalid image dimensions reject the batch atomically.
+Mixed room materials, generators, tool shaders and a native compiled-BSP UV
+check are covered. Texture discovery/sizing use the configured media root;
+catalog keys include that root to prevent cross-root reuse.
+
 ### Compiler entity discovery: implemented
 
 The shared editor catalog now includes brush `func_group` and point

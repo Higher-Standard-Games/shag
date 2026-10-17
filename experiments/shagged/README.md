@@ -32,3 +32,14 @@ This checks installed BSP inspection and material pagination, searchable model
 paths and bounds, and compiler/runtime entity-class filtering over real MCP
 stdio. It neither creates nor edits maps. Installed `wfdm5` and at least one
 lamp model with inspectable bounds are required; native compilation is not.
+
+For natural creation alignment and atomic rejection of unknown image sizes:
+
+```text
+node experiments/shagged/natural-alignment-smoke.mjs
+```
+
+This requires the installed concrete material palette. It authors a uniquely
+named QA room through MCP, checks the persisted face scale against catalog
+dimensions, and removes its own QA document afterwards. No compiled package
+or existing map is changed.

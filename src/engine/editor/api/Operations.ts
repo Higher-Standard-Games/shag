@@ -22,6 +22,7 @@ import { brushEntityShader } from "../EntityCatalog";
 import { naturalFace } from "../FaceUv";
 import { inspectMapHealth, type MapHealthIssue } from "../MapHealth";
 import { subtractBox } from "./BoxCsg";
+import { alignCreatedBrush, type CreationMaterials } from "./CreationMaterials";
 import {
   type ConnectSpec,
   type CorridorSpec,
@@ -43,7 +44,7 @@ export const DEFAULT_SHADER = "blx/blx_grid";
 export type EditOp =
   | { op: "world.keys"; keys: Record<string, string> }
   | ({ op: "patch.create" } & Omit<PatchSurface, "id"> & { id?: string })
-  | { op: "box.create"; id?: string; min: Vec3q; max: Vec3q; shader?: string; detail?: boolean }
+  | ({ op: "box.create"; id?: string; min: Vec3q; max: Vec3q; shader?: string; detail?: boolean } & CreationMaterials)
   | { op: "box.update"; id: string; min?: Vec3q; max?: Vec3q; shader?: string; detail?: boolean }
   | {
       op: "face.material";
@@ -59,13 +60,13 @@ export type EditOp =
   | { op: "object.move"; ids: string[]; delta: Vec3q }
   | { op: "object.duplicate"; ids: string[]; delta: Vec3q; suffix?: string }
   | { op: "object.delete"; ids: string[] }
-  | ({ op: "gen.room" } & RoomSpec)
+  | ({ op: "gen.room" } & RoomSpec & CreationMaterials)
   | { op: "brush.carve"; min: Vec3q; max: Vec3q }
-  | ({ op: "gen.corridor" } & CorridorSpec)
-  | ({ op: "gen.connect" } & ConnectSpec)
-  | ({ op: "gen.stairs" } & StairsSpec)
-  | ({ op: "gen.teleporter" } & TeleporterSpec)
-  | ({ op: "gen.jumppad" } & JumpPadSpec);
+  | ({ op: "gen.corridor" } & CorridorSpec & CreationMaterials)
+  | ({ op: "gen.connect" } & ConnectSpec & CreationMaterials)
+  | ({ op: "gen.stairs" } & StairsSpec & CreationMaterials)
+  | ({ op: "gen.teleporter" } & TeleporterSpec & CreationMaterials)
+  | ({ op: "gen.jumppad" } & JumpPadSpec & CreationMaterials);
 
 export interface ApplyResult {
   doc: EditorDocumentData;
@@ -202,7 +203,12 @@ function applyOne(doc: EditorDocumentData, op: EditOp, changed: Set<string>): vo
     }
     case "box.create": {
       const id = claimId(doc, op.id, "brush");
-      doc.brushes.push({ id, min: vec(op.min, "min"), max: vec(op.max, "max"), shader: op.shader ?? DEFAULT_SHADER });
+      doc.brushes.push(
+        alignCreatedBrush(
+          { id, min: vec(op.min, "min"), max: vec(op.max, "max"), shader: op.shader ?? DEFAULT_SHADER },
+          op,
+        ),
+      );
       if (op.detail !== undefined) doc.brushes[doc.brushes.length - 1].detail = op.detail;
       return;
     }
@@ -294,13 +300,13 @@ function applyOne(doc: EditorDocumentData, op: EditOp, changed: Set<string>): vo
     }
     case "gen.room": {
       const out = generateRoom(op);
-      for (const b of out.brushes) doc.brushes.push({ ...b, id: claimId(doc, b.id, "brush") });
+      for (const b of out.brushes) doc.brushes.push(alignCreatedBrush({ ...b, id: claimId(doc, b.id, "brush") }, op));
       for (const e of out.entities) doc.entities.push({ ...e, id: claimId(doc, e.id, "ent") });
       return;
     }
     case "gen.corridor": {
       const out = generateCorridor(op);
-      for (const b of out.brushes) doc.brushes.push({ ...b, id: claimId(doc, b.id, "brush") });
+      for (const b of out.brushes) doc.brushes.push(alignCreatedBrush({ ...b, id: claimId(doc, b.id, "brush") }, op));
       for (const e of out.entities) doc.entities.push({ ...e, id: claimId(doc, e.id, "ent") });
       return;
     }
@@ -311,7 +317,7 @@ function applyOne(doc: EditorDocumentData, op: EditOp, changed: Set<string>): vo
     case "gen.connect": {
       const out = generateConnect(op);
       carve(doc, out.carve);
-      for (const b of out.brushes) doc.brushes.push({ ...b, id: claimId(doc, b.id, "brush") });
+      for (const b of out.brushes) doc.brushes.push(alignCreatedBrush({ ...b, id: claimId(doc, b.id, "brush") }, op));
       for (const e of out.entities) doc.entities.push({ ...e, id: claimId(doc, e.id, "ent") });
       return;
     }
@@ -320,7 +326,7 @@ function applyOne(doc: EditorDocumentData, op: EditOp, changed: Set<string>): vo
       const out: Linked = op.op === "gen.teleporter" ? generateTeleporter(op) : generateJumpPad(op);
       const brushIds = out.trigger.map((b) => {
         const id = claimId(doc, b.id, "brush");
-        doc.brushes.push({ ...b, id });
+        doc.brushes.push(alignCreatedBrush({ ...b, id }, op));
         return id;
       });
       doc.brushEntities ??= [];
@@ -329,7 +335,8 @@ function applyOne(doc: EditorDocumentData, op: EditOp, changed: Set<string>): vo
       return;
     }
     case "gen.stairs": {
-      for (const b of generateStairs(op).brushes) doc.brushes.push({ ...b, id: claimId(doc, b.id, "brush") });
+      for (const b of generateStairs(op).brushes)
+        doc.brushes.push(alignCreatedBrush({ ...b, id: claimId(doc, b.id, "brush") }, op));
       return;
     }
     default:

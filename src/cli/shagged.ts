@@ -148,7 +148,7 @@ async function main(): Promise<void> {
     return;
   }
   if (command === "textures") {
-    const catalog = await quietly(() => loadTextureCatalog());
+    const catalog = await quietly(() => loadTextureCatalog(resolveServerConfig([]).publishRoot));
     const limit = value("--limit");
     out({
       ok: true,

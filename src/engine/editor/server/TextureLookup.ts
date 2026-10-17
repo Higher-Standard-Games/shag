@@ -25,7 +25,7 @@ const TAGS_FILE = path.resolve("editor/gamepacks/washoi.game/shadertags.xml");
 let memory: { key: string; entries: TextureInfo[] } | null = null;
 
 function packagesKey(dataRoot: string, packages: string[]): string {
-  const hash = createHash("sha256").update(String(CACHE_VERSION));
+  const hash = createHash("sha256").update(JSON.stringify([CACHE_VERSION, path.resolve(dataRoot)]));
   for (const name of packages) {
     const stat = statSync(path.join(dataRoot, name));
     hash.update(`${name}:${stat.size}:${stat.mtimeMs}\n`);

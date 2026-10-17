@@ -134,6 +134,30 @@ managed document.
 
 ## Operations
 
+`box.create` and all `gen.*` operations accept `alignment: "natural"` to use
+the gamepack's 0.5 world units per image texel. MCP and CLI resolve each
+material's image size automatically, including separate room floor/ceiling
+materials. A 512-pixel-wide image repeats every 256 world units. Missing image
+sizes reject the whole batch instead of silently guessing a scale.
+
+Omitting alignment, or specifying `alignment: "legacy"`, preserves the fixed
+32-world-unit repeat used by existing scripts. Natural alignment affects only
+the newly generated brushes; `gen.connect` preserves the old walls' alignment
+when carving doorways. It stores ordinary per-face materials, so save/export,
+movement, duplication and carving retain the result. It does not alter patches
+or models. Direct `applyOperations` callers supply
+`textureSizes: {"bricks/redbricks_base_01": [512, 512]}` for each non-tool
+material. Supplied sizes override discovery; `common/*` tools need no sizes.
+Use `face.material` to retexture these faces later: `box.update.shader` changes
+the fallback shader, while explicit per-face materials retain precedence.
+
+```json
+{"op":"box.create","id":"wall","min":{"x":0,"y":0,"z":0},"max":{"x":256,"y":16,"z":128},"shader":"bricks/redbricks_base_01","alignment":"natural"}
+```
+
+Texture search and automatic sizing use `SHAGGED_PUBLISH_ROOT` (default
+`public/data`); cached catalogs are kept distinct for different media roots.
+
 | Operation | Fields | Notes |
 | --- | --- | --- |
 | `world.keys` | `keys` | Merge worldspawn compiler/runtime settings such as `message`, `ambient`, `_color` and `fog`. Values are strings; an empty value removes a key. `classname`, `origin` and `model` are reserved. Quotes and newlines in values are rejected. Map inspection returns `worldKeys`; apply reports `worldChanged`. |
