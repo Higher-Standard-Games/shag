@@ -60,6 +60,7 @@ export function fitBrushFace(face: FaceMaterial, brush: BoxBrush, key: BrushFace
   return {
     ...face,
     rotation: 0,
+    skew: 0,
     scale: [du / face.size[0], dv / face.size[1]],
     shift: [(-u / du) * face.size[0], (-v / dv) * face.size[1]],
   };
@@ -124,8 +125,6 @@ export function wrapBrushFaces(
         [b[1] - a[1], d[1] - a[1], a[1] - (b[1] - a[1]) * u - (d[1] - a[1]) * v],
       ];
       const face = matrixToFace(next, material.shader, material.size);
-      // A negative determinant is a mirrored texture, carried by signed V scale.
-      if (next[0][0] * next[1][1] - next[0][1] * next[1][0] < 0) face.scale[1] *= -1;
       result.set(to, face);
       queue.push(to);
     }

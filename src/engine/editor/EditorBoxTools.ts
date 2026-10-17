@@ -1,4 +1,5 @@
 import type { BoxBrush, Vec3q } from "./EditorDocument";
+import { lockBrushBounds } from "./TextureLock";
 
 /** One box axis being dragged, toward its min or max face. */
 export interface ResizeFace {
@@ -59,7 +60,7 @@ export function resizeBox(
     if (side === "min") result.min[axis] = Math.min(value, result.max[axis] - grid);
     else result.max[axis] = Math.max(value, result.min[axis] + grid);
   }
-  return result;
+  return lockBrushBounds(brush, result);
 }
 
 /** The coordinate on `face.axis` that gives the dragged face an exact `size`, keeping the opposite face anchored. */

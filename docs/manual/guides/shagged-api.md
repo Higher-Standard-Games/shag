@@ -150,8 +150,9 @@ the entire batch.
 `brush.rotate {id, axis: "x"|"y"|"z", degrees, pivot?}` rotates an existing
 brush in Quake space. Positive Z rotation turns +X toward +Y. The default pivot
 is the brush's bounds center. A box becomes a convex hull while retaining its
-ID, detail flag, brush-entity owner and face materials. Materials remain aligned
-to each face's compiler plane basis; this is not texture locking during rotation.
+ID, detail flag and brush-entity owner. Face UVs stay attached to the geometry
+through rotation; their shift/scale/rotation/skew parameters are recomputed in
+the new compiler plane basis.
 
 `gen.prism {id, footprint: [{x,y},...], bottom, top, shader?, detail?, alignment?,
 textureSizes?}` extrudes a convex XY polygon between two Z heights. Either
@@ -166,6 +167,18 @@ each side lists its vertex indices counterclockwise as seen from outside.
 The solid must be closed, outward-facing and nonzero in volume, with planar
 convex sides. Merge coplanar sides. Limits are 128 vertices and 64 sides.
 An optional side `material` has the ordinary face material fields.
+`skew` is an optional relative V-axis angle in degrees (default zero), allowing
+the affine mapping introduced by non-uniform deformation. Singular skew
+values are rejected. `sizeKnown: false` marks locked legacy mappings whose
+stored image dimensions are virtual; do not treat those dimensions as asset
+metadata. Omit the flag for actual known image sizes.
+
+Brush movement, duplication, rotation and bounds updates lock textures by
+default. Bounds resizing stretches the mapping with the geometry. Carving
+keeps the existing world-space mapping on the remaining pieces. Vertex edits
+retain three stable UV anchors where possible; non-affine polygon changes
+can shift other corners. New facets without three independent source UV
+anchors retain an inherited mapping anchored at one corner.
 
 Saved brushes retain `min`/`max` and an optional `hull`: its vertices are
 normalized to those bounds, and its sides contain indices and materials.

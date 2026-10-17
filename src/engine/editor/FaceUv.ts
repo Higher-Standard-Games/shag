@@ -34,9 +34,9 @@ export const FACE_AXES: Readonly<Record<FaceKey, { texX: Vec3q; texY: Vec3q }>> 
 };
 
 /**
- * shift (texels), scale (world units per texel), rotation (degrees) and the
+ * shift (texels), scale (world units per texel), rotation/skew (degrees) and the
  * image size become the face matrix:
- * [[cosθ/(su·w), sinθ/(su·w), shiftU/w], [−sinθ/(sv·h), cosθ/(sv·h), shiftV/h]].
+ * U uses angle θ; V uses θ + skew. Without skew the texture axes are orthogonal.
  */
 export function faceTexMatrix(face: FaceMaterial): TexMatrix {
   const [w, h] = face.size;
@@ -44,9 +44,10 @@ export function faceTexMatrix(face: FaceMaterial): TexMatrix {
   const theta = (face.rotation * Math.PI) / 180;
   const cos = Math.cos(theta);
   const sin = Math.sin(theta);
+  const vTheta = theta + ((face.skew ?? 0) * Math.PI) / 180;
   return [
     [cos / (su * w), sin / (su * w), face.shift[0] / w],
-    [-sin / (sv * h), cos / (sv * h), face.shift[1] / h],
+    [-Math.sin(vTheta) / (sv * h), Math.cos(vTheta) / (sv * h), face.shift[1] / h],
   ];
 }
 
@@ -93,18 +94,31 @@ const wrap = (value: number, period: number): number => tidy(((value % period) +
 
 /**
  * The shift/scale/rotation that produce a face matrix, for an image of the
- * given size. Works for any matrix whose rows are a scaled rotation, which is
- * every matrix `faceTexMatrix` builds and every one `matchFace` derives.
+ * given size. Skew represents nonorthogonal axes and signed V scale carries
+ * mirroring, so a general nonsingular affine matrix survives the conversion.
  * Shift is reduced to one image repeat and rotation to [0, 360).
  */
 export function matrixToFace(matrix: TexMatrix, shader: string, size: [number, number]): FaceMaterial {
   const [w, h] = size;
   const [[a, b, c], [d, e, f]] = matrix;
+  const precise = (value: number) => Number(value.toFixed(12)) || 0;
+  const periodic = (value: number, period: number) => {
+    const result = precise(((value % period) + period) % period);
+    return result === period ? 0 : result;
+  };
+  const sign = a * e - b * d < 0 ? -1 : 1;
+  const rotation = (Math.atan2(b, a) * 180) / Math.PI;
+  const vRotation = (Math.atan2(-d * sign, e * sign) * 180) / Math.PI;
+  const skew = precise(((vRotation - rotation + 540) % 360) - 180);
   return {
     shader,
-    shift: [wrap(c * w, w), wrap(f * h, h)],
-    scale: [tidy(1 / (w * Math.hypot(a, b))), tidy(1 / (h * Math.hypot(d, e)))],
-    rotation: wrap((Math.atan2(b, a) * 180) / Math.PI, 360),
+    shift: [periodic(c * w, w), periodic(f * h, h)],
+    scale: [
+      Number((1 / (w * Math.hypot(a, b))).toPrecision(13)),
+      Number((sign / (h * Math.hypot(d, e))).toPrecision(13)),
+    ],
+    rotation: periodic(rotation, 360),
+    ...(Math.abs(skew) > 1e-10 ? { skew } : {}),
     size,
   };
 }
@@ -114,7 +128,7 @@ export function fitFace(face: FaceMaterial, box: Box, key: FaceKey): FaceMateria
   const { u, v } = faceExtents(box, key);
   const [w, h] = face.size;
   const scale: [number, number] = [tidy((u[1] - u[0]) / w), tidy((v[1] - v[0]) / h)];
-  return { ...face, rotation: 0, scale, shift: [wrap(-u[0] / scale[0], w), wrap(-v[0] / scale[1], h)] };
+  return { ...face, rotation: 0, skew: 0, scale, shift: [wrap(-u[0] / scale[0], w), wrap(-v[0] / scale[1], h)] };
 }
 
 /**

@@ -84,3 +84,10 @@ Shift/Alt mouse picking on a visible diagonal side, Fit, shift nudging,
 undo and Wrap. The fixture resolves actual triangle-to-side identity rather
 than inferring a box face from a normal. Results and the inspector screenshot
 are written to `.cache/shagged-faces*`.
+
+## Texture lock QA
+
+`node experiments/shagged/convex-browser-probe.mjs --texture-lock` rotates and
+resizes a textured brush through its actual inspector forms, checks corner
+UVs modulo whole repeats, verifies nonzero skew and undo, and captures the
+alignment inspector. Results are under `.cache/shagged-texture-lock*`.

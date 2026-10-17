@@ -8,9 +8,10 @@ import { resolveMapBspViaIndex } from "../../../loader/pk3/NodePk3";
 import { SweepCollisionBackend } from "../../../physics/SweepCollisionBackend";
 import { applyOperations, emptyDocument } from "../../api/Operations";
 import { brushFaceKeys, brushFaceNormal, brushFaceST, fitBrushFace, setBrushFaceMaterial } from "../../BrushFaces";
-import { dot, planeTextureAxes } from "../../ConvexBrush";
+import { rotateBrush } from "../../ConvexBrush";
 import { faceTexMatrix, naturalFace } from "../../FaceUv";
 import { writeMap } from "../../MapWriter";
+import { lockBrushBounds } from "../../TextureLock";
 import { CompileJobs } from "../CompileJobs";
 import { resolveCompilerConfig } from "../CompilerConfig";
 import { MapStore } from "../MapStore";
@@ -48,6 +49,14 @@ it("compiles rotated solids and prisms with correct collision and arbitrary-plan
         ],
       },
     ]).doc;
+    const platformIndex = doc.brushes.findIndex((b) => b.id === "platform");
+    const rotatedPlatform = rotateBrush(doc.brushes[platformIndex], "z", 17);
+    const resizedPlatform = structuredClone(rotatedPlatform);
+    resizedPlatform.min.x -= 11;
+    resizedPlatform.max.x += 11;
+    const platform = lockBrushBounds(rotatedPlatform, resizedPlatform);
+    doc.brushes[platformIndex] = platform;
+    expect(platform.hull!.sides[1].material!.skew).not.toBeUndefined();
     const ramp = doc.brushes.find((brush) => brush.id === "ramp")!;
     const rampTop = brushFaceKeys(ramp).find((key) => brushFaceNormal(ramp, key).z > 0.5)!;
     const rampMaterial = fitBrushFace(naturalFace("blx/blx_grid", [512, 256]), ramp, rampTop);
@@ -69,6 +78,24 @@ it("compiles rotated solids and prisms with correct collision and arbitrary-plan
     expect(down(50, 50).endPos.y).toBeCloseTo(48, 0);
     expect(down(90, -90).fraction).toBe(1);
     expect(down(-160, 0).endPos.y).toBeCloseTo(64, 0);
+    const platformFace = bsp.faces.find(
+      (face) =>
+        face.normal[2] > 0.99 &&
+        bsp.vertices
+          .slice(face.firstVertex, face.firstVertex + face.numVertices)
+          .every((vertex) => Math.abs(vertex.position[2] - 64) < 1e-3 && vertex.position[0] < -90),
+    )!;
+    expect(platformFace).toBeDefined();
+    let platformOffset: number[] | undefined;
+    for (const vertex of bsp.vertices.slice(
+      platformFace.firstVertex,
+      platformFace.firstVertex + platformFace.numVertices,
+    )) {
+      const [x, y, z] = vertex.position,
+        expected = brushFaceST(platform, 1, faceTexMatrix(platform.hull!.sides[1].material!), { x, y, z });
+      platformOffset ??= [0, 1].map((axis) => Math.round(vertex.texCoord[axis] - expected[axis]));
+      for (const axis of [0, 1]) expect(vertex.texCoord[axis] - expected[axis]).toBeCloseTo(platformOffset[axis], 4);
+    }
     expect(down(96, -128).endPos.y).toBeCloseTo(40, 0);
     const sloped = bsp.faces.find((face) => face.normal[2] > 0.5 && face.normal[2] < 0.99)!;
     expect(sloped).toBeDefined();
@@ -83,17 +110,23 @@ it("compiles rotated solids and prisms with correct collision and arbitrary-plan
     );
     expect(diagonal).toBeDefined();
     const normal = { x: diagonal!.normal[0], y: diagonal!.normal[1], z: diagonal!.normal[2] };
-    const axes = planeTextureAxes(normal);
+    const bridge = doc.brushes.find((b) => b.id === "bridge")!;
+    const diagonalKey = brushFaceKeys(bridge).find((key) => {
+      const n = brushFaceNormal(bridge, key);
+      return Math.abs(n.x - normal.x) + Math.abs(n.y - normal.y) + Math.abs(n.z - normal.z) < 1e-3;
+    })!;
     const vertices = bsp.vertices.slice(diagonal!.firstVertex, diagonal!.firstVertex + diagonal!.numVertices);
-    const a = vertices[0];
-    for (const b of vertices.slice(1)) {
-      const delta = {
-        x: b.position[0] - a.position[0],
-        y: b.position[1] - a.position[1],
-        z: b.position[2] - a.position[2],
-      };
-      expect(b.texCoord[0] - a.texCoord[0]).toBeCloseTo(dot(delta, axes.u) / 256, 4);
-      expect(b.texCoord[1] - a.texCoord[1]).toBeCloseTo(dot(delta, axes.v) / 128, 4);
+    let bridgeOffset: number[] | undefined;
+    for (const vertex of vertices) {
+      const [x, y, z] = vertex.position,
+        expected = brushFaceST(
+          bridge,
+          diagonalKey,
+          faceTexMatrix(bridge.hull!.sides[diagonalKey as number].material!),
+          { x, y, z },
+        );
+      bridgeOffset ??= [0, 1].map((axis) => Math.round(vertex.texCoord[axis] - expected[axis]));
+      for (const axis of [0, 1]) expect(vertex.texCoord[axis] - expected[axis]).toBeCloseTo(bridgeOffset[axis], 4);
     }
   } finally {
     await rm(root, { recursive: true, force: true });

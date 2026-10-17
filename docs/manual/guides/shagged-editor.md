@@ -84,11 +84,25 @@ the document. Concave shapes require several brushes.
 
 ### Textures
 
+Brush textures stay attached by default when moving, duplicating, rotating or
+resizing, through both the graphical editor and scripting API. Resizing
+stretches the mapping with the face; **Natural** restores the usual texel scale.
+Non-uniform deformation can introduce **Skew**, editable alongside rotation.
+Fit and Natural reset skew.
+
+Vertex edits preserve three stable UV anchors on each resulting face where
+possible. A non-affine polygon deformation cannot preserve every corner in a
+single planar mapping. New facets without three independent source anchors
+keep their inherited mapping anchored at one corner; inspect them afterward.
+Legacy fixed-alignment textures also stay attached, but their image dimensions
+remain unknown. Pick a texture to enable alignment controls and initialize
+natural alignment for those faces.
+
 - Shift+click a face in the 3D view to select it for per-face texturing (Shift+click again to toggle); Alt+click samples a face's texture as the current one.
 - Convex brushes use the same controls and show numbered **Side** buttons in
   the inspector. Selected polygons are highlighted in 3D and outlined in the
   2D panes. Side numbers can change after a vertex edit.
-- Alignment controls edit shift, scale and rotation on every selected face.
+- Alignment controls edit shift, scale, rotation and skew on every selected face.
   **Fit** covers each face's projected texture extent with one repeat;
   **Natural** restores 0.5 units per texel. Pick a texture first if a face has
   no known image dimensions.

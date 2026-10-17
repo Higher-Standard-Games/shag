@@ -20,21 +20,22 @@ of work still outstanding.
 - [x] Graphical vertex editing with convex reconstruction and undo.
 - [x] Convex face picking, texture sampling, selected-side texturing and
   graphical shift/scale/rotation, Fit, Natural and Wrap.
+- [x] Texture locking during brush movement, duplication, rotation, bounds
+  scaling and vertex edits, including skew and mirrored mappings.
 
 Suggested implementation order for remaining work:
 
-1. [ ] Texture locking during rotation and reshaping.
-2. [ ] Graphical object multi-selection, marquee selection and editor groups.
-3. [ ] Plane clipping and convex subtraction.
-4. [ ] More curve presets and controls: cylinders, tubes, cones and caps.
-5. [ ] ASE browser mesh preview and GLB/glTF headless discovery bounds.
-6. [ ] Clean machine-readable CLI launcher without the Vite startup banner.
-7. [ ] Faithful external `.map` import and round-trip compatibility.
+1. [ ] Graphical object multi-selection, marquee selection and editor groups.
+2. [ ] Plane clipping and convex subtraction.
+3. [ ] More curve presets and controls: cylinders, tubes, cones and caps.
+4. [ ] ASE browser mesh preview and GLB/glTF headless discovery bounds.
+5. [ ] Clean machine-readable CLI launcher without the Vite startup banner.
+6. [ ] Faithful external `.map` import and round-trip compatibility.
 
 The latter graphical/editor items also appear in the broader `SHAGGED.md`
 design notes. Compiler grouping already works; editor selection groups are a
-different feature. Texture locking and multi-select are the next recommended
-authoring improvements, not prerequisites for the completed experiment.
+different feature. Multi-select is the next recommended authoring improvement,
+not a prerequisite for the completed experiment.
 
 ## Initial findings
 
@@ -210,8 +211,18 @@ and normal similarity. Invalid or collapsed edits leave the document unchanged;
 each drag or Apply is one undo step. Topology indices may change after edits.
 
 Convex subtraction is an open need: cuts overlapping convex AABBs reject
-instead of silently reshaping the hull as a box. Texture locking across
-rotations and concave decomposition remain separate.
+instead of silently reshaping the hull as a box. Concave decomposition remains
+a separate geometry feature.
+
+Texture locking is implemented through shared transform helpers. Affine
+movement, rotation and bounds scaling preserve corresponding corner UVs;
+skew and signed scale encode general nonsingular mappings. Free vertex edits
+select three stable anchors per resulting face, with a one-anchor inherited
+mapping for genuinely new facets lacking independent source UVs. Non-affine
+polygon changes cannot preserve every corner in a single affine mapping.
+Legacy fixed matrices use explicitly unknown virtual image dimensions.
+MakeBSP may normalize UV offsets by integer repeats; native tests require a
+single constant repeat offset across each checked face, including skewed ones.
 
 Convex face Shift-picking maps actual mesh triangles back to source sides even
 when materials reorder the preview batches. Alt-picking samples that side.

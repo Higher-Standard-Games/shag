@@ -103,7 +103,10 @@ describe("face alignment panel", () => {
       const p = { x: 64, y: 32, z };
       const a = faceST("+X", faceTexMatrix(brush.faces!["+X"]!), p);
       const b = faceST("+Y", faceTexMatrix(wrapped), p);
-      for (const i of [0, 1]) expect(Math.abs((a[i] - b[i]) % 1)).toBeLessThan(1e-6);
+      for (const i of [0, 1]) {
+        const difference = a[i] - b[i];
+        expect(Math.abs(difference - Math.round(difference))).toBeLessThan(1e-6);
+      }
     }
     expect(log).toEqual(["Fitted", "Natural alignment", "Wrapped +X around"]);
   });
@@ -113,13 +116,23 @@ describe("face alignment panel", () => {
     render();
     expect(button('[data-uv-op="wrap"]').disabled).toBe(true);
   });
+  it("edits skew, resets it with Fit and keeps unknown image-size locks disabled", () => {
+    keys = ["+X"];
+    render();
+    input("skew").value = "25";
+    input("skew").dispatchEvent(new Event("change", { bubbles: true }));
+    expect(brush.faces!["+X"]!.skew).toBe(25);
+    button('[data-uv-op="fit"]').click();
+    expect(brush.faces!["+X"]!.skew).toBe(0);
+    brush.faces!["+X"]!.sizeKnown = false;
+    render();
+    expect(input("skew").disabled).toBe(true);
+  });
 
   it("locks the panel while a selected face still has the brush's fixed alignment", () => {
     keys = ["+X", "-X"];
     render();
-    expect(host.querySelector(".shagged-uv__warning")!.textContent).toContain(
-      "Face -X uses the brush's fixed alignment",
-    );
+    expect(host.querySelector(".shagged-uv__warning")!.textContent).toContain("Face -X has no known image size");
     expect([...host.querySelectorAll<HTMLButtonElement>("button")].every((item) => item.disabled)).toBe(true);
     expect([...host.querySelectorAll<HTMLInputElement>("input")].every((item) => item.disabled)).toBe(true);
   });

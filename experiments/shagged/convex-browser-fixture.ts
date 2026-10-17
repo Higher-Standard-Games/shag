@@ -3,7 +3,8 @@ import { Ray } from "@babylonjs/core/Culling/ray";
 import { Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Scene } from "@babylonjs/core/scene";
 import type { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
-import { brushFaceKeys, brushFaceNormal, brushFacePoints } from "../../src/engine/editor/BrushFaces";
+import { brushFaceKeys, brushFaceMaterial, brushFaceNormal, brushFacePoints, brushFaceST } from "../../src/engine/editor/BrushFaces";
+import { faceTexMatrix } from "../../src/engine/editor/FaceUv";
 import "@babylonjs/core/Shaders/default.vertex";
 import "@babylonjs/core/Shaders/default.fragment";
 import "@babylonjs/core/Shaders/color.vertex";
@@ -58,4 +59,10 @@ export function convexFaceProbePoint() {
     if(pick?.pickedMesh?.name==="bridge" && pick.pickedMesh.metadata.convexFaceIndices[pick.faceId]===key) return {x:screen.x,y:screen.y,side:key};
   }
   throw new Error("No visible diagonal side found for face picking probe");
+}
+
+export function textureLockProbeSnapshot() {
+  const qa=(window as unknown as {__convexQA:{session:EditorSession}}).__convexQA;
+  const brush=qa.session.document.snapshot().brushes.find(b=>b.id==="bridge")!;
+  return brushFaceKeys(brush).map(key=>brushFacePoints(brush,key).map(point=>brushFaceST(brush,key,faceTexMatrix(brushFaceMaterial(brush,key)!),point)));
 }

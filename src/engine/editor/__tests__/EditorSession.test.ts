@@ -136,7 +136,7 @@ describe("editor DOM shell", () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
       let brush = session.document.snapshot().brushes[0];
       expect(brush.hull!.sides[1].material?.shader).toBe("blx/blx_white_stripe");
-      expect(brush.hull!.sides.filter((s) => s.material)).toHaveLength(1);
+      expect(brush.hull!.sides.filter((s) => s.material?.sizeKnown !== false)).toHaveLength(1);
       expect(brush.faces).toBeUndefined();
       session.root.querySelector<HTMLButtonElement>('[data-uv-op="fit"]')!.click();
       const fitted = session.document.snapshot().brushes[0].hull!.sides[1].material!;
@@ -158,7 +158,7 @@ describe("editor DOM shell", () => {
       brush = session.document.snapshot().brushes[0];
       expect(brush.hull!.sides[1].material).toEqual(fitted);
       expect(brush.hull!.sides[2].material?.shader).toBe(fitted.shader);
-      expect(brush.hull!.sides.filter((s) => s.material)).toHaveLength(2);
+      expect(brush.hull!.sides.filter((s) => s.material?.sizeKnown !== false)).toHaveLength(2);
     } finally {
       session.dispose();
       engine.dispose();
@@ -285,6 +285,7 @@ describe("editor DOM shell", () => {
       pane.dispatchEvent(new MouseEvent("pointerup", { bubbles: true, button: 0, clientX: 200, clientY: 150 }));
       session.root.querySelector<HTMLButtonElement>("[data-rotate-brush]")!.click();
       expect(session.document.snapshot().brushes[0].hull?.sides.length).toBe(6);
+      expect(session.root.querySelector<HTMLFormElement>("[data-brush-form]")!.checkValidity()).toBe(true);
       expect(session.root.querySelector("[data-face-net]")?.textContent).toContain("Side 0");
       const height = session.root.querySelector<HTMLInputElement>('[name="max-z"]')!;
       height.value = "48";
@@ -960,7 +961,7 @@ describe("editor DOM shell", () => {
     session.root.querySelector<HTMLButtonElement>('[data-face-net] button[data-face="-Y"]')!.click();
     expect(panel('[data-uv-op="fit"]').disabled).toBe(true);
     expect(session.root.querySelector("[data-face-alignment]")!.textContent).toContain(
-      "Face -Y uses the brush's fixed alignment",
+      "Face -Y has no known image size",
     );
     session.dispose();
     engine.dispose();

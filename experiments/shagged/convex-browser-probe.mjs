@@ -67,10 +67,28 @@ try{
     await sleep(300);await browser.shot(path.resolve('.cache/shagged-faces.png'));
     faces={side:target.side,picked,shifted,undo:true,sampled};
   }
+  let textureLock;
+  if(process.argv.includes('--texture-lock')) {
+    const snapshot=()=>browser.ev(`(async()=>{const {textureLockProbeSnapshot}=await import('/experiments/shagged/convex-browser-fixture.ts');return textureLockProbeSnapshot()})()`);
+    const before=await snapshot();
+    const compare=(actual)=>{assert.equal(actual.length,before.length);let maximum=0;before.forEach((side,i)=>side.forEach((uv,j)=>uv.forEach((value,k)=>{const d=value-actual[i][j][k];maximum=Math.max(maximum,Math.abs(d-Math.round(d)));})));assert(maximum<1e-6,`locked corner UV drift: ${maximum}`);return maximum;};
+    await browser.ev(`window.__convexQA.session.root.querySelector('[name="rotation-degrees"]').value='17'`);
+    await browser.click('[data-rotate-brush]');const rotationDrift=compare(await snapshot());
+    const resize=await browser.ev(`(()=>{const s=window.__convexQA.session,b=s.document.snapshot().brushes.find(b=>b.id==='bridge');window.__lockUndoBefore=JSON.stringify(b);const f=s.root.querySelector('[data-brush-form]'),input=f.querySelector('[name="max-x"]');input.value=String(Number(input.value)+48);const valid=f.checkValidity();f.requestSubmit();return {delta:s.document.snapshot().brushes.find(b=>b.id==='bridge').max.x-b.max.x,valid,status:s.root.querySelector('.shagged__status').textContent}})()`);
+    assert(Math.abs(resize.delta-48)<1e-6,JSON.stringify(resize));const resizeDrift=compare(await snapshot());
+    await browser.click('[data-face="1"]');
+    const skew=await browser.ev('Number(window.__convexQA.session.root.querySelector("[name=skew]").value)');
+    assert(Math.abs(skew)>1,'nonuniform resize must retain its nonorthogonal texture axes');
+    await browser.ev('window.__convexQA.session.inspector.scrollTop=window.__convexQA.session.inspector.scrollHeight');
+    await sleep(300);await browser.shot(path.resolve('.cache/shagged-texture-lock.png'));
+    await browser.click('[data-action="undo"]');
+    assert.equal(await browser.ev(`JSON.stringify(window.__convexQA.session.document.snapshot().brushes.find(b=>b.id==='bridge'))===window.__lockUndoBefore`),true);
+    textureLock={rotationDrift,resizeDrift,skew,undo:true};
+  }
   const errors=browser.logs.filter(entry=>/shader.*error|WebGL.*error|exception/i.test(JSON.stringify(entry)));
   assert.equal(errors.length,0,JSON.stringify(errors));
   assert.equal(browser.failed.length,0,JSON.stringify(browser.failed));
-  fs.writeFileSync(`.cache/shagged-${faces?'faces':vertices?'vertices':'convex'}-browser-report.json`,JSON.stringify({ok:true,result,textured,vertices,faces,logs:browser.logs,failed:browser.failed},null,2));
-  console.log(JSON.stringify({ok:true,...result,vertices,faces},null,2));
+  fs.writeFileSync(`.cache/shagged-${textureLock?'texture-lock':faces?'faces':vertices?'vertices':'convex'}-browser-report.json`,JSON.stringify({ok:true,result,textured,vertices,faces,textureLock,logs:browser.logs,failed:browser.failed},null,2));
+  console.log(JSON.stringify({ok:true,...result,vertices,faces,textureLock},null,2));
   await browser.ev('window.__convexQA.engine.stopRenderLoop();window.__convexQA.session.dispose();window.__convexQA.engine.dispose();');
 }finally{if(browser)await browser.close();vite.kill();}

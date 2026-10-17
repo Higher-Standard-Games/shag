@@ -53,6 +53,7 @@ const FIELDS: readonly Field[] = [
     set: (f, v) => ({ ...f, scale: [f.scale[0], v] }),
   },
   { name: "rotation", label: "Rotation", step: 15, get: (f) => f.rotation, set: (f, v) => ({ ...f, rotation: v }) },
+  { name: "skew", label: "Skew", step: 5, get: (f) => f.skew ?? 0, set: (f, v) => ({ ...f, skew: v }) },
 ];
 
 const tidy = (value: number): number => Math.round(value * 1e6) / 1e6;
@@ -167,11 +168,14 @@ export function renderFaceAlignment(
     applyTyped();
   });
 
-  const fixed = keys.filter((key) => !brushFaceMaterial(brush, key));
+  const fixed = keys.filter((key) => {
+    const material = brushFaceMaterial(brush, key);
+    return !material || material.sizeKnown === false;
+  });
   if (fixed.length) {
     const warning = document.createElement("p");
     warning.className = "shagged-uv__warning";
-    warning.textContent = `Face ${fixed.join(", ")} uses the brush's fixed alignment, which has no image size to align against. Pick a texture (T) for it first.`;
+    warning.textContent = `Face ${fixed.join(", ")} has no known image size. Pick a texture (T) for it first.`;
     form.appendChild(warning);
     for (const control of form.querySelectorAll<HTMLInputElement | HTMLButtonElement>("input, button")) {
       control.disabled = true;

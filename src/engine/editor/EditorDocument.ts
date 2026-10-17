@@ -9,7 +9,7 @@ export interface Vec3q {
 export type FaceKey = "+X" | "-X" | "+Y" | "-Y" | "+Z" | "-Z";
 export const FACE_KEYS: readonly FaceKey[] = ["+X", "-X", "+Y", "-Y", "+Z", "-Z"];
 
-/** One box face's material and alignment; see FaceUv.ts for how it becomes the face matrix. */
+/** One brush face's material and alignment; see FaceUv.ts for its compiler matrix. */
 export interface FaceMaterial {
   /** Unprefixed, e.g. "blx/blx_dark": MakeBSP adds "textures/" itself. */
   shader: string;
@@ -19,8 +19,12 @@ export interface FaceMaterial {
   scale: [number, number];
   /** Degrees. */
   rotation: number;
+  /** Relative V-axis angle, in degrees; absent means orthogonal texture axes. */
+  skew?: number;
   /** The image's size in texels, recorded when the texture is assigned. */
   size: [number, number];
+  /** False for locked legacy matrices using virtual image dimensions. */
+  sizeKnown?: false;
 }
 
 export interface BoxBrush {
@@ -243,6 +247,13 @@ function validateFaces(brush: BoxBrush): void {
       throw new Error(`Shader on ${where} must not start with textures/`);
     }
     const numbers = [...face.shift, ...face.scale, face.rotation];
+    if (
+      face.skew !== undefined &&
+      (!Number.isFinite(face.skew) || Math.abs(Math.cos((face.skew * Math.PI) / 180)) < 1e-8)
+    )
+      throw new Error(`Invalid texture skew on ${where}`);
+    if (face.sizeKnown !== undefined && face.sizeKnown !== false)
+      throw new Error(`Invalid image-size flag on ${where}`);
     if (face.shift?.length !== 2 || face.scale?.length !== 2 || !numbers.every(Number.isFinite)) {
       throw new Error(`Invalid alignment on ${where}`);
     }

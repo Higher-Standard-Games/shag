@@ -24,6 +24,7 @@ import {
 import { brushEntityShader } from "../EntityCatalog";
 import { naturalFace } from "../FaceUv";
 import { inspectMapHealth, type MapHealthIssue } from "../MapHealth";
+import { lockBrushBounds } from "../TextureLock";
 import { boxesOverlap, subtractBox } from "./BoxCsg";
 import { alignCreatedBrush, type CreationMaterials } from "./CreationMaterials";
 import {
@@ -262,10 +263,12 @@ function applyOne(doc: EditorDocumentData, op: EditOp, changed: Set<string>): vo
     }
     case "box.update": {
       const target = brush(doc, op.id);
+      const before = structuredClone(target);
       if (op.min) target.min = vec(op.min, "min");
       if (op.max) target.max = vec(op.max, "max");
       if (op.shader) target.shader = op.shader;
       if (op.detail !== undefined) target.detail = op.detail;
+      doc.brushes[doc.brushes.indexOf(target)] = lockBrushBounds(before, target);
       changed.add(op.id);
       return;
     }
@@ -451,8 +454,10 @@ function carve(doc: EditorDocumentData, box: { min: Vec3q; max: Vec3q }): string
 function moveObject(doc: EditorDocumentData, id: string, delta: Vec3q): void {
   const b = doc.brushes.find((x) => x.id === id);
   if (b) {
+    const before = structuredClone(b);
     b.min = add(b.min, delta);
     b.max = add(b.max, delta);
+    Object.assign(b, lockBrushBounds(before, b));
     return;
   }
   const e = doc.entities.find((x) => x.id === id);
@@ -477,7 +482,9 @@ function duplicateObject(doc: EditorDocumentData, id: string, delta: Vec3q, suff
   const copyId = (source: string) => claimId(doc, nextFree(doc, `${source}-${suffix}`), "brush");
   const b = doc.brushes.find((x) => x.id === id);
   if (b) {
-    doc.brushes.push({ ...structuredClone(b), id: copyId(id), min: add(b.min, delta), max: add(b.max, delta) });
+    doc.brushes.push(
+      lockBrushBounds(b, { ...structuredClone(b), id: copyId(id), min: add(b.min, delta), max: add(b.max, delta) }),
+    );
     return;
   }
   const e = doc.entities.find((x) => x.id === id);
@@ -490,12 +497,14 @@ function duplicateObject(doc: EditorDocumentData, id: string, delta: Vec3q, suff
     const brushIds = be.brushIds.map((owned) => {
       const source = brush(doc, owned);
       const ownedCopy = copyId(owned);
-      doc.brushes.push({
-        ...structuredClone(source),
-        id: ownedCopy,
-        min: add(source.min, delta),
-        max: add(source.max, delta),
-      });
+      doc.brushes.push(
+        lockBrushBounds(source, {
+          ...structuredClone(source),
+          id: ownedCopy,
+          min: add(source.min, delta),
+          max: add(source.max, delta),
+        }),
+      );
       return ownedCopy;
     });
     doc.brushEntities?.push({ ...structuredClone(be), id: copyId(id), brushIds });

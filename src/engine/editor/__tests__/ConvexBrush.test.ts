@@ -35,7 +35,7 @@ describe("convex brush geometry", () => {
     const rotated = rotateBrush(box, "z", 45, { x: 0, y: 0, z: 0 });
     validateHull(rotated);
     expect(rotated.min.x).toBeCloseTo(-144 / Math.sqrt(2));
-    expect(rotated.hull?.sides.find((side) => side.material)?.material).toEqual(box.faces!["+Z"]);
+    expect(rotated.hull?.sides[1].material).toMatchObject({ shader: "metal/top", size: [256, 128], scale: [0.5, 0.5] });
     expect(box.hull).toBeUndefined();
     expect(rotated.detail).toBe(true);
     const resized = structuredClone(rotated);

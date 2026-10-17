@@ -1,4 +1,5 @@
 import type { BoxBrush, FaceKey, FaceMaterial, Vec3q } from "./EditorDocument";
+import { lockBrushCorrespondence } from "./TextureLock";
 
 export interface HullSide {
   /** Vertex indices counterclockwise as seen from outside the solid. */
@@ -212,7 +213,10 @@ export function rotateBrush(brush: BoxBrush, axis: keyof Vec3q, degrees: number,
     const b = p[v] - center[v];
     return { ...p, [u]: center[u] + a * c - b * s, [v]: center[v] + a * s + b * c };
   });
-  return fromWorldHull(brush.id, vertices, hull.hull!.sides, brush.shader, brush.detail);
+  return lockBrushCorrespondence(
+    brush,
+    fromWorldHull(brush.id, vertices, hull.hull!.sides, brush.shader, brush.detail),
+  );
 }
 
 export function prismBrush(

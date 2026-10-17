@@ -1,4 +1,5 @@
 import type { BoxBrush, Vec3q } from "./EditorDocument";
+import { lockBrushBounds } from "./TextureLock";
 
 export interface OrthoAxes {
   u: keyof Vec3q;
@@ -32,5 +33,5 @@ export function moveBox(brush: BoxBrush, axes: OrthoAxes, du: number, dv: number
   result.max[axes.u] += du;
   result.min[axes.v] += dv;
   result.max[axes.v] += dv;
-  return result;
+  return lockBrushBounds(brush, result);
 }

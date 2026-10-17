@@ -10,6 +10,7 @@ import {
   validateHull,
 } from "./ConvexBrush";
 import type { BoxBrush, Vec3q } from "./EditorDocument";
+import { lockFaceTexture } from "./TextureLock";
 
 export interface VertexEdit {
   index: number;
@@ -192,8 +193,15 @@ export function editBrushVertices(brush: BoxBrush, edits: readonly VertexEdit[])
         score: side.vertices.filter((i) => vertices.includes(i)).length * 4 + dot(normal, group.normal),
       }))
       .sort((a, b) => b.score - a.score);
-    const material = ranked[0]?.side.material;
-    return { vertices, ...(material ? { material: structuredClone(material) } : {}) };
+    const sourceSide = ranked[0].side;
+    const material = lockFaceTexture(
+      sourceSide.material,
+      brush.shader,
+      sourceSide.vertices.map((i) => sourcePoints[i]),
+      vertices.map((i) => sourcePoints[i]),
+      vertices.map((i) => points[i]),
+    );
+    return { vertices, material };
   });
   const used = [...new Set(sides.flatMap((side) => side.vertices))].sort((a, b) => a - b);
   const remap = points.map((_, i) => used.indexOf(i));

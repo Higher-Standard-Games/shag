@@ -86,6 +86,7 @@ import { TextureBrowser } from "./TextureBrowser";
 import type { TextureEntry } from "./TextureCatalog";
 import { loadTextureCatalog } from "./TextureCatalogLoader";
 import { shaderBatches } from "./TexturedPreview";
+import { lockBrushBounds } from "./TextureLock";
 import type { TextureThumbnails } from "./TextureThumbnails";
 import { createBrowserThumbnails } from "./TextureThumbnailsBrowser";
 import "./editor.css";
@@ -867,7 +868,10 @@ export class EditorSession {
       this.document.transact((data) => {
         const brush = data.brushes.find((item) => item.id === brushId);
         if (!brush) throw new Error("Selected brush no longer exists");
-        const fixed = keys.filter((key) => !brushFaceMaterial(brush, key));
+        const fixed = keys.filter((key) => {
+          const material = brushFaceMaterial(brush, key);
+          return !material || material.sizeKnown === false;
+        });
         if (fixed.length) throw new Error(`pick a texture (T) for face ${fixed.join(", ")} first`);
         // every update reads the faces as they were, so a wrap's source isn't changed under it
         const next = keys.map((key) => update(brushFaceMaterial(brush, key)!, key, brush));
@@ -1082,7 +1086,9 @@ export class EditorSession {
           setBrushFaceMaterial(
             brush,
             key,
-            existing ? { ...existing, shader: entry.name, size } : naturalFace(entry.name, size),
+            existing && existing.sizeKnown !== false
+              ? { ...existing, shader: entry.name, size }
+              : naturalFace(entry.name, size),
           );
         }
       });
@@ -1116,7 +1122,9 @@ export class EditorSession {
   /** Alt+click: a face's texture becomes the current texture (eyedropper). */
   private sampleFace(brush: BoxBrush, key: BrushFace): void {
     const face = brushFaceMaterial(brush, key);
-    this.currentTexture = face ? { name: face.shader, size: face.size } : { name: brush.shader, size: null };
+    this.currentTexture = face
+      ? { name: face.shader, size: face.sizeKnown === false ? null : face.size }
+      : { name: brush.shader, size: null };
     this.renderCurrentTexture();
     this.status(`Sampled ${this.currentTexture.name} from face ${key}`);
   }
@@ -1197,7 +1205,7 @@ export class EditorSession {
         label.textContent = `Side ${index}`;
         const shader = side.material?.shader ?? brush.shader;
         name.textContent = shader.split("/").pop() ?? shader;
-        button.title = `${shader} · ${side.vertices.length} vertices${side.material ? "" : " · fixed alignment"}`;
+        button.title = `${shader} · ${side.vertices.length} vertices${side.material && side.material.sizeKnown !== false ? "" : " · unknown image size"}`;
         button.append(label, name);
         net.append(button);
       });
@@ -1225,7 +1233,10 @@ export class EditorSession {
       const name = document.createElement("span");
       name.textContent = shader.split("/").pop() ?? shader;
       button.append(label, name);
-      button.title = face ? `${shader} · ${face.size[0]}×${face.size[1]}` : `${shader} · fixed alignment`;
+      button.title =
+        face && face.sizeKnown !== false
+          ? `${shader} · ${face.size[0]}×${face.size[1]}`
+          : `${shader} · unknown image size`;
       net.appendChild(button);
     }
   }
@@ -1798,7 +1809,7 @@ export class EditorSession {
       copy.min.x += this.grid;
       copy.max.x += this.grid;
       this.document.transact((draft) => {
-        draft.brushes.push(copy);
+        draft.brushes.push(lockBrushBounds(brush, copy));
         ownerOf(draft, brush.id)?.brushIds.push(id);
       });
     } else if (entity) {
@@ -2519,11 +2530,13 @@ export class EditorSession {
       this.document.transact((data) => {
         const brush = data.brushes.find((item) => item.id === id);
         if (!brush) throw new Error("Selected brush no longer exists");
+        const before = structuredClone(brush);
         for (const axis of ["x", "y", "z"] as const) {
           brush.min[axis] = Number(values.get(`min-${axis}`));
           brush.max[axis] = Number(values.get(`max-${axis}`));
         }
         brush.shader = String(values.get("shader") ?? "").trim();
+        Object.assign(brush, lockBrushBounds(before, brush));
         this.applyOwner(data, brush, values);
       });
       this.changed();
@@ -3352,8 +3365,8 @@ export class EditorSession {
           ${(["x", "y", "z"] as const)
             .map(
               (axis) => `<label class="shagged__bounds"><span>${axis.toUpperCase()}</span>
-                <input name="min-${axis}" type="number" step="1" required>
-                <input name="max-${axis}" type="number" step="1" required></label>`,
+                <input name="min-${axis}" type="number" step="any" required>
+                <input name="max-${axis}" type="number" step="any" required></label>`,
             )
             .join("")}
           <label class="shagged__shader">Shader <input name="shader" type="text" spellcheck="false" required></label>

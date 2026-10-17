@@ -22,11 +22,12 @@ const closeST = (a: number[], b: number[]) =>
 describe("convex face alignment", () => {
   it("uses side indices and fits the actual diagonal polygon, with unchanged neighboring materials", () => {
     const brush = rotateBrush(box, "z", 37);
+    const untouched = structuredClone(brushFaceMaterial(brush, 0));
     expect(brushFaceKeys(brush)).toEqual([0, 1, 2, 3, 4, 5]);
     expect(() => brushFaceMaterial(brush, "+X")).toThrow(/no longer/);
     const fitted = fitBrushFace(texture, brush, 2);
     setBrushFaceMaterial(brush, 2, fitted);
-    expect(brushFaceMaterial(brush, 0)).toBeUndefined();
+    expect(brushFaceMaterial(brush, 0)).toEqual(untouched);
     const uv = brushFacePoints(brush, 2).map((p) => brushFaceST(brush, 2, faceTexMatrix(fitted), p));
     for (const axis of [0, 1]) {
       expect(Math.min(...uv.map((p) => p[axis]))).toBeCloseTo(0, 6);
