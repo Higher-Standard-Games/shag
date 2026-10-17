@@ -39,6 +39,7 @@ The 3D view has three display modes in its corner: **Brush**, **Textured** (defa
 | --- | --- |
 | `B` | **Brush**: drag in a 2D view to draw a box on the grid. The hidden axis gets one grid step from the work plane. |
 | `V` | **Select**: click to select; drag to move; drag an edge or corner to resize. Right click deselects. |
+| `G` | **Vertices**: select a brush, then drag vertex handles in a 2D view. Shift+click toggles several handles. |
 | `P` | **Patch**: draw a curved `patchDef2` surface. The **Curves** menu adds Bevel, Inverted Bevel, Arch and Edit Points. |
 | `E` | **Entity**: place the class picked in the toolbar list. |
 | `T` | **Texture browser**. Click a texture to make it current for new brushes, or to apply it to selected faces. |
@@ -60,6 +61,26 @@ whole convex brush; numeric per-side material editing and creating polygon
 prisms/wedges are available through the [scripting API](./shagged-api.md#convex-solids-and-rotation).
 The six-face box alignment panel does not edit convex sides. Carving through
 convex solids is rejected until convex subtraction is supported.
+
+### Brush vertices
+
+Choose **Vertices** (`G`) and click a brush. Numbered handles appear in all
+three 2D views. Drag a handle on the grid; handles at the same projected
+position move together, including vertices at different depths. Shift+click
+adds or removes a projected group. Drag an already selected handle to move
+the selection together; the hidden coordinate stays unchanged.
+
+The inspector lists individual vertices, including overlapping ones. Select
+one for exact world XYZ coordinates, or several for a relative XYZ move.
+**Apply Vertices** and each completed drag are one undo step. Escape cancels
+a drag. Use **Select** (`V`) for whole-brush resizing or deletion.
+
+The first edit converts a box to a convex brush. The convex envelope is rebuilt:
+warped faces split, coplanar faces merge, and vertices inside the envelope are
+removed. Existing side materials carry to the closest matching source faces;
+review texture alignment after reshaping. Vertex and side indices can change.
+Edits that collapse the solid or exceed hull limits are rejected, preserving
+the document. Concave shapes require several brushes.
 
 ### Textures
 
@@ -121,6 +142,6 @@ The same compile runs from the command line with `npm run shagged:compile -- <ma
 
 ## Limits
 
-- Brushes are axis-aligned boxes; curved surfaces are patches. The editor has no angled brushes or boolean (CSG) operations; the scripting API's `brush.carve` subtracts boxes.
+- Brushes can be boxes or convex solids; curved surfaces are patches. Boolean subtraction is limited to boxes through the scripting API's `brush.carve`.
 - Arbitrary NetRadiant `.map` files cannot be imported.
 - Selection is one object at a time, with no multi-select or groups.

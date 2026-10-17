@@ -92,6 +92,106 @@ beforeEach(() => {
 });
 
 describe("editor DOM shell", () => {
+  it("drags projected brush vertices as one undoable edit and cancels a drag", () => {
+    const engine = new NullEngine(),
+      canvas = document.createElement("canvas");
+    document.body.append(canvas);
+    const session = new EditorSession(engine, canvas, vi.fn());
+    try {
+      session.document.transact((data) =>
+        data.brushes.push({
+          id: "vertexbox",
+          min: { x: -64, y: -64, z: 0 },
+          max: { x: 64, y: 64, z: 64 },
+          shader: "common/caulk",
+        }),
+      );
+      session.root.querySelector<HTMLButtonElement>('[data-action="vertices"]')!.click();
+      const pane = session.root.querySelector<HTMLCanvasElement>('[data-plane="xy"]')!;
+      const pointer = (type: string, x: number, y: number, shiftKey = false) =>
+        pane.dispatchEvent(new MouseEvent(type, { bubbles: true, button: 0, clientX: x, clientY: y, shiftKey }));
+      pointer("pointerdown", 200, 150);
+      pointer("pointerup", 200, 150);
+      expect(session.root.querySelectorAll("[data-vertex-list] option")).toHaveLength(8);
+      const before = session.document.snapshot();
+      pointer("pointerdown", 264, 86);
+      pointer("pointermove", 280, 86);
+      expect(session.document.snapshot()).toEqual(before);
+      session.root.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+      pointer("pointerup", 280, 86);
+      expect(session.document.snapshot()).toEqual(before);
+      pointer("pointerdown", 264, 86);
+      pointer("pointermove", 280, 86);
+      pointer("pointerup", 280, 86);
+      const edited = session.document.snapshot();
+      expect(edited.brushes[0].max.x).toBe(80);
+      expect(edited.brushes[0].hull).toBeDefined();
+      expect(edited.revision).toBe(before.revision + 1);
+      session.root.querySelector<HTMLButtonElement>('[data-action="undo"]')!.click();
+      expect(session.document.snapshot().brushes[0].hull).toBeUndefined();
+      session.root.querySelector<HTMLButtonElement>('[data-action="redo"]')!.click();
+      expect(session.document.snapshot().brushes[0].max.x).toBe(80);
+    } finally {
+      session.dispose();
+      engine.dispose();
+    }
+  });
+  it("edits an individual vertex numerically, toggles projected groups and rejects collapse", () => {
+    const engine = new NullEngine(),
+      canvas = document.createElement("canvas");
+    document.body.append(canvas);
+    const session = new EditorSession(engine, canvas, vi.fn());
+    try {
+      session.document.transact((data) =>
+        data.brushes.push({
+          id: "vertexbox",
+          min: { x: -64, y: -64, z: 0 },
+          max: { x: 64, y: 64, z: 64 },
+          shader: "common/caulk",
+        }),
+      );
+      session.root.querySelector<HTMLButtonElement>('[data-action="vertices"]')!.click();
+      const pane = session.root.querySelector<HTMLCanvasElement>('[data-plane="xy"]')!;
+      pane.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, button: 0, clientX: 200, clientY: 150 }));
+      const select = (indices: number[]) => {
+        const list = session.root.querySelector<HTMLSelectElement>("[data-vertex-list]")!;
+        for (const option of list.options) option.selected = indices.includes(Number(option.value));
+        list.dispatchEvent(new Event("change"));
+      };
+      select([6]);
+      const set = (axis: string, value: string) => {
+        session.root.querySelector<HTMLInputElement>(`[name="vertex-${axis}"]`)!.value = value;
+      };
+      set("x", "80");
+      set("y", "80");
+      set("z", "80");
+      session.root
+        .querySelector<HTMLFormElement>("[data-vertex-form]")!
+        .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      expect(session.document.snapshot().brushes[0].max.z).toBe(80);
+      session.root.querySelector<HTMLButtonElement>('[data-action="undo"]')!.click();
+      select([4, 5, 6, 7]);
+      set("z", "-64");
+      const before = session.document.snapshot();
+      session.root
+        .querySelector<HTMLFormElement>("[data-vertex-form]")!
+        .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      expect(session.document.snapshot()).toEqual(before);
+      expect(session.root.textContent).toContain("Vertex edit rejected");
+      pane.dispatchEvent(
+        new MouseEvent("pointerdown", { bubbles: true, button: 0, clientX: 136, clientY: 214, shiftKey: true }),
+      );
+      const selected = [...session.root.querySelector<HTMLSelectElement>("[data-vertex-list]")!.selectedOptions].map(
+        (o) => Number(o.value),
+      );
+      expect(selected).toEqual([0, 4, 5, 6, 7]);
+      session.root.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete", bubbles: true }));
+      expect(session.document.snapshot().brushes).toHaveLength(1);
+    } finally {
+      session.dispose();
+      engine.dispose();
+    }
+  });
   it("rotates from the inspector, keeps the hull through bounds edits and restores a box with undo", () => {
     const engine = new NullEngine();
     const canvas = document.createElement("canvas");

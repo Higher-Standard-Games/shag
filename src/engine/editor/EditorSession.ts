@@ -16,6 +16,7 @@ import "@babylonjs/core/Rendering/edgesRenderer";
 // Registers Scene.pick for perspective selection.
 import "@babylonjs/core/Culling/ray";
 import { q3ToBabylonVec3 } from "../loader/bsp/mesh/coordinates";
+import { brushVertices, editBrushVertices, type VertexEdit, vertexHit } from "./BrushVertexTools";
 import { rotateBrush } from "./ConvexBrush";
 import { createConvexPreview, hullEdges } from "./ConvexPreview";
 import {
@@ -90,7 +91,8 @@ const VIEW_MODES: ReadonlyArray<[ViewMode, string, string]> = [
 
 type Gesture = {
   plane: Plane;
-  mode: "draw" | "move" | "resize" | "point";
+  mode: "draw" | "move" | "resize" | "point" | "vertex";
+  vertexIndices?: number[];
   drawKind?: "brush" | "patch";
   patchShape?: PatchShape;
   patchDepth?: number;
@@ -106,7 +108,7 @@ type Gesture = {
   grid: number;
 };
 
-type Tool = "brush" | "patch" | "points" | "select" | "entity";
+type Tool = "brush" | "patch" | "points" | "vertices" | "select" | "entity";
 type PatchShape = NonNullable<EditorViewState["patchShape"]>;
 
 /** An entity's box in world space: its class's mins/maxs around the origin, or a model's own extents. */
@@ -270,6 +272,8 @@ export class EditorSession {
   private readonly statusEl: HTMLElement;
   private readonly inspector: HTMLElement;
   private selectedId: string | null = null;
+  private vertexOwner: string | null = null;
+  private readonly selectedVertices = new Set<number>();
   private patchPoint = 4;
   private patchShape: PatchShape = "flat";
   private patchDepth = 32;
@@ -376,7 +380,7 @@ export class EditorSession {
         </div>
         <div class="shagged__toolgroup" aria-label="Placement tools">
           <span class="shagged__group-label">TOOLS</span>
-          <button data-action="select" title="V">Select</button><button data-action="brush" title="B">Brush</button><button data-action="patch" title="P">Patch</button>
+          <button data-action="select" title="V">Select</button><button data-action="vertices" title="Vertex mode (G)">Vertices</button><button data-action="brush" title="B">Brush</button><button data-action="patch" title="P">Patch</button>
           <details class="shagged__menu shagged__menu--curves"><summary title="Curved patch surfaces">Curves</summary><div class="shagged__menu-panel">
             <button data-action="patch">Free Patch</button><button data-action="points">Edit Points</button><button data-action="curve-bevel">Bevel</button>
             <button data-action="curve-inverted-bevel">Inverted Bevel</button><button data-action="curve-arch">Arch</button>
@@ -1398,6 +1402,8 @@ export class EditorSession {
   }
 
   private restoreView(view: EditorViewState | null): void {
+    this.selectedVertices.clear();
+    this.vertexOwner = null;
     this.grid = view?.grid ?? 16;
     this.zoom = view?.zoom ?? 1;
     this.viewCenter = { ...(view?.viewCenter ?? { x: 0, y: 0, z: 0 }) };
@@ -1660,10 +1666,14 @@ export class EditorSession {
           this.exportMap();
           break;
         case "undo":
+          this.cancelGesture();
+          this.selectedVertices.clear();
           this.document.undo();
           this.changed();
           break;
         case "redo":
+          this.cancelGesture();
+          this.selectedVertices.clear();
           this.document.redo();
           this.changed();
           break;
@@ -1678,6 +1688,7 @@ export class EditorSession {
           break;
         case "brush":
         case "points":
+        case "vertices":
         case "select":
         case "entity":
           this.cancelGesture();
@@ -1699,6 +1710,10 @@ export class EditorSession {
           this.duplicateSelection();
           break;
         case "delete":
+          if (this.tool === "vertices") {
+            this.status("Switch to Select to delete the whole brush");
+            break;
+          }
           if (this.selectedId) {
             const id = this.selectedId;
             this.document.transact((data) => {
@@ -1786,6 +1801,7 @@ export class EditorSession {
     if (key === "b") this.action("brush");
     else if (key === "p") this.action("patch");
     else if (key === "v") this.action("select");
+    else if (key === "g") this.action("vertices");
     else if (key === "e") this.action("entity");
     else if (key === "t") {
       // the drawer focuses its search box during this keydown; without this the "t" is typed into it
@@ -1986,6 +2002,44 @@ export class EditorSession {
       this.placeEntity(plane, start);
       return;
     }
+    if (this.tool === "vertices") {
+      const brushes = this.document.snapshot().brushes;
+      const selected = brushes.find((brush) => brush.id === this.selectedId);
+      const hits = selected ? vertexHit(selected, axes.u, axes.v, u, v, 8 / this.zoom) : [];
+      if (selected && hits.length) {
+        if (event.shiftKey) {
+          const remove = hits.every((i) => this.selectedVertices.has(i));
+          for (const i of hits) {
+            if (remove) this.selectedVertices.delete(i);
+            else this.selectedVertices.add(i);
+          }
+        } else {
+          if (!hits.some((i) => this.selectedVertices.has(i))) {
+            this.selectedVertices.clear();
+            for (const i of hits) this.selectedVertices.add(i);
+          }
+          this.gesture = {
+            plane,
+            mode: "vertex",
+            start,
+            current: start,
+            brush: selected,
+            vertexIndices: [...this.selectedVertices],
+            workPlane: this.workPlanes[axes.hidden],
+            grid: this.grid,
+          };
+          pane.style.cursor = "grabbing";
+        }
+      } else {
+        this.selectedId = [...brushes].reverse().find((brush) => inRect(u, v, brush, plane))?.id ?? null;
+        this.selectedVertices.clear();
+        this.selectedFaces.clear();
+        this.rebuildMeshes();
+      }
+      this.draw();
+      this.trySaveView();
+      return;
+    }
     if (this.tool === "points") {
       const patches = this.document.snapshot().patches ?? [];
       const selected = patches.find((patch) => patch.id === this.selectedId);
@@ -2141,6 +2195,10 @@ export class EditorSession {
       return;
     }
     const axes = AXES[plane];
+    if (gesture.mode === "vertex" && gesture.brush) {
+      this.commitVertexEdits(gesture.brush, this.vertexGestureEdits(gesture));
+      return;
+    }
     if (gesture.mode === "point" && gesture.patch && gesture.controlIndex !== undefined) {
       const candidate = movedPatchControl(gesture.patch, gesture.controlIndex, axes, u1, v1);
       try {
@@ -2260,6 +2318,12 @@ export class EditorSession {
       return;
     }
     const [u, v] = this.worldAt(plane, pane, event);
+    if (this.tool === "vertices") {
+      const brush = this.document.snapshot().brushes.find((item) => item.id === this.selectedId);
+      pane.style.cursor =
+        brush && vertexHit(brush, AXES[plane].u, AXES[plane].v, u, v, 8 / this.zoom).length ? "move" : "";
+      return;
+    }
     if (this.tool === "points") {
       const patch = this.document.snapshot().patches?.find((item) => item.id === this.selectedId);
       pane.style.cursor =
@@ -2661,6 +2725,83 @@ export class EditorSession {
     }
   }
 
+  private vertexGestureEdits(gesture: Gesture): VertexEdit[] {
+    const axes = AXES[gesture.plane];
+    const points = brushVertices(gesture.brush!);
+    return (gesture.vertexIndices ?? []).map((index) => ({
+      index,
+      position: {
+        ...points[index],
+        [axes.u]: points[index][axes.u] + gesture.current[0] - gesture.start[0],
+        [axes.v]: points[index][axes.v] + gesture.current[1] - gesture.start[1],
+      },
+    }));
+  }
+
+  private commitVertexEdits(brush: BoxBrush, edits: VertexEdit[]): void {
+    try {
+      const result = editBrushVertices(brush, edits);
+      this.document.transact((data) => {
+        const index = data.brushes.findIndex((item) => item.id === brush.id);
+        if (index < 0) throw new Error("Brush no longer exists");
+        data.brushes[index] = result.brush;
+      });
+      const selected = [...this.selectedVertices].map((i) => result.remap[i]).filter((i) => i >= 0);
+      this.selectedVertices.clear();
+      for (const i of selected) this.selectedVertices.add(i);
+      this.selectedFaces.clear();
+      this.changed();
+      this.status("Vertices moved; convex surface rebuilt");
+    } catch (error) {
+      this.draw();
+      this.status(`Vertex edit rejected: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  private renderVertexInspector(brush: BoxBrush): void {
+    const points = brushVertices(brush);
+    this.inspector.innerHTML = `<h2>Brush vertices</h2><p>Drag handles in the 2D views. Overlapping handles move together. Shift+click toggles selection. Choose individual vertices below.</p>
+      <label class="shagged__shader">Vertices <select data-vertex-list multiple size="8" aria-label="Brush vertices"></select></label>
+      <form data-vertex-form>${(["x", "y", "z"] as const).map((axis) => `<label class="shagged__shader">${this.selectedVertices.size === 1 ? "Position" : "Move by"} ${axis.toUpperCase()} <input name="vertex-${axis}" type="number" step="any" required></label>`).join("")}
+      <button type="submit" ${this.selectedVertices.size ? "" : "disabled"}>Apply Vertices</button></form>
+      <p>Edits keep a convex solid: faces may split or merge, and interior vertices disappear. A collapsed brush is rejected. One drag or Apply is one undo step. Use Select (V) for whole-brush edits.</p>`;
+    const list = this.inspector.querySelector<HTMLSelectElement>("[data-vertex-list]")!;
+    points.forEach((point, i) => {
+      const option = document.createElement("option");
+      option.value = String(i);
+      option.textContent = `${i}: ${point.x.toFixed(2)}, ${point.y.toFixed(2)}, ${point.z.toFixed(2)}`;
+      option.selected = this.selectedVertices.has(i);
+      list.append(option);
+    });
+    list.addEventListener("change", () => {
+      this.selectedVertices.clear();
+      for (const option of list.selectedOptions) this.selectedVertices.add(Number(option.value));
+      this.draw();
+    });
+    const form = this.inspector.querySelector<HTMLFormElement>("[data-vertex-form]")!;
+    for (const axis of ["x", "y", "z"] as const)
+      form.querySelector<HTMLInputElement>(`[name="vertex-${axis}"]`)!.value = String(
+        this.selectedVertices.size === 1 ? (points[[...this.selectedVertices][0]]?.[axis] ?? 0) : 0,
+      );
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const values = new FormData(form);
+      const value = {
+        x: Number(values.get("vertex-x")),
+        y: Number(values.get("vertex-y")),
+        z: Number(values.get("vertex-z")),
+      };
+      const edits = [...this.selectedVertices].map((index) => ({
+        index,
+        position:
+          this.selectedVertices.size === 1
+            ? value
+            : { x: points[index].x + value.x, y: points[index].y + value.y, z: points[index].z + value.z },
+      }));
+      this.commitVertexEdits(brush, edits);
+    });
+  }
+
   private previewBrush(): BoxBrush | null {
     const gesture = this.gesture;
     if (!gesture) return null;
@@ -2671,6 +2812,13 @@ export class EditorSession {
       return bounds ? { id: "gesture-preview", ...bounds, shader: "blx/blx_grid" } : null;
     }
     if (!gesture.brush) return null;
+    if (gesture.mode === "vertex") {
+      try {
+        return editBrushVertices(gesture.brush, this.vertexGestureEdits(gesture)).brush;
+      } catch {
+        return null;
+      }
+    }
     if (gesture.mode === "resize" && gesture.edge) {
       return resizeBox(
         gesture.brush,
@@ -2783,6 +2931,10 @@ export class EditorSession {
 
   private draw(): void {
     const data = this.document.snapshot();
+    if (this.vertexOwner !== this.selectedId) {
+      this.vertexOwner = this.selectedId;
+      this.selectedVertices.clear();
+    }
     const preview = this.previewBrush();
     const patchPreview = this.previewPatch();
     const ownerColors = brushOwnerColors(data);
@@ -2833,7 +2985,7 @@ export class EditorSession {
         ctx.lineWidth = selected ? 2 : 1;
         ctx.fillRect(x, y, rw, rh);
         ctx.strokeRect(x, y, rw, rh);
-        if (selected) {
+        if (selected && this.tool !== "vertices") {
           ctx.fillStyle = "#fff3bd";
           for (const [hx, hy] of [
             // edge midpoints: drag one axis
@@ -2852,7 +3004,7 @@ export class EditorSession {
       };
       for (const brush of data.brushes) {
         const edited = this.gesture?.mode !== "draw" && this.gesture?.brush?.id === brush.id && preview;
-        if (brush.hull) {
+        if (brush.hull || (edited && preview.hull)) {
           const shape = edited ? preview : brush;
           if (brush.id === this.selectedId) paint(shape.min, shape.max, true, ownerColors.get(brush.id));
           ctx.strokeStyle = brush.id === this.selectedId ? "#ffd06b" : "#18c8df";
@@ -2871,6 +3023,34 @@ export class EditorSession {
           !!edited || brush.id === this.selectedId,
           ownerColors.get(brush.id),
         );
+      }
+      if (this.tool === "vertices") {
+        const selected = data.brushes.find((brush) => brush.id === this.selectedId);
+        if (selected) {
+          const points = brushVertices(selected);
+          if (this.gesture?.mode === "vertex")
+            for (const edit of this.vertexGestureEdits(this.gesture)) points[edit.index] = edit.position;
+          const handles = new Map<string, { point: Vec3q; indices: number[] }>();
+          points.forEach((point, i) => {
+            const key = `${point[axes.u].toFixed(6)}:${point[axes.v].toFixed(6)}`;
+            const handle = handles.get(key);
+            if (handle) handle.indices.push(i);
+            else handles.set(key, { point, indices: [i] });
+          });
+          for (const { point, indices } of handles.values()) {
+            ctx.fillStyle =
+              this.gesture?.mode === "vertex" && !preview
+                ? "#ff6655"
+                : indices.some((i) => this.selectedVertices.has(i))
+                  ? "#baff39"
+                  : "#ffd06b";
+            const x = originX + point[axes.u] * this.zoom,
+              y = originY - point[axes.v] * this.zoom;
+            ctx.fillRect(x - 4, y - 4, 8, 8);
+            ctx.fillStyle = "#fff";
+            ctx.fillText(indices.join("/"), x + 6, y - 6);
+          }
+        }
       }
       for (const patch of data.patches ?? []) {
         if (this.gesture?.mode === "point" && patchPreview?.id === patch.id) continue;
@@ -3019,7 +3199,7 @@ export class EditorSession {
     this.syncPatchGhost(patchPreview);
     this.syncFaceOverlays(data);
     this.renderInspector(data);
-    for (const name of ["brush", "patch", "select", "entity"] as const)
+    for (const name of ["brush", "patch", "vertices", "select", "entity"] as const)
       this.root
         .querySelector(`[data-action="${name}"]`)
         ?.classList.toggle("active", this.tool === name && (name !== "patch" || this.patchShape === "flat"));
@@ -3048,7 +3228,7 @@ export class EditorSession {
 
   /** Rebuilt only when the selection or the document changes, so a pan or zoom keeps a half-typed value. */
   private renderInspector(data: EditorDocumentData): void {
-    const key = `${data.draftId}|${this.selectedId ?? ""}|${data.revision}|${[...this.selectedFaces].sort().join(",")}`;
+    const key = `${data.draftId}|${this.selectedId ?? ""}|${data.revision}|${[...this.selectedFaces].sort().join(",")}|${this.tool}|${[...this.selectedVertices].sort().join(",")}`;
     if (key === this.inspectorKey) return;
     this.inspectorKey = key;
     const selected = data.brushes.find((brush) => brush.id === this.selectedId);
@@ -3084,6 +3264,10 @@ export class EditorSession {
       return;
     }
     if (selected) {
+      if (this.tool === "vertices") {
+        this.renderVertexInspector(selected);
+        return;
+      }
       this.inspector.innerHTML = `<h2>Brush <code data-brush-id></code></h2>
         <form data-brush-form>
           <div class="shagged__bounds-head"><span>Axis</span><span>Min</span><span>Max</span></div>

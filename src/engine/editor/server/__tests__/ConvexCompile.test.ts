@@ -36,6 +36,15 @@ it("compiles rotated solids and prisms with correct collision and arbitrary-plan
       },
       { op: "brush.rotate", id: "bridge", axis: "z", degrees: 45 },
       { op: "gen.prism", id: "platform", footprint, bottom: 0, top: 64 },
+      { op: "box.create", id: "ramp", min: { x: 64, y: -160, z: 0 }, max: { x: 128, y: -96, z: 64 }, detail: true },
+      {
+        op: "brush.vertices",
+        id: "ramp",
+        edits: [
+          { index: 5, position: { x: 128, y: -160, z: 16 } },
+          { index: 6, position: { x: 128, y: -96, z: 16 } },
+        ],
+      },
     ]).doc;
     const store = new MapStore(path.join(root, "maps"));
     await store.init();
@@ -54,6 +63,7 @@ it("compiles rotated solids and prisms with correct collision and arbitrary-plan
     expect(down(50, 50).endPos.y).toBeCloseTo(48, 0);
     expect(down(90, -90).fraction).toBe(1);
     expect(down(-160, 0).endPos.y).toBeCloseTo(64, 0);
+    expect(down(96, -128).endPos.y).toBeCloseTo(40, 0);
     const diagonal = bsp.faces.find(
       (face) => Math.abs(Math.abs(face.normal[0]) - Math.SQRT1_2) < 1e-3 && Math.abs(face.normal[2]) < 1e-3,
     );

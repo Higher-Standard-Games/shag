@@ -170,6 +170,13 @@ visible placeholders and genuine missing assets still block publication.
 Native compilation verifies a diagonal bridge, octagonal prism, sweep traces
 through solid/empty portions of the AABB, and arbitrary-plane UVs.
 
+The graphical **Vertices** tool (`G`) now edits boxes and hulls using 2D handles,
+Shift selection and an exact coordinate inspector. The shared `brush.vertices`
+operation rebuilds the convex envelope, splits warped faces, merges coplanar
+faces and removes interior points. Materials inherit by shared source vertices
+and normal similarity. Invalid or collapsed edits leave the document unchanged;
+each drag or Apply is one undo step. Topology indices may change after edits.
+
 Convex subtraction is an open need: cuts overlapping convex AABBs reject
 instead of silently reshaping the hull as a box. Per-side graphical alignment,
 texture locking across rotations and concave decomposition remain separate.

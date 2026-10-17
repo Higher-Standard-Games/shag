@@ -136,6 +136,17 @@ managed document.
 
 ### Convex solids and rotation
 
+`brush.vertices {id, edits: [{index, position: {x,y,z}}, ...]}` changes indexed
+vertices in absolute world coordinates, then rebuilds the convex envelope.
+Existing hull indices come from the document's `hull.vertices` (normalized
+inside its min/max bounds). Boxes use corners 0..3 around the bottom in order
+`(minX,minY)`, `(maxX,minY)`, `(maxX,maxY)`, `(minX,maxY)`, then 4..7 at the top.
+Faces may split or merge and interior vertices disappear; re-inspect indices
+after every edit. The same operation powers the graphical Vertices tool.
+Materials inherit from source sides by shared vertices, then normal similarity.
+Collapsed geometry, invalid indices, duplicate edits and hull limits reject
+the entire batch.
+
 `brush.rotate {id, axis: "x"|"y"|"z", degrees, pivot?}` rotates an existing
 brush in Quake space. Positive Z rotation turns +X toward +Y. The default pivot
 is the brush's bounds center. A box becomes a convex hull while retaining its

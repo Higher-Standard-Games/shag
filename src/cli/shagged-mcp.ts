@@ -215,7 +215,7 @@ server.registerTool(
     title: "Edit a map",
     description: [
       "Applies a batch of operations as one all-or-nothing transaction and saves the map. An error names the failing operation and changes nothing. face.material and creation with alignment: natural resolve image sizes from the catalog; omitted alignment preserves legacy repeats.",
-      "Operations (fields in the guide): world.keys, box.create, box.update, convex.create, brush.rotate, gen.prism, patch.create, face.material (numeric sides for convex brushes), entity.place, entity.update, brushEntity.assign, object.move, object.duplicate, object.delete, brush.carve (boxes only), gen.room, gen.corridor, gen.connect (join two rooms), gen.stairs, gen.teleporter, gen.jumppad.",
+      "Operations (fields in the guide): world.keys, box.create, box.update, convex.create, brush.rotate, brush.vertices (indexed world positions; rebuilds convex hull), gen.prism, patch.create, face.material (numeric sides for convex brushes), entity.place, entity.update, brushEntity.assign, object.move, object.duplicate, object.delete, brush.carve (boxes only), gen.room, gen.corridor, gen.connect (join two rooms), gen.stairs, gen.teleporter, gen.jumppad.",
       "Coordinates are Quake units with Z up. Returns created, changed and deleted IDs and Map Health issues.",
       "Use dryRun: true to preview without saving.",
     ].join(" "),

@@ -8,6 +8,7 @@
  * `bent-N` is used, so the same script always yields the same document.
  */
 
+import { editBrushVertices, type VertexEdit } from "../BrushVertexTools";
 import { fromWorldHull, type HullSide, prismBrush, rotateBrush } from "../ConvexBrush";
 import {
   type BoxBrush,
@@ -62,6 +63,7 @@ export type EditOp =
       detail?: boolean;
     } & CreationMaterials)
   | { op: "brush.rotate"; id: string; axis: keyof Vec3q; degrees: number; pivot?: Vec3q }
+  | { op: "brush.vertices"; id: string; edits: VertexEdit[] }
   | { op: "world.keys"; keys: Record<string, string> }
   | ({ op: "patch.create" } & Omit<PatchSurface, "id"> & { id?: string })
   | ({ op: "box.create"; id?: string; min: Vec3q; max: Vec3q; shader?: string; detail?: boolean } & CreationMaterials)
@@ -226,6 +228,12 @@ function applyOne(doc: EditorDocumentData, op: EditOp, changed: Set<string>): vo
     case "brush.rotate": {
       const target = brush(doc, op.id);
       doc.brushes[doc.brushes.indexOf(target)] = rotateBrush(target, op.axis, op.degrees, op.pivot);
+      changed.add(op.id);
+      return;
+    }
+    case "brush.vertices": {
+      const target = brush(doc, op.id);
+      doc.brushes[doc.brushes.indexOf(target)] = editBrushVertices(target, op.edits).brush;
       changed.add(op.id);
       return;
     }

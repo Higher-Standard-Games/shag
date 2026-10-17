@@ -27,10 +27,28 @@ try{
   for(let i=0;i<100;i++){textured=await browser.ev('window.__convexQA.session.texturedMeshes.some(mesh=>mesh.material?.name === "shagged-preview-blx/blx_grid" && mesh.material.diffuseTexture?.isReady())');if(textured)break;await sleep(200);}
   assert(textured,'textured preview did not become ready');
   await sleep(600);await browser.shot(path.resolve('.cache/shagged-convex-textured.png'));
+  let vertices;
+  if(process.argv.includes('--vertices')) {
+    await browser.click('[data-action="vertices"]');
+    const start=await browser.ev(`(()=>{const s=window.__convexQA.session,b=s.document.snapshot().brushes.find(b=>b.id==='bridge'),p=b.hull.vertices[0],r=s.root.querySelector('[data-plane="xy"]').getBoundingClientRect();const point={x:b.min.x+p.x*(b.max.x-b.min.x),y:b.min.y+p.y*(b.max.y-b.min.y)};window.__vertexBefore=JSON.stringify(b);window.__vertexTarget={x:point.x+16,y:point.y};return {x:r.left+r.width/2+(point.x-s.viewCenter.x)*s.zoom,y:r.top+r.height/2-(point.y-s.viewCenter.y)*s.zoom,dx:16*s.zoom};})()`);
+    assert.equal(typeof start.x,'number');
+    await browser.send('Input.dispatchMouseEvent',{type:'mouseMoved',x:start.x,y:start.y});
+    await browser.send('Input.dispatchMouseEvent',{type:'mousePressed',x:start.x,y:start.y,button:'left',clickCount:1});
+    await browser.send('Input.dispatchMouseEvent',{type:'mouseMoved',x:start.x+start.dx,y:start.y,button:'left',buttons:1});
+    await browser.send('Input.dispatchMouseEvent',{type:'mouseReleased',x:start.x+start.dx,y:start.y,button:'left',clickCount:1});
+    const dragged=await browser.ev(`(()=>{const b=window.__convexQA.session.document.snapshot().brushes.find(b=>b.id==='bridge'),t=window.__vertexTarget;return b.hull.vertices.some(p=>Math.abs(b.min.x+p.x*(b.max.x-b.min.x)-t.x)<1e-5&&Math.abs(b.min.y+p.y*(b.max.y-b.min.y)-t.y)<1e-5)})()`);
+    assert.equal(dragged,true,'native mouse drag must move the projected vertex group');
+    await browser.click('[data-action="undo"]');
+    assert.equal(await browser.ev(`JSON.stringify(window.__convexQA.session.document.snapshot().brushes.find(b=>b.id==='bridge'))===window.__vertexBefore`),true);
+    const edited=await browser.ev(`(()=>{const s=window.__convexQA.session,list=s.root.querySelector('[data-vertex-list]');for(const o of list.options)o.selected=o.value==='6';list.dispatchEvent(new Event('change'));const input=s.root.querySelector('[name="vertex-z"]');input.value=String(Number(input.value)+16);s.root.querySelector('[data-vertex-form]').requestSubmit();return s.document.snapshot().brushes.find(b=>b.id==='bridge').max.z})()`);
+    assert.equal(edited,64,'numeric corner edit must change the hull height');
+    await sleep(300);await browser.shot(path.resolve('.cache/shagged-vertices.png'));
+    vertices={dragged,undo:true,numericHeight:edited};
+  }
   const errors=browser.logs.filter(entry=>/shader.*error|WebGL.*error|exception/i.test(JSON.stringify(entry)));
   assert.equal(errors.length,0,JSON.stringify(errors));
   assert.equal(browser.failed.length,0,JSON.stringify(browser.failed));
-  fs.writeFileSync('.cache/shagged-convex-browser-report.json',JSON.stringify({ok:true,result,textured,logs:browser.logs,failed:browser.failed},null,2));
-  console.log(JSON.stringify({ok:true,...result},null,2));
+  fs.writeFileSync(`.cache/shagged-${vertices?'vertices':'convex'}-browser-report.json`,JSON.stringify({ok:true,result,textured,vertices,logs:browser.logs,failed:browser.failed},null,2));
+  console.log(JSON.stringify({ok:true,...result,vertices},null,2));
   await browser.ev('window.__convexQA.engine.stopRenderLoop();window.__convexQA.session.dispose();window.__convexQA.engine.dispose();');
 }finally{if(browser)await browser.close();vite.kill();}

@@ -68,3 +68,11 @@ picking and rotation controls; captures brush/wireframe/textured screenshots und
 `.cache/shagged-convex-browser-report.json`. Its static fixture shares the
 editor's Babylon imports. Only JSZip is prebundled, avoiding stale Babylon
 lazy shader chunks in the isolated probe. No user map or profile is changed.
+
+## Graphical brush vertex QA
+
+`node experiments/shagged/convex-browser-probe.mjs --vertices` extends the convex
+GPU probe with a real mouse drag, undo and exact vertex height editing. It uses
+an isolated editor document and private server. Results and screenshots are
+written to `.cache/shagged-vertices*`; see
+`docs/research/SHAGGED_VERTEX_VALIDATION.md` for checks and limits.
