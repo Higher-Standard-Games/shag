@@ -22,7 +22,7 @@ describe("model discovery", () => {
       zip.file("models/props/rail.obj", vertices);
       zip.file("models/props/lamp.glb", "unsupported");
       zip.file("models/../bad.obj", "v 0 0 0");
-      await writeFile(path.join(root, name), await zip.generateAsync({ type: "nodebuffer" }));
+      await writeFile(path.join(root, name), await zip.generateAsync({ type: "uint8array" }));
     }
     const query = await searchModelCatalog(root, { search: "PROPS rail", includeBounds: true });
     expect(query.total).toBe(1);

@@ -38,7 +38,7 @@ async function catalog(root: string): Promise<Asset[]> {
   if (cached?.key === key) return cached.assets;
   const found = new Map<string, Asset>();
   for (const pkg of packages) {
-    const zip = await JSZip.loadAsync(await readFile(path.join(root, pkg)));
+    const zip = await JSZip.loadAsync(new Uint8Array(await readFile(path.join(root, pkg))));
     for (const entry of Object.values(zip.files)) {
       if (!entry.dir && validModelPath(entry.name))
         found.set(entry.name.toLowerCase(), { path: entry.name, entry: entry.name, package: pkg });
@@ -103,13 +103,13 @@ export async function searchModelCatalog(
         if (asset.package) {
           let zip = archives.get(asset.package);
           if (!zip) {
-            zip = await JSZip.loadAsync(await readFile(path.join(root, asset.package)));
+            zip = await JSZip.loadAsync(new Uint8Array(await readFile(path.join(root, asset.package))));
             archives.set(asset.package, zip);
           }
           const entry = zip.file(asset.entry);
           if (!entry) throw new Error("Asset changed during discovery; retry the query");
           bytes = await entry.async("uint8array");
-        } else bytes = await readFile(path.join(root, asset.entry));
+        } else bytes = new Uint8Array(await readFile(path.join(root, asset.entry)));
         bounds = modelBounds(bytes, asset.path);
         if (!bounds) boundsIssue = "Bounds unavailable: only ASE/OBJ mesh vertices and MD3 frame bounds are inspected.";
       } catch (error) {
