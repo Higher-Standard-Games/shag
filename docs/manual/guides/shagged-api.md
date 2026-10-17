@@ -27,6 +27,16 @@ the process working directory does not change native profile lookup.
 
 **MCP server**, for AI clients: `npm run shagged:mcp` (stdio). It exposes the same operations and checks as tools, and this guide as resources.
 
+Compile results include `jobId`, `logPath` and `diagnostics` (warning/error counts,
+missing-asset count, leak status, native phase and bounded diagnostic samples).
+Every job keeps a complete `compile.log` and a durable `job.json` beneath the
+configured server jobs directory. `shagged_compile_status {jobId}` reads the job
+across MCP sessions; `shagged_compile_log {jobId, offset?, limit?}` reads the full
+transcript in byte-range pages, up to 65,536 bytes each. Continue at `nextOffset`
+until it reaches `size`. Jobs from before durable logging have no saved status.
+Explicit native asset-load failures, errors and leaks block publication even
+when a tool exits with code zero. Other warnings remain visible without blocking.
+
 ## Coordinates and IDs
 
 - Quake units, **Z is up**. Never Babylon (Y-up) coordinates.

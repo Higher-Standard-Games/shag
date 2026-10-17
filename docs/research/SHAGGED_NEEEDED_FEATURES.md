@@ -150,3 +150,18 @@ The installed native MakeBSP `-fontatlas` command emits a JSON descriptor with a
 - Compile output tails can lose useful phase names and warnings behind progress output. Keep durable complete native logs and expose progress, warning summaries and log paths in reports.
 - Separate stdio MCP processes only have local job coordination. Concurrent builds for the same map can race publication and share the native cache directory. Add a cross-process map lock or isolated native cache roots. During this experiment an overlapping atmosphere compile was deliberately canceled; its saved edits were incorporated in a later sequential build. Final validation must reference the latest source after all earlier jobs finish.
 - Native model, texture and shader warnings should influence publication health. A successful compiler exit alone is insufficient; retain explicit BSP material and collision checks.
+
+## Implementation follow-up: diagnostics
+
+Compile jobs now write a complete native transcript and atomically replace a
+durable status file. The rolling tail is only a convenience: warning/error
+counts, leak detection, native phase and diagnostic samples are tracked
+independently. Explicit asset-load failures, native errors and leaks block
+publication even on exit zero; ordinary warnings remain visible.
+
+MCP exposes durable status and paged transcript reads by job ID. A regression
+fixture splits a missing-model warning and leak marker across pipe chunks,
+then emits 200 progress records. It verifies publication is blocked, the full
+message survives on disk, and another reader can retrieve the completed job.
+The native room compile also passes. This does not make the diagnostic parser
+an exhaustive grammar for every future native compiler warning.

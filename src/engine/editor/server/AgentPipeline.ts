@@ -10,6 +10,7 @@ import { type EditorDocumentData, validateDocument } from "../EditorDocument";
 import { inspectMapHealth, type MapHealthIssue } from "../MapHealth";
 import { writeMap } from "../MapWriter";
 import { isBuildQuality } from "./BuildRecipe";
+import { type CompileDiagnostics, emptyDiagnostics } from "./CompileDiagnostics";
 import { CompileJobs } from "./CompileJobs";
 import { resolveCompilerConfig } from "./CompilerConfig";
 import { MapStore } from "./MapStore";
@@ -125,6 +126,9 @@ export interface CompileOutcome {
   /** True when the current published build already came from these source bytes. */
   reused: boolean;
   logTail: string[];
+  jobId: string | null;
+  logPath: string | null;
+  diagnostics: CompileDiagnostics;
 }
 
 /**
@@ -167,6 +171,9 @@ export async function compileDocument(doc: EditorDocumentData, quality?: string)
       leak: false,
       reused: true,
       logTail: [],
+      jobId: null,
+      logPath: null,
+      diagnostics: emptyDiagnostics(),
     };
   }
   const jobs = new CompileJobs(
@@ -190,9 +197,12 @@ export async function compileDocument(doc: EditorDocumentData, quality?: string)
     packageName: job.packageName,
     bspHash: job.bspHash,
     // MakeBSP's leak test prints "LEAKED" and stops the build.
-    leak: /LEAKED/.test(job.logs.join("")),
+    leak: job.diagnostics.leak,
     reused: false,
-    logTail: job.logs.slice(-12).join("").split(/\r?\n/).filter(Boolean).slice(-20),
+    logTail: job.logs.slice(-20),
+    jobId: job.id,
+    logPath: job.logPath,
+    diagnostics: job.diagnostics,
   };
 }
 

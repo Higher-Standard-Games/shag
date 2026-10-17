@@ -1,9 +1,9 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { buildRecipe } from "../BuildRecipe";
-import { CompileJobs, type ToolRunner } from "../CompileJobs";
+import { CompileJobs, readCompileJob, readCompileLog, type ToolRunner } from "../CompileJobs";
 import type { CompilerConfig } from "../CompilerConfig";
 import { MapStore } from "../MapStore";
 
@@ -23,6 +23,43 @@ const config: CompilerConfig = {
 };
 
 describe("SHAGGED compile jobs", () => {
+  it("retains split diagnostics and complete logs after progress evicts the tail; blocks publication", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "shagged-diagnostics-"));
+    roots.push(root);
+    const store = new MapStore(path.join(root, "maps"));
+    await store.init();
+    await store.save("arena", "source", 0);
+    let calls = 0;
+    const jobsRoot = path.join(root, "jobs");
+    const jobs = new CompileJobs(
+      store,
+      config,
+      jobsRoot,
+      async (_binary, _args, _cwd, log) => {
+        calls++;
+        log("--- LoadModels ---\rWARNING: Could not lo");
+        log("ad model models/missing.ase\n*** LEA");
+        log("KED ***\n");
+        for (let i = 0; i < 200; i++) log(`progress ${i}\r`);
+        return 0;
+      },
+      path.join(root, "data"),
+    );
+    const job = (await jobs.wait((await jobs.request("arena", 1, "fast")).id))!;
+    expect(job.state).toBe("failed");
+    expect(job.packageName).toBeNull();
+    expect(calls).toBe(1);
+    expect(job.diagnostics).toMatchObject({ warnings: 1, missingAssets: 1, leak: true, phase: "LoadModels" });
+    expect(job.logs.join("\n")).not.toContain("models/missing.ase");
+    expect(await readFile(job.logPath, "utf8")).toContain("WARNING: Could not load model models/missing.ase");
+    expect(await readCompileJob(jobsRoot, job.id)).toEqual(job);
+    const page = await readCompileLog(jobsRoot, job.id, 0, 16);
+    expect(page.nextOffset).toBe(16);
+    expect(page.size).toBeGreaterThan(16);
+    await expect(readCompileLog(jobsRoot, job.id, -1)).rejects.toThrow("Invalid");
+    await expect(readCompileJob(jobsRoot, "../escape")).rejects.toThrow("Invalid");
+  });
+
   it("uses isolated source, exact Washoi argv, and verifies the compiled FBSP header", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "shagged-jobs-"));
     roots.push(root);

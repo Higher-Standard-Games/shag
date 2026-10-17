@@ -1,8 +1,10 @@
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
+import { renameSync, writeFileSync } from "node:fs";
 import { mkdir, open, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { type BuildQuality, buildRecipe } from "./BuildRecipe";
+import { type CompileDiagnostics, CompileTranscript, emptyDiagnostics } from "./CompileDiagnostics";
 import type { CompilerConfig } from "./CompilerConfig";
 import { MapConflictError, type MapStore } from "./MapStore";
 import { checkModelAssets } from "./ModelAssetPreflight";
@@ -24,6 +26,8 @@ export interface CompileJob {
   runtimeMapName: string | null;
   packageName: string | null;
   bspHash: string | null;
+  logPath: string;
+  diagnostics: CompileDiagnostics;
 }
 
 export type ToolRunner = (binary: string, args: string[], cwd: string, log: (text: string) => void) => Promise<number>;
@@ -70,7 +74,7 @@ export class CompileJobs {
 
   get(id: string): CompileJob | null {
     const job = this.jobs.get(id);
-    return job ? { ...job, logs: [...job.logs] } : null;
+    return job ? structuredClone(job) : null;
   }
 
   async request(mapName: string, revision: number, quality: BuildQuality): Promise<CompileJob> {
@@ -97,7 +101,13 @@ export class CompileJobs {
       runtimeMapName: null,
       packageName: null,
       bspHash: null,
+      logPath: path.resolve(this.jobsRoot, "pending", "compile.log"),
+      diagnostics: emptyDiagnostics(),
     };
+    job.logPath = path.resolve(this.jobsRoot, job.id, "compile.log");
+    await mkdir(path.dirname(job.logPath), { recursive: true });
+    await writeFile(job.logPath, "", "utf8");
+    await this.persist(job);
     this.jobs.set(job.id, job);
     this.bySource.set(key, job.id);
     const completion = this.queue.then(() => this.execute(job, saved.source));
@@ -111,18 +121,28 @@ export class CompileJobs {
     return this.get(id);
   }
 
-  private log(job: CompileJob, text: string): void {
-    job.logs.push(
-      ...text
-        .slice(-64_000)
-        .split(/\r?\n/)
-        .filter(Boolean)
-        .map((line) => line.slice(0, 2_000)),
-    );
-    if (job.logs.length > 100) job.logs.splice(0, job.logs.length - 100);
+  private persist(job: CompileJob): void {
+    const file = path.join(this.jobsRoot, job.id, "job.json");
+    writeFileSync(`${file}.tmp`, JSON.stringify(job, null, 2), "utf8");
+    renameSync(`${file}.tmp`, file);
   }
 
   private async execute(job: CompileJob, source: string): Promise<void> {
+    const transcript = new CompileTranscript(job.logPath, job.diagnostics, job.logs);
+    let lastProgress = 0;
+    const output = (text: string) => {
+      transcript.append(text);
+      if (Date.now() - lastProgress >= 250) {
+        this.persist(job);
+        lastProgress = Date.now();
+      }
+    };
+    const stage = async (next: CompileStage) => {
+      transcript.flush();
+      job.stage = next;
+      transcript.append(`\n[SHAGGED stage: ${next}]\n`);
+      await this.persist(job);
+    };
     try {
       await checkModelAssets(source, this.config.mediaRoot);
       const toolchainRoot = this.config.toolchainRoot!;
@@ -132,19 +152,23 @@ export class CompileJobs {
       await writeFile(mapFile, source, "utf8");
       const recipe = buildRecipe(job.quality, this.config.mediaRoot, mapFile);
       job.state = "running";
-      job.stage = "makebsp";
-      this.log(job, "MakeBSP started");
-      const bspExit = await this.runner(this.config.makebspBin!, recipe.bsp, toolchainRoot, (line) =>
-        this.log(job, line),
-      );
+      await stage("makebsp");
+      transcript.append("MakeBSP started\n");
+      const bspExit = await this.runner(this.config.makebspBin!, recipe.bsp, toolchainRoot, (line) => output(line));
+      transcript.flush();
       if (bspExit !== 0) throw new Error(`MakeBSP exited with code ${bspExit}`);
-      job.stage = "makelight";
-      this.log(job, "MakeLight started");
+      if (job.diagnostics.leak || job.diagnostics.missingAssets || job.diagnostics.errors)
+        throw new Error("MakeBSP reported a leak, missing assets or errors; publication blocked");
+      await stage("makelight");
+      transcript.append("MakeLight started\n");
       const lightExit = await this.runner(this.config.makelightBin!, recipe.light, toolchainRoot, (line) =>
-        this.log(job, line),
+        output(line),
       );
+      transcript.flush();
       if (lightExit !== 0) throw new Error(`MakeLight exited with code ${lightExit}`);
-      job.stage = "verify";
+      if (job.diagnostics.leak || job.diagnostics.missingAssets || job.diagnostics.errors)
+        throw new Error("MakeLight reported a leak, missing assets or errors; publication blocked");
+      await stage("verify");
       const file = await open(path.join(workspace, `${job.mapName}.bsp`), "r");
       try {
         const header = new Uint8Array(8);
@@ -161,9 +185,9 @@ export class CompileJobs {
       }
       job.state = "compiled";
       job.buildId = job.id;
-      this.log(job, "Compiled FBSP v1");
+      transcript.append("Compiled FBSP v1\n");
       if (this.publishRoot) {
-        job.stage = "publish";
+        await stage("publish");
         const bsp = await readFile(path.join(workspace, `${job.mapName}.bsp`));
         const published = await publishBuild(
           this.publishRoot,
@@ -180,16 +204,50 @@ export class CompileJobs {
         job.runtimeMapName = job.mapName;
         job.packageName = published.package;
         job.bspHash = published.bspHash;
-        this.log(job, `Published ${published.package}`);
-      } else this.log(job, "Runtime delivery is not configured");
-      job.stage = "done";
+        transcript.append(`Published ${published.package}\n`);
+      } else transcript.append("Runtime delivery is not configured\n");
+      await stage("done");
     } catch (error) {
       job.state = "failed";
       job.buildId = null;
       job.runtimeMapName = null;
       job.packageName = null;
       job.bspHash = null;
-      this.log(job, error instanceof Error ? error.message : String(error));
+      transcript.append(`ERROR: ${error instanceof Error ? error.message : String(error)}\n`);
+    } finally {
+      transcript.flush();
+      await this.persist(job);
     }
+  }
+}
+
+/** Read only generated job paths; usable after the submitting process exits. */
+export async function readCompileJob(jobsRoot: string, id: string): Promise<CompileJob | null> {
+  if (!/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/.test(id)) throw new Error("Invalid compile job ID");
+  try {
+    return JSON.parse(await readFile(path.join(jobsRoot, id, "job.json"), "utf8")) as CompileJob;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+    throw error;
+  }
+}
+
+export async function readCompileLog(jobsRoot: string, id: string, offset = 0, limit = 32_768) {
+  if (!Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(limit) || limit < 1 || limit > 65_536)
+    throw new Error("Invalid compile log byte range");
+  if (!(await readCompileJob(jobsRoot, id))) throw new Error("Compile job not found");
+  const file = await open(path.join(jobsRoot, id, "compile.log"), "r");
+  try {
+    const size = (await file.stat()).size;
+    const buffer = new Uint8Array(Math.min(limit, Math.max(0, size - offset)));
+    const { bytesRead } = await file.read(buffer, 0, buffer.length, offset);
+    return {
+      offset,
+      nextOffset: offset + bytesRead,
+      size,
+      text: new TextDecoder().decode(buffer.subarray(0, bytesRead)),
+    };
+  } finally {
+    await file.close();
   }
 }

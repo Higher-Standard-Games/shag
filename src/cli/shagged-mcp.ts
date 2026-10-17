@@ -32,6 +32,8 @@ import {
   PipelineError,
   withTextureSizes,
 } from "../engine/editor/server/AgentPipeline";
+import { readCompileJob, readCompileLog } from "../engine/editor/server/CompileJobs";
+import { resolveServerConfig } from "../engine/editor/server/ServerConfig";
 import { loadTextureCatalog, searchTextures } from "../engine/editor/server/TextureLookup";
 
 const ROOT = path.resolve("server-data/shagged/agent");
@@ -225,6 +227,44 @@ server.registerTool(
     inputSchema: { mapName: MAP_NAME, quality: QUALITY },
   },
   async ({ mapName, quality }) => run(() => exclusive(mapName, () => compileDocument(load(mapName), quality))),
+);
+
+server.registerTool(
+  "shagged_compile_status",
+  {
+    title: "Inspect a compile job",
+    description:
+      "Read a durable compile job by ID, including current stage, native phase, diagnostics and the complete transcript path. Works across MCP sessions.",
+    inputSchema: { jobId: z.string().uuid() },
+    annotations: { readOnlyHint: true },
+  },
+  async ({ jobId }) =>
+    run(async () => {
+      const config = resolveServerConfig([]);
+      const job = await readCompileJob(path.resolve(config.mapsRoot, "..", "jobs"), jobId);
+      if (!job) throw new PipelineError("compile job not found");
+      return { ok: true, ...job };
+    }),
+);
+
+server.registerTool(
+  "shagged_compile_log",
+  {
+    title: "Read a compile transcript",
+    description:
+      "Read a byte-range page of the complete native transcript, including warnings no longer in the tail. Continue from nextOffset until it reaches size.",
+    inputSchema: {
+      jobId: z.string().uuid(),
+      offset: z.number().int().min(0).optional(),
+      limit: z.number().int().min(1).max(65536).optional(),
+    },
+    annotations: { readOnlyHint: true },
+  },
+  async ({ jobId, offset, limit }) =>
+    run(async () => {
+      const config = resolveServerConfig([]);
+      return { ok: true, ...(await readCompileLog(path.resolve(config.mapsRoot, "..", "jobs"), jobId, offset, limit)) };
+    }),
 );
 
 server.registerTool(
