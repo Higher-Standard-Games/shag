@@ -1,0 +1,1125 @@
+[
+  {
+    "name": "sounds/menu/back.wav",
+    "originalPackage": "data0_000_nonfree_21.pk3",
+    "bytes": 41494,
+    "sha256": "7d6505a9f8492d8f4e6870a354b2e22f73d61b38ae89a0778d92546917416ffc",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/menu/mouseover.wav",
+    "originalPackage": "data0_000_nonfree_21.pk3",
+    "bytes": 6738,
+    "sha256": "d980484047fe66503bf2e7a85e48d2dfb060c4f77c20c09efa135035f47085ef",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/menu/ok.wav",
+    "originalPackage": "data0_000_nonfree_21.pk3",
+    "bytes": 25180,
+    "sha256": "f6546d639a5a61d201a6dcb94feb161f5b8df7b72f96fcb2e66fe129320df9bd",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/misc/chat.wav",
+    "originalPackage": "data0_000_nonfree_21.pk3",
+    "bytes": 6672,
+    "sha256": "12c9b2b0ceaaf749d79dbd49b8f0b9b6c87eef6c4e69b939a7a04f6f80f6464b",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/misc/gibs_explosion.wav",
+    "originalPackage": "data0_000_nonfree_21.pk3",
+    "bytes": 47460,
+    "sha256": "4c3826f24b8aed89aa8b41bedcfa787062a3bf63b2e99efc85f5b75b1362179c",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/misc/timer_bip_bip.wav",
+    "originalPackage": "data0_000_nonfree_21.pk3",
+    "bytes": 9030,
+    "sha256": "2781a3953c2baf089688d8b5ef63fe2fd00b7c1e9c41426aeeba4ef3c8bc1b26",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/misc/timer_ploink.wav",
+    "originalPackage": "data0_000_nonfree_21.pk3",
+    "bytes": 18050,
+    "sha256": "1d273096a466d851b8f0254860c79ca5c27e459dd4ad790a73c63950e208f975",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "video/backsequence_06.roq",
+    "originalPackage": "data0_000_nonfree_21.pk3",
+    "bytes": 5714020,
+    "sha256": "f88f9a0a4b6b7d6269a0b87a1f1f5eec5f3ce880e299938ae88ead10af8e5d21",
+    "currentOwner": "data0_21pure.pk3",
+    "identicalToCurrent": false,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/ambient/ceilingfan.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 100286,
+    "sha256": "c6c38965fe33d8933f0628421c1be0cf39d582474d51f483c579947a2b98bfe4",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/bomb/bombtimer.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 4253,
+    "sha256": "5dc2694e48e10afae2a239e5eb551821afc148a09ee034f3e406f0ce5585b82f",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [
+      "src/games/fps/client/FPSBombAudio.ts"
+    ],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/ctftactics/turret_pain01.wav",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 63704,
+    "sha256": "50deaed4d8d6688de17f94c92dfb5d3eda6eed52ac979d0e70a0e5ab57982a17",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/items/armor_green.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 8880,
+    "sha256": "0d7bac45fa2d84b8bf143d4204b1c3989a8f550a59684f6c7dee6b2ae9ae6db7",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [
+      "src/games/fps/client/FPSPickupAudio.ts"
+    ],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/items/armor_red.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 13384,
+    "sha256": "94fbb8b185a011f3b484a4d5d3cf81e4fb14b3c1d8f627fbca6388b426a13b61",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [
+      "src/games/fps/client/FPSPickupAudio.ts"
+    ],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/items/armor_shard.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 8273,
+    "sha256": "9b49a63675bfd744d8ecb6e36922acbaad0c0f22135cd4b09e2bfc95e95bf356",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [
+      "src/games/fps/client/FPSPickupAudio.ts"
+    ],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/items/armor_yellow.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 10455,
+    "sha256": "2501c7bcf3ad4ff2e73f5a7221a97c12d217ceadde66b85fa3b591a0ba251a10",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [
+      "src/games/fps/client/FPSPickupAudio.ts"
+    ],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/items/health_25.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 10490,
+    "sha256": "e7ef8fd5d261e7e7a146179207d5bc7b30166a94e611393d3b1a51f6dfed6b52",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [
+      "src/games/fps/client/FPSPickupAudio.ts"
+    ],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/items/health_5.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 8751,
+    "sha256": "97c1fbb7014cb251531ad7f45ccbf48a712b135370c276183f6216efa598e051",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/items/health_50.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 11459,
+    "sha256": "42ef57a7d6c234f824c86a618b7bdeabadeaeb9414bdd2df015037efa30d9a2a",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/items/item_idle.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 28180,
+    "sha256": "64a98623a775c43af924ea6c221193a8bf37d67efb5e1311f89fa78ef96834c7",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/items/item_spawn.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 8455,
+    "sha256": "ce0e7bda6e4dc29e48975927cc20789bf02ad0ece26a8267ead63b3f6cfd5620",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/items/megahealth.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 22145,
+    "sha256": "f61e23c092968b9cf27bc7684f8eacdb5d3c96529c6ab5d29be0ad09dd9d0655",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [
+      "src/games/fps/client/FPSPickupAudio.ts"
+    ],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/items/regen_pickup.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 24363,
+    "sha256": "07b579f3195a6c83d8e9a15aa21fe556cd12b09c6b8810fa516b1a8d1f3ee598",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/items/regen_spawn.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 40438,
+    "sha256": "f90f8ab7174efb730b31448367e0c5eefb19d7c7dee664a4014c492e68bee0c1",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/movers/door_start.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 11130,
+    "sha256": "18260baa8264040edef0df643558d1caf5be3442ccfe607b0d8d8a5f654dbe93",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [
+      "src/shared/bsp/LiftSystem.ts"
+    ],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/movers/door_start2.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 8635,
+    "sha256": "7fe4948259c9bbb20f1b2931d0d864c19b3905d8c131af5aa260c11c9a181037",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/movers/door_stop.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 10739,
+    "sha256": "d1d25d0752c15726e6b5a74fe4fde933c977329fbc576fe4d1aefe0164b1ee1a",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [
+      "src/shared/bsp/LiftSystem.ts"
+    ],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/movers/elevator_move.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 18703,
+    "sha256": "667328b68836371e8e23bcd3d6c9de0469b6f6530c59d3c5df24613b5f4b85bb",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [
+      "src/shared/bsp/LiftSystem.ts"
+    ],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/players/bobot/dash_1.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 5520,
+    "sha256": "512078abaaaeafc8310dc319d2c23aa6e07522b09b263294023fe3165979fc81",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/players/bobot/dash_2.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 5532,
+    "sha256": "02c4b4b97b0dae3b987ef31e7dd87d5b10fd1f147c5434f9a12aecfb92bcd067",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/players/bobot/death.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 8373,
+    "sha256": "1c95ac20ca1cdd44bd0ca2a89150b4a8293336b01c34309730a1456905fdbd7a",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [
+      "src/games/fps/client/FPSCombatAudio.ts"
+    ],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/players/bobot/drown.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 16702,
+    "sha256": "27b81de1774b135a769e90be75343290dae931d453a85ee006977688952aa113",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [
+      "src/games/fps/client/FPSLiquidAudio.ts"
+    ],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/players/bobot/falldeath.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 31866,
+    "sha256": "7d844e72864686a14c6c722418eb1b2ac136ec0a7f6c17418f590c753c72fcf0",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/players/bobot/fall_0.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 7795,
+    "sha256": "1122784f0dd3a5c657e44f0212fc07e43c134d48095c68bcbdd8e35943ad6883",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/players/bobot/fall_1.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 7250,
+    "sha256": "4c409f4b0f16b4c4bd353192726c88f2a59812ef998154a4a78b5dbee4199991",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/players/bobot/fall_2.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 7453,
+    "sha256": "400e332b90fb9fc9c38bf6727c2f412fe77481d08a66e0e4713fd280a1f329e8",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/players/bobot/gasp.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 14912,
+    "sha256": "d1a3ba8ed3fe581f7c5797764d383ec847d5752b2c3a49062872637c13c5d5cb",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/players/bobot/jump_1.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 6975,
+    "sha256": "3b6a5c093e7dcdcdee0e534cb9e8687040ce97f05721de7374332ab8c7de9d8e",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [
+      "src/games/fps/client/FPSMovementAudio.ts"
+    ],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/players/bobot/jump_2.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 6321,
+    "sha256": "ef7f8d028b2d378d521f94cbae37631c921dcb9b278e4d5026d9d2a5fbc753fd",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [
+      "src/games/fps/client/FPSMovementAudio.ts"
+    ],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/players/bobot/pain100.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 6074,
+    "sha256": "0ebbef3cb6d4c2eed3eae8968f68ef91e2fca0063d2afd5846f9de97fd229be1",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [
+      "src/games/fps/client/FPSCombatAudio.ts"
+    ],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/players/bobot/pain25.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 9566,
+    "sha256": "7f722a36332e69fc55a476ebb594fdc89cc7fe5952f69b4597c4fc23869b7fb1",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [
+      "src/games/fps/client/FPSCombatAudio.ts"
+    ],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/players/bobot/pain50.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 6896,
+    "sha256": "8f36216248f8da7af0618c292308fce53341c753835f1df140e89330ea0e8582",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [
+      "src/games/fps/client/FPSCombatAudio.ts"
+    ],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/players/bobot/pain75.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 6480,
+    "sha256": "7a962ff14d177d6834ee88ae065620f1588e7a769616dec4f67f0777ff739b28",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [
+      "src/games/fps/client/FPSCombatAudio.ts"
+    ],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/players/bobot/wj_1.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 7605,
+    "sha256": "0779ed14705fcaa5160ae54d06961ad55d0d1de2b4fb2e6b1c45baca2fa7abd1",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/players/bobot/wj_2.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 6967,
+    "sha256": "fcf0eb5fd244c7557d16de42353d1e816ce147a08af044e724ad5e8c8ded9922",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/players/male/dash_1.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 6311,
+    "sha256": "8c5c4b27065fe4aefa846daad81670c804420ff9868b698615c2c3cf8120389a",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/players/male/dash_2.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 6583,
+    "sha256": "b86e58a545ce66020f6d9fa8284113896ec39730436569f43c9c431a6b553833",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/players/male/death.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 9681,
+    "sha256": "318505017a50a22ce685bc53c714fb6397f498e4b74dd537bc3a7301813ee060",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/players/male/drown.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 18682,
+    "sha256": "2a12f1b779a87d722929753a69a56aa9237e2053b041f54d29e47479b6247550",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/players/male/falldeath.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 45927,
+    "sha256": "396135454981e5905cdbf51c43134f447c0e3b2fae831bb6156715e48428ca6a",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/players/male/fall_0.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 7795,
+    "sha256": "1122784f0dd3a5c657e44f0212fc07e43c134d48095c68bcbdd8e35943ad6883",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/players/male/fall_1.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 8151,
+    "sha256": "94a8950b6193f5828ad937d3b0cfa4312d529adfa9c6e138f32e084f1a3a8c73",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/players/male/fall_2.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 9325,
+    "sha256": "0b0b4e05382da89aff4ccbfe49866c26fb55cd321d845c3843843fd7483d2d3e",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/players/male/gasp.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 17204,
+    "sha256": "4009462f946bd986adc79108fa3dbe70d0da22a7f4db0c414ec99ca879f6669e",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/players/male/jump_1.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 7574,
+    "sha256": "22fb3a89de4d7578e979adfa07d1f28e3505af0daefc8e179681ced2e4e0f500",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/players/male/jump_2.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 7229,
+    "sha256": "9c2f63c2a81ad32189b31bb7c75b16fef9b76b0417c80fa0f7534e14d69d3522",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/players/male/pain100.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 7122,
+    "sha256": "86d628a3b2610592567914bd3ef43dd9af39efacf3a175253b05aa58d14c5dcf",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/players/male/pain25.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 11721,
+    "sha256": "7363c261f9b2a55c87a03dadd483541084009ef314da5eb6dd66d509deade603",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/players/male/pain50.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 7937,
+    "sha256": "6e3ecfc6a933b50b821683f53b242cd8efe977b58b79eb2f6ee40a030281e396",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/players/male/pain75.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 6765,
+    "sha256": "1d800f9f73d18640cdbcbf405dede43cb5eb6a970863cad15bc0f4ca534147d5",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/players/male/wj_1.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 8906,
+    "sha256": "7f12de72e694a7422c2787949462c85163a6f5a32530a6d27c450f56f7fde0f0",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/players/male/wj_2.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 8835,
+    "sha256": "82dfc5e4e6dfe3eff1ea535f7442dea26a7dce3ffdc48945d69731b7451c5cc8",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/weapons/bladegun_strong_fire.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 8105,
+    "sha256": "fb0c2ca6c457f100093d9a3da68644884c6c7b3e82860bd7c9dcf8628a41433e",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/weapons/bladegun_strong_hit_1.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 10438,
+    "sha256": "4a4da2ebad4a06c823aa69bedcfefeaba184440629a5f2b0040f35f3b48a2d14",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [
+      "src/games/fps/client/FPSCombatAudio.ts"
+    ],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/weapons/bladegun_strong_hit_2.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 11041,
+    "sha256": "ca316c275ee6affdc4e9eccf2d0ac71c9ca6b738bdbe1042c0e1359aa8b084ff",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [
+      "src/games/fps/client/FPSCombatAudio.ts"
+    ],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/weapons/bladegun_strong_hit_3.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 11782,
+    "sha256": "eb7c27e4d0ec764fc5283c7970199b6cc3ca48092666e6204434c661e101f17b",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [
+      "src/games/fps/client/FPSCombatAudio.ts"
+    ],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/weapons/blade_hitflsh1.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 7682,
+    "sha256": "994bcc6cc15233a20f017bbe26fb3dfab95204d5152e9f1b2a0abddbcb68a1da",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/weapons/blade_hitflsh2.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 7691,
+    "sha256": "4bf356e421eea0211a8d591bca61611792b922d5db71d5faf28df30b0d7941c9",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/weapons/blade_hitflsh3.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 7468,
+    "sha256": "4f77ac5440da3895a99469675df7ac075d4b79ce1f1a90fc040ade930b05a04e",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/weapons/blade_hitwall1.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 7815,
+    "sha256": "2be92ff0695767d67497d1f8f03eed9a5120927fa3ac3dc9d8ef9240fc869962",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/weapons/blade_hitwall2.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 8148,
+    "sha256": "8d9df660552df1ad50dc22ddc1117b68de158ad9bf9e9454d6db72d2bcd3f865",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/weapons/blade_strike1.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 8583,
+    "sha256": "f7cf7e4f6b5dd4cb418023d66e18e42f5bf53689bcaaca8740a1f6c525ddae46",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [
+      "src/games/fps/client/FPSCombatAudio.ts"
+    ],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/weapons/blade_strike2.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 8500,
+    "sha256": "33241db5bf4860d0eef2b9203d4b71aa592c3f7a7d656cd19fd08fba12115e84",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [
+      "src/games/fps/client/FPSCombatAudio.ts"
+    ],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/weapons/blade_strike3.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 7501,
+    "sha256": "4ef70b53b1116d20b3890be92a53ff826cb7d1d9b443967538f8308bc3e672bb",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [
+      "src/games/fps/client/FPSCombatAudio.ts"
+    ],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/weapons/electrobolt_hit.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 7815,
+    "sha256": "d79435c000b5a31dc633649e1abc7269513e6231ca5b8e69255a93eddacf3286",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/weapons/electrobolt_hum.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 17115,
+    "sha256": "91c5b7ec2616f8f7ed3982ce459916504c2eb056eee3948986ddc5d88076841c",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/weapons/gren_strong_explosion1.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 16279,
+    "sha256": "4dce36ba4d7ec79bb119a68f83c148bb9a6b08fc4ad3099d9682635d210811cc",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [
+      "src/games/fps/client/FPSCombatAudio.ts"
+    ],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/weapons/gren_strong_explosion2.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 13998,
+    "sha256": "d3ffe037ac262de1c10fb0527b84f2699fa151b31c064b884886e50128294226",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [
+      "src/games/fps/client/FPSCombatAudio.ts"
+    ],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/weapons/laser_hit0.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 5755,
+    "sha256": "7e20194e9d71a58fcdccf1c5575f0c9d31ccab032967a8a02458a5fbe4bc1468",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/weapons/laser_hit1.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 5773,
+    "sha256": "44d7f9d76c3333a3ca83c6e37c09a22dcf2545c4fd6ae7fcea750014b71d275d",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/weapons/laser_hit2.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 5784,
+    "sha256": "1a99d9029dd0e0774ec343bacffb092924fc84eddb25d6029c02e7449ee5a030",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/weapons/plasmagun_strong_explosion.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 8490,
+    "sha256": "1521ef0aa6cd361024908383dcffc8405552dddd9cca73ca52f968b3f6436970",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [
+      "src/games/fps/client/FPSCombatAudio.ts"
+    ],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/weapons/ric1.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 8411,
+    "sha256": "e718170d6279cfb6819f335c0392cd3e9548b4b330dd32145aa72fb464b2e38a",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/weapons/ric2.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 8606,
+    "sha256": "fd74085cd14075cc36818a4b4eb0548c2e3d65ea962a9e7b3813ed404926119d",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/weapons/riotgun_strong_hit.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 8380,
+    "sha256": "33fd4085d6a04e8f8213e8642ac2aecf122a1da26c78cdf3d4f10f8a328dcebf",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/weapons/rocket_fire_strong.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 13185,
+    "sha256": "f666cf4c2fa1c559c855a2e5b91dea55b505492380663a38c70e14a195838564",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [
+      "src/games/fps/client/FPSCombatAudio.ts"
+    ],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/weapons/rocket_fly_strong.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 17984,
+    "sha256": "18bab942c515f1f4fd855329c7acfe25913edfe3e12efd75341bfe6be3a61005",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/weapons/rocket_strong_explosion.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 15615,
+    "sha256": "2297d782b4d356d3fddf3d49ceac0b71d950ce01eaa9e4bf36538eb3a39b6f55",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [
+      "src/games/fps/client/FPSBombAudio.ts",
+      "src/games/fps/client/FPSCombatAudio.ts"
+    ],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/weapons/weapon_switch.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 7118,
+    "sha256": "88623e13535bbdc0d802e9deafd533890821cfd8b368d4fec541f1430db61596",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/world/dong.wav",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 65250,
+    "sha256": "9761d0c281b672d7886bd1cae29f51043ee181f53d316dd2c41fcef1bb8e6b01",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/world/ft_step1.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 7269,
+    "sha256": "d1399c10d4df450f41ebc1d68c908b93f0d07c0b6514ddda5c9bccc0d4e16612",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [
+      "src/games/fps/client/FPSMovementAudio.ts"
+    ],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/world/ft_step2.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 6838,
+    "sha256": "23dba896172869ef0a11a866cf9cf2411b58fc39bee798fa77a37557c34458ce",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [
+      "src/games/fps/client/FPSMovementAudio.ts"
+    ],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/world/ft_step3.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 7375,
+    "sha256": "e6794a0c9a8142d5945add8b2416f717d9cd345ec26dade81568f5fb3098ae6f",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [
+      "src/games/fps/client/FPSMovementAudio.ts"
+    ],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/world/ft_step_met1.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 7379,
+    "sha256": "d22191a86edc4e7ee3abff5fc9648176fc15661dc55e21a426e3eaf1f20a5f8f",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [
+      "src/games/fps/client/FPSMovementAudio.ts"
+    ],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/world/ft_step_met2.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 6224,
+    "sha256": "0f4707bad4e3517303fb4d9688b28c9694c219107d83a64d837db1622153ee61",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [
+      "src/games/fps/client/FPSMovementAudio.ts"
+    ],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/world/ft_step_met3.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 7090,
+    "sha256": "ce5e151d0433655c2223b94eb78321fc84a2b1abe6328250b34203a9bed22e60",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [
+      "src/games/fps/client/FPSMovementAudio.ts"
+    ],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/world/ft_walljump_failed.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 6794,
+    "sha256": "c55b3392a0e17c839d762d40306e5c829600263936b31cea700002d74a5412a5",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/world/jumppad.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 12684,
+    "sha256": "c98e3587374d45ab982e71c49c4aff0a5183af922f52f3e69df7d7a4894c2c47",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [
+      "src/games/fps/client/FPSMovementAudio.ts"
+    ],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/world/launchpad.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 16652,
+    "sha256": "9b18ba1f5ce74aee1081edcdf0f0b6a05f016f52b4e36095eb4c06bafb32f29d",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/world/lava_in.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 11163,
+    "sha256": "9310fb2170190d385e8c40bfd70f11470fc0a684e8aac50b71bc90469f7fc196",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [
+      "src/games/fps/client/FPSLiquidAudio.ts"
+    ],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/world/lava_out.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 11741,
+    "sha256": "81ea8dce15bf1a1b4033c273a6ddfca38556a811a8fc5bd6cb73524818a5aee7",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [
+      "src/games/fps/client/FPSLiquidAudio.ts"
+    ],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/world/player_respawn.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 12465,
+    "sha256": "46e784efaeda1d3fd4784d9d9fd65a37dd5bdec5c45833470574521ff22d3f89",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/world/tele_in.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 12465,
+    "sha256": "46e784efaeda1d3fd4784d9d9fd65a37dd5bdec5c45833470574521ff22d3f89",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [
+      "src/games/fps/client/TeleportEffect.ts"
+    ],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/world/underlava.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 35650,
+    "sha256": "a6b7e6aecfc04b305ed7cdcbc24fa9042c7e87a71773e63b06fa8bdf0782e044",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [
+      "src/games/fps/client/FPSLiquidAudio.ts"
+    ],
+    "dynamicReferences": []
+  },
+  {
+    "name": "sounds/world/underwater.ogg",
+    "originalPackage": "data0_000_nonfree_21pure.pk3",
+    "bytes": 31085,
+    "sha256": "ab142727aca49c7a044c417de81752409f858fbdea9005d7e6437f87aa28a9f1",
+    "currentOwner": "zz_washoi_legacy_audio.pk3",
+    "identicalToCurrent": true,
+    "staticReferences": [
+      "src/games/fps/client/FPSLiquidAudio.ts"
+    ],
+    "dynamicReferences": []
+  }
+]

@@ -1,0 +1,527 @@
+[
+  {
+    "file": "data0_000_nonfree_21.pk3",
+    "reason": "fully shadowed source archive",
+    "bytes": 5229166,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/data0_000_nonfree_21.pk3"
+  },
+  {
+    "file": "data0_000_nonfree_21pure.pk3",
+    "reason": "fully shadowed source archive",
+    "bytes": 1210379,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/data0_000_nonfree_21pure.pk3"
+  },
+  {
+    "file": "map_acidwdm2.pk3",
+    "reason": "not in active gametype pool",
+    "bytes": 2373596,
+    "nonMapWinners": [
+      "env/acidwdm2/sky_bk.jpg",
+      "env/acidwdm2/sky_dn.jpg",
+      "env/acidwdm2/sky_ft.jpg",
+      "env/acidwdm2/sky_lf.jpg",
+      "env/acidwdm2/sky_rt.jpg",
+      "env/acidwdm2/sky_up.jpg",
+      "env/acidwdm2/water_nx.jpg",
+      "env/acidwdm2/water_ny.jpg",
+      "env/acidwdm2/water_nz.jpg",
+      "env/acidwdm2/water_px.jpg",
+      "env/acidwdm2/water_py.jpg",
+      "env/acidwdm2/water_pz.jpg",
+      "readme.txt",
+      "scripts/acidwdm2.shader",
+      "textures/acidwdm2/acidwdm2_sky.tga",
+      "textures/acidwdm2/border.tga",
+      "textures/acidwdm2/crate.tga",
+      "textures/acidwdm2/crate_behindyou.tga",
+      "textures/acidwdm2/crate_top.tga",
+      "textures/acidwdm2/crate_unbalanced.tga",
+      "textures/acidwdm2/crate_warsow.tga",
+      "textures/acidwdm2/light_white.tga",
+      "textures/acidwdm2/sky_black.tga",
+      "textures/acidwdm2/struc_black.tga",
+      "textures/acidwdm2/struc_darkgrey.tga",
+      "textures/acidwdm2/struc_fluffy.tga",
+      "textures/acidwdm2/struc_lightgrey.tga",
+      "textures/acidwdm2/struc_white.tga",
+      "textures/acidwdm2/wall_cyan033.tga",
+      "textures/acidwdm2/wall_cyan066.tga",
+      "textures/acidwdm2/wall_cyan100.tga",
+      "textures/acidwdm2/wall_cyan100_fade.tga",
+      "textures/acidwdm2/wall_olive033.tga",
+      "textures/acidwdm2/wall_olive066.tga",
+      "textures/acidwdm2/wall_olive100.tga",
+      "textures/acidwdm2/wall_olive100_fade.tga",
+      "textures/acidwdm2/wall_purple033.tga",
+      "textures/acidwdm2/wall_purple066.tga",
+      "textures/acidwdm2/wall_purple100.tga",
+      "textures/acidwdm2/wall_purple100_fade.tga",
+      "textures/acidwdm2/wall_red033.tga",
+      "textures/acidwdm2/wall_red066.tga",
+      "textures/acidwdm2/wall_red100.tga",
+      "textures/acidwdm2/wall_red100_fade.tga",
+      "textures/acidwdm2/water1.tga",
+      "textures/acidwdm2/water2.tga",
+      "textures/acidwdm2/window_frame.tga"
+    ],
+    "destination": "archive/media/2026-10-17/sources/map_acidwdm2.pk3"
+  },
+  {
+    "file": "map_agent_arena1_00001.pk3",
+    "reason": "editor/API experiment",
+    "bytes": 126452,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_agent_arena1_00001.pk3"
+  },
+  {
+    "file": "map_mcp_probe_00001.pk3",
+    "reason": "editor/API experiment",
+    "bytes": 95708,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_mcp_probe_00001.pk3"
+  },
+  {
+    "file": "map_shagged_guide_example_00001.pk3",
+    "reason": "editor/API experiment",
+    "bytes": 104333,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_shagged_guide_example_00001.pk3"
+  },
+  {
+    "file": "map_shagged_nostairs_00001.pk3",
+    "reason": "editor/API experiment",
+    "bytes": 261766,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_shagged_nostairs_00001.pk3"
+  },
+  {
+    "file": "map_shagged_notriggers_00001.pk3",
+    "reason": "editor/API experiment",
+    "bytes": 142653,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_shagged_notriggers_00001.pk3"
+  },
+  {
+    "file": "map_shagged_three2_00001.pk3",
+    "reason": "editor/API experiment",
+    "bytes": 271295,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_shagged_three2_00001.pk3"
+  },
+  {
+    "file": "map_shagged_three_00001.pk3",
+    "reason": "editor/API experiment",
+    "bytes": 253991,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_shagged_three_00001.pk3"
+  },
+  {
+    "file": "map_shagged_triggers_00001.pk3",
+    "reason": "editor/API experiment",
+    "bytes": 145385,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_shagged_triggers_00001.pk3"
+  },
+  {
+    "file": "map_shaggedapi_blocked_00001.pk3",
+    "reason": "editor/API experiment",
+    "bytes": 96608,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_shaggedapi_blocked_00001.pk3"
+  },
+  {
+    "file": "map_shaggedapi_test_00001.pk3",
+    "reason": "editor/API experiment",
+    "bytes": 95721,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_shaggedapi_test_00001.pk3"
+  },
+  {
+    "file": "map_shaggedapi_test_00002.pk3",
+    "reason": "editor/API experiment",
+    "bytes": 95720,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_shaggedapi_test_00002.pk3"
+  },
+  {
+    "file": "map_shaggedapi_test_00003.pk3",
+    "reason": "editor/API experiment",
+    "bytes": 95720,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_shaggedapi_test_00003.pk3"
+  },
+  {
+    "file": "map_solamphi1_00001.pk3",
+    "reason": "superseded Sol Amphi build",
+    "bytes": 1157956,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_solamphi1_00001.pk3"
+  },
+  {
+    "file": "map_solamphi1_00002.pk3",
+    "reason": "superseded Sol Amphi build",
+    "bytes": 2109412,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_solamphi1_00002.pk3"
+  },
+  {
+    "file": "map_solamphi1_00003.pk3",
+    "reason": "superseded Sol Amphi build",
+    "bytes": 5757208,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_solamphi1_00003.pk3"
+  },
+  {
+    "file": "map_solamphi1_00004.pk3",
+    "reason": "superseded Sol Amphi build",
+    "bytes": 2806154,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_solamphi1_00004.pk3"
+  },
+  {
+    "file": "map_solamphi1_00005.pk3",
+    "reason": "superseded Sol Amphi build",
+    "bytes": 3479164,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_solamphi1_00005.pk3"
+  },
+  {
+    "file": "map_solamphi1_00006.pk3",
+    "reason": "superseded Sol Amphi build",
+    "bytes": 3938391,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_solamphi1_00006.pk3"
+  },
+  {
+    "file": "map_solamphi1_00007.pk3",
+    "reason": "superseded Sol Amphi build",
+    "bytes": 3887317,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_solamphi1_00007.pk3"
+  },
+  {
+    "file": "map_solamphi1_00008.pk3",
+    "reason": "superseded Sol Amphi build",
+    "bytes": 4960133,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_solamphi1_00008.pk3"
+  },
+  {
+    "file": "map_solamphi1_00009.pk3",
+    "reason": "superseded Sol Amphi build",
+    "bytes": 3901641,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_solamphi1_00009.pk3"
+  },
+  {
+    "file": "map_solamphi1_00010.pk3",
+    "reason": "superseded Sol Amphi build",
+    "bytes": 3042746,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_solamphi1_00010.pk3"
+  },
+  {
+    "file": "map_solamphi1_00011.pk3",
+    "reason": "superseded Sol Amphi build",
+    "bytes": 3314445,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_solamphi1_00011.pk3"
+  },
+  {
+    "file": "map_solamphi1_00012.pk3",
+    "reason": "superseded Sol Amphi build",
+    "bytes": 4248473,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_solamphi1_00012.pk3"
+  },
+  {
+    "file": "map_solamphi1_00013.pk3",
+    "reason": "superseded Sol Amphi build",
+    "bytes": 4486363,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_solamphi1_00013.pk3"
+  },
+  {
+    "file": "map_solamphi1_00014.pk3",
+    "reason": "superseded Sol Amphi build",
+    "bytes": 5017179,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_solamphi1_00014.pk3"
+  },
+  {
+    "file": "map_solamphi1_00015.pk3",
+    "reason": "superseded Sol Amphi build",
+    "bytes": 6306107,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_solamphi1_00015.pk3"
+  },
+  {
+    "file": "map_solamphi1_00016.pk3",
+    "reason": "superseded Sol Amphi build",
+    "bytes": 6333268,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_solamphi1_00016.pk3"
+  },
+  {
+    "file": "map_wbomb1.pk3",
+    "reason": "not in active gametype pool",
+    "bytes": 7032982,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_wbomb1.pk3"
+  },
+  {
+    "file": "map_wbomb3.pk3",
+    "reason": "not in active gametype pool",
+    "bytes": 9678630,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_wbomb3.pk3"
+  },
+  {
+    "file": "map_wbomb4.pk3",
+    "reason": "not in active gametype pool",
+    "bytes": 7071318,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_wbomb4.pk3"
+  },
+  {
+    "file": "map_wbomb5.pk3",
+    "reason": "not in active gametype pool",
+    "bytes": 8557484,
+    "nonMapWinners": [
+      "scripts/deleo.shader"
+    ],
+    "destination": "archive/media/2026-10-17/sources/map_wbomb5.pk3"
+  },
+  {
+    "file": "map_wca1.pk3",
+    "reason": "not in active gametype pool",
+    "bytes": 6625515,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_wca1.pk3"
+  },
+  {
+    "file": "map_wctf1.pk3",
+    "reason": "not in active gametype pool",
+    "bytes": 3627780,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_wctf1.pk3"
+  },
+  {
+    "file": "map_wctf2.pk3",
+    "reason": "not in active gametype pool",
+    "bytes": 4535046,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_wctf2.pk3"
+  },
+  {
+    "file": "map_wctf3.pk3",
+    "reason": "not in active gametype pool",
+    "bytes": 4477257,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_wctf3.pk3"
+  },
+  {
+    "file": "map_wctf4.pk3",
+    "reason": "not in active gametype pool",
+    "bytes": 3041573,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_wctf4.pk3"
+  },
+  {
+    "file": "map_wctf6.pk3",
+    "reason": "not in active gametype pool",
+    "bytes": 3980241,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_wctf6.pk3"
+  },
+  {
+    "file": "map_wda1.pk3",
+    "reason": "not in active gametype pool",
+    "bytes": 2319652,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_wda1.pk3"
+  },
+  {
+    "file": "map_wda2.pk3",
+    "reason": "not in active gametype pool",
+    "bytes": 2501857,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_wda2.pk3"
+  },
+  {
+    "file": "map_wda3.pk3",
+    "reason": "not in active gametype pool",
+    "bytes": 858292,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_wda3.pk3"
+  },
+  {
+    "file": "map_wda4.pk3",
+    "reason": "not in active gametype pool",
+    "bytes": 973958,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_wda4.pk3"
+  },
+  {
+    "file": "map_wda5.pk3",
+    "reason": "not in active gametype pool",
+    "bytes": 2662941,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_wda5.pk3"
+  },
+  {
+    "file": "map_wdm1.pk3",
+    "reason": "not in active gametype pool",
+    "bytes": 3059576,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_wdm1.pk3"
+  },
+  {
+    "file": "map_wdm10.pk3",
+    "reason": "not in active gametype pool",
+    "bytes": 1321410,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_wdm10.pk3"
+  },
+  {
+    "file": "map_wdm11.pk3",
+    "reason": "not in active gametype pool",
+    "bytes": 3597877,
+    "nonMapWinners": [
+      "scripts/wdm11.shader"
+    ],
+    "destination": "archive/media/2026-10-17/sources/map_wdm11.pk3"
+  },
+  {
+    "file": "map_wdm12.pk3",
+    "reason": "not in active gametype pool",
+    "bytes": 3691274,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_wdm12.pk3"
+  },
+  {
+    "file": "map_wdm13.pk3",
+    "reason": "not in active gametype pool",
+    "bytes": 2862233,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_wdm13.pk3"
+  },
+  {
+    "file": "map_wdm14.pk3",
+    "reason": "not in active gametype pool",
+    "bytes": 2137757,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_wdm14.pk3"
+  },
+  {
+    "file": "map_wdm15.pk3",
+    "reason": "not in active gametype pool",
+    "bytes": 1363381,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_wdm15.pk3"
+  },
+  {
+    "file": "map_wdm16.pk3",
+    "reason": "not in active gametype pool",
+    "bytes": 3603459,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_wdm16.pk3"
+  },
+  {
+    "file": "map_wdm17.pk3",
+    "reason": "not in active gametype pool",
+    "bytes": 3950924,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_wdm17.pk3"
+  },
+  {
+    "file": "map_wdm18.pk3",
+    "reason": "not in active gametype pool",
+    "bytes": 1777960,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_wdm18.pk3"
+  },
+  {
+    "file": "map_wdm19.pk3",
+    "reason": "not in active gametype pool",
+    "bytes": 2068448,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_wdm19.pk3"
+  },
+  {
+    "file": "map_wdm4.pk3",
+    "reason": "not in active gametype pool",
+    "bytes": 4256473,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_wdm4.pk3"
+  },
+  {
+    "file": "map_wdm5.pk3",
+    "reason": "not in active gametype pool",
+    "bytes": 4731536,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_wdm5.pk3"
+  },
+  {
+    "file": "map_wdm6.pk3",
+    "reason": "not in active gametype pool",
+    "bytes": 3297292,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_wdm6.pk3"
+  },
+  {
+    "file": "map_wdm7.pk3",
+    "reason": "not in active gametype pool",
+    "bytes": 4040947,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_wdm7.pk3"
+  },
+  {
+    "file": "map_wdm9.pk3",
+    "reason": "not in active gametype pool",
+    "bytes": 2786045,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_wdm9.pk3"
+  },
+  {
+    "file": "map_wfdm1.pk3",
+    "reason": "not in active gametype pool",
+    "bytes": 3155980,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_wfdm1.pk3"
+  },
+  {
+    "file": "map_wrace1.pk3",
+    "reason": "not in active gametype pool",
+    "bytes": 1688089,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_wrace1.pk3"
+  },
+  {
+    "file": "map_wtutorial1.pk3",
+    "reason": "not in active gametype pool",
+    "bytes": 4722486,
+    "nonMapWinners": [],
+    "destination": "archive/media/2026-10-17/sources/map_wtutorial1.pk3"
+  },
+  {
+    "file": "map_wdm2.pk3",
+    "reason": "original target map backup before repackaging",
+    "bytes": 3331926,
+    "destination": "archive/media/2026-10-17/sources/map_wdm2.pk3"
+  },
+  {
+    "file": "map_wfdm5.pk3",
+    "reason": "original target map backup before repackaging",
+    "bytes": 20409072,
+    "destination": "archive/media/2026-10-17/sources/map_wfdm5.pk3"
+  },
+  {
+    "file": "map_wfdm11.pk3",
+    "reason": "original target map backup before repackaging",
+    "bytes": 33246550,
+    "destination": "archive/media/2026-10-17/sources/map_wfdm11.pk3"
+  }
+]

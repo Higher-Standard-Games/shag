@@ -4,7 +4,7 @@
     "gametypes": []
   },
   "wdm2": {
-    "displayName": "Proving Grounds",
+    "displayName": "Washoi DM2",
     "gametypes": ["duel"]
   },
   "wdm11": {
@@ -72,14 +72,14 @@
     "gametypes": []
   },
   "wfdm5": {
-    "displayName": "viciious' lair (Warfork)",
+    "displayName": "Washoi DM5",
     "gametypes": [
       "duel",
       "ffa"
     ]
   },
   "wfdm11": {
-    "displayName": "Warehouse C (Warfork)",
+    "displayName": "Washoi DM11",
     "gametypes": [
       "duel",
       "ffa"

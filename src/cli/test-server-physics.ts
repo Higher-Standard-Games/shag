@@ -4,7 +4,7 @@
  * Tests the FPSMovementProfile and HeadlessBSPCollisionWorld in isolation
  * to verify server-side physics work correctly.
  *
- * Run with: npx vite-node src/cli/test-server-physics.ts --map wdm14
+ * Run with: npx vite-node src/cli/test-server-physics.ts --map wdm2
  */
 
 import * as fs from "node:fs";
@@ -20,7 +20,7 @@ import { createHeadlessCollisionWorld } from "./HeadlessBSPCollisionWorld";
 
 // Parse command line args
 const args = process.argv.slice(2);
-let mapName = "wdm7";
+let mapName = "wdm2";
 for (let i = 0; i < args.length; i++) {
   if (args[i] === "--map" || args[i].startsWith("--map=")) {
     mapName = args[i].startsWith("--map=") ? args[i].substring(6) : args[++i];

@@ -52,6 +52,27 @@ paths. Blocked localStorage does not prevent using the in-memory index.
 The generator does not curate or remove packages: prepare the desired release
 directory first. Regenerate metadata after changing its contents.
 
+### Curated map media
+
+Shared cartoon hit artwork ships in `effects.pk3`, with virtual paths
+`effects/cartoonhit1.png` and `effects/cartoonhit2.png`. Rebuild it with
+`npm run tools:effects` from the unserved originals in `archive/media/effects/`,
+or pass `-- --source-dir <directory>`. Regenerate the PK3 index after rebuilding.
+The packager verifies PNG signatures, ZIP CRCs and unchanged image hashes.
+
+`npm run tools:map-media -- --maps wdm2,wfdm5,wfdm11 --output-dir .cache/map-media`
+builds `map_<name>.pk3` and `tex_<name>.pk3` in a staging directory from the
+current ownership index. It uses the runtime BSP/shader parsers, keeps source
+bytes and shader conditionals/templates, and includes provenance manifests.
+It refuses to overwrite indexed input packages. `--audit-only` writes only the
+dependency report. Install reviewed packages into `public/data/` and regenerate
+the index before testing them.
+
+Shared paths still obey the global alphabetical override rule: duplicating media
+in per-map banks does not guarantee that only the matching texture bank downloads.
+See `docs/research/media_packaging.md` in the repository for measured loading,
+archive/rollback steps, remaining shared dependencies and the audio replacement list.
+
 Asset requests have a 15-second header deadline. Archive bodies have a 60-second
 idle deadline, renewed by incoming chunks, and a generous 15-minute total limit.
 Metadata bodies use 15 seconds idle / 60 seconds total. Timed-out mirror requests

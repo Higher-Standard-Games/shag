@@ -133,7 +133,7 @@ and how bots are rated as their preset accounts in the Private pools.
 ## Demos and anti-cheat tools
 
 ```bash
-npm run demo:record -- --map wdm12 --bots 2 --seconds 30
+npm run demo:record -- --map wdm2 --bots 2 --seconds 30
 npm run demo:verify -- path/to/bundle.shagverify
 npm run anticheat:calibrate -- --trials 40 --ticks 1500
 ```
