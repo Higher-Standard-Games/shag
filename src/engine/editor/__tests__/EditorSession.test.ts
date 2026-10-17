@@ -44,6 +44,7 @@ vi.mock("../PreviewTextures", async (importOriginal) => ({
   }),
 }));
 
+import { rotateBrush } from "../ConvexBrush";
 import { naturalFace } from "../FaceUv";
 import { writeMap } from "../MapWriter";
 import { createRoomTemplate } from "../RoomTemplate";
@@ -92,6 +93,77 @@ beforeEach(() => {
 });
 
 describe("editor DOM shell", () => {
+  it("picks convex sides, textures only the selection, aligns and wraps with undo", async () => {
+    const engine = new NullEngine(),
+      canvas = document.createElement("canvas");
+    document.body.append(canvas);
+    const session = new EditorSession(engine, canvas, vi.fn());
+    try {
+      session.document.transact((data) =>
+        data.brushes.push(
+          rotateBrush(
+            { id: "slab", min: { x: -256, y: -256, z: -16 }, max: { x: 256, y: 256, z: 16 }, shader: "blx/blx_grid" },
+            "z",
+            15,
+          ),
+        ),
+      );
+      session.root.querySelector("[data-grid]")!.dispatchEvent(new Event("change"));
+      session.root.querySelector<HTMLButtonElement>('[data-action="undo"]')!.click();
+      session.root.querySelector<HTMLButtonElement>('[data-action="redo"]')!.click();
+      session.render();
+      const click = (modifiers: object) => {
+        for (const type of ["pointerdown", "pointerup"])
+          canvas.dispatchEvent(
+            new MouseEvent(type, { bubbles: true, button: 0, clientX: 200, clientY: 150, ...modifiers }),
+          );
+      };
+      click({ shiftKey: true });
+      const net = () =>
+        [...session.root.querySelectorAll<HTMLButtonElement>("[data-face-net] button.active")].map(
+          (b) => b.dataset.face,
+        );
+      expect(net()).toEqual(["1"]);
+      expect(engine.scenes[0].getMeshByName("shagged-face-1")?.getTotalVertices()).toBe(4);
+      expect(session.root.querySelector<HTMLButtonElement>('[data-uv-op="fit"]')!.disabled).toBe(true);
+      session.root.querySelector<HTMLButtonElement>('[data-action="textures"]')!.click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      const tile = [...session.root.querySelectorAll<HTMLElement>(".shagged-tex__tile")].find((t) =>
+        t.title.startsWith("blx/blx_white_stripe"),
+      )!;
+      tile.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      let brush = session.document.snapshot().brushes[0];
+      expect(brush.hull!.sides[1].material?.shader).toBe("blx/blx_white_stripe");
+      expect(brush.hull!.sides.filter((s) => s.material)).toHaveLength(1);
+      expect(brush.faces).toBeUndefined();
+      session.root.querySelector<HTMLButtonElement>('[data-uv-op="fit"]')!.click();
+      const fitted = session.document.snapshot().brushes[0].hull!.sides[1].material!;
+      session.root.querySelector<HTMLButtonElement>('[data-uv-nudge="shift-u:1"]')!.click();
+      expect(session.document.snapshot().brushes[0].hull!.sides[1].material!.shift[0]).toBeCloseTo(fitted.shift[0] + 8);
+      session.root.querySelector<HTMLButtonElement>('[data-action="undo"]')!.click();
+      expect(session.document.snapshot().brushes[0].hull!.sides[1].material).toEqual(fitted);
+      const field = session.root.querySelector<HTMLInputElement>('[name="scale-u"]')!;
+      field.value = "0";
+      const before = session.document.snapshot();
+      field.dispatchEvent(new Event("change", { bubbles: true }));
+      expect(session.document.snapshot()).toEqual(before);
+      click({ altKey: true });
+      expect(session.root.querySelector("[data-current-texture]")?.textContent).toContain("white_stripe");
+      session.root.querySelector<HTMLButtonElement>('[data-face="2"]')!.click();
+      tile.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      session.root.querySelector<HTMLButtonElement>('[data-uv-op="wrap"]')!.click();
+      brush = session.document.snapshot().brushes[0];
+      expect(brush.hull!.sides[1].material).toEqual(fitted);
+      expect(brush.hull!.sides[2].material?.shader).toBe(fitted.shader);
+      expect(brush.hull!.sides.filter((s) => s.material)).toHaveLength(2);
+    } finally {
+      session.dispose();
+      engine.dispose();
+    }
+  });
   it("drags projected brush vertices as one undoable edit and cancels a drag", () => {
     const engine = new NullEngine(),
       canvas = document.createElement("canvas");
@@ -213,7 +285,7 @@ describe("editor DOM shell", () => {
       pane.dispatchEvent(new MouseEvent("pointerup", { bubbles: true, button: 0, clientX: 200, clientY: 150 }));
       session.root.querySelector<HTMLButtonElement>("[data-rotate-brush]")!.click();
       expect(session.document.snapshot().brushes[0].hull?.sides.length).toBe(6);
-      expect(session.root.querySelector("[data-face-net]")?.textContent).toContain("Convex brush");
+      expect(session.root.querySelector("[data-face-net]")?.textContent).toContain("Side 0");
       const height = session.root.querySelector<HTMLInputElement>('[name="max-z"]')!;
       height.value = "48";
       session.root

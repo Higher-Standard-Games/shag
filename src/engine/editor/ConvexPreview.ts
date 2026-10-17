@@ -31,13 +31,19 @@ export function createConvexPreview(brush: BoxBrush, scene: Scene, name = brush.
   data.normals = [];
   data.indices = [];
   data.uvs = [];
+  const faceIndices: number[] = [];
   for (const batch of shaderBatches([brush])) {
     const offset = data.positions.length / 3;
     data.positions.push(...batch.positions);
     data.normals.push(...batch.normals);
     data.uvs.push(...batch.uvs);
     data.indices.push(...batch.indices.map((i) => i + offset));
+    brush.hull?.sides.forEach((side, index) => {
+      if ((side.material?.shader ?? brush.shader) === batch.shader)
+        for (let triangle = 0; triangle < side.vertices.length - 2; triangle++) faceIndices.push(index);
+    });
   }
+  mesh.metadata.convexFaceIndices = faceIndices;
   data.applyToMesh(mesh);
   return mesh;
 }

@@ -45,10 +45,32 @@ try{
     await sleep(300);await browser.shot(path.resolve('.cache/shagged-vertices.png'));
     vertices={dragged,undo:true,numericHeight:edited};
   }
+  let faces;
+  if(process.argv.includes('--faces')) {
+    const target=await browser.ev(`(async()=>{const {convexFaceProbePoint}=await import('/experiments/shagged/convex-browser-fixture.ts');return convexFaceProbePoint()})()`);
+    assert.equal(typeof target.side,'number',JSON.stringify(target));
+    for(const type of ['mousePressed','mouseReleased'])await browser.send('Input.dispatchMouseEvent',{type,x:target.x,y:target.y,button:'left',clickCount:1,modifiers:8});
+    const picked=await browser.ev(`window.__convexQA.session.root.querySelector('[data-face="${target.side}"]').classList.contains('active')`);
+    assert.equal(picked,true,'native Shift click must select the actual diagonal side');
+    await browser.click('[data-uv-op="fit"]');
+    const fitted=await browser.ev(`JSON.stringify(window.__convexQA.session.document.snapshot().brushes.find(b=>b.id==='bridge').hull.sides[${target.side}].material)`);
+    await browser.click('[data-uv-nudge="shift-u:1"]');
+    const shifted=await browser.ev(`window.__convexQA.session.document.snapshot().brushes.find(b=>b.id==='bridge').hull.sides[${target.side}].material.shift[0]`);
+    assert(Math.abs(shifted-JSON.parse(fitted).shift[0]-8)<1e-6);
+    await browser.click('[data-action="undo"]');
+    assert.equal(await browser.ev(`JSON.stringify(window.__convexQA.session.document.snapshot().brushes.find(b=>b.id==='bridge').hull.sides[${target.side}].material)`),fitted);
+    for(const type of ['mousePressed','mouseReleased'])await browser.send('Input.dispatchMouseEvent',{type,x:target.x,y:target.y,button:'left',clickCount:1,modifiers:1});
+    const sampled=await browser.ev('window.__convexQA.session.root.querySelector("[data-current-texture]").textContent');
+    assert.equal(sampled,'blx/blx_grid');
+    await browser.click('[data-face="1"]');await browser.click('[data-uv-op="wrap"]');
+    await browser.ev('window.__convexQA.session.inspector.scrollTop=window.__convexQA.session.inspector.scrollHeight');
+    await sleep(300);await browser.shot(path.resolve('.cache/shagged-faces.png'));
+    faces={side:target.side,picked,shifted,undo:true,sampled};
+  }
   const errors=browser.logs.filter(entry=>/shader.*error|WebGL.*error|exception/i.test(JSON.stringify(entry)));
   assert.equal(errors.length,0,JSON.stringify(errors));
   assert.equal(browser.failed.length,0,JSON.stringify(browser.failed));
-  fs.writeFileSync(`.cache/shagged-${vertices?'vertices':'convex'}-browser-report.json`,JSON.stringify({ok:true,result,textured,vertices,logs:browser.logs,failed:browser.failed},null,2));
-  console.log(JSON.stringify({ok:true,...result,vertices},null,2));
+  fs.writeFileSync(`.cache/shagged-${faces?'faces':vertices?'vertices':'convex'}-browser-report.json`,JSON.stringify({ok:true,result,textured,vertices,faces,logs:browser.logs,failed:browser.failed},null,2));
+  console.log(JSON.stringify({ok:true,...result,vertices,faces},null,2));
   await browser.ev('window.__convexQA.engine.stopRenderLoop();window.__convexQA.session.dispose();window.__convexQA.engine.dispose();');
 }finally{if(browser)await browser.close();vite.kill();}

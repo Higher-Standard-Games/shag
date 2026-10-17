@@ -1,15 +1,16 @@
 /**
- * Alignment fields, nudges and operations for the selected faces of one box
+ * Alignment fields, nudges and operations for the selected faces of one
  * brush, shown under the inspector's face net. The panel only builds edits;
  * the caller applies each one to every selected face as one undo step.
  */
 
-import type { BoxBrush, FaceKey, FaceMaterial } from "./EditorDocument";
-import { fitFace, naturalFace, wrapFaces } from "./FaceUv";
+import { type BrushFace, brushFaceMaterial, fitBrushFace, wrapBrushFaces } from "./BrushFaces";
+import type { BoxBrush, FaceMaterial } from "./EditorDocument";
+import { naturalFace } from "./FaceUv";
 import "./face-alignment.css";
 
 /** A change to one selected face; `brush` is the brush as it is inside the transaction. */
-export type FaceUpdate = (face: FaceMaterial, key: FaceKey, brush: BoxBrush) => FaceMaterial;
+export type FaceUpdate = (face: FaceMaterial, key: BrushFace, brush: BoxBrush) => FaceMaterial;
 
 /** Applies `update` to every selected face as one step and reports `describe`. */
 export type AlignFaces = (describe: string, update: FaceUpdate) => void;
@@ -65,7 +66,7 @@ const tidy = (value: number): number => Math.round(value * 1e6) / 1e6;
 export function renderFaceAlignment(
   host: HTMLElement,
   brush: BoxBrush,
-  keys: readonly FaceKey[],
+  keys: readonly BrushFace[],
   align: AlignFaces,
 ): void {
   host.replaceChildren();
@@ -79,7 +80,7 @@ export function renderFaceAlignment(
   form.className = "shagged-uv";
   form.dataset.uvForm = "";
   const inputs = new Map<Field, HTMLInputElement>();
-  const faces = keys.flatMap((key) => brush.faces?.[key] ?? []);
+  const faces = keys.flatMap((key) => brushFaceMaterial(brush, key) ?? []);
   for (const field of FIELDS) {
     const row = document.createElement("div");
     row.className = "shagged-uv__row";
@@ -123,7 +124,7 @@ export function renderFaceAlignment(
     return button;
   };
   op("fit", "Fit", "One repeat of the texture across each face", () =>
-    align("Fitted", (face, key, box) => fitFace(face, box, key)),
+    align("Fitted", (face, key, box) => fitBrushFace(face, box, key)),
   );
   op("natural", "Natural", "0.5 units per texel, no shift or rotation", () =>
     align("Natural alignment", (face) => naturalFace(face.shader, face.size)),
@@ -133,10 +134,14 @@ export function renderFaceAlignment(
     "wrap",
     `Wrap from ${first}`,
     "The first selected face's texture continues around the corners onto the others",
-    () =>
-      align(`Wrapped ${first} around`, (face, key, box) =>
-        key === first ? face : wrapFaces(box, first, box.faces![first]!, rest)[key]!,
-      ),
+    () => {
+      let wrapped: Map<BrushFace, FaceMaterial> | undefined;
+      align(`Wrapped ${first} around`, (face, key, box) => {
+        if (key === first) return face;
+        wrapped ??= wrapBrushFaces(box, first, rest);
+        return wrapped.get(key)!;
+      });
+    },
   );
   wrap.disabled = rest.length === 0;
   form.appendChild(ops);
@@ -162,7 +167,7 @@ export function renderFaceAlignment(
     applyTyped();
   });
 
-  const fixed = keys.filter((key) => !brush.faces?.[key]);
+  const fixed = keys.filter((key) => !brushFaceMaterial(brush, key));
   if (fixed.length) {
     const warning = document.createElement("p");
     warning.className = "shagged-uv__warning";

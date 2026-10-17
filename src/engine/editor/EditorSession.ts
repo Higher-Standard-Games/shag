@@ -16,6 +16,14 @@ import "@babylonjs/core/Rendering/edgesRenderer";
 // Registers Scene.pick for perspective selection.
 import "@babylonjs/core/Culling/ray";
 import { q3ToBabylonVec3 } from "../loader/bsp/mesh/coordinates";
+import {
+  type BrushFace,
+  brushFaceMaterial,
+  brushFaceNormal,
+  brushFacePoints,
+  setBrushFaceMaterial,
+  validBrushFace,
+} from "./BrushFaces";
 import { brushVertices, editBrushVertices, type VertexEdit, vertexHit } from "./BrushVertexTools";
 import { rotateBrush } from "./ConvexBrush";
 import { createConvexPreview, hullEdges } from "./ConvexPreview";
@@ -299,7 +307,7 @@ export class EditorSession {
   private wireframe: Mesh | null = null;
   private thumbnails: TextureThumbnails | null = null;
   /** Faces of the selected brush picked with Ctrl+Shift+click or the face net; UI state only. */
-  private readonly selectedFaces = new Set<FaceKey>();
+  private readonly selectedFaces = new Set<BrushFace>();
   private faceOverlays: Mesh[] = [];
   private faceOverlayKey = "";
   private grid = 16;
@@ -644,7 +652,8 @@ export class EditorSession {
       "click",
       (event) => {
         const face = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-face]")?.dataset.face;
-        if (face && this.selectedId) this.toggleFace(this.selectedId, face as FaceKey);
+        if (face !== undefined && this.selectedId)
+          this.toggleFace(this.selectedId, /^\d+$/.test(face) ? Number(face) : (face as FaceKey));
       },
       { signal: this.listeners.signal },
     );
@@ -858,13 +867,12 @@ export class EditorSession {
       this.document.transact((data) => {
         const brush = data.brushes.find((item) => item.id === brushId);
         if (!brush) throw new Error("Selected brush no longer exists");
-        const fixed = keys.filter((key) => !brush.faces?.[key]);
+        const fixed = keys.filter((key) => !brushFaceMaterial(brush, key));
         if (fixed.length) throw new Error(`pick a texture (T) for face ${fixed.join(", ")} first`);
-        const faces = brush.faces!;
         // every update reads the faces as they were, so a wrap's source isn't changed under it
-        const next = keys.map((key) => update(faces[key]!, key, brush));
+        const next = keys.map((key) => update(brushFaceMaterial(brush, key)!, key, brush));
         keys.forEach((key, index) => {
-          faces[key] = next[index];
+          setBrushFaceMaterial(brush, key, next[index]);
         });
       });
       this.changed();
@@ -1069,10 +1077,13 @@ export class EditorSession {
     try {
       this.document.transact((data) => {
         const brush = data.brushes.find((item) => item.id === brushId)!;
-        brush.faces ??= {};
         for (const key of keys) {
-          const existing = brush.faces[key];
-          brush.faces[key] = existing ? { ...existing, shader: entry.name, size } : naturalFace(entry.name, size);
+          const existing = brushFaceMaterial(brush, key);
+          setBrushFaceMaterial(
+            brush,
+            key,
+            existing ? { ...existing, shader: entry.name, size } : naturalFace(entry.name, size),
+          );
         }
       });
       this.changed();
@@ -1085,7 +1096,9 @@ export class EditorSession {
   }
 
   /** Shift+click (also Ctrl+Shift+click) or the face net toggles one brush face. */
-  private toggleFace(brushId: string, key: FaceKey): void {
+  private toggleFace(brushId: string, key: BrushFace): void {
+    const brush = this.document.snapshot().brushes.find((item) => item.id === brushId);
+    if (!brush || !validBrushFace(brush, key)) return;
     if (this.selectedId !== brushId) {
       this.selectedFaces.clear();
       this.selectedId = brushId;
@@ -1101,8 +1114,8 @@ export class EditorSession {
   }
 
   /** Alt+click: a face's texture becomes the current texture (eyedropper). */
-  private sampleFace(brush: BoxBrush, key: FaceKey): void {
-    const face = brush.faces?.[key];
+  private sampleFace(brush: BoxBrush, key: BrushFace): void {
+    const face = brushFaceMaterial(brush, key);
     this.currentTexture = face ? { name: face.shader, size: face.size } : { name: brush.shader, size: null };
     this.renderCurrentTexture();
     this.status(`Sampled ${this.currentTexture.name} from face ${key}`);
@@ -1119,8 +1132,31 @@ export class EditorSession {
     }
     this.faceOverlays = [];
     const brush = data.brushes.find((item) => item.id === this.selectedId);
-    if (!brush || brush.hull) return;
+    if (!brush) return;
     for (const face of this.selectedFaces) {
+      if (!validBrushFace(brush, face)) continue;
+      if (typeof face === "number") {
+        const points = brushFacePoints(brush, face),
+          n = brushFaceNormal(brush, face);
+        const mesh = new Mesh(`shagged-face-${face}`, this.scene),
+          data = new VertexData();
+        data.positions = points.flatMap((p) =>
+          q3ToBabylonVec3([p.x + n.x * 0.4, p.y + n.y * 0.4, p.z + n.z * 0.4]).asArray(),
+        );
+        data.normals = points.flatMap(() => q3ToBabylonVec3([n.x, n.y, n.z]).asArray());
+        data.indices = [];
+        for (let i = 1; i < points.length - 1; i++) data.indices.push(0, i, i + 1);
+        data.applyToMesh(mesh);
+        mesh.isPickable = false;
+        const material = new StandardMaterial(`shagged-face-material-${face}`, this.scene);
+        material.diffuseColor = new Color3(1, 0.55, 0.05);
+        material.emissiveColor = new Color3(0.25, 0.12, 0);
+        material.alpha = this.viewMode === "brush" ? 0.6 : 0.18;
+        material.backFaceCulling = false;
+        mesh.material = material;
+        this.faceOverlays.push(mesh);
+        continue;
+      }
       const axis = face[1].toLowerCase() as keyof Vec3q;
       const outward = face[0] === "+";
       const min = { ...brush.min };
@@ -1149,10 +1185,22 @@ export class EditorSession {
   /** The selected brush's six faces as a net: click one to add it to or remove it from the face selection. */
   private renderFaceNet(net: HTMLElement, brush: BoxBrush): void {
     if (brush.hull) {
-      const note = document.createElement("p");
-      note.style.gridColumn = "1 / -1";
-      note.textContent = `Convex brush: ${brush.hull.sides.length} sides. T textures the whole brush; scripting face.material uses numeric side indices.`;
-      net.replaceChildren(note);
+      net.replaceChildren();
+      brush.hull.sides.forEach((side, index) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.dataset.face = String(index);
+        button.classList.toggle("active", this.selectedFaces.has(index));
+        button.setAttribute("aria-pressed", String(this.selectedFaces.has(index)));
+        const label = document.createElement("b"),
+          name = document.createElement("span");
+        label.textContent = `Side ${index}`;
+        const shader = side.material?.shader ?? brush.shader;
+        name.textContent = shader.split("/").pop() ?? shader;
+        button.title = `${shader} · ${side.vertices.length} vertices${side.material ? "" : " · fixed alignment"}`;
+        button.append(label, name);
+        net.append(button);
+      });
       return;
     }
     const layout: Array<[FaceKey, number, number]> = [
@@ -1959,6 +2007,14 @@ export class EditorSession {
       ? (pick.pickedMesh?.metadata?.editorEntityId ?? pick.pickedMesh?.name ?? null)
       : null;
     const brush = hitId ? this.document.snapshot().brushes.find((item) => item.id === hitId) : undefined;
+    if (brush?.hull && (event.altKey || event.shiftKey)) {
+      const side: unknown = pick?.pickedMesh?.metadata?.convexFaceIndices?.[pick.faceId];
+      if (typeof side === "number" && validBrushFace(brush, side)) {
+        if (event.altKey) this.sampleFace(brush, side);
+        else this.toggleFace(brush.id, side);
+      }
+      return;
+    }
     const normal = brush && !brush.hull && (event.altKey || event.shiftKey) ? pick?.getNormal(true, true) : null;
     if (brush && normal) {
       // Babylon is Y-up; the document is Quake Z-up.
@@ -2434,6 +2490,8 @@ export class EditorSession {
   private changed(): void {
     if (this.selectedId && !this.exists(this.selectedId)) this.selectedId = null;
     if (!this.selectedId) this.selectedFaces.clear();
+    const brush = this.document.snapshot().brushes.find((item) => item.id === this.selectedId);
+    for (const face of this.selectedFaces) if (!brush || !validBrushFace(brush, face)) this.selectedFaces.delete(face);
     this.rebuildMeshes();
     this.draw();
     try {
@@ -3154,6 +3212,7 @@ export class EditorSession {
       const facing = axes.hidden.toUpperCase();
       if (
         faced &&
+        !faced.hull &&
         (this.selectedFaces.has(`+${facing}` as FaceKey) || this.selectedFaces.has(`-${facing}` as FaceKey))
       ) {
         ctx.setLineDash?.([6, 4]);
@@ -3167,6 +3226,25 @@ export class EditorSession {
         );
         ctx.setLineDash?.([]);
       }
+      if (faced?.hull)
+        for (const face of this.selectedFaces) {
+          if (!validBrushFace(faced, face)) continue;
+          const points = brushFacePoints(faced, face);
+          ctx.setLineDash?.([6, 4]);
+          ctx.strokeStyle = "#ff8a00";
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          points.forEach((point, index) => {
+            const x = originX + point[axes.u] * this.zoom,
+              y = originY - point[axes.v] * this.zoom;
+            if (index) ctx.lineTo(x, y);
+            else ctx.moveTo(x, y);
+          });
+          const first = points[0];
+          ctx.lineTo(originX + first[axes.u] * this.zoom, originY - first[axes.v] * this.zoom);
+          ctx.stroke();
+          ctx.setLineDash?.([]);
+        }
       const dragged = this.gesture?.entity;
       for (const original of data.entities) {
         const moving = dragged?.id === original.id && this.gesture;

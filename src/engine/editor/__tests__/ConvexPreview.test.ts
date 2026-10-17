@@ -28,6 +28,9 @@ it("previews and picks the actual diagonal solid rather than its bounding box", 
     mesh.material = new StandardMaterial("solid", scene);
     mesh.computeWorldMatrix(true);
     expect(mesh.intersects(new Ray(new Vector3(50, 100, 50), new Vector3(0, -1, 0)), false).hit).toBe(true);
+    const picked = mesh.intersects(new Ray(new Vector3(50, 100, 50), new Vector3(0, -1, 0)), false);
+    expect(mesh.metadata.convexFaceIndices[picked.faceId]).toBe(1);
+    expect(mesh.metadata.convexFaceIndices).toHaveLength(12);
     expect(mesh.intersects(new Ray(new Vector3(90, 100, -90), new Vector3(0, -1, 0)), false).hit).toBe(false);
     expect(hullEdges(brush).length).toBe(12);
     const batches = shaderBatches([brush]);

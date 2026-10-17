@@ -4,6 +4,38 @@ Started 2026-10-16. This is a running record of limitations encountered while us
 
 Record each obstacle when encountered: reproduction or source evidence, impact, workaround, and proposed improvement. Distinguish observed tool failures from capabilities missing from the exposed API. Do not treat an untested idea as a confirmed editor bug.
 
+## Current checklist
+
+This checklist summarizes the implementation status. The dated findings below
+remain an experiment history; their original gap descriptions are not a list
+of work still outstanding.
+
+- [x] Complete compiler diagnostics, durable logs and publication checks.
+- [x] Cross-process build/edit coordination, input fingerprints and forced rebuilds.
+- [x] Full document reads, spatial queries and expected-revision protection.
+- [x] Installed BSP reference inspection and material palettes.
+- [x] Model discovery, compiler ASE placement and compiler entity catalogs.
+- [x] Worldspawn keys, structural/detail authoring and natural texture alignment.
+- [x] Patch creation, convex brushes, polygon prisms and rotation.
+- [x] Graphical vertex editing with convex reconstruction and undo.
+- [x] Convex face picking, texture sampling, selected-side texturing and
+  graphical shift/scale/rotation, Fit, Natural and Wrap.
+
+Suggested implementation order for remaining work:
+
+1. [ ] Texture locking during rotation and reshaping.
+2. [ ] Graphical object multi-selection, marquee selection and editor groups.
+3. [ ] Plane clipping and convex subtraction.
+4. [ ] More curve presets and controls: cylinders, tubes, cones and caps.
+5. [ ] ASE browser mesh preview and GLB/glTF headless discovery bounds.
+6. [ ] Clean machine-readable CLI launcher without the Vite startup banner.
+7. [ ] Faithful external `.map` import and round-trip compatibility.
+
+The latter graphical/editor items also appear in the broader `SHAGGED.md`
+design notes. Compiler grouping already works; editor selection groups are a
+different feature. Texture locking and multi-select are the next recommended
+authoring improvements, not prerequisites for the completed experiment.
+
 ## Initial findings
 
 ### 1. Inspect an existing compiled map and obtain its material palette
@@ -161,7 +193,7 @@ an optional normalized hull preserves geometry under existing move/resize,
 ownership, snapshots, duplication and undo paths. Export emits real brushDef
 planes. Editor brush/textured/wireframe views show actual faces/edges, and the
 inspector exposes rotation. Numeric `face.material` indices address hull sides;
-the browser's six-face alignment panel remains box-only.
+the graphical face picker/alignment panel also supports these indexed sides.
 
 The native test first failed because automatic collision bevels introduced a
 bare `noshader` warning. BSP inspection found 13 such collision sides and zero
@@ -178,8 +210,16 @@ and normal similarity. Invalid or collapsed edits leave the document unchanged;
 each drag or Apply is one undo step. Topology indices may change after edits.
 
 Convex subtraction is an open need: cuts overlapping convex AABBs reject
-instead of silently reshaping the hull as a box. Per-side graphical alignment,
-texture locking across rotations and concave decomposition remain separate.
+instead of silently reshaping the hull as a box. Texture locking across
+rotations and concave decomposition remain separate.
+
+Convex face Shift-picking maps actual mesh triangles back to source sides even
+when materials reorder the preview batches. Alt-picking samples that side.
+The inspector supports per-side texture assignment and shift/scale/rotation,
+Fit, Natural and Wrap. Fit uses actual projected polygon extents. Wrap unfolds
+adjacent planes about their shared edge and follows deterministic BFS paths,
+including mirrored textures; it does not promise seam-free coverage of every
+edge of a closed solid. Native BSP UV checks cover a fitted sloped face.
 
 ### Natural creation alignment: implemented
 

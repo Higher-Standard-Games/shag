@@ -76,3 +76,11 @@ GPU probe with a real mouse drag, undo and exact vertex height editing. It uses
 an isolated editor document and private server. Results and screenshots are
 written to `.cache/shagged-vertices*`; see
 `docs/research/SHAGGED_VERTEX_VALIDATION.md` for checks and limits.
+
+## Graphical convex face QA
+
+`node experiments/shagged/convex-browser-probe.mjs --faces` checks real
+Shift/Alt mouse picking on a visible diagonal side, Fit, shift nudging,
+undo and Wrap. The fixture resolves actual triangle-to-side identity rather
+than inferring a box face from a normal. Results and the inspector screenshot
+are written to `.cache/shagged-faces*`.

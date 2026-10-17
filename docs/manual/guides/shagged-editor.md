@@ -57,9 +57,9 @@ the selection's bounds center. Rotation converts a box into a convex solid;
 3D brush/textured/wireframe views show its actual faces and the 2D views show
 its edges. Bounds handles resize along world axes, while the hull stays convex.
 Move, duplicate, delete and undo/redo work on these brushes. **T** textures the
-whole convex brush; numeric per-side material editing and creating polygon
-prisms/wedges are available through the [scripting API](./shagged-api.md#convex-solids-and-rotation).
-The six-face box alignment panel does not edit convex sides. Carving through
+whole convex brush when no faces are selected. Creating polygon prisms/wedges
+is also available through the [scripting API](./shagged-api.md#convex-solids-and-rotation).
+Carving through
 convex solids is rejected until convex subtraction is supported.
 
 ### Brush vertices
@@ -85,6 +85,17 @@ the document. Concave shapes require several brushes.
 ### Textures
 
 - Shift+click a face in the 3D view to select it for per-face texturing (Shift+click again to toggle); Alt+click samples a face's texture as the current one.
+- Convex brushes use the same controls and show numbered **Side** buttons in
+  the inspector. Selected polygons are highlighted in 3D and outlined in the
+  2D panes. Side numbers can change after a vertex edit.
+- Alignment controls edit shift, scale and rotation on every selected face.
+  **Fit** covers each face's projected texture extent with one repeat;
+  **Natural** restores 0.5 units per texel. Pick a texture first if a face has
+  no known image dimensions.
+- **Wrap from** continues the first selected face's texture over shared edges.
+  Convex brushes use deterministic paths through adjacent sides, preferring
+  selected sides. A closed solid can still have seams on edges outside those
+  paths. Each texture/alignment action is one undo step.
 - Texture faces nobody sees with `common/caulk`, then texture the visible faces.
 - Texture names have no `textures/` prefix; the compiler adds it.
 

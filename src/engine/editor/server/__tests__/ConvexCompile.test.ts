@@ -7,7 +7,9 @@ import { BspLoader } from "../../../loader/bsp/BspLoader";
 import { resolveMapBspViaIndex } from "../../../loader/pk3/NodePk3";
 import { SweepCollisionBackend } from "../../../physics/SweepCollisionBackend";
 import { applyOperations, emptyDocument } from "../../api/Operations";
+import { brushFaceKeys, brushFaceNormal, brushFaceST, fitBrushFace, setBrushFaceMaterial } from "../../BrushFaces";
 import { dot, planeTextureAxes } from "../../ConvexBrush";
+import { faceTexMatrix, naturalFace } from "../../FaceUv";
 import { writeMap } from "../../MapWriter";
 import { CompileJobs } from "../CompileJobs";
 import { resolveCompilerConfig } from "../CompilerConfig";
@@ -46,6 +48,10 @@ it("compiles rotated solids and prisms with correct collision and arbitrary-plan
         ],
       },
     ]).doc;
+    const ramp = doc.brushes.find((brush) => brush.id === "ramp")!;
+    const rampTop = brushFaceKeys(ramp).find((key) => brushFaceNormal(ramp, key).z > 0.5)!;
+    const rampMaterial = fitBrushFace(naturalFace("blx/blx_grid", [512, 256]), ramp, rampTop);
+    setBrushFaceMaterial(ramp, rampTop, rampMaterial);
     const store = new MapStore(path.join(root, "maps"));
     await store.init();
     const saved = await store.save("convexprobe", writeMap(doc), 0, doc);
@@ -64,6 +70,14 @@ it("compiles rotated solids and prisms with correct collision and arbitrary-plan
     expect(down(90, -90).fraction).toBe(1);
     expect(down(-160, 0).endPos.y).toBeCloseTo(64, 0);
     expect(down(96, -128).endPos.y).toBeCloseTo(40, 0);
+    const sloped = bsp.faces.find((face) => face.normal[2] > 0.5 && face.normal[2] < 0.99)!;
+    expect(sloped).toBeDefined();
+    for (const vertex of bsp.vertices.slice(sloped.firstVertex, sloped.firstVertex + sloped.numVertices)) {
+      const [x, y, z] = vertex.position;
+      const expected = brushFaceST(ramp, rampTop, faceTexMatrix(rampMaterial), { x, y, z });
+      expect(vertex.texCoord[0]).toBeCloseTo(expected[0], 4);
+      expect(vertex.texCoord[1]).toBeCloseTo(expected[1], 4);
+    }
     const diagonal = bsp.faces.find(
       (face) => Math.abs(Math.abs(face.normal[0]) - Math.SQRT1_2) < 1e-3 && Math.abs(face.normal[2]) < 1e-3,
     );
