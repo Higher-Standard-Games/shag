@@ -153,6 +153,14 @@ The installed native MakeBSP `-fontatlas` command emits a JSON descriptor with a
 
 ## Implementation follow-up: diagnostics
 
+### Installed reference inspection: implemented
+
+`shagged_inspect_installed_map` and CLI `inspect-bsp` read compiled maps through
+`resolveMapBspViaIndex`, including published numbered builds. Results include
+the world envelope, spawns, entity counts and a searchable paged material
+palette with face counts. No document is modified. Bounds include scenery and
+clips and must not be equated with playable space.
+
 Compile jobs now write a complete native transcript and atomically replace a
 durable status file. The rolling tail is only a convenience: warning/error
 counts, leak detection, native phase and diagnostic samples are tracked

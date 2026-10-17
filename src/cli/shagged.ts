@@ -30,6 +30,8 @@ import {
 } from "../engine/editor/server/AgentPipeline";
 import { type DocumentQuery, documentSnapshot, queryDocument } from "../engine/editor/server/DocumentInspection";
 import { withFileLock } from "../engine/editor/server/FileLock";
+import { inspectInstalledMap } from "../engine/editor/server/InstalledMapInspection";
+import { resolveServerConfig } from "../engine/editor/server/ServerConfig";
 import { loadTextureCatalog, searchTextures } from "../engine/editor/server/TextureLookup";
 
 const USAGE = `Usage: npm run shagged -- <command> ...
@@ -42,7 +44,8 @@ const USAGE = `Usage: npm run shagged -- <command> ...
   export <doc.json> [out.map]                          deterministic .map source (stdout without a file)
   compile <doc.json> [--quality fast|default|release] [--force]  save, compile and publish; force bypasses reuse
   report <doc.json> [--quality ...] [--force]          health, compile, then reachability of the compiled map
-  textures [search words] [--folder f] [--limit n]     find texture names and their image sizes`;
+  textures [search words] [--folder f] [--limit n]     find texture names and their image sizes
+  inspect-bsp <mapName> [--search words] [--offset n] [--limit n]  inspect an installed reference map`;
 
 /** Writes stdout directly, so results still print while library logging is silenced. */
 function out(value: unknown): void {
@@ -108,11 +111,25 @@ async function main(): Promise<void> {
   };
   const positional = args.filter(
     (arg, index) =>
-      !arg.startsWith("--") && !args[index - 1]?.match(/^--(name|quality|folder|limit|expected-revision)$/),
+      !arg.startsWith("--") &&
+      !args[index - 1]?.match(/^--(name|quality|folder|limit|expected-revision|search|offset)$/),
   );
   const [command, file, third] = positional;
   if (!command || flag("--help") || flag("-h")) {
     console.log(USAGE);
+    return;
+  }
+  if (command === "inspect-bsp") {
+    if (!file) fail("inspect-bsp needs an installed map name");
+    out(
+      await quietly(() =>
+        inspectInstalledMap(resolveServerConfig([]).publishRoot, file, {
+          search: value("--search"),
+          offset: Number(value("--offset") ?? 0),
+          limit: Number(value("--limit") ?? 100),
+        }),
+      ),
+    );
     return;
   }
   if (command === "textures") {

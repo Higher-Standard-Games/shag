@@ -60,6 +60,18 @@ use this coordination; it is local-machine locking, not a distributed service.
 
 ## Inspect and edit a snapshot
 
+For a compiled reference map, use MCP
+`shagged_inspect_installed_map {mapName: "wfdm5", search?, offset?, limit?}`
+or CLI `npm run shagged -- inspect-bsp wfdm5 --limit 100`.
+This reads the installed BSP through the game's package index, independently
+of managed authoring documents. It returns world bounds in Quake coordinates,
+spawn properties, entity-class counts and a used-material palette with face
+counts. Material names omit `textures/` for direct authoring use. Search matches
+all words; pages default to 100 entries, at most 500. Continue at
+`palette.nextOffset` until it reaches `palette.total`. The world envelope includes
+scenery and clips: it is not the playable footprint. The data root is the
+configured `SHAGGED_PUBLISH_ROOT` (default `public/data`).
+
 `shagged_read_document {mapName}` returns `{ok, document}` with the complete
 validated authoring snapshot, including schema/draft identity, revision, world
 keys, face materials/alignment, detail flags, patch control points and brush

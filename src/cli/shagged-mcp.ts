@@ -35,6 +35,7 @@ import {
 import { readCompileJob, readCompileLog } from "../engine/editor/server/CompileJobs";
 import { documentSnapshot, queryDocument } from "../engine/editor/server/DocumentInspection";
 import { withFileLock } from "../engine/editor/server/FileLock";
+import { inspectInstalledMap } from "../engine/editor/server/InstalledMapInspection";
 import { resolveServerConfig } from "../engine/editor/server/ServerConfig";
 import { loadTextureCatalog, searchTextures } from "../engine/editor/server/TextureLookup";
 
@@ -329,6 +330,23 @@ server.registerTool(
     inputSchema: { mapName: MAP_NAME, quality: QUALITY, force: z.boolean().optional() },
   },
   async ({ mapName, quality, force }) => run(() => exclusive(mapName, () => mapReport(load(mapName), quality, force))),
+);
+
+server.registerTool(
+  "shagged_inspect_installed_map",
+  {
+    title: "Inspect an installed reference map",
+    description:
+      "Read an indexed compiled BSP: world envelope (including scenery, not playable bounds), spawns, entity class counts and a paged used-material palette with face counts. No authoring document is required or changed.",
+    inputSchema: {
+      mapName: MAP_NAME,
+      search: z.string().optional().describe("Filter used material names by all search words."),
+      offset: z.number().int().min(0).optional(),
+      limit: z.number().int().min(1).max(500).optional(),
+    },
+    annotations: { readOnlyHint: true },
+  },
+  async ({ mapName, ...query }) => run(() => inspectInstalledMap(resolveServerConfig([]).publishRoot, mapName, query)),
 );
 
 server.registerTool(
