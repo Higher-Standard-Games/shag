@@ -153,6 +153,27 @@ The installed native MakeBSP `-fontatlas` command emits a JSON descriptor with a
 
 ## Implementation follow-up: diagnostics
 
+### Convex and diagonal authoring: implemented
+
+`convex.create`, `gen.prism` and `brush.rotate` add closed convex solids,
+extruded convex footprints and three-axis rotation. Brushes keep their AABB;
+an optional normalized hull preserves geometry under existing move/resize,
+ownership, snapshots, duplication and undo paths. Export emits real brushDef
+planes. Editor brush/textured/wireframe views show actual faces/edges, and the
+inspector exposes rotation. Numeric `face.material` indices address hull sides;
+the browser's six-face alignment panel remains box-only.
+
+The native test first failed because automatic collision bevels introduced a
+bare `noshader` warning. BSP inspection found 13 such collision sides and zero
+draw faces. The warning now triggers explicit BSP draw-usage validation;
+visible placeholders and genuine missing assets still block publication.
+Native compilation verifies a diagonal bridge, octagonal prism, sweep traces
+through solid/empty portions of the AABB, and arbitrary-plane UVs.
+
+Convex subtraction is an open need: cuts overlapping convex AABBs reject
+instead of silently reshaping the hull as a box. Per-side graphical alignment,
+texture locking across rotations and concave decomposition remain separate.
+
 ### Natural creation alignment: implemented
 
 Box and generator operations accept `alignment: "natural"`. MCP/CLI resolve

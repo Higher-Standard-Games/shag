@@ -89,10 +89,16 @@ export async function withTextureSizes(ops: readonly EditOp[]): Promise<EditOp[]
     if (!op || !("alignment" in op) || op.alignment !== "natural") return [];
     switch (op.op) {
       case "box.create":
+      case "gen.prism":
       case "gen.corridor":
       case "gen.connect":
       case "gen.stairs":
         return [op.shader ?? DEFAULT_SHADER];
+      case "convex.create":
+        return [
+          op.shader ?? DEFAULT_SHADER,
+          ...op.sides.map((side) => side.material?.shader ?? op.shader ?? DEFAULT_SHADER),
+        ];
       case "gen.room":
         return [
           ...new Set([

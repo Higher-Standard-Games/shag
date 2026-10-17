@@ -92,6 +92,43 @@ beforeEach(() => {
 });
 
 describe("editor DOM shell", () => {
+  it("rotates from the inspector, keeps the hull through bounds edits and restores a box with undo", () => {
+    const engine = new NullEngine();
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    const session = new EditorSession(engine, canvas, vi.fn());
+    try {
+      session.document.transact((data) =>
+        data.brushes.push({
+          id: "shape",
+          min: { x: -64, y: -16, z: 0 },
+          max: { x: 64, y: 16, z: 16 },
+          shader: "blx/blx_grid",
+        }),
+      );
+      session.root.querySelector<HTMLSelectElement>("[data-grid]")!.dispatchEvent(new Event("change"));
+      session.root.querySelector<HTMLButtonElement>('[data-action="select"]')!.click();
+      const pane = session.root.querySelector<HTMLCanvasElement>('[data-plane="xy"]')!;
+      pane.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, button: 0, clientX: 200, clientY: 150 }));
+      pane.dispatchEvent(new MouseEvent("pointerup", { bubbles: true, button: 0, clientX: 200, clientY: 150 }));
+      session.root.querySelector<HTMLButtonElement>("[data-rotate-brush]")!.click();
+      expect(session.document.snapshot().brushes[0].hull?.sides.length).toBe(6);
+      expect(session.root.querySelector("[data-face-net]")?.textContent).toContain("Convex brush");
+      const height = session.root.querySelector<HTMLInputElement>('[name="max-z"]')!;
+      height.value = "48";
+      session.root
+        .querySelector<HTMLFormElement>("[data-brush-form]")!
+        .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      expect(session.document.snapshot().brushes[0].max.z).toBe(48);
+      expect(session.document.snapshot().brushes[0].hull).toBeDefined();
+      session.root.querySelector<HTMLButtonElement>('[data-action="undo"]')!.click();
+      session.root.querySelector<HTMLButtonElement>('[data-action="undo"]')!.click();
+      expect(session.document.snapshot().brushes[0].hull).toBeUndefined();
+    } finally {
+      session.dispose();
+      engine.dispose();
+    }
+  });
   it("groups toolbar actions and keeps menu actions usable", () => {
     const engine = new NullEngine();
     const canvas = document.createElement("canvas");

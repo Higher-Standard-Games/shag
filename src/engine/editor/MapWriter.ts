@@ -1,3 +1,4 @@
+import { hullWorldVertices } from "./ConvexBrush";
 import {
   type BoxBrush,
   type BrushEntity,
@@ -20,6 +21,22 @@ const codeOrder = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0)
 const byId = (a: { id: string }, b: { id: string }): number => codeOrder(a.id, b.id);
 
 function boxLines(brush: BoxBrush): string[] {
+  if (brush.hull) {
+    const vertices = hullWorldVertices(brush);
+    const p = (i: number) => point(vertices[i].x, vertices[i].y, vertices[i].z);
+    return [
+      "{",
+      "brushDef",
+      "{",
+      ...brush.hull.sides.map((side) => {
+        const [a, b, c] = side.vertices;
+        // brushDef plane points wind opposite to an outward polygon cross product.
+        return `${p(a)} ${p(c)} ${p(b)} ${uvText(side.material ? faceTexMatrix(side.material) : FIXED_MATRIX)} ${side.material?.shader ?? brush.shader} ${brush.detail ? 0x8000000 : 0} 0 0`;
+      }),
+      "}",
+      "}",
+    ];
+  }
   const { x: x0, y: y0, z: z0 } = brush.min;
   const { x: x1, y: y1, z: z1 } = brush.max;
   // A face with a material override gets its own shader and alignment; the rest keep the brush's

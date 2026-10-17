@@ -6,6 +6,8 @@
  * Positions are Babylon's (Y up); the document is Quake (Z up).
  */
 
+import { q3ToBabylonVec3 } from "../loader/bsp/mesh/coordinates";
+import { dot, hullWorldVertices, planeTextureAxes, polygonNormal } from "./ConvexBrush";
 import type { BoxBrush, FaceKey, Vec3q } from "./EditorDocument";
 import { FIXED_MATRIX, faceNormal, faceST, faceTexMatrix } from "./FaceUv";
 
@@ -43,6 +45,34 @@ export function faceCorners(brush: { min: Vec3q; max: Vec3q }, key: FaceKey): Ve
 export function shaderBatches(brushes: readonly BoxBrush[]): ShaderBatch[] {
   const batches = new Map<string, ShaderBatch>();
   for (const brush of brushes) {
+    if (brush.hull) {
+      const vertices = hullWorldVertices(brush);
+      for (const side of brush.hull.sides) {
+        const points = side.vertices.map((i) => vertices[i]);
+        const n = polygonNormal(points);
+        const axes = planeTextureAxes(n);
+        const shader = side.material?.shader ?? brush.shader;
+        const matrix = side.material ? faceTexMatrix(side.material) : FIXED_MATRIX;
+        let batch = batches.get(shader);
+        if (!batch) {
+          batch = { shader, positions: [], normals: [], uvs: [], indices: [] };
+          batches.set(shader, batch);
+        }
+        const base = batch.positions.length / 3;
+        for (const p of points) {
+          batch.positions.push(...q3ToBabylonVec3([p.x, p.y, p.z]).asArray());
+          batch.normals.push(...q3ToBabylonVec3([n.x, n.y, n.z]).asArray());
+          const u = dot(p, axes.u);
+          const v = dot(p, axes.v);
+          batch.uvs.push(
+            matrix[0][0] * u + matrix[0][1] * v + matrix[0][2],
+            matrix[1][0] * u + matrix[1][1] * v + matrix[1][2],
+          );
+        }
+        for (let i = 1; i + 1 < points.length; i++) batch.indices.push(base, base + i, base + i + 1);
+      }
+      continue;
+    }
     for (const key of FACE_ORDER) {
       const face = brush.faces?.[key];
       const shader = face?.shader ?? brush.shader;

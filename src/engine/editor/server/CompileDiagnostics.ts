@@ -4,6 +4,8 @@ export interface CompileDiagnostics {
   warnings: number;
   errors: number;
   missingAssets: number;
+  /** Bare native noshader can label generated bevels; BSP draw usage must be checked. */
+  compilerPlaceholders?: number;
   leak: boolean;
   phase: string | null;
   samples: Array<{ kind: "warning" | "error" | "missing-asset"; message: string }>;
@@ -58,7 +60,10 @@ export class CompileTranscript {
     const error = /(?:^|\s)(?:ERROR|FATAL)(?:\s|:)/i.test(text);
     // Restrict fatal asset detection to explicit load failures, not ordinary
     // compiler statistics or optional sidecar/cache probes.
+    const placeholder = /^WARNING:\s*Missing image for material:\s*noshader\s*$/i.test(text);
+    if (placeholder) d.compilerPlaceholders = (d.compilerPlaceholders ?? 0) + 1;
     const asset =
+      !placeholder &&
       /(?:could(?:n't| not)|unable to|failed to|cannot|can't)\s+(?:find|load|open).*\b(?:model|image|texture|shader|\.ase|\.md3|\.obj|\.tga|\.png|\.jpg)\b|(?:model|image|texture|shader)\b.*(?:not found|is missing)|(?:missing|unresolved)\s+(?:model|image|texture|shader)\b|(?:no|0) shader files (?:found|parsed)/i.test(
         text,
       );

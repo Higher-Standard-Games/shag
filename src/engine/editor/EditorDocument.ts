@@ -1,3 +1,5 @@
+import { type BrushHull, validateHull } from "./ConvexBrush";
+
 /** Pure Quake-space authoring state. Babylon meshes and pane state are derived. */
 export interface Vec3q {
   x: number;
@@ -22,6 +24,8 @@ export interface FaceMaterial {
 }
 
 export interface BoxBrush {
+  /** Optional convex solid normalized inside min/max; absent means an axis-aligned box. */
+  hull?: BrushHull;
   id: string;
   min: Vec3q;
   max: Vec3q;
@@ -143,6 +147,9 @@ export function validateDocument(data: EditorDocumentData): void {
         throw new Error(`Invalid ${axis} bounds on brush ${brush.id}`);
       }
     }
+    validateHull(brush);
+    for (const side of brush.hull?.sides ?? [])
+      if (side.material !== undefined) validateFaces({ ...brush, faces: { "+X": side.material } });
   }
   for (const patch of data.patches ?? []) {
     if (!patch.id || ids.has(patch.id)) throw new Error("Duplicate or missing patch ID");

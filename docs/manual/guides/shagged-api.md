@@ -134,6 +134,57 @@ managed document.
 
 ## Operations
 
+### Convex solids and rotation
+
+`brush.rotate {id, axis: "x"|"y"|"z", degrees, pivot?}` rotates an existing
+brush in Quake space. Positive Z rotation turns +X toward +Y. The default pivot
+is the brush's bounds center. A box becomes a convex hull while retaining its
+ID, detail flag, brush-entity owner and face materials. Materials remain aligned
+to each face's compiler plane basis; this is not texture locking during rotation.
+
+`gen.prism {id, footprint: [{x,y},...], bottom, top, shader?, detail?, alignment?,
+textureSizes?}` extrudes a convex XY polygon between two Z heights. Either
+footprint winding is accepted. Supply 3..32 corners without duplicate or
+collinear edges. This supports diagonal platforms, triangular prisms and
+octagonal reactor bases. Use several convex solids for a concave layout.
+
+`convex.create {id?, vertices: [{x,y,z},...], sides: [{vertices: [0,1,2,...],
+material?},...], shader?, detail?, alignment?, textureSizes?}` accepts arbitrary
+convex solids, including wedges. Input vertices are absolute Quake coordinates;
+each side lists its vertex indices counterclockwise as seen from outside.
+The solid must be closed, outward-facing and nonzero in volume, with planar
+convex sides. Merge coplanar sides. Limits are 128 vertices and 64 sides.
+An optional side `material` has the ordinary face material fields.
+
+Saved brushes retain `min`/`max` and an optional `hull`: its vertices are
+normalized to those bounds, and its sides contain indices and materials.
+`box.update` bounds therefore resize a hull along world axes; move, duplicate,
+delete, ownership, snapshot/query, undo and export retain its geometry. Full
+inspection returns the hull; region queries use conservative AABBs.
+`face.material` uses zero-based numeric side indices, or `"all"`, for hulls;
+axis face names continue to address boxes. Natural creation alignment works
+on convex solids and prisms as it does on boxes.
+
+`brush.carve` and doorway cutting by `gen.connect` reject cuts whose AABB
+overlaps a convex brush. Convex subtraction is not implemented; move the solid
+out of the cut or build the opening from separate pieces. This rejection leaves
+the whole batch unchanged. Disjoint convex brushes do not block carving.
+
+```json
+[
+  {"op":"box.create","id":"bridge","min":{"x":-128,"y":-16,"z":32},"max":{"x":128,"y":16,"z":48},"shader":"metal/metalrust_iron6","alignment":"natural"},
+  {"op":"brush.rotate","id":"bridge","axis":"z","degrees":45},
+  {"op":"gen.prism","id":"platform","footprint":[{"x":-64,"y":-32},{"x":-32,"y":-64},{"x":32,"y":-64},{"x":64,"y":-32},{"x":64,"y":32},{"x":32,"y":64},{"x":-32,"y":64},{"x":-64,"y":32}],"bottom":0,"top":16,"shader":"tiles/concrete_tiles","alignment":"natural"}
+]
+```
+
+Native non-axis brush collision bevels can use a bare `noshader` placeholder.
+That exact compiler warning is retained separately as `compilerPlaceholders`;
+the pipeline checks the BSP and blocks publication if any draw surface uses
+it. Other missing asset warnings remain fatal.
+
+### Creation alignment
+
 `box.create` and all `gen.*` operations accept `alignment: "natural"` to use
 the gamepack's 0.5 world units per image texel. MCP and CLI resolve each
 material's image size automatically, including separate room floor/ceiling
@@ -164,7 +215,7 @@ Texture search and automatic sizing use `SHAGGED_PUBLISH_ROOT` (default
 | `box.create` | `id?`, `min`, `max`, `shader?`, `detail?` | Axis-aligned brush. Default shader `blx/blx_grid`. `min` must be below `max` on every axis. `detail: true` exports the Q3 detail content flag. |
 | `box.update` | `id`, `min?`, `max?`, `shader?`, `detail?` | Set `detail: false` to restore structural treatment. |
 | `patch.create` | `id?`, `shader`, `width`, `height`, `controlPoints` | Quadratic `patchDef2` surface. Width and height must be odd, from 3 through 31. Supply `height` rows of `width` controls, each `{x,y,z,u,v}` in Quake coordinates with texture UVs. Winding follows row/column order; reverse rows to reverse the facing. Shader names have no `textures/` prefix. Patches do not seal the map; use structural brushes. Collision follows compiler/shader rules. |
-| `face.material` | `id`, `faces` (`"all"` or a list of `+X -X +Y -Y +Z -Z`), `shader`, `size?` | Textures the listed faces with natural alignment. Name the texture; the CLI and MCP server fill in its image size from the texture catalog. An unknown texture is rejected. |
+| `face.material` | `id`, `faces` (`"all"`, box face names, or convex numeric side indices), `shader`, `size?` | Textures the listed faces with natural alignment. Name the texture; the CLI and MCP server fill in its image size from the texture catalog. An unknown texture is rejected. |
 | `entity.place` | `id?`, `classname`, `origin`, `keys?` | Point entity. Keys are strings. |
 | `entity.update` | `id`, `classname?`, `origin?`, `keys?` | Keys merge; an empty string removes a key. |
 | `brushEntity.assign` | `id?`, `classname`, `brushIds`, `keys?` | Makes brushes a trigger/door/plat. `trigger_*` brushes get `common/trigger`. Never set `origin` or `model`. |

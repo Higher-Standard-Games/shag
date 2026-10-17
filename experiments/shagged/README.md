@@ -43,3 +43,28 @@ This requires the installed concrete material palette. It authors a uniquely
 named QA room through MCP, checks the persisted face scale against catalog
 dimensions, and removes its own QA document afterwards. No compiled package
 or existing map is changed.
+
+Convex/rotated brush authoring, numeric side materials, ownership queries and
+atomic rejection of unsupported cuts:
+
+```text
+node experiments/shagged/convex-smoke.mjs
+```
+
+This removes its own uniquely named QA document afterwards and does not
+compile a package. Native convex collision/UV checks live in
+`src/engine/editor/server/__tests__/ConvexCompile.test.ts`.
+
+Real-GPU WebGL2 editor component QA (headless Edge):
+
+```text
+node experiments/shagged/convex-browser-probe.mjs
+```
+
+The probe owns a private Vite server on port 3112 and an isolated Edge profile.
+It renders a diagonal bridge, octagonal platform and wedge; checks actual-hull
+picking and rotation controls; captures brush/wireframe/textured screenshots under
+`.cache/shagged-convex-*.png`; and records browser logs/GPU details in
+`.cache/shagged-convex-browser-report.json`. Its static fixture shares the
+editor's Babylon imports. Only JSZip is prebundled, avoiding stale Babylon
+lazy shader chunks in the isolated probe. No user map or profile is changed.

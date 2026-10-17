@@ -7,6 +7,8 @@
  * callers may name objects, otherwise the next free `brush-N`, `ent-N`,
  * `bent-N` is used, so the same script always yields the same document.
  */
+
+import { fromWorldHull, type HullSide, prismBrush, rotateBrush } from "../ConvexBrush";
 import {
   type BoxBrush,
   type EditorDocumentData,
@@ -21,7 +23,7 @@ import {
 import { brushEntityShader } from "../EntityCatalog";
 import { naturalFace } from "../FaceUv";
 import { inspectMapHealth, type MapHealthIssue } from "../MapHealth";
-import { subtractBox } from "./BoxCsg";
+import { boxesOverlap, subtractBox } from "./BoxCsg";
 import { alignCreatedBrush, type CreationMaterials } from "./CreationMaterials";
 import {
   type ConnectSpec,
@@ -42,6 +44,24 @@ import {
 export const DEFAULT_SHADER = "blx/blx_grid";
 
 export type EditOp =
+  | ({
+      op: "convex.create";
+      id?: string;
+      vertices: Vec3q[];
+      sides: HullSide[];
+      shader?: string;
+      detail?: boolean;
+    } & CreationMaterials)
+  | ({
+      op: "gen.prism";
+      id: string;
+      footprint: Array<{ x: number; y: number }>;
+      bottom: number;
+      top: number;
+      shader?: string;
+      detail?: boolean;
+    } & CreationMaterials)
+  | { op: "brush.rotate"; id: string; axis: keyof Vec3q; degrees: number; pivot?: Vec3q }
   | { op: "world.keys"; keys: Record<string, string> }
   | ({ op: "patch.create" } & Omit<PatchSurface, "id"> & { id?: string })
   | ({ op: "box.create"; id?: string; min: Vec3q; max: Vec3q; shader?: string; detail?: boolean } & CreationMaterials)
@@ -49,7 +69,7 @@ export type EditOp =
   | {
       op: "face.material";
       id: string;
-      faces: FaceKey[] | "all";
+      faces: FaceKey[] | number[] | "all";
       shader: string;
       /** The image's size in texels; required except for common/* tool shaders. */
       size?: [number, number];
@@ -189,6 +209,26 @@ const add = (a: Vec3q, b: Vec3q): Vec3q => ({ x: a.x + b.x, y: a.y + b.y, z: a.z
 
 function applyOne(doc: EditorDocumentData, op: EditOp, changed: Set<string>): void {
   switch (op.op) {
+    case "convex.create": {
+      const id = claimId(doc, op.id, "brush");
+      doc.brushes.push(
+        alignCreatedBrush(fromWorldHull(id, op.vertices, op.sides, op.shader ?? DEFAULT_SHADER, op.detail), op),
+      );
+      return;
+    }
+    case "gen.prism": {
+      const id = claimId(doc, op.id, "brush");
+      doc.brushes.push(
+        alignCreatedBrush(prismBrush(id, op.footprint, op.bottom, op.top, op.shader ?? DEFAULT_SHADER, op.detail), op),
+      );
+      return;
+    }
+    case "brush.rotate": {
+      const target = brush(doc, op.id);
+      doc.brushes[doc.brushes.indexOf(target)] = rotateBrush(target, op.axis, op.degrees, op.pivot);
+      changed.add(op.id);
+      return;
+    }
     case "world.keys": {
       doc.worldKeys ??= {};
       mergeKeys(doc.worldKeys, op.keys);
@@ -223,16 +263,30 @@ function applyOne(doc: EditorDocumentData, op: EditOp, changed: Set<string>): vo
     }
     case "face.material": {
       const target = brush(doc, op.id);
-      const faces: readonly FaceKey[] = op.faces === "all" ? FACE_KEYS : op.faces;
+      if (target.hull) {
+        const indices = op.faces === "all" ? target.hull.sides.map((_, i) => i) : op.faces;
+        if (
+          !Array.isArray(indices) ||
+          !indices.length ||
+          indices.some((i) => !Number.isSafeInteger(i) || Number(i) < 0 || Number(i) >= target.hull!.sides.length)
+        )
+          throw new Error("Convex faces must be all or valid numeric side indices");
+        const size = op.size ?? (isToolShader(op.shader) ? ([64, 64] as [number, number]) : undefined);
+        if (!size) throw new Error(`unknown texture ${op.shader}: no image size`);
+        for (const index of indices) target.hull.sides[Number(index)].material = naturalFace(op.shader, [...size]);
+        changed.add(op.id);
+        return;
+      }
+      const faces = op.faces === "all" ? FACE_KEYS : op.faces;
       // Array.isArray would widen the readonly FaceKey[] to any[].
-      if (!faces?.length || typeof faces === "string" || faces.some((f) => !FACE_KEYS.includes(f))) {
+      if (!faces?.length || typeof faces === "string" || faces.some((f) => !FACE_KEYS.includes(f as FaceKey))) {
         throw new Error(`faces must be "all" or a list of ${FACE_KEYS.join(", ")}`);
       }
       const size = op.size ?? (isToolShader(op.shader) ? ([64, 64] as [number, number]) : undefined);
       if (!size)
         throw new Error(`unknown texture ${op.shader}: no image size; find texture names with the texture search`);
       target.faces ??= {};
-      for (const face of faces) target.faces[face] = naturalFace(op.shader, size);
+      for (const face of faces) target.faces[face as FaceKey] = naturalFace(op.shader, [...size]);
       changed.add(op.id);
       return;
     }
@@ -273,6 +327,7 @@ function applyOne(doc: EditorDocumentData, op: EditOp, changed: Set<string>): vo
         for (const b of owned) {
           b.shader = shader;
           delete b.faces;
+          for (const side of b.hull?.sides ?? []) delete side.material;
           changed.add(b.id);
         }
       return;
@@ -356,6 +411,8 @@ function carve(doc: EditorDocumentData, box: { min: Vec3q; max: Vec3q }): string
   const cut: string[] = [];
   const result: BoxBrush[] = [];
   for (const brush of doc.brushes) {
+    if (brush.hull && boxesOverlap(brush, box))
+      throw new Error(`Cannot carve convex brush ${brush.id}; convex subtraction is not supported`);
     const pieces = subtractBox(brush, box);
     if (
       pieces.length === 1 &&

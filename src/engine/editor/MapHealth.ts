@@ -101,6 +101,10 @@ export function inspectMapHealth(data: EditorDocumentData, textures?: readonly T
         add("missing-shader-image", "warning", `Shader "${shader}" references a missing image.`, objectId, face);
     };
     for (const brush of data.brushes) {
+      if (brush.hull) {
+        for (const side of brush.hull.sides) checkShader(side.material?.shader ?? brush.shader, brush.id);
+        continue;
+      }
       for (const face of FACE_KEYS) checkShader(brush.faces?.[face]?.shader ?? brush.shader, brush.id, face);
     }
     for (const patch of data.patches ?? []) checkShader(patch.shader, patch.id);

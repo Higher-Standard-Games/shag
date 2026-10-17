@@ -15,6 +15,9 @@ import "@babylonjs/loaders/glTF";
 import "@babylonjs/core/Rendering/edgesRenderer";
 // Registers Scene.pick for perspective selection.
 import "@babylonjs/core/Culling/ray";
+import { q3ToBabylonVec3 } from "../loader/bsp/mesh/coordinates";
+import { rotateBrush } from "./ConvexBrush";
+import { createConvexPreview, hullEdges } from "./ConvexPreview";
 import {
   exactResizeValue,
   pickResizeEdge,
@@ -777,6 +780,13 @@ export class EditorSession {
       const owned = ownerColors.get(brush.id);
       const [r, g, b] = brush.id === this.selectedId ? [1, 0.75, 0.2] : (owned ?? [0.1, 0.8, 0.9]);
       const color = new Color4(r, g, b, 1);
+      if (brush.hull) {
+        for (const [a, b] of hullEdges(brush)) {
+          lines.push([q3ToBabylonVec3([a.x, a.y, a.z]), q3ToBabylonVec3([b.x, b.y, b.z])]);
+          colors.push([color, color]);
+        }
+        continue;
+      }
       const corner = (x: number, y: number, z: number) => new Vector3(x, z, y);
       const { min, max } = brush;
       const c = [
@@ -984,7 +994,11 @@ export class EditorSession {
   private texturesInMap(): string[] {
     return this.document
       .snapshot()
-      .brushes.flatMap((brush) => [brush.shader, ...Object.values(brush.faces ?? {}).map((face) => face.shader)]);
+      .brushes.flatMap((brush) => [
+        brush.shader,
+        ...Object.values(brush.faces ?? {}).map((face) => face.shader),
+        ...(brush.hull?.sides.flatMap((side) => (side.material ? [side.material.shader] : [])) ?? []),
+      ]);
   }
 
   /** shader plus, when the image size is known, natural alignment on all six faces. */
@@ -1019,6 +1033,14 @@ export class EditorSession {
         const brush = data.brushes.find((item) => item.id === brushId)!;
         const material = this.currentMaterial();
         brush.shader = material.shader;
+        if (brush.hull) {
+          for (const side of brush.hull.sides) {
+            if (size) side.material = naturalFace(entry.name, [...size]);
+            else delete side.material;
+          }
+          delete brush.faces;
+          return;
+        }
         if (material.faces) brush.faces = material.faces;
         else delete brush.faces;
       });
@@ -1093,7 +1115,7 @@ export class EditorSession {
     }
     this.faceOverlays = [];
     const brush = data.brushes.find((item) => item.id === this.selectedId);
-    if (!brush) return;
+    if (!brush || brush.hull) return;
     for (const face of this.selectedFaces) {
       const axis = face[1].toLowerCase() as keyof Vec3q;
       const outward = face[0] === "+";
@@ -1122,6 +1144,13 @@ export class EditorSession {
 
   /** The selected brush's six faces as a net: click one to add it to or remove it from the face selection. */
   private renderFaceNet(net: HTMLElement, brush: BoxBrush): void {
+    if (brush.hull) {
+      const note = document.createElement("p");
+      note.style.gridColumn = "1 / -1";
+      note.textContent = `Convex brush: ${brush.hull.sides.length} sides. T textures the whole brush; scripting face.material uses numeric side indices.`;
+      net.replaceChildren(note);
+      return;
+    }
     const layout: Array<[FaceKey, number, number]> = [
       ["+Z", 2, 1],
       ["-X", 1, 2],
@@ -1914,7 +1943,7 @@ export class EditorSession {
       ? (pick.pickedMesh?.metadata?.editorEntityId ?? pick.pickedMesh?.name ?? null)
       : null;
     const brush = hitId ? this.document.snapshot().brushes.find((item) => item.id === hitId) : undefined;
-    const normal = brush && (event.altKey || event.shiftKey) ? pick?.getNormal(true, true) : null;
+    const normal = brush && !brush.hull && (event.altKey || event.shiftKey) ? pick?.getNormal(true, true) : null;
     if (brush && normal) {
       // Babylon is Y-up; the document is Quake Z-up.
       const key = faceKeyFromNormal({ x: normal.x, y: normal.z, z: normal.y });
@@ -2439,6 +2468,12 @@ export class EditorSession {
         brush.shader = brushEntityShader(classname) ?? brush.shader;
       }
     }
+    const toolShader = brushEntityShader(ownerOf(data, brush.id)?.classname ?? "");
+    if (toolShader) {
+      brush.shader = toolShader;
+      delete brush.faces;
+      for (const side of brush.hull?.sides ?? []) delete side.material;
+    }
     pruneBrushEntities(data);
   }
 
@@ -2495,20 +2530,23 @@ export class EditorSession {
     this.meshes.clear();
     const ownerColors = brushOwnerColors(data);
     for (const brush of data.brushes) {
-      const mesh = MeshBuilder.CreateBox(
-        brush.id,
-        {
-          width: brush.max.x - brush.min.x,
-          height: brush.max.z - brush.min.z,
-          depth: brush.max.y - brush.min.y,
-        },
-        this.scene,
-      );
-      mesh.position = new Vector3(
-        (brush.min.x + brush.max.x) / 2,
-        (brush.min.z + brush.max.z) / 2,
-        (brush.min.y + brush.max.y) / 2,
-      );
+      const mesh = brush.hull
+        ? createConvexPreview(brush, this.scene)
+        : MeshBuilder.CreateBox(
+            brush.id,
+            {
+              width: brush.max.x - brush.min.x,
+              height: brush.max.z - brush.min.z,
+              depth: brush.max.y - brush.min.y,
+            },
+            this.scene,
+          );
+      if (!brush.hull)
+        mesh.position = new Vector3(
+          (brush.min.x + brush.max.x) / 2,
+          (brush.min.z + brush.max.z) / 2,
+          (brush.min.y + brush.max.y) / 2,
+        );
       const material = new StandardMaterial(`editor-${brush.id}`, this.scene);
       const owned = ownerColors.get(brush.id);
       material.diffuseColor =
@@ -2710,6 +2748,20 @@ export class EditorSession {
       this.disposeGhost();
       return;
     }
+    if (preview.hull) {
+      this.disposeGhost();
+      this.ghost = createConvexPreview(preview, this.scene, "shagged-gesture-preview");
+      this.ghost.isPickable = false;
+      const material = new StandardMaterial("shagged-gesture-material", this.scene);
+      material.diffuseColor = new Color3(1, 0.78, 0.17);
+      material.alpha = 0.35;
+      this.ghost.material = material;
+      this.ghost.enableEdgesRendering();
+      this.ghost.edgesWidth = 3;
+      this.ghost.edgesColor = new Color4(1, 0.85, 0.28, 1);
+      return;
+    }
+    if (this.ghost?.metadata?.convexPreview) this.disposeGhost();
     if (!this.ghost) {
       this.ghost = MeshBuilder.CreateBox("shagged-gesture-preview", { size: 1 }, this.scene);
       this.ghost.isPickable = false;
@@ -2800,6 +2852,19 @@ export class EditorSession {
       };
       for (const brush of data.brushes) {
         const edited = this.gesture?.mode !== "draw" && this.gesture?.brush?.id === brush.id && preview;
+        if (brush.hull) {
+          const shape = edited ? preview : brush;
+          if (brush.id === this.selectedId) paint(shape.min, shape.max, true, ownerColors.get(brush.id));
+          ctx.strokeStyle = brush.id === this.selectedId ? "#ffd06b" : "#18c8df";
+          ctx.lineWidth = brush.id === this.selectedId ? 2 : 1;
+          for (const [a, b] of hullEdges(shape)) {
+            ctx.beginPath();
+            ctx.moveTo(originX + a[axes.u] * this.zoom, originY - a[axes.v] * this.zoom);
+            ctx.lineTo(originX + b[axes.u] * this.zoom, originY - b[axes.v] * this.zoom);
+            ctx.stroke();
+          }
+          continue;
+        }
         paint(
           edited ? preview.min : brush.min,
           edited ? preview.max : brush.max,
@@ -3033,6 +3098,9 @@ export class EditorSession {
           <label class="shagged__shader">Entity <select name="owner"></select></label>
           <div data-owner-section></div>
           <button type="submit">Apply Brush</button>
+          <label class="shagged__shader">Rotate degrees <input name="rotation-degrees" type="number" step="any" value="45"></label>
+          <label class="shagged__shader">Rotation axis <select name="rotation-axis"><option value="z">Z (yaw)</option><option value="x">X</option><option value="y">Y</option></select></label>
+          <button type="button" data-rotate-brush>Rotate Brush</button>
         </form><p>Values use Quake units; Z is up. One Apply is one undo step. A brush in an entity leaves worldspawn; MakeBSP gives the entity its model.</p>
         <h3 class="shagged__faces-head">Faces</h3>
         <div class="shagged__faces" data-face-net aria-label="Faces (Ctrl+Shift+click in 3D)"></div>
@@ -3042,6 +3110,23 @@ export class EditorSession {
         ? `${selected.id.slice(0, 8)} · ${owner.classname}`
         : selected.id.slice(0, 8);
       const form = this.inspector.querySelector<HTMLFormElement>("[data-brush-form]")!;
+      form.querySelector("[data-rotate-brush]")!.addEventListener("click", () => {
+        try {
+          const values = new FormData(form);
+          const axis = String(values.get("rotation-axis")) as keyof Vec3q;
+          const degrees = Number(values.get("rotation-degrees"));
+          this.document.transact((draft) => {
+            const index = draft.brushes.findIndex((brush) => brush.id === selected.id);
+            if (index < 0) throw new Error("Selected brush no longer exists");
+            draft.brushes[index] = rotateBrush(draft.brushes[index], axis, degrees);
+          });
+          this.selectedFaces.clear();
+          this.changed();
+          this.status(`Rotated brush ${degrees} degrees around ${axis.toUpperCase()}`);
+        } catch (error) {
+          this.status(`Rotation rejected: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      });
       for (const axis of ["x", "y", "z"] as const) {
         form.querySelector<HTMLInputElement>(`[name="min-${axis}"]`)!.value = String(selected.min[axis]);
         form.querySelector<HTMLInputElement>(`[name="max-${axis}"]`)!.value = String(selected.max[axis]);

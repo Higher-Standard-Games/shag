@@ -8,6 +8,7 @@ import { buildFingerprint } from "./BuildFingerprint";
 import { type BuildQuality, buildRecipe } from "./BuildRecipe";
 import { type CompileDiagnostics, CompileTranscript, emptyDiagnostics } from "./CompileDiagnostics";
 import type { CompilerConfig } from "./CompilerConfig";
+import { verifyCompilerPlaceholders } from "./CompilerPlaceholders";
 import { withFileLock } from "./FileLock";
 import { MapConflictError, type MapStore } from "./MapStore";
 import { checkModelAssets } from "./ModelAssetPreflight";
@@ -230,6 +231,8 @@ export class CompileJobs {
         if (bspExit !== 0) throw new Error(`MakeBSP exited with code ${bspExit}`);
         if (job.diagnostics.leak || job.diagnostics.missingAssets || job.diagnostics.errors)
           throw new Error("MakeBSP reported a leak, missing assets or errors; publication blocked");
+        if (job.diagnostics.compilerPlaceholders)
+          await verifyCompilerPlaceholders(path.join(workspace, `${job.mapName}.bsp`));
         await stage("makelight");
         transcript.append("MakeLight started\n");
         const lightExit = await this.runner(
@@ -243,6 +246,8 @@ export class CompileJobs {
         if (lightExit !== 0) throw new Error(`MakeLight exited with code ${lightExit}`);
         if (job.diagnostics.leak || job.diagnostics.missingAssets || job.diagnostics.errors)
           throw new Error("MakeLight reported a leak, missing assets or errors; publication blocked");
+        if (job.diagnostics.compilerPlaceholders)
+          await verifyCompilerPlaceholders(path.join(workspace, `${job.mapName}.bsp`));
         await stage("verify");
         const file = await open(path.join(workspace, `${job.mapName}.bsp`), "r");
         try {

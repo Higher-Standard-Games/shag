@@ -51,6 +51,16 @@ The 3D view has three display modes in its corner: **Brush**, **Textured** (defa
 
 While resizing one edge, type a number for an exact size (`Enter` commits, `Backspace` edits). A size label follows the cursor and turns red at the one-grid-cell minimum.
 
+The brush inspector's **Rotate Brush** control rotates around X, Y or Z about
+the selection's bounds center. Rotation converts a box into a convex solid;
+3D brush/textured/wireframe views show its actual faces and the 2D views show
+its edges. Bounds handles resize along world axes, while the hull stays convex.
+Move, duplicate, delete and undo/redo work on these brushes. **T** textures the
+whole convex brush; numeric per-side material editing and creating polygon
+prisms/wedges are available through the [scripting API](./shagged-api.md#convex-solids-and-rotation).
+The six-face box alignment panel does not edit convex sides. Carving through
+convex solids is rejected until convex subtraction is supported.
+
 ### Textures
 
 - Shift+click a face in the 3D view to select it for per-face texturing (Shift+click again to toggle); Alt+click samples a face's texture as the current one.
