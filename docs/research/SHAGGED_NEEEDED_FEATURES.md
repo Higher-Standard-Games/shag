@@ -26,20 +26,26 @@ of work still outstanding.
   with mixed-object movement, duplication, deletion and framing.
 - [x] Numerical plane clip/split controls, convex cutter subtraction and convex
   targets in existing box carve/doorway operations, including MCP support.
+- [x] Cylinder, tube, cone and disk-cap presets, with end caps, tube thickness,
+  reversed winding, grouped placement and MCP authoring.
 
 Suggested implementation order for remaining work:
 
 1. [ ] Shared selection rotation and resizing (individual transforms work).
 2. [ ] Interactive plane placement and cut previews (numerical controls work).
-3. [ ] More curve presets and controls: cylinders, tubes, cones and caps.
-4. [ ] ASE browser mesh preview and GLB/glTF headless discovery bounds.
-5. [ ] Clean machine-readable CLI launcher without the Vite startup banner.
-6. [ ] Faithful external `.map` import and round-trip compatibility.
+3. [ ] ASE browser mesh preview and GLB/glTF headless discovery bounds.
+4. [ ] Clean machine-readable CLI launcher without the Vite startup banner.
+5. [ ] Faithful external `.map` import and round-trip compatibility.
 
 The latter graphical/editor items also appear in the broader `SHAGGED.md`
 design notes. Compiler grouping already works; editor selection groups are a
-different feature. More curve presets are the next recommended authoring
-improvement; shared transforms and interactive clipping are graphical follow-ups.
+different feature. Shared transforms and interactive clipping remain graphical
+follow-ups; external map import is a larger compatibility project.
+
+Round-preset native QA also exposed an existing point-trace issue on some patch
+caps/seams. Finite-size box sweeps pass; runtime collision was not changed in
+that authoring checkpoint. See `v0.9.31-patch-point-trace-investigation.md` for
+reproduction evidence and the separate physics follow-up.
 
 ## Initial findings
 

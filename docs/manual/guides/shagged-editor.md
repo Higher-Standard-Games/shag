@@ -40,7 +40,7 @@ The 3D view has three display modes in its corner: **Brush**, **Textured** (defa
 | `B` | **Brush**: drag in a 2D view to draw a box on the grid. The hidden axis gets one grid step from the work plane. |
 | `V` | **Select**: click to select; drag to move; drag an edge or corner to resize. Right click deselects. |
 | `G` | **Vertices**: select a brush, then drag vertex handles in a 2D view. Shift+click toggles several handles. |
-| `P` | **Patch**: draw a curved `patchDef2` surface. The **Curves** menu adds Bevel, Inverted Bevel, Arch and Edit Points. |
+| `P` | **Patch**: draw a curved `patchDef2` surface. **Curves** offers Bevel, Inverted Bevel, Arch, Cylinder, Tube, Cone, Disk Cap and Edit Points. |
 | `E` | **Entity**: place the class picked in the toolbar list. |
 | `T` | **Texture browser**. Click a texture to make it current for new brushes, or to apply it to selected faces. |
 | `M` | **Model browser**. Click a model to preview it; double-click (or **Use**) to drop it as a `misc_model`. |
@@ -112,6 +112,25 @@ natural alignment for those faces.
   paths. Each texture/alignment action is one undo step.
 - Texture faces nobody sees with `common/caulk`, then texture the visible faces.
 - Texture names have no `textures/` prefix; the compiler adds it.
+
+### Round patch presets
+
+Choose **Cylinder**, **Tube**, **Cone** or **Disk Cap** from **Curves**, then drag
+the footprint in any 2D view. The pane's hidden axis is the extrusion axis;
+**Depth** extends from its work plane. Cones point toward the higher coordinate.
+Disk caps lie on the work plane and ignore Depth. Reverse drags produce the
+same footprint. These are quadratic circle/ellipse approximations.
+
+**End caps** closes cylinders and cones; tubes get annular end caps that keep
+the center open. **Tube thickness** subtracts world units from both footprint
+radii and must be smaller than either radius. **Reverse winding** reverses
+every component. Side walls repeat UVs once around and once along the length;
+caps use planar UVs.
+
+All component patches preview while dragging and commit in one undo step.
+Multiple components automatically form an editor group, so they move together.
+Use **Edit Points** or Ungroup to edit individual surfaces. Patches do not seal
+the world; use structural brushes and review compiled collision in a playtest.
 
 ### Clipping and subtraction
 

@@ -28,7 +28,7 @@ const patch = (): PatchSurface => ({
 });
 
 describe("SHAGGED patch document and export", () => {
-  it("preserves old v2 documents and exports an asymmetric patch in row order", () => {
+  it("preserves old v2 documents and exports native columns with row-major parser readback", () => {
     const old = new EditorDocument().snapshot();
     delete old.patches;
     const document = new EditorDocument(old);
@@ -40,8 +40,8 @@ describe("SHAGGED patch document and export", () => {
     document.transact((draft) => draft.patches!.push(patch()));
     const source = writeMap(document.snapshot());
     expect(source).toContain("patchDef2\n{\nblx/blx_grid\n( 3 3 0 0 0 )");
-    expect(source).toContain("( ( 1 2 3 0.125 0.25 ) ( 4 5 6 0.5 0.25 ) ( 7 8 9 0.875 0.25 ) )");
-    expect(source).toContain("( ( 10 11 14 0.125 0.5 ) ( 13 15 20 0.5 0.5 ) ( 17 19 21 0.875 0.5 ) )");
+    expect(source).toContain("( ( 1 2 3 0.125 0.25 ) ( 10 11 14 0.125 0.5 ) ( 22 23 24 0.125 0.75 ) )");
+    expect(source).toContain("( ( 4 5 6 0.5 0.25 ) ( 13 15 20 0.5 0.5 ) ( 25 26 27 0.5 0.75 ) )");
     expect(source).toBe(writeMap({ ...document.snapshot(), patches: [patch()], revision: 99 }));
     const parsed = MapParser.parse(source);
     expect(parsed[0].patches).toHaveLength(1);

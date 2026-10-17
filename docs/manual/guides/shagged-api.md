@@ -142,6 +142,29 @@ managed document.
 
 ## Operations
 
+### Round patch presets
+
+`patch.round {id?, shape, min, max, axis?, shader?, thickness?, capped?, reverse?, group?}`
+creates a `cylinder`, `tube`, `cone` or disk `cap` from world-space bounds.
+`axis` defaults to `z`; the other two bounds define an elliptical footprint.
+Cylinder/tube/cone depth must be nonzero; a cap lies at `min[axis]` and can have
+zero depth. Cones taper toward the higher axis coordinate. Radii must be
+positive, and tube `thickness` (default 8 units) must be less than both radii.
+
+`capped` defaults to true. A capped cylinder has three surfaces, a tube four
+(outer/inner walls and two annular caps), and a cone two. A disk cap always has
+one surface. `reverse` reverses all winding. Components use 9-by-3 quadratic
+control grids: circular/elliptical approximations rather than exact rational
+circles. Side UVs span 0..1 around/along the surface; cap UVs are planar.
+
+The first surface gets `id`, with `-inner`, `-bottom` and `-top` suffixes as
+needed. Multiple surfaces form a named editor group `<id>-group` unless
+`group: false`. Conflicting component/group IDs reject the batch. Control
+grids remain ordinary editable patches. The document uses height rows of
+width controls; `.map` output transposes them into native column-major order.
+New exports use that format, while server sidecar recovery also accepts
+historical SHAGGED row-order source.
+
 ### Convex solids and rotation
 
 `brush.vertices {id, edits: [{index, position: {x,y,z}}, ...]}` changes indexed
@@ -265,6 +288,7 @@ Texture search and automatic sizing use `SHAGGED_PUBLISH_ROOT` (default
 | `box.create` | `id?`, `min`, `max`, `shader?`, `detail?` | Axis-aligned brush. Default shader `blx/blx_grid`. `min` must be below `max` on every axis. `detail: true` exports the Q3 detail content flag. |
 | `box.update` | `id`, `min?`, `max?`, `shader?`, `detail?` | Set `detail: false` to restore structural treatment. |
 | `patch.create` | `id?`, `shader`, `width`, `height`, `controlPoints` | Quadratic `patchDef2` surface. Width and height must be odd, from 3 through 31. Supply `height` rows of `width` controls, each `{x,y,z,u,v}` in Quake coordinates with texture UVs. Winding follows row/column order; reverse rows to reverse the facing. Shader names have no `textures/` prefix. Patches do not seal the map; use structural brushes. Collision follows compiler/shader rules. |
+| `patch.round` | `id?`, `shape`, `min`, `max`, `axis?`, `shader?`, `thickness?`, `capped?`, `reverse?`, `group?` | Cylinder, tube, cone or disk cap presets; multiple surfaces group by default. |
 | `face.material` | `id`, `faces` (`"all"`, box face names, or convex numeric side indices), `shader`, `size?` | Textures the listed faces with natural alignment. Name the texture; the CLI and MCP server fill in its image size from the texture catalog. An unknown texture is rejected. |
 | `entity.place` | `id?`, `classname`, `origin`, `keys?` | Point entity. Keys are strings. |
 | `entity.update` | `id`, `classname?`, `origin?`, `keys?` | Keys merge; an empty string removes a key. |

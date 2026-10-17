@@ -175,6 +175,60 @@ describe("editor patch preview", () => {
     engine.dispose();
   });
 
+  it("places grouped round presets with all preview surfaces, undo, thickness and saved settings", () => {
+    const engine = new NullEngine(),
+      canvas = document.createElement("canvas");
+    document.body.append(canvas);
+    let session = new EditorSession(engine, canvas, vi.fn());
+    try {
+      const thickness = session.root.querySelector<HTMLInputElement>("[data-patch-thickness]")!;
+      thickness.value = "4";
+      thickness.dispatchEvent(new Event("change"));
+      const capped = session.root.querySelector<HTMLInputElement>("[data-patch-capped]")!;
+      const pane = session.root.querySelector<HTMLCanvasElement>('[data-plane="xy"]')!;
+      const pointer = (type: string, x: number, y: number) =>
+        pane.dispatchEvent(new MouseEvent(type, { bubbles: true, button: 0, clientX: x, clientY: y }));
+      for (const [shape, count] of [
+        ["cylinder", 3],
+        ["tube", 4],
+        ["cone", 2],
+        ["cap", 1],
+      ] as const) {
+        session.root.querySelector<HTMLButtonElement>(`[data-action="curve-${shape}"]`)!.click();
+        pointer("pointerdown", 200, 150);
+        pointer("pointermove", 264, 86);
+        expect(engine.scenes[0].meshes.filter((mesh) => mesh.name.startsWith("gesture-patch"))).toHaveLength(count);
+        expect(session.document.snapshot().patches).toHaveLength(0);
+        pointer("pointerup", 264, 86);
+        expect(session.document.snapshot().patches).toHaveLength(count);
+        expect(engine.scenes[0].meshes.some((mesh) => mesh.name.startsWith("gesture-patch"))).toBe(false);
+        if (count > 1) expect(session.document.snapshot().editorGroups![0].objectIds).toHaveLength(count);
+        session.root.querySelector<HTMLButtonElement>('[data-action="undo"]')!.click();
+        expect(session.document.snapshot().patches).toHaveLength(0);
+      }
+      capped.checked = false;
+      capped.dispatchEvent(new Event("change"));
+      session.root.querySelector<HTMLButtonElement>('[data-action="curve-tube"]')!.click();
+      pointer("pointerdown", 200, 150);
+      pointer("pointermove", 264, 86);
+      session.root.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+      expect(engine.scenes[0].meshes.some((mesh) => mesh.name.startsWith("gesture-patch"))).toBe(false);
+      pointer("pointerdown", 200, 150);
+      pointer("pointermove", 264, 86);
+      pointer("pointerup", 264, 86);
+      expect(session.document.snapshot().patches).toHaveLength(2);
+      session.save();
+      session.dispose();
+      session = new EditorSession(engine, canvas, vi.fn());
+      expect(session.root.querySelector<HTMLInputElement>("[data-patch-thickness]")!.value).toBe("4");
+      expect(session.root.querySelector<HTMLInputElement>("[data-patch-capped]")!.checked).toBe(false);
+      expect(session.root.querySelector('[data-action="curve-tube"]')!.classList.contains("active")).toBe(true);
+    } finally {
+      session.dispose();
+      engine.dispose();
+    }
+  });
+
   it("places bevel, inverted bevel, and arch presets from Curves with a live ghost and saved settings", () => {
     const engine = new NullEngine();
     const canvas = document.createElement("canvas");

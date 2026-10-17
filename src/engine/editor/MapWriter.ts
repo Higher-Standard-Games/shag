@@ -61,7 +61,11 @@ function boxLines(brush: BoxBrush): string[] {
   ];
 }
 
-function patchLines(patch: PatchSurface): string[] {
+function patchLines(patch: PatchSurface, legacyRows: boolean): string[] {
+  // Native patchDef2 is column-major; the document and preview are row-major.
+  const columns = legacyRows
+    ? patch.controlPoints
+    : Array.from({ length: patch.width }, (_, col) => patch.controlPoints.map((row) => row[col]));
   return [
     "{",
     "patchDef2",
@@ -69,7 +73,7 @@ function patchLines(patch: PatchSurface): string[] {
     patch.shader,
     `( ${patch.width} ${patch.height} 0 0 0 )`,
     "(",
-    ...patch.controlPoints.map(
+    ...columns.map(
       (row) =>
         `( ${row.map((control) => `( ${fmt(control.x)} ${fmt(control.y)} ${fmt(control.z)} ${fmtUv(control.u)} ${fmtUv(control.v)} )`).join(" ")} )`,
     ),
@@ -103,7 +107,7 @@ function brushEntityLines(entity: BrushEntity, brushes: ReadonlyMap<string, BoxB
 }
 
 /** Deterministic source: objects in ID order, so selection and insertion order never change the bytes. */
-export function writeMap(data: EditorDocumentData): string {
+export function writeMap(data: EditorDocumentData, options: { legacyPatchRows?: boolean } = {}): string {
   validateDocument(data);
   for (const entity of data.entities) {
     const issue = modelReferenceIssue(entity);
@@ -117,7 +121,10 @@ export function writeMap(data: EditorDocumentData): string {
     ...data.brushes
       .filter((brush) => !owned.has(brush.id))
       .map((brush) => ({ id: brush.id, lines: () => boxLines(brush) })),
-    ...(data.patches ?? []).map((patch) => ({ id: patch.id, lines: () => patchLines(patch) })),
+    ...(data.patches ?? []).map((patch) => ({
+      id: patch.id,
+      lines: () => patchLines(patch, options.legacyPatchRows ?? false),
+    })),
   ];
   for (const item of worldGeometry.sort(byId)) lines.push(...item.lines());
   lines.push("}");
@@ -128,4 +135,12 @@ export function writeMap(data: EditorDocumentData): string {
   ];
   for (const entity of entities.sort(byId)) lines.push(...entity.lines());
   return `${lines.join("\n")}\n`;
+}
+
+/** Accept historical sidecars without rewriting their immutable saved source. New exports use native order. */
+export function matchesMapSource(data: EditorDocumentData, source: string): boolean {
+  return (
+    writeMap(data) === source ||
+    ((data.patches?.length ?? 0) > 0 && writeMap(data, { legacyPatchRows: true }) === source)
+  );
 }

@@ -328,7 +328,17 @@ export class MapParser {
         return null;
       }
 
-      return { texture, width, height, controlPoints };
+      // Native patchDef2 stores width columns, each containing height controls.
+      // Internal surfaces use height rows of width controls.
+      if (controlPoints.length === width && controlPoints.every((column) => column.length === height)) {
+        const rows = Array.from({ length: height }, (_, row) => controlPoints.map((column) => column[row]));
+        return { texture, width, height, controlPoints: rows };
+      }
+      // Recover nonsquare source exported by older SHAGGED builds.
+      if (controlPoints.length === height && controlPoints.every((row) => row.length === width))
+        return { texture, width, height, controlPoints };
+      console.warn("Patch control grid does not match dimensions");
+      return null;
     } catch (e) {
       console.error("Failed to parse patchDef2:", e);
       return null;

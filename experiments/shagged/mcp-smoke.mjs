@@ -68,6 +68,16 @@ try{
   const compiled=await call(a,'shagged_compile',{mapName,quality:'fast'});assert.equal(compiled.state,'playable');
   csg={split:true,subtract:true,cutterRemoved:true,compiled:true};
  }
+ let round;
+ if(process.argv.includes('--round')) {
+  await call(a,'shagged_apply',{mapName,ops:[{op:'patch.round',id:'qa_round',shape:'tube',min:{x:-128,y:-64,z:0},max:{x:-64,y:0,z:64},thickness:8}]});
+  const doc=(await call(a,'shagged_read_document',{mapName})).document;
+  assert.equal(doc.patches.length,4);assert.equal(doc.editorGroups[0].objectIds.length,4);
+  const bad=await request(a,'shagged_apply',{mapName,ops:[{op:'patch.round',shape:'tube',min:{x:0,y:0,z:0},max:{x:16,y:16,z:16},thickness:8}]});assert(bad.failed);
+  assert.equal((await call(a,'shagged_read_document',{mapName})).document.revision,doc.revision);
+  const compiled=await call(a,'shagged_compile',{mapName,quality:'fast'});assert.equal(compiled.state,'playable');
+  round={surfaces:4,grouped:true,invalidRejected:true,compiled:true};
+ }
  const initial=(await call(a,'shagged_read_document',{mapName})).document;
  const controls=[0,1,2].map(row=>[0,1,2].map(col=>({x:col*8,y:row*8,z:160,u:col/2,v:row/2})));
  await call(a,'shagged_apply',{mapName,expectedRevision:initial.revision,ops:[
@@ -99,6 +109,6 @@ try{
  assert.equal(stale.code,1);assert.equal(stale.body.error,'Map revision conflict');assert.equal(fs.readFileSync(file,'utf8'),before);
  const cliConcurrent=await Promise.all([cli(['apply',file,opsFile,'--expected-revision',String(current.revision)]),cli(['apply',file,opsFile,'--expected-revision',String(current.revision)])]);
  assert.equal(cliConcurrent.filter(result=>result.code===0).length,1);assert.equal(JSON.parse(fs.readFileSync(file,'utf8')).revision,current.revision+1);
- const summary={ok:true,mapName,first:first.packageName,reused:reuse.reused,forced:forced.packageName,transcriptBytes:offset,groups,csg,inspection:{patches:info.patches.length,spatialMatches:query.total,pagedObjects:ids.length,concurrentWinners:1,cliRoundTrip:true,staleCliRejected:true,cliConcurrentWinners:1}};
+ const summary={ok:true,mapName,first:first.packageName,reused:reuse.reused,forced:forced.packageName,transcriptBytes:offset,groups,csg,round,inspection:{patches:info.patches.length,spatialMatches:query.total,pagedObjects:ids.length,concurrentWinners:1,cliRoundTrip:true,staleCliRejected:true,cliConcurrentWinners:1}};
  fs.writeFileSync(path.join(root,'report.json'),JSON.stringify(summary,null,2)+'\n');console.log(JSON.stringify(summary,null,2));
 }finally{await Promise.allSettled(clients.map(client=>client.close()));}

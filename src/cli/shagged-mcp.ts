@@ -216,7 +216,7 @@ server.registerTool(
     description: [
       "Applies a batch of operations as one all-or-nothing transaction and saves the map. An error names the failing operation and changes nothing. face.material and creation with alignment: natural resolve image sizes from the catalog; omitted alignment preserves legacy repeats.",
       "Operations (fields in the guide): world.keys, box.create, box.update, convex.create, brush.rotate, brush.vertices (indexed world positions; rebuilds convex hull), brush.clip (plane normal/distance, keep back/front/both), brush.subtract (target ids, cutterId, optional removeCutter), gen.prism, patch.create, face.material (numeric sides for convex brushes), entity.place, entity.update, brushEntity.assign, editorGroup.create (editor-only object grouping), editorGroup.ungroup, object.move, object.duplicate, object.delete, brush.carve (box cutter, including convex targets), gen.room, gen.corridor, gen.connect (join two rooms), gen.stairs, gen.teleporter, gen.jumppad.",
-      "Coordinates are Quake units with Z up. Returns created, changed and deleted IDs and Map Health issues.",
+      "patch.round creates cylinder/tube/cone/cap patch presets: min/max, axis (z default), optional thickness, capped, reverse, shader, group. Multiple surfaces form an editor group by default. Coordinates are Quake units with Z up. Returns created, changed and deleted IDs and Map Health issues.",
       "Use dryRun: true to preview without saving.",
     ].join(" "),
     inputSchema: {

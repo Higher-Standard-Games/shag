@@ -28,6 +28,7 @@ import { duplicateSelection, groupSelection, moveSelection, ungroupSelection } f
 import { brushEntityShader } from "../EntityCatalog";
 import { naturalFace } from "../FaceUv";
 import { inspectMapHealth, type MapHealthIssue } from "../MapHealth";
+import { type RoundPatchShape, roundPatches } from "../RoundPatchPresets";
 import { lockBrushBounds } from "../TextureLock";
 import { subtractBox } from "./BoxCsg";
 import { alignCreatedBrush, type CreationMaterials } from "./CreationMaterials";
@@ -75,6 +76,19 @@ export type EditOp =
   | { op: "editorGroup.create"; id?: string; objectIds: string[]; name?: string }
   | { op: "editorGroup.ungroup"; ids: string[] }
   | ({ op: "patch.create" } & Omit<PatchSurface, "id"> & { id?: string })
+  | {
+      op: "patch.round";
+      id?: string;
+      shape: RoundPatchShape;
+      min: Vec3q;
+      max: Vec3q;
+      axis?: keyof Vec3q;
+      thickness?: number;
+      capped?: boolean;
+      reverse?: boolean;
+      shader?: string;
+      group?: boolean;
+    }
   | ({ op: "box.create"; id?: string; min: Vec3q; max: Vec3q; shader?: string; detail?: boolean } & CreationMaterials)
   | { op: "box.update"; id: string; min?: Vec3q; max?: Vec3q; shader?: string; detail?: boolean }
   | {
@@ -222,6 +236,45 @@ const add = (a: Vec3q, b: Vec3q): Vec3q => ({ x: a.x + b.x, y: a.y + b.y, z: a.z
 
 function applyOne(doc: EditorDocumentData, op: EditOp, changed: Set<string>): void {
   switch (op.op) {
+    case "patch.round": {
+      const id = claimId(doc, op.id, "patch"),
+        min = vec(op.min, "min"),
+        max = vec(op.max, "max"),
+        axis = op.axis ?? "z";
+      if (!["x", "y", "z"].includes(axis)) throw new Error("Round patch axis must be x, y or z");
+      if ((["x", "y", "z"] as const).some((key) => min[key] > max[key]))
+        throw new Error("Round patch bounds need min <= max");
+      if (op.group !== undefined && typeof op.group !== "boolean") throw new Error("group must be boolean");
+      const [u, v] =
+        axis === "x" ? (["y", "z"] as const) : axis === "y" ? (["x", "z"] as const) : (["x", "y"] as const);
+      const patches = roundPatches(
+        id,
+        op.shader ?? DEFAULT_SHADER,
+        {
+          axes: { u, v, hidden: axis },
+          start: [min[u], min[v]],
+          end: [max[u], max[v]],
+          depth: [min[axis], max[axis]],
+          reverse: op.reverse,
+        },
+        op.shape,
+        { thickness: op.thickness, capped: op.capped },
+      );
+      if (!patches) throw new Error("Invalid round patch shape, bounds or tube thickness");
+      doc.patches ??= [];
+      for (const patch of patches) {
+        claimId(doc, patch.id, "patch");
+        doc.patches.push(patch);
+      }
+      if (patches.length > 1 && (op.group ?? true))
+        groupSelection(
+          doc,
+          patches.map((patch) => patch.id),
+          claimId(doc, `${id}-group`, "group"),
+          op.shape,
+        );
+      return;
+    }
     case "brush.clip": {
       const source = brush(doc, op.id),
         keep = op.keep ?? "back";

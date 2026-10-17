@@ -96,7 +96,12 @@ describe("editor local draft recovery", () => {
     store.save(data, curves);
     expect(store.load().view).toEqual(curves);
     expect(() => store.save(data, { ...curves, patchDepth: 0 })).toThrow("Invalid editor view state");
-    expect(() => store.save(data, { ...curves, patchShape: "tube" as never })).toThrow("Invalid editor view state");
+    expect(() => store.save(data, { ...curves, patchShape: "unknown" as never })).toThrow("Invalid editor view state");
+    const round = { ...curves, patchShape: "tube" as const, patchThickness: 4, patchCapped: false };
+    store.save(data, round);
+    expect(store.load().view).toEqual(round);
+    expect(() => store.save(data, { ...round, patchThickness: 0 })).toThrow();
+    expect(() => store.save(data, { ...round, patchCapped: 1 as never })).toThrow();
   });
 
   it("lists named drafts and activates an older valid draft", () => {

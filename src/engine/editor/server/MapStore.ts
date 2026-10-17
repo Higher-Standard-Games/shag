@@ -2,7 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { type EditorDocumentData, validateDocument } from "../EditorDocument";
-import { writeMap } from "../MapWriter";
+import { matchesMapSource } from "../MapWriter";
 import { withFileLock } from "./FileLock";
 
 const MAP_NAME = /^[a-z][a-z0-9_]{0,47}$/;
@@ -86,7 +86,7 @@ export class MapStore {
     try {
       sidecar = JSON.parse(await readFile(path.join(snapshotRoot, "editor.json"), "utf8")) as EditorDocumentData;
       validateDocument(sidecar);
-      if (writeMap(sidecar) !== source) throw new Error("Saved editor sidecar does not match source");
+      if (!matchesMapSource(sidecar, source)) throw new Error("Saved editor sidecar does not match source");
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
     }
@@ -109,7 +109,7 @@ export class MapStore {
     if (snapshotSidecar !== null) {
       try {
         validateDocument(snapshotSidecar);
-        if (writeMap(snapshotSidecar) !== source) throw new Error("Editor sidecar does not match source");
+        if (!matchesMapSource(snapshotSidecar, source)) throw new Error("Editor sidecar does not match source");
       } catch (error) {
         throw new MapInputError(error instanceof Error ? error.message : String(error));
       }

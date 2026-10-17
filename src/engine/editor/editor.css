@@ -194,6 +194,10 @@
 .shagged__menu--map .shagged__menu-panel {
   min-width: 205px;
 }
+.shagged__menu--curves .shagged__menu-panel {
+  max-height: calc(100vh - 180px);
+  overflow-y: auto;
+}
 .shagged__menu-panel input[data-draft-name] {
   flex: 1;
   min-width: 0;

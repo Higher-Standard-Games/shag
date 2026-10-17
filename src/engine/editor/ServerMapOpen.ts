@@ -1,5 +1,5 @@
 import { EditorDocument, type EditorDocumentData } from "./EditorDocument";
-import { writeMap } from "./MapWriter";
+import { matchesMapSource } from "./MapWriter";
 import type { ServerMapSnapshot } from "./ShaggedApi";
 
 const MAP_NAME = /^[a-z][a-z0-9_]{0,47}$/;
@@ -24,7 +24,7 @@ export function inspectServerMap(map: ServerMapSnapshot, local?: EditorDocumentD
   const data = document.snapshot();
   if (serverMapName(data.draftId, data.mapName) !== map.name)
     throw new Error("Server map name does not match its sidecar");
-  if (writeMap(data) !== map.source) throw new Error("Server map source does not match its editable sidecar");
+  if (!matchesMapSource(data, map.source)) throw new Error("Server map source does not match its editable sidecar");
   if (!local) return { kind: "ready", document, revision: map.revision };
   const localData = new EditorDocument(local).snapshot();
   if (localData.draftId !== data.draftId) throw new Error("Local and server draft IDs differ");

@@ -10,9 +10,11 @@ export interface EditorViewState {
   grid: 8 | 16 | 32 | 64;
   zoom: number;
   tool: "brush" | "patch" | "points" | "vertices" | "select" | "entity";
-  patchShape?: "flat" | "bevel" | "inverted-bevel" | "arch";
+  patchShape?: "flat" | "bevel" | "inverted-bevel" | "arch" | "cylinder" | "tube" | "cone" | "cap";
   patchDepth?: number;
   patchReverse?: boolean;
+  patchThickness?: number;
+  patchCapped?: boolean;
   selectedId: string | null;
   selectedIds?: string[];
   draftName?: string;
@@ -74,10 +76,14 @@ function validView(value: unknown): value is EditorViewState {
     state.zoom >= 0.25 &&
     state.zoom <= 4 &&
     ["brush", "patch", "points", "vertices", "select", "entity"].includes(state.tool) &&
-    (state.patchShape === undefined || ["flat", "bevel", "inverted-bevel", "arch"].includes(state.patchShape)) &&
+    (state.patchShape === undefined ||
+      ["flat", "bevel", "inverted-bevel", "arch", "cylinder", "tube", "cone", "cap"].includes(state.patchShape)) &&
     (state.patchDepth === undefined ||
       (Number.isFinite(state.patchDepth) && Math.abs(state.patchDepth) >= 1 && Math.abs(state.patchDepth) <= 4096)) &&
     (state.patchReverse === undefined || typeof state.patchReverse === "boolean") &&
+    (state.patchThickness === undefined ||
+      (Number.isFinite(state.patchThickness) && state.patchThickness >= 1 && state.patchThickness <= 4096)) &&
+    (state.patchCapped === undefined || typeof state.patchCapped === "boolean") &&
     (state.selectedId === null || typeof state.selectedId === "string") &&
     (state.selectedIds === undefined ||
       (Array.isArray(state.selectedIds) &&

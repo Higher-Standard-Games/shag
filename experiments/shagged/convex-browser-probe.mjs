@@ -132,10 +132,35 @@ try{
     assert.equal(await browser.ev('window.__convexQA.session.document.snapshot().brushes.some(b=>b.id==="cut")'),true);
     csg={split,carved,undo:true};
   }
+  let round;
+  if(process.argv.includes('--round')) {
+    await browser.ev(`(()=>{const s=window.__convexQA.session,r=s.root.querySelector('[data-patch-depth]');r.value='96';r.dispatchEvent(new Event('change'));const t=s.root.querySelector('[data-patch-thickness]');t.value='4';t.dispatchEvent(new Event('change'));})()`);
+    let total=0;
+    const shapes=[['cylinder',-192,-160,3],['tube',0,-160,4],['cone',128,-160,2],['cap',-32,96,1]];
+    for(const [shape,x,y,count] of shapes){
+      await browser.click(`[data-action="curve-${shape}"]`);
+      const p=await browser.ev(`(()=>{const s=window.__convexQA.session,r=s.root.querySelector('[data-plane="xy"]').getBoundingClientRect();return {x:r.left+r.width/2+(${x}-s.viewCenter.x)*s.zoom,y:r.top+r.height/2-(${y}-s.viewCenter.y)*s.zoom,dx:64*s.zoom,dy:-64*s.zoom}})()`);
+      await browser.send('Input.dispatchMouseEvent',{type:'mousePressed',x:p.x,y:p.y,button:'left',clickCount:1});
+      await browser.send('Input.dispatchMouseEvent',{type:'mouseMoved',x:p.x+p.dx,y:p.y+p.dy,button:'left',buttons:1});
+      assert.equal(await browser.ev('window.__convexQA.session.patchGhosts.length'),count);
+      assert.equal(await browser.ev('window.__convexQA.session.document.snapshot().patches.length'),total);
+      await browser.send('Input.dispatchMouseEvent',{type:'mouseReleased',x:p.x+p.dx,y:p.y+p.dy,button:'left',clickCount:1});
+      total+=count;assert.equal(await browser.ev('window.__convexQA.session.document.snapshot().patches.length'),total);
+    }
+    const state=await browser.ev(`(()=>{const s=window.__convexQA.session,d=s.document.snapshot();s.setSelection(d.patches.map(p=>p.id));s.changed();s.frame(true);return {patches:d.patches.length,groups:d.editorGroups.length,finite:d.patches.every(p=>s.meshes.get(p.id).getVerticesData('normal').every(Number.isFinite)),ghosts:s.patchGhosts.length}})()`);
+    assert.equal(state.patches,10);assert.equal(state.groups,3);assert(state.finite);assert.equal(state.ghosts,0);
+    await sleep(300);await browser.shot(path.resolve('.cache/shagged-round.png'));
+    await browser.click('[data-action="undo"]');assert.equal(await browser.ev('window.__convexQA.session.document.snapshot().patches.length'),9);
+    await browser.send('Emulation.setDeviceMetricsOverride',{width:1440,height:650,deviceScaleFactor:1,mobile:false});
+    const menu=await browser.ev(`(()=>{const d=window.__convexQA.session.root.querySelector('.shagged__menu--curves');d.open=true;const p=d.querySelector('.shagged__menu-panel'),r=p.getBoundingClientRect();return {bottom:r.bottom,scrollable:p.scrollHeight>p.clientHeight}})()`);
+    assert(menu.bottom<=650&&menu.scrollable,JSON.stringify(menu));
+    await browser.shot(path.resolve('.cache/shagged-round-menu.png'));
+    round={...state,nativeDrags:true,undo:true,menu};
+  }
   const errors=browser.logs.filter(entry=>/shader.*error|WebGL.*error|exception/i.test(JSON.stringify(entry)));
   assert.equal(errors.length,0,JSON.stringify(errors));
   assert.equal(browser.failed.length,0,JSON.stringify(browser.failed));
-  fs.writeFileSync(`.cache/shagged-${csg?'csg':selection?'selection':textureLock?'texture-lock':faces?'faces':vertices?'vertices':'convex'}-browser-report.json`,JSON.stringify({ok:true,result,textured,vertices,faces,textureLock,selection,csg,logs:browser.logs,failed:browser.failed},null,2));
-  console.log(JSON.stringify({ok:true,...result,vertices,faces,textureLock,selection,csg},null,2));
+  fs.writeFileSync(`.cache/shagged-${round?'round':csg?'csg':selection?'selection':textureLock?'texture-lock':faces?'faces':vertices?'vertices':'convex'}-browser-report.json`,JSON.stringify({ok:true,result,textured,vertices,faces,textureLock,selection,csg,round,logs:browser.logs,failed:browser.failed},null,2));
+  console.log(JSON.stringify({ok:true,...result,vertices,faces,textureLock,selection,csg,round},null,2));
   await browser.ev('window.__convexQA.engine.stopRenderLoop();window.__convexQA.session.dispose();window.__convexQA.engine.dispose();');
 }finally{if(browser)await browser.close();vite.kill();}

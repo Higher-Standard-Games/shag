@@ -4,6 +4,8 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { EditorDocument } from "../../EditorDocument";
 import { writeMap } from "../../MapWriter";
+import { archPatch } from "../../PatchPresets";
+import { inspectServerMap } from "../../ServerMapOpen";
 import { MapConflictError, MapStore } from "../MapStore";
 
 const roots: string[] = [];
@@ -20,6 +22,31 @@ async function store(): Promise<MapStore> {
 }
 
 describe("SHAGGED server map storage", () => {
+  it("opens legacy patch row-order sidecars and saves a native revision without altering history", async () => {
+    const maps = await store(),
+      data = new EditorDocument().snapshot();
+    data.mapName = "legacy_patch";
+    data.patches = [
+      archPatch("arch", "common/caulk", {
+        axes: { u: "x", v: "y", hidden: "z" },
+        start: [0, 0],
+        end: [64, 64],
+        depth: [0, 32],
+      })!,
+    ];
+    const legacy = writeMap(data, { legacyPatchRows: true }),
+      native = writeMap(data);
+    expect(native).not.toBe(legacy);
+    const saved = await maps.save("legacy_patch", legacy, 0, data);
+    expect(inspectServerMap(saved).kind).toBe("ready");
+    expect((await new MapStore(maps.root).load("legacy_patch"))!.source).toBe(legacy);
+    const next = await maps.save("legacy_patch", native, 1, data);
+    expect(next.revision).toBe(2);
+    expect(inspectServerMap(next).document.snapshot().patches).toEqual(data.patches);
+    const changed = structuredClone(data);
+    changed.patches![0].controlPoints[0][0].x += 1;
+    await expect(maps.save("legacy_patch", legacy, 2, changed)).rejects.toThrow(/sidecar does not match/);
+  });
   it("retains editor-only groups even when exported compiler source is unchanged", async () => {
     const maps = await store();
     const data = new EditorDocument().snapshot();
