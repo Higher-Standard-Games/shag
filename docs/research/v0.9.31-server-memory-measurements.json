@@ -1,0 +1,4083 @@
+{
+  "matrix": {
+    "createdAt": "2026-10-17T12:26:39.087Z",
+    "commit": "a05574336b12af46dc5d5719e06f1c46a0ee49ce",
+    "platform": "win32",
+    "arch": "x64",
+    "osRelease": "10.0.26200",
+    "workload": {
+      "seconds": 15,
+      "warmup": 10,
+      "repeats": 3,
+      "clients": 0,
+      "recording": false,
+      "phase": "warmup",
+      "tickRate": 125,
+      "diagnosticGC": false,
+      "artifactSha256": "88c9121fe9adbd9c9d46b3dc258a4310dc6aea5a049d81b96ec2887e8d599f88"
+    },
+    "limitations": [
+      "Warmup movement/combat workload; not recorded active-match or ten-process capacity evidence",
+      "RSS includes shared pages; ArrayBuffer bytes are a subset of external memory; profiler overhead is included",
+      "Windows private bytes are sampled once after warm-up, not peak commit; RSS peak is sampled, not OS high-water"
+    ],
+    "runs": [
+      {
+        "name": "node-wdm2-0",
+        "runtime": "node",
+        "map": "wdm2",
+        "repeat": 0,
+        "version": "24.21.0",
+        "readyMs": 284.03180000000003,
+        "cpuPercentOfOneCore": 0.8465635756309807,
+        "firstMemory": {
+          "rss": 92155904,
+          "heapTotal": 30384128,
+          "heapUsed": 25992552,
+          "external": 11659262,
+          "arrayBuffers": 4319963
+        },
+        "lastMemory": {
+          "rss": 93642752,
+          "heapTotal": 31170560,
+          "heapUsed": 25757128,
+          "external": 11659262,
+          "arrayBuffers": 4319963
+        },
+        "tickRate": {
+          "medianHz": 124.9,
+          "minimumHz": 124.9,
+          "maxWorkMs": 1.9
+        },
+        "recordings": 0,
+        "recordingBytes": 0,
+        "privateBytes": 94552064,
+        "memory": {
+          "rss": {
+            "median": 93347840,
+            "max": 93642752
+          },
+          "heapUsed": {
+            "median": 26144536,
+            "max": 26820056
+          },
+          "heapTotal": {
+            "median": 30384128,
+            "max": 31170560
+          },
+          "external": {
+            "median": 11659262,
+            "max": 11659262
+          },
+          "arrayBuffers": {
+            "median": 4319963,
+            "max": 4319963
+          }
+        },
+        "peakSampledRss": 146374656,
+        "stages": [
+          {
+            "stage": "bootstrap",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 0.06640000000000157,
+            "timestamp": 1792239999168,
+            "uptimeSeconds": 0.016563,
+            "memory": {
+              "rss": 53501952,
+              "heapTotal": 6594560,
+              "heapUsed": 5169608,
+              "external": 2156235,
+              "arrayBuffers": 137503
+            },
+            "cpu": {
+              "user": 31000,
+              "system": 15000
+            }
+          },
+          {
+            "stage": "modules-ready",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 39.56660000000001,
+            "timestamp": 1792239999208,
+            "uptimeSeconds": 0.0560546,
+            "memory": {
+              "rss": 66617344,
+              "heapTotal": 14196736,
+              "heapUsed": 10022504,
+              "external": 7364292,
+              "arrayBuffers": 183607
+            },
+            "cpu": {
+              "user": 46000,
+              "system": 31000
+            }
+          },
+          {
+            "stage": "bsp-extracted",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 101.0454,
+            "timestamp": 1792239999269,
+            "uptimeSeconds": 0.1175359,
+            "memory": {
+              "rss": 94347264,
+              "heapTotal": 20488192,
+              "heapUsed": 11926920,
+              "external": 29538030,
+              "arrayBuffers": 22357345
+            },
+            "cpu": {
+              "user": 156000,
+              "system": 46000
+            },
+            "map": "wdm2",
+            "bspBytes": 9417992
+          },
+          {
+            "stage": "bsp-parsed",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 121.9413,
+            "timestamp": 1792239999290,
+            "uptimeSeconds": 0.138443,
+            "memory": {
+              "rss": 100245504,
+              "heapTotal": 33529856,
+              "heapUsed": 21126608,
+              "external": 16926692,
+              "arrayBuffers": 9746007
+            },
+            "cpu": {
+              "user": 234000,
+              "system": 46000
+            },
+            "map": "wdm2",
+            "vertices": 1563,
+            "faces": 7475,
+            "brushes": 3069,
+            "patchControls": 1563
+          },
+          {
+            "stage": "collision-ready",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 215.85340000000002,
+            "timestamp": 1792239999384,
+            "uptimeSeconds": 0.2323424,
+            "memory": {
+              "rss": 146046976,
+              "heapTotal": 74162176,
+              "heapUsed": 48393320,
+              "external": 20918640,
+              "arrayBuffers": 13737955
+            },
+            "cpu": {
+              "user": 343000,
+              "system": 140000
+            },
+            "map": "wdm2"
+          },
+          {
+            "stage": "listening",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 243.44890000000004,
+            "timestamp": 1792239999412,
+            "uptimeSeconds": 0.2599371,
+            "memory": {
+              "rss": 146374656,
+              "heapTotal": 75210752,
+              "heapUsed": 41067384,
+              "external": 21055726,
+              "arrayBuffers": 13737955
+            },
+            "cpu": {
+              "user": 375000,
+              "system": 156000
+            },
+            "map": "wdm2",
+            "port": 58836,
+            "bspSha256": "f1cab8f8abdff75aca24c180c0979a13c8caeaf63273a4b8b17f8f18cb6b6da5"
+          }
+        ],
+        "samples": 30
+      },
+      {
+        "name": "bun-wdm2-0",
+        "runtime": "bun",
+        "map": "wdm2",
+        "repeat": 0,
+        "version": "1.4.3",
+        "readyMs": 205.59549999999945,
+        "cpuPercentOfOneCore": 1.2943670913611318,
+        "firstMemory": {
+          "rss": 83107840,
+          "heapTotal": 20908032,
+          "heapUsed": 22757434,
+          "external": 8353242,
+          "arrayBuffers": 194
+        },
+        "lastMemory": {
+          "rss": 82112512,
+          "heapTotal": 21121024,
+          "heapUsed": 22960599,
+          "external": 8412167,
+          "arrayBuffers": 194
+        },
+        "tickRate": {
+          "medianHz": 125,
+          "minimumHz": 124.8,
+          "maxWorkMs": 1.4
+        },
+        "recordings": 0,
+        "recordingBytes": 0,
+        "privateBytes": 222375936,
+        "memory": {
+          "rss": {
+            "median": 82931712,
+            "max": 83107840
+          },
+          "heapUsed": {
+            "median": 22894631,
+            "max": 22960599
+          },
+          "heapTotal": {
+            "median": 21006336,
+            "max": 21121024
+          },
+          "external": {
+            "median": 8412167,
+            "max": 8412167
+          },
+          "arrayBuffers": {
+            "median": 194,
+            "max": 194
+          }
+        },
+        "peakSampledRss": 130744320,
+        "stages": [
+          {
+            "stage": "bootstrap",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 0.053899999999999615,
+            "timestamp": 1792240024684,
+            "uptimeSeconds": 0.0070487,
+            "memory": {
+              "rss": 36118528,
+              "heapTotal": 1018880,
+              "heapUsed": 1018880,
+              "external": 0,
+              "arrayBuffers": 0
+            },
+            "cpu": {
+              "user": 31000,
+              "system": 0
+            }
+          },
+          {
+            "stage": "modules-ready",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 24.7841,
+            "timestamp": 1792240024709,
+            "uptimeSeconds": 0.0317351,
+            "memory": {
+              "rss": 46354432,
+              "heapTotal": 3650560,
+              "heapUsed": 3650560,
+              "external": 290,
+              "arrayBuffers": 290
+            },
+            "cpu": {
+              "user": 31000,
+              "system": 15000
+            }
+          },
+          {
+            "stage": "bsp-extracted",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 69.58109999999999,
+            "timestamp": 1792240024753,
+            "uptimeSeconds": 0.0765358,
+            "memory": {
+              "rss": 88727552,
+              "heapTotal": 4145152,
+              "heapUsed": 12295416,
+              "external": 23726768,
+              "arrayBuffers": 22226304
+            },
+            "cpu": {
+              "user": 109000,
+              "system": 62000
+            },
+            "map": "wdm2",
+            "bspBytes": 9417992
+          },
+          {
+            "stage": "bsp-parsed",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 82.6532,
+            "timestamp": 1792240024767,
+            "uptimeSeconds": 0.0896044,
+            "memory": {
+              "rss": 97767424,
+              "heapTotal": 12304384,
+              "heapUsed": 28665479,
+              "external": 23910919,
+              "arrayBuffers": 22226304
+            },
+            "cpu": {
+              "user": 125000,
+              "system": 78000
+            },
+            "map": "wdm2",
+            "vertices": 1563,
+            "faces": 7475,
+            "brushes": 3069,
+            "patchControls": 1563
+          },
+          {
+            "stage": "collision-ready",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 162.8435,
+            "timestamp": 1792240024847,
+            "uptimeSeconds": 0.1697947,
+            "memory": {
+              "rss": 129032192,
+              "heapTotal": 37292032,
+              "heapUsed": 30280120,
+              "external": 15203912,
+              "arrayBuffers": 9418282
+            },
+            "cpu": {
+              "user": 281000,
+              "system": 93000
+            },
+            "map": "wdm2"
+          },
+          {
+            "stage": "listening",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 180.3382,
+            "timestamp": 1792240024864,
+            "uptimeSeconds": 0.18728899999999998,
+            "memory": {
+              "rss": 130744320,
+              "heapTotal": 37357568,
+              "heapUsed": 32035908,
+              "external": 16421092,
+              "arrayBuffers": 9418282
+            },
+            "cpu": {
+              "user": 312000,
+              "system": 109000
+            },
+            "map": "wdm2",
+            "port": 54453,
+            "bspSha256": "f1cab8f8abdff75aca24c180c0979a13c8caeaf63273a4b8b17f8f18cb6b6da5"
+          }
+        ],
+        "samples": 30
+      },
+      {
+        "name": "node-wfdm5-0",
+        "runtime": "node",
+        "map": "wfdm5",
+        "repeat": 0,
+        "version": "24.21.0",
+        "readyMs": 536.6055000000051,
+        "cpuPercentOfOneCore": 0.3117527316672332,
+        "firstMemory": {
+          "rss": 84996096,
+          "heapTotal": 26017792,
+          "heapUsed": 20677384,
+          "external": 9674226,
+          "arrayBuffers": 2334927
+        },
+        "lastMemory": {
+          "rss": 87109632,
+          "heapTotal": 26017792,
+          "heapUsed": 20971024,
+          "external": 9674226,
+          "arrayBuffers": 2334927
+        },
+        "tickRate": {
+          "medianHz": 124.9,
+          "minimumHz": 124.9,
+          "maxWorkMs": 1.8
+        },
+        "recordings": 0,
+        "recordingBytes": 0,
+        "privateBytes": 86085632,
+        "memory": {
+          "rss": {
+            "median": 86974464,
+            "max": 87109632
+          },
+          "heapUsed": {
+            "median": 20874912,
+            "max": 21525328
+          },
+          "heapTotal": {
+            "median": 26017792,
+            "max": 26017792
+          },
+          "external": {
+            "median": 9674226,
+            "max": 9674226
+          },
+          "arrayBuffers": {
+            "median": 2334927,
+            "max": 2334927
+          }
+        },
+        "peakSampledRss": 268480512,
+        "stages": [
+          {
+            "stage": "bootstrap",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 0.06759999999999877,
+            "timestamp": 1792240050130,
+            "uptimeSeconds": 0.0180596,
+            "memory": {
+              "rss": 53592064,
+              "heapTotal": 6594560,
+              "heapUsed": 5169680,
+              "external": 2156235,
+              "arrayBuffers": 137503
+            },
+            "cpu": {
+              "user": 15000,
+              "system": 0
+            }
+          },
+          {
+            "stage": "modules-ready",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 44.715199999999996,
+            "timestamp": 1792240050174,
+            "uptimeSeconds": 0.0626937,
+            "memory": {
+              "rss": 66605056,
+              "heapTotal": 14196736,
+              "heapUsed": 9954264,
+              "external": 7364292,
+              "arrayBuffers": 183607
+            },
+            "cpu": {
+              "user": 31000,
+              "system": 31000
+            }
+          },
+          {
+            "stage": "bsp-extracted",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 362.2403,
+            "timestamp": 1792240050492,
+            "uptimeSeconds": 0.3802306,
+            "memory": {
+              "rss": 224903168,
+              "heapTotal": 20488192,
+              "heapUsed": 11369656,
+              "external": 155502664,
+              "arrayBuffers": 148321979
+            },
+            "cpu": {
+              "user": 375000,
+              "system": 109000
+            },
+            "map": "wfdm5",
+            "bspBytes": 63861484
+          },
+          {
+            "stage": "bsp-parsed",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 375.60540000000003,
+            "timestamp": 1792240050505,
+            "uptimeSeconds": 0.393585,
+            "memory": {
+              "rss": 233271296,
+              "heapTotal": 31969280,
+              "heapUsed": 19832784,
+              "external": 155485931,
+              "arrayBuffers": 148305246
+            },
+            "cpu": {
+              "user": 390000,
+              "system": 109000
+            },
+            "map": "wfdm5",
+            "vertices": 1014,
+            "faces": 1353,
+            "brushes": 1966,
+            "patchControls": 1014
+          },
+          {
+            "stage": "collision-ready",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 435.63570000000004,
+            "timestamp": 1792240050565,
+            "uptimeSeconds": 0.4536144,
+            "memory": {
+              "rss": 268480512,
+              "heapTotal": 56688640,
+              "heapUsed": 29300928,
+              "external": 157656075,
+              "arrayBuffers": 150475390
+            },
+            "cpu": {
+              "user": 484000,
+              "system": 187000
+            },
+            "map": "wfdm5"
+          },
+          {
+            "stage": "listening",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 492.619,
+            "timestamp": 1792240050622,
+            "uptimeSeconds": 0.5106023,
+            "memory": {
+              "rss": 180875264,
+              "heapTotal": 56950784,
+              "heapUsed": 30816464,
+              "external": 157793161,
+              "arrayBuffers": 66196411
+            },
+            "cpu": {
+              "user": 593000,
+              "system": 203000
+            },
+            "map": "wfdm5",
+            "port": 63129,
+            "bspSha256": "ae793980d96132539660cb3e487392e4b94f46fb0fc01ecde72321e9c6eede3e"
+          }
+        ],
+        "samples": 30
+      },
+      {
+        "name": "bun-wfdm5-0",
+        "runtime": "bun",
+        "map": "wfdm5",
+        "repeat": 0,
+        "version": "1.4.3",
+        "readyMs": 379.4186000000045,
+        "cpuPercentOfOneCore": 0.7506816585461391,
+        "firstMemory": {
+          "rss": 83263488,
+          "heapTotal": 21152768,
+          "heapUsed": 17355612,
+          "external": 6568060,
+          "arrayBuffers": 194
+        },
+        "lastMemory": {
+          "rss": 82169856,
+          "heapTotal": 21218304,
+          "heapUsed": 17533988,
+          "external": 6611972,
+          "arrayBuffers": 194
+        },
+        "tickRate": {
+          "medianHz": 125,
+          "minimumHz": 124.8,
+          "maxWorkMs": 1.5
+        },
+        "recordings": 0,
+        "recordingBytes": 0,
+        "privateBytes": 278609920,
+        "memory": {
+          "rss": {
+            "median": 83689472,
+            "max": 84951040
+          },
+          "heapUsed": {
+            "median": 17467490,
+            "max": 17533988
+          },
+          "heapTotal": {
+            "median": 21169152,
+            "max": 21267456
+          },
+          "external": {
+            "median": 6611970,
+            "max": 6611972
+          },
+          "arrayBuffers": {
+            "median": 194,
+            "max": 194
+          }
+        },
+        "peakSampledRss": 302915584,
+        "stages": [
+          {
+            "stage": "bootstrap",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 0.05379999999999985,
+            "timestamp": 1792240075894,
+            "uptimeSeconds": 0.0072125,
+            "memory": {
+              "rss": 36118528,
+              "heapTotal": 1018880,
+              "heapUsed": 1018880,
+              "external": 0,
+              "arrayBuffers": 0
+            },
+            "cpu": {
+              "user": 0,
+              "system": 0
+            }
+          },
+          {
+            "stage": "modules-ready",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 24.1254,
+            "timestamp": 1792240075918,
+            "uptimeSeconds": 0.0312438,
+            "memory": {
+              "rss": 46088192,
+              "heapTotal": 3650560,
+              "heapUsed": 3650560,
+              "external": 290,
+              "arrayBuffers": 290
+            },
+            "cpu": {
+              "user": 15000,
+              "system": 15000
+            }
+          },
+          {
+            "stage": "bsp-extracted",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 228.6277,
+            "timestamp": 1792240076122,
+            "uptimeSeconds": 0.23575659999999998,
+            "memory": {
+              "rss": 222326784,
+              "heapTotal": 5285888,
+              "heapUsed": 72301328,
+              "external": 150015148,
+              "arrayBuffers": 148509982
+            },
+            "cpu": {
+              "user": 203000,
+              "system": 156000
+            },
+            "map": "wfdm5",
+            "bspBytes": 63861484
+          },
+          {
+            "stage": "bsp-parsed",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 245.5617,
+            "timestamp": 1792240076139,
+            "uptimeSeconds": 0.2526829,
+            "memory": {
+              "rss": 228823040,
+              "heapTotal": 10938368,
+              "heapUsed": 153154729,
+              "external": 150206409,
+              "arrayBuffers": 148509982
+            },
+            "cpu": {
+              "user": 218000,
+              "system": 156000
+            },
+            "map": "wfdm5",
+            "vertices": 1014,
+            "faces": 1353,
+            "brushes": 1966,
+            "patchControls": 1014
+          },
+          {
+            "stage": "collision-ready",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 308.90590000000003,
+            "timestamp": 1792240076202,
+            "uptimeSeconds": 0.3160251,
+            "memory": {
+              "rss": 295522304,
+              "heapTotal": 69049344,
+              "heapUsed": 153154729,
+              "external": 150206409,
+              "arrayBuffers": 148509982
+            },
+            "cpu": {
+              "user": 343000,
+              "system": 218000
+            },
+            "map": "wfdm5"
+          },
+          {
+            "stage": "listening",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 352.11060000000003,
+            "timestamp": 1792240076246,
+            "uptimeSeconds": 0.3592287,
+            "memory": {
+              "rss": 302915584,
+              "heapTotal": 71654400,
+              "heapUsed": 153154729,
+              "external": 153058161,
+              "arrayBuffers": 148509982
+            },
+            "cpu": {
+              "user": 406000,
+              "system": 250000
+            },
+            "map": "wfdm5",
+            "port": 62847,
+            "bspSha256": "ae793980d96132539660cb3e487392e4b94f46fb0fc01ecde72321e9c6eede3e"
+          }
+        ],
+        "samples": 30
+      },
+      {
+        "name": "node-wfdm11-0",
+        "runtime": "node",
+        "map": "wfdm11",
+        "repeat": 0,
+        "version": "24.21.0",
+        "readyMs": 498.58669999999984,
+        "cpuPercentOfOneCore": 0.20938780355760417,
+        "firstMemory": {
+          "rss": 80003072,
+          "heapTotal": 21536768,
+          "heapUsed": 16283768,
+          "external": 9657710,
+          "arrayBuffers": 2318411
+        },
+        "lastMemory": {
+          "rss": 82272256,
+          "heapTotal": 21798912,
+          "heapUsed": 16966720,
+          "external": 9657710,
+          "arrayBuffers": 2318411
+        },
+        "tickRate": {
+          "medianHz": 125,
+          "minimumHz": 124.9,
+          "maxWorkMs": 1.8
+        },
+        "recordings": 0,
+        "recordingBytes": 0,
+        "privateBytes": 80711680,
+        "memory": {
+          "rss": {
+            "median": 82108416,
+            "max": 82272256
+          },
+          "heapUsed": {
+            "median": 16616800,
+            "max": 17448104
+          },
+          "heapTotal": {
+            "median": 21536768,
+            "max": 21798912
+          },
+          "external": {
+            "median": 9657710,
+            "max": 9657710
+          },
+          "arrayBuffers": {
+            "median": 2318411,
+            "max": 2318411
+          }
+        },
+        "peakSampledRss": 284131328,
+        "stages": [
+          {
+            "stage": "bootstrap",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 0.045999999999999375,
+            "timestamp": 1792240101541,
+            "uptimeSeconds": 0.0173745,
+            "memory": {
+              "rss": 53551104,
+              "heapTotal": 6594560,
+              "heapUsed": 5169608,
+              "external": 2156235,
+              "arrayBuffers": 137503
+            },
+            "cpu": {
+              "user": 0,
+              "system": 31000
+            }
+          },
+          {
+            "stage": "modules-ready",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 44.450399999999995,
+            "timestamp": 1792240101585,
+            "uptimeSeconds": 0.0617722,
+            "memory": {
+              "rss": 66588672,
+              "heapTotal": 14458880,
+              "heapUsed": 9954040,
+              "external": 7364292,
+              "arrayBuffers": 183607
+            },
+            "cpu": {
+              "user": 31000,
+              "system": 62000
+            }
+          },
+          {
+            "stage": "bsp-extracted",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 346.8435,
+            "timestamp": 1792240101887,
+            "uptimeSeconds": 0.3641753,
+            "memory": {
+              "rss": 243380224,
+              "heapTotal": 21012480,
+              "heapUsed": 11018016,
+              "external": 176033466,
+              "arrayBuffers": 168852781
+            },
+            "cpu": {
+              "user": 343000,
+              "system": 156000
+            },
+            "map": "wfdm11",
+            "bspBytes": 67704568
+          },
+          {
+            "stage": "bsp-parsed",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 355.61650000000003,
+            "timestamp": 1792240101896,
+            "uptimeSeconds": 0.3729378,
+            "memory": {
+              "rss": 246177792,
+              "heapTotal": 29401088,
+              "heapUsed": 14554624,
+              "external": 176015829,
+              "arrayBuffers": 168835144
+            },
+            "cpu": {
+              "user": 343000,
+              "system": 156000
+            },
+            "map": "wfdm11",
+            "vertices": 960,
+            "faces": 675,
+            "brushes": 825,
+            "patchControls": 960
+          },
+          {
+            "stage": "collision-ready",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 403.1234,
+            "timestamp": 1792240101944,
+            "uptimeSeconds": 0.4204451,
+            "memory": {
+              "rss": 275406848,
+              "heapTotal": 51683328,
+              "heapUsed": 20251928,
+              "external": 178165849,
+              "arrayBuffers": 170985164
+            },
+            "cpu": {
+              "user": 468000,
+              "system": 203000
+            },
+            "map": "wfdm11"
+          },
+          {
+            "stage": "listening",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 455.9569,
+            "timestamp": 1792240101997,
+            "uptimeSeconds": 0.4732774,
+            "memory": {
+              "rss": 284131328,
+              "heapTotal": 52207616,
+              "heapUsed": 32715848,
+              "external": 178302935,
+              "arrayBuffers": 170985164
+            },
+            "cpu": {
+              "user": 500000,
+              "system": 203000
+            },
+            "map": "wfdm11",
+            "port": 54668,
+            "bspSha256": "f66d0319c60dffbd39c2ea915126c393489bb8a741798752e20c412485fdcc3d"
+          }
+        ],
+        "samples": 30
+      },
+      {
+        "name": "bun-wfdm11-0",
+        "runtime": "bun",
+        "map": "wfdm11",
+        "repeat": 0,
+        "version": "1.4.3",
+        "readyMs": 359.40810000000056,
+        "cpuPercentOfOneCore": 0.6405103762990885,
+        "firstMemory": {
+          "rss": 78368768,
+          "heapTotal": 15384576,
+          "heapUsed": 14068176,
+          "external": 6542560,
+          "arrayBuffers": 194
+        },
+        "lastMemory": {
+          "rss": 75960320,
+          "heapTotal": 15433728,
+          "heapUsed": 14255197,
+          "external": 6595501,
+          "arrayBuffers": 194
+        },
+        "tickRate": {
+          "medianHz": 125,
+          "minimumHz": 124.8,
+          "maxWorkMs": 1.5
+        },
+        "recordings": 0,
+        "recordingBytes": 0,
+        "privateBytes": 243572736,
+        "memory": {
+          "rss": {
+            "median": 78589952,
+            "max": 79097856
+          },
+          "heapUsed": {
+            "median": 14189261,
+            "max": 14255197
+          },
+          "heapTotal": {
+            "median": 15400960,
+            "max": 15499264
+          },
+          "external": {
+            "median": 6595501,
+            "max": 6595501
+          },
+          "arrayBuffers": {
+            "median": 194,
+            "max": 194
+          }
+        },
+        "peakSampledRss": 259567616,
+        "stages": [
+          {
+            "stage": "bootstrap",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 0.059800000000000075,
+            "timestamp": 1792240127236,
+            "uptimeSeconds": 0.0078744,
+            "memory": {
+              "rss": 36114432,
+              "heapTotal": 1018880,
+              "heapUsed": 1018880,
+              "external": 0,
+              "arrayBuffers": 0
+            },
+            "cpu": {
+              "user": 0,
+              "system": 0
+            }
+          },
+          {
+            "stage": "modules-ready",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 25.333699999999997,
+            "timestamp": 1792240127262,
+            "uptimeSeconds": 0.033108,
+            "memory": {
+              "rss": 46350336,
+              "heapTotal": 3650560,
+              "heapUsed": 3650560,
+              "external": 290,
+              "arrayBuffers": 290
+            },
+            "cpu": {
+              "user": 15000,
+              "system": 15000
+            }
+          },
+          {
+            "stage": "bsp-extracted",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 233.6056,
+            "timestamp": 1792240127470,
+            "uptimeSeconds": 0.2413784,
+            "memory": {
+              "rss": 239235072,
+              "heapTotal": 5164032,
+              "heapUsed": 93569702,
+              "external": 170752062,
+              "arrayBuffers": 169063344
+            },
+            "cpu": {
+              "user": 218000,
+              "system": 109000
+            },
+            "map": "wfdm11",
+            "bspBytes": 67704568
+          },
+          {
+            "stage": "bsp-parsed",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 241.9758,
+            "timestamp": 1792240127478,
+            "uptimeSeconds": 0.249742,
+            "memory": {
+              "rss": 242724864,
+              "heapTotal": 7916544,
+              "heapUsed": 93569702,
+              "external": 170752062,
+              "arrayBuffers": 169063344
+            },
+            "cpu": {
+              "user": 234000,
+              "system": 109000
+            },
+            "map": "wfdm11",
+            "vertices": 960,
+            "faces": 675,
+            "brushes": 825,
+            "patchControls": 960
+          },
+          {
+            "stage": "collision-ready",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 287.95980000000003,
+            "timestamp": 1792240127524,
+            "uptimeSeconds": 0.29572590000000004,
+            "memory": {
+              "rss": 255524864,
+              "heapTotal": 51203072,
+              "heapUsed": 76125345,
+              "external": 70235201,
+              "arrayBuffers": 67704858
+            },
+            "cpu": {
+              "user": 343000,
+              "system": 140000
+            },
+            "map": "wfdm11"
+          },
+          {
+            "stage": "listening",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 333.2481,
+            "timestamp": 1792240127569,
+            "uptimeSeconds": 0.34101299999999996,
+            "memory": {
+              "rss": 259567616,
+              "heapTotal": 53857280,
+              "heapUsed": 80460109,
+              "external": 72840045,
+              "arrayBuffers": 67704858
+            },
+            "cpu": {
+              "user": 421000,
+              "system": 156000
+            },
+            "map": "wfdm11",
+            "port": 58450,
+            "bspSha256": "f66d0319c60dffbd39c2ea915126c393489bb8a741798752e20c412485fdcc3d"
+          }
+        ],
+        "samples": 30
+      },
+      {
+        "name": "node-wdm2-1",
+        "runtime": "node",
+        "map": "wdm2",
+        "repeat": 1,
+        "version": "24.21.0",
+        "readyMs": 277.38690000001225,
+        "cpuPercentOfOneCore": 1.0837636673348687,
+        "firstMemory": {
+          "rss": 91258880,
+          "heapTotal": 30646272,
+          "heapUsed": 26194912,
+          "external": 11659262,
+          "arrayBuffers": 4319963
+        },
+        "lastMemory": {
+          "rss": 93470720,
+          "heapTotal": 30646272,
+          "heapUsed": 27107208,
+          "external": 11659262,
+          "arrayBuffers": 4319963
+        },
+        "tickRate": {
+          "medianHz": 125,
+          "minimumHz": 124.8,
+          "maxWorkMs": 2.3
+        },
+        "recordings": 0,
+        "recordingBytes": 0,
+        "privateBytes": 93892608,
+        "memory": {
+          "rss": {
+            "median": 93364224,
+            "max": 93470720
+          },
+          "heapUsed": {
+            "median": 26051776,
+            "max": 27107208
+          },
+          "heapTotal": {
+            "median": 30646272,
+            "max": 30646272
+          },
+          "external": {
+            "median": 11659262,
+            "max": 11659262
+          },
+          "arrayBuffers": {
+            "median": 4319963,
+            "max": 4319963
+          }
+        },
+        "peakSampledRss": 141930496,
+        "stages": [
+          {
+            "stage": "bootstrap",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 0.0470000000000006,
+            "timestamp": 1792240152838,
+            "uptimeSeconds": 0.0162702,
+            "memory": {
+              "rss": 53481472,
+              "heapTotal": 6594560,
+              "heapUsed": 5169680,
+              "external": 2156235,
+              "arrayBuffers": 137503
+            },
+            "cpu": {
+              "user": 15000,
+              "system": 15000
+            }
+          },
+          {
+            "stage": "modules-ready",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 39.955200000000005,
+            "timestamp": 1792240152878,
+            "uptimeSeconds": 0.0561698,
+            "memory": {
+              "rss": 66490368,
+              "heapTotal": 13672448,
+              "heapUsed": 9929904,
+              "external": 7364292,
+              "arrayBuffers": 183607
+            },
+            "cpu": {
+              "user": 46000,
+              "system": 15000
+            }
+          },
+          {
+            "stage": "bsp-extracted",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 100.1799,
+            "timestamp": 1792240152938,
+            "uptimeSeconds": 0.1164034,
+            "memory": {
+              "rss": 94011392,
+              "heapTotal": 20226048,
+              "heapUsed": 11780936,
+              "external": 29538030,
+              "arrayBuffers": 22357345
+            },
+            "cpu": {
+              "user": 140000,
+              "system": 46000
+            },
+            "map": "wdm2",
+            "bspBytes": 9417992
+          },
+          {
+            "stage": "bsp-parsed",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 119.7357,
+            "timestamp": 1792240152958,
+            "uptimeSeconds": 0.1359624,
+            "memory": {
+              "rss": 99352576,
+              "heapTotal": 33005568,
+              "heapUsed": 21322024,
+              "external": 16926692,
+              "arrayBuffers": 9746007
+            },
+            "cpu": {
+              "user": 171000,
+              "system": 78000
+            },
+            "map": "wdm2",
+            "vertices": 1563,
+            "faces": 7475,
+            "brushes": 3069,
+            "patchControls": 1563
+          },
+          {
+            "stage": "collision-ready",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 209.08919999999998,
+            "timestamp": 1792240153047,
+            "uptimeSeconds": 0.2253069,
+            "memory": {
+              "rss": 139202560,
+              "heapTotal": 68395008,
+              "heapUsed": 42667832,
+              "external": 20918640,
+              "arrayBuffers": 13737955
+            },
+            "cpu": {
+              "user": 250000,
+              "system": 171000
+            },
+            "map": "wdm2"
+          },
+          {
+            "stage": "listening",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 236.968,
+            "timestamp": 1792240153075,
+            "uptimeSeconds": 0.253183,
+            "memory": {
+              "rss": 140296192,
+              "heapTotal": 69181440,
+              "heapUsed": 35239952,
+              "external": 21055726,
+              "arrayBuffers": 13737955
+            },
+            "cpu": {
+              "user": 281000,
+              "system": 187000
+            },
+            "map": "wdm2",
+            "port": 51719,
+            "bspSha256": "f1cab8f8abdff75aca24c180c0979a13c8caeaf63273a4b8b17f8f18cb6b6da5"
+          }
+        ],
+        "samples": 29
+      },
+      {
+        "name": "bun-wdm2-1",
+        "runtime": "bun",
+        "map": "wdm2",
+        "repeat": 1,
+        "version": "1.4.3",
+        "readyMs": 220.54710000002524,
+        "cpuPercentOfOneCore": 1.073920650027097,
+        "firstMemory": {
+          "rss": 82845696,
+          "heapTotal": 21153792,
+          "heapUsed": 22751746,
+          "external": 8350018,
+          "arrayBuffers": 194
+        },
+        "lastMemory": {
+          "rss": 82575360,
+          "heapTotal": 21383168,
+          "heapUsed": 22964165,
+          "external": 8418005,
+          "arrayBuffers": 194
+        },
+        "tickRate": {
+          "medianHz": 125,
+          "minimumHz": 125,
+          "maxWorkMs": 1.8
+        },
+        "recordings": 0,
+        "recordingBytes": 0,
+        "privateBytes": 223047680,
+        "memory": {
+          "rss": {
+            "median": 83337216,
+            "max": 83439616
+          },
+          "heapUsed": {
+            "median": 22898197,
+            "max": 22964165
+          },
+          "heapTotal": {
+            "median": 21252096,
+            "max": 21383168
+          },
+          "external": {
+            "median": 8418005,
+            "max": 8418005
+          },
+          "arrayBuffers": {
+            "median": 194,
+            "max": 194
+          }
+        },
+        "peakSampledRss": 125857792,
+        "stages": [
+          {
+            "stage": "bootstrap",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 0.0682999999999998,
+            "timestamp": 1792240178372,
+            "uptimeSeconds": 0.0078863,
+            "memory": {
+              "rss": 36118528,
+              "heapTotal": 1018880,
+              "heapUsed": 1018880,
+              "external": 0,
+              "arrayBuffers": 0
+            },
+            "cpu": {
+              "user": 15000,
+              "system": 0
+            }
+          },
+          {
+            "stage": "modules-ready",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 25.444899999999997,
+            "timestamp": 1792240178397,
+            "uptimeSeconds": 0.0332107,
+            "memory": {
+              "rss": 46366720,
+              "heapTotal": 3650560,
+              "heapUsed": 3650560,
+              "external": 290,
+              "arrayBuffers": 290
+            },
+            "cpu": {
+              "user": 31000,
+              "system": 15000
+            }
+          },
+          {
+            "stage": "bsp-extracted",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 70.4755,
+            "timestamp": 1792240178442,
+            "uptimeSeconds": 0.0782461,
+            "memory": {
+              "rss": 86048768,
+              "heapTotal": 4145152,
+              "heapUsed": 12298308,
+              "external": 23727644,
+              "arrayBuffers": 22226304
+            },
+            "cpu": {
+              "user": 78000,
+              "system": 15000
+            },
+            "map": "wdm2",
+            "bspBytes": 9417992
+          },
+          {
+            "stage": "bsp-parsed",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 83.97919999999999,
+            "timestamp": 1792240178456,
+            "uptimeSeconds": 0.09174550000000001,
+            "memory": {
+              "rss": 95371264,
+              "heapTotal": 12304384,
+              "heapUsed": 28668659,
+              "external": 23911859,
+              "arrayBuffers": 22226304
+            },
+            "cpu": {
+              "user": 93000,
+              "system": 15000
+            },
+            "map": "wdm2",
+            "vertices": 1563,
+            "faces": 7475,
+            "brushes": 3069,
+            "patchControls": 1563
+          },
+          {
+            "stage": "collision-ready",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 177.4303,
+            "timestamp": 1792240178549,
+            "uptimeSeconds": 0.1851966,
+            "memory": {
+              "rss": 124252160,
+              "heapTotal": 37455872,
+              "heapUsed": 30204119,
+              "external": 15269495,
+              "arrayBuffers": 9418282
+            },
+            "cpu": {
+              "user": 250000,
+              "system": 93000
+            },
+            "map": "wdm2"
+          },
+          {
+            "stage": "listening",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 194.2554,
+            "timestamp": 1792240178566,
+            "uptimeSeconds": 0.20202969999999998,
+            "memory": {
+              "rss": 125857792,
+              "heapTotal": 37521408,
+              "heapUsed": 32024953,
+              "external": 16403705,
+              "arrayBuffers": 9418282
+            },
+            "cpu": {
+              "user": 265000,
+              "system": 109000
+            },
+            "map": "wdm2",
+            "port": 51930,
+            "bspSha256": "f1cab8f8abdff75aca24c180c0979a13c8caeaf63273a4b8b17f8f18cb6b6da5"
+          }
+        ],
+        "samples": 30
+      },
+      {
+        "name": "node-wfdm5-1",
+        "runtime": "node",
+        "map": "wfdm5",
+        "repeat": 1,
+        "version": "24.21.0",
+        "readyMs": 509.51499999998487,
+        "cpuPercentOfOneCore": 0.209478064791633,
+        "firstMemory": {
+          "rss": 85495808,
+          "heapTotal": 26542080,
+          "heapUsed": 20643824,
+          "external": 9674226,
+          "arrayBuffers": 2334927
+        },
+        "lastMemory": {
+          "rss": 87289856,
+          "heapTotal": 26542080,
+          "heapUsed": 21027080,
+          "external": 9674226,
+          "arrayBuffers": 2334927
+        },
+        "tickRate": {
+          "medianHz": 125,
+          "minimumHz": 124.8,
+          "maxWorkMs": 1.6
+        },
+        "recordings": 0,
+        "recordingBytes": 0,
+        "privateBytes": 87699456,
+        "memory": {
+          "rss": {
+            "median": 87195648,
+            "max": 87289856
+          },
+          "heapUsed": {
+            "median": 20809808,
+            "max": 21507544
+          },
+          "heapTotal": {
+            "median": 26542080,
+            "max": 26542080
+          },
+          "external": {
+            "median": 9674226,
+            "max": 9674226
+          },
+          "arrayBuffers": {
+            "median": 2334927,
+            "max": 2334927
+          }
+        },
+        "peakSampledRss": 233197568,
+        "stages": [
+          {
+            "stage": "bootstrap",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 0.048799999999999955,
+            "timestamp": 1792240203844,
+            "uptimeSeconds": 0.0163587,
+            "memory": {
+              "rss": 53538816,
+              "heapTotal": 6594560,
+              "heapUsed": 5169608,
+              "external": 2156235,
+              "arrayBuffers": 137503
+            },
+            "cpu": {
+              "user": 0,
+              "system": 15000
+            }
+          },
+          {
+            "stage": "modules-ready",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 39.6531,
+            "timestamp": 1792240203883,
+            "uptimeSeconds": 0.0559556,
+            "memory": {
+              "rss": 66531328,
+              "heapTotal": 14458880,
+              "heapUsed": 9959472,
+              "external": 7364292,
+              "arrayBuffers": 183607
+            },
+            "cpu": {
+              "user": 15000,
+              "system": 46000
+            }
+          },
+          {
+            "stage": "bsp-extracted",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 337.03839999999997,
+            "timestamp": 1792240204181,
+            "uptimeSeconds": 0.3533507,
+            "memory": {
+              "rss": 224911360,
+              "heapTotal": 20488192,
+              "heapUsed": 11555848,
+              "external": 155502664,
+              "arrayBuffers": 148321979
+            },
+            "cpu": {
+              "user": 265000,
+              "system": 203000
+            },
+            "map": "wfdm5",
+            "bspBytes": 63861484
+          },
+          {
+            "stage": "bsp-parsed",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 354.21619999999996,
+            "timestamp": 1792240204198,
+            "uptimeSeconds": 0.3705192,
+            "memory": {
+              "rss": 233197568,
+              "heapTotal": 30842880,
+              "heapUsed": 20229512,
+              "external": 155480856,
+              "arrayBuffers": 148300171
+            },
+            "cpu": {
+              "user": 281000,
+              "system": 218000
+            },
+            "map": "wfdm5",
+            "vertices": 1014,
+            "faces": 1353,
+            "brushes": 1966,
+            "patchControls": 1014
+          },
+          {
+            "stage": "collision-ready",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 417.1773,
+            "timestamp": 1792240204261,
+            "uptimeSeconds": 0.4334864,
+            "memory": {
+              "rss": 181338112,
+              "heapTotal": 56426496,
+              "heapUsed": 23886616,
+              "external": 73377096,
+              "arrayBuffers": 66196411
+            },
+            "cpu": {
+              "user": 312000,
+              "system": 296000
+            },
+            "map": "wfdm5"
+          },
+          {
+            "stage": "listening",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 469.56789999999995,
+            "timestamp": 1792240204313,
+            "uptimeSeconds": 0.4858706,
+            "memory": {
+              "rss": 182407168,
+              "heapTotal": 57212928,
+              "heapUsed": 23290912,
+              "external": 73514182,
+              "arrayBuffers": 66196411
+            },
+            "cpu": {
+              "user": 359000,
+              "system": 343000
+            },
+            "map": "wfdm5",
+            "port": 51953,
+            "bspSha256": "ae793980d96132539660cb3e487392e4b94f46fb0fc01ecde72321e9c6eede3e"
+          }
+        ],
+        "samples": 30
+      },
+      {
+        "name": "bun-wfdm5-1",
+        "runtime": "bun",
+        "map": "wfdm5",
+        "repeat": 1,
+        "version": "1.4.3",
+        "readyMs": 380.85619999998016,
+        "cpuPercentOfOneCore": 0.7507593241794053,
+        "firstMemory": {
+          "rss": 83832832,
+          "heapTotal": 21151744,
+          "heapUsed": 17360574,
+          "external": 6572798,
+          "arrayBuffers": 194
+        },
+        "lastMemory": {
+          "rss": 82042880,
+          "heapTotal": 21200896,
+          "heapUsed": 17538388,
+          "external": 6616708,
+          "arrayBuffers": 194
+        },
+        "tickRate": {
+          "medianHz": 125,
+          "minimumHz": 124.8,
+          "maxWorkMs": 1.4
+        },
+        "recordings": 0,
+        "recordingBytes": 0,
+        "privateBytes": 291135488,
+        "memory": {
+          "rss": {
+            "median": 84037632,
+            "max": 85291008
+          },
+          "heapUsed": {
+            "median": 17472452,
+            "max": 17538388
+          },
+          "heapTotal": {
+            "median": 21168128,
+            "max": 21266432
+          },
+          "external": {
+            "median": 6616708,
+            "max": 6616708
+          },
+          "arrayBuffers": {
+            "median": 194,
+            "max": 194
+          }
+        },
+        "peakSampledRss": 301830144,
+        "stages": [
+          {
+            "stage": "bootstrap",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 0.058699999999999974,
+            "timestamp": 1792240229588,
+            "uptimeSeconds": 0.0071677,
+            "memory": {
+              "rss": 36126720,
+              "heapTotal": 1018880,
+              "heapUsed": 1018880,
+              "external": 0,
+              "arrayBuffers": 0
+            },
+            "cpu": {
+              "user": 0,
+              "system": 15000
+            }
+          },
+          {
+            "stage": "modules-ready",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 25.5477,
+            "timestamp": 1792240229614,
+            "uptimeSeconds": 0.0326107,
+            "memory": {
+              "rss": 46338048,
+              "heapTotal": 3650560,
+              "heapUsed": 3650560,
+              "external": 290,
+              "arrayBuffers": 290
+            },
+            "cpu": {
+              "user": 0,
+              "system": 46000
+            }
+          },
+          {
+            "stage": "bsp-extracted",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 236.9986,
+            "timestamp": 1792240229825,
+            "uptimeSeconds": 0.2440662,
+            "memory": {
+              "rss": 217313280,
+              "heapTotal": 5268480,
+              "heapUsed": 73129168,
+              "external": 150014892,
+              "arrayBuffers": 148509982
+            },
+            "cpu": {
+              "user": 218000,
+              "system": 187000
+            },
+            "map": "wfdm5",
+            "bspBytes": 63861484
+          },
+          {
+            "stage": "bsp-parsed",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 247.8271,
+            "timestamp": 1792240229836,
+            "uptimeSeconds": 0.2548913,
+            "memory": {
+              "rss": 224460800,
+              "heapTotal": 10937344,
+              "heapUsed": 153103965,
+              "external": 150155165,
+              "arrayBuffers": 148509982
+            },
+            "cpu": {
+              "user": 234000,
+              "system": 250000
+            },
+            "map": "wfdm5",
+            "vertices": 1014,
+            "faces": 1353,
+            "brushes": 1966,
+            "patchControls": 1014
+          },
+          {
+            "stage": "collision-ready",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 308.4279,
+            "timestamp": 1792240229897,
+            "uptimeSeconds": 0.3154911,
+            "memory": {
+              "rss": 291893248,
+              "heapTotal": 69048320,
+              "heapUsed": 153103965,
+              "external": 150155165,
+              "arrayBuffers": 148509982
+            },
+            "cpu": {
+              "user": 328000,
+              "system": 281000
+            },
+            "map": "wfdm5"
+          },
+          {
+            "stage": "listening",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 350.95219999999995,
+            "timestamp": 1792240229939,
+            "uptimeSeconds": 0.35801479999999997,
+            "memory": {
+              "rss": 301830144,
+              "heapTotal": 71636992,
+              "heapUsed": 153103965,
+              "external": 151522787,
+              "arrayBuffers": 148509982
+            },
+            "cpu": {
+              "user": 406000,
+              "system": 281000
+            },
+            "map": "wfdm5",
+            "port": 60772,
+            "bspSha256": "ae793980d96132539660cb3e487392e4b94f46fb0fc01ecde72321e9c6eede3e"
+          }
+        ],
+        "samples": 30
+      },
+      {
+        "name": "node-wfdm11-1",
+        "runtime": "node",
+        "map": "wfdm11",
+        "repeat": 1,
+        "version": "24.21.0",
+        "readyMs": 507.9757999999856,
+        "cpuPercentOfOneCore": 0.629519216070686,
+        "firstMemory": {
+          "rss": 79929344,
+          "heapTotal": 21798912,
+          "heapUsed": 16297528,
+          "external": 9657710,
+          "arrayBuffers": 2318411
+        },
+        "lastMemory": {
+          "rss": 82030592,
+          "heapTotal": 21798912,
+          "heapUsed": 16983520,
+          "external": 9657710,
+          "arrayBuffers": 2318411
+        },
+        "tickRate": {
+          "medianHz": 125,
+          "minimumHz": 124.8,
+          "maxWorkMs": 2
+        },
+        "recordings": 0,
+        "recordingBytes": 0,
+        "privateBytes": 82714624,
+        "memory": {
+          "rss": {
+            "median": 81801216,
+            "max": 82030592
+          },
+          "heapUsed": {
+            "median": 16593824,
+            "max": 17455232
+          },
+          "heapTotal": {
+            "median": 21798912,
+            "max": 21798912
+          },
+          "external": {
+            "median": 9657710,
+            "max": 9657710
+          },
+          "arrayBuffers": {
+            "median": 2318411,
+            "max": 2318411
+          }
+        },
+        "peakSampledRss": 271159296,
+        "stages": [
+          {
+            "stage": "bootstrap",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 0.09830000000000183,
+            "timestamp": 1792240255240,
+            "uptimeSeconds": 0.0193721,
+            "memory": {
+              "rss": 53579776,
+              "heapTotal": 6594560,
+              "heapUsed": 5169608,
+              "external": 2156235,
+              "arrayBuffers": 137503
+            },
+            "cpu": {
+              "user": 31000,
+              "system": 0
+            }
+          },
+          {
+            "stage": "modules-ready",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 50.5812,
+            "timestamp": 1792240255290,
+            "uptimeSeconds": 0.0698356,
+            "memory": {
+              "rss": 66576384,
+              "heapTotal": 14196736,
+              "heapUsed": 9941176,
+              "external": 7364292,
+              "arrayBuffers": 183607
+            },
+            "cpu": {
+              "user": 78000,
+              "system": 15000
+            }
+          },
+          {
+            "stage": "bsp-extracted",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 348.0813,
+            "timestamp": 1792240255588,
+            "uptimeSeconds": 0.3673501,
+            "memory": {
+              "rss": 243388416,
+              "heapTotal": 20226048,
+              "heapUsed": 10982600,
+              "external": 176033466,
+              "arrayBuffers": 168852781
+            },
+            "cpu": {
+              "user": 406000,
+              "system": 109000
+            },
+            "map": "wfdm11",
+            "bspBytes": 67704568
+          },
+          {
+            "stage": "bsp-parsed",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 357.3281,
+            "timestamp": 1792240255597,
+            "uptimeSeconds": 0.3765799,
+            "memory": {
+              "rss": 245411840,
+              "heapTotal": 23109632,
+              "heapUsed": 15065008,
+              "external": 176019401,
+              "arrayBuffers": 168838716
+            },
+            "cpu": {
+              "user": 437000,
+              "system": 140000
+            },
+            "map": "wfdm11",
+            "vertices": 960,
+            "faces": 675,
+            "brushes": 825,
+            "patchControls": 960
+          },
+          {
+            "stage": "collision-ready",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 405.71040000000005,
+            "timestamp": 1792240255645,
+            "uptimeSeconds": 0.4249653,
+            "memory": {
+              "rss": 268222464,
+              "heapTotal": 35168256,
+              "heapUsed": 22833488,
+              "external": 178169421,
+              "arrayBuffers": 170988736
+            },
+            "cpu": {
+              "user": 531000,
+              "system": 203000
+            },
+            "map": "wfdm11"
+          },
+          {
+            "stage": "listening",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 456.6435,
+            "timestamp": 1792240255696,
+            "uptimeSeconds": 0.4759027,
+            "memory": {
+              "rss": 271159296,
+              "heapTotal": 36216832,
+              "heapUsed": 19342472,
+              "external": 178306507,
+              "arrayBuffers": 170988736
+            },
+            "cpu": {
+              "user": 562000,
+              "system": 203000
+            },
+            "map": "wfdm11",
+            "port": 62155,
+            "bspSha256": "f66d0319c60dffbd39c2ea915126c393489bb8a741798752e20c412485fdcc3d"
+          }
+        ],
+        "samples": 30
+      },
+      {
+        "name": "bun-wfdm11-1",
+        "runtime": "bun",
+        "map": "wfdm11",
+        "repeat": 1,
+        "version": "1.4.3",
+        "readyMs": 359.29019999998854,
+        "cpuPercentOfOneCore": 1.3981045944223918,
+        "firstMemory": {
+          "rss": 77549568,
+          "heapTotal": 15565824,
+          "heapUsed": 14078233,
+          "external": 6546953,
+          "arrayBuffers": 194
+        },
+        "lastMemory": {
+          "rss": 76988416,
+          "heapTotal": 15614976,
+          "heapUsed": 14256033,
+          "external": 6590897,
+          "arrayBuffers": 194
+        },
+        "tickRate": {
+          "medianHz": 125,
+          "minimumHz": 125,
+          "maxWorkMs": 1.9
+        },
+        "recordings": 0,
+        "recordingBytes": 0,
+        "privateBytes": 232275968,
+        "memory": {
+          "rss": {
+            "median": 77848576,
+            "max": 78852096
+          },
+          "heapUsed": {
+            "median": 14190047,
+            "max": 14256033
+          },
+          "heapTotal": {
+            "median": 15582208,
+            "max": 15680512
+          },
+          "external": {
+            "median": 6590895,
+            "max": 6590897
+          },
+          "arrayBuffers": {
+            "median": 194,
+            "max": 194
+          }
+        },
+        "peakSampledRss": 261242880,
+        "stages": [
+          {
+            "stage": "bootstrap",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 0.059800000000000075,
+            "timestamp": 1792240280961,
+            "uptimeSeconds": 0.0071435000000000005,
+            "memory": {
+              "rss": 36139008,
+              "heapTotal": 1018880,
+              "heapUsed": 1018880,
+              "external": 0,
+              "arrayBuffers": 0
+            },
+            "cpu": {
+              "user": 15000,
+              "system": 0
+            }
+          },
+          {
+            "stage": "modules-ready",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 26.223799999999997,
+            "timestamp": 1792240280987,
+            "uptimeSeconds": 0.033245699999999996,
+            "memory": {
+              "rss": 46370816,
+              "heapTotal": 3650560,
+              "heapUsed": 3650560,
+              "external": 290,
+              "arrayBuffers": 290
+            },
+            "cpu": {
+              "user": 31000,
+              "system": 0
+            }
+          },
+          {
+            "stage": "bsp-extracted",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 239.4188,
+            "timestamp": 1792240281201,
+            "uptimeSeconds": 0.2464487,
+            "memory": {
+              "rss": 242827264,
+              "heapTotal": 5145600,
+              "heapUsed": 90194502,
+              "external": 170747230,
+              "arrayBuffers": 169063344
+            },
+            "cpu": {
+              "user": 281000,
+              "system": 62000
+            },
+            "map": "wfdm11",
+            "bspBytes": 67704568
+          },
+          {
+            "stage": "bsp-parsed",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 247.4985,
+            "timestamp": 1792240281209,
+            "uptimeSeconds": 0.2545215,
+            "memory": {
+              "rss": 245174272,
+              "heapTotal": 7947264,
+              "heapUsed": 90194502,
+              "external": 170747230,
+              "arrayBuffers": 169063344
+            },
+            "cpu": {
+              "user": 281000,
+              "system": 78000
+            },
+            "map": "wfdm11",
+            "vertices": 960,
+            "faces": 675,
+            "brushes": 825,
+            "patchControls": 960
+          },
+          {
+            "stage": "collision-ready",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 291.8002,
+            "timestamp": 1792240281253,
+            "uptimeSeconds": 0.2988234,
+            "memory": {
+              "rss": 256765952,
+              "heapTotal": 51187712,
+              "heapUsed": 76142666,
+              "external": 70243034,
+              "arrayBuffers": 67704858
+            },
+            "cpu": {
+              "user": 359000,
+              "system": 125000
+            },
+            "map": "wfdm11"
+          },
+          {
+            "stage": "listening",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 334.781,
+            "timestamp": 1792240281296,
+            "uptimeSeconds": 0.3418027,
+            "memory": {
+              "rss": 261242880,
+              "heapTotal": 53825536,
+              "heapUsed": 80483723,
+              "external": 72853899,
+              "arrayBuffers": 67704858
+            },
+            "cpu": {
+              "user": 406000,
+              "system": 125000
+            },
+            "map": "wfdm11",
+            "port": 63809,
+            "bspSha256": "f66d0319c60dffbd39c2ea915126c393489bb8a741798752e20c412485fdcc3d"
+          }
+        ],
+        "samples": 30
+      },
+      {
+        "name": "node-wdm2-2",
+        "runtime": "node",
+        "map": "wdm2",
+        "repeat": 2,
+        "version": "24.21.0",
+        "readyMs": 291.22769999998854,
+        "cpuPercentOfOneCore": 1.5280551447889816,
+        "firstMemory": {
+          "rss": 125636608,
+          "heapTotal": 61841408,
+          "heapUsed": 28473800,
+          "external": 21077254,
+          "arrayBuffers": 4319963
+        },
+        "lastMemory": {
+          "rss": 93405184,
+          "heapTotal": 30384128,
+          "heapUsed": 25568928,
+          "external": 11659262,
+          "arrayBuffers": 4319963
+        },
+        "tickRate": {
+          "medianHz": 125,
+          "minimumHz": 124.8,
+          "maxWorkMs": 2.7
+        },
+        "recordings": 0,
+        "recordingBytes": 0,
+        "privateBytes": 127315968,
+        "memory": {
+          "rss": {
+            "median": 93265920,
+            "max": 125661184
+          },
+          "heapUsed": {
+            "median": 26471088,
+            "max": 33315232
+          },
+          "heapTotal": {
+            "median": 30384128,
+            "max": 61841408
+          },
+          "external": {
+            "median": 11659262,
+            "max": 21077254
+          },
+          "arrayBuffers": {
+            "median": 4319963,
+            "max": 4319963
+          }
+        },
+        "peakSampledRss": 135204864,
+        "stages": [
+          {
+            "stage": "bootstrap",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 0.053300000000000125,
+            "timestamp": 1792240306560,
+            "uptimeSeconds": 0.0160941,
+            "memory": {
+              "rss": 53547008,
+              "heapTotal": 6594560,
+              "heapUsed": 5169608,
+              "external": 2156235,
+              "arrayBuffers": 137503
+            },
+            "cpu": {
+              "user": 0,
+              "system": 15000
+            }
+          },
+          {
+            "stage": "modules-ready",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 41.812400000000004,
+            "timestamp": 1792240306601,
+            "uptimeSeconds": 0.0578456,
+            "memory": {
+              "rss": 66596864,
+              "heapTotal": 14196736,
+              "heapUsed": 9979560,
+              "external": 7364292,
+              "arrayBuffers": 183607
+            },
+            "cpu": {
+              "user": 62000,
+              "system": 15000
+            }
+          },
+          {
+            "stage": "bsp-extracted",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 107.3629,
+            "timestamp": 1792240306667,
+            "uptimeSeconds": 0.1233955,
+            "memory": {
+              "rss": 94355456,
+              "heapTotal": 20488192,
+              "heapUsed": 11752296,
+              "external": 29538030,
+              "arrayBuffers": 22357345
+            },
+            "cpu": {
+              "user": 140000,
+              "system": 62000
+            },
+            "map": "wdm2",
+            "bspBytes": 9417992
+          },
+          {
+            "stage": "bsp-parsed",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 129.1121,
+            "timestamp": 1792240306689,
+            "uptimeSeconds": 0.1451543,
+            "memory": {
+              "rss": 98058240,
+              "heapTotal": 32219136,
+              "heapUsed": 21348064,
+              "external": 16926692,
+              "arrayBuffers": 9746007
+            },
+            "cpu": {
+              "user": 218000,
+              "system": 78000
+            },
+            "map": "wdm2",
+            "vertices": 1563,
+            "faces": 7475,
+            "brushes": 3069,
+            "patchControls": 1563
+          },
+          {
+            "stage": "collision-ready",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 224.6198,
+            "timestamp": 1792240306784,
+            "uptimeSeconds": 0.2406532,
+            "memory": {
+              "rss": 131903488,
+              "heapTotal": 61317120,
+              "heapUsed": 39724632,
+              "external": 20918640,
+              "arrayBuffers": 13737955
+            },
+            "cpu": {
+              "user": 390000,
+              "system": 93000
+            },
+            "map": "wdm2"
+          },
+          {
+            "stage": "listening",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 252.19050000000001,
+            "timestamp": 1792240306812,
+            "uptimeSeconds": 0.268222,
+            "memory": {
+              "rss": 133439488,
+              "heapTotal": 61841408,
+              "heapUsed": 32727864,
+              "external": 21055726,
+              "arrayBuffers": 13737955
+            },
+            "cpu": {
+              "user": 421000,
+              "system": 93000
+            },
+            "map": "wdm2",
+            "port": 64139,
+            "bspSha256": "f1cab8f8abdff75aca24c180c0979a13c8caeaf63273a4b8b17f8f18cb6b6da5"
+          }
+        ],
+        "samples": 29
+      },
+      {
+        "name": "bun-wdm2-2",
+        "runtime": "bun",
+        "map": "wdm2",
+        "repeat": 2,
+        "version": "1.4.3",
+        "readyMs": 210.3756000000285,
+        "cpuPercentOfOneCore": 0.8607056670995673,
+        "firstMemory": {
+          "rss": 84529152,
+          "heapTotal": 20907008,
+          "heapUsed": 22755390,
+          "external": 8350750,
+          "arrayBuffers": 194
+        },
+        "lastMemory": {
+          "rss": 82317312,
+          "heapTotal": 21120000,
+          "heapUsed": 22958619,
+          "external": 8409707,
+          "arrayBuffers": 194
+        },
+        "tickRate": {
+          "medianHz": 125,
+          "minimumHz": 124.8,
+          "maxWorkMs": 1.4
+        },
+        "recordings": 0,
+        "recordingBytes": 0,
+        "privateBytes": 221405184,
+        "memory": {
+          "rss": {
+            "median": 83079168,
+            "max": 84529152
+          },
+          "heapUsed": {
+            "median": 22892651,
+            "max": 22958619
+          },
+          "heapTotal": {
+            "median": 21005312,
+            "max": 21120000
+          },
+          "external": {
+            "median": 8409707,
+            "max": 8409707
+          },
+          "arrayBuffers": {
+            "median": 194,
+            "max": 194
+          }
+        },
+        "peakSampledRss": 129253376,
+        "stages": [
+          {
+            "stage": "bootstrap",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 0.07139999999999969,
+            "timestamp": 1792240332069,
+            "uptimeSeconds": 0.0070919,
+            "memory": {
+              "rss": 36139008,
+              "heapTotal": 1018880,
+              "heapUsed": 1018880,
+              "external": 0,
+              "arrayBuffers": 0
+            },
+            "cpu": {
+              "user": 0,
+              "system": 15000
+            }
+          },
+          {
+            "stage": "modules-ready",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 26.304299999999998,
+            "timestamp": 1792240332095,
+            "uptimeSeconds": 0.033267200000000004,
+            "memory": {
+              "rss": 46374912,
+              "heapTotal": 3650560,
+              "heapUsed": 3650560,
+              "external": 290,
+              "arrayBuffers": 290
+            },
+            "cpu": {
+              "user": 31000,
+              "system": 15000
+            }
+          },
+          {
+            "stage": "bsp-extracted",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 70.86550000000001,
+            "timestamp": 1792240332140,
+            "uptimeSeconds": 0.0778316,
+            "memory": {
+              "rss": 88215552,
+              "heapTotal": 4160512,
+              "heapUsed": 12279568,
+              "external": 23726184,
+              "arrayBuffers": 22226304
+            },
+            "cpu": {
+              "user": 62000,
+              "system": 15000
+            },
+            "map": "wdm2",
+            "bspBytes": 9417992
+          },
+          {
+            "stage": "bsp-parsed",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 83.84800000000001,
+            "timestamp": 1792240332153,
+            "uptimeSeconds": 0.090811,
+            "memory": {
+              "rss": 97562624,
+              "heapTotal": 12319744,
+              "heapUsed": 28657759,
+              "external": 23907999,
+              "arrayBuffers": 22226304
+            },
+            "cpu": {
+              "user": 93000,
+              "system": 15000
+            },
+            "map": "wdm2",
+            "vertices": 1563,
+            "faces": 7475,
+            "brushes": 3069,
+            "patchControls": 1563
+          },
+          {
+            "stage": "collision-ready",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 168.2048,
+            "timestamp": 1792240332237,
+            "uptimeSeconds": 0.1751678,
+            "memory": {
+              "rss": 127381504,
+              "heapTotal": 37307392,
+              "heapUsed": 30395395,
+              "external": 15288851,
+              "arrayBuffers": 9418282
+            },
+            "cpu": {
+              "user": 328000,
+              "system": 46000
+            },
+            "map": "wdm2"
+          },
+          {
+            "stage": "listening",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 185.73919999999998,
+            "timestamp": 1792240332255,
+            "uptimeSeconds": 0.19270179999999998,
+            "memory": {
+              "rss": 129253376,
+              "heapTotal": 37372928,
+              "heapUsed": 32031938,
+              "external": 16422754,
+              "arrayBuffers": 9418282
+            },
+            "cpu": {
+              "user": 359000,
+              "system": 46000
+            },
+            "map": "wdm2",
+            "port": 55465,
+            "bspSha256": "f1cab8f8abdff75aca24c180c0979a13c8caeaf63273a4b8b17f8f18cb6b6da5"
+          }
+        ],
+        "samples": 30
+      },
+      {
+        "name": "node-wfdm5-2",
+        "runtime": "node",
+        "map": "wfdm5",
+        "repeat": 2,
+        "version": "24.21.0",
+        "readyMs": 520.4446999999927,
+        "cpuPercentOfOneCore": 1.059200818410065,
+        "firstMemory": {
+          "rss": 85606400,
+          "heapTotal": 26017792,
+          "heapUsed": 20603152,
+          "external": 9674226,
+          "arrayBuffers": 2334927
+        },
+        "lastMemory": {
+          "rss": 88244224,
+          "heapTotal": 26279936,
+          "heapUsed": 20962936,
+          "external": 9674226,
+          "arrayBuffers": 2334927
+        },
+        "tickRate": {
+          "medianHz": 125,
+          "minimumHz": 124.9,
+          "maxWorkMs": 1.7
+        },
+        "recordings": 0,
+        "recordingBytes": 0,
+        "privateBytes": 86511616,
+        "memory": {
+          "rss": {
+            "median": 88027136,
+            "max": 88244224
+          },
+          "heapUsed": {
+            "median": 20800448,
+            "max": 21474008
+          },
+          "heapTotal": {
+            "median": 26017792,
+            "max": 26279936
+          },
+          "external": {
+            "median": 9674226,
+            "max": 9674226
+          },
+          "arrayBuffers": {
+            "median": 2334927,
+            "max": 2334927
+          }
+        },
+        "peakSampledRss": 233533440,
+        "stages": [
+          {
+            "stage": "bootstrap",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 0.04809999999999803,
+            "timestamp": 1792240357537,
+            "uptimeSeconds": 0.0165125,
+            "memory": {
+              "rss": 53571584,
+              "heapTotal": 6594560,
+              "heapUsed": 5169608,
+              "external": 2156235,
+              "arrayBuffers": 137503
+            },
+            "cpu": {
+              "user": 15000,
+              "system": 15000
+            }
+          },
+          {
+            "stage": "modules-ready",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 40.333299999999994,
+            "timestamp": 1792240357577,
+            "uptimeSeconds": 0.0567917,
+            "memory": {
+              "rss": 66691072,
+              "heapTotal": 13934592,
+              "heapUsed": 9955816,
+              "external": 7364292,
+              "arrayBuffers": 183607
+            },
+            "cpu": {
+              "user": 62000,
+              "system": 31000
+            }
+          },
+          {
+            "stage": "bsp-extracted",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 339.9343,
+            "timestamp": 1792240357877,
+            "uptimeSeconds": 0.3564048,
+            "memory": {
+              "rss": 225370112,
+              "heapTotal": 20226048,
+              "heapUsed": 11106784,
+              "external": 155502664,
+              "arrayBuffers": 148321979
+            },
+            "cpu": {
+              "user": 343000,
+              "system": 187000
+            },
+            "map": "wfdm5",
+            "bspBytes": 63861484
+          },
+          {
+            "stage": "bsp-parsed",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 352.0682,
+            "timestamp": 1792240357889,
+            "uptimeSeconds": 0.3685259,
+            "memory": {
+              "rss": 233533440,
+              "heapTotal": 31707136,
+              "heapUsed": 20062184,
+              "external": 155485931,
+              "arrayBuffers": 148305246
+            },
+            "cpu": {
+              "user": 390000,
+              "system": 187000
+            },
+            "map": "wfdm5",
+            "vertices": 1014,
+            "faces": 1353,
+            "brushes": 1966,
+            "patchControls": 1014
+          },
+          {
+            "stage": "collision-ready",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 422.7459,
+            "timestamp": 1792240357959,
+            "uptimeSeconds": 0.4392119,
+            "memory": {
+              "rss": 182935552,
+              "heapTotal": 57737216,
+              "heapUsed": 27513440,
+              "external": 73377096,
+              "arrayBuffers": 66196411
+            },
+            "cpu": {
+              "user": 468000,
+              "system": 234000
+            },
+            "map": "wfdm5"
+          },
+          {
+            "stage": "listening",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 479.6917,
+            "timestamp": 1792240358016,
+            "uptimeSeconds": 0.4961485,
+            "memory": {
+              "rss": 183095296,
+              "heapTotal": 57999360,
+              "heapUsed": 27203264,
+              "external": 73514182,
+              "arrayBuffers": 66196411
+            },
+            "cpu": {
+              "user": 562000,
+              "system": 234000
+            },
+            "map": "wfdm5",
+            "port": 62076,
+            "bspSha256": "ae793980d96132539660cb3e487392e4b94f46fb0fc01ecde72321e9c6eede3e"
+          }
+        ],
+        "samples": 30
+      },
+      {
+        "name": "bun-wfdm5-2",
+        "runtime": "bun",
+        "map": "wfdm5",
+        "repeat": 2,
+        "version": "1.4.3",
+        "readyMs": 382.7919999999576,
+        "cpuPercentOfOneCore": 0.537064549354404,
+        "firstMemory": {
+          "rss": 84049920,
+          "heapTotal": 21124096,
+          "heapUsed": 17363565,
+          "external": 6575853,
+          "arrayBuffers": 194
+        },
+        "lastMemory": {
+          "rss": 83320832,
+          "heapTotal": 21173248,
+          "heapUsed": 17540645,
+          "external": 6619797,
+          "arrayBuffers": 194
+        },
+        "tickRate": {
+          "medianHz": 125,
+          "minimumHz": 125,
+          "maxWorkMs": 1.5
+        },
+        "recordings": 0,
+        "recordingBytes": 0,
+        "privateBytes": 267186176,
+        "memory": {
+          "rss": {
+            "median": 84230144,
+            "max": 85540864
+          },
+          "heapUsed": {
+            "median": 17474723,
+            "max": 17540645
+          },
+          "heapTotal": {
+            "median": 21140480,
+            "max": 21238784
+          },
+          "external": {
+            "median": 6619795,
+            "max": 6619797
+          },
+          "arrayBuffers": {
+            "median": 194,
+            "max": 194
+          }
+        },
+        "peakSampledRss": 285413376,
+        "stages": [
+          {
+            "stage": "bootstrap",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 0.05740000000000034,
+            "timestamp": 1792240383267,
+            "uptimeSeconds": 0.0073593,
+            "memory": {
+              "rss": 36139008,
+              "heapTotal": 1018880,
+              "heapUsed": 1018880,
+              "external": 0,
+              "arrayBuffers": 0
+            },
+            "cpu": {
+              "user": 0,
+              "system": 15000
+            }
+          },
+          {
+            "stage": "modules-ready",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 27.0855,
+            "timestamp": 1792240383294,
+            "uptimeSeconds": 0.034342399999999995,
+            "memory": {
+              "rss": 46370816,
+              "heapTotal": 3650560,
+              "heapUsed": 3650560,
+              "external": 290,
+              "arrayBuffers": 290
+            },
+            "cpu": {
+              "user": 15000,
+              "system": 31000
+            }
+          },
+          {
+            "stage": "bsp-extracted",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 238.2556,
+            "timestamp": 1792240383505,
+            "uptimeSeconds": 0.24551689999999998,
+            "memory": {
+              "rss": 216502272,
+              "heapTotal": 5059584,
+              "heapUsed": 86341232,
+              "external": 150014956,
+              "arrayBuffers": 148509982
+            },
+            "cpu": {
+              "user": 296000,
+              "system": 78000
+            },
+            "map": "wfdm5",
+            "bspBytes": 63861484
+          },
+          {
+            "stage": "bsp-parsed",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 248.2202,
+            "timestamp": 1792240383515,
+            "uptimeSeconds": 0.2554764,
+            "memory": {
+              "rss": 223719424,
+              "heapTotal": 10908672,
+              "heapUsed": 86341232,
+              "external": 150014956,
+              "arrayBuffers": 148509982
+            },
+            "cpu": {
+              "user": 312000,
+              "system": 78000
+            },
+            "map": "wfdm5",
+            "vertices": 1014,
+            "faces": 1353,
+            "brushes": 1966,
+            "patchControls": 1014
+          },
+          {
+            "stage": "collision-ready",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 310.9671,
+            "timestamp": 1792240383578,
+            "uptimeSeconds": 0.3182251,
+            "memory": {
+              "rss": 276762624,
+              "heapTotal": 56354816,
+              "heapUsed": 160223212,
+              "external": 150985212,
+              "arrayBuffers": 148509982
+            },
+            "cpu": {
+              "user": 390000,
+              "system": 140000
+            },
+            "map": "wfdm5"
+          },
+          {
+            "stage": "listening",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 356.0778,
+            "timestamp": 1792240383623,
+            "uptimeSeconds": 0.3633351,
+            "memory": {
+              "rss": 285413376,
+              "heapTotal": 58910720,
+              "heapUsed": 160223212,
+              "external": 153305788,
+              "arrayBuffers": 148509982
+            },
+            "cpu": {
+              "user": 468000,
+              "system": 140000
+            },
+            "map": "wfdm5",
+            "port": 58814,
+            "bspSha256": "ae793980d96132539660cb3e487392e4b94f46fb0fc01ecde72321e9c6eede3e"
+          }
+        ],
+        "samples": 30
+      },
+      {
+        "name": "node-wfdm11-2",
+        "runtime": "node",
+        "map": "wfdm11",
+        "repeat": 2,
+        "version": "24.21.0",
+        "readyMs": 486.2864999999874,
+        "cpuPercentOfOneCore": 1.6982122101403783,
+        "firstMemory": {
+          "rss": 81301504,
+          "heapTotal": 22061056,
+          "heapUsed": 16287432,
+          "external": 9657710,
+          "arrayBuffers": 2318411
+        },
+        "lastMemory": {
+          "rss": 82558976,
+          "heapTotal": 22061056,
+          "heapUsed": 17044648,
+          "external": 9657710,
+          "arrayBuffers": 2318411
+        },
+        "tickRate": {
+          "medianHz": 125,
+          "minimumHz": 124.8,
+          "maxWorkMs": 1.9
+        },
+        "recordings": 0,
+        "recordingBytes": 0,
+        "privateBytes": 82337792,
+        "memory": {
+          "rss": {
+            "median": 82432000,
+            "max": 82665472
+          },
+          "heapUsed": {
+            "median": 16628896,
+            "max": 17482488
+          },
+          "heapTotal": {
+            "median": 22061056,
+            "max": 22061056
+          },
+          "external": {
+            "median": 9657710,
+            "max": 9657710
+          },
+          "arrayBuffers": {
+            "median": 2318411,
+            "max": 2318411
+          }
+        },
+        "peakSampledRss": 271433728,
+        "stages": [
+          {
+            "stage": "bootstrap",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 0.04870000000000019,
+            "timestamp": 1792240408888,
+            "uptimeSeconds": 0.01699,
+            "memory": {
+              "rss": 53460992,
+              "heapTotal": 6594560,
+              "heapUsed": 5169608,
+              "external": 2156235,
+              "arrayBuffers": 137503
+            },
+            "cpu": {
+              "user": 46000,
+              "system": 15000
+            }
+          },
+          {
+            "stage": "modules-ready",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 40.4059,
+            "timestamp": 1792240408928,
+            "uptimeSeconds": 0.0573395,
+            "memory": {
+              "rss": 66527232,
+              "heapTotal": 13934592,
+              "heapUsed": 9942376,
+              "external": 7364292,
+              "arrayBuffers": 183607
+            },
+            "cpu": {
+              "user": 62000,
+              "system": 15000
+            }
+          },
+          {
+            "stage": "bsp-extracted",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 334.60810000000004,
+            "timestamp": 1792240409222,
+            "uptimeSeconds": 0.3515674,
+            "memory": {
+              "rss": 243351552,
+              "heapTotal": 20226048,
+              "heapUsed": 10987720,
+              "external": 176033466,
+              "arrayBuffers": 168852781
+            },
+            "cpu": {
+              "user": 406000,
+              "system": 156000
+            },
+            "map": "wfdm11",
+            "bspBytes": 67704568
+          },
+          {
+            "stage": "bsp-parsed",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 344.1125,
+            "timestamp": 1792240409232,
+            "uptimeSeconds": 0.3610456,
+            "memory": {
+              "rss": 245604352,
+              "heapTotal": 23371776,
+              "heapUsed": 15058944,
+              "external": 176019401,
+              "arrayBuffers": 168838716
+            },
+            "cpu": {
+              "user": 421000,
+              "system": 156000
+            },
+            "map": "wfdm11",
+            "vertices": 960,
+            "faces": 675,
+            "brushes": 825,
+            "patchControls": 960
+          },
+          {
+            "stage": "collision-ready",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 392.64320000000004,
+            "timestamp": 1792240409281,
+            "uptimeSeconds": 0.4095777,
+            "memory": {
+              "rss": 268615680,
+              "heapTotal": 35430400,
+              "heapUsed": 22775808,
+              "external": 178169421,
+              "arrayBuffers": 170988736
+            },
+            "cpu": {
+              "user": 515000,
+              "system": 234000
+            },
+            "map": "wfdm11"
+          },
+          {
+            "stage": "listening",
+            "runtime": "node",
+            "version": "24.21.0",
+            "elapsedMs": 445.9202,
+            "timestamp": 1792240409334,
+            "uptimeSeconds": 0.462855,
+            "memory": {
+              "rss": 271433728,
+              "heapTotal": 36216832,
+              "heapUsed": 19181592,
+              "external": 178306507,
+              "arrayBuffers": 170988736
+            },
+            "cpu": {
+              "user": 562000,
+              "system": 234000
+            },
+            "map": "wfdm11",
+            "port": 58829,
+            "bspSha256": "f66d0319c60dffbd39c2ea915126c393489bb8a741798752e20c412485fdcc3d"
+          }
+        ],
+        "samples": 30
+      },
+      {
+        "name": "bun-wfdm11-2",
+        "runtime": "bun",
+        "map": "wfdm11",
+        "repeat": 2,
+        "version": "1.4.3",
+        "readyMs": 366.4861999999848,
+        "cpuPercentOfOneCore": 0.8605119907286097,
+        "firstMemory": {
+          "rss": 78082048,
+          "heapTotal": 15515648,
+          "heapUsed": 14071227,
+          "external": 6546587,
+          "arrayBuffers": 194
+        },
+        "lastMemory": {
+          "rss": 75767808,
+          "heapTotal": 15597568,
+          "heapUsed": 14249377,
+          "external": 6590465,
+          "arrayBuffers": 194
+        },
+        "tickRate": {
+          "medianHz": 125,
+          "minimumHz": 124.8,
+          "maxWorkMs": 1.7
+        },
+        "recordings": 0,
+        "recordingBytes": 0,
+        "privateBytes": 241860608,
+        "memory": {
+          "rss": {
+            "median": 78356480,
+            "max": 78876672
+          },
+          "heapUsed": {
+            "median": 14182913,
+            "max": 14249377
+          },
+          "heapTotal": {
+            "median": 15548416,
+            "max": 15646720
+          },
+          "external": {
+            "median": 6590465,
+            "max": 6590465
+          },
+          "arrayBuffers": {
+            "median": 194,
+            "max": 194
+          }
+        },
+        "peakSampledRss": 264814592,
+        "stages": [
+          {
+            "stage": "bootstrap",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 0.067499999999999,
+            "timestamp": 1792240434598,
+            "uptimeSeconds": 0.008095000000000001,
+            "memory": {
+              "rss": 36134912,
+              "heapTotal": 1018880,
+              "heapUsed": 1018880,
+              "external": 0,
+              "arrayBuffers": 0
+            },
+            "cpu": {
+              "user": 15000,
+              "system": 0
+            }
+          },
+          {
+            "stage": "modules-ready",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 25.7573,
+            "timestamp": 1792240434624,
+            "uptimeSeconds": 0.033732399999999996,
+            "memory": {
+              "rss": 46104576,
+              "heapTotal": 3650560,
+              "heapUsed": 3650560,
+              "external": 290,
+              "arrayBuffers": 290
+            },
+            "cpu": {
+              "user": 15000,
+              "system": 31000
+            }
+          },
+          {
+            "stage": "bsp-extracted",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 244.0876,
+            "timestamp": 1792240434842,
+            "uptimeSeconds": 0.252078,
+            "memory": {
+              "rss": 238567424,
+              "heapTotal": 5195776,
+              "heapUsed": 98135991,
+              "external": 170773743,
+              "arrayBuffers": 169063344
+            },
+            "cpu": {
+              "user": 250000,
+              "system": 156000
+            },
+            "map": "wfdm11",
+            "bspBytes": 67704568
+          },
+          {
+            "stage": "bsp-parsed",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 251.4576,
+            "timestamp": 1792240434849,
+            "uptimeSeconds": 0.2594323,
+            "memory": {
+              "rss": 242106368,
+              "heapTotal": 7915520,
+              "heapUsed": 98135991,
+              "external": 170773743,
+              "arrayBuffers": 169063344
+            },
+            "cpu": {
+              "user": 250000,
+              "system": 156000
+            },
+            "map": "wfdm11",
+            "vertices": 960,
+            "faces": 675,
+            "brushes": 825,
+            "patchControls": 960
+          },
+          {
+            "stage": "collision-ready",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 296.8156,
+            "timestamp": 1792240434895,
+            "uptimeSeconds": 0.3047914,
+            "memory": {
+              "rss": 259117056,
+              "heapTotal": 51269632,
+              "heapUsed": 76120725,
+              "external": 70230309,
+              "arrayBuffers": 67704858
+            },
+            "cpu": {
+              "user": 312000,
+              "system": 203000
+            },
+            "map": "wfdm11"
+          },
+          {
+            "stage": "listening",
+            "runtime": "bun",
+            "version": "1.4.3",
+            "elapsedMs": 341.1082,
+            "timestamp": 1792240434939,
+            "uptimeSeconds": 0.3490833,
+            "memory": {
+              "rss": 264814592,
+              "heapTotal": 53841920,
+              "heapUsed": 80417111,
+              "external": 72828231,
+              "arrayBuffers": 67704858
+            },
+            "cpu": {
+              "user": 406000,
+              "system": 203000
+            },
+            "map": "wfdm11",
+            "port": 59335,
+            "bspSha256": "f66d0319c60dffbd39c2ea915126c393489bb8a741798752e20c412485fdcc3d"
+          }
+        ],
+        "samples": 30
+      }
+    ]
+  },
+  "capacity": [
+    {
+      "runtime": "node",
+      "map": "wfdm11",
+      "createdAt": "2026-10-17T12:28:03.170Z",
+      "platform": "win32",
+      "workload": "Idle dedicated servers; no clients. Concurrent recording soaks may also be running separately.",
+      "memoryAccounting": "Summed RSS double-counts shared pages; Windows private working set excludes shared resident pages; private bytes are committed memory.",
+      "steps": [
+        {
+          "instances": 1,
+          "summedRss": 79892480,
+          "summedHeapUsed": 15744920,
+          "windows": [
+            {
+              "IDProcess": 18380,
+              "PrivateBytes": 83402752,
+              "WorkingSetPrivate": 41246720
+            }
+          ],
+          "freeHostBytes": 2844803072
+        },
+        {
+          "instances": 2,
+          "summedRss": 162996224,
+          "summedHeapUsed": 32422456,
+          "windows": [
+            {
+              "IDProcess": 18380,
+              "PrivateBytes": 83402752,
+              "WorkingSetPrivate": 41283584
+            },
+            {
+              "IDProcess": 33008,
+              "PrivateBytes": 82665472,
+              "WorkingSetPrivate": 39477248
+            }
+          ],
+          "freeHostBytes": 3037057024
+        },
+        {
+          "instances": 5,
+          "summedRss": 422735872,
+          "summedHeapUsed": 84228080,
+          "windows": [
+            {
+              "IDProcess": 18380,
+              "PrivateBytes": 82366464,
+              "WorkingSetPrivate": 41308160
+            },
+            {
+              "IDProcess": 33008,
+              "PrivateBytes": 81539072,
+              "WorkingSetPrivate": 40882176
+            },
+            {
+              "IDProcess": 37516,
+              "PrivateBytes": 80457728,
+              "WorkingSetPrivate": 38744064
+            },
+            {
+              "IDProcess": 38336,
+              "PrivateBytes": 96055296,
+              "WorkingSetPrivate": 55013376
+            },
+            {
+              "IDProcess": 26472,
+              "PrivateBytes": 81928192,
+              "WorkingSetPrivate": 40099840
+            }
+          ],
+          "freeHostBytes": 2862391296
+        },
+        {
+          "instances": 10,
+          "summedRss": 832831488,
+          "summedHeapUsed": 168072280,
+          "windows": [
+            {
+              "IDProcess": 18380,
+              "PrivateBytes": 82427904,
+              "WorkingSetPrivate": 41660416
+            },
+            {
+              "IDProcess": 33008,
+              "PrivateBytes": 82771968,
+              "WorkingSetPrivate": 41189376
+            },
+            {
+              "IDProcess": 37516,
+              "PrivateBytes": 81485824,
+              "WorkingSetPrivate": 40370176
+            },
+            {
+              "IDProcess": 38336,
+              "PrivateBytes": 81420288,
+              "WorkingSetPrivate": 40632320
+            },
+            {
+              "IDProcess": 26472,
+              "PrivateBytes": 82509824,
+              "WorkingSetPrivate": 41308160
+            },
+            {
+              "IDProcess": 33632,
+              "PrivateBytes": 80105472,
+              "WorkingSetPrivate": 39628800
+            },
+            {
+              "IDProcess": 23396,
+              "PrivateBytes": 80977920,
+              "WorkingSetPrivate": 39538688
+            },
+            {
+              "IDProcess": 37856,
+              "PrivateBytes": 82489344,
+              "WorkingSetPrivate": 39628800
+            },
+            {
+              "IDProcess": 19232,
+              "PrivateBytes": 80982016,
+              "WorkingSetPrivate": 39350272
+            },
+            {
+              "IDProcess": 22928,
+              "PrivateBytes": 95752192,
+              "WorkingSetPrivate": 54566912
+            }
+          ],
+          "freeHostBytes": 2339840000
+        }
+      ],
+      "exits": [
+        {
+          "code": 0,
+          "signal": null
+        },
+        {
+          "code": 0,
+          "signal": null
+        },
+        {
+          "code": 0,
+          "signal": null
+        },
+        {
+          "code": 0,
+          "signal": null
+        },
+        {
+          "code": 0,
+          "signal": null
+        },
+        {
+          "code": 0,
+          "signal": null
+        },
+        {
+          "code": 0,
+          "signal": null
+        },
+        {
+          "code": 0,
+          "signal": null
+        },
+        {
+          "code": 0,
+          "signal": null
+        },
+        {
+          "code": 0,
+          "signal": null
+        }
+      ]
+    },
+    {
+      "runtime": "bun",
+      "map": "wfdm11",
+      "createdAt": "2026-10-17T12:37:05.026Z",
+      "platform": "win32",
+      "workload": "Idle dedicated servers; no clients. Concurrent recording soaks may also be running separately.",
+      "memoryAccounting": "Summed RSS double-counts shared pages; Windows private working set excludes shared resident pages; private bytes are committed memory.",
+      "steps": [
+        {
+          "instances": 1,
+          "summedRss": 79204352,
+          "summedHeapUsed": 14040259,
+          "windows": [
+            {
+              "IDProcess": 29464,
+              "PrivateBytes": 231948288,
+              "WorkingSetPrivate": 50483200
+            }
+          ],
+          "freeHostBytes": 3248918528
+        },
+        {
+          "instances": 2,
+          "summedRss": 157114368,
+          "summedHeapUsed": 28238755,
+          "windows": [
+            {
+              "IDProcess": 29464,
+              "PrivateBytes": 236843008,
+              "WorkingSetPrivate": 50888704
+            },
+            {
+              "IDProcess": 30732,
+              "PrivateBytes": 230055936,
+              "WorkingSetPrivate": 50667520
+            }
+          ],
+          "freeHostBytes": 3371896832
+        },
+        {
+          "instances": 5,
+          "summedRss": 386715648,
+          "summedHeapUsed": 70701524,
+          "windows": [
+            {
+              "IDProcess": 29464,
+              "PrivateBytes": 190484480,
+              "WorkingSetPrivate": 47329280
+            },
+            {
+              "IDProcess": 30732,
+              "PrivateBytes": 232656896,
+              "WorkingSetPrivate": 50946048
+            },
+            {
+              "IDProcess": 29396,
+              "PrivateBytes": 235065344,
+              "WorkingSetPrivate": 50171904
+            },
+            {
+              "IDProcess": 38864,
+              "PrivateBytes": 234557440,
+              "WorkingSetPrivate": 50376704
+            },
+            {
+              "IDProcess": 37916,
+              "PrivateBytes": 229015552,
+              "WorkingSetPrivate": 50585600
+            }
+          ],
+          "freeHostBytes": 3186585600
+        },
+        {
+          "instances": 10,
+          "summedRss": 771055616,
+          "summedHeapUsed": 141721399,
+          "windows": [
+            {
+              "IDProcess": 29464,
+              "PrivateBytes": 190488576,
+              "WorkingSetPrivate": 47644672
+            },
+            {
+              "IDProcess": 30732,
+              "PrivateBytes": 188428288,
+              "WorkingSetPrivate": 47038464
+            },
+            {
+              "IDProcess": 29396,
+              "PrivateBytes": 211873792,
+              "WorkingSetPrivate": 48295936
+            },
+            {
+              "IDProcess": 38864,
+              "PrivateBytes": 210890752,
+              "WorkingSetPrivate": 48283648
+            },
+            {
+              "IDProcess": 37916,
+              "PrivateBytes": 214802432,
+              "WorkingSetPrivate": 50012160
+            },
+            {
+              "IDProcess": 30652,
+              "PrivateBytes": 236343296,
+              "WorkingSetPrivate": 51097600
+            },
+            {
+              "IDProcess": 15448,
+              "PrivateBytes": 230514688,
+              "WorkingSetPrivate": 52396032
+            },
+            {
+              "IDProcess": 30972,
+              "PrivateBytes": 238133248,
+              "WorkingSetPrivate": 50159616
+            },
+            {
+              "IDProcess": 5656,
+              "PrivateBytes": 228552704,
+              "WorkingSetPrivate": 50827264
+            },
+            {
+              "IDProcess": 38696,
+              "PrivateBytes": 227696640,
+              "WorkingSetPrivate": 50311168
+            }
+          ],
+          "freeHostBytes": 2964221952
+        }
+      ],
+      "exits": [
+        {
+          "code": 0,
+          "signal": null
+        },
+        {
+          "code": 0,
+          "signal": null
+        },
+        {
+          "code": 0,
+          "signal": null
+        },
+        {
+          "code": 0,
+          "signal": null
+        },
+        {
+          "code": 0,
+          "signal": null
+        },
+        {
+          "code": 0,
+          "signal": null
+        },
+        {
+          "code": 0,
+          "signal": null
+        },
+        {
+          "code": 0,
+          "signal": null
+        },
+        {
+          "code": 0,
+          "signal": null
+        },
+        {
+          "code": 0,
+          "signal": null
+        }
+      ]
+    }
+  ],
+  "soaks": [
+    {
+      "createdAt": "2026-10-17T12:13:48.078Z",
+      "commit": "0add548a95e747ccbfdcb17b5a8b6f4d08219186",
+      "platform": "win32",
+      "arch": "x64",
+      "osRelease": "10.0.26200",
+      "workload": {
+        "seconds": 1800,
+        "warmup": 15,
+        "repeats": 1,
+        "clients": 8,
+        "recording": true,
+        "phase": "active match cycles",
+        "tickRate": 125,
+        "diagnosticGC": false,
+        "artifactSha256": "8b0ab52a2235c886d4aea377c8cbec2d4cbc852814added9fc8df7d731d7f006"
+      },
+      "limitations": [
+        "Warmup movement/combat workload; not recorded active-match or ten-process capacity evidence",
+        "RSS includes shared pages; ArrayBuffer bytes are a subset of external memory; profiler overhead is included",
+        "Windows private bytes are sampled once after warm-up, not peak commit; RSS peak is sampled, not OS high-water"
+      ],
+      "runs": [
+        {
+          "name": "node-wfdm11-0",
+          "runtime": "node",
+          "map": "wfdm11",
+          "repeat": 0,
+          "version": "24.21.0",
+          "readyMs": 486.5517,
+          "cpuPercentOfOneCore": 10.121673669697863,
+          "firstMemory": {
+            "rss": 157237248,
+            "heapTotal": 91529216,
+            "heapUsed": 22927200,
+            "external": 13278309,
+            "arrayBuffers": 6007886
+          },
+          "lastMemory": {
+            "rss": 193306624,
+            "heapTotal": 162045952,
+            "heapUsed": 43690216,
+            "external": 27366133,
+            "arrayBuffers": 20097115
+          },
+          "tickRate": {
+            "medianHz": 125,
+            "minimumHz": 121.2,
+            "maxWorkMs": 77.9
+          },
+          "recordings": 22,
+          "recordingBytes": 24906883,
+          "privateBytes": 175005696,
+          "memory": {
+            "rss": {
+              "median": 205586432,
+              "max": 266190848
+            },
+            "heapUsed": {
+              "median": 34051008,
+              "max": 63160272
+            },
+            "heapTotal": {
+              "median": 160997376,
+              "max": 164405248
+            },
+            "external": {
+              "median": 18519732,
+              "max": 81250985
+            },
+            "arrayBuffers": {
+              "median": 11223875,
+              "max": 73981967
+            }
+          },
+          "peakSampledRss": 270155776,
+          "stages": [
+            {
+              "stage": "bootstrap",
+              "runtime": "node",
+              "version": "24.21.0",
+              "elapsedMs": 0.04889999999999972,
+              "timestamp": 1792239228156,
+              "uptimeSeconds": 0.0174059,
+              "memory": {
+                "rss": 53477376,
+                "heapTotal": 6594560,
+                "heapUsed": 5169616,
+                "external": 2156235,
+                "arrayBuffers": 137503
+              },
+              "cpu": {
+                "user": 15000,
+                "system": 0
+              }
+            },
+            {
+              "stage": "modules-ready",
+              "runtime": "node",
+              "version": "24.21.0",
+              "elapsedMs": 40.008300000000006,
+              "timestamp": 1792239228196,
+              "uptimeSeconds": 0.0573572,
+              "memory": {
+                "rss": 66428928,
+                "heapTotal": 14458880,
+                "heapUsed": 9979720,
+                "external": 7364304,
+                "arrayBuffers": 183607
+              },
+              "cpu": {
+                "user": 62000,
+                "system": 0
+              }
+            },
+            {
+              "stage": "bsp-extracted",
+              "runtime": "node",
+              "version": "24.21.0",
+              "elapsedMs": 339.04150000000004,
+              "timestamp": 1792239228495,
+              "uptimeSeconds": 0.3563977,
+              "memory": {
+                "rss": 243458048,
+                "heapTotal": 20488192,
+                "heapUsed": 11043760,
+                "external": 176033478,
+                "arrayBuffers": 168852781
+              },
+              "cpu": {
+                "user": 328000,
+                "system": 187000
+              },
+              "map": "wfdm11",
+              "bspBytes": 67704568
+            },
+            {
+              "stage": "bsp-parsed",
+              "runtime": "node",
+              "version": "24.21.0",
+              "elapsedMs": 348.3104,
+              "timestamp": 1792239228504,
+              "uptimeSeconds": 0.3656582,
+              "memory": {
+                "rss": 245460992,
+                "heapTotal": 23371776,
+                "heapUsed": 15179816,
+                "external": 176019413,
+                "arrayBuffers": 168838716
+              },
+              "cpu": {
+                "user": 343000,
+                "system": 218000
+              },
+              "map": "wfdm11",
+              "vertices": 960,
+              "faces": 675,
+              "brushes": 825,
+              "patchControls": 960
+            },
+            {
+              "stage": "collision-ready",
+              "runtime": "node",
+              "version": "24.21.0",
+              "elapsedMs": 394.8313,
+              "timestamp": 1792239228551,
+              "uptimeSeconds": 0.4121807,
+              "memory": {
+                "rss": 267288576,
+                "heapTotal": 35168256,
+                "heapUsed": 23278600,
+                "external": 178169433,
+                "arrayBuffers": 170988736
+              },
+              "cpu": {
+                "user": 406000,
+                "system": 250000
+              },
+              "map": "wfdm11"
+            },
+            {
+              "stage": "listening",
+              "runtime": "node",
+              "version": "24.21.0",
+              "elapsedMs": 445.8931,
+              "timestamp": 1792239228602,
+              "uptimeSeconds": 0.4632409,
+              "memory": {
+                "rss": 270155776,
+                "heapTotal": 36741120,
+                "heapUsed": 20075696,
+                "external": 178306519,
+                "arrayBuffers": 170988736
+              },
+              "cpu": {
+                "user": 453000,
+                "system": 250000
+              },
+              "map": "wfdm11",
+              "port": 50140,
+              "bspSha256": "f66d0319c60dffbd39c2ea915126c393489bb8a741798752e20c412485fdcc3d"
+            }
+          ],
+          "samples": 3534,
+          "network": {
+            "clients": 8,
+            "snapshots": 907052,
+            "commands": 724621,
+            "receivedBytes": 1105015207,
+            "decodeOrSocketErrors": 0
+          }
+        }
+      ]
+    },
+    {
+      "createdAt": "2026-10-17T12:13:47.840Z",
+      "commit": "0add548a95e747ccbfdcb17b5a8b6f4d08219186",
+      "platform": "win32",
+      "arch": "x64",
+      "osRelease": "10.0.26200",
+      "workload": {
+        "seconds": 1800,
+        "warmup": 15,
+        "repeats": 1,
+        "clients": 8,
+        "recording": true,
+        "phase": "active match cycles",
+        "tickRate": 125,
+        "diagnosticGC": false,
+        "artifactSha256": "8b0ab52a2235c886d4aea377c8cbec2d4cbc852814added9fc8df7d731d7f006"
+      },
+      "limitations": [
+        "Warmup movement/combat workload; not recorded active-match or ten-process capacity evidence",
+        "RSS includes shared pages; ArrayBuffer bytes are a subset of external memory; profiler overhead is included",
+        "Windows private bytes are sampled once after warm-up, not peak commit; RSS peak is sampled, not OS high-water"
+      ],
+      "runs": [
+        {
+          "name": "bun-wfdm11-0",
+          "runtime": "bun",
+          "map": "wfdm11",
+          "repeat": 0,
+          "version": "1.4.3",
+          "readyMs": 403.2051,
+          "cpuPercentOfOneCore": 9.412976617626901,
+          "firstMemory": {
+            "rss": 125816832,
+            "heapTotal": 35773440,
+            "heapUsed": 33365033,
+            "external": 12497981,
+            "arrayBuffers": 183755
+          },
+          "lastMemory": {
+            "rss": 108085248,
+            "heapTotal": 35544064,
+            "heapUsed": 36910540,
+            "external": 20821202,
+            "arrayBuffers": 2162296
+          },
+          "tickRate": {
+            "medianHz": 125,
+            "minimumHz": 123.4,
+            "maxWorkMs": 53.5
+          },
+          "recordings": 22,
+          "recordingBytes": 28007893,
+          "privateBytes": 264925184,
+          "memory": {
+            "rss": {
+              "median": 115056640,
+              "max": 191823872
+            },
+            "heapUsed": {
+              "median": 29708235,
+              "max": 76405139
+            },
+            "heapTotal": {
+              "median": 31553536,
+              "max": 51036160
+            },
+            "external": {
+              "median": 15190688,
+              "max": 64544979
+            },
+            "arrayBuffers": {
+              "median": 1759906,
+              "max": 27185658
+            }
+          },
+          "peakSampledRss": 265285632,
+          "stages": [
+            {
+              "stage": "bootstrap",
+              "runtime": "bun",
+              "version": "1.4.3",
+              "elapsedMs": 0.058400000000000674,
+              "timestamp": 1792239227907,
+              "uptimeSeconds": 0.006983799999999999,
+              "memory": {
+                "rss": 36044800,
+                "heapTotal": 1035264,
+                "heapUsed": 1035264,
+                "external": 0,
+                "arrayBuffers": 0
+              },
+              "cpu": {
+                "user": 0,
+                "system": 0
+              }
+            },
+            {
+              "stage": "modules-ready",
+              "runtime": "bun",
+              "version": "1.4.3",
+              "elapsedMs": 59.6786,
+              "timestamp": 1792239227967,
+              "uptimeSeconds": 0.0665918,
+              "memory": {
+                "rss": 61075456,
+                "heapTotal": 3650560,
+                "heapUsed": 3650560,
+                "external": 290,
+                "arrayBuffers": 290
+              },
+              "cpu": {
+                "user": 46000,
+                "system": 0
+              }
+            },
+            {
+              "stage": "bsp-extracted",
+              "runtime": "bun",
+              "version": "1.4.3",
+              "elapsedMs": 274.1284,
+              "timestamp": 1792239228181,
+              "uptimeSeconds": 0.2810476,
+              "memory": {
+                "rss": 248639488,
+                "heapTotal": 5538816,
+                "heapUsed": 100756739,
+                "external": 170774907,
+                "arrayBuffers": 169063344
+              },
+              "cpu": {
+                "user": 312000,
+                "system": 62000
+              },
+              "map": "wfdm11",
+              "bspBytes": 67704568
+            },
+            {
+              "stage": "bsp-parsed",
+              "runtime": "bun",
+              "version": "1.4.3",
+              "elapsedMs": 281.2643,
+              "timestamp": 1792239228188,
+              "uptimeSeconds": 0.288178,
+              "memory": {
+                "rss": 251830272,
+                "heapTotal": 7930880,
+                "heapUsed": 100756739,
+                "external": 170774907,
+                "arrayBuffers": 169063344
+              },
+              "cpu": {
+                "user": 312000,
+                "system": 62000
+              },
+              "map": "wfdm11",
+              "vertices": 960,
+              "faces": 675,
+              "brushes": 825,
+              "patchControls": 960
+            },
+            {
+              "stage": "collision-ready",
+              "runtime": "bun",
+              "version": "1.4.3",
+              "elapsedMs": 327.1352,
+              "timestamp": 1792239228234,
+              "uptimeSeconds": 0.33404969999999995,
+              "memory": {
+                "rss": 265285632,
+                "heapTotal": 51270656,
+                "heapUsed": 76129125,
+                "external": 70233013,
+                "arrayBuffers": 67704858
+              },
+              "cpu": {
+                "user": 375000,
+                "system": 78000
+              },
+              "map": "wfdm11"
+            },
+            {
+              "stage": "listening",
+              "runtime": "bun",
+              "version": "1.4.3",
+              "elapsedMs": 372.2353,
+              "timestamp": 1792239228279,
+              "uptimeSeconds": 0.3791489,
+              "memory": {
+                "rss": 233119744,
+                "heapTotal": 53875712,
+                "heapUsed": 80422815,
+                "external": 72829391,
+                "arrayBuffers": 67704858
+              },
+              "cpu": {
+                "user": 468000,
+                "system": 109000
+              },
+              "map": "wfdm11",
+              "port": 50138,
+              "bspSha256": "f66d0319c60dffbd39c2ea915126c393489bb8a741798752e20c412485fdcc3d"
+            }
+          ],
+          "samples": 3593,
+          "network": {
+            "clients": 8,
+            "snapshots": 907492,
+            "commands": 801334,
+            "receivedBytes": 1105642767,
+            "decodeOrSocketErrors": 0
+          }
+        }
+      ]
+    }
+  ]
+}

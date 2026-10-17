@@ -44,6 +44,56 @@ npm run server:tick
 npm run server:fuzz -- --ticks 1000
 ```
 
+`net:server` builds and runs the production artifact with Node 24 or newer;
+`net:server:node` selects Node explicitly. `net:server:bun` is an experimental
+alternative requiring the Bun version recorded in `.bun-version`. Bun is
+optional for normal server startup. Game servers launched by a lobby inherit
+that lobby's runtime. `net:server:dev` retains the Vite runner. npm owns
+dependencies and the lockfile. `npm run build:server` builds only the server
+artifacts.
+
+### Server memory profiling
+
+Build first, then run an equivalent-artifact comparison:
+
+```bash
+npm run build:server
+npm run benchmark:server-memory -- --runtimes node,bun --maps wdm2,wfdm5,wfdm11 --warmup 10 --seconds 15 --repeats 3 --out .cache/server-memory/report.json
+npm run benchmark:server-memory -- --runtimes node,bun --maps wfdm11 --clients 8 --recording --warmup 15 --seconds 1800 --repeats 1 --out .cache/server-soak/report.json
+npm run test:runtime-equivalence
+npm run test:server-runtime
+```
+
+The memory runner launches real dedicated processes on temporary free ports.
+`--clients 0` is idle; positive counts (up to 16) drive real WebSocket clients,
+inputs, snapshot decoding and acknowledgements from the benchmark's parent
+process. Driver memory is separate from the measured server. `--recording`
+requires at least two clients and cycles through 60-second matches, with demos
+written beside the report. Without it, clients stay in warmup and no demo is
+recorded. Runtime/lobby smoke tests use temporary account/result databases.
+
+`--runtimes node-vite,node,bun` also measures the development runner.
+`--entry <file>` selects a built artifact, including a saved baseline;
+`--bun <executable>` selects an installed Bun binary. Windows npm Bun shims
+are resolved to their native executable for process accounting and shutdown.
+The report includes runtime versions, artifact/map hashes, phase snapshots,
+sampled RSS and JS memory counters, and Windows private bytes after warm-up.
+Private bytes, RSS and JS heap are different measures: ArrayBuffer bytes are
+included in external memory, and neither should be added to RSS.
+
+The diagnostic preload (`scripts/server-memory-preload.mjs`) is opt-in through
+`SHAG_SERVER_PROFILE`. It records bootstrap, imports, BSP extraction/parse,
+collision initialization and listening, plus periodic samples. The runner
+configures it automatically. `--diagnostic-gc` forces a collection in disposable
+replicas; `SHAG_SERVER_PROFILE_HEAP` additionally writes a heap snapshot during
+that diagnostic. Keep these runs separate from normal benchmark trials.
+`SHAG_DEMO_DIR` overrides server recording output without changing demo formats.
+
+RSS peaks are sampled, not OS high-water measurements. Single-process trials
+do not establish ten-match capacity, Linux PSS, or packet-latency performance.
+The periodic tick-rate logs measure actual rate and maximum work per diagnostic
+window; the sampler's delay is not a per-tick deadline measurement.
+
 The server's options are listed in the [network server reference](../tools/network-server.md). The
 client takes `--connect <url>` and `--name`.
 

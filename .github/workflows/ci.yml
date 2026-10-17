@@ -37,6 +37,19 @@ jobs:
       - name: Install
         run: npm ci
 
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
+
+      - name: Server runtime equivalence
+        run: npm run test:runtime-equivalence
+
+      - name: Production server build and Bun import smoke
+        run: |
+          npm run build:server
+          bun dist-server/headless-netserver-v2.mjs --help
+
       - name: Typecheck
         run: npm run typecheck
 

@@ -2,12 +2,30 @@
 
 The lobby is a WebSocket server that owns everything around a match: who a
 player is, the room they wait in, the dedicated game server that gets spawned
-for them, and the result that comes back. It is a separate Node process from
+for them, and the result that comes back. It is a separate process from
 both the browser client and the game servers it starts.
 
 ```bash
 npm run lobby:server -- --port 9000 --data-dir ./server-data
 ```
+
+The default server runtime is Node 24 or newer. The start command first builds
+the server artifacts under `dist-server/`, then runs the lobby with Node.
+`npm run lobby:server:node` selects Node explicitly.
+`npm run lobby:server:bun` is an experimental alternative requiring the Bun
+version recorded in `.bun-version`. Node and npm remain required for building
+and development; Bun is optional.
+`npm run lobby:server:dev` retains the Vite-based development launch.
+
+Game servers inherit the lobby's actual runtime executable and launch mode.
+A Bun lobby spawns Bun matches; a production Node lobby spawns production Node
+matches. Children run directly, without an npm or shell wrapper. Startup logs
+identify the runtime/version and PID. A missing runtime fails startup rather
+than silently choosing another one. Owned match servers accept `quit` on stdin
+to finish recording and shut down; the lobby retains its forced-kill timeout.
+
+See [Headless mode](./headless-mode.md#server-memory-profiling) for reproducible
+memory benchmarks. All standalone/profile runs should use scratch data paths.
 
 Browsers reach it through `VITE_LOBBY_URL`. The environment variables it reads
 are listed in [Configuration](./configuration.md).

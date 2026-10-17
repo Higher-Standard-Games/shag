@@ -68,6 +68,7 @@ android/capacitor-cordova-android-plugins/build/
 
 # Electron
 dist-electron/
+dist-server/
 release/
 
 # Game data and packages (not in git, download separately)

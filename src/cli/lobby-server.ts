@@ -15,6 +15,9 @@ import { MatchResultStore } from "../lobby/MatchResultStore";
 import { PlayerStore } from "../lobby/PlayerStore";
 import { RatingStore } from "../lobby/RatingStore";
 import { loadBotSecret, resolveDataDir } from "../lobby/ServerData";
+import { describeServerRuntime } from "../lobby/ServerRuntime";
+
+console.log(`[ServerRuntime] ${describeServerRuntime()}`);
 
 // Parse arguments
 const args = process.argv.slice(2);

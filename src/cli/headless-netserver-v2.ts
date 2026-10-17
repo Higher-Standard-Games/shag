@@ -24,9 +24,13 @@ import { Duel } from "../games/fps/server/gametypes/Duel";
 import { SearchAndDestroy } from "../games/fps/server/gametypes/SearchAndDestroy";
 import { TeamDeathmatch } from "../games/fps/server/gametypes/TeamDeathmatch";
 import { persistFinalResult } from "../lobby/ResultOutbox";
+import { describeServerRuntime } from "../lobby/ServerRuntime";
 import { DEFAULT_PHYSICS_TICK_RATE } from "../shared/server/simulation/physics/constants";
 import { runCli } from "./_runCli";
 import { loadBspCollision } from "./HeadlessMapLoader";
+import { markServerMemory } from "./ServerMemoryMarker";
+
+markServerMemory("modules-ready");
 
 // ============================================================================
 // Configuration
@@ -206,6 +210,7 @@ Environment:
 
 async function main(): Promise<void> {
   const config = parseArgs();
+  console.log(`[ServerRuntime] ${describeServerRuntime()}`);
 
   console.log("");
   console.log("╔═══════════════════════════════════════════════╗");
@@ -297,6 +302,7 @@ async function main(): Promise<void> {
 
   // Start server
   await server.start();
+  markServerMemory("listening", { map: config.mapName, port: config.port, bspSha256: bspData?.bspSha256 });
 
   console.log("");
   console.log(`[Server] ✓ Ready for connections`);
@@ -316,6 +322,9 @@ async function main(): Promise<void> {
     const cmd = parts[0].toLowerCase();
 
     switch (cmd) {
+      case "quit":
+        void shutdown();
+        break;
       case "spawn_bots":
       case "bots": {
         const count = parseInt(parts[1] || "3", 10);
@@ -351,6 +360,7 @@ async function main(): Promise<void> {
         console.log("[Server] Commands:");
         console.log("  spawn_bots <N>  - Spawn N bot entities at spawn points");
         console.log("  status          - Show server status");
+        console.log("  quit            - Save recordings and stop the server");
         console.log("  help            - Show this help");
         break;
       }
@@ -360,13 +370,18 @@ async function main(): Promise<void> {
   });
 
   // Graceful shutdown
-  process.on("SIGINT", async () => {
+  let stopping = false;
+  const shutdown = async () => {
+    if (stopping) return;
+    stopping = true;
     console.log("\n[Server] Shutting down...");
     rl.close();
     await server.stop();
     console.log("[Server] Goodbye!");
     process.exit(0);
-  });
+  };
+  process.once("SIGINT", shutdown);
+  process.once("SIGTERM", shutdown);
 }
 
 // Run

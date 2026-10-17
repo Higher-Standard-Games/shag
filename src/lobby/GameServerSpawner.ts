@@ -2,7 +2,7 @@
  * GameServerSpawner — Spawns game server instances as child processes
  *
  * Used by the lobby server to start game servers when all players are ready.
- * Runs `npx vite-node src/cli/headless-netserver-v2.ts` with lobby-decided parameters.
+ * Runs the dedicated entry with the lobby's runtime and lobby-decided parameters.
  *
  * Handles:
  *   - Port allocation (7777, 7778, ...)
@@ -24,6 +24,7 @@ import {
 import { type MatchResultReport, RESULT_PREFIX, verifyMatchResult } from "../engine/server/network/MatchResultReport";
 import type { ResultDeliveryStore } from "./ResultDeliveryStore";
 import type { ResultContext } from "./ResultSnapshot";
+import { gameServerLaunch } from "./ServerRuntime";
 
 // ============================================================================
 // Types
@@ -146,16 +147,8 @@ export class GameServerSpawner {
 
     console.log(`[Spawner] Starting game server: map=${config.map} gametype=${config.gametype} port=${port}`);
 
-    const args = [
-      "vite-node",
-      "src/cli/headless-netserver-v2.ts",
-      "--map",
-      config.map,
-      "--gametype",
-      config.gametype,
-      "--port",
-      String(port),
-    ];
+    const launch = gameServerLaunch(this.projectRoot);
+    const args = [...launch.args, "--map", config.map, "--gametype", config.gametype, "--port", String(port)];
 
     if (config.shutdown ?? true) {
       args.push("--shutdown");
@@ -181,10 +174,11 @@ export class GameServerSpawner {
     if (admission) childEnv.SHAG_MATCH_ADMISSION = JSON.stringify(admission.manifest);
     if (resultSecret) childEnv.SHAG_MATCH_RESULT_SECRET = resultSecret;
     if (outboxFile) childEnv.SHAG_MATCH_RESULT_OUTBOX = outboxFile;
-    const child = spawn("npx", args, {
+    const child = spawn(launch.executable, args, {
       cwd: this.projectRoot,
       stdio: ["pipe", "pipe", "pipe"],
-      shell: true,
+      shell: false,
+      windowsHide: true,
       env: childEnv,
     });
 
@@ -264,8 +258,12 @@ export class GameServerSpawner {
         resolve();
       });
 
-      // Send SIGTERM for graceful shutdown
-      server.process.kill("SIGTERM");
+      // Windows process.kill terminates immediately. The owned stdin command
+      // lets both runtimes finish recordings before the existing kill timeout.
+      if (server.process.stdin?.writable) {
+        server.process.stdin.once("error", () => {});
+        server.process.stdin.write("quit\n");
+      } else server.process.kill("SIGTERM");
 
       // Force kill after 5 seconds
       setTimeout(() => {

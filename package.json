@@ -23,9 +23,9 @@
     "test:coverage": "vitest run --coverage",
     "cli:game": "npx vite-node src/cli/headless-game.ts --",
     "cli:bsp": "npx vite-node src/cli/headless-bsp.ts --",
-    "net:server": "npx vite-node src/cli/headless-netserver-v2.ts --",
+    "net:server": "node dist-server/headless-netserver-v2.mjs --",
     "net:client": "npx vite-node src/cli/headless-netclient.ts --",
-    "lobby:server": "npx vite-node src/cli/lobby-server.ts --",
+    "lobby:server": "node dist-server/lobby-server.mjs --",
     "ranking:simulate": "npx vite-node src/cli/ranking-simulate.ts",
     "ranking:delivery": "npx vite-node src/cli/ranking-delivery.ts --",
     "ranking:acceptance": "vitest run src/shared/ranking src/lobby src/engine/server/network/__tests__/MatchResultReport.test.ts src/engine/server/network/__tests__/MatchAdmission.test.ts src/bot/__tests__/BotLobbyReference.test.ts src/bot/__tests__/BotServerControlAuth.test.ts src/games/fps/server/__tests__/PlayedMatchResult.test.ts src/games/fps/client/__tests__/LeaderboardView.test.ts src/games/fps/client/__tests__/NewUiApiLeaderboard.test.ts src/games/fps/client/__tests__/ProfileRecord.test.ts",
@@ -96,7 +96,23 @@
     "benchmark:outline-proxy:build": "node scripts/benchmarks/build-outline-proxy.mjs",
     "demo:verify": "npx vite-node src/cli/demo-verify.ts --",
     "anticheat:calibrate": "npx vite-node src/cli/anticheat-calibrate.ts --",
-    "deps:babylon": "node scripts/babylon-deps.mjs"
+    "deps:babylon": "node scripts/babylon-deps.mjs",
+    "build:server": "node scripts/build-servers.mjs",
+    "prelobby:server": "npm run build:server",
+    "prenet:server": "npm run build:server",
+    "lobby:server:node": "node dist-server/lobby-server.mjs --",
+    "net:server:node": "node dist-server/headless-netserver-v2.mjs --",
+    "prelobby:server:node": "npm run build:server",
+    "prenet:server:node": "npm run build:server",
+    "lobby:server:bun": "bun dist-server/lobby-server.mjs --",
+    "net:server:bun": "bun dist-server/headless-netserver-v2.mjs --",
+    "lobby:server:dev": "npx vite-node src/cli/lobby-server.ts --",
+    "net:server:dev": "npx vite-node src/cli/headless-netserver-v2.ts --",
+    "benchmark:server-memory": "node scripts/benchmarks/server-memory.mjs",
+    "prelobby:server:bun": "npm run build:server",
+    "prenet:server:bun": "npm run build:server",
+    "test:runtime-equivalence": "node scripts/benchmarks/runtime-equivalence.mjs",
+    "test:server-runtime": "npm run build:server && bun dist-server/ServerRuntimeProbe.mjs"
   },
   "devDependencies": {
     "@babylonjs/ktx2decoder": "9.17.0",
@@ -123,7 +139,8 @@
     "vitepress-plugin-mermaid": "^2.0.17",
     "vitest": "^3.2.3",
     "wait-on": "^9.0.4",
-    "ws": "^8.19.0"
+    "ws": "^8.19.0",
+    "esbuild": "0.25.12"
   },
   "dependencies": {
     "@2toad/profanity": "3.3.0",
