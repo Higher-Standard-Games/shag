@@ -133,14 +133,16 @@ describe("convex authoring transactions", () => {
     expect(deleted.brushes).toEqual([]);
     expect(deleted.brushEntities).toEqual([]);
   });
-  it("rejects carving through a hull atomically while allowing a disjoint cut", () => {
+  it("carves through a hull while preserving the input and allowing a disjoint cut", () => {
     const doc = applyOperations(emptyDocument(), [
       { op: "gen.prism", id: "p", footprint: square, bottom: 0, top: 64, shader: "common/caulk" },
     ]).doc;
     const source = writeMap(doc);
-    expect(() =>
-      applyOperations(doc, [{ op: "brush.carve", min: { x: 8, y: 8, z: 0 }, max: { x: 32, y: 32, z: 64 } }]),
-    ).toThrow(/Cannot carve convex/);
+    const carved = applyOperations(doc, [
+      { op: "brush.carve", min: { x: 8, y: 8, z: 0 }, max: { x: 32, y: 32, z: 64 } },
+    ]).doc;
+    expect(carved.brushes.length).toBeGreaterThan(1);
+    validateDocument(carved);
     expect(writeMap(doc)).toBe(source);
     expect(() =>
       applyOperations(doc, [{ op: "brush.carve", min: { x: 100, y: 100, z: 0 }, max: { x: 200, y: 200, z: 64 } }]),

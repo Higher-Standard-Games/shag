@@ -115,10 +115,27 @@ try{
     assert.equal(await browser.ev('window.__convexQA.session.document.snapshot().brushes.length'),6);
     selection={native2DCtrlClick:true,native3DCtrlClick:true,moved,undo:true,groups:true,duplicateDelete:true};
   }
+  let csg;
+  if(process.argv.includes('--csg')) {
+    await browser.ev(`(()=>{const s=window.__convexQA.session;window.__csgBefore=JSON.stringify(s.document.snapshot().brushes);const d=s.root.querySelector('[data-clip-controls]');d.open=true;const f=d.querySelector('form');f.querySelector('[name="distance"]').value='0';f.querySelector('[name="keep"]').value='both';})()`);
+    await browser.click('[data-clip-brush] button[type="submit"]');
+    const split=await browser.ev(`(()=>{const s=window.__convexQA.session,d=s.document.snapshot();return {count:d.brushes.length,back:d.brushes.find(b=>b.id==='bridge').max.x,front:d.brushes.find(b=>b.id==='bridge-2').min.x,meshes:['bridge','bridge-2'].every(id=>s.meshes.get(id)?.getTotalVertices()>0)}})()`);
+    assert.equal(split.count,5);assert(Math.abs(split.back)<1e-6&&Math.abs(split.front)<1e-6);assert(split.meshes);
+    await browser.click('[data-action="undo"]');
+    assert.equal(await browser.ev('JSON.stringify(window.__convexQA.session.document.snapshot().brushes)===window.__csgBefore'),true);
+    await browser.ev(`(()=>{const s=window.__convexQA.session;s.document.transact(d=>d.brushes.push({id:'cut',min:{x:-16,y:-150,z:-16},max:{x:16,y:150,z:80},shader:'common/caulk'}));s.setSelection(['bridge','cut']);s.changed();const f=s.root.querySelector('[data-subtract-brush]');f.querySelector('[name="cutter"]').value='cut';f.querySelector('[name="remove-cutter"]').checked=true;})()`);
+    await browser.click('[data-subtract-brush] button[type="submit"]');
+    const carved=await browser.ev(`(()=>{const s=window.__convexQA.session,d=s.document.snapshot();return {count:d.brushes.length,back:d.brushes.find(b=>b.id==='bridge').max.x,front:d.brushes.find(b=>b.id==='bridge-2').min.x,cutterRemoved:!d.brushes.some(b=>b.id==='cut')}})()`);
+    assert.equal(carved.count,5);assert(Math.abs(carved.back+16)<1e-6&&Math.abs(carved.front-16)<1e-6);assert(carved.cutterRemoved);
+    await sleep(300);await browser.shot(path.resolve('.cache/shagged-csg.png'));
+    await browser.click('[data-action="undo"]');
+    assert.equal(await browser.ev('window.__convexQA.session.document.snapshot().brushes.some(b=>b.id==="cut")'),true);
+    csg={split,carved,undo:true};
+  }
   const errors=browser.logs.filter(entry=>/shader.*error|WebGL.*error|exception/i.test(JSON.stringify(entry)));
   assert.equal(errors.length,0,JSON.stringify(errors));
   assert.equal(browser.failed.length,0,JSON.stringify(browser.failed));
-  fs.writeFileSync(`.cache/shagged-${selection?'selection':textureLock?'texture-lock':faces?'faces':vertices?'vertices':'convex'}-browser-report.json`,JSON.stringify({ok:true,result,textured,vertices,faces,textureLock,selection,logs:browser.logs,failed:browser.failed},null,2));
-  console.log(JSON.stringify({ok:true,...result,vertices,faces,textureLock,selection},null,2));
+  fs.writeFileSync(`.cache/shagged-${csg?'csg':selection?'selection':textureLock?'texture-lock':faces?'faces':vertices?'vertices':'convex'}-browser-report.json`,JSON.stringify({ok:true,result,textured,vertices,faces,textureLock,selection,csg,logs:browser.logs,failed:browser.failed},null,2));
+  console.log(JSON.stringify({ok:true,...result,vertices,faces,textureLock,selection,csg},null,2));
   await browser.ev('window.__convexQA.engine.stopRenderLoop();window.__convexQA.session.dispose();window.__convexQA.engine.dispose();');
 }finally{if(browser)await browser.close();vite.kill();}

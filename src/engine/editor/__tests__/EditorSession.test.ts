@@ -93,6 +93,57 @@ beforeEach(() => {
 });
 
 describe("editor DOM shell", () => {
+  it("clips and splits from the inspector, rejects invalid planes and subtracts selected cutters with undo", () => {
+    const engine = new NullEngine(),
+      canvas = document.createElement("canvas");
+    document.body.append(canvas);
+    const session = new EditorSession(engine, canvas, vi.fn());
+    try {
+      session.document.transact((data) => {
+        data.brushes = [
+          { id: "wall", min: { x: -96, y: 0, z: 0 }, max: { x: 96, y: 32, z: 64 }, shader: "common/caulk" },
+          { id: "cutter", min: { x: -16, y: -16, z: -16 }, max: { x: 16, y: 48, z: 80 }, shader: "common/caulk" },
+        ];
+        data.brushEntities = [{ id: "door", classname: "func_door", keys: {}, brushIds: ["wall"] }];
+      });
+      session.root.querySelector<HTMLButtonElement>('[data-action="select"]')!.click();
+      const pane = session.root.querySelector('[data-plane="xy"]')!;
+      const click = (x: number, ctrlKey = false) => {
+        for (const type of ["pointerdown", "pointerup"])
+          pane.dispatchEvent(new MouseEvent(type, { bubbles: true, button: 0, clientX: x, clientY: 134, ctrlKey }));
+      };
+      click(120);
+      const before = session.document.snapshot();
+      const clip = session.root.querySelector<HTMLFormElement>("[data-clip-brush]")!;
+      clip.querySelector<HTMLInputElement>('[name="normal-x"]')!.value = "0";
+      clip.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      expect(session.document.snapshot()).toEqual(before);
+      expect(session.root.querySelector(".shagged__status")!.textContent).toContain("nonzero");
+      clip.querySelector<HTMLInputElement>('[name="normal-x"]')!.value = "1";
+      clip.querySelector<HTMLSelectElement>('[name="keep"]')!.value = "both";
+      clip.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      expect(session.document.snapshot().brushEntities![0].brushIds).toEqual(["wall", "wall-2"]);
+      expect(session.root.querySelector("[data-selection-move]")).toBeTruthy();
+      click(200, true);
+      const subtract = session.root.querySelector<HTMLFormElement>("[data-subtract-brush]")!;
+      subtract.querySelector<HTMLSelectElement>('[name="cutter"]')!.value = "cutter";
+      subtract.querySelector<HTMLInputElement>('[name="remove-cutter"]')!.checked = true;
+      const split = session.document.snapshot();
+      subtract.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      const cut = session.document.snapshot();
+      expect(cut.brushes).toHaveLength(2);
+      expect(cut.brushes[0].max.x).toBe(-16);
+      expect(cut.brushes[1].min.x).toBe(16);
+      session.root.querySelector<HTMLButtonElement>('[data-action="undo"]')!.click();
+      expect(session.document.snapshot().brushes).toEqual(split.brushes);
+      session.root.querySelector<HTMLButtonElement>('[data-action="undo"]')!.click();
+      expect(session.document.snapshot().brushes).toEqual(before.brushes);
+    } finally {
+      session.dispose();
+      engine.dispose();
+    }
+  });
+
   it("marquees, toggles, previews and moves a selection with one undo step", () => {
     const engine = new NullEngine(),
       canvas = document.createElement("canvas");

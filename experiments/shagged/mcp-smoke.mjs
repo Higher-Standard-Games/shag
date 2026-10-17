@@ -55,6 +55,19 @@ try{
   await call(a,'shagged_apply',{mapName,ops:[{op:'object.duplicate',ids:['qa_assembly'],delta:{x:16,y:0,z:0}},{op:'editorGroup.ungroup',ids:['qa_assembly-copy']},{op:'object.delete',ids:objectIds.map(id=>id+'-copy')}]});
   groups={query:true,unchangedCompilerSource:true,newSidecarRevision:true,duplicateUngroupDelete:true};
  }
+ let csg;
+ if(process.argv.includes('--csg')) {
+  await call(a,'shagged_apply',{mapName,ops:[
+   {op:'box.create',id:'qa_csg',min:{x:64,y:0,z:0},max:{x:128,y:64,z:64},shader:'common/caulk',detail:true},
+   {op:'brush.clip',id:'qa_csg',plane:{normal:{x:1,y:0,z:0},distance:96},keep:'both'},
+   {op:'box.create',id:'qa_csg_cutter',min:{x:88,y:-8,z:-8},max:{x:104,y:72,z:72}},
+   {op:'brush.subtract',ids:['qa_csg','qa_csg-2'],cutterId:'qa_csg_cutter',removeCutter:true}
+  ]});
+  const query=await call(a,'shagged_query_objects',{mapName,ids:['qa_csg','qa_csg-2','qa_csg_cutter'],kinds:['brush']});
+  assert.equal(query.total,2);assert.equal(query.objects.find(o=>o.data.id==='qa_csg').bounds.max.x,88);assert.equal(query.objects.find(o=>o.data.id==='qa_csg-2').bounds.min.x,104);
+  const compiled=await call(a,'shagged_compile',{mapName,quality:'fast'});assert.equal(compiled.state,'playable');
+  csg={split:true,subtract:true,cutterRemoved:true,compiled:true};
+ }
  const initial=(await call(a,'shagged_read_document',{mapName})).document;
  const controls=[0,1,2].map(row=>[0,1,2].map(col=>({x:col*8,y:row*8,z:160,u:col/2,v:row/2})));
  await call(a,'shagged_apply',{mapName,expectedRevision:initial.revision,ops:[
@@ -86,6 +99,6 @@ try{
  assert.equal(stale.code,1);assert.equal(stale.body.error,'Map revision conflict');assert.equal(fs.readFileSync(file,'utf8'),before);
  const cliConcurrent=await Promise.all([cli(['apply',file,opsFile,'--expected-revision',String(current.revision)]),cli(['apply',file,opsFile,'--expected-revision',String(current.revision)])]);
  assert.equal(cliConcurrent.filter(result=>result.code===0).length,1);assert.equal(JSON.parse(fs.readFileSync(file,'utf8')).revision,current.revision+1);
- const summary={ok:true,mapName,first:first.packageName,reused:reuse.reused,forced:forced.packageName,transcriptBytes:offset,groups,inspection:{patches:info.patches.length,spatialMatches:query.total,pagedObjects:ids.length,concurrentWinners:1,cliRoundTrip:true,staleCliRejected:true,cliConcurrentWinners:1}};
+ const summary={ok:true,mapName,first:first.packageName,reused:reuse.reused,forced:forced.packageName,transcriptBytes:offset,groups,csg,inspection:{patches:info.patches.length,spatialMatches:query.total,pagedObjects:ids.length,concurrentWinners:1,cliRoundTrip:true,staleCliRejected:true,cliConcurrentWinners:1}};
  fs.writeFileSync(path.join(root,'report.json'),JSON.stringify(summary,null,2)+'\n');console.log(JSON.stringify(summary,null,2));
 }finally{await Promise.allSettled(clients.map(client=>client.close()));}

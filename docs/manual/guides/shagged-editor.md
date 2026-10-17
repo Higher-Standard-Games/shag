@@ -113,6 +113,27 @@ natural alignment for those faces.
 - Texture faces nobody sees with `common/caulk`, then texture the visible faces.
 - Texture names have no `textures/` prefix; the compiler adds it.
 
+### Clipping and subtraction
+
+Select one brush and expand **Clip / split plane** at the bottom of its
+inspector. Enter a Quake-space normal and distance for `normal dot XYZ = distance`.
+Back keeps values below the plane; Front keeps values above it; Both splits
+the solid. The initial plane bisects the brush along X. **Apply Clip / Split**
+commits one undo step; an outside cut can remove the entire brush.
+
+Select at least two brushes to reveal **Subtract brush** in the inspector.
+Choose the cutter from the dropdown and optionally check **Remove cutter**,
+then apply. The cutter is subtracted from the other selected brushes. Patches,
+point entities and unselected geometry are kept. Both boxes and convex solids
+can be targets or cutters. New faces use the target's base shader; surviving
+face mappings, entity ownership and editor groups are retained. The operation
+is rejected as a whole if a fragment cannot form a valid supported hull.
+
+Plane placement uses numerical inputs; interactive plane handles and cut
+previews are not available. Review the result in the views and use Undo to
+restore it. The [scripting API](./shagged-api.md#convex-solids-and-rotation)
+also exposes explicit cut-face materials.
+
 ### Multiple objects and editor groups
 
 Use **Select** (`V`) and **Ctrl-click** (Cmd-click on macOS) to add or remove
@@ -191,7 +212,8 @@ The same compile runs from the command line with `npm run shagged:compile -- <ma
 
 ## Limits
 
-- Brushes can be boxes or convex solids; curved surfaces are patches. Boolean subtraction is limited to boxes through the scripting API's `brush.carve`.
+- Brushes can be boxes or convex solids; curved surfaces are patches. Clipping
+  and subtraction operate on solid brushes, not patches or model meshes.
 - Arbitrary NetRadiant `.map` files cannot be imported.
 - Multiple selections support movement, duplication, deletion and framing;
   rotate and resize individual objects.

@@ -197,10 +197,28 @@ inspection returns the hull; region queries use conservative AABBs.
 axis face names continue to address boxes. Natural creation alignment works
 on convex solids and prisms as it does on boxes.
 
-`brush.carve` and doorway cutting by `gen.connect` reject cuts whose AABB
-overlaps a convex brush. Convex subtraction is not implemented; move the solid
-out of the cut or build the opening from separate pieces. This rejection leaves
-the whole batch unchanged. Disjoint convex brushes do not block carving.
+`brush.clip {id, plane: {normal: {x,y,z}, distance}, keep?}` clips a brush
+against `normal dot XYZ = distance`. Normal and distance are normalized together.
+`keep` is `back` (default, values below the plane), `front` (above), or `both`
+(split). Clipping outside the solid can retain or remove the whole brush.
+
+`brush.subtract {ids, cutterId, removeCutter?}` subtracts one box or convex
+cutter from explicit target brush IDs. The cutter must not be a target and is
+kept unless `removeCutter: true`. Geometry uses the cutter's actual planes,
+not its bounding box. Unrelated objects are untouched. `brush.carve` uses a
+box cutter against every brush; `gen.connect` uses the same path for doorways,
+including convex geometry.
+
+Cuts produce closed convex pieces, retaining surviving face mappings, detail
+flags, brush-entity owners and editor group membership. The first piece keeps
+the original ID; others use available `<id>-2`, `<id>-3`, etc. Removed brushes
+are pruned from owners/groups. New cut faces use the target brush's base shader
+and legacy alignment; `brush.clip` and `brush.subtract` accept an optional
+`capMaterial` with ordinary face material fields to override that mapping.
+Surface indices change after cuts: query them again before face edits.
+Each batch is atomic. Collapsed, numerically degenerate or over-limit hulls
+reject the batch; this is floating-point authoring geometry, not exact arithmetic.
+Patches and model meshes cannot be used as cutters or solid targets.
 
 ```json
 [
@@ -251,6 +269,8 @@ Texture search and automatic sizing use `SHAGGED_PUBLISH_ROOT` (default
 | `entity.place` | `id?`, `classname`, `origin`, `keys?` | Point entity. Keys are strings. |
 | `entity.update` | `id`, `classname?`, `origin?`, `keys?` | Keys merge; an empty string removes a key. |
 | `brushEntity.assign` | `id?`, `classname`, `brushIds`, `keys?` | Makes brushes a trigger/door/plat. `trigger_*` brushes get `common/trigger`. Never set `origin` or `model`. |
+| `brush.clip` | `id`, `plane`, `keep?`, `capMaterial?` | Keep the front, back (default), or both halves of a box/convex brush. |
+| `brush.subtract` | `ids`, `cutterId`, `removeCutter?`, `capMaterial?` | Subtract a box/convex cutter from explicit target brushes. Cutter is kept by default. |
 | `editorGroup.create` | `id?`, `objectIds`, `name?` | Saves a flat editor selection of at least two brushes, patches or point entities. Existing member groups merge; compiler ownership is unchanged. |
 | `editorGroup.ungroup` | `ids` | Removes editor group metadata by group ID or member ID, keeping its objects. |
 | `object.move` | `ids`, `delta` | Brushes, entities (a brush entity moves its brushes), patches and editor groups. Overlapping group/member IDs move each leaf once. |
@@ -262,7 +282,7 @@ Texture search and automatic sizing use `SHAGGED_PUBLISH_ROOT` (default
 | `gen.stairs` | `id`, `from` (bottom), `to` (top), `width?` (128), `step?` (16, at most 18), `shader?` | Solid steps standing on the floor at `from.z`, rising to `to.z` along x or y. |
 | `gen.teleporter` | `id`, `at` (floor point under the trigger), `to` (arrival floor point), `angle?` (degrees, 0 = +X), `size?` (64), `height?` (64) | A `trigger_teleport` brush on the floor and its `misc_teleporter_dest`, already linked. |
 | `gen.jumppad` | `id`, `at` (floor point under the pad), `to` (landing floor point), `size?` (64), `height?` (16) | A `trigger_push` brush on the floor and its `target_position`, already linked; the pad throws players to `to`. |
-| `brush.carve` | `min`, `max` | Subtracts a box from every brush it cuts; the pieces keep their material and brush-entity owner. |
+| `brush.carve` | `min`, `max` | Subtracts a box from every box/convex brush it cuts; pieces keep surviving face mappings and owner/group membership. |
 
 **Openings** (`gen.room`): `{ "side": "+X", "min": {...}, "max": {...} }`. The two in-wall axes of `min`/`max` give the hole (for `+X`/`-X`: y and z); the side's own axis is ignored. An opening must stay inside the room's interior span so the corners stay sealed.
 

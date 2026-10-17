@@ -5,7 +5,7 @@
   },
   "wdm2": {
     "displayName": "Proving Grounds",
-    "gametypes": []
+    "gametypes": ["duel"]
   },
   "wdm11": {
     "displayName": "Warehouse C",

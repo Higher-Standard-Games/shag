@@ -16,6 +16,7 @@ import "@babylonjs/core/Rendering/edgesRenderer";
 // Registers Scene.pick for perspective selection.
 import "@babylonjs/core/Culling/ray";
 import { q3ToBabylonVec3 } from "../loader/bsp/mesh/coordinates";
+import { applyOperations, type EditOp } from "./api/Operations";
 import {
   type BrushFace,
   brushFaceMaterial,
@@ -3652,6 +3653,7 @@ export class EditorSession {
         [...this.selectedFaces],
         (describe, update) => this.alignFaces(describe, update),
       );
+      this.renderClipControls(selected);
       if (owner) {
         const section = form.querySelector<HTMLElement>("[data-owner-section]")!;
         section.innerHTML = `<label class="shagged__shader">Entity class <select name="owner-classname"></select></label>
@@ -3725,6 +3727,80 @@ export class EditorSession {
         this.status(`Move rejected: ${error instanceof Error ? error.message : String(error)}`);
       }
     });
+    const brushes = data.brushes.filter((brush) => this.isSelected(brush.id));
+    if (brushes.length >= 2) {
+      const form = document.createElement("form");
+      form.dataset.subtractBrush = "";
+      form.innerHTML =
+        '<h3>Subtract brush</h3><label class="shagged__shader">Cutter <select name="cutter"></select></label><label><input name="remove-cutter" type="checkbox"> Remove cutter</label><button type="submit">Subtract from selected brushes</button><p>Only selected brushes are cut. Patches and point entities are kept.</p>';
+      const select = form.querySelector<HTMLSelectElement>("select")!;
+      for (const brush of brushes) {
+        const option = document.createElement("option");
+        option.value = brush.id;
+        option.textContent = brush.id;
+        select.append(option);
+      }
+      select.value = brushes[brushes.length - 1].id;
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        this.applyCsgOperation({
+          op: "brush.subtract",
+          ids: brushes.filter((brush) => brush.id !== select.value).map((brush) => brush.id),
+          cutterId: select.value,
+          removeCutter: form.querySelector<HTMLInputElement>('[name="remove-cutter"]')!.checked,
+        });
+      });
+      this.inspector.append(form);
+    }
+  }
+
+  private applyCsgOperation(operation: EditOp): void {
+    try {
+      this.cancelGesture();
+      const result = applyOperations(this.document.snapshot(), [operation]);
+      this.document.transact((draft) => Object.assign(draft, result.doc));
+      const brushes = new Set(result.doc.brushes.map((brush) => brush.id));
+      this.setSelection([...this.selectedIds, ...result.created.filter((id) => brushes.has(id))]);
+      this.selectedFaces.clear();
+      this.selectedVertices.clear();
+      this.changed();
+      this.status("Brush cut applied; undo restores the original geometry");
+    } catch (error) {
+      this.status(`Cut rejected: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  private renderClipControls(brush: BoxBrush): void {
+    const details = document.createElement("details");
+    details.dataset.clipControls = "";
+    details.innerHTML = `<summary>Clip / split plane</summary><form data-clip-brush>
+      <p>Quake plane: normal dot XYZ = distance. Back keeps values below the distance; front keeps values above.</p>
+      ${(["x", "y", "z"] as const).map((axis) => `<label class="shagged__shader">Normal ${axis.toUpperCase()} <input name="normal-${axis}" type="number" step="any" value="${axis === "x" ? 1 : 0}" required></label>`).join("")}
+      <label class="shagged__shader">Distance <input name="distance" type="number" step="any" required></label>
+      <label class="shagged__shader">Keep <select name="keep"><option value="back">Back</option><option value="front">Front</option><option value="both">Both (split)</option></select></label>
+      <button type="submit">Apply Clip / Split</button><p>A cut can remove the whole brush. One action is one undo step. New faces use the brush's base shader.</p></form>`;
+    const form = details.querySelector<HTMLFormElement>("form")!;
+    form.querySelector<HTMLInputElement>('[name="distance"]')!.value = String((brush.min.x + brush.max.x) / 2);
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const values = new FormData(form);
+      this.applyCsgOperation({
+        op: "brush.clip",
+        id: brush.id,
+        plane: {
+          normal: {
+            x: Number(values.get("normal-x")),
+            y: Number(values.get("normal-y")),
+            z: Number(values.get("normal-z")),
+          },
+          distance: Number(values.get("distance")),
+        },
+        keep: String(values.get("keep")) as "back" | "front" | "both",
+      });
+    });
+    this.inspector.append(details);
   }
 
   /**

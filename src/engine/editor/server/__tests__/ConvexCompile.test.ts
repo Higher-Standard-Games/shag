@@ -16,6 +16,66 @@ import { CompileJobs } from "../CompileJobs";
 import { resolveCompilerConfig } from "../CompilerConfig";
 import { MapStore } from "../MapStore";
 
+it("compiles clipped slopes and convex subtraction with an open collision passage", async () => {
+  const compiler = await resolveCompilerConfig();
+  if (!compiler.available) return;
+  const root = await mkdtemp(path.join(tmpdir(), "shagged-csg-"));
+  try {
+    const doc = applyOperations(emptyDocument("csgprobe"), [
+      { op: "gen.room", id: "room", min: { x: -256, y: -256, z: 0 }, max: { x: 256, y: 256, z: 192 } },
+      { op: "entity.place", classname: "info_player_deathmatch", origin: { x: 0, y: -160, z: 48 } },
+      {
+        op: "box.create",
+        id: "wall",
+        min: { x: -96, y: -8, z: 0 },
+        max: { x: 96, y: 8, z: 128 },
+        shader: "blx/blx_grid",
+        detail: true,
+      },
+      { op: "brush.rotate", id: "wall", axis: "z", degrees: 15 },
+      { op: "box.create", id: "cutter", min: { x: -24, y: -64, z: -8 }, max: { x: 24, y: 64, z: 136 } },
+      { op: "brush.subtract", ids: ["wall"], cutterId: "cutter", removeCutter: true },
+      {
+        op: "box.create",
+        id: "slope",
+        min: { x: 96, y: 96, z: 0 },
+        max: { x: 160, y: 160, z: 128 },
+        shader: "blx/blx_grid",
+        detail: true,
+      },
+      {
+        op: "brush.clip",
+        id: "slope",
+        plane: { normal: { x: 1, y: 0, z: 1 }, distance: 224 },
+        capMaterial: naturalFace("blx/blx_grid", [512, 256]),
+      },
+    ]).doc;
+    const store = new MapStore(path.join(root, "maps"));
+    await store.init();
+    const saved = await store.save("csgprobe", writeMap(doc), 0, doc),
+      data = path.join(root, "data");
+    const jobs = new CompileJobs(store, compiler, path.join(root, "jobs"), undefined, data);
+    const requested = await jobs.request("csgprobe", saved.revision, "fast"),
+      completed = await jobs.wait(requested.id);
+    expect(completed?.state, completed?.logs.join("\n")).toBe("playable");
+    const bsp = BspLoader.load((await resolveMapBspViaIndex([data], "csgprobe"))!),
+      collision = new SweepCollisionBackend();
+    await collision.init(bsp);
+    const across = (x: number) =>
+      collision.trace(new Vector3(x, 64, -96), new Vector3(x, 64, 96), { radius: 0, height: 0 });
+    expect(across(0).fraction).toBe(1);
+    expect(across(80).fraction).toBeLessThan(1);
+    const down = collision.trace(new Vector3(128, 160, 128), new Vector3(128, 16, 128), { radius: 0, height: 0 });
+    expect(down.endPos.y).toBeCloseTo(96, 0);
+    const cap = bsp.faces.find(
+      (face) => Math.abs(face.normal[0] - Math.SQRT1_2) < 1e-3 && Math.abs(face.normal[2] - Math.SQRT1_2) < 1e-3,
+    );
+    expect(cap).toBeDefined();
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+}, 60000);
+
 it("compiles rotated solids and prisms with correct collision and arbitrary-plane texture UVs", async () => {
   const compiler = await resolveCompilerConfig();
   if (!compiler.available) return;

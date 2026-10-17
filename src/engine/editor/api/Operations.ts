@@ -10,11 +10,13 @@
 
 import { editBrushVertices, type VertexEdit } from "../BrushVertexTools";
 import { fromWorldHull, type HullSide, prismBrush, rotateBrush } from "../ConvexBrush";
+import { type ClipPlane, clipBrush, replaceBrushPieces, reversePlane, subtractBrush } from "../ConvexCsg";
 import {
   type BoxBrush,
   type EditorDocumentData,
   FACE_KEYS,
   type FaceKey,
+  type FaceMaterial,
   migrateDocument,
   type PatchSurface,
   pruneBrushEntities,
@@ -27,7 +29,7 @@ import { brushEntityShader } from "../EntityCatalog";
 import { naturalFace } from "../FaceUv";
 import { inspectMapHealth, type MapHealthIssue } from "../MapHealth";
 import { lockBrushBounds } from "../TextureLock";
-import { boxesOverlap, subtractBox } from "./BoxCsg";
+import { subtractBox } from "./BoxCsg";
 import { alignCreatedBrush, type CreationMaterials } from "./CreationMaterials";
 import {
   type ConnectSpec,
@@ -67,6 +69,8 @@ export type EditOp =
     } & CreationMaterials)
   | { op: "brush.rotate"; id: string; axis: keyof Vec3q; degrees: number; pivot?: Vec3q }
   | { op: "brush.vertices"; id: string; edits: VertexEdit[] }
+  | { op: "brush.clip"; id: string; plane: ClipPlane; keep?: "back" | "front" | "both"; capMaterial?: FaceMaterial }
+  | { op: "brush.subtract"; ids: string[]; cutterId: string; removeCutter?: boolean; capMaterial?: FaceMaterial }
   | { op: "world.keys"; keys: Record<string, string> }
   | { op: "editorGroup.create"; id?: string; objectIds: string[]; name?: string }
   | { op: "editorGroup.ungroup"; ids: string[] }
@@ -218,6 +222,36 @@ const add = (a: Vec3q, b: Vec3q): Vec3q => ({ x: a.x + b.x, y: a.y + b.y, z: a.z
 
 function applyOne(doc: EditorDocumentData, op: EditOp, changed: Set<string>): void {
   switch (op.op) {
+    case "brush.clip": {
+      const source = brush(doc, op.id),
+        keep = op.keep ?? "back";
+      if (!["back", "front", "both"].includes(keep)) throw new Error("Clip keep must be back, front or both");
+      const pieces: BoxBrush[] = [];
+      if (keep !== "front") {
+        const back = clipBrush(source, op.plane, op.capMaterial);
+        if (back) pieces.push(back);
+      }
+      if (keep !== "back") {
+        const front = clipBrush(source, reversePlane(op.plane), op.capMaterial);
+        if (front) pieces.push(front);
+      }
+      replaceBrushPieces(doc, op.id, pieces);
+      changed.add(op.id);
+      return;
+    }
+    case "brush.subtract": {
+      const cutter = brush(doc, op.cutterId);
+      if (!Array.isArray(op.ids) || !op.ids.length || op.ids.includes(op.cutterId))
+        throw new Error("Subtract needs target brush IDs excluding the cutter");
+      if (op.removeCutter !== undefined && typeof op.removeCutter !== "boolean")
+        throw new Error("removeCutter must be boolean");
+      for (const id of new Set(op.ids)) {
+        replaceBrushPieces(doc, id, subtractBrush(brush(doc, id), cutter, op.capMaterial));
+        changed.add(id);
+      }
+      if (op.removeCutter) replaceBrushPieces(doc, op.cutterId, []);
+      return;
+    }
     case "editorGroup.create": {
       const id = claimId(doc, op.id, "group");
       groupSelection(doc, op.objectIds, id, op.name);
@@ -455,36 +489,17 @@ function carve(doc: EditorDocumentData, box: { min: Vec3q; max: Vec3q }): string
     if (!(box.min[axis] < box.max[axis])) throw new Error(`carve box ${axis}: min must be below max`);
   }
   const cut: string[] = [];
-  const result: BoxBrush[] = [];
-  for (const brush of doc.brushes) {
-    if (brush.hull && boxesOverlap(brush, box))
-      throw new Error(`Cannot carve convex brush ${brush.id}; convex subtraction is not supported`);
-    const pieces = subtractBox(brush, box);
-    if (
-      pieces.length === 1 &&
-      pieces[0].min.x === brush.min.x &&
-      pieces[0].max.x === brush.max.x &&
-      pieces[0].min.y === brush.min.y &&
-      pieces[0].max.y === brush.max.y &&
-      pieces[0].min.z === brush.min.z &&
-      pieces[0].max.z === brush.max.z
-    ) {
-      result.push(brush);
+  const cutter: BoxBrush = { id: "carve", ...box, shader: "common/caulk" };
+  for (const brush of [...doc.brushes]) {
+    const pieces = brush.hull
+      ? subtractBrush(brush, cutter)
+      : subtractBox(brush, box).map((piece) => ({ ...structuredClone(brush), ...piece }));
+    if (pieces.length === 1 && JSON.stringify(pieces[0]) === JSON.stringify(brush)) {
       continue;
     }
     cut.push(brush.id);
-    const owner = doc.brushEntities?.find((e) => e.brushIds.includes(brush.id));
-    const ids: string[] = [];
-    pieces.forEach((piece, index) => {
-      const id = index === 0 ? brush.id : nextFree(doc, `${brush.id}-${index + 1}`, result);
-      ids.push(id);
-      result.push({ ...structuredClone(brush), id, min: piece.min, max: piece.max });
-    });
-    if (owner) owner.brushIds = owner.brushIds.flatMap((id) => (id === brush.id ? ids : [id]));
-    for (const group of doc.editorGroups ?? [])
-      group.objectIds = group.objectIds.flatMap((id) => (id === brush.id ? ids : [id]));
+    replaceBrushPieces(doc, brush.id, pieces);
   }
-  doc.brushes = result;
   return cut;
 }
 
