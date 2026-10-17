@@ -4,7 +4,7 @@ export interface QueryBounds {
   min: Vec3q;
   max: Vec3q;
 }
-export type DocumentObjectKind = "brush" | "patch" | "entity" | "brushEntity";
+export type DocumentObjectKind = "brush" | "patch" | "entity" | "brushEntity" | "editorGroup";
 export interface DocumentQuery {
   bounds?: QueryBounds;
   relation?: "intersects" | "contained";
@@ -35,7 +35,7 @@ export function queryDocument(doc: EditorDocumentData, query: DocumentQuery = {}
   if (!Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(limit) || limit < 1 || limit > 500)
     throw new Error("Query offset must be nonnegative and limit must be 1–500");
   if (!["intersects", "contained"].includes(relation)) throw new Error("Invalid query relation");
-  if (query.kinds?.some((kind) => !["brush", "patch", "entity", "brushEntity"].includes(kind)))
+  if (query.kinds?.some((kind) => !["brush", "patch", "entity", "brushEntity", "editorGroup"].includes(kind)))
     throw new Error("Invalid object kind");
   const region = query.bounds;
   if (region)
@@ -53,7 +53,8 @@ export function queryDocument(doc: EditorDocumentData, query: DocumentQuery = {}
     | EditorDocumentData["brushes"][number]
     | EditorDocumentData["entities"][number]
     | NonNullable<EditorDocumentData["patches"]>[number]
-    | NonNullable<EditorDocumentData["brushEntities"]>[number];
+    | NonNullable<EditorDocumentData["brushEntities"]>[number]
+    | NonNullable<EditorDocumentData["editorGroups"]>[number];
   const objects: Array<{ kind: DocumentObjectKind; data: Data; bounds: QueryBounds | null; ownerId?: string }> = [];
   for (const brush of doc.brushes)
     objects.push({
@@ -75,6 +76,20 @@ export function queryDocument(doc: EditorDocumentData, query: DocumentQuery = {}
         group.brushIds.flatMap((id) => {
           const brush = brushes.get(id);
           return brush ? [brush.min, brush.max] : [];
+        }),
+      ),
+    });
+  const leaves = new Map(
+    objects.filter((object) => object.kind !== "brushEntity").map((object) => [object.data.id, object.bounds]),
+  );
+  for (const group of doc.editorGroups ?? [])
+    objects.push({
+      kind: "editorGroup",
+      data: group,
+      bounds: pointBounds(
+        group.objectIds.flatMap((id) => {
+          const bounds = leaves.get(id);
+          return bounds ? [bounds.min, bounds.max] : [];
         }),
       ),
     });

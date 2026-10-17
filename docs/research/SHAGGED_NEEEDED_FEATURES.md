@@ -22,10 +22,12 @@ of work still outstanding.
   graphical shift/scale/rotation, Fit, Natural and Wrap.
 - [x] Texture locking during brush movement, duplication, rotation, bounds
   scaling and vertex edits, including skew and mirrored mappings.
+- [x] Graphical multiple selection, marquee selection and saved editor groups,
+  with mixed-object movement, duplication, deletion and framing.
 
 Suggested implementation order for remaining work:
 
-1. [ ] Graphical object multi-selection, marquee selection and editor groups.
+1. [ ] Shared selection rotation and resizing (individual transforms work).
 2. [ ] Plane clipping and convex subtraction.
 3. [ ] More curve presets and controls: cylinders, tubes, cones and caps.
 4. [ ] ASE browser mesh preview and GLB/glTF headless discovery bounds.
@@ -34,8 +36,8 @@ Suggested implementation order for remaining work:
 
 The latter graphical/editor items also appear in the broader `SHAGGED.md`
 design notes. Compiler grouping already works; editor selection groups are a
-different feature. Multi-select is the next recommended authoring improvement,
-not a prerequisite for the completed experiment.
+different feature. Plane clipping is the next recommended authoring improvement;
+shared transforms are a follow-up to the completed selection workflow.
 
 ## Initial findings
 

@@ -113,6 +113,30 @@ natural alignment for those faces.
 - Texture faces nobody sees with `common/caulk`, then texture the visible faces.
 - Texture names have no `textures/` prefix; the compiler adds it.
 
+### Multiple objects and editor groups
+
+Use **Select** (`V`) and **Ctrl-click** (Cmd-click on macOS) to add or remove
+objects in either the 2D or 3D view. Drag empty space in a 2D pane to marquee
+objects; hold Ctrl/Cmd to add the results. The marquee intersects projected
+bounding boxes, including objects hidden behind others in that projection.
+
+Drag any selected object in a 2D pane to move the whole selection, or enter
+Move X/Y/Z deltas in the inspector. Brushes, patches and point entities can be
+selected together. Movement, duplication and deletion each take one undo step;
+Escape cancels a drag. Frame Selection includes every selected object.
+
+**Group Selection** (`Ctrl+G`) saves a named selection. Clicking a member selects
+the whole group; **Ungroup** (`Ctrl+Shift+G`) removes the group without deleting
+its objects. Groups are flat: combining groups merges their members. Their
+names and membership survive draft and server saves but are not written to
+compiler `.map` source. They do not change collision or brush entity ownership.
+Duplicating all brushes of a door or trigger creates a separate brush entity;
+a partial graphical copy joins its existing owner.
+
+Shared rotation and resizing are not available yet. Select an individual
+object for those operations, vertex tools or face alignment; Shift-picking a
+face isolates its brush from a multiple selection.
+
 ### Entities
 
 The Entity tool places spawns, lights, weapons, items and other point entities from the game's entity definitions. The inspector edits the class, origin and keys; documented keys show their defaults, required keys are starred, and unknown keys are kept.
@@ -169,4 +193,5 @@ The same compile runs from the command line with `npm run shagged:compile -- <ma
 
 - Brushes can be boxes or convex solids; curved surfaces are patches. Boolean subtraction is limited to boxes through the scripting API's `brush.carve`.
 - Arbitrary NetRadiant `.map` files cannot be imported.
-- Selection is one object at a time, with no multi-select or groups.
+- Multiple selections support movement, duplication, deletion and framing;
+  rotate and resize individual objects.

@@ -199,7 +199,7 @@ server.registerTool(
       mapName: MAP_NAME,
       bounds: z.object({ min: VECTOR, max: VECTOR }).optional(),
       relation: z.enum(["intersects", "contained"]).optional(),
-      kinds: z.array(z.enum(["brush", "patch", "entity", "brushEntity"])).optional(),
+      kinds: z.array(z.enum(["brush", "patch", "entity", "brushEntity", "editorGroup"])).optional(),
       ids: z.array(z.string()).max(1000).optional(),
       offset: z.number().int().min(0).optional(),
       limit: z.number().int().min(1).max(500).optional(),
@@ -215,7 +215,7 @@ server.registerTool(
     title: "Edit a map",
     description: [
       "Applies a batch of operations as one all-or-nothing transaction and saves the map. An error names the failing operation and changes nothing. face.material and creation with alignment: natural resolve image sizes from the catalog; omitted alignment preserves legacy repeats.",
-      "Operations (fields in the guide): world.keys, box.create, box.update, convex.create, brush.rotate, brush.vertices (indexed world positions; rebuilds convex hull), gen.prism, patch.create, face.material (numeric sides for convex brushes), entity.place, entity.update, brushEntity.assign, object.move, object.duplicate, object.delete, brush.carve (boxes only), gen.room, gen.corridor, gen.connect (join two rooms), gen.stairs, gen.teleporter, gen.jumppad.",
+      "Operations (fields in the guide): world.keys, box.create, box.update, convex.create, brush.rotate, brush.vertices (indexed world positions; rebuilds convex hull), gen.prism, patch.create, face.material (numeric sides for convex brushes), entity.place, entity.update, brushEntity.assign, editorGroup.create (editor-only object grouping), editorGroup.ungroup, object.move, object.duplicate, object.delete, brush.carve (boxes only), gen.room, gen.corridor, gen.connect (join two rooms), gen.stairs, gen.teleporter, gen.jumppad.",
       "Coordinates are Quake units with Z up. Returns created, changed and deleted IDs and Map Health issues.",
       "Use dryRun: true to preview without saving.",
     ].join(" "),

@@ -110,7 +110,7 @@ the whole document. Its fields, also accepted by CLI `query` in a JSON file:
 | --- | --- |
 | `bounds` | Optional `{min:{x,y,z}, max:{x,y,z}}`, Quake coordinates, Z up. |
 | `relation` | `intersects` (default, including touching boundaries) or `contained`. |
-| `kinds` | Optional array of `brush`, `patch`, `entity`, `brushEntity`. |
+| `kinds` | Optional array of `brush`, `patch`, `entity`, `brushEntity`, `editorGroup`. |
 | `ids` | Optional object-ID filter. |
 | `offset`, `limit` | Stable kind/ID ordering; default offset 0, limit 100, maximum limit 500. |
 
@@ -119,6 +119,14 @@ The result includes `revision`, `total`, `nextOffset` (null at the end) and
 also include `ownerId` when grouped. Patch control hulls and brush-group bounds
 are conservative; point entities use their origins, not model mesh extents.
 These queries inspect authored objects, not installed BSP collision or geometry.
+
+Editor groups live in the document's optional `editorGroups` metadata, with
+`id`, `name` and leaf `objectIds`. They survive JSON/sidecar saves but are absent
+from compiler `.map` source. Passing a group ID to move, duplicate or delete
+expands its members; a bare member ID addresses that object individually.
+Deleting members prunes groups and drops groups with fewer than two objects.
+Duplicating a complete group copies its metadata and any complete compiler
+brush entities. Partial API copies remain detached from compiler owners.
 
 When applying edits based on a read, pass `expectedRevision` to `shagged_apply`,
 or CLI `apply ... --expected-revision N`. A stale revision is rejected before
@@ -243,7 +251,9 @@ Texture search and automatic sizing use `SHAGGED_PUBLISH_ROOT` (default
 | `entity.place` | `id?`, `classname`, `origin`, `keys?` | Point entity. Keys are strings. |
 | `entity.update` | `id`, `classname?`, `origin?`, `keys?` | Keys merge; an empty string removes a key. |
 | `brushEntity.assign` | `id?`, `classname`, `brushIds`, `keys?` | Makes brushes a trigger/door/plat. `trigger_*` brushes get `common/trigger`. Never set `origin` or `model`. |
-| `object.move` | `ids`, `delta` | Brushes, entities (a brush entity moves its brushes), patches. |
+| `editorGroup.create` | `id?`, `objectIds`, `name?` | Saves a flat editor selection of at least two brushes, patches or point entities. Existing member groups merge; compiler ownership is unchanged. |
+| `editorGroup.ungroup` | `ids` | Removes editor group metadata by group ID or member ID, keeping its objects. |
+| `object.move` | `ids`, `delta` | Brushes, entities (a brush entity moves its brushes), patches and editor groups. Overlapping group/member IDs move each leaf once. |
 | `object.duplicate` | `ids`, `delta`, `suffix?` | Copies get `<id>-copy`, `<id>-copy-2`, … |
 | `object.delete` | `ids` | Deleting a brush entity's last brush removes the entity. |
 | `gen.room` | `id`, `min`, `max`, `wall?` (16), `shader?`, `floorShader?`, `ceilingShader?`, `openings?`, `light?` (300, or `false`) | Hollow room around the **interior** `min`..`max`; `min.z` is the floor surface. Adds a light. |

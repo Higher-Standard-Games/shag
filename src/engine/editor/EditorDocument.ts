@@ -80,6 +80,8 @@ export interface EditorDocumentData {
   entities: PointEntity[];
   /** Absent in drafts saved before brush entities existed; read as empty. */
   brushEntities?: BrushEntity[];
+  /** Flat editor-only selection groups; never emitted as compiler entities. */
+  editorGroups?: Array<{ id: string; name: string; objectIds: string[] }>;
 }
 /** Version 1 drafts had boxes and one optional test spawn. */
 export interface EditorDocumentDataV1 {
@@ -229,6 +231,32 @@ export function validateDocument(data: EditorDocumentData): void {
       owners.set(brushId, entity.id);
     }
   }
+  const objects = new Set([...data.brushes, ...(data.patches ?? []), ...data.entities].map((item) => item.id));
+  const grouped = new Set<string>();
+  if (data.editorGroups !== undefined && (!Array.isArray(data.editorGroups) || data.editorGroups.length > 20_000))
+    throw new Error("Invalid editor groups");
+  for (const group of data.editorGroups ?? []) {
+    if (!group || typeof group.id !== "string" || !group.id || ids.has(group.id))
+      throw new Error("Duplicate or missing editor group ID");
+    ids.add(group.id);
+    if (typeof group.name !== "string" || !group.name.trim() || group.name.length > 64)
+      throw new Error("Invalid editor group name");
+    if (!Array.isArray(group.objectIds) || group.objectIds.length < 2 || group.objectIds.length > 40_000)
+      throw new Error("Editor groups need at least two objects");
+    for (const id of group.objectIds) {
+      if (!objects.has(id) || grouped.has(id))
+        throw new Error("Editor group has missing, duplicate or already grouped objects");
+      grouped.add(id);
+    }
+  }
+}
+
+export function pruneEditorGroups(data: EditorDocumentData): void {
+  const present = new Set([...data.brushes, ...(data.patches ?? []), ...data.entities].map((item) => item.id));
+  if (data.editorGroups)
+    data.editorGroups = data.editorGroups
+      .map((group) => ({ ...group, objectIds: group.objectIds.filter((id) => present.has(id)) }))
+      .filter((group) => group.objectIds.length > 1);
 }
 
 const MAX_TEXTURE_SIZE = 16_384;

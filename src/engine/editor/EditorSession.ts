@@ -51,6 +51,14 @@ import { EditorDraftStore, type EditorViewState } from "./EditorDraftStore";
 import { drawBounds, moveBox } from "./EditorGesture";
 import { loadEditorModel, type ModelBounds, measureModel, placedBounds } from "./EditorModelAsset";
 import {
+  deleteSelection,
+  duplicateSelection,
+  expandSelection,
+  groupSelection,
+  moveSelection,
+  ungroupSelection,
+} from "./EditorSelection";
+import {
   PLANE_AXES as AXES,
   brushBounds,
   type EditorPlane as Plane,
@@ -100,7 +108,9 @@ const VIEW_MODES: ReadonlyArray<[ViewMode, string, string]> = [
 
 type Gesture = {
   plane: Plane;
-  mode: "draw" | "move" | "resize" | "point" | "vertex";
+  mode: "draw" | "move" | "resize" | "point" | "vertex" | "selection" | "marquee";
+  objectIds?: string[];
+  additive?: boolean;
   vertexIndices?: number[];
   drawKind?: "brush" | "patch";
   patchShape?: PatchShape;
@@ -280,7 +290,40 @@ export class EditorSession {
   private readonly draftStore = new EditorDraftStore(localStorage);
   private readonly statusEl: HTMLElement;
   private readonly inspector: HTMLElement;
-  private selectedId: string | null = null;
+  private readonly selectedIds = new Set<string>();
+  private primaryId: string | null = null;
+  private get selectedId(): string | null {
+    return this.primaryId;
+  }
+  private set selectedId(id: string | null) {
+    this.primaryId = id;
+    this.selectedIds.clear();
+    if (id) this.selectedIds.add(id);
+  }
+  private isSelected(id: string): boolean {
+    return this.selectedIds.has(id);
+  }
+  private selectionGhosts: Mesh[] = [];
+  private setSelection(ids: Iterable<string>): void {
+    const next = [...new Set(ids)];
+    if (next.length !== this.selectedIds.size || next.some((id) => !this.selectedIds.has(id)))
+      this.selectedFaces.clear();
+    this.selectedIds.clear();
+    for (const id of next) this.selectedIds.add(id);
+    this.primaryId = next[0] ?? null;
+  }
+  private selectObject(id: string | null, additive: boolean): void {
+    const members = id
+      ? expandSelection(this.document.snapshot(), [id], this.tool !== "vertices" && this.tool !== "points")
+      : [];
+    const next = new Set(additive ? this.selectedIds : []);
+    if (additive && members.every((member) => next.has(member))) for (const member of members) next.delete(member);
+    else for (const member of members) next.add(member);
+    this.setSelection(next);
+    this.rebuildMeshes();
+    this.draw();
+    this.trySaveView();
+  }
   private vertexOwner: string | null = null;
   private readonly selectedVertices = new Set<number>();
   private patchPoint = 4;
@@ -385,6 +428,7 @@ export class EditorSession {
           <button data-action="undo" title="Ctrl/Cmd+Z">Undo</button><button data-action="redo" title="Ctrl/Cmd+Shift+Z">Redo</button>
           <details class="shagged__menu"><summary>More</summary><div class="shagged__menu-panel">
             <button data-action="duplicate" title="Ctrl/Cmd+D">Duplicate</button><button data-action="delete" title="Delete">Delete</button>
+            <button data-action="group" title="Ctrl/Cmd+G">Group Selection</button><button data-action="ungroup" title="Ctrl/Cmd+Shift+G">Ungroup Selection</button>
           </div></details>
         </div>
         <div class="shagged__toolgroup" aria-label="Placement tools">
@@ -722,6 +766,7 @@ export class EditorSession {
       patchDepth: this.patchDepth,
       patchReverse: this.patchReverse,
       selectedId: this.selectedId,
+      selectedIds: [...this.selectedIds],
       draftName: this.draftName,
       serverSave: this.serverSave,
       activePlane: this.activePlane,
@@ -792,7 +837,7 @@ export class EditorSession {
     const colors: Color4[][] = [];
     for (const brush of data.brushes) {
       const owned = ownerColors.get(brush.id);
-      const [r, g, b] = brush.id === this.selectedId ? [1, 0.75, 0.2] : (owned ?? [0.1, 0.8, 0.9]);
+      const [r, g, b] = this.isSelected(brush.id) ? [1, 0.75, 0.2] : (owned ?? [0.1, 0.8, 0.9]);
       const color = new Color4(r, g, b, 1);
       if (brush.hull) {
         for (const [a, b] of hullEdges(brush)) {
@@ -1032,6 +1077,10 @@ export class EditorSession {
   private applyTexture(entry: TextureEntry, size: [number, number] | null): void {
     this.currentTexture = { name: entry.name, size };
     this.renderCurrentTexture();
+    if (this.selectedIds.size > 1) {
+      this.status("Current texture set; select one brush to edit its faces");
+      return;
+    }
     const brushId = this.document.snapshot().brushes.some((brush) => brush.id === this.selectedId)
       ? this.selectedId
       : null;
@@ -1105,7 +1154,7 @@ export class EditorSession {
   private toggleFace(brushId: string, key: BrushFace): void {
     const brush = this.document.snapshot().brushes.find((item) => item.id === brushId);
     if (!brush || !validBrushFace(brush, key)) return;
-    if (this.selectedId !== brushId) {
+    if (this.selectedId !== brushId || this.selectedIds.size > 1) {
       this.selectedFaces.clear();
       this.selectedId = brushId;
     }
@@ -1475,6 +1524,7 @@ export class EditorSession {
     this.workPlanes = { ...(view?.workPlanes ?? { x: 0, y: 0, z: 0 }) };
     this.activePlane = view?.activePlane ?? "xy";
     this.selectedId = this.exists(view?.selectedId) ? (view?.selectedId ?? null) : null;
+    if (view?.selectedIds) this.setSelection(view.selectedIds.filter((id) => this.exists(id)));
     this.viewMode = view?.viewMode ?? "textured";
     const camera = view?.camera;
     this.setPose(
@@ -1752,6 +1802,9 @@ export class EditorSession {
         case "entity":
           this.cancelGesture();
           this.tool = action;
+          if ((action === "vertices" || action === "points") && this.selectedIds.size > 1)
+            this.selectedId = this.primaryId;
+          this.rebuildMeshes();
           this.draw();
           this.trySaveView();
           break;
@@ -1766,20 +1819,39 @@ export class EditorSession {
           this.trySaveView();
           break;
         case "duplicate":
+          this.cancelGesture();
+          if (this.selectedIds.size > 1) {
+            let copied: string[] = [];
+            this.document.transact((data) => {
+              copied = duplicateSelection(data, this.selectedIds, { x: this.grid, y: 0, z: 0 }, () =>
+                crypto.randomUUID(),
+              );
+            });
+            this.setSelection(copied);
+            this.changed();
+            break;
+          }
           this.duplicateSelection();
           break;
+        case "group":
+          this.cancelGesture();
+          this.document.transact((data) => groupSelection(data, this.selectedIds, crypto.randomUUID()));
+          this.changed();
+          break;
+        case "ungroup":
+          this.cancelGesture();
+          this.document.transact((data) => ungroupSelection(data, this.selectedIds));
+          this.changed();
+          break;
         case "delete":
+          this.cancelGesture();
           if (this.tool === "vertices") {
             this.status("Switch to Select to delete the whole brush");
             break;
           }
           if (this.selectedId) {
-            const id = this.selectedId;
             this.document.transact((data) => {
-              data.brushes = data.brushes.filter((brush) => brush.id !== id);
-              data.patches = (data.patches ?? []).filter((patch) => patch.id !== id);
-              data.entities = data.entities.filter((entity) => entity.id !== id);
-              pruneBrushEntities(data);
+              deleteSelection(data, this.selectedIds);
             });
             this.selectedId = null;
             this.changed();
@@ -1854,6 +1926,9 @@ export class EditorSession {
       } else if (key === "d") {
         event.preventDefault();
         this.action("duplicate");
+      } else if (key === "g") {
+        event.preventDefault();
+        this.action(event.shiftKey ? "ungroup" : "group");
       }
       return;
     }
@@ -1923,7 +1998,7 @@ export class EditorSession {
       ...data.brushes.map((brush) => ({ id: brush.id, min: brush.min, max: brush.max })),
       ...data.entities.map((entity) => ({ id: entity.id, ...this.entityBox(entity) })),
       ...(data.patches ?? []).map((patch) => ({ id: patch.id, ...patchBounds(patch) })),
-    ].filter((box) => all || !this.selectedId || box.id === this.selectedId);
+    ].filter((box) => all || !this.selectedIds.size || this.isSelected(box.id));
     const bounds = brushBounds(boxes);
     if (!bounds) {
       this.status("Nothing to frame");
@@ -2018,6 +2093,10 @@ export class EditorSession {
       ? (pick.pickedMesh?.metadata?.editorEntityId ?? pick.pickedMesh?.name ?? null)
       : null;
     const brush = hitId ? this.document.snapshot().brushes.find((item) => item.id === hitId) : undefined;
+    if ((event.ctrlKey || event.metaKey) && !event.shiftKey && !event.altKey) {
+      if (hitId) this.selectObject(hitId, true);
+      return;
+    }
     if (brush?.hull && (event.altKey || event.shiftKey)) {
       const side: unknown = pick?.pickedMesh?.metadata?.convexFaceIndices?.[pick.faceId];
       if (typeof side === "number" && validBrushFace(brush, side)) {
@@ -2035,10 +2114,7 @@ export class EditorSession {
       return;
     }
     this.selectedFaces.clear();
-    this.selectedId = hitId;
-    this.rebuildMeshes();
-    this.draw();
-    this.trySaveView();
+    this.selectObject(hitId, false);
   }
 
   private pointerDown(plane: Plane, event: PointerEvent): void {
@@ -2138,6 +2214,41 @@ export class EditorSession {
       return;
     }
     const { entityHit, hit, patchHit, onSelection, edge } = this.pressTarget(plane, u, v);
+    const targetId = entityHit?.id ?? patchHit?.id ?? hit?.id ?? null;
+    if ((event.ctrlKey || event.metaKey) && targetId) {
+      this.selectObject(targetId, true);
+      return;
+    }
+    if (this.tool === "select" && !targetId) {
+      this.gesture = {
+        plane,
+        mode: "marquee",
+        start,
+        current: start,
+        additive: event.ctrlKey || event.metaKey,
+        workPlane: this.workPlanes[axes.hidden],
+        grid: this.grid,
+      };
+      this.draw();
+      return;
+    }
+    if (targetId && (this.tool === "select" || (this.tool === "brush" && onSelection))) {
+      if (!this.isSelected(targetId)) this.selectObject(targetId, false);
+      if (this.selectedIds.size > 1 || patchHit) {
+        this.gesture = {
+          plane,
+          mode: "selection",
+          start,
+          current: start,
+          objectIds: [...this.selectedIds],
+          workPlane: this.workPlanes[axes.hidden],
+          grid: this.grid,
+        };
+        pane.style.cursor = "grabbing";
+        this.draw();
+        return;
+      }
+    }
     if (this.tool === "select" || (this.tool === "brush" && onSelection) || patchHit) {
       if (!onSelection) this.selectedFaces.clear();
       this.selectedId = entityHit?.id ?? patchHit?.id ?? hit?.id ?? null;
@@ -2255,6 +2366,34 @@ export class EditorSession {
     queueMicrotask(() => this.updateCursor(plane, event));
     const [u0, v0] = gesture.start;
     const [u1, v1] = gesture.current;
+    if (gesture.mode === "marquee") {
+      if (u0 === u1 && v0 === v1) {
+        if (!gesture.additive) this.setSelection([]);
+        this.rebuildMeshes();
+        this.draw();
+        this.trySaveView();
+        return;
+      }
+      const axes = AXES[plane],
+        minU = Math.min(u0, u1),
+        maxU = Math.max(u0, u1),
+        minV = Math.min(v0, v1),
+        maxV = Math.max(v0, v1);
+      const data = this.document.snapshot();
+      const boxes = [
+        ...data.brushes,
+        ...(data.patches ?? []).map((p) => ({ id: p.id, ...patchBounds(p) })),
+        ...data.entities.map((e) => ({ id: e.id, ...this.entityBox(e) })),
+      ];
+      const hits = boxes
+        .filter((b) => b.min[axes.u] <= maxU && b.max[axes.u] >= minU && b.min[axes.v] <= maxV && b.max[axes.v] >= minV)
+        .map((b) => b.id);
+      this.setSelection([...(gesture.additive ? this.selectedIds : []), ...expandSelection(data, hits, true)]);
+      this.rebuildMeshes();
+      this.draw();
+      this.trySaveView();
+      return;
+    }
     if (u0 === u1 && v0 === v1) {
       // A Brush-tool click that drew nothing selects what is under it, or clears the selection.
       if (gesture.mode === "draw") this.clickSelect(plane, event);
@@ -2262,6 +2401,23 @@ export class EditorSession {
       return;
     }
     const axes = AXES[plane];
+    if (gesture.mode === "selection") {
+      try {
+        this.document.transact((data) =>
+          moveSelection(data, gesture.objectIds ?? [], {
+            x: 0,
+            y: 0,
+            z: 0,
+            ...{ [axes.u]: u1 - u0, [axes.v]: v1 - v0 },
+          }),
+        );
+        this.changed();
+      } catch (error) {
+        this.draw();
+        this.status(`Move rejected: ${error instanceof Error ? error.message : String(error)}`);
+      }
+      return;
+    }
     if (gesture.mode === "vertex" && gesture.brush) {
       this.commitVertexEdits(gesture.brush, this.vertexGestureEdits(gesture));
       return;
@@ -2369,7 +2525,7 @@ export class EditorSession {
     const hit =
       entityHit || patchHit ? undefined : [...data.brushes].reverse().find((brush) => inRect(u, v, brush, plane));
     const target = entityHit ?? patchHit ?? hit;
-    const onSelection = target !== undefined && target.id === this.selectedId;
+    const onSelection = target !== undefined && this.isSelected(target.id);
     const grabs =
       !patchHit && target !== undefined && (this.tool === "select" || (this.tool === "brush" && onSelection));
     const edge = grabs && hit ? pickResizeEdge(hit, axes.u, axes.v, u, v, 8 / this.zoom) : null;
@@ -2398,7 +2554,8 @@ export class EditorSession {
       return;
     }
     const { grabs, edge } = this.pressTarget(plane, u, v);
-    pane.style.cursor = edge ? resizeCursor(edge, AXES[plane].u) : grabs ? "grab" : "";
+    pane.style.cursor =
+      grabs && this.selectedIds.size > 1 ? "grab" : edge ? resizeCursor(edge, AXES[plane].u) : grabs ? "grab" : "";
   }
 
   private clickSelect(plane: Plane, event: PointerEvent): void {
@@ -2415,10 +2572,7 @@ export class EditorSession {
       return;
     }
     if (hit.id !== this.selectedId) this.selectedFaces.clear();
-    this.selectedId = hit.id;
-    this.rebuildMeshes();
-    this.draw();
-    this.trySaveView();
+    this.selectObject(hit.id, false);
   }
 
   private cancelGesture(): void {
@@ -2499,6 +2653,7 @@ export class EditorSession {
   }
 
   private changed(): void {
+    this.setSelection([...this.selectedIds].filter((id) => this.exists(id)));
     if (this.selectedId && !this.exists(this.selectedId)) this.selectedId = null;
     if (!this.selectedId) this.selectedFaces.clear();
     const brush = this.document.snapshot().brushes.find((item) => item.id === this.selectedId);
@@ -2684,13 +2839,12 @@ export class EditorSession {
         );
       const material = new StandardMaterial(`editor-${brush.id}`, this.scene);
       const owned = ownerColors.get(brush.id);
-      material.diffuseColor =
-        brush.id === this.selectedId
-          ? new Color3(1, 0.75, 0.2)
-          : owned
-            ? new Color3(...owned)
-            : new Color3(0.1, 0.8, 0.9);
-      const selected = brush.id === this.selectedId;
+      material.diffuseColor = this.isSelected(brush.id)
+        ? new Color3(1, 0.75, 0.2)
+        : owned
+          ? new Color3(...owned)
+          : new Color3(0.1, 0.8, 0.9);
+      const selected = this.isSelected(brush.id);
       if (this.texturedReady) {
         // a tint over the textured faces for the selection and brush entities, pulled forward so it doesn't
         // z-fight; selected faces have their own overlay, so the brush tint steps aside for them
@@ -2713,7 +2867,7 @@ export class EditorSession {
     for (const patch of data.patches ?? []) {
       this.meshes.set(
         patch.id,
-        createPatchPreview(patch, this.scene, patch.id === this.selectedId, this.viewMode === "wireframe"),
+        createPatchPreview(patch, this.scene, this.isSelected(patch.id), this.viewMode === "wireframe"),
       );
     }
     this.syncTexturedMeshes(data);
@@ -2728,10 +2882,10 @@ export class EditorSession {
       mesh.position = new Vector3((min.x + max.x) / 2, (min.z + max.z) / 2, (min.y + max.y) / 2);
       const material = new StandardMaterial(`editor-${entity.id}`, this.scene);
       const [r, g, b] = entityClass(entity.classname).color;
-      material.diffuseColor = entity.id === this.selectedId ? new Color3(1, 0.75, 0.2) : new Color3(r, g, b);
+      material.diffuseColor = this.isSelected(entity.id) ? new Color3(1, 0.75, 0.2) : new Color3(r, g, b);
       material.emissiveColor = new Color3(r * 0.35, g * 0.35, b * 0.35);
       // a loaded model shows through its box; the box stays for picking and the selection tint
-      if (this.modelPreviews.has(entity.id)) material.alpha = entity.id === this.selectedId ? 0.25 : 0.08;
+      if (this.modelPreviews.has(entity.id)) material.alpha = this.isSelected(entity.id) ? 0.25 : 0.08;
       mesh.material = material;
       mesh.enableEdgesRendering();
       mesh.edgesWidth = 2;
@@ -2901,6 +3055,70 @@ export class EditorSession {
     return moveBox(gesture.brush, axes, gesture.current[0] - gesture.start[0], gesture.current[1] - gesture.start[1]);
   }
 
+  private selectionPreview(data: EditorDocumentData): EditorDocumentData {
+    if (this.gesture?.mode !== "selection") return data;
+    const axes = AXES[this.gesture.plane],
+      du = this.gesture.current[0] - this.gesture.start[0],
+      dv = this.gesture.current[1] - this.gesture.start[1];
+    const preview = structuredClone(data);
+    try {
+      moveSelection(preview, this.gesture.objectIds ?? [], { x: 0, y: 0, z: 0, ...{ [axes.u]: du, [axes.v]: dv } });
+      return preview;
+    } catch {
+      return data;
+    }
+  }
+
+  private syncSelectionGhosts(data: EditorDocumentData): void {
+    for (const mesh of this.selectionGhosts) {
+      mesh.material?.dispose();
+      mesh.dispose();
+    }
+    this.selectionGhosts = [];
+    for (const model of this.modelPreviews.values()) model.setEnabled(true);
+    if (this.gesture?.mode !== "selection") return;
+    for (const id of this.gesture.objectIds ?? []) {
+      const original = this.meshes.get(id);
+      if (original) original.isVisible = false;
+      this.modelPreviews.get(id)?.setEnabled(false);
+      const brush = data.brushes.find((item) => item.id === id),
+        patch = data.patches?.find((item) => item.id === id),
+        entity = data.entities.find((item) => item.id === id);
+      let mesh: Mesh;
+      if (patch) mesh = createPatchPreview(patch, this.scene, true, this.viewMode === "wireframe");
+      else if (brush?.hull) mesh = createConvexPreview(brush, this.scene, `selection-${id}`);
+      else {
+        const bounds = brush ?? (entity ? this.entityBox(entity) : null);
+        if (!bounds) continue;
+        mesh = MeshBuilder.CreateBox(
+          `selection-${id}`,
+          {
+            width: bounds.max.x - bounds.min.x,
+            height: bounds.max.z - bounds.min.z,
+            depth: bounds.max.y - bounds.min.y,
+          },
+          this.scene,
+        );
+        mesh.position.set(
+          (bounds.min.x + bounds.max.x) / 2,
+          (bounds.min.z + bounds.max.z) / 2,
+          (bounds.min.y + bounds.max.y) / 2,
+        );
+      }
+      mesh.material?.dispose();
+      const material = new StandardMaterial(`selection-material-${id}`, this.scene);
+      material.diffuseColor = new Color3(1, 0.78, 0.17);
+      material.alpha = 0.4;
+      material.backFaceCulling = false;
+      mesh.material = material;
+      mesh.isPickable = false;
+      mesh.enableEdgesRendering();
+      mesh.edgesColor = new Color4(1, 0.85, 0.28, 1);
+      mesh.edgesWidth = 3;
+      this.selectionGhosts.push(mesh);
+    }
+  }
+
   private disposeGhost(): void {
     if (!this.ghost) return;
     this.ghost.material?.dispose();
@@ -3001,7 +3219,7 @@ export class EditorSession {
   }
 
   private draw(): void {
-    const data = this.document.snapshot();
+    const data = this.selectionPreview(this.document.snapshot());
     if (this.vertexOwner !== this.selectedId) {
       this.vertexOwner = this.selectedId;
       this.selectedVertices.clear();
@@ -3056,7 +3274,7 @@ export class EditorSession {
         ctx.lineWidth = selected ? 2 : 1;
         ctx.fillRect(x, y, rw, rh);
         ctx.strokeRect(x, y, rw, rh);
-        if (selected && this.tool !== "vertices") {
+        if (selected && this.selectedIds.size === 1 && this.tool !== "vertices") {
           ctx.fillStyle = "#fff3bd";
           for (const [hx, hy] of [
             // edge midpoints: drag one axis
@@ -3077,9 +3295,9 @@ export class EditorSession {
         const edited = this.gesture?.mode !== "draw" && this.gesture?.brush?.id === brush.id && preview;
         if (brush.hull || (edited && preview.hull)) {
           const shape = edited ? preview : brush;
-          if (brush.id === this.selectedId) paint(shape.min, shape.max, true, ownerColors.get(brush.id));
-          ctx.strokeStyle = brush.id === this.selectedId ? "#ffd06b" : "#18c8df";
-          ctx.lineWidth = brush.id === this.selectedId ? 2 : 1;
+          if (this.isSelected(brush.id)) paint(shape.min, shape.max, true, ownerColors.get(brush.id));
+          ctx.strokeStyle = this.isSelected(brush.id) ? "#ffd06b" : "#18c8df";
+          ctx.lineWidth = this.isSelected(brush.id) ? 2 : 1;
           for (const [a, b] of hullEdges(shape)) {
             ctx.beginPath();
             ctx.moveTo(originX + a[axes.u] * this.zoom, originY - a[axes.v] * this.zoom);
@@ -3091,7 +3309,7 @@ export class EditorSession {
         paint(
           edited ? preview.min : brush.min,
           edited ? preview.max : brush.max,
-          !!edited || brush.id === this.selectedId,
+          !!edited || this.isSelected(brush.id),
           ownerColors.get(brush.id),
         );
       }
@@ -3125,7 +3343,7 @@ export class EditorSession {
       }
       for (const patch of data.patches ?? []) {
         if (this.gesture?.mode === "point" && patchPreview?.id === patch.id) continue;
-        drawPatchLattice(ctx, patch, plane, originX, originY, this.zoom, patch.id === this.selectedId);
+        drawPatchLattice(ctx, patch, plane, originX, originY, this.zoom, this.isSelected(patch.id));
       }
       if (patchPreview) drawPatchLattice(ctx, patchPreview, plane, originX, originY, this.zoom, true);
       if (this.tool === "points") {
@@ -3139,6 +3357,20 @@ export class EditorSession {
       }
       if (this.gesture?.mode === "draw" && preview) paint(preview.min, preview.max, true);
       if (this.gesture?.plane === plane) {
+        if (this.gesture.mode === "marquee") {
+          const [u0, v0] = this.gesture.start,
+            [u1, v1] = this.gesture.current;
+          ctx.strokeStyle = "#baff39";
+          ctx.lineWidth = 2;
+          ctx.setLineDash?.([6, 4]);
+          ctx.strokeRect(
+            originX + Math.min(u0, u1) * this.zoom,
+            originY - Math.max(v0, v1) * this.zoom,
+            Math.abs(u1 - u0) * this.zoom,
+            Math.abs(v1 - v0) * this.zoom,
+          );
+          ctx.setLineDash?.([]);
+        }
         // The gesture's current point is already grid-snapped (coordinates() does that); marking it
         // here, not just wherever the raw pointer sits, confirms exactly where the edit will land.
         const cx = originX + this.gesture.current[0] * this.zoom;
@@ -3265,7 +3497,7 @@ export class EditorSession {
           ? moveEntity(original, axes, moving.current[0] - moving.start[0], moving.current[1] - moving.start[1])
           : original;
         const { min, max } = this.entityBox(entity);
-        const selected = entity.id === this.selectedId || !!moving;
+        const selected = this.isSelected(entity.id) || !!moving;
         const color = entityClass(entity.classname).color;
         const x = originX + min[axes.u] * this.zoom;
         const y = originY - max[axes.v] * this.zoom;
@@ -3287,6 +3519,7 @@ export class EditorSession {
       }
     }
     this.syncGhost(preview);
+    this.syncSelectionGhosts(data);
     this.syncPatchGhost(patchPreview);
     this.syncFaceOverlays(data);
     this.renderInspector(data);
@@ -3319,9 +3552,13 @@ export class EditorSession {
 
   /** Rebuilt only when the selection or the document changes, so a pan or zoom keeps a half-typed value. */
   private renderInspector(data: EditorDocumentData): void {
-    const key = `${data.draftId}|${this.selectedId ?? ""}|${data.revision}|${[...this.selectedFaces].sort().join(",")}|${this.tool}|${[...this.selectedVertices].sort().join(",")}`;
+    const key = `${data.draftId}|${[...this.selectedIds].join(",")}|${data.revision}|${[...this.selectedFaces].sort().join(",")}|${this.tool}|${[...this.selectedVertices].sort().join(",")}`;
     if (key === this.inspectorKey) return;
     this.inspectorKey = key;
+    if (this.selectedIds.size > 1) {
+      this.renderSelectionInspector(data);
+      return;
+    }
     const selected = data.brushes.find((brush) => brush.id === this.selectedId);
     const patch = (data.patches ?? []).find((item) => item.id === this.selectedId);
     if (patch) {
@@ -3444,6 +3681,50 @@ export class EditorSession {
     }
     this.inspector.textContent =
       "Drag in an orthographic pane to draw a brush. Entity (E) places the class picked in the toolbar. Select (V) moves either.";
+  }
+
+  private renderSelectionInspector(data: EditorDocumentData): void {
+    const group = data.editorGroups?.find(
+      (group) => group.objectIds.length === this.selectedIds.size && group.objectIds.every((id) => this.isSelected(id)),
+    );
+    this.inspector.innerHTML = `<h2>${this.selectedIds.size} objects selected</h2><p data-selection-name></p><p>Drag any selected object in a 2D pane to move the selection. Ctrl+click toggles objects; drag empty space with Select for a marquee.</p>
+      <form data-selection-move>${["x", "y", "z"].map((axis) => `<label class="shagged__shader">Move ${axis.toUpperCase()} <input name="delta-${axis}" type="number" step="any" value="0" required></label>`).join("")}<button type="submit">Move Selection</button></form>
+      <label class="shagged__shader">Group name <input data-group-name maxlength="64" required></label><button type="button" data-create-group>Group Selection</button><button type="button" data-action="ungroup">Ungroup</button>
+      <p>Groups are editor selections; compiler brush entities keep their ownership. Rotate, resize and face tools edit individual objects.</p>`;
+    this.inspector.querySelector("[data-selection-name]")!.textContent = group
+      ? `Group: ${group.name}`
+      : "Multiple objects";
+    const name = this.inspector.querySelector<HTMLInputElement>("[data-group-name]")!;
+    name.value = group?.name ?? "Group";
+    this.inspector.querySelector("[data-create-group]")!.addEventListener("click", () => {
+      try {
+        this.cancelGesture();
+        this.document.transact((draft) =>
+          groupSelection(draft, this.selectedIds, group?.id ?? crypto.randomUUID(), name.value.trim()),
+        );
+        this.changed();
+      } catch (error) {
+        this.status(`Group rejected: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    });
+    this.inspector.querySelector("[data-selection-move]")!.addEventListener("submit", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const values = new FormData(event.target as HTMLFormElement);
+      try {
+        this.cancelGesture();
+        this.document.transact((draft) =>
+          moveSelection(draft, this.selectedIds, {
+            x: Number(values.get("delta-x")),
+            y: Number(values.get("delta-y")),
+            z: Number(values.get("delta-z")),
+          }),
+        );
+        this.changed();
+      } catch (error) {
+        this.status(`Move rejected: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    });
   }
 
   /**

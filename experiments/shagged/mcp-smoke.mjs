@@ -39,6 +39,22 @@ try{
  let offset=0,transcript='';
  for(;;){const page=await call(b,'shagged_compile_log',{jobId:first.jobId,offset,limit:4096});transcript+=page.text;offset=page.nextOffset;if(offset>=page.size)break;}
  assert(transcript.includes('SHAGGED stage: makebsp')&&transcript.includes('Compiled FBSP v1'));
+ let groups;
+ if(process.argv.includes('--groups')) {
+  const document=(await call(a,'shagged_read_document',{mapName})).document;
+  const objectIds=document.brushes.slice(0,2).map(brush=>brush.id);
+  const savedRoot=path.join(root,'maps',mapName),before=JSON.parse(fs.readFileSync(path.join(savedRoot,'current.json'),'utf8'));
+  await call(a,'shagged_apply',{mapName,expectedRevision:document.revision,ops:[{op:'editorGroup.create',id:'qa_assembly',name:'Assembly',objectIds}]});
+  const grouped=await call(a,'shagged_query_objects',{mapName,kinds:['editorGroup']});
+  assert.equal(grouped.total,1);assert.deepEqual(grouped.objects[0].data.objectIds,objectIds);
+  await call(a,'shagged_compile',{mapName,quality:'fast'});
+  const after=JSON.parse(fs.readFileSync(path.join(savedRoot,'current.json'),'utf8'));
+  assert.equal(after.sourceHash,before.sourceHash);assert(after.revision>before.revision);
+  const sidecar=JSON.parse(fs.readFileSync(path.join(savedRoot,'revisions',after.snapshot,'editor.json'),'utf8'));
+  assert.equal(sidecar.editorGroups[0].name,'Assembly');
+  await call(a,'shagged_apply',{mapName,ops:[{op:'object.duplicate',ids:['qa_assembly'],delta:{x:16,y:0,z:0}},{op:'editorGroup.ungroup',ids:['qa_assembly-copy']},{op:'object.delete',ids:objectIds.map(id=>id+'-copy')}]});
+  groups={query:true,unchangedCompilerSource:true,newSidecarRevision:true,duplicateUngroupDelete:true};
+ }
  const initial=(await call(a,'shagged_read_document',{mapName})).document;
  const controls=[0,1,2].map(row=>[0,1,2].map(col=>({x:col*8,y:row*8,z:160,u:col/2,v:row/2})));
  await call(a,'shagged_apply',{mapName,expectedRevision:initial.revision,ops:[
@@ -70,6 +86,6 @@ try{
  assert.equal(stale.code,1);assert.equal(stale.body.error,'Map revision conflict');assert.equal(fs.readFileSync(file,'utf8'),before);
  const cliConcurrent=await Promise.all([cli(['apply',file,opsFile,'--expected-revision',String(current.revision)]),cli(['apply',file,opsFile,'--expected-revision',String(current.revision)])]);
  assert.equal(cliConcurrent.filter(result=>result.code===0).length,1);assert.equal(JSON.parse(fs.readFileSync(file,'utf8')).revision,current.revision+1);
- const summary={ok:true,mapName,first:first.packageName,reused:reuse.reused,forced:forced.packageName,transcriptBytes:offset,inspection:{patches:info.patches.length,spatialMatches:query.total,pagedObjects:ids.length,concurrentWinners:1,cliRoundTrip:true,staleCliRejected:true,cliConcurrentWinners:1}};
+ const summary={ok:true,mapName,first:first.packageName,reused:reuse.reused,forced:forced.packageName,transcriptBytes:offset,groups,inspection:{patches:info.patches.length,spatialMatches:query.total,pagedObjects:ids.length,concurrentWinners:1,cliRoundTrip:true,staleCliRejected:true,cliConcurrentWinners:1}};
  fs.writeFileSync(path.join(root,'report.json'),JSON.stringify(summary,null,2)+'\n');console.log(JSON.stringify(summary,null,2));
 }finally{await Promise.allSettled(clients.map(client=>client.close()));}

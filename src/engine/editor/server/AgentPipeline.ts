@@ -66,6 +66,7 @@ export function describeDocument(doc: EditorDocumentData, objects = false) {
       patches: doc.patches?.length ?? 0,
       entities: doc.entities.length,
       brushEntities: doc.brushEntities?.length ?? 0,
+      editorGroups: doc.editorGroups?.length ?? 0,
     },
     entityClasses: classes,
     bounds: bounds(doc),
@@ -75,6 +76,7 @@ export function describeDocument(doc: EditorDocumentData, objects = false) {
           patches: structuredClone(doc.patches ?? []),
           entities: structuredClone(doc.entities),
           brushEntities: structuredClone(doc.brushEntities ?? []),
+          editorGroups: structuredClone(doc.editorGroups ?? []),
         }
       : {}),
   };
@@ -193,7 +195,9 @@ export async function compileDocument(
   const current = await store.load(name);
   const source = writeMap(doc);
   const saved =
-    current && current.source === source ? current : await store.save(name, source, current?.revision ?? 0, doc);
+    current && current.source === source && JSON.stringify(current.sidecar) === JSON.stringify(doc)
+      ? current
+      : await store.save(name, source, current?.revision ?? 0, doc);
   const jobs = new CompileJobs(
     store,
     compiler,

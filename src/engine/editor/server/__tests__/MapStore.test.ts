@@ -20,6 +20,27 @@ async function store(): Promise<MapStore> {
 }
 
 describe("SHAGGED server map storage", () => {
+  it("retains editor-only groups even when exported compiler source is unchanged", async () => {
+    const maps = await store();
+    const data = new EditorDocument().snapshot();
+    data.brushes = [0, 128].map((x, i) => ({
+      id: `box-${i}`,
+      min: { x, y: 0, z: 0 },
+      max: { x: x + 64, y: 64, z: 64 },
+      shader: "common/caulk",
+    }));
+    const source = writeMap(data);
+    await maps.save("grouped_room", source, 0, data);
+    data.editorGroups = [
+      { id: "assembly", name: "Assembly", objectIds: data.brushes.slice(0, 2).map((brush) => brush.id) },
+    ];
+    expect(writeMap(data)).toBe(source);
+    await maps.save("grouped_room", source, 1, data);
+    const restored = await new MapStore(maps.root).load("grouped_room");
+    expect(restored?.revision).toBe(2);
+    expect(restored?.sidecar?.editorGroups).toEqual(data.editorGroups);
+  });
+
   it("keeps numbered source and matching editor sidecar through a restart", async () => {
     const maps = await store();
     const data = new EditorDocument().snapshot();

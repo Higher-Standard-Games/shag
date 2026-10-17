@@ -85,10 +85,40 @@ try{
     assert.equal(await browser.ev(`JSON.stringify(window.__convexQA.session.document.snapshot().brushes.find(b=>b.id==='bridge'))===window.__lockUndoBefore`),true);
     textureLock={rotationDrift,resizeDrift,skew,undo:true};
   }
+  let selection;
+  if(process.argv.includes('--selection')) {
+    await browser.click('[data-action="select"]');
+    const points=await browser.ev(`(()=>{const s=window.__convexQA.session,r=s.root.querySelector('[data-plane="xy"]').getBoundingClientRect();window.__selectionBefore=JSON.stringify(s.document.snapshot().brushes);return {bridge:{x:r.left+r.width/2-s.viewCenter.x*s.zoom,y:r.top+r.height/2+s.viewCenter.y*s.zoom},platform:{x:r.left+r.width/2+(140-s.viewCenter.x)*s.zoom,y:r.top+r.height/2-(64-s.viewCenter.y)*s.zoom},dx:16*s.zoom}})()`);
+    const clickPoint=async(p,modifiers=0)=>{for(const type of ['mousePressed','mouseReleased'])await browser.send('Input.dispatchMouseEvent',{type,x:p.x,y:p.y,button:'left',clickCount:1,modifiers});};
+    await clickPoint(points.bridge);await clickPoint(points.platform,2);
+    assert.equal(await browser.ev('window.__convexQA.session.selectedIds.size'),2);
+    await browser.send('Input.dispatchMouseEvent',{type:'mousePressed',...points.bridge,button:'left',clickCount:1});
+    await browser.send('Input.dispatchMouseEvent',{type:'mouseMoved',x:points.bridge.x+points.dx,y:points.bridge.y,button:'left',buttons:1});
+    await browser.send('Input.dispatchMouseEvent',{type:'mouseReleased',x:points.bridge.x+points.dx,y:points.bridge.y,button:'left',clickCount:1});
+    const moved=await browser.ev(`(()=>{const before=JSON.parse(window.__selectionBefore),after=window.__convexQA.session.document.snapshot().brushes;return after.map((b,i)=>({id:b.id,dx:b.min.x-before[i].min.x}))})()`);
+    assert(moved.every(b=>Math.abs(b.dx-(['bridge','platform'].includes(b.id)?16:0))<1e-6),JSON.stringify(moved));
+    await browser.click('[data-action="undo"]');
+    assert.equal(await browser.ev('JSON.stringify(window.__convexQA.session.document.snapshot().brushes)===window.__selectionBefore'),true);
+    const facePoint=await browser.ev(`(async()=>{const {convexFaceProbePoint}=await import('/experiments/shagged/convex-browser-fixture.ts');return convexFaceProbePoint()})()`);
+    await clickPoint(facePoint,2);assert.equal(await browser.ev('window.__convexQA.session.selectedIds.size'),1);
+    await clickPoint(facePoint,2);assert.equal(await browser.ev('window.__convexQA.session.selectedIds.size'),2);
+    await browser.ev('window.__convexQA.session.root.querySelector("[data-group-name]").value="Reactor assembly"');
+    await browser.click('[data-create-group]');
+    await clickPoint(points.bridge);
+    assert.equal(await browser.ev('window.__convexQA.session.selectedIds.size'),2);
+    await sleep(300);await browser.shot(path.resolve('.cache/shagged-selection.png'));
+    await browser.click('[data-action="duplicate"]');
+    assert.equal(await browser.ev('window.__convexQA.session.document.snapshot().editorGroups.length'),2);
+    await browser.click('[data-action="delete"]');
+    assert.equal(await browser.ev('window.__convexQA.session.document.snapshot().brushes.length'),4);
+    await browser.click('[data-action="undo"]');
+    assert.equal(await browser.ev('window.__convexQA.session.document.snapshot().brushes.length'),6);
+    selection={native2DCtrlClick:true,native3DCtrlClick:true,moved,undo:true,groups:true,duplicateDelete:true};
+  }
   const errors=browser.logs.filter(entry=>/shader.*error|WebGL.*error|exception/i.test(JSON.stringify(entry)));
   assert.equal(errors.length,0,JSON.stringify(errors));
   assert.equal(browser.failed.length,0,JSON.stringify(browser.failed));
-  fs.writeFileSync(`.cache/shagged-${textureLock?'texture-lock':faces?'faces':vertices?'vertices':'convex'}-browser-report.json`,JSON.stringify({ok:true,result,textured,vertices,faces,textureLock,logs:browser.logs,failed:browser.failed},null,2));
-  console.log(JSON.stringify({ok:true,...result,vertices,faces,textureLock},null,2));
+  fs.writeFileSync(`.cache/shagged-${selection?'selection':textureLock?'texture-lock':faces?'faces':vertices?'vertices':'convex'}-browser-report.json`,JSON.stringify({ok:true,result,textured,vertices,faces,textureLock,selection,logs:browser.logs,failed:browser.failed},null,2));
+  console.log(JSON.stringify({ok:true,...result,vertices,faces,textureLock,selection},null,2));
   await browser.ev('window.__convexQA.engine.stopRenderLoop();window.__convexQA.session.dispose();window.__convexQA.engine.dispose();');
 }finally{if(browser)await browser.close();vite.kill();}

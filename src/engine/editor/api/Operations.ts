@@ -18,9 +18,11 @@ import {
   migrateDocument,
   type PatchSurface,
   pruneBrushEntities,
+  pruneEditorGroups,
   type Vec3q,
   validateDocument,
 } from "../EditorDocument";
+import { duplicateSelection, groupSelection, moveSelection, ungroupSelection } from "../EditorSelection";
 import { brushEntityShader } from "../EntityCatalog";
 import { naturalFace } from "../FaceUv";
 import { inspectMapHealth, type MapHealthIssue } from "../MapHealth";
@@ -66,6 +68,8 @@ export type EditOp =
   | { op: "brush.rotate"; id: string; axis: keyof Vec3q; degrees: number; pivot?: Vec3q }
   | { op: "brush.vertices"; id: string; edits: VertexEdit[] }
   | { op: "world.keys"; keys: Record<string, string> }
+  | { op: "editorGroup.create"; id?: string; objectIds: string[]; name?: string }
+  | { op: "editorGroup.ungroup"; ids: string[] }
   | ({ op: "patch.create" } & Omit<PatchSurface, "id"> & { id?: string })
   | ({ op: "box.create"; id?: string; min: Vec3q; max: Vec3q; shader?: string; detail?: boolean } & CreationMaterials)
   | { op: "box.update"; id: string; min?: Vec3q; max?: Vec3q; shader?: string; detail?: boolean }
@@ -126,6 +130,7 @@ export function applyOperations(input: EditorDocumentData, ops: readonly EditOp[
       applyOne(doc, op, changed);
       // Validate after every operation so an error names the one that caused it.
       pruneBrushEntities(doc);
+      pruneEditorGroups(doc);
       validateDocument(doc);
     } catch (error) {
       if (error instanceof OperationError) throw error;
@@ -172,6 +177,7 @@ function allIds(doc: EditorDocumentData): string[] {
     ...(doc.patches ?? []).map((p) => p.id),
     ...doc.entities.map((e) => e.id),
     ...(doc.brushEntities ?? []).map((e) => e.id),
+    ...(doc.editorGroups ?? []).map((group) => group.id),
   ];
 }
 
@@ -212,6 +218,15 @@ const add = (a: Vec3q, b: Vec3q): Vec3q => ({ x: a.x + b.x, y: a.y + b.y, z: a.z
 
 function applyOne(doc: EditorDocumentData, op: EditOp, changed: Set<string>): void {
   switch (op.op) {
+    case "editorGroup.create": {
+      const id = claimId(doc, op.id, "group");
+      groupSelection(doc, op.objectIds, id, op.name);
+      return;
+    }
+    case "editorGroup.ungroup": {
+      ungroupSelection(doc, op.ids);
+      return;
+    }
     case "convex.create": {
       const id = claimId(doc, op.id, "brush");
       doc.brushes.push(
@@ -345,23 +360,43 @@ function applyOne(doc: EditorDocumentData, op: EditOp, changed: Set<string>): vo
     }
     case "object.move": {
       const delta = vec(op.delta, "delta");
-      for (const id of op.ids) moveObject(doc, id, delta);
+      moveSelection(doc, op.ids, delta);
       for (const id of op.ids) changed.add(id);
       return;
     }
     case "object.duplicate": {
       const delta = vec(op.delta, "delta");
       const suffix = op.suffix ?? "copy";
+      if (op.ids.some((id) => doc.editorGroups?.some((group) => group.id === id))) {
+        const reserved = new Set(allIds(doc));
+        duplicateSelection(
+          doc,
+          op.ids,
+          delta,
+          (source) => {
+            let id = `${source}-${suffix}`,
+              index = 2;
+            while (reserved.has(id)) id = `${source}-${suffix}-${index++}`;
+            reserved.add(id);
+            return id;
+          },
+          false,
+        );
+        return;
+      }
       for (const id of op.ids) duplicateObject(doc, id, delta, suffix);
       return;
     }
     case "object.delete": {
       const ids = new Set(op.ids);
       for (const id of ids) if (!allIds(doc).includes(id)) throw new Error(`no object "${id}"`);
+      for (const group of doc.editorGroups ?? [])
+        if (ids.has(group.id)) for (const member of group.objectIds) ids.add(member);
       doc.brushes = doc.brushes.filter((b) => !ids.has(b.id));
       doc.patches = (doc.patches ?? []).filter((p) => !ids.has(p.id));
       doc.entities = doc.entities.filter((e) => !ids.has(e.id));
       doc.brushEntities = (doc.brushEntities ?? []).filter((e) => !ids.has(e.id));
+      doc.editorGroups = (doc.editorGroups ?? []).filter((group) => !ids.has(group.id));
       return;
     }
     case "gen.room": {
@@ -446,36 +481,11 @@ function carve(doc: EditorDocumentData, box: { min: Vec3q; max: Vec3q }): string
       result.push({ ...structuredClone(brush), id, min: piece.min, max: piece.max });
     });
     if (owner) owner.brushIds = owner.brushIds.flatMap((id) => (id === brush.id ? ids : [id]));
+    for (const group of doc.editorGroups ?? [])
+      group.objectIds = group.objectIds.flatMap((id) => (id === brush.id ? ids : [id]));
   }
   doc.brushes = result;
   return cut;
-}
-
-function moveObject(doc: EditorDocumentData, id: string, delta: Vec3q): void {
-  const b = doc.brushes.find((x) => x.id === id);
-  if (b) {
-    const before = structuredClone(b);
-    b.min = add(b.min, delta);
-    b.max = add(b.max, delta);
-    Object.assign(b, lockBrushBounds(before, b));
-    return;
-  }
-  const e = doc.entities.find((x) => x.id === id);
-  if (e) {
-    e.origin = add(e.origin, delta);
-    return;
-  }
-  const be = doc.brushEntities?.find((x) => x.id === id);
-  if (be) {
-    for (const owned of be.brushIds) moveObject(doc, owned, delta);
-    return;
-  }
-  const p = doc.patches?.find((x) => x.id === id);
-  if (p) {
-    p.controlPoints = p.controlPoints.map((row) => row.map((c) => ({ ...c, ...add(c, delta) })));
-    return;
-  }
-  throw new Error(`no object "${id}"`);
 }
 
 function duplicateObject(doc: EditorDocumentData, id: string, delta: Vec3q, suffix: string): void {
@@ -488,6 +498,14 @@ function duplicateObject(doc: EditorDocumentData, id: string, delta: Vec3q, suff
     return;
   }
   const e = doc.entities.find((x) => x.id === id);
+  const patch = doc.patches?.find((x) => x.id === id);
+  if (patch) {
+    const copy = structuredClone(patch);
+    copy.id = copyId(id);
+    doc.patches!.push(copy);
+    moveSelection(doc, [copy.id], delta);
+    return;
+  }
   if (e) {
     doc.entities.push({ ...structuredClone(e), id: copyId(id), origin: add(e.origin, delta) });
     return;

@@ -93,6 +93,110 @@ beforeEach(() => {
 });
 
 describe("editor DOM shell", () => {
+  it("marquees, toggles, previews and moves a selection with one undo step", () => {
+    const engine = new NullEngine(),
+      canvas = document.createElement("canvas");
+    document.body.append(canvas);
+    const session = new EditorSession(engine, canvas, vi.fn());
+    try {
+      session.document.transact((data) => {
+        data.brushes = [
+          { id: "a", min: { x: -96, y: 0, z: 0 }, max: { x: -64, y: 32, z: 32 }, shader: "common/caulk" },
+          { id: "b", min: { x: 32, y: 0, z: 0 }, max: { x: 64, y: 32, z: 32 }, shader: "common/caulk" },
+          { id: "c", min: { x: 112, y: 0, z: 0 }, max: { x: 144, y: 32, z: 32 }, shader: "common/caulk" },
+        ];
+      });
+      session.root.querySelector<HTMLButtonElement>('[data-action="select"]')!.click();
+      const xy = session.root.querySelector<HTMLCanvasElement>('[data-plane="xy"]')!;
+      const pointer = (type: string, x: number, y: number, ctrlKey = false) =>
+        xy.dispatchEvent(new MouseEvent(type, { bubbles: true, button: 0, clientX: x, clientY: y, ctrlKey }));
+      const before = session.document.snapshot();
+      pointer("pointerdown", 80, 200);
+      pointer("pointermove", 280, 100);
+      pointer("pointerup", 280, 100);
+      expect(session.root.querySelector(".shagged__inspector h2")!.textContent).toContain("2 objects");
+      expect(session.document.snapshot()).toEqual(before);
+      pointer("pointerdown", 328, 134, true);
+      pointer("pointerup", 328, 134, true);
+      expect(session.root.querySelector(".shagged__inspector h2")!.textContent).toContain("3 objects");
+      pointer("pointerdown", 328, 134, true);
+      pointer("pointerup", 328, 134, true);
+      pointer("pointerdown", 120, 134);
+      pointer("pointermove", 136, 118);
+      expect(session.document.snapshot()).toEqual(before);
+      expect(session["scene"].getMeshByName("selection-a")).toBeTruthy();
+      session.root.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+      expect(session.document.snapshot()).toEqual(before);
+      expect(session["scene"].getMeshByName("selection-a")).toBeNull();
+      pointer("pointerdown", 120, 134);
+      pointer("pointermove", 136, 118);
+      pointer("pointerup", 136, 118);
+      const moved = session.document.snapshot();
+      expect(moved.brushes[0].min).toEqual({ x: -80, y: 16, z: 0 });
+      expect(moved.brushes[1].min).toEqual({ x: 48, y: 16, z: 0 });
+      expect(moved.brushes[2]).toEqual(before.brushes[2]);
+      session.root.querySelector<HTMLButtonElement>('[data-action="undo"]')!.click();
+      expect(session.document.snapshot().brushes).toEqual(before.brushes);
+    } finally {
+      session.dispose();
+      engine.dispose();
+    }
+  });
+
+  it("saves editor groups, selects their members together and duplicates ownership independently", () => {
+    const engine = new NullEngine(),
+      canvas = document.createElement("canvas");
+    document.body.append(canvas);
+    let session = new EditorSession(engine, canvas, vi.fn());
+    try {
+      session.document.transact((data) => {
+        data.brushes = [
+          { id: "a", min: { x: -96, y: 0, z: 0 }, max: { x: -64, y: 32, z: 32 }, shader: "common/caulk" },
+          { id: "b", min: { x: 32, y: 0, z: 0 }, max: { x: 64, y: 32, z: 32 }, shader: "common/caulk" },
+        ];
+        data.brushEntities = [{ id: "door", classname: "func_door", keys: { speed: "100" }, brushIds: ["a", "b"] }];
+      });
+      session.root.querySelector<HTMLButtonElement>('[data-action="select"]')!.click();
+      const xy = session.root.querySelector<HTMLCanvasElement>('[data-plane="xy"]')!;
+      const pointer = (type: string, x: number, y: number, ctrlKey = false) =>
+        xy.dispatchEvent(new MouseEvent(type, { bubbles: true, button: 0, clientX: x, clientY: y, ctrlKey }));
+      pointer("pointerdown", 120, 134);
+      pointer("pointerup", 120, 134);
+      pointer("pointerdown", 248, 134, true);
+      pointer("pointerup", 248, 134, true);
+      const source = writeMap(session.document.snapshot());
+      session.root.querySelector<HTMLInputElement>("[data-group-name]")!.value = "Assembly";
+      session.root.querySelector<HTMLButtonElement>("[data-create-group]")!.click();
+      expect(writeMap(session.document.snapshot())).toBe(source);
+      session.save();
+      session.dispose();
+      session = new EditorSession(engine, canvas, vi.fn());
+      expect(session.root.querySelector(".shagged__inspector h2")!.textContent).toContain("2 objects");
+      expect(session.root.querySelector("[data-selection-name]")!.textContent).toBe("Group: Assembly");
+      session.root.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+      const pane = session.root.querySelector<HTMLCanvasElement>('[data-plane="xy"]')!;
+      for (const type of ["pointerdown", "pointerup"])
+        pane.dispatchEvent(new MouseEvent(type, { bubbles: true, button: 0, clientX: 120, clientY: 134 }));
+      expect(session.root.querySelector(".shagged__inspector h2")!.textContent).toContain("2 objects");
+      session.root.querySelector<HTMLButtonElement>('[data-action="vertices"]')!.click();
+      expect(session.root.querySelector("[data-vertex-list]")).toBeTruthy();
+      session.root.querySelector<HTMLButtonElement>('[data-action="select"]')!.click();
+      for (const type of ["pointerdown", "pointerup"])
+        pane.dispatchEvent(new MouseEvent(type, { bubbles: true, button: 0, clientX: 248, clientY: 134 }));
+      expect(session.root.querySelector(".shagged__inspector h2")!.textContent).toContain("2 objects");
+      session.root.querySelector<HTMLButtonElement>('[data-action="duplicate"]')!.click();
+      expect(session.document.snapshot().editorGroups).toHaveLength(2);
+      expect(session.document.snapshot().brushEntities).toHaveLength(2);
+      session.root.querySelector<HTMLButtonElement>('[data-action="delete"]')!.click();
+      expect(session.document.snapshot().brushes).toHaveLength(2);
+      session.root.querySelector<HTMLButtonElement>('[data-action="undo"]')!.click();
+      expect(session.document.snapshot().brushes).toHaveLength(4);
+    } finally {
+      session.dispose();
+      engine.dispose();
+    }
+  });
+
   it("picks convex sides, textures only the selection, aligns and wraps with undo", async () => {
     const engine = new NullEngine(),
       canvas = document.createElement("canvas");

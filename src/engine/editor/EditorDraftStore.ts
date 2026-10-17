@@ -14,6 +14,7 @@ export interface EditorViewState {
   patchDepth?: number;
   patchReverse?: boolean;
   selectedId: string | null;
+  selectedIds?: string[];
   draftName?: string;
   activePlane?: "xy" | "xz" | "yz";
   workPlanes?: Vec3q;
@@ -78,6 +79,10 @@ function validView(value: unknown): value is EditorViewState {
       (Number.isFinite(state.patchDepth) && Math.abs(state.patchDepth) >= 1 && Math.abs(state.patchDepth) <= 4096)) &&
     (state.patchReverse === undefined || typeof state.patchReverse === "boolean") &&
     (state.selectedId === null || typeof state.selectedId === "string") &&
+    (state.selectedIds === undefined ||
+      (Array.isArray(state.selectedIds) &&
+        state.selectedIds.length <= 40_000 &&
+        state.selectedIds.every((id) => typeof id === "string"))) &&
     (state.draftName === undefined ||
       (typeof state.draftName === "string" && state.draftName.trim().length > 0 && state.draftName.length <= 64)) &&
     (state.activePlane === undefined || ["xy", "xz", "yz"].includes(state.activePlane)) &&
