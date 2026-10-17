@@ -10,6 +10,8 @@ Build Washoi maps from scripts or AI agents: typed edit operations on the SHAGGE
 npm run shagged -- new map.json --name arena1        # empty document (add --room for the sealed test room)
 npm run shagged -- apply map.json ops.json           # apply a batch; --dry-run to preview
 npm run shagged -- info map.json --objects           # counts, bounds, every object
+npm run shagged -- read map.json                     # complete authoring snapshot
+npm run shagged -- query map.json region.json        # paged object/region query
 npm run shagged -- health map.json                   # Map Health issues
 npm run shagged -- export map.json arena1.map        # deterministic .map source
 npm run shagged -- compile map.json --quality fast   # MakeBSP + MakeLight, publish a playable package
@@ -55,6 +57,38 @@ local owners are recovered. Ownerless/corrupt locks require inspection rather
 than automatic deletion. Media changes during compilation and stale queued
 source revisions fail without publishing. Restart old editor/MCP processes to
 use this coordination; it is local-machine locking, not a distributed service.
+
+## Inspect and edit a snapshot
+
+`shagged_read_document {mapName}` returns `{ok, document}` with the complete
+validated authoring snapshot, including schema/draft identity, revision, world
+keys, face materials/alignment, detail flags, patch control points and brush
+entity membership. CLI `read` returns the same envelope. `shagged_map_info`
+with `objects: true` (CLI `info --objects`) also includes complete object arrays;
+without it, inspection stays a compact count/bounds summary.
+
+Use `shagged_query_objects` to inspect a region or a subset without retrieving
+the whole document. Its fields, also accepted by CLI `query` in a JSON file:
+
+| Field | Meaning |
+| --- | --- |
+| `bounds` | Optional `{min:{x,y,z}, max:{x,y,z}}`, Quake coordinates, Z up. |
+| `relation` | `intersects` (default, including touching boundaries) or `contained`. |
+| `kinds` | Optional array of `brush`, `patch`, `entity`, `brushEntity`. |
+| `ids` | Optional object-ID filter. |
+| `offset`, `limit` | Stable kind/ID ordering; default offset 0, limit 100, maximum limit 500. |
+
+The result includes `revision`, `total`, `nextOffset` (null at the end) and
+`objects`, each containing `kind`, `data` and authoring-space `bounds`. Brushes
+also include `ownerId` when grouped. Patch control hulls and brush-group bounds
+are conservative; point entities use their origins, not model mesh extents.
+These queries inspect authored objects, not installed BSP collision or geometry.
+
+When applying edits based on a read, pass `expectedRevision` to `shagged_apply`,
+or CLI `apply ... --expected-revision N`. A stale revision is rejected before
+editing, including dry runs. Query pages include their revision: restart paging
+if the map changes. Read results are detached snapshots and cannot mutate the
+managed document.
 
 ## Coordinates and IDs
 

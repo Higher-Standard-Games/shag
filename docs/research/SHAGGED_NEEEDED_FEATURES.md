@@ -190,3 +190,29 @@ stores, concurrent compile queues, forced rebuilds, dependency changes and
 mid-build input mutation. The first fingerprint integration exposed generated
 job files being counted as inputs when storage was nested in the media root;
 explicit storage exclusions fixed that self-invalidation.
+
+## Implementation follow-up: complete document inspection
+
+MCP now exposes `shagged_read_document` and paged `shagged_query_objects`.
+`shagged_map_info` with objects enabled includes full face material/alignment,
+detail flags, patch grids and control points, and brush-entity membership.
+The scripting CLI has equivalent `read` and `query` commands. Bounds inspection
+streams points rather than spreading an entire large document into Math calls.
+
+Queries filter by region, containment/intersection, object kind and ID. They
+return complete selected objects, authoring-space bounds, brush owner IDs and
+the document revision. Patch/group bounds are conservative; entity positions
+are origins, not model mesh bounds. This does not replace the still-needed
+installed-BSP reference inspection tool.
+
+`expectedRevision` protects snapshot-based edits. MCP checks it inside its
+cross-process transaction lock; CLI new/apply also coordinate and atomically
+replace their JSON documents. The real SDK smoke test verifies concurrent MCP
+and CLI writers each produce exactly one winner for the same expected revision,
+and stale attempts leave the source unchanged. It also verifies full snapshot
+round trips and spatial/paged queries. Test command:
+`node experiments/shagged/mcp-smoke.mjs`.
+
+The Vite CLI runner emits a startup banner before the JSON payload. The smoke
+harness accounts for that; a clean machine-output launcher remains a useful
+future improvement. MCP protocol stdout is already isolated by its launcher.

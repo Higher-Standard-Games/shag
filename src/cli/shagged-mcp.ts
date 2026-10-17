@@ -33,6 +33,7 @@ import {
   withTextureSizes,
 } from "../engine/editor/server/AgentPipeline";
 import { readCompileJob, readCompileLog } from "../engine/editor/server/CompileJobs";
+import { documentSnapshot, queryDocument } from "../engine/editor/server/DocumentInspection";
 import { withFileLock } from "../engine/editor/server/FileLock";
 import { resolveServerConfig } from "../engine/editor/server/ServerConfig";
 import { loadTextureCatalog, searchTextures } from "../engine/editor/server/TextureLookup";
@@ -44,6 +45,7 @@ const MAP_NAME = z
   .regex(/^[a-z][a-z0-9_]{0,47}$/, "1–48 lowercase letters, digits or underscores, starting with a letter")
   .describe("Map ID, e.g. arena1. Also the name to play it with: map <mapName>.");
 const QUALITY = z.enum(["fast", "default", "release"]).optional().describe("Compile quality. Default fast.");
+const VECTOR = z.object({ x: z.number().finite(), y: z.number().finite(), z: z.number().finite() });
 
 const docPath = (mapName: string) => path.join(ROOT, `${mapName}.json`);
 
@@ -166,11 +168,43 @@ server.registerTool(
   {
     title: "Describe a map",
     description:
-      "Counts, bounds and entity classes; with objects: true, every brush and entity with its ID, bounds or origin.",
+      "Counts, bounds and entity classes; objects: true includes complete brushes (face materials/detail), patches (control points), entities and brush ownership.",
     inputSchema: { mapName: MAP_NAME, objects: z.boolean().optional() },
     annotations: { readOnlyHint: true },
   },
   async ({ mapName, objects }) => run(() => describeDocument(load(mapName), objects ?? false)),
+);
+
+server.registerTool(
+  "shagged_read_document",
+  {
+    title: "Read a complete map snapshot",
+    description:
+      "Returns the complete validated authoring document, including schema/draft identity, revision, world keys, every face material, patch control point and brush-entity membership. Use expectedRevision when applying edits based on this snapshot.",
+    inputSchema: { mapName: MAP_NAME },
+    annotations: { readOnlyHint: true },
+  },
+  async ({ mapName }) => run(() => documentSnapshot(load(mapName))),
+);
+
+server.registerTool(
+  "shagged_query_objects",
+  {
+    title: "Query map objects",
+    description:
+      "Returns complete matching objects with kind, authoring-space bounds and brush owner ID. Bounds are Quake Z-up; patch control hulls and brush-group bounds are conservative, point entities use origins rather than model extents. Stable paged results include revision and nextOffset.",
+    inputSchema: {
+      mapName: MAP_NAME,
+      bounds: z.object({ min: VECTOR, max: VECTOR }).optional(),
+      relation: z.enum(["intersects", "contained"]).optional(),
+      kinds: z.array(z.enum(["brush", "patch", "entity", "brushEntity"])).optional(),
+      ids: z.array(z.string()).max(1000).optional(),
+      offset: z.number().int().min(0).optional(),
+      limit: z.number().int().min(1).max(500).optional(),
+    },
+    annotations: { readOnlyHint: true },
+  },
+  async ({ mapName, ...query }) => run(() => queryDocument(load(mapName), query)),
 );
 
 server.registerTool(
@@ -190,12 +224,21 @@ server.registerTool(
         .min(1)
         .describe("Operations in order; each is an object with op and its fields."),
       dryRun: z.boolean().optional(),
+      expectedRevision: z
+        .number()
+        .int()
+        .min(0)
+        .optional()
+        .describe("Reject if the map changed since the inspected snapshot."),
     },
   },
-  async ({ mapName, ops, dryRun }) =>
+  async ({ mapName, ops, dryRun, expectedRevision }) =>
     run(() =>
       exclusive(mapName, async () => {
-        const result = applyOperations(load(mapName), await withTextureSizes(ops as unknown as EditOp[]));
+        const doc = load(mapName);
+        if (expectedRevision !== undefined && doc.revision !== expectedRevision)
+          throw new PipelineError("Map revision conflict", { expectedRevision, actualRevision: doc.revision });
+        const result = applyOperations(doc, await withTextureSizes(ops as unknown as EditOp[]));
         if (!dryRun) save(result.doc);
         return {
           ok: true,

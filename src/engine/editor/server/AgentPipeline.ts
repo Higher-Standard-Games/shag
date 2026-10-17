@@ -12,6 +12,7 @@ import { isBuildQuality } from "./BuildRecipe";
 import type { CompileDiagnostics } from "./CompileDiagnostics";
 import { CompileJobs } from "./CompileJobs";
 import { resolveCompilerConfig } from "./CompilerConfig";
+import { pointBounds } from "./DocumentInspection";
 import { MapStore } from "./MapStore";
 import { resolveServerConfig } from "./ServerConfig";
 import { findTexture, loadTextureCatalog, type TextureInfo } from "./TextureLookup";
@@ -37,18 +38,15 @@ export async function quietly<T>(work: () => Promise<T>): Promise<T> {
 }
 
 function bounds(doc: EditorDocumentData) {
-  const points = [
-    ...doc.brushes.flatMap((b) => [b.min, b.max]),
-    ...doc.entities.map((e) => e.origin),
-    ...(doc.patches ?? []).flatMap((p) => p.controlPoints.flat()),
-  ];
-  if (!points.length) return null;
-  const pick = (f: (...n: number[]) => number) => ({
-    x: f(...points.map((p) => p.x)),
-    y: f(...points.map((p) => p.y)),
-    z: f(...points.map((p) => p.z)),
-  });
-  return { min: pick(Math.min), max: pick(Math.max) };
+  function* points() {
+    for (const brush of doc.brushes) {
+      yield brush.min;
+      yield brush.max;
+    }
+    for (const entity of doc.entities) yield entity.origin;
+    for (const patch of doc.patches ?? []) for (const row of patch.controlPoints) yield* row;
+  }
+  return pointBounds(points());
 }
 
 /** Counts, bounds and entity classes; with `objects`, every object. */
@@ -58,8 +56,10 @@ export function describeDocument(doc: EditorDocumentData, objects = false) {
     classes[e.classname] = (classes[e.classname] ?? 0) + 1;
   return {
     ok: true,
+    schemaVersion: doc.schemaVersion,
+    draftId: doc.draftId,
     mapName: doc.mapName ?? null,
-    worldKeys: doc.worldKeys ?? {},
+    worldKeys: structuredClone(doc.worldKeys ?? {}),
     revision: doc.revision,
     counts: {
       brushes: doc.brushes.length,
@@ -71,15 +71,10 @@ export function describeDocument(doc: EditorDocumentData, objects = false) {
     bounds: bounds(doc),
     ...(objects
       ? {
-          brushes: doc.brushes.map((b) => ({
-            id: b.id,
-            min: b.min,
-            max: b.max,
-            shader: b.shader,
-            ...(b.detail === undefined ? {} : { detail: b.detail }),
-          })),
-          entities: doc.entities.map((e) => ({ id: e.id, classname: e.classname, origin: e.origin, keys: e.keys })),
-          brushEntities: doc.brushEntities ?? [],
+          brushes: structuredClone(doc.brushes),
+          patches: structuredClone(doc.patches ?? []),
+          entities: structuredClone(doc.entities),
+          brushEntities: structuredClone(doc.brushEntities ?? []),
         }
       : {}),
   };

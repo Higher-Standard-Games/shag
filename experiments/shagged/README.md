@@ -1,0 +1,23 @@
+# SHAGGED experiments and API validation
+
+`solamphi1/` contains the Relay Yard map source, authoring batches, previews and
+its build/review instructions.
+
+Run the real stdio MCP/CLI smoke test from the repository root:
+
+```text
+node experiments/shagged/mcp-smoke.mjs
+```
+
+It requires the local MakeBSP/MakeLight tools and installed game media. It
+creates a uniquely named `qa_shagged_*` room in the managed agent document store,
+but isolates saved server revisions, native job logs, published packages and
+its summary report under `.cache/shagged-mcp-validation/`. It does not edit
+Relay Yard or the lobby map pool.
+
+Checks: compile/reuse/force, cross-session status and paged transcript reads,
+complete face/patch/group inspection, spatial queries, stable pagination,
+concurrent stale-revision rejection in two MCP sessions and two CLI processes,
+and CLI snapshot round trips. Summary: `.cache/shagged-mcp-validation/report.json`.
+
+Map-specific collision and GPU validation remain separate in `solamphi1/`.

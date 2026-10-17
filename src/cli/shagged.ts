@@ -12,7 +12,9 @@
  *   npm run shagged -- report <doc.json> [--quality fast|default|release]
  *   npm run shagged -- textures [search words] [--folder <name>] [--limit <n>]
  */
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
+import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import path from "node:path";
 import { applyOperations, type EditOp, emptyDocument, OperationError } from "../engine/editor/api/Operations";
 import { type EditorDocumentData, migrateDocument, validateDocument } from "../engine/editor/EditorDocument";
 import { writeMap } from "../engine/editor/MapWriter";
@@ -26,12 +28,16 @@ import {
   quietly,
   withTextureSizes,
 } from "../engine/editor/server/AgentPipeline";
+import { type DocumentQuery, documentSnapshot, queryDocument } from "../engine/editor/server/DocumentInspection";
+import { withFileLock } from "../engine/editor/server/FileLock";
 import { loadTextureCatalog, searchTextures } from "../engine/editor/server/TextureLookup";
 
 const USAGE = `Usage: npm run shagged -- <command> ...
   new <doc.json> [--name <mapid>] [--room] [--force]   create a document (optionally the sealed test room)
-  apply <doc.json> <ops.json|-> [--dry-run]            apply a batch of operations (JSON array, {ops:[...]} or JSON Lines)
+  apply <doc.json> <ops.json|-> [--dry-run] [--expected-revision N]  apply a batch atomically; optionally reject stale reads
   info <doc.json> [--objects]                          counts, bounds and (optionally) every object
+  read <doc.json>                                      complete authoring snapshot
+  query <doc.json> [query.json]                        paged object/region query
   health <doc.json>                                    Map Health issues
   export <doc.json> [out.map]                          deterministic .map source (stdout without a file)
   compile <doc.json> [--quality fast|default|release] [--force]  save, compile and publish; force bypasses reuse
@@ -49,15 +55,25 @@ function fail(message: string, extra: Record<string, unknown> = {}): never {
 }
 
 function readDoc(file: string): EditorDocumentData {
-  if (!existsSync(file)) fail(`no document at ${file}; create one with: npm run shagged -- new ${file}`);
+  if (!existsSync(file))
+    throw new PipelineError(`no document at ${file}; create one with: npm run shagged -- new ${file}`);
   const doc = migrateDocument(JSON.parse(readFileSync(file, "utf8")));
   validateDocument(doc);
   return doc;
 }
 
 function writeDoc(file: string, doc: EditorDocumentData): void {
-  writeFileSync(file, `${JSON.stringify(doc, null, 2)}\n`);
+  const temporary = `${file}.${randomUUID()}.tmp`;
+  try {
+    writeFileSync(temporary, `${JSON.stringify(doc, null, 2)}\n`);
+    renameSync(temporary, file);
+  } finally {
+    rmSync(temporary, { force: true });
+  }
 }
+
+const documentLock = (file: string) =>
+  path.join(path.resolve(path.dirname(file)), ".locks", path.basename(file, path.extname(file)));
 
 function readOps(source: string): EditOp[] {
   const text = source === "-" ? readFileSync(0, "utf8") : readFileSync(source, "utf8");
@@ -91,7 +107,8 @@ async function main(): Promise<void> {
     return index >= 0 ? args[index + 1] : undefined;
   };
   const positional = args.filter(
-    (arg, index) => !arg.startsWith("--") && !args[index - 1]?.match(/^--(name|quality|folder|limit)$/),
+    (arg, index) =>
+      !arg.startsWith("--") && !args[index - 1]?.match(/^--(name|quality|folder|limit|expected-revision)$/),
   );
   const [command, file, third] = positional;
   if (!command || flag("--help") || flag("-h")) {
@@ -115,30 +132,39 @@ async function main(): Promise<void> {
 
   switch (command) {
     case "new": {
-      if (existsSync(file) && !flag("--force")) fail(`${file} exists; pass --force to replace it`);
-      const doc = flag("--room") ? createRoomTemplate() : emptyDocument();
-      const name = value("--name");
-      if (name) doc.mapName = name;
-      validateDocument(doc);
-      writeDoc(file, doc);
-      out(describeDocument(doc));
+      await withFileLock(documentLock(file), async () => {
+        if (existsSync(file) && !flag("--force")) throw new PipelineError(`${file} exists; pass --force to replace it`);
+        const doc = flag("--room") ? createRoomTemplate() : emptyDocument();
+        const name = value("--name");
+        if (name) doc.mapName = name;
+        validateDocument(doc);
+        writeDoc(file, doc);
+        out(describeDocument(doc));
+      });
       return;
     }
     case "apply": {
       if (!third) fail("apply needs an operations file, or - for stdin");
-      const doc = readDoc(file);
       try {
-        const result = applyOperations(doc, await withTextureSizes(readOps(third)));
-        const dryRun = flag("--dry-run");
-        if (!dryRun) writeDoc(file, result.doc);
-        out({
-          ok: true,
-          dryRun,
-          revision: result.doc.revision,
-          created: result.created,
-          changed: result.changed,
-          deleted: result.deleted,
-          issues: result.issues,
+        await withFileLock(documentLock(file), async () => {
+          const doc = readDoc(file);
+          if (flag("--expected-revision") && Number(value("--expected-revision")) !== doc.revision)
+            throw new PipelineError("Map revision conflict", {
+              expectedRevision: value("--expected-revision"),
+              actualRevision: doc.revision,
+            });
+          const result = applyOperations(doc, await withTextureSizes(readOps(third)));
+          const dryRun = flag("--dry-run");
+          if (!dryRun) writeDoc(file, result.doc);
+          out({
+            ok: true,
+            dryRun,
+            revision: result.doc.revision,
+            created: result.created,
+            changed: result.changed,
+            deleted: result.deleted,
+            issues: result.issues,
+          });
         });
       } catch (error) {
         if (error instanceof OperationError) fail(error.message, { index: error.index, operation: error.operation });
@@ -148,6 +174,12 @@ async function main(): Promise<void> {
     }
     case "info":
       out(describeDocument(readDoc(file), flag("--objects")));
+      return;
+    case "read":
+      out(documentSnapshot(readDoc(file)));
+      return;
+    case "query":
+      out(queryDocument(readDoc(file), third ? (JSON.parse(readFileSync(third, "utf8")) as DocumentQuery) : {}));
       return;
     case "health":
       out(healthOf(readDoc(file), await quietly(() => loadTextureCatalog())));
