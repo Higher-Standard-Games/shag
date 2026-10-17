@@ -230,6 +230,25 @@ export interface BspFile {
   lightGridStep?: [number, number, number];
 }
 
+/** Authoritative map data; vertex slots contain patch control positions only. */
+export type BspCollisionData = Pick<
+  BspFile,
+  | "header"
+  | "lumps"
+  | "entities"
+  | "textures"
+  | "planes"
+  | "nodes"
+  | "leafs"
+  | "leafFaces"
+  | "leafBrushes"
+  | "models"
+  | "brushes"
+  | "brushSides"
+  | "faces"
+  | "visData"
+> & { vertices: { position: [number, number, number] }[] };
+
 // ============================================================================
 // BspLoader Class
 // ============================================================================
@@ -251,6 +270,11 @@ export class BspLoader {
     return loader.parse();
   }
 
+  /** Parse gameplay data without allocating render vertices or lighting. */
+  public static loadCollision(buffer: ArrayBuffer): BspCollisionData {
+    return new BspLoader(buffer).parse(true);
+  }
+
   /**
    * Load BSP from PK3Loader by path
    */
@@ -266,7 +290,9 @@ export class BspLoader {
     return BspLoader.load(buffer);
   }
 
-  private parse(): BspFile {
+  private parse(collisionOnly: true): BspCollisionData;
+  private parse(collisionOnly?: false): BspFile;
+  private parse(collisionOnly = false): BspFile | BspCollisionData {
     const header = this.readHeader();
     this.lumps = this.readLumpDirectory();
 
@@ -274,7 +300,6 @@ export class BspLoader {
 
     // Parse all lumps into local variables
     const entities = this.parseEntities();
-    const lightmapSize = this.resolveLightmapSize(header.isFBSP, entities);
     const textures = this.parseTextures();
     const planes = this.parsePlanes();
     const nodes = this.parseNodes();
@@ -284,13 +309,35 @@ export class BspLoader {
     const models = this.parseModels();
     const brushes = this.parseBrushes();
     const brushSides = this.parseBrushSides();
+    const faces = this.parseFaces();
+    const visData = this.parseVisData();
+    const common = {
+      header,
+      lumps: this.lumps,
+      entities,
+      textures,
+      planes,
+      nodes,
+      leafs,
+      leafFaces,
+      leafBrushes,
+      models,
+      brushes,
+      brushSides,
+      faces,
+      visData,
+    };
+    if (collisionOnly) {
+      // A PVS view into a large BSP would keep all its render bytes alive.
+      if (common.visData) common.visData = { ...common.visData, bitVectors: common.visData.bitVectors.slice() };
+      return { ...common, vertices: this.parsePatchPositions(faces) };
+    }
+    const lightmapSize = this.resolveLightmapSize(header.isFBSP, entities);
     const vertices = this.parseVertices();
     const meshVerts = this.parseMeshVerts();
     const effects = this.parseEffects();
-    const faces = this.parseFaces();
     const lightmaps = this.parseLightmaps(lightmapSize);
     const lightVols = this.parseLightVols();
-    const visData = this.parseVisData();
 
     // Calculate Grid parameters
     const { lightGridOrigin, lightGridSize, lightGridStep } = this.calculateLightGrid(
@@ -324,6 +371,29 @@ export class BspLoader {
       lightGridSize,
       lightGridStep,
     };
+  }
+
+  private parsePatchPositions(faces: BspFace[]): BspCollisionData["vertices"] {
+    const lump = this.getLump(LumpIndex.VERTICES);
+    const stride = this.isFBSP ? 80 : 44;
+    const count = Math.floor(lump.length / stride);
+    const vertices: BspCollisionData["vertices"] = [];
+    for (const face of faces) {
+      if (face.faceType !== 2) continue;
+      const end = face.firstVertex + face.patchSize[0] * face.patchSize[1];
+      if (face.firstVertex < 0 || end > count) throw new Error("[BspLoader] Invalid patch control range");
+      for (let i = face.firstVertex; i < end; i++) {
+        const offset = i * stride;
+        vertices[i] = {
+          position: [
+            lump.data.getFloat32(offset, true),
+            lump.data.getFloat32(offset + 4, true),
+            lump.data.getFloat32(offset + 8, true),
+          ],
+        };
+      }
+    }
+    return vertices;
   }
 
   private calculateLightGrid(entities: BspEntity[], models: BspModel[], lightVolCount: number): Partial<BspFile> {

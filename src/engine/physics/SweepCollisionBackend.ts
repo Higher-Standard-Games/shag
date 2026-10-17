@@ -13,7 +13,7 @@
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Scene } from "@babylonjs/core/scene";
 import { extractLifts, LiftSystem } from "../../shared/bsp/LiftSystem";
-import type { BspBrush, BspFile, BspLeaf } from "../loader/bsp/BspLoader";
+import type { BspBrush, BspCollisionData, BspLeaf } from "../loader/bsp/BspLoader";
 import {
   type CollisionBackend,
   type CollisionStats,
@@ -136,7 +136,7 @@ export class SweepCollisionBackend implements CollisionBackend {
   readonly type = "q3" as const;
   readonly name = "Sweep Collision (Experimental)";
 
-  private bsp: BspFile | null = null;
+  private bsp: BspCollisionData | null = null;
   private isFBSP = false;
 
   private faceCollisionMeshes: (FaceCollisionGeometry | null)[] = [];
@@ -195,7 +195,7 @@ export class SweepCollisionBackend implements CollisionBackend {
     debug: false,
   };
 
-  async init(bsp: BspFile, _scene?: Scene): Promise<void> {
+  async init(bsp: BspCollisionData, _scene?: Scene): Promise<void> {
     this.bsp = bsp;
     this.liftBrushes.clear();
     this.liftFaces.clear();

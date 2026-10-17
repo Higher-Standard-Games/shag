@@ -8,7 +8,7 @@
  */
 
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
-import type { BspFile } from "../engine/loader/bsp/BspLoader";
+import type { BspCollisionData } from "../engine/loader/bsp/BspLoader";
 import { SweepBackendAdapter } from "../engine/physics/SweepBackendAdapter";
 import { SweepCollisionBackend } from "../engine/physics/SweepCollisionBackend";
 import type { CollisionWorld } from "../shared/collision/CollisionWorld";
@@ -20,7 +20,7 @@ import { SharedCollisionWorld } from "../shared/collision/SharedCollisionWorld";
  * Returns SharedCollisionWorld (same code as client) wrapping a fresh
  * SweepCollisionBackend initialized with the BSP.
  */
-export async function createHeadlessCollisionWorld(bsp: BspFile): Promise<CollisionWorld> {
+export async function createHeadlessCollisionWorld(bsp: BspCollisionData): Promise<CollisionWorld> {
   const backend = new SweepCollisionBackend();
   await backend.init(bsp);
 

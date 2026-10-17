@@ -6,7 +6,7 @@
  */
 
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
-import type { BspFace, BspFile } from "../loader/bsp/BspLoader";
+import type { BspCollisionData, BspFace } from "../loader/bsp/BspLoader";
 
 /**
  * Result of a patch tessellation
@@ -28,7 +28,11 @@ export class PatchTessellator {
    * @param face The patch face to tessellate
    * @param level Tessellation level (default 3 for collision - lower than visual)
    */
-  public static buildPatch(bsp: BspFile, face: BspFace, level: number = 5): PatchCollisionMesh | null {
+  public static buildPatch(
+    bsp: Pick<BspCollisionData, "vertices">,
+    face: BspFace,
+    level: number = 5,
+  ): PatchCollisionMesh | null {
     const width = face.patchSize[0];
     const height = face.patchSize[1];
 
@@ -46,9 +50,9 @@ export class PatchTessellator {
         // Convert Q3 (X, Y, Z) to Babylon (X, Z, Y)
         // Check BspLoader for vertex format, essentially: x=v.pos[0], y=v.pos[2], z=v.pos[1]
         // But we'll access raw array for speed
-        if ("position" in v) {
+        if (v && "position" in v) {
           rowPoints.push([v.position[0], v.position[2], v.position[1]]);
-        }
+        } else return null;
       }
       controlPoints.push(rowPoints);
     }

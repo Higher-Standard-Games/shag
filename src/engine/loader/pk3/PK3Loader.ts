@@ -39,6 +39,11 @@ export class PK3Loader {
     return PK3Loader.instance;
   }
 
+  /** Short-lived archive ownership for consumers that only extract map data. */
+  public static createTransient(): PK3Loader {
+    return new PK3Loader();
+  }
+
   /**
    * Initialize service (called by ServiceLocator)
    */

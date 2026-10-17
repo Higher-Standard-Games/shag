@@ -29,11 +29,11 @@ function readArrayBuffer(fullPath: string): ArrayBuffer {
  * Load one pk3 from disk into both PK3Loader (file access) and PK3Index (lookup).
  * Returns false if the file doesn't exist.
  */
-export async function ingestPk3File(dir: string, pk3File: string): Promise<boolean> {
+export async function ingestPk3File(dir: string, pk3File: string, loader = PK3Loader.getInstance()): Promise<boolean> {
   const full = path.join(dir, pk3File);
   if (!fs.existsSync(full)) return false;
   const ab = readArrayBuffer(full);
-  await (PK3Loader.getInstance() as unknown as Ingestable).processPK3ArrayBuffer(pk3File, ab);
+  await (loader as unknown as Ingestable).processPK3ArrayBuffer(pk3File, ab);
   await PK3Index.getInstance().indexPK3ArrayBuffer(pk3File, ab, full);
   return true;
 }
@@ -68,18 +68,28 @@ export async function ingestPk3Dir(dir: string): Promise<number> {
  *
  * @returns the BSP ArrayBuffer, or null if the map can't be found.
  */
-export async function resolveMapBspViaIndex(dirs: string[], mapName: string): Promise<ArrayBuffer | null> {
+export async function resolveMapBspViaIndex(
+  dirs: string[],
+  mapName: string,
+  loader = PK3Loader.getInstance(),
+): Promise<ArrayBuffer | null> {
   const index = PK3Index.getInstance();
-  const loader = PK3Loader.getInstance();
   const name = mapName.toLowerCase();
+  const hasMap = () => !!index.findMap(name) && loader.hasFile(`maps/${name}.bsp`);
+  const ingest = async (dir: string, filename: string) => {
+    const loaded = await ingestPk3File(dir, filename, loader);
+    // A private map-only owner need not retain unrelated fallback archives.
+    // The shared metadata index remains available for subsequent resolutions.
+    if (loader !== PK3Loader.getInstance() && !loader.hasFile(`maps/${name}.bsp`)) loader.unloadAll();
+    return loaded;
+  };
 
   // SHAGGED publishes immutable numbered packages. Resolve its current pointer
   // before the conventional first-match scan, which would otherwise pick an old build.
   for (const dir of dirs) {
     const build = await readPublishedBuild(dir, name);
     if (!build) continue;
-    if (!(await ingestPk3File(dir, build.package)))
-      throw new Error(`Published map package is missing: ${build.package}`);
+    if (!(await ingest(dir, build.package))) throw new Error(`Published map package is missing: ${build.package}`);
     const bsp = await loader.getFile(`maps/${name}.bsp`);
     if (!bsp || createHash("sha256").update(new Uint8Array(bsp)).digest("hex") !== build.bspHash)
       throw new Error(`Published map build mismatch: ${build.buildId}`);
@@ -88,23 +98,33 @@ export async function resolveMapBspViaIndex(dirs: string[], mapName: string): Pr
 
   // 1. Fast path: the conventional map pk3 in each dir.
   for (const dir of dirs) {
-    if (index.findMap(name)) break;
-    await ingestPk3File(dir, `map_${name}.pk3`).catch(() => false);
+    if (hasMap()) break;
+    await ingest(dir, `map_${name}.pk3`).catch(() => false);
+  }
+
+  // Metadata may outlive a transient archive owner. Re-open the indexed package
+  // from the supplied search roots before doing a broader package scan.
+  const indexedPackage = index.findMap(name);
+  if (!hasMap() && indexedPackage) {
+    for (const dir of dirs) {
+      await ingest(dir, indexedPackage).catch(() => false);
+      if (hasMap()) break;
+    }
   }
 
   // 2. Fallback: scan every map_*.pk3 in each dir until the map appears.
-  if (!index.findMap(name)) {
+  if (!hasMap()) {
     for (const dir of dirs) {
       if (!fs.existsSync(dir)) continue;
       for (const f of fs.readdirSync(dir)) {
         if (!f.startsWith("map_") || !f.endsWith(".pk3")) continue;
-        await ingestPk3File(dir, f).catch(() => false);
-        if (index.findMap(name)) break;
+        await ingest(dir, f).catch(() => false);
+        if (hasMap()) break;
       }
-      if (index.findMap(name)) break;
+      if (hasMap()) break;
     }
   }
 
-  if (!index.findMap(name)) return null;
+  if (!hasMap()) return null;
   return loader.getFile(`maps/${name}.bsp`);
 }

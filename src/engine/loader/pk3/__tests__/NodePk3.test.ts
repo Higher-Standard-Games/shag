@@ -9,9 +9,11 @@ import * as fs from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import * as path from "node:path";
+import JSZip from "jszip";
 import { describe, expect, it } from "vitest";
 import { publishBuild } from "../../../editor/server/PublishedBuild";
 import { resolveMapBspViaIndex } from "../NodePk3";
+import { PK3Loader } from "../PK3Loader";
 
 const dataDir = path.resolve("public/data");
 const hasMaps = fs.existsSync(path.join(dataDir, "map_wdm12.pk3"));
@@ -24,6 +26,35 @@ function magic(ab: ArrayBuffer): string {
 }
 
 describe("resolveMapBspViaIndex", () => {
+  it("reopens indexed maps for transient owners and releases unrelated fallback archives", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "shagged-transient-pk3-"));
+    const shared = PK3Loader.getInstance().getPackageInfo();
+    const name = `transient_${Date.now()}`;
+    try {
+      for (const [filename, map, bytes] of [
+        ["map_a.pk3", `other_${name}`, [1, 2]],
+        ["map_z.pk3", name, [3, 4, 5]],
+      ] as const) {
+        const zip = new JSZip();
+        zip.file(`maps/${map}.bsp`, Uint8Array.from(bytes));
+        await fs.promises.writeFile(
+          path.join(dir, filename),
+          new Uint8Array(await zip.generateAsync({ type: "arraybuffer" })),
+        );
+      }
+      for (let i = 0; i < 2; i++) {
+        const loader = PK3Loader.createTransient();
+        expect(new Uint8Array((await resolveMapBspViaIndex([dir], name, loader))!)).toEqual(Uint8Array.of(3, 4, 5));
+        expect(loader.getPackageInfo().map((p) => p.filename)).toEqual(["map_z.pk3"]);
+        expect(PK3Loader.getInstance().getPackageInfo()).toEqual(shared);
+      }
+      const unknown = PK3Loader.createTransient();
+      expect(await resolveMapBspViaIndex([dir], `missing_${name}`, unknown)).toBeNull();
+      expect(unknown.getPackageInfo()).toEqual([]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
   it("uses the current numbered SHAGGED build instead of the first map package", async () => {
     const dir = await mkdtemp(path.join(tmpdir(), "shagged-nodepk3-"));
     const name = `testmap_${Date.now()}`;

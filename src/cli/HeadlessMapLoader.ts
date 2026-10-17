@@ -8,6 +8,7 @@ import { createHash } from "node:crypto";
 import * as path from "node:path";
 import type { BspEntity, BspModel } from "../engine/loader/bsp/BspLoader";
 import { resolveMapBspViaIndex } from "../engine/loader/pk3/NodePk3";
+import { PK3Loader } from "../engine/loader/pk3/PK3Loader";
 import type { CollisionWorld } from "../engine/network/systems/collision/CollisionWorld";
 import type { PickupEntry } from "../shared/bsp/PickupTable";
 import { extractPickups } from "../shared/bsp/PickupTable";
@@ -15,6 +16,7 @@ import { extractSpawnPoints, extractTeamSpawnPoints, type SpawnVec3 } from "../s
 import type { TriggerVolume } from "../shared/bsp/TriggerTable";
 import { extractTriggerVolumes } from "../shared/bsp/TriggerTable";
 import { landMapPickups } from "../shared/items/ItemThrow";
+import { markServerMemory } from "./ServerMemoryMarker";
 
 export interface BspData {
   /** Exact map bytes used for this match, not a hash computed later during export. */
@@ -43,21 +45,31 @@ export async function loadBspCollision(mapName: string, gamePath = "./game"): Pr
   // Resolve the map's BSP through the SAME pk3 index the game uses (no ad-hoc
   // path search). Reads only the pk3(s) needed to find this map.
   const candidateDirs = [path.resolve("./public/data"), path.resolve("./dist/data"), gameDir];
-  const bspBuffer = await resolveMapBspViaIndex(candidateDirs, mapName);
+  const bspBuffer = await resolveMapBspViaIndex(candidateDirs, mapName, PK3Loader.createTransient());
 
   if (!bspBuffer) {
     console.warn(`[Map] Could not find BSP for map "${mapName}" via pk3 index (dirs: ${candidateDirs.join(", ")})`);
     return null;
   }
 
+  markServerMemory("bsp-extracted", { map: mapName, bspBytes: bspBuffer.byteLength });
+
   const { BspLoader } = await import("../engine/loader/bsp/BspLoader");
   const { createHeadlessCollisionWorld } = await import("./HeadlessBSPCollisionWorld");
 
-  const bsp = BspLoader.load(bspBuffer);
+  const bsp = BspLoader.loadCollision(bspBuffer);
+  markServerMemory("bsp-parsed", {
+    map: mapName,
+    vertices: bsp.vertices.length,
+    faces: bsp.faces.length,
+    brushes: bsp.brushes.length,
+    patchControls: bsp.vertices.filter(Boolean).length,
+  });
   console.log(`[Map] BSP parsed: ${bsp.header.isFBSP ? "FBSP" : "IBSP"} v${bsp.header.version}`);
   console.log(`[Map] Brushes: ${bsp.brushes.length}, Planes: ${bsp.planes.length}`);
 
   const collision = await createHeadlessCollisionWorld(bsp);
+  markServerMemory("collision-ready", { map: mapName });
   console.log(`[Map] Collision world initialized`);
 
   // Extract spawn points via the shared table, which also understands Warsow's

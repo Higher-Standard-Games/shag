@@ -223,6 +223,16 @@ Planar and triangle-soup draw surfaces do not generate additional colliders;
 their shader names and visible corner softening do not define gameplay solidity.
 Solid models need collision brushes supplied by the map compiler or mapper.
 
+Dedicated servers use `BspLoader.loadCollision`: it retains authoritative BSP
+topology, contents/flags, entities, brush-model records, faces, patch control
+positions and PVS. It skips render vertex attributes, mesh indices, effects,
+lightmaps and the light grid. Patch controls retain their original vertex
+indices; other vertex slots are absent. PVS bytes own a compact buffer so a
+small visibility table cannot pin the entire raw BSP. The client continues to
+use the full parser. Map extraction uses a temporary PK3 owner and the canonical
+index/published-build resolution; unrelated fallback archives are released
+between attempts, and extracted map archives can be collected afterward.
+
 Sweep collision retrieves brush/face candidates from BSP leaves touched by the
 swept hull. Rendering PVS visibility is not a collision filter. Repeated leaf
 references are deduplicated per query, except embedded contacts whose recovery
