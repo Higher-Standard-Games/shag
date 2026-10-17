@@ -100,12 +100,16 @@ export function createShaggedHttpServer(store: MapStore, config: ShaggedServerCo
         }
         const value = await body(request);
         if (!value || typeof value !== "object") throw new MapInputError("Expected a compile request object");
-        const input = value as { revision?: unknown; quality?: unknown };
+        const input = value as { revision?: unknown; quality?: unknown; force?: unknown };
         const quality = input.quality ?? jobs.defaultQuality;
-        if (!Number.isSafeInteger(input.revision) || !isBuildQuality(quality)) {
+        if (
+          !Number.isSafeInteger(input.revision) ||
+          !isBuildQuality(quality) ||
+          (input.force !== undefined && typeof input.force !== "boolean")
+        ) {
           throw new MapInputError("Expected a saved revision and supported quality");
         }
-        const job = await jobs.request(compile[1], input.revision as number, quality);
+        const job = await jobs.request(compile[1], input.revision as number, quality, input.force === true);
         json(response, 202, { jobId: job.id, state: job.state, revision: job.revision });
         return;
       }

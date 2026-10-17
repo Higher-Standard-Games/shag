@@ -1,4 +1,5 @@
-import { access, constants, copyFile, mkdir } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { access, constants, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { type BuildQuality, isBuildQuality } from "./BuildRecipe";
@@ -117,10 +118,21 @@ export async function resolveCompilerConfig(
         if (directory === path.join(repoRoot, "tools", "makebsp")) {
           const profileDirectory = path.join(directory, "makebspdata");
           await mkdir(profileDirectory, { recursive: true });
-          await copyFile(
-            path.join(toolchainRoot, "makebspdata", "washoi.json"),
-            path.join(profileDirectory, "washoi.json"),
-          );
+          const profile = path.join(profileDirectory, "washoi.json");
+          const contents = await readFile(path.join(toolchainRoot, "makebspdata", "washoi.json"), "utf8");
+          const current = await readFile(profile, "utf8").catch((error) => {
+            if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+            throw error;
+          });
+          if (current !== contents) {
+            const temporary = `${profile}.${randomUUID()}.tmp`;
+            try {
+              await writeFile(temporary, contents, "utf8");
+              await rename(temporary, profile);
+            } finally {
+              await rm(temporary, { force: true });
+            }
+          }
         }
         await access(path.join(directory, "makebspdata", "washoi.json"), constants.R_OK);
       }

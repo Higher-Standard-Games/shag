@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -23,6 +23,74 @@ const config: CompilerConfig = {
 };
 
 describe("SHAGGED compile jobs", () => {
+  it("serializes independent queues, reuses matching inputs, honors force, and rebuilds changed media", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "shagged-cache-"));
+    roots.push(root);
+    const media = path.join(root, "media");
+    await mkdir(media);
+    const store = new MapStore(path.join(root, "maps"));
+    await store.init();
+    await store.save("arena", "source", 0);
+    let calls = 0;
+    const runner: ToolRunner = async (binary, args, _cwd, log) => {
+      calls++;
+      log("WARNING: unusual light sample\n");
+      if (binary === "makelight") {
+        const header = new Uint8Array(8);
+        header.set(new TextEncoder().encode("FBSP"));
+        new DataView(header.buffer).setInt32(4, 1, true);
+        await writeFile(args.at(-1)!.replace(/\.map$/, ".bsp"), header);
+      }
+      return 0;
+    };
+    const make = () =>
+      new CompileJobs(store, { ...config, mediaRoot: media }, path.join(root, "jobs"), runner, path.join(root, "data"));
+    const compile = async (force = false) => {
+      const jobs = make();
+      return (await jobs.wait((await jobs.request("arena", 1, "fast", force)).id))!;
+    };
+    const parallel = await Promise.all([compile(), compile()]);
+    expect(parallel.every((job) => job.state === "playable")).toBe(true);
+    expect(parallel.filter((job) => job.reused)).toHaveLength(1);
+    expect(calls).toBe(2);
+    expect((await compile()).diagnostics.warnings).toBe(2);
+    expect(calls).toBe(2);
+    expect((await compile(true)).reused).toBe(false);
+    expect(calls).toBe(4);
+    await writeFile(path.join(media, "new-texture.tga"), "changed dependency");
+    expect((await compile()).reused).toBe(false);
+    expect(calls).toBe(6);
+  });
+
+  it("refuses publication if media changes while the native tools run", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "shagged-changing-input-"));
+    roots.push(root);
+    const media = path.join(root, "media");
+    await mkdir(media);
+    const store = new MapStore(path.join(root, "maps"));
+    await store.init();
+    await store.save("arena", "source", 0);
+    const runner: ToolRunner = async (_binary, args) => {
+      await writeFile(path.join(media, "changed.tga"), "new input");
+      const header = new Uint8Array(8);
+      header.set(new TextEncoder().encode("FBSP"));
+      new DataView(header.buffer).setInt32(4, 1, true);
+      await writeFile(args.at(-1)!.replace(/\.map$/, ".bsp"), header);
+      return 0;
+    };
+    const jobs = new CompileJobs(
+      store,
+      { ...config, mediaRoot: media },
+      path.join(root, "jobs"),
+      runner,
+      path.join(root, "data"),
+    );
+    const job = (await jobs.wait((await jobs.request("arena", 1, "fast")).id))!;
+    expect(job.state).toBe("failed");
+    expect(job.packageName).toBeNull();
+    expect(job.logs.join("\n")).toContain("inputs changed during compilation");
+  });
+
   it("retains split diagnostics and complete logs after progress evicts the tail; blocks publication", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "shagged-diagnostics-"));
     roots.push(root);

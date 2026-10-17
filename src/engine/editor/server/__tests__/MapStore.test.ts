@@ -39,7 +39,7 @@ describe("SHAGGED server map storage", () => {
     const data = new EditorDocument().snapshot();
     const source = writeMap(data);
     const results = await Promise.allSettled([
-      maps.save("arena", source, 0, data),
+      new MapStore(maps.root).save("arena", source, 0, data),
       maps.save("arena", source, 0, data),
     ]);
     expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);

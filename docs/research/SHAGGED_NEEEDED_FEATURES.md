@@ -144,7 +144,7 @@ The installed native MakeBSP `-fontatlas` command emits a JSON descriptor with a
 
 `misc_decal`, `misc_text_decal` and `func_group` appear as unlisted classes at informational severity in editor health, although the compiler handles them. Catalog support should distinguish compiler-only entities from genuinely unknown classes.
 
-### Remaining MCP/compiler integration gaps
+### Gaps recorded during refinement (implementation status follows)
 
 - Map inspection exposes patch counts but not control points. The refiner reads the canonical snapshot and checks its revision against live MCP before building patch operations. A supported full document read would remove this workaround.
 - Compile output tails can lose useful phase names and warnings behind progress output. Keep durable complete native logs and expose progress, warning summaries and log paths in reports.
@@ -165,3 +165,28 @@ then emits 200 progress records. It verifies publication is blocked, the full
 message survives on disk, and another reader can retrieve the completed job.
 The native room compile also passes. This does not make the diagnostic parser
 an exhaustive grammar for every future native compiler warning.
+
+## Implementation follow-up: coordinated builds and reuse
+
+Native jobs sharing a canonical media root now take a machine-local filesystem
+lease, including jobs submitted from different server roots or MCP processes.
+The lease records both the submitting PID and the active native compiler PID;
+recovery waits for both to exit. Source-save compare-and-swap, MCP edit
+transactions and manifest/publication updates also use filesystem coordination.
+An ownerless/corrupt lease is not automatically deleted. This is not a
+distributed lock for multiple machines sharing a network filesystem.
+
+Reuse now includes a SHA-256 input fingerprint for compiler binaries, profiles,
+adjacent runtime libraries, recipe and compile media. Generated indexes,
+managed source/job files, loose maps output/cache and numbered BSP-only
+packages are excluded. Packages with additional assets remain dependencies.
+Legacy publications rebuild once; CLI, MCP and HTTP expose forced rebuilds.
+Changed media during a build and stale queued source revisions block publication.
+Profile deployment is atomic and leaves identical profiles untouched.
+
+Tests cover actual process coordination, a surviving compiler PID after its
+owner exits, live-lock protection, failed-work cleanup, independent source
+stores, concurrent compile queues, forced rebuilds, dependency changes and
+mid-build input mutation. The first fingerprint integration exposed generated
+job files being counted as inputs when storage was nested in the media root;
+explicit storage exclusions fixed that self-invalidation.

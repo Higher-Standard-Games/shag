@@ -3,6 +3,7 @@ import { mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promise
 import path from "node:path";
 import { type EditorDocumentData, validateDocument } from "../EditorDocument";
 import { writeMap } from "../MapWriter";
+import { withFileLock } from "./FileLock";
 
 const MAP_NAME = /^[a-z][a-z0-9_]{0,47}$/;
 const MAX_SOURCE_BYTES = 4 * 1024 * 1024;
@@ -116,7 +117,11 @@ export class MapStore {
     const previous = this.pending.get(name) ?? Promise.resolve();
     const operation = previous
       .catch(() => undefined)
-      .then(() => this.saveLocked(name, source, expectedRevision, snapshotSidecar));
+      .then(() =>
+        withFileLock(path.join(this.root, ".locks", name), () =>
+          this.saveLocked(name, source, expectedRevision, snapshotSidecar),
+        ),
+      );
     this.pending.set(name, operation);
     try {
       return await operation;

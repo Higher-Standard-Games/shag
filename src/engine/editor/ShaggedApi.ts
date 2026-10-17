@@ -102,11 +102,12 @@ export class ShaggedApi {
     name: string,
     revision: number,
     quality: "fast" | "default" | "release" = "default",
+    force = false,
   ): Promise<{ jobId: string }> {
     return this.request(`/api/maps/${encodeURIComponent(name)}/compile`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ revision, quality }),
+      body: JSON.stringify({ revision, quality, force }),
     });
   }
 

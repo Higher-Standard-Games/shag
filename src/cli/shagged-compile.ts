@@ -8,14 +8,17 @@ import { resolveServerConfig } from "../engine/editor/server/ServerConfig";
 const args = process.argv.slice(2);
 if (args.includes("--help") || args.includes("-h")) {
   console.log(
-    "Usage: npm run shagged:compile -- <mapname> [--quality fast|default|release] [--maps-root DIR] [--publish-root DIR] [--makebsp-bin FILE] [--makelight-bin FILE] [--media-root DIR] [--toolchain-root DIR] [--check-config]",
+    "Usage: npm run shagged:compile -- <mapname> [--quality fast|default|release] [--force] [--maps-root DIR] [--publish-root DIR] [--makebsp-bin FILE] [--makelight-bin FILE] [--media-root DIR] [--toolchain-root DIR] [--check-config]",
   );
   process.exit(0);
 }
 
 try {
   const checkConfig = args.includes("--check-config");
-  const { overrides, remaining } = splitCompilerOptions(args.filter((arg) => arg !== "--check-config"));
+  const force = args.includes("--force");
+  const { overrides, remaining } = splitCompilerOptions(
+    args.filter((arg) => arg !== "--check-config" && arg !== "--force"),
+  );
   let name: string | undefined;
   const serverArgs: string[] = [];
   let qualityInput: string | undefined;
@@ -52,7 +55,7 @@ try {
     undefined,
     server.publishRoot,
   );
-  const requested = await jobs.request(name, saved.revision, quality);
+  const requested = await jobs.request(name, saved.revision, quality, force);
   const completed = await jobs.wait(requested.id);
   if (!completed) throw new Error("Compile job disappeared");
   console.log(JSON.stringify(completed, null, 2));

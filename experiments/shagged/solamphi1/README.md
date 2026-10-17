@@ -71,7 +71,7 @@ node experiments/shagged/solamphi1/refine.mjs report
 npx tsx experiments/shagged/solamphi1/verify.ts
 ```
 
-Run native compile stages sequentially. Separate MCP processes do not coordinate same-map jobs or the native cache directory. Fast compilation deliberately disables compiler chamfering. Review the final look using default quality. A changed compiler/profile/media set needs a fresh build: the existing reuse cache only identifies source bytes and quality.
+Run authoring stages sequentially because each depends on the previous document revision. The compiler now coordinates native jobs sharing a media root across local MCP/server processes. Fast compilation deliberately disables compiler chamfering; review the final look using default quality. Reuse fingerprints compiler, profiles, recipe and media as well as source. Use the scripting CLI's `compile ... --force` or MCP `force: true` for an explicit rebuild.
 
 For GPU screenshots, start the private browser-probe Vite server on port 3100, then run `node experiments/shagged/solamphi1/review.mjs`. It writes four views and a browser report under `.cache/` using the repository's headless Edge helper.
 

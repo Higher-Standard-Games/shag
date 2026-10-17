@@ -33,6 +33,7 @@ import {
   withTextureSizes,
 } from "../engine/editor/server/AgentPipeline";
 import { readCompileJob, readCompileLog } from "../engine/editor/server/CompileJobs";
+import { withFileLock } from "../engine/editor/server/FileLock";
 import { resolveServerConfig } from "../engine/editor/server/ServerConfig";
 import { loadTextureCatalog, searchTextures } from "../engine/editor/server/TextureLookup";
 
@@ -66,9 +67,13 @@ function save(doc: EditorDocumentData): void {
 const locks = new Map<string, Promise<unknown>>();
 function exclusive<T>(mapName: string, work: () => Promise<T> | T): Promise<T> {
   const previous = locks.get(mapName) ?? Promise.resolve();
-  const next = previous.catch(() => undefined).then(work);
+  const next = previous
+    .catch(() => undefined)
+    .then(() => withFileLock(path.join(ROOT, ".locks", mapName), async () => work()));
   locks.set(mapName, next);
-  return next;
+  return next.finally(() => {
+    if (locks.get(mapName) === next) locks.delete(mapName);
+  });
 }
 
 type ToolResult = { content: Array<{ type: "text"; text: string }>; isError?: boolean };
@@ -224,9 +229,14 @@ server.registerTool(
     title: "Compile a map",
     description:
       "Compiles with MakeBSP and MakeLight and publishes a playable package (play it with: map <mapName>). Reports leaks. An unchanged map reuses its last build.",
-    inputSchema: { mapName: MAP_NAME, quality: QUALITY },
+    inputSchema: {
+      mapName: MAP_NAME,
+      quality: QUALITY,
+      force: z.boolean().optional().describe("Rebuild even when source and all build inputs match."),
+    },
   },
-  async ({ mapName, quality }) => run(() => exclusive(mapName, () => compileDocument(load(mapName), quality))),
+  async ({ mapName, quality, force }) =>
+    run(() => exclusive(mapName, () => compileDocument(load(mapName), quality, force))),
 );
 
 server.registerTool(
@@ -273,9 +283,9 @@ server.registerTool(
     title: "Check a map end to end",
     description:
       "Map Health, then compile, then reachability of the compiled map: where a player can go from each spawn using the game's own movement (items some spawn cannot reach, spawns cut off from others), in Quake coordinates with the editor object ID. ok: true means all three passed. botNavigation reports the same for the bots' route graph, which misses stairs.",
-    inputSchema: { mapName: MAP_NAME, quality: QUALITY },
+    inputSchema: { mapName: MAP_NAME, quality: QUALITY, force: z.boolean().optional() },
   },
-  async ({ mapName, quality }) => run(() => exclusive(mapName, () => mapReport(load(mapName), quality))),
+  async ({ mapName, quality, force }) => run(() => exclusive(mapName, () => mapReport(load(mapName), quality, force))),
 );
 
 server.registerTool(

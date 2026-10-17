@@ -3,18 +3,16 @@
  * the MCP server: describe a document, compile and publish it, and report on
  * the compiled map. See docs/research/SHAGGED_API.md.
  */
-import { existsSync } from "node:fs";
 import path from "node:path";
 import type { EditOp } from "../api/Operations";
 import { type EditorDocumentData, validateDocument } from "../EditorDocument";
 import { inspectMapHealth, type MapHealthIssue } from "../MapHealth";
 import { writeMap } from "../MapWriter";
 import { isBuildQuality } from "./BuildRecipe";
-import { type CompileDiagnostics, emptyDiagnostics } from "./CompileDiagnostics";
+import type { CompileDiagnostics } from "./CompileDiagnostics";
 import { CompileJobs } from "./CompileJobs";
 import { resolveCompilerConfig } from "./CompilerConfig";
 import { MapStore } from "./MapStore";
-import { readPublishedBuild } from "./PublishedBuild";
 import { resolveServerConfig } from "./ServerConfig";
 import { findTexture, loadTextureCatalog, type TextureInfo } from "./TextureLookup";
 
@@ -129,6 +127,7 @@ export interface CompileOutcome {
   jobId: string | null;
   logPath: string | null;
   diagnostics: CompileDiagnostics;
+  inputFingerprint: string;
 }
 
 /**
@@ -136,7 +135,11 @@ export interface CompileOutcome {
  * and publish it as a playable package. Reuses the current published build
  * when it came from the same source bytes at the same quality.
  */
-export async function compileDocument(doc: EditorDocumentData, quality?: string): Promise<CompileOutcome> {
+export async function compileDocument(
+  doc: EditorDocumentData,
+  quality?: string,
+  force = false,
+): Promise<CompileOutcome> {
   validateDocument(doc);
   if (!doc.mapName) throw new PipelineError('the document has no mapName; give it one (lowercase id, e.g. "arena1")');
   const server = resolveServerConfig([]);
@@ -151,31 +154,6 @@ export async function compileDocument(doc: EditorDocumentData, quality?: string)
   const source = writeMap(doc);
   const saved =
     current && current.source === source ? current : await store.save(name, source, current?.revision ?? 0, doc);
-  const published = await readPublishedBuild(server.publishRoot, name);
-  if (
-    published &&
-    published.sourceHash === saved.sourceHash &&
-    published.quality === level &&
-    existsSync(path.join(server.publishRoot, published.package))
-  ) {
-    return {
-      ok: true,
-      state: "playable",
-      stage: "done",
-      mapName: name,
-      revision: saved.revision,
-      quality: level,
-      runtimeMapName: name,
-      packageName: published.package,
-      bspHash: published.bspHash,
-      leak: false,
-      reused: true,
-      logTail: [],
-      jobId: null,
-      logPath: null,
-      diagnostics: emptyDiagnostics(),
-    };
-  }
   const jobs = new CompileJobs(
     store,
     compiler,
@@ -183,7 +161,7 @@ export async function compileDocument(doc: EditorDocumentData, quality?: string)
     undefined,
     server.publishRoot,
   );
-  const requested = await jobs.request(name, saved.revision, level);
+  const requested = await jobs.request(name, saved.revision, level, force);
   const job = await jobs.wait(requested.id);
   if (!job) throw new PipelineError("compile job disappeared");
   return {
@@ -198,11 +176,12 @@ export async function compileDocument(doc: EditorDocumentData, quality?: string)
     bspHash: job.bspHash,
     // MakeBSP's leak test prints "LEAKED" and stops the build.
     leak: job.diagnostics.leak,
-    reused: false,
+    reused: job.reused,
     logTail: job.logs.slice(-20),
     jobId: job.id,
     logPath: job.logPath,
     diagnostics: job.diagnostics,
+    inputFingerprint: job.inputFingerprint,
   };
 }
 
@@ -247,9 +226,9 @@ export async function mapReachability(doc: EditorDocumentData, mapName: string) 
 }
 
 /** Health, compile, then reachability of the compiled map, as one verdict. */
-export async function mapReport(doc: EditorDocumentData, quality?: string) {
+export async function mapReport(doc: EditorDocumentData, quality?: string, force = false) {
   const health = healthOf(doc, await quietly(() => loadTextureCatalog()));
-  const build = await quietly(() => compileDocument(doc, quality));
+  const build = await quietly(() => compileDocument(doc, quality, force));
   const reach = build.ok ? await quietly(() => mapReachability(doc, build.mapName)) : null;
   const reachability = reach?.player ?? { ok: false, error: "skipped: the map did not compile" };
   return {

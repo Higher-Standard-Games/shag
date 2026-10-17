@@ -34,8 +34,8 @@ const USAGE = `Usage: npm run shagged -- <command> ...
   info <doc.json> [--objects]                          counts, bounds and (optionally) every object
   health <doc.json>                                    Map Health issues
   export <doc.json> [out.map]                          deterministic .map source (stdout without a file)
-  compile <doc.json> [--quality fast|default|release]  save as a server revision, run MakeBSP/MakeLight, publish
-  report <doc.json> [--quality ...]                    health, compile, then reachability of the compiled map
+  compile <doc.json> [--quality fast|default|release] [--force]  save, compile and publish; force bypasses reuse
+  report <doc.json> [--quality ...] [--force]          health, compile, then reachability of the compiled map
   textures [search words] [--folder f] [--limit n]     find texture names and their image sizes`;
 
 /** Writes stdout directly, so results still print while library logging is silenced. */
@@ -161,13 +161,13 @@ async function main(): Promise<void> {
       return;
     }
     case "compile": {
-      const result = await quietly(() => compileDocument(readDoc(file), value("--quality")));
+      const result = await quietly(() => compileDocument(readDoc(file), value("--quality"), flag("--force")));
       out(result);
       if (!result.ok) process.exitCode = 1;
       return;
     }
     case "report": {
-      const result = await mapReport(readDoc(file), value("--quality"));
+      const result = await mapReport(readDoc(file), value("--quality"), flag("--force"));
       out(result);
       if (!result.ok) process.exitCode = 1;
       return;

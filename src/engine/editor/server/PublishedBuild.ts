@@ -1,7 +1,9 @@
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, open, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import JSZip from "jszip";
+import type { CompileDiagnostics } from "./CompileDiagnostics";
+import { withFileLock } from "./FileLock";
 import { validateMapName } from "./MapStore";
 
 export interface PublishedBuild {
@@ -12,6 +14,8 @@ export interface PublishedBuild {
   sourceHash: string;
   bspHash: string;
   quality: string;
+  inputFingerprint?: string;
+  diagnostics?: CompileDiagnostics;
 }
 
 export const publishedBuildFile = (name: string): string => {
@@ -31,7 +35,8 @@ export async function readPublishedBuild(dataRoot: string, name: string): Promis
     if (
       build.mapName !== name ||
       !new RegExp(`^map_${name}_[0-9]{5,}\\.pk3$`).test(build.package) ||
-      !/^[a-f0-9]{64}$/.test(build.bspHash)
+      !/^[a-f0-9]{64}$/.test(build.bspHash) ||
+      (build.inputFingerprint !== undefined && !/^[a-f0-9]{64}$/.test(build.inputFingerprint))
     )
       throw new Error(`Invalid published build pointer for ${name}`);
     return build;
@@ -51,18 +56,7 @@ export async function publishBuild(
   await mkdir(dataRoot, { recursive: true });
   // The manifest is shared across maps, so serialize the complete publication.
   const lockPath = path.join(dataRoot, ".shagged_publish.lock");
-  let lock: Awaited<ReturnType<typeof open>> | undefined;
-  for (let attempt = 0; attempt < 100; attempt++) {
-    try {
-      lock = await open(lockPath, "wx");
-      break;
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
-      await new Promise((resolve) => setTimeout(resolve, 50));
-    }
-  }
-  if (!lock) throw new Error(`Timed out waiting to publish ${input.mapName}`);
-  try {
+  return withFileLock(lockPath, async () => {
     const names = await readdir(dataRoot);
     if (names.includes(`map_${input.mapName}.pk3`))
       throw new Error(`Map ID ${input.mapName} collides with an installed map package`);
@@ -96,8 +90,5 @@ export async function publishBuild(
     const build: PublishedBuild = { ...input, package: packageName, bspHash };
     await atomicWrite(path.join(dataRoot, publishedBuildFile(input.mapName)), `${JSON.stringify(build, null, 2)}\n`);
     return build;
-  } finally {
-    await lock.close();
-    await rm(lockPath, { force: true });
-  }
+  });
 }

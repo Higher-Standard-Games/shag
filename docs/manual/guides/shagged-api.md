@@ -37,6 +37,25 @@ until it reaches `size`. Jobs from before durable logging have no saved status.
 Explicit native asset-load failures, errors and leaks block publication even
 when a tool exits with code zero. Other warnings remain visible without blocking.
 
+Build reuse requires matching source, quality and an `inputFingerprint` of the
+recipe, compiler binaries, profiles, adjacent runtime libraries and compile
+media. Generated indexes, managed source/job storage, the loose `maps` output
+tree and numbered BSP-only packages are excluded. Numbered packages containing
+other assets remain inputs. File contents are hashed; an in-process digest
+cache uses size, modification/change timestamps and inode to avoid rereading
+unchanged files. Legacy published pointers without a fingerprint rebuild once.
+Use CLI `compile ... --force` / `report ... --force`, MCP `force: true`, or HTTP
+compile body `force: true` to bypass reuse.
+
+Native compiles sharing a canonical media root are serialized across local
+processes, including different maps because the native VFS/cache is shared.
+Source saves, MCP edits and publication also use filesystem locks. A live local
+owner's lock never expires merely because its compile is long; confirmed dead
+local owners are recovered. Ownerless/corrupt locks require inspection rather
+than automatic deletion. Media changes during compilation and stale queued
+source revisions fail without publishing. Restart old editor/MCP processes to
+use this coordination; it is local-machine locking, not a distributed service.
+
 ## Coordinates and IDs
 
 - Quake units, **Z is up**. Never Babylon (Y-up) coordinates.
@@ -123,7 +142,7 @@ Example: two rooms joined by a corridor, with spawns and a weapon:
 `report` returns one JSON verdict with `ok` and four sections:
 
 - `health`: Map Health issues (missing spawns or required keys, broken target links, unknown classes, unknown shaders or shaders without an image), each with the object's ID.
-- `compile`: build state, `leak`, the published package and a log tail. An unchanged map reuses its last build (`reused: true`).
+- `compile`: build state, `leak`, the published package, input fingerprint, diagnostics and log access. Matching source and build inputs reuse the last build (`reused: true`).
 - `reachability`: where a **player** can go in the compiled map, found by flooding it with the game's own movement from every spawn (walking, stairs, drops, hops up to jump height, teleporters and jump pads). `unreachableItems` and `cutOffSpawns` list problems in Quake coordinates with the matching editor `objectId`. This decides `ok`.
 - `botNavigation`: the same question for the bots' navigation graph. Bots can't plan over everything a player can (stairs in particular), so a map can pass `reachability` and still list items here that bots won't go for.
 
