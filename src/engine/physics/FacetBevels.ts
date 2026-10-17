@@ -96,6 +96,8 @@ export function buildFacetPlanes(v1: Vec, v2: Vec, v3: Vec): FacetPlane[] {
 
   const dist = dot(normal, v1);
   const points: Vec[] = [v1, v2, v3];
+  const supportDistance = (direction: Vec): number =>
+    Math.max(...points.map((point) => dot(direction, point))) + Math.max(0, -FACET_THICKNESS * dot(direction, normal));
 
   // Front and back: the triangle's own plane, and a floor under it to give the
   // sweep something to exit through.
@@ -132,7 +134,9 @@ export function buildFacetPlanes(v1: Vec, v2: Vec, v3: Vec): FacetPlane[] {
     for (const dir of [1, -1]) {
       const axial: [number, number, number] = [0, 0, 0];
       axial[axis] = dir;
-      const axialDist = Math.max(dot(axial, v1), dot(axial, v2), dot(axial, v3));
+      // Bevels enclose the whole extruded facet, including its back vertices.
+      // Bounding only the front triangle collapses an axial facet to zero depth.
+      const axialDist = supportDistance(axial);
       if (!isDuplicate(planes, axial, axialDist)) planes.push({ normal: axial, dist: axialDist });
     }
   }
@@ -155,8 +159,9 @@ export function buildFacetPlanes(v1: Vec, v2: Vec, v3: Vec): FacetPlane[] {
         const candidate: [number, number, number] = [bevel[0] * dir, bevel[1] * dir, bevel[2] * dir];
         const candidateDist = dot(candidate, a);
         if (!supportsFacet(points, candidate, candidateDist)) continue;
-        if (isDuplicate(planes, candidate, candidateDist)) continue;
-        planes.push({ normal: candidate, dist: candidateDist });
+        const supportDist = supportDistance(candidate);
+        if (isDuplicate(planes, candidate, supportDist)) continue;
+        planes.push({ normal: candidate, dist: supportDist });
       }
     }
   }

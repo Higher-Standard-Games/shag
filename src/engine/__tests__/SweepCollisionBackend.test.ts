@@ -410,6 +410,47 @@ async function patchBackend(shaderName: string): Promise<SweepCollisionBackend> 
   return backend;
 }
 
+describe("SweepCollisionBackend — patch point contacts", () => {
+  it.each([0, 8192, -8192])("hits flat and sloped shared edges at map offset %i", async (offset) => {
+    for (const angle of [0, 0.37, 0.91]) {
+      const position = (x: number, y: number, height: number) =>
+        new Vector3(
+          offset + x * Math.cos(angle) - y * Math.sin(angle),
+          height,
+          offset + x * Math.sin(angle) + y * Math.cos(angle),
+        );
+      for (const slope of [0, 0.25]) {
+        const bsp = buildPatchBsp("textures/world");
+        for (const vertex of bsp.vertices) {
+          const [x, y] = vertex.position;
+          const p = position(x, y, 96 + slope * x + (slope * y) / 2);
+          vertex.position = [p.x, p.z, p.y];
+        }
+        const backend = new SweepCollisionBackend();
+        await backend.init(bsp);
+        for (const [x, y] of [
+          [0, 0],
+          [-38.4, -38.4],
+          [12.8, -12.8],
+          [8, 3],
+          [64, 0],
+        ]) {
+          const height = 96 + slope * x + (slope * y) / 2;
+          const hit = backend.trace(position(x, y, 180), position(x, y, 0), { radius: 0, height: 0 });
+          expect(hit.fraction, `angle ${angle}, slope ${slope}, point ${x},${y}`).toBeLessThan(1);
+          expect(hit.endPos.y).toBeCloseTo(height, 1);
+          expect(hit.startSolid).toBe(false);
+        }
+        const miss = backend.trace(position(slope ? 65 : 64.01, 0, 180), position(slope ? 65 : 64.01, 0, 0), {
+          radius: 0,
+          height: 0,
+        });
+        expect(miss.fraction).toBe(1);
+      }
+    }
+  });
+});
+
 describe("SweepCollisionBackend — per-query visits", () => {
   it("prunes strictly contained brushes only for non-embedded hulls", async () => {
     const bsp = buildBsp([
@@ -531,7 +572,8 @@ describe("SweepCollisionBackend — per-query visits", () => {
     const spy = vi.spyOn(backend as unknown as { traceFacet: (...args: unknown[]) => void }, "traceFacet");
     const result = backend.trace(new Vector3(0, 24, 0), new Vector3(0, 80, 0));
     expect(result.startSolid).toBe(true);
-    expect(spy).toHaveBeenCalledTimes(52);
+    // Exactly planar tessellation gives the facet index tight axial bounds.
+    expect(spy).toHaveBeenCalledTimes(36);
   });
 
   it("tests a face once across overlapping leaves, including generation wrap", async () => {
@@ -541,14 +583,14 @@ describe("SweepCollisionBackend — per-query visits", () => {
     const start = new Vector3(0, 100, 0),
       end = new Vector3(0, -100, 0);
     const reference = backend.trace(start, end);
-    expect(spy).toHaveBeenCalledTimes(26);
+    expect(spy).toHaveBeenCalledTimes(18);
     spy.mockClear();
     internals.traceGeneration = 0xffffffff;
     expect(backend.trace(start, end)).toEqual(reference);
-    expect(spy).toHaveBeenCalledTimes(26);
+    expect(spy).toHaveBeenCalledTimes(18);
     spy.mockClear();
     expect(backend.trace(start, end)).toEqual(reference);
-    expect(spy).toHaveBeenCalledTimes(26);
+    expect(spy).toHaveBeenCalledTimes(18);
   });
 
   it("does not retest a leaf clip brush in the global fallback", async () => {

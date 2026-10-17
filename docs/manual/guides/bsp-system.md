@@ -235,6 +235,11 @@ constraints. Partial bounds retain their proven axial sides, leaving uncertain
 directions infinite. Facets without any proven bounds remain unconditional
 candidates within their surface. Queries retain source ordering. No visual
 triangles are simplified by this index.
+Patch collision tessellation preserves constant coordinates and shared control
+endpoints. Each triangle's bevels enclose its full 0.5-unit backing thickness;
+facet planes retain double precision so point traces can hit shared edges and
+cap centers. This thickness lies behind the surface normal. It is separate
+from the trace's existing 0.03125-unit contact margin.
 The sweep backend reuses its candidate and query-bound storage within each
 backend instance. Public trace results retain independent position/normal
 vectors, and candidate lists are rebuilt for every query rather than cached

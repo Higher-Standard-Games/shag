@@ -42,10 +42,10 @@ design notes. Compiler grouping already works; editor selection groups are a
 different feature. Shared transforms and interactive clipping remain graphical
 follow-ups; external map import is a larger compatibility project.
 
-Round-preset native QA also exposed an existing point-trace issue on some patch
-caps/seams. Finite-size box sweeps pass; runtime collision was not changed in
-that authoring checkpoint. See `v0.9.31-patch-point-trace-investigation.md` for
-reproduction evidence and the separate physics follow-up.
+Round-preset native QA also exposed a runtime point-trace issue on patch
+caps/seams. The separate physics follow-up fixes facet thickness, planar
+tessellation and packed-plane precision. Native point and small-hull regressions
+pass; see `v0.9.31-patch-point-trace-investigation.md` for evidence and limits.
 
 ## Initial findings
 

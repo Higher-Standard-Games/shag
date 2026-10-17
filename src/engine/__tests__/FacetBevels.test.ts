@@ -80,6 +80,14 @@ describe("buildFacetPlanes", () => {
         }
       });
 
+      it("contains its back vertices without bevels collapsing the facet thickness", () => {
+        const normal = planes[0].normal;
+        for (const vertex of triangle) {
+          const back = vertex.map((coordinate, axis) => coordinate - 0.5 * normal[axis]) as Vec;
+          for (const plane of planes) expect(distance(plane, back)).toBeLessThanOrEqual(1e-10);
+        }
+      });
+
       it("carries an axial plane in all six directions", () => {
         // The box being swept is axis-aligned, so the Minkowski sum has a face
         // in each axial direction. A missing one lets a box clip the facet's

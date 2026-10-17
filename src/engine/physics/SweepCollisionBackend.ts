@@ -77,11 +77,10 @@ export interface FaceCollisionGeometry {
    *
    * A swept box against a bare triangle plane slips in at the edges; these are
    * the bevels that close it (see FacetBevels). Packed rather than held as
-   * objects because a busy map carries over a million of them — wbomb6 has
-   * 1.13M across 92k collision triangles, which as `{normal: [], dist}` would
-   * cost more heap than the rest of the map put together.
+   * objects to avoid per-plane arrays and object overhead. Double precision
+   * keeps neighboring facet borders consistent with tessellated positions.
    */
-  facetPlanes?: Float32Array;
+  facetPlanes?: Float64Array;
   /** Start index into {@link facetPlanes} per triangle, plus a final end marker. */
   facetRanges?: Int32Array;
   facetIndex?: CollisionSpatialIndex;
@@ -490,7 +489,9 @@ export class SweepCollisionBackend implements CollisionBackend {
       total += planes.length;
     }
 
-    const packed = new Float32Array(total * 4);
+    // Keep tessellated plane precision: independently rounded shared borders
+    // can open gaps between neighboring facets for point traces.
+    const packed = new Float64Array(total * 4);
     const ranges = new Int32Array(triangleCount + 1);
     let cursor = 0;
 
@@ -881,7 +882,7 @@ export class SweepCollisionBackend implements CollisionBackend {
    * FacetBevels) — without them the same solve would let a hull through an edge.
    */
   private traceFacet(
-    planes: Float32Array,
+    planes: Float64Array,
     first: number,
     last: number,
     texture: { name: string; contentFlags: number; surfaceFlags: number } | undefined,

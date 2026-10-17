@@ -124,66 +124,24 @@ export class PatchTessellator {
   }
 
   private static evaluateBezier(ctrl: [number, number, number][][], s: number, t: number): [number, number, number] {
-    const b0s = (1 - s) * (1 - s);
-    const b1s = 2 * s * (1 - s);
-    const b2s = s * s;
-
-    const b0t = (1 - t) * (1 - t);
-    const b1t = 2 * t * (1 - t);
-    const b2t = t * t;
-
-    let px = 0,
-      py = 0,
-      pz = 0;
-
-    // 0,0
-    let w = b0s * b0t;
-    px += ctrl[0][0][0] * w;
-    py += ctrl[0][0][1] * w;
-    pz += ctrl[0][0][2] * w;
-    // 1,0
-    w = b1s * b0t;
-    px += ctrl[0][1][0] * w;
-    py += ctrl[0][1][1] * w;
-    pz += ctrl[0][1][2] * w;
-    // 2,0
-    w = b2s * b0t;
-    px += ctrl[0][2][0] * w;
-    py += ctrl[0][2][1] * w;
-    pz += ctrl[0][2][2] * w;
-
-    // 0,1
-    w = b0s * b1t;
-    px += ctrl[1][0][0] * w;
-    py += ctrl[1][0][1] * w;
-    pz += ctrl[1][0][2] * w;
-    // 1,1
-    w = b1s * b1t;
-    px += ctrl[1][1][0] * w;
-    py += ctrl[1][1][1] * w;
-    pz += ctrl[1][1][2] * w;
-    // 2,1
-    w = b2s * b1t;
-    px += ctrl[1][2][0] * w;
-    py += ctrl[1][2][1] * w;
-    pz += ctrl[1][2][2] * w;
-
-    // 0,2
-    w = b0s * b2t;
-    px += ctrl[2][0][0] * w;
-    py += ctrl[2][0][1] * w;
-    pz += ctrl[2][0][2] * w;
-    // 1,2
-    w = b1s * b2t;
-    px += ctrl[2][1][0] * w;
-    py += ctrl[2][1][1] * w;
-    pz += ctrl[2][1][2] * w;
-    // 2,2
-    w = b2s * b2t;
-    px += ctrl[2][2][0] * w;
-    py += ctrl[2][2][1] * w;
-    pz += ctrl[2][2][2] * w;
-
-    return [px, py, pz];
+    // de Casteljau interpolation preserves constant coordinates and shared
+    // endpoints exactly, avoiding tilted planes on otherwise flat caps.
+    const quadratic = (a: number, b: number, c: number, u: number): number => {
+      if (u === 0) return a;
+      if (u === 1) return c;
+      const ab = a + (b - a) * u;
+      const bc = b + (c - b) * u;
+      return ab + (bc - ab) * u;
+    };
+    const position: [number, number, number] = [0, 0, 0];
+    for (let axis = 0; axis < 3; axis++) {
+      position[axis] = quadratic(
+        quadratic(ctrl[0][0][axis], ctrl[0][1][axis], ctrl[0][2][axis], s),
+        quadratic(ctrl[1][0][axis], ctrl[1][1][axis], ctrl[1][2][axis], s),
+        quadratic(ctrl[2][0][axis], ctrl[2][1][axis], ctrl[2][2][axis], s),
+        t,
+      );
+    }
+    return position;
   }
 }

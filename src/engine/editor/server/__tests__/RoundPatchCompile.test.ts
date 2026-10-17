@@ -62,6 +62,24 @@ it("compiles round presets with finite draw data, closed tops and a hollow tube 
     expect(down(8, -125).endPos.y).toBeCloseTo(32.75, 0);
     const side = collision.trace(new Vector3(-80, 48, 0), new Vector3(80, 48, 0), { radius: 1, height: 2 });
     expect(side.endPos.x).toBeCloseTo(-49, 0);
+    const pointDown = (x: number, y: number) =>
+      collision.trace(new Vector3(x, 160, y), new Vector3(x, 16, y), { radius: 0, height: 0 });
+    for (const [x, y, height] of [
+      [0, 0, 96],
+      [8, 3, 96],
+      [-100, 3, 96],
+      [0, -128, 32],
+    ]) {
+      const hit = pointDown(x, y);
+      expect(hit.fraction).toBeLessThan(1);
+      expect(hit.endPos.y).toBeCloseTo(height + 0.03125, 4);
+      expect(hit.normal?.y).toBeCloseTo(1, 5);
+    }
+    expect(pointDown(-128, 0).fraction).toBe(1);
+    expect(pointDown(49, 0).fraction).toBe(1);
+    const pointSide = collision.trace(new Vector3(-80, 48, 0), new Vector3(80, 48, 0), { radius: 0, height: 0 });
+    expect(pointSide.fraction).toBeLessThan(1);
+    expect(pointSide.endPos.x).toBeCloseTo(-48.03125, 4);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
