@@ -60,16 +60,19 @@ Shared cartoon hit artwork ships in `effects.pk3`, with virtual paths
 or pass `-- --source-dir <directory>`. Regenerate the PK3 index after rebuilding.
 The packager verifies PNG signatures, ZIP CRCs and unchanged image hashes.
 
-`npm run tools:map-media -- --maps wdm2,wfdm5,wfdm11 --output-dir .cache/map-media`
-builds `map_<name>.pk3` and `tex_<name>.pk3` in a staging directory from the
+`npm run tools:map-media -- --maps wdm2,wfdm5,wfdm11 --combined --output-dir .cache/map-media`
+builds `map_<name>.pk3`, intermediate `tex_<name>.pk3` banks and a combined
+`textures.pk3` in a staging directory from the
 current ownership index. It uses the runtime BSP/shader parsers, keeps source
 bytes and shader conditionals/templates, and includes provenance manifests.
 It refuses to overwrite indexed input packages. `--audit-only` writes only the
 dependency report. Install reviewed packages into `public/data/` and regenerate
-the index before testing them.
+the index before testing them. For the three-map deployment, install the map
+packages and `textures.pk3`; archive the intermediate texture banks. Combining
+deduplicates identical files and shaders and rejects conflicting definitions.
 
-Shared paths still obey the global alphabetical override rule: duplicating media
-in per-map banks does not guarantee that only the matching texture bank downloads.
+Shared paths still obey the global alphabetical override rule. The combined bank
+trades a larger first-map download for one shared cache across these three maps.
 See `docs/research/media_packaging.md` in the repository for measured loading,
 archive/rollback steps, remaining shared dependencies and the audio replacement list.
 

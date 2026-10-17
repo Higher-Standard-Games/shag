@@ -299,7 +299,7 @@ export async function packageMap(bank: MediaBank, map: string, outputDirectory: 
     texZip.file(`media-sources/${map}/${file}.txt`, new Uint8Array(await bank.read(file)), options);
   // Rebuilding from curated banks must retain the original attribution chain.
   for (const owner of new Set([...assets.values(), ...shaders.values()].map((entry) => entry.owner))) {
-    if (!owner.startsWith("tex_")) continue;
+    if (!owner.startsWith("tex_") && owner !== "textures.pk3") continue;
     const source = await bank.zip(owner);
     for (const file of Object.values(source.files)) {
       if (!file.dir && file.name.startsWith("media-sources/"))
@@ -347,6 +347,53 @@ export async function packageMap(bank: MediaBank, map: string, outputDirectory: 
   return { ...manifest, outputs };
 }
 
+/** Merge reviewed map banks without silently changing any shared file or shader. */
+export async function mergeTextureBanks(inputs: Uint8Array[]): Promise<Uint8Array> {
+  const files = new Map<string, Uint8Array>();
+  const shaders = new Map<string, string>();
+  for (const bytes of inputs) {
+    const source = await JSZip.loadAsync(bytes, { checkCRC32: true });
+    for (const file of Object.values(source.files)) {
+      if (file.dir) continue;
+      const name = file.name.toLowerCase();
+      if (name.startsWith("/") || name.split("/").includes("..")) throw new Error(`Unsafe bank path: ${name}`);
+      const data = new Uint8Array(await file.async("nodebuffer"));
+      if (name.startsWith("scripts/") && name.endsWith(".shader")) {
+        for (const block of shaderBlocks(Buffer.from(data).toString("utf8"))) {
+          const key = block.name.toLowerCase();
+          if (shaders.has(key) && shaders.get(key) !== block.source) throw new Error(`Conflicting shader: ${key}`);
+          shaders.set(key, block.source);
+        }
+      } else {
+        if (files.has(name) && hash(files.get(name)!) !== hash(data)) throw new Error(`Conflicting asset: ${name}`);
+        files.set(name, data);
+      }
+    }
+  }
+  const output = new JSZip();
+  const options = { date: new Date("1980-01-01T00:00:00Z"), createFolders: false };
+  for (const [name, bytes] of [...files].sort(([a], [b]) => a.localeCompare(b))) output.file(name, bytes, options);
+  output.file(
+    "scripts/washoi_maps.shader",
+    [...shaders]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([, source]) => source)
+      .join("\n\n") + "\n",
+    options,
+  );
+  const result = await output.generateAsync({
+    type: "uint8array",
+    compression: "DEFLATE",
+    compressionOptions: { level: 9 },
+  });
+  const verified = await JSZip.loadAsync(result, { checkCRC32: true });
+  for (const [name, bytes] of files) {
+    if (hash(await verified.file(name)!.async("nodebuffer")) !== hash(bytes))
+      throw new Error(`Merged hash mismatch: ${name}`);
+  }
+  return result;
+}
+
 export async function main(): Promise<void> {
   const args = process.argv.slice(2).filter((value) => value !== "--");
   const value = (flag: string, fallback: string) => (args.includes(flag) ? args[args.indexOf(flag) + 1] : fallback);
@@ -363,6 +410,18 @@ export async function main(): Promise<void> {
     console.log(
       `[map-media] ${map}: ${item.assets.length} assets, ${item.shaders.length} shaders, ${item.unresolved.length} unresolved`,
     );
+  }
+  if (args.includes("--combined") && !args.includes("--audit-only")) {
+    const destination = path.join(output, "textures.pk3");
+    if (index.packages.some((pkg) => path.resolve(directory, pkg.path) === destination))
+      throw new Error(`Output would overwrite an input: ${destination}`);
+    const bytes = await mergeTextureBanks(
+      await Promise.all(
+        maps.map(async (map) => new Uint8Array(await fs.readFile(path.join(output, `tex_${map}.pk3`)))),
+      ),
+    );
+    await fs.writeFile(destination, bytes);
+    console.log(`[map-media] textures.pk3: ${bytes.length} bytes, ${hash(bytes)}`);
   }
   await fs.mkdir(output, { recursive: true });
   await fs.writeFile(path.join(output, "report.json"), `${JSON.stringify(report, null, 2)}\n`);

@@ -1,5 +1,23 @@
 [
   {
+    "file": "tex_wdm2.pk3",
+    "reason": "superseded by deduplicated textures.pk3",
+    "bytes": 8300953,
+    "destination": "archive/media/per-map-textures/tex_wdm2.pk3"
+  },
+  {
+    "file": "tex_wfdm5.pk3",
+    "reason": "superseded by deduplicated textures.pk3",
+    "bytes": 58651354,
+    "destination": "archive/media/per-map-textures/tex_wfdm5.pk3"
+  },
+  {
+    "file": "tex_wfdm11.pk3",
+    "reason": "superseded by deduplicated textures.pk3",
+    "bytes": 46210708,
+    "destination": "archive/media/per-map-textures/tex_wfdm11.pk3"
+  },
+  {
     "file": "data0_000_nonfree_21.pk3",
     "reason": "fully shadowed source archive",
     "bytes": 5229166,

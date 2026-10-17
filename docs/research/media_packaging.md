@@ -2,6 +2,10 @@
 
 Date: 2026-10-17. Branch: `v0.9.32-media-packaging` in both repositories.
 
+**Updated packaging decision:** the three intermediate `tex_<map>.pk3` banks
+described in the initial investigation are now combined into **`textures.pk3`**.
+See the consolidation follow-up below for the installed layout and validation.
+
 ## Result
 
 The active media directory now contains `map_wdm2.pk3` / `tex_wdm2.pk3`,
@@ -299,3 +303,60 @@ gate passed. The PNGs are not recompressed or artistically modified.
 
 Full gate: `npm run test:run -- --poolOptions.forks.singleFork=false --poolOptions.forks.maxForks=1 --poolOptions.forks.minForks=1`
 passed all 622 files: 5,127 tests passed, one pre-existing fixture-dependent skip.
+
+## One shared textures bank (supersedes the per-map texture layout)
+
+The selected deployment is now `map_wdm2.pk3`, `map_wfdm5.pk3`,
+`map_wfdm11.pk3` plus one shared **`textures.pk3`**. The combined bank is
+93,028,233 bytes (88.72 MiB), versus 113,163,015 bytes (107.92 MiB) for the
+three original texture banks: 19.20 MiB saved by deduplication. It contains the
+three maps' textures, shader definitions and referenced map media, including
+source attribution and manifests. Weapons remain in the existing `z_weapons.pk3`;
+this does not introduce a replacement Warsow gameplay effects/weapon package.
+The separately packaged cartoon sprites remain in `effects.pk3`.
+
+The three superseded `tex_*.pk3` packages are backed up in
+`archive/media/per-map-textures/`, with entries in `media/archive_manifest.json`.
+No BSP or map package was changed in this consolidation. There are now 23 active
+PK3s totaling 581.93 MiB. All eight previously retained map IDs remain indexed.
+The older measurements and per-map layout above describe the initial experiment.
+
+Build with:
+
+```text
+npm run tools:map-media -- --maps wdm2,wfdm5,wfdm11 --combined --output-dir .cache/media-combined
+```
+
+The output directory includes per-map intermediate texture banks. Install only
+`textures.pk3` and the map packages. The merger checks ZIP CRCs, rejects differing
+files/shaders with the same virtual name, emits each shader definition once,
+and verifies copied file hashes. Rebuilding from an installed `textures.pk3`
+also preserves original source attribution. A rebuild adds another provenance
+layer, so its archive hash/size can differ while runtime files remain identical.
+All 652 runtime files (including the consolidated shader file) matched the rebuild.
+Original manifests are retained under `media-sources/inputs/<source package>/`.
+
+Validation for consolidation:
+
+- `npm run test:run -- src/cli/__tests__/map-media.test.ts`: five passed, including
+  rejection of conflicting image bytes and shader definitions.
+- `npm run typecheck`, `npm run gate:biome`, `npm run build`, `npm run docs:build`: passed.
+- `npm run tools:pk3-index`: 23 packages, eight maps.
+- `npm run cli:game -- --exec "bsp load wdm2; bsp info; bsp load wfdm5; bsp info; bsp load wfdm11; bsp info; quit"`: passed.
+- `npm run tools:map-media -- --combined --output-dir .cache/media-combined-rebuild`:
+  passed; compared runtime hashes and retained input attribution.
+- `node .cache/combined-audit.mjs`: passed copied-file and rebuild comparisons.
+- `node .cache/media-browser.mjs`: cold real-GPU background renders passed for
+  all three maps. Each loaded its map package, `textures.pk3` and
+  `data0_21pure.pk3`; none loaded a `tex_*` package or the large `data0_21.pk3`.
+  No HTTP failures or JavaScript/GPU errors; existing optional sky lookup and
+  shared HUD-template warnings remain as described above.
+
+The previous full suite and collision/server regression results cover the current
+runtime code; consolidation changes only packaging tooling/media and docs.
+Full matches and removal of the remaining `data*` banks are deliberately deferred.
+The next scope is map-media completeness, not repackaging the game's own weapons.
+The nonfree inventory remains 103 sounds plus one video, with no texture files.
+
+Checkpoint commits before consolidation: FPS `45e54de`, engine `38be448f`.
+Neither was pushed. Consolidation changes are a separate reviewable diff.
