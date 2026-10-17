@@ -22,9 +22,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
-          # wash-fps and tower are separate repos: the default GITHUB_TOKEN can
-          # only read THIS repo, so if they are private, add a SUBMODULES_TOKEN
-          # secret (fine-grained PAT with read access to both) — checkout
+          # wash-fps is a separate repo: the default GITHUB_TOKEN can
+          # only read THIS repo, so if it is private, add a SUBMODULES_TOKEN
+          # secret (fine-grained PAT with read access to wash-fps) — checkout
           # rewrites the ssh submodule URLs to authenticated https.
           token: ${{ secrets.SUBMODULES_TOKEN || github.token }}
 

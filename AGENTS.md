@@ -164,8 +164,7 @@ src/
 |  `- ui/            # Shared HUD/menu components
 |- shared/           # Deterministic client/server contracts (no Babylon/DOM)
 |- games/
-|  |- fps/           # Active game module (git submodule)
-|  `- tower/         # Secondary module
+|  `- fps/           # Active game module (git submodule)
 |- lobby/            # Lobby server: accounts, rooms, results, ratings
 |- bot/              # Bot service and training
 `- cli/              # Headless tools

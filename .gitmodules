@@ -1,6 +1,3 @@
 [submodule "src/games/fps"]
 	path = src/games/fps
 	url = git@github.com:Higher-Standard-Games/wash-fps.git
-[submodule "src/games/tower"]
-	path = src/games/tower
-	url = git@github.com:Higher-Standard-Games/tower.git
