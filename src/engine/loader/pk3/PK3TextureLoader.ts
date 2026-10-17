@@ -16,9 +16,10 @@ import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import type { Scene } from "@babylonjs/core/scene";
 import { Cvar } from "../../core/Cvar";
-import { createTextureFromKTX1, parseKTX1 } from "../texture/KTX1Loader";
+import { createTextureFromKTX1, parseKTX1, reduceKTX1MipChain } from "../texture/KTX1Loader";
 import { ensureKTX2Decoder } from "../texture/KTX2DecoderRuntime";
 import { KTX2_SIDECAR_EXTENSION, registerKTX2SidecarLoader } from "../texture/KTX2SidecarLoader";
+import { reducedTextureSize, reduceTexturePixels } from "../texture/TextureReduction";
 import { PK3Loader } from "./PK3Loader";
 
 type KTX2ManifestEntry = string | { file: string };
@@ -150,14 +151,15 @@ export class PK3TextureLoader {
    *
    * @param basePath - Texture path, e.g. "models/weapons/plasmagun/plasmagun" or "textures/foo.tga"
    */
-  public async resolveAndLoadTexture(basePath: string): Promise<Texture | null> {
+  public async resolveAndLoadTexture(basePath: string, picmip = 0): Promise<Texture | null> {
     const pk3 = PK3Loader.getInstance();
     const cleanPath = basePath.replace(/^\//, "");
 
     // Strip existing extension to get the base
     const stripped = cleanPath.replace(/\.(ktx|tga|png|jpg|jpeg)$/i, "");
 
-    const sidecar = await this.tryLoadKTX2Sidecar(stripped);
+    // Reduced variants use source pixels/authored KTX1 mips, not a full-resolution KTX2 upload.
+    const sidecar = picmip === 0 ? await this.tryLoadKTX2Sidecar(stripped) : null;
     if (sidecar) {
       return sidecar;
     }
@@ -180,7 +182,7 @@ export class PK3TextureLoader {
       seen.add(key);
 
       if (pk3.hasFile(candidate)) {
-        return this.loadTexture(candidate);
+        return this.loadTexture(candidate, picmip);
       }
     }
 
@@ -298,14 +300,15 @@ export class PK3TextureLoader {
   /**
    * Load a single texture from PK3
    */
-  public async loadTexture(path: string): Promise<Texture | null> {
+  public async loadTexture(path: string, picmip = 0): Promise<Texture | null> {
     if (!this.engine || !this.scene) {
       console.error("[PK3TextureLoader] Not initialized");
       return null;
     }
 
     // Check cache
-    const cacheKey = path.toLowerCase();
+    picmip = Math.max(0, Math.min(8, Math.round(picmip)));
+    const cacheKey = path.toLowerCase() + (picmip ? `:picmip=${picmip}` : "");
     if (this.textureCache.has(cacheKey)) {
       const cached = this.textureCache.get(cacheKey)!;
       // Check if cached texture is still valid (not disposed)
@@ -362,9 +365,9 @@ export class PK3TextureLoader {
 
     try {
       if (ext === ".ktx") {
-        texture = await this.loadKTXTexture(path, data);
+        texture = await this.loadKTXTexture(path, data, picmip);
       } else if (effectiveFormat === ".tga") {
-        texture = await this.loadTGATexture(path, data);
+        texture = await this.loadTGATexture(path, data, picmip);
       } else if (
         effectiveFormat === ".jpg" ||
         effectiveFormat === ".jpeg" ||
@@ -372,10 +375,10 @@ export class PK3TextureLoader {
         effectiveFormat === ".webp"
       ) {
         // Handle files that are actually JPG/PNG regardless of extension
-        texture = await this.loadStandardTexture(path, data, effectiveFormat);
+        texture = await this.loadStandardTexture(path, data, effectiveFormat, picmip);
       } else {
         // PNG, JPG, etc. - use blob URL
-        texture = await this.loadStandardTexture(path, data, ext);
+        texture = await this.loadStandardTexture(path, data, ext, picmip);
       }
 
       if (texture) {
@@ -396,20 +399,29 @@ export class PK3TextureLoader {
   /**
    * Load KTX1 compressed texture
    */
-  private async loadKTXTexture(path: string, data: ArrayBuffer): Promise<Texture | null> {
+  private async loadKTXTexture(path: string, data: ArrayBuffer, picmip = 0): Promise<Texture | null> {
     if (!this.engine || !this.scene) return null;
 
     try {
-      const ktx = parseKTX1(data);
+      const original = parseKTX1(data);
+      const ktx = picmip > 0 ? parseKTX1(reduceKTX1MipChain(data, picmip)) : original;
+      const target = reducedTextureSize(original.header.pixelWidth, original.header.pixelHeight, picmip);
+      const skipped = original.mipLevels.length - ktx.mipLevels.length;
+      const remaining =
+        ktx.header.pixelWidth > target.width || ktx.header.pixelHeight > target.height
+          ? picmip === 8
+            ? 8
+            : Math.max(0, picmip - skipped)
+          : 0;
 
       // Try createTextureFromKTX1 first — it handles:
       // 1. Babylon-managed compressed upload (if device supports it)
       // 2. Software decode (DXT1/3/5, ETC1)
       // 3. Uncompressed KTX data
-      const internalTexture = await createTextureFromKTX1(this.engine, ktx, path);
+      const internalTexture = await createTextureFromKTX1(this.engine, ktx, path, remaining);
       if (!internalTexture) {
         console.warn(`[PK3TextureLoader] KTX format unsupported: ${ktx.formatName}, trying fallback for ${path}`);
-        return this.loadKTXFallback(path);
+        return this.loadKTXFallback(path, picmip);
       }
 
       // The public wrapper applies Babylon's compressed-texture orientation
@@ -429,14 +441,14 @@ export class PK3TextureLoader {
       });
     } catch (e) {
       console.error(`[PK3TextureLoader] KTX load error for ${path}:`, e);
-      return this.loadKTXFallback(path);
+      return this.loadKTXFallback(path, picmip);
     }
   }
 
   /**
    * When KTX format is unsupported, try to find the same texture in JPG/PNG/TGA
    */
-  private async loadKTXFallback(ktxPath: string): Promise<Texture | null> {
+  private async loadKTXFallback(ktxPath: string, picmip = 0): Promise<Texture | null> {
     const basePath = ktxPath.replace(/\.ktx$/i, "");
     const pk3 = PK3Loader.getInstance();
 
@@ -447,9 +459,9 @@ export class PK3TextureLoader {
         console.log(`[PK3TextureLoader] KTX fallback: ${ktxPath} -> ${altPath}`);
         // Load directly to avoid infinite recursion through loadTexture
         if (altExt === ".tga") {
-          return this.loadTGATexture(altPath, altData);
+          return this.loadTGATexture(altPath, altData, picmip);
         } else {
-          return this.loadStandardTexture(altPath, altData, altExt);
+          return this.loadStandardTexture(altPath, altData, altExt, picmip);
         }
       }
     }
@@ -461,7 +473,7 @@ export class PK3TextureLoader {
   /**
    * Load TGA texture
    */
-  private async loadTGATexture(path: string, data: ArrayBuffer): Promise<Texture | null> {
+  private async loadTGATexture(path: string, data: ArrayBuffer, picmip = 0): Promise<Texture | null> {
     if (!this.scene) return null;
 
     try {
@@ -470,10 +482,11 @@ export class PK3TextureLoader {
         return this.createPlaceholderTexture(path);
       }
 
+      const reduced = reduceTexturePixels(tgaData.pixels, tgaData.width, tgaData.height, picmip);
       const texture = RawTexture.CreateRGBATexture(
-        tgaData.pixels,
-        tgaData.width,
-        tgaData.height,
+        reduced.pixels,
+        reduced.width,
+        reduced.height,
         this.scene,
         true, // generateMipMaps
         false, // invertY - TGA is usually bottom-up, handled in parser
@@ -490,7 +503,7 @@ export class PK3TextureLoader {
   /**
    * Load standard image format via blob URL
    */
-  private async loadStandardTexture(path: string, data: ArrayBuffer, ext: string): Promise<Texture | null> {
+  private async loadStandardTexture(path: string, data: ArrayBuffer, ext: string, picmip = 0): Promise<Texture | null> {
     if (!this.scene) return null;
 
     const mimeTypes: Record<string, string> = {
@@ -503,6 +516,31 @@ export class PK3TextureLoader {
 
     const mimeType = mimeTypes[ext] || "application/octet-stream";
     const blob = new Blob([data], { type: mimeType });
+    if (picmip > 0) {
+      const bitmap = await createImageBitmap(blob, { premultiplyAlpha: "none", colorSpaceConversion: "none" });
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = bitmap.width;
+        canvas.height = bitmap.height;
+        const context = canvas.getContext("2d");
+        if (!context) throw new Error("Texture reduction needs a 2D canvas");
+        context.drawImage(bitmap, 0, 0);
+        const image = context.getImageData(0, 0, bitmap.width, bitmap.height);
+        const reduced = reduceTexturePixels(new Uint8Array(image.data.buffer), bitmap.width, bitmap.height, picmip);
+        const texture = RawTexture.CreateRGBATexture(
+          reduced.pixels,
+          reduced.width,
+          reduced.height,
+          this.scene,
+          true,
+          false,
+        );
+        texture.name = path;
+        return texture;
+      } finally {
+        bitmap.close();
+      }
+    }
     const url = URL.createObjectURL(blob);
 
     try {

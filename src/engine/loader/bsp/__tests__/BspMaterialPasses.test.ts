@@ -8,11 +8,56 @@ import { CreatePlane } from "@babylonjs/core/Meshes/Builders/planeBuilder";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { Scene } from "@babylonjs/core/scene";
 import { expect, it, vi } from "vitest";
+import { RenderVars } from "../../../rendering/RenderVars";
 import { PK3TextureLoader } from "../../pk3/PK3TextureLoader";
 import { parseShaderFile } from "../../shader/Q3ShaderParser";
 import { Q3ShaderRegistry } from "../../shader/Q3ShaderRegistry";
 import type { Q3Shader } from "../../shader/Q3ShaderTypes";
 import { BspMeshBuilder, type BspMeshBuildResult } from "../BspMeshBuilder";
+
+it.each([
+  ["", "", 2],
+  ["nopicmip", "", 0],
+  ["nomipmaps", "", 0],
+  ["", "alphaFunc GE128", 0],
+  ["", "blendFunc blend", 0],
+])("keeps protected map shaders sharp: %s %s", async (flag, stage, expected) => {
+  const engine = new NullEngine(),
+    scene = new Scene(engine);
+  const registry = Q3ShaderRegistry.getInstance();
+  registry.clear();
+  const [shader] = parseShaderFile(`textures/qa/picmip { ${flag}\n { map textures/qa/base\n ${stage}\n } }`);
+  (registry as unknown as { shaders: Map<string, Q3Shader> }).shaders.set(shader.name, shader);
+  const image = RawTexture.CreateRGBATexture(new Uint8Array([128, 128, 128, 255]), 1, 1, scene);
+  const loader = PK3TextureLoader.getInstance();
+  const init = vi.spyOn(loader, "init").mockImplementation(() => {});
+  const load = vi.spyOn(loader, "resolveAndLoadTexture").mockResolvedValue(image);
+  const previous = RenderVars.getInstance().get("r_picmip") ?? 0;
+  try {
+    RenderVars.getInstance().set("r_picmip", 2);
+    const root = new Mesh("world", scene),
+      mesh = CreatePlane("bsp_tex_0", {}, scene);
+    mesh.parent = root;
+    mesh.metadata = { textureName: shader.name, lightmapIndex: -1 };
+    mesh.material = new StandardMaterial("placeholder", scene);
+    const result = {
+      worldMesh: root,
+      textureGroups: [{ textureIndex: 0, textureName: shader.name }],
+      lightmapTextures: [],
+    } as unknown as BspMeshBuildResult;
+    await BspMeshBuilder.applyTextures(result, result.bspData, scene);
+    const base = load.mock.calls.find(([path]) => path === "textures/qa/base");
+    expect(base).toBeDefined();
+    expect(base?.[1] ?? 0).toBe(expected);
+  } finally {
+    RenderVars.getInstance().set("r_picmip", previous);
+    init.mockRestore();
+    load.mockRestore();
+    registry.clear();
+    scene.dispose();
+    engine.dispose();
+  }
+});
 
 it("keeps authored black vertex shadows but allows game lights and gloss on vertex-lit metal", async () => {
   const engine = new NullEngine(),

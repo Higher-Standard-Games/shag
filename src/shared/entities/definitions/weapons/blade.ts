@@ -44,7 +44,7 @@ export const BLADE: WeaponDef = {
   // Melee-specific
   meleeRadius: 48, // Wide cone check radius (players within this of ray center count)
   meleeDamageDelay: 0.075, // 75ms delay before damage check (dodge window)
-  meleeDashDistance: 48, // Server-authoritative step-in while holding forward and advancing
+  meleeDashDistance: 64, // Server-authoritative step-in while holding forward and advancing
 
   // Charged attack — hold ALT_FIRE to charge, release to fire projectile
   chargeTime: 1.0, // Max charge time (seconds)

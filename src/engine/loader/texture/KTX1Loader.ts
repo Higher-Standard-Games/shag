@@ -13,6 +13,7 @@
 import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine";
 import { Constants } from "@babylonjs/core/Engines/constants";
 import type { InternalTexture } from "@babylonjs/core/Materials/Textures/internalTexture";
+import { reduceTexturePixels } from "./TextureReduction";
 
 // KTX1 file header structure
 const KTX_IDENTIFIER = [0xab, 0x4b, 0x54, 0x58, 0x20, 0x31, 0x31, 0xbb, 0x0d, 0x0a, 0x1a, 0x0a];
@@ -72,6 +73,29 @@ export interface KTX1ParseResult {
   mipLevels: KTX1MipLevel[];
   isCompressed: boolean;
   formatName: string;
+}
+
+/** Repack the retained chain so native upload/context recovery cannot restore discarded mips. */
+export function reduceKTX1MipChain(data: ArrayBuffer, level: number): ArrayBuffer {
+  if (level <= 0) return data;
+  const parsed = parseKTX1(data);
+  const wanted = level >= 8 ? parsed.mipLevels.length - 1 : Math.round(level);
+  const first = Math.min(wanted, parsed.mipLevels.length - 1);
+  const levels = parsed.mipLevels.slice(first);
+  const prefix = KTX_HEADER_SIZE + parsed.header.bytesOfKeyValueData;
+  const result = new Uint8Array(prefix + levels.reduce((sum, mip) => sum + 4 + Math.ceil(mip.data.length / 4) * 4, 0));
+  result.set(new Uint8Array(data, 0, prefix));
+  const view = new DataView(result.buffer);
+  view.setUint32(36, levels[0].width, parsed.littleEndian);
+  view.setUint32(40, levels[0].height, parsed.littleEndian);
+  view.setUint32(56, levels.length, parsed.littleEndian);
+  let offset = prefix;
+  for (const mip of levels) {
+    view.setUint32(offset, mip.data.length, parsed.littleEndian);
+    result.set(mip.data, offset + 4);
+    offset += 4 + Math.ceil(mip.data.length / 4) * 4;
+  }
+  return result.buffer;
 }
 
 /** Split a six-face KTX1 into validated 2D faces, retaining each authored mip chain. */
@@ -631,6 +655,7 @@ export async function createTextureFromKTX1(
   engine: AbstractEngine,
   ktx: KTX1ParseResult,
   name: string,
+  reduction = 0,
 ): Promise<InternalTexture | null> {
   // ── Uncompressed KTX ───────────────────────────────────────────
   if (!ktx.isCompressed) {
@@ -700,10 +725,11 @@ export async function createTextureFromKTX1(
         rgba = mip.data;
       }
 
+      const reduced = reduceTexturePixels(rgba, mip.width, mip.height, reduction);
       const internalTexture = engine.createRawTexture(
-        rgba,
-        mip.width,
-        mip.height,
+        reduced.pixels,
+        reduced.width,
+        reduced.height,
         Constants.TEXTUREFORMAT_RGBA,
         false,
         false,
@@ -719,7 +745,7 @@ export async function createTextureFromKTX1(
   }
 
   const fmt = ktx.header.glInternalFormat;
-  if (canUploadCompressed(engine, ktx)) {
+  if (reduction === 0 && canUploadCompressed(engine, ktx)) {
     try {
       return await uploadCompressed(engine, ktx, name);
     } catch (error) {
@@ -748,10 +774,11 @@ export async function createTextureFromKTX1(
       rgba.set(rowBuf, botOff);
     }
 
+    const reduced = reduceTexturePixels(rgba, mip.width, mip.height, reduction);
     const internalTexture = engine.createRawTexture(
-      rgba,
-      mip.width,
-      mip.height,
+      reduced.pixels,
+      reduced.width,
+      reduced.height,
       Constants.TEXTUREFORMAT_RGBA,
       true,
       false, // generateMipMaps=true since we only upload mip 0

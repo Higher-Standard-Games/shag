@@ -293,6 +293,7 @@ async function main() {
   // Hide splash → show lobby: the player has clicked, and the lobby has answered
   loadingScreen.hide();
   lobby.show();
+  lobby.initialLoadingDismissed();
 
   // Connect play button (Phase 1: just log; Phase 2+: real matchmaking)
   lobby.setOnPlay((mode) => {

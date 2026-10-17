@@ -4,7 +4,7 @@ import { Scene } from "@babylonjs/core/scene";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PK3Loader } from "../../pk3/PK3Loader";
 import { PK3TextureLoader } from "../../pk3/PK3TextureLoader";
-import { createTextureFromKTX1, GL_FORMATS, isFormatSupported, parseKTX1 } from "../KTX1Loader";
+import { createTextureFromKTX1, GL_FORMATS, isFormatSupported, parseKTX1, reduceKTX1MipChain } from "../KTX1Loader";
 
 /** Real Babylon container/loading lifecycle; only the hardware upload is stubbed. */
 class UploadEngine extends NullEngine {
@@ -63,6 +63,22 @@ function fixture(format = GL_FORMATS.COMPRESSED_RGBA_S3TC_DXT1_EXT, levels = 3, 
 }
 
 const engines: NullEngine[] = [];
+it("reduces a single-mip compressed source to flat color without uploading the full image", async () => {
+  const uploadEngine = engine();
+  const texture = await createTextureFromKTX1(uploadEngine, parseKTX1(fixture(undefined, 1)), "flat", 8);
+  expect(texture?.width).toBe(1);
+  expect(texture?.height).toBe(1);
+  expect(uploadEngine.uploads).toHaveLength(0);
+});
+it.each([true, false])("repackages picmip chains for upload and context recovery, littleEndian=%s", (little) => {
+  const data = fixture(GL_FORMATS.COMPRESSED_RGBA_S3TC_DXT1_EXT, 3, little);
+  const reduced = parseKTX1(reduceKTX1MipChain(data, 1));
+  expect([reduced.header.pixelWidth, reduced.header.pixelHeight]).toEqual([2, 2]);
+  expect(reduced.mipLevels.map((mip) => mip.width)).toEqual([2, 1]);
+  expect(reduced.source.byteLength).toBeLessThan(data.byteLength);
+  expect(parseKTX1(reduceKTX1MipChain(data, 8)).header.pixelWidth).toBe(1);
+  expect(parseKTX1(data).header.pixelWidth).toBe(4);
+});
 afterEach(() => {
   PK3TextureLoader.getInstance().clearCache();
   for (const engine of engines.splice(0)) engine.dispose();

@@ -1142,9 +1142,12 @@ export class BspMeshBuilder {
     };
     const loadFirstTexture = async (
       candidates: string[],
+      picmip = 0,
     ): Promise<{ texture: Texture | null; resolvedBasePath: string }> => {
       for (const candidate of candidates) {
-        const texture = await texLoader.resolveAndLoadTexture(candidate);
+        const texture = picmip
+          ? await texLoader.resolveAndLoadTexture(candidate, picmip)
+          : await texLoader.resolveAndLoadTexture(candidate);
         if (texture) {
           return {
             texture,
@@ -1271,7 +1274,21 @@ export class BspMeshBuilder {
       const diffuseCandidates = buildDiffuseCandidates(texName, shaderProps);
       let texture: Texture | null = null;
       let foundCleanPath = "";
-      const diffuseResult = await loadFirstTexture(diffuseCandidates);
+      const picmip =
+        !texName.replace(/^\//, "").startsWith("models/") &&
+        !shaderProps.diffuseTexture?.replace(/^\//, "").startsWith("models/") &&
+        !shaderProps.isSky &&
+        shaderProps.alphaMode === "opaque" &&
+        !shaderProps.alphaCutoff &&
+        !shaderProps.isTransparent &&
+        !shaderProps.needsAnimation &&
+        !shader?.nopicmip &&
+        !shader?.nomipmaps &&
+        !shaderProps.autosprite &&
+        !shaderProps.autosprite2
+          ? (RenderVars.getInstance().get("r_picmip") ?? 0)
+          : 0;
+      const diffuseResult = await loadFirstTexture(diffuseCandidates, picmip);
       texture = diffuseResult.texture;
       if (group.layered) texture = ownTexture(texture);
       foundCleanPath = diffuseResult.resolvedBasePath;

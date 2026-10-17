@@ -2,6 +2,15 @@
 
 `ModelLoader` loads glTF/GLB and integrates PK3/MD3 paths used by the engine. Use `spawnmodel` for browser inspection.
 
+## Held Arc Blade
+
+The FPS renderer uses `src/games/fps/client/AttachedBlade.ts` for both remote
+players and the winner showcase. It attaches the complete model hierarchy to
+the right hand, preserving the GLB's export normalization and handedness
+conversion. The attachment places the authored handle centre at the hand and
+uses the first-person model scale (about 60 world units long). First-person
+presentation has its own transform and is unaffected.
+
 ## Packaged player model
 
 Live players, bots, demo playback and teleport ghosts use `PlayerModelManager`

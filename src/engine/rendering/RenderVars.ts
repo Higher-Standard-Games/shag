@@ -197,6 +197,14 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, "name">> = {
     description: "Anisotropic filtering level (1-16)",
     category: "texture",
   },
+  r_picmip: {
+    value: 0,
+    defaultValue: 0,
+    min: 0,
+    max: 8,
+    description: "Map surface texture reduction (next map): 0 = full, 1 = half size, 8 = flat color.",
+    category: "texture",
+  },
   r_ktx2: {
     value: 1,
     defaultValue: 1,
@@ -652,7 +660,7 @@ export class RenderVars {
       // Determine type based on var characteristics
       const isDebug = def.category === "debug";
       const fractionalWater = name === "r_water_blur" || name === "r_water_detail" || name === "r_water_contact";
-      const isInt = name === "r_anisotropy" || (def.max === 1 && !fractionalWater);
+      const isInt = name === "r_anisotropy" || name === "r_picmip" || (def.max === 1 && !fractionalWater);
 
       Cvar.register(name, def.value, {
         type: isInt ? "int" : "float",
@@ -768,6 +776,7 @@ export class RenderVars {
     // Integer-like vars
     if (
       name === "r_anisotropy" ||
+      name === "r_picmip" ||
       name === "r_ktx2" ||
       name === "r_wireframe" ||
       name === "r_webgpu" ||
@@ -935,7 +944,7 @@ export class RenderVars {
   }
 
   private shouldApplyLive(name: string): boolean {
-    return name !== "r_deluxe" && name !== "r_bsp_pbr" && name !== "r_bsp_cellsize";
+    return name !== "r_deluxe" && name !== "r_bsp_pbr" && name !== "r_bsp_cellsize" && name !== "r_picmip";
   }
 
   /**

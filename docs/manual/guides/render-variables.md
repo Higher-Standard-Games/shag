@@ -7,16 +7,33 @@
 | Category | Representative variables |
 | --- | --- |
 | Material | `r_deluxe`, `r_bsp_pbr`, `r_normalmap`, `r_glossmap`, `r_lightmap`, `r_emissive` |
-| Texture | `r_anisotropy`, `r_ktx2` |
+| Texture | `r_anisotropy`, `r_ktx2`, `r_picmip` |
 | Display | `r_webgpu`, `r_bsp_freeze`, `r_ssr`, `r_glow`, `r_bloom`, `r_exposure`, `r_contrast`, `r_pickupProcedural` |
 | Lighting | `r_ambient`, `r_lightintensity`, `r_lightmapscale`, god-ray, area-light, and day/night groups |
 | Debug | `r_wireframe`, `r_showtris`, `r_water_debug` |
 
 Water has its own set inside those categories: `r_water` and `r_water_quality` select the tier, with `r_water_highlights`, `r_water_roughness`, `r_water_reflection`, `r_water_probe_height`, `r_water_blur`, `r_water_detail`, `r_water_contact`, `r_water_actors` and `r_underwater_distortion` shaping it. Day/night runs from `r_daynight` with its time, speed, length, lightmap range, sun/moon intensity and sky tint.
 
-Fifty-five variables are registered today. Use `render list` for the authoritative current list, defaults, ranges, and descriptions. Type-only future names in `RenderVarName` are not necessarily registered.
+Use `render list` for the authoritative current list, defaults, ranges, and descriptions. Type-only future names in `RenderVarName` are not necessarily registered.
+
+`r_picmip` controls static opaque BSP base textures on the next map load. The
+default is 0 (full resolution); 1 halves both dimensions, 2 quarters them, and
+8 selects flat color. The Video → Advanced section exposes Full, Soft, Softer,
+Blurred and Flat color. Smooth selects 1; Balanced and Pretty select 0.
+Transparent/alpha-tested and animated surfaces, sky, lightmaps, model textures
+and shaders declaring `nopicmip` or `nomipmaps` retain full detail. Normal/gloss
+maps and baked lighting stay intact, so flat color still has surface shading.
+
+Reduced variants have separate cache keys. PNG/JPEG/WebP and TGA pixels are
+area-averaged before upload; KTX1 discards authored high-resolution mips and
+software-reduces incomplete supported chains when needed. Reduced variants use
+source media instead of the full-resolution KTX2 sidecar. Resolution reduction
+can lower texture bandwidth and storage, but FPS gains depend on the workload.
 
 ## Isolated renderer QA
+
+Cartoon hit sprites supply their artwork to both diffuse and emissive sampling,
+so `r_glow` follows the sprite's colors and transparency.
 
 For renderer development, launch with `?rendererqa=1&renderer=webgpu` or
 `?rendererqa=1&renderer=webgl2`. This runs a StandardMaterial/PBR box smoke test
