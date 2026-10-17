@@ -28,4 +28,4 @@ The bridge is currently an available API, not active FPS bootstrap wiring: <code
 
 <code>android:build</code> does not produce an APK by itself; it prepares the native project. Build/sign the APK or bundle with Android Studio/Gradle.
 
-Node 22 is pinned in <code>.nvmrc</code>. An iOS project is not checked in.
+Node.js 24 or later is required; major version 24 is pinned in <code>.nvmrc</code>. An iOS project is not checked in.

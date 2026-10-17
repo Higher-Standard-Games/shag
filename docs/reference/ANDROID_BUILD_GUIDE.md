@@ -4,7 +4,7 @@
 
 ## Prerequisites
 
-- Node.js 22;
+- Node.js 24 or later;
 - Android Studio with SDK/platform tools;
 - a compatible JDK configured for the installed Android Gradle plugin;
 - device USB debugging or an Android emulator.
