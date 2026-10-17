@@ -8,6 +8,8 @@ const bsp = {
   entities: [
     { classname: "worldspawn", properties: {} },
     { classname: "info_player_deathmatch", properties: { origin: "1 2 3", angle: "90" } },
+    { classname: "team_CTF_alphaspawn", properties: { origin: "4 5 6" } },
+    { classname: "info_player_intermission", properties: { origin: "7 8 9" } },
   ],
   brushes: [],
   textures: [{ name: "textures/metal/wall" }, { name: "textures/brick/red" }, { name: "unused" }],
@@ -28,6 +30,7 @@ describe("installed reference inspection", () => {
     ]);
     expect(summarizeInstalledMap(bsp, "reference", { search: "METAL wall" }).palette.total).toBe(1);
     expect(first.spawns[0]).toMatchObject({ origin: "1 2 3", angle: "90" });
+    expect(first.spawns.map((spawn) => spawn.classname)).toEqual(["info_player_deathmatch", "team_CTF_alphaspawn"]);
     expect(first.worldBounds?.max).toEqual([100, 100, 500]);
   });
   it("rejects invalid pagination and map paths before loading", async () => {

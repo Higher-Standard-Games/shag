@@ -1,3 +1,4 @@
+import { SPAWN_CLASSNAMES, TEAM_SPAWN_CLASSNAMES } from "../../../shared/bsp/SpawnPointTable";
 import { type BspFile, BspLoader } from "../../loader/bsp/BspLoader";
 import { resolveMapBspViaIndex } from "../../loader/pk3/NodePk3";
 
@@ -43,7 +44,10 @@ export function summarizeInstalledMap(bsp: BspFile, mapName: string, query: Pale
       .map(([classname, count]) => ({ classname, count }))
       .sort((a, b) => a.classname.localeCompare(b.classname)),
     spawns: bsp.entities
-      .filter((entity) => entity.classname.startsWith("info_player_"))
+      .filter(
+        (entity) =>
+          SPAWN_CLASSNAMES.includes(entity.classname) || Object.keys(TEAM_SPAWN_CLASSNAMES).includes(entity.classname),
+      )
       .map((entity) => ({ classname: entity.classname, ...entity.properties })),
     palette: {
       total: palette.length,
