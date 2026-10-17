@@ -153,6 +153,16 @@ The installed native MakeBSP `-fontatlas` command emits a JSON descriptor with a
 
 ## Implementation follow-up: diagnostics
 
+### Compiler entity discovery: implemented
+
+The shared editor catalog now includes brush `func_group` and point
+`misc_decal`/`misc_text_decal`, with keys checked against the installed MakeBSP
+README. MCP exposes `compilerOnly` and descriptions and can filter compiler
+versus runtime classes. The editor inspector/palette and Map Health use the
+same entries. Unknown unrelated classes remain informational diagnostics.
+Projection/chamfer rendering remains a compiled-BSP workflow, not an editor
+preview feature. Tests cover typed authoring, export and health classification.
+
 ### Model discovery: implemented
 
 MCP `shagged_models` and CLI `models` expose installed model paths, package

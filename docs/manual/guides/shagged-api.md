@@ -60,6 +60,18 @@ use this coordination; it is local-machine locking, not a distributed service.
 
 ## Inspect and edit a snapshot
 
+`shagged_entity_classes {search?, compilerOnly?}` includes supported baked
+authoring entities as well as runtime classes. `compilerOnly: true` filters
+to compiler entities; `false` filters to runtime classes. Each result identifies
+point versus brush placement, supported keys, defaults and required keys.
+`func_group` uses `brushEntity.assign`; its chamfer widths need `default` or
+`release` quality because `fast` disables chamfering. Grouping does not disable
+collision. `misc_decal` and `misc_text_decal` use `entity.place`; set projection
+`angles` (pitch 90 points down), `distance`, and optionally `decalgroup` to
+avoid projecting across unwanted surfaces. Text needs a packaged font atlas
+descriptor. These classes are recognized by Map Health and shown in the editor
+palette/inspector; their projected appearance must be checked after compilation.
+
 Find props with MCP `shagged_models {search?, offset?, limit?, includeBounds?}`
 or CLI `npm run shagged -- models lamp --bounds`. All search words must match
 the path. Pages default to 50 entries (maximum 500); continue at `nextOffset`

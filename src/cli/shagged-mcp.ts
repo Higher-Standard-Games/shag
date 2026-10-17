@@ -389,8 +389,9 @@ server.registerTool(
   {
     title: "Find entity classes",
     description:
-      "Entity classes the game understands, with their documented keys (required ones marked). Point classes go in entity.place, brush classes in brushEntity.assign.",
+      "Gameplay and supported compiler-only entity classes, with documented keys and required ones marked. compilerOnly distinguishes baked authoring entities from runtime classes. Point classes go in entity.place, brush classes in brushEntity.assign.",
     inputSchema: {
+      compilerOnly: z.boolean().optional().describe("Filter compiler-only classes (true) or runtime classes (false)."),
       search: z
         .string()
         .optional()
@@ -398,12 +399,14 @@ server.registerTool(
     },
     annotations: { readOnlyHint: true },
   },
-  async ({ search }) =>
+  async ({ search, compilerOnly }) =>
     run(() => {
       const needle = search?.toLowerCase() ?? "";
       const describe = (kind: "point" | "brush") => (c: (typeof EDITOR_POINT_CLASSES)[number]) => ({
         classname: c.classname,
         kind,
+        compilerOnly: c.compilerOnly ?? false,
+        ...(c.description ? { description: c.description } : {}),
         section: c.section,
         keys: c.keys.map((k) => ({
           name: k.name,
@@ -413,7 +416,9 @@ server.registerTool(
         })),
       });
       return [...EDITOR_POINT_CLASSES.map(describe("point")), ...BRUSH_ENTITY_CLASSES.map(describe("brush"))].filter(
-        (c) => !needle || c.classname.toLowerCase().includes(needle) || c.section.toLowerCase().includes(needle),
+        (c) =>
+          (compilerOnly === undefined || c.compilerOnly === compilerOnly) &&
+          (!needle || c.classname.toLowerCase().includes(needle) || c.section.toLowerCase().includes(needle)),
       );
     }),
 );

@@ -1,11 +1,12 @@
 /**
  * Point-entity classes for the SHAGGED inspector and palette, read from the
  * Washoi NetRadiant definitions (editor/gamepacks/washoi.game/basewashoi/entities.def).
- * That file is derived from the engine's own entity readers, so the editor
- * offers what the compiled-BSP game path actually reads.
+ * Gameplay definitions follow the engine entity readers. Explicit compiler
+ * classes extend the editor palette with supported baked authoring entities.
  */
 
 import washoiEntityDefs from "../../../editor/gamepacks/washoi.game/basewashoi/entities.def?raw";
+import { COMPILER_BRUSH_CLASSES, COMPILER_POINT_CLASSES } from "./CompilerEntityCatalog";
 import type { Vec3q } from "./EditorDocument";
 
 export interface EntityKeyDef {
@@ -17,6 +18,8 @@ export interface EntityKeyDef {
 }
 
 export interface EntityClassDef {
+  compilerOnly?: true;
+  description?: string;
   classname: string;
   section: string;
   /** Marker colour, 0..1 per channel. */
@@ -125,6 +128,7 @@ function parseClasses(text: string): ParsedClass[] {
 export const POINT_ENTITY_CLASSES: readonly EntityClassDef[] = parseEntityDefs(washoiEntityDefs);
 /** Compiler-baked model reference. The raw-map definition's `scale` and collision keys do not apply here. */
 const MISC_MODEL: EntityClassDef = {
+  compilerOnly: true,
   classname: "misc_model",
   section: "MODEL PROPS",
   color: [0.62, 0.83, 0.45],
@@ -136,8 +140,15 @@ const MISC_MODEL: EntityClassDef = {
     { name: "modelscale", label: "Uniform compiler scale", defaultValue: "1" },
   ],
 };
-export const EDITOR_POINT_CLASSES: readonly EntityClassDef[] = [...POINT_ENTITY_CLASSES, MISC_MODEL];
-export const BRUSH_ENTITY_CLASSES: readonly EntityClassDef[] = parseBrushEntityDefs(washoiEntityDefs);
+export const EDITOR_POINT_CLASSES: readonly EntityClassDef[] = [
+  ...POINT_ENTITY_CLASSES,
+  MISC_MODEL,
+  ...COMPILER_POINT_CLASSES,
+];
+export const BRUSH_ENTITY_CLASSES: readonly EntityClassDef[] = [
+  ...parseBrushEntityDefs(washoiEntityDefs),
+  ...COMPILER_BRUSH_CLASSES,
+];
 
 const BY_NAME = new Map([...EDITOR_POINT_CLASSES, ...BRUSH_ENTITY_CLASSES].map((entity) => [entity.classname, entity]));
 

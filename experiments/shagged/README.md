@@ -21,3 +21,14 @@ concurrent stale-revision rejection in two MCP sessions and two CLI processes,
 and CLI snapshot round trips. Summary: `.cache/shagged-mcp-validation/report.json`.
 
 Map-specific collision and GPU validation remain separate in `solamphi1/`.
+
+Read-only discovery validation against installed `wfdm5` and its lamp props:
+
+```text
+node experiments/shagged/discovery-smoke.mjs
+```
+
+This checks installed BSP inspection and material pagination, searchable model
+paths and bounds, and compiler/runtime entity-class filtering over real MCP
+stdio. It neither creates nor edits maps. Installed `wfdm5` and at least one
+lamp model with inspectable bounds are required; native compilation is not.

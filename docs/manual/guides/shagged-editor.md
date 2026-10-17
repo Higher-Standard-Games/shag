@@ -63,6 +63,12 @@ The Entity tool places spawns, lights, weapons, items and other point entities f
 
 Brush entities (triggers, doors, plats) are made from brushes: select a brush and pick an entity class in its inspector. Triggers get the trigger texture automatically. A teleporter is a `trigger_teleport` brush whose `target` matches a `misc_teleporter_dest`'s `targetname`.
 
+The compiler section also offers projected `misc_decal` and `misc_text_decal`
+point entities and the `func_group` brush class. Their documented projection,
+vertex tint/alpha and chamfer keys appear in the inspector. Review decals in
+the compiled BSP; chamfers require default or release quality. A compiler
+group does not make its geometry nonsolid.
+
 Every room needs a `light` entity, and every map at least one `info_player_deathmatch`.
 
 ### Models
