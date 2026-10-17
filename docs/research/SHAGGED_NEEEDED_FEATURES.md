@@ -153,6 +153,15 @@ The installed native MakeBSP `-fontatlas` command emits a JSON descriptor with a
 
 ## Implementation follow-up: diagnostics
 
+### Model discovery: implemented
+
+MCP `shagged_models` and CLI `models` expose installed model paths, package
+ownership, search and pagination. Optional headless bounds cover ASE/OBJ mesh
+vertices and MD3 frames; GLB/glTF dimensions remain unavailable rather than
+guessing transforms or loading the browser renderer. Bounds are asset-space
+envelopes, not collision. Package overrides and loose model precedence are
+tested, including catalog refresh when inputs change.
+
 ### Installed reference inspection: implemented
 
 `shagged_inspect_installed_map` and CLI `inspect-bsp` read compiled maps through

@@ -36,6 +36,7 @@ import { readCompileJob, readCompileLog } from "../engine/editor/server/CompileJ
 import { documentSnapshot, queryDocument } from "../engine/editor/server/DocumentInspection";
 import { withFileLock } from "../engine/editor/server/FileLock";
 import { inspectInstalledMap } from "../engine/editor/server/InstalledMapInspection";
+import { searchModelCatalog } from "../engine/editor/server/ModelLookup";
 import { resolveServerConfig } from "../engine/editor/server/ServerConfig";
 import { loadTextureCatalog, searchTextures } from "../engine/editor/server/TextureLookup";
 
@@ -364,6 +365,23 @@ server.registerTool(
   },
   async ({ search, folder, limit }) =>
     run(async () => searchTextures(await loadTextureCatalog(), { search, folder, limit })),
+);
+
+server.registerTool(
+  "shagged_models",
+  {
+    title: "Find prop models",
+    description:
+      "Search installed packaged and loose models for misc_model placement. Optional bounds inspect ASE/OBJ vertices or MD3 frames; other formats return unavailable. Bounds are asset coordinates, not collision or transformed placement bounds.",
+    inputSchema: {
+      search: z.string().optional(),
+      offset: z.number().int().min(0).optional(),
+      limit: z.number().int().min(1).max(500).optional(),
+      includeBounds: z.boolean().optional(),
+    },
+    annotations: { readOnlyHint: true },
+  },
+  async (query) => run(() => searchModelCatalog(resolveServerConfig([]).publishRoot, query)),
 );
 
 server.registerTool(

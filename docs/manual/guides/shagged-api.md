@@ -60,6 +60,18 @@ use this coordination; it is local-machine locking, not a distributed service.
 
 ## Inspect and edit a snapshot
 
+Find props with MCP `shagged_models {search?, offset?, limit?, includeBounds?}`
+or CLI `npm run shagged -- models lamp --bounds`. All search words must match
+the path. Pages default to 50 entries (maximum 500); continue at `nextOffset`
+until `total`. Results identify the owning package, or `null` for loose models.
+Later alphabetically sorted packages override earlier ones; loose models win.
+Use a returned path in `entity.place` with classname `misc_model` and
+`keys.model`; `modelscale` is positive uniform scale and `angle` is yaw.
+Optional dimensions come from ASE/OBJ vertices or MD3 frame bounds, before
+placement transforms. Other formats return `bounds: null` with an explanation.
+These envelopes do not describe collision. ASE editor mesh preview remains
+unsupported; inspect the compiled BSP and verify prop collision there.
+
 For a compiled reference map, use MCP
 `shagged_inspect_installed_map {mapName: "wfdm5", search?, offset?, limit?}`
 or CLI `npm run shagged -- inspect-bsp wfdm5 --limit 100`.

@@ -31,6 +31,7 @@ import {
 import { type DocumentQuery, documentSnapshot, queryDocument } from "../engine/editor/server/DocumentInspection";
 import { withFileLock } from "../engine/editor/server/FileLock";
 import { inspectInstalledMap } from "../engine/editor/server/InstalledMapInspection";
+import { searchModelCatalog } from "../engine/editor/server/ModelLookup";
 import { resolveServerConfig } from "../engine/editor/server/ServerConfig";
 import { loadTextureCatalog, searchTextures } from "../engine/editor/server/TextureLookup";
 
@@ -45,7 +46,8 @@ const USAGE = `Usage: npm run shagged -- <command> ...
   compile <doc.json> [--quality fast|default|release] [--force]  save, compile and publish; force bypasses reuse
   report <doc.json> [--quality ...] [--force]          health, compile, then reachability of the compiled map
   textures [search words] [--folder f] [--limit n]     find texture names and their image sizes
-  inspect-bsp <mapName> [--search words] [--offset n] [--limit n]  inspect an installed reference map`;
+  inspect-bsp <mapName> [--search words] [--offset n] [--limit n]  inspect an installed reference map
+  models [search words] [--offset n] [--limit n] [--bounds]  discover prop models`;
 
 /** Writes stdout directly, so results still print while library logging is silenced. */
 function out(value: unknown): void {
@@ -117,6 +119,19 @@ async function main(): Promise<void> {
   const [command, file, third] = positional;
   if (!command || flag("--help") || flag("-h")) {
     console.log(USAGE);
+    return;
+  }
+  if (command === "models") {
+    out(
+      await quietly(() =>
+        searchModelCatalog(resolveServerConfig([]).publishRoot, {
+          search: positional.slice(1).join(" ") || undefined,
+          offset: Number(value("--offset") ?? 0),
+          limit: Number(value("--limit") ?? 50),
+          includeBounds: flag("--bounds"),
+        }),
+      ),
+    );
     return;
   }
   if (command === "inspect-bsp") {
