@@ -24,7 +24,7 @@ reduced-motion preferences. On narrow screens the mouse moves below the keyboard
 
 | Tab | Main content | Footer left | Footer right |
 | --- | --- | --- | --- |
-| Welcome to Washoi! | Short introduction | Empty | Next » |
+| Welcome to Washoi ALPHA | Short introduction | Empty | Next » |
 | Your keys | Read-only keyboard and mouse | Go to keyboard setup | Next » |
 | Tip of the day | Did you know? Movement lessons and one extra tip | Don't show this again checkbox | Close |
 
@@ -79,13 +79,13 @@ clicks. On close, restore focus to the button; preserve the previous lobby page.
 This is a local guide entry point, not an external help link or second settings
 menu. The red dialog body remains the visual direction.
 
-## Tab 1 — Welcome to Washoi!
+## Tab 1 — Welcome to Washoi ALPHA
 
 Proposed copy:
 
 > Fast movement. Loud weapons. One more round.
 >
-> Welcome to Washoi, an arena shooter where movement makes the difference.
+> Welcome to Washoi ALPHA, an arena shooter where movement makes the difference.
 > Chain jumps, slide through corners and push off walls to keep your momentum.
 > Pick a match in the lobby, experiment with your movement, and find your flow.
 >

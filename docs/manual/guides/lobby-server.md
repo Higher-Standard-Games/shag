@@ -43,6 +43,8 @@ are excluded. Restart the lobby after changing the configuration.
 
 The S&D pool contains only Concrete Strike (`washoi_snd1`), provided
 `map_washoi_snd1.pk3` is installed. Duel and FFA use Washoi DM2, DM5 and DM11.
+The room's map vote keeps three card slots. With fewer offered maps, unused
+slots display disabled placeholders and cannot receive votes.
 
 ## Chat filtering
 

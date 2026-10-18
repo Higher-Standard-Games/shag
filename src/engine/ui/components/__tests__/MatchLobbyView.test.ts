@@ -51,6 +51,34 @@ describe("MatchLobbyView roster identity", () => {
     });
   });
 
+  it.each([0, 1, 2, 3])("keeps three map slots with %i real options and never votes for a placeholder", (count) => {
+    const client = new FakeLobbyClient();
+    const maps = Array.from({ length: count }, (_, i) => ({ name: `map${i}`, displayName: `Map ${i}`, votes: 0 }));
+    const view = new MatchLobbyView("snd", client as never, { ...lobby, maps }, "host");
+    try {
+      const cards = () => [...view.root.querySelectorAll<HTMLButtonElement>(".raised-key--map")];
+      expect(cards()).toHaveLength(3);
+      const placeholders = cards().filter((card) => card.disabled);
+      expect(placeholders).toHaveLength(3 - count);
+      for (const placeholder of placeholders) {
+        expect(placeholder.dataset.map).toBeUndefined();
+        expect(placeholder.getAttribute("aria-label")).toBe("No map available in this slot");
+        placeholder.click();
+      }
+      expect(client.voteMap).not.toHaveBeenCalled();
+      if (count) {
+        cards()[0].click();
+        expect(client.voteMap).toHaveBeenCalledWith("snd-room", "map0");
+        client.emit("lobby:votes_updated", { votes: { map0: 1 } });
+        expect(cards()).toHaveLength(3);
+        expect(cards().filter((card) => card.disabled)).toHaveLength(3 - count);
+        expect(cards()[0].getAttribute("aria-pressed")).toBe("true");
+      }
+    } finally {
+      view.destroy();
+    }
+  });
+
   it("marks the actual browser player local and persists that player side", () => {
     const client = new FakeLobbyClient();
     const view = new MatchLobbyView("snd", client as never, lobby, "joiner");

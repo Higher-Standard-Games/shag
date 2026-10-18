@@ -112,3 +112,46 @@ Also updated src/games/fps/docs/manual/gametypes/maps.md and
 
 The lobby reads its map pools at startup, so a running lobby server needs a
 restart to advertise the revised FFA list. No running service was restarted.
+
+## Amphi1 and S&D1 production levelshots
+
+Added the user's `public/data/levelshots/washoi_amphi1.png` and
+`washoi_snd1.png` to the corresponding `map_<map>.pk3`, at
+`levelshots/<map>.png`. Both are 1920x1080. Loose supplied originals were left
+in place, and content-addressed copies plus old package backups were saved under
+`archive/media/levelshots/` and its `map-backups/` subdirectory.
+
+| Map | Original PNG bytes | Generated 960x540 JPG bytes |
+| --- | ---: | ---: |
+| washoi_amphi1 | 2,246,483 | 100,597 |
+| washoi_snd1 | 2,511,977 | 113,634 |
+
+The standard preview generator uses JPEG quality 85. The two previews total
+214,231 bytes, about 95.5% smaller than their PNG originals. They were decoded
+and visually inspected. S&D1's previous packaged preview is replaced by the
+user's image. All five production maps now have generated JPG previews.
+
+ZIP CRCs, packaged PNG hashes and all other map entries were verified. BSPs,
+minimaps and navigation data are byte-identical to their previous packages.
+Updated the matching image references in the two dependency ledgers inside
+`washoi_textures.pk3`; all other shared bank entries were hash-verified unchanged.
+No texture pixels or shader definitions in that bank changed.
+
+Commands and results:
+
+- `node .cache/package-new-levelshots.mjs`: pass; byte/hash and ZIP verification,
+  backed-up packages installed, source originals preserved.
+- `npm run tools:manifest`: pass; five indexed maps and five previews.
+- `node .cache/billboards/convert.mjs`: pass; two KTX sidecars regenerated,
+  903 skipped, zero failures (same converter as `tools:textures`, local tool path).
+- `npm run test:run -- src/engine/loader/pk3/__tests__/PK3PublishedIndex.test.ts`:
+  all 13 tests pass.
+- `node .cache/record-new-levelshots.mjs`: updated the tracked image inventory.
+
+Tracked files changed for this packaging task:
+`docs/changelog/v0.9.32.md`, `docs/research/media/levelshots.json` and
+`docs/research/LEVELSHOT_PACKAGING.md`. The map PK3s, texture-bank ledgers,
+metadata, JPGs and KTX cache are ignored deployment artifacts. Deploy those
+assets together; a browser refresh picks up the updated images. No source code
+changed and no services were restarted. The generated files were inspected
+locally; no additional live-match test or production deployment was performed.

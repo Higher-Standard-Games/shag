@@ -35,5 +35,29 @@
     ],
     "packageBytes": 18547636,
     "previewBytes": 80654
+  },
+  {
+    "map": "washoi_amphi1",
+    "package": "map_washoi_amphi1.pk3",
+    "pngBytes": 2246483,
+    "pngSha256": "637d0b46d45d2770bdb688f1eb9816106dcf11e2e01a0f6cfbb7d08092475b22",
+    "unchangedEntries": [
+      "maps/washoi_amphi1.bsp"
+    ],
+    "packageBytes": 3749212,
+    "previewBytes": 100597
+  },
+  {
+    "map": "washoi_snd1",
+    "package": "map_washoi_snd1.pk3",
+    "pngBytes": 2511977,
+    "pngSha256": "c799c2a5cee88cbd3d219702864b9e2b5af6408b43312c43a1627a8c8d276d39",
+    "unchangedEntries": [
+      "maps/washoi_snd1.bsp",
+      "minimaps/washoi_snd1.ktx",
+      "navigation/washoi_snd1.nav"
+    ],
+    "packageBytes": 32898405,
+    "previewBytes": 113634
   }
 ]

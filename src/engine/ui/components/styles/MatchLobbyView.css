@@ -822,6 +822,24 @@
   padding: 0;
 }
 
+.raised-key--map-empty {
+  --key-face: hsl(250 23% 16%);
+  --key-side: hsl(250 20% 11%);
+  opacity: 0.55;
+}
+
+.raised-key--map-empty .match-lobby__map-shot {
+  display: grid;
+  place-items: center;
+  background: repeating-linear-gradient(135deg, transparent 0 16px, hsla(250, 15%, 70%, 0.04) 16px 32px);
+  color: hsla(250, 15%, 80%, 0.25);
+  font: 900 64px / 1 var(--w-font-display, "Orbitron", monospace);
+}
+
+.raised-key--map-empty .match-lobby__map-info {
+  color: hsla(45, 30%, 90%, 0.55);
+}
+
 .match-lobby__map-shot {
   position: relative;
   flex: 1;

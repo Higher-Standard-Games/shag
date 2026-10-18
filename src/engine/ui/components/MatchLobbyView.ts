@@ -742,15 +742,7 @@ export class MatchLobbyView {
 
   private fillMaps(maps = this.root?.querySelector<HTMLElement>(".match-lobby__maps")): void {
     if (!maps) return;
-    if (this.maps.length === 0) {
-      const empty = document.createElement("p");
-      empty.className = "match-lobby__maps-empty";
-      empty.textContent = "No maps are offered for this room yet.";
-      maps.replaceChildren(empty);
-      return;
-    }
-
-    const most = Math.max(...this.maps.map((m) => m.votes));
+    const most = Math.max(0, ...this.maps.map((m) => m.votes));
     maps.replaceChildren(
       ...this.maps.map((map) => {
         const shot = document.createElement("span");
@@ -801,7 +793,25 @@ export class MatchLobbyView {
         card.addEventListener("click", () => this.selectMapVote(map));
         return card;
       }),
+      ...Array.from({ length: Math.max(0, 3 - this.maps.length) }, () => this.buildEmptyMapSlot()),
     );
+  }
+
+  private buildEmptyMapSlot(): HTMLButtonElement {
+    const shot = document.createElement("span");
+    shot.className = "match-lobby__map-shot match-lobby__map-shot--empty";
+    shot.textContent = "—";
+    shot.setAttribute("aria-hidden", "true");
+    const info = document.createElement("span");
+    info.className = "match-lobby__map-info";
+    const name = document.createElement("span");
+    name.className = "match-lobby__map-name";
+    name.textContent = "Unavailable";
+    info.appendChild(name);
+    const card = createRaisedKey({ variants: ["map", "map-empty"], content: [shot, info] });
+    card.disabled = true;
+    card.setAttribute("aria-label", "No map available in this slot");
+    return card;
   }
 
   private selectMapVote(map: MatchLobbyMapOption): void {
