@@ -40,8 +40,11 @@ This page is organized by task rather than generated from source. Engine command
 
 `map` needs a gameplay launcher, which the browser composition registers and `cli:game` does not; use `bsp load` there.
 
-`training_demo` records one trick per demo: do it, then `training_demo stop`. A
-name that already exists gets `_2`, `_3` and so on rather than being overwritten.
+`training_demo` can record multiple tricks in one demo. Start each attempt on
+the ground at a low speed and land clearly before the next attempt. Finish with
+`training_demo stop`, then run `npm run bot:learn -- <map>_<name>` to extract and
+verify movement routes. Failed or unreliable attempts are rejected individually.
+A name that already exists gets `_2`, `_3` and so on rather than being overwritten.
 
 ## Camera and position
 
