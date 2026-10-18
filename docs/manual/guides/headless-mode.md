@@ -152,8 +152,8 @@ calibrated against real player demos.
 
 Lobby-spawned private matches pass `--private-match` to `net:server`, and the
 game server writes that privacy into the demo header (format v4 and later). New
-recordings are v5, whose frames also carry each player's view. Standalone
-recordings are public. The reader accepts v1–v5; an older browser build cannot
+recordings are v6, retaining each player's view and adding optional persistent
+S&D brush-model state. Standalone recordings are public. The reader accepts v1–v6; an older browser build cannot
 play a newer recording until it is updated.
 
 ## Exit status

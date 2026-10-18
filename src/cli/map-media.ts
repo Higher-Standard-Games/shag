@@ -198,7 +198,9 @@ export async function packageMap(bank: MediaBank, map: string, outputDirectory: 
   for (const item of bsp.textures) await material(item.name, "BSP material");
   for (const entity of bsp.entities) {
     for (const [key, value] of Object.entries(entity.properties)) {
-      if (/^(model|model2|noise|sound|music|skin|shader|targetshadername|targetshadernewname)$/i.test(key)) {
+      if (
+        /^(model|model2|debris1|debris2|noise|sound|music|skin|shader|targetshadername|targetshadernewname)$/i.test(key)
+      ) {
         for (const ref of value.split(/\s+/)) {
           if (ref.startsWith("*")) continue;
           if (/shader/i.test(key)) await material(ref, `entity ${entity.classname}.${key}`);

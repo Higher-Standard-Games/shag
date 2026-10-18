@@ -35,8 +35,8 @@
     "displayName": "Le Toxiquet",
     "gametypes": []
   },
-  "wamphi1": {
-    "displayName": "Amphitheatre",
+  "washoi_amphi1": {
+    "displayName": "Washoi Amphi1",
     "gametypes": [
       "amphi"
     ]
@@ -55,12 +55,14 @@
   },
   "wbomb2": {
     "displayName": "Reactors",
-    "gametypes": [
-      "snd"
-    ]
+    "gametypes": []
   },
   "wbomb6": {
     "displayName": "Depot",
+    "gametypes": []
+  },
+  "washoi_snd1": {
+    "displayName": "Concrete Strike",
     "gametypes": [
       "snd"
     ]

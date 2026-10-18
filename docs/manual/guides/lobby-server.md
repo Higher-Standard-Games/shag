@@ -37,8 +37,12 @@ it at startup and filters the pools against installed `map_*.pk3` packages in
 `public/data/`. Numbered SHAGGED packages such as `map_solamphi1_00008.pk3`
 also advertise their base map name, `solamphi1`.
 
-The Amphi pool contains `wamphi1`. Relay Yard (`solamphi1`) and the DA arenas
+The Amphi pool contains `washoi_amphi1` from `map_washoi_amphi1.pk3`, with shared
+media in `washoi_textures.pk3`. Relay Yard (`solamphi1`) and the DA arenas
 are excluded. Restart the lobby after changing the configuration.
+
+The S&D pool contains only Concrete Strike (`washoi_snd1`), provided
+`map_washoi_snd1.pk3` is installed. Duel and FFA use Washoi DM2, DM5 and DM11.
 
 ## Chat filtering
 
@@ -469,7 +473,9 @@ handoffs in isolation; run it before live browser testing.
 Demo format v4 added the room's privacy flag to the header; v5 keeps that
 header and adds each player's view to the frames (their keys, slide and ledge
 grab phases and crouch eye height, so a watched view leans, dips and crouches
-as their screen did). The reader still accepts v1–v3 recordings, which have no
+as their screen did). Format v6 retains that layout and adds optional persistent
+disabled brush models to S&D objective snapshots. The reader accepts v1–v6,
+including v1–v3 recordings, which have no
 privacy flag and count as public. Featured picks leave out recordings marked
 private, even those featuring a public top-ten account. Private recordings
 stay in the archive and in their verified participants' **Your demos** list:

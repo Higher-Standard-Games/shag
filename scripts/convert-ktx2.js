@@ -40,7 +40,7 @@ const REPO_ROOT = join(SCRIPT_DIR, "..");
 const SOURCE_DIR = join(REPO_ROOT, "public", "data");
 const OUTPUT_DIR = join(SOURCE_DIR, "ktx2cache");
 const MANIFEST_PATH = join(OUTPUT_DIR, "manifest.json");
-const GENERATOR_VERSION = 2;
+const GENERATOR_VERSION = 3;
 const SOURCE_EXTENSIONS = new Set([".tga", ".png", ".jpg", ".jpeg"]);
 const EXTENSION_PRIORITY = new Map([
   [".tga", 4],
@@ -292,6 +292,9 @@ function runEncoder(tool, inputPath, outputPath, sourcePath) {
       "create",
       "--format",
       uastc ? "R8G8B8A8_UNORM" : "R8G8B8A8_SRGB",
+      // Normal/scalar maps contain data, not sRGB colors. Assign before encoding
+      // so neutral normal components stay near 128 instead of being linearized.
+      ...(uastc ? ["--assign-tf", "linear"] : []),
       "--encode",
       uastc ? (majorVersion >= 5 ? "uastc-ldr-4x4" : "uastc") : "basis-lz",
       ...(uastc ? ["--uastc-quality", "2", "--zstd", "19"] : ["--clevel", "4", "--qlevel", "192"]),
@@ -305,6 +308,7 @@ function runEncoder(tool, inputPath, outputPath, sourcePath) {
   } else {
     commandArgs = [
       "--t2",
+      ...(uastc ? ["--assign_oetf", "linear"] : []),
       "--encode",
       uastc ? "uastc" : "etc1s",
       ...(uastc ? ["--uastc_quality", "2", "--zcmp", "19"] : ["--clevel", "4", "--qlevel", "192"]),

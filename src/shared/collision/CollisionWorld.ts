@@ -1,3 +1,4 @@
+import type { BrushModelState } from "../bsp/BrushModelState";
 import type { LiftSystem } from "../bsp/LiftSystem";
 import type { Vec3 } from "../server/simulation/types";
 
@@ -60,6 +61,7 @@ export interface StepSlideMoveResult {
  */
 export interface CollisionWorld {
   readonly lifts?: LiftSystem;
+  readonly brushModels?: BrushModelState;
   /**
    * Trace a ray/box from start to end
    *
@@ -159,6 +161,7 @@ export const SHOT_CONTENT_MASK = 0x1;
 
 export interface SweepBackend {
   readonly lifts?: LiftSystem;
+  readonly brushModels?: BrushModelState;
   trace(
     start: Vec3,
     end: Vec3,

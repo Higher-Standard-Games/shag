@@ -14,6 +14,7 @@
  */
 
 import { DEFAULT_VIEWHEIGHT } from "../engine/physics/PlayerPhysicsConstants";
+import { selectWeightProfile } from "../shared/bot/WeightProfiles";
 import { BotBrain, type BotInput, BotState } from "./BotBrain";
 import { type BotDifficulty, defaultGoalArbiterMode, type GoalArbiterMode, InputButtons } from "./BotConfig";
 import type { BotGameState, Vec3, VisiblePlayer } from "./BotGameState";
@@ -24,6 +25,7 @@ import { BotSequenceRegistry, BotSequenceRuntime, type BotSequenceRuntimeTick } 
 import type { BotVision, VisionResult } from "./BotVision";
 import { getWeaponProfile, selectBestWeapon, type WeaponProfile } from "./BotWeaponProfile";
 import type { BotGoal } from "./goals/BotGoal";
+import { collectDirectiveGoals } from "./goals/DirectiveGoalSource";
 import { ItemGoalPlanner } from "./goals/ItemGoalPlanner";
 import { ItemSlideApproachSequence } from "./sequences/ItemSlideApproachSequence";
 import { LearnedRouteSequence } from "./sequences/LearnedRouteSequence";
@@ -131,6 +133,8 @@ export class StateMachineBrain extends BotBrain {
   private readonly _itemGoalPlanner: ItemGoalPlanner;
   private readonly _goalArbiterMode: GoalArbiterMode;
   private _activeItemGoal: BotGoal | null = null;
+  private _mandatoryGoal: BotGoal | null = null;
+  private _sitePatrol: { goalId: string; target: Vec3; expires: number; pauseUntil: number } | null = null;
   /**
    * Per-decision memo for goal selection.
    *
@@ -168,19 +172,24 @@ export class StateMachineBrain extends BotBrain {
   private _pathBlockedReason: string | null = null;
   private _suppressTraversalAutomation: boolean = false;
   override getNavigationDebug(): string | null {
+    const goal = this._mandatoryGoal
+      ? `order=${this._mandatoryGoal.directive?.id}`
+      : this._activeItemGoal
+        ? this._itemGoalPlanner.explain
+        : null;
     const sequence = this._sequenceRuntime.getDebug(this._lastDecisionTick);
     if (sequence) {
       const remaining = this._currentPath ? this._currentPath.steps.length - this._currentPath.cursor : 0;
-      return `${sequence} remaining=${remaining}`;
+      return `${sequence} remaining=${remaining}${goal ? ` ${goal}` : ""}`;
     }
-    if (this._pathBlockedReason) return `blocked=${this._pathBlockedReason}`;
+    if (this._pathBlockedReason) return `blocked=${this._pathBlockedReason}${goal ? ` ${goal}` : ""}`;
     if (!this._currentPath || !this._activeNavStep) {
       // No path to describe, but a scored goal choice is still worth surfacing.
-      return this._activeItemGoal ? this._itemGoalPlanner.explain : null;
+      return goal;
     }
     const remaining = this._currentPath.steps.length - this._currentPath.cursor;
     const nav = `step=${this._activeNavStep} remaining=${remaining}`;
-    return this._activeItemGoal ? `${nav} ${this._itemGoalPlanner.explain}` : nav;
+    return goal ? `${nav} ${goal}` : nav;
   }
 
   isSequenceActive(): boolean {
@@ -215,9 +224,26 @@ export class StateMachineBrain extends BotBrain {
       // at 30 HP is a different proposition after respawning at 100.
       this._itemGoalPlanner.reset();
       this._activeItemGoal = null;
+      this._mandatoryGoal = null;
+      this._sitePatrol = null;
       // Clear vision cache on death
       if (vision) vision.clearCache();
       return this._noInput(state);
+    }
+
+    const mandatory = this._selectMandatoryGoal(state);
+    if (mandatory?.id !== this._mandatoryGoal?.id) {
+      this._currentPath = null;
+      this._pathTarget = null;
+      this._interruptSequence(state, "objective_changed", true);
+    }
+    this._mandatoryGoal = mandatory;
+    if (
+      !state.directives.some(
+        (order) => `objective:${order.id}` === this._sitePatrol?.goalId && order.expiresAtTick > state.tick,
+      )
+    ) {
+      this._sitePatrol = null;
     }
 
     // Determine state based on priority
@@ -290,6 +316,9 @@ export class StateMachineBrain extends BotBrain {
   // ── State Evaluation ──────────────────────────────────────────────
 
   private _evaluateState(state: BotGameState): BotState {
+    // Non-interruptible work must reach the navigation executor before combat,
+    // chase or item shopping can divert it. Death is handled by decide().
+    if (this._mandatoryGoal) return BotState.ITEM_RUN;
     const recentlyDamaged = state.wasRecentlyDamaged(DODGE_REACT_TICKS);
 
     // Use vision data if available, otherwise fall back to raw state
@@ -653,6 +682,11 @@ export class StateMachineBrain extends BotBrain {
   // ── ITEM_RUN State ────────────────────────────────────────────────
 
   private _executeItemRun(state: BotGameState): BotInput {
+    if (this._mandatoryGoal) {
+      const goal = this._mandatoryGoal;
+      this._activeItemGoal = goal;
+      return this._navigateGoal(state, goal, true);
+    }
     // Scored choice first: value, denial, route and danger decide which item,
     // instead of the fixed weapon > health > armor > ammo ordering below (which
     // took the nearest of whichever type came first, so a 5 HP bubble could
@@ -661,7 +695,7 @@ export class StateMachineBrain extends BotBrain {
     const goal = this._selectItemGoal(state);
     // Only a DIRECTIVE goal holds on arrival. An item goal has to be touched,
     // and a bot that stops next to a Red Armor never picks it up.
-    if (goal) return this._navigateTo(state, goal.position, false, this._holdRadius(goal, state));
+    if (goal) return this._navigateGoal(state, goal, false);
 
     // Try NavGraph path to nearest item (weapon > health > armor > ammo)
     // Uses cached _navigateToItem to avoid A* every tick
@@ -707,7 +741,7 @@ export class StateMachineBrain extends BotBrain {
     // through to HUNT but the arbiter still has something worth doing — an
     // objective, or an item that did not meet _shouldSeekItems' cruder bar.
     const goal = this._selectItemGoal(state);
-    if (goal) return this._navigateTo(state, goal.position, false, this._holdRadius(goal, state));
+    if (goal) return this._navigateGoal(state, goal, false);
 
     // Check if we know a last enemy position to investigate
     const huntTarget = this._getHuntTarget(state);
@@ -915,6 +949,64 @@ export class StateMachineBrain extends BotBrain {
     if (goal.directive) return goal.radius;
     if (goal.respawnTick !== undefined && goal.respawnTick > state.tick) return TIMED_ITEM_HOLD_RADIUS;
     return undefined;
+  }
+
+  private _selectMandatoryGoal(state: BotGameState): BotGoal | null {
+    if (this._goalArbiterMode === "legacy") return null;
+    const weights = selectWeightProfile(state.matchState.gametypeName, state.getOwnRole(), state.matchState.roundState);
+    if (weights.objectivePush <= 0) return null;
+    const goals = collectDirectiveGoals(state).filter(
+      (goal) => goal.directive?.interrupt === "never" && Number.isFinite(goal.directive.priority),
+    );
+    goals.sort((a, b) => (b.directive?.priority ?? 0) - (a.directive?.priority ?? 0) || a.id.localeCompare(b.id));
+    return goals[0] ?? null;
+  }
+
+  private _navigateGoal(state: BotGameState, goal: BotGoal, urgent: boolean): BotInput {
+    const radius = this._holdRadius(goal, state);
+    // Planting and defusing use move_to: those orders must stay still on arrival.
+    const patrol = goal.directive?.kind === "defend" || goal.directive?.kind === "hold_area";
+    if (patrol && radius !== undefined && vec3Length(vec3Subtract(goal.position, state.self.position)) <= radius) {
+      return this._patrolSite(state, goal, radius);
+    }
+    this._sitePatrol = null;
+    return this._navigateTo(state, goal.position, urgent, radius);
+  }
+
+  private _patrolSite(state: BotGameState, goal: BotGoal, radius: number): BotInput {
+    // These are verified walking segments, not approaches to a traversal trick.
+    this._suppressTraversalAutomation = true;
+    const vision = this._lastBotVision;
+    if (!vision || !this._navGraph) return this._holdPosition(state, goal.position);
+    const previous = this._sitePatrol;
+    if (previous?.goalId === goal.id && state.tick < previous.expires) {
+      if (vec3Length(vec3Subtract(previous.target, state.self.position)) <= 48) {
+        if (!previous.pauseUntil) previous.pauseUntil = state.tick + 125;
+        if (state.tick < previous.pauseUntil) return this._holdPosition(state, goal.position);
+      } else if (vision.isWalkable(state.self.position, previous.target)) {
+        return this._moveTowardPrecise(state, previous.target);
+      }
+    }
+    // Use sampled standing surfaces, with a clear hull sweep and supported floor.
+    // Straight segments inside the site's sphere cannot wander off to another site.
+    const candidates = this._navGraph.nodes
+      .filter((node) => node.type === "floor" || node.type === "spawn")
+      .map((node) => ({ ...node.position, y: node.position.y + (node.type === "floor" ? 24 : 0) }))
+      .filter(
+        (position) =>
+          vec3Length(vec3Subtract(position, goal.position)) <= radius &&
+          vec3Length(vec3Subtract(position, state.self.position)) >= 96 &&
+          Math.abs(position.y - state.self.position.y) <= 40 &&
+          (!previous || vec3Length(vec3Subtract(position, previous.target)) > 48) &&
+          vision.isWalkable(state.self.position, position),
+      );
+    if (!candidates.length) {
+      this._sitePatrol = null;
+      return this._holdPosition(state, goal.position);
+    }
+    const target = candidates[Math.floor(Math.random() * candidates.length)];
+    this._sitePatrol = { goalId: goal.id, target, expires: state.tick + 1000, pauseUntil: 0 };
+    return this._moveTowardPrecise(state, target);
   }
 
   private _navigateTo(state: BotGameState, target: Vec3, urgent: boolean, holdRadius?: number): BotInput {

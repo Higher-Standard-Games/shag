@@ -223,6 +223,12 @@ Headless loading resolves the BSP through the same PK3 index. Do not add ad-hoc 
 
 ## KTX2 sidecar loading
 
+Normal and scalar companion maps are encoded as linear data. The converter
+assigns their input transfer function explicitly, preserving neutral normal
+components near 128 instead of applying an sRGB color conversion. Generator v3
+invalidates earlier cache manifests; rebuild and deploy the cache together with
+its manifest after upgrading the converter.
+
 Rebuild sidecars after replacing source artwork or repackaging media. Runtime
 loading trusts the sidecar manifest and does not compare source signatures.
 `npm run tools:textures` incrementally refreshes changed sources; for a complete

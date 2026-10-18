@@ -128,8 +128,8 @@ export class DemoReader {
     // Version
     const version = view.getUint8(offset);
     offset += 1;
-    // v5 is v4's header with the players' view in its frames
-    if (version < 1 || version > 5) {
+    // v6 retains v5's layout and adds optional bomb brush state in match JSON.
+    if (version < 1 || version > 6) {
       throw new Error(`Unsupported demo version: ${version}`);
     }
 

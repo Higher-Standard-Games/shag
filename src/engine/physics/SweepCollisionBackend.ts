@@ -12,6 +12,7 @@
 
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Scene } from "@babylonjs/core/scene";
+import { BrushModelState, extractBrushModels } from "../../shared/bsp/BrushModelState";
 import { extractLifts, LiftSystem } from "../../shared/bsp/LiftSystem";
 import type { BspBrush, BspCollisionData, BspLeaf } from "../loader/bsp/BspLoader";
 import {
@@ -119,6 +120,9 @@ interface InternalTraceResult {
  */
 export class SweepCollisionBackend implements CollisionBackend {
   public lifts: LiftSystem | undefined;
+  public brushModels: BrushModelState | undefined;
+  private brushModelBrushes = new Set<number>();
+  private brushModelFaces = new Set<number>();
   private liftBrushes = new Map<number, number>();
   private liftFaces = new Set<number>();
 
@@ -197,6 +201,14 @@ export class SweepCollisionBackend implements CollisionBackend {
 
   async init(bsp: BspCollisionData, _scene?: Scene): Promise<void> {
     this.bsp = bsp;
+    this.brushModels = new BrushModelState(extractBrushModels(bsp.entities, bsp.models));
+    this.brushModelBrushes.clear();
+    this.brushModelFaces.clear();
+    for (const definition of this.brushModels.definitions) {
+      const model = bsp.models[definition.modelIndex];
+      for (let i = model.firstBrush; i < model.firstBrush + model.numBrushes; i++) this.brushModelBrushes.add(i);
+      for (let i = model.firstFace; i < model.firstFace + model.numFaces; i++) this.brushModelFaces.add(i);
+    }
     this.liftBrushes.clear();
     this.liftFaces.clear();
     const definitions = extractLifts(bsp.entities, bsp.models);
@@ -404,7 +416,7 @@ export class SweepCollisionBackend implements CollisionBackend {
     this.clipBrushIndices = [];
 
     for (let bi = 0; bi < this.bsp.brushes.length; bi++) {
-      if (this.liftBrushes.has(bi)) continue;
+      if (this.liftBrushes.has(bi) || this.brushModelBrushes.has(bi)) continue;
       const brush = this.bsp.brushes[bi];
       if (!brush || brush.numSides < 4) continue;
 
@@ -436,7 +448,7 @@ export class SweepCollisionBackend implements CollisionBackend {
     this.faceCollisionMeshes = new Array(this.bsp.faces.length).fill(null);
 
     for (let i = 0; i < this.bsp.faces.length; i++) {
-      if (this.liftFaces.has(i)) continue;
+      if (this.liftFaces.has(i) || this.brushModelFaces.has(i)) continue;
       const face = this.bsp.faces[i];
       // Planar and triangle-soup draw surfaces have independent authored brushes.
       // Only patches need collision facets generated from their control points.
@@ -634,6 +646,19 @@ export class SweepCollisionBackend implements CollisionBackend {
         if (texture && this.shouldCollideWith(texture, contentMask)) this.traceBrush(brush, i, texture, state);
       }
     }
+    for (const definition of this.brushModels?.definitions ?? []) {
+      if (!this.brushModels?.isEnabled(definition.modelIndex)) continue;
+      if (definition.modelIndex === excludeModel || (onlyModel >= 0 && definition.modelIndex !== onlyModel)) continue;
+      const origin = definition.origin;
+      state.start = [q3Start[0] - origin.x, q3Start[1] - origin.z, q3Start[2] - origin.y];
+      state.end = [q3End[0] - origin.x, q3End[1] - origin.z, q3End[2] - origin.y];
+      const model = this.bsp.models[definition.modelIndex];
+      for (let i = model.firstBrush; i < model.firstBrush + model.numBrushes; i++) {
+        const brush = this.bsp.brushes[i];
+        const texture = this.getBrushTexture(brush);
+        if (texture && this.shouldCollideWith(texture, contentMask)) this.traceBrush(brush, i, texture, state);
+      }
+    }
     for (let j = 0; j < 3; j++) {
       state.start[j] = q3Start[j];
       state.end[j] = q3End[j];
@@ -797,7 +822,7 @@ export class SweepCollisionBackend implements CollisionBackend {
 
     for (let i = 0; i < leaf.numLeafBrushes; i++) {
       const brushIndex = this.bsp.leafBrushes[leaf.firstLeafBrush + i];
-      if (this.liftBrushes.has(brushIndex)) continue;
+      if (this.liftBrushes.has(brushIndex) || this.brushModelBrushes.has(brushIndex)) continue;
       if (this.brushVisits[brushIndex] === this.traceGeneration) continue;
       const brush = this.bsp.brushes[brushIndex];
       if (!brush || brush.numSides < 1) continue;
@@ -1505,7 +1530,7 @@ export class SweepCollisionBackend implements CollisionBackend {
     let contents = 0;
     for (let i = 0; i < leaf.numLeafBrushes; i++) {
       const brushIndex = this.bsp.leafBrushes[leaf.firstLeafBrush + i];
-      if (this.liftBrushes.has(brushIndex)) continue;
+      if (this.liftBrushes.has(brushIndex) || this.brushModelBrushes.has(brushIndex)) continue;
       const brush = this.bsp.brushes[brushIndex];
       if (!brush || brush.numSides < 1) continue;
 
@@ -1524,6 +1549,17 @@ export class SweepCollisionBackend implements CollisionBackend {
       const local: [number, number, number] = [point.x - offset.x, point.z - offset.z, point.y - offset.y];
       const model = this.bsp.models[d.modelIndex];
       if ([0, 1, 2].some((j) => local[j] < model.mins[j] || local[j] > model.maxs[j])) continue;
+      for (let i = model.firstBrush; i < model.firstBrush + model.numBrushes; i++) {
+        const brush = this.bsp.brushes[i];
+        const texture = this.getBrushTexture(brush);
+        if (texture && this.pointInBrush(local, brush)) contents |= texture.contentFlags;
+      }
+    }
+    for (const definition of this.brushModels?.definitions ?? []) {
+      if (!this.brushModels?.isEnabled(definition.modelIndex)) continue;
+      const origin = definition.origin;
+      const local: [number, number, number] = [q3[0] - origin.x, q3[1] - origin.z, q3[2] - origin.y];
+      const model = this.bsp.models[definition.modelIndex];
       for (let i = model.firstBrush; i < model.firstBrush + model.numBrushes; i++) {
         const brush = this.bsp.brushes[i];
         const texture = this.getBrushTexture(brush);
@@ -1657,6 +1693,9 @@ export class SweepCollisionBackend implements CollisionBackend {
     this.lifts = undefined;
     this.liftBrushes.clear();
     this.liftFaces.clear();
+    this.brushModelBrushes.clear();
+    this.brushModelFaces.clear();
+    this.brushModels = undefined;
     this.ladderBrushes = [];
     this.brushVisits = new Uint32Array(0);
     this.faceVisits = new Uint32Array(0);

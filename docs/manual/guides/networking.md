@@ -1,5 +1,11 @@
 # Networking System
 
+S&D objective state in the `match_state` JSON event can include
+`disabledModels?: number[]`: the authoritative disabled inline brush model
+indices. Clients apply it to collision and rendering, including after joining
+mid-round. Its absence in an older recording restores the map's initial brush
+state. Demo format v6 records this optional extension; v1–v5 remain readable.
+
 SHAG uses Quake 3-style server-authoritative networking: the server runs the one true simulation, each client predicts its own movement so input feels immediate, and remote players are interpolated between snapshots. This is the model that kept Quake responsive on high-latency connections.
 
 ---

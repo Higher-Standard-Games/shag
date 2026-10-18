@@ -6,10 +6,10 @@
  */
 
 import { Animation } from "@babylonjs/core/Animations/animation";
-import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { Scene } from "@babylonjs/core/scene";
+import { extractBrushModels } from "../../../shared/bsp/BrushModelState";
 import { extractLifts, type LiftSystem } from "../../../shared/bsp/LiftSystem";
 import { AudioManager } from "../../AudioManager";
 import { Attenuation } from "../../audio/AudioV2Sfx";
@@ -270,10 +270,11 @@ async function handleFuncDoor(entity: EntityData, scene: Scene): Promise<EntityH
  */
 export function registerBspEntityHandlers(): void {
   EntityHandlerRegistry.register("func_plat", handleLift);
+  EntityHandlerRegistry.register("func_explosive", handleExplosive);
   EntityHandlerRegistry.register("func_door", handleFuncDoor);
   registerAmbientEntityHandlers();
   console.log(
-    "[BspEntityHandlers] Registered BSP entity handlers: func_door, func_plat, func_rotating, target_speaker",
+    "[BspEntityHandlers] Registered BSP entity handlers: func_door, func_plat, func_explosive, func_rotating, target_speaker",
   );
 }
 
@@ -282,9 +283,36 @@ export function registerBspEntityHandlers(): void {
  */
 export function unregisterBspEntityHandlers(): void {
   EntityHandlerRegistry.unregister("func_plat");
+  EntityHandlerRegistry.unregister("func_explosive");
   EntityHandlerRegistry.unregister("func_door");
   unregisterAmbientEntityHandlers();
   doorGroups.clear();
+}
+
+async function handleExplosive(entity: EntityData, scene: Scene): Promise<EntityHandlerResult> {
+  const bsp = currentBsp;
+  if (!bsp) return { handled: false };
+  const definition = extractBrushModels([entity], bsp.models)[0];
+  if (!definition) return { handled: false };
+  const mesh = await buildBrushModel(bsp, definition.modelIndex, scene, `bsp_explosive_${definition.modelIndex}`);
+  if (!mesh) return { handled: false };
+  mesh.position.set(definition.origin.x, definition.origin.y, definition.origin.z);
+  mesh.metadata = { ...mesh.metadata, mapOwned: true, entityType: "func_explosive" };
+  for (const child of mesh.getChildMeshes()) child.metadata = { ...child.metadata, mapOwned: true };
+  const update = () => {
+    const state = getCollisionManager().getSweepBackend()?.brushModels;
+    mesh.setEnabled(state?.isEnabled(definition.modelIndex) ?? definition.initiallyEnabled);
+  };
+  update();
+  const observer = scene.onBeforeRenderObservable.add(update);
+  const materials = mesh.getChildMeshes().map((child) => child.material);
+  mesh.onDisposeObservable.addOnce(() => {
+    scene.onBeforeRenderObservable.remove(observer);
+    for (const material of materials) {
+      material?.dispose(false, false);
+    }
+  });
+  return { handled: true, node: mesh };
 }
 
 async function handleLift(entity: EntityData, scene: Scene): Promise<EntityHandlerResult> {
@@ -322,8 +350,7 @@ async function handleLift(entity: EntityData, scene: Scene): Promise<EntityHandl
   mesh.onDisposeObservable.addOnce(() => {
     scene.onBeforeRenderObservable.remove(observer);
     for (const material of materials) {
-      // Inline builder owns its materials/lightmaps; diffuse textures belong to the PK3 cache.
-      if (material instanceof StandardMaterial) material.lightmapTexture?.dispose();
+      // Inline builder owns shared lightmaps; diffuse textures belong to the PK3 cache.
       material?.dispose(false, false);
     }
   });

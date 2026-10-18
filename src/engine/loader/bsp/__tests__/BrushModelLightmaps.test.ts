@@ -9,6 +9,51 @@ import type { BspFile } from "../BspLoader";
 import { buildBrushModel } from "../mesh/brushModelBuilder";
 
 describe("inline brush lightmap pages", () => {
+  it("renders curved inline structures with interpolated UVs and shared polygon groups", async () => {
+    const engine = new NullEngine();
+    const scene = new Scene(engine);
+    const load = vi.spyOn(PK3TextureLoader.getInstance(), "loadTexture").mockResolvedValue(new Texture(null, scene));
+    try {
+      const bsp = {
+        models: [{ mins: [0, 0, 0], maxs: [2, 2, 1], firstFace: 0, numFaces: 2 }],
+        textures: [{ name: "textures/qa/curved", surfaceFlags: 0, contentFlags: 1 }],
+        lightmaps: [],
+        faces: [
+          { textureIndex: 0, lightmapIndex: -1, faceType: 2, firstVertex: 0, numVertices: 9, patchSize: [3, 3] },
+          {
+            textureIndex: 0,
+            lightmapIndex: -1,
+            faceType: 3,
+            firstVertex: 9,
+            numVertices: 3,
+            firstMeshVert: 0,
+            numMeshVerts: 3,
+          },
+        ],
+        vertices: Array.from({ length: 12 }, (_, i) => ({
+          position: [i % 3, Math.floor(i / 3), i === 4 ? 2 : 0],
+          normal: [0, 0, 1],
+          texCoord: [(i % 3) / 2, Math.floor(i / 3) / 2],
+          lightmapCoord: [0.25, 0.75],
+          color: [255, 255, 255, 255],
+        })),
+        meshVerts: [0, 1, 2],
+      } as unknown as BspFile;
+      const parent = await buildBrushModel(bsp, 0, scene, "curved_structure");
+      const child = parent!.getChildMeshes()[0];
+      expect(parent!.getChildMeshes()).toHaveLength(1);
+      expect(child.getTotalVertices()).toBe(84); // 9x9 tessellation plus triangle
+      expect(child.getTotalIndices()).toBe(387);
+      expect(child.getIndices()!.slice(-3)).toEqual([81, 83, 82]);
+      expect(child.getVerticesData(VertexBuffer.PositionKind)!.slice(120, 123)).toEqual([1, 0.5, 1]);
+      expect(child.getVerticesData(VertexBuffer.UV2Kind)!.slice(80, 82)).toEqual([0.25, 0.75]);
+    } finally {
+      load.mockRestore();
+      scene.dispose();
+      engine.dispose();
+    }
+  });
+
   it.each([false, true])("keeps lightmapped and unlightmapped faces separate (WebGPU policy=%s)", async (webgpu) => {
     const engine = new NullEngine();
     if (webgpu) Object.defineProperty(engine, "isWebGPU", { value: true });
@@ -59,6 +104,14 @@ describe("inline brush lightmap pages", () => {
           expect(Array.from(upload as Uint8Array)).toEqual(page === 0 ? [255, 0, 0, 255] : [0, 255, 0, 255]);
         }
       }
+      const second = await buildBrushModel(bsp, 0, scene, "second_lift");
+      const pages = children.map((child) => (child.material as StandardMaterial).lightmapTexture);
+      const secondPages = second!.getChildMeshes().map((child) => (child.material as StandardMaterial).lightmapTexture);
+      for (let i = 0; i < pages.length; i++) expect(secondPages[i]).toBe(pages[i]);
+      parent!.dispose();
+      for (const page of secondPages) if (page) expect(page.getInternalTexture()).not.toBeNull();
+      second!.dispose();
+      for (const page of pages) if (page) expect(page.getInternalTexture()).toBeNull();
     } finally {
       load.mockRestore();
       scene.dispose();

@@ -65,6 +65,10 @@ export class SweepBackendAdapter implements SweepBackend {
     return this.backend.lifts;
   }
 
+  get brushModels() {
+    return this.backend.brushModels;
+  }
+
   trace(
     start: Vec3,
     end: Vec3,

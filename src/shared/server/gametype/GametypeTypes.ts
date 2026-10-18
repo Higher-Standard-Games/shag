@@ -305,6 +305,8 @@ export interface MatchWinner {
  * it was decided.
  */
 export interface BombObjectiveSnapshot {
+  /** Disabled inline brush models. Optional for demos recorded before v6. */
+  disabledModels?: number[];
   kind: "bomb";
   /** See `BombPhase`. Sent as a string so the client needs no enum. */
   phase: string;

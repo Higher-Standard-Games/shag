@@ -20,8 +20,8 @@ Per-map duplication is deliberate: 799 asset entries cover 657 distinct paths.
 The duplicate paths and selected shader definitions have matching hashes.
 Repackaging does not change the provenance or license of the copied assets.
 
-Active archives: **86 → 24**. Active indexed maps: **53 → 8**.
-Active PK3 bytes: **698.82 → 600.73 MiB**.
+Active archives: **86 â†’ 24**. Active indexed maps: **53 â†’ 8**.
+Active PK3 bytes: **698.82 â†’ 600.73 MiB**.
 
 ## Nonfree replacement todo
 
@@ -795,7 +795,7 @@ Commands run (logs under `.cache/`):
 - `node .cache/run-hud-replay.mjs`: pass; invokes the headless runner with
   `sim replay "W+CROUCH 60; JUMP 1; W 30"; quit`.
 - `node .cache/hud-papercut-browser.mjs`: pass; real CSS/canvas in Chrome,
-  Duel/FFA/team scoreboards at 480–1920px, no horizontal overflow, red X when
+  Duel/FFA/team scoreboards at 480â€“1920px, no horizontal overflow, red X when
   empty and normal green reticle after refill. Desktop deaths 19.5px/ping 18px.
 
 Assumptions: these three IDs are the canonical production IDs; legacy names
@@ -957,3 +957,82 @@ generation publishes only their small JPG previews (263,903 bytes total),
 without restoring deleted artwork. Full-resolution originals remain unchanged
 inside the archives. See [LEVELSHOT_PACKAGING.md](LEVELSHOT_PACKAGING.md) for
 source paths, changed files, rebuild commands, validation and deployment notes.
+
+## Amphi1 restored under the production map ID (2026-10-18)
+
+Restored `archive/map_wamphi1.pk3` as
+`public/data/map_washoi_amphi1.pk3` (1,501,956 bytes), containing
+`maps/washoi_amphi1.bsp`. The 8,454,048-byte BSP matches the archived original
+exactly: SHA256 `aff34c8869c86192a034a2720637124a34cbe06135406bfe26b80045aae78c0a`.
+Texture and shader paths inside it are unchanged. `config/maps.json` now offers
+`washoi_amphi1` / **Washoi Amphi1** as the sole Amphi map.
+
+The existing map-media extractor selected 178 assets and 56 shaders from the
+archived data packages staged in `.cache/wfbomb1-compile/media`. The only
+unresolved reference is the non-rendered `noshader` sentinel; no visible render
+material is unresolved. The original map archive has no levelshot or navigation
+metadata, and no thumbnail was invented. The UI uses its fallback until artwork
+is supplied.
+
+Merged dependencies into the existing **`washoi_textures.pk3`**, rather than
+creating another shared texture bank: 103 added entries (including the canonical
+`media-manifests/washoi_amphi1.json`) and 17 new shader definitions. Five shared
+billboard images differed; the merge retained the existing Washoi images at
+`textures/billboard/{bigbill1,bigbill2,bigbill5,bigbill6,neon1}.png`.
+All other existing file hashes and shader definitions were verified unchanged
+by the merge tool. The previous texture bank is backed up by content hash in
+`archive/media/map-texture-merge/`. The resulting bank is 122,191,074 bytes,
+SHA256 `2547024324fc7571b03343c5218fedf0aa728ebf859ec985c524e635bfd6b65e`.
+
+Regenerated the published PK3 index/manifest and KTX2 cache: 80 converted,
+824 skipped, zero errors. The production map index now advertises
+`washoi_amphi1`, `washoi_dm2`, `washoi_dm5`, `washoi_dm11`, `washoi_snd1`.
+A production-only dependency extraction also found zero unresolved visible
+materials. Archived packages remain outside the served data directory.
+
+Packaging and validation commands (logs `.cache/amphi-*`):
+
+```text
+npm run tools:manifest -- --data-dir .cache/wfbomb1-compile/media
+npm run tools:map-media -- --data-dir .cache/wfbomb1-compile/media --maps wamphi1 --output-dir .cache/amphi-media
+node scripts/rename-map-packages.mjs --rename wamphi1:washoi_amphi1 --source-dir .cache/amphi-media --output-dir public/data --keep-packaged-levelshot
+node .cache/amphi-stage.mjs
+node scripts/merge-map-textures.mjs --source .cache/amphi-media/tex_washoi_amphi1.pk3 --prefer-existing
+npm run tools:manifest
+node .cache/billboards/convert.mjs
+npm run tools:map-media -- --maps washoi_amphi1 --audit-only --output-dir .cache/amphi-audit
+npm run cli:game -- --exec "bsp load washoi_amphi1; bsp info; quit"
+npm run test:run -- src/lobby/__tests__/LobbyAmphiMaps.test.ts
+npm run test:simulation
+npm run test:physics
+npm run server:tick
+npm run server:fuzz -- --ticks 1000
+```
+
+Tracked files changed: `config/maps.json`, `docs/changelog/v0.9.32.md`,
+`docs/manual/guides/lobby-server.md`, `docs/research/media_packaging.md`.
+PK3 archives, generated indexes/thumbnails and the texture cache are ignored
+assets; deploy them alongside the configuration. Assumption: the original
+archived Wamphi1 BSP is the desired release geometry. User services were left
+running; restart the lobby to reload its playlist. Live multiplayer gameplay
+on this restored map has not been tested.
+
+Additional verification: `npm run build`, `npm run gate:biome` and
+`npm run docs:build` pass. `node .cache/amphi-headless.mjs` loaded both
+`washoi_amphi1` and `washoi_dm2` through the production index and printed their
+BSP counts. Amphi has 2,155 faces, 24 entities and eight 512-square lightmaps.
+The initial shell-quoted npm CLI invocation ran only command help; the
+structured-argument runner corrected that. Its first regression check using
+legacy `wdm2` failed because that archive is intentionally absent; the canonical
+`washoi_dm2` check passed instead. No compatibility alias was added.
+
+`node .cache/amphi-browser.mjs` exercised the full MapLoader in headless
+Edge/WebGL2 on the real GPU. The arena rendered (screenshot
+`.cache/amphi-packaging.png`), with 284 meshes, all textures ready and zero HTTP
+failures. This was not a clean renderer diagnostic run: WebGL reported repeated
+uniform-buffer-size warnings, a glow-overlay lightmap warning and
+weapon/ammo model-path and skeleton warnings. These are recorded in
+`.cache/amphi-browser-errors.json`; no renderer code changed in this packaging
+follow-up. The screenshot was inspected, but this does not certify a complete
+live Amphi match or resolve those renderer warnings. The private probe server
+and browser were closed; user services remain untouched.

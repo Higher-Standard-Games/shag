@@ -1,5 +1,15 @@
 # BSP system
 
+`func_explosive` inline brush models render through the BSP entity handlers and
+share enabled state with the Q3 collision backend. S&D activates the structures
+targeted by a detonated site after their authored delays, disables their collision
+and restores them at round start. Cosmetic debris comes from the entity's
+`debris1`/`debris2` MD3 references; map-media packaging includes these dependencies.
+Inline models share full lightmap/direction pages within a BSP and scene; the
+pages remain alive until their final inline owner is disposed.
+Inline geometry includes curved patches using the same tessellation, UVs and
+coordinate conversion as world geometry, alongside polygon and mesh faces.
+
 SHAG supports Quake 3 `IBSP` version 46 and Warsow/qfusion `FBSP` version 1 maps.
 
 ## Normal map flow

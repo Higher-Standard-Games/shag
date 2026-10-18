@@ -10,8 +10,53 @@ import { RenderVars } from "../../../rendering/RenderVars";
 import { configureBspBakedLighting } from "../BspBakedLightingPlugin";
 import { bspLightingProfile, scaleBspLighting } from "../BspLightingProfile";
 import type { BspFile } from "../BspLoader";
+import { buildPatchFace, buildPolygonFace } from "./faceBuilders";
 import { createBspLightmapTexture } from "./lightmaps";
-import { getVertexLightmapCoord } from "./vertices";
+
+interface InlineLightmaps {
+  users: number;
+  pages: Map<number, Texture>;
+}
+const inlineLightmaps = new WeakMap<BspFile, WeakMap<Scene, InlineLightmaps>>();
+
+/** Inline entities share full lightmap pages, not a new 2048² upload per material. */
+function acquireLightmaps(bsp: BspFile, scene: Scene, owner: Mesh): (index: number, direction?: boolean) => Texture {
+  let scenes = inlineLightmaps.get(bsp);
+  if (!scenes) {
+    scenes = new WeakMap();
+    inlineLightmaps.set(bsp, scenes);
+  }
+  let bank = scenes.get(scene);
+  if (!bank) {
+    bank = { users: 0, pages: new Map() };
+    scenes.set(scene, bank);
+  }
+  const shared = bank;
+  const sceneBanks = scenes;
+  shared.users++;
+  owner.onDisposeObservable.addOnce(() => {
+    if (--shared.users !== 0) return;
+    for (const texture of shared.pages.values()) texture.dispose();
+    shared.pages.clear();
+    sceneBanks.delete(scene);
+  });
+  return (index, direction = false) => {
+    let texture = shared.pages.get(index);
+    if (!texture) {
+      texture = createBspLightmapTexture(
+        bsp.lightmaps[index],
+        bsp.lightmapSize,
+        scene,
+        `inline_lightmap_${index}`,
+        bsp.header?.isFBSP === true,
+        direction,
+      );
+      texture.coordinatesIndex = 1;
+      shared.pages.set(index, texture);
+    }
+    return texture;
+  };
+}
 
 /**
  * Build a mesh for a specific brush model (inline model like *5, *6, etc.).
@@ -55,7 +100,9 @@ export async function buildBrushModel(
     const face = bsp.faces[i];
     if (!face || face.numVertices < 3) continue;
 
-    if (face.faceType !== 1 && face.faceType !== 3) continue;
+    if (face.faceType !== 1 && face.faceType !== 2 && face.faceType !== 3) continue;
+    const geometry = face.faceType === 2 ? buildPatchFace(bsp, face) : buildPolygonFace(bsp, face);
+    if (geometry.indices.length === 0) continue;
 
     const lightmapIndex = face.lightmapIndex >= 0 ? face.lightmapIndex : -1;
     const groupKey = `${face.textureIndex}_${lightmapIndex}`;
@@ -78,25 +125,12 @@ export async function buildBrushModel(
 
     const vertexOffset = group.vertexOffset;
 
-    for (let v = 0; v < face.numVertices; v++) {
-      const vertex = bsp.vertices[face.firstVertex + v];
-      if (!vertex) continue;
-
-      group.positions.push(vertex.position[0], vertex.position[2], vertex.position[1]);
-      group.normals.push(vertex.normal[0], vertex.normal[2], vertex.normal[1]);
-      group.uvs.push(vertex.texCoord[0], vertex.texCoord[1]);
-      const lmCoord = getVertexLightmapCoord(vertex);
-      group.uv2s.push(lmCoord[0], lmCoord[1]);
-    }
-
-    for (let m = 0; m < face.numMeshVerts; m += 3) {
-      const i0 = bsp.meshVerts[face.firstMeshVert + m] + vertexOffset;
-      const i1 = bsp.meshVerts[face.firstMeshVert + m + 1] + vertexOffset;
-      const i2 = bsp.meshVerts[face.firstMeshVert + m + 2] + vertexOffset;
-      group.indices.push(i0, i2, i1);
-    }
-
-    group.vertexOffset += face.numVertices;
+    group.positions.push(...geometry.positions);
+    group.normals.push(...geometry.normals);
+    group.uvs.push(...geometry.uvs);
+    group.uv2s.push(...geometry.uv2s);
+    for (const index of geometry.indices) group.indices.push(index + vertexOffset);
+    group.vertexOffset += geometry.positions.length / 3;
   }
 
   if (textureGroups.size === 0) {
@@ -105,6 +139,7 @@ export async function buildBrushModel(
   }
 
   const parentMesh = new Mesh(name, scene);
+  const lightmap = acquireLightmaps(bsp, scene, parentMesh);
 
   const centerX = (model.mins[0] + model.maxs[0]) / 2;
   const centerY = (model.mins[2] + model.maxs[2]) / 2;
@@ -189,9 +224,8 @@ export async function buildBrushModel(
         if (group.lightmapIndex >= 0 && group.lightmapIndex < bsp.lightmaps.length) {
           const lmData = bsp.lightmaps[group.lightmapIndex];
           if (lmData && lmData.length > 0) {
-            const lmSize = bsp.lightmapSize;
             const fbsp = bsp.header?.isFBSP === true;
-            const lmTex = createBspLightmapTexture(lmData, lmSize, scene, `${childName}_lightmap`, fbsp);
+            const lmTex = lightmap(group.lightmapIndex);
             mat.lightmapTexture = lmTex;
             mat.useLightmapAsShadowmap = true;
             mat.lightmapTexture.coordinatesIndex = 1;
@@ -202,14 +236,7 @@ export async function buildBrushModel(
                 profile = scaleBspLighting(profile, profile.gain * scale);
               const direction =
                 profile.deluxe && (RenderVars.getInstance().get("r_deluxe") ?? 1) >= 0.5
-                  ? createBspLightmapTexture(
-                      bsp.lightmaps[group.lightmapIndex + 1],
-                      lmSize,
-                      scene,
-                      `${childName}_direction`,
-                      true,
-                      true,
-                    )
+                  ? lightmap(group.lightmapIndex + 1, true)
                   : null;
               configureBspBakedLighting(mat, childMesh, profile, direction);
             }

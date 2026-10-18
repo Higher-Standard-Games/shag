@@ -34,6 +34,10 @@ export class SharedCollisionWorld implements CollisionWorld {
     return this.backend.lifts;
   }
 
+  get brushModels() {
+    return this.backend.brushModels;
+  }
+
   // ───────────────────────────────────────────────────────────────
   // TRACE
   // ───────────────────────────────────────────────────────────────

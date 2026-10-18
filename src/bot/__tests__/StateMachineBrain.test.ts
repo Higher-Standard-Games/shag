@@ -687,10 +687,118 @@ describe("StateMachineBrain objective holding", () => {
     expect(input.direction).not.toEqual({ x: 0, y: 0, z: 0 });
   });
 
+  it("continues an uninterruptible retake instead of chasing a visible enemy", () => {
+    const brain = new StateMachineBrain(difficulty, "on");
+    const state = objectiveState({ x: 2000, y: 0, z: 0 }, 64);
+    state.players = [makeEnemy(600)];
+    state.self.health = 10;
+    state.recentDamage = [
+      { tick: 0, attackerId: "enemy", damage: 20, weaponId: "machinegun", position: state.self.position },
+    ];
+    const input = brain.decide(state);
+    expect(brain.getState()).toBe(BotState.ITEM_RUN);
+    expect(input.direction).not.toEqual({ x: 0, y: 0, z: 0 });
+    expect(input.yaw).toBeCloseTo(Math.PI / 2);
+    expect(brain.getNavigationDebug()).toContain("order=test_hold");
+    state.tick++;
+    state.self.position = { x: 1990, y: 0, z: 0 };
+    expect(brain.decide(state).direction).toEqual({ x: 0, y: 0, z: 0 });
+  });
+
+  it("returns to combat when a mandatory order expires", () => {
+    const brain = new StateMachineBrain(difficulty, "on");
+    const state = objectiveState({ x: 2000, y: 0, z: 0 }, 64);
+    state.players = [makeEnemy(600)];
+    brain.decide(state);
+    state.tick = 100_000;
+    brain.decide(state);
+    expect(brain.getState()).toBe(BotState.FIGHT);
+  });
+
+  it("allows ordinary site-defense orders to engage visible attackers", () => {
+    const brain = new StateMachineBrain(difficulty, "on");
+    const state = objectiveState({ x: 2000, y: 0, z: 0 }, 64);
+    state.players = [makeEnemy(600)];
+    state.directives[0].interrupt = "enemy_visible";
+    brain.decide(state);
+    expect(brain.getState()).toBe(BotState.FIGHT);
+  });
+
   it("faces what it came for rather than freezing its view", () => {
     // A fixed stare reads as a hung bot, and a planted bomb is worth watching.
     const brain = new StateMachineBrain(difficulty, "on");
     const input = brain.decide(objectiveState({ x: 0, y: 0, z: 40 }, 64, 3));
     expect(input.yaw).toBeCloseTo(0, 2); // atan2(0, 40) — looking down +z
+  });
+});
+
+describe("StateMachineBrain site patrol", () => {
+  function harness() {
+    const brain = new StateMachineBrain(difficulty);
+    const graph = new BotNavGraph("site-patrol-test");
+    graph.loadStaticData({
+      nodes: [
+        { id: 0, type: "floor", position: { x: 180, y: -24, z: 0 } },
+        { id: 1, type: "floor", position: { x: -180, y: -24, z: 0 } },
+        { id: 2, type: "floor", position: { x: 900, y: -24, z: 0 } },
+        { id: 3, type: "floor", position: { x: 0, y: 176, z: 0 } },
+      ],
+      edges: [],
+    });
+    const h = brain as unknown as {
+      _navGraph: BotNavGraph;
+      _lastBotVision: {
+        isWalkable: (from: { x: number; y: number; z: number }, to: { x: number; y: number; z: number }) => boolean;
+      };
+      _navigateGoal: (state: BotGameState, goal: import("../goals/BotGoal").BotGoal, urgent: boolean) => BotInput;
+      _sitePatrol: { target: { x: number; y: number; z: number } } | null;
+    };
+    h._navGraph = graph;
+    h._lastBotVision = { isWalkable: () => true };
+    const state = makeState({}, 5000);
+    const goal: import("../goals/BotGoal").BotGoal = {
+      id: "objective:siteA",
+      kind: "defend",
+      position: { x: 0, y: 0, z: 0 },
+      radius: 384,
+      directive: {
+        id: "siteA",
+        kind: "defend",
+        target: { type: "position", position: { x: 0, y: 0, z: 0 }, radius: 384 },
+        priority: 0.8,
+        expiresAtTick: 10000,
+        interrupt: "enemy_visible",
+      },
+    };
+    return { h, state, goal };
+  }
+  it("patrols supported positions inside the site, pauses, then chooses another point", () => {
+    const { h, state, goal } = harness();
+    const walking = h._navigateGoal(state, goal, false);
+    expect(walking.direction.z).toBe(1);
+    expect(walking.buttons & (InputButtons.JUMP | InputButtons.SPRINT | InputButtons.CROUCH)).toBe(0);
+    const first = { ...h._sitePatrol!.target };
+    expect(Math.abs(first.x)).toBe(180);
+    expect(first.y).toBe(0);
+    state.self.position = first;
+    state.tick = 1;
+    expect(h._navigateGoal(state, goal, false).buttons).toBe(0);
+    state.tick = 127;
+    expect(h._navigateGoal(state, goal, false).direction.z).toBe(1);
+    expect(h._sitePatrol!.target.x).toBe(-first.x);
+  });
+  it("holds when no safe walk exists, rather than walking through a wall or pit", () => {
+    const { h, state, goal } = harness();
+    h._lastBotVision.isWalkable = () => false;
+    expect(h._navigateGoal(state, goal, false).buttons).toBe(0);
+    expect(h._sitePatrol).toBeNull();
+  });
+  it("stops patrolling when the order changes to planting or defusing", () => {
+    const { h, state, goal } = harness();
+    h._navigateGoal(state, goal, false);
+    goal.directive!.kind = "move_to";
+    goal.kind = "move_to";
+    expect(h._navigateGoal(state, goal, true).buttons).toBe(0);
+    expect(h._sitePatrol).toBeNull();
   });
 });

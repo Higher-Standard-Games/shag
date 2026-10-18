@@ -85,6 +85,8 @@ export interface BombExplosionPoint {
 }
 
 export interface BombSite {
+  /** Authored target group activated by this site's detonation. */
+  target?: string;
   /**
    * Stable index in BSP order over accepted indicators — the authoritative id
    * on both server and bots. Never derived from `targetname`, which half the
@@ -230,6 +232,7 @@ export function extractBombSites(entities: readonly BspEntityLike[], models: rea
     if (targetName) byTargetName.set(targetName, id);
 
     sites.push({
+      target: entity.properties.target,
       id,
       label: siteLabel(targetName, id),
       position,
