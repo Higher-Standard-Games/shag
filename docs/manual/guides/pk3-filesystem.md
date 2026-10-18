@@ -30,6 +30,12 @@ have the same ownership and dependency lookup behavior as `textures/...` names.
 It fails without replacing published metadata if an archive is corrupt or
 changes while indexing. An empty data directory is valid for source-only builds.
 
+DM5 and DM11 use Washoi billboard images packaged in `washoi_textures.pk3`.
+After rebuilding that bank from upstream map media, run `npm run tools:billboards`
+to apply the tracked replacements from `assets/billboards/`, then regenerate the
+index and KTX2 cache with `npm run tools:manifest` and `npm run tools:textures`.
+The command preserves map-compatible texture paths and shader animation.
+
 At runtime, `PK3Index` first loads and validates the published searchable index.
 This fetches the two small metadata files with HTTP revalidation and avoids
 downloading every archive or sending a HEAD request per archive at boot.

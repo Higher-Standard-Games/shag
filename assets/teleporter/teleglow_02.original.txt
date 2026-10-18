@@ -1,0 +1,27 @@
+textures/baxandall/teleglow_02
+{
+	qer_editorimage textures/baxandall/teleglow_01.png
+	qer_trans 0.50
+	deformVertexes autosprite
+    surfaceparm trans
+	surfaceparm nonsolid
+	surfaceparm nomarks
+	surfaceparm noimpact
+	surfaceparm nolightmap
+    nomipmaps
+	nopicmip
+	{
+		clampmap textures/baxandall/teleglow_01.png
+		blendfunc gl_one gl_one
+		tcMod stretch sawtooth 1 -.9 0 1.5
+		tcMod rotate 60
+		rgbGen wave sawtooth .75 .5 .6 1.5
+	}
+	{
+		clampmap textures/baxandall/teleglow_01.png
+		blendfunc gl_one gl_one
+		tcMod stretch sawtooth 1 -.9 .5 1.20
+		tcMod rotate -20
+		rgbGen wave sawtooth .75 .5 .1 1.20
+	}
+}

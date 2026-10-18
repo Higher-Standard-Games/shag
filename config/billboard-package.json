@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "description": "Washoi billboard and DM2 branding artwork at map-compatible texture paths",
+  "files": [
+    { "name": "bigbill1", "extension": "png", "width": 1024, "height": 512, "maps": ["washoi_dm5", "washoi_dm11"], "design": "Move fast. Hit hard." },
+    { "name": "bigbill2", "extension": "png", "width": 1024, "height": 512, "maps": ["washoi_dm5", "washoi_dm11"], "design": "Your next rival is waiting." },
+    { "name": "bigbill5", "extension": "png", "width": 1024, "height": 512, "maps": ["washoi_dm11"], "design": "Keep your momentum." },
+    { "name": "bigbill6", "extension": "png", "width": 1024, "height": 512, "maps": ["washoi_dm11"], "design": "One more round." },
+    { "name": "neon1", "extension": "png", "width": 256, "height": 1024, "maps": ["washoi_dm5"], "design": "Washoi vertical neon" },
+    { "name": "small1", "extension": "png", "width": 512, "height": 128, "maps": ["washoi_dm11"], "design": "Teleport / Keep moving" },
+    { "name": "small3", "extension": "png", "width": 1024, "height": 256, "maps": ["washoi_dm5"], "design": "Arena open / Play all night" },
+    { "name": "bigver1", "extension": "tga", "width": 256, "height": 512, "maps": ["washoi_dm5"], "design": "Duel vertical poster" },
+    { "name": "ver3", "extension": "png", "width": 256, "height": 1024, "maps": ["washoi_dm5"], "design": "Arena / Duel / FFA" },
+    { "name": "dm2_neon", "extension": "png", "width": 512, "height": 128, "maps": ["washoi_dm2"], "design": "Gold Washoi neon", "destination": "textures/boqu/warsow_neon_gold2.png" },
+    { "name": "dm2_atrium", "extension": "png", "width": 912, "height": 912, "maps": ["washoi_dm2"], "design": "Washoi atrium badge", "destination": "textures/boqu/decals/wswdecal.png" }
+  ],
+  "retainedOverlays": ["textures/billboard/code.jpg", "textures/billboard/scanlinenoise.tga"]
+}

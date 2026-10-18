@@ -28,6 +28,13 @@ const props = registry.resolveMaterialProps('textures/liquids/pool3d_3c');
 
 ## Supported material behavior
 
+DM2's four teleporters use the Baxandall `teleglow_02` animation through the
+map's existing `textures/wsw_cave1/ball_glowb_portal` material name. This is a
+packaged effect replacement rather than a rendered camera view. After rebuilding
+`washoi_textures.pk3` from upstream map media, apply `npm run tools:teleporter`,
+then regenerate the PK3 index and KTX2 sidecars. The source effect and texture
+are tracked in `assets/teleporter/`.
+
 The parser and BSP material path cover the compatibility features most maps depend on:
 
 - stage maps, animated maps, blend and alpha functions;

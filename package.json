@@ -68,6 +68,8 @@
     "tools:rename-maps": "node scripts/rename-map-packages.mjs",
     "tools:effects": "node scripts/package-effects.mjs",
     "tools:gfx": "node scripts/package-gfx.mjs",
+    "tools:billboards": "node scripts/package-billboards.mjs",
+    "tools:teleporter": "node scripts/package-teleporter.mjs",
     "tools:nonfree-audit": "node scripts/audit-nonfree-media.mjs",
     "tools:map": "npx vite-node src/tools/generate-map.ts",
     "dev:agents": "node --experimental-strip-types scripts/dev-agents.ts",
