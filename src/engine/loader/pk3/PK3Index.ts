@@ -7,6 +7,7 @@ import { fetchAsset, readAssetBuffer, readAssetJson, readAssetText } from "./Ass
  */
 
 import JSZip from "jszip";
+import { shaderSourceBlocks } from "../shader/ShaderSourceBlocks";
 import {
   hasPublishedIndex,
   PK3_INDEX_VERSION as INDEX_VERSION,
@@ -49,32 +50,10 @@ export interface PK3IndexData {
 
 /**
  * Extract shader names from .shader file content
- * Shader names are paths followed by { on the same or next line
+ * Shader names, including bare aliases, precede top-level brace blocks.
  */
 function extractShaderNames(content: string): string[] {
-  const names: string[] = [];
-  const lines = content.split("\n");
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-
-    // Skip comments and empty lines
-    if (line.startsWith("//") || line === "") continue;
-
-    // Check if this line looks like a shader name (path-like, no spaces before {)
-    // Format: "textures/myshader" or "textures/myshader {"
-    // Use broader match to catch special characters in shader names
-    const match = line.match(/^([^\s{]+)\s*\{?\s*$/);
-    if (match) {
-      const potentialName = match[1].toLowerCase();
-      // Validate it looks like a texture path
-      if (potentialName.includes("/") && !potentialName.startsWith("{")) {
-        names.push(potentialName);
-      }
-    }
-  }
-
-  return names;
+  return shaderSourceBlocks(content).map((block) => block.name.toLowerCase().replace(/\.(tga|jpg|jpeg|png|ktx)$/i, ""));
 }
 
 export class PK3Index {

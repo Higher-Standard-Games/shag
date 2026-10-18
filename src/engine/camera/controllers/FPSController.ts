@@ -1192,51 +1192,6 @@ export class FPSController implements ICameraController {
       }
     }
 
-    // === CROSSHAIR ===
-    if (this.gameManager) {
-      // Lazy init crosshair on first frame (avoids import at module load)
-      // biome-ignore lint/suspicious/noExplicitAny: Babylon camera/mesh internals and lazy-init diagnostics
-      if (!(this as any)._crosshairReady) {
-        import("../../../games/fps/client/Crosshair").then((m) => {
-          const ch = m.Crosshair.getInstance();
-          ch.init();
-          // biome-ignore lint/suspicious/noExplicitAny: Babylon camera/mesh internals and lazy-init diagnostics
-          (this as any)._crosshairReady = true;
-          // biome-ignore lint/suspicious/noExplicitAny: Babylon camera/mesh internals and lazy-init diagnostics
-          (this as any)._crosshair = ch;
-        });
-        // biome-ignore lint/suspicious/noExplicitAny: Babylon camera/mesh internals and lazy-init diagnostics
-        (this as any)._crosshairReady = "pending";
-      }
-
-      // biome-ignore lint/suspicious/noExplicitAny: Babylon camera/mesh internals and lazy-init diagnostics
-      const ch = (this as any)._crosshair;
-      if (ch) {
-        // Look up weapon crosshair config
-        const weaponId = this.gameManager.getCurrentWeaponId();
-        // biome-ignore lint/suspicious/noExplicitAny: Babylon camera/mesh internals and lazy-init diagnostics
-        if (!(this as any)._weaponsMap) {
-          // Lazy load WEAPONS map (fire-and-forget)
-          import("../../../shared/entities/definitions/weapons/WeaponsTable").then((m) => {
-            // biome-ignore lint/suspicious/noExplicitAny: Babylon camera/mesh internals and lazy-init diagnostics
-            (this as any)._weaponsMap = m.WEAPONS;
-          });
-        }
-        // biome-ignore lint/suspicious/noExplicitAny: Babylon camera/mesh internals and lazy-init diagnostics
-        const weapons = (this as any)._weaponsMap;
-        const weaponDef = weapons?.[weaponId];
-        const crosshairConfig = weaponDef?.crosshair ?? null;
-
-        ch.update(
-          this.adsSensitivityProgress,
-          this.actualHorizSpeed,
-          crosshairConfig,
-          this.gameManager.isPlayerDead(),
-          this.gameManager.isConnectedToServer() || this.networkReady,
-        );
-      }
-    }
-
     // === PLAYER VISUALS ===
     if (this.playerVisuals) {
       this.playerVisuals.update(deltaTime);

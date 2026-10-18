@@ -2,6 +2,10 @@
 
 `CameraSystem` owns the active Babylon camera and swaps reusable camera controllers.
 
+The FPS game owns its crosshair initialization and per-frame drawing, including
+the empty-ammo red X. Camera controllers must not redraw it independently:
+a later draw without ammo state can erase the warning in the same frame.
+
 ## Initialize
 
 ```ts

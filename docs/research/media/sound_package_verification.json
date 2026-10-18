@@ -1,0 +1,38 @@
+{
+  "date": "2026-10-18",
+  "package": "washoi_sounds.pk3",
+  "bytes": 9835485,
+  "sha256": "95595848220c626ff1cc5068286d5a46dc6622edc4eb4daf38ce08d15d6a900b",
+  "audioFiles": 290,
+  "allSourceHashesMatch": true,
+  "allIndexOwnersMatch": true,
+  "legacyMounted": false,
+  "rebuildIdentical": true,
+  "browser": {
+    "decoded": 290,
+    "decodeErrors": 0,
+    "silent": 0,
+    "realPreloadBuffers": 116,
+    "voices": [
+      {
+        "name": "hits:sounds/misc/kill.wav",
+        "created": true
+      },
+      {
+        "name": "effects:sounds/weapons/reload.ogg",
+        "created": true
+      },
+      {
+        "name": "effects:ui_click",
+        "created": true
+      },
+      {
+        "name": "effects:button_press",
+        "created": true
+      }
+    ],
+    "warnings": [],
+    "failedRequests": []
+  },
+  "archive": "archive/media/sound-replacement/washoi_legacy_audio.pk3"
+}

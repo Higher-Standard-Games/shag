@@ -23,6 +23,10 @@ npm run tools:pk3-index -- --data-dir ./release-data
 assets. Deploy the JSON files with the same archives they describe; direct
 `vite build` users must generate them first. The generator uses the runtime
 indexer, preserving alphabetical overrides and shader/map lookup behavior.
+
+Shader indexing reads complete top-level definitions, including bare names such
+as `halo`, `halo_large` and underscore-named map-model materials. These aliases
+have the same ownership and dependency lookup behavior as `textures/...` names.
 It fails without replacing published metadata if an archive is corrupt or
 changes while indexing. An empty data directory is valid for source-only builds.
 
@@ -257,6 +261,31 @@ Compressed files with truncated blocks or mip data are rejected before native
 upload. Legacy uncompressed files may keep a valid base image when trailing
 mips are incomplete. Cube/array/volume containers are not accepted by this 2D
 loader. `createTextureFromKTX1` is asynchronous; callers must await it.
+
+## FPS sound bank
+
+Production effects and announcers are in `public/data/washoi_sounds.pk3`.
+`npm run tools:sounds` builds it from hashed source files staged under
+`assets-source/sounds`, using `config/sound-package.json`. Weapons use Warfork's
+CC BY-SA 3.0 US recordings (strong variants); other effects and player voices
+use CC0. The package includes both upstream notices and a per-file license/source
+manifest. Existing supported `sounds/` paths
+remain compatible. The extensionless UI keys `ui_click` and `button_press` resolve
+to packaged WAV aliases; reload feedback uses `sounds/weapons/reload.ogg`.
+
+`npm run tools:sounds:audit` writes the usage/status matrix under
+`docs/research/media/`. It expands the real FPS preload banks, scans source string
+literals, and reads the three production BSPs through the published PK3 index.
+It distinguishes supported cues, preloads without playback, and retained
+compatibility files. Rebuild discovery with `npm run tools:pk3-index` after
+installing the package. The old legacy audio archive is outside `public/data`.
+The soundtrack remains a separate package.
+
+Gameplay settings select Male, Female or Bobot voices for each side through
+the persisted `cl_team_ally_sounds` and `cl_team_enemy_sounds` cvars. Defaults
+are `male` and `bobot`. Invalid values fall back to those defaults. Player
+allegiance follows the same team aliases as colors, relative to the local or
+followed POV. Padpork media is deliberately excluded from the recipe.
 
 ## Implementation files
 

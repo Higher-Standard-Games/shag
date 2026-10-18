@@ -1,0 +1,1742 @@
+[
+  {
+    "name": "button_press.wav",
+    "duration": 0.2373015873015873,
+    "peak": 1,
+    "rms": 0.29931813540888325
+  },
+  {
+    "name": "sounds/ambient/ceilingfan.ogg",
+    "duration": 12.180362811791383,
+    "peak": 0.4456007182598114,
+    "rms": 0.03768204425821167
+  },
+  {
+    "name": "sounds/announcer/bomb/defense/defuse.ogg",
+    "duration": 1.474467120181406,
+    "peak": 0.6259808540344238,
+    "rms": 0.11175926040835864
+  },
+  {
+    "name": "sounds/announcer/bomb/defense/defused.ogg",
+    "duration": 1.787936507936508,
+    "peak": 0.636364221572876,
+    "rms": 0.08561474298943259
+  },
+  {
+    "name": "sounds/announcer/bomb/defense/planted.ogg",
+    "duration": 1.3699773242630386,
+    "peak": 0.7128642201423645,
+    "rms": 0.11254545360888397
+  },
+  {
+    "name": "sounds/announcer/bomb/defense/planted2.ogg",
+    "duration": 2.36843537414966,
+    "peak": 0.6939438581466675,
+    "rms": 0.1103681276058084
+  },
+  {
+    "name": "sounds/announcer/bomb/defense/start.ogg",
+    "duration": 1.5905668934240362,
+    "peak": 0.5813603401184082,
+    "rms": 0.08835858612962623
+  },
+  {
+    "name": "sounds/announcer/bomb/defense/start2.ogg",
+    "duration": 1.3931972789115645,
+    "peak": 0.7125715613365173,
+    "rms": 0.10653093608090723
+  },
+  {
+    "name": "sounds/announcer/bomb/defense/start3.ogg",
+    "duration": 1.5789569160997732,
+    "peak": 0.6597741842269897,
+    "rms": 0.10431396159383188
+  },
+  {
+    "name": "sounds/announcer/bomb/defense/start4.ogg",
+    "duration": 2.0549659863945577,
+    "peak": 0.6896274089813232,
+    "rms": 0.11649233454473683
+  },
+  {
+    "name": "sounds/announcer/bomb/offense/cleanthehouse.ogg",
+    "duration": 1.4396371882086167,
+    "peak": 0.7127366065979004,
+    "rms": 0.10006619074401579
+  },
+  {
+    "name": "sounds/announcer/bomb/offense/defused.ogg",
+    "duration": 1.2654875283446712,
+    "peak": 0.5723597407341003,
+    "rms": 0.09114156452870459
+  },
+  {
+    "name": "sounds/announcer/bomb/offense/defused2.ogg",
+    "duration": 1.474467120181406,
+    "peak": 0.7141785621643066,
+    "rms": 0.10110687274363209
+  },
+  {
+    "name": "sounds/announcer/bomb/offense/inplace.ogg",
+    "duration": 1.5905668934240362,
+    "peak": 0.7117475271224976,
+    "rms": 0.10060945794856971
+  },
+  {
+    "name": "sounds/announcer/bomb/offense/lastcall.ogg",
+    "duration": 1.9620861678004535,
+    "peak": 0.7118567824363708,
+    "rms": 0.10172338248798177
+  },
+  {
+    "name": "sounds/announcer/bomb/offense/planted.ogg",
+    "duration": 1.3351473922902495,
+    "peak": 0.7079086899757385,
+    "rms": 0.10672129389752451
+  },
+  {
+    "name": "sounds/announcer/bomb/offense/planted2.ogg",
+    "duration": 1.8808163265306121,
+    "peak": 0.6304936408996582,
+    "rms": 0.10914775080580313
+  },
+  {
+    "name": "sounds/announcer/bomb/offense/start.ogg",
+    "duration": 1.6137868480725623,
+    "peak": 0.5239139199256897,
+    "rms": 0.0938939290717113
+  },
+  {
+    "name": "sounds/announcer/bomb/offense/taken.ogg",
+    "duration": 1.6021768707482993,
+    "peak": 0.7143879532814026,
+    "rms": 0.09907351138150504
+  },
+  {
+    "name": "sounds/announcer/callvote/vote_called01.ogg",
+    "duration": 1.6718367346938776,
+    "peak": 0.7095893621444702,
+    "rms": 0.1142782229913665
+  },
+  {
+    "name": "sounds/announcer/callvote/vote_called02.ogg",
+    "duration": 1.9369614512471656,
+    "peak": 0.712028443813324,
+    "rms": 0.09272202384432482
+  },
+  {
+    "name": "sounds/announcer/callvote/vote_failed01.ogg",
+    "duration": 1.4164172335600906,
+    "peak": 0.6025329232215881,
+    "rms": 0.08153992263938972
+  },
+  {
+    "name": "sounds/announcer/callvote/vote_failed02.ogg",
+    "duration": 2.060498866213152,
+    "peak": 0.6456067562103271,
+    "rms": 0.08383714554656607
+  },
+  {
+    "name": "sounds/announcer/callvote/vote_now.ogg",
+    "duration": 1.4519047619047618,
+    "peak": 0.7114971876144409,
+    "rms": 0.08720630043412278
+  },
+  {
+    "name": "sounds/announcer/callvote/vote_passed01.ogg",
+    "duration": 1.195827664399093,
+    "peak": 0.7124373316764832,
+    "rms": 0.09006993748831718
+  },
+  {
+    "name": "sounds/announcer/callvote/vote_passed02.ogg",
+    "duration": 1.9894331065759636,
+    "peak": 0.7137901782989502,
+    "rms": 0.08515064909525588
+  },
+  {
+    "name": "sounds/announcer/countdown/1_01.ogg",
+    "duration": 0.6171428571428571,
+    "peak": 0.534817099571228,
+    "rms": 0.13685363521565314
+  },
+  {
+    "name": "sounds/announcer/countdown/1_02.ogg",
+    "duration": 0.4879818594104308,
+    "peak": 0.4415622353553772,
+    "rms": 0.0829168018082821
+  },
+  {
+    "name": "sounds/announcer/countdown/2_01.ogg",
+    "duration": 0.6357142857142857,
+    "peak": 0.70613694190979,
+    "rms": 0.10252650094500307
+  },
+  {
+    "name": "sounds/announcer/countdown/2_02.ogg",
+    "duration": 0.3778231292517007,
+    "peak": 0.4223051071166992,
+    "rms": 0.08391944882109281
+  },
+  {
+    "name": "sounds/announcer/countdown/3_01.ogg",
+    "duration": 0.5486848072562358,
+    "peak": 0.5182375907897949,
+    "rms": 0.1109344226956182
+  },
+  {
+    "name": "sounds/announcer/countdown/3_02.ogg",
+    "duration": 0.41219954648526075,
+    "peak": 0.40902215242385864,
+    "rms": 0.08883732400833078
+  },
+  {
+    "name": "sounds/announcer/countdown/fight01.ogg",
+    "duration": 0.7546485260770975,
+    "peak": 0.7152933478355408,
+    "rms": 0.10439099462857643
+  },
+  {
+    "name": "sounds/announcer/countdown/fight02.ogg",
+    "duration": 0.8126984126984127,
+    "peak": 0.5893456339836121,
+    "rms": 0.07395836260275998
+  },
+  {
+    "name": "sounds/announcer/countdown/get_ready_to_fight01.ogg",
+    "duration": 1.4177551020408163,
+    "peak": 0.7132707834243774,
+    "rms": 0.0944619624044147
+  },
+  {
+    "name": "sounds/announcer/countdown/get_ready_to_fight02.ogg",
+    "duration": 1.6834467120181407,
+    "peak": 0.6131253838539124,
+    "rms": 0.09264212296719941
+  },
+  {
+    "name": "sounds/announcer/countdown/go01.ogg",
+    "duration": 0.9287981859410431,
+    "peak": 0.7103608250617981,
+    "rms": 0.11557493267456487
+  },
+  {
+    "name": "sounds/announcer/countdown/go02.ogg",
+    "duration": 0.8359183673469388,
+    "peak": 0.7092163562774658,
+    "rms": 0.10188129404355396
+  },
+  {
+    "name": "sounds/announcer/countdown/ready01.ogg",
+    "duration": 1.0913378684807256,
+    "peak": 0.5326967835426331,
+    "rms": 0.09929748988296495
+  },
+  {
+    "name": "sounds/announcer/countdown/ready02.ogg",
+    "duration": 0.8126984126984127,
+    "peak": 0.5759422183036804,
+    "rms": 0.09438954105648843
+  },
+  {
+    "name": "sounds/announcer/ctf/flag_captured01.ogg",
+    "duration": 1.3351473922902495,
+    "peak": 0.6896955370903015,
+    "rms": 0.10170254915143215
+  },
+  {
+    "name": "sounds/announcer/ctf/flag_captured02.ogg",
+    "duration": 1.8459863945578232,
+    "peak": 0.6850497722625732,
+    "rms": 0.09778150033444227
+  },
+  {
+    "name": "sounds/announcer/ctf/flag_captured03.ogg",
+    "duration": 1.3931972789115645,
+    "peak": 0.6972307562828064,
+    "rms": 0.10437668149681281
+  },
+  {
+    "name": "sounds/announcer/ctf/flag_taken_enemy_01.ogg",
+    "duration": 2.1130158730158732,
+    "peak": 0.7127031683921814,
+    "rms": 0.12197712434052056
+  },
+  {
+    "name": "sounds/announcer/ctf/flag_taken_enemy_02.ogg",
+    "duration": 1.8575963718820863,
+    "peak": 0.6850205659866333,
+    "rms": 0.10416063793176483
+  },
+  {
+    "name": "sounds/announcer/ctf/flag_taken_enemy_03.ogg",
+    "duration": 1.9736961451247166,
+    "peak": 0.6179376244544983,
+    "rms": 0.09731982875900864
+  },
+  {
+    "name": "sounds/announcer/ctf/flag_taken_team01.ogg",
+    "duration": 2.0085260770975055,
+    "peak": 0.7120137810707092,
+    "rms": 0.11735309061547855
+  },
+  {
+    "name": "sounds/announcer/ctf/flag_taken_team02.ogg",
+    "duration": 1.8459863945578232,
+    "peak": 0.7108733057975769,
+    "rms": 0.10445433173415722
+  },
+  {
+    "name": "sounds/announcer/ctf/flag_taken_team03.ogg",
+    "duration": 2.0549659863945577,
+    "peak": 0.6328132152557373,
+    "rms": 0.09136699897245737
+  },
+  {
+    "name": "sounds/announcer/ctf/flag_taken_team04.ogg",
+    "duration": 2.136235827664399,
+    "peak": 0.5656914710998535,
+    "rms": 0.10149456548621856
+  },
+  {
+    "name": "sounds/announcer/ctf/flag_taken.ogg",
+    "duration": 1.5673469387755101,
+    "peak": 0.7116647958755493,
+    "rms": 0.09948061248458143
+  },
+  {
+    "name": "sounds/announcer/ctf/flag_taken2.ogg",
+    "duration": 1.5325170068027212,
+    "peak": 0.70848149061203,
+    "rms": 0.10249667840106903
+  },
+  {
+    "name": "sounds/announcer/ctf/recovery_enemy.ogg",
+    "duration": 2.3336054421768706,
+    "peak": 0.6251481771469116,
+    "rms": 0.10988129143193395
+  },
+  {
+    "name": "sounds/announcer/ctf/recovery_team.ogg",
+    "duration": 1.9736961451247166,
+    "peak": 0.5702726244926453,
+    "rms": 0.10826707346565947
+  },
+  {
+    "name": "sounds/announcer/ctf/recovery_team02.ogg",
+    "duration": 1.555736961451247,
+    "peak": 0.6821467876434326,
+    "rms": 0.11659209445449327
+  },
+  {
+    "name": "sounds/announcer/ctf/recovery_team03.ogg",
+    "duration": 1.6602267573696146,
+    "peak": 0.6761952638626099,
+    "rms": 0.0947233959109409
+  },
+  {
+    "name": "sounds/announcer/ctf/recovery01.ogg",
+    "duration": 2.020136054421769,
+    "peak": 0.586026668548584,
+    "rms": 0.09453021661060029
+  },
+  {
+    "name": "sounds/announcer/ctf/recovery02.ogg",
+    "duration": 1.4512471655328798,
+    "peak": 0.7076095342636108,
+    "rms": 0.10635657696507408
+  },
+  {
+    "name": "sounds/announcer/ctf/recovery03.ogg",
+    "duration": 1.8459863945578232,
+    "peak": 0.6067426204681396,
+    "rms": 0.08944570076556736
+  },
+  {
+    "name": "sounds/announcer/ctf/recovery04.ogg",
+    "duration": 1.0681179138321995,
+    "peak": 0.5479970574378967,
+    "rms": 0.07574337941500031
+  },
+  {
+    "name": "sounds/announcer/ctf/score_enemy01.ogg",
+    "duration": 1.474467120181406,
+    "peak": 0.7085583806037903,
+    "rms": 0.10306372071052146
+  },
+  {
+    "name": "sounds/announcer/ctf/score_enemy02.ogg",
+    "duration": 1.5789569160997732,
+    "peak": 0.630800724029541,
+    "rms": 0.1033680744930827
+  },
+  {
+    "name": "sounds/announcer/ctf/score_team01.ogg",
+    "duration": 1.822766439909297,
+    "peak": 0.7006798982620239,
+    "rms": 0.1109941059090628
+  },
+  {
+    "name": "sounds/announcer/ctf/score_team02.ogg",
+    "duration": 1.497687074829932,
+    "peak": 0.6281096339225769,
+    "rms": 0.09478996049956696
+  },
+  {
+    "name": "sounds/announcer/ctf/score01.ogg",
+    "duration": 1.486077097505669,
+    "peak": 0.6245114803314209,
+    "rms": 0.11911929065975535
+  },
+  {
+    "name": "sounds/announcer/ctf/score02.ogg",
+    "duration": 1.1145578231292517,
+    "peak": 0.45895934104919434,
+    "rms": 0.07646052266388229
+  },
+  {
+    "name": "sounds/announcer/midair/bongo01.ogg",
+    "duration": 1.509297052154195,
+    "peak": 0.7121025323867798,
+    "rms": 0.12447168380073187
+  },
+  {
+    "name": "sounds/announcer/midair/bongo02.ogg",
+    "duration": 1.7066666666666668,
+    "peak": 0.7077059745788574,
+    "rms": 0.08619159824607123
+  },
+  {
+    "name": "sounds/announcer/midair/diamond01.ogg",
+    "duration": 1.937641723356009,
+    "peak": 0.7110038995742798,
+    "rms": 0.11367686824887903
+  },
+  {
+    "name": "sounds/announcer/midair/diamond02.ogg",
+    "duration": 1.5441269841269842,
+    "peak": 0.7114790678024292,
+    "rms": 0.09951775432991587
+  },
+  {
+    "name": "sounds/announcer/midair/gold01.ogg",
+    "duration": 1.799546485260771,
+    "peak": 0.5596665143966675,
+    "rms": 0.10550032789920427
+  },
+  {
+    "name": "sounds/announcer/midair/gold02.ogg",
+    "duration": 1.5325170068027212,
+    "peak": 0.5509423613548279,
+    "rms": 0.08926438809215564
+  },
+  {
+    "name": "sounds/announcer/midair/midair01.ogg",
+    "duration": 1.242267573696145,
+    "peak": 0.708635151386261,
+    "rms": 0.10580656263735683
+  },
+  {
+    "name": "sounds/announcer/midair/midair02.ogg",
+    "duration": 0.9752380952380952,
+    "peak": 0.48822304606437683,
+    "rms": 0.09558041661483782
+  },
+  {
+    "name": "sounds/announcer/overtime/going_to_overtime.ogg",
+    "duration": 1.7066666666666668,
+    "peak": 0.6631693840026855,
+    "rms": 0.11657432443373703
+  },
+  {
+    "name": "sounds/announcer/overtime/overtime.ogg",
+    "duration": 1.3931972789115645,
+    "peak": 0.709178626537323,
+    "rms": 0.11068671866546462
+  },
+  {
+    "name": "sounds/announcer/overtime/overtime02.ogg",
+    "duration": 1.2654875283446712,
+    "peak": 0.6398666501045227,
+    "rms": 0.10127905939589839
+  },
+  {
+    "name": "sounds/announcer/overtime/suddendeath01.ogg",
+    "duration": 1.6137868480725623,
+    "peak": 0.6796831488609314,
+    "rms": 0.09823084351375892
+  },
+  {
+    "name": "sounds/announcer/overtime/suddendeath02.ogg",
+    "duration": 1.7066666666666668,
+    "peak": 0.5949026346206665,
+    "rms": 0.08744741706368639
+  },
+  {
+    "name": "sounds/announcer/pleasereadyup.ogg",
+    "duration": 1.555736961451247,
+    "peak": 0.6042189002037048,
+    "rms": 0.09991992259538478
+  },
+  {
+    "name": "sounds/announcer/postmatch/game_over01.ogg",
+    "duration": 1.3467573696145125,
+    "peak": 0.7152333855628967,
+    "rms": 0.08912318216521094
+  },
+  {
+    "name": "sounds/announcer/postmatch/game_over02.ogg",
+    "duration": 1.4048072562358276,
+    "peak": 0.7086541652679443,
+    "rms": 0.11323244858151967
+  },
+  {
+    "name": "sounds/announcer/readyupalready.ogg",
+    "duration": 1.7298866213151927,
+    "peak": 0.7087690830230713,
+    "rms": 0.11294086372249912
+  },
+  {
+    "name": "sounds/announcer/score/lost_lead01.ogg",
+    "duration": 1.7763265306122449,
+    "peak": 0.710844874382019,
+    "rms": 0.10882403432832617
+  },
+  {
+    "name": "sounds/announcer/score/lost_lead02.ogg",
+    "duration": 1.5905668934240362,
+    "peak": 0.5685012340545654,
+    "rms": 0.09348558774201687
+  },
+  {
+    "name": "sounds/announcer/score/lost_lead03.ogg",
+    "duration": 1.4628571428571429,
+    "peak": 0.5046490430831909,
+    "rms": 0.09349497883839117
+  },
+  {
+    "name": "sounds/announcer/score/taken_lead01.ogg",
+    "duration": 1.7182766439909296,
+    "peak": 0.6660717129707336,
+    "rms": 0.1012180621323395
+  },
+  {
+    "name": "sounds/announcer/score/taken_lead02.ogg",
+    "duration": 1.6021768707482993,
+    "peak": 0.6555682420730591,
+    "rms": 0.11049700749775303
+  },
+  {
+    "name": "sounds/announcer/score/team_lost_lead01.ogg",
+    "duration": 2.2381179138321996,
+    "peak": 0.7116158604621887,
+    "rms": 0.10662819202670075
+  },
+  {
+    "name": "sounds/announcer/score/team_lost_lead02.ogg",
+    "duration": 1.9736961451247166,
+    "peak": 0.620131254196167,
+    "rms": 0.0924723269565811
+  },
+  {
+    "name": "sounds/announcer/score/team_tied_lead01.ogg",
+    "duration": 1.799546485260771,
+    "peak": 0.6784190535545349,
+    "rms": 0.08657171554098715
+  },
+  {
+    "name": "sounds/announcer/score/team_tied_lead02.ogg",
+    "duration": 1.4512471655328798,
+    "peak": 0.7108126282691956,
+    "rms": 0.1037918020408418
+  },
+  {
+    "name": "sounds/announcer/score/team_tied_lead03.ogg",
+    "duration": 1.6021768707482993,
+    "peak": 0.6435110569000244,
+    "rms": 0.10918860659283626
+  },
+  {
+    "name": "sounds/announcer/score/tied_lead01.ogg",
+    "duration": 1.7298866213151927,
+    "peak": 0.7128416895866394,
+    "rms": 0.10231327979404797
+  },
+  {
+    "name": "sounds/announcer/score/tied_lead02.ogg",
+    "duration": 1.6137868480725623,
+    "peak": 0.6916935443878174,
+    "rms": 0.09023033226684864
+  },
+  {
+    "name": "sounds/announcer/timeout/matchpaused01.ogg",
+    "duration": 1.2654875283446712,
+    "peak": 0.7108561992645264,
+    "rms": 0.09026075325030398
+  },
+  {
+    "name": "sounds/announcer/timeout/matchpaused02.ogg",
+    "duration": 1.3119274376417234,
+    "peak": 0.7138320207595825,
+    "rms": 0.094685702614258
+  },
+  {
+    "name": "sounds/announcer/timeout/matchresumed01.ogg",
+    "duration": 1.7531065759637188,
+    "peak": 0.7113599181175232,
+    "rms": 0.08774133613627937
+  },
+  {
+    "name": "sounds/announcer/timeout/matchresumed02.ogg",
+    "duration": 1.8343764172335602,
+    "peak": 0.6794211268424988,
+    "rms": 0.0952656692070783
+  },
+  {
+    "name": "sounds/announcer/timeout/timein01.ogg",
+    "duration": 0.9287981859410431,
+    "peak": 0.7120922803878784,
+    "rms": 0.10448765765933395
+  },
+  {
+    "name": "sounds/announcer/timeout/timein02.ogg",
+    "duration": 1.2887074829931973,
+    "peak": 0.7117334008216858,
+    "rms": 0.09823509289206693
+  },
+  {
+    "name": "sounds/announcer/timeout/timeout01.ogg",
+    "duration": 1.207437641723356,
+    "peak": 0.7074826955795288,
+    "rms": 0.08601860203968582
+  },
+  {
+    "name": "sounds/announcer/timeout/timeout02.ogg",
+    "duration": 1.5905668934240362,
+    "peak": 0.7134989500045776,
+    "rms": 0.10336095853662167
+  },
+  {
+    "name": "sounds/bomb/bombtimer.ogg",
+    "duration": 0.12770975056689343,
+    "peak": 1.0498383045196533,
+    "rms": 0.09546037649964971
+  },
+  {
+    "name": "sounds/ctftactics/turret_pain01.wav",
+    "duration": 0.6138548752834467,
+    "peak": 0.430145263671875,
+    "rms": 0.08976667149374255
+  },
+  {
+    "name": "sounds/items/ammo_pickup.ogg",
+    "duration": 0.3485487528344671,
+    "peak": 0.8781933784484863,
+    "rms": 0.08985758830758425
+  },
+  {
+    "name": "sounds/items/armor_green.ogg",
+    "duration": 0.5,
+    "peak": 0.8444709777832031,
+    "rms": 0.06387452674259539
+  },
+  {
+    "name": "sounds/items/armor_red.ogg",
+    "duration": 0.5,
+    "peak": 0.8783366680145264,
+    "rms": 0.06240152563556471
+  },
+  {
+    "name": "sounds/items/armor_shard.ogg",
+    "duration": 0.47018140589569163,
+    "peak": 0.9091034531593323,
+    "rms": 0.06415674728032884
+  },
+  {
+    "name": "sounds/items/armor_yellow.ogg",
+    "duration": 0.5,
+    "peak": 0.847435474395752,
+    "rms": 0.060363996960647474
+  },
+  {
+    "name": "sounds/items/health_25.ogg",
+    "duration": 0.9274149659863946,
+    "peak": 0.4941471219062805,
+    "rms": 0.09593602042757413
+  },
+  {
+    "name": "sounds/items/health_5.ogg",
+    "duration": 0.972108843537415,
+    "peak": 0.15128904581069946,
+    "rms": 0.024354709754223693
+  },
+  {
+    "name": "sounds/items/health_50.ogg",
+    "duration": 0.9366893424036281,
+    "peak": 0.5488529801368713,
+    "rms": 0.10537454042156508
+  },
+  {
+    "name": "sounds/items/item_idle.ogg",
+    "duration": 2.988707482993197,
+    "peak": 0.46147269010543823,
+    "rms": 0.07377953680581745
+  },
+  {
+    "name": "sounds/items/item_spawn.ogg",
+    "duration": 0.7430385487528345,
+    "peak": 0.7388812303543091,
+    "rms": 0.09174571552995203
+  },
+  {
+    "name": "sounds/items/megahealth.ogg",
+    "duration": 0.9493650793650794,
+    "peak": 0.9871444702148438,
+    "rms": 0.17011551272829895
+  },
+  {
+    "name": "sounds/items/quad_fire.ogg",
+    "duration": 1.6813832199546486,
+    "peak": 0.5024139285087585,
+    "rms": 0.06122697762810307
+  },
+  {
+    "name": "sounds/items/quad_pickup.ogg",
+    "duration": 2.5806349206349206,
+    "peak": 0.779731273651123,
+    "rms": 0.15870010656720565
+  },
+  {
+    "name": "sounds/items/quad_spawn.ogg",
+    "duration": 5.067755102040817,
+    "peak": 0.25088977813720703,
+    "rms": 0.05080011905474588
+  },
+  {
+    "name": "sounds/items/regen_pickup.ogg",
+    "duration": 0.9498866213151927,
+    "peak": 1.5690813064575195,
+    "rms": 0.5932357643302293
+  },
+  {
+    "name": "sounds/items/regen_spawn.ogg",
+    "duration": 1.9854421768707482,
+    "peak": 1.0020169019699097,
+    "rms": 0.35882541963801834
+  },
+  {
+    "name": "sounds/items/shell_hit.ogg",
+    "duration": 1.1261678004535147,
+    "peak": 0.35233527421951294,
+    "rms": 0.04458757351879498
+  },
+  {
+    "name": "sounds/items/shell_pickup.ogg",
+    "duration": 2.4769614512471656,
+    "peak": 0.4741329848766327,
+    "rms": 0.06689404808276028
+  },
+  {
+    "name": "sounds/items/shell_spawn.ogg",
+    "duration": 4.339274376417234,
+    "peak": 0.26345014572143555,
+    "rms": 0.05924005332464892
+  },
+  {
+    "name": "sounds/items/weapon_pickup.ogg",
+    "duration": 0.6322902494331065,
+    "peak": 1.095726728439331,
+    "rms": 0.09579771881098831
+  },
+  {
+    "name": "sounds/menu/back.wav",
+    "duration": 0.7257142857142858,
+    "peak": 1,
+    "rms": 0.2993131522820513
+  },
+  {
+    "name": "sounds/menu/mouseover.wav",
+    "duration": 0.22215419501133787,
+    "peak": 0.89202880859375,
+    "rms": 0.04800174696942317
+  },
+  {
+    "name": "sounds/menu/ok.wav",
+    "duration": 0.2373015873015873,
+    "peak": 1,
+    "rms": 0.29931813540888325
+  },
+  {
+    "name": "sounds/misc/chat.wav",
+    "duration": 0.3346938775510204,
+    "peak": 0.30698567628860474,
+    "rms": 0.04442871341540546
+  },
+  {
+    "name": "sounds/misc/gibs_explosion.wav",
+    "duration": 0.9078004535147393,
+    "peak": 0.935882568359375,
+    "rms": 0.20372750503901524
+  },
+  {
+    "name": "sounds/misc/hit_0.wav",
+    "duration": 0.3056235827664399,
+    "peak": 0.5748291015625,
+    "rms": 0.08439385657220537
+  },
+  {
+    "name": "sounds/misc/hit_1.wav",
+    "duration": 0.3056235827664399,
+    "peak": 0.574920654296875,
+    "rms": 0.08439390605349875
+  },
+  {
+    "name": "sounds/misc/hit_2.wav",
+    "duration": 0.3056235827664399,
+    "peak": 0.574859619140625,
+    "rms": 0.084393844679555
+  },
+  {
+    "name": "sounds/misc/hit_3.wav",
+    "duration": 0.3056235827664399,
+    "peak": 0.574798583984375,
+    "rms": 0.08439385730998636
+  },
+  {
+    "name": "sounds/misc/hit_team.wav",
+    "duration": 0.5088208616780046,
+    "peak": 0.430084228515625,
+    "rms": 0.09859461774234447
+  },
+  {
+    "name": "sounds/misc/hit_water.wav",
+    "duration": 0.10666666666666667,
+    "peak": 0.7537219524383545,
+    "rms": 0.11321396471333878
+  },
+  {
+    "name": "sounds/misc/kill.wav",
+    "duration": 0.8334920634920635,
+    "peak": 0.8193914890289307,
+    "rms": 0.35422240859871995
+  },
+  {
+    "name": "sounds/misc/timer_bip_bip.wav",
+    "duration": 0.24272108843537415,
+    "peak": 0.08789330720901489,
+    "rms": 0.028386109599438724
+  },
+  {
+    "name": "sounds/misc/timer_ploink.wav",
+    "duration": 0.6367120181405895,
+    "peak": 1,
+    "rms": 0.18147923890287693
+  },
+  {
+    "name": "sounds/movers/door_start.ogg",
+    "duration": 1.5568480725623584,
+    "peak": 1.0598818063735962,
+    "rms": 0.12164406539355413
+  },
+  {
+    "name": "sounds/movers/door_start2.ogg",
+    "duration": 1.5568480725623584,
+    "peak": 1.41139554977417,
+    "rms": 0.16465535716469362
+  },
+  {
+    "name": "sounds/movers/door_stop.ogg",
+    "duration": 0.9482766439909297,
+    "peak": 1.4132568836212158,
+    "rms": 0.23836680051182138
+  },
+  {
+    "name": "sounds/movers/elevator_move.ogg",
+    "duration": 2.057437641723356,
+    "peak": 1.1413040161132812,
+    "rms": 0.17925392427333234
+  },
+  {
+    "name": "sounds/players/bobot/dash_1.ogg",
+    "duration": 0.3599092970521542,
+    "peak": 1.000020146369934,
+    "rms": 0.1619642724845471
+  },
+  {
+    "name": "sounds/players/bobot/dash_2.ogg",
+    "duration": 0.3599092970521542,
+    "peak": 1.000020146369934,
+    "rms": 0.1619642724845471
+  },
+  {
+    "name": "sounds/players/bobot/death.ogg",
+    "duration": 1.0332879818594105,
+    "peak": 0.8510943651199341,
+    "rms": 0.14485724888924756
+  },
+  {
+    "name": "sounds/players/bobot/drown.ogg",
+    "duration": 2.0441043083900228,
+    "peak": 0.4572160840034485,
+    "rms": 0.09575008220192753
+  },
+  {
+    "name": "sounds/players/bobot/fall_0.ogg",
+    "duration": 0.2623809523809524,
+    "peak": 0.989785373210907,
+    "rms": 0.12576135971676464
+  },
+  {
+    "name": "sounds/players/bobot/fall_1.ogg",
+    "duration": 0.4520861678004535,
+    "peak": 1.0442394018173218,
+    "rms": 0.3036681566411571
+  },
+  {
+    "name": "sounds/players/bobot/fall_2.ogg",
+    "duration": 0.5982086167800453,
+    "peak": 1.009016990661621,
+    "rms": 0.20576696090130056
+  },
+  {
+    "name": "sounds/players/bobot/falldeath.ogg",
+    "duration": 1.811156462585034,
+    "peak": 0.7218461632728577,
+    "rms": 0.10291497390977271
+  },
+  {
+    "name": "sounds/players/bobot/gasp.ogg",
+    "duration": 1.6736054421768707,
+    "peak": 0.9765575528144836,
+    "rms": 0.18515054888556126
+  },
+  {
+    "name": "sounds/players/bobot/jump_1.ogg",
+    "duration": 0.34829931972789113,
+    "peak": 0.7494425773620605,
+    "rms": 0.1270037223776694
+  },
+  {
+    "name": "sounds/players/bobot/jump_2.ogg",
+    "duration": 0.34829931972789113,
+    "peak": 0.7494425773620605,
+    "rms": 0.1270037223776694
+  },
+  {
+    "name": "sounds/players/bobot/pain100.ogg",
+    "duration": 0.7198185941043084,
+    "peak": 0.9338650703430176,
+    "rms": 0.12785178389222265
+  },
+  {
+    "name": "sounds/players/bobot/pain25.ogg",
+    "duration": 0.5804988662131519,
+    "peak": 0.8895410299301147,
+    "rms": 0.10751829140112516
+  },
+  {
+    "name": "sounds/players/bobot/pain50.ogg",
+    "duration": 0.5259410430839002,
+    "peak": 1.2571314573287964,
+    "rms": 0.25860349255413206
+  },
+  {
+    "name": "sounds/players/bobot/pain75.ogg",
+    "duration": 0.5498639455782313,
+    "peak": 0.6935061812400818,
+    "rms": 0.11244799940403591
+  },
+  {
+    "name": "sounds/players/bobot/wj_1.ogg",
+    "duration": 0.4090022675736961,
+    "peak": 1.009016990661621,
+    "rms": 0.16565482456994113
+  },
+  {
+    "name": "sounds/players/bobot/wj_2.ogg",
+    "duration": 0.4090022675736961,
+    "peak": 1.009016990661621,
+    "rms": 0.16565482456994113
+  },
+  {
+    "name": "sounds/players/female/dash_1.ogg",
+    "duration": 0.40634920634920635,
+    "peak": 0.7068905830383301,
+    "rms": 0.18816875249305542
+  },
+  {
+    "name": "sounds/players/female/dash_2.ogg",
+    "duration": 0.4295691609977324,
+    "peak": 0.8048623204231262,
+    "rms": 0.16204512417036535
+  },
+  {
+    "name": "sounds/players/female/death.ogg",
+    "duration": 0.9573469387755102,
+    "peak": 0.8464035987854004,
+    "rms": 0.24720606198150402
+  },
+  {
+    "name": "sounds/players/female/drown.ogg",
+    "duration": 2.0441043083900228,
+    "peak": 1.0094339847564697,
+    "rms": 0.1629289247454756
+  },
+  {
+    "name": "sounds/players/female/fall_0.ogg",
+    "duration": 0.2623809523809524,
+    "peak": 0.989785373210907,
+    "rms": 0.12576135971676464
+  },
+  {
+    "name": "sounds/players/female/fall_1.ogg",
+    "duration": 0.47147392290249435,
+    "peak": 1.009016990661621,
+    "rms": 0.15542629842528888
+  },
+  {
+    "name": "sounds/players/female/fall_2.ogg",
+    "duration": 0.7617233560090703,
+    "peak": 1.009016990661621,
+    "rms": 0.12316059245952672
+  },
+  {
+    "name": "sounds/players/female/falldeath.ogg",
+    "duration": 1.666077097505669,
+    "peak": 1.1078728437423706,
+    "rms": 0.2655405551680233
+  },
+  {
+    "name": "sounds/players/female/gasp.ogg",
+    "duration": 1.0332879818594105,
+    "peak": 0.43296942114830017,
+    "rms": 0.06189726527272538
+  },
+  {
+    "name": "sounds/players/female/jump_1.ogg",
+    "duration": 0.34829931972789113,
+    "peak": 0.5444630980491638,
+    "rms": 0.10831830711584048
+  },
+  {
+    "name": "sounds/players/female/jump_2.ogg",
+    "duration": 0.301859410430839,
+    "peak": 0.5579823851585388,
+    "rms": 0.11198075799793973
+  },
+  {
+    "name": "sounds/players/female/pain100.ogg",
+    "duration": 0.431859410430839,
+    "peak": 0.6009207963943481,
+    "rms": 0.1747892908088462
+  },
+  {
+    "name": "sounds/players/female/pain25.ogg",
+    "duration": 0.3108390022675737,
+    "peak": 0.7812631726264954,
+    "rms": 0.12299056805405251
+  },
+  {
+    "name": "sounds/players/female/pain50.ogg",
+    "duration": 0.3108390022675737,
+    "peak": 1.408039927482605,
+    "rms": 0.25426359533315723
+  },
+  {
+    "name": "sounds/players/female/pain75.ogg",
+    "duration": 0.2654421768707483,
+    "peak": 0.8079020380973816,
+    "rms": 0.14958710346565968
+  },
+  {
+    "name": "sounds/players/female/wj_1.ogg",
+    "duration": 0.3648526077097506,
+    "peak": 1.009016990661621,
+    "rms": 0.15070113162156695
+  },
+  {
+    "name": "sounds/players/female/wj_2.ogg",
+    "duration": 0.34120181405895694,
+    "peak": 1.009016990661621,
+    "rms": 0.14460785911165347
+  },
+  {
+    "name": "sounds/players/male/dash_1.ogg",
+    "duration": 0.3599092970521542,
+    "peak": 0.8644816279411316,
+    "rms": 0.1354596245005636
+  },
+  {
+    "name": "sounds/players/male/dash_2.ogg",
+    "duration": 0.5572789115646258,
+    "peak": 0.5309728384017944,
+    "rms": 0.06646501266751442
+  },
+  {
+    "name": "sounds/players/male/death.ogg",
+    "duration": 1.0332879818594105,
+    "peak": 0.9115291833877563,
+    "rms": 0.15751230159588067
+  },
+  {
+    "name": "sounds/players/male/drown.ogg",
+    "duration": 2.0441043083900228,
+    "peak": 1.0094339847564697,
+    "rms": 0.1629289247454756
+  },
+  {
+    "name": "sounds/players/male/fall_0.ogg",
+    "duration": 0.2623809523809524,
+    "peak": 0.989785373210907,
+    "rms": 0.12576135971676464
+  },
+  {
+    "name": "sounds/players/male/fall_1.ogg",
+    "duration": 0.5625170068027211,
+    "peak": 1.009016990661621,
+    "rms": 0.09544812543658703
+  },
+  {
+    "name": "sounds/players/male/fall_2.ogg",
+    "duration": 0.6203628117913832,
+    "peak": 1.009016990661621,
+    "rms": 0.09650020403992102
+  },
+  {
+    "name": "sounds/players/male/falldeath.ogg",
+    "duration": 1.811156462585034,
+    "peak": 0.8974704146385193,
+    "rms": 0.17566174207962296
+  },
+  {
+    "name": "sounds/players/male/gasp.ogg",
+    "duration": 1.5499319727891157,
+    "peak": 0.30103081464767456,
+    "rms": 0.047520388174204
+  },
+  {
+    "name": "sounds/players/male/jump_1.ogg",
+    "duration": 0.301859410430839,
+    "peak": 0.8542504906654358,
+    "rms": 0.1317451526089902
+  },
+  {
+    "name": "sounds/players/male/jump_2.ogg",
+    "duration": 0.34829931972789113,
+    "peak": 0.890012264251709,
+    "rms": 0.11710571243049743
+  },
+  {
+    "name": "sounds/players/male/pain100.ogg",
+    "duration": 0.7198185941043084,
+    "peak": 0.8875399827957153,
+    "rms": 0.10991454068252829
+  },
+  {
+    "name": "sounds/players/male/pain25.ogg",
+    "duration": 0.5804988662131519,
+    "peak": 0.8646076917648315,
+    "rms": 0.08397726692276906
+  },
+  {
+    "name": "sounds/players/male/pain50.ogg",
+    "duration": 0.5108390022675737,
+    "peak": 0.9287452101707458,
+    "rms": 0.1668266880017408
+  },
+  {
+    "name": "sounds/players/male/pain75.ogg",
+    "duration": 0.5340589569160997,
+    "peak": 0.8098562955856323,
+    "rms": 0.08968333703193855
+  },
+  {
+    "name": "sounds/players/male/wj_1.ogg",
+    "duration": 0.40746031746031747,
+    "peak": 1.009016990661621,
+    "rms": 0.1445029071386277
+  },
+  {
+    "name": "sounds/players/male/wj_2.ogg",
+    "duration": 0.2748299319727891,
+    "peak": 1.009016990661621,
+    "rms": 0.15615965364415438
+  },
+  {
+    "name": "sounds/vsay/affirmative.ogg",
+    "duration": 0.9884353741496599,
+    "peak": 0.7131991982460022,
+    "rms": 0.10851468753050138
+  },
+  {
+    "name": "sounds/vsay/areasecured.ogg",
+    "duration": 2.0518820861678004,
+    "peak": 0.7145429253578186,
+    "rms": 0.11163086210708498
+  },
+  {
+    "name": "sounds/vsay/armorfree.ogg",
+    "duration": 1.2190476190476192,
+    "peak": 0.7148885726928711,
+    "rms": 0.12272400662238468
+  },
+  {
+    "name": "sounds/vsay/attack_a.ogg",
+    "duration": 1.172607709750567,
+    "peak": 0.7185920476913452,
+    "rms": 0.12886522376886117
+  },
+  {
+    "name": "sounds/vsay/attack_b.ogg",
+    "duration": 1.0089795918367348,
+    "peak": 0.7171579599380493,
+    "rms": 0.1509486835130905
+  },
+  {
+    "name": "sounds/vsay/attack.ogg",
+    "duration": 0.8707482993197279,
+    "peak": 0.7167048454284668,
+    "rms": 0.11811510987874084
+  },
+  {
+    "name": "sounds/vsay/boomstick.ogg",
+    "duration": 2.020136054421769,
+    "peak": 0.7166020274162292,
+    "rms": 0.12070564283409974
+  },
+  {
+    "name": "sounds/vsay/booo.ogg",
+    "duration": 1.3647619047619048,
+    "peak": 0.7152637839317322,
+    "rms": 0.14488612742616705
+  },
+  {
+    "name": "sounds/vsay/defend_a.ogg",
+    "duration": 1.253877551020408,
+    "peak": 0.7144753932952881,
+    "rms": 0.1469441632557619
+  },
+  {
+    "name": "sounds/vsay/defend_b.ogg",
+    "duration": 1.195827664399093,
+    "peak": 0.714504599571228,
+    "rms": 0.13963900043080776
+  },
+  {
+    "name": "sounds/vsay/defend.ogg",
+    "duration": 1.1493877551020408,
+    "peak": 0.7148458957672119,
+    "rms": 0.10605563707941988
+  },
+  {
+    "name": "sounds/vsay/goodgame.ogg",
+    "duration": 0.9763492063492063,
+    "peak": 0.714630663394928,
+    "rms": 0.11003563357602061
+  },
+  {
+    "name": "sounds/vsay/gotopowerup.ogg",
+    "duration": 1.5209070294784581,
+    "peak": 0.7140671014785767,
+    "rms": 0.13256555821832255
+  },
+  {
+    "name": "sounds/vsay/gotoquad.ogg",
+    "duration": 1.0565079365079366,
+    "peak": 0.712316632270813,
+    "rms": 0.1442338328859256
+  },
+  {
+    "name": "sounds/vsay/needarmor.ogg",
+    "duration": 1.230657596371882,
+    "peak": 0.7192438244819641,
+    "rms": 0.13683139870973243
+  },
+  {
+    "name": "sounds/vsay/needbackup.ogg",
+    "duration": 1.18421768707483,
+    "peak": 0.7172655463218689,
+    "rms": 0.12138890216803318
+  },
+  {
+    "name": "sounds/vsay/needdefense.ogg",
+    "duration": 1.708843537414966,
+    "peak": 0.712500810623169,
+    "rms": 0.1025777688691745
+  },
+  {
+    "name": "sounds/vsay/needhealth.ogg",
+    "duration": 0.7722222222222223,
+    "peak": 0.714348554611206,
+    "rms": 0.1375913278250011
+  },
+  {
+    "name": "sounds/vsay/needhelp.ogg",
+    "duration": 0.9752380952380952,
+    "peak": 0.7178115248680115,
+    "rms": 0.1007867314465924
+  },
+  {
+    "name": "sounds/vsay/needoffense.ogg",
+    "duration": 1.581156462585034,
+    "peak": 0.7137218117713928,
+    "rms": 0.11690873209528574
+  },
+  {
+    "name": "sounds/vsay/needweapon.ogg",
+    "duration": 1.195827664399093,
+    "peak": 0.71758633852005,
+    "rms": 0.1280475852209115
+  },
+  {
+    "name": "sounds/vsay/negative.ogg",
+    "duration": 0.7892517006802721,
+    "peak": 0.7162704467773438,
+    "rms": 0.1074116531556323
+  },
+  {
+    "name": "sounds/vsay/no.ogg",
+    "duration": 0.5582993197278912,
+    "peak": 0.7169124484062195,
+    "rms": 0.13574251082586186
+  },
+  {
+    "name": "sounds/vsay/noproblem.ogg",
+    "duration": 1.1352607709750566,
+    "peak": 0.7159655690193176,
+    "rms": 0.12116135760084883
+  },
+  {
+    "name": "sounds/vsay/ok.ogg",
+    "duration": 0.8359183673469388,
+    "peak": 0.713188111782074,
+    "rms": 0.12173726951511224
+  },
+  {
+    "name": "sounds/vsay/ondefense.ogg",
+    "duration": 1.2011337868480725,
+    "peak": 0.7129284143447876,
+    "rms": 0.1270239483938494
+  },
+  {
+    "name": "sounds/vsay/onoffense.ogg",
+    "duration": 1.3351473922902495,
+    "peak": 0.715495765209198,
+    "rms": 0.130963994359873
+  },
+  {
+    "name": "sounds/vsay/oops.ogg",
+    "duration": 0.8475283446712019,
+    "peak": 0.7118287086486816,
+    "rms": 0.10632552896996796
+  },
+  {
+    "name": "sounds/vsay/roger.ogg",
+    "duration": 1.0069387755102042,
+    "peak": 0.7144334316253662,
+    "rms": 0.12020480123034692
+  },
+  {
+    "name": "sounds/vsay/sorry.ogg",
+    "duration": 1.0448979591836736,
+    "peak": 0.7130075693130493,
+    "rms": 0.11398208797090613
+  },
+  {
+    "name": "sounds/vsay/thanks.ogg",
+    "duration": 0.6712471655328798,
+    "peak": 0.7132267355918884,
+    "rms": 0.10383964482238374
+  },
+  {
+    "name": "sounds/vsay/yeehaa.ogg",
+    "duration": 1.230657596371882,
+    "peak": 0.7149959802627563,
+    "rms": 0.1570267690050695
+  },
+  {
+    "name": "sounds/vsay/yes.ogg",
+    "duration": 0.8475283446712019,
+    "peak": 0.7170940637588501,
+    "rms": 0.10331622315592928
+  },
+  {
+    "name": "sounds/weapons/blade_hitflsh1.ogg",
+    "duration": 0.999750566893424,
+    "peak": 0.9117144346237183,
+    "rms": 0.12440252818979183
+  },
+  {
+    "name": "sounds/weapons/blade_hitflsh2.ogg",
+    "duration": 1.0000226757369615,
+    "peak": 0.9227377772331238,
+    "rms": 0.14582048284931393
+  },
+  {
+    "name": "sounds/weapons/blade_hitflsh3.ogg",
+    "duration": 1.0000226757369615,
+    "peak": 0.9867422580718994,
+    "rms": 0.15936033361948176
+  },
+  {
+    "name": "sounds/weapons/blade_hitwall1.ogg",
+    "duration": 1.2345804988662132,
+    "peak": 1.0120537281036377,
+    "rms": 0.15989678731971604
+  },
+  {
+    "name": "sounds/weapons/blade_hitwall2.ogg",
+    "duration": 1.2595238095238095,
+    "peak": 0.9768068790435791,
+    "rms": 0.10723337779414407
+  },
+  {
+    "name": "sounds/weapons/blade_strike1.ogg",
+    "duration": 1,
+    "peak": 1.0080139636993408,
+    "rms": 0.10961754516968801
+  },
+  {
+    "name": "sounds/weapons/blade_strike2.ogg",
+    "duration": 1.0000226757369615,
+    "peak": 0.9080403447151184,
+    "rms": 0.09270387379486866
+  },
+  {
+    "name": "sounds/weapons/blade_strike3.ogg",
+    "duration": 0.6660090702947846,
+    "peak": 0.9118131399154663,
+    "rms": 0.1212754814808878
+  },
+  {
+    "name": "sounds/weapons/bladegun_strong_fire.ogg",
+    "duration": 1,
+    "peak": 0.949529230594635,
+    "rms": 0.2306735498250487
+  },
+  {
+    "name": "sounds/weapons/bladegun_strong_hit_1.ogg",
+    "duration": 0.6660090702947846,
+    "peak": 0.9305518865585327,
+    "rms": 0.14041002012705237
+  },
+  {
+    "name": "sounds/weapons/bladegun_strong_hit_2.ogg",
+    "duration": 0.830453514739229,
+    "peak": 0.9068517088890076,
+    "rms": 0.1183847963800281
+  },
+  {
+    "name": "sounds/weapons/bladegun_strong_hit_3.ogg",
+    "duration": 0.7775283446712018,
+    "peak": 0.9082125425338745,
+    "rms": 0.13045728051968705
+  },
+  {
+    "name": "sounds/weapons/electrobolt_hit.ogg",
+    "duration": 1.2,
+    "peak": 1.0182931423187256,
+    "rms": 0.1880160893094855
+  },
+  {
+    "name": "sounds/weapons/electrobolt_hum.ogg",
+    "duration": 1,
+    "peak": 0.6680899858474731,
+    "rms": 0.174132227857028
+  },
+  {
+    "name": "sounds/weapons/electrobolt_strong.ogg",
+    "duration": 2,
+    "peak": 1.0995739698410034,
+    "rms": 0.2548827577907059
+  },
+  {
+    "name": "sounds/weapons/gren_strong_bounce1.ogg",
+    "duration": 0.9995238095238095,
+    "peak": 1.060469627380371,
+    "rms": 0.19597613724248614
+  },
+  {
+    "name": "sounds/weapons/gren_strong_bounce2.ogg",
+    "duration": 0.9990022675736961,
+    "peak": 1.0189439058303833,
+    "rms": 0.1297176837267525
+  },
+  {
+    "name": "sounds/weapons/gren_strong_explosion1.ogg",
+    "duration": 2,
+    "peak": 1.0390139818191528,
+    "rms": 0.2905230225225638
+  },
+  {
+    "name": "sounds/weapons/gren_strong_explosion2.ogg",
+    "duration": 1.8,
+    "peak": 1.0387601852416992,
+    "rms": 0.3231175545871088
+  },
+  {
+    "name": "sounds/weapons/grenlaunch_strong.ogg",
+    "duration": 0.890907029478458,
+    "peak": 1.0002385377883911,
+    "rms": 0.19772371985421192
+  },
+  {
+    "name": "sounds/weapons/instagun_strong.ogg",
+    "duration": 1.25,
+    "peak": 1.068729281425476,
+    "rms": 0.25519295252891855
+  },
+  {
+    "name": "sounds/weapons/laser_hit0.ogg",
+    "duration": 0.714671201814059,
+    "peak": 0.9868625402450562,
+    "rms": 0.17934029722049483
+  },
+  {
+    "name": "sounds/weapons/laser_hit1.ogg",
+    "duration": 0.963015873015873,
+    "peak": 0.9964240789413452,
+    "rms": 0.15641383788759852
+  },
+  {
+    "name": "sounds/weapons/laser_hit2.ogg",
+    "duration": 1.0509977324263038,
+    "peak": 1.0267651081085205,
+    "rms": 0.17494671815808474
+  },
+  {
+    "name": "sounds/weapons/laser_strong_fire.ogg",
+    "duration": 0.81,
+    "peak": 1.0487825870513916,
+    "rms": 0.21649767408033005
+  },
+  {
+    "name": "sounds/weapons/laser_strong_hum.ogg",
+    "duration": 1,
+    "peak": 0.8155136108398438,
+    "rms": 0.1660282909417235
+  },
+  {
+    "name": "sounds/weapons/laser_strong_quad_hum.ogg",
+    "duration": 0.8186167800453514,
+    "peak": 0.8899482488632202,
+    "rms": 0.31535050988931596
+  },
+  {
+    "name": "sounds/weapons/laser_strong_stop.ogg",
+    "duration": 0.36369614512471654,
+    "peak": 0.6707768440246582,
+    "rms": 0.09239846662809618
+  },
+  {
+    "name": "sounds/weapons/machinegun_fire.ogg",
+    "duration": 0.878639455782313,
+    "peak": 1.0525174140930176,
+    "rms": 0.17957369506397639
+  },
+  {
+    "name": "sounds/weapons/plasmagun_strong_explosion.ogg",
+    "duration": 1.0000226757369615,
+    "peak": 1.022511601448059,
+    "rms": 0.1727563976914152
+  },
+  {
+    "name": "sounds/weapons/plasmagun_strong_fly.ogg",
+    "duration": 1.3549206349206349,
+    "peak": 0.7437570691108704,
+    "rms": 0.21177182094063376
+  },
+  {
+    "name": "sounds/weapons/plasmagun_strong1.ogg",
+    "duration": 0.6660090702947846,
+    "peak": 1.0112242698669434,
+    "rms": 0.19308548112084284
+  },
+  {
+    "name": "sounds/weapons/plasmagun_strong2.ogg",
+    "duration": 0.6660090702947846,
+    "peak": 1.0312234163284302,
+    "rms": 0.1971851025216205
+  },
+  {
+    "name": "sounds/weapons/plasmagun_strong3.ogg",
+    "duration": 0.6660090702947846,
+    "peak": 1.0233675241470337,
+    "rms": 0.18222454052762288
+  },
+  {
+    "name": "sounds/weapons/reload.ogg",
+    "duration": 0.6660090702947846,
+    "peak": 0.3411376178264618,
+    "rms": 0.04563513573677096
+  },
+  {
+    "name": "sounds/weapons/ric1.ogg",
+    "duration": 1.1205895691609977,
+    "peak": 1.0123919248580933,
+    "rms": 0.10847915214248725
+  },
+  {
+    "name": "sounds/weapons/ric2.ogg",
+    "duration": 0.8037868480725624,
+    "peak": 1.0620975494384766,
+    "rms": 0.15599485924792872
+  },
+  {
+    "name": "sounds/weapons/riotgun_fire_strong.ogg",
+    "duration": 1.7,
+    "peak": 1.0891729593276978,
+    "rms": 0.31727268111513035
+  },
+  {
+    "name": "sounds/weapons/riotgun_strong_hit.ogg",
+    "duration": 0.6482312925170068,
+    "peak": 1.0109925270080566,
+    "rms": 0.2604848992484271
+  },
+  {
+    "name": "sounds/weapons/rocket_fire_strong.ogg",
+    "duration": 0.9726077097505669,
+    "peak": 1.0488269329071045,
+    "rms": 0.2790996607977776
+  },
+  {
+    "name": "sounds/weapons/rocket_fly_strong.ogg",
+    "duration": 2.4237188208616782,
+    "peak": 1.0199915170669556,
+    "rms": 0.41442524922071705
+  },
+  {
+    "name": "sounds/weapons/rocket_strong_explosion.ogg",
+    "duration": 2,
+    "peak": 1.0816975831985474,
+    "rms": 0.3706059824074017
+  },
+  {
+    "name": "sounds/weapons/weapon_noammo.ogg",
+    "duration": 0.47487528344671204,
+    "peak": 1.0024306774139404,
+    "rms": 0.07819462032341377
+  },
+  {
+    "name": "sounds/weapons/weapon_switch.ogg",
+    "duration": 0.6660090702947846,
+    "peak": 0.3411376178264618,
+    "rms": 0.04563513573677096
+  },
+  {
+    "name": "sounds/world/dong.wav",
+    "duration": 0.64421768707483,
+    "peak": 0.5730460286140442,
+    "rms": 0.06736979820448859
+  },
+  {
+    "name": "sounds/world/ft_step_met1.ogg",
+    "duration": 0.6970068027210884,
+    "peak": 0.2853575348854065,
+    "rms": 0.01756786897041167
+  },
+  {
+    "name": "sounds/world/ft_step_met2.ogg",
+    "duration": 0.6687528344671202,
+    "peak": 0.3904639780521393,
+    "rms": 0.02400704628993237
+  },
+  {
+    "name": "sounds/world/ft_step_met3.ogg",
+    "duration": 0.6310884353741497,
+    "peak": 0.3090149760246277,
+    "rms": 0.016722793705512135
+  },
+  {
+    "name": "sounds/world/ft_step1.ogg",
+    "duration": 0.7145578231292516,
+    "peak": 0.5546282529830933,
+    "rms": 0.035219573188633675
+  },
+  {
+    "name": "sounds/world/ft_step2.ogg",
+    "duration": 0.8634240362811791,
+    "peak": 0.13299663364887238,
+    "rms": 0.011154044517247892
+  },
+  {
+    "name": "sounds/world/ft_step3.ogg",
+    "duration": 0.8038775510204081,
+    "peak": 0.6770720481872559,
+    "rms": 0.03318438097132121
+  },
+  {
+    "name": "sounds/world/ft_walljump_failed.ogg",
+    "duration": 0.731609977324263,
+    "peak": 0.5861375331878662,
+    "rms": 0.07034843830972175
+  },
+  {
+    "name": "sounds/world/jumppad.ogg",
+    "duration": 1.0555328798185941,
+    "peak": 0.5575584173202515,
+    "rms": 0.07240850763305194
+  },
+  {
+    "name": "sounds/world/launchpad.ogg",
+    "duration": 1,
+    "peak": 0.5507593154907227,
+    "rms": 0.09278106007617484
+  },
+  {
+    "name": "sounds/world/lava_in.ogg",
+    "duration": 1.380748299319728,
+    "peak": 1.9469034671783447,
+    "rms": 0.23228862841304626
+  },
+  {
+    "name": "sounds/world/lava_out.ogg",
+    "duration": 1.4329931972789116,
+    "peak": 0.6898207664489746,
+    "rms": 0.09589120388544496
+  },
+  {
+    "name": "sounds/world/player_respawn.ogg",
+    "duration": 1.253877551020408,
+    "peak": 0.5252696871757507,
+    "rms": 0.08756754484772293
+  },
+  {
+    "name": "sounds/world/tele_in.ogg",
+    "duration": 1.253877551020408,
+    "peak": 0.5252696871757507,
+    "rms": 0.08756754484772293
+  },
+  {
+    "name": "sounds/world/underlava.ogg",
+    "duration": 4.258049886621315,
+    "peak": 0.887138843536377,
+    "rms": 0.21677878315537735
+  },
+  {
+    "name": "sounds/world/underwater.ogg",
+    "duration": 4.231904761904762,
+    "peak": 0.3065038323402405,
+    "rms": 0.028815540983166847
+  },
+  {
+    "name": "sounds/world/water_in.ogg",
+    "duration": 1.0686848072562358,
+    "peak": 0.39533308148384094,
+    "rms": 0.037175169983119594
+  },
+  {
+    "name": "sounds/world/water_out.ogg",
+    "duration": 0.6765532879818594,
+    "peak": 0.480682373046875,
+    "rms": 0.019556904367512205
+  },
+  {
+    "name": "ui_click.wav",
+    "duration": 0.22215419501133787,
+    "peak": 0.89202880859375,
+    "rms": 0.04800174696942317
+  }
+]

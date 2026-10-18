@@ -1,0 +1,2734 @@
+{
+  "version": 1,
+  "sourceRepository": "https://github.com/TeamForbiddenLLC/warfork-free-soundpacks",
+  "sourceRevision": "8005f47869cbac20608f1d606621e4b8fcdec574",
+  "sourceDirectory": "assets-source/sounds",
+  "files": [
+    {
+      "path": "button_press.wav",
+      "source": "cc0/sounds/menu/ok.wav",
+      "sha256": "fc533063b2c948aa5ea14767a408cd7502cfc0568e7f66383531723454e96c73",
+      "status": "new-CC0-alias",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording; filename alias"
+    },
+    {
+      "path": "sounds/ambient/ceilingfan.ogg",
+      "source": "cc0/sounds/ambient/ceilingfan.ogg",
+      "sha256": "6c5456642eee04d3f9fb99d167e864db51e5239b9ec1d407d43c85d77603ed9b",
+      "previousSha256": "c6c38965fe33d8933f0628421c1be0cf39d582474d51f483c579947a2b98bfe4",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/bomb/defense/defuse.ogg",
+      "source": "cc0/sounds/announcer/bomb/defense/defuse.ogg",
+      "sha256": "af5ee8317379a1d3d2b51fcc60989e4e960a3595fc9f52d8de126ba05450b503",
+      "previousSha256": "0bf9dd909537b50219cfa606bb5490b3aa904a622e54c838a4a256964d975ac6",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/bomb/defense/defused.ogg",
+      "source": "cc0/sounds/announcer/bomb/defense/defused.ogg",
+      "sha256": "b258faf1fe0339206c9bf9e433ffb7b82da0e856eac14b9d1d68929151faaee6",
+      "previousSha256": "1694cfcdd2829e462478918c516bda242bde1ce3270312ec809ecd96fb906d4a",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/bomb/defense/planted.ogg",
+      "source": "cc0/sounds/announcer/bomb/defense/planted.ogg",
+      "sha256": "2fca487fdd81c86aeff4c03bd53e323fe310de8e490bf53ba6d7a63847311159",
+      "previousSha256": "cd090e40a63341fd58ad67ec6b03619fce9d9d807c561f2b6055ca0fa2e3079f",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/bomb/defense/planted2.ogg",
+      "source": "cc0/sounds/announcer/bomb/defense/planted2.ogg",
+      "sha256": "e92e5937f1d7edb011e4ad995527d968b1fd1e5bad56acd636f66ec2c7f6d452",
+      "previousSha256": "6dc44454163b099510fdd48d4f7e5e80e911cafb00a2a21e934ffe0817885a9d",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/bomb/defense/start.ogg",
+      "source": "cc0/sounds/announcer/bomb/defense/start.ogg",
+      "sha256": "8e5acd38203c62a5073334dd7ea26de43cd07111453acec22f950fa49d90b6d0",
+      "previousSha256": "4bff6eaae4c4b1fe104ff173404a8c0306db9727301742f334610d1ca9ce61f5",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/bomb/defense/start2.ogg",
+      "source": "cc0/sounds/announcer/bomb/defense/start2.ogg",
+      "sha256": "165ed6ad2c4a88ca35e2559fd93c26cdf653cf84d305939e36fa514b8077fdb9",
+      "previousSha256": "952cf97c17a1e28079a9c705d2460340e1b471a1a6e5655b85ffdf9ea8c07eac",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/bomb/defense/start3.ogg",
+      "source": "cc0/sounds/announcer/bomb/defense/start3.ogg",
+      "sha256": "28b8b79839a2e0dfa24f6fe6db5bb2a78a10ee7f3525f9d3b9f95cc55be7f321",
+      "previousSha256": "c17c9922c3e537d42bb7ba50491014a193e73680795bfbb438a4d993779ed9b5",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/bomb/defense/start4.ogg",
+      "source": "cc0/sounds/announcer/bomb/defense/start4.ogg",
+      "sha256": "9af50c1fa625057452b8b59891c2a6eaaa9dff6d74fb2be76a91f89bffa9e21f",
+      "previousSha256": "d01f337dc337d2ec3d53f86067662e7fd31f89836d7c9b251c209d4d3c1df01e",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/bomb/offense/cleanthehouse.ogg",
+      "source": "cc0/sounds/announcer/bomb/offense/cleanthehouse.ogg",
+      "sha256": "43c1019e9665708918ea2ac82f9fc92d75e20c055ea45dfac83a0ef80441de87",
+      "previousSha256": "4a9d6eb997922284b7efe39a8cf7c90c3a3e27df0e2ff64715efdd7ebc4a3183",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/bomb/offense/defused.ogg",
+      "source": "cc0/sounds/announcer/bomb/offense/defused.ogg",
+      "sha256": "2b58917352651c6010058a57ff560608f56f7ace0f93d650beeee8d22869fdbb",
+      "previousSha256": "9b3dc40eb049b80bf452ad2eb79deb281a62d49e57dae651b21fe9954da085d4",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/bomb/offense/defused2.ogg",
+      "source": "cc0/sounds/announcer/bomb/offense/defused2.ogg",
+      "sha256": "14d10058be784a9b74c08950b934eaeb33e44682931c9ac656f97e8461803b86",
+      "previousSha256": "497f8ac69a2255598039357c909b6f284d2dd112a94a1216239ea9a249c4e073",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/bomb/offense/inplace.ogg",
+      "source": "cc0/sounds/announcer/bomb/offense/inplace.ogg",
+      "sha256": "7b9f68738d4d34c468f9581e8be4062b1e20e8e1fc28c16e99fe862936aaa9d9",
+      "previousSha256": "13dc27ca0325c47f8cae0c865bbe8d70d02bb31232dcd8111ee8f44e243eda13",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/bomb/offense/lastcall.ogg",
+      "source": "cc0/sounds/announcer/bomb/offense/lastcall.ogg",
+      "sha256": "d86f94a029cb6bc1973220163c4460c0b664f842ed1d426dda5fc234dad52f74",
+      "previousSha256": "840eb20597c21938f07df6cc006693c37d42b115ac8213f0e6fa99276d2837b0",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/bomb/offense/planted.ogg",
+      "source": "cc0/sounds/announcer/bomb/offense/planted.ogg",
+      "sha256": "cc1320fe662f555e10abdaaaf09f5174556cfb9240ce8e509e2dfd7c3623d782",
+      "previousSha256": "bfe4dc4f6a2d24d4221e255e2345c865896880b34720c031b80290fca051421e",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/bomb/offense/planted2.ogg",
+      "source": "cc0/sounds/announcer/bomb/offense/planted2.ogg",
+      "sha256": "68d6de5b08b8d2ab05db57b4c85ddd9938ebd3f04f7ce0dba5d05382ba204e9f",
+      "previousSha256": "66ea50db89e5ae973b4fd21255ea73fb99fa618266d507d043ebf464bdcb2221",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/bomb/offense/start.ogg",
+      "source": "cc0/sounds/announcer/bomb/offense/start.ogg",
+      "sha256": "d2e43c587341d5bed7327533d6646c682be937e0c4082112b364e052e88cc7fd",
+      "previousSha256": "015a1a9db569bd0c76110080421fd68abd0812a6b0ab0b106f8bd0214f30f28e",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/bomb/offense/taken.ogg",
+      "source": "cc0/sounds/announcer/bomb/offense/taken.ogg",
+      "sha256": "b3beea2edd6c968d7043985cfc743da26b0b50d57c1bcd5f30f508aef073cd93",
+      "previousSha256": "1578e1ada362cf8419e797e2cce851b3ea7482f5aa286f9c6ca3caee1005919c",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/callvote/vote_called01.ogg",
+      "source": "cc0/sounds/announcer/callvote/vote_called01.ogg",
+      "sha256": "4eae7db2ffee8ff1df03c92e8146f781ad79335b5fa65111ff9bcb3f6e218d05",
+      "previousSha256": "128a022c76b81533b906f43af2692ef4fa30c7c53e56ae4834725aab546d0016",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/callvote/vote_called02.ogg",
+      "source": "cc0/sounds/announcer/callvote/vote_called02.ogg",
+      "sha256": "569919a888b7b28dcf26d2c5d6ba0eceb20fe26e644b7abf85e0b80b0c905ba0",
+      "previousSha256": "31113db2fd3390b7bcf47b66609311c6d52deb6b4f9874e2ccab17375ddd1e53",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/callvote/vote_failed01.ogg",
+      "source": "cc0/sounds/announcer/callvote/vote_failed01.ogg",
+      "sha256": "88845416db4e2788db2a2b772f02c4338aaa6dbff87a16dc272210297e02172e",
+      "previousSha256": "28827bbf92209ba3cd22b39fced69a03fead150c7c8b8c00e03d659b1e65b4c2",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/callvote/vote_failed02.ogg",
+      "source": "cc0/sounds/announcer/callvote/vote_failed02.ogg",
+      "sha256": "0015ed626e9c6d23653a3c2ff8563aab37ce58df394babc0751f65f8e5cd8221",
+      "previousSha256": "2156446c02904bb1fe84ca22b6fa16c795d7bddc7b4a8012325e0d87a23ce8c2",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/callvote/vote_now.ogg",
+      "source": "cc0/sounds/announcer/callvote/vote_now.ogg",
+      "sha256": "0a73e507afa219c8b785eb7bc11870783c73db50ee3738569c138faf20122131",
+      "previousSha256": "61423d9fbcdf892ab781013ed5b5ee2883661371bc4ce99c3bc000fecd30c394",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/callvote/vote_passed01.ogg",
+      "source": "cc0/sounds/announcer/callvote/vote_passed01.ogg",
+      "sha256": "fea4257cd6860dad5dc5b28f0734c48587662f6e39ff93d6593605772ade7690",
+      "previousSha256": "24958592d51968e186d80eefdc7465062cdbb59c88bad8e7322e5767bbec3599",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/callvote/vote_passed02.ogg",
+      "source": "cc0/sounds/announcer/callvote/vote_passed02.ogg",
+      "sha256": "7e961dc4bca9a88bebe69837bc91fc25f031cea6184b03e5da3a46db1d73871a",
+      "previousSha256": "0774effd58f848d8aff8ee59463e10f6791fb1c1fd20bd1a7e72b572c1968056",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/countdown/1_01.ogg",
+      "source": "cc0/sounds/announcer/countdown/1_01.ogg",
+      "sha256": "d84e2a42749d8b340391e62086a341c54276c0b030a21385bb797ef17f163283",
+      "previousSha256": "e709c3c5e08391fb6e55119581ac0f0911bf07c02a610d3de49e4c4b2d7a27ea",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/countdown/1_02.ogg",
+      "source": "cc0/sounds/announcer/countdown/1_02.ogg",
+      "sha256": "4f3f404a3c88d244a24a50ccdfd5f8130cb7ad7bf08100c303ca1c1afa21d67c",
+      "previousSha256": "dcf52a72d519122813efd3cbd14900da43e124d14b78cb1229432db7352d290f",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/countdown/2_01.ogg",
+      "source": "cc0/sounds/announcer/countdown/2_01.ogg",
+      "sha256": "7083593035c959170a4b5f71311a91cb254ed4f04a87555613ef4fed01352cf2",
+      "previousSha256": "954f3cdc5354e29a5780b31d983cf070020c5a457661a59f53f4deb7989a16e6",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/countdown/2_02.ogg",
+      "source": "cc0/sounds/announcer/countdown/2_02.ogg",
+      "sha256": "9f41115bbcef053056f9d3efa1cceb0729858f06a3269caea05f4b1158d1f536",
+      "previousSha256": "a646acd79bd8539d1d4c8aa0475aeff054d930ff629b3ab75855c8528c58a734",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/countdown/3_01.ogg",
+      "source": "cc0/sounds/announcer/countdown/3_01.ogg",
+      "sha256": "0639b0d8bad4c28b37439caa2ca13369123aada56bc5bc534e705d92bca7740b",
+      "previousSha256": "6bbf1d7f6b44ee3e85fd591197f1c895e43eb82cd2ab9757f19f3679484c1a25",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/countdown/3_02.ogg",
+      "source": "cc0/sounds/announcer/countdown/3_02.ogg",
+      "sha256": "210c87401f502065a2d0f9b5df921b52cccc0743ad788b2a311765496a155846",
+      "previousSha256": "ae2087d102e8bc7e4de6ed602b71fdd8e383f3ffda0ed4578cbdc277f3ec18f0",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/countdown/fight01.ogg",
+      "source": "cc0/sounds/announcer/countdown/fight01.ogg",
+      "sha256": "1ecac059cdcdd36c921ce2a1a086a4a2e250359ab86330152f13099cb9753f3a",
+      "previousSha256": "227386169bee2a517a22a2fe7f5630a3fe90338cf38eee872449e2d3a57dda49",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/countdown/fight02.ogg",
+      "source": "cc0/sounds/announcer/countdown/fight02.ogg",
+      "sha256": "5e33626d9f9efeac0fe5ebee169e97f4e76c1c1a4dfeeecc942c95b9b69327ad",
+      "previousSha256": "1abbd4b9c97071ec47e7b8dfe7ee755f69321944c148bae156864d82a9862e82",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/countdown/get_ready_to_fight01.ogg",
+      "source": "cc0/sounds/announcer/countdown/get_ready_to_fight01.ogg",
+      "sha256": "5d7b1cd82c66ed9f4d0a81e6d95c5cfd298c6864782ac890dd42519db8390445",
+      "previousSha256": "7aff30d49a5daa7237452687629a0798d71387e0011710183f6f4aa404a0ce70",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/countdown/get_ready_to_fight02.ogg",
+      "source": "cc0/sounds/announcer/countdown/get_ready_to_fight02.ogg",
+      "sha256": "c4ec7521566e582ca4b20fa829a93fc9ae450f5b4236c73e81abfeb6e318e6ea",
+      "previousSha256": "8e19f4d77e6edaf665623c061a145e4740943432aa4b6397c364f5c0f5e019ee",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/countdown/go01.ogg",
+      "source": "cc0/sounds/announcer/countdown/go01.ogg",
+      "sha256": "eead77863d14f86210180426f57b540e1cacd710379e6c6230cc0bd1a333f37a",
+      "previousSha256": "99e90db3c328526bab3c1f3836ef9a0f4792cdceb0fe278f05a94d9d07197b40",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/countdown/go02.ogg",
+      "source": "cc0/sounds/announcer/countdown/go02.ogg",
+      "sha256": "21c3a36e569d74f2631d2e16256578a77fc48ae96fc2837ca0a41507cbad08ed",
+      "previousSha256": "95d191b6cd0e23b2b90d14b6f05e658b59f256887ab8143c7dcc2589d663a002",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/countdown/ready01.ogg",
+      "source": "cc0/sounds/announcer/countdown/ready01.ogg",
+      "sha256": "35ac752a7f8cf97f0cdf61756a011ba58f17c9d8d7a8eead9f10f5a28f19b512",
+      "previousSha256": "c97d6e1f9e84dd91f8cc9cbc19a75d8f7e1920a9f05682877529c84fcaf1f0fb",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/countdown/ready02.ogg",
+      "source": "cc0/sounds/announcer/countdown/ready02.ogg",
+      "sha256": "51ec7342e667b3a951f4dbf284606b11b250db09144fc557a63b74b20729f36e",
+      "previousSha256": "9637c4fcd915ac45e953bc8c47700bbb4854801ecf0a46845b77d85c863bb87a",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/ctf/flag_captured01.ogg",
+      "source": "cc0/sounds/announcer/ctf/flag_captured01.ogg",
+      "sha256": "a602bff93a530a45407f5fe02690007dc83af73457f024ff28b11838587742b9",
+      "previousSha256": "1b887e8e2cb33a51ad9797240e36240ede997ec5fd1dd15d8d5017890dcd2b05",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/ctf/flag_captured02.ogg",
+      "source": "cc0/sounds/announcer/ctf/flag_captured02.ogg",
+      "sha256": "5c83df809f5ebbaf7e60daabb07718e01c31e3ba53eb043a80ec8980a29a81cc",
+      "previousSha256": "a5f1032bd6decdd3dc67437ad3f8665a1f42112ea80eb79a46555480b5a71d17",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/ctf/flag_captured03.ogg",
+      "source": "cc0/sounds/announcer/ctf/flag_captured03.ogg",
+      "sha256": "8f4b905c9a4ea57d5c72466195ea0707ad291cecb0ede77a8ebe9dd3d60a3747",
+      "previousSha256": "4e1f98a086591583bfc8b56ea480ec166c3eeea6629eab3d3abd3f3c70cf5ad4",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/ctf/flag_taken_enemy_01.ogg",
+      "source": "cc0/sounds/announcer/ctf/flag_taken_enemy_01.ogg",
+      "sha256": "35dc9359a504ac7d1d0103f90507a4a160c90c73a09d08e27cf36a9cdb60e9bd",
+      "previousSha256": "9055847a4221f856a646f88903b5502a29f580e265c466d1258a0f71763a5db5",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/ctf/flag_taken_enemy_02.ogg",
+      "source": "cc0/sounds/announcer/ctf/flag_taken_enemy_02.ogg",
+      "sha256": "15ddd84b24fc102157ce147a9f2a1e7aafe5c4d694149eac1122cb830b1fd37e",
+      "previousSha256": "25444414017b9b15fdc954ed66261443edab123ec81e5b6e7148d9cf27407e93",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/ctf/flag_taken_enemy_03.ogg",
+      "source": "cc0/sounds/announcer/ctf/flag_taken_enemy_03.ogg",
+      "sha256": "4e8c23a1f72f4722f09e5af3c1fa638686e5c2f5d43d0333c8f9c64b01a4fbe4",
+      "previousSha256": "bae6d30e9af950d7155b3da86177f7eac21ba58ab79fe8a6c8a87f304edb6883",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/ctf/flag_taken_team01.ogg",
+      "source": "cc0/sounds/announcer/ctf/flag_taken_team01.ogg",
+      "sha256": "c70ef41e59f960d157918b0fbfbadd8e9dd332419f0ab442b5963b0fe289e3ac",
+      "previousSha256": "6099bd71b990cf10af715ceb7864168db7db974ccfee503dc4131440dea5073a",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/ctf/flag_taken_team02.ogg",
+      "source": "cc0/sounds/announcer/ctf/flag_taken_team02.ogg",
+      "sha256": "8dcd8594c606ad1b9386843c996a6153a5506839fc661b1075147df510259ab5",
+      "previousSha256": "d1bfe39566ab24a42741d3d21c5570d1c389b093a65645c3506472692f752a2d",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/ctf/flag_taken_team03.ogg",
+      "source": "cc0/sounds/announcer/ctf/flag_taken_team03.ogg",
+      "sha256": "182261fb8e968fb887d7e8140751fd285c7a32e19474feb946dbe94e40e6fc0b",
+      "previousSha256": "90e234b1f5ab900ea45d371a67af4a6e3cb8720dfb32de0e51cb4b9a1dc0ae4a",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/ctf/flag_taken_team04.ogg",
+      "source": "cc0/sounds/announcer/ctf/flag_taken_team04.ogg",
+      "sha256": "98a2a9eefc8b92e490aa6ce8f08df7bb6bb4a7eea6860d2c6bfe15f3bba1bac1",
+      "previousSha256": "ba1321a9d19f123674af8a705dff8712148646a83e891ca1d6ca0621111e5c10",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/ctf/flag_taken.ogg",
+      "source": "cc0/sounds/announcer/ctf/flag_taken.ogg",
+      "sha256": "80df2a9d40b3a2278591242862feb7ae7263bd06c9e645cd415e4def57b148e3",
+      "previousSha256": "220e3d20d7eb92d3f5ce1bc06d8709f37d08e350e243c967d494b807350d991c",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/ctf/flag_taken2.ogg",
+      "source": "cc0/sounds/announcer/ctf/flag_taken2.ogg",
+      "sha256": "fa7751a12cc7cd017284102842052efcb822973cae4c38b8a942ca186312cf45",
+      "previousSha256": "b320bd1bf7450f3bd3c19c5253837ce09e6713b98f102d5fd7c2ff9783534b02",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/ctf/recovery_enemy.ogg",
+      "source": "cc0/sounds/announcer/ctf/recovery_enemy.ogg",
+      "sha256": "c939e4b453784b1c4c8580ea226a96788157d4e536d0ab5dd7909bd7e1cd8722",
+      "previousSha256": "ffd607d6c89fa065f86bb28c130773f35ae1e5ad7ad92e4a86d600d9579a2ba0",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/ctf/recovery_team.ogg",
+      "source": "cc0/sounds/announcer/ctf/recovery_team.ogg",
+      "sha256": "0b7937786861b63b48390aeaed4d370112cb9eb60384029dba837421bb8ccfc8",
+      "previousSha256": "dbafe9e70244fba421ef8432db0db7e9b7744b96123ddb677369c0d4e3d6e6d5",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/ctf/recovery_team02.ogg",
+      "source": "cc0/sounds/announcer/ctf/recovery_team02.ogg",
+      "sha256": "05e3da172125a1cb6f4d45d3e6d22fcbac9156cb3da5163503aa52a2854854e8",
+      "previousSha256": "b64375ebb0eb11ba2255de69a685d9249cc7ac89d7b3604bf624389654c87651",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/ctf/recovery_team03.ogg",
+      "source": "cc0/sounds/announcer/ctf/recovery_team03.ogg",
+      "sha256": "052afccd42b1b09bb28d69f0dc8e215133ffdf1ccdecf53ce5e756fa238760a9",
+      "previousSha256": "4985f0007adf074b8946179261e6e1331698662fd3342fef2f530ba78a4aa5ff",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/ctf/recovery01.ogg",
+      "source": "cc0/sounds/announcer/ctf/recovery01.ogg",
+      "sha256": "dea1640d4d7620cadd14240ef2afaa5b211935abe801ff931fd171df70ca7fa2",
+      "previousSha256": "f7e8bb1bcbdcda6e39edc6c1770ecfd3387c634a775c548c810c9d8eec477091",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/ctf/recovery02.ogg",
+      "source": "cc0/sounds/announcer/ctf/recovery02.ogg",
+      "sha256": "1ff1e9ecd0d60c82db9b3c19c3a6a4b1092d51194adc40a96a6fe0f1ba0659aa",
+      "previousSha256": "32c2b60d278aeb805f85fe57ea3fdc2720aa9e165b173d1bd471c980abd0941e",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/ctf/recovery03.ogg",
+      "source": "cc0/sounds/announcer/ctf/recovery03.ogg",
+      "sha256": "bbdf952c8bf106d481be9ad2d6ebf0e4e687a673a3f8a5ce334d88f63bc0261a",
+      "previousSha256": "3a4eb0e1351527d3803cd95cebb7f3a530b090a23904b3b9353899fb106482a8",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/ctf/recovery04.ogg",
+      "source": "cc0/sounds/announcer/ctf/recovery04.ogg",
+      "sha256": "b0b2e28563b8484710bbe7abb97705866421bbcd02938884829325bb0d8f3391",
+      "previousSha256": "f484cc4e105016e871934b95d46b21d921dc6a96c470831710aba27ec194919f",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/ctf/score_enemy01.ogg",
+      "source": "cc0/sounds/announcer/ctf/score_enemy01.ogg",
+      "sha256": "eba6fbe0ebd2b5f5fa625d16b8b81599a724f6fe0c0e1d21c22c0b8d758d5213",
+      "previousSha256": "b1d3e38789b626f5b914a481d3daa3c57b314fec1ad7b993ea12cdea5ad6edcc",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/ctf/score_enemy02.ogg",
+      "source": "cc0/sounds/announcer/ctf/score_enemy02.ogg",
+      "sha256": "3b17617eeb5dd627832cf7cedc7711d395b95f8f7ba6dbcc34f31b05c57d5582",
+      "previousSha256": "f203cf81df06fda9062d0299ced19967019ef3d44d2a6a3d8fbbba7bac935c32",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/ctf/score_team01.ogg",
+      "source": "cc0/sounds/announcer/ctf/score_team01.ogg",
+      "sha256": "fb4fe084841716eca049e099a451d2fef423862af0aa14a541aae4944541969e",
+      "previousSha256": "d66da7411e5b89105fc665e4df09ddf66a842318e13221a9584691266cb37889",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/ctf/score_team02.ogg",
+      "source": "cc0/sounds/announcer/ctf/score_team02.ogg",
+      "sha256": "810b15dabd0cebf01a5d58f92a0260d8d3b45145bdb0d77015f67f2deb49d7e5",
+      "previousSha256": "dc7541aebf2444b2d713059264768dc077b3054085cebc5b433c7d50f1184d40",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/ctf/score01.ogg",
+      "source": "cc0/sounds/announcer/ctf/score01.ogg",
+      "sha256": "ae33c4030b5a12796f37968bd76a2b50eb79e0f4bcc48f52f01013eaa2cb66b3",
+      "previousSha256": "68a533005aabafef750b6c43a3ffb1c14e585c9fef6f6183f847e888f1de22e1",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/ctf/score02.ogg",
+      "source": "cc0/sounds/announcer/ctf/score02.ogg",
+      "sha256": "08080271bad89a7ffeaa4cd90c16a69a8c1168bb4738d35e731622db8b73b47b",
+      "previousSha256": "eebf9d886dcfcf168456eb615c7d42c0aa6c50c2c9095d94e87d4d874a79f5b5",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/midair/bongo01.ogg",
+      "source": "cc0/sounds/announcer/midair/bongo01.ogg",
+      "sha256": "087b8fb42c91d88895f26d19b3a134a7f4a8d51a8eed42c61d0706dd1988ad08",
+      "previousSha256": "572304c83861753205ddb5c5ffd0db2a52cfc23aa91d715c640fd9c3c5f2b6c5",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/midair/bongo02.ogg",
+      "source": "cc0/sounds/announcer/midair/bongo02.ogg",
+      "sha256": "413fec3739f26156a0f98e8e8984c912ef4bd6847a7dc986681bcc963bd48318",
+      "previousSha256": "7a936c03a0b7b34a85846488a3d21a1fba730e4f51ceee31085175c2e29bdbbc",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/midair/diamond01.ogg",
+      "source": "cc0/sounds/announcer/midair/diamond01.ogg",
+      "sha256": "ec9904f81619ee300b46facac0d0c95d64930978a6a857473337c296fdc12c62",
+      "previousSha256": "2fbcb137f563634ca0d1c0cc0b94c3899b976cd877209c0746325e8a2ec4e217",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/midair/diamond02.ogg",
+      "source": "cc0/sounds/announcer/midair/diamond02.ogg",
+      "sha256": "d6707350c701b7a7afbb4ab140d423e1a90348a957c14e876d2ddab2271842b3",
+      "previousSha256": "37a05b834c41de4870ec8c4ea37226eab4d30ddaa457a46587f43c768138e186",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/midair/gold01.ogg",
+      "source": "cc0/sounds/announcer/midair/gold01.ogg",
+      "sha256": "72521c4e260163842b16c20bd86163c22e27d4f3e30742cfd6a8b4912af76ae5",
+      "previousSha256": "d6168bbe22f5369f279890a0e4e307c7161bfd67084d18b1c4e0ba0f6c5422f3",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/midair/gold02.ogg",
+      "source": "cc0/sounds/announcer/midair/gold02.ogg",
+      "sha256": "35e014ac7d9f1d1a1e071ae9725ca8dafed90b5eddb39b465bab53652dab58be",
+      "previousSha256": "bd666ec961b15bad8c594df0129400345741a387e1c83bf3a9eb8db1ea23db09",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/midair/midair01.ogg",
+      "source": "cc0/sounds/announcer/midair/midair01.ogg",
+      "sha256": "62b2229b80408f4c9490ec0d0f1d9d2ba3ed45a487333f523a26522e4f068c90",
+      "previousSha256": "cf10fbcd1dbe89cafd98d606f0662d41c86701ce62b1cbe5b106bbd9710ba08a",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/midair/midair02.ogg",
+      "source": "cc0/sounds/announcer/midair/midair02.ogg",
+      "sha256": "8ad77479b8589243b1b6cae56b59b7f67b2ebfff285fe9caa1e5395183ac2b2d",
+      "previousSha256": "4f2742f4168bf660d661c260902ca4deb228552d9dc3418ea4521e270ad2301c",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/overtime/going_to_overtime.ogg",
+      "source": "cc0/sounds/announcer/overtime/going_to_overtime.ogg",
+      "sha256": "747a8653f79d121331b266f51c387df7f09a04e75ec229a793512ec0e6d12edd",
+      "previousSha256": "1b9d3e96749ef9247baee8f589229c0d409203ed6bb41dc229ff19bb3c63317b",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/overtime/overtime.ogg",
+      "source": "cc0/sounds/announcer/overtime/overtime.ogg",
+      "sha256": "1152ea699b85a3628a0f18a26ee989f5f158fbb952e0ecbbf106b7ff310d7d9e",
+      "previousSha256": "60c390d8b9524ec78aa4fc463c7703a59a2b01d89b45dce79ba6a23f6e6228b7",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/overtime/overtime02.ogg",
+      "source": "cc0/sounds/announcer/overtime/overtime02.ogg",
+      "sha256": "d0d706a4da9e6aba3f346135dda572bda54adae6080854b4228f31d1c2bbbc36",
+      "previousSha256": "d96d85236dfb344be22d65495100d87cebcbf7e74ba96efaa21c60533c3bc558",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/overtime/suddendeath01.ogg",
+      "source": "cc0/sounds/announcer/overtime/suddendeath01.ogg",
+      "sha256": "b0512f0a74c41dfa1e8c000946e510616067145e591e802a68fe02a1ea78a2bd",
+      "previousSha256": "9bc20fbf448eb0cb3e77378ebee382fb2e22cd4e90c84fc6060c1171f8eb1504",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/overtime/suddendeath02.ogg",
+      "source": "cc0/sounds/announcer/overtime/suddendeath02.ogg",
+      "sha256": "49c321db3efb6a6aba4b03f57034fc1d8a0e66be9fef02221d7eaee8c903caa4",
+      "previousSha256": "6bf45b59797b60d5526bda6f8bc42e1afa0a0810faed0d38c35fd0a3c2c51aec",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/pleasereadyup.ogg",
+      "source": "cc0/sounds/announcer/pleasereadyup.ogg",
+      "sha256": "1fe1a167c7afc83038d9c4f6d472c81466a9f838868f1386583fe7623b6a1e10",
+      "previousSha256": "84f8392620af2b9c97ff75620fab6192cb58c47fd95dbc6d641fc27dca917d8f",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/postmatch/game_over01.ogg",
+      "source": "cc0/sounds/announcer/postmatch/game_over01.ogg",
+      "sha256": "4322d9f84502f2d01d3fd74df4cb5e6cb58918bc7e76019fa3b903cce4e1fe94",
+      "previousSha256": "29ebe7d4a0c8e8137e568ea32b71fb25febee2e518f7141890c333457f91b52a",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/postmatch/game_over02.ogg",
+      "source": "cc0/sounds/announcer/postmatch/game_over02.ogg",
+      "sha256": "38dded5bd84efadb5d46d4d312dff912f6aeff5cceb6b9e8ed4ad8cb48a829c9",
+      "previousSha256": "a64ed788fe6e61b340c0dd0e40f7355c4632cbb4f6a85f8412bfd1365c0b26bc",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/readyupalready.ogg",
+      "source": "cc0/sounds/announcer/readyupalready.ogg",
+      "sha256": "f83355896011652950c09b9c9667063830d344f14d62d4dc714f775e1ee5ca0c",
+      "previousSha256": "f2bf538cb3379b25ca9e42483d84d761f7176fed24d2140d672ccc1500c0893c",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/score/lost_lead01.ogg",
+      "source": "cc0/sounds/announcer/score/lost_lead01.ogg",
+      "sha256": "c237ec91225ec20727a9511ef06282c0b385c5c5d05709880e59b53d452d2e19",
+      "previousSha256": "c9ca49268a670dae6b8ecb97c1dcf7a77ab90add1cc5c27f39d9a0bf8e1b35f3",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/score/lost_lead02.ogg",
+      "source": "cc0/sounds/announcer/score/lost_lead02.ogg",
+      "sha256": "340d73c7079aa26a66e462b0d5b4a26d2274a54609fdab8fd3a2d0701ffaa35f",
+      "previousSha256": "3a90653d27d51c2bb6c26cfae84dbcda7e6e5b142cf7b7098024c8e9da567d2b",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/score/lost_lead03.ogg",
+      "source": "cc0/sounds/announcer/score/lost_lead03.ogg",
+      "sha256": "e6c081c83b4b830559ee3a5f6583786513f124c22f1fac97bc9a1f2cd37ae92c",
+      "previousSha256": "69f7494ebda8f25a1a6e986db4e2452891f4df8d3ca21ae5fb2532240c196cce",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/score/taken_lead01.ogg",
+      "source": "cc0/sounds/announcer/score/taken_lead01.ogg",
+      "sha256": "ae1550e57f0f5aac627413b515c4b3a9d1bd5e2f00179f2c58e416b363dd60a2",
+      "previousSha256": "196e08ef8f20c1f93c84bb0b018e0884abb58afba60d55940d8f47a8a6a046e2",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/score/taken_lead02.ogg",
+      "source": "cc0/sounds/announcer/score/taken_lead02.ogg",
+      "sha256": "19d691617072e1a9475fc49288da8c939a5b160c6784247780c58ce95441fadd",
+      "previousSha256": "2e95a0c28c0918649e618da5fbef41b4e37ea0de0a1744e9c6fdc474e86a7959",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/score/team_lost_lead01.ogg",
+      "source": "cc0/sounds/announcer/score/team_lost_lead01.ogg",
+      "sha256": "25a5f9d9a95940bd59009d764e1a23377154e7fd4d9df71fdc2ec4b0c9b5120b",
+      "previousSha256": "7d6422540633c21d8a04598432dd39342060bd627e07509e7e849d4ede49933d",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/score/team_lost_lead02.ogg",
+      "source": "cc0/sounds/announcer/score/team_lost_lead02.ogg",
+      "sha256": "5d152e0e887eaf505a14b47fba45f41076edf9c37c8fd6d7cd39ef80976830f0",
+      "previousSha256": "15012584bbfbf574d169cd765ee3e98fe9c52473ff059f99cb2c21d4bdfae839",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/score/team_tied_lead01.ogg",
+      "source": "cc0/sounds/announcer/score/team_tied_lead01.ogg",
+      "sha256": "0bf619d0d7403b46116ed25909874ca2977e3d7b01c129ec0a6dd9d4b1768ca0",
+      "previousSha256": "7f480d7332a3d71752411538a6cd4a6f17a1a2ebd18f2bdd96f958cc4b1c2625",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/score/team_tied_lead02.ogg",
+      "source": "cc0/sounds/announcer/score/team_tied_lead02.ogg",
+      "sha256": "e20f731db2e695b5c1d936ec3555fa40c9de50a2cdad20fbcc7afe485d8cfe8c",
+      "previousSha256": "6e55364a93995ecfac315ad9b53945dcbd12407f7b77f101e7583f76d2b7dbec",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/score/team_tied_lead03.ogg",
+      "source": "cc0/sounds/announcer/score/team_tied_lead03.ogg",
+      "sha256": "742cced9e52d1028dd68fd3665e0f47028ba59e769d971e8e126ff0038800692",
+      "previousSha256": "643017538ea903740c1f15088b0143126c4bd4b9a1736daa947fd196b7ae8a92",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/score/tied_lead01.ogg",
+      "source": "cc0/sounds/announcer/score/tied_lead01.ogg",
+      "sha256": "bbc20573f7c5842005326655b2afd73ddc3762745333917486285f4b19db0285",
+      "previousSha256": "a1e800f89de866fdeb558a3f2428b6c0d4accaf55bbe376db6792dca5dfaf33b",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/score/tied_lead02.ogg",
+      "source": "cc0/sounds/announcer/score/tied_lead02.ogg",
+      "sha256": "5110d82d6cf165c3a35e7099518f5443640d523aa6d9208257aaee1258d0fd03",
+      "previousSha256": "6157048840f3717655021c22cafefb05ad4fe3543c4c478a8e62af8a3540edb2",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/timeout/matchpaused01.ogg",
+      "source": "cc0/sounds/announcer/timeout/matchpaused01.ogg",
+      "sha256": "993c74722288ff660617a948dc537b7466f81c9c16ec3e3df8370bca524f9ea6",
+      "previousSha256": "73625162eece84d3ec69a17b90b67485b6511ec54e49273d1ca1c24688e7e1a1",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/timeout/matchpaused02.ogg",
+      "source": "cc0/sounds/announcer/timeout/matchpaused02.ogg",
+      "sha256": "154aed6c71950a7e7be6f7b9f6ca1ed3a4c7b25a0edfabf20d2728125b40634d",
+      "previousSha256": "8925cf65e59033f9c9e3a1b09c37b64ce098f83fb46c905220afee4895759fc6",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/timeout/matchresumed01.ogg",
+      "source": "cc0/sounds/announcer/timeout/matchresumed01.ogg",
+      "sha256": "d1688ef88a2e1c5a91bc18ef05ba24228361de16d36e331748fd48ecfdd6c26e",
+      "previousSha256": "8b604345040ec89df36c220108872291e446ab5c636966869e936d07a461469b",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/timeout/matchresumed02.ogg",
+      "source": "cc0/sounds/announcer/timeout/matchresumed02.ogg",
+      "sha256": "e9fa0034f6583c1922c7bb48d5e01e3a4c6e7c92a1b18a22624eb52048ed96d6",
+      "previousSha256": "f2589b86b8256673514b834514f175a239e742ac8808056f394c3d3c5cd7e0be",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/timeout/timein01.ogg",
+      "source": "cc0/sounds/announcer/timeout/timein01.ogg",
+      "sha256": "01762f3cfff4355dd56dd888964ff9ba9d849fc57fb14481765e93b6e5de8369",
+      "previousSha256": "91cf4ede5032b7ab6e231df2b006307ffad31b0d97c6ef391b1f0e9688b03f89",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/timeout/timein02.ogg",
+      "source": "cc0/sounds/announcer/timeout/timein02.ogg",
+      "sha256": "c83709003fd32f1cb0de004da009cc48f7c03063db9ead9a608fd143c0eed489",
+      "previousSha256": "c6d355ac9b2e805822827138e062a131421ac2741524dfc21f745892ae3c4854",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/timeout/timeout01.ogg",
+      "source": "cc0/sounds/announcer/timeout/timeout01.ogg",
+      "sha256": "f6449a76a6253881bdacbe44c44b6437a3b6a041c4cf6ab51b0435e02c74fd75",
+      "previousSha256": "6eff5a198b403eaf59ab2b660cfc66b8a79e6d066ee702b6103d894497b32ddf",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/announcer/timeout/timeout02.ogg",
+      "source": "cc0/sounds/announcer/timeout/timeout02.ogg",
+      "sha256": "dd41e43c450ff00338904d229f9398bbfa25a65fd467be381f80fc0ff4c4bfa7",
+      "previousSha256": "14fc42450e1ee57a3a257861ae37f55bc07f3df407bb503596b8c67e2a8a066f",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/bomb/bombtimer.ogg",
+      "source": "cc0/sounds/bomb/bombtimer.ogg",
+      "sha256": "c01260e47343732900a7262904b5e4237a2f7df8ad464d461e86806087e7c790",
+      "previousSha256": "5dc2694e48e10afae2a239e5eb551821afc148a09ee034f3e406f0ce5585b82f",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/ctftactics/turret_pain01.wav",
+      "source": "cc0/sounds/ctftactics/turret_pain01.wav",
+      "sha256": "1cf56ceab89b818f3de64a2edcaf3a885966e9e498769038bd32929a456be375",
+      "previousSha256": "50deaed4d8d6688de17f94c92dfb5d3eda6eed52ac979d0e70a0e5ab57982a17",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/items/ammo_pickup.ogg",
+      "source": "cc0/sounds/items/ammo_pickup.ogg",
+      "sha256": "3e8dac6c33dba9e63ced44af979b22cf9867cc233e82ecb17ef5df77425ee7ca",
+      "previousSha256": "3e8dac6c33dba9e63ced44af979b22cf9867cc233e82ecb17ef5df77425ee7ca",
+      "status": "already-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/items/armor_green.ogg",
+      "source": "cc0/sounds/items/armor_green.ogg",
+      "sha256": "04c1e4ccbe2523ec582dbae34e28f7ec490e68e8f13c537ac557d5ddb3cd5a80",
+      "previousSha256": "0d7bac45fa2d84b8bf143d4204b1c3989a8f550a59684f6c7dee6b2ae9ae6db7",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/items/armor_red.ogg",
+      "source": "cc0/sounds/items/armor_red.ogg",
+      "sha256": "0b7d8a7a745c525a35a399683d7a9a58cf6edeb901f698d160c53c2f07e6c84e",
+      "previousSha256": "94fbb8b185a011f3b484a4d5d3cf81e4fb14b3c1d8f627fbca6388b426a13b61",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/items/armor_shard.ogg",
+      "source": "cc0/sounds/items/armor_shard.ogg",
+      "sha256": "e4bd81880dd6831f97f78f15f74bce17cd96fe850027b940f2c8ce9111903ccf",
+      "previousSha256": "9b49a63675bfd744d8ecb6e36922acbaad0c0f22135cd4b09e2bfc95e95bf356",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/items/armor_yellow.ogg",
+      "source": "cc0/sounds/items/armor_yellow.ogg",
+      "sha256": "992045c60b01e30ce3e28170a1cd37b8ab5055a452f37884da3159687a5850fa",
+      "previousSha256": "2501c7bcf3ad4ff2e73f5a7221a97c12d217ceadde66b85fa3b591a0ba251a10",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/items/health_25.ogg",
+      "source": "cc0/sounds/items/health_25.ogg",
+      "sha256": "7482cb52ddf520afed6e5c2d8512876ee07fc68f284068726a1a09c9b22dd6b3",
+      "previousSha256": "e7ef8fd5d261e7e7a146179207d5bc7b30166a94e611393d3b1a51f6dfed6b52",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/items/health_5.ogg",
+      "source": "cc0/sounds/items/health_5.ogg",
+      "sha256": "899d55e15b099ff0b68983aa933cc5c834c59668935b242f0726cec57139d87a",
+      "previousSha256": "97c1fbb7014cb251531ad7f45ccbf48a712b135370c276183f6216efa598e051",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/items/health_50.ogg",
+      "source": "cc0/sounds/items/health_50.ogg",
+      "sha256": "a2daf8ec34d839b25353cbebce5adf674e0ece55e78c11f6beb38651109d57c5",
+      "previousSha256": "42ef57a7d6c234f824c86a618b7bdeabadeaeb9414bdd2df015037efa30d9a2a",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/items/item_idle.ogg",
+      "source": "cc0/sounds/items/item_idle.ogg",
+      "sha256": "9cdf494fc69457662cf92a58d6ed86b8cf54763d3c266f5a0c96643112a046bd",
+      "previousSha256": "64a98623a775c43af924ea6c221193a8bf37d67efb5e1311f89fa78ef96834c7",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/items/item_spawn.ogg",
+      "source": "cc0/sounds/items/item_spawn.ogg",
+      "sha256": "58463e0f944095de6a3ea2a863885d02542546d836fab0e8c7cc62db04a41a2d",
+      "previousSha256": "ce0e7bda6e4dc29e48975927cc20789bf02ad0ece26a8267ead63b3f6cfd5620",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/items/megahealth.ogg",
+      "source": "cc0/sounds/items/megahealth.ogg",
+      "sha256": "0203ce0dad8e0863660d6310cc578eaa336e1ce499d47a70d605cdf44ccd8ebf",
+      "previousSha256": "f61e23c092968b9cf27bc7684f8eacdb5d3c96529c6ab5d29be0ad09dd9d0655",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/items/quad_fire.ogg",
+      "source": "cc0/sounds/items/quad_fire.ogg",
+      "sha256": "1ca27570ba70ca1119e41188baccbfb15e3fd0b55a77026b7635ce51a631ee1f",
+      "previousSha256": "90654429e0a3fe3e832e20c0312995169213d46989a18bac67f634fc54c46abf",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/items/quad_pickup.ogg",
+      "source": "cc0/sounds/items/quad_pickup.ogg",
+      "sha256": "adfd9a66c776407e4cf8b364bc01c3bda4bb3c3fceb53633dc076bebed268f15",
+      "previousSha256": "c83a1a3d2940ab408fdff534036245605d74a8f1a928841e6a8948fb1001976e",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/items/quad_spawn.ogg",
+      "source": "cc0/sounds/items/quad_spawn.ogg",
+      "sha256": "bfcad8047714fe9612955e398929cf664d4b9099b04d32c20075baa0ef422c89",
+      "previousSha256": "0e741b7f421b2340aa5d4b6813181cc75e55c0c730abc4b70b5d22b252aeace2",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/items/regen_pickup.ogg",
+      "source": "cc0/sounds/items/regen_pickup.ogg",
+      "sha256": "572fb855cc7bd85c2cd13161b6d34b7a25b2a8cef556abb49604ca1cc4829170",
+      "previousSha256": "07b579f3195a6c83d8e9a15aa21fe556cd12b09c6b8810fa516b1a8d1f3ee598",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/items/regen_spawn.ogg",
+      "source": "cc0/sounds/items/regen_spawn.ogg",
+      "sha256": "f21be458cf45dfba464e0ac21f30e9aeb83bfe83b0e512efde58042f012c12cc",
+      "previousSha256": "f90f8ab7174efb730b31448367e0c5eefb19d7c7dee664a4014c492e68bee0c1",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/items/shell_hit.ogg",
+      "source": "cc0/sounds/items/shell_hit.ogg",
+      "sha256": "edcf73601582956bb9fd1e3bc2300dfd89743dafd344e0f7bade084142dc2abc",
+      "previousSha256": "003be6ac9b56e57ff51f75bcbb57669dfbf235634b286a08a37a87e719628ab1",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/items/shell_pickup.ogg",
+      "source": "cc0/sounds/items/shell_pickup.ogg",
+      "sha256": "cec6f8c23ee4d5532c876ab18eb927e56a25d64f24ff9777807801504f5020ee",
+      "previousSha256": "3a5e3c311faec05602fa93e3dc10f24381a3579daa62ab3c49a458d0326c5b3f",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/items/shell_spawn.ogg",
+      "source": "cc0/sounds/items/shell_spawn.ogg",
+      "sha256": "0c7123a56bd30948f49ff57aa49eea9ca7b9f29080d1cbf13a2fe64641e5e112",
+      "previousSha256": "058eeac5c71b865a5afe6a9a9c5b73b020a2547eb0213a4030d8dc3629393fae",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/items/weapon_pickup.ogg",
+      "source": "cc0/sounds/items/weapon_pickup.ogg",
+      "sha256": "4f5540324c091d3ccdbdc6e5e0000c6f5e9ac440b9a0459bd69f4d66204296c7",
+      "previousSha256": "4f54bf1eb8cba11ab1e5e4745030f54f8274d62fabac36f1c51f9c0060758273",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/menu/back.wav",
+      "source": "cc0/sounds/menu/back.wav",
+      "sha256": "84163a846ba9911cb8d6dd17c75702c47ee845167e9dfb6444f1fc7c78930a66",
+      "previousSha256": "7d6505a9f8492d8f4e6870a354b2e22f73d61b38ae89a0778d92546917416ffc",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/menu/mouseover.wav",
+      "source": "cc0/sounds/menu/mouseover.wav",
+      "sha256": "c749bd42e5fd4cf0154fab3581d995f2bf50165ca814b0c605e952ebca782f81",
+      "previousSha256": "d980484047fe66503bf2e7a85e48d2dfb060c4f77c20c09efa135035f47085ef",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/menu/ok.wav",
+      "source": "cc0/sounds/menu/ok.wav",
+      "sha256": "fc533063b2c948aa5ea14767a408cd7502cfc0568e7f66383531723454e96c73",
+      "previousSha256": "f6546d639a5a61d201a6dcb94feb161f5b8df7b72f96fcb2e66fe129320df9bd",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/misc/chat.wav",
+      "source": "cc0/sounds/misc/chat.wav",
+      "sha256": "24668b83471130a6173910c0db1ce31c980bfe97d58b224b7099b259cbfbfafa",
+      "previousSha256": "12c9b2b0ceaaf749d79dbd49b8f0b9b6c87eef6c4e69b939a7a04f6f80f6464b",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/misc/gibs_explosion.wav",
+      "source": "cc0/sounds/misc/gibs_explosion.wav",
+      "sha256": "a678f7b35f1372b77f028464a195aad8715979b72291e01bd03442157af02542",
+      "previousSha256": "4c3826f24b8aed89aa8b41bedcfa787062a3bf63b2e99efc85f5b75b1362179c",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/misc/hit_0.wav",
+      "source": "cc0/sounds/misc/hit_0.wav",
+      "sha256": "9d390a5bc0e0b2507738acd3519b953d6c79b10203f1e1820488b9e5f78b77b1",
+      "previousSha256": "fa9250bd7aecccd130b57c82c0c60fa956b21eac20b93a272b0366931637e06f",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/misc/hit_1.wav",
+      "source": "cc0/sounds/misc/hit_1.wav",
+      "sha256": "c92d9fed13cb96774b25e9246d0a879dc5f925eb76f2e5d7e67dbdc5b055c9fc",
+      "previousSha256": "bd5f67f2e0028cad6e67d2c76f74960be6774fe97f26562c0a771a4f9b8503f4",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/misc/hit_2.wav",
+      "source": "cc0/sounds/misc/hit_2.wav",
+      "sha256": "2ff003342f845ddbad5f7bf6d3b98280bd851b0534f780d06434bc87e64342a5",
+      "previousSha256": "3ecda6319a6c0eff7080fb38fb4578b17035eda0407ac74b7f79c489bced6397",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/misc/hit_3.wav",
+      "source": "cc0/sounds/misc/hit_3.wav",
+      "sha256": "e720a961da944fb9e926cdc5d13b67467d240ddf918578f41ad2cf051390567d",
+      "previousSha256": "c520a19d11c264b6024c4c3a45455ef6b3a6aad04dbc0b6293c5cefda54c4fe4",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/misc/hit_team.wav",
+      "source": "cc0/sounds/misc/hit_team.wav",
+      "sha256": "83e9ae4ed352bb66fe0fcd19df1708e80b00dbf15b09958a5092f1826193e123",
+      "previousSha256": "19299034c9997ab56480388e3cf10fef1a946aa681133223faa08843f3b09b4b",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/misc/hit_water.wav",
+      "source": "cc0/sounds/misc/hit_water.wav",
+      "sha256": "2ec82f4db0cc2e5d662e28efdafd84369b9f2ef60b696f1f1d037aa72335f3eb",
+      "previousSha256": "df0b0870b91c583d6dbd6cb754b9b45a87f95e9f785c628d3dc505e1fd801f1a",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/misc/kill.wav",
+      "source": "cc0/sounds/misc/kill.wav",
+      "sha256": "7851bfd0d9804a7be3801d49e29ef18bdf74b00808fd17a794a393420da7945b",
+      "previousSha256": "64265008f760830dd82c3a7caee77e11bdabb623fe90e467b5666c437c4fdfc0",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/misc/timer_bip_bip.wav",
+      "source": "cc0/sounds/misc/timer_bip_bip.wav",
+      "sha256": "765af9c40a32687cfb12f39d5e7687760479efc31ae69874d1e4db9607e3373b",
+      "previousSha256": "2781a3953c2baf089688d8b5ef63fe2fd00b7c1e9c41426aeeba4ef3c8bc1b26",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/misc/timer_ploink.wav",
+      "source": "cc0/sounds/misc/timer_ploink.wav",
+      "sha256": "f61e6beb52a596ef2a3b1d4235faec82ab8b63209baa1e7df9f0bb75b98950ff",
+      "previousSha256": "1d273096a466d851b8f0254860c79ca5c27e459dd4ad790a73c63950e208f975",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/movers/door_start.ogg",
+      "source": "cc0/sounds/movers/door_start.ogg",
+      "sha256": "504d58a4ae5fd617f52c3eee6dfd0425feaa399b575f63955cc51c771afb636c",
+      "previousSha256": "18260baa8264040edef0df643558d1caf5be3442ccfe607b0d8d8a5f654dbe93",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/movers/door_start2.ogg",
+      "source": "cc0/sounds/movers/door_start2.ogg",
+      "sha256": "88639935411f941494843ac55922964bcf2618267572720f11a728a5dd1e3705",
+      "previousSha256": "7fe4948259c9bbb20f1b2931d0d864c19b3905d8c131af5aa260c11c9a181037",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/movers/door_stop.ogg",
+      "source": "cc0/sounds/movers/door_stop.ogg",
+      "sha256": "7a2225cc7fae910af18815f20fdee59e1d577699fb6054a9033733db9ce4c4b8",
+      "previousSha256": "d1d25d0752c15726e6b5a74fe4fde933c977329fbc576fe4d1aefe0164b1ee1a",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/movers/elevator_move.ogg",
+      "source": "cc0/sounds/movers/elevator_move.ogg",
+      "sha256": "0a68dd19d68b82fd15d9de2fd789c6f6e0c576b132a4bdae8b5b55006ef2bcf7",
+      "previousSha256": "667328b68836371e8e23bcd3d6c9de0469b6f6530c59d3c5df24613b5f4b85bb",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/bobot/dash_1.ogg",
+      "source": "cc0/sounds/players/bobot/dash_1.ogg",
+      "sha256": "5cc9431e74b14629778bafe1f96eec77f2d2f177a0b02490c17ba5b38e8d93cf",
+      "previousSha256": "512078abaaaeafc8310dc319d2c23aa6e07522b09b263294023fe3165979fc81",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/bobot/dash_2.ogg",
+      "source": "cc0/sounds/players/bobot/dash_2.ogg",
+      "sha256": "5cc9431e74b14629778bafe1f96eec77f2d2f177a0b02490c17ba5b38e8d93cf",
+      "previousSha256": "02c4b4b97b0dae3b987ef31e7dd87d5b10fd1f147c5434f9a12aecfb92bcd067",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/bobot/death.ogg",
+      "source": "cc0/sounds/players/bobot/death.ogg",
+      "sha256": "80730fd7ac65195921aa0d6747e1797906a991657a188811fca9c6cf0bcdd9f4",
+      "previousSha256": "1c95ac20ca1cdd44bd0ca2a89150b4a8293336b01c34309730a1456905fdbd7a",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/bobot/drown.ogg",
+      "source": "cc0/sounds/players/bobot/drown.ogg",
+      "sha256": "1fa4db51cf787eaa6386f282bc1bad9029dd9b6fe38e5dc8d89a734f56cfa0f0",
+      "previousSha256": "27b81de1774b135a769e90be75343290dae931d453a85ee006977688952aa113",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/bobot/fall_0.ogg",
+      "source": "cc0/sounds/players/bobot/fall_0.ogg",
+      "sha256": "ef4b94f3ca64fdbb368d6a363a885f4e341f6dfae909e50e204db80ec5c3f8cb",
+      "previousSha256": "1122784f0dd3a5c657e44f0212fc07e43c134d48095c68bcbdd8e35943ad6883",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/bobot/fall_1.ogg",
+      "source": "cc0/sounds/players/bobot/fall_1.ogg",
+      "sha256": "fc61cbc2ab32f86a8a90bb1b7e40736806083dfedf356ad51fa8a39db685d43c",
+      "previousSha256": "4c409f4b0f16b4c4bd353192726c88f2a59812ef998154a4a78b5dbee4199991",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/bobot/fall_2.ogg",
+      "source": "cc0/sounds/players/bobot/fall_2.ogg",
+      "sha256": "62ae10022d0724901730041825084208cbc4b2ea7dfacbfbb4fcfdefadd470be",
+      "previousSha256": "400e332b90fb9fc9c38bf6727c2f412fe77481d08a66e0e4713fd280a1f329e8",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/bobot/falldeath.ogg",
+      "source": "cc0/sounds/players/bobot/falldeath.ogg",
+      "sha256": "e740d2c5e97c86848d1d918e9822f27b9ea39c684e21229a6d683ddc96c4f473",
+      "previousSha256": "7d844e72864686a14c6c722418eb1b2ac136ec0a7f6c17418f590c753c72fcf0",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/bobot/gasp.ogg",
+      "source": "cc0/sounds/players/bobot/gasp.ogg",
+      "sha256": "b5c746f6ae7a397a5a618b60e650889e45e667da48c8d7f386c14c7aef4cc61c",
+      "previousSha256": "d1a3ba8ed3fe581f7c5797764d383ec847d5752b2c3a49062872637c13c5d5cb",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/bobot/jump_1.ogg",
+      "source": "cc0/sounds/players/bobot/jump_1.ogg",
+      "sha256": "d9fc0d45f82c6f38a5643d0547d0b768f3ea1a302054abf0ab0d6bad65eee226",
+      "previousSha256": "3b6a5c093e7dcdcdee0e534cb9e8687040ce97f05721de7374332ab8c7de9d8e",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/bobot/jump_2.ogg",
+      "source": "cc0/sounds/players/bobot/jump_2.ogg",
+      "sha256": "d9fc0d45f82c6f38a5643d0547d0b768f3ea1a302054abf0ab0d6bad65eee226",
+      "previousSha256": "ef7f8d028b2d378d521f94cbae37631c921dcb9b278e4d5026d9d2a5fbc753fd",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/bobot/pain100.ogg",
+      "source": "cc0/sounds/players/bobot/pain100.ogg",
+      "sha256": "e6f03e946958b6e18ef07f15a830bc50913e175d08a06ca649ce13bc8cc6910d",
+      "previousSha256": "0ebbef3cb6d4c2eed3eae8968f68ef91e2fca0063d2afd5846f9de97fd229be1",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/bobot/pain25.ogg",
+      "source": "cc0/sounds/players/bobot/pain25.ogg",
+      "sha256": "a937be71b148673f036d2cfa1152a90da0ee4b09e6f934782ba302ac30e1eade",
+      "previousSha256": "7f722a36332e69fc55a476ebb594fdc89cc7fe5952f69b4597c4fc23869b7fb1",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/bobot/pain50.ogg",
+      "source": "cc0/sounds/players/bobot/pain50.ogg",
+      "sha256": "f8beb40bd311d4a5deac1dcd7356a4b57491e990dd6d54efc293aec8145ca3e0",
+      "previousSha256": "8f36216248f8da7af0618c292308fce53341c753835f1df140e89330ea0e8582",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/bobot/pain75.ogg",
+      "source": "cc0/sounds/players/bobot/pain75.ogg",
+      "sha256": "2c7c748eb4dc5709975f2cbf591ebed169433181d84d9f2efb52bf331f4df9c7",
+      "previousSha256": "7a962ff14d177d6834ee88ae065620f1588e7a769616dec4f67f0777ff739b28",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/bobot/wj_1.ogg",
+      "source": "cc0/sounds/players/bobot/wj_1.ogg",
+      "sha256": "615aac3cd2cb822b9844bec3491bf4f09c80c668e735c33394aac58db0b4c4ff",
+      "previousSha256": "0779ed14705fcaa5160ae54d06961ad55d0d1de2b4fb2e6b1c45baca2fa7abd1",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/bobot/wj_2.ogg",
+      "source": "cc0/sounds/players/bobot/wj_2.ogg",
+      "sha256": "615aac3cd2cb822b9844bec3491bf4f09c80c668e735c33394aac58db0b4c4ff",
+      "previousSha256": "fcf0eb5fd244c7557d16de42353d1e816ce147a08af044e724ad5e8c8ded9922",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/female/dash_1.ogg",
+      "source": "cc0/sounds/players/female/dash_1.ogg",
+      "sha256": "0a80217fabd022620fb05c1ddf7e9c6ae78f1987017b495e01de345b4bb5f944",
+      "previousSha256": "81ef9f85e4c1dcde6438e911a5d0199e5fdf6cbf2b66dc234e403ed9c209609b",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/female/dash_2.ogg",
+      "source": "cc0/sounds/players/female/dash_2.ogg",
+      "sha256": "043ec340874ff6aa6583d5c7007ccf0b89fb8f4d37b24d4f497b23d5e8c2b73b",
+      "previousSha256": "61dff53b383be1d9060dbf68e6b2c3e766c9ee9fb6e26b85b71b0f13f73e5405",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/female/death.ogg",
+      "source": "cc0/sounds/players/female/death.ogg",
+      "sha256": "ebaaa4c575f6602de0678efe33892e3c45c6815ee4d630e0446e313aad61e99e",
+      "previousSha256": "5fc36ac9c65bb153c5937712d56ccfc189c9eab160afb79d268632a21272f167",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/female/drown.ogg",
+      "source": "cc0/sounds/players/female/drown.ogg",
+      "sha256": "5691f5c5b4b8ca20f06e8f0433ec88b3358bd9b10066d6c3fa26ab073c2f2910",
+      "previousSha256": "423e410c8c11918512b177e7790a43c7f232385df030aba4517b9613e71f79d8",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/female/fall_0.ogg",
+      "source": "cc0/sounds/players/female/fall_0.ogg",
+      "sha256": "ef4b94f3ca64fdbb368d6a363a885f4e341f6dfae909e50e204db80ec5c3f8cb",
+      "previousSha256": "1122784f0dd3a5c657e44f0212fc07e43c134d48095c68bcbdd8e35943ad6883",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/female/fall_1.ogg",
+      "source": "cc0/sounds/players/female/fall_1.ogg",
+      "sha256": "38345222e74d40354c642c12e2edb8bba169dd9ad4c2a2ff4aca7d103b4f7bb5",
+      "previousSha256": "baeafabbb81560e87bb61c32d01fedcadb65d8b7206f661b81563f7c7b930a5c",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/female/fall_2.ogg",
+      "source": "cc0/sounds/players/female/fall_2.ogg",
+      "sha256": "5421ad089f840877672afa208161c71a01d350caacf686a9d17dda0b38658324",
+      "previousSha256": "9ef47b8b64eb530ddf40c8242747a82e2ce23f049ee3260413f782cfd2b2e769",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/female/falldeath.ogg",
+      "source": "cc0/sounds/players/female/falldeath.ogg",
+      "sha256": "5f44811b9a31e67182c194221f6cf08e56f111f16adcefc17af4a1b6f2fa0cc1",
+      "previousSha256": "6480c1a675d4f0efec1bfda60644f6d5a7b0068f77691eda001881d50934de5b",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/female/gasp.ogg",
+      "source": "cc0/sounds/players/female/gasp.ogg",
+      "sha256": "248de60012e42be1db679e940c10dbeef07b7e1881216fb870f204f4a5195595",
+      "previousSha256": "89fea26488b05cc1dcca0ac8bf3795473e0fcc51e43d84d42a7008a6db8b010e",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/female/jump_1.ogg",
+      "source": "cc0/sounds/players/female/jump_1.ogg",
+      "sha256": "ba4f7578b8ea101838a941aedaa42dd185163cda9efc4348cd3493c1ffd3303e",
+      "previousSha256": "6166b50be00c9560710d29fa011fc8951a9648d85510a38de0381d392a6c5a24",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/female/jump_2.ogg",
+      "source": "cc0/sounds/players/female/jump_2.ogg",
+      "sha256": "06c907feaf98d1312bfa7481dd7c60b41ebed5832bc4b75a72f45b8f77a900e6",
+      "previousSha256": "509b447f3752770834dfe8c018d61c40e8963ba419f91b2cc85934c8d9fac46e",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/female/pain100.ogg",
+      "source": "cc0/sounds/players/female/pain100.ogg",
+      "sha256": "256f41f876e0043a51d589622713e220566fa004091809739da2af0f1399cd60",
+      "previousSha256": "84348a0683abd42ea48413ab275f531b93c835dca104810ac5551546c2a257d2",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/female/pain25.ogg",
+      "source": "cc0/sounds/players/female/pain25.ogg",
+      "sha256": "b0f7fade3483ca9e0e1dce39d2c1a8859095b0aac618039d85c0c101b6d8c24f",
+      "previousSha256": "f12d4d661d1cd2094384b6fe66e4da6a9a0c476b2ae6707ecb6a2cce11e6912b",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/female/pain50.ogg",
+      "source": "cc0/sounds/players/female/pain50.ogg",
+      "sha256": "180ece7f487c54a5a7ed0621c6884f8c1d281d45f3a3596573bcb00f76fb243a",
+      "previousSha256": "70e1e29fa80fb1ef32e58334dc36b470c8bb88eafbefa0cb3b467c75a2baf55e",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/female/pain75.ogg",
+      "source": "cc0/sounds/players/female/pain75.ogg",
+      "sha256": "53335a47549ecd494af683c4c6b45c01882f405993752f374e8d23d87604c564",
+      "previousSha256": "906268e0a1beeaf8979cd357ccfa925a71acca24f39b5f38e92ee1847992ac29",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/female/wj_1.ogg",
+      "source": "cc0/sounds/players/female/wj_1.ogg",
+      "sha256": "369dac414cef1b7e16d844ec0b991d51fa390a8b1722f12586f960a7b6c30101",
+      "previousSha256": "a890f666576ab41ff320b74f0bac7bb702f88f8c85c952c4604868f14f8f64f0",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/female/wj_2.ogg",
+      "source": "cc0/sounds/players/female/wj_2.ogg",
+      "sha256": "21ac269d90a1b0d9f50a25b4366451e7c5eb8dc7a912c8581a02616afb080c63",
+      "previousSha256": "137a80e3809b62b1c9bcde7705e532a2467f4fd963adce172078427f095cf50b",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/male/dash_1.ogg",
+      "source": "cc0/sounds/players/male/dash_1.ogg",
+      "sha256": "90fd9e004b0c3e9be1030cb2400cca6455abeb83a54eafaa237f8d1c604b1ea5",
+      "previousSha256": "8c5c4b27065fe4aefa846daad81670c804420ff9868b698615c2c3cf8120389a",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/male/dash_2.ogg",
+      "source": "cc0/sounds/players/male/dash_2.ogg",
+      "sha256": "381029c8573fbebfed935b06311114709f8e362f98c0bdd8d73616a2e0d24e40",
+      "previousSha256": "b86e58a545ce66020f6d9fa8284113896ec39730436569f43c9c431a6b553833",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/male/death.ogg",
+      "source": "cc0/sounds/players/male/death.ogg",
+      "sha256": "fa303e6afccfdf682c659eb2702f43f18cc9b22e744e9539341871e020796809",
+      "previousSha256": "318505017a50a22ce685bc53c714fb6397f498e4b74dd537bc3a7301813ee060",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/male/drown.ogg",
+      "source": "cc0/sounds/players/male/drown.ogg",
+      "sha256": "5691f5c5b4b8ca20f06e8f0433ec88b3358bd9b10066d6c3fa26ab073c2f2910",
+      "previousSha256": "2a12f1b779a87d722929753a69a56aa9237e2053b041f54d29e47479b6247550",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/male/fall_0.ogg",
+      "source": "cc0/sounds/players/male/fall_0.ogg",
+      "sha256": "ef4b94f3ca64fdbb368d6a363a885f4e341f6dfae909e50e204db80ec5c3f8cb",
+      "previousSha256": "1122784f0dd3a5c657e44f0212fc07e43c134d48095c68bcbdd8e35943ad6883",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/male/fall_1.ogg",
+      "source": "cc0/sounds/players/male/fall_1.ogg",
+      "sha256": "c0bbf64048d533c05e262566f87ed39aad3c4f911047bb742f95ac9747cfc69a",
+      "previousSha256": "94a8950b6193f5828ad937d3b0cfa4312d529adfa9c6e138f32e084f1a3a8c73",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/male/fall_2.ogg",
+      "source": "cc0/sounds/players/male/fall_2.ogg",
+      "sha256": "e1f59b5f1cb6af44ecdf801bd723de2cd7f05c57b088bd02f90b93a763704033",
+      "previousSha256": "0b0b4e05382da89aff4ccbfe49866c26fb55cd321d845c3843843fd7483d2d3e",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/male/falldeath.ogg",
+      "source": "cc0/sounds/players/male/falldeath.ogg",
+      "sha256": "fd41c6222d949d4e530c8e7b290908341ae6dcfedd0438e7525ed852f2542cb3",
+      "previousSha256": "396135454981e5905cdbf51c43134f447c0e3b2fae831bb6156715e48428ca6a",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/male/gasp.ogg",
+      "source": "cc0/sounds/players/male/gasp.ogg",
+      "sha256": "e3dc6445fdc79ced706b39ad58c6163168f4974b138bfebe28ddcdc30fd606bc",
+      "previousSha256": "4009462f946bd986adc79108fa3dbe70d0da22a7f4db0c414ec99ca879f6669e",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/male/jump_1.ogg",
+      "source": "cc0/sounds/players/male/jump_1.ogg",
+      "sha256": "427d0b8edece20065740d4c4ff95f3fedad89f528ad009cfa07044ba790a8637",
+      "previousSha256": "22fb3a89de4d7578e979adfa07d1f28e3505af0daefc8e179681ced2e4e0f500",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/male/jump_2.ogg",
+      "source": "cc0/sounds/players/male/jump_2.ogg",
+      "sha256": "3b04c2074ecb0272b8983a899a56f7e40fcdd5bebed624b5bfb6ed84526c492e",
+      "previousSha256": "9c2f63c2a81ad32189b31bb7c75b16fef9b76b0417c80fa0f7534e14d69d3522",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/male/pain100.ogg",
+      "source": "cc0/sounds/players/male/pain100.ogg",
+      "sha256": "90586403ab54804b8a428141d800e98f758bf547ef188b0d9ea98dbe2e055e72",
+      "previousSha256": "86d628a3b2610592567914bd3ef43dd9af39efacf3a175253b05aa58d14c5dcf",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/male/pain25.ogg",
+      "source": "cc0/sounds/players/male/pain25.ogg",
+      "sha256": "54f090dde2bdf4416572a8b731cedcf39831f7118ff3fe5e5692ebb7fb371505",
+      "previousSha256": "7363c261f9b2a55c87a03dadd483541084009ef314da5eb6dd66d509deade603",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/male/pain50.ogg",
+      "source": "cc0/sounds/players/male/pain50.ogg",
+      "sha256": "f66624925e8a1281d9430de51bf2c63d1faa30f88c96218325d4e44c66b1de97",
+      "previousSha256": "6e3ecfc6a933b50b821683f53b242cd8efe977b58b79eb2f6ee40a030281e396",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/male/pain75.ogg",
+      "source": "cc0/sounds/players/male/pain75.ogg",
+      "sha256": "1eba99303aa29ef697f010ad3f5f6f10dfb0a8025214b57c83ddb89035161c00",
+      "previousSha256": "1d800f9f73d18640cdbcbf405dede43cb5eb6a970863cad15bc0f4ca534147d5",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/male/wj_1.ogg",
+      "source": "cc0/sounds/players/male/wj_1.ogg",
+      "sha256": "cdb1e98c15605edb7d20ca378af2b434ecf79e780dbe009aa955aa5d6c8f3d59",
+      "previousSha256": "7f12de72e694a7422c2787949462c85163a6f5a32530a6d27c450f56f7fde0f0",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/players/male/wj_2.ogg",
+      "source": "cc0/sounds/players/male/wj_2.ogg",
+      "sha256": "366c466ebd629c03a12b1387abdcb078a28a5677f7e5208cd3dba87025a8b458",
+      "previousSha256": "82dfc5e4e6dfe3eff1ea535f7442dea26a7dce3ffdc48945d69731b7451c5cc8",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/vsay/affirmative.ogg",
+      "source": "cc0/sounds/vsay/affirmative.ogg",
+      "sha256": "176a4721e654eea5daa471c14f50828e87001e2640f7a7378abbc029a4324b72",
+      "previousSha256": "02afbe897bf533d95aa1af47d225e1ee8ce0f877bb06ae6310fb5c7ce3c0b036",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/vsay/areasecured.ogg",
+      "source": "cc0/sounds/vsay/areasecured.ogg",
+      "sha256": "f41c4391fcd3b1ad941df62262c6a9332bbda392b91b437ab7bc6301eda7855b",
+      "previousSha256": "f79eff241c236c8bacd286a058f7cf732bdd5d7576bcc4b96a55d2989b2a4b50",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/vsay/armorfree.ogg",
+      "source": "cc0/sounds/vsay/armorfree.ogg",
+      "sha256": "0d19e7757240c93a71cc7178d70cb683107ffe32096aed4bef433b67a3fcac9e",
+      "previousSha256": "d92804d09ebde40bdfeb46b97827cf89c2072c8b135f9d8cec22191ca8835716",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/vsay/attack_a.ogg",
+      "source": "cc0/sounds/vsay/attack_a.ogg",
+      "sha256": "5d3c58c0e27b1e6bf509cfbd97c43e1c7dc1eedba9b93d77fbc81b8b11d7962f",
+      "previousSha256": "3b2f777301e6bc0f2421c63e04581064e4a00d262a733d6685dbcc9e4b0fc5ab",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/vsay/attack_b.ogg",
+      "source": "cc0/sounds/vsay/attack_b.ogg",
+      "sha256": "6f08b8ce05f412814d90fe90ce17859e742c51093f840046b59213e62fe0fe40",
+      "previousSha256": "3b2f777301e6bc0f2421c63e04581064e4a00d262a733d6685dbcc9e4b0fc5ab",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/vsay/attack.ogg",
+      "source": "cc0/sounds/vsay/attack.ogg",
+      "sha256": "db614b00a14e37940b84fe2b27a631b3ad1e366a7df01f49b44c9485b5486076",
+      "previousSha256": "3b2f777301e6bc0f2421c63e04581064e4a00d262a733d6685dbcc9e4b0fc5ab",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/vsay/boomstick.ogg",
+      "source": "cc0/sounds/vsay/boomstick.ogg",
+      "sha256": "f5c680ddb106ad2c899ea682f36529e59ce2480ab3eff4a85e12fd81ce8a0553",
+      "previousSha256": "d4ba8579c768d3c785c86dc72b12bea5ab4ce569604ccf46de160a98e2d07474",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/vsay/booo.ogg",
+      "source": "cc0/sounds/vsay/booo.ogg",
+      "sha256": "a7d42be5986aa1d349b48acdb166f1af1ca36280cf3d64818c88aa6783ae9e8d",
+      "previousSha256": "ec56c87e46176de4177c0d572494b186a85c68294332b89372e08322f1a82783",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/vsay/defend_a.ogg",
+      "source": "cc0/sounds/vsay/defend_a.ogg",
+      "sha256": "104a15f4866ca0d5f01c4e7b0f80c67d75e466a9fe861450c8651cc961d07636",
+      "previousSha256": "016d23496897df3d296a940df0eb30c20ecbd93c40d8a9ca32542731e0481452",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/vsay/defend_b.ogg",
+      "source": "cc0/sounds/vsay/defend_b.ogg",
+      "sha256": "273996f32a414ec0c74e9ddd50f83b79c91c7863ba9a74abacbbeb6fcebc6680",
+      "previousSha256": "016d23496897df3d296a940df0eb30c20ecbd93c40d8a9ca32542731e0481452",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/vsay/defend.ogg",
+      "source": "cc0/sounds/vsay/defend.ogg",
+      "sha256": "e445b1e4b1a681fc6693bd5cd13e283b5795aa105e0fc9f2f1570d012423c884",
+      "previousSha256": "016d23496897df3d296a940df0eb30c20ecbd93c40d8a9ca32542731e0481452",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/vsay/goodgame.ogg",
+      "source": "cc0/sounds/vsay/goodgame.ogg",
+      "sha256": "2e1c5b75fed3d1b9d624f3c4bd901af2dcd6c36c6293b7202965500c51d7d0ee",
+      "previousSha256": "0b612e96b18e3e05b212818c299e7983b5b4a539e79e9e3f514645e027e921ae",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/vsay/gotopowerup.ogg",
+      "source": "cc0/sounds/vsay/gotopowerup.ogg",
+      "sha256": "934ac4785e3d6a38a5689b40bae0fd8552e95c57bea19c73e2e701e9f1dc0ebb",
+      "previousSha256": "a66e6e521c17daf2738b05e92f51a5208d6f1a179a60da4f92f12e52170910bf",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/vsay/gotoquad.ogg",
+      "source": "cc0/sounds/vsay/gotoquad.ogg",
+      "sha256": "4e4747a392d1b08eaf972460a7d7f79519f5dd98a221c09e39a9739c07c12625",
+      "previousSha256": "48d62a7a1cd5f13ea4653662a78de807827242ea9b2b005ade029eaede18cc1c",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/vsay/needarmor.ogg",
+      "source": "cc0/sounds/vsay/needarmor.ogg",
+      "sha256": "6b35dbdba78f0f344f39c5ffae4134e35e33abfce7e579dfef015209b9ac245e",
+      "previousSha256": "f7d2dbcf5851cc2611ebad34582f46e8fc04ad43426b205464b50eaa61a99b50",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/vsay/needbackup.ogg",
+      "source": "cc0/sounds/vsay/needbackup.ogg",
+      "sha256": "5416a128d48787a7a89cf76edb24b700948ce7a1fa9acd32b19e8ffa1e09cbfc",
+      "previousSha256": "cc64f0432589adf6bbabff2df6efa980da0cbea3b063cb150d1071ebc1401074",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/vsay/needdefense.ogg",
+      "source": "cc0/sounds/vsay/needdefense.ogg",
+      "sha256": "7bd8d6824aab08d5e3ce14ba295c12a7fd55f1feaf212a3056da2d61b8b2d433",
+      "previousSha256": "c3fff7f38522d4df2a0c8f4511eefc6dbaf5cf820987f783fc49fe6657c024be",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/vsay/needhealth.ogg",
+      "source": "cc0/sounds/vsay/needhealth.ogg",
+      "sha256": "d819ef38ec7c5e1630b36f19d1b46c169af84d62243d1bc502d6a60bf858417e",
+      "previousSha256": "175677f2217f6d775821538f69c4a67217b093b906b18b4f590e3bfca265b305",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/vsay/needhelp.ogg",
+      "source": "cc0/sounds/vsay/needhelp.ogg",
+      "sha256": "8ce971d63a60e543310023370d1aebf2a8acc783f365188b6035110b205ecdb9",
+      "previousSha256": "f251e531e01b8d19654cf23d9c0994d4575ba53e0badd53d3f5a33258cdd1b57",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/vsay/needoffense.ogg",
+      "source": "cc0/sounds/vsay/needoffense.ogg",
+      "sha256": "a9f8ede69ea02108acaa258dbefcdd0f24b84a8481be84f8502004fe5deebd03",
+      "previousSha256": "0fd304b952b606fc9bc43ed4af9f9bc90155be4b4e260f2bf9148e53e34f6933",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/vsay/needweapon.ogg",
+      "source": "cc0/sounds/vsay/needweapon.ogg",
+      "sha256": "c0c1d5f23be695b8047cc88043d70e444ab8c5fb9cf2a4a689c207ca44bbd5b6",
+      "previousSha256": "97bcc7d255571910709ec5120957b008cd0c770effcd3fbf5ea997cf3b3ad7f5",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/vsay/negative.ogg",
+      "source": "cc0/sounds/vsay/negative.ogg",
+      "sha256": "c06e7ffb02491263fcdd91433c2e36e7af2c05b6877f0edf557026b9ef057964",
+      "previousSha256": "381cfead76423ae5bab1f0aa4411a87c3bb6a5ba0d36f2585f72b647325f4203",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/vsay/no.ogg",
+      "source": "cc0/sounds/vsay/no.ogg",
+      "sha256": "306ac99f5a0045d4e2535d995b2bc6ffc20ac9beb829c57cd6d314cb627e7422",
+      "previousSha256": "6280ed60dc07e3adde184ab679678e44cc897dd3702fb41fe824fec211cdeb2d",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/vsay/noproblem.ogg",
+      "source": "cc0/sounds/vsay/noproblem.ogg",
+      "sha256": "4d2bf4797a919bba7369f3d5c8ee1278b2069c3f54f745eef45061e5c37a9e7f",
+      "previousSha256": "f4a22f0cd2b801a24b17bc1bafc9b9de71fa6e3da5128b91e54ac45801ae09cd",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/vsay/ok.ogg",
+      "source": "cc0/sounds/vsay/ok.ogg",
+      "sha256": "ae399e7235fc452d7e5877f03605d9d8287fc060c44fe903b1267f262c2683fc",
+      "previousSha256": "340fc73cb292f32e7a2da6918e6a5413d89bffeb72df49eeeb4d901023491f50",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/vsay/ondefense.ogg",
+      "source": "cc0/sounds/vsay/ondefense.ogg",
+      "sha256": "497fd723589de42baabc3b24f848fca0e34557ce5b2b13104760f524c72c4109",
+      "previousSha256": "43d38e614054507fbc1a97a21a9e4354443745f195e518b93493743f1ba41591",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/vsay/onoffense.ogg",
+      "source": "cc0/sounds/vsay/onoffense.ogg",
+      "sha256": "46911c8d016d21628d680bdfe55b55e997cb8cbc0e665655c2df7011ddc2830a",
+      "previousSha256": "43a13b880e3409c07e08a69d3657975a53375f48cf8a342a52649b1a5ad77971",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/vsay/oops.ogg",
+      "source": "cc0/sounds/vsay/oops.ogg",
+      "sha256": "7d87cc752c5b52e6d29439180e0059691a71480bd093d55ddc225afac40ec7db",
+      "previousSha256": "448d508229816e468ce3a6bfed7908ecde33983717cbf66a987a4a6fc43ebeaa",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/vsay/roger.ogg",
+      "source": "cc0/sounds/vsay/roger.ogg",
+      "sha256": "02b4d66c121eb1621dd2ce915ad037d86bebbfa8d5d91516554be04c2be8ee3e",
+      "previousSha256": "01e3998fb9ed54cd29fe64481f94dbce402b6e32e488711069496853b399fbf9",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/vsay/sorry.ogg",
+      "source": "cc0/sounds/vsay/sorry.ogg",
+      "sha256": "6fbb9d05e9148b41abbc3cb3d0b8a6c21008a2b6e1ee644a24bc39d5f62507ae",
+      "previousSha256": "7ab9ee5038e0a2922b8ac5ed4930db10d4d6b2160dbc02c05b715202bd39ce3c",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/vsay/thanks.ogg",
+      "source": "cc0/sounds/vsay/thanks.ogg",
+      "sha256": "043daaf52c7f88b9f96ca2f64136c25a105eede85e52b9a3fd2ae9aa87c4cfaa",
+      "previousSha256": "6ea5f23294c2319b40a52984b7306442a59486876b566f6cced5ad304b353c3e",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/vsay/yeehaa.ogg",
+      "source": "cc0/sounds/vsay/yeehaa.ogg",
+      "sha256": "8ae5f6640a0c530215f154f88843112a71363b36e2374374a2d3c92edfcc21d0",
+      "previousSha256": "2230895020ab2374c7855ef472f6fa48063a94d34c4d3fd0cae5d3325eaf58fb",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/vsay/yes.ogg",
+      "source": "cc0/sounds/vsay/yes.ogg",
+      "sha256": "c0b097701a59f74ad4ac23a938873df91c6d81a245283fdf572a5925a73e5578",
+      "previousSha256": "58384d42286021703f81dbff8742badc60bacc943a92af68d6adf039a26b1c1b",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/weapons/blade_hitflsh1.ogg",
+      "source": "cc-by-sa-30-us/sounds/weapons/blade_hitflsh1.ogg",
+      "sha256": "70aa72d74000dc8c973f61fd297311b177730221933e906fecdb9069b0b98375",
+      "previousSha256": "994bcc6cc15233a20f017bbe26fb3dfab95204d5152e9f1b2a0abddbcb68a1da",
+      "status": "replaced-CC-BY-SA-3.0-US",
+      "license": "CC-BY-SA-3.0-US",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/weapons/blade_hitflsh2.ogg",
+      "source": "cc-by-sa-30-us/sounds/weapons/blade_hitflsh2.ogg",
+      "sha256": "1b1bb30e344481e884f8d4008a9e5b1109457b29514ef797842b08eff49b1c1b",
+      "previousSha256": "4bf356e421eea0211a8d591bca61611792b922d5db71d5faf28df30b0d7941c9",
+      "status": "replaced-CC-BY-SA-3.0-US",
+      "license": "CC-BY-SA-3.0-US",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/weapons/blade_hitflsh3.ogg",
+      "source": "cc-by-sa-30-us/sounds/weapons/blade_hitflsh3.ogg",
+      "sha256": "8fcadf9dffc8dfbeb039bb69ca86096f80d71ffcccc804654219e76916401ab7",
+      "previousSha256": "4f77ac5440da3895a99469675df7ac075d4b79ce1f1a90fc040ade930b05a04e",
+      "status": "replaced-CC-BY-SA-3.0-US",
+      "license": "CC-BY-SA-3.0-US",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/weapons/blade_hitwall1.ogg",
+      "source": "cc-by-sa-30-us/sounds/weapons/blade_hitwall1.ogg",
+      "sha256": "e541cdb241d6b9d908c243a5180a928da21100bc1f91129b0347f5c58137fcb8",
+      "previousSha256": "2be92ff0695767d67497d1f8f03eed9a5120927fa3ac3dc9d8ef9240fc869962",
+      "status": "replaced-CC-BY-SA-3.0-US",
+      "license": "CC-BY-SA-3.0-US",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/weapons/blade_hitwall2.ogg",
+      "source": "cc-by-sa-30-us/sounds/weapons/blade_hitwall2.ogg",
+      "sha256": "368ed187b6f8801c0a16590d4f97a27d92a3c511be03c354a19ba5594439527e",
+      "previousSha256": "8d9df660552df1ad50dc22ddc1117b68de158ad9bf9e9454d6db72d2bcd3f865",
+      "status": "replaced-CC-BY-SA-3.0-US",
+      "license": "CC-BY-SA-3.0-US",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/weapons/blade_strike1.ogg",
+      "source": "cc-by-sa-30-us/sounds/weapons/blade_strike1.ogg",
+      "sha256": "4834956bb56a2ac70dd42fa14a3ccc0e41d07518a5a6a05a60569a91d2a62ca7",
+      "previousSha256": "f7cf7e4f6b5dd4cb418023d66e18e42f5bf53689bcaaca8740a1f6c525ddae46",
+      "status": "replaced-CC-BY-SA-3.0-US",
+      "license": "CC-BY-SA-3.0-US",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/weapons/blade_strike2.ogg",
+      "source": "cc-by-sa-30-us/sounds/weapons/blade_strike2.ogg",
+      "sha256": "c7252020111d0ef828a77ac76bfd2d7f9d1898f0fea69bfb16c9d11aefece911",
+      "previousSha256": "33241db5bf4860d0eef2b9203d4b71aa592c3f7a7d656cd19fd08fba12115e84",
+      "status": "replaced-CC-BY-SA-3.0-US",
+      "license": "CC-BY-SA-3.0-US",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/weapons/blade_strike3.ogg",
+      "source": "cc-by-sa-30-us/sounds/weapons/blade_strike3.ogg",
+      "sha256": "95bb521f76cc1163dda40497214b46552818f407c99874add2f2887184e58cdc",
+      "previousSha256": "4ef70b53b1116d20b3890be92a53ff826cb7d1d9b443967538f8308bc3e672bb",
+      "status": "replaced-CC-BY-SA-3.0-US",
+      "license": "CC-BY-SA-3.0-US",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/weapons/bladegun_strong_fire.ogg",
+      "source": "cc-by-sa-30-us/sounds/weapons/bladegun_strong_fire.ogg",
+      "sha256": "8e251108eceeac561b80e18d4450833a00b229adffce42a04c3b32f181652645",
+      "previousSha256": "fb0c2ca6c457f100093d9a3da68644884c6c7b3e82860bd7c9dcf8628a41433e",
+      "status": "replaced-CC-BY-SA-3.0-US",
+      "license": "CC-BY-SA-3.0-US",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/weapons/bladegun_strong_hit_1.ogg",
+      "source": "cc-by-sa-30-us/sounds/weapons/bladegun_strong_hit_1.ogg",
+      "sha256": "d7c098e3e8e2b00194ea0f5c3f6962cd16e0781e50ff48975e348ca95c696f92",
+      "previousSha256": "4a4da2ebad4a06c823aa69bedcfefeaba184440629a5f2b0040f35f3b48a2d14",
+      "status": "replaced-CC-BY-SA-3.0-US",
+      "license": "CC-BY-SA-3.0-US",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/weapons/bladegun_strong_hit_2.ogg",
+      "source": "cc-by-sa-30-us/sounds/weapons/bladegun_strong_hit_2.ogg",
+      "sha256": "2b00458ce95112eb0f3fcf79c4965e34abb89dda66688e99a5e51c134c039993",
+      "previousSha256": "ca316c275ee6affdc4e9eccf2d0ac71c9ca6b738bdbe1042c0e1359aa8b084ff",
+      "status": "replaced-CC-BY-SA-3.0-US",
+      "license": "CC-BY-SA-3.0-US",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/weapons/bladegun_strong_hit_3.ogg",
+      "source": "cc-by-sa-30-us/sounds/weapons/bladegun_strong_hit_3.ogg",
+      "sha256": "5db53fea9471a24a770016089a33e42aebd5d2e85b711f86e999c35f2d787077",
+      "previousSha256": "eb7c27e4d0ec764fc5283c7970199b6cc3ca48092666e6204434c661e101f17b",
+      "status": "replaced-CC-BY-SA-3.0-US",
+      "license": "CC-BY-SA-3.0-US",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/weapons/electrobolt_hit.ogg",
+      "source": "cc-by-sa-30-us/sounds/weapons/electrobolt_hit.ogg",
+      "sha256": "317bc962e8fb4918cad428a1450448f944bbf57892acd81e03f31d7205a50721",
+      "previousSha256": "d79435c000b5a31dc633649e1abc7269513e6231ca5b8e69255a93eddacf3286",
+      "status": "replaced-CC-BY-SA-3.0-US",
+      "license": "CC-BY-SA-3.0-US",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/weapons/electrobolt_hum.ogg",
+      "source": "cc-by-sa-30-us/sounds/weapons/electrobolt_hum.ogg",
+      "sha256": "bf67fe3239d3a9f4cd20843c58781f42b9677ef6d51303b28896d1a7d2b751bc",
+      "previousSha256": "91c5b7ec2616f8f7ed3982ce459916504c2eb056eee3948986ddc5d88076841c",
+      "status": "replaced-CC-BY-SA-3.0-US",
+      "license": "CC-BY-SA-3.0-US",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/weapons/electrobolt_strong.ogg",
+      "source": "cc-by-sa-30-us/sounds/weapons/electrobolt_strong.ogg",
+      "sha256": "091fb62c13d4bf4e9e36ef95c000d3a8a026e42fc6cf06efa12092740d6b8988",
+      "previousSha256": "1f9a6f3cb67779603bcd4288b8cb218e5ab5d5b41236f91995b8518a7bc81a7a",
+      "status": "replaced-CC-BY-SA-3.0-US",
+      "license": "CC-BY-SA-3.0-US",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/weapons/gren_strong_bounce1.ogg",
+      "source": "cc-by-sa-30-us/sounds/weapons/gren_strong_bounce1.ogg",
+      "sha256": "52fe7cd0614859ad790ef362ce8a99cd004e4c28614163cbeea39e788f4d346b",
+      "previousSha256": "abf844b82bb07cfa573134b3ea658aa8e40c17dacc20ebba0b9787a763613bde",
+      "status": "replaced-CC-BY-SA-3.0-US",
+      "license": "CC-BY-SA-3.0-US",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/weapons/gren_strong_bounce2.ogg",
+      "source": "cc-by-sa-30-us/sounds/weapons/gren_strong_bounce2.ogg",
+      "sha256": "768035b44acdbc991470267637d460aaf6a5c98fdbe2fe02d9b2eb50b1932a1c",
+      "previousSha256": "eac8d705a6d467af504e68db141e1e3693b36173fc64fc7ca6a0f02134a206d8",
+      "status": "replaced-CC-BY-SA-3.0-US",
+      "license": "CC-BY-SA-3.0-US",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/weapons/gren_strong_explosion1.ogg",
+      "source": "cc-by-sa-30-us/sounds/weapons/gren_strong_explosion1.ogg",
+      "sha256": "bc7fc66beaf232548a83c0da83df5c0ec26c30607397b892937eff746e3428b6",
+      "previousSha256": "4dce36ba4d7ec79bb119a68f83c148bb9a6b08fc4ad3099d9682635d210811cc",
+      "status": "replaced-CC-BY-SA-3.0-US",
+      "license": "CC-BY-SA-3.0-US",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/weapons/gren_strong_explosion2.ogg",
+      "source": "cc-by-sa-30-us/sounds/weapons/gren_strong_explosion2.ogg",
+      "sha256": "f9d6f19a41a2148cd2c1f94f847331db1e144ba403466909c10eb68c2a7a39d5",
+      "previousSha256": "d3ffe037ac262de1c10fb0527b84f2699fa151b31c064b884886e50128294226",
+      "status": "replaced-CC-BY-SA-3.0-US",
+      "license": "CC-BY-SA-3.0-US",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/weapons/grenlaunch_strong.ogg",
+      "source": "cc-by-sa-30-us/sounds/weapons/grenlaunch_strong.ogg",
+      "sha256": "ec1bfc37186924477ac56b7c7a6dfac3398e2e794b5a8fff72c7ecdf8627083f",
+      "previousSha256": "44c93d1fce83256d0978c9cb3f0dbe794780cac689b28f28de685d90d9c224ac",
+      "status": "replaced-CC-BY-SA-3.0-US",
+      "license": "CC-BY-SA-3.0-US",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/weapons/instagun_strong.ogg",
+      "source": "cc-by-sa-30-us/sounds/weapons/instagun_strong.ogg",
+      "sha256": "4cff03e3297823eea2573fbfc38ea66bc6818e35896f9e01e0608f2269573294",
+      "previousSha256": "d136d121549cf70f16dfa9834a57a7b80fd619578a2e1663806ecad03c704a4e",
+      "status": "replaced-CC-BY-SA-3.0-US",
+      "license": "CC-BY-SA-3.0-US",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/weapons/laser_hit0.ogg",
+      "source": "cc-by-sa-30-us/sounds/weapons/laser_hit0.ogg",
+      "sha256": "62918ac0b51c71d478f72cfc79b8b980873915f04e300552d33e9f4d76df1688",
+      "previousSha256": "7e20194e9d71a58fcdccf1c5575f0c9d31ccab032967a8a02458a5fbe4bc1468",
+      "status": "replaced-CC-BY-SA-3.0-US",
+      "license": "CC-BY-SA-3.0-US",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/weapons/laser_hit1.ogg",
+      "source": "cc-by-sa-30-us/sounds/weapons/laser_hit1.ogg",
+      "sha256": "bcc722f896102a719f1c11e296fd2f468f5ee355256a717f0301ea0a72947a2d",
+      "previousSha256": "44d7f9d76c3333a3ca83c6e37c09a22dcf2545c4fd6ae7fcea750014b71d275d",
+      "status": "replaced-CC-BY-SA-3.0-US",
+      "license": "CC-BY-SA-3.0-US",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/weapons/laser_hit2.ogg",
+      "source": "cc-by-sa-30-us/sounds/weapons/laser_hit2.ogg",
+      "sha256": "a393f7004a2eee448107aa7e74a645f074972b36af0c4fece20199fa615cf045",
+      "previousSha256": "1a99d9029dd0e0774ec343bacffb092924fc84eddb25d6029c02e7449ee5a030",
+      "status": "replaced-CC-BY-SA-3.0-US",
+      "license": "CC-BY-SA-3.0-US",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/weapons/laser_strong_fire.ogg",
+      "source": "cc-by-sa-30-us/sounds/weapons/laser_strong_fire.ogg",
+      "sha256": "9cf3ec50b55cf56a4fdf76d3a03fb80aedc21e5179d36fbe1cb87e878eb34623",
+      "previousSha256": "abfd5ae8ad415a262cfee15aea97101ce76d47ddab6b4121a0c4fb594b131bbb",
+      "status": "replaced-CC-BY-SA-3.0-US",
+      "license": "CC-BY-SA-3.0-US",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/weapons/laser_strong_hum.ogg",
+      "source": "cc-by-sa-30-us/sounds/weapons/laser_strong_hum.ogg",
+      "sha256": "a8931c10e662edee4fe1c707d9bca8d9618ff32aa4368c1006026dd60d64ae2d",
+      "previousSha256": "4945fc898279a0816ab42aaebd27bbaaedd659b74918eb33e4fccec91c98faff",
+      "status": "replaced-CC-BY-SA-3.0-US",
+      "license": "CC-BY-SA-3.0-US",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/weapons/laser_strong_quad_hum.ogg",
+      "source": "cc-by-sa-30-us/sounds/weapons/laser_strong_quad_hum.ogg",
+      "sha256": "fef33e15b74402203968b7f2deb43b20e243b99ed6d96064ced5cfe6079b5c7f",
+      "previousSha256": "fd9703ac0e5413f80ade059aa6e5b0210e944dd1fe5dbabd19a5464c098aadcf",
+      "status": "replaced-CC-BY-SA-3.0-US",
+      "license": "CC-BY-SA-3.0-US",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/weapons/laser_strong_stop.ogg",
+      "source": "cc-by-sa-30-us/sounds/weapons/laser_strong_stop.ogg",
+      "sha256": "078b009b943c8c662cb3ca1c968eac40ea0442f9b85a80a3f3972a134b005532",
+      "previousSha256": "1964804572b0bc95d327f2417bc39b4eb17067892c75e74989133446a8b67c5a",
+      "status": "replaced-CC-BY-SA-3.0-US",
+      "license": "CC-BY-SA-3.0-US",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/weapons/machinegun_fire.ogg",
+      "source": "cc-by-sa-30-us/sounds/weapons/machinegun_fire.ogg",
+      "sha256": "79aedb952ecc651860b00cd6db77569294775423def94ecadea04d6fe6f4ad05",
+      "previousSha256": "07925fbd39076f5f983d8511a05f6affd1a473bdeb39c120677fbd2d5f35d0bc",
+      "status": "replaced-CC-BY-SA-3.0-US",
+      "license": "CC-BY-SA-3.0-US",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/weapons/plasmagun_strong_explosion.ogg",
+      "source": "cc-by-sa-30-us/sounds/weapons/plasmagun_strong_explosion.ogg",
+      "sha256": "a0c823ba50aace84ba13ff3cf74ea7c074d5dc14bd12d63800b901de5b4ab38f",
+      "previousSha256": "1521ef0aa6cd361024908383dcffc8405552dddd9cca73ca52f968b3f6436970",
+      "status": "replaced-CC-BY-SA-3.0-US",
+      "license": "CC-BY-SA-3.0-US",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/weapons/plasmagun_strong_fly.ogg",
+      "source": "cc-by-sa-30-us/sounds/weapons/plasmagun_strong_fly.ogg",
+      "sha256": "653b3f217964b7ce2e63a3592c64f67b1eeb25b705f5d21ab5113445b1761eb1",
+      "previousSha256": "c6b15be3f87f7ceadd7e9fe899f8586b3b9137db3bace94369cbca3fe54d2e85",
+      "status": "replaced-CC-BY-SA-3.0-US",
+      "license": "CC-BY-SA-3.0-US",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/weapons/plasmagun_strong1.ogg",
+      "source": "cc-by-sa-30-us/sounds/weapons/plasmagun_strong1.ogg",
+      "sha256": "047bdcca14da06c9e8218888ad5ce800cc29943cf58e2de2ab4a527d4f8fc237",
+      "previousSha256": "f6b0463d5e434484fd0ded1cc33e3e0b3520b0172ebc121b65ea4004fce1f6b5",
+      "status": "replaced-CC-BY-SA-3.0-US",
+      "license": "CC-BY-SA-3.0-US",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/weapons/plasmagun_strong2.ogg",
+      "source": "cc-by-sa-30-us/sounds/weapons/plasmagun_strong2.ogg",
+      "sha256": "1e144bb248c7550355bb94b434bc9064f467fe3eff8937b288cfba18d6efe8d2",
+      "previousSha256": "264ed387deb7ae2b59dc6fc4b3d131d02ed4854ab8a1ff91bf93bbf59fad5a58",
+      "status": "replaced-CC-BY-SA-3.0-US",
+      "license": "CC-BY-SA-3.0-US",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/weapons/plasmagun_strong3.ogg",
+      "source": "cc-by-sa-30-us/sounds/weapons/plasmagun_strong3.ogg",
+      "sha256": "902e41c8bbaa929bdb81538703cb42fcef56965038eee65d1bc97f860349f483",
+      "previousSha256": "efaf18c1767a2a4760596a93b89a422dae0aaf6a71d459d88101de653c6d79d3",
+      "status": "replaced-CC-BY-SA-3.0-US",
+      "license": "CC-BY-SA-3.0-US",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/weapons/reload.ogg",
+      "source": "cc-by-sa-30-us/sounds/weapons/weapon_switch.ogg",
+      "sha256": "f2e520cfc7c6c820b37ff773016cb247ad59adb564b5311583ac5a8f7df01b20",
+      "status": "new-CC-BY-SA-3.0-US-alias",
+      "license": "CC-BY-SA-3.0-US",
+      "modifications": "None; byte-identical recording; filename alias"
+    },
+    {
+      "path": "sounds/weapons/ric1.ogg",
+      "source": "cc-by-sa-30-us/sounds/weapons/ric1.ogg",
+      "sha256": "bc5e087f8275e516294949abc515df86415968208d842d4c800ee866c80041b3",
+      "previousSha256": "e718170d6279cfb6819f335c0392cd3e9548b4b330dd32145aa72fb464b2e38a",
+      "status": "replaced-CC-BY-SA-3.0-US",
+      "license": "CC-BY-SA-3.0-US",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/weapons/ric2.ogg",
+      "source": "cc-by-sa-30-us/sounds/weapons/ric2.ogg",
+      "sha256": "b8ffb2101069c9e94646bdccabc81b43d90ce922b5feee856d7687a0c99aa227",
+      "previousSha256": "fd74085cd14075cc36818a4b4eb0548c2e3d65ea962a9e7b3813ed404926119d",
+      "status": "replaced-CC-BY-SA-3.0-US",
+      "license": "CC-BY-SA-3.0-US",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/weapons/riotgun_fire_strong.ogg",
+      "source": "cc-by-sa-30-us/sounds/weapons/riotgun_fire_strong.ogg",
+      "sha256": "54615561e31763fc38985ba5a860c0a289ec8cf2029f6ce95a6507a18d3f58a9",
+      "previousSha256": "d3a242658cbe4c016b525d6019130f2111da1f2ac760037677916eac6d038fc8",
+      "status": "replaced-CC-BY-SA-3.0-US",
+      "license": "CC-BY-SA-3.0-US",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/weapons/riotgun_strong_hit.ogg",
+      "source": "cc-by-sa-30-us/sounds/weapons/riotgun_strong_hit.ogg",
+      "sha256": "ad9c6bb664cad2323c641addb824cd8158109dd94145ff595b2ceb4857ab0249",
+      "previousSha256": "33fd4085d6a04e8f8213e8642ac2aecf122a1da26c78cdf3d4f10f8a328dcebf",
+      "status": "replaced-CC-BY-SA-3.0-US",
+      "license": "CC-BY-SA-3.0-US",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/weapons/rocket_fire_strong.ogg",
+      "source": "cc-by-sa-30-us/sounds/weapons/rocket_fire_strong.ogg",
+      "sha256": "c43dc6825d5aecdba9ace751627d5c44dc085fd0073b524ed8f4cdaed263339c",
+      "previousSha256": "f666cf4c2fa1c559c855a2e5b91dea55b505492380663a38c70e14a195838564",
+      "status": "replaced-CC-BY-SA-3.0-US",
+      "license": "CC-BY-SA-3.0-US",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/weapons/rocket_fly_strong.ogg",
+      "source": "cc-by-sa-30-us/sounds/weapons/rocket_fly_strong.ogg",
+      "sha256": "7cfeb972d57662866656d42b8114b6d2c901fe7c5fc59b8f470a7642b8be4f56",
+      "previousSha256": "18bab942c515f1f4fd855329c7acfe25913edfe3e12efd75341bfe6be3a61005",
+      "status": "replaced-CC-BY-SA-3.0-US",
+      "license": "CC-BY-SA-3.0-US",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/weapons/rocket_strong_explosion.ogg",
+      "source": "cc-by-sa-30-us/sounds/weapons/rocket_strong_explosion.ogg",
+      "sha256": "53aa8395e414462311195c1e2edfa36a2482a24f9e99266dcfeac4385d85b5ab",
+      "previousSha256": "2297d782b4d356d3fddf3d49ceac0b71d950ce01eaa9e4bf36538eb3a39b6f55",
+      "status": "replaced-CC-BY-SA-3.0-US",
+      "license": "CC-BY-SA-3.0-US",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/weapons/weapon_noammo.ogg",
+      "source": "cc-by-sa-30-us/sounds/weapons/weapon_noammo.ogg",
+      "sha256": "efd04e970056b30096aa082b7d375ac4e156c16f3ba0d130633b41dea1c769a4",
+      "previousSha256": "27961ea9b72c7bb86170cdced8bc5d4babc2b05b24e21e6b7d8337cceb07d81d",
+      "status": "replaced-CC-BY-SA-3.0-US",
+      "license": "CC-BY-SA-3.0-US",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/weapons/weapon_switch.ogg",
+      "source": "cc-by-sa-30-us/sounds/weapons/weapon_switch.ogg",
+      "sha256": "f2e520cfc7c6c820b37ff773016cb247ad59adb564b5311583ac5a8f7df01b20",
+      "previousSha256": "88623e13535bbdc0d802e9deafd533890821cfd8b368d4fec541f1430db61596",
+      "status": "replaced-CC-BY-SA-3.0-US",
+      "license": "CC-BY-SA-3.0-US",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/world/dong.wav",
+      "source": "cc0/sounds/world/dong.wav",
+      "sha256": "ef80746301d8d2338581b09c4892372f81dc22e03a40d782d21aa2b0e7ba93e5",
+      "previousSha256": "9761d0c281b672d7886bd1cae29f51043ee181f53d316dd2c41fcef1bb8e6b01",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/world/ft_step_met1.ogg",
+      "source": "cc0/sounds/world/ft_step_met1.ogg",
+      "sha256": "d1a20e5e21bef337a0bfe0ace911f8e76e539bb55e4a4883f76f4806846306e6",
+      "previousSha256": "d22191a86edc4e7ee3abff5fc9648176fc15661dc55e21a426e3eaf1f20a5f8f",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/world/ft_step_met2.ogg",
+      "source": "cc0/sounds/world/ft_step_met2.ogg",
+      "sha256": "d693e087cdf560b97a5679d93dd1c693de47eb5ea244095a80d68e96e4045ad9",
+      "previousSha256": "0f4707bad4e3517303fb4d9688b28c9694c219107d83a64d837db1622153ee61",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/world/ft_step_met3.ogg",
+      "source": "cc0/sounds/world/ft_step_met3.ogg",
+      "sha256": "4e615013221af9de8d198ba0424a98da5d14bfe94c138f8fade0c7d9c4859117",
+      "previousSha256": "ce5e151d0433655c2223b94eb78321fc84a2b1abe6328250b34203a9bed22e60",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/world/ft_step1.ogg",
+      "source": "cc0/sounds/world/ft_step1.ogg",
+      "sha256": "0859b6f4bb503064b1d69ebe45aace8761200fcc3dd1501cb90da8c8dd5ff73d",
+      "previousSha256": "d1399c10d4df450f41ebc1d68c908b93f0d07c0b6514ddda5c9bccc0d4e16612",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/world/ft_step2.ogg",
+      "source": "cc0/sounds/world/ft_step2.ogg",
+      "sha256": "6796d0c3fc3d5055e5b87e6dc52ae2790aca7ac048b3a271bf2075f03dd78cdf",
+      "previousSha256": "23dba896172869ef0a11a866cf9cf2411b58fc39bee798fa77a37557c34458ce",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/world/ft_step3.ogg",
+      "source": "cc0/sounds/world/ft_step3.ogg",
+      "sha256": "b2d66ec339ef4a2be2b88cff604bd793d9b9088b8d936b549814fd07b505b002",
+      "previousSha256": "e6794a0c9a8142d5945add8b2416f717d9cd345ec26dade81568f5fb3098ae6f",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/world/ft_walljump_failed.ogg",
+      "source": "cc0/sounds/world/ft_walljump_failed.ogg",
+      "sha256": "a58204f3b22b75a2d5d75fc5ad531599ab9466db6e3ae22e53eb3ee9cb42410b",
+      "previousSha256": "c55b3392a0e17c839d762d40306e5c829600263936b31cea700002d74a5412a5",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/world/jumppad.ogg",
+      "source": "cc0/sounds/world/jumppad.ogg",
+      "sha256": "c00bb212013e356cbe5a4776c9523a18fc24809a105d512acbfc3e37e2747c2c",
+      "previousSha256": "c98e3587374d45ab982e71c49c4aff0a5183af922f52f3e69df7d7a4894c2c47",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/world/launchpad.ogg",
+      "source": "cc0/sounds/world/launchpad.ogg",
+      "sha256": "e768d9be54cbd446cc9665d103478c8a905352848a72e4ff6c387a19e8575765",
+      "previousSha256": "9b18ba1f5ce74aee1081edcdf0f0b6a05f016f52b4e36095eb4c06bafb32f29d",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/world/lava_in.ogg",
+      "source": "cc0/sounds/world/lava_in.ogg",
+      "sha256": "4d07f50b0d7904b5b0711f4489a68b54aeb0befb5e0fe94e4ec729f7270d201a",
+      "previousSha256": "9310fb2170190d385e8c40bfd70f11470fc0a684e8aac50b71bc90469f7fc196",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/world/lava_out.ogg",
+      "source": "cc0/sounds/world/lava_out.ogg",
+      "sha256": "4d92b95db000a711ab3bbd7b242b91368b41e42ddd6166df5b206bdb8f80c38c",
+      "previousSha256": "81ea8dce15bf1a1b4033c273a6ddfca38556a811a8fc5bd6cb73524818a5aee7",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/world/player_respawn.ogg",
+      "source": "cc0/sounds/world/player_respawn.ogg",
+      "sha256": "478f953ebc4f79655dae4a24ffa3007688a7e42ba57a9dd3a7782302c229b6cb",
+      "previousSha256": "46e784efaeda1d3fd4784d9d9fd65a37dd5bdec5c45833470574521ff22d3f89",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/world/tele_in.ogg",
+      "source": "cc0/sounds/world/tele_in.ogg",
+      "sha256": "d9bb26abf73ff81d0dcdab53142b817013d3e11d736d976da98d8d09fb1939c8",
+      "previousSha256": "46e784efaeda1d3fd4784d9d9fd65a37dd5bdec5c45833470574521ff22d3f89",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/world/underlava.ogg",
+      "source": "cc0/sounds/world/underlava.ogg",
+      "sha256": "4fe27c0ceff1a1f2e0ba43ad46ad47420bc2e1c503cd3875cbdee4fd87f397a0",
+      "previousSha256": "a6b7e6aecfc04b305ed7cdcbc24fa9042c7e87a71773e63b06fa8bdf0782e044",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/world/underwater.ogg",
+      "source": "cc0/sounds/world/underwater.ogg",
+      "sha256": "3caf8ed7acc1c4202fa6b1954cc93c1c28c92011984318c5f085f3906f208bd4",
+      "previousSha256": "ab142727aca49c7a044c417de81752409f858fbdea9005d7e6437f87aa28a9f1",
+      "status": "replaced-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/world/water_in.ogg",
+      "source": "cc0/sounds/world/water_in.ogg",
+      "sha256": "b282c210193b3a464bcac8e638632a46fbfc359f0be62bce6a0ecbf5260df51e",
+      "previousSha256": "b282c210193b3a464bcac8e638632a46fbfc359f0be62bce6a0ecbf5260df51e",
+      "status": "already-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "sounds/world/water_out.ogg",
+      "source": "cc0/sounds/world/water_out.ogg",
+      "sha256": "82a73a568604182be97b22be28c54dc82c41627905cbeeeb24fbbdc3f699322a",
+      "previousSha256": "82a73a568604182be97b22be28c54dc82c41627905cbeeeb24fbbdc3f699322a",
+      "status": "already-CC0",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording"
+    },
+    {
+      "path": "ui_click.wav",
+      "source": "cc0/sounds/menu/mouseover.wav",
+      "sha256": "c749bd42e5fd4cf0154fab3581d995f2bf50165ca814b0c605e952ebca782f81",
+      "status": "new-CC0-alias",
+      "license": "CC0-1.0",
+      "modifications": "None; byte-identical recording; filename alias"
+    }
+  ],
+  "excluded": [
+    {
+      "path": "sounds/players/padpork/dash_1.ogg",
+      "source": "sounds/players/padpork/dash_1.ogg",
+      "status": "removed",
+      "reason": "Padpork voice bank is not offered; Male, Female and Bobot only"
+    },
+    {
+      "path": "sounds/players/padpork/dash_2.ogg",
+      "source": "sounds/players/padpork/dash_2.ogg",
+      "status": "removed",
+      "reason": "Padpork voice bank is not offered; Male, Female and Bobot only"
+    },
+    {
+      "path": "sounds/players/padpork/death.ogg",
+      "source": "sounds/players/padpork/death.ogg",
+      "status": "removed",
+      "reason": "Padpork voice bank is not offered; Male, Female and Bobot only"
+    },
+    {
+      "path": "sounds/players/padpork/drown.ogg",
+      "source": "sounds/players/padpork/drown.ogg",
+      "status": "removed",
+      "reason": "Padpork voice bank is not offered; Male, Female and Bobot only"
+    },
+    {
+      "path": "sounds/players/padpork/fall_0.ogg",
+      "source": "sounds/players/padpork/fall_0.ogg",
+      "status": "removed",
+      "reason": "Padpork voice bank is not offered; Male, Female and Bobot only"
+    },
+    {
+      "path": "sounds/players/padpork/fall_1.ogg",
+      "source": "sounds/players/padpork/fall_1.ogg",
+      "status": "removed",
+      "reason": "Padpork voice bank is not offered; Male, Female and Bobot only"
+    },
+    {
+      "path": "sounds/players/padpork/fall_2.ogg",
+      "source": "sounds/players/padpork/fall_2.ogg",
+      "status": "removed",
+      "reason": "Padpork voice bank is not offered; Male, Female and Bobot only"
+    },
+    {
+      "path": "sounds/players/padpork/falldeath.ogg",
+      "source": "sounds/players/padpork/falldeath.ogg",
+      "status": "removed",
+      "reason": "Padpork voice bank is not offered; Male, Female and Bobot only"
+    },
+    {
+      "path": "sounds/players/padpork/jump_1.ogg",
+      "source": "sounds/players/padpork/jump_1.ogg",
+      "status": "removed",
+      "reason": "Padpork voice bank is not offered; Male, Female and Bobot only"
+    },
+    {
+      "path": "sounds/players/padpork/jump_2.ogg",
+      "source": "sounds/players/padpork/jump_2.ogg",
+      "status": "removed",
+      "reason": "Padpork voice bank is not offered; Male, Female and Bobot only"
+    },
+    {
+      "path": "sounds/players/padpork/pain100.ogg",
+      "source": "sounds/players/padpork/pain100.ogg",
+      "status": "removed",
+      "reason": "Padpork voice bank is not offered; Male, Female and Bobot only"
+    },
+    {
+      "path": "sounds/players/padpork/pain25.ogg",
+      "source": "sounds/players/padpork/pain25.ogg",
+      "status": "removed",
+      "reason": "Padpork voice bank is not offered; Male, Female and Bobot only"
+    },
+    {
+      "path": "sounds/players/padpork/pain50.ogg",
+      "source": "sounds/players/padpork/pain50.ogg",
+      "status": "removed",
+      "reason": "Padpork voice bank is not offered; Male, Female and Bobot only"
+    },
+    {
+      "path": "sounds/players/padpork/pain75.ogg",
+      "source": "sounds/players/padpork/pain75.ogg",
+      "status": "removed",
+      "reason": "Padpork voice bank is not offered; Male, Female and Bobot only"
+    },
+    {
+      "path": "sounds/players/padpork/wj_1.ogg",
+      "source": "sounds/players/padpork/wj_1.ogg",
+      "status": "removed",
+      "reason": "Padpork voice bank is not offered; Male, Female and Bobot only"
+    },
+    {
+      "path": "sounds/players/padpork/wj_2.ogg",
+      "source": "sounds/players/padpork/wj_2.ogg",
+      "status": "removed",
+      "reason": "Padpork voice bank is not offered; Male, Female and Bobot only"
+    }
+  ],
+  "licenses": [
+    {
+      "id": "CC0-1.0",
+      "notice": "cc0/warfork_assets_cc0.txt",
+      "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "credits": [
+        "Team Forbidden LLC",
+        "Caine",
+        "MaxCarnage"
+      ]
+    },
+    {
+      "id": "CC-BY-SA-3.0-US",
+      "notice": "cc-by-sa-30-us/warfork_assets_cc-by-sa-30-us.txt",
+      "url": "https://creativecommons.org/licenses/by-sa/3.0/us/",
+      "credits": [
+        "Michael 'Tenshihan' Quinn",
+        "Team Forbidden LLC"
+      ]
+    }
+  ]
+}

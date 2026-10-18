@@ -3,6 +3,7 @@
   "root": "models/weapons/",
   "sourceDir": "assets-source/weapons/exports",
   "basePackage": "assets-source/weapons/z_weapons-source.pk3",
+  "projectilePackage": "assets-source/weapons/projectiles.pk3",
   "credits": [
     {
       "asset": "blade/arc_blade.glb",

@@ -5,6 +5,7 @@ import JSZip from "jszip";
 import { BspLoader } from "../engine/loader/bsp/BspLoader";
 import { parseShaderFile } from "../engine/loader/shader/Q3ShaderParser";
 import type { Q3Shader } from "../engine/loader/shader/Q3ShaderTypes";
+import { shaderSourceBlocks } from "../engine/loader/shader/ShaderSourceBlocks";
 
 const hash = (bytes: ArrayLike<number>) => createHash("sha256").update(Uint8Array.from(bytes)).digest("hex");
 const normalize = (name: string) => name.replace(/\\/g, "/").replace(/^\//, "").toLowerCase();
@@ -14,26 +15,7 @@ const companion = ["_norm", "_normal", "_bump", "_gloss", "_spec", "_glow"];
 
 /** Keep original stage syntax and conditionals instead of reserializing parser objects. */
 export function shaderBlocks(source: string): { name: string; source: string }[] {
-  const clean = source.replace(/\/\*[\s\S]*?\*\/|\/\/[^\r\n]*/g, (value) => " ".repeat(value.length));
-  const tokens = [...clean.matchAll(/"(?:\\.|[^"\\])*"|[{}]|[^\s{}]+/g)];
-  const result: { name: string; source: string }[] = [];
-  for (let i = 0; i < tokens.length; i++) {
-    const name = tokens[i];
-    if (tokens[i + 1]?.[0] !== "{") continue;
-    const start = name.index;
-    let depth = 0;
-    let end = 0;
-    for (i++; i < tokens.length; i++) {
-      if (tokens[i][0] === "{") depth++;
-      if (tokens[i][0] === "}" && --depth === 0) {
-        end = tokens[i].index + 1;
-        break;
-      }
-    }
-    if (!end) throw new Error(`Unclosed shader ${name[0]}`);
-    result.push({ name: stem(name[0].replace(/^"|"$/g, "")), source: source.slice(start, end) });
-  }
-  return result;
+  return shaderSourceBlocks(source).map((block) => ({ ...block, name: stem(block.name) }));
 }
 
 export function textureCandidates(reference: string): string[] {

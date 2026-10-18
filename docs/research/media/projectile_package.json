@@ -1,0 +1,180 @@
+{
+  "sourceSha256": "49fa7e1f5b36074f2472077836d865e98685e7fd7dc8a0e55a091b6506a8a4d1",
+  "files": [
+    {
+      "name": "models/objects/projectile/glauncher/grenade_pulse.png",
+      "bytes": 23664,
+      "sha256": "4f1ac38072c2ed9d80408ba56ff85ae523738884658c9835c0956554e3f030b6"
+    },
+    {
+      "name": "models/objects/projectile/glauncher/grenade.png",
+      "bytes": 22864,
+      "sha256": "baad26ac685f60c1f6446dae4baf07101c564ac111845b72af734feb7087dc05"
+    },
+    {
+      "name": "models/objects/projectile/glauncher/grenadegradstrong.png",
+      "bytes": 6762,
+      "sha256": "ef2b17f6ed8fd4d2f341feb46dffb189a3a153d3e58460b42e9dc2ac51b1cb59"
+    },
+    {
+      "name": "models/objects/projectile/glauncher/grenadestrong_flare.png",
+      "bytes": 290,
+      "sha256": "163a0a0c5a57ededd137f29e30296323e8bc93c235d29f5f651f1624f7b10d86"
+    },
+    {
+      "name": "models/objects/projectile/glauncher/grenadestrong.md3",
+      "bytes": 19492,
+      "sha256": "2c3b94a4f1b8cbe43e54003f39aa4c9a7e38c587c0a16d6149e91b6d2ce720b7"
+    },
+    {
+      "name": "models/objects/projectile/gunblade/proj_gunblade_ring.png",
+      "bytes": 2665,
+      "sha256": "12ae716e0b52a405261790de9d56a4c6bbb9c269f211d31c555ae4cedbb9af0b"
+    },
+    {
+      "name": "models/objects/projectile/gunblade/proj_gunblade.png",
+      "bytes": 24531,
+      "sha256": "84efa8116f8bd843536417d77cfb1ee0588ca69902099c8e0c95bb164b6e9c38"
+    },
+    {
+      "name": "models/objects/projectile/gunblade/proj_gunbladeblast.md3",
+      "bytes": 7340,
+      "sha256": "9c39f9567b2f1e831eec2e6b61962c5d6cac848b5387c8951e665ddc0f82599c"
+    },
+    {
+      "name": "models/objects/projectile/plasmagun/plnew.png",
+      "bytes": 29464,
+      "sha256": "23aa24b66f53773c56553283fd35d9da63e109ebe83b7b81c64025639a95fa2b"
+    },
+    {
+      "name": "models/objects/projectile/plasmagun/plnew1.png",
+      "bytes": 55893,
+      "sha256": "c09f83fdfa5a246238a43bf72435afd6bdc3a845a22ce3b9af581267fdbc3c4b"
+    },
+    {
+      "name": "models/objects/projectile/plasmagun/plring.png",
+      "bytes": 2566,
+      "sha256": "a8b5db71b6d2794033b912cbde6857bb088a20f853f7097be5473806e17ea020"
+    },
+    {
+      "name": "models/objects/projectile/plasmagun/proj_plasmagun.md3",
+      "bytes": 3444,
+      "sha256": "8fe1783e3091421ca39cbcf0031cb248757cb3c2932cf9412d104a9b5f63bdf7"
+    },
+    {
+      "name": "models/objects/projectile/rlauncher/rocket_flare.png",
+      "bytes": 166860,
+      "sha256": "1aa9113f2c7409c9372e3c1f47ec066546ca5149683a6296f092a035fdfaae1c"
+    },
+    {
+      "name": "models/objects/projectile/rlauncher/rocket_strong.md3",
+      "bytes": 19524,
+      "sha256": "069d089fffd3d2ed318527a4e1e56bfa1d724fa777f0b00d96b883c6d6ace1a4"
+    },
+    {
+      "name": "models/objects/projectile/rlauncher/rocket_strong.png",
+      "bytes": 100916,
+      "sha256": "e6252eb96b8e680a61472d296bddaf56a8813c707702273bf5cf9e200f967684"
+    },
+    {
+      "name": "models/objects/projectile/rlauncher/rocket.png",
+      "bytes": 70841,
+      "sha256": "4a3aeb212de0f65be13ae6c6ace4fd18e18626ed39071c98a63e3d9c20d5b084"
+    },
+    {
+      "name": "models/weapon_hits/glauncher/hit_glauncher.md3",
+      "bytes": 3988,
+      "sha256": "dd1304b41a964f6c523dd29648f8d6d419f133a4b2f64b03ab2e0dda33613a99"
+    },
+    {
+      "name": "models/weapon_hits/glauncher/hit_glauncherstrong.md3",
+      "bytes": 10092,
+      "sha256": "e3e9ceb0cd9fefb9a2c43e0628ff37a7a2a9f71c7c523f023f5760b8b257e19a"
+    },
+    {
+      "name": "models/weapon_hits/glauncher/hit_glauncherstrong.png",
+      "bytes": 42521,
+      "sha256": "88c5dc0a45ca057b6872568629afcc0150b3a9654d552abf606c7bd16188c6d8"
+    },
+    {
+      "name": "models/weapon_hits/glauncher/hit_glauncherweak.md3",
+      "bytes": 10092,
+      "sha256": "61b60c95166f19db5e76b1bdd8e37f2a9b2d39d40339a9ce8bece7964d188d26"
+    },
+    {
+      "name": "models/weapon_hits/glauncher/hit_glauncherweak.png",
+      "bytes": 50124,
+      "sha256": "530650b585de6ee8b27193e5f2d79abc8f1ff4ce6918f4d7fe1732adc707f84e"
+    },
+    {
+      "name": "models/weapon_hits/gunblade/hit_blast.md3",
+      "bytes": 704,
+      "sha256": "3a68d1ba78900c06980d180ae403857405040f79306f5da0ef6dd9e89329bd71"
+    },
+    {
+      "name": "models/weapon_hits/gunblade/hit_blast.png",
+      "bytes": 361,
+      "sha256": "d4d34ec689df7776b08188c477f173a2f2d1ab6b3fceb6a0215dcb478223e696"
+    },
+    {
+      "name": "models/weapon_hits/gunblade/hit_blastexp.md3",
+      "bytes": 5068,
+      "sha256": "e8c43e07622bc8a2004fea218ff2cb4b36fbb96a147ed373b4c6d0996f9b3b32"
+    },
+    {
+      "name": "models/weapon_hits/gunblade/hit_blastexp.png",
+      "bytes": 76102,
+      "sha256": "c91e10fe43e2fdc5ab3dae346ecb5a492e136ed19002b7f0fa9c29bf67d8eb02"
+    },
+    {
+      "name": "models/weapon_hits/plasmagun/hit_plasmagun.md3",
+      "bytes": 3724,
+      "sha256": "c643de50acebba2bedce166fd5290e782726f752b03b66bc872420a5af9356ab"
+    },
+    {
+      "name": "models/weapon_hits/plasmagun/plasmagun_hit.png",
+      "bytes": 87541,
+      "sha256": "f229e7f4b0a39cbb7b5910d9ba493dddadb7d1d2e62fb1189c5316d12a32e0fa"
+    },
+    {
+      "name": "models/weapon_hits/rlauncher/hit_ring.png",
+      "bytes": 70009,
+      "sha256": "38efd00a5ae0a9ba2ade4bf23bb24733b02e29e478bc3cb3a0a0acbb71cb44b1"
+    },
+    {
+      "name": "models/weapon_hits/rlauncher/hit_rlauncher.md3",
+      "bytes": 2724,
+      "sha256": "cf3593db3236cd7b5b7afd7a9f8f18e60955da78388d159a53cce4f84c568e5e"
+    },
+    {
+      "name": "models/weapon_hits/rlauncher/hit_rlauncher.png",
+      "bytes": 55718,
+      "sha256": "715bbb692365926b3cfc0e6056dee3bae634ee74d8bac57bc45d9effcc869149"
+    },
+    {
+      "name": "models/weapon_hits/rlauncher/hit_rlauncherstrong.md3",
+      "bytes": 10092,
+      "sha256": "06558ceabe82cfaa85fbfe141e4ece93d3e2ab8debfa871d9bd826e543a0fd03"
+    },
+    {
+      "name": "models/weapon_hits/rlauncher/hit_rlauncherstrong.png",
+      "bytes": 7313,
+      "sha256": "c3afed9f64cfa1337350c6fac118cc471aa80c1c335f4186827425304a64137c"
+    },
+    {
+      "name": "models/weapon_hits/rlauncher/hit_rlauncherweak.md3",
+      "bytes": 10092,
+      "sha256": "c34f9e61d0a5babc1ef36ebbd34f6aa6bfd9948a6a4594c0e6eac410c2764da8"
+    },
+    {
+      "name": "models/weapon_hits/rlauncher/hit_rlauncherweak.png",
+      "bytes": 7313,
+      "sha256": "f9de5aaaf4100ebf96c43f0dd0b23479cc771ef5a6dc8d8925cc3782231a2ea5"
+    },
+    {
+      "name": "scripts/washoi_projectiles.shader",
+      "bytes": 1954,
+      "sha256": "c0f0fc6fa85607a157226159bf8057b0903150a49b18af5f5271eb645cd86c86"
+    }
+  ]
+}

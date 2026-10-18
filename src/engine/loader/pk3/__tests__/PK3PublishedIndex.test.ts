@@ -50,6 +50,29 @@ async function fixture() {
   return { dir, report, text, manifest };
 }
 
+it("indexes bare halo aliases and top-level definitions without indexing stage tokens", async () => {
+  const dir = await directory();
+  await pack(dir, "halos.pk3", {
+    "scripts/halos.shader": `/* phantom { } */
+halo { { clampmap textures/halo.png } }
+halo_large
+{ if deluxe { { map textures/halo.png } } }
+"mapobjects_leds_orange" { { map textures/led.png } }
+textures/regular { { map textures/regular.png } }`,
+  });
+  await generatePk3Index(dir);
+  const index = JSON.parse(await readFile(join(dir, "pk3_index.json"), "utf8"));
+  expect(index.shaders.halo).toBe("halos.pk3");
+  expect(index.shaders.halo_large).toBe("halos.pk3");
+  expect(index.shaders.mapobjects_leds_orange).toBe("halos.pk3");
+  expect(Object.keys(index.shaders).sort()).toEqual([
+    "halo",
+    "halo_large",
+    "mapobjects_leds_orange",
+    "textures/regular",
+  ]);
+});
+
 function serve(parts: Map<string, string | Uint8Array>) {
   const requests: Array<{ url: string; method: string; cache?: RequestCache }> = [];
   vi.stubGlobal("fetch", async (url: string, options: RequestInit = {}) => {

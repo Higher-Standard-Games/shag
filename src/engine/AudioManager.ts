@@ -26,6 +26,7 @@ const CHANNEL_CVARS: ReadonlyArray<readonly [string, SfxChannel, string]> = [
   ["cg_volume_hitsound", "hits", "Hit and kill confirmation (0-1)"],
   ["cg_volume_announcer", "announcer", "The announcer (0-1)"],
 ];
+const DEFAULT_SFX_VOLUME = 1;
 
 export class AudioManager {
   private static instance: AudioManager;
@@ -41,7 +42,7 @@ export class AudioManager {
   private musicEnabled = true;
 
   // Sound effects state
-  private sfxVolume = 0.7;
+  private sfxVolume = DEFAULT_SFX_VOLUME;
   private sfxEnabled = true;
   private readonly sfxBackend = new AudioV2Sfx();
 
@@ -100,7 +101,7 @@ export class AudioManager {
       onChange: (v) => this.setMusicEnabled(v as boolean),
     });
 
-    Cvar.register("s_sfxvolume", this.sfxVolume, {
+    Cvar.register("s_sfxvolume", DEFAULT_SFX_VOLUME, {
       type: "float",
       min: 0,
       max: 1,
@@ -113,6 +114,7 @@ export class AudioManager {
       description: "Sound effects enabled (0/1)",
       onChange: (v) => this.setSfxEnabled(v as boolean),
     });
+    this.setSfxVolume(Cvar.getNumber("s_sfxvolume"));
 
     // Each channel's share of the effects volume, under Warsow's names
     for (const [name, channel, description] of CHANNEL_CVARS) {

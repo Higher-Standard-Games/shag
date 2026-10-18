@@ -21,7 +21,7 @@ async function exportsIn(directory, prefix = '') {
 }
 
 /** Preserve the original override bank and add validated, embedded runtime exports. */
-export async function buildWeaponModelPackage(sourceDir, basePackage) {
+export async function buildWeaponModelPackage(sourceDir, basePackage, projectilePackage = null) {
   const names = await exportsIn(sourceDir);
   for (const name of recipe.required)
     if (!names.includes(name)) throw new Error(`Required weapon asset missing: ${name}`);
@@ -35,6 +35,12 @@ export async function buildWeaponModelPackage(sourceDir, basePackage) {
     files.set(entry.name, await entry.async('nodebuffer'));
   }
   const exports = {};
+  if (projectilePackage) {
+    const projectiles = await JSZip.loadAsync(await fs.readFile(projectilePackage));
+    for (const entry of Object.values(projectiles.files)) {
+      if (!entry.dir) files.set(entry.name, await entry.async('nodebuffer'));
+    }
+  }
   for (const name of names) {
     const bytes = await fs.readFile(path.join(sourceDir, name));
     if (/\.glb$/i.test(name)) validateEmbeddedGlb(bytes, name);
@@ -61,7 +67,7 @@ async function main() {
     if (flag === '--output') output = path.resolve(value);
   }
   if (path.resolve(output) === path.resolve(basePackage)) throw new Error('Output must not overwrite the source bank');
-  const { bytes, manifest } = await buildWeaponModelPackage(sourceDir, basePackage);
+  const { bytes, manifest } = await buildWeaponModelPackage(sourceDir, basePackage, path.join(repoRoot, recipe.projectilePackage));
   await fs.mkdir(path.dirname(output), { recursive: true });
   await fs.writeFile(output + '.tmp', bytes);
   await fs.rename(output + '.tmp', output);

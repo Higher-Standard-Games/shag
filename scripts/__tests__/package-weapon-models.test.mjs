@@ -34,6 +34,15 @@ test('preserves the source bank, includes cfg overrides, and rebuilds determinis
     assert.equal(await output.file('models/weapons/example.iqm').async('string'), 'original');
     assert.equal(await output.file(recipe.root + 'glauncher/glauncher.cfg').async('string'), 'new cfg');
     assert.equal(output.file(recipe.root + 'blade/source.fbx'), null);
+    const projectilePackage = path.join(dir, 'projectiles.pk3');
+    const projectiles = new JSZip();
+    projectiles.file('models/objects/projectile/rlauncher/rocket_strong.md3', 'rocket');
+    projectiles.file('scripts/washoi_projectiles.shader', 'projectile shader');
+    await fs.writeFile(projectilePackage, await projectiles.generateAsync({ type: 'nodebuffer' }));
+    const combined = await JSZip.loadAsync((await buildWeaponModelPackage(source, base, projectilePackage)).bytes);
+    assert.equal(await combined.file('models/objects/projectile/rlauncher/rocket_strong.md3').async('string'), 'rocket');
+    assert.equal(await combined.file('scripts/washoi_projectiles.shader').async('string'), 'projectile shader');
+    assert.equal(await combined.file('models/weapons/example.iqm').async('string'), 'original');
     assert.equal(await output.file(recipe.root + 'plasmagun/tags.txt').async('string'),
       'tag "tag_barrel2" "tag_barrel" 0 0 0 0 0 0');
     await fs.writeFile(path.join(source, recipe.required[0]), glb({ images: [{ uri: 'external.png' }] }));

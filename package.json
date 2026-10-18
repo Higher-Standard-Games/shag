@@ -55,6 +55,7 @@
     "tools:convert": "npx vite-node src/cli/convert-fbx.ts --",
     "tools:player-model": "node scripts/package-player-model.mjs",
     "tools:weapon-models": "node scripts/package-weapon-models.mjs",
+    "tools:projectile-media": "vite-node src/cli/package-projectile-media.ts",
     "convert:weapons": "node scripts/convert-weapon-models.mjs",
     "tools:fbx2gltf": "npx vite-node scripts/download-fbx2gltf.ts",
     "tools:textures": "node scripts/convert-ktx2.js",
@@ -117,7 +118,9 @@
     "prelobby:server:bun": "npm run build:server",
     "prenet:server:bun": "npm run build:server",
     "test:runtime-equivalence": "node scripts/benchmarks/runtime-equivalence.mjs",
-    "test:server-runtime": "npm run build:server && bun dist-server/ServerRuntimeProbe.mjs"
+    "test:server-runtime": "npm run build:server && bun dist-server/ServerRuntimeProbe.mjs",
+    "tools:sounds": "node scripts/package-sounds.mjs",
+    "tools:sounds:audit": "vite-node src/cli/audit-sounds.ts"
   },
   "devDependencies": {
     "@babylonjs/ktx2decoder": "9.17.0",

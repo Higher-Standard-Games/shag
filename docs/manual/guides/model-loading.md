@@ -70,6 +70,8 @@ separately to rebuild; a normal game build consumes the existing runtime PK3.
 # Optional: regenerate IQM-derived GLBs and embed their textures.
 # Requires Python 3 and Pillow; PYTHON can select the Python executable.
 npm run convert:weapons
+# Once: extract legacy projectiles from archive/data0_21pure.pk3.
+npm run tools:projectile-media
 # Package existing exports, retaining the original source bank entries.
 npm run tools:weapon-models
 npm run tools:pk3-index
@@ -80,7 +82,11 @@ package. Custom FBX-derived exports, such as the Blade, need their own export
 step and are preserved by the IQM conversion. Packaging accepts `--source-dir`,
 `--base-package` and `--output` overrides, validates required GLBs and embedded
 image/buffer resources, and records export hashes in
-`models/weapons/manifest.json`. Only GLB/config exports and `tags.txt` attachment rules are added to the bank;
+`models/weapons/manifest.json`. The supplemental archive configured by
+`projectilePackage` supplies rocket, grenade, plasma and blade-blast MD3s,
+textures, impact models and their selected shaders. It is generated at
+`assets-source/weapons/projectiles.pk3`, with source hashes in
+`models/objects/projectile/manifest.json`. GLB/config exports and `tags.txt` attachment rules are also added;
 loose authoring files are excluded. Reload the page after installing a rebuilt
 package so the browser replaces any already-mounted old copy.
 

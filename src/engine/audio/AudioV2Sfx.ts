@@ -109,7 +109,7 @@ export class AudioV2Sfx {
   private initPromise: Promise<boolean> | null = null;
   private disposed = false;
   private generation = 0;
-  private volume = 0.7;
+  private volume = 1;
 
   private readonly bufferPromises = new Map<string, Promise<StaticSoundBuffer | null>>();
   private readonly soundPromises = new Map<string, Promise<StaticSound | null>>();
