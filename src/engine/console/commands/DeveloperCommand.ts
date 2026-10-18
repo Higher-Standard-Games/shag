@@ -1,5 +1,5 @@
 import { Cvar } from "../../core/Cvar";
-import { Command } from "../Command";
+import { Command, type CommandOutput, fail } from "../Command";
 
 export default class DeveloperCommand extends Command {
   definition = {
@@ -9,7 +9,7 @@ export default class DeveloperCommand extends Command {
     aliases: ["dev"],
   };
 
-  async execute(args: string[]): Promise<string> {
+  async execute(args: string[]): Promise<CommandOutput> {
     if (args.length === 0) {
       const current = Cvar.getBool("developer");
       return `Developer mode is ${current ? "enabled" : "disabled"}`;
@@ -36,7 +36,9 @@ export default class DeveloperCommand extends Command {
       });
     }
 
-    Cvar.set("developer", newValue);
+    if (!Cvar.set("developer", newValue)) {
+      return fail("Developer mode is disabled in production builds");
+    }
     return `Developer mode ${newValue ? "enabled" : "disabled"}`;
   }
 

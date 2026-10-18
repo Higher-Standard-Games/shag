@@ -23,6 +23,8 @@
 import { writePreference } from "./PreferenceStorage";
 
 const CVAR_STORAGE_KEY = "engine_cvars";
+// Production browser clients keep development tools off; Node tools retain them.
+const DEVELOPER_LOCKED = import.meta.env?.PROD === true && import.meta.env?.SSR === false;
 
 export type CvarType = "bool" | "int" | "float" | "string";
 
@@ -96,6 +98,11 @@ export class Cvar {
    */
   static register(name: string, defaultValue: CvarValue, options: CvarOptions = {}): CvarInstance {
     const lowerName = name.toLowerCase();
+    const locked = lowerName === "developer" && DEVELOPER_LOCKED;
+    if (locked) {
+      defaultValue = 0;
+      options = { ...options, type: "int", readonly: true, persist: false };
+    }
 
     // Detect type from default value if not specified
     const type = options.type ?? Cvar.detectType(defaultValue);
@@ -122,7 +129,7 @@ export class Cvar {
 
     // Check if we have a persisted value
     const existing = Cvar.cvars.get(lowerName);
-    if (existing && Cvar.validValue(existing.value, type)) {
+    if (!locked && existing && Cvar.validValue(existing.value, type)) {
       // Keep the persisted/current value, held to the type and bounds this
       // registration declares — storage kept it before either was known.
       cvar.value = Cvar.coerceValue(existing.value, type, options.min, options.max);
@@ -142,6 +149,7 @@ export class Cvar {
    * Get a cvar's current value
    */
   static get(name: string): CvarValue | undefined {
+    if (name.toLowerCase() === "developer" && DEVELOPER_LOCKED) return 0;
     return Cvar.cvars.get(name.toLowerCase())?.value;
   }
 
@@ -187,6 +195,7 @@ export class Cvar {
    * Set a cvar's value
    */
   static set(name: string, value: CvarValue): boolean {
+    if (name.toLowerCase() === "developer" && DEVELOPER_LOCKED) return false;
     if (!Cvar.validValue(value)) return false;
     const cvar = Cvar.cvars.get(name.toLowerCase());
     if (!cvar) {
@@ -353,6 +362,7 @@ export class Cvar {
       const data: unknown = JSON.parse(stored);
       if (!data || typeof data !== "object" || Array.isArray(data)) return;
       for (const [name, value] of Object.entries(data)) {
+        if (name.toLowerCase() === "developer" && DEVELOPER_LOCKED) continue;
         const cvar = Cvar.cvars.get(name);
         if (!Cvar.validValue(value, cvar?.type)) continue;
         if (cvar?.flags.persist) {

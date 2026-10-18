@@ -16,6 +16,11 @@ help render
 
 `bsp`, `camera`, `shader`, `pvs` and `freefly_collision` are not gated, so map inspection works without developer mode.
 
+Production browser builds lock `developer` to `0`, including saved preferences,
+config imports and the `dev` alias. Developer commands such as `editor` remain
+unavailable there. Use the development server for those tools; Node/headless
+tools retain developer mode.
+
 Useful commands include:
 
 ```text

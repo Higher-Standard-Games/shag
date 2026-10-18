@@ -23,6 +23,7 @@ import { FPSController } from "./engine/camera/controllers/FPSController";
 import { registerEngineCommands } from "./engine/console/commands";
 import { QualityDetector, registerEngineServices, ServiceLocator } from "./engine/core";
 import { CapacitorBridge } from "./engine/core/CapacitorBridge";
+import { Cvar } from "./engine/core/Cvar";
 import { EngineVersion } from "./engine/core/EngineVersion";
 import { GamePaths } from "./engine/core/GamePaths";
 import { DebugConsole } from "./engine/debug";
@@ -345,7 +346,7 @@ async function main() {
   if (sessionStorage.getItem(PLAYTEST_RETURN_KEY)) {
     sessionStorage.removeItem(PLAYTEST_RETURN_KEY);
     try {
-      await editorHost.open();
+      if (Cvar.getBool("developer")) await editorHost.open();
     } catch (error) {
       console.error("Could not restore SHAGGED after Playtest:", error);
     }

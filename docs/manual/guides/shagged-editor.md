@@ -8,6 +8,9 @@ Design notes and status: `docs/research/SHAGGED.md` in the repository.
 
 In the game console (from the lobby):
 
+Use a development build. Production browser builds disable developer mode and
+the editor command.
+
 ```text
 developer 1
 editor open
