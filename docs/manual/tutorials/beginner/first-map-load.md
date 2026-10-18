@@ -19,7 +19,7 @@ F1 is not a default console binding.
 ## 2. Load and render an inspection map
 
 ```text
-bsp load wdm2
+bsp load washoidm2
 bsp render
 bsp info
 ```
@@ -62,7 +62,7 @@ shader info
 ## Gameplay is a separate flow
 
 ```text
-map wdm2 duel
+map washoidm2 duel
 ```
 
 `map` uses the gameplay/lobby launcher and starts the full server-backed FPS flow. See [Map launching](../../guides/map-launching.md).
@@ -70,11 +70,11 @@ map wdm2 duel
 ## Headless equivalent
 
 ```bash
-npm run cli:game -- --exec 'bsp load wdm2; bsp info; quit'
+npm run cli:game -- --exec 'bsp load washoidm2; bsp info; quit'
 ```
 
 ## Troubleshooting
 
 - Run `npm run tools:manifest` after adding a PK3.
-- Use `pk3 stats` and `pk3 find maps/wdm2.bsp` to check discovery.
+- Use `pk3 stats` and `pk3 find maps/washoidm2.bsp` to check discovery.
 - Use `render list` for current renderer variables; changes apply immediately.

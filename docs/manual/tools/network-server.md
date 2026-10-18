@@ -33,7 +33,7 @@ npm run net:server -- [options]
 | `--training-demo <name>` | – | Record a training demo: warmup never ends and every tick is recorded, saved to `public/data/demos/training/<map>_<name>.shagdemo` |
 | `--help`, `-h` | – | Show help |
 
-The first two bare arguments are read as the map and the gametype, so `npm run net:server -- wdm2 Duel` also works.
+The first two bare arguments are read as the map and the gametype, so `npm run net:server -- washoidm2 Duel` also works.
 
 `SHAG_GAME_CERT_PATH` and `SHAG_GAME_KEY_PATH` replace the default certificate paths, which is how servers spawned by the lobby find them.
 
@@ -50,7 +50,7 @@ npm run net:server -- --port 8080 --name "My Server"
 npm run net:server -- --map wbomb1 --gametype SnD --max 10
 
 # One-shot match server, exits when the match ends
-npm run net:server -- --map wdm2 --gametype Duel --single-match
+npm run net:server -- --map washoidm2 --gametype Duel --single-match
 ```
 
 ## TLS

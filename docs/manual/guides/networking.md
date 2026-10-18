@@ -374,13 +374,13 @@ GameServer
 
 ```bash
 # Start dedicated server
-npm run net:server -- --map wdm2
+npm run net:server -- --map washoidm2
 
 # With options
-npm run net:server -- --port 8080 --name "My Server" --map wdm2 --max 8
+npm run net:server -- --port 8080 --name "My Server" --map washoidm2 --max 8
 
 # Custom snapshot rate
-npm run net:server -- --map wdm2 --snapshotrate 30
+npm run net:server -- --map washoidm2 --snapshotrate 30
 ```
 
 ### Client
@@ -642,7 +642,7 @@ Server sends gameplay data to clients via snapshot events:
 
 ```bash
 # Terminal 1: Server
-npm run net:server -- --map wdm2
+npm run net:server -- --map washoidm2
 
 # Terminal 2: Client 1 (browser)
 npm run dev
@@ -654,7 +654,7 @@ npm run net:client -- --name Bob
 
 ### In-Game Test
 
-1. Start server: `npm run net:server -- --map wdm2`
+1. Start server: `npm run net:server -- --map washoidm2`
 2. Start game: `npm run dev`
 3. Open console: `~`
 4. Connect: `connect localhost:7777`

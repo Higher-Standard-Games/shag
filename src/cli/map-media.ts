@@ -299,7 +299,7 @@ export async function packageMap(bank: MediaBank, map: string, outputDirectory: 
     texZip.file(`media-sources/${map}/${file}.txt`, new Uint8Array(await bank.read(file)), options);
   // Rebuilding from curated banks must retain the original attribution chain.
   for (const owner of new Set([...assets.values(), ...shaders.values()].map((entry) => entry.owner))) {
-    if (!owner.startsWith("tex_") && owner !== "textures.pk3") continue;
+    if (!owner.startsWith("tex_") && owner !== "textures.pk3" && owner !== "washoi_textures.pk3") continue;
     const source = await bank.zip(owner);
     for (const file of Object.values(source.files)) {
       if (!file.dir && file.name.startsWith("media-sources/"))
@@ -399,7 +399,7 @@ export async function main(): Promise<void> {
   const value = (flag: string, fallback: string) => (args.includes(flag) ? args[args.indexOf(flag) + 1] : fallback);
   const directory = path.resolve(value("--data-dir", "public/data"));
   const output = path.resolve(value("--output-dir", ".cache/map-media"));
-  const maps = value("--maps", "wdm2,wfdm5,wfdm11").split(",");
+  const maps = value("--maps", "washoidm2,washoidm5,washoidm11").split(",");
   const index = JSON.parse(await fs.readFile(path.join(directory, "pk3_index.json"), "utf8")) as Index;
   const bank = new MediaBank(directory, index);
   await bank.loadShaders();
@@ -412,7 +412,7 @@ export async function main(): Promise<void> {
     );
   }
   if (args.includes("--combined") && !args.includes("--audit-only")) {
-    const destination = path.join(output, "textures.pk3");
+    const destination = path.join(output, "washoi_textures.pk3");
     if (index.packages.some((pkg) => path.resolve(directory, pkg.path) === destination))
       throw new Error(`Output would overwrite an input: ${destination}`);
     const bytes = await mergeTextureBanks(
@@ -421,7 +421,7 @@ export async function main(): Promise<void> {
       ),
     );
     await fs.writeFile(destination, bytes);
-    console.log(`[map-media] textures.pk3: ${bytes.length} bytes, ${hash(bytes)}`);
+    console.log(`[map-media] washoi_textures.pk3: ${bytes.length} bytes, ${hash(bytes)}`);
   }
   await fs.mkdir(output, { recursive: true });
   await fs.writeFile(path.join(output, "report.json"), `${JSON.stringify(report, null, 2)}\n`);

@@ -24,7 +24,7 @@ export interface AnimationClipInfo {
 
 /**
  * Standard animation set for humanoid characters
- * Mapped to Mixamo GLBs in player_model_vanguard.pk3.
+ * Mapped to Mixamo GLBs in washoi_player_model.pk3.
  */
 export const STANDARD_ANIMATIONS: AnimationClipInfo[] = [
   { name: "idle", path: "rifle aiming idle.glb", loop: true, speed: 1.0 },

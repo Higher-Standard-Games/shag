@@ -6,7 +6,7 @@ SHAG reads Quake 3 and Warsow assets from PK3 archives through a shared virtual 
 
 Game archives belong under `public/data/` and are intentionally excluded from Git.
 The Vanguard player model and animation GLBs are shipped in
-`player_model_vanguard.pk3`; see [packaged player models](model-loading.md#packaged-player-model)
+`washoi_player_model.pk3`; see [packaged player models](model-loading.md#packaged-player-model)
 for rebuilding it from the unserved asset sources.
 The generator scans that directory and publishes two matched files: discovery
 in `pk3_manifest.json` and file/shader/map ownership in `pk3_index.json`.
@@ -37,7 +37,7 @@ import { PK3Index } from '../../../src/engine/loader/pk3/PK3Index';
 const index = PK3Index.getInstance();
 await index.ensureIndex();
 
-const map = index.findMap('wdm2');
+const map = index.findMap('washoidm2');
 const owner = index.findFile('scripts/common.shader');
 const maps = index.findByPattern('maps/*.bsp');
 ```
@@ -54,21 +54,28 @@ directory first. Regenerate metadata after changing its contents.
 
 ### Curated map media
 
+The shipped map IDs are `washoidm2`, `washoidm5` and `washoidm11`, in matching
+`map_<name>.pk3` packages. BSP contents and texture/shader paths retain their
+original bytes. `npm run tools:rename-maps` stages these package/entry renames
+from the backups in `archive/media/map-renames/`; `-- --source-dir <directory>
+--output-dir <directory>` selects another source/output. The tool verifies ZIP
+CRCs and entry hashes. It does not edit BSP geometry or shader names.
+
 Shared cartoon hit artwork ships in `effects.pk3`, with virtual paths
 `effects/cartoonhit1.png` and `effects/cartoonhit2.png`. Rebuild it with
 `npm run tools:effects` from the unserved originals in `archive/media/effects/`,
 or pass `-- --source-dir <directory>`. Regenerate the PK3 index after rebuilding.
 The packager verifies PNG signatures, ZIP CRCs and unchanged image hashes.
 
-`npm run tools:map-media -- --maps wdm2,wfdm5,wfdm11 --combined --output-dir .cache/map-media`
+`npm run tools:map-media -- --maps washoidm2,washoidm5,washoidm11 --combined --output-dir .cache/map-media`
 builds `map_<name>.pk3`, intermediate `tex_<name>.pk3` banks and a combined
-`textures.pk3` in a staging directory from the
+`washoi_textures.pk3` in a staging directory from the
 current ownership index. It uses the runtime BSP/shader parsers, keeps source
 bytes and shader conditionals/templates, and includes provenance manifests.
 It refuses to overwrite indexed input packages. `--audit-only` writes only the
 dependency report. Install reviewed packages into `public/data/` and regenerate
 the index before testing them. For the three-map deployment, install the map
-packages and `textures.pk3`; archive the intermediate texture banks. Combining
+packages and `washoi_textures.pk3`; archive the intermediate texture banks. Combining
 deduplicates identical files and shaders and rejects conflicting definitions.
 
 Shared paths still obey the global alphabetical override rule. The combined bank
@@ -99,7 +106,7 @@ VITE_PK3_MIRROR_URL=https://mirror.example.net/washoi/ npm run build
 ```
 
 The mirror holds a copy of `public/data/`'s pk3 files at the same paths:
-`data/map_wdm2.pk3` is `<mirror>/map_wdm2.pk3`. For every pk3 the index or
+`data/map_washoidm2.pk3` is `<mirror>/map_washoidm2.pk3`. For every pk3 the index or
 the loader downloads, the client asks the mirror for it and, at the same time,
 sends a HEAD request to the game's own server. It takes the mirror's copy
 when the mirror has the file and its size matches the server's. Otherwise,
@@ -147,7 +154,7 @@ if (loader.hasFile('scripts/common.shader')) {
 developer 1
 pk3 stats
 pk3 list
-pk3 find maps/wdm2.bsp
+pk3 find maps/washoidm2.bsp
 pk3 index
 pk3 refresh map_mymap.pk3
 ```
@@ -167,13 +174,13 @@ If a package was deleted or files were removed from an existing archive, run
 The normal browser flow uses:
 
 ```text
-map wdm2 duel
+map washoidm2 duel
 ```
 
 The headless/inspection flow uses:
 
 ```bash
-npm run cli:game -- --exec 'bsp load wdm2; bsp info; quit'
+npm run cli:game -- --exec 'bsp load washoidm2; bsp info; quit'
 ```
 
 Headless loading resolves the BSP through the same PK3 index. Do not add ad-hoc filesystem searches for map files.

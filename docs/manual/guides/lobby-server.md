@@ -37,8 +37,8 @@ it at startup and filters the pools against installed `map_*.pk3` packages in
 `public/data/`. Numbered SHAGGED packages such as `map_solamphi1_00008.pk3`
 also advertise their base map name, `solamphi1`.
 
-The experiment's Amphi pool contains `wamphi1` and Relay Yard (`solamphi1`);
-the DA arenas are excluded. Restart the lobby after changing the configuration.
+The Amphi pool contains `wamphi1`. Relay Yard (`solamphi1`) and the DA arenas
+are excluded. Restart the lobby after changing the configuration.
 
 ## Chat filtering
 

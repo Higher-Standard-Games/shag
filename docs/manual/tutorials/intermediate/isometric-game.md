@@ -44,7 +44,7 @@ Controller type and projection mode are separate. Set the projection in code wit
 Use the existing singleton:
 
 ```ts
-const result = await MapLoader.getInstance().loadMap('wdm2', scene);
+const result = await MapLoader.getInstance().loadMap('washoidm2', scene);
 ```
 
 Do not construct `new MapLoader(scene)`; its constructor is private and the class coordinates shared PK3, shader, render-variable, and cleanup state.

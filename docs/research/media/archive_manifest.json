@@ -1,5 +1,23 @@
 [
   {
+    "file": "map_wdm2.pk3",
+    "reason": "replaced by map_washoidm2.pk3 with byte-identical BSP",
+    "bytes": 3291170,
+    "destination": "archive/media/map-renames/map_wdm2.pk3"
+  },
+  {
+    "file": "map_wfdm5.pk3",
+    "reason": "replaced by map_washoidm5.pk3 with byte-identical BSP and metadata",
+    "bytes": 20977957,
+    "destination": "archive/media/map-renames/map_wfdm5.pk3"
+  },
+  {
+    "file": "map_wfdm11.pk3",
+    "reason": "replaced by map_washoidm11.pk3 with byte-identical BSP and metadata",
+    "bytes": 18104507,
+    "destination": "archive/media/map-renames/map_wfdm11.pk3"
+  },
+  {
     "file": "tex_wdm2.pk3",
     "reason": "superseded by deduplicated textures.pk3",
     "bytes": 8300953,

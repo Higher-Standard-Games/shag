@@ -1,0 +1,221 @@
+{
+  "renames": {
+    "z_weapons.pk3": "washoi_weapons.pk3",
+    "zz_washoi_legacy_audio.pk3": "washoi_legacy_audio.pk3",
+    "player_model_vanguard.pk3": "washoi_player_model.pk3",
+    "textures.pk3": "washoi_textures.pk3"
+  },
+  "packagesBefore": 23,
+  "packagesAfter": 17,
+  "lost": [
+    {
+      "name": "maps/solamphi1.bsp",
+      "owner": "map_solamphi1_00017.pk3"
+    },
+    {
+      "name": "maps/ui.bsp",
+      "owner": "map_ui.pk3"
+    },
+    {
+      "name": "models/mapobjects/branch.md3",
+      "owner": "models_nate.pk3"
+    },
+    {
+      "name": "models/mapobjects/fern.md3",
+      "owner": "models_nate.pk3"
+    },
+    {
+      "name": "models/mapobjects/fernbig.md3",
+      "owner": "models_nate.pk3"
+    },
+    {
+      "name": "models/mapobjects/natebranch.md3",
+      "owner": "models_nate.pk3"
+    },
+    {
+      "name": "models/mapobjects/nateivy1.md3",
+      "owner": "models_nate.pk3"
+    },
+    {
+      "name": "models/mapobjects/nateleaf.md3",
+      "owner": "models_nate.pk3"
+    },
+    {
+      "name": "models/mapobjects/nateleaf1/nateleaf1.md3",
+      "owner": "models_nate.pk3"
+    },
+    {
+      "name": "models/mapobjects/naterock1.md3",
+      "owner": "models_nate.pk3"
+    },
+    {
+      "name": "models/mapobjects/naterock1.tga",
+      "owner": "models_nate.pk3"
+    },
+    {
+      "name": "models/mapobjects/naterock2.md3",
+      "owner": "models_nate.pk3"
+    },
+    {
+      "name": "models/mapobjects/naterock2.tga",
+      "owner": "models_nate.pk3"
+    },
+    {
+      "name": "models/mapobjects/stump.md3",
+      "owner": "models_nate.pk3"
+    },
+    {
+      "name": "models/mapobjects/tree1.md3",
+      "owner": "models_nate.pk3"
+    },
+    {
+      "name": "models/mapobjects/treebark.tga",
+      "owner": "models_nate.pk3"
+    },
+    {
+      "name": "scripts/nate.shader",
+      "owner": "models_nate.pk3"
+    },
+    {
+      "name": "cgame_x64.dll",
+      "owner": "modules_21.pk3"
+    },
+    {
+      "name": "cgame_x86.dll",
+      "owner": "modules_21.pk3"
+    },
+    {
+      "name": "game_x64.dll",
+      "owner": "modules_21.pk3"
+    },
+    {
+      "name": "game_x86.dll",
+      "owner": "modules_21.pk3"
+    },
+    {
+      "name": "libcgame_android_armeabi-v7a.so",
+      "owner": "modules_21.pk3"
+    },
+    {
+      "name": "libcgame_android_x86.so",
+      "owner": "modules_21.pk3"
+    },
+    {
+      "name": "libcgame_i386.so",
+      "owner": "modules_21.pk3"
+    },
+    {
+      "name": "libcgame_mac.dylib",
+      "owner": "modules_21.pk3"
+    },
+    {
+      "name": "libcgame_x86_64.so",
+      "owner": "modules_21.pk3"
+    },
+    {
+      "name": "libgame_android_armeabi-v7a.so",
+      "owner": "modules_21.pk3"
+    },
+    {
+      "name": "libgame_android_x86.so",
+      "owner": "modules_21.pk3"
+    },
+    {
+      "name": "libgame_i386.so",
+      "owner": "modules_21.pk3"
+    },
+    {
+      "name": "libgame_mac.dylib",
+      "owner": "modules_21.pk3"
+    },
+    {
+      "name": "libgame_x86_64.so",
+      "owner": "modules_21.pk3"
+    },
+    {
+      "name": "models/mapobjects/industrial/barrel_2.mtl",
+      "owner": "solamphi1_compile_props.pk3"
+    },
+    {
+      "name": "models/mapobjects/industrial/crate_color.mtl",
+      "owner": "solamphi1_compile_props.pk3"
+    },
+    {
+      "name": "models/mapobjects/industrial/electricbox_wires.mtl",
+      "owner": "solamphi1_compile_props.pk3"
+    },
+    {
+      "name": "models/mapobjects/cables/cables_2b.obj",
+      "owner": "solamphi1_compile_props.pk3"
+    },
+    {
+      "name": "models/mapobjects/cables/cables_2b.mtl",
+      "owner": "solamphi1_compile_props.pk3"
+    },
+    {
+      "name": "models/mapobjects/wdm5/wdm5_pillar1.ase",
+      "owner": "solamphi1_compile_props.pk3"
+    },
+    {
+      "name": "models/mapobjects/wdm5/wdm5_blueneonlight.ase",
+      "owner": "solamphi1_compile_props.pk3"
+    },
+    {
+      "name": "models/mapobjects/decor_misc/factory_chimney_01.ase",
+      "owner": "solamphi1_compile_props.pk3"
+    },
+    {
+      "name": "models/mapobjects/decor_misc/concrete_street_barrier_1.ase",
+      "owner": "solamphi1_compile_props.pk3"
+    },
+    {
+      "name": "solamphi_assets.txt",
+      "owner": "solamphi1_compile_props.pk3"
+    },
+    {
+      "name": "textures/decals/fonts/relay_yard.font",
+      "owner": "solamphi1_lettering.pk3"
+    },
+    {
+      "name": "textures/decals/fonts/relay_yard.tga",
+      "owner": "solamphi1_lettering.pk3"
+    },
+    {
+      "name": "scripts/relay_yard_lettering.shader",
+      "owner": "solamphi1_lettering.pk3"
+    },
+    {
+      "name": "lettering_source.txt",
+      "owner": "solamphi1_lettering.pk3"
+    }
+  ],
+  "changed": [
+    {
+      "name": "gfx/ui/css/ui_map.rcss",
+      "before": "map_ui.pk3",
+      "after": "data0_21pure.pk3",
+      "sameBytes": false
+    }
+  ],
+  "shaderChanges": [
+    {
+      "name": "textures/natestah/leaf2",
+      "before": "models_nate.pk3",
+      "after": "data0_21pure.pk3"
+    },
+    {
+      "name": "textures/natestah/nateswater",
+      "before": "models_nate.pk3",
+      "after": "data0_21pure.pk3"
+    },
+    {
+      "name": "textures/natestah/nateweb",
+      "before": "models_nate.pk3",
+      "after": "data0_21pure.pk3"
+    },
+    {
+      "name": "textures/decals/fonts/relay_yard",
+      "before": "solamphi1_lettering.pk3"
+    }
+  ]
+}

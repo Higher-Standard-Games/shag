@@ -5,7 +5,7 @@ The network client connects to the dedicated WebSocket server, joins with a play
 ## Start
 
 ```bash
-npm run net:server -- --map wdm2 --port 7777
+npm run net:server -- --map washoidm2 --port 7777
 npm run net:client
 ```
 

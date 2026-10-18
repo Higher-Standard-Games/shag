@@ -1,5 +1,5 @@
 {
-  "package": "player_model_vanguard.pk3",
+  "package": "washoi_player_model.pk3",
   "root": "models/players/vanguard/",
   "sourceDir": "assets-source/players/vanguard",
   "model": "vanguard.glb",

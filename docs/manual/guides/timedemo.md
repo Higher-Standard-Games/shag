@@ -2,7 +2,7 @@
 
 `timedemo` replays a local combat recording with a saved camera schedule. Measurement
 needs no game server, lobby connection or bot AI. The first recipe is ten-player FFA
-on `wdm2`: 45 measured seconds alternating freefly and first-person bot spectating,
+on `washoidm2`: 45 measured seconds alternating freefly and first-person bot spectating,
 after five seconds of pre-roll. Spectator priorities are randomized with seed 927
 when creating the fixture, then saved. Dead/absent bots are skipped in that order.
 
@@ -15,7 +15,7 @@ npm run benchmark:fixture -- --dry-run
 npm run benchmark:fixture -- --bot-control ws://127.0.0.1:9100
 ```
 
-The second command creates a separate `wdm2` match on port 7787, borrows ten bots
+The second command creates a separate `washoidm2` match on port 7787, borrows ten bots
 from the existing local bot manager, records 120 seconds and releases only those
 bots. It uses the existing local bot secret; it never prints it. Change the port
 with `--port 7788` if necessary. Omit `--bot-control` to own in-process bots instead.
@@ -150,7 +150,7 @@ npm run benchmark:profile
 ```
 
 It defaults to one WebGL2 run followed by one WebGPU compatibility-mode run, the
-ten-player `wdm2` fixture, the fixture's required settings,
+ten-player `washoidm2` fixture, the fixture's required settings,
 `cl_player_pose_hz 30` (unless the fixture explicitly requires another pose rate)
 and `developer 0`. Development diagnostics are explicitly
 disabled and their before/after state is saved in each `run.json`.

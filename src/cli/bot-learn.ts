@@ -14,6 +14,7 @@ import * as path from "node:path";
 import { createBotVision } from "../bot/BotVision";
 import { type LearnedRoute, loadLearnedRoutes, saveLearnedRoutes } from "../bot/LearnedRoutes";
 import { buildTimeline, findTrickSegments, learnSegment } from "../bot/RouteLearner";
+import { resolveFPSDemoMap } from "../games/fps/client/DemoMapAliases";
 import { DemoReader } from "../shared/demo/DemoReader";
 
 const TRAINING_DIR = path.join("public", "data", "demos", "training");
@@ -45,15 +46,16 @@ async function main(): Promise<void> {
   for (const file of demos) {
     const reader = new DemoReader(new Uint8Array(fs.readFileSync(file)));
     const header = reader.readHeader();
+    const mapName = resolveFPSDemoMap(header.map);
     const frames = reader.readAllFrames();
     const quiet = console.log;
     console.log = () => {};
-    const vision = await createBotVision(header.map);
+    const vision = await createBotVision(mapName);
     console.log = quiet;
     if (!vision) throw new Error(`Cannot load map ${header.map}`);
     const demo = path.basename(file, ".shagdemo");
-    const learned = byMap.get(header.map) ?? [];
-    byMap.set(header.map, learned);
+    const learned = byMap.get(mapName) ?? [];
+    byMap.set(mapName, learned);
     for (const player of header.players) {
       const timeline = buildTimeline(frames, player.playerId);
       const segments = findTrickSegments(timeline, vision.collisionWorld);

@@ -694,7 +694,7 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
       // List skeleton bones from model
       const modelBuf = await PK3Loader.getInstance().getFile(VANGUARD_ROOT + VANGUARD_MODEL);
       if (!modelBuf) {
-        return "Model not found in player_model_vanguard.pk3";
+        return "Player model not found in the loaded PK3 assets";
       }
 
       const { NullEngine } = await import("@babylonjs/core/Engines/nullEngine");

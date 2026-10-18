@@ -14,7 +14,7 @@ presentation has its own transform and is unaffected.
 ## Packaged player model
 
 Live players, bots, demo playback and teleport ghosts use `PlayerModelManager`
-with the embedded GLBs in `public/data/player_model_vanguard.pk3`. Its virtual
+with the embedded GLBs in `public/data/washoi_player_model.pk3`. Its virtual
 root is `models/players/vanguard/`; that is a PK3 entry prefix, not a loose HTTP
 directory. The archive is fetched lazily through the regular mirror-aware PK3
 loader, once for concurrent imports, and the GLB bytes are passed to Babylon.
@@ -52,7 +52,7 @@ packaged player inputs.
 
 ## Packaged weapon models
 
-Weapon GLBs and their configs live inside `public/data/z_weapons.pk3`, alongside
+Weapon GLBs and their configs live inside `public/data/washoi_weapons.pk3`, alongside
 the original IQM/MD3 models and textures. First-person weapons, pickups, dropped
 weapons and remote weapons resolve indexed GLBs to embedded bytes; the ordinary
 PK3 loader handles lazy downloads and mirrors. Unindexed custom URLs retain

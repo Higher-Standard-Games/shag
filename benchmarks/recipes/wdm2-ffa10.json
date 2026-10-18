@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "generatorVersion": 1,
   "name": "wdm2-ffa10",
-  "map": "wdm2",
+  "map": "washoidm2",
   "gametype": "ffa",
   "bots": 10,
   "difficulty": "medium",

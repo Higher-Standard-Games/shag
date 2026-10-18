@@ -38,7 +38,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  const mapName = optionValue(args, "--map") ?? positionalMap(args) ?? "wdm2";
+  const mapName = optionValue(args, "--map") ?? positionalMap(args) ?? "washoidm2";
   const outPath = optionValue(args, "--out");
   const rebuild = args.includes("--rebuild");
   const useCache = !args.includes("--no-cache");

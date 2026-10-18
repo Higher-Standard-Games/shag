@@ -8,6 +8,7 @@ import { BspLoader } from "../engine/loader/bsp/BspLoader";
 import { resolveMapBspViaIndex } from "../engine/loader/pk3/NodePk3";
 import type { TraceResult } from "../engine/physics/CollisionBackend";
 import { SweepCollisionBackend } from "../engine/physics/SweepCollisionBackend";
+import { resolveFPSDemoMap } from "../games/fps/client/DemoMapAliases";
 import { DemoReader } from "../shared/demo/DemoReader";
 
 const args = process.argv.slice(2);
@@ -31,7 +32,7 @@ const raw = Uint8Array.from(fs.readFileSync(demoPath));
 const reader = new DemoReader(raw[0] === 31 && raw[1] === 139 ? Uint8Array.from(gunzipSync(raw)) : raw);
 const header = reader.readHeader();
 const frames = reader.readAllFrames();
-const bytes = await resolveMapBspViaIndex(["public/data", "dist/data"], header.map);
+const bytes = await resolveMapBspViaIndex(["public/data", "dist/data"], resolveFPSDemoMap(header.map));
 if (!bytes) throw new Error(`Indexed map missing: ${header.map}`);
 const backend = new SweepCollisionBackend();
 const beforeInit = performance.now();

@@ -26,7 +26,7 @@ Test the deployed origin, not just the Vite preview:
 
 1. open browser developer tools and check for 404 or MIME errors;
 2. confirm the PK3 index and a representative map resolve;
-3. load `wdm2` through the normal gameplay flow;
+3. load `washoidm2` through the normal gameplay flow;
 4. test the lobby and game-server WebSocket (`wss://`) endpoints through the production proxy;
 5. confirm cache invalidation with a second deployment.
 

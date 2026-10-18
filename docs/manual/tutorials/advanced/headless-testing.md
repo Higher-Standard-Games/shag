@@ -5,7 +5,7 @@ Headless validation is split by responsibility rather than one all-purpose engin
 ## Map and command smoke test
 
 ```bash
-npm run cli:game -- --exec 'bsp load wdm2; bsp info; quit'
+npm run cli:game -- --exec 'bsp load washoidm2; bsp info; quit'
 ```
 
 This uses the PK3 index and engine command registry with Babylon `NullEngine`.
@@ -36,7 +36,7 @@ Prefer deterministic assertions over snapshots of volatile log output.
 ```bash
 npm run server:tick
 npm run server:fuzz -- --ticks 1000
-npm run net:server -- --map wdm2 --port 7777
+npm run net:server -- --map washoidm2 --port 7777
 npm run net:client -- --connect ws://127.0.0.1:7777
 ```
 

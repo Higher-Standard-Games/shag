@@ -13,7 +13,7 @@ Use `help` to inspect commands and `quit` to stop. This runner adds `sim`, `anim
 ## Batch mode
 
 ```bash
-npm run cli:game -- --exec 'bsp load wdm2; bsp info; quit'
+npm run cli:game -- --exec 'bsp load washoidm2; bsp info; quit'
 ```
 
 `--command` is an alias for `--exec`. A semicolon-separated batch is the simplest CI form. There is no `--map` option.
@@ -23,7 +23,7 @@ This composition does not register the browser gameplay launcher, so use `bsp lo
 ## Useful batches
 
 ```bash
-npm run cli:game -- --exec 'developer 1; pk3 stats; bsp load wdm2; bsp entities; quit'
+npm run cli:game -- --exec 'developer 1; pk3 stats; bsp load washoidm2; bsp entities; quit'
 npm run cli:game -- --exec 'sim replay "W+CROUCH 60; JUMP 1; W 30"; quit'
 ```
 

@@ -58,7 +58,7 @@ Collision or movement changes should be checked headlessly:
 ```bash
 npm run test:simulation
 npm run test:physics
-npm run cli:game -- --exec 'bsp load wdm2; bsp info; quit'
+npm run cli:game -- --exec 'bsp load washoidm2; bsp info; quit'
 ```
 
 Renderer or networking changes require the wider regression set described in the repository `AGENTS.md`.

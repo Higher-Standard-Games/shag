@@ -3,7 +3,7 @@
  *
  * Runs identical input through both systems to verify they match
  *
- * Run with: npx vite-node src/cli/compare-local-vs-server.ts --map wdm2
+ * Run with: npx vite-node src/cli/compare-local-vs-server.ts --map washoidm2
  */
 
 import * as fs from "node:fs";
@@ -19,7 +19,7 @@ import { createHeadlessCollisionWorld } from "./HeadlessBSPCollisionWorld";
 
 // Parse command line args
 const args = process.argv.slice(2);
-let mapName = "wdm2";
+let mapName = "washoidm2";
 for (let i = 0; i < args.length; i++) {
   if (args[i] === "--map" || args[i].startsWith("--map=")) {
     mapName = args[i].startsWith("--map=") ? args[i].substring(6) : args[++i];

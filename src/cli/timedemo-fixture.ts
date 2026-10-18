@@ -181,7 +181,7 @@ async function main() {
   const recipe = JSON.parse(recipeText);
   if (
     recipe.schemaVersion !== 1 ||
-    recipe.map !== "wdm2" ||
+    recipe.map !== "washoidm2" ||
     recipe.gametype !== "ffa" ||
     recipe.generatorVersion !== 1 ||
     recipe.scoreLimit !== 0 ||
@@ -237,7 +237,7 @@ async function main() {
     return;
   }
   const map = await loadBspCollision(recipe.map);
-  if (!map) throw new Error("Indexed wdm2 map unavailable");
+  if (!map) throw new Error("Indexed washoidm2 map unavailable");
   const source = option("--demo") ?? (await record(recipe, map));
   const bytes = new Uint8Array(fs.readFileSync(source));
   const reader = await DemoReader.fromFile(bytes);
@@ -250,7 +250,7 @@ async function main() {
     !header.tickRate ||
     !frames.length
   )
-    throw new Error("Recording must contain a current ten-player wdm2 FFA roster");
+    throw new Error("Recording must contain a current ten-player washoidm2 FFA roster");
   const firstTick = frames[0].tick;
   const duration = (frames[frames.length - 1].tick - firstTick) / header.tickRate;
   if (duration < recipe.startSeconds + recipe.durationSeconds)

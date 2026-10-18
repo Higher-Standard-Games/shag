@@ -14,6 +14,7 @@
 import type { BaseTexture } from "@babylonjs/core/Materials/Textures/baseTexture";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Scene } from "@babylonjs/core/scene";
+import weaponModelRecipe from "../../../../config/weapon-models.json";
 import { initializeEntityDefs } from "../../../shared/entities";
 import { EntityRegistry } from "../../../shared/entities/EntityRegistry";
 import { EntityType } from "../../../shared/entities/EntityType";
@@ -358,15 +359,15 @@ export class MapLoader {
         }
       }
 
-      // Load override PK3 (z_weapons.pk3) if it exists — ensures custom models
-      // take priority over base data PK3s via alphabetical filename ordering
-      if (!loadedPk3s.has("z_weapons.pk3")) {
+      // Load the configured weapon bank after base/model dependencies.
+      const weaponPackage = weaponModelRecipe.package;
+      if (!loadedPk3s.has(weaponPackage) && this.pk3Index.getPK3Path(weaponPackage)) {
         try {
-          await this.pk3Loader.loadPK3FromUrl("data/z_weapons.pk3");
-          loadedPk3s.add("z_weapons.pk3");
-          console.log("[MapLoader] Loaded weapon override PK3: z_weapons.pk3");
+          await this.pk3Loader.loadPK3(weaponPackage);
+          loadedPk3s.add(weaponPackage);
+          console.log(`[MapLoader] Loaded weapon override PK3: ${weaponPackage}`);
         } catch (e) {
-          console.warn("[MapLoader] z_weapons.pk3 not loaded:", e);
+          console.warn(`[MapLoader] ${weaponPackage} not loaded:`, e);
         }
       }
     }

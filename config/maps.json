@@ -5,7 +5,7 @@
   },
   "wdm2": {
     "displayName": "Washoi DM2",
-    "gametypes": ["duel"]
+    "gametypes": []
   },
   "wdm11": {
     "displayName": "Warehouse C",
@@ -51,9 +51,7 @@
   },
   "solamphi1": {
     "displayName": "Relay Yard (Sol Amphi)",
-    "gametypes": [
-      "amphi"
-    ]
+    "gametypes": []
   },
   "wbomb2": {
     "displayName": "Reactors",
@@ -73,12 +71,26 @@
   },
   "wfdm5": {
     "displayName": "Washoi DM5",
+    "gametypes": []
+  },
+  "wfdm11": {
+    "displayName": "Washoi DM11",
+    "gametypes": []
+  },
+  "washoidm2": {
+    "displayName": "Washoi DM2",
+    "gametypes": [
+      "duel"
+    ]
+  },
+  "washoidm5": {
+    "displayName": "Washoi DM5",
     "gametypes": [
       "duel",
       "ffa"
     ]
   },
-  "wfdm11": {
+  "washoidm11": {
     "displayName": "Washoi DM11",
     "gametypes": [
       "duel",

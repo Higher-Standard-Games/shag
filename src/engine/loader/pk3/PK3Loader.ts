@@ -227,7 +227,7 @@ export class PK3Loader {
    * Rebuild the file index based on priority
    * PK3s are sorted alphabetically by filename (Quake 3 convention),
    * with _NNN suffix as tiebreaker within same-prefix packages.
-   * Later files override earlier ones (z_weapons.pk3 overrides data0.pk3).
+   * Later files override earlier ones (washoi_weapons.pk3 overrides data0.pk3).
    * Also builds O(1) zip entry index to avoid forEach scans in getFile().
    */
   private rebuildFileIndex(): void {

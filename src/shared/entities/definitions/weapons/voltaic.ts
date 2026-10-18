@@ -16,7 +16,7 @@ export const VOLTAIC: WeaponDef = {
   classname: "weapon_voltaic",
   classnameAliases: ["weapon_lasergun"],
 
-  // Runtime conversion of the modern Lasergun IQM supplied by z_weapons.pk3.
+  // Runtime conversion of the modern Lasergun IQM supplied by washoi_weapons.pk3.
   modelPath: "/data/models/weapons/lasergun/lasergun.glb",
   scale: 2.0,
 

@@ -16,7 +16,7 @@ npm run cli:game
 Run a batch:
 
 ```bash
-npm run cli:game -- --exec 'bsp load wdm2; bsp info; quit'
+npm run cli:game -- --exec 'bsp load washoidm2; bsp info; quit'
 ```
 
 `--command` is accepted as an alias for `--exec`. The runner does not have a `--map` option.
@@ -38,7 +38,7 @@ read as separate console commands.
 ## Dedicated server
 
 ```bash
-npm run net:server -- --map wdm2 --port 7777
+npm run net:server -- --map washoidm2 --port 7777
 npm run net:client -- --connect ws://localhost:7777
 npm run server:tick
 npm run server:fuzz -- --ticks 1000
@@ -58,8 +58,8 @@ Build first, then run an equivalent-artifact comparison:
 
 ```bash
 npm run build:server
-npm run benchmark:server-memory -- --runtimes node,bun --maps wdm2,wfdm5,wfdm11 --warmup 10 --seconds 15 --repeats 3 --out .cache/server-memory/report.json
-npm run benchmark:server-memory -- --runtimes node,bun --maps wfdm11 --clients 8 --recording --warmup 15 --seconds 1800 --repeats 1 --out .cache/server-soak/report.json
+npm run benchmark:server-memory -- --runtimes node,bun --maps washoidm2,washoidm5,washoidm11 --warmup 10 --seconds 15 --repeats 3 --out .cache/server-memory/report.json
+npm run benchmark:server-memory -- --runtimes node,bun --maps washoidm11 --clients 8 --recording --warmup 15 --seconds 1800 --repeats 1 --out .cache/server-soak/report.json
 npm run test:runtime-equivalence
 npm run test:server-runtime
 ```
@@ -133,7 +133,7 @@ and how bots are rated as their preset accounts in the Private pools.
 ## Demos and anti-cheat tools
 
 ```bash
-npm run demo:record -- --map wdm2 --bots 2 --seconds 30
+npm run demo:record -- --map washoidm2 --bots 2 --seconds 30
 npm run demo:verify -- path/to/bundle.shagverify
 npm run anticheat:calibrate -- --trials 40 --ticks 1500
 ```

@@ -5,7 +5,7 @@
  * Handles argument parsing, BSP loading, and bootstrapping.
  *
  * Usage:
- *   npx vite-node src/cli/headless-netserver-v2.ts --port 7777 --map wdm2
+ *   npx vite-node src/cli/headless-netserver-v2.ts --port 7777 --map washoidm2
  *   npx vite-node src/cli/headless-netserver-v2.ts --help
  *
  * Requirements:
@@ -41,7 +41,7 @@ function parseArgs(): GameServerConfig & { gamePath: string; gametype: string } 
   const config = {
     port: 7777,
     serverName: "SHAG Server v2",
-    mapName: "wdm2",
+    mapName: "washoidm2",
     maxClients: 16,
     tickRate: DEFAULT_PHYSICS_TICK_RATE,
     snapshotRate: 60,
@@ -171,7 +171,7 @@ Usage: npx vite-node src/cli/headless-netserver-v2.ts [options]
 
 Options:
   --port <n>             Server port (default: 7777)
-  --map <name>           Map to load (default: wdm2)
+  --map <name>           Map to load (default: washoidm2)
   --gametype <name>      Gametype (Deathmatch, TeamDeathmatch, Duel, Amphi, SnD)
   --private-match        Mark recorded demos as private (set by the lobby)
   --name <name>          Server name
@@ -195,8 +195,8 @@ TLS:
     3. Move localhost.pem and localhost-key.pem to ./certs/
 
 Examples:
-  npx vite-node src/cli/headless-netserver-v2.ts --map wdm2
-  npx vite-node src/cli/headless-netserver-v2.ts --port 7777 --map wdm2
+  npx vite-node src/cli/headless-netserver-v2.ts --map washoidm2
+  npx vite-node src/cli/headless-netserver-v2.ts --port 7777 --map washoidm2
 
 Environment:
   SHAG_GAME_CERT_PATH    Default TLS certificate path for spawned game servers

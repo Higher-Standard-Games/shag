@@ -34,7 +34,7 @@ Open the console with the backquote/tilde key, then inspect an indexed BSP:
 
 ```text
 developer 1
-bsp load wdm2
+bsp load washoidm2
 bsp render
 bsp info
 camera mode freefly
@@ -43,7 +43,7 @@ camera mode freefly
 `camera mode` selects a registered camera controller. For normal FPS gameplay, use the lobby UI or:
 
 ```text
-map wdm2 duel
+map washoidm2 duel
 ```
 
 The `map` command uses the configured gameplay/lobby launcher. See [Map launching](../guides/map-launching.md).
@@ -51,7 +51,7 @@ The `map` command uses the configured gameplay/lobby launcher. See [Map launchin
 ## Headless check
 
 ```bash
-npm run cli:game -- --exec 'bsp load wdm2; bsp info; quit'
+npm run cli:game -- --exec 'bsp load washoidm2; bsp info; quit'
 npm run test:simulation
 npm run test:physics
 ```

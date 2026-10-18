@@ -16,7 +16,7 @@ Put external game data under `public/data/`. The directory and `*.pk3` files are
 developer 1
 pk3 stats
 pk3 list
-pk3 find maps/wdm2.bsp
+pk3 find maps/washoidm2.bsp
 ```
 
 ## Why does a map not load?
@@ -36,7 +36,7 @@ Use `bsp load` for inspection and `map <name> [gametype]` for normal gameplay.
 `bsp load` is the loader/inspection path. A browser match uses the gameplay launcher and server:
 
 ```text
-map wdm2 duel
+map washoidm2 duel
 ```
 
 See [Map launching](../guides/map-launching.md).
@@ -80,7 +80,7 @@ The parser and renderer exist, but `MapLoader` loads indexed BSP maps only, so a
 ```bash
 npm run typecheck
 npm run test:run
-npm run cli:game -- --exec 'bsp load wdm2; bsp info; quit'
+npm run cli:game -- --exec 'bsp load washoidm2; bsp info; quit'
 npm run test:simulation
 npm run test:physics
 ```

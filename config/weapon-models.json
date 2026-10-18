@@ -1,5 +1,5 @@
 {
-  "package": "z_weapons.pk3",
+  "package": "washoi_weapons.pk3",
   "root": "models/weapons/",
   "sourceDir": "assets-source/weapons/exports",
   "basePackage": "assets-source/weapons/z_weapons-source.pk3",

@@ -85,8 +85,8 @@ These envelopes do not describe collision. ASE editor mesh preview remains
 unsupported; inspect the compiled BSP and verify prop collision there.
 
 For a compiled reference map, use MCP
-`shagged_inspect_installed_map {mapName: "wfdm5", search?, offset?, limit?}`
-or CLI `npm run shagged -- inspect-bsp wfdm5 --limit 100`.
+`shagged_inspect_installed_map {mapName: "washoidm5", search?, offset?, limit?}`
+or CLI `npm run shagged -- inspect-bsp washoidm5 --limit 100`.
 This reads the installed BSP through the game's package index, independently
 of managed authoring documents. It returns world bounds in Quake coordinates,
 spawn properties, entity-class counts and a used-material palette with face
