@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "files": {
+    "gfx/hud/icons/ammo/bulletsammo.tga": {
+      "bytes": 19852,
+      "sha256": "f97cd83ba2dd43f2a3301dcf2da047b3665256407a171788ec9ddd8a98eecb54"
+    },
+    "gfx/hud/icons/ammo/riotammo.tga": {
+      "bytes": 17182,
+      "sha256": "63b824179980754bf3635b82caac06ce8d016861f6caa34fa22b77afb0d0fc58"
+    },
+    "gfx/hud/icons/ammo/grenadeammo.tga": {
+      "bytes": 17166,
+      "sha256": "d997e0d58cb3c212322ccd4219cfd2202ab31be41f1e8c2d52bf2817bdc980bd"
+    },
+    "gfx/hud/icons/ammo/rocketammo.tga": {
+      "bytes": 16643,
+      "sha256": "cc43d54cd3ba9a83b64869456a8b5636b9460272a044262d3b6cd28619a98e2b"
+    },
+    "gfx/hud/icons/ammo/plasmaammo.tga": {
+      "bytes": 16886,
+      "sha256": "b17aa96a2f2ec669c430cc9037a355357ab9fd1a5b19ab0e0f90040780b5dda5"
+    },
+    "gfx/hud/icons/ammo/laserammo.tga": {
+      "bytes": 17811,
+      "sha256": "65cd8878c613b0c46cb4e16117df69659b66e3139ae3d59839812bb9859bf866"
+    },
+    "gfx/hud/icons/ammo/electroammo.tga": {
+      "bytes": 19219,
+      "sha256": "e4e8faf78aa85fbeefe935f4e5554c130992221c28454ea5a6ab1bd431693543"
+    },
+    "gfx/hud/icons/ammo/instaammo.tga": {
+      "bytes": 19217,
+      "sha256": "77cb39a26759bebd8f2397dc747519643005284f0352fd4572ab23b6d2667a00"
+    }
+  },
+  "package": "washoi_gfx.pk3",
+  "packageBytes": 43606,
+  "packageSha256": "70c85efb483790cb60e2edb6e692d1349c9e6e283a2185d2fc8e99c88031560e"
+}

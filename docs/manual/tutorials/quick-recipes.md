@@ -18,7 +18,7 @@ Use `executeChecked` in automation and `execute` when display output alone is su
 ## Load an inspection map
 
 ```ts
-await CommandRegistry.getInstance().executeChecked('bsp load washoidm2');
+await CommandRegistry.getInstance().executeChecked('bsp load washoi_dm2');
 await CommandRegistry.getInstance().executeChecked('bsp render');
 ```
 
@@ -27,7 +27,7 @@ await CommandRegistry.getInstance().executeChecked('bsp render');
 ## Launch gameplay
 
 ```ts
-await CommandRegistry.getInstance().executeChecked('map washoidm2 duel');
+await CommandRegistry.getInstance().executeChecked('map washoi_dm2 duel');
 ```
 
 This requires a registered gameplay launcher and reachable lobby/server setup.
@@ -105,7 +105,7 @@ teleport 0 128 0
 ## Headless smoke test
 
 ```bash
-npm run cli:game -- --exec 'bsp load washoidm2; bsp info; quit'
+npm run cli:game -- --exec 'bsp load washoi_dm2; bsp info; quit'
 ```
 
 See [Console system](../guides/console-system.md), [PK3 filesystem](../guides/pk3-filesystem.md), and [Headless mode](../guides/headless-mode.md).

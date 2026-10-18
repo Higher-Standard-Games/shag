@@ -4,7 +4,7 @@
 
 ```text
 developer 1
-bsp load washoidm2
+bsp load washoi_dm2
 bsp render
 bsp sky info
 bsp sky apply

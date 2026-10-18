@@ -54,14 +54,14 @@ async function main() {
     return spawned;
   };
   const mapConfig = path.join(dir, "maps.json");
-  fs.writeFileSync(mapConfig, JSON.stringify({ washoidm2: { displayName: "Probe", gametypes: ["ffa"] } }));
+  fs.writeFileSync(mapConfig, JSON.stringify({ washoi_dm2: { displayName: "Probe", gametypes: ["ffa"] } }));
   (lobby as unknown as { MAP_CONFIG_PATH: string }).MAP_CONFIG_PATH = mapConfig;
   process.env.SHAG_TIMELIMIT = "2s";
   process.env.SHAG_WARMUP = "10s";
   try {
     await lobby.start();
     const internal = lobby as unknown as { wss: { address(): net.AddressInfo }; gametypes: GametypeInfo[] };
-    assert.deepEqual(internal.gametypes.find((g) => g.id === "ffa")?.mapPool, ["washoidm2"]);
+    assert.deepEqual(internal.gametypes.find((g) => g.id === "ffa")?.mapPool, ["washoi_dm2"]);
     const peers = [];
     for (let i = 0; i < 2; i++) {
       const account = players.create();

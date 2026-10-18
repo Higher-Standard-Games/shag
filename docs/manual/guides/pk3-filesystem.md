@@ -37,7 +37,7 @@ import { PK3Index } from '../../../src/engine/loader/pk3/PK3Index';
 const index = PK3Index.getInstance();
 await index.ensureIndex();
 
-const map = index.findMap('washoidm2');
+const map = index.findMap('washoi_dm2');
 const owner = index.findFile('scripts/common.shader');
 const maps = index.findByPattern('maps/*.bsp');
 ```
@@ -54,12 +54,38 @@ directory first. Regenerate metadata after changing its contents.
 
 ### Curated map media
 
-The shipped map IDs are `washoidm2`, `washoidm5` and `washoidm11`, in matching
+The shipped map IDs are `washoi_dm2`, `washoi_dm5` and `washoi_dm11`, in matching
 `map_<name>.pk3` packages. BSP contents and texture/shader paths retain their
 original bytes. `npm run tools:rename-maps` stages these package/entry renames
 from the backups in `archive/media/map-renames/`; `-- --source-dir <directory>
 --output-dir <directory>` selects another source/output. The tool verifies ZIP
 CRCs and entry hashes. It does not edit BSP geometry or shader names.
+
+### Map levelshots
+
+Each production map package owns `levelshots/<map>.png`, the full-resolution
+original. `tools:rename-maps` reads these production PNGs from
+`archive/media/levelshots/` (override with `--levelshots-dir <directory>`).
+
+`npm run tools:pk3-index` also creates JPG previews, at most 960 by 540 pixels,
+in `public/data/levelshots/`. `npm run build` does this automatically. The lobby,
+loading screens, settings previews and demo browser use these small JPG URLs,
+so viewing thumbnails does not download the BSP packages. Old demo map names
+resolve to the production thumbnail names.
+
+Deploy the generated previews with the PK3 index and archives. Edit the PNG in
+the map package when updating artwork; loose JPGs are generated outputs.
+`levelshots/generated.json` tracks generated files so index generation removes
+only stale generated previews. Maps without a packaged PNG keep their UI's
+gradient fallback; generation does not restore deleted artwork from elsewhere.
+
+Ammo-crate artwork ships in `washoi_gfx.pk3` at its existing virtual paths
+`gfx/hud/icons/ammo/*.tga`. Both procedural and MD3 pickups load the indexed
+owner before resolving the texture. Rebuild the eight used icons with
+`npm run tools:gfx` from `archive/media/gfx/`, or pass
+`-- --source-dir <directory> --output <file>`. The source directory mirrors
+virtual paths. The unused gunblade icon stays archived. The packager checks TGA
+headers, ZIP CRCs and unchanged byte hashes; regenerate the index after rebuilding.
 
 Shared cartoon hit artwork ships in `effects.pk3`, with virtual paths
 `effects/cartoonhit1.png` and `effects/cartoonhit2.png`. Rebuild it with
@@ -67,7 +93,7 @@ Shared cartoon hit artwork ships in `effects.pk3`, with virtual paths
 or pass `-- --source-dir <directory>`. Regenerate the PK3 index after rebuilding.
 The packager verifies PNG signatures, ZIP CRCs and unchanged image hashes.
 
-`npm run tools:map-media -- --maps washoidm2,washoidm5,washoidm11 --combined --output-dir .cache/map-media`
+`npm run tools:map-media -- --maps washoi_dm2,washoi_dm5,washoi_dm11 --combined --output-dir .cache/map-media`
 builds `map_<name>.pk3`, intermediate `tex_<name>.pk3` banks and a combined
 `washoi_textures.pk3` in a staging directory from the
 current ownership index. It uses the runtime BSP/shader parsers, keeps source
@@ -106,7 +132,7 @@ VITE_PK3_MIRROR_URL=https://mirror.example.net/washoi/ npm run build
 ```
 
 The mirror holds a copy of `public/data/`'s pk3 files at the same paths:
-`data/map_washoidm2.pk3` is `<mirror>/map_washoidm2.pk3`. For every pk3 the index or
+`data/map_washoi_dm2.pk3` is `<mirror>/map_washoi_dm2.pk3`. For every pk3 the index or
 the loader downloads, the client asks the mirror for it and, at the same time,
 sends a HEAD request to the game's own server. It takes the mirror's copy
 when the mirror has the file and its size matches the server's. Otherwise,
@@ -154,7 +180,7 @@ if (loader.hasFile('scripts/common.shader')) {
 developer 1
 pk3 stats
 pk3 list
-pk3 find maps/washoidm2.bsp
+pk3 find maps/washoi_dm2.bsp
 pk3 index
 pk3 refresh map_mymap.pk3
 ```
@@ -174,18 +200,29 @@ If a package was deleted or files were removed from an existing archive, run
 The normal browser flow uses:
 
 ```text
-map washoidm2 duel
+map washoi_dm2 duel
 ```
 
 The headless/inspection flow uses:
 
 ```bash
-npm run cli:game -- --exec 'bsp load washoidm2; bsp info; quit'
+npm run cli:game -- --exec 'bsp load washoi_dm2; bsp info; quit'
 ```
 
 Headless loading resolves the BSP through the same PK3 index. Do not add ad-hoc filesystem searches for map files.
 
 ## KTX2 sidecar loading
+
+Rebuild sidecars after replacing source artwork or repackaging media. Runtime
+loading trusts the sidecar manifest and does not compare source signatures.
+`npm run tools:textures` incrementally refreshes changed sources; for a complete
+rebuild, archive the existing `public/data/ktx2cache` directory first, then run
+that command. Set `KTX_TOOLS_PATH` to the KTX executable when it is not on PATH.
+Reload the browser page after replacing a cache to release loaded GPU textures.
+
+Pickup model preloading follows the active game's visual policy through
+`AssetPreloader.setPickupModelFilter`. The FPS game skips authored ammo models
+when `r_pickupProcedural` is enabled and a procedural recipe exists.
 
 Generated `ktx2cache` sidecars use top-to-bottom rows, matching the TGA parser.
 Sidecars whose base width or height is not divisible by four decode to RGBA

@@ -6,7 +6,7 @@ BSP worldspawn shaders are the normal source of sky information. The map pipelin
 
 ```text
 developer 1
-bsp load washoidm2
+bsp load washoi_dm2
 bsp render
 bsp sky info
 bsp sky apply

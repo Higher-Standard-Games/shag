@@ -65,6 +65,9 @@ freefly_collision 0
 freefly_collision mode bsp
 ```
 
+Entering FPS spectator freefly disables collision and reenables the selected
+controller, including one reused after an automated camera session.
+
 Freefly uses the player's own FPS action bindings rather than fixed keys: move is WASD, rise is Jump (Space), sink is Crouch (C, Ctrl or middle mouse), and the speed multiplier is Sprint (Shift). Mouse look needs pointer lock. Rebinding those actions rebinds freefly with them.
 
 Held controls reset when the page loses focus, the tab becomes hidden or mouse

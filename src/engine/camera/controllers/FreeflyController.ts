@@ -34,7 +34,7 @@ export class FreeflyController implements ICameraController {
   private static defaultSpeed: number = 200;
 
   // Static collision enable flag (toggled via console command)
-  private static collisionEnabled: boolean = true;
+  private static collisionEnabled: boolean = false;
 
   // Collision mode: 'bsp' uses BSP brush tracing, 'native' uses Babylon's mesh collision
   private static collisionMode: "bsp" | "native" = "native";

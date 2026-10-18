@@ -33,13 +33,13 @@ Avoid importing game modules into reusable engine code. Use the existing event, 
 
 ```text
 developer 1
-map washoidm2 duel
+map washoi_dm2 duel
 ```
 
 The browser command uses the gameplay launcher. A direct headless inspection uses:
 
 ```bash
-npm run cli:game -- --exec 'bsp load washoidm2; bsp info; quit'
+npm run cli:game -- --exec 'bsp load washoi_dm2; bsp info; quit'
 ```
 
 ## Baseline validation

@@ -7,7 +7,7 @@ SHAG supports Quake 3 `IBSP` version 46 and Warsow/qfusion `FBSP` version 1 maps
 The playable FPS path resolves a map through `PK3Index`, loads its dependencies, parses it, builds Babylon meshes, initializes collision, and spawns supported entities:
 
 ```text
-map washoidm2 duel
+map washoi_dm2 duel
 ```
 
 `MapLoader.getInstance().loadMap(mapName, scene, onProgress?, opts?)` is the high-level browser API. It loads indexed BSP maps; it does not load local `.map` text files. `opts.backgroundOnly` loads a map as menu scenery, which is how a background map skips the gameplay setup that turns PVS on.
@@ -22,7 +22,7 @@ reaching the GPU during a map switch.
 
 ```text
 developer 1
-bsp load washoidm2
+bsp load washoi_dm2
 bsp info
 bsp faces
 bsp entities
@@ -202,7 +202,7 @@ Compare with `r_bsp_cellsize 0` and reload the same map; PVS enables automatical
 The repeatable geometry/PVS audit checks all authored deathmatch spawn origins at sizes 0/512/1024/2048:
 
 ```bash
-npx vite-node src/cli/audit-pvs.ts -- washoidm2 acidwdm2 wbomb6
+npx vite-node src/cli/audit-pvs.ts -- washoi_dm2 acidwdm2 wbomb6
 ```
 
 It verifies authored geometry hashes, reports mesh/triangle counts before frustum culling, and checks moving/stationary autosprite upload counts with PVS on/off. It does not benchmark GPU rendering or load the complete gameplay/material pipeline.
@@ -210,7 +210,7 @@ It verifies authored geometry hashes, reports mesh/triangle counts before frustu
 ## Headless verification
 
 ```bash
-npm run cli:game -- --exec 'bsp load washoidm2; bsp info; quit'
+npm run cli:game -- --exec 'bsp load washoi_dm2; bsp info; quit'
 npm run test:physics
 ```
 
@@ -267,7 +267,7 @@ npx vite-node src/cli/benchmark-collision.ts --demo public/data/demos/training/w
 npx vite-node src/cli/benchmark-collision.ts --baseline .cache/collision-baseline.json --out .cache/collision-candidate.json
 ```
 
-The default demo is the washoidm11 investigation recording. `--stride` defaults to 8;
+The default demo is the washoi_dm11 investigation recording. `--stride` defaults to 8;
 use 1 for every recorded interval. A baseline comparison checks demo/BSP hashes,
 stride, and exact trace/movement results, returning failure on any difference.
 The output includes initialization time and median/p95/p99 sampled query-batch

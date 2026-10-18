@@ -77,24 +77,37 @@
     "displayName": "Washoi DM11",
     "gametypes": []
   },
-  "washoidm2": {
+  "washoi_dm2": {
     "displayName": "Washoi DM2",
     "gametypes": [
-      "duel"
+      "duel",
+      "ffa"
     ]
   },
-  "washoidm5": {
+  "washoi_dm5": {
     "displayName": "Washoi DM5",
     "gametypes": [
       "duel",
       "ffa"
     ]
   },
-  "washoidm11": {
+  "washoi_dm11": {
     "displayName": "Washoi DM11",
     "gametypes": [
       "duel",
       "ffa"
     ]
+  },
+  "washoidm2": {
+    "displayName": "Washoi DM2",
+    "gametypes": []
+  },
+  "washoidm5": {
+    "displayName": "Washoi DM5",
+    "gametypes": []
+  },
+  "washoidm11": {
+    "displayName": "Washoi DM11",
+    "gametypes": []
   }
 }

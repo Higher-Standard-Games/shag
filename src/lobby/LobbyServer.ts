@@ -15,6 +15,7 @@ import { WebSocket, WebSocketServer } from "ws";
 import { log } from "../engine/core/Log";
 import { filterChatText } from "../engine/server/ChatFilter";
 import type { MatchResultReport } from "../engine/server/network/MatchResultReport";
+import { resolveFPSDemoMap } from "../games/fps/client/DemoMapAliases";
 import { DemoReader } from "../shared/demo/DemoReader";
 import { BOT_ACCOUNT_PRESETS as BOT_PRESETS, type BotPreset } from "../shared/ranking/BotMatchRatingGroups";
 import { BOT_INVITE_PREPARATION_TIMEOUT_MS } from "../shared/ranking/BotPreparation";
@@ -2274,7 +2275,7 @@ export class LobbyServer {
               durationMs,
               date: header.startTime,
               sizeMB: parseFloat((stat.size / (1024 * 1024)).toFixed(2)),
-              levelshot: `/data/levelshots/${header.map}.jpg`,
+              levelshot: `/data/levelshots/${encodeURIComponent(resolveFPSDemoMap(header.map))}.jpg`,
             });
           }
         } catch (err) {

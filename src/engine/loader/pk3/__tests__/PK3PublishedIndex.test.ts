@@ -2,7 +2,9 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import jpeg from "jpeg-js";
 import JSZip from "jszip";
+import { PNG } from "pngjs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { generatePk3Index } from "../../../../cli/pk3-index-build";
 import { PK3Index } from "../PK3Index";
@@ -24,7 +26,7 @@ async function directory(): Promise<string> {
   directories.push(dir);
   return dir;
 }
-async function pack(dir: string, filename: string, files: Record<string, string>): Promise<void> {
+async function pack(dir: string, filename: string, files: Record<string, string | Uint8Array>): Promise<void> {
   const zip = new JSZip();
   for (const [name, text] of Object.entries(files)) zip.file(name, text);
   await writeFile(join(dir, filename), Uint8Array.from(await zip.generateAsync({ type: "uint8array" })));
@@ -264,6 +266,46 @@ describe("published PK3 metadata", () => {
     await expect(generatePk3Index(data.dir)).rejects.toThrow("Package list changed while indexing");
     expect(await readFile(join(data.dir, "pk3_index.json"), "utf8")).toBe(data.text);
     expect(JSON.parse(await readFile(join(data.dir, "pk3_manifest.json"), "utf8"))).toEqual(data.manifest);
+  });
+
+  it("extracts bounded JPG previews without changing the packaged PNG", async () => {
+    const dir = await directory();
+    const image = new PNG({ width: 1600, height: 900 });
+    for (let i = 0; i < image.data.length; i += 4) {
+      image.data[i] = 230;
+      image.data[i + 1] = 40;
+      image.data[i + 2] = 20;
+      image.data[i + 3] = 255;
+    }
+    const png = Uint8Array.from(PNG.sync.write(image));
+    await pack(dir, "map_arena.pk3", { "maps/arena.bsp": "map", "levelshots/arena.png": png });
+    const before = await readFile(join(dir, "map_arena.pk3"));
+    expect((await generatePk3Index(dir)).levelshotCount).toBe(1);
+    const preview = jpeg.decode(await readFile(join(dir, "levelshots/arena.jpg")));
+    expect([preview.width, preview.height]).toEqual([960, 540]);
+    expect(preview.data[0]).toBeGreaterThan(220);
+    expect(preview.data[1]).toBeLessThan(50);
+    expect(await readFile(join(dir, "map_arena.pk3"))).toEqual(before);
+  });
+
+  it("rejects invalid packaged images before replacing published metadata", async () => {
+    const data = await fixture();
+    await pack(data.dir, "map_badshot.pk3", { "maps/arena.bsp": "map", "levelshots/arena.png": "bad PNG" });
+    await expect(generatePk3Index(data.dir)).rejects.toThrow("Invalid levelshot PNG");
+    expect(await readFile(join(data.dir, "pk3_index.json"), "utf8")).toBe(data.text);
+    expect(JSON.parse(await readFile(join(data.dir, "pk3_manifest.json"), "utf8"))).toEqual(data.manifest);
+  });
+
+  it("removes only stale generated previews and leaves unrelated loose files alone", async () => {
+    const dir = await directory();
+    const png = Uint8Array.from(PNG.sync.write(new PNG({ width: 2, height: 2 })));
+    await pack(dir, "map_arena.pk3", { "maps/arena.bsp": "map", "levelshots/arena.png": png });
+    await generatePk3Index(dir);
+    await writeFile(join(dir, "levelshots/manual.jpg"), "manual image");
+    await pack(dir, "map_arena.pk3", { "maps/arena.bsp": "map" });
+    expect((await generatePk3Index(dir)).levelshotCount).toBe(0);
+    await expect(readFile(join(dir, "levelshots/arena.jpg"))).rejects.toMatchObject({ code: "ENOENT" });
+    expect(await readFile(join(dir, "levelshots/manual.jpg"), "utf8")).toBe("manual image");
   });
 
   it("publishes an empty data directory so source-only builds do not require downloaded assets", async () => {

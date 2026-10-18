@@ -17,7 +17,7 @@ The command classes and definitions are the source of truth; command counts and 
 ```text
 developer 1
 pk3 stats
-bsp load washoidm2
+bsp load washoi_dm2
 bsp info
 bsp render
 camera mode freefly
@@ -27,7 +27,7 @@ pos
 For gameplay:
 
 ```text
-map washoidm2 duel
+map washoi_dm2 duel
 connect localhost:7777
 ```
 
@@ -76,7 +76,7 @@ echo "hello world"
 Headless batches are semicolon-separated:
 
 ```bash
-npm run cli:game -- --exec 'bsp load washoidm2; bsp info; quit'
+npm run cli:game -- --exec 'bsp load washoi_dm2; bsp info; quit'
 ```
 
 The console has no user-defined aliases. Put repeatable sequences in a configuration file and run it with `exec`, or add a command class.

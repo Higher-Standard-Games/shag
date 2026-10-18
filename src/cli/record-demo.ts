@@ -6,8 +6,8 @@
  * for a fixed duration, then saves the .shagdemo and prints its path.
  *
  * Usage:
- *   npm run demo:record -- --map washoidm2 --bots 2 --seconds 30 --gametype duel
- *   npm run demo:record -- --map washoidm2 --bots 2 --seconds 60 --models ./models/human
+ *   npm run demo:record -- --map washoi_dm2 --bots 2 --seconds 30 --gametype duel
+ *   npm run demo:record -- --map washoi_dm2 --bots 2 --seconds 60 --models ./models/human
  */
 
 import { MatchPhase } from "@shared/server/gametype";
@@ -36,7 +36,7 @@ interface Args {
 function parseArgs(): Args {
   const args = process.argv.slice(2);
   const a: Args = {
-    map: "washoidm2",
+    map: "washoi_dm2",
     bots: 2,
     seconds: 30,
     gametype: "duel",

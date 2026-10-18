@@ -1,0 +1,39 @@
+[
+  {
+    "map": "washoi_dm2",
+    "package": "map_washoi_dm2.pk3",
+    "pngBytes": 2019082,
+    "pngSha256": "16bac673c269ac88e2d8305edfc4a5312f4d5744a503a24525be036629a5218a",
+    "unchangedEntries": [
+      "maps/washoi_dm2.bsp"
+    ],
+    "packageBytes": 5310979,
+    "previewBytes": 104035
+  },
+  {
+    "map": "washoi_dm5",
+    "package": "map_washoi_dm5.pk3",
+    "pngBytes": 1856712,
+    "pngSha256": "59e0b403eb135cd0a640836e99eae6175ad5015c97223f8f660a8ecff3ad05de",
+    "unchangedEntries": [
+      "maps/washoi_dm5.bsp",
+      "minimaps/washoi_dm5.ktx",
+      "navigation/washoi_dm5.nav"
+    ],
+    "packageBytes": 21694518,
+    "previewBytes": 79214
+  },
+  {
+    "map": "washoi_dm11",
+    "package": "map_washoi_dm11.pk3",
+    "pngBytes": 1783149,
+    "pngSha256": "82ed9f6ad6cb2bf4ad10183304258a4c731bb66044b200c1a47993f397f1c155",
+    "unchangedEntries": [
+      "maps/washoi_dm11.bsp",
+      "minimaps/washoi_dm11.ktx",
+      "navigation/washoi_dm11.nav"
+    ],
+    "packageBytes": 18547636,
+    "previewBytes": 80654
+  }
+]

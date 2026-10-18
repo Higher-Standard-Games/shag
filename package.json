@@ -66,6 +66,7 @@
     "tools:map-media": "node scripts/package-map-media.mjs",
     "tools:rename-maps": "node scripts/rename-map-packages.mjs",
     "tools:effects": "node scripts/package-effects.mjs",
+    "tools:gfx": "node scripts/package-gfx.mjs",
     "tools:nonfree-audit": "node scripts/audit-nonfree-media.mjs",
     "tools:map": "npx vite-node src/tools/generate-map.ts",
     "dev:agents": "node --experimental-strip-types scripts/dev-agents.ts",

@@ -12,7 +12,7 @@ SHAG has separate inspection and gameplay paths.
 
 ```text
 developer 1
-map washoidm2 duel
+map washoi_dm2 duel
 ```
 
 `MapCommand` is engine-owned, but it does not import the FPS game. It calls the single registered `GameplayMapLauncher`.
@@ -52,13 +52,13 @@ These refer to the gameplay launcher state, not the lower-level `BspManager` ins
 `cli:game` registers engine commands but not the browser gameplay launcher:
 
 ```bash
-npm run cli:game -- --exec 'bsp load washoidm2; bsp info; quit'
+npm run cli:game -- --exec 'bsp load washoi_dm2; bsp info; quit'
 ```
 
 For a real network smoke test, run:
 
 ```bash
-npm run net:server -- --map washoidm2 --port 7777
+npm run net:server -- --map washoi_dm2 --port 7777
 npm run net:client -- --connect ws://127.0.0.1:7777
 ```
 

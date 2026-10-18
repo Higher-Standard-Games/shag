@@ -95,6 +95,9 @@ it("publishes demo ownership only when ticketed accounts match a durable result"
     };
     scanner.DEMO_DIR = demoDir;
     scanner._scanDemos();
+    expect(scanner._demoCache.find((demo) => demo.filename === path.basename(savedPath))?.levelshot).toBe(
+      "/data/levelshots/washoi_dm2.jpg",
+    );
     expect(scanner._demoOwnership.get(path.basename(savedPath))).toEqual(new Set([first.id, second.id]));
     expect(scanner._demoOwnership.size).toBe(2);
     expect(scanner._demoOwnership.get(path.basename(privatePath))).toEqual(new Set([first.id]));

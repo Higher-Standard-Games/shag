@@ -55,7 +55,7 @@ something a game owns, it goes through a registry; see
 5. `npm run build` succeeds.
 6. Renderer and networking changes also pass the regression set in `AGENTS.md`:
    `test:simulation`, `test:physics`, `server:tick`, `server:fuzz -- --ticks 1000`
-   and the headless `bsp load washoidm2` check.
+   and the headless `bsp load washoi_dm2` check.
 
 ### Commit messages
 

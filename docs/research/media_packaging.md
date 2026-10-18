@@ -724,3 +724,236 @@ the two data0 banks cannot yet be archived from this configured deployment.
 This update refreshed metadata only after the additional user moves; the full
 runtime regressions described above preceded those moves. Static dependency
 checks cover all six maps, but a fresh full match in each mode was not run.
+
+
+## Final map IDs with underscores (2026-10-18)
+
+The production IDs are now `washoi_dm2`, `washoi_dm5`, and `washoi_dm11`.
+Their archives are `map_washoi_dm2.pk3`, `map_washoi_dm5.pk3`, and
+`map_washoi_dm11.pk3`, containing `maps/<id>.bsp`. Matching levelshot, minimap,
+and navigation entry basenames were renamed where present. Display names remain
+Washoi DM2, Washoi DM5, and Washoi DM11. Earlier sections record the packaging
+history; their `washoidm*` names describe the intermediate names, not current IDs.
+
+`scripts/rename-map-packages.mjs` now builds these names directly from the original
+archived map packages. ZIP CRCs and every extracted entry's SHA256 are checked;
+[the resulting entry manifest](media/map_underscore_renames.json) records all names
+and hashes. Original BSP bytes, texture paths, shader paths, and geometry remain
+unchanged. `washoi_textures.pk3` still hashes to
+`b4e68de1258bac8827a478d9674d296dbd4a894b476c33fdbc7e0717d5151d8e`.
+
+Intermediate packages were moved to
+`archive/media/map-renames/pre-underscore/`; the old metadata is backed up in
+`.cache/pre-underscore-metadata/`. The active directory still has
+17 archives and six maps. Regenerated `pk3_index.json` / `pk3_manifest.json` and
+all renamed packages are ignored local deployment artifacts, so deploy them
+alongside the source changes. The loose DM2 lobby preview was copied to
+`public/data/levelshots/washoi_dm2.jpg`.
+
+Lobby IDs, the learned DM2 route filename/map field, CLI defaults, the timedemo
+recipe's map field, and manual examples use the final IDs. Route contents and
+historical recording/benchmark filenames are retained. Demo lookup accepts both
+`wdm2`/`wfdm5`/`wfdm11` and `washoidm2`/`washoidm5`/`washoidm11`, without
+rewriting recording headers or events. Historical map entries remain inactive in
+the lobby config for display-name lookup.
+
+### Validation for the map naming and HUD papercuts
+
+The accompanying HUD work defaults the crosshair to 32, synchronizes its empty
+red X with the HUD's equipped weapon/ammo, and enlarges the live Tab scoreboard
+by 50% on desktop and 15% below 860px. Existing saved crosshair sizes remain
+respected. Empty means no usable loaded ammo or reserve; the blade is not empty.
+The result screen retains its own scale.
+
+Commands run (logs under `.cache/`):
+
+- `npm run tools:rename-maps -- --output-dir .cache/map-underscore-renames`: pass,
+  CRC and per-entry byte hashes verified.
+- `npm run tools:pk3-index`: pass, 17 packages / six maps. An initial Windows
+  overwrite-rename failure was resolved by archiving the old metadata before
+  generating fresh files; the subsequent normal build also regenerated it.
+- `npm run typecheck`: pass.
+- `npm run gate:biome`: pass, zero errors and 319 warnings against 339 baseline.
+- `npm run build`: pass (existing chunk-size warnings).
+- `npm run docs:build` and `npm run docs:fps:build`: pass.
+- `npm run test:run -- --poolOptions.forks.singleFork=false --poolOptions.forks.maxForks=1 --poolOptions.forks.minForks=1`:
+  624 files passed, 5,135 tests passed and one skipped before the final ID change.
+- `npm run test:run -- src/games/fps/client/__tests__/CrosshairAmmo.test.ts src/games/fps/client/__tests__/CrosshairLifecycle.test.ts src/games/fps/client/__tests__/ScoreboardSides.test.ts src/games/fps/client/__tests__/ScoreboardPostGame.test.ts`:
+  16 tests passed.
+- `npm run test:run -- src/games/fps/client/__tests__/DemoMapAliases.test.ts src/engine/loader/pk3/__tests__/NodePk3.test.ts src/lobby/integration/RoomToRanking.test.ts src/lobby/integration/DropIn.test.ts`:
+  lobby integration and aliases passed; the uppercase map fixture still used
+  the intermediate spelling. Corrected it to `WASHOI_DM2`, then ran
+  `npm run test:run -- src/games/fps/client/__tests__/DemoMapAliases.test.ts src/engine/loader/pk3/__tests__/NodePk3.test.ts`:
+  all 12 tests passed.
+- `npm run test:simulation`, `npm run test:physics`, `npm run server:tick`,
+  `npm run server:fuzz -- --ticks 1000`: pass.
+- `node .cache/run-map-bsp.mjs`: pass; invokes the project's vite-node headless
+  runner with one intact `--exec` argument:
+  `bsp load washoi_dm2; bsp info; bsp load washoi_dm5; bsp info; bsp load washoi_dm11; bsp info; quit`.
+  Faces: 7,475 / 1,353 / 675. The first shell-quoted attempt split its argument;
+  the direct spawn invocation verified actual loading rather than command help.
+- `node .cache/run-hud-replay.mjs`: pass; invokes the headless runner with
+  `sim replay "W+CROUCH 60; JUMP 1; W 30"; quit`.
+- `node .cache/hud-papercut-browser.mjs`: pass; real CSS/canvas in Chrome,
+  Duel/FFA/team scoreboards at 480–1920px, no horizontal overflow, red X when
+  empty and normal green reticle after refill. Desktop deaths 19.5px/ping 18px.
+
+Assumptions: these three IDs are the canonical production IDs; legacy names
+remain demo aliases rather than additional installed BSPs. No fresh manual
+match or subjective gameplay QA has been done for these papercuts.
+
+Exact source/document paths changed in this follow-up:
+
+- `benchmarks/recipes/wdm2-ffa10.json`
+- `config/bot-routes/washoi_dm2.json`
+- `config/bot-routes/washoidm2.json`
+- `config/maps.json`
+- `docs/changelog/v0.9.32.md`
+- `docs/manual/contributing/index.md`
+- `docs/manual/deployment/web.md`
+- `docs/manual/faq/index.md`
+- `docs/manual/getting-started/index.md`
+- `docs/manual/guides/bsp-system.md`
+- `docs/manual/guides/console-system.md`
+- `docs/manual/guides/headless-mode.md`
+- `docs/manual/guides/map-launching.md`
+- `docs/manual/guides/networking.md`
+- `docs/manual/guides/physics-system.md`
+- `docs/manual/guides/pk3-filesystem.md`
+- `docs/manual/guides/shagged-api.md`
+- `docs/manual/guides/skybox-system.md`
+- `docs/manual/guides/timedemo.md`
+- `docs/manual/index.md`
+- `docs/manual/tools/headless-bsp.md`
+- `docs/manual/tools/headless-game.md`
+- `docs/manual/tools/network-client.md`
+- `docs/manual/tools/network-server.md`
+- `docs/manual/tutorials/advanced/headless-testing.md`
+- `docs/manual/tutorials/beginner/first-map-load.md`
+- `docs/manual/tutorials/beginner/using-console.md`
+- `docs/manual/tutorials/intermediate/fps-skeleton.md`
+- `docs/manual/tutorials/intermediate/isometric-game.md`
+- `docs/manual/tutorials/intermediate/map-viewer.md`
+- `docs/manual/tutorials/quick-recipes.md`
+- `docs/manual/tutorials/recipes/change-skybox.md`
+- `docs/research/media/map_underscore_renames.json`
+- `docs/research/media_packaging.md`
+- `scripts/rename-map-packages.mjs`
+- `src/cli/ServerRuntimeProbe.ts`
+- `src/cli/bot-analyze.ts`
+- `src/cli/compare-local-vs-server.ts`
+- `src/cli/headless-netserver-v2.ts`
+- `src/cli/map-media.ts`
+- `src/cli/record-demo.ts`
+- `src/cli/test-server-physics.ts`
+- `src/cli/timedemo-fixture.ts`
+- `src/engine/loader/pk3/__tests__/NodePk3.test.ts`
+- `src/games/fps/Game.ts`
+- `src/games/fps/client/Crosshair.ts`
+- `src/games/fps/client/DemoMapAliases.ts`
+- `src/games/fps/client/DemoService.ts`
+- `src/games/fps/client/__tests__/CrosshairAmmo.test.ts`
+- `src/games/fps/client/__tests__/DemoMapAliases.test.ts`
+- `src/games/fps/client/hud/styles/WashikiTheme.css`
+- `src/games/fps/docs/manual/developer/server-commands.md`
+- `src/games/fps/docs/manual/faq/index.md`
+- `src/games/fps/docs/manual/gametypes/index.md`
+- `src/games/fps/docs/manual/gametypes/maps.md`
+- `src/games/fps/docs/manual/getting-started/index.md`
+- `src/games/fps/docs/manual/getting-started/troubleshooting.md`
+- `src/games/fps/docs/manual/player/settings.md`
+- `src/lobby/integration/DropIn.test.ts`
+- `src/lobby/integration/RoomToRanking.test.ts`
+
+Cold browser map check: `node .cache/map-underscore-browser.mjs` passed for
+all three canonical IDs. Each fetched its matching map package,
+`washoi_textures.pk3`, and `data0_21pure.pk3`, with no failed network requests
+or browser errors. The existing 36sky side-image fallback probes remain absent
+for DM2/DM5; DM11 probes absent KTX files before finding its other sky formats.
+These source-media fallback observations are unchanged by the byte-preserving
+rename. Browser report: `.cache/map-underscore-browser-report.json`.
+
+
+
+### Loose ammo icon investigation
+
+`public/data/gfx/hud/icons/ammo/` contains nine TGA images. Eight names are
+referenced by `ProceduralPickupRecipes.ammoCrates` and `FPSPickup.AMMO_ICONS`:
+bulletsammo, riotammo, grenadeammo, rocketammo, plasmaammo, laserammo,
+electroammo, and instaammo. They are world ammo-crate side decals, despite their
+legacy HUD directory. `createAmmoIconMaterial` resolves an already loaded PK3
+texture first, then requests the loose `<path>.tga` fallback. The older MD3
+ammo-box renderer follows the same policy. `gunbladeammo.tga` has no current
+source reference. No assets were moved or removed in this investigation.
+
+
+## Shared GFX package (2026-10-18)
+
+The eight referenced ammo-crate icons now ship in `public/data/washoi_gfx.pk3`
+(43,606 bytes), preserving their `gfx/hud/icons/ammo/*.tga` paths and image
+bytes. The package contains a hash manifest, also recorded in
+[media/gfx_package.json](media/gfx_package.json). This is packaging, not an
+artwork or licensing replacement. The ninth icon, gunbladeammo, is unused and
+not included. All nine originals are archived under
+`archive/media/gfx/gfx/hud/icons/ammo/`; no loose icons remain served.
+
+Rebuild: `npm run tools:gfx`, then `npm run tools:pk3-index`. The packager
+accepts `-- --source-dir <root> --output <pk3>`; source paths mirror virtual
+paths. It validates TGA headers, ZIP CRCs and byte hashes. The published index
+now contains 18 archives and six maps. The PK3 and its archived source files are
+local media artifacts; deploy the PK3 plus the regenerated metadata with code.
+
+Both the procedural and MD3 ammo renderers call `loadAmmoIconTexture`, which
+ensures the index, loads the TGA's owning package, then resolves the texture.
+The loose-file fallback remains for custom media. This avoids requiring an
+unrelated map's packages to be loaded first.
+
+Files changed for this packaging step:
+
+- `scripts/package-gfx.mjs`
+- `package.json`
+- `src/games/fps/world/pickups/AmmoIconTexture.ts`
+- `src/games/fps/world/FPSPickup.ts`
+- `src/games/fps/world/pickups/procedural/ProceduralPickupMaterials.ts`
+- `src/games/fps/world/pickups/procedural/__tests__/AmmoIconTexture.test.ts`
+- `docs/manual/guides/pk3-filesystem.md`
+- `docs/changelog/v0.9.32.md`
+- `docs/research/media/gfx_package.json`
+- `docs/research/media_packaging.md`
+
+Validation:
+
+- `npm run tools:gfx` and `npm run tools:pk3-index`: pass; eight unchanged icons.
+- `npm run test:run -- src/games/fps/world/pickups/procedural/__tests__`: 29 tests
+  passed, including indexed-owner loading order and custom loose fallback.
+- `npm run typecheck`, `npm run gate:biome`, `npm run build`,
+  `npm run docs:build`: pass. The gate caught a formatting issue left by the
+  preceding uppercase map-fixture edit; formatting that existing changed test
+  restored zero errors / 319 warnings against 339 baseline.
+- `npm run test:simulation`, `npm run test:physics`, `npm run server:tick`,
+  `npm run server:fuzz -- --ticks 1000`, and `node .cache/run-map-bsp.mjs`:
+  pass; the last command loaded all three canonical BSPs through the index.
+- `node .cache/gfx-browser.mjs`: pass. Cold Chrome with the real pickup icon
+  material rendered all eight images with alpha, loading only `washoi_gfx.pk3`.
+  No failed network requests or browser errors; screenshot visually inspected.
+  Loose icons were already archived, so they could not mask a missing package.
+
+Assumption: only the eight source-referenced ammo icons belong in this initial
+GFX bank. The legacy MD3 branch shares the tested loader but has not been
+visually tested in a separate match; the production procedural material was
+rendered directly. No gameplay rules or image pixels changed.
+
+Full gate after GFX packaging:
+`npm run test:run -- --poolOptions.forks.singleFork=false --poolOptions.forks.maxForks=1 --poolOptions.forks.minForks=1`
+passed: 625 files, 5,140 tests passed and one skipped (357.46 seconds).
+The run includes expected NullEngine/jsdom diagnostic output from renderer and
+canvas fixtures; the test results passed. Log: `.cache/gfx-all-tests.log`.
+
+
+## Production-ready levelshots packaged (2026-10-18)
+
+The three supplied PNGs now live in map_washoi_dm2/5/11.pk3. Index/build
+generation publishes only their small JPG previews (263,903 bytes total),
+without restoring deleted artwork. Full-resolution originals remain unchanged
+inside the archives. See [LEVELSHOT_PACKAGING.md](LEVELSHOT_PACKAGING.md) for
+source paths, changed files, rebuild commands, validation and deployment notes.

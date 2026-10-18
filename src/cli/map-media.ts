@@ -399,7 +399,7 @@ export async function main(): Promise<void> {
   const value = (flag: string, fallback: string) => (args.includes(flag) ? args[args.indexOf(flag) + 1] : fallback);
   const directory = path.resolve(value("--data-dir", "public/data"));
   const output = path.resolve(value("--output-dir", ".cache/map-media"));
-  const maps = value("--maps", "washoidm2,washoidm5,washoidm11").split(",");
+  const maps = value("--maps", "washoi_dm2,washoi_dm5,washoi_dm11").split(",");
   const index = JSON.parse(await fs.readFile(path.join(directory, "pk3_index.json"), "utf8")) as Index;
   const bank = new MediaBank(directory, index);
   await bank.loadShaders();

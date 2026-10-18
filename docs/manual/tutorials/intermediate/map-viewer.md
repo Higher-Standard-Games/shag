@@ -26,7 +26,7 @@ For an in-browser FPS map browser, invoke the same gameplay command as the lobby
 ```ts
 import { CommandRegistry } from '../../../../src/engine/console/CommandRegistry';
 
-await CommandRegistry.getInstance().executeChecked('map washoidm2 duel');
+await CommandRegistry.getInstance().executeChecked('map washoi_dm2 duel');
 ```
 
 The selected game composition must have registered `GameplayMapLauncher`. If the browser is only an inspection tool, use `MapLoader.getInstance().loadMap(name, scene)` or the `bsp` command path deliberately.
@@ -43,7 +43,7 @@ The selected game composition must have registered `GameplayMapLauncher`. If the
 ## Validate
 
 ```bash
-npm run cli:game -- --exec 'bsp load washoidm2; bsp info; quit'
+npm run cli:game -- --exec 'bsp load washoi_dm2; bsp info; quit'
 npm run typecheck
 ```
 

@@ -27,7 +27,7 @@ If the first argument is a path rather than a command, `info` is used.
 For a map that remains inside a PK3, use:
 
 ```bash
-npm run cli:game -- --exec 'bsp load washoidm2; bsp info; quit'
+npm run cli:game -- --exec 'bsp load washoi_dm2; bsp info; quit'
 ```
 
 The direct parser API is synchronous:

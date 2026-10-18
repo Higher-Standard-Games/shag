@@ -62,11 +62,11 @@ class LobbyPeer {
   }
 }
 
-const hasInstalledWdm2 = fs.existsSync(path.join(process.cwd(), "public", "data", "map_washoidm2.pk3"));
+const hasInstalledWdm2 = fs.existsSync(path.join(process.cwd(), "public", "data", "map_washoi_dm2.pk3"));
 
 describe("installed-map room to ranking", () => {
   it.skipIf(!hasInstalledWdm2).each(["public", "private"] as const)(
-    "launches washoidm2 from a real %s lobby and serves only the selected ranking",
+    "launches washoi_dm2 from a real %s lobby and serves only the selected ranking",
     async (visibility) => {
       const dir = fs.mkdtempSync(path.join(os.tmpdir(), "shag-room-ranking-"));
       const target = path.resolve(dir);
@@ -81,7 +81,7 @@ describe("installed-map room to ranking", () => {
       const botSecret = "ranking-smoke-secret";
       const lobby = new LobbyServer(0, spawner, { players: accounts, results, botSecret });
       const mapConfig = path.join(dir, "maps.json");
-      fs.writeFileSync(mapConfig, JSON.stringify({ washoidm2: { displayName: "Test Arena", gametypes: ["ffa"] } }));
+      fs.writeFileSync(mapConfig, JSON.stringify({ washoi_dm2: { displayName: "Test Arena", gametypes: ["ffa"] } }));
       (lobby as unknown as { MAP_CONFIG_PATH: string }).MAP_CONFIG_PATH = mapConfig;
       const peers: LobbyPeer[] = [];
       const gameClients: ProtocolTestClient[] = [];
@@ -98,7 +98,7 @@ describe("installed-map room to ranking", () => {
         const internal = lobby as unknown as { gametypes: GametypeInfo[]; wss: { address(): { port: number } } };
         const ffa = internal.gametypes.find((mode) => mode.id === "ffa")!;
         expect(ffa).toMatchObject({ maxPlayers: 8, minPlayers: 2 });
-        expect(ffa.mapPool).toEqual(["washoidm2"]);
+        expect(ffa.mapPool).toEqual(["washoi_dm2"]);
         const lobbyPort = internal.wss.address().port;
         for (const member of members) {
           const peer = await LobbyPeer.connect(lobbyPort);
@@ -119,7 +119,7 @@ describe("installed-map room to ranking", () => {
         first.send({ type: "lobby:create", gametype: "ffa", visibility });
         const room = (await first.waitFor("lobby:created")).lobby as MatchLobbyInfo;
         expect(room.config).toMatchObject({ maxPlayers: 8, minPlayers: 2 });
-        expect(room.maps).toMatchObject([{ name: "washoidm2" }]);
+        expect(room.maps).toMatchObject([{ name: "washoi_dm2" }]);
         first.send({ type: "lobby:ready", lobbyId: room.id, ready: true });
         await first.waitFor("lobby:player_updated", (message) => message.ready === true);
         expect(spawn).not.toHaveBeenCalled();
@@ -132,7 +132,7 @@ describe("installed-map room to ranking", () => {
           first.waitFor("lobby:connect", () => true, 45_000),
           second.waitFor("lobby:connect", () => true, 45_000),
         ]);
-        expect(firstConnect).toMatchObject({ map: "washoidm2", gametype: "ffa" });
+        expect(firstConnect).toMatchObject({ map: "washoi_dm2", gametype: "ffa" });
         expect(spawn).toHaveBeenCalledTimes(1);
         expect(secondConnect).toMatchObject({ matchId: firstConnect.matchId, serverUrl: firstConnect.serverUrl });
         expect(firstConnect.admissionTicket).not.toBe(secondConnect.admissionTicket);

@@ -71,7 +71,7 @@ function spawned(client: ProtocolTestClient, entityId: string, timeout = 8000) {
   }, timeout);
 }
 
-const hasInstalledWdm2 = fs.existsSync(path.join(process.cwd(), "public", "data", "map_washoidm2.pk3"));
+const hasInstalledWdm2 = fs.existsSync(path.join(process.cwd(), "public", "data", "map_washoi_dm2.pk3"));
 
 describe("dropping into a running lobby match", () => {
   it.skipIf(!hasInstalledWdm2)(
@@ -97,7 +97,7 @@ describe("dropping into a running lobby match", () => {
         // A three-seat free-for-all that starts with two, leaving one seat free.
         const internal = lobby as unknown as { gametypes: GametypeInfo[]; wss: { address(): { port: number } } };
         const ffa = internal.gametypes.find((mode) => mode.id === "ffa")!;
-        ffa.mapPool = ["washoidm2"];
+        ffa.mapPool = ["washoi_dm2"];
         ffa.maxPlayers = 3;
         ffa.minPlayers = 2;
         const lobbyPort = internal.wss.address().port;

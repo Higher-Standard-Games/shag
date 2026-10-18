@@ -16,7 +16,7 @@ import { resolveMapBspViaIndex } from "../NodePk3";
 import { PK3Loader } from "../PK3Loader";
 
 const dataDir = path.resolve("public/data");
-const hasMaps = fs.existsSync(path.join(dataDir, "map_washoidm2.pk3"));
+const hasMaps = fs.existsSync(path.join(dataDir, "map_washoi_dm2.pk3"));
 
 // Skip gracefully if the pk3 library isn't present in this checkout.
 const maybe = hasMaps ? it : it.skip;
@@ -69,7 +69,7 @@ describe("resolveMapBspViaIndex", () => {
     }
   });
   maybe("resolves a map's BSP bytes through the pk3 index", async () => {
-    const bsp = await resolveMapBspViaIndex([dataDir], "washoidm2");
+    const bsp = await resolveMapBspViaIndex([dataDir], "washoi_dm2");
     expect(bsp).not.toBeNull();
     expect(bsp!.byteLength).toBeGreaterThan(1000);
     // Quake3/Warsow BSP magic
@@ -77,7 +77,7 @@ describe("resolveMapBspViaIndex", () => {
   });
 
   maybe("is case-insensitive on the map name", async () => {
-    const bsp = await resolveMapBspViaIndex([dataDir], "WASHOIDM2");
+    const bsp = await resolveMapBspViaIndex([dataDir], "WASHOI_DM2");
     expect(bsp).not.toBeNull();
   });
 

@@ -1,0 +1,77 @@
+[
+  {
+    "oldName": "wdm2",
+    "newName": "washoi_dm2",
+    "files": [
+      {
+        "original": "maps/wdm2.bsp",
+        "renamed": "maps/washoi_dm2.bsp",
+        "sha256": "f1cab8f8abdff75aca24c180c0979a13c8caeaf63273a4b8b17f8f18cb6b6da5",
+        "bytes": 9417992
+      }
+    ],
+    "packageBytes": 3291182
+  },
+  {
+    "oldName": "wfdm5",
+    "newName": "washoi_dm5",
+    "files": [
+      {
+        "original": "maps/wfdm5.bsp",
+        "renamed": "maps/washoi_dm5.bsp",
+        "sha256": "ae793980d96132539660cb3e487392e4b94f46fb0fc01ecde72321e9c6eede3e",
+        "bytes": 63861484
+      },
+      {
+        "original": "levelshots/wfdm5.png",
+        "renamed": "levelshots/washoi_dm5.png",
+        "sha256": "aa163ef13dd7dc6712c5a42748142738525983034730ee6c0ed5809f0f0a2e3f",
+        "bytes": 1140973
+      },
+      {
+        "original": "minimaps/wfdm5.ktx",
+        "renamed": "minimaps/washoi_dm5.ktx",
+        "sha256": "8279dba228b94b767e0ca6aa9f5d9bebceeeae81f6112bf10074810014a923dd",
+        "bytes": 65636
+      },
+      {
+        "original": "navigation/wfdm5.nav",
+        "renamed": "navigation/washoi_dm5.nav",
+        "sha256": "fe2f85692515db6032ffaa76f5de66f2d83eb5df2dca62c0b71da79ddea08873",
+        "bytes": 55952
+      }
+    ],
+    "packageBytes": 20977997
+  },
+  {
+    "oldName": "wfdm11",
+    "newName": "washoi_dm11",
+    "files": [
+      {
+        "original": "maps/wfdm11.bsp",
+        "renamed": "maps/washoi_dm11.bsp",
+        "sha256": "f66d0319c60dffbd39c2ea915126c393489bb8a741798752e20c412485fdcc3d",
+        "bytes": 67704568
+      },
+      {
+        "original": "levelshots/wfdm11.png",
+        "renamed": "levelshots/washoi_dm11.png",
+        "sha256": "cd8fc8d4187ecf4680e6fdbf57c703e68e4758875596591989b76ce4e859e857",
+        "bytes": 1340833
+      },
+      {
+        "original": "minimaps/wfdm11.ktx",
+        "renamed": "minimaps/washoi_dm11.ktx",
+        "sha256": "9fdd916f895af3558638e067074cb057939df60a8380ccaa19aea5be66dd6dc8",
+        "bytes": 65636
+      },
+      {
+        "original": "navigation/wfdm11.nav",
+        "renamed": "navigation/washoi_dm11.nav",
+        "sha256": "c7000e078643eb98c7d299db75b09fd11bc94882c83c85f2e14f6a84ffaf8b11",
+        "bytes": 51416
+      }
+    ],
+    "packageBytes": 18104547
+  }
+]

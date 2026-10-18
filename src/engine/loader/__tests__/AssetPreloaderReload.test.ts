@@ -38,6 +38,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  AssetPreloader.getInstance().setPickupModelFilter(null);
   AssetPreloader.getInstance().clearCache();
   engine.dispose();
   vi.restoreAllMocks();
@@ -54,6 +55,16 @@ function loadedModel(): ModelLoadResult {
 }
 
 describe("AssetPreloader", () => {
+  it("skips model loading when the game supplies procedural pickup visuals", async () => {
+    const load = vi.spyOn(ModelLoader.getInstance(), "loadModel").mockImplementation(async () => loadedModel());
+    const preloader = AssetPreloader.getInstance();
+    preloader.setPickupModelFilter(() => false);
+    expect(await preloader.preloadFromBsp(BSP, scene)).toBe(0);
+    expect(load).not.toHaveBeenCalled();
+    preloader.setPickupModelFilter(null);
+    await preloader.preloadFromBsp(BSP, scene);
+    expect(load).toHaveBeenCalledWith(MODEL, expect.anything());
+  });
   it("loads a model again after the scene clear instead of handing out an empty clone", async () => {
     const load = vi.spyOn(ModelLoader.getInstance(), "loadModel").mockImplementation(async () => loadedModel());
     const preloader = AssetPreloader.getInstance();

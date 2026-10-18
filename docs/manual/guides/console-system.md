@@ -19,8 +19,8 @@ help render
 Useful commands include:
 
 ```text
-map washoidm2 duel
-bsp load washoidm2
+map washoi_dm2 duel
+bsp load washoi_dm2
 bsp info
 camera mode freefly
 camera fov 100
@@ -88,7 +88,7 @@ open, or when Ctrl, Alt or Meta is held.
 ```ts
 const registry = CommandRegistry.getInstance();
 const output = await registry.execute('bsp info');
-const result = await registry.executeChecked('bsp load washoidm2');
+const result = await registry.executeChecked('bsp load washoi_dm2');
 ```
 
 `executeChecked` is preferable in automation because its `ok` field distinguishes command failure from ordinary output.
