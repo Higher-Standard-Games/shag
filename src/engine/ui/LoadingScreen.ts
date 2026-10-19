@@ -25,6 +25,7 @@ import { EngineVersion } from "../core/EngineVersion";
 import { buildTwinLight, buildTwinRail, TWIN_ROOT_CLASS, type TwinRail } from "./components/LobbyTwin";
 import { LoadingAnimation } from "./LoadingAnimation";
 import { SHAG_PALETTE } from "./LoadingPalettes";
+import { PackageDownloadStatus } from "./PackageDownloadStatus";
 import { UIStyles } from "./UIStyles";
 
 import "./components/styles/BootScreen.css";
@@ -48,6 +49,7 @@ export class LoadingScreen {
   private statusEl: HTMLElement;
   private rail: TwinRail;
   private barEl: HTMLElement;
+  private downloads: PackageDownloadStatus;
   private ringEl: HTMLButtonElement;
   private captionEl: HTMLElement;
   private startEl: HTMLButtonElement;
@@ -138,7 +140,8 @@ export class LoadingScreen {
     this.barEl.setAttribute("aria-valuemin", "0");
     this.barEl.setAttribute("aria-valuemax", "100");
     this.barEl.appendChild(element("div", "boot__bar-fill"));
-    progress.append(progressHead, this.barEl);
+    this.downloads = new PackageDownloadStatus();
+    progress.append(this.downloads.root, progressHead, this.barEl);
 
     stage.append(hero, progress);
     this.container.append(buildTwinLight(), this.rail.rail, stage);
@@ -213,6 +216,7 @@ export class LoadingScreen {
   public fail(error: unknown, reload: () => void = () => window.location.reload()): void {
     if (this.failed) return;
     this.failed = true;
+    this.downloads.destroy();
     this.readyResolver = null;
     window.removeEventListener("keydown", this.onKey);
     this.smokeAnimation?.destroy();
@@ -285,6 +289,7 @@ export class LoadingScreen {
     if (this.failed) return;
     if (this.ready) return;
     this.ready = true;
+    this.downloads.destroy();
     this.stepIndex = BOOT_STEPS.length;
     this.rail.setSteps(BOOT_STEPS.map(() => "done"));
     this.statusEl.textContent = "READY";
@@ -326,6 +331,7 @@ export class LoadingScreen {
   }
 
   public hide(): void {
+    this.downloads.destroy();
     window.removeEventListener("keydown", this.onKey);
 
     // Clean up animation

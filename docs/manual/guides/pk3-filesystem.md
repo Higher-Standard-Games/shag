@@ -39,7 +39,17 @@ The command preserves map-compatible texture paths and shader animation.
 At runtime, `PK3Index` first loads and validates the published searchable index.
 This fetches the two small metadata files with HTTP revalidation and avoids
 downloading every archive or sending a HEAD request per archive at boot.
-Packages still download lazily for the selected map and its dependencies:
+Packages still download lazily for the selected map and its dependencies.
+
+The startup and map-loading screens display active HTTP package transfers above
+the overall loading bar. Each transfer shows its filename, received and total
+size in decimal MB, a recent transfer rate in MB/s, and its own progress bar.
+When the response has no usable uncompressed `Content-Length`, the screen shows
+received MB and an indeterminate bar. Connecting, retrying and preparing the
+archive are separate states. Up to three packages are listed together, with a
+count of additional active transfers. The panel disappears when transfers finish;
+the overall loading bar continues through map preparation. Packages already in
+memory do not produce a transfer indicator.
 
 ```ts
 import { PK3Index } from '../../../src/engine/loader/pk3/PK3Index';

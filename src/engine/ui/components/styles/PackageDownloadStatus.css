@@ -1,0 +1,103 @@
+.package-downloads[hidden] {
+  display: none;
+}
+.package-downloads {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 18px;
+  padding: 18px 20px;
+  background: rgba(10, 10, 25, 0.88);
+  border: 1px solid rgba(49, 235, 242, 0.3);
+  border-left: 4px solid #31ebf2;
+  color: #fff8df;
+  text-align: left;
+  min-width: 0;
+}
+.package-downloads__header,
+.package-downloads__stats {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+.package-downloads__label {
+  color: #31ebf2;
+  text-transform: uppercase;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+}
+.package-downloads__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: clamp(14px, 1.3vw, 19px);
+}
+.package-downloads__stats {
+  margin: 6px 0 9px;
+  font-variant-numeric: tabular-nums;
+  font-size: 16px;
+}
+.package-downloads__speed {
+  color: #ffdf39;
+  white-space: nowrap;
+}
+.package-downloads__bar {
+  height: 5px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+.package-downloads__fill {
+  height: 100%;
+  width: var(--download-progress, 0%);
+  background: #31ebf2;
+  transition: width 0.2s linear;
+}
+.package-downloads__bar--unknown .package-downloads__fill {
+  width: 30%;
+  animation: package-download 1.5s ease-in-out infinite alternate;
+}
+.package-downloads__more {
+  color: #ddd6c4;
+  font-size: 14px;
+}
+
+/* Keep transfers readable when several packages need room on a short screen. */
+.boot__stage:has(.package-downloads:not([hidden])) {
+  justify-content: safe center;
+  overflow-y: auto;
+  gap: clamp(12px, 2vh, 24px);
+}
+.boot__stage:has(.package-downloads:not([hidden])) .boot__ring {
+  width: clamp(100px, 24vh, 260px);
+}
+.boot__stage:has(.package-downloads:not([hidden])) > * {
+  flex-shrink: 0;
+}
+.connecting-overlay__stage:has(.package-downloads:not([hidden])) {
+  grid-template-rows: auto auto;
+  align-content: safe center;
+  gap: 24px;
+  overflow-y: auto;
+}
+@keyframes package-download {
+  to {
+    transform: translateX(230%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .package-downloads__fill {
+    transition: none;
+    animation: none !important;
+  }
+}
+@media (max-width: 600px) {
+  .package-downloads {
+    padding: 12px;
+  }
+  .package-downloads__header {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+}

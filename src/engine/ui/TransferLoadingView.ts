@@ -15,6 +15,7 @@ import { buildTwinLight, buildTwinRail, TWIN_ROOT_CLASS, type TwinRail } from ".
 import { getNetworkConnector } from "./components/NetworkConnector";
 import type { MapLoadingView } from "./MapLoadingOverlay";
 import { mapTitle } from "./MapTitles";
+import { PackageDownloadStatus } from "./PackageDownloadStatus";
 
 import "./components/styles/ConnectingOverlay.css";
 
@@ -93,6 +94,7 @@ export class TransferLoadingView implements MapLoadingView {
   private progressShare = 0;
   private phaseIndex = 0;
   private failed = false;
+  private downloads: PackageDownloadStatus | null = null;
 
   mount(container: HTMLElement, map: LoadingStartEvent): void {
     this.networked = getNetworkConnector()?.isConnected() === true;
@@ -195,6 +197,8 @@ export class TransferLoadingView implements MapLoadingView {
   }
 
   destroy(): void {
+    this.downloads?.destroy();
+    this.downloads = null;
     if (this.dotTimer !== null) clearInterval(this.dotTimer);
     this.dotTimer = null;
     this.root?.remove();
@@ -239,7 +243,8 @@ export class TransferLoadingView implements MapLoadingView {
     this.noticeEl = element("div", "connecting-overlay__notices");
     this.noticeEl.setAttribute("aria-live", "assertive");
 
-    transfer.append(statusHeader, bar, footer, this.noticeEl);
+    this.downloads = new PackageDownloadStatus();
+    transfer.append(this.downloads.root, statusHeader, bar, footer, this.noticeEl);
     stage.append(this.shotEl, hero, transfer);
     return stage;
   }

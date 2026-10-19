@@ -49,9 +49,14 @@ export async function readAssetBuffer(
   response: Response,
   idleMs = ASSET_IDLE_TIMEOUT_MS,
   totalMs = ASSET_TOTAL_TIMEOUT_MS,
+  onProgress?: (loadedBytes: number) => void,
 ): Promise<ArrayBuffer> {
   // Supports non-streaming fetch implementations too.
-  if (!response.body) return deadline(response.arrayBuffer(), idleMs, () => {});
+  if (!response.body) {
+    const bytes = await deadline(response.arrayBuffer(), idleMs, () => {});
+    onProgress?.(bytes.byteLength);
+    return bytes;
+  }
   const reader = response.body.getReader();
   const chunks: Uint8Array[] = [];
   let size = 0;
@@ -66,6 +71,7 @@ export async function readAssetBuffer(
       if (done) break;
       chunks.push(value);
       size += value.byteLength;
+      onProgress?.(size);
     }
     const bytes = new Uint8Array(size);
     let offset = 0;

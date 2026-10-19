@@ -1,5 +1,6 @@
 import JSZip from "jszip";
 import { readAssetBuffer } from "./AssetRequest";
+import { PackageDownload } from "./PackageDownload";
 import { fetchPk3, pk3MirrorBase } from "./Pk3Mirror";
 
 export interface PK3LoaderConfig {
@@ -90,24 +91,33 @@ export class PK3Loader {
    */
   private async fetchAndValidatePK3(url: string, filename: string, maxRetries = 2): Promise<JSZip> {
     let mirrorBase = pk3MirrorBase();
-    for (let attempt = 0; ; attempt++) {
-      let retryable = true;
-      try {
-        const { response, source } = await fetchPk3(url, mirrorBase);
-        if (source === "mirror") mirrorBase = null;
-        if (!response.ok) {
-          void response.body?.cancel().catch(() => {});
-          retryable = response.status >= 500 || response.status === 408 || response.status === 429;
-          throw new Error(`HTTP ${response.status}: ${response.statusText} for ${filename}`);
+    const download = new PackageDownload(filename);
+    try {
+      for (let attempt = 0; ; attempt++) {
+        download.reset();
+        let retryable = true;
+        try {
+          const { response, source } = await fetchPk3(url, mirrorBase);
+          if (source === "mirror") mirrorBase = null;
+          if (!response.ok) {
+            void response.body?.cancel().catch(() => {});
+            retryable = response.status >= 500 || response.status === 408 || response.status === 429;
+            throw new Error(`HTTP ${response.status}: ${response.statusText} for ${filename}`);
+          }
+          download.response(response);
+          const bytes = await readAssetBuffer(response, undefined, undefined, (loaded) => download.update(loaded));
+          download.phase = "Preparing";
+          // Parse here: an intact ZIP header does not prove the directory survived.
+          return await JSZip.loadAsync(bytes);
+        } catch (error) {
+          if (!retryable || attempt >= maxRetries) throw new Error(`Could not load ${filename}: ${String(error)}`);
+          mirrorBase = null;
+          download.phase = "Retrying";
+          await new Promise((resolve) => setTimeout(resolve, 500));
         }
-        const bytes = await readAssetBuffer(response);
-        // Parse here: an intact ZIP header does not prove the directory survived.
-        return await JSZip.loadAsync(bytes);
-      } catch (error) {
-        if (!retryable || attempt >= maxRetries) throw new Error(`Could not load ${filename}: ${String(error)}`);
-        mirrorBase = null;
-        await new Promise((resolve) => setTimeout(resolve, 500));
       }
+    } finally {
+      download.finish();
     }
   }
 
