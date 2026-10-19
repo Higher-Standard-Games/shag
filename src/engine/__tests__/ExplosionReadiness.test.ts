@@ -149,7 +149,9 @@ describe("explosion particle systems", () => {
     expect(scene.meshes.filter((m) => /_ray_\d+$/.test(m.name))).toHaveLength(140);
     now = 2000;
     effect.update(2);
-    expect(scene.meshes).toHaveLength(0);
+    // Only the shared shapes stay, never drawn.
+    expect(scene.meshes.map((m) => m.name).sort()).toEqual(["explosion_template_disc", "explosion_template_rayCone"]);
+    expect(scene.meshes.every((m) => !m.isEnabled())).toBe(true);
     expect(scene.materials).toHaveLength(129); // Scene default + 128 idle rays.
     expect(scene.onDisposeObservable.observers).toHaveLength(observers + 1);
     effect.clear();

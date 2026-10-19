@@ -17,7 +17,9 @@ import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
 import { Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector";
-import type { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { CreateIcoSphereVertexData } from "@babylonjs/core/Meshes/Builders/icoSphereBuilder";
+import { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Observer } from "@babylonjs/core/Misc/observable";
 import { ParticleSystem } from "@babylonjs/core/Particles/particleSystem";
@@ -118,7 +120,8 @@ interface ActiveExplosion {
   fireballMat: StandardMaterial;
   fireballOrigPositions: Float32Array; // Original deformed vertex positions
 
-  rays: { mesh: Mesh; mat: StandardMaterial; direction: Vector3 }[];
+  /** `size` is the ray's base width (X, Z) and length (Y); the animation scales it. */
+  rays: { mesh: Mesh; mat: StandardMaterial; direction: Vector3; size: Vector3 }[];
 
   shockwave: Mesh | null;
   shockwaveMat: StandardMaterial | null;
@@ -145,6 +148,23 @@ export class ExplosionEffect {
 
   // Procedural particle texture (generated once)
   private particleTexture: Texture | null = null;
+
+  /**
+   * Shapes every explosion is built from, made once per scene: a deformed
+   * fireball per scale, a unit ray cone and a shockwave disc per scale. Building
+   * the icosphere, deforming it and building eight to twelve cylinders was most
+   * of what spawning an explosion cost. Templates stay disabled; rays and discs
+   * share their geometry, and each fireball copies its own, because it animates
+   * its vertices.
+   */
+  private shapes: {
+    scene: Scene;
+    rayCone: Mesh;
+    discs: Map<number, Mesh>;
+    fireballs: Map<number, { template: VertexData; deformed: Float32Array }>;
+  } | null = null;
+  private readonly fadeColor = new Color3();
+  private readonly rayOffset = new Vector3();
 
   private constructor() {}
 
@@ -303,26 +323,52 @@ export class ExplosionEffect {
    * Layer 1: Spiky fireball — deformed icosphere
    */
   private createFireball(id: string, pos: Vector3, scale: number, config: ExplosionConfig) {
-    const mesh = MeshBuilder.CreateIcoSphere(
-      `${id}_fireball`,
-      {
-        radius: 2.5 * scale,
-        subdivisions: 3,
-        flat: true, // Flat shading for that faceted cartoon look
-      },
-      this.scene!,
-    );
+    const scene = this.scene!;
+    const shape = this.fireballShape(scene, scale);
+    const mesh = new Mesh(`${id}_fireball`, scene);
+    const data = new VertexData();
+    data.positions = new Float32Array(shape.deformed);
+    data.normals = shape.template.normals;
+    data.uvs = shape.template.uvs;
+    data.indices = shape.template.indices;
+    data.applyToMesh(mesh, true);
 
     mesh.position = pos.clone();
     mesh.isPickable = false;
 
-    // Deform vertices to create spiky look
-    const positions = mesh.getVerticesData(VertexBuffer.PositionKind);
-    if (!positions) {
-      const mat = new StandardMaterial(`${id}_fireballMat`, this.scene!);
-      return { mesh, material: mat, origPositions: new Float32Array(0) };
-    }
+    // Every frame rewrites the vertices from these; nothing writes to them.
+    const origPositions = shape.deformed;
 
+    // Material: emissive, no lighting
+    const mat = new StandardMaterial(`${id}_fireballMat`, this.scene!);
+    // Each dirty-enabling setter otherwise scans every submesh in the scene.
+    mat.atomicMaterialsUpdate(() => {
+      mat.emissiveColor = config.coreColor.clone();
+      mat.diffuseColor = Color3.Black();
+      mat.disableLighting = true;
+      mat.backFaceCulling = false;
+      mat.alpha = 0.9;
+      applySafeMaxSimultaneousLights(mat);
+    });
+    mesh.material = mat;
+
+    // Start small, will animate up
+    mesh.scaling.setAll(0.1);
+
+    return { mesh, material: mat, origPositions };
+  }
+
+  /** The spiky fireball for one scale: an icosphere pushed out by a fixed noise. */
+  private fireballShape(scene: Scene, scale: number): { template: VertexData; deformed: Float32Array } {
+    const shapes = this.shapesFor(scene);
+    const cached = shapes.fireballs.get(scale);
+    if (cached) return cached;
+    const template = CreateIcoSphereVertexData({
+      radius: 2.5 * scale,
+      subdivisions: 3,
+      flat: true, // Flat shading for that faceted cartoon look
+    });
+    const positions = template.positions ?? [];
     const deformed = new Float32Array(positions.length);
     for (let i = 0; i < positions.length; i += 3) {
       const x = positions[i];
@@ -348,29 +394,9 @@ export class ExplosionEffect {
       deformed[i + 1] = ny * dist * spike;
       deformed[i + 2] = nz * dist * spike;
     }
-
-    mesh.setVerticesData(VertexBuffer.PositionKind, deformed, true);
-
-    // Store original deformed positions for animation
-    const origPositions = new Float32Array(deformed);
-
-    // Material: emissive, no lighting
-    const mat = new StandardMaterial(`${id}_fireballMat`, this.scene!);
-    // Each dirty-enabling setter otherwise scans every submesh in the scene.
-    mat.atomicMaterialsUpdate(() => {
-      mat.emissiveColor = config.coreColor.clone();
-      mat.diffuseColor = Color3.Black();
-      mat.disableLighting = true;
-      mat.backFaceCulling = false;
-      mat.alpha = 0.9;
-      applySafeMaxSimultaneousLights(mat);
-    });
-    mesh.material = mat;
-
-    // Start small, will animate up
-    mesh.scaling.setAll(0.1);
-
-    return { mesh, material: mat, origPositions };
+    const shape = { template, deformed };
+    shapes.fireballs.set(scale, shape);
+    return shape;
   }
 
   /**
@@ -388,19 +414,11 @@ export class ExplosionEffect {
 
       // Create stretched cone (thin and long)
       const length = (2 + Math.random() * 3) * scale;
-      const mesh = MeshBuilder.CreateCylinder(
-        `${id}_ray_${i}`,
-        {
-          height: length,
-          diameterTop: 0,
-          diameterBottom: (0.3 + Math.random() * 0.3) * scale,
-          tessellation: 6,
-        },
-        this.scene!,
-      );
+      const width = (0.3 + Math.random() * 0.3) * scale;
+      const size = new Vector3(width, length, width);
+      const mesh = this.meshFrom(this.shapesFor(this.scene!).rayCone, `${id}_ray_${i}`, this.scene!);
 
       mesh.position = pos.clone();
-      mesh.isPickable = false;
 
       // Orient cone along direction
       const up = Vector3.Up();
@@ -421,9 +439,9 @@ export class ExplosionEffect {
       mesh.material = mat;
 
       // Start small
-      mesh.scaling.setAll(0.1);
+      size.scaleToRef(0.1, mesh.scaling);
 
-      rays.push({ mesh, mat, direction: dir });
+      rays.push({ mesh, mat, direction: dir, size });
     }
 
     return rays;
@@ -490,17 +508,17 @@ export class ExplosionEffect {
     config: ExplosionConfig,
     normal: Vector3 = Vector3.Up(),
   ) {
-    const mesh = MeshBuilder.CreateDisc(
-      `${id}_shockwave`,
-      {
-        radius: 0.5 * scale,
-        tessellation: 32,
-      },
-      this.scene!,
-    );
+    const shapes = this.shapesFor(this.scene!);
+    let disc = shapes.discs.get(scale);
+    if (!disc) {
+      disc = MeshBuilder.CreateDisc("explosion_template_disc", { radius: 0.5 * scale, tessellation: 32 }, this.scene!);
+      disc.setEnabled(false);
+      disc.isPickable = false;
+      shapes.discs.set(scale, disc);
+    }
+    const mesh = this.meshFrom(disc, `${id}_shockwave`, this.scene!);
 
     mesh.position = pos.clone();
-    mesh.isPickable = false;
 
     // Orient the ring to align with the hit surface.
     // The torus lies in the XZ plane by default (normal = Y-up).
@@ -603,16 +621,15 @@ export class ExplosionEffect {
 
     // Color: 3-stage shift  white-hot → orange → dark red
     // Derive fade color from config (not hardcoded red — plasma fades green)
-    const fadeColor = exp.config.outerColor.scale(0.4);
-    let emissive: Color3;
+    const fadeColor = exp.config.outerColor.scaleToRef(0.4, this.fadeColor);
+    const emissive = exp.fireballMat.emissiveColor;
     if (t < 0.3) {
-      emissive = Color3.Lerp(exp.config.coreColor, exp.config.outerColor, t / 0.3);
+      Color3.LerpToRef(exp.config.coreColor, exp.config.outerColor, t / 0.3, emissive);
     } else if (t < 0.6) {
-      emissive = Color3.Lerp(exp.config.outerColor, fadeColor, (t - 0.3) / 0.3);
+      Color3.LerpToRef(exp.config.outerColor, fadeColor, (t - 0.3) / 0.3, emissive);
     } else {
-      emissive = Color3.Lerp(fadeColor, exp.config.smokeColor, (t - 0.6) / 0.4);
+      Color3.LerpToRef(fadeColor, exp.config.smokeColor, (t - 0.6) / 0.4, emissive);
     }
-    exp.fireballMat.emissiveColor = emissive;
 
     // Alpha: hold, then fade in second half
     exp.fireballMat.alpha = t < 0.4 ? 0.9 : 0.9 * (1.0 - (t - 0.4) / 0.6);
@@ -683,11 +700,11 @@ export class ExplosionEffect {
       if (ray.mat.isFrozen) ray.mat.unfreeze();
       // Scale up fast, then hold
       const rayScale = easeOutQuad(Math.min(t / 0.15, 1.0));
-      ray.mesh.scaling.setAll(rayScale);
+      ray.size.scaleToRef(rayScale, ray.mesh.scaling);
 
       // Move outward from center
       const outDist = easeOutQuad(Math.min(t / 0.3, 1.0)) * 4 * exp.config.scale;
-      ray.mesh.position = exp.position.add(ray.direction.scale(outDist));
+      exp.position.addToRef(ray.direction.scaleToRef(outDist, this.rayOffset), ray.mesh.position);
 
       // Fade out after halfway
       ray.mat.alpha = t < 0.25 ? 0.8 : 0.8 * Math.max(0, 1.0 - (t - 0.25) / 0.35);
@@ -695,7 +712,7 @@ export class ExplosionEffect {
 
       // Color shift
       const colorT = Math.min(t * 3, 1.0);
-      ray.mat.emissiveColor = Color3.Lerp(exp.config.coreColor, exp.config.outerColor, colorT);
+      Color3.LerpToRef(exp.config.coreColor, exp.config.outerColor, colorT, ray.mat.emissiveColor);
     }
   }
 
@@ -748,6 +765,38 @@ export class ExplosionEffect {
     for (const exp of this.explosions) disposeExplosion(exp, (material) => this.releaseRayMaterial(material));
     this.explosions = [];
     this.disposeRayMaterialPool();
+    this.disposeShapes();
+  }
+
+  private shapesFor(scene: Scene): NonNullable<ExplosionEffect["shapes"]> {
+    // A map unload can dispose every scene mesh, templates included.
+    if (!this.shapes || this.shapes.scene !== scene || this.shapes.rayCone.isDisposed()) {
+      this.disposeShapes();
+      const rayCone = MeshBuilder.CreateCylinder(
+        "explosion_template_rayCone",
+        { height: 1, diameterTop: 0, diameterBottom: 1, tessellation: 6 },
+        scene,
+      );
+      rayCone.setEnabled(false);
+      rayCone.isPickable = false;
+      this.shapes = { scene, rayCone, discs: new Map(), fireballs: new Map() };
+    }
+    return this.shapes;
+  }
+
+  private disposeShapes(): void {
+    if (!this.shapes) return;
+    this.shapes.rayCone.dispose();
+    for (const disc of this.shapes.discs.values()) disc.dispose();
+    this.shapes = null;
+  }
+
+  /** A new mesh drawing `template`'s geometry, which it shares rather than copies. */
+  private meshFrom(template: Mesh, name: string, scene: Scene): Mesh {
+    const mesh = new Mesh(name, scene);
+    template.geometry?.applyToMesh(mesh);
+    mesh.isPickable = false;
+    return mesh;
   }
 
   // ═══════════════════════════════════════════════════════════════
