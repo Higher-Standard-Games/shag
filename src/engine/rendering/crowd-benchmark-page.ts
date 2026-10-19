@@ -18,6 +18,7 @@ import { Scene } from "@babylonjs/core/scene";
 import { timedemoPercentiles } from "../../shared/benchmark/TimedemoFixture";
 import { readPlayerModelAsset } from "../animation/PlayerModelAssets";
 import { PlayerModelManager } from "../animation/PlayerModelManager";
+import { PK3Loader } from "../loader/pk3/PK3Loader";
 import { CrowdActors, type CrowdRecipe, crowdSchedule, validateCrowdRecipe } from "./CrowdBenchmark";
 import { PlayerOutlineProxy } from "./PlayerOutlineProxy";
 import { observeRendererDevice, waitForRendererGPU } from "./RendererDiagnostics";
@@ -245,6 +246,7 @@ async function run(): Promise<void> {
   document.addEventListener("visibilitychange", hidden);
   document.addEventListener("keydown", keyboard);
   try {
+    PK3Loader.getInstance().configure({ basePath: "/data/" });
     const response = await fetch("/benchmarks/recipes/player-crowd-v1.json");
     if (!response.ok) throw new Error("Crowd recipe unavailable");
     const recipe: unknown = await response.json();

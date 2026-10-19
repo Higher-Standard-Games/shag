@@ -304,6 +304,7 @@ sampler; 250 ms status polling and passive draw/GPU counters remain.
 To inspect it manually, start `npm run dev`, then open
 `http://localhost:3000/benchmarks/crowd/index.html?renderer=webgpu&repeats=1&counts=0,10`
 (or `renderer=webgl2`). Escape stops the test; completion retires its scene/engine.
+The standalone page loads PK3 packages from `/data/`, independent of its nested URL.
 This is a development-server benchmark entry, not a separate game mode or a
 default production page. It needs `player_model_vanguard.pk3` in `public/data/`
 (see [Model loading](./model-loading.md#packaged-player-model)); no recorded demo
