@@ -10,12 +10,14 @@
  * - Packet loss % (detected via snapshot tick gaps)
  * - Interpolation delay (from SnapshotBuffer)
  * - Command send rate
- * - Reconciliation corrections/sec
+ * - Prediction corrections/sec and the largest in the last second
+ * - Extra upload and download delay over the best seen recently
  *
  * Usage:
  *   NetGraph.init() — call once after engine boot
  *   NetGraph.recordSnapshot(ping, tick) — call on each server snapshot
- *   NetGraph.recordReconciliation() — call on each reconciliation correction
+ *   NetGraph.recordCorrection(units) — call on each visible prediction correction
+ *   NetGraph.recordPathDelays(up, down) — call per snapshot with raw one-way timings
  *   NetGraph.recordCommandSent() — call on each command sent
  *   NetGraph.render() — call each frame
  */
@@ -75,6 +77,38 @@ class RollingCounter {
 }
 
 // ============================================================================
+// Windowed minimum — the best one-way timing seen recently
+// ============================================================================
+
+const DELAY_BUCKET_MS = 5000;
+const DELAY_BUCKETS = 6;
+
+/**
+ * Minimum over roughly the last 30 seconds, in 5-second buckets. A raw one-way
+ * timing carries the unknown offset between the two clocks; subtracting the
+ * recent minimum cancels it and leaves the extra delay queued on that path.
+ */
+class WindowedMin {
+  private buckets: Array<{ start: number; min: number }> = [];
+
+  record(value: number, now: number): void {
+    const last = this.buckets[this.buckets.length - 1];
+    if (!last || now - last.start >= DELAY_BUCKET_MS) {
+      this.buckets.push({ start: now, min: value });
+      if (this.buckets.length > DELAY_BUCKETS) this.buckets.shift();
+    } else if (value < last.min) {
+      last.min = value;
+    }
+  }
+
+  min(): number {
+    let min = Number.POSITIVE_INFINITY;
+    for (const bucket of this.buckets) if (bucket.min < min) min = bucket.min;
+    return min;
+  }
+}
+
+// ============================================================================
 // NetGraph Singleton
 // ============================================================================
 
@@ -89,7 +123,13 @@ export class NetGraph {
   private pingHistory: number[] = [];
   private snapshotCounter = new RollingCounter(1000);
   private commandCounter = new RollingCounter(1000);
-  private reconciliationCounter = new RollingCounter(1000);
+  private correctionCounter = new RollingCounter(1000);
+  /** Largest corrections of the last second, as [time, units]. */
+  private recentCorrections: Array<[number, number]> = [];
+  private upDelay = new WindowedMin();
+  private downDelay = new WindowedMin();
+  private upExtraMs = 0;
+  private downExtraMs = 0;
 
   private interpDelayMs = 0;
   private clockOffsetMs = 0;
@@ -170,9 +210,33 @@ export class NetGraph {
     }
   }
 
-  /** Call on each reconciliation correction */
-  static recordReconciliation(): void {
-    NetGraph.instance?.reconciliationCounter.record();
+  /** Call on each prediction correction the player can see, with its size in world units. */
+  static recordCorrection(units: number): void {
+    const inst = NetGraph.instance;
+    if (!inst) return;
+    const now = performance.now();
+    inst.correctionCounter.record(now);
+    inst.recentCorrections.push([now, units]);
+    while (inst.recentCorrections.length > 0 && inst.recentCorrections[0][0] < now - 1000) {
+      inst.recentCorrections.shift();
+    }
+  }
+
+  /**
+   * Call per snapshot with raw one-way timings, each in some clock pair's terms:
+   * `upMs` from sending the acknowledged command to the snapshot's server tick,
+   * `downMs` from that tick to the snapshot's arrival. The graph shows how far
+   * each sits above its recent best, which tells a queue on the player's upload
+   * (commands waiting behind other traffic) from one on the download.
+   */
+  static recordPathDelays(upMs: number, downMs: number): void {
+    const inst = NetGraph.instance;
+    if (!inst || !Number.isFinite(upMs) || !Number.isFinite(downMs)) return;
+    const now = performance.now();
+    inst.upDelay.record(upMs, now);
+    inst.downDelay.record(downMs, now);
+    inst.upExtraMs = upMs - inst.upDelay.min();
+    inst.downExtraMs = downMs - inst.downDelay.min();
   }
 
   /** Call on each command sent to server */
@@ -234,7 +298,7 @@ export class NetGraph {
 
     // Calculate panel dimensions
     const lineHeight = 16;
-    const textLines = 7;
+    const textLines = 8;
     const panelHeight = textLines * lineHeight + GRAPH_PADDING * 2 + (showGraph ? GRAPH_HEIGHT + GRAPH_PADDING : 0);
     const panelWidth = GRAPH_WIDTH + GRAPH_PADDING * 2;
 
@@ -259,7 +323,11 @@ export class NetGraph {
     const ping = inst.currentPing;
     const snapRate = inst.snapshotCounter.rate(now);
     const cmdRate = inst.commandCounter.rate(now);
-    const reconRate = inst.reconciliationCounter.rate(now);
+    const correctionRate = inst.correctionCounter.rate(now);
+    let largestCorrection = 0;
+    for (const [at, units] of inst.recentCorrections) {
+      if (at >= now - 1000 && units > largestCorrection) largestCorrection = units;
+    }
     const interp = inst.interpDelayMs;
 
     // Ping
@@ -284,9 +352,19 @@ export class NetGraph {
     ctx.fillText(`cmd: ${cmdRate.toFixed(0)}/s`, x + 120, y);
     y += lineHeight;
 
-    // Reconciliation rate
-    ctx.fillStyle = reconRate > 5 ? RECON_COLOR : TEXT_COLOR;
-    ctx.fillText(`recon: ${reconRate.toFixed(1)}/s`, x, y);
+    // Prediction corrections: how often, and the largest in the last second
+    ctx.fillStyle = largestCorrection > 20 || correctionRate > 5 ? RECON_COLOR : TEXT_COLOR;
+    ctx.fillText(`corr: ${correctionRate.toFixed(1)}/s`, x, y);
+    ctx.fillText(`max: ${largestCorrection.toFixed(1)}u`, x + 120, y);
+    y += lineHeight;
+
+    // Extra one-way delay over the recent best: upload, then download
+    const up = Math.max(0, inst.upExtraMs);
+    const down = Math.max(0, inst.downExtraMs);
+    ctx.fillStyle = up > 100 ? RECON_COLOR : up > 30 ? CMD_COLOR : TEXT_COLOR;
+    ctx.fillText(`up: +${up.toFixed(0)}ms`, x, y);
+    ctx.fillStyle = down > 100 ? RECON_COLOR : down > 30 ? CMD_COLOR : TEXT_COLOR;
+    ctx.fillText(`down: +${down.toFixed(0)}ms`, x + 120, y);
     y += lineHeight;
 
     // Avg ping

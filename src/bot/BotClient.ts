@@ -33,6 +33,8 @@ import { StateMachineBrain } from "./StateMachineBrain";
 
 /** Most script commands sent in one timer firing, well under the server's input buffer. */
 const MAX_SCRIPT_BURST = 4;
+/** Commands (200 ms) the paced repeat may fall behind before it skips the lost time. */
+const MAX_PACED_BACKLOG = 25;
 
 // ── Types ───────────────────────────────────────────────────────────────
 
@@ -91,6 +93,8 @@ export class BotClient extends EventEmitter {
   private _lastBotInput: BotInput | null = null; // Cached AI decision, re-sent at 125Hz
   /** A scripted movement being sent, one command per server tick (see `BotInput.script`). */
   private _script: { inputs: readonly BotInput[]; sent: number; startedAt: number } | null = null;
+  /** The plain repeat of the last decision, paced by the clock rather than by timer firings. */
+  private _paced: { sent: number; startedAt: number } | null = null;
 
   // Death/respawn
   private _isDead: boolean = false;
@@ -597,13 +601,27 @@ export class BotClient extends EventEmitter {
     this._inputLoopTimer = setInterval(() => {
       if (!this._lastBotInput || this._isDead || this._state !== "playing") {
         this._script = null;
+        this._paced = null;
         return;
       }
       const script = this._script;
       if (!script) {
-        this._sendInput(this._lastBotInput);
+        // One command per server tick by the clock. The server runs one movement
+        // step per command and waits when none has arrived, so a bot sending one
+        // per timer firing (about 15.6 ms on Windows) would move at half speed.
+        const now = performance.now();
+        this._paced ??= { sent: 0, startedAt: now };
+        const owed = Math.floor((now - this._paced.startedAt) / TICK_MS) + 1;
+        // A stalled event loop has lost that time; do not send it all at once.
+        if (owed - this._paced.sent > MAX_PACED_BACKLOG) this._paced.sent = owed - 1;
+        const until = Math.min(owed, this._paced.sent + MAX_SCRIPT_BURST);
+        while (this._paced.sent < until) {
+          this._sendInput(this._lastBotInput);
+          this._paced.sent++;
+        }
         return;
       }
+      this._paced = null;
       // One script command per server tick. The timer fires late and unevenly
       // (Windows timers tick at about 15.6 ms), so send every command owed by
       // now; the server consumes them one per tick, in order.

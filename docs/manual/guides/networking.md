@@ -134,20 +134,49 @@ With predict():
   Client prediction: runs physics for instant feedback, doesn't advance tick
 ```
 
-### 3b. Fixed-Rate Authoritative Physics
+### 3b. Authoritative Movement: One Step per Command
 
-The server advances each player's physics **exactly one `dt` per server tick**, regardless of how fast that client sends input:
+The server runs **one movement step per client command**, the same steps the
+client predicted from the same commands, so a reconciliation normally has
+nothing to correct:
 
-- It consumes **at most one** buffered command per tick (FIFO, in sequence order) and **repeats the last input** when none arrived (so gravity and momentum still advance).
-- The first two starved ticks repeat as extra steps. The commands they waited for then run one tick later each, so the queue grows deep enough to absorb that link's ordinary jitter.
-- Past those two ticks the client is stalled, and each further guess **stands in for the client's next command**: the ACK advances to it, and that command is dropped when it arrives late. The client therefore sees only where a guess differed from what the player did, not the whole stall replayed on top of its own prediction. Guesses run at most 32 commands (256 ms) ahead of the newest real one, and never in a tick that just dropped a late command, which is what lets a client that lost frame time catch up.
-- The input buffer holds 12 commands, enough for a 20 FPS client's per-frame burst. A queue that stays at least 3 deep for a whole second gives one command up, so an earlier stall does not leave latency behind. A fast/flooding client still can't bank extra physics steps.
-- It acks the newest command its physics has accounted for (`input.lastProcessedSeq`): the one it simulated, or the one a guess stood in for. Reconciliation replays exactly the rest.
-- Weapon-switch requests on dropped commands carry forward to the next step.
+- A tick runs the next queued command (FIFO, in sequence order).
+- When none has arrived, the player **waits**: no step that tick, and the tick
+  is owed. Other players see a brief hold. Action buttons are kept for 3 silent
+  ticks, then cleared.
+- Owed ticks are repaid by **catch-up**: while 12 or more commands are queued,
+  the player runs a second step in the tick. A queue that stays at least 3 deep
+  for a whole second also catches one up. A stall therefore costs the player
+  nothing in the end — every command they sent runs, in order.
+- Catch-up only repays owed ticks, so no client can take more steps than real
+  time allows by sending extra commands. A queue that stays deep with nothing
+  owed (a client sending ahead of real time) gives one command up per second.
+- A player waits at most **500 ms** of owed ticks. Past that the server
+  guesses: it repeats the last command (gravity and momentum go on), and each
+  guess **stands in for the client's next command** — the ACK advances to it,
+  and that command is dropped when it arrives late, its aim, buttons and weapon
+  request becoming the next guess. Guesses run at most 32 commands (256 ms)
+  ahead of the newest real one, and never in a tick that just dropped a late
+  command, so a client that lost frame time catches up. A player never heard
+  from at all still falls once the 500 ms runs out.
+- The input buffer holds two seconds of commands (250), the backlog a stalled
+  upload can deliver at once.
+- It acks the newest command its physics has accounted for
+  (`input.lastProcessedSeq`): the one it simulated, or the one a guess stood in
+  for. Reconciliation replays exactly the rest.
+- Weapons run once per tick, after movement. In a catch-up tick they see the
+  newest command plus any action button or weapon request the earlier one
+  carried.
 
-A slow, throttled or malicious client that sends fewer commands therefore cannot get reduced gravity or speed (a "moon jump"). Input *content* matters; input *rate* cannot change the physics.
+A slow, throttled or malicious client that sends fewer commands can hold itself
+still or slowed for at most 500 ms before the server guesses for it (no lasting
+"moon jump"), and one that sends more gains nothing.
 
-Movement effect timers (slide, wall-jump charge, ledge grab, crouch view) are all derived from an **absolute sim clock** (`sequence × dt`), so reconciliation replays recompute identical timelines instead of double-advancing — replay-idempotent by construction.
+Movement effect timers (slide, wall-jump charge, ledge grab, crouch view) and
+knockback drag are derived from a **step clock** (`step × dt`): the client
+counts its commands, the server counts each player's movement steps. Only rates
+are shared, never absolute values, and reconciliation replays recompute
+identical timelines instead of double-advancing.
 
 ### 3c. Input Sanitizer
 
@@ -190,9 +219,22 @@ Sometimes prediction is wrong. Maybe another player shot you, or collision diffe
 **How it works:**
 
 1. Server sends snapshot with `ackedInputSeq` — the last input it processed
-2. Client rewinds to server state (position, velocity, grounded)
-3. Client replays all **unacknowledged inputs** from `ackedInputSeq` forward
-4. Result: predicted position that accounts for server corrections
+2. Client looks up what it predicted after that same input. If the snapshot
+   matches (position and velocity within 0.01, grounded, knockback age, lift
+   state), the prediction is **confirmed**: nothing is corrected or replayed,
+   and the client keeps its own full-precision state rather than the float32
+   wire values. Most snapshots end here.
+3. Otherwise the client rewinds to the server state (position, velocity,
+   grounded, knockback age) together with its own **movement state as it was
+   after that input** — slide, wall jump, ledge grab, ladder, jump latch — and
+4. replays all **unacknowledged inputs** from `ackedInputSeq` forward.
+
+Restoring the movement state matters: replaying from the newest one made a
+crouch slide entered after the ack end on the first replayed step, start its
+cooldown, and refuse to start again — a correction of up to 36 units at 100 ms.
+
+The replay budget is two seconds of commands (250). Past it the client adopts
+the server state and discards its history (`Resynchronising` warning).
 
 **Visual smoothing:** The difference between the pre- and post-reconciliation positions is stored as a `visualOffset`, which decays over ~50ms. This prevents camera jitter from minor corrections.
 
@@ -286,7 +328,7 @@ Server-side knockback, replicated as state:
 
 1. **Server:** Damage dealt → knockback impulse queued on victim
 2. **Server:** Impulse applied as velocity change before next movement simulation
-3. **Server:** Air drag steps the impulse's age once per tick; a landing or the end of the drag window ends it
+3. **Server:** Air drag steps the impulse's age once per movement step, before that step's movement; a landing or the end of the drag window ends it
 4. **Snapshot:** The impulse travels as velocity. Its owner alone also receives `knockback_state` — the drag age after that tick, or null when inactive
 5. **Client:** Reconciliation adopts the age with position and velocity, and every predicted or replayed step advances it through the same `applyKnockbackDrag` the server runs. The client never predicts an impulse itself
 
@@ -322,8 +364,8 @@ a server actually observes over a real socket.
 
 Server-side protection against speed hacking via input flooding:
 
-- **Flood guard** — At most 64 new inputs per tick (512 ms of commands). A client sends one burst per rendered frame and a stalled TCP link delivers everything it held at once, so the guard is sized for honest bursts; the one-command-per-tick simulation is what keeps a fast sender from gaining time
-- **Time budget** — Inputs beyond real time (with 500 ms banked) record a strike; they are not dropped
+- **Flood guard** — At most 250 new inputs per tick (two seconds of commands). A client sends one burst per rendered frame and a stalled upload delivers everything it held at once, so the guard is sized for honest bursts; catch-up repaying only owed ticks is what keeps a fast sender from gaining time
+- **Time budget** — Inputs beyond real time (with two seconds banked) record a strike; they are not dropped
 - **Silent drops** — Inputs over the flood guard are silently dropped (no disconnect)
 - **Strike counter** — Tracks violations for server-side monitoring
 
@@ -583,7 +625,7 @@ const ms = v2Client.getMovementState();
 ### Features
 
 - **125Hz client tick rate** with 60Hz server snapshot rate
-- **Input history** for replay during reconciliation
+- **Input history** with the predicted state after each input, for confirming snapshots and for replay
 - **Visual offset smoothing** (absorbs corrections over ~50ms)
 - **Snap correction** for major desyncs (respawn, teleport, knockback > 50 units)
 - **Grounded state protection** when no inputs need replay
@@ -596,9 +638,10 @@ const ms = v2Client.getMovementState();
 1. Client records input with sequence number
 2. Client predicts locally (instant feedback)
 3. Server processes input, sends snapshot with ackedInputSeq
-4. Client finds unacknowledged inputs (seq > ackedInputSeq)
-5. Client resets to server position/velocity/grounded
-6. Client replays all unacked inputs through physics
+4. Snapshot matches the state predicted after ackedInputSeq → confirmed, done
+5. Otherwise client resets to server position/velocity/grounded/knockback age
+   and to its own movement state after ackedInputSeq
+6. Client replays all unacked inputs (seq > ackedInputSeq) through physics
 7. Compute visual offset = (pre-reconcile pos) - (post-reconcile pos)
 8. Decay visual offset over ~50ms for smooth camera
 ```
@@ -625,7 +668,8 @@ cl_netgraph 2         # Text + rolling history graph
 | `gaps` | Estimated share of missed snapshots, from gaps in arrival cadence |
 | `interp` | Current interpolation delay |
 | `cmd` | Inputs sent per second |
-| `recon` | Reconciliations per second |
+| `corr` / `max` | Prediction corrections over 0.5 units per second, and the largest in the last second |
+| `up` / `down` | Extra one-way delay over the best of the last 30 seconds. `up` runs from sending a command to the server tick that ran it (including time queued on the server); `down` from that tick to the snapshot's arrival. A high `ping` with a high `up` and a low `down` is a congested upload |
 | `clock` | ClockSync offset to the server |
 
 ---
@@ -688,7 +732,9 @@ npm run net:client -- --name Bob
 ### "Players teleport/snap"
 
 - Check visual offset smoothing is working (`getVisualPosition()` not `getPosition()`)
-- Look for `Resynchronising` warnings: more than 32 unacknowledged inputs makes the client adopt the server state and discard them
+- Watch `corr` / `max` on the net graph: corrections should be rare and small
+- A high `up` on the net graph means the player's upload is queueing (another upload, cloud sync, weak Wi-Fi uplink)
+- Look for `Resynchronising` warnings: more than two seconds of unacknowledged inputs makes the client adopt the server state and discard them
 - Check for large knockback events (> 50 units triggers snap)
 
 ### "High bandwidth usage"
