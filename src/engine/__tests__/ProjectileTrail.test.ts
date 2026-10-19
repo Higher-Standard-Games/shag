@@ -42,6 +42,7 @@ interface TrailState {
   node: TransformNode;
   trailPoints: Vector3[];
   trailMaterial: StandardMaterial | null;
+  trailMesh: { name: string; isEnabled(): boolean; isDisposed(): boolean } | null;
 }
 
 function loadedModel(): MD3LoadResult {
@@ -175,5 +176,43 @@ describe("projectile trails", () => {
 
     manager.clear();
     expect(scene.materials.includes(material as StandardMaterial)).toBe(false);
+  });
+
+  it("reuses a finished shot whole for the next of its type", async () => {
+    await manager.preloadModel("rocket");
+    const first = fire();
+    tick();
+    const { node, trailMesh } = stateOf(first);
+    manager.despawn(first as string);
+    expect(node.isEnabled()).toBe(false);
+    const meshes = scene.meshes.length;
+
+    const second = fire();
+    const shot = stateOf(second);
+    expect(shot.node).toBe(node);
+    expect(scene.meshes.length).toBe(meshes);
+    expect(scene.getTransformNodeByName(second as string)).toBe(node);
+    expect(shot.trailMesh?.name).toBe(`${second}_trail`);
+    // The old ribbon stays hidden until this shot has rebuilt it.
+    expect(trailMesh?.isEnabled()).toBe(false);
+    tick();
+    expect(trailMesh?.isEnabled()).toBe(true);
+  });
+
+  it("never reuses a shot a map unload disposed, and clear disposes idle shots", async () => {
+    await manager.preloadModel("rocket");
+    const first = fire();
+    tick();
+    const unloaded = stateOf(first).node;
+    manager.despawn(first as string);
+    unloaded.dispose();
+    const second = fire();
+    expect(stateOf(second).node).not.toBe(unloaded);
+
+    tick();
+    const idle = stateOf(second).node;
+    manager.despawn(second as string);
+    manager.clear();
+    expect(idle.isDisposed()).toBe(true);
   });
 });

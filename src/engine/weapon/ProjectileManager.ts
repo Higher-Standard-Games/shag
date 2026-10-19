@@ -39,6 +39,13 @@ import { getPointLightPool } from "./PointLightPool";
 /** Fallback ribbon axis for a trail segment parallel to both the view and up. */
 const TRAIL_FORWARD = Vector3.Forward();
 
+interface IdleShot {
+  node: TransformNode;
+  source: MD3LoadResult;
+  trailMesh: LinesMesh | null;
+  trailMeshCross: LinesMesh | null;
+}
+
 interface ActiveProjectile {
   id: string;
   defId: string;
@@ -69,6 +76,8 @@ interface ActiveProjectile {
   trailMaterial: StandardMaterial | null;
   /** Ribbon edge paths, rewritten in place each frame. */
   trailPaths: [Vector3[], Vector3[], Vector3[], Vector3[]] | null;
+  /** The model this shot's meshes were cloned from; null for a sprite shot, which is not reused. */
+  source: MD3LoadResult | null;
   isLocalPrediction: boolean; // If true, silently despawn on hit (no explosion)
   isServerDriven: boolean; // If true, position comes from server snapshots (no client raycast)
   serverEntityId?: string; // Server entity ID (e.g. 'proj_10001') for linking
@@ -131,6 +140,13 @@ export class ProjectileManager {
   private readonly _trailOffset = new Vector3();
   /** One trail material per projectile type, for the current scene. */
   private trailMaterials = new Map<string, StandardMaterial>();
+  /**
+   * Finished model shots per type, kept whole (node, cloned meshes, ribbons)
+   * for the next shot of that type. Cloning a projectile's model meshes was
+   * the most expensive part of firing one.
+   */
+  private idleShots = new Map<string, IdleShot[]>();
+  private static readonly MAX_IDLE_SHOTS = 24;
 
   private constructor() {}
 
@@ -161,7 +177,10 @@ export class ProjectileManager {
 
   public init(scene: Scene): void {
     if (this.tickObserver) this.scene?.onBeforeRenderObservable.remove(this.tickObserver);
-    if (this.scene !== scene) this.trailMaterials.clear();
+    if (this.scene !== scene) {
+      this.trailMaterials.clear();
+      this.idleShots.clear();
+    }
     this.scene = scene;
     getPointLightPool().init(scene);
     getExplosionEffect().init(scene);
@@ -462,13 +481,21 @@ export class ProjectileManager {
     const id = `proj_${this.nextId++}`;
     const color = def.lightColor ?? { r: 1, g: 1, b: 1 };
 
-    // Create projectile node
-    const node = new TransformNode(id, this.scene);
-    node.position = origin.clone();
-
     // Try cached sprite, then cached model, then fallback to sphere
     const cachedSprite = this.spriteCache.get(defId);
     const cachedModel = this.modelCache.get(defId);
+    const reused = !cachedSprite && cachedModel ? this.takeIdleShot(defId, cachedModel) : null;
+
+    // Create projectile node
+    const node = reused?.node ?? new TransformNode(id, this.scene);
+    if (reused) {
+      node.name = id;
+      for (const mesh of node.getChildMeshes()) mesh.name = mesh.name.replace(/^proj_\d+_/, `${id}_`);
+      if (reused.trailMesh) reused.trailMesh.name = `${id}_trail`;
+      if (reused.trailMeshCross) reused.trailMeshCross.name = `${id}_trailCross`;
+      node.setEnabled(true);
+    }
+    node.position = origin.clone();
 
     if (cachedSprite) {
       // Create billboard plane with sprite texture
@@ -490,7 +517,7 @@ export class ProjectileManager {
     } else if (cachedModel) {
       // Clone the cached model meshes
       const cachedTexture = this.modelTextureCache.get(defId);
-      for (const mesh of cachedModel.meshes) {
+      for (const mesh of reused ? [] : cachedModel.meshes) {
         const clone = mesh.clone(`${id}_${mesh.name}`, node);
         if (clone) {
           clone.isPickable = false;
@@ -590,10 +617,11 @@ export class ProjectileManager {
       lifetime: def.lifetime,
       fadeMeshes,
       trailPoints: [],
-      trailMesh: null,
-      trailMeshCross: null,
+      trailMesh: reused?.trailMesh ?? null,
+      trailMeshCross: reused?.trailMeshCross ?? null,
       trailMaterial: null,
       trailPaths: null,
+      source: cachedSprite ? null : (cachedModel ?? null),
       isLocalPrediction: opts?.isLocalPrediction ?? false,
       isServerDriven: opts?.isServerDriven ?? false,
       serverEntityId: opts?.serverEntityId,
@@ -1041,12 +1069,7 @@ export class ProjectileManager {
 
     const proj = this.projectiles[index];
 
-    // Cleanup
-    getPointLightPool().release(proj.light);
-    proj.trailMesh?.dispose();
-    proj.trailMeshCross?.dispose();
-    proj.node.dispose();
-
+    this.retire(proj);
     this.projectiles.splice(index, 1);
     // console.log(`[ProjectileManager] Despawned ${id}`);
   }
@@ -1064,11 +1087,11 @@ export class ProjectileManager {
   public clear(): void {
     for (const proj of this.projectiles) {
       getPointLightPool().release(proj.light);
-      proj.trailMesh?.dispose();
-      proj.trailMeshCross?.dispose();
-      proj.node.dispose();
+      disposeShot(proj);
     }
     this.projectiles = [];
+    for (const idle of this.idleShots.values()) for (const shot of idle) disposeShot(shot);
+    this.idleShots.clear();
     for (const material of this.trailMaterials.values()) material.dispose();
     this.trailMaterials.clear();
   }
@@ -1195,6 +1218,9 @@ export class ProjectileManager {
       // shader attributes and recomputes normals that these unlit trails never use.
       updateUnlitTrailRibbon(proj.trailMesh as unknown as Mesh, pathA, pathB);
       updateUnlitTrailRibbon(proj.trailMeshCross as unknown as Mesh, pathC, pathD);
+      // A reused shot's ribbons wait, disabled, until they are rebuilt here.
+      if (!proj.trailMesh.isEnabled()) proj.trailMesh.setEnabled(true);
+      if (proj.trailMeshCross && !proj.trailMeshCross.isEnabled()) proj.trailMeshCross.setEnabled(true);
     } else {
       proj.trailMesh = MeshBuilder.CreateRibbon(
         `${proj.id}_trail`,
@@ -1226,6 +1252,39 @@ export class ProjectileManager {
     if (proj.trailMeshCross) proj.trailMeshCross.material = proj.trailMaterial;
   }
 
+  /** Keep a finished model shot, whole, for the next shot of its type; dispose anything else. */
+  private retire(proj: ActiveProjectile): void {
+    getPointLightPool().release(proj.light);
+    const idle = this.idleShots.get(proj.defId) ?? [];
+    if (proj.source && isIntact(proj) && idle.length < ProjectileManager.MAX_IDLE_SHOTS) {
+      proj.node.setEnabled(false);
+      proj.trailMesh?.setEnabled(false);
+      proj.trailMeshCross?.setEnabled(false);
+      idle.push({
+        node: proj.node,
+        source: proj.source,
+        trailMesh: proj.trailMesh,
+        trailMeshCross: proj.trailMeshCross,
+      });
+      this.idleShots.set(proj.defId, idle);
+      return;
+    }
+    disposeShot(proj);
+  }
+
+  /** An idle shot of this type cloned from the model in use now, if one is still whole. */
+  private takeIdleShot(defId: string, source: MD3LoadResult): IdleShot | null {
+    const idle = this.idleShots.get(defId);
+    while (idle?.length) {
+      const shot = idle.pop();
+      if (!shot) break;
+      // A map unload disposes our meshes; a reload replaces the model they copy.
+      if (shot.source === source && isIntact(shot)) return shot;
+      disposeShot(shot);
+    }
+    return null;
+  }
+
   private trailMaterialFor(defId: string, scene: Scene): StandardMaterial {
     let material = this.trailMaterials.get(defId);
     if (material) return material;
@@ -1245,6 +1304,23 @@ export class ProjectileManager {
     this.trailMaterials.set(defId, material);
     return material;
   }
+}
+
+type ShotParts = Pick<IdleShot, "node" | "trailMesh" | "trailMeshCross">;
+
+function isIntact(shot: ShotParts): boolean {
+  return (
+    !shot.node.isDisposed() &&
+    !shot.trailMesh?.isDisposed() &&
+    !shot.trailMeshCross?.isDisposed() &&
+    shot.node.getChildMeshes().every((mesh) => !mesh.isDisposed())
+  );
+}
+
+function disposeShot(shot: ShotParts): void {
+  shot.trailMesh?.dispose();
+  shot.trailMeshCross?.dispose();
+  shot.node.dispose();
 }
 
 // Convenience function
