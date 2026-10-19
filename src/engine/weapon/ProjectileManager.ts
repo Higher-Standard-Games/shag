@@ -36,6 +36,9 @@ import {
 } from "./ExplosionEffect";
 import { getPointLightPool } from "./PointLightPool";
 
+/** Fallback ribbon axis for a trail segment parallel to both the view and up. */
+const TRAIL_FORWARD = Vector3.Forward();
+
 interface ActiveProjectile {
   id: string;
   defId: string;
@@ -62,7 +65,10 @@ interface ActiveProjectile {
    * volume from any angle, including straight down the barrel.
    */
   trailMeshCross: LinesMesh | null;
-  trailMaterial: StandardMaterial | null; // Trail material for disposal
+  /** Shared by every trail of this projectile type; the manager owns it. */
+  trailMaterial: StandardMaterial | null;
+  /** Ribbon edge paths, rewritten in place each frame. */
+  trailPaths: [Vector3[], Vector3[], Vector3[], Vector3[]] | null;
   isLocalPrediction: boolean; // If true, silently despawn on hit (no explosion)
   isServerDriven: boolean; // If true, position comes from server snapshots (no client raycast)
   serverEntityId?: string; // Server entity ID (e.g. 'proj_10001') for linking
@@ -118,6 +124,13 @@ export class ProjectileManager {
   private static readonly _defaultFwd = new Vector3(0, 0, 1);
   // Scratch for updateTrail's cumulative arc lengths (avoids per-frame alloc)
   private _trailArcLenScratch: number[] = [];
+  private readonly _trailTangent = new Vector3();
+  private readonly _trailToCamera = new Vector3();
+  private readonly _trailPerp = new Vector3();
+  private readonly _trailPerpCross = new Vector3();
+  private readonly _trailOffset = new Vector3();
+  /** One trail material per projectile type, for the current scene. */
+  private trailMaterials = new Map<string, StandardMaterial>();
 
   private constructor() {}
 
@@ -148,6 +161,7 @@ export class ProjectileManager {
 
   public init(scene: Scene): void {
     if (this.tickObserver) this.scene?.onBeforeRenderObservable.remove(this.tickObserver);
+    if (this.scene !== scene) this.trailMaterials.clear();
     this.scene = scene;
     getPointLightPool().init(scene);
     getExplosionEffect().init(scene);
@@ -579,6 +593,7 @@ export class ProjectileManager {
       trailMesh: null,
       trailMeshCross: null,
       trailMaterial: null,
+      trailPaths: null,
       isLocalPrediction: opts?.isLocalPrediction ?? false,
       isServerDriven: opts?.isServerDriven ?? false,
       serverEntityId: opts?.serverEntityId,
@@ -1030,7 +1045,6 @@ export class ProjectileManager {
     getPointLightPool().release(proj.light);
     proj.trailMesh?.dispose();
     proj.trailMeshCross?.dispose();
-    proj.trailMaterial?.dispose();
     proj.node.dispose();
 
     this.projectiles.splice(index, 1);
@@ -1052,10 +1066,11 @@ export class ProjectileManager {
       getPointLightPool().release(proj.light);
       proj.trailMesh?.dispose();
       proj.trailMeshCross?.dispose();
-      proj.trailMaterial?.dispose();
       proj.node.dispose();
     }
     this.projectiles = [];
+    for (const material of this.trailMaterials.values()) material.dispose();
+    this.trailMaterials.clear();
   }
 
   /**
@@ -1091,8 +1106,10 @@ export class ProjectileManager {
       }
     }
 
-    // Record current position
-    proj.trailPoints.push(proj.node.position.clone());
+    // Record current position. A full trail drops its oldest point below, so
+    // that vector is reused for the newest instead of allocating one a frame.
+    const recycled = proj.trailPoints.length >= MAX_TRAIL_POINTS ? proj.trailPoints.shift() : undefined;
+    proj.trailPoints.push(recycled ? recycled.copyFrom(proj.node.position) : proj.node.position.clone());
 
     // Trim old points — keeps length pinned at exactly MAX_TRAIL_POINTS
     const overshoot = proj.trailPoints.length - MAX_TRAIL_POINTS;
@@ -1104,10 +1121,13 @@ export class ProjectileManager {
     // The previous X-formation looked volumetric on straight shots, but on
     // curved grenade arcs the two planes visibly split and read like a delayed
     // second trail.
-    const pathA: Vector3[] = [];
-    const pathB: Vector3[] = [];
-    const pathC: Vector3[] = [];
-    const pathD: Vector3[] = [];
+    const points = proj.trailPoints;
+    proj.trailPaths ??= [[], [], [], []];
+    for (const path of proj.trailPaths) {
+      while (path.length < points.length) path.push(new Vector3());
+      path.length = points.length;
+    }
+    const [pathA, pathB, pathC, pathD] = proj.trailPaths;
     const cameraPos = this.scene.activeCamera?.globalPosition ?? this.scene.activeCamera?.position ?? null;
 
     // Cumulative arc length per point — the width taper is distance-based,
@@ -1117,35 +1137,33 @@ export class ProjectileManager {
     // width (square-cut tail). Arc-length fraction spreads the triangle over
     // the actual visible trail regardless of point spacing.
     const arcLen = this._trailArcLenScratch;
-    arcLen.length = proj.trailPoints.length;
+    arcLen.length = points.length;
     arcLen[0] = 0;
-    for (let i = 1; i < proj.trailPoints.length; i++) {
-      arcLen[i] = arcLen[i - 1] + Vector3.Distance(proj.trailPoints[i], proj.trailPoints[i - 1]);
+    for (let i = 1; i < points.length; i++) {
+      arcLen[i] = arcLen[i - 1] + Vector3.Distance(points[i], points[i - 1]);
     }
-    const totalArcLen = arcLen[proj.trailPoints.length - 1];
+    const totalArcLen = arcLen[points.length - 1];
 
-    for (let i = 0; i < proj.trailPoints.length; i++) {
-      const p = proj.trailPoints[i];
+    const tangent = this._trailTangent;
+    const toCamera = this._trailToCamera;
+    const perp = this._trailPerp;
+    const perpCross = this._trailPerpCross;
+    const offset = this._trailOffset;
+    for (let i = 0; i < points.length; i++) {
+      const p = points[i];
 
       // Compute a stable perpendicular that faces the active camera when possible.
-      let tangent: Vector3;
-      if (i < proj.trailPoints.length - 1) {
-        tangent = proj.trailPoints[i + 1].subtract(p).normalize();
-      } else {
-        tangent = p.subtract(proj.trailPoints[i - 1]).normalize();
-      }
+      if (i < points.length - 1) points[i + 1].subtractToRef(p, tangent);
+      else p.subtractToRef(points[i - 1], tangent);
+      tangent.normalize();
 
-      let perp = Vector3.Zero();
+      perp.setAll(0);
       if (cameraPos) {
-        const toCamera = cameraPos.subtract(p);
-        perp = Vector3.Cross(tangent, toCamera);
+        cameraPos.subtractToRef(p, toCamera);
+        Vector3.CrossToRef(tangent, toCamera, perp);
       }
-      if (perp.lengthSquared() < 0.001) {
-        perp = Vector3.Cross(tangent, Vector3.Up());
-      }
-      if (perp.lengthSquared() < 0.001) {
-        perp = Vector3.Cross(tangent, Vector3.Forward());
-      }
+      if (perp.lengthSquared() < 0.001) Vector3.CrossToRef(tangent, Vector3.UpReadOnly, perp);
+      if (perp.lengthSquared() < 0.001) Vector3.CrossToRef(tangent, TRAIL_FORWARD, perp);
       perp.normalize();
 
       // Taper width: 0 at tail → full at head (soft triangle), by distance
@@ -1155,12 +1173,15 @@ export class ProjectileManager {
 
       // The crossing blade: perpendicular to both the trail and the first
       // blade, so the pair form an X around the flight path.
-      const perpCross = Vector3.Cross(tangent, perp).normalize();
+      Vector3.CrossToRef(tangent, perp, perpCross);
+      perpCross.normalize();
 
-      pathA.push(p.add(perp.scale(width)));
-      pathB.push(p.subtract(perp.scale(width)));
-      pathC.push(p.add(perpCross.scale(width)));
-      pathD.push(p.subtract(perpCross.scale(width)));
+      perp.scaleToRef(width, offset);
+      p.addToRef(offset, pathA[i]);
+      p.subtractToRef(offset, pathB[i]);
+      perpCross.scaleToRef(width, offset);
+      p.addToRef(offset, pathC[i]);
+      p.subtractToRef(offset, pathD[i]);
     }
 
     const pathArray = [pathA, pathB];
@@ -1198,26 +1219,31 @@ export class ProjectileManager {
       proj.trailMeshCross.isPickable = false;
     }
 
-    // Create material once, reuse on subsequent frames
-    if (!proj.trailMaterial) {
-      const registry = getEntityRegistry();
-      const def = registry.get<ProjectileDef>(proj.defId);
-      const trailColor = def?.lightColor
-        ? new Color3(def.lightColor.r, def.lightColor.g, def.lightColor.b)
-        : new Color3(0.3, 0.5, 1.0);
-
-      const mat = new StandardMaterial(`${proj.id}_trailMat`, this.scene);
-      mat.atomicMaterialsUpdate(() => {
-        mat.emissiveColor = trailColor;
-        mat.diffuseColor = Color3.Black();
-        mat.disableLighting = true;
-        mat.backFaceCulling = false;
-        mat.alpha = 0.6;
-      });
-      proj.trailMaterial = mat;
-    }
+    // Every trail of a type looks the same, so they share one material: a new
+    // one per shot paid a scene-wide dirty pass and a full shader check each.
+    proj.trailMaterial ??= this.trailMaterialFor(proj.defId, this.scene);
     proj.trailMesh.material = proj.trailMaterial;
     if (proj.trailMeshCross) proj.trailMeshCross.material = proj.trailMaterial;
+  }
+
+  private trailMaterialFor(defId: string, scene: Scene): StandardMaterial {
+    let material = this.trailMaterials.get(defId);
+    if (material) return material;
+    const def = getEntityRegistry().get<ProjectileDef>(defId);
+    const trailColor = def?.lightColor
+      ? new Color3(def.lightColor.r, def.lightColor.g, def.lightColor.b)
+      : new Color3(0.3, 0.5, 1.0);
+    const created = new StandardMaterial(`${defId}_trailMat`, scene);
+    created.atomicMaterialsUpdate(() => {
+      created.emissiveColor = trailColor;
+      created.diffuseColor = Color3.Black();
+      created.disableLighting = true;
+      created.backFaceCulling = false;
+      created.alpha = 0.6;
+    });
+    material = created;
+    this.trailMaterials.set(defId, material);
+    return material;
   }
 }
 
