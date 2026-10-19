@@ -168,6 +168,12 @@ export class InputSystem {
   };
   private boundPointerChange = (event: PointerEvent) => {
     if (event.pointerType !== "mouse" || event.pointerId !== this.mousePointerId) return;
+    // A move that changes no button reports button -1, and its mask only
+    // restates the held buttons. Some platforms send locked-pointer motion with
+    // an empty mask while a button is held, which would end firing and aiming
+    // at the first flick. Under pointer lock every release still reaches the
+    // page as an up event, so plain motion is not read for buttons there.
+    if (event.type === "pointermove" && event.button === -1 && this.pointerLocked) return;
     this.updatePointerButtons(event.buttons);
     if (event.buttons === 0) this.mousePointerId = null;
   };

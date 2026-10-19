@@ -5,7 +5,9 @@
 Mouse button actions consume pointer events as well as compatibility mouse
 events, so Babylon cancelling `pointerdown` does not disable fire or aim.
 Button chords and releases outside the canvas are tracked without repeating
-presses when both event families arrive. If mouse capture is rejected after
+presses when both event families arrive. Under pointer lock, plain mouse motion
+(`button` -1) is not read for button state: a held fire or aim ends only on an
+up event, focus loss or unlock. If mouse capture is rejected after
 joining or resuming, a notice asks the player to click the game and retry.
 
 The FPS game owns its crosshair initialization and per-frame drawing, including

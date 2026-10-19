@@ -937,8 +937,11 @@ export class FPSController implements ICameraController {
 
       this.commandAccumulator += deltaTime;
 
-      // Limit catch-up to avoid spiral of death if frame rate dips low
-      if (this.commandAccumulator > 0.1) this.commandAccumulator = 0.1;
+      // Every second of real time owes the server 125 commands. Time dropped here
+      // is never sent, and the server spends it guessing, so the cap only has to
+      // stop a long stall (a hidden tab) turning into a flood. A shader compile
+      // or GC hitch fits under it.
+      if (this.commandAccumulator > 0.25) this.commandAccumulator = 0.25;
 
       while (this.commandAccumulator >= TICK_DURATION) {
         // Send input to Game -> FPSSimulation

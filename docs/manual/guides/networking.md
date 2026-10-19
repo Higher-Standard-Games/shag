@@ -139,8 +139,11 @@ With predict():
 The server advances each player's physics **exactly one `dt` per server tick**, regardless of how fast that client sends input:
 
 - It consumes **at most one** buffered command per tick (FIFO, in sequence order) and **repeats the last input** when none arrived (so gravity and momentum still advance).
-- The input buffer is capped, so a fast/flooding client can't bank extra physics steps.
-- It acks the last **simulated** sequence (`input.lastProcessedSeq`), not the last received, so reconciliation replays exactly the un-simulated inputs.
+- The first two starved ticks repeat as extra steps. The commands they waited for then run one tick later each, so the queue grows deep enough to absorb that link's ordinary jitter.
+- Past those two ticks the client is stalled, and each further guess **stands in for the client's next command**: the ACK advances to it, and that command is dropped when it arrives late. The client therefore sees only where a guess differed from what the player did, not the whole stall replayed on top of its own prediction. Guesses run at most 32 commands (256 ms) ahead of the newest real one, and never in a tick that just dropped a late command, which is what lets a client that lost frame time catch up.
+- The input buffer holds 12 commands, enough for a 20 FPS client's per-frame burst. A queue that stays at least 3 deep for a whole second gives one command up, so an earlier stall does not leave latency behind. A fast/flooding client still can't bank extra physics steps.
+- It acks the newest command its physics has accounted for (`input.lastProcessedSeq`): the one it simulated, or the one a guess stood in for. Reconciliation replays exactly the rest.
+- Weapon-switch requests on dropped commands carry forward to the next step.
 
 A slow, throttled or malicious client that sends fewer commands therefore cannot get reduced gravity or speed (a "moon jump"). Input *content* matters; input *rate* cannot change the physics.
 
@@ -319,9 +322,9 @@ a server actually observes over a real socket.
 
 Server-side protection against speed hacking via input flooding:
 
-- **Rate cap** — Max inputs per tick prevents flooding
-- **Time budget** — Accumulated delta-time prevents time manipulation
-- **Silent drops** — Rejected inputs silently dropped (no disconnect)
+- **Flood guard** — At most 64 new inputs per tick (512 ms of commands). A client sends one burst per rendered frame and a stalled TCP link delivers everything it held at once, so the guard is sized for honest bursts; the one-command-per-tick simulation is what keeps a fast sender from gaining time
+- **Time budget** — Inputs beyond real time (with 500 ms banked) record a strike; they are not dropped
+- **Silent drops** — Inputs over the flood guard are silently dropped (no disconnect)
 - **Strike counter** — Tracks violations for server-side monitoring
 
 ### 13. Supported Network Timing

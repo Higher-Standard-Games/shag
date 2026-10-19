@@ -144,6 +144,36 @@ describe("input focus recovery", () => {
     expect(input.wasReleased(FPS.AIM)).toBe(true);
   });
 
+  it("keeps held fire and aim through locked motion that reports an empty mask", () => {
+    pointerLock(canvas);
+    pointer("pointerdown", 1);
+    pointer("pointermove", 3);
+    beginFrame();
+    expect(input.isActive(FPS.FIRE)).toBe(true);
+    expect(input.isActive(FPS.AIM)).toBe(true);
+    endFrame();
+    const motion = new MouseEvent("pointermove", { buttons: 0, button: -1, bubbles: true });
+    Object.defineProperties(motion, { pointerId: { value: 1 }, pointerType: { value: "mouse" } });
+    canvas.dispatchEvent(motion);
+    beginFrame();
+    expect(input.isActive(FPS.FIRE)).toBe(true);
+    expect(input.isActive(FPS.AIM)).toBe(true);
+    endFrame();
+    pointer("pointerup", 0, window);
+    beginFrame();
+    expect(input.isActive(FPS.FIRE)).toBe(false);
+    expect(input.isActive(FPS.AIM)).toBe(false);
+  });
+
+  it("still releases on unlocked plain motion with an empty mask", () => {
+    pointer("pointerdown", 1);
+    const motion = new MouseEvent("pointermove", { buttons: 0, button: -1, bubbles: true });
+    Object.defineProperties(motion, { pointerId: { value: 1 }, pointerType: { value: "mouse" } });
+    window.dispatchEvent(motion);
+    beginFrame();
+    expect(input.isActive(FPS.FIRE)).toBe(false);
+  });
+
   it("does not repeat a press when compatibility mouse events follow pointer events", () => {
     pointer("pointerdown", 1);
     beginFrame();
