@@ -11,6 +11,7 @@
  * - Skybox textures
  */
 
+import type { Material } from "@babylonjs/core/Materials/material";
 import type { BaseTexture } from "@babylonjs/core/Materials/Textures/baseTexture";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Scene } from "@babylonjs/core/scene";
@@ -23,6 +24,7 @@ import { EventBus } from "../../core/EventBus";
 import { LOADING_EVENTS, type LoadingCompleteEvent, type LoadingProgressEvent } from "../../core/LoadingEvents";
 import { EntityManager } from "../../entities/EntityManager";
 import { extractEmissiveSurfaces } from "../../lighting/MapEmissiveSurfaces";
+import { trackFrozenWorldMaterials } from "../../rendering/FrozenWorldMaterials";
 import RenderVars from "../../rendering/RenderVars";
 import { parseSkyPortal, SkyPortalView } from "../../rendering/SkyPortal";
 import { SkyVisibility, skyClusterBounds } from "../../rendering/SkyVisibility";
@@ -566,29 +568,31 @@ export class MapLoader {
       bspManager.setBsp(mapName, bsp);
       bspManager.setMeshResult(meshResult);
 
-      // Phase 11: Freeze world materials before gameplay entities exist.
-      let frozenCount = 0;
+      // Phase 11: Freeze world materials before gameplay entities exist. An
+      // unfrozen surface re-derives its shader defines and rewrites its material
+      // uniforms on every draw, and world surfaces are half of all draws.
+      // Gameplay lights live in one clustered container, so the light set a
+      // world shader depends on only changes when a container or a scene light
+      // comes or goes; the watcher re-checks frozen materials then. Animated
+      // shader stages unfreeze their own materials.
+      const frozen = new Set<Material>();
+      const seen = new Set<number>();
       let skippedCount = 0;
-      const frozenMats = new Set<number>();
       for (const mesh of [meshResult.worldMesh, ...meshResult.worldMesh.getChildMeshes()]) {
-        // biome-ignore lint/suspicious/noExplicitAny: Babylon loader internals
-        const mat = mesh.material as any;
-        if (mat && !frozenMats.has(mat.uniqueId)) {
-          frozenMats.add(mat.uniqueId);
-          if (mat.lightmapTexture) {
-            skippedCount++;
-            continue;
-          }
+        const mat = mesh.material;
+        if (mat && !seen.has(mat.uniqueId)) {
+          seen.add(mat.uniqueId);
           // Sky layers animate their texture offsets every frame
           if (mesh.name.startsWith("skybox")) {
             skippedCount++;
             continue;
           }
           mat.freeze();
-          frozenCount++;
+          frozen.add(mat);
         }
       }
-      console.log(`[MapLoader] Froze ${frozenCount} materials, skipped ${skippedCount} lightmapped`);
+      trackFrozenWorldMaterials(scene, frozen);
+      console.log(`[MapLoader] Froze ${frozen.size} world materials, skipped ${skippedCount} sky`);
 
       // Materials were only half of it: the world meshes still recomputed their
       // world matrix and bounding info every frame despite never moving. The
