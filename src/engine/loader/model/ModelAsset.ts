@@ -1,8 +1,6 @@
 import { PK3Index } from "../pk3/PK3Index";
 import { PK3Loader } from "../pk3/PK3Loader";
 
-const downloads = new WeakMap<PK3Loader, Map<string, Promise<void>>>();
-
 /** Read an indexed model or sidecar, respecting replacement package ownership. */
 export async function readIndexedModelAsset(path: string): Promise<ArrayBuffer | null> {
   if (/^(?:https?:|blob:|data:)/i.test(path)) return null;
@@ -13,19 +11,7 @@ export async function readIndexedModelAsset(path: string): Promise<ArrayBuffer |
   const loader = PK3Loader.getInstance();
   const owner = PK3Index.getInstance().findFile(asset);
   if (!owner) return null;
-  if (!loader.getPackageInfo().some((pkg) => pkg.filename === owner)) {
-    let pending = downloads.get(loader);
-    if (!pending) {
-      pending = new Map();
-      downloads.set(loader, pending);
-    }
-    let download = pending.get(owner);
-    if (!download) {
-      download = loader.loadPK3(owner).finally(() => pending!.delete(owner));
-      pending.set(owner, download);
-    }
-    await download;
-  }
+  await loader.ensurePK3(owner);
   const bytes = await loader.getFile(asset);
   if (!bytes) throw new Error(`Model asset missing from indexed package ${owner}: ${asset}`);
   return bytes;

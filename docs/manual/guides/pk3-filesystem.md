@@ -64,6 +64,18 @@ const maps = index.findByPattern('maps/*.bsp');
 
 `PK3Index` owns discovery and lookup.
 
+Ordinary browser consumers mount archives with `PK3Loader.ensurePK3(filename)`
+or `ensurePK3FromUrl(url)`. Concurrent ensures for the same resolved URL share
+one request, ZIP parse and mount; mounted sources are reused. Different source
+URLs and revision queries remain distinct. Failed requests can be retried.
+Filename ensures also reuse explicitly ingested local archives. Unloading the
+filesystem prevents late responses from remounting it.
+
+`loadPK3` and `loadPK3FromUrl` explicitly reload an archive, including one already
+mounted. Use these for intentional refreshes. A newer explicit load supersedes
+an older pending response for the same package filename; alphabetical package
+override order still decides file ownership.
+
 Missing/stale/unsupported metadata and older files-only manifests retain the
 archive-scan/cache-validation path. The manifest's `indexHash` is a consistency
 fingerprint of the index payload, not a signature or PK3 integrity guarantee.

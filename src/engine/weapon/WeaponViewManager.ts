@@ -597,7 +597,7 @@ export class WeaponViewManager {
     // Load pk3 if specified and not already loaded
     if (pk3Path) {
       try {
-        await pk3.loadPK3FromUrl(pk3Path);
+        await pk3.ensurePK3FromUrl(pk3Path);
         devLog(`[WeaponViewManager] Loaded pk3: ${pk3Path}`);
       } catch (e) {
         console.error(`[WeaponViewManager] Failed to load pk3: ${pk3Path}`, e);

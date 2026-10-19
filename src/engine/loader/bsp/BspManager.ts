@@ -137,7 +137,7 @@ export class BspManager {
 
       if (!isLoaded) {
         try {
-          await pk3.loadPK3(pk3Name);
+          await pk3.ensurePK3(pk3Name);
         } catch (e) {
           throw new Error(`Failed to load PK3 ${pk3Name}: ${e}`);
         }

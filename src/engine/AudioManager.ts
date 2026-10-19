@@ -504,7 +504,7 @@ export class AudioManager {
         if (pk3Name) {
           devLog(`[AudioManager] Loading PK3 for music: ${pk3Name}`);
           try {
-            await pk3.loadPK3(pk3Name);
+            await pk3.ensurePK3(pk3Name);
           } catch (e) {
             console.error(`[AudioManager] Failed to load PK3: ${pk3Name}`, e);
           }

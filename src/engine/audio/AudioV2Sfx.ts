@@ -114,7 +114,6 @@ export class AudioV2Sfx {
 
   private readonly bufferPromises = new Map<string, Promise<StaticSoundBuffer | null>>();
   private readonly soundPromises = new Map<string, Promise<StaticSound | null>>();
-  private readonly packageLoads = new Map<string, Promise<void>>();
   /** Playing 3D one-shots, with when each ends (ms, `performance.now`). */
   private readonly activeSpatialSounds: Array<{ sound: StaticSound; endsAt: number; slot?: string }> = [];
   /** Looping sounds with the volume each was started at, kept until stopped. */
@@ -272,7 +271,6 @@ export class AudioV2Sfx {
     this.loops.clear();
     this.soundPromises.clear();
     this.bufferPromises.clear();
-    this.packageLoads.clear();
     this.warnedMissing.clear();
     this.stopFollowingView();
     this.listenerNode = null;
@@ -415,17 +413,7 @@ export class AudioV2Sfx {
   }
 
   private async loadPackage(packageName: string): Promise<void> {
-    let promise = this.packageLoads.get(packageName);
-    if (!promise) {
-      promise = PK3Loader.getInstance()
-        .loadPK3(packageName)
-        .catch((error) => {
-          this.packageLoads.delete(packageName);
-          throw error;
-        });
-      this.packageLoads.set(packageName, promise);
-    }
-    await promise;
+    await PK3Loader.getInstance().ensurePK3(packageName);
   }
 
   private releaseSpatialSound(sound: StaticSound): void {

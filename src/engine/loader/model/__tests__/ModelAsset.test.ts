@@ -60,7 +60,7 @@ it("loads a new indexed owner even when the old package already contains the mod
 it("releases a failed load and reloads after the mounted filesystem is cleared", async () => {
   const bytes = await bank("z_weapons.pk3", [1]);
   fetchMock.mockImplementation(async () => new Response(bytes));
-  vi.spyOn(loader, "loadPK3").mockRejectedValueOnce(new Error("offline"));
+  vi.spyOn(loader, "ensurePK3").mockRejectedValueOnce(new Error("offline"));
   await expect(readIndexedModelAsset(asset)).rejects.toThrow("offline");
   await readIndexedModelAsset(asset);
   loader.unloadAll();

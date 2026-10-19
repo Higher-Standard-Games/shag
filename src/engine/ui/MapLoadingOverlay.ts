@@ -279,6 +279,7 @@ export class MapLoadingOverlay {
    * it; a failure stays up long enough to read.
    */
   private scheduleFadeOut(): void {
+    if (this.fadeTimer !== null) clearTimeout(this.fadeTimer);
     this.view?.ready();
     const elapsed = Date.now() - this.showTime;
     const remaining = this.config.minDisplayMs - elapsed;

@@ -3,13 +3,17 @@ import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import type { Scene } from "@babylonjs/core/scene";
 import { Cvar } from "../core/Cvar";
 
-Cvar.register("r_weapon_candidates", 0, {
-  type: "int",
-  min: 0,
-  max: 1,
-  persist: false,
-  description: "Experimental camera-layer filtering before first-person weapon mesh evaluation",
-});
+Cvar.register(
+  "r_weapon_candidates",
+  typeof navigator !== "undefined" && /Firefox\//.test(navigator.userAgent) ? 1 : 0,
+  {
+    type: "int",
+    min: 0,
+    max: 1,
+    persist: false,
+    description: "WebGL camera-layer filtering before first-person weapon mesh evaluation (default on in Firefox)",
+  },
+);
 
 interface Registration {
   enabled: () => boolean;
@@ -98,7 +102,7 @@ class WeaponCameraCandidateProvider {
 export function installWeaponCameraCandidates(
   scene: Scene,
   camera: Camera,
-  enabled: () => boolean = () => Cvar.getBool("r_weapon_candidates"),
+  enabled: () => boolean = () => Cvar.getBool("r_weapon_candidates") && !scene.getEngine().isWebGPU,
 ): () => void {
   if (scene.isDisposed || camera.isDisposed()) return () => {};
   let runtime = runtimes.get(scene);

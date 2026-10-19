@@ -7,7 +7,36 @@ import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import { Scene } from "@babylonjs/core/scene";
 import { expect, it } from "vitest";
+import { Cvar } from "../core/Cvar";
 import { installWeaponCameraCandidates } from "../rendering/WeaponCameraCandidates";
+
+it("keeps the cvar policy on WebGL and leaves WebGPU evaluation unchanged", () => {
+  const engine = new NullEngine();
+  const scene = new Scene(engine);
+  const camera = new FreeCamera("weapon", Vector3.Zero(), scene);
+  camera.layerMask = 2;
+  const world = new Mesh("world", scene);
+  world.layerMask = 1;
+  const gun = new Mesh("gun", scene);
+  gun.layerMask = 2;
+  const saved = Cvar.get("r_weapon_candidates")!;
+  Cvar.set("r_weapon_candidates", 1);
+  const release = installWeaponCameraCandidates(scene, camera);
+  scene.activeCamera = camera;
+  try {
+    expect(scene.getActiveMeshCandidates().length).toBe(1);
+    Object.defineProperty(engine, "isWebGPU", { value: true, configurable: true });
+    expect(scene.getActiveMeshCandidates().length).toBe(2);
+    Object.defineProperty(engine, "isWebGPU", { value: false, configurable: true });
+    Cvar.set("r_weapon_candidates", 0);
+    expect(scene.getActiveMeshCandidates().length).toBe(2);
+  } finally {
+    Cvar.set("r_weapon_candidates", saved);
+    release();
+    scene.dispose();
+    engine.dispose();
+  }
+});
 
 it("filters only registered camera layers, follows changed masks/providers and retains intersection-action meshes", () => {
   const engine = new NullEngine();

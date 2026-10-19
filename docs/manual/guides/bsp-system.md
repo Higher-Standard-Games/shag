@@ -26,6 +26,14 @@ The world stays disabled while asynchronous texture loading, fog and baked-light
 material setup run. This prevents partially configured material layouts from
 reaching the GPU during a map switch.
 
+Map loads run sequentially. A newer request cancels the previous operation and
+waits for its cleanup before changing the scene; requests cancelled before they
+start do not emit loading events. Each started operation emits one completion.
+Temporary visibility listeners and GPU-readiness timers are released on success,
+failure and cancellation. `disposeCurrentMap()` cancels a pending load, waits for
+it to settle, then clears the map. Shared package downloads may finish for other
+consumers, but an abandoned map does not complete a newer load.
+
 ## Inspection flow
 
 `BspManager` and the `bsp` command expose a lower-level path that is useful in the developer console and headless runner:

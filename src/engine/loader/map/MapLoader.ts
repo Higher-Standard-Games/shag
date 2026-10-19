@@ -22,7 +22,7 @@ import { EntityType } from "../../../shared/entities/EntityType";
 import { devLog } from "../../core/DevLog";
 import { type EntityData, EntityHandlerRegistry } from "../../core/EntityHandlerRegistry";
 import { EventBus } from "../../core/EventBus";
-import { LOADING_EVENTS, type LoadingCompleteEvent, type LoadingProgressEvent } from "../../core/LoadingEvents";
+import { LOADING_EVENTS, type LoadingProgressEvent } from "../../core/LoadingEvents";
 import { EntityManager } from "../../entities/EntityManager";
 import { extractEmissiveSurfaces } from "../../lighting/MapEmissiveSurfaces";
 import { trackFrozenWorldMaterials } from "../../rendering/FrozenWorldMaterials";
@@ -39,6 +39,7 @@ import { parseWorldFog } from "../bsp/WorldFog";
 import { PK3Index } from "../pk3/PK3Index";
 import { PK3Loader } from "../pk3/PK3Loader";
 import { Q3ShaderRegistry } from "../shader/Q3ShaderRegistry";
+import { waitForMapAsset, waitForMapReady, waitForMapVisibility } from "./MapLoadWait";
 
 /**
  * Entities the client draws or plays nothing for: map markers that only the
@@ -138,6 +139,8 @@ export class MapLoader {
   private wasBackgroundedDuringLoad: boolean = false;
   /** Cancels the pending check of world mesh readiness for when the loading screen closes. */
   private readinessCheck: (() => void) | null = null;
+  private loadTail: Promise<void> = Promise.resolve();
+  private requestedLoad: AbortController | null = null;
 
   private constructor() {
     this.pk3Index = PK3Index.getInstance();
@@ -179,6 +182,37 @@ export class MapLoader {
     onProgress?: ProgressCallback,
     opts?: { backgroundOnly?: boolean },
   ): Promise<MapLoadResult> {
+    this.requestedLoad?.abort(new Error("Map load superseded"));
+    const controller = new AbortController();
+    this.requestedLoad = controller;
+    const operation = this.loadTail.then(async () => {
+      if (controller.signal.aborted) {
+        if (this.requestedLoad === controller) this.requestedLoad = null;
+        return { success: false, mapName, mapType: "bsp" as const, error: "Map load superseded" };
+      }
+      const observer = scene.onDisposeObservable.addOnce(() => controller.abort(new Error("Map scene disposed")));
+      try {
+        if (scene.isDisposed) controller.abort(new Error("Map scene disposed"));
+        return await this.performLoadMap(mapName, scene, controller.signal, onProgress, opts);
+      } finally {
+        scene.onDisposeObservable.remove(observer);
+        if (this.requestedLoad === controller) this.requestedLoad = null;
+      }
+    });
+    this.loadTail = operation.then(
+      () => {},
+      () => {},
+    );
+    return operation;
+  }
+
+  private async performLoadMap(
+    mapName: string,
+    scene: Scene,
+    signal: AbortSignal,
+    onProgress?: ProgressCallback,
+    opts?: { backgroundOnly?: boolean },
+  ): Promise<MapLoadResult> {
     const startTime = Date.now();
 
     // Emit loading:start event
@@ -189,6 +223,7 @@ export class MapLoader {
     });
 
     const progress = (phase: string, detail?: string, percent?: number) => {
+      signal.throwIfAborted();
       onProgress?.({ phase, detail, progress: percent });
       devLog(`[MapLoader] ${phase}${detail ? `: ${detail}` : ""}`);
 
@@ -203,16 +238,18 @@ export class MapLoader {
     };
 
     try {
+      signal.throwIfAborted();
       // Clean up previous map
       if (this.currentMeshResult) {
         progress("cleanup", "disposing previous map");
-        await this.disposeCurrentMap();
+        await this.clearCurrentMap();
       }
 
       // Check if it's a BSP map in the index
       const bspPk3 = this.pk3Index.findMap(mapName);
       if (bspPk3) {
-        const result = await this.loadBspMap(mapName, bspPk3, scene, progress, opts?.backgroundOnly);
+        const result = await this.loadBspMap(mapName, bspPk3, scene, progress, signal, opts?.backgroundOnly);
+        signal.throwIfAborted();
 
         // Emit loading:complete event
         EventBus.emit(LOADING_EVENTS.COMPLETE, {
@@ -244,6 +281,13 @@ export class MapLoader {
         error,
       };
     } catch (e) {
+      if (this.currentMeshResult) {
+        try {
+          await this.clearCurrentMap();
+        } catch (cleanupError) {
+          console.warn("[MapLoader] Failed to release incomplete map:", cleanupError);
+        }
+      }
       const error = e instanceof Error ? e.message : String(e);
       console.error(`[MapLoader] Failed to load map ${mapName}:`, e);
 
@@ -273,6 +317,36 @@ export class MapLoader {
     mapPk3: string,
     scene: Scene,
     progress: (phase: string, detail?: string, pct?: number) => void,
+    signal: AbortSignal,
+    backgroundOnly?: boolean,
+  ): Promise<MapLoadResult> {
+    this.isLoadingMap = true;
+    this.wasBackgroundedDuringLoad = document.hidden;
+    const onVisibilityChange = () => {
+      if (this.isLoadingMap && document.hidden) this.wasBackgroundedDuringLoad = true;
+    };
+    const cleanup = () => {
+      this.isLoadingMap = false;
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    signal.addEventListener("abort", cleanup, { once: true });
+    try {
+      signal.throwIfAborted();
+      return await this.buildBspMap(mapName, mapPk3, scene, progress, signal, backgroundOnly);
+    } finally {
+      cleanup();
+      signal.removeEventListener("abort", cleanup);
+      this.wasBackgroundedDuringLoad = false;
+    }
+  }
+
+  private async buildBspMap(
+    mapName: string,
+    mapPk3: string,
+    scene: Scene,
+    progress: (phase: string, detail?: string, pct?: number) => void,
+    signal: AbortSignal,
     backgroundOnly?: boolean,
   ): Promise<MapLoadResult> {
     const deluxeEnabled = (this.renderVars.get("r_deluxe") ?? 0) >= 0.5;
@@ -280,32 +354,11 @@ export class MapLoader {
     devLog(`[MapLoader] Deluxe shader branches: ${deluxeEnabled ? "enabled" : "disabled"} for this map load`);
     devLog(`[MapLoader] BSP PBR materials: ${bspPbrEnabled ? "enabled" : "disabled"} for this map load`);
 
-    // ── Tab visibility tracking ──────────────────────────────────────────
-    // When the browser tab is backgrounded, WebGL texture uploads and shader
-    // compilations silently fail. Track visibility so we can revalidate after.
-    this.isLoadingMap = true;
-    this.wasBackgroundedDuringLoad = false;
-
-    const onVisibilityChange = () => {
-      if (document.hidden && this.isLoadingMap) {
-        this.wasBackgroundedDuringLoad = true;
-        console.warn("[MapLoader] ⚠ Tab backgrounded during map load — will revalidate textures on return");
-      }
-    };
-    document.addEventListener("visibilitychange", onVisibilityChange);
-
-    const loadedPk3s = new Set(this.pk3Loader.getPackageInfo().map((p) => p.filename));
-
     // Phase 1: Ensure map PK3 is loaded
     progress("Loading", `Map PK3: ${mapPk3}`);
-    if (!loadedPk3s.has(mapPk3)) {
-      const mapPk3Path = this.pk3Index.getPK3Path(mapPk3);
-      if (mapPk3Path) {
-        await this.pk3Loader.loadPK3FromUrl(mapPk3Path);
-      } else {
-        await this.pk3Loader.loadPK3(mapPk3);
-      }
-    }
+    const mapPk3Path = this.pk3Index.getPK3Path(mapPk3);
+    if (mapPk3Path) await waitForMapAsset(this.pk3Loader.ensurePK3FromUrl(mapPk3Path), signal);
+    else await waitForMapAsset(this.pk3Loader.ensurePK3(mapPk3), signal);
 
     // Phase 2: Load BSP
     progress("Loading", "BSP data");
@@ -329,12 +382,8 @@ export class MapLoader {
     for (const pk3 of requiredPk3s) {
       progress("Dependencies", `Loading ${pk3}`, loaded / requiredPk3s.size);
       try {
-        if (!loadedPk3s.has(pk3)) {
-          const pk3Path = this.pk3Index.getPK3Path(pk3);
-          if (pk3Path) {
-            await this.pk3Loader.loadPK3FromUrl(pk3Path);
-          }
-        }
+        const pk3Path = this.pk3Index.getPK3Path(pk3);
+        if (pk3Path) await waitForMapAsset(this.pk3Loader.ensurePK3FromUrl(pk3Path), signal);
       } catch (e) {
         console.warn(`[MapLoader] Failed to load dependency ${pk3}:`, e);
       }
@@ -348,27 +397,19 @@ export class MapLoader {
       initializeEntityDefs(); // Ensure entity definitions are populated
       const modelPk3s = this.resolveEntityModelDependencies(bsp);
       for (const pk3 of modelPk3s) {
-        if (!loadedPk3s.has(pk3)) {
-          progress("Dependencies", `Loading model assets from ${pk3}`);
-          try {
-            const pk3Path = this.pk3Index.getPK3Path(pk3);
-            if (pk3Path) {
-              await this.pk3Loader.loadPK3FromUrl(pk3Path);
-              loadedPk3s.add(pk3);
-            }
-          } catch (e) {
-            console.warn(`[MapLoader] Failed to load model dependency ${pk3}:`, e);
-          }
+        progress("Dependencies", `Loading model assets from ${pk3}`);
+        try {
+          const pk3Path = this.pk3Index.getPK3Path(pk3);
+          if (pk3Path) await waitForMapAsset(this.pk3Loader.ensurePK3FromUrl(pk3Path), signal);
+        } catch (e) {
+          console.warn(`[MapLoader] Failed to load model dependency ${pk3}:`, e);
         }
       }
 
-      // Load the configured weapon bank after base/model dependencies.
       const weaponPackage = weaponModelRecipe.package;
-      if (!loadedPk3s.has(weaponPackage) && this.pk3Index.getPK3Path(weaponPackage)) {
+      if (this.pk3Index.getPK3Path(weaponPackage)) {
         try {
-          await this.pk3Loader.loadPK3(weaponPackage);
-          loadedPk3s.add(weaponPackage);
-          devLog(`[MapLoader] Loaded weapon override PK3: ${weaponPackage}`);
+          await waitForMapAsset(this.pk3Loader.ensurePK3(weaponPackage), signal);
         } catch (e) {
           console.warn(`[MapLoader] ${weaponPackage} not loaded:`, e);
         }
@@ -384,12 +425,8 @@ export class MapLoader {
     for (const pk3 of skyPk3s) {
       progress("Dependencies", `Loading sky textures from ${pk3}`);
       try {
-        if (!loadedPk3s.has(pk3)) {
-          const pk3Path = this.pk3Index.getPK3Path(pk3);
-          if (pk3Path) {
-            await this.pk3Loader.loadPK3FromUrl(pk3Path);
-          }
-        }
+        const pk3Path = this.pk3Index.getPK3Path(pk3);
+        if (pk3Path) await waitForMapAsset(this.pk3Loader.ensurePK3FromUrl(pk3Path), signal);
       } catch (e) {
         console.warn(`[MapLoader] Failed to load sky dependency ${pk3}:`, e);
       }
@@ -633,10 +670,7 @@ export class MapLoader {
       // good, which is worse than a shader compiling on the first frame.
       progress("Finalizing", "Waiting for GPU readiness");
       try {
-        const ready = await Promise.race([
-          scene.whenReadyAsync().then(() => true),
-          new Promise<boolean>((resolve) => setTimeout(() => resolve(false), SCENE_READY_TIMEOUT_MS)),
-        ]);
+        const ready = await waitForMapReady(scene.whenReadyAsync(), signal, SCENE_READY_TIMEOUT_MS);
         if (ready) {
           devLog("[MapLoader] Scene fully ready — all textures and shaders compiled");
         } else {
@@ -655,9 +689,6 @@ export class MapLoader {
     // If the tab was backgrounded at any point during loading, texture
     // uploads and shader compilations may have silently failed. Force a
     // full revalidation now that loading is complete.
-    this.isLoadingMap = false;
-    document.removeEventListener("visibilitychange", onVisibilityChange);
-
     if (this.wasBackgroundedDuringLoad) {
       console.warn("[MapLoader] Tab was backgrounded during load — revalidating textures and shaders...");
       progress("Recovery", "Revalidating textures (tab was backgrounded)");
@@ -665,15 +696,7 @@ export class MapLoader {
       // If tab is still hidden, wait for it to become visible first
       if (document.hidden) {
         devLog("[MapLoader] Tab still hidden — waiting for visibility...");
-        await new Promise<void>((resolve) => {
-          const waitForVisible = () => {
-            if (!document.hidden) {
-              document.removeEventListener("visibilitychange", waitForVisible);
-              resolve();
-            }
-          };
-          document.addEventListener("visibilitychange", waitForVisible);
-        });
+        await waitForMapVisibility(signal);
         devLog("[MapLoader] Tab now visible — starting revalidation");
       }
 
@@ -737,14 +760,6 @@ export class MapLoader {
 
     this.currentMap = mapName;
     progress("Complete", `Map ${mapName} loaded successfully`);
-
-    // Emit loading:complete event
-    const completeEvent: LoadingCompleteEvent = {
-      type: "map",
-      success: true,
-      duration: 0,
-    };
-    EventBus.emit(LOADING_EVENTS.COMPLETE, completeEvent);
 
     return {
       success: true,
@@ -846,7 +861,16 @@ export class MapLoader {
    * Dispose current map resources
    */
   async disposeCurrentMap(): Promise<void> {
+    this.requestedLoad?.abort(new Error("Map load cancelled"));
+    const disposal = this.loadTail.then(() => this.clearCurrentMap());
+    this.loadTail = disposal.catch(() => {});
+    await disposal;
+  }
+
+  private async clearCurrentMap(): Promise<void> {
     devLog(`[MapLoader] disposeCurrentMap called at ${Date.now()}`);
+    this.readinessCheck?.();
+    this.readinessCheck = null;
     if (this.currentMap) {
       EventBus.emit("map:unloading", { mapName: this.currentMap });
     }
@@ -1003,7 +1027,8 @@ export class MapLoader {
       seenModels.add(modelPath);
 
       // Find which PK3 contains this model
-      const pk3 = this.pk3Index.findFile(modelPath);
+      const virtualPath = modelPath.replace(/^\/?data\//i, "").replace(/^\/+/, "");
+      const pk3 = this.pk3Index.findFile(virtualPath);
       if (pk3) {
         requiredPk3s.add(pk3);
         devLog(`[MapLoader] Entity model dependency: ${modelPath} → ${pk3}`);

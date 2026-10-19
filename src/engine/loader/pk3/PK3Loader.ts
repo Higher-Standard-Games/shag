@@ -4,6 +4,8 @@ import { readAssetBuffer } from "./AssetRequest";
 import { PackageDownload } from "./PackageDownload";
 import { fetchPk3, pk3MirrorBase } from "./Pk3Mirror";
 
+class PackageLoadSupersededError extends Error {}
+
 export interface PK3LoaderConfig {
   basePath: string; // e.g., "games/default/"
   additionalPaths?: string[]; // e.g., ["games/default/maps/"]
@@ -28,6 +30,10 @@ export class PK3Loader {
 
   /** O(1) lookup from normalized path to JSZip file object (avoids forEach scan) */
   private zipFileIndex: Map<string, JSZip.JSZipObject> = new Map();
+  private readonly mountedSources = new Map<string, string>();
+  private readonly pendingMounts = new Map<string, Promise<void>>();
+  private readonly revisions = new Map<string, number>();
+  private generation = 0;
 
   /** Track Blob URLs created via getFileAsURL() for cleanup */
   private blobUrls: string[] = [];
@@ -128,13 +134,62 @@ export class PK3Loader {
    * @returns Promise that resolves when loaded
    */
   public async loadPK3FromUrl(url: string): Promise<void> {
-    // Extract filename from URL
-    const filename = url.split("/").pop() || url;
+    const source = this.sourceFor(url);
+    const filename = source.filename;
+    const generation = this.generation;
+    const revision = (this.revisions.get(filename) ?? 0) + 1;
+    this.revisions.set(filename, revision);
 
     devLog(`[PK3Loader] Loading ${filename} from ${url}...`);
 
     const zip = await this.fetchAndValidatePK3(url, filename);
+    if (generation !== this.generation || revision !== this.revisions.get(filename)) {
+      throw new PackageLoadSupersededError(`Package load superseded or unloaded: ${filename}`);
+    }
     this.processPK3(filename, zip);
+    this.mountedSources.set(filename, source.key);
+  }
+
+  private sourceFor(url: string): { key: string; filename: string } {
+    const resolved = new URL(url, typeof location === "undefined" ? "http://pk3.local/" : location.href);
+    resolved.hash = "";
+    return { key: resolved.href, filename: resolved.pathname.split("/").pop() || url };
+  }
+
+  /** Mount a source once; explicit loadPK3/loadPK3FromUrl remain refresh operations. */
+  public ensurePK3FromUrl(url: string): Promise<void> {
+    const { key, filename } = this.sourceFor(url);
+    if (this.packages.has(filename) && this.mountedSources.get(filename) === key) return Promise.resolve();
+    const pending = this.pendingMounts.get(key);
+    if (pending) return pending;
+    const request = this.loadPK3FromUrl(url).finally(() => {
+      if (this.pendingMounts.get(key) === request) this.pendingMounts.delete(key);
+    });
+    this.pendingMounts.set(key, request);
+    return request;
+  }
+
+  /** Ensure a package from the configured search paths, sharing concurrent body reads and parsing. */
+  public async ensurePK3(filename: string): Promise<void> {
+    let lastError: unknown;
+    const generation = this.generation;
+    const paths = this.getSearchPaths();
+    if (
+      this.packages.has(filename) &&
+      (!this.mountedSources.has(filename) ||
+        paths.some((base) => this.mountedSources.get(filename) === this.sourceFor(`${base}${filename}`).key))
+    )
+      return;
+    for (const basePath of paths) {
+      try {
+        await this.ensurePK3FromUrl(`${basePath}${filename}`);
+        return;
+      } catch (error) {
+        if (generation !== this.generation || error instanceof PackageLoadSupersededError) throw error;
+        lastError = error;
+      }
+    }
+    throw new Error(`Could not ensure PK3 ${filename}: ${String(lastError)}`);
   }
 
   /**
@@ -150,11 +205,10 @@ export class PK3Loader {
     for (const basePath of searchPaths) {
       const url = `${basePath}${filename}`;
       try {
-        const zip = await this.fetchAndValidatePK3(url, filename);
-        devLog(`[PK3Loader] Loading ${filename} from ${url}...`);
-        this.processPK3(filename, zip);
+        await this.loadPK3FromUrl(url);
         return;
       } catch (error) {
+        if (error instanceof PackageLoadSupersededError) throw error;
         lastError = error;
         // Try next path
       }
@@ -168,7 +222,15 @@ export class PK3Loader {
    * Ingest bytes from Node's indexed local filesystem without HTTP retries.
    */
   public async processPK3ArrayBuffer(filename: string, arrayBuffer: ArrayBuffer): Promise<void> {
-    this.processPK3(filename, await JSZip.loadAsync(arrayBuffer));
+    const generation = this.generation;
+    const revision = (this.revisions.get(filename) ?? 0) + 1;
+    this.revisions.set(filename, revision);
+    const zip = await JSZip.loadAsync(arrayBuffer);
+    if (generation !== this.generation || revision !== this.revisions.get(filename)) {
+      throw new PackageLoadSupersededError(`Package load superseded or unloaded: ${filename}`);
+    }
+    this.processPK3(filename, zip);
+    this.mountedSources.delete(filename);
   }
 
   private processPK3(filename: string, zip: JSZip): void {
@@ -356,6 +418,10 @@ export class PK3Loader {
    * Unload all packages
    */
   public unloadAll(): void {
+    this.generation++;
+    this.revisions.clear();
+    this.mountedSources.clear();
+    this.pendingMounts.clear();
     this.packages.clear();
     this.fileIndex.clear();
     this.zipFileIndex.clear();

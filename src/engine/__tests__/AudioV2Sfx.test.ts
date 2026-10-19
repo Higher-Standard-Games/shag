@@ -36,7 +36,7 @@ vi.mock("@babylonjs/core/AudioV2/webAudio/webAudioEngine", () => ({
 let packageLoaded = false;
 const loader = {
   hasFile: vi.fn(() => packageLoaded),
-  loadPK3: vi.fn(async () => {
+  ensurePK3: vi.fn(async () => {
     packageLoaded = true;
   }),
   getFile: vi.fn(async () => (packageLoaded ? new ArrayBuffer(8) : null)),
@@ -69,7 +69,7 @@ describe("AudioV2Sfx", () => {
     await audio.init();
     await audio.preload(["sounds/weapons/rocket_fire_strong.ogg", "sounds/weapons/rocket_fire_strong.ogg"]);
 
-    expect(loader.loadPK3).toHaveBeenCalledTimes(1);
+    expect(loader.ensurePK3).toHaveBeenCalledTimes(1);
     expect(engine.createSoundBufferAsync).toHaveBeenCalledTimes(1);
 
     await audio.play2D("sounds/weapons/rocket_fire_strong.ogg");
