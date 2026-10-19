@@ -60,6 +60,16 @@ normal file loading. Ammo counters read their packaged `.cfg` sidecars too.
 Attachment rules read packaged `tags.txt` before trying a loose/custom URL.
 Plasma's `tag_barrel2` rule is required to place its two barrels correctly.
 
+Firefox WebGL shares read-only native PBR materials between remote held weapons
+loaded from the same cached source. Hierarchies, skeletons, animation groups,
+hand attachments and mesh outlines remain independent. Material/texture
+animations, animation groups targeting objects other than transform nodes,
+custom material classes and custom clone implementations retain independent
+material clones. Chrome and WebGPU keep the independent-material path.
+`ModelInstanceCache` exposes this as the opt-in `shareStaticMaterials` constructor
+option; consumers using it must keep these materials read-only. Source and
+instance cleanup retain a shared material until its last scene user is gone.
+
 `config/weapon-models.json` defines the original source archive, export directory
 and required main/barrel GLBs. The original bank is preserved at
 `assets-source/weapons/z_weapons-source.pk3`; exports and authoring intermediates

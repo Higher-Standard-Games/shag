@@ -8,7 +8,10 @@ The live-game slowdown is reproduced on Windows Firefox. The user reports
 20–30 FPS while moving and encountering players; Linux players also report
 performance problems. No native Linux run has been performed. WebGL is the
 target, and Firefox-specific rendering defaults are authorized if measurements
-support them. No gameplay rendering workaround has been accepted yet.
+support them. The initial pass below did not accept a rendering-quality
+workaround. The [v0.9.36 follow-up](firefox_performance_v0.9.36.md) profiles the
+updated release and implements Firefox WebGL sharing of static remote-weapon
+materials, with actual-asset timing and cross-browser pixel comparisons.
 
 The separate held-button / choppy-aim reports are tracked in
 [linux_mouse_hold.md](linux_mouse_hold.md) and

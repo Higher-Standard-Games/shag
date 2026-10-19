@@ -5,6 +5,7 @@ import { Bone } from "@babylonjs/core/Bones/bone";
 import { Skeleton } from "@babylonjs/core/Bones/skeleton";
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
 import { MultiMaterial } from "@babylonjs/core/Materials/multiMaterial";
+import { PBRMaterial } from "@babylonjs/core/Materials/PBR/pbrMaterial";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { RawTexture } from "@babylonjs/core/Materials/Textures/rawTexture";
 import { Matrix } from "@babylonjs/core/Maths/math.vector";
@@ -61,6 +62,73 @@ afterEach(() => {
 });
 
 describe("model instance sources", () => {
+  it("shares opted-in static PBR materials while rigs remain independent and releases only the last user", async () => {
+    const source = model();
+    const oldMaterial = source.meshes[0].material!;
+    const material = new PBRMaterial("shared weapon", scene);
+    source.meshes[0].material = material;
+    oldMaterial.dispose();
+    const cache = new ModelInstanceCache(scene, async () => source, { shareStaticMaterials: true });
+    const a = (await cache.createInstance("gun.glb", 1))!;
+    const b = (await cache.createInstance("gun.glb", 1))!;
+    expect(a.meshes[0].material).toBe(material);
+    expect(b.meshes[0].material).toBe(material);
+    expect(a.skeletons[0]).not.toBe(b.skeletons[0]);
+    expect(a.animationGroups[0].targetedAnimations[0].target).not.toBe(
+      b.animationGroups[0].targetedAnimations[0].target,
+    );
+    disposeModelResources([a.root], a);
+    expect(scene.materials).toContain(material);
+    cache.dispose();
+    expect(scene.materials).toContain(material);
+    expect(b.meshes[0].isDisposed()).toBe(false);
+    disposeModelResources([b.root], b);
+    expect(scene.materials).not.toContain(material);
+  });
+
+  it("keeps animated materials and the default PBR path independent", async () => {
+    for (const animated of [false, true]) {
+      const source = model();
+      const material = new PBRMaterial("weapon", scene);
+      source.meshes[0].material = material;
+      if (animated) {
+        const fade = new Animation("fade", "alpha", 30, Animation.ANIMATIONTYPE_FLOAT);
+        fade.setKeys([
+          { frame: 0, value: 1 },
+          { frame: 30, value: 0 },
+        ]);
+        source.animationGroups[0].addTargetedAnimation(fade, material);
+      }
+      const cache = new ModelInstanceCache(scene, async () => source, { shareStaticMaterials: animated });
+      const a = (await cache.createInstance("gun.glb", 1))!;
+      expect(a.meshes[0].material).not.toBe(material);
+      disposeModelResources([a.root], a);
+      cache.dispose();
+    }
+  });
+
+  it.each(["material animation", "texture animation", "custom clone"])("does not share %s", async (kind) => {
+    const source = model();
+    const material = new PBRMaterial("weapon", scene);
+    source.meshes[0].material = material;
+    const animation = new Animation("fade", "alpha", 30, Animation.ANIMATIONTYPE_FLOAT);
+    animation.setKeys([
+      { frame: 0, value: 1 },
+      { frame: 30, value: 0 },
+    ]);
+    if (kind === "material animation") material.animations = [animation];
+    if (kind === "texture animation") {
+      material.albedoTexture = RawTexture.CreateRGBATexture(new Uint8Array([255, 255, 255, 255]), 1, 1, scene);
+      material.albedoTexture.animations = [animation];
+    }
+    const clone = kind === "custom clone" ? vi.spyOn(material, "clone") : null;
+    const cache = new ModelInstanceCache(scene, async () => source, { shareStaticMaterials: true });
+    const instance = (await cache.createInstance("gun.glb", 1))!;
+    expect(instance.meshes[0].material).not.toBe(material);
+    if (clone) expect(clone).toHaveBeenCalledOnce();
+    disposeModelResources([instance.root], instance);
+    cache.dispose();
+  });
   it("deduplicates concurrent imports while preserving authored tags, rigs and independent materials", async () => {
     const source = model();
     source.animationGroups[0].start(true);

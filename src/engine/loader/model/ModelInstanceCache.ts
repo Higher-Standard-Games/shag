@@ -1,6 +1,7 @@
 import { AssetContainer } from "@babylonjs/core/assetContainer";
 import "@babylonjs/core/Animations/animatable";
 import type { Material } from "@babylonjs/core/Materials/material";
+import { PBRMaterial } from "@babylonjs/core/Materials/PBR/pbrMaterial";
 import { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
@@ -14,7 +15,12 @@ interface CachedModel extends ModelLoadResult {
   autoPlaying: boolean[];
 }
 
-/** Scene-local sources with independent hierarchy/rig/material instances. */
+export interface ModelInstanceCacheOptions {
+  /** Caller keeps native PBR materials read-only; transforms/rigs remain independent. */
+  shareStaticMaterials?: boolean;
+}
+
+/** Scene-local sources with independent hierarchies/rigs and opt-in material sharing. */
 export class ModelInstanceCache {
   private readonly sources = new ModelSourceCache<CachedModel>("ModelInstanceCache");
   private readonly pending = new Map<string, Promise<CachedModel | null>>();
@@ -25,6 +31,7 @@ export class ModelInstanceCache {
   constructor(
     private readonly scene: Scene,
     private readonly load: (path: string, scale: number) => Promise<ModelLoadResult | null>,
+    private readonly options: ModelInstanceCacheOptions = {},
   ) {
     // One empty scratch container, not a new container/scene observer per switch.
     // Babylon registers an anonymous scene-disposal observer in its constructor.
@@ -106,12 +113,25 @@ export class ModelInstanceCache {
         throw new Error("Cached model must have one transform root");
       const meshes = root.getChildMeshes(false).filter((mesh): mesh is Mesh => mesh instanceof Mesh);
       const materials = new Map<Material, Material>();
+      const shareMaterials =
+        this.options.shareStaticMaterials &&
+        source.animationGroups.every((group) =>
+          group.targetedAnimations.every(({ target }) => target instanceof TransformNode),
+        );
       for (const mesh of meshes) {
         const original = mesh.material;
         if (!original) continue;
         let material = materials.get(original);
         if (!material) {
-          material = cloneModelMaterial(original, original.name, true) ?? undefined;
+          // A shared source stays in the scene until this cache is disposed;
+          // disposeModelResources retains its material while any clone uses it.
+          const share =
+            shareMaterials &&
+            Object.getPrototypeOf(original) === PBRMaterial.prototype &&
+            original.clone === PBRMaterial.prototype.clone &&
+            !original.animations?.length &&
+            original.getActiveTextures().every((texture) => !texture.animations?.length);
+          material = share ? original : (cloneModelMaterial(original, original.name, true) ?? undefined);
           if (!material) throw new Error(`Cannot clone material ${original.name}`);
           materials.set(original, material);
         }
