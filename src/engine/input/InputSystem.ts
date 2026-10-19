@@ -160,6 +160,22 @@ export class InputSystem {
   private boundKeyUp: (e: KeyboardEvent) => void;
   private boundMouseDown: (e: MouseEvent) => void;
   private boundMouseUp: (e: MouseEvent) => void;
+  private mousePointerId: number | null = null;
+  private boundPointerDown = (event: PointerEvent) => {
+    if (event.pointerType !== "mouse") return;
+    this.mousePointerId = event.pointerId;
+    this.updatePointerButtons(event.buttons);
+  };
+  private boundPointerChange = (event: PointerEvent) => {
+    if (event.pointerType !== "mouse" || event.pointerId !== this.mousePointerId) return;
+    this.updatePointerButtons(event.buttons);
+    if (event.buttons === 0) this.mousePointerId = null;
+  };
+  private boundPointerCancel = (event: PointerEvent) => {
+    if (event.pointerType !== "mouse" || event.pointerId !== this.mousePointerId) return;
+    this.updatePointerButtons(0);
+    this.mousePointerId = null;
+  };
   private boundMouseMove: (e: MouseEvent) => void;
   private boundWheel: (e: WheelEvent) => void;
   private boundTouchStart: (e: TouchEvent) => void;
@@ -253,6 +269,11 @@ export class InputSystem {
     document.addEventListener("visibilitychange", this.boundVisibilityChange);
     document.addEventListener("pointerlockchange", this.boundPointerLockChange);
     canvas.addEventListener("mousedown", this.boundMouseDown);
+    // Babylon cancels pointerdown, which can suppress compatibility mousedown.
+    canvas.addEventListener("pointerdown", this.boundPointerDown, true);
+    window.addEventListener("pointermove", this.boundPointerChange, true);
+    window.addEventListener("pointerup", this.boundPointerChange, true);
+    window.addEventListener("pointercancel", this.boundPointerCancel, true);
     // A release outside the canvas still belongs to a press begun on it.
     window.addEventListener("mouseup", this.boundMouseUp, true);
     canvas.addEventListener("mousemove", this.boundMouseMove);
@@ -510,6 +531,7 @@ export class InputSystem {
 
   /** Drop holds immediately; report one release on the next input frame. */
   private releaseHeldInput(): void {
+    this.mousePointerId = null;
     for (const key of this.rawState.keys) this.rawState.keysReleased.add(key);
     this.rawState.keys.clear();
     this.rawState.keysPressed.clear();
@@ -692,14 +714,28 @@ export class InputSystem {
 
   private onMouseDown(e: MouseEvent): void {
     const button = this.getMouseButton(e.button);
+    if (!button || this.rawState.mouse.buttons.has(button)) return;
     this.rawState.mouse.buttons.add(button);
     this.rawState.mouse.buttonsPressed.add(button);
   }
 
   private onMouseUp(e: MouseEvent): void {
     const button = this.getMouseButton(e.button);
+    if (!button) return;
     if (!this.rawState.mouse.buttons.delete(button)) return;
     this.rawState.mouse.buttonsReleased.add(button);
+  }
+
+  private updatePointerButtons(buttons: number): void {
+    // Chord changes arrive as pointermove; pointerup is only the last release.
+    for (const [button, mask] of [
+      [0, 1],
+      [1, 4],
+      [2, 2],
+    ] as const) {
+      if (buttons & mask) this.onMouseDown({ button } as MouseEvent);
+      else this.onMouseUp({ button } as MouseEvent);
+    }
   }
 
   private onMouseMove(e: MouseEvent): void {
@@ -759,7 +795,7 @@ export class InputSystem {
     }
   }
 
-  private getMouseButton(button: number): MouseButton {
+  private getMouseButton(button: number): MouseButton | null {
     switch (button) {
       case 0:
         return "left";
@@ -768,7 +804,7 @@ export class InputSystem {
       case 2:
         return "right";
       default:
-        return "left";
+        return null;
     }
   }
 
@@ -904,6 +940,10 @@ export class InputSystem {
       document.removeEventListener("visibilitychange", this.boundVisibilityChange);
       document.removeEventListener("pointerlockchange", this.boundPointerLockChange);
       this.canvas.removeEventListener("mousedown", this.boundMouseDown);
+      this.canvas.removeEventListener("pointerdown", this.boundPointerDown, true);
+      window.removeEventListener("pointermove", this.boundPointerChange, true);
+      window.removeEventListener("pointerup", this.boundPointerChange, true);
+      window.removeEventListener("pointercancel", this.boundPointerCancel, true);
       window.removeEventListener("mouseup", this.boundMouseUp, true);
       this.canvas.removeEventListener("mousemove", this.boundMouseMove);
       this.canvas.removeEventListener("wheel", this.boundWheel);
@@ -929,6 +969,7 @@ export class InputSystem {
     this.scene = null;
     this.canvas = null;
     this.pointerLocked = false;
+    this.mousePointerId = null;
     this.rawState = this.createEmptyRawState();
     this.pendingReleases.clear();
     for (const state of this.actionStates.values()) Object.assign(state, this.createEmptyActionState());

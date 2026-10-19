@@ -14,6 +14,11 @@ describe("input focus recovery", () => {
   const key = (type: "keydown" | "keyup", code: string) => document.dispatchEvent(new KeyboardEvent(type, { code }));
   const beginFrame = () => scene.onBeforeRenderObservable.notifyObservers(scene);
   const endFrame = () => scene.onAfterRenderObservable.notifyObservers(scene);
+  const pointer = (type: string, buttons: number, target: EventTarget = canvas, pointerType = "mouse") => {
+    const event = new MouseEvent(type, { buttons, bubbles: true, cancelable: true });
+    Object.defineProperties(event, { pointerId: { value: 1 }, pointerType: { value: pointerType } });
+    target.dispatchEvent(event);
+  };
   const pointerLock = (element: Element | null) => {
     Object.defineProperty(document, "pointerLockElement", { configurable: true, value: element });
     document.dispatchEvent(new Event("pointerlockchange"));
@@ -113,6 +118,61 @@ describe("input focus recovery", () => {
     outside.dispatchEvent(new MouseEvent("mouseup", { button: 0, bubbles: true }));
     beginFrame();
     expect(input.wasReleased(FPS.FIRE)).toBe(false);
+  });
+
+  it("reads fire and aim when Babylon cancels pointerdown and no mousedown arrives", () => {
+    canvas.addEventListener("pointerdown", (event) => event.preventDefault());
+    pointer("pointerdown", 1);
+    beginFrame();
+    expect(input.isActive(FPS.FIRE)).toBe(true);
+    expect(input.wasPressed(FPS.FIRE)).toBe(true);
+    endFrame();
+    pointer("pointermove", 3);
+    beginFrame();
+    expect(input.isActive(FPS.FIRE)).toBe(true);
+    expect(input.isActive(FPS.AIM)).toBe(true);
+    endFrame();
+    pointer("pointermove", 2);
+    beginFrame();
+    expect(input.isActive(FPS.FIRE)).toBe(false);
+    expect(input.wasReleased(FPS.FIRE)).toBe(true);
+    expect(input.isActive(FPS.AIM)).toBe(true);
+    endFrame();
+    pointer("pointerup", 0, window);
+    beginFrame();
+    expect(input.isActive(FPS.AIM)).toBe(false);
+    expect(input.wasReleased(FPS.AIM)).toBe(true);
+  });
+
+  it("does not repeat a press when compatibility mouse events follow pointer events", () => {
+    pointer("pointerdown", 1);
+    beginFrame();
+    expect(input.wasPressed(FPS.FIRE)).toBe(true);
+    endFrame();
+    canvas.dispatchEvent(new MouseEvent("mousedown", { button: 0 }));
+    beginFrame();
+    expect(input.isActive(FPS.FIRE)).toBe(true);
+    expect(input.wasPressed(FPS.FIRE)).toBe(false);
+  });
+
+  it("releases cancelled pointers and never resurrects held buttons after focus loss", () => {
+    pointer("pointerdown", 1);
+    pointer("pointercancel", 0, window);
+    beginFrame();
+    expect(input.isActive(FPS.FIRE)).toBe(false);
+    endFrame();
+    pointer("pointerdown", 1);
+    window.dispatchEvent(new Event("blur"));
+    pointer("pointermove", 1, window);
+    beginFrame();
+    expect(input.isActive(FPS.FIRE)).toBe(false);
+  });
+
+  it("does not interpret touch pointers or side mouse buttons as fire", () => {
+    pointer("pointerdown", 1, canvas, "touch");
+    canvas.dispatchEvent(new MouseEvent("mousedown", { button: 3 }));
+    beginFrame();
+    expect(input.isActive(FPS.FIRE)).toBe(false);
   });
 
   it("reports one release for a modified action across blur and hidden events", () => {

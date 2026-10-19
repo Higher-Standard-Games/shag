@@ -185,6 +185,8 @@ async function main() {
   // Create scene
   console.log("[Main] Creating scene...");
   const scene = new Scene(engine);
+  // Preserve mouse compatibility events for FPS buttons and mouselook in Firefox.
+  scene.preventDefaultOnPointerDown = false;
   const frameRateDisplay = new FrameRateDisplay(() => engine.getFps());
   scene.onDisposeObservable.addOnce(() => frameRateDisplay.destroy());
   applySceneRendererPolicy(scene);

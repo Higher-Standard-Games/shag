@@ -26,6 +26,19 @@ export function clearBrowserControlFailure(control: "pointer" | "fullscreen" | "
   if (notice?.dataset.control === control) notice.remove();
 }
 
+/** Request capture without leaking rejected promises from browser APIs. */
+export function requestBrowserPointerLock(canvas: HTMLCanvasElement | null): void {
+  if (!canvas || document.pointerLockElement === canvas) return;
+  const failed = () =>
+    showBrowserControlFailure("Your browser did not capture the mouse. Click the game to try again.", "pointer");
+  try {
+    const request = canvas.requestPointerLock();
+    void request?.catch(failed);
+  } catch {
+    failed();
+  }
+}
+
 /** Supports promise-returning and legacy void browser APIs, and Electron. */
 export async function requestBrowserFullscreen(
   next?: boolean,

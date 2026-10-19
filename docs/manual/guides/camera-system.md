@@ -2,6 +2,12 @@
 
 `CameraSystem` owns the active Babylon camera and swaps reusable camera controllers.
 
+Mouse button actions consume pointer events as well as compatibility mouse
+events, so Babylon cancelling `pointerdown` does not disable fire or aim.
+Button chords and releases outside the canvas are tracked without repeating
+presses when both event families arrive. If mouse capture is rejected after
+joining or resuming, a notice asks the player to click the game and retry.
+
 The FPS game owns its crosshair initialization and per-frame drawing, including
 the empty-ammo red X. Camera controllers must not redraw it independently:
 a later draw without ammo state can erase the warning in the same frame.
