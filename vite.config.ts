@@ -218,6 +218,7 @@ export default defineConfig({
       '@babylonjs/core/Meshes/Builders/cylinderBuilder',
       '@babylonjs/core/Meshes/Builders/discBuilder',
       '@babylonjs/core/Meshes/Builders/groundBuilder',
+      '@babylonjs/core/Meshes/Builders/icoSphereBuilder',
       '@babylonjs/core/Meshes/Builders/planeBuilder',
       '@babylonjs/core/Meshes/Builders/torusBuilder',
       '@babylonjs/core/Meshes/abstractMesh',
