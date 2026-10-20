@@ -522,6 +522,7 @@ All messages use binary encoding for efficiency:
 | Chat | 0x89 | In-game chat text (server sanitizes + rate-limits, rebroadcasts as a `chat` snapshot event) |
 | SetLoadout | 0x8A | The kit chosen for the next round, in the modes that ask |
 | Resume | 0x8B | A reconnecting client claiming the session it was dropped from |
+| ClientPrefs | 0x8C | Player preferences the server acts on, as flag bits (bit 0: no auto-switch on pickup). Sent after every JoinAccept and on change; older servers ignore it |
 
 Snapshot one-shot events include `weapon_fire`, `projectile_spawn` / `projectile_impact`, `damage`, `death`, `award`, `weapon_chain`, and `chat` — all carried in the events section and captured verbatim into demo recordings (the snapshot is built once and shared by the broadcaster and recorder).
 

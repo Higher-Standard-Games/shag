@@ -40,7 +40,7 @@ import type { PlayerId } from "../../core/Entity";
 import type { GameEvent, GameState } from "../../core/GameState";
 import type { IGameHost } from "../../core/IGameHost";
 import type { Simulation, SimulationConfig } from "../../core/Simulation";
-import { MessageCodec, MessageType } from "../../protocol/MessageCodec";
+import { type ClientPrefs, MessageCodec, MessageType } from "../../protocol/MessageCodec";
 import { ClockSync } from "../ClockSync";
 import { ConnectionWatchdog } from "../ConnectionWatchdog";
 import { InterpolationBuffer } from "../InterpolationBuffer";
@@ -148,6 +148,7 @@ export class NetworkGameHost implements IGameHost {
   private _isConnected: boolean = false;
   private _serverInfo: ServerInfo | null = null;
   private _onJoinAccept: (() => void) | null = null; // Called when JoinAccept received
+  private clientPrefs: ClientPrefs | null = null;
   private _onJoinReject: ((error: Error) => void) | null = null;
   private readonly tickRate: number;
   private acceptingMessages = false;
@@ -356,6 +357,15 @@ export class NetworkGameHost implements IGameHost {
    * Reliable, and fire-and-forget: the server validates the names and decides
    * when the choice applies, so there is nothing here to confirm or retry.
    */
+  /**
+   * Player preferences the server acts on. Kept and sent again after every
+   * JoinAccept, so they survive a reconnect.
+   */
+  setClientPrefs(prefs: ClientPrefs): void {
+    this.clientPrefs = prefs;
+    if (this._isConnected) this.transport.send(MessageCodec.encodeClientPrefs(prefs), true);
+  }
+
   sendLoadout(primary: string, secondary: string): void {
     if (!this._isConnected) return;
     this.transport.send(MessageCodec.encodeSetLoadout(primary, secondary), true);
@@ -707,6 +717,7 @@ export class NetworkGameHost implements IGameHost {
           console.log(`[NetworkGameHost] Join accepted: ${playerId}, entity: ${entityId}`);
           this._isConnected = true;
           this.startWatchdog();
+          if (this.clientPrefs) this.transport.send(MessageCodec.encodeClientPrefs(this.clientPrefs), true);
 
           // CRITICAL: Resolve connect() promise FIRST, before any potentially-throwing code.
           // If spawnPlayer throws, the error is caught by the outer catch and the promise

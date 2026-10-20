@@ -1433,6 +1433,7 @@ export enum MessageType {
   Chat = 0x89, // In-game chat text (server sanitizes, rate-limits, rebroadcasts as snapshot event)
   SetLoadout = 0x8a, // Chosen spawn kit (S&D). Takes effect from the next round.
   Resume = 0x8b, // Reconnecting client claims the session it was dropped from
+  ClientPrefs = 0x8c, // Player preferences the server acts on (auto-switch on pickup)
 }
 
 // Text encoder/decoder for UTF-8 strings (more efficient than UTF-16)

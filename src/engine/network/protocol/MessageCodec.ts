@@ -23,6 +23,12 @@ const SNAPSHOT_HEADER_BYTES = 6; // type + full/delta byte + baseline tick
  * Message codec for network protocol
  * All messages are prefixed with a MessageType byte for proper routing
  */
+/** Player preferences the server acts on; see `MessageCodec.encodeClientPrefs`. */
+export interface ClientPrefs {
+  /** Switch to a weapon when it is picked up (the default). */
+  autoSwitch: boolean;
+}
+
 export class MessageCodec {
   /**
    * Encode a snapshot message (Server → Client)
@@ -386,6 +392,32 @@ export class MessageCodec {
       throw new Error(`Expected SetLoadout message, got 0x${messageType.toString(16)}`);
     }
     return { primary: decoder.readString(), secondary: decoder.readString() };
+  }
+
+  /**
+   * Encode a ClientPrefs message (Client → Server)
+   *
+   * Preferences the server has to act on for this player. Sent after every
+   * JoinAccept and whenever one changes. A server that does not know the
+   * message ignores it, and the defaults (all bits clear) are the old behaviour.
+   * Format: [MessageType.ClientPrefs][flags: uint8]
+   *   bit 0: do not switch to a weapon on pickup
+   */
+  static encodeClientPrefs(prefs: ClientPrefs): Uint8Array {
+    const encoder = new BinaryEncoder();
+    encoder.writeUint8(MessageType.ClientPrefs);
+    encoder.writeUint8(prefs.autoSwitch ? 0 : 1);
+    return encoder.getData();
+  }
+
+  static decodeClientPrefs(data: Uint8Array): ClientPrefs {
+    const decoder = new BinaryDecoder(data);
+    const messageType = decoder.readUint8();
+    if (messageType !== MessageType.ClientPrefs) {
+      throw new Error(`Expected ClientPrefs message, got 0x${messageType.toString(16)}`);
+    }
+    const flags = decoder.hasMore() ? decoder.readUint8() : 0;
+    return { autoSwitch: (flags & 1) === 0 };
   }
 
   /**
