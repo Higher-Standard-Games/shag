@@ -15,6 +15,7 @@
  */
 
 import WebSocket from "ws";
+import { background } from "../engine/core/AsyncErrors";
 import { BOT_LOBBY_JOIN_TIMEOUT_MS, waitForBotPreparation } from "../shared/ranking/BotPreparation";
 import type { BotReference } from "../shared/ranking/BotReference";
 import { BotClient } from "./BotClient";
@@ -273,7 +274,7 @@ export class BotLobbyClient {
         // side and get measured against that split, so a lobby's teams could
         // rearrange themselves the moment the match began.
         if (this._lobbyTeam) this._botOptions.team = this._lobbyTeam;
-        this._connectToGameServer(serverUrl, msg.admissionTicket);
+        background(this._connectToGameServer(serverUrl, msg.admissionTicket), "BotLobbyClient");
         break;
       }
 

@@ -15,6 +15,7 @@
 
 import { EventEmitter } from "node:events";
 import { WebSocket } from "ws";
+import { background } from "../engine/core/AsyncErrors";
 import { log } from "../engine/core/Log";
 import { SnapshotReceiver } from "../engine/network/client/SnapshotReceiver";
 import { MessageCodec, MessageType } from "../engine/network/protocol/MessageCodec";
@@ -297,7 +298,7 @@ export class BotClient extends EventEmitter {
           if (!settled) {
             settled = true;
             reject(new Error(`${this._logPrefix} Connection timeout`));
-            this.disconnect();
+            background(this.disconnect(), "BotClient");
           }
         }, 10000);
 
@@ -419,7 +420,7 @@ export class BotClient extends EventEmitter {
 
       case MessageType.JoinReject:
         console.log(`${this._logPrefix} Join rejected!`);
-        this.disconnect();
+        background(this.disconnect(), "BotClient");
         return false;
 
       case MessageType.LegacySnapshot:

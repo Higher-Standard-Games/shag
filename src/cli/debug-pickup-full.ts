@@ -112,4 +112,4 @@ async function runTest() {
   console.log("\n=== TEST COMPLETE ===");
 }
 
-runCli(runTest);
+void runCli(runTest);

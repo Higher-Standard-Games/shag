@@ -220,4 +220,4 @@ async function runTest() {
   }
 }
 
-runCli(runTest);
+void runCli(runTest);

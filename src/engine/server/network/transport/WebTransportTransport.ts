@@ -1,3 +1,4 @@
+import { background } from "../../../core/AsyncErrors";
 /**
  * WebTransport Server Transport
  *
@@ -210,10 +211,10 @@ export class WebTransportServerTransport implements Transport {
       this.events.onConnect?.(client);
 
       // Handle incoming datagrams
-      this.handleSessionDatagrams(session, client);
+      background(this.handleSessionDatagrams(session, client), "WebTransportTransport");
 
       // Handle incoming streams (reliable)
-      this.handleSessionStreams(session, client);
+      background(this.handleSessionStreams(session, client), "WebTransportTransport");
 
       // Handle session close
       session.once("close", () => {
@@ -255,7 +256,7 @@ export class WebTransportServerTransport implements Transport {
         if (done) break;
 
         // Handle stream in background
-        this.handleStream(stream, client);
+        background(this.handleStream(stream, client), "WebTransportTransport");
       }
     } catch (_e) {
       // Session closed or error

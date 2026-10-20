@@ -152,4 +152,4 @@ async function runComparison() {
   console.log(`Final velocity: (${serverVel.x.toFixed(1)}, ${serverVel.y.toFixed(1)}, ${serverVel.z.toFixed(1)})`);
 }
 
-runCli(runComparison);
+void runCli(runComparison);

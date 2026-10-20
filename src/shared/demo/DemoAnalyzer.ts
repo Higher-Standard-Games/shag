@@ -192,11 +192,11 @@ export class DemoAnalyzer {
 
       // -- 3a. Update health from combat_state events --
       for (const ev of state.events) {
-        if (ev["type"] === "combat_state") {
-          const entityId = ev["entityId"] as string;
+        if (ev.type === "combat_state") {
+          const entityId = ev.entityId as string;
           if (entityId) {
             const t = getTracker(entityId);
-            t.currentHealth = ev["health"] as number;
+            t.currentHealth = ev.health as number;
           }
         }
       }
@@ -204,23 +204,23 @@ export class DemoAnalyzer {
       // -- 3b. Collect award types fired this frame --
       const frameAwardsByPlayer = new Map<string, Set<string>>();
       for (const ev of state.events) {
-        if (ev["type"] === "award") {
-          const playerId = ev["playerId"] as string;
+        if (ev.type === "award") {
+          const playerId = ev.playerId as string;
           const entityId = `player_${playerId}`;
           if (!frameAwardsByPlayer.has(entityId)) {
             frameAwardsByPlayer.set(entityId, new Set());
           }
-          frameAwardsByPlayer.get(entityId)!.add(ev["awardType"] as string);
+          frameAwardsByPlayer.get(entityId)!.add(ev.awardType as string);
         }
       }
 
       // -- 3c. Process death events --
       for (const ev of state.events) {
-        if (ev["type"] !== "death") continue;
+        if (ev.type !== "death") continue;
 
-        const victimId = ev["entityId"] as string;
-        const killerId = ev["killerId"] as string;
-        const weaponId = (ev["weaponId"] as string) || undefined;
+        const victimId = ev.entityId as string;
+        const killerId = ev.killerId as string;
+        const weaponId = (ev.weaponId as string) || undefined;
 
         if (!killerId || killerId === victimId) continue; // self-kill / suicide
 
@@ -229,9 +229,9 @@ export class DemoAnalyzer {
 
         // Victim position from event payload
         const victimPos: Vec3 = {
-          x: (ev["x"] as number) ?? 0,
-          y: (ev["y"] as number) ?? 0,
-          z: (ev["z"] as number) ?? 0,
+          x: (ev.x as number) ?? 0,
+          y: (ev.y as number) ?? 0,
+          z: (ev.z as number) ?? 0,
         };
 
         // Killer position + velocity from entity components

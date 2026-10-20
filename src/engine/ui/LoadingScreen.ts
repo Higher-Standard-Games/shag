@@ -30,6 +30,7 @@ import { PackageDownloadStatus } from "./PackageDownloadStatus";
 import { UIStyles } from "./UIStyles";
 
 import "./components/styles/BootScreen.css";
+import { background } from "../core/AsyncErrors";
 
 /** The boot's steps in the order main runs them */
 export const BOOT_STEPS = ["renderer", "packages", "engine", "lobby"] as const;
@@ -319,7 +320,7 @@ export class LoadingScreen {
 
     // Unlock browser audio context
     AudioManager.getInstance().unlockAudio();
-    AudioManager.getInstance().loadPlaylist("data/menu.playlist.json");
+    background(AudioManager.getInstance().loadPlaylist("data/menu.playlist.json"), "LoadingScreen");
 
     this.kickerEl.textContent = "Starting";
     this.container.classList.add("ui-loading-screen--started");

@@ -303,4 +303,4 @@ async function main(): Promise<void> {
   if (clusters.length > 30) console.log(`  … ${clusters.length - 30} more`);
 }
 
-runCli(main).then(() => process.stdout.write("", () => process.exit(process.exitCode ?? 0)));
+void runCli(main).then(() => process.stdout.write("", () => process.exit(process.exitCode ?? 0)));

@@ -434,4 +434,4 @@ async function main(): Promise<void> {
 // and then sat there. Every other long-running CLI here exits explicitly for the
 // same reason. runCli always resolves — a failure sets the exit code — so this
 // covers a failed run too, which would otherwise hang just the same.
-runCli(main).then(() => process.exit(process.exitCode ?? 0));
+void runCli(main).then(() => process.exit(process.exitCode ?? 0));

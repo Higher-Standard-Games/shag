@@ -135,7 +135,6 @@ export class StateMachineBrain extends BotBrain {
   // ── Internal state ────────────────────────────────────────────────
   private _huntYaw: number = 0;
   private _huntTimer: number = 0;
-  private _stateTimer: number = 0;
 
   // Slide-blade lunge: when this bot last slid, and when it may roll for a lunge again
   private _lastSlideTick = Number.NEGATIVE_INFINITY;
@@ -264,7 +263,6 @@ export class StateMachineBrain extends BotBrain {
     visionResult?: VisionResult | null,
     navGraph?: BotNavGraph | null,
   ): BotInput {
-    this._stateTimer++;
     this._pathRecalcTimer++;
     this._lastVision = visionResult ?? null;
     this._lastDecisionTick = state.tick;
@@ -329,7 +327,6 @@ export class StateMachineBrain extends BotBrain {
         this._mood.endFight();
       }
       this.currentState = newState;
-      this._stateTimer = 0;
       this._currentPath = null; // Clear path on state change
       this._huntPatrolTarget = null;
     }

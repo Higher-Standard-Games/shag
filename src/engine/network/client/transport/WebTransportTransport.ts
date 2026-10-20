@@ -1,3 +1,4 @@
+import { background } from "../../../core/AsyncErrors";
 import type { Transport } from "./Transport";
 
 /**
@@ -43,9 +44,9 @@ export class WebTransportTransport implements Transport {
       this.reader = this.transport.datagrams.readable.getReader();
 
       // Start reading messages from datagrams (unreliable channel)
-      this.readMessages();
+      background(this.readMessages(), "WebTransportTransport");
       // Start reading messages from incoming streams (reliable channel)
-      this.readIncomingStreams();
+      background(this.readIncomingStreams(), "WebTransportTransport");
 
       for (const cb of this.connectCallbacks) cb();
     } catch (error) {

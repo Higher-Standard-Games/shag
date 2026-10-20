@@ -12,6 +12,7 @@ import * as fs from "node:fs";
 import type { IncomingMessage } from "node:http";
 import * as path from "node:path";
 import { WebSocket, WebSocketServer } from "ws";
+import { background, logRejection } from "../engine/core/AsyncErrors";
 import { log } from "../engine/core/Log";
 import { filterChatText } from "../engine/server/ChatFilter";
 import type { MatchResultReport } from "../engine/server/network/MatchResultReport";
@@ -696,7 +697,7 @@ export class LobbyServer {
         this.handleLobbyVoteShuffle(player, msg.lobbyId);
         break;
       case "lobby:invite_bot":
-        this.handleLobbyInviteBot(player, msg.lobbyId, msg.difficulty);
+        background(this.handleLobbyInviteBot(player, msg.lobbyId, msg.difficulty), "LobbyServer");
         break;
       case "queue:join":
         this.handleQueueJoin(player, msg.gametype);
@@ -725,7 +726,9 @@ export class LobbyServer {
         this.handleSeatReissue(player, msg.requestId, msg.matchId);
         break;
       case "dev:spawn_server":
-        this.handleDevSpawnServer(player, msg.requestId, msg.map, msg.gametype, msg.trainingDemo);
+        this.handleDevSpawnServer(player, msg.requestId, msg.map, msg.gametype, msg.trainingDemo).catch(
+          logRejection("LobbyServer"),
+        );
         break;
       default:
         // The type is whatever the client sent; a client sending junk gets one line per 5 s.
@@ -1317,7 +1320,7 @@ export class LobbyServer {
 
     // Check if all ready
     if (lobby.isAllReady()) {
-      this.handleAllReady(lobby);
+      background(this.handleAllReady(lobby), "LobbyServer");
     }
   }
 

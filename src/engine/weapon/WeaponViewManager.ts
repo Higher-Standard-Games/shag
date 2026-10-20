@@ -31,6 +31,7 @@ import { getEntityRegistry, type WeaponDef } from "../../shared/entities";
 import { canonicalWeaponId } from "../../shared/entities/definitions/weapons/WeaponsTable";
 import { fireIntervalTicks } from "../../shared/entities/WeaponDef";
 import { DEFAULT_PHYSICS_TICK_RATE } from "../../shared/server/simulation/physics/constants";
+import { logRejection } from "../core/AsyncErrors";
 import { devLog } from "../core/DevLog";
 import {
   applySafeMaxSimultaneousLights,
@@ -696,15 +697,17 @@ export class WeaponViewManager {
 
       // Load barrel sub-models if defined
       if (this.currentWeaponDef?.barrels?.length) {
-        this.weaponBarrels.load(
-          this.currentWeaponDef.barrels,
-          glbRoot,
-          weaponName,
-          this.scene!,
-          loadGen,
-          () => this._loadGeneration,
-          weaponNode.getDescendants(false).filter((node): node is TransformNode => node instanceof TransformNode),
-        );
+        this.weaponBarrels
+          .load(
+            this.currentWeaponDef.barrels,
+            glbRoot,
+            weaponName,
+            this.scene!,
+            loadGen,
+            () => this._loadGeneration,
+            weaponNode.getDescendants(false).filter((node): node is TransformNode => node instanceof TransformNode),
+          )
+          .catch(logRejection("WeaponViewManager"));
       }
 
       // Build the on-weapon ammo counter if this model is authored for one.

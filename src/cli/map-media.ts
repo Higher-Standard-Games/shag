@@ -359,10 +359,10 @@ export async function mergeTextureBanks(inputs: Uint8Array[]): Promise<Uint8Arra
   for (const [name, bytes] of [...files].sort(([a], [b]) => a.localeCompare(b))) output.file(name, bytes, options);
   output.file(
     "scripts/washoi_maps.shader",
-    [...shaders]
+    `${[...shaders]
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([, source]) => source)
-      .join("\n\n") + "\n",
+      .join("\n\n")}\n`,
     options,
   );
   const result = await output.generateAsync({

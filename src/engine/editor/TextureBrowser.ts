@@ -7,6 +7,7 @@
  */
 
 import "./texture-browser.css";
+import { background } from "../core/AsyncErrors";
 import { catalogFolders, searchCatalog, type TextureEntry } from "./TextureCatalog";
 import type { TextureThumbnails } from "./TextureThumbnails";
 
@@ -93,7 +94,7 @@ export class TextureBrowser {
     });
     this.grid.addEventListener("click", (event) => {
       const tile = (event.target as HTMLElement).closest<HTMLElement>(".shagged-tex__tile");
-      if (tile) this.apply(Number(tile.dataset.index), event.detail >= 2);
+      if (tile) background(this.apply(Number(tile.dataset.index), event.detail >= 2), "TextureBrowser");
     });
     this.grid.addEventListener("keydown", (event) => this.gridKey(event));
     // The drawer owns its keys: typing to search from the grid must not reach the editor's shortcuts.

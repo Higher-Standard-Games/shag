@@ -189,4 +189,4 @@ async function main(): Promise<void> {
   console.log("");
 }
 
-runCli(main);
+void runCli(main);

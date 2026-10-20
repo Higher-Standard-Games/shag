@@ -8,6 +8,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import { PhysicsShapeType } from "@babylonjs/core/Physics/v2/IPhysicsEnginePlugin";
 import type { Scene } from "@babylonjs/core/scene";
+import { background } from "./core/AsyncErrors";
 import { type EntityData, EntityHandlerRegistry } from "./core/EntityHandlerRegistry";
 import { LocalDebrisManager, type LocalDebrisType } from "./effects/LocalDebrisEffect";
 import { supportsClusteredLighting } from "./lighting/DynamicLightCluster";
@@ -961,7 +962,7 @@ export class MapRenderer {
 
     // Run pre-render hooks (clears game-specific state like build zones)
     // Note: This is sync clear, pre-render hooks for actual rendering are async
-    EntityHandlerRegistry.runPreRenderHooks([], scene);
+    background(EntityHandlerRegistry.runPreRenderHooks([], scene), "MapRenderer");
 
     // Clear debris zones
     LocalDebrisManager.getInstance().clear();

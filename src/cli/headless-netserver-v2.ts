@@ -111,8 +111,7 @@ function parseArgs(): GameServerConfig & { gamePath: string; gametype: string } 
       case "--help":
       case "-h":
         printHelp();
-        process.exit(0);
-        break; // unreachable but satisfies lint
+        return process.exit(0);
       default:
         if (!arg.startsWith("-")) {
           const prev = i > 0 ? args[i - 1] : "";
@@ -385,4 +384,4 @@ async function main(): Promise<void> {
 }
 
 // Run
-runCli(main);
+void runCli(main);

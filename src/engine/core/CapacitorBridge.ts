@@ -15,6 +15,7 @@ import { SplashScreen } from "@capacitor/splash-screen";
 import { StatusBar } from "@capacitor/status-bar";
 import mobileCSS from "../ui/styles/mobile.css?raw";
 import { UIStyles } from "../ui/UIStyles";
+import { logRejection } from "./AsyncErrors";
 import { devLog } from "./DevLog";
 import { EventBus } from "./EventBus";
 
@@ -173,19 +174,19 @@ export class CapacitorBridge {
     App.addListener("backButton", ({ canGoBack }) => {
       devLog("[CapacitorBridge] Back button pressed, canGoBack:", canGoBack);
       EventBus.emit("app:back_button", { canGoBack });
-    });
+    }).catch(logRejection("CapacitorBridge"));
 
     // Handle app state changes (foreground/background)
     App.addListener("appStateChange", ({ isActive }) => {
       devLog("[CapacitorBridge] App state changed, isActive:", isActive);
       EventBus.emit("app:state_change", { isActive });
-    });
+    }).catch(logRejection("CapacitorBridge"));
 
     // Handle app URL open (deep links)
     App.addListener("appUrlOpen", (data) => {
       devLog("[CapacitorBridge] App URL opened:", data.url);
       EventBus.emit("app:url_open", { url: data.url });
-    });
+    }).catch(logRejection("CapacitorBridge"));
 
     devLog("[CapacitorBridge] App listeners registered");
   }

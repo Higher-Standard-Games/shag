@@ -8,6 +8,7 @@ import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
 import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Scene } from "@babylonjs/core/scene";
+import { background } from "../../core/AsyncErrors";
 import { devLog } from "../../core/DevLog";
 import { Command, type CommandDef } from "../Command";
 
@@ -228,7 +229,7 @@ export default class SceneCommand extends Command {
       if (e.key === "Escape" && emptyScene) {
         e.preventDefault();
         e.stopPropagation();
-        this.disposeEmptyScene();
+        background(this.disposeEmptyScene(), "SceneCommand");
       }
     };
     window.addEventListener("keydown", emptySceneEscHandler, { capture: true });

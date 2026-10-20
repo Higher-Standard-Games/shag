@@ -71,4 +71,4 @@ async function test() {
   console.log(`Y should stabilize around ${(spawnPos.y - 8).toFixed(1)} (spawn - 8 units)`);
 }
 
-runCli(test);
+void runCli(test);

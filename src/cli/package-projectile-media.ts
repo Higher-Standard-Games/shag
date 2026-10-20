@@ -69,7 +69,7 @@ export async function projectileMedia(sourceBytes: Uint8Array) {
   for (const material of materials) await include(material);
   files.set(
     "scripts/washoi_projectiles.shader",
-    Uint8Array.from(Buffer.from([...selected.values()].join("\n\n") + "\n")),
+    Uint8Array.from(Buffer.from(`${[...selected.values()].join("\n\n")}\n`)),
   );
   const manifest = {
     sourceSha256: hash(sourceBytes),
@@ -79,7 +79,7 @@ export async function projectileMedia(sourceBytes: Uint8Array) {
   };
   const zip = new JSZip();
   for (const [name, bytes] of files) zip.file(name, bytes, options);
-  zip.file("models/objects/projectile/manifest.json", JSON.stringify(manifest, null, 2) + "\n", options);
+  zip.file("models/objects/projectile/manifest.json", `${JSON.stringify(manifest, null, 2)}\n`, options);
   return {
     bytes: await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE", compressionOptions: { level: 9 } }),
     manifest,
@@ -91,5 +91,5 @@ const output = "assets-source/weapons/projectiles.pk3";
 const result = await projectileMedia(Uint8Array.from(await fs.readFile(sourcePath)));
 await fs.mkdir(path.dirname(output), { recursive: true });
 await fs.writeFile(output, Uint8Array.from(result.bytes));
-await fs.writeFile("docs/research/media/projectile_package.json", JSON.stringify(result.manifest, null, 2) + "\n");
+await fs.writeFile("docs/research/media/projectile_package.json", `${JSON.stringify(result.manifest, null, 2)}\n`);
 console.log(`${output}: ${result.manifest.files.length} files, ${result.bytes.length} bytes`);

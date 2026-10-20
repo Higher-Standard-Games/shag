@@ -297,4 +297,4 @@ async function main(): Promise<void> {
 }
 
 // Run
-runCli(main);
+void runCli(main);

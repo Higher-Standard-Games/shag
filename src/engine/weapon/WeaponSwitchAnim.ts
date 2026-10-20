@@ -1,3 +1,4 @@
+import { logRejection } from "../core/AsyncErrors";
 /**
  * WeaponSwitchAnim — Weapon switch slide-down/swap/slide-up animation
  *
@@ -54,12 +55,14 @@ export class WeaponSwitchAnim {
 
         if (this.pendingWeaponId) {
           const pendingId = this.pendingWeaponId;
-          loadWeapon(pendingId, this.pendingPk3Path).then(() => {
-            if (this.pendingWeaponId === pendingId && this.phase === "load") {
-              this.phase = "up";
-              this.startTime = performance.now();
-            }
-          });
+          loadWeapon(pendingId, this.pendingPk3Path)
+            .then(() => {
+              if (this.pendingWeaponId === pendingId && this.phase === "load") {
+                this.phase = "up";
+                this.startTime = performance.now();
+              }
+            })
+            .catch(logRejection("WeaponSwitchAnim"));
         }
       }
     } else if (this.phase === "load") {

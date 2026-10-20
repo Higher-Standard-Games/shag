@@ -66,4 +66,4 @@ async function runTest() {
   console.log("=== TEST COMPLETE ===");
 }
 
-runCli(runTest);
+void runCli(runTest);

@@ -4,6 +4,7 @@ import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Scene } from "@babylonjs/core/scene";
 import { type PlayerModelInstance, PlayerModelManager } from "../../../animation/PlayerModelManager";
+import { background } from "../../../core/AsyncErrors";
 import { Cvar } from "../../../core/Cvar";
 import { devLog } from "../../../core/DevLog";
 import type { FPSController } from "../FPSController";
@@ -250,7 +251,7 @@ export class PlayerVisuals {
 
     // Initialize if needed
     if (!this.debugInstance && !this.debugInitializing) {
-      this.initDebugPlayer();
+      background(this.initDebugPlayer(), "PlayerVisuals");
       return;
     }
 

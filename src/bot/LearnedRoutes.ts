@@ -76,7 +76,7 @@ export function encodeScript(commands: readonly RouteCommand[]): EncodedScript {
       c.buttons,
     ];
     const last = encoded[encoded.length - 1];
-    if (last && last.slice(1).every((v, i) => v === row[i + 1])) last[0]++;
+    if (last?.slice(1).every((v, i) => v === row[i + 1])) last[0]++;
     else encoded.push(row);
   }
   return encoded;

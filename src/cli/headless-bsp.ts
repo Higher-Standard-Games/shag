@@ -737,4 +737,4 @@ Example:
 }
 
 // Run
-runCli(main);
+void runCli(main);

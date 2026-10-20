@@ -23,6 +23,7 @@ import { CameraSystem } from "./engine/camera";
 import { FPSController } from "./engine/camera/controllers/FPSController";
 import { registerEngineCommands } from "./engine/console/commands";
 import { QualityDetector, registerEngineServices, ServiceLocator } from "./engine/core";
+import { logRejection } from "./engine/core/AsyncErrors";
 import { CapacitorBridge } from "./engine/core/CapacitorBridge";
 import { Cvar } from "./engine/core/Cvar";
 import { EngineVersion } from "./engine/core/EngineVersion";
@@ -47,6 +48,7 @@ import { applySceneRendererPolicy } from "./engine/rendering/SceneRendererPolicy
 import { configureLobbyTwin } from "./engine/ui/components/LobbyTwin";
 import { LoadingScreen } from "./engine/ui/LoadingScreen";
 import { MapLoadingOverlay } from "./engine/ui/MapLoadingOverlay";
+import { installStaleBuildNotice } from "./engine/ui/StaleBuildNotice";
 import { TransferLoadingView } from "./engine/ui/TransferLoadingView";
 import { UIScale } from "./engine/ui/UIScale";
 import { UITheme } from "./engine/ui/UITheme";
@@ -95,6 +97,9 @@ async function main() {
 
   // Set browser title
   EngineVersion.getInstance().setDocumentTitle();
+
+  // A lazy chunk missing after a deploy offers a reload
+  installStaleBuildNotice();
 
   // Register engine services
   registerEngineServices();
@@ -309,19 +314,21 @@ async function main() {
 
   // Hide lobby when a GAMEPLAY map starts loading (network connect, console map cmd, etc.)
   // Uses loading:start (not map:loaded) so it fires IMMEDIATELY, not after map finishes.
-  import("./engine/core/EventBus").then(({ EventBus }) => {
-    EventBus.on("loading:start", (data: any) => {
-      if (data?.type !== "map") return;
-      // Don't hide for background ui map
-      if (data?.id === "ui") return;
+  import("./engine/core/EventBus")
+    .then(({ EventBus }) => {
+      EventBus.on("loading:start", (data: any) => {
+        if (data?.type !== "map") return;
+        // Don't hide for background ui map
+        if (data?.id === "ui") return;
 
-      const lobby = debugWindow.__lobbyPanel;
-      if (lobby?.isVisible()) {
-        lobby.hide();
-        devLog(`[Main] Lobby hidden (map loading: ${data?.id})`);
-      }
-    });
-  });
+        const lobby = debugWindow.__lobbyPanel;
+        if (lobby?.isVisible()) {
+          lobby.hide();
+          devLog(`[Main] Lobby hidden (map loading: ${data?.id})`);
+        }
+      });
+    })
+    .catch(logRejection("main"));
 
   const editorHost = new BrowserEditorHost(
     engine,

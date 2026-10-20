@@ -6,6 +6,7 @@
 
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import type { Scene } from "@babylonjs/core/scene";
+import { background } from "../../core/AsyncErrors";
 import { Command, type CommandDef } from "../Command";
 
 // Aim debug state
@@ -130,7 +131,7 @@ export class ShaderCommand extends Command {
           return "Shader aim highlight: OFF";
         }
 
-        this.enableAimHighlight(scene, camera);
+        background(this.enableAimHighlight(scene, camera), "ShaderCommand");
         return "Shader aim highlight: ON";
       }
 

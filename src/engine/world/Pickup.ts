@@ -518,7 +518,6 @@ export class Pickup extends TransformNode {
         this.mesh.setEnabled(false);
       }
       if (this.mesh instanceof Mesh && (this.mesh as Mesh).physicsBody) {
-        // biome-ignore lint/style/noNonNullAssertion: guarded by instanceof
         (this.mesh as Mesh).physicsBody!.setMotionType(2); // STATIC
       }
       if (this.glowLight) this.glowLight.setEnabled(false);
@@ -569,14 +568,10 @@ export class Pickup extends TransformNode {
       this.mesh.position.copyFrom(this.getAbsolutePosition());
       this.mesh.rotationQuaternion = null;
       this.mesh.rotation.setAll(0);
-      // biome-ignore lint/style/noNonNullAssertion: guarded by instanceof
       (this.mesh as Mesh).physicsBody!.disablePreStep = false;
-      // biome-ignore lint/style/noNonNullAssertion: guarded by instanceof
       (this.mesh as Mesh).physicsBody!.setMotionType(1); // DYNAMIC
-      // biome-ignore lint/style/noNonNullAssertion: guarded by instanceof
       (this.mesh as Mesh).physicsBody!.setLinearVelocity(new Vector3(0, 5, 0));
       const randomRot = new Vector3((Math.random() - 0.5) * 8, (Math.random() - 0.5) * 8, (Math.random() - 0.5) * 8);
-      // biome-ignore lint/style/noNonNullAssertion: guarded by instanceof
       (this.mesh as Mesh).physicsBody!.setAngularVelocity(randomRot);
     }
 

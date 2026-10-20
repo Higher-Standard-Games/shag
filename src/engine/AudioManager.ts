@@ -2,6 +2,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Scene } from "@babylonjs/core/scene";
 import { AssetLoader } from "./AssetLoader";
 import { AudioV2Sfx, type SfxChannel, type SfxLoop, type SpatialSfxPlayOptions } from "./audio/AudioV2Sfx";
+import { background } from "./core/AsyncErrors";
 import { Cvar } from "./core/Cvar";
 import { devLog } from "./core/DevLog";
 import { PK3Index } from "./loader/pk3/PK3Index";
@@ -407,7 +408,7 @@ export class AudioManager {
     }
 
     // With music off the playlist is remembered, and starts when music is turned on.
-    if (this.musicEnabled) this.playCurrentTrack(true);
+    if (this.musicEnabled) background(this.playCurrentTrack(true), "AudioManager");
   }
 
   /**
@@ -590,7 +591,7 @@ export class AudioManager {
       }
     }
 
-    this.playCurrentTrack(false); // No fade between tracks
+    background(this.playCurrentTrack(false), "AudioManager"); // No fade between tracks
   }
 
   /**

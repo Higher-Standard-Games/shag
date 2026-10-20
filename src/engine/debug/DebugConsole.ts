@@ -15,6 +15,7 @@ import { EngineVersion } from "../core/EngineVersion";
 import { createRaisedKey } from "../ui/components/RaisedKey";
 import { DeveloperBar } from "./DeveloperBar";
 import "./debug-console.css";
+import { background, logRejection } from "../core/AsyncErrors";
 
 const HISTORY_KEY = "debug_console_history";
 const CONSOLE_SIZE_KEY = "debug_console_size";
@@ -251,7 +252,7 @@ export class DebugConsole {
       const cmd = target.getAttribute("data-cmd");
       if (cmd) {
         e.preventDefault();
-        this.executeCommand(cmd);
+        background(this.executeCommand(cmd), "DebugConsole");
       }
     });
 
@@ -286,7 +287,8 @@ export class DebugConsole {
         .execute("inspect")
         .then((result) => {
           if (result) this.log("result", result);
-        });
+        })
+        .catch(logRejection("DebugConsole"));
     });
 
     const helpBtn = createRaisedKey({ label: "Help", variants: ["sm", "inline", "ink"] });
@@ -415,7 +417,7 @@ export class DebugConsole {
     switch (e.key) {
       case "Enter":
         e.preventDefault();
-        this.executeCurrentInput();
+        background(this.executeCurrentInput(), "DebugConsole");
         break;
 
       case "ArrowUp":

@@ -188,4 +188,4 @@ function auditAutospriteUploads(result: BspMeshBuildResult, positions: Vector3[]
 
 // The full loader import graph can retain Node handles; flush the report before
 // ending this one-shot audit, preserving runCli's failure exit code.
-runCli(main).then(() => process.stdout.write("", () => process.exit(process.exitCode ?? 0)));
+void runCli(main).then(() => process.stdout.write("", () => process.exit(process.exitCode ?? 0)));

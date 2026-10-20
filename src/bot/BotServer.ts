@@ -31,6 +31,7 @@
 
 import type { IncomingMessage } from "node:http";
 import { WebSocket, WebSocketServer } from "ws";
+import { background } from "../engine/core/AsyncErrors";
 import { BOT_SECRET_HEADER, secretMatches } from "../lobby/ServerData";
 import { BotClient } from "./BotClient";
 import { type BotOptions, getNextBotName } from "./BotConfig";
@@ -114,7 +115,7 @@ export class BotServer {
       ws.on("message", (data: Buffer) => {
         try {
           const msg = JSON.parse(data.toString()) as ControlMessage;
-          this._handleControlMessage(ws, msg);
+          background(this._handleControlMessage(ws, msg), "BotServer");
         } catch (_err) {
           this._sendResponse(ws, { type: "error", error: "Invalid JSON" });
         }
@@ -173,7 +174,7 @@ export class BotServer {
       console.log(`[BotServer] Bot ${bot.name} (${bot.id}) spawned → ${gameServerUrl}`);
 
       // Load vision asynchronously (don't block bot from playing)
-      this._loadVisionForBot(bot);
+      background(this._loadVisionForBot(bot), "BotServer");
 
       return bot;
     } catch (err: any) {
@@ -212,7 +213,7 @@ export class BotServer {
       console.log(`[BotServer] Lobby bot ${lobbyBot.name} transitioned to game as ${bot.id}`);
 
       // Load vision asynchronously
-      this._loadVisionForBot(bot);
+      background(this._loadVisionForBot(bot), "BotServer");
 
       // Track game bot disconnection
       bot.on("disconnected", () => {

@@ -35,6 +35,7 @@
 
 import { MatchPhase } from "../../../../shared/server/gametype/GametypeTypes";
 import { AudioManager } from "../../../AudioManager";
+import { background } from "../../../core/AsyncErrors";
 import { devLog } from "../../../core/DevLog";
 import type { Command } from "../../core/Command";
 import type { PlayerId } from "../../core/Entity";
@@ -550,7 +551,7 @@ export class NetworkGameHost implements IGameHost {
       this.lastMatchPhase = null;
       this.snapshotReceiver.reset();
       NetGraph.reset();
-      AudioManager.getInstance().loadPlaylist("data/menu.playlist.json");
+      background(AudioManager.getInstance().loadPlaylist("data/menu.playlist.json"), "NetworkGameHost");
       // A connection that drops mid-match leaves a seat waiting; take it back
       // rather than making the player rejoin as someone new.
       if (wasConnected && this.resumeToken) void this.resumeSession();
@@ -727,7 +728,7 @@ export class NetworkGameHost implements IGameHost {
           }
 
           // Start Game Music
-          AudioManager.getInstance().loadPlaylist("data/game.playlist.json");
+          background(AudioManager.getInstance().loadPlaylist("data/game.playlist.json"), "NetworkGameHost");
 
           // Start ClockSync after confirmed connection
           this.clockSync.startSync();
@@ -851,12 +852,12 @@ export class NetworkGameHost implements IGameHost {
       if (currentPhase !== this.lastMatchPhase) {
         if (currentPhase === MatchPhase.PostGame) {
           devLog("[NetworkGameHost] Match finished, starting endgame music");
-          AudioManager.getInstance().loadPlaylist("data/endgame.playlist.json");
+          background(AudioManager.getInstance().loadPlaylist("data/endgame.playlist.json"), "NetworkGameHost");
         } else if (this.lastMatchPhase === MatchPhase.PostGame) {
           // Post-game screen over (next warmup) — the endgame playlist loops
           // forever otherwise. Bring back the in-game music.
           devLog("[NetworkGameHost] Post-game over, restoring game music");
-          AudioManager.getInstance().loadPlaylist("data/game.playlist.json");
+          background(AudioManager.getInstance().loadPlaylist("data/game.playlist.json"), "NetworkGameHost");
         }
         this.lastMatchPhase = currentPhase;
       }

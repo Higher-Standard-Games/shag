@@ -1,3 +1,4 @@
+import { logRejection } from "../core/AsyncErrors";
 /**
  * Texture browser thumbnails: decoded from package bytes on demand, kept in a
  * small in-memory LRU and in IndexedDB (keyed by path and package version, so a
@@ -120,7 +121,8 @@ export class TextureThumbnails {
           this.running--;
           job.resolve(this.remember(job.path, thumb));
           this.pump();
-        });
+        })
+        .catch(logRejection("TextureThumbnails"));
     }
   }
 

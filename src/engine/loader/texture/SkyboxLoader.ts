@@ -316,7 +316,7 @@ export class SkyboxLoader {
       return { success: false, error: "SkyboxLoader not initialized" };
     }
 
-    const containerPath = basePath.replace(/\.ktx$/i, "") + ".ktx";
+    const containerPath = `${basePath.replace(/\.ktx$/i, "")}.ktx`;
     const container = await PK3Loader.getInstance().getFile(containerPath);
     if (container && container.byteLength >= 64 && new DataView(container).getUint32(52, true) === 6) {
       try {

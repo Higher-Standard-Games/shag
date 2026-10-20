@@ -10,6 +10,7 @@
 
 import type { LobbyClient } from "../../../lobby/LobbyClient";
 import type { MatchLobbyInfo, TeamNames } from "../../../lobby/types";
+import { logRejection } from "../../core/AsyncErrors";
 import { rememberMapTitle } from "../MapTitles";
 import { ConnectingOverlay } from "./ConnectingOverlay";
 import { createRaisedKey, setRaisedKeyText } from "./RaisedKey";
@@ -286,14 +287,16 @@ export class MatchLobbyView {
           /* storage unavailable — return falls back to a plain reload */
         }
         const overlay = new ConnectingOverlay();
-        overlay.show(
-          msg.serverUrl,
-          false,
-          msg.admissionTicket,
-          msg.matchId
-            ? async () => (await this.lobbyClient.requestSeatReissue(msg.matchId)).admissionTicket
-            : undefined,
-        );
+        overlay
+          .show(
+            msg.serverUrl,
+            false,
+            msg.admissionTicket,
+            msg.matchId
+              ? async () => (await this.lobbyClient.requestSeatReissue(msg.matchId)).admissionTicket
+              : undefined,
+          )
+          .catch(logRejection("MatchLobbyView"));
       }),
     );
 

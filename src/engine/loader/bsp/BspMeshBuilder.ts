@@ -20,6 +20,7 @@ import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
 import type { Scene } from "@babylonjs/core/scene";
+import { logRejection } from "../../core/AsyncErrors";
 import { devLog } from "../../core/DevLog";
 import { applySafeMaxSimultaneousLights } from "../../lighting/DynamicLightSafety";
 import { RenderVars } from "../../rendering/RenderVars";
@@ -629,11 +630,15 @@ export class BspMeshBuilder {
       // Only for opaque meshes that aren't specifically non-solid (we assume visible = solid for now)
       // TODO: Check surface flags for non-solid surfaces (noimpact, nomarks etc might still be solid)
       if (!group.shaderProps.isTransparent) {
-        import("../../physics/PhysicsSystem").then(({ PhysicsSystem }) => {
-          import("@babylonjs/core/Physics/v2/IPhysicsEnginePlugin").then(({ PhysicsShapeType }) => {
-            PhysicsSystem.getInstance().createStaticBody(mesh, PhysicsShapeType.MESH);
-          });
-        });
+        import("../../physics/PhysicsSystem")
+          .then(({ PhysicsSystem }) => {
+            import("@babylonjs/core/Physics/v2/IPhysicsEnginePlugin")
+              .then(({ PhysicsShapeType }) => {
+                PhysicsSystem.getInstance().createStaticBody(mesh, PhysicsShapeType.MESH);
+              })
+              .catch(logRejection("BspMeshBuilder"));
+          })
+          .catch(logRejection("BspMeshBuilder"));
       }
     }
 

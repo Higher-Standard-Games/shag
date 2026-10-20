@@ -339,4 +339,4 @@ async function main() {
   console.log("═══════════════════════════════════════════════════════════════════");
 }
 
-runCli(main);
+void runCli(main);
