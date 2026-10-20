@@ -330,6 +330,10 @@ function compressedBlock(format: number): { width: number; height: number; bytes
 function canUploadCompressed(engine: AbstractEngine, ktx: KTX1ParseResult): boolean {
   if (!ktx.littleEndian || !isFormatSupported(engine, ktx.header.glInternalFormat)) return false;
   const { pixelWidth: width, pixelHeight: height } = ktx.header;
+  // WebGL2 mip chains use texStorage2D + compressedTexSubImage2D, which ETC1
+  // does not support. Without ETC2 to stand in, decode ETC1 chains in software.
+  if (ktx.header.glInternalFormat === GL_FORMATS.ETC1_RGB8_OES && ktx.mipLevels.length > 1 && !engine.getCaps().etc2)
+    return false;
   // Babylon 9's native KTX1 uploader halves mip dimensions without flooring.
   // Keep NPOT mip chains on the software/fallback path.
   if (ktx.mipLevels.length > 1 && (!Number.isInteger(Math.log2(width)) || !Number.isInteger(Math.log2(height))))
@@ -337,6 +341,20 @@ function canUploadCompressed(engine: AbstractEngine, ktx: KTX1ParseResult): bool
   const block = compressedBlock(ktx.header.glInternalFormat);
   // WebGPU compressed base extents must be block-aligned.
   return !engine.isWebGPU || (!!block && width % block.width === 0 && height % block.height === 0);
+}
+
+/**
+ * ETC2 RGB8 decodes ETC1 blocks unchanged. Babylon's WebGL2 uploader allocates
+ * mip chains with texStorage2D and fills them with compressedTexSubImage2D;
+ * ETC1 supports neither, so the upload fails and the texture samples black
+ * (seen on Apple GPUs, the desktop devices that expose ETC). Relabel the
+ * container as ETC2 so both backends take the same supported path.
+ */
+function asETC2Source(engine: AbstractEngine, ktx: KTX1ParseResult): ArrayBuffer {
+  if (ktx.header.glInternalFormat !== GL_FORMATS.ETC1_RGB8_OES || !engine.getCaps().etc2) return ktx.source;
+  const source = ktx.source.slice(0);
+  new DataView(source).setUint32(28, GL_FORMATS.COMPRESSED_RGB8_ETC2, ktx.littleEndian);
+  return source;
 }
 
 async function uploadCompressed(engine: AbstractEngine, ktx: KTX1ParseResult, name: string): Promise<InternalTexture> {
@@ -354,7 +372,7 @@ async function uploadCompressed(engine: AbstractEngine, ktx: KTX1ParseResult, na
         noMipmap ? Constants.TEXTURE_BILINEAR_SAMPLINGMODE : Constants.TEXTURE_TRILINEAR_SAMPLINGMODE,
         resolve,
         (message, error) => reject(error ?? new Error(message ?? `KTX1 upload failed: ${name}`)),
-        ktx.source,
+        asETC2Source(engine, ktx),
         undefined,
         undefined,
         ".ktx",

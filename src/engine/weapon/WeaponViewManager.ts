@@ -1367,6 +1367,13 @@ export class WeaponViewManager {
     loadGen: number,
   ): Promise<void> {
     try {
+      // The counter mounts to the `tag_ammo` anchor. GLB tags import as either
+      // TransformNodes (nodes) or skeleton bones depending on the exporter, so
+      // search both; fall back to the units-digit tag. A model without one has
+      // no counter, so skip the cfg request (the blade has neither: no 404).
+      const anchor = this.findWeaponTag(glbRoot, ["tag_ammo", "tag_ammo_digit_1"]);
+      if (!anchor) return;
+
       // Derive the cfg from the MODEL path, not the weapon id: Voltaic reuses the
       // lasergun model dir, so weaponName ("voltaic") != the model directory and
       // /data/models/weapons/voltaic/voltaic.cfg 404s — the counter never appears.
@@ -1383,21 +1390,6 @@ export class WeaponViewManager {
 
       // A newer load may have superseded us while awaiting the cfg.
       if (loadGen !== this._loadGeneration || !this.scene) return;
-
-      // The counter mounts to the `tag_ammo` anchor. GLB tags import as either
-      // TransformNodes (nodes) or skeleton bones depending on the exporter, so
-      // search both; fall back to the units-digit tag.
-      const anchor = this.findWeaponTag(glbRoot, ["tag_ammo", "tag_ammo_digit_1"]);
-      if (!anchor) {
-        const tagNames = glbRoot
-          .getDescendants(false)
-          .map((n) => n.name)
-          .filter((n) => n.startsWith("tag_"));
-        console.warn(
-          `[AmmoCounter] ${weaponName}: ammoCounter cfg present but no tag_ammo anchor found. tags seen: [${tagNames.join(", ")}]`,
-        );
-        return;
-      }
 
       this.disposeAmmoCounter();
       // Draw the counter in its own rendering group (2) on the weapon layer, with

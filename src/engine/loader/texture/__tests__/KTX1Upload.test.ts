@@ -132,12 +132,27 @@ describe("KTX1 Babylon-managed upload", () => {
     texture?.dispose();
   });
 
-  it("uses WebGPU ETC2 capability for Babylon's ETC1-to-ETC2 mapping", async () => {
-    const target = engine(true);
-    Object.assign(target.getCaps(), { etc1: null, etc2: true });
-    const texture = await createTextureFromKTX1(target, parseKTX1(fixture(GL_FORMATS.ETC1_RGB8_OES)), "etc1.ktx");
+  it.each([false, true])("uploads ETC1 mip chains as ETC2 when available (WebGPU mode: %s)", async (webgpu) => {
+    const target = engine(webgpu);
+    // Apple GPUs expose both on WebGL2; ETC1's texStorage/compressedTexSubImage upload fails there.
+    Object.assign(target.getCaps(), { etc1: !webgpu, etc2: true });
+    const ktx = parseKTX1(fixture(GL_FORMATS.ETC1_RGB8_OES));
+    const texture = await createTextureFromKTX1(target, ktx, "etc1.ktx");
     expect(target.uploads).toHaveLength(3);
-    expect(target.uploads[0][1]).toBe(GL_FORMATS.ETC1_RGB8_OES);
+    expect(target.uploads.every((upload) => upload[1] === GL_FORMATS.COMPRESSED_RGB8_ETC2)).toBe(true);
+    expect(texture?.generateMipMaps).toBe(true);
+    // The parsed container is untouched; only the uploaded copy is relabelled.
+    expect(ktx.header.glInternalFormat).toBe(GL_FORMATS.ETC1_RGB8_OES);
+    expect(new DataView(ktx.source).getUint32(28, true)).toBe(GL_FORMATS.ETC1_RGB8_OES);
+    texture?.dispose();
+  });
+
+  it("software-decodes ETC1 mip chains on WebGL without ETC2", async () => {
+    const target = engine();
+    Object.assign(target.getCaps(), { etc1: true, etc2: null });
+    const texture = await createTextureFromKTX1(target, parseKTX1(fixture(GL_FORMATS.ETC1_RGB8_OES)), "etc1.ktx");
+    expect(target.uploads).toHaveLength(0);
+    expect(texture?.format).toBe(Constants.TEXTUREFORMAT_RGBA);
     texture?.dispose();
   });
 

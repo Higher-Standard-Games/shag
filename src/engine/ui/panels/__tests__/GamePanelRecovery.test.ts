@@ -22,7 +22,6 @@ function panel() {
 }
 afterEach(() => {
   document.body.replaceChildren();
-  document.body.classList.remove("show-ui-bg");
 });
 
 describe("menu recovery during its closing animation", () => {

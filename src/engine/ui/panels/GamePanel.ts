@@ -169,7 +169,6 @@ export class GamePanel {
 
     this.root.classList.remove("game-panel--closing");
     this.root.style.display = "";
-    document.body.classList.add("show-ui-bg");
     document.addEventListener("keydown", this.escHandler, true);
 
     // Resume logo rendering
@@ -188,7 +187,6 @@ export class GamePanel {
       this.cancelCloseAnimation();
       this.root.style.display = "none";
       this.root.classList.remove("game-panel--closing");
-      document.body.classList.remove("show-ui-bg");
 
       // Cleanup particles
       clearParticles(this.particles);
