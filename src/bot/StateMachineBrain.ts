@@ -16,6 +16,7 @@
 import { DEFAULT_VIEWHEIGHT } from "../engine/physics/PlayerPhysicsConstants";
 import { selectWeightProfile } from "../shared/bot/WeightProfiles";
 import { BotBrain, type BotInput, BotState, travelYaw } from "./BotBrain";
+import { BotCombatMovement, findHighGround } from "./BotCombatMovement";
 import { type BotDifficulty, defaultGoalArbiterMode, type GoalArbiterMode, InputButtons } from "./BotConfig";
 import type { BotGameState, Vec3, VisiblePlayer } from "./BotGameState";
 import { vec3Length, vec3Normalize, vec3Subtract } from "./BotGameState";
@@ -53,6 +54,8 @@ const SLIDE_COOLDOWN_TICKS = Math.ceil(((PHYSICS.SLIDE_COOLDOWN + PHYSICS.SLIDE_
 const LUNGE_REROLL_TICKS = 125;
 /** Too hurt to dive in with a blade. */
 const LUNGE_MIN_HEALTH = 30;
+/** How often a bot with a splash weapon looks for a ledge to fight from. */
+const HIGH_GROUND_SEARCH_TICKS = 250;
 /** Odds of taking a lunge chance, by dodgeSkill: never below 0.35 (Easy), 25% Medium, 60% Hard, 85% Insane. */
 const LUNGE_CHANCE_POINTS: readonly (readonly [number, number])[] = [
   [0.35, 0],
@@ -129,10 +132,12 @@ export class StateMachineBrain extends BotBrain {
   // Slide-blade lunge: when this bot last slid, and when it may roll for a lunge again
   private _lastSlideTick = Number.NEGATIVE_INFINITY;
   private _lungeRollAfterTick = 0;
+  private readonly _combatMovement = new BotCombatMovement();
+  private _highGroundSpot: Vec3 | null = null;
+  private _highGroundSearchTick = 0;
 
   // Movement variety
   private _strafeDirection: number = 1; // 1 or -1
-  private _strafeTimer: number = 0;
 
   // Crouchslide cooldown. Sequence phases use authoritative server ticks.
   private _slideCooldownUntilTick: number = 0;
@@ -264,6 +269,8 @@ export class StateMachineBrain extends BotBrain {
       this._activeItemGoal = null;
       this._mandatoryGoal = null;
       this._sitePatrol = null;
+      this._combatMovement.reset();
+      this._highGroundSpot = null;
       // Clear vision cache on death
       if (vision) vision.clearCache();
       return this._noInput(state);
@@ -471,9 +478,10 @@ export class StateMachineBrain extends BotBrain {
       ? this._aimAtTargetWithLead(state, enemy, currentProfile)
       : this._aimAtTarget(state, enemy);
 
-    // Strafe while fighting
-    this._updateStrafe();
-    const strafeInput = this._strafeDirection;
+    // Strafe while fighting: rhythm, dodges and hops from BotCombatMovement
+    const moves = this._combatMovement.step(state, this.difficulty, enemy.distance);
+    const strafeInput = moves.strafe;
+    if (strafeInput !== 0) this._strafeDirection = strafeInput;
 
     // Build buttons
     let buttons = 0;
@@ -524,18 +532,10 @@ export class StateMachineBrain extends BotBrain {
     // Always sprint - arena FPS players strafe-run by default
     buttons |= InputButtons.SPRINT;
 
-    // Strafe (universal)
-    if (strafeInput > 0) {
-      buttons |= InputButtons.LEFT;
-    } else {
-      buttons |= InputButtons.RIGHT;
-    }
-
-    // Jump occasionally (dodge + human feel)
-    // Low probability - JUMP persists across ~5 server ticks (125Hz/~25Hz input)
-    if (Math.random() < 0.004 && state.self.isGrounded) {
-      buttons |= InputButtons.JUMP;
-    }
+    if (strafeInput > 0) buttons |= InputButtons.RIGHT;
+    else if (strafeInput < 0) buttons |= InputButtons.LEFT;
+    if (moves.jump) buttons |= InputButtons.JUMP;
+    if (moves.crouch) buttons |= InputButtons.CROUCH;
 
     // Movement direction
     let forwardZ = 0;
@@ -546,14 +546,46 @@ export class StateMachineBrain extends BotBrain {
     } else if (enemy.distance < MELEE_RANGE || (currentProfile.hasSplash && enemy.distance < 250)) {
       forwardZ = -1;
     }
+    let strafeX = strafeInput * 0.5;
+
+    // With a splash weapon, take a ledge above the enemy when one is close
+    const ledge = currentProfile.hasSplash ? this._highGround(state, enemy) : null;
+    if (ledge) {
+      const towardYaw = Math.atan2(ledge.x - state.self.position.x, ledge.z - state.self.position.z);
+      const off = towardYaw - aim.yaw;
+      forwardZ = Math.cos(off);
+      strafeX = Math.sin(off);
+      buttons &= ~(InputButtons.FORWARD | InputButtons.BACK);
+      buttons |= forwardZ >= 0 ? InputButtons.FORWARD : InputButtons.BACK;
+    }
 
     return {
-      direction: { x: strafeInput * 0.5, y: 0, z: forwardZ },
+      direction: { x: strafeX, y: 0, z: forwardZ },
       pitch: aim.pitch,
       yaw: aim.yaw,
       buttons,
       weaponSlot,
     };
+  }
+
+  /**
+   * A ledge to fight from, looked for every two seconds while the bot has a
+   * splash weapon and is not yet above the enemy. Dropped once reached.
+   */
+  private _highGround(state: BotGameState, enemy: VisiblePlayer): Vec3 | null {
+    const self = state.self.position;
+    if (this._highGroundSpot && Math.hypot(this._highGroundSpot.x - self.x, this._highGroundSpot.z - self.z) < 48) {
+      this._highGroundSpot = null;
+    }
+    if (state.tick >= this._highGroundSearchTick) {
+      this._highGroundSearchTick = state.tick + HIGH_GROUND_SEARCH_TICKS;
+      const vision = this._lastBotVision;
+      this._highGroundSpot =
+        vision && this._navGraph && enemy.distance <= 900 && Math.random() < this.difficulty.dodgeSkill
+          ? findHighGround(this._navGraph.nodes, self, enemy.position, (from, to) => vision.canSee(from, to))
+          : null;
+    }
+    return this._highGroundSpot;
   }
 
   private _hasAmmoForWeapon(state: BotGameState, weaponId: string): boolean {
@@ -613,17 +645,13 @@ export class StateMachineBrain extends BotBrain {
   // ── DODGE State ───────────────────────────────────────────────────
 
   private _executeDodge(state: BotGameState): BotInput {
-    // Pick a random direction and move quickly
-    this._updateStrafe();
+    // Strafe hard on the fight's rhythm, and jump
+    const enemyDistance = state.getNearestEnemy()?.distance ?? 0;
+    const side = this._combatMovement.step(state, this.difficulty, enemyDistance).strafe;
+    if (side !== 0) this._strafeDirection = side;
 
-    let buttons = InputButtons.JUMP | InputButtons.SPRINT; // Jump + sprint to dodge
-
-    // Strafe hard
-    if (this._strafeDirection > 0) {
-      buttons |= InputButtons.LEFT;
-    } else {
-      buttons |= InputButtons.RIGHT;
-    }
+    let buttons = InputButtons.JUMP | InputButtons.SPRINT;
+    buttons |= this._strafeDirection > 0 ? InputButtons.RIGHT : InputButtons.LEFT;
     buttons |= InputButtons.FORWARD;
 
     // Try to aim at nearest visible enemy while dodging
@@ -1737,14 +1765,6 @@ export class StateMachineBrain extends BotBrain {
     }
 
     return input;
-  }
-
-  private _updateStrafe(): void {
-    this._strafeTimer++;
-    if (this._strafeTimer > 30 + Math.random() * 40) {
-      this._strafeDirection *= -1; // Flip strafe direction
-      this._strafeTimer = 0;
-    }
   }
 
   private _updateLookAround(): void {
