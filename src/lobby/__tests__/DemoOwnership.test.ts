@@ -5,7 +5,7 @@ import { expect, it } from "vitest";
 import { GameState } from "../../engine/network/core/GameState";
 import { DemoRecorder } from "../../games/fps/server/DemoRecorder";
 import { GameServerSpawner } from "../GameServerSpawner";
-import { LobbyServer } from "../LobbyServer";
+import { LobbyServer, MIN_LISTED_DEMO_MS } from "../LobbyServer";
 import { MatchResultStore } from "../MatchResultStore";
 import { PlayerStore } from "../PlayerStore";
 import type { DemoInfo } from "../types";
@@ -119,6 +119,10 @@ it("publishes demo ownership only when ticketed accounts match a durable result"
     expect(pages.at(-1)?.demos[0]).not.toHaveProperty("verifiedAccountIds");
     scanner.handleDemosList(reader(bystander.id), 64, "yours");
     expect(pages.at(-1)).toMatchObject({ scope: "yours", demos: [] });
+    // One-frame recordings are too short for the public list, but stay in "yours" above.
+    scanner.handleDemosList(reader(bystander.id), 64, "latest");
+    expect(pages.at(-1)?.demos).toEqual([]);
+    for (const demo of scanner._demoCache) demo.durationMs = MIN_LISTED_DEMO_MS;
     scanner.handleDemosList(reader(bystander.id), 64, "latest");
     expect(pages.at(-1)?.demos).toHaveLength(3);
 

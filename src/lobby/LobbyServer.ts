@@ -179,6 +179,12 @@ const LOBBY_FULL_RETRY_SEC = 60;
  * someone else in between.
  */
 const RETURN_GRACE_MS = 60_000;
+/**
+ * Recordings shorter than this stay out of the public demo lists: they are
+ * nearly always someone alone on a map or a match abandoned at the start. The
+ * files are kept, and each player still sees their own under "Your demos".
+ */
+export const MIN_LISTED_DEMO_MS = 2 * 60_000;
 /** WebSocket close code after a `lobby_full` answer. */
 export const LOBBY_FULL_CLOSE_CODE = 4008;
 
@@ -876,7 +882,7 @@ export class LobbyServer {
       onlinePlayers: this.getOnlinePlayers(),
       chatHistory: this.chatHistory,
       liveMatches: this.getLiveMatches(),
-      recentDemos: this._demoCache.slice(0, 10),
+      recentDemos: this.listedDemos().slice(0, 10),
     });
 
     this.broadcast(
@@ -2186,6 +2192,11 @@ export class LobbyServer {
 
   // ── Demo Scanning ────────────────────────────────────────────
 
+  /** The demos everyone may browse: long enough to be a match (MIN_LISTED_DEMO_MS). */
+  private listedDemos(): DemoInfo[] {
+    return this._demoCache.filter((demo) => demo.durationMs >= MIN_LISTED_DEMO_MS);
+  }
+
   private handleDemosList(player: ConnectedPlayer, limit: number, requestedScope?: string, requestId?: string): void {
     if (requestId !== undefined && (typeof requestId !== "string" || !/^[A-Za-z0-9_-]{1,64}$/.test(requestId))) return;
     const scope = requestedScope === "yours" ? "yours" : "latest";
@@ -2194,7 +2205,7 @@ export class LobbyServer {
         ? this._demoCache.filter(
             (demo) => player.accountId != null && this._demoOwnership.get(demo.filename)?.has(player.accountId),
           )
-        : this._demoCache;
+        : this.listedDemos();
     const size = Number.isSafeInteger(limit) ? Math.max(1, Math.min(limit, 64)) : 64;
     this.send(player, {
       type: "demos:list_response",
