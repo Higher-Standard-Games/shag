@@ -28,7 +28,9 @@ keeps last on the camera, and with both at 0 there is no pass. Video → Advance
 offers the correction as **Color blindness** with a strength slider; turning
 it on there also moves default team colors to cyan and orange, with an Undo. Unlike other
 `r_` variables the correction follows the player's account, since it is about
-their eyes rather than the device.
+their eyes rather than the device. They are ordinary cvars registered by
+`PostProcessingManager`, not `RenderVars`, so `cvarlist r_color` lists them and
+`render list` does not.
 
 `r_picmip` controls static opaque BSP base textures on the next map load. The
 default is 0 (full resolution); 1 halves both dimensions, 2 quarters them, and

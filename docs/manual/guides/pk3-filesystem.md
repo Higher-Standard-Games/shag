@@ -267,7 +267,11 @@ compare paths; it does not replace textures already held by materials.
 ## KTX1 texture loading
 
 The 2D texture loader uses Babylon's negotiated DXT/S3TC, ETC and ASTC
-capabilities, including WebGPU's ETC2 support for ETC1 blocks. Compressed uploads
+capabilities. ETC1 blocks are valid ETC2 RGB8 data, so where the device
+supports ETC2 an ETC1 file is uploaded relabelled as ETC2 on both WebGL2 and
+WebGPU; WebGL2 cannot fill an ETC1 mip chain (`compressedTexSubImage2D` does not
+accept the format), so without ETC2 an ETC1 mip chain is decoded in software.
+Compressed uploads
 go through Babylon's KTX loader, which retains the original bytes for context
 recovery. The public Texture wrapper applies compressed orientation before
 the texture is returned to material code.

@@ -178,6 +178,7 @@ cl_netgraph 2
 
 | Command | Purpose |
 | --- | --- |
+| `disconnect` | Leave the match server and reload into the lobby, like **Leave match** |
 | `demolist [filter]` | List recorded demos |
 | `demo <number\|filename>` | Load a demo |
 | `demoplay` | Play the loaded demo |

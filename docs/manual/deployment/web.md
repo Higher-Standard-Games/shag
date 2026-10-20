@@ -7,7 +7,11 @@ npm run build
 npm run preview
 ```
 
-Deploy the contents of `dist/` to a static HTTPS host. Vite copies files from `public/`, so any game data under `public/data/` becomes part of the output unless the deployment process separates it.
+Deploy the contents of `dist/` to a static HTTPS host. Vite copies files from `public/`, so any game data under `public/data/` becomes part of the output unless the deployment process separates it. The exception is `public/ui-proto/`, the static UI mockups: the dev server serves them, and the `drop-dev-only-pages` plugin in `vite.config.ts` removes them from release builds.
+
+## Link previews
+
+`index.html` carries the `description`, Open Graph (`og:*`) and `twitter:card` (`summary_large_image`) tags that chat apps and social sites read for a link preview. `og:image` must be an absolute URL; it points at `https://washoi.net/og-image.png` (1200×630). A deployment under another name or with another card image edits these tags in `index.html`.
 
 ## Hosting requirements
 

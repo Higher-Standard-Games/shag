@@ -287,8 +287,8 @@ connection order.
 ### Bots are rated accounts
 
 Each bot preset is an account: **Bot · Easy**, **Bot · Medium**, **Bot · Hard**
-and **Bot · Insane**, rated in each mode's Private pool like a player and
-listed on the Private board. A private match rates every seat, people and
+and **Bot · Insane**, rated in each mode's Private pool like a player but
+left off the leaderboards (see "Leaderboard"). A private match rates every seat, people and
 bots, under the same participation rules. The first bot of a preset in a match
 is that account; a second one of the same preset plays at the account's
 current rating and leaves it unchanged, since one account takes one seat. The
@@ -521,3 +521,31 @@ starts first. The bot server's control port listens on loopback only and closes
 any connection that does not present it. The lobby treats a connection as a bot
 only with that secret, from its own machine — so nobody can dodge the
 human-presence accounting that decides both room eviction and ranking.
+
+## Bot behaviour
+
+The bot server's clients (`src/bot/`) play over the same protocol as a browser
+and are bound by the same rules:
+
+- **Commands.** A bot sends one command per server tick by the clock (8 ms at
+  125 Hz), sending every command owed when a timer fires late, so it moves at
+  full speed on hosts with coarse timers.
+- **Perception.** `BotPerception` filters each snapshot down to what a player
+  in the bot's place would know: allies, enemies in line of sight inside its
+  view cone, and enemies heard (shots, explosions, footsteps, jumps, landings,
+  pain, pickups). Item state is what the bot saw or heard; a heard pickup is
+  timed at its `itemTimingSkill`. Sound ranges are the same at every
+  difficulty.
+- **Aim.** `BotAimController` eases the view toward the brain's goal on a
+  critically damped spring once per command, with a top speed and settle time
+  from the difficulty's `trackingSpeed`, a reaction-time pause before turns
+  over 45°, a deadzone for small changes unless firing, and a slowly wandering
+  aim offset.
+- **Mood and mistakes.** `BotMood` tracks calm, confident, tilted and cautious
+  moods, each fading after 20 s, and may give a new fight one mistake, at odds set by the
+  preset's `mistakeRate`.
+- **Chat.** `BotChat` says the odd line to humans at match start, after a
+  kill or death involving a human, and near the end. A bot speaks at most once
+  per 20 s and the bot server as a whole once per 5 s; bot-only matches stay
+  silent. `BOT_CHAT=0` in the bot server's environment turns it off, and
+  training never chats.

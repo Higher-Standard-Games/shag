@@ -1,11 +1,5 @@
 # Networking System
 
-S&D objective state in the `match_state` JSON event can include
-`disabledModels?: number[]`: the authoritative disabled inline brush model
-indices. Clients apply it to collision and rendering, including after joining
-mid-round. Its absence in an older recording restores the map's initial brush
-state. Demo format v6 records this optional extension; v1–v5 remain readable.
-
 SHAG uses Quake 3-style server-authoritative networking: the server runs the one true simulation, each client predicts its own movement so input feels immediate, and remote players are interpolated between snapshots. This is the model that kept Quake responsive on high-latency connections.
 
 ---
@@ -687,6 +681,23 @@ Server sends gameplay data to clients via snapshot events:
 | `projectile_spawn` | Entity ID, weapon def | All clients |
 
 **Client-side:** `HUDState` singleton aggregates all events into a queryable state object (health, armor, scoreboard, kill feed, damage numbers).
+
+### Match state
+
+The `match_state` event carries a `MatchStateSnapshot`
+(`src/shared/server/gametype/GametypeTypes.ts`): phase, `timeRemaining`,
+ready counts, scores, teams and standings. Optional fields an older server or
+recording may lack:
+
+- `timeElapsed`: seconds played in the live phase (the match, or the round in
+  round modes), running on through overtime. The client's count-up clock
+  (`cl_invertClock 1`) uses it and falls back to the countdown when it is
+  absent.
+- In S&D, the objective's `disabledModels?: number[]`: the authoritative
+  disabled inline brush model indices. Clients apply it to collision and
+  rendering, including after joining mid-round. Its absence in an older
+  recording restores the map's initial brush state. Demo format v6 records
+  this optional extension; v1–v5 remain readable.
 
 ---
 

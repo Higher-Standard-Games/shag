@@ -84,13 +84,15 @@ separate from account-key recovery; heed Profile's account-key warning too.
 Once logged in to the lobby, key bindings (`shag_keybindings`, `engine_binds`),
 the `cl_`, `cg_`, `s_` and `m_` cvars, the HUD layout, the UI theme and the
 remembered loadouts also follow the account to other browsers (see
-`src/shared/settings/SyncedSettings.ts`). Graphics stay per device: `r_*` and
-quality cvars and `engine.renderVars` never sync, nor do debug cvars and
+`src/shared/settings/SyncedSettings.ts`), as do the colour-blindness
+correction cvars `r_colorcorrection` and `r_colorcorrection_strength`. Graphics
+stay per device: other `r_*` and quality cvars and `engine.renderVars` never
+sync, nor do debug cvars and
 settings tuned to this machine or connection (`cl_interp`, `cl_timenudge`,
 `cl_player_pose_hz`). On login an account's saved settings replace a browser's,
 unless that browser changed its own more recently; the first time they do, the
 browser's earlier settings are kept under `shag_settings_backup`. Changes upload
-a few seconds after they settle and when the page is hidden.
+a few seconds after they settle and when the page is hidden. The lobby keeps each account's copy in `settings.db` ([Lobby server](./lobby-server.md#what-it-keeps)).
 
 ## Networking environment
 
@@ -112,6 +114,7 @@ Copy and review `.env.example`, which lists every variable below.
 | `SHAG_GAME_CERT_PATH` / `SHAG_GAME_KEY_PATH` | spawned server | TLS files for a direct `wss://` socket |
 | `GAME_PATH` | headless | Asset-directory override |
 | `BOT_NAV_CACHE_DIR` / `BOT_GOAL_ARBITER` | bot server | Navigation cache directory and goal-arbiter selection |
+| `BOT_CHAT` | bot server | `0` stops bots from chatting to human players; any other value or unset leaves chat on |
 | `VITE_SHAGGED_API_URL`, `SHAGGED_*` | editor, map service | The SHAGGED map service address, map root and compiler paths, each described in `.env.example` |
 
 Only `VITE_*` variables are exposed to browser code; the rest are read by Node processes only.
