@@ -491,6 +491,7 @@ else `server-data/` beside the repo:
 | File | Contents |
 | --- | --- |
 | `players.db` | Accounts, records, verified V2 snapshots, the rating policy, states and update journal, bot preset accounts and pending private verification contexts, in `node:sqlite` |
+| `settings.db` | Each account's synced settings (bindings and game preferences, never graphics), in `node:sqlite`; kept apart from `players.db` so frequent writes and backups don't touch results. Losing it loses nothing for good: every browser keeps its own copy and uploads it at its next login |
 | `result-outbox/` | Signed completed reports awaiting a committed receipt; separate from public demos |
 | `bot-secret` | The secret shared with the bot server, written by whichever starts first |
 
@@ -501,7 +502,7 @@ Demo recordings are not kept here: the lobby scans the game servers'
 
 Every message is JSON over one WebSocket, and every shape is declared in
 `src/lobby/types.ts` — `auth` and `welcome`, the `lobby:*` room messages,
-`matches:update`, `identity:*`, `demos:*`, `leaderboard:get`/`page`, and
+`matches:update`, `identity:*`, `settings:*`, `demos:*`, `leaderboard:get`/`page`, and
 `match:seat_reissue`. Read that file rather than a list here; it is the
 contract both the browser and the bot server compile against.
 

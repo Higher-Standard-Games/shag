@@ -12,7 +12,15 @@
  */
 
 import type { HistoryPage, StatsQuery, StatsSummary } from "./PlayerStatsStore";
-import type { FeaturedDemosResponse, LeaderboardResponse, LobbyMessage, SeatReissueResponse } from "./types";
+import type {
+  FeaturedDemosResponse,
+  LeaderboardResponse,
+  LobbyMessage,
+  SeatReissueResponse,
+  SettingsDataMessage,
+  SettingsErrorCode,
+  SettingsSavedMessage,
+} from "./types";
 
 /** How long to wait for a connection before telling the caller it failed. */
 const CONNECT_TIMEOUT_MS = 20_000;
@@ -394,6 +402,46 @@ export class LobbyClient {
       );
       cleanup.push(this.on("_disconnected", () => finish(() => reject(new Error("Lobby disconnected")))));
       this.send({ type, requestId, ...query });
+    });
+  }
+
+  /** This account's synced settings, as the lobby last saved them. */
+  requestSettings(timeoutMs = 10_000): Promise<SettingsDataMessage> {
+    return this.settingsRequest<SettingsDataMessage>("settings:data", { type: "settings:get" }, timeoutMs);
+  }
+
+  /** Replace this account's synced settings; resolves with the lobby's save time. */
+  saveSettings(settings: string, timeoutMs = 10_000): Promise<SettingsSavedMessage> {
+    return this.settingsRequest<SettingsSavedMessage>("settings:saved", { type: "settings:save", settings }, timeoutMs);
+  }
+
+  /** Rejects with `Settings: <code>` (a SettingsErrorCode) when the lobby refuses. */
+  private settingsRequest<T extends LobbyMessage>(answer: string, msg: LobbyMessage, timeoutMs: number): Promise<T> {
+    if (!this.connected) return Promise.reject(new Error("Lobby is offline"));
+    const requestId = `set_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+    return new Promise((resolve, reject) => {
+      const cleanup: Array<() => void> = [];
+      let settled = false;
+      const finish = (fn: () => void) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        for (const unsub of cleanup) unsub();
+        fn();
+      };
+      const timer = setTimeout(() => finish(() => reject(new Error("Settings request timed out"))), timeoutMs);
+      cleanup.push(
+        this.on(answer, (reply: T) => {
+          if (reply.requestId === requestId) finish(() => resolve(reply));
+        }),
+      );
+      cleanup.push(
+        this.on("settings:error", (reply: { requestId: string; code: SettingsErrorCode }) => {
+          if (reply.requestId === requestId) finish(() => reject(new Error(`Settings: ${reply.code}`)));
+        }),
+      );
+      cleanup.push(this.on("_disconnected", () => finish(() => reject(new Error("Lobby disconnected")))));
+      this.send({ ...msg, requestId });
     });
   }
 

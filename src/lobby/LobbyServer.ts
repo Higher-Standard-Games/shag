@@ -28,6 +28,7 @@ import { RateLimiter } from "./RateLimiter";
 import { type ResultDiagnostic, ResultDiagnostics } from "./ResultDiagnostics";
 import type { ResultContext } from "./ResultSnapshot";
 import { BOT_SECRET_HEADER, secretMatches } from "./ServerData";
+import { SettingsStore } from "./SettingsStore";
 import type {
   AuthMessage,
   ChatMessage as ChatMsg,
@@ -44,6 +45,7 @@ import type {
   PlayerInfo,
   PlayerStatsRequest,
   PlayerStatus,
+  SettingsErrorCode,
 } from "./types";
 
 // ============================================================================
@@ -165,6 +167,8 @@ export function clientAddress(req: IncomingMessage): string {
 const ACCOUNT_CREATION_LIMIT = { limit: 30, windowMs: 60 * 60_000 };
 const KEY_FAILURE_LIMIT = { limit: 20, windowMs: 60_000 };
 const RENAME_LIMIT = { limit: 10, windowMs: 60_000 };
+/** Per account: synced settings reads and writes (clients debounce, so this is generous). */
+const SETTINGS_LIMIT = { limit: 30, windowMs: 60_000 };
 /** Players online at once when the operator sets no cap. Bots don't count. */
 export const DEFAULT_MAX_PLAYERS = 64;
 /** How long a player turned away at the cap waits before the client tries again. */
@@ -208,6 +212,8 @@ export interface LobbyServerOptions {
   results?: MatchResultStore;
   /** Players online at once; 0 for no cap. Default DEFAULT_MAX_PLAYERS. */
   maxPlayers?: number;
+  /** Synced player settings. Without one the lobby keeps them in memory until it stops. */
+  settings?: SettingsStore;
 }
 
 /** Shape of config/maps.json */
@@ -462,11 +468,14 @@ export class LobbyServer {
   private readonly results: MatchResultStore | undefined;
   /** Close the store on stop only if this server opened it. */
   private readonly ownsAccounts: boolean;
+  private readonly settings: SettingsStore;
+  private readonly ownsSettings: boolean;
   private readonly accountCreations = new RateLimiter(ACCOUNT_CREATION_LIMIT.limit, ACCOUNT_CREATION_LIMIT.windowMs);
   private readonly keyFailures = new RateLimiter(KEY_FAILURE_LIMIT.limit, KEY_FAILURE_LIMIT.windowMs);
   private readonly renames = new RateLimiter(RENAME_LIMIT.limit, RENAME_LIMIT.windowMs);
   private readonly leaderboardReads = new RateLimiter(60, 60_000);
   private readonly featuredReads = new RateLimiter(60, 60_000);
+  private readonly settingsRequests = new RateLimiter(SETTINGS_LIMIT.limit, SETTINGS_LIMIT.windowMs);
   private readonly resultDiagnostics = new ResultDiagnostics();
   private readonly maxPlayers: number;
   /** Account id → when it disconnected, for RETURN_GRACE_MS. */
@@ -483,6 +492,8 @@ export class LobbyServer {
     this.botServerUrl = options.botServerUrl ?? BOT_SERVER_URL;
     this.ownsAccounts = !options.players;
     this.accounts = options.players ?? new PlayerStore(":memory:");
+    this.ownsSettings = !options.settings;
+    this.settings = options.settings ?? new SettingsStore(":memory:");
     this.results = options.results;
     this.maxPlayers = options.maxPlayers ?? DEFAULT_MAX_PLAYERS;
     if (this.results) this.spawner.setResultDelivery(this.results.deliveries);
@@ -563,6 +574,7 @@ export class LobbyServer {
     this.devMatchToPlayer.clear();
 
     if (this.ownsAccounts) this.accounts.close();
+    if (this.ownsSettings) this.settings.close();
 
     return new Promise((resolve) => {
       this.wss!.close(() => {
@@ -649,6 +661,10 @@ export class LobbyServer {
         break;
       case "identity:rename":
         this.handleIdentityRename(player, msg.name);
+        break;
+      case "settings:get":
+      case "settings:save":
+        this.handleSettings(player, msg);
         break;
       case "chat:send":
         this.handleChatSend(player, msg.text);
@@ -851,6 +867,7 @@ export class LobbyServer {
         playerStats: !!this.results,
         featuredDemos: true,
         demoOwnership: !!this.results,
+        syncedSettings: true,
       },
       playerId: player.id,
       identity: player.accountId === null ? undefined : { id: String(player.accountId), name: player.name },
@@ -872,6 +889,36 @@ export class LobbyServer {
   }
 
   // ── Identity ─────────────────────────────────────────────────
+
+  /** Read or replace the synced settings of the account this connection logged in to; bots have none. */
+  private handleSettings(player: ConnectedPlayer, msg: LobbyMessage): void {
+    const accountId = player.accountId;
+    if (accountId === null || player.isBot) return;
+    const requestId = typeof msg.requestId === "string" ? msg.requestId.slice(0, 64) : "";
+    const fail = (code: SettingsErrorCode) => this.send(player, { type: "settings:error", requestId, code });
+    if (!this.settingsRequests.tryRecord(String(accountId))) {
+      fail("rate_limited");
+      return;
+    }
+    try {
+      if (msg.type === "settings:get") {
+        const stored = this.settings.get(accountId);
+        this.send(player, {
+          type: "settings:data",
+          requestId,
+          settings: stored?.settings ?? null,
+          updatedAt: stored?.updatedAt ?? null,
+        });
+        return;
+      }
+      const result = this.settings.save(accountId, msg.settings);
+      if (result.ok) this.send(player, { type: "settings:saved", requestId, updatedAt: result.updatedAt });
+      else fail(result.code);
+    } catch (e) {
+      console.warn(`[LobbyServer] Settings ${msg.type} failed for account ${accountId}:`, e);
+      fail("unavailable");
+    }
+  }
 
   private handleIdentityRename(player: ConnectedPlayer, name: unknown): void {
     const accountId = player.accountId;

@@ -150,6 +150,13 @@ class CommandBindingsStore {
     return new Map(this.bindings);
   }
 
+  /** Forget the bindings in memory and read them again from storage, as after a synced settings download. */
+  reload(): void {
+    this.bindings.clear();
+    this.loaded = false;
+    this.load();
+  }
+
   /** Start listening. Safe to call twice; the second call replaces the first. */
   attach(options: CommandBindingsOptions): void {
     this.detach();

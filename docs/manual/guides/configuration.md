@@ -81,6 +81,17 @@ for the session, and Settings displays "Session only · could not save" until
 the affected preferences can be saved successfully. These preferences are
 separate from account-key recovery; heed Profile's account-key warning too.
 
+Once logged in to the lobby, key bindings (`shag_keybindings`, `engine_binds`),
+the `cl_`, `cg_`, `s_` and `m_` cvars, the HUD layout, the UI theme and the
+remembered loadouts also follow the account to other browsers (see
+`src/shared/settings/SyncedSettings.ts`). Graphics stay per device: `r_*` and
+quality cvars and `engine.renderVars` never sync, nor do debug cvars and
+settings tuned to this machine or connection (`cl_interp`, `cl_timenudge`,
+`cl_player_pose_hz`). On login an account's saved settings replace a browser's,
+unless that browser changed its own more recently; the first time they do, the
+browser's earlier settings are kept under `shag_settings_backup`. Changes upload
+a few seconds after they settle and when the page is hidden.
+
 ## Networking environment
 
 Copy and review `.env.example`, which lists every variable below.

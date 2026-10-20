@@ -887,6 +887,12 @@ export class InputSystem {
     }
   }
 
+  /** Replace every binding override with what localStorage holds, as after a synced settings download. */
+  reloadBindingsFromStorage(): void {
+    this.bindingOverrides.clear();
+    this.loadBindingsFromStorage();
+  }
+
   private saveBindingsToStorage(): void {
     try {
       const data: Record<string, InputBinding[]> = {};

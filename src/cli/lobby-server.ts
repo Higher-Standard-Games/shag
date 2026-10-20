@@ -16,6 +16,7 @@ import { PlayerStore } from "../lobby/PlayerStore";
 import { RatingStore } from "../lobby/RatingStore";
 import { loadBotSecret, resolveDataDir } from "../lobby/ServerData";
 import { describeServerRuntime } from "../lobby/ServerRuntime";
+import { SettingsStore } from "../lobby/SettingsStore";
 
 console.log(`[ServerRuntime] ${describeServerRuntime()}`);
 
@@ -119,6 +120,7 @@ console.log();
 const dataDir = resolveDataDir(dataDirArg);
 const players = PlayerStore.open(dataDir);
 const results = MatchResultStore.open(dataDir);
+const settings = SettingsStore.open(dataDir);
 const maxPlayers = maxPlayersArg === undefined || maxPlayersArg === "" ? DEFAULT_MAX_PLAYERS : Number(maxPlayersArg);
 if (!Number.isInteger(maxPlayers) || maxPlayers < 0) {
   console.error(`--max-players must be a whole number, 0 for no cap (got "${maxPlayersArg}").`);
@@ -128,6 +130,7 @@ const server = new LobbyServer(port, undefined, {
   botSecret: loadBotSecret(dataDir),
   players,
   results,
+  settings,
   maxPlayers,
 });
 console.log(`  Data directory: ${dataDir}`);
@@ -142,6 +145,7 @@ server
   })
   .catch((err) => {
     console.error("Failed to start lobby server:", err);
+    settings.close();
     results.close();
     players.close();
     process.exit(1);
@@ -151,6 +155,7 @@ server
 process.on("SIGINT", async () => {
   console.log("\n[LobbyServer] Shutting down...");
   await server.stop();
+  settings.close();
   results.close();
   players.close();
   process.exit(0);
@@ -158,6 +163,7 @@ process.on("SIGINT", async () => {
 
 process.on("SIGTERM", async () => {
   await server.stop();
+  settings.close();
   results.close();
   players.close();
   process.exit(0);

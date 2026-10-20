@@ -125,7 +125,7 @@ The rule lives in `isRankedRoster()` in `src/lobby/LobbyServer.ts`, decided from
 
 `src/lobby/AccountSession.ts` does the browser side; `FpsLobbyService` calls `logIn(client)` after connecting.
 
-- **Where the key lives:** its own localStorage entry, `shag_player_key`, never inside `PlayerProfile`. The profile JSON is meant to sync to a server one day, and the key must never travel with it.
+- **Where the key lives:** its own localStorage entry, `shag_player_key`, never inside `PlayerProfile` or anything that syncs. Settings sync (`src/lobby/SettingsSync.ts`, started after every login) copies only the entries `src/shared/settings/SyncedSettings.ts` allows, and the key is not one of them.
 - **The account's name is the player's name.** On every login and rename, `PlayerProfile.name` takes the account's name. That's what the rail shows, and what `Game.ts` sends to game servers.
 - **Login:**
   - with a stored key, send `auth {key}`;

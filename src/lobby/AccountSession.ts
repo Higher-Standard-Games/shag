@@ -11,6 +11,7 @@
 import { PlayerProfile } from "../engine/player/PlayerProfile";
 import type { LobbyClient } from "./LobbyClient";
 import { checkPlayerName, normalizeKey } from "./PlayerIdentity";
+import { startSettingsSync } from "./SettingsSync";
 import type {
   AuthErrorCode,
   AuthErrorMessage,
@@ -192,6 +193,7 @@ export async function logIn(client: LobbyClient): Promise<WelcomeMessage> {
       // Retry saving a session key when storage becomes available again.
       writeStorage(KEY_STORAGE, key);
       if (answer.identity) adopt(answer.identity);
+      void startSettingsSync(client, answer);
       return answer;
     }
     if (answer.code !== "unknown_key") throw refused(answer);
@@ -210,6 +212,7 @@ export async function logIn(client: LobbyClient): Promise<WelcomeMessage> {
   } else {
     newAccount = true;
   }
+  void startSettingsSync(client, answer);
   return answer;
 }
 
@@ -229,6 +232,7 @@ export async function restoreAccount(client: LobbyClient, pastedKey: string): Pr
   newAccount = false;
   writeStorage(KEY_STORAGE, key);
   if (answer.identity) adopt(answer.identity);
+  void startSettingsSync(client, answer);
   return answer;
 }
 

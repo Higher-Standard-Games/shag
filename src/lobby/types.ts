@@ -383,6 +383,8 @@ export interface WelcomeMessage extends LobbyMessage {
     playerStats?: boolean;
     featuredDemos?: boolean;
     demoOwnership?: boolean;
+    /** The lobby keeps each account's synced settings (settings:get / settings:save). */
+    syncedSettings?: boolean;
   };
   /** This connection's id, used by rooms and chat. Not the account id. */
   playerId: string;
@@ -423,6 +425,43 @@ export type IdentityErrorCode = "name_invalid" | "name_reserved" | "name_taken" 
 export interface IdentityErrorMessage extends LobbyMessage {
   type: "identity:error";
   code: IdentityErrorCode;
+}
+
+// ── Synced settings (own account only; see shared/settings/SyncedSettings.ts) ──
+
+/** Ask for the logged-in account's synced settings. */
+export interface SettingsGetMessage extends LobbyMessage {
+  type: "settings:get";
+  requestId: string;
+}
+
+/** Replace the logged-in account's synced settings with this JSON object. */
+export interface SettingsSaveMessage extends LobbyMessage {
+  type: "settings:save";
+  requestId: string;
+  settings: string;
+}
+
+/** The account's synced settings; both null when it has never saved any. */
+export interface SettingsDataMessage extends LobbyMessage {
+  type: "settings:data";
+  requestId: string;
+  settings: string | null;
+  updatedAt: number | null;
+}
+
+export interface SettingsSavedMessage extends LobbyMessage {
+  type: "settings:saved";
+  requestId: string;
+  updatedAt: number;
+}
+
+export type SettingsErrorCode = "invalid" | "too_large" | "rate_limited" | "unavailable";
+
+export interface SettingsErrorMessage extends LobbyMessage {
+  type: "settings:error";
+  requestId: string;
+  code: SettingsErrorCode;
 }
 
 /** Someone online changed their name. */
