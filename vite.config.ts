@@ -64,8 +64,23 @@ function liveGameData(): Plugin {
   };
 }
 
+/** `public/ui-proto` holds design mockups: served by the dev server, left out of release builds. */
+function dropDevOnlyPages(): Plugin {
+  let outDir = "";
+  return {
+    name: "drop-dev-only-pages",
+    apply: "build",
+    configResolved(config) {
+      outDir = path.resolve(config.root, config.build.outDir);
+    },
+    closeBundle() {
+      fs.rmSync(path.join(outDir, "ui-proto"), { recursive: true, force: true });
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [liveGameData()],
+  plugins: [liveGameData(), dropDevOnlyPages()],
   resolve: {
     alias: {
       '@game': path.resolve(__dirname, `src/games/${selectedGame}`),

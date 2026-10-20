@@ -89,7 +89,7 @@ Implication:
 - **Prefer a better default to an optional toggle** in player-facing settings.
 - **Keep the WebTransport transport.** `WebTransportTransport.ts` is never instantiated today, but WebTransport is the preferred future transport, waiting on Node library support. Do not delete it as dead code.
 - **`docs/known_bugs.md` is stale.** Treat each entry as a rumour: read the code that would make it true before acting, then fix or delete the entry.
-- **`public/ui-proto/*.html` are static mockups** (page-switcher bar, invented players), not the live UI. The live UI shows only data the game or server actually has.
+- **`public/ui-proto/*.html` are static mockups** (page-switcher bar, invented players), not the live UI. The dev server serves them; release builds leave them out. The live UI shows only data the game or server actually has.
 
 ## Procedures (skills)
 

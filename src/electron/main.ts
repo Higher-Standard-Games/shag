@@ -123,10 +123,9 @@ function createMenu(): void {
       label: "Help",
       submenu: [
         {
-          label: "About SHAG Engine",
+          label: "Washiki Washoi Website",
           click: () => {
-            // Could show an about dialog
-            shell.openExternal("https://github.com/yourusername/shag-engine");
+            shell.openExternal("https://washoi.net/");
           },
         },
       ],
