@@ -24,6 +24,7 @@ import { canInitiateSlide, PHYSICS } from "./BotMovementProfile";
 import { type BotNavGraph, type NavPath, type NavPathOptions, type NavStep, navEdgeKey } from "./BotNavGraph";
 import { BotSequenceRegistry, BotSequenceRuntime, type BotSequenceRuntimeTick } from "./BotSequence";
 import type { BotVision, VisionResult } from "./BotVision";
+import { BotWeaponCombos, has, slotFor } from "./BotWeaponCombos";
 import { getWeaponProfile, selectBestWeapon, type WeaponProfile } from "./BotWeaponProfile";
 import type { BotGoal } from "./goals/BotGoal";
 import { collectDirectiveGoals } from "./goals/DirectiveGoalSource";
@@ -56,6 +57,9 @@ const LUNGE_REROLL_TICKS = 125;
 const LUNGE_MIN_HEALTH = 30;
 /** How often a bot with a splash weapon looks for a ledge to fight from. */
 const HIGH_GROUND_SEARCH_TICKS = 250;
+/** A heard enemy this close gets the gun for its distance readied, held this long. */
+const READY_RANGE = 1500;
+const READY_TICKS = 250;
 /** Odds of taking a lunge chance, by dodgeSkill: never below 0.35 (Easy), 25% Medium, 60% Hard, 85% Insane. */
 const LUNGE_CHANCE_POINTS: readonly (readonly [number, number])[] = [
   [0.35, 0],
@@ -133,6 +137,10 @@ export class StateMachineBrain extends BotBrain {
   private _lastSlideTick = Number.NEGATIVE_INFINITY;
   private _lungeRollAfterTick = 0;
   private readonly _combatMovement = new BotCombatMovement();
+  private readonly _weaponCombos = new BotWeaponCombos();
+  /** The gun got out for an enemy heard but not yet seen, and until when. */
+  private _readyWeapon: { weapon: string; until: number } | null = null;
+  private _readyRollTick = 0;
   private _highGroundSpot: Vec3 | null = null;
   private _highGroundSearchTick = 0;
 
@@ -270,6 +278,8 @@ export class StateMachineBrain extends BotBrain {
       this._mandatoryGoal = null;
       this._sitePatrol = null;
       this._combatMovement.reset();
+      this._weaponCombos.reset();
+      this._readyWeapon = null;
       this._highGroundSpot = null;
       // Clear vision cache on death
       if (vision) vision.clearCache();
@@ -344,6 +354,10 @@ export class StateMachineBrain extends BotBrain {
       this.currentState !== BotState.DODGE
     ) {
       input = this._applyFeelers(input, state, vision);
+    }
+
+    if (this.currentState !== BotState.FIGHT && this.currentState !== BotState.DODGE) {
+      this._readyForHeard(state, input);
     }
 
     if (!this._suppressTraversalAutomation) {
@@ -462,14 +476,22 @@ export class StateMachineBrain extends BotBrain {
 
     // Select best weapon for distance (profile-based). The server switches before
     // firing, so combat behavior can use the selected profile immediately.
-    const { slot: weaponSlot, profile: selectedProfile } = selectBestWeapon(
+    let { slot: weaponSlot, profile: selectedProfile } = selectBestWeapon(
       state.self.weapons,
       state.self.ammo,
       state.self.currentWeapon,
       enemy.distance,
     );
-    const selectedWeaponId = weaponSlot > 0 ? state.self.weapons[weaponSlot - 1] : state.self.currentWeapon;
-    const currentProfile = selectedProfile.id === "unknown" ? getWeaponProfile(selectedWeaponId) : selectedProfile;
+    let selectedWeaponId = weaponSlot > 0 ? state.self.weapons[weaponSlot - 1] : state.self.currentWeapon;
+    let currentProfile = selectedProfile.id === "unknown" ? getWeaponProfile(selectedWeaponId) : selectedProfile;
+
+    // A combo (rocket into rail, riotgun or blade; a rail between plasma) overrides the distance pick
+    const combo = this._weaponCombos.choose(state, enemy, this.difficulty.predictionSkill, selectedWeaponId);
+    if (combo) {
+      weaponSlot = slotFor(state, combo);
+      selectedWeaponId = combo;
+      currentProfile = getWeaponProfile(combo);
+    }
 
     // Aim at enemy - use projectile prediction if needed.
     const useProjectileAim =
@@ -586,6 +608,35 @@ export class StateMachineBrain extends BotBrain {
           : null;
     }
     return this._highGroundSpot;
+  }
+
+  /**
+   * Out of a fight, with an enemy heard close but not seen, get out the gun for
+   * the distance they were heard at, so it is ready when they come round the
+   * corner. Rolled every two seconds at `predictionSkill` odds.
+   */
+  private _readyForHeard(state: BotGameState, input: BotInput): void {
+    if (this._readyWeapon && (state.tick >= this._readyWeapon.until || !has(state, this._readyWeapon.weapon))) {
+      this._readyWeapon = null;
+    }
+    const heard = state.heardEnemies.reduce<VisiblePlayer | null>(
+      (near, enemy) => (!near || enemy.distance < near.distance ? enemy : near),
+      null,
+    );
+    if (!this._readyWeapon && heard && heard.distance <= READY_RANGE && state.tick >= this._readyRollTick) {
+      this._readyRollTick = state.tick + READY_TICKS;
+      if (Math.random() < this.difficulty.predictionSkill) {
+        const { slot } = selectBestWeapon(
+          state.self.weapons,
+          state.self.ammo,
+          state.self.currentWeapon,
+          heard.distance,
+        );
+        const weapon = slot > 0 ? state.self.weapons[slot - 1] : state.self.currentWeapon;
+        if (weapon) this._readyWeapon = { weapon, until: state.tick + READY_TICKS };
+      }
+    }
+    if (this._readyWeapon && (input.weaponSlot ?? 0) === 0) input.weaponSlot = slotFor(state, this._readyWeapon.weapon);
   }
 
   private _hasAmmoForWeapon(state: BotGameState, weaponId: string): boolean {

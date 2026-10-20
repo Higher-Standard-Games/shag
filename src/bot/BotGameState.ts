@@ -296,6 +296,8 @@ export class BotGameState {
 
   // Recent events (cleared each tick)
   recentDamage: BotDamageEvent[] = [];
+  /** Hits this bot landed: the victim's entity, the weapon and when. */
+  recentHits: Array<{ victimEntityId: string; weaponId: string; damage: number; tick: number }> = [];
   recentKills: BotKillEvent[] = [];
 
   // Persistent map knowledge
@@ -352,6 +354,7 @@ export class BotGameState {
 
     // Prune old damage events (keep last 300 ticks for wasRecentlyDamaged)
     this.recentDamage = this.recentDamage.filter((d) => snapshot.tick - d.tick <= 300);
+    this.recentHits = this.recentHits.filter((h) => snapshot.tick - h.tick <= 300).slice(-20);
     if (this.recentDamage.length > 50) {
       this.recentDamage = this.recentDamage.slice(-50);
     }
@@ -546,6 +549,14 @@ export class BotGameState {
 
         case "damage": {
           const evt = event as any;
+          if (evt.attackerId === this.selfEntityId && evt.entityId !== this.selfEntityId) {
+            this.recentHits.push({
+              victimEntityId: evt.entityId,
+              weaponId: evt.weaponId,
+              damage: evt.damage,
+              tick: this.tick,
+            });
+          }
           if (evt.entityId === this.selfEntityId) {
             this.recentDamage.push({
               attackerId: evt.attackerId,

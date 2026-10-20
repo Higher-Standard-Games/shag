@@ -69,7 +69,13 @@ describe("dodging a hit", () => {
     const state = grounded();
     movement.step(state, HARD, 300);
     state.tick = 10;
-    state.recentDamage.push({ attackerId: "e", damage: 20, position: { x: 0, y: 0, z: 0 }, tick: 10 });
+    state.recentDamage.push({
+      attackerId: "e",
+      damage: 20,
+      weaponId: "machinegun",
+      position: { x: 0, y: 0, z: 0 },
+      tick: 10,
+    });
     const moves = movement.step(state, HARD, 300);
     expect(moves.jump).toBe(true);
     expect(moves.strafe).not.toBe(0);
@@ -78,7 +84,13 @@ describe("dodging a hit", () => {
   it("does not on Easy, mostly", () => {
     const movement = new BotCombatMovement(() => 0.5);
     const state = grounded();
-    state.recentDamage.push({ attackerId: "e", damage: 20, position: { x: 0, y: 0, z: 0 }, tick: 0 });
+    state.recentDamage.push({
+      attackerId: "e",
+      damage: 20,
+      weaponId: "machinegun",
+      position: { x: 0, y: 0, z: 0 },
+      tick: 0,
+    });
     expect(movement.step(state, EASY, 300).jump).toBe(false);
   });
 });
