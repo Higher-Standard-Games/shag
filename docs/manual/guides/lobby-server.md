@@ -326,7 +326,9 @@ and prevents a late bot join.
 
 The leaderboard opens on **Public** matches. **Public / Private**, left of the
 gametype selector, selects independent boards: Private contains only private
-matches, including bot games and the bots' preset accounts. The selection
+matches, including bot games. The bots' preset accounts are rated there (people
+are rated against them) but never listed: both boards show people only, ranked
+among themselves. The selection
 applies to every mode and is remembered in that browser; the board, your pinned
 row and the ranks in the rail all follow it.
 

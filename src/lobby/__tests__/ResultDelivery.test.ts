@@ -200,9 +200,9 @@ describe("private durable result outbox", () => {
       ratingStatus: "excluded",
       ratingReason: "bot_reference_changed",
     });
-    // The human's record and the bot preset account's.
+    // The human's record; the bot preset account keeps one too, unlisted.
     expect(results.leaderboard({ gametype: "duel", scope: "private", period: "all", offset: 0, limit: 10 }).total).toBe(
-      2,
+      1,
     );
   });
   it("excludes uncommitted bot skill after lost control but preserves an already committed bot receipt", () => {

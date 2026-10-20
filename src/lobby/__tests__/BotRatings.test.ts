@@ -96,17 +96,11 @@ describe("private bot games rated through preset accounts", () => {
       expect(results.ratings.getRating(id, mode, "private")?.state.ratedMatches).toBe(1);
       expect(results.ratings.getRating(id, mode, "public")).toBeNull();
     }
-    // The account's record is its first seat's.
-    const seat = input.seats.find((p) => p.accountId === null)!;
-    const row = privateBoard(mode).entries.find((e) => e.accountId === bot);
-    expect(row?.name).toBe(botAccountName("medium"));
-    expect(row?.bot).toBe(true);
-    expect(
-      privateBoard(mode)
-        .entries.filter((e) => e.accountId !== bot)
-        .every((e) => !e.bot),
-    ).toBe(true);
-    expect(row && (seat.outcome === "win" ? row.wins : row.losses)).toBe(1);
+    // The bot account is rated but the board lists people only.
+    const listed = privateBoard(mode).entries.map((e) => e.accountId);
+    expect(listed.sort()).toEqual([...humans].sort());
+    expect(privateBoard(mode).entries.every((e) => !e.bot)).toBe(true);
+    expect(sql.prepare("SELECT name FROM players WHERE id = ?").get(bot)?.name).toBe(botAccountName("medium"));
     results.close();
     results = MatchResultStore.open(dir);
     // A second Medium (S&D, FFA) plays fixed: only the first seat's account updates.
@@ -162,8 +156,9 @@ describe("private bot games rated through preset accounts", () => {
     for (const p of custom.startingRoster!) if (p.botReference) p.botReference.preset = "custom";
     expect(results.ratings.ingest(custom)).toMatchObject({ ratingStatus: "excluded", ratingReason: "bot_custom" });
     expect(results.ratings.statistics().ratings).toBe(0);
+    // The human's record; the bot account keeps one too but is not listed.
     expect(results.leaderboard({ gametype: "duel", scope: "private", period: "all", offset: 0, limit: 10 }).total).toBe(
-      2,
+      1,
     );
   });
 
@@ -187,8 +182,8 @@ describe("private bot games rated through preset accounts", () => {
       ratingReason: "eligible",
     });
     const bot = results.ratings.bots.get("medium");
-    expect(privateBoard("duel", ids[0])).toMatchObject({ total: 2, localPlayerEntry: { wins: 1, ratedMatches: 1 } });
-    expect(privateBoard().entries.find((e) => e.accountId === bot)).toMatchObject({ losses: 1 });
+    expect(privateBoard("duel", ids[0])).toMatchObject({ total: 1, localPlayerEntry: { wins: 1, ratedMatches: 1 } });
+    expect(results.ratings.getRating(bot, "duel", "private")?.state.ratedMatches).toBe(1);
     expect(results.ratings.verifyReplay()).toMatchObject({ consistent: true, matches: 1, updates: 2 });
     expect(sql.prepare("SELECT name FROM sqlite_master WHERE name = 'bot_calibrations'").get()).toBeUndefined();
   });

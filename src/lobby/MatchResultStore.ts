@@ -119,9 +119,11 @@ const RECORDS = `
     GROUP BY p.id
   )`;
 
+// Bot preset accounts keep their ratings (humans are rated against them) but
+// the boards list people only, so ranks count humans alone.
 const RANKED = `${RECORDS}, ranked AS (
     SELECT *, RANK() OVER (ORDER BY wins DESC, losses ASC, draws DESC) AS rank
-    FROM records
+    FROM records WHERE bot = 0
   )
 `;
 
@@ -137,7 +139,7 @@ const SKILL_RANKED = `${RECORDS}, active AS (
     WHERE r.gametype = ? AND r.scope = ? AND r.policy_version = ?
       AND (? = 'all' OR records.account_id IS NOT NULL)
   ), ranked AS (
-    SELECT *, RANK() OVER (ORDER BY skill_score DESC) AS rank FROM active
+    SELECT *, RANK() OVER (ORDER BY skill_score DESC) AS rank FROM active WHERE bot = 0
   )`;
 
 function skillRowOf(row: Record<string, unknown>): RankingRow {

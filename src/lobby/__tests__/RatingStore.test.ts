@@ -115,9 +115,9 @@ describe("fresh transactional rating journal", () => {
     });
     expect(results.ratings.statistics()).toMatchObject({ ratings: 0, updates: 0 });
     expect(results.ratings.verifyReplay()).toEqual({ consistent: true, matches: 0, updates: 0, ratings: 0 });
-    // The human's record, and the Medium account's: a record needs no rating.
+    // The human's record (a record needs no rating); the Medium account's is kept but not listed.
     expect(results.leaderboard({ gametype: "duel", scope: "private", period: "all", offset: 0, limit: 10 }).total).toBe(
-      2,
+      1,
     );
   });
   const tableCount = (table: string) => Number(sql.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get()?.n);
@@ -397,11 +397,8 @@ describe("fresh transactional rating journal", () => {
     expect(results.ratings.getResult("bot")?.snapshot.seats[0].accountId).toBeNull();
     const bot = results.ratings.bots.get("medium");
     expect(results.ratings.getRating(bot, "duel", "private")?.state.ratedMatches).toBe(1);
-    expect(
-      board("private")
-        .entries.map((e) => e.accountId)
-        .sort(),
-    ).toEqual([ids[1], bot].sort());
+    // Rated, but the board lists people only
+    expect(board("private").entries.map((e) => e.accountId)).toEqual([ids[1]]);
     expect(results.ratings.verifyReplay()).toMatchObject({ consistent: true, matches: 1, updates: 2 });
   });
 
