@@ -25,7 +25,8 @@ sees it, for checking a map; with both set it shows what a colour-blind player
 sees with correction on. All three apply at once, from the console mid-match
 too. They are one 3×3 matrix in a single pass that `ColorCorrectionPostProcess`
 keeps last on the camera, and with both at 0 there is no pass. Video → Advanced
-offers the correction as **Color blindness** with a strength slider. Unlike other
+offers the correction as **Color blindness** with a strength slider; turning
+it on there also moves default team colors to cyan and orange, with an Undo. Unlike other
 `r_` variables the correction follows the player's account, since it is about
 their eyes rather than the device.
 
