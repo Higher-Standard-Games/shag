@@ -41,7 +41,10 @@ function resolveTargetPosition(directive: AgentDirective, state: BotGameState): 
     return isFiniteVec3(target.position) ? target.position : null;
   }
   if (target.type === "player") {
-    const player = state.players.find((p) => p.entityId === target.entityId);
+    // The game marks a directive's target for players too, so it is known unseen.
+    const player = (state.perceptionManaged ? state.snapshotPlayers : state.players).find(
+      (p) => p.entityId === target.entityId,
+    );
     if (!player || player.isDead) return null;
     return player.position;
   }

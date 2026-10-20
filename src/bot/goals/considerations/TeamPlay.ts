@@ -67,7 +67,7 @@ export const CarrierProtect: Consideration = {
     // about. A carrier already at your shoulder needs no further attention.
     const separation = vec3Distance(ctx.self.position, carrier.position);
     const proximityNeed = clamp01(separation / SUPPORT_RADIUS);
-    const liveEnemies = ctx.state.players.filter((p) => p.relation === "enemy" && !p.isDead).length;
+    const liveEnemies = ctx.state.getKnownEnemyCount();
     const threat = liveEnemies > 0 ? 1 : 0.3;
 
     return clamp01(proximityNeed * threat);

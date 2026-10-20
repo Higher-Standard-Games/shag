@@ -313,6 +313,16 @@ export class BotVision {
       }
     }
 
+    // Enemies the bot only heard (BotPerception): where the sound came from.
+    for (const player of state.heardEnemies) {
+      audibleEnemies.push({
+        player,
+        isVisible: false,
+        isAudible: true,
+        relativeAngle: this._calcRelativeAngle(state, player.position),
+      });
+    }
+
     // Also add remaining players (beyond LOS check limit) as audible-only
     for (let i = enemyCheckCount; i < enemies.length; i++) {
       const player = enemies[i];

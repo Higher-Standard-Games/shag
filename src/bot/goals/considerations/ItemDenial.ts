@@ -36,7 +36,7 @@ export const ItemDenial: Consideration = {
     if (base <= 0) return 0;
 
     // Only worth contesting if there is somebody to contest it with.
-    const liveEnemies = ctx.state.players.filter((p) => p.relation === "enemy" && !p.isDead).length;
+    const liveEnemies = ctx.state.getScoreboardEnemyCount();
     if (liveEnemies === 0) return 0;
 
     const comfort = clamp01(ctx.self.health / HEALTH_COMFORT);

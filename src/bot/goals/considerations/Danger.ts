@@ -41,7 +41,7 @@ export const Danger: Consideration = {
       heat = Math.max(heat, 1 - age / DAMAGE_MEMORY_TICKS);
     }
 
-    const liveEnemies = state.players.filter((p) => p.relation === "enemy" && !p.isDead).length;
+    const liveEnemies = state.getKnownEnemyCount();
     const crowd = clamp01(liveEnemies / CROWD_SATURATION);
 
     const danger = clamp01(WEIGHT_DAMAGE * heat + WEIGHT_CROWD * crowd);

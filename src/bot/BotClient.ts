@@ -28,6 +28,7 @@ import { type BotDifficulty, type BotOptions, defaultGoalArbiterMode, InputButto
 import type { BotEpisodeRecorder } from "./BotEpisodeRecorder";
 import { applyFriendlyFireSafety } from "./BotFireSafety";
 import { BotGameState } from "./BotGameState";
+import { BotPerception } from "./BotPerception";
 import { initialBotReference, modelDigest } from "./BotRatingIdentity";
 import type { BotVision, VisionResult } from "./BotVision";
 import { StateMachineBrain } from "./StateMachineBrain";
@@ -94,6 +95,8 @@ export class BotClient extends EventEmitter {
   private _lastBotInput: BotInput | null = null; // Cached AI decision, re-sent at 125Hz
   /** Turns the view toward each decision's angles over the commands that carry it. */
   private _aim: BotAimController;
+  /** Narrows each snapshot to what this bot can see and hear. */
+  private _perception: BotPerception;
   /** A scripted movement being sent, one command per server tick (see `BotInput.script`). */
   private _script: { inputs: readonly BotInput[]; sent: number; startedAt: number } | null = null;
   /** The plain repeat of the last decision, paced by the clock rather than by timer firings. */
@@ -135,6 +138,7 @@ export class BotClient extends EventEmitter {
     // Default to StateMachineBrain (no TF.js dependency)
     this._brain = new StateMachineBrain(this._difficulty, options.goalArbiter ?? defaultGoalArbiterMode());
     this._aim = new BotAimController(this._difficulty);
+    this._perception = new BotPerception(this._difficulty);
 
     // If modelDir is specified, try to load HybridBrain (requires TF.js)
     this.referenceReady = options.modelDir
@@ -242,6 +246,7 @@ export class BotClient extends EventEmitter {
    */
   setVision(vision: BotVision | null): void {
     this._vision = vision ?? null;
+    this._perception.reset();
   }
 
   /**
@@ -365,6 +370,7 @@ export class BotClient extends EventEmitter {
     this._script = null;
     this._lastVisionResult = null;
     this._aim.clear();
+    this._perception.reset();
   }
 
   /** Update difficulty settings */
@@ -388,6 +394,7 @@ export class BotClient extends EventEmitter {
     this._difficulty = { ...reference.difficulty };
     this._brain.setDifficulty(this._difficulty);
     this._aim.setDifficulty(this._difficulty);
+    this._perception.setDifficulty(this._difficulty);
     this._setReference({ ...reference, model: this._ratingReference.model });
   }
 
@@ -486,8 +493,16 @@ export class BotClient extends EventEmitter {
       // Send acknowledgment
       this._sendAck(snapshot.tick);
 
-      // Update game state from snapshot
+      // Update game state from snapshot, then keep only what this bot perceives
       this._gameState.update(snapshot);
+      const vision = this._vision;
+      this._perception.perceive({
+        state: this._gameState,
+        snapshot,
+        viewYaw: this._aim.view?.yaw ?? this._gameState.self.yaw,
+        canSee: vision ? (from, to) => vision.canSeeFrom(from, to) : null,
+        pickups: vision?.mapKnowledge.pickupPositions ?? [],
+      });
 
       this._lastSnapshotTick = snapshot.tick;
 

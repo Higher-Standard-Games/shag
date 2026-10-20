@@ -43,6 +43,8 @@ const FIGHT_RANGE = 2000;
 const PICKUP_SEEK_RANGE = 1500;
 /** A bot timing an item waits this close to it, inside its pickup reach. */
 const TIMED_ITEM_HOLD_RADIUS = 40;
+/** How long a bot waiting at a timed item watches one way in. */
+const ENTRANCE_WATCH_TICKS = 375;
 const DODGE_REACT_TICKS = 30; // React to damage within last 30 ticks
 const HUNT_DIRECTION_CHANGE_INTERVAL = 180; // Change hunt direction every ~3 sec at 60Hz
 
@@ -918,7 +920,31 @@ export class StateMachineBrain extends BotBrain {
       return this._patrolSite(state, goal, radius);
     }
     this._sitePatrol = null;
+    const timed = !goal.directive && goal.respawnTick !== undefined && goal.respawnTick > state.tick;
+    if (timed && radius !== undefined && vec3Length(vec3Subtract(goal.position, state.self.position)) <= radius) {
+      return this._watchEntrances(state, goal.position);
+    }
     return this._navigateTo(state, goal.position, urgent, radius);
+  }
+
+  /**
+   * Wait by a timed item looking at the ways in, a few seconds each, rather
+   * than at the item: whoever comes for it arrives through one of them.
+   */
+  private _watchEntrances(state: BotGameState, item: Vec3): BotInput {
+    const input = this._holdPosition(state, item);
+    const graph = this._navGraph;
+    const node = graph?.findNearestNode(item);
+    if (!graph || !node) return input;
+    const ways = graph.edges
+      .filter((edge) => edge.to === node.id && edge.from !== node.id)
+      .map((edge) => graph.nodes.find((n) => n.id === edge.from)?.position)
+      .filter((position): position is Vec3 => position !== undefined)
+      .filter((position) => vec3Length(vec3Subtract(position, state.self.position)) > 64);
+    if (ways.length === 0) return input;
+    const way = ways[Math.floor(state.tick / ENTRANCE_WATCH_TICKS) % ways.length];
+    input.yaw = Math.atan2(way.x - state.self.position.x, way.z - state.self.position.z);
+    return input;
   }
 
   private _patrolSite(state: BotGameState, goal: BotGoal, radius: number): BotInput {

@@ -188,6 +188,22 @@ export function normalizeBotAmmo(raw: Record<string, unknown>): Record<string, n
   return out;
 }
 
+/** How close a projectile's path must pass to be worth dodging, in units. */
+export const PROJECTILE_THREAT_RADIUS = 150;
+/** How far ahead a projectile's path is checked, in seconds. */
+const PROJECTILE_THREAT_SECONDS = 1;
+
+/** Whether a projectile at `position` moving at `velocity` passes close to `target` soon. */
+export function isIncoming(target: Vec3, position: Vec3, velocity: Vec3): boolean {
+  const speedSq = velocity.x * velocity.x + velocity.y * velocity.y + velocity.z * velocity.z;
+  if (speedSq < 1) return false;
+  const to = vec3Subtract(target, position);
+  const t = (to.x * velocity.x + to.y * velocity.y + to.z * velocity.z) / speedSq;
+  if (t <= 0 || t > PROJECTILE_THREAT_SECONDS) return false;
+  const closest = vec3Add(position, vec3Scale(velocity, t));
+  return vec3Distance(closest, target) <= PROJECTILE_THREAT_RADIUS;
+}
+
 // ── Main BotGameState ───────────────────────────────────────────────────
 
 export class BotGameState {
@@ -222,8 +238,32 @@ export class BotGameState {
   pickups: VisiblePickup[] = [];
   projectiles: VisibleProjectile[] = [];
 
-  // Authoritative static-pickup availability, indexed by PickupEntry.id.
+  /**
+   * Enemies this bot only heard this snapshot, placed where the sound came
+   * from. Filled by BotPerception; `players` then holds only enemies it sees.
+   */
+  heardEnemies: VisiblePlayer[] = [];
+
+  /**
+   * Every player the snapshot carried, before perception narrows `players`.
+   * Only for what the game itself shows a player: a directive's target.
+   */
+  snapshotPlayers: VisiblePlayer[] = [];
+
+  /**
+   * Set by the client when BotPerception decides what this bot knows. The
+   * snapshot then only feeds perception: enemy memory and item timing come
+   * from what the bot saw or heard, not from the whole server state.
+   */
+  perceptionManaged = false;
+
+  /**
+   * Static-pickup availability, indexed by PickupEntry.id: the server's, or
+   * under perception what this bot believes (it saw or heard it go, or saw it
+   * back). The server's own stays in `serverPickupMask`.
+   */
   pickupActiveMask: readonly boolean[] = [];
+  serverPickupMask: readonly boolean[] = [];
 
   /**
    * Server tick at which each static pickup was last seen taken (its mask bit
@@ -269,6 +309,12 @@ export class BotGameState {
   // Player scores
   scores: Map<string, { score: number; deaths: number; team: string }> = new Map();
 
+  /**
+   * Major items (armour, Mega Health, powerups) this bot saw or heard each
+   * enemy take, by player id: who is likely stacked. Filled by BotPerception.
+   */
+  enemyMajorItems: Map<string, { type: string; kind: string; tick: number }> = new Map();
+
   // Last known enemy positions (persists across ticks for hunting)
   lastKnownEnemyPositions: Map<string, { position: Vec3; tick: number }> = new Map();
 
@@ -280,15 +326,19 @@ export class BotGameState {
     this.tick = snapshot.tick;
 
     // Clear per-tick data
-    const previousMask = this.pickupActiveMask;
-    this.pickupActiveMask = [...snapshot.pickupActiveMask];
-    this.pickupActiveMask.forEach((up, id) => {
-      if (up) this.itemTakenTick.delete(id);
-      else if (previousMask[id] === true) this.itemTakenTick.set(id, snapshot.tick);
-    });
+    this.serverPickupMask = [...snapshot.pickupActiveMask];
+    if (!this.perceptionManaged) {
+      const previousMask = this.pickupActiveMask;
+      this.pickupActiveMask = this.serverPickupMask;
+      this.pickupActiveMask.forEach((up, id) => {
+        if (up) this.itemTakenTick.delete(id);
+        else if (previousMask[id] === true) this.itemTakenTick.set(id, snapshot.tick);
+      });
+    }
     const selfPlayer = snapshot.players.get(this.selfPlayerId);
     this.self.team = selfPlayer?.team || "";
     this.players = [];
+    this.heardEnemies = [];
     this.pickups = [];
     this.projectiles = [];
     this.recentKills = [];
@@ -359,7 +409,10 @@ export class BotGameState {
         });
 
         // Allies must never enter combat memory or become fallback targets.
-        if (relation === "enemy") {
+        // Under perception, only what the bot sees or hears enters it.
+        if (this.perceptionManaged) {
+          if (relation === "ally") this.lastKnownEnemyPositions.delete(playerEntry.playerId);
+        } else if (relation === "enemy") {
           this.lastKnownEnemyPositions.set(playerEntry.playerId, {
             position,
             tick: this.tick,
@@ -367,6 +420,20 @@ export class BotGameState {
         } else {
           this.lastKnownEnemyPositions.delete(playerEntry.playerId);
         }
+        continue;
+      }
+
+      // Projectiles are `proj_<id>` entities. The owner is not replicated.
+      if (entityId.startsWith("proj_")) {
+        const distance = vec3Distance(this.self.position, position);
+        this.projectiles.push({
+          entityId,
+          position,
+          velocity: vel,
+          ownerId: "",
+          isThreat: isIncoming(this.self.position, position, vel),
+          distance,
+        });
         continue;
       }
 
@@ -514,7 +581,8 @@ export class BotGameState {
         case "weapon_fire": {
           const evt = event as any;
           // If someone fires near us, we "hear" it — track as last known position
-          if (evt.entityId !== this.selfEntityId) {
+          // (under perception, BotPerception decides what is heard)
+          if (evt.entityId !== this.selfEntityId && !this.perceptionManaged) {
             const firePos = { x: evt.originX, y: evt.originY, z: evt.originZ };
             // Find which player fired
             const firingPlayer = this.players.find((p) => p.entityId === evt.entityId);
@@ -533,6 +601,7 @@ export class BotGameState {
     // ── Sort by distance ─────────────────────────────────────────────
     this.players.sort((a, b) => a.distance - b.distance);
     this.pickups.sort((a, b) => a.distance - b.distance);
+    this.snapshotPlayers = [...this.players];
 
     // Prune stale enemy positions (older than 600 ticks)
     for (const [key, data] of this.lastKnownEnemyPositions) {
@@ -550,6 +619,33 @@ export class BotGameState {
   /** Get the nearest alive enemy */
   getNearestEnemy(): VisiblePlayer | null {
     return this.players.find((p) => p.relation === "enemy" && !p.isDead) || null;
+  }
+
+  /**
+   * Enemies this bot knows to be about: seen or heard now, or remembered from
+   * the last `withinTicks`. Without perception, every enemy in the snapshot.
+   */
+  getKnownEnemyCount(withinTicks: number = 10 * 125): number {
+    const known = new Set<string>();
+    for (const p of this.players) if (p.relation === "enemy" && !p.isDead) known.add(p.playerId);
+    for (const p of this.heardEnemies) known.add(p.playerId);
+    for (const [playerId, seen] of this.lastKnownEnemyPositions) {
+      if (this.tick - seen.tick <= withinTicks) known.add(playerId);
+    }
+    return known.size;
+  }
+
+  /** Opponents on the scoreboard, which every player can read, seen or not. */
+  getScoreboardEnemyCount(): number {
+    if (this.scores.size === 0) return this.getKnownEnemyCount();
+    let count = 0;
+    for (const [playerId, entry] of this.scores) {
+      if (playerId === this.selfPlayerId) continue;
+      if (onATeam(this.self.team) && entry.team === this.self.team) continue;
+      if (entry.team === "spectator" && onATeam(this.self.team)) continue;
+      count++;
+    }
+    return count;
   }
 
   /** Get the nearest pickup within a max distance */

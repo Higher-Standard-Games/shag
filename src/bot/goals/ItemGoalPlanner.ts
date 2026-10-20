@@ -106,8 +106,11 @@ function buildGates(blockedPickupIds: ReadonlySet<number>): GoalGate[] {
   ];
 }
 
-/** Lead window at full item timing: be at the item this long before it returns, at most. */
-const TIMING_LEAD_SECONDS = 5;
+/**
+ * Lead window at full item timing: be at the item this long before it returns,
+ * at most, to hold it against whoever comes for it.
+ */
+const TIMING_LEAD_SECONDS = 10;
 /** Travel speed assumed for timing, units per second (running, not sprinting). */
 const TIMING_TRAVEL_SPEED = 320;
 

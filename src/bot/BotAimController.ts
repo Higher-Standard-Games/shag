@@ -169,6 +169,11 @@ export class BotAimController {
     return this._yaw !== null;
   }
 
+  /** The view as last sent, or null before the first step. */
+  get view(): { yaw: number; pitch: number } | null {
+    return this._yaw ? { yaw: this._yaw.value, pitch: this._pitch.value } : null;
+  }
+
   /** Forget the view, as when the bot leaves the server. */
   clear(): void {
     this._yaw = null;
