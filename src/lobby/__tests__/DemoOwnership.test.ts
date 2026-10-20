@@ -112,6 +112,12 @@ it("publishes demo ownership only when ticketed accounts match a durable result"
       accountId,
       ws: { readyState: 1, send: (raw: string) => pages.push(JSON.parse(raw)) },
     });
+    // One-frame recordings are too short for any list, the owner's own included.
+    scanner.handleDemosList(reader(first.id), 64, "yours");
+    expect(pages.at(-1)).toMatchObject({ scope: "yours", demos: [] });
+    scanner.handleDemosList(reader(bystander.id), 64, "latest");
+    expect(pages.at(-1)?.demos).toEqual([]);
+    for (const demo of scanner._demoCache) demo.durationMs = MIN_LISTED_DEMO_MS;
     scanner.handleDemosList(reader(first.id), 64, "yours");
     expect(pages.at(-1)?.demos.map((demo) => demo.filename)).toEqual(
       expect.arrayContaining([path.basename(savedPath), path.basename(privatePath)]),
@@ -119,19 +125,15 @@ it("publishes demo ownership only when ticketed accounts match a durable result"
     expect(pages.at(-1)?.demos[0]).not.toHaveProperty("verifiedAccountIds");
     scanner.handleDemosList(reader(bystander.id), 64, "yours");
     expect(pages.at(-1)).toMatchObject({ scope: "yours", demos: [] });
-    // One-frame recordings are too short for the public list, but stay in "yours" above.
-    scanner.handleDemosList(reader(bystander.id), 64, "latest");
-    expect(pages.at(-1)?.demos).toEqual([]);
-    for (const demo of scanner._demoCache) demo.durationMs = MIN_LISTED_DEMO_MS;
     scanner.handleDemosList(reader(bystander.id), 64, "latest");
     expect(pages.at(-1)?.demos).toHaveLength(3);
 
     const verified = scanner._demoCache.find((demo) => demo.filename === path.basename(savedPath));
     if (!verified) throw new Error("Expected the verified recording in the scan");
-    verified.durationMs = 90_000;
+    verified.durationMs = 150_000;
     verified.date = Date.now() - 1_000;
     const privateEntry = scanner._demoCache.find((demo) => demo.filename === path.basename(privatePath))!;
-    privateEntry.durationMs = 90_000;
+    privateEntry.durationMs = 150_000;
     privateEntry.date = Date.now();
     // A durable legacy record alone proves ownership, but grants no skill rank.
     scanner.handleFeaturedGet(reader(first.id), { type: "featured:get", requestId: "records-only", limit: 5 });

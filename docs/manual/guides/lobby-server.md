@@ -486,10 +486,9 @@ stay in the archive and in their verified participants' **Your demos** list:
 the flag filters featured picks and does not restrict access to demo files.
 
 Recordings shorter than two minutes (`MIN_LISTED_DEMO_MS` in
-`src/lobby/LobbyServer.ts`) are left out of the public **Latest** list and the
-recent demos in `welcome`; featured picks already need a minute. They are
-usually one player alone on a map or a match abandoned at the start. The files
-stay on disk, and verified participants still find them under **Your demos**.
+`src/lobby/FeaturedDemos.ts`) are left out of every list: **Latest**, **Your
+demos**, featured picks and the recent demos in `welcome`. They are usually one
+player alone on a map or a match abandoned at the start. The files stay on disk.
 
 ## What it keeps
 

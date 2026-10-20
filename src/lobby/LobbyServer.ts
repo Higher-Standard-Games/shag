@@ -20,7 +20,7 @@ import { DemoReader } from "../shared/demo/DemoReader";
 import { BOT_ACCOUNT_PRESETS as BOT_PRESETS, type BotPreset } from "../shared/ranking/BotMatchRatingGroups";
 import { BOT_INVITE_PREPARATION_TIMEOUT_MS } from "../shared/ranking/BotPreparation";
 import { type BotReference, canonicalBotReference, sameBotReference } from "../shared/ranking/BotReference";
-import { selectFeaturedDemos } from "./FeaturedDemos";
+import { MIN_LISTED_DEMO_MS, selectFeaturedDemos } from "./FeaturedDemos";
 import { GameServerSpawner } from "./GameServerSpawner";
 import type { MatchResultStore } from "./MatchResultStore";
 import { PlayerStore } from "./PlayerStore";
@@ -47,6 +47,8 @@ import type {
   PlayerStatus,
   SettingsErrorCode,
 } from "./types";
+
+export { MIN_LISTED_DEMO_MS };
 
 // ============================================================================
 // Configuration
@@ -179,12 +181,6 @@ const LOBBY_FULL_RETRY_SEC = 60;
  * someone else in between.
  */
 const RETURN_GRACE_MS = 60_000;
-/**
- * Recordings shorter than this stay out of the public demo lists: they are
- * nearly always someone alone on a map or a match abandoned at the start. The
- * files are kept, and each player still sees their own under "Your demos".
- */
-export const MIN_LISTED_DEMO_MS = 2 * 60_000;
 /** WebSocket close code after a `lobby_full` answer. */
 export const LOBBY_FULL_CLOSE_CODE = 4008;
 
@@ -2192,7 +2188,7 @@ export class LobbyServer {
 
   // ── Demo Scanning ────────────────────────────────────────────
 
-  /** The demos everyone may browse: long enough to be a match (MIN_LISTED_DEMO_MS). */
+  /** The demos anyone may browse, their own included: long enough to be a match (MIN_LISTED_DEMO_MS). */
   private listedDemos(): DemoInfo[] {
     return this._demoCache.filter((demo) => demo.durationMs >= MIN_LISTED_DEMO_MS);
   }
@@ -2202,7 +2198,7 @@ export class LobbyServer {
     const scope = requestedScope === "yours" ? "yours" : "latest";
     const source =
       scope === "yours"
-        ? this._demoCache.filter(
+        ? this.listedDemos().filter(
             (demo) => player.accountId != null && this._demoOwnership.get(demo.filename)?.has(player.accountId),
           )
         : this.listedDemos();

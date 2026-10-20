@@ -16,7 +16,7 @@ function demo(filename: string, overrides: Partial<DemoInfo> = {}): DemoInfo {
     mapDisplayName: "Proving Grounds",
     gametype: "duel",
     players: ["One", "Two"],
-    durationMs: 90_000,
+    durationMs: 150_000,
     date: NOW - DAY,
     sizeMB: 1,
     ...overrides,
@@ -30,7 +30,7 @@ describe("featured demo selection", () => {
     const picks = selectFeaturedDemos(
       [
         demo("old", { date: NOW - 7 * DAY - 1 }),
-        demo("short", { durationMs: 59_999 }),
+        demo("short", { durationMs: 119_999 }),
         demo("solo", { players: ["One"] }),
         demo("duplicate-name", { players: ["One", "one"] }),
         demo("future", { date: NOW + 1 }),

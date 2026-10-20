@@ -2,7 +2,12 @@
 import type { DemoInfo, FeaturedDemoInfo } from "./types";
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-const MIN_DURATION_MS = 60_000;
+/**
+ * Recordings shorter than this stay out of every demo list, featured, latest
+ * and a player's own: they are nearly always someone alone on a map or a match
+ * abandoned at the start. The files are kept on disk.
+ */
+export const MIN_LISTED_DEMO_MS = 2 * 60_000;
 
 export interface FeaturedDemosQuery {
   gametype?: string;
@@ -26,7 +31,7 @@ export function selectFeaturedDemos(
       if (query.gametype && query.gametype !== "all" && mode !== query.gametype) return false;
       if (query.map && query.map !== "all" && demo.map !== query.map) return false;
       if (!Number.isSafeInteger(demo.date) || demo.date < now - WEEK_MS || demo.date > now) return false;
-      if (!Number.isSafeInteger(demo.durationMs) || demo.durationMs < MIN_DURATION_MS) return false;
+      if (!Number.isSafeInteger(demo.durationMs) || demo.durationMs < MIN_LISTED_DEMO_MS) return false;
       return new Set(demo.players.map((name) => name.trim().toLocaleLowerCase()).filter(Boolean)).size >= 2;
     })
     .sort((a, b) => b.date - a.date || a.filename.localeCompare(b.filename))
