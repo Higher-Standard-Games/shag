@@ -24,13 +24,14 @@ import { BotAimController } from "./BotAimController";
 import { type BotBrain, type BotInput, travelYaw } from "./BotBrain";
 // HybridBrain is imported dynamically — requires @tensorflow/tfjs-node native addon
 // import { HybridBrain } from './HybridBrain';
-import { type BotDifficulty, type BotOptions, defaultGoalArbiterMode, InputButtons } from "./BotConfig";
+import { type BotDifficulty, type BotOptions, defaultBotChat, defaultGoalArbiterMode, InputButtons } from "./BotConfig";
 import type { BotEpisodeRecorder } from "./BotEpisodeRecorder";
 import { applyFriendlyFireSafety } from "./BotFireSafety";
 import { BotGameState } from "./BotGameState";
 import { BotPerception } from "./BotPerception";
 import { initialBotReference, modelDigest } from "./BotRatingIdentity";
 import type { BotVision, VisionResult } from "./BotVision";
+import { BotChat } from "./chat/BotChat";
 import { StateMachineBrain } from "./StateMachineBrain";
 
 /** Most script commands sent in one timer firing, well under the server's input buffer. */
@@ -85,6 +86,7 @@ export class BotClient extends EventEmitter {
   private _brain: BotBrain;
   private _gameState: BotGameState;
   private _difficulty: BotDifficulty;
+  private readonly _chat: BotChat | null;
   private _ratingReference: BotReference;
   private _disposed = false;
   /** Resolves after model loading/fallback is known, before lobby authentication. */
@@ -129,6 +131,7 @@ export class BotClient extends EventEmitter {
 
     this.id = `bot_${Date.now()}_${Math.random().toString(36).substring(7)}`;
     this.name = options.name;
+    this._chat = (options.chat ?? defaultBotChat()) ? new BotChat(options.name) : null;
     this._team = options.team;
 
     // Resolve difficulty
@@ -503,6 +506,8 @@ export class BotClient extends EventEmitter {
         canSee: vision ? (from, to) => vision.canSeeFrom(from, to) : null,
         pickups: vision?.mapKnowledge.pickupPositions ?? [],
       });
+      this._brain.observe(this._gameState);
+      this._chatter();
 
       this._lastSnapshotTick = snapshot.tick;
 
@@ -680,6 +685,24 @@ export class BotClient extends EventEmitter {
       clearInterval(this._inputLoopTimer);
       this._inputLoopTimer = null;
     }
+  }
+
+  /** Lets chat see the match and the brain's kills and deaths, and sends a line that is ready. */
+  private _chatter(): void {
+    const events = this._brain.takeMoodEvents();
+    if (!this._chat) return;
+    const mood = this._brain.moodState;
+    this._chat.observe({
+      phase: this._gameState.matchState.phase,
+      timeRemaining: this._gameState.matchState.timeRemaining,
+      names: this._gameState.playerNames,
+      mood: mood?.mood ?? "calm",
+      killStreak: mood?.killStreak ?? 0,
+      deathStreak: mood?.deathStreak ?? 0,
+      events,
+    });
+    const line = this._chat.poll();
+    if (line) this._send(MessageCodec.encodeChat(line));
   }
 
   // ── Send Messages ─────────────────────────────────────────────────

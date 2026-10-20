@@ -353,6 +353,7 @@ export class BotTrainer {
           name: botName,
           difficulty: this._config.difficulty,
           modelDir: this._playable ? this._latestDir : undefined,
+          chat: false,
         });
         // Wire recorder into client so recordTick() is called each snapshot
         client.setRecorder(recorder);

@@ -140,6 +140,8 @@ export interface BotMatchState {
   teamRoles?: Record<string, string>;
   /** Round lifecycle for objective modes ("pre_plant"/"post_plant"). Phase 6. */
   roundState?: string;
+  /** Seconds left in the current phase (the match, while active). */
+  timeRemaining?: number;
 }
 
 export interface BotKillEvent {
@@ -299,6 +301,8 @@ export class BotGameState {
   /** Hits this bot landed: the victim's entity, the weapon and when. */
   recentHits: Array<{ victimEntityId: string; weaponId: string; damage: number; tick: number }> = [];
   recentKills: BotKillEvent[] = [];
+  /** Every player's name by entity id, bots included; for chat. */
+  readonly playerNames = new Map<string, string>();
 
   // Persistent map knowledge
   mapKnowledge: MapKnowledge = {
@@ -458,7 +462,9 @@ export class BotGameState {
     }
 
     // ── Process player scores ────────────────────────────────────────
+    this.playerNames.clear();
     for (const [playerId, player] of snapshot.players) {
+      if (player.entityId) this.playerNames.set(player.entityId, player.name);
       this.scores.set(playerId, {
         score: player.score,
         deaths: player.deaths,
@@ -478,6 +484,7 @@ export class BotGameState {
             phase: unknown;
             teamRoles: unknown;
             roundState: unknown;
+            timeRemaining: unknown;
           }>;
           const phase = typeof evt.phase === "number" ? evt.phase : 0;
           if (phase === MatchPhase.Active && this.matchState.phase !== MatchPhase.Active) {
@@ -491,6 +498,7 @@ export class BotGameState {
                 ? (evt.teamRoles as Record<string, string>)
                 : undefined,
             roundState: typeof evt.roundState === "string" ? evt.roundState : undefined,
+            timeRemaining: typeof evt.timeRemaining === "number" ? evt.timeRemaining : undefined,
           };
           break;
         }

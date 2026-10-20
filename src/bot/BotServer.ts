@@ -157,6 +157,7 @@ export class BotServer {
       team: options?.team,
       modelDir: options?.modelDir ?? this._modelDir,
       goalArbiter: options?.goalArbiter,
+      chat: options?.chat,
     };
 
     const bot = new BotClient(botOptions);
@@ -200,6 +201,7 @@ export class BotServer {
         team: options?.team,
         modelDir: options?.modelDir ?? this._modelDir,
         goalArbiter: options?.goalArbiter,
+        chat: options?.chat,
       },
       this._secret,
     );

@@ -101,6 +101,16 @@ export interface BotOptions {
    * the BotServer control API. Defaults from BOT_GOAL_ARBITER.
    */
   goalArbiter?: GoalArbiterMode;
+  /**
+   * Whether the bot says the odd line in chat to humans (bot/chat/BotChat.ts).
+   * Defaults to on unless BOT_CHAT=0; training turns it off.
+   */
+  chat?: boolean;
+}
+
+/** Bot chat's default: on unless the BOT_CHAT environment variable is 0. */
+export function defaultBotChat(): boolean {
+  return process.env.BOT_CHAT !== "0";
 }
 
 /**

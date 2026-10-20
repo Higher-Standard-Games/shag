@@ -20,7 +20,7 @@ import { BotCombatMovement, findHighGround } from "./BotCombatMovement";
 import { type BotDifficulty, defaultGoalArbiterMode, type GoalArbiterMode, InputButtons } from "./BotConfig";
 import type { BotGameState, Vec3, VisiblePlayer } from "./BotGameState";
 import { vec3Length, vec3Normalize, vec3Subtract } from "./BotGameState";
-import { BotMood, type MoodEvent } from "./BotMood";
+import { BotMood, type Mood, type MoodEvent } from "./BotMood";
 import { canInitiateSlide, PHYSICS } from "./BotMovementProfile";
 import { type BotNavGraph, type NavPath, type NavPathOptions, type NavStep, navEdgeKey } from "./BotNavGraph";
 import { BotSequenceRegistry, BotSequenceRuntime, type BotSequenceRuntimeTick } from "./BotSequence";
@@ -270,9 +270,6 @@ export class StateMachineBrain extends BotBrain {
     this._lastDecisionTick = state.tick;
     this._lastBotVision = vision ?? null;
     this._navGraph = navGraph ?? null;
-
-    this._moodEvents.push(...this._mood.update(state));
-    if (this._moodEvents.length > 20) this._moodEvents.splice(0, this._moodEvents.length - 20);
 
     // Dead → just wait (BotClient handles RequestSpawn)
     this._suppressTraversalAutomation = false;
@@ -637,13 +634,16 @@ export class StateMachineBrain extends BotBrain {
     return this._mood.aimDifficulty(this.difficulty);
   }
 
-  /** The bot's mood now. */
-  get mood(): BotMood {
-    return this._mood;
+  override observe(state: BotGameState): void {
+    this._moodEvents.push(...this._mood.update(state));
+    if (this._moodEvents.length > 20) this._moodEvents.splice(0, this._moodEvents.length - 20);
   }
 
-  /** Kills and deaths since the last call, oldest first. */
-  takeMoodEvents(): MoodEvent[] {
+  override get moodState(): { mood: Mood; killStreak: number; deathStreak: number } {
+    return { mood: this._mood.mood, killStreak: this._mood.killStreak, deathStreak: this._mood.deathStreak };
+  }
+
+  override takeMoodEvents(): MoodEvent[] {
     const events = this._moodEvents;
     this._moodEvents = [];
     return events;

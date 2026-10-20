@@ -11,6 +11,7 @@
 
 import type { BotDifficulty } from "./BotConfig";
 import type { BotGameState } from "./BotGameState";
+import type { Mood, MoodEvent } from "./BotMood";
 import type { BotNavGraph } from "./BotNavGraph";
 import type { BotVision, VisionResult } from "./BotVision";
 
@@ -117,5 +118,18 @@ export abstract class BotBrain {
   /** The settings the view should turn with now; a mood can loosen them. */
   get aimDifficulty(): BotDifficulty {
     return this.difficulty;
+  }
+
+  /** Every snapshot, dead or alive, before `decide`: kills and deaths for mood and chat. */
+  observe(_state: BotGameState): void {}
+
+  /** Kills and deaths seen since the last call, oldest first. */
+  takeMoodEvents(): MoodEvent[] {
+    return [];
+  }
+
+  /** The mood and streaks, or null for a brain without moods. */
+  get moodState(): { mood: Mood; killStreak: number; deathStreak: number } | null {
+    return null;
   }
 }

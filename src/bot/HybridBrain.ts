@@ -22,6 +22,7 @@ import { BotBrain, BotState } from "./BotBrain";
 import type { BotDifficulty, GoalArbiterMode } from "./BotConfig";
 import { InputButtons } from "./BotConfig";
 import type { BotGameState } from "./BotGameState";
+import type { Mood, MoodEvent } from "./BotMood";
 import { canInitiateSlide } from "./BotMovementProfile";
 import type { BotVision, VisionResult } from "./BotVision";
 import { getWeaponProfile } from "./BotWeaponProfile";
@@ -310,6 +311,22 @@ export class HybridBrain extends BotBrain {
   get hasModels(): boolean {
     return this._tacticalModel !== null || this._combatModel !== null;
   }
+  override get aimDifficulty(): BotDifficulty {
+    return this._stateMachine.aimDifficulty;
+  }
+
+  override observe(state: BotGameState): void {
+    this._stateMachine.observe(state);
+  }
+
+  override takeMoodEvents(): MoodEvent[] {
+    return this._stateMachine.takeMoodEvents();
+  }
+
+  override get moodState(): { mood: Mood; killStreak: number; deathStreak: number } | null {
+    return this._stateMachine.moodState;
+  }
+
   override getNavigationDebug(): string | null {
     return this._stateMachine.getNavigationDebug();
   }
