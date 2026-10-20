@@ -1,6 +1,6 @@
 import type { BotInput } from "./BotBrain";
 import type { BotDifficulty } from "./BotConfig";
-import type { BotGameState, Vec3 } from "./BotGameState";
+import type { BotGameState, Vec3, VisiblePlayer } from "./BotGameState";
 import type { MovementOpportunity } from "./BotMovementAnalyzer";
 import type { BotNavGraph, NavStep } from "./BotNavGraph";
 import type { BotVision, VisionResult } from "./BotVision";
@@ -27,6 +27,8 @@ export interface BotSequenceContext {
   /** Brain-owned route-shape, availability, and cooldown result. */
   itemSlideReady?: boolean;
 
+  /** The enemy a combat sequence (the slide-blade lunge) goes for. */
+  combatTarget?: VisiblePlayer | null;
   /** Brain-owned route-shape/safety result for starting a strafe-jump hop. */
   routeStrafeReady?: boolean;
   /** Deterministic fallback side when route error does not prefer one. */

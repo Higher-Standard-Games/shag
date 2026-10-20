@@ -31,6 +31,7 @@ import { ItemSlideApproachSequence } from "./sequences/ItemSlideApproachSequence
 import { LearnedRouteSequence } from "./sequences/LearnedRouteSequence";
 import { RouteCrouchslideSequence } from "./sequences/RouteCrouchslideSequence";
 import { RouteStrafeJumpSequence } from "./sequences/RouteStrafeJumpSequence";
+import { canLunge, SlideBladeSequence } from "./sequences/SlideBladeSequence";
 import { TraverseJumppadSequence } from "./sequences/TraverseJumppadSequence";
 import { TraverseTeleporterSequence } from "./sequences/TraverseTeleporterSequence";
 import { ValidatedJumpSequence } from "./sequences/ValidatedJumpSequence";
@@ -46,6 +47,32 @@ const TIMED_ITEM_HOLD_RADIUS = 40;
 /** How long a bot waiting at a timed item watches one way in. */
 const ENTRANCE_WATCH_TICKS = 375;
 const DODGE_REACT_TICKS = 30; // React to damage within last 30 ticks
+/** The slide's own cooldown plus its length, in server ticks, from the start of the last one. */
+const SLIDE_COOLDOWN_TICKS = Math.ceil(((PHYSICS.SLIDE_COOLDOWN + PHYSICS.SLIDE_DURATION) / 1000) * 125);
+/** A lunge chance passed up is not rolled for again this soon. */
+const LUNGE_REROLL_TICKS = 125;
+/** Too hurt to dive in with a blade. */
+const LUNGE_MIN_HEALTH = 30;
+/** Odds of taking a lunge chance, by dodgeSkill: never below 0.35 (Easy), 25% Medium, 60% Hard, 85% Insane. */
+const LUNGE_CHANCE_POINTS: readonly (readonly [number, number])[] = [
+  [0.35, 0],
+  [0.4, 0.25],
+  [0.7, 0.6],
+  [0.9, 0.85],
+];
+
+export function lungeChance(dodgeSkill: number): number {
+  const points = LUNGE_CHANCE_POINTS;
+  if (dodgeSkill < points[0][0]) return 0;
+  for (let i = 1; i < points.length; i++) {
+    const [x1, y1] = points[i];
+    if (dodgeSkill <= x1) {
+      const [x0, y0] = points[i - 1];
+      return y0 + ((y1 - y0) * (dodgeSkill - x0)) / (x1 - x0);
+    }
+  }
+  return points[points.length - 1][1];
+}
 const HUNT_DIRECTION_CHANGE_INTERVAL = 180; // Change hunt direction every ~3 sec at 60Hz
 
 const MELEE_RANGE = 150;
@@ -98,6 +125,10 @@ export class StateMachineBrain extends BotBrain {
   private _huntYaw: number = 0;
   private _huntTimer: number = 0;
   private _stateTimer: number = 0;
+
+  // Slide-blade lunge: when this bot last slid, and when it may roll for a lunge again
+  private _lastSlideTick = Number.NEGATIVE_INFINITY;
+  private _lungeRollAfterTick = 0;
 
   // Movement variety
   private _strafeDirection: number = 1; // 1 or -1
@@ -167,6 +198,7 @@ export class StateMachineBrain extends BotBrain {
     this._sequenceRegistry.register(new RouteStrafeJumpSequence());
     this._sequenceRegistry.register(new TraverseJumppadSequence());
     this._sequenceRegistry.register(new LearnedRouteSequence());
+    this._sequenceRegistry.register(new SlideBladeSequence());
   }
 
   // ── Main Decision Loop ────────────────────────────────────────────
@@ -392,12 +424,34 @@ export class StateMachineBrain extends BotBrain {
 
   // ── FIGHT State ───────────────────────────────────────────────────
 
+  /**
+   * Maybe lunge at `enemy` with a crouch-slide and the blade. Each chance is
+   * rolled once (then not again for a second), at odds from dodgeSkill: never
+   * on Easy, most of the time on Insane. The slide's own cooldown is kept here,
+   * from when this bot last stopped sliding.
+   */
+  private _tryStartSlideBlade(state: BotGameState, enemy: VisiblePlayer): BotInput | null {
+    if (state.self.isSliding) this._lastSlideTick = state.tick;
+    if (this._sequenceRuntime.isActive || state.tick < this._lungeRollAfterTick) return null;
+    if (state.tick - this._lastSlideTick < SLIDE_COOLDOWN_TICKS) return null;
+    if (state.self.health < LUNGE_MIN_HEALTH) return null;
+    const context = { ...this._getSequenceContext(state, null), combatTarget: enemy };
+    if (!canLunge(context, enemy)) return null;
+    this._lungeRollAfterTick = state.tick + LUNGE_REROLL_TICKS;
+    if (Math.random() >= lungeChance(this.difficulty.dodgeSkill)) return null;
+    if (!this._sequenceRuntime.start("combat_slide_blade", context)) return null;
+    return this._tickActiveSequence(state);
+  }
+
   private _executeFight(state: BotGameState): BotInput {
     // Find strongest enemy (from vision or fallback)
     const enemy = this._lastVision?.visibleEnemies[0]?.player ?? state.getNearestEnemy();
     if (!enemy) {
       return this._executeHunt(state);
     }
+
+    const lunge = this._tryStartSlideBlade(state, enemy);
+    if (lunge) return lunge;
 
     // Select best weapon for distance (profile-based). The server switches before
     // firing, so combat behavior can use the selected profile immediately.
