@@ -3,9 +3,9 @@
  * and the blob the lobby keeps for them (see lobby/SettingsStore.ts).
  *
  * Synced: key and command bindings, game preferences (the cl_, cg_, s_ and m_
- * cvars), HUD layout, UI theme and the remembered loadouts. Graphics stay per
- * device: r_* and quality cvars and engine.renderVars never leave the browser,
- * nor do developer, server and debug cvars, settings that depend on this
+ * cvars, and colour-blindness correction), HUD layout, UI theme and the
+ * remembered loadouts. Graphics stay per device: other r_* and quality cvars
+ * and engine.renderVars never leave the browser, nor do developer, server and debug cvars, settings that depend on this
  * device's speed or connection, the account key, caches or editor state.
  *
  * Pure data and filters, shared by the lobby (size cap) and the client.
@@ -44,9 +44,13 @@ const DEVICE_CVARS = new Set([
   "cl_remotehitbox",
 ]);
 
+/** Renderer cvars that are about the player's eyes, not this device's speed. */
+const PLAYER_RENDER_CVARS = new Set(["r_colorcorrection", "r_colorcorrection_strength"]);
+
 /** Whether a persisted cvar follows the account rather than staying on this device. */
 export function isSyncedCvar(name: string): boolean {
   const lower = name.toLowerCase();
+  if (PLAYER_RENDER_CVARS.has(lower)) return true;
   if (DEVICE_CVARS.has(lower) || lower.startsWith("cl_debug")) return false;
   return SYNCED_CVAR_PREFIXES.some((prefix) => lower.startsWith(prefix));
 }

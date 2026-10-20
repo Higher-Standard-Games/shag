@@ -16,6 +16,19 @@ Water has its own set inside those categories: `r_water` and `r_water_quality` s
 
 Use `render list` for the authoritative current list, defaults, ranges, and descriptions. Type-only future names in `RenderVarName` are not necessarily registered.
 
+`r_colorcorrection` is a colour-blindness aid: 0 is off, 1 protanopia
+(red-weak), 2 deuteranopia (green-weak), 3 tritanopia (blue-yellow). It
+daltonizes the final frame, moving the colour differences that eye cannot see
+into ones it can, and `r_colorcorrection_strength` (0–1, default 1) scales the
+shift. `r_colorsimulation` (same values, not saved) shows the screen as that eye
+sees it, for checking a map; with both set it shows what a colour-blind player
+sees with correction on. All three apply at once, from the console mid-match
+too. They are one 3×3 matrix in a single pass that `ColorCorrectionPostProcess`
+keeps last on the camera, and with both at 0 there is no pass. Video → Advanced
+offers the correction as **Color blindness** with a strength slider. Unlike other
+`r_` variables the correction follows the player's account, since it is about
+their eyes rather than the device.
+
 `r_picmip` controls static opaque BSP base textures on the next map load. The
 default is 0 (full resolution); 1 halves both dimensions, 2 quarters them, and
 8 selects flat color. The Video → Advanced section exposes Full, Soft, Softer,

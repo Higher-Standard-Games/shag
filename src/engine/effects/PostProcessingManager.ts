@@ -20,6 +20,7 @@ import type { Scene } from "@babylonjs/core/scene";
 import { Cvar } from "../core/Cvar";
 import { EventBus } from "../core/EventBus";
 import { CelOutlinePostProcess } from "./CelOutlinePostProcess";
+import { asColorVisionType, ColorCorrectionPostProcess } from "./ColorCorrectionPostProcess";
 
 export interface PostProcessingSettings {
   // Master toggle
@@ -151,6 +152,7 @@ export class PostProcessingManager {
     this.createPipeline();
     this.setupEventListeners();
     this.initCelOutline(scene, camera);
+    this.initColorCorrection(scene, camera);
 
     console.log("[PostProcessingManager] Initialized with default settings");
   }
@@ -195,6 +197,7 @@ export class PostProcessingManager {
 
     // Rebind cel outline to new camera
     CelOutlinePostProcess.getInstance().setCamera(camera);
+    ColorCorrectionPostProcess.getInstance().setCamera(camera);
 
     // Recreate the pipelines to ensure they are attached to the new camera
     if (this.pipeline) {
@@ -243,6 +246,7 @@ export class PostProcessingManager {
       this.pipeline.imageProcessingEnabled = false;
       this.pipeline.chromaticAberrationEnabled = false;
       this.updateSSAO();
+      ColorCorrectionPostProcess.getInstance().keepLast();
       return;
     }
 
@@ -283,6 +287,7 @@ export class PostProcessingManager {
 
     // SSAO (separate pipeline)
     this.updateSSAO();
+    ColorCorrectionPostProcess.getInstance().keepLast();
   }
 
   /**
@@ -519,6 +524,7 @@ export class PostProcessingManager {
       this.ssaoPipeline = null;
     }
     CelOutlinePostProcess.getInstance().dispose();
+    ColorCorrectionPostProcess.getInstance().dispose();
     if (this._cameraChangeUnsub) {
       this._cameraChangeUnsub();
       this._cameraChangeUnsub = null;
@@ -527,6 +533,45 @@ export class PostProcessingManager {
     this.scene = null;
     this.camera = null;
     console.log("[PostProcessingManager] Disposed");
+  }
+
+  // ==================== Colour-blindness correction ====================
+
+  /** Register r_colorcorrection and friends; they apply at once, also mid-match from the console. */
+  private initColorCorrection(scene: Scene, camera: Camera | null): void {
+    const pass = ColorCorrectionPostProcess.getInstance();
+    pass.init(scene, camera);
+    const apply = () =>
+      pass.set(
+        asColorVisionType(Cvar.get("r_colorcorrection")),
+        Cvar.getNumber("r_colorcorrection_strength"),
+        asColorVisionType(Cvar.get("r_colorsimulation")),
+      );
+
+    Cvar.register("r_colorcorrection", 0, {
+      type: "int",
+      min: 0,
+      max: 3,
+      description: "Colour-blindness correction: 0 off, 1 protanopia, 2 deuteranopia, 3 tritanopia",
+      onChange: apply,
+    });
+    Cvar.register("r_colorcorrection_strength", 1, {
+      type: "float",
+      min: 0,
+      max: 1,
+      description: "How strongly r_colorcorrection shifts colours (0-1)",
+      onChange: apply,
+    });
+    Cvar.register("r_colorsimulation", 0, {
+      type: "int",
+      min: 0,
+      max: 3,
+      persist: false,
+      description:
+        "Show the screen as colour-blind eyes see it, for checking maps: 1 protanopia, 2 deuteranopia, 3 tritanopia",
+      onChange: apply,
+    });
+    apply();
   }
 
   // ==================== Cel Outline ====================
@@ -544,7 +589,10 @@ export class PostProcessingManager {
       min: 0,
       max: 1,
       description: "Enable cel-shading outlines (0/1)",
-      onChange: (value) => cel.setEnabled(!!value),
+      onChange: (value) => {
+        cel.setEnabled(!!value);
+        ColorCorrectionPostProcess.getInstance().keepLast();
+      },
     });
 
     Cvar.register("r_cel_thickness", 1.5, {
