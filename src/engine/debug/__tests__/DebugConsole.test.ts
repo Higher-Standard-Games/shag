@@ -133,6 +133,7 @@ describe("DebugConsole input focus", () => {
     consoleUi.enable();
     consoleUi.open();
     expect(document.activeElement?.classList.contains("debug-console-input")).toBe(true);
+    consoleUi.close();
   });
 
   it("takes focus back from a menu that opens when pointer lock is released", async () => {
