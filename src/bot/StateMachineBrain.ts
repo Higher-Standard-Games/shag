@@ -20,6 +20,7 @@ import { BotCombatMovement, findHighGround } from "./BotCombatMovement";
 import { type BotDifficulty, defaultGoalArbiterMode, type GoalArbiterMode, InputButtons } from "./BotConfig";
 import type { BotGameState, Vec3, VisiblePlayer } from "./BotGameState";
 import { vec3Length, vec3Normalize, vec3Subtract } from "./BotGameState";
+import { BotMood, type MoodEvent } from "./BotMood";
 import { canInitiateSlide, PHYSICS } from "./BotMovementProfile";
 import { type BotNavGraph, type NavPath, type NavPathOptions, type NavStep, navEdgeKey } from "./BotNavGraph";
 import { BotSequenceRegistry, BotSequenceRuntime, type BotSequenceRuntimeTick } from "./BotSequence";
@@ -60,6 +61,9 @@ const HIGH_GROUND_SEARCH_TICKS = 250;
 /** A heard enemy this close gets the gun for its distance readied, held this long. */
 const READY_RANGE = 1500;
 const READY_TICKS = 250;
+/** How far off a wild shot goes, and how far an item may be to glance at. */
+const WILD_SHOT_OFFSET = (5 * Math.PI) / 180;
+const ITEM_GLANCE_RANGE = 1200;
 /** Odds of taking a lunge chance, by dodgeSkill: never below 0.35 (Easy), 25% Medium, 60% Hard, 85% Insane. */
 const LUNGE_CHANCE_POINTS: readonly (readonly [number, number])[] = [
   [0.35, 0],
@@ -138,6 +142,9 @@ export class StateMachineBrain extends BotBrain {
   private _lungeRollAfterTick = 0;
   private readonly _combatMovement = new BotCombatMovement();
   private readonly _weaponCombos = new BotWeaponCombos();
+  private readonly _mood = new BotMood();
+  /** Kills and deaths since the last `takeMoodEvents`, for chat. */
+  private _moodEvents: MoodEvent[] = [];
   /** The gun got out for an enemy heard but not yet seen, and until when. */
   private _readyWeapon: { weapon: string; until: number } | null = null;
   private _readyRollTick = 0;
@@ -264,6 +271,9 @@ export class StateMachineBrain extends BotBrain {
     this._lastBotVision = vision ?? null;
     this._navGraph = navGraph ?? null;
 
+    this._moodEvents.push(...this._mood.update(state));
+    if (this._moodEvents.length > 20) this._moodEvents.splice(0, this._moodEvents.length - 20);
+
     // Dead → just wait (BotClient handles RequestSpawn)
     this._suppressTraversalAutomation = false;
     if (state.self.isDead) {
@@ -279,6 +289,7 @@ export class StateMachineBrain extends BotBrain {
       this._sitePatrol = null;
       this._combatMovement.reset();
       this._weaponCombos.reset();
+      this._mood.endFight();
       this._readyWeapon = null;
       this._highGroundSpot = null;
       // Clear vision cache on death
@@ -314,6 +325,12 @@ export class StateMachineBrain extends BotBrain {
     }
 
     if (stateChanged) {
+      const inCombat = (s: BotState) => s === BotState.FIGHT || s === BotState.CHASE || s === BotState.DODGE;
+      if (newState === BotState.FIGHT && !inCombat(this.currentState)) {
+        this._mood.startFight(state.tick, this.difficulty.mistakeRate);
+      } else if (!inCombat(newState)) {
+        this._mood.endFight();
+      }
       this.currentState = newState;
       this._stateTimer = 0;
       this._currentPath = null; // Clear path on state change
@@ -403,7 +420,7 @@ export class StateMachineBrain extends BotBrain {
         return BotState.FIGHT;
       }
       // Can't see attacker → dodge/retreat
-      if (state.self.health < RETREAT_HEALTH_THRESHOLD) {
+      if (state.self.health < this._mood.retreatHealth(RETREAT_HEALTH_THRESHOLD)) {
         return BotState.RETREAT;
       }
       return BotState.DODGE;
@@ -415,12 +432,13 @@ export class StateMachineBrain extends BotBrain {
     }
 
     // Priority 2.5: Lost sight of enemy but tracking them → chase!
-    if (this._lastVision?.chaseTarget) {
+    // ...unless this fight's mistake is to forget them the moment they are gone
+    if (this._lastVision?.chaseTarget && this._mood.mistake(state.tick) !== "forget") {
       return BotState.CHASE;
     }
 
     // Priority 3: Low health → retreat to find health
-    if (state.self.health < LOW_HEALTH_THRESHOLD) {
+    if (state.self.health < this._mood.retreatHealth(LOW_HEALTH_THRESHOLD)) {
       const hasPickup = state.getNearestPickup(PICKUP_SEEK_RANGE);
       if (hasPickup) {
         return BotState.RETREAT;
@@ -485,8 +503,19 @@ export class StateMachineBrain extends BotBrain {
     let selectedWeaponId = weaponSlot > 0 ? state.self.weapons[weaponSlot - 1] : state.self.currentWeapon;
     let currentProfile = selectedProfile.id === "unknown" ? getWeaponProfile(selectedWeaponId) : selectedProfile;
 
+    const mistake = this._mood.mistake(state.tick);
+    if (mistake === "wrong_weapon" && state.self.currentWeapon) {
+      // Fights on with whatever was out
+      weaponSlot = 0;
+      selectedWeaponId = state.self.currentWeapon;
+      currentProfile = getWeaponProfile(selectedWeaponId);
+    }
+
     // A combo (rocket into rail, riotgun or blade; a rail between plasma) overrides the distance pick
-    const combo = this._weaponCombos.choose(state, enemy, this.difficulty.predictionSkill, selectedWeaponId);
+    const combo =
+      mistake === "wrong_weapon"
+        ? null
+        : this._weaponCombos.choose(state, enemy, this.difficulty.predictionSkill, selectedWeaponId);
     if (combo) {
       weaponSlot = slotFor(state, combo);
       selectedWeaponId = combo;
@@ -496,7 +525,7 @@ export class StateMachineBrain extends BotBrain {
     // Aim at enemy - use projectile prediction if needed.
     const useProjectileAim =
       (currentProfile.isProjectile || currentProfile.hasChargedProjectile) && currentProfile.projectileSpeed > 0;
-    const aim = useProjectileAim
+    let aim = useProjectileAim
       ? this._aimAtTargetWithLead(state, enemy, currentProfile)
       : this._aimAtTarget(state, enemy);
 
@@ -507,7 +536,21 @@ export class StateMachineBrain extends BotBrain {
 
     // Build buttons
     let buttons = 0;
-    const wantsFire = this._hasAmmoForWeapon(state, selectedWeaponId);
+    let wantsFire = this._hasAmmoForWeapon(state, selectedWeaponId);
+
+    if (mistake === "wild_shot") {
+      // Fires before the aim is on: a few degrees off to one side
+      const side = this._mood.mistakeTick % 2 === 0 ? 1 : -1;
+      aim = { ...aim, yaw: aim.yaw + side * WILD_SHOT_OFFSET };
+    } else if (mistake === "item_glance") {
+      const item = state.getNearestPickup(ITEM_GLANCE_RANGE);
+      if (item) {
+        const dx = item.position.x - state.self.position.x;
+        const dz = item.position.z - state.self.position.z;
+        aim = { yaw: Math.atan2(dx, dz), pitch: 0 };
+        wantsFire = false;
+      }
+    }
 
     // Weapon-aware combat behavior
     if (currentProfile.isMelee) {
@@ -588,6 +631,22 @@ export class StateMachineBrain extends BotBrain {
       buttons,
       weaponSlot,
     };
+  }
+
+  override get aimDifficulty(): BotDifficulty {
+    return this._mood.aimDifficulty(this.difficulty);
+  }
+
+  /** The bot's mood now. */
+  get mood(): BotMood {
+    return this._mood;
+  }
+
+  /** Kills and deaths since the last call, oldest first. */
+  takeMoodEvents(): MoodEvent[] {
+    const events = this._moodEvents;
+    this._moodEvents = [];
+    return events;
   }
 
   /**

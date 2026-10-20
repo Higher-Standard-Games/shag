@@ -563,6 +563,7 @@ export class BotClient extends EventEmitter {
       }
 
       let input = this._brain.decide(this._gameState, this._vision, this._lastVisionResult, this._navGraph);
+      this._aim.setDifficulty(this._brain.aimDifficulty);
       const fireSafety = applyFriendlyFireSafety(input, this._gameState);
       input = fireSafety.input;
       if (fireSafety.suppressed) {

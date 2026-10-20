@@ -113,4 +113,9 @@ export abstract class BotBrain {
   setDifficulty(difficulty: BotDifficulty): void {
     this.difficulty = difficulty;
   }
+
+  /** The settings the view should turn with now; a mood can loosen them. */
+  get aimDifficulty(): BotDifficulty {
+    return this.difficulty;
+  }
 }
