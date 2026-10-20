@@ -2,25 +2,28 @@ import type { BotInput } from "../BotBrain";
 import { InputButtons } from "../BotConfig";
 import type { Vec3 } from "../BotGameState";
 import type { NavTriggerMetadata } from "../BotNavGraph";
-import type { BotSequence, BotSequenceContext, BotSequenceState, BotSequenceTick } from "../BotSequence";
+import {
+  type BotSequence,
+  type BotSequenceContext,
+  type BotSequenceState,
+  type BotSequenceTick,
+  steerToward,
+} from "../BotSequence";
 
 const TELEPORT_EXIT_LIFT = 25;
 const EXIT_HORIZONTAL_TOLERANCE = 72;
 const EXIT_VERTICAL_TOLERANCE = 72;
 const ACTIVATION_CONFIRM_TICKS = 40;
 
-function yawToward(from: Vec3, to: Vec3, fallback: number): number {
-  const dx = to.x - from.x;
-  const dz = to.z - from.z;
-  return Math.hypot(dx, dz) < 1 ? fallback : Math.atan2(dx, dz);
-}
+/** Closer than this to where it is walking, keep the view: the bearing swings as the bot arrives. */
+const HOLD_VIEW_WITHIN = 48;
 
 function preciseForward(context: BotSequenceContext, target: Vec3, fallbackYaw?: number): BotInput {
   const self = context.state.self;
   return {
     direction: { x: 0, y: 0, z: 1 },
     pitch: self.pitch,
-    yaw: yawToward(self.position, target, fallbackYaw ?? self.yaw),
+    ...steerToward({ position: self.position, yaw: fallbackYaw ?? self.yaw }, target, HOLD_VIEW_WITHIN),
     buttons: InputButtons.FORWARD,
     weaponSlot: 0,
   };

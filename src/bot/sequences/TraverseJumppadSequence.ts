@@ -2,7 +2,13 @@ import type { BotInput } from "../BotBrain";
 import { InputButtons } from "../BotConfig";
 import type { Vec3 } from "../BotGameState";
 import type { NavTriggerMetadata } from "../BotNavGraph";
-import type { BotSequence, BotSequenceContext, BotSequenceState, BotSequenceTick } from "../BotSequence";
+import {
+  type BotSequence,
+  type BotSequenceContext,
+  type BotSequenceState,
+  type BotSequenceTick,
+  steerToward,
+} from "../BotSequence";
 
 const LAUNCH_CONFIRM_TICKS = 40;
 const FLIGHT_COMMIT_TICKS = 180;
@@ -14,21 +20,23 @@ const LANDING_HORIZONTAL_TOLERANCE = 96;
 /** Origin height above a node on the surface. */
 const LANDING_ORIGIN_LIFT = 24;
 
-function yawToward(from: Vec3, to: Vec3, fallback: number): number {
-  const dx = to.x - from.x;
-  const dz = to.z - from.z;
-  return Math.hypot(dx, dz) < 1 ? fallback : Math.atan2(dx, dz);
-}
+/** Walking onto the pad: closer than this to its centre, keep the view. */
+const PAD_HOLD_VIEW_WITHIN = 48;
 
-function forwardInput(context: BotSequenceContext, target: Vec3): BotInput {
+function forwardInput(context: BotSequenceContext, target: Vec3, holdWithin = PAD_HOLD_VIEW_WITHIN): BotInput {
   const self = context.state.self;
   return {
     direction: { x: 0, y: 0, z: 1 },
     pitch: self.pitch,
-    yaw: yawToward(self.position, target, self.yaw),
+    ...steerToward(self, target, holdWithin),
     buttons: InputButtons.FORWARD,
     weaponSlot: 0,
   };
+}
+
+/** In flight: steer for the landing, but turn the view only toward a landing still far off. */
+function flightInput(context: BotSequenceContext, landing: Vec3): BotInput {
+  return forwardInput(context, landing, TARGET_HORIZONTAL_TOLERANCE);
 }
 
 function landedAt(position: Vec3, landing: Vec3): boolean {
@@ -119,21 +127,21 @@ export class TraverseJumppadSequence implements BotSequence {
     if (launchTick !== null) {
       if (reachedTarget(self.position, trigger) || (self.isGrounded && landedAt(self.position, landing))) {
         return {
-          input: forwardInput(context, landing),
+          input: flightInput(context, landing),
           status: "succeeded",
           phase: "target_verified",
         };
       }
       if (self.isGrounded && context.state.tick > launchTick) {
         return {
-          input: forwardInput(context, landing),
+          input: flightInput(context, landing),
           status: "failed",
           phase: "airborne",
           reason: "jumppad_landed_short",
         };
       }
       return {
-        input: forwardInput(context, landing),
+        input: flightInput(context, landing),
         status: "running",
         phase: "airborne",
       };
@@ -142,7 +150,7 @@ export class TraverseJumppadSequence implements BotSequence {
     if (state.data.launchArmed === true && !self.isGrounded && self.velocity.y >= MIN_LAUNCH_VERTICAL_SPEED) {
       state.data.launchTick = context.state.tick;
       return {
-        input: forwardInput(context, landing),
+        input: flightInput(context, landing),
         status: "running",
         phase: "airborne",
         commitForTicks: FLIGHT_COMMIT_TICKS,

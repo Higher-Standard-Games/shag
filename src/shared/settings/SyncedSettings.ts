@@ -5,8 +5,9 @@
  * Synced: key and command bindings, game preferences (the cl_, cg_, s_ and m_
  * cvars, and colour-blindness correction), HUD layout, UI theme and the
  * remembered loadouts. Graphics stay per device: other r_* and quality cvars
- * and engine.renderVars never leave the browser, nor do developer, server and debug cvars, settings that depend on this
- * device's speed or connection, the account key, caches or editor state.
+ * and engine.renderVars never leave the browser, nor do developer, server and
+ * debug cvars, settings that depend on this device's speed or connection, the
+ * account key, caches or editor state.
  *
  * Pure data and filters, shared by the lobby (size cap) and the client.
  */

@@ -317,6 +317,39 @@ describe("StateMachineBrain traversal executors", () => {
     expect(brain.isSequenceActive()).toBe(false);
   });
 
+  it("looks ahead round a corner while still walking to it", () => {
+    const brain = new StateMachineBrain(difficulty);
+    const state = makeState({ position: { x: 0, y: 0, z: 250 }, velocity: { x: 0, y: 0, z: 320 } });
+    state.players = [];
+    const start = { id: 0, type: "spawn" as const, position: { x: 0, y: 0, z: 0 } };
+    const corner = { id: 1, type: "floor" as const, position: { x: 0, y: 0, z: 400 } };
+    const exit = { id: 2, type: "floor" as const, position: { x: 400, y: 0, z: 400 } };
+    const walk = (from: NavPath["nodes"][number], to: NavPath["nodes"][number]) => ({
+      from,
+      to,
+      type: "walk" as const,
+      cost: 400,
+      horizontalDistance: 400,
+      heightDelta: 0,
+      requiresPreciseApproach: false,
+    });
+    const harness = brain as unknown as TraversalHarness;
+    harness.currentState = BotState.HUNT;
+    harness._navGraph = new BotNavGraph("look-ahead");
+    harness._currentPath = {
+      nodes: [start, corner, exit],
+      steps: [walk(start, corner), walk(corner, exit)],
+      totalCost: 800,
+      cursor: 0,
+    };
+
+    const result = harness._followCurrentPath(state, false);
+    if (result.status !== "moving") throw new Error(`expected to move, got ${result.status}`);
+    // 150 units to the corner, then 100 along the next leg.
+    expect(result.input.moveYaw).toBeCloseTo(0, 6);
+    expect(result.input.yaw).toBeCloseTo(Math.atan2(100, 150), 6);
+  });
+
   it("starts a pure-side strafe hop on a long straight route", () => {
     const brain = new StateMachineBrain(difficulty);
     const state = makeState({ velocity: { x: 0, y: 0, z: 320 } });

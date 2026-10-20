@@ -13,7 +13,7 @@
  * Memory: ~200 bytes per frame × 10,800 frames (3min match) = ~2.1MB per episode
  */
 
-import type { BotInput } from "./BotBrain";
+import { type BotInput, viewDirection } from "./BotBrain";
 import type { BotGameState } from "./BotGameState";
 import type { BotVision, VisionResult } from "./BotVision";
 import { buildModelInputs } from "./ModelInputs";
@@ -191,6 +191,7 @@ export class BotEpisodeRecorder {
     this._totalDamageTaken += damageTaken;
 
     // Record frame
+    const direction = viewDirection(input);
     const frame: TrainingFrame = {
       tick,
       tacticalInput,
@@ -200,8 +201,8 @@ export class BotEpisodeRecorder {
         weaponSlot: input.weaponSlot,
         yaw: input.yaw,
         pitch: input.pitch,
-        directionX: input.direction.x,
-        directionZ: input.direction.z,
+        directionX: direction.x,
+        directionZ: direction.z,
       },
       events: {
         damageDealt,

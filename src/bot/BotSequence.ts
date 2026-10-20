@@ -69,6 +69,23 @@ interface ActiveSequence {
   state: BotSequenceState;
 }
 
+/**
+ * Head for `target`, and look there too while it is at least `holdWithin`
+ * away horizontally. Nearer, the bearing to it swings round as the bot passes
+ * over or beside it (the jump pad spin), so the view stays where it is.
+ */
+export function steerToward(
+  self: { position: Vec3; yaw: number },
+  target: Vec3,
+  holdWithin: number,
+): { yaw: number; moveYaw?: number } {
+  const dx = target.x - self.position.x;
+  const dz = target.z - self.position.z;
+  const distance = Math.hypot(dx, dz);
+  const bearing = distance < 1 ? self.yaw : Math.atan2(dx, dz);
+  return distance < holdWithin ? { yaw: self.yaw, moveYaw: bearing } : { yaw: bearing };
+}
+
 function neutralInput(state: BotGameState): BotInput {
   return {
     direction: { x: 0, y: 0, z: 0 },

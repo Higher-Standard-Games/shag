@@ -20,10 +20,11 @@ import { SnapshotReceiver } from "../engine/network/client/SnapshotReceiver";
 import { MessageCodec, MessageType } from "../engine/network/protocol/MessageCodec";
 import { debugEnabled, debugLog } from "../games/fps/server/DebugLog";
 import { type BotReference, canonicalBotReference } from "../shared/ranking/BotReference";
-import type { BotBrain, BotInput } from "./BotBrain";
+import { BotAimController } from "./BotAimController";
+import { type BotBrain, type BotInput, travelYaw } from "./BotBrain";
 // HybridBrain is imported dynamically — requires @tensorflow/tfjs-node native addon
 // import { HybridBrain } from './HybridBrain';
-import { type BotDifficulty, type BotOptions, defaultGoalArbiterMode } from "./BotConfig";
+import { type BotDifficulty, type BotOptions, defaultGoalArbiterMode, InputButtons } from "./BotConfig";
 import type { BotEpisodeRecorder } from "./BotEpisodeRecorder";
 import { applyFriendlyFireSafety } from "./BotFireSafety";
 import { BotGameState } from "./BotGameState";
@@ -91,6 +92,8 @@ export class BotClient extends EventEmitter {
   // 125Hz input loop (matches server tick rate)
   private _inputLoopTimer: ReturnType<typeof setInterval> | null = null;
   private _lastBotInput: BotInput | null = null; // Cached AI decision, re-sent at 125Hz
+  /** Turns the view toward each decision's angles over the commands that carry it. */
+  private _aim: BotAimController;
   /** A scripted movement being sent, one command per server tick (see `BotInput.script`). */
   private _script: { inputs: readonly BotInput[]; sent: number; startedAt: number } | null = null;
   /** The plain repeat of the last decision, paced by the clock rather than by timer firings. */
@@ -131,6 +134,7 @@ export class BotClient extends EventEmitter {
 
     // Default to StateMachineBrain (no TF.js dependency)
     this._brain = new StateMachineBrain(this._difficulty, options.goalArbiter ?? defaultGoalArbiterMode());
+    this._aim = new BotAimController(this._difficulty);
 
     // If modelDir is specified, try to load HybridBrain (requires TF.js)
     this.referenceReady = options.modelDir
@@ -360,6 +364,7 @@ export class BotClient extends EventEmitter {
     this._lastBotInput = null;
     this._script = null;
     this._lastVisionResult = null;
+    this._aim.clear();
   }
 
   /** Update difficulty settings */
@@ -382,6 +387,7 @@ export class BotClient extends EventEmitter {
     });
     this._difficulty = { ...reference.difficulty };
     this._brain.setDifficulty(this._difficulty);
+    this._aim.setDifficulty(this._difficulty);
     this._setReference({ ...reference, model: this._ratingReference.model });
   }
 
@@ -517,6 +523,7 @@ export class BotClient extends EventEmitter {
       if (this._isDead && !this._gameState.self.isDead) {
         this._isDead = false;
         this._state = "playing";
+        this._aim.reset(this._gameState.self.yaw, this._gameState.self.pitch);
         debugLog("bot", () => `${this._logPrefix} Respawned!`);
       }
 
@@ -616,7 +623,7 @@ export class BotClient extends EventEmitter {
         if (owed - this._paced.sent > MAX_PACED_BACKLOG) this._paced.sent = owed - 1;
         const until = Math.min(owed, this._paced.sent + MAX_SCRIPT_BURST);
         while (this._paced.sent < until) {
-          this._sendInput(this._lastBotInput);
+          this._sendInput(this._aimed(this._lastBotInput, TICK_MS / 1000));
           this._paced.sent++;
         }
         return;
@@ -627,10 +634,29 @@ export class BotClient extends EventEmitter {
       // now; the server consumes them one per tick, in order.
       const owed = Math.floor((performance.now() - script.startedAt) / TICK_MS) + 1;
       const until = Math.min(script.inputs.length, owed, script.sent + MAX_SCRIPT_BURST);
-      while (script.sent < until) this._sendInput(script.inputs[script.sent++]);
+      while (script.sent < until) {
+        const input = script.inputs[script.sent++];
+        this._sendInput(input);
+        // A script sets the view itself; turning continues from where it left it.
+        this._aim.reset(input.yaw, input.pitch);
+      }
       if (script.sent >= script.inputs.length) this._script = null;
     }, TICK_MS);
     console.log(`${this._logPrefix} Started 125Hz input loop`);
+  }
+
+  /**
+   * The decision as sent this tick: the view turned one step toward its
+   * angles, movement still along the wanted heading. The friendly-fire gate
+   * runs again on the view actually sent, which is where the shot goes.
+   */
+  private _aimed(input: BotInput, dt: number): BotInput {
+    const attack = InputButtons.FIRE | InputButtons.ALT_FIRE;
+    const firing = (input.buttons & attack) !== 0;
+    if (!this._aim.started) this._aim.reset(this._gameState.self.yaw, this._gameState.self.pitch);
+    const view = this._aim.step(dt, input.yaw, input.pitch, firing);
+    const aimed: BotInput = { ...input, yaw: view.yaw, pitch: view.pitch, moveYaw: travelYaw(input) };
+    return firing ? applyFriendlyFireSafety(aimed, this._gameState).input : aimed;
   }
 
   private _stopInputLoop(): void {
@@ -684,8 +710,10 @@ export class BotClient extends EventEmitter {
     // Must match Game.ts sendInput() — Babylon.js LEFT-HANDED Y rotation:
     //   forward = (sin(yaw), 0, cos(yaw))
     //   right   = (cos(yaw), 0, -sin(yaw))
-    const cosYaw = Math.cos(input.yaw);
-    const sinYaw = Math.sin(input.yaw);
+    // Relative to where the bot is heading, which leads the turning view.
+    const moveYaw = travelYaw(input);
+    const cosYaw = Math.cos(moveYaw);
+    const sinYaw = Math.sin(moveYaw);
     const fwdX = sinYaw;
     const fwdZ = cosYaw;
     const rightX = cosYaw;

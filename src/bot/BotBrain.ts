@@ -21,8 +21,17 @@ export interface BotInput {
   direction: { x: number; y: number; z: number };
   /** Look pitch (radians, positive = up) */
   pitch: number;
-  /** Look yaw (radians) */
+  /**
+   * Look yaw (radians): where the bot wants to look. The client turns the view
+   * there smoothly (BotAimController); movement does not wait for the turn.
+   */
   yaw: number;
+  /**
+   * Yaw `direction` is relative to, when the bot moves one way and looks
+   * another (looking ahead along a route, or holding its view in flight).
+   * Defaults to `yaw`.
+   */
+  moveYaw?: number;
   /** Button bitmask (from InputButtons) */
   buttons: number;
   /** Weapon slot to switch to (0 = no change, 1-indexed) */
@@ -34,6 +43,23 @@ export interface BotInput {
    * guarantee. The client sends the script once, then returns to decisions.
    */
   script?: readonly BotInput[];
+}
+
+/** The yaw a decision moves along: `direction` is relative to it. */
+export function travelYaw(input: BotInput): number {
+  return input.moveYaw ?? input.yaw;
+}
+
+/** `direction` relative to the look yaw instead, as a player's keys are. */
+export function viewDirection(input: BotInput): { x: number; z: number } {
+  const turn = travelYaw(input) - input.yaw;
+  if (turn === 0) return { x: input.direction.x, z: input.direction.z };
+  const cos = Math.cos(turn);
+  const sin = Math.sin(turn);
+  return {
+    x: input.direction.z * sin + input.direction.x * cos,
+    z: input.direction.z * cos - input.direction.x * sin,
+  };
 }
 
 // ── Bot Brain States ────────────────────────────────────────────────────

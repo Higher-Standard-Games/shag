@@ -1,5 +1,5 @@
 import { calcAccelFalloff, STRAFE_BUNNY_ACCEL } from "../../games/fps/simulation/Acceleration";
-import type { BotInput } from "../BotBrain";
+import { type BotInput, travelYaw } from "../BotBrain";
 import { InputButtons } from "../BotConfig";
 import type { Vec3 } from "../BotGameState";
 import { PHYSICS } from "../BotMovementProfile";
@@ -64,8 +64,12 @@ function sideInput(context: BotSequenceContext, state: BotSequenceState): BotInp
   const elapsedTicks = Math.max(1, context.state.tick - lastTick);
   const skill = context.difficulty?.strafeJumpSkill ?? 0;
   const maxTurnRate = 2.5 + skill * 4.5;
-  const yaw = clampTurn(self.yaw, optimalYaw, (maxTurnRate * elapsedTicks) / SERVER_TICK_RATE);
+  // Turn from this hop's own last heading: the view the server reports lags
+  // behind it while the client eases the turn.
+  const fromYaw = (state.data.lastYaw as number | undefined) ?? (state.data.routeYaw as number);
+  const yaw = clampTurn(fromYaw, optimalYaw, (maxTurnRate * elapsedTicks) / SERVER_TICK_RATE);
   state.data.lastTick = context.state.tick;
+  state.data.lastYaw = yaw;
 
   return {
     direction: { x: side, y: 0, z: 0 },
@@ -125,7 +129,9 @@ export class RouteStrafeJumpSequence implements BotSequence {
     const routeYaw =
       Math.hypot(routeDelta.x, routeDelta.z) > 0.001
         ? Math.atan2(routeDelta.x, routeDelta.z)
-        : (context.proposedInput?.yaw ?? context.state.self.yaw);
+        : context.proposedInput
+          ? travelYaw(context.proposedInput)
+          : context.state.self.yaw;
     const skill = context.difficulty?.strafeJumpSkill ?? 0;
 
     return {

@@ -15,7 +15,7 @@
 
 import { DEFAULT_VIEWHEIGHT } from "../engine/physics/PlayerPhysicsConstants";
 import { selectWeightProfile } from "../shared/bot/WeightProfiles";
-import { BotBrain, type BotInput, BotState } from "./BotBrain";
+import { BotBrain, type BotInput, BotState, travelYaw } from "./BotBrain";
 import { type BotDifficulty, defaultGoalArbiterMode, type GoalArbiterMode, InputButtons } from "./BotConfig";
 import type { BotGameState, Vec3, VisiblePlayer } from "./BotGameState";
 import { vec3Length, vec3Normalize, vec3Subtract } from "./BotGameState";
@@ -57,6 +57,10 @@ const FEELER_STEER_THRESHOLD = 0.6; // fraction below which we steer away
 
 // Path following
 const PATH_ARRIVED_THRESHOLD = 100; // Distance to consider "arrived" at a waypoint
+/** How far along its route a walking bot looks. */
+const ROUTE_LOOK_AHEAD = 250;
+/** Closer than this the look point says nothing about where the route goes. */
+const ROUTE_LOOK_MIN_DISTANCE = 32;
 type PathFollowResult =
   | { status: "moving"; input: BotInput }
   | { status: "complete" }
@@ -813,38 +817,9 @@ export class StateMachineBrain extends BotBrain {
     const perfectPitch =
       horizontalDist > 0.01 ? -Math.atan2(delta.y, horizontalDist) : delta.y > 0 ? -Math.PI / 2 : Math.PI / 2;
 
-    // Add inaccuracy based on difficulty
-    const inaccuracy = (1 - this.difficulty.aimAccuracy) * 0.15;
-    const yawNoise = (Math.random() - 0.5) * inaccuracy;
-    const pitchNoise = (Math.random() - 0.5) * inaccuracy;
-
-    // Smooth aiming — don't snap instantly (tracking speed)
-    const maxTurnRate = this.difficulty.trackingSpeed * (1 / 60); // per tick at 60Hz
-    const currentYaw = state.self.yaw;
-    const currentPitch = state.self.pitch;
-
-    const targetYaw = perfectYaw + yawNoise;
-    const targetPitch = perfectPitch + pitchNoise;
-
-    // Wrap yaw difference to [-PI, PI]
-    let yawDiff = targetYaw - currentYaw;
-    while (yawDiff > Math.PI) yawDiff -= Math.PI * 2;
-    while (yawDiff < -Math.PI) yawDiff += Math.PI * 2;
-
-    // Clamp turn rate
-    if (Math.abs(yawDiff) > maxTurnRate) {
-      yawDiff = Math.sign(yawDiff) * maxTurnRate;
-    }
-
-    let pitchDiff = targetPitch - currentPitch;
-    if (Math.abs(pitchDiff) > maxTurnRate) {
-      pitchDiff = Math.sign(pitchDiff) * maxTurnRate;
-    }
-
-    return {
-      yaw: currentYaw + yawDiff,
-      pitch: currentPitch + pitchDiff,
-    };
+    // Where to look, exactly: the client turns the view there at this
+    // difficulty's speed and adds its wandering error (BotAimController).
+    return { yaw: perfectYaw, pitch: perfectPitch };
   }
 
   private _predictTargetPosition(_state: BotGameState, target: VisiblePlayer): Vec3 {
@@ -896,35 +871,8 @@ export class StateMachineBrain extends BotBrain {
     const yaw = Math.atan2(diff.x, diff.z);
     const pitch = -Math.atan2(diff.y, dist2D);
 
-    // Apply difficulty-based inaccuracy (matching _aimAtTarget)
-    const inaccuracy = (1 - this.difficulty.aimAccuracy) * 0.15;
-    const yawNoise = (Math.random() - 0.5) * inaccuracy;
-    const pitchNoise = (Math.random() - 0.5) * inaccuracy;
-
-    // Smooth aiming — tracking speed
-    const maxTurnRate = this.difficulty.trackingSpeed * (1 / 60);
-    const currentYaw = state.self.yaw;
-    const currentPitch = state.self.pitch;
-
-    const targetYaw = yaw + yawNoise;
-    const targetPitch = pitch + pitchNoise;
-
-    let yawDiff = targetYaw - currentYaw;
-    while (yawDiff > Math.PI) yawDiff -= Math.PI * 2;
-    while (yawDiff < -Math.PI) yawDiff += Math.PI * 2;
-    if (Math.abs(yawDiff) > maxTurnRate) {
-      yawDiff = Math.sign(yawDiff) * maxTurnRate;
-    }
-
-    let pitchDiff = targetPitch - currentPitch;
-    if (Math.abs(pitchDiff) > maxTurnRate) {
-      pitchDiff = Math.sign(pitchDiff) * maxTurnRate;
-    }
-
-    return {
-      yaw: currentYaw + yawDiff,
-      pitch: currentPitch + pitchDiff,
-    };
+    // Turn speed and aim error are the client's (BotAimController), as in _aimAtTarget.
+    return { yaw, pitch };
   }
 
   // ── Movement Helpers ──────────────────────────────────────────────
@@ -1325,7 +1273,39 @@ export class StateMachineBrain extends BotBrain {
       return { status: "moving", input: this._makePrecise(input) };
     }
 
+    this._lookAlongRoute(input, state, this._currentPath);
     return { status: "moving", input };
+  }
+
+  /**
+   * Look a little way along the route rather than at the next waypoint, as a
+   * player does: the view eases round corners before reaching them instead of
+   * swinging at each node. Movement still heads for the waypoint.
+   */
+  private _lookAlongRoute(input: BotInput, state: BotGameState, path: NavPath): void {
+    const self = state.self.position;
+    let from = { x: self.x, z: self.z };
+    let left = ROUTE_LOOK_AHEAD;
+    for (let i = path.cursor; i < path.steps.length && left > 0; i++) {
+      const step = path.steps[i];
+      if (i > path.cursor && step.type !== "walk") break; // a jump or pad is looked at when reached
+      const to = step.to.position;
+      const length = Math.hypot(to.x - from.x, to.z - from.z);
+      if (length >= left) {
+        from = { x: from.x + ((to.x - from.x) * left) / length, z: from.z + ((to.z - from.z) * left) / length };
+        break;
+      }
+      left -= length;
+      from = { x: to.x, z: to.z };
+    }
+    const dx = from.x - self.x;
+    const dz = from.z - self.z;
+    if (Math.hypot(dx, dz) < ROUTE_LOOK_MIN_DISTANCE) return;
+    const lookYaw = Math.atan2(dx, dz);
+    const heading = input.yaw;
+    if (Math.abs(Math.atan2(Math.sin(lookYaw - heading), Math.cos(lookYaw - heading))) > Math.PI / 2) return;
+    input.moveYaw = heading;
+    input.yaw = lookYaw;
   }
 
   private _moveTowardPrecise(state: BotGameState, target: Vec3): BotInput {
@@ -1596,7 +1576,7 @@ export class StateMachineBrain extends BotBrain {
      */
 
     const pos = state.self.position;
-    const yaw = input.yaw;
+    const yaw = travelYaw(input);
     const cw = vision.collisionWorld;
 
     // Eye height offset
@@ -1671,7 +1651,9 @@ export class StateMachineBrain extends BotBrain {
     }
 
     if (yawAdjust !== 0) {
-      input.yaw += yawAdjust;
+      // Steer the heading; a bot looking ahead along its route keeps looking there.
+      if (input.moveYaw !== undefined) input.moveYaw += yawAdjust;
+      else input.yaw += yawAdjust;
     }
 
     return input;

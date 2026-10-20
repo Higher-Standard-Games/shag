@@ -94,6 +94,47 @@ describe("authored trigger traversal sequences", () => {
     expect(runtime.isActive).toBe(false);
   });
 
+  it("keeps its view in flight over a landing close below, steering there without spinning", () => {
+    const state = new BotGameState();
+    state.tick = 0;
+    state.self.position = { x: 100, y: 0, z: 0 };
+    state.self.isGrounded = true;
+    // A pad that throws straight up lands on a ledge beside it.
+    const navStep = {
+      ...makeStep("jumppad", jumppad),
+      to: { id: 1, type: "jumppad" as const, position: { x: 160, y: 256, z: 0 } },
+    };
+    const context = { state, navStep };
+    const runtime = makeRuntime(new TraverseJumppadSequence());
+    expect(runtime.startBest(context)).toBe(true);
+    runtime.tick(context);
+
+    state.self.isGrounded = false;
+    state.self.velocity = { x: 0, y: 700, z: 0 };
+    state.self.yaw = 0.3;
+    // Drifting round the landing point: the bearing to it swings through 360°.
+    for (const [tick, x, z] of [
+      [2, 150, -10],
+      [3, 170, 0],
+      [4, 160, 10],
+      [5, 150, 2],
+    ] as const) {
+      state.tick = tick;
+      state.self.position = { x, y: 300, z };
+      const flight = runtime.tick(context)!;
+      expect(flight.phase).toBe("airborne");
+      expect(flight.input.yaw).toBe(0.3);
+      expect(flight.input.moveYaw).toBeCloseTo(Math.atan2(160 - x, 0 - z), 6);
+    }
+
+    // A landing still far off is looked at.
+    state.tick = 6;
+    state.self.position = { x: 160, y: 300, z: -400 };
+    const far = runtime.tick(context)!.input;
+    expect(far.yaw).toBeCloseTo(0, 6);
+    expect(far.moveYaw).toBeUndefined();
+  });
+
   it("reports an authored pad that never launches", () => {
     const state = new BotGameState();
     state.tick = 0;
