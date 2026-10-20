@@ -14,6 +14,7 @@ import { PointerEventTypes, type PointerInfo } from "@babylonjs/core/Events/poin
 import { Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
+import { devLog } from "../../core/DevLog";
 import { CameraSystem } from "../CameraSystem";
 import type { CameraControllerConfig, ICameraController } from "./ICameraController";
 
@@ -65,7 +66,7 @@ export class IsometricController implements ICameraController {
     this.targetPosition = camera.target.clone();
 
     this.setupInputHandlers();
-    console.log("[IsometricController] Attached");
+    devLog("[IsometricController] Attached");
   }
 
   detach(): void {
@@ -73,7 +74,7 @@ export class IsometricController implements ICameraController {
     this.camera = null;
     this.scene = null;
     this.canvas = null;
-    console.log("[IsometricController] Detached");
+    devLog("[IsometricController] Detached");
   }
 
   update(_deltaTime: number): void {

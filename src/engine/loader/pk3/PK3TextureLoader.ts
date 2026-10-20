@@ -1,3 +1,4 @@
+import { devLog } from "../../core/DevLog";
 import { fetchAsset, readAssetBuffer, readAssetJson } from "./AssetRequest";
 /**
  * PK3TextureLoader - Load textures from PK3 packages into BabylonJS
@@ -79,7 +80,7 @@ export class PK3TextureLoader {
   public init(engine: AbstractEngine, scene: Scene): void {
     this.engine = engine;
     this.scene = scene;
-    console.log("[PK3TextureLoader] Initialized");
+    devLog("[PK3TextureLoader] Initialized");
   }
 
   /**
@@ -288,7 +289,7 @@ export class PK3TextureLoader {
       texture.wrapU = Texture.WRAP_ADDRESSMODE;
       texture.wrapV = Texture.WRAP_ADDRESSMODE;
       this.textureCache.set(cacheKey, texture);
-      console.log(`[PK3TextureLoader] Loaded KTX2 sidecar: ${url}`);
+      devLog(`[PK3TextureLoader] Loaded KTX2 sidecar: ${url}`);
       return texture;
     } catch (error) {
       this.failedKTX2Sidecars.add(canonicalPath);
@@ -387,7 +388,7 @@ export class PK3TextureLoader {
         texture.wrapV = Texture.WRAP_ADDRESSMODE;
 
         this.textureCache.set(cacheKey, texture);
-        console.log(`[PK3TextureLoader] Loaded: ${path}`);
+        devLog(`[PK3TextureLoader] Loaded: ${path}`);
       }
     } catch (e) {
       console.error(`[PK3TextureLoader] Failed to load ${path}:`, e);
@@ -456,7 +457,7 @@ export class PK3TextureLoader {
       const altPath = basePath + altExt;
       const altData = await pk3.getFile(altPath);
       if (altData) {
-        console.log(`[PK3TextureLoader] KTX fallback: ${ktxPath} -> ${altPath}`);
+        devLog(`[PK3TextureLoader] KTX fallback: ${ktxPath} -> ${altPath}`);
         // Load directly to avoid infinite recursion through loadTexture
         if (altExt === ".tga") {
           return this.loadTGATexture(altPath, altData, picmip);
@@ -922,7 +923,7 @@ export class PK3TextureLoader {
     this.textureCache.clear();
     this.ktx2ManifestPromise = null;
     this.failedKTX2Sidecars.clear();
-    console.log("[PK3TextureLoader] Cache cleared");
+    devLog("[PK3TextureLoader] Cache cleared");
   }
 
   /**

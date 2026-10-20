@@ -14,6 +14,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Scene } from "@babylonjs/core/scene";
 import { BrushModelState, extractBrushModels } from "../../shared/bsp/BrushModelState";
 import { extractLifts, LiftSystem } from "../../shared/bsp/LiftSystem";
+import { devLog } from "../core/DevLog";
 import type { BspBrush, BspCollisionData, BspLeaf } from "../loader/bsp/BspLoader";
 import {
   type CollisionBackend,
@@ -607,13 +608,11 @@ export class SweepCollisionBackend implements CollisionBackend {
     state.debug = options?.debug ?? false;
 
     if (state.debug) {
-      console.log(
+      devLog(
         `[SweepCollision] Trace start: (${q3Start[0].toFixed(1)}, ${q3Start[1].toFixed(1)}, ${q3Start[2].toFixed(1)})`,
       );
-      console.log(
-        `[SweepCollision] Trace end: (${q3End[0].toFixed(1)}, ${q3End[1].toFixed(1)}, ${q3End[2].toFixed(1)})`,
-      );
-      console.log(`[SweepCollision] ContentMask: 0x${contentMask.toString(16)}`);
+      devLog(`[SweepCollision] Trace end: (${q3End[0].toFixed(1)}, ${q3End[1].toFixed(1)}, ${q3End[2].toFixed(1)})`);
+      devLog(`[SweepCollision] ContentMask: 0x${contentMask.toString(16)}`);
     }
 
     // Traverse BSP tree for solid brushes
@@ -690,7 +689,7 @@ export class SweepCollisionBackend implements CollisionBackend {
     this.stats.totalTraceTime += elapsed;
 
     if (state.debug && result.fraction < 1.0) {
-      console.log(
+      devLog(
         `[SweepCollision] HIT: fraction=${result.fraction.toFixed(3)} brush=${result.hitBrushIndex} tex="${result.hitTextureName}"`,
       );
     }

@@ -13,6 +13,7 @@ import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
+import { devLog } from "../../core/DevLog";
 import { Command, type CommandDef, type CommandOutput, fail } from "../Command";
 
 export class BspCommand extends Command {
@@ -280,7 +281,7 @@ export class BspCommand extends Command {
 
         try {
           const count = await manager.applyTextures(scene, (loaded, total, name) => {
-            console.log(`[BSP] Loading texture ${loaded}/${total}: ${name}`);
+            devLog(`[BSP] Loading texture ${loaded}/${total}: ${name}`);
           });
           return `Applied ${count} textures to BSP`;
         } catch (e) {

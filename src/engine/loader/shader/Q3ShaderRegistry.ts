@@ -5,6 +5,7 @@
  * loading shaders from PK3 archives.
  */
 
+import { devLog } from "../../core/DevLog";
 import { PK3Loader } from "../pk3/PK3Loader";
 import { parseShaderFile } from "./Q3ShaderParser";
 import type {
@@ -147,11 +148,11 @@ export class Q3ShaderRegistry {
     const newShaderFiles = shaderFiles.filter((f) => !this.processedShaderFiles.has(f));
 
     if (newShaderFiles.length === 0) {
-      console.log(`[Q3ShaderRegistry] No new shader files (${this.shaders.size} total)`);
+      devLog(`[Q3ShaderRegistry] No new shader files (${this.shaders.size} total)`);
       return this.shaders.size;
     }
 
-    console.log(`[Q3ShaderRegistry] Found ${newShaderFiles.length} new shader files`);
+    devLog(`[Q3ShaderRegistry] Found ${newShaderFiles.length} new shader files`);
 
     for (const shaderFile of newShaderFiles) {
       this.processedShaderFiles.add(shaderFile);
@@ -175,7 +176,7 @@ export class Q3ShaderRegistry {
     }
 
     this.loaded = true;
-    console.log(`[Q3ShaderRegistry] Loaded ${newShaderCount} new shaders (${this.shaders.size} total)`);
+    devLog(`[Q3ShaderRegistry] Loaded ${newShaderCount} new shaders (${this.shaders.size} total)`);
 
     return this.shaders.size;
   }
@@ -681,30 +682,30 @@ export class Q3ShaderRegistry {
   debugShader(textureName: string): void {
     const shader = this.getShader(textureName);
     if (!shader) {
-      console.log(`[Q3ShaderRegistry] No shader found for: ${textureName}`);
+      devLog(`[Q3ShaderRegistry] No shader found for: ${textureName}`);
       return;
     }
 
-    console.log(`[Q3ShaderRegistry] Shader: ${shader.name}`);
-    console.log(`  Cull: ${shader.cull}`);
-    console.log(`  Surface parms: ${Array.from(shader.surfaceParms).join(", ")}`);
-    console.log(`  Stages: ${shader.stages.length}`);
+    devLog(`[Q3ShaderRegistry] Shader: ${shader.name}`);
+    devLog(`  Cull: ${shader.cull}`);
+    devLog(`  Surface parms: ${Array.from(shader.surfaceParms).join(", ")}`);
+    devLog(`  Stages: ${shader.stages.length}`);
 
     shader.stages.forEach((stage, i) => {
-      console.log(`  Stage ${i}:`);
-      console.log(`    Map: ${stage.map}`);
+      devLog(`  Stage ${i}:`);
+      devLog(`    Map: ${stage.map}`);
       if (stage.cubeMap) {
-        console.log(`    Cubemap: ${stage.cubeMap}`);
+        devLog(`    Cubemap: ${stage.cubeMap}`);
       }
       if (stage.blendFunc) {
-        console.log(`    BlendFunc: ${stage.blendFunc.join(", ")}`);
+        devLog(`    BlendFunc: ${stage.blendFunc.join(", ")}`);
       }
       if (stage.alphaFunc) {
-        console.log(`    AlphaFunc: ${stage.alphaFunc}`);
+        devLog(`    AlphaFunc: ${stage.alphaFunc}`);
       }
     });
 
     const resolved = this.resolveMaterialProps(textureName);
-    console.log(`  Resolved props:`, resolved);
+    devLog(`  Resolved props:`, resolved);
   }
 }

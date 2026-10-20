@@ -6,6 +6,7 @@
  * Use console (~ key) to load maps: "map wdm1", "map wda1", etc.
  */
 
+import { devLog } from "./engine/core/DevLog";
 import "./style.css";
 import "./engine/ui/styles/WashikiFonts.css"; // Washiki fonts available at startup (before HUD)
 
@@ -103,7 +104,7 @@ async function main() {
 
   // Auto-detect quality
   const qualityRecommendation = QualityDetector.getInstance().detectQuality();
-  console.log(`[Main] Device: ${qualityRecommendation.deviceInfo.type}, Quality: ${qualityRecommendation.quality}`);
+  devLog(`[Main] Device: ${qualityRecommendation.deviceInfo.type}, Quality: ${qualityRecommendation.quality}`);
 
   let canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
 
@@ -130,7 +131,7 @@ async function main() {
   if (renderer.fallbackReason) {
     console.warn(`[Main] ${renderer.fallbackReason}; using ${renderer.backend}`);
   }
-  console.log(
+  devLog(
     `[Main] Rendering backend: ${renderer.backend}${renderer.nonCompatibilityMode ? " (non-compatibility mode)" : ""}`,
   );
   const rendererDiagnostics = installRendererRuntimeDiagnostics(engine, (report) => {
@@ -183,7 +184,7 @@ async function main() {
   // ── Engine initialization (runs while user is looking at splash screen) ──
 
   // Create scene
-  console.log("[Main] Creating scene...");
+  devLog("[Main] Creating scene...");
   const scene = new Scene(engine);
   // Preserve mouse compatibility events for FPS buttons and mouselook in Firefox.
   scene.preventDefaultOnPointerDown = false;
@@ -219,7 +220,7 @@ async function main() {
     maxTextureSize: qualityDetector.getRecommendedMaxTextureSize(),
   });
   TextureMemoryManager.getInstance().setQuality(quality);
-  console.log(`[Main] Texture quality: ${quality} (${deviceInfo.type}, GPU tier ${deviceInfo.gpuTier})`);
+  devLog(`[Main] Texture quality: ${quality} (${deviceInfo.type}, GPU tier ${deviceInfo.gpuTier})`);
 
   // Load engine settings
   loadingScreen.setStatus("Loading engine settings...");
@@ -238,7 +239,7 @@ async function main() {
 
   // Initialize InstancedMeshManager
   InstancedMeshManager.getInstance().init(scene);
-  console.log("[InstancedMeshManager] Initialized");
+  devLog("[InstancedMeshManager] Initialized");
 
   // Initialize scene services
   loadingScreen.setStatus("Initializing services...");
@@ -251,7 +252,7 @@ async function main() {
     loadingScreen.setStatus("Initializing physics...");
     const { PhysicsSystem } = await import("./engine/physics/PhysicsSystem");
     const success = await PhysicsSystem.getInstance().enablePhysics(scene);
-    console.log(`[Main] Physics initialized: ${success}`);
+    devLog(`[Main] Physics initialized: ${success}`);
   } catch (e) {
     console.error("[Main] Failed to init physics:", e);
   }
@@ -264,11 +265,11 @@ async function main() {
   cameraSystem.setController("fps");
   const controller = cameraSystem.getController("fps") as FPSController;
 
-  console.log("[Main] FPS controller initialized");
+  devLog("[Main] FPS controller initialized");
 
   // Initialize FPSPlayer (Game Logic)
   const player = new FPSPlayer(controller);
-  console.log("[Main] FPSPlayer initialized");
+  devLog("[Main] FPSPlayer initialized");
 
   // ── Lobby (no 3D background — will use background image in future) ──
   // Every map is played on a server the lobby spawns; the client loads it on join.
@@ -300,7 +301,7 @@ async function main() {
 
   // Connect play button (Phase 1: just log; Phase 2+: real matchmaking)
   lobby.setOnPlay((mode) => {
-    console.log(`[Lobby] Queue for mode: ${mode}`);
+    devLog(`[Lobby] Queue for mode: ${mode}`);
   });
 
   // Store lobby reference for gameplay map transitions
@@ -317,7 +318,7 @@ async function main() {
       const lobby = debugWindow.__lobbyPanel;
       if (lobby?.isVisible()) {
         lobby.hide();
-        console.log(`[Main] Lobby hidden (map loading: ${data?.id})`);
+        devLog(`[Main] Lobby hidden (map loading: ${data?.id})`);
       }
     });
   });
@@ -375,7 +376,7 @@ async function main() {
   debugWindow.rendererBackend = renderer.backend;
   debugWindow.player = player;
 
-  console.log('[Main] FPS mode ready. Press ~ for console, use "map <name>" to load maps.');
+  devLog('[Main] FPS mode ready. Press ~ for console, use "map <name>" to load maps.');
 }
 
 // showPlaceholderUI replaced by LobbyPanel (see above)

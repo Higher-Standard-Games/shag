@@ -1,3 +1,4 @@
+import { devLog } from "./core/DevLog";
 import { GamePaths } from "./core/GamePaths";
 import { type Entity, MapParser } from "./loader/map/MapParser";
 import { PrefabLoader } from "./loader/model/PrefabLoader";
@@ -182,7 +183,7 @@ export class AssetLoader {
         raw,
       });
 
-      console.log(`Loaded map: ${mapName}`);
+      devLog(`Loaded map: ${mapName}`);
     } catch (e) {
       console.error(`Failed to load map ${mapName}:`, e);
       // Don't throw - allow game to continue with other maps
@@ -197,7 +198,7 @@ export class AssetLoader {
 
       audio.addEventListener("canplaythrough", () => {
         this.loadedAudio.set(key, audio);
-        console.log(`Loaded audio: ${path}`);
+        devLog(`Loaded audio: ${path}`);
         resolve();
       });
 

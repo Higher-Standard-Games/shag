@@ -10,6 +10,7 @@
  * 3. It will be auto-registered on startup
  */
 
+import { devLog } from "../../core/DevLog";
 import { DebugConsole } from "../../debug/DebugConsole";
 import { CommandBindings } from "../../input/CommandBindings";
 import type { Command } from "../Command";
@@ -37,7 +38,7 @@ export async function registerEngineCommands(): Promise<void> {
     }
   }
 
-  console.log(`[Console] Registered ${count} engine commands`);
+  devLog(`[Console] Registered ${count} engine commands`);
 
   // Bound keys run through the same registry. Attached here so every
   // composition that has commands also has its bindings, without a separate

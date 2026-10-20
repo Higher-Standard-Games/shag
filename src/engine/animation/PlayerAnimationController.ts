@@ -11,6 +11,7 @@ import type { AnimationGroup } from "@babylonjs/core/Animations/animationGroup";
 import type { Skeleton } from "@babylonjs/core/Bones/skeleton";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { Scene } from "@babylonjs/core/scene";
+import { devLog } from "../core/DevLog";
 import { AnimationBlender, type BlendConfig } from "./AnimationBlender";
 import { AnimationLoader } from "./AnimationLoader";
 import { HumanoidRig } from "./HumanoidRig";
@@ -108,11 +109,11 @@ export class PlayerAnimationController {
       return;
     }
 
-    console.log("[PlayerAnimationController] Initializing animations...");
+    devLog("[PlayerAnimationController] Initializing animations...");
 
     // Check if animation loader is initialized
     if (!this.animationLoader.hasAnimation("idle")) {
-      console.log("[PlayerAnimationController] Loading standard animations...");
+      devLog("[PlayerAnimationController] Loading standard animations...");
       await this.animationLoader.loadStandardAnimations();
     }
 
@@ -125,13 +126,13 @@ export class PlayerAnimationController {
         this.blender.registerAnimation(animName, animGroup, animName === "idle" ? 1.0 : 0);
 
         if (this.config.debug) {
-          console.log(`[PlayerAnimationController] Applied animation: ${animName}`);
+          devLog(`[PlayerAnimationController] Applied animation: ${animName}`);
         }
       }
     }
 
     this.initialized = true;
-    console.log(`[PlayerAnimationController] Initialized with ${this.appliedAnimations.size} animations`);
+    devLog(`[PlayerAnimationController] Initialized with ${this.appliedAnimations.size} animations`);
   }
 
   /**
@@ -174,7 +175,7 @@ export class PlayerAnimationController {
    */
   private transitionTo(animName: AnimationStateName): void {
     if (this.config.debug) {
-      console.log(`[PlayerAnimationController] Transition: ${this.currentAnimationName} -> ${animName}`);
+      devLog(`[PlayerAnimationController] Transition: ${this.currentAnimationName} -> ${animName}`);
     }
 
     this.currentAnimationName = animName;

@@ -185,7 +185,7 @@ export class ProjectileManager {
     getPointLightPool().init(scene);
     getExplosionEffect().init(scene);
     this.tickObserver = scene.onBeforeRenderObservable.add(() => this.update(scene.getEngine().getDeltaTime() / 1000));
-    console.log("[ProjectileManager] Initialized");
+    devLog("[ProjectileManager] Initialized");
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -311,23 +311,23 @@ export class ProjectileManager {
 
     const pk3 = PK3Loader.getInstance();
     const path = def.modelPath;
-    console.log(`[ProjectileManager] Preloading ${defId} - path: ${path}`);
+    devLog(`[ProjectileManager] Preloading ${defId} - path: ${path}`);
 
     // Check if sprite texture (.tga/.jpg/.png) or model (.md3)
     const isSprite = path.endsWith(".tga") || path.endsWith(".jpg") || path.endsWith(".png");
-    console.log(`[ProjectileManager] isSprite: ${isSprite}`);
+    devLog(`[ProjectileManager] isSprite: ${isSprite}`);
 
     if (isSprite) {
       // Check if already cached
       if (this.spriteCache.has(defId)) return true;
 
       try {
-        console.log(`[ProjectileManager] Loading sprite from: ${path}`);
+        devLog(`[ProjectileManager] Loading sprite from: ${path}`);
         const textureUrl = await pk3.getFileAsURL(path, "image/png");
-        console.log(`[ProjectileManager] Got URL: ${textureUrl ? "yes" : "no"}`);
+        devLog(`[ProjectileManager] Got URL: ${textureUrl ? "yes" : "no"}`);
         if (textureUrl) {
           this.spriteCache.set(defId, textureUrl);
-          console.log(`[ProjectileManager] Cached sprite: ${defId}`);
+          devLog(`[ProjectileManager] Cached sprite: ${defId}`);
           return true;
         } else {
           console.warn(`[ProjectileManager] No texture URL returned for: ${path}`);
@@ -377,7 +377,7 @@ export class ProjectileManager {
           }
           model.root.setEnabled(false);
           this.modelCache.set(defId, model);
-          console.log(`[ProjectileManager] Cached model: ${defId}`);
+          devLog(`[ProjectileManager] Cached model: ${defId}`);
 
           // Try to load texture - first check explicit texturePaths from def
           let textureUrl: string | null = null;
@@ -385,7 +385,7 @@ export class ProjectileManager {
           if (def.texturePaths && def.texturePaths.length > 0) {
             // Use explicit texture path from definition
             const explicitPath = def.texturePaths[0];
-            console.log(`[ProjectileManager] Using explicit texture: ${explicitPath}`);
+            devLog(`[ProjectileManager] Using explicit texture: ${explicitPath}`);
             if (pk3.hasFile(explicitPath)) {
               textureUrl = await pk3.getFileAsURL(explicitPath, "image/png");
             } else {
@@ -394,7 +394,7 @@ export class ProjectileManager {
           } else {
             // Auto-detect: try same name with .tga extension
             const autoTexturePath = path.replace(".md3", ".tga");
-            console.log(`[ProjectileManager] Auto-detecting texture: ${autoTexturePath}`);
+            devLog(`[ProjectileManager] Auto-detecting texture: ${autoTexturePath}`);
             if (pk3.hasFile(autoTexturePath)) {
               textureUrl = await pk3.getFileAsURL(autoTexturePath, "image/png");
             }
@@ -402,7 +402,7 @@ export class ProjectileManager {
 
           if (textureUrl) {
             this.modelTextureCache.set(defId, textureUrl);
-            console.log(`[ProjectileManager] Cached model texture: ${defId}`);
+            devLog(`[ProjectileManager] Cached model texture: ${defId}`);
           } else {
             console.warn(`[ProjectileManager] No texture found for: ${defId}`);
           }
@@ -424,7 +424,7 @@ export class ProjectileManager {
             if (model) {
               model.root.setEnabled(false);
               this.impactModelCache.set(defId, model);
-              console.log(`[ProjectileManager] Cached impact model: ${defId}`);
+              devLog(`[ProjectileManager] Cached impact model: ${defId}`);
             }
           }
         } catch (e) {
@@ -439,7 +439,7 @@ export class ProjectileManager {
         const textureUrl = await pk3.getFileAsURL(def.impactTexturePath, "image/png");
         if (textureUrl) {
           this.impactTextureCache.set(defId, textureUrl);
-          console.log(`[ProjectileManager] Cached impact texture: ${defId}`);
+          devLog(`[ProjectileManager] Cached impact texture: ${defId}`);
         }
       } catch (e) {
         console.warn(`[ProjectileManager] Failed to load impact texture: ${def.impactTexturePath}`, e);
@@ -1071,7 +1071,7 @@ export class ProjectileManager {
 
     this.retire(proj);
     this.projectiles.splice(index, 1);
-    // console.log(`[ProjectileManager] Despawned ${id}`);
+    // devLog(`[ProjectileManager] Despawned ${id}`);
   }
 
   /**

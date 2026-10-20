@@ -32,6 +32,7 @@ import { PhysicsShapeType } from "@babylonjs/core/Physics/v2/IPhysicsEnginePlugi
 import type { Scene } from "@babylonjs/core/scene";
 import { AudioManager } from "../AudioManager";
 import { CameraSystem } from "../camera/CameraSystem";
+import { devLog } from "../core/DevLog";
 import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
 import { type ModelAttachmentPoint, ModelLoader } from "../loader/model/ModelLoader";
 import { disposeModelResources } from "../loader/model/ModelSourceCache";
@@ -448,7 +449,7 @@ export class Pickup extends TransformNode {
       const floorOffset = 12;
       const newY = hit.pickedPoint.y + floorOffset;
 
-      console.log(
+      devLog(
         `[Pickup:dropToGround] ${this.name}: ${this.position.y.toFixed(1)} → ${newY.toFixed(1)} (floor=${hit.pickedPoint.y.toFixed(1)}, hit=${hit.pickedMesh?.name})`,
       );
 
@@ -476,7 +477,7 @@ export class Pickup extends TransformNode {
           });
           if (ground) {
             const newY = ground.position.y + 12;
-            console.log(
+            devLog(
               `[Pickup:dropToGround] ${this.name}: BSP fallback ${this.position.y.toFixed(1)} → ${newY.toFixed(1)}`,
             );
             this.position = new Vector3(this.position.x, newY, this.position.z);

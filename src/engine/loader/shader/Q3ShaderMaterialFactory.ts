@@ -12,6 +12,7 @@ import type { Material } from "@babylonjs/core/Materials/material";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import type { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import type { Scene } from "@babylonjs/core/scene";
+import { devLog } from "../../core/DevLog";
 import { GlowOverlayShaderMaterial } from "./GlowOverlayShaderMaterial";
 import type { Q3Shader, Q3ShaderStage } from "./Q3ShaderTypes";
 
@@ -192,8 +193,8 @@ export function createQ3Material(
   const analysis = analyzeShaderPattern(shader);
 
   if (options.debug) {
-    console.log(`[Q3ShaderMaterialFactory] ${shader.name} -> pattern: ${analysis.pattern}`);
-    console.log(
+    devLog(`[Q3ShaderMaterialFactory] ${shader.name} -> pattern: ${analysis.pattern}`);
+    devLog(
       `  baseStage: ${analysis.baseStageIndex}, lightmapStage: ${analysis.lightmapStageIndex}, glowStage: ${analysis.glowStageIndex}`,
     );
   }
@@ -237,7 +238,7 @@ export function createQ3Material(
       }
 
       if (options.debug) {
-        console.log(`[Q3ShaderMaterialFactory] Created GlowOverlayShaderMaterial for ${shader.name}`);
+        devLog(`[Q3ShaderMaterialFactory] Created GlowOverlayShaderMaterial for ${shader.name}`);
       }
 
       return {

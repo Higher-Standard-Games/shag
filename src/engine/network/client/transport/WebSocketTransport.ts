@@ -1,3 +1,4 @@
+import { devLog } from "../../../core/DevLog";
 import type { Transport } from "./Transport";
 
 /**
@@ -20,13 +21,13 @@ export class WebSocketTransport implements Transport {
   async connect(url: string): Promise<void> {
     // Already connected - return immediately (idempotent)
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      console.log("[WebSocketTransport] Already connected, skipping reconnect");
+      devLog("[WebSocketTransport] Already connected, skipping reconnect");
       return;
     }
 
     // Connection in progress
     if (this.ws && this.ws.readyState === WebSocket.CONNECTING) {
-      console.log("[WebSocketTransport] Connection in progress, waiting...");
+      devLog("[WebSocketTransport] Connection in progress, waiting...");
       return new Promise((resolve, reject) => {
         this.ws!.onopen = () => resolve();
         this.ws!.onerror = () => reject(new Error("Connection failed"));

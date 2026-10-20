@@ -24,6 +24,7 @@ import type { Engine } from "@babylonjs/core/Engines/engine";
 import { Color4 } from "@babylonjs/core/Maths/math.color";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Scene } from "@babylonjs/core/scene";
+import { devLog } from "./core/DevLog";
 import "@babylonjs/core/Collisions/collisionCoordinator";
 
 import { AssetLoader } from "./AssetLoader";
@@ -179,7 +180,7 @@ export abstract class EngineScene {
     // a disposed scene if EventBus outlives this instance.
     this.unsubscribeStartMapLoaded?.();
     this.unsubscribeStartMapLoaded = EventBus.on<{ result: MapLoadResult }>("map:loaded", (data) => {
-      console.log(`[EngineScene] Received map:loaded event`);
+      devLog(`[EngineScene] Received map:loaded event`);
       this.onMapLoaded(data.result).catch((e) => console.error("Error in onMapLoaded:", e));
     });
   }
@@ -198,11 +199,11 @@ export abstract class EngineScene {
     if (highPerformance) {
       this.targetFPS = 999;
       this.frameInterval = 0;
-      console.log(`[EngineScene] High Performance mode: uncapped FPS`);
+      devLog(`[EngineScene] High Performance mode: uncapped FPS`);
     } else {
       this.targetFPS = 30;
       this.frameInterval = 1000 / this.targetFPS;
-      console.log(`[EngineScene] Battery Saver mode: 30 FPS`);
+      devLog(`[EngineScene] Battery Saver mode: 30 FPS`);
     }
   }
 
@@ -220,7 +221,7 @@ export abstract class EngineScene {
     try {
       const { PhysicsSystem } = await import("./physics/PhysicsSystem");
       const success = await PhysicsSystem.getInstance().enablePhysics(this.scene);
-      console.log(`[EngineScene] PhysicsSystem init result: ${success}`);
+      devLog(`[EngineScene] PhysicsSystem init result: ${success}`);
     } catch (e) {
       console.error("[EngineScene] CRITICAL: PhysicsSystem failed to load/init", e);
     }
@@ -236,15 +237,15 @@ export abstract class EngineScene {
       maxTextureSize: qualityDetector.getRecommendedMaxTextureSize(),
     });
     textureMemory.setQuality(quality);
-    console.log(`[EngineScene] Texture quality: ${quality} (${deviceInfo.type}, GPU tier ${deviceInfo.gpuTier})`);
+    devLog(`[EngineScene] Texture quality: ${quality} (${deviceInfo.type}, GPU tier ${deviceInfo.gpuTier})`);
 
     // Initialize InstancedMeshManager
     InstancedMeshManager.getInstance().init(this.scene);
 
     // Initialize all scene-dependent services via ServiceLocator
-    console.log("[EngineScene] Initializing scene services...");
+    devLog("[EngineScene] Initializing scene services...");
     await ServiceLocator.getInstance().initScene(this.scene);
-    console.log("[EngineScene] Scene services initialized");
+    devLog("[EngineScene] Scene services initialized");
 
     // Networking is initialized by game-specific code (e.g., Game → NetworkGameHost)
 
@@ -354,7 +355,7 @@ export abstract class EngineScene {
         this.camera.radius = height;
         this.camera.minZ = 1;
         this.camera.maxZ = 10000;
-        console.log(`Camera mode: PERSPECTIVE (height: ${height})`);
+        devLog(`Camera mode: PERSPECTIVE (height: ${height})`);
         break;
 
       case "orthographic":
@@ -364,7 +365,7 @@ export abstract class EngineScene {
         this.camera.maxZ = 10000;
         this.orthoSize = height;
         this.updateCameraOrtho();
-        console.log(`Camera mode: ORTHOGRAPHIC (orthoSize: ${height}, radius: ${this.camera.radius})`);
+        devLog(`Camera mode: ORTHOGRAPHIC (orthoSize: ${height}, radius: ${this.camera.radius})`);
         break;
 
       case "fake_ortho": {
@@ -375,7 +376,7 @@ export abstract class EngineScene {
         this.camera.radius = height * 2;
         this.camera.minZ = 0.1;
         this.camera.maxZ = Math.max(5000, height * 4);
-        console.log(
+        devLog(
           `Camera mode: FAKE_ORTHO (height: ${height}, fov: ${fovScale.toFixed(2)}, radius: ${this.camera.radius})`,
         );
         break;
@@ -401,7 +402,7 @@ export abstract class EngineScene {
       this.camera.getProjectionMatrix(true);
     }
 
-    console.log(`[EngineScene] Camera mode changed to: ${mode}`);
+    devLog(`[EngineScene] Camera mode changed to: ${mode}`);
   }
 
   public getCameraMode(): CameraMode {
@@ -438,7 +439,7 @@ export abstract class EngineScene {
       sourceMap: this.currentMap,
       triggerPosition: triggerPosition.clone(),
     });
-    console.log(`[EngineScene] Recorded entry trigger for ${destinationMap}`);
+    devLog(`[EngineScene] Recorded entry trigger for ${destinationMap}`);
   }
 
   public async loadMap(mapName: string, withTransition = true, transitionDuration?: number): Promise<void> {
@@ -464,7 +465,7 @@ export abstract class EngineScene {
     if (!this.scene) return;
 
     const previousMap = this.currentMap;
-    console.log(`[EngineScene] Loading map: ${mapName}, previous: ${previousMap}`);
+    devLog(`[EngineScene] Loading map: ${mapName}, previous: ${previousMap}`);
 
     // Let game save current map state
     if (previousMap && previousMap !== mapName) {
@@ -487,7 +488,7 @@ export abstract class EngineScene {
 
     if (bspResult.success && bspResult.mapType === "bsp") {
       // BSP Loaded successfully
-      console.log(`[EngineScene] Loaded BSP map: ${mapName}`);
+      devLog(`[EngineScene] Loaded BSP map: ${mapName}`);
       resultPlayerStart = bspResult.playerStartPosition || new Vector3(0, 50, 0);
       resultIndoor = true; // Assume BSPs are indoor by default for lighting? Or derived?
       // TODO: Extract other properties if available in BSP entities
@@ -497,7 +498,7 @@ export abstract class EngineScene {
       // Get map data
       let mapData = AssetLoader.getInstance().getMap(mapName);
       if (!mapData) {
-        console.log(`[EngineScene] Map not in cache, trying dynamic load: ${mapName}`);
+        devLog(`[EngineScene] Map not in cache, trying dynamic load: ${mapName}`);
         const loaded = await AssetLoader.getInstance().loadMapDynamic(mapName);
         if (loaded) {
           mapData = AssetLoader.getInstance().getMap(mapName);
@@ -509,9 +510,9 @@ export abstract class EngineScene {
       }
 
       // Render the map
-      console.log(`[EngineScene] Rendering ${mapData.entities.length} entities for ${mapName}`);
+      devLog(`[EngineScene] Rendering ${mapData.entities.length} entities for ${mapName}`);
       const result = await MapRenderer.renderEntities(mapData.entities, this.scene, mapName);
-      console.log(`[EngineScene] Map rendered, player start: ${result.playerStartPosition}`);
+      devLog(`[EngineScene] Map rendered, player start: ${result.playerStartPosition}`);
 
       resultPlayerStart = result.playerStartPosition;
       resultCameraHeight = result.cameraHeight;
@@ -525,7 +526,7 @@ export abstract class EngineScene {
     const entryInfo = this.mapEntryTriggers.get(previousMap || "");
     if (entryInfo && entryInfo.sourceMap === mapName) {
       this.mapCenterPosition = new Vector3(entryInfo.triggerPosition.x, 0, entryInfo.triggerPosition.z);
-      console.log(`[EngineScene] Returning from ${previousMap}: centering on entry trigger`);
+      devLog(`[EngineScene] Returning from ${previousMap}: centering on entry trigger`);
     } else {
       this.mapCenterPosition = new Vector3(resultPlayerStart.x, 0, resultPlayerStart.z);
     }
@@ -600,12 +601,12 @@ export abstract class EngineScene {
     this.unsubscribeAppStateChange?.();
     this.unsubscribeAppStateChange = EventBus.on<{ isActive: boolean }>("app:state_change", ({ isActive }) => {
       if (isActive) {
-        console.log("[EngineScene] App resumed - restarting render loop");
+        devLog("[EngineScene] App resumed - restarting render loop");
         this.engine.runRenderLoop(() => {
           this.scene?.render();
         });
       } else {
-        console.log("[EngineScene] App backgrounded - pausing");
+        devLog("[EngineScene] App backgrounded - pausing");
         this.engine.stopRenderLoop();
         this.onAppBackgrounded();
       }
@@ -616,7 +617,7 @@ export abstract class EngineScene {
       this.onBackButton();
     });
 
-    console.log("[EngineScene] Capacitor listeners registered");
+    devLog("[EngineScene] Capacitor listeners registered");
   }
 
   protected startRenderLoop(): void {
@@ -699,7 +700,7 @@ export abstract class EngineScene {
     return {
       rain: (on: boolean) => {
         if (on && this.isIndoorMap) {
-          console.log("[Weather] Cannot start rain - indoor map");
+          devLog("[Weather] Cannot start rain - indoor map");
           return;
         }
         on ? this.precipitationEffect?.startRain() : this.precipitationEffect?.stop();
@@ -711,7 +712,7 @@ export abstract class EngineScene {
         this.precipitationEffect?.updateSettings({ windAngle: angle, windStrength: strength }),
       snow: (on: boolean) => {
         if (on && this.isIndoorMap) {
-          console.log("[Weather] Cannot start snow - indoor map");
+          devLog("[Weather] Cannot start snow - indoor map");
           return;
         }
         on ? this.precipitationEffect?.startSnow() : this.precipitationEffect?.stop();
@@ -731,7 +732,7 @@ export abstract class EngineScene {
       spookyFog: () => this.fogEffect?.spookyFog(),
       wind: (on: boolean) => {
         if (on && this.isIndoorMap) {
-          console.log("[Weather] Cannot start wind - indoor map");
+          devLog("[Weather] Cannot start wind - indoor map");
           return;
         }
         on ? this.windSystem?.start() : this.windSystem?.stop();
@@ -744,7 +745,7 @@ export abstract class EngineScene {
       stormWind: () => this.windSystem?.stormWind(),
       debris: (type: "leaves" | "trash" | "dust" | "mixed" | false) => {
         if (type && this.isIndoorMap) {
-          console.log("[Weather] Cannot start debris - indoor map");
+          devLog("[Weather] Cannot start debris - indoor map");
           return;
         }
         if (type === false) {
@@ -798,7 +799,7 @@ export abstract class EngineScene {
     window.setZoom = (newSize: number) => {
       this.orthoSize = newSize;
       this.updateCameraOrtho();
-      console.log(`Zoom set to ${this.orthoSize}`);
+      devLog(`Zoom set to ${this.orthoSize}`);
     };
 
     window.setCameraMode = (mode: CameraMode) => this.setCameraMode(mode);
@@ -814,11 +815,9 @@ export abstract class EngineScene {
     // Weather debug commands
     window.weather = this.weatherDebug();
 
-    console.log("Debug: Use 'loadMap(name)', 'setZoom(value)' in console.");
-    console.log("FX commands: fx.bloom(true), fx.bloomIntensity(0.5), fx.vignette(true), fx.ssao(true)");
-    console.log(
-      "Weather: weather.rain(true), weather.snow(true), weather.thunder(), weather.fog(true), weather.wind(true)",
-    );
+    devLog("Debug: Use 'loadMap(name)', 'setZoom(value)' in console.");
+    devLog("FX commands: fx.bloom(true), fx.bloomIntensity(0.5), fx.vignette(true), fx.ssao(true)");
+    devLog("Weather: weather.rain(true), weather.snow(true), weather.thunder(), weather.fog(true), weather.wind(true)");
   }
 
   public getScene(): Scene | null {

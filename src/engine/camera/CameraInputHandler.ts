@@ -9,6 +9,7 @@
 
 import type { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
 import { Cvar } from "../core/Cvar";
+import { devLog } from "../core/DevLog";
 import { clearBrowserControlFailure, showBrowserControlFailure } from "../ui/BrowserControlFeedback";
 import type { CameraControllerConfig } from "./controllers/ICameraController";
 
@@ -150,10 +151,10 @@ export class CameraInputHandler {
       this._isPointerLocked = document.pointerLockElement === this.canvas;
       if (this._isPointerLocked) {
         clearBrowserControlFailure("pointer");
-        console.log(`[${this.controllerName}] Mouse captured - WASD to move, ESC to release`);
+        devLog(`[${this.controllerName}] Mouse captured - WASD to move, ESC to release`);
         this.callbacks.onLocked?.();
       } else {
-        console.log(`[${this.controllerName}] Mouse released - Click to capture`);
+        devLog(`[${this.controllerName}] Mouse released - Click to capture`);
         this.callbacks.onUnlocked?.();
       }
     };

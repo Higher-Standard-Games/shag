@@ -5,6 +5,7 @@
  * to engine systems (camera, lighting, post-processing, etc.)
  */
 
+import { devLog } from "./DevLog";
 import { GamePaths } from "./GamePaths";
 
 export interface CameraSettings {
@@ -69,14 +70,14 @@ export class EngineSettings {
       // A server without the file can answer with its index page instead of 404
       const isJson = (response.headers.get("content-type") ?? "").includes("json");
       if (!response.ok || !isJson) {
-        console.log("[EngineSettings] No engine-settings.json found, using defaults");
+        devLog("[EngineSettings] No engine-settings.json found, using defaults");
         this.loaded = true;
         return;
       }
 
       this.settings = await response.json();
       this.loaded = true;
-      console.log("[EngineSettings] Loaded engine settings:", this.settings);
+      devLog("[EngineSettings] Loaded engine settings:", this.settings);
     } catch (error) {
       console.warn("[EngineSettings] Failed to load engine-settings.json:", error);
       this.loaded = true;

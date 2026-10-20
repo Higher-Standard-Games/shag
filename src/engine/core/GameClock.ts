@@ -8,6 +8,7 @@
  * - Pause/resume support
  */
 
+import { devLog } from "./DevLog";
 // ==================== Types ====================
 
 export interface TimeOfDay {
@@ -98,7 +99,7 @@ export class GameClock {
 
     this.lastPeriod = this.getTimeOfDay().period;
 
-    console.log(
+    devLog(
       `GameClock initialized: Day ${this.currentDay}, ${this.formatTime()}${preserveTime ? " (time preserved)" : ""}`,
     );
   }
@@ -121,7 +122,7 @@ export class GameClock {
       this.currentTimeNormalized -= 1;
       this.currentDay++;
       this.emit("day_changed", { day: this.currentDay });
-      console.log(`New day: Day ${this.currentDay}`);
+      devLog(`New day: Day ${this.currentDay}`);
     }
 
     // Check for period changes

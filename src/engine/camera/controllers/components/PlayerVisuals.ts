@@ -5,6 +5,7 @@ import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Scene } from "@babylonjs/core/scene";
 import { type PlayerModelInstance, PlayerModelManager } from "../../../animation/PlayerModelManager";
 import { Cvar } from "../../../core/Cvar";
+import { devLog } from "../../../core/DevLog";
 import type { FPSController } from "../FPSController";
 
 /**
@@ -318,7 +319,7 @@ export class PlayerVisuals {
     const derivedAnim = this.deriveAnimationState();
 
     if (this.modelManager.playAnimation(inst, derivedAnim)) {
-      console.log(`[DebugPlayer] Switching to: ${derivedAnim} (speed: ${speed.toFixed(1)})`);
+      devLog(`[DebugPlayer] Switching to: ${derivedAnim} (speed: ${speed.toFixed(1)})`);
     }
 
     // Anim speed scaling

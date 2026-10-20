@@ -16,6 +16,7 @@
  */
 
 import { Cvar } from "../core/Cvar";
+import { devLog } from "../core/DevLog";
 import { EventBus } from "../core/EventBus";
 import { AdsZoom } from "./FirstPersonEffects";
 import type { PlayerState } from "./PlayerState";
@@ -70,7 +71,7 @@ export class ViewportEffectsManager {
     );
 
     this.initialized = true;
-    console.log("[ViewportEffects] Manager initialized");
+    devLog("[ViewportEffects] Manager initialized");
   }
 
   /**
@@ -82,7 +83,7 @@ export class ViewportEffectsManager {
       this.effects.get(effect.name)?.dispose?.();
     }
     this.effects.set(effect.name, effect);
-    console.log(`[ViewportEffects] Registered effect: ${effect.name}`);
+    devLog(`[ViewportEffects] Registered effect: ${effect.name}`);
   }
 
   /**
@@ -93,7 +94,7 @@ export class ViewportEffectsManager {
     if (effect) {
       effect.dispose?.();
       this.effects.delete(name);
-      console.log(`[ViewportEffects] Unregistered effect: ${name}`);
+      devLog(`[ViewportEffects] Unregistered effect: ${name}`);
     }
   }
 
@@ -220,6 +221,6 @@ export class ViewportEffectsManager {
     this.unsubscribes = [];
 
     this.initialized = false;
-    console.log("[ViewportEffects] Manager disposed");
+    devLog("[ViewportEffects] Manager disposed");
   }
 }

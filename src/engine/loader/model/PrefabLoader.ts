@@ -1,3 +1,4 @@
+import { devLog } from "../../core/DevLog";
 import { GamePaths } from "../../core/GamePaths";
 import { type Entity, MapParser } from "../map/MapParser";
 
@@ -49,7 +50,7 @@ export class PrefabLoader {
       const basePath = this.basePath || GamePaths.getInstance().prefabs();
       const fullPath = `${basePath}/${fileName}`;
 
-      console.log(`Loading prefab: ${fullPath}`);
+      devLog(`Loading prefab: ${fullPath}`);
 
       const response = await fetch(fullPath);
       if (!response.ok) {
@@ -67,7 +68,7 @@ export class PrefabLoader {
       };
 
       this.prefabCache.set(name, prefab);
-      console.log(`Loaded prefab: ${name} (${entities.length} entities)`);
+      devLog(`Loaded prefab: ${name} (${entities.length} entities)`);
 
       return prefab;
     } catch (e) {
@@ -89,7 +90,7 @@ export class PrefabLoader {
   public async preloadPrefabs(names: string[]): Promise<void> {
     const promises = names.map((name) => this.loadPrefab(name));
     await Promise.all(promises);
-    console.log(`Preloaded ${names.length} prefabs`);
+    devLog(`Preloaded ${names.length} prefabs`);
   }
 
   /**

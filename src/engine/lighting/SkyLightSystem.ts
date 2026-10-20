@@ -17,6 +17,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import type { Scene } from "@babylonjs/core/scene";
 import { Cvar } from "../core/Cvar";
+import { devLog } from "../core/DevLog";
 import { GameClock, type TimeOfDay } from "../core/GameClock";
 import { BspManager } from "../loader/bsp/BspManager";
 import { RenderVars } from "../rendering/RenderVars";
@@ -230,7 +231,7 @@ export class SkyLightSystem {
       alive(this.ambientLight) &&
       alive(this.worldFillLight);
     if (!keep && (this.scene || this.sunLight)) {
-      console.log("[SkyLightSystem] Re-initializing lights for scene...");
+      devLog("[SkyLightSystem] Re-initializing lights for scene...");
       this.reinitLights();
     }
 
@@ -310,9 +311,9 @@ export class SkyLightSystem {
       };
       this.updateLighting(noon);
 
-      console.log("[SkyLightSystem] BSP Mode enabled: Lighting locked for BSP map");
+      devLog("[SkyLightSystem] BSP Mode enabled: Lighting locked for BSP map");
     } else {
-      console.log("[SkyLightSystem] BSP Mode disabled: Resuming day/night cycle");
+      devLog("[SkyLightSystem] BSP Mode disabled: Resuming day/night cycle");
     }
   }
 
@@ -370,7 +371,7 @@ export class SkyLightSystem {
     const clock = GameClock.getInstance();
     this.updateLighting(clock.getTimeOfDay());
 
-    console.log("[SkyLightSystem] Lights reinitialized");
+    devLog("[SkyLightSystem] Lights reinitialized");
   }
 
   private createWorldFillLight(scene: Scene): void {
@@ -731,7 +732,7 @@ export class SkyLightSystem {
 
       if (loaded) {
         this._worldspawnLoaded = true;
-        console.log(
+        devLog(
           `[SkyLightSystem] Loaded day/night from worldspawn: enabled=${this._bspDayNightEnabled}, time=${this._bspTimeOfDay}, cycle=${this._bspCycleLength}min, animate=${this._bspAnimating}`,
         );
         if (this._bspDayNightEnabled) {

@@ -20,6 +20,7 @@
  * ```
  */
 
+import { devLog } from "./DevLog";
 import { EventBus } from "./EventBus";
 
 export interface ActionContext<T = unknown> {
@@ -357,11 +358,11 @@ export class ActionSystem {
  * Logging middleware - logs all actions to console
  */
 export const loggingMiddleware: ActionMiddleware = async (context, next) => {
-  console.log(`[Action] ${context.type}`, context.payload);
+  devLog(`[Action] ${context.type}`, context.payload);
   const start = performance.now();
   const result = await next();
   const duration = performance.now() - start;
-  console.log(`[Action] ${context.type} completed in ${duration.toFixed(2)}ms`);
+  devLog(`[Action] ${context.type} completed in ${duration.toFixed(2)}ms`);
   return result;
 };
 

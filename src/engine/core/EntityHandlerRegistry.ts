@@ -22,6 +22,7 @@
 
 import type { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Scene } from "@babylonjs/core/scene";
+import { devLog } from "./DevLog";
 
 /**
  * Entity data passed to handlers (matches MapParser Entity structure)
@@ -101,7 +102,7 @@ export class EntityHandlerRegistry {
       console.warn(`[EntityHandlerRegistry] Overwriting handler for '${classname}'`);
     }
     EntityHandlerRegistry.handlers.set(classname, handler);
-    console.log(`[EntityHandlerRegistry] Registered handler for '${classname}'`);
+    devLog(`[EntityHandlerRegistry] Registered handler for '${classname}'`);
   }
 
   /**

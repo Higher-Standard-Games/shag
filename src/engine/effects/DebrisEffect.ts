@@ -17,6 +17,7 @@ import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Observer } from "@babylonjs/core/Misc/observable";
 import { ParticleSystem } from "@babylonjs/core/Particles/particleSystem";
 import type { Scene } from "@babylonjs/core/scene";
+import { devLog } from "../core/DevLog";
 import { type WindState, WindSystem } from "./WindSystem";
 
 export type DebrisType = "leaves" | "trash" | "dust" | "mixed";
@@ -141,7 +142,7 @@ export class DebrisEffect {
     this.createParticleSystem();
 
     this.isActive = true;
-    console.log(`[DebrisEffect] Started ${this.settings.type} debris`);
+    devLog(`[DebrisEffect] Started ${this.settings.type} debris`);
   }
 
   /**
@@ -186,7 +187,7 @@ export class DebrisEffect {
     }
 
     this.isActive = false;
-    console.log("[DebrisEffect] Stopped");
+    devLog("[DebrisEffect] Stopped");
   }
 
   /**
@@ -221,7 +222,7 @@ export class DebrisEffect {
    */
   public updateSettings(settings: Partial<DebrisSettings>): void {
     this.settings = { ...this.settings, ...settings };
-    console.log("[DebrisEffect] Settings updated:", settings);
+    devLog("[DebrisEffect] Settings updated:", settings);
     if (this.particleSystem) {
       this.applySettings();
     }

@@ -10,6 +10,7 @@
 
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { Scene } from "@babylonjs/core/scene";
+import { devLog } from "../core/DevLog";
 import { WorldFogController } from "../rendering/WorldFogController";
 
 export type FogMode = "none" | "linear" | "exp" | "exp2";
@@ -68,7 +69,7 @@ export class FogEffect {
 
     this.applyFog();
     this.isActive = true;
-    console.log(`[FogEffect] Started with mode: ${this.settings.mode}, density: ${this.settings.density}`);
+    devLog(`[FogEffect] Started with mode: ${this.settings.mode}, density: ${this.settings.density}`);
   }
 
   /**
@@ -87,7 +88,7 @@ export class FogEffect {
 
     this.isActive = false;
     WorldFogController.getInstance().resume("weather");
-    console.log("[FogEffect] Stopped");
+    devLog("[FogEffect] Stopped");
   }
 
   /**

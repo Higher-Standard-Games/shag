@@ -13,6 +13,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Scene } from "@babylonjs/core/scene";
+import { devLog } from "../../core/DevLog";
 import "@babylonjs/loaders";
 import { resolvePlayerModelAsset, VANGUARD_MODEL, VANGUARD_ROOT } from "../../animation/PlayerModelAssets";
 import { Command, type CommandDef } from "../Command";
@@ -73,7 +74,7 @@ export default class AnimTestCommand extends Command {
     if (this.testMesh) this.disposeModel();
 
     try {
-      console.log("[AnimTest] Loading vanguard.glb...");
+      devLog("[AnimTest] Loading vanguard.glb...");
 
       const model = await resolvePlayerModelAsset(VANGUARD_ROOT, VANGUARD_MODEL);
       if (!model) return "Player model missing";
@@ -119,7 +120,7 @@ export default class AnimTestCommand extends Command {
           targetBoneMap.set(bone.name, node);
         }
       }
-      console.log(`[AnimTest] Target skeleton: ${targetBoneMap.size} bones`);
+      devLog(`[AnimTest] Target skeleton: ${targetBoneMap.size} bones`);
 
       // Create master group for playback
       this.masterGroup = new AnimationGroup("master", this.scene);
@@ -138,7 +139,7 @@ export default class AnimTestCommand extends Command {
 
       for (const anim of animFiles) {
         try {
-          console.log(`[AnimTest] Loading ${anim.file}...`);
+          devLog(`[AnimTest] Loading ${anim.file}...`);
 
           const asset = await resolvePlayerModelAsset(VANGUARD_ROOT, anim.file);
           if (!asset) continue;
@@ -176,7 +177,7 @@ export default class AnimTestCommand extends Command {
 
             if (storedAnim.animations.length > 0) {
               this.storedAnims.push(storedAnim);
-              console.log(`[AnimTest] Stored ${anim.name}: ${storedAnim.animations.length} channels`);
+              devLog(`[AnimTest] Stored ${anim.name}: ${storedAnim.animations.length} channels`);
             }
 
             sourceGroup.dispose();

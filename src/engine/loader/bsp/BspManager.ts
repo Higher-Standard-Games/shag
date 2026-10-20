@@ -1,3 +1,4 @@
+import { devLog } from "../../core/DevLog";
 import { sampleLightGrid } from "./LightGridSampling";
 /**
  * BspManager - High-level BSP map management
@@ -434,7 +435,7 @@ export class BspManager {
       // visibility. Gated by r_bsp_freeze (default on); applies per map build.
       if ((RenderVars.getInstance().get("r_bsp_freeze") ?? 1) >= 0.5) {
         const frozen = BspMeshBuilder.freezeStaticWorld(this.meshResult);
-        console.log(`[BspManager] Froze ${frozen} static world meshes (r_bsp_freeze)`);
+        devLog(`[BspManager] Froze ${frozen} static world meshes (r_bsp_freeze)`);
       }
 
       const filterInfo = options.faceTypes ? ` (types: ${options.faceTypes.join(",")})` : "";
@@ -675,13 +676,13 @@ export class BspManager {
    * Initialize PVS culling system
    */
   async initPVS(): Promise<string | null> {
-    console.log(`[PVS] initPVS called: loadedBsp=${!!this.loadedBsp}, meshResult=${!!this.meshResult}`);
+    devLog(`[PVS] initPVS called: loadedBsp=${!!this.loadedBsp}, meshResult=${!!this.meshResult}`);
 
     if (!this.loadedBsp) {
       return "No BSP loaded";
     }
     if (!this.meshResult) {
-      console.log(`[PVS] BSP loaded but not rendered. Current map: ${this.currentMapName}`);
+      devLog(`[PVS] BSP loaded but not rendered. Current map: ${this.currentMapName}`);
       return "BSP not rendered yet - try waiting a moment";
     }
 

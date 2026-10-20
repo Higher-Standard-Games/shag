@@ -3,6 +3,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Scene } from "@babylonjs/core/scene";
+import { devLog } from "../../core/DevLog";
 import { BrushGenerator } from "../map/BrushGenerator";
 import { type PatchDefinition, PatchGenerator } from "../map/PatchGenerator";
 import { TextureManager } from "../texture/TextureManager";
@@ -149,7 +150,7 @@ export class PrefabInstance {
       }
     }
 
-    console.log(`Instantiated prefab: ${prefabName} at ${finalPosition.toString()} (${meshes.length} meshes)`);
+    devLog(`Instantiated prefab: ${prefabName} at ${finalPosition.toString()} (${meshes.length} meshes)`);
 
     return {
       root,

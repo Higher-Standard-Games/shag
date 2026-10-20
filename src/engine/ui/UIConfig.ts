@@ -10,6 +10,7 @@
  * - Game: Icons, colors, custom rendering, game-specific logic
  */
 
+import { devLog } from "../core/DevLog";
 import { GamePaths } from "../core/GamePaths";
 
 export interface BuildMenuItem {
@@ -77,7 +78,7 @@ export class UIConfig {
         throw new Error(`Failed to load UI config: ${response.statusText}`);
       }
       this.config = await response.json();
-      console.log("UI config loaded:", this.configPath);
+      devLog("UI config loaded:", this.configPath);
       return this.config!;
     } catch (error) {
       console.error("Error loading UI config:", error);

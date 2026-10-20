@@ -29,6 +29,7 @@
  *   MapLoadingOverlay.disable();
  */
 
+import { devLog } from "../core/DevLog";
 import { EngineVersion } from "../core/EngineVersion";
 import { EventBus } from "../core/EventBus";
 import {
@@ -164,7 +165,7 @@ export class MapLoadingOverlay {
 
     // No-op in headless mode
     if (typeof document === "undefined") {
-      console.log("[MapLoadingOverlay] Headless mode - disabled");
+      devLog("[MapLoadingOverlay] Headless mode - disabled");
       return;
     }
 
@@ -195,7 +196,7 @@ export class MapLoadingOverlay {
       }),
     );
 
-    console.log("[MapLoadingOverlay] Enabled");
+    devLog("[MapLoadingOverlay] Enabled");
   }
 
   /**
@@ -224,7 +225,7 @@ export class MapLoadingOverlay {
       instance.hide();
     }
 
-    console.log("[MapLoadingOverlay] Disabled");
+    devLog("[MapLoadingOverlay] Disabled");
   }
 
   /**

@@ -11,6 +11,7 @@ import type { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import type { Color3 } from "@babylonjs/core/Maths/math.color";
 import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
+import { devLog } from "../../core/DevLog";
 import type { AlphaGen, RgbGen, TcMod, WaveFunc } from "./Q3ShaderTypes";
 
 // ============================================================================
@@ -140,7 +141,7 @@ export class ShaderAnimationSystem {
       this.update();
     });
 
-    console.log("[ShaderAnimationSystem] Initialized");
+    devLog("[ShaderAnimationSystem] Initialized");
   }
 
   /**
@@ -237,7 +238,7 @@ export class ShaderAnimationSystem {
       });
     }
 
-    console.log(
+    devLog(
       `[ShaderAnimationSystem] Registered: ${id} (${tcMods.length} tcMods, rgbGen: ${rgbGen?.type || "none"}, alphaGen: ${alphaGen?.type || "none"})`,
     );
   }
@@ -247,7 +248,7 @@ export class ShaderAnimationSystem {
    */
   unregisterMaterial(id: string): void {
     if (this.entries.delete(id)) {
-      console.log(`[ShaderAnimationSystem] Unregistered: ${id}`);
+      devLog(`[ShaderAnimationSystem] Unregistered: ${id}`);
     }
   }
 
@@ -258,7 +259,7 @@ export class ShaderAnimationSystem {
     const count = this.entries.size;
     this.entries.clear();
     this.totalTime = 0;
-    console.log(`[ShaderAnimationSystem] Cleared ${count} entries`);
+    devLog(`[ShaderAnimationSystem] Cleared ${count} entries`);
   }
 
   // ============================================================================
@@ -267,7 +268,7 @@ export class ShaderAnimationSystem {
 
   setEnabled(enabled: boolean): void {
     this.enabled = enabled;
-    console.log(`[ShaderAnimationSystem] ${enabled ? "Enabled" : "Disabled"}`);
+    devLog(`[ShaderAnimationSystem] ${enabled ? "Enabled" : "Disabled"}`);
   }
 
   isEnabled(): boolean {
@@ -276,7 +277,7 @@ export class ShaderAnimationSystem {
 
   setTimeScale(scale: number): void {
     this.timeScale = Math.max(0, scale);
-    console.log(`[ShaderAnimationSystem] Time scale: ${this.timeScale}`);
+    devLog(`[ShaderAnimationSystem] Time scale: ${this.timeScale}`);
   }
 
   getTimeScale(): number {

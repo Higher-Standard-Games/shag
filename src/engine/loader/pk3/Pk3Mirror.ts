@@ -14,6 +14,7 @@
  * either case, and whenever the mirror fails, the file comes from the origin.
  */
 
+import { devLog } from "../../core/DevLog";
 import { fetchAsset } from "./AssetRequest";
 
 /** The mirror's base URL, ending in "/", or null when no mirror is configured. */
@@ -61,7 +62,7 @@ export async function fetchPk3(
 
   if (!announced) {
     announced = true;
-    console.log(`[Pk3Mirror] Downloading pk3 packages from ${mirrorBase} when it has them`);
+    devLog(`[Pk3Mirror] Downloading pk3 packages from ${mirrorBase} when it has them`);
   }
 
   const [mirror, head] = await Promise.all([

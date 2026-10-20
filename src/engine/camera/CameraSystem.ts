@@ -10,6 +10,7 @@ import { Camera } from "@babylonjs/core/Cameras/camera";
 import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Scene } from "@babylonjs/core/scene";
+import { devLog } from "../core/DevLog";
 import { EventBus } from "../core/EventBus";
 import { CAMERA_PRESETS, type CameraMode, type CameraPreset, getCameraPreset } from "./CameraPresets";
 import type { ICameraController } from "./controllers/ICameraController";
@@ -178,7 +179,7 @@ export class CameraSystem {
         this.scene.activeCamera = this.originalCamera;
         cameraToUse = this.originalCamera;
         this.camera = this.originalCamera;
-        console.log("[CameraSystem] Restored original ArcRotateCamera");
+        devLog("[CameraSystem] Restored original ArcRotateCamera");
       } else if (!(this.camera instanceof ArcRotateCamera)) {
         // Create a new ArcRotateCamera since we don't have one
         const currentPos = this.camera.position.clone();
@@ -203,7 +204,7 @@ export class CameraSystem {
         this.scene.activeCamera = arcCamera;
         this.camera = arcCamera;
         cameraToUse = arcCamera;
-        console.log("[CameraSystem] Created new ArcRotateCamera for isometric controller");
+        devLog("[CameraSystem] Created new ArcRotateCamera for isometric controller");
       }
     }
 
@@ -211,7 +212,7 @@ export class CameraSystem {
     controller.attach(cameraToUse, this.scene, this.canvas);
     this.activeController = controller;
 
-    console.log(`[CameraSystem] Switched to controller: ${type}`);
+    devLog(`[CameraSystem] Switched to controller: ${type}`);
     EventBus.emit("camera:controller_changed", { type });
 
     return true;
@@ -298,7 +299,7 @@ export class CameraSystem {
     }
 
     this.currentMode = mode;
-    console.log(`[CameraSystem] Applied mode: ${mode}, height: ${this.currentHeight}`);
+    devLog(`[CameraSystem] Applied mode: ${mode}, height: ${this.currentHeight}`);
   }
 
   /**
@@ -372,7 +373,7 @@ export class CameraSystem {
     }
 
     this.currentPreset = preset.name;
-    console.log(`[CameraSystem] Applied preset: ${preset.name}`);
+    devLog(`[CameraSystem] Applied preset: ${preset.name}`);
     EventBus.emit("camera:preset_changed", { preset: preset.name });
 
     return true;

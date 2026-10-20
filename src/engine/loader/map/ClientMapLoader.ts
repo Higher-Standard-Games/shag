@@ -1,4 +1,5 @@
 import { CommandRegistry } from "../../console/CommandRegistry";
+import { devLog } from "../../core/DevLog";
 import { PLAYER_ORIGIN_HEIGHT } from "../../physics/PlayerPhysicsConstants";
 
 /**
@@ -55,10 +56,10 @@ async function loadClientMapWithSystems(
   const { Color3 } = await import("@babylonjs/core/Maths/math.color");
   scene.ambientColor = new Color3(1, 1, 1);
   scene.blockMaterialDirtyMechanism = false;
-  console.log("[ClientMapLoader] Applied scene settings for BSP rendering");
+  devLog("[ClientMapLoader] Applied scene settings for BSP rendering");
 
   const result = await mapLoader.loadMap(mapName, scene, (progress: any) => {
-    console.log(`[Map] ${progress.phase}${progress.detail ? `: ${progress.detail}` : ""}`);
+    devLog(`[Map] ${progress.phase}${progress.detail ? `: ${progress.detail}` : ""}`);
   });
 
   if (!result.success) {
@@ -103,7 +104,7 @@ async function loadClientMapWithSystems(
 
     const controller = cameraSystem.getActiveController();
     if (controller?.setPosition) {
-      console.log(`[ClientMapLoader] Teleporting ${controller.type} to ${spawnPos}`);
+      devLog(`[ClientMapLoader] Teleporting ${controller.type} to ${spawnPos}`);
       controller.setPosition(spawnPos);
 
       setTimeout(() => {
@@ -121,7 +122,7 @@ async function loadClientMapWithSystems(
       cam.rotation.x = 0;
       cam.rotation.z = 0;
       cam.rotation.y = initialYaw;
-      console.log(`[ClientMapLoader] Set rotation: yaw=${initialYaw.toFixed(2)}`);
+      devLog(`[ClientMapLoader] Set rotation: yaw=${initialYaw.toFixed(2)}`);
     }
 
     spawnStatus = `  Spawned at: ${spawnPos}`;

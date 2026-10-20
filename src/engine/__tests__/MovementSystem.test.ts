@@ -12,7 +12,7 @@
  *   - Post-move player separation handles all the edge cases
  */
 
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { InputComponent } from "../network/components/InputComponent";
 import { MovementStateComponent } from "../network/components/MovementStateComponent";
 import { TransformComponent, type Vec3 } from "../network/components/TransformComponent";
@@ -439,10 +439,7 @@ describe("MovementSystem — smoke with SimpleMovement", () => {
     expect(endY).toBeLessThan(startY);
   });
 
-  it("logs via setCollisionWorld (console.log is intentional; we just verify no throw)", () => {
-    const spy = vi.spyOn(console, "log").mockImplementation(() => {});
-    new MovementSystem(new SimpleMovement()).setCollisionWorld(new NullCollisionWorld());
-    expect(spy).toHaveBeenCalled();
-    spy.mockRestore();
+  it("accepts a collision world", () => {
+    expect(() => new MovementSystem(new SimpleMovement()).setCollisionWorld(new NullCollisionWorld())).not.toThrow();
   });
 });

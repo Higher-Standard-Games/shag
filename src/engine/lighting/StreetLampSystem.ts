@@ -9,6 +9,7 @@
  */
 
 import { ClusteredLightContainer } from "@babylonjs/core/Lights/Clustered/clusteredLightContainer";
+import { devLog } from "../core/DevLog";
 import "@babylonjs/core/Lights/Clustered/clusteredLightingSceneComponent";
 import { PointLight } from "@babylonjs/core/Lights/pointLight";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
@@ -102,7 +103,7 @@ export class StreetLampSystem {
     // Initial state check
     this.checkLampStates();
 
-    console.log("StreetLampSystem initialized (clustered lights will be created on demand)");
+    devLog("StreetLampSystem initialized (clustered lights will be created on demand)");
   }
 
   /**
@@ -119,7 +120,7 @@ export class StreetLampSystem {
     this.clusteredLights.horizontalTiles = 8;
     this.clusteredLights.verticalTiles = 8;
     this.clusteredLights.maxRange = 1000;
-    console.log("StreetLampSystem: Created clustered light container");
+    devLog("StreetLampSystem: Created clustered light container");
   }
 
   /**
@@ -203,7 +204,7 @@ export class StreetLampSystem {
     }
 
     this.lamps.set(config.id, lamp);
-    console.log(`Created street lamp: ${config.id} at ${config.position.toString()}`);
+    devLog(`Created street lamp: ${config.id} at ${config.position.toString()}`);
 
     return lamp;
   }

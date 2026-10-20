@@ -28,6 +28,7 @@ import { PointLight } from "@babylonjs/core/Lights/pointLight";
 import type { Color3 } from "@babylonjs/core/Maths/math.color";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Scene } from "@babylonjs/core/scene";
+import { devLog } from "../core/DevLog";
 import { addToDynamicLightCluster, removeFromDynamicLightCluster } from "../lighting/DynamicLightCluster";
 
 // Concurrent effect lights. Was 4 under the forward-light scarcity system;
@@ -95,7 +96,7 @@ export class PointLightPool {
     }
 
     this.initialized = true;
-    console.log(`[PointLightPool] Initialized with ${POOL_SIZE} clustered lights (intensity-parked)`);
+    devLog(`[PointLightPool] Initialized with ${POOL_SIZE} clustered lights (intensity-parked)`);
   }
 
   /**

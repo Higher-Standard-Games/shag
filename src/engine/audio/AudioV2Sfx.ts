@@ -7,6 +7,7 @@ import { EngineStore } from "@babylonjs/core/Engines/engineStore";
 import type { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
+import { devLog } from "../core/DevLog";
 import { PK3Index } from "../loader/pk3/PK3Index";
 import { PK3Loader } from "../loader/pk3/PK3Loader";
 
@@ -325,7 +326,7 @@ export class AudioV2Sfx {
           this.sfxBus = bus;
           this.followView();
           this.syncListener();
-          console.log("[AudioManager] Babylon Audio V2 SFX backend ready");
+          devLog("[AudioManager] Babylon Audio V2 SFX backend ready");
           return true;
         } catch (error) {
           console.warn("[AudioManager] Babylon Audio V2 unavailable:", error);

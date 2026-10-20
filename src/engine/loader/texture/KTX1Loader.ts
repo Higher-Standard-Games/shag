@@ -13,6 +13,7 @@
 import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine";
 import { Constants } from "@babylonjs/core/Engines/constants";
 import type { InternalTexture } from "@babylonjs/core/Materials/Textures/internalTexture";
+import { devLog } from "../../core/DevLog";
 import { reduceTexturePixels } from "./TextureReduction";
 
 // KTX1 file header structure
@@ -701,7 +702,7 @@ export async function createTextureFromKTX1(
           rgba[i * 4 + 2] = 255;
           rgba[i * 4 + 3] = mip.data[i];
         }
-        console.log(`[KTX1Loader] Converted ALPHA→RGBA: ${name} (${mip.width}x${mip.height})`);
+        devLog(`[KTX1Loader] Converted ALPHA→RGBA: ${name} (${mip.width}x${mip.height})`);
       } else if (baseFmt === GL_FORMATS.RGB) {
         // RGB (3 bytes/pixel) → RGBA (4 bytes/pixel): add alpha=255
         rgba = new Uint8Array(pixelCount * 4);
@@ -711,7 +712,7 @@ export async function createTextureFromKTX1(
           rgba[i * 4 + 2] = mip.data[i * 3 + 2];
           rgba[i * 4 + 3] = 255;
         }
-        console.log(`[KTX1Loader] Converted RGB→RGBA: ${name} (${mip.width}x${mip.height})`);
+        devLog(`[KTX1Loader] Converted RGB→RGBA: ${name} (${mip.width}x${mip.height})`);
       } else if (baseFmt === GL_FORMATS.LUMINANCE) {
         // Luminance (1 byte/pixel) → RGBA
         rgba = new Uint8Array(pixelCount * 4);
@@ -722,7 +723,7 @@ export async function createTextureFromKTX1(
           rgba[i * 4 + 2] = v;
           rgba[i * 4 + 3] = 255;
         }
-        console.log(`[KTX1Loader] Converted LUMINANCE→RGBA: ${name} (${mip.width}x${mip.height})`);
+        devLog(`[KTX1Loader] Converted LUMINANCE→RGBA: ${name} (${mip.width}x${mip.height})`);
       } else if (baseFmt === GL_FORMATS.LUMINANCE_ALPHA) {
         // Luminance+Alpha (2 bytes/pixel) → RGBA
         rgba = new Uint8Array(pixelCount * 4);
@@ -734,7 +735,7 @@ export async function createTextureFromKTX1(
           rgba[i * 4 + 2] = v;
           rgba[i * 4 + 3] = a;
         }
-        console.log(`[KTX1Loader] Converted LUMINANCE_ALPHA→RGBA: ${name} (${mip.width}x${mip.height})`);
+        devLog(`[KTX1Loader] Converted LUMINANCE_ALPHA→RGBA: ${name} (${mip.width}x${mip.height})`);
       } else {
         // Unknown format — try as RGBA, may fail but better than crashing silently
         console.warn(
@@ -756,7 +757,7 @@ export async function createTextureFromKTX1(
         Constants.TEXTURETYPE_UNSIGNED_BYTE,
       );
       internalTexture.isReady = true;
-      console.log(`[KTX1Loader] Uncompressed texture: ${name} (${mip.width}x${mip.height})`);
+      devLog(`[KTX1Loader] Uncompressed texture: ${name} (${mip.width}x${mip.height})`);
       return internalTexture;
     }
     return null;
@@ -774,7 +775,7 @@ export async function createTextureFromKTX1(
   // Software decode remains available when the device or native uploader
   // cannot use this container. Unsupported formats return null for PK3 fallback.
   if (canSoftwareDecode(fmt)) {
-    console.log(`[KTX1Loader] Software decoding ${ktx.formatName} → RGBA: ${name}`);
+    devLog(`[KTX1Loader] Software decoding ${ktx.formatName} → RGBA: ${name}`);
     const mip = ktx.mipLevels[0];
     const rgba = softwareDecodeMip(mip.data, mip.width, mip.height, fmt);
 
@@ -805,7 +806,7 @@ export async function createTextureFromKTX1(
       Constants.TEXTURETYPE_UNSIGNED_BYTE,
     );
     internalTexture.isReady = true;
-    console.log(`[KTX1Loader] Software decoded: ${name} (${ktx.formatName} → RGBA, ${mip.width}x${mip.height})`);
+    devLog(`[KTX1Loader] Software decoded: ${name} (${ktx.formatName} → RGBA, ${mip.width}x${mip.height})`);
     return internalTexture;
   }
 

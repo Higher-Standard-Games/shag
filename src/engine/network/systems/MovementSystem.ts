@@ -1,4 +1,5 @@
 import type { LiftActor } from "../../../shared/bsp/LiftSystem";
+import { devLog } from "../../core/DevLog";
 import type { InputComponent } from "../components/InputComponent";
 import type { MovementStateComponent } from "../components/MovementStateComponent";
 import type { TransformComponent } from "../components/TransformComponent";
@@ -38,7 +39,7 @@ export class MovementSystem extends GameSystem {
    */
   setCollisionWorld(collision: CollisionWorld | null): void {
     this.collision = collision;
-    console.log(`[MovementSystem] setCollisionWorld: ${collision ? collision.constructor.name : "null"}`);
+    devLog(`[MovementSystem] setCollisionWorld: ${collision ? collision.constructor.name : "null"}`);
   }
 
   /**

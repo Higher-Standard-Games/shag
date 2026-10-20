@@ -1,5 +1,6 @@
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { CameraSystem } from "../../camera/CameraSystem";
+import { devLog } from "../../core/DevLog";
 import { EntityManager } from "../../entities/EntityManager"; // Safe import for types/static access
 import { Command, type CommandDef } from "../Command";
 
@@ -44,7 +45,7 @@ export default class SpawnPickupCommand extends Command {
     // Use camera Y directly (maybe +10 to be safe from floor clipping)
     spawnPos.y = camera.position.y + 10;
 
-    console.log(`[SpawnPickup] Spawning at ${spawnPos} (will drop via gravity)`);
+    devLog(`[SpawnPickup] Spawning at ${spawnPos} (will drop via gravity)`);
 
     const success = await entityManager.spawnEntityById(entityId, spawnPos, camera.getScene(), { gravity: true });
 

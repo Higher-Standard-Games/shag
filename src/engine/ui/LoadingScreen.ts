@@ -21,6 +21,7 @@
 
 import type { LoadProgress } from "../AssetLoader";
 import { AudioManager } from "../AudioManager";
+import { devLog } from "../core/DevLog";
 import { EngineVersion } from "../core/EngineVersion";
 import { buildTwinLight, buildTwinRail, TWIN_ROOT_CLASS, type TwinRail } from "./components/LobbyTwin";
 import { LoadingAnimation } from "./LoadingAnimation";
@@ -168,7 +169,7 @@ export class LoadingScreen {
     const instance = LoadingScreen.instance;
     if (!instance || !instance.readyResolver) return;
     instance.start();
-    console.log("[LoadingScreen] Force dismissed by console");
+    devLog("[LoadingScreen] Force dismissed by console");
   }
 
   /** Move the rail to a boot step; the ones before it are done */

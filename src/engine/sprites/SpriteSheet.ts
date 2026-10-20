@@ -2,6 +2,7 @@ import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import type { Scene } from "@babylonjs/core/scene";
+import { devLog } from "../core/DevLog";
 
 /**
  * Configuration for a sprite sheet
@@ -96,7 +97,7 @@ export class SpriteSheet {
     // Track when loaded
     this.texture.onLoadObservable.addOnce(() => {
       this.isLoaded = true;
-      console.log(`SpriteSheet loaded: ${config.path}`);
+      devLog(`SpriteSheet loaded: ${config.path}`);
     });
   }
 

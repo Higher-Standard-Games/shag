@@ -22,6 +22,7 @@ import type { Camera } from "@babylonjs/core/Cameras/camera";
 import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Scene } from "@babylonjs/core/scene";
+import { devLog } from "./DevLog";
 
 // ==================== Types ====================
 
@@ -93,7 +94,7 @@ export class WorldIndicatorSystem {
     // This is a DOM-backed presentation service. Headless scenes still pass
     // through the shared service graph, so leave it dormant there.
     if (typeof document === "undefined" || typeof window === "undefined") {
-      console.log("[WorldIndicatorSystem] Skipped in headless environment");
+      devLog("[WorldIndicatorSystem] Skipped in headless environment");
       return;
     }
 
@@ -110,7 +111,7 @@ export class WorldIndicatorSystem {
     this.createContainer();
     this.startUpdateLoop();
 
-    console.log("WorldIndicatorSystem initialized");
+    devLog("WorldIndicatorSystem initialized");
   }
 
   /**
@@ -250,7 +251,7 @@ export class WorldIndicatorSystem {
       indicator.element.remove();
     }
     this.indicators.clear();
-    console.log(`[WorldIndicatorSystem] Cleared ${count} indicators`);
+    devLog(`[WorldIndicatorSystem] Cleared ${count} indicators`);
   }
 
   /**

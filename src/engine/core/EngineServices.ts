@@ -42,6 +42,7 @@ import { ProceduralTextureGenerator } from "../procedural/ProceduralTextureGener
 import { RenderVars } from "../rendering/RenderVars";
 import { SpriteBuildingManager } from "../sprites/SpriteBuilding";
 import { SpriteManager } from "../sprites/SpriteManager";
+import { devLog } from "./DevLog";
 import { EngineSettings } from "./EngineSettings";
 import { GamePaths } from "./GamePaths";
 import { ServiceLocator, type ServiceRegistration } from "./ServiceLocator";
@@ -187,7 +188,7 @@ export const ENGINE_SERVICES: ServiceRegistration[] = [...CORE_SERVICES, ...SCEN
 export function registerEngineServices(): void {
   const locator = ServiceLocator.getInstance();
   locator.registerAll(ENGINE_SERVICES);
-  console.log(`[EngineServices] Registered ${ENGINE_SERVICES.length} engine services`);
+  devLog(`[EngineServices] Registered ${ENGINE_SERVICES.length} engine services`);
 }
 
 /**

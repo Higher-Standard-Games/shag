@@ -8,6 +8,7 @@ import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
 import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Scene } from "@babylonjs/core/scene";
+import { devLog } from "../../core/DevLog";
 import { Command, type CommandDef } from "../Command";
 
 // Module-level state for empty scene management
@@ -202,7 +203,7 @@ export default class SceneCommand extends Command {
       cameraSystem.registerController("freefly", freeflyController);
       cameraSystem.setController("freefly");
     } else {
-      console.log("[SceneCommand] Skipping freefly controller - network mode active");
+      devLog("[SceneCommand] Skipping freefly controller - network mode active");
     }
 
     // Enter "in_game" state

@@ -23,6 +23,7 @@ import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { PostProcess } from "@babylonjs/core/PostProcesses/postProcess";
 import { DepthRenderer } from "@babylonjs/core/Rendering/depthRenderer";
 import type { Scene } from "@babylonjs/core/scene";
+import { devLog } from "../core/DevLog";
 
 // Register the scene component required by DepthRenderer's constructor.
 import "@babylonjs/core/Rendering/depthRendererSceneComponent";
@@ -169,7 +170,7 @@ export class CelOutlinePostProcess {
       this.createPostProcess();
     }
 
-    console.log("[CelOutline] Initialized");
+    devLog("[CelOutline] Initialized");
   }
 
   /**
@@ -217,7 +218,7 @@ export class CelOutlinePostProcess {
     const depthTex = depthRenderer.getDepthMap();
     depthTex.forceLayerMaskCheck = true;
     this.camera.customRenderTargets.push(depthTex);
-    console.log(`[CelOutline] Depth texture ready: ${depthTex.getSize().width}x${depthTex.getSize().height}`);
+    devLog(`[CelOutline] Depth texture ready: ${depthTex.getSize().width}x${depthTex.getSize().height}`);
 
     // Filter what writes to the depth buffer for outline detection.
     // Exclude: alpha-blended meshes (particles, explosions), tagged meshes (projectiles).
@@ -277,14 +278,14 @@ export class CelOutlinePostProcess {
       effect.setTexture("depthSampler", depthTex);
     };
 
-    console.log("[CelOutline] Post-process created and attached to camera");
+    devLog("[CelOutline] Post-process created and attached to camera");
   }
 
   private destroyPostProcess(): void {
     if (this.postProcess) {
       this.postProcess.dispose();
       this.postProcess = null;
-      console.log("[CelOutline] Post-process destroyed");
+      devLog("[CelOutline] Post-process destroyed");
     }
     if (this.depthRenderer) {
       const target = this.depthRenderer.getDepthMap();
@@ -311,7 +312,7 @@ export class CelOutlinePostProcess {
       this.destroyPostProcess();
     }
 
-    console.log(`[CelOutline] ${enabled ? "Enabled" : "Disabled"}`);
+    devLog(`[CelOutline] ${enabled ? "Enabled" : "Disabled"}`);
   }
 
   public isEnabled(): boolean {
@@ -356,7 +357,7 @@ export class CelOutlinePostProcess {
     this.destroyPostProcess();
     this.scene = null;
     this.camera = null;
-    console.log("[CelOutline] Disposed");
+    devLog("[CelOutline] Disposed");
   }
 
   // ==================== Static Helpers ====================

@@ -13,6 +13,7 @@ import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import type { Scene } from "@babylonjs/core/scene";
 import { Cvar } from "../core/Cvar";
+import { devLog } from "../core/DevLog";
 import { PostProcessingManager } from "../effects/PostProcessingManager";
 import type { BspBakedLightingPlugin } from "../loader/bsp/BspBakedLightingPlugin";
 
@@ -640,7 +641,7 @@ export class RenderVars {
 
   public init(): void {
     // Cvars are registered in constructor, init() is for scene-dependent setup
-    console.log(`[RenderVars] init() called, vars count: ${this.vars.size}`);
+    devLog(`[RenderVars] init() called, vars count: ${this.vars.size}`);
   }
 
   // ==================== Initialization ====================
@@ -674,7 +675,7 @@ export class RenderVars {
         },
       });
     }
-    console.log(`[RenderVars] Registered ${this.vars.size} cvars`);
+    devLog(`[RenderVars] Registered ${this.vars.size} cvars`);
   }
 
   private applyToPostProcessing(bloomMul: number, exposureMul: number, contrastMul: number): void {

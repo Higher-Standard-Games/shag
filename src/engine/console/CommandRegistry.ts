@@ -10,6 +10,7 @@
  */
 
 import { Cvar } from "../core/Cvar";
+import { devLog } from "../core/DevLog";
 import { Command, type CommandDef, type CommandOutput, fail, isCommandFailure } from "./Command";
 
 export type CommandHandler = (args: string[]) => CommandOutput | Promise<CommandOutput>;
@@ -100,9 +101,7 @@ export class CommandRegistry {
       }
     }
 
-    console.log(
-      `[CommandRegistry] Registered: ${def.name}${def.aliases ? ` (aliases: ${def.aliases.join(", ")})` : ""}`,
-    );
+    devLog(`[CommandRegistry] Registered: ${def.name}${def.aliases ? ` (aliases: ${def.aliases.join(", ")})` : ""}`);
   }
 
   /**

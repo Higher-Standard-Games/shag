@@ -11,6 +11,7 @@
  *   client.on('chat:message', (data) => { ... });
  */
 
+import { devLog } from "../engine/core/DevLog";
 import type { HistoryPage, StatsQuery, StatsSummary } from "./PlayerStatsStore";
 import type {
   FeaturedDemosResponse,
@@ -80,7 +81,7 @@ export class LobbyClient {
         ws.onopen = () => {
           if (!current()) return;
           this._connected = true;
-          console.log("[LobbyClient] Connected to lobby server");
+          devLog("[LobbyClient] Connected to lobby server");
           this.emit("_connected", {});
           settle();
         };
@@ -100,7 +101,7 @@ export class LobbyClient {
           this.ws = null;
           this._connected = false;
           settle(new Error(`Lobby connection closed before opening: ${event.reason || event.code}`));
-          console.log(`[LobbyClient] Disconnected: ${event.reason || event.code}`);
+          devLog(`[LobbyClient] Disconnected: ${event.reason || event.code}`);
           this.emit("_disconnected", { reason: event.reason, code: event.code });
         };
 
@@ -126,7 +127,7 @@ export class LobbyClient {
     this.ws = null;
     this._connected = false;
     cancel?.(new Error("Lobby connection cancelled"));
-    console.log("[LobbyClient] Closing the connection");
+    devLog("[LobbyClient] Closing the connection");
     ws?.close(1000, CLIENT_DISCONNECT_REASON);
     if (wasConnected) this.emit("_disconnected", { reason: CLIENT_DISCONNECT_REASON, code: 1000 });
   }

@@ -10,6 +10,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { Scene } from "@babylonjs/core/scene";
+import { devLog } from "../core/DevLog";
 import type { BspFile } from "../loader/bsp/BspLoader";
 import {
   type CollisionBackend,
@@ -73,7 +74,7 @@ export class BabylonPhysicsBackend implements CollisionBackend {
     }
 
     this.stats.backendStats.meshCount = this.collisionMeshes.length;
-    console.log(`[BabylonPhysicsBackend] Using ${this.collisionMeshes.length} meshes for collision`);
+    devLog(`[BabylonPhysicsBackend] Using ${this.collisionMeshes.length} meshes for collision`);
   }
 
   trace(start: Vector3, end: Vector3, options?: TraceOptions): TraceResult {
@@ -84,7 +85,7 @@ export class BabylonPhysicsBackend implements CollisionBackend {
     const debug = options?.debug ?? false;
 
     if (!this.scene) {
-      if (debug) console.log("[BabylonPhysics] No scene available");
+      if (debug) devLog("[BabylonPhysics] No scene available");
       return result;
     }
 
@@ -100,7 +101,7 @@ export class BabylonPhysicsBackend implements CollisionBackend {
     const ray = new Ray(start, normalizedDir, length);
 
     if (debug) {
-      console.log(
+      devLog(
         `[BabylonPhysics] Ray: (${start.x.toFixed(1)}, ${start.y.toFixed(1)}, ${start.z.toFixed(1)}) dir=(${normalizedDir.x.toFixed(2)}, ${normalizedDir.y.toFixed(2)}, ${normalizedDir.z.toFixed(2)}) len=${length.toFixed(1)}`,
       );
     }
@@ -125,12 +126,10 @@ export class BabylonPhysicsBackend implements CollisionBackend {
       this.stats.hitCount++;
 
       if (debug) {
-        console.log(
-          `[BabylonPhysics] HIT at fraction ${result.fraction.toFixed(4)}, mesh: ${pickResult.pickedMesh?.name}`,
-        );
+        devLog(`[BabylonPhysics] HIT at fraction ${result.fraction.toFixed(4)}, mesh: ${pickResult.pickedMesh?.name}`);
       }
     } else if (debug) {
-      console.log(`[BabylonPhysics] No hit`);
+      devLog(`[BabylonPhysics] No hit`);
     }
 
     const elapsed = performance.now() - startTime;

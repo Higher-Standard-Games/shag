@@ -7,6 +7,7 @@
  * This is engine-level code that can be reused across different games.
  */
 
+import { devLog } from "./DevLog";
 import { EventBus } from "./EventBus";
 
 // ==================== Interfaces ====================
@@ -190,7 +191,7 @@ export class PersistenceManager {
     try {
       localStorage.setItem(key, JSON.stringify(data));
       this.currentSlot = slot;
-      console.log(`[PersistenceManager] Saved to slot ${slot}`);
+      devLog(`[PersistenceManager] Saved to slot ${slot}`);
       EventBus.emit("persistence:saved", { slot });
     } catch (e) {
       console.error(`[PersistenceManager] Failed to save to slot ${slot}:`, e);
@@ -206,7 +207,7 @@ export class PersistenceManager {
 
     try {
       localStorage.setItem(this.config.autoSaveKey, JSON.stringify(data));
-      console.log("[PersistenceManager] Autosaved");
+      devLog("[PersistenceManager] Autosaved");
       EventBus.emit("persistence:autosaved", {});
     } catch (e) {
       console.error("[PersistenceManager] Failed to autosave:", e);
@@ -233,7 +234,7 @@ export class PersistenceManager {
       this.currentSlot = slot;
       this.sessionStartTime = Date.now();
 
-      console.log(`[PersistenceManager] Loaded from slot ${slot}`);
+      devLog(`[PersistenceManager] Loaded from slot ${slot}`);
       EventBus.emit("persistence:loaded", { slot });
       return true;
     } catch (e) {
@@ -259,7 +260,7 @@ export class PersistenceManager {
       this.currentSlot = -1;
       this.sessionStartTime = Date.now();
 
-      console.log("[PersistenceManager] Loaded from autosave");
+      devLog("[PersistenceManager] Loaded from autosave");
       EventBus.emit("persistence:loaded", { slot: -1 });
       return true;
     } catch (e) {
@@ -415,7 +416,7 @@ export class PersistenceManager {
       saveable.clear();
     }
 
-    console.log(`[PersistenceManager] New game started in slot ${slot}`);
+    devLog(`[PersistenceManager] New game started in slot ${slot}`);
     EventBus.emit("persistence:newgame", { slot });
   }
 
@@ -432,7 +433,7 @@ export class PersistenceManager {
       this.autoSave();
     }, this.config.autoSaveInterval);
 
-    console.log(`[PersistenceManager] Autosave started (${this.config.autoSaveInterval}ms interval)`);
+    devLog(`[PersistenceManager] Autosave started (${this.config.autoSaveInterval}ms interval)`);
   }
 
   /**

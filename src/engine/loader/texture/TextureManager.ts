@@ -3,6 +3,7 @@ import { DynamicTexture } from "@babylonjs/core/Materials/Textures/dynamicTextur
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import type { Scene } from "@babylonjs/core/scene";
+import { devLog } from "../../core/DevLog";
 import { GamePaths } from "../../core/GamePaths";
 import { ProceduralTextureGenerator } from "../../procedural/ProceduralTextureGenerator";
 import { PK3TextureLoader } from "../pk3/PK3TextureLoader";
@@ -202,7 +203,7 @@ export class TextureManager {
           texture.wrapU = Texture.WRAP_ADDRESSMODE;
           texture.wrapV = Texture.WRAP_ADDRESSMODE;
 
-          console.log(`Loaded texture: ${fullPath}`);
+          devLog(`Loaded texture: ${fullPath}`);
           return texture;
         }
       } catch {
@@ -230,7 +231,7 @@ export class TextureManager {
     texture.name = texturePath;
     texture.wrapU = Texture.WRAP_ADDRESSMODE;
     texture.wrapV = Texture.WRAP_ADDRESSMODE;
-    console.log(`[TextureManager] Loaded through PK3/sidecar resolver: ${texturePath}`);
+    devLog(`[TextureManager] Loaded through PK3/sidecar resolver: ${texturePath}`);
     return texture;
   }
 
@@ -265,7 +266,7 @@ export class TextureManager {
       hasNormalMap = true;
       // Apply same UV transform as diffuse
       this.applyUVTransform(normTexture, textureInfo);
-      console.log(`[TextureManager] Loaded normal map: ${basePath}_norm`);
+      devLog(`[TextureManager] Loaded normal map: ${basePath}_norm`);
     }
 
     // Try to load gloss/specular map (_gloss)
@@ -279,7 +280,7 @@ export class TextureManager {
       hasGlossMap = true;
       // Apply same UV transform as diffuse
       this.applyUVTransform(glossTexture, textureInfo);
-      console.log(`[TextureManager] Loaded gloss map: ${basePath}_gloss`);
+      devLog(`[TextureManager] Loaded gloss map: ${basePath}_gloss`);
     }
 
     if (hasNormalMap && !hasGlossMap) {
@@ -425,7 +426,7 @@ export class TextureManager {
    * Clear all cached textures and materials
    */
   clearCache(): void {
-    console.log(`[TextureManager] clearCache called at ${Date.now()}`);
+    devLog(`[TextureManager] clearCache called at ${Date.now()}`);
     this.textureCache.forEach((texture) => {
       texture.dispose();
     });
@@ -438,7 +439,7 @@ export class TextureManager {
     this.textureCache.clear();
     this.materialCache.clear();
     this.noisyTextureCache.clear();
-    console.log("[TextureManager] Cache cleared");
+    devLog("[TextureManager] Cache cleared");
   }
 
   /**
@@ -451,7 +452,7 @@ export class TextureManager {
       .map((name) => this.getTexture(name));
 
     await Promise.all(promises);
-    console.log(`Preloaded ${promises.length} textures`);
+    devLog(`Preloaded ${promises.length} textures`);
   }
 
   // Cache for noisy color textures

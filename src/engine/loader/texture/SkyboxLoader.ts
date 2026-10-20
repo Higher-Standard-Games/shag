@@ -17,6 +17,7 @@ import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Scene } from "@babylonjs/core/scene";
+import { devLog } from "../../core/DevLog";
 import { PK3Loader } from "../pk3/PK3Loader";
 import { canSoftwareDecode, parseKTX1, parseKTX1CubeFaces, softwareDecodeMip } from "./KTX1Loader";
 
@@ -212,7 +213,7 @@ export class SkyboxLoader {
       return { success: false, error: "SkyboxLoader not initialized" };
     }
 
-    console.log(`[SkyboxLoader] Loading skybox: ${basePath}`);
+    devLog(`[SkyboxLoader] Loading skybox: ${basePath}`);
 
     // Try to load all 6 faces
     const faces: { data: Uint8Array; size: number }[] = [];
@@ -240,7 +241,7 @@ export class SkyboxLoader {
     const faceSize = Math.max(...faces.map((face) => face.size));
     const faceImages = faces.map((face) => scaleFaceTo(face.data, face.size, faceSize));
     const stubbed = faces.filter((face) => face.size !== faceSize).length;
-    console.log(
+    devLog(
       `[SkyboxLoader] Loaded ${faceImages.length} faces (${faceSize}x${faceSize})` +
         (stubbed ? `, ${stubbed} upscaled from a smaller stub` : ""),
     );
@@ -250,7 +251,7 @@ export class SkyboxLoader {
     const babylonFaceNames = ["nx(-X/left)", "px(+X/right)", "py(+Y/up)", "ny(-Y/down)", "nz(-Z/back)", "pz(+Z/front)"];
     const q3FaceNames = ["rt", "bk", "lf", "ft", "up", "dn"];
 
-    console.log(`[SkyboxLoader] Face mapping (Q3 → Babylon):`);
+    devLog(`[SkyboxLoader] Face mapping (Q3 → Babylon):`);
     const babylonFaces: Uint8Array[] = [];
     for (let i = 0; i < Q3_TO_BABYLON_FACE_MAP.length; i++) {
       const mapping = Q3_TO_BABYLON_FACE_MAP[i];
@@ -258,7 +259,7 @@ export class SkyboxLoader {
       const transformed = this.transformFace(srcData, faceSize, mapping.transform);
       babylonFaces.push(transformed);
 
-      console.log(`  ${babylonFaceNames[i]} ← Q3 ${q3FaceNames[mapping.index]} (transform: ${mapping.transform})`);
+      devLog(`  ${babylonFaceNames[i]} ← Q3 ${q3FaceNames[mapping.index]} (transform: ${mapping.transform})`);
     }
 
     // Create RawCubeTexture
@@ -294,7 +295,7 @@ export class SkyboxLoader {
 
     skybox.material = skyMaterial;
 
-    console.log(`[SkyboxLoader] Created skybox mesh`);
+    devLog(`[SkyboxLoader] Created skybox mesh`);
 
     return {
       success: true,
@@ -382,7 +383,7 @@ export class SkyboxLoader {
         Texture.TRILINEAR_SAMPLINGMODE,
       );
       texture.name = `environment_${basePath.replace(/\//g, "_")}`;
-      console.log(`[SkyboxLoader] Loaded water environment ${basePath} (${faceSize}x${faceSize})`);
+      devLog(`[SkyboxLoader] Loaded water environment ${basePath} (${faceSize}x${faceSize})`);
       return { success: true, texture, loadedFaces };
     }
 
@@ -403,7 +404,7 @@ export class SkyboxLoader {
       return { success: false, error: "SkyboxLoader not initialized" };
     }
 
-    console.log(`[SkyboxLoader] Creating sky sphere from texture: ${texturePath}`);
+    devLog(`[SkyboxLoader] Creating sky sphere from texture: ${texturePath}`);
 
     const pk3 = PK3Loader.getInstance();
     const extensions = [".ktx", ".tga", ".jpg", ".png", ".jpeg"];
@@ -456,7 +457,7 @@ export class SkyboxLoader {
       return { success: false, error: `Failed to parse sky texture: ${actualPath}` };
     }
 
-    console.log(`[SkyboxLoader] Loaded sky texture: ${actualPath} (${rgba.size}x${rgba.size})`);
+    devLog(`[SkyboxLoader] Loaded sky texture: ${actualPath} (${rgba.size}x${rgba.size})`);
 
     // Create texture from blob URL (more reliable than RawTexture)
     const canvas = document.createElement("canvas");
@@ -509,7 +510,7 @@ export class SkyboxLoader {
 
     skySphere.material = skyMaterial;
 
-    console.log(`[SkyboxLoader] Created sky sphere mesh`);
+    devLog(`[SkyboxLoader] Created sky sphere mesh`);
 
     return {
       success: true,
@@ -540,7 +541,7 @@ export class SkyboxLoader {
           // Parse the image to get RGBA data
           const rgba = await this.parseImageToRGBA(new Uint8Array(data), ext);
           if (rgba) {
-            console.log(`[SkyboxLoader] Loaded face: ${fullPath} (${rgba.size}x${rgba.size})`);
+            devLog(`[SkyboxLoader] Loaded face: ${fullPath} (${rgba.size}x${rgba.size})`);
             return { data: rgba.data, size: rgba.size, path: fullPath };
           }
         }
@@ -912,7 +913,7 @@ export class SkyboxLoader {
     const existing = this.scene.getMeshByName("skybox");
     if (existing) {
       existing.dispose();
-      console.log(`[SkyboxLoader] Disposed existing skybox`);
+      devLog(`[SkyboxLoader] Disposed existing skybox`);
     }
     for (const mesh of this.scene.meshes.filter((m) => m.name.startsWith(CLOUD_MESH_PREFIX))) mesh.dispose();
   }
@@ -998,7 +999,7 @@ export class SkyboxLoader {
     }
 
     if (!first) return { success: false, error: "No cloud layer textures found" };
-    console.log(`[SkyboxLoader] Created ${loadedFaces.length} cloud layer(s) at height ${height}`);
+    devLog(`[SkyboxLoader] Created ${loadedFaces.length} cloud layer(s) at height ${height}`);
     return { success: true, skybox: first, loadedFaces };
   }
 
@@ -1043,7 +1044,7 @@ export class SkyboxLoader {
       return { success: false, error: "SkyboxLoader not initialized" };
     }
 
-    console.log(`[SkyboxLoader] Creating DEBUG skybox with colored faces`);
+    devLog(`[SkyboxLoader] Creating DEBUG skybox with colored faces`);
 
     const faceSize = 256;
 
@@ -1070,7 +1071,7 @@ export class SkyboxLoader {
     const babylonFaceNames = ["nx(-X/left)", "px(+X/right)", "py(+Y/up)", "ny(-Y/down)", "nz(-Z/back)", "pz(+Z/front)"];
     const q3FaceNames = ["rt", "bk", "lf", "ft", "up", "dn"];
 
-    console.log(`[SkyboxLoader] DEBUG Face mapping (Q3 → Babylon):`);
+    devLog(`[SkyboxLoader] DEBUG Face mapping (Q3 → Babylon):`);
     const babylonFaces: Uint8Array[] = [];
     for (let i = 0; i < Q3_TO_BABYLON_FACE_MAP.length; i++) {
       const mapping = Q3_TO_BABYLON_FACE_MAP[i];
@@ -1078,7 +1079,7 @@ export class SkyboxLoader {
       const transformed = this.transformFace(srcData, faceSize, mapping.transform);
       babylonFaces.push(transformed);
 
-      console.log(
+      devLog(
         `  ${babylonFaceNames[i]} ← Q3 ${q3FaceNames[mapping.index]} (${q3Faces[mapping.index].name}, transform: ${mapping.transform})`,
       );
     }
@@ -1111,14 +1112,14 @@ export class SkyboxLoader {
 
     skybox.material = skyMaterial;
 
-    console.log(`[SkyboxLoader] DEBUG skybox created. Look around to identify faces:`);
-    console.log(`  RT (red) should be on your RIGHT`);
-    console.log(`  LF (blue) should be on your LEFT`);
-    console.log(`  FT (yellow) should be in FRONT`);
-    console.log(`  BK (green) should be BEHIND you`);
-    console.log(`  UP (magenta) should be ABOVE`);
-    console.log(`  DN (cyan) should be BELOW`);
-    console.log(`  The TOP marker indicates which edge should be up`);
+    devLog(`[SkyboxLoader] DEBUG skybox created. Look around to identify faces:`);
+    devLog(`  RT (red) should be on your RIGHT`);
+    devLog(`  LF (blue) should be on your LEFT`);
+    devLog(`  FT (yellow) should be in FRONT`);
+    devLog(`  BK (green) should be BEHIND you`);
+    devLog(`  UP (magenta) should be ABOVE`);
+    devLog(`  DN (cyan) should be BELOW`);
+    devLog(`  The TOP marker indicates which edge should be up`);
 
     return { success: true, skybox };
   }

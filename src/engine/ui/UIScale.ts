@@ -10,6 +10,7 @@
  * 3. Or use JS: UIScale.getInstance().px(16) for scaled pixels
  */
 
+import { devLog } from "../core/DevLog";
 export type ScaleMode = "fit" | "fill" | "width" | "height";
 
 export interface UIScaleConfig {
@@ -111,7 +112,7 @@ export class UIScale {
     this.setupResizeHandler();
     this.initialized = true;
 
-    console.log(`[UIScale] Initialized - scale: ${this.currentScale.toFixed(3)}, mode: ${this.config.scaleMode}`);
+    devLog(`[UIScale] Initialized - scale: ${this.currentScale.toFixed(3)}, mode: ${this.config.scaleMode}`);
   }
 
   /**
@@ -251,7 +252,7 @@ export class UIScale {
         if (Math.abs(oldScale - this.currentScale) > 0.001) {
           this.injectCSSVariables();
           this.notifyListeners();
-          console.log(`[UIScale] Resized - scale: ${this.currentScale.toFixed(3)}`);
+          devLog(`[UIScale] Resized - scale: ${this.currentScale.toFixed(3)}`);
         }
       }, 100);
     };
@@ -362,9 +363,9 @@ export class UIScale {
     this.notifyListeners();
 
     if (scale === null) {
-      console.log("[UIScale] Scale reset to automatic");
+      devLog("[UIScale] Scale reset to automatic");
     } else {
-      console.log(`[UIScale] Scale forced to: ${scale}`);
+      devLog(`[UIScale] Scale forced to: ${scale}`);
     }
   }
 
@@ -376,7 +377,7 @@ export class UIScale {
     this.calculateScale();
     this.injectCSSVariables();
     this.notifyListeners();
-    console.log(`[UIScale] Scale mode set to: ${mode}`);
+    devLog(`[UIScale] Scale mode set to: ${mode}`);
   }
 
   /**
@@ -386,7 +387,7 @@ export class UIScale {
     if (this.debugOverlay) {
       this.debugOverlay.remove();
       this.debugOverlay = null;
-      console.log("[UIScale] Debug overlay hidden");
+      devLog("[UIScale] Debug overlay hidden");
       return;
     }
 
@@ -451,7 +452,7 @@ export class UIScale {
     this.debugOverlay.appendChild(safeBottom);
 
     document.body.appendChild(this.debugOverlay);
-    console.log("[UIScale] Debug overlay shown");
+    devLog("[UIScale] Debug overlay shown");
   }
 
   /**

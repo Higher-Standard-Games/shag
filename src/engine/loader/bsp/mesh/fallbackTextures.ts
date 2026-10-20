@@ -2,6 +2,7 @@ import { Constants } from "@babylonjs/core/Engines/constants";
 import { RawTexture } from "@babylonjs/core/Materials/Textures/rawTexture";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import type { Scene } from "@babylonjs/core/scene";
+import { devLog } from "../../../core/DevLog";
 
 /** Cache for generated fallback textures */
 const fallbackTextureCache: Map<string, RawTexture> = new Map();
@@ -62,7 +63,7 @@ export function createRadialGradientTexture(scene: Scene, size: number = 64): Ra
   texture.name = "fallback_radial_gradient";
 
   fallbackTextureCache.set(cacheKey, texture);
-  console.log("[BspMeshBuilder] Created fallback radial gradient texture");
+  devLog("[BspMeshBuilder] Created fallback radial gradient texture");
   return texture;
 }
 

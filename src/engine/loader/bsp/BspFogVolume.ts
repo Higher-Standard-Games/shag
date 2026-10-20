@@ -13,6 +13,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
 import { Scene } from "@babylonjs/core/scene";
+import { devLog } from "../../core/DevLog";
 import { WorldFogController } from "../../rendering/WorldFogController";
 import { Q3ShaderRegistry } from "../shader/Q3ShaderRegistry";
 import type { BspFile, BspPlane } from "./BspLoader";
@@ -121,7 +122,7 @@ export function extractFogVolumes(bspData: BspFile): FogVolumeData[] {
   const shaderRegistry = Q3ShaderRegistry.getInstance();
   const fogVolumes: FogVolumeData[] = [];
 
-  console.log(`[FogVolume] Checking ${bspData.effects.length} effects for fog...`);
+  devLog(`[FogVolume] Checking ${bspData.effects.length} effects for fog...`);
 
   for (const effect of bspData.effects) {
     // Look up shader for fog params
@@ -147,7 +148,7 @@ export function extractFogVolumes(bspData: BspFile): FogVolumeData[] {
       continue;
     }
 
-    console.log(
+    devLog(
       `[FogVolume] Processing brush ${effect.brushIndex}: firstSide=${brush.firstSide}, numSides=${brush.numSides}`,
     );
 
@@ -185,7 +186,7 @@ export function extractFogVolumes(bspData: BspFile): FogVolumeData[] {
       continue;
     }
 
-    console.log(
+    devLog(
       `[FogVolume] Found fog volume: "${effect.name}" with ${planes.length} planes, ` +
         `color=(${shader.fogParms.color.join(",")}), depth=${shader.fogParms.depthForOpaque}`,
     );
@@ -350,22 +351,22 @@ function buildFogVolumeGeometry(fogVolume: FogVolumeData): { positions: number[]
     }
   }
 
-  console.log(
+  devLog(
     `[FogVolume] Brush ${fogVolume.brushIndex}: ${vertices.length} vertices ` +
       `(rejected: ${rejectedOutside} outside, ${rejectedBounds} bounds, ${rejectedDuplicate} duplicate)`,
   );
 
   // Debug: show plane info
   if (vertices.length < 4) {
-    console.log(`[FogVolume] Planes:`);
+    devLog(`[FogVolume] Planes:`);
     for (let i = 0; i < planes.length; i++) {
       const p = planes[i];
       const n = p.normal;
-      console.log(`  [${i}] normal=(${n.x.toFixed(2)}, ${n.y.toFixed(2)}, ${n.z.toFixed(2)}) d=${p.d.toFixed(1)}`);
+      devLog(`  [${i}] normal=(${n.x.toFixed(2)}, ${n.y.toFixed(2)}, ${n.z.toFixed(2)}) d=${p.d.toFixed(1)}`);
     }
     for (let i = 0; i < Math.min(vertices.length, 4); i++) {
       const v = vertices[i];
-      console.log(`[FogVolume] Vertex ${i}: (${v.x.toFixed(1)}, ${v.y.toFixed(1)}, ${v.z.toFixed(1)})`);
+      devLog(`[FogVolume] Vertex ${i}: (${v.x.toFixed(1)}, ${v.y.toFixed(1)}, ${v.z.toFixed(1)})`);
     }
   }
 
@@ -456,11 +457,11 @@ export class FogVolumeManager {
     const volumes = extractFogVolumes(bspData);
 
     if (volumes.length === 0) {
-      console.log("[FogVolume] No fog volumes found in BSP");
+      devLog("[FogVolume] No fog volumes found in BSP");
       return { volumes: [], meshes: [] };
     }
 
-    console.log(`[FogVolume] Building ${volumes.length} fog volume meshes...`);
+    devLog(`[FogVolume] Building ${volumes.length} fog volume meshes...`);
 
     for (const vol of volumes) {
       const geometry = buildFogVolumeGeometry(vol);
@@ -475,7 +476,7 @@ export class FogVolumeManager {
       }
     }
 
-    console.log(`[FogVolume] Created ${this.fogMeshes.length} fog meshes`);
+    devLog(`[FogVolume] Created ${this.fogMeshes.length} fog meshes`);
 
     return { volumes, meshes: this.fogMeshes };
   }
@@ -541,7 +542,7 @@ export class FogVolumeManager {
     // Render after opaque geometry
     mesh.renderingGroupId = 1;
 
-    console.log(`[FogVolume] Created mesh for "${vol.shaderName}" with ${geometry.positions.length / 3} vertices`);
+    devLog(`[FogVolume] Created mesh for "${vol.shaderName}" with ${geometry.positions.length / 3} vertices`);
 
     return mesh;
   }
@@ -611,7 +612,7 @@ export class CamFog {
     const worldMin = new Vector3(worldModel.mins[0], worldModel.mins[2], worldModel.mins[1]);
     const worldMax = new Vector3(worldModel.maxs[0], worldModel.maxs[2], worldModel.maxs[1]);
 
-    console.log(
+    devLog(
       `[CamFog] World bounds: (${worldMin.x.toFixed(0)},${worldMin.y.toFixed(0)},${worldMin.z.toFixed(0)}) -> ` +
         `(${worldMax.x.toFixed(0)},${worldMax.y.toFixed(0)},${worldMax.z.toFixed(0)})`,
     );
@@ -631,13 +632,13 @@ export class CamFog {
       };
 
       this.fogVolumes.push(aabb);
-      console.log(
+      devLog(
         `[CamFog] Registered fog "${effect.name}" with world bounds, ` +
           `color=(${shader.fogParms.color.join(",")}), depth=${shader.fogParms.depthForOpaque}`,
       );
     }
 
-    console.log(`[CamFog] Initialized with ${this.fogVolumes.length} fog volumes`);
+    devLog(`[CamFog] Initialized with ${this.fogVolumes.length} fog volumes`);
   }
 
   /**
@@ -651,7 +652,7 @@ export class CamFog {
       this.update();
     });
 
-    console.log("[CamFog] Enabled");
+    devLog("[CamFog] Enabled");
   }
 
   /**
@@ -670,7 +671,7 @@ export class CamFog {
     if (this.currentFogVolume) WorldFogController.getInstance().resume(FOG_VOLUME_OWNER);
     this.currentFogVolume = null;
 
-    console.log("[CamFog] Disabled");
+    devLog("[CamFog] Disabled");
   }
 
   /**
@@ -699,7 +700,7 @@ export class CamFog {
       // Left the fog volume: world fog (or none) again
       WorldFogController.getInstance().resume(FOG_VOLUME_OWNER);
       this.currentFogVolume = null;
-      console.log("[CamFog] Left fog volume");
+      devLog("[CamFog] Left fog volume");
     }
   }
 
@@ -739,7 +740,7 @@ export class CamFog {
     this.scene.fogColor = new Color3(vol.fogColor[0], vol.fogColor[1], vol.fogColor[2]);
     this.scene.fogDensity = density;
 
-    console.log(
+    devLog(
       `[CamFog] Fog applied: scale=${this.fogScale}, depth=${scaledDepth.toFixed(0)}, density=${density.toFixed(6)}`,
     );
   }
@@ -753,7 +754,7 @@ export class CamFog {
     if (this.currentFogVolume && this.scene) {
       this.applyFog(this.currentFogVolume);
       // Debug: verify scene fog was updated
-      console.log(`[CamFog] setScale: scene.fogDensity = ${this.scene.fogDensity}`);
+      devLog(`[CamFog] setScale: scene.fogDensity = ${this.scene.fogDensity}`);
     }
   }
 
@@ -885,7 +886,7 @@ export function parseWorldspawnFog(bspData: BspFile): WorldspawnFog | null {
 export function applyWorldspawnFog(bspData: BspFile, scene: Scene): boolean {
   const fog = parseWorldspawnFog(bspData);
   if (!fog) {
-    console.log("[WorldspawnFog] No fog settings found in worldspawn");
+    devLog("[WorldspawnFog] No fog settings found in worldspawn");
     return false;
   }
 
@@ -895,14 +896,14 @@ export function applyWorldspawnFog(bspData: BspFile, scene: Scene): boolean {
     scene.fogMode = 1; // FOGMODE_LINEAR
     scene.fogStart = fog.start ?? 100;
     scene.fogEnd = fog.end ?? 1000;
-    console.log(
+    devLog(
       `[WorldspawnFog] Applied LINEAR fog: color=(${fog.color.join(",")}), ` +
         `start=${scene.fogStart}, end=${scene.fogEnd}`,
     );
   } else {
     scene.fogMode = fog.mode === "exp" ? 2 : 3; // FOGMODE_EXP or FOGMODE_EXP2
     scene.fogDensity = fog.density;
-    console.log(
+    devLog(
       `[WorldspawnFog] Applied ${fog.mode.toUpperCase()} fog: color=(${fog.color.join(",")}), ` +
         `density=${fog.density}`,
     );

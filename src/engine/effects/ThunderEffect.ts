@@ -11,6 +11,7 @@
 
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import type { Scene } from "@babylonjs/core/scene";
+import { devLog } from "../core/DevLog";
 import { UIStyles } from "../ui/UIStyles";
 import { PostProcessingManager } from "./PostProcessingManager";
 
@@ -96,7 +97,7 @@ export class ThunderEffect {
     }
 
     this.isActive = true;
-    console.log("[ThunderEffect] Storm triggered for", this.settings.duration, "ms");
+    devLog("[ThunderEffect] Storm triggered for", this.settings.duration, "ms");
 
     // Play thunder sound once
     this.playThunderSound();
@@ -249,7 +250,7 @@ export class ThunderEffect {
         } else {
           this.originalAmbient = null;
           this.isActive = false;
-          console.log("[ThunderEffect] Storm ended");
+          devLog("[ThunderEffect] Storm ended");
         }
       };
 
@@ -275,7 +276,7 @@ export class ThunderEffect {
     }
 
     this.isActive = false;
-    console.log("[ThunderEffect] Stopped");
+    devLog("[ThunderEffect] Stopped");
   }
 
   /**

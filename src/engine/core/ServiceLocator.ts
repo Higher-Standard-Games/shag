@@ -22,6 +22,7 @@
  */
 
 import type { Scene } from "@babylonjs/core/scene";
+import { devLog } from "./DevLog";
 
 /**
  * Service lifecycle interface
@@ -170,7 +171,7 @@ export class ServiceLocator {
    */
   public async initPhase(phase: InitPhase, ...args: unknown[]): Promise<void> {
     this.currentPhase = phase;
-    console.log(`[ServiceLocator] Initializing ${phase} phase...`);
+    devLog(`[ServiceLocator] Initializing ${phase} phase...`);
 
     // Get services for this phase in dependency order
     const phaseServices = this.getServicesForPhase(phase);
@@ -179,7 +180,7 @@ export class ServiceLocator {
       await this.initService(name, ...args);
     }
 
-    console.log(`[ServiceLocator] ${phase} phase complete (${phaseServices.length} services)`);
+    devLog(`[ServiceLocator] ${phase} phase complete (${phaseServices.length} services)`);
   }
 
   /**
@@ -300,11 +301,11 @@ export class ServiceLocator {
     // Initialize (cast to Service to access optional methods)
     const service = info.instance as Service;
     if (service.init) {
-      console.log(`[ServiceLocator] Initializing '${name}'...`);
+      devLog(`[ServiceLocator] Initializing '${name}'...`);
       await service.init(...args);
-      console.log(`[ServiceLocator] Initialized '${name}'`);
+      devLog(`[ServiceLocator] Initialized '${name}'`);
     } else {
-      console.log(`[ServiceLocator] Service '${name}' has no init method`);
+      devLog(`[ServiceLocator] Service '${name}' has no init method`);
     }
 
     info.initialized = true;
@@ -346,7 +347,7 @@ export class ServiceLocator {
    * Dispose all services in reverse initialization order
    */
   public dispose(): void {
-    console.log("[ServiceLocator] Disposing services...");
+    devLog("[ServiceLocator] Disposing services...");
 
     // Dispose in reverse order. Each individual dispose is wrapped so a
     // throwing service can't block the remaining tear-down — the locator's
@@ -356,7 +357,7 @@ export class ServiceLocator {
       const info = this.services.get(name);
       const service = info?.instance as Service | undefined;
       if (service?.dispose) {
-        console.log(`[ServiceLocator] Disposing '${name}'...`);
+        devLog(`[ServiceLocator] Disposing '${name}'...`);
         try {
           service.dispose();
         } catch (e) {

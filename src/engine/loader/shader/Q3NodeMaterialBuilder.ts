@@ -19,6 +19,7 @@ import { NodeMaterial } from "@babylonjs/core/Materials/Node/nodeMaterial";
 import { ShaderLanguage } from "@babylonjs/core/Materials/shaderLanguage";
 import type { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import type { Scene } from "@babylonjs/core/scene";
+import { devLog } from "../../core/DevLog";
 import type { Q3ShaderStage } from "./Q3ShaderTypes";
 
 // ============================================================================
@@ -110,7 +111,7 @@ export class Q3NodeMaterialBuilder {
       return null;
     }
 
-    console.log(`[Q3NodeMaterialBuilder] Building ${name} with ${validStages.length} stages`);
+    devLog(`[Q3NodeMaterialBuilder] Building ${name} with ${validStages.length} stages`);
 
     const nodeMaterial = new NodeMaterial(name, scene, {
       emitComments: false,
@@ -286,7 +287,7 @@ export class Q3NodeMaterialBuilder {
       nodeMaterial.addOutputNode(fragmentOutput);
       nodeMaterial.build(false);
 
-      console.log(`[Q3NodeMaterialBuilder] Built ${name} successfully`);
+      devLog(`[Q3NodeMaterialBuilder] Built ${name} successfully`);
 
       return {
         material: nodeMaterial,

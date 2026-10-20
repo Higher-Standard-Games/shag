@@ -20,6 +20,7 @@ import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
+import { devLog } from "../../core/DevLog";
 // import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 // import type { LinesMesh } from "@babylonjs/core/Meshes/linesMesh";
 // import { Mesh } from "@babylonjs/core/Meshes/mesh";
@@ -177,7 +178,7 @@ export class FPSController implements ICameraController {
    */
   public enableNetworkMode(): void {
     if (this.useNetworkMovement) {
-      console.log(`[FPS] Network mode already enabled`);
+      devLog(`[FPS] Network mode already enabled`);
       return;
     }
 
@@ -188,7 +189,7 @@ export class FPSController implements ICameraController {
       return;
     }
 
-    console.log(`[FPS] Switching to network movement mode (server: ${this.gameManager.getServerUrl()})`);
+    devLog(`[FPS] Switching to network movement mode (server: ${this.gameManager.getServerUrl()})`);
     this.useNetworkMovement = true;
 
     // Subscribe to state updates from server
@@ -220,7 +221,7 @@ export class FPSController implements ICameraController {
     });
 
     this.networkReady = true;
-    console.log(`[FPS] Network mode enabled - inputs will be sent to server`);
+    devLog(`[FPS] Network mode enabled - inputs will be sent to server`);
   }
 
   // Static default speed that persists between controller changes
@@ -595,12 +596,12 @@ export class FPSController implements ICameraController {
     for (const effect of createFirstPersonEffects()) this.viewportEffectsManager.registerEffect(effect);
 
     this.viewportApplicator = new FPSApplicator();
-    console.log("[FPSController] Viewport effects initialized");
+    devLog("[FPSController] Viewport effects initialized");
 
     // Initialize player visuals
     this.playerVisuals = new PlayerVisuals(this, scene);
 
-    console.log("[FPSController] Attached - Click to capture mouse, WASD to move, ESC to release");
+    devLog("[FPSController] Attached - Click to capture mouse, WASD to move, ESC to release");
   }
 
   detach(): void {
@@ -632,7 +633,7 @@ export class FPSController implements ICameraController {
     this.scene = null;
     this.canvas = null;
 
-    console.log("[FPSController] Detached (state reset)");
+    devLog("[FPSController] Detached (state reset)");
   }
 
   /**
@@ -818,7 +819,7 @@ export class FPSController implements ICameraController {
         this.physicsY = serverPos.y;
         this.physicsZ = serverPos.z;
         this.smoothedY = this.physicsY;
-        console.log(
+        devLog(
           `[FPS] Using server position for init: (${this.physicsX.toFixed(1)}, ${this.physicsY.toFixed(1)}, ${this.physicsZ.toFixed(1)})`,
         );
       } else {
@@ -838,9 +839,7 @@ export class FPSController implements ICameraController {
         // === SERVER CONNECTION MODE ===
         // Game was already initialized by 'connect' command
         // Just subscribe to state updates - don't spawn or init locally
-        console.log(
-          `[FPS] Connected to server ${this.gameManager.getServerUrl()} - using server-authoritative movement`,
-        );
+        devLog(`[FPS] Connected to server ${this.gameManager.getServerUrl()} - using server-authoritative movement`);
         this.useNetworkMovement = true;
 
         // Track whether we've logged the first server position
@@ -850,7 +849,7 @@ export class FPSController implements ICameraController {
         this.stateUnsubscribe = this.gameManager.onPlayerStateUpdate((state) => {
           // Log first server position (this is where we actually spawn)
           if (!loggedFirstServerPosition) {
-            console.log(
+            devLog(
               `[FPS] Server spawn position: (${state.position.x.toFixed(1)}, ${state.position.y.toFixed(1)}, ${state.position.z.toFixed(1)})`,
             );
             loggedFirstServerPosition = true;
@@ -880,18 +879,18 @@ export class FPSController implements ICameraController {
         });
 
         this.networkReady = true;
-        console.log(`[FPS] Server movement ready - inputs will be sent to server`);
+        devLog(`[FPS] Server movement ready - inputs will be sent to server`);
       } else if (isConnected && this.networkReady) {
         // Network mode already enabled by enableNetworkMode() - skip initialization
-        console.log(`[FPS] Network mode already enabled, skipping initialization`);
+        devLog(`[FPS] Network mode already enabled, skipping initialization`);
       } else {
         // The menu, before any match: normal, so not a warning
-        console.log("[FPS] No match server connection yet");
+        devLog("[FPS] No match server connection yet");
         this.useNetworkMovement = false;
         this.networkReady = false;
       }
 
-      console.log(
+      devLog(
         `[FPS] Initialized at origin: (${this.physicsX.toFixed(1)}, ${this.physicsY.toFixed(1)}, ${this.physicsZ.toFixed(1)}), feet at Y=${originToFeet(this.physicsY).toFixed(1)}`,
       );
     }
@@ -988,7 +987,7 @@ export class FPSController implements ICameraController {
         if (elapsed >= 2.0) {
           // biome-ignore lint/suspicious/noExplicitAny: Babylon camera/mesh internals and lazy-init diagnostics
           const actualRate = (this as any)._diagTickCount / elapsed;
-          console.log(
+          devLog(
             // biome-ignore lint/suspicious/noExplicitAny: Babylon camera/mesh internals and lazy-init diagnostics
             `[FPS] Client tick rate: ${actualRate.toFixed(1)} Hz (expected ${TICK_RATE}), ticks=${(this as any)._diagTickCount} in ${elapsed.toFixed(2)}s`,
           );

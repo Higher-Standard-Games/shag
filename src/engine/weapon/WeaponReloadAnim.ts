@@ -5,6 +5,7 @@
  * Used by WeaponViewManager.
  */
 
+import { devLog } from "../core/DevLog";
 export interface ReloadAnimOffsets {
   roll: number;
   pitch: number;
@@ -23,14 +24,14 @@ export class WeaponReloadAnim {
     this.active = true;
     this.startTime = performance.now() / 1000;
     this.duration = duration;
-    console.log(`[WeaponReloadAnim] Starting reload animation (${duration.toFixed(2)}s)`);
+    devLog(`[WeaponReloadAnim] Starting reload animation (${duration.toFixed(2)}s)`);
   }
 
   /** Cancel reload animation */
   cancel(): void {
     if (this.active) {
       this.active = false;
-      console.log(`[WeaponReloadAnim] Reload animation cancelled`);
+      devLog(`[WeaponReloadAnim] Reload animation cancelled`);
     }
   }
 

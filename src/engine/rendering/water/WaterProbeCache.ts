@@ -9,6 +9,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { ReflectionProbe } from "@babylonjs/core/Probes/reflectionProbe";
 import type { Scene } from "@babylonjs/core/scene";
+import { devLog } from "../../core/DevLog";
 
 const MAX_PROBES = 4;
 const PROBE_SIZE = 256;
@@ -274,7 +275,7 @@ export class WaterProbeCache {
         target.render(false);
         entry.ready = true;
         this.entries.push(entry);
-        console.log(
+        devLog(
           `[Water] Captured ${probe.name}: ${meshes.length} static meshes, ${PROBE_SIZE}px x 6; no recurring reflection pass`,
         );
       } else probe.dispose();

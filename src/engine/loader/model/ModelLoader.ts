@@ -143,7 +143,7 @@ export class ModelLoader {
    */
   public init(scene: Scene): void {
     this.scene = scene;
-    console.log("ModelLoader initialized");
+    devLog("ModelLoader initialized");
   }
 
   /**
@@ -228,7 +228,7 @@ export class ModelLoader {
             // Apply lighting (skip for small items to avoid exceeding light limits)
             const lights = applyLighting ? this.applyBspLighting(root.position, meshes) : [];
 
-            console.log(`Loaded MD3 model: ${modelPath} (${meshes.length} meshes, lights=${lights.length})`);
+            devLog(`Loaded MD3 model: ${modelPath} (${meshes.length} meshes, lights=${lights.length})`);
 
             return {
               root,
@@ -317,20 +317,20 @@ export class ModelLoader {
       if (devLogEnabled()) {
         for (const mesh of meshes) {
           const bounds = mesh.getBoundingInfo();
-          console.log(
+          devLog(
             `  Mesh "${mesh.name}": min=${bounds.boundingBox.minimumWorld}, max=${bounds.boundingBox.maximumWorld}, visible=${mesh.isVisible}`,
           );
         }
 
         // Log animation info if present
         if (animationGroups.length > 0) {
-          console.log(`  Animations: ${animationGroups.map((a) => a.name).join(", ")}`);
+          devLog(`  Animations: ${animationGroups.map((a) => a.name).join(", ")}`);
         }
         if (skeletons.length > 0) {
-          console.log(`  Skeletons: ${skeletons.length}`);
+          devLog(`  Skeletons: ${skeletons.length}`);
         }
 
-        console.log(
+        devLog(
           `Loaded model: ${modelPath} at ${position.toString()} (${meshes.length} meshes, ${animationGroups.length} animations)`,
         );
       }
@@ -527,7 +527,7 @@ export class ModelLoader {
     const primaryMesh = result.meshes.find((m) => m.getTotalVertices() > 0);
     if (primaryMesh) {
       instanceManager.registerTemplate(templateName, primaryMesh, maxInstances);
-      console.log(`ModelLoader: Registered instance template '${templateName}'`);
+      devLog(`ModelLoader: Registered instance template '${templateName}'`);
       return true;
     }
 
@@ -586,7 +586,7 @@ export class ModelLoader {
       const lighting = bsp.getLightingAt(position);
       if (!lighting) {
         // Fallback lighting for maps without LightGrid or unsupported formats (FBSP)
-        console.log("[ModelLoader] No BSP lighting data. Using fallback.");
+        devLog("[ModelLoader] No BSP lighting data. Using fallback.");
 
         // 1. Ambient Fallback
         const ambient = new Color3(0.3, 0.3, 0.3);
@@ -696,7 +696,7 @@ export class ModelLoader {
       // Keep track for cleanup
       this.createdLights.push(light);
 
-      console.log(
+      devLog(
         `[ModelLoader] Applied BSP lighting: Amb=${ambient.toString()} Dir=${lightDir.toString()} Color=${dirColor.toString()}`,
       );
 

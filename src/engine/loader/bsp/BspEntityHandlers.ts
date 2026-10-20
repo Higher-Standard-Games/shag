@@ -13,6 +13,7 @@ import { extractBrushModels } from "../../../shared/bsp/BrushModelState";
 import { extractLifts, type LiftSystem } from "../../../shared/bsp/LiftSystem";
 import { AudioManager } from "../../AudioManager";
 import { Attenuation } from "../../audio/AudioV2Sfx";
+import { devLog } from "../../core/DevLog";
 import { type EntityData, EntityHandlerRegistry, type EntityHandlerResult } from "../../core/EntityHandlerRegistry";
 import { getCollisionManager } from "../../physics/CollisionManager";
 import {
@@ -258,7 +259,7 @@ async function handleFuncDoor(entity: EntityData, scene: Scene): Promise<EntityH
     doorController: controller,
   };
 
-  console.log(
+  devLog(
     `[BspEntityHandlers] Created func_door "${targetname}": model=*${modelIndex}, angle=${angle}, speed=${speed}, distance=${distance.toFixed(0)}`,
   );
 
@@ -273,7 +274,7 @@ export function registerBspEntityHandlers(): void {
   EntityHandlerRegistry.register("func_explosive", handleExplosive);
   EntityHandlerRegistry.register("func_door", handleFuncDoor);
   registerAmbientEntityHandlers();
-  console.log(
+  devLog(
     "[BspEntityHandlers] Registered BSP entity handlers: func_door, func_plat, func_explosive, func_rotating, target_speaker",
   );
 }

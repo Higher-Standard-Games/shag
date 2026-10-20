@@ -9,6 +9,7 @@ import type { AnimationGroup } from "@babylonjs/core/Animations/animationGroup";
 import type { Skeleton } from "@babylonjs/core/Bones/skeleton";
 import { ImportAnimationsAsync } from "@babylonjs/core/Loading/sceneLoader";
 import type { Scene } from "@babylonjs/core/scene";
+import { devLog } from "../core/DevLog";
 import "@babylonjs/loaders/glTF";
 import { resolvePlayerModelAsset, VANGUARD_ROOT } from "./PlayerModelAssets";
 
@@ -114,7 +115,7 @@ export class AnimationLoader {
     const fullPath = this.animationsPath + filename;
 
     try {
-      console.log(`[AnimationLoader] Loading animation: ${name} from ${fullPath}`);
+      devLog(`[AnimationLoader] Loading animation: ${name} from ${fullPath}`);
 
       const asset = await resolvePlayerModelAsset(this.animationsPath, filename);
       if (!asset) return [];
@@ -132,7 +133,7 @@ export class AnimationLoader {
         group.name = `${name}_${group.name}`;
       });
 
-      console.log(`[AnimationLoader] Loaded ${groups.length} animation groups for ${name}`);
+      devLog(`[AnimationLoader] Loaded ${groups.length} animation groups for ${name}`);
       return groups;
     } catch (error) {
       console.error(`[AnimationLoader] Failed to load animation ${name}:`, error);
@@ -155,7 +156,7 @@ export class AnimationLoader {
       }
     }
 
-    console.log(`[AnimationLoader] Loaded ${results.size}/${STANDARD_ANIMATIONS.length} standard animations`);
+    devLog(`[AnimationLoader] Loaded ${results.size}/${STANDARD_ANIMATIONS.length} standard animations`);
     return results;
   }
 

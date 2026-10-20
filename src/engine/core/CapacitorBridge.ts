@@ -15,6 +15,7 @@ import { SplashScreen } from "@capacitor/splash-screen";
 import { StatusBar } from "@capacitor/status-bar";
 import mobileCSS from "../ui/styles/mobile.css?raw";
 import { UIStyles } from "../ui/UIStyles";
+import { devLog } from "./DevLog";
 import { EventBus } from "./EventBus";
 
 export interface SafeAreaInsets {
@@ -62,7 +63,7 @@ export class CapacitorBridge {
     const platform = CapacitorBridge.getPlatform();
     const isNative = CapacitorBridge.isNative();
 
-    console.log(`[CapacitorBridge] Platform: ${platform}, Native: ${isNative}`);
+    devLog(`[CapacitorBridge] Platform: ${platform}, Native: ${isNative}`);
 
     // Add platform classes to body for CSS targeting
     this.addPlatformClasses();
@@ -73,7 +74,7 @@ export class CapacitorBridge {
     }
 
     if (!isNative) {
-      console.log("[CapacitorBridge] Running in web mode - skipping native setup");
+      devLog("[CapacitorBridge] Running in web mode - skipping native setup");
       return;
     }
 
@@ -81,7 +82,7 @@ export class CapacitorBridge {
       await this.setupStatusBar();
       this.setupAppListeners();
       this.detectSafeAreaInsets();
-      console.log("[CapacitorBridge] Native initialization complete");
+      devLog("[CapacitorBridge] Native initialization complete");
     } catch (error) {
       console.error("[CapacitorBridge] Initialization error:", error);
     }
@@ -111,7 +112,7 @@ export class CapacitorBridge {
       body.classList.add("touch-device");
     }
 
-    console.log(`[CapacitorBridge] Body classes: ${body.className}`);
+    devLog(`[CapacitorBridge] Body classes: ${body.className}`);
   }
 
   /**
@@ -134,7 +135,7 @@ export class CapacitorBridge {
    */
   private loadMobileCSS(): void {
     UIStyles.setMobileCSS(mobileCSS);
-    console.log("[CapacitorBridge] Mobile CSS overrides loaded");
+    devLog("[CapacitorBridge] Mobile CSS overrides loaded");
   }
 
   /**
@@ -145,7 +146,7 @@ export class CapacitorBridge {
 
     try {
       await SplashScreen.hide({ fadeOutDuration: 300 });
-      console.log("[CapacitorBridge] Splash screen hidden");
+      devLog("[CapacitorBridge] Splash screen hidden");
     } catch (error) {
       console.error("[CapacitorBridge] Failed to hide splash screen:", error);
     }
@@ -158,7 +159,7 @@ export class CapacitorBridge {
     try {
       // Hide status bar for immersive fullscreen mode
       await StatusBar.hide();
-      console.log("[CapacitorBridge] Status bar hidden for immersive mode");
+      devLog("[CapacitorBridge] Status bar hidden for immersive mode");
     } catch (error) {
       console.error("[CapacitorBridge] Status bar setup error:", error);
     }
@@ -170,23 +171,23 @@ export class CapacitorBridge {
   private setupAppListeners(): void {
     // Handle Android back button
     App.addListener("backButton", ({ canGoBack }) => {
-      console.log("[CapacitorBridge] Back button pressed, canGoBack:", canGoBack);
+      devLog("[CapacitorBridge] Back button pressed, canGoBack:", canGoBack);
       EventBus.emit("app:back_button", { canGoBack });
     });
 
     // Handle app state changes (foreground/background)
     App.addListener("appStateChange", ({ isActive }) => {
-      console.log("[CapacitorBridge] App state changed, isActive:", isActive);
+      devLog("[CapacitorBridge] App state changed, isActive:", isActive);
       EventBus.emit("app:state_change", { isActive });
     });
 
     // Handle app URL open (deep links)
     App.addListener("appUrlOpen", (data) => {
-      console.log("[CapacitorBridge] App URL opened:", data.url);
+      devLog("[CapacitorBridge] App URL opened:", data.url);
       EventBus.emit("app:url_open", { url: data.url });
     });
 
-    console.log("[CapacitorBridge] App listeners registered");
+    devLog("[CapacitorBridge] App listeners registered");
   }
 
   /**
@@ -209,7 +210,7 @@ export class CapacitorBridge {
     document.documentElement.style.setProperty("--safe-area-left", `env(safe-area-inset-left, 0px)`);
     document.documentElement.style.setProperty("--safe-area-right", `env(safe-area-inset-right, 0px)`);
 
-    console.log("[CapacitorBridge] Safe area insets:", this.safeAreaInsets);
+    devLog("[CapacitorBridge] Safe area insets:", this.safeAreaInsets);
   }
 
   /**

@@ -23,6 +23,7 @@
 
 import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
+import { devLog } from "../core/DevLog";
 import { EventBus } from "../core/EventBus";
 import { writePreference } from "../core/PreferenceStorage";
 import {
@@ -296,7 +297,7 @@ export class InputSystem {
     // Clear per-frame state AFTER render
     this.afterRenderObserver = scene.onAfterRenderObservable.add(() => this.clearPerFrameState());
 
-    console.log("[InputSystem] Initialized");
+    devLog("[InputSystem] Initialized");
   }
 
   /**
@@ -348,7 +349,7 @@ export class InputSystem {
       }
     }
 
-    console.log("[InputSystem] Loaded config");
+    devLog("[InputSystem] Loaded config");
   }
 
   // ==================== Action Registration ====================
@@ -881,7 +882,7 @@ export class InputSystem {
       for (const [actionId, bindings] of data) {
         this.bindingOverrides.set(actionId, bindings);
       }
-      console.log(`[InputSystem] Loaded ${data.size} binding overrides`);
+      devLog(`[InputSystem] Loaded ${data.size} binding overrides`);
     } catch {
       // Silently ignore corrupt data
     }
@@ -927,7 +928,7 @@ export class InputSystem {
       this.bindingOverrides.set(actionId, bindings);
     }
     this.saveBindingsToStorage();
-    console.log(`[InputSystem] Imported ${this.bindingOverrides.size} binding overrides`);
+    devLog(`[InputSystem] Imported ${this.bindingOverrides.size} binding overrides`);
   }
 
   // ==================== Accessors ====================

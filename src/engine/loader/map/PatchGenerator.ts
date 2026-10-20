@@ -2,6 +2,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
 import type { Scene } from "@babylonjs/core/scene";
+import { devLog } from "../../core/DevLog";
 
 export interface PatchControlPoint {
   position: Vector3;
@@ -39,7 +40,7 @@ export class PatchGenerator {
    * Build a mesh from a patch definition
    */
   static buildMesh(patch: PatchDefinition, scene: Scene): Mesh | null {
-    console.log("Building patch mesh:", patch.width, "x", patch.height, "control points:", patch.controlPoints.length);
+    devLog("Building patch mesh:", patch.width, "x", patch.height, "control points:", patch.controlPoints.length);
 
     if (patch.width < 3 || patch.height < 3) {
       console.warn("Patch too small:", patch.width, "x", patch.height);
@@ -131,7 +132,7 @@ export class PatchGenerator {
       return null;
     }
 
-    console.log(`Patch vertices: ${positions.length / 3}, triangles: ${indices.length / 3}`);
+    devLog(`Patch vertices: ${positions.length / 3}, triangles: ${indices.length / 3}`);
 
     const mesh = new Mesh("patch", scene);
     const vertexData = new VertexData();

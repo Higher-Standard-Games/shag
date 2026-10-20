@@ -16,6 +16,7 @@
  *   UIStyles.injectCSS("quest-panel", styles);
  */
 
+import { devLog } from "../core/DevLog";
 export class UIStyles {
   private static injectedIds = new Set<string>();
   private static mobileStyleElement: HTMLStyleElement | null = null;
@@ -73,7 +74,7 @@ export class UIStyles {
     UIStyles.mobileStyleElement.textContent = UIStyles.mobileCSS;
     document.head.appendChild(UIStyles.mobileStyleElement);
 
-    console.log(`[UIStyles] Mobile CSS reapplied (${UIStyles.mobileCSS.length} chars), now last in head`);
+    devLog(`[UIStyles] Mobile CSS reapplied (${UIStyles.mobileCSS.length} chars), now last in head`);
   }
 
   /**
@@ -117,7 +118,7 @@ export class UIStyles {
     ].join("\n\n");
 
     UIStyles.injectCSS("base", allStyles);
-    console.log("[UIStyles] Base styles injected");
+    devLog("[UIStyles] Base styles injected");
   }
 
   // ==================== Base Styles ====================

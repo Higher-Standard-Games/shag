@@ -8,6 +8,7 @@
 import type { Bone } from "@babylonjs/core/Bones/bone";
 import type { Skeleton } from "@babylonjs/core/Bones/skeleton";
 import type { TransformNode } from "@babylonjs/core/Meshes/transformNode";
+import { devLog } from "../core/DevLog";
 
 /**
  * Standard humanoid bone names following Mixamo convention
@@ -160,7 +161,7 @@ export class HumanoidRig {
       }
     }
 
-    console.log(
+    devLog(
       `[HumanoidRig] Mapped ${this.boneMap.size}/${Object.keys(mapping).length} bones using ${this.namingConvention} convention`,
     );
   }
@@ -256,9 +257,9 @@ export class HumanoidRig {
    * Debug: Print all detected bones
    */
   debugPrint(): void {
-    console.log("[HumanoidRig] Bone mapping:");
+    devLog("[HumanoidRig] Bone mapping:");
     for (const [role, bone] of this.boneMap) {
-      console.log(`  ${role}: ${bone.name}`);
+      devLog(`  ${role}: ${bone.name}`);
     }
   }
 }

@@ -1,4 +1,5 @@
 import { ClusteredLightContainer } from "@babylonjs/core/Lights/Clustered/clusteredLightContainer";
+import { devLog } from "./core/DevLog";
 import "@babylonjs/core/Lights/Clustered/clusteredLightingSceneComponent";
 import { PointLight } from "@babylonjs/core/Lights/pointLight";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
@@ -150,7 +151,7 @@ export class MapRenderer {
         );
         if (registered) {
           instancedModels.add(modelPath);
-          console.log(`[MapRenderer] Using instancing for ${modelPath} (${modelEntities.length} instances)`);
+          devLog(`[MapRenderer] Using instancing for ${modelPath} (${modelEntities.length} instances)`);
         }
       }
     }
@@ -180,7 +181,7 @@ export class MapRenderer {
           const mode = entity.properties.camera_mode.toLowerCase();
           if (mode === "perspective" || mode === "orthographic" || mode === "fake_ortho") {
             cameraMode = mode;
-            console.log(`Map specifies camera_mode: ${cameraMode}`);
+            devLog(`Map specifies camera_mode: ${cameraMode}`);
           } else {
             console.warn(`Unknown camera_mode in worldspawn: ${entity.properties.camera_mode}`);
           }
@@ -191,7 +192,7 @@ export class MapRenderer {
           const height = parseFloat(entity.properties.camera_height);
           if (!Number.isNaN(height) && height > 0) {
             cameraHeight = height;
-            console.log(`Map specifies camera_height: ${cameraHeight}`);
+            devLog(`Map specifies camera_height: ${cameraHeight}`);
           }
         }
 
@@ -200,7 +201,7 @@ export class MapRenderer {
           const alpha = parseFloat(entity.properties.camera_alpha);
           if (!Number.isNaN(alpha)) {
             cameraAlpha = alpha;
-            console.log(`Map specifies camera_alpha: ${cameraAlpha}`);
+            devLog(`Map specifies camera_alpha: ${cameraAlpha}`);
           }
         }
 
@@ -209,7 +210,7 @@ export class MapRenderer {
           const beta = parseFloat(entity.properties.camera_beta);
           if (!Number.isNaN(beta)) {
             cameraBeta = beta;
-            console.log(`Map specifies camera_beta: ${cameraBeta}`);
+            devLog(`Map specifies camera_beta: ${cameraBeta}`);
           }
         }
 
@@ -223,7 +224,7 @@ export class MapRenderer {
             controller === "follow"
           ) {
             cameraController = controller;
-            console.log(`Map specifies camera_controller: ${cameraController}`);
+            devLog(`Map specifies camera_controller: ${cameraController}`);
           } else {
             console.warn(`Unknown camera_controller in worldspawn: ${entity.properties.camera_controller}`);
           }
@@ -232,13 +233,13 @@ export class MapRenderer {
         // Parse playlist if specified (music playlist for this map)
         if (entity.properties.playlist) {
           playlist = entity.properties.playlist;
-          console.log(`Map specifies playlist: ${playlist}`);
+          devLog(`Map specifies playlist: ${playlist}`);
         }
 
         // Parse indoor flag (disables rain/snow effects)
         if (entity.properties.indoor === "1") {
           indoor = true;
-          console.log(`Map is marked as indoor - weather effects disabled`);
+          devLog(`Map is marked as indoor - weather effects disabled`);
         }
 
         // Parse lighting overrides
@@ -261,7 +262,7 @@ export class MapRenderer {
           if (entity.properties.shadows) {
             lighting.shadows = entity.properties.shadows === "1";
           }
-          console.log(`Map specifies lighting overrides:`, lighting);
+          devLog(`Map specifies lighting overrides:`, lighting);
         }
 
         // Parse weather settings
@@ -282,7 +283,7 @@ export class MapRenderer {
           if (entity.properties.fog_density) {
             weather.fogDensity = parseFloat(entity.properties.fog_density);
           }
-          console.log(`Map specifies weather:`, weather);
+          devLog(`Map specifies weather:`, weather);
         }
 
         // Parse time settings
@@ -294,7 +295,7 @@ export class MapRenderer {
           if (entity.properties.start_hour) {
             time.startHour = parseFloat(entity.properties.start_hour);
           }
-          console.log(`Map specifies time settings:`, time);
+          devLog(`Map specifies time settings:`, time);
         }
       }
 
@@ -337,13 +338,13 @@ export class MapRenderer {
         }
 
         staticLights.push(light);
-        console.log(`Created light at ${lightPos.toString()}, intensity: ${light.intensity}, range: ${light.range}`);
+        devLog(`Created light at ${lightPos.toString()}, intensity: ${light.intensity}, range: ${light.range}`);
       }
 
       // Handle sprite entities (rocks, vegetation, etc.)
       // Supports both "sprite" (legacy/generated) and "misc_sprite" (NetRadiant)
       if ((entity.classname === "sprite" || entity.classname === "misc_sprite") && entity.properties.origin) {
-        console.log(`MapRenderer: Found ${entity.classname} entity:`, entity.properties);
+        devLog(`MapRenderer: Found ${entity.classname} entity:`, entity.properties);
         const parts = entity.properties.origin.split(" ").map(parseFloat);
         const position = new Vector3(parts[0], parts[2], parts[1]);
 
@@ -381,7 +382,7 @@ export class MapRenderer {
             tagMapOwned(sprite.mesh as any);
             // biome-ignore lint/suspicious/noExplicitAny: BSP mesh metadata tagging via Babylon metadata API
             tagMapOwned((sprite.shadowMesh ?? null) as any);
-            console.log(`Created sprite at ${position.toString()}: ${spritePath}`);
+            devLog(`Created sprite at ${position.toString()}: ${spritePath}`);
           }
         }
       }
@@ -524,7 +525,7 @@ export class MapRenderer {
       // Handle misc_model (prefab instances or 3D models)
       if (entity.classname === "misc_model" && entity.properties.model) {
         const modelPath = entity.properties.model;
-        console.log(`misc_model: ${modelPath}, isModelFile: ${ModelLoader.isModelFile(modelPath)}`);
+        devLog(`misc_model: ${modelPath}, isModelFile: ${ModelLoader.isModelFile(modelPath)}`);
 
         // Parse origin (Quake coords: X Y Z where Z is up)
         let position = Vector3.Zero();
@@ -558,7 +559,7 @@ export class MapRenderer {
               instanceData.mesh.metadata.templateName = instanceData.templateName;
               // Note: Instanced meshes don't create a TransformNode root
               // They're managed by InstancedMeshManager
-              console.log(`[MapRenderer] Created instance of ${modelPath}`);
+              devLog(`[MapRenderer] Created instance of ${modelPath}`);
             }
           } else {
             // Load as individual 3D model (GLB/glTF/OBJ)
@@ -693,7 +694,7 @@ export class MapRenderer {
         if (building) {
           // biome-ignore lint/suspicious/noExplicitAny: BSP mesh metadata tagging via Babylon metadata API
           tagMapOwned(building.getMesh() as any);
-          console.log(`Created sprite building: ${building.getId()} at ${position.toString()}`);
+          devLog(`Created sprite building: ${building.getId()} at ${position.toString()}`);
         }
       }
 
@@ -773,7 +774,7 @@ export class MapRenderer {
         sprite.playAnimation("idle");
 
         sprites.push(sprite);
-        console.log(`Created sprite: ${entity.properties.targetname || "unnamed"} at ${position.toString()}`);
+        devLog(`Created sprite: ${entity.properties.targetname || "unnamed"} at ${position.toString()}`);
       }
 
       // Handle entities via EntityHandlerRegistry (game-specific handlers)
@@ -820,7 +821,7 @@ export class MapRenderer {
             density,
             windInfluence,
           });
-          console.log(`Created debris zone: ${zoneId} (${debrisType}) at ${position.toString()}`);
+          devLog(`Created debris zone: ${zoneId} (${debrisType}) at ${position.toString()}`);
         }
       }
     }
@@ -844,9 +845,9 @@ export class MapRenderer {
       clusteredLights.verticalTiles = 8;
       // Set max range to match our scene size
       clusteredLights.maxRange = 1000;
-      console.log(`Created clustered light container with ${staticLights.length} static lights`);
+      devLog(`Created clustered light container with ${staticLights.length} static lights`);
     } else if (staticLights.length > 0) {
-      console.log(`Using ${staticLights.length} capped forward static lights (WebGPU compatibility)`);
+      devLog(`Using ${staticLights.length} capped forward static lights (WebGPU compatibility)`);
     }
 
     return {
@@ -889,7 +890,7 @@ export class MapRenderer {
       mat.dispose(true, true); // forceDisposeEffect=true, forceDisposeTextures=true
     }
     if (bspMaterials.length > 0) {
-      console.log(`[MapRenderer] Disposed ${bspMaterials.length} BSP materials`);
+      devLog(`[MapRenderer] Disposed ${bspMaterials.length} BSP materials`);
     }
 
     // biome-ignore lint/suspicious/noExplicitAny: Babylon.js internal API access
@@ -992,7 +993,7 @@ export class MapRenderer {
       pickup.dispose();
     }
     if (pickupsToDispose.length > 0) {
-      console.log(`[MapRenderer] Disposed ${pickupsToDispose.length} pickup entities`);
+      devLog(`[MapRenderer] Disposed ${pickupsToDispose.length} pickup entities`);
     }
 
     // Clear preloaded model cache (now safe since pickups are disposed)

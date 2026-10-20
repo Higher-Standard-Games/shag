@@ -9,6 +9,7 @@
  * - User preferences persistence
  */
 
+import { devLog } from "../../core/DevLog";
 import { UIStyles } from "../UIStyles";
 import { HUDAccordion } from "./components/HUDAccordion";
 import { HUDButton } from "./components/HUDButton";
@@ -87,7 +88,7 @@ export class HUDManager {
    * Initialize the HUD system with a config file
    */
   public async init(configPath: string): Promise<void> {
-    console.log("[HUD] Initializing...");
+    devLog("[HUD] Initializing...");
 
     // Inject styles
     UIStyles.injectCSS("hud-system", hudStyles);
@@ -107,7 +108,7 @@ export class HUDManager {
     // Apply user preferences
     this.applyUserPrefs();
 
-    console.log(`[HUD] Initialized with ${this.elements.size} elements`);
+    devLog(`[HUD] Initialized with ${this.elements.size} elements`);
   }
 
   /**
@@ -126,7 +127,7 @@ export class HUDManager {
         this.settings = { ...this.settings, ...this.config.settings };
       }
 
-      console.log(`[HUD] Config loaded from ${configPath}`);
+      devLog(`[HUD] Config loaded from ${configPath}`);
     } catch (error) {
       console.error("[HUD] Failed to load config:", error);
       // Use empty config
@@ -149,7 +150,7 @@ export class HUDManager {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         this.userPrefs = { ...this.userPrefs, ...JSON.parse(stored) };
-        console.log("[HUD] User preferences loaded");
+        devLog("[HUD] User preferences loaded");
       }
     } catch (error) {
       console.warn("[HUD] Failed to load user preferences:", error);
@@ -371,7 +372,7 @@ export class HUDManager {
 
     this.running = true;
     this.intervalId = window.setInterval(() => this.update(), this.settings.updateInterval);
-    console.log(`[HUD] Update loop started (${this.settings.updateInterval}ms interval)`);
+    devLog(`[HUD] Update loop started (${this.settings.updateInterval}ms interval)`);
   }
 
   /**
@@ -385,7 +386,7 @@ export class HUDManager {
       clearInterval(this.intervalId);
       this.intervalId = null;
     }
-    console.log("[HUD] Update loop stopped");
+    devLog("[HUD] Update loop stopped");
   }
 
   /**
@@ -679,7 +680,7 @@ export class HUDManager {
     this.userPrefs.theme = themeName;
     this.saveUserPrefs();
 
-    console.log(`[HUD] Theme set to '${themeName}'`);
+    devLog(`[HUD] Theme set to '${themeName}'`);
   }
 
   /**
@@ -767,7 +768,7 @@ export class HUDManager {
 
     this.areaContainers.clear();
 
-    console.log("[HUD] Destroyed");
+    devLog("[HUD] Destroyed");
   }
 
   /**
@@ -782,7 +783,7 @@ export class HUDManager {
       element.show();
     }
 
-    console.log("[HUD] Reset to defaults");
+    devLog("[HUD] Reset to defaults");
   }
 }
 

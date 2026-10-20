@@ -22,6 +22,7 @@ import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import type { Scene } from "@babylonjs/core/scene";
+import { devLog } from "../core/DevLog";
 import { BspManager } from "../loader/bsp/BspManager";
 import RenderVars from "../rendering/RenderVars";
 import { parseEntityColor, resolveMapSunDirection, resolveVolumetricEmitters } from "./MapGodRayEntities";
@@ -115,14 +116,14 @@ export class GodRaysController {
     const sunDir = resolveMapSunDirection(entities);
     if (sunDir) {
       this.enableSun(scene, camera, { direction: sunDir });
-      console.log("[GodRaysController] Sun god rays from map sun entity");
+      devLog("[GodRaysController] Sun god rays from map sun entity");
       return true;
     }
 
     // 2. worldspawn `godrays "1"` (+ optional look overrides) → SkyLightSystem sun.
     if (bsp.getWorldspawnProperty("godrays") === "1") {
       this.enableSun(scene, camera, this.worldspawnOverrides(bsp));
-      console.log("[GodRaysController] Sun god rays from worldspawn godrays key");
+      devLog("[GodRaysController] Sun god rays from worldspawn godrays key");
       return true;
     }
 
@@ -135,7 +136,7 @@ export class GodRaysController {
       if (e.exposure !== undefined) opts.exposure = e.exposure;
       if (e.size !== undefined) opts.size = e.size;
       this.enableAnchored(scene, camera, e.position, opts);
-      console.log(`[GodRaysController] Anchored god rays from light_volumetric (${emitters.length} present, 1 active)`);
+      devLog(`[GodRaysController] Anchored god rays from light_volumetric (${emitters.length} present, 1 active)`);
       return true;
     }
 

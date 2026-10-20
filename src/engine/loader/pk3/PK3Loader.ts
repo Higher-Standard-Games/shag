@@ -1,4 +1,5 @@
 import JSZip from "jszip";
+import { devLog } from "../../core/DevLog";
 import { readAssetBuffer } from "./AssetRequest";
 import { PackageDownload } from "./PackageDownload";
 import { fetchPk3, pk3MirrorBase } from "./Pk3Mirror";
@@ -52,7 +53,7 @@ export class PK3Loader {
     // PK3 data files live in public/data/ (served as /data/)
     const basePath = "data/";
     this.configure({ basePath });
-    console.log(`[PK3Loader] Auto-configured with basePath: ${basePath}`);
+    devLog(`[PK3Loader] Auto-configured with basePath: ${basePath}`);
   }
 
   /**
@@ -130,7 +131,7 @@ export class PK3Loader {
     // Extract filename from URL
     const filename = url.split("/").pop() || url;
 
-    console.log(`[PK3Loader] Loading ${filename} from ${url}...`);
+    devLog(`[PK3Loader] Loading ${filename} from ${url}...`);
 
     const zip = await this.fetchAndValidatePK3(url, filename);
     this.processPK3(filename, zip);
@@ -150,7 +151,7 @@ export class PK3Loader {
       const url = `${basePath}${filename}`;
       try {
         const zip = await this.fetchAndValidatePK3(url, filename);
-        console.log(`[PK3Loader] Loading ${filename} from ${url}...`);
+        devLog(`[PK3Loader] Loading ${filename} from ${url}...`);
         this.processPK3(filename, zip);
         return;
       } catch (error) {
@@ -197,7 +198,7 @@ export class PK3Loader {
       // Rebuild file index + zip entry index
       this.rebuildFileIndex();
 
-      console.log(`[PK3Loader] Loaded ${filename} with ${files.size} files (priority ${priority})`);
+      devLog(`[PK3Loader] Loaded ${filename} with ${files.size} files (priority ${priority})`);
     } catch (error) {
       console.error(`[PK3Loader] Failed to load ${filename}:`, error);
       throw error;
@@ -248,7 +249,7 @@ export class PK3Loader {
     // This matches Quake 3/Warsow: z_*.pk3 overrides data*.pk3
     const sortedPackages = Array.from(this.packages.values()).sort((a, b) => a.filename.localeCompare(b.filename));
 
-    console.log(`[PK3Loader] rebuildFileIndex: ${sortedPackages.map((p) => p.filename).join(", ")}`);
+    devLog(`[PK3Loader] rebuildFileIndex: ${sortedPackages.map((p) => p.filename).join(", ")}`);
 
     // Add files from each package (later packages override)
     for (const pkg of sortedPackages) {
@@ -365,6 +366,6 @@ export class PK3Loader {
     }
     this.blobUrls.length = 0;
 
-    console.log("[PK3Loader] All packages unloaded");
+    devLog("[PK3Loader] All packages unloaded");
   }
 }

@@ -28,6 +28,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Scene } from "@babylonjs/core/scene";
+import { devLog } from "../core/DevLog";
 import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
 
 interface Disposable {
@@ -289,7 +290,7 @@ export async function preloadEffectShaders(scene: Scene): Promise<void> {
     warmupMeshes.push(mesh);
   }
 
-  console.log(
+  devLog(
     `[EffectPreloader] Warming up ${warmupMeshes.length} shader permutations (incl. lightmap + PointLight variants)...`,
   );
 
@@ -299,7 +300,7 @@ export async function preloadEffectShaders(scene: Scene): Promise<void> {
     // Sequential fixtures also ensure cleanup cannot dispose another fixture
     // while Babylon is still polling its compilation after an earlier failure.
     for (const mesh of warmupMeshes) await mesh.material!.forceCompilationAsync(mesh, { clipPlane: false });
-    console.log(`[EffectPreloader] Shader warm-up complete — ${warmupMeshes.length} permutations compiled`);
+    devLog(`[EffectPreloader] Shader warm-up complete — ${warmupMeshes.length} permutations compiled`);
   } finally {
     for (const mesh of warmupMeshes) mesh.dispose();
     for (const item of warmupDisposables) item.dispose();
@@ -355,7 +356,7 @@ export async function preloadEffectShaders(scene: Scene): Promise<void> {
       tmpLight.range = 999999; // Ensure it affects ALL materials
       tmpLight.diffuse = new Color3(1, 1, 1);
 
-      console.log(
+      devLog(
         `[EffectPreloader] Force-compiling ${matMeshMap.size} StandardMaterials + ${pbrMatMeshMap.size} PBRMaterials with PointLight variant...`,
       );
 
@@ -382,7 +383,7 @@ export async function preloadEffectShaders(scene: Scene): Promise<void> {
       } finally {
         await retireTemporaryLight(scene, tmpLight);
       }
-      console.log(
+      devLog(
         `[EffectPreloader] Material force-compilation complete — ${matMeshMap.size + pbrMatMeshMap.size} materials`,
       );
 
@@ -392,7 +393,7 @@ export async function preloadEffectShaders(scene: Scene): Promise<void> {
       await new Promise<void>((resolve) => {
         scene.onAfterRenderObservable.addOnce(() => resolve());
       });
-      console.log(`[EffectPreloader] Shader settling complete`);
+      devLog(`[EffectPreloader] Shader settling complete`);
     }
   }
 }
@@ -427,13 +428,13 @@ export async function revalidateMaterials(scene: Scene): Promise<void> {
       unfrozenCount++;
     }
   }
-  console.log(`[EffectPreloader] Unfroze ${unfrozenCount} materials for revalidation`);
+  devLog(`[EffectPreloader] Unfroze ${unfrozenCount} materials for revalidation`);
 
   // 1. Reset the engine's internal texture cache — forces all textures
   //    to be re-bound to WebGL texture units on the next render pass
   // biome-ignore lint/suspicious/noExplicitAny: Babylon particle system internals
   (engine as any).resetTextureCache?.();
-  console.log(`[EffectPreloader] Reset engine texture cache`);
+  devLog(`[EffectPreloader] Reset engine texture cache`);
 
   // 2. Force all textures to re-upload to GPU
   //    When backgrounded, texture.isReady() may return true but the
@@ -453,12 +454,12 @@ export async function revalidateMaterials(scene: Scene): Promise<void> {
       }
     }
   }
-  console.log(`[EffectPreloader] Forced ${texCount} textures to re-upload`);
+  devLog(`[EffectPreloader] Forced ${texCount} textures to re-upload`);
 
   // 3. Mark all materials as dirty to force shader re-evaluation
   const { Constants } = await import("@babylonjs/core/Engines/constants");
   scene.markAllMaterialsAsDirty(Constants.MATERIAL_AllDirtyFlag);
-  console.log(`[EffectPreloader] Marked all materials dirty for revalidation`);
+  devLog(`[EffectPreloader] Marked all materials dirty for revalidation`);
 
   // 4. Force-compile all StandardMaterials AND PBRMaterials with PointLight variant (same as Phase 2)
   const matMeshMap = new Map<StandardMaterial, Mesh>();
@@ -518,10 +519,10 @@ export async function revalidateMaterials(scene: Scene): Promise<void> {
       refrozenCount++;
     }
   }
-  console.log(`[EffectPreloader] Re-froze ${refrozenCount} materials after revalidation`);
+  devLog(`[EffectPreloader] Re-froze ${refrozenCount} materials after revalidation`);
 
   const elapsed = (performance.now() - startTime).toFixed(0);
-  console.log(
+  devLog(
     `[EffectPreloader] Material revalidation complete — ${matMeshMap.size} materials, ${texCount} textures, ${unfrozenCount} unfrozen→${refrozenCount} refrozen in ${elapsed}ms`,
   );
 }

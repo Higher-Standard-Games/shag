@@ -15,6 +15,7 @@ import { PhysicsShapeType } from "@babylonjs/core/Physics/v2/IPhysicsEnginePlugi
 import { HavokPlugin } from "@babylonjs/core/Physics/v2/Plugins/havokPlugin";
 import { PhysicsAggregate } from "@babylonjs/core/Physics/v2/physicsAggregate";
 import type { Scene } from "@babylonjs/core/scene";
+import { devLog } from "../core/DevLog";
 import "@babylonjs/core/Physics/v2/physicsEngineComponent";
 // Side effect: registers Scene.prototype.enablePhysics / getPhysicsEngine.
 // Babylon 9 split these off the v2 component above; without this,
@@ -267,9 +268,7 @@ export class PhysicsSystem {
       }
     }
 
-    console.log(
-      `[PhysicsSystem] BSP collision created: ${count} trimesh bodies from ${childMeshes.length} child meshes`,
-    );
+    devLog(`[PhysicsSystem] BSP collision created: ${count} trimesh bodies from ${childMeshes.length} child meshes`);
     return count;
   }
 

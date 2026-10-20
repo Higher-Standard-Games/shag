@@ -1,5 +1,6 @@
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Scene } from "@babylonjs/core/scene";
+import { devLog } from "./core/DevLog";
 
 /**
  * Context passed to spawn validators
@@ -111,7 +112,7 @@ export class SpawnValidator {
    */
   public register(validator: ISpawnValidator): void {
     this.validators.set(validator.id, validator);
-    console.log(`Registered spawn validator: ${validator.id}`);
+    devLog(`Registered spawn validator: ${validator.id}`);
   }
 
   /**
@@ -119,7 +120,7 @@ export class SpawnValidator {
    */
   public registerGlobal(validator: ISpawnValidator): void {
     this.globalValidators.push(validator);
-    console.log(`Registered global spawn validator: ${validator.id}`);
+    devLog(`Registered global spawn validator: ${validator.id}`);
   }
 
   /**
@@ -158,7 +159,7 @@ export class SpawnValidator {
     for (const validator of this.globalValidators) {
       const result = validator.validate(context);
       if (!result.allowed) {
-        console.log(`Spawn blocked by ${validator.id}: ${result.reason}`);
+        devLog(`Spawn blocked by ${validator.id}: ${result.reason}`);
         return result;
       }
     }
@@ -170,7 +171,7 @@ export class SpawnValidator {
         if (validator) {
           const result = validator.validate(context);
           if (!result.allowed) {
-            console.log(`Spawn blocked by ${validator.id}: ${result.reason}`);
+            devLog(`Spawn blocked by ${validator.id}: ${result.reason}`);
             return result;
           }
         } else {

@@ -19,6 +19,7 @@ import weaponModelRecipe from "../../../../config/weapon-models.json";
 import { initializeEntityDefs } from "../../../shared/entities";
 import { EntityRegistry } from "../../../shared/entities/EntityRegistry";
 import { EntityType } from "../../../shared/entities/EntityType";
+import { devLog } from "../../core/DevLog";
 import { type EntityData, EntityHandlerRegistry } from "../../core/EntityHandlerRegistry";
 import { EventBus } from "../../core/EventBus";
 import { LOADING_EVENTS, type LoadingCompleteEvent, type LoadingProgressEvent } from "../../core/LoadingEvents";
@@ -149,13 +150,13 @@ export class MapLoader {
       if (!this.currentMeshResult) return;
 
       const enabled = value >= 0.5 ? 1 : 0;
-      console.log(`[MapLoader] r_deluxe changed to ${enabled} - will apply on next BSP map reload`);
+      devLog(`[MapLoader] r_deluxe changed to ${enabled} - will apply on next BSP map reload`);
     });
     this.renderVars.onChange("r_bsp_pbr", (value) => {
       if (!this.currentMeshResult) return;
 
       const enabled = value >= 0.5 ? 1 : 0;
-      console.log(`[MapLoader] r_bsp_pbr changed to ${enabled} - will apply on next BSP map reload`);
+      devLog(`[MapLoader] r_bsp_pbr changed to ${enabled} - will apply on next BSP map reload`);
     });
   }
 
@@ -189,7 +190,7 @@ export class MapLoader {
 
     const progress = (phase: string, detail?: string, percent?: number) => {
       onProgress?.({ phase, detail, progress: percent });
-      console.log(`[MapLoader] ${phase}${detail ? `: ${detail}` : ""}`);
+      devLog(`[MapLoader] ${phase}${detail ? `: ${detail}` : ""}`);
 
       // Emit loading:progress event
       const progressEvent: LoadingProgressEvent = {
@@ -276,8 +277,8 @@ export class MapLoader {
   ): Promise<MapLoadResult> {
     const deluxeEnabled = (this.renderVars.get("r_deluxe") ?? 0) >= 0.5;
     const bspPbrEnabled = (this.renderVars.get("r_bsp_pbr") ?? 0) >= 0.5;
-    console.log(`[MapLoader] Deluxe shader branches: ${deluxeEnabled ? "enabled" : "disabled"} for this map load`);
-    console.log(`[MapLoader] BSP PBR materials: ${bspPbrEnabled ? "enabled" : "disabled"} for this map load`);
+    devLog(`[MapLoader] Deluxe shader branches: ${deluxeEnabled ? "enabled" : "disabled"} for this map load`);
+    devLog(`[MapLoader] BSP PBR materials: ${bspPbrEnabled ? "enabled" : "disabled"} for this map load`);
 
     // ── Tab visibility tracking ──────────────────────────────────────────
     // When the browser tab is backgrounded, WebGL texture uploads and shader
@@ -367,7 +368,7 @@ export class MapLoader {
         try {
           await this.pk3Loader.loadPK3(weaponPackage);
           loadedPk3s.add(weaponPackage);
-          console.log(`[MapLoader] Loaded weapon override PK3: ${weaponPackage}`);
+          devLog(`[MapLoader] Loaded weapon override PK3: ${weaponPackage}`);
         } catch (e) {
           console.warn(`[MapLoader] ${weaponPackage} not loaded:`, e);
         }
@@ -424,7 +425,7 @@ export class MapLoader {
     if (!isHeadlessNullEngine) {
       const skyResult = await BspMeshBuilder.applySkybox(meshResult, scene);
       if (skyResult.success) {
-        console.log(`[MapLoader] Skybox created (${meshResult.skyShaders.length} sky shaders)`);
+        devLog(`[MapLoader] Skybox created (${meshResult.skyShaders.length} sky shaders)`);
         const reflectionTexture = (
           skyResult.skybox?.material as unknown as { reflectionTexture?: BaseTexture | null } | null
         )?.reflectionTexture;
@@ -443,9 +444,7 @@ export class MapLoader {
     WorldFogController.getInstance().setMap(scene, worldFog, skyHeight);
     if (worldFog) {
       const fogDist = worldFog.density > 0 ? (3 / worldFog.density).toFixed(0) : "none";
-      console.log(
-        `[MapLoader] World fog: 95% at ${fogDist}, from ${worldFog.minDist}, colour ${worldFog.color.join(" ")}`,
-      );
+      devLog(`[MapLoader] World fog: 95% at ${fogDist}, from ${worldFog.minDist}, colour ${worldFog.color.join(" ")}`);
     }
 
     // Phase 7: Apply lightmaps (baked lighting)
@@ -458,7 +457,7 @@ export class MapLoader {
         bspLightingProfile(bsp).gain,
       );
       const lmCount = BspMeshBuilder.applyLightmaps(meshResult, { intensity });
-      console.log(
+      devLog(
         `[MapLoader] Applied ${lmCount} lightmaps (${bsp.header.isFBSP ? "FBSP" : "IBSP"}, intensity ${intensity.toFixed(2)})`,
       );
     } catch (e) {
@@ -478,7 +477,7 @@ export class MapLoader {
       // CRITICAL: Force SkyLightSystem to sync with the current scene
       // This ensures we don't use a stale scene reference from a previous map
       // The init() method now handles cleanup of old lights automatically
-      console.log("[MapLoader] Initializing SkyLightSystem for current scene...");
+      devLog("[MapLoader] Initializing SkyLightSystem for current scene...");
       skyLight.init(scene, {
         sunIntensity: 1.0,
         moonIntensity: 0,
@@ -495,7 +494,7 @@ export class MapLoader {
       // Ensure blockMaterialDirtyMechanism is off so textures apply properly
       scene.blockMaterialDirtyMechanism = false;
 
-      console.log("[MapLoader] Configured lighting for BSP map (BSP Mode enabled)");
+      devLog("[MapLoader] Configured lighting for BSP map (BSP Mode enabled)");
     } catch (e) {
       console.warn("[MapLoader] Could not configure lighting:", e);
 
@@ -506,7 +505,7 @@ export class MapLoader {
         const { Color3 } = await import("@babylonjs/core/Maths/math.color");
 
         if (scene.lights.length === 0) {
-          console.log("[MapLoader] Creating fallback ambient light");
+          devLog("[MapLoader] Creating fallback ambient light");
           const light = new HemisphericLight("bsp_ambient", new Vector3(0, 1, 0), scene);
           light.intensity = 1.0;
           light.diffuse = new Color3(1, 1, 1);
@@ -536,7 +535,7 @@ export class MapLoader {
       // Phase 9: Generate collision meshes
       progress("Collision", "Building clip brush meshes");
       const clipMeshCount = 0; // DISABLED for testing
-      console.log(`[MapLoader] TESTING: Collision mesh generation disabled - Generated ${clipMeshCount} meshes`);
+      devLog(`[MapLoader] TESTING: Collision mesh generation disabled - Generated ${clipMeshCount} meshes`);
 
       // Phase 9b: Initialize collision system
       progress("Collision", "Initializing");
@@ -544,7 +543,7 @@ export class MapLoader {
         const { getCollisionManager } = await import("../../physics");
         const cm = getCollisionManager();
         await cm.init(bsp, scene as never, "q3");
-        console.log(`[MapLoader] Collision initialized with ${cm.getBackendType()} backend`);
+        devLog(`[MapLoader] Collision initialized with ${cm.getBackendType()} backend`);
       } catch (e) {
         console.warn("[MapLoader] Failed to initialize collision:", e);
       }
@@ -557,7 +556,7 @@ export class MapLoader {
         const preloadCount = await preloader.preloadFromBsp(bsp, scene, (p) => {
           progress("Assets", `Preloading ${p.modelPath} (${p.current + 1}/${p.total})`);
         });
-        console.log(`[MapLoader] Preloaded ${preloadCount} pickup models`);
+        devLog(`[MapLoader] Preloaded ${preloadCount} pickup models`);
       } catch (e) {
         console.warn("[MapLoader] Failed to preload assets:", e);
       }
@@ -592,7 +591,7 @@ export class MapLoader {
         }
       }
       trackFrozenWorldMaterials(scene, frozen);
-      console.log(`[MapLoader] Froze ${frozen.size} world materials, skipped ${skippedCount} sky`);
+      devLog(`[MapLoader] Froze ${frozen.size} world materials, skipped ${skippedCount} sky`);
 
       // Materials were only half of it: the world meshes still recomputed their
       // world matrix and bounding info every frame despite never moving. The
@@ -601,10 +600,10 @@ export class MapLoader {
       // rather than by running before they are parented.
       if ((this.renderVars.get("r_bsp_freeze") ?? 1) >= 0.5) {
         const frozenMeshes = BspMeshBuilder.freezeStaticWorld(meshResult);
-        console.log(`[MapLoader] Froze ${frozenMeshes} static world meshes (r_bsp_freeze)`);
+        devLog(`[MapLoader] Froze ${frozenMeshes} static world meshes (r_bsp_freeze)`);
       }
     } else {
-      console.log(`[MapLoader] Background mode: skipped collisions, entities, assets`);
+      devLog(`[MapLoader] Background mode: skipped collisions, entities, assets`);
     }
 
     // Find player start position
@@ -640,7 +639,7 @@ export class MapLoader {
           new Promise<boolean>((resolve) => setTimeout(() => resolve(false), SCENE_READY_TIMEOUT_MS)),
         ]);
         if (ready) {
-          console.log("[MapLoader] Scene fully ready — all textures and shaders compiled");
+          devLog("[MapLoader] Scene fully ready — all textures and shaders compiled");
         } else {
           console.warn(
             `[MapLoader] Scene not ready after ${SCENE_READY_TIMEOUT_MS / 1000}s, proceeding anyway: ${describeNotReady(scene)}`,
@@ -650,7 +649,7 @@ export class MapLoader {
         console.warn("[MapLoader] scene.whenReadyAsync() failed, proceeding anyway:", e);
       }
     } else {
-      console.log("[MapLoader] Background mode: skipped shader warmup and GPU wait");
+      devLog("[MapLoader] Background mode: skipped shader warmup and GPU wait");
     }
 
     // ── Tab visibility recovery ──────────────────────────────────────────
@@ -666,7 +665,7 @@ export class MapLoader {
 
       // If tab is still hidden, wait for it to become visible first
       if (document.hidden) {
-        console.log("[MapLoader] Tab still hidden — waiting for visibility...");
+        devLog("[MapLoader] Tab still hidden — waiting for visibility...");
         await new Promise<void>((resolve) => {
           const waitForVisible = () => {
             if (!document.hidden) {
@@ -676,13 +675,13 @@ export class MapLoader {
           };
           document.addEventListener("visibilitychange", waitForVisible);
         });
-        console.log("[MapLoader] Tab now visible — starting revalidation");
+        devLog("[MapLoader] Tab now visible — starting revalidation");
       }
 
       try {
         const { revalidateMaterials } = await import("../../weapon/EffectPreloader");
         await revalidateMaterials(scene);
-        console.log("[MapLoader] Post-background revalidation complete");
+        devLog("[MapLoader] Post-background revalidation complete");
       } catch (e) {
         console.warn("[MapLoader] Post-background revalidation failed:", e);
       }
@@ -703,7 +702,7 @@ export class MapLoader {
       // Start PVS after material setup and entity spawning have established the
       // world's intended visibility. The live camera may arrive on a later frame.
       const { BspManager } = await import("../bsp/BspManager");
-      console.log(`[MapLoader] ${await BspManager.getInstance().enablePVS(scene)}`);
+      devLog(`[MapLoader] ${await BspManager.getInstance().enablePVS(scene)}`);
 
       // A sky portal draws the sky from its own camera, with its own PVS
       const portal = isHeadlessNullEngine ? null : parseSkyPortal(bsp.entities);
@@ -718,9 +717,7 @@ export class MapLoader {
           isPositionVisible: (position) => BspManager.getInstance().getPvsCuller()?.isPositionVisible(position) ?? true,
           isSkyInView: (view) => sky.inView(view),
         });
-        console.log(
-          `[MapLoader] Sky portal at ${portal.origin.join(" ")}${portal.scale ? `, scale ${portal.scale}` : ""}`,
-        );
+        devLog(`[MapLoader] Sky portal at ${portal.origin.join(" ")}${portal.scale ? `, scale ${portal.scale}` : ""}`);
       }
 
       // A world mesh still not ready when the loading screen goes renders as a
@@ -835,7 +832,7 @@ export class MapLoader {
             const pk3 = this.pk3Index.findFile(envPath);
             if (pk3 && !loadedPackages.has(pk3)) {
               requiredPk3s.add(pk3);
-              console.log(`[MapLoader] Sky texture dependency: ${envPath} -> ${pk3}`);
+              devLog(`[MapLoader] Sky texture dependency: ${envPath} -> ${pk3}`);
               break;
             }
           }
@@ -850,7 +847,7 @@ export class MapLoader {
    * Dispose current map resources
    */
   async disposeCurrentMap(): Promise<void> {
-    console.log(`[MapLoader] disposeCurrentMap called at ${Date.now()}`);
+    devLog(`[MapLoader] disposeCurrentMap called at ${Date.now()}`);
     if (this.currentMap) {
       EventBus.emit("map:unloading", { mapName: this.currentMap });
     }
@@ -896,11 +893,11 @@ export class MapLoader {
     try {
       const { PK3TextureLoader } = await import("../pk3/PK3TextureLoader");
       PK3TextureLoader.getInstance().clearCache();
-      console.log("[MapLoader] Cleared PK3TextureLoader cache");
+      devLog("[MapLoader] Cleared PK3TextureLoader cache");
 
       const { TextureManager } = await import("../texture/TextureManager");
       TextureManager.getInstance().clearCache();
-      console.log("[MapLoader] Cleared TextureManager cache");
+      devLog("[MapLoader] Cleared TextureManager cache");
     } catch (e) {
       console.warn("[MapLoader] Error clearing caches:", e);
     }
@@ -973,13 +970,13 @@ export class MapLoader {
     }
 
     if (handledCount > 0) {
-      console.log(`[MapLoader] Processed ${handledCount} BSP entities via EntityHandlerRegistry`);
+      devLog(`[MapLoader] Processed ${handledCount} BSP entities via EntityHandlerRegistry`);
     }
 
     // Log registered handlers for debugging
     const registered = EntityHandlerRegistry.getRegisteredClassnames();
     if (registered.length > 0) {
-      console.log(`[MapLoader] Available entity handlers: ${registered.join(", ")}`);
+      devLog(`[MapLoader] Available entity handlers: ${registered.join(", ")}`);
     }
   }
 
@@ -1011,14 +1008,14 @@ export class MapLoader {
       const pk3 = this.pk3Index.findFile(modelPath);
       if (pk3) {
         requiredPk3s.add(pk3);
-        console.log(`[MapLoader] Entity model dependency: ${modelPath} → ${pk3}`);
+        devLog(`[MapLoader] Entity model dependency: ${modelPath} → ${pk3}`);
       } else {
         console.warn(`[MapLoader] No PK3 found for entity model: ${modelPath}`);
       }
     }
 
     if (requiredPk3s.size > 0) {
-      console.log(`[MapLoader] Resolved ${requiredPk3s.size} entity model PK3(s): ${[...requiredPk3s].join(", ")}`);
+      devLog(`[MapLoader] Resolved ${requiredPk3s.size} entity model PK3(s): ${[...requiredPk3s].join(", ")}`);
     }
 
     return requiredPk3s;
@@ -1044,7 +1041,7 @@ export class MapLoader {
     this.liquidSurfaces = null;
 
     if (this.renderVars?.get("r_water") === 0) {
-      console.log("[MapLoader] r_water 0 — liquid surfaces left on the legacy renderer");
+      devLog("[MapLoader] r_water 0 — liquid surfaces left on the legacy renderer");
       return;
     }
 
@@ -1057,7 +1054,7 @@ export class MapLoader {
       });
       system.mapLights = [...system.mapLights, ...waterSurfaceLights(panels)];
     }
-    console.log(`[Water] Authored highlight candidates: ${system.mapLights.length}`);
+    devLog(`[Water] Authored highlight candidates: ${system.mapLights.length}`);
     system.setEnvironmentTexture(skyEnvironment);
 
     if (loadEnvironmentMaps) {
@@ -1094,7 +1091,7 @@ export class MapLoader {
     }
 
     this.liquidSurfaces = system;
-    console.log(`[MapLoader] Unified water claimed ${claimed} liquid surface(s)`);
+    devLog(`[MapLoader] Unified water claimed ${claimed} liquid surface(s)`);
   }
 
   /**

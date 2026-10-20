@@ -24,6 +24,7 @@ import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Observer } from "@babylonjs/core/Misc/observable";
 import { ParticleSystem } from "@babylonjs/core/Particles/particleSystem";
 import type { Scene } from "@babylonjs/core/scene";
+import { devLog } from "../core/DevLog";
 import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
 import { atmFogFactorAt } from "../rendering/AtmosphericFogShader";
 import { updateEffectPositions } from "./EffectGeometry";
@@ -181,7 +182,7 @@ export class ExplosionEffect {
     // Every explosion's sparks share this one texture, so only a re-init lets it go.
     this.particleTexture?.dispose();
     this.particleTexture = this.createParticleTexture(scene);
-    console.log("[ExplosionEffect] Initialized");
+    devLog("[ExplosionEffect] Initialized");
   }
 
   // ═══════════════════════════════════════════════════════════════

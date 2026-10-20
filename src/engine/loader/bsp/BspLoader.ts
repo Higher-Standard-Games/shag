@@ -11,6 +11,8 @@
  * - RBSP-style vertex format
  */
 
+import { devLog } from "../../core/DevLog";
+
 // ============================================================================
 // BSP Format Constants
 // ============================================================================
@@ -296,7 +298,7 @@ export class BspLoader {
     const header = this.readHeader();
     this.lumps = this.readLumpDirectory();
 
-    console.log(`[BspLoader] Parsing ${header.isFBSP ? "FBSP" : "IBSP"} v${header.version}`);
+    devLog(`[BspLoader] Parsing ${header.isFBSP ? "FBSP" : "IBSP"} v${header.version}`);
 
     // Parse all lumps into local variables
     const entities = this.parseEntities();
@@ -442,10 +444,8 @@ export class BspLoader {
     const predictedCount = size[0] * size[1] * size[2];
     const actualCount = lightVolCount;
 
-    console.log(
-      `[BspLoader] LightGrid: origin=(${origin.join(",")}) size=(${size.join(",")}) step=(${gridsize.join(",")})`,
-    );
-    console.log(`[BspLoader] LightGrid Counts: Predicted=${predictedCount}, Actual=${actualCount}`);
+    devLog(`[BspLoader] LightGrid: origin=(${origin.join(",")}) size=(${size.join(",")}) step=(${gridsize.join(",")})`);
+    devLog(`[BspLoader] LightGrid Counts: Predicted=${predictedCount}, Actual=${actualCount}`);
 
     if (predictedCount !== actualCount) {
       console.warn(
@@ -1100,7 +1100,7 @@ export class BspLoader {
       lightmaps.push(new Uint8Array(this.data.buffer, offset, LIGHTMAP_BYTES));
     }
 
-    console.log(`[BspLoader] Loaded ${count} lightmaps (${lightmapSize}x${lightmapSize})`);
+    devLog(`[BspLoader] Loaded ${count} lightmaps (${lightmapSize}x${lightmapSize})`);
 
     return lightmaps;
   }
@@ -1167,7 +1167,7 @@ export class BspLoader {
     const bytesPerCluster = lump.data.getInt32(4, true);
     const bitVectors = new Uint8Array(this.data.buffer, lump.offset + 8, numClusters * bytesPerCluster);
 
-    console.log(`[BspLoader] Loaded PVS: ${numClusters} clusters, ${bytesPerCluster} bytes/cluster`);
+    devLog(`[BspLoader] Loaded PVS: ${numClusters} clusters, ${bytesPerCluster} bytes/cluster`);
 
     return { numClusters, bytesPerCluster, bitVectors };
   }

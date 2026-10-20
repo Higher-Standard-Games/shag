@@ -18,6 +18,7 @@ import { DefaultRenderingPipeline } from "@babylonjs/core/PostProcesses/RenderPi
 import { SSAO2RenderingPipeline } from "@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/ssao2RenderingPipeline";
 import type { Scene } from "@babylonjs/core/scene";
 import { Cvar } from "../core/Cvar";
+import { devLog } from "../core/DevLog";
 import { EventBus } from "../core/EventBus";
 import { CelOutlinePostProcess } from "./CelOutlinePostProcess";
 import { asColorVisionType, ColorCorrectionPostProcess } from "./ColorCorrectionPostProcess";
@@ -154,7 +155,7 @@ export class PostProcessingManager {
     this.initCelOutline(scene, camera);
     this.initColorCorrection(scene, camera);
 
-    console.log("[PostProcessingManager] Initialized with default settings");
+    devLog("[PostProcessingManager] Initialized with default settings");
   }
 
   /**
@@ -229,7 +230,7 @@ export class PostProcessingManager {
     // Apply all settings
     this.applySettings();
 
-    console.log("[PostProcessingManager] Pipeline created");
+    devLog("[PostProcessingManager] Pipeline created");
   }
 
   /**
@@ -316,7 +317,7 @@ export class PostProcessingManager {
       this.ssaoPipeline.radius = s.radius;
       this.ssaoPipeline.totalStrength = s.intensity;
       this.ssaoPipeline.samples = s.samples;
-      console.log("[PostProcessingManager] SSAO enabled");
+      devLog("[PostProcessingManager] SSAO enabled");
     } else {
       // Update existing SSAO settings
       this.ssaoPipeline.radius = s.radius;
@@ -399,7 +400,7 @@ export class PostProcessingManager {
   public setEnabled(enabled: boolean): void {
     this.settings.enabled = enabled;
     this.applySettings();
-    console.log(`[PostProcessingManager] ${enabled ? "Enabled" : "Disabled"}`);
+    devLog(`[PostProcessingManager] ${enabled ? "Enabled" : "Disabled"}`);
   }
 
   /**
@@ -495,7 +496,7 @@ export class PostProcessingManager {
   public resetToDefaults(): void {
     this.settings = structuredClone(DEFAULT_SETTINGS);
     this.applySettings();
-    console.log("[PostProcessingManager] Reset to defaults");
+    devLog("[PostProcessingManager] Reset to defaults");
   }
 
   /**
@@ -532,7 +533,7 @@ export class PostProcessingManager {
     this.initialized = false;
     this.scene = null;
     this.camera = null;
-    console.log("[PostProcessingManager] Disposed");
+    devLog("[PostProcessingManager] Disposed");
   }
 
   // ==================== Colour-blindness correction ====================
@@ -641,7 +642,7 @@ export class PostProcessingManager {
     cel.setOpacity(Cvar.getNumber("r_cel_opacity"));
     cel.setColorFromString(Cvar.getString("r_cel_color"));
 
-    console.log("[PostProcessingManager] Cel outline cvars registered");
+    devLog("[PostProcessingManager] Cel outline cvars registered");
 
     // ── Weapon viewmodel outlines (r_cel_weapon_*) ──
     // Uses Babylon's built-in mesh.renderOutline (inverted hull)
@@ -669,6 +670,6 @@ export class PostProcessingManager {
       onChange: (value) => getWVM().then((wvm) => wvm.setWeaponOutlineColorFromString(value as string)),
     });
 
-    console.log("[PostProcessingManager] Weapon outline cvars registered");
+    devLog("[PostProcessingManager] Weapon outline cvars registered");
   }
 }

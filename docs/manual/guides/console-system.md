@@ -90,11 +90,13 @@ open, or when Ctrl, Alt or Meta is held.
 
 ## Logging
 
-Lines that repeat in play (a death, a weapon change, a projectile, a model or
-per-map and per-effect setup) go through `devLog()` from
+Engine and game client code logs through `devLog()` from
 `src/engine/core/DevLog.ts`, which prints only while `developer` is on; check
 `devLogEnabled()` first when a line is costly to build. With `developer 0` the
-browser console shows one-off events and warnings.
+browser console shows warnings and errors, so a session where everything works
+stays quiet. Use `console.warn` or `console.error` for anything a player or
+tester should see. Node servers have their own opt-in topics (`SHAG_DEBUG`)
+for diagnostics.
 
 Production builds strip `console.log` and `console.debug` calls, while
 `console.warn` and `console.error` remain. esbuild keeps any argument with a

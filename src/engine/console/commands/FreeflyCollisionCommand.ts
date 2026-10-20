@@ -9,6 +9,7 @@ import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Scene } from "@babylonjs/core/scene";
+import { devLog } from "../../core/DevLog";
 import { Command, type CommandDef } from "../Command";
 
 // Visualization state
@@ -431,7 +432,7 @@ export class FreeflyCollisionCommand extends Command {
 
       // Debug: log any texture containing 'clip' or 'caulk'
       if (clipLikeCount < 10 && (texName.includes("clip") || texName.includes("caulk"))) {
-        console.log(`[clipviz] Found clip-like brush ${bi}: "${texName}"`);
+        devLog(`[clipviz] Found clip-like brush ${bi}: "${texName}"`);
         clipLikeCount++;
       }
 
@@ -439,9 +440,7 @@ export class FreeflyCollisionCommand extends Command {
       const isPlayerclip = texName === "textures/common/playerclip" || texName === "common/playerclip";
 
       if (debugCount < 3 && (isFullclip || isPlayerclip)) {
-        console.log(
-          `[clipviz] Matched brush ${bi}: tex="${texName}" fullclip=${isFullclip} playerclip=${isPlayerclip}`,
-        );
+        devLog(`[clipviz] Matched brush ${bi}: tex="${texName}" fullclip=${isFullclip} playerclip=${isPlayerclip}`);
         debugCount++;
       }
 
@@ -450,14 +449,14 @@ export class FreeflyCollisionCommand extends Command {
       const meshData = this.buildClipBrushMesh(bsp, brush, oobMin, oobMax);
       if (!meshData) {
         if (debugCount <= 3) {
-          console.log(`[clipviz] Brush ${bi}: mesh build failed (likely degenerate or OOB)`);
+          devLog(`[clipviz] Brush ${bi}: mesh build failed (likely degenerate or OOB)`);
         }
         skipped++;
         continue;
       }
 
       if (debugCount <= 3) {
-        console.log(`[clipviz] Brush ${bi}: creating mesh with ${meshData.positions.length / 3} vertices`);
+        devLog(`[clipviz] Brush ${bi}: creating mesh with ${meshData.positions.length / 3} vertices`);
       }
 
       const mesh = new Mesh(`clipviz_${isFullclip ? "fullclip" : "playerclip"}_${bi}`, scene);
@@ -569,12 +568,12 @@ export class FreeflyCollisionCommand extends Command {
     }
 
     if (uniqueVerts.length < 4) {
-      console.log(`[clipviz] Brush mesh build failed: only ${uniqueVerts.length} vertices (need 4+)`);
+      devLog(`[clipviz] Brush mesh build failed: only ${uniqueVerts.length} vertices (need 4+)`);
       return null;
     }
     const oobVerts = uniqueVerts.filter((v) => !isWithinWorld(v));
     if (oobVerts.length > 0) {
-      console.log(
+      devLog(
         `[clipviz] Brush mesh build failed: ${oobVerts.length}/${uniqueVerts.length} vertices OOB. World bounds: (${oobMin.x.toFixed(0)},${oobMin.y.toFixed(0)},${oobMin.z.toFixed(0)}) to (${oobMax.x.toFixed(0)},${oobMax.y.toFixed(0)},${oobMax.z.toFixed(0)}). First OOB vert: (${oobVerts[0].x.toFixed(0)},${oobVerts[0].y.toFixed(0)},${oobVerts[0].z.toFixed(0)})`,
       );
       return null;

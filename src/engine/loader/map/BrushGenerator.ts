@@ -5,6 +5,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
 import type { Scene } from "@babylonjs/core/scene";
+import { devLog } from "../../core/DevLog";
 import { SkyLightSystem } from "../../lighting/SkyLightSystem";
 import type { Brush, PlaneDefinition } from "./MapParser";
 
@@ -181,7 +182,7 @@ export class BrushGenerator {
       mat.backFaceCulling = false; // Ensure all sides are visible
       customMesh.material = mat;
       customMesh.metadata = { isTrigger: true };
-      console.log(`Created Trigger Mesh with ${vertices.length} vertices`);
+      devLog(`Created Trigger Mesh with ${vertices.length} vertices`);
     } else {
       // Add shadow support for non-trigger brushes
       const skyLight = SkyLightSystem.getInstance();

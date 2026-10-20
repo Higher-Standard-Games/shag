@@ -6,6 +6,7 @@
  * Game can customize by calling UITheme.setTheme() before UI init.
  */
 
+import { devLog } from "../core/DevLog";
 import { GamePaths } from "../core/GamePaths";
 import { writePreference } from "../core/PreferenceStorage";
 
@@ -195,7 +196,7 @@ export class UITheme {
       const loadedFont = await font.load();
       document.fonts.add(loadedFont);
       if (!silent) {
-        console.log(`Font loaded: ${fontName}`);
+        devLog(`Font loaded: ${fontName}`);
       }
       return true;
     } catch (error) {
@@ -257,7 +258,7 @@ export class UITheme {
       fn(mode);
     });
 
-    console.log(`[UITheme] Switched to ${mode} mode`);
+    devLog(`[UITheme] Switched to ${mode} mode`);
   }
 
   /**
@@ -317,7 +318,7 @@ export class UITheme {
       if (success) loadedCount++;
     }
 
-    console.log(`[UITheme] Nunito font family loaded (${loadedCount}/${weights.length} weights)`);
+    devLog(`[UITheme] Nunito font family loaded (${loadedCount}/${weights.length} weights)`);
   }
 
   /**
@@ -329,7 +330,7 @@ export class UITheme {
     const fontPath = gamePaths.engine("fonts/Share_Tech_Mono/ShareTechMono-Regular.ttf");
     const success = await this.loadFont("Share Tech Mono", fontPath, "400", true);
     if (success) {
-      console.log("[UITheme] Share Tech Mono font loaded (debug console)");
+      devLog("[UITheme] Share Tech Mono font loaded (debug console)");
     } else {
       console.warn("[UITheme] Share Tech Mono font failed to load from:", fontPath);
     }

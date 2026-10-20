@@ -3,6 +3,7 @@ import type { Scene } from "@babylonjs/core/scene";
 import { AssetLoader } from "./AssetLoader";
 import { AudioV2Sfx, type SfxChannel, type SfxLoop, type SpatialSfxPlayOptions } from "./audio/AudioV2Sfx";
 import { Cvar } from "./core/Cvar";
+import { devLog } from "./core/DevLog";
 import { PK3Index } from "./loader/pk3/PK3Index";
 import { PK3Loader } from "./loader/pk3/PK3Loader";
 
@@ -129,7 +130,7 @@ export class AudioManager {
       this.sfxBackend.setChannelVolume(channel, Cvar.getNumber(name));
     }
 
-    console.log(`[AudioManager] Registered ${4 + CHANNEL_CVARS.length} cvars`);
+    devLog(`[AudioManager] Registered ${4 + CHANNEL_CVARS.length} cvars`);
   }
 
   /**
@@ -139,7 +140,7 @@ export class AudioManager {
   public unlockAudio(): void {
     void this.sfxBackend
       .unlock()
-      .then(() => console.log("[AudioManager] Audio context unlocked"))
+      .then(() => devLog("[AudioManager] Audio context unlocked"))
       .catch((error) => console.warn("[AudioManager] Audio unlock failed:", error));
   }
 
@@ -379,11 +380,11 @@ export class AudioManager {
   public startPlaylist(playlist: Playlist, name?: string): void {
     // If same playlist is already playing, don't restart
     if (name && this.playlistName === name && this.isPlayingPlaylist) {
-      console.log(`[AudioManager] Playlist "${name}" already playing, skipping reload`);
+      devLog(`[AudioManager] Playlist "${name}" already playing, skipping reload`);
       return;
     }
 
-    console.log(
+    devLog(
       `[AudioManager] Starting playlist: ${playlist.name || name || "unnamed"} with ${playlist.tracks.length} tracks`,
     );
 
@@ -423,14 +424,14 @@ export class AudioManager {
         if (!buffer) throw new Error("Failed to read playlist from PK3");
         const text = new TextDecoder().decode(buffer);
         playlist = JSON.parse(text) as Playlist;
-        console.log(`[AudioManager] Loaded playlist from PK3: ${playlistUrl}`);
+        devLog(`[AudioManager] Loaded playlist from PK3: ${playlistUrl}`);
       } else {
         const response = await fetch(playlistUrl);
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
         playlist = (await response.json()) as Playlist;
-        console.log(`[AudioManager] Loaded playlist from URL: ${playlistUrl}`);
+        devLog(`[AudioManager] Loaded playlist from URL: ${playlistUrl}`);
       }
 
       this.startPlaylist(playlist, playlistUrl);
@@ -463,7 +464,7 @@ export class AudioManager {
       return;
     }
 
-    console.log(
+    devLog(
       `[AudioManager] Playing track ${this.currentTrackIndex + 1}/${this.currentPlaylist.tracks.length}: ${track.title || track.file}`,
     );
 
@@ -500,7 +501,7 @@ export class AudioManager {
         const pk3Index = PK3Index.getInstance();
         const pk3Name = pk3Index.findFile(track.file) || pk3Index.findFile(`music/${track.file}`);
         if (pk3Name) {
-          console.log(`[AudioManager] Loading PK3 for music: ${pk3Name}`);
+          devLog(`[AudioManager] Loading PK3 for music: ${pk3Name}`);
           try {
             await pk3.loadPK3(pk3Name);
           } catch (e) {
@@ -525,7 +526,7 @@ export class AudioManager {
 
     // If a newer request was started while we were awaiting PK3, abort this one
     if (requestId !== this.loadingRequestId) {
-      console.log(`[AudioManager] Aborting track load for request ${requestId} (now on ${this.loadingRequestId})`);
+      devLog(`[AudioManager] Aborting track load for request ${requestId} (now on ${this.loadingRequestId})`);
       if (audioUrl?.startsWith("blob:")) {
         URL.revokeObjectURL(audioUrl);
       }
@@ -580,10 +581,10 @@ export class AudioManager {
       if (this.currentPlaylist.loop !== false) {
         // Loop back to start
         this.currentTrackIndex = 0;
-        console.log("[AudioManager] Playlist looping back to start");
+        devLog("[AudioManager] Playlist looping back to start");
       } else {
         // Playlist finished
-        console.log("[AudioManager] Playlist finished");
+        devLog("[AudioManager] Playlist finished");
         this.isPlayingPlaylist = false;
         return;
       }

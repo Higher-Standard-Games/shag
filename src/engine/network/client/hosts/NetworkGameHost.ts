@@ -35,6 +35,7 @@
 
 import { MatchPhase } from "../../../../shared/server/gametype/GametypeTypes";
 import { AudioManager } from "../../../AudioManager";
+import { devLog } from "../../../core/DevLog";
 import type { Command } from "../../core/Command";
 import type { PlayerId } from "../../core/Entity";
 import type { GameEvent, GameState } from "../../core/GameState";
@@ -174,7 +175,7 @@ export class NetworkGameHost implements IGameHost {
     }
     this.transport = transport;
     this.tickRate = config.tickRate;
-    console.log(
+    devLog(
       `[NetworkGameHost] Creating simulation with config: tickRate=${config.tickRate}, tickDuration=${config.tickDuration}ms`,
     );
     this.simulation = new SimulationClass(config);
@@ -231,7 +232,7 @@ export class NetworkGameHost implements IGameHost {
   setExternalPrediction(enabled: boolean): void {
     this.useExternalPrediction = enabled;
     if (enabled) {
-      console.log("[NetworkGameHost] External prediction enabled - V2NetworkClient handles physics");
+      devLog("[NetworkGameHost] External prediction enabled - V2NetworkClient handles physics");
     }
   }
 
@@ -318,7 +319,7 @@ export class NetworkGameHost implements IGameHost {
     if (!this._isConnected) return;
     const data = MessageCodec.encodeJoinGame(teamId, manualPick, admissionTicket);
     this.transport.send(data, true); // Reliable
-    console.log(
+    devLog(
       `[NetworkGameHost] Sent JoinGame request${teamId ? ` for team ${teamId}${manualPick ? " (picked)" : " (from lobby)"}` : ""}`,
     );
   }
@@ -331,7 +332,7 @@ export class NetworkGameHost implements IGameHost {
     if (!this._isConnected) return;
     const data = MessageCodec.encodeSpectate();
     this.transport.send(data, true); // Reliable
-    console.log("[NetworkGameHost] Sent Spectate request");
+    devLog("[NetworkGameHost] Sent Spectate request");
   }
 
   /**
@@ -389,9 +390,7 @@ export class NetworkGameHost implements IGameHost {
 
     // Log first successful send
     if (this.commandSequence === 1) {
-      console.log(
-        `[NetworkGameHost] FIRST sendCommand: _isConnected=${this._isConnected}, playerId=${this.localPlayerId}`,
-      );
+      devLog(`[NetworkGameHost] FIRST sendCommand: _isConnected=${this._isConnected}, playerId=${this.localPlayerId}`);
     }
 
     // Add sequence number
@@ -418,7 +417,7 @@ export class NetworkGameHost implements IGameHost {
 
     // Log periodically
     if (this.commandSequence % 250 === 0) {
-      console.log(`[NetworkGameHost] Sent ${this.commandSequence} commands to server`);
+      devLog(`[NetworkGameHost] Sent ${this.commandSequence} commands to server`);
     }
 
     // Skip local prediction if V2NetworkClient handles it
@@ -506,12 +505,12 @@ export class NetworkGameHost implements IGameHost {
   setCollisionWorld(collision: unknown): void {
     // Check if simulation has setCollisionWorld method (FPSSimulation does)
     const sim = this.simulation as unknown as Partial<CollisionCapableSimulation> & { constructor?: { name?: string } };
-    console.log(
+    devLog(
       `[NetworkGameHost] setCollisionWorld called, simulation type: ${sim.constructor?.name}, has method: ${typeof sim.setCollisionWorld === "function"}`,
     );
     if (typeof sim.setCollisionWorld === "function") {
       sim.setCollisionWorld(collision);
-      console.log("[NetworkGameHost] Collision world set for client prediction");
+      devLog("[NetworkGameHost] Collision world set for client prediction");
     } else {
       console.warn("[NetworkGameHost] Simulation does not support setCollisionWorld");
     }
@@ -536,11 +535,11 @@ export class NetworkGameHost implements IGameHost {
     });
 
     this.transport.onConnect(() => {
-      console.log("[NetworkGameHost] Connected to server");
+      devLog("[NetworkGameHost] Connected to server");
     });
 
     this.transport.onDisconnect((reason) => {
-      console.log("[NetworkGameHost] Disconnected:", reason);
+      devLog("[NetworkGameHost] Disconnected:", reason);
       const wasConnected = this._isConnected;
       this._isConnected = false;
       this.acceptingMessages = false;
@@ -705,7 +704,7 @@ export class NetworkGameHost implements IGameHost {
 
           // Guard against duplicate JoinAccept messages
           if (this._isConnected) {
-            console.log(
+            devLog(
               `[NetworkGameHost] Ignoring duplicate JoinAccept: ${playerId} (already connected as ${this.localPlayerId})`,
             );
             break;
@@ -714,7 +713,7 @@ export class NetworkGameHost implements IGameHost {
           // Update local player ID from server assignment
           this.localPlayerId = playerId;
           this.localEntityId = entityId;
-          console.log(`[NetworkGameHost] Join accepted: ${playerId}, entity: ${entityId}`);
+          devLog(`[NetworkGameHost] Join accepted: ${playerId}, entity: ${entityId}`);
           this._isConnected = true;
           this.startWatchdog();
           if (this.clientPrefs) this.transport.send(MessageCodec.encodeClientPrefs(this.clientPrefs), true);
@@ -732,7 +731,7 @@ export class NetworkGameHost implements IGameHost {
 
           // Start ClockSync after confirmed connection
           this.clockSync.startSync();
-          console.log(`[NetworkGameHost] ClockSync started`);
+          devLog(`[NetworkGameHost] ClockSync started`);
 
           // Spawn local player in client-side prediction simulation
           try {
@@ -741,7 +740,7 @@ export class NetworkGameHost implements IGameHost {
               sim.spawnPlayer(playerId);
               // CRITICAL: Update localState after spawning so getLocalPlayerPosition() works
               this.localState = this.simulation.state.clone();
-              console.log(`[NetworkGameHost] Spawned local player in prediction simulation: ${playerId}`);
+              devLog(`[NetworkGameHost] Spawned local player in prediction simulation: ${playerId}`);
             }
           } catch (spawnError) {
             console.error(`[NetworkGameHost] Failed to spawn local player:`, spawnError);
@@ -771,7 +770,7 @@ export class NetworkGameHost implements IGameHost {
             );
             break;
           }
-          console.log(`[NetworkGameHost] Welcome from ${welcome.serverName}, map: ${welcome.map}`);
+          devLog(`[NetworkGameHost] Welcome from ${welcome.serverName}, map: ${welcome.map}`);
 
           // Store server info
           this._serverInfo = welcome;
@@ -787,7 +786,7 @@ export class NetworkGameHost implements IGameHost {
         }
         case MessageType.ServerMessage: {
           const msg = MessageCodec.decodeServerMessage(data);
-          console.log(`[NetworkGameHost] Server message [${msg.type}]: ${msg.message}`);
+          devLog(`[NetworkGameHost] Server message [${msg.type}]: ${msg.message}`);
           for (const cb of this.serverMessageCallbacks) cb(msg);
           break;
         }
@@ -851,12 +850,12 @@ export class NetworkGameHost implements IGameHost {
       const currentPhase = snapshot.matchSnapshot.phase;
       if (currentPhase !== this.lastMatchPhase) {
         if (currentPhase === MatchPhase.PostGame) {
-          console.log("[NetworkGameHost] Match finished, starting endgame music");
+          devLog("[NetworkGameHost] Match finished, starting endgame music");
           AudioManager.getInstance().loadPlaylist("data/endgame.playlist.json");
         } else if (this.lastMatchPhase === MatchPhase.PostGame) {
           // Post-game screen over (next warmup) — the endgame playlist loops
           // forever otherwise. Bring back the in-game music.
-          console.log("[NetworkGameHost] Post-game over, restoring game music");
+          devLog("[NetworkGameHost] Post-game over, restoring game music");
           AudioManager.getInstance().loadPlaylist("data/game.playlist.json");
         }
         this.lastMatchPhase = currentPhase;
@@ -954,7 +953,7 @@ export class NetworkGameHost implements IGameHost {
 
     // DEBUG: Log error distance occasionally (was 10%, reduced for performance)
     if (Math.random() < 0.005) {
-      console.log(
+      devLog(
         `[Reconcile] Error: ${distance.toFixed(1)} units | Client: (${localPos.x.toFixed(1)}, ${localPos.y.toFixed(1)}, ${localPos.z.toFixed(1)}) | Server: (${serverPos.x.toFixed(1)}, ${serverPos.y.toFixed(1)}, ${serverPos.z.toFixed(1)})`,
       );
     }
@@ -967,7 +966,7 @@ export class NetworkGameHost implements IGameHost {
       localPos.y = serverPos.y;
       localPos.z = serverPos.z;
       this.smoothCorrection.reset(); // Clear any pending smooth corrections
-      console.log("[NetworkGameHost] Snapped to server position (large error)");
+      devLog("[NetworkGameHost] Snapped to server position (large error)");
 
       // CRITICAL: Update localState to match simulation.state
       this.localState = this.simulation.state.clone();

@@ -8,6 +8,7 @@ import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder";
 import { Scene } from "@babylonjs/core/scene";
+import { devLog } from "../core/DevLog";
 import {
   beginRendererValidation,
   observeRendererDevice,
@@ -237,6 +238,6 @@ export async function runRendererQA(canvas: HTMLCanvasElement, search: string): 
     }
   }
   const report = diagnostics.report;
-  console.log("RENDERER_QA_REPORT", JSON.stringify(report));
+  devLog("RENDERER_QA_REPORT", JSON.stringify(report));
   return report;
 }

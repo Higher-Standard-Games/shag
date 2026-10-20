@@ -1,3 +1,4 @@
+import { devLog } from "../../core/DevLog";
 import { fetchAsset, readAssetBuffer, readAssetJson, readAssetText } from "./AssetRequest";
 /**
  * PK3Index - Index PK3 contents for fast lookup without loading
@@ -112,11 +113,11 @@ export class PK3Index {
         const data = JSON.parse(stored) as PK3IndexData;
         if (data.version === INDEX_VERSION) {
           this.index = data;
-          console.log(
+          devLog(
             `[PK3Index] Loaded index from storage: ${Object.keys(data.files).length} files from ${data.packages.length} packages`,
           );
         } else {
-          console.log("[PK3Index] Index version mismatch, will rebuild");
+          devLog("[PK3Index] Index version mismatch, will rebuild");
         }
       }
     } catch (e) {
@@ -132,7 +133,7 @@ export class PK3Index {
     try {
       const json = JSON.stringify(this.index);
       localStorage.setItem(STORAGE_KEY, json);
-      console.log(`[PK3Index] Saved index to storage (${(json.length / 1024).toFixed(1)} KB)`);
+      devLog(`[PK3Index] Saved index to storage (${(json.length / 1024).toFixed(1)} KB)`);
     } catch (e) {
       console.warn("[PK3Index] Failed to save index to storage:", e);
     }
@@ -232,7 +233,7 @@ export class PK3Index {
     const url = `${basePath}${filename}`;
 
     try {
-      console.log(`[PK3Index] Indexing ${url}...`);
+      devLog(`[PK3Index] Indexing ${url}...`);
       const { response } = await fetchPk3(url);
       if (!response.ok) {
         return null;
@@ -327,7 +328,7 @@ export class PK3Index {
       if (mapFiles.length > 0) extras.push(`${mapFiles.length} maps`);
       const extraStr = extras.length > 0 ? ` (${extras.join(", ")})` : "";
 
-      console.log(`[PK3Index] Indexed ${filename}: ${files.length} files${extraStr}`);
+      devLog(`[PK3Index] Indexed ${filename}: ${files.length} files${extraStr}`);
       return entry;
     } catch (e) {
       console.warn(`[PK3Index] Failed to index ${url}:`, e);
@@ -425,7 +426,7 @@ export class PK3Index {
       if (mapFiles.length > 0) extras.push(`${mapFiles.length} maps`);
       const extraStr = extras.length > 0 ? ` (${extras.join(", ")})` : "";
 
-      console.log(`[PK3Index] Indexed ${filename}: ${files.length} files${extraStr}`);
+      devLog(`[PK3Index] Indexed ${filename}: ${files.length} files${extraStr}`);
       return entry;
     } catch (e) {
       console.warn(`[PK3Index] Failed to index ArrayBuffer for ${filename}:`, e);
@@ -671,7 +672,7 @@ export class PK3Index {
         /* Cache storage is optional. */
       }
     }
-    console.log("[PK3Index] Index cleared");
+    devLog("[PK3Index] Index cleared");
   }
 
   /**

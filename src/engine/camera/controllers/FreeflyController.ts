@@ -19,6 +19,7 @@ import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
 import { FPS, registerFPSActions } from "../../../games/fps/client/FPSActions";
 import { Cvar } from "../../core/Cvar";
+import { devLog } from "../../core/DevLog";
 import { InputSystem } from "../../input/InputSystem";
 import { getCollisionManager } from "../../physics";
 import { ContentFlags, SurfaceFlags } from "../../physics/ContentFlags";
@@ -117,7 +118,7 @@ export class FreeflyController implements ICameraController {
    */
   static setCollisionEnabled(enabled: boolean): void {
     FreeflyController.collisionEnabled = enabled;
-    console.log(
+    devLog(
       `[FreeflyController] Collision ${enabled ? "enabled" : "disabled"} (mode: ${FreeflyController.collisionMode})`,
     );
   }
@@ -134,7 +135,7 @@ export class FreeflyController implements ICameraController {
    */
   static setCollisionMode(mode: "bsp" | "native"): void {
     FreeflyController.collisionMode = mode;
-    console.log(`[FreeflyController] Collision mode set to: ${mode}`);
+    devLog(`[FreeflyController] Collision mode set to: ${mode}`);
   }
 
   // Observers
@@ -210,7 +211,7 @@ export class FreeflyController implements ICameraController {
       this.update(deltaTime);
     });
 
-    console.log("[FreeflyController] Attached - Click to capture mouse, WASD to move, ESC to release");
+    devLog("[FreeflyController] Attached - Click to capture mouse, WASD to move, ESC to release");
   }
 
   detach(): void {
@@ -224,7 +225,7 @@ export class FreeflyController implements ICameraController {
     this.camera = null;
     this.scene = null;
 
-    console.log("[FreeflyController] Detached");
+    devLog("[FreeflyController] Detached");
   }
 
   /**
@@ -311,7 +312,7 @@ export class FreeflyController implements ICameraController {
 
           if (!FreeflyController._loggedState) {
             FreeflyController._loggedState = true;
-            console.log(
+            devLog(
               `[Freefly] Collision check: enabled=${FreeflyController.collisionEnabled}, mode=${FreeflyController.collisionMode}, initialized=${isInit}, instance=${cm.getInstanceId()}, backend=${cm.getBackendType()}`,
             );
           }
@@ -422,10 +423,10 @@ export class FreeflyController implements ICameraController {
           collisionMeshCount++;
         }
       }
-      console.log(`[FreeflyController] Skipped ${skippedCount} non-solid meshes (halos, flares, etc.)`);
+      devLog(`[FreeflyController] Skipped ${skippedCount} non-solid meshes (halos, flares, etc.)`);
 
-      console.log(`[FreeflyController] Native collision setup: ${collisionMeshCount} meshes with collision enabled`);
-      console.log(
+      devLog(`[FreeflyController] Native collision setup: ${collisionMeshCount} meshes with collision enabled`);
+      devLog(
         `[FreeflyController] Camera ellipsoid: (${this.camera.ellipsoid.x}, ${this.camera.ellipsoid.y}, ${this.camera.ellipsoid.z})`,
       );
     }
@@ -438,17 +439,17 @@ export class FreeflyController implements ICameraController {
     const cam = this.camera as any;
     if (!FreeflyController._debuggedMethods) {
       FreeflyController._debuggedMethods = true;
-      console.log(`[FreeflyController] Camera type: ${this.camera.getClassName()}`);
-      console.log(`[FreeflyController] Has _collideWithWorld: ${typeof cam._collideWithWorld}`);
-      console.log(`[FreeflyController] Has _checkInputs: ${typeof cam._checkInputs}`);
-      console.log(`[FreeflyController] checkCollisions: ${this.camera.checkCollisions}`);
-      console.log(`[FreeflyController] scene.collisionsEnabled: ${this.scene.collisionsEnabled}`);
+      devLog(`[FreeflyController] Camera type: ${this.camera.getClassName()}`);
+      devLog(`[FreeflyController] Has _collideWithWorld: ${typeof cam._collideWithWorld}`);
+      devLog(`[FreeflyController] Has _checkInputs: ${typeof cam._checkInputs}`);
+      devLog(`[FreeflyController] checkCollisions: ${this.camera.checkCollisions}`);
+      devLog(`[FreeflyController] scene.collisionsEnabled: ${this.scene.collisionsEnabled}`);
 
       // List meshes with collision enabled
       const collisionMeshes = this.scene.meshes.filter((m) => m.checkCollisions);
-      console.log(`[FreeflyController] Meshes with checkCollisions=true: ${collisionMeshes.length}`);
+      devLog(`[FreeflyController] Meshes with checkCollisions=true: ${collisionMeshes.length}`);
       if (collisionMeshes.length > 0) {
-        console.log(`[FreeflyController] Sample collision mesh: "${collisionMeshes[0].name}"`);
+        devLog(`[FreeflyController] Sample collision mesh: "${collisionMeshes[0].name}"`);
       }
     }
 
@@ -466,14 +467,14 @@ export class FreeflyController implements ICameraController {
           const dist = Vector3.Distance(m.position, camPos);
           return dist < 100;
         });
-        console.log(
+        devLog(
           `[FreeflyController] Camera at (${camPos.x.toFixed(1)}, ${camPos.y.toFixed(1)}, ${camPos.z.toFixed(1)})`,
         );
-        console.log(`[FreeflyController] Nearby collision meshes (< 100 units): ${nearbyMeshes.length}`);
+        devLog(`[FreeflyController] Nearby collision meshes (< 100 units): ${nearbyMeshes.length}`);
         if (nearbyMeshes.length > 0 && nearbyMeshes.length < 10) {
           nearbyMeshes.forEach((m) => {
             const dist = Vector3.Distance(m.position, camPos);
-            console.log(`  - "${m.name}" at dist=${dist.toFixed(1)} metadata=${JSON.stringify(m.metadata)}`);
+            devLog(`  - "${m.name}" at dist=${dist.toFixed(1)} metadata=${JSON.stringify(m.metadata)}`);
           });
         }
       }
@@ -496,10 +497,8 @@ export class FreeflyController implements ICameraController {
       // Debug logging
       const debugBsp = now - FreeflyController._lastDebugTime < 100;
       if (debugBsp) {
-        console.log(
-          `[Q3 Collision] pos: (${posBefore.x.toFixed(1)}, ${posBefore.y.toFixed(1)}, ${posBefore.z.toFixed(1)})`,
-        );
-        console.log(
+        devLog(`[Q3 Collision] pos: (${posBefore.x.toFixed(1)}, ${posBefore.y.toFixed(1)}, ${posBefore.z.toFixed(1)})`);
+        devLog(
           `[Q3 Collision] movement: (${movement.x.toFixed(3)}, ${movement.y.toFixed(3)}, ${movement.z.toFixed(3)})`,
         );
       }
@@ -519,7 +518,7 @@ export class FreeflyController implements ICameraController {
         this.camera.position.copyFrom(slideResult.endPos);
 
         if (slideResult.hitCount > 0 && debugBsp) {
-          console.log(`[Freefly][StepSlideMove] ${slideResult.hitCount} collision(s), stepped=${slideResult.stepped}`);
+          devLog(`[Freefly][StepSlideMove] ${slideResult.hitCount} collision(s), stepped=${slideResult.stepped}`);
         }
       } else if (backend && typeof backend.slideMove === "function") {
         // Fallback to slideMove without stepping
@@ -549,7 +548,7 @@ export class FreeflyController implements ICameraController {
           const hitTextureName = (stuckCheck as any).hitTextureName;
           FreeflyController._lastClipHitBrushIndex = typeof hitBrushIndex === "number" ? hitBrushIndex : null;
           FreeflyController._lastClipHitTextureName = typeof hitTextureName === "string" ? hitTextureName : null;
-          console.log(`[Freefly][Stuck] startSolid=true brush=${hitBrushIndex} tex=${hitTextureName}`);
+          devLog(`[Freefly][Stuck] startSolid=true brush=${hitBrushIndex} tex=${hitTextureName}`);
         }
 
         const base = posAfterBabylon.clone();
@@ -599,13 +598,13 @@ export class FreeflyController implements ICameraController {
       const actualMove = this.camera.position.subtract(posBefore);
       const moveDiff = actualMove.subtract(movement).length();
       if (moveDiff > 0.01) {
-        console.log(
+        devLog(
           `[FreeflyController] Collision detected! Expected move: ${movement.length().toFixed(2)}, Actual: ${actualMove.length().toFixed(2)}`,
         );
       }
     } else {
       // Fallback: no collision available, just move
-      console.log(`[FreeflyController] WARNING: _collideWithWorld not available, falling back to direct move`);
+      devLog(`[FreeflyController] WARNING: _collideWithWorld not available, falling back to direct move`);
       this.camera.position.addInPlace(movement);
     }
   }
@@ -711,21 +710,21 @@ export class FreeflyController implements ICameraController {
     if (now - FreeflyController._lastDebugTime > 1000) {
       FreeflyController._lastDebugTime = now;
       const camPos = this.camera.position;
-      console.log(
+      devLog(
         `[Freefly] pos=(${camPos.x.toFixed(0)}, ${camPos.y.toFixed(0)}, ${camPos.z.toFixed(0)}) → trace: frac=${trace.fraction.toFixed(3)}, startSolid=${trace.startSolid}, hit=${trace.fraction < 1.0}`,
       );
     }
 
     // Log every hit for debugging
     if (trace.fraction < 1.0) {
-      console.log(
+      devLog(
         `[Freefly] HIT at fraction=${trace.fraction.toFixed(3)}, normal=(${trace.normal?.x.toFixed(2)}, ${trace.normal?.y.toFixed(2)}, ${trace.normal?.z.toFixed(2)})`,
       );
     }
 
     // If we started in solid, don't move (stuck detection)
     if (trace.startSolid) {
-      console.log(`[Freefly] BLOCKED: startSolid=true, attempting nudge out`);
+      devLog(`[Freefly] BLOCKED: startSolid=true, attempting nudge out`);
       // Try to nudge out of solid with more aggressive steps
       const nudgeSteps = [1.0, 2.0, 4.0];
       const testDirs = [
@@ -747,7 +746,7 @@ export class FreeflyController implements ICameraController {
           const testPos = start.add(dir.scale(nudge));
           const testTrace = cm.trace(testPos as never, testPos.add(new Vector3(0, -0.1, 0)) as never, traceOpts);
           if (!testTrace.startSolid) {
-            console.log(
+            devLog(
               `[Freefly] Nudge successful at (${testPos.x.toFixed(1)}, ${testPos.y.toFixed(1)}, ${testPos.z.toFixed(1)})`,
             );
             this.camera.position = testPos;
@@ -755,7 +754,7 @@ export class FreeflyController implements ICameraController {
           }
         }
       }
-      console.log(`[Freefly] Nudge failed, stuck in solid`);
+      devLog(`[Freefly] Nudge failed, stuck in solid`);
       // Couldn't nudge out - don't move
       return;
     }
@@ -791,11 +790,11 @@ export class FreeflyController implements ICameraController {
           const slideMove = new Vector3(remaining.x - n.x * dot, remaining.y - n.y * dot, remaining.z - n.z * dot);
 
           if (slideMove.length() < 0.01) {
-            console.log(`[Freefly] Slide ${i + 1}/${maxTries}: negligible movement, stopping`);
+            devLog(`[Freefly] Slide ${i + 1}/${maxTries}: negligible movement, stopping`);
             break;
           }
 
-          console.log(
+          devLog(
             `[Freefly] Slide ${i + 1}/${maxTries}: attempting (${slideMove.x.toFixed(1)}, ${slideMove.y.toFixed(1)}, ${slideMove.z.toFixed(1)})`,
           );
           const slideStart = this.camera.position.clone();
@@ -809,15 +808,15 @@ export class FreeflyController implements ICameraController {
               slidePos.x += sn.x * 0.5;
               slidePos.y += sn.y * 0.5;
               slidePos.z += sn.z * 0.5;
-              console.log(`[Freefly] Slide ${i + 1}/${maxTries}: hit again at frac=${slideTrace.fraction.toFixed(3)}`);
+              devLog(`[Freefly] Slide ${i + 1}/${maxTries}: hit again at frac=${slideTrace.fraction.toFixed(3)}`);
             } else {
-              console.log(`[Freefly] Slide ${i + 1}/${maxTries}: moved successfully`);
+              devLog(`[Freefly] Slide ${i + 1}/${maxTries}: moved successfully`);
             }
             this.camera.position = slidePos;
             timeLeft *= 1.0 - slideTrace.fraction;
             velocity = slideMove.normalize().scale(velocity.length());
           } else {
-            console.log(`[Freefly] Slide ${i + 1}/${maxTries}: blocked completely`);
+            devLog(`[Freefly] Slide ${i + 1}/${maxTries}: blocked completely`);
             break;
           }
         }

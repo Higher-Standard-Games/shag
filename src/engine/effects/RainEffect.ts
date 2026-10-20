@@ -16,6 +16,7 @@ import type { Observer } from "@babylonjs/core/Misc/observable";
 import { GetClass } from "@babylonjs/core/Misc/typeStore";
 import { GPUParticleSystem } from "@babylonjs/core/Particles/gpuParticleSystem";
 import { ParticleSystem } from "@babylonjs/core/Particles/particleSystem";
+import { devLog } from "../core/DevLog";
 import "@babylonjs/core/Particles/webgl2ParticleSystem";
 import type { Scene } from "@babylonjs/core/scene";
 import { type WindState, WindSystem } from "./WindSystem";
@@ -150,7 +151,7 @@ export class PrecipitationEffect {
       this.fadeInRainSound();
     }
 
-    console.log(`[PrecipitationEffect] Started ${this.currentType} with intensity:`, this.settings.intensity);
+    devLog(`[PrecipitationEffect] Started ${this.currentType} with intensity:`, this.settings.intensity);
   }
 
   /**
@@ -222,7 +223,7 @@ export class PrecipitationEffect {
     }
 
     this.isActive = false;
-    console.log(`[PrecipitationEffect] Stopped ${this.currentType}${immediate ? " (immediate)" : ""}`);
+    devLog(`[PrecipitationEffect] Stopped ${this.currentType}${immediate ? " (immediate)" : ""}`);
   }
 
   /**
@@ -315,7 +316,7 @@ export class PrecipitationEffect {
         },
         this.scene,
       );
-      console.log(`[PrecipitationEffect] GPU particle backend (${capacity} capacity)`);
+      devLog(`[PrecipitationEffect] GPU particle backend (${capacity} capacity)`);
     } else {
       this.particleSystem = new ParticleSystem("precipitation", capacity, this.scene);
       console.warn("[PrecipitationEffect] GPU particles unavailable; using CPU compatibility backend");
@@ -412,7 +413,7 @@ export class PrecipitationEffect {
     this.emitWidth = Math.max(100, Math.min(800, groundWidth));
     this.emitDepth = Math.max(100, Math.min(800, groundDepth));
 
-    console.log(`[RainEffect] Emit area: ${this.emitWidth.toFixed(0)} x ${this.emitDepth.toFixed(0)}`);
+    devLog(`[RainEffect] Emit area: ${this.emitWidth.toFixed(0)} x ${this.emitDepth.toFixed(0)}`);
   }
 
   /**

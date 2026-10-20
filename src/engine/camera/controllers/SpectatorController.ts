@@ -18,6 +18,7 @@
 import type { Camera } from "@babylonjs/core/Cameras/camera";
 import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
 import type { Scene } from "@babylonjs/core/scene";
+import { devLog } from "../../core/DevLog";
 import { applyFirstPersonPose, type FirstPersonPose, finitePose } from "../FirstPersonPose";
 import { currentBaseFov } from "../FovSettings";
 import { getGameFrameHook } from "../GameFrameHook";
@@ -87,7 +88,7 @@ export class SpectatorController implements ICameraController {
       });
     }
 
-    console.log("[SpectatorController] Attached");
+    devLog("[SpectatorController] Attached");
   }
 
   detach(): void {
@@ -98,7 +99,7 @@ export class SpectatorController implements ICameraController {
     }
     this.camera = null;
     this.scene = null;
-    console.log("[SpectatorController] Detached");
+    devLog("[SpectatorController] Detached");
   }
 
   update(_deltaTime: number): void {

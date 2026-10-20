@@ -17,6 +17,7 @@
 
 import type { BaseTexture } from "@babylonjs/core/Materials/Textures/baseTexture";
 import type { Scene } from "@babylonjs/core/scene";
+import { devLog } from "../core/DevLog";
 import { BspManager } from "../loader/bsp/BspManager";
 import { Q3ShaderRegistry } from "../loader/shader/Q3ShaderRegistry";
 import RenderVars from "../rendering/RenderVars";
@@ -141,7 +142,7 @@ export class AreaLightManager {
     const cap = Math.round(rv.get("r_arealights_max") ?? 4);
     const created = this.applySpecs(scene, specs, cap);
     if (specs.length > 0) {
-      console.log(
+      devLog(
         `[AreaLightManager] ${created} area lights active (${specs.length - autoCount} entities + ${autoCount} auto-emissive, cap ${cap})`,
       );
     }

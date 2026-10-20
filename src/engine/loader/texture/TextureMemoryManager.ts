@@ -22,6 +22,7 @@
 
 import type { BaseTexture } from "@babylonjs/core/Materials/Textures/baseTexture";
 import type { Scene } from "@babylonjs/core/scene";
+import { devLog } from "../../core/DevLog";
 
 export interface TextureMemoryConfig {
   /** Memory budget in MB (default: 256 for desktop, 128 for mobile) */
@@ -106,10 +107,10 @@ export class TextureMemoryManager {
     if (this.isMobileDevice() && !config?.memoryBudgetMB) {
       this.config.memoryBudgetMB = 128;
       this.config.maxTextureSize = 1024;
-      console.log("[TextureMemoryManager] Mobile detected, using reduced budget");
+      devLog("[TextureMemoryManager] Mobile detected, using reduced budget");
     }
 
-    console.log(`[TextureMemoryManager] Initialized with ${this.config.memoryBudgetMB}MB budget`);
+    devLog(`[TextureMemoryManager] Initialized with ${this.config.memoryBudgetMB}MB budget`);
   }
 
   /**
@@ -118,7 +119,7 @@ export class TextureMemoryManager {
   public setQuality(level: QualityLevel): void {
     const preset = QUALITY_PRESETS[level];
     this.config = { ...this.config, ...preset };
-    console.log(`[TextureMemoryManager] Quality set to '${level}'`);
+    devLog(`[TextureMemoryManager] Quality set to '${level}'`);
   }
 
   /**
@@ -239,7 +240,7 @@ export class TextureMemoryManager {
       tracked.texture.dispose();
       this.trackedTextures.delete(id);
 
-      console.log(`[TextureMemoryManager] Evicted texture, freed ${(tracked.sizeBytes / 1024).toFixed(1)}KB`);
+      devLog(`[TextureMemoryManager] Evicted texture, freed ${(tracked.sizeBytes / 1024).toFixed(1)}KB`);
     }
 
     return freedBytes;

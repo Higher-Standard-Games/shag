@@ -11,6 +11,7 @@
  *   const json = profile.toJSON();           // Clean JSON for API sync
  */
 
+import { devLog } from "../core/DevLog";
 import type { InputBinding } from "../input/InputTypes";
 
 // ============================================================================
@@ -196,7 +197,7 @@ export class PlayerProfile {
       if (legacy) {
         const data = JSON.parse(legacy) as Record<string, InputBinding[]>;
         this.keybindings = data;
-        console.log("[PlayerProfile] Migrated legacy keybindings into profile");
+        devLog("[PlayerProfile] Migrated legacy keybindings into profile");
       }
     } catch {
       // Ignore corrupt legacy data

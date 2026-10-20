@@ -23,6 +23,7 @@ import { Matrix, Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { InstancedMesh } from "@babylonjs/core/Meshes/instancedMesh";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { Scene } from "@babylonjs/core/scene";
+import { devLog } from "../core/DevLog";
 
 export interface InstanceData {
   /** Unique ID for this instance */
@@ -78,7 +79,7 @@ export class InstancedMeshManager {
    */
   public init(scene: Scene): void {
     this.scene = scene;
-    console.log("[InstancedMeshManager] Initialized");
+    devLog("[InstancedMeshManager] Initialized");
   }
 
   /**
@@ -119,7 +120,7 @@ export class InstancedMeshManager {
       maxInstances,
     });
 
-    console.log(`[InstancedMeshManager] Registered template '${name}' (max: ${maxInstances})`);
+    devLog(`[InstancedMeshManager] Registered template '${name}' (max: ${maxInstances})`);
   }
 
   /**
@@ -251,7 +252,7 @@ export class InstancedMeshManager {
     template.instances.clear();
     template.count = 0;
 
-    console.log(`[InstancedMeshManager] Cleared all instances of '${templateName}'`);
+    devLog(`[InstancedMeshManager] Cleared all instances of '${templateName}'`);
   }
 
   /**
@@ -265,7 +266,7 @@ export class InstancedMeshManager {
     template.sourceMesh.dispose();
     this.templates.delete(templateName);
 
-    console.log(`[InstancedMeshManager] Removed template '${templateName}'`);
+    devLog(`[InstancedMeshManager] Removed template '${templateName}'`);
   }
 
   /**
@@ -309,7 +310,7 @@ export class InstancedMeshManager {
     }
     this.templates.clear();
     this.instanceCounter = 0;
-    console.log("[InstancedMeshManager] Cleared all templates and instances");
+    devLog("[InstancedMeshManager] Cleared all templates and instances");
   }
 
   /**
@@ -363,7 +364,7 @@ export class InstancedMeshManager {
     template.sourceMesh.isVisible = true;
     template.sourceMesh.thinInstanceSetBuffer("matrix", matrixData, 16);
 
-    console.log(`[InstancedMeshManager] Created ${matrices.length} thin instances for '${templateName}'`);
+    devLog(`[InstancedMeshManager] Created ${matrices.length} thin instances for '${templateName}'`);
   }
 
   /**

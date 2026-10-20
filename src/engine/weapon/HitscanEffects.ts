@@ -19,8 +19,8 @@ import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
-
 import { generateSpreadDirections, mulberry32, yawPitchFromDirection } from "../../shared/SpreadUtils";
+import { devLog } from "../core/DevLog";
 import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
 import { ImpactSparkRenderer } from "./impact/ImpactSparkRenderer";
 import { MuzzleFlashRenderer, type MuzzleFlashSpawn } from "./muzzle/MuzzleFlashRenderer";
@@ -262,7 +262,7 @@ export class HitscanEffects {
       this.pendingImpacts = [];
     }
     this.scene = scene;
-    console.log("[HitscanEffects] Initialized");
+    devLog("[HitscanEffects] Initialized");
   }
 
   // ── Public API ───────────────────────────────────────────────────

@@ -11,6 +11,7 @@
  */
 
 import type { QualityLevel } from "../loader";
+import { devLog } from "./DevLog";
 
 export interface DeviceInfo {
   /** Device type */
@@ -127,7 +128,7 @@ export class QualityDetector {
       }
     }
 
-    console.log(`[QualityDetector] Recommended: ${quality} (${reason})`);
+    devLog(`[QualityDetector] Recommended: ${quality} (${reason})`);
 
     return { quality, deviceInfo: info, reason };
   }

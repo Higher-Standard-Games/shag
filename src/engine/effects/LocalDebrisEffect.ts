@@ -12,6 +12,7 @@ import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import { ParticleSystem } from "@babylonjs/core/Particles/particleSystem";
 import type { Scene } from "@babylonjs/core/scene";
+import { devLog } from "../core/DevLog";
 import { type WindState, WindSystem } from "./WindSystem";
 
 export type LocalDebrisType = "leaves" | "trash" | "dust" | "mixed";
@@ -64,7 +65,7 @@ export class LocalDebrisEffect {
     this.subscribeToWind();
     this.createParticleSystem();
     this.isActive = true;
-    console.log(`[LocalDebrisEffect] Started ${this.config.type} debris zone: ${this.id}`);
+    devLog(`[LocalDebrisEffect] Started ${this.config.type} debris zone: ${this.id}`);
   }
 
   public stop(): void {

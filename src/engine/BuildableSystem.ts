@@ -12,6 +12,7 @@
  * by ID in trigger_buildzone entities.
  */
 
+import { devLog } from "./core/DevLog";
 import { EventBus } from "./core/EventBus";
 
 // ==================== Stage Definitions ====================
@@ -403,7 +404,7 @@ export class BuildableSystem {
 
   public registerTemplate(template: BuildableTemplate): void {
     this.templates.set(template.id, template);
-    console.log(`[BuildableSystem] Registered template: ${template.id}`);
+    devLog(`[BuildableSystem] Registered template: ${template.id}`);
   }
 
   public registerTemplates(templates: BuildableTemplate[]): void {
@@ -509,7 +510,7 @@ export class BuildableSystem {
       });
     }
 
-    console.log(`[BuildableSystem] Created: ${template.name} (${id})`);
+    devLog(`[BuildableSystem] Created: ${template.name} (${id})`);
     return instance;
   }
 
@@ -583,7 +584,7 @@ export class BuildableSystem {
       data: { childId, childTemplateId: child.templateId },
     });
 
-    console.log(`[BuildableSystem] Added child ${childId} to parent ${parentId}`);
+    devLog(`[BuildableSystem] Added child ${childId} to parent ${parentId}`);
     return true;
   }
 
@@ -613,7 +614,7 @@ export class BuildableSystem {
       data: { childId },
     });
 
-    console.log(`[BuildableSystem] Removed child ${childId} from parent ${parentId}`);
+    devLog(`[BuildableSystem] Removed child ${childId} from parent ${parentId}`);
     return true;
   }
 
@@ -720,7 +721,7 @@ export class BuildableSystem {
     });
 
     this.instances.delete(id);
-    console.log(`[BuildableSystem] Destroyed: ${id}`);
+    devLog(`[BuildableSystem] Destroyed: ${id}`);
     return true;
   }
 
@@ -1123,7 +1124,7 @@ export class BuildableSystem {
       this.instances.set(instance.id, instance);
       this.updateVisual(instance);
     }
-    console.log(`[BuildableSystem] Loaded ${instances.length} instances`);
+    devLog(`[BuildableSystem] Loaded ${instances.length} instances`);
   }
 
   /**

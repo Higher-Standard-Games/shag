@@ -75,7 +75,7 @@ export class AssetPreloader {
   clearCache(): void {
     const count = this.modelCache.size;
     this.modelCache.clear();
-    if (count > 0) console.log(`[AssetPreloader] Released ${count} cached models`);
+    if (count > 0) devLog(`[AssetPreloader] Released ${count} cached models`);
   }
 
   /**
@@ -108,11 +108,11 @@ export class AssetPreloader {
     }
 
     if (modelPaths.size === 0) {
-      console.log("[AssetPreloader] No pickup entities found in BSP");
+      devLog("[AssetPreloader] No pickup entities found in BSP");
       return 0;
     }
 
-    console.log(`[AssetPreloader] Found ${modelPaths.size} unique pickup models to preload`);
+    devLog(`[AssetPreloader] Found ${modelPaths.size} unique pickup models to preload`);
 
     // Preload models in parallel batches for faster loading
     const loader = ModelLoader.getInstance();
@@ -211,7 +211,7 @@ export class AssetPreloader {
       await Promise.all(batch.map((p) => loadOneModel(p)));
     }
 
-    console.log(`[AssetPreloader] Preloaded ${this.modelCache.size} models`);
+    devLog(`[AssetPreloader] Preloaded ${this.modelCache.size} models`);
     return this.modelCache.size;
   }
 

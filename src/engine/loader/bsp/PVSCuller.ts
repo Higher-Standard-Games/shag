@@ -1,7 +1,9 @@
 /** Static BSP visibility using compiled face-to-leaf membership. */
+
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { devLog } from "../../core/DevLog";
 import { type BspFile, findLeafForPoint, isClusterVisible } from "./BspLoader";
 
 export interface PVSCullerStats {
@@ -93,7 +95,7 @@ export class PVSCuller {
       }
     }
     this.registerClusterMeshes([...groups].map(([cluster, meshes]) => ({ cluster, meshes })));
-    console.log(`[PVSCuller] Registered ${this.meshClusters.size} static world meshes from compiled face membership`);
+    devLog(`[PVSCuller] Registered ${this.meshClusters.size} static world meshes from compiled face membership`);
   }
 
   private validCluster(cluster: number): boolean {

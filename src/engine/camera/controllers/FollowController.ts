@@ -11,6 +11,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
+import { devLog } from "../../core/DevLog";
 import type { CameraControllerConfig, ICameraController } from "./ICameraController";
 
 export interface FollowConfig extends CameraControllerConfig {
@@ -56,14 +57,14 @@ export class FollowController implements ICameraController {
     this.scene = scene;
 
     this.setupRenderLoop();
-    console.log("[FollowController] Attached");
+    devLog("[FollowController] Attached");
   }
 
   detach(): void {
     this.removeRenderLoop();
     this.camera = null;
     this.scene = null;
-    console.log("[FollowController] Detached");
+    devLog("[FollowController] Detached");
   }
 
   update(_deltaTime: number): void {

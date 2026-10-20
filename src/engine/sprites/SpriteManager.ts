@@ -6,6 +6,7 @@ import type { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Scene } from "@babylonjs/core/scene";
+import { devLog } from "../core/DevLog";
 import { BillboardSprite } from "./BillboardSprite";
 import { SpriteSheet, type SpriteSheetConfig } from "./SpriteSheet";
 import type { AnchorPoint, SpriteCategory, SpriteDefinition, SpriteManifest } from "./SpriteTypes";
@@ -62,7 +63,7 @@ export class SpriteManager {
   public init(scene: Scene, camera: Camera): void {
     this.scene = scene;
     this.camera = camera;
-    console.log("SpriteManager initialized");
+    devLog("SpriteManager initialized");
   }
 
   /**
@@ -166,7 +167,7 @@ export class SpriteManager {
       throw new Error(`Failed to load sprite manifest: ${path}`);
     }
     this.manifest = await response.json();
-    console.log(`SpriteManager: Loaded manifest with ${Object.keys(this.manifest!.categories).length} categories`);
+    devLog(`SpriteManager: Loaded manifest with ${Object.keys(this.manifest!.categories).length} categories`);
     return this.manifest!;
   }
 
@@ -221,7 +222,7 @@ export class SpriteManager {
     const basePath = hasPath ? "" : this.manifest?.basePath || "";
     const texturePath = basePath + definition.file;
 
-    console.log(`SpriteManager: Creating sprite from ${texturePath} at ${position.toString()}`);
+    devLog(`SpriteManager: Creating sprite from ${texturePath} at ${position.toString()}`);
 
     // Get or create material (cached per texture)
     let material = this.materialCache.get(texturePath);

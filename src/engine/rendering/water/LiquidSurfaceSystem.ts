@@ -27,6 +27,7 @@ import type { Material } from "@babylonjs/core/Materials/material";
 import type { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial";
 import type { BaseTexture } from "@babylonjs/core/Materials/Textures/baseTexture";
 import { Vector2, Vector3, Vector4 } from "@babylonjs/core/Maths/math.vector";
+import { devLog } from "../../core/DevLog";
 import "@babylonjs/core/Engines/AbstractEngine/abstractEngine.query";
 import "@babylonjs/core/Engines/Extensions/engine.query";
 import { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
@@ -168,7 +169,7 @@ export class LiquidSurfaceSystem {
       const bounds = mesh.getBoundingInfo();
       const pad = new Vector3(OCCLUSION_PAD, OCCLUSION_PAD, OCCLUSION_PAD);
       bounds.reConstruct(bounds.minimum.subtract(pad), bounds.maximum.add(pad), mesh.getWorldMatrix());
-      console.log(`[Water] Bound ${mesh.name}: kind=${kind} profile=${profile}`);
+      devLog(`[Water] Bound ${mesh.name}: kind=${kind} profile=${profile}`);
       this.watchDraws(mesh);
       count++;
     }
@@ -188,7 +189,7 @@ export class LiquidSurfaceSystem {
         }),
         this.mapLights,
       );
-      console.log(`[Water] Cached static highlight sources: ${this.lighting.lightCount}`);
+      devLog(`[Water] Cached static highlight sources: ${this.lighting.lightCount}`);
     }
     return count;
   }
@@ -442,7 +443,7 @@ export class LiquidSurfaceSystem {
     const line = `waterOnScreen=${visible} tier=${quality} depth=${depth} environment=${environment} cachedRoom=${cached} reflectedActors=${this.actorReflection.actorCount}`;
     if (line === this.lastReport) return;
     this.lastReport = line;
-    console.log(`[Water] ${line}`);
+    devLog(`[Water] ${line}`);
   }
 
   /**

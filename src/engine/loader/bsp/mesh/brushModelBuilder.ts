@@ -5,6 +5,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
 import type { Scene } from "@babylonjs/core/scene";
+import { devLog } from "../../../core/DevLog";
 import { applySafeMaxSimultaneousLights } from "../../../lighting/DynamicLightSafety";
 import { RenderVars } from "../../../rendering/RenderVars";
 import { configureBspBakedLighting } from "../BspBakedLightingPlugin";
@@ -269,7 +270,7 @@ export async function buildBrushModel(
     },
   };
 
-  console.log(
+  devLog(
     `[BspMeshBuilder] Built brush model *${modelIndex}: ${totalVertices} vertices, ${totalTriangles} triangles, ${textureGroups.size} textures`,
   );
 

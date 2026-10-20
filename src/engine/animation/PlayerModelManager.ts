@@ -253,7 +253,7 @@ export class PlayerModelManager {
       for (const node of [...container.meshes, ...container.transformNodes]) node.animations = [];
       this.sourceContainer = container;
       this.loaded = true;
-      console.log(`[PlayerModelManager] Ready: ${container.animationGroups.length} animations`);
+      devLog(`[PlayerModelManager] Ready: ${container.animationGroups.length} animations`);
       container = null; // Ownership transfers to this manager only after a complete load.
     } catch (error) {
       console.error("[PlayerModelManager] Load error:", error);

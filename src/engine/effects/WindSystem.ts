@@ -12,6 +12,7 @@
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
+import { devLog } from "../core/DevLog";
 
 export interface WindState {
   direction: Vector3; // Normalized wind direction (XZ plane)
@@ -109,7 +110,7 @@ export class WindSystem {
     });
 
     this.isActive = true;
-    console.log("[WindSystem] Started with strength:", this.settings.baseStrength);
+    devLog("[WindSystem] Started with strength:", this.settings.baseStrength);
   }
 
   /**
@@ -129,7 +130,7 @@ export class WindSystem {
     this.notifyListeners();
 
     this.isActive = false;
-    console.log("[WindSystem] Stopped");
+    devLog("[WindSystem] Stopped");
   }
 
   /**
@@ -205,7 +206,7 @@ export class WindSystem {
    */
   public triggerGust(intensity: number = 1): void {
     this.targetGust = Math.min(1, this.settings.gustIntensity * intensity);
-    console.log("[WindSystem] Gust triggered:", this.targetGust.toFixed(2));
+    devLog("[WindSystem] Gust triggered:", this.targetGust.toFixed(2));
   }
 
   /**

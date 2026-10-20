@@ -13,6 +13,7 @@
  *   PopupSystem.closeAll();
  */
 
+import { devLog } from "./DevLog";
 import { EventBus } from "./EventBus";
 
 export interface PopupButton {
@@ -123,7 +124,7 @@ export class PopupSystem {
         e.preventDefault();
         e.stopPropagation();
         const action = (btn as HTMLElement).dataset.action!;
-        console.log(`[PopupSystem] Button clicked: ${action} for popup ${config.id}`);
+        devLog(`[PopupSystem] Button clicked: ${action} for popup ${config.id}`);
         if (action === "close") {
           PopupSystem.close(config.id);
         } else if (config.onButton) {

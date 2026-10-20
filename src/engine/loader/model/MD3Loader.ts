@@ -19,6 +19,7 @@ import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Scene } from "@babylonjs/core/scene";
+import { devLog } from "../../core/DevLog";
 import { PK3TextureLoader } from "../pk3/PK3TextureLoader";
 import { configureQ3Alpha } from "../shader/Q3Blend";
 import { configureQ3DistanceRamp } from "../shader/Q3DistanceRampPlugin";
@@ -192,8 +193,8 @@ export class MD3Loader {
       console.warn(`MD3 version mismatch: expected ${MD3_VERSION}, got ${header.version}`);
     }
 
-    console.log(`[MD3] Loading: ${header.name}`);
-    console.log(`[MD3] Frames: ${header.numFrames}, Tags: ${header.numTags}, Surfaces: ${header.numSurfaces}`);
+    devLog(`[MD3] Loading: ${header.name}`);
+    devLog(`[MD3] Frames: ${header.numFrames}, Tags: ${header.numTags}, Surfaces: ${header.numSurfaces}`);
 
     // Read frames
     const frames: MD3Frame[] = [];
@@ -342,7 +343,7 @@ export class MD3Loader {
       ofsXYZNormal: view.getInt32(surfaceStart + 100, true),
       ofsEnd: view.getInt32(surfaceStart + 104, true),
     };
-    // console.log(`[MD3]   Surface: ${header.name}, verts: ${header.numVerts}, tris: ${header.numTriangles}`);
+    // devLog(`[MD3]   Surface: ${header.name}, verts: ${header.numVerts}, tris: ${header.numTriangles}`);
 
     // Read shaders
     const shaders: MD3Shader[] = [];
@@ -353,7 +354,7 @@ export class MD3Loader {
         name: shaderName,
         shaderIndex: view.getInt32(offset + 64, true),
       });
-      // console.log(`[MD3]     Shader ${i}: "${shaderName}"`);
+      // devLog(`[MD3]     Shader ${i}: "${shaderName}"`);
       offset += 68;
     }
 
@@ -456,7 +457,7 @@ export class MD3Loader {
     let mat = this.scene.getMaterialByName(materialName) as StandardMaterial;
 
     if (mat) {
-      // console.log(`[MD3] Reusing material structure: ${materialName}`);
+      // devLog(`[MD3] Reusing material structure: ${materialName}`);
       // We don't return early anymore - we proceed to refresh the texture
       // This ensures that if the texture was disposed (but material wasn't), it gets reloaded.
       // Unbind a disposed texture now rather than when the refresh arrives: model
@@ -465,7 +466,7 @@ export class MD3Loader {
       if (mat.emissiveTexture && isTextureReleased(mat.emissiveTexture)) mat.emissiveTexture = null;
     } else {
       mat = new StandardMaterial(materialName, this.scene);
-      console.log(`[MD3] Creating material for shader: "${normalizedName}"`, props);
+      devLog(`[MD3] Creating material for shader: "${normalizedName}"`, props);
     }
 
     // Determine texture path - prefer shader-defined texture, fallback to shader name itself
@@ -485,7 +486,7 @@ export class MD3Loader {
         .resolveAndLoadTexture(texturePath)
         .then(async (tex) => {
           if (tex) {
-            console.log(`[MD3] Texture loaded via PK3TextureLoader: ${texturePath}`);
+            devLog(`[MD3] Texture loaded via PK3TextureLoader: ${texturePath}`);
             tex.hasAlpha = props.isTransparent ?? false;
             mat.diffuseTexture = tex;
             if (props.isTransparent) {

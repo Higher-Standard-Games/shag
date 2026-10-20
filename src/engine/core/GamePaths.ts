@@ -24,6 +24,7 @@
  * ```
  */
 
+import { devLog } from "./DevLog";
 export interface EngineConfig {
   defaultGame: string;
   engineAssetsPath?: string;
@@ -94,7 +95,7 @@ export class GamePaths {
     this.gameTitle = gameTitle || null;
 
     this.initialized = true;
-    console.log(
+    devLog(
       `[GamePaths] Initialized: game=${this.gameName}, engine=${this.enginePath}${this.gameTitle ? `, title=${this.gameTitle}` : ""}`,
     );
   }
@@ -126,7 +127,7 @@ export class GamePaths {
   public setGame(name: string): void {
     if (name !== this.gameName) {
       this.gameName = name;
-      console.log(`[GamePaths] Game changed to: ${name} (reload required)`);
+      devLog(`[GamePaths] Game changed to: ${name} (reload required)`);
     }
   }
 

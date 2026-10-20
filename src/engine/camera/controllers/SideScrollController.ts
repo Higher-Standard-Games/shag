@@ -11,6 +11,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
+import { devLog } from "../../core/DevLog";
 import { InputSystem } from "../../input";
 import type { CameraControllerConfig, ICameraController } from "./ICameraController";
 
@@ -61,7 +62,7 @@ export class SideScrollController implements ICameraController {
       this.updateCameraPosition();
     });
 
-    console.log("[SideScrollController] Attached - Uses InputSystem");
+    devLog("[SideScrollController] Attached - Uses InputSystem");
   }
 
   detach(): void {
@@ -73,7 +74,7 @@ export class SideScrollController implements ICameraController {
     this.scene = null;
     this.canvas = null;
     this.followTarget = null;
-    console.log("[SideScrollController] Detached");
+    devLog("[SideScrollController] Detached");
   }
 
   update(_deltaTime: number): void {

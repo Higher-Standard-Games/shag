@@ -20,6 +20,7 @@ import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
 import type { Scene } from "@babylonjs/core/scene";
+import { devLog } from "../../core/DevLog";
 import { applySafeMaxSimultaneousLights } from "../../lighting/DynamicLightSafety";
 import { RenderVars } from "../../rendering/RenderVars";
 import { configureQ3Alpha, q3AlphaMode } from "../shader/Q3Blend";
@@ -113,7 +114,7 @@ export class BspMeshBuilder {
   }
 
   private buildAll(): BspMeshBuildResult {
-    console.log(`[BspMeshBuilder] Building meshes from ${this.bsp.faces.length} faces`);
+    devLog(`[BspMeshBuilder] Building meshes from ${this.bsp.faces.length} faces`);
     const vertexGain = this.bsp.header.isFBSP ? bspLightingProfile(this.bsp).gain : 1;
 
     const stats = {
@@ -182,7 +183,7 @@ export class BspMeshBuilder {
     const liquidByTextureIndex = new Map(liquidDescriptors.map((descriptor) => [descriptor.textureIndex, descriptor]));
 
     if (liquidDescriptors.length > 0) {
-      console.log(`[BspMeshBuilder] Classified ${liquidDescriptors.length} liquid shader descriptor(s)`);
+      devLog(`[BspMeshBuilder] Classified ${liquidDescriptors.length} liquid shader descriptor(s)`);
     }
 
     // Track individual autosprite faces (not merged, each becomes its own mesh)
@@ -230,7 +231,7 @@ export class BspMeshBuilder {
       if (isDetail) {
         detailFaceCount++;
         if (detailFaceCount <= 3) {
-          console.log(
+          devLog(
             `[BspMeshBuilder] Detail face ${i}: tex="${faceTexture.name}" texIdx=${face.textureIndex} contentFlags=0x${faceTexture.contentFlags.toString(16)} surfaceFlags=0x${faceTexture.surfaceFlags.toString(16)}`,
           );
         }
@@ -274,11 +275,11 @@ export class BspMeshBuilder {
             cloudLayers: cloudLayersFromStages(shader?.stages),
           });
           if (shaderProps.skyParms?.farbox) {
-            console.log(`[BspMeshBuilder] Found sky shader: ${textureName} -> farbox: ${shaderProps.skyParms.farbox}`);
+            devLog(`[BspMeshBuilder] Found sky shader: ${textureName} -> farbox: ${shaderProps.skyParms.farbox}`);
           } else if (stageTextures?.length) {
-            console.log(`[BspMeshBuilder] Found sky shader: ${textureName} -> textured sky: ${stageTextures[0]}`);
+            devLog(`[BspMeshBuilder] Found sky shader: ${textureName} -> textured sky: ${stageTextures[0]}`);
           } else {
-            console.log(`[BspMeshBuilder] Found sky shader: ${textureName} (no skybox textures)`);
+            devLog(`[BspMeshBuilder] Found sky shader: ${textureName} (no skybox textures)`);
           }
         }
         skyFaces.push(i);
@@ -371,7 +372,7 @@ export class BspMeshBuilder {
 
         // Debug: log transparent/special shaders (only once per texture)
         if ((shaderProps.isTransparent || shaderProps.alphaMode !== "opaque") && lmIdx === -1) {
-          console.log(
+          devLog(
             `[BspMeshBuilder] Transparent texture: ${textureName} -> alphaMode=${shaderProps.alphaMode}, backFaceCulling=${shaderProps.backFaceCulling}`,
           );
         }
@@ -407,7 +408,7 @@ export class BspMeshBuilder {
           // Remembered against the unsplit key so sibling cells inherit it below.
           if (!fogByBaseKey.has(group.baseKey)) fogByBaseKey.set(group.baseKey, group.fogParams);
           _fogFacesCount++;
-          console.log(
+          devLog(
             `[BspMeshBuilder] Face ${i} has fog effect: ${effect.name} -> color=(${fogShader.fogParms.color.join(",")}), depth=${fogShader.fogParms.depthForOpaque}`,
           );
         }
@@ -465,7 +466,7 @@ export class BspMeshBuilder {
 
     // Log detail face statistics
     if (detailFaceCount > 0) {
-      console.log(
+      devLog(
         `[BspMeshBuilder] Detail faces: ${detailFaceCount} total, ${detailFaceSkipped} skipped (non-drawable), ${detailFaceCount - detailFaceSkipped} rendered`,
       );
     }
@@ -519,9 +520,7 @@ export class BspMeshBuilder {
       }
     }
 
-    console.log(
-      `[BspMeshBuilder] Texture groups: ${opaqueGroups.length} opaque, ${transparentGroups.length} transparent`,
-    );
+    devLog(`[BspMeshBuilder] Texture groups: ${opaqueGroups.length} opaque, ${transparentGroups.length} transparent`);
 
     // Create a parent mesh to hold all texture group meshes
     const worldMesh = new Mesh("bsp_world", this.scene);
@@ -605,7 +604,7 @@ export class BspMeshBuilder {
       // True per-volume fog would require custom shaders with volume bounds checking.
       // For now, just log that fog was detected - use 'fog on' command for global testing.
       if (group.fogParams) {
-        console.log(`[BspMeshBuilder] Mesh ${meshName} has fog effect (use 'fog on' for global fog testing)`);
+        devLog(`[BspMeshBuilder] Mesh ${meshName} has fog effect (use 'fog on' for global fog testing)`);
       }
 
       // Handle transparency sorting
@@ -638,7 +637,7 @@ export class BspMeshBuilder {
       }
     }
 
-    console.log(`[BspMeshBuilder] Created ${childMeshes.length} texture group meshes`);
+    devLog(`[BspMeshBuilder] Created ${childMeshes.length} texture group meshes`);
 
     // Create individual meshes for autosprite faces with per-frame billboard updates
     const autospriteMeshData: BspMeshBuildResult["autospriteMeshes"] = [];
@@ -784,7 +783,7 @@ export class BspMeshBuilder {
     }
 
     if (autospriteFaces.length > 0) {
-      console.log(`[BspMeshBuilder] Created ${autospriteFaces.length} autosprite meshes (billboarded)`);
+      devLog(`[BspMeshBuilder] Created ${autospriteFaces.length} autosprite meshes (billboarded)`);
       // Debug: log sprite info with orientation details
       for (let sdi = 0; sdi < autospriteMeshData.length; sdi++) {
         const spriteData = autospriteMeshData[sdi];
@@ -803,7 +802,7 @@ export class BspMeshBuilder {
         }
         const orient = maxY < maxX && maxY < maxZ ? "XZ(horiz)" : maxX < maxY && maxX < maxZ ? "YZ" : "XY(vert)";
 
-        console.log(
+        devLog(
           `[BspMeshBuilder] Sprite "${spriteData.mesh.name}": ${numVerts}v, extents=[${maxX.toFixed(1)},${maxY.toFixed(1)},${maxZ.toFixed(1)}], orient=${orient}, hw=${spriteData.halfWidth.toFixed(1)}, hh=${spriteData.halfHeight.toFixed(1)}, as2=${spriteData.isAutosprite2}`,
         );
       }
@@ -812,17 +811,15 @@ export class BspMeshBuilder {
     // Create lightmap textures
     const lightmapTextures = this.buildLightmapTextures();
 
-    console.log(
-      `[BspMeshBuilder] Built world mesh: ${stats.totalVertices} vertices, ${stats.totalTriangles} triangles`,
-    );
-    console.log(
+    devLog(`[BspMeshBuilder] Built world mesh: ${stats.totalVertices} vertices, ${stats.totalTriangles} triangles`);
+    devLog(
       `[BspMeshBuilder] Face breakdown: ${stats.polygonFaces} polygons, ${stats.patchFaces} patches, ${stats.meshFaces} meshes, ${stats.billboardFaces} billboards`,
     );
     if (skippedTextures > 0) {
-      console.log(`[BspMeshBuilder] Skipped ${skippedTextures} faces with non-drawable textures`);
+      devLog(`[BspMeshBuilder] Skipped ${skippedTextures} faces with non-drawable textures`);
     }
     if (skippedFaceTypes > 0) {
-      console.log(`[BspMeshBuilder] Skipped ${skippedFaceTypes} faces due to face type filter`);
+      devLog(`[BspMeshBuilder] Skipped ${skippedFaceTypes} faces due to face type filter`);
     }
 
     // Collect texture group info for later loading (including autosprite textures)
@@ -854,15 +851,15 @@ export class BspMeshBuilder {
       const hasCubemap = skyShaders.some((s) => s.skyParms?.farbox);
       const hasTextured = skyShaders.some((s) => !s.skyParms?.farbox && s.stageTextures?.length);
       if (hasCubemap) {
-        console.log(
+        devLog(
           `[BspMeshBuilder] Found ${skyShaders.length} sky shader(s), skipped ${stats.skippedSkyFaces} sky faces for cubemap skybox`,
         );
       } else if (hasTextured) {
-        console.log(
+        devLog(
           `[BspMeshBuilder] Found ${skyShaders.length} sky shader(s), skipped ${stats.skippedSkyFaces} sky faces for textured skybox`,
         );
       } else {
-        console.log(`[BspMeshBuilder] Found ${skyShaders.length} sky shader(s) with no skybox textures`);
+        devLog(`[BspMeshBuilder] Found ${skyShaders.length} sky shader(s) with no skybox textures`);
       }
     }
 
@@ -1061,7 +1058,7 @@ export class BspMeshBuilder {
     texLoader.init(engine as any, scene);
 
     if (!result.textureGroups || result.textureGroups.length === 0) {
-      console.log("[BspMeshBuilder] No texture groups to load");
+      devLog("[BspMeshBuilder] No texture groups to load");
       return 0;
     }
 
@@ -1297,13 +1294,13 @@ export class BspMeshBuilder {
       if (!texture && shaderProps.alphaMode === "add") {
         // Additive shader with missing texture = generate radial gradient for halo effect
         texture = createRadialGradientTexture(scene);
-        console.log(`[BspMeshBuilder] Using fallback radial gradient for: ${texName}`);
+        devLog(`[BspMeshBuilder] Using fallback radial gradient for: ${texName}`);
       } else if (!texture && shaderProps.diffuseTexture?.includes("$whiteimage")) {
         texture = createSolidColorTexture(scene, 255, 255, 255);
-        console.log(`[BspMeshBuilder] Using fallback $whiteimage for: ${texName}`);
+        devLog(`[BspMeshBuilder] Using fallback $whiteimage for: ${texName}`);
       } else if (!texture && shaderProps.diffuseTexture?.includes("$blackimage")) {
         texture = createSolidColorTexture(scene, 0, 0, 0);
-        console.log(`[BspMeshBuilder] Using fallback $blackimage for: ${texName}`);
+        devLog(`[BspMeshBuilder] Using fallback $blackimage for: ${texName}`);
       }
 
       if (texture) {
@@ -1316,10 +1313,10 @@ export class BspMeshBuilder {
         // Apply texture to all matching meshes
         for (const mesh of matchingMeshes) {
           if (loadedCount < 5) {
-            console.log(
+            devLog(
               `[BspMeshBuilder] Processing texture ${texName} for mesh ${mesh.name} (Material: ${mesh.material?.getClassName()})`,
             );
-            if (shader) console.log(`[BspMeshBuilder] Shader props: ${JSON.stringify(shaderProps)}`);
+            if (shader) devLog(`[BspMeshBuilder] Shader props: ${JSON.stringify(shaderProps)}`);
           }
 
           // Check if this shader needs special material (glow overlay, etc.)
@@ -1365,7 +1362,7 @@ export class BspMeshBuilder {
                   if (!mesh.metadata) mesh.metadata = {};
                   mesh.metadata.isGlowOverlay = true;
                   mesh.metadata.needsAnimation = materialResult.needsAnimation;
-                  console.log(`[BspMeshBuilder] Created glow overlay material: ${texName}`);
+                  devLog(`[BspMeshBuilder] Created glow overlay material: ${texName}`);
                   loadedCount++;
                   continue; // Skip StandardMaterial path
                 }
@@ -1401,7 +1398,7 @@ export class BspMeshBuilder {
               mat.bumpTexture = normalTexture;
               mat.bumpTexture.level = 1.0;
               hasNormalMap = true;
-              console.log(`[BspMeshBuilder] Loaded normal map for: ${texName}`);
+              devLog(`[BspMeshBuilder] Loaded normal map for: ${texName}`);
             }
 
             let glossTexture = await loadOptionalTexture(
@@ -1414,7 +1411,7 @@ export class BspMeshBuilder {
             if (glossTexture) {
               mat.specularTexture = glossTexture;
               hasGlossMap = true;
-              console.log(`[BspMeshBuilder] Loaded gloss map for: ${texName}`);
+              devLog(`[BspMeshBuilder] Loaded gloss map for: ${texName}`);
             }
 
             BspMeshBuilder.tuneCompanionSurfaceMaterial(mat, { hasNormalMap, hasGlossMap }, shaderProps);
@@ -1432,7 +1429,7 @@ export class BspMeshBuilder {
               mat.useEmissiveAsIllumination = true;
               if (!mesh.metadata) mesh.metadata = {};
               mesh.metadata.preserveEmissive = true;
-              console.log(`[BspMeshBuilder] Loaded glow map for: ${texName}`);
+              devLog(`[BspMeshBuilder] Loaded glow map for: ${texName}`);
             }
             const registerGlowAnimation = async (material: StandardMaterial | PBRMaterial) => {
               const stage = shaderProps.glowStage;
@@ -1550,7 +1547,7 @@ export class BspMeshBuilder {
               if (glowTexture) {
                 mesh.metadata.preserveEmissive = true;
               }
-              console.log(`[BspMeshBuilder] Created generated PBR material for: ${texName}`);
+              devLog(`[BspMeshBuilder] Created generated PBR material for: ${texName}`);
               loadedCount++;
               continue;
             }
@@ -1595,7 +1592,7 @@ export class BspMeshBuilder {
               texture.hasAlpha = false;
 
               if (loadedCount < 3) {
-                console.log(`[BspMeshBuilder] Enforced OPAQUE for ${texName} (Mode: ${mat.transparencyMode})`);
+                devLog(`[BspMeshBuilder] Enforced OPAQUE for ${texName} (Mode: ${mat.transparencyMode})`);
               }
             }
 
@@ -1622,7 +1619,7 @@ export class BspMeshBuilder {
               } else {
                 mesh.metadata = { isFullbright: true, preserveEmissive: true };
               }
-              console.log(`[BspMeshBuilder] Fullbright surface: ${texName}`);
+              devLog(`[BspMeshBuilder] Fullbright surface: ${texName}`);
             }
 
             if (
@@ -1650,7 +1647,7 @@ export class BspMeshBuilder {
               mat.diffuseTexture = null;
               // Slight ambient to prevent total darkness
               mat.ambientColor = new Color3(0.1, 0.1, 0.1);
-              console.log(`[BspMeshBuilder] Environment mapping: ${texName}`);
+              devLog(`[BspMeshBuilder] Environment mapping: ${texName}`);
             }
 
             if (shaderProps.rgbGen?.type === "const" && shaderProps.rgbGen.color)
@@ -1668,7 +1665,7 @@ export class BspMeshBuilder {
 
     // Also try to apply texture to main world mesh (first opaque texture)
     // For now, just count what we loaded
-    console.log(`[BspMeshBuilder] Applied ${loadedCount} textures`);
+    devLog(`[BspMeshBuilder] Applied ${loadedCount} textures`);
     return loadedCount;
   }
 
@@ -1725,7 +1722,7 @@ export class BspMeshBuilder {
     const profile = fbsp ? scaleBspLighting(bspLightingProfile(result.bspData), intensity) : null;
 
     if (lightmaps.length === 0) {
-      console.log("[BspMeshBuilder] No lightmaps to apply");
+      devLog("[BspMeshBuilder] No lightmaps to apply");
       return 0;
     }
 
@@ -1780,7 +1777,7 @@ export class BspMeshBuilder {
         }
 
         if (appliedCount === 0) {
-          console.log(`[BspMeshBuilder] Applied first lightmap to ${mesh.name} (intensity: ${intensity})`);
+          devLog(`[BspMeshBuilder] Applied first lightmap to ${mesh.name} (intensity: ${intensity})`);
         }
 
         appliedCount++;
@@ -1803,7 +1800,7 @@ export class BspMeshBuilder {
         }
 
         if (appliedCount === 0) {
-          console.log(`[BspMeshBuilder] Applied first PBR lightmap to ${mesh.name} (intensity: ${intensity})`);
+          devLog(`[BspMeshBuilder] Applied first PBR lightmap to ${mesh.name} (intensity: ${intensity})`);
         }
 
         appliedCount++;
@@ -1813,13 +1810,13 @@ export class BspMeshBuilder {
           mat.setTexture("lightmapSampler", lightmapTex);
           mat.setFloat("hasLightmap", 1.0);
           mat.setFloat("lightmapIntensity", intensity);
-          console.log(`[BspMeshBuilder] Applied lightmap to glow overlay: ${mesh.name}`);
+          devLog(`[BspMeshBuilder] Applied lightmap to glow overlay: ${mesh.name}`);
           appliedCount++;
         }
       }
     }
 
-    console.log(`[BspMeshBuilder] Applied ${appliedCount} lightmaps (intensity: ${intensity})`);
+    devLog(`[BspMeshBuilder] Applied ${appliedCount} lightmaps (intensity: ${intensity})`);
     return appliedCount;
   }
 
@@ -1849,7 +1846,7 @@ export class BspMeshBuilder {
     if (cubemapShader?.skyParms?.farbox) {
       const loadResult = await skyboxLoader.loadSkybox(cubemapShader.skyParms.farbox);
       if (loadResult.success) {
-        console.log(`[BspMeshBuilder] Created cubemap skybox from: ${cubemapShader.textureName}`);
+        devLog(`[BspMeshBuilder] Created cubemap skybox from: ${cubemapShader.textureName}`);
         if (cubemapShader.cloudLayers?.length) {
           await skyboxLoader.loadCloudLayers(cubemapShader.cloudLayers, cubemapShader.skyParms.skyHeight);
         }
@@ -1865,7 +1862,7 @@ export class BspMeshBuilder {
         cloudShader.skyParms?.skyHeight ?? DEFAULT_SKY_HEIGHT,
       );
       if (loadResult.success) {
-        console.log(`[BspMeshBuilder] Created cloud sky from: ${cloudShader.textureName}`);
+        devLog(`[BspMeshBuilder] Created cloud sky from: ${cloudShader.textureName}`);
         return loadResult;
       }
     }
@@ -1876,7 +1873,7 @@ export class BspMeshBuilder {
       const skyTexture = texturedShader.stageTextures[0];
       const loadResult = await skyboxLoader.loadSkyboxFromTexture(skyTexture);
       if (loadResult.success) {
-        console.log(`[BspMeshBuilder] Created textured skybox from: ${skyTexture}`);
+        devLog(`[BspMeshBuilder] Created textured skybox from: ${skyTexture}`);
         return loadResult;
       }
     }
@@ -1887,10 +1884,10 @@ export class BspMeshBuilder {
     for (const sky of result.skyShaders) {
       if (!sky.editorImage) continue;
 
-      console.log(`[BspMeshBuilder] Trying editorImage as sky texture: ${sky.editorImage}`);
+      devLog(`[BspMeshBuilder] Trying editorImage as sky texture: ${sky.editorImage}`);
       const editorResult = await skyboxLoader.loadSkyboxFromTexture(sky.editorImage);
       if (editorResult.success) {
-        console.log(`[BspMeshBuilder] Created sky sphere from editorImage: ${sky.editorImage}`);
+        devLog(`[BspMeshBuilder] Created sky sphere from editorImage: ${sky.editorImage}`);
         return editorResult;
       }
     }
@@ -1900,10 +1897,10 @@ export class BspMeshBuilder {
       const texName = sky.textureName;
       if (!texName) continue;
 
-      console.log(`[BspMeshBuilder] Trying sky texture name as cubemap: ${texName}`);
+      devLog(`[BspMeshBuilder] Trying sky texture name as cubemap: ${texName}`);
       const loadResult = await skyboxLoader.loadSkybox(texName);
       if (loadResult.success) {
-        console.log(`[BspMeshBuilder] Created cubemap skybox from texture name: ${texName}`);
+        devLog(`[BspMeshBuilder] Created cubemap skybox from texture name: ${texName}`);
         return loadResult;
       }
     }
@@ -2071,7 +2068,7 @@ export class BspMeshBuilder {
       );
     }
 
-    console.log(`[BspMeshBuilder] Created ${textures.length} lightmap textures (${size}x${size})`);
+    devLog(`[BspMeshBuilder] Created ${textures.length} lightmap textures (${size}x${size})`);
 
     return textures;
   }

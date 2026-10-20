@@ -14,6 +14,7 @@ import type { EntityDef } from "../../shared/entities/EntityDef";
 import { EntityRegistry } from "../../shared/entities/EntityRegistry";
 import { EntityType } from "../../shared/entities/EntityType";
 import { landMapPickups } from "../../shared/items/ItemThrow";
+import { devLog } from "../core/DevLog";
 import { type EntityData, EntityHandlerRegistry, type EntityHandlerResult } from "../core/EntityHandlerRegistry";
 import { getCollisionManager } from "../physics/CollisionManager";
 import { SweepBackendAdapter } from "../physics/SweepBackendAdapter";
@@ -127,7 +128,7 @@ export class EntityManager {
     const health = registry.getByType<EntityDef>(EntityType.HEALTH);
     const powerups = registry.getByType<EntityDef>(EntityType.POWERUP);
 
-    console.log(
+    devLog(
       `[EntityManager] Registering handlers for ${weapons.length} weapons, ${ammo.length} ammo, ${armor.length} armor, ${health.length} health, ${powerups.length} powerups...`,
     );
 
@@ -173,11 +174,11 @@ export class EntityManager {
     if (!def) {
       console.error(`[EntityManager] Entity definition not found: ${id}`);
       // Log available IDs for help
-      console.log(`[EntityManager] Available IDs: ${registry.getAllIds().join(", ")}`);
+      devLog(`[EntityManager] Available IDs: ${registry.getAllIds().join(", ")}`);
       return false;
     }
 
-    console.log(`[EntityManager] Manually spawning ${id} at ${position}`);
+    devLog(`[EntityManager] Manually spawning ${id} at ${position}`);
 
     try {
       // Preserve the definition's actual type so armor/health aren't misfiled as
@@ -229,7 +230,7 @@ export class EntityManager {
       }
     }
 
-    console.log(`[EntityManager] Spawning ${def.name} at ${position}`);
+    devLog(`[EntityManager] Spawning ${def.name} at ${position}`);
 
     // Dynamically import FPSPickup to avoid loading the fps game module eagerly
     // from engine code (EntityManager is engine-positioned but its entity types
@@ -349,7 +350,7 @@ export class EntityManager {
   private pickupEntity(entity: any, inventory: InventoryManager): void {
     const result = inventory.giveWeapon(entity.def.id);
     if (result.acquired) {
-      console.log(`[EntityManager] Picked up ${entity.def.name}`);
+      devLog(`[EntityManager] Picked up ${entity.def.name}`);
       entity.active = false;
 
       if (entity.mesh) {

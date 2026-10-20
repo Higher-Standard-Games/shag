@@ -8,6 +8,7 @@
 import { DynamicTexture } from "@babylonjs/core/Materials/Textures/dynamicTexture";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import type { Scene } from "@babylonjs/core/scene";
+import { devLog } from "../core/DevLog";
 import { ValueNoise } from "../math/Noise";
 
 export type NoiseType = "value" | "perlin";
@@ -239,7 +240,7 @@ export class ProceduralTextureGenerator {
     texture.wrapU = Texture.WRAP_ADDRESSMODE;
     texture.wrapV = Texture.WRAP_ADDRESSMODE;
 
-    console.log(`Generated procedural texture: ${name}`);
+    devLog(`Generated procedural texture: ${name}`);
     return texture;
   }
 

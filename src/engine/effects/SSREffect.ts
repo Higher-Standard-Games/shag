@@ -12,6 +12,7 @@
  * (`r_ssr`, opt-in) and GPU-tier-tuned; it fails gracefully if unsupported.
  */
 
+import { devLog } from "../core/DevLog";
 import "@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/ssrRenderingPipeline";
 import type { BaseTexture } from "@babylonjs/core/Materials/Textures/baseTexture";
 import type { CubeTexture } from "@babylonjs/core/Materials/Textures/cubeTexture";
@@ -132,7 +133,7 @@ export class SSREffect {
 
       this.refreshEnvironment();
       this.applyStrength();
-      console.log(`[SSREffect] SSR enabled (gpuTier ${tier})`);
+      devLog(`[SSREffect] SSR enabled (gpuTier ${tier})`);
     } catch (e) {
       this.destroyPipeline();
       console.warn("[SSREffect] SSR init failed:", e);
