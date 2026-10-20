@@ -72,11 +72,8 @@ export class AudioManager {
   }
 
   public async init(scene?: Scene): Promise<void> {
-    const config = AssetLoader.getInstance().getConfig();
-    if (config) {
-      this.musicVolume = config.settings.defaultVolume;
-      this.musicEnabled = config.settings.musicEnabled;
-    }
+    // Music volume and on/off come from s_volume and s_musicenabled, which hold
+    // the player's saved choice; the game config must not override them.
     this.sfxBackend.setVolume(this.sfxVolume);
     await this.sfxBackend.init(scene);
     // Cvars are registered in constructor
@@ -115,6 +112,10 @@ export class AudioManager {
       onChange: (v) => this.setSfxEnabled(v as boolean),
     });
     this.setSfxVolume(Cvar.getNumber("s_sfxvolume"));
+    // Registering keeps a saved value without calling onChange, so take it here.
+    this.musicVolume = Cvar.getNumber("s_volume");
+    this.musicEnabled = Cvar.getBool("s_musicenabled");
+    this.sfxEnabled = Cvar.getBool("s_sfxenabled");
 
     // Each channel's share of the effects volume, under Warsow's names
     for (const [name, channel, description] of CHANNEL_CVARS) {
@@ -269,9 +270,13 @@ export class AudioManager {
   }
 
   public setMusicEnabled(enabled: boolean): void {
+    if (this.musicEnabled === enabled) return;
     this.musicEnabled = enabled;
     if (!enabled) {
+      this.loadingRequestId++; // a track still loading must not start
       this.stopMusic(false);
+    } else if (this.isPlayingPlaylist && !this.currentMusic) {
+      void this.playCurrentTrack(true);
     }
   }
 
@@ -400,7 +405,8 @@ export class AudioManager {
       this.shufflePlaylist();
     }
 
-    this.playCurrentTrack(true);
+    // With music off the playlist is remembered, and starts when music is turned on.
+    if (this.musicEnabled) this.playCurrentTrack(true);
   }
 
   /**
@@ -449,7 +455,7 @@ export class AudioManager {
   private failedTrackAttempts = 0;
 
   private async playCurrentTrack(fadeIn = true): Promise<void> {
-    if (!this.currentPlaylist || !this.isPlayingPlaylist) return;
+    if (!this.currentPlaylist || !this.isPlayingPlaylist || !this.musicEnabled) return;
 
     const track = this.currentPlaylist.tracks[this.currentTrackIndex];
     if (!track) {
