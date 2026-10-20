@@ -126,3 +126,40 @@ describe("DebugConsole hover help", () => {
     expect(document.querySelector(".console-help-popover")).toBeNull();
   });
 });
+
+describe("DebugConsole input focus", () => {
+  it("puts the cursor in the input line when opened", () => {
+    const consoleUi = DebugConsole.getInstance();
+    consoleUi.enable();
+    consoleUi.open();
+    expect(document.activeElement?.classList.contains("debug-console-input")).toBe(true);
+  });
+
+  it("takes focus back from a menu that opens when pointer lock is released", async () => {
+    const canvas = document.createElement("canvas");
+    const menu = document.createElement("div");
+    menu.tabIndex = -1;
+    document.body.append(canvas, menu);
+    let locked: Element | null = canvas;
+    Object.defineProperty(document, "pointerLockElement", { configurable: true, get: () => locked });
+    document.exitPointerLock = () => {
+      locked = null;
+      // The game's own listener, registered first, opens its pause menu.
+      queueMicrotask(() => {
+        menu.focus();
+        document.dispatchEvent(new Event("pointerlockchange"));
+      });
+    };
+    document.addEventListener("pointerlockchange", () => menu.focus(), { once: true });
+
+    const consoleUi = DebugConsole.getInstance();
+    consoleUi.enable();
+    consoleUi.open();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(document.activeElement?.classList.contains("debug-console-input")).toBe(true);
+    menu.remove();
+    canvas.remove();
+    Reflect.deleteProperty(document, "pointerLockElement");
+  });
+});

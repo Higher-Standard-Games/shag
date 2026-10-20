@@ -138,11 +138,28 @@ export class DebugConsole {
 
     if (this.isOpen) {
       // Opening console - release input grabs and dismiss loading screen
+      const wasLocked = !!document.pointerLockElement;
       this.onConsoleOpen();
-      this.inputEl?.focus();
+      this.focusInputAfterOpen(wasLocked);
     } else {
       this.inputEl?.blur();
       this.hideAutocomplete();
+    }
+  }
+
+  /**
+   * Put the cursor in the input line, and keep it there through what opening
+   * sets off: releasing pointer lock makes the game show its pause menu, which
+   * takes focus once the release lands, after this call.
+   */
+  private focusInputAfterOpen(releasingPointerLock: boolean): void {
+    const refocus = () => {
+      if (this.isOpen && this.inputEl && document.activeElement !== this.inputEl) this.inputEl.focus();
+    };
+    refocus();
+    requestAnimationFrame(refocus);
+    if (releasingPointerLock) {
+      document.addEventListener("pointerlockchange", () => setTimeout(refocus, 0), { once: true });
     }
   }
 
