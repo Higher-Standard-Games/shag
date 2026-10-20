@@ -366,6 +366,12 @@ export type ObjectiveSnapshot = BombObjectiveSnapshot;
 export interface MatchStateSnapshot {
   phase: MatchPhase;
   timeRemaining: number;
+  /**
+   * Seconds played in the live phase (the match, or the round in round modes),
+   * running on through overtime. For a count-up clock (`cl_invertClock`).
+   * Absent from an older server.
+   */
+  timeElapsed?: number;
   readyCount: number;
   totalPlayers: number;
   gametypeName: string;
