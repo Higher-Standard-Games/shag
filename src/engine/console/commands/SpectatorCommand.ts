@@ -56,7 +56,7 @@ export default class SpectatorCommand extends Command {
     }
   }
 
-  getCompletions(_input: string, _args: string[]): string[] {
+  override getCompletions(_input: string, _args: string[]): string[] {
     return ["0", "1"];
   }
 }

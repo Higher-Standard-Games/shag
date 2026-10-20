@@ -117,7 +117,7 @@ export class SpeedFOVEffect extends BaseViewportEffect {
     return delta;
   }
 
-  reset(): void {
+  override reset(): void {
     this.currentFOV = 1.0;
   }
 }

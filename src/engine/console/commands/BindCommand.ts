@@ -36,7 +36,7 @@ export default class BindCommand extends Command {
     return `${displayKey(code)} → ${command}`;
   }
 
-  getCompletions(_input: string, args: string[]): string[] {
+  override getCompletions(_input: string, args: string[]): string[] {
     if (args.length <= 1) return [...CommandBindings.all().keys()].map(displayKey);
     return [];
   }

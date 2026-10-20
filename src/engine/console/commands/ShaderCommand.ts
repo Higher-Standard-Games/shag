@@ -10,6 +10,8 @@ import { Command, type CommandDef } from "../Command";
 
 // Aim debug state
 let aimObserver: any = null;
+/** `shader aim 1`: the aim probe runs while this is on. */
+let shaderAimEnabled = false;
 let aimLastMesh: AbstractMesh | null = null;
 
 export class ShaderCommand extends Command {
@@ -117,13 +119,11 @@ export class ShaderCommand extends Command {
 
         const value = args[1]?.toLowerCase();
         if (value === undefined) {
-          // biome-ignore lint/suspicious/noExplicitAny: Dynamic shader property inspection
-          return `shader aim = ${(window as any)._shaderAimEnabled ? "1" : "0"}`;
+          return `shader aim = ${shaderAimEnabled ? "1" : "0"}`;
         }
 
         const enable = value === "1" || value === "true" || value === "on";
-        // biome-ignore lint/suspicious/noExplicitAny: Dynamic shader property inspection
-        (window as any)._shaderAimEnabled = enable;
+        shaderAimEnabled = enable;
 
         if (!enable) {
           this.disableAimHighlight(scene);
@@ -241,8 +241,6 @@ export class ShaderCommand extends Command {
             count++;
           }
         }
-        // biome-ignore lint/suspicious/noExplicitAny: Dynamic shader property inspection
-        (window as any)._glowIntensity = intensity;
         return `Glow intensity set to ${intensity} on ${count} materials`;
       }
 
@@ -266,8 +264,6 @@ export class ShaderCommand extends Command {
             count++;
           }
         }
-        // biome-ignore lint/suspicious/noExplicitAny: Dynamic shader property inspection
-        (window as any)._lightmapIntensity = intensity;
         return `Lightmap intensity set to ${intensity} on ${count} materials`;
       }
 
@@ -438,8 +434,7 @@ export class ShaderCommand extends Command {
     if (!aimObserver) {
       aimObserver = scene.onBeforeRenderObservable.add(() => {
         try {
-          // biome-ignore lint/suspicious/noExplicitAny: Dynamic shader property inspection
-          if (!(window as any)._shaderAimEnabled) return;
+          if (!shaderAimEnabled) return;
 
           // Synchronous aim detection (imports pre-loaded above)
           const ray = camera?.getForwardRay

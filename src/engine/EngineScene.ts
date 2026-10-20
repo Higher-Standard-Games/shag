@@ -134,7 +134,7 @@ export abstract class EngineScene {
     "camera",
     "fx",
     "weather",
-  ] as const;
+  ] as const satisfies readonly (keyof Window)[];
 
   constructor(engine: Engine, canvas: HTMLCanvasElement) {
     this.engine = engine;
@@ -667,36 +667,19 @@ export abstract class EngineScene {
     });
   }
 
-  protected exposeDebugFunctions(): void {
-    // biome-ignore lint/suspicious/noExplicitAny: Babylon scene resource management internals
-    (window as any).loadMap = (mapName: string) => this.loadMap(mapName);
-    // biome-ignore lint/suspicious/noExplicitAny: Babylon scene resource management internals
-    (window as any).setZoom = (newSize: number) => {
-      this.orthoSize = newSize;
-      this.updateCameraOrtho();
-      console.log(`Zoom set to ${this.orthoSize}`);
-    };
-
-    // biome-ignore lint/suspicious/noExplicitAny: Babylon scene resource management internals
-    (window as any).setCameraMode = (mode: CameraMode) => this.setCameraMode(mode);
-    // biome-ignore lint/suspicious/noExplicitAny: Babylon scene resource management internals
-    (window as any).getCameraMode = () => this.getCameraMode();
-    // biome-ignore lint/suspicious/noExplicitAny: Babylon scene resource management internals
-    (window as any).setCameraHeight = (height: number) => this.setCameraHeight(height);
-    // biome-ignore lint/suspicious/noExplicitAny: Babylon scene resource management internals
-    (window as any).getCameraHeight = () => this.getCameraHeight();
-
-    // biome-ignore lint/suspicious/noExplicitAny: Babylon scene resource management internals
-    (window as any).camera = {
+  /** The `camera` debug object on `window`. */
+  public cameraDebug() {
+    return {
       get: () => this.camera,
       getMode: () => this.getCameraMode(),
       getHeight: () => this.getCameraHeight(),
     };
+  }
 
-    // Post-processing debug commands
+  /** The `fx` post-processing debug object on `window`. */
+  public fxDebug() {
     const pp = PostProcessingManager.getInstance();
-    // biome-ignore lint/suspicious/noExplicitAny: Babylon scene resource management internals
-    (window as any).fx = {
+    return {
       enabled: (on: boolean) => pp.setEnabled(on),
       bloom: (on: boolean) => pp.setBloomEnabled(on),
       bloomIntensity: (v: number) => pp.setBloomIntensity(v),
@@ -709,10 +692,11 @@ export abstract class EngineScene {
       reset: () => pp.resetToDefaults(),
       settings: () => pp.getSettings(),
     };
+  }
 
-    // Weather debug commands
-    // biome-ignore lint/suspicious/noExplicitAny: Babylon scene resource management internals
-    (window as any).weather = {
+  /** The `weather` debug object on `window`. */
+  public weatherDebug() {
+    return {
       rain: (on: boolean) => {
         if (on && this.isIndoorMap) {
           console.log("[Weather] Cannot start rain - indoor map");
@@ -807,6 +791,28 @@ export abstract class EngineScene {
         debris: this.debrisEffect?.getSettings(),
       }),
     };
+  }
+
+  protected exposeDebugFunctions(): void {
+    window.loadMap = (mapName: string) => this.loadMap(mapName);
+    window.setZoom = (newSize: number) => {
+      this.orthoSize = newSize;
+      this.updateCameraOrtho();
+      console.log(`Zoom set to ${this.orthoSize}`);
+    };
+
+    window.setCameraMode = (mode: CameraMode) => this.setCameraMode(mode);
+    window.getCameraMode = () => this.getCameraMode();
+    window.setCameraHeight = (height: number) => this.setCameraHeight(height);
+    window.getCameraHeight = () => this.getCameraHeight();
+
+    window.camera = this.cameraDebug();
+
+    // Post-processing debug commands
+    window.fx = this.fxDebug();
+
+    // Weather debug commands
+    window.weather = this.weatherDebug();
 
     console.log("Debug: Use 'loadMap(name)', 'setZoom(value)' in console.");
     console.log("FX commands: fx.bloom(true), fx.bloomIntensity(0.5), fx.vignette(true), fx.ssao(true)");
@@ -881,8 +887,7 @@ export abstract class EngineScene {
     // Detach debug functions from `window.*` so stale closures don't keep
     // disposed weather effects / post-processing pipelines alive.
     for (const key of this.debugWindowKeys) {
-      // biome-ignore lint/suspicious/noExplicitAny: window debug surface
-      delete (window as any)[key];
+      delete window[key];
     }
 
     // Sweep any remaining ServiceLocator-registered services that the manual

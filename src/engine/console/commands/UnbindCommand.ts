@@ -25,7 +25,7 @@ export default class UnbindCommand extends Command {
     return had ? `${displayKey(key)} no longer runs: ${had}` : `${key} was not bound`;
   }
 
-  getCompletions(_input: string, args: string[]): string[] {
+  override getCompletions(_input: string, args: string[]): string[] {
     if (args.length <= 1) return ["all", ...[...CommandBindings.all().keys()].map(displayKey)];
     return [];
   }

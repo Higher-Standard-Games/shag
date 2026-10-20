@@ -301,12 +301,8 @@ export default defineConfig({
   // pure annotations only take effect at minify time, so dev keeps every log.
   // console.warn / console.error always survive — they are the diagnostics.
   //
-  // FOOTGUN: `pure` lets the minifier delete the whole call INCLUDING its
-  // arguments. So `console.log(queue.shift())` drops the shift() in prod only.
-  // Never pass a side-effecting/computed expression to console.log/console.debug
-  // — use the `log` façade (src/engine/core/Log.ts) instead: `log.debug(x)` calls
-  // a NON-pure function, so `x` is always evaluated at the call and only the
-  // console output is stripped.
+  // esbuild drops the call but keeps arguments with side effects, so
+  // `console.log(queue.shift())` still shifts in production.
   esbuild: {
     pure: ['console.log', 'console.debug'],
   },

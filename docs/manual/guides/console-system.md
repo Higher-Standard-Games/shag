@@ -96,11 +96,11 @@ per-map and per-effect setup) go through `devLog()` from
 `devLogEnabled()` first when a line is costly to build. With `developer 0` the
 browser console shows one-off events and warnings.
 
-Production builds strip `console.log` and `console.debug` calls, arguments
-included, while `console.warn` and `console.error` remain. For a log line whose
-argument has a side effect, use the `log` façade in `src/engine/core/Log.ts`
-(`log.debug`, `log.info`, `log.warn`, `log.error`): its arguments are always
-evaluated and only the output is stripped.
+Production builds strip `console.log` and `console.debug` calls, while
+`console.warn` and `console.error` remain. esbuild keeps any argument with a
+side effect, so `console.log(queue.shift())` still shifts. The `log` façade in
+`src/engine/core/Log.ts` (`log.debug`, `log.info`, `log.warn`, `log.error`)
+adds a tag and a rate-limited warning for hot paths.
 
 ## Programmatic execution
 

@@ -29,7 +29,7 @@ export default class DebrisCommand extends Command {
   };
 
   async execute(args: string[]): Promise<string | undefined> {
-    const weather = (window as any).weather;
+    const weather = window.weather;
 
     if (!weather) {
       return "Weather system not available (game not started)";
@@ -85,7 +85,7 @@ export default class DebrisCommand extends Command {
     }
   }
 
-  getCompletions(_input: string, args: string[]): string[] {
+  override getCompletions(_input: string, args: string[]): string[] {
     if (args.length === 0) {
       return ["leaves", "trash", "dust", "mixed", "off", "density", "size", "speed"];
     }

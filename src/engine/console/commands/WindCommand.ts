@@ -26,7 +26,7 @@ export default class WindCommand extends Command {
   };
 
   async execute(args: string[]): Promise<string | undefined> {
-    const weather = (window as any).weather;
+    const weather = window.weather;
 
     if (!weather) {
       return "Weather system not available (game not started)";
@@ -59,8 +59,10 @@ export default class WindCommand extends Command {
         if (Number.isNaN(x) || Number.isNaN(y) || Number.isNaN(z)) {
           return "Usage: wind direction <x> <y> <z>";
         }
-        weather.windDirection?.(x, y, z);
-        return `Wind direction: (${x}, ${y}, ${z})`;
+        if (x === 0 && z === 0) return "Wind blows across the ground: give a non-zero x or z";
+        // Wind is horizontal: the angle is measured from +Z towards +X; y is ignored.
+        weather.windAngle(Math.atan2(x, z));
+        return `Wind direction: (${x}, 0, ${z})`;
       }
 
       default:
@@ -68,7 +70,7 @@ export default class WindCommand extends Command {
     }
   }
 
-  getCompletions(_input: string, args: string[]): string[] {
+  override getCompletions(_input: string, args: string[]): string[] {
     if (args.length === 0) {
       return ["on", "off", "strength", "direction"];
     }

@@ -112,7 +112,7 @@ export default class SceneCommand extends Command {
     }
   }
 
-  getCompletions(_input: string, args: string[]): string[] {
+  override getCompletions(_input: string, args: string[]): string[] {
     if (args.length === 0) {
       return ["empty", "clear", "dispose", "info", "meshes", "materials", "lights"];
     }
@@ -126,13 +126,11 @@ export default class SceneCommand extends Command {
     }
 
     // Get or create engine
-    // biome-ignore lint/suspicious/noExplicitAny: Babylon scene resource inspection
-    const existingEngine = (window as any).babylonEngine;
+    const existingEngine = window.babylonEngine;
     const engine = existingEngine || new Engine(canvas, true);
 
     if (!existingEngine) {
-      // biome-ignore lint/suspicious/noExplicitAny: Babylon scene resource inspection
-      (window as any).babylonEngine = engine;
+      window.babylonEngine = engine;
     }
 
     // Dispose previous empty scene if exists
@@ -212,15 +210,9 @@ export default class SceneCommand extends Command {
     MenuSystem.getInstance().enterGame();
 
     // Hide main menu
-    // biome-ignore lint/suspicious/noExplicitAny: Babylon scene resource inspection
-    const mainMenu = (window as any).mainMenu;
-    if (mainMenu && typeof mainMenu.hide === "function") {
-      mainMenu.hide();
-    } else {
-      const mainMenuEl = document.getElementById("main-menu");
-      if (mainMenuEl) {
-        mainMenuEl.style.display = "none";
-      }
+    const mainMenuEl = document.getElementById("main-menu");
+    if (mainMenuEl) {
+      mainMenuEl.style.display = "none";
     }
 
     // Add ESC key handler

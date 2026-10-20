@@ -275,7 +275,7 @@ export default class AnimTestCommand extends Command {
     return "Disposed.";
   }
 
-  getCompletions(_input: string, args: string[]): string[] {
+  override getCompletions(_input: string, args: string[]): string[] {
     if (args.length === 0) return ["load", "play", "list", "stop", "dispose"];
     if (args[0] === "play") return this.storedAnims.map((a) => a.name);
     return [];

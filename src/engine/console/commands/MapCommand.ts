@@ -137,7 +137,7 @@ export default class MapCommand extends Command {
     return `Launched ${result.map} (${result.gametype}) on ${result.serverUrl}`;
   }
 
-  getCompletions(_input: string, args: string[]): string[] {
+  override getCompletions(_input: string, args: string[]): string[] {
     if (args.length === 0) {
       return ["load", "reload", "list", "current", "unload"];
     }

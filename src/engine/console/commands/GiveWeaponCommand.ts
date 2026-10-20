@@ -1,4 +1,5 @@
 import { CameraSystem } from "../../camera/CameraSystem";
+import type { FPSController } from "../../camera/controllers/FPSController";
 import { WeaponViewManager } from "../../weapon/WeaponViewManager";
 import { Command, type CommandDef } from "../Command";
 
@@ -24,7 +25,7 @@ export default class GiveWeaponCommand extends Command {
       return "Error: Must be in FPS mode";
     }
 
-    const fpsController = controller as any; // Cast to FPSController
+    const fpsController = controller as FPSController;
     if (!fpsController.inventory) {
       return "Error: No inventory found";
     }

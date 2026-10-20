@@ -9,12 +9,9 @@
  * (vite esbuild config), so `log.debug`/`log.info` vanish from prod bundles
  * while `log.warn`/`log.error` survive.
  *
- * Bonus safety: because `log.debug`/`log.info` are ordinary (non-pure) function
- * calls, their arguments are always evaluated at the call site — so
- * `log.debug("Net", queue.shift())` keeps the shift() in prod even though the
- * console output is stripped. A bare `console.log(queue.shift())` would have the
- * whole call (and the shift) deleted by the minifier — prefer `log.*` for any
- * log whose argument computes something or has a side effect.
+ * Stripping is safe for arguments: esbuild drops a pure call but keeps any
+ * argument with side effects, so `console.log(queue.shift())` still shifts in
+ * production. `log.*` adds a tag and, for hot paths, rate limiting.
  *
  * Migration is incremental: new code uses `log.*`; existing `console.log`s
  * move over when their file is touched.

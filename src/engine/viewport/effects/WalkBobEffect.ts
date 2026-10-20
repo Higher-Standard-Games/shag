@@ -170,7 +170,7 @@ export class WalkBobEffect extends BaseViewportEffect {
     return delta;
   }
 
-  reset(): void {
+  override reset(): void {
     this.bobCycle = 0;
     this.currentLean = 0;
   }

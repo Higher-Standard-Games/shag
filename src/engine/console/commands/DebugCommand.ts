@@ -249,7 +249,7 @@ export default class DebugCommand extends Command {
     return `Player debug visualization: ON\n  Cyan = collision capsule (56h x 32w)\n  Yellow ring = eye level (+24)\n  Orange ring = waist level (+8)`;
   }
 
-  getCompletions(_input: string, args: string[]): string[] {
+  override getCompletions(_input: string, args: string[]): string[] {
     if (args.length === 0) {
       return ["collision", "wireframe", "bounds", "player", "info"];
     }

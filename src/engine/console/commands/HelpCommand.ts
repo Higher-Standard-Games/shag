@@ -67,7 +67,7 @@ export default class HelpCommand extends Command {
     return this.describeOne(registry, args[0].toLowerCase());
   }
 
-  getCompletions(_input: string, args: string[]): string[] {
+  override getCompletions(_input: string, args: string[]): string[] {
     if (args.length === 0) {
       return Array.from(CommandRegistry.getInstance().getCommands().keys());
     }

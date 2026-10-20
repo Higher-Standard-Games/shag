@@ -75,6 +75,24 @@ export interface ICameraController {
    */
   setFollowTarget?(node: TransformNode, offset?: Vector3): void;
 
+  /** Move the viewer (player origin for first-person controllers) to `position`. */
+  setPosition?(position: Vector3): void;
+
+  /** The player's position, for controllers that drive a body rather than a free camera. */
+  getPlayerPosition?(): Vector3;
+
+  /** Shake the view; an `intensity` of 1 is a very close explosion. */
+  shakeCamera?(intensity: number): void;
+
+  /** Hold the view still (end screens) while leaving the controller attached. */
+  setLookFrozen?(frozen: boolean): void;
+
+  /** Stop movement prediction and firing while leaving the controller attached. */
+  setGameplayFrozen?(frozen: boolean): void;
+
+  /** Switch from local play to server-authoritative networked play. */
+  enableNetworkMode?(): void;
+
   /**
    * Apply configuration options
    */

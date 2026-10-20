@@ -250,10 +250,9 @@ export class ExplosionEffect {
     import("../camera/CameraSystem")
       .then(({ CameraSystem }) => {
         const controller = CameraSystem.getInstance().getController("fps");
-        if (!controller || !("shakeCamera" in controller)) return;
+        if (!controller?.shakeCamera || !controller.getPlayerPosition) return;
 
-        const fpsCtrl = controller as any;
-        const playerPos: Vector3 = fpsCtrl.getPlayerPosition();
+        const playerPos = controller.getPlayerPosition();
         const distance = Vector3.Distance(explosionPos, playerPos);
 
         // Shake range: tuned for Q3/Warsow game unit distances
@@ -278,7 +277,7 @@ export class ExplosionEffect {
 
         if (finalIntensity < 0.01) return;
 
-        fpsCtrl.shakeCamera(finalIntensity);
+        controller.shakeCamera(finalIntensity);
       })
       .catch(() => {
         /* CameraSystem unavailable */

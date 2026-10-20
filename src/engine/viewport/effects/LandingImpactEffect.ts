@@ -120,7 +120,7 @@ export class LandingImpactEffect extends BaseViewportEffect {
   /**
    * Can also be triggered via EventBus: viewport:landing
    */
-  trigger(event: string, data: unknown): void {
+  override trigger(event: string, data: unknown): void {
     if (event === "landing") {
       const { velocity } = data as { velocity?: number };
       if (typeof velocity === "number") {
@@ -132,7 +132,7 @@ export class LandingImpactEffect extends BaseViewportEffect {
     }
   }
 
-  reset(): void {
+  override reset(): void {
     this.impactOffset = 0;
     this.impactPhase = 1;
     this.lastLandingVelocity = 0;

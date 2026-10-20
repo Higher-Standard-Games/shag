@@ -112,7 +112,7 @@ Commands:
     }
   }
 
-  getCompletions(_input: string, args: string[]): string[] {
+  override getCompletions(_input: string, args: string[]): string[] {
     if (args.length === 0) {
       return ["on", "off", "noon", "midnight", "sunrise", "sunset", "start", "stop", "cycle", "time", "info"];
     }

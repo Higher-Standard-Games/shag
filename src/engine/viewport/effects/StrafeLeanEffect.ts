@@ -76,7 +76,7 @@ export class StrafeLeanEffect extends BaseViewportEffect {
     return delta;
   }
 
-  reset(): void {
+  override reset(): void {
     this.currentLean = 0;
   }
 }

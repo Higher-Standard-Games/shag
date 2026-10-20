@@ -22,8 +22,8 @@ export default class MemCommand extends Command {
 
     switch (subcommand) {
       case "gc":
-        if ((window as any).gc) {
-          (window as any).gc();
+        if (window.gc) {
+          window.gc();
           return "Garbage collection requested";
         }
         return 'GC not available (run Chrome with --js-flags="--expose-gc")';
@@ -56,7 +56,7 @@ export default class MemCommand extends Command {
     }
   }
 
-  getCompletions(_input: string, args: string[]): string[] {
+  override getCompletions(_input: string, args: string[]): string[] {
     if (args.length === 0) {
       return ["info", "gc", "textures"];
     }

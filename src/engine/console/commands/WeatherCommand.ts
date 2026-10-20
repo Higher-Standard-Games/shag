@@ -21,7 +21,7 @@ export default class WeatherCommand extends Command {
 
   async execute(args: string[]): Promise<string | undefined> {
     // Weather API is exposed on window.weather by GameScene
-    const weather = (window as any).weather;
+    const weather = window.weather;
 
     if (!weather) {
       return "Weather system not available (game not started)";
@@ -72,7 +72,7 @@ export default class WeatherCommand extends Command {
     }
   }
 
-  getCompletions(_input: string, args: string[]): string[] {
+  override getCompletions(_input: string, args: string[]): string[] {
     if (args.length === 0) {
       return ["rain", "snow", "clear", "fog", "thunder", "status"];
     }

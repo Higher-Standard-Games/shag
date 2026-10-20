@@ -62,7 +62,7 @@ export default class SkyboxCommand extends Command {
     }
   }
 
-  getCompletions(_input: string, args: string[]): string[] {
+  override getCompletions(_input: string, args: string[]): string[] {
     if (args.length === 0) {
       return ["load", "clear", "info"];
     }

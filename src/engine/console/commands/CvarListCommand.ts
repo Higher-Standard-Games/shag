@@ -32,7 +32,7 @@ export default class CvarListCommand extends Command {
     return lines.join("\n");
   }
 
-  getCompletions(_input: string, args: string[]): string[] {
+  override getCompletions(_input: string, args: string[]): string[] {
     if (args.length === 0) {
       // Suggest common prefixes
       return ["r_", "s_", "g_", "ui_", "cam_", "con_", "m_"];

@@ -6,7 +6,7 @@ import { HUDElement } from "../HUDElement";
 import type { HUDPillProgressConfig } from "../HUDTypes";
 
 export class HUDPillProgress extends HUDElement {
-  protected config: HUDPillProgressConfig;
+  protected override config: HUDPillProgressConfig;
   private iconEl!: HTMLElement;
   private valueEl!: HTMLElement;
   private progressContainer!: HTMLElement;

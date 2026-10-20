@@ -6,7 +6,7 @@ import { HUDElement } from "../HUDElement";
 import type { HUDButtonConfig } from "../HUDTypes";
 
 export class HUDButton extends HUDElement {
-  protected config: HUDButtonConfig;
+  protected override config: HUDButtonConfig;
   private iconEl!: HTMLElement;
   private active: boolean = false;
 

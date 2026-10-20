@@ -102,13 +102,13 @@ async function loadClientMapWithSystems(
     }
 
     const controller = cameraSystem.getActiveController();
-    if (controller && (controller as any).setPosition) {
+    if (controller?.setPosition) {
       console.log(`[ClientMapLoader] Teleporting ${controller.type} to ${spawnPos}`);
-      (controller as any).setPosition(spawnPos);
+      controller.setPosition(spawnPos);
 
       setTimeout(() => {
         if (cameraSystem.getActiveController() === controller) {
-          (controller as any).setPosition(spawnPos);
+          controller.setPosition?.(spawnPos);
         }
       }, 100);
     } else {

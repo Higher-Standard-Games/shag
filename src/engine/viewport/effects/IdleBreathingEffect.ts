@@ -98,7 +98,7 @@ export class IdleBreathingEffect extends BaseViewportEffect {
     return delta;
   }
 
-  reset(): void {
+  override reset(): void {
     this.breathCycle = 0;
   }
 }

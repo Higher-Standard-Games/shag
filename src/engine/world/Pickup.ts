@@ -378,11 +378,8 @@ export class Pickup extends TransformNode {
     const camera = CameraSystem.getInstance().getCamera();
     if (!camera) return null;
     const controller = CameraSystem.getInstance().getActiveController();
-    // biome-ignore lint/suspicious/noExplicitAny: controller adapter shape
-    const anyCtl = controller as any;
-    if (anyCtl && typeof anyCtl.getPlayerPosition === "function") {
-      return anyCtl.getPlayerPosition() as Vector3;
-    }
+    const playerPosition = controller?.getPlayerPosition?.();
+    if (playerPosition) return playerPosition;
     return camera.position;
   }
 
@@ -647,7 +644,7 @@ export class Pickup extends TransformNode {
   // Dispose
   // ═════════════════════════════════════════════════════════════════
 
-  public dispose(): void {
+  public override dispose(): void {
     if (this._renderObserver) {
       this.getScene().onBeforeRenderObservable.remove(this._renderObserver);
       this._renderObserver = null;

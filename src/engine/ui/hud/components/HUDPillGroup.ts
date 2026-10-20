@@ -7,7 +7,7 @@ import type { HUDManager } from "../HUDManager";
 import type { HUDPillGroupChild, HUDPillGroupConfig } from "../HUDTypes";
 
 export class HUDPillGroup extends HUDElement {
-  protected config: HUDPillGroupConfig;
+  protected override config: HUDPillGroupConfig;
   private manager: HUDManager;
   private childElements: Map<string, HTMLElement> = new Map();
 

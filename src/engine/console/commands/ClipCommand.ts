@@ -27,19 +27,13 @@ export default class ClipCommand extends Command {
       return "No active camera controller";
     }
 
-    // Toggle collision on controller if it supports it
-    if ("setCollision" in controller) {
-      const current = (controller as any).hasCollision?.() ?? true;
-      (controller as any).setCollision(!current);
-      return `Collision: ${!current ? "ON" : "OFF (noclip)"}`;
+    // Only the free-fly camera has a collision switch; first-person play always collides.
+    if (controller.type !== "freefly") {
+      return "noclip works in the free-fly camera";
     }
-
-    // For freefly, toggle collision flag
-    if ("collisionEnabled" in controller) {
-      (controller as any).collisionEnabled = !(controller as any).collisionEnabled;
-      return `Collision: ${(controller as any).collisionEnabled ? "ON" : "OFF (noclip)"}`;
-    }
-
-    return "Current controller does not support collision toggle";
+    const { FreeflyController } = await import("../../camera/controllers/FreeflyController");
+    const enabled = !FreeflyController.isCollisionEnabled();
+    FreeflyController.setCollisionEnabled(enabled);
+    return `Collision: ${enabled ? "ON" : "OFF (noclip)"}`;
   }
 }

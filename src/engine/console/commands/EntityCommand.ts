@@ -77,7 +77,7 @@ export default class EntityCommand extends Command {
     }
   }
 
-  getCompletions(_input: string, args: string[]): string[] {
+  override getCompletions(_input: string, args: string[]): string[] {
     if (args.length === 0) {
       return ["list", "count", "info"];
     }

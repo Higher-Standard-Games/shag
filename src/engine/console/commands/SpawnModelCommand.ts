@@ -449,7 +449,7 @@ export default class SpawnModelCommand extends Command {
   // Autocomplete
   // ============================================================================
 
-  getCompletions(_input: string, args: string[]): string[] {
+  override getCompletions(_input: string, args: string[]): string[] {
     const subcommands = ["list", "clear", "info", "anim", "rotate", "move", "scale", "remove", "lighting"];
 
     if (args.length === 0) {

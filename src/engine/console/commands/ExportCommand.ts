@@ -32,7 +32,7 @@ export default class ExportCommand extends Command {
       }
 
       case "camera": {
-        const camera = (window as any).camera;
+        const camera = window.camera;
         if (!camera) return "Camera not available";
 
         const cam = camera.get?.();
@@ -52,7 +52,7 @@ export default class ExportCommand extends Command {
       }
 
       case "fx": {
-        const fx = (window as any).fx;
+        const fx = window.fx;
         if (!fx) return "Post-processing not available";
 
         const settings = fx.settings?.();
@@ -82,7 +82,7 @@ export default class ExportCommand extends Command {
     }
   }
 
-  getCompletions(_input: string, args: string[]): string[] {
+  override getCompletions(_input: string, args: string[]): string[] {
     if (args.length === 0) {
       return ["all", "cvars", "camera", "fx"];
     }

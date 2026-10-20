@@ -6,7 +6,7 @@ import { HUDElement } from "../HUDElement";
 import type { HUDPillConfig } from "../HUDTypes";
 
 export class HUDPill extends HUDElement {
-  protected config: HUDPillConfig;
+  protected override config: HUDPillConfig;
   private iconEl!: HTMLElement;
   private valueEl!: HTMLElement;
   private currentValue: any = null;

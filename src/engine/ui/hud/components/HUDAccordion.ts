@@ -7,7 +7,7 @@ import type { HUDManager } from "../HUDManager";
 import type { HUDAccordionConfig } from "../HUDTypes";
 
 export class HUDAccordion extends HUDElement {
-  protected config: HUDAccordionConfig;
+  protected override config: HUDAccordionConfig;
   private manager: HUDManager;
   private headerEl!: HTMLElement;
   private iconEl!: HTMLElement;
@@ -222,7 +222,7 @@ export class HUDAccordion extends HUDElement {
   /**
    * Toggle collapsed state
    */
-  public toggle(): void {
+  public override toggle(): void {
     if (this.collapsed) {
       this.expand();
     } else {
