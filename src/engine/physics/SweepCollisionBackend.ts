@@ -58,6 +58,7 @@ const SurfaceFlags = {
 
 // Default content mask for player collision
 const PLAYER_CONTENTS = ContentFlags.SOLID | ContentFlags.PLAYERCLIP;
+const NO_LIFTS: LiftSystem["definitions"] = [];
 
 interface CollisionTexture {
   name: string;
@@ -623,15 +624,17 @@ export class SweepCollisionBackend implements CollisionBackend {
     if (onlyModel < 0) this.traceAllClipBrushes(state);
 
     // Inline brushes use model-local traces; retain the earliest world/model hit.
-    for (const d of this.lifts?.definitions ?? []) {
+    const lifts = this.lifts;
+    const liftDefs = lifts?.definitions ?? NO_LIFTS;
+    for (let li = 0; li < liftDefs.length; li++) {
+      const d = liftDefs[li];
       if (d.modelIndex === excludeModel || (onlyModel >= 0 && d.modelIndex !== onlyModel)) continue;
-      const offset = this.lifts!.offset(d.modelIndex)!;
       // Q3 axes: the lift's Babylon y is Q3 z. Written into a reused array
       // with a plain loop: this runs for every lift on every trace.
       const shift = this._liftShift;
-      shift[0] = offset.x;
-      shift[1] = offset.z;
-      shift[2] = offset.y;
+      shift[0] = d.origin.x;
+      shift[1] = d.origin.z;
+      shift[2] = d.origin.y + lifts!.travelAt(li);
       const model = this.bsp.models[d.modelIndex];
       let apart = false;
       for (let j = 0; j < 3 && !apart; j++) {
@@ -1573,12 +1576,14 @@ export class SweepCollisionBackend implements CollisionBackend {
       }
     }
 
-    for (const d of this.lifts?.definitions ?? []) {
-      const offset = this.lifts!.offset(d.modelIndex)!;
+    const lifts = this.lifts;
+    const liftDefs = lifts?.definitions ?? NO_LIFTS;
+    for (let li = 0; li < liftDefs.length; li++) {
+      const d = liftDefs[li];
       const local = this._pcLocal;
-      local[0] = point.x - offset.x;
-      local[1] = point.z - offset.z;
-      local[2] = point.y - offset.y;
+      local[0] = point.x - d.origin.x;
+      local[1] = point.z - d.origin.z;
+      local[2] = point.y - (d.origin.y + lifts!.travelAt(li));
       const model = this.bsp.models[d.modelIndex];
       let outside = false;
       for (let j = 0; j < 3 && !outside; j++) outside = local[j] < model.mins[j] || local[j] > model.maxs[j];

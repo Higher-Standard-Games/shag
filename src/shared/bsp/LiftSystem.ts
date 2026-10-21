@@ -209,6 +209,10 @@ export class LiftSystem {
       for (let i = 0; i < this.states.length; i++) this.states[i].offset = saved[i];
     }
   }
+  /** Current vertical travel of the mover at definitions[index], without allocating. */
+  travelAt(index: number): number {
+    return this.states[index].offset;
+  }
   offset(modelIndex: number): Vec3 | undefined {
     const i = this.byModel.get(modelIndex);
     if (i === undefined) return undefined;

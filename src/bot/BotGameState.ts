@@ -374,6 +374,11 @@ export class BotGameState {
     }
 
     // ── Process entities ─────────────────────────────────────────────
+    // One pass over the roster instead of a roster scan per entity.
+    const playerByEntity = new Map<string, { playerId: string; player: PlayerState }>();
+    for (const [playerId, player] of snapshot.players) {
+      if (player.entityId && playerId !== this.selfPlayerId) playerByEntity.set(player.entityId, { playerId, player });
+    }
     for (const [entityId, entity] of snapshot.entities) {
       const transform = entity.getComponent<TransformComponent>("transform");
       const position = transform?.position
@@ -409,7 +414,7 @@ export class BotGameState {
       }
 
       // Is this another player? Check if any player maps to this entityId
-      const playerEntry = this._findPlayerByEntityId(snapshot, entityId);
+      const playerEntry = playerByEntity.get(entityId);
       if (playerEntry) {
         const distance = vec3Distance(this.self.position, position);
         const team = playerEntry.player.team || "";
@@ -483,6 +488,7 @@ export class BotGameState {
     }
 
     // ── Process events ───────────────────────────────────────────────
+    const seenPlayer = new Map(this.players.map((p) => [p.entityId, p]));
     for (const event of snapshot.events) {
       switch (event.type) {
         case "match_state": {
@@ -536,7 +542,7 @@ export class BotGameState {
             }
           }
           // Mark dead players
-          const deadPlayer = this.players.find((p) => p.entityId === evt.entityId);
+          const deadPlayer = seenPlayer.get(evt.entityId);
           if (deadPlayer) {
             deadPlayer.isDead = evt.dead;
           }
@@ -614,7 +620,7 @@ export class BotGameState {
           if (evt.entityId !== this.selfEntityId && !this.perceptionManaged) {
             const firePos = { x: evt.originX, y: evt.originY, z: evt.originZ };
             // Find which player fired
-            const firingPlayer = this.players.find((p) => p.entityId === evt.entityId);
+            const firingPlayer = seenPlayer.get(evt.entityId);
             if (firingPlayer?.relation === "enemy") {
               this.lastKnownEnemyPositions.set(firingPlayer.playerId, {
                 position: firePos,
@@ -742,19 +748,5 @@ export class BotGameState {
       }
     }
     return minTeam || undefined;
-  }
-
-  // ── Private helpers ─────────────────────────────────────────────────
-
-  private _findPlayerByEntityId(
-    snapshot: GameState,
-    entityId: string,
-  ): { playerId: string; player: PlayerState } | null {
-    for (const [playerId, player] of snapshot.players) {
-      if (player.entityId === entityId && playerId !== this.selfPlayerId) {
-        return { playerId, player };
-      }
-    }
-    return null;
   }
 }

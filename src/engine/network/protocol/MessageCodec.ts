@@ -101,6 +101,19 @@ export class MessageCodec {
   }
 
   /**
+   * Read just the sequence number of an input message, or null when the bytes
+   * don't look like one. Clients send each command three times, so the server
+   * checks this first and skips the full decode for the copies it has seen.
+   * Layout: [MessageType.Input][u16 playerId length][playerId][u32 sequence], little-endian.
+   */
+  static peekCommandSeq(data: Uint8Array): number | null {
+    if (data.length < 3 || data[0] !== MessageType.Input) return null;
+    const at = 3 + (data[1] | (data[2] << 8));
+    if (data.length < at + 4) return null;
+    return (data[at] | (data[at + 1] << 8) | (data[at + 2] << 16)) + data[at + 3] * 0x1000000;
+  }
+
+  /**
    * Decode a command message
    */
   static decodeCommand(data: Uint8Array): { playerId: string; sequence: number; command: NetworkCommand } {

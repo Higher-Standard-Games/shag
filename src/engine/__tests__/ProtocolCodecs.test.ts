@@ -1067,3 +1067,34 @@ describe("MessageCodec.encodeSnapshot — envelope", () => {
     expect(() => MessageCodec.decodeSnapshot(MessageCodec.encodeReady())).toThrow(/Expected Snapshot/);
   });
 });
+
+describe("MessageCodec.peekCommandSeq", () => {
+  const cmd = {
+    type: "move" as const,
+    playerId: "p",
+    seq: 0,
+    direction: { x: 1, y: 0, z: 0 },
+    pitch: 0,
+    yaw: 0,
+    buttons: 0,
+  };
+
+  it("reads the same sequence the full decode does", () => {
+    for (const [id, seq] of [
+      ["p1", 0],
+      ["player-ünïcode", 42],
+      ["", 70000],
+      ["x".repeat(300), 0xfffffffe],
+    ] as const) {
+      const data = MessageCodec.encodeCommand(id, seq, cmd);
+      expect(MessageCodec.peekCommandSeq(data)).toBe(MessageCodec.decodeCommand(data).sequence);
+    }
+  });
+
+  it("returns null for other messages and truncated input", () => {
+    expect(MessageCodec.peekCommandSeq(MessageCodec.encodeReady())).toBeNull();
+    const data = MessageCodec.encodeCommand("p1", 5, cmd);
+    expect(MessageCodec.peekCommandSeq(data.subarray(0, 6))).toBeNull();
+    expect(MessageCodec.peekCommandSeq(new Uint8Array(0))).toBeNull();
+  });
+});
