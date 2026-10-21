@@ -30,9 +30,11 @@ function decodedFixture(format = 0x8058, errors?: string): IDecodedData {
     width: 4,
     height: 4,
     transcodedFormat: format,
+    layerCount: 1,
     mipmaps: [4, 2, 1].map((size, level) => ({
       width: size,
       height: size,
+      layerIndex: 0,
       // Distinct mips and asymmetric rows expose replacing a mip with base data.
       data: Uint8Array.from({ length: size * size * 4 }, (_, i) => level * 80 + i),
     })),

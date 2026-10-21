@@ -38,6 +38,9 @@ describe("aimed surface diagnostic", () => {
   it("reports overlapping layers and actual texture state through the console command without altering them", async () => {
     const floor = plane("floor", 0);
     floor.metadata = { textureName: "textures/floor", lightmapIndex: 3 };
+    // Map surfaces always carry a material; a bare mesh would make Babylon's
+    // picking create the scene's default material, which is not ours to check
+    floor.material = new StandardMaterial("floor-material", scene);
     const decal = plane("decal", -0.01);
     decal.metadata = { textureName: "textures/decal", lightmapIndex: -1 };
     const material = new StandardMaterial("decal-material", scene);

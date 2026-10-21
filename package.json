@@ -125,8 +125,8 @@
     "tools:sounds:audit": "vite-node src/cli/audit-sounds.ts"
   },
   "devDependencies": {
-    "@babylonjs/ktx2decoder": "9.17.0",
-    "@babylonjs/materials": "9.17.0",
+    "@babylonjs/ktx2decoder": "9.31.2",
+    "@babylonjs/materials": "9.31.2",
     "@biomejs/biome": "^2.3.8",
     "@fails-components/webtransport": "^1.5.2",
     "@gltf-transform/cli": "^4.3.0",
@@ -138,6 +138,7 @@
     "concurrently": "^9.2.1",
     "electron": "^40.6.1",
     "electron-builder": "^26.8.1",
+    "esbuild": "0.25.12",
     "jpeg-js": "0.4.4",
     "jsdom": "^28.1.0",
     "mermaid": "^11.17.2",
@@ -149,14 +150,13 @@
     "vitepress-plugin-mermaid": "^2.0.17",
     "vitest": "^3.2.3",
     "wait-on": "^9.0.4",
-    "ws": "^8.19.0",
-    "esbuild": "0.25.12"
+    "ws": "^8.19.0"
   },
   "dependencies": {
     "@2toad/profanity": "3.3.0",
-    "@babylonjs/core": "^9.17.0",
-    "@babylonjs/havok": "^1.3.13",
-    "@babylonjs/loaders": "^9.17.0",
+    "@babylonjs/core": "^9.31.2",
+    "@babylonjs/havok": "^1.3.14",
+    "@babylonjs/loaders": "^9.31.2",
     "@capacitor/android": "^8.0.0",
     "@capacitor/app": "^8.0.0",
     "@capacitor/cli": "^8.0.0",
