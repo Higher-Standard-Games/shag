@@ -1,5 +1,5 @@
 import { devLog } from "../../core/DevLog";
-import { sampleLightGrid } from "./LightGridSampling";
+import { sampleLightGrid, sampleLightGridInto } from "./LightGridSampling";
 /**
  * BspManager - High-level BSP map management
  *
@@ -579,6 +579,12 @@ export class BspManager {
   getLightingAt(position: Vector3): BspLightVol | null {
     if (!this.loadedBsp) return null;
     return sampleLightGrid(this.loadedBsp, [position.x, position.z, position.y]);
+  }
+
+  /** `getLightingAt` into a caller-owned result, for callers sampling every frame. */
+  getLightingInto(position: Vector3, out: BspLightVol): BspLightVol | null {
+    if (!this.loadedBsp) return null;
+    return sampleLightGridInto(this.loadedBsp, position.x, position.z, position.y, out);
   }
 
   // ============================================================================

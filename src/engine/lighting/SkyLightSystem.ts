@@ -922,6 +922,9 @@ export class SkyLightSystem {
   // ==================== CVar-Driven Day/Night ====================
 
   private lastCvarTime: number = -1;
+  /** The animated time of day, and the r_daynight_time it was last saved as. */
+  private animTime = 0.5;
+  private storedAnimTime = Number.NaN;
 
   /**
    * Update day/night cycle (call every frame)
@@ -950,17 +953,27 @@ export class SkyLightSystem {
       const cycleLength = Number(Cvar.get("r_daynight_length") ?? 1440);
       const speed = Number(Cvar.get("r_daynight_speed") ?? 1.0);
 
-      let time = Number(Cvar.get("r_daynight_time") ?? 0.5);
+      // The clock runs here; the cvar follows once a game minute. r_daynight_time
+      // is a saved setting, and writing it every frame re-saved every setting
+      // to browser storage every frame. A value set from the console still wins.
+      const stored = Number(Cvar.get("r_daynight_time") ?? 0.5);
+      let time = stored === this.storedAnimTime ? this.animTime : stored;
       // deltaTime is in ms, convert to seconds
       time += (deltaTime / 1000 / cycleLength) * speed;
       time = time % 1.0;
       if (time < 0) time += 1.0;
+      this.animTime = time;
 
-      Cvar.set("r_daynight_time", time);
+      if (Math.abs(time - stored) >= 1 / 1440) {
+        Cvar.set("r_daynight_time", time);
+        this.storedAnimTime = Number(Cvar.get("r_daynight_time") ?? time);
+      } else {
+        this.storedAnimTime = stored;
+      }
     }
 
-    // Get current time from cvar
-    const normalizedTime = Number(Cvar.get("r_daynight_time") ?? 0.5);
+    // Get current time: the running clock while animating, else the cvar
+    const normalizedTime = animate >= 0.5 ? this.animTime : Number(Cvar.get("r_daynight_time") ?? 0.5);
 
     // Only update lighting if time changed significantly
     const timeDiff = Math.abs(normalizedTime - this.lastCvarTime);

@@ -12,6 +12,7 @@ import type { PBRMaterial } from "@babylonjs/core/Materials/PBR/pbrMaterial";
 import type { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import type { Scene } from "@babylonjs/core/scene";
+import type { BspLightVol } from "../loader/bsp/BspLoader";
 import { BspManager } from "../loader/bsp/BspManager";
 
 // ── Constants ───────────────────────────────────────────────────────
@@ -26,6 +27,8 @@ export class WeaponLighting {
   private r = 1.0;
   private g = 1.0;
   private b = 1.0;
+  /** Light grid sample, refilled every frame. */
+  private readonly sample: BspLightVol = { ambient: [0, 0, 0], directional: [0, 0, 0], direction: [0, 0] };
 
   /**
    * Sample the BSP lightgrid at camera position and smooth-apply to weapon meshes.
@@ -40,7 +43,7 @@ export class WeaponLighting {
       if (!cameras || cameras.length === 0) return;
 
       const worldPos = cameras[0].globalPosition;
-      const lighting = BspManager.getInstance().getLightingAt(worldPos);
+      const lighting = BspManager.getInstance().getLightingInto(worldPos, this.sample);
 
       // Calculate target brightness from lightgrid
       let targetR = 1.0,

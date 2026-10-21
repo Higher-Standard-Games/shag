@@ -661,7 +661,11 @@ export class RenderVars {
       // Determine type based on var characteristics
       const isDebug = def.category === "debug";
       const fractionalWater = name === "r_water_blur" || name === "r_water_detail" || name === "r_water_contact";
-      const isInt = name === "r_anisotropy" || name === "r_picmip" || (def.max === 1 && !fractionalWater);
+      // A 0..1 var is a switch only when its default is whole. Fractional ones
+      // (god-ray density and decay, the day/night time, moon and lightmap
+      // levels) were registered as ints, so every set rounded them to 0 or 1.
+      const fractional = fractionalWater || !Number.isInteger(def.defaultValue);
+      const isInt = name === "r_anisotropy" || name === "r_picmip" || (def.max === 1 && !fractional);
 
       Cvar.register(name, def.value, {
         type: isInt ? "int" : "float",

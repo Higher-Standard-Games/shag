@@ -13,7 +13,7 @@ import { WeaponLighting } from "../weapon/WeaponLighting";
 import { WeaponSlash } from "../weapon/WeaponSlash";
 
 const grid = vi.hoisted(() => vi.fn());
-vi.mock("../loader/bsp/BspManager", () => ({ BspManager: { getInstance: () => ({ getLightingAt: grid }) } }));
+vi.mock("../loader/bsp/BspManager", () => ({ BspManager: { getInstance: () => ({ getLightingInto: grid }) } }));
 afterEach(() => vi.restoreAllMocks());
 
 it("feathers the low-opacity swing and retires its texture when the trail expires", () => {
@@ -90,7 +90,7 @@ it("tints the metal specular light from the world camera lightgrid with a visibi
     const lighting = new WeaponLighting();
     grid.mockReturnValue({ ambient: [200, 30, 0], directional: [0, 0, 0] });
     lighting.update(1, scene, [mesh], light);
-    expect(grid).toHaveBeenCalledWith(camera.globalPosition);
+    expect(grid).toHaveBeenCalledWith(camera.globalPosition, expect.any(Object));
     expect(light.specular.r).toBeGreaterThan(light.specular.g);
     expect(light.specular.g).toBeGreaterThanOrEqual(0.49);
     expect(light.diffuse.equals(light.specular)).toBe(true);
