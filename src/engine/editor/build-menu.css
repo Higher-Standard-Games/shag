@@ -1,0 +1,29 @@
+/* SHAGGED Build key: Compile, Playtest and the status/log under one menu, with
+   a dot on the key for the build state. Loaded after editor.css. */
+.shagged__toolbar .shagged__menu--build > summary {
+  gap: 7px;
+  font-size: 12px;
+}
+.shagged__menu--build .shagged__menu-panel {
+  left: auto;
+  right: 0;
+  min-width: 190px;
+}
+.shagged__build-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #6b7280;
+}
+.shagged__build-dot[data-state="ok"] {
+  background: #2fd17a;
+  box-shadow: 0 0 6px #2fd17a;
+}
+.shagged__build-dot[data-state="working"] {
+  background: #ff9d2e;
+  box-shadow: 0 0 6px #ff9d2e;
+}
+.shagged__build-dot[data-state="failed"] {
+  background: #ff4d5e;
+  box-shadow: 0 0 6px #ff4d5e;
+}

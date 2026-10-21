@@ -105,6 +105,7 @@ import "./file-panel.css";
 import "./draw-tools.css";
 import "./edge-tabs.css";
 import "./entity-key.css";
+import "./build-menu.css";
 
 type ViewMode = "brush" | "textured" | "wireframe";
 const VIEW_MODES: ReadonlyArray<[ViewMode, string, string]> = [
@@ -491,10 +492,12 @@ export class EditorSession {
           </div></details>
         </div>
         <div class="shagged__toolgroup" aria-label="Build actions">
-          <span class="shagged__group-label">BUILD</span>
-          <button data-action="compile" disabled title="Connecting to SHAGGED server">Compile</button>
-          <button data-action="compile-status" title="Check server and compile status">Status: offline</button>
-          <button data-action="playtest" disabled title="A compiled, playable build is required">Playtest</button>
+          <details class="shagged__menu shagged__menu--build"><summary title="Compile, status and playtest">Build<i class="shagged__build-dot" data-build-dot></i></summary><div class="shagged__menu-panel">
+            <button data-action="compile" disabled title="Connecting to SHAGGED server">Compile</button>
+            <button data-action="playtest" disabled title="A compiled, playable build is required">Playtest</button>
+            <span class="shagged__menu-rule" aria-hidden="true"></span>
+            <button data-action="compile-status" title="Check server and compile status">Status: offline</button>
+          </div></details>
         </div>
       </header>
       <main class="shagged__workspace">
@@ -1468,6 +1471,18 @@ export class EditorSession {
         : this.serverStatus
           ? "Status: no compiler"
           : "Status: offline";
+    // the dot on the Build key: grey offline, green ready or playable, amber working, red failed
+    const state = this.compileJob?.state;
+    const dot = this.root.querySelector<HTMLElement>("[data-build-dot]")!;
+    dot.dataset.state =
+      state === "failed"
+        ? "failed"
+        : state === "queued" || state === "running"
+          ? "working"
+          : state || this.serverStatus?.compilerAvailable
+            ? "ok"
+            : "off";
+    dot.title = status.textContent;
     const lines = this.compileJob
       ? [
           `${this.compileJob.mapName} · revision ${this.compileJob.revision} · ${this.compileJob.state} · ${this.compileJob.stage}`,
