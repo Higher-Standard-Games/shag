@@ -68,3 +68,18 @@
 .shagged__edge button.active b {
   color: #ffe787;
 }
+/* the texture new brushes get, under the Textures label */
+.shagged__edge small {
+  max-height: 130px;
+  padding: 5px 2px;
+  overflow: hidden;
+  color: #ffe787;
+  background: #171129;
+  font-size: 10px;
+  letter-spacing: 0;
+  text-overflow: ellipsis;
+  text-transform: none;
+  white-space: nowrap;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}

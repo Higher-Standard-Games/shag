@@ -479,16 +479,6 @@
 .shagged__inspector .shagged__warning[hidden] {
   display: none;
 }
-.shagged__current-texture {
-  max-width: 150px;
-  overflow: hidden;
-  padding: 3px 6px;
-  color: #ffc61a;
-  border: 1px dashed #5a6b86;
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 .shagged__faces {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

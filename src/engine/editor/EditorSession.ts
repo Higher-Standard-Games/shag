@@ -481,7 +481,6 @@ export class EditorSession {
               <label>Class <select data-entity-class aria-label="Entity class" title="Class placed by the Entity tool"></select></label>
             </div></details>
           </div>
-          <span class="shagged__current-texture" data-current-texture title="Texture new brushes get (T to change)"></span>
           <button data-action="health" title="Map Health (H)">Health</button>
         </div>
         <div class="shagged__toolgroup" aria-label="View actions">
@@ -510,7 +509,7 @@ export class EditorSession {
       </section>
       <aside class="shagged__inspector"></aside>
       <nav class="shagged__edge" aria-label="Browsers">
-        <button data-action="textures" data-edge="textures" title="Texture browser (T)" aria-keyshortcuts="T" aria-expanded="false"><i aria-hidden="true"></i><span><b>T</b>extures</span></button>
+        <button data-action="textures" data-edge="textures" title="Texture browser (T)" aria-keyshortcuts="T" aria-expanded="false"><i aria-hidden="true"></i><span><b>T</b>extures</span><small data-current-texture></small></button>
         <button data-action="models" data-edge="models" title="Model browser (M)" aria-keyshortcuts="M" aria-expanded="false"><i aria-hidden="true"></i><span><b>M</b>odels</span></button>
       </nav>
       <footer class="shagged__status"></footer>`;
@@ -1389,7 +1388,9 @@ export class EditorSession {
 
   private renderCurrentTexture(): void {
     const label = this.root.querySelector<HTMLElement>("[data-current-texture]");
-    if (label) label.textContent = this.currentTexture.name;
+    if (!label) return;
+    label.textContent = this.currentTexture.name;
+    label.title = `New brushes get ${this.currentTexture.name}`;
   }
 
   showError(message: string): void {
