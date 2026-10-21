@@ -16,6 +16,7 @@ import { VertexOutputBlock } from "@babylonjs/core/Materials/Node/Blocks/Vertex/
 import { VectorMergerBlock } from "@babylonjs/core/Materials/Node/Blocks/vectorMergerBlock";
 import { NodeMaterialSystemValues } from "@babylonjs/core/Materials/Node/Enums/nodeMaterialSystemValues";
 import { NodeMaterial } from "@babylonjs/core/Materials/Node/nodeMaterial";
+import type { NodeMaterialConnectionPoint } from "@babylonjs/core/Materials/Node/nodeMaterialBlockConnectionPoint";
 import { ShaderLanguage } from "@babylonjs/core/Materials/shaderLanguage";
 import type { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import type { Scene } from "@babylonjs/core/scene";
@@ -165,8 +166,9 @@ export class Q3NodeMaterialBuilder {
     // Build Texture Stages
     // ========================================================================
 
-    // biome-ignore lint/suspicious/noExplicitAny: Babylon.js internal API access
-    let currentColor: any = null; // Output connection to chain
+    // Output connection to chain. validStages is non-empty here, so the first
+    // loop iteration always sets it; the `!` uses below rely on that.
+    let currentColor: NodeMaterialConnectionPoint | null = null;
 
     for (let i = 0; i < validStages.length; i++) {
       const { stage, texture, index } = validStages[i];
@@ -248,7 +250,7 @@ export class Q3NodeMaterialBuilder {
 
       // Multiply lightmap with current color
       const lightmapMul = new MultiplyBlock("lightmapBlend");
-      currentColor.connectTo(lightmapMul.left);
+      currentColor!.connectTo(lightmapMul.left);
       lightmapTex.rgb.connectTo(lightmapMul.right);
 
       // Optional intensity boost
@@ -270,7 +272,7 @@ export class Q3NodeMaterialBuilder {
     // ========================================================================
 
     const fragmentOutput = new FragmentOutputBlock("fragmentOutput");
-    currentColor.connectTo(fragmentOutput.rgb);
+    currentColor!.connectTo(fragmentOutput.rgb);
 
     // Alpha from first stage texture
     if (validStages.length > 0) {

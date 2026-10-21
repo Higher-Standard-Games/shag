@@ -168,7 +168,7 @@ export class LoadingScreen {
    */
   public static forceDismiss(): void {
     const instance = LoadingScreen.instance;
-    if (!instance || !instance.readyResolver) return;
+    if (!instance?.readyResolver) return;
     instance.start();
     devLog("[LoadingScreen] Force dismissed by console");
   }

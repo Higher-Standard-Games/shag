@@ -29,7 +29,7 @@ export const isFixtureId = (id: string): boolean => typeof id === "string" && /^
 /** Validate before loading a map or terminating a live session. */
 export function validateTimedemoFixture(value: unknown): TimedemoFixture {
   const f = value as TimedemoFixture;
-  if (!f || f.schemaVersion !== 1) throw new Error("Unsupported timedemo fixture. Regenerate with the current recipe.");
+  if (f?.schemaVersion !== 1) throw new Error("Unsupported timedemo fixture. Regenerate with the current recipe.");
   if (!isFixtureId(f.id ?? "")) throw new Error("Invalid fixture ID");
   if (!f.demo || !/^[a-f0-9]{64}$/.test(f.demo.sha256) || f.demo.file !== "demo.shagdemo") {
     throw new Error("Invalid timedemo recording reference/hash");

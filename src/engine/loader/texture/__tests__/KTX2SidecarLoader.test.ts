@@ -98,58 +98,59 @@ describe("KTX2 sidecar uploads", () => {
     expect(texture.invertY).toBe(true);
   });
 
-  it.each([
-    0x8058, 0x8229, 0x822b,
-  ])("preserves every raw mip and reports the base extent (format %i)", async (format) => {
-    const decoded = decodedFixture(format);
-    const texture = new InternalTexture(engine, InternalTextureSource.Url);
-    texture.invertY = true;
-    const uploads: unknown[] = [];
-    vi.spyOn(engine, "_uploadDataToTextureDirectly").mockImplementation(
-      (
-        target: InternalTexture,
-        bytes: ArrayBufferView,
-        face?: number,
-        lod?: number,
-        _format?: number,
-        exactSize?: boolean,
-      ) => {
-        uploads.push({
-          width: target.width,
-          height: target.height,
-          bytes,
-          face,
+  it.each([0x8058, 0x8229, 0x822b])(
+    "preserves every raw mip and reports the base extent (format %i)",
+    async (format) => {
+      const decoded = decodedFixture(format);
+      const texture = new InternalTexture(engine, InternalTextureSource.Url);
+      texture.invertY = true;
+      const uploads: unknown[] = [];
+      vi.spyOn(engine, "_uploadDataToTextureDirectly").mockImplementation(
+        (
+          target: InternalTexture,
+          bytes: ArrayBufferView,
+          face?: number,
+          lod?: number,
+          _format?: number,
+          exactSize?: boolean,
+        ) => {
+          uploads.push({
+            width: target.width,
+            height: target.height,
+            bytes,
+            face,
+            lod,
+            exactSize,
+            invertY: target.invertY,
+          });
+        },
+      );
+      expect(await load(new KTX2SidecarLoader(), texture)).toEqual({ width: 4, height: 4, mips: true, failed: false });
+      expect(uploads).toEqual(
+        decoded.mipmaps.map((mip, lod) => ({
+          width: mip.width,
+          height: mip.height,
+          bytes: mip.data,
+          face: 0,
           lod,
-          exactSize,
-          invertY: target.invertY,
-        });
-      },
-    );
-    expect(await load(new KTX2SidecarLoader(), texture)).toEqual({ width: 4, height: 4, mips: true, failed: false });
-    expect(uploads).toEqual(
-      decoded.mipmaps.map((mip, lod) => ({
-        width: mip.width,
-        height: mip.height,
-        bytes: mip.data,
-        face: 0,
-        lod,
-        exactSize: true,
-        invertY: false,
-      })),
-    );
-    expect(texture.width).toBe(4);
-    expect(texture.height).toBe(4);
-    expect(texture._gammaSpace).toBe(true);
-    expect(texture.isReady).toBe(true);
-    expect(texture._extension).toBe(KTX2_SIDECAR_EXTENSION);
+          exactSize: true,
+          invertY: false,
+        })),
+      );
+      expect(texture.width).toBe(4);
+      expect(texture.height).toBe(4);
+      expect(texture._gammaSpace).toBe(true);
+      expect(texture.isReady).toBe(true);
+      expect(texture._extension).toBe(KTX2_SIDECAR_EXTENSION);
 
-    // Babylon's real restoration method must select this loader again.
-    texture.url = "data/ktx2cache/fixture.ktx2";
-    const create = vi.spyOn(engine, "createTexture");
-    texture._rebuild();
-    expect(create.mock.calls[0][2]).toBe(false);
-    expect(create.mock.calls[0][10]).toBe(KTX2_SIDECAR_EXTENSION);
-  });
+      // Babylon's real restoration method must select this loader again.
+      texture.url = "data/ktx2cache/fixture.ktx2";
+      const create = vi.spyOn(engine, "createTexture");
+      texture._rebuild();
+      expect(create.mock.calls[0][2]).toBe(false);
+      expect(create.mock.calls[0][10]).toBe(KTX2_SIDECAR_EXTENSION);
+    },
+  );
 
   it("preserves compressed mips without routing them through raw upload", async () => {
     const data = decodedFixture(33779);

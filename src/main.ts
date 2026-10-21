@@ -28,6 +28,7 @@ import { CapacitorBridge } from "./engine/core/CapacitorBridge";
 import { Cvar } from "./engine/core/Cvar";
 import { EngineVersion } from "./engine/core/EngineVersion";
 import { GamePaths } from "./engine/core/GamePaths";
+import type { LoadingProgressEvent, LoadingStartEvent } from "./engine/core/LoadingEvents";
 import { DebugConsole } from "./engine/debug";
 import { BrowserEditorHost } from "./engine/editor/BrowserEditorHost";
 import { PLAYTEST_RETURN_KEY, registerEditorLauncher } from "./engine/editor/EditorLauncher";
@@ -180,7 +181,7 @@ async function main() {
 
   // Pipe map loading progress into the splash screen
   const { EventBus } = await import("./engine/core/EventBus");
-  const unsubProgress = EventBus.on("loading:progress", (data: any) => {
+  const unsubProgress = EventBus.on("loading:progress", (data: LoadingProgressEvent | undefined) => {
     if (data?.type === "map" && data?.phase) {
       loadingScreen.setStatus(data.detail || data.phase);
     }
@@ -316,7 +317,7 @@ async function main() {
   // Uses loading:start (not map:loaded) so it fires IMMEDIATELY, not after map finishes.
   import("./engine/core/EventBus")
     .then(({ EventBus }) => {
-      EventBus.on("loading:start", (data: any) => {
+      EventBus.on("loading:start", (data: LoadingStartEvent | undefined) => {
         if (data?.type !== "map") return;
         // Don't hide for background ui map
         if (data?.id === "ui") return;

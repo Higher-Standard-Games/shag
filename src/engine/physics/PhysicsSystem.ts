@@ -15,6 +15,7 @@ import { PhysicsShapeType } from "@babylonjs/core/Physics/v2/IPhysicsEnginePlugi
 import { HavokPlugin } from "@babylonjs/core/Physics/v2/Plugins/havokPlugin";
 import { PhysicsAggregate } from "@babylonjs/core/Physics/v2/physicsAggregate";
 import type { Scene } from "@babylonjs/core/scene";
+import type { HavokPhysicsWithBindings } from "@babylonjs/havok";
 import { devLog } from "../core/DevLog";
 import "@babylonjs/core/Physics/v2/physicsEngineComponent";
 // Side effect: registers Scene.prototype.enablePhysics / getPhysicsEngine.
@@ -45,7 +46,7 @@ export class PhysicsSystem {
 
   private scene: Scene | null = null;
   private havokPlugin: HavokPlugin | null = null;
-  private havokInstance: any = null;
+  private havokInstance: HavokPhysicsWithBindings | null = null;
   private initialized: boolean = false;
   private initializing: boolean = false;
 
@@ -336,8 +337,7 @@ export class PhysicsSystem {
 
     // Havok plugin stores gravity internally
     if (this.havokPlugin) {
-      const g = new Vector3();
-      (this.havokPlugin as any).getGravity?.(g);
+      const g = this.havokPlugin.getGravity();
       if (g.length() > 0) return g;
     }
 

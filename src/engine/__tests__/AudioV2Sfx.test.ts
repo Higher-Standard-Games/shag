@@ -105,7 +105,7 @@ describe("AudioV2Sfx", () => {
     await audio.play2D("hit.wav", { channel: "hits" });
     await audio.play3D("step.ogg", new Vector3(), { channel: "players" });
     const outBuses = engine.createSoundAsync.mock.calls.map(
-      ([, , options]) => (options?.outBus as { name: string }).name,
+      ([, , options]) => (options!.outBus as { name: string }).name,
     );
     expect(outBuses).toEqual(["sfx-hits", "sfx-players"]);
 

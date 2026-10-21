@@ -135,7 +135,7 @@ async function runTest() {
 
     // Update input
     input.buttons = buttons;
-    (input as any).isPressed = (btn: number) => (buttons & btn) !== 0;
+    input.isPressed = (btn: number) => (buttons & btn) !== 0;
 
     // Run physics
     const result = movement.simulate(position, velocity, input, deltaTime, collision);

@@ -541,7 +541,7 @@ export class MapLoader {
       try {
         const { getCollisionManager } = await import("../../physics");
         const cm = getCollisionManager();
-        await cm.init(bsp, scene as never, "q3");
+        await cm.init(bsp, scene, "q3");
         devLog(`[MapLoader] Collision initialized with ${cm.getBackendType()} backend`);
       } catch (e) {
         console.warn("[MapLoader] Failed to initialize collision:", e);

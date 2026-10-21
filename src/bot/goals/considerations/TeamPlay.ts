@@ -56,7 +56,7 @@ export const CarrierProtect: Consideration = {
     // Only an `escort` directive identifies a carrier. Without one there is
     // nobody to protect, and guessing would be worse than abstaining.
     const directive = ctx.goal.directive;
-    if (!directive || directive.kind !== "escort") return 0;
+    if (directive?.kind !== "escort") return 0;
     const target = directive.target;
     if (target.type !== "player") return 0;
 

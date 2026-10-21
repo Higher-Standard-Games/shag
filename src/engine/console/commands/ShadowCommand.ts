@@ -55,7 +55,7 @@ export default class ShadowCommand extends Command {
         }
         for (const sg of shadowGenerators) {
           if (sg && "mapSize" in sg) {
-            (sg as any).mapSize = quality;
+            sg.mapSize = quality;
           }
         }
         return `Shadow map size set to ${quality}`;

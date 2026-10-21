@@ -10,6 +10,7 @@ import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Scene } from "@babylonjs/core/scene";
 import { devLog } from "../../core/DevLog";
+import type { BspBrush, BspFile } from "../../loader/bsp/BspLoader";
 import { Command, type CommandDef } from "../Command";
 
 // Visualization state
@@ -495,8 +496,8 @@ export class FreeflyCollisionCommand extends Command {
   }
 
   private buildClipBrushMesh(
-    bsp: any,
-    brush: any,
+    bsp: BspFile,
+    brush: BspBrush,
     oobMin: Vector3,
     oobMax: Vector3,
   ): { positions: number[]; indices: number[]; normals: number[] } | null {

@@ -92,6 +92,46 @@ export interface Transport {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// OPTIONAL WEBTRANSPORT LIBRARY SHAPES
+// ═══════════════════════════════════════════════════════════════════
+
+// The server library is an optional dynamic import with no resolvable types
+// (see loadWebTransportModule), so these interfaces name only the members this
+// file calls on it.
+
+/** An incoming bidirectional stream; only its readable side is read. */
+interface WebTransportLibStream {
+  readable: ReadableStream<Uint8Array>;
+}
+
+/** A client session as this transport uses it. */
+interface WebTransportLibSession {
+  remoteAddress?: string;
+  datagrams: {
+    readable: ReadableStream<Uint8Array>;
+    writable: WritableStream<Uint8Array>;
+  };
+  incomingBidirectionalStreams: ReadableStream<WebTransportLibStream>;
+  createUnidirectionalStream(): Promise<{ writable: WritableStream<Uint8Array> }>;
+  close(closeInfo: { closeCode: number; reason: string }): void;
+  once(event: "close", listener: () => void): void;
+}
+
+/** A server instance as this transport uses it. */
+interface WebTransportLibServer {
+  on(event: "session", listener: (session: WebTransportLibSession) => Promise<void>): void;
+  listen(): Promise<void>;
+  close?(): Promise<void> | void;
+}
+
+type WebTransportLibServerClass = new (options: {
+  host: string;
+  port: number;
+  cert: Buffer;
+  key: Buffer;
+}) => WebTransportLibServer;
+
+// ═══════════════════════════════════════════════════════════════════
 // WEBTRANSPORT SERVER TRANSPORT
 // ═══════════════════════════════════════════════════════════════════
 
@@ -108,8 +148,7 @@ export class WebTransportServerTransport implements Transport {
   private events: TransportEvents;
   private clients: Map<string, WebTransportClientConnection> = new Map();
   private running: boolean = false;
-  // biome-ignore lint/suspicious/noExplicitAny: WebTransport server instance from optional dynamic import
-  private server: any = null; // WebTransportServer instance
+  private server: WebTransportLibServer | null = null;
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
   private nextClientId: number = 1;
 
@@ -155,8 +194,7 @@ export class WebTransportServerTransport implements Transport {
     console.log(`[WebTransport] Server ready on ${this.config.host}:${this.config.port}`);
   }
 
-  // biome-ignore lint/suspicious/noExplicitAny: WebTransportServer class from optional dynamic import
-  private async loadWebTransportModule(): Promise<{ WebTransportServer: any }> {
+  private async loadWebTransportModule(): Promise<{ WebTransportServer: WebTransportLibServerClass | null }> {
     try {
       // Dynamic import for optional dependency
       // @ts-expect-error - Optional dependency, may not be installed
@@ -174,8 +212,7 @@ export class WebTransportServerTransport implements Transport {
     }
   }
 
-  // biome-ignore lint/suspicious/noExplicitAny: WebTransportServer class and return from optional dynamic import
-  private async createRealServer(WebTransportServer: any): Promise<any> {
+  private async createRealServer(WebTransportServer: WebTransportLibServerClass): Promise<WebTransportLibServer> {
     const fs = await import("node:fs").then((m) => m.promises);
 
     // Load TLS certificates
@@ -194,8 +231,7 @@ export class WebTransportServerTransport implements Transport {
     });
 
     // Handle incoming sessions
-    // biome-ignore lint/suspicious/noExplicitAny: WebTransport session from @fails-components/webtransport
-    server.on("session", async (session: any) => {
+    server.on("session", async (session) => {
       const clientId = `wt-${this.nextClientId++}`;
 
       if (this.clients.size >= this.config.maxClients) {
@@ -227,8 +263,10 @@ export class WebTransportServerTransport implements Transport {
     return server;
   }
 
-  // biome-ignore lint/suspicious/noExplicitAny: WebTransport session API from optional dependency
-  private async handleSessionDatagrams(session: any, client: WebTransportClientConnection): Promise<void> {
+  private async handleSessionDatagrams(
+    session: WebTransportLibSession,
+    client: WebTransportClientConnection,
+  ): Promise<void> {
     try {
       const reader = session.datagrams.readable.getReader();
 
@@ -246,8 +284,10 @@ export class WebTransportServerTransport implements Transport {
     }
   }
 
-  // biome-ignore lint/suspicious/noExplicitAny: WebTransport session API from optional dependency
-  private async handleSessionStreams(session: any, client: WebTransportClientConnection): Promise<void> {
+  private async handleSessionStreams(
+    session: WebTransportLibSession,
+    client: WebTransportClientConnection,
+  ): Promise<void> {
     try {
       const reader = session.incomingBidirectionalStreams.getReader();
 
@@ -263,8 +303,7 @@ export class WebTransportServerTransport implements Transport {
     }
   }
 
-  // biome-ignore lint/suspicious/noExplicitAny: WebTransport stream API from optional dependency
-  private async handleStream(stream: any, client: WebTransportClientConnection): Promise<void> {
+  private async handleStream(stream: WebTransportLibStream, client: WebTransportClientConnection): Promise<void> {
     try {
       const reader = stream.readable.getReader();
 
@@ -329,7 +368,7 @@ export class WebTransportServerTransport implements Transport {
     for (const [id, client] of this.clients) {
       if (exclude?.has(id)) continue;
       try {
-        client.sendReliable(data);
+        background(client.sendReliable(data), "WebTransportTransport");
       } catch {
         // Client errored
       }
@@ -351,7 +390,7 @@ export class WebTransportServerTransport implements Transport {
     const client = this.clients.get(clientId);
     if (client) {
       try {
-        client.sendReliable(data);
+        background(client.sendReliable(data), "WebTransportTransport");
       } catch {
         // Client errored
       }
@@ -452,13 +491,11 @@ class WebTransportClientConnection implements ClientConnection {
   lastMessageAt: number;
   latency: number = 0;
 
-  // biome-ignore lint/suspicious/noExplicitAny: WebTransport session from optional dependency
-  private session: any;
+  private session: WebTransportLibSession;
 
   private onClose: (id: string) => void;
 
-  // biome-ignore lint/suspicious/noExplicitAny: WebTransport session from optional dependency
-  constructor(id: string, address: string, session: any, onClose: (id: string) => void) {
+  constructor(id: string, address: string, session: WebTransportLibSession, onClose: (id: string) => void) {
     this.id = id;
     this.address = address;
     this.session = session;

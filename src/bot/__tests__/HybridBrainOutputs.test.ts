@@ -170,7 +170,7 @@ describe("weights on disk", () => {
     expect(await second.loadModels(target)).toBe(true);
     const x = tf.zeros([4, TACTICAL_MODEL_INPUT]);
     const y = tf.zeros([4, 5]);
-    await expect(second.tacticalModel.fit(x, y, { epochs: 1, verbose: 0 })).resolves.toBeDefined();
+    await expect(second.tacticalModel!.fit(x, y, { epochs: 1, verbose: 0 })).resolves.toBeDefined();
     x.dispose();
     y.dispose();
     second.dispose();

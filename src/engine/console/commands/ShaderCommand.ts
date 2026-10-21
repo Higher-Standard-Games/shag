@@ -4,15 +4,17 @@
  * Wraps Q3ShaderRegistry for shader loading, inspection, and debugging.
  */
 
+import type { Camera } from "@babylonjs/core/Cameras/camera";
 import type { Material } from "@babylonjs/core/Materials/material";
 import type { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
+import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
 import { background } from "../../core/AsyncErrors";
 import { Command, type CommandDef } from "../Command";
 
 // Aim debug state
-let aimObserver: any = null;
+let aimObserver: Observer<Scene> | null = null;
 /** `shader aim 1`: the aim probe runs while this is on. */
 let shaderAimEnabled = false;
 let aimLastMesh: AbstractMesh | null = null;
@@ -389,7 +391,7 @@ export class ShaderCommand extends Command {
     }
   }
 
-  private async getAimedMesh(scene: Scene, camera: any): Promise<AbstractMesh | null> {
+  private async getAimedMesh(scene: Scene, camera: Camera): Promise<AbstractMesh | null> {
     const { Ray } = await import("@babylonjs/core/Culling/ray");
     const { Vector3 } = await import("@babylonjs/core/Maths/math.vector");
 
@@ -431,7 +433,7 @@ export class ShaderCommand extends Command {
     return lines.join("\n");
   }
 
-  private async enableAimHighlight(scene: Scene, camera: any): Promise<void> {
+  private async enableAimHighlight(scene: Scene, camera: Camera): Promise<void> {
     const { Color4 } = await import("@babylonjs/core/Maths/math.color");
     // Pre-import Ray and Vector3 for synchronous use in render loop
     const { Ray } = await import("@babylonjs/core/Culling/ray");

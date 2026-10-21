@@ -16,7 +16,9 @@
  * TF-12 in docs/research/BOT_TF_IMPROVEMENTS.md.
  */
 
+import type { Tensor } from "@tensorflow/tfjs-node";
 import type { OutputKind } from "./CloningTargets";
+import type { TFModule } from "./TFBackend";
 
 /** A turn this far from the label, in turn units, is where Huber stops being quadratic. */
 export const TURN_HUBER_DELTA = 1;
@@ -27,16 +29,13 @@ export const TURN_HUBER_DELTA = 1;
  * `tf` is passed in rather than imported so this module loads without
  * TensorFlow, like the rest of the training-side code that bots also use.
  */
-// biome-ignore lint/suspicious/noExplicitAny: the TensorFlow module and its tensors, kept out of this module's types
-export function typedLoss(tf: any, kinds: readonly OutputKind[]): (yTrue: any, yPred: any) => any {
+export function typedLoss(tf: TFModule, kinds: readonly OutputKind[]): (yTrue: Tensor, yPred: Tensor) => Tensor {
   const probabilities = kinds.flatMap((kind, index) => (kind === "probability" ? [index] : []));
   const turns = kinds.flatMap((kind, index) => (kind === "turn" ? [index] : []));
 
-  // biome-ignore lint/suspicious/noExplicitAny: tensors
-  return (yTrue: any, yPred: any) =>
+  return (yTrue: Tensor, yPred: Tensor) =>
     tf.tidy(() => {
-      // biome-ignore lint/suspicious/noExplicitAny: tensors
-      const parts: any[] = [];
+      const parts: Tensor[] = [];
       if (probabilities.length > 0) {
         parts.push(
           tf.losses.sigmoidCrossEntropy(

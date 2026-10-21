@@ -26,7 +26,7 @@ import type { ResolvedMaterialProps } from "../../shader/Q3ShaderTypes";
 import * as BspEntityHandlers from "../BspEntityHandlers";
 import { type BspFile, BspLoader } from "../BspLoader";
 import { BspManager } from "../BspManager";
-import { BspMeshBuilder } from "../BspMeshBuilder";
+import { BspMeshBuilder, type BspMeshBuildResult } from "../BspMeshBuilder";
 import { buildFaceClusters } from "../mesh/pvs";
 import { faceSpatialCell, normalizeSpatialCellSize } from "../mesh/spatialBatching";
 import { createPVSCuller, PVSCuller } from "../PVSCuller";
@@ -375,7 +375,7 @@ function managerWithWorld() {
   const meshes = roomMeshes();
   const manager = BspManager.getInstance();
   manager.setBsp("test", bsp);
-  manager.setMeshResult({ worldMesh: meshes.world, lightmapTextures: [] });
+  manager.setMeshResult({ worldMesh: meshes.world, lightmapTextures: [] } as unknown as BspMeshBuildResult);
   const camera = new FreeCamera("camera", new Vector3(1, 0, 0), scene);
   scene.activeCamera = camera;
   return { ...meshes, manager, camera };
@@ -431,7 +431,7 @@ describe("PVS camera and map lifetime", () => {
     expect(frameObserverCount()).toBe(before);
     expect(manager.getPVSCuller()).toBeNull();
     const replacement = roomMeshes();
-    manager.setMeshResult({ worldMesh: replacement.world, lightmapTextures: [] });
+    manager.setMeshResult({ worldMesh: replacement.world, lightmapTextures: [] } as unknown as BspMeshBuildResult);
     await manager.enablePVS(scene, camera);
     expect(frameObserverCount()).toBe(before + 1);
     manager.setBsp("next-map", fixture());

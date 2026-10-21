@@ -48,38 +48,38 @@ describe("texture transform ownership", () => {
     expect(material.emissiveTexture).toBe(frames[0]);
     expect(material.diffuseTexture).toBe(base);
   });
-  it.each([
-    StandardMaterial,
-    PBRMaterial,
-  ])("animates additive emission independently of base color: %s", (MaterialType) => {
-    const animation = ShaderAnimationSystem.getInstance();
-    animation.init(scene);
-    const material = new MaterialType("shine", scene);
-    material.emissiveColor.set(1, 1, 1);
-    const texture = new Texture(null, scene);
-    const base = "diffuseColor" in material ? material.diffuseColor : material.albedoColor;
-    const original = base.clone();
-    texture.vOffset = 0.25;
-    animation.registerMaterial(
-      "shine",
-      material,
-      texture,
-      [],
-      { type: "wave", wave: { func: "sin", base: 0.5, amplitude: 0, phase: 0, frequency: 5 } },
-      undefined,
-      "emissive",
-    );
-    material.freeze();
-    scene.onBeforeRenderObservable.notifyObservers(scene);
-    expect(material.isFrozen).toBe(false);
-    if (material instanceof StandardMaterial) {
-      expect(material.emissiveColor.r).toBe(0);
-      expect(material.useEmissiveAsIllumination).toBe(true);
-      expect(texture.level).toBe(0.5);
-    } else expect(material.emissiveColor.r).toBe(0.5);
-    expect(base.equals(original)).toBe(true);
-    expect(texture.vOffset).toBe(0.25);
-  });
+  it.each([StandardMaterial, PBRMaterial])(
+    "animates additive emission independently of base color: %s",
+    (MaterialType) => {
+      const animation = ShaderAnimationSystem.getInstance();
+      animation.init(scene);
+      const material = new MaterialType("shine", scene);
+      material.emissiveColor.set(1, 1, 1);
+      const texture = new Texture(null, scene);
+      const base = "diffuseColor" in material ? material.diffuseColor : material.albedoColor;
+      const original = base.clone();
+      texture.vOffset = 0.25;
+      animation.registerMaterial(
+        "shine",
+        material,
+        texture,
+        [],
+        { type: "wave", wave: { func: "sin", base: 0.5, amplitude: 0, phase: 0, frequency: 5 } },
+        undefined,
+        "emissive",
+      );
+      material.freeze();
+      scene.onBeforeRenderObservable.notifyObservers(scene);
+      expect(material.isFrozen).toBe(false);
+      if (material instanceof StandardMaterial) {
+        expect(material.emissiveColor.r).toBe(0);
+        expect(material.useEmissiveAsIllumination).toBe(true);
+        expect(texture.level).toBe(0.5);
+      } else expect(material.emissiveColor.r).toBe(0.5);
+      expect(base.equals(original)).toBe(true);
+      expect(texture.vOffset).toBe(0.25);
+    },
+  );
   it("binds independent base/glow transforms without changing BSP lightmap coordinates", async () => {
     const base = new Texture(null, scene);
     const glow = new Texture(null, scene);

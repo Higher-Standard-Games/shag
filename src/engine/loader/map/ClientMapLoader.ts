@@ -1,13 +1,16 @@
+import { TargetCamera } from "@babylonjs/core/Cameras/targetCamera";
+import type { CameraSystem } from "../../camera/CameraSystem";
 import { CommandRegistry } from "../../console/CommandRegistry";
 import { devLog } from "../../core/DevLog";
 import { PLAYER_ORIGIN_HEIGHT } from "../../physics/PlayerPhysicsConstants";
+import type { MapLoader, MapLoadProgress } from "./MapLoader";
 
 /**
  * Render/load a BSP map for a client that is already connected to an
  * authoritative server. This is intentionally not a gameplay starter.
  */
 export async function loadClientMap(mapName: string): Promise<string> {
-  let cameraSystem: any;
+  let cameraSystem: CameraSystem;
   try {
     const { CameraSystem } = await import("../../camera/CameraSystem");
     cameraSystem = CameraSystem.getInstance();
@@ -29,8 +32,8 @@ export async function unloadClientMap(): Promise<void> {
 
 async function loadClientMapWithSystems(
   mapName: string,
-  cameraSystem: any,
-  mapLoader: any,
+  cameraSystem: CameraSystem,
+  mapLoader: MapLoader,
   registry: CommandRegistry,
 ): Promise<string> {
   const { RenderVars } = await import("../../rendering/RenderVars");
@@ -58,7 +61,7 @@ async function loadClientMapWithSystems(
   scene.blockMaterialDirtyMechanism = false;
   devLog("[ClientMapLoader] Applied scene settings for BSP rendering");
 
-  const result = await mapLoader.loadMap(mapName, scene, (progress: any) => {
+  const result = await mapLoader.loadMap(mapName, scene, (progress: MapLoadProgress) => {
     devLog(`[Map] ${progress.phase}${progress.detail ? `: ${progress.detail}` : ""}`);
   });
 
@@ -94,7 +97,7 @@ async function loadClientMapWithSystems(
     let initialYaw = 0;
     if (result.bsp?.entities) {
       const spawnExp = result.bsp.entities.find(
-        (e: any) => e.classname === "info_player_deathmatch" || e.classname === "info_player_start",
+        (e) => e.classname === "info_player_deathmatch" || e.classname === "info_player_start",
       );
       if (spawnExp?.properties?.angle) {
         const angleDeg = parseFloat(spawnExp.properties.angle);
@@ -118,7 +121,7 @@ async function loadClientMapWithSystems(
     }
 
     const cam = cameraSystem.getCamera();
-    if (cam) {
+    if (cam instanceof TargetCamera) {
       cam.rotation.x = 0;
       cam.rotation.z = 0;
       cam.rotation.y = initialYaw;

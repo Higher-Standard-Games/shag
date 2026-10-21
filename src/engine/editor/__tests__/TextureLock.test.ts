@@ -54,17 +54,16 @@ function corresponding(before: BoxBrush, after: BoxBrush) {
   });
 }
 describe("brush texture locking", () => {
-  it.each([
-    "x",
-    "y",
-    "z",
-  ] as const)("locks mirrored textures through rotation about %s with an off-center pivot", (axis) => {
-    const after = rotateBrush(box, axis, 37, { x: 17, y: -11, z: 123 });
-    corresponding(box, after);
-    const restored = rotateBrush(after, axis, -37, { x: 17, y: -11, z: 123 });
-    corresponding(box, restored);
-    expect(restored.hull!.sides.every((s) => s.material?.sizeKnown !== false)).toBe(true);
-  });
+  it.each(["x", "y", "z"] as const)(
+    "locks mirrored textures through rotation about %s with an off-center pivot",
+    (axis) => {
+      const after = rotateBrush(box, axis, 37, { x: 17, y: -11, z: 123 });
+      corresponding(box, after);
+      const restored = rotateBrush(after, axis, -37, { x: 17, y: -11, z: 123 });
+      corresponding(box, restored);
+      expect(restored.hull!.sides.every((s) => s.material?.sizeKnown !== false)).toBe(true);
+    },
+  );
   it("locks move/resize previews and nonuniform hull bounds with shear", () => {
     corresponding(box, moveBox(box, { u: "x", v: "z", hidden: "y" }, 31, -19));
     corresponding(box, resizeBox(box, { faces: [{ axis: "x", side: "max" }] }, { x: 192 }, 8));

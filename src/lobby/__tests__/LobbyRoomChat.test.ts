@@ -62,7 +62,7 @@ function messages(sent: Record<string, unknown>[], type: string): Record<string,
 
 function createRoom(server: LobbyServer, player: FakePlayer, sent: Record<string, unknown>[]): string {
   send(server, player, { type: "lobby:create", gametype: "duel" });
-  return (messages(sent, "lobby:created").at(-1)?.lobby as { id: string }).id;
+  return (messages(sent, "lobby:created").at(-1)!.lobby as { id: string }).id;
 }
 
 afterEach(() => {

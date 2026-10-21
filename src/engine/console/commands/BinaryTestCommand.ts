@@ -1,4 +1,5 @@
 import { MoveCommand } from "../../network/core/Command";
+import type { IComponent } from "../../network/core/Component";
 import { Entity } from "../../network/core/Entity";
 import { GameState } from "../../network/core/GameState";
 import { BinaryProtocol } from "../../network/protocol/BinaryProtocol";
@@ -136,7 +137,7 @@ export default class BinaryTestCommand extends Command {
 
       // Verify
       const decodedEntity = decodedState.entities.get("test-entity");
-      const decodedPos = decodedEntity?.getComponent("position") as any;
+      const decodedPos = decodedEntity?.getComponent<IComponent & { x: number; y: number; z: number }>("position");
 
       return (
         `✅ Decoding test passed\n` +

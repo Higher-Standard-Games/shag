@@ -33,19 +33,34 @@ import { SettingsStore } from "./SettingsStore";
 import type {
   AuthMessage,
   ChatMessage as ChatMsg,
+  ChatSendMessage,
   DemoInfo,
+  DemosListRequest,
+  DevSpawnServerMessage,
   FeaturedDemoInfo,
   FeaturedDemosRequest,
   GametypeInfo,
   LeaderboardRequest,
   LiveMatchInfo,
+  LobbyCreateMessage,
+  LobbyInviteBotMessage,
+  LobbyJoinMessage,
+  LobbyLeaveMessage,
   LobbyMessage,
   LobbyPlayerInfo,
+  LobbyReadyMessage,
+  LobbySwitchTeamMessage,
+  LobbyTeam,
+  LobbyVoteMapMessage,
+  LobbyVoteShuffleMessage,
   MapOption,
   MatchLobbyInfo,
   PlayerInfo,
   PlayerStatsRequest,
   PlayerStatus,
+  QueueJoinMessage,
+  RoomChatSendMessage,
+  SeatReissueRequest,
   SettingsErrorCode,
 } from "./types";
 
@@ -268,7 +283,7 @@ class MatchLobby {
   state: "waiting" | "playing" = "waiting";
   activeMatchId: string | null = null;
   /** Immutable account/team roster while a dedicated match is running. */
-  activeSeatTeams = new Map<number, string>();
+  activeSeatTeams = new Map<number, LobbyTeam>();
   /** Empty-lobby destruction is deferred until this time — set when the match
    *  server exits, so players returning via the ?lobby= deep link (a page
    *  reload that drops every lobby socket at once) still find their lobby. */
@@ -295,7 +310,7 @@ class MatchLobby {
 
   addPlayer(player: ConnectedPlayer): LobbyPlayerInfo {
     // Auto-assign team
-    let team = "ffa";
+    let team: LobbyTeam = "ffa";
     if (this.gametype.hasTeams) {
       const alphaCount = [...this.players.values()].filter((p) => p.team === "alpha").length;
       const bravoCount = [...this.players.values()].filter((p) => p.team === "bravo").length;
@@ -670,37 +685,49 @@ export class LobbyServer {
         this.handleSettings(player, msg);
         break;
       case "chat:send":
-        this.handleChatSend(player, msg.text);
+        this.handleChatSend(player, (msg as ChatSendMessage).text);
         break;
-      case "lobby:chat_send":
-        this.handleRoomChatSend(player, msg.lobbyId, msg.text);
+      case "lobby:chat_send": {
+        const chat = msg as RoomChatSendMessage;
+        this.handleRoomChatSend(player, chat.lobbyId, chat.text);
         break;
-      case "lobby:create":
-        this.handleLobbyCreate(player, msg.gametype, msg.visibility);
+      }
+      case "lobby:create": {
+        const create = msg as LobbyCreateMessage;
+        this.handleLobbyCreate(player, create.gametype, create.visibility);
         break;
-      case "lobby:join":
-        this.handleLobbyJoin(player, msg.lobbyId, msg.inviteToken);
+      }
+      case "lobby:join": {
+        const join = msg as LobbyJoinMessage;
+        this.handleLobbyJoin(player, join.lobbyId, join.inviteToken);
         break;
+      }
       case "lobby:leave":
-        this.handleLobbyLeave(player, msg.lobbyId);
+        this.handleLobbyLeave(player, (msg as LobbyLeaveMessage).lobbyId);
         break;
-      case "lobby:vote_map":
-        this.handleLobbyVoteMap(player, msg.lobbyId, msg.map);
+      case "lobby:vote_map": {
+        const vote = msg as LobbyVoteMapMessage;
+        this.handleLobbyVoteMap(player, vote.lobbyId, vote.map);
         break;
-      case "lobby:ready":
-        this.handleLobbyReady(player, msg.lobbyId, msg.ready);
+      }
+      case "lobby:ready": {
+        const ready = msg as LobbyReadyMessage;
+        this.handleLobbyReady(player, ready.lobbyId, ready.ready);
         break;
+      }
       case "lobby:switch_team":
-        this.handleLobbySwitchTeam(player, msg.lobbyId);
+        this.handleLobbySwitchTeam(player, (msg as LobbySwitchTeamMessage).lobbyId);
         break;
       case "lobby:vote_shuffle":
-        this.handleLobbyVoteShuffle(player, msg.lobbyId);
+        this.handleLobbyVoteShuffle(player, (msg as LobbyVoteShuffleMessage).lobbyId);
         break;
-      case "lobby:invite_bot":
-        background(this.handleLobbyInviteBot(player, msg.lobbyId, msg.difficulty), "LobbyServer");
+      case "lobby:invite_bot": {
+        const invite = msg as LobbyInviteBotMessage;
+        background(this.handleLobbyInviteBot(player, invite.lobbyId, invite.difficulty), "LobbyServer");
         break;
+      }
       case "queue:join":
-        this.handleQueueJoin(player, msg.gametype);
+        this.handleQueueJoin(player, (msg as QueueJoinMessage).gametype);
         break;
       case "queue:leave":
         // queue:leave with immediate-lobby = leave current lobby
@@ -709,9 +736,11 @@ export class LobbyServer {
         }
         this.send(player, { type: "queue:left" });
         break;
-      case "demos:list":
-        this.handleDemosList(player, msg.limit ?? 64, msg.scope, msg.requestId);
+      case "demos:list": {
+        const list = msg as DemosListRequest;
+        this.handleDemosList(player, list.limit ?? 64, list.scope, list.requestId);
         break;
+      }
       case "featured:get":
         this.handleFeaturedGet(player, msg as FeaturedDemosRequest);
         break;
@@ -722,14 +751,18 @@ export class LobbyServer {
       case "stats:history":
         this.handlePlayerStats(player, msg as PlayerStatsRequest);
         break;
-      case "match:seat_reissue":
-        this.handleSeatReissue(player, msg.requestId, msg.matchId);
+      case "match:seat_reissue": {
+        const reissue = msg as SeatReissueRequest;
+        this.handleSeatReissue(player, reissue.requestId, reissue.matchId);
         break;
-      case "dev:spawn_server":
-        this.handleDevSpawnServer(player, msg.requestId, msg.map, msg.gametype, msg.trainingDemo).catch(
+      }
+      case "dev:spawn_server": {
+        const spawn = msg as DevSpawnServerMessage;
+        this.handleDevSpawnServer(player, spawn.requestId, spawn.map, spawn.gametype, spawn.trainingDemo).catch(
           logRejection("LobbyServer"),
         );
         break;
+      }
       default:
         // The type is whatever the client sent; a client sending junk gets one line per 5 s.
         log.warnRateLimited("LobbyServer", `Unknown message type: ${String(msg.type).slice(0, 64)}`);
@@ -1288,7 +1321,7 @@ export class LobbyServer {
 
   private handleLobbyVoteMap(player: ConnectedPlayer, lobbyId: string, mapName: string): void {
     const lobby = this.lobbies.get(lobbyId);
-    if (!lobby || !lobby.players.has(player.id) || lobby.state !== "waiting" || lobby.isStarting) return;
+    if (!lobby?.players.has(player.id) || lobby.state !== "waiting" || lobby.isStarting) return;
 
     lobby.voteMap(player.id, mapName);
 
@@ -1307,7 +1340,7 @@ export class LobbyServer {
 
   private handleLobbyReady(player: ConnectedPlayer, lobbyId: string, ready: boolean): void {
     const lobby = this.lobbies.get(lobbyId);
-    if (!lobby || !lobby.players.has(player.id) || lobby.state !== "waiting" || lobby.isStarting) return;
+    if (!lobby?.players.has(player.id) || lobby.state !== "waiting" || lobby.isStarting) return;
 
     lobby.setReady(player.id, ready);
 
@@ -1336,7 +1369,7 @@ export class LobbyServer {
    */
   private handleLobbySwitchTeam(player: ConnectedPlayer, lobbyId: string): void {
     const lobby = this.lobbies.get(lobbyId);
-    if (!lobby || !lobby.players.has(player.id) || lobby.state !== "waiting" || lobby.isStarting) return;
+    if (!lobby?.players.has(player.id) || lobby.state !== "waiting" || lobby.isStarting) return;
     if (!lobby.gametype.hasTeams) return;
 
     const entry = lobby.players.get(player.id);
@@ -1359,7 +1392,7 @@ export class LobbyServer {
 
   private handleLobbyVoteShuffle(player: ConnectedPlayer, lobbyId: string): void {
     const lobby = this.lobbies.get(lobbyId);
-    if (!lobby || !lobby.players.has(player.id) || lobby.state !== "waiting" || lobby.isStarting) return;
+    if (!lobby?.players.has(player.id) || lobby.state !== "waiting" || lobby.isStarting) return;
 
     // Bots back whatever a human asks for. Without this a solo tester can never
     // change sides, because their single vote cannot reach the threshold.
@@ -1394,7 +1427,7 @@ export class LobbyServer {
    */
   private async handleLobbyInviteBot(player: ConnectedPlayer, lobbyId: string, difficulty?: string): Promise<void> {
     const lobby = this.lobbies.get(lobbyId);
-    if (!lobby || !lobby.players.has(player.id)) {
+    if (!lobby?.players.has(player.id)) {
       this.send(player, { type: "lobby:bot_invite_failed", lobbyId, error: "You are not in this lobby." });
       return;
     }
@@ -1745,7 +1778,7 @@ export class LobbyServer {
     try {
       const admissionSeats = [...lobby.players.values()].map((lp) => {
         const player = this.players.get(lp.id);
-        if (!player || !player.authenticated) throw new Error("A lobby player is no longer connected");
+        if (!player?.authenticated) throw new Error("A lobby player is no longer connected");
         return {
           lobbyPlayerId: lp.id,
           accountId: player.accountId,

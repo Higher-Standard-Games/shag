@@ -16,27 +16,21 @@ describe("bot calibration metadata", () => {
     value.difficulty.aimAccuracy = 0.1;
     expect(copy.difficulty.aimAccuracy).toBe(0.5);
   });
-  it.each([
-    "version",
-    "digest",
-    "fraction",
-    "infinity",
-    "negative",
-    "loaded",
-    "none",
-    "boolean",
-  ])("rejects invalid %s metadata", (kind) => {
-    const v = botReference();
-    if (kind === "version") Object.assign(v, { version: 2 });
-    if (kind === "digest") v.behavior = "short";
-    if (kind === "fraction") v.difficulty.aimAccuracy = 2;
-    if (kind === "infinity") v.difficulty.reactionTimeMs = Infinity;
-    if (kind === "negative") v.difficulty.mistakeRate = -1;
-    if (kind === "loaded") v.model.status = "loaded";
-    if (kind === "none") v.model.digest = "b".repeat(64);
-    if (kind === "boolean") Object.assign(v.model, { tactical: "true" });
-    expect(() => canonicalBotReference(v)).toThrow();
-  });
+  it.each(["version", "digest", "fraction", "infinity", "negative", "loaded", "none", "boolean"])(
+    "rejects invalid %s metadata",
+    (kind) => {
+      const v = botReference();
+      if (kind === "version") Object.assign(v, { version: 2 });
+      if (kind === "digest") v.behavior = "short";
+      if (kind === "fraction") v.difficulty.aimAccuracy = 2;
+      if (kind === "infinity") v.difficulty.reactionTimeMs = Infinity;
+      if (kind === "negative") v.difficulty.mistakeRate = -1;
+      if (kind === "loaded") v.model.status = "loaded";
+      if (kind === "none") v.model.digest = "b".repeat(64);
+      if (kind === "boolean") Object.assign(v.model, { tactical: "true" });
+      expect(() => canonicalBotReference(v)).toThrow();
+    },
+  );
   it("compares configurations independently of object field order", () => {
     const v = botReference();
     expect(sameBotReference(v, { ...v, difficulty: { ...v.difficulty, aimAccuracy: 0.5 } })).toBe(true);

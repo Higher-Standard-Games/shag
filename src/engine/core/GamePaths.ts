@@ -31,7 +31,7 @@ export interface EngineConfig {
 }
 
 export class GamePaths {
-  private static instance: GamePaths;
+  private static instance: GamePaths | null = null;
 
   private gameName: string = "default";
   private gameTitle: string | null = null; // Optional title from config
@@ -51,7 +51,7 @@ export class GamePaths {
    * Reset instance (for testing)
    */
   public static resetInstance(): void {
-    GamePaths.instance = null as any;
+    GamePaths.instance = null;
   }
 
   /**

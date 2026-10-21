@@ -611,19 +611,18 @@ describe("SweepCollisionBackend — per-query visits", () => {
 });
 
 describe("SweepCollisionBackend authored collision sources", () => {
-  it.each([
-    "textures/plastic_vertex/vertex_grey65",
-    "models/mapobjects/light",
-    "mapobjects_decor",
-  ])("does not generate collision from draw soup regardless of shader (%s)", async (shader) => {
-    const bsp = buildPatchBsp(shader);
-    bsp.faces[0].faceType = 3;
-    const backend = new SweepCollisionBackend();
-    await backend.init(bsp);
-    expect(backend.getFaceCollision(0)).toBeNull();
-    expect(backend.trace(new Vector3(0, 100, 0), new Vector3(0, -100, 0)).fraction).toBe(1);
-    expect(backend.getStats().backendStats?.collisionTriangleCount).toBe(0);
-  });
+  it.each(["textures/plastic_vertex/vertex_grey65", "models/mapobjects/light", "mapobjects_decor"])(
+    "does not generate collision from draw soup regardless of shader (%s)",
+    async (shader) => {
+      const bsp = buildPatchBsp(shader);
+      bsp.faces[0].faceType = 3;
+      const backend = new SweepCollisionBackend();
+      await backend.init(bsp);
+      expect(backend.getFaceCollision(0)).toBeNull();
+      expect(backend.trace(new Vector3(0, 100, 0), new Vector3(0, -100, 0)).fraction).toBe(1);
+      expect(backend.getStats().backendStats?.collisionTriangleCount).toBe(0);
+    },
+  );
 
   it("preserves authored brush support beneath softened draw geometry", async () => {
     const bsp = buildBsp([FLOOR]);

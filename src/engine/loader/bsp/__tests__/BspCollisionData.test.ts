@@ -55,60 +55,64 @@ it.each([false, true])("reads exact patch controls without visual attributes for
   expect(() => BspLoader.loadCollision(patchFixture(fbsp, 1))).toThrow("Invalid patch control range");
 });
 
-it.each(["wdm2", "wfdm5", "wfdm11"])("retains collision parity and independent PVS bytes for %s", async (map) => {
-  if (!fs.existsSync(path.join("public/data", `map_${map}.pk3`))) return;
-  const bytes = (await resolveMapBspViaIndex(["public/data"], map))!;
-  const full = BspLoader.load(bytes);
-  const compact = BspLoader.loadCollision(bytes);
-  expect(compact.faces).toEqual(full.faces);
-  expect(compact.entities).toEqual(full.entities);
-  expect(compact.models).toEqual(full.models);
-  expect("lightmaps" in compact).toBe(false);
-  expect("lightVols" in compact).toBe(false);
-  expect("meshVerts" in compact).toBe(false);
-  if (full.visData) {
-    expect(compact.visData!.bitVectors).toEqual(full.visData.bitVectors);
-    expect(compact.visData!.bitVectors.buffer).not.toBe(bytes);
-    expect(compact.visData!.bitVectors.buffer.byteLength).toBe(compact.visData!.bitVectors.byteLength);
-  }
-  for (const face of full.faces) {
-    if (face.faceType !== 2) continue;
-    for (let i = face.firstVertex; i < face.firstVertex + face.patchSize[0] * face.patchSize[1]; i++) {
-      expect(compact.vertices[i].position).toEqual(full.vertices[i].position);
-      expect(Object.keys(compact.vertices[i])).toEqual(["position"]);
+it.each(["wdm2", "wfdm5", "wfdm11"])(
+  "retains collision parity and independent PVS bytes for %s",
+  async (map) => {
+    if (!fs.existsSync(path.join("public/data", `map_${map}.pk3`))) return;
+    const bytes = (await resolveMapBspViaIndex(["public/data"], map))!;
+    const full = BspLoader.load(bytes);
+    const compact = BspLoader.loadCollision(bytes);
+    expect(compact.faces).toEqual(full.faces);
+    expect(compact.entities).toEqual(full.entities);
+    expect(compact.models).toEqual(full.models);
+    expect("lightmaps" in compact).toBe(false);
+    expect("lightVols" in compact).toBe(false);
+    expect("meshVerts" in compact).toBe(false);
+    if (full.visData) {
+      expect(compact.visData!.bitVectors).toEqual(full.visData.bitVectors);
+      expect(compact.visData!.bitVectors.buffer).not.toBe(bytes);
+      expect(compact.visData!.bitVectors.buffer.byteLength).toBe(compact.visData!.bitVectors.byteLength);
     }
-  }
-  const a = new SweepCollisionBackend(),
-    b = new SweepCollisionBackend();
-  await a.init(full);
-  await b.init(compact);
-  let seed = 12345;
-  const random = () => {
-    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
-    return seed / 4294967296;
-  };
-  const model = full.models[0];
-  const point = () => {
-    const q = model.mins.map((v, axis) => v + random() * (model.maxs[axis] - v));
-    return new Vector3(q[0], q[2], q[1]);
-  };
-  try {
-    for (let i = 0; i < 120; i++) {
-      const start = point(),
-        end = point();
-      for (const options of [
-        { radius: 0, height: 0 },
-        { radius: 1, height: 2 },
-        { radius: 16, height: 64 },
-      ]) {
-        expect(b.trace(start, end, options)).toEqual(a.trace(start, end, options));
+    for (const face of full.faces) {
+      if (face.faceType !== 2) continue;
+      for (let i = face.firstVertex; i < face.firstVertex + face.patchSize[0] * face.patchSize[1]; i++) {
+        expect(compact.vertices[i].position).toEqual(full.vertices[i].position);
+        expect(Object.keys(compact.vertices[i])).toEqual(["position"]);
       }
-      expect(b.pointContents(start)).toBe(a.pointContents(start));
-      const delta = end.subtract(start).normalize().scale(12);
-      expect(b.stepSlideMove(start, delta)).toEqual(a.stepSlideMove(start, delta));
     }
-  } finally {
-    a.dispose();
-    b.dispose();
-  }
-}, 30000);
+    const a = new SweepCollisionBackend(),
+      b = new SweepCollisionBackend();
+    await a.init(full);
+    await b.init(compact);
+    let seed = 12345;
+    const random = () => {
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+      return seed / 4294967296;
+    };
+    const model = full.models[0];
+    const point = () => {
+      const q = model.mins.map((v, axis) => v + random() * (model.maxs[axis] - v));
+      return new Vector3(q[0], q[2], q[1]);
+    };
+    try {
+      for (let i = 0; i < 120; i++) {
+        const start = point(),
+          end = point();
+        for (const options of [
+          { radius: 0, height: 0 },
+          { radius: 1, height: 2 },
+          { radius: 16, height: 64 },
+        ]) {
+          expect(b.trace(start, end, options)).toEqual(a.trace(start, end, options));
+        }
+        expect(b.pointContents(start)).toBe(a.pointContents(start));
+        const delta = end.subtract(start).normalize().scale(12);
+        expect(b.stepSlideMove(start, delta)).toEqual(a.stepSlideMove(start, delta));
+      }
+    } finally {
+      a.dispose();
+      b.dispose();
+    }
+  },
+  30000,
+);

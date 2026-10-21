@@ -95,24 +95,24 @@ function engine(webgpu = false): UploadEngine {
 }
 
 describe("KTX1 Babylon-managed upload", () => {
-  it.each([
-    false,
-    true,
-  ])("retains source bytes and uploads all authored mips (WebGPU capability mode: %s)", async (webgpu) => {
-    const target = engine(webgpu);
-    const source = fixture();
-    const texture = await createTextureFromKTX1(target, parseKTX1(source), "test.ktx");
-    expect(texture?.isReady).toBe(true);
-    expect(texture?._buffer).toBe(source);
-    expect(target.uploads.map((args) => [args[2], args[3], args[6]])).toEqual([
-      [4, 4, 0],
-      [2, 2, 1],
-      [1, 1, 2],
-    ]);
-    expect(target.uploads.every((args) => args[1] === GL_FORMATS.COMPRESSED_RGBA_S3TC_DXT1_EXT)).toBe(true);
-    expect(texture?.generateMipMaps).toBe(true);
-    texture?.dispose();
-  });
+  it.each([false, true])(
+    "retains source bytes and uploads all authored mips (WebGPU capability mode: %s)",
+    async (webgpu) => {
+      const target = engine(webgpu);
+      const source = fixture();
+      const texture = await createTextureFromKTX1(target, parseKTX1(source), "test.ktx");
+      expect(texture?.isReady).toBe(true);
+      expect(texture?._buffer).toBe(source);
+      expect(target.uploads.map((args) => [args[2], args[3], args[6]])).toEqual([
+        [4, 4, 0],
+        [2, 2, 1],
+        [1, 1, 2],
+      ]);
+      expect(target.uploads.every((args) => args[1] === GL_FORMATS.COMPRESSED_RGBA_S3TC_DXT1_EXT)).toBe(true);
+      expect(texture?.generateMipMaps).toBe(true);
+      texture?.dispose();
+    },
+  );
 
   it("uses the retained container again during Babylon's rebuild lifecycle", async () => {
     const target = engine();
@@ -190,21 +190,25 @@ describe("KTX1 Babylon-managed upload", () => {
     expect(target.uploads).toHaveLength(3);
   });
 
-  it.each([
-    true,
-    false,
-  ])("software-decodes unsupported or big-endian DXT with preserved alpha/orientation (%s)", async (littleEndian) => {
-    const target = engine();
-    if (littleEndian) target.getCaps().s3tc = undefined;
-    const upload = vi.spyOn(target, "createRawTexture");
-    const texture = await createTextureFromKTX1(target, parseKTX1(fixture(undefined, 1, littleEndian)), "software.ktx");
-    expect(target.uploads).toHaveLength(0);
-    const rgba = upload.mock.calls[0][0] as Uint8Array;
-    expect(Array.from(rgba.slice(0, 4))).toEqual([0, 0, 0, 0]);
-    expect(Array.from(rgba.slice(-4))).toEqual([0, 0, 0, 255]);
-    expect(upload.mock.calls[0][4]).toBe(true); // regenerate mip chain
-    texture?.dispose();
-  });
+  it.each([true, false])(
+    "software-decodes unsupported or big-endian DXT with preserved alpha/orientation (%s)",
+    async (littleEndian) => {
+      const target = engine();
+      if (littleEndian) target.getCaps().s3tc = undefined;
+      const upload = vi.spyOn(target, "createRawTexture");
+      const texture = await createTextureFromKTX1(
+        target,
+        parseKTX1(fixture(undefined, 1, littleEndian)),
+        "software.ktx",
+      );
+      expect(target.uploads).toHaveLength(0);
+      const rgba = upload.mock.calls[0][0] as Uint8Array;
+      expect(Array.from(rgba.slice(0, 4))).toEqual([0, 0, 0, 0]);
+      expect(Array.from(rgba.slice(-4))).toEqual([0, 0, 0, 255]);
+      expect(upload.mock.calls[0][4]).toBe(true); // regenerate mip chain
+      texture?.dispose();
+    },
+  );
 
   it("disposes a rejected native upload before trying software decode", async () => {
     const target = engine();

@@ -21,7 +21,9 @@
  * TF-6 in docs/research/BOT_TF_IMPROVEMENTS.md.
  */
 
+import type { LayersModel, Tensor } from "@tensorflow/tfjs-node";
 import { type OutputKind, toLabelSpace } from "./CloningTargets";
+import type { TFModule } from "./TFBackend";
 
 export interface OutputScore {
   name: string;
@@ -123,16 +125,16 @@ export function skillByName(scores: readonly OutputScore[]): Record<string, numb
  * this module loads without TensorFlow.
  */
 export function scoreModel(
-  // biome-ignore lint/suspicious/noExplicitAny: the TensorFlow module, passed in rather than imported
-  tf: any,
-  // biome-ignore lint/suspicious/noExplicitAny: a tf.LayersModel
-  model: any,
+  tf: TFModule,
+  model: LayersModel | null,
   pairs: readonly { input: number[]; target: number[] }[],
   names: readonly string[],
   kinds: readonly OutputKind[],
 ): OutputScore[] {
   if (!model || pairs.length === 0) return [];
-  const raw = tf.tidy(() => model.predict(tf.tensor2d(pairs.map((pair) => pair.input))).arraySync()) as number[][];
+  const raw = tf.tidy(() =>
+    (model.predict(tf.tensor2d(pairs.map((pair) => pair.input))) as Tensor).arraySync(),
+  ) as number[][];
   return scoreOutputs(
     names,
     raw.map((row) => toLabelSpace(row, kinds)),

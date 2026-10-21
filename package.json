@@ -127,7 +127,7 @@
   "devDependencies": {
     "@babylonjs/ktx2decoder": "9.31.2",
     "@babylonjs/materials": "9.31.2",
-    "@biomejs/biome": "^2.3.8",
+    "@biomejs/biome": "^2.5.15",
     "@fails-components/webtransport": "^1.5.2",
     "@gltf-transform/cli": "^4.3.0",
     "@modelcontextprotocol/sdk": "1.30.1",

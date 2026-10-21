@@ -134,11 +134,9 @@ export function extractAnimationState(
  * Wraps an FPSController to implement AnimationStateProvider
  */
 export class FPSControllerAnimationAdapter implements AnimationStateProvider {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private controller: any;
+  private controller: AnimationStateProvider;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  constructor(controller: any) {
+  constructor(controller: AnimationStateProvider) {
     this.controller = controller;
   }
 

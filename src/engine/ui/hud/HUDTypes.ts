@@ -183,19 +183,19 @@ export interface HUDUserPrefs {
 // Runtime Types
 // ============================================================================
 
-export type HUDValueGetter = () => any;
+export type HUDValueGetter = () => unknown;
 export type HUDClickHandler = () => void;
 export type HUDContentProvider = () => HTMLElement;
 
-export interface HUDListBinding {
-  data: () => any[];
-  renderItem?: (item: any, index: number) => HTMLElement;
+export interface HUDListBinding<T = unknown> {
+  data: () => T[];
+  renderItem?: (item: T, index: number) => HTMLElement;
 }
 
 export interface HUDBinding {
   id: string;
   getter: HUDValueGetter;
-  lastValue?: any;
+  lastValue?: unknown;
 }
 
 // ============================================================================

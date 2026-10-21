@@ -5,9 +5,16 @@
  * Also serves as a reference implementation for game scripting.
  */
 
+import type { DirectionalLight } from "@babylonjs/core/Lights/directionalLight";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { ModelLoadResult } from "../../loader/model/ModelLoader";
 import { Command, type CommandDef } from "../Command";
+
+/** ModelLoader's private applyBspLighting, which the lighting subcommand calls directly. */
+interface ModelLoaderBspLighting {
+  applyBspLighting(position: Vector3, meshes: Mesh[]): DirectionalLight[];
+}
 
 interface SpawnedModel {
   result: ModelLoadResult;
@@ -432,7 +439,10 @@ export default class SpawnModelCommand extends Command {
 
     // Accessing private method for testing purpose
     // In real app we might want to expose this publicly if it's a common need
-    const newLights = (loader as any).applyBspLighting(spawned.result.root.position, spawned.result.meshes);
+    const newLights = (loader as unknown as ModelLoaderBspLighting).applyBspLighting(
+      spawned.result.root.position,
+      spawned.result.meshes,
+    );
 
     if (newLights && newLights.length > 0) {
       // If we previously had lights, we should technically dispose them here, but

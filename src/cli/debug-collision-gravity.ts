@@ -6,14 +6,17 @@ import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Logger } from "@babylonjs/core/Misc/logger";
 import { Scene } from "@babylonjs/core/scene";
+import type { BspFile } from "../engine/loader/bsp/BspLoader";
 import { CollisionManager } from "../engine/physics/CollisionManager";
 import { runCli } from "./_runCli";
 
 // Suppress Babylon.js noise
 Logger.LogLevels = 0;
 
-// Mock BspFile (minimal structure for testing)
-const mockBsp: any = {
+// Mock BspFile (minimal structure for testing). It is not a whole BspFile: it
+// has no header, lumps, nodes or leafFaces, and names its leaves `leaves`
+// where BspFile reads `leafs`, so it is passed to init() as one by assertion.
+const mockBsp = {
   faces: [],
   textures: [],
   vertices: [],
@@ -70,7 +73,7 @@ async function runTest() {
   // Initialize collision manager with mock BSP
   const cm = CollisionManager.getInstance();
   console.log("[Test] Initializing CollisionManager...");
-  await cm.init(mockBsp, scene, "q3");
+  await cm.init(mockBsp as unknown as BspFile, scene, "q3");
 
   console.log(`[Test] CollisionManager initialized: ${cm.isInitialized()}`);
   console.log(`[Test] Active backend: ${cm.getBackendType()}`);

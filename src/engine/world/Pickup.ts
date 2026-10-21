@@ -28,6 +28,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Observer } from "@babylonjs/core/Misc/observable";
+import type { Node } from "@babylonjs/core/node";
 import { PhysicsShapeType } from "@babylonjs/core/Physics/v2/IPhysicsEnginePlugin";
 import type { Scene } from "@babylonjs/core/scene";
 import { AudioManager } from "../AudioManager";
@@ -230,8 +231,7 @@ export class Pickup extends TransformNode {
           if (m instanceof Mesh) {
             // Cap lights to prevent shader uniform block overflow
             if (m.material && "maxSimultaneousLights" in m.material) {
-              // biome-ignore lint/suspicious/noExplicitAny: Babylon material introspection
-              applySafeMaxSimultaneousLights(m.material as any);
+              applySafeMaxSimultaneousLights(m.material);
             }
             if (m.getTotalVertices() === 0) continue;
             if (!leaderMesh) {
@@ -455,10 +455,9 @@ export class Pickup extends TransformNode {
 
       this.position = new Vector3(this.position.x, newY, this.position.z);
       this.computeWorldMatrix(true);
-      // biome-ignore lint/suspicious/noExplicitAny: Babylon node traversal
-      const updateChildren = (node: any) => {
-        if (node.computeWorldMatrix) node.computeWorldMatrix(true);
-        if (node.getChildren) node.getChildren().forEach(updateChildren);
+      const updateChildren = (node: Node) => {
+        node.computeWorldMatrix(true);
+        node.getChildren().forEach(updateChildren);
       };
       this.getChildren().forEach(updateChildren);
     } else {

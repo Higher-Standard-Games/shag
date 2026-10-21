@@ -19,36 +19,36 @@ import type { BspBakedLightingPlugin } from "../loader/bsp/BspBakedLightingPlugi
 
 // ==================== Babylon Property Helpers ====================
 // Babylon.js objects don't expose all properties in their public TypeScript API.
-// These helpers provide a single, centralized `any` cast for:
+// These helpers provide a single, centralized property-bag cast for:
 // 1. Stashing/restoring original values (e.g. `_originalBumpLevel`) on Babylon objects
 // 2. Accessing runtime properties missing from type definitions (e.g. `wireframe`, `diffuseTexture`)
 
-// biome-ignore lint/suspicious/noExplicitAny: Babylon objects used as generic property bags for stashing originals
-type AnyRecord = Record<string, any>;
+/** A Babylon object viewed as a bag of keyed values; callers name the value type. */
+type PropertyBag = Record<string, unknown>;
 
 /** Get a stashed property from a Babylon object */
 function getStashed<T>(obj: object, key: string): T | undefined {
-  return (obj as AnyRecord)[key] as T | undefined;
+  return (obj as PropertyBag)[key] as T | undefined;
 }
 
 /** Set a stashed property on a Babylon object */
 function setStashed(obj: object, key: string, value: unknown): void {
-  (obj as AnyRecord)[key] = value;
+  (obj as PropertyBag)[key] = value;
 }
 
 /** Delete a stashed property from a Babylon object */
 function deleteStashed(obj: object, key: string): void {
-  delete (obj as AnyRecord)[key];
+  delete (obj as PropertyBag)[key];
 }
 
 /** Get a runtime property from a Babylon object (for untyped API access) */
 function getProp<T>(obj: object, key: string): T | undefined {
-  return (obj as AnyRecord)[key] as T | undefined;
+  return (obj as PropertyBag)[key] as T | undefined;
 }
 
 /** Set a runtime property on a Babylon object (for untyped API access) */
 function setProp(obj: object, key: string, value: unknown): void {
-  (obj as AnyRecord)[key] = value;
+  (obj as PropertyBag)[key] = value;
 }
 
 // ==================== Types ====================

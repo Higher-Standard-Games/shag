@@ -885,7 +885,7 @@ export class SkyLightSystem {
         scene.getMeshByName("skySphere") ||
         scene.getMeshByName("q3_skybox");
 
-      if (!skybox || !skybox.material) return;
+      if (!skybox?.material) return;
 
       const mat = skybox.material as TintableMaterial;
 

@@ -222,8 +222,7 @@ export class TextureManager {
     if (!this.scene) return null;
 
     const pk3Tex = PK3TextureLoader.getInstance();
-    // biome-ignore lint/suspicious/noExplicitAny: Babylon texture internals
-    pk3Tex.init(this.scene.getEngine() as any, this.scene);
+    pk3Tex.init(this.scene.getEngine(), this.scene);
 
     const texture = await pk3Tex.resolveAndLoadTexture(texturePath);
     if (!texture) return null;

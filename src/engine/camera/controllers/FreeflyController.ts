@@ -15,6 +15,7 @@
 import type { Camera } from "@babylonjs/core/Cameras/camera";
 import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
 import { FPS, registerFPSActions } from "../../../games/fps/client/FPSActions";
@@ -520,7 +521,7 @@ export class FreeflyController implements ICameraController {
         this.camera.position.copyFrom(slideResult.endPos);
       } else {
         // Fallback to simple trace
-        const clipTrace = cm.trace(posBefore as never, posAfterBabylon as never, traceOpts);
+        const clipTrace = cm.trace(posBefore, posAfterBabylon, traceOpts);
         if (clipTrace.fraction < 1.0) {
           this.camera.position.copyFrom(clipTrace.endPos);
         }
@@ -531,7 +532,7 @@ export class FreeflyController implements ICameraController {
       }
 
       // Check if we're stuck in solid (startSolid case)
-      const stuckCheck = cm.trace(this.camera.position as never, this.camera.position as never, traceOpts);
+      const stuckCheck = cm.trace(this.camera.position, this.camera.position, traceOpts);
       if (stuckCheck.startSolid) {
         const nowStuck = Date.now();
         if (nowStuck - FreeflyController._lastClipHitLogTime > 250) {
@@ -564,13 +565,13 @@ export class FreeflyController implements ICameraController {
           for (const dir of testDirs) {
             const testPos = base.add(dir.scale(nudge));
             const testStart = testPos.add(ellipsoidOffset);
-            const testTraceA = cm.trace(testStart as never, testStart as never, {
+            const testTraceA = cm.trace(testStart, testStart, {
               radius: 16,
               height: 56,
               clipTexturesOnly: true,
               contentMask: 0x1 | 0x10000,
             });
-            const testTraceB = cm.trace(testStart as never, testStart as never, {
+            const testTraceB = cm.trace(testStart, testStart, {
               radius: 16,
               height: 56,
               nodrawSolidsOnly: true,
@@ -618,8 +619,7 @@ export class FreeflyController implements ICameraController {
    * Check if a mesh should be excluded from collision detection
    * Excludes: billboards, light halos, flares, transparent/additive effects
    */
-  // biome-ignore lint/suspicious/noExplicitAny: Babylon.js internal API access
-  private shouldSkipCollision(mesh: any): boolean {
+  private shouldSkipCollision(mesh: AbstractMesh): boolean {
     const name = mesh.name?.toLowerCase() || "";
     const textureName = mesh.metadata?.textureName?.toLowerCase() || "";
 
@@ -694,8 +694,8 @@ export class FreeflyController implements ICameraController {
     const end = start.add(originalMovement);
     const traceOpts = { radius: 16, height: 56 };
 
-    // Trace through BSP (cast to handle babylonjs vs @babylonjs/core type mismatch)
-    const trace = cm.trace(start as never, end as never, traceOpts);
+    // Trace through BSP
+    const trace = cm.trace(start, end, traceOpts);
 
     // Debug logging once per second
     const now = Date.now();
@@ -736,7 +736,7 @@ export class FreeflyController implements ICameraController {
       for (const nudge of nudgeSteps) {
         for (const dir of testDirs) {
           const testPos = start.add(dir.scale(nudge));
-          const testTrace = cm.trace(testPos as never, testPos.add(new Vector3(0, -0.1, 0)) as never, traceOpts);
+          const testTrace = cm.trace(testPos, testPos.add(new Vector3(0, -0.1, 0)), traceOpts);
           if (!testTrace.startSolid) {
             devLog(
               `[Freefly] Nudge successful at (${testPos.x.toFixed(1)}, ${testPos.y.toFixed(1)}, ${testPos.z.toFixed(1)})`,
@@ -791,7 +791,7 @@ export class FreeflyController implements ICameraController {
           );
           const slideStart = this.camera.position.clone();
           const slideEnd = slideStart.add(slideMove);
-          const slideTrace = cm.trace(slideStart as never, slideEnd as never, traceOpts);
+          const slideTrace = cm.trace(slideStart, slideEnd, traceOpts);
 
           if (slideTrace.fraction > 0) {
             const slidePos = Vector3.Lerp(slideStart, slideEnd, Math.min(slideTrace.fraction * 0.9, 1.0));

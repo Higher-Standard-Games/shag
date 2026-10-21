@@ -129,6 +129,12 @@ void main(void) {
 }
 `;
 
+/** A mesh-like node whose metadata carries the cel outline exclusion flag. */
+interface CelOutlineTaggable {
+  metadata: { celOutlineExclude?: boolean } | null;
+  getChildMeshes?: () => CelOutlineTaggable[];
+}
+
 export class CelOutlinePostProcess {
   private static _instance: CelOutlinePostProcess;
 
@@ -366,7 +372,7 @@ export class CelOutlinePostProcess {
    * Exclude a mesh (and its children) from cel outline depth pass.
    * Use for projectiles, particles, UI elements, etc.
    */
-  public static excludeMesh(mesh: { metadata: any; getChildMeshes?: () => any[] }): void {
+  public static excludeMesh(mesh: CelOutlineTaggable): void {
     if (!mesh.metadata) mesh.metadata = {};
     mesh.metadata.celOutlineExclude = true;
     // Also tag children
@@ -381,7 +387,7 @@ export class CelOutlinePostProcess {
   /**
    * Re-include a mesh in cel outline depth pass.
    */
-  public static includeMesh(mesh: { metadata: any; getChildMeshes?: () => any[] }): void {
+  public static includeMesh(mesh: CelOutlineTaggable): void {
     if (mesh.metadata) {
       mesh.metadata.celOutlineExclude = false;
     }

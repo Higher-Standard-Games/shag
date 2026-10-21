@@ -57,7 +57,7 @@ export interface InstanceTransform {
  * Manages GPU-instanced meshes for performance optimization
  */
 export class InstancedMeshManager {
-  private static instance: InstancedMeshManager;
+  private static instance: InstancedMeshManager | null = null;
   private scene: Scene | null = null;
   private templates: Map<string, TemplateData> = new Map();
   private instanceCounter: number = 0;
@@ -385,7 +385,6 @@ export class InstancedMeshManager {
     if (InstancedMeshManager.instance) {
       InstancedMeshManager.instance.dispose();
     }
-    // biome-ignore lint/suspicious/noExplicitAny: Babylon instanced mesh internals
-    InstancedMeshManager.instance = null as any;
+    InstancedMeshManager.instance = null;
   }
 }

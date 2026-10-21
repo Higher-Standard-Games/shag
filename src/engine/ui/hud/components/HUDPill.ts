@@ -9,10 +9,10 @@ export class HUDPill extends HUDElement {
   protected override config: HUDPillConfig;
   private iconEl!: HTMLElement;
   private valueEl!: HTMLElement;
-  private currentValue: any = null;
+  private currentValue: unknown = null;
 
   constructor(id: string, config: HUDPillConfig) {
-    super(id, config as any);
+    super(id, config);
     this.config = config;
   }
 
@@ -40,12 +40,12 @@ export class HUDPill extends HUDElement {
     return el;
   }
 
-  public setValue(value: any): void {
+  public setValue(value: unknown): void {
     if (value === this.currentValue) return;
     this.currentValue = value;
 
     // Format the value
-    let displayValue = value;
+    let displayValue: unknown = value;
     if (this.config.format && value != null) {
       displayValue = this.formatValue(value, this.config.format);
     }
@@ -56,7 +56,7 @@ export class HUDPill extends HUDElement {
   /**
    * Format a value using printf-style format string
    */
-  private formatValue(value: any, format: string): string {
+  private formatValue(value: unknown, format: string): string {
     // Simple format replacements
     // %d = integer
     // %s = string
@@ -92,7 +92,7 @@ export class HUDPill extends HUDElement {
   /**
    * Get current value
    */
-  public getValue(): any {
+  public getValue(): unknown {
     return this.currentValue;
   }
 }

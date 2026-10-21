@@ -19,6 +19,7 @@
  *   }
  */
 
+import { background } from "../../core/AsyncErrors";
 import { LogoCanvas } from "../components/LogoCanvas";
 import { UIStyles } from "../UIStyles";
 import { clearParticles, spawnParticles } from "./effects/FloatingParticles";
@@ -277,7 +278,7 @@ export class GamePanel {
 
     // Init after a tick (needs to be in DOM)
     requestAnimationFrame(() => {
-      this.logoCanvas?.init();
+      if (this.logoCanvas) background(this.logoCanvas.init(), "GamePanel");
     });
   }
 

@@ -287,14 +287,13 @@ export class MatchLobbyView {
           /* storage unavailable — return falls back to a plain reload */
         }
         const overlay = new ConnectingOverlay();
+        const matchId = msg.matchId;
         overlay
           .show(
             msg.serverUrl,
             false,
             msg.admissionTicket,
-            msg.matchId
-              ? async () => (await this.lobbyClient.requestSeatReissue(msg.matchId)).admissionTicket
-              : undefined,
+            matchId ? async () => (await this.lobbyClient.requestSeatReissue(matchId)).admissionTicket : undefined,
           )
           .catch(logRejection("MatchLobbyView"));
       }),

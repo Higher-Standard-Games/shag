@@ -17,6 +17,7 @@ import type {
   FeaturedDemosResponse,
   LeaderboardResponse,
   LobbyMessage,
+  LobbyServerMessages,
   SeatReissueResponse,
   SettingsDataMessage,
   SettingsErrorCode,
@@ -26,7 +27,18 @@ import type {
 /** How long to wait for a connection before telling the caller it failed. */
 const CONNECT_TIMEOUT_MS = 20_000;
 
-type MessageHandler = (msg: any) => void;
+/** What the client itself emits about its connection; no server message shares these names. */
+export interface LobbyConnectionEvents {
+  _connected: Record<string, never>;
+  _disconnected: { reason: string; code: number };
+  _error: { error: string };
+}
+
+/** Everything `on` can hear by name, and what each handler receives. */
+export type LobbyEvents = LobbyServerMessages & LobbyConnectionEvents;
+
+/** A stored handler. `on` types each one by its event; the store holds them all alike. */
+type MessageHandler = (msg: unknown) => void;
 
 /** `_disconnected` reason when this client closed the connection itself, as when switching accounts. */
 export const CLIENT_DISCONNECT_REASON = "Client disconnect";
@@ -389,7 +401,7 @@ export class LobbyClient {
               msg.gametype !== query.gametype ||
               msg.data?.scope !== query.scope ||
               msg.data?.gametype !== query.gametype ||
-              (type === "stats:get" && msg.data?.period !== query.period)
+              (type === "stats:get" && (msg.data as Partial<StatsSummary> | undefined)?.period !== query.period)
             )
               reject(new Error("Player stats response mismatch"));
             else resolve(msg.data as T);
@@ -482,7 +494,10 @@ export class LobbyClient {
    * Subscribe to a message type.
    * Returns an unsubscribe function.
    */
-  on(type: string, handler: MessageHandler): () => void {
+  on<K extends keyof LobbyEvents>(type: K, handler: (msg: LobbyEvents[K]) => void): () => void;
+  on<T extends LobbyMessage = LobbyMessage>(type: string, handler: (msg: T) => void): () => void;
+  on(type: string, typedHandler: (msg: never) => void): () => void {
+    const handler = typedHandler as MessageHandler;
     if (!this.handlers.has(type)) {
       this.handlers.set(type, []);
     }
@@ -498,8 +513,11 @@ export class LobbyClient {
   }
 
   /** Subscribe to a message type, but only fire once */
-  once(type: string, handler: MessageHandler): () => void {
-    const unsub = this.on(type, (msg) => {
+  once<K extends keyof LobbyEvents>(type: K, handler: (msg: LobbyEvents[K]) => void): () => void;
+  once<T extends LobbyMessage = LobbyMessage>(type: string, handler: (msg: T) => void): () => void;
+  once(type: string, typedHandler: (msg: never) => void): () => void {
+    const handler = typedHandler as MessageHandler;
+    const unsub = this.on(type, (msg: LobbyMessage) => {
       unsub();
       handler(msg);
     });
@@ -516,7 +534,7 @@ export class LobbyClient {
     }
   }
 
-  private emit(type: string, msg: any): void {
+  private emit(type: string, msg: unknown): void {
     const handlers = this.handlers.get(type);
     if (handlers) {
       // A copy: a handler that unsubscribes itself (every once()) removes its

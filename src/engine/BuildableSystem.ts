@@ -514,7 +514,6 @@ export class BuildableSystem {
     return instance;
   }
 
-  // biome-ignore lint/suspicious/useAdjacentOverloadSignatures: shadows the static singleton accessor by name only — different signature, different `this`, intentional public API for external consumers (isometric SHAG project)
   public getInstance(id: string): BuildableInstance | undefined {
     return this.instances.get(id);
   }
@@ -594,7 +593,7 @@ export class BuildableSystem {
   public removeChild(parentId: string, childId: string): boolean {
     const parent = this.instances.get(parentId);
     const child = this.instances.get(childId);
-    if (!parent || !parent.childIds) return false;
+    if (!parent?.childIds) return false;
 
     const index = parent.childIds.indexOf(childId);
     if (index === -1) return false;
@@ -623,7 +622,7 @@ export class BuildableSystem {
    */
   public removeAllChildren(parentId: string): void {
     const parent = this.instances.get(parentId);
-    if (!parent || !parent.childIds) return;
+    if (!parent?.childIds) return;
 
     for (const childId of [...parent.childIds]) {
       this.removeChild(parentId, childId);
@@ -636,7 +635,7 @@ export class BuildableSystem {
    */
   public syncChildProgress(parentId: string, childId: string, progress: number): void {
     const parent = this.instances.get(parentId);
-    if (!parent || !parent.childIds?.includes(childId)) return;
+    if (!parent?.childIds?.includes(childId)) return;
 
     const template = this.templates.get(parent.templateId);
     const container = template?.behaviors?.container;
@@ -680,7 +679,7 @@ export class BuildableSystem {
    */
   public getChildren(parentId: string): BuildableInstance[] {
     const parent = this.instances.get(parentId);
-    if (!parent || !parent.childIds) return [];
+    if (!parent?.childIds) return [];
 
     return parent.childIds.map((id) => this.instances.get(id)).filter((c): c is BuildableInstance => c !== undefined);
   }

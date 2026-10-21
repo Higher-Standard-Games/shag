@@ -5,6 +5,15 @@
 import type { Scene } from "@babylonjs/core/scene";
 import { Command, type CommandDef } from "../Command";
 
+/** Chrome's non-standard performance.memory, absent from the DOM lib and other browsers. */
+interface PerformanceWithMemory extends Performance {
+  memory?: {
+    usedJSHeapSize: number;
+    totalJSHeapSize: number;
+    jsHeapSizeLimit: number;
+  };
+}
+
 export default class StatsCommand extends Command {
   readonly definition: CommandDef = {
     name: "stats",
@@ -29,7 +38,7 @@ export default class StatsCommand extends Command {
     }
 
     const engine = scene.getEngine();
-    const perf = performance as any;
+    const perf = performance as PerformanceWithMemory;
 
     const lines = ["Performance Stats:"];
     lines.push(`  FPS: ${engine.getFps().toFixed(1)}`);

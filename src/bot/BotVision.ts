@@ -640,7 +640,7 @@ export class BotVision {
     for (const ae of audibleEnemies) {
       const existing = this._enemyTracks.get(ae.player.playerId);
       // Only update if we don't have a RECENT visual track
-      if (!existing || existing.source !== "visual" || state.tick - existing.lastSeenTick > 30) {
+      if (existing?.source !== "visual" || state.tick - existing.lastSeenTick > 30) {
         this._enemyTracks.set(ae.player.playerId, {
           playerId: ae.player.playerId,
           entityId: ae.player.entityId,

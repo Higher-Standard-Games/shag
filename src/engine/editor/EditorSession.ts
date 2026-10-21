@@ -1792,8 +1792,7 @@ export class EditorSession {
           break;
         case "playtest":
           if (
-            !this.compileJob ||
-            this.compileJob.state !== "playable" ||
+            this.compileJob?.state !== "playable" ||
             this.compileJob.revision !== this.serverSave?.revision ||
             this.serverSave.documentRevision !== this.revision ||
             !this.onPlaytest

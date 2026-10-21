@@ -195,6 +195,7 @@ export default defineConfig({
       '@babylonjs/core/Materials/Node/Blocks/vectorMergerBlock',
       '@babylonjs/core/Materials/Node/Enums/nodeMaterialSystemValues',
       '@babylonjs/core/Materials/Node/nodeMaterial',
+      '@babylonjs/core/Materials/Node/nodeMaterialBlockConnectionPoint',
       '@babylonjs/core/Materials/PBR/pbrBaseMaterial',
       '@babylonjs/core/Materials/PBR/pbrMaterial',
       '@babylonjs/core/Materials/Textures/Loaders/ktxTextureLoader',

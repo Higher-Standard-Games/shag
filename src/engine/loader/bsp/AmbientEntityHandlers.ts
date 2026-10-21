@@ -27,7 +27,7 @@ const ROTATING_Y_AXIS = 8;
 
 function parseQ3Vector(value: string | undefined): [number, number, number] | null {
   const parts = value?.trim().split(/\s+/).map(Number);
-  if (!parts || parts.length !== 3 || parts.some((n) => !Number.isFinite(n))) return null;
+  if (parts?.length !== 3 || parts.some((n) => !Number.isFinite(n))) return null;
   return [parts[0], parts[1], parts[2]];
 }
 

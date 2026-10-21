@@ -30,7 +30,7 @@ export abstract class HUDElement {
   /**
    * Update the displayed value
    */
-  public abstract setValue(value: any): void;
+  public abstract setValue(value: unknown): void;
 
   /**
    * Get the DOM element

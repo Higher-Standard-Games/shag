@@ -221,15 +221,12 @@ describe("network timing handshake", () => {
     await f.host.disconnect();
   });
 
-  it.each([
-    125.5,
-    381,
-    -131,
-    Number.NaN,
-    Number.POSITIVE_INFINITY,
-  ])("does not encode %sHz as a different rate", (rate) => {
-    expect(() => welcome(rate)).toThrow("integer byte");
-  });
+  it.each([125.5, 381, -131, Number.NaN, Number.POSITIVE_INFINITY])(
+    "does not encode %sHz as a different rate",
+    (rate) => {
+      expect(() => welcome(rate)).toThrow("integer byte");
+    },
+  );
 
   it("rejects a contradictory local tick duration", () => {
     const f = fixture();

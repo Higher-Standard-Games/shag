@@ -83,7 +83,7 @@ export class WaterRefractionProvider {
         this.candidates.length = 0;
         for (let i = 0; list && i < length; i++) {
           const mesh = list[i];
-          if (!mesh || !mesh.isEnabled() || !mesh.isVisible || mesh.visibility <= 0) continue;
+          if (!mesh?.isEnabled() || !mesh.isVisible || mesh.visibility <= 0) continue;
           if (mesh.metadata?.liquidKind || mesh.metadata?.effectOwned || mesh.metadata?.excludeFromWaterCapture)
             continue;
           if (mesh.layerMask & 0x10000000) continue;

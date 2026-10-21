@@ -17,6 +17,7 @@
 
 import type { Camera } from "@babylonjs/core/Cameras/camera";
 import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
+import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
 import { devLog } from "../../core/DevLog";
 import { applyFirstPersonPose, type FirstPersonPose, finitePose } from "../FirstPersonPose";
@@ -43,7 +44,7 @@ export class SpectatorController implements ICameraController {
   private ownCamera: FreeCamera | null = null;
   private scene: Scene | null = null;
   private enabled: boolean = true;
-  private renderObserver: any = null; // Babylon Observer handle
+  private renderObserver: Observer<Scene> | null = null;
 
   // Target tracking
   private targetEntityId: string | null = null;

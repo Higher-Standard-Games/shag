@@ -86,12 +86,12 @@ describe("training on a recorded corpus", () => {
       callbacks: tf.callbacks.earlyStopping({ monitor: "val_loss", patience: 1 }),
     });
 
-    const loss = (result?.history.loss as number[])[0];
-    const valLoss = (result?.history.val_loss as number[])[0];
+    const loss = (result!.history.loss as number[])[0];
+    const valLoss = (result!.history.val_loss as number[])[0];
     expect(Number.isFinite(loss)).toBe(true);
     expect(Number.isFinite(valLoss)).toBe(true);
     // Early stopping may cut the run short, never lengthen it
-    expect((result?.history.loss as number[]).length).toBeLessThanOrEqual(3);
+    expect((result!.history.loss as number[]).length).toBeLessThanOrEqual(3);
 
     // The per-output report puts logits into label space before scoring them
     const scores = scoreModel(tf, brain.tacticalModel, held.pairs, TACTICAL_OUTPUT_NAMES, TACTICAL_OUTPUT_KINDS);

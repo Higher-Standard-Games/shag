@@ -4,21 +4,19 @@ import { initialRating } from "../RatingPolicy";
 import { rateMatch } from "../TrueSkillRating";
 
 describe("fixed opponent numerical updates", () => {
-  it.each([
-    "duel",
-    "amphi",
-    "ffa",
-    "snd",
-  ] as const)("conditions %s on the reference without returning or mutating its state", (mode) => {
-    const fixed = Object.freeze({ ...initialRating(), mu: 10, sigma: 2 });
-    const groups = [
-      { rank: 0, players: [{ playerId: "human", state: initialRating() }] },
-      { rank: 1, players: [{ playerId: "bot", state: fixed, fixed: true }] },
-    ];
-    const expected = rateMatch(mode, groups).filter((p) => p.playerId === "human");
-    expect(rateWithFixedReferences(mode, groups)).toEqual(expected);
-    expect(fixed).toEqual({ ...initialRating(), mu: 10, sigma: 2 });
-  });
+  it.each(["duel", "amphi", "ffa", "snd"] as const)(
+    "conditions %s on the reference without returning or mutating its state",
+    (mode) => {
+      const fixed = Object.freeze({ ...initialRating(), mu: 10, sigma: 2 });
+      const groups = [
+        { rank: 0, players: [{ playerId: "human", state: initialRating() }] },
+        { rank: 1, players: [{ playerId: "bot", state: fixed, fixed: true }] },
+      ];
+      const expected = rateMatch(mode, groups).filter((p) => p.playerId === "human");
+      expect(rateWithFixedReferences(mode, groups)).toEqual(expected);
+      expect(fixed).toEqual({ ...initialRating(), mu: 10, sigma: 2 });
+    },
+  );
   it("updates only humans in mixed teams and preserves draw symmetry", () => {
     const g = [0, 1].map((team) => ({
       rank: 0,

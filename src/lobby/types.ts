@@ -12,7 +12,7 @@
 /** Base lobby message — all messages have a type */
 export interface LobbyMessage {
   type: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 // ============================================================================
@@ -85,10 +85,13 @@ export interface MapOption {
   votes: number;
 }
 
+/** A room seat's side; `ffa` in a mode without teams. */
+export type LobbyTeam = "alpha" | "bravo" | "ffa";
+
 export interface LobbyPlayerInfo {
   id: string;
   name: string;
-  team: string; // 'alpha', 'bravo', or 'ffa'
+  team: LobbyTeam;
   ready: boolean;
   /** A bot's preset (easy, medium, hard, insane), as its service reported it. */
   botLevel?: string;
@@ -570,6 +573,26 @@ export interface LobbyBotInviteFailedMessage extends LobbyMessage {
   error: string;
 }
 
+/** This connection was taken out of a room it was in. */
+export interface LobbyKickedMessage extends LobbyMessage {
+  type: "lobby:kicked";
+  lobbyId: string;
+  reason: string;
+}
+
+export interface LobbyTeamsShuffledMessage extends LobbyMessage {
+  type: "lobby:teams_shuffled";
+  players: LobbyPlayerInfo[];
+}
+
+/** The room's match is over and the room is waiting again. */
+export interface MatchEndedMessage extends LobbyMessage {
+  type: "match:ended";
+  matchId: string;
+  /** The game server's exit code; null when it was stopped by a signal. */
+  exitCode: number | null;
+}
+
 export interface DevServerSpawnedMessage extends LobbyMessage {
   type: "dev:server_spawned";
   requestId: string;
@@ -622,4 +645,51 @@ export interface FeaturedDemosError extends LobbyMessage {
   type: "featured:error";
   requestId: string;
   reason: "invalid_query" | "rate_limited";
+}
+
+// ============================================================================
+// Server → Client Messages, by type
+// ============================================================================
+
+/** Each server message a client can subscribe to, keyed by its `type`. */
+export interface LobbyServerMessages {
+  welcome: WelcomeMessage;
+  "auth:error": AuthErrorMessage;
+  "identity:renamed": IdentityRenamedMessage;
+  "identity:error": IdentityErrorMessage;
+  "settings:data": SettingsDataMessage;
+  "settings:saved": SettingsSavedMessage;
+  "settings:error": SettingsErrorMessage;
+  "player:renamed": PlayerRenamedMessage;
+  "player:join": PlayerJoinMessage;
+  "player:leave": PlayerLeaveMessage;
+  "player:status": PlayerStatusMessage;
+  "chat:message": ChatBroadcastMessage;
+  "lobby:chat_message": RoomChatBroadcastMessage;
+  "lobby:created": LobbyCreatedMessage;
+  "lobby:player_joined": LobbyPlayerJoinedMessage;
+  "lobby:player_left": LobbyPlayerLeftMessage;
+  "lobby:player_updated": LobbyPlayerUpdatedMessage;
+  "lobby:votes_updated": LobbyVotesUpdatedMessage;
+  "lobby:all_ready": LobbyAllReadyMessage;
+  "lobby:starting": LobbyStartingMessage;
+  "lobby:connect": LobbyConnectMessage;
+  "lobby:error": LobbyErrorMessage;
+  "lobby:kicked": LobbyKickedMessage;
+  "lobby:teams_shuffled": LobbyTeamsShuffledMessage;
+  "lobby:bot_invited": LobbyBotInvitedMessage;
+  "lobby:bot_invite_failed": LobbyBotInviteFailedMessage;
+  "matches:update": MatchesUpdateMessage;
+  "match:ended": MatchEndedMessage;
+  "match:seat_reissued": SeatReissueResponse;
+  "match:seat_reissue_error": SeatReissueError;
+  "dev:server_spawned": DevServerSpawnedMessage;
+  "dev:server_spawn_failed": DevServerSpawnFailedMessage;
+  "demos:list_response": DemosListResponse;
+  "featured:page": FeaturedDemosResponse;
+  "featured:error": FeaturedDemosError;
+  "leaderboard:page": LeaderboardResponse;
+  "leaderboard:error": LeaderboardError;
+  "stats:summary": PlayerStatsResponse;
+  "stats:history_page": PlayerStatsResponse;
 }

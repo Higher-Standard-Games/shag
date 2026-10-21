@@ -5,13 +5,20 @@
 import { HUDElement } from "../HUDElement";
 import type { HUDButtonConfig } from "../HUDTypes";
 
+/** Object form of a button binding value; every field is optional. */
+interface HUDButtonValue {
+  icon?: string;
+  active?: boolean;
+  state?: string;
+}
+
 export class HUDButton extends HUDElement {
   protected override config: HUDButtonConfig;
   private iconEl!: HTMLElement;
   private active: boolean = false;
 
   constructor(id: string, config: HUDButtonConfig) {
-    super(id, config as any);
+    super(id, config);
     this.config = config;
   }
 
@@ -39,16 +46,17 @@ export class HUDButton extends HUDElement {
     return el;
   }
 
-  public setValue(value: any): void {
+  public setValue(value: unknown): void {
     // For buttons, value can be the icon or active state
     if (typeof value === "string") {
       this.iconEl.textContent = value;
     } else if (typeof value === "boolean") {
       this.setActive(value);
     } else if (typeof value === "object" && value !== null) {
-      if (value.icon) this.iconEl.textContent = value.icon;
-      if (value.active !== undefined) this.setActive(value.active);
-      if (value.state) this.setState(value.state);
+      const v = value as HUDButtonValue;
+      if (v.icon) this.iconEl.textContent = v.icon;
+      if (v.active !== undefined) this.setActive(v.active);
+      if (v.state) this.setState(v.state);
     }
   }
 

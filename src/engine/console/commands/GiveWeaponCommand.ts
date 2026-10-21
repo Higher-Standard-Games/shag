@@ -21,7 +21,7 @@ export default class GiveWeaponCommand extends Command {
     const cameraSystem = CameraSystem.getInstance();
     const controller = cameraSystem.getActiveController();
 
-    if (!controller || controller.type !== "fps") {
+    if (controller?.type !== "fps") {
       return "Error: Must be in FPS mode";
     }
 

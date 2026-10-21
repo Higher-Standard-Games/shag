@@ -33,9 +33,9 @@ import type { IncomingMessage } from "node:http";
 import { WebSocket, WebSocketServer } from "ws";
 import { background } from "../engine/core/AsyncErrors";
 import { BOT_SECRET_HEADER, secretMatches } from "../lobby/ServerData";
-import { BotClient } from "./BotClient";
+import { BotClient, type BotClientState } from "./BotClient";
 import { type BotOptions, getNextBotName } from "./BotConfig";
-import { BotLobbyClient } from "./BotLobbyClient";
+import { BotLobbyClient, type LobbyBotState } from "./BotLobbyClient";
 import { BotNavCacheStore } from "./BotNavCache";
 import { BotNavGraph } from "./BotNavGraph";
 import { type BotVision, createBotVision } from "./BotVision";
@@ -43,10 +43,58 @@ import { loadLearnedRoutes } from "./LearnedRoutes";
 
 // ── Control API Message Types ───────────────────────────────────────────
 
+/** A control request as it arrives: its type, and fields that are whatever the sender wrote. */
 interface ControlMessage {
   type: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
+
+interface AddBotRequest extends ControlMessage {
+  type: "add_bot";
+  gameServerUrl: string;
+  options?: Partial<BotOptions>;
+}
+
+interface AddLobbyBotRequest extends ControlMessage {
+  type: "add_lobby_bot";
+  lobbyUrl: string;
+  gametype?: string;
+  options?: Partial<BotOptions>;
+  lobbyId?: string;
+  inviteToken?: string;
+}
+
+interface RemoveBotRequest extends ControlMessage {
+  type: "remove_bot";
+  botId: string;
+}
+
+interface SetDifficultyRequest extends ControlMessage {
+  type: "set_difficulty";
+  botId: string;
+  difficulty: string;
+}
+
+/** One bot in a `status` reply. */
+export interface BotStatus {
+  id: string;
+  name: string;
+  state: BotClientState | LobbyBotState;
+  brainState: string;
+  playerId: string;
+  server: string;
+  source: "direct" | "lobby";
+}
+
+/** Everything the control socket sends back. */
+type ControlResponse =
+  | { type: "bot_added"; botId: string; name: string }
+  | { type: "bot_preparing" }
+  | { type: "bot_removed" | "error"; botId: string; error: string | undefined }
+  | { type: "all_removed"; count: number }
+  | { type: "difficulty_set"; botId: string }
+  | { type: "status"; bots: BotStatus[] }
+  | { type: "error"; error: string };
 
 // ── BotServer ───────────────────────────────────────────────────────────
 
@@ -177,8 +225,8 @@ export class BotServer {
       background(this._loadVisionForBot(bot), "BotServer");
 
       return bot;
-    } catch (err: any) {
-      console.error(`[BotServer] Failed to spawn bot ${bot.name}:`, err.message);
+    } catch (err) {
+      console.error(`[BotServer] Failed to spawn bot ${bot.name}:`, err instanceof Error ? err.message : String(err));
       throw err;
     }
   }
@@ -233,9 +281,9 @@ export class BotServer {
       const where = joinLobbyId ? `lobby ${joinLobbyId}` : `queue ${gametype}`;
       console.log(`[BotServer] Lobby bot ${lobbyBot.name} (${lobbyBot.id}) → ${where}`);
       return lobbyBot;
-    } catch (err: any) {
+    } catch (err) {
       await lobbyBot.disconnect();
-      console.error(`[BotServer] Failed to spawn lobby bot:`, err.message);
+      console.error(`[BotServer] Failed to spawn lobby bot:`, err instanceof Error ? err.message : String(err));
       throw err;
     } finally {
       this._pendingLobbyBots.delete(lobbyBot);
@@ -312,9 +360,12 @@ export class BotServer {
         this._visionLoading.delete(mapName);
         console.warn(`[BotServer] Vision unavailable for map "${mapName}"`);
       }
-    } catch (err: any) {
+    } catch (err) {
       this._visionLoading.delete(mapName);
-      console.error(`[BotServer] Vision load failed for map "${mapName}":`, err.message);
+      console.error(
+        `[BotServer] Vision load failed for map "${mapName}":`,
+        err instanceof Error ? err.message : String(err),
+      );
     }
   }
 
@@ -361,7 +412,7 @@ export class BotServer {
   /**
    * Get status of all bots (direct + lobby).
    */
-  getStatus(): any[] {
+  getStatus(): BotStatus[] {
     const direct = Array.from(this._bots.values()).map((bot) => ({
       id: bot.id,
       name: bot.name,
@@ -393,16 +444,17 @@ export class BotServer {
     switch (msg.type) {
       case "add_bot": {
         try {
-          const bot = await this.addBot(msg.gameServerUrl, msg.options);
+          const request = msg as AddBotRequest;
+          const bot = await this.addBot(request.gameServerUrl, request.options);
           this._sendResponse(ws, {
             type: "bot_added",
             botId: bot.id,
             name: bot.name,
           });
-        } catch (err: any) {
+        } catch (err) {
           this._sendResponse(ws, {
             type: "error",
-            error: `Failed to add bot: ${err.message}`,
+            error: `Failed to add bot: ${err instanceof Error ? err.message : String(err)}`,
           });
         }
         break;
@@ -413,13 +465,14 @@ export class BotServer {
         const cancel = () => controller.abort();
         ws.once("close", cancel);
         this._sendResponse(ws, { type: "bot_preparing" });
+        const request = msg as AddLobbyBotRequest;
         try {
           const bot = await this.addLobbyBot(
-            msg.lobbyUrl,
-            msg.gametype || "duel",
-            msg.options,
-            msg.lobbyId,
-            msg.inviteToken,
+            request.lobbyUrl,
+            request.gametype || "duel",
+            request.options,
+            request.lobbyId,
+            request.inviteToken,
             controller.signal,
           );
           this._sendResponse(ws, {
@@ -427,10 +480,10 @@ export class BotServer {
             botId: bot.id,
             name: bot.name,
           });
-        } catch (err: any) {
+        } catch (err) {
           this._sendResponse(ws, {
             type: "error",
-            error: `Failed to add lobby bot: ${err.message}`,
+            error: `Failed to add lobby bot: ${err instanceof Error ? err.message : String(err)}`,
           });
         } finally {
           ws.off("close", cancel);
@@ -439,10 +492,11 @@ export class BotServer {
       }
 
       case "remove_bot": {
-        const removed = await this.removeBot(msg.botId);
+        const { botId } = msg as RemoveBotRequest;
+        const removed = await this.removeBot(botId);
         this._sendResponse(ws, {
           type: removed ? "bot_removed" : "error",
-          botId: msg.botId,
+          botId,
           error: removed ? undefined : "Bot not found",
         });
         break;
@@ -455,10 +509,11 @@ export class BotServer {
       }
 
       case "set_difficulty": {
-        const bot = this._bots.get(msg.botId);
+        const { botId, difficulty } = msg as SetDifficultyRequest;
+        const bot = this._bots.get(botId);
         if (bot) {
-          bot.setDifficulty(msg.difficulty);
-          this._sendResponse(ws, { type: "difficulty_set", botId: msg.botId });
+          bot.setDifficulty(difficulty);
+          this._sendResponse(ws, { type: "difficulty_set", botId });
         } else {
           this._sendResponse(ws, { type: "error", error: "Bot not found" });
         }
@@ -481,7 +536,7 @@ export class BotServer {
     }
   }
 
-  private _sendResponse(ws: WebSocket, msg: any): void {
+  private _sendResponse(ws: WebSocket, msg: ControlResponse): void {
     if (ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify(msg));
     }

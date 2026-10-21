@@ -18,6 +18,7 @@
  *   Start one with: npm run net:server -- --port 17777 --map wdm7
  */
 
+import type { History, LayersModel } from "@tensorflow/tfjs-node";
 import { BotTrainer, DEFAULT_TRAINER_CONFIG, type TrainerConfig } from "../bot/BotTrainer";
 import type { OutputKind } from "../bot/CloningTargets";
 import { runCli } from "./_runCli";
@@ -187,8 +188,7 @@ function countFrames(runs: readonly { length: number }[]): number {
 }
 
 /** Say what the run achieved, and whether it was measured on unseen play. */
-// biome-ignore lint/suspicious/noExplicitAny: tf.History, without importing TF into this module
-function reportLoss(label: string, result: any): void {
+function reportLoss(label: string, result: History): void {
   const history = result?.history ?? {};
   const last = (values: unknown): number | null =>
     Array.isArray(values) && values.length > 0 ? (values[values.length - 1] as number) : null;
@@ -315,8 +315,7 @@ async function trainFromDemo(
    */
   const fitHead = async (
     label: string,
-    // biome-ignore lint/suspicious/noExplicitAny: tf.LayersModel, without importing TF into this module
-    model: any,
+    model: LayersModel | null,
     head: "tactical" | "combat",
     inputSize: number,
     outputNames: readonly string[],

@@ -350,7 +350,7 @@ export class DemoTrainingExtractor {
       if (vy > 50) buttons |= InputButtons.JUMP;
 
       // Crouch — infer from movementState bitmask if available
-      const movementState = entity?.getComponent("movementState") as any;
+      const movementState = entity?.getComponent("movementState") as { flags?: number } | undefined;
       if (movementState) {
         const msBits = movementState.flags ?? movementState ?? 0;
         if (typeof msBits === "number" && msBits & 1) {

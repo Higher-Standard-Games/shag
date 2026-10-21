@@ -3,6 +3,7 @@
  */
 
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import type { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Scene } from "@babylonjs/core/scene";
 // Type-only import reaches into the fps game module — EntityManager itself
 // builds FPS-flavoured entity types (weapon/ammo) and is FPS-coupled (matrix #6).
@@ -19,6 +20,7 @@ import { type EntityData, EntityHandlerRegistry, type EntityHandlerResult } from
 import { getCollisionManager } from "../physics/CollisionManager";
 import { SweepBackendAdapter } from "../physics/SweepBackendAdapter";
 import { RenderVars } from "../rendering/RenderVars";
+import type { Pickup } from "../world/Pickup";
 import type { PickupVisualFactory } from "../world/PickupVisual";
 
 /** Health/armor render as procedural sculptures unless r_pickupProcedural is 0. */
@@ -84,9 +86,19 @@ async function resolvePickupVisualFactory(
   return createProceduralPickupFactory(def.id) ?? undefined;
 }
 
+/** A map entity spawned by this manager and tracked for disposal and pickup checks. */
+interface ActiveEntity {
+  def: EntityDef;
+  node: Pickup;
+  active: boolean;
+  /** Not assigned by spawnEntity; checkPickups skips entities without a trigger. */
+  trigger?: TransformNode;
+  mesh?: TransformNode;
+}
+
 export class EntityManager {
   private static instance: EntityManager;
-  private entities: any[] = []; // TODO: ActiveEntity interface
+  private entities: ActiveEntity[] = [];
   /**
    * Authoritative pickup table for the current map, derived from the SAME shared
    * extractor the server uses (src/shared/bsp/PickupTable.ts). Pickup ids come
@@ -349,7 +361,7 @@ export class EntityManager {
     }
   }
 
-  private pickupEntity(entity: any, inventory: InventoryManager): void {
+  private pickupEntity(entity: ActiveEntity, inventory: InventoryManager): void {
     const result = inventory.giveWeapon(entity.def.id);
     if (result.acquired) {
       devLog(`[EntityManager] Picked up ${entity.def.name}`);

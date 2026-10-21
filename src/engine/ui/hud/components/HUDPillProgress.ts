@@ -11,11 +11,11 @@ export class HUDPillProgress extends HUDElement {
   private valueEl!: HTMLElement;
   private progressContainer!: HTMLElement;
   private progressFill!: HTMLElement;
-  private currentValue: any = null;
+  private currentValue: unknown = null;
   private currentProgress: number = 0;
 
   constructor(id: string, config: HUDPillProgressConfig) {
-    super(id, config as any);
+    super(id, config);
     this.config = config;
   }
 
@@ -53,12 +53,12 @@ export class HUDPillProgress extends HUDElement {
     return el;
   }
 
-  public setValue(value: any): void {
+  public setValue(value: unknown): void {
     if (value === this.currentValue) return;
     this.currentValue = value;
 
     // Format the value
-    let displayValue = value;
+    let displayValue: unknown = value;
     if (this.config.format && value != null) {
       displayValue = this.formatValue(value, this.config.format);
     }
@@ -77,7 +77,7 @@ export class HUDPillProgress extends HUDElement {
   /**
    * Format a value using printf-style format string
    */
-  private formatValue(value: any, format: string): string {
+  private formatValue(value: unknown, format: string): string {
     if (format.includes("%d")) {
       return format.replace("%d", String(Math.floor(Number(value))));
     }

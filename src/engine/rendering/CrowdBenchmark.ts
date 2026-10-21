@@ -27,8 +27,7 @@ export function validateCrowdRecipe(value: unknown): asserts value is CrowdRecip
   const vector = (v: unknown): v is number[] => Array.isArray(v) && v.length === 3 && v.every(Number.isFinite);
   const integer = (v: number, min: number, max: number) => Number.isInteger(v) && v >= min && v <= max;
   if (
-    !r ||
-    r.schemaVersion !== 1 ||
+    r?.schemaVersion !== 1 ||
     !/^[a-z0-9-]+$/.test(r.id) ||
     (r.model?.root !== VANGUARD_ROOT && !r.model?.root?.startsWith("/games/")) ||
     !/^[\w-]+\.glb$/.test(r.model.file) ||

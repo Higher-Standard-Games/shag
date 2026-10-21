@@ -62,8 +62,7 @@ function validDetails(
 ): boolean {
   const details = report.details;
   if (
-    !details ||
-    details.version !== 2 ||
+    details?.version !== 2 ||
     (details.mapDigest !== undefined &&
       (typeof details.mapDigest !== "string" || !/^[0-9a-f]{64}$/.test(details.mapDigest))) ||
     !Number.isSafeInteger(details.startedAt) ||

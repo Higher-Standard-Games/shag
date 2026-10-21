@@ -23,6 +23,8 @@
  * TF-13 in docs/research/BOT_TF_IMPROVEMENTS.md.
  */
 
+import type { LayersModel } from "@tensorflow/tfjs-node";
+
 export type Activation = "relu" | "sigmoid" | "linear";
 
 export interface DenseLayer {
@@ -40,9 +42,8 @@ const SUPPORTED: ReadonlySet<string> = new Set(["relu", "sigmoid", "linear"]);
  * Copy a model's weights into plain arrays, or null if it is not a stack of
  * dense layers this file knows how to run.
  */
-// biome-ignore lint/suspicious/noExplicitAny: a tf.LayersModel, kept out of this module's types
-export function extractDenseStack(model: any): DenseLayer[] | null {
-  if (!model || model.getClassName?.() !== "Sequential" || !Array.isArray(model.layers)) return null;
+export function extractDenseStack(model: LayersModel | null): DenseLayer[] | null {
+  if (model?.getClassName?.() !== "Sequential" || !Array.isArray(model.layers)) return null;
   const layers: DenseLayer[] = [];
   for (const layer of model.layers) {
     if (layer.getClassName?.() !== "Dense") return null;
@@ -52,7 +53,7 @@ export function extractDenseStack(model: any): DenseLayer[] | null {
 
     const weights = layer.getWeights();
     const [kernel, bias] = weights;
-    if (!kernel || kernel.shape.length !== 2) return null;
+    if (kernel?.shape.length !== 2) return null;
     const [inSize, outSize] = kernel.shape as [number, number];
     const kernelValues = Float64Array.from(kernel.dataSync() as Float32Array);
     const biasValues =

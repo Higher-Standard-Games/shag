@@ -97,7 +97,7 @@ describe("private match rooms", () => {
 
     send(server, invited.player, { type: "lobby:join", lobbyId: room.id, inviteToken: invite });
     expect(invited.player.lobbyId).toBe(room.id);
-    expect((last(invited.sent, "lobby:created")?.lobby as MatchLobbyInfo).shareUrl).toBe(room.shareUrl);
+    expect((last(invited.sent, "lobby:created")!.lobby as MatchLobbyInfo).shareUrl).toBe(room.shareUrl);
     expect((server as unknown as { getLiveMatches: () => unknown[] }).getLiveMatches()).toEqual([]);
 
     send(server, stranger.player, { type: "lobby:join", lobbyId: room.id, inviteToken: invite });

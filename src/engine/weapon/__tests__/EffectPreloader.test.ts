@@ -91,31 +91,31 @@ describe("effect shader warmup", () => {
     }
   });
 
-  it.each([
-    "preload",
-    "revalidate",
-  ] as const)("propagates a world material error and removes the %s light", async (mode) => {
-    const engine = readyTextureEngine();
-    const scene = new Scene(engine);
-    const mesh = CreateBox("world", {}, scene);
-    const material = new StandardMaterial("world", scene);
-    mesh.material = material;
-    vi.spyOn(material, "forceCompilation").mockImplementation((_mesh, compiled, _options, error) => {
-      error?.("world shader rejected");
-      compiled?.(material);
-    });
-    try {
-      await expect(mode === "preload" ? preloadEffectShaders(scene) : revalidateMaterials(scene)).rejects.toBe(
-        "world shader rejected",
-      );
-      expect(scene.lights).toHaveLength(0);
-      expect(scene.meshes).toEqual([mesh]);
-      expect(scene.onAfterRenderObservable.hasObservers()).toBe(false);
-    } finally {
-      scene.dispose();
-      engine.dispose();
-    }
-  });
+  it.each(["preload", "revalidate"] as const)(
+    "propagates a world material error and removes the %s light",
+    async (mode) => {
+      const engine = readyTextureEngine();
+      const scene = new Scene(engine);
+      const mesh = CreateBox("world", {}, scene);
+      const material = new StandardMaterial("world", scene);
+      mesh.material = material;
+      vi.spyOn(material, "forceCompilation").mockImplementation((_mesh, compiled, _options, error) => {
+        error?.("world shader rejected");
+        compiled?.(material);
+      });
+      try {
+        await expect(mode === "preload" ? preloadEffectShaders(scene) : revalidateMaterials(scene)).rejects.toBe(
+          "world shader rejected",
+        );
+        expect(scene.lights).toHaveLength(0);
+        expect(scene.meshes).toEqual([mesh]);
+        expect(scene.onAfterRenderObservable.hasObservers()).toBe(false);
+      } finally {
+        scene.dispose();
+        engine.dispose();
+      }
+    },
+  );
 
   it("retires a compile light: disabled at once, disposed only after two rendered frames", async () => {
     const engine = readyTextureEngine();

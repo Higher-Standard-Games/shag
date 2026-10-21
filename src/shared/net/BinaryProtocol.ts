@@ -35,6 +35,7 @@
  *          leave a player glowing with a quad they no longer have.
  */
 
+import type { IComponent } from "./Component";
 import { Entity } from "./Entity";
 import { GameState } from "./GameState";
 
@@ -145,12 +146,10 @@ function getEncoder(): BinaryEncoder {
 // (the encoder/decoder reads fields directly, never calls these methods).
 function _noopSerialize(_encoder: BinaryEncoder): void {}
 function _noopDeserialize(_decoder: BinaryDecoder): void {}
-// biome-ignore lint/suspicious/noExplicitAny: clone functions use `this` binding for shallow copy of arbitrary component shapes
-function _shallowClone(this: any) {
+function _shallowClone<T extends IComponent>(this: T): T {
   return { ...this };
 }
-// biome-ignore lint/suspicious/noExplicitAny: clone functions use `this` binding for deep copy of transform shape
-function _transformClone(this: any) {
+function _transformClone(this: TransformShape): TransformShape {
   return {
     position: { ...this.position },
     rotation: { ...this.rotation },
@@ -159,8 +158,7 @@ function _transformClone(this: any) {
     clone: _transformClone,
   };
 }
-// biome-ignore lint/suspicious/noExplicitAny: clone functions use `this` binding for deep copy of velocity shape
-function _velocityClone(this: any) {
+function _velocityClone(this: VelocityShape): VelocityShape {
   return { ...this, linear: { ...this.linear }, angular: { ...this.angular } };
 }
 

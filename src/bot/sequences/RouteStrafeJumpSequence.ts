@@ -97,7 +97,7 @@ function canOwnInput(context: BotSequenceContext): boolean {
   if ((input.buttons & required) !== required || (input.buttons & disallowed) !== 0) return false;
 
   const step = context.navStep;
-  if (!step || step.type !== "walk" || step.requiresPreciseApproach) return false;
+  if (step?.type !== "walk" || step.requiresPreciseApproach) return false;
 
   const speed = horizontalSpeed(self.velocity);
   const targetSpeed = 360 + skill * 600;

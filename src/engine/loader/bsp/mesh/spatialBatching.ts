@@ -19,7 +19,7 @@ export function faceSpatialCell(bsp: BspFile, face: BspFace, cellSize: number): 
   const max = [-Infinity, -Infinity, -Infinity];
   for (let i = face.firstVertex; i < face.firstVertex + face.numVertices; i++) {
     const position = bsp.vertices[i]?.position;
-    if (!position || !position.every(Number.isFinite)) return null;
+    if (!position?.every(Number.isFinite)) return null;
     for (let axis = 0; axis < 3; axis++) {
       min[axis] = Math.min(min[axis], position[axis]);
       max[axis] = Math.max(max[axis], position[axis]);

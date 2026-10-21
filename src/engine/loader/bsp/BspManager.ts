@@ -10,6 +10,8 @@ import { sampleLightGrid } from "./LightGridSampling";
  * - Collision: Physics collision detection
  */
 
+import type { BaseTexture } from "@babylonjs/core/Materials/Textures/baseTexture";
+import type { Color3 } from "@babylonjs/core/Maths/math.color";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Scene } from "@babylonjs/core/scene";
 import RenderVars from "../../rendering/RenderVars";
@@ -17,6 +19,18 @@ import { PK3Loader } from "../pk3/PK3Loader";
 import { type BspEntity, type BspFile, type BspLightVol, BspLoader } from "./BspLoader";
 import { BspMeshBuilder, type BspMeshBuildResult } from "./BspMeshBuilder";
 import { createPVSCuller, type PVSCuller } from "./PVSCuller";
+
+/**
+ * The material fields setLightmapIntensity reads and writes. Structural because
+ * BSP surfaces use more than one material class; `_orig*` are stashed here.
+ */
+interface LightmapTintMaterial {
+  diffuseColor?: Color3;
+  emissiveColor?: Color3;
+  lightmapTexture?: BaseTexture | null;
+  _origDiffuse?: Color3;
+  _origEmissive?: Color3;
+}
 
 export interface BspLoadOptions {
   autoLoadPK3?: boolean;
@@ -63,16 +77,14 @@ export class BspManager {
   /**
    * Get current mesh result
    */
-  // biome-ignore lint/suspicious/noExplicitAny: Babylon.js internal API access
-  getMeshResult(): any {
+  getMeshResult(): BspMeshBuildResult | null {
     return this.meshResult;
   }
 
   /**
    * Set mesh result (used by MapLoader)
    */
-  // biome-ignore lint/suspicious/noExplicitAny: Babylon.js internal API access
-  setMeshResult(result: any): void {
+  setMeshResult(result: BspMeshBuildResult | null): void {
     if (this.meshResult !== result) this.disposePVS();
     this.meshResult = result;
   }
@@ -512,8 +524,7 @@ export class BspManager {
     let _count = 0;
 
     for (const mesh of childMeshes) {
-      // biome-ignore lint/suspicious/noExplicitAny: BSP loader internals
-      const mat = mesh.material as any;
+      const mat = mesh.material as unknown as LightmapTintMaterial | null;
       if (!mat) continue;
 
       // Store original colors on first call
@@ -525,7 +536,7 @@ export class BspManager {
       }
 
       // Modulate diffuse color by intensity
-      if (mat._origDiffuse) {
+      if (mat._origDiffuse && mat.diffuseColor) {
         mat.diffuseColor.r = mat._origDiffuse.r * intensity;
         mat.diffuseColor.g = mat._origDiffuse.g * intensity;
         mat.diffuseColor.b = mat._origDiffuse.b * intensity;

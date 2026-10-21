@@ -9,6 +9,7 @@ import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
+import type { FPSController } from "../../camera/controllers/FPSController";
 import { Command, type CommandDef } from "../Command";
 
 // Static storage for debug visualization
@@ -111,12 +112,13 @@ export default class DebugCommand extends Command {
     }
 
     // Get FPS controller from camera system
-    let fpsController: any;
+    let fpsController: FPSController | undefined;
     try {
       const { CameraSystem } = await import("../../camera/CameraSystem");
       const activeController = CameraSystem.getInstance().getActiveController();
       if (activeController?.type === "fps") {
-        fpsController = activeController;
+        // type "fps" is only reported by FPSController.
+        fpsController = activeController as FPSController;
       }
     } catch {
       return "Camera system not available";

@@ -132,6 +132,11 @@ interface GlowableMaterial {
   __playerModelBaseEmissiveColor?: Color3;
 }
 
+/** GlowableMaterial plus the albedo tint applyVisualStyle writes (PBR only). */
+interface TintableMaterial extends GlowableMaterial {
+  albedoColor?: Color3;
+}
+
 export interface PlayerModelVisualStyle {
   tintColor: Color3 | null;
   fullbrightEnabled: boolean;
@@ -686,7 +691,7 @@ export class PlayerModelManager {
 
     for (const mesh of allMeshes) {
       const material = this.ensureInstanceMaterial(instance, mesh);
-      const pbrMat = material as any;
+      const pbrMat = material as unknown as TintableMaterial | null;
 
       if (pbrMat?.albedoColor) {
         pbrMat.albedoColor.r = tint.r;

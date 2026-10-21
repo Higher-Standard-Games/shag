@@ -6,6 +6,18 @@ import { HUDElement } from "../HUDElement";
 import type { HUDManager } from "../HUDManager";
 import type { HUDAccordionConfig } from "../HUDTypes";
 
+/** Fields the default item template reads from a list item; all optional. */
+interface HUDAccordionItem {
+  icon?: string;
+  title?: string;
+  name?: string;
+  description?: string;
+  subtitle?: string;
+  progress?: number;
+  onClick?: () => void;
+  action?: () => void;
+}
+
 export class HUDAccordion extends HUDElement {
   protected override config: HUDAccordionConfig;
   private manager: HUDManager;
@@ -20,7 +32,7 @@ export class HUDAccordion extends HUDElement {
   private badgeValue: number | null = null;
 
   constructor(id: string, config: HUDAccordionConfig, manager: HUDManager) {
-    super(id, config as any);
+    super(id, config);
     this.config = config;
     this.manager = manager;
     this.collapsed = config.collapsed ?? false;
@@ -93,7 +105,7 @@ export class HUDAccordion extends HUDElement {
     return el;
   }
 
-  public setValue(value: any): void {
+  public setValue(value: unknown): void {
     // For accordions, value is typically the badge count
     if (typeof value === "number") {
       this.setBadge(value);
@@ -103,7 +115,7 @@ export class HUDAccordion extends HUDElement {
   /**
    * Update list content
    */
-  public updateList(data: any[]): void {
+  public updateList(data: unknown[]): void {
     if (!this.listContainer) return;
 
     const listBinding = this.manager.getListBinding(this.id);
@@ -131,7 +143,7 @@ export class HUDAccordion extends HUDElement {
         itemEl = listBinding.renderItem(item, i);
       } else {
         // Use default template rendering
-        itemEl = this.renderItemWithTemplate(item, itemTemplate);
+        itemEl = this.renderItemWithTemplate(item as HUDAccordionItem, itemTemplate);
       }
 
       this.listContainer.appendChild(itemEl);
@@ -144,7 +156,7 @@ export class HUDAccordion extends HUDElement {
   /**
    * Render an item using a template name
    */
-  private renderItemWithTemplate(item: any, _templateName: string | null): HTMLElement {
+  private renderItemWithTemplate(item: HUDAccordionItem, _templateName: string | null): HTMLElement {
     const el = document.createElement("div");
     el.className = "hud-accordion-item";
 
@@ -162,14 +174,14 @@ export class HUDAccordion extends HUDElement {
     if (item.title || item.name) {
       const titleEl = document.createElement("div");
       titleEl.className = "hud-item-title";
-      titleEl.textContent = item.title || item.name;
+      titleEl.textContent = item.title || item.name || null;
       contentEl.appendChild(titleEl);
     }
 
     if (item.description || item.subtitle) {
       const descEl = document.createElement("div");
       descEl.className = "hud-item-description";
-      descEl.textContent = item.description || item.subtitle;
+      descEl.textContent = item.description || item.subtitle || null;
       contentEl.appendChild(descEl);
     }
 

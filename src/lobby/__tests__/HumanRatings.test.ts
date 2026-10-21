@@ -101,58 +101,56 @@ describe("signed human results to transactional skill", () => {
     return { report, context, submit };
   }
 
-  it.each([
-    "duel",
-    "amphi",
-    "snd",
-    "ffa",
-  ] as const)("applies %s human results once in independent public/private pools and survives reopen", (mode) => {
-    for (const scope of ["public", "private"] as const) {
-      const c = contest(mode, scope);
-      expect(c.submit()).toMatchObject({
-        status: "stored",
-        recordStatus: "recorded",
-        ratingStatus: "applied",
-        ratingReason: "eligible",
-      });
-      expect(c.submit()).toMatchObject({ status: "duplicate", ratingStatus: "applied" });
-      const first = results.ratings.getRating(ids[0], mode, scope)!;
-      expect(first.state.ratedMatches).toBe(1);
-      expect(isProvisional(first.state)).toBe(true);
-      expect(first.state.mu).toBeGreaterThan(results.ratings.getRating(ids[1], mode, scope)!.state.mu);
-      const page = results.skillLeaderboard({
-        gametype: mode,
-        scope,
-        period: "all",
-        offset: 0,
-        limit: 1,
-        accountId: ids[1],
-        now,
-      });
-      expect(page).toMatchObject({
-        system: "trueskill",
-        policyVersion: "shag-trueskill-v1",
-        total: 2,
-        entries: [
-          {
-            accountId: ids[0],
-            rank: 1,
-            ratedMatches: 1,
-            provisional: true,
-            rating: displayRating(first.state),
-            conservativeScore: conservativeScore(first.state),
-          },
-        ],
-        localPlayerRank: 2,
-        localPlayerEntry: { accountId: ids[1], rank: 2, ratedMatches: 1 },
-        localProcessing: { excluded: 0 },
-      });
-    }
-    results.close();
-    results = MatchResultStore.open(dir);
-    expect(results.ratings.verifyReplay()).toEqual({ consistent: true, matches: 2, updates: 4, ratings: 4 });
-    expect(results.ratings.getRating(ids[0], mode === "ffa" ? "duel" : "ffa", "public")).toBeNull();
-  });
+  it.each(["duel", "amphi", "snd", "ffa"] as const)(
+    "applies %s human results once in independent public/private pools and survives reopen",
+    (mode) => {
+      for (const scope of ["public", "private"] as const) {
+        const c = contest(mode, scope);
+        expect(c.submit()).toMatchObject({
+          status: "stored",
+          recordStatus: "recorded",
+          ratingStatus: "applied",
+          ratingReason: "eligible",
+        });
+        expect(c.submit()).toMatchObject({ status: "duplicate", ratingStatus: "applied" });
+        const first = results.ratings.getRating(ids[0], mode, scope)!;
+        expect(first.state.ratedMatches).toBe(1);
+        expect(isProvisional(first.state)).toBe(true);
+        expect(first.state.mu).toBeGreaterThan(results.ratings.getRating(ids[1], mode, scope)!.state.mu);
+        const page = results.skillLeaderboard({
+          gametype: mode,
+          scope,
+          period: "all",
+          offset: 0,
+          limit: 1,
+          accountId: ids[1],
+          now,
+        });
+        expect(page).toMatchObject({
+          system: "trueskill",
+          policyVersion: "shag-trueskill-v1",
+          total: 2,
+          entries: [
+            {
+              accountId: ids[0],
+              rank: 1,
+              ratedMatches: 1,
+              provisional: true,
+              rating: displayRating(first.state),
+              conservativeScore: conservativeScore(first.state),
+            },
+          ],
+          localPlayerRank: 2,
+          localPlayerEntry: { accountId: ids[1], rank: 2, ratedMatches: 1 },
+          localProcessing: { excluded: 0 },
+        });
+      }
+      results.close();
+      results = MatchResultStore.open(dir);
+      expect(results.ratings.verifyReplay()).toEqual({ consistent: true, matches: 2, updates: 4, ratings: 4 });
+      expect(results.ratings.getRating(ids[0], mode === "ffa" ? "duel" : "ffa", "public")).toBeNull();
+    },
+  );
 
   it("rates all ten S&D players in their five-player team groups", () => {
     const c = contest("snd", "public", 10);

@@ -15,13 +15,18 @@ import type { Transport } from "./Transport";
  * to completion and reassembled into a single Uint8Array before delivery).
  * connect() requires an https URL and will throw if WebTransport is unavailable.
  */
+/**
+ * The DOM lib's WebTransport has no `state` attribute (it is not in the spec);
+ * isConnected() reads it anyway, so it is declared optional here.
+ */
+interface WebTransportWithState extends WebTransport {
+  readonly state?: string;
+}
+
 export class WebTransportTransport implements Transport {
-  // biome-ignore lint/suspicious/noExplicitAny: browser WebTransport API (experimental, not in TS dom lib)
-  private transport: any = null;
-  // biome-ignore lint/suspicious/noExplicitAny: browser WritableStreamDefaultWriter for WebTransport datagrams
-  private writer: any = null;
-  // biome-ignore lint/suspicious/noExplicitAny: browser ReadableStreamDefaultReader for WebTransport datagrams
-  private reader: any = null;
+  private transport: WebTransportWithState | null = null;
+  private writer: WritableStreamDefaultWriter<Uint8Array> | null = null;
+  private reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
   private messageCallbacks: ((data: Uint8Array) => void)[] = [];
   private connectCallbacks: (() => void)[] = [];
   private disconnectCallbacks: ((reason?: string) => void)[] = [];
@@ -35,8 +40,7 @@ export class WebTransportTransport implements Transport {
     try {
       // Convert http to https for WebTransport
       const httpsUrl = url.replace(/^http/, "https");
-      // biome-ignore lint/suspicious/noExplicitAny: WebTransport constructor not in TS dom lib
-      this.transport = new (globalThis as any).WebTransport(httpsUrl);
+      this.transport = new globalThis.WebTransport(httpsUrl);
 
       await this.transport.ready;
 
@@ -109,7 +113,9 @@ export class WebTransportTransport implements Transport {
     if (!this.transport) return;
 
     try {
-      const reader = this.transport.incomingUnidirectionalStreams.getReader();
+      // Each incoming unidirectional stream is a ReadableStream of byte chunks.
+      const incoming = this.transport.incomingUnidirectionalStreams as ReadableStream<ReadableStream<Uint8Array>>;
+      const reader = incoming.getReader();
       while (true) {
         const { value: stream, done } = await reader.read();
         if (done) break;

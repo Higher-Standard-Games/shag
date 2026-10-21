@@ -26,6 +26,7 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
+import type { LayersModel } from "@tensorflow/tfjs-node";
 import type { BotClient } from "./BotClient";
 import { getDifficultyTiers, getNextBotName, resetBotNameIndex } from "./BotConfig";
 import { BotEpisodeRecorder, type TrainingFrame } from "./BotEpisodeRecorder";
@@ -430,8 +431,7 @@ export class BotTrainer {
 
   /** Fit one head on one round of play. Returns the final loss, or 0. */
   private async _fitHead(
-    // biome-ignore lint/suspicious/noExplicitAny: tf.LayersModel, kept out of this module's types
-    model: any,
+    model: LayersModel | null,
     runs: TrainingFrame[][],
     head: "tactical" | "combat",
     inputSize: number,

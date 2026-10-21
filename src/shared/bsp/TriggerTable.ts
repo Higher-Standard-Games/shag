@@ -98,7 +98,7 @@ export function q3AngleToGameYaw(q3AngleDeg: number): number {
 
 /** Parse "*N" brush-model reference; returns −1 when not a valid submodel ref. */
 function parseModelIndex(modelStr: string | undefined): number {
-  if (!modelStr || !modelStr.startsWith("*")) return -1;
+  if (!modelStr?.startsWith("*")) return -1;
   const idx = Number.parseInt(modelStr.slice(1), 10);
   return Number.isInteger(idx) && idx > 0 ? idx : -1; // *0 is worldspawn — never a trigger
 }

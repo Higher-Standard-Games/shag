@@ -75,7 +75,7 @@ export class HUDManager {
   private listBindings: Map<string, HUDListBinding> = new Map();
   private clickHandlers: Map<string, HUDClickHandler> = new Map();
   private contentProviders: Map<string, HUDContentProvider> = new Map();
-  private lastValues: Map<string, any> = new Map();
+  private lastValues: Map<string, unknown> = new Map();
 
   // Update loop
   private intervalId: number | null = null;
@@ -318,11 +318,12 @@ export class HUDManager {
   /**
    * Bind a list data source to an element
    */
-  public bindList(id: string, binding: HUDListBinding | (() => any[])): void {
+  public bindList<T>(id: string, binding: HUDListBinding<T> | (() => T[])): void {
     if (typeof binding === "function") {
       this.listBindings.set(id, { data: binding });
     } else {
-      this.listBindings.set(id, binding);
+      // Stored type-erased: renderItem is only ever called with items from this binding's own data().
+      this.listBindings.set(id, binding as HUDListBinding);
     }
   }
 
@@ -349,7 +350,7 @@ export class HUDManager {
   /**
    * Get a binding value
    */
-  public getBindingValue(id: string): any {
+  public getBindingValue(id: string): unknown {
     const getter = this.bindings.get(id);
     return getter ? getter() : undefined;
   }
@@ -460,7 +461,7 @@ export class HUDManager {
   /**
    * Update a single element with new value
    */
-  private updateElement(id: string, newValue: any, oldValue: any): void {
+  private updateElement(id: string, newValue: unknown, oldValue: unknown): void {
     const element = this.elements.get(id);
     if (!element) return;
 
@@ -479,7 +480,7 @@ export class HUDManager {
   /**
    * Update a list element with new data
    */
-  private updateListElement(id: string, data: any[]): void {
+  private updateListElement(id: string, data: unknown[]): void {
     const element = this.elements.get(id);
     if (!element) return;
 
@@ -513,7 +514,7 @@ export class HUDManager {
   /**
    * Deep equality check
    */
-  private equals(a: any, b: any): boolean {
+  private equals(a: unknown, b: unknown): boolean {
     if (a === b) return true;
     if (a == null || b == null) return false;
     if (Array.isArray(a) && Array.isArray(b)) {
@@ -529,7 +530,7 @@ export class HUDManager {
   /**
    * Clone a value for comparison
    */
-  private clone(value: any): any {
+  private clone(value: unknown): unknown {
     if (value == null) return value;
     if (Array.isArray(value)) return [...value];
     if (typeof value === "object") return { ...value };

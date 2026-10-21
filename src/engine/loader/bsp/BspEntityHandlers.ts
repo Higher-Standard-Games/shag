@@ -39,7 +39,7 @@ export function setCurrentBspForHandlers(bsp: BspFile | null): void {
  * Parse model index from Q3 model string (e.g., "*5" -> 5)
  */
 function parseModelIndex(modelStr: string): number {
-  if (!modelStr || !modelStr.startsWith("*")) return -1;
+  if (!modelStr?.startsWith("*")) return -1;
   return parseInt(modelStr.substring(1), 10);
 }
 

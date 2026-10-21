@@ -74,29 +74,27 @@ describe("cached BSP billboards", () => {
     expect(upload).toHaveBeenCalledTimes(2);
   });
 
-  it.each([
-    "hidden",
-    "disabled",
-    "parent disabled",
-    "zero visibility",
-  ])("skips %s sprites and refreshes on re-entry at an unchanged eye", (reason) => {
-    const { mesh, result, upload } = billboard();
-    const eye = new Vector3(0, 0, 10);
-    BspMeshBuilder.updateAutosprites(result, eye);
-    if (reason === "hidden") mesh.isVisible = false;
-    if (reason === "disabled") mesh.setEnabled(false);
-    if (reason === "parent disabled") result.worldMesh.setEnabled(false);
-    if (reason === "zero visibility") mesh.visibility = 0;
-    const read = vi.spyOn(mesh, "getVerticesData");
-    expect(BspMeshBuilder.updateAutosprites(result, eye)).toBe(0);
-    expect(read).not.toHaveBeenCalled();
-    mesh.isVisible = true;
-    mesh.setEnabled(true);
-    result.worldMesh.setEnabled(true);
-    mesh.visibility = 1;
-    expect(BspMeshBuilder.updateAutosprites(result, eye)).toBe(1);
-    expect(upload).toHaveBeenCalledTimes(2);
-  });
+  it.each(["hidden", "disabled", "parent disabled", "zero visibility"])(
+    "skips %s sprites and refreshes on re-entry at an unchanged eye",
+    (reason) => {
+      const { mesh, result, upload } = billboard();
+      const eye = new Vector3(0, 0, 10);
+      BspMeshBuilder.updateAutosprites(result, eye);
+      if (reason === "hidden") mesh.isVisible = false;
+      if (reason === "disabled") mesh.setEnabled(false);
+      if (reason === "parent disabled") result.worldMesh.setEnabled(false);
+      if (reason === "zero visibility") mesh.visibility = 0;
+      const read = vi.spyOn(mesh, "getVerticesData");
+      expect(BspMeshBuilder.updateAutosprites(result, eye)).toBe(0);
+      expect(read).not.toHaveBeenCalled();
+      mesh.isVisible = true;
+      mesh.setEnabled(true);
+      result.worldMesh.setEnabled(true);
+      mesh.visibility = 1;
+      expect(BspMeshBuilder.updateAutosprites(result, eye)).toBe(1);
+      expect(upload).toHaveBeenCalledTimes(2);
+    },
+  );
 
   it.each([false, true])("preserves full/cylindrical billboard geometry (autosprite2=%s)", (cylindrical) => {
     const { mesh, result } = billboard(cylindrical);

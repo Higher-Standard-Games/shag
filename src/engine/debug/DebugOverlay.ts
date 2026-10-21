@@ -92,17 +92,17 @@ export class DebugOverlay {
   }
 
   private hookConsole(): void {
-    console.log = (...args: any[]) => {
+    console.log = (...args: unknown[]) => {
       this.originalConsoleLog.apply(console, args);
       this.addLine(args.map((a) => this.stringify(a)).join(" "), "#0f0");
     };
 
-    console.warn = (...args: any[]) => {
+    console.warn = (...args: unknown[]) => {
       this.originalConsoleWarn.apply(console, args);
       this.addLine(args.map((a) => this.stringify(a)).join(" "), "#ff0");
     };
 
-    console.error = (...args: any[]) => {
+    console.error = (...args: unknown[]) => {
       this.originalConsoleError.apply(console, args);
       this.addLine(args.map((a) => this.stringify(a)).join(" "), "#f55");
     };
@@ -114,7 +114,7 @@ export class DebugOverlay {
     console.error = this.originalConsoleError;
   }
 
-  private stringify(value: any): string {
+  private stringify(value: unknown): string {
     if (value === null) return "null";
     if (value === undefined) return "undefined";
     if (typeof value === "string") return value;

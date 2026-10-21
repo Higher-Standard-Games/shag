@@ -164,9 +164,8 @@ async function main(): Promise<void> {
   //    rather than jumping phases keeps the normal start: countdown, the
   //    gametype's phase and round hooks, the round reset and respawns.
   await wait(2000);
-  // biome-ignore lint/suspicious/noExplicitAny: reach into private match state
-  const matchState = (server as any).gametypeController.matchState;
-  if (matchState.phase === MatchPhase.Warmup) matchState._timeRemaining = 0;
+  const matchState = server.getGametypeController().getMatchState();
+  matchState.expireWarmup();
   for (let i = 0; i < 100 && matchState.phase !== MatchPhase.Active; i++) await wait(100);
   console.log(`[Record] Match ${matchState.phase === MatchPhase.Active ? "live" : "not live yet"} — recording…`);
 

@@ -581,7 +581,7 @@ export class ModelLoader {
   private applyBspLighting(position: Vector3, meshes: Mesh[]): DirectionalLight[] {
     try {
       const bsp = BspManager.getInstance();
-      if (!bsp || !bsp.isLoaded()) return [];
+      if (!bsp?.isLoaded()) return [];
 
       const lighting = bsp.getLightingAt(position);
       if (!lighting) {

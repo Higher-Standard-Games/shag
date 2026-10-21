@@ -4,7 +4,18 @@ import type { Command } from "../../core/Command";
 import type { Entity, PlayerId } from "../../core/Entity";
 import type { GameEvent, GameState } from "../../core/GameState";
 import type { IGameHost } from "../../core/IGameHost";
-import type { Simulation, SimulationConfig } from "../../core/Simulation";
+import type { SimulationConfig } from "../../core/Simulation";
+
+/**
+ * The part of a Simulation that LocalGameHost drives. Game simulations narrow
+ * their command type (e.g. FPSSimulation ticks FPSInputCommand), so the host
+ * accepts any simulation whose tick takes some Command subtype; method
+ * parameters are checked bivariantly.
+ */
+interface HostedSimulation {
+  state: GameState;
+  tick(commands: Command[]): void;
+}
 
 /**
  * LocalGameHost — in-process IGameHost used for single-player and listen-server hosting.
@@ -24,8 +35,7 @@ export class LocalGameHost implements IGameHost {
   readonly localPlayerId: PlayerId;
   readonly currentTick: number = 0;
 
-  // biome-ignore lint/suspicious/noExplicitAny: Simulation uses generic type parameters for game-specific state/input
-  private simulation: Simulation<any, any>;
+  private simulation: HostedSimulation;
   private stateUpdateCallbacks: ((state: GameState) => void)[] = [];
   private eventCallbacks: ((event: GameEvent) => void)[] = [];
   private isRunning: boolean = false;
@@ -40,8 +50,7 @@ export class LocalGameHost implements IGameHost {
   private previousPositions: Map<string, Vec3> = new Map(); // entityId -> previous pos
   private previousVelocities: Map<string, Vec3> = new Map(); // entityId -> previous vel
 
-  // biome-ignore lint/suspicious/noExplicitAny: Simulation uses generic type parameters for game-specific state/input
-  constructor(config: SimulationConfig, SimulationClass: new (config: SimulationConfig) => Simulation<any, any>) {
+  constructor(config: SimulationConfig, SimulationClass: new (config: SimulationConfig) => HostedSimulation) {
     this.simulation = new SimulationClass(config);
     this.localPlayerId = "local-player";
     this.tickDuration = config.tickDuration; // e.g., 16.67ms for 60Hz
@@ -51,8 +60,7 @@ export class LocalGameHost implements IGameHost {
   /**
    * Get the simulation instance (for setting collision world, spawn points, etc.)
    */
-  // biome-ignore lint/suspicious/noExplicitAny: game-specific simulation types vary
-  getSimulation<T extends Simulation<any, any>>(): T {
+  getSimulation<T extends HostedSimulation>(): T {
     return this.simulation as T;
   }
 

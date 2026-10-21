@@ -12,7 +12,7 @@ export class HUDPillGroup extends HUDElement {
   private childElements: Map<string, HTMLElement> = new Map();
 
   constructor(id: string, config: HUDPillGroupConfig, manager: HUDManager) {
-    super(id, config as any);
+    super(id, config);
     this.config = config;
     this.manager = manager;
   }
@@ -90,7 +90,7 @@ export class HUDPillGroup extends HUDElement {
     }
   }
 
-  public setValue(value: any): void {
+  public setValue(value: unknown): void {
     // Value is expected to be an object with child IDs as keys
     if (typeof value !== "object" || value === null) return;
 
@@ -99,7 +99,7 @@ export class HUDPillGroup extends HUDElement {
       if (childEl) {
         // Find child config for formatting
         const childConfig = this.config.children?.find((c) => c.id === childId);
-        let displayValue = childValue;
+        let displayValue: unknown = childValue;
 
         if (childConfig?.format && childValue != null) {
           displayValue = this.formatValue(childValue, childConfig.format);
@@ -113,12 +113,12 @@ export class HUDPillGroup extends HUDElement {
   /**
    * Set a specific child's value
    */
-  public setChildValue(childId: string, value: any): void {
+  public setChildValue(childId: string, value: unknown): void {
     const childEl = this.childElements.get(childId);
     if (!childEl) return;
 
     const childConfig = this.config.children?.find((c) => c.id === childId);
-    let displayValue = value;
+    let displayValue: unknown = value;
 
     if (childConfig?.format && value != null) {
       displayValue = this.formatValue(value, childConfig.format);
@@ -142,7 +142,7 @@ export class HUDPillGroup extends HUDElement {
     }
   }
 
-  private formatValue(value: any, format: string): string {
+  private formatValue(value: unknown, format: string): string {
     if (format.includes("%d")) {
       return format.replace("%d", String(Math.floor(Number(value))));
     }

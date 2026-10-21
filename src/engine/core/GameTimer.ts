@@ -39,7 +39,7 @@ export interface ScheduledTask {
 }
 
 export class GameTimer {
-  private static instance: GameTimer;
+  private static instance: GameTimer | null = null;
 
   // Game time (can be accelerated)
   private gameTime: number = 0;
@@ -83,7 +83,7 @@ export class GameTimer {
     if (GameTimer.instance) {
       GameTimer.instance.dispose();
     }
-    GameTimer.instance = null as any;
+    GameTimer.instance = null;
   }
 
   /**

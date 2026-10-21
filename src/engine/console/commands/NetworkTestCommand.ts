@@ -143,14 +143,12 @@ class MockNetworkHost implements IGameHost {
   readonly localPlayerId = "network-player";
   currentTick = 0;
 
-  // biome-ignore lint/suspicious/noExplicitAny: Simulation uses generic type parameters
-  private simulation: Simulation<any, any>;
+  private simulation: Simulation;
   private pendingCommands: MoveCommand[] = [];
   private localState: GameState;
   private isRunning = false;
 
-  // biome-ignore lint/suspicious/noExplicitAny: accepts any Simulation subclass
-  constructor(config: SimulationConfig, SimulationClass: new (config: SimulationConfig) => Simulation<any, any>) {
+  constructor(config: SimulationConfig, SimulationClass: new (config: SimulationConfig) => Simulation) {
     this.simulation = new SimulationClass(config);
     this.localState = this.simulation.state.clone();
   }

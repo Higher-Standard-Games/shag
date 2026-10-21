@@ -171,8 +171,8 @@ async function main(): Promise<void> {
           difficulty: config.difficulty,
           modelDir: config.modelDir,
         });
-      } catch (err: any) {
-        console.error(`[BIS] Failed to spawn lobby bot ${i + 1}: ${err.message}`);
+      } catch (err) {
+        console.error(`[BIS] Failed to spawn lobby bot ${i + 1}: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
 
@@ -195,8 +195,8 @@ async function main(): Promise<void> {
           difficulty: config.difficulty,
           modelDir: config.modelDir,
         });
-      } catch (err: any) {
-        console.error(`[BIS] Failed to spawn bot ${i + 1}: ${err.message}`);
+      } catch (err) {
+        console.error(`[BIS] Failed to spawn bot ${i + 1}: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
 
@@ -223,8 +223,8 @@ async function main(): Promise<void> {
         try {
           const bot = await server.addBot(url, { difficulty: diff });
           console.log(`[BIS] Added bot: ${bot.name} → ${url}`);
-        } catch (err: any) {
-          console.error(`[BIS] Failed: ${err.message}`);
+        } catch (err) {
+          console.error(`[BIS] Failed: ${err instanceof Error ? err.message : String(err)}`);
         }
         break;
       }
@@ -236,8 +236,8 @@ async function main(): Promise<void> {
         try {
           const lb = await server.addLobbyBot(url, gametype, { difficulty: diff });
           console.log(`[BIS] Lobby bot: ${lb.name} → ${url} (${gametype})`);
-        } catch (err: any) {
-          console.error(`[BIS] Failed: ${err.message}`);
+        } catch (err) {
+          console.error(`[BIS] Failed: ${err instanceof Error ? err.message : String(err)}`);
         }
         break;
       }

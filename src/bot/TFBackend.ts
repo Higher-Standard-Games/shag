@@ -15,7 +15,10 @@
 // We use a dynamic resolution approach: try native first, fall back gracefully.
 // The resolved module is cached by Node.js after first import.
 
-let _tf: typeof import("@tensorflow/tfjs-node") | null = null;
+/** The TensorFlow.js module, whichever package it was loaded from. */
+export type TFModule = typeof import("@tensorflow/tfjs-node");
+
+let _tf: TFModule | null = null;
 let _backend: "tensorflow" | "cpu" | "wasm" | "none" = "none";
 let _initPromise: Promise<void> | null = null;
 
@@ -83,7 +86,7 @@ async function _doInit(): Promise<void> {
  * Get the initialized TF.js module.
  * Throws if initTF() hasn't been called or failed.
  */
-export function getTF(): typeof import("@tensorflow/tfjs-node") {
+export function getTF(): TFModule {
   if (!_tf) {
     throw new Error("[TFBackend] TensorFlow.js not initialized. Call await initTF() first.");
   }

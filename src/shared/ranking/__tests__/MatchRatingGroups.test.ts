@@ -149,17 +149,17 @@ describe("human mode rating decisions", () => {
     expect(matchRatingGroups(input).status).toBe("applied");
   });
 
-  it.each([
-    "duel",
-    "amphi",
-  ] as const)("rates a supported %s final forfeit without treating it as interrupted play", (mode) => {
-    const input = match(mode);
-    input.completion = "forfeit";
-    Object.assign(input.seats[1], { forfeited: true, disconnected: true, leftAtTick: 80 });
-    expect(matchRatingGroups(input).status).toBe("applied");
-    input.seats[1].participationInterrupted = true;
-    expect(matchRatingGroups(input)).toEqual({ status: "excluded", reason: "participation_interrupted" });
-  });
+  it.each(["duel", "amphi"] as const)(
+    "rates a supported %s final forfeit without treating it as interrupted play",
+    (mode) => {
+      const input = match(mode);
+      input.completion = "forfeit";
+      Object.assign(input.seats[1], { forfeited: true, disconnected: true, leftAtTick: 80 });
+      expect(matchRatingGroups(input).status).toBe("applied");
+      input.seats[1].participationInterrupted = true;
+      expect(matchRatingGroups(input)).toEqual({ status: "excluded", reason: "participation_interrupted" });
+    },
+  );
 
   it.each(["ffa", "snd"] as const)("never invents a %s disconnect forfeit", (mode) => {
     const input = match(mode);
@@ -229,21 +229,19 @@ describe("human mode rating decisions", () => {
     expect(input.record).toEqual({ status: "recorded", reason: "eligible" });
   });
 
-  it.each([
-    "duel_too_many",
-    "no_opponent",
-    "duplicate_account",
-    "invalid_account",
-  ])("refuses %s starting rosters", (kind) => {
-    const input = match(kind === "duel_too_many" ? "duel" : "snd", 4);
-    if (kind === "no_opponent")
-      input.startingRoster!.forEach((p) => {
-        p.team = "udon";
-      });
-    if (kind === "duplicate_account") input.startingRoster![1].accountId = input.startingRoster![0].accountId;
-    if (kind === "invalid_account") input.startingRoster![0].accountId = -1;
-    expect(matchRatingGroups(input)).toEqual({ status: "excluded", reason: "invalid_starting_roster" });
-  });
+  it.each(["duel_too_many", "no_opponent", "duplicate_account", "invalid_account"])(
+    "refuses %s starting rosters",
+    (kind) => {
+      const input = match(kind === "duel_too_many" ? "duel" : "snd", 4);
+      if (kind === "no_opponent")
+        input.startingRoster!.forEach((p) => {
+          p.team = "udon";
+        });
+      if (kind === "duplicate_account") input.startingRoster![1].accountId = input.startingRoster![0].accountId;
+      if (kind === "invalid_account") input.startingRoster![0].accountId = -1;
+      expect(matchRatingGroups(input)).toEqual({ status: "excluded", reason: "invalid_starting_roster" });
+    },
+  );
 
   it("leaves private bot seats to the preset-account mapping, and never rates public bots", () => {
     const input = match("snd", 4);

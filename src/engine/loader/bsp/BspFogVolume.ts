@@ -12,6 +12,7 @@ import { Plane } from "@babylonjs/core/Maths/math.plane";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
+import type { Observer } from "@babylonjs/core/Misc/observable";
 import { Scene } from "@babylonjs/core/scene";
 import { devLog } from "../../core/DevLog";
 import { WorldFogController } from "../../rendering/WorldFogController";
@@ -584,8 +585,7 @@ export class FogVolumeManager {
 export class CamFog {
   private fogVolumes: FogAABB[] = [];
   private scene: Scene | null = null;
-  // biome-ignore lint/suspicious/noExplicitAny: Babylon.js internal API access
-  private observer: any = null;
+  private observer: Observer<Scene> | null = null;
   private currentFogVolume: FogAABB | null = null;
   private enabled: boolean = false;
 

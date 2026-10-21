@@ -1059,8 +1059,7 @@ export class BspMeshBuilder {
     const engine = scene.getEngine();
 
     // Initialize texture loader if needed
-    // biome-ignore lint/suspicious/noExplicitAny: BSP mesh builder internals
-    texLoader.init(engine as any, scene);
+    texLoader.init(engine, scene);
 
     if (!result.textureGroups || result.textureGroups.length === 0) {
       devLog("[BspMeshBuilder] No texture groups to load");

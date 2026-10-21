@@ -234,7 +234,7 @@ export class CharacterController {
     const start = this.state.position.clone();
     const end = start.subtract(new Vector3(0, 2, 0)); // Check 2 units down
 
-    const trace = cm.trace(start as any, end as any, {
+    const trace = cm.trace(start, end, {
       radius: this.config.radius,
       height: height,
       contentMask: 0x1 | 0x10000,

@@ -203,54 +203,50 @@ describe("fresh transactional rating journal", () => {
     expect(results.ratings.verifyReplay().updates).toBe(4);
   });
 
-  it.each([
-    "scope",
-    "map",
-    "roster",
-    "time",
-  ])("rejects changed %s under the same match ID without overwriting history", (field) => {
-    const input = match();
-    results.ratings.ingest(input, { status: "applied", groups: groups() });
-    const copy = structuredClone(input);
-    if (field === "scope") copy.scope = "private";
-    if (field === "map") copy.map = "wdm12";
-    if (field === "roster") {
-      copy.seats[0].accountId = ids[2];
-      copy.startingRoster![0].accountId = ids[2];
-    }
-    if (field === "time") copy.endedAt++;
-    expect(() => results.ratings.ingest(copy)).toThrow("Conflicting result");
-    expect(results.ratings.getResult(input.matchId)?.snapshot).toEqual(canonicalSnapshot(input));
-    expect(results.ratings.verifyReplay().matches).toBe(1);
-  });
+  it.each(["scope", "map", "roster", "time"])(
+    "rejects changed %s under the same match ID without overwriting history",
+    (field) => {
+      const input = match();
+      results.ratings.ingest(input, { status: "applied", groups: groups() });
+      const copy = structuredClone(input);
+      if (field === "scope") copy.scope = "private";
+      if (field === "map") copy.map = "wdm12";
+      if (field === "roster") {
+        copy.seats[0].accountId = ids[2];
+        copy.startingRoster![0].accountId = ids[2];
+      }
+      if (field === "time") copy.endedAt++;
+      expect(() => results.ratings.ingest(copy)).toThrow("Conflicting result");
+      expect(results.ratings.getResult(input.matchId)?.snapshot).toEqual(canonicalSnapshot(input));
+      expect(results.ratings.verifyReplay().matches).toBe(1);
+    },
+  );
 
-  it.each([
-    "ranking_seats",
-    "match_participants",
-    "ratings",
-    "rating_updates",
-  ])("rolls every table back on a mid-transaction %s failure", (table) => {
-    // Failing the second insert ensures the first row really was written before failure.
-    sql.exec(
-      `CREATE TRIGGER inject_failure BEFORE INSERT ON ${table} WHEN NEW.account_id = ${ids[1]} BEGIN SELECT RAISE(ABORT, 'injected SQL failure'); END`,
-    );
-    expect(() => results.ratings.ingest(match(), { status: "applied", groups: groups() })).toThrow(
-      "injected SQL failure",
-    );
-    for (const table of [
-      "ranking_results",
-      "ranking_seats",
-      "matches",
-      "match_participants",
-      "ratings",
-      "rating_updates",
-    ])
-      expect(tableCount(table)).toBe(0);
-    sql.exec("DROP TRIGGER inject_failure");
-    reopen();
-    expect(results.ratings.ingest(match(), { status: "applied", groups: groups() }).sequence).toBe(1);
-    expect(results.ratings.verifyReplay().matches).toBe(1);
-  });
+  it.each(["ranking_seats", "match_participants", "ratings", "rating_updates"])(
+    "rolls every table back on a mid-transaction %s failure",
+    (table) => {
+      // Failing the second insert ensures the first row really was written before failure.
+      sql.exec(
+        `CREATE TRIGGER inject_failure BEFORE INSERT ON ${table} WHEN NEW.account_id = ${ids[1]} BEGIN SELECT RAISE(ABORT, 'injected SQL failure'); END`,
+      );
+      expect(() => results.ratings.ingest(match(), { status: "applied", groups: groups() })).toThrow(
+        "injected SQL failure",
+      );
+      for (const table of [
+        "ranking_results",
+        "ranking_seats",
+        "matches",
+        "match_participants",
+        "ratings",
+        "rating_updates",
+      ])
+        expect(tableCount(table)).toBe(0);
+      sql.exec("DROP TRIGGER inject_failure");
+      reopen();
+      expect(results.ratings.ingest(match(), { status: "applied", groups: groups() }).sequence).toBe(1);
+      expect(results.ratings.verifyReplay().matches).toBe(1);
+    },
+  );
 
   it("rolls back an unknown account and accepts a corrected retry", () => {
     const input = match();
@@ -402,66 +398,60 @@ describe("fresh transactional rating journal", () => {
     expect(results.ratings.verifyReplay()).toMatchObject({ consistent: true, matches: 1, updates: 2 });
   });
 
-  it.each([
-    "aborted",
-    "public_roster_ineligible",
-    "too_few_accounts",
-  ] as const)("persists excluded %s receipts with no fabricated record or skill", (reason) => {
-    const input = match();
-    input.record = { status: "excluded", reason };
-    if (reason === "aborted") {
-      input.completion = "aborted";
-      for (const s of input.seats) {
-        s.placement = null;
-        s.outcome = null;
+  it.each(["aborted", "public_roster_ineligible", "too_few_accounts"] as const)(
+    "persists excluded %s receipts with no fabricated record or skill",
+    (reason) => {
+      const input = match();
+      input.record = { status: "excluded", reason };
+      if (reason === "aborted") {
+        input.completion = "aborted";
+        for (const s of input.seats) {
+          s.placement = null;
+          s.outcome = null;
+        }
+        for (const t of input.teams) t.placement = null;
       }
-      for (const t of input.teams) t.placement = null;
-    }
-    expect(results.ratings.ingest(input)).toMatchObject({
-      recordStatus: "excluded",
-      recordReason: reason,
-      ratingStatus: "excluded",
-      ratingReason: reason,
-    });
-    expect(results.ratings.getResult(input.matchId)?.snapshot.completion).toBe(input.completion);
-    expect(results.ratings.ingest(input).status).toBe("duplicate");
-    expect([
-      tableCount("ranking_results"),
-      tableCount("ranking_seats"),
-      tableCount("matches"),
-      tableCount("ratings"),
-    ]).toEqual([1, 2, 0, 0]);
-    input.matchId = "illegal-application";
-    expect(() => results.ratings.ingest(input, { status: "applied", groups: groups() })).toThrow("Excluded records");
-  });
+      expect(results.ratings.ingest(input)).toMatchObject({
+        recordStatus: "excluded",
+        recordReason: reason,
+        ratingStatus: "excluded",
+        ratingReason: reason,
+      });
+      expect(results.ratings.getResult(input.matchId)?.snapshot.completion).toBe(input.completion);
+      expect(results.ratings.ingest(input).status).toBe("duplicate");
+      expect([
+        tableCount("ranking_results"),
+        tableCount("ranking_seats"),
+        tableCount("matches"),
+        tableCount("ratings"),
+      ]).toEqual([1, 2, 0, 0]);
+      input.matchId = "illegal-application";
+      expect(() => results.ratings.ingest(input, { status: "applied", groups: groups() })).toThrow("Excluded records");
+    },
+  );
 
-  it.each([
-    "missing",
-    "duplicate",
-    "unknown",
-    "one_group",
-    "empty",
-    "bad_rank",
-    "wrong_standings",
-  ])("rejects %s rating groups without a partial receipt", (kind) => {
-    const plan = groups();
-    if (kind === "missing") plan[1].accountIds = [];
-    if (kind === "duplicate") plan[1].accountIds = [ids[0], ids[1]];
-    if (kind === "unknown") plan[1].accountIds = [ids[2]];
-    if (kind === "one_group") {
-      plan[0].accountIds.push(ids[1]);
-      plan.pop();
-    }
-    if (kind === "empty") plan.push({ rank: 2, accountIds: [] });
-    if (kind === "bad_rank") plan[1].rank = Number.NaN;
-    if (kind === "wrong_standings") {
-      plan[0].rank = 2;
-      plan[1].rank = 1;
-    }
-    expect(() => results.ratings.ingest(match(), { status: "applied", groups: plan })).toThrow();
-    expect(tableCount("ranking_results")).toBe(0);
-    expect(tableCount("matches")).toBe(0);
-  });
+  it.each(["missing", "duplicate", "unknown", "one_group", "empty", "bad_rank", "wrong_standings"])(
+    "rejects %s rating groups without a partial receipt",
+    (kind) => {
+      const plan = groups();
+      if (kind === "missing") plan[1].accountIds = [];
+      if (kind === "duplicate") plan[1].accountIds = [ids[0], ids[1]];
+      if (kind === "unknown") plan[1].accountIds = [ids[2]];
+      if (kind === "one_group") {
+        plan[0].accountIds.push(ids[1]);
+        plan.pop();
+      }
+      if (kind === "empty") plan.push({ rank: 2, accountIds: [] });
+      if (kind === "bad_rank") plan[1].rank = Number.NaN;
+      if (kind === "wrong_standings") {
+        plan[0].rank = 2;
+        plan[1].rank = 1;
+      }
+      expect(() => results.ratings.ingest(match(), { status: "applied", groups: plan })).toThrow();
+      expect(tableCount("ranking_results")).toBe(0);
+      expect(tableCount("matches")).toBe(0);
+    },
+  );
 
   it("fails numerical underflow before storing any part of a new result", () => {
     results.ratings.ingest(match(), { status: "applied", groups: groups() });
@@ -474,26 +464,21 @@ describe("fresh transactional rating journal", () => {
     expect(tableCount("matches")).toBe(1);
   });
 
-  it.each([
-    "journal",
-    "state",
-    "snapshot",
-    "missing_journal",
-    "policy",
-    "seat",
-    "record",
-  ])("detects %s corruption during read-only replay", (kind) => {
-    results.ratings.ingest(match(), { status: "applied", groups: groups() });
-    if (kind === "journal") sql.exec("UPDATE rating_updates SET after_mu = after_mu + 1");
-    if (kind === "state") sql.exec("UPDATE ratings SET mu = mu + 1");
-    if (kind === "snapshot") sql.exec("UPDATE ranking_results SET snapshot = '{}' ");
-    if (kind === "missing_journal") sql.prepare("DELETE FROM rating_updates WHERE account_id = ?").run(ids[0]);
-    if (kind === "policy") sql.exec("UPDATE ranking_policies SET parameters = '{}'");
-    if (kind === "seat") sql.exec("UPDATE ranking_seats SET score = score + 1");
-    if (kind === "record") sql.exec("UPDATE match_participants SET score = score + 1");
-    expect(() => results.ratings.verifyReplay()).toThrow();
-    expect(tableCount("ranking_results")).toBe(1);
-  });
+  it.each(["journal", "state", "snapshot", "missing_journal", "policy", "seat", "record"])(
+    "detects %s corruption during read-only replay",
+    (kind) => {
+      results.ratings.ingest(match(), { status: "applied", groups: groups() });
+      if (kind === "journal") sql.exec("UPDATE rating_updates SET after_mu = after_mu + 1");
+      if (kind === "state") sql.exec("UPDATE ratings SET mu = mu + 1");
+      if (kind === "snapshot") sql.exec("UPDATE ranking_results SET snapshot = '{}' ");
+      if (kind === "missing_journal") sql.prepare("DELETE FROM rating_updates WHERE account_id = ?").run(ids[0]);
+      if (kind === "policy") sql.exec("UPDATE ranking_policies SET parameters = '{}'");
+      if (kind === "seat") sql.exec("UPDATE ranking_seats SET score = score + 1");
+      if (kind === "record") sql.exec("UPDATE match_participants SET score = score + 1");
+      expect(() => results.ratings.verifyReplay()).toThrow();
+      expect(tableCount("ranking_results")).toBe(1);
+    },
+  );
 
   it("does not upgrade an incompatible schema or overwrite a changed policy", () => {
     sql.exec("UPDATE ranking_schema SET version = 99");

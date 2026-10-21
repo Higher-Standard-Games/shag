@@ -170,7 +170,7 @@ export class TimerManager {
   public static resume(category: string, id: string): boolean {
     const key = TimerManager.getKey(category, id);
     const state = TimerManager.timers.get(key);
-    if (!state || !state.isPaused || state.isComplete) return false;
+    if (!state?.isPaused || state.isComplete) return false;
 
     state.isPaused = false;
     state.pausedAt = undefined;

@@ -14,8 +14,7 @@ export interface MatchStats {
 export const STAT_COUNTERS = ["frags", "teamFrags", "deaths", "plants", "defuses", "activeTimeMs"] as const;
 export function canonicalMatchStats(value: MatchStats): MatchStats {
   if (
-    !value ||
-    value.version !== 1 ||
+    value?.version !== 1 ||
     !Number.isSafeInteger(value.score) ||
     STAT_COUNTERS.some((key) => !Number.isSafeInteger(value[key]) || value[key] < 0) ||
     [value.damageGiven, value.teamDamageGiven].some((n) => !Number.isFinite(n) || n < 0 || n > Number.MAX_SAFE_INTEGER)

@@ -47,22 +47,20 @@ const ACCOUNTS: Record<BotPreset, number> = { easy: 901, medium: 902, hard: 903,
 const accountFor = (preset: BotPreset) => ACCOUNTS[preset];
 
 describe("private bot games rated through preset accounts", () => {
-  it.each([
-    "duel",
-    "amphi",
-    "ffa",
-    "snd",
-  ] as const)("reuses full participation rules for %s with each bot as its preset's account", (mode) => {
-    const input = match(mode, mode === "snd" ? 4 : 2);
-    const result = botMatchRatingGroups(input, accountFor);
-    expect(result.status).toBe("applied");
-    if (result.status !== "applied") throw new Error("Missing groups");
-    // One Medium account takes one seat; a second Medium in S&D plays fixed.
-    expect(result.groups.flatMap((g) => g.accountIds).sort()).toEqual(mode === "snd" ? [1, 3, 902] : [1, 902]);
-    expect(result.groups.flatMap((g) => g.bots ?? [])).toEqual(
-      mode === "snd" ? [{ seatId: "seat-3", accountId: 902 }] : [],
-    );
-  });
+  it.each(["duel", "amphi", "ffa", "snd"] as const)(
+    "reuses full participation rules for %s with each bot as its preset's account",
+    (mode) => {
+      const input = match(mode, mode === "snd" ? 4 : 2);
+      const result = botMatchRatingGroups(input, accountFor);
+      expect(result.status).toBe("applied");
+      if (result.status !== "applied") throw new Error("Missing groups");
+      // One Medium account takes one seat; a second Medium in S&D plays fixed.
+      expect(result.groups.flatMap((g) => g.accountIds).sort()).toEqual(mode === "snd" ? [1, 3, 902] : [1, 902]);
+      expect(result.groups.flatMap((g) => g.bots ?? [])).toEqual(
+        mode === "snd" ? [{ seatId: "seat-3", accountId: 902 }] : [],
+      );
+    },
+  );
   it("seats two presets as two accounts", () => {
     const input = match("snd", 4);
     input.seats[3].botReference = { ...input.seats[3].botReference!, preset: "hard" };

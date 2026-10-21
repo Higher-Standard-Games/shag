@@ -4,6 +4,15 @@
 
 import { Command, type CommandDef } from "../Command";
 
+/** Chrome's non-standard performance.memory, absent from the DOM lib and other browsers. */
+interface PerformanceWithMemory extends Performance {
+  memory?: {
+    usedJSHeapSize: number;
+    totalJSHeapSize: number;
+    jsHeapSizeLimit: number;
+  };
+}
+
 export default class MemCommand extends Command {
   readonly definition: CommandDef = {
     name: "mem",
@@ -44,7 +53,7 @@ export default class MemCommand extends Command {
         }
       }
       default: {
-        const perf = performance as any;
+        const perf = performance as PerformanceWithMemory;
         if (perf.memory) {
           const used = perf.memory.usedJSHeapSize / 1024 / 1024;
           const total = perf.memory.totalJSHeapSize / 1024 / 1024;

@@ -267,7 +267,7 @@ export class BombModel {
   private updateCarried(players: readonly BombPlayerView[], sites: readonly BombSite[], events: BombEvent[]): void {
     const carrier = players.find((p) => p.entityId === this._carrierId);
 
-    if (!carrier || !carrier.alive) {
+    if (!carrier?.alive) {
       this._phase = "dropped";
       // On the floor, not at hip height where the carrier's origin was.
       this._position = { ...(carrier?.groundPosition ?? this._position) };

@@ -17,6 +17,7 @@
  * is entirely unavailable.
  */
 
+import type { LayersModel, Tensor } from "@tensorflow/tfjs-node";
 import type { BotInput } from "./BotBrain";
 import { BotBrain, BotState } from "./BotBrain";
 import type { BotDifficulty, GoalArbiterMode } from "./BotConfig";
@@ -105,12 +106,11 @@ export const DEFAULT_LEARNING_RATE = 0.001;
  */
 const SAMPLING_TEMPERATURE = 0.5;
 
-// ── Model type aliases (avoid direct tf namespace in class fields) ──
-// We use `any` for the stored model references because the tf types
-// come from the dynamically loaded backend. The actual type safety
-// is enforced at the point of use via getTF().
+// ── Model type alias ──
+// The module itself is loaded at run time through getTF(); this is a type
+// import only, so nothing of TensorFlow loads with this file.
 
-type TFModel = any; // tf.LayersModel at runtime
+type TFModel = LayersModel;
 
 // ── HybridBrain ─────────────────────────────────────────────────────
 
@@ -446,7 +446,7 @@ export class HybridBrain extends BotBrain {
       return tf.tidy(() => {
         const tensor = tf.tensor2d([stacked]);
         const prediction = this._tacticalModel!.predict(tensor);
-        return prediction.dataSync() as Float32Array;
+        return (prediction as Tensor).dataSync() as Float32Array;
       });
     } catch (e) {
       console.error("[HybridBrain] Tactical inference error:", e);
@@ -465,7 +465,7 @@ export class HybridBrain extends BotBrain {
       return tf.tidy(() => {
         const tensor = tf.tensor2d([stacked]);
         const prediction = this._combatModel!.predict(tensor);
-        return prediction.dataSync() as Float32Array;
+        return (prediction as Tensor).dataSync() as Float32Array;
       });
     } catch (e) {
       console.error("[HybridBrain] Combat inference error:", e);
@@ -619,8 +619,7 @@ export class HybridBrain extends BotBrain {
    * decision for the rest of the match. Checking the shape the weights declare
    * turns that into one refusal at load.
    */
-  // biome-ignore lint/suspicious/noExplicitAny: tf.LayersModel, kept out of this module's field types
-  private _acceptModel(model: any, expected: number, label: string, modelDir: string): any {
+  private _acceptModel(model: TFModel, expected: number, label: string, modelDir: string): TFModel | null {
     const width = model?.inputs?.[0]?.shape?.[1];
     const layers = model?.layers ?? [];
     const lastActivation = layers[layers.length - 1]?.getConfig?.()?.activation;

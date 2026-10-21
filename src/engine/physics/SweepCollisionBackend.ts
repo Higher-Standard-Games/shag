@@ -234,7 +234,7 @@ export class SweepCollisionBackend implements CollisionBackend {
         modelIndex: this.liftBrushes.get(hit.hitBrushIndex ?? -1) ?? -1,
       };
     });
-    this.isFBSP = (bsp as any).header?.isFBSP ?? false;
+    this.isFBSP = bsp.header?.isFBSP ?? false;
     this.brushVisits = new Uint32Array(bsp.brushes.length);
     this.faceVisits = new Uint32Array(bsp.faces.length);
     this.traceGeneration = 0;
