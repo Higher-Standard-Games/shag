@@ -196,7 +196,13 @@ export class LiftSystem {
   }
   /** Just the travel offsets, for lag-compensation history. Order matches definitions. */
   offsets(): number[] {
-    return this.states.map((s) => s.offset);
+    return this.offsetsInto([]);
+  }
+  /** `offsets()` written into an array the caller keeps reusing. */
+  offsetsInto(out: number[]): number[] {
+    out.length = this.states.length;
+    for (let i = 0; i < this.states.length; i++) out[i] = this.states[i].offset;
+    return out;
   }
   /**
    * Run a query with the movers put back where they were on a recorded tick.

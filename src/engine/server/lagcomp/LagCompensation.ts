@@ -62,14 +62,25 @@ export interface HitResult {
 // LAG COMPENSATION SYSTEM
 // ═══════════════════════════════════════════════════════════════════
 
+interface HistorySlot {
+  tick: number;
+  positions: Map<EntityId, { x: number; y: number; z: number }>;
+  /** Position objects from the slot's previous tick, ready for reuse. */
+  spare: { x: number; y: number; z: number }[];
+  liftOffsets: number[] | undefined;
+}
+
 export class LagCompensation {
   private historyBuffer: HistoryBuffer;
   private config: LagCompensationConfig;
   private clientLatencies: Map<PlayerId, number> = new Map();
-  /** Mover travel offsets per recorded tick. */
-  private liftHistory: Map<number, number[]> = new Map();
-  /** Live player positions per recorded tick — all a rewound trace needs. */
-  private positionHistory: Map<number, Map<EntityId, { x: number; y: number; z: number }>> = new Map();
+  /**
+   * Live player positions and mover offsets per recorded tick — all a rewound
+   * trace needs. A ring indexed by tick: recording runs every tick, so each
+   * slot's map, position objects and offset array are reused rather than
+   * rebuilt, and a slot is only valid while its `tick` matches.
+   */
+  private readonly slots: HistorySlot[];
   /** How far back history is kept, in ticks, with a little slack at the boundary. */
   private readonly capacityTicks: number;
   private newestRecordedTick: number | null = null;
@@ -80,6 +91,17 @@ export class LagCompensation {
     this.config = config;
     this.historyBuffer = new HistoryBuffer(config.maxCompensationMs, config.tickRate);
     this.capacityTicks = Math.ceil((config.maxCompensationMs / 1000) * config.tickRate) + 2;
+    this.slots = Array.from({ length: this.capacityTicks + 1 }, () => ({
+      tick: -1,
+      positions: new Map(),
+      spare: [],
+      liftOffsets: undefined,
+    }));
+  }
+
+  private slotAt(tick: number): HistorySlot | undefined {
+    const slot = this.slots[tick % this.slots.length];
+    return slot.tick === tick ? slot : undefined;
   }
 
   /**
@@ -91,8 +113,7 @@ export class LagCompensation {
 
   /** Drop all rewind history — on a restart, the old world is not coming back. */
   clearHistory(): void {
-    this.positionHistory.clear();
-    this.liftHistory.clear();
+    for (const slot of this.slots) slot.tick = -1;
     this.newestRecordedTick = null;
   }
 
@@ -118,22 +139,27 @@ export class LagCompensation {
     if (this.newestRecordedTick !== null && tick < this.newestRecordedTick) this.clearHistory();
     this.newestRecordedTick = tick;
 
-    const positions = new Map<EntityId, { x: number; y: number; z: number }>();
+    // Overwriting the slot is what expires the tick it held, capacity ago.
+    const slot = this.slots[tick % this.slots.length];
+    slot.tick = tick;
+    const positions = slot.positions;
+    for (const p of positions.values()) slot.spare.push(p);
+    positions.clear();
     for (const entity of state.entitiesByType(EntityType.Player)) {
       if (!entity.transform || !entity.health || entity.health.dead) continue;
       const p = entity.transform.position;
-      positions.set(entity.id, { x: p.x, y: p.y, z: p.z });
+      const copy = slot.spare.pop() ?? { x: 0, y: 0, z: 0 };
+      copy.x = p.x;
+      copy.y = p.y;
+      copy.z = p.z;
+      positions.set(entity.id, copy);
     }
-    this.positionHistory.set(tick, positions);
 
     // Movers are world geometry that moves, so they need the same history the
     // players get, or a rewound shot is traced against a lift that has moved on.
     const lifts = this.collisionWorld?.lifts;
-    if (lifts?.definitions.length) this.liftHistory.set(tick, lifts.offsets());
-
-    const oldest = tick - this.capacityTicks;
-    for (const t of this.positionHistory.keys()) if (t < oldest) this.positionHistory.delete(t);
-    for (const t of this.liftHistory.keys()) if (t < oldest) this.liftHistory.delete(t);
+    if (lifts?.definitions.length) slot.liftOffsets = lifts.offsetsInto(slot.liftOffsets ?? []);
+    else slot.liftOffsets = undefined;
   }
 
   /**
@@ -160,15 +186,22 @@ export class LagCompensation {
     const now = currentTick as number;
     const oldest = now - Math.round((this.config.maxCompensationMs / 1000) * this.config.tickRate);
     const target = Math.max(oldest, Math.min(now, targetTick));
-    let tick = this.positionHistory.has(target) ? target : -1;
-    if (tick < 0) for (const t of this.positionHistory.keys()) if (t <= target && t > tick) tick = t;
-    const positions = tick < 0 ? undefined : this.positionHistory.get(tick);
-    if (!positions) return null;
+    let slot = this.slotAt(target);
+    if (!slot) {
+      // Closest recorded tick before the target that has not expired yet.
+      const newest = this.newestRecordedTick ?? -1;
+      const expired = newest - this.capacityTicks;
+      for (const s of this.slots) {
+        if (s.tick < 0 || s.tick > target || s.tick < expired) continue;
+        if (!slot || s.tick > slot.tick) slot = s;
+      }
+    }
+    if (!slot) return null;
     return {
-      tick: tickNumber(tick),
-      compensationMs: ((currentTick as number) - tick) * (1000 / this.config.tickRate),
-      positions,
-      liftOffsets: this.liftHistory.get(tick),
+      tick: tickNumber(slot.tick),
+      compensationMs: ((currentTick as number) - slot.tick) * (1000 / this.config.tickRate),
+      positions: slot.positions,
+      liftOffsets: slot.liftOffsets,
     };
   }
 
@@ -263,7 +296,7 @@ export class LagCompensation {
 
       const trace = () => this.collisionWorld!.trace(ray.origin, endPoint);
       const lifts = this.collisionWorld.lifts;
-      const offsets = this.liftHistory.get(tick as number);
+      const offsets = this.slotAt(tick as number)?.liftOffsets;
       const worldTrace = lifts && offsets ? lifts.rewind(offsets, trace) : trace();
       if (worldTrace.hit) {
         worldBlockDistance = worldTrace.fraction * ray.maxDistance;

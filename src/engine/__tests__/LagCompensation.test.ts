@@ -156,3 +156,32 @@ describe("LagCompensation", () => {
     });
   });
 });
+
+describe("LagCompensation position history ring", () => {
+  function stateAt(tick: number, x: number): WorldState {
+    const player = { id: 1, transform: { position: { x, y: 0, z: 0 } }, health: { dead: false } };
+    return { tick: tickNumber(tick), entitiesByType: () => [player] } as unknown as WorldState;
+  }
+
+  it("keeps each tick's positions while the window lasts, across many wraps", () => {
+    const lagComp = new LagCompensation(LAG_COMPENSATION); // 125Hz, 100ms → 13 + 2 ticks kept
+    for (let t = 1; t <= 500; t++) lagComp.recordPositions(stateAt(t, t * 10));
+    for (const back of [0, 1, 7, 12]) {
+      const view = lagComp.rewindToTick(tickNumber(500), 500 - back);
+      expect(view?.tick).toBe(500 - back);
+      expect(view?.positions.get(1 as EntityId)?.x).toBe((500 - back) * 10);
+    }
+  });
+
+  it("falls back to the closest earlier tick, never to an expired one", () => {
+    const lagComp = new LagCompensation(LAG_COMPENSATION);
+    for (let t = 1; t <= 100; t += 5) lagComp.recordPositions(stateAt(t, t)); // 1, 6, …, 96
+    expect(lagComp.rewindToTick(tickNumber(100), 99)?.tick).toBe(96);
+    expect(lagComp.rewindToTick(tickNumber(100), 90)?.tick).toBe(86);
+    // A recording too old for the window is gone even if its slot was not reused.
+    const sparse = new LagCompensation(LAG_COMPENSATION);
+    sparse.recordPositions(stateAt(1, 1));
+    sparse.recordPositions(stateAt(100, 100));
+    expect(sparse.rewindToTick(tickNumber(100), 50)).toBeNull();
+  });
+});
