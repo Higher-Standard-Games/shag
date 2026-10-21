@@ -1280,8 +1280,9 @@ export class FPSController implements ICameraController {
         FPSController.speedDisplayEl = el;
         FPSController.speedNumberEl = num;
       }
-      FPSController.speedNumberEl!.textContent = String(Math.round(speed));
-      FPSController.speedDisplayEl.style.display = "";
+      const text = String(Math.round(speed));
+      // Every frame: write only when the number moved, or the browser re-lays it out
+      if (FPSController.speedNumberEl!.textContent !== text) FPSController.speedNumberEl!.textContent = text;
     } else if (FPSController.speedDisplayEl) {
       FPSController.speedDisplayEl.remove();
       FPSController.resetSpeedDisplay();
