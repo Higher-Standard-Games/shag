@@ -17,6 +17,18 @@ export interface SnapshotHeader {
   baselineTick: number | null;
 }
 
+const writeInputType = (encoder: BinaryEncoder) => encoder.writeUint8(MessageType.Input);
+
+// One reusable encoder for every message built here. A fresh BinaryEncoder
+// zero-fills 16 KB, and the server and each bot send these many times a tick
+// for messages of a few bytes. getData() copies, so earlier results stay valid.
+let shared: BinaryEncoder | null = null;
+function envelope(): BinaryEncoder {
+  shared ??= new BinaryEncoder();
+  shared.reset();
+  return shared;
+}
+
 const SNAPSHOT_HEADER_BYTES = 6; // type + full/delta byte + baseline tick
 
 /**
@@ -37,12 +49,11 @@ export class MessageCodec {
    * BinaryProtocol's raw format is deliberately unchanged for recorded demos.
    */
   static encodeSnapshot(state: GameState, baseline?: GameState): Uint8Array {
-    const encoder = new BinaryEncoder();
-    encoder.writeUint8(MessageType.Snapshot);
-    encoder.writeUint8(baseline ? 1 : 0);
-    encoder.writeUint32(baseline?.tick ?? 0);
-    encoder.writeBytes(BinaryProtocol.encodeSnapshot(state, baseline));
-    return encoder.getData();
+    return BinaryProtocol.encodeSnapshot(state, baseline, (encoder) => {
+      encoder.writeUint8(MessageType.Snapshot);
+      encoder.writeUint8(baseline ? 1 : 0);
+      encoder.writeUint32(baseline?.tick ?? 0);
+    });
   }
 
   /**
@@ -86,10 +97,7 @@ export class MessageCodec {
    * Format: [MessageType.Input][playerId][sequence][command...]
    */
   static encodeCommand(playerId: string, sequence: number, command: NetworkCommand): Uint8Array {
-    const encoder = new BinaryEncoder();
-    encoder.writeUint8(MessageType.Input);
-    encoder.writeBytes(BinaryProtocol.encodeCommand(playerId, sequence, command));
-    return encoder.getData();
+    return BinaryProtocol.encodeCommand(playerId, sequence, command, writeInputType);
   }
 
   /**
@@ -123,7 +131,7 @@ export class MessageCodec {
     if (!Number.isInteger(tickRate) || tickRate < 0 || tickRate > 255) {
       throw new Error(`Welcome tick rate must be an integer byte, got ${tickRate}`);
     }
-    const encoder = new BinaryEncoder();
+    const encoder = envelope();
     encoder.writeUint8(MessageType.Welcome);
     encoder.writeString(serverId);
     encoder.writeString(serverName);
@@ -164,7 +172,7 @@ export class MessageCodec {
    * Encode a join message (Client → Server)
    */
   static encodeJoin(playerName: string, isBot = false, admissionTicket?: string): Uint8Array {
-    const encoder = new BinaryEncoder();
+    const encoder = envelope();
     encoder.writeUint8(MessageType.Join);
     encoder.writeString(playerName);
     // Trailing bot flag — optional so older clients (no byte) still decode.
@@ -193,7 +201,7 @@ export class MessageCodec {
    * Encode a join accept message (Server → Client)
    */
   static encodeJoinAccept(clientId: string, playerId: string, entityId: string): Uint8Array {
-    const encoder = new BinaryEncoder();
+    const encoder = envelope();
     encoder.writeUint8(MessageType.JoinAccept);
     encoder.writeString(clientId);
     encoder.writeString(playerId);
@@ -225,7 +233,7 @@ export class MessageCodec {
    * back instead of joining as someone new.
    */
   static encodeResumeToken(token: string, graceMs: number): Uint8Array {
-    const encoder = new BinaryEncoder();
+    const encoder = envelope();
     encoder.writeUint8(MessageType.ResumeToken);
     encoder.writeString(token);
     encoder.writeUint32(graceMs);
@@ -243,7 +251,7 @@ export class MessageCodec {
 
   /** Encode a claim on a suspended session (Client → Server). */
   static encodeResume(token: string): Uint8Array {
-    const encoder = new BinaryEncoder();
+    const encoder = envelope();
     encoder.writeUint8(MessageType.Resume);
     encoder.writeString(token);
     return encoder.getData();
@@ -262,7 +270,7 @@ export class MessageCodec {
    * Encode acknowledgment message (Client → Server)
    */
   static encodeAck(tick: number): Uint8Array {
-    const encoder = new BinaryEncoder();
+    const encoder = envelope();
     encoder.writeUint8(MessageType.Ack);
     encoder.writeUint32(tick);
     return encoder.getData();
@@ -287,7 +295,7 @@ export class MessageCodec {
    * Simple 1-byte message — the server identifies the sender by connection.
    */
   static encodeReady(): Uint8Array {
-    const encoder = new BinaryEncoder();
+    const encoder = envelope();
     encoder.writeUint8(MessageType.Ready);
     return encoder.getData();
   }
@@ -307,7 +315,7 @@ export class MessageCodec {
    * Sent when spectator wants to enter the game.
    */
   static encodeJoinGame(teamId?: string, manualPick = false, admissionTicket?: string): Uint8Array {
-    const encoder = new BinaryEncoder();
+    const encoder = envelope();
     encoder.writeUint8(MessageType.JoinGame);
     if (teamId) {
       // Widens the old has-team flag rather than adding a byte: 1 is a side the
@@ -352,7 +360,7 @@ export class MessageCodec {
    * Simple 1-byte message — server identifies sender by connection.
    */
   static encodeSpectate(): Uint8Array {
-    const encoder = new BinaryEncoder();
+    const encoder = envelope();
     encoder.writeUint8(MessageType.Spectate);
     return encoder.getData();
   }
@@ -363,7 +371,7 @@ export class MessageCodec {
    * Simple 1-byte message — server identifies sender by connection.
    */
   static encodeRequestSpawn(): Uint8Array {
-    const encoder = new BinaryEncoder();
+    const encoder = envelope();
     encoder.writeUint8(MessageType.RequestSpawn);
     return encoder.getData();
   }
@@ -377,7 +385,7 @@ export class MessageCodec {
    * Format: [MessageType.SetLoadout][primary: string][secondary: string]
    */
   static encodeSetLoadout(primary: string, secondary: string): Uint8Array {
-    const encoder = new BinaryEncoder();
+    const encoder = envelope();
     encoder.writeUint8(MessageType.SetLoadout);
     encoder.writeString(primary);
     encoder.writeString(secondary);
@@ -404,7 +412,7 @@ export class MessageCodec {
    *   bit 0: do not switch to a weapon on pickup
    */
   static encodeClientPrefs(prefs: ClientPrefs): Uint8Array {
-    const encoder = new BinaryEncoder();
+    const encoder = envelope();
     encoder.writeUint8(MessageType.ClientPrefs);
     encoder.writeUint8(prefs.autoSwitch ? 0 : 1);
     return encoder.getData();
@@ -427,7 +435,7 @@ export class MessageCodec {
    * in demo recordings). Format: [MessageType.Chat][text: string]
    */
   static encodeChat(text: string): Uint8Array {
-    const encoder = new BinaryEncoder();
+    const encoder = envelope();
     encoder.writeUint8(MessageType.Chat);
     encoder.writeString(text);
     return encoder.getData();
@@ -451,7 +459,7 @@ export class MessageCodec {
    * Format: [MessageType.ServerMessage][type: string][message: string]
    */
   static encodeServerMessage(message: string, type: string = "info"): Uint8Array {
-    const encoder = new BinaryEncoder();
+    const encoder = envelope();
     encoder.writeUint8(MessageType.ServerMessage);
     encoder.writeString(type);
     encoder.writeString(message);

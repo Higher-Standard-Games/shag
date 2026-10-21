@@ -170,8 +170,18 @@ export class BinaryProtocol {
   /**
    * Encode a snapshot with delta compression
    */
-  static encodeSnapshot(state: GameState, baseline?: GameState): Uint8Array {
+  /**
+   * `writePrefix` puts a message envelope in front of the raw snapshot in the
+   * same buffer, so the network path copies the bytes out once instead of three
+   * times. Demos record the raw format and pass none.
+   */
+  static encodeSnapshot(
+    state: GameState,
+    baseline?: GameState,
+    writePrefix?: (encoder: BinaryEncoder) => void,
+  ): Uint8Array {
     const encoder = getEncoder();
+    writePrefix?.(encoder);
 
     // Write header
     encoder.writeUint32(state.tick);
@@ -271,8 +281,14 @@ export class BinaryProtocol {
   /**
    * Encode a command
    */
-  static encodeCommand(playerId: string, sequence: number, command: NetworkCommand): Uint8Array {
+  static encodeCommand(
+    playerId: string,
+    sequence: number,
+    command: NetworkCommand,
+    writePrefix?: (encoder: BinaryEncoder) => void,
+  ): Uint8Array {
     const encoder = getEncoder();
+    writePrefix?.(encoder);
 
     encoder.writeString(playerId);
     encoder.writeUint32(sequence);

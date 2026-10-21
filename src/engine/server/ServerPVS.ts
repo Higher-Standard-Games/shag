@@ -56,8 +56,15 @@ export class ServerPVS {
   isVisible(viewerPos: { x: number; y: number; z: number }, targetPos: { x: number; y: number; z: number }): boolean {
     if (!this.visData) return true;
 
-    const viewerCluster = this.getCluster(viewerPos);
-    const targetCluster = this.getCluster(targetPos);
+    return this.isClusterVisibleFrom(this.getCluster(viewerPos), this.getCluster(targetPos));
+  }
+
+  /**
+   * `isVisible` for clusters already looked up, so a caller testing many
+   * entities against many viewers walks the BSP once per position.
+   */
+  isClusterVisibleFrom(viewerCluster: number, targetCluster: number): boolean {
+    if (!this.visData) return true;
 
     // Outside BSP = assume visible (safe fallback)
     if (viewerCluster < 0 || targetCluster < 0) return true;

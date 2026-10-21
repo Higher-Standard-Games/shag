@@ -1197,7 +1197,15 @@ export class FPSController implements ICameraController {
       this.playerVisuals.update(deltaTime);
     }
 
-    // === GIBS ===
+    // === GIBS AND DAMAGE NUMBERS ===
+    // Online, renderRemotePlayers() above already ticked both (FrameEffects).
+    // Ticking them here as well ran gib traces twice a frame and made gibs and
+    // damage numbers fall and fade at double speed.
+    if (!(this.useNetworkMovement && this.networkReady && this.gameManager)) this.updateLocalEffects(deltaTime);
+  }
+
+  /** Gibs and damage numbers when no game frame hook ticks them. */
+  private updateLocalEffects(deltaTime: number): void {
     // Update gib physics/rendering (lazy — only if GibSystem was initialized by a death event)
     if (this._gibSystem) {
       this._gibSystem.update(deltaTime);
