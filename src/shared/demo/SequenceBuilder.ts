@@ -1,9 +1,15 @@
 /**
- * SequenceBuilder — Phase 2 cinematic highlight reel builder
+ * SequenceBuilder — the highlight reel's shot list
  *
  * Takes a DemoAnalysis (scored highlights) and a target duration, then
- * selects, orders, and annotates segments into a CinematicReel ready for
- * playback.  Pure TypeScript, no external dependencies.
+ * selects highlights and films each one as a scene of three shots:
+ *
+ *   1. intro   — a third-person fly-by up to the frag, slowing as it lands
+ *   2. pov     — the same moment again from the killer's (or victim's) eyes
+ *   3. ending  — a slow orbit round the frag, then the scene's end effect
+ *
+ * Every scene has the same shape, so the reel reads like one edited video.
+ * Pure TypeScript, no external dependencies.
  */
 
 import type { DemoAnalysis, HighlightCandidate } from "./DemoAnalyzer";
@@ -12,14 +18,17 @@ import type { DemoHeader } from "./DemoReader";
 // ── Exported types ────────────────────────────────────────────────────────────
 
 export type CameraPresetId =
-  | "chase_hero" // first-person chase-cam on killer
+  | "chase_hero" // spectator eye on the killer
   | "orbit_kill" // freefly orbit around action midpoint
   | "rocket_jump_hero" // freefly below jump arc, looking up
-  | "victim_pov" // chase-cam on victim before death
+  | "victim_pov" // spectator eye on the victim before death
   | "dramatic_zoom" // freefly wide→tight dolly
-  | "replay_orbit"; // slow 360° orbit for instant replay
+  | "replay_orbit"; // slow orbit for instant replay
 
 export type TransitionType = "cut" | "crossfade" | "white_flash" | "fade_to_black";
+
+/** Which of a scene's three shots a segment is. */
+export type SceneRole = "intro" | "pov" | "ending";
 
 export interface CinematicSegment {
   startTick: number;
@@ -32,6 +41,9 @@ export interface CinematicSegment {
   highlight: HighlightCandidate;
   isReplay: boolean;
   segmentIndex: number;
+  /** The scene (one highlight) this shot belongs to, 0-based. */
+  scene: number;
+  role: SceneRole;
   transitionIn: TransitionType;
   transitionOut: TransitionType;
   transitionDurationMs: number;
@@ -41,17 +53,34 @@ export interface CinematicReel {
   segments: CinematicSegment[];
   totalDurationMs: number;
   totalSegments: number;
+  /** Highlights in the reel; each is one scene of several shots. */
+  totalScenes: number;
   tickRate: number;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const AVG_SEGMENT_MS = 8000;
+/** About how long one scene runs, all three shots, for the selection budget. */
+const AVG_SCENE_MS = 11000;
 const OVERLAP_BUFFER_SECONDS = 3;
 const DEFAULT_TRANSITION_MS = 500;
-const REPLAY_WINDOW_SECONDS = 2;
-const REPLAY_THRESHOLD_PERCENTILE = 0.85; // top 15 %
-const BUDGET_OVERRUN_FACTOR = 1.2;
+/** The rewind from the fly-by into the player's eyes: quick, so it reads as one beat. */
+const REWIND_FLASH_MS = 300;
+
+/** The intro starts this long before the frag (a rocket jump from the start of its window). */
+const INTRO_LEADIN_SECONDS = 2;
+/** The intro slows to INTRO_SLOW_SPEED this long before the frag lands. */
+const INTRO_SLOW_SECONDS = 0.6;
+const INTRO_SLOW_SPEED = 0.35;
+/** The eyes shot starts this long before the frag and runs to the highlight's end. */
+const POV_LEADIN_SECONDS = 2;
+/** The ending orbit: from just before the frag to a moment after, slowly. */
+const ENDING_BEFORE_SECONDS = 0.3;
+const ENDING_AFTER_SECONDS = 1.2;
+const ENDING_SPEED = 0.4;
+
+/** How a scene can end; the reel's last scene always fades to black. */
+const END_EFFECTS: readonly TransitionType[] = ["fade_to_black", "white_flash", "crossfade"];
 
 // ── SequenceBuilder ───────────────────────────────────────────────────────────
 
@@ -61,41 +90,35 @@ export class SequenceBuilder {
     const effectiveTickRate = tickRate > 0 ? tickRate : 20;
 
     if (analysis.highlights.length === 0) {
-      return { segments: [], totalDurationMs: 0, totalSegments: 0, tickRate: effectiveTickRate };
+      return { segments: [], totalDurationMs: 0, totalSegments: 0, totalScenes: 0, tickRate: effectiveTickRate };
     }
 
-    // ── 1. Select highlights ──────────────────────────────────────────
     const selected = this._selectHighlights(
       analysis.highlights,
       targetMs,
       Math.round(OVERLAP_BUFFER_SECONDS * effectiveTickRate),
     );
 
-    // ── 2. Build base segments ────────────────────────────────────────
-    const baseSegments: CinematicSegment[] = [];
-    for (const h of selected) {
-      baseSegments.push(this._buildBaseSegment(h, effectiveTickRate, baseSegments.at(-1)?.cameraPreset));
-    }
+    const segments: CinematicSegment[] = [];
+    let previousPov: CameraPresetId | undefined;
+    selected.forEach((h, scene) => {
+      const shots = this._buildScene(h, scene, effectiveTickRate, previousPov);
+      previousPov = shots.find((s) => s.role === "pov")?.cameraPreset;
+      segments.push(...shots);
+    });
 
-    // ── 3. Insert instant replays ────────────────────────────────────
-    const withReplays = this._insertReplays(baseSegments, targetMs, effectiveTickRate);
+    this._assignSceneEnds(segments, selected.length);
+    segments.forEach((segment, i) => {
+      segment.segmentIndex = i;
+    });
 
-    // ── 4. Assign transitions ────────────────────────────────────────
-    this._assignTransitions(withReplays);
-
-    // ── 5. Assign sequential indexes ────────────────────────────────
-    for (let i = 0; i < withReplays.length; i++) {
-      withReplays[i].segmentIndex = i;
-    }
-
-    // ── 6. Compute totals ────────────────────────────────────────────
-    const totalDurationMs =
-      withReplays.reduce((sum, s) => sum + s.durationMs, 0) + withReplays.length * DEFAULT_TRANSITION_MS;
+    const totalDurationMs = segments.reduce((sum, s) => sum + s.durationMs + s.transitionDurationMs, 0);
 
     return {
-      segments: withReplays,
+      segments,
       totalDurationMs,
-      totalSegments: withReplays.length,
+      totalSegments: segments.length,
+      totalScenes: selected.length,
       tickRate: effectiveTickRate,
     };
   }
@@ -107,7 +130,7 @@ export class SequenceBuilder {
     targetMs: number,
     overlapBufferTicks: number,
   ): HighlightCandidate[] {
-    const maxSegments = Math.max(1, Math.floor(targetMs / AVG_SEGMENT_MS));
+    const maxScenes = Math.max(1, Math.floor(targetMs / AVG_SCENE_MS));
 
     // Already sorted by score desc from DemoAnalyzer, but sort defensively
     const byScore = [...highlights].sort((a, b) => b.score - a.score);
@@ -115,7 +138,7 @@ export class SequenceBuilder {
     const selected: HighlightCandidate[] = [];
 
     for (const candidate of byScore) {
-      if (selected.length >= maxSegments) break;
+      if (selected.length >= maxScenes) break;
 
       const overlaps = selected.some(
         (s) =>
@@ -132,224 +155,157 @@ export class SequenceBuilder {
     return selected;
   }
 
-  // ── Private: base segment construction ───────────────────────────────────
+  // ── Private: one scene ────────────────────────────────────────────────────
 
-  private _buildBaseSegment(h: HighlightCandidate, tickRate: number, previous?: CameraPresetId): CinematicSegment {
-    const preset = this._assignPreset(h, previous);
-    const { playbackSpeed, speedKeyframes } = this._assignSpeed(preset, h, tickRate);
-    const durationMs = this._computeDurationMs(h.startTick, h.endTick, tickRate, playbackSpeed);
+  private _buildScene(
+    h: HighlightCandidate,
+    scene: number,
+    tickRate: number,
+    previousPov: CameraPresetId | undefined,
+  ): CinematicSegment[] {
+    const ticks = (seconds: number): number => Math.round(seconds * tickRate);
+    const clampStart = (tick: number) => Math.max(h.startTick, Math.min(tick, h.peakTick));
+    const clampEnd = (tick: number) => Math.min(h.endTick, Math.max(tick, h.peakTick));
 
-    const segment: CinematicSegment = {
-      startTick: h.startTick,
-      endTick: h.endTick,
-      durationMs,
-      cameraPreset: preset,
+    // 1. Intro: third person up to the frag, slowing into it
+    const introPreset = this._introPreset(h);
+    const introStart =
+      introPreset === "rocket_jump_hero" ? h.startTick : clampStart(h.peakTick - ticks(INTRO_LEADIN_SECONDS));
+    const intro = this._segment(h, scene, "intro", introPreset, introStart, h.peakTick, tickRate, 1, [
+      { tick: h.peakTick - ticks(INTRO_SLOW_SECONDS), speed: INTRO_SLOW_SPEED },
+    ]);
+
+    // 2. The same moment from a player's eyes, at full speed with a beat of slow motion on the frag
+    const povPreset = this._povPreset(h, previousPov);
+    const povStart = (h.killCount ?? 1) > 1 ? h.startTick : clampStart(h.peakTick - ticks(POV_LEADIN_SECONDS));
+    const pov = this._segment(h, scene, "pov", povPreset, povStart, h.endTick, tickRate, 1, [
+      { tick: h.peakTick - ticks(0.15), speed: 0.5 },
+      { tick: h.peakTick + ticks(0.5), speed: 1 },
+    ]);
+    pov.cameraTarget = povPreset === "victim_pov" ? (h.victimPlayer ?? h.primaryPlayer) : h.primaryPlayer;
+
+    // 3. Ending: a slow orbit round the frag
+    const ending = this._segment(
+      h,
+      scene,
+      "ending",
+      "replay_orbit",
+      clampStart(h.peakTick - ticks(ENDING_BEFORE_SECONDS)),
+      clampEnd(h.peakTick + ticks(ENDING_AFTER_SECONDS)),
+      tickRate,
+      ENDING_SPEED,
+    );
+    ending.isReplay = true;
+
+    // Inside a scene: a quick flash rewinds into the eyes shot, a dip into the orbit
+    intro.transitionOut = "white_flash";
+    pov.transitionIn = "white_flash";
+    intro.transitionDurationMs = REWIND_FLASH_MS;
+    pov.transitionDurationMs = REWIND_FLASH_MS;
+    ending.transitionIn = "crossfade";
+
+    return [intro, pov, ending];
+  }
+
+  private _segment(
+    h: HighlightCandidate,
+    scene: number,
+    role: SceneRole,
+    cameraPreset: CameraPresetId,
+    startTick: number,
+    endTick: number,
+    tickRate: number,
+    playbackSpeed: number,
+    speedKeyframes?: Array<{ tick: number; speed: number }>,
+  ): CinematicSegment {
+    const keyframes = speedKeyframes?.filter((kf) => kf.tick > startTick && kf.tick < endTick);
+    return {
+      startTick,
+      endTick,
+      durationMs: this._computeDurationMs(startTick, endTick, tickRate, playbackSpeed, keyframes),
+      cameraPreset,
       playbackSpeed,
+      ...(keyframes?.length ? { speedKeyframes: keyframes } : {}),
       highlight: h,
       isReplay: false,
       segmentIndex: 0, // assigned later
-      transitionIn: "cut", // assigned later
-      transitionOut: "cut", // assigned later
+      scene,
+      role,
+      transitionIn: "cut",
+      transitionOut: "cut",
       transitionDurationMs: DEFAULT_TRANSITION_MS,
     };
-
-    if (speedKeyframes) {
-      segment.speedKeyframes = speedKeyframes;
-    }
-
-    // Chase-cam presets need an entity target
-    if (preset === "chase_hero") {
-      segment.cameraTarget = h.primaryPlayer;
-    } else if (preset === "victim_pov") {
-      segment.cameraTarget = h.victimPlayer ?? h.primaryPlayer;
-    }
-
-    return segment;
   }
 
-  // ── Private: camera preset assignment ────────────────────────────────────
+  // ── Private: camera choice ────────────────────────────────────────────────
 
-  private _assignPreset(h: HighlightCandidate, previous?: CameraPresetId): CameraPresetId {
-    if (h.tags.includes("rocket_jump") || h.tags.includes("height_gain")) {
-      return "rocket_jump_hero";
-    }
-    if (h.tags.includes("multi_kill") && (h.killCount ?? 0) >= 3) {
-      return "orbit_kill";
-    }
-    if (h.tags.includes("long_range")) {
-      return "dramatic_zoom";
-    }
-    // The victim's eyes are worth watching when they saw it coming. Never two
-    // in a row: in a duel nearly every victim faces their killer, and a reel
-    // seen only from the losing side stops being about the plays.
-    if (h.victimFacedKiller && h.victimPlayer !== undefined && previous !== "victim_pov") {
-      return "victim_pov";
-    }
+  /** The third-person shot that suits the play. */
+  private _introPreset(h: HighlightCandidate): CameraPresetId {
+    if (h.tags.includes("rocket_jump") || h.tags.includes("height_gain")) return "rocket_jump_hero";
+    if (h.tags.includes("long_range")) return "dramatic_zoom";
+    return "orbit_kill";
+  }
+
+  /**
+   * The eyes the frag is seen through. The victim's are worth watching when
+   * they saw it coming. Never two in a row: in a duel nearly every victim faces
+   * their killer, and a reel seen only from the losing side stops being about
+   * the plays.
+   */
+  private _povPreset(h: HighlightCandidate, previous?: CameraPresetId): CameraPresetId {
+    if (h.victimFacedKiller && h.victimPlayer !== undefined && previous !== "victim_pov") return "victim_pov";
     return "chase_hero";
-  }
-
-  // ── Private: speed assignment ────────────────────────────────────────────
-
-  private _assignSpeed(
-    preset: CameraPresetId,
-    h: HighlightCandidate,
-    tickRate: number,
-  ): { playbackSpeed: number; speedKeyframes?: Array<{ tick: number; speed: number }> } {
-    const ticks = (seconds: number): number => Math.round(seconds * tickRate);
-
-    switch (preset) {
-      case "chase_hero":
-        return { playbackSpeed: 1.0 };
-
-      case "orbit_kill":
-        return {
-          playbackSpeed: 1.0,
-          speedKeyframes: [
-            { tick: h.peakTick - ticks(0.5), speed: 0.5 },
-            { tick: h.peakTick + ticks(1), speed: 1.0 },
-          ],
-        };
-
-      case "rocket_jump_hero":
-        return {
-          playbackSpeed: 0.75,
-          speedKeyframes: [
-            { tick: h.peakTick, speed: 0.25 },
-            { tick: h.peakTick + ticks(1), speed: 1.0 },
-          ],
-        };
-
-      case "victim_pov":
-        return {
-          playbackSpeed: 1.0,
-          speedKeyframes: [{ tick: h.peakTick - ticks(0.25), speed: 0.5 }],
-        };
-
-      case "dramatic_zoom":
-        return {
-          playbackSpeed: 1.0,
-          speedKeyframes: [
-            { tick: h.peakTick - ticks(0.25), speed: 0.25 },
-            { tick: h.peakTick + ticks(0.5), speed: 1.0 },
-          ],
-        };
-
-      case "replay_orbit":
-        return { playbackSpeed: 0.25 };
-    }
   }
 
   // ── Private: durationMs ───────────────────────────────────────────────────
 
-  private _computeDurationMs(startTick: number, endTick: number, tickRate: number, playbackSpeed: number): number {
-    const rawTicks = endTick - startTick;
-    return ((rawTicks / tickRate) * 1000) / playbackSpeed;
-  }
-
-  // ── Private: instant replay insertion ────────────────────────────────────
-
-  private _insertReplays(segments: CinematicSegment[], targetMs: number, tickRate: number): CinematicSegment[] {
-    if (segments.length === 0) return segments;
-
-    const scores = segments.map((s) => s.highlight.score);
-    const sortedScores = [...scores].sort((a, b) => a - b);
-    const thresholdIdx = Math.floor(sortedScores.length * REPLAY_THRESHOLD_PERCENTILE);
-    const scoreThreshold = sortedScores[Math.min(thresholdIdx, sortedScores.length - 1)];
-
-    const currentTotal = segments.reduce((sum, s) => sum + s.durationMs, 0);
-    const budget = targetMs * BUDGET_OVERRUN_FACTOR;
-
-    const result: CinematicSegment[] = [];
-
-    for (const segment of segments) {
-      result.push(segment);
-
-      if (segment.highlight.score < scoreThreshold) continue;
-
-      const h = segment.highlight;
-      const replayWindowTicks = REPLAY_WINDOW_SECONDS * tickRate;
-      const replayStart = Math.max(h.startTick, h.peakTick - replayWindowTicks);
-      const replayEnd = Math.min(h.endTick, h.peakTick + replayWindowTicks);
-
-      const replayDuration = this._computeDurationMs(replayStart, replayEnd, tickRate, 0.25);
-
-      // Skip if replay would push total over budget by more than 20%
-      const projectedTotal = currentTotal + replayDuration;
-      if (projectedTotal > budget) continue;
-
-      const replaySegment: CinematicSegment = {
-        startTick: replayStart,
-        endTick: replayEnd,
-        durationMs: replayDuration,
-        cameraPreset: "replay_orbit",
-        playbackSpeed: 0.25,
-        highlight: h,
-        isReplay: true,
-        segmentIndex: 0, // assigned later
-        transitionIn: "white_flash",
-        transitionOut: "cut",
-        transitionDurationMs: DEFAULT_TRANSITION_MS,
-      };
-
-      result.push(replaySegment);
+  /** Wall-clock time from start to end, at the base speed and each keyframe's speed from its tick. */
+  private _computeDurationMs(
+    startTick: number,
+    endTick: number,
+    tickRate: number,
+    playbackSpeed: number,
+    speedKeyframes?: Array<{ tick: number; speed: number }>,
+  ): number {
+    let ms = 0;
+    let from = startTick;
+    let speed = playbackSpeed;
+    for (const kf of speedKeyframes ?? []) {
+      ms += ((kf.tick - from) / tickRate / speed) * 1000;
+      from = kf.tick;
+      speed = kf.speed;
     }
-
-    return result;
+    ms += ((endTick - from) / tickRate / speed) * 1000;
+    return ms;
   }
 
-  // ── Private: transition assignment ───────────────────────────────────────
+  // ── Private: how scenes begin and end ─────────────────────────────────────
 
-  private _assignTransitions(segments: CinematicSegment[]): void {
+  /**
+   * The reel fades in from black and out to black. Between scenes, each scene
+   * ends with an end effect the next scene comes in through. The effect is
+   * picked from the highlight itself, so the same demo always cuts the same.
+   */
+  private _assignSceneEnds(segments: CinematicSegment[], totalScenes: number): void {
     if (segments.length === 0) return;
-
+    segments[0].transitionIn = "fade_to_black";
     for (let i = 0; i < segments.length; i++) {
-      const seg = segments[i];
-      const prev = i > 0 ? segments[i - 1] : null;
-      const next = i < segments.length - 1 ? segments[i + 1] : null;
-
-      // Defaults
-      seg.transitionIn = "cut";
-      seg.transitionOut = "cut";
-      seg.transitionDurationMs = DEFAULT_TRANSITION_MS;
-
-      // First segment
-      if (i === 0) {
-        seg.transitionIn = "fade_to_black";
-      }
-
-      // Last segment
-      if (i === segments.length - 1) {
-        seg.transitionOut = "fade_to_black";
-      }
-
-      // Before a replay: current segment transitions out with white_flash
-      if (next?.isReplay === true) {
-        seg.transitionOut = "white_flash";
-      }
-
-      // Replay segments: in is white_flash (already set in _insertReplays)
-      if (seg.isReplay) {
-        seg.transitionIn = "white_flash";
-        // Don't override the fade_to_black on last segment
-        continue;
-      }
-
-      // Non-first, non-replay: determine transitionIn from previous segment
-      if (prev !== null && i !== 0) {
-        const prevHighlight = prev.highlight;
-        const curHighlight = seg.highlight;
-
-        if (prevHighlight.primaryPlayer === curHighlight.primaryPlayer) {
-          seg.transitionIn = "cut";
-        } else {
-          seg.transitionIn = "crossfade";
-        }
-
-        // First segment override already applied above — re-apply to be safe
-        if (i === 0) {
-          seg.transitionIn = "fade_to_black";
-        }
-      }
+      const segment = segments[i];
+      if (segment.role !== "ending") continue;
+      const next = segments[i + 1];
+      const effect =
+        segment.scene === totalScenes - 1 || !next
+          ? "fade_to_black"
+          : END_EFFECTS[sceneSeed(segment.highlight) % END_EFFECTS.length];
+      segment.transitionOut = effect;
+      if (next) next.transitionIn = effect;
     }
   }
+}
+
+/** A stable number from a highlight, for choices that should look random but repeat per demo. */
+function sceneSeed(h: HighlightCandidate): number {
+  let hash = h.peakTick | 0;
+  for (const ch of h.primaryPlayer) hash = (Math.imul(hash, 31) + ch.charCodeAt(0)) | 0;
+  return Math.abs(hash);
 }

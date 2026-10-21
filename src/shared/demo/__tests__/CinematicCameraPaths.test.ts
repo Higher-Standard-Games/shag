@@ -131,6 +131,49 @@ describe("generateCameraPath", () => {
     expect(result.type).toBe("freefly");
     expect(result.keyframes).toHaveLength(3);
   });
+
+  it("rocket_jump_hero frames the jump by its heading, not the map's axes", () => {
+    const along = (velocity: { x: number; y: number; z: number }) =>
+      generateCameraPath("rocket_jump_hero", makeHighlight({ killerVelocity: velocity }), 100, 200, SNAPSHOT_RATE)
+        .keyframes![0].position;
+    // Jumping along +x, the first shot is ahead of the jump on x; along +z, ahead on z
+    expect(along({ x: 400, y: 300, z: 0 })).toMatchObject({ x: 150, z: 0 });
+    expect(along({ x: 0, y: 300, z: 400 })).toMatchObject({ x: 0, z: 150 });
+    // Straight up: where the killer faced
+    const facing = generateCameraPath(
+      "rocket_jump_hero",
+      makeHighlight({ killerVelocity: { x: 0, y: 500, z: 0 }, killerYaw: -Math.PI / 2 }),
+      100,
+      200,
+      SNAPSHOT_RATE,
+    ).keyframes![0].position;
+    expect(facing.x).toBeCloseTo(-150);
+    expect(facing.z).toBeCloseTo(0);
+  });
+
+  it("orbit_kill starts behind the killer and turns further the longer the shot", () => {
+    const h = makeHighlight({ killerPos: { x: 0, y: 0, z: 0 }, victimPos: { x: 400, y: 0, z: 0 } });
+    const short = generateCameraPath("orbit_kill", h, 0, SNAPSHOT_RATE, SNAPSHOT_RATE).keyframes!;
+    expect(short[0].position.x).toBeLessThan(0); // the killer's side of the midpoint
+    const angle = (p: { x: number; z: number }) => Math.atan2(p.z, p.x - 200);
+    const turned = (kfs: typeof short) =>
+      (angle(kfs.at(-1)!.position) - angle(kfs[0].position) + 2 * Math.PI) % (2 * Math.PI);
+    expect(turned(short)).toBeCloseTo(Math.PI / 2, 5); // 1 s → 90°
+  });
+
+  it("replay_orbit circles both players when close and the victim when the shot crossed the map", () => {
+    const close = generateCameraPath("replay_orbit", makeHighlight(), 100, 300, SNAPSHOT_RATE).keyframes!;
+    expect(close[0].lookAt).toEqual({ x: 100, y: 0, z: 0 });
+    const far = generateCameraPath(
+      "replay_orbit",
+      makeHighlight({ victimPos: { x: 2000, y: 0, z: 0 } }),
+      100,
+      300,
+      SNAPSHOT_RATE,
+    ).keyframes!;
+    expect(far[0].lookAt).toEqual({ x: 2000, y: 0, z: 0 });
+    expect(far[0].position.x).toBeCloseTo(1750); // on the shooter's side
+  });
 });
 
 describe("interpolatePath", () => {

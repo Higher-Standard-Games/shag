@@ -26,6 +26,14 @@ export interface CameraPathResult {
   interpolation?: "linear" | "catmull_rom";
 }
 
+/** How far an orbit turns per second of game time, and at most. */
+const ORBIT_DEG_PER_SECOND = 90;
+const ORBIT_MAX_ARC = 270;
+/** Players closer than this share one replay orbit; further apart, it circles the hit. */
+const REPLAY_BOTH_WITHIN = 600;
+/** Below this horizontal speed a jump has no heading of its own; the killer's view gives it. */
+const JUMP_HEADING_MIN_SPEED = 50;
+
 // ── Internal Vec3 type ───────────────────────────────────────────────────────
 
 type Vec3 = { x: number; y: number; z: number };
@@ -95,7 +103,7 @@ export function generateCameraPath(
   highlight: HighlightCandidate,
   startTick: number,
   endTick: number,
-  _tickRate: number,
+  tickRate: number,
 ): CameraPathResult {
   switch (preset) {
     case "chase_hero":
@@ -108,7 +116,7 @@ export function generateCameraPath(
       };
 
     case "orbit_kill":
-      return _orbitKill(highlight, startTick, endTick);
+      return _orbitKill(highlight, startTick, endTick, tickRate);
 
     case "rocket_jump_hero":
       return _rocketJumpHero(highlight, startTick, endTick);
@@ -123,18 +131,27 @@ export function generateCameraPath(
 
 // ── Per-preset path generators ────────────────────────────────────────────────
 
-function _orbitKill(highlight: HighlightCandidate, startTick: number, endTick: number): CameraPathResult {
+function _orbitKill(
+  highlight: HighlightCandidate,
+  startTick: number,
+  endTick: number,
+  tickRate: number,
+): CameraPathResult {
   const killerPos: Vec3 = highlight.killerPos ?? { x: 0, y: 0, z: 0 };
   const victimPos: Vec3 = highlight.victimPos ?? { x: 200, y: 0, z: 0 };
   const midpoint: Vec3 = vec3Scale(vec3Add(killerPos, victimPos), 0.5);
   const dist = vec3Distance(killerPos, victimPos);
   const radius = Math.max(dist * 0.8, 200);
   const height = midpoint.y + 80;
+  // Start over the killer's shoulder, then swing round: a short shot turns a
+  // little, a long multi-kill window goes most of the way round
+  const start = startAngleBehind(killerPos, midpoint);
+  const arc = Math.min(ORBIT_MAX_ARC, ((endTick - startTick) / tickRate) * ORBIT_DEG_PER_SECOND) * (Math.PI / 180);
 
   const keyframes: CameraKeyframe[] = [];
   for (let i = 0; i <= 4; i++) {
     const t = i / 4;
-    const angle = t * 270 * (Math.PI / 180);
+    const angle = start + t * arc;
     const tick = lerpTick(startTick, endTick, t);
     const pos: Vec3 = {
       x: midpoint.x + Math.cos(angle) * radius,
@@ -150,10 +167,18 @@ function _orbitKill(highlight: HighlightCandidate, startTick: number, endTick: n
 function _rocketJumpHero(highlight: HighlightCandidate, startTick: number, endTick: number): CameraPathResult {
   const killerPos: Vec3 = highlight.killerPos ?? { x: 0, y: 100, z: 0 };
   const apexPos: Vec3 = { ...killerPos, y: killerPos.y + 150 };
+  // Framed on the jump's own direction, not the map's axes: ahead of and below
+  // the jump looking back up at it, beside it, then behind and above the apex
+  const { forward, right } = jumpFrame(highlight);
+  const at = (base: Vec3, ahead: number, side: number, up: number): Vec3 => ({
+    x: base.x + forward.x * ahead + right.x * side,
+    y: base.y + up,
+    z: base.z + forward.z * ahead + right.z * side,
+  });
 
-  const below: Vec3 = { x: killerPos.x, y: killerPos.y - 100, z: killerPos.z + 150 };
-  const side: Vec3 = { x: killerPos.x + 200, y: killerPos.y + 60, z: killerPos.z };
-  const behind: Vec3 = { x: apexPos.x - 100, y: apexPos.y + 80, z: apexPos.z + 100 };
+  const below = at(killerPos, 150, 0, -100);
+  const side = at(killerPos, 0, 200, 60);
+  const behind = at(apexPos, -120, 60, 80);
 
   const keyframes: CameraKeyframe[] = [
     { tick: startTick, position: below, lookAt: { ...killerPos } },
@@ -203,14 +228,24 @@ function _dramaticZoom(highlight: HighlightCandidate, startTick: number, endTick
 }
 
 function _replayOrbit(highlight: HighlightCandidate, startTick: number, endTick: number): CameraPathResult {
-  const center: Vec3 = highlight.killerPos ?? { x: 0, y: 0, z: 0 };
+  // Round the frag: both players when they're close, the hit when the shot
+  // crossed the map (circling the shooter would leave the victim out)
+  const killerPos: Vec3 = highlight.killerPos ?? { x: 0, y: 0, z: 0 };
+  const victimPos = highlight.victimPos;
+  const dist = victimPos ? vec3Distance(killerPos, victimPos) : 0;
+  const center: Vec3 = !victimPos
+    ? killerPos
+    : dist <= REPLAY_BOTH_WITHIN
+      ? vec3Scale(vec3Add(killerPos, victimPos), 0.5)
+      : victimPos;
   const height = center.y + 60;
-  const radius = 250;
+  const radius = victimPos && dist <= REPLAY_BOTH_WITHIN ? Math.max(250, dist * 0.6) : 250;
+  const start = startAngleBehind(killerPos, center);
 
   const keyframes: CameraKeyframe[] = [];
   for (let i = 0; i <= 8; i++) {
     const t = i / 8;
-    const angle = t * 270 * (Math.PI / 180);
+    const angle = start + t * 270 * (Math.PI / 180);
     const tick = lerpTick(startTick, endTick, t);
     const pos: Vec3 = {
       x: center.x + Math.cos(angle) * radius,
@@ -221,6 +256,25 @@ function _replayOrbit(highlight: HighlightCandidate, startTick: number, endTick:
   }
 
   return { type: "freefly", keyframes, interpolation: "catmull_rom" };
+}
+
+/** The orbit angle that puts the camera on the killer's side of `center` (behind them). */
+function startAngleBehind(killerPos: Vec3, center: Vec3): number {
+  const dx = killerPos.x - center.x;
+  const dz = killerPos.z - center.z;
+  return dx === 0 && dz === 0 ? 0 : Math.atan2(dz, dx);
+}
+
+/** The jump's heading on x/z: its horizontal velocity, else where the killer looked, else +z. */
+function jumpFrame(highlight: HighlightCandidate): { forward: Vec3; right: Vec3 } {
+  const v = highlight.killerVelocity;
+  let forward: Vec3 = { x: 0, y: 0, z: 1 };
+  if (v && Math.hypot(v.x, v.z) > JUMP_HEADING_MIN_SPEED) {
+    forward = vec3Normalize({ x: v.x, y: 0, z: v.z });
+  } else if (typeof highlight.killerYaw === "number") {
+    forward = { x: Math.sin(highlight.killerYaw), y: 0, z: Math.cos(highlight.killerYaw) };
+  }
+  return { forward, right: { x: forward.z, y: 0, z: -forward.x } };
 }
 
 // ── interpolatePath ───────────────────────────────────────────────────────────

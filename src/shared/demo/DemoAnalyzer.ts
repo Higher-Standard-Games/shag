@@ -52,6 +52,8 @@ export interface HighlightCandidate {
   killerPos?: { x: number; y: number; z: number };
   victimPos?: { x: number; y: number; z: number };
   killerVelocity?: { x: number; y: number; z: number };
+  /** Where the killer was looking at the frag: yaw in radians, forward = (sin, cos) on x/z. */
+  killerYaw?: number;
   /** The victim was looking at the killer when the frag landed: they saw it coming. */
   victimFacedKiller?: boolean;
 }
@@ -238,6 +240,7 @@ export class DemoAnalyzer {
         let killerPos: Vec3 | undefined;
         let killerVelocity: Vec3 | undefined;
         let killerGrounded = true;
+        let killerYaw: number | undefined;
         let killerLinearY = 0;
 
         const killerEntity = state.entities.get(killerId);
@@ -248,6 +251,7 @@ export class DemoAnalyzer {
           if (transform) {
             killerPos = { ...transform.position };
           }
+          killerYaw = transform?.rotation?.y ?? lastYaw.get(killerId);
           if (velocity) {
             killerGrounded = velocity.grounded;
             killerLinearY = velocity.linear?.y ?? velocity.y ?? 0;
@@ -357,6 +361,7 @@ export class DemoAnalyzer {
           killerPos,
           victimPos,
           killerVelocity,
+          ...(killerYaw === undefined ? {} : { killerYaw }),
           ...(victimFacedKiller === undefined ? {} : { victimFacedKiller }),
         };
 
@@ -505,6 +510,7 @@ export class DemoAnalyzer {
             killerPos: last.killerPos,
             victimPos: last.victimPos,
             killerVelocity: last.killerVelocity,
+            ...(last.killerYaw === undefined ? {} : { killerYaw: last.killerYaw }),
           };
           result.push(merged);
         } else {
