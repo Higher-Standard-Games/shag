@@ -126,6 +126,9 @@ export function generateCameraPath(
 
     case "replay_orbit":
       return _replayOrbit(highlight, startTick, endTick);
+
+    case "trick_follow":
+      return _trickFollow(highlight, startTick, endTick, tickRate);
   }
 }
 
@@ -255,6 +258,74 @@ function _replayOrbit(highlight: HighlightCandidate, startTick: number, endTick:
     keyframes.push({ tick, position: pos, lookAt: { ...center } });
   }
 
+  return { type: "freefly", keyframes, interpolation: "catmull_rom" };
+}
+
+/** How far behind, beside and above a movement run the following camera rides. */
+const TRAIL_BACK = 170;
+const TRAIL_SIDE = 80;
+const TRAIL_UP = 60;
+/** Keyframes along a run this far apart: close enough to follow it, far enough to stay smooth. */
+const TRAIL_KEYFRAME_SECONDS = 0.3;
+
+/**
+ * Trail a movement run along its recorded route: behind the player and a
+ * little to the side, looking just ahead of them. The heading is taken over
+ * a few samples, so a single bump in the route doesn't swing the camera.
+ */
+function _trickFollow(
+  highlight: HighlightCandidate,
+  startTick: number,
+  endTick: number,
+  tickRate: number,
+): CameraPathResult {
+  const route = (highlight.path ?? []).filter((p) => p.tick >= startTick && p.tick <= endTick);
+  const fallback = { forward: jumpFrame(highlight).forward };
+  const trail = (i: number): CameraKeyframe => {
+    const p = route[i];
+    const from = route[Math.max(0, i - 2)];
+    const to = route[Math.min(route.length - 1, i + 2)];
+    const dx = to.x - from.x;
+    const dz = to.z - from.z;
+    const length = Math.hypot(dx, dz);
+    const forward = length > 1 ? { x: dx / length, y: 0, z: dz / length } : fallback.forward;
+    const right = { x: forward.z, y: 0, z: -forward.x };
+    return {
+      tick: p.tick,
+      position: {
+        x: p.x - forward.x * TRAIL_BACK + right.x * TRAIL_SIDE,
+        y: p.y + TRAIL_UP,
+        z: p.z - forward.z * TRAIL_BACK + right.z * TRAIL_SIDE,
+      },
+      lookAt: { x: p.x + forward.x * 60, y: p.y + 20, z: p.z + forward.z * 60 },
+    };
+  };
+
+  if (route.length < 2) {
+    // No route recorded: hold behind the player at their best moment
+    const at = highlight.killerPos ?? { x: 0, y: 0, z: 0 };
+    const { forward } = fallback;
+    const position = { x: at.x - forward.x * TRAIL_BACK, y: at.y + TRAIL_UP, z: at.z - forward.z * TRAIL_BACK };
+    return {
+      type: "freefly",
+      keyframes: [
+        { tick: startTick, position, lookAt: { ...at } },
+        { tick: endTick, position, lookAt: { ...at } },
+      ],
+      interpolation: "linear",
+    };
+  }
+
+  const keyframes: CameraKeyframe[] = [];
+  const spacing = TRAIL_KEYFRAME_SECONDS * tickRate;
+  for (let i = 0; i < route.length; i++) {
+    const last = keyframes.at(-1);
+    if (!last || route[i].tick - last.tick >= spacing || i === route.length - 1) keyframes.push(trail(i));
+  }
+  // Hold the ends over the shot's padding before and after the run
+  if (keyframes[0].tick > startTick) keyframes.unshift({ ...keyframes[0], tick: startTick });
+  if (keyframes[keyframes.length - 1].tick < endTick)
+    keyframes.push({ ...keyframes[keyframes.length - 1], tick: endTick });
   return { type: "freefly", keyframes, interpolation: "catmull_rom" };
 }
 

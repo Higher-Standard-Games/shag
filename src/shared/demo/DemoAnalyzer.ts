@@ -33,7 +33,10 @@ export type HighlightTag =
   | "unstoppable"
   | "high_speed"
   | "trick_jump"
-  | "height_gain";
+  | "height_gain"
+  | "wall_jump"
+  | "slide"
+  | "bunny_hop";
 
 export interface HighlightCandidate {
   startTick: number;
@@ -56,6 +59,8 @@ export interface HighlightCandidate {
   killerYaw?: number;
   /** The victim was looking at the killer when the frag landed: they saw it coming. */
   victimFacedKiller?: boolean;
+  /** A movement highlight's route, sampled about every 0.1 s, for a camera that follows it. */
+  path?: Array<{ tick: number; x: number; y: number; z: number }>;
 }
 
 export interface DemoAnalysis {
@@ -91,6 +96,32 @@ interface VelocityComponent {
   grounded: boolean;
 }
 
+/** The movement fields a snapshot carries (BinaryProtocol's movementState). */
+interface MovementStateComponent {
+  isSliding?: boolean;
+  wallJumpState?: string;
+}
+
+/** A stretch of fast movement in the air or on a slide, while it lasts. */
+interface MovementRun {
+  startTick: number;
+  lastActiveTick: number;
+  startY: number;
+  maxY: number;
+  maxYTick: number;
+  maxSpeed: number;
+  maxSpeedTick: number;
+  wallJumpTicks: number[];
+  slides: number;
+  hops: number;
+  wasSliding: boolean;
+  wasGrounded: boolean;
+  wasCharging: boolean;
+  path: Array<{ tick: number; x: number; y: number; z: number }>;
+  /** Position, velocity and view at each sampled tick, for the peak's camera. */
+  frames: Map<number, { pos: Vec3; vel: Vec3; yaw?: number }>;
+}
+
 interface PlayerTracker {
   killStreak: number;
   lastKillTick: number;
@@ -108,9 +139,25 @@ const LEADIN_SECONDS = 3;
 const FOLLOWTHROUGH_SECONDS = 2;
 const LONG_RANGE_THRESHOLD = 1500;
 const CLOSE_RANGE_THRESHOLD = 150;
-const ROCKET_JUMP_VEL_Y = 150;
+/** Rising faster than a plain jump (270) or a wall jump (420) can: a rocket or a pad did that. */
+const ROCKET_JUMP_VEL_Y = 450;
 const HIGH_SPEED_THRESHOLD = 600;
 const LOW_HP_THRESHOLD = 30;
+
+// Movement highlights: trick jumps, slides and hop chains that don't end in a kill
+/** Faster than sprinting (400): a run only counts while the player keeps above it. */
+const MOVE_MIN_SPEED = 450;
+/** How long a run may touch the ground between hops before it is over. */
+const MOVE_GRACE_SECONDS = 0.35;
+const MOVE_MIN_SECONDS = 1.2;
+const MOVE_MAX_SECONDS = 8;
+const MOVE_PAD_SECONDS = 0.5;
+const MOVE_SAMPLE_SECONDS = 0.1;
+/** Hops in one run that make a bunny-hop chain. */
+const BUNNY_HOP_MIN = 3;
+/** Height a wall-jump run climbs above where it started to count as a climb. */
+const MOVE_HEIGHT_GAIN = 96;
+const MOVE_HIGH_SPEED = 700;
 
 // ── Score constants ──────────────────────────────────────────────────────────
 
@@ -132,6 +179,9 @@ const TAG_MULTIPLIERS: Record<HighlightTag, number> = {
   high_speed: 1.2,
   trick_jump: 1.3,
   height_gain: 1.2,
+  wall_jump: 1.3,
+  slide: 1.1,
+  bunny_hop: 1.2,
 };
 
 // ── DemoAnalyzer ─────────────────────────────────────────────────────────────
@@ -188,6 +238,8 @@ export class DemoAnalyzer {
     const rawFrags: HighlightCandidate[] = [];
     /** Each player's view yaw as last drawn: a victim has left the frame that carries their death. */
     const lastYaw = new Map<string, number>();
+    const runs = new Map<string, MovementRun>();
+    const moves: HighlightCandidate[] = [];
 
     for (const frame of frames) {
       const { tick, state } = frame;
@@ -391,7 +443,26 @@ export class DemoAnalyzer {
         } else {
           t.consecutiveAirFrames = 0;
         }
+
+        const position = (entity.getComponent("transform") as TransformComponent | undefined)?.position;
+        if (position) {
+          const finished = this._trackMovement(runs, entityId, entity, velocity, position, yaw, tick, tickRate);
+          if (finished) moves.push(finished);
+        }
       }
+
+      // A player who left the frame (died, disconnected) ends their run there
+      for (const [entityId, run] of runs) {
+        if (state.entities.has(entityId)) continue;
+        runs.delete(entityId);
+        const finished = this._finishRun(run, entityId, tickRate);
+        if (finished) moves.push(finished);
+      }
+    }
+
+    for (const [entityId, run] of runs) {
+      const finished = this._finishRun(run, entityId, tickRate);
+      if (finished) moves.push(finished);
     }
 
     // ── 4. Multi-kill grouping ────────────────────────────────────────
@@ -407,9 +478,19 @@ export class DemoAnalyzer {
     for (const c of grouped) {
       c.score = this._computeScore(c);
     }
+    for (const m of moves) {
+      m.startTick = Math.max(firstTick, m.startTick);
+      m.endTick = Math.min(lastTick, m.endTick);
+      m.score = this._computeScore(m);
+    }
 
     // ── 7. Deduplicate overlapping candidates ─────────────────────────
-    const deduped = this._deduplicateOverlapping(grouped);
+    // Frags and movement are separate pools: the reel cuts movement clips in
+    // between frag scenes, so a run never has to outscore a frag to be kept
+    const deduped = [
+      ...this._deduplicateOverlapping(grouped),
+      ...this._deduplicateOverlapping(moves.map((m) => this._withNamesOf(m, playerNames))),
+    ];
 
     // ── 8. Sort by score descending ───────────────────────────────────
     deduped.sort((a, b) => b.score - a.score);
@@ -522,6 +603,165 @@ export class DemoAnalyzer {
     }
 
     return result;
+  }
+
+  /**
+   * Follow one player's movement for a frame. A run starts when they go
+   * faster than sprinting in the air or on a slide, and carries on through
+   * brief touches of the ground between hops. Returns the highlight when a
+   * run ends worth keeping.
+   */
+  private _trackMovement(
+    runs: Map<string, MovementRun>,
+    entityId: string,
+    entity: { getComponent(name: string): unknown },
+    velocity: VelocityComponent,
+    position: Vec3,
+    yaw: number | undefined,
+    tick: number,
+    tickRate: number,
+  ): HighlightCandidate | null {
+    const movement = entity.getComponent("movementState") as MovementStateComponent | undefined;
+    const sliding = movement?.isSliding ?? false;
+    const charging = movement?.wallJumpState === "charging";
+    const vel: Vec3 = {
+      x: velocity.linear?.x ?? velocity.x ?? 0,
+      y: velocity.linear?.y ?? velocity.y ?? 0,
+      z: velocity.linear?.z ?? velocity.z ?? 0,
+    };
+    const speed = Math.hypot(vel.x, vel.z);
+    // A wall jump's charge holds the player still on the wall: it keeps the run alive
+    const active = (speed >= MOVE_MIN_SPEED && (!velocity.grounded || sliding)) || charging;
+
+    let run = runs.get(entityId);
+    let finished: HighlightCandidate | null = null;
+    if (run && tick - run.lastActiveTick > MOVE_GRACE_SECONDS * tickRate) {
+      runs.delete(entityId);
+      finished = this._finishRun(run, entityId, tickRate);
+      run = undefined;
+    }
+    if (!run && active) run = this._startRun(runs, entityId, position, velocity.grounded, tick);
+    if (run) {
+      if (active) run.lastActiveTick = tick;
+      this._stepRun(run, position, vel, speed, yaw, sliding, charging, velocity.grounded, tick, tickRate);
+    }
+    return finished;
+  }
+
+  private _startRun(
+    runs: Map<string, MovementRun>,
+    entityId: string,
+    position: Vec3,
+    grounded: boolean,
+    tick: number,
+  ): MovementRun {
+    const run: MovementRun = {
+      startTick: tick,
+      lastActiveTick: tick,
+      startY: position.y,
+      maxY: position.y,
+      maxYTick: tick,
+      maxSpeed: 0,
+      maxSpeedTick: tick,
+      wallJumpTicks: [],
+      slides: 0,
+      hops: 0,
+      wasSliding: false,
+      wasGrounded: grounded,
+      wasCharging: false,
+      path: [],
+      frames: new Map(),
+    };
+    runs.set(entityId, run);
+    return run;
+  }
+
+  private _stepRun(
+    run: MovementRun,
+    position: Vec3,
+    vel: Vec3,
+    speed: number,
+    yaw: number | undefined,
+    sliding: boolean,
+    charging: boolean,
+    grounded: boolean,
+    tick: number,
+    tickRate: number,
+  ): void {
+    if (sliding && !run.wasSliding) run.slides += 1;
+    if (charging && !run.wasCharging) run.wallJumpTicks.push(tick);
+    if (!grounded && run.wasGrounded) run.hops += 1;
+    run.wasSliding = sliding;
+    run.wasCharging = charging;
+    run.wasGrounded = grounded;
+    if (position.y > run.maxY) {
+      run.maxY = position.y;
+      run.maxYTick = tick;
+    }
+    if (speed > run.maxSpeed) {
+      run.maxSpeed = speed;
+      run.maxSpeedTick = tick;
+    }
+    const last = run.path.at(-1);
+    if (!last || tick - last.tick >= MOVE_SAMPLE_SECONDS * tickRate) {
+      run.path.push({ tick, x: position.x, y: position.y, z: position.z });
+      run.frames.set(tick, { pos: { ...position }, vel, ...(yaw === undefined ? {} : { yaw }) });
+    }
+  }
+
+  /** A finished run, as a highlight if it was more than just running fast. */
+  private _finishRun(run: MovementRun, entityId: string, tickRate: number): HighlightCandidate | null {
+    const seconds = (run.lastActiveTick - run.startTick) / tickRate;
+    if (seconds < MOVE_MIN_SECONDS || run.path.length < 2) return null;
+
+    const tags: HighlightTag[] = [];
+    const wallJumps = run.wallJumpTicks.length;
+    if (wallJumps > 0) tags.push("wall_jump");
+    if (run.slides > 0) tags.push("slide");
+    if (run.hops >= BUNNY_HOP_MIN) tags.push("bunny_hop");
+    // A climb only counts off the walls: a jump pad gains height for anyone
+    const climbed = wallJumps > 0 && run.maxY - run.startY >= MOVE_HEIGHT_GAIN;
+    if (climbed) tags.push("height_gain");
+    if (run.maxSpeed >= MOVE_HIGH_SPEED) tags.push("high_speed");
+    const techniques = tags.filter((tag) => tag === "wall_jump" || tag === "slide" || tag === "bunny_hop").length;
+    if (techniques >= 2) tags.push("trick_jump");
+    // Sliding into one hop is everyday movement; keep runs with a trick in them
+    if (
+      wallJumps === 0 &&
+      run.hops < BUNNY_HOP_MIN &&
+      !(run.slides > 0 && run.hops > 0) &&
+      !tags.includes("high_speed")
+    ) {
+      return null;
+    }
+
+    const peakTick = climbed ? run.maxYTick : wallJumps > 0 ? run.wallJumpTicks[0] : run.maxSpeedTick;
+    const end = Math.min(run.lastActiveTick, run.startTick + Math.round(MOVE_MAX_SECONDS * tickRate));
+    const path = run.path.filter((p) => p.tick <= end);
+    // The camera frames the peak from the nearest sample
+    const nearest = path.reduce((best, p) => (Math.abs(p.tick - peakTick) < Math.abs(best.tick - peakTick) ? p : best));
+    const at = run.frames.get(nearest.tick);
+    const pad = Math.round(MOVE_PAD_SECONDS * tickRate);
+
+    return {
+      startTick: run.startTick - pad,
+      peakTick: Math.min(peakTick, end),
+      endTick: end + pad,
+      score: 0,
+      type: "movement",
+      primaryPlayer: entityId,
+      primaryPlayerName: entityId,
+      tags,
+      killerPos: at?.pos ?? { x: nearest.x, y: nearest.y, z: nearest.z },
+      ...(at ? { killerVelocity: at.vel } : {}),
+      ...(at?.yaw === undefined ? {} : { killerYaw: at.yaw }),
+      path,
+    };
+  }
+
+  private _withNamesOf(candidate: HighlightCandidate, names: Map<string, string>): HighlightCandidate {
+    candidate.primaryPlayerName = names.get(candidate.primaryPlayer) ?? candidate.primaryPlayer;
+    return candidate;
   }
 
   private _computeScore(candidate: HighlightCandidate): number {

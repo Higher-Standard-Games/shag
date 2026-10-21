@@ -176,6 +176,31 @@ describe("generateCameraPath", () => {
   });
 });
 
+describe("trick_follow", () => {
+  it("trails a movement run along its route, behind the player and looking ahead", () => {
+    const path = Array.from({ length: 21 }, (_, i) => ({ tick: i * 6, x: i * 50, y: 0, z: 0 }));
+    const h = makeHighlight({ type: "movement", path, killerPos: { x: 500, y: 0, z: 0 } });
+    const result = generateCameraPath("trick_follow", h, 0, 120, 60);
+    expect(result.type).toBe("freefly");
+    const kfs = result.keyframes!;
+    expect(kfs[0].tick).toBe(0);
+    expect(kfs.at(-1)!.tick).toBe(120);
+    for (const kf of kfs) {
+      const player = path.find((p) => p.tick === kf.tick)!;
+      expect(kf.position.x).toBeCloseTo(player.x - 170); // behind, moving along +x
+      expect(kf.position.z).toBeCloseTo(-80); // to the side
+      expect(kf.lookAt.x).toBeGreaterThan(player.x);
+    }
+  });
+
+  it("holds behind the player when no route was recorded", () => {
+    const h = makeHighlight({ type: "movement", killerYaw: 0, killerPos: { x: 10, y: 0, z: 10 } });
+    const kfs = generateCameraPath("trick_follow", h, 0, 120, 60).keyframes!;
+    expect(kfs).toHaveLength(2);
+    expect(kfs[0].position).toEqual({ x: 10, y: 60, z: 10 - 170 });
+  });
+});
+
 describe("interpolatePath", () => {
   const keyframes = [
     { tick: 0, position: { x: 0, y: 0, z: 0 }, lookAt: { x: 10, y: 0, z: 0 }, fov: 90 },

@@ -8,7 +8,10 @@
  *   2. pov     — the same moment again from the killer's (or victim's) eyes
  *   3. ending  — a slow orbit round the frag, then the scene's end effect
  *
- * Every scene has the same shape, so the reel reads like one edited video.
+ * Every frag scene has the same shape, so the reel reads like one edited
+ * video. Between frag scenes go a few movement clips (wall jumps, slides,
+ * hop chains): a camera following the run, then the same run from the
+ * player's eyes.
  * Pure TypeScript, no external dependencies.
  */
 
@@ -23,7 +26,8 @@ export type CameraPresetId =
   | "rocket_jump_hero" // freefly below jump arc, looking up
   | "victim_pov" // spectator eye on the victim before death
   | "dramatic_zoom" // freefly wide→tight dolly
-  | "replay_orbit"; // slow orbit for instant replay
+  | "replay_orbit" // slow orbit for instant replay
+  | "trick_follow"; // freefly trailing a movement run along its route
 
 export type TransitionType = "cut" | "crossfade" | "white_flash" | "fade_to_black";
 
@@ -62,6 +66,12 @@ export interface CinematicReel {
 
 /** About how long one scene runs, all three shots, for the selection budget. */
 const AVG_SCENE_MS = 11000;
+/** About how long a movement clip runs, both shots. */
+const AVG_MOVE_MS = 8000;
+/** At most this many movement clips in a row between two frag scenes. */
+const MAX_MOVES_PER_GAP = 2;
+/** The eyes shot of a movement clip: this long either side of its peak. */
+const MOVE_POV_SECONDS = 1.5;
 const OVERLAP_BUFFER_SECONDS = 3;
 const DEFAULT_TRANSITION_MS = 500;
 /** The rewind from the fly-by into the player's eyes: quick, so it reads as one beat. */
@@ -93,15 +103,18 @@ export class SequenceBuilder {
       return { segments: [], totalDurationMs: 0, totalSegments: 0, totalScenes: 0, tickRate: effectiveTickRate };
     }
 
-    const selected = this._selectHighlights(
-      analysis.highlights,
-      targetMs,
-      Math.round(OVERLAP_BUFFER_SECONDS * effectiveTickRate),
-    );
+    const frags = analysis.highlights.filter((h) => h.type !== "movement");
+    const moves = analysis.highlights.filter((h) => h.type === "movement");
+    const buffer = Math.round(OVERLAP_BUFFER_SECONDS * effectiveTickRate);
+    const selected = this._selectHighlights(frags, moves, targetMs, buffer);
 
     const segments: CinematicSegment[] = [];
     let previousPov: CameraPresetId | undefined;
     selected.forEach((h, scene) => {
+      if (h.type === "movement") {
+        segments.push(...this._buildMoveScene(h, scene, effectiveTickRate));
+        return;
+      }
       const shots = this._buildScene(h, scene, effectiveTickRate, previousPov);
       previousPov = shots.find((s) => s.role === "pov")?.cameraPreset;
       segments.push(...shots);
@@ -125,34 +138,91 @@ export class SequenceBuilder {
 
   // ── Private: selection ────────────────────────────────────────────────────
 
+  /**
+   * The best frags that fit the length, in match order, with the best movement
+   * clips cut in between them: about one for every two frag scenes, at most
+   * MAX_MOVES_PER_GAP between any two, never opening or closing the reel.
+   * A demo with no frags at all is all movement.
+   */
   private _selectHighlights(
-    highlights: HighlightCandidate[],
+    frags: HighlightCandidate[],
+    moves: HighlightCandidate[],
     targetMs: number,
     overlapBufferTicks: number,
   ): HighlightCandidate[] {
-    const maxScenes = Math.max(1, Math.floor(targetMs / AVG_SCENE_MS));
-
-    // Already sorted by score desc from DemoAnalyzer, but sort defensively
-    const byScore = [...highlights].sort((a, b) => b.score - a.score);
-
-    const selected: HighlightCandidate[] = [];
-
-    for (const candidate of byScore) {
-      if (selected.length >= maxScenes) break;
-
-      const overlaps = selected.some(
-        (s) =>
-          candidate.startTick <= s.endTick + overlapBufferTicks &&
-          candidate.endTick >= s.startTick - overlapBufferTicks,
-      );
-      if (!overlaps) {
-        selected.push(candidate);
-      }
+    if (frags.length === 0) {
+      return this._pickNonOverlapping(moves, Math.max(1, Math.floor(targetMs / AVG_MOVE_MS)), overlapBufferTicks);
     }
+    const perScene = moves.length > 0 ? AVG_SCENE_MS + AVG_MOVE_MS / 2 : AVG_SCENE_MS;
+    const kills = this._pickNonOverlapping(frags, Math.max(1, Math.floor(targetMs / perScene)), overlapBufferTicks);
+    if (kills.length < 2 || moves.length === 0) return kills;
 
-    // Sort chronologically
-    selected.sort((a, b) => a.peakTick - b.peakTick);
-    return selected;
+    const maxMoves = Math.floor(kills.length / 2) || 1;
+    const perGap = new Map<number, number>();
+    const chosen: HighlightCandidate[] = [];
+    for (const move of [...moves].sort((a, b) => b.score - a.score)) {
+      if (chosen.length >= maxMoves) break;
+      // The gap is the frag scene the clip comes after; none before the first or after the last
+      let gap = -1;
+      while (gap + 1 < kills.length && kills[gap + 1].endTick + overlapBufferTicks < move.startTick) gap++;
+      if (gap < 0 || gap >= kills.length - 1) continue;
+      if (move.endTick + overlapBufferTicks >= kills[gap + 1].startTick) continue;
+      if ((perGap.get(gap) ?? 0) >= MAX_MOVES_PER_GAP) continue;
+      if (this._overlapsAny(move, chosen, overlapBufferTicks)) continue;
+      chosen.push(move);
+      perGap.set(gap, (perGap.get(gap) ?? 0) + 1);
+    }
+    return [...kills, ...chosen].sort((a, b) => a.peakTick - b.peakTick);
+  }
+
+  /** The best-scoring candidates, up to `max`, none within the buffer of another; in match order. */
+  private _pickNonOverlapping(
+    candidates: HighlightCandidate[],
+    max: number,
+    overlapBufferTicks: number,
+  ): HighlightCandidate[] {
+    const selected: HighlightCandidate[] = [];
+    // Already sorted by score desc from DemoAnalyzer, but sort defensively
+    for (const candidate of [...candidates].sort((a, b) => b.score - a.score)) {
+      if (selected.length >= max) break;
+      if (!this._overlapsAny(candidate, selected, overlapBufferTicks)) selected.push(candidate);
+    }
+    return selected.sort((a, b) => a.peakTick - b.peakTick);
+  }
+
+  private _overlapsAny(candidate: HighlightCandidate, others: HighlightCandidate[], buffer: number): boolean {
+    return others.some((s) => candidate.startTick <= s.endTick + buffer && candidate.endTick >= s.startTick - buffer);
+  }
+
+  // ── Private: a movement clip ──────────────────────────────────────────────
+
+  /**
+   * A movement clip: a camera trailing the whole run with a beat of slow
+   * motion on its best moment, then a flash back into the player's eyes for
+   * that moment. It ends the way a frag scene does.
+   */
+  private _buildMoveScene(h: HighlightCandidate, scene: number, tickRate: number): CinematicSegment[] {
+    const ticks = (seconds: number): number => Math.round(seconds * tickRate);
+    const follow = this._segment(h, scene, "intro", "trick_follow", h.startTick, h.endTick, tickRate, 1, [
+      { tick: h.peakTick - ticks(0.25), speed: 0.5 },
+      { tick: h.peakTick + ticks(0.4), speed: 1 },
+    ]);
+    const eyes = this._segment(
+      h,
+      scene,
+      "pov",
+      "chase_hero",
+      Math.max(h.startTick, h.peakTick - ticks(MOVE_POV_SECONDS)),
+      Math.min(h.endTick, h.peakTick + ticks(MOVE_POV_SECONDS)),
+      tickRate,
+      1,
+    );
+    eyes.cameraTarget = h.primaryPlayer;
+    follow.transitionOut = "white_flash";
+    eyes.transitionIn = "white_flash";
+    follow.transitionDurationMs = REWIND_FLASH_MS;
+    eyes.transitionDurationMs = REWIND_FLASH_MS;
+    return [follow, eyes];
   }
 
   // ── Private: one scene ────────────────────────────────────────────────────
@@ -291,8 +361,9 @@ export class SequenceBuilder {
     segments[0].transitionIn = "fade_to_black";
     for (let i = 0; i < segments.length; i++) {
       const segment = segments[i];
-      if (segment.role !== "ending") continue;
       const next = segments[i + 1];
+      // A scene's last shot: a frag scene's ending orbit, a movement clip's eyes shot
+      if (next && next.scene === segment.scene) continue;
       const effect =
         segment.scene === totalScenes - 1 || !next
           ? "fade_to_black"

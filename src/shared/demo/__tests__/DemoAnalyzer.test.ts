@@ -159,6 +159,39 @@ function awardEvent(playerId: string, awardType: string, playerName = "killer"):
   };
 }
 
+/** A player moving along +x at `speed`, with the movement fields a snapshot carries. */
+function mover(
+  id: string,
+  tick: number,
+  speed: number,
+  opts: { grounded?: boolean; sliding?: boolean; charging?: boolean; y?: number } = {},
+): Entity {
+  const entity = makeEntity(id, {
+    grounded: opts.grounded ?? false,
+    velX: speed,
+    posX: (speed * tick) / 60,
+    posY: opts.y ?? 0,
+  });
+  const movementState = {
+    isSliding: opts.sliding ?? false,
+    wallJumpState: opts.charging ? "charging" : "none",
+    serialize() {},
+    deserialize() {},
+    clone() {
+      return { ...movementState };
+    },
+  };
+  entity.addComponent("movementState", movementState as never);
+  return entity;
+}
+
+/** Frames every 3 ticks (20 Hz at 60 Hz) from `from` to `to`, each built by `at`. */
+function framesBetween(from: number, to: number, at: (tick: number) => Entity[]): DemoFrame[] {
+  const frames: DemoFrame[] = [];
+  for (let tick = from; tick <= to; tick += 3) frames.push(makeFrame(tick, [], at(tick)));
+  return frames;
+}
+
 // ── Tests ────────────────────────────────────────────────────────────────────
 
 describe("DemoAnalyzer", () => {
@@ -206,9 +239,9 @@ describe("DemoAnalyzer", () => {
   });
 
   describe("airborne frag", () => {
-    it("tags as 'airborne' when killer is not grounded and velY <= 150", () => {
-      // Killer at origin, victim at x=500 (neutral distance)
-      const killer = makeEntity("player_k1", { grounded: false, velY: 50, posX: 0, posY: 0, posZ: 0 });
+    it("tags as 'airborne' when killer is not grounded, even rising off a plain or wall jump", () => {
+      // Killer at origin, victim at x=500 (neutral distance); 420 is a wall jump's lift
+      const killer = makeEntity("player_k1", { grounded: false, velY: 420, posX: 0, posY: 0, posZ: 0 });
       const frames = [makeFrame(200, [deathEvent("player_k1", "player_v1", { x: 500, y: 0, z: 0 })], [killer])];
       const header = makeHeader([{ playerId: "k1", name: "K" }]);
       const result = analyzer.analyze(frames, header, 5000);
@@ -223,9 +256,9 @@ describe("DemoAnalyzer", () => {
   });
 
   describe("rocket jump frag", () => {
-    it("tags as 'rocket_jump' when airborne AND velY > 150, score ×1.8 not ×1.5", () => {
+    it("tags as 'rocket_jump' when rising faster than any jump can, score ×1.8 not ×1.5", () => {
       // Killer at origin, victim at x=500 (neutral distance)
-      const killer = makeEntity("player_k1", { grounded: false, velY: 200, posX: 0, posY: 0, posZ: 0 });
+      const killer = makeEntity("player_k1", { grounded: false, velY: 500, posX: 0, posY: 0, posZ: 0 });
       const frames = [makeFrame(300, [deathEvent("player_k1", "player_v1", { x: 500, y: 0, z: 0 })], [killer])];
       const header = makeHeader([{ playerId: "k1", name: "K" }]);
       const result = analyzer.analyze(frames, header, 5000);
@@ -344,7 +377,7 @@ describe("DemoAnalyzer", () => {
       // They overlap → keep B (score 18), drop A (score 10)
       // Killers at origin, victims at x=500 (neutral — no distance tag)
       const killerA = makeEntity("player_a", { grounded: true, posX: 0, posY: 0, posZ: 0 });
-      const killerB = makeEntity("player_b", { grounded: false, velY: 200, posX: 0, posY: 0, posZ: 0 });
+      const killerB = makeEntity("player_b", { grounded: false, velY: 500, posX: 0, posY: 0, posZ: 0 });
 
       const frames = [
         makeFrame(100, [deathEvent("player_a", "player_v1", { x: 500, y: 0, z: 0 })], [killerA]),
@@ -444,7 +477,7 @@ describe("DemoAnalyzer", () => {
       // Frag B (rocket_jump, score 18) at tick 500
       // Expect B first — victims at x=500 (neutral distance)
       const killerA = makeEntity("player_a", { grounded: true, posX: 0, posY: 0, posZ: 0 });
-      const killerB = makeEntity("player_b", { grounded: false, velY: 200, posX: 0, posY: 0, posZ: 0 });
+      const killerB = makeEntity("player_b", { grounded: false, velY: 500, posX: 0, posY: 0, posZ: 0 });
 
       const frames = [
         makeFrame(100, [deathEvent("player_a", "player_v1", { x: 500, y: 0, z: 0 })], [killerA]),
@@ -576,5 +609,59 @@ describe("DemoAnalyzer — did the victim see it coming", () => {
 
   it("reads the victim's last view when they are already gone from the death frame", () => {
     expect(fragFacing(0.3, false)).toBe(true);
+  });
+
+  describe("movement highlights", () => {
+    const analyzer = new DemoAnalyzer();
+    const header = makeHeader([{ playerId: "m", name: "Mover" }]);
+
+    it("finds a chain of hops faster than sprinting, with its route", () => {
+      // Two seconds at 550 u/s, touching down for one frame every half second
+      const frames = framesBetween(0, 120, (tick) => [
+        mover("player_m", tick, 550, { grounded: tick % 30 === 0 && tick > 0 }),
+      ]);
+      frames.push(...framesBetween(123, 240, (tick) => [mover("player_m", tick, 100, { grounded: true })]));
+      const { highlights } = analyzer.analyze(frames, header, 4000);
+      expect(highlights).toHaveLength(1);
+      const h = highlights[0];
+      expect(h.type).toBe("movement");
+      expect(h.primaryPlayerName).toBe("Mover");
+      expect(h.tags).toContain("bunny_hop");
+      expect(h.startTick).toBe(0);
+      expect(h.endTick).toBeGreaterThan(120);
+      expect(h.path!.length).toBeGreaterThan(10);
+      expect(h.score).toBeCloseTo(5 * 1.2, 5);
+    });
+
+    it("tags a wall-jump climb and peaks at its top", () => {
+      const frames = framesBetween(0, 120, (tick) => [
+        mover("player_m", tick, tick >= 30 && tick < 42 ? 0 : 500, {
+          charging: tick >= 30 && tick < 42,
+          y: tick < 42 ? 0 : Math.min(150, (tick - 42) * 4),
+        }),
+      ]);
+      const { highlights } = analyzer.analyze(frames, header, 4000);
+      expect(highlights).toHaveLength(1);
+      expect(highlights[0].tags).toEqual(expect.arrayContaining(["wall_jump", "height_gain"]));
+      expect(highlights[0].peakTick).toBeGreaterThan(42);
+    });
+
+    it("ignores plain fast running, a lone jump and anything too short", () => {
+      const running = framesBetween(0, 240, (tick) => [mover("player_m", tick, 600, { grounded: true })]);
+      const oneJump = framesBetween(0, 120, (tick) => [mover("player_m", tick, 500, { grounded: tick === 0 })]);
+      const short = framesBetween(0, 30, (tick) => [mover("player_m", tick, 800, { charging: tick === 9 })]);
+      for (const frames of [running, oneJump, short]) {
+        expect(analyzer.analyze(frames, header, 4000).highlights).toHaveLength(0);
+      }
+    });
+
+    it("keeps a movement highlight that overlaps a frag", () => {
+      const frames = framesBetween(0, 120, (tick) => [
+        mover("player_m", tick, 550, { grounded: tick % 30 === 0 && tick > 0 }),
+      ]);
+      frames[10].state.events = [deathEvent("player_k1", "player_v1", { x: 500 })] as never;
+      const { highlights } = analyzer.analyze(frames, header, 4000);
+      expect(highlights.map((h) => h.type).sort()).toEqual(["frag", "movement"]);
+    });
   });
 });

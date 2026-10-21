@@ -261,3 +261,55 @@ describe("SequenceBuilder killer or victim view", () => {
     expect(reel.segments.find((s) => s.cameraPreset === "victim_pov")?.cameraTarget).toBe("player_2");
   });
 });
+
+describe("SequenceBuilder movement clips", () => {
+  const frag = (i: number) =>
+    makeHighlight({ startTick: i * 3000, peakTick: i * 3000 + 180, endTick: i * 3000 + 300, score: 20 });
+  const move = (at: number, score = 6) =>
+    makeHighlight({
+      type: "movement",
+      startTick: at,
+      peakTick: at + 120,
+      endTick: at + 240,
+      score,
+      victimPlayer: undefined,
+      victimPlayerName: undefined,
+      tags: ["wall_jump"],
+    });
+
+  it("cuts movement clips in between frag scenes, never first or last, at most two in a gap", () => {
+    const highlights = [0, 1, 2, 3, 4, 5].map(frag);
+    // Before the first frag, after the last, three in one gap, one in another
+    highlights.push(move(-600), move(16000), move(600, 9), move(1100, 8), move(1600, 7), move(9600, 5));
+    const reel = new SequenceBuilder().build(makeAnalysis(highlights, 20000), 5, TICK_RATE, HEADER);
+    const scenes = [...new Set(reel.segments.map((s) => s.scene))].map(
+      (scene) => reel.segments.find((s) => s.scene === scene)!.highlight,
+    );
+    const kinds = scenes.map((h) => (h.type === "movement" ? "M" : "F")).join("");
+    expect(kinds.startsWith("F") && kinds.endsWith("F")).toBe(true);
+    expect(kinds).not.toContain("MMM");
+    expect(kinds.split("").filter((k) => k === "M")).toHaveLength(3);
+    expect(reel.totalScenes).toBe(scenes.length);
+  });
+
+  it("films a movement clip following the run, then the player's eyes on its peak", () => {
+    const highlights = [frag(0), move(1400), frag(1)];
+    const reel = new SequenceBuilder().build(makeAnalysis(highlights, 20000), 5, TICK_RATE, HEADER);
+    const shots = reel.segments.filter((s) => s.highlight.type === "movement");
+    expect(shots.map((s) => [s.role, s.cameraPreset])).toEqual([
+      ["intro", "trick_follow"],
+      ["pov", "chase_hero"],
+    ]);
+    expect(shots[0]).toMatchObject({ startTick: 1400, endTick: 1640 });
+    expect(shots[1]).toMatchObject({ startTick: 1430, endTick: 1610, cameraTarget: "player_1" });
+    // The clip ends like a scene: into the next frag scene through the same effect
+    const next = reel.segments[shots[1].segmentIndex + 1];
+    expect(next.transitionIn).toBe(shots[1].transitionOut);
+  });
+
+  it("makes a reel of movement alone when the demo has no frags", () => {
+    const reel = new SequenceBuilder().build(makeAnalysis([move(100), move(2000)], 20000), 5, TICK_RATE, HEADER);
+    expect(reel.totalScenes).toBe(2);
+    expect(reel.segments.at(-1)!.transitionOut).toBe("fade_to_black");
+  });
+});
