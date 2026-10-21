@@ -13,7 +13,6 @@
 }
 .shagged__toolbar .shagged__drawkeys button,
 .shagged__toolbar .shagged__drawkeys summary {
-  min-width: 64px;
   font-size: 12px;
   box-shadow: 0 4px 0 #89501b;
 }

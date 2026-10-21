@@ -521,21 +521,30 @@ export class EditorSession {
       </section>
       <aside class="shagged__inspector"></aside>
       <nav class="shagged__edge" aria-label="Browsers">
-        <button data-action="textures" data-edge="textures" title="Texture browser (T)" aria-keyshortcuts="T" aria-expanded="false"><i aria-hidden="true"></i><span><b>T</b>extures</span><small data-current-texture></small></button>
+        <button data-action="textures" data-edge="textures" title="Texture browser (T)" aria-keyshortcuts="T" aria-expanded="false"><i aria-hidden="true"></i><span><b>T</b>extures</span></button>
         <button data-action="models" data-edge="models" title="Model browser (M)" aria-keyshortcuts="M" aria-expanded="false"><i aria-hidden="true"></i><span><b>M</b>odels</span></button>
       </nav>
-      <div class="shagged__hud" aria-live="polite"><span class="shagged__hud-tool" data-hud-tool></span><span class="shagged__hud-texture" data-hud-texture></span><span class="shagged__hud-grid" data-hud-grid></span></div>
+      <div class="shagged__hud" aria-live="polite"><span class="shagged__hud-tool" data-hud-tool></span><span class="shagged__hud-texture" data-current-texture></span><span class="shagged__hud-grid" data-hud-grid></span></div>
       <footer class="shagged__status"></footer>`;
     document.body.appendChild(this.root);
     this.statusEl = this.root.querySelector(".shagged__status")!;
     this.inspector = this.root.querySelector(".shagged__inspector")!;
+    // the side drawers start under the toolbar, which wraps to more rows on narrow screens
+    const toolbar = this.root.querySelector<HTMLElement>(".shagged__toolbar")!;
+    if (typeof ResizeObserver !== "undefined") {
+      const observer = new ResizeObserver(() =>
+        this.root.style.setProperty("--shagged-bar", `${Math.round(toolbar.getBoundingClientRect().bottom)}px`),
+      );
+      observer.observe(toolbar);
+      this.listeners.signal.addEventListener("abort", () => observer.disconnect());
+    }
     this.root.querySelector<HTMLSelectElement>("[data-grid]")!.value = String(this.grid);
     this.root.querySelector<HTMLInputElement>("[data-patch-depth]")!.value = String(this.patchDepth);
     this.root.querySelector<HTMLInputElement>("[data-patch-reverse]")!.checked = this.patchReverse;
     this.updatePatchControls();
     this.updateDraftNameControl();
     this.updateWorkPlaneControl();
-    this.renderCurrentTexture();
+    this.renderHud();
     const classPicker = this.root.querySelector<HTMLSelectElement>("[data-entity-class]")!;
     fillClassOptions(classPicker, this.entityClassname);
     this.setEntityClass(this.entityClassname);
@@ -1185,7 +1194,7 @@ export class EditorSession {
    */
   private applyTexture(entry: TextureEntry, size: [number, number] | null): void {
     this.currentTexture = { name: entry.name, size };
-    this.renderCurrentTexture();
+    this.renderHud();
     if (this.selectedIds.size > 1) {
       this.status("Current texture set; select one brush to edit its faces");
       return;
@@ -1283,7 +1292,7 @@ export class EditorSession {
     this.currentTexture = face
       ? { name: face.shader, size: face.sizeKnown === false ? null : face.size }
       : { name: brush.shader, size: null };
-    this.renderCurrentTexture();
+    this.renderHud();
     this.status(`Sampled ${this.currentTexture.name} from face ${key}`);
   }
 
@@ -1399,14 +1408,6 @@ export class EditorSession {
     }
   }
 
-  private renderCurrentTexture(): void {
-    const label = this.root.querySelector<HTMLElement>("[data-current-texture]");
-    if (!label) return;
-    label.textContent = this.currentTexture.name;
-    label.title = `New brushes get ${this.currentTexture.name}`;
-    this.renderHud();
-  }
-
   showError(message: string): void {
     this.status(message);
   }
@@ -1449,7 +1450,7 @@ export class EditorSession {
     const nameEl = document.createElement("b");
     nameEl.textContent = name;
     tool.replaceChildren(keyEl, nameEl, ...(detail ? [` ${detail}`] : []));
-    const texture = this.root.querySelector<HTMLElement>("[data-hud-texture]")!;
+    const texture = this.root.querySelector<HTMLElement>("[data-current-texture]")!;
     texture.textContent = this.currentTexture.name;
     texture.title = `New brushes get ${this.currentTexture.name} (T to change)`;
     this.root.querySelector<HTMLElement>("[data-hud-grid]")!.textContent = `grid ${this.grid}`;

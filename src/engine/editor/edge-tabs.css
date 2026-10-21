@@ -2,7 +2,7 @@
    edge. They open the side drawers and ride the open drawer's edge. */
 .shagged__edge {
   position: fixed;
-  z-index: 870;
+  z-index: 870; /* over the side drawers' shadow, under the toolbar's menus */
   top: 50%;
   right: 240px;
   display: flex;
@@ -68,18 +68,8 @@
 .shagged__edge button.active b {
   color: #ffe787;
 }
-/* the texture new brushes get, under the Textures label */
-.shagged__edge small {
-  max-height: 130px;
-  padding: 5px 2px;
-  overflow: hidden;
-  color: #ffe787;
-  background: #171129;
-  font-size: 10px;
-  letter-spacing: 0;
-  text-overflow: ellipsis;
-  text-transform: none;
-  white-space: nowrap;
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
+@media (max-width: 850px) {
+  .shagged__edge {
+    right: 0; /* the inspector is hidden */
+  }
 }

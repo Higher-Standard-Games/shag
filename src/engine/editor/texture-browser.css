@@ -3,7 +3,7 @@
 .shagged-tex {
   position: fixed;
   z-index: 860;
-  top: 56px;
+  top: var(--shagged-bar, 56px);
   right: 0;
   bottom: 30px;
   width: min(560px, 46vw);

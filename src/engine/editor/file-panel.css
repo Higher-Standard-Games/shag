@@ -18,7 +18,7 @@
 .shagged__menu--file [data-map-title] {
   display: block;
   min-width: 0;
-  max-width: 170px;
+  max-width: 140px;
   overflow: hidden;
   text-overflow: ellipsis;
 }

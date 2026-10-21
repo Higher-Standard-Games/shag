@@ -19,12 +19,12 @@
 }
 .shagged__toolbar {
   position: relative;
-  z-index: 5;
+  z-index: 880; /* its menus open over the side drawers (860) and edge tabs (870) */
   grid-column: 1 / -1;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 4px;
   min-height: 64px;
   box-sizing: border-box;
   padding: 7px 12px 9px;
@@ -54,7 +54,7 @@
   align-items: center;
   gap: 5px;
   min-height: 44px;
-  padding: 11px 9px 0;
+  padding: 11px 8px 0;
   border-left: 1px solid #40506b;
 }
 .shagged__group-label {
