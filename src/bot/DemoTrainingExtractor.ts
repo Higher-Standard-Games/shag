@@ -22,6 +22,8 @@
  */
 
 import * as fs from "node:fs";
+import type { TransformComponent } from "../engine/network/components/TransformComponent";
+import type { VelocityComponent } from "../engine/network/components/VelocityComponent";
 import { ensureClientKey } from "../games/fps/ClientEntityKey";
 import type { RecordedInput } from "../shared/demo/DemoInputs";
 import { type DemoFrame, type DemoHeader, DemoReader } from "../shared/demo/DemoReader";
@@ -309,8 +311,8 @@ export class DemoTrainingExtractor {
       // Extract player actions from entity state
       // Note: demos store state, not inputs. We infer actions from state changes.
       const entity = state.entities.get(entityId);
-      const velocity = entity?.getComponent("velocity") as any;
-      const transform = entity?.getComponent("transform") as any;
+      const velocity = entity?.getComponent<VelocityComponent>("velocity");
+      const transform = entity?.getComponent<TransformComponent>("transform");
 
       const yaw = transform?.rotation?.y ?? 0;
       const pitch = transform?.rotation?.x ?? 0;

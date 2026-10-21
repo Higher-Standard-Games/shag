@@ -12,6 +12,7 @@ import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight";
 import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
 import { PointLight } from "@babylonjs/core/Lights/pointLight";
 import { ImportMeshAsync } from "@babylonjs/core/Loading/sceneLoader";
+import type { PBRMaterial } from "@babylonjs/core/Materials/PBR/pbrMaterial";
 import type { RawCubeTexture } from "@babylonjs/core/Materials/Textures/rawCubeTexture";
 // Side effect: registers the OutlineRenderer scene component — required for
 // mesh.renderOutline (weapon outline / charge flash) to draw.
@@ -353,6 +354,8 @@ export class WeaponViewManager {
   // CVar tracking for live updates
   private lastHandedness: number = 1;
   private lastWeaponFov: number = 60;
+  /** The weapon position override CVars last applied, as `x,y,z,scale`. */
+  private _lastWepKey: string | undefined;
   private cvarCheckTimer: number = 0;
   private static readonly CVAR_CHECK_INTERVAL = 0.1; // Check 10x/sec, not every frame
 
@@ -673,20 +676,23 @@ export class WeaponViewManager {
             numFrames: 1,
             numTags: 0,
             numSkins: 0,
-            filesize: 0,
+            flags: 0,
             ident: 0,
             version: 0,
-            framesOffset: 0,
-            tagsOffset: 0,
-            surfacesOffset: 0,
-            eofOffset: 0,
+            ofsFrames: 0,
+            ofsTags: 0,
+            ofsSurfaces: 0,
+            ofsEnd: 0,
           },
           frames: [],
           tags: [],
           surfaces: [],
         },
+        // A GLB view model has a single static frame and no MD3 tags.
+        currentFrame: 0,
+        setFrame: () => {},
         getTag: () => null,
-      } as any;
+      };
 
       this.muzzleSocket = this.findWeaponTag(glbRoot, ["tag_flash", "tag_muzzle", "muzzle"]);
       if (!this.muzzleSocket) {
@@ -767,14 +773,14 @@ export class WeaponViewManager {
       // the negative Z is needed for correct orientation. Use backFaceCulling=false
       // on materials to handle the flipped winding order.
 
-      const pbrMaterialsToDispose: any[] = [];
+      const pbrMaterialsToDispose: PBRMaterial[] = [];
 
       for (const mesh of result.meshes) {
         if (mesh.rotationQuaternion) mesh.rotationQuaternion = null;
 
         // Authored blade PBR channels remain intact; converted gun passes are tuned below.
         if (mesh.material && mesh.material.getClassName() === "PBRMaterial") {
-          const pbr = mesh.material as any;
+          const pbr = mesh.material as PBRMaterial;
 
           if (weaponName === "blade") {
             applySafeMaxSimultaneousLights(pbr);
@@ -910,7 +916,7 @@ export class WeaponViewManager {
     }
 
     // Debug: show which PK3 this model is actually loading from
-    const sourcePk3 = (pk3 as any).fileIndex?.get(modelPath.toLowerCase().replace(/\\/g, "/"));
+    const sourcePk3 = pk3["fileIndex"].get(modelPath.toLowerCase().replace(/\\/g, "/"));
     devLog(`[WeaponViewManager] Loading model ${modelPath} from PK3: ${sourcePk3 || "unknown"}`);
 
     // Load model data
@@ -1767,8 +1773,8 @@ export class WeaponViewManager {
       const hipZ = mv.get("cl_wep_hip_z");
       const wepScale = mv.get("cl_wep_scale");
       const wepKey = `${hipX},${hipY},${hipZ},${wepScale}`;
-      if (wepKey !== (this as any)._lastWepKey) {
-        (this as any)._lastWepKey = wepKey;
+      if (wepKey !== this._lastWepKey) {
+        this._lastWepKey = wepKey;
         this.applyPosition(this.currentPosition);
       }
 

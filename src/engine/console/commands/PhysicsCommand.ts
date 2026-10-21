@@ -2,10 +2,14 @@
  * PhysicsCommand - Havok physics system control
  */
 
+import type { PhysicsViewer } from "@babylonjs/core/Debug/physicsViewer";
 import type { Scene } from "@babylonjs/core/scene";
 import { MovementVars } from "../../movement/MovementVars";
 import { PhysicsSystem } from "../../physics/PhysicsSystem";
 import { Command, type CommandDef } from "../Command";
+
+/** The debug viewer is kept on the scene itself, as a field Babylon does not declare. */
+type SceneWithPhysicsViewer = Scene & { _physicsViewer?: PhysicsViewer | null };
 
 export default class PhysicsCommand extends Command {
   readonly definition: CommandDef = {
@@ -88,15 +92,16 @@ export default class PhysicsCommand extends Command {
         if (!physicsEngine) {
           return "Physics engine not initialized";
         }
-        const viewer = (scene as any)._physicsViewer;
+        const viewerScene: SceneWithPhysicsViewer = scene;
+        const viewer = viewerScene._physicsViewer;
         if (viewer) {
           viewer.dispose();
-          (scene as any)._physicsViewer = null;
+          viewerScene._physicsViewer = null;
           return "Physics debug: OFF";
         } else {
           try {
             const { PhysicsViewer } = await import("@babylonjs/core/Debug/physicsViewer");
-            (scene as any)._physicsViewer = new PhysicsViewer(scene);
+            viewerScene._physicsViewer = new PhysicsViewer(scene);
             return "Physics debug: ON";
           } catch {
             return "PhysicsViewer not available";

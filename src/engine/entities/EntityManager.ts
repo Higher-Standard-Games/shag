@@ -38,6 +38,11 @@ function mapWeaponYaw(pickupId: number): number {
 /** Pickup categories the client spawns visuals for (mirrors shared PickupType). */
 type ClientPickupType = "weapon" | "ammo" | "armor" | "health" | "powerup";
 
+/** Pickup value for a manual spawn: an ammo def's amount, otherwise the def id. */
+function manualPickupValue(def: EntityDef): string | number {
+  return ("amount" in def && typeof def.amount === "number" && def.amount) || def.id;
+}
+
 /**
  * EntityType → pickup category. One mapping instead of the ternary chains that
  * used to sit at each spawn site and had to be edited in lockstep; `fallback`
@@ -193,7 +198,7 @@ export class EntityManager {
         id: def.id,
         modelPath: def.modelPath || "models/items/ammo/ammobox/ammobox.md3",
         type,
-        value: (def as any).weaponId || (def as any).amount || def.id,
+        value: manualPickupValue(def),
         scale: def.scale,
         gravity: options.gravity,
         glowColor: def.glowColor, // Pass glow color for pulsing light
@@ -244,8 +249,8 @@ export class EntityManager {
     const type = pickupTypeOf(def, "weapon");
     let value: string | number = def.id;
 
-    if (type === "ammo" && (def as any).ammoType) {
-      value = (def as any).ammoType;
+    if (type === "ammo" && "ammoType" in def && typeof def.ammoType === "string" && def.ammoType) {
+      value = def.ammoType;
     }
 
     // Authoritative pickup id from the shared table (matches the server). All

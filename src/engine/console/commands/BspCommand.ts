@@ -13,6 +13,7 @@ import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
+import { Tags } from "@babylonjs/core/Misc/tags";
 import { devLog } from "../../core/DevLog";
 import { Command, type CommandDef, type CommandOutput, fail } from "../Command";
 
@@ -249,8 +250,7 @@ export class BspCommand extends Command {
             const cm = getCollisionManager();
             await cm.init(manager.getBsp()!, scene as never);
             const stats = cm.getStats();
-            // biome-ignore lint/suspicious/noExplicitAny: BSP debug command internals
-            collisionInfo = `\nCollision: ${cm.getBackendType()} (${(stats?.backendStats as any)?.collisionPlanes ?? 0} planes)`;
+            collisionInfo = `\nCollision: ${cm.getBackendType()} (${stats?.backendStats?.collisionPlanes ?? 0} planes)`;
           } catch (e) {
             console.warn("[bsp render] Failed to init collision:", e);
           }
@@ -554,8 +554,7 @@ export class BspCommand extends Command {
                 );
 
                 sphere.metadata = { mapOwned: true }; // Cleanup with map
-                // biome-ignore lint/suspicious/noExplicitAny: BSP debug command internals
-                (sphere as any).tags = "debug_lightgrid"; // For clearing
+                Tags.AddTagsTo(sphere, "debug_lightgrid"); // For clearing
 
                 count++;
                 spheres.push(sphere);

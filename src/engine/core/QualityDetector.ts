@@ -42,10 +42,19 @@ export interface QualityRecommendation {
 }
 
 /**
+ * Navigator fields missing from TypeScript's DOM lib: the Device Memory API
+ * (read only after an `in` check) and the legacy IE/Edge touch point count.
+ */
+interface NavigatorDeviceExtras extends Navigator {
+  deviceMemory: number;
+  msMaxTouchPoints?: number;
+}
+
+/**
  * Detects device capabilities and recommends quality settings
  */
 export class QualityDetector {
-  private static instance: QualityDetector;
+  private static instance: QualityDetector | null = null;
   private cachedDeviceInfo: DeviceInfo | null = null;
 
   private constructor() {}
@@ -257,7 +266,7 @@ export class QualityDetector {
   private detectMemory(): number {
     // Try to use Device Memory API (Chrome 63+)
     if ("deviceMemory" in navigator) {
-      return (navigator as any).deviceMemory * 1024; // GB to MB
+      return (navigator as NavigatorDeviceExtras).deviceMemory * 1024; // GB to MB
     }
 
     // Fallback estimates based on device type
@@ -278,7 +287,11 @@ export class QualityDetector {
    * Check if touch device
    */
   private isTouchDevice(): boolean {
-    return "ontouchstart" in window || navigator.maxTouchPoints > 0 || (navigator as any).msMaxTouchPoints > 0;
+    return (
+      "ontouchstart" in window ||
+      navigator.maxTouchPoints > 0 ||
+      ((navigator as NavigatorDeviceExtras).msMaxTouchPoints ?? 0) > 0
+    );
   }
 
   /**
@@ -292,6 +305,6 @@ export class QualityDetector {
    * Reset singleton (for testing)
    */
   public static resetInstance(): void {
-    QualityDetector.instance = null as any;
+    QualityDetector.instance = null;
   }
 }

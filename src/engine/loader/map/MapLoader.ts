@@ -416,10 +416,9 @@ export class MapLoader {
 
     // Phase 7: Apply skybox
     progress("Skybox", "Creating");
-    // biome-ignore lint/suspicious/noExplicitAny: Babylon loader internals
-    const engineAny = scene.getEngine() as any;
-    const engineClass = engineAny?.getClassName?.();
-    const engineCtorName = engineAny?.constructor?.name;
+    const engine = scene.getEngine();
+    const engineClass = engine?.getClassName?.();
+    const engineCtorName = engine?.constructor?.name;
     const isHeadlessNullEngine = engineClass === "NullEngine" || engineCtorName === "NullEngine";
     let skyEnvironment: BaseTexture | null = null;
     if (!isHeadlessNullEngine) {
@@ -999,8 +998,7 @@ export class MapLoader {
       // Only resolve weapons and ammo
       if (def.type !== EntityType.WEAPON && def.type !== EntityType.AMMO) continue;
 
-      // biome-ignore lint/suspicious/noExplicitAny: Babylon loader internals
-      const modelPath = (def as any).modelPath as string | undefined;
+      const modelPath = def.modelPath;
       if (!modelPath || seenModels.has(modelPath)) continue;
       seenModels.add(modelPath);
 

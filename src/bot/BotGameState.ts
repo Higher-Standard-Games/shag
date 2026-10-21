@@ -9,7 +9,17 @@
  * from snapshot entities, players, and events.
  */
 
-import type { GameState } from "../engine/network/core/GameState";
+import type { TransformComponent } from "../engine/network/components/TransformComponent";
+import type { VelocityComponent } from "../engine/network/components/VelocityComponent";
+import type { GameState, PlayerState } from "../engine/network/core/GameState";
+import type {
+  CombatStateEvent,
+  DamageEvent,
+  DeathEvent,
+  ItemPickupEvent,
+  WeaponFireEvent,
+  WeaponStateEvent,
+} from "../engine/network/core/SnapshotEvent";
 import { type AgentDirective, MatchPhase } from "../shared/server/gametype";
 
 // ── Vec3 helper (lightweight, no Babylon.js dependency) ─────────────────
@@ -365,12 +375,12 @@ export class BotGameState {
 
     // ── Process entities ─────────────────────────────────────────────
     for (const [entityId, entity] of snapshot.entities) {
-      const transform = entity.getComponent("transform") as any;
+      const transform = entity.getComponent<TransformComponent>("transform");
       const position = transform?.position
         ? { x: transform.position.x, y: transform.position.y, z: transform.position.z }
         : null;
 
-      const velocity = entity.getComponent("velocity") as any;
+      const velocity = entity.getComponent<VelocityComponent>("velocity");
       const vel = velocity?.linear
         ? { x: velocity.linear.x, y: velocity.linear.y, z: velocity.linear.z }
         : { x: 0, y: 0, z: 0 };
@@ -446,7 +456,7 @@ export class BotGameState {
 
       // Is this a pickup entity? (weaponMeta or item_ prefix)
       // Check for pickup items (weaponMeta component from flag 0x20)
-      const weaponMeta = entity.getComponent("weaponMeta") as any;
+      const weaponMeta = entity.getComponent("weaponMeta") as { weaponId?: string } | undefined;
       if (weaponMeta) {
         const distance = vec3Distance(this.self.position, position);
         this.pickups.push({
@@ -513,7 +523,7 @@ export class BotGameState {
         }
 
         case "combat_state": {
-          const evt = event as any;
+          const evt = event as CombatStateEvent;
           if (evt.entityId === this.selfEntityId) {
             this.self.health = evt.health;
             this.self.armor = evt.armor;
@@ -534,7 +544,7 @@ export class BotGameState {
         }
 
         case "weapon_state": {
-          const evt = event as any;
+          const evt = event as WeaponStateEvent;
           if (evt.entityId === this.selfEntityId) {
             this.self.currentWeapon = evt.currentWeapon || "";
             this.self.weapons = evt.weapons || [];
@@ -556,7 +566,7 @@ export class BotGameState {
         }
 
         case "damage": {
-          const evt = event as any;
+          const evt = event as DamageEvent;
           if (evt.attackerId === this.selfEntityId && evt.entityId !== this.selfEntityId) {
             this.recentHits.push({
               victimEntityId: evt.entityId,
@@ -578,7 +588,7 @@ export class BotGameState {
         }
 
         case "death": {
-          const evt = event as any;
+          const evt = event as DeathEvent;
           this.recentKills.push({
             killerId: evt.killerId,
             victimId: evt.entityId,
@@ -589,7 +599,7 @@ export class BotGameState {
         }
 
         case "item_pickup": {
-          const evt = event as any;
+          const evt = event as ItemPickupEvent;
           // Track when items were picked up for respawn timing
           if (evt.pickupId !== undefined) {
             this.mapKnowledge.itemPickupTimes.set(String(evt.pickupId), this.tick);
@@ -598,7 +608,7 @@ export class BotGameState {
         }
 
         case "weapon_fire": {
-          const evt = event as any;
+          const evt = event as WeaponFireEvent;
           // If someone fires near us, we "hear" it — track as last known position
           // (under perception, BotPerception decides what is heard)
           if (evt.entityId !== this.selfEntityId && !this.perceptionManaged) {
@@ -736,7 +746,10 @@ export class BotGameState {
 
   // ── Private helpers ─────────────────────────────────────────────────
 
-  private _findPlayerByEntityId(snapshot: GameState, entityId: string): { playerId: string; player: any } | null {
+  private _findPlayerByEntityId(
+    snapshot: GameState,
+    entityId: string,
+  ): { playerId: string; player: PlayerState } | null {
     for (const [playerId, player] of snapshot.players) {
       if (player.entityId === entityId && playerId !== this.selfPlayerId) {
         return { playerId, player };

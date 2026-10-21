@@ -55,10 +55,8 @@ export class BabylonPhysicsBackend implements CollisionBackend {
         mesh.name.includes("mesh")
       ) {
         if (mesh instanceof Mesh) {
-          const contentFlags =
-            typeof (mesh as any).metadata?.contentFlags === "number" ? (mesh as any).metadata.contentFlags : 0;
-          const surfaceFlags =
-            typeof (mesh as any).metadata?.surfaceFlags === "number" ? (mesh as any).metadata.surfaceFlags : 0;
+          const contentFlags = typeof mesh.metadata?.contentFlags === "number" ? mesh.metadata.contentFlags : 0;
+          const surfaceFlags = typeof mesh.metadata?.surfaceFlags === "number" ? mesh.metadata.surfaceFlags : 0;
           if ((contentFlags & ContentFlags.DETAIL) !== 0) continue;
           if ((surfaceFlags & SurfaceFlags.NONSOLID) !== 0) continue;
           if ((surfaceFlags & SurfaceFlags.HINT) !== 0) continue;

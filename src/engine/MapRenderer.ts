@@ -71,6 +71,12 @@ export interface MapRenderResult {
   } | null;
 }
 
+/** Babylon `metadata` keys MapRenderer sets to mark nodes belonging to a rendered map. */
+interface MapOwnedMetadata {
+  mapOwned?: boolean;
+  mapName?: string;
+}
+
 /**
  * MapRenderer — converts parsed map entity arrays into a populated Babylon scene.
  *
@@ -95,8 +101,7 @@ export class MapRenderer {
     const textureManager = TextureManager.getInstance();
 
     const resolvedMapName = mapName ?? "unknown";
-    // biome-ignore lint/suspicious/noExplicitAny: Babylon.js internal API access
-    const tagMapOwned = (obj: { metadata?: any } | null | undefined): void => {
+    const tagMapOwned = (obj: { metadata?: MapOwnedMetadata | null } | null | undefined): void => {
       if (!obj) return;
       if (!obj.metadata) obj.metadata = {};
       obj.metadata.mapOwned = true;
@@ -312,8 +317,7 @@ export class MapRenderer {
         const lightPos = new Vector3(parts[0], parts[2], parts[1]);
 
         const light = new PointLight(`light_${Math.random()}`, lightPos, scene);
-        // biome-ignore lint/suspicious/noExplicitAny: BSP mesh metadata tagging via Babylon metadata API
-        tagMapOwned(light as any);
+        tagMapOwned(light);
 
         // Parse intensity from Quake light value (default 300)
         const quakeIntensity = entity.properties.light ? parseFloat(entity.properties.light) : 300;
@@ -379,10 +383,8 @@ export class MapRenderer {
             scale,
           );
           if (sprite) {
-            // biome-ignore lint/suspicious/noExplicitAny: BSP mesh metadata tagging via Babylon metadata API
-            tagMapOwned(sprite.mesh as any);
-            // biome-ignore lint/suspicious/noExplicitAny: BSP mesh metadata tagging via Babylon metadata API
-            tagMapOwned((sprite.shadowMesh ?? null) as any);
+            tagMapOwned(sprite.mesh);
+            tagMapOwned(sprite.shadowMesh ?? null);
             devLog(`Created sprite at ${position.toString()}: ${spritePath}`);
           }
         }
@@ -442,8 +444,7 @@ export class MapRenderer {
       for (const brush of entity.brushes) {
         const mesh = BrushGenerator.buildMesh(brush, scene);
         if (mesh) {
-          // biome-ignore lint/suspicious/noExplicitAny: BSP mesh metadata tagging via Babylon metadata API
-          tagMapOwned(mesh as any);
+          tagMapOwned(mesh);
           if (!mesh.material) {
             const textureName = brush.planes[0]?.texture;
             const planeDef = brush.planes[0];
@@ -500,8 +501,7 @@ export class MapRenderer {
 
         const mesh = PatchGenerator.buildMesh(patchDef, scene);
         if (mesh) {
-          // biome-ignore lint/suspicious/noExplicitAny: BSP mesh metadata tagging via Babylon metadata API
-          tagMapOwned(mesh as any);
+          tagMapOwned(mesh);
           const material = await textureManager.getMaterial({
             path: patch.texture,
             u_offset: 0,
@@ -553,8 +553,7 @@ export class MapRenderer {
             });
 
             if (instanceData) {
-              // biome-ignore lint/suspicious/noExplicitAny: BSP mesh metadata tagging via Babylon metadata API
-              tagMapOwned(instanceData.mesh as any);
+              tagMapOwned(instanceData.mesh);
               if (!instanceData.mesh.metadata) instanceData.mesh.metadata = {};
               instanceData.mesh.metadata.instanceId = instanceData.id;
               instanceData.mesh.metadata.templateName = instanceData.templateName;
@@ -589,10 +588,8 @@ export class MapRenderer {
             });
 
             if (result) {
-              // biome-ignore lint/suspicious/noExplicitAny: BSP mesh metadata tagging via Babylon metadata API
-              tagMapOwned(result.root as any);
-              // biome-ignore lint/suspicious/noExplicitAny: BSP mesh metadata tagging via Babylon metadata API
-              for (const m of result.meshes) tagMapOwned(m as any);
+              tagMapOwned(result.root);
+              for (const m of result.meshes) tagMapOwned(m);
               prefabInstances.push(result.root);
             }
           }
@@ -610,10 +607,8 @@ export class MapRenderer {
           });
 
           if (result) {
-            // biome-ignore lint/suspicious/noExplicitAny: BSP mesh metadata tagging via Babylon metadata API
-            tagMapOwned(result.root as any);
-            // biome-ignore lint/suspicious/noExplicitAny: BSP mesh metadata tagging via Babylon metadata API
-            for (const m of result.meshes) tagMapOwned(m as any);
+            tagMapOwned(result.root);
+            for (const m of result.meshes) tagMapOwned(m);
             prefabInstances.push(result.root);
           }
         }
@@ -693,8 +688,7 @@ export class MapRenderer {
         });
 
         if (building) {
-          // biome-ignore lint/suspicious/noExplicitAny: BSP mesh metadata tagging via Babylon metadata API
-          tagMapOwned(building.getMesh() as any);
+          tagMapOwned(building.getMesh());
           devLog(`Created sprite building: ${building.getId()} at ${position.toString()}`);
         }
       }
@@ -736,8 +730,7 @@ export class MapRenderer {
           config,
         );
 
-        // biome-ignore lint/suspicious/noExplicitAny: BSP mesh metadata tagging via Babylon metadata API
-        tagMapOwned(sprite.mesh as any);
+        tagMapOwned(sprite.mesh);
 
         // Set position and scale (default bigger size)
         sprite.position = position;
@@ -789,8 +782,7 @@ export class MapRenderer {
         };
         const result = await entityHandler(entityData, scene);
         if (result.handled && result.node) {
-          // biome-ignore lint/suspicious/noExplicitAny: BSP mesh metadata tagging via Babylon metadata API
-          tagMapOwned(result.node as any);
+          tagMapOwned(result.node);
           prefabInstances.push(result.node);
         }
       }
@@ -831,14 +823,12 @@ export class MapRenderer {
     // This allows many lights without hitting WebGL uniform buffer limits
     if (staticLights.length > 0 && supportsClusteredLighting(scene)) {
       if (!scene.metadata) scene.metadata = {};
-      // biome-ignore lint/suspicious/noExplicitAny: BSP mesh metadata tagging via Babylon metadata API
-      const existing = (scene.metadata as any).clusteredLightContainer;
+      const existing = scene.metadata.clusteredLightContainer;
       if (existing && typeof existing.dispose === "function") {
         existing.dispose();
       }
       const clusteredLights = new ClusteredLightContainer("mapLightsCluster", staticLights, scene);
-      // biome-ignore lint/suspicious/noExplicitAny: BSP mesh metadata tagging via Babylon metadata API
-      (scene.metadata as any).clusteredLightContainer = clusteredLights;
+      scene.metadata.clusteredLightContainer = clusteredLights;
       // Configure for orthographic camera compatibility
       // Very few depth slices and coarse tiles minimize artifacts
       clusteredLights.depthSlices = 4;
@@ -894,8 +884,7 @@ export class MapRenderer {
       devLog(`[MapRenderer] Disposed ${bspMaterials.length} BSP materials`);
     }
 
-    // biome-ignore lint/suspicious/noExplicitAny: Babylon.js internal API access
-    const matchesMap = (metadata: any): boolean => {
+    const matchesMap = (metadata: MapOwnedMetadata | null | undefined): boolean => {
       if (!metadata?.mapOwned) return false;
       if (!mapName) return true;
       return metadata.mapName === mapName;
@@ -946,8 +935,7 @@ export class MapRenderer {
 
     // Dispose map lights
     const lightsToDispose = scene.lights.filter(
-      // biome-ignore lint/suspicious/noExplicitAny: BSP mesh metadata tagging via Babylon metadata API
-      (light) => matchesMap((light as any).metadata) || light.name.startsWith("light_"),
+      (light) => matchesMap(light.metadata) || light.name.startsWith("light_"),
     );
 
     for (const light of lightsToDispose) {
@@ -967,12 +955,10 @@ export class MapRenderer {
     // Clear debris zones
     LocalDebrisManager.getInstance().clear();
 
-    // biome-ignore lint/suspicious/noExplicitAny: BSP mesh metadata tagging via Babylon metadata API
-    const clustered = (scene.metadata as any)?.clusteredLightContainer;
+    const clustered = scene.metadata?.clusteredLightContainer;
     if (clustered && typeof clustered.dispose === "function") {
       clustered.dispose();
-      // biome-ignore lint/suspicious/noExplicitAny: BSP mesh metadata tagging via Babylon metadata API
-      (scene.metadata as any).clusteredLightContainer = null;
+      scene.metadata.clusteredLightContainer = null;
     }
 
     TextureManager.getInstance().clearCache();
@@ -987,8 +973,7 @@ export class MapRenderer {
         n.name.startsWith("pickup_") ||
         n.name.startsWith("ammo_") ||
         n.name.startsWith("weapon_") ||
-        // biome-ignore lint/suspicious/noExplicitAny: BSP mesh metadata tagging via Babylon metadata API
-        (n.metadata as any)?.isPickup,
+        n.metadata?.isPickup,
     );
     for (const pickup of pickupsToDispose) {
       pickup.dispose();

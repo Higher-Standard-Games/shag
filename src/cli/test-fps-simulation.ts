@@ -3,6 +3,8 @@
  * Run with: npx vite-node src/cli/test-fps-simulation.ts
  */
 
+import type { TransformComponent } from "../engine/network/components/TransformComponent";
+import type { VelocityComponent } from "../engine/network/components/VelocityComponent";
 import { createBSPCollisionWorld } from "../games/fps/simulation/collision/BSPCollisionWorld";
 import { FPSSimulation } from "../games/fps/simulation/FPSSimulation";
 
@@ -15,7 +17,7 @@ const sim = new FPSSimulation({
   tickDuration: 1 / 60,
   maxPlayers: 1,
   gameRules: {},
-} as any);
+});
 
 console.log("[TEST] Simulation created");
 
@@ -40,16 +42,16 @@ try {
   console.log("[TEST] Player spawned:", !!player);
   console.log("[TEST] Player entity ID:", player.id);
 
-  const transform = player.getComponent("transform");
-  const velocity = player.getComponent("velocity");
+  const transform = player.getComponent<TransformComponent>("transform");
+  const velocity = player.getComponent<VelocityComponent>("velocity");
   console.log("[TEST] Player has transform:", !!transform);
   console.log("[TEST] Player has velocity:", !!velocity);
   if (transform) {
-    console.log("[TEST] Player position:", (transform as any).position);
+    console.log("[TEST] Player position:", transform.position);
   }
   if (velocity) {
-    console.log("[TEST] Player velocity:", (velocity as any).linear);
-    console.log("[TEST] Player grounded:", (velocity as any).grounded);
+    console.log("[TEST] Player velocity:", velocity.linear);
+    console.log("[TEST] Player grounded:", velocity.grounded);
   }
 } catch (err) {
   console.error("[TEST] Error spawning player:", err);
@@ -60,7 +62,7 @@ console.log("\n[TEST] Testing simulation ticks with gravity...");
 try {
   // Run 10 simulation ticks
   for (let i = 0; i < 10; i++) {
-    sim.tick([] as any); // empty input commands
+    sim.tick([]); // empty input commands
   }
   console.log("[TEST] 10 simulation ticks completed");
 

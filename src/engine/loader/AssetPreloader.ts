@@ -100,8 +100,7 @@ export class AssetPreloader {
       if (this.pickupModelFilter && !this.pickupModelFilter(def)) continue;
 
       // Get model path
-      // biome-ignore lint/suspicious/noExplicitAny: Babylon loader internals
-      const modelPath = (def as any).modelPath;
+      const modelPath = def.modelPath;
       if (modelPath) {
         modelPaths.add(modelPath);
       }
@@ -143,8 +142,7 @@ export class AssetPreloader {
 
           const asset = await resolveModelAsset(modelPath);
           const glbResult = await ImportMeshAsync(asset.source, scene, asset.options);
-          // biome-ignore lint/suspicious/noExplicitAny: Babylon loader internals
-          const root = glbResult.meshes[0] as any;
+          const root = glbResult.meshes[0];
           const meshes = glbResult.meshes.filter((m) => m.getTotalVertices() > 0) as Mesh[];
 
           // Configure PBR materials for clustered lighting, matching ModelLoader's
@@ -153,8 +151,7 @@ export class AssetPreloader {
           for (const m of glbResult.meshes) {
             const mat = m.material as (Material & { usePhysicalLightFalloff?: boolean }) | null;
             if (mat && "maxSimultaneousLights" in mat) {
-              // biome-ignore lint/suspicious/noExplicitAny: Babylon material introspection
-              applySafeMaxSimultaneousLights(mat as any);
+              applySafeMaxSimultaneousLights(mat);
             }
             if (mat && "usePhysicalLightFalloff" in mat) {
               mat.usePhysicalLightFalloff = false;
@@ -180,10 +177,8 @@ export class AssetPreloader {
 
         if (result) {
           // Wait for all textures to finish loading
-          // biome-ignore lint/suspicious/noExplicitAny: Babylon loader internals
-          if ((result as any).textureLoadPromises && (result as any).textureLoadPromises.length > 0) {
-            // biome-ignore lint/suspicious/noExplicitAny: Babylon loader internals
-            await Promise.all((result as any).textureLoadPromises);
+          if (result.textureLoadPromises && result.textureLoadPromises.length > 0) {
+            await Promise.all(result.textureLoadPromises);
           }
 
           // Hide the preloaded model (it's just for caching).

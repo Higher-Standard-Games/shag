@@ -12,6 +12,8 @@
 import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight";
 import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
 import type { ShadowGenerator } from "@babylonjs/core/Lights/Shadows/shadowGenerator";
+import type { Material } from "@babylonjs/core/Materials/material";
+import type { BaseTexture } from "@babylonjs/core/Materials/Textures/baseTexture";
 import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
@@ -162,6 +164,19 @@ const COLOR_STOPS: ColorStop[] = [
 // Moon color - cool blue
 const MOON_COLOR = new Color3(0.4, 0.45, 0.6);
 
+/**
+ * A Standard/PBR material as the day/night tint sees it: the color slots it may have,
+ * plus the `_orig*` copies this system stashes on the material before the first tint.
+ */
+interface TintableMaterial extends Material {
+  diffuseColor?: Color3;
+  albedoColor?: Color3;
+  emissiveColor?: Color3;
+  reflectionTexture?: BaseTexture | null;
+  _origDiffuse?: Color3;
+  _origAlbedo?: Color3;
+}
+
 /** The first-person weapon's render layer; the world fill leaves it to the weapon's own light. */
 const WEAPON_LAYER_MASK = 0x10000000;
 
@@ -305,8 +320,7 @@ export class SkyLightSystem {
         minute: 0,
         totalMinutes: 720,
         normalized: 0.5,
-        // biome-ignore lint/suspicious/noExplicitAny: Babylon light/scene internals
-        period: "PM" as any,
+        period: "afternoon",
         periodProgress: 0,
       };
       this.updateLighting(noon);
@@ -829,8 +843,7 @@ export class SkyLightSystem {
       // Skip meshes without materials
       if (!mesh.material) continue;
 
-      // biome-ignore lint/suspicious/noExplicitAny: Babylon light/scene internals
-      const mat = mesh.material as any;
+      const mat = mesh.material as TintableMaterial;
 
       // Store original colors on first call
       if (mat._origDiffuse === undefined && mat.diffuseColor) {
@@ -842,16 +855,16 @@ export class SkyLightSystem {
 
       // Modulate diffuse color (StandardMaterial)
       if (mat._origDiffuse) {
-        mat.diffuseColor.r = mat._origDiffuse.r * intensity;
-        mat.diffuseColor.g = mat._origDiffuse.g * intensity;
-        mat.diffuseColor.b = mat._origDiffuse.b * intensity;
+        mat.diffuseColor!.r = mat._origDiffuse.r * intensity;
+        mat.diffuseColor!.g = mat._origDiffuse.g * intensity;
+        mat.diffuseColor!.b = mat._origDiffuse.b * intensity;
       }
 
       // Modulate albedo color (PBRMaterial)
       if (mat._origAlbedo) {
-        mat.albedoColor.r = mat._origAlbedo.r * intensity;
-        mat.albedoColor.g = mat._origAlbedo.g * intensity;
-        mat.albedoColor.b = mat._origAlbedo.b * intensity;
+        mat.albedoColor!.r = mat._origAlbedo.r * intensity;
+        mat.albedoColor!.g = mat._origAlbedo.g * intensity;
+        mat.albedoColor!.b = mat._origAlbedo.b * intensity;
       }
     }
   }
@@ -874,8 +887,7 @@ export class SkyLightSystem {
 
       if (!skybox || !skybox.material) return;
 
-      // biome-ignore lint/suspicious/noExplicitAny: Babylon light/scene internals
-      const mat = skybox.material as any;
+      const mat = skybox.material as TintableMaterial;
 
       // Calculate tint: bright white at noon, dark blue at midnight
       const nightR = 0.15,

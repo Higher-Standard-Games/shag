@@ -19,6 +19,7 @@ import * as readline from "node:readline";
 import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import type { Node } from "@babylonjs/core/node";
 import { Scene } from "@babylonjs/core/scene";
 import { VANGUARD_MODEL, VANGUARD_ROOT } from "../engine/animation/PlayerModelAssets";
 import { fail } from "../engine/console/Command";
@@ -82,7 +83,7 @@ async function initializeEngine(): Promise<HeadlessContext> {
   try {
     const { CameraSystem } = await import("../engine/camera/CameraSystem");
     const cameraSystem = CameraSystem.getInstance();
-    cameraSystem.init(scene, null as any); // null canvas ok for headless
+    cameraSystem.init(scene, null); // headless has no canvas
     cameraSystem.setCamera(camera);
     console.log("[Init] CameraSystem initialized");
   } catch (e) {
@@ -316,9 +317,9 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
         await registry.execute("map unload");
         await registry.execute("scene clear");
 
-        if (typeof (globalThis as any).gc === "function") {
+        if (typeof globalThis.gc === "function") {
           try {
-            (globalThis as any).gc();
+            globalThis.gc();
           } catch {
             // ignore
           }
@@ -351,7 +352,7 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
     const { TransformNode } = await import("@babylonjs/core/Meshes/transformNode");
 
     const ownedCounts = () => {
-      const isOwned = (m: any) => m?.metadata?.mapOwned && m?.metadata?.mapName === mapName;
+      const isOwned = (m: Node) => m?.metadata?.mapOwned && m?.metadata?.mapName === mapName;
       const ownedMeshes = scene.meshes.filter(isOwned);
       const ownedNodes = scene.transformNodes.filter(isOwned);
       const ownedLights = scene.lights.filter(isOwned);
@@ -376,7 +377,7 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
             brushes: [],
             patches: [],
           },
-        ] as any,
+        ],
         scene,
         mapName,
       );
@@ -399,7 +400,7 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
         failures++;
       }
 
-      const clustered = (scene.metadata as any)?.clusteredLightContainer;
+      const clustered = scene.metadata?.clusteredLightContainer;
       if (clustered) {
         failures++;
         console.log("[LeakTest] ClusteredLightContainer still present after clearMap");
@@ -652,7 +653,7 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
             const positionTracks: string[] = [];
 
             for (const ta of group.targetedAnimations) {
-              const targetName = (ta.target as any)?.name ?? "unknown";
+              const targetName = ta.target?.name ?? "unknown";
               const prop = ta.animation.targetProperty;
               if (prop === "position") {
                 const keys = ta.animation.getKeys();

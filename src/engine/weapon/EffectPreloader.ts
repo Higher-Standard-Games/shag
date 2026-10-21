@@ -20,6 +20,7 @@
  */
 
 import { PointLight } from "@babylonjs/core/Lights/pointLight";
+import type { Material } from "@babylonjs/core/Materials/material";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { RawTexture } from "@babylonjs/core/Materials/Textures/rawTexture";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
@@ -331,8 +332,7 @@ export async function preloadEffectShaders(scene: Scene): Promise<void> {
     // Build mapping: material → first mesh that uses it (deduplicated)
     // Covers BOTH StandardMaterial (BSP/MD3) and PBRMaterial (GLB weapons)
     const matMeshMap = new Map<StandardMaterial, Mesh>();
-    // biome-ignore lint/suspicious/noExplicitAny: Babylon.js internal API access
-    const pbrMatMeshMap = new Map<any, Mesh>();
+    const pbrMatMeshMap = new Map<Material, Mesh>();
     for (const mesh of scene.meshes) {
       if (mesh.material instanceof StandardMaterial) {
         // Cap ALL StandardMaterials to prevent shader overflow from dynamic PointLights
@@ -341,8 +341,7 @@ export async function preloadEffectShaders(scene: Scene): Promise<void> {
           matMeshMap.set(mesh.material, mesh as Mesh);
         }
       } else if (mesh.material && mesh.material.getClassName() === "PBRMaterial") {
-        // biome-ignore lint/suspicious/noExplicitAny: Babylon particle system internals
-        applySafeMaxSimultaneousLights(mesh.material as any);
+        applySafeMaxSimultaneousLights(mesh.material);
         if (!pbrMatMeshMap.has(mesh.material)) {
           pbrMatMeshMap.set(mesh.material, mesh as Mesh);
         }
@@ -432,8 +431,7 @@ export async function revalidateMaterials(scene: Scene): Promise<void> {
 
   // 1. Reset the engine's internal texture cache — forces all textures
   //    to be re-bound to WebGL texture units on the next render pass
-  // biome-ignore lint/suspicious/noExplicitAny: Babylon particle system internals
-  (engine as any).resetTextureCache?.();
+  engine.resetTextureCache?.();
   devLog(`[EffectPreloader] Reset engine texture cache`);
 
   // 2. Force all textures to re-upload to GPU
@@ -463,8 +461,7 @@ export async function revalidateMaterials(scene: Scene): Promise<void> {
 
   // 4. Force-compile all StandardMaterials AND PBRMaterials with PointLight variant (same as Phase 2)
   const matMeshMap = new Map<StandardMaterial, Mesh>();
-  // biome-ignore lint/suspicious/noExplicitAny: Babylon.js internal API access
-  const pbrMatMeshMap = new Map<any, Mesh>();
+  const pbrMatMeshMap = new Map<Material, Mesh>();
   for (const mesh of scene.meshes) {
     if (mesh.material instanceof StandardMaterial) {
       applySafeMaxSimultaneousLights(mesh.material);
@@ -472,8 +469,7 @@ export async function revalidateMaterials(scene: Scene): Promise<void> {
         matMeshMap.set(mesh.material, mesh as Mesh);
       }
     } else if (mesh.material && mesh.material.getClassName() === "PBRMaterial") {
-      // biome-ignore lint/suspicious/noExplicitAny: Babylon particle system internals
-      applySafeMaxSimultaneousLights(mesh.material as any);
+      applySafeMaxSimultaneousLights(mesh.material);
       if (!pbrMatMeshMap.has(mesh.material)) {
         pbrMatMeshMap.set(mesh.material, mesh as Mesh);
       }
@@ -511,9 +507,7 @@ export async function revalidateMaterials(scene: Scene): Promise<void> {
   let refrozenCount = 0;
   for (const mat of scene.materials) {
     if (mat instanceof StandardMaterial && !mat.isFrozen) {
-      // biome-ignore lint/suspicious/noExplicitAny: Babylon particle system internals
-      const matAny = mat as any;
-      if (matAny.lightmapTexture) continue; // Skip lightmapped
+      if (mat.lightmapTexture) continue; // Skip lightmapped
       if (mat.name === "skybox") continue;
       mat.freeze();
       refrozenCount++;

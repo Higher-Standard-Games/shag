@@ -157,8 +157,7 @@ export class FreeflyController implements ICameraController {
     let startPos = camera.position.clone();
 
     // If it's an ArcRotateCamera, start at its position looking at target
-    // biome-ignore lint/suspicious/noExplicitAny: Babylon camera internals
-    if ("target" in camera && (camera as any).target instanceof Vector3) {
+    if ("target" in camera && camera.target instanceof Vector3) {
       startPos = camera.position.clone();
     }
 
@@ -349,7 +348,8 @@ export class FreeflyController implements ICameraController {
     this.camera.position.y = this.smoothedY;
   }
 
-  private static _loggedState = false;
+  /** Set once the collision state has been logged; freefly_collision clears it to log again. */
+  static _loggedState = false;
 
   private static _warnedNotInit = false;
 
@@ -435,8 +435,7 @@ export class FreeflyController implements ICameraController {
     // We must use Babylon's internal collision system
 
     // Debug: check what methods are available
-    // biome-ignore lint/suspicious/noExplicitAny: Babylon camera internals
-    const cam = this.camera as any;
+    const cam = this.camera;
     if (!FreeflyController._debuggedMethods) {
       FreeflyController._debuggedMethods = true;
       devLog(`[FreeflyController] Camera type: ${this.camera.getClassName()}`);
@@ -481,11 +480,7 @@ export class FreeflyController implements ICameraController {
 
       cam._collideWithWorld(movement);
       const posAfterBabylon = this.camera.position.clone();
-      // biome-ignore lint/suspicious/noExplicitAny: Babylon camera internals
-      const ellipsoidOffset = (this.camera as any).ellipsoidOffset
-        ? // biome-ignore lint/suspicious/noExplicitAny: Babylon camera internals
-          (this.camera as any).ellipsoidOffset
-        : Vector3.Zero();
+      const ellipsoidOffset = this.camera.ellipsoidOffset ? this.camera.ellipsoidOffset : Vector3.Zero();
 
       // Use the new Q3 collision backend for BSP collision
       const cm = getCollisionManager();
@@ -504,8 +499,7 @@ export class FreeflyController implements ICameraController {
       }
 
       // Use Q3-style slideMove for smooth wall sliding
-      // biome-ignore lint/suspicious/noExplicitAny: Babylon camera internals
-      const backend = (cm as any).backends?.get("q3");
+      const backend = cm.getSweepBackend();
       const traceOpts = {
         radius: 16,
         height: 56,
@@ -542,10 +536,8 @@ export class FreeflyController implements ICameraController {
         const nowStuck = Date.now();
         if (nowStuck - FreeflyController._lastClipHitLogTime > 250) {
           FreeflyController._lastClipHitLogTime = nowStuck;
-          // biome-ignore lint/suspicious/noExplicitAny: Babylon camera internals
-          const hitBrushIndex = (stuckCheck as any).hitBrushIndex;
-          // biome-ignore lint/suspicious/noExplicitAny: Babylon camera internals
-          const hitTextureName = (stuckCheck as any).hitTextureName;
+          const hitBrushIndex = stuckCheck.hitBrushIndex;
+          const hitTextureName = stuckCheck.hitTextureName;
           FreeflyController._lastClipHitBrushIndex = typeof hitBrushIndex === "number" ? hitBrushIndex : null;
           FreeflyController._lastClipHitTextureName = typeof hitTextureName === "string" ? hitTextureName : null;
           devLog(`[Freefly][Stuck] startSolid=true brush=${hitBrushIndex} tex=${hitTextureName}`);

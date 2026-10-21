@@ -62,7 +62,7 @@ export class CameraSystem {
   /**
    * Initialize the camera system with a scene and canvas
    */
-  init(scene: Scene, canvas: HTMLCanvasElement, config?: CameraSystemConfig): void {
+  init(scene: Scene, canvas: HTMLCanvasElement | null, config?: CameraSystemConfig): void {
     this.scene = scene;
     this.canvas = canvas;
 

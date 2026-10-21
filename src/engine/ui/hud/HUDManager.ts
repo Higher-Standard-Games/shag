@@ -18,12 +18,17 @@ import { HUDPillGroup } from "./components/HUDPillGroup";
 import { HUDPillProgress } from "./components/HUDPillProgress";
 import type { HUDElement } from "./HUDElement";
 import type {
+  HUDAccordionConfig,
+  HUDButtonConfig,
   HUDClickHandler,
   HUDConfig,
   HUDContentProvider,
   HUDElementConfig,
   HUDFlashType,
   HUDListBinding,
+  HUDPillConfig,
+  HUDPillGroupConfig,
+  HUDPillProgressConfig,
   HUDPosition,
   HUDSettings,
   HUDUserPrefs,
@@ -32,6 +37,14 @@ import type {
 
 // Import CSS
 import hudStyles from "./styles/HUD.css?raw";
+
+/** The element configs HUDManager has a component for, discriminated by `type`. */
+type HUDComponentConfig =
+  | HUDPillConfig
+  | HUDPillProgressConfig
+  | HUDPillGroupConfig
+  | HUDButtonConfig
+  | HUDAccordionConfig;
 
 const STORAGE_KEY = "hud-user-prefs";
 const DEFAULT_UPDATE_INTERVAL = 100;
@@ -267,21 +280,23 @@ export class HUDManager {
    * Create a component instance from config
    */
   private createComponent(id: string, config: HUDElementConfig): HUDElement | null {
-    switch (config.type) {
+    // Layout configs are typed by their base interface; `type` names the concrete one.
+    const typed = config as HUDComponentConfig;
+    switch (typed.type) {
       case "pill":
-        return new HUDPill(id, config as any);
+        return new HUDPill(id, typed);
 
       case "pill-progress":
-        return new HUDPillProgress(id, config as any);
+        return new HUDPillProgress(id, typed);
 
       case "pill-group":
-        return new HUDPillGroup(id, config as any, this);
+        return new HUDPillGroup(id, typed, this);
 
       case "button":
-        return new HUDButton(id, config as any);
+        return new HUDButton(id, typed);
 
       case "accordion":
-        return new HUDAccordion(id, config as any, this);
+        return new HUDAccordion(id, typed, this);
 
       default:
         console.warn(`[HUD] Unknown element type: ${config.type}`);

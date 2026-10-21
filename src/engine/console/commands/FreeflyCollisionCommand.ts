@@ -31,7 +31,7 @@ export class FreeflyCollisionCommand extends Command {
     const cm = getCollisionManager();
     const isInit = cm.isInitialized();
     const stats = isInit ? cm.getStats() : null;
-    const planeCount = (stats?.backendStats as any)?.collisionPlanes || 0;
+    const planeCount = stats?.backendStats.collisionPlanes || 0;
 
     const value = args[0]?.toLowerCase();
 
@@ -160,7 +160,7 @@ export class FreeflyCollisionCommand extends Command {
 
       // Hit normal
       if (hit && trace.normal && Number.isFinite(normalLen) && normalLen > 0) {
-        const n = trace.normal as any;
+        const n = trace.normal;
         const normal = new Vector3(n.x, n.y, n.z);
         const normalEnd = hitPos.add(normal.scale(normalLen));
         const normalLine = MeshBuilder.CreateLines(
@@ -180,7 +180,7 @@ export class FreeflyCollisionCommand extends Command {
         `Hull: radius=${Number.isFinite(radius) ? radius : 16}, height=${Number.isFinite(height) ? height : 56}`,
         `Hit: ${hit ? "YES" : "NO"} frac=${trace.fraction.toFixed(4)} startSolid=${trace.startSolid}`,
         hit && trace.normal
-          ? `Normal: (${(trace.normal as any).x.toFixed(3)}, ${(trace.normal as any).y.toFixed(3)}, ${(trace.normal as any).z.toFixed(3)})`
+          ? `Normal: (${trace.normal.x.toFixed(3)}, ${trace.normal.y.toFixed(3)}, ${trace.normal.z.toFixed(3)})`
           : "",
         "Use: freefly_collision clear",
       ]
@@ -203,26 +203,26 @@ export class FreeflyCollisionCommand extends Command {
         return "Usage: freefly_collision cliptrace [dist] [radius] [height] [debug]";
       }
 
-      const ellipsoidOffset = (camera as any).ellipsoidOffset ? (camera as any).ellipsoidOffset : Vector3.Zero();
+      // FreeCamera and FlyCamera carry an ellipsoid offset; other cameras trace from their position
+      const ellipsoidOffset =
+        "ellipsoidOffset" in camera && camera.ellipsoidOffset instanceof Vector3
+          ? camera.ellipsoidOffset
+          : Vector3.Zero();
       const start = camera.position.add(ellipsoidOffset);
       const forward = camera.getDirection(new Vector3(0, 0, 1));
       const end = start.add(forward.scale(dist));
 
-      const trace = cm.trace(
-        start as never,
-        end as never,
-        {
-          radius: Number.isFinite(radius) ? radius : 16,
-          height: Number.isFinite(height) ? height : 56,
-          clipTexturesOnly: true,
-          contentMask: 0x1 | 0x10000,
-          debug,
-        } as any,
-      );
+      const trace = cm.trace(start as never, end as never, {
+        radius: Number.isFinite(radius) ? radius : 16,
+        height: Number.isFinite(height) ? height : 56,
+        clipTexturesOnly: true,
+        contentMask: 0x1 | 0x10000,
+        debug,
+      });
 
       const hit = trace.fraction < 1.0;
-      const hitBrushIndex = (trace as any).hitBrushIndex;
-      const hitTextureName = (trace as any).hitTextureName;
+      const hitBrushIndex = trace.hitBrushIndex;
+      const hitTextureName = trace.hitTextureName;
       return [
         "=== Clip Trace ===",
         `Start: (${start.x.toFixed(1)}, ${start.y.toFixed(1)}, ${start.z.toFixed(1)})`,
@@ -256,7 +256,7 @@ export class FreeflyCollisionCommand extends Command {
 
     const enabled = truthy;
     FreeflyController.setCollisionEnabled(enabled);
-    (FreeflyController as any)._loggedState = false;
+    FreeflyController._loggedState = false;
 
     const backendInfo = isInit
       ? `Backend: ${cm.getBackendType()} (${planeCount} planes), Instance: ${cm.getInstanceId()}`

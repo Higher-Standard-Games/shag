@@ -17,7 +17,7 @@ import { LAG_COMPENSATION } from "../engine/server/lagcomp/config";
 import type { Ray } from "../engine/server/lagcomp/LagCompensation";
 import { LagCompensation } from "../engine/server/lagcomp/LagCompensation";
 import { CharacterPhysicsSystem } from "../games/fps/server/systems/CharacterPhysicsSystem";
-import { CombatSystem } from "../games/fps/server/systems/CombatSystem";
+import { CombatSystem, DamageType, HitLocation } from "../games/fps/server/systems/CombatSystem";
 import { ProjectileSystem } from "../games/fps/server/systems/ProjectileSystem";
 import { WeaponSystem } from "../games/fps/server/systems/WeaponSystem";
 
@@ -138,8 +138,8 @@ for (let tick = 0; tick < MATCH_DURATION_TICKS; tick++) {
           attackerId: entity.id,
           damage: 15,
           armorPiercing: 0,
-          damageType: "bullet" as any,
-          hitLocation: hitResult.hitPart === "head" ? ("head" as any) : ("body" as any),
+          damageType: DamageType.Bullet,
+          hitLocation: hitResult.hitPart === "head" ? HitLocation.Head : HitLocation.Body,
         });
 
         stats.get(i)!.damageDealt += 15;

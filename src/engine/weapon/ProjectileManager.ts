@@ -788,8 +788,8 @@ export class ProjectileManager {
         // Skip meshes with additive blending (light effects)
         const material = mesh.material;
         if (material) {
-          if ((material as any).alphaMode === 1 || (material as any).alphaMode === 2) return false;
-          if ((material as any).alpha !== undefined && (material as any).alpha < 0.5) return false;
+          if (material.alphaMode === 1 || material.alphaMode === 2) return false;
+          if (material.alpha !== undefined && material.alpha < 0.5) return false;
         }
 
         // Skip billboard faces (faceType 4 in BSP)

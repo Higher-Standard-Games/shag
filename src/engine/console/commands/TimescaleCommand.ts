@@ -2,8 +2,15 @@
  * TimescaleCommand - Time scale control
  */
 
+import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine";
 import type { Scene } from "@babylonjs/core/scene";
 import { Command, type CommandDef } from "../Command";
+
+/**
+ * The time scale is kept on the engine as a field Babylon does not declare.
+ * Babylon never reads it; only scene.animationTimeScale changes playback speed.
+ */
+type EngineWithTimeScale = AbstractEngine & { _timeScale?: number };
 
 export default class TimescaleCommand extends Command {
   readonly definition: CommandDef = {
@@ -27,12 +34,12 @@ export default class TimescaleCommand extends Command {
       return "No active scene";
     }
 
-    const engine = scene.getEngine();
+    const engine: EngineWithTimeScale = scene.getEngine();
     const value = parseFloat(args[0]);
 
     if (Number.isNaN(value)) {
       // Get current time scale from engine
-      const current = (engine as any)._timeScale ?? 1.0;
+      const current = engine._timeScale ?? 1.0;
       return `Timescale: ${current}`;
     }
 
@@ -41,7 +48,7 @@ export default class TimescaleCommand extends Command {
     }
 
     // Set time scale
-    (engine as any)._timeScale = value;
+    engine._timeScale = value;
 
     // Also update scene animation ratio if available
     if (scene.animationTimeScale !== undefined) {

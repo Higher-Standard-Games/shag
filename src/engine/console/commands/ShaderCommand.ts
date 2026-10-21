@@ -4,6 +4,8 @@
  * Wraps Q3ShaderRegistry for shader loading, inspection, and debugging.
  */
 
+import type { Material } from "@babylonjs/core/Materials/material";
+import type { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import type { Scene } from "@babylonjs/core/scene";
 import { background } from "../../core/AsyncErrors";
@@ -14,6 +16,10 @@ let aimObserver: any = null;
 /** `shader aim 1`: the aim probe runs while this is on. */
 let shaderAimEnabled = false;
 let aimLastMesh: AbstractMesh | null = null;
+
+/** A material whose StandardMaterial texture slots may or may not be present. */
+type InspectableMaterial = Material &
+  Partial<Pick<StandardMaterial, "diffuseTexture" | "bumpTexture" | "specularTexture">>;
 
 export class ShaderCommand extends Command {
   readonly definition: CommandDef = {
@@ -394,8 +400,7 @@ export class ShaderCommand extends Command {
     const pick = scene.pickWithRay(ray, (m: AbstractMesh) => {
       if (!m) return false;
       if (m.isPickable === false) return false;
-      // biome-ignore lint/suspicious/noExplicitAny: Dynamic shader property inspection
-      if ((m as any).metadata?.isLightGizmo) return false;
+      if (m.metadata?.isLightGizmo) return false;
       if (m.name?.startsWith("collision_")) return false;
       if (m.name?.startsWith("clipbrush_")) return false;
       return true;
@@ -405,8 +410,8 @@ export class ShaderCommand extends Command {
   }
 
   private buildMeshShaderInfo(mesh: AbstractMesh): string {
-    // biome-ignore lint/suspicious/noExplicitAny: Dynamic shader property inspection
-    const mat = mesh.material as any;
+    // Texture slots exist on StandardMaterial-like materials only; read them optionally.
+    const mat = mesh.material as InspectableMaterial | null;
     const lines = [`=== Aimed Surface ===`, `Mesh: ${mesh.name}`, `Material: ${mat?.name || "(none)"}`];
 
     if (mat) {
@@ -444,8 +449,7 @@ export class ShaderCommand extends Command {
           const pick = scene.pickWithRay(ray, (m: AbstractMesh) => {
             if (!m) return false;
             if (m.isPickable === false) return false;
-            // biome-ignore lint/suspicious/noExplicitAny: Dynamic shader property inspection
-            if ((m as any).metadata?.isLightGizmo) return false;
+            if (m.metadata?.isLightGizmo) return false;
             if (m.name?.startsWith("collision_")) return false;
             if (m.name?.startsWith("clipbrush_")) return false;
             return true;
@@ -467,10 +471,8 @@ export class ShaderCommand extends Command {
           if (mesh) {
             try {
               mesh.enableEdgesRendering();
-              // biome-ignore lint/suspicious/noExplicitAny: Dynamic shader property inspection
-              (mesh as any).edgesWidth = 6;
-              // biome-ignore lint/suspicious/noExplicitAny: Dynamic shader property inspection
-              (mesh as any).edgesColor = new Color4(1, 1, 1, 1);
+              mesh.edgesWidth = 6;
+              mesh.edgesColor = new Color4(1, 1, 1, 1);
             } catch {
               /* ignore */
             }
