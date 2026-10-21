@@ -80,6 +80,7 @@ import { faceKeyFromNormal, naturalFace } from "./FaceUv";
 import { DEFAULT_POSE, FlyCameraController, type FlyPose, forwardOf, framePose, poseFromOrbit } from "./FlyCamera";
 import { inspectMapHealth, type MapHealthIssue } from "./MapHealth";
 import { MapHealthTray } from "./MapHealthTray";
+import { importMapSource } from "./MapImport";
 import { writeMap } from "./MapWriter";
 import { ModelBrowser } from "./ModelBrowser";
 import { indexedModelPaths, modelReferenceIssue } from "./ModelReference";
@@ -91,7 +92,7 @@ import { browserPreviewDeps, PreviewTextures } from "./PreviewTextures";
 import { createRoomTemplate } from "./RoomTemplate";
 import { type RoundPatchShape, roundPatches } from "./RoundPatchPresets";
 import { inspectServerMap, serverMapName } from "./ServerMapOpen";
-import type { EditorCompileJob, EditorServerStatus, ShaggedApi } from "./ShaggedApi";
+import type { EditorCompileJob, EditorServerStatus, ServerMapSummary, ShaggedApi } from "./ShaggedApi";
 import { TextureBrowser } from "./TextureBrowser";
 import type { TextureEntry } from "./TextureCatalog";
 import { loadTextureCatalog } from "./TextureCatalogLoader";
@@ -100,6 +101,9 @@ import { lockBrushBounds } from "./TextureLock";
 import type { TextureThumbnails } from "./TextureThumbnails";
 import { createBrowserThumbnails } from "./TextureThumbnailsBrowser";
 import "./editor.css";
+import "./file-panel.css";
+import "./draw-tools.css";
+import "./edge-tabs.css";
 
 type ViewMode = "brush" | "textured" | "wireframe";
 const VIEW_MODES: ReadonlyArray<[ViewMode, string, string]> = [
@@ -379,6 +383,12 @@ export class EditorSession {
   private serverSave: EditorViewState["serverSave"];
   private serverStatus: EditorServerStatus | null = null;
   private serverBusy = false;
+  /** Which list the File panel shows. */
+  private fileTab: "local" | "server" = "local";
+  /** The server's maps as last fetched for the File panel; null until then. */
+  private serverMaps: ServerMapSummary[] | null = null;
+  /** What the last import couldn't convert, shown in Map Health until another map opens. */
+  private importIssues: string[] = [];
   private compileJob: EditorCompileJob | null = null;
   private pollTimer: ReturnType<typeof setTimeout> | null = null;
   private serverGeneration = 0;
@@ -417,16 +427,27 @@ export class EditorSession {
         <strong>SHAGGED</strong>
         <div class="shagged__toolgroup" aria-label="Map actions">
           <span class="shagged__group-label">MAP</span>
-          <details class="shagged__menu shagged__menu--map"><summary title="Current map and map actions"><span data-map-title></span></summary><div class="shagged__menu-panel">
-            <label>Map name <input data-draft-name type="text" maxlength="64" aria-label="Map name"></label>
-            <label>Map ID <input data-map-id type="text" maxlength="48" aria-label="Runtime map ID" title="Name used by map <id> after compile"></label>
-            <button data-action="new">New Map</button><button data-action="room">Room Template</button>
-            <button data-action="drafts">Local Drafts</button>
-            <span class="shagged__menu-rule" aria-hidden="true"></span>
-            <button data-action="save" title="Ctrl/Cmd+S">Save Draft</button>
-            <button data-action="export" title="Ctrl/Cmd+Shift+S">Export .map</button>
-            <button data-action="server-maps" disabled title="Open a server-saved SHAGGED map">Server Maps</button>
-            <button data-action="server-save" disabled title="Connecting to SHAGGED server">Server Save</button>
+          <details class="shagged__menu shagged__menu--file"><summary title="File: open, save, import and export maps (Ctrl+O)"><svg class="shagged__file-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h6l2 2h10v10H3z"/></svg><span data-map-title></span><span class="shagged__file-dot" data-file-dot></span></summary><div class="shagged__menu-panel shagged__file">
+            <div class="shagged__file-side">
+              <h3>This map</h3>
+              <div class="shagged__file-card">
+                <label class="shagged__file-name">Map name <input data-draft-name type="text" maxlength="64" aria-label="Map name"></label>
+                <label>Map ID <input data-map-id type="text" maxlength="48" aria-label="Runtime map ID" title="Name used by map <id> after compile"></label>
+                <div class="shagged__file-sync" data-file-sync></div>
+              </div>
+              <div class="shagged__file-keys"><button data-action="save" title="Ctrl/Cmd+S">Save <small>Ctrl+S</small></button><button data-action="server-save" disabled title="Connecting to SHAGGED server">Server Save</button></div>
+              <h3>New</h3>
+              <div class="shagged__file-keys"><button data-action="new">Empty Map</button><button data-action="room">Room Template</button></div>
+              <h3>Import / export</h3>
+              <label class="shagged__file-drop" data-file-drop><input type="file" accept=".map" data-import-file hidden><b>Import .map</b>Drop a Quake .map here, or click to choose. Opens as a new draft.</label>
+              <div class="shagged__file-keys shagged__file-keys--one"><button data-action="export" title="Ctrl/Cmd+Shift+S">⬇ Export this map as .map <small>Ctrl+Shift+S</small></button></div>
+            </div>
+            <div class="shagged__file-browse">
+              <div class="shagged__file-tabs" role="tablist"><button data-action="drafts" data-keep-open role="tab">This browser <i data-file-count="local"></i></button><button data-action="server-maps" data-keep-open role="tab" disabled title="Open a server-saved SHAGGED map">Server <i data-file-count="server"></i></button></div>
+              <div class="shagged__file-filter"><input data-file-filter type="search" placeholder="Filter by name…" aria-label="Filter maps by name"><select data-file-sort aria-label="Sort maps"><option value="recent">Last edited</option><option value="name">Name</option></select></div>
+              <div class="shagged__file-list" data-file-list role="list"></div>
+            </div>
+            <footer class="shagged__file-foot"><span><kbd>Ctrl+O</kbd> open this panel</span><span><kbd>Esc</kbd> close</span><span>Drafts live only in this browser: download the ones you want to keep.</span></footer>
           </div></details>
         </div>
         <div class="shagged__toolgroup" aria-label="Edit actions">
@@ -439,8 +460,9 @@ export class EditorSession {
         </div>
         <div class="shagged__toolgroup" aria-label="Placement tools">
           <span class="shagged__group-label">TOOLS</span>
-          <button data-action="select" title="V">Select</button><button data-action="vertices" title="Vertex mode (G)">Vertices</button><button data-action="brush" title="B">Brush</button><button data-action="patch" title="P">Patch</button>
-          <details class="shagged__menu shagged__menu--curves"><summary title="Curved patch surfaces">Curves</summary><div class="shagged__menu-panel">
+          <div class="shagged__drawkeys" role="group" aria-label="Drawing tools">
+          <button data-action="select" title="Select (S)" aria-keyshortcuts="S"><b>S</b>elect</button><button data-action="vertices" title="Vertices (V)" aria-keyshortcuts="V"><b>V</b>ertices</button><button data-action="brush" title="Brush (B)" aria-keyshortcuts="B"><b>B</b>rush</button><button data-action="patch" title="Patch (P)" aria-keyshortcuts="P"><b>P</b>atch</button>
+          <details class="shagged__menu shagged__menu--curves"><summary title="Curved patch surfaces (C)" aria-keyshortcuts="C"><b>C</b>urves</summary><div class="shagged__menu-panel">
             <button data-action="patch">Free Patch</button><button data-action="points">Edit Points</button><button data-action="curve-bevel">Bevel</button>
             <button data-action="curve-inverted-bevel">Inverted Bevel</button><button data-action="curve-arch">Arch</button>
             <button data-action="curve-cylinder">Cylinder</button><button data-action="curve-tube">Tube</button><button data-action="curve-cone">Cone</button><button data-action="curve-cap">Disk Cap</button>
@@ -450,9 +472,10 @@ export class EditorSession {
             <label>Tube thickness <input data-patch-thickness type="number" min="1" max="4096" step="any" value="8"></label>
             <label>End caps <input data-patch-capped type="checkbox" checked title="Close cylinder/cone ends; tubes get annular caps"></label>
           </div></details>
+          </div>
+          <span class="shagged__tool-rule" aria-hidden="true"></span>
           <button data-action="entity" title="E">Entity</button><select data-entity-class aria-label="Entity class" title="Class placed by the Entity tool"></select>
-          <button data-action="textures" title="Texture browser (T)">Textures</button><span class="shagged__current-texture" data-current-texture title="Texture new brushes get"></span>
-          <button data-action="models" title="Model browser (M)">Models</button>
+          <span class="shagged__current-texture" data-current-texture title="Texture new brushes get (T to change)"></span>
           <button data-action="health" title="Map Health (H)">Health</button>
         </div>
         <div class="shagged__toolgroup" aria-label="View actions">
@@ -475,19 +498,15 @@ export class EditorSession {
         <section class="shagged__pane"><span>XZ FRONT</span><canvas data-plane="xz"></canvas></section>
         <section class="shagged__pane"><span>YZ SIDE</span><canvas data-plane="yz"></canvas></section>
       </main>
-      <section class="shagged__drafts" aria-label="Saved drafts" hidden>
-        <div class="shagged__drafts-head"><h2>Local drafts</h2><button data-action="close-drafts">Close</button></div>
-        <div data-draft-list></div>
-      </section>
-      <section class="shagged__server-maps" aria-label="Server maps" hidden>
-        <div class="shagged__drafts-head"><h2>Server maps</h2><button data-action="close-server-maps">Close</button></div>
-        <div data-server-map-list></div>
-      </section>
       <section class="shagged__build" aria-label="Compile status" hidden>
         <div class="shagged__drafts-head"><h2>Compile status</h2><button data-action="close-build">Close</button></div>
         <pre data-build-log></pre>
       </section>
       <aside class="shagged__inspector"></aside>
+      <nav class="shagged__edge" aria-label="Browsers">
+        <button data-action="textures" data-edge="textures" title="Texture browser (T)" aria-keyshortcuts="T" aria-expanded="false"><i aria-hidden="true"></i><span><b>T</b>extures</span></button>
+        <button data-action="models" data-edge="models" title="Model browser (M)" aria-keyshortcuts="M" aria-expanded="false"><i aria-hidden="true"></i><span><b>M</b>odels</span></button>
+      </nav>
       <footer class="shagged__status"></footer>`;
     document.body.appendChild(this.root);
     this.statusEl = this.root.querySelector(".shagged__status")!;
@@ -561,7 +580,7 @@ export class EditorSession {
         const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-action]");
         if (button?.dataset.action) {
           const menu = button.closest<HTMLDetailsElement>("details.shagged__menu");
-          if (menu) {
+          if (menu && !button.hasAttribute("data-keep-open")) {
             menu.open = false;
             menu.querySelector("summary")?.focus();
           }
@@ -595,6 +614,7 @@ export class EditorSession {
       ?.addEventListener("change", (event) => this.setGrid(Number((event.target as HTMLSelectElement).value)), {
         signal: this.listeners.signal,
       });
+    this.bindFilePanel();
     this.root.querySelector<HTMLInputElement>("[data-draft-name]")!.addEventListener(
       "change",
       (event) => {
@@ -969,7 +989,10 @@ export class EditorSession {
   /** Pure analysis over the live document; texture checks are skipped until Textured mode has loaded the catalog. */
   private healthIssues(): MapHealthIssue[] {
     const textures = this.catalogEntries.size ? [...this.catalogEntries.values()] : undefined;
-    return inspectMapHealth(this.document.snapshot(), textures);
+    const imported = this.importIssues.map(
+      (message): MapHealthIssue => ({ code: "import-skipped", severity: "warning", message, objectId: null }),
+    );
+    return [...imported, ...inspectMapHealth(this.document.snapshot(), textures)];
   }
 
   /** The tray is built on first use. Opening it also starts loading the catalog, for the shader checks, if idle. */
@@ -1020,13 +1043,29 @@ export class EditorSession {
         thumbnails: this.thumbnails,
         inMap: () => this.texturesInMap(),
         onApply: (entry, size) => this.applyTexture(entry, size),
-        onClose: () => this.root.focus(),
+        onClose: () => {
+          this.syncEdgeTabs();
+          this.root.focus();
+        },
       });
       this.root.appendChild(this.textureBrowser.element);
     }
     // both drawers sit over the inspector; one at a time
     this.modelBrowser?.close();
-    await this.textureBrowser.toggle();
+    const toggled = this.textureBrowser.toggle();
+    this.syncEdgeTabs();
+    await toggled;
+  }
+
+  /** The edge tabs ride the open drawer's left edge; the open one turns purple and its arrow points the way it closes. */
+  private syncEdgeTabs(): void {
+    const open = this.textureBrowser?.isOpen ? "textures" : this.modelBrowser?.isOpen ? "models" : null;
+    this.root.classList.toggle("shagged--drawer-open", !!open);
+    for (const tab of this.root.querySelectorAll<HTMLButtonElement>("[data-edge]")) {
+      const on = tab.dataset.edge === open;
+      tab.classList.toggle("active", on);
+      tab.setAttribute("aria-expanded", String(on));
+    }
   }
 
   /** Built on first use like the texture drawer; its preview engine starts only then. */
@@ -1037,12 +1076,16 @@ export class EditorSession {
         inMap: () => this.modelsInMap(),
         preview: (canvas) => new ModelTurntable(canvas),
         onPick: (path, bounds) => this.pickModel(path, bounds),
-        onClose: () => this.root.focus(),
+        onClose: () => {
+          this.syncEdgeTabs();
+          this.root.focus();
+        },
       });
       this.root.appendChild(this.modelBrowser.element);
     }
     this.textureBrowser?.close();
     this.modelBrowser.toggle();
+    this.syncEdgeTabs();
   }
 
   /** A misc_model whose model was measured is boxed by the model; every other entity by its class. */
@@ -1412,6 +1455,7 @@ export class EditorSession {
         ]
       : [this.serverStatus?.reason ?? "No compile job. Start the editor server to save and compile maps."];
     this.root.querySelector<HTMLElement>("[data-build-log]")!.textContent = lines.join("\n");
+    this.updateFileSync();
   }
 
   private async refreshServerStatus(): Promise<void> {
@@ -1530,7 +1574,7 @@ export class EditorSession {
     mapId.disabled = !!this.serverSave;
     const title = this.root.querySelector<HTMLElement>("[data-map-title]")!;
     title.textContent = this.draftName;
-    title.parentElement!.title = `Current map: ${this.draftName}. Open map actions`;
+    title.parentElement!.title = `${this.draftName}: open, save, import and export maps (Ctrl+O)`;
   }
 
   private updateWorkPlaneControl(): void {
@@ -1595,20 +1639,231 @@ export class EditorSession {
     this.status("Selection cleared");
   }
 
-  private showDrafts(): void {
-    const list = this.root.querySelector<HTMLElement>("[data-draft-list]")!;
-    list.replaceChildren();
-    for (const draft of this.draftStore.list()) {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.dataset.action = "open-draft";
-      button.dataset.draftId = draft.id;
-      button.disabled = draft.active;
-      button.textContent = `${draft.name} · ${draft.brushCount} brushes · ${draft.entityCount} entities · r${draft.revision}${draft.active ? " · current" : ""}`;
-      list.appendChild(button);
+  private bindFilePanel(): void {
+    const signal = this.listeners.signal;
+    const menu = this.root.querySelector<HTMLDetailsElement>(".shagged__menu--file")!;
+    menu.addEventListener(
+      "toggle",
+      () => {
+        if (!menu.open) return;
+        this.renderFileList();
+        if (this.fileTab === "server") void this.loadServerMaps().catch((error: unknown) => this.serverError(error));
+      },
+      { signal },
+    );
+    const filter = this.root.querySelector<HTMLInputElement>("[data-file-filter]")!;
+    filter.addEventListener("input", () => this.renderFileList(), { signal });
+    this.root.querySelector("[data-file-sort]")!.addEventListener("change", () => this.renderFileList(), { signal });
+    this.root.querySelector("[data-file-list]")!.addEventListener(
+      "click",
+      (event) => {
+        const key = (event.target as HTMLElement).closest<HTMLButtonElement>("button");
+        try {
+          if (key?.dataset.downloadDraft) this.downloadDraft(key.dataset.downloadDraft);
+          else if (key?.dataset.deleteDraft) this.deleteDraft(key.dataset.deleteDraft);
+          else if (key?.dataset.downloadServer)
+            void this.downloadServerMap(key.dataset.downloadServer).catch((error: unknown) => this.serverError(error));
+        } catch (error) {
+          this.status(error instanceof Error ? error.message : String(error));
+        }
+      },
+      { signal },
+    );
+    const input = this.root.querySelector<HTMLInputElement>("[data-import-file]")!;
+    const importFile = (file: File | undefined) => {
+      if (!file) return;
+      void this.importMapFile(file).catch((error: unknown) =>
+        this.status(`Import failed: ${error instanceof Error ? error.message : String(error)}`),
+      );
+    };
+    input.addEventListener(
+      "change",
+      () => {
+        importFile(input.files?.[0]);
+        input.value = "";
+      },
+      { signal },
+    );
+    // A .map dropped anywhere on the editor imports; it always becomes a new draft.
+    const drop = this.root.querySelector<HTMLElement>("[data-file-drop]")!;
+    const hasFile = (event: DragEvent) => !!event.dataTransfer?.types.includes("Files");
+    this.root.addEventListener(
+      "dragover",
+      (event) => {
+        if (!hasFile(event)) return;
+        event.preventDefault();
+        drop.classList.add("is-over");
+      },
+      { signal },
+    );
+    this.root.addEventListener("dragleave", () => drop.classList.remove("is-over"), { signal });
+    this.root.addEventListener(
+      "drop",
+      (event) => {
+        if (!hasFile(event)) return;
+        event.preventDefault();
+        drop.classList.remove("is-over");
+        const file = [...(event.dataTransfer?.files ?? [])].find((item) => /\.map$/i.test(item.name));
+        if (file) importFile(file);
+        else this.status("Only .map files can be imported");
+      },
+      { signal },
+    );
+  }
+
+  /** The File panel, opened on one of its two lists. */
+  private openFilePanel(tab: "local" | "server" = this.fileTab): void {
+    const menu = this.root.querySelector<HTMLDetailsElement>(".shagged__menu--file")!;
+    this.fileTab = tab;
+    menu.open = true;
+    this.renderFileList(); // now: the toggle event that also renders comes a task later
+  }
+
+  private renderFileList(): void {
+    const list = this.root.querySelector<HTMLElement>("[data-file-list]")!;
+    for (const tab of this.root.querySelectorAll<HTMLButtonElement>(".shagged__file-tabs button")) {
+      const on = (tab.dataset.action === "server-maps") === (this.fileTab === "server");
+      tab.classList.toggle("is-on", on);
+      tab.setAttribute("aria-selected", String(on));
     }
-    if (!list.childElementCount) list.textContent = "No saved drafts yet.";
-    this.root.querySelector<HTMLElement>(".shagged__drafts")!.hidden = false;
+    const filter = this.root.querySelector<HTMLInputElement>("[data-file-filter]")!.value.trim().toLowerCase();
+    const byName = this.root.querySelector<HTMLSelectElement>("[data-file-sort]")!.value === "name";
+    const drafts = this.draftStore.list();
+    this.root.querySelector("[data-file-count=local]")!.textContent = `${drafts.length}`;
+    this.root.querySelector("[data-file-count=server]")!.textContent = this.serverMaps
+      ? `${this.serverMaps.length}`
+      : "";
+    for (const row of list.querySelectorAll(".shagged__file-row, .shagged__file-empty")) row.remove();
+    const rows: HTMLElement[] = [];
+    if (this.fileTab === "local") {
+      const shown = drafts
+        .filter((draft) => draft.name.toLowerCase().includes(filter))
+        .sort((a, b) =>
+          byName
+            ? a.name.localeCompare(b.name)
+            : Number(b.active) - Number(a.active) || (b.savedAt ?? 0) - (a.savedAt ?? 0),
+        );
+      for (const draft of shown) {
+        const meta = `${draft.brushCount} brushes · ${draft.entityCount} entities · r${draft.revision}`;
+        const when = draft.active ? "open now" : draft.savedAt ? `edited ${timeAgo(draft.savedAt)}` : "";
+        rows.push(
+          fileRow(draft.name, meta, when, draft.active, [
+            draft.active ? null : rowKey("Open", { action: "open-draft", draftId: draft.id }),
+            rowKey("⬇", { downloadDraft: draft.id }, `Download ${draft.name} as .map`),
+            draft.active ? null : rowKey("✕", { deleteDraft: draft.id }, `Delete ${draft.name}`),
+          ]),
+        );
+      }
+      if (!drafts.length) rows.push(fileEmpty("No saved drafts yet."));
+    } else if (!this.serverMaps) {
+      rows.push(fileEmpty(this.serverStatus?.saveAvailable ? "Loading server maps…" : "Start npm run shagged:server"));
+    } else {
+      const current = this.serverSave ? serverMapName(this.draftId, this.document.snapshot().mapName) : null;
+      const shown = this.serverMaps
+        .filter((map) => map.name.toLowerCase().includes(filter))
+        .sort((a, b) =>
+          byName ? a.name.localeCompare(b.name) : Number(b.name === current) - Number(a.name === current),
+        );
+      for (const map of shown) {
+        const open = map.name === current;
+        rows.push(
+          fileRow(map.name, `server r${map.revision}`, open ? "open now" : "", open, [
+            rowKey("Open", { action: "open-server-map", mapName: map.name }),
+            rowKey("⬇", { downloadServer: map.name }, `Download ${map.name}.map from the server`),
+          ]),
+        );
+      }
+      if (!this.serverMaps.length) rows.push(fileEmpty("No saved maps on this server."));
+    }
+    list.append(...rows);
+    this.updateFileSync();
+  }
+
+  /** The save dot on the File key and the sync chips on the panel's map card. */
+  private updateFileSync(): void {
+    const sync = this.root.querySelector<HTMLElement>("[data-file-sync]");
+    if (!sync) return;
+    const chips = [fileChip(`● Saved in this browser · r${this.revision}`, "ok")];
+    if (this.serverSave) {
+      const behind = this.revision - this.serverSave.documentRevision;
+      chips.push(
+        behind > 0
+          ? fileChip(`Server r${this.serverSave.revision} · ${behind} behind`, "warn")
+          : fileChip(`Server r${this.serverSave.revision} · up to date`, "ok"),
+      );
+    } else if (this.serverStatus?.saveAvailable) chips.push(fileChip("Not on the server yet", "warn"));
+    sync.replaceChildren(...chips);
+    const behind = !!this.serverSave && this.serverSave.documentRevision !== this.revision;
+    const dot = this.root.querySelector<HTMLElement>("[data-file-dot]")!;
+    dot.classList.toggle("is-behind", behind);
+    dot.title = behind ? "Saved in this browser; the server copy is older" : "Saved";
+  }
+
+  private async loadServerMaps(): Promise<void> {
+    if (!this.api || !this.serverStatus?.saveAvailable) {
+      this.renderFileList();
+      return;
+    }
+    const generation = this.serverGeneration;
+    this.renderFileList();
+    const maps = await this.api.maps();
+    if (generation !== this.serverGeneration) return;
+    this.serverMaps = maps;
+    this.renderFileList();
+  }
+
+  private downloadDraft(id: string): void {
+    const draft = this.draftStore.get(id);
+    if (!draft) throw new Error("That draft is gone");
+    const name = id === this.draftId ? this.draftName : (draft.view?.draftName ?? id.slice(0, 8));
+    downloadText(`${fileSlug(name)}.map`, writeMap(draft.document.snapshot()));
+    this.status(`Downloaded ${name} as .map`);
+  }
+
+  private async downloadServerMap(name: string): Promise<void> {
+    if (!this.api) return;
+    const map = await this.api.map(name);
+    downloadText(`${name}.map`, map.source);
+    this.status(`Downloaded ${name}.map, server revision ${map.revision}`);
+  }
+
+  private deleteDraft(id: string): void {
+    const name = this.draftStore.list().find((draft) => draft.id === id)?.name ?? "this draft";
+    if (!confirm(`Delete ${name} from this browser? This can't be undone.`)) return;
+    this.draftStore.remove(id);
+    this.renderFileList();
+    this.status(`Deleted ${name}`);
+  }
+
+  /** A .map from disk, as a new local draft: the open one is saved first and never replaced. */
+  async importMapFile(file: File): Promise<void> {
+    if (this.serverBusy) throw new Error("Wait for the server request to finish");
+    const text = await file.text();
+    const base = file.name.replace(/\.map$/i, "");
+    const { data, issues } = importMapSource(text, { draftId: crypto.randomUUID() });
+    this.save();
+    this.resetCompileJob();
+    this.cancelGesture();
+    this.document = new EditorDocument(data);
+    this.restoreView(null);
+    this.serverSave = undefined;
+    this.importIssues = issues;
+    this.draftName = `imported: ${base}`.slice(0, 64);
+    this.updateDraftNameControl();
+    this.root.querySelector<HTMLSelectElement>("[data-grid]")!.value = String(this.grid);
+    this.updatePatchControls();
+    this.updateWorkPlaneControl();
+    this.rebuildMeshes();
+    this.frame(true);
+    this.save();
+    this.root.querySelector<HTMLDetailsElement>(".shagged__menu--file")!.open = false;
+    this.healthTray?.refresh();
+    this.status(
+      issues.length
+        ? `Imported ${file.name} with ${issues.length} ${issues.length === 1 ? "problem" : "problems"}: see Map Health (H)`
+        : `Imported ${file.name}`,
+    );
+    this.root.focus();
   }
 
   private openDraft(id: string): void {
@@ -1627,36 +1882,8 @@ export class EditorSession {
     this.updateWorkPlaneControl();
     this.rebuildMeshes();
     this.draw();
-    this.root.querySelector<HTMLElement>(".shagged__drafts")!.hidden = true;
+    this.importIssues = [];
     this.root.focus();
-  }
-
-  private async showServerMaps(): Promise<void> {
-    if (this.serverBusy || !this.api) return;
-    this.serverBusy = true;
-    this.updateServerButtons();
-    const generation = this.serverGeneration;
-    const panel = this.root.querySelector<HTMLElement>(".shagged__server-maps")!;
-    const list = this.root.querySelector<HTMLElement>("[data-server-map-list]")!;
-    list.textContent = "Loading server maps...";
-    panel.hidden = false;
-    try {
-      const maps = await this.api.maps();
-      if (generation !== this.serverGeneration) return;
-      list.replaceChildren();
-      for (const map of maps) {
-        const button = document.createElement("button");
-        button.type = "button";
-        button.dataset.action = "open-server-map";
-        button.dataset.mapName = map.name;
-        button.textContent = `${map.name} · server r${map.revision}`;
-        list.appendChild(button);
-      }
-      if (!maps.length) list.textContent = "No saved maps on this server.";
-    } finally {
-      this.serverBusy = false;
-      this.updateServerButtons();
-    }
   }
 
   private async openServerMap(name: string, asCopy = false): Promise<void> {
@@ -1670,11 +1897,13 @@ export class EditorSession {
       if (generation !== this.serverGeneration) return;
       const local = this.draftStore.get(map.sidecar?.draftId ?? "");
       const decision = inspectServerMap(map, local?.document.snapshot());
-      const list = this.root.querySelector<HTMLElement>("[data-server-map-list]")!;
+      const list = this.root.querySelector<HTMLElement>("[data-file-list]")!;
       list.querySelector("[data-server-conflict]")?.remove();
       if (decision.kind === "local-conflict" && !asCopy) {
+        this.openFilePanel("server");
         const notice = document.createElement("div");
         notice.dataset.serverConflict = "";
+        notice.className = "shagged__file-conflict";
         const message = document.createElement("p");
         message.textContent = `${name} has a different local draft. The local version was kept. Open the server version as a separate copy?`;
         const button = document.createElement("button");
@@ -1712,7 +1941,7 @@ export class EditorSession {
         this.draw();
         this.save();
       }
-      this.root.querySelector<HTMLElement>(".shagged__server-maps")!.hidden = true;
+      this.importIssues = [];
       this.status(
         asCopy
           ? `Opened ${name} as a separate local draft`
@@ -1739,6 +1968,7 @@ export class EditorSession {
           this.cancelGesture();
           this.document = new EditorDocument();
           this.serverSave = undefined;
+          this.importIssues = [];
           this.selectedId = null;
           this.draftName = "Untitled";
           this.updateDraftNameControl();
@@ -1751,20 +1981,18 @@ export class EditorSession {
           this.cancelGesture();
           this.document = new EditorDocument(createRoomTemplate());
           this.serverSave = undefined;
+          this.importIssues = [];
           this.selectedId = null;
           this.draftName = "Room Template";
           this.updateDraftNameControl();
           this.changed();
           break;
         case "drafts":
-          this.showDrafts();
+          this.openFilePanel("local");
           break;
         case "server-maps":
-          void this.showServerMaps().catch((error: unknown) => this.serverError(error));
-          break;
-        case "close-server-maps":
-          this.root.querySelector<HTMLElement>(".shagged__server-maps")!.hidden = true;
-          this.root.focus();
+          this.openFilePanel("server");
+          void this.loadServerMaps().catch((error: unknown) => this.serverError(error));
           break;
         case "open-server-map":
         case "server-copy":
@@ -1772,10 +2000,6 @@ export class EditorSession {
             void this.openServerMap(draftId, action === "server-copy").catch((error: unknown) =>
               this.serverError(error),
             );
-          break;
-        case "close-drafts":
-          this.root.querySelector<HTMLElement>(".shagged__drafts")!.hidden = true;
-          this.root.focus();
           break;
         case "open-draft":
           if (this.serverBusy) throw new Error("Wait for the server request to finish");
@@ -1965,6 +2189,9 @@ export class EditorSession {
       } else if (key === "s") {
         event.preventDefault();
         this.action(event.shiftKey ? "export" : "save");
+      } else if (key === "o") {
+        event.preventDefault();
+        this.openFilePanel();
       } else if (key === "d") {
         event.preventDefault();
         this.action("duplicate");
@@ -1976,9 +2203,14 @@ export class EditorSession {
     }
     if (key === "b") this.action("brush");
     else if (key === "p") this.action("patch");
-    else if (key === "v") this.action("select");
-    else if (key === "g") this.action("vertices");
-    else if (key === "e") this.action("entity");
+    else if (key === "s") this.action("select");
+    else if (key === "v" || key === "g")
+      this.action("vertices"); // G: the old vertices key
+    else if (key === "c") {
+      const curves = this.root.querySelector<HTMLDetailsElement>(".shagged__menu--curves")!;
+      curves.open = !curves.open;
+      if (curves.open) curves.querySelector<HTMLButtonElement>(".shagged__menu-panel button")?.focus();
+    } else if (key === "e") this.action("entity");
     else if (key === "t") {
       // the drawer focuses its search box during this keydown; without this the "t" is typed into it
       event.preventDefault();
@@ -2001,15 +2233,11 @@ export class EditorSession {
         this.cancelGesture();
         return;
       }
-      if (menu?.open) {
-        menu.open = false;
-        menu.querySelector("summary")?.focus();
-        return;
-      }
-      const drafts = this.root.querySelector<HTMLElement>(".shagged__drafts");
-      if (drafts && !drafts.hidden) {
-        drafts.hidden = true;
-        this.root.focus();
+      // an open menu closes even when focus has left it (the File panel opened by Ctrl+O, say)
+      const open = menu?.open ? menu : this.root.querySelector<HTMLDetailsElement>(".shagged__menu[open]");
+      if (open) {
+        open.open = false;
+        open.querySelector("summary")?.focus();
         return;
       }
       this.deselect();
@@ -2072,12 +2300,7 @@ export class EditorSession {
       this.status(`Export rejected: ${error instanceof Error ? error.message : String(error)}`);
       return;
     }
-    const url = URL.createObjectURL(new Blob([source], { type: "text/plain;charset=utf-8" }));
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `shagged-${this.draftId.slice(0, 8)}.map`;
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    downloadText(`shagged-${this.draftId.slice(0, 8)}.map`, source);
     this.status("Exported source .map; compiler acceptance unverified");
   }
 
@@ -3925,4 +4148,89 @@ export class EditorSession {
       form.after(note);
     }
   }
+}
+
+/** One map in the File panel's list: its name, what it holds, and its keys. */
+function fileRow(
+  name: string,
+  meta: string,
+  badge: string,
+  current: boolean,
+  keys: Array<HTMLElement | null>,
+): HTMLElement {
+  const row = document.createElement("div");
+  row.className = `shagged__file-row${current ? " is-current" : ""}`;
+  row.setAttribute("role", "listitem");
+  const text = document.createElement("div");
+  const title = document.createElement("div");
+  title.className = "shagged__file-row-name";
+  title.textContent = name;
+  const info = document.createElement("div");
+  info.className = "shagged__file-row-meta";
+  info.textContent = meta;
+  if (badge) {
+    const mark = document.createElement("em");
+    mark.textContent = badge;
+    info.append(" · ", mark);
+  }
+  text.append(title, info);
+  row.append(text, ...keys.map((key) => key ?? document.createElement("span")));
+  return row;
+}
+
+function rowKey(label: string, data: Record<string, string>, title?: string): HTMLButtonElement {
+  const key = document.createElement("button");
+  key.type = "button";
+  key.textContent = label;
+  key.className = label === "Open" ? "shagged__file-open" : "shagged__file-icon-key";
+  if (title) {
+    key.title = title;
+    key.setAttribute("aria-label", title);
+  }
+  Object.assign(key.dataset, data);
+  return key;
+}
+
+function fileEmpty(text: string): HTMLElement {
+  const empty = document.createElement("p");
+  empty.className = "shagged__file-empty";
+  empty.textContent = text;
+  return empty;
+}
+
+function fileChip(text: string, tone: "ok" | "warn"): HTMLElement {
+  const chip = document.createElement("span");
+  chip.className = `shagged__file-chip is-${tone}`;
+  chip.textContent = text;
+  return chip;
+}
+
+/** "2 h ago", "yesterday", "3 days ago". */
+function timeAgo(at: number, now = Date.now()): string {
+  const minutes = Math.max(0, Math.round((now - at) / 60_000));
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} h ago`;
+  const days = Math.round(hours / 24);
+  return days === 1 ? "yesterday" : days < 7 ? `${days} days ago` : new Date(at).toLocaleDateString();
+}
+
+/** A map name as a file name: "Washoi DM2 remix" → washoi_dm2_remix. */
+function fileSlug(name: string): string {
+  return (
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "") || "map"
+  );
+}
+
+function downloadText(fileName: string, text: string): void {
+  const url = URL.createObjectURL(new Blob([text], { type: "text/plain;charset=utf-8" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

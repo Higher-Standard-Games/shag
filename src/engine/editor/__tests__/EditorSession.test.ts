@@ -662,14 +662,14 @@ describe("editor DOM shell", () => {
     name.value = "Practice room";
     name.dispatchEvent(new Event("change"));
     restored.root.querySelector<HTMLButtonElement>('[data-action="drafts"]')!.click();
-    const chooser = restored.root.querySelector<HTMLElement>(".shagged__drafts")!;
-    expect(chooser.hidden).toBe(false);
+    const chooser = restored.root.querySelector<HTMLDetailsElement>(".shagged__menu--file")!;
+    expect(chooser.open).toBe(true);
     restored.root.querySelector<HTMLButtonElement>(`[data-draft-id="${id}"]`)!.click();
     expect(restored.draftId).toBe(id);
     expect(restored.document.snapshot().brushes).toHaveLength(6);
     expect(name.value).toBe("Room Template");
     expect(work.value).toBe("0");
-    expect(chooser.hidden).toBe(true);
+    expect(chooser.open).toBe(false);
     restored.root.querySelector<HTMLButtonElement>('[data-action="drafts"]')!.click();
     restored.root.querySelector<HTMLButtonElement>(`[data-draft-id="${newId}"]`)!.click();
     expect(restored.draftId).toBe(newId);
@@ -1457,7 +1457,7 @@ describe("editor DOM shell", () => {
     pointer(xy, "pointerup", 180, 118);
 
     // a move (not draw/resize) doesn't show a size label — the size isn't changing
-    session.root.dispatchEvent(new KeyboardEvent("keydown", { key: "v", bubbles: true }));
+    session.root.dispatchEvent(new KeyboardEvent("keydown", { key: "s", bubbles: true }));
     context.fillText.mockClear();
     pointer(xy, "pointerdown", 232, 118);
     pointer(xy, "pointermove", 260, 118);
@@ -1537,7 +1537,7 @@ describe("editor DOM shell", () => {
     pointer("pointerup", 20, 20, 2);
     expect(hover(232, 118)).toBe("");
     // the Select tool grabs whatever is there
-    session.root.dispatchEvent(new KeyboardEvent("keydown", { key: "v", bubbles: true }));
+    session.root.dispatchEvent(new KeyboardEvent("keydown", { key: "s", bubbles: true }));
     expect(hover(232, 118)).toBe("grab");
 
     pointer("pointerdown", 232, 118);
@@ -1727,10 +1727,10 @@ describe("editor DOM shell", () => {
     expect(session.document.snapshot().brushes).toHaveLength(0); // the cancelled drag committed nothing
 
     session.root.querySelector<HTMLButtonElement>('[data-action="drafts"]')!.click();
-    const drafts = session.root.querySelector<HTMLElement>(".shagged__drafts")!;
-    expect(drafts.hidden).toBe(false);
+    const drafts = session.root.querySelector<HTMLDetailsElement>(".shagged__menu--file")!;
+    expect(drafts.open).toBe(true);
     key("Escape");
-    expect(drafts.hidden).toBe(true);
+    expect(drafts.open).toBe(false);
 
     session.dispose();
     engine.dispose();
@@ -1769,6 +1769,179 @@ describe("editor DOM shell", () => {
     delete (URL as { createObjectURL?: unknown }).createObjectURL;
     delete (URL as { revokeObjectURL?: unknown }).revokeObjectURL;
     anchorClick.mockRestore();
+    session.dispose();
+    engine.dispose();
+  });
+});
+
+describe("the drawing tools", () => {
+  it("groups Select, Vertices, Brush, Patch and Curves with their letter keys", () => {
+    const engine = new NullEngine();
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    const session = new EditorSession(engine, canvas, vi.fn());
+    const group = session.root.querySelector<HTMLElement>('[aria-label="Drawing tools"]')!;
+    expect(
+      [...group.querySelectorAll("button[data-action], summary")].slice(0, 5).map((key) => key.textContent),
+    ).toEqual(["Select", "Vertices", "Brush", "Patch", "Curves"]);
+    expect([...group.querySelectorAll(":scope > button > b, summary > b")].map((key) => key.textContent)).toEqual([
+      "S",
+      "V",
+      "B",
+      "P",
+      "C",
+    ]);
+    const press = (key: string) => session.root.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
+    const active = () => group.querySelector(":scope > button.active")?.getAttribute("data-action");
+    for (const [key, tool] of [
+      ["b", "brush"],
+      ["s", "select"],
+      ["v", "vertices"],
+      ["p", "patch"],
+      ["s", "select"],
+      ["g", "vertices"],
+    ]) {
+      press(key);
+      expect(active()).toBe(tool);
+    }
+    const curves = group.querySelector<HTMLDetailsElement>(".shagged__menu--curves")!;
+    press("c");
+    expect(curves.open).toBe(true);
+    session.dispose();
+    engine.dispose();
+  });
+});
+
+describe("the File panel", () => {
+  function blobUrls() {
+    const blobs: Blob[] = [];
+    URL.createObjectURL = vi.fn((blob: Blob) => {
+      blobs.push(blob);
+      return "blob:shagged-test";
+    });
+    URL.revokeObjectURL = vi.fn();
+    const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    return {
+      blobs,
+      restore() {
+        delete (URL as { createObjectURL?: unknown }).createObjectURL;
+        delete (URL as { revokeObjectURL?: unknown }).revokeObjectURL;
+        anchorClick.mockRestore();
+      },
+    };
+  }
+
+  function mapFile(name: string, source: string): File {
+    return new File([source], name, { type: "text/plain" });
+  }
+
+  it("lists local drafts with download for every row and delete for all but the open one", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const urls = blobUrls();
+    const engine = new NullEngine();
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    const session = new EditorSession(engine, canvas, vi.fn());
+    const untitled = session.draftId;
+    session.save();
+    session.root.querySelector<HTMLButtonElement>('[data-action="room"]')!.click();
+    session.root.dispatchEvent(new KeyboardEvent("keydown", { key: "o", ctrlKey: true, bubbles: true }));
+    const menu = session.root.querySelector<HTMLDetailsElement>(".shagged__menu--file")!;
+    expect(menu.open).toBe(true);
+    session.root.querySelector<HTMLButtonElement>('[data-action="drafts"]')!.click();
+    const rows = () => [...session.root.querySelectorAll<HTMLElement>("[data-file-list] .shagged__file-row")];
+    expect(rows()).toHaveLength(2);
+    expect(rows()[0].classList.contains("is-current")).toBe(true);
+    expect(rows()[0].querySelector("[data-delete-draft]")).toBeNull();
+    expect(session.root.querySelector("[data-file-count=local]")?.textContent).toBe("2");
+
+    session.root.querySelector<HTMLButtonElement>(`[data-download-draft="${untitled}"]`)!.click();
+    expect(urls.blobs).toHaveLength(1);
+    expect(await urls.blobs[0].text()).toContain('"classname" "worldspawn"');
+    expect(menu.open).toBe(true); // downloading keeps the panel open
+
+    const confirm = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValueOnce(true);
+    session.root.querySelector<HTMLButtonElement>(`[data-delete-draft="${untitled}"]`)!.click();
+    expect(rows()).toHaveLength(2);
+    session.root.querySelector<HTMLButtonElement>(`[data-delete-draft="${untitled}"]`)!.click();
+    expect(rows()).toHaveLength(1);
+    expect(localStorage.getItem(`shagged:draft:v1:${untitled}`)).toBeNull();
+    expect(confirm).toHaveBeenCalledTimes(2);
+
+    vi.advanceTimersByTime(1000);
+    vi.useRealTimers();
+    confirm.mockRestore();
+    urls.restore();
+    session.dispose();
+    engine.dispose();
+  });
+
+  it("imports a chosen or dropped .map as a new draft and keeps the open one", async () => {
+    const engine = new NullEngine();
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    const session = new EditorSession(engine, canvas, vi.fn());
+    session.root.querySelector<HTMLButtonElement>('[data-action="room"]')!.click();
+    const before = session.draftId;
+    const template = session.document.snapshot();
+    const input = session.root.querySelector<HTMLInputElement>("[data-import-file]")!;
+    Object.defineProperty(input, "files", { configurable: true, value: [mapFile("dm_test.map", writeMap(template))] });
+    input.dispatchEvent(new Event("change"));
+    await vi.waitFor(() => expect(session.draftId).not.toBe(before));
+    expect(session.document.snapshot().brushes).toHaveLength(template.brushes.length);
+    expect(session.root.querySelector<HTMLInputElement>("[data-draft-name]")!.value).toBe("imported: dm_test");
+    expect(localStorage.getItem(`shagged:draft:v1:${before}`)).not.toBeNull();
+    expect(session.root.querySelector(".shagged__status")!.textContent).toContain("Imported dm_test.map");
+
+    const drop = (files: File[]) => {
+      const event = new Event("drop", { bubbles: true, cancelable: true });
+      Object.defineProperty(event, "dataTransfer", { value: { types: ["Files"], files } });
+      session.root.dispatchEvent(event);
+      return event;
+    };
+    expect(drop([mapFile("notes.txt", "hello")]).defaultPrevented).toBe(true);
+    expect(session.root.querySelector(".shagged__status")!.textContent).toContain("Only .map files");
+    const imported = session.draftId;
+    drop([mapFile("q3dm17.map", writeMap(template))]);
+    await vi.waitFor(() => expect(session.draftId).not.toBe(imported));
+    expect(session.root.querySelector<HTMLInputElement>("[data-draft-name]")!.value).toBe("imported: q3dm17");
+    session.dispose();
+    engine.dispose();
+  });
+
+  it("downloads a server map's .map without opening it", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const urls = blobUrls();
+    const engine = new NullEngine();
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    const sidecar = createRoomTemplate();
+    const name = serverMapName(sidecar.draftId);
+    const api = {
+      status: vi.fn(async () => ({
+        saveAvailable: true,
+        compilerAvailable: false,
+        playableAvailable: false,
+        supportedQualities: [],
+        reason: null,
+      })),
+      maps: vi.fn(async () => [{ name, revision: 2, sourceHash: "hash" }]),
+      map: vi.fn(async () => ({ name, revision: 2, sourceHash: "hash", source: "// the server copy", sidecar })),
+    } as unknown as ShaggedApi;
+    const session = new EditorSession(engine, canvas, vi.fn(), api);
+    const draft = session.draftId;
+    await vi.waitFor(() =>
+      expect(session.root.querySelector<HTMLButtonElement>('[data-action="server-maps"]')?.disabled).toBe(false),
+    );
+    session.root.querySelector<HTMLButtonElement>('[data-action="server-maps"]')!.click();
+    await vi.waitFor(() => expect(session.root.querySelector(`[data-download-server="${name}"]`)).toBeTruthy());
+    session.root.querySelector<HTMLButtonElement>(`[data-download-server="${name}"]`)!.click();
+    await vi.waitFor(() => expect(urls.blobs).toHaveLength(1));
+    expect(await urls.blobs[0].text()).toBe("// the server copy");
+    expect(session.draftId).toBe(draft);
+    vi.advanceTimersByTime(1000);
+    vi.useRealTimers();
+    urls.restore();
     session.dispose();
     engine.dispose();
   });

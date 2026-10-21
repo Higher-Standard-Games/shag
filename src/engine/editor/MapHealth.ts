@@ -13,7 +13,9 @@ export type MapHealthCode =
   | "duplicate-targetname"
   | "unknown-class"
   | "unknown-shader"
-  | "missing-shader-image";
+  | "missing-shader-image"
+  /** Part of an imported .map the editor couldn't take; reported by the editor, not inspectMapHealth. */
+  | "import-skipped";
 
 export interface MapHealthIssue {
   code: MapHealthCode;

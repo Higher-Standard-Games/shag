@@ -2,9 +2,12 @@ import { describe, expect, it } from "vitest";
 import { EditorDocument } from "../EditorDocument";
 import { EditorDraftStore, type EditorViewState } from "../EditorDraftStore";
 
-function memoryStorage(): Pick<Storage, "getItem" | "setItem" | "key" | "length"> {
+function memoryStorage(): Pick<Storage, "getItem" | "setItem" | "removeItem" | "key" | "length"> {
   const values = new Map<string, string>();
   return {
+    removeItem: (key) => {
+      values.delete(key);
+    },
     getItem: (key) => values.get(key) ?? null,
     setItem: (key, value) => {
       values.set(key, value);
@@ -126,5 +129,25 @@ describe("editor local draft recovery", () => {
     expect(store.load().document.snapshot()).toEqual(first);
     storage.setItem("shagged:draft:v1:damaged", "not json");
     expect(store.list()).toHaveLength(2);
+  });
+
+  it("records when each draft was saved and deletes any but the open one", () => {
+    let clock = 1000;
+    const storage = memoryStorage();
+    const store = new EditorDraftStore(storage, () => clock);
+    const first = new EditorDocument().snapshot();
+    const second = new EditorDocument().snapshot();
+    store.save(first, { ...view, draftName: "First room" });
+    clock = 2000;
+    store.save(second, { ...view, draftName: "Second room" });
+    expect(store.list().map((draft) => [draft.name, draft.savedAt])).toEqual([
+      ["Second room", 2000],
+      ["First room", 1000],
+    ]);
+    expect(() => store.remove(second.draftId)).toThrow("open draft");
+    store.remove(first.draftId);
+    expect(store.list().map((draft) => draft.name)).toEqual(["Second room"]);
+    expect(store.get(first.draftId)).toBeNull();
+    expect([...Array(storage.length).keys()].some((i) => storage.key(i)?.includes(first.draftId))).toBe(false);
   });
 });

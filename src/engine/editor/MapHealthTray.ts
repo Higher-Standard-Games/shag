@@ -25,6 +25,7 @@ const CODE_LABEL: Record<MapHealthIssue["code"], string> = {
   "unknown-class": "Unknown class",
   "unknown-shader": "Unknown shader",
   "missing-shader-image": "Missing image",
+  "import-skipped": "Not imported",
 };
 
 export class MapHealthTray {

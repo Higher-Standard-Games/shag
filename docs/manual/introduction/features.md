@@ -10,7 +10,7 @@ This page describes current capability boundaries. Exact commands, defaults, and
 | PK3 | Manifest discovery, runtime index, archive overrides, browser/headless lookup | External data is not committed |
 | Q3 shaders | Stages, blending, alpha/depth/cull flags, tcMod, environment tcGen, wave color/alpha, animation, autosprites | Not full renderer parity; most non-sprite vertex deforms are skipped |
 | Text maps | Parser, brush/patch handling, raw `MapRenderer`, custom entity registry | `MapLoader` does not load local `.map` files |
-| Map editor | SHAGGED: four-view brush editor, MakeBSP/MakeLight compile, playtest, scripting API and MCP server | Axis-aligned brushes and patches; no NetRadiant import |
+| Map editor | SHAGGED: four-view brush editor, MakeBSP/MakeLight compile, playtest, scripting API and MCP server | Imports Quake 3 `.map` (classic and brushDef); skips Valve 220 and Doom 3 brushes |
 | Models/textures | Babylon loader integration, PK3 assets, compressed-texture tooling | Availability depends on shipped media and target decoder support |
 
 ## Rendering
@@ -81,7 +81,7 @@ See [Deployment](../deployment/) for the verified workflow and known blockers.
 
 ## Known limits
 
-- the SHAGGED editor builds axis-aligned brushes and patches only, and cannot import arbitrary NetRadiant maps;
+- the SHAGGED editor imports Quake 3 `.map` files but skips Valve 220 and Doom 3 brushes and patches inside brush entities;
 - incomplete Q3 shader parity;
 - raw text maps are not a playable FPS load path;
 - platform wrappers do not have equal release readiness;

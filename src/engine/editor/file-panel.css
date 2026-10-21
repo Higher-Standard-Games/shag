@@ -1,0 +1,305 @@
+/* SHAGGED File panel (toolbar folder key) — loaded after editor.css so these win the cascade. */
+.shagged__menu--file > summary {
+  gap: 7px;
+  max-width: 230px;
+  font-size: 13px;
+}
+.shagged__menu--file > summary::after {
+  content: none;
+}
+.shagged__file-icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+}
+.shagged__menu--file [data-map-title] {
+  display: block;
+  min-width: 0;
+  max-width: 170px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.shagged__file-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #2fd17a;
+  box-shadow: 0 0 6px #2fd17a;
+}
+.shagged__file-dot.is-behind {
+  background: #ff9d2e;
+  box-shadow: 0 0 6px #ff9d2e;
+}
+/* --- File panel: one gold slab hanging from the toolbar's yellow line. Anything
+   you read sits on cream with dark text; only the big keys and Open are purple. --- */
+.shagged__menu-panel.shagged__file {
+  top: calc(100% + 9px);
+  left: -9px;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 16px 22px;
+  width: min(900px, calc(100vw - 80px));
+  max-height: calc(100vh - 110px);
+  box-sizing: border-box;
+  padding: 18px 20px 14px;
+  overflow-y: auto;
+  color: #171129;
+  background: linear-gradient(180deg, #ffc61a, #f4b400 60%, #eaa800);
+  border: 0;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%);
+  box-shadow: 0 30px 60px #000c;
+  font-size: 13px;
+}
+.shagged__file h3 {
+  margin: 0 0 8px;
+  color: #6b4600;
+  font:
+    900 11px "Orbitron",
+    monospace;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.shagged__file-card {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  background: #fff1bf;
+  box-shadow:
+    inset 0 0 0 2px #17112922,
+    3px 4px 0 #c88d00;
+}
+.shagged__toolbar .shagged__file label {
+  justify-content: space-between;
+  color: #6b4600;
+  font-size: 12px;
+  font-weight: 700;
+}
+.shagged__toolbar .shagged__file input,
+.shagged__toolbar .shagged__file select {
+  color: #171129;
+  background: #fff8dc;
+  border: 0;
+  box-shadow: inset 0 0 0 2px #17112933;
+  font-weight: 700;
+}
+.shagged__toolbar .shagged__file input[data-draft-name] {
+  flex: 1;
+  width: auto;
+  font:
+    800 15px "Orbitron",
+    monospace;
+}
+.shagged__toolbar .shagged__file input[data-map-id] {
+  width: 150px;
+  font-family: monospace;
+}
+.shagged__toolbar .shagged__file input:disabled {
+  background: #ffe27a;
+  box-shadow: none;
+}
+.shagged__file-sync {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.shagged__file-chip {
+  padding: 3px 8px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.shagged__file-chip.is-ok {
+  color: #11602f;
+  background: #d9f5df;
+}
+.shagged__file-chip.is-warn {
+  color: #8a3b00;
+  background: #ffd9a8;
+}
+.shagged__file-keys {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.shagged__file-keys--one {
+  grid-template-columns: 1fr;
+}
+.shagged__toolbar .shagged__file-keys button {
+  min-height: 36px;
+  gap: 8px;
+  color: #ffe787;
+  background: linear-gradient(180deg, #2a3150, #171129);
+  box-shadow: 3px 4px 0 #89501b;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.shagged__toolbar .shagged__file-keys button small {
+  color: #b9c7da;
+  font-size: 10px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.shagged__toolbar .shagged__file label.shagged__file-drop {
+  display: block;
+  margin-bottom: 10px;
+  padding: 14px;
+  color: #4a3000;
+  background: #fff3c9;
+  border: 2px dashed #17112999;
+  text-align: center;
+  white-space: normal;
+  cursor: pointer;
+}
+.shagged__toolbar .shagged__file label.shagged__file-drop.is-over,
+.shagged__toolbar .shagged__file label.shagged__file-drop:hover {
+  background: #fff8dc;
+  border-color: #171129;
+}
+.shagged__file-drop b {
+  display: block;
+  margin-bottom: 3px;
+  color: #171129;
+  font:
+    800 13px "Orbitron",
+    monospace;
+}
+.shagged__file-browse {
+  min-width: 0;
+}
+.shagged__file-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.shagged__toolbar .shagged__file-tabs button {
+  flex: 1;
+  min-height: 36px;
+  color: #5a3a00;
+  background: #e9a900;
+  box-shadow: inset 0 -3px 0 #c88d00;
+  font:
+    800 12px "Orbitron",
+    monospace;
+  letter-spacing: 0.08em;
+}
+.shagged__toolbar .shagged__file-tabs button.is-on {
+  color: #171129;
+  background: #fff1bf;
+  box-shadow: inset 0 -3px 0 #171129;
+}
+.shagged__file-tabs i {
+  margin-left: 6px;
+  font:
+    700 11px "Rajdhani",
+    sans-serif;
+  font-style: normal;
+  opacity: 0.75;
+}
+.shagged__file-filter {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.shagged__toolbar .shagged__file-filter input {
+  flex: 1;
+}
+.shagged__file-list {
+  max-height: 340px;
+  overflow-y: auto;
+  background: #fff8dc;
+  box-shadow: inset 0 0 0 2px #17112922;
+}
+.shagged__file-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 64px 30px 30px; /* fixed, so keys line up across rows */
+  gap: 8px;
+  align-items: center;
+  padding: 9px 12px;
+  border-bottom: 1px solid #17112918;
+}
+.shagged__file-row:nth-child(even) {
+  background: #fff1bf;
+}
+.shagged__file-row.is-current {
+  background: #ffe27a;
+  box-shadow: inset 4px 0 0 #171129;
+}
+.shagged__file-row-name {
+  overflow: hidden;
+  font-size: 16px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.shagged__file-row-meta {
+  color: #6b5a3a;
+  font-size: 12px;
+  font-weight: 600;
+}
+.shagged__file-row-meta em {
+  padding: 0 5px;
+  color: #171129;
+  background: #ffc61a;
+  font-style: normal;
+  font-weight: 800;
+}
+.shagged__toolbar .shagged__file-row button {
+  min-height: 28px;
+  box-shadow: 2px 3px 0 #c88d00;
+}
+.shagged__toolbar .shagged__file-row .shagged__file-open {
+  color: #ffe787;
+  background: linear-gradient(180deg, #2a3150, #171129);
+  text-transform: uppercase;
+  justify-content: center;
+}
+.shagged__toolbar .shagged__file-row .shagged__file-icon-key {
+  justify-content: center;
+  width: 30px;
+  padding: 0;
+  font-size: 13px;
+}
+.shagged__file-empty,
+.shagged__file-conflict {
+  margin: 0;
+  padding: 14px 12px;
+  color: #6b4600;
+  font-weight: 700;
+  white-space: normal;
+}
+.shagged__file-conflict {
+  display: grid;
+  gap: 8px;
+  background: #ffd9a8;
+}
+.shagged__file-conflict p {
+  margin: 0;
+}
+.shagged__file-foot {
+  display: flex;
+  flex-wrap: wrap;
+  grid-column: 1 / -1;
+  gap: 18px;
+  padding-top: 10px;
+  color: #5a3a00;
+  border-top: 2px solid #17112922;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: normal;
+}
+.shagged__file-foot kbd {
+  padding: 2px 5px;
+  color: #171129;
+  background: #fff1bf;
+  font: 800 11px monospace;
+}
+@media (max-width: 900px) {
+  .shagged__menu-panel.shagged__file {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

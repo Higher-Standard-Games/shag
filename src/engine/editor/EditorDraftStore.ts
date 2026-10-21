@@ -4,6 +4,8 @@ const ACTIVE_KEY = "shagged:active-draft:v1";
 const DRAFT_PREFIX = "shagged:draft:v1:";
 const draftKey = (id: string): string => `shagged:draft:v1:${id}`;
 const viewKey = (id: string): string => `shagged:view:v1:${id}`;
+/** When the draft was last saved, in ms; drafts saved before it was kept have none. */
+const savedKey = (id: string): string => `shagged:saved:v1:${id}`;
 
 export interface EditorViewState {
   schemaVersion: 1;
@@ -117,11 +119,17 @@ export interface DraftSummary {
   entityCount: number;
   revision: number;
   active: boolean;
+  /** Last save, in ms since the epoch; absent for drafts saved before this was recorded. */
+  savedAt?: number;
 }
 
 /** Versioned local recovery; the document stays independent from view state. */
 export class EditorDraftStore {
-  constructor(private readonly storage: Pick<Storage, "getItem" | "setItem" | "key" | "length">) {}
+  constructor(
+    private readonly storage: Pick<Storage, "getItem" | "setItem" | "key" | "length"> &
+      Partial<Pick<Storage, "removeItem">>,
+    private readonly now: () => number = Date.now,
+  ) {}
 
   load(): { document: EditorDocument; view: EditorViewState | null } {
     const id = this.storage.getItem(ACTIVE_KEY);
@@ -156,6 +164,7 @@ export class EditorDraftStore {
       try {
         const { document, view } = this.read(id);
         const data = document.snapshot();
+        const savedAt = Number(this.storage.getItem(savedKey(id)));
         drafts.push({
           id,
           name: view?.draftName ?? `Untitled ${id.slice(0, 8)}`,
@@ -163,6 +172,7 @@ export class EditorDraftStore {
           entityCount: data.entities.length,
           revision: data.revision,
           active: id === activeId,
+          ...(savedAt > 0 ? { savedAt } : {}),
         });
       } catch {
         // Keep damaged drafts untouched; they are excluded from the chooser.
@@ -189,6 +199,14 @@ export class EditorDraftStore {
     if (!validView(view)) throw new Error("Invalid editor view state");
     this.storage.setItem(draftKey(data.draftId), JSON.stringify(data));
     this.storage.setItem(viewKey(data.draftId), JSON.stringify(view));
+    this.storage.setItem(savedKey(data.draftId), String(this.now()));
     this.storage.setItem(ACTIVE_KEY, data.draftId);
+  }
+
+  /** Forget a draft for good. The open draft can't be removed. */
+  remove(id: string): void {
+    if (id === this.storage.getItem(ACTIVE_KEY)) throw new Error("The open draft can't be deleted");
+    if (!this.storage.removeItem) throw new Error("This storage can't delete drafts");
+    for (const key of [draftKey(id), viewKey(id), savedKey(id)]) this.storage.removeItem(key);
   }
 }
