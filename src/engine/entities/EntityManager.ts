@@ -38,9 +38,10 @@ function mapWeaponYaw(pickupId: number): number {
 /** Pickup categories the client spawns visuals for (mirrors shared PickupType). */
 type ClientPickupType = "weapon" | "ammo" | "armor" | "health" | "powerup";
 
-/** Pickup value for a manual spawn: an ammo def's amount, otherwise the def id. */
-function manualPickupValue(def: EntityDef): string | number {
-  return ("amount" in def && typeof def.amount === "number" && def.amount) || def.id;
+/** Pickup value: an ammo pickup's ammo type (its icon), otherwise the def id. */
+function pickupValue(def: EntityDef, type: ClientPickupType): string {
+  if (type === "ammo" && "ammoType" in def && typeof def.ammoType === "string" && def.ammoType) return def.ammoType;
+  return def.id;
 }
 
 /**
@@ -198,7 +199,7 @@ export class EntityManager {
         id: def.id,
         modelPath: def.modelPath || "models/items/ammo/ammobox/ammobox.md3",
         type,
-        value: manualPickupValue(def),
+        value: pickupValue(def, type),
         scale: def.scale,
         gravity: options.gravity,
         glowColor: def.glowColor, // Pass glow color for pulsing light
@@ -247,11 +248,7 @@ export class EntityManager {
     const name = data.properties.targetname || `${def.classname || "item"}_${Date.now()}`;
 
     const type = pickupTypeOf(def, "weapon");
-    let value: string | number = def.id;
-
-    if (type === "ammo" && "ammoType" in def && typeof def.ammoType === "string" && def.ammoType) {
-      value = def.ammoType;
-    }
+    const value = pickupValue(def, type);
 
     // Authoritative pickup id from the shared table (matches the server). All
     // server-tracked types (weapon/ammo/armor/health) share one id space. Match by
