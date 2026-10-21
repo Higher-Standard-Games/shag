@@ -493,7 +493,6 @@ export class EditorSession {
               <label>Class <select data-entity-class aria-label="Entity class" title="Class placed by the Entity tool"></select></label>
             </div></details>
           </div>
-          <button data-action="health" title="Map Health (H)">Health</button>
         </div>
         <div class="shagged__toolgroup" aria-label="View actions">
           <details class="shagged__menu"><summary>View</summary><div class="shagged__menu-panel">
@@ -503,9 +502,10 @@ export class EditorSession {
           </div></details>
         </div>
         <div class="shagged__toolgroup" aria-label="Build actions">
-          <details class="shagged__menu shagged__menu--build"><summary title="Compile, status and playtest">Build<i class="shagged__build-dot" data-build-dot></i></summary><div class="shagged__menu-panel">
+          <details class="shagged__menu shagged__menu--build"><summary title="Compile, playtest, map health and build status">Build<i class="shagged__build-dot" data-build-dot></i></summary><div class="shagged__menu-panel">
             <button data-action="compile" disabled title="Connecting to SHAGGED server">Compile</button>
             <button data-action="playtest" disabled title="A compiled, playable build is required">Playtest</button>
+            <button data-action="health" title="Map Health (H)" aria-keyshortcuts="H">Map health <kbd>H</kbd></button>
             <span class="shagged__menu-rule" aria-hidden="true"></span>
             <button data-action="compile-status" title="Check server and compile status">Status: offline</button>
           </div></details>

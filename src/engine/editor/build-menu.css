@@ -27,3 +27,10 @@
   background: #ff4d5e;
   box-shadow: 0 0 6px #ff4d5e;
 }
+.shagged__menu--build kbd {
+  margin-left: auto;
+  padding: 0 5px;
+  color: #ffe787;
+  background: #171129;
+  font: 800 10px monospace;
+}
