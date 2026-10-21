@@ -3,12 +3,7 @@
  */
 
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
-import type { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Scene } from "@babylonjs/core/scene";
-// Type-only import reaches into the fps game module — EntityManager itself
-// builds FPS-flavoured entity types (weapon/ammo) and is FPS-coupled (matrix #6).
-// Type-only imports are erased at compile time.
-import type { InventoryManager } from "../../games/fps/world/InventoryManager";
 import { extractPickups, type PickupEntry } from "../../shared/bsp/PickupTable";
 import { SharedCollisionWorld } from "../../shared/collision/SharedCollisionWorld";
 import type { EntityDef } from "../../shared/entities/EntityDef";
@@ -86,14 +81,10 @@ async function resolvePickupVisualFactory(
   return createProceduralPickupFactory(def.id) ?? undefined;
 }
 
-/** A map entity spawned by this manager and tracked for disposal and pickup checks. */
+/** A map entity spawned by this manager, tracked for disposal. */
 interface ActiveEntity {
   def: EntityDef;
   node: Pickup;
-  active: boolean;
-  /** Not assigned by spawnEntity; checkPickups skips entities without a trigger. */
-  trigger?: TransformNode;
-  mesh?: TransformNode;
 }
 
 export class EntityManager {
@@ -323,7 +314,6 @@ export class EntityManager {
     this.entities.push({
       def,
       node: pickup,
-      active: true,
     });
 
     return { handled: true, node: pickup };
@@ -341,41 +331,5 @@ export class EntityManager {
     this.entities = [];
     this.pickupTable = [];
     this.landedPickups = [];
-  }
-  /**
-   * Check if player is picking up any entities
-   * Call this from player controller update loop
-   */
-  public checkPickups(playerPos: Vector3, inventory: InventoryManager): void {
-    // Simple distance check for now
-    // AABB check would be better
-    for (const entity of this.entities) {
-      if (!entity.active || !entity.trigger) continue;
-
-      const dist = Vector3.Distance(playerPos, entity.trigger.position);
-      // Rough radius check (32 units = ~0.8m?)
-      if (dist < 40) {
-        // 32 + player radius approximation
-        this.pickupEntity(entity, inventory);
-      }
-    }
-  }
-
-  private pickupEntity(entity: ActiveEntity, inventory: InventoryManager): void {
-    const result = inventory.giveWeapon(entity.def.id);
-    if (result.acquired) {
-      devLog(`[EntityManager] Picked up ${entity.def.name}`);
-      entity.active = false;
-
-      if (entity.mesh) {
-        entity.mesh.setEnabled(false);
-      }
-      if (entity.trigger) {
-        entity.trigger.setEnabled(false); // Hide debug box
-      }
-
-      // TODO: Play pickup sound
-      // TODO: Dispatch UI event
-    }
   }
 }

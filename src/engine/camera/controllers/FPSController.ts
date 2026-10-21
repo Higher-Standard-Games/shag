@@ -1093,10 +1093,6 @@ export class FPSController implements ICameraController {
       // (debug log removed — was firing every frame during crouchslide, causing 60fps drop)
     }
 
-    // === PICKUP CHECK ===
-    // Moved to FPSPlayer
-    // EntityManager.getInstance().checkPickups(this.camera.position, this.inventory);
-
     // === WEAPON FIRING ===
     // Moved to FPSPlayer
     // this.updateFiring(deltaTime);

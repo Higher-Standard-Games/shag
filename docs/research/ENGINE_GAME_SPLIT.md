@@ -17,7 +17,7 @@ Counted on the `papercuts` branch, October 2026, excluding tests.
 
 | Area | Files importing the game | What they use |
 | --- | ---: | --- |
-| `src/engine` | 5 | `FPSController` and `FreeflyController` import `FPSActions` and `Game`; `EntityManager` imports `InventoryManager` and `FPSPickup`; the `join` and `scene` console commands load `Game` |
+| `src/engine` | 5 | `FPSController` and `FreeflyController` import `FPSActions` and `Game`; `EntityManager` loads `FPSPickup` and the procedural pickup factory; the `join` and `scene` console commands load `Game` |
 | `src/main.ts` | 1 | Boots straight into `LobbyPanel`, `FPSPlayer` and the FPS module |
 | `src/lobby` | 1 | `LobbyServer` uses the game's demo map aliases (`DemoMapAliases`) |
 | `src/bot` | 8 | The bots play Washoi: its movement, routes and demos |

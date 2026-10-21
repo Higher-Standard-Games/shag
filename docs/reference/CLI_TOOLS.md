@@ -24,7 +24,7 @@ Core validation:
     npm run server:tick
     npm run server:fuzz -- --ticks 1000
 
-Asset tools are <code>debug:textures</code>, <code>debug:collision</code>, <code>debug:pickup</code>, <code>debug:spawn</code>, <code>tools:convert</code>, <code>tools:textures*</code>, <code>tools:manifest</code>, and <code>tools:map</code>.
+Asset tools are <code>debug:textures</code>, <code>debug:pickup</code>, <code>debug:spawn</code>, <code>tools:convert</code>, <code>tools:textures*</code>, <code>tools:manifest</code>, and <code>tools:map</code>.
 
 Platform/docs families are <code>docs:*</code>, <code>android:*</code>, and <code>electron:*</code>. Consult <code>package.json</code> for exact expansion.
 
