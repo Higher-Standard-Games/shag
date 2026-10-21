@@ -46,3 +46,16 @@
   margin: 0 6px;
   background: linear-gradient(#ffc61a00, #ffc61a99 30%, #ffc61a99 70%, #ffc61a00);
 }
+/* Caulk: a square key in Radiant's dev-grid checker, no label */
+.shagged__toolbar .shagged__drawkeys .shagged__caulk {
+  width: 29px;
+  padding: 0;
+  background:
+    repeating-conic-gradient(#d9d2c3 0 25%, #8c8577 0 50%) 0 0 / 10px 10px,
+    #8c8577;
+}
+.shagged__toolbar .shagged__drawkeys .shagged__caulk:hover:not(:disabled) {
+  background:
+    repeating-conic-gradient(#f2e9ff 0 25%, #9239d4 0 50%) 0 0 / 10px 10px,
+    #9239d4;
+}

@@ -140,6 +140,7 @@ type Gesture = {
 
 type Tool = "brush" | "patch" | "points" | "vertices" | "select" | "entity";
 type PatchShape = NonNullable<EditorViewState["patchShape"]>;
+const CAULK = "common/caulk";
 const HUD_TOOLS: Record<Tool, [key: string, name: string]> = {
   select: ["S", "Select"],
   vertices: ["V", "Vertices"],
@@ -483,6 +484,7 @@ export class EditorSession {
             <label>Tube thickness <input data-patch-thickness type="number" min="1" max="4096" step="any" value="8"></label>
             <label>End caps <input data-patch-capped type="checkbox" checked title="Close cylinder/cone ends; tubes get annular caps"></label>
           </div></details>
+          <button class="shagged__caulk" data-action="caulk" title="Caulk: common/caulk on the selection, or a caulk brush when nothing is selected" aria-label="Caulk"></button>
           </div>
           <span class="shagged__tool-rule" aria-hidden="true"></span>
           <div class="shagged__entitykey">
@@ -1235,11 +1237,56 @@ export class EditorSession {
   }
 
   /**
+   * The Caulk key, as in Radiant: common/caulk on the selected brushes and patches
+   * (or just the selected faces), one undo step. With nothing selected it arms the
+   * Brush tool with caulk instead.
+   */
+  private caulk(): void {
+    const data = this.document.snapshot();
+    let ids: string[] = [];
+    try {
+      ids = expandSelection(data, this.selectedIds.size ? this.selectedIds : this.selectedId ? [this.selectedId] : []);
+    } catch {
+      ids = [];
+    }
+    const brushIds = new Set(data.brushes.filter((brush) => ids.includes(brush.id)).map((brush) => brush.id));
+    const patchIds = new Set((data.patches ?? []).filter((patch) => ids.includes(patch.id)).map((patch) => patch.id));
+    if (!brushIds.size && !patchIds.size) {
+      this.currentTexture = { name: CAULK, size: null };
+      this.action("brush");
+      this.renderHud();
+      this.status("Brush tool with common/caulk: new brushes are caulked");
+      return;
+    }
+    if (this.selectedFaces.size && brushIds.size === 1 && !patchIds.size) {
+      // alignment means nothing on caulk, so any size makes a valid face override
+      this.applyToFaces([...brushIds][0], { name: CAULK }, [64, 64]);
+      return;
+    }
+    try {
+      this.document.transact((draft) => {
+        for (const brush of draft.brushes) {
+          if (!brushIds.has(brush.id)) continue;
+          brush.shader = CAULK;
+          delete brush.faces;
+          for (const side of brush.hull?.sides ?? []) delete side.material;
+        }
+        for (const patch of draft.patches ?? []) if (patchIds.has(patch.id)) patch.shader = CAULK;
+      });
+      this.changed();
+      const count = brushIds.size + patchIds.size;
+      this.status(`Caulked ${count} ${count === 1 ? "object" : "objects"}`);
+    } catch (error) {
+      this.status(`Caulk rejected: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /**
    * Texture on just the selected faces, as one undo step. A face that already
    * has an alignment keeps it (only the texture changes, as in Radiant); a new
    * face override starts at natural alignment, which needs the image size.
    */
-  private applyToFaces(brushId: string, entry: TextureEntry, size: [number, number] | null): void {
+  private applyToFaces(brushId: string, entry: Pick<TextureEntry, "name">, size: [number, number] | null): void {
     if (!size) {
       this.status(`${entry.name} has no known image size; a face texture needs one`);
       return;
@@ -2120,6 +2167,9 @@ export class EditorSession {
           break;
         case "textures":
           void this.toggleTextures();
+          break;
+        case "caulk":
+          this.caulk();
           break;
         case "models":
           this.toggleModels();

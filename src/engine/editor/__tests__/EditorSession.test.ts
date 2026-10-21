@@ -1820,6 +1820,39 @@ describe("the drawing tools", () => {
   });
 });
 
+describe("the Caulk key", () => {
+  it("caulks the selected brushes in one undo step, or arms a caulk brush with nothing selected", () => {
+    const engine = new NullEngine();
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    const session = new EditorSession(engine, canvas, vi.fn());
+    session.root.querySelector<HTMLButtonElement>('[data-action="room"]')!.click();
+    const caulkKey = session.root.querySelector<HTMLButtonElement>(
+      '[aria-label="Drawing tools"] [data-action="caulk"]',
+    )!;
+    const [first, second, third] = session.document.snapshot().brushes;
+    session["selectObject"](first.id, false);
+    session["selectObject"](second.id, true);
+    caulkKey.click();
+    const shaders = () => session.document.snapshot().brushes.map((brush) => brush.shader);
+    expect(shaders().slice(0, 3)).toEqual(["common/caulk", "common/caulk", third.shader]);
+    expect(session.document.snapshot().brushes[0].faces).toBeUndefined();
+    session.root.querySelector<HTMLButtonElement>('[data-action="undo"]')!.click();
+    expect(shaders().slice(0, 2)).toEqual([first.shader, second.shader]);
+
+    session["selectObject"](null, false);
+    session.root.dispatchEvent(new KeyboardEvent("keydown", { key: "s", bubbles: true }));
+    caulkKey.click();
+    expect(session.root.querySelector('[aria-label="Drawing tools"] button.active')?.getAttribute("data-action")).toBe(
+      "brush",
+    );
+    expect(session.root.querySelector("[data-current-texture]")!.textContent).toBe("common/caulk");
+    expect(shaders().slice(0, 2)).toEqual([first.shader, second.shader]);
+    session.dispose();
+    engine.dispose();
+  });
+});
+
 describe("the File panel", () => {
   function blobUrls() {
     const blobs: Blob[] = [];
