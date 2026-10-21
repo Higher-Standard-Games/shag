@@ -36,6 +36,7 @@ export type RenameOutcome = { ok: true; identity: PlayerIdentityInfo } | { ok: f
 const RENAME_FAILURES: Record<RenameFailure, string> = {
   name_invalid: "Names are 2–16 letters, digits, _ or -.",
   name_reserved: "That name is kept for bots and new players.",
+  name_offensive: "That name isn't allowed. Pick another.",
   name_taken: "Someone already has that name.",
   in_lobby: "Leave the room first, then rename.",
   rate_limited: "Too many renames. Try again in a minute.",

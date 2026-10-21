@@ -10,6 +10,7 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { filterPlayerName } from "../engine/server/ChatFilter";
 import type { MatchResultReport } from "../engine/server/network/MatchResultReport";
 import type { BotPreset } from "../shared/ranking/BotMatchRatingGroups";
 import { chooseBotPreset } from "../shared/ranking/BotPresetChoice";
@@ -162,7 +163,7 @@ function rowOf(row: Record<string, unknown>): RankingRow {
   return {
     rank: Number(row.rank),
     accountId: Number(row.account_id),
-    name: String(row.name),
+    name: filterPlayerName(String(row.name)),
     wins: Number(row.wins),
     losses: Number(row.losses),
     draws: Number(row.draws),

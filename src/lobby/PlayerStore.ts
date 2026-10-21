@@ -14,6 +14,7 @@ import { createHash, randomBytes, randomInt } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync, type StatementSync } from "node:sqlite";
+import { filterPlayerName, isOffensiveName } from "../engine/server/ChatFilter";
 import { checkPlayerName, encodeKey, KEY_BYTES, type NameProblem, normalizeKey } from "./PlayerIdentity";
 
 export interface PlayerAccount {
@@ -21,7 +22,9 @@ export interface PlayerAccount {
   name: string;
 }
 
-export type RenameResult = { ok: true; account: PlayerAccount } | { ok: false; code: NameProblem | "name_taken" };
+export type RenameResult =
+  | { ok: true; account: PlayerAccount }
+  | { ok: false; code: NameProblem | "name_offensive" | "name_taken" };
 
 /** Default names start at 4 digits and grow a digit when a size keeps colliding; 9 digits keeps them within 16 characters. */
 const DEFAULT_NAME_DIGITS = { first: 4, last: 9 };
@@ -101,7 +104,7 @@ export class PlayerStore {
     const key = normalizeKey(input);
     if (!key) return null;
     const row = this.accountByKey.get(hashKey(key));
-    return row ? { id: Number(row.id), name: String(row.name) } : null;
+    return row ? { id: Number(row.id), name: filterPlayerName(String(row.name)) } : null;
   }
 
   /**
@@ -114,7 +117,7 @@ export class PlayerStore {
     if (!current) throw new Error(`No player account ${id}`);
     const nameKey = name.toLowerCase();
     if (nameKey !== current.name_key) {
-      const problem = checkPlayerName(name);
+      const problem = checkPlayerName(name) ?? (isOffensiveName(name) ? "name_offensive" : null);
       if (problem) return { ok: false, code: problem };
     }
     try {

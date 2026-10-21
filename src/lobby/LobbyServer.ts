@@ -14,7 +14,7 @@ import * as path from "node:path";
 import { WebSocket, WebSocketServer } from "ws";
 import { background, logRejection } from "../engine/core/AsyncErrors";
 import { log } from "../engine/core/Log";
-import { filterChatText } from "../engine/server/ChatFilter";
+import { filterChatText, filterPlayerName } from "../engine/server/ChatFilter";
 import type { MatchResultReport } from "../engine/server/network/MatchResultReport";
 import { resolveFPSDemoMap } from "../games/fps/client/DemoMapAliases";
 import { DemoReader } from "../shared/demo/DemoReader";
@@ -792,7 +792,7 @@ export class LobbyServer {
         }
       }
       player.isBot = true;
-      player.name = msg.name || `Bot${player.id.slice(2)}`;
+      player.name = filterPlayerName(msg.name || `Bot${player.id.slice(2)}`);
       this.completeAuth(player, {});
       return;
     }
@@ -2361,7 +2361,7 @@ export class LobbyServer {
               mapDisplayName: this.mapNames[header.map] || header.map,
               gametype: header.gametype,
               private: header.private === true,
-              players: header.players.map((p) => p.name),
+              players: header.players.map((p) => filterPlayerName(p.name)),
               durationMs,
               date: header.startTime,
               sizeMB: parseFloat((stat.size / (1024 * 1024)).toFixed(2)),

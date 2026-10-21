@@ -70,6 +70,16 @@ describe("PlayerStore renames", () => {
     expect(store.findByKey(key)).toEqual({ id: account.id, name: "Sundflux" });
   });
 
+  it("refuses a name the chat filter would catch, and shows one already taken as a silly name", () => {
+    const store = memoryStore();
+    const { account, key } = store.create();
+    expect(store.rename(account.id, "Shit_Head")).toEqual({ ok: false, code: "name_offensive" });
+    const db = store as unknown as { updateName: { run(...args: unknown[]): void } };
+    db.updateName.run("nigger", "nigger", account.id);
+    expect(store.findByKey(key)?.name).toMatch(/^[A-Z][a-z]+_[A-Z][a-z]+$/);
+    expect(store.rename(account.id, "Sundflux")).toEqual({ ok: true, account: { id: account.id, name: "Sundflux" } });
+  });
+
   it("refuses a name another account has, in any capitals", () => {
     const store = memoryStore();
     const first = store.create().account;

@@ -423,7 +423,13 @@ export interface IdentityRenamedMessage extends LobbyMessage {
   identity: PlayerIdentityInfo;
 }
 
-export type IdentityErrorCode = "name_invalid" | "name_reserved" | "name_taken" | "in_lobby" | "rate_limited";
+export type IdentityErrorCode =
+  | "name_invalid"
+  | "name_reserved"
+  | "name_offensive"
+  | "name_taken"
+  | "in_lobby"
+  | "rate_limited";
 
 export interface IdentityErrorMessage extends LobbyMessage {
   type: "identity:error";

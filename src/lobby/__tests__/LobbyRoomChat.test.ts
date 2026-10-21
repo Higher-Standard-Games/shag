@@ -1,7 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { WebSocket } from "ws";
+import { FUN_WORDS } from "../../engine/server/ChatFilter";
 import { LobbyServer } from "../LobbyServer";
 import type { GametypeInfo } from "../types";
+
+/** A filtered word becomes a random fun word: *** in `text` stands for any of them. */
+const funText = (text: string) => new RegExp(`^${text.replace(/\*\*\*/g, `(?:${FUN_WORDS.join("|")})`)}$`);
 
 const duel: GametypeInfo = {
   id: "duel",
@@ -78,10 +82,12 @@ describe("room chat", () => {
     const bob = connect(server, "Bob");
     send(server, alice.player, { type: "chat:send", text: "  fuckj shot  " });
     for (const peer of [alice, bob]) {
-      expect(messages(peer.sent, "chat:message")).toMatchObject([{ from: "Alice", text: "***j shot" }]);
+      expect(messages(peer.sent, "chat:message")).toMatchObject([
+        { from: "Alice", text: expect.stringMatching(funText("***j shot")) },
+      ]);
     }
     const history = (server as unknown as { chatHistory: Array<{ text: string }> }).chatHistory;
-    expect(history).toMatchObject([{ text: "***j shot" }]);
+    expect(history).toMatchObject([{ text: expect.stringMatching(funText("***j shot")) }]);
   });
 
   it("masks room chat and returning-member history without leaking to outsiders", () => {
@@ -92,12 +98,14 @@ describe("room chat", () => {
     const created = messages(alice.sent, "lobby:created").at(-1)?.lobby as { id: string; shareUrl: string };
     const room = created.id;
     send(server, alice.player, { type: "lobby:chat_send", lobbyId: room, text: "shit shot" });
-    expect(messages(alice.sent, "lobby:chat_message")).toMatchObject([{ text: "*** shot" }]);
+    expect(messages(alice.sent, "lobby:chat_message")).toMatchObject([
+      { text: expect.stringMatching(funText("*** shot")) },
+    ]);
     expect(messages(bob.sent, "lobby:chat_message")).toEqual([]);
     const inviteToken = new URL(created.shareUrl, "https://example.invalid").searchParams.get("invite");
     send(server, bob.player, { type: "lobby:join", lobbyId: room, inviteToken });
     const snapshot = messages(bob.sent, "lobby:created").at(-1)?.lobby as { chatHistory: Array<{ text: string }> };
-    expect(snapshot.chatHistory).toMatchObject([{ text: "*** shot" }]);
+    expect(snapshot.chatHistory).toMatchObject([{ text: expect.stringMatching(funText("*** shot")) }]);
   });
 
   it("delivers messages only to members and rejects cross-room sends", () => {
