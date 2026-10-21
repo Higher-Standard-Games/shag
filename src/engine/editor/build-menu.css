@@ -34,3 +34,7 @@
   background: #171129;
   font: 800 10px monospace;
 }
+/* View and Build read as one group at the end of the toolbar: no divider between them */
+.shagged__toolgroup--joined {
+  border-left: 0;
+}

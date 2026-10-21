@@ -501,7 +501,7 @@ export class EditorSession {
             <label>Work <span data-work-axis>Z</span> <input data-workplane type="number" step="1" value="0"></label>
           </div></details>
         </div>
-        <div class="shagged__toolgroup" aria-label="Build actions">
+        <div class="shagged__toolgroup shagged__toolgroup--joined" aria-label="Build actions">
           <details class="shagged__menu shagged__menu--build"><summary title="Compile, playtest, map health and build status">Build<i class="shagged__build-dot" data-build-dot></i></summary><div class="shagged__menu-panel">
             <button data-action="compile" disabled title="Connecting to SHAGGED server">Compile</button>
             <button data-action="playtest" disabled title="A compiled, playable build is required">Playtest</button>
