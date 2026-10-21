@@ -85,6 +85,9 @@ export class DamageOverlay {
       height: "100%",
       pointerEvents: "none",
       zIndex: "900",
+      // Shown only while a flash plays: an idle screen-sized canvas is still a
+      // layer the browser composites over the game every frame
+      display: "none",
     });
     this.ctx = this.canvas.getContext("2d")!;
     document.body.appendChild(this.canvas);
@@ -122,6 +125,7 @@ export class DamageOverlay {
 
     // Start self-animation loop if not already running
     if (!this._animating) {
+      this.canvas.style.display = "";
       this._lastTime = performance.now();
       this._animating = true;
       this._rafId = requestAnimationFrame(this._tick);
@@ -172,6 +176,7 @@ export class DamageOverlay {
     // Stop animation loop when no flashes remain
     if (this.flashes.length === 0) {
       this.ctx.clearRect(0, 0, w, h);
+      this.canvas.style.display = "none";
       this._animating = false;
       return;
     }

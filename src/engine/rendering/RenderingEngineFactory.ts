@@ -112,7 +112,8 @@ async function createWebGPUEngine(canvas: HTMLCanvasElement): Promise<AbstractEn
 }
 
 const DEFAULT_FACTORIES: RenderingEngineFactories = {
-  createWebGL: (canvas) => new Engine(canvas, true, { stencil: false }),
+  // high-performance asks a dual-GPU laptop for its discrete GPU, as WebGPU does above
+  createWebGL: (canvas) => new Engine(canvas, true, { stencil: false, powerPreference: "high-performance" }),
   isWebGPUSupported,
   createWebGPU: createWebGPUEngine,
 };
