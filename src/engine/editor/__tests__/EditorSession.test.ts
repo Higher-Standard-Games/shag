@@ -832,6 +832,7 @@ describe("editor DOM shell", () => {
     const bounds = { min: { x: -16, y: -16, z: -8 }, max: { x: 16, y: 16, z: 24 } };
     session["pickModel"]("models/props/crate.glb", bounds);
     expect(session.root.querySelector<HTMLSelectElement>("[data-entity-class]")!.value).toBe("misc_model");
+    expect(session.root.querySelector("[data-entity-short]")!.textContent).toBe("model");
     expect(session.root.querySelector('[data-action="entity"]')!.classList.contains("active")).toBe(true);
     const xy = session.root.querySelector<HTMLCanvasElement>('[data-plane="xy"]')!;
     xy.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, button: 0, clientX: 264, clientY: 118 }));
@@ -1804,6 +1805,7 @@ describe("the drawing tools", () => {
       press(key);
       expect(active()).toBe(tool);
     }
+    expect(session.root.querySelector('[data-action="entity"]')!.textContent).toBe("Entityspawn");
     const curves = group.querySelector<HTMLDetailsElement>(".shagged__menu--curves")!;
     press("c");
     expect(curves.open).toBe(true);

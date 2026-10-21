@@ -1,0 +1,43 @@
+/* SHAGGED Entity key. Loaded after editor.css so these win the cascade. */
+/* Entity: one key naming the class it places, with a small ▾ key for the class list. */
+.shagged__entitykey {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.shagged__toolbar .shagged__entitykey > button {
+  gap: 6px;
+  font-size: 12px;
+}
+.shagged__entitykey small {
+  max-width: 96px;
+  padding: 2px 5px;
+  overflow: hidden;
+  color: #ffe787;
+  background: #171129;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-overflow: ellipsis;
+  text-transform: none;
+}
+.shagged__toolbar .shagged__menu--entity > summary {
+  padding-inline: 6px;
+}
+.shagged__menu--entity > summary::after {
+  margin-left: 0;
+}
+.shagged__toolbar .shagged__menu--entity select {
+  max-width: 260px;
+}
+.shagged__entitykey b {
+  color: #6b26aa;
+  font-size: 1.3em;
+  font-weight: 900;
+  text-decoration: underline 2px;
+  text-underline-offset: 3px;
+}
+.shagged__entitykey .active b,
+.shagged__entitykey :hover > span > b {
+  color: #ffe787;
+}

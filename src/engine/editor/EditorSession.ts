@@ -104,6 +104,7 @@ import "./editor.css";
 import "./file-panel.css";
 import "./draw-tools.css";
 import "./edge-tabs.css";
+import "./entity-key.css";
 
 type ViewMode = "brush" | "textured" | "wireframe";
 const VIEW_MODES: ReadonlyArray<[ViewMode, string, string]> = [
@@ -474,7 +475,12 @@ export class EditorSession {
           </div></details>
           </div>
           <span class="shagged__tool-rule" aria-hidden="true"></span>
-          <button data-action="entity" title="E">Entity</button><select data-entity-class aria-label="Entity class" title="Class placed by the Entity tool"></select>
+          <div class="shagged__entitykey">
+            <button data-action="entity" title="Entity (E): place the class shown" aria-keyshortcuts="E"><span><b>E</b>ntity</span><small data-entity-short></small></button>
+            <details class="shagged__menu shagged__menu--entity"><summary title="Choose the entity class" aria-label="Choose the entity class"></summary><div class="shagged__menu-panel">
+              <label>Class <select data-entity-class aria-label="Entity class" title="Class placed by the Entity tool"></select></label>
+            </div></details>
+          </div>
           <span class="shagged__current-texture" data-current-texture title="Texture new brushes get (T to change)"></span>
           <button data-action="health" title="Map Health (H)">Health</button>
         </div>
@@ -520,10 +526,12 @@ export class EditorSession {
     this.renderCurrentTexture();
     const classPicker = this.root.querySelector<HTMLSelectElement>("[data-entity-class]")!;
     fillClassOptions(classPicker, this.entityClassname);
+    this.setEntityClass(this.entityClassname);
     classPicker.addEventListener(
       "change",
       () => {
-        this.entityClassname = classPicker.value;
+        this.setEntityClass(classPicker.value);
+        this.root.querySelector<HTMLDetailsElement>(".shagged__menu--entity")!.open = false;
         this.action("entity");
       },
       { signal: this.listeners.signal },
@@ -1068,6 +1076,18 @@ export class EditorSession {
     }
   }
 
+  /** The class the Entity tool places, shown short on the Entity key (the full name is in its menu). */
+  private setEntityClass(classname: string): void {
+    this.entityClassname = classname;
+    this.root.querySelector<HTMLSelectElement>("[data-entity-class]")!.value = classname;
+    const short = this.root.querySelector<HTMLElement>("[data-entity-short]")!;
+    short.textContent =
+      classname === "info_player_deathmatch"
+        ? "spawn"
+        : classname.replace(/^(info|item|weapon|ammo|target|trigger|func|misc)_/, "");
+    short.title = classname;
+  }
+
   /** Built on first use like the texture drawer; its preview engine starts only then. */
   private toggleModels(): void {
     if (!this.modelBrowser) {
@@ -1124,8 +1144,7 @@ export class EditorSession {
       this.status(`Model set to ${path}`);
       return;
     }
-    this.entityClassname = "misc_model";
-    this.root.querySelector<HTMLSelectElement>("[data-entity-class]")!.value = "misc_model";
+    this.setEntityClass("misc_model");
     this.action("entity");
     this.status(`Click in a 2D view to drop ${path}`);
   }
