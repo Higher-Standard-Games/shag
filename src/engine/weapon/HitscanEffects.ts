@@ -178,6 +178,12 @@ interface TravelingPellet {
 // ── Singleton ────────────────────────────────────────────────────────
 
 export class HitscanEffects {
+  /**
+   * The clock every effect here ages by, in seconds. Live play runs on real
+   * time; demo playback hands in its own (see setPresentationClock).
+   */
+  private presentationClock: (() => number) | null = null;
+  private readonly now = (): number => this.presentationClock?.() ?? performance.now() / 1000;
   private static instance: HitscanEffects;
   private scene: Scene | null = null;
   /** Its own per-frame tick: tracers and beams fade for a spectator, who has no view weapon */
@@ -224,38 +230,52 @@ export class HitscanEffects {
     return HitscanEffects.instance;
   }
 
+  /**
+   * Age effects by another clock, or by real time again with null. A demo
+   * passes its playhead, so a beam, rail or flash lasts as long in recorded
+   * time at any playback speed and holds still while paused: in slow motion a
+   * lightning beam stays lit between its slowed-down updates instead of
+   * fading out on the wall clock. Effects already on screen are cleared, as
+   * their times belong to the old clock.
+   */
+  setPresentationClock(clock: (() => number) | null): void {
+    if (clock === this.presentationClock) return;
+    this.presentationClock = clock;
+    this.clear();
+  }
+
   init(scene: Scene): void {
     if (this.tickObserver) this.scene?.onBeforeRenderObservable.remove(this.tickObserver);
     this.tickObserver = scene.onBeforeRenderObservable.add(() => this.update(scene.getEngine().getDeltaTime() / 1000));
     if (this.scene !== scene) {
       this.voltaicRenderer?.dispose();
-      this.voltaicRenderer = new VoltaicEffectRenderer(scene);
+      this.voltaicRenderer = new VoltaicEffectRenderer(scene, this.now);
       this.voltaicRenderer.setRemoteStartResolver(this.remoteVoltaicStartResolver);
       void this.voltaicRenderer.prewarm().catch((error) => {
         console.warn("[HitscanEffects] Voltaic shader prewarm failed; first use will retry compilation", error);
       });
 
       this.railRenderer?.dispose();
-      this.railRenderer = new RailEffectRenderer(scene);
+      this.railRenderer = new RailEffectRenderer(scene, this.now);
       void this.railRenderer.prewarm().catch((error) => {
         console.warn("[HitscanEffects] Rail shader prewarm failed; first use will retry compilation", error);
       });
 
       this.muzzleFlashRenderer?.dispose();
-      this.muzzleFlashRenderer = new MuzzleFlashRenderer(scene);
+      this.muzzleFlashRenderer = new MuzzleFlashRenderer(scene, this.now);
       this.muzzleFlashRenderer.setAnchorResolver(this.muzzleAnchorResolver);
       void this.muzzleFlashRenderer.prewarm().catch((error) => {
         console.warn("[HitscanEffects] Muzzle flash shader prewarm failed; first use will retry compilation", error);
       });
 
       this.impactSparkRenderer?.dispose();
-      this.impactSparkRenderer = new ImpactSparkRenderer(scene);
+      this.impactSparkRenderer = new ImpactSparkRenderer(scene, this.now);
       void this.impactSparkRenderer.prewarm().catch((error) => {
         console.warn("[HitscanEffects] Impact spark shader prewarm failed; first use will retry compilation", error);
       });
 
       this.streakRenderer?.dispose();
-      this.streakRenderer = new StreakTracerRenderer(scene);
+      this.streakRenderer = new StreakTracerRenderer(scene, this.now);
       void this.streakRenderer.prewarm().catch((error) => {
         console.warn("[HitscanEffects] Tracer shader prewarm failed; first use will retry compilation", error);
       });
@@ -291,7 +311,7 @@ export class HitscanEffects {
           meshes: [],
           materials: [],
           light: null,
-          spawnTime: performance.now() / 1000,
+          spawnTime: this.now(),
           duration: 0.16,
         };
         effect.light = this.spawnImpactFlash(hit.point, color, hit.normal, effect, TRACER_IMPACT_LIGHT_INTENSITY);
@@ -310,7 +330,7 @@ export class HitscanEffects {
       play();
       return;
     }
-    this.pendingImpacts.push({ due: performance.now() / 1000 + seconds, play });
+    this.pendingImpacts.push({ due: this.now() + seconds, play });
   }
 
   // ── Procedural continuous Voltaic beam ───────────────────────────
@@ -320,7 +340,7 @@ export class HitscanEffects {
     if (!this.scene || !this.voltaicRenderer) return null;
     const range = cfg.maxRange ?? 850;
     const color = cfg.color ?? new Color3(1.0, 0.7, 0.1);
-    const now = performance.now() / 1000;
+    const now = this.now();
     const hasFreshTruth =
       this.localVoltaicHasDirection &&
       now - this.localVoltaicTruthAt <= HitscanEffects.LOCAL_TRUTH_TIMEOUT &&
@@ -364,7 +384,7 @@ export class HitscanEffects {
     this.localVoltaicImpactKind = cfg.impactKind;
     this.localVoltaicHasNormal = !!cfg.impactNormal;
     if (cfg.impactNormal) this.localVoltaicNormal.copyFrom(cfg.impactNormal);
-    this.localVoltaicTruthAt = performance.now() / 1000;
+    this.localVoltaicTruthAt = this.now();
   }
 
   /** Stop the local player's lightning beam. */
@@ -460,7 +480,7 @@ export class HitscanEffects {
     const rng = cfg.seed != null ? mulberry32(cfg.seed) : Math.random;
 
     const hitPoints: Vector3[] = [];
-    const now = performance.now() / 1000;
+    const now = this.now();
 
     // Determine which pellet indices get visible tracers
     // Evenly spaced across the pellet array for good cone coverage
@@ -638,7 +658,7 @@ export class HitscanEffects {
       meshes,
       materials: [coreMat, glowMat],
       light: null,
-      spawnTime: performance.now() / 1000,
+      spawnTime: this.now(),
       duration,
     };
     // Bright impact flash
@@ -701,7 +721,7 @@ export class HitscanEffects {
   // ── Update (call every frame) ────────────────────────────────────
 
   update(_deltaTime: number): void {
-    const now = performance.now() / 1000;
+    const now = this.now();
     const toRemove: string[] = [];
 
     for (const fx of this.effects) {
@@ -1010,7 +1030,7 @@ export class HitscanEffects {
 
     this.wallMarks.push({
       mesh,
-      spawnTime: performance.now() / 1000,
+      spawnTime: this.now(),
     });
   }
   /**
@@ -1092,7 +1112,7 @@ export class HitscanEffects {
       meshes: [mesh],
       materials: [mat],
       light: null,
-      spawnTime: performance.now() / 1000,
+      spawnTime: this.now(),
       duration: 0.8, // Same as first-person trail fade
     });
   }
