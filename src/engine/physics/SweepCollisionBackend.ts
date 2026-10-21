@@ -121,6 +121,10 @@ interface InternalTraceResult {
  * Q3-style collision backend
  */
 export class SweepCollisionBackend implements CollisionBackend {
+  private readonly _q3Start: [number, number, number] = [0, 0, 0];
+  private readonly _q3End: [number, number, number] = [0, 0, 0];
+  private readonly _traceMins: [number, number, number] = [0, 0, 0];
+  private readonly _traceMaxs: [number, number, number] = [0, 0, 0];
   public lifts: LiftSystem | undefined;
   public brushModels: BrushModelState | undefined;
   private brushModelBrushes = new Set<number>();
@@ -555,8 +559,15 @@ export class SweepCollisionBackend implements CollisionBackend {
     }
 
     // Convert Babylon coords to Q3 coords (swap Y and Z)
-    const q3Start: [number, number, number] = [start.x, start.z, start.y];
-    const q3End: [number, number, number] = [end.x, end.z, end.y];
+    // Reused like the pooled trace state below: a trace is never re-entered.
+    const q3Start = this._q3Start;
+    const q3End = this._q3End;
+    q3Start[0] = start.x;
+    q3Start[1] = start.z;
+    q3Start[2] = start.y;
+    q3End[0] = end.x;
+    q3End[1] = end.z;
+    q3End[2] = end.y;
 
     // Get trace extents from options
     const radius = options?.radius ?? PLAYER_RADIUS;
@@ -571,8 +582,12 @@ export class SweepCollisionBackend implements CollisionBackend {
 
     // Use exact bbox — Q3 does NOT shrink the collision hull.
     // SURFACE_CLIP_EPSILON in traceBrush provides the safety margin.
-    const mins: [number, number, number] = [-radius, -radius, minsZ];
-    const maxs: [number, number, number] = [radius, radius, maxsZ];
+    const mins = this._traceMins;
+    const maxs = this._traceMaxs;
+    mins[0] = mins[1] = -radius;
+    mins[2] = minsZ;
+    maxs[0] = maxs[1] = radius;
+    maxs[2] = maxsZ;
 
     // Content mask - default to SOLID | PLAYERCLIP for player collision
     const contentMask = options?.contentMask ?? PLAYER_CONTENTS;

@@ -4,8 +4,8 @@
  *
  * All Babylon Vector3 conversion for shared collision lives HERE, on the
  * engine side of the boundary; SharedCollisionWorld is pure structural math.
- * Conversion doubles as the defensive copy the Babylon backend needs (it may
- * mutate the vectors it is handed).
+ * The backend only reads the vectors it is handed, so inputs are converted
+ * into reused scratch vectors.
  */
 
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
@@ -14,8 +14,17 @@ import type { Vec3 } from "../../shared/server/simulation/types";
 import { ContentFlags } from "./ContentFlags";
 import type { SweepCollisionBackend } from "./SweepCollisionBackend";
 
-function toBabylon(v: Vec3): Vector3 {
-  return new Vector3(v.x, v.y, v.z);
+// Inputs go through two reused vectors: every backend entry point reads or
+// copies its arguments up front and never keeps or writes them. Outputs stay
+// fresh objects, since callers keep them (a projectile takes a hit point as
+// its new position).
+const _a = new Vector3();
+const _b = new Vector3();
+function inA(v: Vec3): Vector3 {
+  return _a.set(v.x, v.y, v.z);
+}
+function inB(v: Vec3): Vector3 {
+  return _b.set(v.x, v.y, v.z);
 }
 
 function fromBabylon(v: Vector3): Vec3 {
@@ -74,7 +83,7 @@ export class SweepBackendAdapter implements SweepBackend {
     end: Vec3,
     options: SweepBackendTraceOptions,
   ): { fraction: number; endPos?: Vec3; normal?: Vec3; contents?: number } {
-    const result = this.backend.trace(toBabylon(start), toBabylon(end), options);
+    const result = this.backend.trace(inA(start), inB(end), options);
     return {
       fraction: result.fraction,
       endPos: result.endPos ? fromBabylon(result.endPos) : undefined,
@@ -88,7 +97,7 @@ export class SweepBackendAdapter implements SweepBackend {
     movement: Vec3,
     options: SweepBackendTraceOptions,
   ): { endPos: Vec3; velocity: Vec3; hitCount: number } {
-    const result = this.backend.stepSlideMove(toBabylon(start), toBabylon(movement), options);
+    const result = this.backend.stepSlideMove(inA(start), inB(movement), options);
     return {
       endPos: fromBabylon(result.endPos),
       velocity: fromBabylon(result.velocity),
@@ -97,10 +106,10 @@ export class SweepBackendAdapter implements SweepBackend {
   }
 
   pointContents(point: Vec3): number {
-    return toSharedContents(this.backend.pointContents(toBabylon(point)));
+    return toSharedContents(this.backend.pointContents(inA(point)));
   }
 
   isInLadder(min: Vec3, max: Vec3): boolean {
-    return this.backend.isInLadder(toBabylon(min), toBabylon(max));
+    return this.backend.isInLadder(inA(min), inB(max));
   }
 }

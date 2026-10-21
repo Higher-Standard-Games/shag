@@ -26,6 +26,25 @@ export class SharedCollisionWorld implements CollisionWorld {
 
   private backend: SweepBackend;
 
+  // Scratch for the per-trace arguments: the backend reads them during the call
+  // and keeps none, and these run several times per player per tick.
+  private readonly _traceOpts: { radius: number; height: number; contentMask: number | undefined } = {
+    radius: 0,
+    height: 0,
+    contentMask: undefined,
+  };
+  private readonly _moveOpts = { radius: 0, height: 0 };
+  private readonly _movement: Vec3 = { x: 0, y: 0, z: 0 };
+  private readonly _groundEnd: Vec3 = { x: 0, y: 0, z: 0 };
+
+  private groundCheckEnd(from: Vec3): Vec3 {
+    const end = this._groundEnd;
+    end.x = from.x;
+    end.y = from.y - 2;
+    end.z = from.z;
+    return end;
+  }
+
   constructor(backend: SweepBackend) {
     this.backend = backend;
   }
@@ -43,13 +62,10 @@ export class SharedCollisionWorld implements CollisionWorld {
   // ───────────────────────────────────────────────────────────────
 
   trace(start: Vec3, end: Vec3, bounds?: AABB, contentMask?: number): TraceResult {
-    const options = bounds
-      ? {
-          radius: (bounds.max.x - bounds.min.x) / 2,
-          height: bounds.max.y - bounds.min.y,
-          contentMask,
-        }
-      : { radius: 0, height: 0, contentMask };
+    const options = this._traceOpts;
+    options.radius = bounds ? (bounds.max.x - bounds.min.x) / 2 : 0;
+    options.height = bounds ? bounds.max.y - bounds.min.y : 0;
+    options.contentMask = contentMask;
 
     const result = this.backend.trace(start, end, options);
 
@@ -74,11 +90,10 @@ export class SharedCollisionWorld implements CollisionWorld {
    */
   stepSlideMove(start: Vec3, velocity: Vec3, deltaTime: number, bounds: AABB): StepSlideMoveResult {
     // Backend expects MOVEMENT (units), not velocity (units/sec)
-    const movement: Vec3 = {
-      x: velocity.x * deltaTime,
-      y: velocity.y * deltaTime,
-      z: velocity.z * deltaTime,
-    };
+    const movement = this._movement;
+    movement.x = velocity.x * deltaTime;
+    movement.y = velocity.y * deltaTime;
+    movement.z = velocity.z * deltaTime;
 
     // Derive collision dimensions from bounds.
     // For player-sized or larger objects, keep hardcoded PLAYER constants
@@ -87,10 +102,9 @@ export class SharedCollisionWorld implements CollisionWorld {
     const boundsRadius = (bounds.max.x - bounds.min.x) / 2;
     const boundsHeight = bounds.max.y - bounds.min.y;
     const isSmallObject = boundsRadius > 0 && boundsRadius < SharedCollisionWorld.PLAYER_RADIUS * 0.75;
-    const traceOpts = {
-      radius: isSmallObject ? boundsRadius : SharedCollisionWorld.PLAYER_RADIUS,
-      height: isSmallObject ? boundsHeight : SharedCollisionWorld.PLAYER_HEIGHT,
-    };
+    const traceOpts = this._moveOpts;
+    traceOpts.radius = isSmallObject ? boundsRadius : SharedCollisionWorld.PLAYER_RADIUS;
+    traceOpts.height = isSmallObject ? boundsHeight : SharedCollisionWorld.PLAYER_HEIGHT;
 
     const result = this.backend.stepSlideMove(start, movement, traceOpts);
 
@@ -108,11 +122,11 @@ export class SharedCollisionWorld implements CollisionWorld {
       grounded = true;
     } else if (Math.abs(movement.y) < 0.1) {
       // Path 2: nearly stationary vertically → trace to detect floor
-      const groundCheckEnd = { x: result.endPos.x, y: result.endPos.y - 2, z: result.endPos.z };
+      const groundCheckEnd = this.groundCheckEnd(result.endPos);
       const groundTrace = this.backend.trace(result.endPos, groundCheckEnd, traceOpts);
       grounded = groundTrace.fraction < 1.0;
     } else if (movement.y > 0.1) {
-      const groundCheckEnd = { x: result.endPos.x, y: result.endPos.y - 2, z: result.endPos.z };
+      const groundCheckEnd = this.groundCheckEnd(result.endPos);
       const groundTrace = this.backend.trace(result.endPos, groundCheckEnd, traceOpts);
       const normal = groundTrace.normal;
       if (groundTrace.fraction < 1 && normal && normal.y >= 0.7) {

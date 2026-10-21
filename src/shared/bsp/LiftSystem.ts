@@ -144,6 +144,12 @@ export class LiftSystem {
   private states: LiftState[];
   /** Rendering asks per lift per frame; keep the lookup off the hot path. */
   private readonly byModel = new Map<number, number>();
+  private readonly _lo: Vec3 = { x: 0, y: 0, z: 0 };
+  private readonly _hi: Vec3 = { x: 0, y: 0, z: 0 };
+  private readonly _triggerLo: Vec3 = { x: 0, y: 0, z: 0 };
+  private readonly _triggerHi: Vec3 = { x: 0, y: 0, z: 0 };
+  private readonly _nearby: LiftActor[] = [];
+  private readonly _riders = new Set<LiftActor>();
   constructor(
     readonly definitions: readonly LiftDefinition[],
     private readonly trace: LiftTraceFn,
@@ -241,15 +247,22 @@ export class LiftSystem {
       }
       // Trigger callers may be far from the car. Only nearby bodies need costly
       // support/push traces; include the entire possible movement this tick.
+      // Scratch, reused per lift: this runs for every lift and actor every tick,
+      // and almost always finds nobody near.
       const padding = d.speed * dt + 2;
-      const nearby = actors.filter((a) =>
-        overlaps(
-          a.position,
-          { x: d.min.x, y: d.min.y + s.offset - padding, z: d.min.z },
-          { x: d.max.x, y: d.max.y + s.offset + padding, z: d.max.z },
-        ),
-      );
-      const riders = new Set<LiftActor>();
+      const lo = this._lo;
+      const hi = this._hi;
+      lo.x = d.min.x;
+      lo.y = d.min.y + s.offset - padding;
+      lo.z = d.min.z;
+      hi.x = d.max.x;
+      hi.y = d.max.y + s.offset + padding;
+      hi.z = d.max.z;
+      const nearby = this._nearby;
+      nearby.length = 0;
+      for (const a of actors) if (overlaps(a.position, lo, hi)) nearby.push(a);
+      const riders = this._riders;
+      riders.clear();
       for (const a of nearby) {
         if (a.velocity.y > 1) continue; // A jumping player detaches.
         const hit = this.trace(a.position, { ...a.position, y: a.position.y - 2 });
@@ -261,7 +274,11 @@ export class LiftSystem {
         else if (s.phase === "bottom" || s.phase === "down") s.phase = "up";
       }
       if (s.phase === "top") {
-        const hold = d.plat ? [...riders].some((a) => !a.passive) : activated;
+        let hold = activated;
+        if (d.plat) {
+          hold = false;
+          for (const a of riders) if (!a.passive) hold = true;
+        }
         s.remaining = hold ? Math.max(0, d.wait) : Math.max(0, s.remaining - dt);
         if (!d.toggle && d.wait >= 0 && s.remaining <= 0 && !hold) s.phase = "down";
       }
@@ -315,12 +332,17 @@ export class LiftSystem {
     const x1 = Math.max(d.max.x - 33, x0 + 1);
     const z0 = Math.min(d.min.z + 33, (d.min.z + d.max.z) / 2);
     const z1 = Math.max(d.max.z - 33, z0 + 1);
-    if (!d.plat)
-      return overlaps(
-        p,
-        { x: d.min.x - 16, y: d.min.y + d.start - 16, z: d.min.z - 16 },
-        { x: d.max.x + 16, y: d.max.y + d.start + 16, z: d.max.z + 16 },
-      );
+    if (!d.plat) {
+      const lo = this._triggerLo;
+      const hi = this._triggerHi;
+      lo.x = d.min.x - 16;
+      lo.y = d.min.y + d.start - 16;
+      lo.z = d.min.z - 16;
+      hi.x = d.max.x + 16;
+      hi.y = d.max.y + d.start + 16;
+      hi.z = d.max.z + 16;
+      return overlaps(p, lo, hi);
+    }
     return (
       p.x + 16 > x0 &&
       p.x - 16 < x1 &&
