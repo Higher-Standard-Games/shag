@@ -69,6 +69,8 @@ export interface DemoAnalysis {
   totalDurationMs: number;
   /** entityId → displayName */
   playerNames: Map<string, string>;
+  /** entityId → frags over the whole demo (suicides and world deaths left out). */
+  frags: Map<string, number>;
 }
 
 // ── Internal types ───────────────────────────────────────────────────────────
@@ -130,6 +132,7 @@ interface PlayerTracker {
   lastKilledBy: string;
   consecutiveAirFrames: number;
   currentHealth: number;
+  frags: number;
 }
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -201,6 +204,7 @@ export class DemoAnalyzer {
         totalTicks: 0,
         totalDurationMs: durationMs,
         playerNames: new Map(),
+        frags: new Map(),
       };
     }
 
@@ -228,6 +232,7 @@ export class DemoAnalyzer {
           lastKilledBy: "",
           consecutiveAirFrames: 0,
           currentHealth: 100,
+          frags: 0,
         };
         trackers.set(entityId, t);
       }
@@ -421,6 +426,7 @@ export class DemoAnalyzer {
 
         // Update trackers
         killerTracker.killStreak += 1;
+        killerTracker.frags += 1;
         killerTracker.lastKillTick = tick;
         killerTracker.recentKills.push({ tick, victimId });
 
@@ -500,6 +506,7 @@ export class DemoAnalyzer {
       totalTicks,
       totalDurationMs: durationMs,
       playerNames,
+      frags: new Map([...trackers].filter(([, t]) => t.frags > 0).map(([id, t]) => [id, t.frags])),
     };
   }
 

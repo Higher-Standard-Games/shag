@@ -40,6 +40,7 @@ function makeAnalysis(highlights: HighlightCandidate[], totalTicks = 10000): Dem
       ["player_2", "Bob"],
       ["player_3", "Charlie"],
     ]),
+    frags: new Map(),
   };
 }
 

@@ -655,6 +655,19 @@ describe("DemoAnalyzer — did the victim see it coming", () => {
       }
     });
 
+    it("counts each player's frags over the whole demo", () => {
+      const frames = [
+        makeFrame(100, [deathEvent("player_a", "player_b")]),
+        makeFrame(5000, [deathEvent("player_a", "player_c")]),
+        makeFrame(9000, [deathEvent("player_b", "player_a"), deathEvent("player_c", "player_c")]),
+      ];
+      const { frags } = analyzer.analyze(frames, header, 4000);
+      expect([...frags]).toEqual([
+        ["player_a", 2],
+        ["player_b", 1],
+      ]);
+    });
+
     it("keeps a movement highlight that overlaps a frag", () => {
       const frames = framesBetween(0, 120, (tick) => [
         mover("player_m", tick, 550, { grounded: tick % 30 === 0 && tick > 0 }),
