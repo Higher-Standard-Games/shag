@@ -51,7 +51,13 @@ import {
   PLAYER_RADIUS,
 } from "../../physics/PlayerPhysicsConstants";
 // Viewport effects system imports
-import { createFirstPersonEffects, FPSApplicator, type PlayerState, ViewportEffectsManager } from "../../viewport";
+import {
+  createFirstPersonEffects,
+  createNeutralPlayerState,
+  FPSApplicator,
+  type PlayerState,
+  ViewportEffectsManager,
+} from "../../viewport";
 import { CameraInputHandler } from "../CameraInputHandler";
 import { easeLedgePitch, slidePitch, smoothStepUp } from "../FirstPersonMotion";
 import { currentBaseFov } from "../FovSettings";
@@ -464,6 +470,8 @@ export class FPSController implements ICameraController {
 
   // Lazily loaded on first use (dynamic imports keep these modules out of the initial bundle)
   private _weaponsMap: Record<string, WeaponDef> | null = null;
+  /** View-effect input, refilled every frame. */
+  private readonly viewState: PlayerState = createNeutralPlayerState();
   private _gibSystem: GibSystem | null = null;
   private _damageNumbers: DamageNumbers | null = null;
 
@@ -912,24 +920,6 @@ export class FPSController implements ICameraController {
     this.camera.position.y = this.physicsY;
     this.camera.position.z = this.physicsZ;
 
-    // === CALCULATE WISHDIR (desired movement direction) ===
-    const forward = this.camera.getDirection(Vector3.Forward());
-    const right = this.camera.getDirection(Vector3.Right());
-    const flatForward = new Vector3(forward.x, 0, forward.z);
-    const flatRight = new Vector3(right.x, 0, right.z);
-    if (flatForward.length() > 0.001) flatForward.normalize();
-    if (flatRight.length() > 0.001) flatRight.normalize();
-
-    // Build wishdir from input
-    const wishdir = Vector3.Zero();
-    if (this.keys.forward) wishdir.addInPlace(flatForward);
-    if (this.keys.backward) wishdir.subtractInPlace(flatForward);
-    if (this.keys.left) wishdir.subtractInPlace(flatRight);
-    if (this.keys.right) wishdir.addInPlace(flatRight);
-
-    const hasInput = wishdir.length() > 0.001;
-    if (hasInput) wishdir.normalize();
-
     // === ADVANCED PHYSICS ===
     if (this.useNetworkMovement && this.networkReady && this.gameManager) {
       // === FRAME-SYNC: Process buffered server snapshots BEFORE input ===
@@ -1166,22 +1156,23 @@ export class FPSController implements ICameraController {
 
       // Note: landingVelocityCapture is set in ground detection (before velocity is zeroed)
 
-      const playerState: PlayerState = {
-        position: this.camera.position.clone(),
-        velocity: this.velocity.clone(),
-        horizontalSpeed: this.actualHorizSpeed,
-        isGrounded: this.isGrounded,
-        wasGroundedLastFrame: this.wasGroundedLastFrame,
-        isJumping: this.keys.up && this.isGrounded,
-        strafeInput: (this.keys.right ? 1 : 0) - (this.keys.left ? 1 : 0),
-        forwardInput: (this.keys.forward ? 1 : 0) - (this.keys.backward ? 1 : 0),
-        landingVelocity: this.landingVelocityCapture,
-        wallJumpState: this.wallJumpState,
-        isSprinting: this.keys.sprint,
-        isAiming: this.keys.aim,
-        isFiring: this.keys.fire,
-        isSliding: this.isSliding,
-      };
+      // One state object, refilled each frame, rather than a new object and two
+      // cloned vectors per frame. The effects read it during update() only.
+      const playerState = this.viewState;
+      playerState.position.copyFrom(this.camera.position);
+      playerState.velocity.copyFrom(this.velocity);
+      playerState.horizontalSpeed = this.actualHorizSpeed;
+      playerState.isGrounded = this.isGrounded;
+      playerState.wasGroundedLastFrame = this.wasGroundedLastFrame;
+      playerState.isJumping = this.keys.up && this.isGrounded;
+      playerState.strafeInput = (this.keys.right ? 1 : 0) - (this.keys.left ? 1 : 0);
+      playerState.forwardInput = (this.keys.forward ? 1 : 0) - (this.keys.backward ? 1 : 0);
+      playerState.landingVelocity = this.landingVelocityCapture;
+      playerState.wallJumpState = this.wallJumpState;
+      playerState.isSprinting = this.keys.sprint;
+      playerState.isAiming = this.keys.aim;
+      playerState.isFiring = this.keys.fire;
+      playerState.isSliding = this.isSliding;
 
       // Skip view-bob/FOV shaping while the corpse-follow owns the camera — it
       // sets an absolute position + look target that bob would fight.

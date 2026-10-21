@@ -616,6 +616,7 @@ export class SweepCollisionBackend implements CollisionBackend {
     }
 
     // Traverse BSP tree for solid brushes
+    this.splitDepth = 0;
     if (onlyModel < 0) this.traceNode(0, 0.0, 1.0, state.start, state.end, state);
 
     // Spatial fallback for named clip brushes not reached through BSP leaves.
@@ -625,16 +626,20 @@ export class SweepCollisionBackend implements CollisionBackend {
     for (const d of this.lifts?.definitions ?? []) {
       if (d.modelIndex === excludeModel || (onlyModel >= 0 && d.modelIndex !== onlyModel)) continue;
       const offset = this.lifts!.offset(d.modelIndex)!;
-      const shift = [offset.x, offset.z, offset.y];
+      // Q3 axes: the lift's Babylon y is Q3 z. Written into a reused array
+      // with a plain loop: this runs for every lift on every trace.
+      const shift = this._liftShift;
+      shift[0] = offset.x;
+      shift[1] = offset.z;
+      shift[2] = offset.y;
       const model = this.bsp.models[d.modelIndex];
-      if (
-        [0, 1, 2].some(
-          (j) =>
-            Math.min(q3Start[j], q3End[j]) + mins[j] > model.maxs[j] + shift[j] + 0.1 ||
-            Math.max(q3Start[j], q3End[j]) + maxs[j] < model.mins[j] + shift[j] - 0.1,
-        )
-      )
-        continue;
+      let apart = false;
+      for (let j = 0; j < 3 && !apart; j++) {
+        apart =
+          Math.min(q3Start[j], q3End[j]) + mins[j] > model.maxs[j] + shift[j] + 0.1 ||
+          Math.max(q3Start[j], q3End[j]) + maxs[j] < model.mins[j] + shift[j] - 0.1;
+      }
+      if (apart) continue;
       for (let j = 0; j < 3; j++) {
         state.start[j] = q3Start[j] - shift[j];
         state.end[j] = q3End[j] - shift[j];
@@ -649,8 +654,13 @@ export class SweepCollisionBackend implements CollisionBackend {
       if (!this.brushModels?.isEnabled(definition.modelIndex)) continue;
       if (definition.modelIndex === excludeModel || (onlyModel >= 0 && definition.modelIndex !== onlyModel)) continue;
       const origin = definition.origin;
-      state.start = [q3Start[0] - origin.x, q3Start[1] - origin.z, q3Start[2] - origin.y];
-      state.end = [q3End[0] - origin.x, q3End[1] - origin.z, q3End[2] - origin.y];
+      // In place: assigning new arrays replaced the pooled ones on every trace
+      state.start[0] = q3Start[0] - origin.x;
+      state.start[1] = q3Start[1] - origin.z;
+      state.start[2] = q3Start[2] - origin.y;
+      state.end[0] = q3End[0] - origin.x;
+      state.end[1] = q3End[1] - origin.z;
+      state.end[2] = q3End[2] - origin.y;
       const model = this.bsp.models[definition.modelIndex];
       for (let i = model.firstBrush; i < model.firstBrush + model.numBrushes; i++) {
         const brush = this.bsp.brushes[i];
@@ -700,6 +710,13 @@ export class SweepCollisionBackend implements CollisionBackend {
   /**
    * Traverse BSP node tree
    */
+  private readonly _liftShift: [number, number, number] = [0, 0, 0];
+  private readonly _pcPoint: [number, number, number] = [0, 0, 0];
+  private readonly _pcLocal: [number, number, number] = [0, 0, 0];
+  /** Scratch split points for traceNode, one per recursion depth. */
+  private readonly splitPoints: [number, number, number][] = [];
+  private splitDepth = 0;
+
   private traceNode(
     nodeIndex: number,
     startFraction: number,
@@ -789,27 +806,35 @@ export class SweepCollisionBackend implements CollisionBackend {
       fraction1 = Math.max(0, Math.min(1, fraction1));
       fraction2 = Math.max(0, Math.min(1, fraction2));
 
+      // Split points come from one scratch array per recursion depth: a
+      // point is only read by the subtree it is passed to, so the far side's
+      // point can reuse the near side's slot once that subtree has returned.
+      // This runs for every plane a sweep crosses, many times per player per tick.
+      const depth = this.splitDepth++;
+      let mid = this.splitPoints[depth];
+      if (!mid) {
+        mid = [0, 0, 0];
+        this.splitPoints[depth] = mid;
+      }
+
       // Calculate mid point
       const midFraction = startFraction + (endFraction - startFraction) * fraction1;
-      const mid: [number, number, number] = [
-        start[0] + fraction1 * (end[0] - start[0]),
-        start[1] + fraction1 * (end[1] - start[1]),
-        start[2] + fraction1 * (end[2] - start[2]),
-      ];
+      mid[0] = start[0] + fraction1 * (end[0] - start[0]);
+      mid[1] = start[1] + fraction1 * (end[1] - start[1]);
+      mid[2] = start[2] + fraction1 * (end[2] - start[2]);
 
       // Check near side first
       this.traceNode(node.children[side], startFraction, midFraction, start, mid, state);
 
       // Calculate second mid point
       const midFraction2 = startFraction + (endFraction - startFraction) * fraction2;
-      const mid2: [number, number, number] = [
-        start[0] + fraction2 * (end[0] - start[0]),
-        start[1] + fraction2 * (end[1] - start[1]),
-        start[2] + fraction2 * (end[2] - start[2]),
-      ];
+      mid[0] = start[0] + fraction2 * (end[0] - start[0]);
+      mid[1] = start[1] + fraction2 * (end[1] - start[1]);
+      mid[2] = start[2] + fraction2 * (end[2] - start[2]);
 
       // Check far side
-      this.traceNode(node.children[side ^ 1], midFraction2, endFraction, mid2, end, state);
+      this.traceNode(node.children[side ^ 1], midFraction2, endFraction, mid, end, state);
+      this.splitDepth = depth;
     }
   }
 
@@ -1521,7 +1546,12 @@ export class SweepCollisionBackend implements CollisionBackend {
     if (!this.bsp) return 0;
 
     // Babylon -> Q3 (Y and Z swap)
-    const q3: [number, number, number] = [point.x, point.z, point.y];
+    // Reused scratch (pointInBrush only reads it): this runs several times
+    // per player per tick for water, lava and ladders
+    const q3 = this._pcPoint;
+    q3[0] = point.x;
+    q3[1] = point.z;
+    q3[2] = point.y;
 
     const leaf = this.bsp.leafs[this.pointLeafIndex(q3)];
     if (!leaf) return 0;
@@ -1545,9 +1575,14 @@ export class SweepCollisionBackend implements CollisionBackend {
 
     for (const d of this.lifts?.definitions ?? []) {
       const offset = this.lifts!.offset(d.modelIndex)!;
-      const local: [number, number, number] = [point.x - offset.x, point.z - offset.z, point.y - offset.y];
+      const local = this._pcLocal;
+      local[0] = point.x - offset.x;
+      local[1] = point.z - offset.z;
+      local[2] = point.y - offset.y;
       const model = this.bsp.models[d.modelIndex];
-      if ([0, 1, 2].some((j) => local[j] < model.mins[j] || local[j] > model.maxs[j])) continue;
+      let outside = false;
+      for (let j = 0; j < 3 && !outside; j++) outside = local[j] < model.mins[j] || local[j] > model.maxs[j];
+      if (outside) continue;
       for (let i = model.firstBrush; i < model.firstBrush + model.numBrushes; i++) {
         const brush = this.bsp.brushes[i];
         const texture = this.getBrushTexture(brush);
@@ -1557,7 +1592,10 @@ export class SweepCollisionBackend implements CollisionBackend {
     for (const definition of this.brushModels?.definitions ?? []) {
       if (!this.brushModels?.isEnabled(definition.modelIndex)) continue;
       const origin = definition.origin;
-      const local: [number, number, number] = [q3[0] - origin.x, q3[1] - origin.z, q3[2] - origin.y];
+      const local = this._pcLocal;
+      local[0] = q3[0] - origin.x;
+      local[1] = q3[1] - origin.z;
+      local[2] = q3[2] - origin.y;
       const model = this.bsp.models[definition.modelIndex];
       for (let i = model.firstBrush; i < model.firstBrush + model.numBrushes; i++) {
         const brush = this.bsp.brushes[i];
