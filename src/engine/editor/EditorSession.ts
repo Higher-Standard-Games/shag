@@ -106,6 +106,7 @@ import "./draw-tools.css";
 import "./edge-tabs.css";
 import "./entity-key.css";
 import "./build-menu.css";
+import "./hud.css";
 
 type ViewMode = "brush" | "textured" | "wireframe";
 const VIEW_MODES: ReadonlyArray<[ViewMode, string, string]> = [
@@ -139,6 +140,14 @@ type Gesture = {
 
 type Tool = "brush" | "patch" | "points" | "vertices" | "select" | "entity";
 type PatchShape = NonNullable<EditorViewState["patchShape"]>;
+const HUD_TOOLS: Record<Tool, [key: string, name: string]> = {
+  select: ["S", "Select"],
+  vertices: ["V", "Vertices"],
+  brush: ["B", "Brush"],
+  patch: ["P", "Patch"],
+  points: ["C", "Edit points"],
+  entity: ["E", "Entity"],
+};
 
 /** An entity's box in world space: its class's mins/maxs around the origin, or a model's own extents. */
 function entityBox(entity: PointEntity, local?: ModelBounds | null): { min: Vec3q; max: Vec3q } {
@@ -515,6 +524,7 @@ export class EditorSession {
         <button data-action="textures" data-edge="textures" title="Texture browser (T)" aria-keyshortcuts="T" aria-expanded="false"><i aria-hidden="true"></i><span><b>T</b>extures</span><small data-current-texture></small></button>
         <button data-action="models" data-edge="models" title="Model browser (M)" aria-keyshortcuts="M" aria-expanded="false"><i aria-hidden="true"></i><span><b>M</b>odels</span></button>
       </nav>
+      <div class="shagged__hud" aria-live="polite"><span class="shagged__hud-tool" data-hud-tool></span><span class="shagged__hud-texture" data-hud-texture></span><span class="shagged__hud-grid" data-hud-grid></span></div>
       <footer class="shagged__status"></footer>`;
     document.body.appendChild(this.root);
     this.statusEl = this.root.querySelector(".shagged__status")!;
@@ -1394,6 +1404,7 @@ export class EditorSession {
     if (!label) return;
     label.textContent = this.currentTexture.name;
     label.title = `New brushes get ${this.currentTexture.name}`;
+    this.renderHud();
   }
 
   showError(message: string): void {
@@ -1422,6 +1433,28 @@ export class EditorSession {
     this.renderStatus();
   }
 
+  /** The floating bar at the bottom: the tool in hand, the texture new brushes and patches get, and the grid. */
+  private renderHud(): void {
+    const tool = this.root.querySelector<HTMLElement>("[data-hud-tool]");
+    if (!tool) return;
+    const [key, name] = HUD_TOOLS[this.tool];
+    const detail =
+      this.tool === "patch" && this.patchShape !== "flat"
+        ? this.patchShape.replace("-", " ")
+        : this.tool === "entity"
+          ? this.entityClassname
+          : "";
+    const keyEl = document.createElement("kbd");
+    keyEl.textContent = key;
+    const nameEl = document.createElement("b");
+    nameEl.textContent = name;
+    tool.replaceChildren(keyEl, nameEl, ...(detail ? [` ${detail}`] : []));
+    const texture = this.root.querySelector<HTMLElement>("[data-hud-texture]")!;
+    texture.textContent = this.currentTexture.name;
+    texture.title = `New brushes get ${this.currentTexture.name} (T to change)`;
+    this.root.querySelector<HTMLElement>("[data-hud-grid]")!.textContent = `grid ${this.grid}`;
+  }
+
   /** Redraws the status bar from the last message plus whatever else changed
    * (hover coordinates, a drag's preview size) without replacing that message —
    * a plain mouse hover has something to show, but it isn't a new event. */
@@ -1437,6 +1470,7 @@ export class EditorSession {
     const data = this.document.snapshot();
     const saved =
       this.serverSave?.documentRevision === this.revision ? `server r${this.serverSave.revision}` : "server unsaved";
+    this.renderHud();
     this.statusEl.textContent = `${this.lastMessage} · ${data.brushes.length} brushes · ${data.entities.length + (data.brushEntities?.length ?? 0)} entities · revision ${this.revision} · ${this.activePlane.toUpperCase()} work ${hidden.toUpperCase()}=${this.workPlanes[hidden]} · grid ${this.grid}${dimensions}${cursor} · ${saved}`;
   }
 

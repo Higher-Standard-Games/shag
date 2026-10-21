@@ -1806,6 +1806,12 @@ describe("the drawing tools", () => {
       expect(active()).toBe(tool);
     }
     expect(session.root.querySelector('[data-action="entity"]')!.textContent).toBe("Entityspawn");
+    const hud = (part: string) => session.root.querySelector(`[data-hud-${part}]`)!.textContent;
+    expect(hud("tool")).toBe("VVertices");
+    press("e");
+    expect(hud("tool")).toBe("EEntity info_player_deathmatch");
+    expect(hud("texture")).toBe("blx/blx_grid");
+    expect(hud("grid")).toBe("grid 16");
     const curves = group.querySelector<HTMLDetailsElement>(".shagged__menu--curves")!;
     press("c");
     expect(curves.open).toBe(true);

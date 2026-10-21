@@ -1,0 +1,69 @@
+/* SHAGGED floating bar: the tool in hand, the current texture and the grid,
+   centred over the views. It never takes clicks, so it can't get in the way. */
+.shagged__hud {
+  position: fixed;
+  z-index: 6;
+  bottom: 44px;
+  left: calc(50% - 120px); /* the centre of the views, left of the 240px inspector */
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px;
+  color: #e8fbff;
+  background: #0b1020b8;
+  box-shadow:
+    inset 0 0 0 1px #ffc61a59,
+    0 8px 24px #0008;
+  backdrop-filter: blur(6px);
+  font:
+    700 13px "Rajdhani",
+    sans-serif;
+  white-space: nowrap;
+  transform: translateX(-50%) skew(-5deg);
+  pointer-events: none;
+}
+.shagged__hud > span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 10px;
+}
+.shagged__hud-tool {
+  color: #171129;
+  background: linear-gradient(180deg, #ffe787, #ffc61a 58%, #e8a900);
+}
+.shagged__hud-tool kbd {
+  padding: 0 5px;
+  color: #ffe787;
+  background: #171129;
+  font:
+    900 12px "Orbitron",
+    monospace;
+}
+.shagged__hud-tool b {
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.shagged__hud-texture {
+  max-width: 260px;
+  overflow: hidden;
+  color: #ffc61a;
+  text-overflow: ellipsis;
+}
+.shagged__hud-texture::before {
+  content: "";
+  flex: none;
+  width: 10px;
+  height: 10px;
+  background: repeating-conic-gradient(#ffc61a 0 25%, #47768b 0 50%) 0 0 / 5px 5px;
+}
+.shagged__hud-grid {
+  color: #75d9e8;
+  border-left: 1px solid #ffc61a40;
+}
+@media (max-width: 850px) {
+  .shagged__hud {
+    left: 50%;
+  }
+}
