@@ -28,6 +28,14 @@ export class WorldState {
   /** Next entity ID to assign */
   private nextEntityId: number = 1;
 
+  /**
+   * Clone an entity on its first write each tick, so earlier ticks' states
+   * stay as they were. Only worth paying for when something keeps and reads
+   * old states (whole-state history, re-sim checks); the live game server
+   * keeps none and turns it off, writing entities in place.
+   */
+  copyOnWrite = true;
+
   // ═══════════════════════════════════════════════════════════════════
   // CONSTRUCTOR
   // ═══════════════════════════════════════════════════════════════════
@@ -133,6 +141,11 @@ export class WorldState {
       return entity;
     }
 
+    if (!this.copyOnWrite) {
+      this.modified.add(id);
+      return entity;
+    }
+
     // First write this tick - clone the entity
     const cloned = entity.clone();
     this.entities.set(id, cloned);
@@ -176,6 +189,7 @@ export class WorldState {
     // Share all entity references (COW will clone on write)
     next.entities = new Map(this.entities);
     next.nextEntityId = this.nextEntityId;
+    next.copyOnWrite = this.copyOnWrite;
 
     // Clear modified set for new tick
     next.modified = new Set();
@@ -195,6 +209,7 @@ export class WorldState {
     }
 
     cloned.nextEntityId = this.nextEntityId;
+    cloned.copyOnWrite = this.copyOnWrite;
 
     return cloned;
   }

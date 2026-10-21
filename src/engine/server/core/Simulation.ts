@@ -13,10 +13,13 @@ import { WorldState } from "./WorldState";
 export interface SimulationConfig {
   /** Fixed tick duration in milliseconds */
   tickMs: number;
+  /** See WorldState.copyOnWrite. Off only where no old state is ever read. */
+  copyOnWrite: boolean;
 }
 
 const DEFAULT_CONFIG: SimulationConfig = {
   tickMs: 8, // 125 Hz
+  copyOnWrite: true,
 };
 
 export class Simulation {
@@ -28,7 +31,7 @@ export class Simulation {
 
   constructor(config: Partial<SimulationConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
-    this.state = new WorldState(tickNumber(0));
+    this.state = this.freshState();
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -178,10 +181,16 @@ export class Simulation {
    * Reset simulation to initial state
    */
   reset(): void {
-    this.state = new WorldState(tickNumber(0));
+    this.state = this.freshState();
     for (const subsystem of this.subsystems) {
       subsystem.initialize(this.state);
     }
+  }
+
+  private freshState(): WorldState {
+    const state = new WorldState(tickNumber(0));
+    state.copyOnWrite = this.config.copyOnWrite;
+    return state;
   }
 
   // ═══════════════════════════════════════════════════════════════════
