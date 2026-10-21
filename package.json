@@ -39,7 +39,6 @@
     "bot:train": "npx vite-node src/cli/bot-train.ts --",
     "bot:bench": "npx vite-node src/cli/bot-bench.ts --",
     "server:tick": "npx vite-node src/cli/server-tick.ts",
-    "server:game": "npx vite-node src/cli/server-game.ts",
     "server:fuzz": "npx vite-node src/cli/server-fuzz.ts --",
     "debug:textures": "npx vite-node src/cli/audit-textures.ts --",
     "debug:compare": "npx vite-node src/cli/compare-local-vs-server.ts --",
