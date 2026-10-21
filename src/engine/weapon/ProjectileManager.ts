@@ -104,6 +104,8 @@ export class ProjectileManager {
    */
   private tickObserver: Observer<Scene> | null = null;
   private projectiles: ActiveProjectile[] = [];
+  /** Server-driven projectiles by server entity id: each one is looked up every frame. */
+  private byServerId = new Map<string, ActiveProjectile>();
   private impacts: ActiveImpact[] = [];
   private nextId: number = 0;
 
@@ -247,7 +249,7 @@ export class ProjectileManager {
    * SnapshotBuffer-interpolated positions (Q3-style lerp between snapshots).
    */
   public updateServerPosition(serverEntityId: string, position: Vector3, velocity: Vector3): void {
-    const proj = this.projectiles.find((p) => p.serverEntityId === serverEntityId);
+    const proj = this.byServerId.get(serverEntityId);
     if (!proj) return;
     proj.node.position.copyFrom(position);
 
@@ -259,7 +261,7 @@ export class ProjectileManager {
       if (k <= 0) {
         proj.renderOffset = null;
       } else {
-        proj.node.position.addInPlace(proj.renderOffset.scale(k));
+        proj.renderOffset.scaleAndAddToRef(k, proj.node.position);
       }
     }
 
@@ -274,7 +276,7 @@ export class ProjectileManager {
    * Despawn a server-driven projectile by its server entity ID.
    */
   public despawnByEntityId(serverEntityId: string): void {
-    const proj = this.projectiles.find((p) => p.serverEntityId === serverEntityId);
+    const proj = this.byServerId.get(serverEntityId);
     if (proj) {
       this.despawn(proj.id);
     }
@@ -284,7 +286,7 @@ export class ProjectileManager {
    * Check if a server-driven projectile exists.
    */
   public hasServerProjectile(serverEntityId: string): boolean {
-    return this.projectiles.some((p) => p.serverEntityId === serverEntityId);
+    return this.byServerId.has(serverEntityId);
   }
 
   /**
@@ -647,6 +649,7 @@ export class ProjectileManager {
     }
 
     this.projectiles.push(projectile);
+    if (projectile.serverEntityId) this.byServerId.set(projectile.serverEntityId, projectile);
 
     // Exclude projectile from cel outline depth pass (prevents black blob outlines)
     if (!node.metadata) node.metadata = {};
@@ -1071,6 +1074,9 @@ export class ProjectileManager {
 
     this.retire(proj);
     this.projectiles.splice(index, 1);
+    if (proj.serverEntityId && this.byServerId.get(proj.serverEntityId) === proj) {
+      this.byServerId.delete(proj.serverEntityId);
+    }
     // devLog(`[ProjectileManager] Despawned ${id}`);
   }
 
@@ -1090,6 +1096,7 @@ export class ProjectileManager {
       disposeShot(proj);
     }
     this.projectiles = [];
+    this.byServerId.clear();
     for (const idle of this.idleShots.values()) for (const shot of idle) disposeShot(shot);
     this.idleShots.clear();
     for (const material of this.trailMaterials.values()) material.dispose();

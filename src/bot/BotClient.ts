@@ -504,7 +504,12 @@ export class BotClient extends EventEmitter {
         state: this._gameState,
         snapshot,
         viewYaw: this._aim.view?.yaw ?? this._gameState.self.yaw,
-        canSee: vision ? (from, to) => vision.canSeeFrom(from, to) : null,
+        canSee: vision
+          ? (from, to, entityId) =>
+              entityId === undefined
+                ? vision.canSeeFrom(from, to)
+                : vision.canSeeEnemy(entityId, from, to, this._gameState.tick)
+          : null,
         pickups: vision?.mapKnowledge.pickupPositions ?? [],
       });
       this._brain.observe(this._gameState);

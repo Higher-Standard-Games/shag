@@ -15,7 +15,7 @@
  * Intentionally decoupled from BinaryProtocol.test.ts (basic happy path).
  */
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { IComponent } from "../network/core/Component";
 import { Entity } from "../network/core/Entity";
 import { GameState, PlayerState } from "../network/core/GameState";
@@ -640,6 +640,21 @@ describe("BinaryProtocol — event serialization", () => {
   it("combat_state: dead flag roundtrips", () => {
     const [ev] = roundtripEvents([{ type: "combat_state", entityId: "e1", health: 0, armor: 0, dead: true }]);
     expect(ev.dead).toBe(true);
+  });
+
+  it("match_state and weapon_state JSON is built once per snapshot, however many clients get it", () => {
+    const s = new GameState();
+    s.tick = 1;
+    s.events = [
+      { type: "match_state", phase: 2, standings: [{ playerId: "p1", score: 3 }] },
+      { type: "weapon_state", entityId: "e1", currentWeapon: "rail", weapons: ["rail"], ammo: { rail: 5 } },
+    ] as unknown as GameState["events"];
+    const stringify = vi.spyOn(JSON, "stringify");
+    // Past the tick and the send time, every client's copy is the same bytes
+    const first = BinaryProtocol.encodeSnapshot(s).slice(12);
+    for (let client = 0; client < 15; client++) expect(BinaryProtocol.encodeSnapshot(s).slice(12)).toEqual(first);
+    expect(stringify).toHaveBeenCalledTimes(3); // match_state, weapons, ammo
+    stringify.mockRestore();
   });
 
   it("match_state: arbitrary JSON payload", () => {

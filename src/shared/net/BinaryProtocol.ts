@@ -138,6 +138,26 @@ function getEncoder(): BinaryEncoder {
   return _sharedEncoder;
 }
 
+// The server encodes the same snapshot events once per client, and match_state
+// (the whole roster) and weapon_state are JSON. Remember each event's JSON so it
+// is built once per snapshot rather than once per recipient. Snapshot events are
+// fresh objects every tick and are not changed once built, so the event object
+// is a safe key, and a WeakMap lets old ones go.
+const eventJson = new WeakMap<object, Map<string, string>>();
+function jsonOnce(event: object, part: string, build: () => string): string {
+  let parts = eventJson.get(event);
+  if (!parts) {
+    parts = new Map();
+    eventJson.set(event, parts);
+  }
+  let json = parts.get(part);
+  if (json === undefined) {
+    json = build();
+    parts.set(part, json);
+  }
+  return json;
+}
+
 // ── Shared component stubs (hoisted to avoid per-entity closure allocations) ──
 // These are referenced by every decoded entity/player. Defining once at module
 // scope eliminates ~600+ function object allocations per second during gameplay.
@@ -928,8 +948,8 @@ export class BinaryProtocol {
           encoder.writeUint8(event.dead ? 1 : 0);
           break;
 
-        case 2: // match_state — variable shape, use JSON (sent once per snapshot)
-          encoder.writeString(JSON.stringify(event));
+        case 2: // match_state — variable shape, use JSON
+          encoder.writeString(jsonOnce(event, "", () => JSON.stringify(event)));
           break;
 
         case 21: // lift_state — full recoverable mover state, on every snapshot
@@ -948,9 +968,9 @@ export class BinaryProtocol {
           encoder.writeString(event.entityId);
           encoder.writeString(event.currentWeapon ?? "");
           // weapons array as JSON (variable-length array of strings)
-          encoder.writeString(JSON.stringify(event.weapons ?? []));
+          encoder.writeString(jsonOnce(event, "weapons", () => JSON.stringify(event.weapons ?? [])));
           // ammo as JSON (variable-length object)
-          encoder.writeString(JSON.stringify(event.ammo ?? {}));
+          encoder.writeString(jsonOnce(event, "ammo", () => JSON.stringify(event.ammo ?? {})));
           encoder.writeUint8(event.reloading ? 1 : 0);
           encoder.writeUint32(event.lastFireTick ?? 0);
           break;

@@ -71,7 +71,7 @@ export interface PerceptionInput {
   /** Where the bot is looking (the view it sends, not where it wants to look). */
   viewYaw: number;
   /** Line of sight between two origins (feet), or null with no map: then the bot knows everything, as before. */
-  canSee: ((from: Vec3, to: Vec3) => boolean) | null;
+  canSee: ((from: Vec3, to: Vec3, entityId?: string) => boolean) | null;
   pickups: readonly PickupEntry[];
 }
 
@@ -160,7 +160,7 @@ export class BotPerception {
         const inView = off <= VIEW_HALF_ANGLE || (moving && off <= PERIPHERAL_HALF_ANGLE);
         if (recent || inView) {
           checks++;
-          if (canSee?.(eyeFrom, player.position)) {
+          if (canSee?.(eyeFrom, player.position, player.entityId)) {
             const next = recent && sighting ? sighting : { firstTick: state.tick, lastTick: state.tick };
             next.lastTick = state.tick;
             this._sightings.set(player.playerId, next);

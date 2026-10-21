@@ -259,6 +259,21 @@ export class BotVision {
     return this.canSee(eyePos, targetCenter);
   }
 
+  /**
+   * `canSeeFrom` for a player, sharing the LOS cache. Perception and
+   * `getVisibleState` both look at every candidate enemy each snapshot, from
+   * the same spot; with this the second asks the cache instead of tracing
+   * again. Only a result from this tick is reused, so perception sees exactly
+   * what a fresh trace would.
+   */
+  canSeeEnemy(entityId: string, botPos: Vec3, targetPos: Vec3, tick: number): boolean {
+    const cached = this._losCache.get(entityId);
+    if (cached && cached.tick === tick) return cached.visible;
+    const visible = this.canSeeFrom(botPos, targetPos);
+    this._losCache.set(entityId, { visible, tick });
+    return visible;
+  }
+
   // ── Vision Query (Main API) ─────────────────────────────────────────
 
   /**
