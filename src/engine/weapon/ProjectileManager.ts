@@ -133,6 +133,13 @@ export class ProjectileManager {
   private _tmpMoveDir = Vector3.Zero();
   private _tmpRay = new Ray(Vector3.Zero(), Vector3.Forward(), 1);
   private static readonly _defaultFwd = new Vector3(0, 0, 1);
+  private static readonly _faceAxis = new Vector3();
+  private static readonly _solidNames = new WeakMap<
+    AbstractMesh,
+    { name: string; texture: string | undefined; solid: boolean }
+  >();
+  /** MD3 projectile models face +Y in Quake coords: a -90° turn about Y. */
+  private static readonly _md3Correction = Quaternion.RotationAxis(Vector3.Up(), -Math.PI / 2);
   // Scratch for updateTrail's cumulative arc lengths (avoids per-frame alloc)
   private _trailArcLenScratch: number[] = [];
   private readonly _trailTangent = new Vector3();
@@ -570,32 +577,7 @@ export class ProjectileManager {
     // We need to rotate to align the model's forward (+Z) with the direction vector
     const forward = direction.normalize();
 
-    // Create a rotation that aligns +Z axis with forward direction
-    // We need to compute a rotation from default forward (0,0,1) to our direction
-    const defaultForward = new Vector3(0, 0, 1);
-
-    // Use cross product to get axis, and dot product for angle
-    const dot = Vector3.Dot(defaultForward, forward);
-
-    if (dot > 0.9999) {
-      // Nearly aligned, no rotation needed
-      node.rotationQuaternion = Quaternion.Identity();
-    } else if (dot < -0.9999) {
-      // Opposite direction, rotate 180 around Y
-      node.rotationQuaternion = Quaternion.RotationAxis(Vector3.Up(), Math.PI);
-    } else {
-      // General case: compute rotation axis and angle
-      const axis = Vector3.Cross(defaultForward, forward).normalize();
-      const angle = Math.acos(dot);
-      node.rotationQuaternion = Quaternion.RotationAxis(axis, angle);
-    }
-
-    // Apply additional -90° Y rotation for MD3 model alignment
-    // MD3 projectile models typically face +Y in Quake coords
-    const yRotation = Quaternion.RotationAxis(Vector3.Up(), -Math.PI / 2);
-    if (node.rotationQuaternion) {
-      node.rotationQuaternion = node.rotationQuaternion.multiply(yRotation);
-    }
+    ProjectileManager.faceAlong(node, forward);
 
     // Fade in through each mesh's own visibility. A cloned model shares its
     // material with every other shot of the same type, so fading the material
@@ -609,7 +591,8 @@ export class ProjectileManager {
       defId,
       node,
       light: null,
-      direction: normalDir,
+      // Its own copy: travel rewrites it in place every frame.
+      direction: normalDir.clone(),
       speed: def.speed,
       velocity: opts?.velocityOverride ? opts.velocityOverride.clone() : normalDir.scale(def.speed),
       gravity: def.gravity ?? 0,
@@ -671,12 +654,96 @@ export class ProjectileManager {
   /**
    * Update all projectiles
    */
+  /**
+   * Turn a projectile model so its forward (+Z) runs along `dir` (normalized),
+   * plus the MD3 alignment turn. Written into the node's own quaternion: an
+   * arcing grenade re-faces every frame, and this used to allocate five.
+   */
+  private static faceAlong(node: TransformNode, dir: Vector3): void {
+    const q = node.rotationQuaternion ?? new Quaternion();
+    const dot = Vector3.Dot(ProjectileManager._defaultFwd, dir);
+    if (dot > 0.9999) {
+      q.copyFromFloats(0, 0, 0, 1);
+    } else if (dot < -0.9999) {
+      Quaternion.RotationAxisToRef(Vector3.UpReadOnly, Math.PI, q);
+    } else {
+      const axis = ProjectileManager._faceAxis;
+      Vector3.CrossToRef(ProjectileManager._defaultFwd, dir, axis);
+      Quaternion.RotationAxisToRef(axis.normalize(), Math.acos(Math.min(1, Math.max(-1, dot))), q);
+    }
+    q.multiplyToRef(ProjectileManager._md3Correction, q);
+    node.rotationQuaternion = q;
+  }
+
+  /**
+   * Whether a mesh's name and texture say it is solid: not one of our own
+   * projectiles or impacts, not a flare, halo, sprite or other effect.
+   *
+   * The ray test asks this of every pickable mesh in the scene, for every
+   * projectile in flight, every frame, and the answer only depends on two
+   * strings, so it is worked out once per mesh and redone if either changes.
+   */
+  private static solidByName(mesh: AbstractMesh): boolean {
+    const texture: string | undefined = mesh.metadata?.textureName;
+    const cached = ProjectileManager._solidNames.get(mesh);
+    if (cached && cached.name === mesh.name && cached.texture === texture) return cached.solid;
+    const solid = ProjectileManager.namesSolid(mesh.name, texture);
+    ProjectileManager._solidNames.set(mesh, { name: mesh.name, texture, solid });
+    return solid;
+  }
+
+  private static namesSolid(meshName: string, texture: string | undefined): boolean {
+    if (meshName.startsWith("proj_") || meshName.startsWith("impact_")) return false;
+    const name = meshName.toLowerCase();
+    if (
+      name.includes("flare") ||
+      name.includes("halo") ||
+      name.includes("glow") ||
+      name.includes("billboard") ||
+      name.includes("sprite") ||
+      name.includes("particle") ||
+      name.includes("effect") ||
+      name.includes("light_")
+    ) {
+      return false;
+    }
+    const textureName = (texture || "").toLowerCase();
+    return !(
+      textureName.includes("flare") ||
+      textureName.includes("halo") ||
+      textureName.includes("glow") ||
+      textureName.includes("flareshader") ||
+      textureName.includes("lights/") ||
+      textureName.includes("sfx/")
+    );
+  }
+
+  /** What a client-side projectile can hit. One function, not one per projectile per frame. */
+  private static readonly blocksProjectile = (mesh: AbstractMesh): boolean => {
+    if (!mesh.isPickable) return false;
+    if (!ProjectileManager.solidByName(mesh)) return false;
+
+    // Skip meshes with additive blending (light effects)
+    const material = mesh.material;
+    if (material) {
+      if (material.alphaMode === 1 || material.alphaMode === 2) return false;
+      if (material.alpha !== undefined && material.alpha < 0.5) return false;
+    }
+
+    // Skip billboard faces (faceType 4 in BSP)
+    if (mesh.metadata?.faceType === 4) return false;
+
+    return true;
+  };
+
   public update(deltaTime: number): void {
     if (!this.scene) return;
 
     // Cleanup stale predicted impacts (older than 1s)
     const cleanupTime = performance.now() - 1000;
-    this.recentPredictedImpacts = this.recentPredictedImpacts.filter((p) => p.time > cleanupTime);
+    if (this.recentPredictedImpacts.length > 0) {
+      this.recentPredictedImpacts = this.recentPredictedImpacts.filter((p) => p.time > cleanupTime);
+    }
 
     const now = performance.now() / 1000;
     const toRemove: string[] = [];
@@ -725,23 +792,8 @@ export class ProjectileManager {
       if (proj.isServerDriven) {
         // Re-orient model to face direction of travel (gravity arcs)
         if (proj.gravity > 0 && proj.velocity.lengthSquared() > 0.01) {
-          const dir = proj.velocity.normalizeToNew();
-          proj.direction = dir;
-          const dot = Vector3.Dot(ProjectileManager._defaultFwd, dir);
-          if (dot > 0.9999) {
-            proj.node.rotationQuaternion = Quaternion.Identity();
-          } else if (dot < -0.9999) {
-            proj.node.rotationQuaternion = Quaternion.RotationAxis(Vector3.Up(), Math.PI);
-          } else {
-            const axis = Vector3.Cross(ProjectileManager._defaultFwd, dir).normalize();
-            const angle = Math.acos(Math.min(1, Math.max(-1, dot)));
-            proj.node.rotationQuaternion = Quaternion.RotationAxis(axis, angle);
-          }
-          // MD3 alignment correction
-          const yRot = Quaternion.RotationAxis(Vector3.Up(), -Math.PI / 2);
-          if (proj.node.rotationQuaternion) {
-            proj.node.rotationQuaternion = proj.node.rotationQuaternion.multiply(yRot);
-          }
+          proj.velocity.normalizeToRef(proj.direction);
+          ProjectileManager.faceAlong(proj.node, proj.direction);
         }
         // Update trail effect (for projectiles with trailEffect defined)
         const trailDef = getEntityRegistry().get<ProjectileDef>(proj.defId);
@@ -755,51 +807,7 @@ export class ProjectileManager {
       this._tmpRay.origin.copyFrom(proj.node.position);
       this._tmpRay.direction.copyFrom(this._tmpMoveDir);
       this._tmpRay.length = moveDist + 1;
-      const hit = this.scene.pickWithRay(this._tmpRay, (mesh) => {
-        if (!mesh.isPickable) return false;
-        if (mesh.name.startsWith("proj_")) return false;
-        if (mesh.name.startsWith("impact_")) return false;
-
-        // Skip non-solid meshes (light halos, flares, billboards, effects)
-        const name = mesh.name.toLowerCase();
-        if (
-          name.includes("flare") ||
-          name.includes("halo") ||
-          name.includes("glow") ||
-          name.includes("billboard") ||
-          name.includes("sprite") ||
-          name.includes("particle") ||
-          name.includes("effect") ||
-          name.includes("light_")
-        ) {
-          return false;
-        }
-
-        // Skip by texture name patterns
-        const textureName = (mesh.metadata?.textureName || "").toLowerCase();
-        if (
-          textureName.includes("flare") ||
-          textureName.includes("halo") ||
-          textureName.includes("glow") ||
-          textureName.includes("flareshader") ||
-          textureName.includes("lights/") ||
-          textureName.includes("sfx/")
-        ) {
-          return false;
-        }
-
-        // Skip meshes with additive blending (light effects)
-        const material = mesh.material;
-        if (material) {
-          if (material.alphaMode === 1 || material.alphaMode === 2) return false;
-          if (material.alpha !== undefined && material.alpha < 0.5) return false;
-        }
-
-        // Skip billboard faces (faceType 4 in BSP)
-        if (mesh.metadata?.faceType === 4) return false;
-
-        return true;
-      });
+      const hit = this.scene.pickWithRay(this._tmpRay, ProjectileManager.blocksProjectile);
 
       if (hit?.hit && hit.pickedPoint) {
         const normal = hit.getNormal(true) ?? this._tmpMoveDir.scale(-1);
@@ -831,27 +839,12 @@ export class ProjectileManager {
       }
 
       // No hit, move projectile
-      proj.node.position.addInPlace(this._tmpMoveDir.scale(moveDist));
+      this._tmpMoveDir.scaleAndAddToRef(moveDist, proj.node.position);
 
       // Update direction for model orientation (gravity changes trajectory)
       if (proj.gravity > 0) {
-        proj.direction = this._tmpMoveDir.clone();
-        // Re-orient model to face direction of travel
-        const dot = Vector3.Dot(ProjectileManager._defaultFwd, this._tmpMoveDir);
-        if (dot > 0.9999) {
-          proj.node.rotationQuaternion = Quaternion.Identity();
-        } else if (dot < -0.9999) {
-          proj.node.rotationQuaternion = Quaternion.RotationAxis(Vector3.Up(), Math.PI);
-        } else {
-          const axis = Vector3.Cross(ProjectileManager._defaultFwd, this._tmpMoveDir).normalize();
-          const angle = Math.acos(Math.min(1, Math.max(-1, dot)));
-          proj.node.rotationQuaternion = Quaternion.RotationAxis(axis, angle);
-        }
-        // MD3 alignment correction
-        const yRot = Quaternion.RotationAxis(Vector3.Up(), -Math.PI / 2);
-        if (proj.node.rotationQuaternion) {
-          proj.node.rotationQuaternion = proj.node.rotationQuaternion.multiply(yRot);
-        }
+        proj.direction.copyFrom(this._tmpMoveDir);
+        ProjectileManager.faceAlong(proj.node, this._tmpMoveDir);
       }
 
       // Update trail for projectiles with trailEffect defined
