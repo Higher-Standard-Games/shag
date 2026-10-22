@@ -14,6 +14,15 @@ export interface ReloadAnimOffsets {
   zOffset: number;
 }
 
+/** At rest: one shared, frozen answer instead of a new object every frame. */
+const NO_RELOAD_OFFSETS: Readonly<ReloadAnimOffsets> = Object.freeze({
+  roll: 0,
+  pitch: 0,
+  xOffset: 0,
+  yOffset: 0,
+  zOffset: 0,
+});
+
 export class WeaponReloadAnim {
   private active: boolean = false;
   private startTime: number = 0;
@@ -49,9 +58,9 @@ export class WeaponReloadAnim {
   }
 
   /** Calculate animation offsets */
-  getOffsets(): ReloadAnimOffsets {
+  getOffsets(): Readonly<ReloadAnimOffsets> {
     if (!this.active) {
-      return { roll: 0, pitch: 0, xOffset: 0, yOffset: 0, zOffset: 0 };
+      return NO_RELOAD_OFFSETS;
     }
 
     const p = this.progress;
@@ -59,7 +68,7 @@ export class WeaponReloadAnim {
     // Check if reload is complete
     if (p >= 1.0) {
       this.active = false;
-      return { roll: 0, pitch: 0, xOffset: 0, yOffset: 0, zOffset: 0 };
+      return NO_RELOAD_OFFSETS;
     }
 
     const MAX_ROLL = Math.PI / 4; // 45 degrees

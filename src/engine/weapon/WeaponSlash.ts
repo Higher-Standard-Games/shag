@@ -7,6 +7,7 @@
  * Used by WeaponViewManager.
  */
 
+import { VertexBuffer } from "@babylonjs/core/Buffers/buffer";
 import type { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { RawTexture } from "@babylonjs/core/Materials/Textures/rawTexture";
@@ -95,12 +96,69 @@ interface TrailInstance {
   tipPoints: Vector3[];
   handlePoints: Vector3[];
   mesh: Mesh | null;
+  /** Points per side the mesh has room for; the rest repeat the newest point. */
+  capacity: number;
+  positions: Float32Array | null;
+  uvs: Float32Array | null;
   material: StandardMaterial | null;
   fadeStart: number;
   active: boolean;
 }
 
+/** Room for a swing's points at high frame rates before the mesh must grow. */
+const SLASH_TRAIL_CAPACITY = 64;
+
 // ─── WeaponSlash Class ────────────────────────────────────────────────
+
+/**
+ * Write a trail's two paths into its ribbon's vertex layout: the tip path then
+ * the handle path, each `capacity` long, then the same again for the back face
+ * of the double-sided ribbon. UVs are what the ribbon builder gives: u is the
+ * distance along the path as a fraction of its length, v is 0 on the tip path
+ * and 1 on the handle path (0 where the two meet).
+ */
+function writeSlashRibbon(trail: TrailInstance): void {
+  const positions = trail.positions!;
+  const uvs = trail.uvs!;
+  const capacity = trail.capacity;
+  const count = trail.tipPoints.length;
+  const paths = [trail.tipPoints, trail.handlePoints];
+  const half = capacity * 2;
+  for (let p = 0; p < 2; p++) {
+    const path = paths[p];
+    let total = 0;
+    for (let j = 1; j < count; j++) total += Vector3.Distance(path[j], path[j - 1]);
+    let along = 0;
+    for (let j = 0; j < capacity; j++) {
+      const point = path[Math.min(j, count - 1)];
+      if (j > 0 && j < count) along += Vector3.Distance(point, path[j - 1]);
+      const vertex = p * capacity + j;
+      const width = Vector3.Distance(
+        trail.tipPoints[Math.min(j, count - 1)],
+        trail.handlePoints[Math.min(j, count - 1)],
+      );
+      const u = total !== 0 ? along / total : 0;
+      const v = p === 0 || width === 0 ? 0 : 1;
+      for (let side = 0; side <= half; side += half) {
+        positions[(side + vertex) * 3] = point.x;
+        positions[(side + vertex) * 3 + 1] = point.y;
+        positions[(side + vertex) * 3 + 2] = point.z;
+        uvs[(side + vertex) * 2] = u;
+        uvs[(side + vertex) * 2 + 1] = v;
+      }
+    }
+  }
+}
+
+/** At rest: one shared, frozen answer instead of a new object every frame. */
+const NO_SLASH_OFFSETS: Readonly<SlashAnimOffsets> = Object.freeze({
+  xOffset: 0,
+  yOffset: 0,
+  zOffset: 0,
+  pitch: 0,
+  yaw: 0,
+  roll: 0,
+});
 
 export class WeaponSlash {
   private static readonly TRAIL_FADE_MS = 800;
@@ -115,6 +173,9 @@ export class WeaponSlash {
   // Trail instances
   private trails: TrailInstance[] = [];
   private trailWasActive = false;
+  private readonly _forward = new Vector3();
+  private readonly _up = new Vector3();
+  private readonly _right = new Vector3();
 
   /** True if a slash is currently animating */
   get isActive(): boolean {
@@ -131,8 +192,8 @@ export class WeaponSlash {
   }
 
   /** Calculate animation offsets for current frame */
-  getOffsets(): SlashAnimOffsets {
-    const zero: SlashAnimOffsets = { xOffset: 0, yOffset: 0, zOffset: 0, pitch: 0, yaw: 0, roll: 0 };
+  getOffsets(): Readonly<SlashAnimOffsets> {
+    const zero = NO_SLASH_OFFSETS;
     if (!this.slashActive) return zero;
 
     const now = performance.now();
@@ -227,6 +288,9 @@ export class WeaponSlash {
         tipPoints: [],
         handlePoints: [],
         mesh: null,
+        capacity: 0,
+        positions: null,
+        uvs: null,
         material: null,
         fadeStart: 0,
         active: true,
@@ -237,30 +301,31 @@ export class WeaponSlash {
     // Collect points for active trail
     const activeTrail = this.trails.find((t) => t.active);
     if (activeTrail && isSlashing) {
-      const forward = camera.getDirection(Vector3.Forward());
-      const up = camera.getDirection(Vector3.Up());
-      const right = camera.getDirection(Vector3.Right());
+      const forward = this._forward;
+      const up = this._up;
+      const right = this._right;
+      camera.getDirectionToRef(Vector3.LeftHandedForwardReadOnly, forward);
+      camera.getDirectionToRef(Vector3.UpReadOnly, up);
+      camera.getDirectionToRef(Vector3.RightReadOnly, right);
 
       const slashOff = this.getOffsets();
 
       // Handle (pivot)
-      const handle = camera.position
-        .clone()
-        .addInPlace(forward.scale(15))
-        .addInPlace(up.scale(-4))
-        .addInPlace(right.scale(2))
-        .addInPlace(up.scale(slashOff.yOffset * 0.04))
-        .addInPlace(right.scale(slashOff.xOffset * 0.04));
+      const handle = camera.position.clone();
+      forward.scaleAndAddToRef(15, handle);
+      up.scaleAndAddToRef(-4, handle);
+      right.scaleAndAddToRef(2, handle);
+      up.scaleAndAddToRef(slashOff.yOffset * 0.04, handle);
+      right.scaleAndAddToRef(slashOff.xOffset * 0.04, handle);
 
       // Tip (sweeps wide)
-      const tip = camera.position
-        .clone()
-        .addInPlace(forward.scale(28))
-        .addInPlace(up.scale(5))
-        .addInPlace(right.scale(-2))
-        .addInPlace(up.scale(slashOff.yOffset * 0.25))
-        .addInPlace(right.scale(slashOff.xOffset * 0.25))
-        .addInPlace(forward.scale(slashOff.zOffset * 0.1));
+      const tip = camera.position.clone();
+      forward.scaleAndAddToRef(28, tip);
+      up.scaleAndAddToRef(5, tip);
+      right.scaleAndAddToRef(-2, tip);
+      up.scaleAndAddToRef(slashOff.yOffset * 0.25, tip);
+      right.scaleAndAddToRef(slashOff.xOffset * 0.25, tip);
+      forward.scaleAndAddToRef(slashOff.zOffset * 0.1, tip);
 
       activeTrail.tipPoints.push(tip);
       activeTrail.handlePoints.push(handle);
@@ -300,20 +365,33 @@ export class WeaponSlash {
   private buildTrailMesh(scene: Scene, trail: TrailInstance): void {
     if (trail.tipPoints.length < 2) return;
 
-    if (trail.mesh) {
-      trail.mesh.dispose();
-      trail.mesh = null;
+    // The swing adds a point a frame. Rebuilding the ribbon for each one made
+    // and threw away a mesh every frame of every swing, so the mesh has room
+    // for more points than it uses and is rewritten in place; the spare ones
+    // repeat the newest point and draw nothing. It is only rebuilt to grow.
+    const count = trail.tipPoints.length;
+    if (!trail.mesh || trail.capacity < count) {
+      trail.mesh?.dispose();
+      let capacity = SLASH_TRAIL_CAPACITY;
+      while (capacity < count) capacity *= 2;
+      const pad = (path: Vector3[]) => Array.from({ length: capacity }, (_, i) => path[Math.min(i, count - 1)]);
+      trail.mesh = MeshBuilder.CreateRibbon(
+        "slashTrail",
+        {
+          pathArray: [pad(trail.tipPoints), pad(trail.handlePoints)],
+          updatable: true,
+          sideOrientation: Mesh.DOUBLESIDE,
+        },
+        scene,
+      );
+      trail.capacity = capacity;
+      trail.positions = new Float32Array(capacity * 2 * 2 * 3);
+      trail.uvs = new Float32Array(capacity * 2 * 2 * 2);
     }
-
-    trail.mesh = MeshBuilder.CreateRibbon(
-      "slashTrail",
-      {
-        pathArray: [trail.tipPoints, trail.handlePoints],
-        updatable: false,
-        sideOrientation: Mesh.DOUBLESIDE,
-      },
-      scene,
-    );
+    writeSlashRibbon(trail);
+    trail.mesh.updateVerticesData(VertexBuffer.PositionKind, trail.positions!, false, false);
+    trail.mesh.updateVerticesData(VertexBuffer.UVKind, trail.uvs!, false, false);
+    trail.mesh.refreshBoundingInfo();
     trail.mesh.isPickable = false;
 
     if (!trail.material) {

@@ -20,6 +20,9 @@ export interface HolsterAnimOffsets {
   zOffset: number;
 }
 
+/** At rest: one shared, frozen answer instead of a new object every frame. */
+const NO_HOLSTER_OFFSETS: Readonly<HolsterAnimOffsets> = Object.freeze({ yOffset: 0, roll: 0, xOffset: 0, zOffset: 0 });
+
 export class WeaponHolsterAnim {
   private static readonly DOWN_DURATION_S = 0.18;
   private static readonly UP_DURATION_S = 0.2;
@@ -49,8 +52,8 @@ export class WeaponHolsterAnim {
         : Math.max(this.target, this.progress - step);
   }
 
-  getOffsets(): HolsterAnimOffsets {
-    if (this.progress === 0) return { yOffset: 0, roll: 0, xOffset: 0, zOffset: 0 };
+  getOffsets(): Readonly<HolsterAnimOffsets> {
+    if (this.progress === 0) return NO_HOLSTER_OFFSETS;
 
     const eased = 1 - (1 - this.progress) ** 3; // ease-out-cubic, as the switch uses
     return {

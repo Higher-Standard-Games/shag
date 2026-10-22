@@ -13,6 +13,9 @@ export interface SwitchAnimOffsets {
   zOffset: number;
 }
 
+/** At rest: one shared, frozen answer instead of a new object every frame. */
+const NO_SWITCH_OFFSETS: Readonly<SwitchAnimOffsets> = Object.freeze({ yOffset: 0, roll: 0, xOffset: 0, zOffset: 0 });
+
 export class WeaponSwitchAnim {
   // Animation timing
   private static readonly DOWN_DURATION = 120;
@@ -80,9 +83,9 @@ export class WeaponSwitchAnim {
   }
 
   /** Calculate visual offsets for current phase */
-  getOffsets(): SwitchAnimOffsets {
+  getOffsets(): Readonly<SwitchAnimOffsets> {
     if (this.phase === "idle") {
-      return { yOffset: 0, roll: 0, xOffset: 0, zOffset: 0 };
+      return NO_SWITCH_OFFSETS;
     }
 
     const elapsed = performance.now() - this.startTime;
