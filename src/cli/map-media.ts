@@ -3,9 +3,11 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import JSZip from "jszip";
 import { BspLoader } from "../engine/loader/bsp/BspLoader";
+import { PK3Index } from "../engine/loader/pk3/PK3Index";
 import { parseShaderFile } from "../engine/loader/shader/Q3ShaderParser";
 import type { Q3Shader } from "../engine/loader/shader/Q3ShaderTypes";
 import { shaderSourceBlocks } from "../engine/loader/shader/ShaderSourceBlocks";
+import { readPackagePolicy, sharedPackageForPath } from "./pk3-package-policy";
 
 const hash = (bytes: ArrayLike<number>) => createHash("sha256").update(Uint8Array.from(bytes)).digest("hex");
 const normalize = (name: string) => name.replace(/\\/g, "/").replace(/^\//, "").toLowerCase();
@@ -118,6 +120,8 @@ export class MediaBank {
 }
 
 export async function packageMap(bank: MediaBank, map: string, outputDirectory: string, auditOnly = false) {
+  const policy = readPackagePolicy();
+  const sharedDependencies = new Set<string>();
   if (!/^[a-z0-9_]+$/.test(map)) throw new Error(`Invalid map name: ${map}`);
   const bspPath = `maps/${map}.bsp`;
   const bspBytes = await bank.read(bspPath);
@@ -139,9 +143,11 @@ export async function packageMap(bank: MediaBank, map: string, outputDirectory: 
       return;
     }
     const bytes = await bank.read(name);
+    const sharedPackage = sharedPackageForPath(name, policy);
+    if (sharedPackage) sharedDependencies.add(sharedPackage);
     assets.set(name, {
       name,
-      owner: bank.index.files[name],
+      owner: sharedPackage ?? bank.index.files[name],
       bytes: bytes.length,
       sha256: hash(bytes),
       reasons: [reason],
@@ -257,6 +263,7 @@ export async function packageMap(bank: MediaBank, map: string, outputDirectory: 
   const options = { date: new Date("1980-01-01T00:00:00Z"), createFolders: false };
   mapZip.file(bspPath, new Uint8Array(bspBytes), options);
   for (const asset of [...assets.values()].sort((a, b) => a.name.localeCompare(b.name))) {
+    if (sharedPackageForPath(asset.name, policy)) continue;
     const mapAsset = /^(levelshots|minimaps|navigation|maps)\//.test(asset.name) || asset.name.endsWith(".arena");
     (mapAsset ? mapZip : texZip).file(asset.name, new Uint8Array(await bank.read(asset.name)), options);
   }
@@ -282,7 +289,11 @@ export async function packageMap(bank: MediaBank, map: string, outputDirectory: 
   for (const file of new Set([...shaders.values()].map((entry) => entry.file)))
     texZip.file(`media-sources/${map}/${file}.txt`, new Uint8Array(await bank.read(file)), options);
   // Rebuilding from curated banks must retain the original attribution chain.
-  for (const owner of new Set([...assets.values(), ...shaders.values()].map((entry) => entry.owner))) {
+  for (const owner of new Set(
+    [...assets.values()]
+      .map((entry) => bank.index.files[entry.name])
+      .concat([...shaders.values()].map((entry) => entry.owner)),
+  )) {
     if (!owner.startsWith("tex_") && owner !== "textures.pk3" && owner !== "washoi_textures.pk3") continue;
     const source = await bank.zip(owner);
     for (const file of Object.values(source.files)) {
@@ -298,6 +309,11 @@ export async function packageMap(bank: MediaBank, map: string, outputDirectory: 
   }
   const manifest = {
     map,
+    sharedDependencies: [...sharedDependencies].sort().map((packageName) => ({
+      package: packageName,
+      dynamic: policy.sharedTexturePackages[packageName].dynamic,
+      texturePrefixes: policy.sharedTexturePackages[packageName].prefixes,
+    })),
     bsp: { owner: bank.index.files[bspPath], sha256: hash(bspBytes) },
     assets: [...assets.values()],
     shaders: [...shaders].map(([name, entry]) => ({
@@ -378,13 +394,35 @@ export async function mergeTextureBanks(inputs: Uint8Array[]): Promise<Uint8Arra
   return result;
 }
 
+export async function indexWithMasterBank(directory: string, index: Index, master: string): Promise<Index> {
+  if (!/^[a-z0-9][a-z0-9_.-]*\.pk3$/i.test(master)) throw new Error("Invalid --master-package basename");
+  // Source preparation must not publish the development bank or use stale per-map copies.
+  const packages = index.packages.filter((pkg) => !pkg.pk3.toLowerCase().startsWith("tex_") && pkg.pk3 !== master);
+  packages.push({ pk3: master, path: master });
+  const sourceIndex = PK3Index.getInstance();
+  sourceIndex.clear();
+  try {
+    for (const pkg of packages.sort((a, b) => a.pk3.localeCompare(b.pk3))) {
+      const bytes = await fs.readFile(path.join(directory, pkg.path));
+      const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+      if (!(await sourceIndex.indexPK3ArrayBuffer(pkg.pk3, buffer, pkg.path)))
+        throw new Error(`Cannot index map media source package: ${pkg.pk3}`);
+    }
+    return sourceIndex.exportSnapshot();
+  } finally {
+    sourceIndex.clear();
+  }
+}
+
 export async function main(): Promise<void> {
   const args = process.argv.slice(2).filter((value) => value !== "--");
   const value = (flag: string, fallback: string) => (args.includes(flag) ? args[args.indexOf(flag) + 1] : fallback);
   const directory = path.resolve(value("--data-dir", "public/data"));
   const output = path.resolve(value("--output-dir", ".cache/map-media"));
+  let index = JSON.parse(await fs.readFile(path.join(directory, "pk3_index.json"), "utf8")) as Index;
+  if (args.includes("--master-package"))
+    index = await indexWithMasterBank(directory, index, value("--master-package", ""));
   const maps = value("--maps", "washoi_dm2,washoi_dm5,washoi_dm11").split(",");
-  const index = JSON.parse(await fs.readFile(path.join(directory, "pk3_index.json"), "utf8")) as Index;
   const bank = new MediaBank(directory, index);
   await bank.loadShaders();
   const report = [];

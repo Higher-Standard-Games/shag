@@ -2,6 +2,7 @@ import JSZip from "jszip";
 import { devLog } from "../../core/DevLog";
 import { readAssetBuffer } from "./AssetRequest";
 import { PackageDownload } from "./PackageDownload";
+import type { PK3PackageScope } from "./PK3PackageScope";
 import { fetchPk3, pk3MirrorBase } from "./Pk3Mirror";
 
 class PackageLoadSupersededError extends Error {}
@@ -34,6 +35,39 @@ export class PK3Loader {
   private readonly pendingMounts = new Map<string, Promise<void>>();
   private readonly revisions = new Map<string, number>();
   private generation = 0;
+  private packageScope: PK3PackageScope | null = null;
+  private filesystemRevision = 0;
+
+  public setPackageScope(scope: PK3PackageScope | null): void {
+    if (scope === this.packageScope) return;
+    this.packageScope = scope;
+    this.rebuildFileIndex();
+  }
+
+  public getFilesystemRevision(): number {
+    return this.filesystemRevision;
+  }
+
+  public canUseTextureSidecar(path: string): boolean {
+    const normalized = path.toLowerCase().replace(/\\/g, "/");
+    return !this.packageScope?.sidecarExcludedPrefixes?.some((prefix) => normalized.startsWith(prefix));
+  }
+
+  public getFileOwner(path: string): string | null {
+    return this.fileIndex.get(path.toLowerCase().replace(/\\/g, "/")) ?? null;
+  }
+
+  public getPackageFiles(filename: string): string[] {
+    return [...(this.packages.get(filename)?.files ?? [])];
+  }
+
+  public async getPackageFile(filename: string, path: string): Promise<string | null> {
+    const normalized = path.toLowerCase().replace(/\\/g, "/");
+    const zip = this.packages.get(filename)?.zip;
+    const file =
+      zip && Object.values(zip.files).find((entry) => entry.name.toLowerCase().replace(/\\/g, "/") === normalized);
+    return file && !file.dir ? file.async("string") : null;
+  }
 
   /** Track Blob URLs created via getFileAsURL() for cleanup */
   private blobUrls: string[] = [];
@@ -304,12 +338,15 @@ export class PK3Loader {
    * Also builds O(1) zip entry index to avoid forEach scans in getFile().
    */
   private rebuildFileIndex(): void {
+    this.filesystemRevision++;
     this.fileIndex.clear();
     this.zipFileIndex.clear();
 
     // Sort packages alphabetically by filename (later = higher priority)
     // This matches Quake 3/Warsow: z_*.pk3 overrides data*.pk3
-    const sortedPackages = Array.from(this.packages.values()).sort((a, b) => a.filename.localeCompare(b.filename));
+    const sortedPackages = Array.from(this.packages.values())
+      .filter((pkg) => !this.packageScope?.excludedPackages.has(pkg.filename))
+      .sort((a, b) => a.filename.localeCompare(b.filename));
 
     devLog(`[PK3Loader] rebuildFileIndex: ${sortedPackages.map((p) => p.filename).join(", ")}`);
 
@@ -419,6 +456,8 @@ export class PK3Loader {
    */
   public unloadAll(): void {
     this.generation++;
+    this.packageScope = null;
+    this.filesystemRevision++;
     this.revisions.clear();
     this.mountedSources.clear();
     this.pendingMounts.clear();

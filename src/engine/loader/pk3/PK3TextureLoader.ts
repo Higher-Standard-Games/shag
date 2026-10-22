@@ -227,6 +227,7 @@ export class PK3TextureLoader {
     }
 
     const canonicalPath = strippedPath.toLowerCase().replace(/\\/g, "/");
+    if (!PK3Loader.getInstance().canUseTextureSidecar(canonicalPath)) return null;
     const cacheKey = `ktx2:${canonicalPath}`;
     const cached = this.textureCache.get(cacheKey);
     if (cached && (cached.isReady() || (cached as unknown as { _texture: unknown })._texture !== null)) {

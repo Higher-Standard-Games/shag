@@ -34,6 +34,7 @@ import { fileURLToPath } from "node:url";
 import jpeg from "jpeg-js";
 import JSZip from "jszip";
 import { PNG } from "pngjs";
+import { publishedPackageNames, readPackagePolicy, sharedPackageForPath } from "../src/cli/pk3-package-policy.ts";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(SCRIPT_DIR, "..");
@@ -117,9 +118,8 @@ function findKtxTool() {
 }
 
 async function indexEffectiveTextures() {
-  const packageNames = readdirSync(SOURCE_DIR)
-    .filter((name) => name.toLowerCase().endsWith(".pk3"))
-    .sort((a, b) => a.localeCompare(b));
+  const policy = readPackagePolicy();
+  const packageNames = publishedPackageNames(readdirSync(SOURCE_DIR), policy);
   const exactFiles = new Map();
 
   for (const packageName of packageNames) {
@@ -128,6 +128,8 @@ async function indexEffectiveTextures() {
     for (const entry of Object.values(zip.files)) {
       if (entry.dir || !isTexturePath(entry.name)) continue;
       const path = normalizePath(entry.name);
+      const shared = sharedPackageForPath(path, policy);
+      if (shared && policy.sharedTexturePackages[shared].dynamic) continue;
       exactFiles.set(path, {
         packageName,
         packagePath,

@@ -4,12 +4,15 @@ import JSZip from "jszip";
 import { PK3Index } from "../engine/loader/pk3/PK3Index";
 import { pk3IndexHash } from "../engine/loader/pk3/PK3PublishedIndex";
 import { levelshotPreview } from "./levelshot-previews";
+import { publishedPackageNames, readPackagePolicy } from "./pk3-package-policy";
 
 /** Publish a matched manifest/index pair only after every local archive indexed successfully. */
 export async function generatePk3Index(directory: string) {
   const dataDir = resolve(directory);
   await mkdir(dataDir, { recursive: true });
-  const files = (await readdir(dataDir)).filter((name) => /\.pk3$/i.test(name)).sort();
+  const policy = readPackagePolicy();
+  const allFiles = (await readdir(dataDir)).filter((name) => /\.pk3$/i.test(name)).sort();
+  const files = publishedPackageNames(allFiles, policy);
   if (files.some((name) => !/^[a-z0-9][a-z0-9_.-]*\.pk3$/i.test(name)))
     throw new Error("Invalid PK3 filename in data directory");
   const index = PK3Index.getInstance();
@@ -39,7 +42,9 @@ export async function generatePk3Index(directory: string) {
       sourceStats.set(filename, { size: before.size, mtimeMs: before.mtimeMs });
       archiveBytes += buffer.byteLength;
     }
-    const currentFiles = (await readdir(dataDir)).filter((name) => /\.pk3$/i.test(name)).sort();
+    const currentFiles = publishedPackageNames(await readdir(dataDir), policy);
+    if (JSON.stringify(readPackagePolicy()) !== JSON.stringify(policy))
+      throw new Error("PK3 package policy changed while indexing; retry generation");
     if (JSON.stringify(currentFiles) !== JSON.stringify(files))
       throw new Error("Package list changed while indexing; retry generation");
     for (const filename of files) {
@@ -85,6 +90,7 @@ export async function generatePk3Index(directory: string) {
     }
     return {
       directory: dataDir,
+      ignoredPackages: allFiles.filter((name) => !files.includes(name)),
       ...index.getStats(),
       indexBytes: Buffer.byteLength(text),
       archiveBytes,

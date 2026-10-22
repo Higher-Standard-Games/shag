@@ -38,7 +38,9 @@ import { BspMeshBuilder, type BspMeshBuildResult } from "../bsp/BspMeshBuilder";
 import { parseWorldFog } from "../bsp/WorldFog";
 import { PK3Index } from "../pk3/PK3Index";
 import { PK3Loader } from "../pk3/PK3Loader";
+import type { PK3PackageScope } from "../pk3/PK3PackageScope";
 import { Q3ShaderRegistry } from "../shader/Q3ShaderRegistry";
+import { shaderSourceBlocks } from "../shader/ShaderSourceBlocks";
 import { waitForMapAsset, waitForMapReady, waitForMapVisibility } from "./MapLoadWait";
 
 /**
@@ -281,6 +283,7 @@ export class MapLoader {
         error,
       };
     } catch (e) {
+      this.resetPackageScope();
       if (this.currentMeshResult) {
         try {
           await this.clearCurrentMap();
@@ -373,6 +376,8 @@ export class MapLoader {
       };
     }
     this.currentBsp = bsp;
+
+    await this.prepareMapTextureBank(mapName, progress, signal);
 
     // Phase 3: Resolve and load texture dependencies
     progress("Dependencies", "Resolving required PK3s");
@@ -772,6 +777,111 @@ export class MapLoader {
   }
 
   /**
+   * A companion is a complete map dependency bank; other maps' banks stay cached but hidden.
+   */
+  private async prepareMapTextureBank(
+    mapName: string,
+    progress: (phase: string, detail?: string) => void,
+    signal: AbortSignal,
+  ): Promise<void> {
+    this.resetPackageScope();
+    const filename = `tex_${mapName}.pk3`;
+    const url = this.pk3Index.getPK3Path(filename);
+    if (!url) return;
+    progress("Dependencies", `Loading ${filename}`);
+    await waitForMapAsset(this.pk3Loader.ensurePK3FromUrl(url), signal);
+    const files = new Set(this.pk3Loader.getPackageFiles(filename));
+    const manifestPath = `media-manifests/${mapName}.json`;
+    const manifest = await waitForMapAsset(this.pk3Loader.getPackageFile(filename, manifestPath), signal);
+    const metadata = manifest && JSON.parse(manifest);
+    if (!metadata || metadata.map !== mapName) throw new Error(`Invalid map texture bank: ${filename}`);
+    if (metadata.sharedDependencies !== undefined && !Array.isArray(metadata.sharedDependencies))
+      throw new Error(`Invalid shared dependencies: ${filename}`);
+    const sharedDependencies: Array<{ package: string; dynamic: boolean; texturePrefixes: string[] }> =
+      metadata.sharedDependencies ?? [];
+    const sidecarExcludedPrefixes: string[] = [];
+    for (const dependency of sharedDependencies) {
+      if (
+        !dependency ||
+        typeof dependency.package !== "string" ||
+        !/^[a-z0-9][a-z0-9_.-]*\.pk3$/i.test(dependency.package) ||
+        dependency.package === filename ||
+        typeof dependency.dynamic !== "boolean" ||
+        !Array.isArray(dependency.texturePrefixes) ||
+        dependency.texturePrefixes.some(
+          (prefix) =>
+            typeof prefix !== "string" ||
+            !/^[a-z0-9][a-z0-9_./-]*\/$/i.test(prefix) ||
+            prefix.split("/").some((part) => part === ".." || part === "."),
+        )
+      )
+        throw new Error(`Invalid shared dependency: ${filename}`);
+      if (dependency.dynamic)
+        sidecarExcludedPrefixes.push(...dependency.texturePrefixes.map((prefix) => prefix.toLowerCase()));
+    }
+    const shaders = new Set<string>();
+    for (const file of files) {
+      if (!/^scripts\/.*\.shader$/i.test(file)) continue;
+      const source = await waitForMapAsset(this.pk3Loader.getPackageFile(filename, file), signal);
+      if (source === null) throw new Error(`Missing companion shader: ${filename}:${file}`);
+      for (const block of shaderSourceBlocks(source)) {
+        shaders.add(block.name.toLowerCase().replace(/\.(tga|jpg|jpeg|png|ktx)$/i, ""));
+      }
+    }
+    const scope: PK3PackageScope = {
+      package: filename,
+      files,
+      shaders,
+      sidecarExcludedPrefixes,
+      excludedPackages: new Set(
+        this.pk3Index
+          .getMapNames()
+          .map((name) => `tex_${name}.pk3`)
+          .filter((name) => name !== filename),
+      ),
+    };
+    this.pk3Loader.setPackageScope(scope);
+    this.pk3Index.setPackageScope(scope);
+    const overrideFiles = new Set(files);
+    for (const dependency of sharedDependencies) {
+      const dependencyUrl = this.pk3Index.getPK3Path(dependency.package);
+      if (!dependencyUrl || scope.excludedPackages.has(dependency.package))
+        throw new Error(`Unavailable shared texture bank: ${dependency.package}`);
+      const revision = this.pk3Index.getStats().lastUpdated?.getTime() ?? 0;
+      const url = dependency.dynamic
+        ? `${dependencyUrl}${dependencyUrl.includes("?") ? "&" : "?"}pk3v=${revision}`
+        : dependencyUrl;
+      progress("Dependencies", `Loading shared ${dependency.package}`);
+      await waitForMapAsset(this.pk3Loader.ensurePK3FromUrl(url), signal);
+      for (const file of this.pk3Loader.getPackageFiles(dependency.package)) overrideFiles.add(file);
+    }
+    const overrides = new Set<string>();
+    const loadedOwners = new Set(this.pk3Loader.getPackageInfo().map((pkg) => pkg.filename));
+    for (const file of overrideFiles) {
+      if (file.startsWith("media-")) continue;
+      const owner = this.pk3Index.findFile(file);
+      if (owner && owner !== filename && !loadedOwners.has(owner)) overrides.add(owner);
+    }
+    for (const shader of shaders) {
+      const owner = this.pk3Index.findShader(shader);
+      if (owner && owner !== filename && !loadedOwners.has(owner)) overrides.add(owner);
+    }
+    for (const owner of overrides) {
+      const overrideUrl = this.pk3Index.getPK3Path(owner);
+      if (overrideUrl) {
+        progress("Dependencies", `Loading override ${owner}`);
+        await waitForMapAsset(this.pk3Loader.ensurePK3FromUrl(overrideUrl), signal);
+      }
+    }
+  }
+
+  private resetPackageScope(): void {
+    this.pk3Index.setPackageScope(null);
+    this.pk3Loader.setPackageScope(null);
+    this.shaderRegistry.clear();
+  }
+
+  /**
    * Resolve all PK3 dependencies for a BSP map
    */
   private async resolveMapDependencies(bsp: BspFile): Promise<Set<string>> {
@@ -868,6 +978,7 @@ export class MapLoader {
   }
 
   private async clearCurrentMap(): Promise<void> {
+    this.resetPackageScope();
     devLog(`[MapLoader] disposeCurrentMap called at ${Date.now()}`);
     this.readinessCheck?.();
     this.readinessCheck = null;

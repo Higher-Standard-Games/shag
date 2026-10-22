@@ -1,5 +1,6 @@
 {
   "version": 1,
+  "package": "tex_billboard.pk3",
   "description": "Washoi billboard and DM2 branding artwork at map-compatible texture paths",
   "files": [
     { "name": "bigbill1", "extension": "png", "width": 1024, "height": 512, "maps": ["washoi_dm5", "washoi_dm11"], "design": "Move fast. Hit hard." },

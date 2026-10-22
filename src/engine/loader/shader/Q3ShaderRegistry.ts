@@ -129,6 +129,7 @@ export class Q3ShaderRegistry {
 
   /** Track which shader files have been processed */
   private processedShaderFiles: Set<string> = new Set();
+  private filesystemRevision = -1;
 
   /** Cache resolved material props to avoid redundant resolution (perf: called per-face during BSP build) */
   private resolvedCache: Map<string, ResolvedMaterialProps> = new Map();
@@ -139,10 +140,17 @@ export class Q3ShaderRegistry {
    */
   async loadShaders(): Promise<number> {
     const pk3Loader = PK3Loader.getInstance();
+    const revision = pk3Loader.getFilesystemRevision();
+    if (revision !== this.filesystemRevision) {
+      this.clear();
+      this.filesystemRevision = revision;
+    }
     let newShaderCount = 0;
 
     // Find all .shader files in scripts/ folder from ALL loaded PK3s
-    const shaderFiles = pk3Loader.listFiles("scripts/*.shader");
+    const shaderFiles = pk3Loader
+      .listFiles("scripts/*.shader")
+      .sort((a, b) => (pk3Loader.getFileOwner(a) ?? "").localeCompare(pk3Loader.getFileOwner(b) ?? ""));
 
     // Filter to only new shader files
     const newShaderFiles = shaderFiles.filter((f) => !this.processedShaderFiles.has(f));
@@ -670,6 +678,7 @@ export class Q3ShaderRegistry {
    * Clear all loaded shaders
    */
   clear(): void {
+    this.filesystemRevision = -1;
     this.shaders.clear();
     this.processedShaderFiles.clear();
     this.resolvedCache.clear();

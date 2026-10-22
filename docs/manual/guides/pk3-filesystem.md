@@ -10,6 +10,13 @@ The Vanguard player model and animation GLBs are shipped in
 for rebuilding it from the unserved asset sources.
 The generator scans that directory and publishes two matched files: discovery
 in `pk3_manifest.json` and file/shader/map ownership in `pk3_index.json`.
+`config/pk3-packages.json` supplies an `ignoredPackages` array of exact PK3
+basenames (case-insensitive, no paths or globs). Ignored archives stay on disk
+but are excluded from both generated files, KTX2 source selection and the Vite
+release output. The policy is build-time input, not an editable generated
+manifest field or a runtime access restriction. It also applies with `--data-dir`.
+Its `sharedTexturePackages` rules route configured virtual-path prefixes out of
+map banks and declare shared dependencies in each affected map's package manifest.
 
 ```bash
 npm run tools:manifest
@@ -30,11 +37,11 @@ have the same ownership and dependency lookup behavior as `textures/...` names.
 It fails without replacing published metadata if an archive is corrupt or
 changes while indexing. An empty data directory is valid for source-only builds.
 
-DM5 and DM11 use Washoi billboard images packaged in `washoi_textures.pk3`.
-After rebuilding that bank from upstream map media, run `npm run tools:billboards`
-to apply the tracked replacements from `assets/billboards/`, then regenerate the
-index and KTX2 cache with `npm run tools:manifest` and `npm run tools:textures`.
-The command preserves map-compatible texture paths and shader animation.
+Editable billboard images and overlays ship in `tex_billboard.pk3`; see
+[billboard updates](#billboard-updates). DM2's fixed neon/logo artwork remains in
+its map bank. `npm run tools:branding` applies all tracked branding images to
+the master after an upstream rebuild. Rebuild/install map banks after changing
+their static source artwork, then regenerate metadata and applicable KTX2 sidecars.
 
 At runtime, `PK3Index` first loads and validates the published searchable index.
 This fetches the two small metadata files with HTTP revalidation and avoids
@@ -81,8 +88,9 @@ archive-scan/cache-validation path. The manifest's `indexHash` is a consistency
 fingerprint of the index payload, not a signature or PK3 integrity guarantee.
 Package URLs from the snapshot are ignored and rebased to the configured search
 paths. Blocked localStorage does not prevent using the in-memory index.
-The generator does not curate or remove packages: prepare the desired release
-directory first. Regenerate metadata after changing its contents.
+The generator filters the configured ignored packages but does not delete source
+archives or infer which other packages belong in a release. Regenerate metadata
+after changing packages or the policy.
 
 ### Curated map media
 
@@ -125,21 +133,79 @@ Shared cartoon hit artwork ships in `effects.pk3`, with virtual paths
 or pass `-- --source-dir <directory>`. Regenerate the PK3 index after rebuilding.
 The packager verifies PNG signatures, ZIP CRCs and unchanged image hashes.
 
-`npm run tools:map-media -- --maps washoi_dm2,washoi_dm5,washoi_dm11 --combined --output-dir .cache/map-media`
-builds `map_<name>.pk3`, intermediate `tex_<name>.pk3` banks and a combined
-`washoi_textures.pk3` in a staging directory from the
-current ownership index. It uses the runtime BSP/shader parsers, keeps source
+`washoi_textures.pk3` is the retained master source bank, listed in
+`config/pk3-packages.json`'s `ignoredPackages`. The five shipped maps have
+`tex_<map>.pk3` dependency banks. Shared textures are deliberately duplicated;
+gameplay packages for weapons, player models, sound and effects remain separate.
+
+```bash
+npm run tools:map-media -- --maps washoi_dm2,washoi_dm5,washoi_dm11,washoi_amphi1,washoi_snd1 --master-package washoi_textures.pk3 --output-dir .cache/map-media
+```
+
+This builds `map_<name>.pk3` and `tex_<name>.pk3` in a staging directory.
+`--master-package` builds a temporary source index including the explicit master
+and excluding existing `tex_` banks, so an edited master wins over stale per-map
+copies. It does not publish the master or replace the live metadata. Without
+this flag the tool reads the published ownership index. It uses the runtime BSP/shader parsers, keeps source
 bytes and shader conditionals/templates, and includes provenance manifests.
 It refuses to overwrite indexed input packages. `--audit-only` writes only the
 dependency report. Install reviewed packages into `public/data/` and regenerate
-the index before testing them. For the three-map deployment, install the map
-packages and `washoi_textures.pk3`; archive the intermediate texture banks. Combining
-deduplicates identical files and shaders and rejects conflicting definitions.
+the index before testing them. Install the five `tex_` banks; do not replace the
+master with them. Existing map packages need replacement only if their content
+changed. `--combined` remains a development utility that deduplicates identical
+files/shaders and rejects conflicting definitions; its output is not deployed
+as the production texture bank.
 
-Shared paths still obey the global alphabetical override rule. The combined bank
-trades a larger first-map download for one shared cache across these three maps.
-See `docs/research/media_packaging.md` in the repository for measured loading,
-archive/rollback steps, remaining shared dependencies and the audio replacement list.
+When `tex_<map>.pk3` is indexed, the client loads it before resolving map assets.
+Its `media-manifests/<map>.json` must identify that map. Other indexed maps' exact
+`tex_<map>.pk3` banks are excluded from the active filesystem and ownership lookup,
+so shared paths resolve to the active map's copy. Downloaded banks stay cached for
+later map switches; their assets and shader definitions do not leak into the
+next map. Shader lookup refreshes when the mounted filesystem changes.
+
+Non-peer packages retain normal alphabetical override priority, including
+deliberate user overrides. Maps without an indexed companion use the legacy
+global dependency lookup. A companion that fails to load or has an invalid map
+manifest fails the map load rather than downloading another map's bank. The
+published index remains global; the active scope is local runtime state. See
+`docs/research/per_map_texture_packages.md` in the repository for the local
+installation, measurements, rollback and remaining work; the older
+`docs/research/media_packaging.md` records the previous combined-bank deployment.
+
+### Billboard updates
+
+`config/pk3-packages.json` routes `textures/billboard/` to the shared
+`tex_billboard.pk3` with `dynamic: true`. These paths are excluded from map banks;
+affected map manifests declare the shared package. This is a texture-path rule,
+not a list of game maps to ignore. The client loads shared dependencies explicitly
+and keeps them visible across map scopes. Unaffected maps do not fetch the bank.
+
+```bash
+npm run tools:billboards
+npm run tools:manifest
+```
+
+`tools:billboards` builds the shared bank from the master's billboard files,
+applying the nine configured ad PNGs in `assets/billboards/`. It includes animation
+frames, scanline/code overlays and source attribution, preserving virtual paths.
+`--package <source-master>`, `--source-dir <artwork-directory>` and `--output <file>`
+select alternate inputs/output. It verifies PNG dimensions, ZIP CRCs and output
+hashes, refuses to overwrite its master input and archives an existing output
+by content hash under `archive/media/billboard-bank/`.
+
+The first split requires rebuilding/installing the map banks once. Later ad-image
+updates need only the shared PK3 and regenerated manifest/index. Upload those
+three files together on origin and mirror, preserving existing paths and image
+dimensions. No BSP or per-map texture upload is required for an image replacement.
+Billboard shader bindings/animation definitions remain in map banks; changing
+those definitions still requires rebuilding the affected map bank.
+
+Dynamic dependencies use a metadata-revision query in their download URL, so a
+regenerated index also invalidates same-size package replacements. Their texture
+prefixes bypass KTX2 sidecars, and the KTX2 generator excludes those paths. This
+prevents an old sidecar from covering new ad artwork. Players receive changes
+after a game-page reload; there is no automatic mid-match refresh or ad-management
+service. A loaded bank is reused through ordinary map switches.
 
 Asset requests have a 15-second header deadline. Archive bodies have a 60-second
 idle deadline, renewed by incoming chunks, and a generous 15-minute total limit.

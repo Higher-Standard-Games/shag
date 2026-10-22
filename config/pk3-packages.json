@@ -1,0 +1,9 @@
+{
+  "ignoredPackages": ["washoi_textures.pk3"],
+  "sharedTexturePackages": {
+    "tex_billboard.pk3": {
+      "prefixes": ["textures/billboard/"],
+      "dynamic": true
+    }
+  }
+}

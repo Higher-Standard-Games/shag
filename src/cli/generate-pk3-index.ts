@@ -7,7 +7,7 @@ async function main(): Promise<void> {
   for (let i = 0; i < args.length; i++) {
     if (args[i] === "--help" || args[i] === "-h") {
       console.log(
-        "Usage: npm run tools:pk3-index -- [--data-dir <directory>]\nWrites pk3_manifest.json and pk3_index.json using the runtime indexer.",
+        "Usage: npm run tools:pk3-index -- [--data-dir <directory>]\nWrites pk3_manifest.json and pk3_index.json using the runtime indexer and config/pk3-packages.json policy.",
       );
       return;
     }

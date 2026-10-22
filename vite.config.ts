@@ -2,6 +2,7 @@ import { defineConfig, type Plugin } from 'vite';
 import { visualizer } from 'rollup-plugin-visualizer';
 import * as path from 'path';
 import * as fs from 'fs';
+import { readPackagePolicy } from './src/cli/pk3-package-policy';
 
 // Read engine.json for default game configuration
 const engineConfigPath = path.resolve(__dirname, 'public/engine.json');
@@ -64,23 +65,26 @@ function liveGameData(): Plugin {
   };
 }
 
-/** `public/ui-proto` holds design mockups: served by the dev server, left out of release builds. */
-function dropDevOnlyPages(): Plugin {
+/** Design mockups and ignored source packages are served locally, omitted from releases. */
+function dropDevOnlyAssets(): Plugin {
   let outDir = "";
   return {
-    name: "drop-dev-only-pages",
+    name: "drop-dev-only-assets",
     apply: "build",
     configResolved(config) {
       outDir = path.resolve(config.root, config.build.outDir);
     },
     closeBundle() {
       fs.rmSync(path.join(outDir, "ui-proto"), { recursive: true, force: true });
+      for (const filename of readPackagePolicy().ignoredPackages) {
+        fs.rmSync(path.join(outDir, "data", filename), { force: true });
+      }
     },
   };
 }
 
 export default defineConfig({
-  plugins: [liveGameData(), dropDevOnlyPages()],
+  plugins: [liveGameData(), dropDevOnlyAssets()],
   resolve: {
     alias: {
       '@game': path.resolve(__dirname, `src/games/${selectedGame}`),

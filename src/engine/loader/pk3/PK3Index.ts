@@ -9,6 +9,7 @@ import { fetchAsset, readAssetBuffer, readAssetJson, readAssetText } from "./Ass
 
 import JSZip from "jszip";
 import { shaderSourceBlocks } from "../shader/ShaderSourceBlocks";
+import type { PK3PackageScope } from "./PK3PackageScope";
 import {
   hasPublishedIndex,
   PK3_INDEX_VERSION as INDEX_VERSION,
@@ -62,6 +63,17 @@ export class PK3Index {
 
   private index: PK3IndexData | null = null;
   private searchPaths: string[] = ["data/"];
+  private packageScope: PK3PackageScope | null = null;
+
+  setPackageScope(scope: PK3PackageScope | null): void {
+    this.packageScope = scope;
+  }
+
+  private scopedOwner(name: string, owner: string | undefined, kind: "files" | "shaders"): string | null {
+    const scope = this.packageScope;
+    if (!scope || (owner && !scope.excludedPackages.has(owner))) return owner ?? null;
+    return scope[kind].has(name) ? scope.package : null;
+  }
 
   private constructor() {
     this.loadFromStorage();
@@ -489,7 +501,7 @@ export class PK3Index {
   findFile(path: string): string | null {
     if (!this.index) return null;
     const normalized = path.toLowerCase().replace(/\\/g, "/");
-    return this.index.files[normalized] || null;
+    return this.scopedOwner(normalized, this.index.files[normalized], "files");
   }
 
   /**
@@ -498,7 +510,7 @@ export class PK3Index {
   findShader(shaderName: string): string | null {
     if (!this.index) return null;
     const normalized = shaderName.toLowerCase();
-    return this.index.shaders[normalized] || null;
+    return this.scopedOwner(normalized, this.index.shaders[normalized], "shaders");
   }
 
   /**
@@ -664,6 +676,7 @@ export class PK3Index {
    * Clear the index
    */
   clear(): void {
+    this.packageScope = null;
     this.index = null;
     if (this.hasLocalStorage()) {
       try {
