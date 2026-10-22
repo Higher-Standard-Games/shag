@@ -24,6 +24,8 @@ export interface FeedMessage {
   html: string;
   timestamp: number; // performance.now() when added
   element: HTMLDivElement | null; // DOM element (created lazily)
+  /** Pending fade and removal timers. */
+  timers: number[];
 }
 
 // ============================================================================
@@ -35,7 +37,6 @@ export class EventFeed {
 
   private container: HTMLDivElement;
   private messages: FeedMessage[] = [];
-  private animating = false;
 
   private constructor() {
     this.container = document.createElement("div");
@@ -101,6 +102,7 @@ export class EventFeed {
       html,
       timestamp: performance.now(),
       element: null,
+      timers: [],
     };
 
     // Create DOM element (styled by WashikiTheme.css)
@@ -117,53 +119,27 @@ export class EventFeed {
 
     this.messages.push(msg);
 
+    // Fade and removal are two timers and a CSS transition, not a frame
+    // loop: the old loop wrote every fading entry's opacity each frame and
+    // kept running for seven seconds after every kill.
+    msg.timers.push(
+      window.setTimeout(() => el.classList.add("fps-event-entry--out"), MESSAGE_LIFETIME * 1000),
+      window.setTimeout(() => this.remove(msg), (MESSAGE_LIFETIME + MESSAGE_FADE_TIME) * 1000),
+    );
+
     // Trim old messages
     while (this.messages.length > MAX_MESSAGES) {
-      const old = this.messages.shift();
-      old?.element?.remove();
-    }
-
-    // Start cleanup timer if not running
-    if (!this.animating) {
-      this.animating = true;
-      requestAnimationFrame((t) => this.animate(t));
+      const old = this.messages[0];
+      if (old) this.remove(old);
     }
   }
 
-  // ========================================================================
-  // Animation (fade out old messages)
-  // ========================================================================
-
-  private animate(now: number): void {
-    let anyActive = false;
-
-    for (let i = this.messages.length - 1; i >= 0; i--) {
-      const msg = this.messages[i];
-      const age = (now - msg.timestamp) / 1000;
-
-      if (age > MESSAGE_LIFETIME + MESSAGE_FADE_TIME) {
-        // Remove
-        msg.element?.remove();
-        this.messages.splice(i, 1);
-      } else if (age > MESSAGE_LIFETIME) {
-        // Fading out — disable the entry transition so per-frame opacity
-        // writes apply immediately instead of lagging behind it
-        const fadeProgress = (age - MESSAGE_LIFETIME) / MESSAGE_FADE_TIME;
-        if (msg.element) {
-          msg.element.style.transition = "none";
-          msg.element.style.opacity = String(1 - fadeProgress);
-        }
-        anyActive = true;
-      } else {
-        anyActive = true;
-      }
-    }
-
-    if (anyActive || this.messages.length > 0) {
-      requestAnimationFrame((t) => this.animate(t));
-    } else {
-      this.animating = false;
-    }
+  private remove(msg: FeedMessage): void {
+    for (const timer of msg.timers) clearTimeout(timer);
+    msg.timers.length = 0;
+    msg.element?.remove();
+    const i = this.messages.indexOf(msg);
+    if (i >= 0) this.messages.splice(i, 1);
   }
 
   // ========================================================================
@@ -180,8 +156,7 @@ export class EventFeed {
   // ========================================================================
 
   dispose(): void {
-    this.messages = [];
-    this.animating = false;
+    for (const msg of [...this.messages]) this.remove(msg);
     this.container.remove();
     EventFeed._instance = null;
   }
