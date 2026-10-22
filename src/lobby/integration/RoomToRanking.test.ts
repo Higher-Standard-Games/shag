@@ -155,8 +155,9 @@ describe("installed-map room to ranking", () => {
           client.send(MessageCodec.encodeJoinGame("ffa"));
         }
         for (const client of gameClients) client.send(MessageCodec.encodeReady());
-        // A private room's bot plays as its preset account: one more row.
-        const rows = members.length + (visibility === "private" ? 1 : 0);
+        // A private room's bot plays as its preset account and is rated, but the
+        // boards list people only.
+        const rows = members.length;
         await vi.waitFor(
           () => {
             expect(

@@ -1810,7 +1810,7 @@ describe("the drawing tools", () => {
     expect(hud("tool")).toBe("VVertices");
     press("e");
     expect(hud("tool")).toBe("EEntity info_player_deathmatch");
-    expect(session.root.querySelector("[data-current-texture]")!.textContent).toBe("blx/blx_grid");
+    expect(session.root.querySelector("[data-current-texture]")!.textContent).toBe("common/caulk");
     expect(hud("grid")).toBe("grid 16");
     const curves = group.querySelector<HTMLDetailsElement>(".shagged__menu--curves")!;
     press("c");
