@@ -329,9 +329,11 @@ async function handleLift(entity: EntityData, scene: Scene): Promise<EntityHandl
   // Sound follows the shared simulation state, so a lift another player called
   // is heard the moment its restored phase changes — no separate mover event.
   let heardPhase: ReturnType<LiftSystem["phase"]>;
+  const at = { x: 0, y: 0, z: 0 };
   const update = () => {
     const lifts = getCollisionManager().getLiftSystem();
-    const offset = lifts?.offset(definition.modelIndex);
+    // Written into one object: every platform asks every frame.
+    const offset = lifts?.offset(definition.modelIndex, at);
     mesh.position.set(
       offset?.x ?? definition.origin.x,
       offset?.y ?? definition.origin.y + definition.start,

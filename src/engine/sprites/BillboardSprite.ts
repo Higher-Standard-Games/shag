@@ -46,6 +46,10 @@ export class BillboardSprite {
   // Direction
   private currentDirection: SpriteDirection = SpriteDirection.SOUTH;
   private lastCameraAngle: number = 0;
+  /** What the mesh's UVs show now, so an unchanged frame is not re-sent. */
+  private uvSheet: SpriteSheet | null = null;
+  private uvFrame = -1;
+  private uvDirection = -1;
 
   // Lighting
   private _receiveLighting: boolean = false;
@@ -220,8 +224,10 @@ export class BillboardSprite {
    */
   private updateDirection(): void {
     // Calculate angle from sprite to camera
-    const toCamera = this.camera.position.subtract(this._position);
-    const cameraAngle = Math.atan2(toCamera.x, toCamera.z);
+    const cameraAngle = Math.atan2(
+      this.camera.position.x - this._position.x,
+      this.camera.position.z - this._position.z,
+    );
 
     // Only recalculate if camera moved significantly
     if (Math.abs(cameraAngle - this.lastCameraAngle) > 0.1) {
@@ -242,8 +248,18 @@ export class BillboardSprite {
    * Update mesh UVs for current frame and direction
    */
   private updateUVs(): void {
-    const uvs = this.spriteSheet.getUVs(this.currentFrame, this.currentDirection);
-    this.mesh.setVerticesData("uv", uvs, true);
+    // Called every frame, but the frame and direction change a few times a
+    // second at most. Setting the data made a new GPU buffer each time; an
+    // unchanged frame now costs nothing and a changed one updates in place.
+    const sheet = this.spriteSheet;
+    if (sheet === this.uvSheet && this.currentFrame === this.uvFrame && this.currentDirection === this.uvDirection)
+      return;
+    this.uvSheet = sheet;
+    this.uvFrame = this.currentFrame;
+    this.uvDirection = this.currentDirection;
+    const uvs = sheet.getUVs(this.currentFrame, this.currentDirection);
+    if (this.mesh.getVertexBuffer("uv")?.isUpdatable()) this.mesh.updateVerticesData("uv", uvs);
+    else this.mesh.setVerticesData("uv", uvs, true);
   }
 
   // ==================== Public API ====================

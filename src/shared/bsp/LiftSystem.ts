@@ -225,11 +225,14 @@ export class LiftSystem {
   travelAt(index: number): number {
     return this.states[index].offset;
   }
-  offset(modelIndex: number): Vec3 | undefined {
+  offset(modelIndex: number, out: Vec3 = { x: 0, y: 0, z: 0 }): Vec3 | undefined {
     const i = this.byModel.get(modelIndex);
     if (i === undefined) return undefined;
     const o = this.definitions[i].origin;
-    return { x: o.x, y: o.y + this.states[i].offset, z: o.z };
+    out.x = o.x;
+    out.y = o.y + this.states[i].offset;
+    out.z = o.z;
+    return out;
   }
   /**
    * Advance every mover one fixed step, carrying and pushing the given bodies.

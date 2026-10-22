@@ -25,6 +25,7 @@
 import { Ray } from "@babylonjs/core/Culling/ray";
 import type { PointLight } from "@babylonjs/core/Lights/pointLight";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Observer } from "@babylonjs/core/Misc/observable";
@@ -103,6 +104,9 @@ const framePlayer: { scene: Scene | null; frame: number; known: boolean; positio
 export class Pickup extends TransformNode {
   protected options: PickupOptions;
   protected mesh: Mesh | null = null;
+  /** The model hidden because the camera cannot see it (see applyModelInView). */
+  private hiddenModel: Mesh | null = null;
+  private readonly hiddenParts: AbstractMesh[] = [];
   /** The loader root the meshes were detached from; it still holds glTF nodes and bones. */
   private modelRoot: TransformNode | null = null;
   /** Exposed through pickup_audit so cache hits can be compared with fresh model loads. */
@@ -413,6 +417,30 @@ export class Pickup extends TransformNode {
     return true;
   }
 
+  /**
+   * A model pickup out of view is not drawn. Visibility rather than enabled
+   * state, which belongs to the server's active set; and remembered by mesh,
+   * so a model swapped in while hidden is not left hidden by mistake.
+   */
+  private applyModelInView(inView: boolean): void {
+    const mesh = this.mesh;
+    if (!inView && mesh && (this.hiddenModel !== mesh || mesh.isVisible)) {
+      if (this.hiddenModel) this.applyModelInView(true);
+      // Only what was drawn is hidden, and only that is shown again: a part
+      // the model keeps invisible on purpose stays that way.
+      for (const part of [mesh, ...mesh.getChildMeshes()]) {
+        if (!part.isVisible) continue;
+        part.isVisible = false;
+        this.hiddenParts.push(part);
+      }
+      this.hiddenModel = mesh;
+    } else if (inView && this.hiddenModel) {
+      this.hiddenModel = null;
+      for (const part of this.hiddenParts) if (!part.isDisposed()) part.isVisible = true;
+      this.hiddenParts.length = 0;
+    }
+  }
+
   /** Update glow pulse + procedural visual + run proximity check. */
   protected tick(): void {
     if (this.visual) {
@@ -420,6 +448,8 @@ export class Pickup extends TransformNode {
       this.visualElapsed += dt;
       this.visual.setInView?.(this.isInView());
       this.visual.update(dt, this.visualElapsed);
+    } else if (this.mesh) {
+      this.applyModelInView(this.isInView());
     }
     if (this.glowLight && this.isActive) {
       const dt = this.getScene().getEngine().getDeltaTime() / 1000;

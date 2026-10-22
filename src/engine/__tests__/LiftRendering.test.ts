@@ -103,3 +103,21 @@ describe("lift mesh follows collision state", () => {
     }
   });
 });
+
+describe("LiftSystem.offset", () => {
+  // The platform mesh asks every frame; it hands in one object to fill.
+  it("writes into the object it is given", () => {
+    const bsp = liftBsp();
+    const lifts = new LiftSystem(extractLifts(bsp.entities, bsp.models), () => ({
+      fraction: 1,
+      solid: false,
+      normalY: 0,
+      modelIndex: -1,
+    }));
+    const modelIndex = extractLifts(bsp.entities, bsp.models)[0].modelIndex;
+    const out = { x: 0, y: 0, z: 0 };
+    expect(lifts.offset(modelIndex, out)).toBe(out);
+    expect(lifts.offset(modelIndex)).toEqual(out);
+    expect(lifts.offset(-5, out)).toBeUndefined();
+  });
+});
