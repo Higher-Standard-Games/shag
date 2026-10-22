@@ -92,6 +92,14 @@ export interface PickupOptions {
   metadata?: Record<string, unknown>;
 }
 
+/** This frame's player position, shared by every pickup (see getPlayerPosition). */
+const framePlayer: { scene: Scene | null; frame: number; known: boolean; position: Vector3 } = {
+  scene: null,
+  frame: -1,
+  known: false,
+  position: new Vector3(),
+};
+
 export class Pickup extends TransformNode {
   protected options: PickupOptions;
   protected mesh: Mesh | null = null;
@@ -374,14 +382,27 @@ export class Pickup extends TransformNode {
   // Per-frame
   // ═════════════════════════════════════════════════════════════════
 
-  /** Compute the player position to use for proximity. Override if your game has a different concept. */
+  /**
+   * Compute the player position to use for proximity. Override if your game has a different concept.
+   *
+   * Every pickup on the map asks every frame, and the answer is the same for
+   * all of them, so it is worked out once per frame and shared. Read-only.
+   */
   protected getPlayerPosition(): Vector3 | null {
-    const camera = CameraSystem.getInstance().getCamera();
-    if (!camera) return null;
-    const controller = CameraSystem.getInstance().getActiveController();
-    const playerPosition = controller?.getPlayerPosition?.();
-    if (playerPosition) return playerPosition;
-    return camera.position;
+    const scene = this.getScene();
+    const frame = scene.getFrameId();
+    const cache = framePlayer;
+    if (cache.scene !== scene || cache.frame !== frame) {
+      cache.scene = scene;
+      cache.frame = frame;
+      const camera = CameraSystem.getInstance().getCamera();
+      const position = camera
+        ? (CameraSystem.getInstance().getActiveController()?.getPlayerPosition?.() ?? camera.position)
+        : null;
+      cache.known = position !== null;
+      if (position) cache.position.copyFrom(position);
+    }
+    return cache.known ? cache.position : null;
   }
 
   /** Update glow pulse + procedural visual + run proximity check. */

@@ -164,7 +164,12 @@ export const DANCE_ANIMS = ["dance_1", "dance_2", "dance_3"];
 
 // ─── Manager ─────────────────────────────────────────────────────
 
+const NO_EMISSIVE: Readonly<Color3> = Color3.Black();
+
 export class PlayerModelManager {
+  /** applyPowerupGlow's mesh list per model. */
+  private readonly glowMeshes = new WeakMap<PlayerModelInstance, AbstractMesh[]>();
+
   private scene: Scene;
   private readonly activeOneShots = new Map<PlayerModelInstance, { group: AnimationGroup; baseSpeedRatio: number }>();
   /** Clip phase kept by hand for instances whose pose is sampled at a reduced rate; see stepAnimation. */
@@ -736,7 +741,14 @@ export class PlayerModelManager {
    * material clone and `__playerModelBaseEmissiveColor` both exist.
    */
   applyPowerupGlow(instance: PlayerModelInstance, color: Color3, intensity: number, outlineWidth: number): void {
-    const allMeshes: AbstractMesh[] = [instance.mesh, ...instance.mesh.getChildMeshes()];
+    // Listed once per model: this runs every frame for every quad carrier, and
+    // walking the rig (every bone node) built two arrays each time. The rig is
+    // cloned once and never gains or loses a mesh.
+    let allMeshes = this.glowMeshes.get(instance);
+    if (!allMeshes) {
+      allMeshes = [instance.mesh, ...instance.mesh.getChildMeshes()];
+      this.glowMeshes.set(instance, allMeshes);
+    }
 
     for (const mesh of allMeshes) {
       const pbrMat = mesh.material as unknown as GlowableMaterial | null;
@@ -746,7 +758,7 @@ export class PlayerModelManager {
         // Lift from the material's OWN base emissive, not from its current
         // value — accumulating onto the current value would ramp to white
         // within a second at 60fps.
-        const base = pbrMat.__playerModelBaseEmissiveColor ?? Color3.Black();
+        const base = pbrMat.__playerModelBaseEmissiveColor ?? NO_EMISSIVE;
         pbrMat.emissiveColor.r = base.r + color.r * intensity;
         pbrMat.emissiveColor.g = base.g + color.g * intensity;
         pbrMat.emissiveColor.b = base.b + color.b * intensity;

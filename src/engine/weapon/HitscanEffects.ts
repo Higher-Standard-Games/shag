@@ -168,6 +168,8 @@ interface TravelingPellet {
   material: StandardMaterial;
   origin: Vector3;
   endpoint: Vector3;
+  /** endpoint − origin, kept for the per-frame slide. */
+  ray: Vector3;
   rayLength: number;
   spawnTime: number;
   duration: number;
@@ -585,6 +587,7 @@ export class HitscanEffects {
       material: mat,
       origin: origin.clone(),
       endpoint: endpoint.clone(),
+      ray: endpoint.subtract(origin),
       rayLength,
       spawnTime: now,
       duration,
@@ -722,16 +725,12 @@ export class HitscanEffects {
 
   update(_deltaTime: number): void {
     const now = this.now();
-    const toRemove: string[] = [];
 
     for (const fx of this.effects) {
       const age = now - fx.spawnTime;
       const t = Math.min(1, age / fx.duration);
 
-      if (t >= 1) {
-        toRemove.push(fx.id);
-        continue;
-      }
+      if (t >= 1) continue; // removed below
 
       // Fade out
       const fade = 1 - t;
@@ -763,11 +762,13 @@ export class HitscanEffects {
       const headT = Math.max(0.02, t); // head position along ray (0..1)
       const tailT = Math.max(0, headT - tp.segmentFraction);
 
-      const rayDir = tp.endpoint.subtract(tp.origin);
-      const segStart = tp.origin.add(rayDir.scale(tailT));
-      const segEnd = tp.origin.add(rayDir.scale(headT));
-
-      this.orientCylinder(tp.mesh, segStart, segEnd);
+      // The pellet flies straight, so its rotation was set once at spawn;
+      // each frame only slides the segment and stretches it. (This ran for
+      // every pellet of every shotgun blast, allocating a dozen objects each.)
+      const midT = (tailT + headT) * 0.5;
+      const ray = tp.ray;
+      tp.mesh.position.set(tp.origin.x + ray.x * midT, tp.origin.y + ray.y * midT, tp.origin.z + ray.z * midT);
+      tp.mesh.scaling.y = tp.rayLength * (headT - tailT);
 
       // Fade out over the last 30% of travel
       const fadeStart = 0.7;
@@ -790,8 +791,8 @@ export class HitscanEffects {
 
     // Remove expired effects (backwards swap-remove: O(n) instead of O(n²) findIndex+splice)
     for (let i = this.effects.length - 1; i >= 0; i--) {
-      if (toRemove.includes(this.effects[i].id)) {
-        const fx = this.effects[i];
+      const fx = this.effects[i];
+      if (now - fx.spawnTime >= fx.duration) {
         for (const m of fx.meshes) m.dispose();
         for (const mat of fx.materials) mat.dispose();
         getPointLightPool().release(fx.light);
@@ -802,12 +803,10 @@ export class HitscanEffects {
     }
 
     // Impacts whose streak has arrived
-    if (this.pendingImpacts.length > 0) {
+    if (this.pendingImpacts.length > 0 && this.pendingImpacts.some((impact) => impact.due <= now)) {
       const due = this.pendingImpacts.filter((impact) => impact.due <= now);
-      if (due.length > 0) {
-        this.pendingImpacts = this.pendingImpacts.filter((impact) => impact.due > now);
-        for (const impact of due) impact.play();
-      }
+      this.pendingImpacts = this.pendingImpacts.filter((impact) => impact.due > now);
+      for (const impact of due) impact.play();
     }
 
     this.voltaicRenderer?.update(_deltaTime);
