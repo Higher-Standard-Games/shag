@@ -83,6 +83,11 @@ export interface PlayerModelInstance {
   skeleton: Skeleton | null;
   anims: StoredAnim[];
   masterGroup: AnimationGroup | null;
+  /**
+   * Locomotion groups built so far, one per clip, reused on every switch.
+   * `masterGroup` is whichever of them is current.
+   */
+  clipGroups?: Map<string, AnimationGroup>;
   currentAnim: string;
   /** Timestamp (performance.now) until which a one-shot anim has priority over locomotion */
   oneshotUntil: number;
@@ -551,20 +556,27 @@ export class PlayerModelManager {
       return false;
     }
 
-    // Tear down old
-    if (instance.masterGroup) {
-      instance.masterGroup.stop();
-      instance.masterGroup.dispose();
-    }
+    instance.masterGroup?.stop();
 
-    // Build new
-    instance.masterGroup = new AnimationGroup(`anim_${instance.id}_${name}`, instance.mesh.getScene());
-    for (const item of animData.animations) {
-      if (item.target) {
-        instance.masterGroup.addTargetedAnimation(item.animation, item.target);
+    // One group per clip, built the first time it is needed and kept. Remote
+    // players switch clips constantly (every bunnyhop toggles jump), and each
+    // switch used to dispose the old group and build a new one, channel by
+    // channel. A kept group starts over from its first frame on play(), and at
+    // normal speed, exactly like a fresh one did.
+    instance.clipGroups ??= new Map();
+    let group = instance.clipGroups.get(name);
+    if (!group) {
+      group = new AnimationGroup(`anim_${instance.id}_${name}`, instance.mesh.getScene());
+      for (const item of animData.animations) {
+        if (item.target) {
+          group.addTargetedAnimation(item.animation, item.target);
+        }
       }
+      instance.clipGroups.set(name, group);
     }
-    instance.masterGroup.play(true);
+    group.speedRatio = 1;
+    instance.masterGroup = group;
+    group.play(true);
     instance.currentAnim = name;
     return true;
   }
@@ -902,10 +914,23 @@ function findRootMotionNodes(mesh: Mesh): TransformNode[] {
   });
 }
 
+/** Stop and dispose every locomotion group an instance has built. */
+export function releaseLocomotionGroups(instance: PlayerModelInstance): void {
+  instance.masterGroup?.stop();
+  instance.masterGroup?.dispose();
+  for (const group of instance.clipGroups?.values() ?? []) {
+    if (group === instance.masterGroup) continue;
+    group.stop();
+    group.dispose();
+  }
+  instance.clipGroups?.clear();
+  instance.masterGroup = null;
+}
+
 /**
  * Dispose a player model and everything it owns, on every path that removes one
  * (death, leaving, ragdoll expiry, shutdown): its hand weapon with whatever only
- * that used, its locomotion group, its nodes and skeleton, and the materials
+ * that used, its locomotion groups, its nodes and skeleton, and the materials
  * cloned for it by the visibility style. The model's source materials and
  * textures are shared with every other instance and stay.
  *
@@ -916,11 +941,7 @@ export function disposePlayerModel(instance: PlayerModelInstance): void {
     disposeModelResources([instance.attachedWeapon]);
     instance.attachedWeapon = null;
   }
-  if (instance.masterGroup) {
-    instance.masterGroup.stop();
-    instance.masterGroup.dispose();
-    instance.masterGroup = null;
-  }
+  releaseLocomotionGroups(instance);
   const cloned = clonedMaterialsOf(instance);
   if (instance.mesh && !instance.mesh.isDisposed()) instance.mesh.dispose();
   instance.skeleton?.dispose();
