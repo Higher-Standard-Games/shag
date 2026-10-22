@@ -94,6 +94,13 @@ unless that browser changed its own more recently; the first time they do, the
 browser's earlier settings are kept under `shag_settings_backup`. Changes upload
 a few seconds after they settle and when the page is hidden. The lobby keeps each account's copy in `settings.db` ([Lobby server](./lobby-server.md#what-it-keeps)).
 
+The initial account download finishes before background uploads begin. Switching
+accounts or disconnecting stops that sync session; its late replies cannot
+replace the new session's local sync state. Downloaded cvars also apply to
+subsystems that load later. Saved values awaiting registration remain in browser
+storage and account uploads until their owner declares the default and bounds;
+resetting them removes the pending preference so that declared default applies.
+
 ## Networking environment
 
 Copy and review `.env.example`, which lists every variable below.

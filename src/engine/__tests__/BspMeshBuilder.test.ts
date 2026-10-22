@@ -3,18 +3,21 @@ import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { RawTexture } from "@babylonjs/core/Materials/Textures/rawTexture";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { Scene } from "@babylonjs/core/scene";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BspMeshBuilder } from "../loader/bsp/BspMeshBuilder";
 import type { ResolvedMaterialProps } from "../loader/shader/Q3ShaderTypes";
 
 // Babylon's NullEngine.dispose touches window.removeEventListener. Stub just
 // enough of a window so tests can dispose cleanly in the node environment.
-if (typeof (globalThis as { window?: unknown }).window === "undefined") {
-  (globalThis as { window?: unknown }).window = {
-    addEventListener: () => {},
-    removeEventListener: () => {},
-  };
-}
+beforeEach(() => {
+  if (typeof window === "undefined") {
+    vi.stubGlobal("window", {
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    });
+  }
+});
+afterEach(() => vi.unstubAllGlobals());
 
 function makeProps(overrides: Partial<ResolvedMaterialProps> = {}): ResolvedMaterialProps {
   return {

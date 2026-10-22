@@ -15,7 +15,6 @@
  */
 
 import { Cvar } from "../engine/core/Cvar";
-import { writePreference } from "../engine/core/PreferenceStorage";
 import { CommandBindings } from "../engine/input/CommandBindings";
 import { InputSystem } from "../engine/input/InputSystem";
 import {
@@ -112,7 +111,7 @@ export function collectSettings(): SyncedSettingsBlob {
   // Live values win: a slider's write to storage may still be pending.
   for (const cvar of Cvar.list()) {
     if (!cvar.flags.persist || !isSyncedCvar(cvar.name)) continue;
-    if (cvar.value === cvar.defaultValue) delete blob.cvars[cvar.name];
+    if (Cvar.isRegistered(cvar.name) && cvar.value === cvar.defaultValue) delete blob.cvars[cvar.name];
     else blob.cvars[cvar.name] = cvar.value;
   }
   for (const key of storageKeys()) {
@@ -129,14 +128,7 @@ export function collectSettings(): SyncedSettingsBlob {
  * next read, at the latest on the next page load.
  */
 export function applySettings(blob: SyncedSettingsBlob): void {
-  for (const cvar of Cvar.list()) {
-    if (!cvar.flags.persist || cvar.flags.readonly || !isSyncedCvar(cvar.name)) continue;
-    if (cvar.name in blob.cvars) Cvar.set(cvar.name, blob.cvars[cvar.name]);
-    else if (cvar.value !== cvar.defaultValue) Cvar.reset(cvar.name);
-  }
-  // Cvars not registered yet still take their value when they are.
-  const cvars = Object.fromEntries(Object.entries(storedCvars()).filter(([name]) => !isSyncedCvar(name)));
-  writePreference(CVAR_STORAGE_KEY, JSON.stringify({ ...cvars, ...blob.cvars }));
+  Cvar.replacePersistedValues(blob.cvars, isSyncedCvar);
 
   try {
     for (const key of storageKeys()) {
@@ -191,12 +183,14 @@ export async function startSettingsSync(client: LobbyClient, welcome: WelcomeMes
   if (!accountId || !welcome.features?.syncedSettings || typeof window === "undefined") return;
 
   let stopped = false;
+  let ready = false;
   let state = readState();
   let last = serializeSyncedSettings(collectSettings());
   let uploadTimer: ReturnType<typeof setTimeout> | undefined;
   let warnedTooLarge = false;
 
   const upload = async (text: string) => {
+    if (stopped) return;
     if (new TextEncoder().encode(text).length > MAX_SETTINGS_BYTES) {
       if (!warnedTooLarge) console.warn("[SettingsSync] Settings too large to sync; they stay on this browser");
       warnedTooLarge = true;
@@ -204,8 +198,10 @@ export async function startSettingsSync(client: LobbyClient, welcome: WelcomeMes
     }
     try {
       const saved = await client.saveSettings(text);
+      if (stopped) return;
       state = { accountId, synced: text, syncedAt: saved.updatedAt };
     } catch {
+      if (stopped) return;
       const known = state?.accountId === accountId ? state : { accountId, synced: "", syncedAt: 0 };
       state = { ...known, editedAt: Date.now() };
     }
@@ -213,7 +209,7 @@ export async function startSettingsSync(client: LobbyClient, welcome: WelcomeMes
   };
 
   const check = () => {
-    if (stopped) return;
+    if (stopped || !ready) return;
     const text = serializeSyncedSettings(collectSettings());
     if (text === last) return;
     last = text;
@@ -250,6 +246,7 @@ export async function startSettingsSync(client: LobbyClient, welcome: WelcomeMes
   try {
     const remote = await client.requestSettings();
     if (stopped) return;
+    last = serializeSyncedSettings(collectSettings());
     const decision = decideSync(last, state, accountId, remote);
     if (decision === "keep") {
       session.stop();
@@ -271,5 +268,7 @@ export async function startSettingsSync(client: LobbyClient, welcome: WelcomeMes
   } catch (e) {
     // Offline or refused: this browser keeps its own settings and tries again next login.
     console.warn("[SettingsSync] Could not sync settings:", e);
+  } finally {
+    ready = true;
   }
 }

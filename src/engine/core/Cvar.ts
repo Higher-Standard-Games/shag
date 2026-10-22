@@ -68,6 +68,8 @@ export interface CvarInstance {
 
 export class Cvar {
   private static cvars: Map<string, CvarInstance> = new Map();
+  /** Loaded preferences have no declared default until their owner registers them. */
+  private static registered = new WeakSet<CvarInstance>();
   private static initialized = false;
   private static consoleIntegration: ((cvar: CvarInstance) => void) | null = null;
 
@@ -136,6 +138,7 @@ export class Cvar {
     }
 
     Cvar.cvars.set(lowerName, cvar);
+    Cvar.registered.add(cvar);
 
     // Notify console integration
     if (Cvar.consoleIntegration) {
@@ -273,6 +276,11 @@ export class Cvar {
       return false;
     }
 
+    if (!Cvar.registered.has(cvar)) {
+      Cvar.cvars.delete(cvar.name);
+      Cvar.saveToStorage();
+      return true;
+    }
     return Cvar.set(name, cvar.defaultValue);
   }
 
@@ -282,7 +290,7 @@ export class Cvar {
   static resetAll(): void {
     for (const cvar of Cvar.cvars.values()) {
       if (!cvar.flags.readonly) {
-        Cvar.set(cvar.name, cvar.defaultValue);
+        Cvar.reset(cvar.name);
       }
     }
   }
@@ -324,6 +332,28 @@ export class Cvar {
    */
   static exists(name: string): boolean {
     return Cvar.cvars.has(name.toLowerCase());
+  }
+
+  /** Whether the owner has declared this cvar's type, bounds and default. */
+  static isRegistered(name: string): boolean {
+    const cvar = Cvar.cvars.get(name.toLowerCase());
+    return cvar !== undefined && Cvar.registered.has(cvar);
+  }
+
+  /** Replace a subset of preferences, retaining values for owners that register later. */
+  static replacePersistedValues(values: Record<string, CvarValue>, accepts: (name: string) => boolean): void {
+    Cvar.init();
+    const incoming = new Map(Object.entries(values).map(([name, value]) => [name.toLowerCase(), value]));
+    for (const [name, cvar] of Cvar.cvars) {
+      if (!accepts(name) || !cvar.flags.persist || cvar.flags.readonly) continue;
+      if (!Cvar.registered.has(cvar)) Cvar.cvars.delete(name);
+      else if (incoming.has(name)) Cvar.set(name, incoming.get(name)!);
+      else Cvar.reset(name);
+    }
+    for (const [name, value] of incoming) {
+      if (accepts(name) && !Cvar.exists(name) && Cvar.validValue(value)) Cvar.preload(name, value);
+    }
+    Cvar.saveToStorage();
   }
 
   /**
@@ -368,21 +398,24 @@ export class Cvar {
         if (cvar?.flags.persist) {
           cvar.value = Cvar.coerceValue(value, cvar.type, cvar.min, cvar.max);
         } else if (!cvar) {
-          // Pre-load value for cvars not yet registered
-          Cvar.cvars.set(name, {
-            name,
-            type: Cvar.detectType(value),
-            value,
-            defaultValue: value,
-            description: "",
-            flags: { persist: true },
-          });
+          Cvar.preload(name, value);
         }
       }
       console.log(`[Cvar] Loaded ${Object.keys(data).length} cvars from storage`);
     } catch (e) {
       console.warn("[Cvar] Failed to load from storage:", e);
     }
+  }
+
+  private static preload(name: string, value: CvarValue): void {
+    Cvar.cvars.set(name.toLowerCase(), {
+      name: name.toLowerCase(),
+      type: Cvar.detectType(value),
+      value,
+      defaultValue: value,
+      description: "",
+      flags: { persist: true },
+    });
   }
 
   /**
@@ -392,7 +425,7 @@ export class Cvar {
     try {
       const data: Record<string, CvarValue> = {};
       for (const cvar of Cvar.cvars.values()) {
-        if (cvar.flags.persist && cvar.value !== cvar.defaultValue) {
+        if (cvar.flags.persist && (!Cvar.registered.has(cvar) || cvar.value !== cvar.defaultValue)) {
           data[cvar.name] = cvar.value;
         }
       }
