@@ -6,7 +6,21 @@ All notable changes to this project are documented in version-specific files.
 
 | Version | Date | Summary |
 |---------|------|---------|
-| [v0.9.23](./v0.9.23.md) | unreleased | Living changelog for the next development cycle |
+| [v1.0.0-alpha](./v1.0.0-alpha.md) | unreleased | Living changelog: alpha review and playtest fixes, bots that see, hear, chat and dodge, settings that follow the account, highlight scenes and trick jumps, account deletion and terms, SHAGGED File panel and .map import, server and client performance |
+| [v0.9.36](./v0.9.36.md) | Oct 19, 2026 | Netcode: no more teleporting back on a busy or slow connection |
+| [v0.9.35](./v0.9.35.md) | Oct 19, 2026 | Package download progress; low frame rates and stalled links no longer warp the player; performance and input fixes |
+| [v0.9.34](./v0.9.34.md) | Oct 19, 2026 | Mouse input: fire and aim no longer lost on cancelled pointer events; a notice when the mouse is not captured |
+| [v0.9.33](./v0.9.33.md) | Oct 19, 2026 | Production builds keep developer mode off |
+| [v0.9.32](./v0.9.32.md) | Oct 18, 2026 | Washoi ALPHA naming, Amphi1 and S&D1 map packages, KTX2 normal-map fix, inline BSP geometry and lightmap fixes, bots hold defend areas |
+| [v0.9.31](./v0.9.31.md) | Oct 17, 2026 | Less collision tracing, ramp and ledge fixes, fence and teleporter shaders, Arc Blade visuals and lunges, Keyboard Lock in fullscreen |
+| [v0.9.30](./v0.9.30.md) | Oct 16, 2026 | Warfork shader and lighting compatibility: impact light, autosprite2, cable cutouts, lamp cones, layered model materials |
+| [v0.9.29](./v0.9.29.md) | Oct 14, 2026 | Demos and spectating through the player's own eyes (demo format v5), rated bot games, team chat and mute, manuals refreshed |
+| [v0.9.28](./v0.9.28.md) | Oct 12, 2026 | Bots take the Red Armor by wall jump, item values per mode, Duel item timing, game servers start in about a second |
+| [v0.9.27](./v0.9.27.md) | Oct 10, 2026 | Offline renderer benchmarks, GPU weather and WebGPU bundles, SHAGGED maps from scripts and AI agents, bots navigate and play S&D |
+| [v0.9.26](./v0.9.26.md) | Oct 9, 2026 | Head hits on hitscan weapons, faster and smaller snapshots, fixed server tick rate, weapon switching fixes |
+| [v0.9.25](./v0.9.25.md) | Oct 4, 2026 | Amphi round rules, SHAGGED playtest delivery and compiler defaults, procedural pickup art, weapon and frag presentation |
+| [v0.9.24](./v0.9.24.md) | Oct 2, 2026 | Manual checked against the code, renderer lifecycle and WebGPU audit, bots fight in Deathmatch, demos record inputs, drop-in to running matches |
+| [v0.9.23](./v0.9.23.md) | Sep 22, 2026 | Lifts and movers, lag-compensated hit registration, snapshot baselines and replay, ladders |
 | [v0.9.22](./v0.9.22.md) | Sep 10, 2026 | Engine-owned quality-scalable water, swimming, reactive splashes, cached room reflections and soft player reflections |
 | [v0.9.21](./v0.9.21.md) | Aug 6, 2026 | Search & Destroy (bomb/defuse rounds, loadouts, bot directives), Quad Damage, first-person spectating, lobby team selection, collision + root-motion fixes, both manuals rewritten |
 | [v0.9.20](./v0.9.20.md) | Jul 23, 2026 | Procedural weapon/pickup effects, post-match polish, and map-learning bot movement foundation |
@@ -18,6 +32,11 @@ All notable changes to this project are documented in version-specific files.
 | [v0.9.14](./v0.9.14.md) | May 19, 2026 | Engine QA continuation — fps console commands + ConnectingOverlay + LobbyPanel relocated/decoupled (matrix #8 closed); noImplicitAnyLet finished; SpawnValidator smoke coverage; ServiceLocator dispose resilience |
 | [v0.9.13](./v0.9.13.md) | May 19, 2026 | FPS settings redesign, BSP mesh builder split, engine QA pass (Pickup split, lifecycle/leak fixes, type+lint cleanup, investigation doc) |
 | [v0.9.12](./v0.9.12.md) | Apr 14, 2026 | Warsow deluxe materials, demo cinematic pipeline, protocol/movement test lock-down (150 tests) |
+| [v0.9.11](./v0.9.11.md) | Mar 23, 2026 | Award system and event feed, damage indicators and pain shake, framerate-independent physics, bot fixes |
+| [v0.9.10](./v0.9.10.md) | Mar 18, 2026 | Remote player animations and weapons, movement state sync, barrel sub-models on dropped weapons |
+| [v0.9.9](./v0.9.9.md) | Mar 17, 2026 | Weapon pickup reliability, tab recovery, the blade, per-weapon speed, keybinds |
+| [v0.9.8](./v0.9.8.md) | Mar 3, 2026 | Remote player 3D models, crouch state over the wire, wall-jump collision desync fix |
+| [v0.9.7](./v0.9.7.md) | Feb 24, 2026 | Team gametypes, music system, spectator system, central input actions with keybinding labels |
 | [v0.9.6](./v0.9.6.md) | Feb 23, 2026 | Washiki HUD overhaul + performance optimization pass (47 items across loading, collision, rendering) |
 | [v0.9.5](./v0.9.5.md) | Feb 22, 2026 | V2 network client, movement refinements |
 | [v0.9.4](./v0.9.4.md) | Feb 21, 2026 | Network prediction improvements |
