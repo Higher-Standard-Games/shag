@@ -5,8 +5,11 @@ import type { StandardMaterial } from "@babylonjs/core/Materials/standardMateria
 /** Vertex-lit material passes retain baked RGB while accepting additive game lights. */
 export class BspVertexLightingPlugin extends MaterialPluginBase {
   constructor(material: StandardMaterial) {
-    super(material, "BspVertexLighting", 200, {}, true, false);
+    super(material, "BspVertexLighting", 200, { BSP_VERTEX_LIGHTING: true }, true, false);
     this._enable(true);
+  }
+  override getClassName(): string {
+    return "BspVertexLightingPlugin";
   }
   override isCompatible(language: ShaderLanguage): boolean {
     return language === ShaderLanguage.GLSL || language === ShaderLanguage.WGSL;

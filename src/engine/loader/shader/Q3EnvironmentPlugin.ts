@@ -13,9 +13,12 @@ export class Q3EnvironmentPlugin extends MaterialPluginBase {
     private readonly texture: BaseTexture,
     private readonly surround: boolean,
   ) {
-    super(material, "Q3Environment", 190, {}, true, false);
+    super(material, "Q3Environment", 190, { Q3_ENVIRONMENT: true, Q3_ENVIRONMENT_SURROUND: surround }, true, false);
     this.registerForExtraEvents = true;
     this._enable(true);
+  }
+  override getClassName(): string {
+    return "Q3EnvironmentPlugin";
   }
   override isCompatible(language: ShaderLanguage): boolean {
     return language === ShaderLanguage.GLSL || language === ShaderLanguage.WGSL;

@@ -74,6 +74,24 @@ KTX2 sidecars can reduce transfer/VRAM pressure, but decoder support, quality, a
 
 Do not manually merge or freeze map meshes after loading without checking shader animation, autosprites, collision ownership, and cleanup.
 
+## Combat resource lifetimes
+
+`WeaponSlash` rewrites its ribbon in place: the mesh has room for more points
+than a swing uses and is rebuilt only to grow. Babylon reference-counts shader
+effects: disposing the final drawing submesh can release a program even if its
+material survives. Preserve draw ownership while updating an effect, and verify
+shader compilations as well as material counts.
+
+Player visibility styling clones materials and texture wrappers. The wrappers
+share GPU pixel storage with their sources but own references that must be
+released. `PlayerModelManager` releases clone-only texture wrappers with their
+style material; source textures and surviving players keep their ownership.
+Track both texture-object counts and actual GPU storage across many respawns.
+
+A timedemo's workload-valid flag checks playback coverage and its configured
+profile. Check browser GPU errors separately; a valid workload can still issue
+invalid draws. Keep diagnostic GL error polling separate from timing trials.
+
 ## Regression
 
 After an optimization:

@@ -56,6 +56,12 @@ The parser and BSP material path cover the compatibility features most maps depe
 - QFusion/Warsow `cubemap` sources are preserved as appearance hints for the
   unified liquid renderer, including inside `if textureCubeMap` blocks.
 
+Custom material plugins declare unique class names and persistent feature
+defines. Every plugin composition and code-changing constructor option must
+produce a distinct shader-cache key; otherwise Babylon can reuse a program
+with the wrong uniform or sampler layout. Q3 distance ramps, soft particles,
+stage colors, vertex lighting and environment passes use separate identities.
+
 Support is not a complete reimplementation of the original Q3 renderer. Other vertex deforms, such as `wave`, `bulge` and `move`, are skipped by the parser. Some uncommon multi-stage combinations are approximated by Babylon material paths.
 
 Repeated material stages support an opaque base followed by alpha-blended

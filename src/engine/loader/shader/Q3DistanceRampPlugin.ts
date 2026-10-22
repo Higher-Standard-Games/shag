@@ -23,10 +23,13 @@ class Q3DistanceRampPlugin extends MaterialPluginBase {
     private readonly rgb?: DistanceRamp,
     private readonly alpha?: DistanceRamp,
   ) {
-    super(material, "Q3DistanceRamp", 310, {}, true, false);
+    super(material, "Q3DistanceRamp", 310, { Q3_DISTANCE_RAMP: true }, true, false);
     this.pbr = material instanceof PBRMaterial;
     this.registerForExtraEvents = true;
     this._enable(true);
+  }
+  override getClassName(): string {
+    return "Q3DistanceRampPlugin";
   }
   override isCompatible(language: ShaderLanguage): boolean {
     return language === ShaderLanguage.GLSL || language === ShaderLanguage.WGSL;

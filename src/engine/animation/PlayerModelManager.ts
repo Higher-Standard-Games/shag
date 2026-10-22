@@ -692,6 +692,14 @@ export class PlayerModelManager {
 
     const cloned = cloneModelMaterial(material, visibilityCloneName);
     if (!cloned) return null;
+    // Babylon clones texture wrappers along with a material. They share GPU
+    // storage with the source but hold their own references to it. Release
+    // only those wrappers when this player's style material goes away.
+    const sourceTextures = new Set(material.getActiveTextures());
+    const ownedTextures = new Set(cloned.getActiveTextures().filter((texture) => !sourceTextures.has(texture)));
+    cloned.onDisposeObservable.addOnce(() => {
+      for (const texture of ownedTextures) texture.dispose();
+    });
     mesh.material = cloned;
     return cloned;
   }

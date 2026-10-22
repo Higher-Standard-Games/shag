@@ -12,9 +12,12 @@ export class Q3StageColorPlugin extends MaterialPluginBase {
     private readonly rgb: readonly number[],
     private readonly vertex = false,
   ) {
-    super(material, "Q3StageColor", 300, {}, true, false);
+    super(material, "Q3StageColor", 300, { Q3_STAGE_COLOR: true, Q3_STAGE_VERTEX: vertex }, true, false);
     this.pbr = material instanceof PBRMaterial;
     this._enable(true);
+  }
+  override getClassName(): string {
+    return "Q3StageColorPlugin";
   }
   override isCompatible(language: ShaderLanguage): boolean {
     return language === ShaderLanguage.GLSL || language === ShaderLanguage.WGSL;

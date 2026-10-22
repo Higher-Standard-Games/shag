@@ -17,11 +17,14 @@ class Q3SoftParticlePlugin extends MaterialPluginBase {
   private readonly depth: Q3SoftParticleDepth;
   private readonly pbr: boolean;
   constructor(material: StandardMaterial | PBRMaterial, fadeRgb: boolean) {
-    super(material, "Q3SoftParticle", 320, { Q3_SOFT_RGB: fadeRgb }, true, false);
+    super(material, "Q3SoftParticle", 320, { Q3_SOFT_PARTICLE: true, Q3_SOFT_RGB: fadeRgb }, true, false);
     this.depth = Q3SoftParticleDepth.acquire(material);
     this.pbr = material instanceof PBRMaterial;
     this.registerForExtraEvents = true;
     this._enable(true);
+  }
+  override getClassName(): string {
+    return "Q3SoftParticlePlugin";
   }
   override isCompatible(language: ShaderLanguage): boolean {
     return language === ShaderLanguage.GLSL || language === ShaderLanguage.WGSL;
