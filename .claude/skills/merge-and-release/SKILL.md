@@ -94,18 +94,25 @@ released and `<next>` the one after it.
 1. Finalize the date in `docs/changelog/v<version>.md`: replace the unreleased
    line with the date, and drop any trailing unreleased marker. Give its row in
    `docs/changelog/index.md` the date and a one-line summary.
-2. Bump `src/engine/version.txt` and `package.json` (and the two version fields
-   at the top of `package-lock.json`) in the **outer repo only** to `<next>`.
-3. Commit: `chore: release v<version>, bump version to v<next>`.
-4. Tag that commit, annotated: `git tag -a v<version> -m "v<version>"`.
-5. Push, when asked: `git push origin main && git push origin v<version>`.
-6. Start the next cycle's stub, `docs/changelog/v<next>.md`, with the
+2. Verify `src/engine/version.txt`, `package.json` and both root version fields
+   in `package-lock.json` still equal `<version>`. Keep them at the released
+   version so the tagged and deployed build reports the correct version.
+3. Create only the next cycle's stub, `docs/changelog/v<next>.md`, with the
    unreleased line, and add its row to `docs/changelog/index.md`.
+4. Commit: `chore: release v<version>`.
+5. Tag that commit, annotated: `git tag -a v<version> -m "v<version>"`.
+6. Push, when asked: `git push origin main && git push origin v<version>`.
 
-Because the release and the bump are one commit, `version.txt` at the tag
-already reads the next version. That is intended. Tags are annotated, sit on
-the release commit, and are made in the outer repo only. Tag every release;
-older untagged releases are not backfilled.
+Tags are annotated, sit on the release commit, and are made in the outer repo
+only. Tag every release; older untagged releases are not backfilled.
+
+## Beginning the next release cycle
+
+When work begins on `<next>`, bump `src/engine/version.txt`, `package.json` and
+both root version fields in `package-lock.json` in the **outer repo only** to
+`<next>`. Use the prepared changelog stub for that cycle. Commit the bump as
+`chore: begin v<next> development`. Creating the stub during a release does not
+start the next cycle or authorize publishing its version in that release.
 
 ## Report
 

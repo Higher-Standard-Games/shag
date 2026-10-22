@@ -6,7 +6,8 @@ All notable changes to this project are documented in version-specific files.
 
 | Version | Date | Summary |
 |---------|------|---------|
-| [v1.0.0-alpha](./v1.0.0-alpha.md) | unreleased | Living changelog: alpha review and playtest fixes, bots that see, hear, chat and dodge, settings that follow the account, highlight scenes and trick jumps, account deletion and terms, SHAGGED File panel and .map import, server and client performance |
+| [v1.0.0-alpha.2](./v1.0.0-alpha.2.md) | unreleased | Living changelog for the next alpha cycle |
+| [v1.0.0-alpha](./v1.0.0-alpha.md) | Oct 23, 2026 | Alpha review and playtest fixes, bots that see, hear, chat and dodge, account settings sync, highlight scenes and trick jumps, account deletion and terms, SHAGGED .map import, performance and per-map texture downloads |
 | [v0.9.36](./v0.9.36.md) | Oct 19, 2026 | Netcode: no more teleporting back on a busy or slow connection |
 | [v0.9.35](./v0.9.35.md) | Oct 19, 2026 | Package download progress; low frame rates and stalled links no longer warp the player; performance and input fixes |
 | [v0.9.34](./v0.9.34.md) | Oct 19, 2026 | Mouse input: fire and aim no longer lost on cancelled pointer events; a notice when the mouse is not captured |

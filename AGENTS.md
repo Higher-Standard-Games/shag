@@ -405,10 +405,13 @@ files. A cycle's research notes live in `docs/research/`.
 
 Always fps first: commit and merge in `src/games/fps`, then merge the outer
 branch, re-pin `src/games/fps` at the fps `main` tip and commit that, then push
-outer `main`. Push only when asked. A release bumps `src/engine/version.txt` and
-`package.json` (outer repo only) to the *next* version in one commit, `chore:
-release v1.0.0-alpha, bump version to v1.0.0-alpha.2`, with an annotated tag
-`v1.0.0-alpha` on it. The next version of a pre-release is the next pre-release
+outer `main`. Push only when asked. A release keeps `src/engine/version.txt`,
+`package.json` and both root version fields in `package-lock.json` at the version
+being released. Finalize its changelog in `chore: release v1.0.0-alpha` and put
+the annotated `v1.0.0-alpha` tag on that commit. Create only the next changelog
+stub at release time; bump the version files when beginning the next release
+cycle, so the tagged and deployed build identifies the release correctly.
+The next version of a pre-release is the next pre-release
 number unless the owner names the next stage (`1.0.0-beta`, `1.0.0-rc.1`,
 `1.0.0`).
 
