@@ -115,7 +115,8 @@ natural alignment for those faces.
   paths. Each texture/alignment action is one undo step.
 - New brushes start as `common/caulk`, as in NetRadiant: it seals and collides
   but is never drawn. Texture the faces players see, and leave the rest caulk.
-  The current texture (shown in the toolbar) applies to brushes you draw next.
+  The current texture (shown in the floating bar over the views, with the tool
+  and grid) applies to brushes you draw next.
 - Texture names have no `textures/` prefix; the compiler adds it.
 
 ### Round patch presets
