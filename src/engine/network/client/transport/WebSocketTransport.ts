@@ -12,6 +12,7 @@ import type { Transport } from "./Transport";
  * is always reliable and ordered.
  */
 export class WebSocketTransport implements Transport {
+  readonly lossless = true;
   private ws: WebSocket | null = null;
   private messageCallbacks: ((data: Uint8Array) => void)[] = [];
   private connectCallbacks: (() => void)[] = [];

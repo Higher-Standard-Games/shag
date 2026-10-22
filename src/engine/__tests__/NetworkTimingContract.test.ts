@@ -21,10 +21,11 @@ const accepted = () => MessageCodec.encodeJoinAccept("c1", "player_1", "1");
 const snapshot = () => MessageCodec.encodeSnapshot(new GameState());
 const input = () => new MoveCommand("player_1", 1, 1, { x: 1, y: 0, z: 0 }, 0, 0, 0);
 
-function fixture() {
+function fixture(lossless?: boolean) {
   let deliver = (_data: Uint8Array) => {};
   let closed = (_reason?: string) => {};
   const transport: Transport = {
+    lossless,
     connect: vi.fn(async () => {}),
     disconnect: vi.fn(async () => {
       closed("closed");
@@ -238,5 +239,33 @@ describe("network timing handshake", () => {
           EmptySimulation,
         ),
     ).toThrow("matching tick duration");
+  });
+});
+
+describe("command sends", () => {
+  async function connected(lossless?: boolean) {
+    const f = fixture(lossless);
+    const connecting = f.host.connect("ws://test");
+    f.deliver(welcome());
+    f.deliver(accepted());
+    await connecting;
+    vi.mocked(f.transport.send).mockClear();
+    return f;
+  }
+  const inputsSent = (f: ReturnType<typeof fixture>) =>
+    vi.mocked(f.transport.send).mock.calls.filter(([data]) => MessageCodec.peekMessageType(data) === MessageType.Input)
+      .length;
+
+  it("sends each command once over a lossless stream", async () => {
+    const f = await connected(true);
+    for (let i = 0; i < 5; i++) f.host.sendCommand(input());
+    expect(inputsSent(f)).toBe(5);
+  });
+
+  it("re-sends the last commands with each new one over a transport that can lose them", async () => {
+    const f = await connected(false);
+    for (let i = 0; i < 5; i++) f.host.sendCommand(input());
+    // 1 + 2 + 3 + 3 + 3: each new command plus up to two before it.
+    expect(inputsSent(f)).toBe(12);
   });
 });

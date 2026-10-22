@@ -2,6 +2,13 @@
  * Transport layer interface for network communication
  */
 export interface Transport {
+  /**
+   * Every message arrives exactly once and in order, whatever `reliable` says —
+   * a stream such as WebSocket. Senders skip loss-recovery copies then: over a
+   * stream they only add upload for the receiver to discard.
+   */
+  readonly lossless?: boolean;
+
   /** Connect to server */
   connect(url: string): Promise<void>;
 

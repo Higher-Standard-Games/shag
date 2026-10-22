@@ -24,6 +24,45 @@ Deploy the contents of `dist/` to a static HTTPS host. Vite copies files from `p
 
 Large PK3 files may be more practical on a CDN: build with `VITE_PK3_MIRROR_URL` and the client downloads packages from that mirror when it has an up-to-date copy, falling back to this origin otherwise. See [PK3 filesystem](../guides/pk3-filesystem.md#http-mirror). Loose assets resolve through `GamePaths`, `PK3Index` and the generated manifests.
 
+## Server processes
+
+The static build is only the client. Multiplayer needs three Node 24 processes
+beside it:
+
+| Process | Start (production) | Start (development) |
+| --- | --- | --- |
+| Lobby (spawns one match server per match) | `npm run lobby:server` | `npm run lobby:server:dev` |
+| Bot server | `npm run bot:server` | `npm run bot:server:dev` |
+| Match server (normally spawned by the lobby) | `npm run net:server` | `npm run net:server:dev` |
+
+The production scripts build `dist-server/` (`npm run build:server`) and run
+the bundles with plain Node. The development scripts run the TypeScript
+sources through `vite-node`, which transpiles them at every start. Match
+servers inherit the lobby's mode: a bundled lobby spawns bundled matches.
+
+Run bundles in production. Measured on `washoi_dm2`:
+
+| Match server | Ready for connections | Memory 5 s after start |
+| --- | --- | --- |
+| `vite-node` | 1.1–1.2 s | 264–272 MB |
+| Bundle | 0.26 s | 122–123 MB |
+
+Every match pays the start-up time while its players wait, and the memory
+for as long as it runs.
+
+What a deployment has to do with bundles:
+
+- **Rebuild on server changes.** Bundled processes run what was built, not the
+  working tree. Run `npm run build:server` after updating the source; it builds
+  into a staging directory and swaps it in only when complete, so a match the
+  lobby spawns during the build still gets a whole bundle.
+- **Match servers** pick up a rebuild at their next spawn; running matches keep
+  the code they started with.
+- **The lobby and bot server** pick it up on restart. Restarting the lobby ends
+  its live rooms (matches are its child processes), so restart when idle.
+- Keep `node_modules` installed: the bundles leave `ws` and TensorFlow.js
+  external.
+
 ## Verification
 
 Test the deployed origin, not just the Vite preview:

@@ -50,7 +50,8 @@ alternative requiring the Bun version recorded in `.bun-version`. Bun is
 optional for normal server startup. Game servers launched by a lobby inherit
 that lobby's runtime. `net:server:dev` retains the Vite runner. npm owns
 dependencies and the lockfile. `npm run build:server` builds only the server
-artifacts.
+artifacts — match server, lobby and bot server — into `dist-server/`, swapping
+the new build in only once it is complete.
 
 ### Server memory profiling
 

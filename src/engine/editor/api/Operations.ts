@@ -35,6 +35,7 @@ import { alignCreatedBrush, type CreationMaterials } from "./CreationMaterials";
 import {
   type ConnectSpec,
   type CorridorSpec,
+  DEFAULT_SHADER,
   generateConnect,
   generateCorridor,
   generateJumpPad,
@@ -48,7 +49,7 @@ import {
   type TeleporterSpec,
 } from "./Generators";
 
-export const DEFAULT_SHADER = "blx/blx_grid";
+export { DEFAULT_SHADER };
 
 export type EditOp =
   | ({

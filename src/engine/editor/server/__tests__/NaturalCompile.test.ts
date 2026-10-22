@@ -10,6 +10,9 @@ import { CompileJobs } from "../CompileJobs";
 import { resolveCompilerConfig } from "../CompilerConfig";
 import { MapStore } from "../MapStore";
 
+/** A shipped, drawn texture (256x256): new geometry is caulk unless textured. */
+const VISIBLE = "cleansurface/pantonecoolgray10c";
+
 it("retains natural world-to-image repeats in a real compiled BSP", async () => {
   const compiler = await resolveCompilerConfig();
   if (!compiler.available) return;
@@ -22,7 +25,8 @@ it("retains natural world-to-image repeats in a real compiled BSP", async () => 
         min: { x: -256, y: -256, z: 0 },
         max: { x: 256, y: 256, z: 256 },
         alignment: "natural",
-        textureSizes: { "blx/blx_grid": [512, 256] },
+        shader: VISIBLE,
+        textureSizes: { [VISIBLE]: [256, 256] },
       },
       { op: "entity.place", classname: "info_player_deathmatch", origin: { x: 0, y: 0, z: 48 } },
     ]).doc;
@@ -40,7 +44,7 @@ it("retains natural world-to-image repeats in a real compiled BSP", async () => 
     const vertices = bsp.vertices.slice(wall!.firstVertex, wall!.firstVertex + wall!.numVertices);
     for (const vertex of vertices.slice(1)) {
       expect(vertex.texCoord[0] - vertices[0].texCoord[0]).toBeCloseTo(
-        (vertex.position[0] - vertices[0].position[0]) / 256,
+        (vertex.position[0] - vertices[0].position[0]) / 128,
         4,
       );
       expect(vertex.texCoord[1] - vertices[0].texCoord[1]).toBeCloseTo(

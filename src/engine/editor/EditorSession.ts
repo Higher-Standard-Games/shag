@@ -16,7 +16,7 @@ import "@babylonjs/core/Rendering/edgesRenderer";
 // Registers Scene.pick for perspective selection.
 import "@babylonjs/core/Culling/ray";
 import { q3ToBabylonVec3 } from "../loader/bsp/mesh/coordinates";
-import { applyOperations, type EditOp } from "./api/Operations";
+import { applyOperations, DEFAULT_SHADER, type EditOp } from "./api/Operations";
 import {
   type BrushFace,
   brushFaceMaterial,
@@ -356,7 +356,7 @@ export class EditorSession {
   private tool: Tool = "brush";
   private entityClassname = "info_player_deathmatch";
   /** Texture new brushes get; size is null until one is picked from the browser (fixed legacy alignment). */
-  private currentTexture: { name: string; size: [number, number] | null } = { name: "blx/blx_grid", size: null };
+  private currentTexture: { name: string; size: [number, number] | null } = { name: DEFAULT_SHADER, size: null };
   private textureBrowser: TextureBrowser | null = null;
   /** Model the Entity tool drops as a misc_model; bounds sit it on the work plane. */
   private currentModel: { path: string; bounds: ModelBounds | null } | null = null;
@@ -3429,7 +3429,7 @@ export class EditorSession {
     if (gesture.mode === "draw") {
       if (gesture.drawKind === "patch") return null;
       const bounds = drawBounds(axes, gesture.start, gesture.current, gesture.workPlane, gesture.grid);
-      return bounds ? { id: "gesture-preview", ...bounds, shader: "blx/blx_grid" } : null;
+      return bounds ? { id: "gesture-preview", ...bounds, shader: this.currentTexture.name } : null;
     }
     if (!gesture.brush) return null;
     if (gesture.mode === "vertex") {

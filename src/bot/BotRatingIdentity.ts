@@ -5,11 +5,29 @@ import { fileURLToPath } from "node:url";
 import { type BotReference, canonicalBotReference } from "../shared/ranking/BotReference";
 import { type BotOptions, defaultGoalArbiterMode, resolveDifficulty } from "./BotConfig";
 
+/**
+ * The repository root: the nearest directory above this module with a
+ * package.json. Found by walking up rather than by a fixed number of `..`, so it
+ * is the same whether this file runs from `src/bot/` or bundled into
+ * `dist-server/`.
+ */
+function repositoryRoot(): string {
+  let dir = path.dirname(fileURLToPath(import.meta.url));
+  while (!fs.existsSync(path.join(dir, "package.json"))) {
+    const parent = path.dirname(dir);
+    if (parent === dir) throw new Error("BotRatingIdentity: no package.json above this module");
+    dir = parent;
+  }
+  return dir;
+}
+
 let behavior: string | undefined;
 /** Conservative source/dependency/route fingerprint. Names and tests are omitted. */
 function behaviorDigest(): string {
   if (behavior) return behavior;
-  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+  // The source tree, wherever this code runs from: a bundled server must
+  // fingerprint the same files, or every bot would rate as a new bot.
+  const root = path.join(repositoryRoot(), "src");
   const hash = createHash("sha256");
   const visit = (dir: string) => {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {

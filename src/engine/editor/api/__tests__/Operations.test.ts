@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { BoxBrush, EditorDocumentData } from "../../EditorDocument";
 import { writeMap } from "../../MapWriter";
 import { generateCorridor, generateRoom } from "../Generators";
-import { applyOperations, type EditOp, emptyDocument, OperationError } from "../Operations";
+import { applyOperations, DEFAULT_SHADER, type EditOp, emptyDocument, OperationError } from "../Operations";
 
 const twoRooms: EditOp[] = JSON.parse(readFileSync(new URL("./fixtures/two-rooms.ops.json", import.meta.url), "utf8"));
 
@@ -119,7 +119,8 @@ describe("SHAGGED operations", () => {
       { op: "entity.place", classname: "info_player_deathmatch", origin: { x: 32, y: 32, z: 40 } },
     ]);
     expect(created).toEqual(["brush-1", "brush-2", "ent-1"]);
-    expect(doc.brushes[0].shader).toBe("blx/blx_grid");
+    expect(doc.brushes[0].shader).toBe(DEFAULT_SHADER);
+    expect(DEFAULT_SHADER).toBe("common/caulk");
   });
 
   it("applies all or nothing and names the failing operation", () => {

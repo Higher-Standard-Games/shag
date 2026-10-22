@@ -1,6 +1,7 @@
 import type { BoxBrush, EditorDocumentData, Vec3q } from "./EditorDocument";
 
-const shader = "blx/blx_grid";
+/** A plain shipped surface: the test room is for playing in, so its walls are drawn, not caulked. */
+const shader = "cleansurface/pantonecoolgray10c";
 const brush = (id: string, min: Vec3q, max: Vec3q): BoxBrush => ({ id, min, max, shader });
 
 /**

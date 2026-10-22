@@ -923,7 +923,7 @@ describe("editor DOM shell", () => {
     const pointer = (type: string, x: number, y: number) =>
       xy.dispatchEvent(new MouseEvent(type, { bubbles: true, button: 0, clientX: x, clientY: y }));
     const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
-    expect(session.root.querySelector("[data-current-texture]")!.textContent).toBe("blx/blx_grid");
+    expect(session.root.querySelector("[data-current-texture]")!.textContent).toBe("common/caulk");
 
     pointer("pointerdown", 200, 150);
     pointer("pointerup", 264, 86);
@@ -966,7 +966,7 @@ describe("editor DOM shell", () => {
       "Applied blx/blx_white_stripe (128×32)",
     );
     session.root.querySelector<HTMLButtonElement>('[data-action="undo"]')!.click();
-    expect(session.document.snapshot().brushes[0].shader).toBe("blx/blx_grid"); // one undo step
+    expect(session.document.snapshot().brushes[0].shader).toBe("common/caulk"); // one undo step
 
     // A brush drawn now gets the current texture with natural alignment.
     drawer.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));

@@ -12,16 +12,20 @@ import { CompileJobs } from "../CompileJobs";
 import { resolveCompilerConfig } from "../CompilerConfig";
 import { MapStore } from "../MapStore";
 
+/** A shipped, drawn texture (256x256): new geometry is caulk unless textured. */
+const VISIBLE = "cleansurface/pantonecoolgray10c";
+
 it("compiles round presets with finite draw data, closed tops and a hollow tube passage", async () => {
   const compiler = await resolveCompilerConfig();
   if (!compiler.available) return;
   const root = await mkdtemp(path.join(tmpdir(), "shagged-round-"));
   try {
     const doc = applyOperations(emptyDocument("roundprobe"), [
-      { op: "gen.room", id: "room", min: { x: -256, y: -256, z: 0 }, max: { x: 256, y: 256, z: 192 } },
+      { op: "gen.room", id: "room", min: { x: -256, y: -256, z: 0 }, max: { x: 256, y: 256, z: 192 }, shader: VISIBLE },
       { op: "entity.place", classname: "info_player_deathmatch", origin: { x: 0, y: -200, z: 48 } },
       {
         op: "patch.round",
+        shader: VISIBLE,
         id: "cylinder",
         shape: "cylinder",
         min: { x: -48, y: -48, z: 0 },
@@ -29,14 +33,29 @@ it("compiles round presets with finite draw data, closed tops and a hollow tube 
       },
       {
         op: "patch.round",
+        shader: VISIBLE,
         id: "tube",
         shape: "tube",
         min: { x: -160, y: -32, z: 0 },
         max: { x: -96, y: 32, z: 96 },
         thickness: 8,
       },
-      { op: "patch.round", id: "cone", shape: "cone", min: { x: 96, y: -32, z: 0 }, max: { x: 160, y: 32, z: 96 } },
-      { op: "patch.round", id: "cap", shape: "cap", min: { x: -32, y: -160, z: 32 }, max: { x: 32, y: -96, z: 32 } },
+      {
+        op: "patch.round",
+        shader: VISIBLE,
+        id: "cone",
+        shape: "cone",
+        min: { x: 96, y: -32, z: 0 },
+        max: { x: 160, y: 32, z: 96 },
+      },
+      {
+        op: "patch.round",
+        shader: VISIBLE,
+        id: "cap",
+        shape: "cap",
+        min: { x: -32, y: -160, z: 32 },
+        max: { x: 32, y: -96, z: 32 },
+      },
     ]).doc;
     const store = new MapStore(path.join(root, "maps"));
     await store.init();

@@ -48,7 +48,12 @@ export interface Generated {
   entities: PointEntity[];
 }
 
-const DEFAULT_SHADER = "blx/blx_grid";
+/**
+ * The shader a brush gets when nobody names one: caulk, as in NetRadiant. It
+ * seals and collides but is never drawn, so a mapper textures only the faces a
+ * player can see.
+ */
+export const DEFAULT_SHADER = "common/caulk";
 
 /** The two in-plane axes of each side, and the normal axis. */
 const SIDE_AXES: Record<FaceKey, { normal: Axis; u: Axis; v: Axis }> = {

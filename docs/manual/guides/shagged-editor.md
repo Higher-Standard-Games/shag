@@ -113,7 +113,9 @@ natural alignment for those faces.
   Convex brushes use deterministic paths through adjacent sides, preferring
   selected sides. A closed solid can still have seams on edges outside those
   paths. Each texture/alignment action is one undo step.
-- Texture faces nobody sees with `common/caulk`, then texture the visible faces.
+- New brushes start as `common/caulk`, as in NetRadiant: it seals and collides
+  but is never drawn. Texture the faces players see, and leave the rest caulk.
+  The current texture (shown in the toolbar) applies to brushes you draw next.
 - Texture names have no `textures/` prefix; the compiler adds it.
 
 ### Round patch presets

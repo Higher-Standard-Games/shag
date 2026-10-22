@@ -16,20 +16,23 @@ import { CompileJobs } from "../CompileJobs";
 import { resolveCompilerConfig } from "../CompilerConfig";
 import { MapStore } from "../MapStore";
 
+/** A shipped, drawn texture (256x256): new geometry is caulk unless textured. */
+const VISIBLE = "cleansurface/pantonecoolgray10c";
+
 it("compiles clipped slopes and convex subtraction with an open collision passage", async () => {
   const compiler = await resolveCompilerConfig();
   if (!compiler.available) return;
   const root = await mkdtemp(path.join(tmpdir(), "shagged-csg-"));
   try {
     const doc = applyOperations(emptyDocument("csgprobe"), [
-      { op: "gen.room", id: "room", min: { x: -256, y: -256, z: 0 }, max: { x: 256, y: 256, z: 192 } },
+      { op: "gen.room", id: "room", min: { x: -256, y: -256, z: 0 }, max: { x: 256, y: 256, z: 192 }, shader: VISIBLE },
       { op: "entity.place", classname: "info_player_deathmatch", origin: { x: 0, y: -160, z: 48 } },
       {
         op: "box.create",
         id: "wall",
         min: { x: -96, y: -8, z: 0 },
         max: { x: 96, y: 8, z: 128 },
-        shader: "blx/blx_grid",
+        shader: VISIBLE,
         detail: true,
       },
       { op: "brush.rotate", id: "wall", axis: "z", degrees: 15 },
@@ -40,14 +43,14 @@ it("compiles clipped slopes and convex subtraction with an open collision passag
         id: "slope",
         min: { x: 96, y: 96, z: 0 },
         max: { x: 160, y: 160, z: 128 },
-        shader: "blx/blx_grid",
+        shader: VISIBLE,
         detail: true,
       },
       {
         op: "brush.clip",
         id: "slope",
         plane: { normal: { x: 1, y: 0, z: 1 }, distance: 224 },
-        capMaterial: naturalFace("blx/blx_grid", [512, 256]),
+        capMaterial: naturalFace(VISIBLE, [256, 256]),
       },
     ]).doc;
     const store = new MapStore(path.join(root, "maps"));
@@ -86,20 +89,28 @@ it("compiles rotated solids and prisms with correct collision and arbitrary-plan
       y: 32 * Math.sin((i * Math.PI) / 4),
     }));
     const doc = applyOperations(emptyDocument("convexprobe"), [
-      { op: "gen.room", id: "room", min: { x: -256, y: -256, z: 0 }, max: { x: 256, y: 256, z: 192 } },
+      { op: "gen.room", id: "room", min: { x: -256, y: -256, z: 0 }, max: { x: 256, y: 256, z: 192 }, shader: VISIBLE },
       { op: "entity.place", classname: "info_player_deathmatch", origin: { x: 0, y: -160, z: 48 } },
       {
         op: "box.create",
         id: "bridge",
         min: { x: -128, y: -16, z: 32 },
         max: { x: 128, y: 16, z: 48 },
+        shader: VISIBLE,
         alignment: "natural",
-        textureSizes: { "blx/blx_grid": [512, 256] },
+        textureSizes: { [VISIBLE]: [256, 256] },
         detail: true,
       },
       { op: "brush.rotate", id: "bridge", axis: "z", degrees: 45 },
-      { op: "gen.prism", id: "platform", footprint, bottom: 0, top: 64 },
-      { op: "box.create", id: "ramp", min: { x: 64, y: -160, z: 0 }, max: { x: 128, y: -96, z: 64 }, detail: true },
+      { op: "gen.prism", id: "platform", footprint, bottom: 0, top: 64, shader: VISIBLE },
+      {
+        op: "box.create",
+        id: "ramp",
+        min: { x: 64, y: -160, z: 0 },
+        max: { x: 128, y: -96, z: 64 },
+        shader: VISIBLE,
+        detail: true,
+      },
       {
         op: "brush.vertices",
         id: "ramp",
@@ -119,7 +130,7 @@ it("compiles rotated solids and prisms with correct collision and arbitrary-plan
     expect(platform.hull!.sides[1].material!.skew).not.toBeUndefined();
     const ramp = doc.brushes.find((brush) => brush.id === "ramp")!;
     const rampTop = brushFaceKeys(ramp).find((key) => brushFaceNormal(ramp, key).z > 0.5)!;
-    const rampMaterial = fitBrushFace(naturalFace("blx/blx_grid", [512, 256]), ramp, rampTop);
+    const rampMaterial = fitBrushFace(naturalFace(VISIBLE, [256, 256]), ramp, rampTop);
     setBrushFaceMaterial(ramp, rampTop, rampMaterial);
     const store = new MapStore(path.join(root, "maps"));
     await store.init();

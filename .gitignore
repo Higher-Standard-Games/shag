@@ -69,6 +69,9 @@ android/capacitor-cordova-android-plugins/build/
 # Electron
 dist-electron/
 dist-server/
+# build-servers.mjs stages into these and swaps them in
+dist-server.building-*/
+dist-server.previous-*/
 release/
 
 # Game data and packages (not in git, download separately)

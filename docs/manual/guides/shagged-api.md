@@ -285,7 +285,7 @@ Texture search and automatic sizing use `SHAGGED_PUBLISH_ROOT` (default
 | Operation | Fields | Notes |
 | --- | --- | --- |
 | `world.keys` | `keys` | Merge worldspawn compiler/runtime settings such as `message`, `ambient`, `_color` and `fog`. Values are strings; an empty value removes a key. `classname`, `origin` and `model` are reserved. Quotes and newlines in values are rejected. Map inspection returns `worldKeys`; apply reports `worldChanged`. |
-| `box.create` | `id?`, `min`, `max`, `shader?`, `detail?` | Axis-aligned brush. Default shader `blx/blx_grid`. `min` must be below `max` on every axis. `detail: true` exports the Q3 detail content flag. |
+| `box.create` | `id?`, `min`, `max`, `shader?`, `detail?` | Axis-aligned brush. Default shader `common/caulk`. `min` must be below `max` on every axis. `detail: true` exports the Q3 detail content flag. |
 | `box.update` | `id`, `min?`, `max?`, `shader?`, `detail?` | Set `detail: false` to restore structural treatment. |
 | `patch.create` | `id?`, `shader`, `width`, `height`, `controlPoints` | Quadratic `patchDef2` surface. Width and height must be odd, from 3 through 31. Supply `height` rows of `width` controls, each `{x,y,z,u,v}` in Quake coordinates with texture UVs. Winding follows row/column order; reverse rows to reverse the facing. Shader names have no `textures/` prefix. Patches do not seal the map; use structural brushes. Collision follows compiler/shader rules. |
 | `patch.round` | `id?`, `shape`, `min`, `max`, `axis?`, `shader?`, `thickness?`, `capped?`, `reverse?`, `group?` | Cylinder, tube, cone or disk cap presets; multiple surfaces group by default. |
@@ -318,9 +318,9 @@ Example: two rooms joined by a corridor, with spawns and a weapon:
 
 ```json
 [
-  { "op": "gen.room", "id": "west", "min": { "x": -512, "y": -192, "z": 0 }, "max": { "x": -128, "y": 192, "z": 256 } },
-  { "op": "gen.room", "id": "east", "min": { "x": 128, "y": -192, "z": 0 }, "max": { "x": 512, "y": 192, "z": 256 } },
-  { "op": "gen.connect", "id": "hall",
+  { "op": "gen.room", "id": "west", "min": { "x": -512, "y": -192, "z": 0 }, "max": { "x": -128, "y": 192, "z": 256 }, "shader": "concrete/concreteclean" },
+  { "op": "gen.room", "id": "east", "min": { "x": 128, "y": -192, "z": 0 }, "max": { "x": 512, "y": 192, "z": 256 }, "shader": "concrete/concreteclean" },
+  { "op": "gen.connect", "id": "hall", "shader": "tiles/concrete_tiles",
     "from": { "min": { "x": -512, "y": -192, "z": 0 }, "max": { "x": -128, "y": 192, "z": 256 } },
     "to": { "min": { "x": 128, "y": -192, "z": 0 }, "max": { "x": 512, "y": 192, "z": 256 } } },
   { "op": "entity.place", "id": "spawn-west", "classname": "info_player_deathmatch", "origin": { "x": -400, "y": 0, "z": 24 } },
@@ -342,7 +342,10 @@ Example: two rooms joined by a corridor, with spawns and a weapon:
 - Build on an 8- or 16-unit grid. Brushes must not overlap in volume; let them meet face to face.
 - The playable space must be **sealed**: no gap from inside to the void, or the compile's leak test fails. `gen.room` and `gen.corridor` are sealed by construction when joined as described above.
 - Caulk first: give faces nobody sees `common/caulk`, then texture visible faces.
-- Shader names have no `textures/` prefix (`blx/blx_dark`, not `textures/blx/blx_dark`).
+  Caulk is also the default, as in NetRadiant: every operation's `shader?`
+  falls back to `common/caulk`, which seals and collides but is never drawn. A
+  room built without a `shader` is invisible in game.
+- Shader names have no `textures/` prefix (`concrete/concreteclean`, not `textures/concrete/concreteclean`).
 - Give every room a light. An unlit compiled room is black.
 
 **Textures:** find names with `textures` (CLI) or `shagged_textures` (MCP); they search names and tags like the editor's texture browser and list each texture's image size. A brush's `shader` applies to all its faces; `face.material` overrides single faces. Typical flow: build with a wall texture, then `face.material` with `"faces": "all"` and `common/caulk` on brushes the player never sees from outside, then texture the faces facing the room.

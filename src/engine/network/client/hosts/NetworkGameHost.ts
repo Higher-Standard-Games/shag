@@ -134,9 +134,13 @@ export class NetworkGameHost implements IGameHost {
   /** True while reconnecting, so a stall and a close do not both start one. */
   private resuming = false;
 
-  /** Redundant command buffer: store last N encoded payloads for packet loss resilience */
+  /**
+   * Redundant command buffer: the last N encoded commands, re-sent with each new
+   * one so a lost datagram is covered by the next. Only for a transport that can
+   * lose messages; over a lossless stream each command goes once.
+   */
   private recentCommandPayloads: Uint8Array[] = [];
-  private readonly COMMAND_REDUNDANCY = 3; // Send last 3 commands per packet
+  private readonly COMMAND_REDUNDANCY = 3;
 
   /** When true, V2NetworkClient handles prediction - we only do network transport */
   private useExternalPrediction = false;
@@ -403,17 +407,19 @@ export class NetworkGameHost implements IGameHost {
     // Send to server using binary protocol
     const data = MessageCodec.encodeCommand(this.localPlayerId, sequencedCmd.seq, sequencedCmd);
 
-    // Buffer for redundancy (last 3 commands re-sent per tick for packet loss resilience)
-    this.recentCommandPayloads.push(data);
-    if (this.recentCommandPayloads.length > this.COMMAND_REDUNDANCY) {
-      this.recentCommandPayloads.shift();
-    }
-
-    // Send all buffered commands as separate datagrams (server parses one command per datagram)
-    // On packet loss, the missing command will be re-sent as a redundant copy in subsequent ticks
-    // Server deduplicates by sequence number — no double-processing
-    for (const payload of this.recentCommandPayloads) {
-      this.transport.send(payload, false); // Unreliable datagrams
+    if (this.transport.lossless) {
+      this.transport.send(data, false);
+    } else {
+      // Re-send the last few with each new one: a lost datagram is covered by the
+      // next. The server parses one command per datagram and drops sequences it
+      // has already processed, so copies never run twice.
+      this.recentCommandPayloads.push(data);
+      if (this.recentCommandPayloads.length > this.COMMAND_REDUNDANCY) {
+        this.recentCommandPayloads.shift();
+      }
+      for (const payload of this.recentCommandPayloads) {
+        this.transport.send(payload, false); // Unreliable datagrams
+      }
     }
 
     // Log periodically
