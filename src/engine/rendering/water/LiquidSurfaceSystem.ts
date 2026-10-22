@@ -114,6 +114,15 @@ export class LiquidSurfaceSystem {
   mapLights: readonly WaterMapLight[] = [];
   /** Last state line printed, so only CHANGES are logged. */
   private lastReport = "";
+  private readonly lastReportFields = {
+    visible: false,
+    depth: false,
+    quality: Number.NaN,
+    cached: false,
+    environment: false,
+    actors: Number.NaN,
+  };
+  private readonly cameraForward = new Vector3();
   /** Set by a claimed mesh when it is drawn; read and cleared each frame. */
   private waterDrawn = false;
   /** False until at least one mesh could be hooked, in which case assume visible. */
@@ -389,15 +398,25 @@ export class LiquidSurfaceSystem {
         this.probes.entries.some((entry) => entry.ready),
       );
 
+      // The same for every material this frame, so read once rather than per
+      // material: six cvar lookups and a camera direction each.
+      const vars = RenderVars.getInstance();
+      const highlights = vars.get("r_water_highlights") ?? 0.6;
+      const roughness = vars.get("r_water_roughness") ?? 0.3;
+      const reflection = vars.get("r_water_reflection") ?? 1.3;
+      const blur = vars.get("r_water_blur") ?? 0.3;
+      const detail = vars.get("r_water_detail") ?? 0.8;
+      const contact = vars.get("r_water_contact") ?? 0.25;
+      camera.getDirectionToRef(FORWARD, this.cameraForward);
       for (const material of this.materials.values()) {
         material.setFloat("uDebug", debug);
         material.setFloat("uTime", this.elapsed);
-        material.setFloat("uHighlightStrength", RenderVars.getInstance().get("r_water_highlights") ?? 0.6);
-        material.setFloat("uRoughness", RenderVars.getInstance().get("r_water_roughness") ?? 0.3);
-        material.setFloat("uReflectionStrength", RenderVars.getInstance().get("r_water_reflection") ?? 1.3);
-        material.setFloat("uReflectionBlur", RenderVars.getInstance().get("r_water_blur") ?? 0.3);
-        material.setFloat("uDetailStrength", RenderVars.getInstance().get("r_water_detail") ?? 0.8);
-        material.setFloat("uContactStrength", RenderVars.getInstance().get("r_water_contact") ?? 0.25);
+        material.setFloat("uHighlightStrength", highlights);
+        material.setFloat("uRoughness", roughness);
+        material.setFloat("uReflectionStrength", reflection);
+        material.setFloat("uReflectionBlur", blur);
+        material.setFloat("uDetailStrength", detail);
+        material.setFloat("uContactStrength", contact);
         material.setFloat("uHasRefraction", colourMap && sceneDepth && visible ? 1 : 0);
         if (colourMap) {
           material.setTexture("uSceneColour", colourMap);
@@ -408,7 +427,7 @@ export class LiquidSurfaceSystem {
         // Turns the depth term back into a distance along the view ray, which
         // is what places caustics on the floor rather than letting them slide
         // as the player turns.
-        material.setVector3("uCameraForward", camera.getDirection(FORWARD));
+        material.setVector3("uCameraForward", this.cameraForward);
         material.setFloat("uCameraFar", camera.maxZ);
         // Screen size every frame rather than at build: a resize would
         // otherwise offset every depth lookup by the ratio of the change.
@@ -437,10 +456,31 @@ export class LiquidSurfaceSystem {
    * switched on.
    */
   private reportState(visible: boolean, depth: boolean, quality: number, cached: boolean): void {
-    const environment = Array.from(this.materials.keys()).some(
-      (key) => (this.environments.get(key.split(":")[0] as WaterKind)?.texture ?? this.fallbackEnvironment) !== null,
-    );
-    const line = `waterOnScreen=${visible} tier=${quality} depth=${depth} environment=${environment} cachedRoom=${cached} reflectedActors=${this.actorReflection.actorCount}`;
+    let environment = false;
+    for (const key of this.materials.keys()) {
+      const colon = key.indexOf(":");
+      const kind = (colon < 0 ? key : key.slice(0, colon)) as WaterKind;
+      if ((this.environments.get(kind)?.texture ?? this.fallbackEnvironment) !== null) {
+        environment = true;
+        break;
+      }
+    }
+    // Compared field by field before any string is built: this runs every
+    // frame and the answer changes a handful of times per map.
+    const actors = this.actorReflection.actorCount;
+    const last = this.lastReportFields;
+    if (
+      last.visible === visible &&
+      last.depth === depth &&
+      last.quality === quality &&
+      last.cached === cached &&
+      last.environment === environment &&
+      last.actors === actors
+    ) {
+      return;
+    }
+    Object.assign(last, { visible, depth, quality, cached, environment, actors });
+    const line = `waterOnScreen=${visible} tier=${quality} depth=${depth} environment=${environment} cachedRoom=${cached} reflectedActors=${actors}`;
     if (line === this.lastReport) return;
     this.lastReport = line;
     devLog(`[Water] ${line}`);
@@ -569,5 +609,6 @@ export class LiquidSurfaceSystem {
     disposeWaterNoise(this.scene);
     this.elapsed = 0;
     this.lastReport = "";
+    this.lastReportFields.quality = Number.NaN;
   }
 }
