@@ -155,14 +155,15 @@ describe("installed-map room to ranking", () => {
           client.send(MessageCodec.encodeJoinGame("ffa"));
         }
         for (const client of gameClients) client.send(MessageCodec.encodeReady());
-        // A private room's bot plays as its preset account and is rated, but the
-        // boards list people only.
-        const rows = members.length;
+        // A private room's bot plays as its preset account: it is stored and
+        // rated as one more participant, but the boards list people only.
+        const participants = members.length + (visibility === "private" ? 1 : 0);
+        const listed = members.length;
         await vi.waitFor(
           () => {
             expect(
               results.leaderboard({ gametype: "ffa", period: "all", offset: 0, limit: 10, scope: visibility }).total,
-            ).toBe(rows);
+            ).toBe(listed);
           },
           { timeout: 30_000, interval: 100 },
         );
@@ -184,7 +185,7 @@ describe("installed-map room to ranking", () => {
           system: "trueskill",
           policyVersion: "shag-trueskill-v1",
           scope: visibility,
-          total: 2,
+          total: listed,
           localProcessing: { excluded: 0 },
           localPlayerEntry: { ratedMatches: 1, provisional: true },
         });
@@ -196,7 +197,7 @@ describe("installed-map room to ranking", () => {
         expect(lobby.getResultDiagnostics()).toMatchObject({
           storage: {
             totalMatches: 1,
-            totalParticipants: rows,
+            totalParticipants: participants,
             latestResult: { scope: visibility, bots: visibility === "private" ? 1 : 0 },
           },
           runtime: { totals: { stored: 1 }, recent: [{ status: "stored", reason: "stored", scope: visibility }] },
@@ -227,10 +228,10 @@ describe("installed-map room to ranking", () => {
           });
           expect(
             reopened.leaderboard({ gametype: "ffa", period: "all", offset: 0, limit: 10, scope: visibility }).total,
-          ).toBe(rows);
+          ).toBe(listed);
           expect(MatchResultStore.inspect(dir)).toMatchObject({
             status: "ready",
-            statistics: { totalMatches: 1, totalParticipants: rows },
+            statistics: { totalMatches: 1, totalParticipants: participants },
           });
           const journal = reopened.ratings.getResult(firstConnect.matchId as string);
           expect(journal?.receipt).toMatchObject({
@@ -290,7 +291,7 @@ describe("installed-map room to ranking", () => {
             scope: visibility,
           });
           const page = await peer.waitFor("leaderboard:page", (message) => message.requestId === `rank_${index}`);
-          expect(page).toMatchObject({ total: rows, localPlayerRank: 1, scope: visibility });
+          expect(page).toMatchObject({ total: listed, localPlayerRank: 1, scope: visibility });
           // Equal records order by account: the people, then the bot's later preset account.
           expect(
             (page.entries as Array<{ playerId: string; draws: number }>)
