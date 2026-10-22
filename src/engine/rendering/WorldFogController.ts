@@ -219,6 +219,14 @@ export class WorldFogController {
     return this.active !== null && this.active.density > 0 && this.borrowers.size === 0;
   }
 
+  /**
+   * Whether `scene` is drawing world fog: the map's scene, not a preview or
+   * the menu logo, whose materials carry the plugin as every material does.
+   */
+  isDrawingIn(scene: Scene): boolean {
+    return this.scene === scene && this.isDrawing();
+  }
+
   /** The sky's height, the distance world fog treats the sky as being at. */
   getSkyHeight(): number {
     return this.skyHeight;

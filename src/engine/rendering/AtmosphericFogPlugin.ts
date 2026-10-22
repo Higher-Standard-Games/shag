@@ -161,7 +161,7 @@ export class AtmosphericFogPlugin extends MaterialPluginBase {
 
   override prepareDefines(defines: MaterialDefines, _scene: unknown, mesh: AbstractMesh): void {
     const material = this._material as Material & { fogEnabled?: boolean };
-    const on = this.controller.isDrawing() && mesh.applyFog && material.fogEnabled !== false;
+    const on = this.controller.isDrawingIn(material.getScene()) && mesh.applyFog && material.fogEnabled !== false;
     defines.ATMFOG = on;
     // Babylon's own fog would fog the result twice
     if (on) defines.FOG = false;

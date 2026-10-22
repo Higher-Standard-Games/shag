@@ -46,6 +46,7 @@ import {
   resolveWebGPUNonCompatibilityMode,
 } from "./engine/rendering/RenderingEngineFactory";
 import { applySceneRendererPolicy } from "./engine/rendering/SceneRendererPolicy";
+import { WorldFogController } from "./engine/rendering/WorldFogController";
 import { configureLobbyTwin } from "./engine/ui/components/LobbyTwin";
 import { LoadingScreen } from "./engine/ui/LoadingScreen";
 import { MapLoadingOverlay } from "./engine/ui/MapLoadingOverlay";
@@ -197,6 +198,10 @@ async function main() {
   const frameRateDisplay = new FrameRateDisplay(() => engine.getFps());
   scene.onDisposeObservable.addOnce(() => frameRateDisplay.destroy());
   applySceneRendererPolicy(scene);
+  // Before any game material exists: the world fog plugin joins only the
+  // materials created after it registers, and one without it can be handed a
+  // shader built for one with it, whose draws then fail (live gibs did).
+  WorldFogController.getInstance();
   scene.clearColor = new Color4(0.1, 0.1, 0.1, 1);
   scene.ambientColor = new Color3(1, 1, 1); // Required for BSP lightmaps to render
   scene.collisionsEnabled = true;

@@ -87,6 +87,15 @@ describe("WorldFogController", () => {
     expect(s.fogMode).toBe(Scene.FOGMODE_NONE);
   });
 
+  it("fogs only the map's scene, not a preview or the menu logo", () => {
+    WorldFogController.getInstance().registerCvars();
+    const map = scene();
+    const preview = scene();
+    WorldFogController.getInstance().setMap(map, wdm11);
+    expect(WorldFogController.getInstance().isDrawingIn(map)).toBe(true);
+    expect(WorldFogController.getInstance().isDrawingIn(preview)).toBe(false);
+  });
+
   it("clears the fog when the map goes", () => {
     const s = scene();
     WorldFogController.getInstance().setMap(s, wdm11);

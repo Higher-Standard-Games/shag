@@ -408,7 +408,7 @@ export async function preloadEffectShaders(scene: Scene): Promise<void> {
  * 3. All materials marked dirty — forces shader re-evaluation
  * 4. All StandardMaterials force-compiled with PointLight variant
  * 5. Scene whenReadyAsync — final GPU readiness gate
- * 6. Re-freeze non-lightmapped materials (matches MapLoader freeze logic)
+ * 6. Re-freeze the materials step 0 unfroze, and only those
  *
  * Called by MapLoader when it detects the tab was backgrounded during load.
  */
@@ -420,13 +420,14 @@ export async function revalidateMaterials(scene: Scene): Promise<void> {
   //    Materials frozen during a backgrounded load have stale/empty texture
   //    handles baked into them. Unfreezing allows them to pick up the
   //    re-uploaded textures during recompilation.
-  let unfrozenCount = 0;
+  const unfrozen: StandardMaterial[] = [];
   for (const mat of scene.materials) {
     if (mat instanceof StandardMaterial && mat.isFrozen) {
       mat.unfreeze();
-      unfrozenCount++;
+      unfrozen.push(mat);
     }
   }
+  const unfrozenCount = unfrozen.length;
   devLog(`[EffectPreloader] Unfroze ${unfrozenCount} materials for revalidation`);
 
   // 1. Reset the engine's internal texture cache — forces all textures
@@ -502,16 +503,16 @@ export async function revalidateMaterials(scene: Scene): Promise<void> {
   // 5. Wait for scene readiness (ensures all textures are GPU-uploaded)
   await scene.whenReadyAsync();
 
-  // 6. Re-freeze non-lightmapped materials (matches MapLoader freeze logic)
-  //    Lightmapped materials stay unfrozen so dynamic lights work correctly.
+  // 6. Re-freeze what step 0 unfroze, and nothing else. Their owners chose to
+  //    freeze them and watch the light set for them (the map's world
+  //    materials). A material nobody froze, such as a gib's, may meet a new
+  //    light set later, and frozen it keeps a shader built for the old one:
+  //    its draws then fail and it is never seen.
   let refrozenCount = 0;
-  for (const mat of scene.materials) {
-    if (mat instanceof StandardMaterial && !mat.isFrozen) {
-      if (mat.lightmapTexture) continue; // Skip lightmapped
-      if (mat.name === "skybox") continue;
-      mat.freeze();
-      refrozenCount++;
-    }
+  for (const mat of unfrozen) {
+    if (mat.isFrozen) continue;
+    mat.freeze();
+    refrozenCount++;
   }
   devLog(`[EffectPreloader] Re-froze ${refrozenCount} materials after revalidation`);
 

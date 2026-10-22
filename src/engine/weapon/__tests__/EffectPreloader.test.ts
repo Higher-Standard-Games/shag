@@ -167,6 +167,31 @@ describe("effect shader warmup", () => {
     }
   });
 
+  it("re-freezes only what it unfroze, leaving materials nobody froze live", async () => {
+    const engine = readyTextureEngine();
+    const scene = new Scene(engine);
+    new FreeCamera("camera", new Vector3(0, 0, -5), scene);
+    const world = CreateBox("world", {}, scene);
+    world.material = new StandardMaterial("world", scene);
+    world.material.freeze();
+    const gib = CreateBox("gib", {}, scene);
+    const gibMaterial = new StandardMaterial("gib", scene);
+    gib.material = gibMaterial;
+    // revalidateMaterials waits on rendered frames
+    const frames = setInterval(() => scene.render(), 5);
+    try {
+      await revalidateMaterials(scene);
+      expect(world.material.isFrozen).toBe(true);
+      // Frozen, a gib's material would keep the shader of today's light set,
+      // and its draws fail once that set changes
+      expect(gibMaterial.isFrozen).toBe(false);
+    } finally {
+      clearInterval(frames);
+      scene.dispose();
+      engine.dispose();
+    }
+  });
+
   it("retires a compile light without frames when nothing renders", async () => {
     vi.useFakeTimers();
     const engine = readyTextureEngine();
