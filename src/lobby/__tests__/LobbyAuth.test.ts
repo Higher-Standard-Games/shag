@@ -23,7 +23,7 @@ function connect(server: any, address = "127.0.0.1"): { player: any; sent: any[]
   const sent: unknown[] = [];
   const player = {
     id: `p_${nextId++}`,
-    ws: { readyState: WebSocket.OPEN, send: (data: string) => sent.push(JSON.parse(data)) },
+    ws: { readyState: WebSocket.OPEN, send: (data: string) => sent.push(JSON.parse(data)), close: vi.fn() },
     name: "",
     status: "online",
     lobbyId: null,
@@ -200,6 +200,57 @@ describe("LobbyServer renames", () => {
     const me = newPlayer(server);
     for (let i = 0; i < 10; i++) server.handleIdentityRename(me.player, `Name${i}`);
     server.handleIdentityRename(me.player, "OneTooMany");
+    expect(last(me.sent)).toEqual({ type: "identity:error", code: "rate_limited" });
+  });
+});
+
+describe("LobbyServer account deletion", () => {
+  it("deletes with the box ticked and the account's own key, then closes every tab logged in to it", () => {
+    const server = makeServer();
+    const me = newPlayer(server);
+    const myOtherTab = connect(server, "198.51.100.3");
+    server.handleAuth(myOtherTab.player, { type: "auth", key: me.key });
+    const someoneElse = newPlayer(server, "198.51.100.4");
+    server.settings.save(me.player.accountId, "{}");
+
+    server.handleIdentityDelete(me.player, me.key, true);
+
+    expect(last(me.sent)).toEqual({ type: "identity:deleted" });
+    expect(last(myOtherTab.sent)).toEqual({ type: "identity:deleted" });
+    expect(me.player.ws.close).toHaveBeenCalledWith(1000, "Account deleted");
+    expect(myOtherTab.player.ws.close).toHaveBeenCalled();
+    expect(someoneElse.player.ws.close).not.toHaveBeenCalled();
+    expect(server.settings.get(me.player.accountId)).toBeNull();
+
+    const later = connect(server);
+    server.handleAuth(later.player, { type: "auth", key: me.key });
+    expect(last(later.sent)).toEqual({ type: "auth:error", code: "unknown_key" });
+  });
+
+  it("refuses without the box ticked, with someone else's key, or in a room, and deletes nothing", () => {
+    const server = makeServer();
+    const me = newPlayer(server);
+    const someoneElse = newPlayer(server, "198.51.100.4");
+    server.handleIdentityDelete(me.player, me.key, false);
+    expect(last(me.sent)).toEqual({ type: "identity:error", code: "not_confirmed" });
+    server.handleIdentityDelete(me.player, me.key, "yes");
+    expect(last(me.sent)).toEqual({ type: "identity:error", code: "not_confirmed" });
+    server.handleIdentityDelete(me.player, someoneElse.key, true);
+    expect(last(me.sent)).toEqual({ type: "identity:error", code: "wrong_key" });
+    server.handleIdentityDelete(me.player, 42, true);
+    expect(last(me.sent)).toEqual({ type: "identity:error", code: "wrong_key" });
+    me.player.lobbyId = "l_1";
+    server.handleIdentityDelete(me.player, me.key, true);
+    expect(last(me.sent)).toEqual({ type: "identity:error", code: "in_lobby" });
+    expect(me.player.ws.close).not.toHaveBeenCalled();
+    expect(server.accounts.deletedAccountIds().size).toBe(0);
+  });
+
+  it("slows down someone guessing the key", () => {
+    const server = makeServer();
+    const me = newPlayer(server);
+    for (let i = 0; i < 10; i++) server.handleIdentityDelete(me.player, "0123456789ABCDEFGHJKMNPQ", true);
+    server.handleIdentityDelete(me.player, me.key, true);
     expect(last(me.sent)).toEqual({ type: "identity:error", code: "rate_limited" });
   });
 });

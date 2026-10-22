@@ -1,6 +1,6 @@
 /**
  * AccountSession — this browser's player account: logging in to the lobby,
- * keeping the key, and renaming.
+ * keeping the key, renaming, and deleting it.
  *
  * The key lives in its own localStorage entry, never inside PlayerProfile,
  * whose JSON is meant to sync to a server one day. The account's name is copied
@@ -15,6 +15,7 @@ import { startSettingsSync } from "./SettingsSync";
 import type {
   AuthErrorCode,
   AuthErrorMessage,
+  IdentityDeletedMessage,
   IdentityErrorCode,
   IdentityErrorMessage,
   IdentityRenamedMessage,
@@ -39,7 +40,9 @@ const RENAME_FAILURES: Record<RenameFailure, string> = {
   name_offensive: "That name isn't allowed. Pick another.",
   name_taken: "Someone already has that name.",
   in_lobby: "Leave the room first, then rename.",
-  rate_limited: "Too many renames. Try again in a minute.",
+  rate_limited: "Too many tries. Try again in a minute.",
+  not_confirmed: "Tick the box first.",
+  wrong_key: "That isn't this player's key. Paste the whole key again.",
   timeout: "The lobby didn't answer. Try again.",
   not_connected: "Not connected to the lobby.",
 };
@@ -151,6 +154,8 @@ function attach(client: LobbyClient): void {
   if (watchedClients.has(client)) return;
   watchedClients.add(client);
   client.on("identity:renamed", (msg: IdentityRenamedMessage) => adopt(msg.identity));
+  // Deleted from another tab: this one forgets the account too
+  client.on("identity:deleted", () => forgetDeletedAccount());
 }
 
 /** Send `auth` and wait for the lobby's answer. */
@@ -259,6 +264,45 @@ export function renameAccount(name: string): Promise<RenameOutcome> {
     const timer = setTimeout(() => finish({ ok: false, code: "timeout" }), ANSWER_TIMEOUT_MS);
     client.rename(name);
   });
+}
+
+export type DeleteOutcome = { ok: true } | { ok: false; code: RenameFailure };
+
+/**
+ * Delete the logged-in account for good, if `pastedKey` is its key. On success
+ * this browser forgets the key and the name, so the next visit starts a new
+ * player; the lobby closes the connection itself.
+ */
+export function deleteAccount(pastedKey: string, confirmed: boolean): Promise<DeleteOutcome> {
+  const client = activeClient;
+  if (!client?.connected || !identity) return Promise.resolve({ ok: false, code: "not_connected" });
+
+  return new Promise((resolve) => {
+    const finish = (outcome: DeleteOutcome) => {
+      clearTimeout(timer);
+      for (const unsubscribe of unsubscribers) unsubscribe();
+      resolve(outcome);
+    };
+    const unsubscribers = [
+      // attach() has already forgotten the account by the time this runs
+      client.on("identity:deleted", (_msg: IdentityDeletedMessage) => finish({ ok: true })),
+      client.on("identity:error", (msg: IdentityErrorMessage) => finish({ ok: false, code: msg.code })),
+      client.on("_disconnected", () => finish({ ok: false, code: "not_connected" })),
+    ];
+    const timer = setTimeout(() => finish({ ok: false, code: "timeout" }), ANSWER_TIMEOUT_MS);
+    client.deleteAccount(pastedKey, confirmed);
+  });
+}
+
+/** The account is gone: drop its key and name here, so nothing logs back in or reclaims the name. */
+function forgetDeletedAccount(): void {
+  identity = null;
+  newAccount = false;
+  writeStorage(KEY_STORAGE, null);
+  writeStorage(UNKNOWN_KEY_STORAGE, null);
+  const profile = PlayerProfile.load();
+  profile.name = PlayerProfile.defaultName();
+  profile.save();
 }
 
 /** Forget the session, for tests. Leaves stored keys alone. */

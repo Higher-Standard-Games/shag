@@ -190,6 +190,17 @@ export interface IdentityRenameMessage extends LobbyMessage {
   name: string;
 }
 
+/**
+ * Delete your account for good. The player ticks that they understand and pastes
+ * the whole key again, so a stray click or an open tab can't do it. Not while in
+ * a room. The answer is identity:deleted, then the lobby closes the connection.
+ */
+export interface IdentityDeleteMessage extends LobbyMessage {
+  type: "identity:delete";
+  key: string;
+  confirmed: boolean;
+}
+
 export interface ChatSendMessage extends LobbyMessage {
   type: "chat:send";
   text: string;
@@ -429,7 +440,14 @@ export type IdentityErrorCode =
   | "name_offensive"
   | "name_taken"
   | "in_lobby"
-  | "rate_limited";
+  | "rate_limited"
+  | "not_confirmed"
+  | "wrong_key";
+
+/** The account is gone; the lobby closes every connection logged in to it next. */
+export interface IdentityDeletedMessage extends LobbyMessage {
+  type: "identity:deleted";
+}
 
 export interface IdentityErrorMessage extends LobbyMessage {
   type: "identity:error";
@@ -663,6 +681,7 @@ export interface LobbyServerMessages {
   "auth:error": AuthErrorMessage;
   "identity:renamed": IdentityRenamedMessage;
   "identity:error": IdentityErrorMessage;
+  "identity:deleted": IdentityDeletedMessage;
   "settings:data": SettingsDataMessage;
   "settings:saved": SettingsSavedMessage;
   "settings:error": SettingsErrorMessage;

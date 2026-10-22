@@ -1,6 +1,6 @@
 /**
  * The browser side of accounts: logging in, keeping the key, carrying over a
- * name chosen before accounts existed, and renaming.
+ * name chosen before accounts existed, renaming and deleting.
  *
  * Talks to a real LobbyServer in the same process: a fake client hands each
  * message to the server's router, and the server's replies come back
@@ -13,6 +13,7 @@ import { PlayerProfile } from "../../engine/player/PlayerProfile";
 import {
   accountIsNew,
   currentIdentity,
+  deleteAccount,
   LoginError,
   logIn,
   loginFailureText,
@@ -87,6 +88,10 @@ function connectTo(server: any, address = "198.51.100.20"): { client: LobbyClien
     rename(name: string) {
       sent.push({ type: "identity:rename", name });
       server.handleMessage(player, { type: "identity:rename", name });
+    },
+    deleteAccount(key: string, confirmed: boolean) {
+      sent.push({ type: "identity:delete", key, confirmed });
+      server.handleMessage(player, { type: "identity:delete", key, confirmed });
     },
   };
   return { client: client as unknown as LobbyClient, sent };
@@ -324,5 +329,37 @@ describe("AccountSession.renameAccount", () => {
 
   it("says so when not logged in", async () => {
     expect(await renameAccount("Sundflux")).toEqual({ ok: false, code: "not_connected" });
+  });
+});
+
+describe("AccountSession.deleteAccount", () => {
+  it("deletes the account, then forgets its key and name so the next visit is a new player", async () => {
+    const server = makeServer();
+    await logIn(connectTo(server).client);
+    await renameAccount("Sundflux");
+    const key = storedPlayerKey()!;
+    expect(await deleteAccount(key, true)).toEqual({ ok: true });
+    expect(storedPlayerKey()).toBeNull();
+    expect(currentIdentity()).toBeNull();
+    expect(PlayerProfile.load().name).toMatch(/^Player_[a-z0-9]{4}$/);
+
+    // The next login is a fresh account, which doesn't take the old name back
+    const next = await logIn(connectTo(server, "198.51.100.21").client);
+    expect(next.identity?.name).toMatch(/^Player_\d+$/);
+    expect(storedPlayerKey()).not.toBe(key);
+  });
+
+  it("keeps everything when the key is wrong or the box isn't ticked", async () => {
+    const server = makeServer();
+    await logIn(connectTo(server).client);
+    const key = storedPlayerKey()!;
+    expect(await deleteAccount("0123456789ABCDEFGHJKMNPQ", true)).toEqual({ ok: false, code: "wrong_key" });
+    expect(await deleteAccount(key, false)).toEqual({ ok: false, code: "not_confirmed" });
+    expect(storedPlayerKey()).toBe(key);
+    expect(currentIdentity()).not.toBeNull();
+  });
+
+  it("says so when not logged in", async () => {
+    expect(await deleteAccount("0123456789ABCDEFGHJKMNPQ", true)).toEqual({ ok: false, code: "not_connected" });
   });
 });

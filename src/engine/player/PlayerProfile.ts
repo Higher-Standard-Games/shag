@@ -182,6 +182,11 @@ export class PlayerProfile {
     });
   }
 
+  /** A fresh random default name, as a first-time player gets. */
+  static defaultName(): string {
+    return PlayerProfile.generateDefaultName();
+  }
+
   /** Generate a random default name for first-time players */
   private static generateDefaultName(): string {
     const suffix = Math.random().toString(36).substring(2, 6);

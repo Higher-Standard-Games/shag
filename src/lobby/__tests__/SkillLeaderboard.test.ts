@@ -36,6 +36,15 @@ describe("career skill ladder reads", () => {
   const board = (period: "all" | "month" = "all", offset = 0, limit = 100) =>
     results.skillLeaderboard({ gametype: "duel", period, offset, limit, accountId: ids[1], now });
 
+  it("names a deleted account [deleted account] and keeps its standing", () => {
+    const gone = players.create();
+    results.ratings.ingest(humanSnapshot("before-delete", [gone.account.id, ids[1]], now));
+    expect(players.deleteAccount(gone.account.id, gone.key)).toBe(true);
+    expect(board("all").entries.find((entry) => entry.accountId === gone.account.id)).toMatchObject({
+      name: "[deleted account]",
+    });
+  });
+
   it("filters monthly activity and records while preserving career skill and rated count", () => {
     results.ratings.ingest(humanSnapshot("old", ids.slice(0, 2), now - 31 * day));
     expect(board("all").total).toBe(2);

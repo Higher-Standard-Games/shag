@@ -137,6 +137,38 @@ describe("PlayerStore renames", () => {
   });
 });
 
+describe("PlayerStore deletion", () => {
+  it("deletes only with the account's own key, and the key opens nothing afterwards", () => {
+    const store = memoryStore();
+    const me = store.create();
+    const other = store.create();
+    expect(store.deleteAccount(me.account.id, other.key)).toBe(false);
+    expect(store.deleteAccount(me.account.id, "not a key")).toBe(false);
+    expect(store.findByKey(me.key)).toEqual(me.account);
+
+    expect(store.deleteAccount(me.account.id, formatKey(me.key))).toBe(true);
+    expect(store.findByKey(me.key)).toBeNull();
+    expect(store.findByKey(other.key)).toEqual(other.account);
+    expect(store.deletedAccountIds()).toEqual(new Set([me.account.id]));
+  });
+
+  it("frees the name, and many deleted accounts can share the deleted name", () => {
+    const store = memoryStore();
+    const first = store.create();
+    const second = store.create();
+    const third = store.create();
+    store.rename(first.account.id, "Sundflux");
+    store.deleteAccount(first.account.id, first.key);
+    store.deleteAccount(second.account.id, second.key);
+    expect(store.rename(third.account.id, "Sundflux")).toEqual({
+      ok: true,
+      account: { id: third.account.id, name: "Sundflux" },
+    });
+    expect(store.deletedAccountIds()).toEqual(new Set([first.account.id, second.account.id]));
+    expect(store.rename(third.account.id, "[deleted account]")).toEqual({ ok: false, code: "name_invalid" });
+  });
+});
+
 describe("PlayerStore on disk", () => {
   it("keeps accounts across restarts", () => {
     const dir = tempDir();

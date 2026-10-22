@@ -159,3 +159,57 @@ it("publishes demo ownership only when ticketed accounts match a durable result"
     }
   }
 });
+
+it("lists a deleted account's demos under [deleted account], on deletion and on every later scan", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "shag-demo-owner-"));
+  const demoDir = path.join(dir, "demos");
+  const accounts = PlayerStore.open(dir);
+  try {
+    const gone = accounts.create();
+    const stays = accounts.create().account;
+    const recorder = new DemoRecorder({
+      map: "wdm2",
+      gametype: "ffa",
+      matchId: "deleted-player-match",
+      tickRate: 125,
+      snapshotRate: 63,
+      outputDir: demoDir,
+      minDurationMs: 0,
+    });
+    recorder.addPlayer("1", gone.account.name, "", gone.account.id);
+    recorder.addPlayer("2", stays.name, "", stays.id);
+    recorder.addPlayer("3", "Ramen", "");
+    const state = new GameState();
+    state.tick = 1;
+    recorder.recordFrame(state);
+    await recorder.stop();
+
+    const lobby = new LobbyServer(0, new GameServerSpawner(), { players: accounts });
+    const scanner = lobby as unknown as {
+      DEMO_DIR: string;
+      _scanDemos(): void;
+      _demoCache: DemoInfo[];
+      handleIdentityDelete(player: object, key: unknown, confirmed: unknown): void;
+    };
+    scanner.DEMO_DIR = demoDir;
+    scanner._scanDemos();
+    expect(scanner._demoCache[0].players).toEqual([gone.account.name, stays.name, "Ramen"]);
+
+    const ws = { readyState: 1, send: () => {}, close: () => {} };
+    scanner.handleIdentityDelete(
+      { id: "p_1", accountId: gone.account.id, lobbyId: null, address: "x", ws },
+      gone.key,
+      true,
+    );
+    expect(scanner._demoCache[0].players).toEqual(["[deleted account]", stays.name, "Ramen"]);
+    scanner._scanDemos();
+    expect(scanner._demoCache[0].players).toEqual(["[deleted account]", stays.name, "Ramen"]);
+  } finally {
+    accounts.close();
+    const target = path.resolve(dir);
+    const tempRoot = path.resolve(os.tmpdir());
+    if (target.startsWith(`${tempRoot}${path.sep}`) && path.basename(target).startsWith("shag-demo-owner-")) {
+      fs.rmSync(target, { recursive: true, force: true });
+    }
+  }
+});

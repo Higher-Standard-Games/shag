@@ -74,6 +74,7 @@ The key and name rules live in `src/lobby/PlayerIdentity.ts`, which has no Node 
 | `auth {}` | `welcome` with `identity {id, name}` and `key` | New account named `Player_<number>`. The key is sent only in this answer. |
 | `auth` on a connection already logged in | `auth:error {code: "already_authenticated"}` | Switching accounts means a new connection. |
 | `identity:rename {name}` | `identity:renamed {identity}` to every connection logged in to the account, `player:renamed {playerId, name}` to everyone else | Or `identity:error {code}`: `name_invalid`, `name_reserved`, `name_taken`, `in_lobby`, `rate_limited`. |
+| `identity:delete {key, confirmed}` | `identity:deleted` to every connection logged in to the account, which the lobby then closes | Or `identity:error {code}`: `not_confirmed`, `wrong_key`, `in_lobby`, `rate_limited`. See [Deleting an account](#deleting-an-account). |
 | `auth {name, isBot: true, botSecret}` from the lobby's own machine | `welcome` without `identity` | A bot. No account, no key. See [Bots](#bots). |
 
 - **Names in `auth` are ignored for players.** An old tab still sending `auth {name}` gets a new `Player_<number>` account, and the name it sent is never claimed. Otherwise a tab that never stores the key could take a name forever.
@@ -84,6 +85,15 @@ The key and name rules live in `src/lobby/PlayerIdentity.ts`, which has no Node 
   - renames, 10 a minute.
 - **The player's address behind a proxy.** Production is expected to put Caddy in front of the lobby for `wss://`, on the same machine. Every proxied connection then comes from loopback, so the lobby takes the address from the last `X-Forwarded-For` entry. It believes that header only from a loopback connection; from anywhere else a client could write anything in it. Without this, all players would share one rate limit and every player would look like a same-machine connection.
 - **Game servers never see keys.** The lobby knows each connection's account id and can hand those ids to a match, so S4 can report results by account id.
+
+## Deleting an account
+
+A player can delete their account from the Profile, after ticking that they understand and pasting the whole key again; the lobby checks the key itself, not just the browser.
+
+- **The row stays.** Results and demos keep pointing at the account id, so the row is renamed `[deleted account]` (which no player can type) with a `#deleted:<id>` name key, and a random hash replaces the key's. The key opens nothing again and the old name is free.
+- **Where the name changes:** the leaderboards and stats, which read names from `players`, and the lobby's demo list, which swaps the name for each recorded account id on deletion and on every scan.
+- **What stays:** demo files are a permanent record and are not edited, so a demo played back still shows the name it was recorded with. Synced settings are erased.
+- **The browser** forgets the key and the name, then reloads into a new `Player_<number>` account.
 
 ## Bots
 

@@ -45,6 +45,7 @@ export class SettingsStore {
   private readonly db: DatabaseSync;
   private readonly selectSettings: StatementSync;
   private readonly upsertSettings: StatementSync;
+  private readonly deleteSettings: StatementSync;
 
   /** The store in `<dataDir>/settings.db`, created on first use. */
   static open(dataDir: string): SettingsStore {
@@ -68,6 +69,7 @@ export class SettingsStore {
       `INSERT INTO player_settings (account_id, settings, updated_at) VALUES (?, ?, ?)
        ON CONFLICT(account_id) DO UPDATE SET settings = excluded.settings, updated_at = excluded.updated_at`,
     );
+    this.deleteSettings = this.db.prepare("DELETE FROM player_settings WHERE account_id = ?");
   }
 
   /** The account's saved settings, or null if it never saved any. */
@@ -82,6 +84,11 @@ export class SettingsStore {
     if (problem) return { ok: false, code: problem };
     this.upsertSettings.run(accountId, settings as string, now);
     return { ok: true, updatedAt: now };
+  }
+
+  /** Forget the account's settings, for a deleted account. */
+  delete(accountId: number): void {
+    this.deleteSettings.run(accountId);
   }
 
   close(): void {

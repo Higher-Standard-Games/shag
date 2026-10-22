@@ -66,6 +66,9 @@ export function formatKey(key: string): string {
   return [KEY_PREFIX, ...(canonical.match(/.{1,4}/g) ?? [])].join("-");
 }
 
+/** What a deleted account is called everywhere. NAME_PATTERN keeps anyone from picking it. */
+export const DELETED_ACCOUNT_NAME = "[deleted account]";
+
 /** 2 to 16 letters, digits, underscores or dashes. */
 export const NAME_PATTERN = /^[A-Za-z0-9_-]{2,16}$/;
 /** New accounts are named Player_<number>; nobody can pick such a name. */

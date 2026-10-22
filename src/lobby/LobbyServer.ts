@@ -24,6 +24,7 @@ import { type BotReference, canonicalBotReference, sameBotReference } from "../s
 import { MIN_LISTED_DEMO_MS, selectFeaturedDemos } from "./FeaturedDemos";
 import { GameServerSpawner } from "./GameServerSpawner";
 import type { MatchResultStore } from "./MatchResultStore";
+import { DELETED_ACCOUNT_NAME } from "./PlayerIdentity";
 import { PlayerStore } from "./PlayerStore";
 import { RateLimiter } from "./RateLimiter";
 import { type ResultDiagnostic, ResultDiagnostics } from "./ResultDiagnostics";
@@ -467,6 +468,8 @@ export class LobbyServer {
   private _demoCache: DemoInfo[] = [];
   /** Server-only verified ownership; account IDs never ride in public demo cards. */
   private _demoOwnership = new Map<string, Set<number>>();
+  /** Filename → the account each listed name was recorded for, so a deleted account's name can be swapped out. */
+  private _demoPlayerAccounts = new Map<string, readonly (number | undefined)[]>();
   private _demoCacheTimer: ReturnType<typeof setInterval> | null = null;
   private resultRetryTimer: ReturnType<typeof setInterval> | null = null;
   private pendingBotInvites = new Map<string, Set<() => void>>();
@@ -679,6 +682,9 @@ export class LobbyServer {
         break;
       case "identity:rename":
         this.handleIdentityRename(player, msg.name);
+        break;
+      case "identity:delete":
+        this.handleIdentityDelete(player, msg.key, msg.confirmed);
         break;
       case "settings:get":
       case "settings:save":
@@ -988,6 +994,42 @@ export class LobbyServer {
       other.name = identity.name;
       this.send(other, { type: "identity:renamed", identity });
       this.broadcast({ type: "player:renamed", playerId: other.id, name: identity.name }, other.id);
+    }
+  }
+
+  /**
+   * Delete the account, once the player has ticked that they understand and
+   * pasted its whole key again. Its name becomes DELETED_ACCOUNT_NAME on the
+   * leaderboards and in the demo list, its settings go, and every connection
+   * logged in to it is told and closed.
+   */
+  private handleIdentityDelete(player: ConnectedPlayer, key: unknown, confirmed: unknown): void {
+    const accountId = player.accountId;
+    if (accountId === null) return;
+    if (confirmed !== true) {
+      this.send(player, { type: "identity:error", code: "not_confirmed" });
+      return;
+    }
+    if (player.lobbyId) {
+      this.send(player, { type: "identity:error", code: "in_lobby" });
+      return;
+    }
+    if (!this.renames.tryRecord(player.address)) {
+      this.send(player, { type: "identity:error", code: "rate_limited" });
+      return;
+    }
+    if (typeof key !== "string" || !this.accounts.deleteAccount(accountId, key)) {
+      this.send(player, { type: "identity:error", code: "wrong_key" });
+      return;
+    }
+    console.log(`[LobbyServer] Account ${accountId} deleted (was ${player.name})`);
+    this.settings.delete(accountId);
+    this.renameDeletedInDemos(new Set([accountId]));
+
+    for (const other of [...this.players.values()]) {
+      if (other.accountId !== accountId) continue;
+      this.send(other, { type: "identity:deleted" });
+      other.ws.close(1000, "Account deleted");
     }
   }
 
@@ -2310,6 +2352,7 @@ export class LobbyServer {
       if (!fs.existsSync(this.DEMO_DIR)) {
         this._demoCache = [];
         this._demoOwnership.clear();
+        this._demoPlayerAccounts.clear();
         return;
       }
 
@@ -2321,6 +2364,7 @@ export class LobbyServer {
 
       const demos: DemoInfo[] = [];
       const ownership = new Map<string, Set<number>>();
+      const playerAccounts = new Map<string, readonly (number | undefined)[]>();
 
       for (const filename of files) {
         try {
@@ -2355,6 +2399,8 @@ export class LobbyServer {
                 )
               : new Set<number>();
             if (verifiedAccountIds.size > 0) ownership.set(filename, verifiedAccountIds);
+            const accounts = header.players.map((p) => p.accountId);
+            if (accounts.some((id) => id !== undefined)) playerAccounts.set(filename, accounts);
             demos.push({
               filename,
               map: header.map,
@@ -2375,11 +2421,26 @@ export class LobbyServer {
 
       this._demoCache = demos;
       this._demoOwnership = ownership;
+      this._demoPlayerAccounts = playerAccounts;
+      this.renameDeletedInDemos(this.accounts.deletedAccountIds());
       if (demos.length > 0) {
         console.log(`[LobbyServer] Demo scan: ${demos.length} demos found`);
       }
     } catch (err) {
       console.error("[LobbyServer] Demo scan failed:", err);
+    }
+  }
+
+  /** Show `deleted` accounts as DELETED_ACCOUNT_NAME in the demo list. The demo files keep what was recorded. */
+  private renameDeletedInDemos(deleted: ReadonlySet<number>): void {
+    if (deleted.size === 0) return;
+    for (const demo of this._demoCache) {
+      const accounts = this._demoPlayerAccounts.get(demo.filename);
+      if (!accounts?.some((id) => id !== undefined && deleted.has(id))) continue;
+      demo.players = demo.players.map((name, i) => {
+        const id = accounts[i];
+        return id !== undefined && deleted.has(id) ? DELETED_ACCOUNT_NAME : name;
+      });
     }
   }
 

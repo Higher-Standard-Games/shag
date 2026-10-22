@@ -159,6 +159,11 @@ export class LobbyClient {
     this.send({ type: "identity:rename", name });
   }
 
+  /** Delete this account for good; the answer is identity:deleted or identity:error. */
+  deleteAccount(key: string, confirmed: boolean): void {
+    this.send({ type: "identity:delete", key, confirmed });
+  }
+
   // ── Chat ─────────────────────────────────────────────────────
 
   chatSend(text: string): void {

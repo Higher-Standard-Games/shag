@@ -15,7 +15,14 @@ import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync, type StatementSync } from "node:sqlite";
 import { filterPlayerName, isOffensiveName } from "../engine/server/ChatFilter";
-import { checkPlayerName, encodeKey, KEY_BYTES, type NameProblem, normalizeKey } from "./PlayerIdentity";
+import {
+  checkPlayerName,
+  DELETED_ACCOUNT_NAME,
+  encodeKey,
+  KEY_BYTES,
+  type NameProblem,
+  normalizeKey,
+} from "./PlayerIdentity";
 
 export interface PlayerAccount {
   id: number;
@@ -29,6 +36,8 @@ export type RenameResult =
 /** Default names start at 4 digits and grow a digit when a size keeps colliding; 9 digits keeps them within 16 characters. */
 const DEFAULT_NAME_DIGITS = { first: 4, last: 9 };
 const TRIES_PER_SIZE = 10;
+/** A deleted account's name_key: unique per account, and no typed name lowercases to it. */
+const DELETED_NAME_KEY = (id: number) => `#deleted:${id}`;
 
 export function hashKey(canonicalKey: string): Uint8Array {
   return new Uint8Array(createHash("sha256").update(canonicalKey).digest());
@@ -45,6 +54,8 @@ export class PlayerStore {
   private readonly accountByKey: StatementSync;
   private readonly accountById: StatementSync;
   private readonly updateName: StatementSync;
+  private readonly eraseAccount: StatementSync;
+  private readonly deletedIds: StatementSync;
 
   /** The store in `<dataDir>/players.db`, created on first use. */
   static open(dataDir: string): PlayerStore {
@@ -60,6 +71,8 @@ export class PlayerStore {
     this.accountByKey = this.db.prepare("SELECT id, name FROM players WHERE key_hash = ?");
     this.accountById = this.db.prepare("SELECT id, name, name_key FROM players WHERE id = ?");
     this.updateName = this.db.prepare("UPDATE players SET name = ?, name_key = ? WHERE id = ?");
+    this.eraseAccount = this.db.prepare("UPDATE players SET key_hash = ?, name = ?, name_key = ? WHERE id = ?");
+    this.deletedIds = this.db.prepare("SELECT id FROM players WHERE name_key LIKE '#deleted:%'");
   }
 
   /** Brings an older file up to the current layout; `user_version` records which one a file has. */
@@ -127,6 +140,24 @@ export class PlayerStore {
       throw err;
     }
     return { ok: true, account: { id, name } };
+  }
+
+  /**
+   * Delete account `id`, if `pastedKey` is its key. The row stays so results and
+   * demos keep pointing at something, but it is renamed DELETED_ACCOUNT_NAME,
+   * its name is free for others, and a random hash replaces the key's, so the
+   * key never opens anything again. False if the key isn't this account's.
+   */
+  deleteAccount(id: number, pastedKey: string): boolean {
+    const owner = this.findByKey(pastedKey);
+    if (!owner || owner.id !== id) return false;
+    this.eraseAccount.run(new Uint8Array(randomBytes(32)), DELETED_ACCOUNT_NAME, DELETED_NAME_KEY(id), id);
+    return true;
+  }
+
+  /** Every deleted account's id. */
+  deletedAccountIds(): Set<number> {
+    return new Set(this.deletedIds.all().map((row) => Number(row.id)));
   }
 
   close(): void {
