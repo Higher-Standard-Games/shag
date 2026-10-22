@@ -31,7 +31,7 @@ let nextId = 1;
 
 // biome-ignore lint/suspicious/noExplicitAny: fake ConnectedPlayer
 function makePlayer(overrides: Partial<any> = {}): { player: any; sent: any[] } {
-  const sent: any[] = [];
+  const sent: unknown[] = [];
   const number = nextId++;
   const player = {
     id: `p_${number}`,

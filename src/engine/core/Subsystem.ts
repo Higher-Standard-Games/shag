@@ -59,12 +59,6 @@ export interface InitializableSubsystem<T = unknown> extends Subsystem<T> {
 }
 
 /**
- * Interface for subsystems that emit events
- * Prefer using EventBus.emit() for cross-system communication
- */
-export type EventEmitter = {};
-
-/**
  * Registry for tracking all subsystems
  * Useful for batch operations like saveAll, loadAll, clearAll
  */

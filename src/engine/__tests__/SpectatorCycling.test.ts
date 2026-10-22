@@ -43,8 +43,7 @@ function makeGameState(
       playerMap.set(p.id, { entityId: p.id, name: p.name });
     }
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  state.players = playerMap as any;
+  state.players = playerMap as unknown as typeof state.players;
 
   return state;
 }

@@ -2,8 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 import { WebSocket } from "ws";
 import { isLoopbackAddress, LobbyServer, normalizeGametype } from "../LobbyServer";
 
-function makePlayer(overrides: Partial<any> = {}) {
-  const sent: any[] = [];
+type Sent = Record<string, unknown>;
+
+function makePlayer(overrides: Record<string, unknown> = {}) {
+  const sent: Sent[] = [];
   return {
     player: {
       id: "p_1",
@@ -22,7 +24,7 @@ function makePlayer(overrides: Partial<any> = {}) {
   };
 }
 
-function lastMessage(sent: any[]): any {
+function lastMessage(sent: Sent[]): Sent | undefined {
   return sent[sent.length - 1];
 }
 
@@ -32,8 +34,15 @@ function makeServer(spawn = vi.fn()) {
     spawn,
     shutdownAll: vi.fn(),
   };
-  return new LobbyServer(0, spawner as any);
+  return new LobbyServer(0, spawner as never);
 }
+
+/** The server's private handlers, which these tests call directly. */
+type ServerInternals = {
+  handleDevSpawnServer(player: unknown, requestId: string, map: string, gametype: string): Promise<void>;
+  handleMessage(player: unknown, message: unknown): void;
+};
+const internals = (server: LobbyServer) => server as unknown as ServerInternals;
 
 describe("LobbyServer dev spawn", () => {
   it("normalizes gametype aliases", () => {
@@ -62,7 +71,7 @@ describe("LobbyServer dev spawn", () => {
     const server = makeServer(spawn);
     const { player, sent } = makePlayer();
 
-    await (server as any).handleDevSpawnServer(player, "req_1", "WDM2", "1v1");
+    await internals(server).handleDevSpawnServer(player, "req_1", "WDM2", "1v1");
 
     expect(spawn).toHaveBeenCalledWith({
       map: "wdm2",
@@ -84,7 +93,7 @@ describe("LobbyServer dev spawn", () => {
     const server = makeServer(vi.fn().mockRejectedValue(new Error("port unavailable")));
     const { player, sent } = makePlayer();
 
-    await (server as any).handleDevSpawnServer(player, "req_2", "wdm2", "duel");
+    await internals(server).handleDevSpawnServer(player, "req_2", "wdm2", "duel");
 
     expect(lastMessage(sent)).toEqual({
       type: "dev:server_spawn_failed",
@@ -99,8 +108,8 @@ describe("LobbyServer dev spawn", () => {
     const unknown = makePlayer();
     const remote = makePlayer({ address: "10.0.0.5" });
 
-    await (server as any).handleDevSpawnServer(unknown.player, "req_3", "wdm2", "ctf");
-    await (server as any).handleDevSpawnServer(remote.player, "req_4", "wdm2", "duel");
+    await internals(server).handleDevSpawnServer(unknown.player, "req_3", "wdm2", "ctf");
+    await internals(server).handleDevSpawnServer(remote.player, "req_4", "wdm2", "duel");
 
     expect(spawn).not.toHaveBeenCalled();
     expect(lastMessage(unknown.sent)).toMatchObject({ type: "dev:server_spawn_failed", requestId: "req_3" });
@@ -111,7 +120,7 @@ describe("LobbyServer dev spawn", () => {
     const server = makeServer();
     const { player, sent } = makePlayer({ authenticated: false });
 
-    (server as any).handleMessage(player, {
+    internals(server).handleMessage(player, {
       type: "dev:spawn_server",
       requestId: "req_5",
       map: "wdm2",

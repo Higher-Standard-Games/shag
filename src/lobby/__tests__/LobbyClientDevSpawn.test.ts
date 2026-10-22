@@ -1,24 +1,29 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LobbyClient } from "../LobbyClient";
 
+/** The client's private socket and event emitter, which these tests drive directly. */
+type ClientInternals = { ws: unknown; emit(event: string, message: unknown): void };
+const internals = (client: LobbyClient) => client as unknown as ClientInternals;
+const globals = globalThis as { WebSocket?: unknown };
+
 describe("LobbyClient dev spawn requests", () => {
   let send: ReturnType<typeof vi.fn>;
   let originalWebSocket: unknown;
 
   beforeEach(() => {
-    originalWebSocket = (globalThis as any).WebSocket;
-    (globalThis as any).WebSocket = { OPEN: 1 };
+    originalWebSocket = globals.WebSocket;
+    globals.WebSocket = { OPEN: 1 };
     send = vi.fn();
   });
 
   afterEach(() => {
-    (globalThis as any).WebSocket = originalWebSocket;
+    globals.WebSocket = originalWebSocket;
     vi.useRealTimers();
   });
 
   function makeClient(): LobbyClient {
     const client = new LobbyClient();
-    (client as any).ws = { readyState: 1, send };
+    internals(client).ws = { readyState: 1, send };
     return client;
   }
 
@@ -27,7 +32,7 @@ describe("LobbyClient dev spawn requests", () => {
     const promise = client.spawnDevServer("wdm2", "duel", 1000);
     const request = JSON.parse(send.mock.calls[0][0]);
 
-    (client as any).emit("dev:server_spawned", {
+    internals(client).emit("dev:server_spawned", {
       type: "dev:server_spawned",
       requestId: request.requestId,
       serverUrl: "ws://localhost:7777",
@@ -49,7 +54,7 @@ describe("LobbyClient dev spawn requests", () => {
     const promise = client.spawnDevServer("wdm2", "duel", 1000);
     const request = JSON.parse(send.mock.calls[0][0]);
 
-    (client as any).emit("dev:server_spawn_failed", {
+    internals(client).emit("dev:server_spawn_failed", {
       type: "dev:server_spawn_failed",
       requestId: request.requestId,
       error: "no server",
@@ -68,7 +73,7 @@ describe("LobbyClient dev spawn requests", () => {
 
     const disconnectClient = makeClient();
     const disconnectPromise = disconnectClient.spawnDevServer("wdm2", "duel", 1000);
-    (disconnectClient as any).emit("_disconnected", {});
+    internals(disconnectClient).emit("_disconnected", {});
     await expect(disconnectPromise).rejects.toThrow("disconnected");
   });
 });

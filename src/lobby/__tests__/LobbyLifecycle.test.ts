@@ -30,7 +30,7 @@ let nextId = 1;
 
 // biome-ignore lint/suspicious/noExplicitAny: fake ConnectedPlayer
 function makePlayer(overrides: Partial<any> = {}): { player: any; sent: any[] } {
-  const sent: any[] = [];
+  const sent: unknown[] = [];
   const number = nextId++;
   const player = {
     id: `p_${number}`,
@@ -237,7 +237,7 @@ describe("LobbyServer lifecycle", () => {
     // Players returned to the lobby (rematch screen) + not-ready.
     expect(host.player.status).toBe("in_lobby");
     expect(lobby.players.get(host.player.id).ready).toBe(false);
-    expect(host.sent.some((m: any) => m.type === "match:ended")).toBe(true);
+    expect(host.sent.some((m: { type: string }) => m.type === "match:ended")).toBe(true);
   });
 
   it("handleAllReady spawns the server and marks the lobby playing", async () => {
@@ -278,8 +278,8 @@ describe("LobbyServer lifecycle", () => {
 
     await server.handleAllReady(lobby);
 
-    const hostConnect = host.sent.find((msg: any) => msg.type === "lobby:connect");
-    const guestConnect = guest.sent.find((msg: any) => msg.type === "lobby:connect");
+    const hostConnect = host.sent.find((msg: { type: string }) => msg.type === "lobby:connect");
+    const guestConnect = guest.sent.find((msg: { type: string }) => msg.type === "lobby:connect");
     expect(hostConnect?.admissionTicket).toBe(`ticket-${host.player.id}`);
     expect(guestConnect?.admissionTicket).toBe(`ticket-${guest.player.id}`);
     expect(JSON.stringify(host.sent)).not.toContain(`ticket-${guest.player.id}`);

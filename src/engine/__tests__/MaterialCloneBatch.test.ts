@@ -50,7 +50,7 @@ it("reduces unrelated scene visits during fresh PBR cloning", () => {
   expect(visits.mock.calls.length).toBeLessThan(plainVisits);
   expect(visits.mock.calls.length).toBe(1);
   expect(scene.addMaterial).toBe(add);
-  expect(Object.prototype.hasOwnProperty.call(scene, "addMaterial")).toBe(false);
+  expect(Object.getOwnPropertyDescriptor(scene, "addMaterial")).toBeUndefined();
   expect(batched.alpha).toBe(plain.alpha);
   expect(batched.backFaceCulling).toBe(plain.backFaceCulling);
   expect(batched.maxSimultaneousLights).toBe(plain.maxSimultaneousLights);
@@ -133,7 +133,7 @@ it("batches MultiMaterial children without changing ownership or touching custom
   expect(result.subMaterials[0]!.blockDirtyMechanism).toBe(false);
   expect(result.subMaterials[1]).toBeNull();
   const clone = vi.spyOn(child, "clone").mockImplementation(() => {
-    expect(Object.prototype.hasOwnProperty.call(scene, "addMaterial")).toBe(false);
+    expect(Object.getOwnPropertyDescriptor(scene, "addMaterial")).toBeUndefined();
     return child;
   });
   expect(cloneModelMaterial(child, "custom")).toBe(child);
