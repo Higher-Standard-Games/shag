@@ -108,6 +108,6 @@ await ConsoleSystem.getInstance().execute('map wdm2');
 
 ## Version
 
-Current version: **0.9.15** (see `src/engine/version.txt`)
+The current version is in `src/engine/version.txt`.
 
 See `docs/changelog/` for version history.

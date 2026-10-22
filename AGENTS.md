@@ -378,18 +378,28 @@ A feature is done only when all are true:
 The repository is two repositories: the outer engine and `src/games/fps`, a git
 submodule. Both carry the same branch names and move together.
 
+### Versions
+
+Versions are semver. The 1.0 line runs through pre-releases: `1.0.0-alpha`,
+`1.0.0-alpha.2`, …, `1.0.0-beta`, `1.0.0-rc.1`, then `1.0.0`; after that the
+patch number counts up (`1.0.1`). `src/engine/version.txt` and `package.json`
+(outer repo only) hold the version being developed, which the game shows in the
+lobby, and which names its changelog (`v1.0.0-alpha.md`) and tag (`v1.0.0-alpha`).
+
 ### Feature branches
 
-- Named for the version and the topic: `v0.9.23-lobby-ui`, or
-  `0.9.X-qa-improvements` for a QA/bugfix cycle.
+- Named for the version and the topic: `v1.0.0-alpha-lobby-ui`, or
+  `v1.0.0-alpha-qa` for a QA/bugfix cycle.
 - Created from `main` in **both** repositories.
 
 ### The living changelog
 
-Each cycle keeps `docs/changelog/v0.9.X.md` with `**Release Date:** unreleased
-— living changelog` at the top, updated as work lands rather than written at
-the end. Write it for a player or a developer reading later: what changed, and
-what was wrong before. A cycle's research notes live in `docs/research/`.
+Each cycle keeps `docs/changelog/v<version>.md` (now `v1.0.0-alpha.md`) with
+`**Release Date:** unreleased — living changelog` at the top, updated as work
+lands rather than written at the end. Write it for a player or a developer
+reading later: what changed, and what was wrong before. Every version has a row
+in `docs/changelog/index.md`, and washoi.net's devlog is generated from these
+files. A cycle's research notes live in `docs/research/`.
 
 ### Merging and releasing
 
@@ -397,7 +407,10 @@ Always fps first: commit and merge in `src/games/fps`, then merge the outer
 branch, re-pin `src/games/fps` at the fps `main` tip and commit that, then push
 outer `main`. Push only when asked. A release bumps `src/engine/version.txt` and
 `package.json` (outer repo only) to the *next* version in one commit, `chore:
-release v0.9.X, bump version to v0.9.X+1`, with an annotated tag `v0.9.X` on it.
+release v1.0.0-alpha, bump version to v1.0.0-alpha.2`, with an annotated tag
+`v1.0.0-alpha` on it. The next version of a pre-release is the next pre-release
+number unless the owner names the next stage (`1.0.0-beta`, `1.0.0-rc.1`,
+`1.0.0`).
 
 The full steps, including resolving `UU src/games/fps`, are in
 `.claude/skills/merge-and-release/SKILL.md`. Shared-tree git practice (absolute `cd`

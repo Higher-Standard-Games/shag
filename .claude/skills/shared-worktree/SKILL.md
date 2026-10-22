@@ -34,7 +34,7 @@ changes; `M src/games/fps` means its checked-out commit differs from the pin.
   in-progress files. Name the files you changed.
 - **Look before committing:** `git diff --cached --stat` should list exactly
   your files.
-- **Shared files** such as `docs/changelog/v0.9.X.md` can hold another agent's
+- **Shared files** such as `docs/changelog/v<version>.md` can hold another agent's
   uncommitted hunk next to yours. Stage only your hunks (`git add -p`, or a
   patch applied with `git apply --cached`).
 - **Commit your own work only**, unless the user asks you to commit another

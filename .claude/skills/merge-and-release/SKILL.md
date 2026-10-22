@@ -74,7 +74,8 @@ leading `+`.
 
 ## The living changelog
 
-Each cycle keeps `docs/changelog/v0.9.X.md`, opening with
+Each cycle keeps `docs/changelog/v<version>.md` (the version in
+`src/engine/version.txt`, now `v1.0.0-alpha.md`), opening with
 `**Release Date:** unreleased — living changelog`. Entries are written for a
 player or developer reading later: what changed and what was wrong before, not
 which files moved. When merging a branch mid-cycle, mark its entries
@@ -84,15 +85,22 @@ which files moved. When merging a branch mid-cycle, mark its entries
 
 Only when the user asks to release:
 
-1. Finalize the date in `docs/changelog/v0.9.X.md`: replace the unreleased line
-   with the date, and drop any trailing unreleased marker.
-2. Bump `src/engine/version.txt` and `package.json` in the **outer repo only**
-   to the *next* version (`0.9.X+1`).
-3. Commit: `chore: release v0.9.X, bump version to v0.9.X+1`.
-4. Tag that commit, annotated: `git tag -a v0.9.X -m "v0.9.X"`.
-5. Push, when asked: `git push origin main && git push origin v0.9.X`.
-6. Start the next cycle's stub, `docs/changelog/v0.9.X+1.md`, with the
-   unreleased line.
+Versions are semver (see "Versions" in `AGENTS.md`). The *next* version of a
+pre-release is the next pre-release number (`1.0.0-alpha` → `1.0.0-alpha.2`)
+unless the user names the next stage (`1.0.0-beta`, `1.0.0-rc.1`, `1.0.0`);
+after 1.0.0 it is the next patch (`1.0.1`). Below, `<version>` is the one being
+released and `<next>` the one after it.
+
+1. Finalize the date in `docs/changelog/v<version>.md`: replace the unreleased
+   line with the date, and drop any trailing unreleased marker. Give its row in
+   `docs/changelog/index.md` the date and a one-line summary.
+2. Bump `src/engine/version.txt` and `package.json` (and the two version fields
+   at the top of `package-lock.json`) in the **outer repo only** to `<next>`.
+3. Commit: `chore: release v<version>, bump version to v<next>`.
+4. Tag that commit, annotated: `git tag -a v<version> -m "v<version>"`.
+5. Push, when asked: `git push origin main && git push origin v<version>`.
+6. Start the next cycle's stub, `docs/changelog/v<next>.md`, with the
+   unreleased line, and add its row to `docs/changelog/index.md`.
 
 Because the release and the bump are one commit, `version.txt` at the tag
 already reads the next version. That is intended. Tags are annotated, sit on

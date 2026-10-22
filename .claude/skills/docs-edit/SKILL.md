@@ -16,7 +16,7 @@ written against the source, one claim at a time.
 | --- | --- |
 | Engine systems, APIs, tools, deployment | `docs/manual/` (VitePress, `npm run docs:dev`) |
 | Player-facing game manual | `src/games/fps/docs/manual/` (`npm run docs:fps:dev`) |
-| What changed this cycle | `docs/changelog/v0.9.X.md`, the living changelog |
+| What changed this cycle | `docs/changelog/v<version>.md` (now `v1.0.0-alpha.md`), the living changelog |
 | Investigations, plans, status | `docs/research/` |
 | Rules every agent follows | `AGENTS.md` (keep it short; procedures belong in skills) |
 
@@ -69,7 +69,7 @@ published site. New pages must be added to the sidebar in
 
 ## The changelog
 
-Add an entry to the current `docs/changelog/v0.9.X.md` under `## Changes` for
+Add an entry to the current `docs/changelog/v<version>.md` under `## Changes` for
 any user- or developer-visible change. Write what changed and what was wrong
 before, for someone reading later; not the list of files touched. If another
 agent has uncommitted hunks in the same file, add yours as a separate section
