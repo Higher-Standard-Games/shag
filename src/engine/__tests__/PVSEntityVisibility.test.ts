@@ -114,3 +114,24 @@ describe("PVSCuller.isPositionVisible", () => {
     expect(culler.isPositionVisible(new Vector3(200, 0, 0))).toBe(true);
   });
 });
+
+describe("PVSCuller.isClusterVisible", () => {
+  // Map pickups look their cluster up once and ask by cluster after that.
+  it("answers for a known cluster exactly as for a position in it", () => {
+    const culler = new PVSCuller(twoRoomBsp(ISOLATED));
+    culler.setEnabled(true);
+    const far = culler.findClusterAtPosition(new Vector3(200, 0, 0));
+    const near = culler.findClusterAtPosition(new Vector3(-200, 0, 0));
+    for (const camera of [new Vector3(-100, 0, 0), new Vector3(100, 0, 0)]) {
+      culler.update(camera);
+      expect(culler.isClusterVisible(far)).toBe(culler.isPositionVisible(new Vector3(200, 0, 0)));
+      expect(culler.isClusterVisible(near)).toBe(culler.isPositionVisible(new Vector3(-200, 0, 0)));
+    }
+    culler.update(new Vector3(-100, 0, 0));
+    expect(culler.isClusterVisible(far)).toBe(false);
+    // Unknown cluster fails open, and so does a disabled culler.
+    expect(culler.isClusterVisible(-1)).toBe(true);
+    culler.setEnabled(false);
+    expect(culler.isClusterVisible(far)).toBe(true);
+  });
+});

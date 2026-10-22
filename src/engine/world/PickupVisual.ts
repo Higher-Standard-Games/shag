@@ -44,6 +44,14 @@ export interface PickupVisual {
    */
   setActive(active: boolean): void;
 
+  /**
+   * Whether the camera could see the pickup this frame (PVS). Optional: a
+   * visual that implements it may stop drawing and animating while out of
+   * view. Its animation must be a function of `elapsed` so that coming back
+   * into view looks exactly as if it had never paused.
+   */
+  setInView?(inView: boolean): void;
+
   /** Dispose all owned meshes, private materials, and in-flight transients. */
   dispose(): void;
 }

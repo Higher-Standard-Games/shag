@@ -405,11 +405,20 @@ export class Pickup extends TransformNode {
     return cache.known ? cache.position : null;
   }
 
+  /**
+   * Whether the camera could see this pickup this frame. The engine has no
+   * view of the map's visibility, so it says yes; a game with PVS answers.
+   */
+  protected isInView(): boolean {
+    return true;
+  }
+
   /** Update glow pulse + procedural visual + run proximity check. */
   protected tick(): void {
     if (this.visual) {
       const dt = this.getScene().getEngine().getDeltaTime() / 1000;
       this.visualElapsed += dt;
+      this.visual.setInView?.(this.isInView());
       this.visual.update(dt, this.visualElapsed);
     }
     if (this.glowLight && this.isActive) {

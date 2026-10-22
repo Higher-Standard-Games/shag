@@ -273,8 +273,10 @@ export class ProjectileManager {
     }
 
     proj.velocity.copyFrom(velocity);
+    // Written in place: every server projectile is re-aimed every frame, and
+    // the direction is the projectile's own (copied at spawn).
     if (velocity.lengthSquared() > 0.01) {
-      proj.direction = velocity.normalizeToNew();
+      velocity.normalizeToRef(proj.direction);
     }
     proj.speed = velocity.length();
   }

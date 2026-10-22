@@ -35,6 +35,9 @@ export class PVSCuller {
   private lastCameraPos = new Vector3(Number.NaN, Number.NaN, Number.NaN);
   private forceUpdate = true;
 
+  /** Scratch for the leaf lookup, in BSP axis order. */
+  private readonly point: [number, number, number] = [0, 0, 0];
+
   constructor(private readonly bsp: BspFile) {
     const vis = bsp.visData;
     this._hasPVS =
@@ -104,12 +107,11 @@ export class PVSCuller {
 
   findClusterAtPosition(position: Vector3): number {
     if (!Number.isFinite(position.x) || !Number.isFinite(position.y) || !Number.isFinite(position.z)) return -1;
-    const leaf = findLeafForPoint(
-      [position.x, position.z, position.y],
-      this.bsp.nodes,
-      this.bsp.leafs,
-      this.bsp.planes,
-    );
+    const point = this.point;
+    point[0] = position.x;
+    point[1] = position.z;
+    point[2] = position.y;
+    const leaf = findLeafForPoint(point, this.bsp.nodes, this.bsp.leafs, this.bsp.planes);
     const cluster = leaf?.cluster ?? -1;
     return this.validCluster(cluster) ? cluster : -1;
   }
@@ -134,7 +136,17 @@ export class PVSCuller {
     if (!this.enabled || !this.hasPVS) return true;
     if (!this.validCluster(this.currentCluster)) return true;
 
-    const cluster = this.findClusterAtPosition(position);
+    return this.isClusterVisible(this.findClusterAtPosition(position));
+  }
+
+  /**
+   * `isPositionVisible` for a cluster the caller already resolved, for things
+   * that do not move (map pickups): the leaf lookup is done once, not a frame.
+   * Fails open the same way, a negative cluster included.
+   */
+  isClusterVisible(cluster: number): boolean {
+    if (!this.enabled || !this.hasPVS) return true;
+    if (!this.validCluster(this.currentCluster)) return true;
     if (cluster < 0) return true;
     if (cluster === this.currentCluster) return true;
 
