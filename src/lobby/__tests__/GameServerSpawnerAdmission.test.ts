@@ -10,6 +10,9 @@ vi.mock("node:child_process", () => ({
   spawn: vi.fn(() => ({ on: vi.fn() })),
 }));
 
+/** spawn() picks a free port first, so the child exists a few turns after the call. */
+const childSpawned = (child: ChildProcess) =>
+  vi.waitFor(() => expect(vi.mocked(spawn).mock.results.at(-1)?.value).toBe(child));
 describe("GameServerSpawner admission handoff", () => {
   it("passes only ticket hashes to the child and keeps tickets for private delivery", async () => {
     const spawner = new GameServerSpawner(18777);
@@ -80,6 +83,7 @@ describe("GameServerSpawner admission handoff", () => {
         { lobbyPlayerId: "two", accountId: 12, name: "Two", team: "soba", isBot: false },
       ],
     });
+    await childSpawned(child);
     stdout.emit("data", Buffer.from("[Server] Ready for connections\n"));
     const server = await started;
     const env = vi.mocked(spawn).mock.calls.at(-1)?.[2]?.env;
@@ -128,6 +132,7 @@ describe("GameServerSpawner admission handoff", () => {
       gametype: "ffa",
       admissionSeats: [{ lobbyPlayerId: "one", accountId: 11, name: "One", team: "ffa", isBot: false }],
     });
+    await childSpawned(child);
     stdout.emit("data", Buffer.from("[Server] Ready for connections\n"));
     const server = await started;
     const env = vi.mocked(spawn).mock.calls.at(-1)?.[2]?.env;
@@ -190,6 +195,7 @@ describe("GameServerSpawner admission handoff", () => {
         gametype: "ffa",
         admissionSeats: [{ lobbyPlayerId: "one", accountId: 11, name: "One", team: "ffa", isBot: false }],
       });
+      await childSpawned(child);
       stdout.emit("data", Buffer.from("[Server] Ready for connections\n"));
       const server = await started;
       const pending = spawner.admitDropIn(server.matchId, { accountId: 30, name: "Late", team: "ffa", isBot: false });

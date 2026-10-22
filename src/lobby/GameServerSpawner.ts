@@ -5,13 +5,14 @@
  * Runs the dedicated entry with the lobby's runtime and lobby-decided parameters.
  *
  * Handles:
- *   - Port allocation (7777, 7778, ...)
+ *   - Port allocation: the lowest free port from 7777, so freed ports are reused
  *   - Process lifecycle (spawn, ready detection, shutdown)
  *   - Stdout monitoring for ready signal
  */
 
 import { type ChildProcess, spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
+import { createServer } from "node:net";
 import {
   ADMIT_ACK_PREFIX,
   ADMIT_COMMAND,
@@ -103,6 +104,18 @@ export function abandonSpawnedChild(child: Pick<ChildProcess, "kill" | "killed" 
 /** How long a running game server gets to confirm a drop-in seat. */
 const ADMIT_ACK_TIMEOUT_MS = 3_000;
 
+/** How many ports from the first the spawner tries before giving up on a match. */
+const PORT_SEARCH = 200;
+
+/** Whether no process on this machine listens on `port`, on every interface as a game server binds it. */
+export function portIsFree(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const probe = createServer();
+    probe.once("error", () => resolve(false));
+    probe.listen({ port, host: "0.0.0.0", exclusive: true }, () => probe.close(() => resolve(true)));
+  });
+}
+
 export class GameServerSpawner {
   /** Kept outside public SpawnedServer listings, removed on delivery or exit. */
   private readonly recoveryByMatch = new Map<string, Map<number, RecoveryTicket>>();
@@ -113,7 +126,9 @@ export class GameServerSpawner {
   private readonly manifestByMatch = new Map<string, AdmissionManifest>();
   /** Drop-in seats sent to a child and not yet acknowledged, by seat id. */
   private readonly pendingAdmits = new Map<string, () => void>();
-  private nextPort: number;
+  private readonly startPort: number;
+  /** Ports handed to servers that are still starting, before activeServers holds them. */
+  private readonly reservedPorts = new Set<number>();
   private activeServers: Map<string, SpawnedServer> = new Map();
   private projectRoot: string;
   private resultDelivery?: ResultDeliveryStore;
@@ -123,13 +138,22 @@ export class GameServerSpawner {
   }
 
   constructor(startPort: number = 7777) {
-    this.nextPort = startPort;
+    this.startPort = startPort;
     this.projectRoot = process.cwd();
   }
 
   /** Spawn a new game server with the given config. Resolves when server is ready. */
   async spawn(config: SpawnConfig): Promise<SpawnedServer> {
-    const port = this.allocatePort();
+    const port = await this.allocatePort();
+    try {
+      return await this.spawnOn(port, config);
+    } finally {
+      // A running server's activeServers entry holds the port from here on
+      this.reservedPorts.delete(port);
+    }
+  }
+
+  private async spawnOn(port: number, config: SpawnConfig): Promise<SpawnedServer> {
     const matchId = this.generateMatchId();
     const admission = config.admissionSeats
       ? issueMatchAdmission(matchId, config.admissionSeats, Date.now(), 2 * 60_000, 30 * 60_000)
@@ -356,14 +380,21 @@ export class GameServerSpawner {
 
   // ── Internal ─────────────────────────────────────────────────
 
-  private allocatePort(): number {
-    const port = this.nextPort;
-    this.nextPort++;
-    // Skip ports already in use
-    while ([...this.activeServers.values()].some((s) => s.port === this.nextPort)) {
-      this.nextPort++;
+  /**
+   * The lowest port from startPort that no match holds and nothing else on the
+   * machine listens on. Reusing freed ports keeps a lobby that runs for weeks
+   * inside the firewall's game port range (production opens 7777–7850), and a
+   * port another process holds is passed over instead of failing the match.
+   */
+  private async allocatePort(): Promise<number> {
+    for (let port = this.startPort; port < this.startPort + PORT_SEARCH; port++) {
+      if (this.reservedPorts.has(port) || [...this.activeServers.values()].some((s) => s.port === port)) continue;
+      // Reserved before the check, so a second spawn meanwhile moves on
+      this.reservedPorts.add(port);
+      if (await portIsFree(port)) return port;
+      this.reservedPorts.delete(port);
     }
-    return port;
+    throw new Error(`[Spawner] No free game server port in ${this.startPort}–${this.startPort + PORT_SEARCH - 1}`);
   }
 
   private generateMatchId(): string {
