@@ -143,6 +143,13 @@ export class ExplosionEffect {
   private nextId = 0;
   /** Idle materials only; active explosions never have their materials stolen. */
   private readonly effectMaterials: StandardMaterial[] = [];
+  /**
+   * Finished spark systems, kept for the next explosion. A system made and
+   * disposed per explosion released the particle shader whenever none was
+   * alive, so in a plasma fight nearly every explosion compiled it again.
+   */
+  private readonly idleSparks: ParticleSystem[] = [];
+  private static readonly MAX_IDLE_SPARKS = 16;
   private effectPoolScene: Scene | null = null;
   private effectPoolObserver: Observer<Scene> | null = null;
   private static readonly MAX_IDLE_EFFECT_MATERIALS = 128;
@@ -493,9 +500,25 @@ export class ExplosionEffect {
     else material.dispose();
   }
 
+  private releaseSparks(sparks: ParticleSystem): void {
+    sparks.stop();
+    sparks.reset();
+    const scene = this.effectPoolScene;
+    if (
+      scene &&
+      !scene.isDisposed &&
+      sparks.getScene() === scene &&
+      this.idleSparks.length < ExplosionEffect.MAX_IDLE_SPARKS
+    )
+      this.idleSparks.push(sparks);
+    else sparks.dispose(false);
+  }
+
   private disposeEffectMaterialPool(): void {
     for (const material of this.effectMaterials) material.dispose();
     this.effectMaterials.length = 0;
+    for (const sparks of this.idleSparks) sparks.dispose(false);
+    this.idleSparks.length = 0;
     if (this.effectPoolObserver) this.effectPoolScene?.onDisposeObservable.remove(this.effectPoolObserver);
     this.effectPoolObserver = null;
     this.effectPoolScene = null;
@@ -547,7 +570,10 @@ export class ExplosionEffect {
    * Layer 4: Particle sparks
    */
   private createParticles(id: string, pos: Vector3, scale: number, config: ExplosionConfig): ParticleSystem {
-    const ps = new ParticleSystem(`${id}_sparks`, 40, this.scene!);
+    // The material pool runs first in spawn(), so its scene is this scene
+    const reused = this.effectPoolScene === this.scene ? this.idleSparks.pop() : undefined;
+    const ps = reused ?? new ParticleSystem(`${id}_sparks`, 40, this.scene!);
+    ps.name = `${id}_sparks`;
 
     // Use procedural texture
     if (this.particleTexture) {
@@ -751,7 +777,11 @@ export class ExplosionEffect {
     const idx = this.explosions.findIndex((e) => e.id === id);
     if (idx === -1) return;
 
-    disposeExplosion(this.explosions[idx], (material) => this.releaseEffectMaterial(material));
+    disposeExplosion(
+      this.explosions[idx],
+      (material) => this.releaseEffectMaterial(material),
+      (sparks) => this.releaseSparks(sparks),
+    );
     this.explosions.splice(idx, 1);
   }
 
@@ -759,7 +789,12 @@ export class ExplosionEffect {
    * Clear all active explosions
    */
   clear(): void {
-    for (const exp of this.explosions) disposeExplosion(exp, (material) => this.releaseEffectMaterial(material));
+    for (const exp of this.explosions)
+      disposeExplosion(
+        exp,
+        (material) => this.releaseEffectMaterial(material),
+        (sparks) => this.releaseSparks(sparks),
+      );
     this.explosions = [];
     this.disposeEffectMaterialPool();
     this.disposeShapes();
@@ -847,7 +882,11 @@ function easeInQuad(t: number): number {
  * shared by every explosion, and Babylon's `dispose()` takes the texture with it
  * by default, so the first explosion to finish left the rest without sparks.
  */
-function disposeExplosion(exp: ActiveExplosion, release: (material: StandardMaterial) => void): void {
+function disposeExplosion(
+  exp: ActiveExplosion,
+  release: (material: StandardMaterial) => void,
+  releaseSparks: (sparks: ParticleSystem) => void,
+): void {
   exp.fireball.dispose();
   release(exp.fireballMat);
   for (const ray of exp.rays) {
@@ -857,8 +896,7 @@ function disposeExplosion(exp: ActiveExplosion, release: (material: StandardMate
   exp.shockwave?.dispose();
   if (exp.shockwaveMat) release(exp.shockwaveMat);
   getPointLightPool().release(exp.light);
-  exp.particles.stop();
-  exp.particles.dispose(false);
+  releaseSparks(exp.particles);
 }
 
 export function getExplosionEffect(): ExplosionEffect {

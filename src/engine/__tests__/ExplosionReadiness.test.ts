@@ -204,6 +204,22 @@ describe("explosion particle systems", () => {
     expect(scene.particleSystems.map((system) => system.name)).toEqual([expect.stringMatching(/_sparks$/)]);
   });
 
+  it("reuses a finished explosion's sparks, so the particle shader is never released mid-fight", () => {
+    let now = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const effect = getExplosionEffect();
+    effect.spawn(new Vector3(0, 0, 0));
+    const first = scene.particleSystems[0];
+    now = 2000;
+    effect.update(2);
+    expect(first.getActiveCount()).toBe(0);
+
+    effect.spawn(new Vector3(64, 0, 0));
+    expect(scene.particleSystems).toEqual([first]);
+    expect(first.isStarted()).toBe(true);
+    expect(first.name).toMatch(/_sparks$/);
+  });
+
   it("takes its particle systems with it when cleared", () => {
     const effect = getExplosionEffect();
     effect.spawn(new Vector3(0, 0, 0));

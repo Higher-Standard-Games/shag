@@ -28,6 +28,7 @@ import { getMD3Loader, type MD3LoadResult } from "../loader/model/MD3Loader";
 import { readIndexedModelAsset } from "../loader/model/ModelAsset";
 import { ModelSourceCache } from "../loader/model/ModelSourceCache";
 import { PK3Loader } from "../loader/pk3/PK3Loader";
+import { PK3TextureLoader } from "../loader/pk3/PK3TextureLoader";
 import { updateUnlitTrailRibbon } from "./EffectGeometry";
 import {
   BLADE_EXPLOSION,
@@ -366,10 +367,13 @@ export class ProjectileManager {
         console.warn(`[ProjectileManager] Failed to load sprite: ${path}`, e);
       }
     } else if (!this.modelCache.has(defId)) {
-      // MD3 model. The loader builds into whichever scene it was last given;
-      // this one is the game scene, which the weapon view may not have set yet.
+      // MD3 model. The loaders build into whichever scene they were last given;
+      // this one is the game scene, which neither the weapon view nor the map
+      // (which sets up the texture loader) may have reached yet. Without that, a
+      // shot fired while the map loads cached its model untextured.
       const md3Loader = getMD3Loader();
       md3Loader.init(this.scene);
+      PK3TextureLoader.getInstance().init(this.scene.getEngine(), this.scene);
       try {
         // Through the index, so the owning package is fetched if it is not yet
         const modelData = (await readIndexedModelAsset(path)) ?? (await pk3.getFile(path));
