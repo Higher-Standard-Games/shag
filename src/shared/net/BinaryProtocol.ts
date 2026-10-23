@@ -108,7 +108,7 @@ interface WeaponMetaShape {
   settled: boolean;
 }
 
-/** Held powerups, packed as a bitmask over POWERUP_KINDS (shared/items/Powerups). */
+/** Held powerups, packed as a bitmask over the game's POWERUP_KINDS. */
 interface PowerupShape {
   mask: number;
 }

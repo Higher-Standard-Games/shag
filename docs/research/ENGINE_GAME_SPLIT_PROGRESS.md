@@ -821,6 +821,10 @@ Changed files for this dependency (including removed paths and the FPS gitlink):
 
 Washoi commit: `a39ae1f` (`refactor: own shared pickup taxonomy and item rules`).
 
+After this step, the user reported starting FFA successfully. This is a
+user-reported assembled-game check; other modes, a complete match and the
+deferred warmup issue were not confirmed by that report.
+
 Move PickupTable and its tests, BspDataLoader, ItemThrow, ItemRespawn and the
 real-collision ItemThrow test into Washoi's shared bsp/items folders. Client,
 server, bot and Node tools still use one source for pickup taxonomy, IDs,
@@ -961,3 +965,123 @@ Changed files (including removed paths and the FPS gitlink):
 - `src/shared/items/ItemRespawn.ts` (removed)
 - `src/shared/items/ItemThrow.ts` (removed)
 - `src/shared/net/GameState.ts`
+
+## 8. Washoi health/armor grants and powerup rules
+
+Washoi commit: `c9a556d` (`refactor: own shared item grants and powerup rules`).
+
+Move ItemGrants, Powerups and both test suites from engine shared/items into
+Washoi shared/items. Client audio/presentation, snapshot construction, combat,
+pickup handling and bot planning consume the same relocated functions. Four
+files move without compatibility reexports. The engine ECS component retains
+expiry storage and its create/clone/clear functions; its expiry map accepts
+string IDs without importing Washoi. The original grantPowerup function moves
+unchanged into the game's shared/items/PowerupGrant.ts and uses the same
+absolute-tick extension rule. Existing game callers import that helper.
+
+Assumption: game-specific health/armor amounts and timed effects belong to
+Washoi even though client, server and bots share them. The runtime component
+shape stays { expiry: { [id]: absoluteTick } }. Snapshot fields, packing order,
+Quad bit 0, demo versions and all grant/timing/damage values are unchanged.
+The BinaryProtocol and SnapshotBuffer edits only remove stale source paths
+from comments. Generic create/clone/clear functions have identical syntax;
+14 moved/rebased files and the PickupSystem body also preserve syntax apart
+from imports/comments/formatting. A new integration test covers grant/extend,
+copy isolation, mask expiry and clearing damage effects through ECS storage.
+
+Concurrent UI edits in PlayerModelVisualSettings and RemotePlayerRenderer
+were present at the start. Only the latter's Powerups import belongs to this
+step. Validation uses detached engine cade8d5a / FPS a39ae1f checkouts under
+.cache/engine-game-split/step8-checkout, with only owned changes overlaid;
+the renderer file uses the committed baseline plus that import change.
+Existing node_modules and public/data/public/wasm are linked. Validation does
+not cover the other agent's unfinished UI code. The deferred warmup report
+remains open; the user's successful FFA start is recorded in step 7.
+
+Before/after pure-rule receipts match for 13,123 sampled results: health and
+armor values from 0 through 250 in quarter increments, all pickup kinds,
+overheal rates, expiry boundaries, grant tick rates, masks and damage effects.
+Receipt SHA-256: b43d188ac43dcf3dae8765a847fd6ceaa37a3aeaac0fb30dae22e318cc3d7fcf.
+The comparison transpiles the saved pre-move modules and relocated modules
+independently and evaluates the same inputs; it does not replace server tests.
+
+Initial full-suite finding: 704 files passed and one test failed in
+RemoteWeaponLeak's Firefox/WebGL material-ownership case, waiting for weapon
+roots (line 100). All six cases passed when run alone on both the changed
+checkout and the pre-change step-7 checkout. This does not establish the cause
+of the full-run timeout. No weapon code/test timeout was changed to mask it.
+The first Biome run found one import-order error in RemotePlayerRenderer;
+the import was sorted before final validation. Both initial logs are retained.
+
+Exact changed paths (including removed paths and gitlink):
+
+- `docs/changelog/v1.0.0-alpha.3.md`
+- `docs/manual/guides/pickup-system.md`
+- `docs/research/ENGINE_GAME_SPLIT_PROGRESS.md`
+- `src/bot/goals/ItemGoalPlanner.ts`
+- `src/bot/goals/considerations/ItemFacts.ts`
+- `src/bot/goals/considerations/ItemValue.ts`
+- `src/engine/network/client/SnapshotBuffer.ts`
+- `src/games/fps`
+- `src/games/fps/client/FPSPowerupAudio.ts`
+- `src/games/fps/client/RemotePlayerRenderer.ts`
+- `src/games/fps/client/__tests__/RemotePlayerRenderParity.test.ts`
+- `src/games/fps/server/SnapshotBuilder.ts`
+- `src/games/fps/server/gametypes/__tests__/AmphiRoundReset.test.ts`
+- `src/games/fps/server/systems/CombatSystem.ts`
+- `src/games/fps/server/systems/PickupSystem.ts`
+- `src/games/fps/server/systems/__tests__/CombatSystemQuad.test.ts`
+- `src/games/fps/shared/items/ItemGrants.ts`
+- `src/games/fps/shared/items/ItemRespawn.ts`
+- `src/games/fps/shared/items/PowerupGrant.ts`
+- `src/games/fps/shared/items/Powerups.ts`
+- `src/games/fps/shared/items/__tests__/ItemGrants.test.ts`
+- `src/games/fps/shared/items/__tests__/PowerupGrant.test.ts`
+- `src/games/fps/shared/items/__tests__/Powerups.test.ts`
+- `src/shared/items/ItemGrants.ts`
+- `src/shared/items/Powerups.ts`
+- `src/shared/items/__tests__/ItemGrants.test.ts`
+- `src/shared/items/__tests__/Powerups.test.ts`
+- `src/shared/net/BinaryProtocol.ts`
+- `src/shared/server/simulation/components/PowerupComponent.ts`
+
+Validation commands (isolated step-8 checkout unless stated otherwise):
+
+- `npm.cmd run typecheck`
+- `node C:/Users/sundf/Desktop/wash/shag/.cache/engine-game-split/validate-step8-isolated.mjs test-run`
+  runs `npm.cmd run test:run`, `npm.cmd run gate:biome`,
+  `npm.cmd run build`, `npm.cmd run build:server`,
+  `npm.cmd run docs:build`, `npm.cmd run docs:fps:build`,
+  `npm.cmd run test:simulation`, `npm.cmd run test:physics`,
+  `npm.cmd run server:tick`, `npm.cmd run server:fuzz -- --ticks 1000`,
+  then the same BSP/replay/camera batches listed below. The initial run stopped
+  after the unit failure; a separate gate-biome invocation stopped at the
+  import-order diagnostic. The final runner starts again at test-run.
+- `node node_modules/vite-node/vite-node.mjs src/cli/headless-game.ts -- --exec "bsp load washoi_dm2; bsp info; quit"`
+- `node node_modules/vite-node/vite-node.mjs src/cli/headless-game.ts -- --exec 'sim replay "W+CROUCH 60; JUMP 1; W 30"; quit'`
+- `node node_modules/vite-node/vite-node.mjs src/cli/headless-game.ts -- --exec "help spectator; help giveweapon; giveweapon rlauncher; quit"`
+- `npm.cmd run test:run -- src/games/fps/client/__tests__/RemoteWeaponLeak.test.ts`
+  on the step-8 and step-7 checkouts: six tests passed on each.
+- `node .cache/engine-game-split/prove-step8.mjs` (primary checkout).
+- `node .cache/engine-game-split/item-rules-step8.mjs` (primary checkout).
+
+Receipts and isolated source hashes are in .cache/engine-game-split/step8-validation.
+No fresh browser or multiplayer check was performed for this pure-rule move;
+the user's FFA report predates this step. No production deploy was performed.
+
+Final results: typecheck passed. Full unit rerun passed 705 files / 5,582 tests,
+with one skipped. Biome passed at zero errors / 47 baseline warnings. Client
+and server builds, engine and game docs builds, simulation and physics passed.
+Server tick checksum was 2768943778; 1,000-tick random-seed fuzz reconciled at
+2008373838. Indexed BSP loading reported 7,475 faces and movement replay
+completed 91 ticks. Camera command responses passed. These are isolated-change
+results, not a full revalidation of the concurrent palette UI commit.
+
+The first build stopped before compilation: Windows refused a rename replacing
+pk3_manifest.json through the shared data junction (EPERM). Validation's data
+junction was replaced with a private directory: generated manifest/index files
+are private copies, existing asset files are hard-linked and data subfolders
+remain junctions. The build then passed. The shared-rename cause was not proven;
+this setup avoids shared generated metadata during concurrent work. The failed
+build log remains build-shared-manifest-error.log. No production source was
+changed for this validation-environment issue.

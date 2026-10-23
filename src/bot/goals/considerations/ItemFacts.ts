@@ -9,7 +9,7 @@
  */
 
 import { WEAPONS } from "../../../games/fps/shared/entities/definitions/weapons/WeaponsTable";
-import { QUAD_MULTIPLIER } from "../../../shared/items/Powerups";
+import { QUAD_MULTIPLIER } from "../../../games/fps/shared/items/Powerups";
 import type { BotSelf } from "../../BotGameState";
 import { clamp01 } from "../Consideration";
 

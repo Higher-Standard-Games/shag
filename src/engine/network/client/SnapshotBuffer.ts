@@ -42,7 +42,7 @@ export interface EntitySnapshot {
   /** Ledge grab camera phase, 0 – 1. */
   ledgeGrabPhase?: number;
   /**
-   * Held powerups as a bitmask over POWERUP_KINDS (shared/items/Powerups).
+   * Held powerups as a bitmask over the game's POWERUP_KINDS.
    * Never interpolated — it is stepped, like `crouching`.
    */
   powerupMask?: number;
@@ -93,7 +93,7 @@ export interface InterpolatedEntity {
   /** Ledge grab camera phase, 0 – 1. */
   ledgeGrabPhase?: number;
   /**
-   * Held powerups as a bitmask over POWERUP_KINDS (shared/items/Powerups).
+   * Held powerups as a bitmask over the game's POWERUP_KINDS.
    * Never interpolated — it is stepped, like `crouching`.
    */
   powerupMask?: number;

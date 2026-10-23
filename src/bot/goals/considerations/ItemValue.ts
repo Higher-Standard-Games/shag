@@ -9,7 +9,12 @@
  * exactly when the server refuses the pickup.
  */
 
-import { type ArmorKind, armorAfterPickup, type HealthKind, healthAfterPickup } from "../../../shared/items/ItemGrants";
+import {
+  type ArmorKind,
+  armorAfterPickup,
+  type HealthKind,
+  healthAfterPickup,
+} from "../../../games/fps/shared/items/ItemGrants";
 import { getWeaponProfile } from "../../BotWeaponProfile";
 import { type Consideration, type ConsiderationContext, clamp01 } from "../Consideration";
 import { ammoConsumers, ammoNeedFraction, isMajorItem, powerupValue } from "./ItemFacts";

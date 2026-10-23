@@ -9,6 +9,12 @@ across all tracked types. The game's `shared/items/ItemThrow.ts` supplies shared
 landing/toss rules, and `shared/items/ItemRespawn.ts` supplies respawn timing.
 Generic collision and the Babylon pickup base remain in SHAG.
 
+Washoi's `shared/items/ItemGrants.ts` owns health and armor grant math;
+`shared/items/Powerups.ts` owns powerup durations, effects and mask assignments.
+Its `shared/items/PowerupGrant.ts` applies those rules to the shared ECS expiry
+storage. The engine component stores ticks and provides create/clone/clear
+operations without importing game rules.
+
 ## Engine base
 
 `Pickup` extends `TransformNode` and coordinates:
