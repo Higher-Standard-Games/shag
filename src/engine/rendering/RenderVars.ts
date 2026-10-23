@@ -191,8 +191,8 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, "name">> = {
     category: "material",
   },
   r_anisotropy: {
-    value: 8,
-    defaultValue: 8,
+    value: 4,
+    defaultValue: 4,
     min: 1,
     max: 16,
     description: "Anisotropic filtering level (1-16)",
@@ -350,7 +350,7 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, "name">> = {
     category: "display",
   },
   // Emissive glow layer (see GlowEffect) — controllable glow on top of bloom.
-  // Off by default: bloom already covers bright surfaces; glow is opt-in polish.
+  // Off by default; glow is opt-in polish.
   r_glow: {
     value: 0,
     defaultValue: 0,
@@ -361,8 +361,8 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, "name">> = {
   },
   // Post-processing (multipliers)
   r_bloom: {
-    value: 1.0,
-    defaultValue: 1.0,
+    value: 0,
+    defaultValue: 0,
     min: 0,
     max: 3.0,
     description: "Bloom intensity multiplier (applies to post-processing pipeline)",
@@ -641,6 +641,7 @@ export class RenderVars {
 
   public init(): void {
     // Cvars are registered in constructor, init() is for scene-dependent setup
+    this.applyToPostProcessing(this.get("r_bloom") ?? 0, this.get("r_exposure") ?? 1, this.get("r_contrast") ?? 1);
     devLog(`[RenderVars] init() called, vars count: ${this.vars.size}`);
   }
 
@@ -961,11 +962,11 @@ export class RenderVars {
     const lightmapIntensity = this.get("r_lightmap") ?? 1.0;
     const ambientIntensity = this.get("r_ambient") ?? 1.0;
     const emissiveIntensity = this.get("r_emissive") ?? 1.0;
-    const anisotropy = this.get("r_anisotropy") ?? 8;
+    const anisotropy = this.get("r_anisotropy") ?? 4;
     const wireframe = (this.get("r_wireframe") ?? 0) >= 0.5;
 
     // Post-processing
-    const bloomMul = this.get("r_bloom") ?? 1.0;
+    const bloomMul = this.get("r_bloom") ?? 0;
     const exposureMul = this.get("r_exposure") ?? 1.0;
     const contrastMul = this.get("r_contrast") ?? 1.0;
     this.applyToPostProcessing(bloomMul, exposureMul, contrastMul);

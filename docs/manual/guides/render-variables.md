@@ -12,6 +12,11 @@
 | Lighting | `r_ambient`, `r_lightintensity`, `r_lightmapscale`, god-ray, area-light, and day/night groups |
 | Debug | `r_wireframe`, `r_showtris`, `r_water_debug` |
 
+The defaults use bloom off (`r_bloom 0`) and 4× anisotropic filtering
+(`r_anisotropy 4`), matching Washoi's Balanced preset. Zero bloom intensity
+disables the bloom rendering pass. Full-resolution map textures remain the
+default (`r_picmip 0`). Saved settings take priority over defaults.
+
 Water has its own set inside those categories: `r_water` and `r_water_quality` select the tier, with `r_water_highlights`, `r_water_roughness`, `r_water_reflection`, `r_water_probe_height`, `r_water_blur`, `r_water_detail`, `r_water_contact`, `r_water_actors` and `r_underwater_distortion` shaping it. Day/night runs from `r_daynight` with its time, speed, length, lightmap range, sun/moon intensity and sky tint.
 
 Use `render list` for the authoritative current list, defaults, ranges, and descriptions. Type-only future names in `RenderVarName` are not necessarily registered.

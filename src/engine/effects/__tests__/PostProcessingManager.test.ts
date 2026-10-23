@@ -6,6 +6,7 @@ import { Scene } from "@babylonjs/core/scene";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EventBus } from "../../core/EventBus";
 import { ServiceLocator } from "../../core/ServiceLocator";
+import { RenderVars } from "../../rendering/RenderVars";
 import { PostProcessingManager } from "../PostProcessingManager";
 
 const pipelines = vi.hoisted(() => ({ defaults: [] as FakePipeline[], ssao: [] as FakePipeline[] }));
@@ -74,6 +75,13 @@ afterEach(() => {
 });
 
 describe("postprocessing ownership", () => {
+  it("applies the default bloom-off value when scene render settings initialize", () => {
+    manager.init(scene, new FreeCamera("world", Vector3.Zero(), scene));
+    RenderVars.getInstance().init();
+    expect(manager.getSettings().bloom.weight).toBe(0);
+    expect(pipelines.defaults[0].bloomEnabled).toBe(false);
+  });
+
   it("binds the existing camera through the scene service contract", async () => {
     const camera = new FreeCamera("world", Vector3.Zero(), scene);
     scene.activeCamera = camera;
@@ -155,6 +163,18 @@ describe("postprocessing ownership", () => {
     expect(manager.getSettings().bloom.weight).toBe(0.4);
     manager.getSettings().bloom.weight = 0.88;
     expect(manager.getSettings().bloom.weight).toBe(0.4);
+  });
+
+  it("disables the bloom pass at zero weight and restores it at positive weight", () => {
+    manager.init(scene, new FreeCamera("world", Vector3.Zero(), scene));
+    manager.updateSettings({ bloom: { ...manager.getSettings().bloom, weight: 0 } });
+    expect(pipelines.defaults[0].bloomEnabled).toBe(false);
+    manager.updateSettings({ bloom: { ...manager.getSettings().bloom, weight: 0.3 } });
+    expect(pipelines.defaults[0].bloomEnabled).toBe(true);
+    manager.setBloomIntensity(0);
+    expect(pipelines.defaults[0].bloomEnabled).toBe(false);
+    manager.setBloomIntensity(0.3);
+    expect(pipelines.defaults[0].bloomEnabled).toBe(true);
   });
 
   it("keeps requested effects dormant under the master switch and restores them", () => {

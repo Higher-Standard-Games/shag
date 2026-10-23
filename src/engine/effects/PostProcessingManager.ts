@@ -252,8 +252,8 @@ export class PostProcessingManager {
     }
 
     // Bloom
-    this.pipeline.bloomEnabled = s.bloom.enabled;
-    if (s.bloom.enabled) {
+    this.pipeline.bloomEnabled = s.bloom.enabled && s.bloom.weight > 0;
+    if (this.pipeline.bloomEnabled) {
       this.pipeline.bloomThreshold = s.bloom.threshold;
       this.pipeline.bloomWeight = s.bloom.weight;
       this.pipeline.bloomKernel = s.bloom.kernel;
@@ -417,6 +417,8 @@ export class PostProcessingManager {
   public setBloomIntensity(weight: number): void {
     this.settings.bloom.weight = Math.max(0, Math.min(1, weight));
     if (this.pipeline) {
+      this.pipeline.bloomEnabled =
+        this.settings.enabled && this.settings.bloom.enabled && this.settings.bloom.weight > 0;
       this.pipeline.bloomWeight = this.settings.bloom.weight;
     }
   }
