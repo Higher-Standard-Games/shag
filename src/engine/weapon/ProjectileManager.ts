@@ -390,32 +390,36 @@ export class ProjectileManager {
           this.modelCache.set(defId, model);
           devLog(`[ProjectileManager] Cached model: ${defId}`);
 
-          // Try to load texture - first check explicit texturePaths from def
-          let textureUrl: string | null = null;
+          // A fallback texture is only for meshes the MD3 left without a
+          // material; surfaces that name their own textures already have them.
+          if (model.meshes.some((mesh) => !mesh.material)) {
+            // Try to load texture - first check explicit texturePaths from def
+            let textureUrl: string | null = null;
 
-          if (def.texturePaths && def.texturePaths.length > 0) {
-            // Use explicit texture path from definition
-            const explicitPath = def.texturePaths[0];
-            devLog(`[ProjectileManager] Using explicit texture: ${explicitPath}`);
-            if (pk3.hasFile(explicitPath)) {
-              textureUrl = await pk3.getFileAsURL(explicitPath, "image/png");
+            if (def.texturePaths && def.texturePaths.length > 0) {
+              // Use explicit texture path from definition
+              const explicitPath = def.texturePaths[0];
+              devLog(`[ProjectileManager] Using explicit texture: ${explicitPath}`);
+              if (pk3.hasFile(explicitPath)) {
+                textureUrl = await pk3.getFileAsURL(explicitPath, "image/png");
+              } else {
+                console.warn(`[ProjectileManager] Explicit texture not found: ${explicitPath}`);
+              }
             } else {
-              console.warn(`[ProjectileManager] Explicit texture not found: ${explicitPath}`);
+              // Auto-detect: try same name with .tga extension
+              const autoTexturePath = path.replace(".md3", ".tga");
+              devLog(`[ProjectileManager] Auto-detecting texture: ${autoTexturePath}`);
+              if (pk3.hasFile(autoTexturePath)) {
+                textureUrl = await pk3.getFileAsURL(autoTexturePath, "image/png");
+              }
             }
-          } else {
-            // Auto-detect: try same name with .tga extension
-            const autoTexturePath = path.replace(".md3", ".tga");
-            devLog(`[ProjectileManager] Auto-detecting texture: ${autoTexturePath}`);
-            if (pk3.hasFile(autoTexturePath)) {
-              textureUrl = await pk3.getFileAsURL(autoTexturePath, "image/png");
-            }
-          }
 
-          if (textureUrl) {
-            this.modelTextureCache.set(defId, textureUrl);
-            devLog(`[ProjectileManager] Cached model texture: ${defId}`);
-          } else {
-            console.warn(`[ProjectileManager] No texture found for: ${defId}`);
+            if (textureUrl) {
+              this.modelTextureCache.set(defId, textureUrl);
+              devLog(`[ProjectileManager] Cached model texture: ${defId}`);
+            } else {
+              console.warn(`[ProjectileManager] No texture found for: ${defId}`);
+            }
           }
         }
       } catch (e) {
