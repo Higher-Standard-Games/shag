@@ -22,8 +22,10 @@ import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
 import { DEFAULT_PROJECTILE_BOUNCE_FACTOR, getEntityRegistry, type ProjectileDef } from "../../shared/entities";
 import { devLog } from "../core/DevLog";
+import { log } from "../core/Log";
 import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
 import { getMD3Loader, type MD3LoadResult } from "../loader/model/MD3Loader";
+import { readIndexedModelAsset } from "../loader/model/ModelAsset";
 import { ModelSourceCache } from "../loader/model/ModelSourceCache";
 import { PK3Loader } from "../loader/pk3/PK3Loader";
 import { updateUnlitTrailRibbon } from "./EffectGeometry";
@@ -310,6 +312,23 @@ export class ProjectileManager {
     return load;
   }
 
+  /**
+   * Load every given projectile's model and compile its materials, so the
+   * first shot of each type in a match neither loads a model nor compiles a
+   * shader. Map loading calls this beside the weapon view preload.
+   */
+  public async prepare(scene: Scene, defIds: readonly string[]): Promise<void> {
+    if (this.scene !== scene) this.init(scene);
+    await Promise.all(defIds.map((defId) => this.preloadModel(defId)));
+    const compiles: Promise<void>[] = [];
+    for (const defId of defIds) {
+      for (const mesh of this.modelCache.get(defId)?.meshes ?? []) {
+        if (mesh.material) compiles.push(mesh.material.forceCompilationAsync(mesh));
+      }
+    }
+    await Promise.all(compiles);
+  }
+
   private async loadModelAssets(defId: string): Promise<boolean> {
     if (!this.scene) return false;
 
@@ -347,10 +366,13 @@ export class ProjectileManager {
         console.warn(`[ProjectileManager] Failed to load sprite: ${path}`, e);
       }
     } else if (!this.modelCache.has(defId)) {
-      // MD3 model
+      // MD3 model. The loader builds into whichever scene it was last given;
+      // this one is the game scene, which the weapon view may not have set yet.
       const md3Loader = getMD3Loader();
+      md3Loader.init(this.scene);
       try {
-        const modelData = await pk3.getFile(path);
+        // Through the index, so the owning package is fetched if it is not yet
+        const modelData = (await readIndexedModelAsset(path)) ?? (await pk3.getFile(path));
         if (!modelData) {
           console.warn(`[ProjectileManager] Model not found: ${path}`);
           return false;
@@ -565,7 +587,7 @@ export class ProjectileManager {
       // A model disposed with the scene or its textures loads again in the
       // background; until it arrives, projectiles show only their trail and light.
       if (def.modelPath) void this.preloadModel(defId);
-      console.warn(`[ProjectileManager] Failed to spawn projectile ${defId}: No cached model or sprite`);
+      log.warnRateLimited("ProjectileManager", `${defId} drawn without its model while it loads`);
       // Fallback: simple glowing sphere - REMOVED per user request (was causing "blue dot" artifact)
       // const mesh = MeshBuilder.CreateSphere(`${id}_mesh`, { diameter: 0.5 }, this.scene);
       // mesh.parent = node;
