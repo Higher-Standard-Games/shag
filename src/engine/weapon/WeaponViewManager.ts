@@ -736,7 +736,8 @@ export class WeaponViewManager {
       };
 
       this.muzzleSocket = this.findWeaponTag(glbRoot, ["tag_flash", "tag_muzzle", "muzzle"]);
-      if (!this.muzzleSocket) {
+      // A melee weapon has no muzzle to tag; only a gun without one is worth a warning
+      if (!this.muzzleSocket && !this.currentWeaponDef?.meleeRadius) {
         console.warn(`[WeaponViewManager] ${weaponName}: model has no tag_flash muzzle socket; using camera fallback`);
       }
 

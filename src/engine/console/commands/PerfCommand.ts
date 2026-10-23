@@ -8,11 +8,12 @@ export default class PerfCommand extends Command {
   readonly definition: CommandDef = {
     name: "perf",
     description: "Capture renderer performance over a bounded interval",
-    usage: "perf capture [seconds]",
+    usage: "perf capture [seconds] | perf shaders [seconds]",
   };
 
   async execute(args: string[]): Promise<string> {
-    if (args[0]?.toLowerCase() !== "capture") return `Usage: ${this.definition.usage}`;
+    const mode = args[0]?.toLowerCase();
+    if (mode !== "capture" && mode !== "shaders") return `Usage: ${this.definition.usage}`;
 
     const requested = args[1] === undefined ? 10 : Number(args[1]);
     if (!Number.isFinite(requested) || requested < 1 || requested > 60) {
@@ -30,6 +31,16 @@ export default class PerfCommand extends Command {
     if (!scene) return "No active scene";
 
     captureInProgress = true;
+    if (mode === "shaders") {
+      try {
+        const { captureShaderCompiles, formatShaderCompileReport } = await import(
+          "../../rendering/ShaderCompileCapture"
+        );
+        return formatShaderCompileReport(await captureShaderCompiles(scene.getEngine(), requested));
+      } finally {
+        captureInProgress = false;
+      }
+    }
     try {
       const [{ captureRendererPerformance, formatRendererPerformanceReport }, { MapLoader }, { RenderVars }] =
         await Promise.all([
