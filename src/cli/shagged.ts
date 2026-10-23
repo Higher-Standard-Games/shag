@@ -36,9 +36,11 @@ import { resolveServerConfig } from "../engine/editor/server/ServerConfig";
 import { loadTextureCatalog, searchTextures } from "../engine/editor/server/TextureLookup";
 import { registerFpsEditorCatalog } from "../games/fps/editor/FpsEditorCatalog";
 import { registerFpsCompilerProfile } from "../games/fps/editor/server/FpsCompilerProfile";
+import { registerFpsMapAnalysis } from "../games/fps/editor/server/FpsMapAnalysis";
 
 registerFpsEditorCatalog();
 registerFpsCompilerProfile();
+registerFpsMapAnalysis();
 
 const USAGE = `Usage: npm run shagged -- <command> ...
   new <doc.json> [--name <mapid>] [--room] [--force]   create a document (optionally the sealed test room)

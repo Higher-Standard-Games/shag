@@ -1659,3 +1659,103 @@ repository cutover; it must not assume the neutral default launches Washoi.
 Private Vite/lobby processes and headless browsers were stopped. Ports 3107,
 3108, 9017 and the probe game port 7777 were confirmed closed. The scratch
 lobby account database/secret directory was removed; validation logs remain.
+
+
+## 14. Published-map analysis supplied by the game
+
+Washoi commit: `536f8cb` (`refactor: own published-map reachability analysis`).
+
+Goal remains independent Git checkouts with documented assembly, not two
+standalone runnable applications. Generic editor/server infrastructure stays
+in SHAG; Washoi behavior is supplied through engine-owned contracts.
+
+The refreshed tracked-TypeScript audit found zero direct production imports
+from src/engine into Washoi, but one transitive path: AgentPipeline loaded
+BotVision/BotNavGraph, whose implementations depend on FPS movement and data.
+That dependency is used by the map-report validation tool, not by the editor's
+editing/rendering UI. It loads compiled collision data for the player walk
+flood and builds a bot graph to report unreachable pickups/disconnected spawns.
+
+SHAG now defines a GameMapAnalysis registry and MapReachabilityResult contract.
+AgentPipeline delegates to its registered provider. Without a provider it
+returns an explicit false player verdict with an analysis-unavailable error;
+compilation can still operate with a compiler profile. Provider exceptions
+propagate. Washoi owns FpsMapAnalysis, whose analysis body is unchanged after
+normalizing module paths; its four existing Node editor composition roots
+register the provider. Those outer composition roots still import Washoi and
+must be moved or selected explicitly before final repository cutover.
+
+Generic PlayerReach, WalkFlood and graph-report helpers remain in SHAG. The
+existing fixed 45-unit hop, collision inputs, bot graph, result fields, ordering
+and overall report verdict logic are unchanged. No new listeners or timers.
+No browser startup, networking, simulation or rendering algorithms changed.
+
+Exact changed paths:
+
+- `src/engine/editor/server/GameMapAnalysis.ts`
+- `src/engine/editor/server/AgentPipeline.ts`
+- `src/engine/editor/server/__tests__/GameMapAnalysis.test.ts`
+- `src/games/fps/editor/server/FpsMapAnalysis.ts`
+- `src/cli/shagged.ts`
+- `src/cli/shagged-mcp.ts`
+- `src/cli/shagged-server.ts`
+- `src/cli/shagged-compile.ts`
+- `src/games/fps` (gitlink)
+- `docs/manual/guides/service-registries.md`
+- `docs/manual/guides/shagged-api.md`
+- `docs/research/ENGINE_GAME_SPLIT_INVENTORY.md`
+- `docs/research/ENGINE_GAME_SPLIT_PROGRESS.md`
+- `docs/changelog/v1.0.0-alpha.3.md`
+
+Both working trees were clean at the start. Validation runs in the primary
+checkout against engine 79becbae / Washoi e739f8e, after the requested metadata
+rewrite; no historical timestamps or receipts were rewritten again. Receipts
+are under `.cache/engine-game-split/step14-validation`.
+
+- `node docs/research/engine-game-split-audit.mjs` ran before and after extraction. The post-change scan includes the staged new files, reading the candidate working tree at the listed base revisions. The regenerated inventory has 1,799 TypeScript files and **zero direct or indirect production src/engine-to-Washoi code paths**. This is a source/type graph claim, not a complete repository-independence claim.
+- `npm.cmd run test:run -- src/engine/editor/server/__tests__/GameMapAnalysis.test.ts src/engine/editor/server/__tests__/PlayerReach.test.ts src/engine/editor/api/__tests__/Reachability.test.ts src/engine/editor/server/__tests__/DocumentInspection.test.ts` passed 4 files / 15 tests. Cases cover missing provider, exact input/result forwarding, cleanup, failure propagation and generic reachability behavior.
+- `node .cache/engine-game-split/prove-step14.mjs` compares the original/extracted function bodies through TypeScript printing, normalizing import paths; identical.
+- `node node_modules/vite-node/vite-node.mjs .cache/engine-game-split/step14-parity.ts` runs the original and registered provider against indexed washoi_dm2 with real collision and bot navigation. Complete serialized results match: 6 spawns, 18 items, 10,533 player flood positions, 97 bot nodes and 477 edges, including identical existing unreachable-item/spawn findings. No compile, map publication or user document write occurs.
+- `node .cache/engine-game-split/step14-types.mjs` typechecks the Node editor pipeline with game directories virtually unavailable. Zero diagnostics and zero game source files. It includes existing engine/browser/host ambient declaration roots; it does not claim the whole repository typechecks without the game.
+- `node .cache/engine-game-split/validate-step14.mjs` runs typecheck, the full test suite, Biome, client/server builds, both documentation builds, simulation, physics, server tick, 1,000-tick fuzz and indexed BSP/replay/name/camera CLI checks, using the same exact npm/CLI commands as step 13.
+
+Remaining dependency groups after this step:
+
+- 21 outer bot production files import game movement, weapon/item policy or client/server helpers (41 sites).
+- 23 outer CLI production files import game code (55 sites, including explicit editor composition registrations). Keep reusable implementations generic; make the game own its entry/composition policy.
+- Two lobby files import game policy: LobbyServer's demo-map aliases and PlayerIdentity's bot-name classification. Generic account/room/server infrastructure can remain in SHAG.
+- Five engine test files still directly import FPS integrations/actions; retain their coverage in game-owned tests or use neutral fixtures where behavior is engine-owned. Outer bot/lobby tests also require the same ownership pass.
+- Historical probes, water-visual-scene, raw game media recipes, fixed aliases/build roots, native/platform metadata, CI and deployment require their separate configuration audit. The nonliteral TypeScript calls are TFBackend's package selection and Electron's game.json lookup; the latter is already documented as a stale packaging path.
+- The tracked gitlink and .gitmodules remain until those dependencies and the documented assembly procedure are ready. No repository attachment was removed and no code was pushed.
+
+Unverified here: fresh browser/GPU behavior, production deployment, Electron/
+mobile packaging and whole-repository checks without Washoi. Existing deferred
+loading/asset findings remain separate. The real-map before/after report and
+headless tests validate this Node-only delegation step.
+
+
+Full-suite finding: 713 files passed and one failed (5,621 tests passed, one
+failed and one skipped). The failure is RemoteWeaponLeak's Firefox/WebGL
+material ownership case at line 100, waiting for weapon roots: the same location
+recorded in steps 8/12 and the Balanced-default work. All six cases passed in
+isolation with `npm.cmd run test:run -- src/games/fps/client/__tests__/RemoteWeaponLeak.test.ts`.
+The full-run cause is not established; no weapon code or timeout changed.
+No clean full-suite pass is claimed. Remaining gates resume at gate-biome.
+The first Biome run found CRLF formatting in the newly written provider after
+a comment edit; the scoped formatter normalized it and the repeated gate
+passed at zero errors / 47 baseline warnings.
+
+
+Final remaining results: client/server builds and both documentation builds
+passed. Simulation and physics passed; tick checksum 2768943778 and 1,000-tick
+fuzz checksum 785138479 reconciled. Indexed BSP inspection reported 7,475 faces;
+movement replay completed 91 ticks. Name/camera CLI checks passed. The full-suite
+weapon-root wait finding above remains open; these passes do not resolve it.
+
+Additional configuration search used rg over scripts, workflows, config,
+package/TypeScript/Vite/Vitest files, engine.json, Electron builder and
+.gitmodules. Concrete remaining references include the tracked gitlink,
+recursive CI checkout/token, fixed aliases, browser-neutral versus game build
+selection, benchmark game fixtures and Electron game metadata. Postinstall's
+current Havok/TensorFlow fixups do not themselves fetch a game checkout; their
+ownership/dependency packaging can be reviewed with the bot application pass.

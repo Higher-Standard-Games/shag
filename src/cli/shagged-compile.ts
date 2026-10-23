@@ -5,8 +5,10 @@ import { resolveCompilerConfig, splitCompilerOptions } from "../engine/editor/se
 import { MapStore } from "../engine/editor/server/MapStore";
 import { resolveServerConfig } from "../engine/editor/server/ServerConfig";
 import { registerFpsCompilerProfile } from "../games/fps/editor/server/FpsCompilerProfile";
+import { registerFpsMapAnalysis } from "../games/fps/editor/server/FpsMapAnalysis";
 
 registerFpsCompilerProfile();
+registerFpsMapAnalysis();
 
 const args = process.argv.slice(2);
 if (args.includes("--help") || args.includes("-h")) {

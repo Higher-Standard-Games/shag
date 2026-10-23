@@ -27,6 +27,13 @@ and supplies the fast/default/release arguments. Engine-only integrations
 register their own `GameCompilerProfile` before resolving configuration or
 creating jobs; no registered profile means compilation is unavailable.
 
+Published-map reachability is supplied by the selected game through
+`GameMapAnalysis`. Washoi registers `FpsMapAnalysis.ts` in its Node editor
+composition and retains the existing player flood and bot-navigation checks.
+Engine integrations can provide different analyses. With no provider, a report
+explicitly marks player analysis unavailable instead of silently passing; direct
+compilation remains available with a compiler profile.
+
 Repository-local MakeBSP/MakeLight binaries receive a copy of the tracked
 Washoi profile beside their executables, where the native tools resolve it.
 External compiler installations must have `makebspdata/washoi.json` beside

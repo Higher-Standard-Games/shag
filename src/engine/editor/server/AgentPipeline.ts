@@ -13,6 +13,7 @@ import type { CompileDiagnostics } from "./CompileDiagnostics";
 import { CompileJobs } from "./CompileJobs";
 import { resolveCompilerConfig } from "./CompilerConfig";
 import { pointBounds } from "./DocumentInspection";
+import { getGameMapAnalysis, type MapReachabilityResult } from "./GameMapAnalysis";
 import { MapStore } from "./MapStore";
 import { resolveServerConfig } from "./ServerConfig";
 import { findTexture, loadTextureCatalog, type TextureInfo } from "./TextureLookup";
@@ -229,44 +230,16 @@ export async function compileDocument(
   };
 }
 
-/**
- * Reachability of the published map. `player` floods the map with the
- * game's own movement (steps, slides, drops, hops) and is the verdict;
- * `bots` is the bots' navigation graph, which also needs to connect for bots
- * to find their way, and misses stairs and other paths a player can take.
- */
-export async function mapReachability(doc: EditorDocumentData, mapName: string) {
-  const [{ createBotVision }, { BotNavGraph }, { analyzeReachability }, { playerReachability }] = await Promise.all([
-    import("../../../bot/BotVision"),
-    import("../../../bot/BotNavGraph"),
-    import("../api/Reachability"),
-    import("./PlayerReach"),
-  ]);
-  const vision = await createBotVision(mapName);
-  if (!vision) return { player: { ok: false, error: `could not load the compiled map "${mapName}"` }, bots: null };
-  const knowledge = vision.mapKnowledge;
-  const player = playerReachability(
-    {
-      world: vision.collisionWorld,
-      spawns: knowledge.spawnPoints,
-      items: knowledge.pickupPositions.map((p) => ({ classname: p.classname, position: p.position })),
-      triggers: knowledge.triggerVolumes,
-    },
-    doc,
-  );
-  const graph = new BotNavGraph(mapName);
-  graph.buildFromVision(vision);
-  const bots = analyzeReachability(graph.nodes, graph.edges, doc);
-  return {
-    player,
-    bots: {
-      ok: bots.ok,
-      unreachableItems: bots.unreachableItems.map((i) => i.objectId ?? i.classname),
-      cutOffSpawns: bots.cutOffSpawns.map((s) => s.objectId ?? s.classname),
-      navNodes: graph.nodeCount,
-      navEdges: graph.edgeCount,
-    },
-  };
+/** Delegate published-map checks to the selected game's Node analysis provider. */
+export async function mapReachability(doc: EditorDocumentData, mapName: string): Promise<MapReachabilityResult> {
+  const analysis = getGameMapAnalysis();
+  if (!analysis) {
+    return {
+      player: { ok: false, error: "Map reachability unavailable: no game analysis provider registered" },
+      bots: null,
+    };
+  }
+  return analysis.mapReachability(doc, mapName);
 }
 
 /** Health, compile, then reachability of the compiled map, as one verdict. */

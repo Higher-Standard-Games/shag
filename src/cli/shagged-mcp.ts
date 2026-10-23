@@ -41,9 +41,11 @@ import { resolveServerConfig } from "../engine/editor/server/ServerConfig";
 import { loadTextureCatalog, searchTextures } from "../engine/editor/server/TextureLookup";
 import { registerFpsEditorCatalog } from "../games/fps/editor/FpsEditorCatalog";
 import { registerFpsCompilerProfile } from "../games/fps/editor/server/FpsCompilerProfile";
+import { registerFpsMapAnalysis } from "../games/fps/editor/server/FpsMapAnalysis";
 
 registerFpsEditorCatalog();
 registerFpsCompilerProfile();
+registerFpsMapAnalysis();
 
 const ROOT = path.resolve("server-data/shagged/agent");
 const GUIDE = path.resolve("docs/manual/guides/shagged-api.md");

@@ -24,6 +24,9 @@ Small single-slot registries keep generic engine code from importing the active 
 - `GameCompilerProfile`: Node-side compiler profile ID, local toolchain root
   and build arguments. Register it before resolving compiler configurations or
   creating compile jobs, and keep it installed until those jobs finish.
+- `GameMapAnalysis`: Node-side published-map player/bot reports. SHAG's report
+  pipeline delegates to the selected game's provider; without registration it
+  reports analysis unavailable and a false player verdict.
 
 `GameplayMapLauncher`, `NetworkConnector`, `FreeflyInput` and `GameMapEntities` expose register,
 get and clear; `GameFrameHook` uses
@@ -126,3 +129,20 @@ engine consumer -> get adapter -> call interface
 ```
 
 The interface module stays game-agnostic. Never make the interface implementation silently reach back into a hard-coded game module.
+
+
+## Published-map analysis
+
+Register a `GameMapAnalysis` from `engine/editor/server/GameMapAnalysis` before
+calling `mapReachability` or `mapReport`. The provider receives the original
+editor document and published map name and returns player/bot findings in
+`MapReachabilityResult`. Provider failures propagate to the caller. Registration
+replaces the active provider; `clearGameMapAnalysis()` releases it for tests or
+composition teardown.
+
+Washoi's `editor/server/FpsMapAnalysis.ts` supplies the compiled-map collision,
+player walk flood and bot navigation graph checks. The generic engine pipeline
+imports no bot application. Generic `PlayerReach`, `WalkFlood` and graph-report
+helpers remain independently usable. Washoi's Node editor entry points install
+the provider alongside its compiler profile. Without a provider, compilation
+can still run, but a map report cannot claim player reachability succeeded.
