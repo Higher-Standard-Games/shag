@@ -20,6 +20,11 @@ editor open
 
 ## The workspace
 
+The active game supplies the gameplay entity catalog. Washoi installs its
+NetRadiant point and brush definitions; SHAGGED also supplies compiler authoring
+classes such as `misc_model` and `func_group`. Without a registered game catalog,
+compiler classes remain available and unknown classnames keep a neutral marker.
+
 Four views of the same map: **3D Perspective** (top left), **XY Top**, **XZ Front** and **YZ Side**. All coordinates are Quake units with **Z up**. The toolbar groups actions into MAP, EDIT, TOOLS, VIEW and BUILD; the inspector on the right edits the selection; the status bar shows the cursor's snapped coordinates and messages.
 
 The 3D view has three display modes in its corner: **Brush**, **Textured** (default) and **Wireframe** (edges only, to see through walls).

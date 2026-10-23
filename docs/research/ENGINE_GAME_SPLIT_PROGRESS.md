@@ -1296,3 +1296,111 @@ hashes match the primary checkout. Both name/camera CLI batches passed.
 Next candidate: replace EntityCatalog's
 direct Washoi entities.def import with a game-supplied catalog, retaining the
 engine parser/compiler classes and the assembled game's palette semantics.
+
+## 11. SHAGGED gameplay catalog registration
+
+Washoi commit: `05b9f30` (`refactor: register Washoi editor entity catalog`).
+
+`EntityCatalog` no longer imports Washoi's raw NetRadiant definitions. It keeps
+the parser, generic lookup/required-key helpers, compiler point/brush classes
+and compiler model reference. `registerGameEntityCatalog` replaces the active
+gameplay point/brush catalog, preserving exported array identities; clearing
+restores compiler classes and neutral markers for unknown classnames. Register
+before opening sessions or running reports. An already open session is not
+reactively refreshed. There are no new listeners or timers.
+
+Washoi's `registerFpsEditorCatalog` supplies the same parsed definitions. The
+browser composition root, scripting CLI, MCP and standalone editor-service
+entry points register it explicitly. Map Health builds classname sets for each
+inspection, so importing that module before registration does not freeze the
+compiler-only state. Gameplay entries still precede compiler entries; compiler
+definitions keep the existing last-entry precedence for classname lookup.
+
+Assumption: the outer editor entry points still assemble Washoi until their
+application ownership pass. The source `editor/gamepacks/washoi.game/` remains
+in place for existing NetRadiant users. The game adapter reads that file;
+relocating the whole gamepack/compiler profile and shader-tag metadata is a
+separate step. This removes the engine catalog's direct product-asset import,
+not all editor/game dependencies or the tracked FPS requirement. The original
+warmup/asset warnings remain deferred; no gameplay/audio changes belong here.
+
+Five existing Washoi-dependent catalog/entity, editor DOM and API suites move
+to the game's editor tests and explicitly register/clear the game catalog.
+Their assertions and mocks are unchanged apart from relocated module paths
+and registration/cleanup. The trigger suite creates its fixture per test after
+registration rather than during suite collection. Three engine tests exercise a synthetic game catalog,
+compiler-only defaults, retained references, late registration, replacement,
+required-key lookup, Map Health and cleanup without importing Washoi.
+
+Exact changed paths (including removals and gitlink):
+
+- `src/engine/editor/EntityCatalog.ts`
+- `src/engine/editor/MapHealth.ts`
+- `src/engine/editor/__tests__/GameEntityCatalog.test.ts`
+- `src/engine/editor/__tests__/EditorEntities.test.ts` (moved)
+- `src/engine/editor/__tests__/EditorSession.test.ts` (moved)
+- `src/games/fps/editor/FpsEditorCatalog.ts`
+- `src/games/fps/editor/__tests__/EditorEntities.test.ts`
+- `src/games/fps/editor/__tests__/EditorSession.test.ts`
+- `src/engine/editor/api/__tests__/Operations.test.ts` (moved)
+- `src/engine/editor/api/__tests__/ConnectStairs.test.ts` (moved)
+- `src/engine/editor/api/__tests__/Triggers.test.ts` (moved)
+- `src/engine/editor/api/__tests__/fixtures/two-rooms.ops.json` (moved)
+- `src/games/fps/editor/api/__tests__/Operations.test.ts`
+- `src/games/fps/editor/api/__tests__/ConnectStairs.test.ts`
+- `src/games/fps/editor/api/__tests__/Triggers.test.ts`
+- `src/games/fps/editor/api/__tests__/fixtures/two-rooms.ops.json`
+- `src/games/fps/index.ts`
+- `src/main.ts`
+- `src/cli/shagged.ts`
+- `src/cli/shagged-mcp.ts`
+- `src/cli/shagged-server.ts`
+- `src/games/fps` (gitlink)
+- `docs/manual/guides/service-registries.md`
+- `docs/manual/guides/shagged-editor.md`
+- `docs/changelog/v1.0.0-alpha.3.md`
+- `docs/research/ENGINE_GAME_SPLIT_PROGRESS.md`
+
+Validation checkout: `.cache/engine-game-split/step11-checkout`, detached at
+engine `bff86a6a` / FPS `5d7455b`, with only owned source/manual files overlaid.
+The baseline includes the other agent's committed Voltaic beam fixes; this
+step does not edit those files. Dependencies/wasm/media are linked; generated
+PK3 index/manifest metadata is private. Receipts are under
+`.cache/engine-game-split/step11-validation`.
+
+Commands and evidence:
+
+- `npm.cmd run test:run -- src/engine/editor/__tests__/GameEntityCatalog.test.ts src/games/fps/editor/__tests__/EditorEntities.test.ts src/games/fps/editor/__tests__/EditorSession.test.ts src/engine/editor/__tests__/MapHealth.test.ts src/engine/editor/__tests__/CompilerEntityCatalog.test.ts` passed 5 files / 62 tests in the primary checkout.
+- `node .cache/engine-game-split/prepare-proof-step11.mjs` proves all existing catalog parser/helper functions unchanged against HEAD. Its first sandbox run could not spawn git (EPERM); the permitted subprocess run passed.
+- `node .cache/engine-game-split/prove-step11-tests.mjs` proves both moved test suites unchanged after normalizing module paths, import ordering and registration/cleanup hooks.
+- `node .cache/engine-game-split/prove-step11-api-tests.mjs` proves the three API suites unchanged after normalizing module paths, import ordering, registration/cleanup and per-test fixture setup. The two-room fixture is moved byte-for-byte.
+- `node node_modules/vite-node/vite-node.mjs .cache/catalog-parity.ts` in the isolated checkout, first before overlay, then with `SHAG_CATALOG_GAME=1` after overlay. `SHAG_CATALOG_OUTPUT` selects the before/after receipt file. The serialized results match exactly: all 56 gameplay points, 59 total point entries, 10 brush entries, lookup objects, Map Health diagnostics and map export bytes.
+- `node .cache/engine-game-split/probe-step11-entrypoints.mjs` invokes the actual `shagged health` CLI on a scratch spawn/teleporter document and the actual MCP `shagged_entity_classes` tool. Both passed: the CLI recognizes game classes and requires the teleporter target; MCP returns all 69 point/brush entries including weapons and the required trigger key. No compiler run or user document write is involved.
+- `npm.cmd run shagged:server -- --help` in the isolated checkout passed, loading the standalone service entry point without starting a listener.
+- `node C:/Users/sundf/Desktop/wash/shag/.cache/engine-game-split/validate-step11-isolated.mjs` runs `npm.cmd run typecheck`, `npm.cmd run test:run`, `npm.cmd run gate:biome`, `npm.cmd run build`, `npm.cmd run build:server`, `npm.cmd run docs:build`, `npm.cmd run docs:fps:build`, `npm.cmd run test:simulation`, `npm.cmd run test:physics`, `npm.cmd run server:tick`, `npm.cmd run server:fuzz -- --ticks 1000`.
+- The runner invokes `node node_modules/vite-node/vite-node.mjs src/cli/headless-game.ts -- --exec` with each batch: `bsp load washoi_dm2; bsp info; quit`, `sim replay "W+CROUCH 60; JUMP 1; W 30"; quit`, `help name; name; quit`, and `help spectator; help giveweapon; giveweapon rlauncher; quit`.
+
+Unverified: fresh browser/GPU editor rendering, external NetRadiant operation,
+a native compiler build, live FFA, production deployment and a game-free build.
+The exact catalog/export comparison and headless DOM interactions cover this
+step's behavior; they do not establish those broader outcomes.
+
+Initial full-suite finding: 708 files passed and three API suites failed
+(ConnectStairs, Operations and Triggers), each from unregistered gameplay
+classes reported as unknown. This exposed more tests relying on implicit
+Washoi initialization. Moving those integrations and their two-room fixture
+to the game, with explicit catalog setup, passed the focused command
+`npm.cmd run test:run -- src/games/fps/editor/api/__tests__/Operations.test.ts src/games/fps/editor/api/__tests__/ConnectStairs.test.ts src/games/fps/editor/api/__tests__/Triggers.test.ts`
+(3 files / 23 tests). The full runner restarts at typecheck afterward. The
+initial failure log is retained as `test-run-before-explicit-api-catalog.log`.
+No production logic changed in response to these test setup failures.
+
+Final isolated results: typecheck and all 711 test files passed (5,610 tests
+passed, one skipped). Biome stayed at zero errors / 47 baseline warnings.
+Client/server builds, both docs builds, simulation and physics passed. Tick
+determinism reconciled at 2768943778; the 1,000-tick random-seed fuzz run at
+4097236016. Indexed BSP loading reported 7,475 faces; movement replay completed
+91 ticks. Name/camera CLI batches passed. All 17 source/manual/fixture hashes
+match the isolated checkout; the moved map fixture also matches its original
+git blob. Nothing was pushed. Next editor seams are the compiler/gamepack
+configuration, shader-tag inputs and game-specific map-analysis providers.

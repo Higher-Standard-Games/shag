@@ -1,11 +1,8 @@
 /**
- * Point-entity classes for the SHAGGED inspector and palette, read from the
- * Washoi NetRadiant definitions (editor/gamepacks/washoi.game/basewashoi/entities.def).
- * Gameplay definitions follow the engine entity readers. Explicit compiler
- * classes extend the editor palette with supported baked authoring entities.
+ * Entity definitions for the SHAGGED inspector and palette. A game registers
+ * its gameplay classes; compiler authoring classes remain available without one.
  */
 
-import washoiEntityDefs from "../../../editor/gamepacks/washoi.game/basewashoi/entities.def?raw";
 import { COMPILER_BRUSH_CLASSES, COMPILER_POINT_CLASSES } from "./CompilerEntityCatalog";
 import type { Vec3q } from "./EditorDocument";
 
@@ -125,7 +122,8 @@ function parseClasses(text: string): ParsedClass[] {
   return classes;
 }
 
-export const POINT_ENTITY_CLASSES: readonly EntityClassDef[] = parseEntityDefs(washoiEntityDefs);
+const pointClasses: EntityClassDef[] = [];
+export const POINT_ENTITY_CLASSES: readonly EntityClassDef[] = pointClasses;
 /** Compiler-baked model reference. The raw-map definition's `scale` and collision keys do not apply here. */
 const MISC_MODEL: EntityClassDef = {
   compilerOnly: true,
@@ -140,17 +138,34 @@ const MISC_MODEL: EntityClassDef = {
     { name: "modelscale", label: "Uniform compiler scale", defaultValue: "1" },
   ],
 };
-export const EDITOR_POINT_CLASSES: readonly EntityClassDef[] = [
-  ...POINT_ENTITY_CLASSES,
-  MISC_MODEL,
-  ...COMPILER_POINT_CLASSES,
-];
-export const BRUSH_ENTITY_CLASSES: readonly EntityClassDef[] = [
-  ...parseBrushEntityDefs(washoiEntityDefs),
-  ...COMPILER_BRUSH_CLASSES,
-];
+const editorPointClasses: EntityClassDef[] = [MISC_MODEL, ...COMPILER_POINT_CLASSES];
+export const EDITOR_POINT_CLASSES: readonly EntityClassDef[] = editorPointClasses;
+const brushClasses: EntityClassDef[] = [...COMPILER_BRUSH_CLASSES];
+export const BRUSH_ENTITY_CLASSES: readonly EntityClassDef[] = brushClasses;
 
 const BY_NAME = new Map([...EDITOR_POINT_CLASSES, ...BRUSH_ENTITY_CLASSES].map((entity) => [entity.classname, entity]));
+
+export interface GameEntityCatalog {
+  pointClasses: readonly EntityClassDef[];
+  brushClasses: readonly EntityClassDef[];
+}
+
+/** Replace the active game's catalog before opening editor sessions or running reports. */
+export function registerGameEntityCatalog(catalog: GameEntityCatalog): void {
+  // Keep exported array identities stable for consumers that retain a reference.
+  const points = [...catalog.pointClasses];
+  const brushes = [...catalog.brushClasses];
+  pointClasses.splice(0, pointClasses.length, ...points);
+  editorPointClasses.splice(0, editorPointClasses.length, ...points, MISC_MODEL, ...COMPILER_POINT_CLASSES);
+  brushClasses.splice(0, brushClasses.length, ...brushes, ...COMPILER_BRUSH_CLASSES);
+  BY_NAME.clear();
+  for (const entity of [...editorPointClasses, ...brushClasses]) BY_NAME.set(entity.classname, entity);
+}
+
+/** Restore the engine compiler catalog; tests clear game registration during cleanup. */
+export function clearGameEntityCatalog(): void {
+  registerGameEntityCatalog({ pointClasses: [], brushClasses: [] });
+}
 
 /**
  * The shader a new brush entity's faces get. The definitions say to texture

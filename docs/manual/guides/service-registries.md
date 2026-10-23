@@ -18,6 +18,9 @@ Small single-slot registries keep generic engine code from importing the active 
 - `WeaponIdResolver`: a game's compatibility-ID mapping for engine weapon views;
   absent a resolver, IDs pass through unchanged. The composition root calls
   `registerWeaponIdResolver`; tests release it with `clearWeaponIdResolver`.
+- `GameEntityCatalog`: a game's SHAGGED point and brush classes, installed with
+  `registerGameEntityCatalog` from `engine/editor/EntityCatalog`. Compiler
+  authoring classes remain available without a game.
 
 `GameplayMapLauncher`, `NetworkConnector`, `FreeflyInput` and `GameMapEntities` expose register,
 get and clear; `GameFrameHook` uses
@@ -68,6 +71,17 @@ the browser and FPS headless composition roots. Its concrete pickup manager
 lives at `src/games/fps/world/EntityManager.ts`; it is not an engine export.
 
 ## Test hygiene
+
+Register an editor catalog before opening editor sessions or running map reports.
+Registration replaces the active gameplay catalog and preserves the exported
+palette array identities. Gameplay classes precede compiler classes; compiler
+definitions take precedence in classname lookup. `clearGameEntityCatalog()`
+restores the compiler-only catalog. Map Health reads the active catalog on each
+inspection. Registration does not refresh an already open editor session.
+
+Washoi's `registerFpsEditorCatalog()` reads its NetRadiant definitions. The
+browser composition root and the `shagged`, `shagged:mcp` and `shagged:server`
+entry points install it explicitly. Game integration tests clear it afterward.
 
 Tests that register the map-entity adapter clear it with `clearGameMapEntities()`.
 

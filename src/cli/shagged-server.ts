@@ -1,6 +1,9 @@
 import { MapStore } from "../engine/editor/server/MapStore";
 import { resolveServerConfig } from "../engine/editor/server/ServerConfig";
 import { createShaggedHttpServer } from "../engine/editor/server/ShaggedHttpServer";
+import { registerFpsEditorCatalog } from "../games/fps/editor/FpsEditorCatalog";
+
+registerFpsEditorCatalog();
 
 const args = process.argv.slice(2);
 if (args.includes("--help") || args.includes("-h")) {

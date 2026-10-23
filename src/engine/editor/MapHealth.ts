@@ -34,11 +34,11 @@ const LINK_CLASSES = new Set([
   "func_button",
   "trigger_capture_area",
 ]);
-const POINT_CLASSES = new Set(EDITOR_POINT_CLASSES.map((entry) => entry.classname));
-const BRUSH_CLASSES = new Set(BRUSH_ENTITY_CLASSES.map((entry) => entry.classname));
 
 /** Advisory diagnostics for a valid editable document; this never changes export bytes. */
 export function inspectMapHealth(data: EditorDocumentData, textures?: readonly TextureEntry[]): MapHealthIssue[] {
+  const pointClasses = new Set(EDITOR_POINT_CLASSES.map((entry) => entry.classname));
+  const brushClasses = new Set(BRUSH_ENTITY_CLASSES.map((entry) => entry.classname));
   const issues: MapHealthIssue[] = [];
   const add = (
     code: MapHealthCode,
@@ -69,7 +69,7 @@ export function inspectMapHealth(data: EditorDocumentData, textures?: readonly T
   }
 
   for (const entity of data.entities) {
-    if (!POINT_CLASSES.has(entity.classname))
+    if (!pointClasses.has(entity.classname))
       add("unknown-class", "info", `Unlisted point class: ${entity.classname}.`, entity.id);
     for (const key of missingRequiredKeys(entity.classname, entity.keys)) {
       add("required-key", "warning", `${entity.classname} needs "${key}".`, entity.id);
@@ -83,7 +83,7 @@ export function inspectMapHealth(data: EditorDocumentData, textures?: readonly T
     }
   }
   for (const entity of data.brushEntities ?? []) {
-    if (!BRUSH_CLASSES.has(entity.classname))
+    if (!brushClasses.has(entity.classname))
       add("unknown-class", "info", `Unlisted brush class: ${entity.classname}.`, entity.id);
     for (const key of missingRequiredKeys(entity.classname, entity.keys)) {
       add("required-key", "warning", `${entity.classname} needs "${key}".`, entity.id);
