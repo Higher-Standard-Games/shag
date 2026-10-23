@@ -61,9 +61,9 @@ export class MatchLobbyView {
 
   private config: MatchLobbyConfig;
   private lobbyId: string;
-  /** Bots can be added only in a private lobby (the lobby server enforces it). */
-  private readonly privateLobby: boolean;
-  private readonly shareUrl: string;
+  /** Invite-only. Adding a bot to a public lobby makes it private (the lobby server decides). */
+  private privateLobby: boolean;
+  private shareUrl: string;
   private maps: MatchLobbyMapOption[];
   private players: MatchLobbyPlayer[];
   private localReady = false;
@@ -187,6 +187,20 @@ export class MatchLobbyView {
         this.refreshPlayerSlots();
         this.refreshHeader();
         this.updateInviteBotState();
+      }),
+    );
+
+    // Someone added a bot to this public room, so it is invite-only now: the
+    // link to share carries the new invite, and everyone here is told.
+    this.unsubscribers.push(
+      this.lobbyClient.on("lobby:made_private", (msg) => {
+        if (msg.lobbyId !== this.lobbyId) return;
+        this.privateLobby = true;
+        this.shareUrl = msg.shareUrl;
+        this.root.querySelector(".match-lobby__invite")?.replaceWith(this.buildInvite());
+        this.refreshStatus();
+        this.updateInviteBotState();
+        this.flash("Lobby changed to private");
       }),
     );
 
@@ -342,6 +356,17 @@ export class MatchLobbyView {
       callback();
     }, delay);
     this.timers.add(timer);
+  }
+
+  /** A short notice over the room that fades away by itself. */
+  private flash(text: string): void {
+    this.root.querySelector(".match-lobby__flash")?.remove();
+    const flash = document.createElement("div");
+    flash.className = "match-lobby__flash";
+    flash.setAttribute("role", "status");
+    flash.textContent = text;
+    this.root.appendChild(flash);
+    this.schedule(() => flash.remove(), 2000);
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -853,20 +878,11 @@ export class MatchLobbyView {
     // Add a bot (server feature — needs a live lobby connection). Pressable
     // repeatedly: it re-enables as each bot joins, which is what a 5v5 mode
     // needs when you are testing alone. The lobby balances teams on join, so
-    // each bot lands on whichever side is short.
+    // each bot lands on whichever side is short. In a public room the first
+    // bot makes the room private.
     this.inviteBotBtn = createRaisedKey({ label: "+ Add bot", hint: "Fill a seat", variants: ["act", "cream"] });
     this.inviteBotBtn.addEventListener("click", () => this.requestBot());
-    if (this.privateLobby) {
-      actions.appendChild(this.inviteBotBtn);
-    } else {
-      // Shown, but off: a public room is for people. The wrapper carries the
-      // explanation, because a browser shows no title over a disabled button.
-      const wrap = document.createElement("span");
-      wrap.className = "match-lobby-view__bot-gate";
-      wrap.title = "Start a private lobby to add bots";
-      wrap.appendChild(this.inviteBotBtn);
-      actions.appendChild(wrap);
-    }
+    actions.appendChild(this.inviteBotBtn);
     this.updateInviteBotState();
 
     // Two seats are two players facing each other: which side is whose changes
@@ -993,16 +1009,11 @@ export class MatchLobbyView {
     }, 9000);
   }
 
-  /** Enable/disable the invite-bot button: private lobbies only, by capacity and pending state. */
+  /** Enable/disable the invite-bot button by capacity and pending state. */
   private updateInviteBotState(): void {
     const btn = this.inviteBotBtn;
     if (!btn) return;
-
-    if (!this.privateLobby) {
-      btn.disabled = true;
-      setRaisedKeyText(btn, "+ Add bot", "Private lobbies only");
-      return;
-    }
+    btn.title = this.privateLobby ? "" : "Adding a bot makes this lobby private";
 
     if (this.inviteBotPending || this.phase === "starting") {
       btn.disabled = true;

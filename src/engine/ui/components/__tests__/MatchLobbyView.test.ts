@@ -433,14 +433,32 @@ describe("MatchLobbyView bots", () => {
     view.destroy();
   });
 
-  it("shows the bot key off in a public lobby, and says where bots can be added", () => {
+  it("offers bots in a public lobby, and turns private when the server says so", () => {
+    vi.useFakeTimers();
     const client = new FakeLobbyClient();
-    const view = new MatchLobbyView("duel", client as never, { ...lobby, visibility: "public" as const }, "host");
-    const gate = view.root.querySelector<HTMLElement>(".match-lobby-view__bot-gate");
-    const bot = gate?.querySelector("button");
-    expect(bot?.disabled).toBe(true);
-    expect(bot?.textContent).toContain("Private lobbies only");
-    expect(gate?.title).toBe("Start a private lobby to add bots");
+    const room = { ...lobby, players: [lobby.players[0]], visibility: "public" as const };
+    const view = new MatchLobbyView("duel", client as never, room, "host");
+    const bot = [...view.root.querySelectorAll<HTMLButtonElement>(".match-lobby__actions button")].find((b) =>
+      b.textContent?.includes("Add bot"),
+    );
+    expect(bot?.disabled).toBe(false);
+    expect(bot?.title).toBe("Adding a bot makes this lobby private");
+    expect(view.root.querySelector(".match-lobby__invite-url")?.textContent).not.toContain("invite=");
+
+    bot?.click();
+    expect(client.inviteBot).toHaveBeenCalledWith("snd-room");
+
+    // Another room turning private is not this one's business
+    client.emit("lobby:made_private", { lobbyId: "elsewhere", shareUrl: "/?lobby=elsewhere&invite=x" });
+    expect(view.root.querySelector(".match-lobby__flash")).toBeNull();
+
+    client.emit("lobby:made_private", { lobbyId: "snd-room", shareUrl: "/?lobby=snd-room&invite=tok" });
+    expect(view.root.querySelector(".match-lobby__flash")?.textContent).toBe("Lobby changed to private");
+    expect(view.root.querySelector(".match-lobby__invite-url")?.textContent).toContain("invite=tok");
+    expect(bot?.title).toBe("");
+    vi.advanceTimersByTime(2000);
+    expect(view.root.querySelector(".match-lobby__flash")).toBeNull();
     view.destroy();
+    vi.useRealTimers();
   });
 });

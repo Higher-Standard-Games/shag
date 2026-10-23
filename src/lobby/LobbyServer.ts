@@ -309,6 +309,12 @@ class MatchLobby {
     }));
   }
 
+  /** Close the room to the queue and the public lists; from now on its invite link is the way in. */
+  makePrivate(): void {
+    this.visibility = "private";
+    this.inviteToken = randomBytes(24).toString("base64url");
+  }
+
   addPlayer(player: ConnectedPlayer): LobbyPlayerInfo {
     // Auto-assign team
     let team: LobbyTeam = "ffa";
@@ -1474,17 +1480,6 @@ export class LobbyServer {
       return;
     }
 
-    // Bots are for private rooms: in a public one they would fill seats other
-    // players are queueing for, and change who a ranked result is against.
-    if (lobby.visibility !== "private") {
-      this.send(player, {
-        type: "lobby:bot_invite_failed",
-        lobbyId,
-        error: "Bots can be added in private lobbies only.",
-      });
-      return;
-    }
-
     if (lobby.state !== "waiting" || lobby.isStarting) {
       this.send(player, { type: "lobby:bot_invite_failed", lobbyId, error: "Match is already starting." });
       return;
@@ -1493,6 +1488,18 @@ export class LobbyServer {
     if (lobby.playerCount >= lobby.gametype.maxPlayers) {
       this.send(player, { type: "lobby:bot_invite_failed", lobbyId, error: "That room is full." });
       return;
+    }
+
+    // Bots play in private rooms only: in a public one they would fill seats
+    // other players are queueing for, and change who a ranked result is
+    // against. Adding one to a public room makes it private, and the bot joins
+    // with the new invite token.
+    if (lobby.visibility !== "private") {
+      lobby.makePrivate();
+      const { shareUrl } = lobby.toInfo();
+      console.log(`[LobbyServer] Lobby ${lobbyId} made private by ${player.name} adding a bot`);
+      this.broadcastToLobby(lobbyId, { type: "lobby:made_private", lobbyId, shareUrl });
+      this.broadcastMatchesUpdate();
     }
 
     // Automatic opponents have a Hard floor; ratings can promote them to Insane.

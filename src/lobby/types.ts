@@ -597,6 +597,13 @@ export interface LobbyBotInviteFailedMessage extends LobbyMessage {
   error: string;
 }
 
+/** The room left the queue and the public lists; `shareUrl` now carries its invite. */
+export interface LobbyMadePrivateMessage extends LobbyMessage {
+  type: "lobby:made_private";
+  lobbyId: string;
+  shareUrl: string;
+}
+
 /** This connection was taken out of a room it was in. */
 export interface LobbyKickedMessage extends LobbyMessage {
   type: "lobby:kicked";
@@ -704,6 +711,7 @@ export interface LobbyServerMessages {
   "lobby:teams_shuffled": LobbyTeamsShuffledMessage;
   "lobby:bot_invited": LobbyBotInvitedMessage;
   "lobby:bot_invite_failed": LobbyBotInviteFailedMessage;
+  "lobby:made_private": LobbyMadePrivateMessage;
   "matches:update": MatchesUpdateMessage;
   "match:ended": MatchEndedMessage;
   "match:seat_reissued": SeatReissueResponse;

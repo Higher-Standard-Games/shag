@@ -137,13 +137,16 @@ A room is one gametype, one map vote and up to that gametype's player count.
 
 - **Public or private.** A private room is absent from the live match list, the
   queue and the player list; the only way in is a link carrying its invite
-  token, which is 24 random bytes, separate from the room id.
+  token, which is 24 random bytes, separate from the room id. Adding a bot to
+  a waiting public room makes it private: the room gets an invite token, leaves
+  the public lists and the queue, and its members receive `lobby:made_private`
+  with the new `shareUrl`.
 - **Teams** are `alpha` and `bravo` on the wire, with display names the
   gametype supplies. A joining player is auto-assigned to the smaller side and
   may switch without a vote; a shuffle needs `ceil(players / 2)` votes.
 - **Maps.** Three are drawn from the gametype's pool, and only maps that are
   actually installed are offered. Most votes wins, ties are random.
-- **Bots** are invited in private rooms through the bot server, at `easy`,
+- **Bots** play in private rooms only, invited through the bot server, at `easy`,
   `medium`, `hard` or `insane`. An invite that names no level (the room's
   **+ Add bot**) fields the preset whose Private rating in the room's mode is
   nearest the inviter's, with a minimum of Hard. A player with no rating meets

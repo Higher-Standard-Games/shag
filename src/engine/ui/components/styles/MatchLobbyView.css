@@ -1294,3 +1294,39 @@
     padding: 0 28px;
   }
 }
+
+/* ── A short notice over the room, such as the lobby turning private ── */
+
+.match-lobby__flash {
+  position: fixed;
+  top: 22%;
+  left: 50%;
+  z-index: 20;
+  padding: 16px 30px;
+  font: 900 18px / 1 var(--w-font-display, "Orbitron", monospace);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: var(--cream);
+  box-shadow: 6px 6px 0 hsla(250, 45%, 4%, 0.6);
+  clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+  pointer-events: none;
+  transform: translateX(-50%);
+  animation: match-lobby-flash 2s ease-out forwards;
+}
+
+@keyframes match-lobby-flash {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+  10%,
+  70% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, 0);
+  }
+}
