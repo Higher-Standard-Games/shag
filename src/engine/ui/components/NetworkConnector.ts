@@ -32,6 +32,8 @@ export interface NetworkConnector {
   isConnected(): boolean;
   /** Establish a network connection to the given server. */
   connect(serverUrl: string, options?: NetworkConnectOptions): Promise<void>;
+  /** Request to participate on the current connection, using the game's admission flow. */
+  join?(): Promise<void>;
   /**
    * Take a seat on the server already connected to, as a spectator joining.
    * False when not watching that server, so the caller connects instead.

@@ -5,7 +5,8 @@ Small single-slot registries keep generic engine code from importing the active 
 ## Current seams
 
 - `GameplayMapLauncher`: engine console to browser game/lobby launch;
-- `NetworkConnector`: engine UI to the selected game network client, and the
+- `NetworkConnector`: engine UI and the `join` command to the selected game
+  network client, and the
   `scene empty` command's connection-state check before enabling freefly controls;
 - `GameFrameHook`: engine camera controllers to the game's per-frame work, so a
   freefly or spectator camera can tick the network and draw remote players
@@ -26,6 +27,13 @@ registerNetworkConnector(fpsNetworkConnector);
 Engine consumers must handle a missing adapter without importing an FPS fallback.
 Actions that require a game report a useful error. For the `scene empty`
 connection-state check, a missing adapter means no active network connection.
+
+`NetworkConnector.join?()` requests participation on the existing connection.
+The game owns admission, seat requests, team choice and any loadout selection.
+The `join` command checks `isConnected()`, then awaits this callback without
+reconnecting. A disconnected or missing adapter reports no server connection;
+a connected adapter without `join` reports that joining is unsupported.
+Games that only provide connection functionality can omit this capability.
 
 ## Test hygiene
 

@@ -2,6 +2,7 @@
  * JoinCommand - Join the currently connected authoritative server.
  */
 
+import { getNetworkConnector } from "../../ui/components/NetworkConnector";
 import { Command, type CommandDef } from "../Command";
 
 export default class JoinCommand extends Command {
@@ -14,14 +15,17 @@ export default class JoinCommand extends Command {
 
   async execute(_args: string[]): Promise<string> {
     try {
-      const { Game } = await import("../../../games/fps/Game");
-      const gameManager = Game.getInstance();
+      const connector = getNetworkConnector();
 
-      if (!gameManager.isConnectedToServer()) {
+      if (!connector?.isConnected()) {
         return 'No server connection. Use "developer 1" then "map <mapname> [gametype]" or "connect <url>".';
       }
 
-      await gameManager.joinGame();
+      if (!connector.join) {
+        return "The active game does not support joining the connected server.";
+      }
+
+      await connector.join();
       return "Join requested";
     } catch (error) {
       return `Failed to join: ${error}`;
