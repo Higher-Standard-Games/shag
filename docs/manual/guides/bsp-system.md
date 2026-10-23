@@ -292,8 +292,8 @@ or alter point-content queries.
 The Node benchmark exercises `SweepCollisionBackend` at recorded player positions:
 
 ```bash
-npx vite-node src/cli/benchmark-collision.ts --demo public/data/demos/training/wfdm11_performance_investigation_1.shagdemo --out .cache/collision-baseline.json
-npx vite-node src/cli/benchmark-collision.ts --baseline .cache/collision-baseline.json --out .cache/collision-candidate.json
+npx vite-node src/games/fps/cli/benchmark-collision.ts --demo public/data/demos/training/wfdm11_performance_investigation_1.shagdemo --out .cache/collision-baseline.json
+npx vite-node src/games/fps/cli/benchmark-collision.ts --baseline .cache/collision-baseline.json --out .cache/collision-candidate.json
 ```
 
 The default demo is the washoi_dm11 investigation recording. `--stride` defaults to 8;

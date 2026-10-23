@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Launches the SHAGGED MCP server (src/cli/shagged-mcp.ts) under vite-node.
+ * Launches the SHAGGED MCP server (src/games/fps/cli/shagged-mcp.ts) under vite-node.
  *
  * stdout is the MCP protocol channel, but vite-node and the map, bot and
  * compiler code can print to stdout before the server takes over its console.
@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
 const root = fileURLToPath(new URL("..", import.meta.url));
 const child = spawn(
   process.execPath,
-  [fileURLToPath(new URL("../node_modules/vite-node/vite-node.mjs", import.meta.url)), "src/cli/shagged-mcp.ts"],
+  [fileURLToPath(new URL("../node_modules/vite-node/vite-node.mjs", import.meta.url)), "src/games/fps/cli/shagged-mcp.ts"],
   { cwd: root, stdio: ["pipe", "pipe", "inherit"] },
 );
 

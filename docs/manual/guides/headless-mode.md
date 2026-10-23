@@ -2,6 +2,11 @@
 
 SHAG provides CLI entry points for map inspection, deterministic simulation, server testing, networking, and demo verification. Use these before browser-only testing.
 
+Washoi's game console runner, simulation/server checks, demo tools and SHAGGED
+application entry points live in `src/games/fps/cli/` in the assembled checkout.
+Run the npm commands below from the assembled root. Generic BSP inspection and
+shared CLI helpers remain in SHAG's `src/cli/`.
+
 ## Game console runner
 
 Beyond the engine commands, this runner registers `sim`, `anim`, `headless`,
@@ -173,7 +178,7 @@ The game runner uses Babylon `NullEngine`. It does not create a WebGL context, a
 
 ## Source of truth
 
-- `src/cli/headless-game.ts`
+- `src/games/fps/cli/headless-game.ts`
 - `src/cli/headless-netclient.ts`
-- `src/cli/server-tick.ts`
+- `src/games/fps/cli/server-tick.ts`
 - scripts in `package.json`

@@ -2550,3 +2550,43 @@ native installation from scratch and independent checkout proof are unverified.
 The game CLI/editor composition and repository configuration/cutover remain
 later steps. Other agents' renderer, benchmark and changelog edits are excluded;
 whole-tree gates also see concurrent work present when run.
+
+## Step 21 — game CLI ownership and obsolete diagnostics (2026-10-24)
+
+Moved 17 game-specific CLI entry points into Washoi without SHAG forwarding
+files. Updated npm entry paths, the runtime-probe build entry, MCP launcher,
+benchmark fixture/equivalence callers and the editor smoke script. Removed
+three obsolete print-only diagnostics (`debug:compare`, `debug:spawn` and the
+unused pickup-gravity script), retaining actual regression commands and
+assertion-based parity/grounding/placement coverage.
+
+The exact 17-file move list, other changed files, removal evidence, validation
+commands and limits are recorded in
+[the CLI ownership checkpoint](./ENGINE_GAME_SPLIT_CLI_MOVE.md).
+All work stayed under ignored `.cache/` during the other client's benchmark;
+application began only after the user confirmed it had finished. Prepared
+originals still matched the live files before applying.
+
+The refreshed tracked-source audit finds **zero production `src` files / zero
+sites importing Washoi**, including CLI, engine and lobby. No transitive
+production engine path enters the game. Nine outer test files / 12 sites still
+import Washoi; four executable research probes, one experiment and one visual
+script also remain. Package/configuration, test ownership, platform/asset
+recipes, independent checkout/assembly proof and Git detachment remain.
+
+Assumptions: assembled-root execution, existing dependencies/data, Node 24.21.0,
+Bun 1.4.3 and indexed `washoi_dm2`. Supported command names/arguments/cwd,
+reusable editor infrastructure and five server artifact names remain intact.
+The submodule remains attached. Other clients' fog, rendering, effect-preloader
+and shared-changelog changes are excluded from this checkpoint.
+
+Validation completed: typecheck, full tests (**719 files / 5,644 passed,
+one skipped**), Biome (zero errors / 47 baseline warnings), production build,
+both documentation builds and all required simulation/physics/tick/fuzz/BSP/
+replay checks passed. Before/after targeted tests, deterministic Node/Bun
+equivalence and private real lobby/match/result probes passed. CLI smoke checks
+covered recording, verification rejection, calibration, view lag, collision,
+sound audit, editor native compile/reuse and MCP discovery. Exact commands,
+bundle comparison and explicit unverified items are in the checkpoint above.
+
+Washoi commit: `f633b71` (`refactor: own game CLI composition and regression tools`).

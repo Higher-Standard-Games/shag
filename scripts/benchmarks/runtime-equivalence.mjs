@@ -6,7 +6,7 @@ import { bunExecutable } from "./runtime-command.mjs";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const index = process.argv.indexOf("--bun");
 const bun = bunExecutable(index < 0 ? "bun" : process.argv[index + 1]);
-const scenario = ["src/cli/server-fuzz.ts", "--ticks", "10000", "--seed", "42"];
+const scenario = ["src/games/fps/cli/server-fuzz.ts", "--ticks", "10000", "--seed", "42"];
 const checksums = [];
 for (const [runtime, executable, args] of [
   ["node", process.execPath, [path.join(root, "node_modules/vite-node/vite-node.mjs"), ...scenario]],

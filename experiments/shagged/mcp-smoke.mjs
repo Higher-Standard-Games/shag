@@ -23,7 +23,7 @@ async function request(client,name,args){
 async function call(client,name,args){const result=await request(client,name,args);assert(!result.failed&&result.body.ok!==false,JSON.stringify(result.body));return result.body;}
 async function cli(args){
  return new Promise((resolve,reject)=>{
-  const child=spawn(process.execPath,['node_modules/vite-node/vite-node.mjs','src/cli/shagged.ts','--',...args],{cwd:process.cwd(),env,windowsHide:true,stdio:['ignore','pipe','pipe']});
+  const child=spawn(process.execPath,['node_modules/vite-node/vite-node.mjs','src/games/fps/cli/shagged.ts','--',...args],{cwd:process.cwd(),env,windowsHide:true,stdio:['ignore','pipe','pipe']});
   let stdout='',stderr='';child.stdout.on('data',data=>stdout+=data);child.stderr.on('data',data=>stderr+=data);
   child.on('error',reject);child.on('close',code=>{try{resolve({code,body:JSON.parse(stdout.slice(stdout.search(/^\{/m))),stderr});}catch(error){reject(new Error(`${error}\n${stdout}\n${stderr}`));}});
  });

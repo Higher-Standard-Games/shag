@@ -354,7 +354,7 @@ Useful command groups:
 - REPL: `npm run cli:game`, `npm run cli:bsp`
 - Network: `npm run net:server`, `npm run net:client`, `npm run lobby:server`, `npm run bot:server`
 - Server tests: `npm run server:tick`, `npm run server:fuzz -- --ticks 1000`
-- Debug: `npm run debug:textures -- washoi_dm2`, `npm run debug:spawn`
+- Debug: `npm run debug:textures -- washoi_dm2`; spawn/grounding checks: `npm run test:physics`
 - Unit tests: `npm run test:run` (once), `npm test` (watch)
 - Demos: `npm run demo:record -- --map washoi_dm2 --bots 2 --seconds 30` (one-shot: server + AI bots + record). See the [headless-mode guide](docs/manual/guides/headless-mode.md#demos-and-anti-cheat-tools).
 - Verify re-sim: `npm run demo:verify -- <bundle.shagverify>` — replays a re-sim bundle's usercmds through the deterministic sim and checks the recorded per-tick checksums reconcile. Exit 0 = reconciled, 1 = diverged.
