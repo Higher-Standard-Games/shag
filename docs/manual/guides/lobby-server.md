@@ -39,8 +39,10 @@ the second constructor argument to `GameServerSpawner`:
 `{ sourceEntry, bundledEntry }`. Paths can be absolute or relative to the
 assembled project root (the working directory captured when the spawner is
 constructed). Washoi's lobby CLI supplies `FPS_SERVER_APPLICATION` from
-`src/games/fps/server/FpsServerApplication.ts`, keeping the existing source
-entry and `dist-server/headless-netserver-v2.mjs` artifact.
+`src/games/fps/server/FpsServerApplication.ts`. It selects the game-owned
+`src/games/fps/cli/headless-netserver-v2.ts` source entry and the
+`dist-server/headless-netserver-v2.mjs` artifact. Commands run from the
+assembled project root; moving the source does not change the child's cwd.
 
 The runtime selects the bundled entry when the parent entry is an `.mjs` file
 directly under the root's `dist-server/`; otherwise it selects the source entry.

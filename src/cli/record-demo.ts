@@ -12,6 +12,7 @@
 
 import { MatchPhase } from "@shared/server/gametype";
 import { BotServer } from "../bot/BotServer";
+import { loadBspCollision } from "../games/fps/cli/HeadlessMapLoader";
 import { GameServer, type GameServerConfig } from "../games/fps/server/GameServer";
 import { Amphi } from "../games/fps/server/gametypes/Amphi";
 import type { BaseGametype } from "../games/fps/server/gametypes/BaseGametype";
@@ -19,7 +20,6 @@ import { Deathmatch } from "../games/fps/server/gametypes/Deathmatch";
 import { Duel } from "../games/fps/server/gametypes/Duel";
 import { SearchAndDestroy } from "../games/fps/server/gametypes/SearchAndDestroy";
 import { TeamDeathmatch } from "../games/fps/server/gametypes/TeamDeathmatch";
-import { loadBspCollision } from "./HeadlessMapLoader";
 
 interface Args {
   map: string;

@@ -1928,3 +1928,162 @@ No browser/GPU session, production deployment, live-service restart, platform
 packaging, live TLS/WebTransport session or independent-checkout cutover is
 claimed for this step. The real-process probes exercised FFA; the later cutover
 still requires the planned assembled browser checks across all four modes.
+
+## 16. Washoi-owned dedicated launcher and map loader
+
+This checkpoint implements the launcher/map-loader portion of phase 2 from the
+[server ownership plan](./ENGINE_GAME_SPLIT_SERVER_PLAN.md). The exact path and
+caller checklist was written before the move. The user confirmed that FFA
+starts after step 15; this step begins from clean engine `c7e2054d` and game
+`7d2743b` trees.
+
+The dedicated launcher and map loader move from outer `src/cli/` into the
+game's `cli/` directory. Static, dynamic and inline type import paths are
+rebased to the same modules; source examples/help follow the new location.
+The former engine paths are removed, with no compatibility wrappers. The
+game descriptor, development command, map-loader callers and source-mode
+memory benchmark follow the moved files.
+
+`scripts/build-servers.mjs` now explicitly names all five output entries.
+Simply changing one entry's directory would make esbuild infer a different
+common source root and change output paths. Explicit names retain the same
+five top-level artifacts under `dist-server/`; output staging/swap/rollback
+code is unchanged. Lobby startup and build-recipe ownership stay in the outer
+repository for the next checkpoint.
+
+### Preserved contracts and assumptions
+
+The assembled project root remains the working directory. Default map/game
+paths, TLS fallback, flags, gametype aliases, admission/result environment and
+stdio, readiness, process runtime inheritance, shutdown, map loading,
+simulation and telemetry retain their implementations. The reusable spawner,
+runtime selector, collision helper, CLI runner, memory marker and result outbox
+are unchanged. Existing account keys, demos, databases and protocol formats
+need no conversion.
+
+The engine manual's server default-map table said `wdm7`; source/help already
+defaulted to `washoi_dm2`. The table is corrected while updating ownership and
+source paths. No runtime default changed. Historical research and prior
+validation commands remain historical.
+
+### Exact files changed
+
+Outer repository:
+
+- `src/cli/headless-netserver-v2.ts` (removed; moved to game)
+- `src/cli/HeadlessMapLoader.ts` (removed; moved to game)
+- `src/cli/record-demo.ts`
+- `src/cli/timedemo-fixture.ts`
+- `scripts/build-servers.mjs`
+- `scripts/benchmarks/server-memory.mjs`
+- `package.json`
+- `docs/manual/tools/network-server.md`
+- `docs/manual/guides/lobby-server.md`
+- `docs/changelog/v1.0.0-alpha.3.md`
+- `docs/research/ENGINE_GAME_SPLIT_SERVER_PLAN.md`
+- `docs/research/ENGINE_GAME_SPLIT_INVENTORY.md`
+- `docs/research/ENGINE_GAME_SPLIT_PROGRESS.md`
+- `src/games/fps` (matching game revision `0e11f0d`)
+
+Washoi repository:
+
+- `cli/headless-netserver-v2.ts` (moved from outer repository)
+- `cli/HeadlessMapLoader.ts` (moved from outer repository)
+- `server/FpsServerApplication.ts`
+- `docs/manual/developer/adding-a-gametype.md`
+
+### Validation evidence
+
+Logs and receipts live under `.cache/engine-game-split/step16-validation`.
+The scratch runner is
+`node .cache/engine-game-split/validate-step16.mjs <baseline|after|gates>`.
+Receipts record the exact executable, arguments, cwd and status for each check.
+No default `dist-server/` build is replaced: before/after builds go into private
+`baseline/dist-server` and `after/dist-server` directories under that location.
+Real probes use temporary account/result databases, explicit scratch demo output
+paths and available ports; the probe retains its databases for inspection.
+
+- Before/after
+  `npm.cmd run test:run -- src/lobby/__tests__/ServerRuntime.test.ts src/lobby/__tests__/SpawnerPorts.test.ts src/lobby/__tests__/SpawnAbandon.test.ts src/lobby/__tests__/GameServerSpawnerAdmission.test.ts`:
+  4 files / 21 tests passed on each side.
+- Before/after `npm.cmd run server:tick`: checksum `2768943778`.
+- Before/after `npm.cmd run server:fuzz -- --ticks 1000 --seed 42`:
+  checksum `2481546443`.
+- Before/after `npm.cmd run test:runtime-equivalence`: Node and Bun both
+  produce `507638786` over 10,000 ticks with seed 42. Runtimes are Node 24.21.0
+  and the pinned Bun 1.4.3.
+- Private builds use `node scripts/build-servers.mjs` with each private output
+  directory as the argument. Both passed, retaining `headless-netserver-v2.mjs`,
+  `lobby-server.mjs`, `bot-server.mjs`, `ServerBenchmarkClient.mjs` and
+  `ServerRuntimeProbe.mjs` at the same relative output paths.
+- Each private `dist-server/ServerRuntimeProbe.mjs` ran under Node and native
+  Bun from its parent directory: four successful before/after real-process
+  runs, verifying runtime inheritance, ticketed four-player FFA, signed results
+  delivered to four rows, emptied pending delivery and graceful child shutdown.
+  These short matches are below the demo retention floor.
+- `node .cache/engine-game-split/source-smoke-step16.mjs`: Node and Bun launch
+  the moved source directly, load indexed `washoi_dm2`, become ready, accept
+  `status`/`quit` and exit zero. Commands/executables are recorded in the source
+  receipt; no game clients or persistent match data are created by these runs.
+- `npm.cmd run net:server:dev -- --help`: passed through the public npm command.
+- `node .cache/engine-game-split/prove-step16.mjs`: both moved files have
+  identical bodies/import bindings after canonical module-target, import-order
+  and source/help-path normalization. Six generic files are unchanged. The build script changes
+  only its `entryPoints` value, preserving atomic publication behavior.
+- `node .cache/engine-game-split/receipt-step16.mjs`: four bundle syntax trees
+  match after source/help-path and comment normalization; bot/benchmark bundles
+  are byte-identical. Import sorting changes the dedicated bundle's declaration
+  order and generated `fs`/`path` aliases, so exact whole-tree equality is not
+  claimed for that artifact. Artifact hashes and runtime probe summaries are
+  retained in `baseline-and-after.json`.
+- `node .cache/engine-game-split/bundle-parity-step16.mjs`: dedicated bundle's
+  29 import bindings and all 715 top-level statements match after resolving
+  imported aliases by TypeScript symbol and accounting for declaration order;
+  all 19 top-level expression statements also match in order. This verifies
+  the code comparison, not identical declaration/initialization ordering. The
+  real source/bundled probes, map-data parity and full suite are repeated after
+  the import sorting to exercise the final module order.
+- `node .cache/engine-game-split/prepare-map-parity-step16.mjs`, then
+  `node node_modules/vite-node/vite-node.mjs .cache/engine-game-split/map-parity-step16.ts`:
+  old/new loaders return identical serialized data, excluding the collision
+  instance. The collision factory and its imports are unchanged and are also
+  exercised by source startup and regression tests. Map bytes SHA-256 is
+  `f1cab8f8abdff75aca24c180c0979a13c8caeaf63273a4b8b17f8f18cb6b6da5`;
+  the complete returned-data hash is
+  `e47148f3001421b95ca9ba77a361a1a8e17a0b0c8fc3418283986e48972f86f6`.
+  Both report six spawns, 18 pickups, five triggers, 116 entities, six models
+  and retained PVS data.
+- `node docs/research/engine-game-split-audit.mjs`: candidate inventory contains
+  1,800 TypeScript files, with zero direct/indirect production engine-to-Washoi
+  paths. Remaining outer source imports are 21 bot files / 41 sites, 22 CLI
+  files / 49 sites, and two lobby files / two sites.
+
+The initial full-suite run passed 714 files / 5,628 tests, with one skipped.
+The following Biome gate failed on four import-order diagnostics introduced by
+rebasing imports (the two moved files and two map-loader callers). Scoped
+`biome check --write` corrected those four files; the scoped check then passed.
+No baseline, assertion or timeout was relaxed. The successful earlier suite
+and failed lint logs are retained. All parity/probe checks and the full gate
+sequence are repeated against the sorted final source.
+
+Final full-suite, build and headless gate results (after import sorting):
+
+| Command | Result |
+| --- | --- |
+| `npm.cmd run typecheck` | Passed |
+| `npm.cmd run test:run` | 714 files passed; 5,628 tests passed, one skipped |
+| `npm.cmd run gate:biome` | Passed; zero errors / 47 baseline warnings |
+| `npm.cmd run build` | Passed, including index generation and sourcemap relocation |
+| `npm.cmd run docs:build` | Passed |
+| `npm.cmd run docs:fps:build` | Passed |
+| `npm.cmd run test:simulation` | Passed |
+| `npm.cmd run test:physics` | Passed |
+| `npm.cmd run server:tick` | Passed; same baseline checksum |
+| `npm.cmd run server:fuzz -- --ticks 1000 --seed 42` | Passed; same baseline checksum |
+| `npm.cmd run cli:game -- --exec "bsp load washoi_dm2; bsp info; quit"` | Passed; 7,475 faces |
+| `npm.cmd run cli:game -- --exec 'sim replay \"W+CROUCH 60; JUMP 1; W 30\"; quit'` | Passed; 91 ticks |
+
+Browser/GPU play, four-mode browser cutover, live TLS/WebTransport, production
+deployment and platform packaging are not claimed. The Git attachment remains;
+lobby/build ownership, policies, bots/tools, tests/configuration and independent
+checkout proof still follow the plan.

@@ -7,6 +7,7 @@ import path from "node:path";
 import { WebSocket } from "ws";
 import { BotServer } from "../bot/BotServer";
 import { isClientKey } from "../games/fps/ClientEntityKey";
+import { loadBspCollision } from "../games/fps/cli/HeadlessMapLoader";
 import { GameServer } from "../games/fps/server/GameServer";
 import { Deathmatch } from "../games/fps/server/gametypes/Deathmatch";
 import { BOT_SECRET_HEADER, loadBotSecret, resolveDataDir } from "../lobby/ServerData";
@@ -19,7 +20,6 @@ import {
 } from "../shared/benchmark/TimedemoFixture";
 import { type DemoFrame, DemoReader } from "../shared/demo/DemoReader";
 import { MatchPhase } from "../shared/server/gametype";
-import { loadBspCollision } from "./HeadlessMapLoader";
 
 const args = process.argv.slice(2).filter((v) => v !== "--");
 const option = (name: string, fallback?: string) => (args.includes(name) ? args[args.indexOf(name) + 1] : fallback);

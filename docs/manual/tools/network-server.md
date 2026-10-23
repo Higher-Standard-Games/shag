@@ -8,7 +8,15 @@ The dedicated game server, for multiplayer testing and deployment.
 npm run net:server
 ```
 
-The entry point is `src/cli/headless-netserver-v2.ts`. It boots a `GameServer` with a BSP collision world, a gametype and a WebSocket listener.
+Washoi owns the entry point at `src/games/fps/cli/headless-netserver-v2.ts`
+in the assembled checkout. It boots a `GameServer` with a BSP collision world,
+a gametype and a WebSocket listener. Its game-owned `HeadlessMapLoader.ts`
+combines SHAG's indexed BSP/collision tools with Washoi's pickups.
+
+Run commands from the assembled project root. `net:server:dev` follows the
+source entry; the server build publishes the same
+`dist-server/headless-netserver-v2.mjs` artifact used by production commands
+and the lobby spawner.
 
 ## Command-line options
 
@@ -19,7 +27,7 @@ npm run net:server -- [options]
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--port <n>` | `7777` | Server port |
-| `--map <name>` | `wdm7` | Map to load (also `--map=<name>`) |
+| `--map <name>` | `washoi_dm2` | Map to load (also `--map=<name>`) |
 | `--gametype <name>`, `-g` | `Deathmatch` | `Deathmatch`, `TeamDeathmatch`, `Duel`, `Amphi` or `SnD`. An unknown name falls back to Deathmatch |
 | `--name <s>`, `--hostname` | `SHAG Server v2` | Server name shown to clients |
 | `--max <n>`, `--maxclients` | `16` | Maximum players; up to eight spectators connect beyond it |

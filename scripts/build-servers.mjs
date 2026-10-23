@@ -14,13 +14,13 @@ const previous = `${outdir}.previous-${process.pid}`;
 await rm(staging, { recursive: true, force: true });
 const result = await build({
   absWorkingDir: root,
-  entryPoints: [
-    "src/cli/headless-netserver-v2.ts",
-    "src/cli/lobby-server.ts",
-    "src/cli/bot-server.ts",
-    "src/cli/ServerBenchmarkClient.ts",
-    "src/cli/ServerRuntimeProbe.ts",
-  ],
+  entryPoints: {
+    "headless-netserver-v2": "src/games/fps/cli/headless-netserver-v2.ts",
+    "lobby-server": "src/cli/lobby-server.ts",
+    "bot-server": "src/cli/bot-server.ts",
+    ServerBenchmarkClient: "src/cli/ServerBenchmarkClient.ts",
+    ServerRuntimeProbe: "src/cli/ServerRuntimeProbe.ts",
+  },
   outdir: staging,
   outExtension: { ".js": ".mjs" },
   bundle: true, platform: "node", target: "node24", format: "esm",

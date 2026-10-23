@@ -117,7 +117,7 @@
     "lobby:server:bun": "bun dist-server/lobby-server.mjs --",
     "net:server:bun": "bun dist-server/headless-netserver-v2.mjs --",
     "lobby:server:dev": "npx vite-node src/cli/lobby-server.ts --",
-    "net:server:dev": "npx vite-node src/cli/headless-netserver-v2.ts --",
+    "net:server:dev": "npx vite-node src/games/fps/cli/headless-netserver-v2.ts --",
     "benchmark:server-memory": "node scripts/benchmarks/server-memory.mjs",
     "prelobby:server:bun": "npm run build:server",
     "prenet:server:bun": "npm run build:server",

@@ -68,7 +68,7 @@ for (let repeat = 0; repeat < repeats; repeat++) {
       let executable, launch;
       if (runtime === "node-vite") {
         executable = process.execPath;
-        launch = ["--import", pathToFileURL(preload).href, path.join(root, "node_modules/vite-node/vite-node.mjs"), "src/cli/headless-netserver-v2.ts", ...serverArgs];
+        launch = ["--import", pathToFileURL(preload).href, path.join(root, "node_modules/vite-node/vite-node.mjs"), "src/games/fps/cli/headless-netserver-v2.ts", ...serverArgs];
       } else if (runtime === "node") {
         executable = process.execPath; launch = ["--import", pathToFileURL(preload).href, entry, ...serverArgs];
       } else if (runtime === "bun") {

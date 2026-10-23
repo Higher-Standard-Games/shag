@@ -1,7 +1,8 @@
 # Repository split: server ownership plan
 
 Status: implementation sequence, 2026-10-23. Phase 1 is validated in
-progress-log step 15; application file moves and Git detachment remain pending.
+progress-log step 15; phase 2a's launcher/map-loader move is validated in step
+16. Lobby/build ownership and Git detachment remain pending.
 Inspected baseline: SHAG `8d070ebc`, Washoi `536f8cb`.
 
 ## Goal and boundary
@@ -133,6 +134,36 @@ before declaring repository independence.
 Do not extract a new generic BSP service during this move. The existing generic
 collision/index helpers remain reusable; a further extraction can be evaluated
 after ownership is correct and server parity is established.
+
+### Phase 2a checklist: launcher and map-loader move
+
+Baseline for this checkpoint: SHAG `c7e2054d`, Washoi `7d2743b`; the user
+confirmed that FFA starts after phase 1. Keep this checkpoint narrower than
+the remainder of phase 2: lobby startup and build-recipe ownership stay put.
+
+| Input/reference | Exact change |
+| --- | --- |
+| `src/cli/headless-netserver-v2.ts` | Move to `src/games/fps/cli/headless-netserver-v2.ts`; rebase imports and source-path help text |
+| `src/cli/HeadlessMapLoader.ts` | Move to `src/games/fps/cli/HeadlessMapLoader.ts`; rebase static, dynamic and inline type imports |
+| Washoi `server/FpsServerApplication.ts` | Point `sourceEntry` at the moved launcher; keep `bundledEntry` unchanged |
+| `scripts/build-servers.mjs` | Point the match entry at its new source; explicitly name all five outputs to prevent esbuild's common source-directory inference changing artifact paths |
+| `src/cli/record-demo.ts`, `src/cli/timedemo-fixture.ts` | Import the moved map loader directly; these game tools remain scheduled for later ownership moves |
+| `package.json` `net:server:dev` | Use the new source path; production commands retain existing bundle names |
+| `scripts/benchmarks/server-memory.mjs` Vite mode | Use the moved source entry; retain production benchmark entry and flags |
+| Current server/lobby/game manuals | Update source paths and ownership; historical logs remain historical |
+
+Do not leave an engine wrapper importing the moved game launcher. Keep the
+generic `HeadlessBSPCollisionWorld`, `_runCli` and `ServerMemoryMarker` helpers
+where they are. Preserve all defaults, flags, algorithms, runtime/cwd handling,
+admission/results, shutdown, telemetry and build publication behavior.
+
+Before editing, build private baseline artifacts and run real Node/Bun match
+probes. Afterward, compare both moved files' syntax trees with imports resolved
+to their target modules, import order and help paths normalized; verify all five artifact
+names, repeat the process probes and fixed-seed checks, and run the full gates
+and headless regressions. Verify source-mode loading too, because bundled
+tests alone cannot catch a broken development path. The later four-mode browser
+cutover checks and live deployment remain separate.
 
 ### 3. Supply the two remaining lobby policies
 
