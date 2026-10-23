@@ -2461,3 +2461,92 @@ and asset/platform recipes, assembly documentation/proof and Git detachment
 remain later steps. The submodule attachment remains. Concurrent projectile/
 explosion papercuts and another agent's changelog edits are excluded from this
 checkpoint; whole-tree gates also see the concurrent work present when run.
+
+## Step 20 — game-owned bot development tools (2026-10-24)
+
+Moved these entry points intact, rebasing imports and direct invocation/help
+paths. No SHAG forwarding files remain:
+
+| SHAG source | Washoi destination in the assembled checkout |
+| --- | --- |
+| `src/cli/bot-analyze.ts` | `src/games/fps/cli/bot-analyze.ts` |
+| `src/cli/bot-learn.ts` | `src/games/fps/cli/bot-learn.ts` |
+| `src/cli/bot-train.ts` | `src/games/fps/cli/bot-train.ts` |
+| `src/cli/bot-bench.ts` | `src/games/fps/cli/bot-bench.ts` |
+
+Other files changed: root `package.json` (same four npm command names, new
+source paths); `docs/manual/guides/lobby-server.md`; Washoi manual
+`tools/bot-training.md` and `getting-started/project-structure.md`; the living
+changelog, dependency inventory, server plan and this progress log.
+
+Assumptions: execution from the assembled root, Node 24.21.0 and Bun 1.4.3,
+installed indexed `washoi_dm2`, and the existing native TensorFlow installation.
+Argument parsing, defaults, error codes, corpus selection, model/training
+formats, route algorithms, cache/output locations and relative cwd behavior
+are unchanged. No server implementation or build recipe was edited. The four
+files' imported bindings and ordered code bodies match the prepared relocation
+after allowing import ordering, comments and formatter layout.
+
+Before/after receipts: `.cache/engine-game-split/step20-validation/`.
+
+- `node .cache/engine-game-split/validate-step20.mjs baseline` and `after`:
+  `npm.cmd run test:run -- src/games/fps/bot` passed **54 files / 408 tests**
+  on both sides. Fixed tick, 1,000-tick seed-42 fuzz and 10,000-tick seed-42
+  Node/Bun runtime equivalence retain checksums `2768943778`, `2481546443`
+  and `507638786`. Private server builds and real Node/Bun four-player
+  ticketed match/result/child-shutdown probes passed before/after.
+- `node .cache/engine-game-split/tool-smoke-step20.mjs baseline` and `after`
+  run the actual npm recipes. `bot:analyze -- --help`, `bot:train -- --help`
+  and `bot:bench -- --help` passed; `bot:learn` without inputs keeps its
+  expected usage exit 1. Real analysis used `--map washoi_dm2 --out <private
+  report> --rebuild`, followed by a cache-hit run. Reports contain the same
+  graph, opportunities, rejections, fingerprint and deterministic metrics,
+  excluding generated timestamp and measured vision/analysis milliseconds.
+- A private two-recording fixture was created through the real `DemoRecorder`
+  with verified human and bot roster entries, 40/12 frames and the installed
+  map name. `bot:learn -- <private first.shagdemo> --dry-run` has identical
+  output before/after and saves no routes. `bot:train -- --demo <private corpus>
+  --epochs 1 --batch 8 --models <private models>` fits and saves models with
+  **40 training / 12 held-out frames**, two matches and no blind maps. Model
+  topology/weight manifests and provenance match. Training timestamps, random
+  weights and learned skill scores are not treated as deterministic outputs;
+  this small synthetic corpus validates command plumbing, not model quality.
+- `bot:bench -- --bots 2 --decisions 100` completed with native TensorFlow on
+  both sides. No performance improvement claim is made from those timings.
+- `node .cache/engine-game-split/compare-tools-step20.mjs` passed the report,
+  cache, help/usage, route dry-run, training-provenance and model-topology
+  comparisons. `node .cache/engine-game-split/prove-step20.mjs` passed all four
+  source structural comparisons. All **five production server artifacts are
+  byte-identical** before/after.
+- `node docs/research/engine-game-split-audit.mjs`: no production engine/lobby/
+  outer-bot path into Washoi. Remaining production `src` imports are now
+  **20 CLI files / 49 sites**. Historical executable research, an experiment,
+  one visual script and game-dependent tests/configuration still require work.
+
+`node .cache/engine-game-split/validate-step20.mjs gates` passed all checks:
+
+| Exact command | Result |
+| --- | --- |
+| `npm.cmd run typecheck` | Passed |
+| `npm.cmd run test:run` | 718 files passed; 5,639 tests passed, one skipped |
+| `npm.cmd run gate:biome` | Passed; zero errors / 47 baseline warnings |
+| `npm.cmd run build` | Passed, including PK3 index and sourcemap relocation |
+| `npm.cmd run docs:build` | Passed |
+| `npm.cmd run docs:fps:build` | Passed |
+| `npm.cmd run test:simulation` | Passed |
+| `npm.cmd run test:physics` | Passed |
+| `npm.cmd run server:tick` | Passed; same baseline checksum |
+| `npm.cmd run server:fuzz -- --ticks 1000 --seed 42` | Passed; same baseline checksum |
+| `npm.cmd run cli:game -- --exec "bsp load washoi_dm2; bsp info; quit"` | Passed; 7,475 faces |
+| `npm.cmd run cli:game -- --exec 'sim replay \"W+CROUCH 60; JUMP 1; W 30\"; quit'` | Passed; 91 ticks |
+
+Washoi commit: `8dab9ee` (`refactor: own bot development CLI tools`).
+
+All generated reports, nav caches, recordings and model weights remain in
+private `.cache/engine-game-split/step20-validation/` directories. Real player
+storage, production models and learned routes were not modified. Browser play,
+live self-play training against a production server, production deployment,
+native installation from scratch and independent checkout proof are unverified.
+The game CLI/editor composition and repository configuration/cutover remain
+later steps. Other agents' renderer, benchmark and changelog edits are excluded;
+whole-tree gates also see concurrent work present when run.

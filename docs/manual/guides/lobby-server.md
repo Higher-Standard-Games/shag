@@ -578,8 +578,12 @@ the bot service selects gametype, role and round-state policy from
 `WeightProfiles.ts`. These modules contain plain data and deterministic helpers.
 
 The Washoi bot application lives in `src/games/fps/bot/`, with startup at
-`src/games/fps/cli/bot-server.ts`. Its clients play over the same protocol as a browser
-and are bound by the same rules:
+`src/games/fps/cli/bot-server.ts`. Its development tools also live in that game's
+`cli/`: `bot-analyze.ts`, `bot-learn.ts`, `bot-train.ts` and `bot-bench.ts`.
+Run their `bot:analyze`, `bot:learn`, `bot:train` and `bot:bench` npm commands
+from the assembled root; model, route and report paths resolve from that cwd.
+
+Bot clients play over the same protocol as a browser and are bound by the same rules:
 
 - **Commands.** A bot sends one command per server tick by the clock (8 ms at
   125 Hz), sending every command owed when a timer fires late, so it moves at

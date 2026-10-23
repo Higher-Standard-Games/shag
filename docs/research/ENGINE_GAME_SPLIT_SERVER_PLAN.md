@@ -4,8 +4,8 @@ Status: implementation sequence, 2026-10-23. Phase 1 is validated in
 progress-log step 15; phase 2a's launcher/map-loader move is validated in step
 16, and phase 2b's lobby/build ownership move in step 17. Phase 3's explicit
 lobby policies are implemented in step 18. Phase 4's bot application, launcher
-and associated tests move in step 19. Remaining game tools, configuration/tests
-and Git detachment remain pending.
+and associated tests move in step 19; bot development CLI tools follow in step
+20. Remaining game tools, configuration/tests and Git detachment remain pending.
 Inspected baseline: SHAG `8d070ebc`, Washoi `536f8cb`.
 
 ## Goal and boundary
