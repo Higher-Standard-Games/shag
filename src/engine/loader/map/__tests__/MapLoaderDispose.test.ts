@@ -4,22 +4,29 @@
  */
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { EntityManager } from "../../../entities/EntityManager";
 import { AssetPreloader } from "../../AssetPreloader";
+import { clearGameMapEntities, registerGameMapEntities } from "../GameMapEntities";
 import { MapLoader } from "../MapLoader";
 
 vi.mock("../../../physics/PhysicsSystem", () => ({
   PhysicsSystem: { getInstance: () => ({ createStaticBody: () => {} }) },
 }));
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  clearGameMapEntities();
+  vi.restoreAllMocks();
+});
 
 describe("MapLoader.disposeCurrentMap", () => {
   it("releases preloaded pickup models after disposing the map's pickups", async () => {
     const order: string[] = [];
     vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(EntityManager.getInstance(), "disposeMapEntities").mockImplementation(() => {
-      order.push("pickups");
+    registerGameMapEntities({
+      initializeDefinitions() {},
+      registerHandlers() {},
+      disposeMapEntities() {
+        order.push("pickups");
+      },
     });
     vi.spyOn(AssetPreloader.getInstance(), "clearCache").mockImplementation(() => {
       order.push("models");
@@ -28,5 +35,12 @@ describe("MapLoader.disposeCurrentMap", () => {
     await MapLoader.getInstance().disposeCurrentMap();
 
     expect(order).toEqual(["pickups", "models"]);
+  });
+
+  it("releases models without a game adapter", async () => {
+    clearGameMapEntities();
+    const clear = vi.spyOn(AssetPreloader.getInstance(), "clearCache");
+    await expect(MapLoader.getInstance().disposeCurrentMap()).resolves.toBeUndefined();
+    expect(clear).toHaveBeenCalledOnce();
   });
 });

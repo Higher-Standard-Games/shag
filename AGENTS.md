@@ -73,7 +73,7 @@ The codebase is FPS-centric:
 
 - `@game/*` in `tsconfig.json` points to `src/games/fps/*`.
 - `src/main.ts` directly wires `FPSPlayer` and the FPS flow.
-- `EntityManager` still imports from `src/games/fps`. New engine code must not: where the engine needs something a game owns, use the service registries (`GameplayMapLauncher`, `NetworkConnector`, `GameFrameHook`, `FreeflyInput`; see `docs/manual/guides/service-registries.md`). The concrete `FPSController` and `PlayerVisuals` live in `src/games/fps/camera`; engine camera barrels must not re-export them.
+- Engine code must not import game modules: where it needs something a game owns, use the service registries (`GameplayMapLauncher`, `NetworkConnector`, `GameFrameHook`, `FreeflyInput`, `GameMapEntities`; see `docs/manual/guides/service-registries.md`). The concrete `FPSController` and `PlayerVisuals` live in `src/games/fps/camera`; `EntityManager` lives in `src/games/fps/world`. Engine barrels must not re-export them. Indirect ownership dependencies through shared definitions and other engine modules remain under review in the separation log.
 - `src/shared/` holds deterministic client/server contracts and must not use Babylon or browser APIs.
 
 Implication:

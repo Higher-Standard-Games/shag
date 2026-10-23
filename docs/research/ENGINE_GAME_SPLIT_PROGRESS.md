@@ -417,5 +417,140 @@ node .cache/engine-game-split/freeze-probe.mjs connected-shared-before
 ```
 
 The scratch server console received `spawn_bots 1`. No runtime code was changed
-for this investigation. Further separation work remains paused while the
-intermittent failure is unresolved.
+for this investigation. On October 23, 2026, the user requested that separation
+continue and this issue be investigated afterwards. This is an open, deferred
+follow-up, not a resolved regression: capture the original TypeError's full
+stack, reproduce the warmup/postload failure and uniform-buffer errors, and
+check whether the 57 unready world materials eventually become drawable.
+Joining and playing a match also needs verification. Preserve the step-4
+revisions and probe receipts above when comparing subsequent separation steps.
+
+## 5. Game-owned pickup manager and map lifecycle
+
+The concrete `EntityManager`, its pickup-landing regression test and the
+`spawn_pickable_entity` command move from the engine into Washoi. SHAG's
+`GameMapEntities` registry exposes three synchronous callbacks. `MapLoader`
+calls definition initialization at the original point before model dependency
+discovery, handler registration after built-in BSP handlers and before entity
+dispatch, and disposal before releasing preloaded models. A missing adapter
+skips these game-owned callbacks. Both the browser and FPS headless composition
+roots register `fpsMapEntities`; the headless runner explicitly registers the
+moved command, preserving its availability. No compatibility reexport remains
+at the old engine paths.
+
+The manager's executable logic and command behavior are unchanged. A normalized
+TypeScript comparison checks all three moved files against their original
+sources, resolving imports to their relocated targets and ignoring comments,
+import ordering and formatting/trailing commas. This preserves classname
+aliases, shared pickup IDs, landing, suspended items, deterministic weapon yaw,
+visual-factory selection, `whenReady()` awaits and entity disposal. The shared
+definition tables/extractor and the remaining media dependency policy are
+separate ownership work, not part of this step. Removal of direct engine-to-game
+imports does not imply that all indirect Washoi dependencies are gone.
+
+Tests cover real Washoi definition/alias registration, the loader's definition
+→ dependency discovery → preload → handler registration → dispatch order,
+pickup-before-model disposal, no-adapter disposal, and command discovery,
+developer gating and spawn coordinates. The moved landing tests continue to
+compare client positions/IDs against the shared server computation. The earlier
+freefly cvar probe still reports `fps: 200, freefly: 333` after setting freefly
+speed to 333. Initial validation caught a missing developer-mode setup and an
+incomplete camera fixture type assertion in the new command test; both test
+fixtures were corrected. An initial sandboxed Vitest launch failed with
+`spawn EPERM`; subsequent runs allow its build/worker subprocesses.
+
+Validation commands (October 23, 2026; scratch runner and receipts under
+`.cache/engine-game-split/step5-validation`):
+
+```powershell
+npm.cmd run test:run -- src/engine/loader/map/__tests__/MapLoaderDispose.test.ts src/engine/loader/bsp/__tests__/PVSCuller.test.ts src/games/fps/world/__tests__/EntityManagerPickupLanding.test.ts src/games/fps/world/__tests__/FpsMapEntities.test.ts src/games/fps/console/__tests__/CameraCommandRegistration.test.ts
+npm.cmd run test:run -- src/games/fps/console/__tests__/CameraCommandRegistration.test.ts
+node .cache/engine-game-split/prove-step5.mjs
+node node_modules/vite-node/vite-node.mjs .cache/engine-game-split/probe-init-step4.ts
+npm.cmd run typecheck
+npm.cmd run test:run
+npm.cmd run gate:biome
+npm.cmd run build
+npm.cmd run docs:build
+npm.cmd run test:simulation
+npm.cmd run test:physics
+npm.cmd run server:tick
+npm.cmd run server:fuzz -- --ticks 1000
+node .cache/engine-game-split/validate-step5.mjs
+node .cache/engine-game-split/validate-step5.mjs test-run
+```
+
+The runner invokes npm's CLI with argument arrays for these gates/regressions.
+It also runs the following headless batches through
+`node node_modules/vite-node/vite-node.mjs src/cli/headless-game.ts -- --exec`
+with each batch supplied as one argument, avoiding PowerShell quote loss:
+
+- `bsp load washoi_dm2; bsp info; quit` (canonical indexed name for wdm2;
+  requires `Faces: 7475` in the output).
+- `sim replay "W+CROUCH 60; JUMP 1; W 30"; quit` (requires 91 replay ticks).
+- `help spectator; help giveweapon; giveweapon rlauncher; quit` (checks command
+  descriptions and the unchanged inactive-FPS response).
+
+The full unit rerun passed: 701 files, 5,572 tests passed and one skipped.
+Biome passed at the existing baseline (zero errors, 47 warnings).
+
+Build, docs build, simulation, physics, server tick, 1,000-tick fuzz, indexed BSP
+load, replay and command checks all passed. Tick determinism checksum:
+`2768943778`; fuzz checksum: `3719501268`. The additional command
+`node node_modules/vite-node/vite-node.mjs src/cli/headless-game.ts -- --exec
+"help spawn_pickable_entity; developer 1; spawn_pickable_entity rlauncher; quit"`
+confirmed the pickup command's help and retained 53 headless commands. With no
+gameplay map loaded, definitions are empty and the manual spawn reports its
+existing invalid-ID response; this is not a successful pickup-spawn test.
+The command unit test separately verifies successful dispatch and coordinates.
+
+After headless checks, `node .claude/skills/browser-probe/scripts/private-vite.mjs
+3100` and `node .cache/engine-game-split/pickup-step5-probe.mjs` exercised a direct
+local DM11 load in headless Edge WebGL2 with lobby connections disabled. The
+probe observed 1,226 completed frames, all 30 map pickups matching the shared
+table count with unique IDs, and zero captured errors/unhandled rejections.
+Unloading left zero managed pickups and table entries, and every tracked pickup
+node reported disposed. The screenshot shows the rendered map and a weapon
+pickup; receipts are `browser.json` and `pickups.png` in the scratch validation
+directory. The private server/browser were closed afterwards. This direct load
+does not verify multiplayer joining, active masks or playing a match, nor does
+it resolve the deferred step-4 warmup issue. No gametype or network match was
+started by this probe.
+
+A concurrent chat-size change landed as engine `a9e80a9e` / FPS `ca5212a` during
+validation. Those commits are retained. The engine chat-size commit also picked
+up the already-written pickup-separation changelog entry; the remaining step-5
+changes are committed separately on top, with only their explicit paths staged.
+The game-side step-5 commit is `3392457`; the matching engine commit pins it.
+
+Final whitespace checks:
+
+```powershell
+git -C C:/Users/sundf/Desktop/wash/shag diff --check
+git -C C:/Users/sundf/Desktop/wash/shag/src/games/fps diff --check
+```
+
+Changed files for this dependency:
+
+- `AGENTS.md`
+- `src/engine/entities/EntityManager.ts` (removed)
+- `src/engine/entities/__tests__/EntityManagerPickupLanding.test.ts` (removed)
+- `src/engine/console/commands/SpawnPickupCommand.ts` (removed)
+- `src/engine/loader/map/GameMapEntities.ts`
+- `src/engine/loader/map/MapLoader.ts`
+- `src/engine/loader/map/__tests__/MapLoaderDispose.test.ts`
+- `src/engine/loader/bsp/__tests__/PVSCuller.test.ts`
+- `src/main.ts`
+- `src/cli/headless-game.ts`
+- `src/games/fps` gitlink
+- `src/games/fps/world/EntityManager.ts`
+- `src/games/fps/world/FpsMapEntities.ts`
+- `src/games/fps/world/__tests__/EntityManagerPickupLanding.test.ts`
+- `src/games/fps/world/__tests__/FpsMapEntities.test.ts`
+- `src/games/fps/console/commands/SpawnPickupCommand.ts`
+- `src/games/fps/console/__tests__/CameraCommandRegistration.test.ts`
+- `src/games/fps/index.ts`
+- `docs/manual/guides/service-registries.md`
+- `docs/manual/guides/bsp-system.md`
+- `docs/changelog/v1.0.0-alpha.3.md`
+- `docs/research/ENGINE_GAME_SPLIT_PROGRESS.md`

@@ -13,8 +13,10 @@ Small single-slot registries keep generic engine code from importing the active 
   without importing the game.
 - `FreeflyInput`: a game's movement action mapping and input preparation for
   the engine freefly camera; game-free tools receive engine-local defaults.
+- `GameMapEntities`: game-owned definition initialization, entity-handler
+  registration and map-entity disposal at the map loader's lifecycle boundaries.
 
-`GameplayMapLauncher`, `NetworkConnector` and `FreeflyInput` expose register,
+`GameplayMapLauncher`, `NetworkConnector`, `FreeflyInput` and `GameMapEntities` expose register,
 get and clear; `GameFrameHook` uses
 `setGameFrameHook(hook)` and clears by passing `null`. The application composition root owns registration:
 
@@ -46,7 +48,25 @@ The controller prepares and selects the mapping on attach, without changing
 game-owned contexts itself. Clearing the registry selects engine-local defaults
 for the next attach; it does not change an already attached controller's mapping.
 
+## Game map entities
+
+Register `GameMapEntities` before loading gameplay maps. `MapLoader` calls its
+synchronous `initializeDefinitions()` before entity-model dependency discovery,
+then `registerHandlers()` after the built-in BSP handlers and before entity
+dispatch. Entity handlers still await their visual work through
+`EntityHandlerRegistry`. On unload, `disposeMapEntities()` runs before preloaded
+models and BSP materials are released. Background-only loads skip definition
+initialization and handler registration. Without an adapter, these game-owned
+steps are skipped; built-in BSP handling remains available. Keep the adapter
+registered until its map entities have been disposed.
+
+Washoi supplies `fpsMapEntities` from `src/games/fps/world/FpsMapEntities.ts` in
+the browser and FPS headless composition roots. Its concrete pickup manager
+lives at `src/games/fps/world/EntityManager.ts`; it is not an engine export.
+
 ## Test hygiene
+
+Tests that register the map-entity adapter clear it with `clearGameMapEntities()`.
 
 ```ts
 afterEach(() => {

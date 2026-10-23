@@ -22,6 +22,11 @@ map washoi_dm2 duel
 
 `MapLoader.getInstance().loadMap(mapName, scene, onProgress?, opts?)` is the high-level browser API. It loads indexed BSP maps; it does not load local `.map` text files. `opts.backgroundOnly` loads a map as menu scenery, which is how a background map skips the gameplay setup that turns PVS on.
 
+The application registers its game-owned entity lifecycle through
+[`GameMapEntities`](./service-registries.md). Washoi uses this to populate pickup
+definitions before model discovery, install handlers before entity dispatch,
+and dispose pickups before their preloaded models are released.
+
 The world stays disabled while asynchronous texture loading, fog and baked-light
 material setup run. This prevents partially configured material layouts from
 reaching the GPU during a map switch.

@@ -8,15 +8,14 @@ import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import { Scene } from "@babylonjs/core/scene";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import * as EntityDefs from "../../../../shared/entities";
 import { EntityHandlerRegistry } from "../../../core/EntityHandlerRegistry";
-import { EntityManager } from "../../../entities/EntityManager";
 import { SkyLightSystem } from "../../../lighting/SkyLightSystem";
 import { getCollisionManager } from "../../../physics";
 import { ContentFlags } from "../../../physics/ContentFlags";
 import RenderVars from "../../../rendering/RenderVars";
 import * as EffectPreloader from "../../../weapon/EffectPreloader";
 import { AssetPreloader } from "../../AssetPreloader";
+import { clearGameMapEntities, registerGameMapEntities } from "../../map/GameMapEntities";
 import { MapLoader } from "../../map/MapLoader";
 import { PK3Index } from "../../pk3/PK3Index";
 import { PK3Loader } from "../../pk3/PK3Loader";
@@ -489,8 +488,7 @@ describe("default PVS through gameplay MapLoader", () => {
     vi.spyOn(EffectPreloader, "preloadEffectShaders").mockResolvedValue(undefined);
     vi.spyOn(scene, "whenReadyAsync").mockResolvedValue(undefined);
     vi.spyOn(BspEntityHandlers, "registerBspEntityHandlers").mockImplementation(() => {});
-    vi.spyOn(EntityDefs, "initializeEntityDefs").mockImplementation(() => {});
-    vi.spyOn(EntityManager.getInstance(), "registerHandlers").mockImplementation(() => {});
+    registerGameMapEntities({ initializeDefinitions() {}, registerHandlers() {}, disposeMapEntities() {} });
     vi.spyOn(EntityHandlerRegistry, "runPreRenderHooks").mockResolvedValue(undefined);
     vi.spyOn(RenderVars.getInstance(), "get").mockReturnValue(0);
     loader = MapLoader.getInstance();
@@ -498,8 +496,37 @@ describe("default PVS through gameplay MapLoader", () => {
 
   afterEach(async () => {
     await loader.disposeCurrentMap();
+    clearGameMapEntities();
     BspEntityHandlers.setCurrentBspForHandlers(null);
     vi.unstubAllGlobals();
+  });
+
+  it("initializes game definitions before model discovery and handlers before entity dispatch", async () => {
+    const order: string[] = [];
+    registerGameMapEntities({
+      initializeDefinitions() {
+        order.push("definitions");
+      },
+      registerHandlers() {
+        order.push("handlers");
+      },
+      disposeMapEntities() {},
+    });
+    const internals = loader as unknown as { resolveEntityModelDependencies(bsp: BspFile): string[] };
+    vi.spyOn(internals, "resolveEntityModelDependencies").mockImplementation(() => {
+      order.push("dependencies");
+      return [];
+    });
+    vi.spyOn(AssetPreloader.getInstance(), "preloadFromBsp").mockImplementation(async () => {
+      order.push("preload");
+      return 0;
+    });
+    vi.spyOn(EntityHandlerRegistry, "runPreRenderHooks").mockImplementation(async () => {
+      order.push("dispatch");
+    });
+    const loaded = await loader.loadMap("test", scene);
+    expect(loaded.success).toBe(true);
+    expect(order).toEqual(["definitions", "dependencies", "preload", "handlers", "dispatch"]);
   });
 
   it("uploads newly visible billboards in the same frame as a PVS boundary crossing", async () => {

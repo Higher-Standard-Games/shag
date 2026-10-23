@@ -168,6 +168,8 @@ async function main() {
   const fpsModule = await import("./games/fps");
   const { registerFreeflyInput } = await import("./engine/camera/FreeflyInput");
   registerFreeflyInput(fpsModule.fpsFreeflyInput);
+  const { registerGameMapEntities } = await import("./engine/loader/map/GameMapEntities");
+  registerGameMapEntities(fpsModule.fpsMapEntities);
   await fpsModule.registerFpsCommands();
   const { registerNetworkConnector } = await import("./engine/ui/components/NetworkConnector");
   registerNetworkConnector(fpsModule.fpsNetworkConnector);

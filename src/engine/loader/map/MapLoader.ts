@@ -16,14 +16,12 @@ import type { BaseTexture } from "@babylonjs/core/Materials/Textures/baseTexture
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Scene } from "@babylonjs/core/scene";
 import weaponModelRecipe from "../../../../config/weapon-models.json";
-import { initializeEntityDefs } from "../../../shared/entities";
 import { EntityRegistry } from "../../../shared/entities/EntityRegistry";
 import { EntityType } from "../../../shared/entities/EntityType";
 import { devLog } from "../../core/DevLog";
 import { type EntityData, EntityHandlerRegistry } from "../../core/EntityHandlerRegistry";
 import { EventBus } from "../../core/EventBus";
 import { LOADING_EVENTS, type LoadingProgressEvent } from "../../core/LoadingEvents";
-import { EntityManager } from "../../entities/EntityManager";
 import { extractEmissiveSurfaces } from "../../lighting/MapEmissiveSurfaces";
 import { trackFrozenWorldMaterials } from "../../rendering/FrozenWorldMaterials";
 import RenderVars from "../../rendering/RenderVars";
@@ -41,6 +39,7 @@ import { PK3Loader } from "../pk3/PK3Loader";
 import type { PK3PackageScope } from "../pk3/PK3PackageScope";
 import { Q3ShaderRegistry } from "../shader/Q3ShaderRegistry";
 import { shaderSourceBlocks } from "../shader/ShaderSourceBlocks";
+import { getGameMapEntities } from "./GameMapEntities";
 import { waitForMapAsset, waitForMapReady, waitForMapVisibility } from "./MapLoadWait";
 
 /**
@@ -399,7 +398,7 @@ export class MapLoader {
     // Skip for background-only loads — no gameplay entities needed
     if (!backgroundOnly) {
       progress("Dependencies", "Resolving entity model PK3s");
-      initializeEntityDefs(); // Ensure entity definitions are populated
+      getGameMapEntities()?.initializeDefinitions();
       const modelPk3s = this.resolveEntityModelDependencies(bsp);
       for (const pk3 of modelPk3s) {
         progress("Dependencies", `Loading model assets from ${pk3}`);
@@ -718,11 +717,11 @@ export class MapLoader {
 
     // Final gameplay phase: spawn a fresh entity generation only after the BSP,
     // collision, assets, shaders and tab recovery are complete. Pickup creation
-    // is awaited by EntityManager, so no model work is left racing map readiness.
+    // is awaited by entity handlers, so no model work is left racing map readiness.
     if (!backgroundOnly) {
       progress("Entities", "Spawning final gameplay entities");
       registerBspEntityHandlers();
-      EntityManager.getInstance().registerHandlers();
+      getGameMapEntities()?.registerHandlers();
       setCurrentBspForHandlers(bsp);
       await this.processBspEntities(bsp, scene);
 
@@ -993,7 +992,7 @@ export class MapLoader {
 
     // Gameplay entities use independent root meshes, so disposing the BSP world
     // hierarchy alone does not remove them.
-    EntityManager.getInstance().disposeMapEntities();
+    getGameMapEntities()?.disposeMapEntities();
 
     // Pickup models were preloaded for this map, and its pickups are gone.
     // Release the sources; the next map preloads the models it needs.
