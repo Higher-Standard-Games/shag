@@ -963,6 +963,7 @@
 /* A team room's four keys and Ready can be wider than the stage: then Ready
    takes a line of its own, still at the right */
 .match-lobby__actions {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
@@ -1295,15 +1296,15 @@
   }
 }
 
-/* ── A short notice over the room, such as the lobby turning private ── */
+/* ── A short notice just above the Add bot key, such as the lobby turning private ── */
 
 .match-lobby__flash {
-  position: fixed;
-  top: 22%;
-  left: 50%;
+  position: absolute;
+  bottom: calc(100% + 10px);
   z-index: 20;
-  padding: 16px 30px;
-  font: 900 18px / 1 var(--w-font-display, "Orbitron", monospace);
+  padding: 12px 22px;
+  font: 900 15px / 1 var(--w-font-display, "Orbitron", monospace);
+  white-space: nowrap;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--ink);
@@ -1311,22 +1312,20 @@
   box-shadow: 6px 6px 0 hsla(250, 45%, 4%, 0.6);
   clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
   pointer-events: none;
-  transform: translateX(-50%);
   animation: match-lobby-flash 2s ease-out forwards;
 }
 
 @keyframes match-lobby-flash {
   0% {
     opacity: 0;
-    transform: translate(-50%, 8px);
+    transform: translateY(8px);
   }
   10%,
   70% {
     opacity: 1;
-    transform: translate(-50%, 0);
+    transform: translateY(0);
   }
   100% {
     opacity: 0;
-    transform: translate(-50%, 0);
   }
 }

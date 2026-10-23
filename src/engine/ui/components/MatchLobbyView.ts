@@ -358,14 +358,17 @@ export class MatchLobbyView {
     this.timers.add(timer);
   }
 
-  /** A short notice over the room that fades away by itself. */
+  /** A short notice just above the Add bot key that fades away by itself. */
   private flash(text: string): void {
     this.root.querySelector(".match-lobby__flash")?.remove();
+    const actions = this.root.querySelector<HTMLElement>(".match-lobby__actions");
+    if (!actions) return;
     const flash = document.createElement("div");
     flash.className = "match-lobby__flash";
     flash.setAttribute("role", "status");
     flash.textContent = text;
-    this.root.appendChild(flash);
+    flash.style.left = `${this.inviteBotBtn?.offsetLeft ?? 0}px`;
+    actions.appendChild(flash);
     this.schedule(() => flash.remove(), 2000);
   }
 
