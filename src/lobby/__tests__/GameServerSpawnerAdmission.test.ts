@@ -13,9 +13,30 @@ vi.mock("node:child_process", () => ({
 /** spawn() picks a free port first, so the child exists a few turns after the call. */
 const childSpawned = (child: ChildProcess) =>
   vi.waitFor(() => expect(vi.mocked(spawn).mock.results.at(-1)?.value).toBe(child));
+const application = { sourceEntry: "applications/match.ts", bundledEntry: "dist-server/match.mjs" };
 describe("GameServerSpawner admission handoff", () => {
+  it("rejects an unconfigured application before port allocation or result preparation", async () => {
+    const spawner = new GameServerSpawner();
+    const allocate = vi.spyOn(spawner as unknown as { allocatePort(): Promise<number> }, "allocatePort");
+    const prepare = vi.fn();
+    spawner.setResultDelivery({ prepare } as never);
+    const priorSpawns = vi.mocked(spawn).mock.calls.length;
+    await expect(
+      spawner.spawn({
+        map: "arena",
+        gametype: "duel",
+        admissionSeats: [{ lobbyPlayerId: "human", accountId: 7, name: "Player", team: "alpha", isBot: false }],
+        resultContext: { private: false, ranked: true, bots: 0 },
+      }),
+    ).rejects.toThrow("Game server application is not configured");
+    expect(allocate).not.toHaveBeenCalled();
+    expect(prepare).not.toHaveBeenCalled();
+    expect(vi.mocked(spawn).mock.calls).toHaveLength(priorSpawns);
+    expect(spawner.getActiveServers()).toEqual([]);
+  });
+
   it("passes only ticket hashes to the child and keeps tickets for private delivery", async () => {
-    const spawner = new GameServerSpawner(18777);
+    const spawner = new GameServerSpawner(18777, application);
     vi.spyOn(spawner as never, "waitForReady").mockResolvedValue(undefined);
     const server = await spawner.spawn({
       map: "wdm2",
@@ -57,7 +78,7 @@ describe("GameServerSpawner admission handoff", () => {
   });
 
   it("leaves a standalone dev spawn ungated", async () => {
-    const spawner = new GameServerSpawner(18778);
+    const spawner = new GameServerSpawner(18778, application);
     vi.spyOn(spawner as never, "waitForReady").mockResolvedValue(undefined);
     const server = await spawner.spawn({ map: "wdm2", gametype: "duel" });
     expect(server.admissionTickets).toBeUndefined();
@@ -70,7 +91,7 @@ describe("GameServerSpawner admission handoff", () => {
     const stdout = new EventEmitter();
     Object.assign(child, { stdout, stderr: new EventEmitter() });
     vi.mocked(spawn).mockImplementationOnce(() => child);
-    const spawner = new GameServerSpawner(18779);
+    const spawner = new GameServerSpawner(18779, application);
     const results = vi.fn();
     spawner.onServerResult = results;
     const rejected = vi.fn();
@@ -124,7 +145,7 @@ describe("GameServerSpawner admission handoff", () => {
     const stdin = { writable: true, write: vi.fn((line: string) => written.push(line)) };
     Object.assign(child, { stdout, stderr: new EventEmitter(), stdin });
     vi.mocked(spawn).mockImplementationOnce(() => child);
-    const spawner = new GameServerSpawner(18780);
+    const spawner = new GameServerSpawner(18780, application);
     const results = vi.fn();
     spawner.onServerResult = results;
     const started = spawner.spawn({
@@ -189,7 +210,7 @@ describe("GameServerSpawner admission handoff", () => {
       const stdout = new EventEmitter();
       Object.assign(child, { stdout, stderr: new EventEmitter(), stdin: { writable: true, write: vi.fn() } });
       vi.mocked(spawn).mockImplementationOnce(() => child);
-      const spawner = new GameServerSpawner(18781);
+      const spawner = new GameServerSpawner(18781, application);
       const started = spawner.spawn({
         map: "wdm2",
         gametype: "ffa",

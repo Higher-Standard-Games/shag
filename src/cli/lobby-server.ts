@@ -10,6 +10,8 @@
  *   npm run lobby:server -- --max-players 64
  */
 
+import { FPS_SERVER_APPLICATION } from "../games/fps/server/FpsServerApplication";
+import { GameServerSpawner } from "../lobby/GameServerSpawner";
 import { DEFAULT_MAX_PLAYERS, LobbyServer } from "../lobby/LobbyServer";
 import { MatchResultStore } from "../lobby/MatchResultStore";
 import { PlayerStore } from "../lobby/PlayerStore";
@@ -126,7 +128,7 @@ if (!Number.isInteger(maxPlayers) || maxPlayers < 0) {
   console.error(`--max-players must be a whole number, 0 for no cap (got "${maxPlayersArg}").`);
   process.exit(1);
 }
-const server = new LobbyServer(port, undefined, {
+const server = new LobbyServer(port, new GameServerSpawner(undefined, FPS_SERVER_APPLICATION), {
   botSecret: loadBotSecret(dataDir),
   players,
   results,

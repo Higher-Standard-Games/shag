@@ -9,6 +9,7 @@ import WebSocket from "ws";
 import { MessageType } from "../../engine/network/protocol/BinaryProtocol";
 import { MessageCodec } from "../../engine/network/protocol/MessageCodec";
 import { ProtocolTestClient } from "../../games/fps/server/__tests__/_protocolTestClient";
+import { FPS_SERVER_APPLICATION } from "../../games/fps/server/FpsServerApplication";
 import { GameServerSpawner } from "../GameServerSpawner";
 import { LobbyServer } from "../LobbyServer";
 import { PlayerStore } from "../PlayerStore";
@@ -84,7 +85,7 @@ describe("dropping into a running lobby match", () => {
         throw new Error(`Unsafe cleanup target: ${target}`);
       const accounts = PlayerStore.open(dir);
       const members = [accounts.create(), accounts.create(), accounts.create()];
-      const spawner = new GameServerSpawner(await unusedPort());
+      const spawner = new GameServerSpawner(await unusedPort(), FPS_SERVER_APPLICATION);
       const lobby = new LobbyServer(0, spawner, { players: accounts });
       const peers: LobbyPeer[] = [];
       const gameClients: ProtocolTestClient[] = [];

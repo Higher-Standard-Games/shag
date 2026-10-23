@@ -9,6 +9,7 @@ import WebSocket from "ws";
 import { MessageType } from "../../engine/network/protocol/BinaryProtocol";
 import { MessageCodec } from "../../engine/network/protocol/MessageCodec";
 import { ProtocolTestClient } from "../../games/fps/server/__tests__/_protocolTestClient";
+import { FPS_SERVER_APPLICATION } from "../../games/fps/server/FpsServerApplication";
 import { DemoReader } from "../../shared/demo/DemoReader";
 import { botReference } from "../../shared/ranking/__tests__/_botReference";
 import { GameServerSpawner } from "../GameServerSpawner";
@@ -76,7 +77,7 @@ describe("installed-map room to ranking", () => {
       const accounts = PlayerStore.open(dir);
       const results = MatchResultStore.open(dir);
       const members = visibility === "private" ? [accounts.create()] : [accounts.create(), accounts.create()];
-      const spawner = new GameServerSpawner(await unusedPort());
+      const spawner = new GameServerSpawner(await unusedPort(), FPS_SERVER_APPLICATION);
       const spawn = vi.spyOn(spawner, "spawn");
       const botSecret = "ranking-smoke-secret";
       const lobby = new LobbyServer(0, spawner, { players: accounts, results, botSecret });

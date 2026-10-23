@@ -25,7 +25,7 @@ import {
 import { type MatchResultReport, RESULT_PREFIX, verifyMatchResult } from "../engine/server/network/MatchResultReport";
 import type { ResultDeliveryStore } from "./ResultDeliveryStore";
 import type { ResultContext } from "./ResultSnapshot";
-import { gameServerLaunch } from "./ServerRuntime";
+import { type GameServerApplication, gameServerLaunch } from "./ServerRuntime";
 
 // ============================================================================
 // Types
@@ -137,23 +137,31 @@ export class GameServerSpawner {
     this.resultDelivery = store;
   }
 
-  constructor(startPort: number = 7777) {
+  constructor(
+    startPort: number = 7777,
+    private readonly application?: GameServerApplication,
+  ) {
     this.startPort = startPort;
     this.projectRoot = process.cwd();
   }
 
   /** Spawn a new game server with the given config. Resolves when server is ready. */
   async spawn(config: SpawnConfig): Promise<SpawnedServer> {
+    const launch = gameServerLaunch(this.projectRoot, this.application);
     const port = await this.allocatePort();
     try {
-      return await this.spawnOn(port, config);
+      return await this.spawnOn(port, config, launch);
     } finally {
       // A running server's activeServers entry holds the port from here on
       this.reservedPorts.delete(port);
     }
   }
 
-  private async spawnOn(port: number, config: SpawnConfig): Promise<SpawnedServer> {
+  private async spawnOn(
+    port: number,
+    config: SpawnConfig,
+    launch: ReturnType<typeof gameServerLaunch>,
+  ): Promise<SpawnedServer> {
     const matchId = this.generateMatchId();
     const admission = config.admissionSeats
       ? issueMatchAdmission(matchId, config.admissionSeats, Date.now(), 2 * 60_000, 30 * 60_000)
@@ -171,7 +179,6 @@ export class GameServerSpawner {
 
     console.log(`[Spawner] Starting game server: map=${config.map} gametype=${config.gametype} port=${port}`);
 
-    const launch = gameServerLaunch(this.projectRoot);
     const args = [...launch.args, "--map", config.map, "--gametype", config.gametype, "--port", String(port)];
 
     if (config.shutdown ?? true) {

@@ -8,6 +8,7 @@ import path from "node:path";
 import { WebSocket } from "ws";
 import { MessageCodec, MessageType } from "../engine/network/protocol/MessageCodec";
 import { ProtocolTestClient } from "../games/fps/server/__tests__/_protocolTestClient";
+import { FPS_SERVER_APPLICATION } from "../games/fps/server/FpsServerApplication";
 import { GameServerSpawner } from "../lobby/GameServerSpawner";
 import { LobbyServer } from "../lobby/LobbyServer";
 import { MatchResultStore } from "../lobby/MatchResultStore";
@@ -38,7 +39,7 @@ async function main() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "shag-runtime-probe-"));
   const players = PlayerStore.open(dir),
     results = MatchResultStore.open(dir);
-  const spawner = new GameServerSpawner(await unusedPort());
+  const spawner = new GameServerSpawner(await unusedPort(), FPS_SERVER_APPLICATION);
   const lobby = new LobbyServer(0, spawner, { players, results });
   const sockets: WebSocket[] = [],
     clients: ProtocolTestClient[] = [];
@@ -63,7 +64,7 @@ async function main() {
     const internal = lobby as unknown as { wss: { address(): net.AddressInfo }; gametypes: GametypeInfo[] };
     assert.deepEqual(internal.gametypes.find((g) => g.id === "ffa")?.mapPool, ["washoi_dm2"]);
     const peers = [];
-    for (let i = 0; i < 2; i++) {
+    for (let i = 0; i < 4; i++) {
       const account = players.create();
       const socket = new WebSocket(`ws://127.0.0.1:${internal.wss.address().port}`);
       sockets.push(socket);
@@ -78,8 +79,10 @@ async function main() {
     }
     peers[0].send({ type: "lobby:create", gametype: "ffa", visibility: "public" });
     const room = (await peers[0].wait("lobby:created")).lobby as MatchLobbyInfo;
-    peers[1].send({ type: "lobby:join", lobbyId: room.id });
-    await peers[1].wait("lobby:created");
+    for (const peer of peers.slice(1)) {
+      peer.send({ type: "lobby:join", lobbyId: room.id });
+      await peer.wait("lobby:created");
+    }
     for (const peer of peers) peer.send({ type: "lobby:ready", lobbyId: room.id, ready: true });
     const handoffs = await Promise.all(peers.map((peer) => peer.wait("lobby:connect")));
     for (const [index, handoff] of handoffs.entries()) {
@@ -90,7 +93,7 @@ async function main() {
       client.send(MessageCodec.encodeJoinGame("ffa"));
     }
     for (const client of clients) client.send(MessageCodec.encodeReady());
-    await until(() => results.leaderboard({ gametype: "ffa", period: "all", offset: 0, limit: 10 }).total === 2, 35000);
+    await until(() => results.leaderboard({ gametype: "ffa", period: "all", offset: 0, limit: 10 }).total === 4, 35000);
     assert.equal(results.deliveries.has(String(handoffs[0].matchId)), false);
     assert.equal(runtimeRecords.length, 1);
     console.log(
@@ -98,8 +101,8 @@ async function main() {
         runtime: process.versions.bun ? "bun" : "node",
         version: process.versions.bun ?? process.versions.node,
         child: runtimeRecords[0],
-        accounts: 2,
-        resultRows: 2,
+        accounts: 4,
+        resultRows: 4,
         directory: dir,
         passed: true,
       })}`,

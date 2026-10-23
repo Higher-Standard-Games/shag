@@ -1759,3 +1759,172 @@ recursive CI checkout/token, fixed aliases, browser-neutral versus game build
 selection, benchmark game fixtures and Electron game metadata. Postinstall's
 current Havok/TensorFlow fixups do not themselves fetch a game checkout; their
 ownership/dependency packaging can be reviewed with the bot application pass.
+
+## Server ownership plan — 2026-10-23
+
+The next stages are planned in
+[Repository split: server ownership plan](./ENGINE_GAME_SPLIT_SERVER_PLAN.md).
+This is a planning checkpoint, not an implemented separation step. Source was
+checked against engine `8d070ebc` / Washoi `536f8cb`; both trees were clean
+before the documentation work.
+
+Start by making game-server entry locations explicit inputs to the reusable
+spawner/runtime, preserving the existing locations and process behavior. Prove
+that wiring before moving the concrete launcher, map-loader composition and
+application build recipe. Later patches address lobby policy, bots/tools,
+tests/configuration and finally fresh-checkout proof and Git detachment.
+
+The plan records process, admission, result, shutdown/demo and deterministic
+simulation contracts, validation checkpoints and rollback. No runtime code,
+server artifact, database, Git attachment or running service changed here.
+The previous full-suite weapon-root wait finding remains open. Runtime gates
+listed in the plan have not been rerun for this documentation-only checkpoint.
+
+## 15. Explicit dedicated-server application entries
+
+Washoi supplies `FPS_SERVER_APPLICATION` with the existing source and bundled
+entry paths. The lobby CLI and real-server integration tests pass it to
+`GameServerSpawner`; the reusable spawner/runtime no longer contain a concrete
+game-server entry path. A spawner without entries remains constructible for
+lobby-only use, but rejects a spawn request before allocating a port, issuing
+admission grants or preparing result delivery. The generic runtime accepts
+absolute entries or entries relative to the assembled root.
+
+This implements phase 1 of the
+[server ownership plan](./ENGINE_GAME_SPLIT_SERVER_PLAN.md). The launcher,
+mixed map loader, lobby application and build recipe have not moved. The two
+lobby policy imports, bot/tool ownership, test/configuration cleanup and final
+Git cutover remain pending. Adding explicit game composition to the lobby CLI
+adds an expected direct CLI import; it does not make reusable lobby code
+import the game.
+
+### Scope and assumptions
+
+Validation starts from engine `8d070ebc` / Washoi `536f8cb`, with only the prior
+planning documents uncommitted. The assembled root stays the working directory;
+the source entry and `dist-server/headless-netserver-v2.mjs` artifact stay the
+same. Node 24.21.0 and the pinned Bun 1.4.3 are installed. Runtime selection,
+child flags/environment, readiness, ports, admission, results, shutdown,
+simulation and game rules retain their configured behavior. Direct consumers
+of the spawner must now supply application entries if they request a process.
+
+Private baseline/after server bundles are built under
+`.cache/engine-game-split/step15-validation/{baseline,after}/dist-server`.
+Their probes use temporary account/result databases, dynamically allocated
+ports and explicit scratch demo output paths. They do not replace the default
+server bundles or restart a live service. Probe databases are retained by the
+existing probe for inspection. Normal test-suite fixtures retain their own
+temporary data and demo cleanup behavior.
+
+### Baseline finding and probe correction
+
+Before production edits, the bundled Node probe reached room creation/join but
+timed out without requesting a child. Source inspection confirmed that its
+two-player fixture no longer met FFA's four-player minimum. Updating account
+creation alone also left its original single join unchanged; that incomplete
+fixture timed out too. The corrected probe creates four accounts, joins all
+four to the room, and checks four result rows. No minimum, gameplay rule,
+timeout or assertion was weakened. Both original failure logs are retained
+alongside the corrected baseline logs.
+
+The initial sandbox test invocation could not start its subprocess (`EPERM`);
+the authorized subprocess run succeeded. The private runner also initially
+used the Windows Bun shim as a native executable (`ENOENT`); it now uses the
+existing `bunExecutable` resolver. These are validation harness findings, not
+server behavior failures.
+
+### Files changed
+
+Outer repository:
+
+- `src/lobby/ServerRuntime.ts`
+- `src/lobby/GameServerSpawner.ts`
+- `src/cli/lobby-server.ts`
+- `src/cli/ServerRuntimeProbe.ts`
+- `src/lobby/__tests__/ServerRuntime.test.ts`
+- `src/lobby/__tests__/GameServerSpawnerAdmission.test.ts`
+- `src/lobby/integration/SpawnedResult.test.ts`
+- `src/lobby/integration/RoomToRanking.test.ts`
+- `src/lobby/integration/DropIn.test.ts`
+- `docs/manual/guides/lobby-server.md`
+- `docs/changelog/v1.0.0-alpha.3.md`
+- `docs/research/ENGINE_GAME_SPLIT_SERVER_PLAN.md`
+- `docs/research/ENGINE_GAME_SPLIT_INVENTORY.md`
+- `docs/research/ENGINE_GAME_SPLIT_PROGRESS.md`
+- `src/games/fps` gitlink, advanced to game commit `7d2743b`.
+
+Washoi repository:
+
+- `server/FpsServerApplication.ts`
+
+### Validation evidence
+
+Receipts and complete logs are under
+`.cache/engine-game-split/step15-validation`. The orchestration command is
+`node .cache/engine-game-split/validate-step15.mjs <baseline|after|gates>`;
+each receipt records exact executable, arguments, cwd and exit status. The
+baseline resumes for corrected private builds/probes are recorded separately
+in the retained per-check logs.
+
+- Before/after targeted command:
+  `npm.cmd run test:run -- src/lobby/__tests__/ServerRuntime.test.ts src/lobby/__tests__/SpawnerPorts.test.ts src/lobby/__tests__/SpawnAbandon.test.ts src/lobby/__tests__/GameServerSpawnerAdmission.test.ts`.
+  Baseline: 4 files / 15 tests passed. After: 4 files / 21 tests passed, including
+  missing/incomplete configuration, paths with spaces, absolute entry paths,
+  inherited runtimes and rejection before resource preparation.
+- Before/after `npm.cmd run server:tick`: checksum `2768943778`.
+- Before/after `npm.cmd run server:fuzz -- --ticks 1000 --seed 42`:
+  checksum `2481546443`.
+- Before/after `npm.cmd run test:runtime-equivalence`: 10,000 ticks, seed 42,
+  checksum `507638786` under both Node and Bun.
+- Private server builds:
+  `node scripts/build-servers.mjs .cache/engine-game-split/step15-validation/baseline/dist-server`
+  and the corresponding `after/dist-server` command. Both passed. Artifact
+  SHA-256 receipts show the dedicated-server, bot-server and benchmark bundles
+  are byte-identical; lobby and runtime-probe wiring changes are expected.
+- Each private `dist-server/ServerRuntimeProbe.mjs` was run with Node and the
+  resolved native Bun executable, with its parent directory as cwd. All four
+  corrected baseline/after runs passed: actual executable inheritance, ticketed
+  four-player FFA, signed result delivery to four rows, emptied pending delivery
+  and graceful child exit. These two-second matches are below the existing
+  demo retention floor; they do not establish persistence of a keepable demo.
+- `node .cache/engine-game-split/prove-step15.mjs`: 16 old/new runtime/path
+  launch contexts match. Nine other spawner methods are identical; `spawnOn`
+  has identical statements except receiving its preselected launch command.
+  Launcher, map loader, result outbox/delivery and admission/signing files are
+  unchanged. This is a source parity check, not a substitute for process tests.
+- `node .cache/engine-game-split/receipt-step15.mjs`: recorded baseline/after
+  revisions, runtime versions, artifact hashes and successful probe summaries.
+- `node docs/research/engine-game-split-audit.mjs`: 1,800 candidate tracked
+  TypeScript files; zero direct or indirect production engine-to-Washoi code
+  paths. Root source still has 21 bot files / 41 sites, 24 CLI files / 57 sites
+  and two lobby policy files / two sites importing game code.
+
+Final gate/regression commands and results:
+
+| Command | Result |
+| --- | --- |
+| `npm.cmd run typecheck` | Passed |
+| `npm.cmd run test:run` | 714 files passed; 5,628 tests passed, one skipped |
+| `npm.cmd run gate:biome` | Passed, zero errors / 47 baseline warnings |
+| `npm.cmd run build` | Passed, including prebuild index and postbuild sourcemap relocation |
+| `npm.cmd run docs:build` | Passed |
+| `npm.cmd run docs:fps:build` | Passed |
+| `npm.cmd run test:simulation` | Passed |
+| `npm.cmd run test:physics` | Passed |
+| `npm.cmd run server:tick` | Passed, same baseline checksum |
+| `npm.cmd run server:fuzz -- --ticks 1000 --seed 42` | Passed, same baseline checksum |
+| `npm.cmd run cli:game -- --exec "bsp load washoi_dm2; bsp info; quit"` | Passed; indexed FBSP, 7,475 faces |
+| `npm.cmd run cli:game -- --exec 'sim replay \"W+CROUCH 60; JUMP 1; W 30\"; quit'` | Passed; 91 ticks |
+
+The initial BSP invocation used `bsp load wdm2`, which failed because the
+installed indexed package is `map_washoi_dm2.pk3`, not `map_wdm2.pk3`. The
+corrected command above passed; no alias, loader or game data was changed to
+make it pass. Its failure log and initial gate receipt are retained. The
+server plan's example now names the installed map, matching the regression
+procedure. The earlier `RemoteWeaponLeak` failure did not reproduce in this
+complete suite run; that pass does not establish the cause of earlier failures.
+
+No browser/GPU session, production deployment, live-service restart, platform
+packaging, live TLS/WebTransport session or independent-checkout cutover is
+claimed for this step. The real-process probes exercised FFA; the later cutover
+still requires the planned assembled browser checks across all four modes.

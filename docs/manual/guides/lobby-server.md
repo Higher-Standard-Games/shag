@@ -34,6 +34,20 @@ identify the runtime/version and PID. A missing runtime fails startup rather
 than silently choosing another one. Owned match servers accept `quit` on stdin
 to finish recording and shut down; the lobby retains its forced-kill timeout.
 
+Application startup supplies the dedicated server's entry locations through
+the second constructor argument to `GameServerSpawner`:
+`{ sourceEntry, bundledEntry }`. Paths can be absolute or relative to the
+assembled project root (the working directory captured when the spawner is
+constructed). Washoi's lobby CLI supplies `FPS_SERVER_APPLICATION` from
+`src/games/fps/server/FpsServerApplication.ts`, keeping the existing source
+entry and `dist-server/headless-netserver-v2.mjs` artifact.
+
+The runtime selects the bundled entry when the parent entry is an `.mjs` file
+directly under the root's `dist-server/`; otherwise it selects the source entry.
+A spawner constructed without application entries can support lobby-only use,
+but a spawn request fails before allocating a port or preparing result delivery.
+Reusable lobby code has no default game-server entry path.
+
 See [Headless mode](./headless-mode.md#server-memory-profiling) for reproducible
 memory benchmarks. All standalone/profile runs should use scratch data paths.
 
