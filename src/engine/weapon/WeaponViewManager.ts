@@ -6,6 +6,7 @@
  */
 
 import { VertexBuffer } from "@babylonjs/core/Buffers/buffer";
+import type { Camera } from "@babylonjs/core/Cameras/camera";
 import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
 import "@babylonjs/core/Culling/ray";
 import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight";
@@ -444,6 +445,7 @@ export class WeaponViewManager {
   // can detach the previous observer (prevents stale per-frame update()
   // calls on the previous scene).
   private updateObserver: Observer<Scene> | null = null;
+  private beamObserver: Observer<Camera> | null = null;
 
   // Debug
   private debugEnabled: boolean = false;
@@ -589,6 +591,13 @@ export class WeaponViewManager {
     this.updateObserver = scene.onBeforeRenderObservable.add(() => {
       const deltaTime = scene.getEngine().getDeltaTime() / 1000;
       this.update(deltaTime);
+    });
+    // The beam starts at the muzzle and points where the camera looks, and the
+    // first-person controller moves the camera in a before-render observer that
+    // may register after this one. Just before the world camera renders,
+    // every observer has run, so the beam leaves the barrel of this frame.
+    this.beamObserver = scene.onBeforeCameraRenderObservable.add((rendering) => {
+      if (rendering === this.mainCamera) this.updateBeam();
     });
 
     devLog(`[WeaponViewManager] Initialized with weapon FOV ${this.lastWeaponFov}°`);
@@ -1349,6 +1358,10 @@ export class WeaponViewManager {
       oldScene.onBeforeRenderObservable.remove(this.updateObserver);
       this.updateObserver = null;
     }
+    if (this.beamObserver && oldScene) {
+      oldScene.onBeforeCameraRenderObservable.remove(this.beamObserver);
+      this.beamObserver = null;
+    }
     this._loadGeneration++;
     this.weaponSlash.dispose();
     this.clear();
@@ -2093,8 +2106,10 @@ export class WeaponViewManager {
 
     // Spin barrel sub-models
     this.weaponBarrels.update(deltaTime);
+  }
 
-    // Beam rendering — runs AFTER position finalization so barrel position is current-frame
+  /** The continuous beam from this frame's muzzle, along this frame's view. */
+  private updateBeam(): void {
     if (this.beamActive && this.mainCamera) {
       const forward = this.mainCamera.getDirection(Vector3.Forward());
       const muzzlePos = this.getMuzzleWorldPosition();
