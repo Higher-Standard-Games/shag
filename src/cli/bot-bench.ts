@@ -18,10 +18,10 @@
  * TF-8 in docs/research/BOT_TF_IMPROVEMENTS.md.
  */
 
-import { resolveDifficulty } from "../bot/BotConfig";
-import { BotGameState } from "../bot/BotGameState";
-import { HybridBrain } from "../bot/HybridBrain";
-import { getBackendName, getTF, initTF, isTFAvailable } from "../bot/TFBackend";
+import { resolveDifficulty } from "../games/fps/bot/BotConfig";
+import { BotGameState } from "../games/fps/bot/BotGameState";
+import { HybridBrain } from "../games/fps/bot/HybridBrain";
+import { getBackendName, getTF, initTF, isTFAvailable } from "../games/fps/bot/TFBackend";
 import { runCli } from "./_runCli";
 
 interface Args {

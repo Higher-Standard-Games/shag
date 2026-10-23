@@ -5,7 +5,7 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { WebSocket } from "ws";
-import { BotServer } from "../bot/BotServer";
+import { BotServer } from "../games/fps/bot/BotServer";
 import { isClientKey } from "../games/fps/ClientEntityKey";
 import { loadBspCollision } from "../games/fps/cli/HeadlessMapLoader";
 import { GameServer } from "../games/fps/server/GameServer";

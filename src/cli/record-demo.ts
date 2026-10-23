@@ -11,7 +11,7 @@
  */
 
 import { MatchPhase } from "@shared/server/gametype";
-import { BotServer } from "../bot/BotServer";
+import { BotServer } from "../games/fps/bot/BotServer";
 import { loadBspCollision } from "../games/fps/cli/HeadlessMapLoader";
 import { GameServer, type GameServerConfig } from "../games/fps/server/GameServer";
 import { Amphi } from "../games/fps/server/gametypes/Amphi";

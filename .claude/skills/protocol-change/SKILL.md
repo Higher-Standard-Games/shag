@@ -62,7 +62,7 @@ Work through all of them; search for a neighbouring field to find each spot.
   (`version < 1 || version > N`) and update the comment on what the new version
   adds. Older builds then refuse the new file cleanly instead of misreading it.
 - Tests that assert the version: `src/games/fps/server/__tests__/DemoRecorder.test.ts`,
-  `src/bot/__tests__/DemoPipelineEndToEnd.test.ts`,
+  `src/games/fps/bot/__tests__/DemoPipelineEndToEnd.test.ts`,
   `src/lobby/integration/RoomToRanking.test.ts`. Search for the old number
   (`version).toBe(`, `version: `) to catch any new ones.
 

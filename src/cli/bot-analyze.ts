@@ -3,14 +3,14 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { performance } from "node:perf_hooks";
-import { BotNavCacheStore } from "../bot/BotNavCache";
+import { BotNavCacheStore } from "../games/fps/bot/BotNavCache";
 import {
   BOT_NAV_GRAPH_SCHEMA_VERSION,
   BOT_NAV_MOVEMENT_FINGERPRINT,
   BOT_NAV_TRIGGER_RESOLVER_VERSION,
   BotNavGraph,
-} from "../bot/BotNavGraph";
-import { createBotVision } from "../bot/BotVision";
+} from "../games/fps/bot/BotNavGraph";
+import { createBotVision } from "../games/fps/bot/BotVision";
 
 const REPORT_SCHEMA_VERSION = 1;
 

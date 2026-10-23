@@ -19,8 +19,8 @@
  */
 
 import type { History, LayersModel } from "@tensorflow/tfjs-node";
-import { BotTrainer, DEFAULT_TRAINER_CONFIG, type TrainerConfig } from "../bot/BotTrainer";
-import type { OutputKind } from "../bot/CloningTargets";
+import { BotTrainer, DEFAULT_TRAINER_CONFIG, type TrainerConfig } from "../games/fps/bot/BotTrainer";
+import type { OutputKind } from "../games/fps/bot/CloningTargets";
 import { runCli } from "./_runCli";
 
 // ── Argument Parsing ────────────────────────────────────────────────
@@ -209,16 +209,16 @@ async function trainFromDemo(
   patience = DEFAULT_PATIENCE,
 ): Promise<void> {
   // Dynamic import to avoid loading TF.js unless needed
-  const { buildCorpus } = await import("../bot/TrainingCorpus");
-  const { writeMetadata, describeCurrentFeatures } = await import("../bot/ModelMetadata");
-  const { HybridBrain } = await import("../bot/HybridBrain");
-  const { getTF } = await import("../bot/TFBackend");
-  const { resolveDifficulty } = await import("../bot/BotConfig");
+  const { buildCorpus } = await import("../games/fps/bot/TrainingCorpus");
+  const { writeMetadata, describeCurrentFeatures } = await import("../games/fps/bot/ModelMetadata");
+  const { HybridBrain } = await import("../games/fps/bot/HybridBrain");
+  const { getTF } = await import("../games/fps/bot/TFBackend");
+  const { resolveDifficulty } = await import("../games/fps/bot/BotConfig");
   const { buildCorpusPairs, COMBAT_OUTPUT_KINDS, COMBAT_OUTPUT_NAMES, TACTICAL_OUTPUT_KINDS, TACTICAL_OUTPUT_NAMES } =
-    await import("../bot/CloningTargets");
-  const { formatScores, scoreModel, skillByName } = await import("../bot/TrainingReport");
-  const { TACTICAL_INPUT_SIZE, COMBAT_INPUT_SIZE } = await import("../bot/BotInputNormalizer");
-  const { intervalMismatch } = await import("../bot/ModelInputs");
+    await import("../games/fps/bot/CloningTargets");
+  const { formatScores, scoreModel, skillByName } = await import("../games/fps/bot/TrainingReport");
+  const { TACTICAL_INPUT_SIZE, COMBAT_INPUT_SIZE } = await import("../games/fps/bot/BotInputNormalizer");
+  const { intervalMismatch } = await import("../games/fps/bot/ModelInputs");
   const fs = await import("node:fs");
   const path = await import("node:path");
 

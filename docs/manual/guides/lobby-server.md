@@ -577,7 +577,8 @@ Washoi owns the shared bot-name list and gametype weight profiles in
 the bot service selects gametype, role and round-state policy from
 `WeightProfiles.ts`. These modules contain plain data and deterministic helpers.
 
-The bot server's clients (`src/bot/`) play over the same protocol as a browser
+The Washoi bot application lives in `src/games/fps/bot/`, with startup at
+`src/games/fps/cli/bot-server.ts`. Its clients play over the same protocol as a browser
 and are bound by the same rules:
 
 - **Commands.** A bot sends one command per server tick by the clock (8 ms at

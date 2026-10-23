@@ -1,7 +1,7 @@
 /** Native BSP checks: run with npx tsx experiments/shagged/solamphi1/verify.ts. */
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {createBotVision} from '../../../src/bot/BotVision';
+import {createBotVision} from '../../../src/games/fps/bot/BotVision';
 import {Contents, MASK_LIQUID} from '../../../src/shared/collision/CollisionWorld';
 import {q3ToBabylon} from '../../../src/engine/loader/bsp/mesh/coordinates';
 import {BspLoader} from '../../../src/engine/loader/bsp/BspLoader';

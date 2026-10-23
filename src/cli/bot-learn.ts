@@ -11,9 +11,9 @@
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { createBotVision } from "../bot/BotVision";
-import { type LearnedRoute, loadLearnedRoutes, saveLearnedRoutes } from "../bot/LearnedRoutes";
-import { buildTimeline, findTrickSegments, learnSegment } from "../bot/RouteLearner";
+import { createBotVision } from "../games/fps/bot/BotVision";
+import { type LearnedRoute, loadLearnedRoutes, saveLearnedRoutes } from "../games/fps/bot/LearnedRoutes";
+import { buildTimeline, findTrickSegments, learnSegment } from "../games/fps/bot/RouteLearner";
 import { resolveFPSDemoMap } from "../games/fps/client/DemoMapAliases";
 import { DemoReader } from "../shared/demo/DemoReader";
 

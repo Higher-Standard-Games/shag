@@ -2339,3 +2339,125 @@ Browser/GPU play, production TLS/WebTransport, deployment, platform packaging
 and independent-checkout proof remain unverified here. Bot/tool migration,
 remaining tests/configuration, documented assembly proof and Git detachment
 remain; the submodule attachment is still present.
+
+## Step 19 — game-owned bot application and launcher (2026-10-23)
+
+The complete bot application moved from `src/bot/` to Washoi's `bot/`, with
+startup from `src/cli/bot-server.ts` to `src/games/fps/cli/bot-server.ts`.
+No forwarding modules remain in SHAG. This is an ownership/import-path move,
+not a bot, network, training, protocol or ranking algorithm change.
+
+The [exact 120-file move manifest](./ENGINE_GAME_SPLIT_BOT_MOVE.md) lists every
+source/destination pair and every TypeScript caller rebased. It includes all
+bot tests plus the bot reward/input/HybridBrain tests from engine tests and
+the real private-invite integration test from lobby tests. The tests moved
+with their game-specific subjects; their assertions and timing limits remain.
+
+Other files changed:
+
+- `package.json`: bot development startup and ranking acceptance follow the
+  game-owned paths. The relocated private-invite test is selected explicitly
+  to preserve its former inclusion through the lobby directory filter.
+- Washoi `scripts/build-servers.mjs`: bot source entry changes; artifact name,
+  externals, staging/swap, target runtime and other entries are unchanged.
+- `AGENTS.md` and `.claude/skills/protocol-change/SKILL.md`: directory/test paths.
+- `docs/manual/guides/lobby-server.md`; Washoi manual pages
+  `getting-started/project-structure.md`, `tools/bot-server.md` and `faq/index.md`.
+- Washoi `server/gametypes/SearchAndDestroy.ts`: comment path only.
+- Living changelog, dependency inventory, server plan, move manifest and this log.
+
+Bot clients/brains, control authentication, invite cancellation, team assignment,
+navigation, inference/training formats, model/cache/route paths and simulation
+retain their implementations. The editor's Washoi analysis provider imports
+its colocated bot modules. Generic SHAG transports, lobby, accounts, ratings
+and result storage remain in SHAG.
+
+Assumptions: assembled checkout at the documented paths; Node 24.21.0 and Bun
+1.4.3; indexed `washoi_dm2`; TensorFlow and its Windows native fixup installed
+at the assembled root. Source and bundled bot identity still discover that root
+from package.json. The fingerprint includes source paths/content and thus can
+change when source moves; no stored identities, results or ratings are migrated.
+See the manifest for the deferred TensorFlow/install ownership audit.
+
+Validation receipts are under `.cache/engine-game-split/step19-validation/`:
+
+- `node .cache/engine-game-split/validate-step19.mjs baseline` and `after`:
+  **59 files / 440 tests passed** on each side, including the whole bot suite,
+  three formerly engine-owned bot tests, real private-room invite integration,
+  and five server launch/result/admission files. Fixed-seed tick/fuzz/runtime
+  equivalence, private builds and real Node/Bun ticketed match/result/child-exit
+  probes all passed on both sides. Tick `2768943778`; fuzz 1,000 / seed 42
+  `2481546443`; Node/Bun 10,000 / seed 42 `507638786`.
+- `node .cache/engine-game-split/bot-cli-smoke-step19.mjs baseline` and `after`:
+  Node/Bun source/bundle startup, private data selection and bot-secret creation,
+  loopback control, missing/wrong secret close code 1008, authenticated empty
+  status and interactive `status` passed. Startup-only child processes were
+  terminated after checks; no graceful Windows OS-signal claim is made.
+- `node .cache/engine-game-split/run-bot-match-step19.mjs baseline` and `after`:
+  private FFA with a human protocol client and three real invited bots passed;
+  ticketed handoff into the spawned server, nonempty player ids and active
+  brains verified. Bots stopped, sockets closed and owned server shutdown
+  completed. Nav caches and demos use private scratch paths.
+- `node .cache/engine-game-split/prove-step19.mjs`: 128 changed TypeScript files
+  match the prepared relocation's imported bindings and ordered code bodies,
+  ignoring comments, formatting and import declaration/binding ordering.
+- Four non-bot server artifacts are **byte-identical** before/after: dedicated
+  server, lobby, benchmark client and runtime probe. The bot artifact changes
+  with source paths/import ordering and is covered by source proof and runtime
+  checks; it is not claimed byte-identical.
+- `node .cache/engine-game-split/fingerprint-step19.mjs`: Node/Bun source/bundle
+  bot rating references are identical within the after-move source snapshot.
+- `node .cache/engine-game-split/check-ranking-selection-step19.mjs`: Vitest's
+  actual listing matches all **54** originally selected ranking-acceptance test
+  files, mapped through the move manifest. Test assertions also ran in the
+  targeted and full suites. The initial listing helper treated the optional
+  `--json` value as an output filename; supplying an explicit private JSON
+  output path corrected the helper without application/test changes.
+- `node docs/research/engine-game-split-audit.mjs`: zero production engine,
+  lobby or outer bot imports into Washoi. Remaining production `src` imports
+  are in **24 CLI files / 71 sites**; historical executable research probes,
+  one experiment and a visual script also retain explicit game imports.
+
+Harness findings: the first real-bot match probe counted lobby entries and
+their game-client entries together, then timed out on its incorrect total.
+It now counts the three lobby-source entries, preserving the expected number
+of bots and timeout; no application change was needed. PowerShell also treated
+expected diagnostic stderr as a shell error on an otherwise passing probe;
+the runner now captures stdout/stderr directly and records the actual child
+exit code (zero before and after). The initial failed-harness log is retained.
+
+`node .cache/engine-game-split/validate-step19.mjs gates` passed all checks:
+
+| Exact command | Result |
+| --- | --- |
+| `npm.cmd run typecheck` | Passed |
+| `npm.cmd run test:run` | 718 files passed; 5,639 tests passed, one skipped |
+| `npm.cmd run gate:biome` | Passed; zero errors / 47 baseline warnings |
+| `npm.cmd run build` | Passed, including PK3 index and sourcemap relocation |
+| `npm.cmd run docs:build` | Passed |
+| `npm.cmd run docs:fps:build` | Passed |
+| `npm.cmd run test:simulation` | Passed |
+| `npm.cmd run test:physics` | Passed |
+| `npm.cmd run server:tick` | Passed; same baseline checksum |
+| `npm.cmd run server:fuzz -- --ticks 1000 --seed 42` | Passed; same baseline checksum |
+| `npm.cmd run cli:game -- --exec "bsp load washoi_dm2; bsp info; quit"` | Passed; 7,475 faces |
+| `npm.cmd run cli:game -- --exec 'sim replay \"W+CROUCH 60; JUMP 1; W 30\"; quit'` | Passed; 91 ticks |
+
+The baseline targeted command selects `src/bot`, the three engine bot test files
+and `src/lobby/integration/PrivateBotInvite.test.ts`, plus
+`src/lobby/__tests__/{ResultDelivery,ServerRuntime,SpawnerPorts,SpawnAbandon,GameServerSpawnerAdmission}.test.ts`.
+The after command selects their game-owned destinations from the manifest and
+the same five generic server files. Both run via `npm.cmd run test:run --` with
+individual path arguments; the private runner receipts record the complete
+argument arrays. `npm.cmd run test:runtime-equivalence` also passed before/after.
+Native `@tensorflow/tfjs-node` loaded in both targeted runs.
+
+Washoi commit: `4faf62d` (`refactor: own bot application and launcher`).
+
+Browser/GPU play, production deployment/TLS, packaged deployment without source,
+independent-checkout proof and native TensorFlow installation from scratch are
+not claimed. Remaining game CLI/editor composition, dependency/build/test/CI
+and asset/platform recipes, assembly documentation/proof and Git detachment
+remain later steps. The submodule attachment remains. Concurrent projectile/
+explosion papercuts and another agent's changelog edits are excluded from this
+checkpoint; whole-tree gates also see the concurrent work present when run.
