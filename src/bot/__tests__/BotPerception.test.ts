@@ -90,6 +90,18 @@ describe("seeing", () => {
 });
 
 describe("hearing", () => {
+  it("checks a heard enemy behind its view for line of sight before fighting", () => {
+    const noise = { enemyAt: { x: 0, y: 0, z: -300 }, enemyVelocity: { x: 0, y: 0, z: 320 } };
+    expect(
+      setup()
+        .step(noise, clear)
+        .players.map((p) => p.playerId),
+    ).toEqual(["foe"]);
+    const hidden = setup().step(noise, walled);
+    expect(hidden.players).toHaveLength(0);
+    expect(hidden.heardEnemies).toHaveLength(1);
+  });
+
   it("hears someone running close behind it, where they are", () => {
     const { step } = setup();
     const state = step({ enemyAt: { x: 0, y: 0, z: -300 }, enemyVelocity: { x: 0, y: 0, z: 320 } }, walled);

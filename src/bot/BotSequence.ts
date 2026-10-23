@@ -5,6 +5,7 @@ import type { MovementOpportunity } from "./BotMovementAnalyzer";
 import type { BotNavGraph, NavStep } from "./BotNavGraph";
 import type { BotVision, VisionResult } from "./BotVision";
 import type { LearnedRoute } from "./LearnedRoutes";
+import type { LedgeSlideJumpPlan } from "./LedgeSlideJump";
 
 export type BotSequenceStatus = "running" | "succeeded" | "failed";
 
@@ -33,6 +34,7 @@ export interface BotSequenceContext {
   routeStrafeReady?: boolean;
   /** Deterministic fallback side when route error does not prefer one. */
   routeStrafeSide?: -1 | 1;
+  ledgeSlidePlan?: LedgeSlideJumpPlan | null;
 }
 
 export interface BotSequenceState {

@@ -53,7 +53,7 @@ describe("authored trigger traversal sequences", () => {
     expect(runtime.startBest(context)).toBe(true);
     const approach = runtime.tick(context);
     expect(approach).toMatchObject({ status: "running", phase: "approach" });
-    expect(approach!.input.buttons).toBe(InputButtons.FORWARD);
+    expect(approach!.input.buttons).toBe(InputButtons.FORWARD | InputButtons.SPRINT);
     expect(approach!.input.yaw).toBeCloseTo(Math.PI / 2, 6);
 
     state.tick = 10;

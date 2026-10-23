@@ -26,7 +26,7 @@ function targetInput(context: BotSequenceContext, state: BotSequenceState, slidi
     direction: { x: 0, y: 0, z: 1 },
     pitch: 0,
     yaw,
-    buttons: InputButtons.FORWARD | (sliding ? InputButtons.SPRINT | InputButtons.CROUCH : 0),
+    buttons: InputButtons.FORWARD | InputButtons.SPRINT | (sliding ? InputButtons.CROUCH : 0),
     weaponSlot: 0,
   };
 }

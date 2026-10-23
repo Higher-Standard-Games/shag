@@ -158,7 +158,7 @@ export class BotPerception {
         const off = Math.abs(angleTo(eyeFrom, player.position, viewYaw));
         const moving = Math.hypot(player.velocity.x, player.velocity.z) > RUNNING_SPEED;
         const inView = off <= VIEW_HALF_ANGLE || (moving && off <= PERIPHERAL_HALF_ANGLE);
-        if (recent || inView) {
+        if (recent || inView || heard.has(player.playerId)) {
           checks++;
           if (canSee?.(eyeFrom, player.position, player.entityId)) {
             const next = recent && sighting ? sighting : { firstTick: state.tick, lastTick: state.tick };

@@ -52,7 +52,7 @@ describe("ItemSlideApproachSequence", () => {
     const collect = runtime.tick(context);
     expect(collect).toMatchObject({ status: "running", phase: "collect" });
     expect(collect!.input.buttons & InputButtons.CROUCH).toBe(0);
-    expect(collect!.input.buttons & InputButtons.SPRINT).toBe(0);
+    expect(collect!.input.buttons & InputButtons.SPRINT).not.toBe(0);
 
     state.tick = 125;
     state.self.position.z = 285;

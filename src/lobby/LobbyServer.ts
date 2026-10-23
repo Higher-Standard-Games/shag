@@ -1495,11 +1495,13 @@ export class LobbyServer {
       return;
     }
 
-    // No difficulty asked for: the bot whose rating is nearest the inviter's,
-    // so the bots get harder as they get better.
+    // Automatic opponents have a Hard floor; ratings can promote them to Insane.
+    const matched = this.results?.botPresetFor(player.accountId, lobby.gametype.id) ?? "hard";
     const preset = BOT_PRESETS.includes(difficulty as BotPreset)
       ? (difficulty as BotPreset)
-      : (this.results?.botPresetFor(player.accountId, lobby.gametype.id) ?? "medium");
+      : matched === "insane"
+        ? "insane"
+        : "hard";
     try {
       const name = await this.requestBotForLobby(lobby, preset);
       console.log(`[LobbyServer] Bot "${name}" (${preset}) invited into lobby ${lobbyId} by ${player.name}`);

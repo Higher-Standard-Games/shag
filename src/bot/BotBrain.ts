@@ -44,6 +44,8 @@ export interface BotInput {
    * guarantee. The client sends the script once, then returns to decisions.
    */
   script?: readonly BotInput[];
+  /** Stop sending a previous movement script before applying this decision. */
+  cancelScript?: boolean;
 }
 
 /** The yaw a decision moves along: `direction` is relative to it. */

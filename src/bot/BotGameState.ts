@@ -478,6 +478,7 @@ export class BotGameState {
 
     // ── Process player scores ────────────────────────────────────────
     this.playerNames.clear();
+    this.scores.clear();
     for (const [playerId, player] of snapshot.players) {
       if (player.entityId) this.playerNames.set(player.entityId, player.name);
       this.scores.set(playerId, {

@@ -45,6 +45,20 @@ function makeHarness() {
 }
 
 describe("RouteCrouchslideSequence", () => {
+  it("releases a stalled slide without jump-cancelling in place", () => {
+    const { state, runtime, context } = makeHarness();
+    expect(runtime.startBest(context)).toBe(true);
+    runtime.tick(context);
+    state.tick = 105;
+    state.self.isSliding = true;
+    runtime.tick(context);
+    state.tick = 180;
+    state.self.velocity = { x: 0, y: 0, z: 0 };
+    const released = runtime.tick(context)!;
+    expect(released.input.buttons & InputButtons.JUMP).toBe(0);
+    expect(released.input.buttons & InputButtons.SPRINT).not.toBe(0);
+  });
+
   it("verifies slide entry, holds its trajectory, and confirms jump-cancel exit", () => {
     const { state, runtime, context } = makeHarness();
     expect(runtime.startBest(context)).toBe(true);

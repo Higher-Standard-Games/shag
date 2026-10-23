@@ -8,7 +8,7 @@ import type { BotSequence, BotSequenceContext, BotSequenceState, BotSequenceTick
 const SERVER_TICK_RATE = 125;
 const TAKEOFF_CONFIRM_TICKS = 18;
 const TAKEOFF_COMMIT_TICKS = 10;
-const MIN_ENTRY_SPEED = 220;
+const MIN_ENTRY_SPEED = PHYSICS.SPRINT_SPEED;
 const MIN_CONTROL_SPEED = 160;
 const ENDPOINT_EXIT_DISTANCE = 260;
 const MIN_ROUTE_ERROR_FOR_SIDE = 0.025;

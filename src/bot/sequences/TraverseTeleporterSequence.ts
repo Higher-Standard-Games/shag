@@ -24,7 +24,7 @@ function preciseForward(context: BotSequenceContext, target: Vec3, fallbackYaw?:
     direction: { x: 0, y: 0, z: 1 },
     pitch: self.pitch,
     ...steerToward({ position: self.position, yaw: fallbackYaw ?? self.yaw }, target, HOLD_VIEW_WITHIN),
-    buttons: InputButtons.FORWARD,
+    buttons: InputButtons.FORWARD | InputButtons.SPRINT,
     weaponSlot: 0,
   };
 }

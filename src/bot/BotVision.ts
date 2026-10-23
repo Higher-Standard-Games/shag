@@ -17,6 +17,7 @@ import { type AABB, type CollisionWorld, MASK_SOLID } from "../engine/network/sy
 import type { Vec3 } from "../shared/bsp/BspDataLoader";
 import type { PickupEntry } from "../shared/bsp/PickupTable";
 import { extractTriggerVolumes, type TriggerVolume } from "../shared/bsp/TriggerTable";
+import { DEFAULT_PHYSICS_TICK_RATE as TICK_RATE } from "../shared/server/simulation/physics/constants";
 import type { BotGameState, VisiblePickup, VisiblePlayer } from "./BotGameState";
 import { vec3Add, vec3Distance, vec3Length, vec3Normalize, vec3Scale, vec3Subtract } from "./BotGameState";
 
@@ -143,18 +144,18 @@ const PLAYER_BOUNDS: AABB = {
 };
 
 /** Ticks to consider weapon fire as "audible" */
-const AUDIBLE_FIRE_TICKS = 120; // ~2 seconds at 60Hz
+const AUDIBLE_FIRE_TICKS = 2 * TICK_RATE;
 
 // ── Enemy Memory Constants ──────────────────────────────────────────────
 
-/** Max ticks to extrapolate enemy position (3 seconds at 60Hz) */
-const MAX_EXTRAPOLATION_TICKS = 180;
+/** Max ticks to extrapolate enemy position (3 seconds). */
+const MAX_EXTRAPOLATION_TICKS = 3 * TICK_RATE;
 
-/** Ticks until visual track confidence reaches 0 (~4 seconds at 60Hz) */
-const VISUAL_TRACK_DECAY_TICKS = 240;
+/** Ticks until visual track confidence reaches 0 (4 seconds). */
+const VISUAL_TRACK_DECAY_TICKS = 4 * TICK_RATE;
 
 /** Ticks until sound track confidence reaches 0 (~2.5 seconds) */
-const SOUND_TRACK_DECAY_TICKS = 150;
+const SOUND_TRACK_DECAY_TICKS = Math.round(2.5 * TICK_RATE);
 
 /** Initial confidence for sound-based tracks (less certain than visual) */
 const SOUND_CONFIDENCE = 0.6;
@@ -655,7 +656,7 @@ export class BotVision {
     for (const ae of audibleEnemies) {
       const existing = this._enemyTracks.get(ae.player.playerId);
       // Only update if we don't have a RECENT visual track
-      if (existing?.source !== "visual" || state.tick - existing.lastSeenTick > 30) {
+      if (existing?.source !== "visual" || state.tick - existing.lastSeenTick > TICK_RATE / 2) {
         this._enemyTracks.set(ae.player.playerId, {
           playerId: ae.player.playerId,
           entityId: ae.player.entityId,
@@ -695,7 +696,7 @@ export class BotVision {
       if (visibleIds.has(playerId)) continue;
 
       const elapsed = state.tick - track.lastSeenTick;
-      if (elapsed <= 0) continue;
+      if (elapsed < 0) continue;
 
       // Determine decay rate based on source
       const decayTicks = track.source === "visual" ? VISUAL_TRACK_DECAY_TICKS : SOUND_TRACK_DECAY_TICKS;
@@ -713,7 +714,7 @@ export class BotVision {
 
       // Extrapolate position (capped at MAX_EXTRAPOLATION_TICKS)
       const extrapolationTicks = Math.min(elapsed, MAX_EXTRAPOLATION_TICKS);
-      const tickDuration = 1 / 60; // ~60Hz ticks
+      const tickDuration = 1 / TICK_RATE;
       const predictedPosition = vec3Add(
         track.lastSeenPosition,
         vec3Scale(track.lastSeenVelocity, extrapolationTicks * tickDuration),

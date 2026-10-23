@@ -62,6 +62,35 @@ const mapKnowledge: MapKnowledgeData = {
   ],
 };
 
+describe("sound investigation", () => {
+  it("chases a newly heard enemy and keeps investigating continuous footsteps", () => {
+    const vision = new BotVision(collision, { ...mapKnowledge, pickupPositions: [] });
+    const state = new BotGameState();
+    state.heardEnemies = [perceivedPlayer("enemy", 0, -300)];
+    for (const tick of [100, 102, 104]) {
+      state.tick = tick;
+      const result = vision.getVisibleState(state);
+      expect(result.visibleEnemies).toHaveLength(0);
+      expect(result.chaseTarget?.playerId).toBe("enemy-player");
+      expect(result.chaseTarget?.predictedPosition).toEqual({ x: 0, y: 0, z: -300 });
+    }
+  });
+
+  it("predicts one second of lost visual contact using the server tick rate", () => {
+    const vision = new BotVision(collision, { ...mapKnowledge, pickupPositions: [] });
+    const state = new BotGameState();
+    const enemy = perceivedPlayer("enemy", 0, 300);
+    enemy.velocity = { x: 125, y: 0, z: 0 };
+    state.tick = 100;
+    state.players = [enemy];
+    vision.getVisibleState(state);
+    state.tick = 225;
+    state.players = [];
+    const result = vision.getVisibleState(state);
+    expect(result.chaseTarget?.predictedPosition.x).toBeCloseTo(125);
+  });
+});
+
 describe("bot team perception", () => {
   it('counts everyone as an enemy in a free-for-all, where the server calls every team "spectator"', () => {
     // The server has no team to name in a free-for-all and sends "spectator" for

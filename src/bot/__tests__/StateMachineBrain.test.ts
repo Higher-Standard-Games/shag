@@ -350,9 +350,9 @@ describe("StateMachineBrain traversal executors", () => {
     expect(result.input.yaw).toBeCloseTo(Math.atan2(100, 150), 6);
   });
 
-  it("starts a pure-side strafe hop on a long straight route", () => {
+  it("starts a pure-side strafe hop at running speed on a long straight route", () => {
     const brain = new StateMachineBrain(difficulty);
-    const state = makeState({ velocity: { x: 0, y: 0, z: 320 } });
+    const state = makeState({ velocity: { x: 0, y: 0, z: 400 } });
     state.players = [];
     const start = { id: 0, type: "spawn" as const, position: { x: 0, y: 0, z: 0 } };
     const end = { id: 1, type: "floor" as const, position: { x: 0, y: 0, z: 1000 } };
@@ -584,7 +584,8 @@ describe("StateMachineBrain traversal executors", () => {
     expect(result.status).toBe("moving");
     if (result.status === "moving") {
       expect(result.input.buttons & InputButtons.FORWARD).not.toBe(0);
-      expect(result.input.buttons & (InputButtons.SPRINT | InputButtons.JUMP | InputButtons.CROUCH)).toBe(0);
+      expect(result.input.buttons & (InputButtons.JUMP | InputButtons.CROUCH)).toBe(0);
+      expect(result.input.buttons & InputButtons.SPRINT).not.toBe(0);
       expect(result.input.yaw).toBe(1.25);
     }
     expect(brain.getNavigationDebug()).toContain("sequence=nav_traverse_teleporter phase=activate");
@@ -809,7 +810,8 @@ describe("StateMachineBrain site patrol", () => {
     const { h, state, goal } = harness();
     const walking = h._navigateGoal(state, goal, false);
     expect(walking.direction.z).toBe(1);
-    expect(walking.buttons & (InputButtons.JUMP | InputButtons.SPRINT | InputButtons.CROUCH)).toBe(0);
+    expect(walking.buttons & (InputButtons.JUMP | InputButtons.CROUCH)).toBe(0);
+    expect(walking.buttons & InputButtons.SPRINT).not.toBe(0);
     const first = { ...h._sitePatrol!.target };
     expect(Math.abs(first.x)).toBe(180);
     expect(first.y).toBe(0);

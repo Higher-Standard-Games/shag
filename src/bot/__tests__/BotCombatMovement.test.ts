@@ -79,6 +79,9 @@ describe("dodging a hit", () => {
     const moves = movement.step(state, HARD, 300);
     expect(moves.jump).toBe(true);
     expect(moves.strafe).not.toBe(0);
+    state.tick = 12;
+    expect(movement.step(state, HARD, 300).jump).toBe(false);
+    expect(movement.step(state, HARD, 300).strafe).not.toBe(0);
   });
 
   it("does not on Easy, mostly", () => {
@@ -134,9 +137,9 @@ describe("dodging a rocket", () => {
 });
 
 describe("at range", () => {
-  it("a strafe-jumper hops to keep speed, a beginner does not", () => {
+  it("does not jump simply because the opponent is far away", () => {
     const state = grounded();
-    expect(new BotCombatMovement(() => 0.5).step(state, HARD, 800).jump).toBe(true);
+    expect(new BotCombatMovement(() => 0.5).step(state, HARD, 800).jump).toBe(false);
     expect(new BotCombatMovement(() => 0.5).step(state, EASY, 800).jump).toBe(false);
     expect(new BotCombatMovement(() => 0.5).step(state, HARD, 300).jump).toBe(false);
   });

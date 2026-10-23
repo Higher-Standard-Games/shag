@@ -39,7 +39,7 @@ const routeStep: NavStep = {
   requiresPreciseApproach: false,
 };
 
-function makeHarness(velocity = { x: 0, y: 0, z: 320 }) {
+function makeHarness(velocity = { x: 0, y: 0, z: 400 }) {
   const state = new BotGameState();
   state.tick = 100;
   state.self.isGrounded = true;
@@ -112,7 +112,7 @@ describe("RouteStrafeJumpSequence", () => {
   });
 
   it("chooses the strafe side that corrects velocity toward the route", () => {
-    const { state, runtime, context } = makeHarness({ x: 100, y: 0, z: 300 });
+    const { state, runtime, context } = makeHarness({ x: 100, y: 0, z: 400 });
     expect(runtime.startBest(context)).toBe(true);
     runtime.tick(context);
 

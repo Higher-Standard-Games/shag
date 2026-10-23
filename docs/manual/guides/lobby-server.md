@@ -146,9 +146,9 @@ A room is one gametype, one map vote and up to that gametype's player count.
 - **Bots** are invited in private rooms through the bot server, at `easy`,
   `medium`, `hard` or `insane`. An invite that names no level (the room's
   **+ Add bot**) fields the preset whose Private rating in the room's mode is
-  nearest the inviter's, so bots get harder as a player gets better; a player
-  with no rating yet meets Medium, and a preset not yet rated is placed by its
-  order. The room shows each bot's level on its seat. A bot plays its ratings
+  nearest the inviter's, with a minimum of Hard. A player with no rating meets
+  Hard; a rating match to Insane selects Insane. Explicit preset requests can
+  still select any level. The room shows each bot's level on its seat. A bot plays its ratings
   as its preset's account (see "Bots are rated accounts"). Once the last human
   leaves, the room's bots are evicted so a bot-only room can never linger or
   start a match.
@@ -542,10 +542,42 @@ and are bound by the same rules:
   full speed on hosts with coarse timers.
 - **Perception.** `BotPerception` filters each snapshot down to what a player
   in the bot's place would know: allies, enemies in line of sight inside its
-  view cone, and enemies heard (shots, explosions, footsteps, jumps, landings,
+  view cone or revealed by sound with clear line of sight, and enemies heard (shots, explosions, footsteps, jumps, landings,
   pain, pickups). Item state is what the bot saw or heard; a heard pickup is
   timed at its `itemTimingSkill`. Sound ranges are the same at every
   difficulty.
+- **Pursuit.** Fresh sound tracks immediately supply a chase target. Prediction
+  and memory durations use the 125 Hz physics clock. Hearing can prompt a
+  line-of-sight check behind the bot; it still respects the notice delay and
+  walls. Navigation can use crouchslides and strafe jumps while chasing.
+- **Running and jumps.** Normal navigation, trigger approaches and recovery
+  request running speed. Wall avoidance changes heading without adding strafe
+  buttons that would force walk speed. Crouchslides take priority over optional
+  route strafe jumps; those jumps require at least 400 units/s. Random patrol
+  jumps and distance-only combat hops are disabled. Traversal still jumps when
+  needed, and noticed combat threats can trigger a single dodge jump with a
+  one-second jump cooldown. A stalled slide releases without jump-cancelling.
+  Firing, ADS, crouching and combat strafing retain the shared movement limits;
+  recorded traversal scripts retain the input their simulation validated.
+- **Duel lead.** With a lead greater than two frags against its opponent, a bot's
+  reaction-time setting gains a fixed 40 ms for perception, view turns and
+  projectile notice. The penalty ends when the lead returns to two or fewer;
+  it does not grow with the score or reduce aim accuracy.
+- **Duel positioning.** Healthy bots with a usable ranged weapon prefer reachable
+  upper-floor patrols and avoid dropping for lower pickups. They try to keep
+  their elevation when fighting or tracking an opponent below. Timed-item
+  waits use nearby patrols rather than standing at the pickup.
+- **Recovery.** Navigation without position progress for two seconds abandons
+  the approach, temporarily avoids the failed edge or pickup, and tries a
+  supported escape direction. A motionless airborne hang also crouches to
+  release a ledge grab. Objective holds, including planting and defusing,
+  retain their required stationary input.
+- **Ledge boosts.** Skilled bots can slide toward a route's ledge and jump
+  before leaving it. The planner simulates the full crossing with the FPS
+  movement profile and collision world before sending the input script; it
+  rejects misaligned momentum, insufficient slide distance, missing landings,
+  and lava or slime. This is an opportunistic traversal, using the default
+  movement rules; it does not discover arbitrary new routes.
 - **Aim.** `BotAimController` eases the view toward the brain's goal on a
   critically damped spring once per command, with a top speed and settle time
   from the difficulty's `trackingSpeed`, a reaction-time pause before turns

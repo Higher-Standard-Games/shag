@@ -75,8 +75,8 @@ describe("private room bot invite", () => {
       const joined = await waitFor("lobby:player_joined");
       // An invite that names no level fields the one nearest the inviter: with
       // no results kept here, Medium. The room shows the bot's level on its seat.
-      expect(joined.player).toMatchObject({ id: expect.any(String), name: expect.any(String), botLevel: "medium" });
-      expect(await waitFor("lobby:bot_invited")).toMatchObject({ lobbyId: room.id, difficulty: "medium" });
+      expect(joined.player).toMatchObject({ id: expect.any(String), name: expect.any(String), botLevel: "hard" });
+      expect(await waitFor("lobby:bot_invited")).toMatchObject({ lobbyId: room.id, difficulty: "hard" });
       expect(botServer.getStatus()).toHaveLength(1);
     } finally {
       control?.close();

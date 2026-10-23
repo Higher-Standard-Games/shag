@@ -29,7 +29,7 @@ function forwardInput(context: BotSequenceContext, target: Vec3, holdWithin = PA
     direction: { x: 0, y: 0, z: 1 },
     pitch: self.pitch,
     ...steerToward(self, target, holdWithin),
-    buttons: InputButtons.FORWARD,
+    buttons: InputButtons.FORWARD | InputButtons.SPRINT,
     weaponSlot: 0,
   };
 }

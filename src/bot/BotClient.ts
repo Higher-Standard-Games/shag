@@ -31,6 +31,7 @@ import { applyFriendlyFireSafety } from "./BotFireSafety";
 import { BotGameState } from "./BotGameState";
 import { BotPerception } from "./BotPerception";
 import { initialBotReference, modelDigest } from "./BotRatingIdentity";
+import { duelLeadReactionDelay } from "./BotReactionTuning";
 import type { BotVision, VisionResult } from "./BotVision";
 import { BotChat } from "./chat/BotChat";
 import { StateMachineBrain } from "./StateMachineBrain";
@@ -499,6 +500,10 @@ export class BotClient extends EventEmitter {
 
       // Update game state from snapshot, then keep only what this bot perceives
       this._gameState.update(snapshot);
+      this._perception.setDifficulty({
+        ...this._difficulty,
+        reactionTimeMs: this._difficulty.reactionTimeMs + duelLeadReactionDelay(this._gameState),
+      });
       const vision = this._vision;
       this._perception.perceive({
         state: this._gameState,
@@ -581,6 +586,10 @@ export class BotClient extends EventEmitter {
         this._friendlyFireSuppressions++;
       }
       this._lastBotInput = input;
+      if (input.cancelScript) {
+        this._script = null;
+        this._paced = null;
+      }
       if (input.script && input.script.length > 0 && this._script?.inputs !== input.script) {
         this._script = { inputs: input.script, sent: 0, startedAt: performance.now() };
       }

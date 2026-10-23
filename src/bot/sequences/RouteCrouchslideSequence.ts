@@ -74,6 +74,7 @@ export class RouteCrouchslideSequence implements BotSequence {
     const elapsed = context.state.tick - state.startedTick;
     const forward = InputButtons.FORWARD | InputButtons.SPRINT;
     const sliding = forward | InputButtons.CROUCH;
+    if (Math.hypot(self.velocity.x, self.velocity.z) < PHYSICS.SPRINT_SPEED) state.data.jumpCancel = false;
     const slideConfirmedTick = state.data.slideConfirmedTick as number | null;
 
     if (self.isSliding) {
@@ -98,6 +99,8 @@ export class RouteCrouchslideSequence implements BotSequence {
     }
 
     if (state.phase === "jump_cancel") {
+      if (state.data.jumpCancel !== true)
+        return { input: sequenceInput(state, forward), status: "succeeded", phase: "exit" };
       if (!self.isGrounded || !self.isSliding) {
         return {
           input: sequenceInput(state, forward | InputButtons.JUMP),

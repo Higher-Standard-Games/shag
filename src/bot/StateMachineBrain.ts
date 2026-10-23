@@ -23,15 +23,19 @@ import { vec3Length, vec3Normalize, vec3Subtract } from "./BotGameState";
 import { BotMood, type Mood, type MoodEvent } from "./BotMood";
 import { canInitiateSlide, PHYSICS } from "./BotMovementProfile";
 import { type BotNavGraph, type NavPath, type NavPathOptions, type NavStep, navEdgeKey } from "./BotNavGraph";
+import { duelLeadReactionDelay } from "./BotReactionTuning";
 import { BotSequenceRegistry, BotSequenceRuntime, type BotSequenceRuntimeTick } from "./BotSequence";
+import { BotTerritory } from "./BotTerritory";
 import type { BotVision, VisionResult } from "./BotVision";
 import { BotWeaponCombos, has, slotFor } from "./BotWeaponCombos";
 import { getWeaponProfile, selectBestWeapon, type WeaponProfile } from "./BotWeaponProfile";
 import type { BotGoal } from "./goals/BotGoal";
 import { collectDirectiveGoals } from "./goals/DirectiveGoalSource";
 import { ItemGoalPlanner } from "./goals/ItemGoalPlanner";
+import { planLedgeSlideJump } from "./LedgeSlideJump";
 import { ItemSlideApproachSequence } from "./sequences/ItemSlideApproachSequence";
 import { LearnedRouteSequence } from "./sequences/LearnedRouteSequence";
+import { LedgeSlideJumpSequence } from "./sequences/LedgeSlideJumpSequence";
 import { RouteCrouchslideSequence } from "./sequences/RouteCrouchslideSequence";
 import { RouteStrafeJumpSequence } from "./sequences/RouteStrafeJumpSequence";
 import { canLunge, SlideBladeSequence } from "./sequences/SlideBladeSequence";
@@ -174,6 +178,12 @@ export class StateMachineBrain extends BotBrain {
   private _pathTarget: Vec3 | null = null;
   private _pathRecalcTimer: number = 0;
   private _huntPatrolTarget: Vec3 | null = null; // Separate from _pathTarget to avoid confusion
+  private readonly _territory = new BotTerritory();
+  private _navigationProgress: { position: Vec3; tick: number } | null = null;
+  private _recovery: { target: Vec3; until: number } | null = null;
+  private _ledgeProbeTick = 0;
+  private _leadReactionDelayMs = 0;
+  private _cancelScript = false;
   private readonly _sequenceRegistry = new BotSequenceRegistry();
   private readonly _sequenceRuntime = new BotSequenceRuntime(this._sequenceRegistry);
   private _activeSequenceStep: NavStep | null = null;
@@ -218,6 +228,7 @@ export class StateMachineBrain extends BotBrain {
     this._sequenceRegistry.register(new TraverseJumppadSequence());
     this._sequenceRegistry.register(new LearnedRouteSequence());
     this._sequenceRegistry.register(new SlideBladeSequence());
+    this._sequenceRegistry.register(new LedgeSlideJumpSequence());
   }
 
   // ── Main Decision Loop ────────────────────────────────────────────
@@ -263,6 +274,17 @@ export class StateMachineBrain extends BotBrain {
     visionResult?: VisionResult | null,
     navGraph?: BotNavGraph | null,
   ): BotInput {
+    this._cancelScript = false;
+    const input = this._decide(state, vision, visionResult, navGraph);
+    return this._cancelScript ? { ...input, cancelScript: true } : input;
+  }
+
+  private _decide(
+    state: BotGameState,
+    vision?: BotVision | null,
+    visionResult?: VisionResult | null,
+    navGraph?: BotNavGraph | null,
+  ): BotInput {
     this._pathRecalcTimer++;
     this._lastVision = visionResult ?? null;
     this._lastDecisionTick = state.tick;
@@ -287,6 +309,9 @@ export class StateMachineBrain extends BotBrain {
       this._mood.endFight();
       this._readyWeapon = null;
       this._highGroundSpot = null;
+      this._territory.reset();
+      this._navigationProgress = null;
+      this._recovery = null;
       // Clear vision cache on death
       if (vision) vision.clearCache();
       return this._noInput(state);
@@ -299,6 +324,16 @@ export class StateMachineBrain extends BotBrain {
       this._interruptSequence(state, "objective_changed", true);
     }
     this._mandatoryGoal = mandatory;
+    const seesEnemy = this._lastVision ? this._lastVision.visibleEnemies.length > 0 : state.getNearestEnemy() !== null;
+    if (seesEnemy || state.wasRecentlyDamaged(DODGE_REACT_TICKS)) this._recovery = null;
+    if (this._recovery && state.tick < this._recovery.until && !mandatory) {
+      if (vec3Length(vec3Subtract(this._recovery.target, state.self.position)) > 24) {
+        const input = this._moveTowardPrecise(state, this._recovery.target);
+        if (!state.self.isGrounded) input.buttons |= InputButtons.CROUCH;
+        return input;
+      }
+      this._recovery = null;
+    }
     if (
       !state.directives.some(
         (order) => `objective:${order.id}` === this._sitePatrol?.goalId && order.expiresAtTick > state.tick,
@@ -316,7 +351,7 @@ export class StateMachineBrain extends BotBrain {
 
     if (this._sequenceRuntime.isActive) {
       const sequenceInput = this._tickActiveSequence(state);
-      if (sequenceInput) return sequenceInput;
+      if (sequenceInput) return this._recoverStalledNavigation(state, sequenceInput);
     }
 
     if (stateChanged) {
@@ -357,6 +392,8 @@ export class StateMachineBrain extends BotBrain {
         break;
     }
 
+    input = this._recoverStalledNavigation(state, input);
+
     // Apply feeler raycasts for wall avoidance (navigation states only)
     if (
       vision &&
@@ -367,11 +404,17 @@ export class StateMachineBrain extends BotBrain {
       input = this._applyFeelers(input, state, vision);
     }
 
+    const chase = this.currentState === BotState.CHASE ? this._lastVision?.chaseTarget : null;
+    if (chase && state.self.health >= 50)
+      input = this._keepUpperGround(state, { position: chase.lastSeenPosition }, input);
+
     if (this.currentState !== BotState.FIGHT && this.currentState !== BotState.DODGE) {
       this._readyForHeard(state, input);
     }
 
     if (!this._suppressTraversalAutomation) {
+      const ledgeJump = this._tryStartLedgeSlideJump(input, state);
+      if (ledgeJump) return ledgeJump;
       const itemSlideInput = this._tryStartItemSlideApproach(input, state);
       if (itemSlideInput) return itemSlideInput;
       const routeSlideInput = this._tryStartRouteCrouchslide(input, state);
@@ -524,7 +567,7 @@ export class StateMachineBrain extends BotBrain {
       : this._aimAtTarget(state, enemy);
 
     // Strafe while fighting: rhythm, dodges and hops from BotCombatMovement
-    const moves = this._combatMovement.step(state, this.difficulty, enemy.distance);
+    const moves = this._combatMovement.step(state, this.aimDifficulty, enemy.distance);
     const strafeInput = moves.strafe;
     if (strafeInput !== 0) this._strafeDirection = strafeInput;
 
@@ -618,20 +661,51 @@ export class StateMachineBrain extends BotBrain {
       buttons |= forwardZ >= 0 ? InputButtons.FORWARD : InputButtons.BACK;
     }
 
-    return {
+    return this._keepUpperGround(state, enemy, {
       direction: { x: strafeX, y: 0, z: forwardZ },
       pitch: aim.pitch,
       yaw: aim.yaw,
       buttons,
       weaponSlot,
-    };
+    });
+  }
+
+  private _keepUpperGround(state: BotGameState, enemy: Pick<VisiblePlayer, "position">, input: BotInput): BotInput {
+    const vision = this._lastBotVision;
+    const self = state.self.position;
+    if (
+      !vision ||
+      !state.self.isGrounded ||
+      state.matchState.gametypeName.toLowerCase() !== "duel" ||
+      self.y - enemy.position.y < 64
+    )
+      return input;
+    const heading = travelYaw(input) + Math.atan2(input.direction.x, input.direction.z);
+    for (const turn of [0, Math.PI / 2, -Math.PI / 2, Math.PI]) {
+      const yaw = heading + turn;
+      const target = { x: self.x + Math.sin(yaw) * 96, y: self.y, z: self.z + Math.cos(yaw) * 96 };
+      if (!vision.isWalkable(self, target)) continue;
+      const floor = vision.collisionWorld.trace(target, { ...target, y: target.y - 64 });
+      if (!floor.hit || floor.fraction >= 1) continue;
+      if (turn === 0) return input;
+      input.moveYaw = yaw;
+      input.direction = { x: 0, y: 0, z: 1 };
+      input.buttons &= ~(InputButtons.LEFT | InputButtons.RIGHT | InputButtons.BACK);
+      input.buttons |= InputButtons.FORWARD | InputButtons.SPRINT;
+      return input;
+    }
+    return input;
   }
 
   override get aimDifficulty(): BotDifficulty {
-    return this._mood.aimDifficulty(this.difficulty);
+    const difficulty = this._mood.aimDifficulty(this.difficulty);
+    return this._leadReactionDelayMs
+      ? { ...difficulty, reactionTimeMs: difficulty.reactionTimeMs + this._leadReactionDelayMs }
+      : difficulty;
   }
 
   override observe(state: BotGameState): void {
+    this._leadReactionDelayMs = duelLeadReactionDelay(state);
     this._moodEvents.push(...this._mood.update(state));
     if (this._moodEvents.length > 20) this._moodEvents.splice(0, this._moodEvents.length - 20);
   }
@@ -752,12 +826,15 @@ export class StateMachineBrain extends BotBrain {
   // ── DODGE State ───────────────────────────────────────────────────
 
   private _executeDodge(state: BotGameState): BotInput {
-    // Strafe hard on the fight's rhythm, and jump
+    // Sidestep threats; jump or slide only when the combat controller requests it.
     const enemyDistance = state.getNearestEnemy()?.distance ?? 0;
-    const side = this._combatMovement.step(state, this.difficulty, enemyDistance).strafe;
+    const moves = this._combatMovement.step(state, this.aimDifficulty, enemyDistance);
+    const side = moves.strafe;
     if (side !== 0) this._strafeDirection = side;
 
-    let buttons = InputButtons.JUMP | InputButtons.SPRINT;
+    let buttons = InputButtons.SPRINT;
+    if (moves.jump) buttons |= InputButtons.JUMP;
+    if (moves.crouch) buttons |= InputButtons.CROUCH;
     buttons |= this._strafeDirection > 0 ? InputButtons.RIGHT : InputButtons.LEFT;
     buttons |= InputButtons.FORWARD;
 
@@ -795,11 +872,30 @@ export class StateMachineBrain extends BotBrain {
     }
 
     // Move toward predicted (extrapolated) position using navGraph if available
-    const input = this._navigateTo(state, target.predictedPosition, false);
+    const holdUpper =
+      state.matchState.gametypeName.toLowerCase() === "duel" &&
+      target.lastSeenPosition.y < state.self.position.y - 64 &&
+      state.self.health >= 50;
+    const territory = holdUpper ? this._duelTerritory(state) : null;
+    const input =
+      holdUpper && !territory
+        ? this._keepUpperGround(
+            state,
+            { position: target.predictedPosition },
+            this._moveToward(state, { ...target.predictedPosition, y: state.self.position.y }, false),
+          )
+        : this._navigateTo(state, territory ?? target.predictedPosition, false);
+    if (holdUpper) {
+      input.moveYaw = travelYaw(input);
+      input.yaw = Math.atan2(
+        target.predictedPosition.x - state.self.position.x,
+        target.predictedPosition.z - state.self.position.z,
+      );
+    }
 
     // Only pre-fire when very close to predicted position (near corners)
     const distToTarget = vec3Length(vec3Subtract(target.predictedPosition, state.self.position));
-    if (distToTarget < 200 && target.confidence > 0.7) {
+    if (!holdUpper && distToTarget < 200 && target.confidence > 0.7) {
       input.buttons |= InputButtons.FIRE;
     }
 
@@ -890,7 +986,11 @@ export class StateMachineBrain extends BotBrain {
     const goal = this._selectItemGoal(state);
     // Only a DIRECTIVE goal holds on arrival. An item goal has to be touched,
     // and a bot that stops next to a Red Armor never picks it up.
-    if (goal) return this._navigateGoal(state, goal, false);
+    if (goal) {
+      const territory =
+        !goal.directive && goal.position.y < state.self.position.y - 48 ? this._duelTerritory(state) : null;
+      return territory ? this._navigateTo(state, territory, false) : this._navigateGoal(state, goal, false);
+    }
 
     // Try NavGraph path to nearest item (weapon > health > armor > ammo)
     // Uses cached _navigateToItem to avoid A* every tick
@@ -931,6 +1031,9 @@ export class StateMachineBrain extends BotBrain {
 
   private _executeHunt(state: BotGameState): BotInput {
     this._huntTimer++;
+
+    const territory = this._duelTerritory(state);
+    if (territory) return this._navigateTo(state, territory, false);
 
     // Prefer a scored goal over aimless patrol. Reached when the ladder falls
     // through to HUNT but the arbiter still has something worth doing — an
@@ -973,12 +1076,7 @@ export class StateMachineBrain extends BotBrain {
     // Look around randomly (human-feel)
     this._updateLookAround();
 
-    let buttons = InputButtons.FORWARD | InputButtons.SPRINT;
-
-    // Jump occasionally
-    if (Math.random() < 0.01 && state.self.isGrounded) {
-      buttons |= InputButtons.JUMP;
-    }
+    const buttons = InputButtons.FORWARD | InputButtons.SPRINT;
 
     return {
       direction: { x: 0, y: 0, z: 1 },
@@ -1111,9 +1209,99 @@ export class StateMachineBrain extends BotBrain {
     this._sitePatrol = null;
     const timed = !goal.directive && goal.respawnTick !== undefined && goal.respawnTick > state.tick;
     if (timed && radius !== undefined && vec3Length(vec3Subtract(goal.position, state.self.position)) <= radius) {
+      if (state.matchState.gametypeName.toLowerCase() === "duel") {
+        const patrol = this._duelTerritory(state, goal.position);
+        return patrol ? this._navigateTo(state, patrol, false) : this._startRecovery(state);
+      }
       return this._watchEntrances(state, goal.position);
     }
     return this._navigateTo(state, goal.position, urgent, radius);
+  }
+
+  private _duelTerritory(state: BotGameState, center?: Vec3): Vec3 | null {
+    if (state.matchState.gametypeName.toLowerCase() !== "duel" || !this._navGraph || !this._lastBotVision) return null;
+    if (
+      !center &&
+      (state.self.health < 60 ||
+        !state.self.weapons.some((weapon) => !getWeaponProfile(weapon).isMelee && (state.self.ammo[weapon] ?? 10) >= 3))
+    )
+      return null;
+    return this._territory.choose(
+      state,
+      this._navGraph,
+      this._lastBotVision,
+      this._getNavPathOptions(state.tick),
+      center,
+    );
+  }
+
+  /** Recover from a route that issues commands without actually going anywhere. */
+  private _recoverStalledNavigation(state: BotGameState, input: BotInput): BotInput {
+    if (
+      this._mandatoryGoal ||
+      this._activeItemGoal?.directive ||
+      this.currentState === BotState.FIGHT ||
+      this.currentState === BotState.DODGE
+    ) {
+      this._navigationProgress = null;
+      return input;
+    }
+    const progress = this._navigationProgress;
+    const position = state.self.position;
+    if (
+      !progress ||
+      state.tick < progress.tick ||
+      Math.hypot(position.x - progress.position.x, position.z - progress.position.z) > 32 ||
+      (state.self.isGrounded && Math.abs(position.y - progress.position.y) > 48)
+    ) {
+      this._navigationProgress = { position: { ...position }, tick: state.tick };
+    } else if (state.tick - progress.tick >= 250 && (state.self.isGrounded || Math.abs(state.self.velocity.y) < 50)) {
+      return this._startRecovery(state);
+    }
+    return input;
+  }
+
+  private _startRecovery(state: BotGameState): BotInput {
+    this._cancelScript = true;
+    const step = this._activeSequenceStep ?? this._currentPath?.steps[this._currentPath.cursor];
+    if (step) this._cooldownNavStep(step, state.tick);
+    if (this.currentState !== BotState.CHASE && this._activeItemGoal?.pickupId !== undefined)
+      this._blockedPickupIds.set(this._activeItemGoal.pickupId, state.tick + PICKUP_FAILURE_COOLDOWN_TICKS);
+    this._interruptSequence(state, "no_navigation_progress", true);
+    this._itemGoalPlanner.reset();
+    this._activeItemGoal = null;
+    this._currentPath = null;
+    this._pathTarget = null;
+    this._huntPatrolTarget = null;
+    this._territory.reset();
+    this._navigationProgress = { position: { ...state.self.position }, tick: state.tick };
+    const self = state.self.position;
+    const away = step ? Math.atan2(self.x - step.to.position.x, self.z - step.to.position.z) : state.self.yaw + Math.PI;
+    for (const distance of [128, 64, 32]) {
+      for (const turn of [0, Math.PI / 2, -Math.PI / 2, Math.PI]) {
+        const target = {
+          x: self.x + Math.sin(away + turn) * distance,
+          y: self.y,
+          z: self.z + Math.cos(away + turn) * distance,
+        };
+        const vision = this._lastBotVision;
+        if (vision && !vision.isWalkable(self, target)) continue;
+        if (vision) {
+          const floor = vision.collisionWorld.trace(target, { ...target, y: target.y - 64 });
+          if (!floor.hit || floor.fraction >= 1) continue;
+        }
+        this._recovery = { target, until: state.tick + 125 };
+        const input = this._moveTowardPrecise(state, target);
+        if (!state.self.isGrounded) input.buttons |= InputButtons.CROUCH;
+        return input;
+      }
+    }
+    const input = this._moveToward(
+      state,
+      { x: self.x + Math.sin(away) * 32, y: self.y, z: self.z + Math.cos(away) * 32 },
+      false,
+    );
+    return input;
   }
 
   /**
@@ -1203,16 +1391,7 @@ export class StateMachineBrain extends BotBrain {
       const result = this._followCurrentPath(state, urgent);
       if (result.status === "moving") return result.input;
       if (result.status === "blocked") {
-        // Standing still is an acceptable answer for an ITEM — the armor is not
-        // going anywhere and a bot planted next to a lift it cannot use looks
-        // like it is waiting. It is never the answer for an OBJECTIVE. A round
-        // mode has a clock, and a bot that holds position at its own spawn
-        // because the graph could not route to the bomb has abandoned the round
-        // while looking like it decided to.
-        //
-        // Steer at it directly instead. That can walk into a wall, which is
-        // visible and recoverable, rather than invisible and not.
-        if (holdRadius === undefined) return this._noInput(state);
+        if (holdRadius === undefined) return this._startRecovery(state);
         this._currentPath = null;
         return this._moveToward(state, target, urgent);
       }
@@ -1313,7 +1492,7 @@ export class StateMachineBrain extends BotBrain {
     if (this._currentPath) {
       const result = this._followCurrentPath(state, urgent);
       if (result.status === "moving") return result.input;
-      if (result.status === "blocked") return this._noInput(state);
+      if (result.status === "blocked") return this._startRecovery(state);
       // Arrived at item — clear path
       this._currentPath = null;
     }
@@ -1370,6 +1549,7 @@ export class StateMachineBrain extends BotBrain {
   private _interruptSequence(state: BotGameState, reason: string, force: boolean = false): boolean {
     const interrupted = this._sequenceRuntime.interrupt(this._getSequenceContext(state), reason, force);
     if (interrupted) {
+      this._cancelScript = true;
       this._activeSequenceStep = null;
       this._activeItemSlideTarget = null;
     }
@@ -1383,6 +1563,7 @@ export class StateMachineBrain extends BotBrain {
     this._suppressTraversalAutomation = true;
     this._pathRecalcTimer = 0;
     if (result.status === "running") return result.input;
+    this._cancelScript = true;
 
     const terminalItemTarget = this._activeItemSlideTarget;
     this._activeItemSlideTarget = null;
@@ -1404,7 +1585,7 @@ export class StateMachineBrain extends BotBrain {
         this._pathBlockedReason = `sequence:${result.sequenceId}:${result.reason ?? "failed"}`;
         this._cooldownNavStep(terminalStep, state.tick);
         this._currentPath = null;
-        return this._noInput(state);
+        return this._startRecovery(state);
       }
       return null;
     }
@@ -1458,9 +1639,17 @@ export class StateMachineBrain extends BotBrain {
         return { status: "blocked", reason: this._pathBlockedReason };
       }
 
+      const boost = this._tryStartLedgeSlideJump(this._moveToward(state, step.to.position, urgent), state);
+      if (boost) return { status: "moving", input: boost };
+
       this._suppressTraversalAutomation = true;
       const target = distanceToStart > 56 ? step.from.position : (probe?.landing ?? step.to.position);
       return { status: "moving", input: this._moveTowardPrecise(state, target) };
+    }
+
+    if (step.type === "jump") {
+      const boost = this._tryStartLedgeSlideJump(this._moveToward(state, step.to.position, urgent), state);
+      if (boost) return { status: "moving", input: boost };
     }
 
     // A learned route is a script, not a jump: run it or not at all. Falling
@@ -1528,8 +1717,8 @@ export class StateMachineBrain extends BotBrain {
   }
 
   private _makePrecise(input: BotInput): BotInput {
-    input.buttons &= ~(InputButtons.SPRINT | InputButtons.JUMP | InputButtons.CROUCH);
-    input.buttons |= InputButtons.FORWARD;
+    input.buttons &= ~(InputButtons.JUMP | InputButtons.CROUCH);
+    input.buttons |= InputButtons.FORWARD | InputButtons.SPRINT;
     input.direction.x = 0;
     input.direction.z = 1;
     return input;
@@ -1537,7 +1726,7 @@ export class StateMachineBrain extends BotBrain {
 
   /**
    * Direct movement toward a target position.
-   * Low-level: walk/sprint/jump toward point.
+   * Low-level: run toward a point; traversal and combat own jump decisions.
    *
    * NOTE: Server ticks at 125Hz but bot sends input at 12-33Hz.
    * Last input PERSISTS across ~4-10 server ticks. This means:
@@ -1545,7 +1734,7 @@ export class StateMachineBrain extends BotBrain {
    * - Button flags like LEFT/RIGHT must be set alongside direction.x
    *   for the server's strafejump air acceleration to activate
    */
-  private _moveToward(state: BotGameState, target: Vec3, urgent: boolean): BotInput {
+  private _moveToward(state: BotGameState, target: Vec3, _urgent: boolean): BotInput {
     const delta = vec3Subtract(target, state.self.position);
     const distance = vec3Length(delta);
     const targetYaw = distance < 1 ? state.self.yaw : Math.atan2(delta.x, delta.z);
@@ -1555,25 +1744,10 @@ export class StateMachineBrain extends BotBrain {
     // Even if very close, keep moving forward.
 
     // Always sprint + forward — arena FPS bots strafe-run by default
-    let buttons = InputButtons.FORWARD | InputButtons.SPRINT;
-
-    // Jump — low probability because JUMP persists across 4-10 server ticks
-    // (each bot input = ~4-10 physics frames). 0.3% × ~7 ticks ≈ 2% effective.
-    if (Math.random() < 0.003 && state.self.isGrounded) {
-      buttons |= InputButtons.JUMP;
-    }
-
-    // Strafe direction (for dodge/variety). When urgent, add slight strafe
-    let strafeX = 0;
-    if (urgent && distance > 200) {
-      strafeX = this._strafeDirection * 0.3;
-      // Set LEFT/RIGHT button flags — critical for server air-strafe physics
-      if (strafeX < 0) buttons |= InputButtons.LEFT;
-      if (strafeX > 0) buttons |= InputButtons.RIGHT;
-    }
+    const buttons = InputButtons.FORWARD | InputButtons.SPRINT;
 
     return {
-      direction: { x: strafeX, y: 0, z: 1 },
+      direction: { x: 0, y: 0, z: 1 },
       pitch: 0,
       yaw: targetYaw,
       buttons,
@@ -1649,6 +1823,33 @@ export class StateMachineBrain extends BotBrain {
    * the state-machine fallback when authoritative slide entry is not confirmed.
    * Runs after brain decision — adjusts heading, doesn't override state.
    */
+  private _tryStartLedgeSlideJump(input: BotInput, state: BotGameState): BotInput | null {
+    if (
+      !this._lastBotVision ||
+      !state.self.isGrounded ||
+      this._sequenceRuntime.isActive ||
+      this.difficulty.strafeJumpSkill < 0.55 ||
+      state.tick < this._ledgeProbeTick ||
+      state.tick < this._slideCooldownUntilTick ||
+      (input.buttons & (InputButtons.FIRE | InputButtons.ALT_FIRE)) !== 0 ||
+      (input.buttons & (InputButtons.FORWARD | InputButtons.SPRINT)) !== (InputButtons.FORWARD | InputButtons.SPRINT)
+    )
+      return null;
+    const path = this._currentPath;
+    const step = path?.steps[path.cursor];
+    if (!path || !step) return null;
+    const next = step.type === "walk" ? path.steps[path.cursor + 1] : step;
+    if (!next || (next.type !== "fall" && next.type !== "jump")) return null;
+    this._ledgeProbeTick = state.tick + 31;
+    const plan = planLedgeSlideJump(state.self, input, next.to.position, this._lastBotVision.collisionWorld);
+    if (!plan) return null;
+    const context = { ...this._getSequenceContext(state, step, input), ledgeSlidePlan: plan };
+    if (!this._sequenceRuntime.start("ledge_slide_jump", context)) return null;
+    this._activeSequenceStep = next;
+    this._slideCooldownUntilTick = state.tick + BOT_SLIDE_COOLDOWN_TICKS;
+    return this._tickActiveSequence(state);
+  }
+
   private _tryStartRouteCrouchslide(input: BotInput, state: BotGameState): BotInput | null {
     if (state.self.isDead || this._sequenceRuntime.isActive) return null;
     const movingForward = (input.buttons & InputButtons.FORWARD) !== 0 && (input.buttons & InputButtons.BACK) === 0;
@@ -1747,6 +1948,7 @@ export class StateMachineBrain extends BotBrain {
 
     const routeDirection = vec3Normalize({ x: routeDelta.x, y: 0, z: routeDelta.z });
     const horizontalSpeed = Math.hypot(state.self.velocity.x, state.self.velocity.z);
+    if (horizontalSpeed < PHYSICS.SPRINT_SPEED) return null;
     if (horizontalSpeed > 0.001) {
       const velocityDotRoute =
         (state.self.velocity.x * routeDirection.x + state.self.velocity.z * routeDirection.z) / horizontalSpeed;
@@ -1843,21 +2045,6 @@ export class StateMachineBrain extends BotBrain {
         const leftDist = leftResult.fraction;
         const rightDist = rightResult.fraction;
         yawAdjust = leftDist > rightDist ? -0.4 : 0.4;
-      }
-
-      // Jump to get over short obstacles (only if not already jumping)
-      if (state.self.isGrounded && !(input.buttons & InputButtons.JUMP)) {
-        input.buttons |= InputButtons.JUMP;
-      }
-
-      // Apply strafe buttons matching the yaw adjustment
-      // so server physics responds to the direction change
-      if (yawAdjust > 0) {
-        input.buttons |= InputButtons.RIGHT;
-        input.buttons &= ~InputButtons.LEFT;
-      } else if (yawAdjust < 0) {
-        input.buttons |= InputButtons.LEFT;
-        input.buttons &= ~InputButtons.RIGHT;
       }
     } else if (leftBlocked && !rightBlocked) {
       yawAdjust = 0.2; // Gentle right

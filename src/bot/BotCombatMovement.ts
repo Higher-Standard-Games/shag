@@ -9,7 +9,7 @@
  * - Taking a hit sets off a dodge: a jump, or from a sprint a slide.
  * - A rocket or grenade on course for the bot is sidestepped, away from its
  *   path, once the bot has had time to notice it; a skilled bot jumps it too.
- * - Far from its target, a strafe-jumper keeps hopping to keep its speed.
+ * - Jumps are reserved for a noticed threat; ordinary fighting stays grounded.
  * - With a splash weapon, a nearby ledge above the enemy is worth taking:
  *   rockets into their feet from there are hard to avoid (`findHighGround`).
  *
@@ -28,8 +28,6 @@ const STEADY_RUN_TICKS = Math.round(0.6 * TICK_RATE);
 const STOP_TICKS = Math.round(0.15 * TICK_RATE);
 /** A projectile first seen this close to the bot is its own. */
 const OWN_PROJECTILE_RADIUS = 120;
-/** Hop to keep speed beyond this distance from the target. */
-const HOP_DISTANCE = 600;
 
 export interface CombatMoves {
   /** −1 left, 0 none, 1 right. */
@@ -41,6 +39,8 @@ export interface CombatMoves {
 type Skills = Pick<BotDifficulty, "dodgeSkill" | "strafeJumpSkill" | "reactionTimeMs">;
 
 export class BotCombatMovement {
+  private _dodgeJumpSent = false;
+  private _lastJumpTick = Number.NEGATIVE_INFINITY;
   private _side: -1 | 1 = 1;
   private _runUntil = 0;
   private _stopUntil = 0;
@@ -55,13 +55,15 @@ export class BotCombatMovement {
   constructor(private readonly _random: () => number = Math.random) {}
 
   reset(): void {
+    this._dodgeJumpSent = false;
+    this._lastJumpTick = Number.NEGATIVE_INFINITY;
     this._runUntil = 0;
     this._stopUntil = 0;
     this._dodgeUntil = 0;
     this._projectiles.clear();
   }
 
-  step(state: BotGameState, skills: Skills, targetDistance: number): CombatMoves {
+  step(state: BotGameState, skills: Skills, _targetDistance: number): CombatMoves {
     const tick = state.tick;
     const skill = clamp01(skills.dodgeSkill);
     this._trackProjectiles(state);
@@ -70,14 +72,18 @@ export class BotCombatMovement {
     this._reactToHit(state, skill);
 
     if (tick < this._dodgeUntil) {
-      return { strafe: this._dodgeSide, jump: this._dodgeJump, crouch: this._dodgeCrouch };
+      const jump =
+        this._dodgeJump && !this._dodgeJumpSent && state.self.isGrounded && tick - this._lastJumpTick >= TICK_RATE;
+      if (jump) {
+        this._dodgeJumpSent = true;
+        this._lastJumpTick = tick;
+      }
+      return { strafe: this._dodgeSide, jump, crouch: this._dodgeCrouch };
     }
 
     if (tick >= this._runUntil) this._nextRun(tick, skill);
     const strafe: -1 | 0 | 1 = tick < this._stopUntil ? 0 : this._side;
-    const hop =
-      skills.strafeJumpSkill >= 0.55 && targetDistance > HOP_DISTANCE && state.self.isGrounded && strafe !== 0;
-    return { strafe, jump: hop, crouch: false };
+    return { strafe, jump: false, crouch: false };
   }
 
   /** The next strafe run: its side, length, and whether it starts with a stop. */
@@ -120,6 +126,7 @@ export class BotCombatMovement {
   }
 
   private _dodge(tick: number, side: -1 | 1, jump: boolean, crouch: boolean, seconds: number): void {
+    this._dodgeJumpSent = false;
     this._dodgeSide = side;
     this._dodgeJump = jump;
     this._dodgeCrouch = crouch;
