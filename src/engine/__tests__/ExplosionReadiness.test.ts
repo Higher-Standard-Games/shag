@@ -243,4 +243,26 @@ describe("the sparks' shared texture", () => {
 
     expect(dispose).toHaveBeenCalledOnce();
   });
+
+  it("builds no new material for a later explosion: fireball, rays and shockwave come from one pool", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    let now = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const effect = getExplosionEffect();
+    effect.spawn(Vector3.Zero(), ROCKET_EXPLOSION);
+    now = 2000;
+    effect.update(2);
+    const materials = scene.materials.length;
+
+    effect.spawn(new Vector3(64, 0, 0), ROCKET_EXPLOSION);
+    expect(scene.materials.length).toBe(materials);
+    const fireball = scene.meshes.find((mesh) => mesh.name.endsWith("_fireball"))?.material as StandardMaterial;
+    const shockwave = scene.meshes.find((mesh) => mesh.name.endsWith("_shockwave"))?.material as StandardMaterial;
+    // Reset for its layer, whatever it last drew
+    expect(fireball.emissiveColor.asArray()).toEqual(ROCKET_EXPLOSION.coreColor.asArray());
+    expect(fireball.alpha).toBe(0.9);
+    expect(fireball.backFaceCulling).toBe(false);
+    expect(shockwave.emissiveColor.asArray()).toEqual(ROCKET_EXPLOSION.outerColor.asArray());
+    expect(shockwave.alpha).toBe(0.7);
+  });
 });

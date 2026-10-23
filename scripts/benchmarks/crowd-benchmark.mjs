@@ -113,7 +113,7 @@ async function main() {
   if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) throw new Error('Output must be inside workspace');
   await fs.mkdir(path.dirname(out), { recursive: true }); await fs.mkdir(out);
   const sourceIdentity = () => {
-    const git = (args, cwd = root) => execFileSync('git', args, { cwd, encoding: 'utf8', windowsHide: true }).trim();
+    const git = (args, cwd = root) => execFileSync('git', args, { cwd, encoding: 'utf8', windowsHide: true, maxBuffer: 1 << 28 }).trim();
     const fps = path.join(root, 'src/games/fps'), digest = createHash('sha256');
     digest.update(git(['diff', '--binary', 'HEAD', '--', 'src', 'package.json', 'vite.config.ts'])).update(git(['diff', '--binary', 'HEAD'], fps));
     for (const file of git(['ls-files', '--others', '--exclude-standard', 'src']).split('\n').filter(f => /\.(ts|json)$/.test(f)))

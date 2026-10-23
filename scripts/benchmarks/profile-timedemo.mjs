@@ -1,7 +1,7 @@
 import { spawn, execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs/promises';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { sliceCpuProfile, summarizeCpuProfile } from './cpu-profile.mjs';
@@ -59,7 +59,7 @@ async function waitFor(callback, timeout, label) {
   throw new Error(`${label} timed out${lastError ? `: ${lastError.message}` : ''}`);
 }
 function sourceIdentity() {
-  const git = (args, cwd = root) => execFileSync('git', args, { cwd, encoding: 'utf8', windowsHide: true }).trim();
+  const git = (args, cwd = root) => execFileSync('git', args, { cwd, encoding: 'utf8', windowsHide: true, maxBuffer: 1 << 28 }).trim();
   const fps = path.join(root, 'src/games/fps');
   const diff = git(['diff', '--binary', 'HEAD', '--', 'src', 'package.json', 'vite.config.ts', 'public/engine.json']) +
     git(['diff', '--binary', 'HEAD'], fps);
@@ -127,6 +127,12 @@ class CDP {
 
 await fs.mkdir(path.dirname(out), { recursive: true });
 await fs.mkdir(out, { recursive: false });
+// The timedemo is the game's: with no SHAG_APP and no local .shag-application.json,
+// Vite would serve the engine example, so fall back to the configured default game.
+if (!process.env.SHAG_APP && !existsSync(path.join(root, '.shag-application.json'))) {
+  const { defaultGame } = JSON.parse(readFileSync(path.join(root, 'public/engine.json'), 'utf8'));
+  process.env.SHAG_APP = `src/games/${defaultGame}`;
+}
 const { createServer } = await import('vite');
 const server = await createServer({ root, configFile: path.join(root, 'vite.config.ts'),
   cacheDir: path.join(root, 'node_modules/.vite-codex-profile'), logLevel: 'warn',

@@ -142,10 +142,10 @@ export class ExplosionEffect {
   private explosions: ActiveExplosion[] = [];
   private nextId = 0;
   /** Idle materials only; active explosions never have their materials stolen. */
-  private readonly rayMaterials: StandardMaterial[] = [];
-  private rayPoolScene: Scene | null = null;
-  private rayPoolObserver: Observer<Scene> | null = null;
-  private static readonly MAX_IDLE_RAY_MATERIALS = 128;
+  private readonly effectMaterials: StandardMaterial[] = [];
+  private effectPoolScene: Scene | null = null;
+  private effectPoolObserver: Observer<Scene> | null = null;
+  private static readonly MAX_IDLE_EFFECT_MATERIALS = 128;
 
   // Procedural particle texture (generated once)
   private particleTexture: Texture | null = null;
@@ -339,17 +339,10 @@ export class ExplosionEffect {
     // Every frame rewrites the vertices from these; nothing writes to them.
     const origPositions = shape.deformed;
 
-    // Material: emissive, no lighting
-    const mat = new StandardMaterial(`${id}_fireballMat`, this.scene!);
-    // Each dirty-enabling setter otherwise scans every submesh in the scene.
-    mat.atomicMaterialsUpdate(() => {
-      mat.emissiveColor = config.coreColor.clone();
-      mat.diffuseColor = Color3.Black();
-      mat.disableLighting = true;
-      mat.backFaceCulling = false;
-      mat.alpha = 0.9;
-      applySafeMaxSimultaneousLights(mat);
-    });
+    // Material: emissive, no lighting, from the pool every layer shares
+    const mat = this.acquireEffectMaterial(`${id}_fireballMat`, false);
+    mat.emissiveColor.copyFrom(config.coreColor);
+    mat.alpha = 0.9;
     mesh.material = mat;
 
     // Start small, will animate up
@@ -431,7 +424,7 @@ export class ExplosionEffect {
       // Material
       // Mix between core and outer color randomly
       const blend = Math.random();
-      const mat = this.acquireRayMaterial(`${id}_rayMat_${i}`);
+      const mat = this.acquireEffectMaterial(`${id}_rayMat_${i}`, true);
       Color3.LerpToRef(config.coreColor, config.outerColor, blend, mat.emissiveColor);
       // Alpha remains below 1 throughout its lifetime, so reuse is a uniform
       // change, not an opaque/translucent define transition or another batch.
@@ -447,19 +440,28 @@ export class ExplosionEffect {
     return rays;
   }
 
-  private acquireRayMaterial(name: string): StandardMaterial {
+  /**
+   * An unlit emissive material for one explosion layer. Fireballs, rays and
+   * shockwaves all compile to the same shader (alpha stays below 1, so it
+   * never switches between opaque and blended), so one pool serves them all.
+   * A material made and disposed per explosion was a new material for Babylon
+   * to prepare each time, and once the last one went, its shader was released
+   * and the next explosion compiled it again.
+   */
+  private acquireEffectMaterial(name: string, backFaceCulling: boolean): StandardMaterial {
     const scene = this.scene!;
-    if (this.rayPoolScene !== scene) {
-      this.disposeRayMaterialPool();
-      this.rayPoolScene = scene;
-      this.rayPoolObserver = scene.onDisposeObservable.addOnce(() => this.disposeRayMaterialPool());
+    if (this.effectPoolScene !== scene) {
+      this.disposeEffectMaterialPool();
+      this.effectPoolScene = scene;
+      this.effectPoolObserver = scene.onDisposeObservable.addOnce(() => this.disposeEffectMaterialPool());
     }
-    while (this.rayMaterials.length) {
-      const material = this.rayMaterials.pop()!;
+    while (this.effectMaterials.length) {
+      const material = this.effectMaterials.pop()!;
       // A map clear can dispose scene materials before the effect is re-init'd.
       if (scene.materials.includes(material)) {
         material.name = name;
         if (material.isFrozen) material.unfreeze();
+        material.backFaceCulling = backFaceCulling;
         return material;
       }
     }
@@ -467,35 +469,36 @@ export class ExplosionEffect {
     material.atomicMaterialsUpdate(() => {
       material.diffuseColor = Color3.Black();
       material.disableLighting = true;
+      material.backFaceCulling = backFaceCulling;
       material.alpha = 0.8;
       applySafeMaxSimultaneousLights(material);
     });
     return material;
   }
 
-  private releaseRayMaterial(material: StandardMaterial): void {
+  private releaseEffectMaterial(material: StandardMaterial): void {
     // Babylon leaves undefined meshMap entries after Mesh.dispose. Retained
     // materials must not accumulate one dead binding key per reused ray.
     const bindings = material.meshMap;
     if (bindings) for (const id of Object.keys(bindings)) if (bindings[id] === undefined) delete bindings[id];
-    const scene = this.rayPoolScene;
+    const scene = this.effectPoolScene;
     if (
       scene &&
       !scene.isDisposed &&
       material.getScene() === scene &&
       scene.materials.includes(material) &&
-      this.rayMaterials.length < ExplosionEffect.MAX_IDLE_RAY_MATERIALS
+      this.effectMaterials.length < ExplosionEffect.MAX_IDLE_EFFECT_MATERIALS
     )
-      this.rayMaterials.push(material);
+      this.effectMaterials.push(material);
     else material.dispose();
   }
 
-  private disposeRayMaterialPool(): void {
-    for (const material of this.rayMaterials) material.dispose();
-    this.rayMaterials.length = 0;
-    if (this.rayPoolObserver) this.rayPoolScene?.onDisposeObservable.remove(this.rayPoolObserver);
-    this.rayPoolObserver = null;
-    this.rayPoolScene = null;
+  private disposeEffectMaterialPool(): void {
+    for (const material of this.effectMaterials) material.dispose();
+    this.effectMaterials.length = 0;
+    if (this.effectPoolObserver) this.effectPoolScene?.onDisposeObservable.remove(this.effectPoolObserver);
+    this.effectPoolObserver = null;
+    this.effectPoolScene = null;
   }
 
   /**
@@ -532,15 +535,9 @@ export class ExplosionEffect {
       mesh.rotationQuaternion = Quaternion.RotationAxis(axis, angle);
     }
 
-    const mat = new StandardMaterial(`${id}_shockwaveMat`, this.scene!);
-    mat.atomicMaterialsUpdate(() => {
-      mat.emissiveColor = config.outerColor.clone();
-      mat.diffuseColor = Color3.Black();
-      mat.disableLighting = true;
-      mat.backFaceCulling = false;
-      mat.alpha = 0.7;
-      applySafeMaxSimultaneousLights(mat);
-    });
+    const mat = this.acquireEffectMaterial(`${id}_shockwaveMat`, false);
+    mat.emissiveColor.copyFrom(config.outerColor);
+    mat.alpha = 0.7;
     mesh.material = mat;
 
     return { mesh, material: mat };
@@ -754,7 +751,7 @@ export class ExplosionEffect {
     const idx = this.explosions.findIndex((e) => e.id === id);
     if (idx === -1) return;
 
-    disposeExplosion(this.explosions[idx], (material) => this.releaseRayMaterial(material));
+    disposeExplosion(this.explosions[idx], (material) => this.releaseEffectMaterial(material));
     this.explosions.splice(idx, 1);
   }
 
@@ -762,9 +759,9 @@ export class ExplosionEffect {
    * Clear all active explosions
    */
   clear(): void {
-    for (const exp of this.explosions) disposeExplosion(exp, (material) => this.releaseRayMaterial(material));
+    for (const exp of this.explosions) disposeExplosion(exp, (material) => this.releaseEffectMaterial(material));
     this.explosions = [];
-    this.disposeRayMaterialPool();
+    this.disposeEffectMaterialPool();
     this.disposeShapes();
   }
 
@@ -850,15 +847,15 @@ function easeInQuad(t: number): number {
  * shared by every explosion, and Babylon's `dispose()` takes the texture with it
  * by default, so the first explosion to finish left the rest without sparks.
  */
-function disposeExplosion(exp: ActiveExplosion, releaseRay: (material: StandardMaterial) => void): void {
+function disposeExplosion(exp: ActiveExplosion, release: (material: StandardMaterial) => void): void {
   exp.fireball.dispose();
-  exp.fireballMat.dispose();
+  release(exp.fireballMat);
   for (const ray of exp.rays) {
     ray.mesh.dispose();
-    releaseRay(ray.mat);
+    release(ray.mat);
   }
   exp.shockwave?.dispose();
-  exp.shockwaveMat?.dispose();
+  if (exp.shockwaveMat) release(exp.shockwaveMat);
   getPointLightPool().release(exp.light);
   exp.particles.stop();
   exp.particles.dispose(false);
