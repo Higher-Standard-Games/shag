@@ -76,6 +76,7 @@ The codebase is FPS-centric:
 - Engine code must not import game modules: where it needs something a game owns, use the service registries (`GameplayMapLauncher`, `NetworkConnector`, `GameFrameHook`, `FreeflyInput`, `GameMapEntities`, `WeaponIdResolver`; see `docs/manual/guides/service-registries.md`). The concrete `FPSController` and `PlayerVisuals` live in `src/games/fps/camera`; `EntityManager` lives in `src/games/fps/world`. Engine barrels must not re-export them. Indirect ownership dependencies through shared definitions and other engine modules remain under review in the separation log.
 - `src/shared/` holds deterministic client/server contracts and must not use Babylon or browser APIs.
 - Washoi's concrete weapon/projectile/ammo/item catalog is shared by its client and server at `src/games/fps/shared/entities/`. Generic entity interfaces and the registry remain in `src/shared/entities/`; its barrel must not re-export the game catalog.
+- Washoi pickup classname extraction and Node map-data helpers live in `src/games/fps/shared/bsp/`; pickup landing/respawn rules live in its `shared/items/`. Generic BSP parsing, package resolution and collision remain in SHAG.
 
 Implication:
 

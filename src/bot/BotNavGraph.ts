@@ -22,7 +22,7 @@
  * One instance per map, shared by all bots.
  */
 
-import type { Vec3 } from "../shared/bsp/BspDataLoader";
+import type { Vec3 } from "../games/fps/shared/bsp/BspDataLoader";
 import { type FloodPosition, type FloodVec3, type FloodWorld, settle, walkFlood } from "../shared/collision/WalkFlood";
 import { vec3Distance } from "./BotGameState";
 import {

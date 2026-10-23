@@ -10,7 +10,7 @@
  * carried across the process boundary as a gametype directive without change.
  */
 
-import type { PickupType } from "../../shared/bsp/PickupTable";
+import type { PickupType } from "../../games/fps/shared/bsp/PickupTable";
 import type { AgentDirective } from "../../shared/server/gametype";
 import type { Vec3 } from "../BotGameState";
 

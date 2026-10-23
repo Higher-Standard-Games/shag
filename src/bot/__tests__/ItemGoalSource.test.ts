@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { PickupEntry } from "../../shared/bsp/PickupTable";
+import type { PickupEntry } from "../../games/fps/shared/bsp/PickupTable";
 import { BotGameState } from "../BotGameState";
 import { collectItemGoals, MAX_ITEM_CANDIDATES } from "../goals/ItemGoalSource";
 

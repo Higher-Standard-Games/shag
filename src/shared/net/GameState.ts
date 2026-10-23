@@ -35,7 +35,7 @@ export class GameState {
 
   /**
    * Authoritative active-state of every server-tracked map pickup, indexed by
-   * pickup id (see src/shared/bsp/PickupTable.ts). Sent in full each snapshot
+   * pickup id (see src/games/fps/shared/bsp/PickupTable.ts). Sent in full each snapshot
    * (not delta) so client pickup visibility converges and self-heals against
    * packet loss — replacing the old one-shot item_pickup events + client timer.
    * Empty when the server sends no pickup state (older payloads / no pickups).

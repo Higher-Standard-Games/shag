@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import type { PickupEntry } from "../../shared/bsp/PickupTable";
+import type { PickupEntry } from "../../games/fps/shared/bsp/PickupTable";
 import type { IComponent } from "../../shared/net/Component";
 import { Entity } from "../../shared/net/Entity";
 import { GameState, PlayerState } from "../../shared/net/GameState";

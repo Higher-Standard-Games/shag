@@ -12,8 +12,8 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { InputButtons } from "../engine/network/components/InputComponent";
 import type { MovementInput } from "../engine/network/systems/movement/MovementProfile";
+import type { Vec3 } from "../games/fps/shared/bsp/BspDataLoader";
 import { MovementProfile } from "../games/fps/simulation/MovementProfile";
-import type { Vec3 } from "../shared/bsp/BspDataLoader";
 import type { TriggerVolume } from "../shared/bsp/TriggerTable";
 import type { CollisionWorld } from "../shared/collision/CollisionWorld";
 

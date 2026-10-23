@@ -15,8 +15,8 @@
  * the nearest twelve leave them out from most of a map.
  */
 
-import type { PickupEntry } from "../../shared/bsp/PickupTable";
-import { itemRespawnSeconds, MAJOR_ITEM_FIRST_SPAWN_SECONDS } from "../../shared/items/ItemRespawn";
+import type { PickupEntry } from "../../games/fps/shared/bsp/PickupTable";
+import { itemRespawnSeconds, MAJOR_ITEM_FIRST_SPAWN_SECONDS } from "../../games/fps/shared/items/ItemRespawn";
 import { DEFAULT_PHYSICS_TICK_RATE as TICK_RATE } from "../../shared/server/simulation/physics/constants";
 import { type BotGameState, type Vec3, vec3Distance } from "../BotGameState";
 import { type BotGoal, droppedItemGoalId, staticItemGoalId } from "./BotGoal";

@@ -816,3 +816,148 @@ Changed files for this dependency (including removed paths and the FPS gitlink):
 - `src/shared/entities/definitions/weapons/voltaic.ts` (removed)
 - `src/shared/entities/index.ts`
 - `src/shared/entities/initEntityDefs.ts` (removed)
+
+## 7. Washoi pickup taxonomy, map data and item rules
+
+Washoi commit: `a39ae1f` (`refactor: own shared pickup taxonomy and item rules`).
+
+Move PickupTable and its tests, BspDataLoader, ItemThrow, ItemRespawn and the
+real-collision ItemThrow test into Washoi's shared bsp/items folders. Client,
+server, bot and Node tools still use one source for pickup taxonomy, IDs,
+positions and timing. All 36 affected source files retain identical syntax
+apart from module references, comments and formatting. The generic BSP parser,
+NodePk3 resolver, collision and Babylon Pickup base remain in SHAG. Old shared
+paths are removed without compatibility reexports. The GameState edit updates
+only a source-path comment; snapshot fields and wire formats are unchanged.
+
+The game-specific Node helper's indexed-first resolution, legacy fallback and
+spawn-point semantics are retained. This step does not add filesystem search
+paths, retune landing/grants, change map pools or implement another gametype.
+Other game-owned shared item data, media recipes and application services remain
+for subsequent ownership work. The deferred step-4 warmup issue stays open.
+
+A baseline on all five installed maps captures classname tables, raw extraction,
+weapon-only IDs, exact map fingerprints, landed server pickup entries, node map
+data and respawn values. The relocated output matches byte for byte: DM2 18,
+DM5 25, DM11 30, Amphi1 14 and S&D1 40 pickups. Receipt SHA-256:
+`91d093179e413ac0f6e9bf24f478cf2cfe49f2b8c0e63c9786c244904cbd6b4f`.
+The actual createBotVision path also loads all five maps and matches original
+server pickup IDs/positions, map fingerprints and the original bot spawn points.
+The bot probe compares the same JSON representation as the saved baseline,
+which omits undefined optional fields.
+
+The first bot-path probe caught an agent relocation-script mistake: eight
+cwd-relative path.resolve strings in BspDataLoader were rebased as though they
+were imports. They were restored before commit. Import normalization in the
+proof is now limited to actual module references, and a negative check verifies
+it detects the bad cwd path. A new BspDataLoader regression test checks indexed
+resolution uses process data directories regardless of module location. The
+previous catalog step was audited as well: none of its 35 moved files had
+changed non-module relative call literals. The initial full unit pass did not
+exercise this I/O path; its build was stopped and the corrected snapshot's full
+gates rerun. Pre-correction gate logs are retained separately.
+
+The user identified concurrent UI work. Validation therefore runs in detached
+checkouts under .cache/engine-game-split/step7-checkout, based on engine
+14d944f0 / FPS 84306f6, overlaid with only this dependency's explicit paths.
+Existing node_modules, public/data and public/wasm are linked for validation;
+source files are copied and hashed in snapshot-files.json. Primary branches and
+UI edits are left in place. Gate results apply to this isolated pickup change,
+not to uncommitted or later UI work in the shared tree.
+
+Focused extractor/landing/pickup/bot tests passed (six files, 62 tests). The new
+indexed-directory regression test passed separately. Validation receipts and
+exact commands are recorded below as checks complete.
+
+Final isolated validation passed: typecheck, full unit suite (702 files,
+5,575 passed / one skipped), Biome (zero errors, 47 baseline warnings), client
+and server builds, both manuals, simulation, physics, tick and 1,000-tick fuzz.
+The new indexed-directory test was added after the full runner enumerated its
+files; it passed separately (one test) and was included in build/typechecking
+and Biome. Tick checksum: 2768943778; random-seed fuzz checksum: 4093331467.
+The BSP command reported 7,475 faces; replay completed 91 ticks.
+
+The private WebGL2 browser loaded DM11, spawned 30 unique pickups with exact
+baseline landed entries, loaded lasergun as voltaic and preserved unknown IDs.
+Unload left zero entities/table entries and disposed every captured pickup.
+No runtime exceptions were captured. The screenshot was inspected. This probe
+disabled lobby connections; it does not verify a multiplayer match, the UI
+agent's changes, or resolution of the original deferred warmup report.
+
+Commands (from the isolated checkout unless indicated):
+
+- `node C:/Users/sundf/Desktop/wash/shag/.cache/engine-game-split/validate-step7-isolated.mjs`
+  runs `npm.cmd run typecheck`, `npm.cmd run test:run`,
+  `npm.cmd run gate:biome`, `npm.cmd run build`, `npm.cmd run build:server`,
+  `npm.cmd run docs:build`, `npm.cmd run docs:fps:build`,
+  `npm.cmd run test:simulation`, `npm.cmd run test:physics`,
+  `npm.cmd run server:tick`, `npm.cmd run server:fuzz -- --ticks 1000`.
+  It also runs the following CLI batches directly through vite-node.
+- `node node_modules/vite-node/vite-node.mjs src/cli/headless-game.ts -- --exec "bsp load washoi_dm2; bsp info; quit"`
+- `node node_modules/vite-node/vite-node.mjs src/cli/headless-game.ts -- --exec 'sim replay "W+CROUCH 60; JUMP 1; W 30"; quit'`
+- `node node_modules/vite-node/vite-node.mjs src/cli/headless-game.ts -- --exec "help spectator; help giveweapon; giveweapon rlauncher; quit"`
+- `npm.cmd run test:run -- src/games/fps/shared/bsp/__tests__/BspDataLoader.test.ts`
+- Scratch parity scripts and exact invocations are retained with gate logs in
+  `.cache/engine-game-split/step7-validation`; five-map receipts are
+  `pickups-before.json` and `pickups-after.json`, bot results `bot-parity.log`.
+- `node .cache/engine-game-split/prove-step7.mjs` (primary checkout):
+  36 source files preserve syntax apart from module references.
+- `node C:/Users/sundf/Desktop/wash/shag/.cache/engine-game-split/step7-checkout/.claude/skills/browser-probe/scripts/private-vite.mjs 3100`
+- `node .cache/engine-game-split/pickups-step7-probe.mjs` (primary checkout):
+  browser assertions passed; receipts `browser.json` and `pickups.png`.
+  Private Vite was stopped after the check.
+
+Changed files (including removed paths and the FPS gitlink):
+
+- `AGENTS.md`
+- `docs/changelog/v1.0.0-alpha.3.md`
+- `docs/manual/guides/bsp-system.md`
+- `docs/manual/guides/pickup-system.md`
+- `docs/research/ENGINE_GAME_SPLIT_PROGRESS.md`
+- `src/bot/BotMovementAnalyzer.ts`
+- `src/bot/BotNavGraph.ts`
+- `src/bot/BotPerception.ts`
+- `src/bot/BotVision.ts`
+- `src/bot/LearnedRoutes.ts`
+- `src/bot/RouteLearner.ts`
+- `src/bot/__tests__/BotPerception.test.ts`
+- `src/bot/__tests__/Considerations.test.ts`
+- `src/bot/__tests__/Directives.test.ts`
+- `src/bot/__tests__/ItemGoalPlanner.test.ts`
+- `src/bot/__tests__/ItemGoalSource.test.ts`
+- `src/bot/__tests__/NavTravelCost.test.ts`
+- `src/bot/__tests__/WeightProfiles.test.ts`
+- `src/bot/goals/BotGoal.ts`
+- `src/bot/goals/ItemGoalPlanner.ts`
+- `src/bot/goals/ItemGoalSource.ts`
+- `src/cli/HeadlessMapLoader.ts`
+- `src/engine/__tests__/ItemThrow.test.ts` (removed)
+- `src/games/fps`
+- `src/games/fps/bench/fixtures.ts`
+- `src/games/fps/docs/manual/developer/adding-a-weapon.md`
+- `src/games/fps/docs/manual/player/pickups-and-inventory.md`
+- `src/games/fps/server/GameServer.ts`
+- `src/games/fps/server/__tests__/MatchStartReset.test.ts`
+- `src/games/fps/server/gametypes/Amphi.ts`
+- `src/games/fps/server/gametypes/Deathmatch.ts`
+- `src/games/fps/server/gametypes/SearchAndDestroy.ts`
+- `src/games/fps/server/gametypes/__tests__/Loadouts.test.ts`
+- `src/games/fps/server/systems/DroppedWeaponSystem.ts`
+- `src/games/fps/server/systems/PickupSystem.ts`
+- `src/games/fps/server/systems/__tests__/DroppedWeaponSystem.test.ts`
+- `src/games/fps/server/systems/__tests__/PickupSystem.test.ts`
+- `src/games/fps/shared/bsp/BspDataLoader.ts`
+- `src/games/fps/shared/bsp/PickupTable.ts`
+- `src/games/fps/shared/bsp/__tests__/BspDataLoader.test.ts`
+- `src/games/fps/shared/bsp/__tests__/PickupTable.test.ts`
+- `src/games/fps/shared/items/ItemRespawn.ts`
+- `src/games/fps/shared/items/ItemThrow.ts`
+- `src/games/fps/shared/items/__tests__/ItemThrow.test.ts`
+- `src/games/fps/world/EntityManager.ts`
+- `src/games/fps/world/__tests__/EntityManagerPickupLanding.test.ts`
+- `src/shared/bsp/BspDataLoader.ts` (removed)
+- `src/shared/bsp/PickupTable.ts` (removed)
+- `src/shared/bsp/__tests__/PickupTable.test.ts` (removed)
+- `src/shared/items/ItemRespawn.ts` (removed)
+- `src/shared/items/ItemThrow.ts` (removed)
+- `src/shared/net/GameState.ts`

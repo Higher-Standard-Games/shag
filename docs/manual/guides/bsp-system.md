@@ -27,6 +27,12 @@ The application registers its game-owned entity lifecycle through
 definitions before model discovery, install handlers before entity dispatch,
 and dispose pickups before their preloaded models are released.
 
+Washoi's Node map-data helper is
+`src/games/fps/shared/bsp/BspDataLoader.ts`. It supplies game spawn/pickup
+extraction for bots and tools. The generic BSP parser, indexed package resolver
+and collision backends remain in SHAG. The dedicated server's headless map
+loader uses the same game-owned pickup extractor and landing rules as the client.
+
 The world stays disabled while asynchronous texture loading, fog and baked-light
 material setup run. This prevents partially configured material layouts from
 reaching the GPU during a map switch.

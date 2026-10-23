@@ -9,13 +9,13 @@
  */
 
 import { describe, expect, it } from "vitest";
+import type { PickupEntry } from "../../games/fps/shared/bsp/PickupTable";
 import {
   DEFAULT_WEIGHT_PROFILE,
   selectWeightProfile,
   WEIGHT_PROFILES,
   weightProfileKey,
 } from "../../shared/bot/WeightProfiles";
-import type { PickupEntry } from "../../shared/bsp/PickupTable";
 import { BotGameState } from "../BotGameState";
 import { ItemGoalPlanner } from "../goals/ItemGoalPlanner";
 

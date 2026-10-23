@@ -8,8 +8,8 @@
  */
 
 import { describe, expect, it } from "vitest";
+import type { PickupType } from "../../games/fps/shared/bsp/PickupTable";
 import { DEFAULT_WEIGHT_PROFILE } from "../../shared/bot/WeightProfiles";
-import type { PickupType } from "../../shared/bsp/PickupTable";
 import { BotGameState } from "../BotGameState";
 import type { BotGoal } from "../goals/BotGoal";
 import type { ConsiderationContext } from "../goals/Consideration";

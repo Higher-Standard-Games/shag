@@ -14,8 +14,8 @@
  */
 
 import { type AABB, type CollisionWorld, MASK_SOLID } from "../engine/network/systems/collision/CollisionWorld";
-import type { Vec3 } from "../shared/bsp/BspDataLoader";
-import type { PickupEntry } from "../shared/bsp/PickupTable";
+import type { Vec3 } from "../games/fps/shared/bsp/BspDataLoader";
+import type { PickupEntry } from "../games/fps/shared/bsp/PickupTable";
 import { extractTriggerVolumes, type TriggerVolume } from "../shared/bsp/TriggerTable";
 import { DEFAULT_PHYSICS_TICK_RATE as TICK_RATE } from "../shared/server/simulation/physics/constants";
 import type { BotGameState, VisiblePickup, VisiblePlayer } from "./BotGameState";
@@ -868,7 +868,7 @@ export class BotVision {
  * This is the main entry point — call once per map, share across bots.
  */
 export async function createBotVision(mapName: string): Promise<BotVision | null> {
-  const { loadBspBuffer, extractMapData } = await import("../shared/bsp/BspDataLoader");
+  const { loadBspBuffer, extractMapData } = await import("../games/fps/shared/bsp/BspDataLoader");
   const { BspLoader } = await import("../engine/loader/bsp/BspLoader");
   const { createHeadlessCollisionWorld } = await import("../cli/HeadlessBSPCollisionWorld");
   const { createHash } = await import("node:crypto");
@@ -892,7 +892,7 @@ export async function createBotVision(mapName: string): Promise<BotVision | null
   // Extract map knowledge
   const mapData = extractMapData(bsp.entities);
   // Weapons sit where their spawn toss comes to rest, which is where the server's trigger is.
-  const { landMapPickups } = await import("../shared/items/ItemThrow");
+  const { landMapPickups } = await import("../games/fps/shared/items/ItemThrow");
   mapData.pickupItems = landMapPickups(mapData.pickupItems, collisionWorld);
   const triggerVolumes = extractTriggerVolumes(bsp.entities, bsp.models);
   console.log(`[BotVision] Map data: ${mapData.spawnPoints.length} spawns, ${mapData.pickupItems.length} pickups`);

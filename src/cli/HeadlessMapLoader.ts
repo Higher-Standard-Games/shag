@@ -10,12 +10,12 @@ import type { BspEntity, BspModel } from "../engine/loader/bsp/BspLoader";
 import { resolveMapBspViaIndex } from "../engine/loader/pk3/NodePk3";
 import { PK3Loader } from "../engine/loader/pk3/PK3Loader";
 import type { CollisionWorld } from "../engine/network/systems/collision/CollisionWorld";
-import type { PickupEntry } from "../shared/bsp/PickupTable";
-import { extractPickups } from "../shared/bsp/PickupTable";
+import type { PickupEntry } from "../games/fps/shared/bsp/PickupTable";
+import { extractPickups } from "../games/fps/shared/bsp/PickupTable";
+import { landMapPickups } from "../games/fps/shared/items/ItemThrow";
 import { extractSpawnPoints, extractTeamSpawnPoints, type SpawnVec3 } from "../shared/bsp/SpawnPointTable";
 import type { TriggerVolume } from "../shared/bsp/TriggerTable";
 import { extractTriggerVolumes } from "../shared/bsp/TriggerTable";
-import { landMapPickups } from "../shared/items/ItemThrow";
 import { markServerMemory } from "./ServerMemoryMarker";
 
 export interface BspData {

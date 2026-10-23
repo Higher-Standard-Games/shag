@@ -2,6 +2,13 @@
 
 `src/engine/world/Pickup.ts` provides a game-neutral Babylon pickup base. The active FPS module supplies taxonomy, authoritative state, and inventory/combat meaning.
 
+Washoi's shared pickup types, classname mappings and ordered extractor live at
+`src/games/fps/shared/bsp/PickupTable.ts`. Its client, server, bot application
+and headless tools use the same table. Pickup IDs are assigned in BSP order
+across all tracked types. The game's `shared/items/ItemThrow.ts` supplies shared
+landing/toss rules, and `shared/items/ItemRespawn.ts` supplies respawn timing.
+Generic collision and the Babylon pickup base remain in SHAG.
+
 ## Engine base
 
 `Pickup` extends `TransformNode` and coordinates:

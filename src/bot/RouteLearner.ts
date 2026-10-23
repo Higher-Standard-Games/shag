@@ -13,8 +13,8 @@
  *    never stops on exactly the same spot.
  */
 
+import type { Vec3 } from "../games/fps/shared/bsp/BspDataLoader";
 import { MovementProfile } from "../games/fps/simulation/MovementProfile";
-import type { Vec3 } from "../shared/bsp/BspDataLoader";
 import type { TriggerVolume } from "../shared/bsp/TriggerTable";
 import type { CollisionWorld } from "../shared/collision/CollisionWorld";
 import { settle } from "../shared/collision/WalkFlood";

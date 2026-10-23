@@ -23,8 +23,8 @@
  */
 
 import type { GameState } from "../engine/network/core/GameState";
-import type { PickupEntry } from "../shared/bsp/PickupTable";
-import { itemRespawnSeconds } from "../shared/items/ItemRespawn";
+import type { PickupEntry } from "../games/fps/shared/bsp/PickupTable";
+import { itemRespawnSeconds } from "../games/fps/shared/items/ItemRespawn";
 import { DEFAULT_PHYSICS_TICK_RATE as TICK_RATE } from "../shared/server/simulation/physics/constants";
 import type { BotDifficulty } from "./BotConfig";
 import { type BotGameState, onATeam, type Vec3, type VisiblePlayer, vec3Distance } from "./BotGameState";
