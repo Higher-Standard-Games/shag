@@ -16,7 +16,7 @@ import { background, logRejection } from "../engine/core/AsyncErrors";
 import { log } from "../engine/core/Log";
 import { filterChatText, filterPlayerName } from "../engine/server/ChatFilter";
 import type { MatchResultReport } from "../engine/server/network/MatchResultReport";
-import { resolveFPSDemoMap } from "../games/fps/client/DemoMapAliases";
+import { normalizeDemoMapName } from "../shared/demo/DemoMapName";
 import { DemoReader } from "../shared/demo/DemoReader";
 import { BOT_ACCOUNT_PRESETS as BOT_PRESETS, type BotPreset } from "../shared/ranking/BotMatchRatingGroups";
 import { BOT_INVITE_PREPARATION_TIMEOUT_MS } from "../shared/ranking/BotPreparation";
@@ -24,7 +24,7 @@ import { type BotReference, canonicalBotReference, sameBotReference } from "../s
 import { MIN_LISTED_DEMO_MS, selectFeaturedDemos } from "./FeaturedDemos";
 import { GameServerSpawner } from "./GameServerSpawner";
 import type { MatchResultStore } from "./MatchResultStore";
-import { DELETED_ACCOUNT_NAME } from "./PlayerIdentity";
+import { DELETED_ACCOUNT_NAME, type PlayerNameReservation } from "./PlayerIdentity";
 import { PlayerStore } from "./PlayerStore";
 import { RateLimiter } from "./RateLimiter";
 import { type ResultDiagnostic, ResultDiagnostics } from "./ResultDiagnostics";
@@ -222,6 +222,10 @@ function botLobbyConnectUrl(port: number): string {
 const BOT_INVITE_TIMEOUT_MS = 8000;
 
 export interface LobbyServerOptions {
+  /** Application reservations for the lobby-owned in-memory account store. Supplied stores own their policy. */
+  reservePlayerName?: PlayerNameReservation;
+  /** Map media key for demo levelshots. Defaults to normalization without application aliases. */
+  resolveDemoMap?: (map: string) => string;
   /** Shared with the bot server. Without it no connection counts as a bot and bot invites fail. */
   botSecret?: string;
   /** Override the local bot control endpoint, primarily for isolated server instances. */
@@ -491,6 +495,7 @@ export class LobbyServer {
   private readonly PK3_DIR = path.join(process.cwd(), "public", "data");
 
   private readonly botSecret: string | undefined;
+  private readonly resolveDemoMap: (map: string) => string;
   private readonly botServerUrl: string;
   private readonly accounts: PlayerStore;
   private readonly results: MatchResultStore | undefined;
@@ -517,9 +522,10 @@ export class LobbyServer {
     this.port = port;
     this.spawner = spawner;
     this.botSecret = options.botSecret;
+    this.resolveDemoMap = options.resolveDemoMap ?? normalizeDemoMapName;
     this.botServerUrl = options.botServerUrl ?? BOT_SERVER_URL;
     this.ownsAccounts = !options.players;
-    this.accounts = options.players ?? new PlayerStore(":memory:");
+    this.accounts = options.players ?? new PlayerStore(":memory:", options.reservePlayerName);
     this.ownsSettings = !options.settings;
     this.settings = options.settings ?? new SettingsStore(":memory:");
     this.results = options.results;
@@ -2421,7 +2427,7 @@ export class LobbyServer {
               durationMs,
               date: header.startTime,
               sizeMB: parseFloat((stat.size / (1024 * 1024)).toFixed(2)),
-              levelshot: `/data/levelshots/${encodeURIComponent(resolveFPSDemoMap(header.map))}.jpg`,
+              levelshot: `/data/levelshots/${encodeURIComponent(this.resolveDemoMap(header.map))}.jpg`,
             });
           }
         } catch (err) {

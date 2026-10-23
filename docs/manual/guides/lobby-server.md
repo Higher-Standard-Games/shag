@@ -10,6 +10,20 @@ the server build recipe at `src/games/fps/scripts/build-servers.mjs` in the
 assembled checkout. Reusable lobby, account, result and process-management
 services remain in SHAG. Run lobby commands from the assembled project root.
 
+Application name reservations are explicit: pass the same predicate to
+`PlayerStore.open(dataDir, isReserved)` (or its constructor), browser
+`checkPlayerName(name, isReserved)` and `logIn(client, isReserved)`.
+`LobbyServerOptions.reservePlayerName` configures the lobby's own in-memory
+store; a supplied `players` store carries its own policy. Generic validation
+always reserves `Player_<digits>` and checks name syntax. Washoi supplies
+`isBotName` for its additional reservations, including numbered bot names.
+Account key formats and stored records are independent of that predicate.
+
+`LobbyServerOptions.resolveDemoMap` resolves the map media key used for demo
+levelshots. Without it, the lobby normalizes path, extension and case without
+game-specific aliases. Washoi supplies `resolveFPSDemoMap`; the recorded map
+identity and ownership checks keep using the recording's original map.
+
 ```bash
 npm run lobby:server -- --port 9000 --data-dir ./server-data
 ```

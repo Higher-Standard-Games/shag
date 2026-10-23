@@ -2233,3 +2233,109 @@ and independent-checkout cutover are not claimed. The Git attachment remains.
 The two lobby policies, bots/game tools, remaining tests/configuration and
 fresh-checkout proof still follow the plan; root npm/CI wiring still assumes
 the assembled game until that later cutover.
+
+## Step 18 — application-supplied lobby policies (2026-10-23)
+
+Scope: remove the two remaining production lobby imports into Washoi. Generic
+account validation/storage and demo scanning stay in SHAG. Washoi supplies its
+existing bot-name predicate and demo-map resolver through explicit arguments;
+there is no mutable global registration.
+
+SHAG files changed:
+
+- `src/lobby/PlayerIdentity.ts`: optional `PlayerNameReservation` predicate;
+  syntax and default-name validation retain their original ordering.
+- `src/lobby/PlayerStore.ts`: constructor/open accept a per-store predicate.
+- `src/lobby/AccountSession.ts`: login accepts the browser's predicate for
+  carrying a pre-account profile name into a new account.
+- `src/lobby/LobbyServer.ts`: in-memory reservation input and demo media
+  resolver option; default resolver only normalizes a recorded map name.
+- `src/lobby/__tests__/PlayerIdentity.test.ts`, `PlayerStore.test.ts`,
+  `AccountSession.test.ts`, `LobbyAuth.test.ts` and `DemoOwnership.test.ts`:
+  explicit neutral reservation fixtures, store isolation and login coverage;
+  generic levelshots use normalization. Game alias coverage is in Washoi.
+- `docs/manual/guides/lobby-server.md`, the living changelog, server plan,
+  dependency inventory and this progress log.
+
+Washoi files changed:
+
+- `cli/lobby-server.ts`: durable `PlayerStore.open(dataDir, isBotName)` and
+  `resolveDemoMap: resolveFPSDemoMap`.
+- `client/FpsLobbyService.ts`: predicate on initial login and refused-key
+  fallback login; `client/IdentityFields.ts`: same predicate for typed names.
+- `server/__tests__/FpsLobbyPolicies.test.ts`: every bot name, lowercase and
+  numbered variants against durable accounts and browser validation; all six
+  legacy aliases through real recorded demos and lobby scanning, preserving
+  recorded map identities; generic normalization/default behavior also checked.
+- `docs/manual/getting-started/project-structure.md`: composition inputs.
+
+Assumptions: the assembled checkout selects Washoi, Node 24.21.0 and Bun 1.4.3
+are installed, and indexed `washoi_dm2` data is available. Account key formats,
+schema, migrations, hashing, profanity checks, same-name case changes, auth,
+ratings, match protocol, process management and simulation are not redesigned.
+Bot names and alias tables themselves are unchanged. A caller supplying its own
+account store must supply that store's reservation predicate; the lobby's
+in-memory option does not override a supplied store.
+
+Validation and receipts:
+
+- Before edits, existing five targeted server files / 32 tests, fixed-seed tick,
+  fuzz and runtime equivalence, private build and real Node/Bun runtime probes
+  passed. The existing step-17 runner was reused; those latest baseline logs
+  live under `.cache/engine-game-split/step17-validation/after`.
+- `node .cache/engine-game-split/validate-step18.mjs after`: the same five
+  targeted files / 32 tests, private build and real Node/Bun four-player match
+  probes passed. Tick checksum `2768943778`, 1,000-tick seed-42 fuzz checksum
+  `2481546443`, 10,000-tick seed-42 Node/Bun checksum `507638786` match baseline.
+- `node .cache/engine-game-split/cli-smoke-step18.mjs`: Node/Bun source and
+  bundle startup with private data; CLI/environment selection, readiness,
+  account auth, rejection of `Ramen_2`, acceptance of `Ramenya` passed. The
+  recipe also built from a different cwd. These startup-only probes do not
+  create matches or claim graceful OS-signal handling on Windows.
+- `node docs/research/engine-game-split-audit.mjs`: zero production engine
+  direct/transitive and lobby direct imports into Washoi; remaining production
+  `src` importers are 21 bot files / 41 sites and 21 CLI files / 48 sites.
+  Non-TypeScript/config/build/test dependencies remain later work.
+- `node .cache/engine-game-split/check-lobby-boundary-step18.mjs`: bundled
+  `LobbyServer` (37 inputs), browser `AccountSession` (17) and `PlayerIdentity`
+  (one), rejecting every game source load; all three graphs passed. The first
+  harness invocation lacked Vite's raw CSS treatment; setting the CSS loader
+  to text resolved that harness error without application changes.
+
+The first broader targeted run found one `PlayerStore` test still relying on
+implicit Washoi reservations (`Gyoza_3`). Its reservation fixture is now explicit,
+with an added assertion that a neutral second store accepts that name. Exact
+Washoi reservations are covered in the game test; no expectation or timeout was
+weakened. A sandboxed audit invocation failed with `spawnSync git EPERM`; the
+same read-only audit passed with subprocess permissions.
+
+`node .cache/engine-game-split/validate-step18.mjs gates` passed all checks:
+
+| Exact command | Result |
+| --- | --- |
+| `npm.cmd run typecheck` | Passed |
+| `npm.cmd run test:run` | 716 files passed; 5,635 tests passed, one skipped |
+| `npm.cmd run gate:biome` | Passed; zero errors / 47 baseline warnings |
+| `npm.cmd run build` | Passed, including PK3 index and sourcemap relocation |
+| `npm.cmd run docs:build` | Passed |
+| `npm.cmd run docs:fps:build` | Passed |
+| `npm.cmd run test:simulation` | Passed |
+| `npm.cmd run test:physics` | Passed |
+| `npm.cmd run server:tick` | Passed; same baseline checksum |
+| `npm.cmd run server:fuzz -- --ticks 1000 --seed 42` | Passed; same baseline checksum |
+| `npm.cmd run cli:game -- --exec "bsp load washoi_dm2; bsp info; quit"` | Passed; 7,475 faces |
+| `npm.cmd run cli:game -- --exec 'sim replay \"W+CROUCH 60; JUMP 1; W 30\"; quit'` | Passed; 91 ticks |
+
+After the full suite, the new demo-policy fixture was adjusted to supply and
+close its settings store explicitly. The two affected test files were checked
+with `npm.cmd run test:run -- src/games/fps/server/__tests__/FpsLobbyPolicies.test.ts src/lobby/__tests__/PlayerStore.test.ts`:
+20 tests passed. Production source was unchanged by that cleanup.
+
+Washoi commit: `df17840` (`refactor: supply Washoi lobby policies explicitly`).
+
+Concurrent projectile/rendering work was observed and excluded from this
+checkpoint's ownership changes. Whole-tree gates also see that shared work.
+Browser/GPU play, production TLS/WebTransport, deployment, platform packaging
+and independent-checkout proof remain unverified here. Bot/tool migration,
+remaining tests/configuration, documented assembly proof and Git detachment
+remain; the submodule attachment is still present.

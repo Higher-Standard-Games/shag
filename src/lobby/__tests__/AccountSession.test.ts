@@ -46,7 +46,7 @@ function memoryStorage(): Storage {
 // biome-ignore lint/suspicious/noExplicitAny: reaches private handlers
 function makeServer(): any {
   const spawner = { onServerExit: undefined as unknown, spawn: vi.fn(), shutdownAll: vi.fn() };
-  return new LobbyServer(0, spawner as never, {});
+  return new LobbyServer(0, spawner as never, { reservePlayerName: (name) => /^ramen(?:_\d+)?$/i.test(name) });
 }
 
 /** A LobbyClient stand-in wired straight into `server`, from `address`. */
@@ -116,6 +116,13 @@ afterEach(() => {
 });
 
 describe("AccountSession.logIn", () => {
+  it("does not carry an application-reserved profile name into a new account", async () => {
+    setProfileName("Agent_2");
+    const { client, sent } = connectTo(makeServer());
+    await logIn(client, (name) => /^agent(?:_\d+)?$/i.test(name));
+    expect(sent.filter((message) => message.type === "identity:rename")).toEqual([]);
+    expect(accountIsNew()).toBe(true);
+  });
   it("distinguishes account restore capacity errors from rate limiting", () => {
     expect(loginFailureText("lobby_full")).toContain("Servers are full");
     expect(loginFailureText("lobby_full")).toContain("key is unchanged");

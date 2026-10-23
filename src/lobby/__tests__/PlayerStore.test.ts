@@ -13,8 +13,8 @@ import { PlayerStore } from "../PlayerStore";
 const stores: PlayerStore[] = [];
 const dirs: string[] = [];
 
-function memoryStore(): PlayerStore {
-  const store = new PlayerStore(":memory:");
+function memoryStore(isReserved?: (name: string) => boolean): PlayerStore {
+  const store = new PlayerStore(":memory:", isReserved);
   stores.push(store);
   return store;
 }
@@ -63,6 +63,14 @@ describe("PlayerStore accounts", () => {
 });
 
 describe("PlayerStore renames", () => {
+  it("keeps application reservations local to each store", () => {
+    const reserved = memoryStore((name) => /^gyoza(?:_\d+)?$/i.test(name));
+    const neutral = memoryStore();
+    const first = reserved.create().account;
+    const second = neutral.create().account;
+    expect(reserved.rename(first.id, "Gyoza_3")).toEqual({ ok: false, code: "name_reserved" });
+    expect(neutral.rename(second.id, "Gyoza_3").ok).toBe(true);
+  });
   it("renames, and the key then opens the account under its new name", () => {
     const store = memoryStore();
     const { account, key } = store.create();
@@ -100,7 +108,6 @@ describe("PlayerStore renames", () => {
     const { account } = store.create();
     expect(store.rename(account.id, "a")).toEqual({ ok: false, code: "name_invalid" });
     expect(store.rename(account.id, "Player_42")).toEqual({ ok: false, code: "name_reserved" });
-    expect(store.rename(account.id, "Gyoza_3")).toEqual({ ok: false, code: "name_reserved" });
   });
 
   it("lets you change only the capitals of your own name, even a default one", () => {

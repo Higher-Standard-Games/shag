@@ -7,8 +7,6 @@
  * See docs/research/PLAYER_IDENTITY.md.
  */
 
-import { isBotName } from "../games/fps/shared/bot/BotNames";
-
 /** Crockford base32: no I, L, O or U, so a key survives being read aloud or retyped. */
 const ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 export const KEY_BYTES = 15;
@@ -75,10 +73,12 @@ export const NAME_PATTERN = /^[A-Za-z0-9_-]{2,16}$/;
 const DEFAULT_NAME = /^player_\d+$/i;
 
 export type NameProblem = "name_invalid" | "name_reserved";
+/** Additional names reserved by the application, shared by its browser and server. */
+export type PlayerNameReservation = (name: string) => boolean;
 
 /** Why a player can't take `name`, or null if they can (unless someone already has it). */
-export function checkPlayerName(name: string): NameProblem | null {
+export function checkPlayerName(name: string, isReserved?: PlayerNameReservation): NameProblem | null {
   if (!NAME_PATTERN.test(name)) return "name_invalid";
-  if (DEFAULT_NAME.test(name) || isBotName(name)) return "name_reserved";
+  if (DEFAULT_NAME.test(name) || isReserved?.(name)) return "name_reserved";
   return null;
 }

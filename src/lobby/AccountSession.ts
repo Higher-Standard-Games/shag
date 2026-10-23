@@ -10,7 +10,7 @@
 
 import { PlayerProfile } from "../engine/player/PlayerProfile";
 import type { LobbyClient } from "./LobbyClient";
-import { checkPlayerName, normalizeKey } from "./PlayerIdentity";
+import { checkPlayerName, normalizeKey, type PlayerNameReservation } from "./PlayerIdentity";
 import { startSettingsSync } from "./SettingsSync";
 import type {
   AuthErrorCode,
@@ -188,7 +188,7 @@ function sendAuth(client: LobbyClient, key: string | undefined): Promise<Welcome
  * A browser that had a name before accounts existed asks for that name on its
  * new account; if it's taken, the account keeps its Player_<number> name.
  */
-export async function logIn(client: LobbyClient): Promise<WelcomeMessage> {
+export async function logIn(client: LobbyClient, isReserved?: PlayerNameReservation): Promise<WelcomeMessage> {
   attach(client);
   newAccount = false;
 
@@ -213,7 +213,7 @@ export async function logIn(client: LobbyClient): Promise<WelcomeMessage> {
 
   const earlierName = PlayerProfile.load().name;
   if (answer.identity) adopt(answer.identity);
-  if (!LOCAL_DEFAULT_NAME.test(earlierName) && checkPlayerName(earlierName) === null) {
+  if (!LOCAL_DEFAULT_NAME.test(earlierName) && checkPlayerName(earlierName, isReserved) === null) {
     client.rename(earlierName);
   } else {
     newAccount = true;

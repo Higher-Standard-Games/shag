@@ -22,6 +22,7 @@ import {
   KEY_BYTES,
   type NameProblem,
   normalizeKey,
+  type PlayerNameReservation,
 } from "./PlayerIdentity";
 
 export interface PlayerAccount {
@@ -58,12 +59,15 @@ export class PlayerStore {
   private readonly deletedIds: StatementSync;
 
   /** The store in `<dataDir>/players.db`, created on first use. */
-  static open(dataDir: string): PlayerStore {
+  static open(dataDir: string, isReserved?: PlayerNameReservation): PlayerStore {
     fs.mkdirSync(dataDir, { recursive: true });
-    return new PlayerStore(path.join(dataDir, "players.db"));
+    return new PlayerStore(path.join(dataDir, "players.db"), isReserved);
   }
 
-  constructor(file: string) {
+  constructor(
+    file: string,
+    private readonly isReserved?: PlayerNameReservation,
+  ) {
     this.db = new DatabaseSync(file);
     if (file !== ":memory:") this.db.exec("PRAGMA journal_mode = WAL");
     this.migrate();
@@ -130,7 +134,7 @@ export class PlayerStore {
     if (!current) throw new Error(`No player account ${id}`);
     const nameKey = name.toLowerCase();
     if (nameKey !== current.name_key) {
-      const problem = checkPlayerName(name) ?? (isOffensiveName(name) ? "name_offensive" : null);
+      const problem = checkPlayerName(name, this.isReserved) ?? (isOffensiveName(name) ? "name_offensive" : null);
       if (problem) return { ok: false, code: problem };
     }
     try {

@@ -39,7 +39,10 @@ function connect(server: any, address = "127.0.0.1"): { player: any; sent: any[]
 // biome-ignore lint/suspicious/noExplicitAny: reaches private handlers
 function makeServer(options: { botSecret?: string } = { botSecret: SECRET }): any {
   const spawner = { onServerExit: undefined as unknown, spawn: vi.fn(), shutdownAll: vi.fn() };
-  return new LobbyServer(0, spawner as never, options);
+  return new LobbyServer(0, spawner as never, {
+    ...options,
+    reservePlayerName: (name) => /^ramen(?:_\d+)?$/i.test(name),
+  });
 }
 
 // biome-ignore lint/suspicious/noExplicitAny: captured JSON

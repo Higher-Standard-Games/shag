@@ -87,10 +87,12 @@ describe("player names", () => {
     expect(checkPlayerName("Player1234")).toBeNull();
   });
 
-  it("reserves bot names, numbered copies included", () => {
-    expect(checkPlayerName("Ramen")).toBe("name_reserved");
-    expect(checkPlayerName("ramen")).toBe("name_reserved");
-    expect(checkPlayerName("Ramen_2")).toBe("name_reserved");
-    expect(checkPlayerName("Ramenya")).toBeNull();
+  it("uses an explicit application reservation without leaking it to other callers", () => {
+    const reserved = (name: string) => /^agent(?:_\d+)?$/i.test(name);
+    expect(checkPlayerName("Agent", reserved)).toBe("name_reserved");
+    expect(checkPlayerName("agent_2", reserved)).toBe("name_reserved");
+    expect(checkPlayerName("AgentSmith", reserved)).toBeNull();
+    expect(checkPlayerName("Agent")).toBeNull();
+    expect(checkPlayerName("!", () => true)).toBe("name_invalid");
   });
 });
