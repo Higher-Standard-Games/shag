@@ -29,6 +29,7 @@ import { readIndexedModelAsset } from "../loader/model/ModelAsset";
 import { ModelSourceCache } from "../loader/model/ModelSourceCache";
 import { PK3Loader } from "../loader/pk3/PK3Loader";
 import { PK3TextureLoader } from "../loader/pk3/PK3TextureLoader";
+import { Q3ShaderRegistry } from "../loader/shader/Q3ShaderRegistry";
 import { updateUnlitTrailRibbon } from "./EffectGeometry";
 import {
   BLADE_EXPLOSION,
@@ -381,6 +382,10 @@ export class ProjectileManager {
           console.warn(`[ProjectileManager] Model not found: ${path}`);
           return false;
         }
+        // A surface draws as its shader script says (the plasma bolt is additive,
+        // black meaning clear). Before the map has read the scripts, a model built
+        // now fell back to a plain opaque texture and kept it.
+        await Q3ShaderRegistry.getInstance().loadShaders();
 
         const parsed = md3Loader.parseMD3(modelData);
         const model = md3Loader.createMeshes(parsed, def.id);
