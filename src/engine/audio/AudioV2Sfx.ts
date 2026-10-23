@@ -111,6 +111,8 @@ export class AudioV2Sfx {
   private disposed = false;
   private generation = 0;
   private volume = 1;
+  private muted = false;
+  private playbackEpoch = 0;
 
   private readonly bufferPromises = new Map<string, Promise<StaticSoundBuffer | null>>();
   private readonly soundPromises = new Map<string, Promise<StaticSound | null>>();
@@ -129,7 +131,15 @@ export class AudioV2Sfx {
 
   setVolume(volume: number): void {
     this.volume = Math.max(0, Math.min(1, volume));
-    if (this.sfxBus) this.sfxBus.volume = this.volume;
+    if (this.sfxBus) this.sfxBus.volume = this.muted ? 0 : this.volume;
+  }
+
+  /** Temporary silence preserves the mix; pending one-shots cannot play afterward. */
+  setMuted(muted: boolean): void {
+    if (this.muted === muted) return;
+    this.muted = muted;
+    this.playbackEpoch++;
+    if (this.sfxBus) this.sfxBus.volume = muted ? 0 : this.volume;
   }
 
   setChannelVolume(channel: SfxChannel, volume: number): void {
@@ -153,6 +163,8 @@ export class AudioV2Sfx {
   }
 
   async play2D(path: string, options: SfxPlayOptions = {}): Promise<boolean> {
+    if (this.muted) return false;
+    const epoch = this.playbackEpoch;
     if (!(await this.ensureInitialized()) || !this.engine || !this.sfxBus) return false;
 
     // A sound's bus is fixed when it is made, so each channel has its own
@@ -173,12 +185,14 @@ export class AudioV2Sfx {
     }
 
     const sound = await soundPromise;
-    if (!sound || this.disposed) return false;
+    if (!sound || this.disposed || this.muted || epoch !== this.playbackEpoch) return false;
     sound.play({ volume: Math.max(0, options.volume ?? 1) });
     return true;
   }
 
   async play3D(path: string, position: Vector3, options: SpatialSfxPlayOptions = {}): Promise<boolean> {
+    if (this.muted) return false;
+    const epoch = this.playbackEpoch;
     if (!(await this.ensureInitialized()) || !this.engine || !this.sfxBus) return false;
     this.syncListener();
 
@@ -192,7 +206,7 @@ export class AudioV2Sfx {
       ...spatialOptions(position, options),
     });
 
-    if (generation !== this.generation || this.disposed) {
+    if (generation !== this.generation || this.disposed || this.muted || epoch !== this.playbackEpoch) {
       sound.dispose();
       return false;
     }
@@ -300,7 +314,7 @@ export class AudioV2Sfx {
             engine.dispose();
             return false;
           }
-          const bus = await engine.createBusAsync("sfx", { volume: this.volume });
+          const bus = await engine.createBusAsync("sfx", { volume: this.muted ? 0 : this.volume });
           if (generation !== this.generation || this.disposed) {
             bus.dispose();
             engine.dispose();
@@ -322,6 +336,7 @@ export class AudioV2Sfx {
           }
           this.engine = engine;
           this.sfxBus = bus;
+          bus.volume = this.muted ? 0 : this.volume;
           this.followView();
           this.syncListener();
           devLog("[AudioManager] Babylon Audio V2 SFX backend ready");

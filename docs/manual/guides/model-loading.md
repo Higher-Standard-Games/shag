@@ -52,6 +52,16 @@ packaged player inputs.
 
 ## Packaged weapon models
 
+Washoi prepares its first-person weapon models, barrels and material variants
+while the match loading screen is still visible. Joining consumes that prepared
+view instead of rebuilding its model cache. The pickup-model cache is separate
+from this held-weapon cache.
+
+The map loading screen temporarily silences sound effects, including ambient
+loops and announcer channels, through the end of its fade. Music continues.
+Saved sound levels and enabled settings are preserved; muted one-shots are
+dropped rather than played when loading finishes.
+
 Weapon GLBs and their configs live inside `public/data/washoi_weapons.pk3`, alongside
 the original IQM/MD3 models and textures. First-person weapons, pickups, dropped
 weapons and remote weapons resolve indexed GLBs to embedded bytes; the ordinary

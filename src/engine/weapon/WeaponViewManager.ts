@@ -138,6 +138,36 @@ export class WeaponViewManager {
   private static readonly IDENTITY_MATRIX = Matrix.Identity();
 
   private scene: Scene | null = null;
+  private preparedForJoin = false;
+  private weaponDetailsReady: Promise<unknown> = Promise.resolve();
+
+  /** Prepare the same instances/material variants that live weapon switches use. */
+  public async preloadWeapons(weaponIds: readonly string[], onProgress?: (id: string) => void): Promise<void> {
+    this.preparedForJoin = false;
+    this.setVisible(false);
+    try {
+      for (const id of new Set(weaponIds.map(resolveWeaponId))) {
+        onProgress?.(id);
+        if (!(await this.loadWeapon(id))) throw new Error(`Could not prepare weapon ${id}`);
+        await this.weaponDetailsReady;
+        for (const mesh of this.currentWeapon?.root.getChildMeshes() ?? []) {
+          if (mesh.material) await mesh.material.forceCompilationAsync(mesh);
+        }
+      }
+      this.preparedForJoin = true;
+    } finally {
+      this.clear();
+      this._intendedWeaponId = null;
+    }
+  }
+
+  /** Consume the prepared view once; other joins retain normal reinitialization. */
+  public usePreparedView(scene: Scene, camera: FreeCamera): boolean {
+    const ready = this.preparedForJoin && this.isReady && this.scene === scene && this.mainCamera === camera;
+    this.preparedForJoin = false;
+    if (ready) this.setVisible(true);
+    return ready;
+  }
 
   /** Check if the weapon view manager has been initialized */
   public get isReady(): boolean {
@@ -447,6 +477,7 @@ export class WeaponViewManager {
    * Initialize with scene and camera
    */
   public init(scene: Scene, camera: FreeCamera): void {
+    this.preparedForJoin = false;
     // Re-init is expected when returning from a cold-start demo to live play.
     // Release the prior camera/root/observer even when Babylon keeps the same
     // Scene instance, otherwise every join adds another per-frame update.
@@ -568,6 +599,7 @@ export class WeaponViewManager {
    * @param weaponName - Either a weapon ID (looks up in registry) or folder name
    */
   public async loadWeapon(weaponName: string, pk3Path?: string): Promise<boolean> {
+    this.weaponDetailsReady = Promise.resolve();
     if (!this.scene || !this.weaponRoot) {
       console.error("[WeaponViewManager] Not initialized");
       return false;
@@ -702,24 +734,28 @@ export class WeaponViewManager {
       devLog(`[WeaponViewManager] GLB meshes loaded: ${weaponName} (${glbMeshes.length} meshes)`);
 
       // Load barrel sub-models if defined
+      const details: Promise<unknown>[] = [];
       if (this.currentWeaponDef?.barrels?.length) {
-        this.weaponBarrels
-          .load(
-            this.currentWeaponDef.barrels,
-            glbRoot,
-            weaponName,
-            this.scene!,
-            loadGen,
-            () => this._loadGeneration,
-            weaponNode.getDescendants(false).filter((node): node is TransformNode => node instanceof TransformNode),
-          )
-          .catch(logRejection("WeaponViewManager"));
+        details.push(
+          this.weaponBarrels
+            .load(
+              this.currentWeaponDef.barrels,
+              glbRoot,
+              weaponName,
+              this.scene!,
+              loadGen,
+              () => this._loadGeneration,
+              weaponNode.getDescendants(false).filter((node): node is TransformNode => node instanceof TransformNode),
+            )
+            .catch(logRejection("WeaponViewManager")),
+        );
       }
 
       // Build the on-weapon ammo counter if this model is authored for one.
-      this.setupAmmoCounter(weaponName, modelPath, glbRoot, loadGen).catch(() => {});
+      details.push(this.setupAmmoCounter(weaponName, modelPath, glbRoot, loadGen).catch(() => {}));
+      this.weaponDetailsReady = Promise.all(details);
 
-      return true;
+      return this._loadGeneration === loadGen;
     } catch (e) {
       console.error(`[WeaponViewManager] Failed to load GLB: ${modelPath}`, e);
       return false;

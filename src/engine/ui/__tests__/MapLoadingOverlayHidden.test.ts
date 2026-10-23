@@ -6,6 +6,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { AudioManager } from "../../AudioManager";
 import { EventBus } from "../../core/EventBus";
 import { LOADING_EVENTS } from "../../core/LoadingEvents";
 import { MapLoadingOverlay } from "../MapLoadingOverlay";
@@ -27,6 +28,7 @@ beforeEach(() => {
     minDisplayMs: 0,
     completeHoldMs: 0,
     fadeDurationMs: 50,
+    holdTimeoutMs: 20000,
   });
   MapLoadingOverlay.enable();
   hidden = vi.fn();
@@ -41,6 +43,52 @@ afterEach(() => {
 });
 
 describe("MapLoadingOverlay hidden event", () => {
+  it("starts the post-load watchdog after a slow map finishes", () => {
+    MapLoadingOverlay.configure({ holdTimeoutMs: 100 });
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    MapLoadingOverlay.hold("test:slow-map");
+    start();
+    vi.advanceTimersByTime(200);
+    complete();
+    vi.advanceTimersByTime(60);
+    expect(hidden).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(200);
+    expect(hidden).toHaveBeenCalledOnce();
+  });
+  it("keeps SFX muted through holds and fading, then restores the prior levels without changing music", () => {
+    const audio = AudioManager.getInstance();
+    audio.setSfxVolume(0.37);
+    audio.setMusicVolume(0.23);
+    const backend = (audio as unknown as { sfxBackend: { setMuted(muted: boolean): void } }).sfxBackend;
+    const mute = vi.spyOn(backend, "setMuted");
+    MapLoadingOverlay.hold("test:ready");
+    start();
+    complete();
+    vi.advanceTimersByTime(1000);
+    expect(mute.mock.calls).toEqual([[true]]);
+    MapLoadingOverlay.release("test:ready");
+    vi.advanceTimersByTime(1);
+    expect(mute.mock.calls).toEqual([[true]]);
+    vi.advanceTimersByTime(100);
+    expect(mute.mock.calls).toEqual([[true], [false]]);
+    expect(audio.getSfxVolume()).toBe(0.37);
+    expect(audio.getMusicVolume()).toBe(0.23);
+  });
+
+  it("does not unmute or hide a replacement load when the previous fade expires", () => {
+    const audio = AudioManager.getInstance();
+    const backend = (audio as unknown as { sfxBackend: { setMuted(muted: boolean): void } }).sfxBackend;
+    const mute = vi.spyOn(backend, "setMuted");
+    start();
+    complete();
+    vi.advanceTimersByTime(1);
+    start();
+    vi.advanceTimersByTime(100);
+    expect(hidden).not.toHaveBeenCalled();
+    expect(mute.mock.calls).toEqual([[true]]);
+    MapLoadingOverlay.disable();
+    expect(mute.mock.calls).toEqual([[true], [false]]);
+  });
   it("is emitted once the overlay has faded out after the map completes", () => {
     start();
     oneFrame();

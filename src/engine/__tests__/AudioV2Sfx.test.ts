@@ -54,6 +54,27 @@ import { Observable } from "@babylonjs/core/Misc/observable";
 import { Attenuation, AudioV2Sfx } from "../audio/AudioV2Sfx";
 
 describe("AudioV2Sfx", () => {
+  it("temporarily mutes the bus and drops muted or delayed one-shots while preserving the mix", async () => {
+    const audio = new AudioV2Sfx();
+    audio.setVolume(0.37);
+    audio.setMuted(true);
+    await audio.init();
+    const buses = await Promise.all(engine.createBusAsync.mock.results.map((r) => r.value));
+    const bus = buses.find((entry) => entry.name === "sfx")!;
+    expect(bus.volume).toBe(0);
+    await audio.preload(["shot.ogg"]);
+    expect(await audio.play2D("shot.ogg")).toBe(false);
+    expect(await audio.play3D("shot.ogg", new Vector3())).toBe(false);
+    audio.setMuted(false);
+    expect(bus.volume).toBe(0.37);
+    const pending = audio.play2D("shot.ogg");
+    audio.setMuted(true);
+    audio.setMuted(false);
+    expect(await pending).toBe(false);
+    expect(createdSounds.every((sound) => sound.play.mock.calls.length === 0)).toBe(true);
+    expect(await audio.play2D("shot.ogg")).toBe(true);
+    audio.dispose();
+  });
   beforeEach(() => {
     vi.clearAllMocks();
     createdSounds.length = 0;

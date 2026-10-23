@@ -47,6 +47,19 @@ export class AudioManager {
   private sfxVolume = DEFAULT_SFX_VOLUME;
   private sfxEnabled = true;
   private readonly sfxBackend = new AudioV2Sfx();
+  private sfxMuteCount = 0;
+
+  /** Temporarily silence gameplay audio without changing saved settings or music. */
+  public muteSfx(): () => void {
+    this.sfxMuteCount++;
+    this.sfxBackend.setMuted(true);
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      if (--this.sfxMuteCount === 0) this.sfxBackend.setMuted(false);
+    };
+  }
 
   private fadeInterval: number | null = null;
 

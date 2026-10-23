@@ -29,6 +29,7 @@
  *   MapLoadingOverlay.disable();
  */
 
+import { AudioManager } from "../AudioManager";
 import { devLog } from "../core/DevLog";
 import { EngineVersion } from "../core/EngineVersion";
 import { EventBus } from "../core/EventBus";
@@ -134,6 +135,8 @@ export class MapLoadingOverlay {
 
   // Timers
   private fadeTimer: ReturnType<typeof setTimeout> | null = null;
+  private hideTimer: ReturnType<typeof setTimeout> | null = null;
+  private releaseSfxMute: (() => void) | null = null;
 
   private constructor() {
     // Ensure styles are injected
@@ -246,6 +249,12 @@ export class MapLoadingOverlay {
   private onLoadingStart(event: LoadingStartEvent): void {
     // If already showing (rapid map switches), reset instead of re-creating
     if (this.state !== "idle") {
+      if (this.fadeTimer !== null) clearTimeout(this.fadeTimer);
+      if (this.hideTimer !== null) clearTimeout(this.hideTimer);
+      this.fadeTimer = null;
+      this.hideTimer = null;
+      this.state = "loading";
+      this.container?.classList.remove("ui-map-loading-overlay--fading");
       this.showTime = Date.now();
       this.failed = false;
       this.view?.restart(event);
@@ -265,6 +274,7 @@ export class MapLoadingOverlay {
 
     this.state = "completing";
     this.failed = !event.success;
+    for (const name of this.holds) this.addHold(name);
 
     // The MAP is loaded, which is not the same as the GAME being ready to show.
     // Anything still holding keeps the curtain down — see `hold()`.
@@ -322,6 +332,11 @@ export class MapLoadingOverlay {
     this.holds.add(name);
     const existing = this.holdTimers.get(name);
     if (existing) clearTimeout(existing);
+    // The map itself has its own load lifecycle. A post-load hold's watchdog
+    // starts once that finishes, and advances while its owner reports progress.
+    if (this.state !== "completing") return;
+    if (this.fadeTimer !== null) clearTimeout(this.fadeTimer);
+    this.fadeTimer = null;
     this.holdTimers.set(
       name,
       setTimeout(() => {
@@ -348,6 +363,7 @@ export class MapLoadingOverlay {
   // ==================== UI Methods ====================
 
   private show(event: LoadingStartEvent): void {
+    this.releaseSfxMute ??= AudioManager.getInstance().muteSfx();
     this.state = "showing";
     this.showTime = Date.now();
     this.failed = false;
@@ -378,13 +394,17 @@ export class MapLoadingOverlay {
     this.container?.classList.add("ui-map-loading-overlay--fading");
 
     // Remove after animation; the world is then on screen.
-    setTimeout(() => {
+    this.hideTimer = setTimeout(() => {
       this.hide();
       EventBus.emit(LOADING_EVENTS.HIDDEN);
     }, this.config.fadeDurationMs);
   }
 
   private hide(): void {
+    if (this.hideTimer !== null) clearTimeout(this.hideTimer);
+    this.hideTimer = null;
+    this.releaseSfxMute?.();
+    this.releaseSfxMute = null;
     // Clear timer
     if (this.fadeTimer) {
       clearTimeout(this.fadeTimer);
