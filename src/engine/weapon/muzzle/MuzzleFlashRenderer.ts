@@ -1,3 +1,4 @@
+import type { Camera } from "@babylonjs/core/Cameras/camera";
 import type { Color3 } from "@babylonjs/core/Maths/math.color";
 import type { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Vector2 } from "@babylonjs/core/Maths/math.vector";
@@ -5,6 +6,7 @@ import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import "@babylonjs/core/Meshes/thinInstanceMesh";
 import type { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial";
 import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
+import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
 import type { MuzzleFlashStyle } from "../../../shared/entities/WeaponDef";
 import { createMuzzleFlashMaterial } from "./MuzzleFlashMaterial";
@@ -68,6 +70,7 @@ export class MuzzleFlashRenderer {
   private seedCounter = 0;
   /** When set, live flashes re-track this position every frame (the live muzzle). */
   private anchorResolver: (() => Vector3 | null) | null = null;
+  private readonly cameraObserver: Observer<Camera>;
 
   constructor(scene: Scene, clock: () => number = defaultClock, capacity = 24) {
     this.scene = scene;
@@ -105,6 +108,13 @@ export class MuzzleFlashRenderer {
     this.mesh.thinInstanceSetBuffer("iColorSpawn", this.colorSpawn, 4, false);
     this.mesh.thinInstanceSetBuffer("iParams", this.params, 4, false);
     this.setRenderCount(0);
+
+    // The anchor is read from the camera, and the first-person controller moves
+    // the camera in a before-render observer that registers after this one (a
+    // map attaches it long after effects start). Tracked only in update(), a
+    // flash drew where the camera was a frame ago, beside the gun while
+    // strafing. Just before a camera renders, every observer has run.
+    this.cameraObserver = scene.onBeforeCameraRenderObservable.add(() => this.trackAnchors());
   }
 
   private setRenderCount(count: number): void {
@@ -198,9 +208,22 @@ export class MuzzleFlashRenderer {
       return;
     }
 
-    // Independent anchors let a blade-tip flash follow the swing while other
-    // flashes keep tracking the shared live muzzle.
+    this.trackAnchors(false);
+
+    if (this.dirtyMask & CENTER_SEED_DIRTY) this.mesh.thinInstanceBufferUpdated("iCenterSeed");
+    if (this.dirtyMask & COLOR_SPAWN_DIRTY) this.mesh.thinInstanceBufferUpdated("iColorSpawn");
+    if (this.dirtyMask & PARAMS_DIRTY) this.mesh.thinInstanceBufferUpdated("iParams");
+    this.dirtyMask = 0;
+  }
+
+  /**
+   * Move each live flash to its anchor. Independent anchors let a blade-tip
+   * flash follow the swing while the others track the shared live muzzle.
+   */
+  private trackAnchors(flush = true): void {
+    if (this.slots.length === 0) return;
     const sharedAnchor = this.anchorResolver?.();
+    let moved = false;
     for (let i = 0; i < this.slots.length; i++) {
       const resolver = this.slots[i].anchorResolver;
       const anchor = resolver ? resolver() : sharedAnchor;
@@ -209,14 +232,12 @@ export class MuzzleFlashRenderer {
         this.centerSeed[o] = anchor.x;
         this.centerSeed[o + 1] = anchor.y;
         this.centerSeed[o + 2] = anchor.z;
-        this.dirtyMask |= CENTER_SEED_DIRTY;
+        moved = true;
       }
     }
-
-    if (this.dirtyMask & CENTER_SEED_DIRTY) this.mesh.thinInstanceBufferUpdated("iCenterSeed");
-    if (this.dirtyMask & COLOR_SPAWN_DIRTY) this.mesh.thinInstanceBufferUpdated("iColorSpawn");
-    if (this.dirtyMask & PARAMS_DIRTY) this.mesh.thinInstanceBufferUpdated("iParams");
-    this.dirtyMask = 0;
+    if (!moved) return;
+    if (flush) this.mesh.thinInstanceBufferUpdated("iCenterSeed");
+    else this.dirtyMask |= CENTER_SEED_DIRTY;
   }
 
   async prewarm(): Promise<void> {
@@ -235,6 +256,7 @@ export class MuzzleFlashRenderer {
   }
 
   dispose(): void {
+    this.scene.onBeforeCameraRenderObservable.remove(this.cameraObserver);
     this.mesh.dispose();
     this.material.dispose();
   }

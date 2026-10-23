@@ -42,6 +42,33 @@ describe("MuzzleFlashRenderer lifecycle", () => {
       engine.dispose();
     }
   });
+  it("draws at the muzzle of this frame, even when the camera moves after effects update", () => {
+    const engine = new NullEngine();
+    const scene = new Scene(engine);
+    new FreeCamera("camera", new Vector3(0, 0, -10), scene);
+    const renderer = new MuzzleFlashRenderer(scene, () => 1);
+    try {
+      // The muzzle rides the camera; the first-person controller moves the
+      // camera in a before-render observer registered after the effects'
+      const muzzle = new Vector3(0, 0, 0);
+      renderer.setAnchorResolver(() => muzzle.clone());
+      scene.onBeforeRenderObservable.add(() => renderer.update(1 / 60));
+      scene.onBeforeRenderObservable.add(() => {
+        muzzle.x += 6; // a strafe step this frame
+      });
+      renderer.spawn(flash("burst"));
+      scene.render();
+      const centres = (renderer as unknown as { centerSeed: Float32Array }).centerSeed;
+      expect(centres[0]).toBe(6);
+      scene.render();
+      expect(centres[0]).toBe(12);
+    } finally {
+      renderer.dispose();
+      scene.dispose();
+      engine.dispose();
+    }
+  });
+
   it("spawns, renders, and expires flashes without leaking meshes/materials", () => {
     const engine = new NullEngine();
     const scene = new Scene(engine);
