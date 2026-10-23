@@ -10,6 +10,10 @@ the server build recipe at `src/games/fps/scripts/build-servers.mjs` in the
 assembled checkout. Reusable lobby, account, result and process-management
 services remain in SHAG. Run lobby commands from the assembled project root.
 
+Washoi's demo-ownership and real lobby/match integration tests live in
+`src/games/fps/server/__tests__/lobby/`. `npm run ranking:acceptance` includes
+these tests alongside SHAG's reusable lobby and ranking tests.
+
 Application name reservations are explicit: pass the same predicate to
 `PlayerStore.open(dataDir, isReserved)` (or its constructor), browser
 `checkPlayerName(name, isReserved)` and `logIn(client, isReserved)`.

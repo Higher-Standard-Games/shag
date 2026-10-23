@@ -29,7 +29,7 @@
     "lobby:server": "node dist-server/lobby-server.mjs --",
     "ranking:simulate": "npx vite-node src/cli/ranking-simulate.ts",
     "ranking:delivery": "npx vite-node src/cli/ranking-delivery.ts --",
-    "ranking:acceptance": "vitest run src/shared/ranking src/lobby src/engine/server/network/__tests__/MatchResultReport.test.ts src/engine/server/network/__tests__/MatchAdmission.test.ts src/games/fps/bot/__tests__/BotLobbyReference.test.ts src/games/fps/bot/__tests__/BotServerControlAuth.test.ts src/games/fps/bot/__tests__/PrivateBotInvite.test.ts src/games/fps/server/__tests__/PlayedMatchResult.test.ts src/games/fps/client/__tests__/LeaderboardView.test.ts src/games/fps/client/__tests__/NewUiApiLeaderboard.test.ts src/games/fps/client/__tests__/ProfileRecord.test.ts",
+    "ranking:acceptance": "vitest run src/shared/ranking src/lobby src/engine/server/network/__tests__/MatchResultReport.test.ts src/engine/server/network/__tests__/MatchAdmission.test.ts src/games/fps/bot/__tests__/BotLobbyReference.test.ts src/games/fps/bot/__tests__/BotServerControlAuth.test.ts src/games/fps/bot/__tests__/PrivateBotInvite.test.ts src/games/fps/server/__tests__/PlayedMatchResult.test.ts src/games/fps/client/__tests__/LeaderboardView.test.ts src/games/fps/client/__tests__/NewUiApiLeaderboard.test.ts src/games/fps/client/__tests__/ProfileRecord.test.ts src/games/fps/server/__tests__/lobby",
     "shagged": "npx vite-node src/games/fps/cli/shagged.ts --",
     "shagged:mcp": "node scripts/shagged-mcp.mjs",
     "shagged:server": "npx vite-node src/games/fps/cli/shagged-server.ts --",

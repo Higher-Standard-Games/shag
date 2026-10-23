@@ -2590,3 +2590,86 @@ sound audit, editor native compile/reuse and MCP discovery. Exact commands,
 bundle comparison and explicit unverified items are in the checkpoint above.
 
 Washoi commit: `f633b71` (`refactor: own game CLI composition and regression tools`).
+
+## Step 22 — game-dependent test ownership (2026-10-24)
+
+Moved the nine remaining outer test files that import concrete Washoi code.
+Every test, assertion, lifecycle hook and timeout is retained. Literal `vi.mock`
+paths and imports resolve to the same modules after relocation; ordered AST
+bodies and imported bindings match the prepared move after import sorting and
+formatting. No production implementation changed.
+
+| Previous SHAG path | Washoi path in the assembled checkout |
+| --- | --- |
+| `src/engine/__tests__/DemoViewer.test.ts` | `src/games/fps/client/__tests__/DemoViewer.test.ts` |
+| `src/engine/__tests__/LocalWaterReflection.test.ts` | `src/games/fps/client/__tests__/LocalWaterReflection.test.ts` |
+| `src/engine/__tests__/SharedCollisionGrounding.test.ts` | `src/games/fps/simulation/__tests__/SharedCollisionGrounding.test.ts` |
+| `src/engine/input/__tests__/FullscreenKeyboardLock.test.ts` | `src/games/fps/client/__tests__/FullscreenKeyboardLock.test.ts` |
+| `src/engine/input/__tests__/InputFocusRecovery.test.ts` | `src/games/fps/client/__tests__/InputFocusRecovery.test.ts` |
+| `src/lobby/__tests__/DemoOwnership.test.ts` | `src/games/fps/server/__tests__/lobby/DemoOwnership.test.ts` |
+| `src/lobby/integration/DropIn.test.ts` | `src/games/fps/server/__tests__/lobby/DropIn.test.ts` |
+| `src/lobby/integration/RoomToRanking.test.ts` | `src/games/fps/server/__tests__/lobby/RoomToRanking.test.ts` |
+| `src/lobby/integration/SpawnedResult.test.ts` | `src/games/fps/server/__tests__/lobby/SpawnedResult.test.ts` |
+
+These cover game playback/presentation, FPS bindings, movement with the Washoi
+profile and cross-application lobby/account/result behavior. Generic engine,
+lobby and shared tests remain in SHAG. `DemoOwnership` still uses SHAG's neutral
+`src/lobby/__tests__/_humanSnapshot.ts` helper; the helper itself has no game
+dependency and stays with SHAG.
+
+Other exact files changed: `package.json` appends the game lobby test directory
+to `ranking:acceptance`, retaining every existing filter;
+`.claude/skills/protocol-change/SKILL.md` updates the RoomToRanking test pointer;
+`docs/manual/guides/lobby-server.md` and game manual
+`getting-started/project-structure.md` explain test ownership. The living
+`docs/changelog/v1.0.0-alpha.3.md`, regenerated
+`docs/research/ENGINE_GAME_SPLIT_INVENTORY.md`, this log and the outer game pin
+record the checkpoint. Historical reports retain their historical paths.
+
+`node docs/research/engine-game-split-audit.mjs` finds **zero outer test imports
+into Washoi**, down from nine files / 12 sites. Production `src` imports and
+transitive production engine paths remain zero. Six executable research/
+experiment/visual files, package/build/test/platform configuration, asset
+recipes, assembly/independent-checkout proof and Git detachment remain.
+
+Assumptions: tests execute from the assembled root with installed dependencies
+and indexed `washoi_dm2`. The real socket/child-server tests retain private
+temporary account/result/demo storage and their existing cleanup. Existing
+renderer/fog/preloader and other shared-changelog edits remain outside this
+checkpoint; full-tree gates see that concurrent code. Browser play, production
+deployment and independent checkout are not established by moving these tests.
+
+Private receipts: `.cache/engine-game-split/step22-validation/`.
+`node .cache/engine-game-split/validate-step22.mjs baseline` runs `npm.cmd run
+test:run --` followed by all nine old paths above: **9 files / 71 tests passed**.
+`node .cache/engine-game-split/prove-step22.mjs` passed source structure checks
+for all nine relocated tests. `node .cache/engine-game-split/validate-step22.mjs
+after` runs `npm.cmd run test:run --` followed by all nine new paths above:
+**9 files / 71 tests passed**. It also runs `npm.cmd run ranking:acceptance`:
+**54 files / 539 tests passed**, including the moved lobby tests. Public and
+private installed-map room/ranking flows, drop-in and real child result handoff
+executed without reducing their timeouts or assertions.
+
+`node .cache/engine-game-split/validate-step22.mjs gates` completed:
+
+| Exact command | Result |
+| --- | --- |
+| `npm.cmd run typecheck` | Passed |
+| `npm.cmd run test:run` | 719 files; 5,644 tests passed, one skipped |
+| `npm.cmd run gate:biome` | Passed; zero errors / 47 baseline warnings |
+| `npm.cmd run build` | Passed, including PK3 index and sourcemap relocation |
+| `npm.cmd run docs:build` | Passed |
+| `npm.cmd run docs:fps:build` | Passed |
+| `npm.cmd run test:simulation` | Passed |
+| `npm.cmd run test:physics` | Passed |
+| `npm.cmd run server:tick` | Passed; checksum `2768943778` |
+| `npm.cmd run server:fuzz -- --ticks 1000 --seed 42` | Passed; checksum `2481546443` |
+| `npm.cmd run cli:game -- --exec "bsp load washoi_dm2; bsp info; quit"` | Passed; 7,475 faces |
+| `npm.cmd run cli:game -- --exec 'sim replay \"W+CROUCH 60; JUMP 1; W 30\"; quit'` | Passed; 91 ticks |
+
+`git diff --check` / `git diff --cached --check` passed in both repositories.
+No tests were removed or skipped by this checkpoint. The existing single
+suite skip remains; fresh installation, game-free checkout, browser play and
+production deployment were not tested.
+
+Washoi commit: `dfdb7d2` (`test: own Washoi engine and lobby integration coverage`).
