@@ -77,6 +77,8 @@ export class MatchLobbyView {
   private switchBtn: HTMLButtonElement | null = null;
   private shuffleBtn: HTMLButtonElement | null = null;
   private inviteBotPending = false;
+  /** Quick play: bots still to add before this player readies up; 0 when off. */
+  private autoFillBots = 0;
   private phase: "waiting" | "starting" = "waiting";
   /** True when the room's match was already running as this player walked in. */
   private matchInProgress = false;
@@ -87,7 +89,17 @@ export class MatchLobbyView {
   private disposed = false;
   private readonly localPlayerId: string | null;
 
-  constructor(gametype: string, lobbyClient: LobbyClient, lobbyInfo: MatchLobbyInfo, localPlayerId?: string) {
+  /**
+   * `fillWithBots` sets the room up by itself: it votes a random map, adds bots
+   * one at a time until that many are seated, then readies this player.
+   */
+  constructor(
+    gametype: string,
+    lobbyClient: LobbyClient,
+    lobbyInfo: MatchLobbyInfo,
+    localPlayerId?: string,
+    options: { fillWithBots?: number } = {},
+  ) {
     this.lobbyClient = lobbyClient;
     this.localPlayerId = localPlayerId ?? null;
     this.config = {
@@ -128,6 +140,13 @@ export class MatchLobbyView {
 
     this.root = this.build();
     this.wireLobbyEvents();
+    if (options.fillWithBots && !this.activeMatchId) {
+      this.autoFillBots = options.fillWithBots;
+      const offered = this.maps.filter((map) => map.name);
+      const pick = offered[Math.floor(Math.random() * offered.length)];
+      if (pick) this.selectMapVote(pick);
+      this.continueAutoFill();
+    }
   }
 
   private wireLobbyEvents(): void {
@@ -177,6 +196,7 @@ export class MatchLobbyView {
         // A joining player (incl. an invited bot) may have filled the lobby.
         this.inviteBotPending = false;
         this.updateInviteBotState();
+        this.continueAutoFill();
       }),
     );
 
@@ -216,6 +236,7 @@ export class MatchLobbyView {
       this.lobbyClient.on("lobby:bot_invite_failed", (msg) => {
         console.warn("[MatchLobbyView] Bot invite failed:", msg.error);
         this.inviteBotPending = false;
+        this.autoFillBots = 0;
         this.updateInviteBotState();
         if (this.inviteBotBtn) {
           setRaisedKeyText(this.inviteBotBtn, "+ Add bot", "No bots available");
@@ -1011,9 +1032,28 @@ export class MatchLobbyView {
     this.schedule(() => {
       if (this.inviteBotPending) {
         this.inviteBotPending = false;
+        this.autoFillBots = 0;
         this.updateInviteBotState();
       }
     }, 9000);
+  }
+
+  /** Quick play's next step: another bot while too few are seated, then ready up. */
+  private continueAutoFill(): void {
+    if (this.autoFillBots === 0 || this.disposed) return;
+    if (this.phase === "starting") {
+      this.autoFillBots = 0;
+      return;
+    }
+    const bots = this.players.filter((p) => p.botLevel).length;
+    if (bots < this.autoFillBots && this.players.length < this.config.maxPlayers) {
+      this.requestBot();
+      return;
+    }
+    // Bots ready up on their own, so this player readies last: earlier, the
+    // room could start as soon as it reached its minimum, short of bots.
+    this.autoFillBots = 0;
+    if (!this.localReady) this.setReady(true);
   }
 
   /** Enable/disable the invite-bot button by capacity and pending state. */

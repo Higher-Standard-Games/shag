@@ -461,4 +461,54 @@ describe("MatchLobbyView bots", () => {
     view.destroy();
     vi.useRealTimers();
   });
+
+  it("quick play votes a map, adds bots one at a time, and readies last", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    const client = new FakeLobbyClient();
+    const room: MatchLobbyInfo = {
+      ...lobby,
+      id: "quick",
+      gametype: "ffa",
+      visibility: "private",
+      shareUrl: "/?lobby=quick&invite=t",
+      maps: [
+        { name: "a", displayName: "A", votes: 0 },
+        { name: "b", displayName: "B", votes: 0 },
+        { name: "c", displayName: "C", votes: 0 },
+      ],
+      players: [{ id: "host", name: "Host", team: "ffa", ready: false }],
+      config: { maxPlayers: 8, minPlayers: 4, hasTeams: false },
+    };
+    const view = new MatchLobbyView("ffa", client as never, room, "host", { fillWithBots: 4 });
+    expect(client.voteMap).toHaveBeenCalledWith("quick", "b");
+    expect(client.inviteBot).toHaveBeenCalledTimes(1);
+
+    for (let n = 1; n <= 4; n += 1) {
+      expect(client.setReady).not.toHaveBeenCalled();
+      client.emit("lobby:player_joined", {
+        player: { id: `bot${n}`, name: `Bot ${n}`, team: "ffa", ready: true, botLevel: "hard" },
+      });
+      expect(client.inviteBot).toHaveBeenCalledTimes(Math.min(n + 1, 4));
+    }
+    expect(client.setReady).toHaveBeenCalledWith("quick", true);
+    view.destroy();
+    vi.restoreAllMocks();
+  });
+
+  it("quick play stops when no bot comes, and leaves the player unready", () => {
+    const client = new FakeLobbyClient();
+    const room: MatchLobbyInfo = {
+      ...lobby,
+      gametype: "ffa",
+      visibility: "private",
+      players: [lobby.players[0]],
+      config: { maxPlayers: 8, minPlayers: 4, hasTeams: false },
+    };
+    const view = new MatchLobbyView("ffa", client as never, room, "host", { fillWithBots: 4 });
+    client.emit("lobby:bot_invite_failed", { lobbyId: room.id, error: "Bot server did not respond" });
+    client.emit("lobby:player_joined", { player: { id: "friend", name: "Friend", team: "ffa", ready: false } });
+    expect(client.inviteBot).toHaveBeenCalledTimes(1);
+    expect(client.setReady).not.toHaveBeenCalled();
+    view.destroy();
+  });
 });

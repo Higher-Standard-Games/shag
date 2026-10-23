@@ -173,7 +173,7 @@ reload that drops every socket at once still finds it.
 When everyone is ready, the lobby spawns a dedicated game server for that match
 alone and hands each player a ticket to it.
 
-FFA can start with two players and holds up to eight. S&D can start with two
+FFA can start with four players and holds up to eight. S&D can start with two
 players, with both teams populated, and holds up to ten. Every player present
 must be ready; the minimum does not allow a room to launch past unready players.
 Duel and Amphi require their two seats.

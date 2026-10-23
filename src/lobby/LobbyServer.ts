@@ -89,7 +89,8 @@ const GAMETYPE_SHELLS: Omit<GametypeInfo, "mapPool">[] = [
     hasTeams: true,
     teamNames: { alpha: "Team Soba", bravo: "Team Udon" },
   },
-  { id: "ffa", name: "FFA", description: "Free For All", maxPlayers: 8, minPlayers: 2, hasTeams: false },
+  // Four to start: with two or three, a free-for-all is a duel without the duel's rules.
+  { id: "ffa", name: "FFA", description: "Free For All", maxPlayers: 8, minPlayers: 4, hasTeams: false },
   {
     id: "snd",
     name: "S&D",

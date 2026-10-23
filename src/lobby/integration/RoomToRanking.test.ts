@@ -94,10 +94,12 @@ describe("installed-map room to ranking", () => {
         process.env.SHAG_TIMELIMIT = visibility === "private" ? "11s" : "1s";
         process.env.SHAG_WARMUP = "10s";
         await lobby.start();
-        // Keep the shipped capacity/start threshold; select one installed map for determinism.
+        // Shipped FFA needs four to start; two seats are enough to carry a result
+        // here. Select one installed map for determinism.
         const internal = lobby as unknown as { gametypes: GametypeInfo[]; wss: { address(): { port: number } } };
         const ffa = internal.gametypes.find((mode) => mode.id === "ffa")!;
-        expect(ffa).toMatchObject({ maxPlayers: 8, minPlayers: 2 });
+        expect(ffa).toMatchObject({ maxPlayers: 8, minPlayers: 4 });
+        ffa.minPlayers = 2;
         expect(ffa.mapPool).toEqual(["washoi_dm2"]);
         const lobbyPort = internal.wss.address().port;
         for (const member of members) {
