@@ -11,17 +11,22 @@ Small single-slot registries keep generic engine code from importing the active 
 - `GameFrameHook`: engine camera controllers to the game's per-frame work, so a
   freefly or spectator camera can tick the network and draw remote players
   without importing the game.
+- `FreeflyInput`: a game's movement action mapping and input preparation for
+  the engine freefly camera; game-free tools receive engine-local defaults.
 
-The first two expose register, get and clear; `GameFrameHook` uses
+`GameplayMapLauncher`, `NetworkConnector` and `FreeflyInput` expose register,
+get and clear; `GameFrameHook` uses
 `setGameFrameHook(hook)` and clears by passing `null`. The application composition root owns registration:
 
 ```ts
 // From src/main.ts
 import { registerGameplayMapLauncher } from './engine/console/GameplayMapLauncher';
 import { registerNetworkConnector } from './engine/ui/components/NetworkConnector';
+import { registerFreeflyInput } from './engine/camera/FreeflyInput';
 
 registerGameplayMapLauncher(fpsMapLauncher);
 registerNetworkConnector(fpsNetworkConnector);
+registerFreeflyInput(fpsFreeflyInput);
 ```
 
 Engine consumers must handle a missing adapter without importing an FPS fallback.
@@ -35,12 +40,19 @@ reconnecting. A disconnected or missing adapter reports no server connection;
 a connected adapter without `join` reports that joining is unsupported.
 Games that only provide connection functionality can omit this capability.
 
+`FreeflyInput` provides seven action IDs (`forward`, `backward`, `left`, `right`,
+`up`, `down`, `sprint`) and `prepare()`. Register it before attaching cameras.
+The controller prepares and selects the mapping on attach, without changing
+game-owned contexts itself. Clearing the registry selects engine-local defaults
+for the next attach; it does not change an already attached controller's mapping.
+
 ## Test hygiene
 
 ```ts
 afterEach(() => {
   clearGameplayMapLauncher();
   clearNetworkConnector();
+  clearFreeflyInput();
   setGameFrameHook(null);
 });
 ```

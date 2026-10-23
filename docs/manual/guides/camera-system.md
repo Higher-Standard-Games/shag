@@ -82,6 +82,20 @@ controller, including one reused after an automated camera session.
 
 Freefly uses the player's own FPS action bindings rather than fixed keys: move is WASD, rise is Jump (Space), sink is Crouch (C, Ctrl or middle mouse), and the speed multiplier is Sprint (Shift). Mouse look needs pointer lock. Rebinding those actions rebinds freefly with them.
 
+The engine's `FreeflyInput` registry supplies the seven movement action IDs and
+an idempotent `prepare()` callback, called when the controller attaches. Washoi
+registers its mapping at application boot and when its FPS actions are registered.
+The controller reads the mapped actions through `InputSystem` each frame, so
+binding changes take effect without recreating the camera. The game keeps
+ownership of its input contexts.
+
+Without a game adapter, attaching freefly lazily registers engine-local
+`freefly_*` actions and activates the `freefly` context if it is not already on
+the context stack. These use WASD, Space to rise, C/Ctrl/middle mouse to sink,
+and Shift for triple speed. No FPS actions are registered by that fallback.
+Register a game's adapter before attaching its cameras; a different mapping
+is selected on the next attach.
+
 Held controls reset when the page loses focus, the tab becomes hidden or mouse
 capture is released. Returning and capturing again requires fresh presses;
 saved bindings are preserved. Mouse releases outside the canvas and cancelled

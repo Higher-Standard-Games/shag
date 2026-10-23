@@ -166,6 +166,8 @@ async function main() {
   // initiate a connection without importing fps directly.
   await registerEngineCommands();
   const fpsModule = await import("./games/fps");
+  const { registerFreeflyInput } = await import("./engine/camera/FreeflyInput");
+  registerFreeflyInput(fpsModule.fpsFreeflyInput);
   await fpsModule.registerFpsCommands();
   const { registerNetworkConnector } = await import("./engine/ui/components/NetworkConnector");
   registerNetworkConnector(fpsModule.fpsNetworkConnector);

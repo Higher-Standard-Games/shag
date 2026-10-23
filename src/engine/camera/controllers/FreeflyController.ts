@@ -18,13 +18,13 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
-import { FPS, registerFPSActions } from "../../../games/fps/client/FPSActions";
 import { Cvar } from "../../core/Cvar";
 import { devLog } from "../../core/DevLog";
 import { InputSystem } from "../../input/InputSystem";
 import { getCollisionManager } from "../../physics";
 import { ContentFlags, SurfaceFlags } from "../../physics/ContentFlags";
 import { CameraInputHandler } from "../CameraInputHandler";
+import { getFreeflyInput } from "../FreeflyInput";
 import { getGameFrameHook } from "../GameFrameHook";
 import type { CameraControllerConfig, ICameraController } from "./ICameraController";
 import { reusableFreeCamera } from "./ReusableFreeCamera";
@@ -144,10 +144,12 @@ export class FreeflyController implements ICameraController {
 
   // Shared input handler (pointer lock, mouse look, key prevention)
   private inputHandler = new CameraInputHandler();
+  private inputActions = getFreeflyInput().actions;
 
   attach(camera: Camera, scene: Scene, canvas: HTMLCanvasElement): void {
-    // Register FPS actions with InputSystem (idempotent)
-    registerFPSActions();
+    const input = getFreeflyInput();
+    input.prepare();
+    this.inputActions = input.actions;
 
     // Ensure InputSystem event listeners are registered (idempotent)
     InputSystem.getInstance().init(scene, canvas);
@@ -230,17 +232,17 @@ export class FreeflyController implements ICameraController {
 
   /**
    * Sync this.keys state from InputSystem per frame.
-   * Uses spectator context actions (shared WASD + fly up/down).
+   * Uses the active game's action mapping or engine-local freefly actions.
    */
   private syncKeysFromInput(): void {
     const input = InputSystem.getInstance();
-    this.keys.forward = input.isActive(FPS.MOVE_FORWARD);
-    this.keys.backward = input.isActive(FPS.MOVE_BACKWARD);
-    this.keys.left = input.isActive(FPS.MOVE_LEFT);
-    this.keys.right = input.isActive(FPS.MOVE_RIGHT);
-    this.keys.up = input.isActive(FPS.JUMP); // Quake-style: jump = fly up
-    this.keys.down = input.isActive(FPS.CROUCH); // Quake-style: crouch = fly down
-    this.keys.sprint = input.isActive(FPS.SPRINT);
+    this.keys.forward = input.isActive(this.inputActions.forward);
+    this.keys.backward = input.isActive(this.inputActions.backward);
+    this.keys.left = input.isActive(this.inputActions.left);
+    this.keys.right = input.isActive(this.inputActions.right);
+    this.keys.up = input.isActive(this.inputActions.up);
+    this.keys.down = input.isActive(this.inputActions.down);
+    this.keys.sprint = input.isActive(this.inputActions.sprint);
   }
 
   update(deltaTime: number): void {

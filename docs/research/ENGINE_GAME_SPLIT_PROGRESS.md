@@ -150,3 +150,87 @@ Changed files for this dependency:
 - `docs/manual/guides/service-registries.md`
 - `docs/changelog/v1.0.0-alpha.3.md`
 - `docs/research/ENGINE_GAME_SPLIT_PROGRESS.md`
+
+## 3. Freefly camera input ownership
+
+- **Dependency:** `FreeflyController` imported Washoi's `FPSActions` module,
+  called `registerFPSActions()` on attach, and read seven hardcoded FPS action
+  IDs every frame.
+- **Replacement:** engine-owned `FreeflyInput` specifies seven action IDs and an
+  idempotent `prepare()` callback. The controller prepares/selects the mapping
+  on attach and reads its action states through the same `InputSystem` each frame.
+- **Washoi wiring:** `fpsFreeflyInput` maps movement to the identical FPS actions,
+  rise to `FPS.JUMP`, sink to `FPS.CROUCH`, and boost to `FPS.SPRINT`.
+  `src/main.ts` registers it before commands/UI can attach a camera, without
+  eagerly initializing FPS actions. `registerFPSActions()` also registers the
+  mapping for game initialization and direct game consumers. Its existing
+  action/context registration guard remains in place; repeated preparation
+  does not reset bindings or replace the active game context.
+- **Game-free tools:** a missing adapter prepares engine-local `freefly_*`
+  actions and a `freefly` context. Defaults remain WASD, Space, C/Ctrl/middle
+  mouse and Shift. Registration is idempotent; the fallback context is only
+  pushed if it is absent from the context stack. Global input action/context
+  definitions persist across camera cuts, like the other input definitions.
+- **Preservation:** the collision, speed/boost, smoothing, mouse-look and
+  pointer-lock algorithms are unchanged. `GameFrameHook` still drives snapshots
+  and remote-player rendering, including while pointer lock is released. The
+  controller still removes its render observer on detach. No input context,
+  saved binding key, action ID or gameplay movement rule is renamed in Washoi.
+- **Assumptions:** one active game's mapping is registered before camera attach;
+  changing the mapping takes effect on the next attach. Existing input-context
+  definitions are preserved, including the distinction between FPS jump/crouch
+  and the separately defined spectator fly actions. This step does not redesign
+  those contexts or claim the whole engine can build without Washoi.
+- **Validation:** focused NullEngine input, rebinding, focus-recovery, camera
+  reuse, spectator and cinematic demo tests passed 6 files / 89 tests. Full
+  gates and headless regressions passed; details below. No browser playtest or
+  production deployment has been performed for this step.
+- **Washoi commit:** `0ec70d1` supplies and exports the mapping and covers player
+  rebindings with the real camera. The engine commit pins this game revision;
+  bisect and rollback should restore both revisions together.
+
+Validation commands executed on October 23, 2026:
+
+```powershell
+npm.cmd run test:run -- src/engine/camera/__tests__/FreeflyMovement.test.ts src/engine/camera/__tests__/ReusableFreeCamera.test.ts src/games/fps/client/__tests__/FreeflyBindings.test.ts src/engine/input/__tests__/InputFocusRecovery.test.ts src/games/fps/client/__tests__/SpectateView.test.ts src/games/fps/client/__tests__/CinematicDemoPlayer.test.ts
+node node_modules/@biomejs/biome/bin/biome check src/engine/camera/FreeflyInput.ts src/engine/camera/controllers/FreeflyController.ts src/engine/camera/__tests__/FreeflyMovement.test.ts src/games/fps/client/FPSActions.ts src/games/fps/index.ts src/games/fps/client/__tests__/FreeflyBindings.test.ts src/main.ts
+npm.cmd run typecheck
+npm.cmd run test:run
+npm.cmd run gate:biome
+npm.cmd run build
+npm.cmd run docs:build
+npm.cmd run test:simulation
+npm.cmd run test:physics
+npm.cmd run server:tick
+npm.cmd run server:fuzz -- --ticks 1000
+node .cache/engine-game-split/validate-step3.mjs
+git -C C:/Users/sundf/Desktop/wash/shag diff --check
+git -C C:/Users/sundf/Desktop/wash/shag/src/games/fps diff --check
+```
+
+The full suite passed 697 files / 5,564 tests, with one skipped test. Biome
+passed at zero errors / 47 warnings. The targeted preflight check initially
+requested sorting the new game barrel export; that was corrected before the
+full gates. Typecheck, build, documentation build, simulation, physics, tick
+and 1,000-tick fuzz all passed. The runner uses explicit argument arrays,
+including the same direct vite-node headless commands recorded for step 1:
+`washoi_dm2` loaded through the PK3 index with 7,475 faces, and the movement
+replay completed 91 ticks. Output assertions passed. Logs are under
+`.cache/engine-game-split/step3-validation/`. The final whitespace check also
+caught and corrected an extra blank line at the end of this implementation log.
+
+Changed files for this dependency:
+
+- `AGENTS.md` (remaining imports and registry guidance)
+- `src/engine/camera/FreeflyInput.ts`
+- `src/engine/camera/controllers/FreeflyController.ts`
+- `src/engine/camera/__tests__/FreeflyMovement.test.ts`
+- `src/main.ts`
+- `src/games/fps/client/FPSActions.ts` (Washoi repository)
+- `src/games/fps/client/__tests__/FreeflyBindings.test.ts` (Washoi repository)
+- `src/games/fps/index.ts` (Washoi repository)
+- `src/games/fps` gitlink (matching Washoi revision)
+- `docs/manual/guides/camera-system.md`
+- `docs/manual/guides/service-registries.md`
+- `docs/changelog/v1.0.0-alpha.3.md`
+- `docs/research/ENGINE_GAME_SPLIT_PROGRESS.md`
