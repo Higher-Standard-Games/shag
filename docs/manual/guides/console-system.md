@@ -59,6 +59,11 @@ export default class HelloCommand extends Command {
 
 Add `developer: true` to the definition to gate a command behind developer mode.
 
+Washoi supplies the account-aware `name` command from its game command folder.
+Engine-only compositions do not register it. The game command shows the current
+account name, delegates online renames to the lobby account session, and saves
+local profile names when no account is logged in.
+
 Use `fail(message)` from `Command.ts` when a failure must produce a non-zero headless/batch result. Returning a string is successful display output.
 
 A runtime integration can register a handler function instead of a class:

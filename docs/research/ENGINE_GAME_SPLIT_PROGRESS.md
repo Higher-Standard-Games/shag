@@ -1085,3 +1085,108 @@ remain junctions. The build then passed. The shared-rename cause was not proven;
 this setup avoids shared generated metadata during concurrent work. The failed
 build log remains build-shared-manifest-error.log. No production source was
 changed for this validation-environment issue.
+
+## 9. Washoi account-aware name command
+
+Washoi commit: `ed7d71d` (`refactor: own account-aware name command`).
+Separate engine fixture fix: `223f4712` (`test: complete local reflection renderer fixture`).
+
+The user reported testing an FFA game successfully after step 8. This is a
+user-reported assembled-game playtest; no duration, final result or other modes
+were specified. It does not close the earlier warmup report.
+
+Move NameCommand intact from engine console commands into Washoi's discovered
+command folder. The command's syntax is identical apart from imports and
+formatting. It keeps the same name, usage, description, ungated availability,
+name validation, local-profile persistence, awaited account rename and response
+strings. No account or network service implementation, wire format, renderer
+or UI style changes belong to this step. The engine command glob no longer
+imports AccountSession/PlayerIdentity through NameCommand. Washoi still uses
+the existing lobby services; their broader ownership move remains separate.
+
+This clears a prerequisite for relocating shared bot-name policy: otherwise
+PlayerIdentity would give the engine command a new dependency into the game.
+Generic player profiles remain in SHAG. The existing game command registration
+test now verifies name is absent after engine registration and present after
+Washoi registration; five new cases cover local/account display, local save,
+invalid input, awaited account completion and refused renames. The focused
+suite (these tests plus the real account-session tests) passed 3 files / 27 tests.
+
+The user identified concurrent team-color papercuts. The validation checkout
+.cache/engine-game-split/step9-checkout is detached at engine 2ccab9da / FPS
+c9a556d, with only the four owned source/manual files overlaid and the old
+command removed. Existing dependencies, wasm and asset files are linked;
+generated PK3 manifest/index metadata is private to this checkout. Team-color
+files are not copied, formatted, staged or committed by this step.
+
+Assumption: account-aware naming is Washoi application behavior. An engine-only
+composition has no name command; the assembled browser
+continues discovering it through registerFpsCommands. The FPS headless CLI
+registers the same class explicitly alongside its other game commands. No online account is
+renamed by the validation commands, and no stored user profile is edited.
+
+Exact changed paths (including removal and gitlink):
+
+- `src/games/fps/console/commands/NameCommand.ts`
+- `src/games/fps/console/commands/__tests__/NameCommand.test.ts`
+- `src/games/fps/console/__tests__/CameraCommandRegistration.test.ts`
+- `docs/manual/guides/console-system.md`
+- `src/engine/console/commands/NameCommand.ts`
+- `src/games/fps`
+- `docs/changelog/v1.0.0-alpha.3.md`
+- `docs/research/ENGINE_GAME_SPLIT_PROGRESS.md`
+
+Validation commands (step-9 isolated checkout unless stated otherwise):
+
+- `npm.cmd run test:run -- src/games/fps/console/commands/__tests__/NameCommand.test.ts src/games/fps/console/__tests__/CameraCommandRegistration.test.ts src/lobby/__tests__/AccountSession.test.ts` ? passed 27 tests.
+- `node C:/Users/sundf/Desktop/wash/shag/.cache/engine-game-split/validate-step9-isolated.mjs`
+  runs `npm.cmd run typecheck`, `npm.cmd run test:run`,
+  `npm.cmd run gate:biome`, `npm.cmd run build`,
+  `npm.cmd run build:server`, `npm.cmd run docs:build`,
+  `npm.cmd run docs:fps:build`, `npm.cmd run test:simulation`,
+  `npm.cmd run test:physics`, `npm.cmd run server:tick`,
+  `npm.cmd run server:fuzz -- --ticks 1000`, followed by the CLI batches below.
+- `node node_modules/vite-node/vite-node.mjs src/cli/headless-game.ts -- --exec "bsp load washoi_dm2; bsp info; quit"`
+- `node node_modules/vite-node/vite-node.mjs src/cli/headless-game.ts -- --exec 'sim replay "W+CROUCH 60; JUMP 1; W 30"; quit'`
+- `node node_modules/vite-node/vite-node.mjs src/cli/headless-game.ts -- --exec "help name; name; quit"`
+- `node node_modules/vite-node/vite-node.mjs src/cli/headless-game.ts -- --exec "help spectator; help giveweapon; giveweapon rlauncher; quit"`
+- `node .cache/engine-game-split/prove-step9.mjs` (primary checkout) ? identical relocated syntax.
+
+Gate logs and copied-file hashes are under .cache/engine-game-split/step9-validation.
+No new browser test, real account rename or production deployment was performed.
+
+Initial full-suite finding: 706 files / 5,590 tests passed, one skipped and
+LocalWaterReflection.test.ts failed at RemotePlayerRenderer.dispose reading
+ffaColors.clear. The test constructs a partial renderer via Object.create and
+omitted that field from the committed palette implementation. A focused run
+against the current primary renderer reproduced the same error. Adding only
+`ffaColors: { clear: vi.fn() }` to that partial test fixture made the focused
+case pass. This is an engine test-only fix, committed separately from the
+name-command dependency; no renderer/team-color implementation was changed.
+The first full log is retained as test-run-before-fixture-fix.log. The final
+full run includes this one-line fixture correction. This is distinct from the
+deferred warmup report and step 8's weapon-test timeout.
+
+Additional changed file, separate test-fixture commit:
+
+- `src/engine/__tests__/LocalWaterReflection.test.ts`
+
+Additional command: `npm.cmd run test:run -- src/engine/__tests__/LocalWaterReflection.test.ts`
+failed on the primary committed renderer before the fixture correction and
+passed in the isolated checkout afterward (one test). Final gate runner resumes
+at `test-run` after the correction; typecheck had already passed.
+
+The CLI source inspection found it registers selected game commands explicitly,
+rather than calling registerFpsCommands. Its NameCommand import/registration
+was added before the final CLI/build gates. The full unit rerun was already
+running at that point; the final build typechecks this CLI source. Additional
+owned path: `src/cli/headless-game.ts`.
+
+Final isolated results: all 707 unit files passed, 5,591 tests passed and one
+skipped. Biome passed at zero errors / 47 baseline warnings. Typecheck, client
+build (including the final CLI registration), server build, both docs builds,
+simulation and physics passed. Server tick reconciled at 2768943778; 1,000-tick
+random-seed fuzz reconciled at 252136202. Indexed BSP loading reported 7,475
+faces, replay completed 91 ticks, and name/camera command batches passed.
+The source proof still reports identical relocated command syntax. No fresh
+browser/real-account rename or team-color UI revalidation is claimed.

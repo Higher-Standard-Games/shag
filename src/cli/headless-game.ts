@@ -30,6 +30,7 @@ import { registerGameMapEntities } from "../engine/loader/map/GameMapEntities";
 import { PK3Loader } from "../engine/loader/pk3/PK3Loader";
 import { registerWeaponIdResolver } from "../engine/weapon/WeaponIdResolver";
 import GiveWeaponCommand from "../games/fps/console/commands/GiveWeaponCommand";
+import NameCommand from "../games/fps/console/commands/NameCommand";
 import SpawnPickupCommand from "../games/fps/console/commands/SpawnPickupCommand";
 import SpectatorCommand from "../games/fps/console/commands/SpectatorCommand";
 import { canonicalWeaponId } from "../games/fps/shared/entities/definitions/weapons/WeaponsTable";
@@ -208,6 +209,7 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
   // This FPS composition keeps its game-specific camera/inventory commands.
   registry.register(new SpectatorCommand());
   registry.register(new GiveWeaponCommand());
+  registry.register(new NameCommand());
   registry.register(new SpawnPickupCommand());
 
   registry.register("writeconsole", (args: string[]) => {
