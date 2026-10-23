@@ -31,9 +31,9 @@ The aliases that exist are `@game/*` (the FPS module), `@engine/server`,
 
 | I want to... | Do this |
 |--------------|---------|
-| Run a console command | `await CommandRegistry.getInstance().executeChecked('map wdm2 duel')` (one command per call; `ok` tells failure from output) |
-| Inspect a BSP map | `executeChecked('bsp load wdm2')`, then `executeChecked('bsp info')`; or headless `npm run cli:game -- --exec "bsp load wdm2; bsp info; quit"` |
-| Load a map in code | `await MapLoader.getInstance().loadMap('wdm2', scene)` |
+| Run a console command | `await CommandRegistry.getInstance().executeChecked('map washoi_dm2 duel')` (one command per call; `ok` tells failure from output) |
+| Inspect a BSP map | `executeChecked('bsp load washoi_dm2')`, then `executeChecked('bsp info')`; or headless `npm run cli:game -- --exec "bsp load washoi_dm2; bsp info; quit"` |
+| Load a map in code | `await MapLoader.getInstance().loadMap('washoi_dm2', scene)` |
 | Change camera controller | `CameraSystem.getInstance().setController('freefly')` |
 | Play a one-shot sound | `AudioManager.getInstance().playSfx(path)` |
 | Spawn an entity by id | `EntityManager.getInstance().spawnEntityById(id, position, scene)`, or console `spawn_pickable_entity <id>` |
@@ -126,7 +126,7 @@ npm run test:simulation
 npm run test:physics
 npm run server:tick
 npm run server:fuzz -- --ticks 1000
-npm run cli:game -- --exec "bsp load wdm2; bsp info; quit"
+npm run cli:game -- --exec "bsp load washoi_dm2; bsp info; quit"
 ```
 
 `test:physics` prints a position warning on a passing run; read its pass/fail
@@ -283,7 +283,7 @@ await index.ensureIndex();
 const owner = index.findFile("scripts/common.shader");   // which pk3 has it
 const bytes = await PK3Loader.getInstance().getFile("scripts/common.shader");
 
-await MapLoader.getInstance().loadMap("wdm2", scene);
+await MapLoader.getInstance().loadMap("washoi_dm2", scene);
 ```
 
 After adding PK3s under `public/data/`, run `npm run tools:manifest`.
@@ -312,7 +312,7 @@ Guide: `docs/manual/guides/movement-system.md`
 ### Networking
 
 ```bash
-npm run net:server -- --map wdm2 --port 7777
+npm run net:server -- --map washoi_dm2 --port 7777
 ```
 
 Then `connect localhost:7777` in the browser console. Normal play goes through
@@ -339,7 +339,7 @@ events rather than inventing global ones.
 Run these before asking for manual browser tests:
 
 ```bash
-npm run cli:game -- --exec "bsp load wdm2; bsp info; quit"
+npm run cli:game -- --exec "bsp load washoi_dm2; bsp info; quit"
 npm run cli:game -- --exec 'sim replay "W+CROUCH 60; JUMP 1; W 30"; quit'
 npm run test:simulation
 npm run test:physics
@@ -353,9 +353,9 @@ Useful command groups:
 - REPL: `npm run cli:game`, `npm run cli:bsp`
 - Network: `npm run net:server`, `npm run net:client`, `npm run lobby:server`, `npm run bot:server`
 - Server tests: `npm run server:tick`, `npm run server:fuzz -- --ticks 1000`
-- Debug: `npm run debug:textures -- wdm2`, `npm run debug:spawn`
+- Debug: `npm run debug:textures -- washoi_dm2`, `npm run debug:spawn`
 - Unit tests: `npm run test:run` (once), `npm test` (watch)
-- Demos: `npm run demo:record -- --map wdm12 --bots 2 --seconds 30` (one-shot: server + AI bots + record). See the [headless-mode guide](docs/manual/guides/headless-mode.md#demos-and-anti-cheat-tools).
+- Demos: `npm run demo:record -- --map washoi_dm2 --bots 2 --seconds 30` (one-shot: server + AI bots + record). See the [headless-mode guide](docs/manual/guides/headless-mode.md#demos-and-anti-cheat-tools).
 - Verify re-sim: `npm run demo:verify -- <bundle.shagverify>` — replays a re-sim bundle's usercmds through the deterministic sim and checks the recorded per-tick checksums reconcile. Exit 0 = reconciled, 1 = diverged.
 - Calibrate anti-cheat: `npm run anticheat:calibrate -- [--trials 40] [--ticks 1500]` — synthetic aimbot-vs-human trials; prints detection% vs false-positive% per threshold. Numbers are directional until calibrated on real player demos. See [ANTICHEAT_FEATURES.md](docs/research/ANTICHEAT_FEATURES.md).
 - Ranking: `npm run ranking:simulate`, `npm run ranking:acceptance`, `npm run lobby:server -- --ratings-verify --data-dir ./server-data`

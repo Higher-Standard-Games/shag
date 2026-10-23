@@ -41,7 +41,7 @@ npm run test:simulation
 npm run test:physics
 npm run server:tick
 npm run server:fuzz -- --ticks 1000
-npm run cli:game -- --exec "bsp load wdm2; bsp info; quit"
+npm run cli:game -- --exec "bsp load washoi_dm2; bsp info; quit"
 ```
 
 These need the game data under `public/data/`. If a map-dependent check says
@@ -54,7 +54,7 @@ main development machine the data is present.
   pass/fail summary, not the warning.
 - The headless runners print `localStorage is not defined` from preference
   loading; it is harmless in Node.
-- `cli:game` should print the map's header counts (for wdm2, `Faces: 7475`)
+- `cli:game` should print the map's header counts (for washoi_dm2, `Faces: 7475`)
   and exit 0. An exit code of 1 means a command in the batch failed.
 - A failure is a finding. Report it with the relevant output; do not rerun
   until it passes and call it green, and do not skip a check silently.
@@ -75,7 +75,7 @@ test:simulation           pass
 test:physics              pass (known position warning)
 server:tick               pass
 server:fuzz --ticks 1000  pass
-cli:game bsp load wdm2    pass (Faces: 7475)
+cli:game bsp load washoi_dm2    pass (Faces: 7475)
 ```
 
 Name anything you did not run and why.
