@@ -80,9 +80,8 @@ export class GamePaths {
   }
 
   /**
-   * Initialize from an already-loaded config. Browser startup uses `init()`;
-   * Node/headless composition roots use this adapter so shared GamePaths does
-   * not need to import `node:fs` or attempt a relative-URL fetch.
+   * Initialize from application-owned configuration. Browser and Node/headless
+   * composition roots can supply paths without a fetch or a node:fs import here.
    */
   public initFromConfig(config: EngineConfig, gameTitle?: string): void {
     if (this.initialized) return;

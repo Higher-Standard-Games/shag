@@ -108,5 +108,8 @@ coverage/
 # hidden source maps relocated out of dist/ by postbuild (QA-15)
 sourcemaps/
 
+# Machine-local browser application selection
+.shag-application.json
+
 # Server state: player accounts and the bot secret (see docs/research/PLAYER_IDENTITY.md)
 server-data/

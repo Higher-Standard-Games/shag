@@ -1521,3 +1521,141 @@ simulation and physics passed. Tick determinism reconciled at 2768943778;
 1,000-tick random-seed fuzz at 2934923152. Indexed BSP loading reported 7,475
 faces and replay completed 91 ticks. Name/camera CLI batches passed. All 20
 owned source/manual hashes match the isolated checkout. Nothing was pushed.
+
+
+## 13. Game-owned browser composition and engine example
+
+Washoi commit: `511c12b` (`refactor: own browser startup and application descriptor`).
+
+The repository boundary is SHAG having no mandatory Washoi code dependency.
+Games may require an assembled SHAG checkout to execute; standalone game
+packaging is not required. Reusable server, lobby and editor infrastructure
+should stay in SHAG where game-specific policy can be supplied by the game.
+This step separates browser startup; it does not claim the entire repository
+or its Node tooling is independent yet.
+
+Washoi owns `client/main.ts`, `client/registerServices.ts`, `index.html` and
+`browser.json`. The existing initialization sequence, lobby/player flow,
+loading-screen behavior, editor return flow, diagnostics and render loop are
+preserved. The game initializes GamePaths from its own descriptor, with the
+same values as the former engine.json configuration. It imports SHAG runtime
+helpers; SHAG's browser entry does not import the game.
+
+`BrowserRuntime` exposes renderer creation, scene policy setup and scene-service
+initialization as separate phases. The application creates the active camera
+between scene creation and service initialization. Renderer backend/fallback
+policy, texture/lighting setup and physics handling retain their behavior.
+The neutral `src/main.ts` renders a box with a free camera. Its new resize
+listener is removed when the scene is disposed. Existing application listeners
+and lifecycle ownership move with the application; no new game listeners or
+timers are introduced by the extraction.
+
+The generic build helper selects an application directory from shell `SHAG_APP`,
+then ignored `.shag-application.json`, otherwise the engine example. `engine`
+is the explicit neutral selection. The selected directory declares its module
+entry and HTML in browser.json; the root HTML hook installs only that entry.
+No game code is glob-imported or used as a fallback. The local selection in
+this development checkout is Washoi, preserving `npm run dev`/`build` here.
+The checked-in default is the engine example. Browser selection replaces the
+old GAME selection; whole-project aliases/Node wrappers are a later boundary.
+Static public media and production deployment are not migrated in this step.
+
+Exact changed paths (including matching game revision):
+
+- `AGENTS.md`
+- `.env.example`
+- `.gitignore`
+- `index.html`
+- `package.json`
+- `vite.config.ts`
+- `scripts/browser-application.ts`
+- `scripts/check-browser-boundary.mjs`
+- `src/engine/core/GamePaths.ts` (documentation comment)
+- `src/main.ts`
+- `src/__tests__/BrowserApplication.test.ts`
+- `src/engine/runtime/BrowserRuntime.ts`
+- `src/games/fps/browser.json`
+- `src/games/fps/index.html`
+- `src/games/fps/client/main.ts`
+- `src/games/fps/client/registerServices.ts`
+- `src/games/fps/docs/manual/getting-started/index.md`
+- `src/games/fps` (gitlink)
+- `docs/manual/guides/configuration.md`
+- `docs/manual/guides/service-registries.md`
+- `docs/changelog/v1.0.0-alpha.3.md`
+- `docs/research/ENGINE_GAME_SPLIT_PROGRESS.md`
+
+Validation runs in the primary checkout; both repositories were clean before
+this step. Receipts are under `.cache/engine-game-split/step13-validation`.
+
+- `npm.cmd run test:run -- src/__tests__/BrowserApplication.test.ts src/__tests__/ViteBabylonDeps.test.ts` passed the initial 6 cases. The first sandbox attempt could not spawn esbuild (EPERM); the permitted subprocess run passed. An external application path case was subsequently added.
+- `npm.cmd run check:browser:engine` typechecks the browser dependency graph with all src/games files virtually unavailable, then builds the neutral entry and rejects any game modules in Rollup's complete module graph. Explicit ambient roots include DebugGlobals and the Electron preload's Window declaration. The first narrow typing probe omitted that host declaration and reported four electronAPI diagnostics; adding the existing declaration root resolved them. The no-game check does not rename or remove a real checkout. Its bundle omits copied public media and lives under `.cache/browser-engine-check`.
+- `node .cache/engine-game-split/prove-step13.mjs` compares the application tail, scene-service sequence and adapter registrations against the committed original using TypeScript printing with comments/import paths normalized. All match. Moved HTML matches after normalizing line endings, blank-line whitespace and replacing the old script tag with the entry marker. Runtime path configuration matches exactly.
+- `node .cache/engine-game-split/validate-step13.mjs` runs `npm.cmd run typecheck`, `npm.cmd run test:run`, `npm.cmd run gate:biome`, `npm.cmd run build`, `npm.cmd run build:server`, `npm.cmd run docs:build`, `npm.cmd run docs:fps:build`, `npm.cmd run test:simulation`, `npm.cmd run test:physics`, `npm.cmd run server:tick`, and `npm.cmd run server:fuzz -- --ticks 1000`. It also invokes the headless CLI for indexed BSP inspection, the 91-tick movement replay, and name/camera command checks as in step 12.
+
+Initial whole-project typecheck found two ES2020 compatibility diagnostics in
+the selector's replaceAll calls. Regex replacements fixed them; the restarted
+typecheck passed. An initial PowerShell redirected boundary-build invocation
+reported a shell error on stderr warnings despite completing its build; a Node
+subprocess wrapper captured a definitive zero exit, zero typing diagnostics
+and zero game modules. Logs retain both runs.
+
+Remaining boundary work includes Node/application services, fixed whole-project
+aliases and roots, game-owned assets/policy, CI/deployment and final gitlink
+cutover. A passing browser boundary does not establish those broader outcomes.
+
+
+All initial gates passed: 713 test files, 5,619 tests passed and one skipped;
+Biome remained at zero errors / 47 baseline warnings. Client/server and both
+documentation builds passed. Simulation/physics passed; tick checksum was
+2768943778 and 1,000-tick fuzz checksum 4081417247. Indexed BSP inspection
+reported 7,475 faces; movement replay completed 91 ticks. Name/camera CLI
+checks passed. The full test run includes all five selector tests.
+
+The first real-browser probe exposed a dependency-scanning issue: HTML entry
+injection alone did not feed the game entry to Vite's scanner. It discovered
+Capacitor dependencies during startup and replaced optimized shader/audio chunks,
+leaving the running page with stale chunk URLs. The log showed new dependencies
+and a dependency-cache reload, followed by three 404 chunk requests. That probe
+rendered geometry but lost the network connection and is not counted as a pass.
+The report is retained as `browser-before-explicit-scan.json`.
+
+The fix explicitly sets optimizeDeps.entries to the selected application entry.
+Fresh-cache probe servers then booted both compositions without dependency chunk
+failures or a cache reload. A focused rerun of the selection/dependency tests
+passed 2 files / 7 tests. Typecheck and both browser production builds are rerun
+after this configuration correction; the earlier complete regression results
+remain recorded above. The browser-only boundary continues to reject game
+modules and hidden-game type dependencies.
+
+
+Final post-scan results: whole-project typecheck and Washoi production build
+passed; the engine boundary build passed with zero diagnostics and zero game
+modules. The command wrapper was `node .cache/engine-game-split/step13-after-scan.mjs`
+(invoking typecheck, build and scripts/check-browser-boundary.mjs); logs are
+`*-after-scan.log`.
+
+Real browser validation used headless Edge on WebGL2, private no-HMR Vite
+servers at 3107 (engine) and 3108 (Washoi), and a scratch lobby at 9017. No bot
+server was needed. Scratch storage was `.cache/engine-game-split/step13-validation/lobby-data`.
+The private launcher was `node .cache/engine-game-split/step13-vite.mjs <engine|src/games/fps> <port>`;
+`node .cache/engine-game-split/step13-browser.mjs` drove the probes through CDP.
+The compiled lobby ran with `node dist-server/lobby-server.mjs --port 9017 --data-dir <scratch>`.
+
+- Engine example: visible box, active example camera, WebGL2; frame ID advanced from 3 to 169. No collected errors or failed requests.
+- Washoi: title, lobby and player initialized. `developer 1`, `editor open`, `editor status`, `editor close` passed; the lobby returned after closing the editor.
+- `map washoi_dm2 ffa` spawned the local game server. The loadout confirmation entered connected `playing` state at position (230, 24.03125, -270). The scene contained 136 BSP meshes and advanced from frame 2853 to 3003 while remaining connected.
+- `disconnect` closed the game connection and reloaded startup. The probe dismissed startup again and confirmed the lobby was visible. The game server auto-exited when empty.
+- Final report: `browser.json`; inspected screenshots: `engine-example.png` and `washoi-ffa.png`. No HTTP error responses or stale dependency chunks in the final probe. The editor status request to 9010 was refused because no standalone editor HTTP service was started; browser editor open/close still passed. Pointer-lock notice in the screenshot is expected from a programmatic click without user activation.
+
+Existing missing model/texture, common-skeleton-root, duplicate registration and
+world-readiness warnings remain visible where applicable. They are part of the
+deferred loading/asset investigation, not claimed fixed here. No WebGPU/mobile/
+Electron packaging or human mouse/audio playtest was performed. No production
+server, deployment, real account data or release configuration was changed.
+Production assembly still needs an explicit application selection before the
+repository cutover; it must not assume the neutral default launches Washoi.
+
+Private Vite/lobby processes and headless browsers were stopped. Ports 3107,
+3108, 9017 and the probe game port 7777 were confirmed closed. The scratch
+lobby account database/secret directory was removed; validation logs remain.

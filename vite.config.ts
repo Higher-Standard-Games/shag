@@ -3,14 +3,9 @@ import { visualizer } from 'rollup-plugin-visualizer';
 import * as path from 'path';
 import * as fs from 'fs';
 import { readPackagePolicy } from './src/cli/pk3-package-policy';
+import { browserApplicationPlugin, resolveBrowserApplication } from './scripts/browser-application';
 
-// Read engine.json for default game configuration
-const engineConfigPath = path.resolve(__dirname, 'public/engine.json');
-const engineConfig = JSON.parse(fs.readFileSync(engineConfigPath, 'utf-8'));
-
-// GAME env var overrides engine.json's defaultGame (for development/testing)
-const selectedGame = process.env.GAME || engineConfig.defaultGame || 'default';
-console.log(`[Vite] Building game: ${selectedGame}`);
+const application = resolveBrowserApplication(__dirname, process.env.SHAG_APP);
 
 /** True when loaded by vite-node rather than the dev server or a build. */
 const isViteNode = /vite-node/.test(process.argv[1] ?? "");
@@ -84,16 +79,17 @@ function dropDevOnlyAssets(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [liveGameData(), dropDevOnlyAssets()],
+  plugins: [browserApplicationPlugin(__dirname, application), liveGameData(), dropDevOnlyAssets()],
   resolve: {
     alias: {
-      '@game': path.resolve(__dirname, `src/games/${selectedGame}`),
+      '@game': application.directory,
       '@engine/server': path.resolve(__dirname, 'src/engine/server'),
       '@shared/server': path.resolve(__dirname, 'src/shared/server'),
       '@games/fps/server': path.resolve(__dirname, 'src/games/fps/server'),
     },
   },
   server: {
+    fs: { allow: [__dirname, application.directory] },
     port: 3000,
     host: true, // Allow external access for Capacitor live reload
     // vite-node (game servers, CLIs) runs code once and watches nothing. It
@@ -109,6 +105,8 @@ export default defineConfig({
         },
   },
   optimizeDeps: {
+    // HTML entry injection happens after the dependency scanner reads the template.
+    entries: [application.entry],
     /**
      * Every `@babylonjs/core/*` entry point the app can import, pre-bundled.
      *

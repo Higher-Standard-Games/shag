@@ -2,18 +2,63 @@
 
 SHAG has three distinct configuration concerns: build-time game code, loose-asset paths, and server/lobby environment.
 
-## Build-time game selection
+## Browser application selection
 
-`vite.config.ts` selects the Vite `@game` alias from `GAME`, falling back to `public/engine.json.defaultGame`.
+A plain checkout launches the engine example in `src/main.ts`. Games own their
+browser startup and HTML. Set a directory containing `browser.json` through the
+shell environment:
 
 ```powershell
-$env:GAME = 'fps'
+$env:SHAG_APP = 'src/games/fps'
 npm run dev
+# The same selection applies to npm run build.
 ```
 
-Game selection is only partly generic: `tsconfig.json` maps `@game/*` to `src/games/fps/*`, and `src/main.ts` directly composes the FPS game. A new selected game therefore needs bootstrap and TypeScript wiring, not just an environment variable.
+Alternatively create an ignored `.shag-application.json` at the SHAG root:
 
-Engine code should not import `@game`; keep that dependency in application/game composition.
+```json
+{ "application": "src/games/fps" }
+```
+
+`SHAG_APP` overrides this local file. Set `SHAG_APP=engine` to select the example
+even when a local application is configured. Relative application paths resolve
+from the SHAG root. Application HTML is served at `/` and emitted as `index.html`;
+its `<!-- SHAG_APPLICATION_ENTRY -->` marker is replaced with the module entry.
+Other application asset URLs should be root-relative; static data stays in
+SHAG's `public/` directory.
+
+The application descriptor declares paths relative to its directory:
+
+```json
+{
+  "entry": "client/main.ts",
+  "html": "index.html",
+  "engine": { "defaultGame": "mygame", "engineAssetsPath": "/engine" }
+}
+```
+
+The build helper consumes `entry` and `html`. The application passes its
+`engine` values to `GamePaths.initFromConfig`, so runtime paths and its chosen
+metadata are game-owned. Washoi uses `client/main.ts` and installs its adapters
+from `client/registerServices.ts`.
+
+`BrowserRuntime` exposes `createBrowserRenderer`, `createBrowserScene`, and
+`initializeBrowserScene`. Initialize paths and core services first; create the
+renderer and scene, supply the active camera, then initialize scene services.
+The application owns its loading screen, controller, lobby, frame loop and
+editor transitions. Renderer creation uses the existing backend/fallback policy;
+scene creation installs rendering/fog policy before game materials exist.
+
+Run `npm run check:browser:engine` to typecheck the example with game directories
+hidden and build it while rejecting any game modules in the bundle. This check
+writes its bundle under `.cache/browser-engine-check` and does not copy public
+media. It covers the browser dependency graph, not every Node tool or engine test.
+
+This separates browser composition. Whole-project TypeScript aliases, Node
+entry points and the tracked game submodule still require their remaining
+separation work. `@game` in Vite resolves to the selected application directory;
+engine source must not import it. The previous `GAME` variable no longer selects
+the browser application.
 
 ## Game-owned HUD styling
 
@@ -28,7 +73,9 @@ import the FPS stylesheet.
 
 ## engine.json and GamePaths
 
-`public/engine.json` is required by browser startup and is injected explicitly by the headless composition:
+`public/engine.json` supplies defaults for callers of `GamePaths.init()` and the
+headless composition. Browser application entries use `initFromConfig()` with
+their own configuration; the neutral example supplies engine-local defaults.
 
 ```text
 defaultGame: fps
@@ -46,11 +93,11 @@ The file is JSON; the values above describe the currently committed configuratio
 | `maps/textures/prefabs/data/music/fonts` | convenience paths below the loose game root |
 
 ```ts
-// From src/main.ts
-import { GamePaths } from './engine/core/GamePaths';
+// From an application entry; adjust the relative import to its checkout layout.
+import { GamePaths } from '../../../engine/core/GamePaths';
 
 const paths = GamePaths.getInstance();
-await paths.init();
+paths.initFromConfig({ defaultGame: 'mygame', engineAssetsPath: '/engine' });
 console.log(paths.game('models/example.glb'));
 ```
 
@@ -128,6 +175,6 @@ Only `VITE_*` variables are exposed to browser code; the rest are read by Node p
 
 ## UI and game metadata
 
-`src/games/fps/game.json` contains FPS metadata. Optional loose game config/UI/HUD paths exist in `GamePaths`, but the active direct FPS bootstrap does not imply every optional file is loaded.
+`src/games/fps/game.json` contains FPS metadata. Optional loose game config/UI/HUD paths exist in `GamePaths`, but the game-owned browser entry does not imply every optional file is loaded.
 
 Keep secrets and machine-local paths out of Vite-exposed variables and source-controlled configuration.

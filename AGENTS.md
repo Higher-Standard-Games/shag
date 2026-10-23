@@ -72,7 +72,7 @@ When handing off or reporting:
 The codebase is FPS-centric:
 
 - `@game/*` in `tsconfig.json` points to `src/games/fps/*`.
-- `src/main.ts` directly wires `FPSPlayer` and the FPS flow.
+- `src/main.ts` is the neutral engine example. Washoi's `client/main.ts` owns its FPS/lobby startup; `SHAG_APP` selects the browser application directory.
 - Engine code must not import game modules: where it needs something a game owns, use the service registries (`GameplayMapLauncher`, `NetworkConnector`, `GameFrameHook`, `FreeflyInput`, `GameMapEntities`, `WeaponIdResolver`; see `docs/manual/guides/service-registries.md`). The concrete `FPSController` and `PlayerVisuals` live in `src/games/fps/camera`; `EntityManager` lives in `src/games/fps/world`. Engine barrels must not re-export them. Indirect ownership dependencies through shared definitions and other engine modules remain under review in the separation log.
 - `src/shared/` holds deterministic client/server contracts and must not use Babylon or browser APIs.
 - Washoi's concrete weapon/projectile/ammo/item catalog is shared by its client and server at `src/games/fps/shared/entities/`. Generic entity interfaces and the registry remain in `src/shared/entities/`; its barrel must not re-export the game catalog.
@@ -181,8 +181,10 @@ public/
 
 ## Creating a New Game Module (When Explicitly Needed)
 
-A game module is a folder under `src/games/<name>/` with a `game.json`, selected
-at build time with `GAME=<name>` (else `public/engine.json`'s `defaultGame`).
+A game module can live under `src/games/<name>/` with a `game.json`. Its browser
+application is selected with `SHAG_APP=src/games/<name>` or an ignored
+`.shag-application.json` (`{"application":"src/games/<name>"}`). Without a
+selection, SHAG launches its engine example.
 
 ```json
 // src/games/mygame/game.json
@@ -195,8 +197,8 @@ at build time with `GAME=<name>` (else `public/engine.json`'s `defaultGame`).
 
 Additional wiring is required:
 
-- Point `@game/*` in `tsconfig.json` at the new module (Vite's `@game` alias already follows `GAME`).
-- Replace the FPS-specific bootstrap in `src/main.ts`.
+- Point `@game/*` in `tsconfig.json` at the new module (Vite's `@game` alias follows the browser application selection).
+- Supply `browser.json` with `entry` and `html` paths; the game-owned HTML includes `<!-- SHAG_APPLICATION_ENTRY -->`. Keep application startup in the game.
 - Register the game's adapters with the service registries.
 - Verify CLI/server scripts if the new mode requires them.
 

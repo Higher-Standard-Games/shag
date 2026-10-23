@@ -30,10 +30,10 @@ get and clear; `GameFrameHook` uses
 `setGameFrameHook(hook)` and clears by passing `null`. The application composition root owns registration:
 
 ```ts
-// From src/main.ts
-import { registerGameplayMapLauncher } from './engine/console/GameplayMapLauncher';
-import { registerNetworkConnector } from './engine/ui/components/NetworkConnector';
-import { registerFreeflyInput } from './engine/camera/FreeflyInput';
+// From the application composition root
+import { registerGameplayMapLauncher } from '../../../engine/console/GameplayMapLauncher';
+import { registerNetworkConnector } from '../../../engine/ui/components/NetworkConnector';
+import { registerFreeflyInput } from '../../../engine/camera/FreeflyInput';
 
 registerGameplayMapLauncher(fpsMapLauncher);
 registerNetworkConnector(fpsNetworkConnector);

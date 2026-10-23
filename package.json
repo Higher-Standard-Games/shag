@@ -18,6 +18,7 @@
     "prepare": "git config core.hooksPath .githooks",
     "gate:biome": "node scripts/biome-gate.mjs",
     "typecheck": "tsc --noEmit",
+    "check:browser:engine": "node scripts/check-browser-boundary.mjs",
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
