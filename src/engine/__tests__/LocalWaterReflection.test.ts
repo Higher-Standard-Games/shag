@@ -33,6 +33,7 @@ it("owns a hidden local model, updates its pose, suspends and disposes it", () =
     hitboxes: new Map(),
     deadEntities: new Map(),
     teams: new Map(),
+    ffaColors: { clear: vi.fn() },
     createModelInstance: () => model,
   });
   const state = {
