@@ -3,6 +3,7 @@ import { access, constants, mkdir, readFile, rename, rm, writeFile } from "node:
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { type BuildQuality, isBuildQuality } from "./BuildRecipe";
+import { getGameCompilerProfile } from "./GameCompilerProfile";
 
 const REPOSITORY_ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
 
@@ -83,6 +84,7 @@ export async function resolveCompilerConfig(
   cwd = process.cwd(),
   repoRoot = REPOSITORY_ROOT,
 ): Promise<CompilerConfig> {
+  const gameProfile = getGameCompilerProfile();
   const quality = overrides.defaultQuality ?? env.SHAGGED_DEFAULT_QUALITY ?? "fast";
   if (!isBuildQuality(quality)) throw new Error(`Invalid SHAGGED default quality: ${quality}`);
   const configuredMakebsp = overrides.makebspBin ?? env.SHAGGED_MAKEBSP_BIN;
@@ -101,14 +103,16 @@ export async function resolveCompilerConfig(
     ? path.resolve(cwd, toolchainValue)
     : makebspBin && path.dirname(makebspBin) !== path.join(repoRoot, "tools", "makebsp")
       ? path.dirname(makebspBin)
-      : path.join(repoRoot, "editor");
+      : (gameProfile?.localToolchainRoot(repoRoot) ?? null);
   let reason: string | null = null;
-  if (!makebspBin) reason = "MakeBSP executable was not found";
+  if (!gameProfile) reason = "No game compiler profile registered";
+  else if (!makebspBin) reason = "MakeBSP executable was not found";
   else if (!makelightBin) reason = "MakeLight executable was not found";
   else if (!toolchainRoot) reason = "MakeBSP toolchain root was not found";
   else {
     try {
-      await access(path.join(toolchainRoot, "makebspdata", "washoi.json"), constants.R_OK);
+      const profileFile = `${gameProfile.id}.json`;
+      await access(path.join(toolchainRoot, "makebspdata", profileFile), constants.R_OK);
       await access(mediaRoot, constants.R_OK);
       // Native tools resolve profiles beside the executable, independently of cwd.
       // Install our tracked profile only into repository-local tools; external
@@ -118,8 +122,8 @@ export async function resolveCompilerConfig(
         if (directory === path.join(repoRoot, "tools", "makebsp")) {
           const profileDirectory = path.join(directory, "makebspdata");
           await mkdir(profileDirectory, { recursive: true });
-          const profile = path.join(profileDirectory, "washoi.json");
-          const contents = await readFile(path.join(toolchainRoot, "makebspdata", "washoi.json"), "utf8");
+          const profile = path.join(profileDirectory, profileFile);
+          const contents = await readFile(path.join(toolchainRoot, "makebspdata", profileFile), "utf8");
           const current = await readFile(profile, "utf8").catch((error) => {
             if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
             throw error;
@@ -134,11 +138,10 @@ export async function resolveCompilerConfig(
             }
           }
         }
-        await access(path.join(directory, "makebspdata", "washoi.json"), constants.R_OK);
+        await access(path.join(directory, "makebspdata", profileFile), constants.R_OK);
       }
     } catch {
-      reason =
-        "Washoi toolchain profile or media root is missing, or the executable-adjacent profile could not be prepared";
+      reason = `${gameProfile.displayName} toolchain profile or media root is missing, or the executable-adjacent profile could not be prepared`;
     }
   }
   return { makebspBin, makelightBin, mediaRoot, toolchainRoot, defaultQuality: quality, available: !reason, reason };

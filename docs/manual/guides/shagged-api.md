@@ -21,6 +21,12 @@ npm run shagged -- textures metal floor              # find texture names and im
 
 After `compile`, play the map with `map <mapName>` in the game console.
 
+The Washoi Node entry points register the compiler profile from
+`src/games/fps/editor/server/FpsCompilerProfile.ts`. It selects `washoi.json`
+and supplies the fast/default/release arguments. Engine-only integrations
+register their own `GameCompilerProfile` before resolving configuration or
+creating jobs; no registered profile means compilation is unavailable.
+
 Repository-local MakeBSP/MakeLight binaries receive a copy of the tracked
 Washoi profile beside their executables, where the native tools resolve it.
 External compiler installations must have `makebspdata/washoi.json` beside

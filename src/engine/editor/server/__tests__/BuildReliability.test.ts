@@ -5,10 +5,15 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import JSZip from "jszip";
-import { afterEach, expect, it } from "vitest";
+import { afterEach, beforeEach, expect, it } from "vitest";
 import { buildFingerprint } from "../BuildFingerprint";
 import type { CompilerConfig } from "../CompilerConfig";
 import { withFileLock } from "../FileLock";
+import { clearGameCompilerProfile } from "../GameCompilerProfile";
+import { registerTestCompilerProfile } from "./fixtures/TestCompilerProfile";
+
+beforeEach(registerTestCompilerProfile);
+afterEach(clearGameCompilerProfile);
 
 const roots: string[] = [];
 afterEach(async () => {

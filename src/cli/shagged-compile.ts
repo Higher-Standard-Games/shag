@@ -4,6 +4,9 @@ import { CompileJobs } from "../engine/editor/server/CompileJobs";
 import { resolveCompilerConfig, splitCompilerOptions } from "../engine/editor/server/CompilerConfig";
 import { MapStore } from "../engine/editor/server/MapStore";
 import { resolveServerConfig } from "../engine/editor/server/ServerConfig";
+import { registerFpsCompilerProfile } from "../games/fps/editor/server/FpsCompilerProfile";
+
+registerFpsCompilerProfile();
 
 const args = process.argv.slice(2);
 if (args.includes("--help") || args.includes("-h")) {

@@ -1,11 +1,16 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { buildRecipe } from "../BuildRecipe";
 import { CompileJobs, readCompileJob, readCompileLog, type ToolRunner } from "../CompileJobs";
 import type { CompilerConfig } from "../CompilerConfig";
+import { clearGameCompilerProfile } from "../GameCompilerProfile";
 import { MapStore } from "../MapStore";
+import { registerTestCompilerProfile } from "./fixtures/TestCompilerProfile";
+
+beforeEach(registerTestCompilerProfile);
+afterEach(clearGameCompilerProfile);
 
 const roots: string[] = [];
 afterEach(async () => {

@@ -1404,3 +1404,120 @@ determinism reconciled at 2768943778; the 1,000-tick random-seed fuzz run at
 match the isolated checkout; the moved map fixture also matches its original
 git blob. Nothing was pushed. Next editor seams are the compiler/gamepack
 configuration, shader-tag inputs and game-specific map-analysis providers.
+
+## 12. Game-supplied compiler profile and recipe
+
+Washoi commit: `656420d` (`refactor: own editor compiler profile and recipes`).
+
+SHAGGED's Node compiler resolution and recipe wrapper consume a registered
+`GameCompilerProfile`. The game supplies the profile ID/display name, local
+toolchain root and quality-specific argument arrays. The engine retains binary
+discovery, configuration overrides, media roots, executable-adjacent profile
+installation, fingerprints, queueing, native execution and publication. Missing
+registration reports compilation unavailable; recipe lookup throws an explicit
+error. Install before resolving configuration/creating jobs and keep the same
+profile installed until the jobs finish. No timers or listeners were added.
+
+Washoi owns `FpsCompilerProfile.ts` and the unchanged recipe body. Its four Node
+editor entry points register it explicitly. The resolved CompilerConfig shape
+and property order remain unchanged; profile ID, source profile path, installed
+profile path, toolchain cwd, flags and error text stay identical for Washoi.
+BuildFingerprint and CompileJobs implementations are untouched. Config/profile
+files are still at their existing installation paths. Moving the physical
+NetRadiant gamepack and shader-tag assets remains separate from this step.
+
+Assumption: the outer Node entry points still compose Washoi pending their
+application ownership move. The browser does not import this Node-only adapter.
+This is not yet an independent engine build. No production files, deployed
+tools, accounts or user map documents are migrated by this source change.
+
+Five Washoi compiler/configuration integration suites move to the game and
+register/clear its compiler profile. Three engine job/reliability/HTTP suites
+use a synthetic compiler policy. Two new engine cases cover absent registration,
+alternate profile ID/path/recipe, local installation and cleanup. The initial
+focused run found the synthetic test recipe did not vary by quality, violating
+the existing fingerprint test. Adding a quality argument to that fixture fixed
+it; the engine fingerprint algorithm was not changed. The repeated focused
+command passed 5 files / 18 tests:
+
+```powershell
+npm.cmd run test:run -- src/engine/editor/server/__tests__/GameCompilerProfile.test.ts src/engine/editor/server/__tests__/CompileJobs.test.ts src/engine/editor/server/__tests__/BuildReliability.test.ts src/engine/editor/server/__tests__/ShaggedHttpServer.test.ts src/games/fps/editor/server/__tests__/CompilerConfig.test.ts
+```
+
+Exact changed paths (including removal and gitlink):
+
+- `src/engine/editor/server/GameCompilerProfile.ts`
+- `src/engine/editor/server/BuildRecipe.ts`
+- `src/engine/editor/server/CompilerConfig.ts`
+- `src/engine/editor/server/__tests__/GameCompilerProfile.test.ts`
+- `src/engine/editor/server/__tests__/fixtures/TestCompilerProfile.ts`
+- `src/engine/editor/server/__tests__/CompileJobs.test.ts`
+- `src/engine/editor/server/__tests__/BuildReliability.test.ts`
+- `src/engine/editor/server/__tests__/ShaggedHttpServer.test.ts`
+- `src/engine/editor/server/__tests__/CompilerConfig.test.ts` (moved)
+- `src/engine/editor/server/__tests__/NaturalCompile.test.ts` (moved)
+- `src/engine/editor/server/__tests__/PlaytestCompile.test.ts` (moved)
+- `src/engine/editor/server/__tests__/ConvexCompile.test.ts` (moved)
+- `src/engine/editor/server/__tests__/RoundPatchCompile.test.ts` (moved)
+- `src/games/fps/editor/server/FpsCompilerProfile.ts`
+- `src/games/fps/editor/server/__tests__/CompilerConfig.test.ts`
+- `src/games/fps/editor/server/__tests__/NaturalCompile.test.ts`
+- `src/games/fps/editor/server/__tests__/PlaytestCompile.test.ts`
+- `src/games/fps/editor/server/__tests__/ConvexCompile.test.ts`
+- `src/games/fps/editor/server/__tests__/RoundPatchCompile.test.ts`
+- `src/cli/shagged.ts`
+- `src/cli/shagged-mcp.ts`
+- `src/cli/shagged-server.ts`
+- `src/cli/shagged-compile.ts`
+- `src/games/fps` (gitlink)
+- `docs/manual/guides/service-registries.md`
+- `docs/manual/guides/shagged-api.md`
+- `docs/changelog/v1.0.0-alpha.3.md`
+- `docs/research/ENGINE_GAME_SPLIT_PROGRESS.md`
+
+Isolated validation checkout: `.cache/engine-game-split/step12-checkout`,
+detached at engine `7c314925` / FPS `05b9f30`, with only owned files overlaid.
+It has private copies of native MakeBSP/MakeLight binaries, adjacent profiles
+and runtime DLLs, so native integration tests can execute. Dependencies/wasm
+and media are linked; generated PK3 index/manifest metadata is private. Native
+jobs publish only into their test scratch roots. Receipts are under
+`.cache/engine-game-split/step12-validation`.
+
+Validation commands and proofs:
+
+- `node .cache/engine-game-split/prove-step12-recipe.mjs` compares the Washoi recipe body with the committed original; identical.
+- `node .cache/engine-game-split/probe-step12-entrypoints.mjs` invokes the real `shagged-server.ts` and `shagged-compile.ts` entry points with `--check-config --media-root <scratch-media>`; both report the registered compiler available, without starting a listener or compiling a user map.
+- `node .cache/engine-game-split/prove-step12-tests.mjs` compares all five moved suites after normalizing import paths/order and profile setup/cleanup; identical.
+- `node node_modules/vite-node/vite-node.mjs .cache/compiler-parity.ts` in the isolated checkout, before overlay and afterward with `SHAG_COMPILER_GAME=1`. `SHAG_COMPILER_OUTPUT` selects each receipt file. With the same private tools, paths and scratch media, the resolved configuration, argv and content fingerprints match exactly for fast/default/release. Compiler availability was asserted before capture.
+- `node C:/Users/sundf/Desktop/wash/shag/.cache/engine-game-split/validate-step12-isolated.mjs` runs `npm.cmd run typecheck`, `npm.cmd run test:run`, `npm.cmd run gate:biome`, `npm.cmd run build`, `npm.cmd run build:server`, `npm.cmd run docs:build`, `npm.cmd run docs:fps:build`, `npm.cmd run test:simulation`, `npm.cmd run test:physics`, `npm.cmd run server:tick`, `npm.cmd run server:fuzz -- --ticks 1000`.
+- The runner invokes `node node_modules/vite-node/vite-node.mjs src/cli/headless-game.ts -- --exec` with each batch: `bsp load washoi_dm2; bsp info; quit`, `sim replay "W+CROUCH 60; JUMP 1; W 30"; quit`, `help name; name; quit`, and `help spectator; help giveweapon; giveweapon rlauncher; quit`.
+
+Unverified: fresh browser/GPU editor operation, external NetRadiant use,
+production deployment and a game-free build. The earlier warmup/asset report
+remains deferred. Physical gamepack/shader-tag ownership and game-specific
+map-analysis providers remain separate editor work.
+
+Initial full-suite result: 711 files passed, one failed in
+RemoteWeaponLeak's Firefox/WebGL material ownership case, waiting for weapon
+roots at line 100. This is the same previously logged step-8 failure location.
+All six cases passed when run alone in this isolated checkout with
+`npm.cmd run test:run -- src/games/fps/client/__tests__/RemoteWeaponLeak.test.ts`.
+That does not establish the full-run failure's cause. No weapon source or test
+timeout was changed. The initial log is retained as
+`test-run-weapon-wait-failure.log`; one unchanged full-suite stability rerun
+starts at `test-run` before the remaining gates.
+
+The unchanged full-suite rerun passed all 712 files: 5,612 tests passed and
+one skipped. All four native compiler suites executed (five compile cases),
+covering convex collision/UVs, natural texture repetition, publication/indexed
+BSP resolution and round patches. Convex fixtures printed LightGrid dimension
+warnings; their geometry/collision/UV assertions passed. This does not validate
+production lighting appearance. Biome remained at zero errors / 47 baseline
+warnings. The original weapon-wait finding remains recorded rather than being
+treated as fixed by the passing rerun.
+
+Final gates: typecheck, client/server builds, both documentation builds,
+simulation and physics passed. Tick determinism reconciled at 2768943778;
+1,000-tick random-seed fuzz at 2934923152. Indexed BSP loading reported 7,475
+faces and replay completed 91 ticks. Name/camera CLI batches passed. All 20
+owned source/manual hashes match the isolated checkout. Nothing was pushed.

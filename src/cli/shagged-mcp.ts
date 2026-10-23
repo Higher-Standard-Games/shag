@@ -40,8 +40,10 @@ import { searchModelCatalog } from "../engine/editor/server/ModelLookup";
 import { resolveServerConfig } from "../engine/editor/server/ServerConfig";
 import { loadTextureCatalog, searchTextures } from "../engine/editor/server/TextureLookup";
 import { registerFpsEditorCatalog } from "../games/fps/editor/FpsEditorCatalog";
+import { registerFpsCompilerProfile } from "../games/fps/editor/server/FpsCompilerProfile";
 
 registerFpsEditorCatalog();
+registerFpsCompilerProfile();
 
 const ROOT = path.resolve("server-data/shagged/agent");
 const GUIDE = path.resolve("docs/manual/guides/shagged-api.md");

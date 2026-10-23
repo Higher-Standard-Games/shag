@@ -21,6 +21,9 @@ Small single-slot registries keep generic engine code from importing the active 
 - `GameEntityCatalog`: a game's SHAGGED point and brush classes, installed with
   `registerGameEntityCatalog` from `engine/editor/EntityCatalog`. Compiler
   authoring classes remain available without a game.
+- `GameCompilerProfile`: Node-side compiler profile ID, local toolchain root
+  and build arguments. Register it before resolving compiler configurations or
+  creating compile jobs, and keep it installed until those jobs finish.
 
 `GameplayMapLauncher`, `NetworkConnector`, `FreeflyInput` and `GameMapEntities` expose register,
 get and clear; `GameFrameHook` uses
@@ -71,6 +74,14 @@ the browser and FPS headless composition roots. Its concrete pickup manager
 lives at `src/games/fps/world/EntityManager.ts`; it is not an engine export.
 
 ## Test hygiene
+
+The Node editor composition calls `registerGameCompilerProfile` from
+`engine/editor/server/GameCompilerProfile`. Without a profile, configuration
+resolution reports compilation unavailable and recipe lookup throws an explicit
+error. `clearGameCompilerProfile()` removes the registration. The engine owns
+tool discovery, local profile installation, fingerprinting and job execution;
+the game supplies the profile filename and quality-specific arguments.
+Washoi's four Node editor entry points install `registerFpsCompilerProfile()`.
 
 Register an editor catalog before opening editor sessions or running map reports.
 Registration replaces the active gameplay catalog and preserves the exported
