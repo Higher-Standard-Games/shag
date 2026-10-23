@@ -10,6 +10,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Scene } from "@babylonjs/core/scene";
 import { background } from "../../core/AsyncErrors";
 import { devLog } from "../../core/DevLog";
+import { getNetworkConnector } from "../../ui/components/NetworkConnector";
 import { Command, type CommandDef } from "../Command";
 
 // Module-level state for empty scene management
@@ -191,8 +192,7 @@ export default class SceneCommand extends Command {
     cameraSystem.setCamera(emptySceneCamera);
 
     // Create fresh freefly controller (unless we're in network mode)
-    const { Game } = await import("../../../games/fps/Game");
-    const isNetworkMode = Game.getInstance().isConnectedToServer();
+    const isNetworkMode = getNetworkConnector()?.isConnected() === true;
 
     if (!isNetworkMode) {
       const { FreeflyController } = await import("../../camera/controllers/FreeflyController");

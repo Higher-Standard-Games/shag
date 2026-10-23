@@ -5,7 +5,8 @@ Small single-slot registries keep generic engine code from importing the active 
 ## Current seams
 
 - `GameplayMapLauncher`: engine console to browser game/lobby launch;
-- `NetworkConnector`: engine UI to the selected game network client;
+- `NetworkConnector`: engine UI to the selected game network client, and the
+  `scene empty` command's connection-state check before enabling freefly controls;
 - `GameFrameHook`: engine camera controllers to the game's per-frame work, so a
   freefly or spectator camera can tick the network and draw remote players
   without importing the game.
@@ -22,7 +23,9 @@ registerGameplayMapLauncher(fpsMapLauncher);
 registerNetworkConnector(fpsNetworkConnector);
 ```
 
-The engine consumer must handle a missing adapter and report a useful error rather than importing an FPS fallback.
+Engine consumers must handle a missing adapter without importing an FPS fallback.
+Actions that require a game report a useful error. For the `scene empty`
+connection-state check, a missing adapter means no active network connection.
 
 ## Test hygiene
 
