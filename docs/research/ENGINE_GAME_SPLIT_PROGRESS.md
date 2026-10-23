@@ -366,3 +366,56 @@ Changed files for this dependency (old engine files are removed, not shims):
 - `docs/changelog/v1.0.0-alpha.3.md`
 - `docs/research/ENGINE_GAME_SPLIT.md` (links the audit snapshot to implementation progress)
 - `docs/research/ENGINE_GAME_SPLIT_PROGRESS.md`
+
+### Step 4 browser follow-up: intermittent warmup failure
+
+After the controller move, the user reported a DM11 loading-screen freeze at
+effect warmup, a TypeError reading `0` from undefined rethrown at `main.ts:384`,
+uniform-buffer draw errors, and an expired postload hold. The user subsequently
+reported that the map loaded. Their later console capture does not contain the
+original TypeError or uniform-buffer error. The original failing stack and the
+reason the next load succeeded remain unverified; neither a regression fix nor
+an HMR/cache explanation has been established.
+
+Fresh headless Edge WebGL2 probes against the unchanged step-4 revisions
+(engine `0030c2f1`, FPS `b315c7a`) did not reproduce either error. Direct DM11
+loading completed 5,307 frames; connected probes with one local server bot
+completed 5,261 frames on a private no-HMR Vite server and 5,489 frames on the
+existing port-3000 dev server. Each captured zero window errors/unhandled
+rejections, and the console captures contain neither original failure.
+Connected probes reached map rendering, but the server reported the clients as
+spectators: these results do not verify joining and playing a match. Earlier
+connected spectator probes, including `r_pickupProcedural 0`, also rendered
+without captured exceptions. All probes used local `washoi_dm11`; no lobby,
+rating database or production server was used. Headless validation preceded
+these browser checks as recorded above.
+
+The later user log still identifies a real readiness concern: 57 world meshes
+were unready when the overlay closed. `MapLoader` explicitly permits a bounded
+GPU-readiness wait and diagnoses unready world meshes on the overlay-hidden
+event. This can expose holes until materials become ready; the capture does
+not establish whether they remained unready. Missing ammo-model and projectile
+texture warnings identify unresolved asset lookups. Babylon's skin common-root
+warning continues into bone loading, rather than throwing at that warning.
+Repeated entity/effect registrations replace existing map entries (effects
+dispose their predecessors). WebTransport's invalid `ws` URL is caught by the
+transport factory, which falls back to WebSocket. These observations do not
+identify the original TypeError's cause.
+
+Investigation commands (scratch probe source and JSON/PNG receipts are ignored
+under `.cache/engine-game-split/`):
+
+```powershell
+node .claude/skills/browser-probe/scripts/private-vite.mjs 3100
+node node_modules/vite-node/vite-node.mjs src/cli/headless-netserver-v2.ts -- --map washoi_dm11 --port 17777
+node .cache/engine-game-split/freeze-probe.mjs before
+node .cache/engine-game-split/freeze-probe.mjs connected-before
+node .cache/engine-game-split/freeze-probe.mjs connected-bot-before
+node .cache/engine-game-split/freeze-probe.mjs connected-bot-models-before
+node .cache/engine-game-split/freeze-probe.mjs connected-auto-before
+node .cache/engine-game-split/freeze-probe.mjs connected-shared-before
+```
+
+The scratch server console received `spawn_bots 1`. No runtime code was changed
+for this investigation. Further separation work remains paused while the
+intermittent failure is unresolved.
