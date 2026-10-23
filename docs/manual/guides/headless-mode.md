@@ -53,6 +53,12 @@ dependencies and the lockfile. `npm run build:server` builds only the server
 artifacts — match server, lobby and bot server — into `dist-server/`, swapping
 the new build in only once it is complete.
 
+The Washoi-owned recipe is `src/games/fps/scripts/build-servers.mjs` in the
+assembled checkout. `build:server` delegates to it. The recipe resolves the
+assembled root from its file location and accepts an optional output-directory
+argument, resolved relative to that root (or an absolute path). The default is
+`dist-server/`; the same five artifact filenames are published there.
+
 ### Server memory profiling
 
 Build first, then run an equivalent-artifact comparison:

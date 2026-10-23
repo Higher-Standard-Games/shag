@@ -2,7 +2,8 @@
 
 Status: implementation sequence, 2026-10-23. Phase 1 is validated in
 progress-log step 15; phase 2a's launcher/map-loader move is validated in step
-16. Lobby/build ownership and Git detachment remain pending.
+16, and phase 2b's lobby/build ownership move in step 17. Lobby policies,
+bots/tools, remaining configuration/tests and Git detachment remain pending.
 Inspected baseline: SHAG `8d070ebc`, Washoi `536f8cb`.
 
 ## Goal and boundary
@@ -164,6 +165,31 @@ names, repeat the process probes and fixed-seed checks, and run the full gates
 and headless regressions. Verify source-mode loading too, because bundled
 tests alone cannot catch a broken development path. The later four-mode browser
 cutover checks and live deployment remain separate.
+
+### Phase 2b checklist: lobby startup and build recipe
+
+Baseline: SHAG `6b43a141`, Washoi `0e11f0d`. The user confirmed FFA starts
+after the launcher move. Move only `src/cli/lobby-server.ts` to the game's
+`cli/lobby-server.ts` and `scripts/build-servers.mjs` to the game's
+`scripts/build-servers.mjs`.
+
+Rebase the lobby imports to the same services. The build root changes from
+one parent above the old script directory to four parents above the new one,
+resolving to the identical assembled root independently of invocation cwd.
+Update the recipe's lobby entry; keep all five output names, output argument,
+dependency options and staging/swap/rollback code. Update `build:server`,
+`lobby:server:dev`, the result-recovery test's explicit CLI path and current
+manuals. CI uses the redirected npm command and existing artifact names, so
+its server build commands remain valid. Do not keep importing wrappers at the
+former engine paths.
+
+Capture private baseline builds and probes first. Compare moved code/module
+targets, verify the root calculation before executing the recipe, and compare
+artifacts after accounting for source annotations/import order. Exercise the
+actual lobby CLI under Node/Bun in source/bundle modes with scratch databases,
+checking explicit data-directory/max-player flags and environment fallbacks.
+Repeat recovery/runtime tests, full match probes and all required gates. Build
+from another cwd too, targeting an explicitly verified private directory.
 
 ### 3. Supply the two remaining lobby policies
 

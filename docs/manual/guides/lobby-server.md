@@ -5,6 +5,11 @@ player is, the room they wait in, the dedicated game server that gets spawned
 for them, and the result that comes back. It is a separate process from
 both the browser client and the game servers it starts.
 
+Washoi owns application startup at `src/games/fps/cli/lobby-server.ts` and
+the server build recipe at `src/games/fps/scripts/build-servers.mjs` in the
+assembled checkout. Reusable lobby, account, result and process-management
+services remain in SHAG. Run lobby commands from the assembled project root.
+
 ```bash
 npm run lobby:server -- --port 9000 --data-dir ./server-data
 ```

@@ -259,7 +259,7 @@ describe("private durable result outbox", () => {
         process.execPath,
         [
           path.resolve("node_modules/vite-node/vite-node.mjs"),
-          "src/cli/lobby-server.ts",
+          "src/games/fps/cli/lobby-server.ts",
           "--",
           "--results-recover",
           ...args,

@@ -2087,3 +2087,149 @@ Browser/GPU play, four-mode browser cutover, live TLS/WebTransport, production
 deployment and platform packaging are not claimed. The Git attachment remains;
 lobby/build ownership, policies, bots/tools, tests/configuration and independent
 checkout proof still follow the plan.
+
+## 17. Washoi-owned lobby startup and server build recipe
+
+This completes phase 2b of the
+[server ownership plan](./ENGINE_GAME_SPLIT_SERVER_PLAN.md). Starting from clean
+SHAG `6b43a141` / Washoi `0e11f0d`, the user confirmed FFA starts after step 16.
+The path/caller/root-resolution checklist was recorded before editing.
+
+`src/cli/lobby-server.ts` moves to the game's `cli/lobby-server.ts` and
+`scripts/build-servers.mjs` moves to the game's `scripts/build-servers.mjs`.
+No engine wrappers remain. The outer `build:server` and `lobby:server:dev`
+commands delegate to the new paths. The recovery test's explicit CLI path also
+follows the move. Existing CI invokes the npm build command and the preserved
+artifact filenames, so that workflow requires no path change in this step.
+
+### Scope and preserved behavior
+
+The moved build recipe resolves the assembled root four parents above its
+script directory, matching the old recipe's root one parent above its old
+directory. Root resolution remains independent of invocation cwd. Its optional
+output argument remains absolute or root-relative, with `dist-server` as the
+default. Its lobby source entry follows the move; the same five output names,
+dependency/build options and staging/swap/rollback statements are preserved.
+
+Lobby parsing, defaults, data selection, account/result/settings stores,
+configured child spawner, readiness logging and signal handlers retain their
+code bodies. Import targets are rebased and imports/formatting follow Biome.
+No protocol, account-key, database, rating, transport or simulation format
+changes. Eight generic lobby/runtime/store files are unchanged. The assembled
+layout remains SHAG with Washoi under `src/games/fps`; lobby commands still run
+from the assembled root.
+
+### Exact files changed
+
+Outer repository:
+
+- `src/cli/lobby-server.ts` (removed; moved to game)
+- `scripts/build-servers.mjs` (removed; moved to game)
+- `package.json`
+- `src/lobby/__tests__/ResultDelivery.test.ts`
+- `docs/manual/guides/lobby-server.md`
+- `docs/manual/guides/headless-mode.md`
+- `docs/changelog/v1.0.0-alpha.3.md`
+- `docs/research/ENGINE_GAME_SPLIT_SERVER_PLAN.md`
+- `docs/research/ENGINE_GAME_SPLIT_INVENTORY.md`
+- `docs/research/ENGINE_GAME_SPLIT_PROGRESS.md`
+- `src/games/fps` (matching game revision `a71ce9e`)
+
+Washoi repository:
+
+- `cli/lobby-server.ts` (moved from outer repository)
+- `scripts/build-servers.mjs` (moved from outer repository)
+- `docs/manual/getting-started/project-structure.md`
+
+### Validation evidence
+
+Complete logs/receipts are in `.cache/engine-game-split/step17-validation`.
+`node .cache/engine-game-split/validate-step17.mjs <baseline|after|gates>` records
+each executable, argument array, cwd and exit status. Private builds target
+`baseline/dist-server` and `after/dist-server` beneath that directory, leaving
+the default server bundles alone. Match probes use temporary databases,
+available ports and explicit scratch demo paths; their short matches remain
+below the recording retention floor. The existing probe retains temporary
+databases for inspection.
+
+- Before/after
+  `npm.cmd run test:run -- src/lobby/__tests__/ResultDelivery.test.ts src/lobby/__tests__/ServerRuntime.test.ts src/lobby/__tests__/SpawnerPorts.test.ts src/lobby/__tests__/SpawnAbandon.test.ts src/lobby/__tests__/GameServerSpawnerAdmission.test.ts`:
+  five files / 32 tests passed on both sides, including real offline CLI
+  recovery, missing-storage refusal and runtime/admission handling.
+- Before/after `npm.cmd run server:tick`: checksum `2768943778`.
+- Before/after `npm.cmd run server:fuzz -- --ticks 1000 --seed 42`:
+  checksum `2481546443`.
+- Before/after `npm.cmd run test:runtime-equivalence`: checksum `507638786`
+  under Node 24.21.0 and pinned Bun 1.4.3 over 10,000 ticks, seed 42.
+- Baseline private build uses `node scripts/build-servers.mjs <private-output>`;
+  after uses `node src/games/fps/scripts/build-servers.mjs <private-output>`.
+  Both pass and publish the same five filenames. The corresponding private
+  `ServerRuntimeProbe.mjs` runs pass under Node and native Bun: ticketed
+  four-player FFA, inherited runtime executable, signed results delivered to
+  four rows, pending delivery cleared and graceful child shutdown.
+- `node .cache/engine-game-split/prove-step17.mjs`: lobby body/import bindings
+  match after canonical target/import-order normalization. The build recipe's
+  ordered structural syntax matches after the root-depth/lobby-entry changes
+  and formatting normalization. Its actual resolved root matches the workspace;
+  private output paths are bounded to the validation directory. Generic `LobbyServer`,
+  `GameServerSpawner`, `ServerRuntime`, `ServerData`, `PlayerStore`,
+  `MatchResultStore`, `RatingStore` and `SettingsStore` are unchanged.
+- `node .cache/engine-game-split/cli-smoke-step17.mjs`: four actual CLI starts
+  (Node/Bun, source/bundle) pass readiness and account welcome using private
+  databases/free ports. Source cases verify relative `--data-dir` and
+  `--max-players` override conflicting environment values. Bundle cases verify
+  `SERVER_DATA_DIR` / `SHAG_LOBBY_MAX_PLAYERS` fallbacks. Each creates its
+  private database/bot-secret file and leaves the ignored directory absent.
+  No match is created in these CLI-startup checks; their owned lobby process
+  is terminated afterward. These checks do not claim graceful OS signal
+  delivery on Windows. The full match probes exercise awaited lobby/child stop.
+- That script also runs the recipe from another cwd with a root-relative output
+  argument. It publishes under the same verified assembled root, rather than
+  relative to the caller's cwd. Output stays in the private `outside-cwd` area.
+- `npm.cmd run build:server -- .cache/engine-game-split/step17-validation/npm-dist-server`:
+  passed through the public npm redirect, with only private output written.
+- `npm.cmd run lobby:server:dev -- --help`: passed through the public development
+  command without opening a server or real data directory.
+- `node .cache/engine-game-split/receipt-step17.mjs`: four non-lobby bundles are
+  byte-identical to baseline. The lobby's 824 top-level statements match as a
+  multiset after source comments/import order are accounted for; all 113
+  top-level expression statements match in order. Import sorting relocates the
+  game-entry descriptor declaration, so identical declaration order is not
+  claimed. Direct, public-npm and outside-cwd builds have byte-identical copies
+  of all five final artifacts.
+- `node docs/research/engine-game-split-audit.mjs`: 1,800 candidate TypeScript
+  files; zero direct/indirect production engine-to-Washoi paths. Remaining outer
+  imports: 21 bot files / 41 sites, 21 CLI files / 48 sites and two lobby files /
+  two sites. JavaScript/build inputs remain outside this TypeScript graph claim.
+
+Validation harness findings: the initial printer-text comparison retained
+formatting/trailing-comma layout, so it rejected the formatter-only build-script
+layout change. The check now compares structural syntax, retaining declaration
+flags, literal values and statement order. An initial CLI probe asserted the
+cap immediately after the readiness chunk; its final log already contained the
+correct cap. The probe now waits for the complete cap line before asserting,
+without changing timeouts, expected values or application code. The initial
+chunk-race log is retained.
+
+Final gate results:
+
+| Command | Result |
+| --- | --- |
+| `npm.cmd run typecheck` | Passed |
+| `npm.cmd run test:run` | 714 files passed; 5,628 tests passed, one skipped |
+| `npm.cmd run gate:biome` | Passed; zero errors / 47 baseline warnings |
+| `npm.cmd run build` | Passed, including index generation and sourcemap relocation |
+| `npm.cmd run docs:build` | Passed |
+| `npm.cmd run docs:fps:build` | Passed |
+| `npm.cmd run test:simulation` | Passed |
+| `npm.cmd run test:physics` | Passed |
+| `npm.cmd run server:tick` | Passed; same baseline checksum |
+| `npm.cmd run server:fuzz -- --ticks 1000 --seed 42` | Passed; same baseline checksum |
+| `npm.cmd run cli:game -- --exec "bsp load washoi_dm2; bsp info; quit"` | Passed; 7,475 faces |
+| `npm.cmd run cli:game -- --exec 'sim replay \"W+CROUCH 60; JUMP 1; W 30\"; quit'` | Passed; 91 ticks |
+
+Browser/GPU play, live TLS/WebTransport, production deployment, platform builds
+and independent-checkout cutover are not claimed. The Git attachment remains.
+The two lobby policies, bots/game tools, remaining tests/configuration and
+fresh-checkout proof still follow the plan; root npm/CI wiring still assumes
+the assembled game until that later cutover.
