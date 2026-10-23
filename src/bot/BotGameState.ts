@@ -85,13 +85,12 @@ export type PlayerRelation = "ally" | "enemy";
 /**
  * Whether a team name from the server means an actual team.
  *
- * In a free-for-all the server has no team to name and sends "spectator" for
- * every player — its own damage rule and snapshot broadcaster both read it as
- * "no team". Read as a team, it made every other player in a Deathmatch an ally
- * sharing the "spectator" team, and a bot never had anyone to fight.
+ * In a free-for-all every player's team is "ffa" (older servers and demos
+ * sent "spectator"). Neither is a team: read as one, every other player in a
+ * Deathmatch would be an ally and a bot would never have anyone to fight.
  */
 export function onATeam(team: string | undefined): team is string {
-  return team !== undefined && team !== "" && team !== "spectator";
+  return team !== undefined && team !== "" && team !== "spectator" && team !== "ffa";
 }
 
 export interface VisiblePlayer {

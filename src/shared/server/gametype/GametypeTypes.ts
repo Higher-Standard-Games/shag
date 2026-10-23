@@ -81,7 +81,18 @@ export interface RoundResult {
   focus?: { x: number; y: number; z: number };
 }
 
-export type TeamId = "udon" | "soba" | "spectator";
+/** A side, or `ffa` for a player in a gametype without sides, or a spectator. */
+export type TeamId = "udon" | "soba" | "ffa" | "spectator";
+
+/** True for udon and soba, the two sides; false for ffa and spectators. */
+export function isSide(team: string | undefined): team is "udon" | "soba" {
+  return team === "udon" || team === "soba";
+}
+
+/** Two players on the same side. Two FFA players are not: everyone is an enemy. */
+export function sameSide(a: string | undefined, b: string | undefined): boolean {
+  return isSide(a) && a === b;
+}
 
 /**
  * Translate a requested team into one the match understands.
@@ -384,9 +395,9 @@ export interface MatchStateSnapshot {
    * from it rendered a team board and filed every player as a spectator.
    */
   teamBased?: boolean;
-  teamScores?: Record<TeamId, number>;
+  teamScores?: Record<Exclude<TeamId, "ffa">, number>;
   playerTeams?: Record<string, TeamId>;
-  teamNames?: Record<TeamId, string>;
+  teamNames?: Record<Exclude<TeamId, "ffa">, string>;
   /**
    * Final standings, independent of live entities.
    *
