@@ -137,14 +137,18 @@ export class Q3ShaderRegistry {
   /**
    * Load all shaders from PK3Loader (uses singleton)
    * Can be called multiple times - will load from any new PK3s
+   *
+   * When the mounted packages changed, every script is read again into fresh
+   * tables that replace the old ones only once complete: the map build and a
+   * projectile model can load at once, and a registry emptied for the duration
+   * of a reload handed one of them no scripts at all.
    */
   async loadShaders(): Promise<number> {
     const pk3Loader = PK3Loader.getInstance();
     const revision = pk3Loader.getFilesystemRevision();
-    if (revision !== this.filesystemRevision) {
-      this.clear();
-      this.filesystemRevision = revision;
-    }
+    const restart = revision !== this.filesystemRevision;
+    const processed = restart ? new Set<string>() : this.processedShaderFiles;
+    const shaders = restart ? new Map<string, Q3Shader>() : this.shaders;
     let newShaderCount = 0;
 
     // Find all .shader files in scripts/ folder from ALL loaded PK3s
@@ -153,17 +157,11 @@ export class Q3ShaderRegistry {
       .sort((a, b) => (pk3Loader.getFileOwner(a) ?? "").localeCompare(pk3Loader.getFileOwner(b) ?? ""));
 
     // Filter to only new shader files
-    const newShaderFiles = shaderFiles.filter((f) => !this.processedShaderFiles.has(f));
-
-    if (newShaderFiles.length === 0) {
-      devLog(`[Q3ShaderRegistry] No new shader files (${this.shaders.size} total)`);
-      return this.shaders.size;
-    }
-
-    devLog(`[Q3ShaderRegistry] Found ${newShaderFiles.length} new shader files`);
+    const newShaderFiles = shaderFiles.filter((f) => !processed.has(f));
+    if (newShaderFiles.length > 0) devLog(`[Q3ShaderRegistry] Found ${newShaderFiles.length} new shader files`);
 
     for (const shaderFile of newShaderFiles) {
-      this.processedShaderFiles.add(shaderFile);
+      processed.add(shaderFile);
 
       try {
         const data = await pk3Loader.getFile(shaderFile);
@@ -175,7 +173,7 @@ export class Q3ShaderRegistry {
         for (const shader of parsedShaders) {
           // Store by normalized name (lowercase, no extension)
           const name = normalizeShaderName(shader.name);
-          this.shaders.set(name, shader);
+          shaders.set(name, shader);
           newShaderCount++;
         }
       } catch (err) {
@@ -183,6 +181,13 @@ export class Q3ShaderRegistry {
       }
     }
 
+    if (restart) {
+      this.shaders = shaders;
+      this.processedShaderFiles = processed;
+      this.filesystemRevision = revision;
+    }
+    // Props resolved before a script arrived describe the no-script fallback
+    if (restart || newShaderCount > 0) this.resolvedCache.clear();
     this.loaded = true;
     devLog(`[Q3ShaderRegistry] Loaded ${newShaderCount} new shaders (${this.shaders.size} total)`);
 
