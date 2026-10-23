@@ -9,8 +9,8 @@
  */
 
 import { describe, expect, it } from "vitest";
+import { DEFAULT_WEIGHT_PROFILE } from "../../games/fps/shared/bot/WeightProfiles";
 import type { PickupEntry } from "../../games/fps/shared/bsp/PickupTable";
-import { DEFAULT_WEIGHT_PROFILE } from "../../shared/bot/WeightProfiles";
 import type { AgentDirective } from "../../shared/server/gametype";
 import { BotGameState } from "../BotGameState";
 import { collectDirectiveGoals } from "../goals/DirectiveGoalSource";

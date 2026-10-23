@@ -7,7 +7,7 @@
  * See docs/research/PLAYER_IDENTITY.md.
  */
 
-import { isBotName } from "../shared/bot/BotNames";
+import { isBotName } from "../games/fps/shared/bot/BotNames";
 
 /** Crockford base32: no I, L, O or U, so a key survives being read aloud or retyped. */
 const ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";

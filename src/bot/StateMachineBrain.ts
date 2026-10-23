@@ -14,7 +14,7 @@
  */
 
 import { DEFAULT_VIEWHEIGHT } from "../engine/physics/PlayerPhysicsConstants";
-import { selectWeightProfile } from "../shared/bot/WeightProfiles";
+import { selectWeightProfile } from "../games/fps/shared/bot/WeightProfiles";
 import { BotBrain, type BotInput, BotState, travelYaw } from "./BotBrain";
 import { BotCombatMovement, findHighGround } from "./BotCombatMovement";
 import { type BotDifficulty, defaultGoalArbiterMode, type GoalArbiterMode, InputButtons } from "./BotConfig";

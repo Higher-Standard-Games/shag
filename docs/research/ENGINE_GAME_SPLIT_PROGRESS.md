@@ -1190,3 +1190,109 @@ random-seed fuzz reconciled at 252136202. Indexed BSP loading reported 7,475
 faces, replay completed 91 ticks, and name/camera command batches passed.
 The source proof still reports identical relocated command syntax. No fresh
 browser/real-account rename or team-color UI revalidation is claimed.
+
+## 10. Washoi shared bot names and behavior profiles
+
+Washoi commit: `8fae018` (`refactor: own shared bot names and behavior profiles`).
+
+Move `BotNames.ts` and `WeightProfiles.ts` from `src/shared/bot/` into
+`src/games/fps/shared/bot/`. Lobby name reservation, bot configuration/chat,
+the goal planner and server bot-name allocation import the same game-owned
+policy. These modules stay shared across processes and contain no Babylon or
+browser APIs. All names, suffix reservation, weights, fallback values and
+gametype/role/round-state selection remain identical. Existing bot integration
+tests stay beside the bot implementation; only their imports change.
+
+Assumption: these are Washoi product policies. The bot and lobby application
+implementations still live in the outer repository pending their separate
+ownership steps. This is not yet a game-free engine build. The engine has no
+direct imports of either policy, PlayerIdentity or AccountSession. No new
+registry is needed for consumers that already belong to the Washoi application.
+
+`BotRatingIdentity.behaviorDigest` hashes TypeScript source paths and contents
+across the source tree, excluding tests and files named BotNames.ts. Relocating
+WeightProfiles and rebasing imports therefore changes the behavior fingerprint,
+as other source refactors do. Its algorithm, persisted records and rating rules
+are unchanged; an unchanged behavior fingerprint is not claimed.
+
+Validation uses an isolated checkout at engine `5de11ddb` / FPS `1cfc111`,
+with only this step's source/manual changes overlaid. The engine baseline
+already includes the other agent's committed muzzle-flash fix; this step
+does not edit that implementation. Dependencies/wasm and immutable media are
+linked, with private generated PK3 index/manifest metadata.
+
+Exact changed paths (including removals and gitlink):
+
+- `src/shared/bot/BotNames.ts` (removed)
+- `src/shared/bot/WeightProfiles.ts` (removed)
+- `src/games/fps/shared/bot/BotNames.ts`
+- `src/games/fps/shared/bot/WeightProfiles.ts`
+- `src/games/fps/server/BotNames.ts`
+- `src/games/fps/server/__tests__/BotNames.test.ts`
+- `src/bot/BotConfig.ts`
+- `src/bot/StateMachineBrain.ts`
+- `src/bot/chat/BotChat.ts`
+- `src/bot/goals/Consideration.ts`
+- `src/bot/goals/ItemGoalPlanner.ts`
+- `src/bot/__tests__/Considerations.test.ts`
+- `src/bot/__tests__/Directives.test.ts`
+- `src/bot/__tests__/WeightProfiles.test.ts`
+- `src/lobby/PlayerIdentity.ts`
+- `src/games/fps` (gitlink)
+- `docs/manual/guides/lobby-server.md`
+- `docs/changelog/v1.0.0-alpha.3.md`
+- `docs/research/ENGINE_GAME_SPLIT_PROGRESS.md`
+
+Validation receipts: `.cache/engine-game-split/step10-validation/`.
+The source proof, `node .cache/engine-game-split/prove-step10.mjs`, compares
+all 13 affected source files with their saved originals, normalizing relocated
+module paths and import ordering. It reports identical syntax; the ownership
+comment is the only non-import source edit. Biome's scoped check initially
+identified four import-order errors; its safe formatter corrected those files,
+then the proof passed again.
+
+The isolated runner is
+`node C:/Users/sundf/Desktop/wash/shag/.cache/engine-game-split/validate-step10-isolated.mjs`.
+It runs these exact npm scripts:
+
+```powershell
+npm.cmd run typecheck
+npm.cmd run test:run
+npm.cmd run gate:biome
+npm.cmd run build
+npm.cmd run build:server
+npm.cmd run docs:build
+npm.cmd run docs:fps:build
+npm.cmd run test:simulation
+npm.cmd run test:physics
+npm.cmd run server:tick
+npm.cmd run server:fuzz -- --ticks 1000
+```
+
+It also invokes `node node_modules/vite-node/vite-node.mjs
+src/cli/headless-game.ts -- --exec` with each of these single argument values:
+
+```text
+bsp load washoi_dm2; bsp info; quit
+sim replay "W+CROUCH 60; JUMP 1; W 30"; quit
+help name; name; quit
+help spectator; help giveweapon; giveweapon rlauncher; quit
+```
+
+Typecheck passed in the sandbox; Vitest could not spawn workers (EPERM).
+The runner resumed from `test-run` with subprocess permission. This initial
+environment failure is not counted as a test pass. No new browser playtest,
+live bot invitation, production deployment or game-free build is claimed.
+The earlier deferred warmup/asset warnings remain open, separately from the
+completed loading-audio/held-weapon papercut documented in
+[its report](./LOADING_READINESS_PAPERCUT.md).
+
+Final results: typecheck, all 710 unit files (5,606 passed tests, one skipped),
+Biome (zero errors / 47 baseline warnings), client/server builds, both docs
+builds, simulation and physics passed. Server tick reconciled at 2768943778;
+the 1,000-tick random-seed fuzz run reconciled at 3131391883. Indexed BSP loading
+reported 7,475 faces; movement replay completed 91 ticks. Validated source/manual
+hashes match the primary checkout. Both name/camera CLI batches passed.
+Next candidate: replace EntityCatalog's
+direct Washoi entities.def import with a game-supplied catalog, retaining the
+engine parser/compiler classes and the assembled game's palette semantics.

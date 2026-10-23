@@ -537,6 +537,11 @@ human-presence accounting that decides both room eviction and ranking.
 
 ## Bot behaviour
 
+Washoi owns the shared bot-name list and gametype weight profiles in
+`src/games/fps/shared/bot/`. The lobby reserves names from `BotNames.ts`;
+the bot service selects gametype, role and round-state policy from
+`WeightProfiles.ts`. These modules contain plain data and deterministic helpers.
+
 The bot server's clients (`src/bot/`) play over the same protocol as a browser
 and are bound by the same rules:
 

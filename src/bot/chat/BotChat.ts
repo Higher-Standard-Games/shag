@@ -13,7 +13,7 @@
  * and each line goes out 0.8–2.5 s after its moment, as if typed.
  */
 
-import { isBotName } from "../../shared/bot/BotNames";
+import { isBotName } from "../../games/fps/shared/bot/BotNames";
 import type { Mood, MoodEvent } from "../BotMood";
 import { BOT_CHAT_LINES, type ChatMoment } from "./BotChatLines";
 

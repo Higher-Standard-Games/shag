@@ -11,6 +11,7 @@
  * p.distance <= max)` — nearest wins, always, with no notion of value.
  */
 
+import { type BotWeightProfile, selectWeightProfile } from "../../games/fps/shared/bot/WeightProfiles";
 import type { PickupEntry } from "../../games/fps/shared/bsp/PickupTable";
 import {
   type ArmorKind,
@@ -18,7 +19,6 @@ import {
   type HealthKind,
   healthAfterPickup,
 } from "../../games/fps/shared/items/ItemGrants";
-import { type BotWeightProfile, selectWeightProfile } from "../../shared/bot/WeightProfiles";
 import { DEFAULT_PHYSICS_TICK_RATE as TICK_RATE } from "../../shared/server/simulation/physics/constants";
 import type { BotGameState, Vec3 } from "../BotGameState";
 import type { BotGoal } from "./BotGoal";
