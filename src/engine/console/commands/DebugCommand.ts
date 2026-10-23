@@ -4,12 +4,11 @@
 
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
-import type { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
-import type { FPSController } from "../../camera/controllers/FPSController";
+import type { ICameraController } from "../../camera/controllers/ICameraController";
 import { Command, type CommandDef } from "../Command";
 
 // Static storage for debug visualization
@@ -112,13 +111,12 @@ export default class DebugCommand extends Command {
     }
 
     // Get FPS controller from camera system
-    let fpsController: FPSController | undefined;
+    let fpsController: ICameraController | undefined;
     try {
       const { CameraSystem } = await import("../../camera/CameraSystem");
       const activeController = CameraSystem.getInstance().getActiveController();
       if (activeController?.type === "fps") {
-        // type "fps" is only reported by FPSController.
-        fpsController = activeController as FPSController;
+        fpsController = activeController;
       }
     } catch {
       return "Camera system not available";
@@ -127,6 +125,7 @@ export default class DebugCommand extends Command {
     if (!fpsController || typeof fpsController.getPlayerPosition !== "function") {
       return "FPS controller not active or does not support position tracking";
     }
+    const getPlayerPosition = fpsController.getPlayerPosition.bind(fpsController);
 
     // Create wireframe material (cyan for visibility)
     const capsuleMat = new StandardMaterial("debug_capsule_mat", scene);
@@ -223,9 +222,9 @@ export default class DebugCommand extends Command {
 
     // Update position each frame
     debugObserver = scene.onBeforeRenderObservable.add(() => {
-      if (!playerDebugMesh || !fpsController) return;
+      if (!playerDebugMesh) return;
 
-      const pos = fpsController.getPlayerPosition() as Vector3;
+      const pos = getPlayerPosition();
 
       // The capsule cylinder is centered, so position it at player origin
       // Player origin is at feet + 24 (Quake-style), capsule center is at feet + 28

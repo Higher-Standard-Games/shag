@@ -1,6 +1,6 @@
 # Separating SHAG from Washoi: verified refactoring map
 
-**Status:** investigation and implementation plan; no runtime refactor or Git/submodule removal performed.
+**Status:** pre-implementation audit snapshot and refactoring plan. Completed steps and validation are tracked in the [implementation log](./ENGINE_GAME_SPLIT_PROGRESS.md). Git/submodule removal has not been performed.
 **Audited:** October 23, 2026, after the alpha.2 bot hotfix.
 **Engine source:** `5ee0b5de165aecd02f5778debccf5479e781d2ec`.
 **Washoi source:** `d98070ab66bc4163307805067f58f1378acc5fde`.

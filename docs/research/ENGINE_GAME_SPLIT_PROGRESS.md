@@ -188,6 +188,8 @@ Changed files for this dependency:
 - **Washoi commit:** `0ec70d1` supplies and exports the mapping and covers player
   rebindings with the real camera. The engine commit pins this game revision;
   bisect and rollback should restore both revisions together.
+- **User playtest:** after engine commit `51b447b7`, the user confirmed that
+  freefly worked as a spectator in a match. Map and gametype were not specified.
 
 Validation commands executed on October 23, 2026:
 
@@ -233,4 +235,134 @@ Changed files for this dependency:
 - `docs/manual/guides/camera-system.md`
 - `docs/manual/guides/service-registries.md`
 - `docs/changelog/v1.0.0-alpha.3.md`
+- `docs/research/ENGINE_GAME_SPLIT_PROGRESS.md`
+
+## 4. Concrete FPS controller and its dependents
+
+- **Dependency:** the engine's `FPSController` imported Washoi's Game,
+  FPSActions, InventoryManager, GibSystem and DamageNumbers. Engine camera
+  barrels exported the concrete class. PlayerVisuals and two engine commands
+  also depended on it.
+- **Move:** `FPSController` and `components/PlayerVisuals` now live under
+  `src/games/fps/camera`. Their controller ID remains `fps`. The game owns
+  `spectator` and `giveweapon` through its existing command discovery. All
+  production callers, type imports, lazy imports and test mocks use the new
+  paths. The engine barrel no longer re-exports the concrete controller.
+- **Engine capability:** `debug player` uses the already-existing optional
+  `ICameraController.getPlayerPosition()` method, preserving its `fps` type
+  gate, messages, dimensions, marker positions and observer cleanup. Binding
+  the method preserves its receiver inside the render observer.
+- **Headless composition:** the FPS headless game CLI explicitly registers the
+  two moved commands after engine command discovery, preserving their previous
+  availability without enabling all other FPS browser commands in the CLI.
+  It imports their classes eagerly, matching their former eager discovery.
+- **Initialization parity:** both old controllers registered
+  `cam_freefly_speed`. A baseline probe imported the engine camera barrel and
+  concrete FPS controller, then set this cvar to 333: FPS stayed 200, freefly
+  became 333. The first moved version flipped ownership: FPS became 333 and
+  freefly stayed 200. The redundant registration was removed from FPSController;
+  the engine FreeflyController keeps the identical cvar registration. The
+  corrected probe again gives FPS 200 / freefly 333, and a regression test
+  covers this ownership. Other FPS debug cvar registrations stay with the class.
+- **Preservation evidence:** the pre-move engine commit is `51b447b7`, with
+  Washoi `0ec70d1`. An isolated detached checkout under
+  `.cache/engine-game-split/step4-baseline` supplies the old graph. The four
+  moved files have matching normalized AST hashes after excluding static
+  imports/comments, canonicalizing only dynamic/type import paths, and excluding
+  the one duplicate cvar registration. This covers their method bodies and
+  data literals; it is not a claim of complete browser/runtime parity.
+- **Findings during validation:** the first rebasing script incorrectly
+  treated the `.fps-hud-bottom-center` CSS selector as a module path. The focused
+  crosshair test caught the invalid selector. It was restored, and both the
+  rebaser and preservation check were restricted to actual relative module
+  paths. The debug-overlay test initially checked removal before Babylon's
+  deferred observer cleanup; the assertion now waits one event-loop turn.
+  The corrected focused run passed 7 files / 21 tests. No gameplay cleanup or
+  movement tuning was folded into the move.
+- **Headless startup finding:** the first broad run passed the full unit suite,
+  build, documentation, simulation, physics, tick and fuzz checks, but BSP startup
+  failed with `ERR_CLOSED_SERVER` while loading FPSHud's raw CSS. The new lazy
+  command imports ran after vite-node began closing its loader because the CLI
+  launches through `void runCli(main)`. Eagerly importing the two command classes
+  restores the old load timing without modifying the CLI harness. The targeted
+  BSP/replay/command checks then passed, with the original 53 registered commands
+  and the original help/response text. Final gates run on that corrected source.
+- **Assumptions and limits:** assemble matching engine/game revisions and
+  update the game checkout when bisecting or reverting. Generic camera/input,
+  viewport and animation-provider interfaces remain in the engine. Pickup
+  ownership in EntityManager is separate work. The user's previous in-match
+  freefly confirmation covers step 3, not this controller move. No new browser
+  playtest, production migration or game-free application build is claimed.
+- **Validation:** the final frozen-source run passed typecheck, all 700 test
+  files (5,569 passed / one skipped), Biome (zero errors / 47 warnings), build,
+  docs build, simulation, physics, deterministic tick and 1,000-tick fuzz.
+  Canonical DM2 loading asserted 7,475 faces; the replay asserted 91 ticks;
+  both moved CLI commands retained their help text and response. All exited
+  zero. Receipts and proof hashes are under
+  `.cache/engine-game-split/step4-validation/`.
+- **Washoi commit:** `b315c7a` owns the controller, helper, commands and rewritten
+  callers. The engine commit for this step pins it. Build/revert/bisect the
+  engine and the pinned game revision together.
+
+Validation commands executed on October 23, 2026:
+
+```powershell
+npm.cmd run test:run -- src/engine/console/__tests__/DebugPlayerCapability.test.ts src/games/fps/console/__tests__/CameraCommandRegistration.test.ts src/games/fps/client/__tests__/FPSControllerOwnership.test.ts src/games/fps/client/__tests__/CrosshairAmmo.test.ts src/games/fps/client/__tests__/MatchMapLoader.test.ts src/games/fps/__tests__/FPSPlayerBeamAmmo.test.ts src/engine/__tests__/CameraControllerDecoupling.test.ts
+node .cache/engine-game-split/prove-step4.mjs
+node node_modules/vite-node/vite-node.mjs .cache/engine-game-split/probe-init-step4.ts
+npm.cmd run typecheck
+npm.cmd run test:run
+npm.cmd run gate:biome
+npm.cmd run build
+npm.cmd run docs:build
+npm.cmd run test:simulation
+npm.cmd run test:physics
+npm.cmd run server:tick
+npm.cmd run server:fuzz -- --ticks 1000
+node .cache/engine-game-split/validate-step4.mjs
+node .cache/engine-game-split/validate-step4.mjs bsp
+git -C C:/Users/sundf/Desktop/wash/shag diff --check
+git -C C:/Users/sundf/Desktop/wash/shag/src/games/fps diff --check
+```
+
+The baseline cvar probe also ran as `node node_modules/vite-node/vite-node.mjs
+probe-init.ts`, with its working directory set to
+`.cache/engine-game-split/step4-baseline`. The validation runner invokes npm's
+CLI directly with argument arrays and performs the same BSP/replay checks
+documented for step 1. It additionally executes this headless command batch:
+`help spectator; help giveweapon; giveweapon rlauncher; quit`, asserting both
+command descriptions and the unchanged inactive-FPS response. After the CLI
+import correction the complete gates were rerun on frozen runtime source.
+
+Changed files for this dependency (old engine files are removed, not shims):
+
+- `AGENTS.md`
+- `src/engine/camera/controllers/FPSController.ts` (removed)
+- `src/engine/camera/controllers/components/PlayerVisuals.ts` (removed)
+- `src/engine/camera/controllers/index.ts`
+- `src/engine/console/commands/SpectatorCommand.ts` (removed)
+- `src/engine/console/commands/GiveWeaponCommand.ts` (removed)
+- `src/engine/console/commands/DebugCommand.ts`
+- `src/engine/console/__tests__/DebugPlayerCapability.test.ts`
+- `src/engine/__tests__/CameraControllerDecoupling.test.ts`
+- `src/main.ts`
+- `src/cli/headless-game.ts`
+- `src/games/fps` gitlink
+- `src/games/fps/camera/FPSController.ts`
+- `src/games/fps/camera/components/PlayerVisuals.ts`
+- `src/games/fps/console/commands/SpectatorCommand.ts`
+- `src/games/fps/console/commands/GiveWeaponCommand.ts`
+- `src/games/fps/console/__tests__/CameraCommandRegistration.test.ts`
+- `src/games/fps/client/__tests__/FPSControllerOwnership.test.ts`
+- `src/games/fps/FPSPlayer.ts`
+- `src/games/fps/Game.ts`
+- `src/games/fps/world/FPSPickup.ts`
+- `src/games/fps/client/DroppedWeaponRenderer.ts`
+- `src/games/fps/client/MatchMapLoader.ts`
+- `src/games/fps/client/__tests__/CrosshairAmmo.test.ts`
+- `src/games/fps/client/__tests__/MatchMapLoader.test.ts`
+- `src/games/fps/__tests__/FPSPlayerBeamAmmo.test.ts`
+- `docs/manual/guides/camera-system.md`
+- `docs/changelog/v1.0.0-alpha.3.md`
+- `docs/research/ENGINE_GAME_SPLIT.md` (links the audit snapshot to implementation progress)
 - `docs/research/ENGINE_GAME_SPLIT_PROGRESS.md`

@@ -27,6 +27,8 @@ import { fail } from "../engine/console/Command";
 import { registerEngineCommands } from "../engine/console/commands";
 import type { EngineConfig } from "../engine/core/GamePaths";
 import { PK3Loader } from "../engine/loader/pk3/PK3Loader";
+import GiveWeaponCommand from "../games/fps/console/commands/GiveWeaponCommand";
+import SpectatorCommand from "../games/fps/console/commands/SpectatorCommand";
 import { formatPreflight, preflightGameAssets, resolveGameAssetDir } from "./_assetPreflight";
 import { runCli } from "./_runCli";
 
@@ -195,6 +197,10 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
 
   const { CommandRegistry } = await import("../engine/console/CommandRegistry");
   const registry = CommandRegistry.getInstance();
+
+  // This FPS composition keeps its game-specific camera/inventory commands.
+  registry.register(new SpectatorCommand());
+  registry.register(new GiveWeaponCommand());
 
   registry.register("writeconsole", (args: string[]) => {
     const outputPath = args[0] || "console.log";

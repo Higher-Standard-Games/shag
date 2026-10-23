@@ -1,11 +1,8 @@
 /**
  * Camera controller → game decoupling guard (QA-2 / QA-WO7).
  *
- * The FPS-coupled controllers imported `games/fps/Game` directly, a build-time
- * cycle. As each is decoupled (via GameFrameHook / PlayerContext), it is added
- * here and asserted to import nothing from games/. SpectatorController is fully
- * decoupled; FreeflyController/FPSController still import fps input actions
- * (FPSActions) and are tracked in the WO7 relocation pass — not yet listed.
+ * Engine camera controllers use engine-owned interfaces and registries.
+ * The concrete Washoi FPS controller lives in the game repository.
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -14,7 +11,7 @@ import { describe, expect, it } from "vitest";
 const CONTROLLER_DIR = path.resolve(__dirname, "../camera/controllers");
 
 /** Controllers proven free of any `games/` import. */
-const DECOUPLED = ["SpectatorController.ts"];
+const DECOUPLED = ["SpectatorController.ts", "FreeflyController.ts"];
 
 const GAMES_IMPORT = /from\s+["'][^"']*\/games\/|from\s+["']@game(s)?\b/;
 

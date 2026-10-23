@@ -28,7 +28,7 @@ cameras.setCamera(camera);
 
 ## Controllers
 
-Built-in controller type names:
+Controller type names in Washoi:
 
 - `fps`;
 - `freefly`;
@@ -36,6 +36,16 @@ Built-in controller type names:
 - `sidescroll`;
 - `follow`;
 - `spectator`, driven by the FPS `spectator` command rather than by `camera mode`.
+
+Washoi owns `camera/FPSController.ts` and its `camera/components/PlayerVisuals.ts`
+helper inside the FPS game checkout. The application registers that controller
+under the `fps` ID. Engine camera barrels export the generic controllers and
+interfaces; game code imports its concrete FPS controller from the game.
+The `spectator` and `giveweapon` commands are discovered by the game's console
+loader. The headless game CLI also registers those commands in its FPS composition.
+
+`debug player` stays in the engine and queries the active FPS controller's
+optional `getPlayerPosition()` capability through `ICameraController`.
 
 ```ts
 const changed = cameras.setController('freefly');
