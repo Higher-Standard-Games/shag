@@ -181,7 +181,8 @@ async function main() {
   const recipe = JSON.parse(recipeText);
   if (
     recipe.schemaVersion !== 1 ||
-    recipe.map !== "washoi_dm2" ||
+    typeof recipe.map !== "string" ||
+    !/^[a-zA-Z0-9_-]+$/.test(recipe.map) ||
     recipe.gametype !== "ffa" ||
     recipe.generatorVersion !== 1 ||
     recipe.scoreLimit !== 0 ||
@@ -191,7 +192,9 @@ async function main() {
     !Number.isInteger(recipe.seed) ||
     recipe.seed < 0 ||
     recipe.seed > 4294967295 ||
-    recipe.bots !== 10 ||
+    !Number.isInteger(recipe.bots) ||
+    recipe.bots < 2 ||
+    recipe.bots > 10 ||
     !Number.isFinite(recipe.recordSeconds) ||
     recipe.recordSeconds < 60 ||
     recipe.recordSeconds > 300
@@ -237,7 +240,7 @@ async function main() {
     return;
   }
   const map = await loadBspCollision(recipe.map);
-  if (!map) throw new Error("Indexed washoi_dm2 map unavailable");
+  if (!map) throw new Error(`Indexed ${recipe.map} map unavailable`);
   const source = option("--demo") ?? (await record(recipe, map));
   const bytes = new Uint8Array(fs.readFileSync(source));
   const reader = await DemoReader.fromFile(bytes);
@@ -250,7 +253,7 @@ async function main() {
     !header.tickRate ||
     !frames.length
   )
-    throw new Error("Recording must contain a current ten-player washoi_dm2 FFA roster");
+    throw new Error(`Recording must contain a current ${recipe.bots}-player ${recipe.map} FFA roster`);
   const firstTick = frames[0].tick;
   const duration = (frames[frames.length - 1].tick - firstTick) / header.tickRate;
   if (duration < recipe.startSeconds + recipe.durationSeconds)
@@ -267,7 +270,7 @@ async function main() {
     return frames[lo];
   };
   const ids = [...new Set(frames.flatMap((f) => [...f.state.entities.keys()].filter(isClientKey)))].sort();
-  if (ids.length !== recipe.bots) throw new Error(`Expected ten player entities, found ${ids.length}`);
+  if (ids.length !== recipe.bots) throw new Error(`Expected ${recipe.bots} player entities, found ${ids.length}`);
   let seed = recipe.seed >>> 0;
   const random = () => {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;

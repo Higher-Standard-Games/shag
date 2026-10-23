@@ -1,3 +1,4 @@
+import type { Light } from "@babylonjs/core/Lights/light";
 import type { Material } from "@babylonjs/core/Materials/material";
 import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
@@ -16,7 +17,10 @@ import type { Scene } from "@babylonjs/core/scene";
  * Once per frame this compares a signature of exactly that state. On a change
  * each tracked frozen material is checked and bound once more. Pooled lights
  * that join a clustered container within one task never appear in the
- * signature, so they cost nothing.
+ * signature, so they cost nothing. Nor do lights no world surface can receive:
+ * one scoped to its own meshes (a loaded model's light) or to a layer the world
+ * is not on (the weapon view's lights, which the blade switches on and off).
+ * Re-checking every world material for those cost fights a frame each time.
  */
 class FrozenWorldMaterialWatcher {
   private readonly materials = new Set<Material>();
@@ -41,7 +45,9 @@ class FrozenWorldMaterialWatcher {
   private read(): string {
     const ambient = this.scene.ambientColor;
     let signature = `${ambient.r},${ambient.g},${ambient.b}`;
-    for (const light of this.scene.lights) signature += `|${light.uniqueId}:${light.isEnabled() ? 1 : 0}`;
+    for (const light of this.scene.lights) {
+      if (reachesWorld(light)) signature += `|${light.uniqueId}:${light.isEnabled() ? 1 : 0}`;
+    }
     return signature;
   }
 
@@ -60,6 +66,16 @@ class FrozenWorldMaterialWatcher {
     this.materials.clear();
     watchers.delete(this.scene);
   }
+}
+
+/** The layer mask Babylon gives every mesh, the map's world surfaces included. */
+const WORLD_LAYER_MASK = 0x0fffffff;
+
+/** Whether a light can reach a world surface, by the rules Light.canAffectMesh applies. */
+function reachesWorld(light: Light): boolean {
+  if (light.includedOnlyMeshes.length > 0) return false;
+  const only = light.includeOnlyWithLayerMask;
+  return only === 0 || (only & WORLD_LAYER_MASK) !== 0;
 }
 
 const watchers = new WeakMap<Scene, FrozenWorldMaterialWatcher>();

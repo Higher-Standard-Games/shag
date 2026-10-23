@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "generatorVersion": 1,
+  "name": "wdm5-ffa6",
+  "map": "washoi_dm5",
+  "gametype": "ffa",
+  "bots": 6,
+  "difficulty": "medium",
+  "scoreLimit": 0,
+  "timeLimit": 600,
+  "recordSeconds": 120,
+  "startSeconds": 5,
+  "durationSeconds": 45,
+  "seed": 1,
+  "profile": {
+    "width": 1280,
+    "height": 720,
+    "fov": 90,
+    "requiredCvars": { "r_ssr": 0, "r_glow": 0, "r_daynight": 0, "cl_player_outline": 1 }
+  },
+  "segments": [
+    { "name": "freefly-start", "start": 0, "end": 12, "camera": "freefly" },
+    { "name": "fps-gunplay-a", "start": 12, "end": 24, "camera": "spectator" },
+    { "name": "freefly-return", "start": 24, "end": 33, "camera": "freefly" },
+    { "name": "fps-gunplay-b", "start": 33, "end": 45, "camera": "spectator" }
+  ],
+  "routePolicy": "seeded-recorded-player-track-at-clearance-limited-height-v1"
+}

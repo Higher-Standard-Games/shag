@@ -51,6 +51,22 @@ describe("frozen world materials", () => {
     expect(dirty).toHaveBeenCalledTimes(3);
   });
 
+  it("ignores lights no world surface can receive: a weapon-layer light, a model's own light", () => {
+    const { dirty } = setup();
+    const weaponLight = new HemisphericLight("blade", new Vector3(0, 1, 0), scene);
+    weaponLight.includeOnlyWithLayerMask = 0x10000000;
+    const model = MeshBuilder.CreateBox("pickup", {}, scene);
+    const modelLight = new HemisphericLight("model", new Vector3(0, 1, 0), scene);
+    modelLight.includedOnlyMeshes = [model];
+    frame();
+    weaponLight.setEnabled(false);
+    frame();
+    weaponLight.setEnabled(true);
+    modelLight.dispose();
+    frame();
+    expect(dirty).not.toHaveBeenCalled();
+  });
+
   it("re-checks them when the scene ambient changes", () => {
     const { dirty } = setup();
     scene.ambientColor = new Color3(0.2, 0.2, 0.3);
