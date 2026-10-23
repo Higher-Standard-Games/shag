@@ -170,6 +170,8 @@ async function main() {
   registerFreeflyInput(fpsModule.fpsFreeflyInput);
   const { registerGameMapEntities } = await import("./engine/loader/map/GameMapEntities");
   registerGameMapEntities(fpsModule.fpsMapEntities);
+  const { registerWeaponIdResolver } = await import("./engine/weapon/WeaponIdResolver");
+  registerWeaponIdResolver(fpsModule.canonicalWeaponId);
   await fpsModule.registerFpsCommands();
   const { registerNetworkConnector } = await import("./engine/ui/components/NetworkConnector");
   registerNetworkConnector(fpsModule.fpsNetworkConnector);

@@ -40,7 +40,7 @@ interface PickupClassInfo {
 
 const AMMO_CLASSNAMES: Record<string, PickupClassInfo> = {
   // Warsow per-weapon ammo classnames — what every shipped map actually uses.
-  // (kind = the weapon's ammoType pool; see shared/entities/definitions/weapons/*.)
+  // (kind = the weapon's ammoType pool; see games/fps/shared/entities/definitions/weapons/*.)
   ammo_machinegun: { type: "ammo", kind: "bullets", amount: 50 },
   ammo_riotgun: { type: "ammo", kind: "shells", amount: 10 },
   ammo_grenadelauncher: { type: "ammo", kind: "grenades", amount: 10 },

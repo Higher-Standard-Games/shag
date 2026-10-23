@@ -29,7 +29,6 @@ import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
 import "@babylonjs/loaders/glTF";
 import { getEntityRegistry, type WeaponDef } from "../../shared/entities";
-import { canonicalWeaponId } from "../../shared/entities/definitions/weapons/WeaponsTable";
 import { fireIntervalTicks } from "../../shared/entities/WeaponDef";
 import { DEFAULT_PHYSICS_TICK_RATE } from "../../shared/server/simulation/physics/constants";
 import { logRejection } from "../core/AsyncErrors";
@@ -57,6 +56,7 @@ import { WeaponBarrels } from "./WeaponBarrels";
 import { WeaponBob } from "./WeaponBob";
 import { WeaponCharge } from "./WeaponCharge";
 import { WeaponHolsterAnim } from "./WeaponHolsterAnim";
+import { resolveWeaponId } from "./WeaponIdResolver";
 import { WeaponLighting } from "./WeaponLighting";
 import { WeaponRecoil } from "./WeaponRecoil";
 import { WeaponReloadAnim } from "./WeaponReloadAnim";
@@ -573,7 +573,7 @@ export class WeaponViewManager {
       return false;
     }
 
-    weaponName = canonicalWeaponId(weaponName);
+    weaponName = resolveWeaponId(weaponName);
 
     // Track the weapon the view is committing to (for server reconciliation).
     this._intendedWeaponId = weaponName;
@@ -2112,7 +2112,7 @@ export class WeaponViewManager {
     // Cancel reload
     this.reloadAnim.cancel();
 
-    weaponId = canonicalWeaponId(weaponId);
+    weaponId = resolveWeaponId(weaponId);
 
     // Track the target immediately so reconciliation sees where the view is headed.
     this._intendedWeaponId = weaponId;

@@ -9,16 +9,16 @@
  *   if (profile.needsADS) buttons |= InputButtons.ALT_FIRE;
  */
 
-import { BLADE } from "../shared/entities/definitions/weapons/blade";
-import { ELECTROBOLT } from "../shared/entities/definitions/weapons/electrobolt";
-import { GRENADE_LAUNCHER } from "../shared/entities/definitions/weapons/glauncher";
-import { INSTAGUN } from "../shared/entities/definitions/weapons/instagun";
-import { MACHINEGUN } from "../shared/entities/definitions/weapons/machinegun";
-import { PLASMAGUN } from "../shared/entities/definitions/weapons/plasmagun";
-import { RIOTGUN } from "../shared/entities/definitions/weapons/riotgun";
-import { ROCKET_LAUNCHER } from "../shared/entities/definitions/weapons/rlauncher";
-import { VOLTAIC } from "../shared/entities/definitions/weapons/voltaic";
-import { canonicalWeaponId } from "../shared/entities/definitions/weapons/WeaponsTable";
+import { BLADE } from "../games/fps/shared/entities/definitions/weapons/blade";
+import { ELECTROBOLT } from "../games/fps/shared/entities/definitions/weapons/electrobolt";
+import { GRENADE_LAUNCHER } from "../games/fps/shared/entities/definitions/weapons/glauncher";
+import { INSTAGUN } from "../games/fps/shared/entities/definitions/weapons/instagun";
+import { MACHINEGUN } from "../games/fps/shared/entities/definitions/weapons/machinegun";
+import { PLASMAGUN } from "../games/fps/shared/entities/definitions/weapons/plasmagun";
+import { RIOTGUN } from "../games/fps/shared/entities/definitions/weapons/riotgun";
+import { ROCKET_LAUNCHER } from "../games/fps/shared/entities/definitions/weapons/rlauncher";
+import { VOLTAIC } from "../games/fps/shared/entities/definitions/weapons/voltaic";
+import { canonicalWeaponId } from "../games/fps/shared/entities/definitions/weapons/WeaponsTable";
 import type { WeaponDef } from "../shared/entities/WeaponDef";
 
 // ── Profile Interface ───────────────────────────────────────────────

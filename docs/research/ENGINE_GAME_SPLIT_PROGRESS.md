@@ -523,6 +523,11 @@ up the already-written pickup-separation changelog entry; the remaining step-5
 changes are committed separately on top, with only their explicit paths staged.
 The game-side step-5 commit is `3392457`; the matching engine commit pins it.
 
+After step 5, the user reported successfully starting a server through the lobby
+and inviting a bot. Record these two flows as user-reported manual checks.
+The map, gametype and whether the user joined and played were not specified.
+This does not resolve the deferred warmup issue or establish match-play parity.
+
 Final whitespace checks:
 
 ```powershell
@@ -554,3 +559,260 @@ Changed files for this dependency:
 - `docs/manual/guides/bsp-system.md`
 - `docs/changelog/v1.0.0-alpha.3.md`
 - `docs/research/ENGINE_GAME_SPLIT_PROGRESS.md`
+
+## 6. Washoi shared definition catalog
+
+Concrete weapon, projectile, ammo and item definitions, their lookup table and
+initializer move from SHAG's shared folder to
+`src/games/fps/shared/entities/`. Both Washoi client and server still import
+one catalog. Generic interfaces/defaults and EntityRegistry stay under
+`src/shared/entities/`; its barrel no longer re-exports the concrete catalog.
+All client, server and bot consumers are rebased. Four presentation integration
+tests using concrete Washoi weapons move from the engine to game tests, retaining
+the same assertions; the loading test also gains an alias integration case.
+
+WeaponViewManager's two compatibility-normalization calls now use the engine's
+WeaponIdResolver. Browser and FPS headless composition roots register Washoi's
+unchanged canonicalWeaponId function. Direct loads and animated switches retain
+`lasergun` -> `voltaic`; absent a selected-game resolver, IDs pass through
+unchanged. The resolver has no Babylon dependency and tests clear it after use.
+No weapon values, asset URLs, serialized fields or registration order change.
+
+This dependency does not move pickup classname extraction, BspDataLoader, item
+physics, lobby/bot application ownership or media recipes. PickupTable's sole
+change is a comment pointing at the relocated catalog. Those ownership passes
+remain separate. The deferred step-4 warmup investigation remains open; the
+user-reported lobby creation/bot invitation receipt above is retained.
+
+Validation receipts are under `.cache/engine-game-split/step6-validation/`.
+Before/after JSON captures match exactly across all 31 registered definitions,
+their registration order, 14 weapon table keys, alias object-identity groups and
+case-sensitive normalization examples. SHA-256 of both captures:
+`e7f1790ee4e1ce51a3c88d0f589c62670ec010dd2f2b583a5b65b5764ec335f9`.
+A normalized TypeScript comparison also matches all 31 relocated catalog files,
+three unchanged relocated tests and their rebased consumers (59 files total).
+It resolves old/new imports to the same destinations and ignores comments,
+import/export declaration ordering, whitespace and trailing commas. The shared
+barrel, engine resolver calls and expanded loading test are reviewed separately.
+
+Focused tests passed: six files, 26 tests. The full unit gate passed: 702 files,
+5,575 tests passed, one skipped. Typecheck passed; Biome passed at the existing
+baseline of zero errors and 47 warnings. The freefly initialization probe still
+reports `fps: 200, freefly: 333`. The initial scratch catalog probe needed
+absolute dynamic import paths for vite-node; that was corrected before capturing
+the baseline and before moving source files.
+
+Validation commands (October 23, 2026):
+
+```powershell
+node node_modules/vite-node/vite-node.mjs .cache/engine-game-split/catalog-step6.ts
+node node_modules/vite-node/vite-node.mjs .cache/engine-game-split/catalog-step6.ts after
+node .cache/engine-game-split/prove-step6.mjs
+node node_modules/vite-node/vite-node.mjs .cache/engine-game-split/probe-init-step4.ts
+npm.cmd run test:run -- src/engine/weapon/__tests__/WeaponIdResolver.test.ts src/games/fps/client/__tests__/WeaponViewLoading.test.ts src/games/fps/client/__tests__/WeaponAdsTiming.test.ts src/games/fps/client/__tests__/WeaponViewManagerBeamRouting.test.ts src/games/fps/client/__tests__/ProjectileManagerModelReload.test.ts src/games/fps/world/__tests__/FpsMapEntities.test.ts
+npm.cmd run typecheck
+npm.cmd run test:run
+npm.cmd run gate:biome
+npm.cmd run build
+npm.cmd run build:server
+npm.cmd run docs:build
+npm.cmd run test:simulation
+npm.cmd run test:physics
+npm.cmd run server:tick
+npm.cmd run server:fuzz -- --ticks 1000
+node .cache/engine-game-split/validate-step6.mjs
+```
+
+The scratch runner invokes npm's CLI with argument arrays and additionally runs
+three batches through `node node_modules/vite-node/vite-node.mjs
+src/cli/headless-game.ts -- --exec`, passing each batch as one argument:
+
+- `bsp load washoi_dm2; bsp info; quit` (canonical indexed wdm2; asserts 7,475 faces).
+- `sim replay "W+CROUCH 60; JUMP 1; W 30"; quit` (asserts 91 ticks).
+- `help spectator; help giveweapon; giveweapon rlauncher; quit` (asserts metadata
+  and the unchanged inactive-FPS response).
+
+All remaining gates passed: build, server bundles, engine docs, simulation,
+physics, server tick, fuzz, indexed BSP load, 91-tick replay and command metadata.
+The fixed tick checksum remains `2768943778`. Default-seed fuzz passed with
+checksum `3225111177`; its default seed comes from Date.now(), so this is not a
+cross-step comparison. Repeating the previous step's seed `1792752672000` gives
+its identical checksum `3719501268`, with zero errors. The updated game manual
+also builds successfully.
+
+Additional validation commands:
+
+```powershell
+npm.cmd run docs:fps:build
+node node_modules/vite-node/vite-node.mjs src/cli/server-fuzz.ts -- --ticks 1000 --seed 1792752672000
+node .claude/skills/browser-probe/scripts/private-vite.mjs 3100
+node .cache/engine-game-split/catalog-step6-probe.mjs
+git -C C:/Users/sundf/Desktop/wash/shag diff --check
+git -C C:/Users/sundf/Desktop/wash/shag/src/games/fps diff --check
+```
+
+Headless Edge WebGL2, after the headless checks, loaded local DM11 and observed
+1,200 completed frames, 30 pickups with unique shared IDs and a successful real
+weapon-model load of `lasergun` as `voltaic`. An unknown ID passes through the
+registered resolver unchanged. Unload leaves zero managed entities/table rows
+and every tracked pickup disposed; final captured exception/rejection count is
+zero. The probe blocks lobby sockets and starts no network match or gametype.
+Receipts: `browser.json` and `pickups.png` in the scratch validation directory.
+
+Two initial probe runs successfully loaded the map/weapon but captured
+`Error: No camera defined` after disposing their temporary weapon view. The
+probe had replaced the host's camera pair and failed to restore it. It now
+restores both host camera fields synchronously after disposing its own view;
+the rerun passes. No production teardown code was changed. The failure receipt
+is retained as `browser-probe-camera-failure.json`. This error differs from the
+deferred warmup TypeError and does not explain or resolve it. The private browser
+and Vite server were closed after probing.
+
+Assumptions: the composition root registers the selected-game resolver before
+weapon presentation; Washoi client/server use the same installed catalog and
+engine revision. Unverified here: joining/playing, firing and active-set behavior
+in a live match, demo playback, and the deferred warmup failure. Catalog parity,
+headless regressions and the direct browser checks do not substitute for those
+broader playtests or the final game-free engine acceptance gate.
+
+The game-side catalog commit is `84306f6`; the matching engine commit pins it.
+While finishing, concurrent lobby/bot changes appeared after the completed unit
+run. They were excluded from this dependency's staging. They then landed
+separately as engine `105c4359` and FPS `be0b7cf`, which are retained. The
+concurrent engine commit also picked up this step's already-written catalog
+changelog entry. The full gate results above apply to this catalog change at
+validation time, not to those later edits; the combined branch after the
+concurrent commits was not revalidated by this task. The paths identified at
+the initial staging audit are captured in `unowned-at-commit.json`:
+
+- `docs/manual/guides/lobby-server.md`
+- `src/engine/ui/components/MatchLobbyView.ts`
+- `src/engine/ui/components/__tests__/MatchLobbyView.test.ts`
+- `src/engine/ui/components/styles/MatchLobbyView.css`
+- `src/lobby/LobbyServer.ts`
+- `src/lobby/integration/PrivateBotInvite.test.ts`
+- `src/lobby/types.ts`
+- `src/games/fps/docs/manual/getting-started/index.md`
+- `src/games/fps/docs/manual/multiplayer/connecting.md`
+- `src/games/fps/docs/manual/multiplayer/lobby.md`
+- `src/games/fps/docs/manual/player/first-match.md`
+- `src/games/fps/docs/manual/tools/bot-server.md`
+
+Changed files for this dependency (including removed paths and the FPS gitlink):
+
+- `AGENTS.md`
+- `docs/changelog/v1.0.0-alpha.3.md`
+- `docs/manual/guides/service-registries.md`
+- `docs/manual/guides/weapon-system.md`
+- `docs/manual/tutorials/advanced/entity-system.md`
+- `docs/research/ENGINE_GAME_SPLIT_PROGRESS.md`
+- `src/bot/BotWeaponProfile.ts`
+- `src/bot/goals/considerations/ItemFacts.ts`
+- `src/cli/headless-game.ts`
+- `src/engine/__tests__/ProjectileManagerModelReload.test.ts` (removed)
+- `src/engine/__tests__/WeaponAdsTiming.test.ts` (removed)
+- `src/engine/__tests__/WeaponViewLoading.test.ts` (removed)
+- `src/engine/__tests__/WeaponViewManagerBeamRouting.test.ts` (removed)
+- `src/engine/weapon/WeaponIdResolver.ts`
+- `src/engine/weapon/WeaponViewManager.ts`
+- `src/engine/weapon/__tests__/WeaponIdResolver.test.ts`
+- `src/games/fps`
+- `src/games/fps/Game.ts`
+- `src/games/fps/camera/FPSController.ts`
+- `src/games/fps/client/AmmoStatus.ts`
+- `src/games/fps/client/Crosshair.ts`
+- `src/games/fps/client/FPSCombatAudio.ts`
+- `src/games/fps/client/FPSReloadAudio.ts`
+- `src/games/fps/client/FollowedViewWeapon.ts`
+- `src/games/fps/client/GameEvents.ts`
+- `src/games/fps/client/RemotePlayerRenderer.ts`
+- `src/games/fps/client/SnapshotStateStore.ts`
+- `src/games/fps/client/__tests__/CrosshairAmmo.test.ts`
+- `src/games/fps/client/__tests__/DroppedWeaponLeak.test.ts`
+- `src/games/fps/client/__tests__/ProjectileManagerModelReload.test.ts`
+- `src/games/fps/client/__tests__/RemoteWeaponLeak.test.ts`
+- `src/games/fps/client/__tests__/WeaponAdsTiming.test.ts`
+- `src/games/fps/client/__tests__/WeaponViewLoading.test.ts`
+- `src/games/fps/client/__tests__/WeaponViewManagerBeamRouting.test.ts`
+- `src/games/fps/client/hud/widgets/AmmoCounter.ts`
+- `src/games/fps/client/hud/widgets/LoadoutPicker.ts`
+- `src/games/fps/docs/manual/developer/adding-a-weapon.md`
+- `src/games/fps/docs/manual/getting-started/project-structure.md`
+- `src/games/fps/docs/manual/player/weapons.md`
+- `src/games/fps/index.ts`
+- `src/games/fps/server/index.ts`
+- `src/games/fps/server/systems/ProjectileSystem.ts`
+- `src/games/fps/server/systems/WeaponSystem.ts`
+- `src/games/fps/server/systems/__tests__/HitLocation.test.ts`
+- `src/games/fps/server/systems/__tests__/PlasmaSelfDamage.test.ts`
+- `src/games/fps/server/systems/__tests__/ProjectileSystem.test.ts`
+- `src/games/fps/server/systems/__tests__/WeaponAds.test.ts`
+- `src/games/fps/server/systems/__tests__/WeaponSpread.test.ts`
+- `src/games/fps/server/systems/__tests__/WeaponSystem.test.ts`
+- `src/games/fps/shared/entities/definitions/ammo/electrobolt.ts`
+- `src/games/fps/shared/entities/definitions/ammo/glauncher.ts`
+- `src/games/fps/shared/entities/definitions/ammo/index.ts`
+- `src/games/fps/shared/entities/definitions/ammo/instagun.ts`
+- `src/games/fps/shared/entities/definitions/ammo/lasergun.ts`
+- `src/games/fps/shared/entities/definitions/ammo/machinegun.ts`
+- `src/games/fps/shared/entities/definitions/ammo/plasmagun.ts`
+- `src/games/fps/shared/entities/definitions/ammo/riotgun.ts`
+- `src/games/fps/shared/entities/definitions/ammo/rlauncher.ts`
+- `src/games/fps/shared/entities/definitions/ammo/voltaic.ts`
+- `src/games/fps/shared/entities/definitions/index.ts`
+- `src/games/fps/shared/entities/definitions/items.ts`
+- `src/games/fps/shared/entities/definitions/projectiles/blade_blast.ts`
+- `src/games/fps/shared/entities/definitions/projectiles/grenade.ts`
+- `src/games/fps/shared/entities/definitions/projectiles/index.ts`
+- `src/games/fps/shared/entities/definitions/projectiles/plasma_bolt.ts`
+- `src/games/fps/shared/entities/definitions/projectiles/rocket.ts`
+- `src/games/fps/shared/entities/definitions/weapons/WeaponsTable.ts`
+- `src/games/fps/shared/entities/definitions/weapons/__tests__/electrobolt.test.ts`
+- `src/games/fps/shared/entities/definitions/weapons/blade.ts`
+- `src/games/fps/shared/entities/definitions/weapons/electrobolt.ts`
+- `src/games/fps/shared/entities/definitions/weapons/glauncher.ts`
+- `src/games/fps/shared/entities/definitions/weapons/index.ts`
+- `src/games/fps/shared/entities/definitions/weapons/instagun.ts`
+- `src/games/fps/shared/entities/definitions/weapons/lasergun.ts`
+- `src/games/fps/shared/entities/definitions/weapons/machinegun.ts`
+- `src/games/fps/shared/entities/definitions/weapons/plasmagun.ts`
+- `src/games/fps/shared/entities/definitions/weapons/riotgun.ts`
+- `src/games/fps/shared/entities/definitions/weapons/rlauncher.ts`
+- `src/games/fps/shared/entities/definitions/weapons/voltaic.ts`
+- `src/games/fps/shared/entities/index.ts`
+- `src/games/fps/shared/entities/initEntityDefs.ts`
+- `src/games/fps/world/FpsMapEntities.ts`
+- `src/main.ts`
+- `src/shared/bsp/PickupTable.ts`
+- `src/shared/entities/definitions/ammo/electrobolt.ts` (removed)
+- `src/shared/entities/definitions/ammo/glauncher.ts` (removed)
+- `src/shared/entities/definitions/ammo/index.ts` (removed)
+- `src/shared/entities/definitions/ammo/instagun.ts` (removed)
+- `src/shared/entities/definitions/ammo/lasergun.ts` (removed)
+- `src/shared/entities/definitions/ammo/machinegun.ts` (removed)
+- `src/shared/entities/definitions/ammo/plasmagun.ts` (removed)
+- `src/shared/entities/definitions/ammo/riotgun.ts` (removed)
+- `src/shared/entities/definitions/ammo/rlauncher.ts` (removed)
+- `src/shared/entities/definitions/ammo/voltaic.ts` (removed)
+- `src/shared/entities/definitions/index.ts` (removed)
+- `src/shared/entities/definitions/items.ts` (removed)
+- `src/shared/entities/definitions/projectiles/blade_blast.ts` (removed)
+- `src/shared/entities/definitions/projectiles/grenade.ts` (removed)
+- `src/shared/entities/definitions/projectiles/index.ts` (removed)
+- `src/shared/entities/definitions/projectiles/plasma_bolt.ts` (removed)
+- `src/shared/entities/definitions/projectiles/rocket.ts` (removed)
+- `src/shared/entities/definitions/weapons/WeaponsTable.ts` (removed)
+- `src/shared/entities/definitions/weapons/__tests__/electrobolt.test.ts` (removed)
+- `src/shared/entities/definitions/weapons/blade.ts` (removed)
+- `src/shared/entities/definitions/weapons/electrobolt.ts` (removed)
+- `src/shared/entities/definitions/weapons/glauncher.ts` (removed)
+- `src/shared/entities/definitions/weapons/index.ts` (removed)
+- `src/shared/entities/definitions/weapons/instagun.ts` (removed)
+- `src/shared/entities/definitions/weapons/lasergun.ts` (removed)
+- `src/shared/entities/definitions/weapons/machinegun.ts` (removed)
+- `src/shared/entities/definitions/weapons/plasmagun.ts` (removed)
+- `src/shared/entities/definitions/weapons/riotgun.ts` (removed)
+- `src/shared/entities/definitions/weapons/rlauncher.ts` (removed)
+- `src/shared/entities/definitions/weapons/voltaic.ts` (removed)
+- `src/shared/entities/index.ts`
+- `src/shared/entities/initEntityDefs.ts` (removed)

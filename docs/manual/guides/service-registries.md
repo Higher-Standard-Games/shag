@@ -15,6 +15,9 @@ Small single-slot registries keep generic engine code from importing the active 
   the engine freefly camera; game-free tools receive engine-local defaults.
 - `GameMapEntities`: game-owned definition initialization, entity-handler
   registration and map-entity disposal at the map loader's lifecycle boundaries.
+- `WeaponIdResolver`: a game's compatibility-ID mapping for engine weapon views;
+  absent a resolver, IDs pass through unchanged. The composition root calls
+  `registerWeaponIdResolver`; tests release it with `clearWeaponIdResolver`.
 
 `GameplayMapLauncher`, `NetworkConnector`, `FreeflyInput` and `GameMapEntities` expose register,
 get and clear; `GameFrameHook` uses

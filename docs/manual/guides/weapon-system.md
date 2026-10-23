@@ -12,6 +12,15 @@ Weapons cross shared definitions, authoritative server combat, client input/pred
 | Engine presentation | `WeaponViewManager`, model/material/effect rendering |
 | HUD | Crosshair, ammo, hit/death feedback |
 
+Washoi's concrete definitions and `WEAPONS` table live in
+`src/games/fps/shared/entities/definitions/`, shared by its client and server.
+The engine keeps the generic interfaces, defaults and `EntityRegistry` in
+`src/shared/entities/`; that barrel does not export Washoi definitions.
+The application registers Washoi's compatibility-ID resolver with
+`registerWeaponIdResolver` before creating weapon views. The engine's
+`WeaponViewManager` uses it for both direct loads and animated switches;
+without a resolver, IDs pass through unchanged.
+
 The server remains authoritative. A muzzle flash or predicted projectile must not apply damage locally.
 
 The Blade's 48-unit step-in dash requires an accepted primary swing, forward

@@ -28,9 +28,11 @@ import { registerEngineCommands } from "../engine/console/commands";
 import type { EngineConfig } from "../engine/core/GamePaths";
 import { registerGameMapEntities } from "../engine/loader/map/GameMapEntities";
 import { PK3Loader } from "../engine/loader/pk3/PK3Loader";
+import { registerWeaponIdResolver } from "../engine/weapon/WeaponIdResolver";
 import GiveWeaponCommand from "../games/fps/console/commands/GiveWeaponCommand";
 import SpawnPickupCommand from "../games/fps/console/commands/SpawnPickupCommand";
 import SpectatorCommand from "../games/fps/console/commands/SpectatorCommand";
+import { canonicalWeaponId } from "../games/fps/shared/entities/definitions/weapons/WeaponsTable";
 import { fpsMapEntities } from "../games/fps/world/FpsMapEntities";
 import { formatPreflight, preflightGameAssets, resolveGameAssetDir } from "./_assetPreflight";
 import { runCli } from "./_runCli";
@@ -189,6 +191,7 @@ async function initializeGameSystems(ctx: HeadlessContext): Promise<void> {
 
 async function registerCommands(_ctx: HeadlessContext): Promise<void> {
   registerGameMapEntities(fpsMapEntities);
+  registerWeaponIdResolver(canonicalWeaponId);
   console.log("[Init] Registering commands...");
 
   // Register all engine commands

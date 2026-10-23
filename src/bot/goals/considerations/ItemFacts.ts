@@ -8,7 +8,7 @@
  * silently rot a hand-copied table.
  */
 
-import { WEAPONS } from "../../../shared/entities/definitions/weapons/WeaponsTable";
+import { WEAPONS } from "../../../games/fps/shared/entities/definitions/weapons/WeaponsTable";
 import { QUAD_MULTIPLIER } from "../../../shared/items/Powerups";
 import type { BotSelf } from "../../BotGameState";
 import { clamp01 } from "../Consideration";

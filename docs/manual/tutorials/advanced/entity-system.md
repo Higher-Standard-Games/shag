@@ -31,7 +31,12 @@ EntityHandlerRegistry.unregister('example_marker');
 
 ## Shared and gameplay entities
 
-Definitions and stable entity types live under `src/shared/entities/`. Runtime engine entities are coordinated by `src/engine/entities/EntityManager.ts`; FPS-specific authoritative behavior belongs in `src/games/fps/server/`.
+Generic definition interfaces, stable entity types and the registry live under
+`src/shared/entities/`. Washoi's concrete definitions live in
+`src/games/fps/shared/entities/`, shared by its client and server. Its pickup
+manager is `src/games/fps/world/EntityManager.ts`; the engine map loader calls it
+through the registered `GameMapEntities` adapter. FPS-specific authoritative
+behavior belongs in `src/games/fps/server/`.
 
 When adding networked state:
 
