@@ -16,26 +16,19 @@
  * Run after adding any Babylon import:  npm run deps:babylon
  */
 
-import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { readFileSync, writeFileSync } from "node:fs";
+import ts from "typescript";
 
-const SRC = "src";
 const CONFIG = "vite.config.ts";
 /** Any quoted @babylonjs specifier, whatever import form it appears in. */
 const SPECIFIER = /["'](@babylonjs\/[^"']+)["']/g;
 
-function walk(dir) {
-  const out = [];
-  for (const entry of readdirSync(dir)) {
-    const path = join(dir, entry);
-    if (statSync(path).isDirectory()) out.push(...walk(path));
-    else if (/\.tsx?$/.test(entry)) out.push(path);
-  }
-  return out;
-}
+const project = ts.readConfigFile("tsconfig.json", ts.sys.readFile);
+if (project.error) throw new Error(ts.flattenDiagnosticMessageText(project.error.messageText, "\n"));
+const sources = ts.parseJsonConfigFileContent(project.config, ts.sys, process.cwd()).fileNames;
 
 const found = new Set();
-for (const file of walk(SRC)) {
+for (const file of sources) {
   const text = readFileSync(file, "utf8");
   for (const match of text.matchAll(SPECIFIER)) {
     const specifier = match[1];

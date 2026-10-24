@@ -1,5 +1,9 @@
 # Unified Water System Research
 
+The water-check driver and scene live in Washoi's
+[development diagnostics](../../src/games/fps/scripts/diagnostics/README.md).
+Commands and paths in the dated records below describe those earlier revisions.
+
 **Date:** 2026-08-06<br>
 **Status:** All seven phases written. Confirmed in play: swimming, the depth-tinted surface, splashes and ripples, and the Epic crown. Reworked on 2026-08-18: semantic material hints now load real map/sky cubemaps, and Epic owns one budgeted live planar reflection. Browser feedback on 2026-08-22 exposed a scene-wide capture list, captured muzzle-flash ghosts, and an underweighted mirror; those are corrected and awaiting another real-GPU visual/performance pass. Owed: broad map compatibility (Phase 6, items 3–5).<br>
 

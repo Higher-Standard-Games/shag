@@ -17,26 +17,22 @@
  * back. Hence a test rather than a comment asking people to remember.
  */
 
-import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { readFileSync } from "node:fs";
+import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 /** Any quoted @babylonjs specifier, whatever import form it appears in. */
 const SPECIFIER = /["'](@babylonjs\/[^"']+)["']/g;
 
-function sourceFiles(dir: string): string[] {
-  const out: string[] = [];
-  for (const entry of readdirSync(dir)) {
-    const path = join(dir, entry);
-    if (statSync(path).isDirectory()) out.push(...sourceFiles(path));
-    else if (/\.tsx?$/.test(entry)) out.push(path);
-  }
-  return out;
+function sourceFiles(): string[] {
+  const config = ts.readConfigFile("tsconfig.json", ts.sys.readFile);
+  if (config.error) throw new Error(ts.flattenDiagnosticMessageText(config.error.messageText, "\n"));
+  return ts.parseJsonConfigFileContent(config.config, ts.sys, process.cwd()).fileNames;
 }
 
 function importedModules(): Set<string> {
   const found = new Set<string>();
-  for (const file of sourceFiles("src")) {
+  for (const file of sourceFiles()) {
     for (const match of readFileSync(file, "utf8").matchAll(SPECIFIER)) {
       const specifier = match[1];
       // `?url` and `.wasm` are assets Vite copies, not modules it pre-bundles.

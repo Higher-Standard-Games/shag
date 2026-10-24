@@ -129,7 +129,7 @@ Native map authoring uses the sequential MCP stages in README. Final map-specifi
 ```powershell
 $env:SOLAMPHI_QUALITY = 'default'
 node experiments/shagged/solamphi1/refine.mjs report
-npx tsx experiments/shagged/solamphi1/verify.ts
+npx vite-node src/games/fps/scripts/diagnostics/solamphi1-verify.ts
 ```
 
 The report verifies all four spawns and four items are connected for players and bots. The native collision probe verifies both underpasses with the actual standing-player origin and hull, all basin contents and escape step heights, dry paths, actual detail-pilaster solidity and baked font materials. MakeBSP consumes the source DETAIL classification; final material flags do not retain a distinct detail-solid shader entry.

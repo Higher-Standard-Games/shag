@@ -2673,3 +2673,125 @@ suite skip remains; fresh installation, game-free checkout, browser play and
 production deployment were not tested.
 
 Washoi commit: `dfdb7d2` (`test: own Washoi engine and lobby integration coverage`).
+
+## Step 23 — development probes and water fixture ownership (2026-10-24)
+
+Moved the six remaining outer TypeScript files importing Washoi, plus the water
+browser driver that calls its game-specific scene. Script behavior, assertion
+bodies, arguments and assembled-root asset/output resolution are preserved;
+imports and the fixture's served source URL follow the new locations.
+
+| Previous outer path | Washoi destination in the assembled checkout |
+| --- | --- |
+| `docs/research/v0.9.23-networking-repro.ts` | `src/games/fps/scripts/diagnostics/historical/v0.9.23-networking-repro.ts` |
+| `docs/research/v0.9.23-pickup-render-probe.ts` | `src/games/fps/scripts/diagnostics/historical/v0.9.23-pickup-render-probe.ts` |
+| `docs/research/v0.9.23-review-repro.ts` | `src/games/fps/scripts/diagnostics/historical/v0.9.23-review-repro.ts` |
+| `docs/research/v0.9.29-quality-probe.ts` | `src/games/fps/scripts/diagnostics/historical/v0.9.29-quality-probe.ts` |
+| `experiments/shagged/solamphi1/verify.ts` | `src/games/fps/scripts/diagnostics/solamphi1-verify.ts` |
+| `scripts/water-visual-scene.ts` | `src/games/fps/scripts/diagnostics/water-visual-scene.ts` |
+| `scripts/water-visual-check.mjs` | `src/games/fps/scripts/diagnostics/water-visual-check.mjs` |
+
+Other exact files changed: new game `scripts/diagnostics/README.md`; game manual
+`docs/manual/getting-started/project-structure.md`; root `tsconfig.json` and
+`biome.json`; engine manual `docs/manual/guides/headless-mode.md`;
+`docs/research/v0.9.23-QA.md`, `docs/research/v0.9.29-quality-audit.md` and
+`docs/research/WATER.md` (current-source links/notes, preserving dated command
+transcripts); experiment `README.md` and `VALIDATION.md` (current invocation);
+the living changelog, refreshed inventory, this log and game pin.
+
+The new diagnostic subtree is excluded from the application TypeScript and
+Biome gates, matching these scripts' previous locations outside outer `src/`.
+The compiler-root comparison proves every existing application root is still
+included; no existing source/test subtree was excluded or baseline raised.
+Historical scripts remain outside CI, as their own headers already described.
+
+The tracked-source audit now finds **zero resolved outer TypeScript imports
+into Washoi in every category**, including research, experiments and scripts.
+Production engine transitive exposure remains zero. This is a TypeScript-source
+boundary milestone, not proof of independent checkout: raw/JSON assets, JS and
+configuration strings, package/build/test/platform recipes, assembly proof and
+Git detachment still require the next stages.
+
+Private receipts: `.cache/engine-game-split/step23-validation/`.
+`node .cache/engine-game-split/prove-step23.mjs` confirms imported bindings and
+ordered AST bodies in all seven scripts match the prepared relocation.
+`node .cache/engine-game-split/compare-step23.mjs` confirms the existing compiler
+root set is preserved and historical probe statuses/findings match before/after.
+
+`node .cache/engine-game-split/probes-step23.mjs baseline` and `after` run the
+four historical probes through `node node_modules/vite-node/vite-node.mjs`
+at their old/new paths above. Review and quality probes pass with identical
+JSON findings. Networking already fails: its fake PVS lacks `getCluster`, so
+the broadcaster logs an error and no-packet assertion fails. Pickup rendering
+already fails to resolve engine `entities/EntityManager`; it also references
+the removed shared `bsp/PickupTable` path. Both failures persist after moving;
+neither is reported as a passing regression gate or repaired in this checkpoint.
+Their limits are recorded in the game diagnostic README.
+
+`node node_modules/vite-node/vite-node.mjs .cache/engine-game-split/map-step23.ts`
+checks `resolveMapBspViaIndex(['public/data'], 'solamphi1')`: not installed.
+The authored-map verifier was not executed, avoiding a misleading pass or a
+write over the historical experiment report. Its data and report paths stay
+relative to the assembled root.
+
+`node .cache/engine-game-split/validate-step23.mjs baseline` passed simulation,
+physics, tick, 1,000-tick seed-42 fuzz, indexed `washoi_dm2` BSP and 91-tick
+movement replay before the browser baseline. `node scripts/water-visual-check.mjs
+--probe-height=23` then passed in disposable headless Chrome, WebGL2 on the
+NVIDIA RTX 4070 SUPER / Direct3D11, with a ready unified water material, one
+reflection probe and zero browser errors. Outputs used the verified-new
+`temp/water-visual-check-height23/` directory and a separate Vite cache;
+baseline screenshots/results are preserved under the private receipt directory.
+
+Assumptions: assembled-root execution, existing dependencies/media and Chrome;
+private ports 3017/9227 were free. Other clients' renderer/fog/preloader and
+shared-changelog edits remain excluded from this checkpoint. Full game startup,
+all optional water modes, fresh dependency installation, production deployment
+and independent checkout are unverified. Diagnostic timings are not a
+performance comparison.
+
+The first full gate run exposed a relocation-specific scanner failure:
+`src/__tests__/ViteBabylonDeps.test.ts` treated the standalone water fixture as
+application source and requested `imageProcessingPostProcess` / stock
+`waterMaterial` optimizer entries. That run ended with 718 files passing and
+one file failing (5,643 tests passed, one failed, one skipped). The failure log
+is retained in `step23-validation/gates/`; it is not reported as a passing run.
+
+Updated `scripts/babylon-deps.mjs` and its existing
+`src/__tests__/ViteBabylonDeps.test.ts` checks to read the configured TypeScript
+application roots, preserving the standalone fixture's separate dependency
+configuration. This adds two exact changed files to the list above.
+`npm.cmd run test:run -- src/__tests__/ViteBabylonDeps.test.ts` passes both
+checks. `npm.cmd run deps:babylon` reports the existing **169 modules** already
+up to date; `vite.config.ts` was not modified. The complete gate rerun is
+retained separately under `step23-validation/gates-fixed/`.
+
+After the corrected headless gates, `node
+src/games/fps/scripts/diagnostics/water-visual-check.mjs --probe-height=23`
+passed through the moved driver and source URL. Before/after reports agree on
+WebGL2 hardware, ready unified material, one probe, capture dimensions/targets,
+scene bounds and zero browser errors. `node
+.cache/engine-game-split/water-compare-step23.mjs` passed those comparisons.
+Screenshots (`room.png`, `surface.png`, `grazing.png`, `underwater.png` and
+quality/impulse views) and JSON results are preserved in the private
+`baseline/water/` and `after/water/` directories. Timings and frame counts vary
+and are not used as a performance result.
+
+Washoi commit: `73b94c8` (`refactor: own game diagnostics and water browser fixture`).
+
+`node .cache/engine-game-split/validate-step23.mjs gates-fixed` passed all gates:
+
+| Exact command | Result |
+| --- | --- |
+| `npm.cmd run typecheck` | Passed |
+| `npm.cmd run test:run` | 719 files; 5,644 tests passed, one skipped |
+| `npm.cmd run gate:biome` | Passed; zero errors / 47 baseline warnings |
+| `npm.cmd run build` | Passed, including PK3 index and sourcemap relocation |
+| `npm.cmd run docs:build` | Passed |
+| `npm.cmd run docs:fps:build` | Passed |
+| `npm.cmd run test:simulation` | Passed |
+| `npm.cmd run test:physics` | Passed |
+| `npm.cmd run server:tick` | Passed; checksum `2768943778` |
+| `npm.cmd run server:fuzz -- --ticks 1000 --seed 42` | Passed; checksum `2481546443` |
+| `npm.cmd run cli:game -- --exec "bsp load washoi_dm2; bsp info; quit"` | Passed; 7,475 faces |
+| `npm.cmd run cli:game -- --exec 'sim replay \"W+CROUCH 60; JUMP 1; W 30\"; quit'` | Passed; 91 ticks |

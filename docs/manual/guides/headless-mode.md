@@ -7,6 +7,12 @@ application entry points live in `src/games/fps/cli/` in the assembled checkout.
 Run the npm commands below from the assembled root. Generic BSP inspection and
 shared CLI helpers remain in SHAG's `src/cli/`.
 
+Optional game diagnostics live under `src/games/fps/scripts/diagnostics/`.
+They include the browser water fixture, an experimental-map verifier and
+historical research probes. These are outside the application typecheck/lint
+scope and are not substitutes for the regression commands below. Their README
+records requirements and known stale probes; run them from the assembled root.
+
 ## Game console runner
 
 Beyond the engine commands, this runner registers `sim`, `anim`, `headless`,

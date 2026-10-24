@@ -50,5 +50,8 @@
     },
     "include": [
         "src"
+    ],
+    "exclude": [
+        "src/games/fps/scripts/diagnostics"
     ]
 }

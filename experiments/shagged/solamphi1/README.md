@@ -68,7 +68,7 @@ For the final normal-quality compile and movement report in PowerShell:
 ```powershell
 $env:SOLAMPHI_QUALITY = 'default'
 node experiments/shagged/solamphi1/refine.mjs report
-npx tsx experiments/shagged/solamphi1/verify.ts
+npx vite-node src/games/fps/scripts/diagnostics/solamphi1-verify.ts
 ```
 
 Run authoring stages sequentially because each depends on the previous document revision. The compiler now coordinates native jobs sharing a media root across local MCP/server processes. Fast compilation deliberately disables compiler chamfering; review the final look using default quality. Reuse fingerprints compiler, profiles, recipe and media as well as source. Use the scripting CLI's `compile ... --force` or MCP `force: true` for an explicit rebuild.
