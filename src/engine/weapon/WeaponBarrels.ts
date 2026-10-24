@@ -165,7 +165,10 @@ export class WeaponBarrels {
     if (this.sourceScene !== scene) {
       this.releaseSources();
       this.sourceScene = scene;
-      this.sources = new ModelInstanceCache(scene, (path) => this.loadSource(path, scene));
+      // Barrels only spin; their read-only PBR materials are shared (not on WebGPU)
+      this.sources = new ModelInstanceCache(scene, (path) => this.loadSource(path, scene), {
+        shareStaticMaterials: !scene.getEngine().isWebGPU,
+      });
     }
     const sources = this.sources!;
     const generation = this.generation;
