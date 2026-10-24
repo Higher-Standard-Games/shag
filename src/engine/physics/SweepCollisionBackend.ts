@@ -115,6 +115,7 @@ interface InternalTraceResult {
   contents: number;
   hitBrushIndex: number;
   hitTextureName: string;
+  hitSurfaceFlags: number;
 }
 
 /**
@@ -201,6 +202,7 @@ export class SweepCollisionBackend implements CollisionBackend {
       contents: 0,
       hitBrushIndex: -1,
       hitTextureName: "",
+      hitSurfaceFlags: 0,
     },
     debug: false,
   };
@@ -621,6 +623,7 @@ export class SweepCollisionBackend implements CollisionBackend {
     state.result.contents = 0;
     state.result.hitBrushIndex = -1;
     state.result.hitTextureName = "";
+    state.result.hitSurfaceFlags = 0;
     state.debug = options?.debug ?? false;
 
     if (state.debug) {
@@ -711,6 +714,7 @@ export class SweepCollisionBackend implements CollisionBackend {
       contents: state.result.contents,
       hitBrushIndex: state.result.hitBrushIndex,
       hitTextureName: state.result.hitTextureName,
+      hitSurfaceFlags: state.result.hitSurfaceFlags,
     };
 
     const elapsed = performance.now() - startTime;
@@ -1043,6 +1047,7 @@ export class SweepCollisionBackend implements CollisionBackend {
         hitPlane >= 0 ? [planes[hitPlane * 4], planes[hitPlane * 4 + 1], planes[hitPlane * 4 + 2]] : null;
       state.result.contents = texture.contentFlags;
       state.result.hitTextureName = texture.name;
+      state.result.hitSurfaceFlags = texture.surfaceFlags;
     }
   }
 
@@ -1119,6 +1124,7 @@ export class SweepCollisionBackend implements CollisionBackend {
     let startOut = false;
     let endOut = false;
     let hitPlaneNormal: [number, number, number] | null = null;
+    let hitSideShader = -1;
 
     for (let i = 0; i < brush.numSides; i++) {
       const side = this.bsp.brushSides[brush.firstSide + i];
@@ -1163,6 +1169,7 @@ export class SweepCollisionBackend implements CollisionBackend {
         if (fraction > enterFraction) {
           enterFraction = fraction;
           hitPlaneNormal = plane.normal;
+          hitSideShader = side.shaderIndex;
         }
       } else {
         // Leaving the brush
@@ -1225,6 +1232,7 @@ export class SweepCollisionBackend implements CollisionBackend {
         state.result.contents = texture.contentFlags;
         state.result.hitBrushIndex = brushIndex;
         state.result.hitTextureName = texture.name;
+        state.result.hitSurfaceFlags = this.bsp.textures[hitSideShader]?.surfaceFlags ?? texture.surfaceFlags;
       }
     }
   }

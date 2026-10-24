@@ -28,6 +28,8 @@ export interface TraceResult {
   contents: number;
   hitBrushIndex?: number;
   hitTextureName?: string;
+  /** Surface flags of the face hit (`SurfaceFlags`): NOIMPACT on sky, NOMARKS on clip */
+  hitSurfaceFlags?: number;
 }
 
 /**

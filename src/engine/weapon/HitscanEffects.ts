@@ -22,6 +22,9 @@ import type { Scene } from "@babylonjs/core/scene";
 import { generateSpreadDirections, mulberry32, yawPitchFromDirection } from "../../shared/SpreadUtils";
 import { devLog } from "../core/DevLog";
 import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
+import type { TraceOptions } from "../physics/CollisionBackend";
+import { getCollisionManager } from "../physics/CollisionManager";
+import { ContentFlags, SurfaceFlags } from "../physics/ContentFlags";
 import { ImpactSparkRenderer } from "./impact/ImpactSparkRenderer";
 import { MuzzleFlashRenderer, type MuzzleFlashSpawn } from "./muzzle/MuzzleFlashRenderer";
 import { getPointLightPool, type PooledLightOwner } from "./PointLightPool";
@@ -123,6 +126,13 @@ export interface PelletConfig extends HitscanFireConfig {
 export function serverPelletDirections(direction: Vector3, seed: number, count: number, spreadDeg: number): Vector3[] {
   const { yaw, pitch } = yawPitchFromDirection(direction);
   return generateSpreadDirections(seed, count, spreadDeg, yaw, pitch).map((d) => new Vector3(d.x, d.y, d.z));
+}
+
+/** Where a shot stopped: `marks` is false on surfaces that take no marks. */
+interface ShotTrace {
+  point: Vector3;
+  normal: Vector3;
+  marks: boolean;
 }
 
 /** Bolt / rail trail (electrobolt-style thick beam) */
@@ -318,7 +328,7 @@ export class HitscanEffects {
         };
         effect.light = this.spawnImpactFlash(hit.point, color, hit.normal, effect, TRACER_IMPACT_LIGHT_INTENSITY);
         this.effects.push(effect);
-        this.spawnWallMark(hit.point, hit.normal, color, 0.3);
+        if (hit.marks) this.spawnWallMark(hit.point, hit.normal, color, 0.3);
         this.spawnImpactSparks(hit.point, hit.normal, direction, color, TRACER_SPARKS, false);
       });
     }
@@ -504,7 +514,7 @@ export class HitscanEffects {
       // Every pellet marks and sparks; only the consolidated flash below is
       // shared, because lights are the expensive part, not instances.
       if (hit?.point) {
-        this.spawnWallMark(hit.point, hit.normal, color, 2.0);
+        if (hit.marks) this.spawnWallMark(hit.point, hit.normal, color, 2.0);
         this.spawnImpactSparks(hit.point, hit.normal, dir, color, PELLET_SPARKS, false);
       }
 
@@ -670,7 +680,7 @@ export class HitscanEffects {
 
     // Leave a scorch mark at impact
     if (hit) {
-      this.spawnWallMark(hit.point, hit.normal, color, 1.0);
+      if (hit.marks) this.spawnWallMark(hit.point, hit.normal, color, 1.0);
       this.spawnImpactSparks(hit.point, hit.normal, cfg.direction, color, BOLT_SPARKS, true);
     }
 
@@ -859,10 +869,40 @@ export class HitscanEffects {
 
   // ── Private helpers ──────────────────────────────────────────────
 
-  /** Raycast and return hit info (point + normal), or null */
-  private traceRay(origin: Vector3, dir: Vector3, maxDist: number): { point: Vector3; normal: Vector3 } | null {
-    if (!this.scene) return null;
+  /** A ray against solid brushes: what the server's shots stop on. */
+  private static readonly SHOT_TRACE: TraceOptions = { radius: 0, height: 0, contentMask: ContentFlags.SOLID };
+  private readonly traceEnd = new Vector3();
 
+  /**
+   * Where a shot from `origin` along `dir` stops, or null when it reaches
+   * `maxDist` or a surface with no impacts (sky). Traces the map's collision
+   * brushes, the world the server's shots stop on, so a shot ends on weapon
+   * clip; `marks` is false where the surface takes no marks. A scene without
+   * map collision, or a ray starting inside a brush, picks the rendered
+   * meshes instead.
+   */
+  private traceRay(origin: Vector3, dir: Vector3, maxDist: number): ShotTrace | null {
+    if (!this.scene) return null;
+    const sweep = getCollisionManager().getSweepBackend();
+    if (sweep) {
+      dir.scaleToRef(maxDist, this.traceEnd).addInPlace(origin);
+      const result = sweep.trace(origin, this.traceEnd, HitscanEffects.SHOT_TRACE);
+      if (!result.startSolid) {
+        const flags = result.hitSurfaceFlags ?? 0;
+        if (result.fraction >= 1 || flags & SurfaceFlags.NOIMPACT) return null;
+        return {
+          point: result.endPos,
+          normal: result.normal ?? dir.scale(-1),
+          marks: !(flags & SurfaceFlags.NOMARKS),
+        };
+      }
+    }
+    return this.pickRenderedSurface(origin, dir, maxDist);
+  }
+
+  /** Pick the first solid-looking rendered mesh along the ray. */
+  private pickRenderedSurface(origin: Vector3, dir: Vector3, maxDist: number): ShotTrace | null {
+    if (!this.scene) return null;
     const ray = new Ray(origin, dir, maxDist);
     const hit = this.scene.pickWithRay(ray, (mesh) => {
       if (!mesh.isPickable) return false;
@@ -918,7 +958,7 @@ export class HitscanEffects {
 
     if (hit?.hit && hit.pickedPoint) {
       const normal = hit.getNormal(true) ?? dir.scale(-1);
-      return { point: hit.pickedPoint, normal };
+      return { point: hit.pickedPoint, normal, marks: true };
     }
     return null;
   }
