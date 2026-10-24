@@ -13,9 +13,6 @@ export interface AmmoDef extends EntityDef {
   /** Max ammo limit for this type (optional override?) */
   maxAmount?: number;
 
-  /** Model to use for pickup */
-  modelPath: string;
-
-  /** Scale of the model */
+  /** Scale of the pickup */
   scale?: number;
 }

@@ -8,7 +8,7 @@ Render variables are registered as cvars, clamped to declared ranges, and persis
 |---|---|
 | Material | <code>r_deluxe 1</code>, <code>r_bsp_pbr 1</code>, <code>r_normalmap 1</code>, <code>r_glossmap 1</code>, <code>r_lightmap 1</code>, <code>r_emissive 1</code> |
 | Texture | <code>r_anisotropy 8</code>, <code>r_ktx2 1</code> |
-| Display | <code>r_webgpu 0</code>, <code>r_bsp_freeze 1</code>, <code>r_ssr 0</code>, <code>r_ssr_strength 0.4</code>, <code>r_glow 0</code>, <code>r_bloom 1</code>, <code>r_exposure 1</code>, <code>r_contrast 1</code>, <code>r_pickupProcedural 1</code> |
+| Display | <code>r_webgpu 0</code>, <code>r_bsp_freeze 1</code>, <code>r_ssr 0</code>, <code>r_ssr_strength 0.4</code>, <code>r_glow 0</code>, <code>r_bloom 1</code>, <code>r_exposure 1</code>, <code>r_contrast 1</code> |
 | Lighting | <code>r_ambient 1</code>, <code>r_lightintensity 1</code>, <code>r_lightmapscale 1</code>, god-ray and area-light groups, day/night group |
 | Debug | <code>r_wireframe 0</code>, <code>r_showtris 0</code> |
 

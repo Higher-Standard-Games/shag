@@ -10,7 +10,6 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Scene } from "@babylonjs/core/scene";
-import type { EntityDef } from "../../shared/entities/EntityDef";
 import { EntityRegistry } from "../../shared/entities/EntityRegistry";
 import { EntityType } from "../../shared/entities/EntityType";
 import { devLog } from "../core/DevLog";
@@ -38,13 +37,6 @@ export class AssetPreloader {
 
   /** Preloaded models by path. An entry that lost what it renders with is dropped on lookup. */
   private modelCache = new ModelSourceCache<ModelLoadResult>("AssetPreloader");
-  private pickupModelFilter: ((definition: EntityDef) => boolean) | null = null;
-
-  /** The active game excludes pickups rendered without their authored model. */
-  setPickupModelFilter(filter: ((definition: EntityDef) => boolean) | null): void {
-    this.pickupModelFilter = filter;
-  }
-
   private constructor() {}
 
   static getInstance(): AssetPreloader {
@@ -97,7 +89,6 @@ export class AssetPreloader {
 
       // Only preload weapons and ammo
       if (def.type !== EntityType.WEAPON && def.type !== EntityType.AMMO) continue;
-      if (this.pickupModelFilter && !this.pickupModelFilter(def)) continue;
 
       // Get model path
       const modelPath = def.modelPath;

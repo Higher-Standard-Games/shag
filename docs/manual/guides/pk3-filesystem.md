@@ -324,9 +324,9 @@ rebuild, archive the existing `public/data/ktx2cache` directory first, then run
 that command. Set `KTX_TOOLS_PATH` to the KTX executable when it is not on PATH.
 Reload the browser page after replacing a cache to release loaded GPU textures.
 
-Pickup model preloading follows the active game's visual policy through
-`AssetPreloader.setPickupModelFilter`. The FPS game skips authored ammo models
-when `r_pickupProcedural` is enabled and a procedural recipe exists.
+Pickup model preloading loads the `modelPath` of each weapon and ammo
+definition placed in the map. The FPS game's ammo, health, armour and powerup
+pickups are procedural and have no `modelPath`, so only weapon models load.
 
 Generated `ktx2cache` sidecars use top-to-bottom rows, matching the TGA parser.
 Sidecars whose base width or height is not divisible by four decode to RGBA

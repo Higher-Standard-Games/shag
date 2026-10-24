@@ -93,7 +93,6 @@ export type RenderVarName =
   | "r_bloom"
   | "r_exposure"
   | "r_contrast"
-  | "r_pickupProcedural"
   // Future vars (documented but not yet implemented)
   | "r_lightintensity"
   | "r_lightmapscale"
@@ -382,15 +381,6 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, "name">> = {
     min: 0,
     max: 3.0,
     description: "Contrast multiplier (applies to post-processing pipeline)",
-    category: "display",
-  },
-  r_pickupProcedural: {
-    value: 1,
-    defaultValue: 1,
-    min: 0,
-    max: 1,
-    description:
-      "Render health/armor pickups as procedural sculptures instead of MD3 models (0/1). Applies on next map load.",
     category: "display",
   },
   // Lighting
