@@ -45,10 +45,10 @@ describe("weapon detail at range", () => {
     expect(dropDistantWeaponDetail([...small, ...kept])).toBe(small.length);
 
     const camera = new FreeCamera("eye", new Vector3(0, 0, -(WEAPON_DETAIL_DISTANCE - 50)), scene);
-    camera.computeWorldMatrix(true);
+    camera.computeWorldMatrix();
     for (const mesh of small) expect(mesh.getLOD(camera)).toBe(mesh);
     camera.position.z = -(WEAPON_DETAIL_DISTANCE + 50);
-    camera.computeWorldMatrix(true);
+    camera.computeWorldMatrix();
     for (const mesh of small) expect(mesh.getLOD(camera)).toBeNull();
     for (const mesh of kept) expect(mesh.getLOD(camera)).toBe(mesh);
   });
