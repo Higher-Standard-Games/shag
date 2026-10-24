@@ -4,12 +4,11 @@
  * Layers, all procedural:
  * 1. Spiky fireball (deformed icosphere)
  * 2. Radial rays (stretched cones shooting outward)
- * 3. Shockwave disc
- * 4. Sparks
- * 5. Flash light
+ * 3. Sparks
+ * 4. Flash light
  *
- * The first four are instances in `ExplosionBatchRenderer`, animated on the
- * GPU, so every live explosion draws in four calls and spawning one allocates
+ * The first three are instances in `ExplosionBatchRenderer`, animated on the
+ * GPU, so every live explosion draws in three calls and spawning one allocates
  * no meshes or materials. This class keeps the presets, the flash light and
  * the camera shake.
  */
@@ -43,10 +42,6 @@ export interface ExplosionConfig {
   outerColor: Color3;
   /** Smoke color */
   smokeColor: Color3;
-  /** Splash damage radius in game units — shockwave expands to this */
-  splashRadius: number;
-  /** Whether to show the expanding shockwave disc (default: true) */
-  showShockwave?: boolean;
   /** Camera shake intensity multiplier (default: 1.0, 0 = no shake) */
   shakeIntensity?: number;
   /** Max distance for camera shake in game units (default: 720) */
@@ -62,7 +57,6 @@ export const ROCKET_EXPLOSION: ExplosionConfig = {
   coreColor: new Color3(1.0, 0.95, 0.6), // white-hot center
   outerColor: new Color3(1.0, 0.4, 0.05), // deep orange flames
   smokeColor: new Color3(0.3, 0.25, 0.2), // dark smoke
-  splashRadius: 125,
   shakeMaxRange: 540, // 25% reduced from 720
 };
 
@@ -73,7 +67,6 @@ export const GRENADE_EXPLOSION: ExplosionConfig = {
   coreColor: new Color3(1.0, 0.9, 0.5), // warm white-yellow core
   outerColor: new Color3(1.0, 0.5, 0.1), // orange flames
   smokeColor: new Color3(0.3, 0.25, 0.2), // dark smoke
-  splashRadius: 125,
   shakeMaxRange: 540, // 25% reduced from 720
 };
 
@@ -84,8 +77,6 @@ export const PLASMA_EXPLOSION: ExplosionConfig = {
   coreColor: new Color3(0.8, 1.0, 0.6), // bright white-green core
   outerColor: new Color3(0.1, 0.9, 0.2), // vivid green outer
   smokeColor: new Color3(0.1, 0.2, 0.1), // green-tinted smoke
-  splashRadius: 40,
-  showShockwave: false, // no shockwave ring for plasma
   rays: { min: 4, max: 6 }, // a small pop; plasma fights spawn many
   shakeIntensity: 0.15, // minimal camera shake
   shakeMaxRange: 360, // half of default (close range only)
@@ -98,7 +89,6 @@ export const BLADE_EXPLOSION: ExplosionConfig = {
   coreColor: new Color3(0.7, 1.0, 0.95),
   outerColor: new Color3(0.05, 1.0, 0.9),
   smokeColor: new Color3(0.08, 0.2, 0.18),
-  splashRadius: 90, // matches blade_blast def
   shakeIntensity: 0.5, // 50% of rocket shake
   shakeMaxRange: 270, // 50% of rocket range (540)
 };
@@ -153,7 +143,7 @@ export class ExplosionEffect {
 
   /**
    * Spawn an explosion at the given position
-   * @param normal - surface hit normal: the fireball spreads across it and the shockwave turns to it
+   * @param normal - surface hit normal: the fireball spreads across it
    */
   spawn(position: Vector3, config: ExplosionConfig = ROCKET_EXPLOSION, normal: Vector3 = Vector3.Up()): void {
     if (!this.scene || this.scene.isDisposed) return;
@@ -252,7 +242,7 @@ export class ExplosionEffect {
 
   /** Live explosions and their instances, for tests and diagnostics. */
   getDebugCounts(): { explosions: number } & ReturnType<ExplosionBatchRenderer["getDebugCounts"]> {
-    const layers = this.renderer?.getDebugCounts() ?? { fireball: 0, ray: 0, shockwave: 0, spark: 0 };
+    const layers = this.renderer?.getDebugCounts() ?? { fireball: 0, ray: 0, spark: 0 };
     return { explosions: this.explosions.length, ...layers };
   }
 }

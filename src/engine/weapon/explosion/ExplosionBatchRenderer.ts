@@ -1,8 +1,7 @@
 import type { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial";
 import type { Color3 } from "@babylonjs/core/Maths/math.color";
-import { Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector";
+import type { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { CreateCylinderVertexData } from "@babylonjs/core/Meshes/Builders/cylinderBuilder";
-import { CreateDiscVertexData } from "@babylonjs/core/Meshes/Builders/discBuilder";
 import { CreateIcoSphereVertexData } from "@babylonjs/core/Meshes/Builders/icoSphereBuilder";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
@@ -23,8 +22,6 @@ export interface ExplosionLook {
   coreColor: Color3;
   outerColor: Color3;
   smokeColor: Color3;
-  splashRadius: number;
-  showShockwave?: boolean;
   /** Rays per explosion, drawn evenly from [min, max]. */
   rays: { min: number; max: number };
 }
@@ -166,7 +163,7 @@ function defaultClock(): number {
 }
 
 /**
- * Every live explosion's fireball, rays, shockwave and sparks, drawn as four
+ * Every live explosion's fireball, rays and sparks, drawn as three
  * thin-instanced meshes animated in the vertex shader.
  */
 export class ExplosionBatchRenderer {
@@ -174,22 +171,12 @@ export class ExplosionBatchRenderer {
   private readonly clock: () => number;
   private readonly fireballs: LayerBatch;
   private readonly rays: LayerBatch;
-  private readonly shockwaves: LayerBatch;
   private readonly sparks: LayerBatch;
   private readonly values = new Float32Array(FLOATS);
-  private readonly rotation = new Quaternion();
-  private readonly axis = new Vector3();
 
   constructor(scene: Scene, clock: () => number = defaultClock) {
     this.scene = scene;
     this.clock = clock;
-    this.shockwaves = new LayerBatch(
-      scene,
-      "shockwave",
-      CreateDiscVertexData({ radius: 0.5, tessellation: 32 }),
-      MAX_EXPLOSIONS,
-      43,
-    );
     this.fireballs = new LayerBatch(scene, "fireball", fireballShape(), MAX_EXPLOSIONS, 44);
     this.rays = new LayerBatch(
       scene,
@@ -202,7 +189,7 @@ export class ExplosionBatchRenderer {
   }
 
   private get layers(): LayerBatch[] {
-    return [this.shockwaves, this.fireballs, this.rays, this.sparks];
+    return [this.fireballs, this.rays, this.sparks];
   }
 
   /** True when a scene clear has taken the meshes. */
@@ -234,23 +221,6 @@ export class ExplosionBatchRenderer {
       v.set([outer.r, outer.g, outer.b, width], 12);
       v.set([length, 0, 0, 0], 16);
       this.rays.push(v, fireEnd);
-    }
-
-    if (look.showShockwave !== false) {
-      // The disc's +Y turns to the surface normal.
-      const dot = Vector3.Dot(Vector3.UpReadOnly, normal);
-      if (Math.abs(dot) < 0.999) {
-        Vector3.CrossToRef(Vector3.UpReadOnly, normal, this.axis);
-        Quaternion.RotationAxisToRef(this.axis.normalize(), Math.acos(Math.max(-1, Math.min(1, dot))), this.rotation);
-      } else {
-        this.rotation.set(0, 0, 0, 1);
-      }
-      const q = this.rotation;
-      v.set([q.x, q.y, q.z, q.w], 4);
-      v.set([outer.r, outer.g, outer.b, scale], 8);
-      v.set([speed, look.splashRadius, 0, 0], 12);
-      v.set([0, 0, 0, 0], 16);
-      this.shockwaves.push(v, fireEnd);
     }
 
     // Sparks: a burst from inside a sphere, flying out from its centre.
@@ -305,7 +275,6 @@ export class ExplosionBatchRenderer {
     return {
       fireball: this.fireballs.count,
       ray: this.rays.count,
-      shockwave: this.shockwaves.count,
       spark: this.sparks.count,
     };
   }

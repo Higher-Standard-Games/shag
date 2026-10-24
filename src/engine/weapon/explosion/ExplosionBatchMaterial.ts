@@ -13,27 +13,26 @@ import {
 } from "../../rendering/AtmosphericFogShader";
 
 /**
- * The four explosion layers, each one thin-instanced mesh whose vertex shader
+ * The three explosion layers, each one thin-instanced mesh whose vertex shader
  * animates every live explosion from its spawn time. An explosion therefore
  * costs no meshes, materials or per-frame CPU work of its own, and all live
- * explosions draw in four calls.
+ * explosions draw in three calls.
  *
  * Every instance carries five vec4 attributes, read per layer:
  *
  *   layer      iA               iB                 iC               iD                  iE
  *   fireball   origin, spawn    hit normal, speed  core, scale      outer, -            smoke, -
  *   ray        origin, spawn    direction, speed   core, scale      outer, width        length, -
- *   shockwave  origin, spawn    rotation quat      outer, scale     speed, splash, -    -
  *   spark      origin, spawn    velocity, life     color, size      dead color, -       -
  *
  * Ages are in the explosion's own time (seconds × speed). Sparks keep Babylon
  * particle time, 0.6 units a second, with velocity and gravity in its units.
  */
-export type ExplosionLayer = "fireball" | "ray" | "shockwave" | "spark";
+export type ExplosionLayer = "fireball" | "ray" | "spark";
 
 export const EXPLOSION_INSTANCE_ATTRIBUTES = ["iA", "iB", "iC", "iD", "iE"] as const;
 
-/** Explosion time over which the fireball, rays and shockwave play out. */
+/** Explosion time over which the fireball and rays play out. */
 export const EXPLOSION_FIRE_TIME = 0.6;
 /** Babylon particle age units per second (0.01 per frame at 60 fps). */
 export const SPARK_AGE_PER_SECOND = 0.6;
@@ -67,10 +66,6 @@ varying vec2 vUv;
 #endif
 
 float easeOut(float t) { return t * (2.0 - t); }
-
-vec3 rotateByQuat(vec3 v, vec4 q) {
-  return v + 2.0 * cross(q.xyz, cross(q.xyz, v) + q.w * v);
-}
 
 void main() {
   #include<instancesVertex>
@@ -135,20 +130,6 @@ void main() {
   world = center + local * grow;
   vColor = mix(iC.rgb, iD.rgb, min(t * 3.0, 1.0));
   vAlpha = t < 0.25 ? 0.8 : 0.8 * max(0.0, 1.0 - (t - 0.25) / 0.35);
-#endif
-
-#ifdef SHOCKWAVE
-  float speed = iD.x;
-  float scale = iC.w;
-  float t = clamp(seconds * speed / ${EXPLOSION_FIRE_TIME.toFixed(1)}, 0.0, 1.0);
-  float ringT = min(t / 0.7, 1.0);
-  float expand = easeOut(ringT) * (iD.y * 2.0) / scale;
-  // The disc lies across +Y, which the rotation turns to the hit normal, and
-  // rides just off the surface so it does not fight it for depth.
-  vec3 local = vec3(position.x, 2.0, position.y) * vec3(scale * expand, 1.0, scale * expand);
-  world = origin + rotateByQuat(local, iB);
-  vColor = iC.rgb;
-  vAlpha = 0.5 * (1.0 - ringT);
 #endif
 
 #ifdef SPARK
@@ -217,7 +198,6 @@ function ensureRegistered(): void {
 const DEFINES: Record<ExplosionLayer, string> = {
   fireball: "#define FIREBALL",
   ray: "#define RAY",
-  shockwave: "#define SHOCKWAVE",
   spark: "#define SPARK",
 };
 

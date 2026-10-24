@@ -235,7 +235,6 @@ export default defineConfig({
       '@babylonjs/core/Maths/sphericalPolynomial',
       '@babylonjs/core/Meshes/Builders/boxBuilder',
       '@babylonjs/core/Meshes/Builders/cylinderBuilder',
-      '@babylonjs/core/Meshes/Builders/discBuilder',
       '@babylonjs/core/Meshes/Builders/groundBuilder',
       '@babylonjs/core/Meshes/Builders/icoSphereBuilder',
       '@babylonjs/core/Meshes/Builders/planeBuilder',

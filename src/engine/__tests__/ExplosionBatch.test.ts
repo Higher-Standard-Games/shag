@@ -1,10 +1,6 @@
 /**
- * Explosions are instances in four shared meshes (NullEngine).
- *
- * Each explosion used to build a fireball, eight to twelve rays, a shockwave
- * and a particle system of its own: up to fifteen meshes and draw calls, built
- * and disposed per explosion. Now an explosion adds instances only, the shader
- * animates them, and they expire on their own.
+ * Explosions are instances in three shared meshes (NullEngine): an explosion
+ * adds instances only, the shader animates them, and they expire on their own.
  */
 
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
@@ -66,7 +62,6 @@ describe("batched explosions", () => {
       explosions: 10,
       fireball: 10,
       ray: 100,
-      shockwave: 10,
       spark: 10 * SPARKS_PER_EXPLOSION,
     });
     expect(
@@ -74,16 +69,16 @@ describe("batched explosions", () => {
         .filter((m) => m.name.startsWith("explosion_"))
         .map((m) => m.name)
         .sort(),
-    ).toEqual(["explosion_fireball", "explosion_ray", "explosion_shockwave", "explosion_spark"]);
+    ).toEqual(["explosion_fireball", "explosion_ray", "explosion_spark"]);
   });
 
-  it("gives plasma fewer rays and no shockwave", () => {
+  it("gives plasma fewer rays", () => {
     const effect = getExplosionEffect();
     effect.spawn(Vector3.Zero(), PLASMA_EXPLOSION);
-    expect(effect.getDebugCounts()).toMatchObject({ fireball: 1, ray: 5, shockwave: 0 });
+    expect(effect.getDebugCounts()).toMatchObject({ fireball: 1, ray: 5 });
     effect.spawn(Vector3.Zero(), GRENADE_EXPLOSION);
     effect.spawn(Vector3.Zero(), BLADE_EXPLOSION);
-    expect(effect.getDebugCounts()).toMatchObject({ fireball: 3, ray: 25, shockwave: 2 });
+    expect(effect.getDebugCounts()).toMatchObject({ fireball: 3, ray: 25 });
   });
 
   it("retires each layer when it has played out, and the explosion with its light", () => {
@@ -103,10 +98,10 @@ describe("batched explosions", () => {
     advance(550);
     expect(effect.getDebugCounts()).toMatchObject({ fireball: 1, spark: 0 });
     advance(150);
-    expect(effect.getDebugCounts()).toMatchObject({ explosions: 1, fireball: 0, ray: 0, shockwave: 0 });
+    expect(effect.getDebugCounts()).toMatchObject({ explosions: 1, fireball: 0, ray: 0 });
     // The explosion and its light go at 0.9 / 0.85 s
     advance(400);
-    expect(effect.getDebugCounts()).toEqual({ explosions: 0, fireball: 0, ray: 0, shockwave: 0, spark: 0 });
+    expect(effect.getDebugCounts()).toEqual({ explosions: 0, fireball: 0, ray: 0, spark: 0 });
     expect(getPointLightPool().release).toHaveBeenCalledWith(light);
     expect(scene.meshes.filter((m) => m.name.startsWith("explosion_")).every((m) => !m.isEnabled())).toBe(true);
   });
@@ -115,7 +110,7 @@ describe("batched explosions", () => {
     const effect = getExplosionEffect();
     effect.spawn(Vector3.Zero(), ROCKET_EXPLOSION);
     effect.clear();
-    expect(effect.getDebugCounts()).toEqual({ explosions: 0, fireball: 0, ray: 0, shockwave: 0, spark: 0 });
+    expect(effect.getDebugCounts()).toEqual({ explosions: 0, fireball: 0, ray: 0, spark: 0 });
     effect.spawn(Vector3.Zero(), ROCKET_EXPLOSION);
     expect(effect.getDebugCounts().fireball).toBe(1);
   });
@@ -125,7 +120,7 @@ describe("batched explosions", () => {
     for (const mesh of [...scene.meshes]) mesh.dispose(false, true);
     effect.spawn(Vector3.Zero(), ROCKET_EXPLOSION);
     const layers = scene.meshes.filter((m) => m.name.startsWith("explosion_"));
-    expect(layers).toHaveLength(4);
+    expect(layers).toHaveLength(3);
     expect(layers.every((m) => !m.isDisposed())).toBe(true);
     expect(effect.getDebugCounts().fireball).toBe(1);
     scene.dispose();
