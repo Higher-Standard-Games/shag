@@ -1,6 +1,6 @@
 /**
- * A weapon's small parts stop drawing past the detail distance (NullEngine);
- * its body does not.
+ * A weapon's small parts stop drawing past their detail distances (NullEngine):
+ * fine parts sooner than glow strips; its body never.
  */
 
 import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
@@ -10,7 +10,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder";
 import { Scene } from "@babylonjs/core/scene";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { dropDistantWeaponDetail, WEAPON_DETAIL_DISTANCE } from "../WeaponDetail";
+import { dropDistantWeaponDetail, WEAPON_FINE_DETAIL_DISTANCE, WEAPON_STRIP_DETAIL_DISTANCE } from "../WeaponDetail";
 
 let engine: NullEngine;
 let scene: Scene;
@@ -32,25 +32,26 @@ const part = (material: string) => {
 };
 
 describe("weapon detail at range", () => {
-  it("drops sights, displays, glow, emit, glass and halos past the distance and keeps the body and barrel", () => {
-    const small = [
-      "sight_small_1",
-      "sight_display",
-      "plasmagun_emit",
-      "electrobolt_glow",
-      "lasergun_glass",
-      "plasmagun_barrel_halo",
-    ].map(part);
+  it("drops sights, displays, glass and halos first, glow and emit strips further out, and keeps the body and barrel", () => {
+    const fine = ["sight_small_1", "sight_display", "lasergun_glass", "plasmagun_barrel_halo"].map(part);
+    const strips = ["plasmagun_emit", "electrobolt_glow"].map(part);
     const kept = ["plasmagun", "plasmagun_barrel", "plasmagun_barrel_plasma"].map(part);
-    expect(dropDistantWeaponDetail([...small, ...kept])).toBe(small.length);
+    expect(dropDistantWeaponDetail([...fine, ...strips, ...kept])).toBe(fine.length + strips.length);
 
-    const camera = new FreeCamera("eye", new Vector3(0, 0, -(WEAPON_DETAIL_DISTANCE - 50)), scene);
-    camera.computeWorldMatrix();
-    for (const mesh of small) expect(mesh.getLOD(camera)).toBe(mesh);
-    camera.position.z = -(WEAPON_DETAIL_DISTANCE + 50);
-    camera.computeWorldMatrix();
-    for (const mesh of small) expect(mesh.getLOD(camera)).toBeNull();
-    for (const mesh of kept) expect(mesh.getLOD(camera)).toBe(mesh);
+    const camera = new FreeCamera("eye", Vector3.Zero(), scene);
+    const at = (distance: number) => {
+      camera.position.z = -distance;
+      camera.computeWorldMatrix();
+    };
+    const drawn = (meshes: typeof kept) => meshes.map((mesh) => mesh.getLOD(camera) === mesh);
+    at(WEAPON_FINE_DETAIL_DISTANCE - 50);
+    expect([...drawn(fine), ...drawn(strips)].every(Boolean)).toBe(true);
+    at(WEAPON_FINE_DETAIL_DISTANCE + 50);
+    expect(drawn(fine).some(Boolean)).toBe(false);
+    expect(drawn(strips).every(Boolean)).toBe(true);
+    at(WEAPON_STRIP_DETAIL_DISTANCE + 50);
+    expect(drawn(strips).some(Boolean)).toBe(false);
+    expect(drawn(kept).every(Boolean)).toBe(true);
   });
 
   it("sets a part once however often it is applied", () => {

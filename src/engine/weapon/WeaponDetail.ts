@@ -10,22 +10,31 @@
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 
-/** Units from the camera past which small weapon parts are not drawn. */
-export const WEAPON_DETAIL_DISTANCE = 700;
+/** Units past which sights, sight displays, glass and halos are not drawn: about 4 pixels at 720p. */
+export const WEAPON_FINE_DETAIL_DISTANCE = 400;
+/** Units past which glow and emit strips are not drawn: they mark the weapon from further off. */
+export const WEAPON_STRIP_DETAIL_DISTANCE = 700;
 
-/** Sights, sight displays, emit and glow strips, glass and halos, by material or mesh name. */
-const SMALL_PART = /sight_|_display|_emit|_glow|_glass|_halo/i;
+const FINE_PART = /sight_|_display|_glass|_halo/i;
+const STRIP_PART = /_emit|_glow/i;
 
-export function isSmallWeaponPart(mesh: AbstractMesh): boolean {
-  return SMALL_PART.test(mesh.material?.name ?? "") || SMALL_PART.test(mesh.name);
+const named = (mesh: AbstractMesh, pattern: RegExp) =>
+  pattern.test(mesh.material?.name ?? "") || pattern.test(mesh.name);
+
+/** The distance past which `mesh` stops drawing, or null for a part that always draws. */
+export function weaponDetailDistance(mesh: AbstractMesh): number | null {
+  if (named(mesh, FINE_PART)) return WEAPON_FINE_DETAIL_DISTANCE;
+  if (named(mesh, STRIP_PART)) return WEAPON_STRIP_DETAIL_DISTANCE;
+  return null;
 }
 
-/** Stop drawing the small parts among `meshes` beyond `distance`. Returns how many it set. */
-export function dropDistantWeaponDetail(meshes: readonly AbstractMesh[], distance = WEAPON_DETAIL_DISTANCE): number {
+/** Stop drawing the small parts among `meshes` past their distances. Returns how many it set. */
+export function dropDistantWeaponDetail(meshes: readonly AbstractMesh[]): number {
   let count = 0;
   for (const mesh of meshes) {
-    if (!(mesh instanceof Mesh) || !mesh.material || !isSmallWeaponPart(mesh)) continue;
-    if (mesh.hasLODLevels) continue;
+    if (!(mesh instanceof Mesh) || !mesh.material || mesh.hasLODLevels) continue;
+    const distance = weaponDetailDistance(mesh);
+    if (distance === null) continue;
     mesh.addLODLevel(distance, null);
     count++;
   }
