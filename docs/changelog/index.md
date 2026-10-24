@@ -6,7 +6,8 @@ All notable changes to this project are documented in version-specific files.
 
 | Version | Date | Summary |
 |---------|------|---------|
-| [v1.0.0-alpha.3](./v1.0.0-alpha.3.md) | unreleased | Living changelog for the next alpha cycle |
+| [v1.0.0-alpha.4](./v1.0.0-alpha.4.md) | unreleased | Living changelog for the next alpha cycle |
+| [v1.0.0-alpha.3](./v1.0.0-alpha.3.md) | Oct 24, 2026 | Rendering performance, loading and lobby polish, engine/game separation and independent regional deployment |
 | [v1.0.0-alpha.2](./v1.0.0-alpha.2.md) | Oct 23, 2026 | Bot hotfix: responsive hearing and pursuit, running and crouchslides, stuck-route recovery and upper-floor Duel control |
 | [v1.0.0-alpha](./v1.0.0-alpha.md) | Oct 23, 2026 | Alpha review and playtest fixes, bots that see, hear, chat and dodge, account settings sync, highlight scenes and trick jumps, account deletion and terms, SHAGGED .map import, performance and per-map texture downloads |
 | [v0.9.36](./v0.9.36.md) | Oct 19, 2026 | Netcode: no more teleporting back on a busy or slow connection |
