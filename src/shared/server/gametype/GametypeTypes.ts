@@ -236,7 +236,6 @@ export interface WeaponLoadout {
  * Gametype defines these rules — different modes have very different behavior:
  * - Deathmatch: spawn everything from BSP, 30s weapon respawn
  * - Clan Arena: no pickups, all weapons given on spawn
- * - Instagib: no pickups, instagun only
  */
 /**
  * When a consumed item comes back.

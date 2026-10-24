@@ -68,7 +68,7 @@ export interface ADSDef {
  * Procedural muzzle-flash look. One shared GPU effect, skinned per weapon:
  *   burst — hot radial star (default: machinegun, plasma, generic)
  *   plume — fiery forward puff (shotgun, rocket, grenade)
- *   arcs  — electric lightning rods (electrobolt, instagun)
+ *   arcs  — electric lightning rods (electrobolt)
  */
 export type MuzzleFlashStyle = "burst" | "plume" | "arcs";
 

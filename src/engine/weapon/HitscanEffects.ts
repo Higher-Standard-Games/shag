@@ -125,7 +125,7 @@ export function serverPelletDirections(direction: Vector3, seed: number, count: 
   return generateSpreadDirections(seed, count, spreadDeg, yaw, pitch).map((d) => new Vector3(d.x, d.y, d.z));
 }
 
-/** Bolt / rail trail (electrobolt/instagun-style thick beam) */
+/** Bolt / rail trail (electrobolt-style thick beam) */
 export interface BoltConfig extends HitscanFireConfig {
   /** Width of the bolt beam. Default 0.35 */
   width?: number;
@@ -596,7 +596,7 @@ export class HitscanEffects {
   }
 
   /**
-   * Bolt / rail trail  (electrobolt, instagun)
+   * Bolt / rail trail  (electrobolt)
    * Thick persistent beam with optional spiral decoration.
    */
   fireBolt(cfg: BoltConfig): Vector3 | null {
