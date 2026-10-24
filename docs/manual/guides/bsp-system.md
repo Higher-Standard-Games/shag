@@ -107,11 +107,19 @@ page dimensions (including 1024 and 2048). Key lookup is case-insensitive.
 Invalid dimensions and incomplete RGB lightmap pages fail loading with a
 diagnostic rather than silently splitting or truncating the lighting data.
 
-Inline lift/door meshes group faces by both base texture and lightmap page,
-matching static-world batching. Faces with page-local UV2 coordinates must not
-share a material across different lightmap pages. Static and moving BSP surfaces
-use the same format-specific upload: FBSP preserves authored bytes; IBSP retains
-the legacy gamma/overbright conversion.
+On an FBSP map with more than one lightmap page, the static world's pages are
+the layers of one array texture (deluxe pages a second array), so a texture's
+faces on different pages share one mesh and one draw. A face's layer rides in
+its lightmap U as `u + 2 × layer` (lightmap U stays inside 0–1), and the baked
+lighting plugin samples the layer; Babylon's own lightmap lookup reads a 1×1
+white page. Glow-overlay surfaces read the layers the same way. IBSP maps, and
+engines without a GPU context, group faces by base texture and lightmap page.
+
+Inline lift/door meshes always group faces by both base texture and lightmap
+page. Faces with page-local UV2 coordinates must not share a material across
+different lightmap pages. Static and moving BSP surfaces use the same
+format-specific upload: FBSP preserves authored bytes; IBSP retains the legacy
+gamma/overbright conversion.
 
 ### Baked lighting
 

@@ -24,6 +24,7 @@ import { logRejection } from "../../core/AsyncErrors";
 import { devLog } from "../../core/DevLog";
 import { applySafeMaxSimultaneousLights } from "../../lighting/DynamicLightSafety";
 import { RenderVars } from "../../rendering/RenderVars";
+import { GlowOverlayShaderMaterial } from "../shader/GlowOverlayShaderMaterial";
 import { configureQ3Alpha, q3AlphaMode } from "../shader/Q3Blend";
 import { configureQ3DistanceRamp } from "../shader/Q3DistanceRampPlugin";
 import { Q3ShaderRegistry } from "../shader/Q3ShaderRegistry";
@@ -37,7 +38,13 @@ import { classifyLiquids, DEFAULT_LIQUID_OVERRIDES, liquidKindFromSurfaceParms }
 import { createAutosprite2Geometry, updateAutosprite2Geometry } from "./mesh/autosprite2";
 import { buildMeshFace, buildPatchFace, buildPolygonFace } from "./mesh/faceBuilders";
 import { createRadialGradientTexture, createSolidColorTexture } from "./mesh/fallbackTextures";
-import { createBspLightmapTexture, neutralizeFallbackVertexRgb, scaleBspVertexColors } from "./mesh/lightmaps";
+import {
+  createBspLightmapArray,
+  createBspLightmapTexture,
+  createWhiteLightmap,
+  neutralizeFallbackVertexRgb,
+  scaleBspVertexColors,
+} from "./mesh/lightmaps";
 import { buildFaceClusters } from "./mesh/pvs";
 import { cloudLayersFromStages } from "./mesh/skyClouds";
 import { faceSpatialCell, MIN_SPATIAL_BATCH_TRIANGLES, normalizeSpatialCellSize } from "./mesh/spatialBatching";
@@ -78,6 +85,17 @@ export class BspMeshBuilder {
   private bsp: BspFile;
   private scene: Scene;
   private options: BuildOptions;
+  /**
+   * Lightmap pages per layer step: 2 when deluxe pages sit between them. A
+   * face's page `p` is layer `p / stride` of the layered lightmaps.
+   */
+  private lightmapStride = 1;
+  /**
+   * Whether the static world's lightmap pages are layers of one texture, so a
+   * texture's faces on different pages share a mesh. The face's layer rides in
+   * its lightmap U as `u + 2 * layer`; lightmap U stays inside [0, 1].
+   */
+  private layeredLightmaps = false;
 
   private constructor(bsp: BspFile, scene: Scene, options: BuildOptions = {}) {
     this.bsp = bsp;
@@ -116,6 +134,8 @@ export class BspMeshBuilder {
 
   private buildAll(): BspMeshBuildResult {
     devLog(`[BspMeshBuilder] Building meshes from ${this.bsp.faces.length} faces`);
+    this.lightmapStride = bspLightingProfile(this.bsp).deluxe ? 2 : 1;
+    this.layeredLightmaps = this.canLayerLightmaps();
     const vertexGain = this.bsp.header.isFBSP ? bspLightingProfile(this.bsp).gain : 1;
 
     const stats = {
@@ -362,7 +382,8 @@ export class BspMeshBuilder {
         !faceClusters[i].includes(-1)
           ? faceSpatialCell(this.bsp, face, spatialCellSize)
           : null;
-      const baseKey = `${face.textureIndex}_${lmIdx}${isPatch ? "_patch" : ""}`;
+      const layered = this.layeredLightmaps && lmIdx >= 0;
+      const baseKey = `${face.textureIndex}_${layered ? "layered" : lmIdx}${isPatch ? "_patch" : ""}`;
       const groupKey = `${baseKey}${spatialCell === null ? "" : `_cell_${spatialCell}`}`;
       let group = textureGroups.get(groupKey);
       if (!group) {
@@ -381,7 +402,7 @@ export class BspMeshBuilder {
         group = {
           textureIndex: face.textureIndex,
           textureName,
-          lightmapIndex: lmIdx,
+          lightmapIndex: layered ? 0 : lmIdx,
           shaderProps: patchShaderProps,
           positions: [],
           normals: [],
@@ -451,7 +472,10 @@ export class BspMeshBuilder {
         for (const p of faceData.positions) group.positions.push(p);
         for (const n of faceData.normals) group.normals.push(n);
         for (const uv of faceData.uvs) group.uvs.push(uv);
-        for (const uv2 of faceData.uv2s) group.uv2s.push(uv2);
+        // A layered page's index rides in the lightmap U
+        const layerOffset = layered ? 2 * Math.floor(lmIdx / this.lightmapStride) : 0;
+        for (let k = 0; k < faceData.uv2s.length; k++)
+          group.uv2s.push(faceData.uv2s[k] + (k % 2 === 0 ? layerOffset : 0));
         for (const c of faceData.colors) group.colors.push(c);
 
         // Add indices with offset
@@ -578,6 +602,7 @@ export class BspMeshBuilder {
         preserveVertexLighting: group.shaderProps.usesVertexRgb ?? false,
         textureIndex: group.textureIndex,
         lightmapIndex: group.lightmapIndex,
+        lightmapLayered: this.layeredLightmaps && group.lightmapIndex >= 0,
         // Only model-0 surfaces carry this annotation; movers stay outside
         // static PVS even when gameplay parents them under the world root.
         bspPvsClusters: [...group.pvsClusters],
@@ -1744,7 +1769,10 @@ export class BspMeshBuilder {
       const lightmapIndex = meshLightmapIndex;
       if (lightmapIndex >= lightmaps.length) continue;
 
-      const lightmapTex = lightmaps[lightmapIndex];
+      // A layered surface reads its page from the layers through the baked
+      // lighting plugin; Babylon's own lightmap lookup gets the white page
+      const layered = mesh.metadata?.lightmapLayered === true;
+      const lightmapTex = layered ? lightmaps[lightmaps.length - 1] : lightmaps[lightmapIndex];
       const mat = mesh.material;
       if (
         profile &&
@@ -1755,7 +1783,7 @@ export class BspMeshBuilder {
           profile.deluxe && (RenderVars.getInstance().get("r_deluxe") ?? 1) >= 0.5
             ? lightmaps[lightmapIndex + 1]
             : null;
-        configureBspBakedLighting(mat, mesh, profile, direction);
+        configureBspBakedLighting(mat, mesh, profile, direction, layered ? lightmaps[lightmapIndex] : null);
       }
 
       if (mat instanceof StandardMaterial) {
@@ -1810,7 +1838,11 @@ export class BspMeshBuilder {
         appliedCount++;
       } else if (mesh.metadata?.isGlowOverlay) {
         // Glow overlay ShaderMaterial - update lightmap texture
-        if (mat instanceof ShaderMaterial) {
+        if (mat instanceof ShaderMaterial && layered) {
+          GlowOverlayShaderMaterial.useLayeredLightmap(mat, lightmaps[lightmapIndex]);
+          mat.setFloat("lightmapIntensity", intensity);
+          appliedCount++;
+        } else if (mat instanceof ShaderMaterial) {
           mat.setTexture("lightmapSampler", lightmapTex);
           mat.setFloat("hasLightmap", 1.0);
           mat.setFloat("lightmapIntensity", intensity);
@@ -2052,12 +2084,42 @@ export class BspMeshBuilder {
   // ============================================================================
 
   /**
+   * Layer the static world's lightmaps where it saves meshes: an FBSP map (its
+   * lightmaps go through the baked-lighting plugin, which samples the layers)
+   * with more than one page, on a GPU with array textures that deep.
+   */
+  private canLayerLightmaps(): boolean {
+    if (!this.bsp.header.isFBSP) return false;
+    // A NullEngine (no GPU context) reports array layers but cannot build array textures
+    const engine = this.scene.getEngine() as ReturnType<Scene["getEngine"]> & { _gl?: unknown };
+    if (!engine.isWebGPU && !engine._gl) return false;
+    const pages = Math.floor(this.bsp.lightmaps.length / this.lightmapStride);
+    const maxLayers = engine.getCaps().texture2DArrayMaxLayerCount ?? 0;
+    return pages > 1 && maxLayers >= pages;
+  }
+
+  /**
    * Convert raw lightmap data to Babylon textures
    */
   private buildLightmapTextures(): Texture[] {
     const textures: Texture[] = [];
     const size = this.bsp.lightmapSize;
     const profile = bspLightingProfile(this.bsp);
+
+    if (this.layeredLightmaps) {
+      // Lightmap pages, then their deluxe pages, each as one array; the white
+      // page last stands in for Babylon's own lightmap lookup
+      const stride = this.lightmapStride;
+      const pages = this.bsp.lightmaps.filter((_, i) => i % stride === 0);
+      textures.push(createBspLightmapArray(pages, size, this.scene, "lightmap_layers", true));
+      if (stride === 2) {
+        const directions = this.bsp.lightmaps.filter((_, i) => i % 2 === 1);
+        textures.push(createBspLightmapArray(directions, size, this.scene, "lightmap_direction_layers", true, true));
+      }
+      textures.push(createWhiteLightmap(this.scene));
+      devLog(`[BspMeshBuilder] Created layered lightmaps: ${pages.length} pages (${size}x${size})`);
+      return textures;
+    }
 
     for (let i = 0; i < this.bsp.lightmaps.length; i++) {
       textures.push(

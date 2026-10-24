@@ -20,6 +20,8 @@ export function configureBspBakedLighting(
   mesh: AbstractMesh,
   profile: BspLightingProfile,
   direction: BaseTexture | null,
+  /** Lightmap pages as array layers; the face's layer rides in lightmap U as `u + 2 * layer`. */
+  layers: BaseTexture | null = null,
 ): void {
   excludeBspFillLights(mesh);
   const existing = plugins.get(material);
@@ -32,6 +34,7 @@ export function configureBspBakedLighting(
     material,
     profile,
     direction,
+    layers,
     gloss,
     mesh.metadata?.glossIntensity ?? 1.5,
     mesh.metadata?.glossExponent ?? 24,
@@ -82,6 +85,7 @@ export class BspBakedLightingPlugin extends MaterialPluginBase {
     material: StandardMaterial | PBRMaterial,
     public profile: BspLightingProfile,
     private readonly direction: BaseTexture | null,
+    private readonly layers: BaseTexture | null,
     private readonly gloss: BaseTexture | null,
     private readonly strength: number,
     private readonly exponent: number,
@@ -90,7 +94,7 @@ export class BspBakedLightingPlugin extends MaterialPluginBase {
       material,
       "BspBakedLighting",
       200,
-      { BSP_BAKED: true, BSP_DELUXE: !!direction, BSP_GLOSS: !!gloss && !!direction },
+      { BSP_BAKED: true, BSP_DELUXE: !!direction, BSP_GLOSS: !!gloss && !!direction, BSP_LAYERED: !!layers },
       true,
       false,
     );
@@ -151,7 +155,10 @@ export class BspBakedLightingPlugin extends MaterialPluginBase {
       0,
     );
     buffer.updateMatrix("bspWorld", subMesh.getRenderingMesh().getWorldMatrix());
-    buffer.setTexture("bspLightmapSampler", (this._material as StandardMaterial | PBRMaterial).lightmapTexture);
+    buffer.setTexture(
+      "bspLightmapSampler",
+      this.layers ?? (this._material as StandardMaterial | PBRMaterial).lightmapTexture,
+    );
     if (this.direction) buffer.setTexture("bspDirectionSampler", this.direction);
     if (this.gloss) buffer.setTexture("bspGlossSampler", this.gloss);
   }
@@ -165,6 +172,19 @@ export class BspBakedLightingPlugin extends MaterialPluginBase {
       wgsl ? `var ${name}: ${type} = ${value};` : `${type} ${name} = ${value};`;
     const sample = (sampler: string, uv: string) =>
       wgsl ? `textureSample(${sampler}, ${sampler}Sampler, ${uv})` : `texture2D(${sampler}, ${uv})`;
+    // A layered page: the layer in lightmap U above 1, the page's own U below it
+    const layered = !!this.layers;
+    const lightmapSample = (sampler: string) =>
+      !layered
+        ? sample(sampler, `${f}vLightmapUV`)
+        : wgsl
+          ? `textureSample(${sampler}, ${sampler}Sampler, bspLayerUV, i32(bspLayer))`
+          : `texture(${sampler}, vec3(bspLayerUV, bspLayer))`;
+    const layerSetup = !layered
+      ? ""
+      : `${variable("bspLayer", wgsl ? "f32" : "float", `floor(${f}vLightmapUV.x * 0.5)`)}
+${variable("bspLayerUV", wgsl ? "vec2f" : "vec2", `${wgsl ? "vec2f" : "vec2"}(${f}vLightmapUV.x - bspLayer * 2.0, ${f}vLightmapUV.y)`)}
+`;
     const baseUV = this.pbr ? "vAlbedoUV" : "vDiffuseUV";
     const baseDefine = this.pbr ? "ALBEDO" : "DIFFUSE";
     const spec = this.pbr ? `finalSpecularScaled` : "finalSpecular";
@@ -172,10 +192,10 @@ export class BspBakedLightingPlugin extends MaterialPluginBase {
     const final = this.pbr ? "finalColor" : "color";
     let code = `
 #if defined(BSP_BAKED) && defined(LIGHTMAP)
-${variable("bspLight", v3, `${sample("bspLightmapSampler", `${f}vLightmapUV`)}.rgb * ${u}bspLighting.x`)}
+${layerSetup}${variable("bspLight", v3, `${lightmapSample("bspLightmapSampler")}.rgb * ${u}bspLighting.x`)}
 ${variable("bspSpec", v3, `${v3}(0.0)`)}
 #ifdef BSP_DELUXE
-${variable("bspEncoded", v3, `${sample("bspDirectionSampler", `${f}vLightmapUV`)}.rgb - ${v3}(0.5)`)}
+${variable("bspEncoded", v3, `${lightmapSample("bspDirectionSampler")}.rgb - ${v3}(0.5)`)}
 ${variable("bspDir", v3, `bspEncoded / max(length(bspEncoded), 0.0001)`)}
 ${variable("bspWorldDir", v3, `normalize((${u}bspWorld * ${wgsl ? "vec4f" : "vec4"}(bspDir, 0.0)).xyz)`)}
 ${variable("bspNdotL", wgsl ? "f32" : "float", (this._material as StandardMaterial | PBRMaterial).twoSidedLighting ? "abs(dot(normalW, bspWorldDir))" : "max(dot(normalW, bspWorldDir), 0.0)")}
@@ -198,10 +218,12 @@ bspResult += ${spec};
       code += `${variable("bspResult", v3, `${base} * (bspLight + bspSpec + diffuseBase) + finalSpecular + emissiveColor`)}\n`;
     }
     code += wgsl ? `${final} = vec4f(bspResult, ${final}.a);\n#endif` : `${final}.rgb = bspResult;\n#endif`;
+    const layerTexture = layered ? "texture_2d_array<f32>" : "texture_2d<f32>";
+    const layerSampler = layered ? "highp sampler2DArray" : "sampler2D";
     return {
       CUSTOM_FRAGMENT_DEFINITIONS: wgsl
-        ? `var bspLightmapSampler: texture_2d<f32>;\nvar bspLightmapSamplerSampler: sampler;\n#ifdef BSP_DELUXE\nvar bspDirectionSampler: texture_2d<f32>;\nvar bspDirectionSamplerSampler: sampler;\n#endif\n#ifdef BSP_GLOSS\nvar bspGlossSampler: texture_2d<f32>;\nvar bspGlossSamplerSampler: sampler;\n#endif`
-        : `uniform sampler2D bspLightmapSampler;\n#ifdef BSP_DELUXE\nuniform sampler2D bspDirectionSampler;\n#endif\n#ifdef BSP_GLOSS\nuniform sampler2D bspGlossSampler;\n#endif`,
+        ? `var bspLightmapSampler: ${layerTexture};\nvar bspLightmapSamplerSampler: sampler;\n#ifdef BSP_DELUXE\nvar bspDirectionSampler: ${layerTexture};\nvar bspDirectionSamplerSampler: sampler;\n#endif\n#ifdef BSP_GLOSS\nvar bspGlossSampler: texture_2d<f32>;\nvar bspGlossSamplerSampler: sampler;\n#endif`
+        : `uniform ${layerSampler} bspLightmapSampler;\n#ifdef BSP_DELUXE\nuniform ${layerSampler} bspDirectionSampler;\n#endif\n#ifdef BSP_GLOSS\nuniform sampler2D bspGlossSampler;\n#endif`,
       CUSTOM_FRAGMENT_BEFORE_FOG: code,
     };
   }

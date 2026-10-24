@@ -213,6 +213,7 @@ export default defineConfig({
       '@babylonjs/core/Materials/Textures/mirrorTexture',
       '@babylonjs/core/Materials/Textures/rawCubeTexture',
       '@babylonjs/core/Materials/Textures/rawTexture',
+      '@babylonjs/core/Materials/Textures/rawTexture2DArray',
       '@babylonjs/core/Materials/Textures/renderTargetTexture',
       '@babylonjs/core/Materials/Textures/texture',
       '@babylonjs/core/Materials/effect',

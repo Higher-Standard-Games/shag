@@ -10,6 +10,7 @@
 
 import { Effect } from "@babylonjs/core/Materials/effect";
 import { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial";
+import type { BaseTexture } from "@babylonjs/core/Materials/Textures/baseTexture";
 import type { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import type { Scene } from "@babylonjs/core/scene";
 import {
@@ -67,7 +68,11 @@ varying vec3 vAtmWorld;
 
 // Samplers
 uniform sampler2D baseSampler;
+#ifdef LAYERED_LIGHTMAP
+uniform highp sampler2DArray lightmapSampler;
+#else
 uniform sampler2D lightmapSampler;
+#endif
 uniform sampler2D glowSampler;
 
 // Parameters
@@ -86,7 +91,13 @@ void main() {
 
   if (hasLightmap > 0.5) {
     // Apply lightmap to base
+#ifdef LAYERED_LIGHTMAP
+    // The page's layer rides in lightmap U above 1
+    float lightmapLayer = floor(vUV2.x * 0.5);
+    vec3 lightmap = texture(lightmapSampler, vec3(vUV2.x - lightmapLayer * 2.0, vUV2.y, lightmapLayer)).rgb * lightmapIntensity;
+#else
     vec3 lightmap = texture2D(lightmapSampler, vUV2).rgb * lightmapIntensity;
+#endif
     litBase = baseColor.rgb * lightmap;
   } else {
     litBase = baseColor.rgb;
@@ -212,6 +223,15 @@ export class GlowOverlayShaderMaterial {
 
     bindAtmosphericFog(material);
     return material;
+  }
+
+  /** Read the lightmap from array layers, the layer in lightmap U as `u + 2 * layer`. */
+  static useLayeredLightmap(material: ShaderMaterial, layers: BaseTexture): void {
+    if (!material.options.defines.includes("#define LAYERED_LIGHTMAP")) {
+      material.options.defines.push("#define LAYERED_LIGHTMAP");
+    }
+    material.setTexture("lightmapSampler", layers);
+    material.setFloat("hasLightmap", 1.0);
   }
 
   /**
