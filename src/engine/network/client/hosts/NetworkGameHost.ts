@@ -133,6 +133,11 @@ export class NetworkGameHost implements IGameHost {
   private waitForInitialResumeToken = false;
   /** True while reconnecting, so a stall and a close do not both start one. */
   private resuming = false;
+  private sessionEnded: ((error: Error) => void) | null = null;
+
+  onSessionEnded(callback: (error: Error) => void): void {
+    this.sessionEnded = callback;
+  }
 
   /**
    * Redundant command buffer: the last N encoded commands, re-sent with each new
@@ -302,6 +307,7 @@ export class NetworkGameHost implements IGameHost {
   }
 
   private failConnection(error: Error): void {
+    const wasResuming = this.resuming;
     this.connectionRejected = true;
     this._onJoinReject?.(error);
     // Disable gameplay synchronously, even if transport closure is asynchronous.
@@ -310,6 +316,7 @@ export class NetworkGameHost implements IGameHost {
     this.serverMessageCallbacks.forEach((cb) => {
       cb({ type: "error", message: error.message });
     });
+    if (wasResuming) this.sessionEnded?.(error);
   }
 
   /**
@@ -632,6 +639,9 @@ export class NetworkGameHost implements IGameHost {
         }
       }
       if (this.connectionRejected || this.resumeToken !== token) return;
+      this.sessionEnded?.(
+        new Error("The match connection could not be restored. Please return to the lobby and join again."),
+      );
       console.error(
         `[NetworkGameHost] Could not resume within ${(this.resumeGraceMs / 1000).toFixed(0)}s; the seat is gone. Disconnect from the menu to return to the lobby.`,
       );

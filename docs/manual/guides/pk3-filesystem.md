@@ -48,6 +48,27 @@ This fetches the two small metadata files with HTTP revalidation and avoids
 downloading every archive or sending a HEAD request per archive at boot.
 Packages still download lazily for the selected map and its dependencies.
 
+The package store shares queued and active transfers between lobby preparation
+and map loading. Foreground requests promote matching background jobs; closing
+a panel does not cancel their HTTP bodies. Background preparation reads archives
+without mounting them, so it does not change the active map's texture scope.
+At most two acquisitions run together, including at most one background job.
+A foreground map load prevents new optional jobs from starting until it finishes.
+
+Published package entries include a SHA-256 content hash. Versioned archives are
+verified and retained in the origin's Cache Storage with a 512 MiB budget; the
+parsed archive working set has a 128 MiB budget. Changed content gets a distinct
+cache identity and request URL; rebuilding code alone does not invalidate
+unchanged archives. Stored bytes are verified again on reuse. Corrupt entries
+are replaced, and unavailable or full browser storage falls back to HTTP.
+Legacy metadata without hashes retains ordinary HTTP/in-memory loader behavior.
+Different page origins have separate persistent caches.
+
+With `developer 1`, package-store diagnostics distinguish memory, disk-cache,
+and HTTP acquisition. HTTP acquisition can itself be served by the browser's
+HTTP cache; use browser network transfer measurements to distinguish that case.
+Archive reuse does not skip scene-owned model decoding or shader preparation.
+
 The startup and map-loading screens display active HTTP package transfers above
 the overall loading bar. Each transfer shows its filename, received and total
 size in decimal MB, a recent transfer rate in MB/s, and its own progress bar.

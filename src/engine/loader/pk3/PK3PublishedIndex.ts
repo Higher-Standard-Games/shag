@@ -59,8 +59,16 @@ export function parsePublishedIndex(text: string, manifest: unknown, basePath: s
       entry.fileCount < 0
     )
       return null;
+    if (entry.sha256 !== undefined && (typeof entry.sha256 !== "string" || !/^[a-f0-9]{64}$/.test(entry.sha256)))
+      return null;
     indexed.add(entry.pk3);
-    packages.push({ pk3: entry.pk3, size: entry.size, fileCount: entry.fileCount, path: `${basePath}${entry.pk3}` });
+    packages.push({
+      ...(entry.sha256 ? { sha256: entry.sha256 as string } : {}),
+      pk3: entry.pk3,
+      size: entry.size,
+      fileCount: entry.fileCount,
+      path: `${basePath}${entry.pk3}`,
+    });
   }
   if (indexed.size !== names.size) return null;
   const checksum = pk3IndexHash(

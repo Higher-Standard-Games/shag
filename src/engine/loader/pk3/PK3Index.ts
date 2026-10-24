@@ -9,6 +9,7 @@ import { fetchAsset, readAssetBuffer, readAssetJson, readAssetText } from "./Ass
 
 import JSZip from "jszip";
 import { shaderSourceBlocks } from "../shader/ShaderSourceBlocks";
+import { PackageStore } from "./PackageStore";
 import type { PK3PackageScope } from "./PK3PackageScope";
 import {
   hasPublishedIndex,
@@ -22,6 +23,8 @@ import { fetchPk3 } from "./Pk3Mirror";
 const STORAGE_KEY = "pk3_index";
 
 export interface PK3IndexEntry {
+  /** Stable archive content identity, optional on legacy metadata. */
+  sha256?: string;
   /** PK3 filename */
   pk3: string;
   /** Full path where PK3 was found */
@@ -759,6 +762,7 @@ export class PK3Index {
         !this.hasIndex() ||
         this.index?.listChecksum !== published.listChecksum ||
         this.index?.lastUpdated !== published.lastUpdated;
+      PackageStore.shared.registerSnapshot(published.packages);
       this.index = published;
       this.saveToStorage();
       const stats = this.getStats();

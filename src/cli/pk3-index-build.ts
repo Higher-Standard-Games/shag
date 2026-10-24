@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import JSZip from "jszip";
@@ -18,6 +19,7 @@ export async function generatePk3Index(directory: string) {
   const index = PK3Index.getInstance();
   index.clear();
   let archiveBytes = 0;
+  const hashes = new Map<string, string>();
   const sourceStats = new Map<string, { size: number; mtimeMs: number }>();
   const levelshots = new Map<string, { owner: string; source: Buffer }>();
   try {
@@ -40,6 +42,7 @@ export async function generatePk3Index(directory: string) {
         }
       }
       sourceStats.set(filename, { size: before.size, mtimeMs: before.mtimeMs });
+      hashes.set(filename, createHash("sha256").update(new Uint8Array(bytes)).digest("hex"));
       archiveBytes += buffer.byteLength;
     }
     const currentFiles = publishedPackageNames(await readdir(dataDir), policy);
@@ -54,6 +57,7 @@ export async function generatePk3Index(directory: string) {
         throw new Error(`Package changed while indexing: ${filename}`);
     }
     const snapshot = index.exportSnapshot();
+    for (const entry of snapshot.packages) entry.sha256 = hashes.get(entry.pk3);
     const previews = new Map<string, Uint8Array>();
     for (const [map, shot] of levelshots) {
       if (snapshot.maps[map] && snapshot.files[`levelshots/${map}.png`] === shot.owner)

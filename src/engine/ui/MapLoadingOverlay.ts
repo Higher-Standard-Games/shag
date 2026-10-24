@@ -202,9 +202,16 @@ export class MapLoadingOverlay {
     devLog("[MapLoadingOverlay] Enabled");
   }
 
-  /**
-   * Disable the overlay (unsubscribe from EventBus)
-   */
+  /** Dismiss a cancelled match load and restore audio without disabling future loads. */
+  static cancel(): void {
+    const instance = MapLoadingOverlay.getInstance();
+    instance.holds.clear();
+    for (const timer of instance.holdTimers.values()) clearTimeout(timer);
+    instance.holdTimers.clear();
+    instance.hide();
+  }
+
+  /** Disable the overlay and unsubscribe from EventBus. */
   static disable(): void {
     const instance = MapLoadingOverlay.getInstance();
     if (!instance.enabled) return;

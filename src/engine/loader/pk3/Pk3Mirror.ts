@@ -29,11 +29,14 @@ export function pk3MirrorBase(configured: string | undefined = import.meta.env.V
  * the file is not under `data/` or is not a pk3.
  */
 export function mirrorUrlFor(originUrl: string, mirrorBase: string): string | null {
-  const path = originUrl.replace(/^\.?\//, "");
+  const [source] = originUrl.split("#");
+  const question = source.indexOf("?");
+  const query = question < 0 ? "" : source.slice(question);
+  const path = (question < 0 ? source : source.slice(0, question)).replace(/^\.?\//, "");
   if (!path.startsWith("data/") || !/\.pk3$/i.test(path)) return null;
   const rest = path.slice("data/".length);
   if (!rest || rest.split("/").some((part) => part === ".." || part === "")) return null;
-  return `${mirrorBase}${rest}`;
+  return `${mirrorBase}${rest}${query}`;
 }
 
 /** Why a download came from the origin although a mirror is configured; for the log. */

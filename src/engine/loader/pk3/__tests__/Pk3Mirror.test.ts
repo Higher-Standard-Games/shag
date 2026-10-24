@@ -45,6 +45,7 @@ describe("mirrorUrlFor", () => {
   it("maps a pk3 under data/ to the same path on the mirror", () => {
     expect(mirrorUrlFor("data/map_wdm2.pk3", MIRROR)).toBe(`${MIRROR}map_wdm2.pk3`);
     expect(mirrorUrlFor("/data/basewf/x.pk3", MIRROR)).toBe(`${MIRROR}basewf/x.pk3`);
+    expect(mirrorUrlFor("data/a.pk3?sha256=abc", MIRROR)).toBe(`${MIRROR}a.pk3?sha256=abc`);
   });
 
   it("leaves everything else to the origin", () => {

@@ -132,4 +132,21 @@ describe("NetworkGameHost connection watchdog", () => {
     expect(warned("No snapshot for")).toBe(false);
     expect(error).not.toHaveBeenCalled();
   });
+
+  it("reports a terminal failure when the resume allowance expires", async () => {
+    const host = await joinedHost();
+    const ended = vi.fn();
+    host.onSessionEnded(ended);
+    const inner = host as unknown as { resumeToken: string; resumeGraceMs: number; resumeSession(): Promise<void> };
+    inner.resumeToken = "held-seat";
+    inner.resumeGraceMs = 1000;
+    const resuming = inner.resumeSession();
+    await Promise.resolve();
+    await Promise.resolve();
+    now = 2000;
+    await vi.advanceTimersByTimeAsync(2000);
+    await resuming;
+    expect(ended).toHaveBeenCalledOnce();
+    await host.disconnect();
+  });
 });

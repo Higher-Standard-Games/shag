@@ -99,7 +99,7 @@ describe("published PK3 metadata", () => {
       bodies.set(`/data/${filename}`, Uint8Array.from(await readFile(join(data.dir, filename))));
     const requests: string[] = [];
     const server = createServer((request, response) => {
-      const url = request.url ?? "";
+      const url = new URL(request.url ?? "/", "http://fixture.local").pathname;
       requests.push(url);
       const body = bodies.get(url);
       response.writeHead(body === undefined ? 404 : 200);

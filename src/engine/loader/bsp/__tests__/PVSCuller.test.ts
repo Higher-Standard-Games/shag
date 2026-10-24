@@ -476,8 +476,8 @@ describe("default PVS through gameplay MapLoader", () => {
     bsp.models[0].numFaces = 2;
     vi.spyOn(PK3Index.getInstance(), "findMap").mockReturnValue("map_test.pk3");
     vi.spyOn(PK3Loader.getInstance(), "getPackageInfo").mockReturnValue([]);
-    vi.spyOn(PK3Loader.getInstance(), "loadPK3").mockResolvedValue(undefined);
-    vi.spyOn(PK3Loader.getInstance(), "loadPK3FromUrl").mockResolvedValue(undefined);
+    vi.spyOn(PK3Loader.getInstance(), "ensurePK3").mockResolvedValue(undefined);
+    vi.spyOn(PK3Loader.getInstance(), "ensurePK3FromUrl").mockResolvedValue(undefined);
     vi.spyOn(BspLoader, "loadFromPK3").mockImplementation(async () => bsp);
     vi.spyOn(Q3ShaderRegistry.getInstance(), "loadShaders").mockResolvedValue(0);
     vi.spyOn(BspMeshBuilder, "applyTextures").mockResolvedValue(0);

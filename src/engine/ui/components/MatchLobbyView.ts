@@ -87,6 +87,7 @@ export class MatchLobbyView {
   private clockTimer: number | null = null;
   private readonly openedAt = Date.now();
   private disposed = false;
+  private readonly onMapSelection?: (map: string) => void;
   private readonly localPlayerId: string | null;
 
   /**
@@ -98,8 +99,9 @@ export class MatchLobbyView {
     lobbyClient: LobbyClient,
     lobbyInfo: MatchLobbyInfo,
     localPlayerId?: string,
-    options: { fillWithBots?: number } = {},
+    options: { fillWithBots?: number; onMapSelection?: (map: string) => void } = {},
   ) {
+    this.onMapSelection = options.onMapSelection;
     this.lobbyClient = lobbyClient;
     this.localPlayerId = localPlayerId ?? null;
     this.config = {
@@ -127,6 +129,8 @@ export class MatchLobbyView {
       votes: m.votes,
       votedByLocal: false,
     }));
+    const initialMap = [...this.maps].sort((a, b) => b.votes - a.votes)[0];
+    if (initialMap && (initialMap.votes > 0 || this.maps.length === 1)) this.onMapSelection?.(initialMap.name);
     for (const map of lobbyInfo.maps) rememberMapTitle(map.name, map.displayName);
     this.players = lobbyInfo.players.map((p) => ({
       id: p.id,
@@ -158,6 +162,8 @@ export class MatchLobbyView {
             map.votes = msg.votes[map.name];
           }
         }
+        const leader = [...this.maps].sort((a, b) => b.votes - a.votes)[0];
+        if (leader && leader.votes > 0) this.onMapSelection?.(leader.name);
         this.refreshMapVotes();
       }),
     );
@@ -874,6 +880,7 @@ export class MatchLobbyView {
     // The server supports changing a vote, but not removing it.
     if (map.votedByLocal) return;
     for (const option of this.maps) option.votedByLocal = option === map;
+    this.onMapSelection?.(map.name);
     this.lobbyClient.voteMap(this.lobbyId, map.name);
     this.fillMaps();
   }
