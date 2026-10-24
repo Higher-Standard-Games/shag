@@ -5,27 +5,31 @@ import { supportsClusteredLighting } from "./DynamicLightCluster";
 /**
  * Per-material `maxSimultaneousLights` budgets.
  *
- * WS1 (clustered dynamic lights): these were 2 (Standard) / 1 (PBR) under the
- * old forward-light SCARCITY system — every raw dynamic light cost a define +
- * uniforms, so materials were clamped hard and effect lights rationed to a
- * 4-light pool. Now the dynamic effect lights (pool + charge glows) live in a
- * ClusteredLightContainer, and static map lights + street lamps live in theirs.
+ * Dynamic effect lights (the pool and charge glows) live in a
+ * ClusteredLightContainer, and static map lights and street lamps in theirs. A
+ * cluster is ONE entry in `mesh.lightSources` (a `CLUSTLIGHT<i>` slot, its
+ * per-light data in a texture) and counts against `maxSimultaneousLights`. A
+ * world surface's realistic light set is hemispheric ambient + directional sun
+ * + static-map cluster + dynamic cluster + (optional) street-lamp cluster: up
+ * to 5. A cap below that truncates clusters off world surfaces.
  *
- * A cluster is ONE entry in `mesh.lightSources` (a `CLUSTLIGHT<i>` slot, its
- * per-light data in a texture) and IS counted against `maxSimultaneousLights`.
- * So a world surface's realistic light set is: hemispheric ambient + directional
- * sun + static-map cluster + dynamic cluster + (optional) street-lamp cluster =
- * up to 5. If the cap stays at 2, the dynamic cluster is truncated off world
- * surfaces and clustering buys nothing. Hence the budget is raised to admit all
- * the base lights and clusters, with headroom.
- *
- * This is a small fixed slot count (clusters hold their many lights in textures,
- * not uniforms), so it stays comfortably within WebGL2 uniform limits.
- * WebGPU uses the same budgets when clustered lighting is supported, while
- * retaining a strict upper bound after glTF imports and disabling hot swapping.
+ * WebGPU with clustered lighting keeps a tighter bound after glTF imports and
+ * disables hot swapping; WebGPU without it keeps the conservative fallback.
  */
-export const SAFE_MAX_SIMULTANEOUS_LIGHTS = 6;
-export const SAFE_PBR_MAX_SIMULTANEOUS_LIGHTS = 4;
+export const WEBGPU_CLUSTERED_MAX_SIMULTANEOUS_LIGHTS = 6;
+export const WEBGPU_CLUSTERED_PBR_MAX_SIMULTANEOUS_LIGHTS = 4;
+
+/**
+ * WebGL2 budgets: the scene's whole light set. Babylon's glTF loader raises
+ * every material's cap to the scene's light count at the end of each import,
+ * and on WebGL that raise is kept, so a material compiled at a lower cap
+ * compiled again, with only `MAXLIGHTCOUNT` changed, the first time a model
+ * loaded during play. Starting at the cap the loader raises to leaves those
+ * raises with nothing to change. A material's lights come from its own light
+ * set, not this bound, so the larger cap draws the same.
+ */
+export const SAFE_MAX_SIMULTANEOUS_LIGHTS = 8;
+export const SAFE_PBR_MAX_SIMULTANEOUS_LIGHTS = 8;
 
 /**
  * WebGPU's guaranteed per-stage uniform-buffer limit is 12. Babylon allocates
@@ -45,8 +49,11 @@ function materialUsesWebGPU(material: Material): boolean {
 
 export function getSafeMaxSimultaneousLights(material: Material): number {
   const isPBR = getMaterialClassName(material) === "PBRMaterial";
-  if (materialUsesWebGPU(material) && !supportsClusteredLighting(material.getScene())) {
-    return isPBR ? WEBGPU_SAFE_PBR_MAX_SIMULTANEOUS_LIGHTS : WEBGPU_SAFE_MAX_SIMULTANEOUS_LIGHTS;
+  if (materialUsesWebGPU(material)) {
+    if (!supportsClusteredLighting(material.getScene())) {
+      return isPBR ? WEBGPU_SAFE_PBR_MAX_SIMULTANEOUS_LIGHTS : WEBGPU_SAFE_MAX_SIMULTANEOUS_LIGHTS;
+    }
+    return isPBR ? WEBGPU_CLUSTERED_PBR_MAX_SIMULTANEOUS_LIGHTS : WEBGPU_CLUSTERED_MAX_SIMULTANEOUS_LIGHTS;
   }
   return isPBR ? SAFE_PBR_MAX_SIMULTANEOUS_LIGHTS : SAFE_MAX_SIMULTANEOUS_LIGHTS;
 }

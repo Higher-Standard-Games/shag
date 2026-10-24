@@ -4,6 +4,7 @@ import type { StandardMaterial } from "@babylonjs/core/Materials/standardMateria
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { Scene } from "@babylonjs/core/scene";
 import { describe, expect, it, vi } from "vitest";
+import { SAFE_MAX_SIMULTANEOUS_LIGHTS } from "../../../lighting/DynamicLightSafety";
 import { PK3TextureLoader } from "../../pk3/PK3TextureLoader";
 import type { BspFile } from "../BspLoader";
 import { buildBrushModel } from "../mesh/brushModelBuilder";
@@ -93,7 +94,7 @@ describe("inline brush lightmap pages", () => {
         const page = child.metadata.lightmapIndex;
         const material = child.material as StandardMaterial;
         expect(material.diffuseTexture).toBe(diffuse);
-        expect(material.maxSimultaneousLights).toBe(webgpu ? 2 : 6);
+        expect(material.maxSimultaneousLights).toBe(webgpu ? 2 : SAFE_MAX_SIMULTANEOUS_LIGHTS);
         expect(child.getVerticesData(VertexBuffer.UV2Kind)?.slice(0, 2)).toEqual([0.25, 0.75]);
         expect(child.getIndices()?.slice(0, 3)).toEqual([0, 2, 1]);
         if (page === -1) expect(material.lightmapTexture).toBeNull();

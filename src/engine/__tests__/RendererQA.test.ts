@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { SAFE_MAX_SIMULTANEOUS_LIGHTS, SAFE_PBR_MAX_SIMULTANEOUS_LIGHTS } from "../lighting/DynamicLightSafety";
 import { runRendererQA } from "../rendering/RendererQA";
 import type { RenderingEngineResult } from "../rendering/RenderingEngineFactory";
 
@@ -89,17 +90,24 @@ describe("isolated renderer QA entry", () => {
         stage: "fixture-evidence",
         pass: "frozen-one",
         material: "qa-standard",
-        message: `Fixture compiled ${webgpu ? 2 : 6} lights; expected 1 with cap ${webgpu ? 2 : 6}`,
+        message: `Fixture compiled ${webgpu ? 2 : SAFE_MAX_SIMULTANEOUS_LIGHTS} lights; expected 1 with cap ${webgpu ? 2 : SAFE_MAX_SIMULTANEOUS_LIGHTS}`,
       });
       expect(report.frames).toBe(12);
-      expect(report.fixtures.at(-1)).toMatchObject({ activeLights: 1, compiledLights: webgpu ? 2 : 6, frozen: true });
+      expect(report.fixtures.at(-1)).toMatchObject({
+        activeLights: 1,
+        compiledLights: webgpu ? 2 : SAFE_MAX_SIMULTANEOUS_LIGHTS,
+        frozen: true,
+      });
       expect(engine.scenes).toHaveLength(0);
       return;
     }
     expect(report.firstFailure?.message).toBe("No GPU frames were validated");
     expect(report.frames).toBe(30);
     expect(report.fixtures).toHaveLength(10);
-    for (const [index, cap] of (webgpu ? [2, 1] : [6, 4]).entries()) {
+    for (const [index, cap] of (webgpu
+      ? [2, 1]
+      : [SAFE_MAX_SIMULTANEOUS_LIGHTS, SAFE_PBR_MAX_SIMULTANEOUS_LIGHTS]
+    ).entries()) {
       const results = report.fixtures.slice(index * 5, index * 5 + 5);
       expect(results.map((result) => result.compiledLights)).toEqual([1, cap, cap, 1, cap]);
       expect(results.map((result) => result.activeLights)).toEqual([1, 11, 11, 1, 11]);

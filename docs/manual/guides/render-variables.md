@@ -101,7 +101,10 @@ at glTF import readiness. Babylon 9.17 otherwise raises caps on existing world
 materials to the total scene light count when any glTF import completes. The
 loader callback prevents late weapon/player imports from undoing the policy.
 This repair requires a fresh gameplay reload; `rendererqacase` parameters alone
-do not change normal gameplay behavior.
+do not change normal gameplay behavior. On WebGL the raise is kept, so
+materials start at a cap of 8 (`SAFE_MAX_SIMULTANEOUS_LIGHTS`), the cap the
+loader raises them to: a model loading during play then changes no material's
+cap and compiles nothing.
 
 ## Console commands
 
