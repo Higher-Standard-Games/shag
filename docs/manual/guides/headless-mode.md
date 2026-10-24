@@ -7,6 +7,12 @@ application entry points live in `src/games/fps/cli/` in the assembled checkout.
 Run the npm commands below from the assembled root. Generic BSP inspection and
 shared CLI helpers remain in SHAG's `src/cli/`.
 
+Washoi's benchmark drivers and their Node tests live in
+`src/games/fps/scripts/benchmarks/`; its SHAGGED MCP launcher is
+`src/games/fps/scripts/shagged-mcp.mjs`. Run the existing npm commands from
+the assembled root. Generic profiling and browser instrumentation helpers
+remain in SHAG's `scripts/benchmarks/`.
+
 Optional game diagnostics live under `src/games/fps/scripts/diagnostics/`.
 They include the browser water fixture, an experimental-map verifier and
 historical research probes. These are outside the application typecheck/lint

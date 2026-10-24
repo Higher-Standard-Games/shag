@@ -6,7 +6,7 @@ import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {StdioClientTransport} from '@modelcontextprotocol/sdk/client/stdio.js';
 const mapName='qa_natural_'+Date.now();
 const client=new Client({name:'shagged-natural-validation',version:'1'});
-const transport=new StdioClientTransport({command:process.execPath,args:['scripts/shagged-mcp.mjs'],cwd:process.cwd(),stderr:'pipe'});
+const transport=new StdioClientTransport({command:process.execPath,args:['src/games/fps/scripts/shagged-mcp.mjs'],cwd:process.cwd(),stderr:'pipe'});
 transport.stderr?.on('data',()=>{});
 let created=false;
 async function request(name,args) {

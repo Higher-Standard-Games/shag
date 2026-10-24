@@ -196,7 +196,7 @@ if(stage==='optimize'){
   ops.push({op:'box.update',id:b.id,detail:true});
 }
 const client=new Client({name:'sol-relay-yard-refinement',version:'2.0.0'});
-const transport=new StdioClientTransport({command:process.execPath,args:['scripts/shagged-mcp.mjs'],cwd:process.cwd(),stderr:'pipe'});
+const transport=new StdioClientTransport({command:process.execPath,args:['src/games/fps/scripts/shagged-mcp.mjs'],cwd:process.cwd(),stderr:'pipe'});
 transport.stderr?.on('data',()=>{});
 async function call(name,args){
  const result=await client.callTool({name,arguments:args},undefined,{timeout:1800000});

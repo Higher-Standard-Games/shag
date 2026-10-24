@@ -22,7 +22,7 @@ with `--port 7788` if necessary. Omit `--bot-control` to own in-process bots ins
 Ctrl+C requests graceful cleanup. An occupied port fails without replacing a server.
 
 The checked-in [recipe](https://github.com/Higher-Standard-Games/shag/blob/main/benchmarks/recipes/wdm2-ffa10.json) and
-[launcher](https://github.com/Higher-Standard-Games/shag/blob/main/scripts/benchmarks/create-fixture.mjs) preserve the sequence.
+[launcher](https://github.com/Higher-Standard-Games/shag/blob/main/src/games/fps/scripts/benchmarks/create-fixture.mjs) preserve the sequence.
 FFA's authoring score limit is disabled so a fast bot cannot end recording early.
 The match itself remains ordinary FFA; ten is a population baseline, not a team setup.
 
@@ -139,7 +139,7 @@ the [WebGPU research notes](https://github.com/Higher-Standard-Games/shag/blob/m
 
 ## CPU profiling in Edge
 
-The [profiling runner](https://github.com/Higher-Standard-Games/shag/blob/main/scripts/benchmarks/profile-timedemo.mjs) starts a
+The [profiling runner](https://github.com/Higher-Standard-Games/shag/blob/main/src/games/fps/scripts/benchmarks/profile-timedemo.mjs) starts a
 private localhost Vite server with HMR and file watching disabled, then a fresh
 visible Edge profile for each backend. It does not use your normal browser profile.
 Run from the repository root with the local benchmark fixture installed:
@@ -220,7 +220,7 @@ npm run benchmark:outlines -- --prepare-only
 npm run benchmark:outlines -- --repeats 5 --out public/data/benchmarks/results/my-outline-series
 ```
 
-The [comparison script](https://github.com/Higher-Standard-Games/shag/blob/main/scripts/benchmarks/outline-comparison.mjs) derives
+The [comparison script](https://github.com/Higher-Standard-Games/shag/blob/main/src/games/fps/scripts/benchmarks/outline-comparison.mjs) derives
 two immutable fixtures from the same saved recording, route and spectator schedule.
 Only the required `cl_player_outline` value changes (0/1); derived identities include
 the base manifest hash. It verifies the demo bytes, preserves existing fixtures,
@@ -284,7 +284,7 @@ bot AI, weapons or game simulation runs. This isolates player drawing; its numbe
 are not gameplay FPS. Ten clones stay loaded across all cases, and the requested
 prefix of actors is enabled.
 
-The [runner](https://github.com/Higher-Standard-Games/shag/blob/main/scripts/benchmarks/crowd-benchmark.mjs) opens fresh private
+The [runner](https://github.com/Higher-Standard-Games/shag/blob/main/src/games/fps/scripts/benchmarks/crowd-benchmark.mjs) opens fresh private
 Edge sessions for each backend, repeats outline-on/off cases in alternating order,
 and records raw samples, run-level p95 summaries, assets/source hashes, browser/GPU
 metadata and warmup screenshots. It expects two background draws plus one ordinary
@@ -322,7 +322,7 @@ npm run benchmark:crowd -- --outline-proxy --visual --repeats 5 --out public/dat
 ```
 
 The [proxy recipe](https://github.com/Higher-Standard-Games/shag/blob/main/benchmarks/recipes/player-outline-proxy-v1.json) and
-[generator](https://github.com/Higher-Standard-Games/shag/blob/main/scripts/benchmarks/build-outline-proxy.mjs) recreate a local
+[generator](https://github.com/Higher-Standard-Games/shag/blob/main/src/games/fps/scripts/benchmarks/build-outline-proxy.mjs) recreate a local
 outline-only GLB from Vanguard. UVs/tangents are removed, identical retained
 vertices welded, and triangles simplified to a target 25% with a 1% model-radius
 error limit. Original normals and skin weights are retained; rig hierarchy,

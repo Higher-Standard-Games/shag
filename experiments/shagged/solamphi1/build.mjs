@@ -263,7 +263,7 @@ if (stage === 'machinery') {
 }
 
 const client = new Client({ name: 'sol-amphi-experiment', version: '1.0.0' });
-const transport = new StdioClientTransport({ command: process.execPath, args: ['scripts/shagged-mcp.mjs'], cwd: process.cwd(), stderr: 'pipe' });
+const transport = new StdioClientTransport({ command: process.execPath, args: ['src/games/fps/scripts/shagged-mcp.mjs'], cwd: process.cwd(), stderr: 'pipe' });
 transport.stderr?.on('data', () => {});
 async function call(name, args) {
   const result = await client.callTool({ name, arguments: args }, undefined, { timeout: 1200000 });

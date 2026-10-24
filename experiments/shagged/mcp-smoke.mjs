@@ -13,7 +13,7 @@ const env={...process.env,SHAGGED_MAPS_ROOT:path.join(root,'maps'),SHAGGED_PUBLI
 const clients=[];
 async function open(){
  const client=new Client({name:'shagged-api-validation',version:'1'});
- const transport=new StdioClientTransport({command:process.execPath,args:['scripts/shagged-mcp.mjs'],cwd:process.cwd(),env,stderr:'pipe'});
+ const transport=new StdioClientTransport({command:process.execPath,args:['src/games/fps/scripts/shagged-mcp.mjs'],cwd:process.cwd(),env,stderr:'pipe'});
  transport.stderr?.on('data',()=>{});await client.connect(transport);clients.push(client);return client;
 }
 async function request(client,name,args){

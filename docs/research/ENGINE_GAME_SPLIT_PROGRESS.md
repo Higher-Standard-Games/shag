@@ -2795,3 +2795,136 @@ Washoi commit: `73b94c8` (`refactor: own game diagnostics and water browser fixt
 | `npm.cmd run server:fuzz -- --ticks 1000 --seed 42` | Passed; checksum `2481546443` |
 | `npm.cmd run cli:game -- --exec "bsp load washoi_dm2; bsp info; quit"` | Passed; 7,475 faces |
 | `npm.cmd run cli:game -- --exec 'sim replay \"W+CROUCH 60; JUMP 1; W 30\"; quit'` | Passed; 91 ticks |
+
+## Step 24 — game-owned JavaScript launch recipes (2026-10-24)
+
+After the user confirmed the performance benchmark had finished, moved the
+remaining concrete game benchmark drivers and SHAGGED MCP wrapper into Washoi.
+Preparation stayed under ignored `.cache/` until that confirmation. The live
+application/server behavior is unchanged; this checkpoint changes ownership,
+relative imports, file-location roots, launcher paths and current documentation.
+
+Exact moves (old paths are relative to the assembled root):
+
+| Old path | New path |
+| --- | --- |
+| `scripts/benchmarks/create-fixture.mjs` | `src/games/fps/scripts/benchmarks/create-fixture.mjs` |
+| `scripts/benchmarks/profile-timedemo.mjs` | `src/games/fps/scripts/benchmarks/profile-timedemo.mjs` |
+| `scripts/benchmarks/outline-comparison.mjs` | `src/games/fps/scripts/benchmarks/outline-comparison.mjs` |
+| `scripts/benchmarks/crowd-benchmark.mjs` | `src/games/fps/scripts/benchmarks/crowd-benchmark.mjs` |
+| `scripts/benchmarks/build-outline-proxy.mjs` | `src/games/fps/scripts/benchmarks/build-outline-proxy.mjs` |
+| `scripts/benchmarks/runtime-equivalence.mjs` | `src/games/fps/scripts/benchmarks/runtime-equivalence.mjs` |
+| `scripts/benchmarks/server-memory.mjs` | `src/games/fps/scripts/benchmarks/server-memory.mjs` |
+| `scripts/benchmarks/server-capacity.mjs` | `src/games/fps/scripts/benchmarks/server-capacity.mjs` |
+| `scripts/benchmarks/__tests__/build-outline-proxy.test.mjs` | `src/games/fps/scripts/benchmarks/__tests__/build-outline-proxy.test.mjs` |
+| `scripts/benchmarks/__tests__/crowd-benchmark.test.mjs` | `src/games/fps/scripts/benchmarks/__tests__/crowd-benchmark.test.mjs` |
+| `scripts/benchmarks/__tests__/outline-comparison.test.mjs` | `src/games/fps/scripts/benchmarks/__tests__/outline-comparison.test.mjs` |
+| `scripts/shagged-mcp.mjs` | `src/games/fps/scripts/shagged-mcp.mjs` |
+
+Other exact changed files:
+
+- `package.json`: eight script targets; command names/arguments preserved.
+- `src/games/fps/client/TimedemoService.ts`: missing-catalogue instruction path.
+- `experiments/shagged/convex-smoke.mjs`, `discovery-smoke.mjs`, `mcp-smoke.mjs`,
+  `natural-alignment-smoke.mjs`, `solamphi1/build.mjs`, `solamphi1/refine.mjs`:
+  MCP child launcher path only.
+- `biome.json`: relocated optional scripts retain their prior exclusion from
+  application linting; Node tests and syntax/import checks validate the scripts.
+- `src/games/fps/scripts/benchmarks/README.md`: commands, assembly and asset needs.
+- `docs/manual/guides/headless-mode.md`, `docs/manual/guides/timedemo.md`:
+  ownership and current source links.
+- `docs/changelog/v1.0.0-alpha.3.md` and this progress log.
+
+Generic CPU profiling, browser probes, runtime executable resolution and their
+tests remain in SHAG's `scripts/benchmarks/`. Root benchmark recipes, browser
+fixtures and media locations are preserved. Existing historical renderer
+evidence JSON was deliberately excluded from path rewriting. New driver hashes
+and generator paths change naturally; no timing-equivalence claim is made.
+
+Private preparation/receipts: `.cache/engine-game-split/step24-prepared/` and
+`step24-validation/`. The applier checked every original before writing, checked
+JavaScript syntax and resolved relative imports. `check-step24.mjs` verifies
+exact prepared text, removal of old entry points and preserved file URL targets.
+
+Assumptions: commands run from the assembled root with existing dependencies,
+installed `washoi_dm2` and local benchmark/media data. The other client's
+`src/games/fps/camera/FPSController.ts` and existing changelog edits are excluded.
+No GPU timing run, long recording/capacity soak, fresh installation or independent
+checkout proof is claimed here. The optional proxy source asset is absent.
+
+Remaining for independent Git checkout: package/build/CI/deployment ownership,
+an isolated engine checkout install/typecheck/test/build proof, assembly/revision
+documentation and Git detachment. A new game `package.json` needs care: existing
+root discovery uses package-file ancestry, Babylon must stay a single resolved
+installation, and root server bundles externalize TensorFlow from the assembled
+root. This checkpoint does not introduce separate dependency installation.
+
+Validation findings:
+
+- `node --test scripts/benchmarks/__tests__/*.test.mjs` before moving and
+  `node --test scripts/benchmarks/__tests__/*.test.mjs src/games/fps/scripts/benchmarks/__tests__/*.test.mjs`
+  after moving: 22 passed, one optional-asset skip in each run. The first
+  sandboxed invocation could not spawn Node test workers (`EPERM`); the
+  permitted rerun executed them successfully.
+- `npm.cmd run benchmark:fixture -- --dry-run` and
+  `npm.cmd run benchmark:crowd -- --dry-run`: passed.
+- Profiling and outline dry runs with the saved default failed because local
+  fixture `wdm2-ffa10-v1-095f355747e8-f47d4c2a` is absent. The existing default
+  was preserved. With installed fixture `wdm2-ffa10-v1-8c2e550fe162-b3b11914`,
+  `node src/games/fps/scripts/benchmarks/profile-timedemo.mjs --dry-run --fixture wdm2-ffa10-v1-8c2e550fe162-b3b11914 --out .cache/engine-game-split/step24-validation/profile`
+  and `node src/games/fps/scripts/benchmarks/outline-comparison.mjs --dry-run --fixture wdm2-ffa10-v1-8c2e550fe162-b3b11914`
+  passed without creating a new benchmark recording or launching a browser.
+- `npm.cmd run test:runtime-equivalence`: passed, Node and Bun both
+  `507638786` over 10,000 seed-42 ticks.
+- `node .cache/engine-game-split/mcp-step24.mjs`: moved wrapper completed the
+  SDK protocol handshake and listed all 16 tools. No map mutation was requested.
+- `npm.cmd run build:server` and
+  `npm.cmd run benchmark:server-memory -- --runtimes node --maps washoi_dm2 --clients 0 --warmup 1 --seconds 1 --repeats 1 --out .cache/engine-game-split/step24-validation/server-memory/report.json`:
+  passed. This exercises production artifact launch, root/preload paths and
+  owned-child shutdown; it is not performance or capacity evidence.
+
+The initial full suite and shard 1/2 exhausted the configured 4 GiB worker heap
+at `WeaponViewLoading.test.ts`. Source review found its assertion still required
+distinct WebGL barrel materials after outer commit `2446b4b2` explicitly made
+them shared. Corrected that existing assertion in the additional exact file
+`src/games/fps/client/__tests__/WeaponViewLoading.test.ts`; no production behavior
+was changed for this fix. `npm.cmd run test:run -- src/games/fps/client/__tests__/WeaponViewLoading.test.ts`
+then passed all 12 tests. Shard 2/2 passed 360 files / 2,924 tests with one skip.
+Failed logs remain in `gates-fixed/` and `completion/`; the normal full-suite
+rerun has its separate `full-tests-corrected.log` receipt.
+
+The first Biome gate identified two formatting errors in the changed diagnostic
+string and assertion. Applied those exact formatting changes;
+`npm.cmd run gate:biome` passes with zero errors and 47 baseline warnings.
+
+The corrected normal `npm.cmd run test:run` completed: **717 files passed,
+three failed; 5,643 tests passed, three failed, one skipped** (720 files total).
+During that run another client was removing instagun in the shared checkout.
+The failures are `FPSCombatAudio.test.ts` (still expects instagun sound paths),
+`FpsMapEntities.test.ts` (expects 31 definitions, observes 29), and
+`server/__tests__/lobby/SpawnedResult.test.ts` (child exits while initializing
+projectile definitions with `Cannot read properties of undefined (reading 'id')`).
+These unrelated changes/tests were not repaired in this separation checkpoint;
+the complete live-tree suite is explicitly **not green**.
+
+Other completed commands:
+
+| Exact command | Result |
+| --- | --- |
+| `npm.cmd run typecheck` | Passed before the concurrent instagun edits |
+| `npm.cmd run build` | Passed, including PK3 index and sourcemap relocation |
+| `npm.cmd run docs:build` | Passed |
+| `npm.cmd run docs:fps:build` | Passed |
+| `npm.cmd run test:simulation` | Passed |
+| `npm.cmd run test:physics` | Passed |
+| `npm.cmd run server:tick` | Passed; `2768943778` |
+| `npm.cmd run server:fuzz -- --ticks 1000 --seed 42` | Passed; `2481546443` |
+| `npm.cmd run cli:game -- --exec "bsp load washoi_dm2; bsp info; quit"` | Passed; 7,475 faces |
+| `npm.cmd run cli:game -- --exec 'sim replay \"W+CROUCH 60; JUMP 1; W 30\"; quit'` | Passed; 91 ticks |
+
+These receipts describe a shared checkout during concurrent editing, not a
+validated release snapshot of the other client's subsequent work.
+
+Washoi commits: `656ba62` (stale WebGL barrel-material test assertion) and
+`9c24997` (benchmark/MCP recipe ownership). The user confirmed that the other
+client's ongoing instagun removal is intentional unused-code cleanup.

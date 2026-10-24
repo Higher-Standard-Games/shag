@@ -34,6 +34,6 @@
     }
   },
   "files": {
-    "includes": ["src/**", "!src/games/fps/scripts/diagnostics/**", "!**/dist-docs/**", "!**/.vitepress/cache/**", "!**/.vitepress/dist/**"]
+    "includes": ["src/**", "!src/games/fps/scripts/diagnostics/**", "!src/games/fps/scripts/benchmarks/**", "!src/games/fps/scripts/shagged-mcp.mjs", "!**/dist-docs/**", "!**/.vitepress/cache/**", "!**/.vitepress/dist/**"]
   }
 }
