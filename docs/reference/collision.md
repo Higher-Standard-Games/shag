@@ -32,8 +32,8 @@ These are shared values, not raw Q3 flags. Raw BSP contents are translated once 
 
 ## Validation
 
-    npm run test:physics
-    npm run test:simulation
-    npm run cli:game -- --exec "bsp load wdm2; bsp info; quit"
+    npm --prefix src/games/fps run test:physics
+    npm --prefix src/games/fps run test:simulation
+    npm --prefix src/games/fps run cli:game -- --exec "bsp load wdm2; bsp info; quit"
 
 Use the same shared collision world for prediction and authority; parallel collision implementations cause reconciliation drift.

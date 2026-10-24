@@ -8,7 +8,12 @@ both the browser client and the game servers it starts.
 Washoi owns application startup at `src/games/fps/cli/lobby-server.ts` and
 the server build recipe at `src/games/fps/scripts/build-servers.mjs` in the
 assembled checkout. Reusable lobby, account, result and process-management
-services remain in SHAG. Run lobby commands from the assembled project root.
+services remain in SHAG. The examples below start at the assembled SHAG root;
+the game package owns the commands. Install dependencies once at that root.
+Inside `src/games/fps`, use `npm run lobby:server` or `npm run bot:server`.
+Both forms launch with the SHAG root as their working directory, so relative
+`--data-dir` paths and `public/data/` keep the same location. The outer package
+does not provide a `lobby:server` shortcut.
 
 Washoi's demo-ownership and real lobby/match integration tests live in
 `src/games/fps/server/__tests__/lobby/`. `npm --prefix src/games/fps run ranking:acceptance` includes

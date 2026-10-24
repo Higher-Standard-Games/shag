@@ -20,6 +20,22 @@ npm run dev
 
 Vite is configured on [http://localhost:3000](http://localhost:3000).
 
+Root `dev` and `build` commands follow `SHAG_APP` or the local
+`.shag-application.json` selection, defaulting to the engine example. To run
+Washoi from this assembled checkout, use its package commands:
+
+```bash
+npm --prefix src/games/fps run dev
+# Separate terminals for the lobby and bot service:
+npm --prefix src/games/fps run lobby:server
+npm --prefix src/games/fps run bot:server
+```
+
+The game package selects Washoi automatically. Its commands also work as
+`npm run <command>` inside `src/games/fps`; their working directory remains the
+SHAG root. Dependencies are installed only at the SHAG root. The gameplay
+examples below require this game selection and compatible PK3 data.
+
 Game PK3s are not committed. Put compatible assets under `public/data/` and generate/update the index when needed:
 
 ```bash

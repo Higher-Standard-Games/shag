@@ -4,6 +4,12 @@ The dedicated game server, for multiplayer testing and deployment.
 
 ## Quick start
 
+These examples run from the assembled SHAG root, with the game checked out at
+`src/games/fps` and dependencies installed at the root. Inside the game folder,
+use `npm run net:server` instead. Both forms run with the SHAG root as cwd, so
+media, certificates and output paths resolve there. The command builds the
+server bundle before starting Node.
+
 ```bash
 npm --prefix src/games/fps run net:server
 ```

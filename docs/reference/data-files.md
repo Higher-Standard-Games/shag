@@ -28,4 +28,4 @@ FPS media comes from PK3s. The selected id is <code>fps</code>; <code>public/gam
 
 Validate through the shared index:
 
-    npm run cli:game -- --exec "bsp load wdm2; bsp info; quit"
+    npm --prefix src/games/fps run cli:game -- --exec "bsp load wdm2; bsp info; quit"

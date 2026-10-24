@@ -30,6 +30,6 @@ Keep prefab floor/anchor geometry around source origin. Plane winding matters to
 
 For FPS maps, inspect the compiled result instead:
 
-    npm run cli:game -- --exec "bsp load wdm2; bsp info; quit"
+    npm --prefix src/games/fps run cli:game -- --exec "bsp load wdm2; bsp info; quit"
 
 See [Prefabs](./prefabs.md), [Entities](./entities.md), and [BSP System](../manual/guides/bsp-system.md).

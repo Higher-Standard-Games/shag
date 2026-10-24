@@ -2,16 +2,36 @@
 
 ## Build and preview
 
+For the engine example, run at the SHAG root:
+
 ```bash
 npm run build
 npm run preview
 ```
 
+For Washoi, check out the game at `src/games/fps`, install dependencies once at
+the SHAG root, and select the game through its package commands:
+
+```bash
+npm --prefix src/games/fps run build
+npm --prefix src/games/fps run preview
+```
+
+Inside `src/games/fps`, `npm run build` and `npm run preview` are equivalent.
+The launcher selects the game with `SHAG_APP` and runs at the SHAG root; web
+output goes to the root's `dist/`, server output to `dist-server/`, and media
+stays under `public/data/`. Generic root commands follow `SHAG_APP` or the local
+`.shag-application.json` selection, falling back to the engine example.
+
 Deploy the contents of `dist/` to a static HTTPS host. Vite copies files from `public/`, so any game data under `public/data/` becomes part of the output unless the deployment process separates it. The exception is `public/ui-proto/`, the static UI mockups: the dev server serves them, and the `drop-dev-only-pages` plugin in `vite.config.ts` removes them from release builds.
 
 ## Link previews
 
-`index.html` carries the `description`, Open Graph (`og:*`) and `twitter:card` (`summary_large_image`) tags that chat apps and social sites read for a link preview. `og:image` must be an absolute URL; it points at `https://washoi.net/og-image.png` (1200×630). A deployment under another name or with another card image edits these tags in `index.html`.
+The selected application's HTML template supplies link-preview metadata. Washoi's
+template is `src/games/fps/index.html`, selected by its `browser.json`; it carries
+the description, Open Graph and Twitter card tags. Edit that template for a
+Washoi deployment under another name or with another card image. The root
+`index.html` is the neutral engine template.
 
 ## Hosting requirements
 
@@ -28,6 +48,12 @@ Large PK3 files may be more practical on a CDN: build with `VITE_PK3_MIRROR_URL`
 
 The static build is only the client. Multiplayer needs three Node 24 processes
 beside it:
+
+The table below uses Washoi's package commands from the SHAG root. For normal
+lobby play, start the lobby and bot service in separate terminals; the lobby
+starts match servers as needed. Use the standalone match command for direct
+connections. Give lobby and bot commands the same `-- --data-dir <path>` when
+overriding storage; relative paths resolve at the SHAG root.
 
 | Process | Start (production) | Start (development) |
 | --- | --- | --- |

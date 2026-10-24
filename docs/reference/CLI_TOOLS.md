@@ -1,8 +1,13 @@
 # CLI Tools
 
-> Script names verified from <code>package.json</code> on 2026-08-06.
+> Script names checked against the engine and game package manifests on 2026-10-24.
 
 Prefer package scripts; they preserve the required <code>vite-node</code> setup and argument separators.
+
+Examples start at the SHAG root. Game commands use
+`npm --prefix src/games/fps run <script>`; inside the game directory use
+`npm run <script>`. Both run at the assembled root. Install dependencies once
+at the SHAG root. `cli:bsp` and `net:client` remain engine commands.
 
 | Script | Purpose |
 |---|---|
@@ -17,15 +22,20 @@ Prefer package scripts; they preserve the required <code>vite-node</code> setup 
 
 Core validation:
 
-    npm run cli:game -- --exec "bsp load wdm2; bsp info; quit"
-    npm run cli:game -- --exec "sim replay W+CROUCH 60; JUMP 1; W 30; quit"
-    npm run test:simulation
-    npm run test:physics
-    npm run server:tick
-    npm run server:fuzz -- --ticks 1000
+    npm --prefix src/games/fps run cli:game -- --exec "bsp load wdm2; bsp info; quit"
+    npm --prefix src/games/fps run cli:game -- --exec 'sim replay "W+CROUCH 60; JUMP 1; W 30"; quit'
+    npm --prefix src/games/fps run test:simulation
+    npm --prefix src/games/fps run test:physics
+    npm --prefix src/games/fps run server:tick
+    npm --prefix src/games/fps run server:fuzz -- --ticks 1000
 
-Asset tools are <code>debug:textures</code>, <code>debug:pickup</code>, <code>debug:spawn</code>, <code>tools:convert</code>, <code>tools:textures*</code>, <code>tools:manifest</code>, and <code>tools:map</code>.
+In PowerShell with `npm.cmd`, escape the replay's inner quotes as `\"`.
 
-Platform/docs families are <code>docs:*</code>, <code>android:*</code>, and <code>electron:*</code>. Consult <code>package.json</code> for exact expansion.
+Asset tools are <code>debug:textures</code>, <code>debug:pickup</code>, <code>tools:convert</code>, <code>tools:textures*</code>, <code>tools:manifest</code>, and <code>tools:map</code>.
+
+Platform/docs families are <code>docs:*</code>, <code>android:*</code>, and <code>electron:*</code>.
+The game package selects Washoi for platform builds and its manual; root docs
+commands build the engine manual. Consult the respective package manifest for
+the exact expansion.
 
 NullEngine validates parsing, simulation, lifecycle, and structure. It does not prove browser shaders, visuals, GPU particles, audio, input feel, WebGPU, or mobile WebView behavior.

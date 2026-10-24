@@ -51,6 +51,23 @@ npm run build
 npm run docs:api
 ```
 
+## Running Washoi
+
+With the game checked out at `src/games/fps`, run these from the SHAG root
+(each server in a separate terminal):
+
+```bash
+npm --prefix src/games/fps run dev
+npm --prefix src/games/fps run lobby:server
+npm --prefix src/games/fps run bot:server
+```
+
+For a game build, use `npm --prefix src/games/fps run build`. Inside the game
+folder the short forms, such as `npm run lobby:server`, also work. Install
+dependencies once at the SHAG root; both forms use that root for media, server
+data and build output. See the [game setup guide](src/games/fps/docs/manual/getting-started/)
+and [server guide](src/games/fps/docs/manual/developer/server-commands.md).
+
 ## AI Agent Research Workflow
 
 The repo now includes a small local multi-agent orchestrator for document analysis. The default path is optimized for low-cost usage:

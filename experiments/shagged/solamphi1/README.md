@@ -20,8 +20,8 @@ map solamphi1 amphi
 To compile the tracked snapshot directly:
 
 ```text
-npm run shagged -- compile experiments/shagged/solamphi1/solamphi1.json --quality default
-npm run shagged -- report experiments/shagged/solamphi1/solamphi1.json --quality default
+npm --prefix src/games/fps run shagged -- compile experiments/shagged/solamphi1/solamphi1.json --quality default
+npm --prefix src/games/fps run shagged -- report experiments/shagged/solamphi1/solamphi1.json --quality default
 ```
 
 Supply the same quality when compiling and reporting to reuse the reviewed build.

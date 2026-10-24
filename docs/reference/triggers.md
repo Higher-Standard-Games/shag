@@ -21,5 +21,5 @@ The old generic <code>trigger_multiple</code> dialog/map-switch/prefab workflow 
 
 Validate triggers with shared table tests and movement/simulation regressions:
 
-    npm run test:simulation
-    npm run test:physics
+    npm --prefix src/games/fps run test:simulation
+    npm --prefix src/games/fps run test:physics

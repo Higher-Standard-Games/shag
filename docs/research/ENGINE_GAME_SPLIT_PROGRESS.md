@@ -3204,3 +3204,46 @@ assembled validation. Neither repository must run standalone gameplay.
 Final shared-tree `npm.cmd run typecheck` and `npm.cmd run gate:biome` passed
 (zero errors / 47 warnings). Both repositories' `git diff --check` passed.
 Washoi commit: `b8a191e` (`refactor: own assembled game package commands`).
+
+## Command documentation follow-up (2026-10-24)
+
+Audited current manuals and reference pages against both package manifests and
+the game launcher. Added root/game cwd guidance, lobby/bot startup recipes,
+Missing-script troubleshooting and explicit Washoi build selection in deployment.
+Corrected the nonexistent npm server example, the dedicated server's default
+map (verified in its CLI), game test commands and the removed debug:spawn listing.
+Historical research/changelog/experiment validation receipts were preserved;
+the experiment README's active compile/report instructions were updated.
+
+Exact changed files:
+
+- `README.md`
+- `docs/changelog/v1.0.0-alpha.3.md`
+- `docs/manual/deployment/web.md`
+- `docs/manual/getting-started/index.md`
+- `docs/manual/guides/lobby-server.md`
+- `docs/manual/tools/network-server.md`
+- `docs/reference/CLI_TOOLS.md`
+- `docs/reference/MAP_FORMAT.md`
+- `docs/reference/collision.md`
+- `docs/reference/data-files.md`
+- `docs/reference/triggers.md`
+- `experiments/shagged/solamphi1/README.md`
+- `docs/research/ENGINE_GAME_SPLIT_PROGRESS.md`
+- `src/games/fps/README.md`
+- `src/games/fps/docs/manual/developer/index.md`
+- `src/games/fps/docs/manual/developer/server-commands.md`
+- `src/games/fps/docs/manual/getting-started/index.md`
+- `src/games/fps/docs/manual/getting-started/troubleshooting.md`
+- `src/games/fps/docs/manual/tools/bot-server.md`
+
+Validation: npm.cmd run docs:build and npm.cmd --prefix src/games/fps run
+docs:build both passed. git diff --check passed in both repositories.
+The tracked current-manual/reference/skill command audit found only short
+game commands explicitly documented as running inside src/games/fps; those
+resolve in the game manifest. Source verification covered package scripts,
+launcher cwd/application selection and headless-netserver-v2 map defaults.
+Assumption: the assembled checkout still uses the tracked game submodule;
+Git detachment has not happened. No application source was changed, servers
+were not started, and no fresh install, browser play or deployed-host check
+was performed for this documentation-only follow-up.
