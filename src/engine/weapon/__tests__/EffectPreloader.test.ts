@@ -45,15 +45,7 @@ describe("effect shader warmup", () => {
     try {
       expect(scene.activeCamera).toBeFalsy();
       await preloadEffectShaders(scene);
-      expect(compiled).toEqual([
-        "_warmup_bsp_nolight",
-        "_warmup_bsp_light",
-        "_warmup_trail",
-        "_warmup_fireball",
-        "_warmup_ray",
-        "_warmup_shockwave",
-        "_warmup_impact",
-      ]);
+      expect(compiled).toEqual(["_warmup_bsp_nolight", "_warmup_bsp_light", "_warmup_trail", "_warmup_impact"]);
       expect(scene.meshes).toHaveLength(0);
       expect(scene.materials.filter((material) => material.name.startsWith("_warmup"))).toHaveLength(0);
       expect(scene.textures).toHaveLength(0);

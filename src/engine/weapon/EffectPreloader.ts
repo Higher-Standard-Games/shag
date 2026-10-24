@@ -15,7 +15,7 @@
  * Critical shader variants pre-compiled:
  * - StandardMaterial + lightmapTexture + useLightmapAsShadowmap (BSP surfaces)
  * - Above + PointLight (BSP surfaces lit by projectiles/explosions)
- * - StandardMaterial + emissive + alpha (trail ribbons, explosions)
+ * - StandardMaterial + emissive + alpha (trail ribbons)
  * - StandardMaterial + emissive + various mesh types (impacts, shockwaves)
  */
 
@@ -196,80 +196,7 @@ export async function preloadEffectShaders(scene: Scene): Promise<void> {
     warmupMeshes.push(mesh);
   }
 
-  // 2. Explosion fireball (emissive + alpha + backFace off)
-  {
-    const mat = new StandardMaterial("_warmup_fireball", scene);
-    mat.emissiveColor = new Color3(1.0, 0.95, 0.6);
-    mat.diffuseColor = Color3.Black();
-    mat.disableLighting = true;
-    mat.backFaceCulling = false;
-    mat.alpha = 0.9;
-    warmupDisposables.push(mat);
-
-    const mesh = MeshBuilder.CreateIcoSphere(
-      "_warmup_icosphere",
-      {
-        radius: 0.01,
-        subdivisions: 2,
-      },
-      scene,
-    );
-    mesh.position = offscreen;
-    mesh.material = mat;
-    mesh.isPickable = false;
-    warmupMeshes.push(mesh);
-  }
-
-  // 3. Explosion ray (emissive cone)
-  {
-    const mat = new StandardMaterial("_warmup_ray", scene);
-    mat.emissiveColor = new Color3(1.0, 0.4, 0.05);
-    mat.diffuseColor = Color3.Black();
-    mat.disableLighting = true;
-    mat.alpha = 0.8;
-    warmupDisposables.push(mat);
-
-    const mesh = MeshBuilder.CreateCylinder(
-      "_warmup_cone",
-      {
-        height: 0.01,
-        diameterTop: 0,
-        diameterBottom: 0.01,
-        tessellation: 6,
-      },
-      scene,
-    );
-    mesh.position = offscreen;
-    mesh.material = mat;
-    mesh.isPickable = false;
-    warmupMeshes.push(mesh);
-  }
-
-  // 4. Shockwave disc
-  {
-    const mat = new StandardMaterial("_warmup_shockwave", scene);
-    mat.emissiveColor = new Color3(1.0, 0.4, 0.05);
-    mat.diffuseColor = Color3.Black();
-    mat.disableLighting = true;
-    mat.backFaceCulling = false;
-    mat.alpha = 0.7;
-    warmupDisposables.push(mat);
-
-    const mesh = MeshBuilder.CreateDisc(
-      "_warmup_disc",
-      {
-        radius: 0.01,
-        tessellation: 8,
-      },
-      scene,
-    );
-    mesh.position = offscreen;
-    mesh.material = mat;
-    mesh.isPickable = false;
-    warmupMeshes.push(mesh);
-  }
-
-  // 5. Impact glow (emissive sphere)
+  // 2. Impact glow (emissive sphere)
   {
     const mat = new StandardMaterial("_warmup_impact", scene);
     mat.emissiveColor = new Color3(1, 0.8, 0.3);
