@@ -36,6 +36,7 @@ import { bspLightingProfile, scaleBspLighting } from "./BspLightingProfile";
 import type { BspFile } from "./BspLoader";
 import { classifyLiquids, DEFAULT_LIQUID_OVERRIDES, liquidKindFromSurfaceParms } from "./LiquidClassifier";
 import { createAutosprite2Geometry, updateAutosprite2Geometry } from "./mesh/autosprite2";
+import { cubemapObjectOfFaces } from "./mesh/cubemapObjects";
 import { buildMeshFace, buildPatchFace, buildPolygonFace } from "./mesh/faceBuilders";
 import { createRadialGradientTexture, createSolidColorTexture } from "./mesh/fallbackTextures";
 import {
@@ -237,6 +238,19 @@ export class BspMeshBuilder {
       throw new Error("[BspMeshBuilder] No world model found");
     }
 
+    // Each object drawn with `map $cubemap` gets a mesh, and so a capture, of its own
+    const cubemapTextures = new Map<number, boolean>();
+    const cubemapObjects = cubemapObjectOfFaces(this.bsp, worldModel.firstFace, worldModel.numFaces, (index) => {
+      let cube = cubemapTextures.get(index);
+      if (cube === undefined) {
+        cube = shaderRegistry.hasGeneratedCubemap(this.bsp.textures[index]?.name ?? "", {
+          deluxe: this.options.deluxe,
+        });
+        cubemapTextures.set(index, cube);
+      }
+      return cube;
+    });
+
     let skippedTextures = 0;
     let skippedFaceTypes = 0;
 
@@ -371,8 +385,10 @@ export class BspMeshBuilder {
       // Patch faces get their own group with two-sided rendering (Q3 patches are always two-sided)
       const lmIdx = face.lightmapIndex >= 0 ? face.lightmapIndex : -1;
       const isPatch = face.faceType === 2;
+      const cubemapObject = cubemapObjects.get(i);
       const spatialCell =
         spatialCellSize &&
+        cubemapObject === undefined &&
         !shaderProps.isTransparent &&
         shaderProps.alphaMode === "opaque" &&
         !shaderProps.needsAnimation &&
@@ -383,7 +399,7 @@ export class BspMeshBuilder {
           ? faceSpatialCell(this.bsp, face, spatialCellSize)
           : null;
       const layered = this.layeredLightmaps && lmIdx >= 0;
-      const baseKey = `${face.textureIndex}_${layered ? "layered" : lmIdx}${isPatch ? "_patch" : ""}`;
+      const baseKey = `${face.textureIndex}_${layered ? "layered" : lmIdx}${isPatch ? "_patch" : ""}${cubemapObject === undefined ? "" : `_cube_${cubemapObject}`}`;
       const groupKey = `${baseKey}${spatialCell === null ? "" : `_cell_${spatialCell}`}`;
       let group = textureGroups.get(groupKey);
       if (!group) {
@@ -613,6 +629,7 @@ export class BspMeshBuilder {
         fogParams: group.fogParams,
         autosprite: group.shaderProps.autosprite,
         autosprite2: group.shaderProps.autosprite2,
+        generatedCubemap: group.shaderProps.generatedCubemap === true,
         // Which liquid this surface draws, if any. An annotation only — the
         // material above is still the ordinary one, so nothing about how the
         // map looks changes until a liquid renderer exists to claim these.
@@ -1261,6 +1278,7 @@ export class BspMeshBuilder {
                   usesVertexRgb: props.usesVertexRgb,
                   preserveVertexLighting: props.usesVertexRgb,
                   preserveEmissive: false,
+                  generatedCubemap: props.generatedCubemap === true,
                 };
                 mesh.alphaIndex = passIndex;
                 return mesh;
@@ -1275,6 +1293,11 @@ export class BspMeshBuilder {
       progressCallback?.(loadedCount, total, texName);
 
       const shaderProps = group.props;
+      // Its only image is the reflection captured when the map has loaded
+      if (shaderProps.generatedCubemap) {
+        loadedCount++;
+        continue;
+      }
       if (shaderProps.environmentMap) {
         const { SkyboxLoader } = await import("../texture/SkyboxLoader");
         const { Q3EnvironmentPlugin } = await import("../shader/Q3EnvironmentPlugin");
@@ -1977,6 +2000,14 @@ export class BspMeshBuilder {
     }
     // Cap light slots to avoid shader uniform block overflow (WebGL2 limit)
     applySafeMaxSimultaneousLights(mat);
+
+    // `map $cubemap` draws only the reflection captured at map load
+    if (props.generatedCubemap) {
+      mat.diffuseColor = new Color3(0, 0, 0);
+      mat.specularColor = new Color3(0, 0, 0);
+      mat.emissiveColor = new Color3(0, 0, 0);
+      mat.disableLighting = true;
+    }
 
     // Polygon offset for decals
     // NOTE: polygonOffset with multiply blend (decals) still has z-fighting issues

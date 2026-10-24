@@ -27,6 +27,7 @@ import { trackFrozenWorldMaterials } from "../../rendering/FrozenWorldMaterials"
 import RenderVars from "../../rendering/RenderVars";
 import { parseSkyPortal, SkyPortalView } from "../../rendering/SkyPortal";
 import { SkyVisibility, skyClusterBounds } from "../../rendering/SkyVisibility";
+import { SurfaceCubemaps } from "../../rendering/SurfaceCubemaps";
 import { WorldFogController } from "../../rendering/WorldFogController";
 import { LiquidSurfaceSystem } from "../../rendering/water/LiquidSurfaceSystem";
 import { waterMapLights, waterSurfaceLights } from "../../rendering/water/WaterSurfaceLighting";
@@ -131,6 +132,7 @@ export class MapLoader {
   private currentMeshResult: BspMeshBuildResult | null = null;
   /** Owns the unified water materials for the loaded map; disposed with it. */
   private liquidSurfaces: LiquidSurfaceSystem | null = null;
+  private surfaceCubemaps: SurfaceCubemaps | null = null;
   /** The sky portal's view while the map has one. */
   private skyPortal: SkyPortalView | null = null;
 
@@ -563,6 +565,12 @@ export class MapLoader {
     // before the awaited SkyLightSystem setup could permanently cache a black
     // room. Both baked lightmaps and BSP ambient lighting must be set first.
     await this.claimLiquidSurfaces(meshResult, scene, skyEnvironment, !isHeadlessNullEngine);
+    this.surfaceCubemaps?.dispose();
+    this.surfaceCubemaps = null;
+    if (!isHeadlessNullEngine) {
+      const cubemaps = new SurfaceCubemaps(scene);
+      if (cubemaps.claim(meshResult.worldMesh)) this.surfaceCubemaps = cubemaps;
+    }
 
     // Phase 8b: Register map-owned billboard updates after frame-level PVS.
     if (meshResult.autospriteMeshes && meshResult.autospriteMeshes.length > 0) {
@@ -698,8 +706,17 @@ export class MapLoader {
           console.warn("[MapLoader] Reflection capture failed, water will capture in play:", e);
         }
       }
+      if (camera && this.surfaceCubemaps) {
+        progress("Finalizing", "Capturing reflections");
+        const captured = await this.surfaceCubemaps.captureAll(camera);
+        devLog(`[MapLoader] Captured ${captured} $cubemap surface reflection(s)`);
+        // The reflecting surfaces' shaders gained a cubemap: compile them here too
+        if (captured) await waitForMapReady(scene.whenReadyAsync(), signal, SCENE_READY_TIMEOUT_MS).catch(() => false);
+      }
+      this.surfaceCubemaps?.captureInPlay();
     } else {
       devLog("[MapLoader] Background mode: skipped shader warmup and GPU wait");
+      this.surfaceCubemaps?.captureInPlay();
     }
 
     // ── Tab visibility recovery ──────────────────────────────────────────
@@ -1020,6 +1037,8 @@ export class MapLoader {
     // pointing at a material that is about to be disposed.
     this.liquidSurfaces?.dispose();
     this.liquidSurfaces = null;
+    this.surfaceCubemaps?.dispose();
+    this.surfaceCubemaps = null;
 
     if (this.currentMeshResult) {
       // Dispose child meshes first

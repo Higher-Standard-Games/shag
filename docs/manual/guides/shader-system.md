@@ -54,7 +54,9 @@ The parser and BSP material path cover the compatibility features most maps depe
 - `deformVertexes autosprite` and `autosprite2`;
 - `softParticle` intersection fading on transparent Standard/PBR primary stages;
 - QFusion/Warsow `cubemap` sources are preserved as appearance hints for the
-  unified liquid renderer, including inside `if textureCubeMap` blocks.
+  unified liquid renderer, including inside `if textureCubeMap` blocks;
+- `map $cubemap` reflections captured at the surface (see
+  [Generated cubemaps](#generated-cubemaps-map-cubemap)).
 
 Custom material plugins declare unique class names and persistent feature
 defines. Every plugin composition and code-changing constructor option must
@@ -75,6 +77,44 @@ authored 2D fallback. Selected passes retain their script order. `surroundmap`
 samples the view ray, while `cubemap` reflects it around the surface normal.
 Explicit lightmap stacks and other blend combinations retain the existing
 compatibility path.
+
+### Generated cubemaps (`map $cubemap`)
+
+A stage with `map $cubemap` reflects the map as seen from the surface itself,
+the Qfusion convention:
+
+```text
+models/mapobjects/sphere
+{
+    qer_editorimage textures/world/sh2026/water5_norm
+    {
+        map $cubemap
+        rgbgen identity
+    }
+}
+```
+
+The view is reflected around the surface normal, so smooth normals give a
+curved mirror and flat normals a flat one. Faces of a `$cubemap` shader that
+share vertices form one object, and each object gets its own capture:
+
+| Object | Capture point | Projection |
+| --- | --- | --- |
+| Curved (normals differ) | The object's centre | Direct cubemap lookup |
+| Flat (one plane, one normal) | The middle of the room in front of it | Box-projected onto the room |
+
+A flat surface whose room is open to the sky, or whose room middle it cannot
+see, uses a direct capture from just in front of it.
+
+Captures happen once per map load, behind the loading screen, at 256 px per
+face. They contain the static map only: no players, weapons, effects, water or
+other `$cubemap` objects. A map gets up to eight captures; further objects
+reflect the nearest one. An object whose world was not ready to render at load
+is captured in play.
+
+Beside other stages, `$cubemap` draws as its own pass in script order and
+blends with its `blendFunc`, so `blendfunc add` puts a reflection over a
+lightmapped base. Alone, it draws the reflection only, without lighting.
 
 Opaque vertex-lit `material` stages without lightmaps retain baked vertex RGB
 and accept additive game lights and gloss, excluding the synthetic world fill.

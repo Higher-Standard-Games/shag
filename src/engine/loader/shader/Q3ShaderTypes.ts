@@ -353,6 +353,8 @@ export interface ResolveMaterialOptions {
   deluxe?: boolean;
   /** Select the six-face source instead of the authored 2D fallback. */
   textureCubeMap?: boolean;
+  /** Leave out `map $cubemap` stages, which draw as their own pass. */
+  withoutGeneratedCubemap?: boolean;
 }
 
 /**
@@ -454,4 +456,7 @@ export interface ResolvedMaterialProps {
 
   /** Texture coordinate generation mode (environment mapping, etc.) */
   tcGen?: TcGen;
+
+  /** `map $cubemap`: reflects a cubemap captured from the surface's own position at map load. */
+  generatedCubemap?: boolean;
 }

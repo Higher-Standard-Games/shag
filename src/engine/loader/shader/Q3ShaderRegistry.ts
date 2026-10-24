@@ -94,6 +94,11 @@ function isLightmapStage(stage: Q3ShaderStage): boolean {
   return stage.map.toLowerCase() === "$lightmap";
 }
 
+/** `map $cubemap`: a reflection of the map captured where the surface stands. */
+export function isGeneratedCubemapStage(stage: Q3ShaderStage): boolean {
+  return stage.map.toLowerCase() === "$cubemap";
+}
+
 function isRenderableStage(stage: Q3ShaderStage): boolean {
   return Boolean(
     stage.cubeMap || stage.material?.diffuse || stage.animMap?.frames.length || (stage.map && !isLightmapStage(stage)),
@@ -243,7 +248,7 @@ export class Q3ShaderRegistry {
   resolveMaterialProps(textureName: string, options: ResolveMaterialOptions = {}): ResolvedMaterialProps {
     const deluxe = options.deluxe ?? false;
     const normalizedTextureName = normalizeShaderName(textureName);
-    const cacheKey = `${normalizedTextureName}|deluxe=${deluxe ? 1 : 0}|cube=${options.textureCubeMap !== false ? 1 : 0}|world=${options.worldSurface ? 1 : 0}|pass=${options.passIndex ?? "all"}`;
+    const cacheKey = `${normalizedTextureName}|deluxe=${deluxe ? 1 : 0}|cube=${options.textureCubeMap !== false ? 1 : 0}|world=${options.worldSurface ? 1 : 0}|pass=${options.passIndex ?? "all"}|nocube=${options.withoutGeneratedCubemap ? 1 : 0}`;
 
     // Check cache first (same texture + deluxe mode resolves to the same props)
     const cached = this.resolvedCache.get(cacheKey);
@@ -289,10 +294,13 @@ export class Q3ShaderRegistry {
     const props: ResolvedMaterialProps = { ...defaults };
     const resolved = this.getResolvedStages(shader, deluxe, options.textureCubeMap !== false);
     const branch = resolved.branch;
-    const activeStages =
+    const selectedStages =
       options.passIndex === undefined
         ? resolved.stages
         : resolved.stages.slice(options.passIndex, options.passIndex + 1);
+    const activeStages = options.withoutGeneratedCubemap
+      ? selectedStages.filter((stage) => !isGeneratedCubemapStage(stage))
+      : selectedStages;
     const materialStage = activeStages.find((stage) => stage.material !== undefined);
     // A collapsed material uses its own UV/blend state. An earlier environment
     // background pass must not turn the material's diffuse map into a reflection.
@@ -311,6 +319,7 @@ export class Q3ShaderRegistry {
     props.usesVertexAlpha = primaryStage?.alphaGen?.type === "vertex";
     props.rgbGen = primaryStage?.rgbGen;
     props.environmentMap = primaryStage?.cubeMap;
+    if (primaryStage && isGeneratedCubemapStage(primaryStage)) props.generatedCubemap = true;
 
     // Sky detection - surfaceparm sky or has skyparms
     if (shader.surfaceParms.has("sky") || shader.skyParms) {
@@ -373,7 +382,7 @@ export class Q3ShaderRegistry {
     }
 
     if (activeStages.length > 0) {
-      if (!props.diffuseTexture && primaryStage?.map && !isLightmapStage(primaryStage)) {
+      if (!props.diffuseTexture && primaryStage?.map && !isLightmapStage(primaryStage) && !props.generatedCubemap) {
         props.diffuseTexture = normalizeTextureReference(primaryStage.map);
       }
       if (!props.diffuseTexture && primaryStage?.animMap?.frames[0])
@@ -487,12 +496,40 @@ export class Q3ShaderRegistry {
     return props;
   }
 
+  /** Whether the shader's selected stages include a `map $cubemap` stage. */
+  hasGeneratedCubemap(textureName: string, options: ResolveMaterialOptions = {}): boolean {
+    const shader = this.getShader(textureName);
+    if (!shader) return false;
+    return this.getResolvedStages(shader, options.deluxe ?? false, options.textureCubeMap !== false).stages.some(
+      (stage) => isGeneratedCubemapStage(stage),
+    );
+  }
+
   /** Keep repeated material layers in script order instead of dropping later layers. */
   resolveMaterialPasses(textureName: string, options: ResolveMaterialOptions = {}): ResolvedMaterialProps[] {
     const shader = this.getShader(textureName);
     const stages = shader
       ? this.getResolvedStages(shader, options.deluxe ?? false, options.textureCubeMap !== false).stages
       : [];
+    // A `map $cubemap` stage beside other stages draws as its own pass,
+    // blended by its blendFunc, where it stands in the script; the other
+    // stages keep their usual single-material composition.
+    if (
+      stages.some((stage) => isGeneratedCubemapStage(stage)) &&
+      stages.some((stage) => isRenderableStage(stage) && !isGeneratedCubemapStage(stage))
+    ) {
+      const passes = [
+        {
+          at: stages.findIndex((stage) => !isGeneratedCubemapStage(stage)),
+          props: this.resolveMaterialProps(textureName, { ...options, withoutGeneratedCubemap: true }),
+        },
+      ];
+      stages.forEach((stage, passIndex) => {
+        if (isGeneratedCubemapStage(stage))
+          passes.push({ at: passIndex, props: this.resolveMaterialProps(textureName, { ...options, passIndex }) });
+      });
+      return passes.sort((a, b) => a.at - b.at).map((pass) => pass.props);
+    }
     const environmentBackground = stages[0]?.cubeMap || stages[0]?.tcGen?.mode === "environment";
     if (
       (!environmentBackground && stages.filter((stage) => stage.material).length < 2) ||
@@ -548,7 +585,9 @@ export class Q3ShaderRegistry {
   }
 
   private getPrimaryStage(stages: Q3ShaderStage[]): Q3ShaderStage | undefined {
-    const renderableStage = stages.find((stage) => isRenderableStage(stage));
+    const renderableStage =
+      stages.find((stage) => isRenderableStage(stage) && !isGeneratedCubemapStage(stage)) ??
+      stages.find((stage) => isRenderableStage(stage));
     return renderableStage ?? stages[0];
   }
 

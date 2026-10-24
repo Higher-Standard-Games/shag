@@ -239,6 +239,7 @@ export default defineConfig({
       '@babylonjs/core/Meshes/Builders/groundBuilder',
       '@babylonjs/core/Meshes/Builders/icoSphereBuilder',
       '@babylonjs/core/Meshes/Builders/planeBuilder',
+      '@babylonjs/core/Meshes/Builders/sphereBuilder',
       '@babylonjs/core/Meshes/abstractMesh',
       '@babylonjs/core/Meshes/instancedMesh',
       '@babylonjs/core/Meshes/linesMesh',
