@@ -6,6 +6,7 @@
  * skinned somewhere other than its transform says, or on a layer the camera skips.
  */
 
+import type { Camera } from "@babylonjs/core/Cameras/camera";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import type { Scene } from "@babylonjs/core/scene";
@@ -30,14 +31,26 @@ function notReadyReason(mesh: AbstractMesh): string {
 /**
  * Meshes that would be drawn but are not ready to be, each named with what it
  * waits on. Hidden, disabled and empty meshes are left out: nothing is drawn for them.
+ *
+ * Readiness is kept per render pass, and each camera has its own. Between
+ * frames the engine is left on the last camera drawn, which in play is the
+ * weapon view: it never draws the world, so every world mesh read as not
+ * ready there. Pass the camera that draws `meshes` to ask in its pass.
  */
-export function describeUnreadyMeshes(meshes: readonly AbstractMesh[]): string[] {
-  const unready: string[] = [];
-  for (const mesh of meshes) {
-    if (mesh.isDisposed() || !mesh.isEnabled() || !mesh.isVisible || mesh.getTotalVertices() === 0) continue;
-    if (!mesh.isReady(true)) unready.push(`${mesh.name}(${notReadyReason(mesh)})`);
+export function describeUnreadyMeshes(meshes: readonly AbstractMesh[], camera?: Camera | null): string[] {
+  const engine = meshes[0]?.getEngine();
+  const previous = engine?.currentRenderPassId;
+  if (engine && camera) engine.currentRenderPassId = camera.renderPassId;
+  try {
+    const unready: string[] = [];
+    for (const mesh of meshes) {
+      if (mesh.isDisposed() || !mesh.isEnabled() || !mesh.isVisible || mesh.getTotalVertices() === 0) continue;
+      if (!mesh.isReady(true)) unready.push(`${mesh.name}(${notReadyReason(mesh)})`);
+    }
+    return unready;
+  } finally {
+    if (engine && previous !== undefined) engine.currentRenderPassId = previous;
   }
-  return unready;
 }
 
 /** World-space bounds of the leader's vertices after skinning: where the geometry actually is. */

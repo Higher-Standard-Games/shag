@@ -12,7 +12,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import { Scene } from "@babylonjs/core/scene";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { describeModelRender, describeUnreadyMeshes } from "../ModelRenderAudit";
 
 let engine: NullEngine;
@@ -94,5 +94,26 @@ describe("describeUnreadyMeshes", () => {
     const empty = new Mesh("empty", scene);
 
     expect(describeUnreadyMeshes([hidden, disabled, empty])).toEqual([]);
+  });
+});
+
+describe("describeUnreadyMeshes in a camera's pass", () => {
+  it("asks in the pass of the camera that draws the meshes, then restores the engine's", () => {
+    const engine = new NullEngine();
+    const scene = new Scene(engine);
+    const world = new FreeCamera("world", Vector3.Zero(), scene);
+    const weapon = new FreeCamera("weapon", Vector3.Zero(), scene);
+    const wall = MeshBuilder.CreateBox("wall", {}, scene);
+    // Compiled for the world camera only, as a world surface is
+    vi.spyOn(wall, "isReady").mockImplementation(() => engine.currentRenderPassId === world.renderPassId);
+    try {
+      engine.currentRenderPassId = weapon.renderPassId; // the last camera drawn
+      expect(describeUnreadyMeshes([wall])).toHaveLength(1);
+      expect(describeUnreadyMeshes([wall], world)).toEqual([]);
+      expect(engine.currentRenderPassId).toBe(weapon.renderPassId);
+    } finally {
+      scene.dispose();
+      engine.dispose();
+    }
   });
 });

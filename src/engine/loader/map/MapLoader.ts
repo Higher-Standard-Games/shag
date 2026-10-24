@@ -753,7 +753,11 @@ export class MapLoader {
         this.readinessCheck = null;
         if (this.currentMeshResult !== meshResult || meshResult.worldMesh.isDisposed()) return;
         const { describeUnreadyMeshes } = await import("../../world/ModelRenderAudit");
-        const unready = describeUnreadyMeshes([meshResult.worldMesh, ...meshResult.worldMesh.getChildMeshes()]);
+        // Asked in the pass of the camera that draws the world, not the weapon view's
+        const worldMask = meshResult.worldMesh.layerMask;
+        const camera =
+          scene.activeCameras?.find((candidate) => (candidate.layerMask & worldMask) !== 0) ?? scene.activeCamera;
+        const unready = describeUnreadyMeshes([meshResult.worldMesh, ...meshResult.worldMesh.getChildMeshes()], camera);
         if (unready.length > 0) {
           console.warn(
             `[MapLoader] ${unready.length} world meshes were not ready to draw when the loading screen closed: ${unready.slice(0, 12).join("; ")}`,
