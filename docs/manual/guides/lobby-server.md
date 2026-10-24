@@ -448,10 +448,12 @@ stay for retry and inspection. Nothing is invented for a child killed before it
 wrote its final report.
 
 ```bash
-npm run lobby:server -- --results-recover --data-dir ./server-data
+npm run ranking:delivery -- --recover --data-dir ./server-data
 ```
 
 This offline command writes recovered receipts without starting the lobby. It
+is provided by SHAG and does not require the game checkout. The assembled
+Washoi lobby's `--results-recover` option remains available with the same policy. It
 requires existing, consistent storage, reports delivered, waiting, rejected and
 failed counts, and exits non-zero on an error or rejection. Bot matches still
 uncommitted when the lobby restarted keep their records but are excluded from

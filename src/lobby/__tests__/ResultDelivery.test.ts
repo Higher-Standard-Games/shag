@@ -259,9 +259,9 @@ describe("private durable result outbox", () => {
         process.execPath,
         [
           path.resolve("node_modules/vite-node/vite-node.mjs"),
-          "src/games/fps/cli/lobby-server.ts",
+          "src/cli/ranking-delivery.ts",
           "--",
-          "--results-recover",
+          "--recover",
           ...args,
         ],
         { cwd: process.cwd(), encoding: "utf8", timeout: 15000 },

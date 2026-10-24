@@ -27,7 +27,11 @@ const SPECIFIER = /["'](@babylonjs\/[^"']+)["']/g;
 function sourceFiles(): string[] {
   const config = ts.readConfigFile("tsconfig.json", ts.sys.readFile);
   if (config.error) throw new Error(ts.flattenDiagnosticMessageText(config.error.messageText, "\n"));
-  return ts.parseJsonConfigFileContent(config.config, ts.sys, process.cwd()).fileNames;
+  return ts
+    .parseJsonConfigFileContent(config.config, ts.sys, process.cwd())
+    .fileNames.filter(
+      (file) => !file.replace(/\\/g, "/").includes("/src/games/") && !file.replace(/\\/g, "/").startsWith("src/games/"),
+    );
 }
 
 function importedModules(): Set<string> {

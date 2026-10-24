@@ -4,13 +4,17 @@
  * Configures how the app is packaged for Windows, Linux, and macOS.
  * Run: npm run electron:build
  * 
- * Reads metadata for the selected game, the same way vite.config.ts picks it:
- * the GAME environment variable, else engine.json's defaultGame.
+ * Reads optional application metadata selected with SHAG_APP or the local
+ * browser application file. A plain checkout packages the engine example.
  */
 
-const engineConfig = require('./public/engine.json');
-const selectedGame = process.env.GAME || engineConfig.defaultGame || 'fps';
-const gameConfig = require(`./src/games/${selectedGame}/game.json`);
+const fs = require('node:fs');
+const path = require('node:path');
+const local = path.join(__dirname, '.shag-application.json');
+const selection = process.env.SHAG_APP ?? (fs.existsSync(local) ? JSON.parse(fs.readFileSync(local, 'utf8').replace(/^\uFEFF/, '')).application : 'engine');
+if (typeof selection !== 'string' || !selection.trim()) throw new Error('Invalid desktop application selection');
+const gameConfig = selection === 'engine' ? { name: 'SHAG Engine', desktop: { appId: 'com.shagengine.app' } }
+  : JSON.parse(fs.readFileSync(path.resolve(__dirname, selection, 'game.json'), 'utf8'));
 
 module.exports = {
   appId: gameConfig.desktop?.appId || 'com.shagengine.game',

@@ -2928,3 +2928,114 @@ validated release snapshot of the other client's subsequent work.
 Washoi commits: `656ba62` (stale WebGL barrel-material test assertion) and
 `9c24997` (benchmark/MCP recipe ownership). The user confirmed that the other
 client's ongoing instagun removal is intentional unused-code cleanup.
+
+## Step 25 — independent engine gates and CI ownership (2026-10-24)
+
+Exported committed SHAG `dc1353b2` into ignored
+`.cache/engine-game-split/step25-validation/engine/`, without initializing or
+copying Washoi and without installed game media. Existing `node_modules` was
+attached by junction; this is a source/build independence proof, not a clean
+dependency installation. The source export's original failure logs are retained.
+
+The first proof found four test-file failures and six TypeScript diagnostics:
+WebGPU globals arrived indirectly through game imports; desktop packaging
+required the default game's metadata; optimizer staleness checks depended on
+game imports; a result-delivery test launched the concrete game lobby CLI.
+A console focus test also depended on a prior test making a pointer-lock stub
+writable. Fixed these dependencies without changing renderer or ranking policy.
+
+Exact engine files changed:
+
+- `src/vite-env.d.ts`, `package.json`, `package-lock.json`: explicit WebGPU
+  ambient types and direct development dependency on the already-locked
+  `@webgpu/types` version `0.1.38`.
+- `scripts/browser-application.ts`, `scripts/babylon-deps.mjs`,
+  `vite.config.ts`, `src/__tests__/BrowserApplication.test.ts`,
+  `src/__tests__/ViteBabylonDeps.test.ts`: engine prebundles exclude games;
+  selected applications supply additional modules through `browser.json`.
+  The existing 169-module assembled union is preserved (161 engine + 8 Washoi).
+- `electron-builder.config.cjs`, `src/__tests__/ElectronBuilderConfig.test.ts`:
+  desktop metadata follows `SHAG_APP` / the local application selection, with
+  neutral engine metadata and no inferred FPS manifest. Explicit applications
+  supply `game.json`; this no longer follows `GAME` or `public/engine.json`.
+- `src/cli/ranking-delivery.ts`, `src/lobby/__tests__/ResultDelivery.test.ts`:
+  `--recover` exposes the existing signed-outbox retry/continuity policy through
+  the generic offline CLI. The game lobby's existing recovery option remains.
+  No schema, rating policy, stored result format or live database was changed.
+- `src/engine/debug/__tests__/DebugConsole.test.ts`: configurable pointer-lock
+  stub with descriptor restoration, independent of prior test ordering.
+- `.github/workflows/ci.yml`: engine-only checkout and install/typecheck/test/
+  profiling-helper/lint/build/manual gates; no game checkout or server build.
+- `docs/manual/guides/configuration.md`,
+  `docs/manual/guides/lobby-server.md`,
+  `docs/changelog/v1.0.0-alpha.3.md` and this progress log.
+
+Exact Washoi files changed:
+
+- `browser.json`: the eight additional Babylon modules.
+- `client/__tests__/ViteGameBabylonDeps.test.ts`: verifies the application's
+  additional module set against its actual imports and the engine imports.
+- `.github/workflows/ci.yml`: assembled checkout, prior Node/Bun and server
+  checks, benchmark helper tests, game build and game manual build. It selects
+  the matching SHAG branch/tag unless `SHAG_REF` overrides that selection.
+  Private engine access can use `SHAG_CHECKOUT_TOKEN`.
+- `docs/manual/developer/index.md`: CI pairing and prebundle regeneration.
+
+Validation used these commands inside the engine-only export:
+
+| Exact command | Result |
+| --- | --- |
+| `npm.cmd install --package-lock-only --offline --ignore-scripts --no-audit --no-fund` | Passed; lock consistency only, no fresh installation |
+| `npm.cmd run typecheck` | Passed |
+| `npm.cmd run test:run` | 393 files / 3,285 tests passed, three optional-data skips |
+| `npm.cmd run test:run -- src/__tests__/BrowserApplication.test.ts src/__tests__/ViteBabylonDeps.test.ts` | Seven passed after the type-compatible path-normalization correction |
+| `npm.cmd run gate:biome` | Passed; zero errors / 35 warnings, below assembled baseline |
+| `npm.cmd run build` | Passed, empty PK3 index and neutral engine browser bundle |
+| `npm.cmd run docs:build` | Passed with the changed manual pages |
+
+An intermediate candidate used `String.replaceAll` in the dependency tests,
+which exceeds the isolated project's ES2020 library. Replaced it with equivalent
+global-regexp path normalization. Its failure logs remain under `after/`;
+final typecheck/build and targeted-test receipts are under `engine-final/`.
+
+For game compatibility, a separate source export uses the committed matching
+pair **SHAG `dc1353b2` / Washoi `9c24997`**, plus only this checkpoint's changes.
+It reuses installed dependencies and media through junctions. This avoids
+validating against the other client's concurrently changing instagun/pickup
+cleanup. It is not a release validation of that client's subsequent commits.
+
+| Exact command / invocation | Result in the isolated assembled export |
+| --- | --- |
+| `npm.cmd run typecheck` | Passed |
+| `npm.cmd run test:run` | 720 files passed, one failed; 5,647 tests passed, one failed, one skipped |
+| `npm.cmd run test:run -- src/games/fps/editor/__tests__/EditorSession.test.ts` | All 38 passed on targeted recheck |
+| `npm.cmd run gate:biome` | Passed after the dependency-test formatting correction; zero errors / 47 warnings |
+| `node .cache/engine-game-split/build-assembled-step25.mjs` | Passed; Vite API build selected Washoi and asserted its entry was bundled; public-media copying disabled |
+| `npm.cmd run docs:fps:build` | Passed with the developer page |
+| `npm.cmd run test:runtime-equivalence` | Node/Bun 10,000-tick checksum `507638786` |
+| `npm.cmd run build:server` | Passed |
+| `bun dist-server/headless-netserver-v2.mjs --help` | Passed |
+| `npm.cmd run test:simulation` | Passed |
+| `npm.cmd run test:physics` | Passed |
+| `npm.cmd run server:tick` | Passed; `2768943778` |
+| `npm.cmd run server:fuzz -- --ticks 1000 --seed 42` | Passed; `2481546443` |
+| `npm.cmd run cli:game -- --exec "bsp load washoi_dm2; bsp info; quit"` | Passed; 7,475 faces |
+| `npm.cmd run cli:game -- --exec 'sim replay \"W+CROUCH 60; JUMP 1; W 30\"; quit'` | Passed; 91 ticks |
+
+The full assembled failure was the editor face-texturing status assertion:
+it expected `to 2 faces`, but observed the later draft-save status. Its targeted
+recheck passed; timing sensitivity is an inference, not a verified root cause.
+The full run is not reported as green. Logs are under `assembled-logs/` and
+`final-checks/`. `finish-proof-step25.mjs` also parsed both workflow files and
+verified the exact old/new prebundle union. Hosted Actions were not run.
+
+Current shared-checkout `npm.cmd run typecheck` and `npm.cmd run gate:biome`
+passed after the other client's cleanup commits. No browser/GPU session,
+Electron installer build, production deployment, live-database recovery,
+fresh `npm ci` or Git detachment was performed.
+
+Remaining: move the assembled game command/dependency recipes out of SHAG's
+package manifest, finish deployment/checkout ownership and revision-pairing
+documentation, then detach Git only after the final assembled validation.
+
+Washoi commit: `beb1781` (`refactor: own application prebundles and assembled CI`).

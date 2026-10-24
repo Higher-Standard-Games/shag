@@ -6,12 +6,23 @@
  * exists. Both were broken at once, silently, because nothing ever loaded it.
  */
 
+import { execFileSync } from "node:child_process";
+import fs from "node:fs";
 import { createRequire } from "node:module";
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 const require = createRequire(import.meta.url);
-// biome-ignore lint/suspicious/noExplicitAny: the config is plain JSON-shaped data
-const config = require("../../electron-builder.config.cjs") as any;
+const loadConfig = (selection: string) =>
+  JSON.parse(
+    execFileSync(
+      process.execPath,
+      ["-e", "process.stdout.write(JSON.stringify(require('./electron-builder.config.cjs')))"],
+      { cwd: process.cwd(), env: { ...process.env, SHAG_APP: selection }, encoding: "utf8", windowsHide: true },
+    ),
+  );
+const config = loadConfig("engine");
 const pkg = require("../../package.json") as { scripts: Record<string, string> };
 
 describe("electron-builder config", () => {
@@ -19,9 +30,27 @@ describe("electron-builder config", () => {
     expect(Object.keys(config).length).toBeGreaterThan(0);
   });
 
-  it("names the app from the selected game's manifest", () => {
-    expect(config.appId).toBeTruthy();
-    expect(config.productName).toBe("Washiki Washoi!");
+  it("names the neutral engine without a game checkout", () => {
+    expect(config.appId).toBe("com.shagengine.app");
+    expect(config.productName).toBe("SHAG Engine");
+  });
+
+  it("reads the explicitly selected application's metadata", () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "shag-desktop-config-"));
+    const manifest = path.join(directory, "game.json");
+    try {
+      fs.writeFileSync(
+        manifest,
+        JSON.stringify({ name: "example", displayName: "Example App", desktop: { appId: "example.app" } }),
+      );
+      const selected = loadConfig(directory);
+      expect(selected.appId).toBe("example.app");
+      expect(selected.productName).toBe("Example App");
+      expect(selected.nsis.shortcutName).toBe("Example App");
+    } finally {
+      fs.unlinkSync(manifest);
+      fs.rmdirSync(directory);
+    }
   });
 
   it("packages the web build and the compiled electron processes", () => {

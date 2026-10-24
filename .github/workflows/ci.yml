@@ -1,7 +1,4 @@
-# CI (QA-WO6 / QA-12): the suite, typecheck, and lint ratchet run on every push
-# to main and the QA branches, and on every PR. Before this existed, nothing ran
-# tests automatically — fixed bug classes only stayed fixed by convention.
-name: CI
+name: SHAG engine CI
 
 on:
   push:
@@ -18,15 +15,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Checkout (with submodules)
+      - name: Checkout engine only
         uses: actions/checkout@v4
         with:
-          submodules: recursive
-          # wash-fps is a separate repo: the default GITHUB_TOKEN can
-          # only read THIS repo, so if it is private, add a SUBMODULES_TOKEN
-          # secret (fine-grained PAT with read access to wash-fps) — checkout
-          # rewrites the ssh submodule URLs to authenticated https.
-          token: ${{ secrets.SUBMODULES_TOKEN || github.token }}
+          submodules: false
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -37,18 +29,8 @@ jobs:
       - name: Install
         run: npm ci
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: .bun-version
-
-      - name: Server runtime equivalence
-        run: npm run test:runtime-equivalence
-
-      - name: Production server build and Bun import smoke
-        run: |
-          npm run build:server
-          bun dist-server/headless-netserver-v2.mjs --help
+      - name: Engine profiling helper tests
+        run: node --test scripts/benchmarks/__tests__/*.test.mjs
 
       - name: Typecheck
         run: npm run typecheck
@@ -58,6 +40,14 @@ jobs:
 
       - name: Biome gate (no new diagnostics over baseline)
         run: npm run gate:biome
+
+      - name: Build engine example
+        run: npm run build
+        env:
+          SHAG_APP: engine
+
+      - name: Build engine manual
+        run: npm run docs:build
 
       # QA-WO3 regression gate: the split reliable router (whose silent dead end
       # shipped the broken-chat bug) must not come back — one router, both channels.

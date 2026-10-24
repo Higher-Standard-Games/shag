@@ -143,14 +143,18 @@ describe("DebugConsole input focus", () => {
     document.body.append(canvas, menu);
     let locked: Element | null = canvas;
     Object.defineProperty(document, "pointerLockElement", { configurable: true, get: () => locked });
-    document.exitPointerLock = () => {
-      locked = null;
-      // The game's own listener, registered first, opens its pause menu.
-      queueMicrotask(() => {
-        menu.focus();
-        document.dispatchEvent(new Event("pointerlockchange"));
-      });
-    };
+    const exitDescriptor = Object.getOwnPropertyDescriptor(document, "exitPointerLock");
+    Object.defineProperty(document, "exitPointerLock", {
+      configurable: true,
+      value: () => {
+        locked = null;
+        // The game's own listener, registered first, opens its pause menu.
+        queueMicrotask(() => {
+          menu.focus();
+          document.dispatchEvent(new Event("pointerlockchange"));
+        });
+      },
+    });
     document.addEventListener("pointerlockchange", () => menu.focus(), { once: true });
 
     const consoleUi = DebugConsole.getInstance();
@@ -162,5 +166,7 @@ describe("DebugConsole input focus", () => {
     menu.remove();
     canvas.remove();
     Reflect.deleteProperty(document, "pointerLockElement");
+    if (exitDescriptor) Object.defineProperty(document, "exitPointerLock", exitDescriptor);
+    else Reflect.deleteProperty(document, "exitPointerLock");
   });
 });

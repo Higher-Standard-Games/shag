@@ -54,9 +54,24 @@ hidden and build it while rejecting any game modules in the bundle. This check
 writes its bundle under `.cache/browser-engine-check` and does not copy public
 media. It covers the browser dependency graph, not every Node tool or engine test.
 
-This separates browser composition. Whole-project TypeScript aliases, Node
-entry points and the tracked game submodule still require their remaining
-separation work. `@game` in Vite resolves to the selected application directory;
+The browser descriptor can also declare `optimizeDeps`, an array of additional
+module specifiers to prebundle. Vite combines these with the engine's list.
+Run `npm run deps:babylon` with the application selected to regenerate the
+engine list and that application's additional Babylon imports. A neutral engine
+checkout does not need the application's list or source files. WebGPU ambient
+types are declared by SHAG's `src/vite-env.d.ts` and installed as a direct
+development dependency.
+
+Desktop packaging uses the same `SHAG_APP` / local application selection and
+reads the selected directory's `game.json` for names and desktop metadata.
+With `SHAG_APP=engine`, it uses neutral SHAG metadata; it does not infer a
+desktop application from `public/engine.json` or `GAME`.
+
+SHAG's CI checks out only the engine and runs installation, typecheck, engine
+tests, lint, the engine build and its manual build. Washoi owns the assembled
+CI workflow, including the server/runtime checks. Package command ownership
+and the tracked game submodule still require their remaining separation work.
+`@game` in Vite resolves to the selected application directory;
 engine source must not import it. The previous `GAME` variable no longer selects
 the browser application.
 

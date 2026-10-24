@@ -9,7 +9,7 @@ export function resolveBrowserApplication(root: string, explicit?: string) {
   if (typeof selection !== "string" || !selection.trim()) {
     throw new Error("Browser application must be 'engine' or a directory containing browser.json");
   }
-  if (selection === "engine") return { directory: root, entry: path.join(root, "src/main.ts"), html: null };
+  if (selection === "engine") return { directory: root, entry: path.join(root, "src/main.ts"), html: null, optimizeDeps: [] as string[] };
   const directory = path.resolve(root, selection);
   const manifest = JSON.parse(readFileSync(path.join(directory, "browser.json"), "utf8"));
   for (const key of ["entry", "html"] as const) {
@@ -18,7 +18,10 @@ export function resolveBrowserApplication(root: string, explicit?: string) {
   const entry = path.resolve(directory, manifest.entry);
   const html = path.resolve(directory, manifest.html);
   if (!existsSync(entry) || !existsSync(html)) throw new Error("Browser application entry or HTML is missing");
-  return { directory, entry, html };
+  const optimizeDeps: unknown = manifest.optimizeDeps ?? [];
+  if (!Array.isArray(optimizeDeps) || optimizeDeps.some((value) => typeof value !== "string" || !value))
+    throw new Error("browser.json optimizeDeps must be an array of module specifiers");
+  return { directory, entry, html, optimizeDeps: optimizeDeps as string[] };
 }
 
 export function browserApplicationPlugin(root: string, application: ReturnType<typeof resolveBrowserApplication>): Plugin {

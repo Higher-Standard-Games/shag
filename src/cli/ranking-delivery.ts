@@ -14,6 +14,7 @@ const value = (flag: string) => {
 if (!args.length || args.includes("--help")) {
   console.log(`Usage:
   npm run ranking:delivery -- --info --data-dir <dir> [--offset N]
+  npm run ranking:delivery -- --recover --data-dir <dir>
   npm run ranking:delivery -- --cleanup --data-dir <dir> [--older-than-hours 168] [--apply]
 
 Stop the lobby before applying offline cleanup. Preview is read-only.
@@ -24,17 +25,29 @@ Inspection never returns verification keys, admission tickets or raw reports.`);
 }
 try {
   if (
-    ["--info", "--cleanup"].filter((flag) => args.includes(flag)).length !== 1 ||
+    ["--info", "--cleanup", "--recover"].filter((flag) => args.includes(flag)).length !== 1 ||
     (args.includes("--apply") && !args.includes("--cleanup"))
   )
-    throw new Error("Choose info or cleanup; apply is only available for cleanup");
+    throw new Error("Choose info, recover or cleanup; apply is only available for cleanup");
   const dataDir = value("--data-dir");
   if (!dataDir || dataDir.startsWith("--")) throw new Error("An explicit --data-dir is required");
   const dir = path.resolve(dataDir),
     file = path.join(dir, "players.db");
   if (!fs.existsSync(file)) throw new Error("Delivery database is unavailable");
   const age = Number(value("--older-than-hours") ?? 168) * 3600000;
-  if (args.includes("--apply")) {
+  if (args.includes("--recover")) {
+    if (RatingStore.inspect(dir, true).status !== "ready")
+      throw new Error("Initialized, consistent ranking storage is required for result recovery");
+    const results = MatchResultStore.open(dir);
+    try {
+      results.deliveries.loseBotControl();
+      const delivery = results.deliveries.retryAll(0);
+      console.log(JSON.stringify({ dataDirectory: dir, delivery }, null, 2));
+      if (delivery.failed || delivery.rejected) process.exitCode = 1;
+    } finally {
+      results.close();
+    }
+  } else if (args.includes("--apply")) {
     if (RatingStore.inspect(dir, true).status !== "ready")
       throw new Error("Consistent ranking storage is required before cleanup");
     const results = MatchResultStore.open(dir);

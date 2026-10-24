@@ -27,6 +27,7 @@ describe("browser application composition", () => {
       directory: root,
       entry: path.join(root, "src/main.ts"),
       html: null,
+      optimizeDeps: [],
     });
   });
 
@@ -43,6 +44,11 @@ describe("browser application composition", () => {
     expect(() => resolveBrowserApplication(root, "missing")).toThrow();
     writeFileSync(path.join(game, "browser.json"), '{"entry":"boot.ts"}');
     expect(() => resolveBrowserApplication(root, "custom-game")).toThrow("requires html");
+    writeFileSync(
+      path.join(game, "browser.json"),
+      JSON.stringify({ entry: "boot.ts", html: "page.html", optimizeDeps: [42] }),
+    );
+    expect(() => resolveBrowserApplication(root, "custom-game")).toThrow("optimizeDeps");
   });
 
   it("uses the selected HTML at the root URL and preserves unrelated pages", () => {
