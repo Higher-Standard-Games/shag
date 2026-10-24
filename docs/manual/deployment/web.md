@@ -25,6 +25,20 @@ stays under `public/data/`. Generic root commands follow `SHAG_APP` or the local
 
 Deploy the contents of `dist/` to a static HTTPS host. Vite copies files from `public/`, so any game data under `public/data/` becomes part of the output unless the deployment process separates it. The exception is `public/ui-proto/`, the static UI mockups: the dev server serves them, and the `drop-dev-only-pages` plugin in `vite.config.ts` removes them from release builds.
 
+## Preserve persistent media during checkout changes
+
+`public/data/` is persistent, gitignored data. Changing the engine/game checkout
+layout must preserve its contents and, when it is a symlink or junction, its
+target. This applies to local development and production. A fresh Git checkout
+does not restore these assets.
+
+Before a cutover, record the existing path and link target and verify a backup
+or snapshot of the actual data. Keep the existing data attached to the assembled
+SHAG root. Exclude persistent media and its target from checkout cleanup,
+deployment deletion and empty-directory replacement. After switching code,
+verify the link, installed packages and representative map/model/sound requests
+before declaring the migration complete. Rollback must preserve the same data.
+
 ## Link previews
 
 The selected application's HTML template supplies link-preview metadata. Washoi's

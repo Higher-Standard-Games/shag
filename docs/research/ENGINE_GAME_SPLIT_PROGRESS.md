@@ -3247,3 +3247,20 @@ Assumption: the assembled checkout still uses the tracked game submodule;
 Git detachment has not happened. No application source was changed, servers
 were not started, and no fresh install, browser play or deployed-host check
 was performed for this documentation-only follow-up.
+
+## Persistent media cutover requirement (2026-10-24)
+
+User requirement: preserve `public/data` throughout migration, locally and in
+production. Treat this as a cutover acceptance condition. Do not delete, replace
+with an empty directory, relocate or detach persistent media as a side effect
+of changing Git checkouts. Inspect the path/link target and verify a backup or
+snapshot before migration; exclude both from cleanup/deployment deletion, keep
+the media attached to the assembled root and verify assets after cutover and
+rollback. The production plan already records `/srv/washoi/assets/data` and
+the `public/data` symlink; re-inspect the live deployment before acting.
+
+Read-only local inspection found `public/data` is a directory, not a reported
+symlink/junction. No media was modified, copied, moved or deleted. Production
+was not accessed. Added the same preservation rule to
+`docs/manual/deployment/web.md`; this entry and that page are the only files
+changed for this requirement. No migration or backup has been performed.
